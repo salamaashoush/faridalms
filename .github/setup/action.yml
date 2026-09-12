@@ -1,0 +1,29 @@
+name: "Setup and install"
+description: "Common setup steps for Actions"
+
+runs:
+  using: composite
+  steps:
+    # Pinned to canary on purpose: bun.lock is lockfileVersion 2, which bun 1.3.x
+    # cannot parse. Keep this in step with the Dockerfile.
+    - uses: oven-sh/setup-bun@v2
+      with:
+        bun-version: canary
+
+    # setup-bun does not install Node, and vite, vitest and playwright all execute
+    # on Node via their shebangs -- both runtimes are required.
+    - name: Use Node.js ${{ env.NODE_VERSION }}
+      uses: actions/setup-node@v6
+      with:
+        node-version: ${{ env.NODE_VERSION }}
+
+    # setup-bun caches only the bun executable, not the dependency store.
+    - name: Cache dependencies
+      uses: actions/cache@v6
+      with:
+        path: ~/.bun/install/cache
+        key: ${{ runner.os }}-bun-${{ hashFiles('**/bun.lock') }}
+        restore-keys: ${{ runner.os }}-bun-
+
+    - shell: bash
+      run: bun install --frozen-lockfile

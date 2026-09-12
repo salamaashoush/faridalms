@@ -1,0 +1,74 @@
+import { randomBytes } from "node:crypto";
+import { existsSync } from "node:fs";
+import { cp, readFile, writeFile } from "node:fs/promises";
+import { join } from "node:path";
+
+// Bootstraps a local .env for a developer. In CI and in a container build the
+// configuration comes from the environment, so writing a file there would at
+// best be pointless and at worst bake a generated secret into an image layer.
+if (process.env.CI === "true" || process.env.NODE_ENV === "production") {
+  process.exit(0);
+}
+
+const ENV_FILE = join(process.cwd(), ".env");
+const ENV_EXAMPLE_FILE = join(process.cwd(), ".env.example");
+function generateSecret() {
+  return randomBytes(32).toString("base64");
+}
+
+async function updateAuthSecret() {
+  // Generate a new secret
+  const NEW_SECRET = generateSecret();
+
+  // Read the existing .env file
+  try {
+    const data = await readFile(ENV_FILE, "utf8");
+    // Split data into lines
+    const lines = data.split("\n");
+
+    // Find the index of the line containing SESSION_SECRET, if it exists
+    const index = lines.findIndex((line) => line.startsWith("SESSION_SECRET"));
+    const secretLine = `SESSION_SECRET='${NEW_SECRET}'`;
+
+    if (index !== -1) {
+      // A bare `SESSION_SECRET` with no `=`, or an empty value, means unset.
+      const existing = lines[index]?.split("=")[1]?.trim() ?? "";
+      const isSet = existing.replaceAll(/^['"]|['"]$/g, "").length > 0;
+      if (isSet) {
+        console.log("SESSION_SECRET already set!");
+        return;
+      }
+      lines[index] = secretLine;
+    } else {
+      // Append new SESSION_SECRET if not found
+      lines.push(secretLine);
+    }
+
+    // Join the lines back into a single string
+    const updatedData = lines.join("\n");
+
+    // Write the updated data back to the .env file
+    await writeFile(ENV_FILE, updatedData, "utf8");
+    console.log("Updated SESSION_SECRET in .env file.");
+  } catch (err) {
+    console.error("Error reading .env file:", err);
+    return;
+  }
+}
+
+async function main() {
+  // copy .env.example to .env
+  if (!existsSync(ENV_FILE)) {
+    await cp(ENV_EXAMPLE_FILE, ENV_FILE);
+    console.log("Copied .env.example to .env");
+  }
+  // Update the SESSION_SECRET in the .env file
+  await updateAuthSecret();
+}
+
+try {
+  await main();
+} catch (error) {
+  console.error(error);
+  process.exit(1);
+}

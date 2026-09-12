@@ -1,0 +1,27 @@
+{
+  "compilerOptions": {
+    "strictNullChecks": true,
+    // Indexing yields `T | undefined`. Without it, `rows[i]` claims to always
+    // exist -- a lie at every real boundary (a virtualiser's sentinel row, an
+    // empty page, a split() result).
+    "noUncheckedIndexedAccess": true,
+    "target": "ES2022",
+    "lib": ["dom", "dom.iterable", "esnext"],
+    "allowJs": true,
+    "skipLibCheck": true,
+    "strict": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "module": "ESNext",
+    "moduleResolution": "Bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "jsx": "react-jsx",
+    "incremental": true,
+    "paths": {
+      "~/*": ["./src/*"]
+    }
+  },
+  "include": ["."],
+  "exclude": ["node_modules", ".output", ".nitro", "dist"]
+}

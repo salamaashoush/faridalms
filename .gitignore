@@ -1,0 +1,48 @@
+# See https://help.github.com/articles/ignoring-files/ for more about ignoring files.
+
+# dependencies
+/node_modules
+
+# env
+.env
+.env*.local
+
+# generated
+# Paraglide output: compiled from messages/*.json by postinstall and the Vite plugin.
+# (routeTree.gen.ts stays committed -- CI type-checks before anything builds it.)
+/src/i18n
+
+# build output
+.output
+.nitro
+.tanstack
+/dist
+/build
+
+# testing
+/coverage
+/test-results/
+/playwright-report/
+/blob-report/
+/playwright/.cache/
+
+# typescript
+*.tsbuildinfo
+
+# misc
+.DS_Store
+*.pem
+.cache
+.vercel
+compose.yaml
+
+# debug
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# local tooling
+.ferridriver
+
+# Local capture artifacts from the portal audit
+research/shots/
