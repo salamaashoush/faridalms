@@ -146,6 +146,44 @@ Secrets go in the `private` block of `src/env.ts`. Anything `VITE_`-prefixed is
 
 ---
 
+## What this product must not do again
+
+Each of these is a defect in the portal being replaced, recorded in
+`research/PORTAL-AUDIT.md`. A reviewer checks for them.
+
+**Say "not recorded", never render a blank.** Any value that can legitimately
+be absent goes through `<Value>`. The old portal printed a label and then
+nothing, so a parent could not tell a missing birthdate from a broken page.
+
+**Never print a raw counter.** It leaked server variables into the markup
+(`53`, `58 1 0 0`). Every number on screen carries a label.
+
+**No dead links.** A third of its navigation 404'd, on every page. A route that
+is not built does not go in `navigation.ts`, and `e2e/access.spec.ts` walks
+every nav link for every role to keep it that way.
+
+**Every table needs a mobile layout**, either a card list below `sm:` or a
+scrollable region with a caption. Nothing in the old portal was responsive.
+
+**The heading must match what is displayed.** Its calendar was titled
+"CALENDAR 2025 / 2026" while showing September 2026.
+
+---
+
+## Routes
+
+Routes live under `src/routes/_app/<prefix>/`, and the prefix is the role:
+`admin`, `teach`, `family`, `me`. `_app.tsx` gates authentication and renders
+the shell; `_app/<prefix>.tsx` gates the role. Both are required, because the
+server authorises data but only the route can stop a page rendering at all.
+
+Filters, the selected child, the selected week and the open folder all live in
+the URL via `validateSearch`. None of them belong in `useState`. Read data with
+`useSuspenseQuery` behind a route loader, never `useQuery` plus a loading
+branch.
+
+---
+
 ## The database
 
 PostgreSQL, via Drizzle ORM on Bun SQL. `bun run db:up` starts it in Docker on
