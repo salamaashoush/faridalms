@@ -95,6 +95,11 @@ tells a parent nothing about whether the school holds one.
 | `bun run test`              | vitest                                                  |
 | `bun run test:e2e`          | Playwright, against a production build                  |
 
+The app runs on the Bun runtime, not Node: `drizzle-orm/bun-sql` imports the
+`bun` module, so `dev`, `build`, `preview` and `start` all pass `--bun`. The
+test tooling still runs on Node, which is why nothing under `src/utils/` may
+import `~/db`.
+
 `AGENTS.md` documents the traps this codebase has already fallen into. Read it
 before changing anything; each rule in it exists because breaking it produced a
 real bug.

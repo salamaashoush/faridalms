@@ -1,4 +1,3 @@
-import { Link } from "@tanstack/react-router";
 import {
   BookOpen,
   ClipboardList,
@@ -6,6 +5,7 @@ import {
   UserCheck,
 } from "lucide-react";
 
+import { ButtonLink } from "~/components/app/ButtonLink";
 import {
   Field,
   SectionCard,
@@ -14,7 +14,6 @@ import {
 } from "~/components/app/primitives";
 import { initialsOf } from "~/components/app/UserMenu";
 import { Avatar, AvatarFallback, AvatarImage } from "~/components/ui/avatar";
-import { Button } from "~/components/ui/button";
 import * as m from "~/i18n/messages";
 import { formatNumber } from "~/utils/datetime";
 
@@ -68,15 +67,14 @@ export function ChildCard({
       title={student.fullName}
       description={student.grade ?? undefined}
       actions={
-        <Button
+        <ButtonLink
           size="sm"
           variant="outline"
-          render={
-            <Link to="/family/children" search={{ studentId: student.id }}>
-              {m.familyOpenProfile()}
-            </Link>
-          }
-        />
+          to="/family/children"
+          search={{ studentId: student.id }}
+        >
+          {m.familyOpenProfile()}
+        </ButtonLink>
       }
     >
       <div className="flex items-start gap-4">
@@ -134,42 +132,38 @@ export function ChildCard({
       </div>
 
       <div className="mt-5 flex flex-wrap gap-2">
-        <Button
+        <ButtonLink
           size="sm"
           variant="ghost"
-          render={
-            <Link to="/family/assignments" search={{ studentId: student.id }}>
-              {m.navAssignments()}
-            </Link>
-          }
-        />
-        <Button
+          to="/family/assignments"
+          search={{ studentId: student.id }}
+        >
+          {m.navAssignments()}
+        </ButtonLink>
+        <ButtonLink
           size="sm"
           variant="ghost"
-          render={
-            <Link to="/family/grades" search={{ studentId: student.id }}>
-              {m.navGrades()}
-            </Link>
-          }
-        />
-        <Button
+          to="/family/grades"
+          search={{ studentId: student.id }}
+        >
+          {m.navGrades()}
+        </ButtonLink>
+        <ButtonLink
           size="sm"
           variant="ghost"
-          render={
-            <Link to="/family/attendance" search={{ studentId: student.id }}>
-              {m.navAttendance()}
-            </Link>
-          }
-        />
-        <Button
+          to="/family/attendance"
+          search={{ studentId: student.id }}
+        >
+          {m.navAttendance()}
+        </ButtonLink>
+        <ButtonLink
           size="sm"
           variant="ghost"
-          render={
-            <Link to="/family/timetable" search={{ studentId: student.id }}>
-              {m.navTimetable()}
-            </Link>
-          }
-        />
+          to="/family/timetable"
+          search={{ studentId: student.id }}
+        >
+          {m.navTimetable()}
+        </ButtonLink>
       </div>
     </SectionCard>
   );

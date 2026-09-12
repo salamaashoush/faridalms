@@ -1,8 +1,9 @@
 import type { ErrorComponentProps } from "@tanstack/react-router";
 
-import { Link, rootRouteId, useMatch, useRouter } from "@tanstack/react-router";
+import { rootRouteId, useMatch, useRouter } from "@tanstack/react-router";
 import { RefreshCw, TriangleAlert } from "lucide-react";
 
+import { ButtonLink } from "~/components/app/ButtonLink";
 import { Button } from "~/components/ui/button";
 import * as m from "~/i18n/messages";
 import { getMessageFromError } from "~/utils/error";
@@ -34,10 +35,9 @@ export function DefaultCatchBoundary({ error, reset }: ErrorComponentProps) {
           </Button>
 
           {isRoot ? (
-            <Button
-              variant="outline"
-              render={<Link to="/">{m.errorGoHome()}</Link>}
-            />
+            <ButtonLink variant="outline" to="/">
+              {m.errorGoHome()}
+            </ButtonLink>
           ) : (
             <Button
               variant="outline"

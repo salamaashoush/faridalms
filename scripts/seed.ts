@@ -521,8 +521,11 @@ async function main() {
     // Weeks 1 and 2 are behind the seeded "today", so they carry outcomes.
     const isPast = assignment.dueDate < "2026-09-14";
     for (const student of roster) {
+      // Some past work stays "submitted" so the teacher's grading queue has
+      // something in it. A seed where everything is already returned makes the
+      // whole grading screen unreachable.
       const state = isPast
-        ? pick(random, ["returned", "returned", "submitted"] as const)
+        ? pick(random, ["returned", "submitted", "submitted"] as const)
         : "not_started";
       const score = state === "returned" ? 6 + Math.floor(random() * 5) : null;
       submissionValues.push({

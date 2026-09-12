@@ -63,13 +63,17 @@ function ChildProfilePage() {
       />
 
       <Tabs defaultValue="information" className="gap-4">
-        <TabsList>
-          <TabsTrigger value="information">
-            {m.studentInformation()}
-          </TabsTrigger>
-          <TabsTrigger value="contact">{m.studentContact()}</TabsTrigger>
-          <TabsTrigger value="medical">{m.studentMedical()}</TabsTrigger>
-        </TabsList>
+        {/* The three labels are wider than a phone, and TabsList is vendored
+            registry code, so the scroll belongs on a wrapper we own. */}
+        <div className="-mx-1 overflow-x-auto px-1">
+          <TabsList>
+            <TabsTrigger value="information">
+              {m.studentInformation()}
+            </TabsTrigger>
+            <TabsTrigger value="contact">{m.studentContact()}</TabsTrigger>
+            <TabsTrigger value="medical">{m.studentMedical()}</TabsTrigger>
+          </TabsList>
+        </div>
 
         <TabsContent value="information">
           <SectionCard title={m.studentInformation()}>

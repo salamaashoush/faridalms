@@ -556,7 +556,7 @@ export const getCalendar = createServerFn({ method: "GET" })
       Date.UTC(Number(yearPart), Number(monthPart), 0),
     ).getUTCDate();
 
-    const [monthEvents, allEvents] = await Promise.all([
+    const [monthRange, allEvents] = await Promise.all([
       eventsInRange(
         year.id,
         `${month}-01`,
@@ -564,6 +564,15 @@ export const getCalendar = createServerFn({ method: "GET" })
       ),
       listEvents(year.id, data.categories),
     ]);
+
+    // The grid honours the same category filter as the agenda. Returning the
+    // whole month made the client re-filter what the server already knew.
+    const monthEvents =
+      data.categories.length === 0
+        ? monthRange
+        : monthRange.filter((event) =>
+            data.categories.includes(event.category),
+          );
 
     return { month, today: TODAY, monthEvents, allEvents };
   });

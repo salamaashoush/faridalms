@@ -1,5 +1,5 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { createFileRoute, Link } from "@tanstack/react-router";
+import { createFileRoute } from "@tanstack/react-router";
 import {
   CalendarClock,
   CircleCheckBig,
@@ -9,6 +9,7 @@ import {
   UserCheck,
 } from "lucide-react";
 
+import { ButtonLink } from "~/components/app/ButtonLink";
 import { SubjectIcon, SubmissionBadge } from "~/components/app/labels";
 import {
   EmptyState,
@@ -27,7 +28,6 @@ import {
   subjectName,
   weekdayOf,
 } from "~/components/me/format";
-import { Button } from "~/components/ui/button";
 import * as m from "~/i18n/messages";
 import { studentOverviewQuery } from "~/queries/school";
 import { cn } from "~/utils/cn";
@@ -114,11 +114,9 @@ function StudentOverviewPage() {
         <SectionCard
           title={m.meNextLesson()}
           actions={
-            <Button
-              variant="ghost"
-              size="sm"
-              render={<Link to="/me/timetable">{m.navTimetable()}</Link>}
-            />
+            <ButtonLink variant="ghost" size="sm" to="/me/timetable">
+              {m.navTimetable()}
+            </ButtonLink>
           }
         >
           {nextLesson ? (
@@ -162,15 +160,14 @@ function StudentOverviewPage() {
           title={m.meDueSoon()}
           description={m.meDueSoonSubtitle()}
           actions={
-            <Button
+            <ButtonLink
               variant="ghost"
               size="sm"
-              render={
-                <Link to="/me/assignments" search={{ studentId: "" }}>
-                  {m.commonViewAll()}
-                </Link>
-              }
-            />
+              to="/me/assignments"
+              search={{ studentId: "" }}
+            >
+              {m.commonViewAll()}
+            </ButtonLink>
           }
         >
           {outstanding.length === 0 ? (

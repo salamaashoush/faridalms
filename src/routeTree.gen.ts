@@ -12,6 +12,10 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as AuthRouteImport } from './routes/_auth'
+import { Route as AppAdminRouteImport } from './routes/_app/admin'
+import { Route as AppFamilyRouteImport } from './routes/_app/family'
+import { Route as AppMeRouteImport } from './routes/_app/me'
+import { Route as AppTeachRouteImport } from './routes/_app/teach'
 import { Route as AuthSignInRouteImport } from './routes/_auth/sign-in'
 import { Route as ApiHealthRouteImport } from './routes/api/health'
 import { Route as AppAdminIndexRouteImport } from './routes/_app/admin/index'
@@ -60,6 +64,26 @@ const AuthRoute = AuthRouteImport.update({
   id: '/_auth',
   getParentRoute: () => rootRouteImport,
 } as any)
+const AppAdminRoute = AppAdminRouteImport.update({
+  id: '/admin',
+  path: '/admin',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppFamilyRoute = AppFamilyRouteImport.update({
+  id: '/family',
+  path: '/family',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppMeRoute = AppMeRouteImport.update({
+  id: '/me',
+  path: '/me',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppTeachRoute = AppTeachRouteImport.update({
+  id: '/teach',
+  path: '/teach',
+  getParentRoute: () => AppRoute,
+} as any)
 const AuthSignInRoute = AuthSignInRouteImport.update({
   id: '/sign-in',
   path: '/sign-in',
@@ -71,168 +95,172 @@ const ApiHealthRoute = ApiHealthRouteImport.update({
   getParentRoute: () => rootRouteImport,
 } as any)
 const AppAdminIndexRoute = AppAdminIndexRouteImport.update({
-  id: '/admin/',
-  path: '/admin/',
-  getParentRoute: () => AppRoute,
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppAdminRoute,
 } as any)
 const AppAdminCalendarRoute = AppAdminCalendarRouteImport.update({
-  id: '/admin/calendar',
-  path: '/admin/calendar',
-  getParentRoute: () => AppRoute,
+  id: '/calendar',
+  path: '/calendar',
+  getParentRoute: () => AppAdminRoute,
 } as any)
 const AppAdminClassesRoute = AppAdminClassesRouteImport.update({
-  id: '/admin/classes',
-  path: '/admin/classes',
-  getParentRoute: () => AppRoute,
+  id: '/classes',
+  path: '/classes',
+  getParentRoute: () => AppAdminRoute,
 } as any)
 const AppAdminMessagesRoute = AppAdminMessagesRouteImport.update({
-  id: '/admin/messages',
-  path: '/admin/messages',
-  getParentRoute: () => AppRoute,
+  id: '/messages',
+  path: '/messages',
+  getParentRoute: () => AppAdminRoute,
 } as any)
 const AppAdminNewslettersRoute = AppAdminNewslettersRouteImport.update({
-  id: '/admin/newsletters',
-  path: '/admin/newsletters',
-  getParentRoute: () => AppRoute,
+  id: '/newsletters',
+  path: '/newsletters',
+  getParentRoute: () => AppAdminRoute,
 } as any)
 const AppAdminSettingsRoute = AppAdminSettingsRouteImport.update({
-  id: '/admin/settings',
-  path: '/admin/settings',
-  getParentRoute: () => AppRoute,
+  id: '/settings',
+  path: '/settings',
+  getParentRoute: () => AppAdminRoute,
 } as any)
 const AppAdminStaffRoute = AppAdminStaffRouteImport.update({
-  id: '/admin/staff',
-  path: '/admin/staff',
-  getParentRoute: () => AppRoute,
+  id: '/staff',
+  path: '/staff',
+  getParentRoute: () => AppAdminRoute,
 } as any)
 const AppAdminStudentsRoute = AppAdminStudentsRouteImport.update({
-  id: '/admin/students',
-  path: '/admin/students',
-  getParentRoute: () => AppRoute,
+  id: '/students',
+  path: '/students',
+  getParentRoute: () => AppAdminRoute,
 } as any)
 const AppFamilyIndexRoute = AppFamilyIndexRouteImport.update({
-  id: '/family/',
-  path: '/family/',
-  getParentRoute: () => AppRoute,
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppFamilyRoute,
 } as any)
 const AppFamilyAssignmentsRoute = AppFamilyAssignmentsRouteImport.update({
-  id: '/family/assignments',
-  path: '/family/assignments',
-  getParentRoute: () => AppRoute,
+  id: '/assignments',
+  path: '/assignments',
+  getParentRoute: () => AppFamilyRoute,
 } as any)
 const AppFamilyAttendanceRoute = AppFamilyAttendanceRouteImport.update({
-  id: '/family/attendance',
-  path: '/family/attendance',
-  getParentRoute: () => AppRoute,
+  id: '/attendance',
+  path: '/attendance',
+  getParentRoute: () => AppFamilyRoute,
 } as any)
 const AppFamilyCalendarRoute = AppFamilyCalendarRouteImport.update({
-  id: '/family/calendar',
-  path: '/family/calendar',
-  getParentRoute: () => AppRoute,
+  id: '/calendar',
+  path: '/calendar',
+  getParentRoute: () => AppFamilyRoute,
 } as any)
 const AppFamilyChildrenRoute = AppFamilyChildrenRouteImport.update({
-  id: '/family/children',
-  path: '/family/children',
-  getParentRoute: () => AppRoute,
+  id: '/children',
+  path: '/children',
+  getParentRoute: () => AppFamilyRoute,
 } as any)
 const AppFamilyGradesRoute = AppFamilyGradesRouteImport.update({
-  id: '/family/grades',
-  path: '/family/grades',
-  getParentRoute: () => AppRoute,
+  id: '/grades',
+  path: '/grades',
+  getParentRoute: () => AppFamilyRoute,
 } as any)
 const AppFamilyMessagesRoute = AppFamilyMessagesRouteImport.update({
-  id: '/family/messages',
-  path: '/family/messages',
-  getParentRoute: () => AppRoute,
+  id: '/messages',
+  path: '/messages',
+  getParentRoute: () => AppFamilyRoute,
 } as any)
 const AppFamilyNewslettersRoute = AppFamilyNewslettersRouteImport.update({
-  id: '/family/newsletters',
-  path: '/family/newsletters',
-  getParentRoute: () => AppRoute,
+  id: '/newsletters',
+  path: '/newsletters',
+  getParentRoute: () => AppFamilyRoute,
 } as any)
 const AppFamilyTimetableRoute = AppFamilyTimetableRouteImport.update({
-  id: '/family/timetable',
-  path: '/family/timetable',
-  getParentRoute: () => AppRoute,
+  id: '/timetable',
+  path: '/timetable',
+  getParentRoute: () => AppFamilyRoute,
 } as any)
 const AppMeIndexRoute = AppMeIndexRouteImport.update({
-  id: '/me/',
-  path: '/me/',
-  getParentRoute: () => AppRoute,
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppMeRoute,
 } as any)
 const AppMeAssignmentsRoute = AppMeAssignmentsRouteImport.update({
-  id: '/me/assignments',
-  path: '/me/assignments',
-  getParentRoute: () => AppRoute,
+  id: '/assignments',
+  path: '/assignments',
+  getParentRoute: () => AppMeRoute,
 } as any)
 const AppMeAttendanceRoute = AppMeAttendanceRouteImport.update({
-  id: '/me/attendance',
-  path: '/me/attendance',
-  getParentRoute: () => AppRoute,
+  id: '/attendance',
+  path: '/attendance',
+  getParentRoute: () => AppMeRoute,
 } as any)
 const AppMeCalendarRoute = AppMeCalendarRouteImport.update({
-  id: '/me/calendar',
-  path: '/me/calendar',
-  getParentRoute: () => AppRoute,
+  id: '/calendar',
+  path: '/calendar',
+  getParentRoute: () => AppMeRoute,
 } as any)
 const AppMeGradesRoute = AppMeGradesRouteImport.update({
-  id: '/me/grades',
-  path: '/me/grades',
-  getParentRoute: () => AppRoute,
+  id: '/grades',
+  path: '/grades',
+  getParentRoute: () => AppMeRoute,
 } as any)
 const AppMeMessagesRoute = AppMeMessagesRouteImport.update({
-  id: '/me/messages',
-  path: '/me/messages',
-  getParentRoute: () => AppRoute,
+  id: '/messages',
+  path: '/messages',
+  getParentRoute: () => AppMeRoute,
 } as any)
 const AppMeTimetableRoute = AppMeTimetableRouteImport.update({
-  id: '/me/timetable',
-  path: '/me/timetable',
-  getParentRoute: () => AppRoute,
+  id: '/timetable',
+  path: '/timetable',
+  getParentRoute: () => AppMeRoute,
 } as any)
 const AppTeachIndexRoute = AppTeachIndexRouteImport.update({
-  id: '/teach/',
-  path: '/teach/',
-  getParentRoute: () => AppRoute,
+  id: '/',
+  path: '/',
+  getParentRoute: () => AppTeachRoute,
 } as any)
 const AppTeachAssignmentsRoute = AppTeachAssignmentsRouteImport.update({
-  id: '/teach/assignments',
-  path: '/teach/assignments',
-  getParentRoute: () => AppRoute,
+  id: '/assignments',
+  path: '/assignments',
+  getParentRoute: () => AppTeachRoute,
 } as any)
 const AppTeachAttendanceRoute = AppTeachAttendanceRouteImport.update({
-  id: '/teach/attendance',
-  path: '/teach/attendance',
-  getParentRoute: () => AppRoute,
+  id: '/attendance',
+  path: '/attendance',
+  getParentRoute: () => AppTeachRoute,
 } as any)
 const AppTeachCalendarRoute = AppTeachCalendarRouteImport.update({
-  id: '/teach/calendar',
-  path: '/teach/calendar',
-  getParentRoute: () => AppRoute,
+  id: '/calendar',
+  path: '/calendar',
+  getParentRoute: () => AppTeachRoute,
 } as any)
 const AppTeachClassesRoute = AppTeachClassesRouteImport.update({
-  id: '/teach/classes',
-  path: '/teach/classes',
-  getParentRoute: () => AppRoute,
+  id: '/classes',
+  path: '/classes',
+  getParentRoute: () => AppTeachRoute,
 } as any)
 const AppTeachGradingRoute = AppTeachGradingRouteImport.update({
-  id: '/teach/grading',
-  path: '/teach/grading',
-  getParentRoute: () => AppRoute,
+  id: '/grading',
+  path: '/grading',
+  getParentRoute: () => AppTeachRoute,
 } as any)
 const AppTeachMessagesRoute = AppTeachMessagesRouteImport.update({
-  id: '/teach/messages',
-  path: '/teach/messages',
-  getParentRoute: () => AppRoute,
+  id: '/messages',
+  path: '/messages',
+  getParentRoute: () => AppTeachRoute,
 } as any)
 const AppTeachTimetableRoute = AppTeachTimetableRouteImport.update({
-  id: '/teach/timetable',
-  path: '/teach/timetable',
-  getParentRoute: () => AppRoute,
+  id: '/timetable',
+  path: '/timetable',
+  getParentRoute: () => AppTeachRoute,
 } as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/admin': typeof AppAdminRouteWithChildren
+  '/family': typeof AppFamilyRouteWithChildren
+  '/me': typeof AppMeRouteWithChildren
+  '/teach': typeof AppTeachRouteWithChildren
   '/sign-in': typeof AuthSignInRoute
   '/api/health': typeof ApiHealthRoute
   '/admin/calendar': typeof AppAdminCalendarRoute
@@ -310,6 +338,10 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_app': typeof AppRouteWithChildren
   '/_auth': typeof AuthRouteWithChildren
+  '/_app/admin': typeof AppAdminRouteWithChildren
+  '/_app/family': typeof AppFamilyRouteWithChildren
+  '/_app/me': typeof AppMeRouteWithChildren
+  '/_app/teach': typeof AppTeachRouteWithChildren
   '/_auth/sign-in': typeof AuthSignInRoute
   '/api/health': typeof ApiHealthRoute
   '/_app/admin/calendar': typeof AppAdminCalendarRoute
@@ -349,6 +381,10 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/admin'
+    | '/family'
+    | '/me'
+    | '/teach'
     | '/sign-in'
     | '/api/health'
     | '/admin/calendar'
@@ -425,6 +461,10 @@ export interface FileRouteTypes {
     | '/'
     | '/_app'
     | '/_auth'
+    | '/_app/admin'
+    | '/_app/family'
+    | '/_app/me'
+    | '/_app/teach'
     | '/_auth/sign-in'
     | '/api/health'
     | '/_app/admin/calendar'
@@ -491,6 +531,34 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AuthRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/_app/admin': {
+      id: '/_app/admin'
+      path: '/admin'
+      fullPath: '/admin'
+      preLoaderRoute: typeof AppAdminRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/family': {
+      id: '/_app/family'
+      path: '/family'
+      fullPath: '/family'
+      preLoaderRoute: typeof AppFamilyRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/me': {
+      id: '/_app/me'
+      path: '/me'
+      fullPath: '/me'
+      preLoaderRoute: typeof AppMeRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/teach': {
+      id: '/_app/teach'
+      path: '/teach'
+      fullPath: '/teach'
+      preLoaderRoute: typeof AppTeachRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_auth/sign-in': {
       id: '/_auth/sign-in'
       path: '/sign-in'
@@ -507,232 +575,232 @@ declare module '@tanstack/react-router' {
     }
     '/_app/admin/': {
       id: '/_app/admin/'
-      path: '/admin'
+      path: '/'
       fullPath: '/admin/'
       preLoaderRoute: typeof AppAdminIndexRouteImport
-      parentRoute: typeof AppRoute
+      parentRoute: typeof AppAdminRoute
     }
     '/_app/admin/calendar': {
       id: '/_app/admin/calendar'
-      path: '/admin/calendar'
+      path: '/calendar'
       fullPath: '/admin/calendar'
       preLoaderRoute: typeof AppAdminCalendarRouteImport
-      parentRoute: typeof AppRoute
+      parentRoute: typeof AppAdminRoute
     }
     '/_app/admin/classes': {
       id: '/_app/admin/classes'
-      path: '/admin/classes'
+      path: '/classes'
       fullPath: '/admin/classes'
       preLoaderRoute: typeof AppAdminClassesRouteImport
-      parentRoute: typeof AppRoute
+      parentRoute: typeof AppAdminRoute
     }
     '/_app/admin/messages': {
       id: '/_app/admin/messages'
-      path: '/admin/messages'
+      path: '/messages'
       fullPath: '/admin/messages'
       preLoaderRoute: typeof AppAdminMessagesRouteImport
-      parentRoute: typeof AppRoute
+      parentRoute: typeof AppAdminRoute
     }
     '/_app/admin/newsletters': {
       id: '/_app/admin/newsletters'
-      path: '/admin/newsletters'
+      path: '/newsletters'
       fullPath: '/admin/newsletters'
       preLoaderRoute: typeof AppAdminNewslettersRouteImport
-      parentRoute: typeof AppRoute
+      parentRoute: typeof AppAdminRoute
     }
     '/_app/admin/settings': {
       id: '/_app/admin/settings'
-      path: '/admin/settings'
+      path: '/settings'
       fullPath: '/admin/settings'
       preLoaderRoute: typeof AppAdminSettingsRouteImport
-      parentRoute: typeof AppRoute
+      parentRoute: typeof AppAdminRoute
     }
     '/_app/admin/staff': {
       id: '/_app/admin/staff'
-      path: '/admin/staff'
+      path: '/staff'
       fullPath: '/admin/staff'
       preLoaderRoute: typeof AppAdminStaffRouteImport
-      parentRoute: typeof AppRoute
+      parentRoute: typeof AppAdminRoute
     }
     '/_app/admin/students': {
       id: '/_app/admin/students'
-      path: '/admin/students'
+      path: '/students'
       fullPath: '/admin/students'
       preLoaderRoute: typeof AppAdminStudentsRouteImport
-      parentRoute: typeof AppRoute
+      parentRoute: typeof AppAdminRoute
     }
     '/_app/family/': {
       id: '/_app/family/'
-      path: '/family'
+      path: '/'
       fullPath: '/family/'
       preLoaderRoute: typeof AppFamilyIndexRouteImport
-      parentRoute: typeof AppRoute
+      parentRoute: typeof AppFamilyRoute
     }
     '/_app/family/assignments': {
       id: '/_app/family/assignments'
-      path: '/family/assignments'
+      path: '/assignments'
       fullPath: '/family/assignments'
       preLoaderRoute: typeof AppFamilyAssignmentsRouteImport
-      parentRoute: typeof AppRoute
+      parentRoute: typeof AppFamilyRoute
     }
     '/_app/family/attendance': {
       id: '/_app/family/attendance'
-      path: '/family/attendance'
+      path: '/attendance'
       fullPath: '/family/attendance'
       preLoaderRoute: typeof AppFamilyAttendanceRouteImport
-      parentRoute: typeof AppRoute
+      parentRoute: typeof AppFamilyRoute
     }
     '/_app/family/calendar': {
       id: '/_app/family/calendar'
-      path: '/family/calendar'
+      path: '/calendar'
       fullPath: '/family/calendar'
       preLoaderRoute: typeof AppFamilyCalendarRouteImport
-      parentRoute: typeof AppRoute
+      parentRoute: typeof AppFamilyRoute
     }
     '/_app/family/children': {
       id: '/_app/family/children'
-      path: '/family/children'
+      path: '/children'
       fullPath: '/family/children'
       preLoaderRoute: typeof AppFamilyChildrenRouteImport
-      parentRoute: typeof AppRoute
+      parentRoute: typeof AppFamilyRoute
     }
     '/_app/family/grades': {
       id: '/_app/family/grades'
-      path: '/family/grades'
+      path: '/grades'
       fullPath: '/family/grades'
       preLoaderRoute: typeof AppFamilyGradesRouteImport
-      parentRoute: typeof AppRoute
+      parentRoute: typeof AppFamilyRoute
     }
     '/_app/family/messages': {
       id: '/_app/family/messages'
-      path: '/family/messages'
+      path: '/messages'
       fullPath: '/family/messages'
       preLoaderRoute: typeof AppFamilyMessagesRouteImport
-      parentRoute: typeof AppRoute
+      parentRoute: typeof AppFamilyRoute
     }
     '/_app/family/newsletters': {
       id: '/_app/family/newsletters'
-      path: '/family/newsletters'
+      path: '/newsletters'
       fullPath: '/family/newsletters'
       preLoaderRoute: typeof AppFamilyNewslettersRouteImport
-      parentRoute: typeof AppRoute
+      parentRoute: typeof AppFamilyRoute
     }
     '/_app/family/timetable': {
       id: '/_app/family/timetable'
-      path: '/family/timetable'
+      path: '/timetable'
       fullPath: '/family/timetable'
       preLoaderRoute: typeof AppFamilyTimetableRouteImport
-      parentRoute: typeof AppRoute
+      parentRoute: typeof AppFamilyRoute
     }
     '/_app/me/': {
       id: '/_app/me/'
-      path: '/me'
+      path: '/'
       fullPath: '/me/'
       preLoaderRoute: typeof AppMeIndexRouteImport
-      parentRoute: typeof AppRoute
+      parentRoute: typeof AppMeRoute
     }
     '/_app/me/assignments': {
       id: '/_app/me/assignments'
-      path: '/me/assignments'
+      path: '/assignments'
       fullPath: '/me/assignments'
       preLoaderRoute: typeof AppMeAssignmentsRouteImport
-      parentRoute: typeof AppRoute
+      parentRoute: typeof AppMeRoute
     }
     '/_app/me/attendance': {
       id: '/_app/me/attendance'
-      path: '/me/attendance'
+      path: '/attendance'
       fullPath: '/me/attendance'
       preLoaderRoute: typeof AppMeAttendanceRouteImport
-      parentRoute: typeof AppRoute
+      parentRoute: typeof AppMeRoute
     }
     '/_app/me/calendar': {
       id: '/_app/me/calendar'
-      path: '/me/calendar'
+      path: '/calendar'
       fullPath: '/me/calendar'
       preLoaderRoute: typeof AppMeCalendarRouteImport
-      parentRoute: typeof AppRoute
+      parentRoute: typeof AppMeRoute
     }
     '/_app/me/grades': {
       id: '/_app/me/grades'
-      path: '/me/grades'
+      path: '/grades'
       fullPath: '/me/grades'
       preLoaderRoute: typeof AppMeGradesRouteImport
-      parentRoute: typeof AppRoute
+      parentRoute: typeof AppMeRoute
     }
     '/_app/me/messages': {
       id: '/_app/me/messages'
-      path: '/me/messages'
+      path: '/messages'
       fullPath: '/me/messages'
       preLoaderRoute: typeof AppMeMessagesRouteImport
-      parentRoute: typeof AppRoute
+      parentRoute: typeof AppMeRoute
     }
     '/_app/me/timetable': {
       id: '/_app/me/timetable'
-      path: '/me/timetable'
+      path: '/timetable'
       fullPath: '/me/timetable'
       preLoaderRoute: typeof AppMeTimetableRouteImport
-      parentRoute: typeof AppRoute
+      parentRoute: typeof AppMeRoute
     }
     '/_app/teach/': {
       id: '/_app/teach/'
-      path: '/teach'
+      path: '/'
       fullPath: '/teach/'
       preLoaderRoute: typeof AppTeachIndexRouteImport
-      parentRoute: typeof AppRoute
+      parentRoute: typeof AppTeachRoute
     }
     '/_app/teach/assignments': {
       id: '/_app/teach/assignments'
-      path: '/teach/assignments'
+      path: '/assignments'
       fullPath: '/teach/assignments'
       preLoaderRoute: typeof AppTeachAssignmentsRouteImport
-      parentRoute: typeof AppRoute
+      parentRoute: typeof AppTeachRoute
     }
     '/_app/teach/attendance': {
       id: '/_app/teach/attendance'
-      path: '/teach/attendance'
+      path: '/attendance'
       fullPath: '/teach/attendance'
       preLoaderRoute: typeof AppTeachAttendanceRouteImport
-      parentRoute: typeof AppRoute
+      parentRoute: typeof AppTeachRoute
     }
     '/_app/teach/calendar': {
       id: '/_app/teach/calendar'
-      path: '/teach/calendar'
+      path: '/calendar'
       fullPath: '/teach/calendar'
       preLoaderRoute: typeof AppTeachCalendarRouteImport
-      parentRoute: typeof AppRoute
+      parentRoute: typeof AppTeachRoute
     }
     '/_app/teach/classes': {
       id: '/_app/teach/classes'
-      path: '/teach/classes'
+      path: '/classes'
       fullPath: '/teach/classes'
       preLoaderRoute: typeof AppTeachClassesRouteImport
-      parentRoute: typeof AppRoute
+      parentRoute: typeof AppTeachRoute
     }
     '/_app/teach/grading': {
       id: '/_app/teach/grading'
-      path: '/teach/grading'
+      path: '/grading'
       fullPath: '/teach/grading'
       preLoaderRoute: typeof AppTeachGradingRouteImport
-      parentRoute: typeof AppRoute
+      parentRoute: typeof AppTeachRoute
     }
     '/_app/teach/messages': {
       id: '/_app/teach/messages'
-      path: '/teach/messages'
+      path: '/messages'
       fullPath: '/teach/messages'
       preLoaderRoute: typeof AppTeachMessagesRouteImport
-      parentRoute: typeof AppRoute
+      parentRoute: typeof AppTeachRoute
     }
     '/_app/teach/timetable': {
       id: '/_app/teach/timetable'
-      path: '/teach/timetable'
+      path: '/timetable'
       fullPath: '/teach/timetable'
       preLoaderRoute: typeof AppTeachTimetableRouteImport
-      parentRoute: typeof AppRoute
+      parentRoute: typeof AppTeachRoute
     }
   }
 }
 
-interface AppRouteChildren {
+interface AppAdminRouteChildren {
   AppAdminCalendarRoute: typeof AppAdminCalendarRoute
   AppAdminClassesRoute: typeof AppAdminClassesRoute
   AppAdminMessagesRoute: typeof AppAdminMessagesRoute
@@ -740,6 +808,25 @@ interface AppRouteChildren {
   AppAdminSettingsRoute: typeof AppAdminSettingsRoute
   AppAdminStaffRoute: typeof AppAdminStaffRoute
   AppAdminStudentsRoute: typeof AppAdminStudentsRoute
+  AppAdminIndexRoute: typeof AppAdminIndexRoute
+}
+
+const AppAdminRouteChildren: AppAdminRouteChildren = {
+  AppAdminCalendarRoute: AppAdminCalendarRoute,
+  AppAdminClassesRoute: AppAdminClassesRoute,
+  AppAdminMessagesRoute: AppAdminMessagesRoute,
+  AppAdminNewslettersRoute: AppAdminNewslettersRoute,
+  AppAdminSettingsRoute: AppAdminSettingsRoute,
+  AppAdminStaffRoute: AppAdminStaffRoute,
+  AppAdminStudentsRoute: AppAdminStudentsRoute,
+  AppAdminIndexRoute: AppAdminIndexRoute,
+}
+
+const AppAdminRouteWithChildren = AppAdminRoute._addFileChildren(
+  AppAdminRouteChildren,
+)
+
+interface AppFamilyRouteChildren {
   AppFamilyAssignmentsRoute: typeof AppFamilyAssignmentsRoute
   AppFamilyAttendanceRoute: typeof AppFamilyAttendanceRoute
   AppFamilyCalendarRoute: typeof AppFamilyCalendarRoute
@@ -748,33 +835,10 @@ interface AppRouteChildren {
   AppFamilyMessagesRoute: typeof AppFamilyMessagesRoute
   AppFamilyNewslettersRoute: typeof AppFamilyNewslettersRoute
   AppFamilyTimetableRoute: typeof AppFamilyTimetableRoute
-  AppMeAssignmentsRoute: typeof AppMeAssignmentsRoute
-  AppMeAttendanceRoute: typeof AppMeAttendanceRoute
-  AppMeCalendarRoute: typeof AppMeCalendarRoute
-  AppMeGradesRoute: typeof AppMeGradesRoute
-  AppMeMessagesRoute: typeof AppMeMessagesRoute
-  AppMeTimetableRoute: typeof AppMeTimetableRoute
-  AppTeachAssignmentsRoute: typeof AppTeachAssignmentsRoute
-  AppTeachAttendanceRoute: typeof AppTeachAttendanceRoute
-  AppTeachCalendarRoute: typeof AppTeachCalendarRoute
-  AppTeachClassesRoute: typeof AppTeachClassesRoute
-  AppTeachGradingRoute: typeof AppTeachGradingRoute
-  AppTeachMessagesRoute: typeof AppTeachMessagesRoute
-  AppTeachTimetableRoute: typeof AppTeachTimetableRoute
-  AppAdminIndexRoute: typeof AppAdminIndexRoute
   AppFamilyIndexRoute: typeof AppFamilyIndexRoute
-  AppMeIndexRoute: typeof AppMeIndexRoute
-  AppTeachIndexRoute: typeof AppTeachIndexRoute
 }
 
-const AppRouteChildren: AppRouteChildren = {
-  AppAdminCalendarRoute: AppAdminCalendarRoute,
-  AppAdminClassesRoute: AppAdminClassesRoute,
-  AppAdminMessagesRoute: AppAdminMessagesRoute,
-  AppAdminNewslettersRoute: AppAdminNewslettersRoute,
-  AppAdminSettingsRoute: AppAdminSettingsRoute,
-  AppAdminStaffRoute: AppAdminStaffRoute,
-  AppAdminStudentsRoute: AppAdminStudentsRoute,
+const AppFamilyRouteChildren: AppFamilyRouteChildren = {
   AppFamilyAssignmentsRoute: AppFamilyAssignmentsRoute,
   AppFamilyAttendanceRoute: AppFamilyAttendanceRoute,
   AppFamilyCalendarRoute: AppFamilyCalendarRoute,
@@ -783,12 +847,47 @@ const AppRouteChildren: AppRouteChildren = {
   AppFamilyMessagesRoute: AppFamilyMessagesRoute,
   AppFamilyNewslettersRoute: AppFamilyNewslettersRoute,
   AppFamilyTimetableRoute: AppFamilyTimetableRoute,
+  AppFamilyIndexRoute: AppFamilyIndexRoute,
+}
+
+const AppFamilyRouteWithChildren = AppFamilyRoute._addFileChildren(
+  AppFamilyRouteChildren,
+)
+
+interface AppMeRouteChildren {
+  AppMeAssignmentsRoute: typeof AppMeAssignmentsRoute
+  AppMeAttendanceRoute: typeof AppMeAttendanceRoute
+  AppMeCalendarRoute: typeof AppMeCalendarRoute
+  AppMeGradesRoute: typeof AppMeGradesRoute
+  AppMeMessagesRoute: typeof AppMeMessagesRoute
+  AppMeTimetableRoute: typeof AppMeTimetableRoute
+  AppMeIndexRoute: typeof AppMeIndexRoute
+}
+
+const AppMeRouteChildren: AppMeRouteChildren = {
   AppMeAssignmentsRoute: AppMeAssignmentsRoute,
   AppMeAttendanceRoute: AppMeAttendanceRoute,
   AppMeCalendarRoute: AppMeCalendarRoute,
   AppMeGradesRoute: AppMeGradesRoute,
   AppMeMessagesRoute: AppMeMessagesRoute,
   AppMeTimetableRoute: AppMeTimetableRoute,
+  AppMeIndexRoute: AppMeIndexRoute,
+}
+
+const AppMeRouteWithChildren = AppMeRoute._addFileChildren(AppMeRouteChildren)
+
+interface AppTeachRouteChildren {
+  AppTeachAssignmentsRoute: typeof AppTeachAssignmentsRoute
+  AppTeachAttendanceRoute: typeof AppTeachAttendanceRoute
+  AppTeachCalendarRoute: typeof AppTeachCalendarRoute
+  AppTeachClassesRoute: typeof AppTeachClassesRoute
+  AppTeachGradingRoute: typeof AppTeachGradingRoute
+  AppTeachMessagesRoute: typeof AppTeachMessagesRoute
+  AppTeachTimetableRoute: typeof AppTeachTimetableRoute
+  AppTeachIndexRoute: typeof AppTeachIndexRoute
+}
+
+const AppTeachRouteChildren: AppTeachRouteChildren = {
   AppTeachAssignmentsRoute: AppTeachAssignmentsRoute,
   AppTeachAttendanceRoute: AppTeachAttendanceRoute,
   AppTeachCalendarRoute: AppTeachCalendarRoute,
@@ -796,10 +895,25 @@ const AppRouteChildren: AppRouteChildren = {
   AppTeachGradingRoute: AppTeachGradingRoute,
   AppTeachMessagesRoute: AppTeachMessagesRoute,
   AppTeachTimetableRoute: AppTeachTimetableRoute,
-  AppAdminIndexRoute: AppAdminIndexRoute,
-  AppFamilyIndexRoute: AppFamilyIndexRoute,
-  AppMeIndexRoute: AppMeIndexRoute,
   AppTeachIndexRoute: AppTeachIndexRoute,
+}
+
+const AppTeachRouteWithChildren = AppTeachRoute._addFileChildren(
+  AppTeachRouteChildren,
+)
+
+interface AppRouteChildren {
+  AppAdminRoute: typeof AppAdminRouteWithChildren
+  AppFamilyRoute: typeof AppFamilyRouteWithChildren
+  AppMeRoute: typeof AppMeRouteWithChildren
+  AppTeachRoute: typeof AppTeachRouteWithChildren
+}
+
+const AppRouteChildren: AppRouteChildren = {
+  AppAdminRoute: AppAdminRouteWithChildren,
+  AppFamilyRoute: AppFamilyRouteWithChildren,
+  AppMeRoute: AppMeRouteWithChildren,
+  AppTeachRoute: AppTeachRouteWithChildren,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)

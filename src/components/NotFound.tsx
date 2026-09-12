@@ -1,8 +1,9 @@
 import type { ReactNode } from "react";
 
-import { Link, useRouter } from "@tanstack/react-router";
+import { useRouter } from "@tanstack/react-router";
 import { Compass } from "lucide-react";
 
+import { ButtonLink } from "~/components/app/ButtonLink";
 import { Button } from "~/components/ui/button";
 import * as m from "~/i18n/messages";
 
@@ -24,7 +25,7 @@ export function NotFound({ children }: NotFoundProps) {
       description={typeof children === "string" ? children : m.notFoundBody()}
       actions={
         <>
-          <Button render={<Link to="/">{m.notFoundGoHome()}</Link>} />
+          <ButtonLink to="/">{m.notFoundGoHome()}</ButtonLink>
           <Button
             variant="outline"
             onClick={() => {

@@ -312,7 +312,7 @@ function Agenda({ allEvents }: { allEvents: CalendarEvent[] }) {
   }
 
   return (
-    <div className="mt-4 grid gap-4 lg:grid-cols-3">
+    <div className="mt-4 grid items-start gap-4 lg:grid-cols-3">
       {EVENT_CATEGORIES.map((category) => {
         const events = allEvents.filter((event) => event.category === category);
         return (

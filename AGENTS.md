@@ -31,9 +31,18 @@ bun run test:e2e     # playwright, builds and serves the production bundle
 cannot parse. The Dockerfile and `.github/setup/action.yml` both pin canary; if you
 change one, change all three.
 
-Bun is the package manager and script runner. **Node still executes the tooling** —
-vite, vitest and playwright all have `#!/usr/bin/env node` shebangs, and the
-production server is Node. Both runtimes are required.
+**The app runs on Bun, the test tooling runs on Node.** `drizzle-orm/bun-sql`
+imports the `bun` module, and Vite executes SSR in its own process, so `dev`,
+`build`, `preview` and `start` all pass `--bun`. Drop that flag and every page
+fails with `Cannot find package 'bun' imported from .../bun-sql/mysql/driver.js`,
+which is a resolution error, not a missing dependency: the `drizzle-orm/bun-sql`
+barrel eagerly imports the MySQL, Postgres and SQLite drivers, and all three
+require Bun.
+
+vitest and playwright keep their `#!/usr/bin/env node` shebangs. That is why
+**nothing under `src/utils/` may import `~/db`** — one such import makes a test
+file unloadable. Anything worth unit testing goes in `src/utils/school.ts`,
+which is pure by construction.
 
 ---
 
