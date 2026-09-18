@@ -146,6 +146,22 @@ export function getMessageFromError(error: unknown): string {
         return m.sitePagePublished();
       case "site.not_found":
         return m.siteNotFound();
+      case "learning.revision_conflict":
+        return m.learningRevisionConflict();
+      case "learning.incomplete":
+        return m.learningIncomplete();
+      case "learning.not_found":
+        return m.learningNotFound();
+      case "learning.responsibility":
+        return m.learningResponsibility();
+      case "learning.subject_not_taught":
+        return m.learningSubjectNotTaught();
+      case "learning.media_missing":
+        return m.learningMediaMissing();
+      case "learning.quizzes_pending":
+        return m.learningQuizzesPending();
+      case "learning.disabled":
+        return m.learningDisabled();
     }
     if (error.message.startsWith("assignment.incomplete:"))
       return m.assignmentIncomplete();

@@ -21,6 +21,7 @@ import {
   Field,
   FieldGrid,
 } from "~/components/app/primitives";
+import { FeaturesCard } from "~/components/learning/FeaturesCard";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 import {
@@ -34,6 +35,7 @@ import {
 } from "~/components/ui/table";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "~/components/ui/tabs";
 import * as m from "~/i18n/messages";
+import { schoolFeaturesQuery } from "~/queries/learning";
 import { schoolSettingsQuery, subjectsQuery } from "~/queries/school";
 import { formatNumber } from "~/utils/datetime";
 
@@ -81,6 +83,7 @@ export const Route = createFileRoute("/_app/admin/settings")({
     await Promise.all([
       context.queryClient.ensureQueryData(schoolSettingsQuery),
       context.queryClient.ensureQueryData(subjectsQuery),
+      context.queryClient.ensureQueryData(schoolFeaturesQuery),
     ]);
   },
   component: SettingsPage,
@@ -196,6 +199,7 @@ function SettingsPage() {
                 ))}
               </ul>
             </SectionCard>
+            <FeaturesCard />
           </div>
         </TabsContent>
         <TabsContent value="subjects">

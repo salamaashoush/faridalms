@@ -1,4 +1,5 @@
 import type { Permission, Role } from "@faridalms/domain/identity";
+import type { SchoolFeature } from "@faridalms/domain/learning";
 import type { LucideIcon } from "lucide-react";
 
 import {
@@ -8,6 +9,7 @@ import {
   Globe,
   ClipboardList,
   GraduationCap,
+  Layers,
   LayoutDashboard,
   Mail,
   Megaphone,
@@ -28,6 +30,8 @@ export interface NavItem {
   icon: LucideIcon;
   /** Hidden unless the role holds this capability. */
   permission?: Permission;
+  /** Hidden unless the school has switched this area on. */
+  feature?: SchoolFeature;
   /** Match the route exactly, for section index pages. */
   exact?: boolean;
 }
@@ -98,6 +102,12 @@ export const NAVIGATION: Record<Role, NavSection[]> = {
           icon: ClipboardList,
         },
         { to: "/teach/grading", label: m.navGrading, icon: ClipboardCheck },
+        {
+          to: "/teach/modules",
+          label: m.navModules,
+          icon: Layers,
+          feature: "elearning",
+        },
         { to: "/teach/attendance", label: m.navAttendance, icon: UserCheck },
       ],
     },
@@ -129,6 +139,12 @@ export const NAVIGATION: Record<Role, NavSection[]> = {
           icon: ClipboardList,
         },
         { to: "/family/grades", label: m.navGrades, icon: BookOpen },
+        {
+          to: "/family/modules",
+          label: m.navModules,
+          icon: Layers,
+          feature: "elearning",
+        },
         { to: "/family/attendance", label: m.navAttendance, icon: UserCheck },
         { to: "/family/timetable", label: m.navTimetable, icon: Table2 },
       ],
@@ -150,6 +166,12 @@ export const NAVIGATION: Record<Role, NavSection[]> = {
       items: [
         { to: "/me", label: m.navOverview, icon: LayoutDashboard, exact: true },
         { to: "/me/assignments", label: m.navAssignments, icon: ClipboardList },
+        {
+          to: "/me/modules",
+          label: m.navModules,
+          icon: Layers,
+          feature: "elearning",
+        },
         { to: "/me/grades", label: m.navGrades, icon: BookOpen },
         { to: "/me/timetable", label: m.navTimetable, icon: Table2 },
         { to: "/me/attendance", label: m.navAttendance, icon: UserCheck },

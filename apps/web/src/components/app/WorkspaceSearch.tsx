@@ -26,6 +26,7 @@ export function WorkspaceSearch() {
     .filter(
       (item) =>
         (!item.permission || user.permissions.includes(item.permission)) &&
+        (!item.feature || user.features[item.feature]) &&
         item.label().toLocaleLowerCase().includes(query.toLocaleLowerCase()),
     );
 

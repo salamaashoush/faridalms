@@ -73,7 +73,9 @@ function SidebarContents() {
           {NAVIGATION[user.role].map((section) => {
             const items = section.items.filter(
               (item) =>
-                !item.permission || user.permissions.includes(item.permission),
+                (!item.permission ||
+                  user.permissions.includes(item.permission)) &&
+                (!item.feature || user.features[item.feature]),
             );
             if (!items.length) return null;
             return (
