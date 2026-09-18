@@ -88,6 +88,23 @@ logo references the file. A school with a `public_domain` on the control row
 lands visitors on its site from the web's root; the site itself always lives
 under `/site/{slug}` so the same page has one address behind every host.
 
+E-learning modules are an optional area a school switches on through a
+`school_features` row; every learning procedure answers not found while the
+switch is off, and navigation shows the area only when the current user's
+school has it on. A module belongs to a class and a subject and is authored
+under the same offering responsibility as an assignment: the teacher of that
+subject in that class, or an administrator. Lessons are ordered documents of
+blocks: shared Lexical content, uploaded media through the private file
+lifecycle (with a WebVTT captions file required for anything with sound),
+multiple-choice quizzes and reflection prompts. Publishing needs at least one
+lesson with content. Learners see published modules of their current classes;
+the answer key of a quiz leaves the server only after the learner has answered
+it, answers and completion are recorded per learner and lesson, and a lesson
+can be marked complete once every quiz has an answer. Guardians read the same
+progress and lessons without answering. Lesson media is authorised through the
+lesson's module: its teachers, administrators, and the families and learners
+of the class while the module is published.
+
 Assignments are authored against a class and one of its subjects by the teacher
 responsible for that offering. A draft carries a rich-text brief, learning
 resources, an audience (the class, saved groups or named students, resolved
