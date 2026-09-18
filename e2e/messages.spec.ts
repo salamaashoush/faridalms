@@ -405,7 +405,7 @@ test("a teacher composes with formatting and a file, and the family replies in p
   await expect(family.locator("html")).toHaveAttribute("dir", "rtl");
   await expect(
     family
-      .locator("article")
+      .getByRole("list", { name: "الرسائل" })
       .getByText("We will start tonight.", { exact: true }),
   ).toBeVisible();
   expect(
