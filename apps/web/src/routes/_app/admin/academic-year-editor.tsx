@@ -39,6 +39,12 @@ function EditYear({ id, onClose }: { id: string; onClose: () => void }) {
         name: data.name,
         startsOn: data.startsOn,
         endsOn: data.endsOn,
+        terms: data.terms.map((term) => ({
+          id: term.id,
+          name: term.name,
+          startsOn: term.startsOn,
+          endsOn: term.endsOn,
+        })),
       }}
       onClose={onClose}
     />

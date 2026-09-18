@@ -66,6 +66,28 @@ export function getMessageFromError(error: unknown): string {
         return m.academicYearRevisionConflict();
       case "academic_year.shrink":
         return m.academicYearShrink();
+      case "academic_year.term_outside":
+        return m.validationTermOutside();
+      case "academic_year.term_overlap":
+        return m.validationTermOverlap();
+      case "academic_year.term_name_conflict":
+        return m.validationTermNameConflict();
+      case "academic_year.term_not_found":
+        return m.academicYearTermNotFound();
+      case "academic_year.term_in_use":
+        return m.academicYearTermInUse();
+      case "timetable.class_not_found":
+        return m.timetableClassNotFound();
+      case "timetable.revision_conflict":
+        return m.timetableRevisionConflict();
+      case "timetable.overlap":
+        return m.validationSlotOverlap();
+      case "timetable.subject_not_offered":
+        return m.timetableSubjectNotOffered();
+      case "timetable.teacher_not_found":
+        return m.timetableTeacherNotFound();
+      case "timetable.teacher_busy":
+        return m.timetableTeacherBusy();
       case "academic_year.not_found":
         return m.academicYearNotFound();
       case "assignment.revision_conflict":

@@ -229,7 +229,19 @@ function ClassPage() {
             <ClassAttendance rows={data.attendance} />
           </TabsContent>
         ) : null}
-        <TabsContent value="timetable">
+        <TabsContent value="timetable" className="space-y-4">
+          {data.canManage ? (
+            <div className="flex justify-end">
+              <ButtonLink
+                variant="outline"
+                to="/admin/timetable-editor"
+                search={{ classId: data.id }}
+              >
+                <Pencil aria-hidden />
+                {m.timetableEdit()}
+              </ButtonLink>
+            </div>
+          ) : null}
           <Card>
             <CardContent className="px-5">
               <TimetableGrid slots={data.timetable} className={data.name} />

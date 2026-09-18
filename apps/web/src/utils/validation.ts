@@ -24,6 +24,16 @@ export function validationMessage(issue: { message?: string }): string {
       return m.validationFileType();
     case "validation.message_body":
       return m.validationMessageBody();
+    case "validation.term_outside":
+      return m.validationTermOutside();
+    case "validation.term_overlap":
+      return m.validationTermOverlap();
+    case "validation.term_name_conflict":
+      return m.validationTermNameConflict();
+    case "validation.end_time":
+      return m.validationEndTime();
+    case "validation.slot_overlap":
+      return m.validationSlotOverlap();
   }
   if (!("type" in issue)) return issue.message ?? m.validationInvalid();
   const count =
