@@ -3,7 +3,10 @@ import type { SaveNewsletterDraftInput } from "@faridalms/domain/newsletter";
 import { saveNewsletterDraftSchema } from "@faridalms/domain/newsletter";
 import { useForm, revalidateLogic } from "@tanstack/react-form";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { useState } from "react";
+import { useNavigate } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
+import { Send } from "lucide-react";
+import { useRef, useState } from "react";
 import { toast } from "sonner";
 import * as v from "valibot";
 
@@ -12,6 +15,8 @@ import { ManagementPage } from "~/components/admin/ManagementPage";
 import { Button } from "~/components/ui/button";
 import * as m from "~/i18n/messages";
 import { saveNewsletterDraft } from "~/server/newsletter-drafts";
+import { publishNewsletterDraft } from "~/server/notifications";
+import { getMessageFromError } from "~/utils/error";
 
 import { NewsletterDesigner } from "./NewsletterDesigner";
 import { NewsletterDocument } from "./NewsletterDocument";
@@ -32,6 +37,30 @@ export function NewsletterWorkspace({
   const [invalidBlocks, setInvalidBlocks] = useState<Set<string>>(new Set());
   const [preview, setPreview] = useState(false);
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
+  const publish = useServerFn(publishNewsletterDraft);
+  const leaving = useRef(false);
+  const publication = useMutation({
+    mutationFn: () =>
+      publish({
+        data: {
+          id: baseline.id,
+          expectedRevision: baseline.expectedRevision,
+          publishedOn: new Date().toISOString().slice(0, 10),
+        },
+      }),
+    onSuccess: async (edition) => {
+      await queryClient.invalidateQueries({ queryKey: ["newsletters"] });
+      await queryClient.invalidateQueries({ queryKey: ["newsletter-drafts"] });
+      toast.success(m.newsletterPublishedToast());
+      leaving.current = true;
+      void navigate({
+        to: "/newsletters/$newsletterId",
+        params: { newsletterId: edition.id },
+      });
+    },
+    onError: (error) => toast.error(getMessageFromError(error)),
+  });
   const mutation = useMutation({
     mutationFn: (data: SaveNewsletterDraftInput) =>
       saveNewsletterDraft({ data }),
@@ -75,12 +104,26 @@ export function NewsletterWorkspace({
       pending={mutation.isPending}
       onClose={onClose}
       onSubmit={() => form.handleSubmit()}
+      actions={
+        baseline.expectedRevision > 0 ? (
+          <Button
+            type="button"
+            variant="secondary"
+            disabled={mutation.isPending || publication.isPending}
+            onClick={() => publication.mutate()}
+          >
+            <Send className="size-4" aria-hidden />
+            {m.newsletterPublishEdition()}
+          </Button>
+        ) : undefined
+      }
       isDirty={() =>
-        invalidBlocks.size > 0 ||
-        form.state.values.title !== baseline.title ||
-        form.state.values.summary !== baseline.summary ||
-        form.state.values.locale !== baseline.document.locale ||
-        JSON.stringify(document) !== JSON.stringify(baseline.document)
+        !leaving.current &&
+        (invalidBlocks.size > 0 ||
+          form.state.values.title !== baseline.title ||
+          form.state.values.summary !== baseline.summary ||
+          form.state.values.locale !== baseline.document.locale ||
+          JSON.stringify(document) !== JSON.stringify(baseline.document))
       }
       sectioned
     >

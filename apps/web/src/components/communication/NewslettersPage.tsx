@@ -22,7 +22,8 @@ interface Newsletter {
   title: string;
   summary: string | null;
   publishedOn: string;
-  url: string;
+  url: string | null;
+  hasDocument: boolean;
 }
 const columns: DataColumn<Newsletter, NewslettersQuery["sort"]>[] = [
   {
@@ -59,6 +60,18 @@ const columns: DataColumn<Newsletter, NewslettersQuery["sort"]>[] = [
   },
 ];
 function NewsletterLink({ row }: { row: Newsletter }) {
+  if (row.hasDocument || !row.url)
+    return (
+      <ButtonLink
+        variant="ghost"
+        size="sm"
+        to="/newsletters/$newsletterId"
+        params={{ newsletterId: row.id }}
+        aria-label={`${m.newslettersOpen()} ${row.title}`}
+      >
+        {m.newslettersOpen()}
+      </ButtonLink>
+    );
   return (
     <a
       href={row.url}

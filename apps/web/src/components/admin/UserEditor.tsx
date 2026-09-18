@@ -17,8 +17,9 @@ export function UserEditor({
   initial,
   onClose,
 }: {
-  initial?: Omit<SaveUserInput, "password" | "title"> & {
+  initial?: Omit<SaveUserInput, "password" | "title" | "mobile"> & {
     title: string | null;
+    mobile?: string | null;
   };
   onClose: () => void;
 }) {
@@ -35,6 +36,7 @@ export function UserEditor({
     email: initial?.email ?? "",
     role: initial?.role ?? "teacher",
     title: initial?.title ?? "",
+    mobile: initial?.mobile ?? "",
     password: "",
     isActive: initial?.isActive ?? true,
   };
@@ -49,6 +51,7 @@ export function UserEditor({
     name: m.adminName(),
     email: m.adminEmail(),
     title: m.adminJobTitle(),
+    mobile: m.adminMobile(),
     password: initial ? m.managementNewPassword() : m.managementPassword(),
   };
   return (
@@ -62,34 +65,36 @@ export function UserEditor({
       }}
     >
       <div className="grid gap-5 sm:grid-cols-2">
-        {(["name", "email", "title", "password"] as const).map((name) => (
-          <form.Field key={name} name={name}>
-            {(field) => (
-              <ManagementInput
-                id={`account-${name}`}
-                label={labels[name]}
-                value={field.state.value}
-                type={
-                  name === "password"
-                    ? "password"
-                    : name === "email"
-                      ? "email"
-                      : "text"
-                }
-                autoComplete={name === "password" ? "new-password" : "off"}
-                required={
-                  name === "name" ||
-                  name === "email" ||
-                  (!initial && name === "password")
-                }
-                minLength={name === "password" ? 12 : undefined}
-                onChange={(event) => field.handleChange(event.target.value)}
-                onBlur={field.handleBlur}
-                errors={field.state.meta.errors}
-              />
-            )}
-          </form.Field>
-        ))}
+        {(["name", "email", "title", "mobile", "password"] as const).map(
+          (name) => (
+            <form.Field key={name} name={name}>
+              {(field) => (
+                <ManagementInput
+                  id={`account-${name}`}
+                  label={labels[name]}
+                  value={field.state.value}
+                  type={
+                    name === "password"
+                      ? "password"
+                      : name === "email"
+                        ? "email"
+                        : "text"
+                  }
+                  autoComplete={name === "password" ? "new-password" : "off"}
+                  required={
+                    name === "name" ||
+                    name === "email" ||
+                    (!initial && name === "password")
+                  }
+                  minLength={name === "password" ? 12 : undefined}
+                  onChange={(event) => field.handleChange(event.target.value)}
+                  onBlur={field.handleBlur}
+                  errors={field.state.meta.errors}
+                />
+              )}
+            </form.Field>
+          ),
+        )}
       </div>
       <form.Field name="role">
         {(field) => (

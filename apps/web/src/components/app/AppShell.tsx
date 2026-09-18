@@ -5,6 +5,7 @@ import { Link, useRouterState } from "@tanstack/react-router";
 import { GraduationCap } from "lucide-react";
 
 import { NAVIGATION } from "~/components/app/navigation";
+import { NotificationBell } from "~/components/app/NotificationBell";
 import { UserMenu } from "~/components/app/UserMenu";
 import { LocaleToggle } from "~/components/theme/LocaleToggle";
 import { ThemeToggle } from "~/components/theme/ThemeToggle";
@@ -174,6 +175,7 @@ export function AppShell({
           <WorkspaceBreadcrumb />
           <div className="ms-auto flex min-w-0 items-center gap-1">
             <WorkspaceSearch />
+            <NotificationBell />
             <LocaleToggle />
             <ThemeToggle />
           </div>

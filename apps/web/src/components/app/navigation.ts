@@ -9,8 +9,10 @@ import {
   GraduationCap,
   LayoutDashboard,
   Mail,
+  Megaphone,
   Newspaper,
   School,
+  Send,
   Settings,
   Table2,
   UserCheck,
@@ -59,13 +61,21 @@ export const NAVIGATION: Record<Role, NavSection[]> = {
       title: m.navSectionCommunication,
       items: [
         { to: "/admin/messages", label: m.navMessages, icon: Mail },
+        { to: "/announcements", label: m.navAnnouncements, icon: Megaphone },
         { to: "/admin/newsletters", label: m.navNewsletters, icon: Newspaper },
         { to: "/admin/calendar", label: m.navCalendar, icon: CalendarDays },
       ],
     },
     {
       title: m.navSectionSettings,
-      items: [{ to: "/admin/settings", label: m.navSettings, icon: Settings }],
+      items: [
+        { to: "/admin/settings", label: m.navSettings, icon: Settings },
+        {
+          to: "/admin/notification-audit",
+          label: m.navNotificationLog,
+          icon: Send,
+        },
+      ],
     },
   ],
 
@@ -94,6 +104,7 @@ export const NAVIGATION: Record<Role, NavSection[]> = {
       items: [
         { to: "/teach/timetable", label: m.navTimetable, icon: Table2 },
         { to: "/teach/messages", label: m.navMessages, icon: Mail },
+        { to: "/announcements", label: m.navAnnouncements, icon: Megaphone },
         { to: "/teach/calendar", label: m.navCalendar, icon: CalendarDays },
       ],
     },
@@ -124,6 +135,7 @@ export const NAVIGATION: Record<Role, NavSection[]> = {
       title: m.navSectionSchool,
       items: [
         { to: "/family/messages", label: m.navMessages, icon: Mail },
+        { to: "/announcements", label: m.navAnnouncements, icon: Megaphone },
         { to: "/family/newsletters", label: m.navNewsletters, icon: Newspaper },
         { to: "/family/calendar", label: m.navCalendar, icon: CalendarDays },
       ],
@@ -145,6 +157,7 @@ export const NAVIGATION: Record<Role, NavSection[]> = {
       title: m.navSectionSchool,
       items: [
         { to: "/me/messages", label: m.navMessages, icon: Mail },
+        { to: "/announcements", label: m.navAnnouncements, icon: Megaphone },
         { to: "/me/calendar", label: m.navCalendar, icon: CalendarDays },
       ],
     },
