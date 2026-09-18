@@ -1,5 +1,5 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import {
   ArrowUpRight,
   BookOpen,
@@ -153,7 +153,14 @@ function FamilyOverviewPage() {
                           {m.overviewNextDue()}
                         </p>
                         <h3 className="mt-1 text-xl font-semibold tracking-tight">
-                          {selected.nextDue.title}
+                          <Link
+                            to="/assignments/$assignmentId"
+                            params={{ assignmentId: selected.nextDue.id }}
+                            search={{ studentId: selected.student.id }}
+                            className="hover:text-primary hover:underline"
+                          >
+                            {selected.nextDue.title}
+                          </Link>
                         </h3>
                         <p className="mt-2 text-sm text-muted-foreground">
                           {m.assignmentsDue({

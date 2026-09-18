@@ -10,6 +10,7 @@ import {
 } from "~/components/app/primitives";
 import { ContentView } from "~/components/content/ContentView";
 import { StudentScopeBar } from "~/components/family/StudentScopeBar";
+import { PersonLink } from "~/components/records/PersonLink";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
 import * as m from "~/i18n/messages";
 import { learnerAssignmentQuery } from "~/queries/assignments";
@@ -129,7 +130,7 @@ export function LearnerAssignmentRecord({
                   {ASSIGNMENT_TYPE_LABEL[data.type]()}
                 </Field>
                 <Field label={m.assignmentsTeacher()}>
-                  {data.author?.name}
+                  {data.author ? <PersonLink person={data.author} /> : null}
                 </Field>
                 <Field label={m.assignmentAvailableFrom()}>
                   {formatInstant(data.availableFrom, timeZone)}

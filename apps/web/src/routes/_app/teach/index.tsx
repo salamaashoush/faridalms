@@ -12,6 +12,7 @@ import {
   School,
 } from "lucide-react";
 
+import { ButtonLink } from "~/components/app/ButtonLink";
 import { SubjectIcon } from "~/components/app/labels";
 import {
   EmptyState,
@@ -30,7 +31,6 @@ import {
 } from "~/components/teach/format";
 import { HandedIn } from "~/components/teach/HandedIn";
 import { Badge } from "~/components/ui/badge";
-import { Button } from "~/components/ui/button";
 import * as m from "~/i18n/messages";
 import { teachingOverviewQuery } from "~/queries/school";
 import { formatNumber } from "~/utils/datetime";
@@ -66,18 +66,14 @@ function TeachingOverviewPage() {
         title={m.teachOverviewTitle()}
         description={m.teachOverviewSubtitle()}
         actions={
-          <Button
+          <ButtonLink
             variant="outline"
-            render={
-              <Link
-                to="/teach/attendance"
-                search={DEFAULT_ATTENDANCE_REGISTER_QUERY}
-              />
-            }
+            to="/teach/attendance"
+            search={DEFAULT_ATTENDANCE_REGISTER_QUERY}
           >
             <CalendarDays aria-hidden />
             {m.attendanceRecord()}
-          </Button>
+          </ButtonLink>
         }
       />
 
@@ -110,13 +106,9 @@ function TeachingOverviewPage() {
           title={m.teachGradingQueue()}
           description={m.teachGradingSubtitle()}
           actions={
-            <Button
-              variant="outline"
-              size="sm"
-              render={<Link to="/teach/grading" />}
-            >
+            <ButtonLink variant="outline" size="sm" to="/teach/grading">
               {m.commonViewAll()}
-            </Button>
+            </ButtonLink>
           }
         >
           {queue.length === 0 ? (
@@ -132,12 +124,32 @@ function TeachingOverviewPage() {
                 >
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-sm font-medium">
-                      <Value>
-                        {row.student ? studentName(row.student) : null}
-                      </Value>
+                      {row.student ? (
+                        <Link
+                          to="/students/$studentId"
+                          params={{ studentId: row.student.id }}
+                          search={{}}
+                          className="hover:text-primary hover:underline"
+                        >
+                          {studentName(row.student)}
+                        </Link>
+                      ) : (
+                        <Value>{null}</Value>
+                      )}
                     </p>
                     <p className="truncate text-xs text-muted-foreground">
-                      <Value>{row.assignment?.title}</Value>
+                      {row.assignment ? (
+                        <Link
+                          to="/assignments/$assignmentId"
+                          params={{ assignmentId: row.assignment.id }}
+                          search={{ tab: "learners" }}
+                          className="hover:text-primary hover:underline"
+                        >
+                          {row.assignment.title}
+                        </Link>
+                      ) : (
+                        <Value>{null}</Value>
+                      )}
                     </p>
                   </div>
                   <div className="flex shrink-0 flex-col items-end gap-0.5 text-xs text-muted-foreground">
@@ -162,18 +174,14 @@ function TeachingOverviewPage() {
           title={m.teachThisWeek()}
           description={m.assignmentsWeek({ number: week.number })}
           actions={
-            <Button
+            <ButtonLink
               variant="outline"
               size="sm"
-              render={
-                <Link
-                  to="/teach/assignments"
-                  search={DEFAULT_CLASS_SCOPED_QUERY}
-                />
-              }
+              to="/teach/assignments"
+              search={DEFAULT_CLASS_SCOPED_QUERY}
             >
               {m.commonViewAll()}
-            </Button>
+            </ButtonLink>
           }
         >
           {assignments.length === 0 ? (

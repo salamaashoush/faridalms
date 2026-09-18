@@ -1,5 +1,5 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import {
   CalendarClock,
   CircleCheckBig,
@@ -196,7 +196,14 @@ function StudentOverviewPage() {
                     </span>
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-medium">
-                        {row.title}
+                        <Link
+                          to="/assignments/$assignmentId"
+                          params={{ assignmentId: row.id }}
+                          search={{}}
+                          className="hover:text-primary hover:underline"
+                        >
+                          {row.title}
+                        </Link>
                       </p>
                       <p className="mt-0.5 text-xs text-muted-foreground">
                         {subjectName(row.subject)} ·{" "}

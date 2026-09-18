@@ -11,7 +11,7 @@ import {
   useQueryClient,
   useSuspenseQuery,
 } from "@tanstack/react-query";
-import { useHydrated } from "@tanstack/react-router";
+import { Link, useHydrated } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { ChevronLeft, Paperclip, Send } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -111,7 +111,17 @@ function Bubble({
       <div className="min-w-0 flex-1">
         <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
           <span className="text-sm font-semibold">
-            <Value>{item.sender?.name}</Value>
+            {item.sender ? (
+              <Link
+                to="/people/$userId"
+                params={{ userId: item.sender.id }}
+                className="hover:text-primary hover:underline"
+              >
+                {item.sender.name}
+              </Link>
+            ) : (
+              <Value>{null}</Value>
+            )}
             {own ? (
               <span className="ms-2 text-xs font-normal text-muted-foreground">
                 {m.messageYou()}

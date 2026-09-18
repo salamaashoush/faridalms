@@ -21,6 +21,7 @@ import {
   Value,
 } from "~/components/app/primitives";
 import { ContentView } from "~/components/content/ContentView";
+import { PersonLink } from "~/components/records/PersonLink";
 import { Button } from "~/components/ui/button";
 import { Skeleton } from "~/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
@@ -313,7 +314,7 @@ export function TeacherAssignmentRecord({
                     {formatNumber(data.maxScore)}
                   </Field>
                   <Field label={m.assignmentsTeacher()}>
-                    {data.author?.name}
+                    {data.author ? <PersonLink person={data.author} /> : null}
                   </Field>
                   <Field label={m.assignmentPublishedAt()}>
                     {formatInstant(data.publishedAt, timeZone)}

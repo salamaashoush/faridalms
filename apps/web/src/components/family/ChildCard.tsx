@@ -1,3 +1,4 @@
+import { Link } from "@tanstack/react-router";
 import {
   BookOpen,
   ClipboardList,
@@ -31,7 +32,7 @@ export interface ChildCardProps {
   average: number | null;
   dueThisWeek: number;
   overdue: number;
-  nextDue: { title: string; dueDate: string } | null;
+  nextDue: { id: string; title: string; dueDate: string } | null;
 }
 
 function rateTone(
@@ -95,7 +96,14 @@ export function ChildCard({
           <Field label={m.overviewNextDue()}>
             {nextDue ? (
               <span className="flex flex-col leading-tight">
-                <span>{nextDue.title}</span>
+                <Link
+                  to="/assignments/$assignmentId"
+                  params={{ assignmentId: nextDue.id }}
+                  search={{ studentId: student.id }}
+                  className="hover:text-primary hover:underline"
+                >
+                  {nextDue.title}
+                </Link>
                 <span className="text-xs text-muted-foreground">
                   {m.assignmentsDue({ date: formatDate(nextDue.dueDate) })}
                 </span>

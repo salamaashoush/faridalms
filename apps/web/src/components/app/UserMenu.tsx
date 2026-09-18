@@ -1,7 +1,7 @@
 import type { Role } from "@faridalms/domain/identity";
 
 import { useQueryClient } from "@tanstack/react-query";
-import { useRouter } from "@tanstack/react-router";
+import { Link, useRouter } from "@tanstack/react-router";
 import { ChevronsUpDown } from "lucide-react";
 import { useCallback } from "react";
 
@@ -108,6 +108,12 @@ export function UserMenu({ sidebar = false }: { sidebar?: boolean }) {
             </div>
           </DropdownMenuLabel>
         </DropdownMenuGroup>
+        <DropdownMenuSeparator />
+        <DropdownMenuItem
+          render={<Link to="/people/$userId" params={{ userId: user.id }} />}
+        >
+          {m.personMyProfile()}
+        </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem className="text-destructive" onClick={handleLogout}>
           {m.authSignOut()}

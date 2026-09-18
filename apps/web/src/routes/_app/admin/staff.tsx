@@ -4,7 +4,7 @@ import type { StaffDirectoryQuery } from "@faridalms/domain/school-schema";
 import { ROLES } from "@faridalms/domain/identity";
 import { staffDirectorySchema } from "@faridalms/domain/school-schema";
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { Pencil, Plus } from "lucide-react";
 import { useState } from "react";
 
@@ -40,7 +40,13 @@ const columns: DataColumn<Account, StaffDirectoryQuery["sort"]>[] = [
       <div className="flex items-center gap-3">
         <PersonAvatar name={row.name} />
         <div>
-          <p className="font-medium">{row.name}</p>
+          <Link
+            to="/people/$userId"
+            params={{ userId: row.id }}
+            className="font-medium hover:text-primary hover:underline"
+          >
+            {row.name}
+          </Link>
           <p className="text-xs text-muted-foreground">
             <Value>{row.title}</Value>
           </p>

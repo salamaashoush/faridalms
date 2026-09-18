@@ -33,16 +33,25 @@ const columns: DataColumn<Submission, Search["sort"]>[] = [
     id: "student",
     label: m.adminName,
     sort: "student",
-    render: (row) => (
-      <div className="flex items-center gap-3">
-        <PersonAvatar
-          name={row.student ? studentName(row.student) : m.commonNotRecorded()}
-        />
-        <span className="font-medium">
-          <Value>{row.student ? studentName(row.student) : null}</Value>
-        </span>
-      </div>
-    ),
+    render: (row) =>
+      row.student ? (
+        <Link
+          to="/students/$studentId"
+          params={{ studentId: row.student.id }}
+          search={{}}
+          className="flex items-center gap-3 font-medium hover:text-primary hover:underline"
+        >
+          <PersonAvatar name={studentName(row.student)} />
+          {studentName(row.student)}
+        </Link>
+      ) : (
+        <div className="flex items-center gap-3">
+          <PersonAvatar name={m.commonNotRecorded()} />
+          <span className="font-medium">
+            <Value>{null}</Value>
+          </span>
+        </div>
+      ),
   },
   {
     id: "assignment",
