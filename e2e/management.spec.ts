@@ -310,15 +310,19 @@ test("messages use a full-page composer, protect drafts and open the sent conver
   ).toHaveValue("Salama learning questions");
   await page.locator("#compose-recipient").click();
   await page.getByRole("option").first().click();
+  await page.locator("#compose-body").click();
+  await page.getByRole("button", { name: "Markdown", exact: true }).click();
   await page
-    .locator("#compose-body")
+    .getByRole("textbox", { name: "Markdown", exact: true })
     .fill(
       "## Learning together\n\n**Salama** has a question about the reading.",
     );
-  await page.getByRole("tab", { name: "Preview", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Replace from Markdown", exact: true })
+    .click();
   await expect(
     page
-      .getByRole("tabpanel")
+      .locator("#compose-body")
       .getByRole("heading", { name: "Learning together" }),
   ).toBeVisible();
   await page.screenshot({
@@ -403,18 +407,26 @@ test("message drafts survive reload, reopen from the directory and send once", a
   await page
     .getByRole("textbox", { name: "Subject", exact: true })
     .fill(subject);
+  await page.locator("#compose-body").click();
+  await page.getByRole("button", { name: "Markdown", exact: true }).click();
   await page
-    .locator("#compose-body")
+    .getByRole("textbox", { name: "Markdown", exact: true })
     .fill("## A saved thought\n\n**Salama** will finish this later.");
+  await page
+    .getByRole("button", { name: "Replace from Markdown", exact: true })
+    .click();
   await page.getByRole("button", { name: "Save draft", exact: true }).click();
   await expect(page).toHaveURL(/draft=[a-f0-9-]{36}/);
   await page.reload();
   await expect(
     page.getByRole("textbox", { name: "Subject", exact: true }),
   ).toHaveValue(subject);
-  await expect(page.locator("#compose-body")).toHaveValue(
-    "## A saved thought\n\n**Salama** will finish this later.",
-  );
+  await expect(
+    page
+      .locator("#compose-body")
+      .getByRole("heading", { name: "A saved thought" }),
+  ).toBeVisible();
+  await expect(page.locator("#compose-body strong")).toHaveText("Salama");
   await page
     .getByRole("button", { name: "Back to messages", exact: true })
     .click();

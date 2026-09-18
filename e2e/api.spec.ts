@@ -337,20 +337,22 @@ test("teachers message linked families and replies stay private", async ({
   await page.getByRole("button", { name: "Sign In", exact: true }).click();
   await expect(page.locator("main#main")).toBeVisible();
   await page.goto(`/family/messages?message=${id}`);
-  const composer = page.locator("#message-reply");
-  await expect(composer).toBeEnabled();
-  await composer.fill("Salama learning plan");
+  const composer = page.getByRole("textbox", {
+    name: "Your reply",
+    exact: true,
+  });
+  await expect(composer).toBeEditable();
+  await composer.click();
+  await page.keyboard.type("Salama learning plan");
   await composer.press("ControlOrMeta+a");
   await page.getByRole("button", { name: "Bold", exact: true }).click();
-  await expect(composer).toHaveValue("**Salama learning plan**");
-  await page.getByRole("tab", { name: "Preview", exact: true }).click();
-  await expect(page.getByRole("tabpanel").locator("strong")).toHaveText(
-    "Salama learning plan",
-  );
+  await expect(composer.locator("strong")).toHaveText("Salama learning plan");
   await page.getByRole("button", { name: "Send reply", exact: true }).click();
   await expect(page.locator("article ol strong")).toHaveText(
     "Salama learning plan",
   );
+  await expect(page).toHaveURL(new RegExp(`message=${id}`));
+  await expect(composer).toHaveText("");
   await page.reload();
   await expect(page.locator("article ol strong")).toHaveText(
     "Salama learning plan",
