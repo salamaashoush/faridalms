@@ -109,6 +109,14 @@ progress and lessons without answering. Lesson media is authorised through the
 lesson's module: its teachers, administrators, and the families and learners
 of the class while the module is published.
 
+A class's timetable is a set of slots replaced as a whole: the editor sends the
+week with the class revision it read, and the API refuses overlaps inside the
+class, subjects the class does not offer, and a teacher already teaching another
+class of the year at that time, all under the academic structure lock. Terms
+save together with their year under the year's revision; each must sit inside
+the year, none may overlap or share a name, and a term with recorded grades
+stays.
+
 Assignments are authored against a class and one of its subjects by the teacher
 responsible for that offering. A draft carries a rich-text brief, learning
 resources, an audience (the class, saved groups or named students, resolved
