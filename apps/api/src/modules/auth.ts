@@ -4,6 +4,7 @@ import {
   schools,
   sessions,
 } from "@faridalms/database/control-schema";
+import { getFeatures } from "@faridalms/database/repositories/learning";
 import { signInSchema } from "@faridalms/domain/auth-schema";
 import { ORPCError } from "@orpc/server";
 import { and, eq, sql } from "drizzle-orm";
@@ -81,8 +82,9 @@ export const signOut = protectedProcedure.handler(async ({ context }) => {
   return { signedOut: true };
 });
 
-export const currentUser = protectedProcedure.handler(({ context }) => ({
+export const currentUser = protectedProcedure.handler(async ({ context }) => ({
   ...context.user,
+  features: await getFeatures(context.db),
   school: {
     id: context.school.id,
     slug: context.school.slug,

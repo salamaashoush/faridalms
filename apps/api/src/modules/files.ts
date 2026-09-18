@@ -18,6 +18,7 @@ export const initiateUpload = protectedProcedure
       submission_attachment: "own-work:submit",
       message_attachment: "messages:send",
       site_media: "site:manage",
+      lesson_media: "assignments:author",
     } as const;
     const user = await requirePermission(context, permission[input.purpose]);
     if (input.sizeBytes > context.maxUploadBytes)

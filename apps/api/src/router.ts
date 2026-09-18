@@ -6,6 +6,7 @@ import * as assignments from "./modules/assignments";
 import * as auth from "./modules/auth";
 import * as communication from "./modules/communication";
 import * as files from "./modules/files";
+import * as learning from "./modules/learning";
 import * as newsletters from "./modules/newsletters";
 import * as notifications from "./modules/notifications";
 import * as overviews from "./modules/overviews";
@@ -30,5 +31,6 @@ export const router = {
   ...announcements,
   ...people,
   ...site,
+  ...learning,
 };
 export type AppRouter = typeof router;

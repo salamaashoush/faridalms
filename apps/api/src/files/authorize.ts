@@ -86,6 +86,28 @@ export async function canReadFile(
     if (await canAssess(context, submission.assignment)) return true;
   }
 
+  for (const link of file.lessonLinks) {
+    const module = link.lesson?.module;
+    if (!module || !user.permissions.includes("assignments:read")) continue;
+    if (user.role === "admin") return true;
+    if (user.role === "teacher") {
+      const classes = await visibleClassIds(context, user);
+      if (classes.includes(module.classId)) return true;
+      continue;
+    }
+    if (module.status !== "published" || familyIds.length === 0) continue;
+    const enrolled = await context.db.query.enrolments.findFirst({
+      where: {
+        classId: module.classId,
+        studentId: { in: familyIds },
+        since: { lte: context.today },
+        OR: [{ until: { isNull: true } }, { until: { gt: context.today } }],
+      },
+      columns: { id: true },
+    });
+    if (enrolled) return true;
+  }
+
   for (const link of file.messageLinks) {
     const message = link.message;
     if (!message || !user.permissions.includes("messages:read")) continue;
