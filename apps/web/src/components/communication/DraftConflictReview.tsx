@@ -1,8 +1,13 @@
-import type { ComposeMessageInput } from "@faridalms/domain/school-schema";
+import type { ContentDocument } from "@faridalms/domain/content";
+import type {
+  ComposeMessageInput,
+  MessageBodyFormat,
+} from "@faridalms/domain/school-schema";
 
 import type { getMessageDraft } from "~/server/message-drafts";
 
 import { Field, FieldGrid, Value } from "~/components/app/primitives";
+import { ContentView } from "~/components/content/ContentView";
 import { MarkdownContent } from "~/components/records/MarkdownContent";
 import { Button } from "~/components/ui/button";
 import * as m from "~/i18n/messages";
@@ -14,6 +19,7 @@ function DraftVersion({
   subject,
   body,
   bodyFormat,
+  document,
   recipient,
   student,
   categoryLabel,
@@ -21,7 +27,8 @@ function DraftVersion({
   title: string;
   subject: string;
   body: string;
-  bodyFormat?: "plain" | "markdown";
+  bodyFormat?: MessageBodyFormat;
+  document?: ContentDocument | null;
   recipient: string;
   student: string;
   categoryLabel: string;
@@ -36,7 +43,9 @@ function DraftVersion({
         <Field label={m.messagesAbout()}>{student}</Field>
       </FieldGrid>
       <div className="mt-6 border-t pt-5">
-        {body && bodyFormat === "markdown" ? (
+        {bodyFormat === "rich" && document ? (
+          <ContentView document={document} />
+        ) : body && bodyFormat === "markdown" ? (
           <MarkdownContent>{body}</MarkdownContent>
         ) : (
           <p className="text-sm whitespace-pre-wrap">

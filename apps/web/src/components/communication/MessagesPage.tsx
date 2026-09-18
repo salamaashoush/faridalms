@@ -11,7 +11,7 @@ import * as v from "valibot";
 import { DirectoryPagination } from "~/components/admin/DirectoryPagination";
 import { EmptyState, PageHeader, Value } from "~/components/app/primitives";
 import { ComposeMessage } from "~/components/communication/ComposeMessage";
-import { MessageDetail } from "~/components/communication/MessageDetail";
+import { ThreadView } from "~/components/communication/ThreadView";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
@@ -191,11 +191,8 @@ export function MessagesPage({ search }: { search: MessagesSearch }) {
             <ul className="min-h-0 flex-1 overflow-y-auto">
               {rows.map((row) => {
                 const selected = row.id === openId;
-                // listMessages yields U+2014 when a sent message reached
-                // nobody; Value says that in words instead.
-                const counterpart =
-                  row.counterpartName === "\u2014" ? "" : row.counterpartName;
-
+                const counterpart = row.counterpartName;
+                const hasUnread = row.unreadCount > 0;
                 return (
                   <li key={row.id}>
                     <button
@@ -209,25 +206,39 @@ export function MessagesPage({ search }: { search: MessagesSearch }) {
                       )}
                     >
                       <span className="flex items-center gap-2">
-                        {row.unread ? (
+                        {hasUnread ? (
                           <>
                             <span
                               className="size-2 shrink-0 rounded-full bg-primary"
                               aria-hidden
                             />
                             <span className="sr-only">
-                              {m.messagesUnread()}
+                              {m.commMessagesUnreadCount({
+                                count: formatNumber(row.unreadCount),
+                              })}
                             </span>
                           </>
                         ) : null}
                         <span
                           className={cn(
                             "min-w-0 flex-1 truncate text-sm",
-                            row.unread ? "font-semibold" : "font-medium",
+                            hasUnread ? "font-semibold" : "font-medium",
                           )}
                         >
                           <Value>{counterpart}</Value>
                         </span>
+                        {row.messageCount > 1 ? (
+                          <span className="shrink-0 rounded-full bg-muted px-1.5 text-xs text-muted-foreground tabular-nums">
+                            <span aria-hidden>
+                              {formatNumber(row.messageCount)}
+                            </span>
+                            <span className="sr-only">
+                              {m.messageThreadCount({
+                                count: formatNumber(row.messageCount),
+                              })}
+                            </span>
+                          </span>
+                        ) : null}
                         {row.attachmentCount > 0 ? (
                           <>
                             <Paperclip
@@ -240,13 +251,13 @@ export function MessagesPage({ search }: { search: MessagesSearch }) {
                           </>
                         ) : null}
                         <span className="shrink-0 text-xs text-muted-foreground">
-                          {formatRelativeDays(row.sentAt.toISOString())}
+                          {formatRelativeDays(row.latestAt.toISOString())}
                         </span>
                       </span>
                       <span
                         className={cn(
                           "mt-1 block truncate text-sm",
-                          row.unread
+                          hasUnread
                             ? "text-foreground"
                             : "text-muted-foreground",
                         )}
@@ -254,7 +265,9 @@ export function MessagesPage({ search }: { search: MessagesSearch }) {
                         {row.subject}
                       </span>
                       <span className="mt-0.5 line-clamp-2 block text-xs text-muted-foreground">
-                        {row.preview}
+                        {row.messageCount > 1
+                          ? `${row.latestSenderName}: ${row.preview}`
+                          : row.preview}
                       </span>
                     </button>
                   </li>
@@ -280,7 +293,7 @@ export function MessagesPage({ search }: { search: MessagesSearch }) {
         >
           {openId ? (
             <Suspense key={openId} fallback={<DetailSkeleton />}>
-              <MessageDetail
+              <ThreadView
                 messageId={openId}
                 onBack={() => setSearch({ message: "" })}
               />

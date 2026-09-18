@@ -22,6 +22,8 @@ export function validationMessage(issue: { message?: string }): string {
       return m.validationRubricTotal();
     case "validation.file_type":
       return m.validationFileType();
+    case "validation.message_body":
+      return m.validationMessageBody();
   }
   if (!("type" in issue)) return issue.message ?? m.validationInvalid();
   const count =

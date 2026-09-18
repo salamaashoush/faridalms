@@ -187,7 +187,7 @@
   "commCalendarTodayCell": "اليوم، {date}",
   "commComposeAboutNone": "لا تخص طالبًا بعينه",
   "commComposeCategory": "فئة المستلم",
-  "commComposeDescription": "اختر من تريد التواصل معه واكتب رسالتك. عاين التنسيق قبل الإرسال.",
+  "commComposeDescription": "اختر من تراسله، واكتب رسالتك، وأرفق أي ملفات.",
   "commComposeNoRecipients": "لا يوجد مستلمون متاحون في هذه الفئة حاليًا.",
   "commComposeRecipientPlaceholder": "اختر المستلم",
   "commMessagesAllRead": "لا توجد رسائل غير مقروءة.",
@@ -1024,5 +1024,13 @@
   "validationDeductionRequired": "أدخل خصمًا بين 1 و100",
   "validationDueAfterAvailable": "يجب أن يكون بعد وقت الإتاحة",
   "validationFileType": "هذا النوع من الملفات غير مقبول",
-  "validationRubricTotal": "يجب أن يساوي مجموع نقاط المعايير الدرجة القصوى"
+  "validationRubricTotal": "يجب أن يساوي مجموع نقاط المعايير الدرجة القصوى",
+  "messageThreadCount": "{count} رسائل",
+  "messageYou": "أنت",
+  "messageReadBy": "قرأها {read} من {total}",
+  "messageThreadWith": "مع {names}",
+  "messageThreadAbout": "بخصوص {student}",
+  "messageEmptyError": "اكتب شيئًا قبل الإرسال.",
+  "messageFileMissing": "أحد الملفات المرفقة لم يكتمل رفعه.",
+  "validationMessageBody": "اكتب رسالة قبل الإرسال"
 }

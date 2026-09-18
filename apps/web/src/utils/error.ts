@@ -122,6 +122,10 @@ export function getMessageFromError(error: unknown): string {
         return m.groupStudentNotEnrolled();
       case "group.not_found":
         return m.groupNotFound();
+      case "message.empty":
+        return m.messageEmptyError();
+      case "message.file_missing":
+        return m.messageFileMissing();
     }
     if (error.message.startsWith("assignment.incomplete:"))
       return m.assignmentIncomplete();

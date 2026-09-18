@@ -1,5 +1,13 @@
+import type { FileSummary } from "@faridalms/database/repositories/files";
+import type { ContentDocument } from "@faridalms/domain/content";
 import type { ComposeMessageInput } from "@faridalms/domain/school-schema";
 
+import { contentPlainText } from "@faridalms/domain/content";
+import { emptyContent } from "@faridalms/domain/content-conversion";
+import {
+  MESSAGE_ATTACHMENT_BYTES,
+  MESSAGE_ATTACHMENT_LIMIT,
+} from "@faridalms/domain/file";
 import {
   MESSAGE_CATEGORIES,
   composeMessageSchema,
@@ -13,8 +21,9 @@ import {
 import { useHydrated } from "@tanstack/react-router";
 import { useServerFn } from "@tanstack/react-start";
 import { Send, ArrowLeft } from "lucide-react";
-import { Suspense, useRef, useState } from "react";
+import { Suspense, useCallback, useRef, useState } from "react";
 import { toast } from "sonner";
+import * as v from "valibot";
 
 import {
   Field,
@@ -24,6 +33,8 @@ import {
 } from "~/components/app/field";
 import { PageHeader } from "~/components/app/primitives";
 import { UnsavedChangesGuard } from "~/components/app/UnsavedChangesGuard";
+import { FileUploader } from "~/components/assignments/FileUploader";
+import { ContentEditor } from "~/components/content/ContentEditor";
 import { MarkdownComposer } from "~/components/records/MarkdownComposer";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
@@ -59,6 +70,10 @@ const CATEGORY_LABEL: Record<MessageCategory, () => string> = {
 };
 
 type SavedDraft = Awaited<ReturnType<typeof getMessageDraft>>;
+type ComposeValues = Pick<
+  ComposeMessageInput,
+  "category" | "recipientId" | "studentId" | "subject" | "body" | "bodyFormat"
+>;
 
 function ComposeForm({
   initial,
@@ -90,20 +105,43 @@ function ComposeForm({
     initial?.recipient?.name ?? "",
   );
   const [recipientVersion, setRecipientVersion] = useState(0);
+  const [editorVersion, setEditorVersion] = useState(0);
   const draftMutation = useMutation({ mutationFn: save });
-  const [defaultValues, setDefaultValues] = useState<ComposeMessageInput>({
+  const [defaultValues, setDefaultValues] = useState<ComposeValues>({
     category: initial?.category ?? "teachers",
     recipientId: initial?.recipientId ?? "",
     studentId: initial?.studentId ?? "",
     subject: initial?.subject ?? "",
     body: initial?.body ?? "",
-    bodyFormat: initial?.bodyFormat ?? "markdown",
+    bodyFormat: initial?.bodyFormat ?? "rich",
   });
-  const persist = async (value: ComposeMessageInput) => {
+  const [document, setDocument] = useState<ContentDocument>(
+    () => initial?.document ?? emptyContent(),
+  );
+  const [documentValid, setDocumentValid] = useState(true);
+  const [files, setFiles] = useState<FileSummary[]>(initial?.files ?? []);
+  const [attachmentBaseline, setAttachmentBaseline] = useState(() =>
+    JSON.stringify({
+      document: initial?.document ?? emptyContent(),
+      files: (initial?.files ?? []).map((file) => file.id),
+    }),
+  );
+  const onDocumentValidity = useCallback(
+    (valid: boolean) => setDocumentValid(valid),
+    [],
+  );
+  const toInput = (value: ComposeValues): ComposeMessageInput => ({
+    ...value,
+    document: value.bodyFormat === "rich" ? document : null,
+    fileIds: files.map((file) => file.id),
+  });
+  const persist = async (value: ComposeValues) => {
+    if (value.bodyFormat === "rich" && !documentValid)
+      throw new Error("content.invalid");
     draftId.current ??= crypto.randomUUID();
     const saved = await draftMutation.mutateAsync({
       data: {
-        ...value,
+        ...toInput(value),
         id: draftId.current,
         expectedRevision: revision.current,
       },
@@ -111,13 +149,27 @@ function ComposeForm({
     revision.current = saved.revision;
     form.reset(value);
     setDefaultValues(value);
+    setAttachmentBaseline(
+      JSON.stringify({ document, files: files.map((file) => file.id) }),
+    );
     await queryClient.invalidateQueries({ queryKey: ["message-drafts"] });
     return saved;
   };
 
   const form = useForm({
     defaultValues,
-    validators: { onSubmit: composeMessageSchema },
+    validators: {
+      onSubmit: ({ value }) => {
+        const result = v.safeParse(composeMessageSchema, toInput(value));
+        if (result.success) return undefined;
+        const fields: Record<string, v.BaseIssue<unknown>> = {};
+        for (const issue of result.issues) {
+          const key = issue.path?.[0]?.key;
+          if (typeof key === "string") fields[key] = issue;
+        }
+        return { fields };
+      },
+    },
     onSubmit: async ({ value }) => {
       setFailure(undefined);
       try {
@@ -142,6 +194,13 @@ function ComposeForm({
     },
   });
 
+  // The body field mirrors the editor's plain text so its validation state
+  // follows what the writer types; the server derives the stored body itself.
+  const onDocument = (value: ContentDocument) => {
+    setDocument(value);
+    form.setFieldValue("body", contentPlainText(value));
+  };
+
   const isDraftDirty = () =>
     (
       [
@@ -152,7 +211,11 @@ function ComposeForm({
         "body",
         "bodyFormat",
       ] as const
-    ).some((key) => form.state.values[key] !== defaultValues[key]);
+    ).some((key) => form.state.values[key] !== defaultValues[key]) ||
+    (form.state.values.bodyFormat === "rich" &&
+      (!documentValid ||
+        JSON.stringify({ document, files: files.map((file) => file.id) }) !==
+          attachmentBaseline));
 
   const categoryItems = MESSAGE_CATEGORIES.filter(
     (category) =>
@@ -181,7 +244,7 @@ function ComposeForm({
           isDirty={() => !sent.current && isDraftDirty()}
         />
         <DraftConflictReview
-          local={form.state.values}
+          local={toInput(form.state.values)}
           latest={latest}
           localRecipient={recipientLabel}
           localStudent={
@@ -219,7 +282,7 @@ function ComposeForm({
               onSent(latest.sentMessageId);
               return;
             }
-            const values: ComposeMessageInput = {
+            const values: ComposeValues = {
               category: latest.category,
               recipientId: latest.recipientId ?? "",
               studentId: latest.studentId ?? "",
@@ -230,6 +293,15 @@ function ComposeForm({
             revision.current = latest.revision;
             form.reset(values);
             setDefaultValues(values);
+            setDocument(latest.document ?? emptyContent());
+            setFiles(latest.files);
+            setAttachmentBaseline(
+              JSON.stringify({
+                document: latest.document ?? emptyContent(),
+                files: latest.files.map((file) => file.id),
+              }),
+            );
+            setEditorVersion((previous) => previous + 1);
             setSelectionSource(latest);
             setRecipientLabel(latest.recipient?.name ?? "");
             setRecipientVersion((previous) => previous + 1);
@@ -451,7 +523,28 @@ function ComposeForm({
                         <FieldLabel htmlFor="compose-body">
                           {m.messagesBody()}
                         </FieldLabel>
-                        {defaultValues.bodyFormat === "plain" ? (
+                        {defaultValues.bodyFormat === "rich" ? (
+                          <>
+                            <ContentEditor
+                              key={editorVersion}
+                              id="compose-body"
+                              label={m.messagesBody()}
+                              value={document}
+                              onChange={onDocument}
+                              onValidityChange={onDocumentValidity}
+                              disabled={pending || draftMutation.isPending}
+                            />
+                            <FileUploader
+                              label={m.messagesAttachFiles()}
+                              purpose="message_attachment"
+                              value={files}
+                              onChange={setFiles}
+                              maxFiles={MESSAGE_ATTACHMENT_LIMIT}
+                              maxBytes={MESSAGE_ATTACHMENT_BYTES}
+                              disabled={pending || draftMutation.isPending}
+                            />
+                          </>
+                        ) : defaultValues.bodyFormat === "plain" ? (
                           <Textarea
                             id="compose-body"
                             name={field.name}

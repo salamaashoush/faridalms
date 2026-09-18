@@ -187,7 +187,7 @@
   "commCalendarTodayCell": "Today, {date}",
   "commComposeAboutNone": "Not about one child",
   "commComposeCategory": "Recipient group",
-  "commComposeDescription": "Choose who to contact and write your message. Preview the formatting before sending.",
+  "commComposeDescription": "Choose who to contact, write your message and attach any files.",
   "commComposeNoRecipients": "Nobody in this group can receive messages right now.",
   "commComposeRecipientPlaceholder": "Choose a recipient",
   "commMessagesAllRead": "Nothing unread.",
@@ -1024,5 +1024,13 @@
   "validationDeductionRequired": "Enter a deduction between 1 and 100",
   "validationDueAfterAvailable": "Must be after the availability time",
   "validationFileType": "This type of file is not accepted",
-  "validationRubricTotal": "Rubric points must add up to the maximum score"
+  "validationRubricTotal": "Rubric points must add up to the maximum score",
+  "messageThreadCount": "{count} messages",
+  "messageYou": "You",
+  "messageReadBy": "Read by {read} of {total}",
+  "messageThreadWith": "With {names}",
+  "messageThreadAbout": "About {student}",
+  "messageEmptyError": "Write something before sending.",
+  "messageFileMissing": "One of the attached files has not finished uploading.",
+  "validationMessageBody": "Write a message before sending"
 }
