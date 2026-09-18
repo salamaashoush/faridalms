@@ -1,15 +1,14 @@
-import { can, PERMISSIONS, ROLES } from "@faridalms/domain/identity";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { Check, Minus, Pencil, Plus, School } from "lucide-react";
-import { useState } from "react";
+import { Pencil, Plus, School } from "lucide-react";
+import { Suspense, useState } from "react";
 import * as v from "valibot";
 
 import type { DataColumn } from "~/components/admin/DataTable";
 
+import { AccessRolesPanel } from "~/components/admin/AccessRolesPanel";
 import { DataTable } from "~/components/admin/DataTable";
 import { formatDay } from "~/components/admin/format";
-import { PERMISSION_LABEL, ROLE_LABEL } from "~/components/admin/labels";
 import {
   SchoolProfileEditor,
   SubjectEditor,
@@ -22,22 +21,13 @@ import {
   FieldGrid,
 } from "~/components/app/primitives";
 import { FeaturesCard } from "~/components/learning/FeaturesCard";
-import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
-import {
-  Table,
-  TableBody,
-  TableCaption,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "~/components/ui/table";
+import { Skeleton } from "~/components/ui/skeleton";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "~/components/ui/tabs";
 import * as m from "~/i18n/messages";
+import { accessChangesQuery, accessRolesQuery } from "~/queries/access";
 import { schoolFeaturesQuery } from "~/queries/learning";
 import { schoolSettingsQuery, subjectsQuery } from "~/queries/school";
-import { formatNumber } from "~/utils/datetime";
 
 const searchSchema = v.object({
   section: v.optional(v.picklist(["school", "subjects", "access"]), "school"),
@@ -79,11 +69,18 @@ const columns: DataColumn<Subject, "name">[] = [
 ];
 export const Route = createFileRoute("/_app/admin/settings")({
   validateSearch: searchSchema,
-  loader: async ({ context }) => {
+  loaderDeps: ({ search }) => ({ section: search.section }),
+  loader: async ({ context, deps }) => {
     await Promise.all([
       context.queryClient.ensureQueryData(schoolSettingsQuery),
       context.queryClient.ensureQueryData(subjectsQuery),
       context.queryClient.ensureQueryData(schoolFeaturesQuery),
+      ...(deps.section === "access"
+        ? [
+            context.queryClient.ensureQueryData(accessRolesQuery),
+            context.queryClient.ensureQueryData(accessChangesQuery(1)),
+          ]
+        : []),
     ]);
   },
   component: SettingsPage,
@@ -236,12 +233,11 @@ function SettingsPage() {
           />
         </TabsContent>
         <TabsContent value="access">
-          <SectionCard
-            title={m.adminPermissionsSection()}
-            description={m.adminPermissionsCaption()}
-          >
-            <PermissionMatrix />
-          </SectionCard>
+          {search.section === "access" ? (
+            <Suspense fallback={<Skeleton className="h-40 w-full" />}>
+              <AccessRolesPanel />
+            </Suspense>
+          ) : null}
         </TabsContent>
       </Tabs>
       {editing === "school" ? (
@@ -255,91 +251,6 @@ function SettingsPage() {
           onClose={() => setEditing(null)}
         />
       ) : null}
-    </>
-  );
-}
-
-function PermissionMatrix() {
-  return (
-    <>
-      <div className="flex flex-col gap-4 md:hidden">
-        {ROLES.map((role) => {
-          const held = PERMISSIONS.filter((permission) =>
-            can(role, permission),
-          );
-          return (
-            <div key={role} className="rounded-lg border border-border p-3">
-              <div className="flex items-center justify-between gap-2">
-                <h3 className="text-sm font-semibold">{ROLE_LABEL[role]()}</h3>
-                <span className="text-xs text-muted-foreground">
-                  {m.adminPermissionsHeldBy({
-                    count: formatNumber(held.length),
-                  })}
-                </span>
-              </div>
-              <ul className="mt-2 flex flex-wrap gap-1.5">
-                {held.map((permission) => (
-                  <li key={permission}>
-                    <Badge variant="secondary">
-                      {PERMISSION_LABEL[permission]()}
-                    </Badge>
-                  </li>
-                ))}
-              </ul>
-            </div>
-          );
-        })}
-      </div>
-
-      <div className="hidden md:block">
-        <Table>
-          <TableCaption>{m.adminPermissionsCaption()}</TableCaption>
-          <TableHeader>
-            <TableRow>
-              <TableHead>{m.adminCapability()}</TableHead>
-              {ROLES.map((role) => (
-                <TableHead key={role} className="text-center">
-                  {ROLE_LABEL[role]()}
-                </TableHead>
-              ))}
-            </TableRow>
-          </TableHeader>
-          <TableBody>
-            {PERMISSIONS.map((permission) => (
-              <TableRow key={permission}>
-                <TableCell className="font-medium">
-                  {PERMISSION_LABEL[permission]()}
-                </TableCell>
-                {ROLES.map((role) => (
-                  <TableCell key={role} className="text-center">
-                    {can(role, permission) ? (
-                      <>
-                        <Check
-                          className="mx-auto size-4 text-[var(--success)]"
-                          aria-hidden
-                        />
-                        <span className="sr-only">
-                          {m.adminPermissionGranted()}
-                        </span>
-                      </>
-                    ) : (
-                      <>
-                        <Minus
-                          className="mx-auto size-4 text-muted-foreground/50"
-                          aria-hidden
-                        />
-                        <span className="sr-only">
-                          {m.adminPermissionWithheld()}
-                        </span>
-                      </>
-                    )}
-                  </TableCell>
-                ))}
-              </TableRow>
-            ))}
-          </TableBody>
-        </Table>
-      </div>
     </>
   );
 }

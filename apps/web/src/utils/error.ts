@@ -162,6 +162,22 @@ export function getMessageFromError(error: unknown): string {
         return m.learningQuizzesPending();
       case "learning.disabled":
         return m.learningDisabled();
+      case "access.escalation":
+        return m.accessEscalation();
+      case "access.revision_conflict":
+        return m.accessRevisionConflict();
+      case "access.not_found":
+        return m.accessNotFound();
+      case "access.base_role_fixed":
+        return m.accessBaseRoleFixed();
+      case "access.base_role_mismatch":
+        return m.accessBaseRoleMismatch();
+      case "access.last_administrator":
+        return m.accessLastAdministrator();
+      case "access.self_lockout":
+        return m.accessSelfLockout();
+      case "access.user_not_found":
+        return m.accessUserNotFound();
     }
     if (error.message.startsWith("assignment.incomplete:"))
       return m.assignmentIncomplete();
