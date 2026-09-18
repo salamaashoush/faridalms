@@ -10,6 +10,7 @@ import * as newsletters from "./modules/newsletters";
 import * as notifications from "./modules/notifications";
 import * as overviews from "./modules/overviews";
 import * as people from "./modules/people";
+import * as site from "./modules/site";
 import * as students from "./modules/students";
 import * as teaching from "./modules/teaching";
 
@@ -28,5 +29,6 @@ export const router = {
   ...notifications,
   ...announcements,
   ...people,
+  ...site,
 };
 export type AppRouter = typeof router;

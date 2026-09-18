@@ -6,6 +6,7 @@ import { sql } from "drizzle-orm";
 
 import type { ApiContext } from "./context";
 
+import { handlePublicFileRequest } from "./files/public";
 import { handleFileRequest } from "./files/routes";
 import { router } from "./router";
 
@@ -48,7 +49,9 @@ export function createApp(
           headers: request.headers,
           requestId,
         };
-        const file = await handleFileRequest(request, url, context);
+        const file =
+          (await handlePublicFileRequest(request, url, context)) ??
+          (await handleFileRequest(request, url, context));
         if (file) response = file;
         else {
           const handler = url.pathname.startsWith("/rpc/") ? rpc : api;
