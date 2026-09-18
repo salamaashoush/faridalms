@@ -4,6 +4,69 @@ export const academicYearQuerySchema = v.object({
   id: v.pipe(v.string(), v.uuid()),
 });
 
+const isoDate = v.pipe(v.string(), v.isoDate());
+
+export const termSchema = v.pipe(
+  v.object({
+    id: v.optional(v.pipe(v.string(), v.uuid())),
+    name: v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(32)),
+    startsOn: isoDate,
+    endsOn: isoDate,
+  }),
+  v.forward(
+    v.check((value) => value.endsOn >= value.startsOn, "validation.end_date"),
+    ["endsOn"],
+  ),
+);
+export type TermInput = v.InferInput<typeof termSchema>;
+
+interface DateSpan {
+  startsOn: string;
+  endsOn: string;
+}
+
+export type TermIssue = "term_outside" | "term_overlap" | "term_name_conflict";
+
+/** The first thing wrong with a set of terms inside a year, or null when they fit. */
+export function termIssue(
+  year: DateSpan,
+  terms: readonly (DateSpan & { name: string })[],
+): TermIssue | null {
+  if (
+    terms.some(
+      (term) => term.startsOn < year.startsOn || term.endsOn > year.endsOn,
+    )
+  )
+    return "term_outside";
+  const ordered = terms.toSorted((a, b) =>
+    a.startsOn.localeCompare(b.startsOn),
+  );
+  for (let index = 1; index < ordered.length; index += 1) {
+    const previous = ordered[index - 1];
+    const current = ordered[index];
+    if (previous && current && current.startsOn <= previous.endsOn)
+      return "term_overlap";
+  }
+  const names = new Set<string>();
+  for (const term of terms) {
+    const key = term.name.trim().toLocaleLowerCase();
+    if (names.has(key)) return "term_name_conflict";
+    names.add(key);
+  }
+  return null;
+}
+
+function termsAvoid(
+  value: DateSpan & { terms?: (DateSpan & { name: string })[] },
+  issue: TermIssue,
+): boolean {
+  return (
+    !value.terms ||
+    value.endsOn < value.startsOn ||
+    termIssue(value, value.terms) !== issue
+  );
+}
+
 export const saveAcademicYearSchema = v.pipe(
   v.object({
     id: v.optional(v.pipe(v.string(), v.uuid())),
@@ -11,8 +74,10 @@ export const saveAcademicYearSchema = v.pipe(
       v.pipe(v.number(), v.integer(), v.minValue(1)),
     ),
     name: v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(16)),
-    startsOn: v.pipe(v.string(), v.isoDate()),
-    endsOn: v.pipe(v.string(), v.isoDate()),
+    startsOn: isoDate,
+    endsOn: isoDate,
+    /** Absent leaves the year's terms untouched; present replaces them. */
+    terms: v.optional(v.pipe(v.array(termSchema), v.maxLength(12))),
   }),
   v.forward(
     v.check((value) => value.endsOn >= value.startsOn, "validation.end_date"),
@@ -24,6 +89,27 @@ export const saveAcademicYearSchema = v.pipe(
       "validation.revision",
     ),
     ["expectedRevision"],
+  ),
+  v.forward(
+    v.check(
+      (value) => termsAvoid(value, "term_outside"),
+      "validation.term_outside",
+    ),
+    ["terms"],
+  ),
+  v.forward(
+    v.check(
+      (value) => termsAvoid(value, "term_overlap"),
+      "validation.term_overlap",
+    ),
+    ["terms"],
+  ),
+  v.forward(
+    v.check(
+      (value) => termsAvoid(value, "term_name_conflict"),
+      "validation.term_name_conflict",
+    ),
+    ["terms"],
   ),
 );
 

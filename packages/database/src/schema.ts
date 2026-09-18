@@ -207,11 +207,13 @@ export const classes = pgTable(
     homeroomTeacherId: uuid("homeroom_teacher_id").references(() => users.id, {
       onDelete: "set null",
     }),
+    revision: integer().notNull().default(1),
     ...timestamps,
   },
   (table) => [
     unique("classes_year_name_key").on(table.schoolYearId, table.name),
     index("classes_teacher_idx").on(table.homeroomTeacherId),
+    check("classes_revision_check", sql`${table.revision} > 0`),
   ],
 );
 
