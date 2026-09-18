@@ -1,5 +1,6 @@
 import type { RubricCriterion } from "@faridalms/domain/assignment";
 import type { ContentDocument } from "@faridalms/domain/content";
+import type { LessonAnswers, LessonDocument } from "@faridalms/domain/learning";
 import type { NewsletterDocument } from "@faridalms/domain/newsletter";
 import type { NotificationPayload } from "@faridalms/domain/notification";
 import type { SocialLink } from "@faridalms/domain/site";
@@ -13,6 +14,7 @@ import {
 } from "@faridalms/domain/assignment";
 import { FILE_PURPOSES, FILE_STATES } from "@faridalms/domain/file";
 import { PERMISSIONS } from "@faridalms/domain/identity";
+import { LEARNING_STATUSES } from "@faridalms/domain/learning";
 import {
   ANNOUNCEMENT_AUDIENCES,
   DELIVERY_STATES,
@@ -1369,5 +1371,100 @@ export const sitePostRevisions = pgTable(
   },
   (table) => [
     unique("site_post_revisions_key").on(table.postId, table.revision),
+  ],
+);
+
+// --- learning modules -----------------------------------------------------------
+
+/** Optional product areas a school switches on, one row per switch. */
+export const schoolFeatures = pgTable("school_features", {
+  key: varchar({ length: 40 }).primaryKey(),
+  enabled: boolean().notNull().default(false),
+  updatedById: uuid("updated_by_id").references(() => users.id, {
+    onDelete: "set null",
+  }),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
+
+export const learningStatusEnum = pgEnum("learning_status", LEARNING_STATUSES);
+
+export const learningModules = pgTable(
+  "learning_modules",
+  {
+    id: uuid().primaryKey(),
+    classId: uuid("class_id")
+      .notNull()
+      .references(() => classes.id, { onDelete: "cascade" }),
+    subjectId: uuid("subject_id")
+      .notNull()
+      .references(() => subjects.id, { onDelete: "restrict" }),
+    title: varchar({ length: 160 }).notNull(),
+    summary: varchar({ length: 500 }).notNull().default(""),
+    status: learningStatusEnum().notNull().default("draft"),
+    revision: integer().notNull().default(1),
+    authorId: uuid("author_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    publishedAt: timestamp("published_at", { withTimezone: true }),
+    ...timestamps,
+  },
+  (table) => [
+    index("learning_modules_class_idx").on(table.classId, table.status),
+    check("learning_modules_revision_check", sql`${table.revision} > 0`),
+  ],
+);
+
+export const lessons = pgTable(
+  "lessons",
+  {
+    id: uuid().primaryKey(),
+    moduleId: uuid("module_id")
+      .notNull()
+      .references(() => learningModules.id, { onDelete: "cascade" }),
+    position: integer().notNull().default(0),
+    title: varchar({ length: 160 }).notNull(),
+    document: jsonb().$type<LessonDocument>().notNull(),
+    revision: integer().notNull().default(1),
+    ...timestamps,
+  },
+  (table) => [
+    index("lessons_module_idx").on(table.moduleId, table.position),
+    check("lessons_revision_check", sql`${table.revision} > 0`),
+  ],
+);
+
+/** Media a lesson embeds, kept in sync with the document so downloads can be authorised. */
+export const lessonFiles = pgTable(
+  "lesson_files",
+  {
+    lessonId: uuid("lesson_id")
+      .notNull()
+      .references(() => lessons.id, { onDelete: "cascade" }),
+    fileId: uuid("file_id")
+      .notNull()
+      .references(() => privateFiles.id, { onDelete: "cascade" }),
+  },
+  (table) => [primaryKey({ columns: [table.lessonId, table.fileId] })],
+);
+
+export const lessonProgress = pgTable(
+  "lesson_progress",
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    lessonId: uuid("lesson_id")
+      .notNull()
+      .references(() => lessons.id, { onDelete: "cascade" }),
+    studentId: uuid("student_id")
+      .notNull()
+      .references(() => students.id, { onDelete: "cascade" }),
+    answers: jsonb().$type<LessonAnswers>().notNull().default({}),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+    ...timestamps,
+  },
+  (table) => [
+    unique("lesson_progress_key").on(table.lessonId, table.studentId),
+    index("lesson_progress_student_idx").on(table.studentId),
   ],
 );

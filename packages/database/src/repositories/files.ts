@@ -126,6 +126,18 @@ export async function fileWithLinks(db: Executor, id: string) {
   return db.query.privateFiles.findFirst({
     where: { id },
     with: {
+      lessonLinks: {
+        with: {
+          lesson: {
+            columns: { id: true },
+            with: {
+              module: {
+                columns: { id: true, classId: true, status: true },
+              },
+            },
+          },
+        },
+      },
       resourceLinks: {
         with: {
           assignment: {

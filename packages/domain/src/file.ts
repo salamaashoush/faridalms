@@ -5,6 +5,7 @@ export const FILE_PURPOSES = [
   "submission_attachment",
   "message_attachment",
   "site_media",
+  "lesson_media",
 ] as const;
 export const MESSAGE_ATTACHMENT_LIMIT = 5;
 export const MESSAGE_ATTACHMENT_BYTES = 10 * 1024 * 1024;
@@ -44,6 +45,8 @@ const ACCEPTED_TYPES: Record<string, readonly string[]> = {
   m4a: ["audio/mp4", "audio/x-m4a"],
   wav: ["audio/wav", "audio/x-wav"],
   mp4: ["video/mp4"],
+  webm: ["video/webm"],
+  vtt: ["text/vtt"],
   zip: ["application/zip", "application/x-zip-compressed"],
 };
 
