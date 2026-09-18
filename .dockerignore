@@ -27,10 +27,17 @@ playwright/.cache
 .DS_Store
 
 # Generated at build time by the paraglide plugin
-src/i18n
+apps/web/src/i18n
 
 # Not needed to build or run the server
 e2e
 README.md
 Dockerfile
 .dockerignore
+
+**/node_modules
+**/.output
+**/.nitro
+**/.tanstack
+**/dist
+research

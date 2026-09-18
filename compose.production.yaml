@@ -1,0 +1,27 @@
+services:
+  api:
+    build:
+      context: .
+      target: api
+    restart: unless-stopped
+    environment:
+      CONTROL_DATABASE_URL: ${CONTROL_DATABASE_URL:?Set the control database URL}
+      API_PORT: 3001
+      MAX_TENANT_POOLS: ${MAX_TENANT_POOLS:-32}
+      TENANT_POOL_SIZE: ${TENANT_POOL_SIZE:-4}
+    ports:
+      - "127.0.0.1:3001:3001"
+    stop_grace_period: 30s
+  web:
+    build:
+      context: .
+      target: web
+    restart: unless-stopped
+    environment:
+      BACKEND_URL: http://api:3001
+    ports:
+      - "127.0.0.1:3000:3000"
+    depends_on:
+      api:
+        condition: service_healthy
+    stop_grace_period: 30s
