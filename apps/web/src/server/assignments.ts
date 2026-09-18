@@ -9,7 +9,7 @@ import {
 import { createServerFn } from "@tanstack/react-start";
 import * as v from "valibot";
 
-import { backend } from "./backend";
+import { backend, record } from "./backend";
 
 const id = v.pipe(v.string(), v.uuid());
 
@@ -18,7 +18,7 @@ export const getAuthoringContext = createServerFn({ method: "GET" })
   .handler(({ data }) => backend().getAuthoringContext(data));
 export const getAuthoringAssignment = createServerFn({ method: "GET" })
   .inputValidator(v.object({ id }))
-  .handler(({ data }) => backend().getAuthoringAssignment(data));
+  .handler(({ data }) => record(backend().getAuthoringAssignment(data)));
 export const saveAssignment = createServerFn({ method: "POST" })
   .inputValidator(saveAssignmentSchema)
   .handler(({ data }) => backend().saveAssignment(data));
@@ -33,16 +33,16 @@ export const deleteDraftAssignment = createServerFn({ method: "POST" })
   .handler(({ data }) => backend().deleteDraftAssignment(data));
 export const getAssignmentWorkspace = createServerFn({ method: "GET" })
   .inputValidator(v.object({ id }))
-  .handler(({ data }) => backend().getAssignmentWorkspace(data));
+  .handler(({ data }) => record(backend().getAssignmentWorkspace(data)));
 export const getAttemptForReview = createServerFn({ method: "GET" })
   .inputValidator(v.object({ attemptId: id }))
-  .handler(({ data }) => backend().getAttemptForReview(data));
+  .handler(({ data }) => record(backend().getAttemptForReview(data)));
 export const assessAttempt = createServerFn({ method: "POST" })
   .inputValidator(assessAttemptSchema)
   .handler(({ data }) => backend().assessAttempt(data));
 export const getLearnerAssignment = createServerFn({ method: "GET" })
   .inputValidator(v.object({ id, studentId: v.optional(v.string(), "") }))
-  .handler(({ data }) => backend().getLearnerAssignment(data));
+  .handler(({ data }) => record(backend().getLearnerAssignment(data)));
 export const saveSubmissionDraft = createServerFn({ method: "POST" })
   .inputValidator(saveSubmissionDraftSchema)
   .handler(({ data }) => backend().saveSubmissionDraft(data));

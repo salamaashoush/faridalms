@@ -30,7 +30,7 @@ import {
 import { createServerFn } from "@tanstack/react-start";
 import * as v from "valibot";
 
-import { backend } from "./backend";
+import { backend, record } from "./backend";
 
 export const getVisibleStudents = createServerFn({ method: "GET" }).handler(
   () => backend().getVisibleStudents(),
@@ -38,7 +38,7 @@ export const getVisibleStudents = createServerFn({ method: "GET" }).handler(
 
 export const getStudent = createServerFn({ method: "GET" })
   .validator((input: unknown) => v.parse(studentScopedQuerySchema, input))
-  .handler(({ data }) => backend().getStudent(data));
+  .handler(({ data }) => record(backend().getStudent(data)));
 
 export const getFamilyOverview = createServerFn({ method: "GET" }).handler(() =>
   backend().getFamilyOverview(),
@@ -58,7 +58,7 @@ export const getMyClasses = createServerFn({ method: "GET" }).handler(() =>
 
 export const getClass = createServerFn({ method: "GET" })
   .validator((input: unknown) => v.parse(v.object({ id: v.string() }), input))
-  .handler(({ data }) => backend().getClass(data));
+  .handler(({ data }) => record(backend().getClass(data)));
 
 export const getClassAssignments = createServerFn({ method: "GET" })
   .validator((input: unknown) => v.parse(classScopedQuerySchema, input))
@@ -116,7 +116,7 @@ export const getAssignments = createServerFn({ method: "GET" })
 
 export const getAssignmentDetail = createServerFn({ method: "GET" })
   .validator((input: unknown) => v.parse(v.object({ id: v.string() }), input))
-  .handler(({ data }) => backend().getAssignmentDetail(data));
+  .handler(({ data }) => record(backend().getAssignmentDetail(data)));
 
 export const submitAssignment = createServerFn({ method: "POST" })
   .validator((input: unknown) => v.parse(submitWorkSchema, input))

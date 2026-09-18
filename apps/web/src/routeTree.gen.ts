@@ -58,6 +58,7 @@ import { Route as AppMeGradesRouteImport } from './routes/_app/me/grades'
 import { Route as AppMeMessagesRouteImport } from './routes/_app/me/messages'
 import { Route as AppMeTimetableRouteImport } from './routes/_app/me/timetable'
 import { Route as AppNewslettersNewsletterIdRouteImport } from './routes/_app/newsletters.$newsletterId'
+import { Route as AppPeopleUserIdRouteImport } from './routes/_app/people.$userId'
 import { Route as AppStudentsStudentIdRouteImport } from './routes/_app/students.$studentId'
 import { Route as AppTeachIndexRouteImport } from './routes/_app/teach/index'
 import { Route as AppTeachAssignmentEditorRouteImport } from './routes/_app/teach/assignment-editor'
@@ -321,6 +322,11 @@ const AppNewslettersNewsletterIdRoute =
     path: '/newsletters/$newsletterId',
     getParentRoute: () => AppRoute,
   } as any)
+const AppPeopleUserIdRoute = AppPeopleUserIdRouteImport.update({
+  id: '/people/$userId',
+  path: '/people/$userId',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppStudentsStudentIdRoute = AppStudentsStudentIdRouteImport.update({
   id: '/students/$studentId',
   path: '/students/$studentId',
@@ -417,6 +423,7 @@ export interface FileRoutesByFullPath {
   '/me/messages': typeof AppMeMessagesRoute
   '/me/timetable': typeof AppMeTimetableRoute
   '/newsletters/$newsletterId': typeof AppNewslettersNewsletterIdRoute
+  '/people/$userId': typeof AppPeopleUserIdRoute
   '/students/$studentId': typeof AppStudentsStudentIdRoute
   '/teach/assignment-editor': typeof AppTeachAssignmentEditorRoute
   '/teach/assignments': typeof AppTeachAssignmentsRoute
@@ -472,6 +479,7 @@ export interface FileRoutesByTo {
   '/me/messages': typeof AppMeMessagesRoute
   '/me/timetable': typeof AppMeTimetableRoute
   '/newsletters/$newsletterId': typeof AppNewslettersNewsletterIdRoute
+  '/people/$userId': typeof AppPeopleUserIdRoute
   '/students/$studentId': typeof AppStudentsStudentIdRoute
   '/teach/assignment-editor': typeof AppTeachAssignmentEditorRoute
   '/teach/assignments': typeof AppTeachAssignmentsRoute
@@ -534,6 +542,7 @@ export interface FileRoutesById {
   '/_app/me/messages': typeof AppMeMessagesRoute
   '/_app/me/timetable': typeof AppMeTimetableRoute
   '/_app/newsletters/$newsletterId': typeof AppNewslettersNewsletterIdRoute
+  '/_app/people/$userId': typeof AppPeopleUserIdRoute
   '/_app/students/$studentId': typeof AppStudentsStudentIdRoute
   '/_app/teach/assignment-editor': typeof AppTeachAssignmentEditorRoute
   '/_app/teach/assignments': typeof AppTeachAssignmentsRoute
@@ -595,6 +604,7 @@ export interface FileRouteTypes {
     | '/me/messages'
     | '/me/timetable'
     | '/newsletters/$newsletterId'
+    | '/people/$userId'
     | '/students/$studentId'
     | '/teach/assignment-editor'
     | '/teach/assignments'
@@ -650,6 +660,7 @@ export interface FileRouteTypes {
     | '/me/messages'
     | '/me/timetable'
     | '/newsletters/$newsletterId'
+    | '/people/$userId'
     | '/students/$studentId'
     | '/teach/assignment-editor'
     | '/teach/assignments'
@@ -711,6 +722,7 @@ export interface FileRouteTypes {
     | '/_app/me/messages'
     | '/_app/me/timetable'
     | '/_app/newsletters/$newsletterId'
+    | '/_app/people/$userId'
     | '/_app/students/$studentId'
     | '/_app/teach/assignment-editor'
     | '/_app/teach/assignments'
@@ -1080,6 +1092,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppNewslettersNewsletterIdRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/people/$userId': {
+      id: '/_app/people/$userId'
+      path: '/people/$userId'
+      fullPath: '/people/$userId'
+      preLoaderRoute: typeof AppPeopleUserIdRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/students/$studentId': {
       id: '/_app/students/$studentId'
       path: '/students/$studentId'
@@ -1283,6 +1302,7 @@ interface AppRouteChildren {
   AppAssignmentsAssignmentIdRoute: typeof AppAssignmentsAssignmentIdRoute
   AppClassesClassIdRoute: typeof AppClassesClassIdRoute
   AppNewslettersNewsletterIdRoute: typeof AppNewslettersNewsletterIdRoute
+  AppPeopleUserIdRoute: typeof AppPeopleUserIdRoute
   AppStudentsStudentIdRoute: typeof AppStudentsStudentIdRoute
   AppAnnouncementsIndexRoute: typeof AppAnnouncementsIndexRoute
 }
@@ -1299,6 +1319,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppAssignmentsAssignmentIdRoute: AppAssignmentsAssignmentIdRoute,
   AppClassesClassIdRoute: AppClassesClassIdRoute,
   AppNewslettersNewsletterIdRoute: AppNewslettersNewsletterIdRoute,
+  AppPeopleUserIdRoute: AppPeopleUserIdRoute,
   AppStudentsStudentIdRoute: AppStudentsStudentIdRoute,
   AppAnnouncementsIndexRoute: AppAnnouncementsIndexRoute,
 }

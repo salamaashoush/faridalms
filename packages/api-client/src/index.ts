@@ -1,8 +1,19 @@
 import type { AppRouter } from "@faridalms/api/router";
 import type { RouterClient } from "@orpc/server";
 
-import { createORPCClient } from "@orpc/client";
+import { createORPCClient, ORPCError } from "@orpc/client";
 import { RPCLink } from "@orpc/client/fetch";
+
+/**
+ * True when the API will not show the requested record: it does not exist, or
+ * the caller's relationships do not reach it. Both read the same from a URL.
+ */
+export function isHiddenRecordError(error: unknown): boolean {
+  return (
+    error instanceof ORPCError &&
+    (error.code === "NOT_FOUND" || error.code === "FORBIDDEN")
+  );
+}
 
 export function createApiClient(options: {
   url: string;
