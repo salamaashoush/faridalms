@@ -109,6 +109,11 @@ progress and lessons without answering. Lesson media is authorised through the
 lesson's module: its teachers, administrators, and the families and learners
 of the class while the module is published.
 
+Calendar events carry a content document from the shared editor alongside a
+plain-text description derived from it on every save; the text serves search,
+previews and clients without the editor, and a client that sends only text
+gets a document built from its lines.
+
 Search is a single procedure that resolves what the viewer can reach (visible
 students and classes, participation in threads, announcement audiences) and
 then matches names, titles, summaries and message bodies with case-insensitive
