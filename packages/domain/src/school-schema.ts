@@ -51,6 +51,10 @@ export const DEFAULT_ASSIGNMENTS_QUERY: AssignmentsQuery = v.parse(
 export const classScopedQuerySchema = v.object({
   classId: v.optional(v.string(), ""),
   week: v.optional(v.pipe(v.number(), v.integer(), v.minValue(1))),
+  status: v.optional(
+    v.picklist(["all", "draft", "published", "archived"]),
+    "all",
+  ),
 });
 export type ClassScopedQuery = v.InferOutput<typeof classScopedQuerySchema>;
 export const DEFAULT_CLASS_SCOPED_QUERY: ClassScopedQuery = v.parse(

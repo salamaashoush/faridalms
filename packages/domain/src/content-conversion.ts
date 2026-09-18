@@ -133,3 +133,39 @@ export function emptyContent(): ContentDocument {
     },
   };
 }
+
+/** A single-paragraph document from plain text, one line per paragraph. */
+export function plainContent(text: string): ContentDocument {
+  const lines = text.replaceAll("\r\n", "\n").split("\n");
+  return {
+    root: {
+      type: "root",
+      version: 1,
+      children: lines.map((line) => ({
+        type: "paragraph",
+        version: 1,
+        children: line
+          ? [
+              {
+                type: "text",
+                version: 1,
+                format: 0,
+                detail: 0,
+                mode: "normal",
+                style: "",
+                text: line,
+              },
+            ]
+          : [],
+        direction: null,
+        format: "",
+        indent: 0,
+        textFormat: 0,
+        textStyle: "",
+      })),
+      direction: null,
+      format: "",
+      indent: 0,
+    },
+  };
+}

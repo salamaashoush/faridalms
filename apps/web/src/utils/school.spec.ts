@@ -7,6 +7,8 @@ import {
   shiftMonth,
   weekForDate,
   weekdayOf,
+  zonedInstant,
+  zonedLocal,
 } from "@faridalms/domain/school";
 import { describe, expect, it } from "vitest";
 
@@ -145,5 +147,31 @@ describe("weekForDate", () => {
 
   it("returns undefined when no weeks are configured", () => {
     expect(weekForDate([], "2026-09-15")).toBeUndefined();
+  });
+});
+
+describe("zoned time", () => {
+  it("resolves a Cairo wall-clock time to its instant and back", () => {
+    expect(
+      zonedInstant("2026-09-20", "23:59", "Africa/Cairo").toISOString(),
+    ).toBe("2026-09-20T20:59:00.000Z");
+    expect(
+      zonedInstant("2026-12-20", "08:00", "Africa/Cairo").toISOString(),
+    ).toBe("2026-12-20T06:00:00.000Z");
+    expect(zonedLocal("2026-09-20T20:59:00.000Z", "Africa/Cairo")).toBe(
+      "2026-09-20T23:59",
+    );
+    expect(zonedLocal("2026-12-20T06:00:00.000Z", "Africa/Cairo")).toBe(
+      "2026-12-20T08:00",
+    );
+  });
+
+  it("keeps UTC unchanged", () => {
+    expect(zonedInstant("2026-09-20", "12:30", "UTC").toISOString()).toBe(
+      "2026-09-20T12:30:00.000Z",
+    );
+    expect(zonedLocal("2026-09-20T12:30:00.000Z", "UTC")).toBe(
+      "2026-09-20T12:30",
+    );
   });
 });

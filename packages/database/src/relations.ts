@@ -19,6 +19,36 @@ export const relations = defineRelations(schema, (r) => ({
       from: r.users.id,
       to: r.students.userId,
     }),
+    files: r.many.privateFiles(),
+  },
+
+  privateFiles: {
+    owner: r.one.users({
+      from: r.privateFiles.ownerId,
+      to: r.users.id,
+    }),
+    resourceLinks: r.many.assignmentResources(),
+    attemptLinks: r.many.submissionAttemptFiles(),
+    draftLinks: r.many.submissionDraftFiles(),
+  },
+
+  studentGroups: {
+    class: r.one.classes({
+      from: r.studentGroups.classId,
+      to: r.classes.id,
+    }),
+    members: r.many.studentGroupMembers(),
+  },
+
+  studentGroupMembers: {
+    group: r.one.studentGroups({
+      from: r.studentGroupMembers.groupId,
+      to: r.studentGroups.id,
+    }),
+    student: r.one.students({
+      from: r.studentGroupMembers.studentId,
+      to: r.students.id,
+    }),
   },
 
   students: {
@@ -39,6 +69,7 @@ export const relations = defineRelations(schema, (r) => ({
     guardianships: r.many.guardianships(),
     enrolments: r.many.enrolments(),
     submissions: r.many.submissions(),
+    assignmentRecipients: r.many.assignmentRecipients(),
     attendance: r.many.attendance(),
     grades: r.many.grades(),
   },
@@ -104,6 +135,7 @@ export const relations = defineRelations(schema, (r) => ({
     assignments: r.many.assignments(),
     timetableSlots: r.many.timetableSlots(),
     attendance: r.many.attendance(),
+    groups: r.many.studentGroups(),
   },
 
   enrolments: {
@@ -172,6 +204,30 @@ export const relations = defineRelations(schema, (r) => ({
       to: r.users.id,
     }),
     submissions: r.many.submissions(),
+    recipients: r.many.assignmentRecipients(),
+    resources: r.many.assignmentResources(),
+  },
+
+  assignmentRecipients: {
+    assignment: r.one.assignments({
+      from: r.assignmentRecipients.assignmentId,
+      to: r.assignments.id,
+    }),
+    student: r.one.students({
+      from: r.assignmentRecipients.studentId,
+      to: r.students.id,
+    }),
+  },
+
+  assignmentResources: {
+    assignment: r.one.assignments({
+      from: r.assignmentResources.assignmentId,
+      to: r.assignments.id,
+    }),
+    file: r.one.privateFiles({
+      from: r.assignmentResources.fileId,
+      to: r.privateFiles.id,
+    }),
   },
 
   submissions: {
@@ -183,17 +239,64 @@ export const relations = defineRelations(schema, (r) => ({
       from: r.submissions.studentId,
       to: r.students.id,
     }),
-    files: r.many.submissionFiles(),
+    attempts: r.many.submissionAttempts(),
+    draftFiles: r.many.submissionDraftFiles(),
+    currentAttempt: r.one.submissionAttempts({
+      from: r.submissions.currentAttemptId,
+      to: r.submissionAttempts.id,
+    }),
     gradedBy: r.one.users({
       from: r.submissions.gradedById,
       to: r.users.id,
     }),
   },
 
-  submissionFiles: {
+  submissionDraftFiles: {
     submission: r.one.submissions({
-      from: r.submissionFiles.submissionId,
+      from: r.submissionDraftFiles.submissionId,
       to: r.submissions.id,
+    }),
+    file: r.one.privateFiles({
+      from: r.submissionDraftFiles.fileId,
+      to: r.privateFiles.id,
+    }),
+  },
+
+  submissionAttempts: {
+    submission: r.one.submissions({
+      from: r.submissionAttempts.submissionId,
+      to: r.submissions.id,
+    }),
+    files: r.many.submissionAttemptFiles(),
+    assessment: r.one.assessments({
+      from: r.submissionAttempts.id,
+      to: r.assessments.attemptId,
+    }),
+    submittedBy: r.one.users({
+      from: r.submissionAttempts.submittedById,
+      to: r.users.id,
+    }),
+  },
+
+  submissionAttemptFiles: {
+    attempt: r.one.submissionAttempts({
+      from: r.submissionAttemptFiles.attemptId,
+      to: r.submissionAttempts.id,
+    }),
+    file: r.one.privateFiles({
+      from: r.submissionAttemptFiles.fileId,
+      to: r.privateFiles.id,
+    }),
+  },
+
+  assessments: {
+    attempt: r.one.submissionAttempts({
+      from: r.assessments.attemptId,
+      to: r.submissionAttempts.id,
+    }),
+    gradedBy: r.one.users({
+      from: r.assessments.gradedById,
+      to: r.users.id,
     }),
   },
 

@@ -1,0 +1,2 @@
+CREATE TYPE "recipient_mode" AS ENUM('class', 'groups', 'students');--> statement-breakpoint
+ALTER TABLE "assignments" ADD COLUMN "audience" "recipient_mode" DEFAULT 'class'::"recipient_mode" NOT NULL;

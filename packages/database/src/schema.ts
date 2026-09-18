@@ -1,5 +1,15 @@
+import type { RubricCriterion } from "@faridalms/domain/assignment";
+import type { ContentDocument } from "@faridalms/domain/content";
 import type { NewsletterDocument } from "@faridalms/domain/newsletter";
 
+import {
+  ASSIGNMENT_STATUSES,
+  LATE_POLICIES,
+  RECIPIENT_MODES,
+  RESUBMISSION_POLICIES,
+  SUBMISSION_FORMATS,
+} from "@faridalms/domain/assignment";
+import { FILE_PURPOSES, FILE_STATES } from "@faridalms/domain/file";
 import { PERMISSIONS } from "@faridalms/domain/identity";
 import { sql } from "drizzle-orm";
 import {
@@ -45,6 +55,22 @@ export const submissionStateEnum = pgEnum("submission_state", [
   "submitted",
   "returned",
 ]);
+export const assignmentStatusEnum = pgEnum(
+  "assignment_status",
+  ASSIGNMENT_STATUSES,
+);
+export const submissionFormatEnum = pgEnum(
+  "submission_format",
+  SUBMISSION_FORMATS,
+);
+export const latePolicyEnum = pgEnum("late_policy", LATE_POLICIES);
+export const resubmissionPolicyEnum = pgEnum(
+  "resubmission_policy",
+  RESUBMISSION_POLICIES,
+);
+export const recipientModeEnum = pgEnum("recipient_mode", RECIPIENT_MODES);
+export const filePurposeEnum = pgEnum("file_purpose", FILE_PURPOSES);
+export const fileStateEnum = pgEnum("file_state", FILE_STATES);
 export const attendanceStatusEnum = pgEnum("attendance_status", [
   "present",
   "absent",
@@ -317,6 +343,68 @@ export const classSubjects = pgTable(
   (table) => [unique("class_subjects_key").on(table.classId, table.subjectId)],
 );
 
+/** Teacher-made subsets of a class roster, reused as assignment audiences. */
+export const studentGroups = pgTable(
+  "student_groups",
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    classId: uuid("class_id")
+      .notNull()
+      .references(() => classes.id, { onDelete: "cascade" }),
+    name: varchar({ length: 64 }).notNull(),
+    createdById: uuid("created_by_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    ...timestamps,
+  },
+  (table) => [
+    unique("student_groups_class_name_key").on(table.classId, table.name),
+  ],
+);
+
+export const studentGroupMembers = pgTable(
+  "student_group_members",
+  {
+    groupId: uuid("group_id")
+      .notNull()
+      .references(() => studentGroups.id, { onDelete: "cascade" }),
+    studentId: uuid("student_id")
+      .notNull()
+      .references(() => students.id, { onDelete: "cascade" }),
+  },
+  (table) => [primaryKey({ columns: [table.groupId, table.studentId] })],
+);
+
+// --- private files ------------------------------------------------------------
+
+/**
+ * A stored object and the facts the server verified about it. Knowing an id
+ * never grants a download: every read re-checks the record the file is linked
+ * to, and the storage key is generated here rather than accepted from a client.
+ */
+export const privateFiles = pgTable(
+  "private_files",
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    ownerId: uuid("owner_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    purpose: filePurposeEnum().notNull(),
+    name: varchar({ length: 255 }).notNull(),
+    mediaType: varchar("media_type", { length: 128 }).notNull(),
+    sizeBytes: integer("size_bytes").notNull(),
+    sha256: varchar({ length: 64 }),
+    state: fileStateEnum().notNull().default("initiated"),
+    storageKey: text("storage_key").notNull().unique(),
+    completedAt: timestamp("completed_at", { withTimezone: true }),
+    ...timestamps,
+  },
+  (table) => [
+    index("private_files_owner_idx").on(table.ownerId, table.state),
+    check("private_files_size_check", sql`${table.sizeBytes} > 0`),
+  ],
+);
+
 // --- teaching and learning ----------------------------------------------------
 
 export const terms = pgTable(
@@ -379,20 +467,105 @@ export const assignments = pgTable(
       onDelete: "set null",
     }),
     title: varchar({ length: 255 }).notNull(),
+    // Plain-text brief kept for records written before the shared editor.
     description: text(),
+    instructions: jsonb().$type<ContentDocument>(),
     type: assignmentTypeEnum().notNull(),
+    status: assignmentStatusEnum().notNull().default("published"),
+    // A class audience follows the roster, so students who join later see the
+    // work; groups and named students are fixed when saved. Recipient rows
+    // record who was reached and keep anyone who has already handed in.
+    audience: recipientModeEnum().notNull().default("class"),
+    revision: integer().notNull().default(1),
     assignedOn: date("assigned_on").notNull(),
+    // The school-local calendar day of `dueAt`, kept for week grouping and lists.
     dueDate: date("due_date").notNull(),
+    availableFrom: timestamp("available_from", { withTimezone: true }),
+    dueAt: timestamp("due_at", { withTimezone: true }).notNull(),
+    closesAt: timestamp("closes_at", { withTimezone: true }),
+    latePolicy: latePolicyEnum("late_policy").notNull().default("not_accepted"),
+    lateDeductionPercent: smallint("late_deduction_percent")
+      .notNull()
+      .default(0),
+    submissionFormat: submissionFormatEnum("submission_format")
+      .notNull()
+      .default("written"),
+    maxAttachments: smallint("max_attachments").notNull().default(0),
+    maxAttachmentBytes: integer("max_attachment_bytes")
+      .notNull()
+      .default(10 * 1024 * 1024),
+    resubmission: resubmissionPolicyEnum().notNull().default("not_allowed"),
     maxScore: integer("max_score").notNull().default(10),
+    rubric: jsonb().$type<RubricCriterion[]>().notNull().default([]),
     publishedAt: timestamp("published_at", { withTimezone: true }),
+    archivedAt: timestamp("archived_at", { withTimezone: true }),
+    updatedById: uuid("updated_by_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
     ...timestamps,
   },
   (table) => [
     index("assignments_class_due_idx").on(table.classId, table.dueDate),
     index("assignments_week_idx").on(table.weekId),
+    index("assignments_status_idx").on(table.status, table.dueAt),
+    check("assignments_revision_check", sql`${table.revision} > 0`),
+    check(
+      "assignments_deduction_check",
+      sql`${table.lateDeductionPercent} between 0 and 100`,
+    ),
+    check(
+      "assignments_attachments_check",
+      sql`${table.maxAttachments} between 0 and 10`,
+    ),
   ],
 );
 
+/**
+ * The audience resolved when a teacher chose it. A roster change later does
+ * not silently remove work; publishing to new students adds rows.
+ */
+export const assignmentRecipients = pgTable(
+  "assignment_recipients",
+  {
+    assignmentId: uuid("assignment_id")
+      .notNull()
+      .references(() => assignments.id, { onDelete: "cascade" }),
+    studentId: uuid("student_id")
+      .notNull()
+      .references(() => students.id, { onDelete: "cascade" }),
+    source: varchar({ length: 16 }).notNull().default("class"),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    primaryKey({ columns: [table.assignmentId, table.studentId] }),
+    index("assignment_recipients_student_idx").on(table.studentId),
+  ],
+);
+
+export const assignmentResources = pgTable(
+  "assignment_resources",
+  {
+    assignmentId: uuid("assignment_id")
+      .notNull()
+      .references(() => assignments.id, { onDelete: "cascade" }),
+    fileId: uuid("file_id")
+      .notNull()
+      .references(() => privateFiles.id, { onDelete: "restrict" }),
+    position: smallint().notNull().default(0),
+  },
+  (table) => [
+    primaryKey({ columns: [table.assignmentId, table.fileId] }),
+    index("assignment_resources_file_idx").on(table.fileId),
+  ],
+);
+
+/**
+ * One aggregate per student per assignment. The mutable draft lives here; each
+ * hand-in becomes an immutable attempt, and the score columns mirror the
+ * released assessment of `currentAttemptId` so lists never join three tables.
+ */
 export const submissions = pgTable(
   "submissions",
   {
@@ -404,6 +577,9 @@ export const submissions = pgTable(
       .notNull()
       .references(() => students.id, { onDelete: "cascade" }),
     state: submissionStateEnum().notNull().default("not_started"),
+    revision: integer().notNull().default(1),
+    draft: jsonb().$type<ContentDocument>(),
+    currentAttemptId: uuid("current_attempt_id"),
     content: text(),
     submittedAt: timestamp("submitted_at", { withTimezone: true }),
     score: integer(),
@@ -415,28 +591,117 @@ export const submissions = pgTable(
     ...timestamps,
   },
   (table) => [
-    // One submission row per student per assignment; re-submitting updates it.
     unique("submissions_assignment_student_key").on(
       table.assignmentId,
       table.studentId,
     ),
     index("submissions_student_idx").on(table.studentId),
+    check("submissions_revision_check", sql`${table.revision} > 0`),
   ],
 );
 
-export const submissionFiles = pgTable(
-  "submission_files",
+export const submissionDraftFiles = pgTable(
+  "submission_draft_files",
+  {
+    submissionId: uuid("submission_id")
+      .notNull()
+      .references(() => submissions.id, { onDelete: "cascade" }),
+    fileId: uuid("file_id")
+      .notNull()
+      .references(() => privateFiles.id, { onDelete: "restrict" }),
+    position: smallint().notNull().default(0),
+  },
+  (table) => [
+    primaryKey({ columns: [table.submissionId, table.fileId] }),
+    index("submission_draft_files_file_idx").on(table.fileId),
+  ],
+);
+
+/** A hand-in as it was at the moment of submission. Never updated afterwards. */
+export const submissionAttempts = pgTable(
+  "submission_attempts",
   {
     id: uuid().primaryKey().defaultRandom(),
     submissionId: uuid("submission_id")
       .notNull()
       .references(() => submissions.id, { onDelete: "cascade" }),
-    name: varchar({ length: 255 }).notNull(),
-    url: text().notNull(),
-    sizeBytes: integer("size_bytes").notNull(),
-    ...timestamps,
+    number: smallint().notNull(),
+    // The draft revision this attempt was cut from, so a retried submit of the
+    // same revision finds this row instead of creating a second attempt.
+    sourceRevision: integer("source_revision").notNull(),
+    content: jsonb().$type<ContentDocument>(),
+    plainText: text("plain_text"),
+    isLate: boolean("is_late").notNull().default(false),
+    submittedAt: timestamp("submitted_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    submittedById: uuid("submitted_by_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
   },
-  (table) => [index("submission_files_submission_idx").on(table.submissionId)],
+  (table) => [
+    unique("submission_attempts_number_key").on(
+      table.submissionId,
+      table.number,
+    ),
+    unique("submission_attempts_revision_key").on(
+      table.submissionId,
+      table.sourceRevision,
+    ),
+    check("submission_attempts_number_check", sql`${table.number} > 0`),
+  ],
+);
+
+export const submissionAttemptFiles = pgTable(
+  "submission_attempt_files",
+  {
+    attemptId: uuid("attempt_id")
+      .notNull()
+      .references(() => submissionAttempts.id, { onDelete: "cascade" }),
+    fileId: uuid("file_id")
+      .notNull()
+      .references(() => privateFiles.id, { onDelete: "restrict" }),
+    position: smallint().notNull().default(0),
+  },
+  (table) => [
+    primaryKey({ columns: [table.attemptId, table.fileId] }),
+    index("submission_attempt_files_file_idx").on(table.fileId),
+  ],
+);
+
+export interface RubricScore {
+  criterionId: string;
+  points: number;
+  comment: string;
+}
+
+/** Score and feedback for one attempt. Draft until `releasedAt` is set. */
+export const assessments = pgTable(
+  "assessments",
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    attemptId: uuid("attempt_id")
+      .notNull()
+      .unique()
+      .references(() => submissionAttempts.id, { onDelete: "cascade" }),
+    score: integer().notNull(),
+    effectiveScore: integer("effective_score").notNull(),
+    rubricScores: jsonb("rubric_scores")
+      .$type<RubricScore[]>()
+      .notNull()
+      .default([]),
+    feedback: jsonb().$type<ContentDocument>(),
+    feedbackText: text("feedback_text"),
+    gradedById: uuid("graded_by_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    gradedAt: timestamp("graded_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    releasedAt: timestamp("released_at", { withTimezone: true }),
+    revision: integer().notNull().default(1),
+  },
+  (table) => [check("assessments_revision_check", sql`${table.revision} > 0`)],
 );
 
 export const grades = pgTable(

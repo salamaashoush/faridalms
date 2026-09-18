@@ -1,0 +1,1 @@
+ALTER TABLE "assignments" ALTER COLUMN "due_at" SET NOT NULL;

@@ -6,12 +6,16 @@
  * production; it is wired to `bun run db:seed` only.
  */
 
+import type { ContentDocument } from "@faridalms/domain/content";
+
 import { createDatabase, schema } from "@faridalms/database";
-import { sql } from "drizzle-orm";
+import { eq, sql } from "drizzle-orm";
 
 const db = createDatabase(process.env.DATABASE_URL ?? "");
 const {
   academicWeeks,
+  assessments,
+  assignmentRecipients,
   assignments,
   attendance,
   calendarEvents,
@@ -31,6 +35,7 @@ const {
   studentMedical,
   students,
   subjects,
+  submissionAttempts,
   submissions,
   terms,
   timetableSlots,
@@ -55,6 +60,40 @@ function pick<T>(random: () => number, values: readonly T[]): T {
   return value;
 }
 
+function paragraph(text: string): ContentDocument {
+  return {
+    root: {
+      type: "root",
+      version: 1,
+      format: "",
+      indent: 0,
+      direction: null,
+      children: [
+        {
+          type: "paragraph",
+          version: 1,
+          format: "",
+          indent: 0,
+          direction: null,
+          textFormat: 0,
+          textStyle: "",
+          children: [
+            {
+              type: "text",
+              version: 1,
+              format: 0,
+              detail: 0,
+              mode: "normal",
+              style: "",
+              text,
+            },
+          ],
+        },
+      ],
+    },
+  };
+}
+
 function addDays(iso: string, days: number): string {
   const date = new Date(`${iso}T00:00:00Z`);
   date.setUTCDate(date.getUTCDate() + days);
@@ -66,6 +105,7 @@ async function reset() {
   await db.execute(sql`
     truncate table
       ${messageAttachments}, ${messageRecipients}, ${messages},
+      ${assessments}, ${submissionAttempts}, ${assignmentRecipients},
       ${submissions}, ${assignments}, ${academicWeeks},
       ${grades}, ${terms}, ${attendance}, ${timetableSlots},
       ${classSubjects}, ${enrolments}, ${guardianships},
@@ -488,16 +528,24 @@ async function main() {
         if (!slug) continue;
         const titles = ASSIGNMENT_TITLES[slug] ?? ["Assignment"];
         const title = titles[(week + n) % titles.length] ?? "Assignment";
+        const description = `${title}. Please complete with your child and return by the due date.`;
+        const dueDate = addDays(weekRow.startsOn, 2 + (n % 3));
         assignmentValues.push({
           classId: group.id,
           subjectId: subjectId(slug),
           weekId: weekRow.id,
           authorId: userId(teacherEmail),
           title,
-          description: `${title}. Please complete with your child and return by the due date.`,
+          description,
+          instructions: paragraph(description),
           type: pick(random, TYPES),
+          status: "published",
           assignedOn: weekRow.startsOn,
-          dueDate: addDays(weekRow.startsOn, 2 + (n % 3)),
+          dueDate,
+          // 23:59 in Cairo, the only seeded school time zone.
+          dueAt: new Date(`${dueDate}T20:59:00Z`),
+          latePolicy: "accepted",
+          resubmission: "until_close",
           maxScore: 10,
           publishedAt: new Date(`${weekRow.startsOn}T07:00:00Z`),
         });
@@ -513,6 +561,16 @@ async function main() {
     [prekg.id, [ali.id]],
     [p1.id, [omar.id]],
   ]);
+
+  await db.insert(assignmentRecipients).values(
+    assignmentRows.flatMap((assignment) =>
+      (rosterByClass.get(assignment.classId) ?? []).map((studentId) => ({
+        assignmentId: assignment.id,
+        studentId,
+        source: "class",
+      })),
+    ),
+  );
 
   const submissionValues: (typeof submissions.$inferInsert)[] = [];
   for (const assignment of assignmentRows) {
@@ -531,6 +589,11 @@ async function main() {
         assignmentId: assignment.id,
         studentId: student,
         state,
+        revision: state === "not_started" ? 1 : 2,
+        content:
+          state === "not_started"
+            ? null
+            : "We worked through this together at home.",
         submittedAt:
           state === "not_started"
             ? null
@@ -545,7 +608,43 @@ async function main() {
       });
     }
   }
-  await db.insert(submissions).values(submissionValues);
+  const submissionRows = await db
+    .insert(submissions)
+    .values(submissionValues)
+    .returning();
+  const studentAccount = new Map([[omar.id, userId("omar@example.com")]]);
+  for (const submission of submissionRows) {
+    if (submission.state === "not_started" || !submission.submittedAt) continue;
+    const [attempt] = await db
+      .insert(submissionAttempts)
+      .values({
+        submissionId: submission.id,
+        number: 1,
+        sourceRevision: 1,
+        content: paragraph(submission.content ?? ""),
+        plainText: submission.content,
+        submittedAt: submission.submittedAt,
+        submittedById: studentAccount.get(submission.studentId) ?? null,
+      })
+      .returning();
+    if (!attempt) throw new Error("attempt insert returned nothing");
+    await db
+      .update(submissions)
+      .set({ currentAttemptId: attempt.id })
+      .where(eq(submissions.id, submission.id));
+    if (submission.state === "returned" && submission.score !== null) {
+      await db.insert(assessments).values({
+        attemptId: attempt.id,
+        score: submission.score,
+        effectiveScore: submission.score,
+        feedback: paragraph(submission.feedback ?? ""),
+        feedbackText: submission.feedback,
+        gradedById: submission.gradedById,
+        gradedAt: submission.gradedAt ?? submission.submittedAt,
+        releasedAt: submission.gradedAt ?? submission.submittedAt,
+      });
+    }
+  }
 
   console.log("Attendance…");
   const attendanceRandom = rng(98_765);

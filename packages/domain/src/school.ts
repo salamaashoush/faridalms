@@ -12,6 +12,52 @@ export function schoolDate(timeZone: string, now = new Date()): string {
   }).format(now);
 }
 
+function zoneOffsetMinutes(at: Date, timeZone: string): number {
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone,
+    hourCycle: "h23",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+  }).formatToParts(at);
+  const read = (type: string) =>
+    Number(parts.find((part) => part.type === type)?.value ?? "0");
+  const wall = Date.UTC(
+    read("year"),
+    read("month") - 1,
+    read("day"),
+    read("hour"),
+    read("minute"),
+    read("second"),
+  );
+  return Math.round((wall - at.getTime()) / 60_000);
+}
+
+/** The instant at which a school-local wall-clock time (`HH:MM`) occurs. */
+export function zonedInstant(
+  date: string,
+  time: string,
+  timeZone: string,
+): Date {
+  const naive = Date.parse(`${date}T${time}:00Z`);
+  let result = naive - zoneOffsetMinutes(new Date(naive), timeZone) * 60_000;
+  const settled = zoneOffsetMinutes(new Date(result), timeZone);
+  if (naive - settled * 60_000 !== result) result = naive - settled * 60_000;
+  return new Date(result);
+}
+
+/** An instant as the school's wall clock, `YYYY-MM-DDTHH:MM`, for date-time inputs. */
+export function zonedLocal(instant: string | Date, timeZone: string): string {
+  const at = typeof instant === "string" ? new Date(instant) : instant;
+  const shifted = new Date(
+    at.getTime() + zoneOffsetMinutes(at, timeZone) * 60_000,
+  );
+  return shifted.toISOString().slice(0, 16);
+}
+
 /** Age in whole years and months, or `null` when no birthdate is recorded. */
 export function ageOn(
   birthdate: string | null,

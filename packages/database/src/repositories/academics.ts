@@ -1,10 +1,11 @@
 import type { AssessmentScope } from "@faridalms/domain/academic-access";
 import type { RecordAttendanceInput } from "@faridalms/domain/school-schema";
 
+import { assignmentWindow, learnerState } from "@faridalms/domain/assignment";
 import { addDays, schoolDate, weekForDate } from "@faridalms/domain/school";
 import { and, count, eq, gte, inArray, lte, sql } from "drizzle-orm";
 
-import type { Database } from "../index";
+import type { Database, DatabaseTransaction } from "../index";
 
 import { schema } from "../index";
 import { ACADEMIC_STRUCTURE_LOCK } from "../locks";
@@ -26,6 +27,22 @@ export function assessmentFilter(
   )`;
 }
 
+/**
+ * Whether an assignment reaches a student: either they were recorded as a
+ * recipient, or the audience is the whole class and they are enrolled today.
+ */
+export function audienceIncludes(
+  table: typeof schema.assignments,
+  studentId: string,
+  today: string,
+) {
+  return sql<boolean>`(exists (select 1 from ${schema.assignmentRecipients} r
+      where r.assignment_id = ${table.id} and r.student_id = ${studentId})
+    or (${table.audience} = 'class' and exists (select 1 from ${schema.enrolments} e
+      where e.class_id = ${table.classId} and e.student_id = ${studentId}
+        and e.since <= ${today} and (e.until is null or e.until > ${today}))))`;
+}
+
 export async function currentSchoolYear(db: Database) {
   const row = await db.query.schoolYears.findFirst({
     where: { isCurrent: true },
@@ -36,7 +53,10 @@ export async function currentSchoolYear(db: Database) {
   return row;
 }
 
-export async function listWeeks(db: Database, schoolYearId: string) {
+export async function listWeeks(
+  db: Database | DatabaseTransaction,
+  schoolYearId: string,
+) {
   return db.query.academicWeeks.findMany({
     where: { schoolYearId },
     orderBy: { number: "asc" },
@@ -69,8 +89,16 @@ export interface AssignmentRow {
   title: string;
   description: string | null;
   type: (typeof schema.assignmentTypeEnum.enumValues)[number];
+  status: (typeof schema.assignmentStatusEnum.enumValues)[number];
   assignedOn: string;
   dueDate: string;
+  dueAt: Date;
+  availableFrom: Date | null;
+  closesAt: Date | null;
+  latePolicy: (typeof schema.latePolicyEnum.enumValues)[number];
+  submissionFormat: (typeof schema.submissionFormatEnum.enumValues)[number];
+  window: ReturnType<typeof assignmentWindow>;
+  learnerState: ReturnType<typeof learnerState>;
   maxScore: number;
   subject: {
     id: string;
@@ -106,6 +134,7 @@ export async function assignmentsForStudent(
     classId?: string;
     today: string;
     schoolYearId: string;
+    now?: Date;
   },
 ): Promise<AssignmentRow[]> {
   const enrolment = await db.query.enrolments.findFirst({
@@ -122,9 +151,12 @@ export async function assignmentsForStudent(
     return [];
   }
 
+  const now = options.now ?? new Date();
   const rows = await db.query.assignments.findMany({
     where: {
       classId,
+      status: { ne: "draft" },
+      RAW: (table) => audienceIncludes(table, studentId, options.today),
       class: { schoolYearId: options.schoolYearId },
       ...(options.weekId ? { weekId: options.weekId } : {}),
     },
@@ -133,9 +165,15 @@ export async function assignmentsForStudent(
       week: { columns: { number: true } },
       class: { columns: { id: true, name: true } },
       author: { columns: { name: true } },
-      submissions: { where: { studentId } },
+      submissions: {
+        where: { studentId },
+        extras: {
+          attemptCount: (table) =>
+            sql<number>`(select count(*) from ${schema.submissionAttempts} a where a.submission_id = ${table.id})::int`,
+        },
+      },
     },
-    orderBy: { dueDate: "asc" },
+    orderBy: { dueAt: "asc" },
   });
 
   return rows.flatMap((row) => {
@@ -146,14 +184,29 @@ export async function assignmentsForStudent(
       return [];
     }
     const submission = row.submissions[0];
+    const window =
+      row.status === "archived" ? "closed" : assignmentWindow(row, now);
     return [
       {
         id: row.id,
         title: row.title,
         description: row.description,
         type: row.type,
+        status: row.status,
         assignedOn: row.assignedOn,
         dueDate: row.dueDate,
+        dueAt: row.dueAt,
+        availableFrom: row.availableFrom,
+        closesAt: row.closesAt,
+        latePolicy: row.latePolicy,
+        submissionFormat: row.submissionFormat,
+        window,
+        learnerState: learnerState({
+          window,
+          hasDraft: Boolean(submission?.draft),
+          attempts: submission?.attemptCount ?? 0,
+          released: submission?.state === "returned",
+        }),
         maxScore: row.maxScore,
         subject: row.subject,
         className: row.class.name,
@@ -179,15 +232,29 @@ export async function assignmentsForClasses(
   classIds: string[],
   scope: AssessmentScope,
   weekId?: string,
+  status?: "draft" | "published" | "archived",
 ) {
   if (classIds.length === 0) {
     return [];
   }
   return db.query.assignments.findMany({
-    extras: { canAssess: (table) => assessmentFilter(table, scope) },
+    extras: {
+      canAssess: (table) => assessmentFilter(table, scope),
+      recipientCount: (table) =>
+        sql<number>`(select count(*) from ${schema.assignmentRecipients} r where r.assignment_id = ${table.id})::int`,
+      submittedCount: (table) =>
+        sql<number>`(select count(*) from ${schema.submissions} s where s.assignment_id = ${table.id} and s.current_attempt_id is not null)::int`,
+      releasedCount: (table) =>
+        sql<number>`(select count(*) from ${schema.submissions} s where s.assignment_id = ${table.id} and s.state = 'returned')::int`,
+    },
     where: {
       classId: { in: classIds },
       ...(weekId ? { weekId } : {}),
+      ...(status ? { status } : {}),
+      OR: [
+        { status: { ne: "draft" } },
+        { RAW: (table) => assessmentFilter(table, scope) },
+      ],
     },
     with: {
       subject: { columns: { name: true, slug: true, icon: true } },
@@ -203,7 +270,7 @@ export async function assignmentsForClasses(
         },
       },
     },
-    orderBy: { dueDate: "asc" },
+    orderBy: { dueAt: "asc" },
   });
 }
 
@@ -220,6 +287,7 @@ export async function getAssignment(
       class: { columns: { id: true, name: true } },
       week: { columns: { number: true, startsOn: true, endsOn: true } },
       author: { columns: { name: true } },
+      resources: { with: { file: true }, orderBy: { position: "asc" } },
       submissions: {
         where: {
           OR: [
@@ -229,7 +297,15 @@ export async function getAssignment(
         },
         with: {
           student: { columns: { id: true, firstName: true, lastName: true } },
-          files: true,
+          attempts: {
+            columns: {
+              id: true,
+              number: true,
+              submittedAt: true,
+              isLate: true,
+            },
+            orderBy: { number: "asc" },
+          },
         },
       },
     },
@@ -554,6 +630,10 @@ export async function timetableForTeacher(db: Database, teacherId: string) {
   });
 }
 
+function recipientOf(studentId: string, today: string) {
+  return audienceIncludes(schema.assignments, studentId, today);
+}
+
 /** Counts for one student, used by every role's overview card. */
 export async function workloadFor(
   db: Database,
@@ -587,6 +667,8 @@ export async function workloadFor(
     .where(
       and(
         eq(schema.assignments.classId, enrolment.classId),
+        eq(schema.assignments.status, "published"),
+        recipientOf(studentId, today),
         gte(schema.assignments.dueDate, today),
         lte(schema.assignments.dueDate, addDays(today, 7)),
         inArray(sql`coalesce(${schema.submissions.state}, 'not_started')`, [
@@ -609,6 +691,8 @@ export async function workloadFor(
     .where(
       and(
         eq(schema.assignments.classId, enrolment.classId),
+        eq(schema.assignments.status, "published"),
+        recipientOf(studentId, today),
         lte(schema.assignments.dueDate, today),
         inArray(sql`coalesce(${schema.submissions.state}, 'not_started')`, [
           "not_started",
@@ -618,7 +702,12 @@ export async function workloadFor(
     );
 
   const nextDue = await db.query.assignments.findFirst({
-    where: { classId: enrolment.classId, dueDate: { gte: today } },
+    where: {
+      classId: enrolment.classId,
+      status: "published",
+      RAW: (table) => audienceIncludes(table, studentId, today),
+      dueDate: { gte: today },
+    },
     with: { subject: { columns: { name: true, icon: true } } },
     orderBy: { dueDate: "asc" },
   });
