@@ -56,6 +56,19 @@ the server's request body limit. Only the extensions and media types listed in
 Uploads that were declared but never completed remain in the `initiated` state
 and need a scheduled clean-up, which is not yet included.
 
+## Public site
+
+Each school's marketing site is served at `/site/{slug}` by the same web and API
+processes; no extra service is needed. Administrators switch it on from the
+Website section, and until then the address answers not found. To land visitors
+on a school's site from the root of its own hostname, set `public_domain` on the
+school's row in the control database to that hostname (without a port) and point
+the DNS at the web process; the root then redirects to `/site/{slug}`. Site
+media (logos, covers, page images) uses the same private file store as every
+other upload and is streamed publicly through `/v1/sites/{slug}/files/{id}/content`
+only while published content or the logo references the file, with a five-minute
+public cache header.
+
 ## Notifications
 
 `EMAIL_PROVIDER_URL` and `SMS_PROVIDER_URL` name HTTP endpoints that accept a

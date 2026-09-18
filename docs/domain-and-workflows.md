@@ -120,6 +120,10 @@ The arrows to Draft create a new attempt; they never mutate an earlier submitted
 
 Autosave uses a revision and reports saving, saved, offline, and conflict states. Uploading and saving a draft do not submit it. Submission validates all attached files, captures the document and file references atomically, and uses an idempotency key so retries cannot create duplicate attempts. Grading also checks the selected attempt and assessment revision.
 
+## Public site and blog
+
+A school's marketing site is owned by the school and edited by anyone holding `site:manage`. Site settings are one row per school (tagline in both languages, brand colour, logo, contact details, social links, default language, on/off). Pages carry a slug, a language, a navigation group and order, and a block document; the slug `home` is the landing page and other pages appear under `/pages/{slug}`. Posts carry a slug, a language, a category, a cover image and a Lexical document, and every save appends a revision row that an editor can restore. Publishing snapshots the content; unpublishing removes the snapshot; a draft page can be deleted, a published one cannot until it is unpublished. Visitors never see drafts, scheduled posts before their instant, or anything from a school whose site is off.
+
 ## Files and rich content
 
 The shared composer stores a versioned, validated document model. Supported nodes and attributes are explicit; a backend renderer produces safe output. Pasted HTML is normalized, unsafe URL schemes and executable embeds are rejected, and attachments are file references rather than arbitrary public URLs. Plain-text extraction serves search, previews and notifications. Existing plain text must migrate without being interpreted as HTML.

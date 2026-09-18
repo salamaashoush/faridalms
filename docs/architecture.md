@@ -70,6 +70,24 @@ read, into the router's not-found page with a 404 status. Restricted fields
 (contact details, medical data, other people's children) are omitted from the
 payload rather than hidden in the page.
 
+Each school also publishes a public site from the same database. Its settings
+(branding, contact, default language, whether the site is on), pages, blog
+posts, categories and post revisions live in school-scoped tables, so nothing
+about one school's site can appear under another's. The public API resolves
+the school from the slug in the request rather than from a session, leases the
+school's pool for the duration of the call and answers not found for a school
+that is inactive or has not switched its site on. Pages are built from the
+newsletter block document and posts from the shared Lexical document, and
+publishing copies the current content into a `published` snapshot that the
+public reads, so later edits stay private until the next publish. A post's
+`publish_at` is the instant it becomes public; a future instant is a schedule
+and needs no worker because public queries compare it against now. Site media
+is a file purpose of its own, served without a session through
+`/v1/sites/{slug}/files/{id}/content` only while the published content or the
+logo references the file. A school with a `public_domain` on the control row
+lands visitors on its site from the web's root; the site itself always lives
+under `/site/{slug}` so the same page has one address behind every host.
+
 Assignments are authored against a class and one of its subjects by the teacher
 responsible for that offering. A draft carries a rich-text brief, learning
 resources, an audience (the class, saved groups or named students, resolved
