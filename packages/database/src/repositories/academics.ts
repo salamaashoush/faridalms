@@ -438,6 +438,39 @@ export async function attendanceSummary(
   return summary;
 }
 
+/** One summary per student, for a class roster in a single round trip. */
+export async function attendanceSummaries(
+  db: Database,
+  studentIds: string[],
+): Promise<Map<string, AttendanceSummary>> {
+  const summaries = new Map<string, AttendanceSummary>();
+  if (studentIds.length === 0) return summaries;
+  const rows = await db
+    .select({
+      studentId: schema.attendance.studentId,
+      status: schema.attendance.status,
+      n: count(),
+    })
+    .from(schema.attendance)
+    .where(inArray(schema.attendance.studentId, studentIds))
+    .groupBy(schema.attendance.studentId, schema.attendance.status);
+  for (const row of rows) {
+    const summary = summaries.get(row.studentId) ?? {
+      present: 0,
+      absent: 0,
+      late: 0,
+      excused: 0,
+      total: 0,
+      rate: null,
+    };
+    summary[row.status] = row.n;
+    summary.total += row.n;
+    summary.rate = Math.round((summary.present / summary.total) * 100);
+    summaries.set(row.studentId, summary);
+  }
+  return summaries;
+}
+
 export async function attendanceForStudent(
   db: Database,
   studentId: string,

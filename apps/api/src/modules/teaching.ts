@@ -2,10 +2,12 @@ import {
   assignmentsForClasses,
   assessmentFilter,
   attendanceForClassOn,
+  attendanceSummaries,
   currentSchoolYear,
   gradingQueue,
   recordAttendance,
   resolveWeek,
+  timetableForClass,
   timetableForTeacher,
 } from "@faridalms/database/repositories/academics";
 import {
@@ -112,14 +114,27 @@ export const getClass = protectedProcedure
     if (!detail) {
       throw new ORPCError("NOT_FOUND");
     }
+    const roster = user.permissions.includes("roster:read")
+      ? detail.roster
+      : detail.roster.filter((student) => user.studentIds.includes(student.id));
+    const summaries = user.permissions.includes("attendance:read")
+      ? await attendanceSummaries(
+          context.db,
+          roster.map((student) => student.id),
+        )
+      : null;
     return {
       ...detail,
-      roster: user.permissions.includes("roster:read")
-        ? detail.roster
-        : detail.roster.filter((student) =>
-            user.studentIds.includes(student.id),
-          ),
+      roster,
+      timetable: await timetableForClass(context.db, data.id),
+      attendance: summaries
+        ? roster.map((student) => ({
+            student,
+            summary: summaries.get(student.id) ?? null,
+          }))
+        : null,
       canManage: user.permissions.includes("classes:manage"),
+      canRecordAttendance: user.permissions.includes("attendance:record"),
     };
   });
 

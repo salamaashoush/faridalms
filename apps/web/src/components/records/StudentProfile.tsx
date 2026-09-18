@@ -1,6 +1,7 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { Pencil } from "lucide-react";
+import { Suspense } from "react";
 
 import { ButtonLink } from "~/components/app/ButtonLink";
 import {
@@ -15,19 +16,43 @@ import { ageOn, formatDate } from "~/components/family/format";
 import { Avatar, AvatarFallback, AvatarImage } from "~/components/ui/avatar";
 import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
+import { Skeleton } from "~/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
 import * as m from "~/i18n/messages";
 import { studentQuery } from "~/queries/school";
 import { formatNumber } from "~/utils/datetime";
 
+import { RELATION_LABEL } from "./relations";
+import {
+  StudentAttendance,
+  StudentCoursework,
+  StudentGrades,
+} from "./StudentSections";
+
+export const STUDENT_TABS = [
+  "information",
+  "contact",
+  "medical",
+  "coursework",
+  "attendance",
+  "grades",
+] as const;
+export type StudentTab = (typeof STUDENT_TABS)[number];
+const isTab = (value: string): value is StudentTab =>
+  STUDENT_TABS.some((tab) => tab === value);
+
 export function StudentProfile({
   studentId,
   tab,
+  week,
   onTab,
+  onWeek,
 }: {
   studentId: string;
-  tab: string;
-  onTab: (tab: "information" | "contact" | "medical") => void;
+  tab: StudentTab;
+  week: number | undefined;
+  onTab: (tab: StudentTab) => void;
+  onWeek: (week: number) => void;
 }) {
   const { today, profile, access } = useSuspenseQuery(
     studentQuery({ studentId }),
@@ -70,12 +95,7 @@ export function StudentProfile({
       <Tabs
         value={tab}
         onValueChange={(value) => {
-          if (
-            value === "information" ||
-            value === "contact" ||
-            value === "medical"
-          )
-            onTab(value);
+          if (isTab(value)) onTab(value);
         }}
         className="gap-6"
       >
@@ -91,6 +111,17 @@ export function StudentProfile({
             ) : null}
             {access.medical ? (
               <TabsTrigger value="medical">{m.studentMedical()}</TabsTrigger>
+            ) : null}
+            {access.coursework ? (
+              <TabsTrigger value="coursework">{m.navAssignments()}</TabsTrigger>
+            ) : null}
+            {access.attendance ? (
+              <TabsTrigger value="attendance">
+                {m.attendanceTitle()}
+              </TabsTrigger>
+            ) : null}
+            {access.grades ? (
+              <TabsTrigger value="grades">{m.gradesTitle()}</TabsTrigger>
             ) : null}
           </TabsList>
         </div>
@@ -234,7 +265,23 @@ export function StudentProfile({
                       key={guardian.id}
                       className="flex flex-wrap items-center justify-between gap-3 py-3"
                     >
-                      <span className="font-medium">{guardian.name}</span>
+                      <span className="flex flex-wrap items-center gap-2">
+                        <Link
+                          to="/people/$userId"
+                          params={{ userId: guardian.id }}
+                          className="font-medium hover:text-primary hover:underline"
+                        >
+                          {guardian.name}
+                        </Link>
+                        <span className="text-sm text-muted-foreground">
+                          {RELATION_LABEL[guardian.relation]()}
+                        </span>
+                        {guardian.isPrimary ? (
+                          <Badge variant="outline">
+                            {m.recordPrimaryContact()}
+                          </Badge>
+                        ) : null}
+                      </span>
                       <a
                         className="text-sm text-primary hover:underline"
                         href={`mailto:${guardian.email}`}
@@ -339,6 +386,37 @@ export function StudentProfile({
                 )}
               </SectionCard>
             </div>
+          </TabsContent>
+        ) : null}
+        {access.coursework ? (
+          <TabsContent value="coursework">
+            {tab === "coursework" ? (
+              <Suspense fallback={<Skeleton className="h-40 w-full" />}>
+                <StudentCoursework
+                  studentId={studentId}
+                  week={week}
+                  onWeek={onWeek}
+                />
+              </Suspense>
+            ) : null}
+          </TabsContent>
+        ) : null}
+        {access.attendance ? (
+          <TabsContent value="attendance">
+            {tab === "attendance" ? (
+              <Suspense fallback={<Skeleton className="h-40 w-full" />}>
+                <StudentAttendance studentId={studentId} />
+              </Suspense>
+            ) : null}
+          </TabsContent>
+        ) : null}
+        {access.grades ? (
+          <TabsContent value="grades">
+            {tab === "grades" ? (
+              <Suspense fallback={<Skeleton className="h-40 w-full" />}>
+                <StudentGrades studentId={studentId} />
+              </Suspense>
+            ) : null}
           </TabsContent>
         ) : null}
       </Tabs>

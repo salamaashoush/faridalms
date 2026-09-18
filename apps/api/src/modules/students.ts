@@ -36,6 +36,9 @@ export const getStudent = protectedProcedure
       contacts: user.permissions.includes("student-contacts:read"),
       medical: user.permissions.includes("student-medical:read"),
       manage: user.permissions.includes("users:manage"),
+      coursework: user.permissions.includes("assignments:read"),
+      attendance: user.permissions.includes("attendance:read"),
+      grades: user.permissions.includes("grades:read"),
     };
     const classes = await visibleClassIds(context, user);
     const year = await currentSchoolYear(context.db);
