@@ -1,105 +1,70 @@
-# Northwind
+# Farida LMS
 
-A school portal for administrators, teachers, parents and students.
+A multilingual learning workspace for schools, teachers, students and families.
+The platform is Farida LMS. Northwind School is the development school.
+Each registered school has its own academic database and accounts.
 
-It replaces an ASP.NET Web Forms parent portal in which a third of the
-navigation returned 404, every field with no value rendered as a blank label,
-and server counters leaked into the markup. `research/PORTAL-AUDIT.md` records
-what that system did, screen by screen, and `research/shots/` holds the
-captures it is based on.
-
-## Running it
+## Development
 
 ```sh
 bun install
-bun run db:up      # Postgres 18 in Docker, on port 5433
-bun run db:reset   # migrate, then seed
-bun run dev        # http://localhost:3000
+bun run db:up
+bun run db:init
+bun run dev
 ```
 
-Every demo account uses the password `northwind1234`.
+The web app listens on port 3000; the independent API listens on 3001.
+`db:init` applies additive migrations and registers the existing local school. It
+preserves existing records. On a new, empty development database, `bun run db:seed`
+loads demonstration records. That seed command truncates school data and must
+never run against a database containing work you need to keep.
 
-| Email                 | Role                 | Lands on  |
-| --------------------- | -------------------- | --------- |
-| `admin@example.com`   | Administrator        | `/admin`  |
-| `teacher@example.com` | Teacher              | `/teach`  |
-| `parent@example.com`  | Parent, two children | `/family` |
-| `omar@example.com`    | Student              | `/me`     |
+Development sign-in uses school code `northwind`. The demo accounts are
+`admin@example.com`, `teacher@example.com`, `parent@example.com`, and
+`omar@example.com`, with password `northwind1234`. Credential shortcuts appear only
+in development builds. Production schools provision their own accounts.
 
-## How it is put together
+## Workspaces
 
-**TanStack Start** for server-side rendering and server functions, **TanStack
-Router** for typed file routes, **TanStack Query** for caching. **Drizzle ORM**
-on **Bun SQL** against **PostgreSQL**. **Base UI** with **shadcn** and
-**Tailwind v4** for the interface, **Paraglide** for English and Arabic,
-**valibot** for every schema, **oxlint** and **oxfmt** for correctness and
-formatting.
+- `apps/web`: React, TanStack Start/Router/Query/Form/Table, shadcn Base UI,
+  Tailwind CSS, and server-rendered English/Arabic with Paraglide.
+- `apps/api`: independent Bun service, oRPC procedures, authentication,
+  school resolution, authorisation, and business operations.
+- `packages/domain`: pure scheduling logic, permissions and input schemas.
+- `packages/database`: school schema, control schema, migrations' source of truth,
+  and repositories with explicit database arguments.
+- `packages/api-client`: typed HTTP client shared by web and native clients.
 
-Data flows one way. A route loader primes a query, the component reads it with
-`useSuspenseQuery`, the query calls a server function, and the server function
-authorises the caller before asking a repository for rows. Components never
-touch the database.
+Read [the architecture](docs/architecture.md) before changing school isolation,
+API contracts or session handling. [Operations](docs/operations.md) covers school
+registration, migrations, connection budgets and deployment.
 
+## Verification
+
+```sh
+bun run ready
 ```
-src/db/schema.ts          tables, enums, indexes
-src/db/relations.ts       Drizzle v1 defineRelations, for db.query.*
-src/db/repositories/      every read and write
-src/server/school.ts      server functions; authorisation lives here
-src/queries/school.ts     query options
-src/routes/_app/<role>/   screens, one directory per role
-```
 
-### Roles are capabilities, not screens
+This runs lint, TypeScript, unit tests, then production Playwright tests across
+Chromium, Firefox and WebKit. End-to-end tests create independent school databases
+and a control database; they do not reset the development school. They exercise
+role navigation, SSR, Arabic RTL, mobile layouts, session revocation, concurrent
+school isolation, pagination, and the assignment/submission/grading workflow.
 
-`src/data/identity.ts` declares four roles and twenty-two permissions, and maps
-one to the other. Routes and controls ask whether a capability is held rather
-than which role is signed in, so adding a fifth role does not mean auditing
-every comparison in the tree.
+`bun run build` uses Turborepo to build both deployable apps. Shared packages are
+TypeScript source packages consumed by their app bundlers. Dependency versions
+are locked in `bun.lock`.
 
-Each role gets its own information architecture rather than one menu with items
-greyed out, because an administrator and the parent of a five-year-old are not
-doing variations of the same job.
+## API
 
-### Authorisation is server-side, always
+The API exposes typed RPC at `/rpc`, JSON HTTP operations at `/v1`, and its
+OpenAPI document at `/openapi.json`. `/health/live` checks the process;
+`/health/ready` checks the control database. Protected operations require a bearer
+token returned by `/v1/auth/signIn`, using `school`, `email` and `password`.
+The web server retains that token in an HTTP-only cookie. Native apps store it
+in platform secure storage and call the same API.
 
-`requirePermission` and `requireStudentAccess` in `src/utils/session.ts` resolve
-the caller from the sealed session cookie and check them against the database on
-every request. A parent who passes another family's student id gets a 403, not
-that family's data. Hiding a control in the interface is a courtesy; it is never
-the enforcement.
-
-### Read state is per person
-
-`message_recipients` carries its own `read_at` per addressee. A `read` column on
-`messages` would let whoever opens a school-wide notice first mark it read for
-everybody.
-
-### Absence is stated
-
-Every field that can legitimately be empty renders through `<Value>`, which
-prints "Not recorded" rather than nothing. A blank where a birthdate should be
-tells a parent nothing about whether the school holds one.
-
-## Commands
-
-| Command                     | What it does                                            |
-| --------------------------- | ------------------------------------------------------- |
-| `bun run dev`               | Dev server on :3000                                     |
-| `bun run db:up` / `db:down` | Start or stop Postgres                                  |
-| `bun run db:generate`       | Write a migration from a schema change                  |
-| `bun run db:migrate`        | Apply pending migrations                                |
-| `bun run db:seed`           | Truncate and re-seed                                    |
-| `bun run db:studio`         | Drizzle Studio                                          |
-| `bun run lint`              | oxlint, plus a check that both message catalogues agree |
-| `bun run type-check`        | `tsc --noEmit`                                          |
-| `bun run test`              | vitest                                                  |
-| `bun run test:e2e`          | Playwright, against a production build                  |
-
-The app runs on the Bun runtime, not Node: `drizzle-orm/bun-sql` imports the
-`bun` module, so `dev`, `build`, `preview` and `start` all pass `--bun`. The
-test tooling still runs on Node, which is why nothing under `src/utils/` may
-import `~/db`.
-
-`AGENTS.md` documents the traps this codebase has already fallen into. Read it
-before changing anything; each rule in it exists because breaking it produced a
-real bug.
+The implemented learning workflow supports authored assignments, written
+submissions, feedback and scoring, attendance, timetables, family progress,
+messages, newsletters and school calendars. File-upload storage, billing,
+video delivery and account-invitation delivery are not implemented.
