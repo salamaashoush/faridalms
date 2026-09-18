@@ -1,16 +1,17 @@
-import { schema } from "@faridalms/database";
 import {
   assignmentsForClasses,
   assessmentFilter,
   attendanceForClassOn,
   currentSchoolYear,
-  gradeSubmission,
   gradingQueue,
-  listWeeks,
   recordAttendance,
   resolveWeek,
   timetableForTeacher,
 } from "@faridalms/database/repositories/academics";
+import {
+  publishAssignment,
+  saveAssignment,
+} from "@faridalms/database/repositories/assignments";
 import {
   unreadCount,
   upcomingEvents,
@@ -20,8 +21,9 @@ import {
   getClassDetail,
   listClasses,
 } from "@faridalms/database/repositories/school";
-import { canAssessOffering } from "@faridalms/domain/academic-access";
-import { weekForDate } from "@faridalms/domain/school";
+import { assessAttempt } from "@faridalms/database/repositories/submissions";
+import { plainContent } from "@faridalms/domain/content-conversion";
+import { zonedInstant } from "@faridalms/domain/school";
 import {
   createAssignmentSchema,
   attendanceRegisterQuerySchema,
@@ -148,6 +150,7 @@ export const getClassAssignments = protectedProcedure
         classIds,
         assessmentScope(context),
         week.id,
+        data.status === "all" ? undefined : data.status,
       ),
     };
   });
@@ -163,6 +166,7 @@ export const getGradingQueue = protectedProcedure.handler(
   },
 );
 
+/** Quick grading of the latest attempt with a plain-text comment. */
 export const submitGrade = protectedProcedure
   .input(gradeSubmissionSchema)
   .handler(async ({ input: data, context }) => {
@@ -176,24 +180,36 @@ export const submitGrade = protectedProcedure
           RAW: (table) => assessmentFilter(table, assessmentScope(context)),
         },
       },
-      with: { assignment: { columns: { maxScore: true } } },
+      with: { assignment: { columns: { maxScore: true, rubric: true } } },
     });
-    if (!submission?.assignment) throw new ORPCError("NOT_FOUND");
+    if (!submission?.assignment || !submission.currentAttemptId)
+      throw new ORPCError("NOT_FOUND");
     if (data.score > submission.assignment.maxScore)
       throw new ORPCError("BAD_REQUEST", {
         message: "Score exceeds the assignment maximum",
       });
-    const graded = await gradeSubmission(
-      context.db,
-      data.submissionId,
-      {
-        score: data.score,
-        feedback: data.feedback || null,
-        gradedById: user.id,
-      },
-      assessmentScope(context),
-    );
-    if (!graded) throw new ORPCError("NOT_FOUND");
+    if (submission.assignment.rubric.length)
+      throw new ORPCError("BAD_REQUEST", {
+        message: "assessment.rubric_required",
+      });
+    try {
+      await assessAttempt(
+        context.db,
+        {
+          attemptId: submission.currentAttemptId,
+          score: data.score,
+          rubricScores: [],
+          feedback: data.feedback ? plainContent(data.feedback) : null,
+          release: true,
+        },
+        { userId: user.id, scope: assessmentScope(context) },
+        new Date(),
+      );
+    } catch (error) {
+      if (error instanceof ManagementError)
+        throw new ORPCError(error.code, { message: error.message });
+      throw error;
+    }
     return { graded: true as const };
   });
 
@@ -277,48 +293,66 @@ export const saveAttendance = protectedProcedure
     }
   });
 
+/**
+ * One-step publication for simple written work: the designer's model with
+ * its defaults, published to the whole class and due at the end of the day.
+ */
 export const createAssignment = protectedProcedure
   .input(createAssignmentSchema)
   .handler(async ({ context, input }) => {
     const user = await requirePermission(context, "assignments:author");
     const classes = await visibleClassIds(context, user);
     if (!classes.includes(input.classId)) throw new ORPCError("FORBIDDEN");
-    const subject = await context.db.query.classSubjects.findFirst({
-      where: { classId: input.classId, subjectId: input.subjectId },
-      with: { class: { columns: { schoolYearId: true } } },
-    });
-    if (!subject)
-      throw new ORPCError("BAD_REQUEST", {
-        message: "The subject is not taught in this class",
-      });
-    if (
-      !canAssessOffering(
-        assessmentScope(context, "assignments:author"),
-        subject.teacherId,
-      )
-    ) {
-      throw new ORPCError("FORBIDDEN");
-    }
     if (input.dueDate < context.today)
       throw new ORPCError("BAD_REQUEST", {
         message: "The due date must not be in the past",
       });
-    if (!subject.class) throw new ORPCError("NOT_FOUND");
-    const week = weekForDate(
-      await listWeeks(context.db, subject.class.schoolYearId),
-      input.dueDate,
-    );
-    const [assignment] = await context.db
-      .insert(schema.assignments)
-      .values({
-        ...input,
-        authorId: user.id,
-        assignedOn: context.today,
-        type: "written_assignment",
-        publishedAt: new Date(),
-        weekId: week?.id ?? null,
-      })
-      .returning({ id: schema.assignments.id });
-    if (!assignment) throw new ORPCError("INTERNAL_SERVER_ERROR");
-    return assignment;
+    const actor = {
+      userId: user.id,
+      scope: assessmentScope(context, "assignments:author"),
+    };
+    try {
+      const draft = await saveAssignment(
+        context.db,
+        {
+          id: crypto.randomUUID(),
+          expectedRevision: 0,
+          classId: input.classId,
+          subjectId: input.subjectId,
+          type: "written_assignment",
+          title: input.title,
+          instructions: plainContent(input.description),
+          resourceFileIds: [],
+          recipients: { mode: "class", groupIds: [], studentIds: [] },
+          availableFrom: "",
+          dueAt: zonedInstant(
+            input.dueDate,
+            "23:59",
+            context.school.timeZone,
+          ).toISOString(),
+          closesAt: "",
+          latePolicy: "not_accepted",
+          lateDeductionPercent: 0,
+          submissionFormat: "written",
+          maxAttachments: 0,
+          maxAttachmentBytes: 10 * 1024 * 1024,
+          resubmission: "not_allowed",
+          maxScore: input.maxScore,
+          rubric: [],
+        },
+        actor,
+        { today: context.today, timeZone: context.school.timeZone },
+      );
+      const published = await publishAssignment(
+        context.db,
+        draft.id,
+        draft.revision,
+        actor,
+      );
+      return { id: published.id };
+    } catch (error) {
+      if (error instanceof ManagementError)
+        throw new ORPCError(error.code, { message: error.message });
+      throw error;
+    }
   });

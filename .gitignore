@@ -44,6 +44,9 @@ yarn-error.log*
 # local tooling
 .ferridriver
 
+# private file storage for development and tests
+/.data
+
 # Local capture artifacts from the portal audit
 research/shots/
 

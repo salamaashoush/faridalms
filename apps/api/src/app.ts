@@ -6,9 +6,15 @@ import { sql } from "drizzle-orm";
 
 import type { ApiContext } from "./context";
 
+import { handleFileRequest } from "./files/routes";
 import { router } from "./router";
 
-export function createApp(dependencies: Pick<ApiContext, "control" | "pools">) {
+export function createApp(
+  dependencies: Pick<
+    ApiContext,
+    "control" | "pools" | "files" | "maxUploadBytes"
+  >,
+) {
   const rpc = new RPCHandler(router);
   const api = new OpenAPIHandler(router);
   const generator = new OpenAPIGenerator({
@@ -42,14 +48,18 @@ export function createApp(dependencies: Pick<ApiContext, "control" | "pools">) {
           headers: request.headers,
           requestId,
         };
-        const handler = url.pathname.startsWith("/rpc/") ? rpc : api;
-        const result = await handler.handle(request, {
-          prefix: handler === rpc ? "/rpc" : "/v1",
-          context,
-        });
-        response =
-          result.response ??
-          Response.json({ code: "NOT_FOUND" }, { status: 404 });
+        const file = await handleFileRequest(request, url, context);
+        if (file) response = file;
+        else {
+          const handler = url.pathname.startsWith("/rpc/") ? rpc : api;
+          const result = await handler.handle(request, {
+            prefix: handler === rpc ? "/rpc" : "/v1",
+            context,
+          });
+          response =
+            result.response ??
+            Response.json({ code: "NOT_FOUND" }, { status: 404 });
+        }
       }
     } catch {
       response = Response.json(
