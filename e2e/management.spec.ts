@@ -123,8 +123,9 @@ test("calendar events persist, open details and support week and agenda views", 
   const dialog = page.getByRole("dialog");
   await dialog.getByLabel("Event title").fill(title);
   await dialog
-    .getByLabel("Details and instructions")
-    .fill("Bring your questions for the teaching team.");
+    .getByRole("textbox", { name: "Details and instructions", exact: true })
+    .click();
+  await page.keyboard.type("Bring your questions for the teaching team.");
   await dialog.getByRole("button", { name: "Save event" }).click();
   await expect(dialog).toHaveCount(0);
   await page.getByRole("button", { name: "Agenda", exact: true }).click();
