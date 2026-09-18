@@ -796,6 +796,7 @@ export const timetableSlots = pgTable(
 export const messageBodyFormatEnum = pgEnum("message_body_format", [
   "plain",
   "markdown",
+  "rich",
 ]);
 
 export const messages = pgTable(
@@ -813,8 +814,11 @@ export const messages = pgTable(
     }),
     parentMessageId: uuid("parent_message_id"),
     subject: varchar({ length: 255 }).notNull(),
+    // The plain text of the message; for rich messages it is derived from the
+    // document so search, previews and older clients keep working.
     body: text().notNull(),
     bodyFormat: messageBodyFormatEnum("body_format").notNull().default("plain"),
+    document: jsonb().$type<ContentDocument>(),
     sentAt: timestamp("sent_at", { withTimezone: true }).notNull().defaultNow(),
     ...timestamps,
   },
@@ -841,6 +845,7 @@ export const messageDrafts = pgTable(
     subject: varchar({ length: 255 }).notNull(),
     body: text().notNull(),
     bodyFormat: messageBodyFormatEnum("body_format").notNull(),
+    document: jsonb().$type<ContentDocument>(),
     revision: integer().notNull().default(1),
     sentMessageId: uuid("sent_message_id").references(() => messages.id),
     ...timestamps,
@@ -884,11 +889,36 @@ export const messageAttachments = pgTable(
       .notNull()
       .references(() => messages.id, { onDelete: "cascade" }),
     name: varchar({ length: 255 }).notNull(),
-    url: text().notNull(),
+    // Records written before the private file lifecycle kept a URL. New
+    // attachments point at a verified private file and download through it.
+    url: text(),
+    fileId: uuid("file_id").references(() => privateFiles.id, {
+      onDelete: "restrict",
+    }),
     sizeBytes: integer("size_bytes").notNull(),
     ...timestamps,
   },
-  (table) => [index("message_attachments_message_idx").on(table.messageId)],
+  (table) => [
+    index("message_attachments_message_idx").on(table.messageId),
+    index("message_attachments_file_idx").on(table.fileId),
+  ],
+);
+
+export const messageDraftFiles = pgTable(
+  "message_draft_files",
+  {
+    draftId: uuid("draft_id")
+      .notNull()
+      .references(() => messageDrafts.id, { onDelete: "cascade" }),
+    fileId: uuid("file_id")
+      .notNull()
+      .references(() => privateFiles.id, { onDelete: "restrict" }),
+    position: smallint().notNull().default(0),
+  },
+  (table) => [
+    primaryKey({ columns: [table.draftId, table.fileId] }),
+    index("message_draft_files_file_idx").on(table.fileId),
+  ],
 );
 
 export const newsletterDrafts = pgTable(

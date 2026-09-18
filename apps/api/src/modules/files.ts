@@ -13,12 +13,12 @@ import { protectedProcedure } from "../procedure";
 export const initiateUpload = protectedProcedure
   .input(initiateUploadSchema)
   .handler(async ({ input, context }) => {
-    const user = await requirePermission(
-      context,
-      input.purpose === "assignment_resource"
-        ? "assignments:author"
-        : "own-work:submit",
-    );
+    const permission = {
+      assignment_resource: "assignments:author",
+      submission_attachment: "own-work:submit",
+      message_attachment: "messages:send",
+    } as const;
+    const user = await requirePermission(context, permission[input.purpose]);
     if (input.sizeBytes > context.maxUploadBytes)
       throw new ORPCError("BAD_REQUEST", { message: "file.too_large" });
     const id = crypto.randomUUID();

@@ -1,5 +1,8 @@
 import * as v from "valibot";
 
+import { contentDocumentSchema, contentPlainText } from "./content";
+import { MESSAGE_ATTACHMENT_LIMIT } from "./file";
+
 export const ASSIGNMENT_STATES = [
   "not_started",
   "draft",
@@ -128,19 +131,58 @@ export const DEFAULT_CALENDAR_QUERY: CalendarQuery = v.parse(
 
 // --- mutations ----------------------------------------------------------------
 
+export const MESSAGE_BODY_FORMATS = ["plain", "markdown", "rich"] as const;
+export type MessageBodyFormat = (typeof MESSAGE_BODY_FORMATS)[number];
 export const messageBodyFormatSchema = v.optional(
-  v.picklist(["plain", "markdown"]),
+  v.picklist(MESSAGE_BODY_FORMATS),
   "plain",
 );
+export const messageDocumentSchema = v.optional(
+  v.nullable(contentDocumentSchema),
+  null,
+);
+export const messageFileIdsSchema = v.optional(
+  v.pipe(
+    v.array(v.pipe(v.string(), v.uuid())),
+    v.maxLength(MESSAGE_ATTACHMENT_LIMIT),
+  ),
+  [],
+);
 
-export const composeMessageSchema = v.object({
-  category: v.picklist(MESSAGE_CATEGORIES),
-  recipientId: v.pipe(v.string(), v.minLength(1)),
-  studentId: v.optional(v.string(), ""),
-  subject: v.pipe(v.string(), v.trim(), v.minLength(3), v.maxLength(255)),
-  body: v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(20000)),
-  bodyFormat: messageBodyFormatSchema,
-});
+/** Rich messages carry their text in the document; the body is derived from it on the server. */
+export function messageHasText(value: {
+  bodyFormat: MessageBodyFormat;
+  body: string;
+  document: { root: { type: string } } | null;
+}): boolean {
+  if (value.bodyFormat === "rich")
+    return Boolean(
+      value.document &&
+      contentPlainText(
+        value.document as Parameters<typeof contentPlainText>[0],
+      ).trim().length > 0,
+    );
+  return value.body.trim().length > 0;
+}
+
+const messageBody = v.pipe(v.string(), v.trim(), v.maxLength(20000));
+
+export const composeMessageSchema = v.pipe(
+  v.object({
+    category: v.picklist(MESSAGE_CATEGORIES),
+    recipientId: v.pipe(v.string(), v.minLength(1)),
+    studentId: v.optional(v.string(), ""),
+    subject: v.pipe(v.string(), v.trim(), v.minLength(3), v.maxLength(255)),
+    body: messageBody,
+    bodyFormat: messageBodyFormatSchema,
+    document: messageDocumentSchema,
+    fileIds: messageFileIdsSchema,
+  }),
+  v.forward(
+    v.check((value) => messageHasText(value), "validation.message_body"),
+    ["body"],
+  ),
+);
 export type ComposeMessageInput = v.InferInput<typeof composeMessageSchema>;
 export type ComposeMessageOutput = v.InferOutput<typeof composeMessageSchema>;
 
@@ -270,8 +312,17 @@ export const recipientQuerySchema = v.object({
   category: v.picklist(MESSAGE_CATEGORIES),
   q: v.optional(v.pipe(v.string(), v.maxLength(100)), ""),
 });
-export const replyMessageSchema = v.object({
-  bodyFormat: messageBodyFormatSchema,
-  id: v.pipe(v.string(), v.uuid()),
-  body: v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(20000)),
-});
+export const replyMessageSchema = v.pipe(
+  v.object({
+    bodyFormat: messageBodyFormatSchema,
+    id: v.pipe(v.string(), v.uuid()),
+    body: messageBody,
+    document: messageDocumentSchema,
+    fileIds: messageFileIdsSchema,
+  }),
+  v.forward(
+    v.check((value) => messageHasText(value), "validation.message_body"),
+    ["body"],
+  ),
+);
+export type ReplyMessageInput = v.InferInput<typeof replyMessageSchema>;

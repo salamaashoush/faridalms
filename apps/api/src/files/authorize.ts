@@ -85,5 +85,15 @@ export async function canReadFile(
     if (user.ownStudentId === submission.studentId) return true;
     if (await canAssess(context, submission.assignment)) return true;
   }
+
+  for (const link of file.messageLinks) {
+    const message = link.message;
+    if (!message || !user.permissions.includes("messages:read")) continue;
+    if (
+      message.senderId === user.id ||
+      message.recipients.some((row) => row.recipientId === user.id)
+    )
+      return true;
+  }
   return false;
 }

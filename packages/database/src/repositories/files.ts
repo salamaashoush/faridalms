@@ -168,6 +168,14 @@ export async function fileWithLinks(db: Executor, id: string) {
           },
         },
       },
+      messageLinks: {
+        with: {
+          message: {
+            columns: { id: true, senderId: true },
+            with: { recipients: { columns: { recipientId: true } } },
+          },
+        },
+      },
     },
   });
 }

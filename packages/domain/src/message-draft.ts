@@ -1,6 +1,11 @@
 import * as v from "valibot";
 
-import { MESSAGE_CATEGORIES, messageBodyFormatSchema } from "./school-schema";
+import {
+  MESSAGE_CATEGORIES,
+  messageBodyFormatSchema,
+  messageDocumentSchema,
+  messageFileIdsSchema,
+} from "./school-schema";
 
 export const messageDraftQuerySchema = v.object({
   id: v.pipe(v.string(), v.uuid()),
@@ -21,6 +26,8 @@ export const saveMessageDraftSchema = v.object({
   subject: v.pipe(v.string(), v.maxLength(255)),
   body: v.pipe(v.string(), v.maxLength(20000)),
   bodyFormat: messageBodyFormatSchema,
+  document: messageDocumentSchema,
+  fileIds: messageFileIdsSchema,
 });
 
 export const sendMessageDraftSchema = v.object({

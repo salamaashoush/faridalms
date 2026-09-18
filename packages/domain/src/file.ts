@@ -3,7 +3,10 @@ import * as v from "valibot";
 export const FILE_PURPOSES = [
   "assignment_resource",
   "submission_attachment",
+  "message_attachment",
 ] as const;
+export const MESSAGE_ATTACHMENT_LIMIT = 5;
+export const MESSAGE_ATTACHMENT_BYTES = 10 * 1024 * 1024;
 export type FilePurpose = (typeof FILE_PURPOSES)[number];
 export const FILE_STATES = ["initiated", "ready", "rejected"] as const;
 export const MAX_FILE_BYTES = 25 * 1024 * 1024;

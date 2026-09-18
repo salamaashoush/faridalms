@@ -30,6 +30,27 @@ export const relations = defineRelations(schema, (r) => ({
     resourceLinks: r.many.assignmentResources(),
     attemptLinks: r.many.submissionAttemptFiles(),
     draftLinks: r.many.submissionDraftFiles(),
+    messageLinks: r.many.messageAttachments(),
+    messageDraftLinks: r.many.messageDraftFiles(),
+  },
+
+  messageDrafts: {
+    author: r.one.users({
+      from: r.messageDrafts.authorId,
+      to: r.users.id,
+    }),
+    files: r.many.messageDraftFiles(),
+  },
+
+  messageDraftFiles: {
+    draft: r.one.messageDrafts({
+      from: r.messageDraftFiles.draftId,
+      to: r.messageDrafts.id,
+    }),
+    file: r.one.privateFiles({
+      from: r.messageDraftFiles.fileId,
+      to: r.privateFiles.id,
+    }),
   },
 
   studentGroups: {
@@ -358,6 +379,14 @@ export const relations = defineRelations(schema, (r) => ({
       from: r.messages.studentId,
       to: r.students.id,
     }),
+    parent: r.one.messages({
+      from: r.messages.parentMessageId,
+      to: r.messages.id,
+    }),
+    replies: r.many.messages({
+      from: r.messages.id,
+      to: r.messages.parentMessageId,
+    }),
     recipients: r.many.messageRecipients(),
     attachments: r.many.messageAttachments(),
   },
@@ -377,6 +406,10 @@ export const relations = defineRelations(schema, (r) => ({
     message: r.one.messages({
       from: r.messageAttachments.messageId,
       to: r.messages.id,
+    }),
+    file: r.one.privateFiles({
+      from: r.messageAttachments.fileId,
+      to: r.privateFiles.id,
     }),
   },
 

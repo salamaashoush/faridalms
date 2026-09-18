@@ -2,23 +2,56 @@ import type { SaveMessageDraftInput } from "@faridalms/domain/message-draft";
 
 import { and, count, desc, eq, isNull } from "drizzle-orm";
 
-import type { Database } from "../index";
+import type { Database, DatabaseTransaction } from "../index";
 import type { ComposeInput } from "./communication";
 
-import { messageDrafts } from "../schema";
+import { messageDraftFiles, messageDrafts } from "../schema";
 import { insertMessage } from "./communication";
+import { fileSummary, ownedReadyFiles } from "./files";
 import { ManagementError } from "./management";
 
+type Executor = Database | DatabaseTransaction;
+
 export async function getMessageDraft(
-  db: Database,
+  db: Executor,
   authorId: string,
   id: string,
 ) {
-  const [draft] = await db
-    .select()
-    .from(messageDrafts)
-    .where(and(eq(messageDrafts.id, id), eq(messageDrafts.authorId, authorId)));
-  return draft;
+  const draft = await db.query.messageDrafts.findFirst({
+    where: { id, authorId },
+    with: { files: { with: { file: true }, orderBy: { position: "asc" } } },
+  });
+  if (!draft) return undefined;
+  const { files, ...row } = draft;
+  return {
+    ...row,
+    files: files.flatMap((link) => (link.file ? [fileSummary(link.file)] : [])),
+  };
+}
+
+async function replaceDraftFiles(
+  db: Executor,
+  draftId: string,
+  authorId: string,
+  fileIds: string[],
+) {
+  const files = await ownedReadyFiles(
+    db,
+    authorId,
+    fileIds,
+    "message_attachment",
+  );
+  if (files.length !== fileIds.length)
+    throw new ManagementError("BAD_REQUEST", "message.file_missing");
+  await db
+    .delete(messageDraftFiles)
+    .where(eq(messageDraftFiles.draftId, draftId));
+  if (fileIds.length)
+    await db
+      .insert(messageDraftFiles)
+      .values(
+        fileIds.map((fileId, position) => ({ draftId, fileId, position })),
+      );
 }
 
 export async function listMessageDrafts(
@@ -65,39 +98,47 @@ export async function saveMessageDraft(
     subject: input.subject,
     body: input.body,
     bodyFormat: input.bodyFormat,
+    document: input.bodyFormat === "rich" ? input.document : null,
   };
-  if (input.expectedRevision === 0) {
-    const [created] = await db
-      .insert(messageDrafts)
-      .values({ ...values, id: input.id, authorId })
-      .onConflictDoNothing()
+  return db.transaction(async (tx) => {
+    if (input.expectedRevision === 0) {
+      const [created] = await tx
+        .insert(messageDrafts)
+        .values({ ...values, id: input.id, authorId })
+        .onConflictDoNothing()
+        .returning();
+      if (!created)
+        throw new ManagementError(
+          "CONFLICT",
+          "message_draft.revision_conflict",
+        );
+      await replaceDraftFiles(tx, input.id, authorId, input.fileIds);
+      return created;
+    }
+    const [updated] = await tx
+      .update(messageDrafts)
+      .set({
+        ...values,
+        revision: input.expectedRevision + 1,
+        updatedAt: new Date(),
+      })
+      .where(
+        and(
+          eq(messageDrafts.id, input.id),
+          eq(messageDrafts.authorId, authorId),
+          eq(messageDrafts.revision, input.expectedRevision),
+          isNull(messageDrafts.sentMessageId),
+        ),
+      )
       .returning();
-    if (!created)
+    if (!updated) {
+      if (!(await getMessageDraft(tx, authorId, input.id)))
+        throw new ManagementError("NOT_FOUND", "message_draft.not_found");
       throw new ManagementError("CONFLICT", "message_draft.revision_conflict");
-    return created;
-  }
-  const [updated] = await db
-    .update(messageDrafts)
-    .set({
-      ...values,
-      revision: input.expectedRevision + 1,
-      updatedAt: new Date(),
-    })
-    .where(
-      and(
-        eq(messageDrafts.id, input.id),
-        eq(messageDrafts.authorId, authorId),
-        eq(messageDrafts.revision, input.expectedRevision),
-        isNull(messageDrafts.sentMessageId),
-      ),
-    )
-    .returning();
-  if (!updated) {
-    if (!(await getMessageDraft(db, authorId, input.id)))
-      throw new ManagementError("NOT_FOUND", "message_draft.not_found");
-    throw new ManagementError("CONFLICT", "message_draft.revision_conflict");
-  }
-  return updated;
+    }
+    await replaceDraftFiles(tx, input.id, authorId, input.fileIds);
+    return updated;
+  });
 }
 
 export async function sendMessageDraft(
@@ -120,7 +161,15 @@ export async function sendMessageDraft(
     if (draft.revision !== expectedRevision)
       throw new ManagementError("CONFLICT", "message_draft.revision_conflict");
     if (draft.sentMessageId) return { id: draft.sentMessageId };
-    const messageId = await insertMessage(tx, message);
+    const files = await tx.query.messageDraftFiles.findMany({
+      where: { draftId: id },
+      orderBy: { position: "asc" },
+    });
+    const messageId = await insertMessage(tx, {
+      ...message,
+      document: draft.document,
+      fileIds: files.map((link) => link.fileId),
+    });
     await tx
       .update(messageDrafts)
       .set({ sentMessageId: messageId, updatedAt: new Date() })

@@ -12,7 +12,7 @@ import {
   listEvents,
   listMessages,
   listNewsletters,
-  markRead,
+  markThreadRead,
   sendMessage as sendMessageRow,
   unreadCount,
 } from "@faridalms/database/repositories/communication";
@@ -68,8 +68,8 @@ export const getMessage = protectedProcedure
     if (!thread) {
       throw new ORPCError("NOT_FOUND");
     }
-    // Opening it is what marks it read, and only for this reader.
-    await markRead(context.db, data.id, user.id);
+    // Opening the conversation is what marks it read, and only for this reader.
+    await markThreadRead(context.db, thread.id, user.id);
     return thread;
   });
 
@@ -113,17 +113,31 @@ export const sendMessage = protectedProcedure
     );
     if (!recipients.some((recipient) => recipient.id === data.recipientId))
       throw new ORPCError("FORBIDDEN");
-    const id = await sendMessageRow(context.db, {
-      senderId: user.id,
-      category: data.category,
-      studentId,
-      subject: data.subject,
-      body: data.body,
-      bodyFormat: data.bodyFormat,
-      recipientIds: [data.recipientId],
-    });
+    const id = await manage(() =>
+      sendMessageRow(context.db, {
+        senderId: user.id,
+        category: data.category,
+        studentId,
+        subject: data.subject,
+        body: data.body,
+        bodyFormat: data.bodyFormat,
+        document: data.document,
+        fileIds: data.fileIds,
+        recipientIds: [data.recipientId],
+      }),
+    );
     return { id };
   });
+
+async function manage<T>(action: () => Promise<T>): Promise<T> {
+  try {
+    return await action();
+  } catch (error) {
+    if (error instanceof ManagementError)
+      throw new ORPCError(error.code, { message: error.message });
+    throw error;
+  }
+}
 
 export const getNewsletters = protectedProcedure
   .input(newslettersQuerySchema)
@@ -227,21 +241,25 @@ export const replyMessage = protectedProcedure
       context.user.id,
     );
     if (!message) throw new ORPCError("NOT_FOUND");
-    const recipientIds =
-      message.senderId === context.user.id
-        ? message.recipients.map((link) => link.recipientId)
-        : [message.senderId];
+    // Everyone in the conversation except the writer hears the reply.
+    const recipientIds = message.participants
+      .map((person) => person.id)
+      .filter((id) => id !== context.user.id);
     if (!recipientIds.length) throw new ORPCError("BAD_REQUEST");
-    const id = await sendMessageRow(context.db, {
-      senderId: context.user.id,
-      category: message.category,
-      studentId: message.studentId,
-      subject: message.subject,
-      body: input.body,
-      bodyFormat: input.bodyFormat,
-      recipientIds,
-      parentMessageId: message.id,
-    });
+    const id = await manage(() =>
+      sendMessageRow(context.db, {
+        senderId: context.user.id,
+        category: message.category,
+        studentId: message.studentId,
+        subject: message.subject,
+        body: input.body,
+        bodyFormat: input.bodyFormat,
+        document: input.document,
+        fileIds: input.fileIds,
+        recipientIds,
+        parentMessageId: message.id,
+      }),
+    );
     return { id };
   });
 
@@ -310,6 +328,7 @@ export const sendMessageDraft = protectedProcedure
       ...draft,
       recipientId: draft.recipientId ?? "",
       studentId: draft.studentId ?? "",
+      fileIds: draft.files.map((file) => file.id),
     });
     if (!parsed.success)
       throw new ORPCError("BAD_REQUEST", {
@@ -338,6 +357,8 @@ export const sendMessageDraft = protectedProcedure
           subject: data.subject,
           body: data.body,
           bodyFormat: data.bodyFormat,
+          document: data.document,
+          fileIds: data.fileIds,
           recipientIds: [data.recipientId],
         },
       );
