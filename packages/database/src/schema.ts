@@ -1149,7 +1149,9 @@ export const calendarEvents = pgTable(
       .references(() => schoolYears.id, { onDelete: "cascade" }),
     revision: integer().notNull().default(0),
     title: varchar({ length: 255 }).notNull(),
+    // Plain text derived from the document; search, previews and older clients read it.
     description: text(),
+    document: jsonb().$type<ContentDocument>(),
     category: eventCategoryEnum().notNull(),
     startsOn: date("starts_on").notNull(),
     endsOn: date("ends_on").notNull(),

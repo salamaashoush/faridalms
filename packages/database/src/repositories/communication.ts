@@ -7,6 +7,7 @@ import type {
 } from "@faridalms/domain/school-schema";
 
 import { contentPlainText } from "@faridalms/domain/content";
+import { plainContent } from "@faridalms/domain/content-conversion";
 import { and, count, eq, isNull, sql, ilike } from "drizzle-orm";
 
 import type { Database, DatabaseTransaction } from "../index";
@@ -479,7 +480,13 @@ export async function saveCalendarEvent(
   schoolYearId: string,
   input: CalendarEventInput,
 ) {
-  const { id, expectedRevision, ...values } = input;
+  const { id, expectedRevision, document, description, ...rest } = input;
+  const content = document ?? plainContent(description ?? "");
+  const values = {
+    ...rest,
+    document: content,
+    description: contentPlainText(content).trim().slice(0, 20000),
+  };
   if (id) {
     if (expectedRevision === undefined) return undefined;
     return (

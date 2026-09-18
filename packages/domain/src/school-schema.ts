@@ -281,18 +281,31 @@ export const classDirectorySchema = v.object({
 });
 export type ClassDirectoryQuery = v.InferOutput<typeof classDirectorySchema>;
 
+const calendarEventFields = {
+  id: v.optional(v.pipe(v.string(), v.uuid())),
+  expectedRevision: v.optional(v.pipe(v.number(), v.integer(), v.minValue(0))),
+  title: v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(255)),
+  /** Plain text, kept for clients without the editor; the document wins when both arrive. */
+  description: v.optional(v.pipe(v.string(), v.maxLength(20000)), ""),
+  category: v.picklist(EVENT_CATEGORIES),
+  startsOn: v.pipe(v.string(), v.isoDate()),
+  endsOn: v.pipe(v.string(), v.isoDate()),
+  provisional: v.boolean(),
+};
+
+/** The editable fields alone; the form keeps the rich document outside its state. */
+export const calendarEventFormSchema = v.pipe(
+  v.object(calendarEventFields),
+  v.forward(
+    v.check((value) => value.endsOn >= value.startsOn, "validation.end_date"),
+    ["endsOn"],
+  ),
+);
+
 export const calendarEventSchema = v.pipe(
   v.object({
-    id: v.optional(v.pipe(v.string(), v.uuid())),
-    expectedRevision: v.optional(
-      v.pipe(v.number(), v.integer(), v.minValue(0)),
-    ),
-    title: v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(255)),
-    description: v.pipe(v.string(), v.maxLength(20000)),
-    category: v.picklist(EVENT_CATEGORIES),
-    startsOn: v.pipe(v.string(), v.isoDate()),
-    endsOn: v.pipe(v.string(), v.isoDate()),
-    provisional: v.boolean(),
+    ...calendarEventFields,
+    document: v.optional(contentDocumentSchema),
   }),
   v.forward(
     v.check((value) => value.endsOn >= value.startsOn, "validation.end_date"),
