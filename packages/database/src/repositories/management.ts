@@ -326,7 +326,7 @@ export async function saveClass(
     const [row] = input.id
       ? await tx
           .update(s.classes)
-          .set(values)
+          .set({ ...values, revision: sql`${s.classes.revision} + 1` })
           .where(
             and(
               eq(s.classes.id, input.id),

@@ -1,8 +1,12 @@
-import type { SaveAcademicYearInput } from "@faridalms/domain/academic-year";
+import type {
+  SaveAcademicYearInput,
+  TermInput,
+} from "@faridalms/domain/academic-year";
 
-import { and, eq, sql } from "drizzle-orm";
+import { termIssue } from "@faridalms/domain/academic-year";
+import { and, eq, inArray, sql } from "drizzle-orm";
 
-import type { Database } from "../index";
+import type { Database, DatabaseTransaction } from "../index";
 
 import { schema } from "../index";
 import { ACADEMIC_STRUCTURE_LOCK } from "../locks";
@@ -45,6 +49,7 @@ export async function saveAcademicYear(
         .returning();
       if (!created)
         throw new ManagementError("CONFLICT", "academic_year.name_conflict");
+      if (input.terms) await syncTerms(tx, created, input.terms);
       return created;
     }
     const [existing] = await tx
@@ -80,6 +85,55 @@ export async function saveAcademicYear(
       .returning();
     if (!updated)
       throw new ManagementError("CONFLICT", "academic_year.revision_conflict");
+    if (input.terms) await syncTerms(tx, updated, input.terms);
     return updated;
   });
+}
+
+async function syncTerms(
+  tx: DatabaseTransaction,
+  year: { id: string; startsOn: string; endsOn: string },
+  terms: TermInput[],
+) {
+  const issue = termIssue(year, terms);
+  if (issue) throw new ManagementError("BAD_REQUEST", `academic_year.${issue}`);
+  const existing = await tx.query.terms.findMany({
+    where: { schoolYearId: year.id },
+    columns: { id: true },
+  });
+  const known = new Set(existing.map((term) => term.id));
+  if (terms.some((term) => term.id && !known.has(term.id)))
+    throw new ManagementError("NOT_FOUND", "academic_year.term_not_found");
+  const kept = new Set(terms.flatMap((term) => (term.id ? [term.id] : [])));
+  const removed = existing.filter((term) => !kept.has(term.id));
+  if (removed.length > 0) {
+    const graded = await tx.query.grades.findFirst({
+      where: { termId: { in: removed.map((term) => term.id) } },
+      columns: { id: true },
+    });
+    if (graded)
+      throw new ManagementError("BAD_REQUEST", "academic_year.term_in_use");
+    await tx.delete(schema.terms).where(
+      inArray(
+        schema.terms.id,
+        removed.map((term) => term.id),
+      ),
+    );
+  }
+  for (const term of terms) {
+    const values = {
+      name: term.name.trim(),
+      startsOn: term.startsOn,
+      endsOn: term.endsOn,
+    };
+    if (term.id)
+      await tx
+        .update(schema.terms)
+        .set({ ...values, updatedAt: new Date() })
+        .where(eq(schema.terms.id, term.id));
+    else
+      await tx
+        .insert(schema.terms)
+        .values({ ...values, schoolYearId: year.id });
+  }
 }

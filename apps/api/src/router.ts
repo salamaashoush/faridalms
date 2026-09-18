@@ -15,6 +15,7 @@ import * as people from "./modules/people";
 import * as site from "./modules/site";
 import * as students from "./modules/students";
 import * as teaching from "./modules/teaching";
+import * as timetable from "./modules/timetable";
 
 export const router = {
   auth,
@@ -34,5 +35,6 @@ export const router = {
   ...site,
   ...learning,
   ...access,
+  ...timetable,
 };
 export type AppRouter = typeof router;
