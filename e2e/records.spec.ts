@@ -46,16 +46,19 @@ test("people are reachable through shared classes, related students and conversa
   request,
 }) => {
   const admin = await signIn(request, "admin@example.com");
-  const staffResponse = await request.post(`${origin}/v1/getAllUsers`, {
-    headers: admin,
-    data: { role: "teacher" },
-  });
-  expect(staffResponse.status()).toBe(200);
-  const staff = (await staffResponse.json()) as {
-    rows: { id: string; email: string }[];
+  const teacherByEmail = async (email: string) => {
+    const response = await request.post(`${origin}/v1/getAllUsers`, {
+      headers: admin,
+      data: { role: "teacher", q: email },
+    });
+    expect(response.status()).toBe(200);
+    const staff = (await response.json()) as {
+      rows: { id: string; email: string }[];
+    };
+    return staff.rows.find((row) => row.email === email);
   };
-  const norhan = staff.rows.find((row) => row.email === "teacher@example.com");
-  const sara = staff.rows.find((row) => row.email === "sara@example.com");
+  const norhan = await teacherByEmail("teacher@example.com");
+  const sara = await teacherByEmail("sara@example.com");
   if (!norhan || !sara) throw new Error("Missing seeded teachers");
 
   const parent = await signIn(request, "parent@example.com");
