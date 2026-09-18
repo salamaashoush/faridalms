@@ -18,6 +18,10 @@ connection pool, and verifies an active local account with Argon2. Tokens contai
 days and logout deletes the stored session immediately. Every protected request
 checks school activation, session expiry and the user's current active status.
 Permissions come from the current account, not client-supplied roles or claims.
+They are the account's assigned school role when one exists and the built-in
+role for its base role otherwise; both are rows a school administrator holding
+`access:manage` can edit from settings, within what they hold themselves, and
+every edit or assignment lands in an audit table with before and after values.
 
 Authentication attempts are counted atomically in PostgreSQL, shared across API
 replicas. A school/account pair permits ten attempts in fifteen minutes; a
