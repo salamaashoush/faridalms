@@ -20,6 +20,7 @@ export const ROLE_LABEL: Record<Role, () => string> = {
 export const PERMISSION_LABEL: Record<Permission, () => string> = {
   "access:manage": m.accessManagePermission,
   "school:manage": m.adminPermSchoolManage,
+  "site:manage": m.adminPermSiteManage,
   "users:read": m.adminPermUsersRead,
   "users:manage": m.adminPermUsersManage,
   "classes:read": m.adminPermClassesRead,

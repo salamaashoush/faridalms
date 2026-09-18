@@ -5,6 +5,7 @@ import {
   BookOpen,
   CalendarDays,
   ClipboardCheck,
+  Globe,
   ClipboardList,
   GraduationCap,
   LayoutDashboard,
@@ -70,6 +71,7 @@ export const NAVIGATION: Record<Role, NavSection[]> = {
       title: m.navSectionSettings,
       items: [
         { to: "/admin/settings", label: m.navSettings, icon: Settings },
+        { to: "/admin/site", label: m.navWebsite, icon: Globe },
         {
           to: "/admin/notification-audit",
           label: m.navNotificationLog,

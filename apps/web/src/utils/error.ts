@@ -136,6 +136,16 @@ export function getMessageFromError(error: unknown): string {
         return m.newsletterIncomplete();
       case "newsletter.not_found":
         return m.academicYearNotFound();
+      case "site.revision_conflict":
+        return m.siteRevisionConflict();
+      case "site.slug_taken":
+        return m.siteSlugTaken();
+      case "site.incomplete":
+        return m.siteIncomplete();
+      case "site.page_published":
+        return m.sitePagePublished();
+      case "site.not_found":
+        return m.siteNotFound();
     }
     if (error.message.startsWith("assignment.incomplete:"))
       return m.assignmentIncomplete();

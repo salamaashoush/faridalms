@@ -12,7 +12,14 @@ import { buttonVariants } from "~/components/ui/button";
 import * as m from "~/i18n/messages";
 import { cn } from "~/utils/cn";
 
-export function NewsletterBlockContent({ block }: { block: NewsletterBlock }) {
+export function NewsletterBlockContent({
+  block,
+  assetUrl,
+}: {
+  block: NewsletterBlock;
+  /** Resolves an image asset to a URL the reader may load; absent, images stay placeholders. */
+  assetUrl?: (assetId: string) => string;
+}) {
   switch (block.type) {
     case "heading": {
       const Heading = block.level === 2 ? "h2" : "h3";
@@ -35,7 +42,21 @@ export function NewsletterBlockContent({ block }: { block: NewsletterBlock }) {
     case "divider":
       return <hr className="border-border" />;
     case "image":
-      return (
+      return assetUrl ? (
+        <figure>
+          <img
+            src={assetUrl(block.assetId)}
+            alt={block.alt}
+            loading="lazy"
+            className="w-full rounded-lg object-cover"
+          />
+          {block.caption ? (
+            <figcaption className="mt-2 text-sm text-muted-foreground">
+              {block.caption}
+            </figcaption>
+          ) : null}
+        </figure>
+      ) : (
         <figure className="rounded-lg border border-dashed p-6 text-center text-muted-foreground">
           <Value>{block.alt}</Value>
           {block.caption ? (
@@ -74,14 +95,48 @@ const layouts = [
   "grid-cols-1 sm:grid-cols-2",
   "grid-cols-1 sm:grid-cols-3",
 ];
+export function NewsletterSections({
+  document,
+  assetUrl,
+}: {
+  document: Document;
+  assetUrl?: (assetId: string) => string;
+}) {
+  return document.sections.map((section) => (
+    <section
+      key={section.id}
+      className={cn(
+        "grid gap-6 p-6 sm:p-10",
+        layouts[section.columns.length],
+        section.tone === "muted" && "bg-muted/50",
+        section.tone === "accent" && "bg-primary/10",
+      )}
+    >
+      {section.columns.map((column) => (
+        <div key={column.id} className="min-w-0 space-y-6">
+          {column.blocks.map((block) => (
+            <NewsletterBlockContent
+              key={block.id}
+              block={block}
+              assetUrl={assetUrl}
+            />
+          ))}
+        </div>
+      ))}
+    </section>
+  ));
+}
+
 export function NewsletterDocument({
   document,
   title,
   summary,
+  assetUrl,
 }: {
   document: Document;
   title: string;
   summary: string;
+  assetUrl?: (assetId: string) => string;
 }) {
   return (
     <article
@@ -98,25 +153,7 @@ export function NewsletterDocument({
           </p>
         ) : null}
       </header>
-      {document.sections.map((section) => (
-        <section
-          key={section.id}
-          className={cn(
-            "grid gap-6 p-6 sm:p-10",
-            layouts[section.columns.length],
-            section.tone === "muted" && "bg-muted/50",
-            section.tone === "accent" && "bg-primary/10",
-          )}
-        >
-          {section.columns.map((column) => (
-            <div key={column.id} className="min-w-0 space-y-6">
-              {column.blocks.map((block) => (
-                <NewsletterBlockContent key={block.id} block={block} />
-              ))}
-            </div>
-          ))}
-        </section>
-      ))}
+      <NewsletterSections document={document} assetUrl={assetUrl} />
     </article>
   );
 }

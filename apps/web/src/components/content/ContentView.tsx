@@ -48,12 +48,20 @@ function render(node: ContentNode, key: string): ReactNode {
       </span>
     );
   }
-  const props = { key, style, dir: node.direction ?? undefined };
+  const props = { style, dir: node.direction ?? undefined };
   switch (node.type) {
     case "root":
-      return <div {...props}>{children}</div>;
+      return (
+        <div key={key} {...props}>
+          {children}
+        </div>
+      );
     case "paragraph":
-      return <p {...props}>{children?.length ? children : <br />}</p>;
+      return (
+        <p key={key} {...props}>
+          {children?.length ? children : <br />}
+        </p>
+      );
     case "heading": {
       const Heading =
         node.tag === "h1"
@@ -63,13 +71,21 @@ function render(node: ContentNode, key: string): ReactNode {
             : node.tag === "h3"
               ? "h4"
               : "h5";
-      return <Heading {...props}>{children}</Heading>;
+      return (
+        <Heading key={key} {...props}>
+          {children}
+        </Heading>
+      );
     }
     case "quote":
-      return <blockquote {...props}>{children}</blockquote>;
+      return (
+        <blockquote key={key} {...props}>
+          {children}
+        </blockquote>
+      );
     case "code":
       return (
-        <pre {...props}>
+        <pre key={key} {...props}>
           <code>{children}</code>
         </pre>
       );
@@ -79,11 +95,12 @@ function render(node: ContentNode, key: string): ReactNode {
       return <hr key={key} />;
     case "list":
       return node.listType === "number" ? (
-        <ol {...props} start={node.start}>
+        <ol key={key} {...props} start={node.start}>
           {children}
         </ol>
       ) : (
         <ul
+          key={key}
           {...props}
           className={node.listType === "check" ? "list-none ps-0" : undefined}
         >
@@ -92,7 +109,7 @@ function render(node: ContentNode, key: string): ReactNode {
       );
     case "listitem":
       return (
-        <li {...props} value={node.value}>
+        <li key={key} {...props} value={node.value}>
           {node.checked !== undefined ? (
             <input
               type="checkbox"
@@ -130,11 +147,16 @@ function render(node: ContentNode, key: string): ReactNode {
         </div>
       );
     case "tablerow":
-      return <tr {...props}>{children}</tr>;
+      return (
+        <tr key={key} {...props}>
+          {children}
+        </tr>
+      );
     case "tablecell": {
       const Cell = node.headerState ? "th" : "td";
       return (
         <Cell
+          key={key}
           {...props}
           colSpan={node.colSpan}
           rowSpan={node.rowSpan}

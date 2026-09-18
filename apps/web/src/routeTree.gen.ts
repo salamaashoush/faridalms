@@ -22,6 +22,7 @@ import { Route as AppTeachRouteImport } from './routes/_app/teach'
 import { Route as AuthSignInRouteImport } from './routes/_auth/sign-in'
 import { Route as ApiHealthRouteImport } from './routes/api/health'
 import { Route as FilesFileIdRouteImport } from './routes/files/$fileId'
+import { Route as SiteSchoolRouteImport } from './routes/site/$school'
 import { Route as AppAdminIndexRouteImport } from './routes/_app/admin/index'
 import { Route as AppAdminAcademicYearEditorRouteImport } from './routes/_app/admin/academic-year-editor'
 import { Route as AppAdminAcademicYearsRouteImport } from './routes/_app/admin/academic-years'
@@ -35,6 +36,9 @@ import { Route as AppAdminNewsletterEditorRouteImport } from './routes/_app/admi
 import { Route as AppAdminNewslettersRouteImport } from './routes/_app/admin/newsletters'
 import { Route as AppAdminNotificationAuditRouteImport } from './routes/_app/admin/notification-audit'
 import { Route as AppAdminSettingsRouteImport } from './routes/_app/admin/settings'
+import { Route as AppAdminSiteRouteImport } from './routes/_app/admin/site'
+import { Route as AppAdminSitePageEditorRouteImport } from './routes/_app/admin/site-page-editor'
+import { Route as AppAdminSitePostEditorRouteImport } from './routes/_app/admin/site-post-editor'
 import { Route as AppAdminStaffRouteImport } from './routes/_app/admin/staff'
 import { Route as AppAdminStudentsRouteImport } from './routes/_app/admin/students'
 import { Route as AppAnnouncementsIndexRouteImport } from './routes/_app/announcements.index'
@@ -69,6 +73,11 @@ import { Route as AppTeachClassesRouteImport } from './routes/_app/teach/classes
 import { Route as AppTeachGradingRouteImport } from './routes/_app/teach/grading'
 import { Route as AppTeachMessagesRouteImport } from './routes/_app/teach/messages'
 import { Route as AppTeachTimetableRouteImport } from './routes/_app/teach/timetable'
+import { Route as SiteMediaSchoolFileIdRouteImport } from './routes/site-media/$school.$fileId'
+import { Route as SiteSchoolIndexRouteImport } from './routes/site/$school/index'
+import { Route as SiteSchoolBlogIndexRouteImport } from './routes/site/$school/blog/index'
+import { Route as SiteSchoolBlogSlugRouteImport } from './routes/site/$school/blog/$slug'
+import { Route as SiteSchoolPagesSlugRouteImport } from './routes/site/$school/pages/$slug'
 
 const IndexRoute = IndexRouteImport.update({
   id: '/',
@@ -132,6 +141,11 @@ const ApiHealthRoute = ApiHealthRouteImport.update({
 const FilesFileIdRoute = FilesFileIdRouteImport.update({
   id: '/files/$fileId',
   path: '/files/$fileId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SiteSchoolRoute = SiteSchoolRouteImport.update({
+  id: '/site/$school',
+  path: '/site/$school',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AppAdminIndexRoute = AppAdminIndexRouteImport.update({
@@ -202,6 +216,21 @@ const AppAdminNotificationAuditRoute =
 const AppAdminSettingsRoute = AppAdminSettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
+  getParentRoute: () => AppAdminRoute,
+} as any)
+const AppAdminSiteRoute = AppAdminSiteRouteImport.update({
+  id: '/site',
+  path: '/site',
+  getParentRoute: () => AppAdminRoute,
+} as any)
+const AppAdminSitePageEditorRoute = AppAdminSitePageEditorRouteImport.update({
+  id: '/site-page-editor',
+  path: '/site-page-editor',
+  getParentRoute: () => AppAdminRoute,
+} as any)
+const AppAdminSitePostEditorRoute = AppAdminSitePostEditorRouteImport.update({
+  id: '/site-post-editor',
+  path: '/site-post-editor',
   getParentRoute: () => AppAdminRoute,
 } as any)
 const AppAdminStaffRoute = AppAdminStaffRouteImport.update({
@@ -378,6 +407,31 @@ const AppTeachTimetableRoute = AppTeachTimetableRouteImport.update({
   path: '/timetable',
   getParentRoute: () => AppTeachRoute,
 } as any)
+const SiteMediaSchoolFileIdRoute = SiteMediaSchoolFileIdRouteImport.update({
+  id: '/site-media/$school/$fileId',
+  path: '/site-media/$school/$fileId',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SiteSchoolIndexRoute = SiteSchoolIndexRouteImport.update({
+  id: '/',
+  path: '/',
+  getParentRoute: () => SiteSchoolRoute,
+} as any)
+const SiteSchoolBlogIndexRoute = SiteSchoolBlogIndexRouteImport.update({
+  id: '/blog/',
+  path: '/blog/',
+  getParentRoute: () => SiteSchoolRoute,
+} as any)
+const SiteSchoolBlogSlugRoute = SiteSchoolBlogSlugRouteImport.update({
+  id: '/blog/$slug',
+  path: '/blog/$slug',
+  getParentRoute: () => SiteSchoolRoute,
+} as any)
+const SiteSchoolPagesSlugRoute = SiteSchoolPagesSlugRouteImport.update({
+  id: '/pages/$slug',
+  path: '/pages/$slug',
+  getParentRoute: () => SiteSchoolRoute,
+} as any)
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
@@ -391,6 +445,7 @@ export interface FileRoutesByFullPath {
   '/sign-in': typeof AuthSignInRoute
   '/api/health': typeof ApiHealthRoute
   '/files/$fileId': typeof FilesFileIdRoute
+  '/site/$school': typeof SiteSchoolRouteWithChildren
   '/admin/academic-year-editor': typeof AppAdminAcademicYearEditorRoute
   '/admin/academic-years': typeof AppAdminAcademicYearsRoute
   '/admin/announcement-editor': typeof AppAdminAnnouncementEditorRoute
@@ -403,6 +458,9 @@ export interface FileRoutesByFullPath {
   '/admin/newsletters': typeof AppAdminNewslettersRoute
   '/admin/notification-audit': typeof AppAdminNotificationAuditRoute
   '/admin/settings': typeof AppAdminSettingsRoute
+  '/admin/site': typeof AppAdminSiteRoute
+  '/admin/site-page-editor': typeof AppAdminSitePageEditorRoute
+  '/admin/site-post-editor': typeof AppAdminSitePostEditorRoute
   '/admin/staff': typeof AppAdminStaffRoute
   '/admin/students': typeof AppAdminStudentsRoute
   '/announcements/$announcementId': typeof AppAnnouncementsAnnouncementIdRoute
@@ -433,11 +491,16 @@ export interface FileRoutesByFullPath {
   '/teach/grading': typeof AppTeachGradingRoute
   '/teach/messages': typeof AppTeachMessagesRoute
   '/teach/timetable': typeof AppTeachTimetableRoute
+  '/site-media/$school/$fileId': typeof SiteMediaSchoolFileIdRoute
   '/admin/': typeof AppAdminIndexRoute
   '/announcements/': typeof AppAnnouncementsIndexRoute
   '/family/': typeof AppFamilyIndexRoute
   '/me/': typeof AppMeIndexRoute
   '/teach/': typeof AppTeachIndexRoute
+  '/site/$school/': typeof SiteSchoolIndexRoute
+  '/site/$school/blog/$slug': typeof SiteSchoolBlogSlugRoute
+  '/site/$school/pages/$slug': typeof SiteSchoolPagesSlugRoute
+  '/site/$school/blog/': typeof SiteSchoolBlogIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -459,6 +522,9 @@ export interface FileRoutesByTo {
   '/admin/newsletters': typeof AppAdminNewslettersRoute
   '/admin/notification-audit': typeof AppAdminNotificationAuditRoute
   '/admin/settings': typeof AppAdminSettingsRoute
+  '/admin/site': typeof AppAdminSiteRoute
+  '/admin/site-page-editor': typeof AppAdminSitePageEditorRoute
+  '/admin/site-post-editor': typeof AppAdminSitePostEditorRoute
   '/admin/staff': typeof AppAdminStaffRoute
   '/admin/students': typeof AppAdminStudentsRoute
   '/announcements/$announcementId': typeof AppAnnouncementsAnnouncementIdRoute
@@ -489,11 +555,16 @@ export interface FileRoutesByTo {
   '/teach/grading': typeof AppTeachGradingRoute
   '/teach/messages': typeof AppTeachMessagesRoute
   '/teach/timetable': typeof AppTeachTimetableRoute
+  '/site-media/$school/$fileId': typeof SiteMediaSchoolFileIdRoute
   '/admin': typeof AppAdminIndexRoute
   '/announcements': typeof AppAnnouncementsIndexRoute
   '/family': typeof AppFamilyIndexRoute
   '/me': typeof AppMeIndexRoute
   '/teach': typeof AppTeachIndexRoute
+  '/site/$school': typeof SiteSchoolIndexRoute
+  '/site/$school/blog/$slug': typeof SiteSchoolBlogSlugRoute
+  '/site/$school/pages/$slug': typeof SiteSchoolPagesSlugRoute
+  '/site/$school/blog': typeof SiteSchoolBlogIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -510,6 +581,7 @@ export interface FileRoutesById {
   '/_auth/sign-in': typeof AuthSignInRoute
   '/api/health': typeof ApiHealthRoute
   '/files/$fileId': typeof FilesFileIdRoute
+  '/site/$school': typeof SiteSchoolRouteWithChildren
   '/_app/admin/academic-year-editor': typeof AppAdminAcademicYearEditorRoute
   '/_app/admin/academic-years': typeof AppAdminAcademicYearsRoute
   '/_app/admin/announcement-editor': typeof AppAdminAnnouncementEditorRoute
@@ -522,6 +594,9 @@ export interface FileRoutesById {
   '/_app/admin/newsletters': typeof AppAdminNewslettersRoute
   '/_app/admin/notification-audit': typeof AppAdminNotificationAuditRoute
   '/_app/admin/settings': typeof AppAdminSettingsRoute
+  '/_app/admin/site': typeof AppAdminSiteRoute
+  '/_app/admin/site-page-editor': typeof AppAdminSitePageEditorRoute
+  '/_app/admin/site-post-editor': typeof AppAdminSitePostEditorRoute
   '/_app/admin/staff': typeof AppAdminStaffRoute
   '/_app/admin/students': typeof AppAdminStudentsRoute
   '/_app/announcements/$announcementId': typeof AppAnnouncementsAnnouncementIdRoute
@@ -552,11 +627,16 @@ export interface FileRoutesById {
   '/_app/teach/grading': typeof AppTeachGradingRoute
   '/_app/teach/messages': typeof AppTeachMessagesRoute
   '/_app/teach/timetable': typeof AppTeachTimetableRoute
+  '/site-media/$school/$fileId': typeof SiteMediaSchoolFileIdRoute
   '/_app/admin/': typeof AppAdminIndexRoute
   '/_app/announcements/': typeof AppAnnouncementsIndexRoute
   '/_app/family/': typeof AppFamilyIndexRoute
   '/_app/me/': typeof AppMeIndexRoute
   '/_app/teach/': typeof AppTeachIndexRoute
+  '/site/$school/': typeof SiteSchoolIndexRoute
+  '/site/$school/blog/$slug': typeof SiteSchoolBlogSlugRoute
+  '/site/$school/pages/$slug': typeof SiteSchoolPagesSlugRoute
+  '/site/$school/blog/': typeof SiteSchoolBlogIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -572,6 +652,7 @@ export interface FileRouteTypes {
     | '/sign-in'
     | '/api/health'
     | '/files/$fileId'
+    | '/site/$school'
     | '/admin/academic-year-editor'
     | '/admin/academic-years'
     | '/admin/announcement-editor'
@@ -584,6 +665,9 @@ export interface FileRouteTypes {
     | '/admin/newsletters'
     | '/admin/notification-audit'
     | '/admin/settings'
+    | '/admin/site'
+    | '/admin/site-page-editor'
+    | '/admin/site-post-editor'
     | '/admin/staff'
     | '/admin/students'
     | '/announcements/$announcementId'
@@ -614,11 +698,16 @@ export interface FileRouteTypes {
     | '/teach/grading'
     | '/teach/messages'
     | '/teach/timetable'
+    | '/site-media/$school/$fileId'
     | '/admin/'
     | '/announcements/'
     | '/family/'
     | '/me/'
     | '/teach/'
+    | '/site/$school/'
+    | '/site/$school/blog/$slug'
+    | '/site/$school/pages/$slug'
+    | '/site/$school/blog/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -640,6 +729,9 @@ export interface FileRouteTypes {
     | '/admin/newsletters'
     | '/admin/notification-audit'
     | '/admin/settings'
+    | '/admin/site'
+    | '/admin/site-page-editor'
+    | '/admin/site-post-editor'
     | '/admin/staff'
     | '/admin/students'
     | '/announcements/$announcementId'
@@ -670,11 +762,16 @@ export interface FileRouteTypes {
     | '/teach/grading'
     | '/teach/messages'
     | '/teach/timetable'
+    | '/site-media/$school/$fileId'
     | '/admin'
     | '/announcements'
     | '/family'
     | '/me'
     | '/teach'
+    | '/site/$school'
+    | '/site/$school/blog/$slug'
+    | '/site/$school/pages/$slug'
+    | '/site/$school/blog'
   id:
     | '__root__'
     | '/'
@@ -690,6 +787,7 @@ export interface FileRouteTypes {
     | '/_auth/sign-in'
     | '/api/health'
     | '/files/$fileId'
+    | '/site/$school'
     | '/_app/admin/academic-year-editor'
     | '/_app/admin/academic-years'
     | '/_app/admin/announcement-editor'
@@ -702,6 +800,9 @@ export interface FileRouteTypes {
     | '/_app/admin/newsletters'
     | '/_app/admin/notification-audit'
     | '/_app/admin/settings'
+    | '/_app/admin/site'
+    | '/_app/admin/site-page-editor'
+    | '/_app/admin/site-post-editor'
     | '/_app/admin/staff'
     | '/_app/admin/students'
     | '/_app/announcements/$announcementId'
@@ -732,11 +833,16 @@ export interface FileRouteTypes {
     | '/_app/teach/grading'
     | '/_app/teach/messages'
     | '/_app/teach/timetable'
+    | '/site-media/$school/$fileId'
     | '/_app/admin/'
     | '/_app/announcements/'
     | '/_app/family/'
     | '/_app/me/'
     | '/_app/teach/'
+    | '/site/$school/'
+    | '/site/$school/blog/$slug'
+    | '/site/$school/pages/$slug'
+    | '/site/$school/blog/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -745,6 +851,8 @@ export interface RootRouteChildren {
   AuthRoute: typeof AuthRouteWithChildren
   ApiHealthRoute: typeof ApiHealthRoute
   FilesFileIdRoute: typeof FilesFileIdRoute
+  SiteSchoolRoute: typeof SiteSchoolRouteWithChildren
+  SiteMediaSchoolFileIdRoute: typeof SiteMediaSchoolFileIdRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -840,6 +948,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof FilesFileIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/site/$school': {
+      id: '/site/$school'
+      path: '/site/$school'
+      fullPath: '/site/$school'
+      preLoaderRoute: typeof SiteSchoolRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/_app/admin/': {
       id: '/_app/admin/'
       path: '/'
@@ -929,6 +1044,27 @@ declare module '@tanstack/react-router' {
       path: '/settings'
       fullPath: '/admin/settings'
       preLoaderRoute: typeof AppAdminSettingsRouteImport
+      parentRoute: typeof AppAdminRoute
+    }
+    '/_app/admin/site': {
+      id: '/_app/admin/site'
+      path: '/site'
+      fullPath: '/admin/site'
+      preLoaderRoute: typeof AppAdminSiteRouteImport
+      parentRoute: typeof AppAdminRoute
+    }
+    '/_app/admin/site-page-editor': {
+      id: '/_app/admin/site-page-editor'
+      path: '/site-page-editor'
+      fullPath: '/admin/site-page-editor'
+      preLoaderRoute: typeof AppAdminSitePageEditorRouteImport
+      parentRoute: typeof AppAdminRoute
+    }
+    '/_app/admin/site-post-editor': {
+      id: '/_app/admin/site-post-editor'
+      path: '/site-post-editor'
+      fullPath: '/admin/site-post-editor'
+      preLoaderRoute: typeof AppAdminSitePostEditorRouteImport
       parentRoute: typeof AppAdminRoute
     }
     '/_app/admin/staff': {
@@ -1169,6 +1305,41 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppTeachTimetableRouteImport
       parentRoute: typeof AppTeachRoute
     }
+    '/site-media/$school/$fileId': {
+      id: '/site-media/$school/$fileId'
+      path: '/site-media/$school/$fileId'
+      fullPath: '/site-media/$school/$fileId'
+      preLoaderRoute: typeof SiteMediaSchoolFileIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/site/$school/': {
+      id: '/site/$school/'
+      path: '/'
+      fullPath: '/site/$school/'
+      preLoaderRoute: typeof SiteSchoolIndexRouteImport
+      parentRoute: typeof SiteSchoolRoute
+    }
+    '/site/$school/blog/': {
+      id: '/site/$school/blog/'
+      path: '/blog'
+      fullPath: '/site/$school/blog/'
+      preLoaderRoute: typeof SiteSchoolBlogIndexRouteImport
+      parentRoute: typeof SiteSchoolRoute
+    }
+    '/site/$school/blog/$slug': {
+      id: '/site/$school/blog/$slug'
+      path: '/blog/$slug'
+      fullPath: '/site/$school/blog/$slug'
+      preLoaderRoute: typeof SiteSchoolBlogSlugRouteImport
+      parentRoute: typeof SiteSchoolRoute
+    }
+    '/site/$school/pages/$slug': {
+      id: '/site/$school/pages/$slug'
+      path: '/pages/$slug'
+      fullPath: '/site/$school/pages/$slug'
+      preLoaderRoute: typeof SiteSchoolPagesSlugRouteImport
+      parentRoute: typeof SiteSchoolRoute
+    }
   }
 }
 
@@ -1185,6 +1356,9 @@ interface AppAdminRouteChildren {
   AppAdminNewslettersRoute: typeof AppAdminNewslettersRoute
   AppAdminNotificationAuditRoute: typeof AppAdminNotificationAuditRoute
   AppAdminSettingsRoute: typeof AppAdminSettingsRoute
+  AppAdminSiteRoute: typeof AppAdminSiteRoute
+  AppAdminSitePageEditorRoute: typeof AppAdminSitePageEditorRoute
+  AppAdminSitePostEditorRoute: typeof AppAdminSitePostEditorRoute
   AppAdminStaffRoute: typeof AppAdminStaffRoute
   AppAdminStudentsRoute: typeof AppAdminStudentsRoute
   AppAdminIndexRoute: typeof AppAdminIndexRoute
@@ -1203,6 +1377,9 @@ const AppAdminRouteChildren: AppAdminRouteChildren = {
   AppAdminNewslettersRoute: AppAdminNewslettersRoute,
   AppAdminNotificationAuditRoute: AppAdminNotificationAuditRoute,
   AppAdminSettingsRoute: AppAdminSettingsRoute,
+  AppAdminSiteRoute: AppAdminSiteRoute,
+  AppAdminSitePageEditorRoute: AppAdminSitePageEditorRoute,
+  AppAdminSitePostEditorRoute: AppAdminSitePostEditorRoute,
   AppAdminStaffRoute: AppAdminStaffRoute,
   AppAdminStudentsRoute: AppAdminStudentsRoute,
   AppAdminIndexRoute: AppAdminIndexRoute,
@@ -1336,12 +1513,32 @@ const AuthRouteChildren: AuthRouteChildren = {
 
 const AuthRouteWithChildren = AuthRoute._addFileChildren(AuthRouteChildren)
 
+interface SiteSchoolRouteChildren {
+  SiteSchoolIndexRoute: typeof SiteSchoolIndexRoute
+  SiteSchoolBlogSlugRoute: typeof SiteSchoolBlogSlugRoute
+  SiteSchoolPagesSlugRoute: typeof SiteSchoolPagesSlugRoute
+  SiteSchoolBlogIndexRoute: typeof SiteSchoolBlogIndexRoute
+}
+
+const SiteSchoolRouteChildren: SiteSchoolRouteChildren = {
+  SiteSchoolIndexRoute: SiteSchoolIndexRoute,
+  SiteSchoolBlogSlugRoute: SiteSchoolBlogSlugRoute,
+  SiteSchoolPagesSlugRoute: SiteSchoolPagesSlugRoute,
+  SiteSchoolBlogIndexRoute: SiteSchoolBlogIndexRoute,
+}
+
+const SiteSchoolRouteWithChildren = SiteSchoolRoute._addFileChildren(
+  SiteSchoolRouteChildren,
+)
+
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AppRoute: AppRouteWithChildren,
   AuthRoute: AuthRouteWithChildren,
   ApiHealthRoute: ApiHealthRoute,
   FilesFileIdRoute: FilesFileIdRoute,
+  SiteSchoolRoute: SiteSchoolRouteWithChildren,
+  SiteMediaSchoolFileIdRoute: SiteMediaSchoolFileIdRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)
