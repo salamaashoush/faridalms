@@ -1,5 +1,6 @@
 import * as academicYears from "./modules/academic-years";
 import * as academics from "./modules/academics";
+import * as access from "./modules/access";
 import * as administration from "./modules/administration";
 import * as announcements from "./modules/announcements";
 import * as assignments from "./modules/assignments";
@@ -32,5 +33,6 @@ export const router = {
   ...people,
   ...site,
   ...learning,
+  ...access,
 };
 export type AppRouter = typeof router;
