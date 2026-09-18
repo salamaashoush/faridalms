@@ -6,6 +6,7 @@ import {
   currentSchoolYear,
   gradeSubmission,
   gradingQueue,
+  listWeeks,
   recordAttendance,
   resolveWeek,
   timetableForTeacher,
@@ -20,6 +21,7 @@ import {
   listClasses,
 } from "@faridalms/database/repositories/school";
 import { canAssessOffering } from "@faridalms/domain/academic-access";
+import { weekForDate } from "@faridalms/domain/school";
 import {
   createAssignmentSchema,
   attendanceRegisterQuerySchema,
@@ -302,13 +304,10 @@ export const createAssignment = protectedProcedure
         message: "The due date must not be in the past",
       });
     if (!subject.class) throw new ORPCError("NOT_FOUND");
-    const week = await context.db.query.academicWeeks.findFirst({
-      where: {
-        schoolYearId: subject.class.schoolYearId,
-        startsOn: { lte: context.today },
-        endsOn: { gte: context.today },
-      },
-    });
+    const week = weekForDate(
+      await listWeeks(context.db, subject.class.schoolYearId),
+      input.dueDate,
+    );
     const [assignment] = await context.db
       .insert(schema.assignments)
       .values({

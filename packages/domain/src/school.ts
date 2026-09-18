@@ -40,6 +40,34 @@ export function addDays(iso: string, days: number): string {
   return date.toISOString().slice(0, 10);
 }
 
+export interface DatedWeek {
+  startsOn: string;
+  endsOn: string;
+}
+
+/**
+ * The teaching week a date belongs to.
+ *
+ * Weeks are Sunday to Thursday, so the weekend between two weeks belongs to
+ * the week that has just ended, and a date before the first week belongs to
+ * the first. Navigation and assignment ownership both use this rule; when they
+ * disagreed, work created on a Friday landed in no week and was listed nowhere.
+ */
+export function weekForDate<T extends DatedWeek>(
+  weeks: readonly T[],
+  date: string,
+): T | undefined {
+  const ordered = weeks.toSorted((a, b) =>
+    a.startsOn.localeCompare(b.startsOn),
+  );
+  let owner = ordered[0];
+  for (const week of ordered) {
+    if (week.startsOn > date) break;
+    owner = week;
+  }
+  return owner;
+}
+
 /** Inclusive, so a single-day event is one day long rather than zero. */
 export function daysBetween(from: string, to: string): number {
   const start = Date.parse(`${from}T00:00:00Z`);

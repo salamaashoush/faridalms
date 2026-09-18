@@ -1,7 +1,7 @@
 import type { AssessmentScope } from "@faridalms/domain/academic-access";
 import type { RecordAttendanceInput } from "@faridalms/domain/school-schema";
 
-import { addDays, schoolDate } from "@faridalms/domain/school";
+import { addDays, schoolDate, weekForDate } from "@faridalms/domain/school";
 import { and, count, eq, gte, inArray, lte, sql } from "drizzle-orm";
 
 import type { Database } from "../index";
@@ -43,7 +43,7 @@ export async function listWeeks(db: Database, schoolYearId: string) {
   });
 }
 
-/** The week containing `today`, else the next one, else the last. */
+/** The requested week when it exists, else the week `today` belongs to. */
 export async function resolveWeek(
   db: Database,
   schoolYearId: string,
@@ -57,11 +57,7 @@ export async function resolveWeek(
       return { week: match, weeks };
     }
   }
-  const containing = weeks.find(
-    (week) => week.startsOn <= today && today <= week.endsOn,
-  );
-  const upcoming = weeks.find((week) => week.startsOn > today);
-  const week = containing ?? upcoming ?? weeks.at(-1);
+  const week = weekForDate(weeks, today);
   if (!week) {
     throw new Error("The current school year has no academic weeks");
   }

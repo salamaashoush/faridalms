@@ -5,6 +5,7 @@ import {
   daysBetween,
   monthGrid,
   shiftMonth,
+  weekForDate,
   weekdayOf,
 } from "@faridalms/domain/school";
 import { describe, expect, it } from "vitest";
@@ -117,5 +118,32 @@ describe("weekdayOf", () => {
     expect(weekdayOf("2026-09-13")).toBe(0);
     expect(weekdayOf("2026-09-17")).toBe(4);
     expect(weekdayOf("2026-09-18")).toBe(5);
+  });
+});
+
+describe("weekForDate", () => {
+  const weeks = [
+    { number: 2, startsOn: "2026-09-13", endsOn: "2026-09-17" },
+    { number: 1, startsOn: "2026-09-06", endsOn: "2026-09-10" },
+    { number: 3, startsOn: "2026-09-20", endsOn: "2026-09-24" },
+  ];
+
+  it("returns the week containing a teaching day", () => {
+    expect(weekForDate(weeks, "2026-09-15")?.number).toBe(2);
+    expect(weekForDate(weeks, "2026-09-20")?.number).toBe(3);
+  });
+
+  it("gives the weekend to the week that has just ended", () => {
+    expect(weekForDate(weeks, "2026-09-18")?.number).toBe(2);
+    expect(weekForDate(weeks, "2026-09-19")?.number).toBe(2);
+  });
+
+  it("clamps dates outside the configured weeks to the nearest end", () => {
+    expect(weekForDate(weeks, "2026-08-30")?.number).toBe(1);
+    expect(weekForDate(weeks, "2026-10-30")?.number).toBe(3);
+  });
+
+  it("returns undefined when no weeks are configured", () => {
+    expect(weekForDate([], "2026-09-15")).toBeUndefined();
   });
 });
