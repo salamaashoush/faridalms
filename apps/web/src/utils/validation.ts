@@ -10,6 +10,18 @@ export function validationMessage(issue: { message?: string }): string {
       return m.validationHttps();
     case "validation.end_date":
       return m.validationEndDate();
+    case "validation.due_after_available":
+      return m.validationDueAfterAvailable();
+    case "validation.close_after_due":
+      return m.validationCloseAfterDue();
+    case "validation.deduction_required":
+      return m.validationDeductionRequired();
+    case "validation.attachments_required":
+      return m.validationAttachmentsRequired();
+    case "validation.rubric_total":
+      return m.validationRubricTotal();
+    case "validation.file_type":
+      return m.validationFileType();
   }
   if (!("type" in issue)) return issue.message ?? m.validationInvalid();
   const count =
@@ -27,6 +39,7 @@ export function validationMessage(issue: { message?: string }): string {
       return m.validationEmail();
     case "iso_date":
     case "iso_date_time":
+    case "iso_timestamp":
       return m.validationDate();
     case "uuid":
     case "picklist":

@@ -14,7 +14,6 @@ import { Badge } from "~/components/ui/badge";
 import * as m from "~/i18n/messages";
 import { cn } from "~/utils/cn";
 
-type SubmissionState = "not_started" | "draft" | "submitted" | "returned";
 type AttendanceStatus = "present" | "absent" | "late" | "excused";
 type AssignmentType =
   | "written_assignment"
@@ -74,41 +73,6 @@ export const EVENT_CATEGORY_CLASS: Record<EventCategory, string> = {
   school_vacation:
     "bg-[var(--success)]/15 text-[var(--success)] border-[var(--success)]/30",
 };
-
-/**
- * Work state as the family sees it. "Overdue" is derived here rather than
- * stored, because it depends on today rather than on anything written down.
- */
-export function SubmissionBadge({
-  state,
-  dueDate,
-  today,
-}: {
-  state: SubmissionState | null;
-  dueDate: string;
-  today: string;
-}) {
-  const effective = state ?? "not_started";
-
-  if (effective === "returned") {
-    return (
-      <Badge className="border-transparent bg-[var(--success)]/15 text-[var(--success)]">
-        {m.statusGraded()}
-      </Badge>
-    );
-  }
-  if (effective === "submitted") {
-    return (
-      <Badge className="border-transparent bg-primary/10 text-primary">
-        {m.statusSubmitted()}
-      </Badge>
-    );
-  }
-  if (dueDate < today) {
-    return <Badge variant="destructive">{m.statusLate()}</Badge>;
-  }
-  return <Badge variant="outline">{m.statusPending()}</Badge>;
-}
 
 export function AttendanceBadge({ status }: { status: AttendanceStatus }) {
   const className = {

@@ -1,3 +1,4 @@
+import "./prism";
 import type { ContentDocument } from "@faridalms/domain/content";
 
 import {

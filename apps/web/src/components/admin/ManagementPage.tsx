@@ -19,6 +19,9 @@ export function ManagementPage({
   pending,
   isDirty,
   sectioned = false,
+  actions,
+  submitLabel,
+  headerActions,
 }: {
   title: string;
   description: string;
@@ -28,6 +31,9 @@ export function ManagementPage({
   pending: boolean;
   isDirty: () => boolean;
   sectioned?: boolean;
+  actions?: ReactNode;
+  submitLabel?: string;
+  headerActions?: ReactNode;
 }) {
   const [failure, setFailure] = useState<string>();
   const hydrated = useHydrated();
@@ -52,7 +58,11 @@ export function ManagementPage({
           }
         }}
       >
-        <PageHeader title={title} description={description} />
+        <PageHeader
+          title={title}
+          description={description}
+          actions={headerActions}
+        />
         <fieldset
           disabled={!hydrated || pending}
           className={
@@ -71,7 +81,8 @@ export function ManagementPage({
             {failure}
           </p>
         ) : null}
-        <div className="sticky bottom-0 z-10 flex justify-end gap-3 rounded-xl border bg-background/95 p-4 shadow-sm backdrop-blur">
+        <div className="sticky bottom-0 z-10 flex flex-wrap justify-end gap-3 rounded-xl border bg-background/95 p-4 shadow-sm backdrop-blur">
+          {actions}
           <Button
             type="button"
             variant="outline"
@@ -86,7 +97,7 @@ export function ManagementPage({
             ) : (
               <Check aria-hidden />
             )}
-            {m.managementSave()}
+            {submitLabel ?? m.managementSave()}
           </Button>
         </div>
       </form>

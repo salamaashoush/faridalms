@@ -1,5 +1,5 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, Link } from "@tanstack/react-router";
 import { CheckCheck } from "lucide-react";
 import * as v from "valibot";
 
@@ -8,19 +8,13 @@ import type { getGradingQueue } from "~/server/school";
 
 import { DataTable } from "~/components/admin/DataTable";
 import { PersonAvatar } from "~/components/admin/PersonAvatar";
-import {
-  Dialog,
-  DialogContent,
-  DialogTitle,
-  DialogDescription,
-} from "~/components/app/dialog";
+import { ButtonLink } from "~/components/app/ButtonLink";
 import { PageHeader, Value } from "~/components/app/primitives";
 import {
   formatDate,
   studentName,
   subjectName,
 } from "~/components/teach/format";
-import { GradeForm } from "~/components/teach/GradeForm";
 import { Button } from "~/components/ui/button";
 import * as m from "~/i18n/messages";
 import { gradingQueueQuery } from "~/queries/school";
@@ -28,7 +22,6 @@ import { gradingQueueQuery } from "~/queries/school";
 const searchSchema = v.object({
   q: v.optional(v.string(), ""),
   assignmentId: v.optional(v.string(), ""),
-  submissionId: v.optional(v.string(), ""),
   sort: v.optional(v.picklist(["student", "assignment", "due"]), "due"),
   dir: v.optional(v.picklist(["asc", "desc"]), "asc"),
   page: v.optional(v.pipe(v.number(), v.integer(), v.minValue(1)), 1),
@@ -57,9 +50,18 @@ const columns: DataColumn<Submission, Search["sort"]>[] = [
     sort: "assignment",
     render: (row) => (
       <div>
-        <p className="font-medium">
-          <Value>{row.assignment?.title}</Value>
-        </p>
+        {row.assignment ? (
+          <Link
+            to="/assignments/$assignmentId"
+            params={{ assignmentId: row.assignment.id }}
+            search={{}}
+            className="font-medium hover:text-primary hover:underline"
+          >
+            {row.assignment.title}
+          </Link>
+        ) : (
+          <Value>{null}</Value>
+        )}
         <p className="mt-1 text-xs text-muted-foreground">
           <Value>{subjectName(row.assignment?.subject)}</Value>
         </p>
@@ -120,7 +122,6 @@ function GradingPage() {
     });
   const pages = Math.max(1, Math.ceil(rows.length / 25));
   const page = Math.min(search.page, pages);
-  const selected = queue.find((row) => row.id === search.submissionId);
   return (
     <>
       <PageHeader
@@ -156,51 +157,26 @@ function GradingPage() {
             </Button>
           ) : undefined
         }
-        renderActions={(row) => (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => patch({ submissionId: row.id })}
-          >
-            <CheckCheck className="size-4" aria-hidden />
-            {m.courseworkReview()}
-          </Button>
-        )}
+        renderActions={(row) =>
+          row.assignment && row.currentAttemptId ? (
+            <ButtonLink
+              to="/assignments/$assignmentId"
+              params={{ assignmentId: row.assignment.id }}
+              search={{ tab: "review", attempt: row.currentAttemptId }}
+              variant="ghost"
+              size="sm"
+              aria-label={m.attemptReviewFor({
+                name: row.student
+                  ? studentName(row.student)
+                  : m.commonNotRecorded(),
+              })}
+            >
+              <CheckCheck className="size-4" aria-hidden />
+              {m.courseworkReview()}
+            </ButtonLink>
+          ) : null
+        }
       />
-      {selected?.assignment ? (
-        <Dialog
-          open
-          onOpenChange={(open) => {
-            if (!open) patch({ submissionId: "" });
-          }}
-        >
-          <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-3xl">
-            <DialogTitle>{selected.assignment.title}</DialogTitle>
-            <DialogDescription>
-              {selected.student
-                ? studentName(selected.student)
-                : m.commonNotRecorded()}
-            </DialogDescription>
-            <section className="rounded-xl border bg-background p-5">
-              <h3 className="mb-3 text-xs font-semibold text-muted-foreground uppercase">
-                {m.courseworkStudentWork()}
-              </h3>
-              <p className="text-sm leading-7 whitespace-pre-wrap">
-                <Value>{selected.content}</Value>
-              </p>
-            </section>
-            <GradeForm
-              submissionId={selected.id}
-              student={
-                selected.student
-                  ? studentName(selected.student)
-                  : m.commonNotRecorded()
-              }
-              maxScore={selected.assignment.maxScore}
-            />
-          </DialogContent>
-        </Dialog>
-      ) : null}
     </>
   );
 }

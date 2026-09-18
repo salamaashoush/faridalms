@@ -68,7 +68,63 @@ export function getMessageFromError(error: unknown): string {
         return m.academicYearShrink();
       case "academic_year.not_found":
         return m.academicYearNotFound();
+      case "assignment.revision_conflict":
+        return m.assignmentRevisionConflict();
+      case "assignment.not_found":
+        return m.assignmentNotFound();
+      case "assignment.subject_not_taught":
+        return m.assignmentSubjectNotTaught();
+      case "assignment.responsibility":
+        return m.assignmentResponsibility();
+      case "assignment.archived":
+        return m.assignmentArchivedError();
+      case "assignment.resource_missing":
+        return m.assignmentResourceMissing();
+      case "assignment.class_changed":
+        return m.assignmentClassChanged();
+      case "assignment.not_draft":
+        return m.assignmentNotDraft();
+      case "submission.scheduled":
+        return m.submissionScheduledError();
+      case "submission.closed":
+        return m.submissionClosedError();
+      case "submission.resubmission_closed":
+        return m.submissionResubmissionClosed();
+      case "submission.revision_conflict":
+        return m.submissionRevisionConflict();
+      case "submission.empty":
+        return m.submissionEmpty();
+      case "submission.both_required":
+        return m.submissionBothRequired();
+      case "submission.written_not_accepted":
+        return m.submissionWrittenNotAccepted();
+      case "submission.files_not_accepted":
+        return m.submissionFilesNotAccepted();
+      case "submission.too_many_files":
+        return m.submissionTooManyFiles();
+      case "submission.file_missing":
+        return m.submissionFileMissing();
+      case "submission.file_too_large":
+        return m.submissionFileTooLarge();
+      case "assessment.not_found":
+        return m.assessmentNotFound();
+      case "assessment.score_range":
+        return m.assessmentScoreRange();
+      case "assessment.rubric_mismatch":
+        return m.assessmentRubricMismatch();
+      case "file.too_large":
+        return m.fileTooLarge();
+      case "file.size_mismatch":
+        return m.fileSizeMismatch();
+      case "group.name_conflict":
+        return m.groupNameConflict();
+      case "group.student_not_enrolled":
+        return m.groupStudentNotEnrolled();
+      case "group.not_found":
+        return m.groupNotFound();
     }
+    if (error.message.startsWith("assignment.incomplete:"))
+      return m.assignmentIncomplete();
     return error.message;
   }
   return m.notificationErrorMessage();

@@ -2,7 +2,7 @@ import type { AssignmentRow } from "@faridalms/database/repositories/academics";
 
 import { assignmentsQuerySchema } from "@faridalms/domain/school-schema";
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { useNavigate } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
 import { ArrowUpRight } from "lucide-react";
 import * as v from "valibot";
 
@@ -10,21 +10,15 @@ import type { DataColumn } from "~/components/admin/DataTable";
 
 import { DataTable } from "~/components/admin/DataTable";
 import { TableFilter } from "~/components/admin/TableFilter";
-import {
-  Dialog,
-  DialogContent,
-  DialogTitle,
-  DialogDescription,
-} from "~/components/app/dialog";
-import { SubjectIcon, SubmissionBadge } from "~/components/app/labels";
+import { ButtonLink } from "~/components/app/ButtonLink";
+import { SubjectIcon } from "~/components/app/labels";
 import { PageHeader, Value } from "~/components/app/primitives";
+import { LearnerStateBadge } from "~/components/assignments/labels";
 import { StudentScopeBar } from "~/components/family/StudentScopeBar";
 import { WeekNav } from "~/components/family/WeekNav";
-import { Button } from "~/components/ui/button";
 import * as m from "~/i18n/messages";
 import { assignmentsQuery } from "~/queries/school";
 
-import { AssignmentCard } from "./AssignmentCard";
 import { formatDate, subjectName } from "./format";
 
 export const courseworkSearchSchema = v.object({
@@ -37,16 +31,24 @@ export const courseworkSearchSchema = v.object({
   sort: v.optional(v.picklist(["title", "subject", "due"]), "due"),
   dir: v.optional(v.picklist(["asc", "desc"]), "asc"),
   page: v.optional(v.pipe(v.number(), v.integer(), v.minValue(1)), 1),
-  assignment: v.optional(v.string(), ""),
 });
 type Search = v.InferOutput<typeof courseworkSearchSchema>;
-type Row = AssignmentRow & { today: string };
+type Row = AssignmentRow & { today: string; studentId: string };
 const columns: DataColumn<Row, Search["sort"]>[] = [
   {
     id: "title",
     label: m.courseworkTitle,
     sort: "title",
-    render: (row) => <span className="font-medium">{row.title}</span>,
+    render: (row) => (
+      <Link
+        to="/assignments/$assignmentId"
+        params={{ assignmentId: row.id }}
+        search={{ studentId: row.studentId }}
+        className="font-medium hover:text-primary hover:underline"
+      >
+        {row.title}
+      </Link>
+    ),
   },
   {
     id: "subject",
@@ -71,10 +73,9 @@ const columns: DataColumn<Row, Search["sort"]>[] = [
     id: "state",
     label: m.courseworkStatus,
     render: (row) => (
-      <SubmissionBadge
-        state={row.submission?.state ?? null}
-        dueDate={row.dueDate}
-        today={row.today}
+      <LearnerStateBadge
+        state={row.learnerState}
+        late={row.window === "late" && row.learnerState === "not_started"}
       />
     ),
   },
@@ -101,7 +102,13 @@ export function CourseworkWorkspace({
   family?: boolean;
 }) {
   const navigate = useNavigate();
-  const { rows, week, weeks, today } = useSuspenseQuery(
+  const {
+    rows,
+    week,
+    weeks,
+    today,
+    studentId: activeStudentId,
+  } = useSuspenseQuery(
     assignmentsQuery({ studentId: search.studentId, week: search.week }),
   ).data;
   const patch = (change: Partial<Search>) => {
@@ -109,11 +116,13 @@ export function CourseworkWorkspace({
   };
   const filtered = rows
     .filter((row) => {
-      const state = row.submission?.state ?? "not_started";
+      const state = row.learnerState;
       return (
         (search.state === "all" ||
           (search.state === "open"
-            ? state === "not_started" || state === "draft"
+            ? state === "not_started" ||
+              state === "draft" ||
+              state === "scheduled"
             : state === search.state)) &&
         `${row.title} ${subjectName(row.subject)}`
           .toLocaleLowerCase()
@@ -133,7 +142,6 @@ export function CourseworkWorkspace({
     });
   const pages = Math.max(1, Math.ceil(filtered.length / 25));
   const page = Math.min(search.page, pages);
-  const selected = rows.find((row) => row.id === search.assignment);
   return (
     <>
       <PageHeader
@@ -158,7 +166,7 @@ export function CourseworkWorkspace({
       <DataTable
         rows={filtered
           .slice((page - 1) * 25, page * 25)
-          .map((row) => ({ ...row, today }))}
+          .map((row) => ({ ...row, today, studentId: activeStudentId }))}
         columns={columns}
         caption={m.assignmentsTitle()}
         query={search.q}
@@ -195,33 +203,19 @@ export function CourseworkWorkspace({
           />
         }
         renderActions={(row) => (
-          <Button
+          <ButtonLink
+            to="/assignments/$assignmentId"
+            params={{ assignmentId: row.id }}
+            search={{ studentId: row.studentId, tab: "work" }}
             variant="ghost"
             size="sm"
-            onClick={() => patch({ assignment: row.id })}
             aria-label={m.courseworkOpenNamed({ title: row.title })}
           >
             {m.courseworkView()}
             <ArrowUpRight className="size-4" aria-hidden />
-          </Button>
+          </ButtonLink>
         )}
       />
-      {selected ? (
-        <Dialog
-          open
-          onOpenChange={(open) => {
-            if (!open) patch({ assignment: "" });
-          }}
-        >
-          <DialogContent className="max-h-[90dvh] overflow-y-auto sm:max-w-3xl">
-            <DialogTitle>{selected.title}</DialogTitle>
-            <DialogDescription>
-              {subjectName(selected.subject)}
-            </DialogDescription>
-            <AssignmentCard row={selected} today={today} />
-          </DialogContent>
-        </Dialog>
-      ) : null}
     </>
   );
 }

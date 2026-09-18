@@ -10,7 +10,7 @@ import {
 } from "lucide-react";
 
 import { ButtonLink } from "~/components/app/ButtonLink";
-import { SubjectIcon, SubmissionBadge } from "~/components/app/labels";
+import { SubjectIcon } from "~/components/app/labels";
 import {
   EmptyState,
   Field,
@@ -20,6 +20,7 @@ import {
   StatTile,
   Value,
 } from "~/components/app/primitives";
+import { LearnerStateBadge } from "~/components/assignments/labels";
 import {
   formatDate,
   formatPercent,
@@ -202,11 +203,7 @@ function StudentOverviewPage() {
                         {m.assignmentsDue({ date: formatDate(row.dueDate) })}
                       </p>
                     </div>
-                    <SubmissionBadge
-                      state={row.submission?.state ?? null}
-                      dueDate={row.dueDate}
-                      today={today}
-                    />
+                    <LearnerStateBadge state={row.learnerState} />
                   </li>
                 );
               })}
