@@ -191,7 +191,7 @@ export const saveCalendarEvent = protectedProcedure
     const saved = await saveCalendarEventRow(context.db, year.id, input);
     if (!saved)
       throw new ORPCError("CONFLICT", {
-        message: "This event has changed. Reload before saving again.",
+        message: "calendar.revision_conflict",
       });
     return saved;
   });

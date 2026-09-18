@@ -251,7 +251,7 @@ export const getLearnerAssignment = protectedProcedure
 function learner(context: SchoolContext) {
   if (!context.user.ownStudentId)
     throw new ORPCError("FORBIDDEN", {
-      message: "This account is not linked to a student record",
+      message: "assignment.no_student_record",
     });
   return { userId: context.user.id, studentId: context.user.ownStudentId };
 }

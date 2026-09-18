@@ -46,10 +46,7 @@ export async function saveUser(
   return db.transaction(async (tx) => {
     await tx.execute(sql`select pg_advisory_xact_lock(741903)`);
     if (input.id === actorId && (!input.isActive || input.role !== "admin"))
-      throw new ManagementError(
-        "FORBIDDEN",
-        "You cannot remove your own administrative access",
-      );
+      throw new ManagementError("FORBIDDEN", "management.self_admin_removal");
     const duplicate = await tx.query.users.findFirst({
       where: {
         RAW: (table) =>
@@ -57,10 +54,7 @@ export async function saveUser(
       },
     });
     if (duplicate)
-      throw new ManagementError(
-        "CONFLICT",
-        "An account already uses this email",
-      );
+      throw new ManagementError("CONFLICT", "management.email_in_use");
     const values = {
       name: input.name,
       email: input.email.toLowerCase(),
@@ -75,7 +69,7 @@ export async function saveUser(
         where: { id: input.id },
       });
       if (!existing)
-        throw new ManagementError("NOT_FOUND", "Account not found");
+        throw new ManagementError("NOT_FOUND", "management.account_not_found");
       if (existing.role !== input.role) {
         const [teaching, guardian, student] = await Promise.all([
           tx.query.classSubjects.findFirst({ where: { teacherId: input.id } }),
@@ -88,7 +82,7 @@ export async function saveUser(
         if (teaching || guardian || student || homeroom)
           throw new ManagementError(
             "CONFLICT",
-            "Reassign this account's school relationships before changing its role",
+            "management.role_relationships",
           );
       }
       await tx
@@ -119,20 +113,14 @@ export async function saveStudent(
       sql`select pg_advisory_xact_lock(${ACADEMIC_STRUCTURE_LOCK})`,
     );
     if (input.birthdate && input.birthdate > today)
-      throw new ManagementError(
-        "BAD_REQUEST",
-        "Birthdate cannot be in the future",
-      );
+      throw new ManagementError("BAD_REQUEST", "management.birthdate_future");
     if (
       input.classId &&
       !(await tx.query.classes.findFirst({
         where: { id: input.classId, schoolYearId },
       }))
     )
-      throw new ManagementError(
-        "BAD_REQUEST",
-        "Choose a class in the current school year",
-      );
+      throw new ManagementError("BAD_REQUEST", "management.class_not_current");
     const guardianIds = [...new Set(input.guardianIds ?? [])];
     const parents = guardianIds.length
       ? await tx.query.users.findMany({
@@ -141,10 +129,7 @@ export async function saveStudent(
         })
       : [];
     if (parents.length !== guardianIds.length)
-      throw new ManagementError(
-        "BAD_REQUEST",
-        "Choose parent accounts in this school",
-      );
+      throw new ManagementError("BAD_REQUEST", "management.parents_invalid");
     if (
       input.userId &&
       !(await tx.query.users.findFirst({
@@ -153,7 +138,7 @@ export async function saveStudent(
     )
       throw new ManagementError(
         "BAD_REQUEST",
-        "Choose an active student account",
+        "management.student_account_invalid",
       );
     if (
       input.userId &&
@@ -164,10 +149,7 @@ export async function saveStudent(
         },
       }))
     )
-      throw new ManagementError(
-        "CONFLICT",
-        "This account is linked to another student",
-      );
+      throw new ManagementError("CONFLICT", "management.account_linked");
     if (
       await tx.query.students.findFirst({
         where: {
@@ -198,7 +180,8 @@ export async function saveStudent(
           .insert(s.students)
           .values(values)
           .returning({ id: s.students.id });
-    if (!student) throw new ManagementError("NOT_FOUND", "Student not found");
+    if (!student)
+      throw new ManagementError("NOT_FOUND", "management.student_not_found");
     const scheduled = await tx.query.enrolments.findFirst({
       where: {
         studentId: student.id,
@@ -282,18 +265,12 @@ export async function saveClass(
       columns: { id: true },
     });
     if ([...teacherIds].some((id) => !teachers.some((row) => row.id === id)))
-      throw new ManagementError(
-        "BAD_REQUEST",
-        "Choose active teacher accounts",
-      );
+      throw new ManagementError("BAD_REQUEST", "management.teachers_inactive");
     if (
       new Set(input.subjects.map((row) => row.subjectId)).size !==
       input.subjects.length
     )
-      throw new ManagementError(
-        "BAD_REQUEST",
-        "Each subject may only be assigned once",
-      );
+      throw new ManagementError("BAD_REQUEST", "management.subject_duplicate");
     const subjects = await tx.query.subjects.findMany({
       columns: { id: true },
     });
@@ -302,7 +279,7 @@ export async function saveClass(
         (row) => !subjects.some((subject) => subject.id === row.subjectId),
       )
     )
-      throw new ManagementError("BAD_REQUEST", "Subject not found");
+      throw new ManagementError("BAD_REQUEST", "management.subject_not_found");
     if (
       await tx.query.classes.findFirst({
         where: {
@@ -311,10 +288,7 @@ export async function saveClass(
         },
       })
     )
-      throw new ManagementError(
-        "CONFLICT",
-        "This class name is already used in the school year",
-      );
+      throw new ManagementError("CONFLICT", "management.class_name_conflict");
     const values = {
       name: input.name,
       grade: input.grade,
@@ -338,7 +312,8 @@ export async function saveClass(
           .insert(s.classes)
           .values({ ...values, schoolYearId })
           .returning({ id: s.classes.id });
-    if (!row) throw new ManagementError("NOT_FOUND", "Class not found");
+    if (!row)
+      throw new ManagementError("NOT_FOUND", "management.class_not_found");
     await tx.delete(s.classSubjects).where(eq(s.classSubjects.classId, row.id));
     if (input.subjects.length)
       await tx
@@ -428,7 +403,8 @@ export async function studentForManagement(
   today: string,
 ) {
   const student = await db.query.students.findFirst({ where: { id } });
-  if (!student) throw new ManagementError("NOT_FOUND", "Student not found");
+  if (!student)
+    throw new ManagementError("NOT_FOUND", "management.student_not_found");
   const enrollment = await db.query.enrolments.findFirst({
     where: {
       studentId: id,
@@ -466,10 +442,7 @@ export async function saveSubject(db: Database, input: SaveSubjectInput) {
         },
       })
     )
-      throw new ManagementError(
-        "CONFLICT",
-        "This subject code is already used",
-      );
+      throw new ManagementError("CONFLICT", "management.subject_code_conflict");
     const [saved] = id
       ? await tx
           .update(s.subjects)
@@ -480,7 +453,8 @@ export async function saveSubject(db: Database, input: SaveSubjectInput) {
           .insert(s.subjects)
           .values(values)
           .returning({ id: s.subjects.id });
-    if (!saved) throw new ManagementError("NOT_FOUND", "Subject not found");
+    if (!saved)
+      throw new ManagementError("NOT_FOUND", "management.subject_not_found");
     return saved;
   });
 }

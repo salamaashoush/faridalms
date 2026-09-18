@@ -38,7 +38,7 @@ export const signIn = publicProcedure
     if (!school) {
       await Bun.password.verify(input.password, dummyHash);
       throw new ORPCError("BAD_REQUEST", {
-        message: "Wrong email or password",
+        message: "auth.invalid_credentials",
       });
     }
     const lease = await context.pools.acquire(school);
@@ -52,7 +52,7 @@ export const signIn = publicProcedure
       );
       if (!user || !valid)
         throw new ORPCError("BAD_REQUEST", {
-          message: "Wrong email or password",
+          message: "auth.invalid_credentials",
         });
       const token = randomBytes(32).toString("base64url");
       const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60_000);

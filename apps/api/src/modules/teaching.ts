@@ -201,7 +201,7 @@ export const submitGrade = protectedProcedure
       throw new ORPCError("NOT_FOUND");
     if (data.score > submission.assignment.maxScore)
       throw new ORPCError("BAD_REQUEST", {
-        message: "Score exceeds the assignment maximum",
+        message: "grading.score_exceeds_max",
       });
     if (submission.assignment.rubric.length)
       throw new ORPCError("BAD_REQUEST", {
@@ -320,7 +320,7 @@ export const createAssignment = protectedProcedure
     if (!classes.includes(input.classId)) throw new ORPCError("FORBIDDEN");
     if (input.dueDate < context.today)
       throw new ORPCError("BAD_REQUEST", {
-        message: "The due date must not be in the past",
+        message: "assignment.due_in_past",
       });
     const actor = {
       userId: user.id,
