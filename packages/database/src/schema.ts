@@ -1,6 +1,7 @@
 import type { RubricCriterion } from "@faridalms/domain/assignment";
 import type { ContentDocument } from "@faridalms/domain/content";
 import type { NewsletterDocument } from "@faridalms/domain/newsletter";
+import type { NotificationPayload } from "@faridalms/domain/notification";
 
 import {
   ASSIGNMENT_STATUSES,
@@ -11,6 +12,13 @@ import {
 } from "@faridalms/domain/assignment";
 import { FILE_PURPOSES, FILE_STATES } from "@faridalms/domain/file";
 import { PERMISSIONS } from "@faridalms/domain/identity";
+import {
+  ANNOUNCEMENT_AUDIENCES,
+  DELIVERY_STATES,
+  NOTIFICATION_CHANNELS,
+  NOTIFICATION_LOCALES,
+  NOTIFICATION_TYPES,
+} from "@faridalms/domain/notification";
 import { sql } from "drizzle-orm";
 import {
   boolean,
@@ -158,6 +166,7 @@ export const users = pgTable(
     name: varchar({ length: 128 }).notNull(),
     role: roleEnum().notNull(),
     title: varchar({ length: 128 }),
+    mobile: varchar({ length: 32 }),
     avatarUrl: text("avatar_url"),
     isActive: boolean("is_active").notNull().default(true),
     lastSignedInAt: timestamp("last_signed_in_at", { withTimezone: true }),
@@ -932,6 +941,7 @@ export const newsletterDrafts = pgTable(
     summary: text().notNull(),
     document: jsonb().$type<NewsletterDocument>().notNull(),
     revision: integer().notNull().default(1),
+    publishedNewsletterId: uuid("published_newsletter_id"),
     createdById: uuid("created_by_id").references(() => users.id, {
       onDelete: "set null",
     }),
@@ -959,12 +969,167 @@ export const newsletters = pgTable(
       .references(() => schoolYears.id, { onDelete: "cascade" }),
     title: varchar({ length: 255 }).notNull(),
     summary: text(),
-    url: text().notNull(),
+    // Older editions link to an external file; editions published from a
+    // draft keep an immutable copy of the document instead.
+    url: text(),
+    document: jsonb().$type<NewsletterDocument>(),
+    draftId: uuid("draft_id"),
     publishedOn: date("published_on").notNull(),
     ...timestamps,
   },
   (table) => [index("newsletters_published_idx").on(table.publishedOn)],
 );
+
+export const announcementAudienceEnum = pgEnum(
+  "announcement_audience",
+  ANNOUNCEMENT_AUDIENCES,
+);
+export const announcementStatusEnum = pgEnum("announcement_status", [
+  "draft",
+  "published",
+]);
+
+export const announcements = pgTable(
+  "announcements",
+  {
+    id: uuid().primaryKey(),
+    schoolYearId: uuid("school_year_id")
+      .notNull()
+      .references(() => schoolYears.id, { onDelete: "cascade" }),
+    title: varchar({ length: 255 }).notNull(),
+    document: jsonb().$type<ContentDocument>().notNull(),
+    summary: text().notNull(),
+    audience: announcementAudienceEnum().notNull().default("everyone"),
+    status: announcementStatusEnum().notNull().default("draft"),
+    revision: integer().notNull().default(1),
+    authorId: uuid("author_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    publishedAt: timestamp("published_at", { withTimezone: true }),
+    ...timestamps,
+  },
+  (table) => [
+    index("announcements_status_idx").on(table.status, table.publishedAt),
+    check("announcements_revision_check", sql`${table.revision} > 0`),
+  ],
+);
+
+// --- notifications ------------------------------------------------------------
+
+export const notificationTypeEnum = pgEnum(
+  "notification_type",
+  NOTIFICATION_TYPES,
+);
+export const notificationChannelEnum = pgEnum(
+  "notification_channel",
+  NOTIFICATION_CHANNELS,
+);
+export const deliveryStateEnum = pgEnum("delivery_state", DELIVERY_STATES);
+export const notificationLocaleEnum = pgEnum(
+  "notification_locale",
+  NOTIFICATION_LOCALES,
+);
+
+/**
+ * The outbox: a domain change and the intent to tell people about it commit
+ * together, so a save can never succeed while its notification is lost.
+ */
+export const notificationEvents = pgTable(
+  "notification_events",
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    type: notificationTypeEnum().notNull(),
+    subjectId: uuid("subject_id").notNull(),
+    actorId: uuid("actor_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    payload: jsonb().$type<NotificationPayload>().notNull(),
+    recipientCount: integer("recipient_count").notNull().default(0),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [index("notification_events_created_idx").on(table.createdAt)],
+);
+
+export const notifications = pgTable(
+  "notifications",
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    eventId: uuid("event_id")
+      .notNull()
+      .references(() => notificationEvents.id, { onDelete: "cascade" }),
+    recipientId: uuid("recipient_id")
+      .notNull()
+      .references(() => users.id, { onDelete: "cascade" }),
+    type: notificationTypeEnum().notNull(),
+    payload: jsonb().$type<NotificationPayload>().notNull(),
+    readAt: timestamp("read_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    unique("notifications_event_recipient_key").on(
+      table.eventId,
+      table.recipientId,
+    ),
+    index("notifications_recipient_idx").on(
+      table.recipientId,
+      table.readAt,
+      table.createdAt,
+    ),
+  ],
+);
+
+/** One row per channel per notification: what was attempted, when and how it ended. */
+export const notificationDeliveries = pgTable(
+  "notification_deliveries",
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    notificationId: uuid("notification_id")
+      .notNull()
+      .references(() => notifications.id, { onDelete: "cascade" }),
+    channel: notificationChannelEnum().notNull(),
+    state: deliveryStateEnum().notNull().default("pending"),
+    address: text(),
+    attempts: integer().notNull().default(0),
+    nextAttemptAt: timestamp("next_attempt_at", { withTimezone: true }),
+    lastError: text("last_error"),
+    providerReceipt: text("provider_receipt"),
+    sentAt: timestamp("sent_at", { withTimezone: true }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+    updatedAt: timestamp("updated_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    unique("notification_deliveries_channel_key").on(
+      table.notificationId,
+      table.channel,
+    ),
+    index("notification_deliveries_pending_idx").on(
+      table.state,
+      table.nextAttemptAt,
+    ),
+    index("notification_deliveries_created_idx").on(table.createdAt),
+  ],
+);
+
+export const notificationPreferences = pgTable("notification_preferences", {
+  userId: uuid("user_id")
+    .primaryKey()
+    .references(() => users.id, { onDelete: "cascade" }),
+  email: boolean().notNull().default(true),
+  sms: boolean().notNull().default(false),
+  locale: notificationLocaleEnum().notNull().default("en"),
+  mutedTypes: notificationTypeEnum("muted_types").array().notNull().default([]),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .notNull()
+    .defaultNow(),
+});
 
 export const calendarEvents = pgTable(
   "calendar_events",

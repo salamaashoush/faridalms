@@ -20,6 +20,56 @@ export const relations = defineRelations(schema, (r) => ({
       to: r.students.userId,
     }),
     files: r.many.privateFiles(),
+    notifications: r.many.notifications(),
+    notificationPreferences: r.one.notificationPreferences({
+      from: r.users.id,
+      to: r.notificationPreferences.userId,
+    }),
+  },
+
+  notificationEvents: {
+    actor: r.one.users({
+      from: r.notificationEvents.actorId,
+      to: r.users.id,
+    }),
+    notifications: r.many.notifications(),
+  },
+
+  notifications: {
+    event: r.one.notificationEvents({
+      from: r.notifications.eventId,
+      to: r.notificationEvents.id,
+    }),
+    recipient: r.one.users({
+      from: r.notifications.recipientId,
+      to: r.users.id,
+    }),
+    deliveries: r.many.notificationDeliveries(),
+  },
+
+  notificationDeliveries: {
+    notification: r.one.notifications({
+      from: r.notificationDeliveries.notificationId,
+      to: r.notifications.id,
+    }),
+  },
+
+  notificationPreferences: {
+    user: r.one.users({
+      from: r.notificationPreferences.userId,
+      to: r.users.id,
+    }),
+  },
+
+  announcements: {
+    schoolYear: r.one.schoolYears({
+      from: r.announcements.schoolYearId,
+      to: r.schoolYears.id,
+    }),
+    author: r.one.users({
+      from: r.announcements.authorId,
+      to: r.users.id,
+    }),
   },
 
   privateFiles: {

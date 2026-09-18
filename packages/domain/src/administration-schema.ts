@@ -13,6 +13,7 @@ export const saveUserSchema = v.pipe(
     email: v.pipe(v.string(), v.trim(), v.email(), v.maxLength(255)),
     role: v.picklist(ROLES),
     title: v.optional(v.pipe(v.string(), v.maxLength(128)), ""),
+    mobile: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(32)), ""),
     password: v.optional(
       v.union([
         v.literal(""),

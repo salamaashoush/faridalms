@@ -20,6 +20,7 @@ import { schema } from "../index";
 import { assessmentFilter, audienceIncludes } from "./academics";
 import { fileSummary, ownedReadyFiles } from "./files";
 import { ManagementError } from "./management";
+import { recordEvent, studentAudience } from "./notifications";
 
 /** The learner's view of one assignment: brief, resources and their own work. */
 export async function learnerAssignment(
@@ -384,7 +385,7 @@ export async function submitAttempt(
 export async function assessAttempt(
   db: Database,
   input: AssessAttemptInput,
-  grader: { userId: string; scope: AssessmentScope },
+  grader: { userId: string; name?: string; scope: AssessmentScope },
   now: Date,
 ) {
   return db.transaction(async (tx) => {
@@ -397,10 +398,12 @@ export async function assessAttempt(
       },
       with: {
         submission: {
-          columns: { id: true, currentAttemptId: true },
+          columns: { id: true, currentAttemptId: true, studentId: true },
           with: {
             assignment: {
               columns: {
+                id: true,
+                title: true,
                 maxScore: true,
                 rubric: true,
                 latePolicy: true,
@@ -425,6 +428,10 @@ export async function assessAttempt(
     const feedbackText = input.feedback
       ? contentPlainText(input.feedback).trim() || null
       : null;
+    const previous = await tx.query.assessments.findFirst({
+      where: { attemptId: attempt.id },
+      columns: { releasedAt: true },
+    });
     const [assessment] = await tx
       .insert(schema.assessments)
       .values({
@@ -471,6 +478,26 @@ export async function assessAttempt(
           updatedAt: new Date(),
         })
         .where(eq(schema.submissions.id, attempt.submission.id));
+    }
+    if (assessment.releasedAt && !previous?.releasedAt) {
+      const audience = await studentAudience(tx, attempt.submission.studentId);
+      await recordEvent(tx, {
+        type: "assessment_released",
+        subjectId: assignment.id,
+        actorId: grader.userId,
+        payload: {
+          title: assignment.title,
+          preview: `${effective} / ${assignment.maxScore}`,
+          actorName: grader.name ?? null,
+          studentName: audience.name,
+          link: {
+            kind: "assignment",
+            id: assignment.id,
+            studentId: attempt.submission.studentId,
+          },
+        },
+        recipientIds: audience.userIds,
+      });
     }
     return {
       id: assessment.id,

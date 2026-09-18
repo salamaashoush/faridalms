@@ -14,6 +14,7 @@ import type { Database, DatabaseTransaction } from "../index";
 import { schema } from "../index";
 import { fileSummary, ownedReadyFiles } from "./files";
 import { ManagementError } from "./management";
+import { recordEvent } from "./notifications";
 
 export type MessageFolder = "inbox" | "sent";
 
@@ -262,6 +263,7 @@ export async function unreadCount(
 
 export interface ComposeInput {
   senderId: string;
+  senderName?: string;
   category: (typeof schema.messageCategoryEnum.enumValues)[number];
   studentId: string | null;
   subject: string;
@@ -338,6 +340,19 @@ export async function insertMessage(
       })),
     );
   }
+  await recordEvent(tx, {
+    type: "message_received",
+    subjectId: row.id,
+    actorId: input.senderId,
+    payload: {
+      title: input.subject,
+      preview: body.slice(0, 160),
+      actorName: input.senderName ?? null,
+      studentName: null,
+      link: { kind: "message", id: input.parentMessageId ?? row.id },
+    },
+    recipientIds: input.recipientIds,
+  });
   return row.id;
 }
 
@@ -404,6 +419,7 @@ export async function listNewsletters(db: Database, query: NewslettersQuery) {
       title: schema.newsletters.title,
       summary: schema.newsletters.summary,
       url: schema.newsletters.url,
+      hasDocument: sql<boolean>`${schema.newsletters.document} is not null`,
       publishedOn: schema.newsletters.publishedOn,
     })
     .from(schema.newsletters)

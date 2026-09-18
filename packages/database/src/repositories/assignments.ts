@@ -22,11 +22,13 @@ import { assessmentFilter, listWeeks } from "./academics";
 import { fileSummary, ownedReadyFiles } from "./files";
 import { groupMembers } from "./groups";
 import { ManagementError } from "./management";
+import { assignmentAudience, recordEvent } from "./notifications";
 
 type Executor = Database | DatabaseTransaction;
 
 export interface AuthoringActor {
   userId: string;
+  name?: string;
   scope: AssessmentScope;
 }
 
@@ -338,6 +340,31 @@ export async function publishAssignment(
       });
     if (!updated)
       throw new ManagementError("NOT_FOUND", "assignment.not_found");
+    if (current.status !== "published") {
+      const context = await tx.query.assignments.findFirst({
+        where: { id },
+        columns: {},
+        with: {
+          class: { columns: { name: true } },
+          subject: { columns: { name: true } },
+        },
+      });
+      await recordEvent(tx, {
+        type: "assignment_published",
+        subjectId: id,
+        actorId: actor.userId,
+        payload: {
+          title: current.title,
+          preview: [context?.subject?.name, context?.class?.name]
+            .filter(Boolean)
+            .join(" · "),
+          actorName: actor.name ?? null,
+          studentName: null,
+          link: { kind: "assignment", id },
+        },
+        recipientIds: await assignmentAudience(tx, id),
+      });
+    }
     return updated;
   });
 }

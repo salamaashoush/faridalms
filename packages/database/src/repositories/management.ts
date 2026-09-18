@@ -66,6 +66,7 @@ export async function saveUser(
       email: input.email.toLowerCase(),
       role: input.role,
       title: input.title || null,
+      mobile: input.mobile || null,
       isActive: input.isActive,
       updatedAt: new Date(),
     };

@@ -1,11 +1,13 @@
 import type { SaveNewsletterDraftInput } from "@faridalms/domain/newsletter";
 
+import { newsletterPlainText } from "@faridalms/domain/newsletter";
 import { and, count, desc, eq } from "drizzle-orm";
 
 import type { Database } from "../index";
 
-import { newsletterDrafts } from "../schema";
+import { newsletterDrafts, newsletters } from "../schema";
 import { ManagementError } from "./management";
+import { recordEvent, roleAudience } from "./notifications";
 
 export async function getNewsletterDraft(db: Database, id: string) {
   const [draft] = await db
@@ -99,4 +101,68 @@ export async function getNewsletterEditorContext(db: Database) {
     orderBy: { startsOn: "desc", id: "asc" },
   });
   return { years };
+}
+
+/**
+ * Copies the draft into an immutable edition and tells the school. The draft
+ * stays editable for the next edition; the published copy never changes.
+ */
+export async function publishNewsletterDraft(
+  db: Database,
+  input: { id: string; expectedRevision: number; publishedOn: string },
+  actor: { id: string; name: string },
+) {
+  return db.transaction(async (tx) => {
+    const [draft] = await tx
+      .select()
+      .from(newsletterDrafts)
+      .where(eq(newsletterDrafts.id, input.id))
+      .for("update");
+    if (!draft) throw new ManagementError("NOT_FOUND", "newsletter.not_found");
+    if (draft.revision !== input.expectedRevision)
+      throw new ManagementError("CONFLICT", "newsletter.revision_conflict");
+    if (draft.title.trim().length < 3)
+      throw new ManagementError("BAD_REQUEST", "newsletter.incomplete");
+    const text = newsletterPlainText(draft.document).trim();
+    if (!text)
+      throw new ManagementError("BAD_REQUEST", "newsletter.incomplete");
+    const [edition] = await tx
+      .insert(newsletters)
+      .values({
+        schoolYearId: draft.schoolYearId,
+        title: draft.title,
+        summary: draft.summary || text.slice(0, 500),
+        document: draft.document,
+        draftId: draft.id,
+        publishedOn: input.publishedOn,
+      })
+      .returning({ id: newsletters.id });
+    if (!edition) throw new Error("newsletter.publish_failed");
+    await tx
+      .update(newsletterDrafts)
+      .set({
+        publishedNewsletterId: edition.id,
+        revision: draft.revision + 1,
+        updatedAt: new Date(),
+      })
+      .where(eq(newsletterDrafts.id, draft.id));
+    await recordEvent(tx, {
+      type: "newsletter_published",
+      subjectId: edition.id,
+      actorId: actor.id,
+      payload: {
+        title: draft.title,
+        preview: (draft.summary || text).slice(0, 160),
+        actorName: actor.name,
+        studentName: null,
+        link: { kind: "newsletter", id: edition.id },
+      },
+      recipientIds: await roleAudience(tx, ["parent", "teacher", "student"]),
+    });
+    return { id: edition.id, revision: draft.revision + 1 };
+  });
+}
+
+export async function getNewsletterEdition(db: Database, id: string) {
+  return db.query.newsletters.findFirst({ where: { id } });
 }

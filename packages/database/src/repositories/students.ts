@@ -381,6 +381,7 @@ export async function staffDirectory(db: Database, query: StaffDirectoryQuery) {
       email: schema.users.email,
       role: schema.users.role,
       title: schema.users.title,
+      mobile: schema.users.mobile,
       isActive: schema.users.isActive,
       lastSignedInAt: schema.users.lastSignedInAt,
     })
