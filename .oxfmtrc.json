@@ -14,14 +14,16 @@
     ]
   },
   "sortTailwindcss": {
-    "stylesheet": "./src/styles/globals.css",
+    "stylesheet": "./apps/web/src/styles/globals.css",
     "functions": ["cn", "cva"]
   },
   "ignorePatterns": [
-    "src/i18n/**",
-    "src/routeTree.gen.ts",
-    ".output/**",
-    ".nitro/**",
+    "apps/web/src/components/ui/**",
+    "**/node_modules/**",
+    "apps/web/src/i18n/**",
+    "apps/web/src/routeTree.gen.ts",
+    "**/.output/**",
+    "**/.nitro/**",
     "dist/**",
     "coverage/**",
     "playwright-report/**",

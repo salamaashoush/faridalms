@@ -18,7 +18,7 @@ export default defineConfig({
   /* Retry on CI only */
   retries: process.env.CI ? 2 : 0,
   /* Opt out of parallel tests on CI. */
-  workers: process.env.CI ? 1 : undefined,
+  workers: process.env.CI ? 2 : 4,
   /* Reporter to use. See https://playwright.dev/docs/test-reporters */
   reporter: "html",
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
@@ -74,12 +74,18 @@ export default defineConfig({
   //   url: 'http://127.0.0.1:3000',
   //   reuseExistingServer: !process.env.CI,
   // },
-  webServer: {
-    command: "bun run build && bun run start",
-    url: "http://127.0.0.1:3000",
-    reuseExistingServer: !process.env.CI,
-    timeout: 120_000,
-    stdout: "ignore",
-    stderr: "pipe",
-  },
+  webServer: [
+    {
+      command: "bun apps/api/src/index.ts",
+      url: "http://127.0.0.1:3001/health/ready",
+      reuseExistingServer: false,
+      timeout: 30_000,
+    },
+    {
+      command: "bun run build && bun run start",
+      url: "http://127.0.0.1:3000/api/health",
+      reuseExistingServer: false,
+      timeout: 120_000,
+    },
+  ],
 });

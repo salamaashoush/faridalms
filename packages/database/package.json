@@ -1,0 +1,13 @@
+{
+  "name": "@faridalms/database",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./*": "./src/*.ts"
+  },
+  "dependencies": {
+    "@faridalms/domain": "workspace:*",
+    "drizzle-orm": "^1.0.0-rc.4"
+  }
+}

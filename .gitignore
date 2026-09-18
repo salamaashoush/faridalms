@@ -10,7 +10,7 @@
 # generated
 # Paraglide output: compiled from messages/*.json by postinstall and the Vite plugin.
 # (routeTree.gen.ts stays committed -- CI type-checks before anything builds it.)
-/src/i18n
+/apps/web/src/i18n
 
 # build output
 .output
@@ -46,3 +46,12 @@ yarn-error.log*
 
 # Local capture artifacts from the portal audit
 research/shots/
+
+**/.output/
+**/.nitro/
+**/dist/
+**/tsconfig.tsbuildinfo
+
+**/node_modules/
+
+**/.turbo/

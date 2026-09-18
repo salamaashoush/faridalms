@@ -5,7 +5,7 @@ import type { CompilerOptions } from "@inlang/paraglide-js";
 // runtime using the default PARAGLIDE_LOCALE cookie and diverge from the build.
 export const paraglideOptions = {
   project: "./project.inlang",
-  outdir: "./src/i18n",
+  outdir: "./apps/web/src/i18n",
   outputStructure: "message-modules",
   strategy: ["cookie", "preferredLanguage", "baseLocale"],
   cookieName: "language-tag",

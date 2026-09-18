@@ -1,0 +1,1 @@
+ALTER TYPE "permission" ADD VALUE 'assignments:read' BEFORE 'submissions:grade';

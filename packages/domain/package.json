@@ -1,0 +1,11 @@
+{
+  "name": "@faridalms/domain",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./*": "./src/*.ts"
+  },
+  "dependencies": {
+    "valibot": "^1.4.2"
+  }
+}

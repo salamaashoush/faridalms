@@ -26,6 +26,9 @@ async function signIn(page: Page, role: RoleKey) {
   await page.getByRole("textbox", { name: "Password" }).fill(PASSWORD);
   await page.getByRole("button", { name: "Sign In", exact: true }).click();
   await page.waitForURL(`**${HOME[role]}`);
+  await expect(
+    page.getByRole("navigation", { name: "Primary", exact: true }),
+  ).toBeVisible();
 }
 
 /**
@@ -56,6 +59,9 @@ test.describe("navigation offers nothing that 404s", () => {
           400,
         );
         await expect(page.getByRole("heading", { level: 1 })).toBeVisible();
+        await expect(
+          page.getByRole("button", { name: "Find a page…", exact: true }),
+        ).toBeEnabled();
       }
     });
   }

@@ -9,7 +9,7 @@ if (!url) {
 
 export default defineConfig({
   out: "./drizzle",
-  schema: "./src/db/schema.ts",
+  schema: "./packages/database/src/schema.ts",
   dialect: "postgresql",
   dbCredentials: { url },
 });

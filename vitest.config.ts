@@ -3,7 +3,7 @@ import viteReact from "@vitejs/plugin-react";
 import { playwright } from "@vitest/browser-playwright";
 import { configDefaults, defineConfig } from "vitest/config";
 
-import { paraglideOptions } from "./paraglide.options";
+import { paraglideOptions } from "./paraglide.options.ts";
 
 export default defineConfig({
   plugins: [viteReact(), paraglideVitePlugin(paraglideOptions)],

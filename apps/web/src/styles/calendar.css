@@ -1,0 +1,15 @@
+.farida-calendar {
+  --fc-breezy-primary: var(--primary);
+  --fc-breezy-background: var(--card);
+  --fc-breezy-foreground: var(--foreground);
+  --fc-breezy-strong-foreground: var(--foreground);
+  --fc-breezy-muted-foreground: var(--muted-foreground);
+  --fc-breezy-faint-foreground: var(--muted-foreground);
+  --fc-breezy-border: var(--border);
+  --fc-breezy-muted-border: var(--border);
+  --fc-breezy-strong-border: var(--border);
+  --fc-breezy-faint: var(--background);
+  --fc-breezy-muted: var(--muted);
+  --fc-breezy-popover: var(--popover);
+  font-size: 0.875rem;
+}

@@ -11,6 +11,7 @@
     "skipLibCheck": true,
     "strict": true,
     "noEmit": true,
+    "allowImportingTsExtensions": true,
     "esModuleInterop": true,
     "module": "ESNext",
     "moduleResolution": "Bundler",
@@ -19,9 +20,9 @@
     "jsx": "react-jsx",
     "incremental": true,
     "paths": {
-      "~/*": ["./src/*"]
+      "~/*": ["./apps/web/src/*"]
     }
   },
   "include": ["."],
-  "exclude": ["node_modules", ".output", ".nitro", "dist"]
+  "exclude": ["node_modules", "**/.output", "**/.nitro", "**/dist"]
 }

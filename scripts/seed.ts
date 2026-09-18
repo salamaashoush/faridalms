@@ -6,11 +6,10 @@
  * production; it is wired to `bun run db:seed` only.
  */
 
+import { createDatabase, schema } from "@faridalms/database";
 import { sql } from "drizzle-orm";
 
-import { getDb, schema } from "../src/db";
-
-const db = getDb();
+const db = createDatabase(process.env.DATABASE_URL ?? "");
 const {
   academicWeeks,
   assignments,
