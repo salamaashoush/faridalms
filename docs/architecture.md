@@ -69,7 +69,16 @@ until released, at which point the submission mirrors the result for lists.
 Marks above the assignment maximum, rubric totals that disagree with the
 score, and attempts outside the assessor's offering are rejected by the API.
 Attendance batches reject duplicate students and students outside the current
-roster before writing. Messages and delivery rows commit in one transaction.
+roster before writing.
+
+Messages form conversations: a root message and its replies share a thread,
+the inbox lists one row per thread with the viewer's own unread count, and a
+reply reaches everyone else in the thread. A message carries plain text,
+Markdown or a shared rich document; the plain text of a rich message is
+derived on the server so search and previews keep working. Attachments are
+private files linked to the message and downloadable by its participants
+only. Opening a conversation marks the viewer's rows read and nobody else's.
+Messages, delivery rows and attachment links commit in one transaction.
 
 Private files are declared, uploaded and downloaded through the API only; see
 [operations.md](operations.md) for the lifecycle and storage settings. A file

@@ -15,9 +15,11 @@ Lexical's serialized node model. JSON is canonical; HTML is a rendered output.
 The current boundary accepts text, headings, quotes, lists, checklists, links,
 code, tables and dividers. Media nodes need the asset service before acceptance.
 
-Assignment briefs, learner responses and assessment feedback now save the
-shared document; the assignment record and attempt history render it through
-the static renderer. Messages, events and announcements are not connected yet.
+Assignment briefs, learner responses, assessment feedback, new messages and
+replies now save the shared document; the assignment record, attempt history
+and conversation view render it through the static renderer. Plain-text and
+Markdown messages written by older clients keep their format and renderers.
+Events and announcements are not connected yet.
 
 `apps/web/src/components/content/ContentEditor.tsx` uses Lexical's extension API
 with stable initialization. `ContentToolbar.tsx` supplies the shared controls.
