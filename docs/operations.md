@@ -14,6 +14,13 @@ code. The web can scale independently of the API. All replicas share the control
 database so sessions and login throttles remain consistent across instances.
 The API drains HTTP requests on termination and closes its pools afterward.
 
+`bun run smoke:containers` builds both targets, runs them on the host network
+against the databases in `.env`, checks `/health/live`, `/health/ready`, a real
+sign-in through a school pool, the web health route and a server-rendered page in
+both languages, then stops each container and expects a clean exit within the
+grace period. Run it before a release and after changing the Dockerfile, the
+health routes or the startup environment validation.
+
 ## Registering a school
 
 Create a PostgreSQL database and a dedicated database role for the school. Use an
