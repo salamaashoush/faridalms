@@ -85,7 +85,14 @@ export function ManagementInput({
   const errorId = `${id}-error`;
   return (
     <Field data-invalid={invalid || undefined}>
-      <FieldLabel htmlFor={id}>{label}</FieldLabel>
+      <div className="flex items-baseline justify-between gap-3">
+        <FieldLabel htmlFor={id}>{label}</FieldLabel>
+        {props.required ? null : (
+          <span className="text-xs text-muted-foreground">
+            {m.formOptional()}
+          </span>
+        )}
+      </div>
       <Input
         {...props}
         id={id}

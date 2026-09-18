@@ -200,6 +200,48 @@ export function getMessageFromError(error: unknown): string {
         return m.accessSelfLockout();
       case "access.user_not_found":
         return m.accessUserNotFound();
+      case "management.self_admin_removal":
+        return m.managementSelfAdminRemoval();
+      case "management.email_in_use":
+        return m.managementEmailInUse();
+      case "management.account_not_found":
+        return m.managementAccountNotFound();
+      case "management.role_relationships":
+        return m.managementRoleRelationships();
+      case "management.birthdate_future":
+        return m.managementBirthdateFuture();
+      case "management.class_not_current":
+        return m.managementClassNotCurrent();
+      case "management.parents_invalid":
+        return m.managementParentsInvalid();
+      case "management.student_account_invalid":
+        return m.managementStudentAccountInvalid();
+      case "management.account_linked":
+        return m.managementAccountLinked();
+      case "management.student_not_found":
+        return m.managementStudentNotFound();
+      case "management.teachers_inactive":
+        return m.managementTeachersInactive();
+      case "management.subject_duplicate":
+        return m.managementSubjectDuplicate();
+      case "management.subject_not_found":
+        return m.managementSubjectNotFound();
+      case "management.class_name_conflict":
+        return m.managementClassNameConflict();
+      case "management.class_not_found":
+        return m.managementClassNotFound();
+      case "management.subject_code_conflict":
+        return m.managementSubjectCodeConflict();
+      case "assignment.no_student_record":
+        return m.assignmentNoStudentRecord();
+      case "auth.invalid_credentials":
+        return m.authInvalidCredentials();
+      case "grading.score_exceeds_max":
+        return m.gradingScoreExceedsMax();
+      case "assignment.due_in_past":
+        return m.assignmentDueInPast();
+      case "calendar.revision_conflict":
+        return m.calendarRevisionConflict();
     }
     if (error.message.startsWith("assignment.incomplete:"))
       return m.assignmentIncomplete();
