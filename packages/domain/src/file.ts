@@ -4,6 +4,7 @@ export const FILE_PURPOSES = [
   "assignment_resource",
   "submission_attachment",
   "message_attachment",
+  "site_media",
 ] as const;
 export const MESSAGE_ATTACHMENT_LIMIT = 5;
 export const MESSAGE_ATTACHMENT_BYTES = 10 * 1024 * 1024;
@@ -90,10 +91,13 @@ export function safeFilename(name: string): string {
 }
 
 /** RFC 6266 disposition with an ASCII fallback and a UTF-8 form for Arabic names. */
-export function contentDisposition(name: string): string {
+export function contentDisposition(
+  name: string,
+  kind: "attachment" | "inline" = "attachment",
+): string {
   const safe = safeFilename(name);
   const ascii = safe.replaceAll(/[^\u0020-\u007e]/g, "_").replaceAll('"', "'");
-  return `attachment; filename="${ascii}"; filename*=UTF-8''${encodeURIComponent(safe)}`;
+  return `${kind}; filename="${ascii}"; filename*=UTF-8''${encodeURIComponent(safe)}`;
 }
 
 export const initiateUploadSchema = v.pipe(

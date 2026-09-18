@@ -2,6 +2,7 @@ import type { RubricCriterion } from "@faridalms/domain/assignment";
 import type { ContentDocument } from "@faridalms/domain/content";
 import type { NewsletterDocument } from "@faridalms/domain/newsletter";
 import type { NotificationPayload } from "@faridalms/domain/notification";
+import type { SocialLink } from "@faridalms/domain/site";
 
 import {
   ASSIGNMENT_STATUSES,
@@ -19,6 +20,10 @@ import {
   NOTIFICATION_LOCALES,
   NOTIFICATION_TYPES,
 } from "@faridalms/domain/notification";
+import {
+  SITE_LOCALES,
+  SITE_PUBLICATION_STATUSES,
+} from "@faridalms/domain/site";
 import { sql } from "drizzle-orm";
 import {
   boolean,
@@ -1194,4 +1199,175 @@ export const accessChanges = pgTable(
       .defaultNow(),
   },
   (table) => [index("access_changes_created_idx").on(table.createdAt)],
+);
+
+// --- public site and blog -----------------------------------------------------
+
+export const siteLocaleEnum = pgEnum("site_locale", SITE_LOCALES);
+export const sitePublicationStatusEnum = pgEnum(
+  "site_publication_status",
+  SITE_PUBLICATION_STATUSES,
+);
+
+/** One row per school: branding and contact for the public site. */
+export const siteSettings = pgTable(
+  "site_settings",
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    slot: smallint().notNull().default(1),
+    tagline: varchar({ length: 255 }).notNull().default(""),
+    taglineAr: varchar("tagline_ar", { length: 255 }).notNull().default(""),
+    primaryColor: varchar("primary_color", { length: 7 })
+      .notNull()
+      .default("#0f766e"),
+    logoFileId: uuid("logo_file_id").references(() => privateFiles.id, {
+      onDelete: "set null",
+    }),
+    contactEmail: varchar("contact_email", { length: 255 })
+      .notNull()
+      .default(""),
+    contactPhone: varchar("contact_phone", { length: 40 })
+      .notNull()
+      .default(""),
+    address: text().notNull().default(""),
+    mapUrl: text("map_url").notNull().default(""),
+    socialLinks: jsonb("social_links")
+      .$type<SocialLink[]>()
+      .notNull()
+      .default([]),
+    defaultLocale: siteLocaleEnum("default_locale").notNull().default("en"),
+    isPublished: boolean("is_published").notNull().default(false),
+    revision: integer().notNull().default(1),
+    updatedById: uuid("updated_by_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    ...timestamps,
+  },
+  (table) => [
+    unique("site_settings_slot_key").on(table.slot),
+    check("site_settings_slot_check", sql`${table.slot} = 1`),
+    check("site_settings_revision_check", sql`${table.revision} > 0`),
+  ],
+);
+
+export interface PublishedPage {
+  title: string;
+  summary: string;
+  document: NewsletterDocument;
+}
+
+export const sitePages = pgTable(
+  "site_pages",
+  {
+    id: uuid().primaryKey(),
+    slug: varchar({ length: 80 }).notNull(),
+    locale: siteLocaleEnum().notNull(),
+    title: varchar({ length: 160 }).notNull(),
+    summary: varchar({ length: 500 }).notNull().default(""),
+    navGroup: varchar("nav_group", { length: 60 }).notNull().default(""),
+    navOrder: integer("nav_order").notNull().default(0),
+    showInNav: boolean("show_in_nav").notNull().default(true),
+    document: jsonb().$type<NewsletterDocument>().notNull(),
+    // The public site reads this copy, so edits after publishing stay private
+    // until the next publish.
+    published: jsonb().$type<PublishedPage>(),
+    status: sitePublicationStatusEnum().notNull().default("draft"),
+    revision: integer().notNull().default(1),
+    publishedAt: timestamp("published_at", { withTimezone: true }),
+    authorId: uuid("author_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    updatedById: uuid("updated_by_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    ...timestamps,
+  },
+  (table) => [
+    unique("site_pages_slug_locale_key").on(table.slug, table.locale),
+    index("site_pages_nav_idx").on(table.locale, table.status, table.navOrder),
+    check("site_pages_revision_check", sql`${table.revision} > 0`),
+  ],
+);
+
+export const sitePostCategories = pgTable(
+  "site_post_categories",
+  {
+    id: uuid().primaryKey(),
+    slug: varchar({ length: 80 }).notNull().unique(),
+    name: varchar({ length: 80 }).notNull(),
+    nameAr: varchar("name_ar", { length: 80 }).notNull().default(""),
+    sortOrder: integer("sort_order").notNull().default(0),
+    ...timestamps,
+  },
+  (table) => [index("site_post_categories_order_idx").on(table.sortOrder)],
+);
+
+export interface PublishedPost {
+  title: string;
+  summary: string;
+  document: ContentDocument;
+  coverFileId: string | null;
+}
+
+export const sitePosts = pgTable(
+  "site_posts",
+  {
+    id: uuid().primaryKey(),
+    slug: varchar({ length: 80 }).notNull(),
+    locale: siteLocaleEnum().notNull(),
+    title: varchar({ length: 200 }).notNull(),
+    summary: varchar({ length: 500 }).notNull().default(""),
+    document: jsonb().$type<ContentDocument>().notNull(),
+    categoryId: uuid("category_id").references(() => sitePostCategories.id, {
+      onDelete: "set null",
+    }),
+    coverFileId: uuid("cover_file_id").references(() => privateFiles.id, {
+      onDelete: "set null",
+    }),
+    authorId: uuid("author_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    updatedById: uuid("updated_by_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    status: sitePublicationStatusEnum().notNull().default("draft"),
+    revision: integer().notNull().default(1),
+    // Publishing sets the instant the post becomes public; a future instant
+    // is a scheduled post and the public queries compare against now.
+    publishAt: timestamp("publish_at", { withTimezone: true }),
+    published: jsonb().$type<PublishedPost>(),
+    ...timestamps,
+  },
+  (table) => [
+    unique("site_posts_slug_locale_key").on(table.slug, table.locale),
+    index("site_posts_public_idx").on(
+      table.locale,
+      table.status,
+      table.publishAt,
+    ),
+    check("site_posts_revision_check", sql`${table.revision} > 0`),
+  ],
+);
+
+export const sitePostRevisions = pgTable(
+  "site_post_revisions",
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    postId: uuid("post_id")
+      .notNull()
+      .references(() => sitePosts.id, { onDelete: "cascade" }),
+    revision: integer().notNull(),
+    title: varchar({ length: 200 }).notNull(),
+    summary: varchar({ length: 500 }).notNull().default(""),
+    document: jsonb().$type<ContentDocument>().notNull(),
+    savedById: uuid("saved_by_id").references(() => users.id, {
+      onDelete: "set null",
+    }),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    unique("site_post_revisions_key").on(table.postId, table.revision),
+  ],
 );

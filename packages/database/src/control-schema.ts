@@ -15,6 +15,8 @@ export const schools = pgTable("schools", {
   name: varchar({ length: 160 }).notNull(),
   databaseUrl: text("database_url").notNull(),
   timeZone: text("time_zone").notNull().default("Africa/Cairo"),
+  // A school's own host for its public site, matched against the request.
+  publicDomain: varchar("public_domain", { length: 253 }).unique(),
   isActive: boolean("is_active").notNull().default(true),
   createdAt: timestamp("created_at", { withTimezone: true })
     .notNull()

@@ -21,6 +21,7 @@ export const PERMISSIONS = [
   "classes:manage",
   "calendar:manage",
   "announcements:manage",
+  "site:manage",
   "reports:read",
 
   // teaching

@@ -476,4 +476,49 @@ export const relations = defineRelations(schema, (r) => ({
       to: r.schoolYears.id,
     }),
   },
+
+  siteSettings: {
+    logo: r.one.privateFiles({
+      from: r.siteSettings.logoFileId,
+      to: r.privateFiles.id,
+    }),
+  },
+
+  sitePages: {
+    author: r.one.users({
+      from: r.sitePages.authorId,
+      to: r.users.id,
+    }),
+  },
+
+  sitePostCategories: {
+    posts: r.many.sitePosts(),
+  },
+
+  sitePosts: {
+    category: r.one.sitePostCategories({
+      from: r.sitePosts.categoryId,
+      to: r.sitePostCategories.id,
+    }),
+    cover: r.one.privateFiles({
+      from: r.sitePosts.coverFileId,
+      to: r.privateFiles.id,
+    }),
+    author: r.one.users({
+      from: r.sitePosts.authorId,
+      to: r.users.id,
+    }),
+    revisions: r.many.sitePostRevisions(),
+  },
+
+  sitePostRevisions: {
+    post: r.one.sitePosts({
+      from: r.sitePostRevisions.postId,
+      to: r.sitePosts.id,
+    }),
+    savedBy: r.one.users({
+      from: r.sitePostRevisions.savedById,
+      to: r.users.id,
+    }),
+  },
 }));
