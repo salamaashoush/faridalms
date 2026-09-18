@@ -133,7 +133,7 @@ Presigned object-storage URLs are bearer credentials and may be reused until exp
 - `users.role` and role-prefixed route gates still conflate workspace choice with authority. One contextual role assignment per user remains insufficient.
 - Grading and authoring now enforce the specific class/subject responsibility; dated substitutions and contextual delegated grants still need implementation.
 - Student-scoped assignment, grade, attendance and timetable reads now check their own capabilities. Composite dashboards still need section-level redaction when a capability is revoked.
-- Student profile data requires field-level authorization for medical and sensitive contact details.
+- Student profile data requires field-level authorization for medical and sensitive contact details. The student record now carries coursework, attendance and released grades as tabs behind their own capabilities, and the class record carries the teaching team, the permitted roster, coursework, per-student attendance and the timetable; the person profile joins a membership to its teaching assignments, visible children and contact details.
 - Attempts and assessments now have their own records with explicit release; the submission row mirrors the current released result for lists. Reopening an attempt by an assessor and assessment revision comparison remain open.
 - Private files now follow initiate, upload, verify and ready states with authorised downloads. Malware inspection, previews, retention and abandoned-upload clean-up remain open.
 - Visibility helpers and current coursework now distinguish active enrollment from ended or future enrollment. Historical enrollment presentation and assignment-recipient snapshots still need implementation.

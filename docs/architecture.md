@@ -52,9 +52,23 @@ that model should preserve the explicit request context and API contracts.
 ## Domain ownership
 
 API modules separate identity, school administration, teaching, student records,
-academics, communication and overviews. Shared schemas bound input size and reject
-invalid dates, identifiers, attendance batches and page sizes. Capabilities gate
-operations; student and class ownership gates the records those operations use.
+people, academics, communication and overviews. Shared schemas bound input size
+and reject invalid dates, identifiers, attendance batches and page sizes.
+Capabilities gate operations; student and class ownership gates the records
+those operations use.
+
+Records are reachable through relationships rather than roles. A class is
+visible to its teachers, to the families and learners enrolled in it and to
+administrators; a student to their guardians, their own account, the teachers
+of their current classes and administrators; a person to anyone who shares a
+visible class with them, is related to a visible student of theirs, took part
+in a conversation with them, or is an administrator. Every active
+administrator is reachable as the school office. The API answers `NOT_FOUND`
+for a record outside the caller's reach so that URLs do not reveal existence,
+and the web's record server functions turn that, and a `FORBIDDEN` on a record
+read, into the router's not-found page with a 404 status. Restricted fields
+(contact details, medical data, other people's children) are omitted from the
+payload rather than hidden in the page.
 
 Assignments are authored against a class and one of its subjects by the teacher
 responsible for that offering. A draft carries a rich-text brief, learning
