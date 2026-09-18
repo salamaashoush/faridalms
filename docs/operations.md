@@ -56,6 +56,24 @@ the server's request body limit. Only the extensions and media types listed in
 Uploads that were declared but never completed remain in the `initiated` state
 and need a scheduled clean-up, which is not yet included.
 
+## Notifications
+
+`EMAIL_PROVIDER_URL` and `SMS_PROVIDER_URL` name HTTP endpoints that accept a
+JSON body `{ to, subject, text }` with an optional bearer token from
+`EMAIL_PROVIDER_TOKEN` and `SMS_PROVIDER_TOKEN`; a gateway or a small relay in
+front of the vendor keeps vendor SDKs out of the API. Leave both unset to keep
+outbound channels off: deliveries are then recorded as skipped with
+`provider_not_configured`, visible in the administrator's notification log.
+`memory:` is a test provider that records sends in process and fails on
+demand; the end-to-end suite uses it and never delivers anything.
+`NOTIFICATION_POLL_MS` (default 15000) is the worker's polling interval and
+`NOTIFICATION_RETRY_BASE_MS` (default 60000) the first retry delay, which
+grows by 5, 30, 120 and 720 times on later attempts. The
+worker runs inside every API replica and claims rows with `FOR UPDATE SKIP
+LOCKED`, so replicas share the queue without double sending. Failed
+deliveries retry with a growing delay and stop after five attempts; a provider
+answering 4xx other than 429 is treated as permanent.
+
 ## Capacity and maintenance
 
 `MAX_TENANT_POOLS` defaults to 32 and `TENANT_POOL_SIZE` to 4. Budget approximately

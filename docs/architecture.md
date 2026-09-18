@@ -80,6 +80,24 @@ private files linked to the message and downloadable by its participants
 only. Opening a conversation marks the viewer's rows read and nobody else's.
 Messages, delivery rows and attachment links commit in one transaction.
 
+Notifications follow a transactional outbox. Publishing an assignment,
+releasing an assessment, sending a message or reply, publishing an
+announcement and publishing a newsletter edition each write a
+`notification_events` row, one `notifications` row per recipient and one
+`notification_deliveries` row per channel inside the same school-database
+transaction as the change itself. Recipients are resolved from relationships:
+the learners an assignment reaches and their guardians, the student and
+guardians of a released result, the addressees of a message, and the roles an
+announcement or newsletter names. In-app delivery is the row's existence;
+email and SMS rows start pending and a worker in the API process claims them
+per school with row locks, renders the recipient's chosen language from
+server-side templates, calls the configured provider adapter and records the
+receipt or the failure with the next attempt time, giving up after five tries.
+A person's preferences (channels, language, muted types) and a missing address
+turn a delivery into a recorded skip rather than silence. A school without a
+configured provider records `provider_not_configured`, so a successful save
+never implies an email went out. The log is readable by school administrators.
+
 Private files are declared, uploaded and downloaded through the API only; see
 [operations.md](operations.md) for the lifecycle and storage settings. A file
 id never grants a download: the API authorises each read by the assignment or
