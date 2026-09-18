@@ -109,6 +109,14 @@ progress and lessons without answering. Lesson media is authorised through the
 lesson's module: its teachers, administrators, and the families and learners
 of the class while the module is published.
 
+Search is a single procedure that resolves what the viewer can reach (visible
+students and classes, participation in threads, announcement audiences) and
+then matches names, titles, summaries and message bodies with case-insensitive
+substring queries, prefix matches first. There is no search index, so nothing
+retains access after a relationship ends, and medical and contact fields are
+never part of a query. The launcher shows the first hits per kind; a results
+page keeps query, kind and page in the URL.
+
 A class's timetable is a set of slots replaced as a whole: the editor sends the
 week with the class revision it read, and the API refuses overlaps inside the
 class, subjects the class does not offer, and a teacher already teaching another
