@@ -202,7 +202,7 @@ export const submitGrade = protectedProcedure
           feedback: data.feedback ? plainContent(data.feedback) : null,
           release: true,
         },
-        { userId: user.id, scope: assessmentScope(context) },
+        { userId: user.id, name: user.name, scope: assessmentScope(context) },
         new Date(),
       );
     } catch (error) {
@@ -309,6 +309,7 @@ export const createAssignment = protectedProcedure
       });
     const actor = {
       userId: user.id,
+      name: user.name,
       scope: assessmentScope(context, "assignments:author"),
     };
     try {

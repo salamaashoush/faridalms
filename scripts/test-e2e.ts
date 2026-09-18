@@ -56,6 +56,11 @@ const runner = Bun.spawn(
       CONTROL_DATABASE_URL: controlUrl,
       BACKEND_URL: "http://127.0.0.1:3001",
       API_PORT: "3001",
+      // Outbound channels record in memory so the tests never deliver anything.
+      EMAIL_PROVIDER_URL: "memory:",
+      SMS_PROVIDER_URL: "memory:",
+      NOTIFICATION_POLL_MS: "500",
+      NOTIFICATION_RETRY_BASE_MS: "1000",
     },
     stdout: "inherit",
     stderr: "inherit",

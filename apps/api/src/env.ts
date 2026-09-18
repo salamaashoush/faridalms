@@ -18,6 +18,14 @@ export const env = v.parse(
       ".data/files",
     ),
     MAX_UPLOAD_BYTES: v.optional(positiveInteger, String(25 * 1024 * 1024)),
+    // Outbound channels stay off until an endpoint is configured; "memory:"
+    // records sends in process for tests.
+    EMAIL_PROVIDER_URL: v.optional(v.string()),
+    EMAIL_PROVIDER_TOKEN: v.optional(v.string()),
+    SMS_PROVIDER_URL: v.optional(v.string()),
+    SMS_PROVIDER_TOKEN: v.optional(v.string()),
+    NOTIFICATION_POLL_MS: v.optional(positiveInteger, "15000"),
+    NOTIFICATION_RETRY_BASE_MS: v.optional(positiveInteger, "60000"),
   }),
   process.env,
 );

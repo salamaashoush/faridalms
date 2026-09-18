@@ -116,6 +116,7 @@ export const sendMessage = protectedProcedure
     const id = await manage(() =>
       sendMessageRow(context.db, {
         senderId: user.id,
+        senderName: user.name,
         category: data.category,
         studentId,
         subject: data.subject,
@@ -249,6 +250,7 @@ export const replyMessage = protectedProcedure
     const id = await manage(() =>
       sendMessageRow(context.db, {
         senderId: context.user.id,
+        senderName: context.user.name,
         category: message.category,
         studentId: message.studentId,
         subject: message.subject,
@@ -352,6 +354,7 @@ export const sendMessageDraft = protectedProcedure
         input.expectedRevision,
         {
           senderId: context.user.id,
+          senderName: context.user.name,
           category: data.category,
           studentId: data.studentId || null,
           subject: data.subject,

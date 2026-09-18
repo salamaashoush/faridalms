@@ -65,6 +65,7 @@ async function requireClass(context: SchoolContext, classId: string) {
 function author(context: SchoolContext) {
   return {
     userId: context.user.id,
+    name: context.user.name,
     scope: assessmentScope(context, "assignments:author"),
   };
 }
@@ -213,7 +214,7 @@ export const assessAttempt = protectedProcedure
       assessRow(
         context.db,
         input,
-        { userId: user.id, scope: assessmentScope(context) },
+        { userId: user.id, name: user.name, scope: assessmentScope(context) },
         new Date(),
       ),
     );
