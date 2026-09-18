@@ -34,6 +34,28 @@ For the local Northwind database, `bun run db:init` creates the control database
 missing, migrates both stores and registers the school without resetting data.
 It deliberately does not run the destructive demonstration seed.
 
+## Private files
+
+Uploads are private objects owned by the API. A client first declares a file
+(purpose, name, media type, size) and receives a server-generated destination;
+the bytes then stream to `PUT /v1/files/{id}/content` with the same bearer
+token, and the API verifies the size, records the SHA-256 and only then marks
+the file ready. Downloads go through `GET /v1/files/{id}/content`, which
+re-checks the assignment or submission the file is linked to before answering,
+sets an attachment disposition with a safe name, and never caches. The web
+forwards both routes at `/files/{id}` with the session cookie, so a browser
+never holds a token or a storage location.
+
+`FILE_STORAGE_DIR` (default `.data/files`, relative to the API's working
+directory) holds objects under `<school id>/<file id>`. Give the API a
+dedicated volume and back it up alongside the school databases; a file record
+without its object is unreadable, and an object without its record is
+unreachable. `MAX_UPLOAD_BYTES` (default 25 MiB) bounds every upload and sizes
+the server's request body limit. Only the extensions and media types listed in
+`packages/domain/src/file.ts` are accepted; executables and SVG stay out.
+Uploads that were declared but never completed remain in the `initiated` state
+and need a scheduled clean-up, which is not yet included.
+
 ## Capacity and maintenance
 
 `MAX_TENANT_POOLS` defaults to 32 and `TENANT_POOL_SIZE` to 4. Budget approximately

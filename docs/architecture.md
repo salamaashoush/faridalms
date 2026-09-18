@@ -56,12 +56,25 @@ academics, communication and overviews. Shared schemas bound input size and reje
 invalid dates, identifiers, attendance batches and page sizes. Capabilities gate
 operations; student and class ownership gates the records those operations use.
 
-Assignments are published against a class and one of its subjects. Students may
-submit only to their classes. Written work is persisted, and submitted or returned
-work cannot be overwritten by repeating the request. Teachers see that content
-in their grading queue; marks above the assignment maximum are rejected by the
-API. Attendance batches reject duplicate students and students outside the current
+Assignments are authored against a class and one of its subjects by the teacher
+responsible for that offering. A draft carries a rich-text brief, learning
+resources, an audience (the class, saved groups or named students, resolved
+into `assignment_recipients` when saved), an availability window, a due instant
+with a late policy, a hand-in format with attachment limits, a resubmission
+policy and an optional rubric. Publishing is revision-checked and refuses an
+incomplete draft. Learners keep a revisioned draft; handing in cuts an
+immutable attempt from it, and a retry with the same revision returns the
+attempt it already created. Assessments belong to an attempt and stay private
+until released, at which point the submission mirrors the result for lists.
+Marks above the assignment maximum, rubric totals that disagree with the
+score, and attempts outside the assessor's offering are rejected by the API.
+Attendance batches reject duplicate students and students outside the current
 roster before writing. Messages and delivery rows commit in one transaction.
+
+Private files are declared, uploaded and downloaded through the API only; see
+[operations.md](operations.md) for the lifecycle and storage settings. A file
+id never grants a download: the API authorises each read by the assignment or
+submission that links the file.
 
 ## Rendering and performance
 
