@@ -383,7 +383,9 @@ test("a teacher composes with formatting and a file, and the family replies in p
   await family.keyboard.type("We will start tonight.");
   await family.getByRole("button", { name: "Send reply", exact: true }).click();
   await expect(
-    family.getByText("We will start tonight.", { exact: true }),
+    family
+      .locator("article")
+      .getByText("We will start tonight.", { exact: true }),
   ).toBeVisible();
   await expect(family).toHaveURL(new RegExp(`message=${threadId}`));
   await expect(composer).toHaveText("");
@@ -402,7 +404,9 @@ test("a teacher composes with formatting and a file, and the family replies in p
   await family.getByRole("menuitem", { name: "العربية" }).click();
   await expect(family.locator("html")).toHaveAttribute("dir", "rtl");
   await expect(
-    family.getByText("We will start tonight.", { exact: true }),
+    family
+      .locator("article")
+      .getByText("We will start tonight.", { exact: true }),
   ).toBeVisible();
   expect(
     await family.evaluate(
