@@ -1,7 +1,10 @@
+import type { ContentDocument } from "@faridalms/domain/content";
 import type { CalendarEventInput } from "@faridalms/domain/school-schema";
 
+import { contentPlainText } from "@faridalms/domain/content";
+import { plainContent } from "@faridalms/domain/content-conversion";
 import {
-  calendarEventSchema,
+  calendarEventFormSchema,
   EVENT_CATEGORIES,
 } from "@faridalms/domain/school-schema";
 import { useForm } from "@tanstack/react-form";
@@ -18,10 +21,11 @@ import {
 } from "~/components/app/dialog";
 import { Field, FieldLabel, FieldError } from "~/components/app/field";
 import { EVENT_CATEGORY_LABEL } from "~/components/app/labels";
+import { ContentEditor } from "~/components/content/ContentEditor";
+import { ContentView } from "~/components/content/ContentView";
 import { ClassPicker } from "~/components/teach/ClassPicker";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
-import { Textarea } from "~/components/ui/textarea";
 import * as m from "~/i18n/messages";
 import { saveCalendarEvent } from "~/server/school";
 import { formatDate } from "~/utils/datetime";
@@ -42,6 +46,10 @@ export function CalendarEventDialog({
 }) {
   const [editing, setEditing] = useState(!event);
   const [failure, setFailure] = useState<string>();
+  const [valid, setValid] = useState(true);
+  const [document, setDocument] = useState<ContentDocument>(
+    () => event?.document ?? plainContent(event?.description ?? ""),
+  );
   const mutation = useMutation({
     mutationFn: saveCalendarEvent,
     onSuccess: () => {
@@ -49,7 +57,7 @@ export function CalendarEventDialog({
       onClose();
     },
   });
-  const defaults: CalendarEventInput = {
+  const defaults: Omit<CalendarEventInput, "document"> = {
     id: event?.id,
     expectedRevision: event?.revision,
     title: event?.title ?? "",
@@ -61,9 +69,9 @@ export function CalendarEventDialog({
   };
   const form = useForm({
     defaultValues: defaults,
-    validators: { onSubmit: calendarEventSchema },
+    validators: { onSubmit: calendarEventFormSchema },
     onSubmit: async ({ value }) => {
-      await mutation.mutateAsync({ data: value });
+      await mutation.mutateAsync({ data: { ...value, document } });
     },
   });
   return (
@@ -94,6 +102,10 @@ export function CalendarEventDialog({
             onSubmit={async (e) => {
               e.preventDefault();
               setFailure(undefined);
+              if (!valid) {
+                setFailure(getMessageFromError(new Error("content.invalid")));
+                return;
+              }
               try {
                 await form.handleSubmit();
               } catch (error) {
@@ -166,23 +178,14 @@ export function CalendarEventDialog({
                 />
               )}
             </form.Field>
-            <form.Field name="description">
-              {(field) => (
-                <Field>
-                  <FieldLabel htmlFor="event-description">
-                    {m.calendarDescription()}
-                  </FieldLabel>
-                  <Textarea
-                    id="event-description"
-                    rows={4}
-                    maxLength={20000}
-                    value={field.state.value}
-                    onChange={(e) => field.handleChange(e.target.value)}
-                  />
-                  <FieldError errors={field.state.meta.errors} />
-                </Field>
-              )}
-            </form.Field>
+            <ContentEditor
+              id="event-description"
+              label={m.calendarDescription()}
+              value={document}
+              onChange={setDocument}
+              onValidityChange={setValid}
+              disabled={mutation.isPending}
+            />
             <form.Field name="provisional">
               {(field) => (
                 <label className="flex items-center gap-3 text-sm">
@@ -219,9 +222,13 @@ export function CalendarEventDialog({
                 {EVENT_CATEGORY_LABEL[event.category]()} · {m.calendarAllDay()}
               </p>
             </div>
-            <p className="text-sm leading-7 whitespace-pre-wrap">
-              {event.description || m.calendarNoDescription()}
-            </p>
+            {event.document && contentPlainText(event.document).trim() ? (
+              <ContentView document={event.document} />
+            ) : (
+              <p className="text-sm leading-7 whitespace-pre-wrap">
+                {event.description || m.calendarNoDescription()}
+              </p>
+            )}
             {event.provisional ? (
               <p className="text-sm text-warning">{m.commonProvisional()}</p>
             ) : null}

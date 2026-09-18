@@ -1,9 +1,11 @@
+import type { ContentDocument } from "@faridalms/domain/content";
 import type { EVENT_CATEGORIES } from "@faridalms/domain/school-schema";
 
 export interface SchoolEvent {
   id: string;
   title: string;
   description: string | null;
+  document: ContentDocument | null;
   category: (typeof EVENT_CATEGORIES)[number];
   startsOn: string;
   endsOn: string;

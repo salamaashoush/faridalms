@@ -304,6 +304,7 @@ export function CalendarPage({ search }: { search: CalendarQuery }) {
                     data: {
                       ...event,
                       description: event.description ?? "",
+                      document: event.document ?? undefined,
                       expectedRevision: event.revision,
                       startsOn: info.event.startStr.slice(0, 10),
                       endsOn: info.event.endStr
@@ -327,6 +328,7 @@ export function CalendarPage({ search }: { search: CalendarQuery }) {
                     data: {
                       ...event,
                       description: event.description ?? "",
+                      document: event.document ?? undefined,
                       expectedRevision: event.revision,
                       startsOn: info.event.startStr.slice(0, 10),
                       endsOn: shiftDate(info.event.endStr.slice(0, 10), -1),
