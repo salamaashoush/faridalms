@@ -17,6 +17,7 @@ import { Route as AppFamilyRouteImport } from './routes/_app/family'
 import { Route as AppMeRouteImport } from './routes/_app/me'
 import { Route as AppNotificationPreferencesRouteImport } from './routes/_app/notification-preferences'
 import { Route as AppNotificationsRouteImport } from './routes/_app/notifications'
+import { Route as AppSearchRouteImport } from './routes/_app/search'
 import { Route as AppStudentEditorRouteImport } from './routes/_app/student-editor'
 import { Route as AppTeachRouteImport } from './routes/_app/teach'
 import { Route as AuthSignInRouteImport } from './routes/_auth/sign-in'
@@ -124,6 +125,11 @@ const AppNotificationPreferencesRoute =
 const AppNotificationsRoute = AppNotificationsRouteImport.update({
   id: '/notifications',
   path: '/notifications',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppSearchRoute = AppSearchRouteImport.update({
+  id: '/search',
+  path: '/search',
   getParentRoute: () => AppRoute,
 } as any)
 const AppStudentEditorRoute = AppStudentEditorRouteImport.update({
@@ -488,6 +494,7 @@ export interface FileRoutesByFullPath {
   '/me': typeof AppMeRouteWithChildren
   '/notification-preferences': typeof AppNotificationPreferencesRoute
   '/notifications': typeof AppNotificationsRoute
+  '/search': typeof AppSearchRoute
   '/student-editor': typeof AppStudentEditorRoute
   '/teach': typeof AppTeachRouteWithChildren
   '/sign-in': typeof AuthSignInRoute
@@ -562,6 +569,7 @@ export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/notification-preferences': typeof AppNotificationPreferencesRoute
   '/notifications': typeof AppNotificationsRoute
+  '/search': typeof AppSearchRoute
   '/student-editor': typeof AppStudentEditorRoute
   '/sign-in': typeof AuthSignInRoute
   '/api/health': typeof ApiHealthRoute
@@ -640,6 +648,7 @@ export interface FileRoutesById {
   '/_app/me': typeof AppMeRouteWithChildren
   '/_app/notification-preferences': typeof AppNotificationPreferencesRoute
   '/_app/notifications': typeof AppNotificationsRoute
+  '/_app/search': typeof AppSearchRoute
   '/_app/student-editor': typeof AppStudentEditorRoute
   '/_app/teach': typeof AppTeachRouteWithChildren
   '/_auth/sign-in': typeof AuthSignInRoute
@@ -719,6 +728,7 @@ export interface FileRouteTypes {
     | '/me'
     | '/notification-preferences'
     | '/notifications'
+    | '/search'
     | '/student-editor'
     | '/teach'
     | '/sign-in'
@@ -793,6 +803,7 @@ export interface FileRouteTypes {
     | '/'
     | '/notification-preferences'
     | '/notifications'
+    | '/search'
     | '/student-editor'
     | '/sign-in'
     | '/api/health'
@@ -870,6 +881,7 @@ export interface FileRouteTypes {
     | '/_app/me'
     | '/_app/notification-preferences'
     | '/_app/notifications'
+    | '/_app/search'
     | '/_app/student-editor'
     | '/_app/teach'
     | '/_auth/sign-in'
@@ -1007,6 +1019,13 @@ declare module '@tanstack/react-router' {
       path: '/notifications'
       fullPath: '/notifications'
       preLoaderRoute: typeof AppNotificationsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/search': {
+      id: '/_app/search'
+      path: '/search'
+      fullPath: '/search'
+      preLoaderRoute: typeof AppSearchRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/student-editor': {
@@ -1637,6 +1656,7 @@ interface AppRouteChildren {
   AppMeRoute: typeof AppMeRouteWithChildren
   AppNotificationPreferencesRoute: typeof AppNotificationPreferencesRoute
   AppNotificationsRoute: typeof AppNotificationsRoute
+  AppSearchRoute: typeof AppSearchRoute
   AppStudentEditorRoute: typeof AppStudentEditorRoute
   AppTeachRoute: typeof AppTeachRouteWithChildren
   AppAnnouncementsAnnouncementIdRoute: typeof AppAnnouncementsAnnouncementIdRoute
@@ -1656,6 +1676,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppMeRoute: AppMeRouteWithChildren,
   AppNotificationPreferencesRoute: AppNotificationPreferencesRoute,
   AppNotificationsRoute: AppNotificationsRoute,
+  AppSearchRoute: AppSearchRoute,
   AppStudentEditorRoute: AppStudentEditorRoute,
   AppTeachRoute: AppTeachRouteWithChildren,
   AppAnnouncementsAnnouncementIdRoute: AppAnnouncementsAnnouncementIdRoute,
