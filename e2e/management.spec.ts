@@ -195,29 +195,53 @@ test("shared tables search, sort and toggle columns without losing URL state", a
   ).toBeVisible();
 });
 
-test("teachers publish coursework from the browser", async ({ page }) => {
+test("teachers publish coursework from the browser", async ({
+  page,
+  request,
+}) => {
+  const session = await request.post("http://127.0.0.1:3001/v1/auth/signIn", {
+    data: {
+      school: "northwind",
+      email: "teacher@example.com",
+      password: "northwind1234",
+    },
+  });
+  const { token } = (await session.json()) as { token: string };
+  const overview = await request.post(
+    "http://127.0.0.1:3001/v1/getTeachingOverview",
+    { headers: { authorization: `Bearer ${token}` } },
+  );
+  const { today } = (await overview.json()) as { today: string };
   await login(page, "teacher@example.com");
   await page.goto("/teach/assignments");
   await page
-    .getByRole("button", { name: "Create assignment", exact: true })
+    .getByRole("link", { name: "Design an assignment", exact: true })
     .click();
-  const dialog = page.getByRole("dialog");
   const title = `Salama browser coursework ${crypto.randomUUID().slice(0, 8)}`;
-  await dialog.getByLabel("Assignment title", { exact: true }).fill(title);
-  await dialog
-    .getByLabel("Instructions", { exact: true })
-    .fill("Write a short explanation of what you learned.");
-  await dialog
-    .getByRole("button", { name: "Create assignment", exact: true })
+  await page.getByLabel("Assignment title", { exact: true }).fill(title);
+  await page
+    .getByRole("textbox", { name: "Instructions", exact: true })
     .click();
-  await expect(dialog).toHaveCount(0);
+  await page.keyboard.type("Write a short explanation of what you learned.");
+  await page.getByRole("button", { name: "Publish", exact: true }).click();
+  await expect(page.getByLabel("Due", { exact: true })).toHaveAttribute(
+    "aria-invalid",
+    "true",
+  );
+  await page.getByLabel("Due", { exact: true }).fill(`${today}T23:00`);
+  await page.getByRole("button", { name: "Publish", exact: true }).click();
+  await expect(page).toHaveURL(/\/assignments\/[a-f0-9-]+/);
+  await expect(
+    page.getByRole("heading", { name: title, exact: true }),
+  ).toBeVisible();
+  await page.goto("/teach/assignments");
   await page.getByRole("searchbox", { name: "Search records…" }).fill(title);
   await expect(
-    page.getByRole("cell", { name: title, exact: false }),
+    page.getByRole("link", { name: title, exact: true }),
   ).toBeVisible();
   await page.reload();
   await expect(
-    page.getByRole("cell", { name: title, exact: false }),
+    page.getByRole("link", { name: title, exact: true }),
   ).toBeVisible();
 });
 
