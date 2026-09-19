@@ -97,7 +97,7 @@ const students: Searcher = async (db, scope, needles, limit, offset) => {
     })
     .from(s.students)
     .where(where)
-    .orderBy(prefixFirst(name, needles.prefix), asc(name))
+    .orderBy(prefixFirst(name, needles.prefix), asc(name), asc(s.students.id))
     .limit(limit)
     .offset(offset);
   return {
@@ -137,7 +137,11 @@ const classes: Searcher = async (db, scope, needles, limit, offset) => {
     })
     .from(s.classes)
     .where(where)
-    .orderBy(prefixFirst(s.classes.name, needles.prefix), asc(s.classes.name))
+    .orderBy(
+      prefixFirst(s.classes.name, needles.prefix),
+      asc(s.classes.name),
+      asc(s.classes.id),
+    )
     .limit(limit)
     .offset(offset);
   return {
@@ -209,7 +213,11 @@ const people: Searcher = async (db, scope, needles, limit, offset) => {
     })
     .from(s.users)
     .where(where)
-    .orderBy(prefixFirst(s.users.name, needles.prefix), asc(s.users.name))
+    .orderBy(
+      prefixFirst(s.users.name, needles.prefix),
+      asc(s.users.name),
+      asc(s.users.id),
+    )
     .limit(limit)
     .offset(offset);
   return {
@@ -288,6 +296,7 @@ const assignments: Searcher = async (db, scope, needles, limit, offset) => {
       prefixFirst(s.assignments.title, needles.prefix),
       desc(s.assignments.dueAt),
       asc(s.assignments.title),
+      asc(s.assignments.id),
     )
     .limit(limit)
     .offset(offset);
@@ -378,6 +387,7 @@ const events: Searcher = async (db, scope, needles, limit, offset) => {
       prefixFirst(s.calendarEvents.title, needles.prefix),
       desc(s.calendarEvents.startsOn),
       asc(s.calendarEvents.title),
+      asc(s.calendarEvents.id),
     )
     .limit(limit)
     .offset(offset);
@@ -416,6 +426,7 @@ const newsletters: Searcher = async (db, _scope, needles, limit, offset) => {
       prefixFirst(s.newsletters.title, needles.prefix),
       desc(s.newsletters.publishedOn),
       asc(s.newsletters.title),
+      asc(s.newsletters.id),
     )
     .limit(limit)
     .offset(offset);
@@ -473,6 +484,7 @@ const announcements: Searcher = async (db, scope, needles, limit, offset) => {
       prefixFirst(s.announcements.title, needles.prefix),
       desc(s.announcements.publishedAt),
       asc(s.announcements.title),
+      asc(s.announcements.id),
     )
     .limit(limit)
     .offset(offset);
