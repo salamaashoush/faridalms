@@ -146,6 +146,7 @@ try {
       }
       return {
         enrollmentFixture,
+        schoolYearId: year.id,
         classId: schoolClass.id,
         subjectId: subject.id,
         today,
