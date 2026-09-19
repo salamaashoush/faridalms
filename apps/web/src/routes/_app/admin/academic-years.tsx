@@ -23,6 +23,7 @@ export const Route = createFileRoute("/_app/admin/academic-years")({
 
 function AcademicYearsPage() {
   const { data: years } = useSuspenseQuery(academicYearsQuery);
+  const defaultYear = years.find((year) => year.isCurrent);
   return (
     <>
       <PageHeader
@@ -70,6 +71,18 @@ function AcademicYearsPage() {
               </dl>
             </div>
             <YearLifecycle year={year} />
+            {defaultYear && !year.isCurrent && year.status !== "closed" ? (
+              <ButtonLink
+                to="/admin/rollover"
+                search={{ source: defaultYear.id, target: year.id }}
+                variant="outline"
+                size="sm"
+                className="justify-between"
+              >
+                {m.rolloverFrom({ source: defaultYear.name })}
+                <ArrowUpRight className="rtl:-scale-x-100" aria-hidden />
+              </ButtonLink>
+            ) : null}
             <ButtonLink
               to="/admin/academic-year-editor"
               search={{ id: year.id }}

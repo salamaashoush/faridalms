@@ -36,6 +36,7 @@ import { Route as AppAdminNewsletterDraftsRouteImport } from './routes/_app/admi
 import { Route as AppAdminNewsletterEditorRouteImport } from './routes/_app/admin/newsletter-editor'
 import { Route as AppAdminNewslettersRouteImport } from './routes/_app/admin/newsletters'
 import { Route as AppAdminNotificationAuditRouteImport } from './routes/_app/admin/notification-audit'
+import { Route as AppAdminRolloverRouteImport } from './routes/_app/admin/rollover'
 import { Route as AppAdminSettingsRouteImport } from './routes/_app/admin/settings'
 import { Route as AppAdminSiteRouteImport } from './routes/_app/admin/site'
 import { Route as AppAdminSitePageEditorRouteImport } from './routes/_app/admin/site-page-editor'
@@ -227,6 +228,11 @@ const AppAdminNotificationAuditRoute =
     path: '/notification-audit',
     getParentRoute: () => AppAdminRoute,
   } as any)
+const AppAdminRolloverRoute = AppAdminRolloverRouteImport.update({
+  id: '/rollover',
+  path: '/rollover',
+  getParentRoute: () => AppAdminRoute,
+} as any)
 const AppAdminSettingsRoute = AppAdminSettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
@@ -512,6 +518,7 @@ export interface FileRoutesByFullPath {
   '/admin/newsletter-editor': typeof AppAdminNewsletterEditorRoute
   '/admin/newsletters': typeof AppAdminNewslettersRoute
   '/admin/notification-audit': typeof AppAdminNotificationAuditRoute
+  '/admin/rollover': typeof AppAdminRolloverRoute
   '/admin/settings': typeof AppAdminSettingsRoute
   '/admin/site': typeof AppAdminSiteRoute
   '/admin/site-page-editor': typeof AppAdminSitePageEditorRoute
@@ -585,6 +592,7 @@ export interface FileRoutesByTo {
   '/admin/newsletter-editor': typeof AppAdminNewsletterEditorRoute
   '/admin/newsletters': typeof AppAdminNewslettersRoute
   '/admin/notification-audit': typeof AppAdminNotificationAuditRoute
+  '/admin/rollover': typeof AppAdminRolloverRoute
   '/admin/settings': typeof AppAdminSettingsRoute
   '/admin/site': typeof AppAdminSiteRoute
   '/admin/site-page-editor': typeof AppAdminSitePageEditorRoute
@@ -666,6 +674,7 @@ export interface FileRoutesById {
   '/_app/admin/newsletter-editor': typeof AppAdminNewsletterEditorRoute
   '/_app/admin/newsletters': typeof AppAdminNewslettersRoute
   '/_app/admin/notification-audit': typeof AppAdminNotificationAuditRoute
+  '/_app/admin/rollover': typeof AppAdminRolloverRoute
   '/_app/admin/settings': typeof AppAdminSettingsRoute
   '/_app/admin/site': typeof AppAdminSiteRoute
   '/_app/admin/site-page-editor': typeof AppAdminSitePageEditorRoute
@@ -746,6 +755,7 @@ export interface FileRouteTypes {
     | '/admin/newsletter-editor'
     | '/admin/newsletters'
     | '/admin/notification-audit'
+    | '/admin/rollover'
     | '/admin/settings'
     | '/admin/site'
     | '/admin/site-page-editor'
@@ -819,6 +829,7 @@ export interface FileRouteTypes {
     | '/admin/newsletter-editor'
     | '/admin/newsletters'
     | '/admin/notification-audit'
+    | '/admin/rollover'
     | '/admin/settings'
     | '/admin/site'
     | '/admin/site-page-editor'
@@ -899,6 +910,7 @@ export interface FileRouteTypes {
     | '/_app/admin/newsletter-editor'
     | '/_app/admin/newsletters'
     | '/_app/admin/notification-audit'
+    | '/_app/admin/rollover'
     | '/_app/admin/settings'
     | '/_app/admin/site'
     | '/_app/admin/site-page-editor'
@@ -1152,6 +1164,13 @@ declare module '@tanstack/react-router' {
       path: '/notification-audit'
       fullPath: '/admin/notification-audit'
       preLoaderRoute: typeof AppAdminNotificationAuditRouteImport
+      parentRoute: typeof AppAdminRoute
+    }
+    '/_app/admin/rollover': {
+      id: '/_app/admin/rollover'
+      path: '/rollover'
+      fullPath: '/admin/rollover'
+      preLoaderRoute: typeof AppAdminRolloverRouteImport
       parentRoute: typeof AppAdminRoute
     }
     '/_app/admin/settings': {
@@ -1526,6 +1545,7 @@ interface AppAdminRouteChildren {
   AppAdminNewsletterEditorRoute: typeof AppAdminNewsletterEditorRoute
   AppAdminNewslettersRoute: typeof AppAdminNewslettersRoute
   AppAdminNotificationAuditRoute: typeof AppAdminNotificationAuditRoute
+  AppAdminRolloverRoute: typeof AppAdminRolloverRoute
   AppAdminSettingsRoute: typeof AppAdminSettingsRoute
   AppAdminSiteRoute: typeof AppAdminSiteRoute
   AppAdminSitePageEditorRoute: typeof AppAdminSitePageEditorRoute
@@ -1548,6 +1568,7 @@ const AppAdminRouteChildren: AppAdminRouteChildren = {
   AppAdminNewsletterEditorRoute: AppAdminNewsletterEditorRoute,
   AppAdminNewslettersRoute: AppAdminNewslettersRoute,
   AppAdminNotificationAuditRoute: AppAdminNotificationAuditRoute,
+  AppAdminRolloverRoute: AppAdminRolloverRoute,
   AppAdminSettingsRoute: AppAdminSettingsRoute,
   AppAdminSiteRoute: AppAdminSiteRoute,
   AppAdminSitePageEditorRoute: AppAdminSitePageEditorRoute,

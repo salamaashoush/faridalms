@@ -67,6 +67,7 @@ const EVENT_LABEL: Record<string, () => string> = {
   closed: m.academicYearEventClosed,
   reopened: m.academicYearEventReopened,
   made_default: m.academicYearEventMadeDefault,
+  rolled_over: m.academicYearEventRolledOver,
 };
 
 function YearHistory({
@@ -106,7 +107,11 @@ function YearHistory({
                 </span>
               </p>
               {event.reason ? (
-                <p className="mt-1 text-muted-foreground">{event.reason}</p>
+                <p className="mt-1 text-muted-foreground">
+                  {event.action === "rolled_over"
+                    ? m.academicYearRolledOverFrom({ source: event.reason })
+                    : event.reason}
+                </p>
               ) : null}
             </li>
           ))}
