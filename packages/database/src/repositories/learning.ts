@@ -24,6 +24,7 @@ import { and, eq, inArray, sql } from "drizzle-orm";
 import type { Database } from "../index";
 
 import { schema } from "../index";
+import { assertClassYearOpen } from "./academic-years";
 import { ManagementError } from "./management";
 
 const {
@@ -83,6 +84,7 @@ async function requireOffering(
     throw new ManagementError("BAD_REQUEST", "learning.subject_not_taught");
   if (!canAssessOffering(actor.scope, offering.teacherId))
     throw new ManagementError("FORBIDDEN", "learning.responsibility");
+  await assertClassYearOpen(db, classId);
   return offering;
 }
 

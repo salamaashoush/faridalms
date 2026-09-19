@@ -5,6 +5,7 @@ import type { NewsletterDocument } from "@faridalms/domain/newsletter";
 import type { NotificationPayload } from "@faridalms/domain/notification";
 import type { SocialLink } from "@faridalms/domain/site";
 
+import { SCHOOL_YEAR_STATUSES } from "@faridalms/domain/academic-year";
 import {
   ASSIGNMENT_STATUSES,
   LATE_POLICIES,
@@ -86,6 +87,10 @@ export const resubmissionPolicyEnum = pgEnum(
 export const recipientModeEnum = pgEnum("recipient_mode", RECIPIENT_MODES);
 export const filePurposeEnum = pgEnum("file_purpose", FILE_PURPOSES);
 export const fileStateEnum = pgEnum("file_state", FILE_STATES);
+export const schoolYearStatusEnum = pgEnum(
+  "school_year_status",
+  SCHOOL_YEAR_STATUSES,
+);
 export const attendanceStatusEnum = pgEnum("attendance_status", [
   "present",
   "absent",
@@ -139,6 +144,9 @@ export const schoolYears = pgTable(
     startsOn: date("starts_on").notNull(),
     endsOn: date("ends_on").notNull(),
     isCurrent: boolean("is_current").notNull().default(false),
+    // Existing years were all open before the lifecycle existed; new years
+    // are inserted as planning by the registry.
+    status: schoolYearStatusEnum().notNull().default("active"),
     revision: integer().notNull().default(1),
     ...timestamps,
   },
@@ -147,10 +155,39 @@ export const schoolYears = pgTable(
       .on(table.isCurrent)
       .where(sql`${table.isCurrent} = true`),
     check(
+      "school_years_default_active_check",
+      sql`not ${table.isCurrent} or ${table.status} = 'active'`,
+    ),
+    check(
       "school_years_dates_check",
       sql`${table.startsOn} <= ${table.endsOn}`,
     ),
     check("school_years_revision_check", sql`${table.revision} > 0`),
+  ],
+);
+
+/** Every lifecycle change of a year, who made it and, for a reopening, why. */
+export const schoolYearEvents = pgTable(
+  "school_year_events",
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    schoolYearId: uuid("school_year_id")
+      .notNull()
+      .references(() => schoolYears.id, { onDelete: "cascade" }),
+    actorId: uuid("actor_id")
+      .notNull()
+      .references(() => users.id),
+    action: varchar({ length: 32 }).notNull(),
+    reason: text(),
+    createdAt: timestamp("created_at", { withTimezone: true })
+      .notNull()
+      .defaultNow(),
+  },
+  (table) => [
+    index("school_year_events_year_idx").on(
+      table.schoolYearId,
+      table.createdAt,
+    ),
   ],
 );
 

@@ -1,10 +1,15 @@
 import type {
   SaveAcademicYearInput,
+  SetDefaultYearInput,
+  SetYearStatusInput,
   TermInput,
 } from "@faridalms/domain/academic-year";
 
-import { termIssue } from "@faridalms/domain/academic-year";
-import { and, eq, inArray, sql } from "drizzle-orm";
+import {
+  termIssue,
+  yearTransitionIssue,
+} from "@faridalms/domain/academic-year";
+import { and, desc, eq, inArray, sql } from "drizzle-orm";
 
 import type { Database, DatabaseTransaction } from "../index";
 
@@ -44,7 +49,7 @@ export async function saveAcademicYear(
     if (!input.id) {
       const [created] = await tx
         .insert(schema.schoolYears)
-        .values(values)
+        .values({ ...values, status: "planning" })
         .onConflictDoNothing()
         .returning();
       if (!created)
@@ -61,6 +66,8 @@ export async function saveAcademicYear(
       throw new ManagementError("NOT_FOUND", "academic_year.not_found");
     if (existing.revision !== input.expectedRevision)
       throw new ManagementError("CONFLICT", "academic_year.revision_conflict");
+    if (existing.status === "closed")
+      throw new ManagementError("CONFLICT", "academic_year.closed");
     if (input.startsOn > existing.startsOn || input.endsOn < existing.endsOn) {
       throw new ManagementError("BAD_REQUEST", "academic_year.shrink");
     }
@@ -136,4 +143,149 @@ async function syncTerms(
         .insert(schema.terms)
         .values({ ...values, schoolYearId: year.id });
   }
+}
+
+type Executor = Database | DatabaseTransaction;
+
+/** Refuses a write into a closed year; reopening it is the correction path. */
+export async function assertYearOpen(db: Executor, schoolYearId: string) {
+  const year = await db.query.schoolYears.findFirst({
+    where: { id: schoolYearId },
+    columns: { status: true },
+  });
+  if (year?.status === "closed")
+    throw new ManagementError("CONFLICT", "academic_year.closed");
+}
+
+export async function assertClassYearOpen(db: Executor, classId: string) {
+  const row = await db.query.classes.findFirst({
+    where: { id: classId },
+    columns: { schoolYearId: true },
+  });
+  if (row) await assertYearOpen(db, row.schoolYearId);
+}
+
+async function lockedYear(
+  tx: DatabaseTransaction,
+  id: string,
+  expectedRevision: number,
+) {
+  await tx.execute(
+    sql`select pg_advisory_xact_lock(${ACADEMIC_STRUCTURE_LOCK})`,
+  );
+  const [year] = await tx
+    .select()
+    .from(schema.schoolYears)
+    .where(eq(schema.schoolYears.id, id))
+    .for("update");
+  if (!year) throw new ManagementError("NOT_FOUND", "academic_year.not_found");
+  if (year.revision !== expectedRevision)
+    throw new ManagementError("CONFLICT", "academic_year.revision_conflict");
+  return year;
+}
+
+const TRANSITION_ACTION = {
+  active: "activated",
+  closed: "closed",
+  planning: "planned",
+} as const;
+
+export async function setAcademicYearStatus(
+  db: Database,
+  input: SetYearStatusInput,
+  actor: { id: string; canReopen: boolean },
+) {
+  return db.transaction(async (tx) => {
+    const year = await lockedYear(tx, input.id, input.expectedRevision);
+    const issue = yearTransitionIssue(year.status, input.status, {
+      isDefault: year.isCurrent,
+      reason: input.reason,
+    });
+    if (issue) throw new ManagementError("BAD_REQUEST", issue);
+    const reopening = year.status === "closed";
+    if (reopening && !actor.canReopen)
+      throw new ManagementError("FORBIDDEN", "academic_year.reopen_forbidden");
+    const [updated] = await tx
+      .update(schema.schoolYears)
+      .set({
+        status: input.status,
+        revision: sql`${schema.schoolYears.revision} + 1`,
+        updatedAt: new Date(),
+      })
+      .where(eq(schema.schoolYears.id, year.id))
+      .returning();
+    await tx.insert(schema.schoolYearEvents).values({
+      schoolYearId: year.id,
+      actorId: actor.id,
+      action: reopening ? "reopened" : TRANSITION_ACTION[input.status],
+      reason: input.reason || null,
+    });
+    return updated;
+  });
+}
+
+/**
+ * Moves the default to another year inside the caller's transaction, so a
+ * fixture can exercise it and roll back without other schools or tests ever
+ * seeing the switch.
+ */
+export async function applyDefaultAcademicYear(
+  tx: DatabaseTransaction,
+  input: SetDefaultYearInput,
+  actorId: string,
+) {
+  const year = await lockedYear(tx, input.id, input.expectedRevision);
+  if (year.status !== "active")
+    throw new ManagementError("BAD_REQUEST", "academic_year.not_active");
+  if (year.isCurrent) return year;
+  await tx
+    .update(schema.schoolYears)
+    .set({
+      isCurrent: false,
+      revision: sql`${schema.schoolYears.revision} + 1`,
+      updatedAt: new Date(),
+    })
+    .where(eq(schema.schoolYears.isCurrent, true));
+  const [updated] = await tx
+    .update(schema.schoolYears)
+    .set({
+      isCurrent: true,
+      revision: sql`${schema.schoolYears.revision} + 1`,
+      updatedAt: new Date(),
+    })
+    .where(eq(schema.schoolYears.id, year.id))
+    .returning();
+  await tx.insert(schema.schoolYearEvents).values({
+    schoolYearId: year.id,
+    actorId,
+    action: "made_default",
+  });
+  return updated;
+}
+
+export function setDefaultAcademicYear(
+  db: Database,
+  input: SetDefaultYearInput,
+  actorId: string,
+) {
+  return db.transaction((tx) => applyDefaultAcademicYear(tx, input, actorId));
+}
+
+export function academicYearEvents(db: Database, schoolYearId: string) {
+  return db
+    .select({
+      id: schema.schoolYearEvents.id,
+      action: schema.schoolYearEvents.action,
+      reason: schema.schoolYearEvents.reason,
+      createdAt: schema.schoolYearEvents.createdAt,
+      actor: { id: schema.users.id, name: schema.users.name },
+    })
+    .from(schema.schoolYearEvents)
+    .innerJoin(
+      schema.users,
+      eq(schema.users.id, schema.schoolYearEvents.actorId),
+    )
+    .where(eq(schema.schoolYearEvents.schoolYearId, schoolYearId))
+    .orderBy(desc(schema.schoolYearEvents.createdAt))
+    .limit(50);
 }

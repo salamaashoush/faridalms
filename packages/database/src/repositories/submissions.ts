@@ -17,6 +17,7 @@ import { and, eq, sql } from "drizzle-orm";
 import type { Database, DatabaseTransaction } from "../index";
 
 import { schema } from "../index";
+import { assertClassYearOpen } from "./academic-years";
 import { assessmentFilter, audienceIncludes } from "./academics";
 import { fileSummary, ownedReadyFiles } from "./files";
 import { ManagementError } from "./management";
@@ -147,6 +148,7 @@ async function lockedSubmissionContext(
   });
   if (!assignment)
     throw new ManagementError("NOT_FOUND", "assignment.not_found");
+  await assertClassYearOpen(tx, assignment.classId);
   const [submission] = await tx
     .select()
     .from(schema.submissions)
@@ -403,6 +405,7 @@ export async function assessAttempt(
             assignment: {
               columns: {
                 id: true,
+                classId: true,
                 title: true,
                 maxScore: true,
                 rubric: true,
@@ -417,6 +420,7 @@ export async function assessAttempt(
     const assignment = attempt?.submission?.assignment;
     if (!attempt?.submission || !assignment)
       throw new ManagementError("NOT_FOUND", "assessment.not_found");
+    await assertClassYearOpen(tx, assignment.classId);
     if (input.score > assignment.maxScore)
       throw new ManagementError("BAD_REQUEST", "assessment.score_range");
     if (assignment.rubric.length) {

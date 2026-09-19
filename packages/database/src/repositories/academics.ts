@@ -516,6 +516,8 @@ export async function recordAttendance(
     });
     if (!schoolClass?.schoolYear)
       throw new ManagementError("NOT_FOUND", "attendance.class_missing");
+    if (schoolClass.schoolYear.status === "closed")
+      throw new ManagementError("CONFLICT", "academic_year.closed");
     if (
       scope.kind === "none" ||
       (scope.kind === "teacher" &&

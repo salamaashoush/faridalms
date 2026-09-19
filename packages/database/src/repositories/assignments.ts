@@ -18,6 +18,7 @@ import { and, eq, inArray, notInArray, sql } from "drizzle-orm";
 import type { Database, DatabaseTransaction } from "../index";
 
 import { schema } from "../index";
+import { assertYearOpen } from "./academic-years";
 import { assessmentFilter, listWeeks } from "./academics";
 import { fileSummary, ownedReadyFiles } from "./files";
 import { groupMembers } from "./groups";
@@ -89,6 +90,7 @@ async function offeringFor(
     throw new ManagementError("BAD_REQUEST", "assignment.subject_not_taught");
   if (!canAssessOffering(actor.scope, offering.teacherId))
     throw new ManagementError("FORBIDDEN", "assignment.responsibility");
+  await assertYearOpen(db, schoolClass.schoolYearId);
   return { ...offering, class: schoolClass };
 }
 
