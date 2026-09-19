@@ -415,10 +415,14 @@ export const privateFiles = pgTable(
     state: fileStateEnum().notNull().default("initiated"),
     storageKey: text("storage_key").notNull().unique(),
     completedAt: timestamp("completed_at", { withTimezone: true }),
+    rejectionReason: varchar("rejection_reason", { length: 32 }),
+    // Null when no scanner was configured at upload time.
+    scannedAt: timestamp("scanned_at", { withTimezone: true }),
     ...timestamps,
   },
   (table) => [
     index("private_files_owner_idx").on(table.ownerId, table.state),
+    index("private_files_state_idx").on(table.state, table.updatedAt),
     check("private_files_size_check", sql`${table.sizeBytes} > 0`),
   ],
 );
