@@ -2,7 +2,7 @@ import type { AssessmentScope } from "@faridalms/domain/academic-access";
 import type { ClassDirectoryQuery } from "@faridalms/domain/school-schema";
 
 import { canAssessOffering } from "@faridalms/domain/academic-access";
-import { count, eq, or, ilike, sql } from "drizzle-orm";
+import { and, count, eq, ilike, or, sql } from "drizzle-orm";
 
 import type { Database } from "../index";
 
@@ -60,7 +60,16 @@ export async function getClassDetail(db: Database, id: string, date: string) {
     where: { id },
     with: {
       homeroomTeacher: { columns: { id: true, name: true, email: true } },
-      schoolYear: { columns: { name: true, startsOn: true, endsOn: true } },
+      schoolYear: {
+        columns: {
+          id: true,
+          name: true,
+          startsOn: true,
+          endsOn: true,
+          status: true,
+          isCurrent: true,
+        },
+      },
       classSubjects: {
         columns: {},
         with: {
@@ -101,6 +110,9 @@ export async function getClassDetail(db: Database, id: string, date: string) {
     stage: row.stage,
     room: row.room,
     schoolYear: row.schoolYear?.name ?? null,
+    schoolYearId: row.schoolYear?.id ?? null,
+    schoolYearStatus: row.schoolYear?.status ?? null,
+    schoolYearIsCurrent: row.schoolYear?.isCurrent ?? false,
     yearStartsOn: row.schoolYear?.startsOn ?? null,
     yearEndsOn: row.schoolYear?.endsOn ?? null,
     homeroomTeacher: row.homeroomTeacher,
@@ -160,14 +172,21 @@ export async function schoolAttendanceRate(
   return Math.round((present / total) * 100);
 }
 
-export async function classDirectory(db: Database, query: ClassDirectoryQuery) {
+export async function classDirectory(
+  db: Database,
+  query: ClassDirectoryQuery,
+  schoolYearId: string,
+) {
   const needle = `%${query.q.replaceAll(/[\\%_]/g, "\\$&")}%`;
-  const filter = query.q
-    ? or(
-        ilike(schema.classes.name, needle),
-        ilike(schema.classes.grade, needle),
-      )
-    : undefined;
+  const filter = and(
+    eq(schema.classes.schoolYearId, schoolYearId),
+    query.q
+      ? or(
+          ilike(schema.classes.name, needle),
+          ilike(schema.classes.grade, needle),
+        )
+      : undefined,
+  );
   const [totals] = await db
     .select({ total: count() })
     .from(schema.classes)

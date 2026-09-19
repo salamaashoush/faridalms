@@ -223,7 +223,14 @@ export const recordAttendanceSchema = v.object({
 });
 export type RecordAttendanceInput = v.InferInput<typeof recordAttendanceSchema>;
 
+/** An explicit working year, or empty for the school's default year. */
+export const workingYearSchema = v.optional(
+  v.union([v.literal(""), v.pipe(v.string(), v.uuid())]),
+  "",
+);
+
 export const studentDirectorySchema = v.object({
+  year: workingYearSchema,
   q: v.optional(v.pipe(v.string(), v.maxLength(200)), ""),
   sort: v.optional(
     v.picklist(["name", "reference", "grade", "class", "homeroom"]),
@@ -272,6 +279,7 @@ export const staffDirectorySchema = v.object({
 export type StaffDirectoryQuery = v.InferOutput<typeof staffDirectorySchema>;
 
 export const classDirectorySchema = v.object({
+  year: workingYearSchema,
   sort: v.optional(v.picklist(["name", "grade", "room"]), "name"),
   dir: studentDirectorySchema.entries.dir,
   classId: v.optional(v.string(), ""),

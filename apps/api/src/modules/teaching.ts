@@ -133,8 +133,12 @@ export const getClass = protectedProcedure
             summary: summaries.get(student.id) ?? null,
           }))
         : null,
-      canManage: user.permissions.includes("classes:manage"),
-      canRecordAttendance: user.permissions.includes("attendance:record"),
+      canManage:
+        user.permissions.includes("classes:manage") &&
+        detail.schoolYearStatus !== "closed",
+      canRecordAttendance:
+        user.permissions.includes("attendance:record") &&
+        detail.schoolYearStatus !== "closed",
     };
   });
 

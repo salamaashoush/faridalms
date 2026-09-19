@@ -4,7 +4,18 @@ import type {
 } from "@faridalms/domain/school-schema";
 
 import { ageOn } from "@faridalms/domain/school";
-import { and, inArray, isNull, eq, sql, count, or, ilike } from "drizzle-orm";
+import {
+  and,
+  count,
+  eq,
+  gt,
+  ilike,
+  inArray,
+  isNull,
+  lte,
+  or,
+  sql,
+} from "drizzle-orm";
 
 import type { Database } from "../index";
 
@@ -283,8 +294,15 @@ export async function rosterFor(
 export async function studentDirectory(
   db: Database,
   query: StudentDirectoryQuery,
+  placement: { schoolYearId: string; on: string },
 ) {
   const { students, enrolments, classes, users } = schema;
+  const placed = and(
+    eq(enrolments.studentId, students.id),
+    lte(enrolments.since, placement.on),
+    or(isNull(enrolments.until), gt(enrolments.until, placement.on)),
+    sql`${enrolments.classId} in (select id from ${classes} where ${classes.schoolYearId} = ${placement.schoolYearId})`,
+  );
   const name = sql<string>`${students.firstName} || ' ' || ${students.lastName}`;
   const sortColumns = {
     name,
@@ -314,20 +332,14 @@ export async function studentDirectory(
       homeroomTeacher: users.name,
     })
     .from(students)
-    .leftJoin(
-      enrolments,
-      and(eq(enrolments.studentId, students.id), isNull(enrolments.until)),
-    )
+    .leftJoin(enrolments, placed)
     .leftJoin(classes, eq(enrolments.classId, classes.id))
     .leftJoin(users, eq(classes.homeroomTeacherId, users.id))
     .where(filter);
   const [totals] = await db
     .select({ total: count() })
     .from(students)
-    .leftJoin(
-      enrolments,
-      and(eq(enrolments.studentId, students.id), isNull(enrolments.until)),
-    )
+    .leftJoin(enrolments, placed)
     .leftJoin(classes, eq(enrolments.classId, classes.id))
     .leftJoin(users, eq(classes.homeroomTeacherId, users.id))
     .where(filter);

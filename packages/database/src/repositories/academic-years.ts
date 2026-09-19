@@ -289,3 +289,33 @@ export function academicYearEvents(db: Database, schoolYearId: string) {
     .orderBy(desc(schema.schoolYearEvents.createdAt))
     .limit(50);
 }
+
+/**
+ * The year a directory or report is about: the one asked for, or the default
+ * when none is. An unknown id is refused rather than quietly replaced.
+ */
+export async function workingYear(db: Executor, requested: string) {
+  const year = await db.query.schoolYears.findFirst({
+    where: requested ? { id: requested } : { isCurrent: true },
+    columns: {
+      id: true,
+      name: true,
+      status: true,
+      isCurrent: true,
+      startsOn: true,
+      endsOn: true,
+    },
+  });
+  if (!year) throw new ManagementError("NOT_FOUND", "academic_year.not_found");
+  return year;
+}
+
+/** The day placements are read on: today, held inside the year's dates. */
+export function placementDate(
+  year: { startsOn: string; endsOn: string },
+  today: string,
+) {
+  if (today < year.startsOn) return year.startsOn;
+  if (today > year.endsOn) return year.endsOn;
+  return today;
+}

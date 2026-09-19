@@ -1,4 +1,8 @@
 import { schools, sessions } from "@faridalms/database/control-schema";
+import {
+  placementDate,
+  workingYear,
+} from "@faridalms/database/repositories/academic-years";
 import { currentSchoolYear } from "@faridalms/database/repositories/academics";
 import { upcomingEvents } from "@faridalms/database/repositories/communication";
 import {
@@ -49,14 +53,19 @@ export const getAdminOverview = protectedProcedure.handler(
     const [stats, rate, classes, upcoming] = await Promise.all([
       schoolStats(context.db),
       schoolAttendanceRate(context.db),
-      classDirectory(context.db, {
-        classId: "",
-        q: "",
-        page: 1,
-        pageSize: 12,
-        sort: "name",
-        dir: "asc",
-      }),
+      classDirectory(
+        context.db,
+        {
+          year: "",
+          classId: "",
+          q: "",
+          page: 1,
+          pageSize: 12,
+          sort: "name",
+          dir: "asc",
+        },
+        year.id,
+      ),
       upcomingEvents(context.db, year.id, context.today, 6),
     ]);
     return {
@@ -74,7 +83,14 @@ export const getAllStudents = protectedProcedure
   .input(studentDirectorySchema)
   .handler(async ({ context, input }) => {
     await requirePermission(context, "users:read");
-    return studentDirectory(context.db, input);
+    const year = await manage(() => workingYear(context.db, input.year));
+    return {
+      ...(await studentDirectory(context.db, input, {
+        schoolYearId: year.id,
+        on: placementDate(year, context.today),
+      })),
+      year,
+    };
   });
 
 export const getAllUsers = protectedProcedure
@@ -88,7 +104,8 @@ export const getAllClasses = protectedProcedure
   .input(classDirectorySchema)
   .handler(async ({ context, input }) => {
     await requirePermission(context, "school:manage");
-    return classDirectory(context.db, input);
+    const year = await manage(() => workingYear(context.db, input.year));
+    return { ...(await classDirectory(context.db, input, year.id)), year };
   });
 
 export const getSubjects = protectedProcedure.handler(async ({ context }) => {
