@@ -1,6 +1,7 @@
 import type { APIRequestContext } from "@playwright/test";
 
 import { expect, test } from "@playwright/test";
+import { execFileSync } from "node:child_process";
 
 const origin = "http://127.0.0.1:3001/v1";
 
@@ -111,6 +112,16 @@ test("search returns only what the viewer's relationships reach and never medica
       title.startsWith("Ali"),
     ),
   ).toBe(true);
+
+  const otherYear = JSON.parse(
+    execFileSync("bun", ["e2e/fixtures/academic-year.ts"], {
+      encoding: "utf8",
+    }),
+  ) as { classId: string };
+  const adminClasses = await find(request, admin, "Salama", "classes");
+  expect(
+    adminClasses.groups.flatMap((group) => group.rows.map((hit) => hit.id)),
+  ).not.toContain(otherYear.classId);
 
   expect((await find(request, admin, "Peanuts")).groups).toEqual([]);
   expect((await find(request, sara, "Peanuts")).groups).toEqual([]);
