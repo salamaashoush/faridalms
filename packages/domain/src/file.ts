@@ -13,6 +13,24 @@ export type FilePurpose = (typeof FILE_PURPOSES)[number];
 export const FILE_STATES = ["initiated", "ready", "rejected"] as const;
 export const MAX_FILE_BYTES = 25 * 1024 * 1024;
 
+export const FILE_REJECTIONS = [
+  "too_large",
+  "size_mismatch",
+  "content_mismatch",
+  "infected",
+  "scan_unavailable",
+  "abandoned",
+] as const;
+export type FileRejection = (typeof FILE_REJECTIONS)[number];
+
+const HOUR = 60 * 60 * 1000;
+/** How long an upload may stay initiated before it counts as abandoned. */
+export const ABANDONED_UPLOAD_MS = 24 * HOUR;
+/** How long a verified file may stay attached to nothing before it is removed. */
+export const UNLINKED_FILE_MS = 7 * 24 * HOUR;
+/** How long a rejected upload's record is kept for diagnosis. */
+export const REJECTED_FILE_MS = 30 * 24 * HOUR;
+
 /**
  * Extensions a school may exchange, each with the media types a browser may
  * legitimately report for it. Anything executable or scriptable stays out;
@@ -49,6 +67,92 @@ const ACCEPTED_TYPES: Record<string, readonly string[]> = {
   vtt: ["text/vtt"],
   zip: ["application/zip", "application/x-zip-compressed"],
 };
+
+const bytesOf = (text: string) => Array.from(new TextEncoder().encode(text));
+
+/**
+ * Leading bytes each binary format must start with, so a renamed executable or
+ * script cannot pass as a document. Offsets are relative to the file start.
+ */
+const SIGNATURES: Record<string, readonly (readonly [number, number[]])[][]> = {
+  pdf: [[[0, bytesOf("%PDF-")]]],
+  png: [[[0, [0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]]]],
+  jpg: [[[0, [0xff, 0xd8, 0xff]]]],
+  jpeg: [[[0, [0xff, 0xd8, 0xff]]]],
+  gif: [[[0, bytesOf("GIF87a")]], [[0, bytesOf("GIF89a")]]],
+  webp: [
+    [
+      [0, bytesOf("RIFF")],
+      [8, bytesOf("WEBP")],
+    ],
+  ],
+  doc: [[[0, [0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1]]]],
+  xls: [[[0, [0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1]]]],
+  ppt: [[[0, [0xd0, 0xcf, 0x11, 0xe0, 0xa1, 0xb1, 0x1a, 0xe1]]]],
+  docx: [[[0, [0x50, 0x4b, 0x03, 0x04]]]],
+  pptx: [[[0, [0x50, 0x4b, 0x03, 0x04]]]],
+  xlsx: [[[0, [0x50, 0x4b, 0x03, 0x04]]]],
+  odt: [[[0, [0x50, 0x4b, 0x03, 0x04]]]],
+  odp: [[[0, [0x50, 0x4b, 0x03, 0x04]]]],
+  ods: [[[0, [0x50, 0x4b, 0x03, 0x04]]]],
+  zip: [[[0, [0x50, 0x4b, 0x03, 0x04]]], [[0, [0x50, 0x4b, 0x05, 0x06]]]],
+  mp3: [
+    [[0, bytesOf("ID3")]],
+    [[0, [0xff, 0xfb]]],
+    [[0, [0xff, 0xf3]]],
+    [[0, [0xff, 0xf2]]],
+    [[0, [0xff, 0xfa]]],
+    [[0, [0xff, 0xe3]]],
+  ],
+  m4a: [[[4, bytesOf("ftyp")]]],
+  mp4: [[[4, bytesOf("ftyp")]]],
+  wav: [
+    [
+      [0, bytesOf("RIFF")],
+      [8, bytesOf("WAVE")],
+    ],
+  ],
+  webm: [[[0, [0x1a, 0x45, 0xdf, 0xa3]]]],
+};
+
+const TEXT_EXTENSIONS = new Set(["txt", "md", "csv", "vtt"]);
+
+/** Extensions whose content can be checked, for the guard that every accepted one can. */
+export const CONTENT_CHECKED_EXTENSIONS = [
+  ...TEXT_EXTENSIONS,
+  ...Object.keys(SIGNATURES),
+];
+
+/** Bytes to read before judging a file: the whole of a text file, a prefix otherwise. */
+export function contentBytesNeeded(name: string, sizeBytes: number): number {
+  return TEXT_EXTENSIONS.has(fileExtension(name)) ? sizeBytes : 64;
+}
+
+/**
+ * Whether stored bytes are what the name claims. Text must be UTF-8 without
+ * NUL bytes (WebVTT must also carry its header); other formats must open with
+ * their signature.
+ */
+export function contentMatchesName(name: string, bytes: Uint8Array): boolean {
+  const extension = fileExtension(name);
+  if (TEXT_EXTENSIONS.has(extension)) {
+    if (bytes.includes(0)) return false;
+    let text: string;
+    try {
+      text = new TextDecoder("utf-8", { fatal: true }).decode(bytes);
+    } catch {
+      return false;
+    }
+    return extension !== "vtt" || /^\uFEFF?WEBVTT(?:[ \t\r\n]|$)/.test(text);
+  }
+  const alternatives = SIGNATURES[extension];
+  if (!alternatives) return false;
+  return alternatives.some((parts) =>
+    parts.every(([offset, expected]) =>
+      expected.every((byte, index) => bytes[offset + index] === byte),
+    ),
+  );
+}
 
 export function fileExtension(name: string): string {
   const match = /\.([a-z0-9]{1,10})$/i.exec(name);
