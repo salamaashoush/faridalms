@@ -51,8 +51,11 @@ export const getAdminOverview = protectedProcedure.handler(
     await requirePermission(context, "school:manage");
     const year = await currentSchoolYear(context.db);
     const [stats, rate, classes, upcoming] = await Promise.all([
-      schoolStats(context.db),
-      schoolAttendanceRate(context.db),
+      schoolStats(context.db, {
+        id: year.id,
+        on: placementDate(year, context.today),
+      }),
+      schoolAttendanceRate(context.db, year.id),
       classDirectory(
         context.db,
         {

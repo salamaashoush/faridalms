@@ -2,7 +2,7 @@ import type { AssessmentScope } from "@faridalms/domain/academic-access";
 import type { ClassDirectoryQuery } from "@faridalms/domain/school-schema";
 
 import { canAssessOffering } from "@faridalms/domain/academic-access";
-import { and, count, eq, ilike, or, sql } from "drizzle-orm";
+import { and, count, eq, gt, ilike, isNull, lte, or, sql } from "drizzle-orm";
 
 import type { Database } from "../index";
 
@@ -135,15 +135,45 @@ export interface SchoolStats {
   unreadAcrossSchool: number;
 }
 
-export async function schoolStats(db: Database): Promise<SchoolStats> {
+/**
+ * The overview's counts for one year: its classes, the students placed in
+ * them on `on`, the teachers on staff, its coursework and its attendance.
+ */
+export async function schoolStats(
+  db: Database,
+  year: { id: string; on: string },
+): Promise<SchoolStats> {
+  const inYear = sql`(select id from ${schema.classes} where ${schema.classes.schoolYearId} = ${year.id})`;
   const [[students], [classes], [teachers], [assignments]] = await Promise.all([
-    db.select({ n: count() }).from(schema.students),
-    db.select({ n: count() }).from(schema.classes),
+    db
+      .select({
+        n: sql<number>`count(distinct ${schema.enrolments.studentId})::int`,
+      })
+      .from(schema.enrolments)
+      .where(
+        and(
+          sql`${schema.enrolments.classId} in ${inYear}`,
+          lte(schema.enrolments.since, year.on),
+          or(
+            isNull(schema.enrolments.until),
+            gt(schema.enrolments.until, year.on),
+          ),
+        ),
+      ),
+    db
+      .select({ n: count() })
+      .from(schema.classes)
+      .where(eq(schema.classes.schoolYearId, year.id)),
     db
       .select({ n: count() })
       .from(schema.users)
-      .where(eq(schema.users.role, "teacher")),
-    db.select({ n: count() }).from(schema.assignments),
+      .where(
+        and(eq(schema.users.role, "teacher"), eq(schema.users.isActive, true)),
+      ),
+    db
+      .select({ n: count() })
+      .from(schema.assignments)
+      .where(sql`${schema.assignments.classId} in ${inYear}`),
   ]);
 
   return {
@@ -155,13 +185,17 @@ export async function schoolStats(db: Database): Promise<SchoolStats> {
   };
 }
 
-/** Attendance rate across the whole school, for the admin overview. */
+/** Attendance rate across one year's classes, for the admin overview. */
 export async function schoolAttendanceRate(
   db: Database,
+  schoolYearId: string,
 ): Promise<number | null> {
   const rows = await db
     .select({ status: schema.attendance.status, n: count() })
     .from(schema.attendance)
+    .where(
+      sql`${schema.attendance.classId} in (select id from ${schema.classes} where ${schema.classes.schoolYearId} = ${schoolYearId})`,
+    )
     .groupBy(schema.attendance.status);
 
   const total = rows.reduce((sum, row) => sum + row.n, 0);
