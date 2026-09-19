@@ -117,6 +117,7 @@ const classes: Searcher = async (db, scope, needles, limit, offset) => {
   if (scope.classIds.length === 0) return EMPTY;
   const where = and(
     inArray(s.classes.id, scope.classIds),
+    eq(s.classes.schoolYearId, scope.schoolYearId),
     or(
       ilike(s.classes.name, needles.contains),
       ilike(s.classes.grade, needles.contains),
