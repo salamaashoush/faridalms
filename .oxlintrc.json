@@ -110,7 +110,7 @@
         "playwright.config.ts",
         "drizzle*.config.ts",
         "apps/api/src/env.ts",
-        "e2e/fixtures/academic-year.ts",
+        "e2e/fixtures/**",
         "scripts/**",
         ".husky/**"
       ],
