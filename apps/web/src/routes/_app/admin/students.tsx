@@ -9,9 +9,11 @@ import type { DataColumn } from "~/components/admin/DataTable";
 
 import { DataTable } from "~/components/admin/DataTable";
 import { PersonAvatar } from "~/components/admin/PersonAvatar";
+import { YearSwitcher } from "~/components/admin/YearSwitcher";
 import { PageHeader, Value } from "~/components/app/primitives";
 import { Button } from "~/components/ui/button";
 import * as m from "~/i18n/messages";
+import { academicYearsQuery } from "~/queries/academic-years";
 import { allStudentsQuery } from "~/queries/school";
 
 interface StudentRow {
@@ -74,8 +76,12 @@ const columns: DataColumn<StudentRow, StudentDirectoryQuery["sort"]>[] = [
 export const Route = createFileRoute("/_app/admin/students")({
   validateSearch: studentDirectorySchema,
   loaderDeps: ({ search }) => search,
-  loader: ({ context, deps }) =>
-    context.queryClient.ensureQueryData(allStudentsQuery(deps)),
+  loader: async ({ context, deps }) => {
+    await Promise.all([
+      context.queryClient.ensureQueryData(allStudentsQuery(deps)),
+      context.queryClient.ensureQueryData(academicYearsQuery),
+    ]);
+  },
   component: StudentsPage,
 });
 function StudentsPage() {
@@ -91,14 +97,20 @@ function StudentsPage() {
         title={m.adminStudentsTitle()}
         description={m.managementStudentsSubtitle()}
         actions={
-          <Button
-            onClick={() => {
-              void navigate({ to: "/student-editor", search: {} });
-            }}
-          >
-            <Plus aria-hidden />
-            {m.managementAddStudent()}
-          </Button>
+          <>
+            <YearSwitcher
+              value={search.year}
+              onChange={(year) => patch({ year, page: 1 })}
+            />
+            <Button
+              onClick={() => {
+                void navigate({ to: "/student-editor", search: {} });
+              }}
+            >
+              <Plus aria-hidden />
+              {m.managementAddStudent()}
+            </Button>
+          </>
         }
       />
       <DataTable

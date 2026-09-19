@@ -1460,5 +1460,8 @@
   "rolloverRevisionConflict": "Someone else saved this plan first. Reload to see their version.",
   "rolloverNotSaved": "Save the plan before applying it.",
   "rolloverPlanStale": "Classes or enrollment changed since the plan was saved. Reload, review and save it again.",
-  "rolloverNameTaken": "The new year already has a class with one of these names."
+  "rolloverNameTaken": "The new year already has a class with one of these names.",
+  "workingYear": "School year",
+  "workingYearDefault": "{name} (default)",
+  "classYearContext": "{year} · {status} · not the default year"
 }

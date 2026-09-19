@@ -11,6 +11,7 @@ import type { DataColumn } from "~/components/admin/DataTable";
 import { ClassRoster } from "~/components/admin/ClassRoster";
 import { DataTable } from "~/components/admin/DataTable";
 import { STAGE_LABEL } from "~/components/admin/labels";
+import { YearSwitcher } from "~/components/admin/YearSwitcher";
 import {
   Dialog,
   DialogContent,
@@ -22,6 +23,7 @@ import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 import { Skeleton } from "~/components/ui/skeleton";
 import * as m from "~/i18n/messages";
+import { academicYearsQuery } from "~/queries/academic-years";
 import { allClassesQuery, classQuery } from "~/queries/school";
 import { formatNumber } from "~/utils/datetime";
 
@@ -89,7 +91,10 @@ export const Route = createFileRoute("/_app/admin/classes")({
   validateSearch: classDirectorySchema,
   loaderDeps: ({ search }) => search,
   loader: async ({ context, deps }) => {
-    await context.queryClient.ensureQueryData(allClassesQuery(deps));
+    await Promise.all([
+      context.queryClient.ensureQueryData(allClassesQuery(deps)),
+      context.queryClient.ensureQueryData(academicYearsQuery),
+    ]);
     if (deps.classId)
       await context.queryClient.ensureQueryData(classQuery(deps.classId));
   },
@@ -108,14 +113,22 @@ function ClassesPage() {
         title={m.adminClassesTitle()}
         description={m.managementClassesSubtitle()}
         actions={
-          <Button
-            onClick={() => {
-              void navigate({ to: "/admin/class-editor", search: {} });
-            }}
-          >
-            <Plus aria-hidden />
-            {m.managementAddClass()}
-          </Button>
+          <>
+            <YearSwitcher
+              value={search.year}
+              onChange={(year) => patch({ year, page: 1, classId: "" })}
+            />
+            {data.year.isCurrent ? (
+              <Button
+                onClick={() => {
+                  void navigate({ to: "/admin/class-editor", search: {} });
+                }}
+              >
+                <Plus aria-hidden />
+                {m.managementAddClass()}
+              </Button>
+            ) : null}
+          </>
         }
       />
       <DataTable
@@ -144,19 +157,21 @@ function ClassesPage() {
               <Users className="size-4" aria-hidden />
               {m.adminViewRoster()}
             </Button>
-            <Button
-              size="icon-sm"
-              variant="ghost"
-              onClick={() => {
-                void navigate({
-                  to: "/admin/class-editor",
-                  search: { id: row.id },
-                });
-              }}
-              aria-label={m.managementEditNamed({ name: row.name })}
-            >
-              <Pencil className="size-4" aria-hidden />
-            </Button>
+            {data.year.isCurrent ? (
+              <Button
+                size="icon-sm"
+                variant="ghost"
+                onClick={() => {
+                  void navigate({
+                    to: "/admin/class-editor",
+                    search: { id: row.id },
+                  });
+                }}
+                aria-label={m.managementEditNamed({ name: row.name })}
+              >
+                <Pencil className="size-4" aria-hidden />
+              </Button>
+            ) : null}
           </div>
         )}
       />

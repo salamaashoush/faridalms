@@ -88,7 +88,7 @@ export const getAllStudents = createServerFn({ method: "GET" })
   .validator((input: v.InferInput<typeof studentDirectorySchema>) =>
     v.parse(studentDirectorySchema, input),
   )
-  .handler(({ data }) => backend().getAllStudents(data));
+  .handler(({ data }) => record(backend().getAllStudents(data)));
 
 export const getAllUsers = createServerFn({ method: "GET" })
   .validator((input: v.InferInput<typeof staffDirectorySchema>) =>
@@ -100,7 +100,7 @@ export const getAllClasses = createServerFn({ method: "GET" })
   .validator((input: v.InferInput<typeof classDirectorySchema>) =>
     v.parse(classDirectorySchema, input),
   )
-  .handler(({ data }) => backend().getAllClasses(data));
+  .handler(({ data }) => record(backend().getAllClasses(data)));
 
 export const getSubjects = createServerFn({ method: "GET" }).handler(() =>
   backend().getSubjects(),

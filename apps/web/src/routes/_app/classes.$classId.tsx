@@ -9,6 +9,7 @@ import type { getClass } from "~/server/school";
 
 import { DataTable } from "~/components/admin/DataTable";
 import { PersonAvatar } from "~/components/admin/PersonAvatar";
+import { YEAR_STATUS_LABEL } from "~/components/admin/YearLifecycle";
 import { ButtonLink } from "~/components/app/ButtonLink";
 import { SubjectIcon } from "~/components/app/labels";
 import {
@@ -94,7 +95,16 @@ function ClassPage() {
     <>
       <PageHeader
         title={data.name}
-        description={data.schoolYear ?? undefined}
+        description={
+          data.schoolYear
+            ? data.schoolYearIsCurrent || !data.schoolYearStatus
+              ? data.schoolYear
+              : m.classYearContext({
+                  year: data.schoolYear,
+                  status: YEAR_STATUS_LABEL[data.schoolYearStatus](),
+                })
+            : undefined
+        }
         actions={
           <>
             {data.canRecordAttendance ? (

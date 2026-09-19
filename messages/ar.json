@@ -1460,5 +1460,8 @@
   "rolloverRevisionConflict": "حفظ شخص آخر هذه الخطة أولاً. أعد التحميل لرؤية نسخته.",
   "rolloverNotSaved": "احفظ الخطة قبل تطبيقها.",
   "rolloverPlanStale": "تغيّرت الفصول أو التسجيلات منذ حفظ الخطة. أعد التحميل وراجعها واحفظها مرة أخرى.",
-  "rolloverNameTaken": "يوجد في العام الجديد فصل يحمل أحد هذه الأسماء."
+  "rolloverNameTaken": "يوجد في العام الجديد فصل يحمل أحد هذه الأسماء.",
+  "workingYear": "العام الدراسي",
+  "workingYearDefault": "{name} (الافتراضي)",
+  "classYearContext": "{year} · {status} · ليس العام الافتراضي"
 }
