@@ -13,7 +13,7 @@ import { router } from "./router";
 export function createApp(
   dependencies: Pick<
     ApiContext,
-    "control" | "pools" | "files" | "maxUploadBytes"
+    "control" | "pools" | "files" | "scanner" | "maxUploadBytes"
   >,
 ) {
   const rpc = new RPCHandler(router);

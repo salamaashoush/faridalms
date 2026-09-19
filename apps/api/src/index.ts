@@ -2,7 +2,9 @@ import { createControlDatabase } from "@faridalms/database/control";
 
 import { createApp } from "./app";
 import { env } from "./env";
+import { createScanner } from "./files/scan";
 import { DiskFileStore } from "./files/store";
+import { FileSweeper } from "./files/sweep";
 import { createProvider } from "./notifications/providers";
 import { NotificationWorker } from "./notifications/worker";
 import { TenantPools } from "./tenancy";
@@ -21,6 +23,9 @@ const worker = new NotificationWorker(
   env.NOTIFICATION_RETRY_BASE_MS,
 );
 worker.start();
+const scanner = createScanner(env.CLAMD_ADDRESS);
+const sweeper = new FileSweeper(control, pools, files, env.FILE_SWEEP_MS);
+sweeper.start();
 const server = Bun.serve({
   port: env.API_PORT,
   // Uploads stream through the raw file route; everything else stays small.
@@ -29,6 +34,7 @@ const server = Bun.serve({
     control,
     pools,
     files,
+    scanner,
     maxUploadBytes: env.MAX_UPLOAD_BYTES,
   }),
 });
@@ -40,6 +46,7 @@ async function shutdown() {
   stopping = true;
   await server.stop();
   await worker.stop();
+  await sweeper.stop();
   await pools.close();
   await control.$client.close();
   process.exit(0);

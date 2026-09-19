@@ -76,3 +76,35 @@ export class DiskFileStore implements FileStore {
     await rm(this.path(key), { force: true });
   }
 }
+
+/** Up to `limit` leading bytes of a stored object, without reading the rest. */
+export async function readPrefix(
+  store: FileStore,
+  key: string,
+  limit: number,
+): Promise<Uint8Array> {
+  const body = await store.open(key);
+  if (!body) return new Uint8Array(0);
+  const reader = body.getReader();
+  const parts: Uint8Array[] = [];
+  let length = 0;
+  try {
+    while (length < limit) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      parts.push(value);
+      length += value.byteLength;
+    }
+  } finally {
+    await reader.cancel();
+  }
+  const bytes = new Uint8Array(Math.min(length, limit));
+  let offset = 0;
+  for (const part of parts) {
+    const slice = part.subarray(0, bytes.length - offset);
+    bytes.set(slice, offset);
+    offset += slice.byteLength;
+    if (offset >= bytes.length) break;
+  }
+  return bytes;
+}

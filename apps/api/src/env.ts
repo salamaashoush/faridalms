@@ -26,6 +26,9 @@ export const env = v.parse(
     SMS_PROVIDER_TOKEN: v.optional(v.string()),
     NOTIFICATION_POLL_MS: v.optional(positiveInteger, "15000"),
     NOTIFICATION_RETRY_BASE_MS: v.optional(positiveInteger, "60000"),
+    // host:port of a clamd daemon; uploads are only signature-checked without one.
+    CLAMD_ADDRESS: v.optional(v.pipe(v.string(), v.regex(/^[^\s:]+:\d+$/))),
+    FILE_SWEEP_MS: v.optional(positiveInteger, String(60 * 60 * 1000)),
   }),
   process.env,
 );

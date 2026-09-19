@@ -4,14 +4,19 @@ import {
   pendingFile,
   rejectFile,
 } from "@faridalms/database/repositories/files";
-import { contentDisposition } from "@faridalms/domain/file";
+import {
+  contentBytesNeeded,
+  contentDisposition,
+  contentMatchesName,
+} from "@faridalms/domain/file";
 import { ORPCError } from "@orpc/server";
 
 import type { ApiContext } from "../context";
 
 import { authenticate } from "../session";
 import { canReadFile } from "./authorize";
-import { StoreError } from "./store";
+import { ScanUnavailableError } from "./scan";
+import { readPrefix, StoreError } from "./store";
 
 const PATH = /^\/v1\/files\/([0-9a-f-]{36})\/content$/;
 
@@ -61,21 +66,66 @@ export async function handleFileRequest(
         );
       } catch (error) {
         if (error instanceof StoreError) {
-          await rejectFile(session.db, fileId, session.user.id);
+          await rejectFile(session.db, fileId, session.user.id, "too_large");
           return problem(413, "file.too_large", context.requestId);
         }
         throw error;
       }
-      if (stored.sizeBytes !== file.sizeBytes) {
+      const refuse = async (
+        status: number,
+        reason:
+          | "size_mismatch"
+          | "content_mismatch"
+          | "infected"
+          | "scan_unavailable",
+      ) => {
         await context.files.remove(file.storageKey);
-        await rejectFile(session.db, fileId, session.user.id);
-        return problem(400, "file.size_mismatch", context.requestId);
+        await rejectFile(session.db, fileId, session.user.id, reason);
+        return problem(status, `file.${reason}`, context.requestId);
+      };
+      if (stored.sizeBytes !== file.sizeBytes)
+        return refuse(400, "size_mismatch");
+      const head = await readPrefix(
+        context.files,
+        file.storageKey,
+        contentBytesNeeded(file.name, stored.sizeBytes),
+      );
+      if (!contentMatchesName(file.name, head))
+        return refuse(422, "content_mismatch");
+      let scannedAt: Date | null = null;
+      if (context.scanner) {
+        const body = await context.files.open(file.storageKey);
+        if (!body) return refuse(400, "size_mismatch");
+        try {
+          const verdict = await context.scanner.scan(body);
+          if (!verdict.clean) {
+            console.warn(
+              JSON.stringify({
+                requestId: context.requestId,
+                file: fileId,
+                signature: verdict.signature,
+              }),
+            );
+            return refuse(422, "infected");
+          }
+        } catch (error) {
+          if (!(error instanceof ScanUnavailableError)) throw error;
+          console.error(
+            JSON.stringify({
+              requestId: context.requestId,
+              file: fileId,
+              scanner: error.message,
+            }),
+          );
+          return refuse(503, "scan_unavailable");
+        }
+        scannedAt = new Date();
       }
       const completed = await completeFile(
         session.db,
         fileId,
         session.user.id,
-        stored,
+        { ...stored, scannedAt },
       );
       if (!completed)
         return problem(409, "file.not_pending", context.requestId);
