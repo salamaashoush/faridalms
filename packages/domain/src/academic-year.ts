@@ -1,5 +1,48 @@
 import * as v from "valibot";
 
+export const SCHOOL_YEAR_STATUSES = ["planning", "active", "closed"] as const;
+export type SchoolYearStatus = (typeof SCHOOL_YEAR_STATUSES)[number];
+
+const yearId = v.pipe(v.string(), v.uuid());
+const yearRevision = v.pipe(v.number(), v.integer(), v.minValue(1));
+
+export const setYearStatusSchema = v.object({
+  id: yearId,
+  expectedRevision: yearRevision,
+  status: v.picklist(SCHOOL_YEAR_STATUSES),
+  reason: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(500)), ""),
+});
+export type SetYearStatusInput = v.InferOutput<typeof setYearStatusSchema>;
+
+export const setDefaultYearSchema = v.object({
+  id: yearId,
+  expectedRevision: yearRevision,
+});
+export type SetDefaultYearInput = v.InferOutput<typeof setDefaultYearSchema>;
+
+/**
+ * Why a lifecycle change is refused, as a message key, or null when allowed.
+ * A year is prepared, then taught, then closed; reopening a closed year is the
+ * correction path and must say why. The default year is always the one being
+ * taught, so it cannot be closed until another year takes its place.
+ */
+export function yearTransitionIssue(
+  from: SchoolYearStatus,
+  to: SchoolYearStatus,
+  context: { isDefault: boolean; reason: string },
+): string | null {
+  const allowed =
+    (from === "planning" && to === "active") ||
+    (from === "active" && to === "closed") ||
+    (from === "closed" && to === "active");
+  if (!allowed) return "academic_year.transition";
+  if (to === "closed" && context.isDefault)
+    return "academic_year.default_closing";
+  if (from === "closed" && !context.reason.trim())
+    return "academic_year.reason_required";
+  return null;
+}
+
 export const academicYearQuerySchema = v.object({
   id: v.pipe(v.string(), v.uuid()),
 });

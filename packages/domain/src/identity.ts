@@ -23,6 +23,7 @@ export const PERMISSIONS = [
   "announcements:manage",
   "site:manage",
   "reports:read",
+  "years:reopen",
 
   // teaching
   "roster:read",
