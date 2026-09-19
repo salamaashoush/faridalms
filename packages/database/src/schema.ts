@@ -3,6 +3,7 @@ import type { ContentDocument } from "@faridalms/domain/content";
 import type { LessonAnswers, LessonDocument } from "@faridalms/domain/learning";
 import type { NewsletterDocument } from "@faridalms/domain/newsletter";
 import type { NotificationPayload } from "@faridalms/domain/notification";
+import type { RolloverPlan, RolloverResult } from "@faridalms/domain/rollover";
 import type { SocialLink } from "@faridalms/domain/site";
 
 import { SCHOOL_YEAR_STATUSES } from "@faridalms/domain/academic-year";
@@ -187,6 +188,36 @@ export const schoolYearEvents = pgTable(
     index("school_year_events_year_idx").on(
       table.schoolYearId,
       table.createdAt,
+    ),
+  ],
+);
+
+/**
+ * A reviewed plan for starting one year from another. It stays a draft until
+ * applied; applying records the outcome so a retry returns it unchanged.
+ */
+export const yearRollovers = pgTable(
+  "year_rollovers",
+  {
+    id: uuid().primaryKey().defaultRandom(),
+    sourceYearId: uuid("source_year_id")
+      .notNull()
+      .references(() => schoolYears.id, { onDelete: "cascade" }),
+    targetYearId: uuid("target_year_id")
+      .notNull()
+      .references(() => schoolYears.id, { onDelete: "cascade" }),
+    status: varchar({ length: 16 }).notNull().default("draft"),
+    revision: integer().notNull().default(1),
+    plan: jsonb().$type<RolloverPlan>().notNull(),
+    result: jsonb().$type<RolloverResult>(),
+    appliedAt: timestamp("applied_at", { withTimezone: true }),
+    appliedById: uuid("applied_by_id").references(() => users.id),
+    ...timestamps,
+  },
+  (table) => [
+    unique("year_rollovers_pair_key").on(
+      table.sourceYearId,
+      table.targetYearId,
     ),
   ],
 );
