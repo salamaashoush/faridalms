@@ -60,8 +60,30 @@ without its object is unreadable, and an object without its record is
 unreachable. `MAX_UPLOAD_BYTES` (default 25 MiB) bounds every upload and sizes
 the server's request body limit. Only the extensions and media types listed in
 `packages/domain/src/file.ts` are accepted; executables and SVG stay out.
-Uploads that were declared but never completed remain in the `initiated` state
-and need a scheduled clean-up, which is not yet included.
+
+Every upload is checked before it becomes ready. Binary formats must open with
+their signature and text formats must be UTF-8 without NUL bytes (captions must
+also carry the WebVTT header), so a renamed executable or script is refused with
+`file.content_mismatch`. Set `CLAMD_ADDRESS=host:port` to stream each upload
+through a ClamAV daemon as well: a match is refused with `file.infected` and its
+signature logged with the request id, and an unreachable daemon refuses the
+upload with `file.scan_unavailable` (HTTP 503) rather than letting unscanned
+files through. clamd's `StreamMaxLength` must be at least `MAX_UPLOAD_BYTES`.
+Files stored before a scanner was configured have no `scanned_at` and are not
+rescanned automatically. Refused uploads keep their record with a
+`rejection_reason` and lose their bytes at once.
+
+Each API replica runs a sweep every `FILE_SWEEP_MS` (default one hour) over every
+active school. An upload still `initiated` after 24 hours is rejected as
+`abandoned` and its bytes removed. A ready file that no record and no stored
+document has referred to for 7 days after completion is deleted, record first
+and bytes second, and rejected records are deleted after 30 days. References
+are discovered from the database catalogue: every foreign key to
+`private_files` and every json column, so page and lesson documents keep their
+media without being registered anywhere. Retention therefore follows the
+record: a file lives as long as the message, submission, lesson, page or draft
+that holds it, and leaves 7 days after the last one lets go of it. The windows
+live in `packages/domain/src/file.ts`.
 
 ## Public site
 
