@@ -46,6 +46,9 @@ export function ManagementDialog({
           className="mt-3 space-y-5"
           onSubmit={(event) => {
             event.preventDefault();
+            // The dialog is portaled, but React still bubbles its submit
+            // through the component tree to any form that renders it.
+            event.stopPropagation();
             onSubmit();
           }}
         >
