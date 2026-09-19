@@ -136,6 +136,12 @@ export function getMessageFromError(error: unknown): string {
         return m.assessmentRubricMismatch();
       case "file.too_large":
         return m.fileTooLarge();
+      case "file.content_mismatch":
+        return m.fileContentMismatch();
+      case "file.infected":
+        return m.fileInfected();
+      case "file.scan_unavailable":
+        return m.fileScanUnavailable();
       case "file.size_mismatch":
         return m.fileSizeMismatch();
       case "group.name_conflict":

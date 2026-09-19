@@ -1391,5 +1391,8 @@
   "authInvalidCredentials": "Wrong email or password.",
   "gradingScoreExceedsMax": "The score exceeds the assignment's maximum.",
   "assignmentDueInPast": "The due date must not be in the past.",
-  "calendarRevisionConflict": "This event has changed. Reload before saving again."
+  "calendarRevisionConflict": "This event has changed. Reload before saving again.",
+  "fileContentMismatch": "This file's contents do not match its type. Save it again in the right format and upload it.",
+  "fileInfected": "This file was refused because it looks harmful.",
+  "fileScanUnavailable": "The file could not be checked right now. Try again in a few minutes."
 }
