@@ -57,6 +57,10 @@ The diagram is conceptual. School-owned records reside in the school's database;
 | Assessment              | Feedback and score refer to a specific attempt. Draft assessment is distinct from released feedback. Term grades have an explicit calculation or manual-entry policy and do not silently mirror one assignment score.                                          |
 | Private file            | A verified object with tenant, owner, size, checksum, media type and processing state. Links identify its allowed purpose. Knowing a file ID never grants a download.                                                                                          |
 
+## Academic dates
+
+Every school year, term and teaching week date is an inclusive date in the school's own time zone: a year that ends on 30 June includes 30 June. Terms are the grading periods; grades name the term they belong to, and terms must sit inside their year without overlapping. Teaching weeks run from Sunday to Saturday, clipped to the year, and cover every day of it: a new year receives its weeks when it is created, an extended year has its last week completed and new weeks appended, and a year receives weeks before it becomes the default if it had none. Existing weeks are never renumbered, because assignments point at them. Placements are the one exception to inclusive ends: an enrollment's `until` is the first day it no longer applies, so rollover ends a placement on the day after the source year. An adapter for a standard that uses exclusive end dates for years or terms must convert explicitly at its boundary.
+
 ## Authorization rules
 
 The account's preferred workspace controls navigation only. Authorization requires an active membership and at least one applicable grant for the requested action and resource. Suspended memberships and revoked relationships deny new requests. Already-issued download credentials must have a short, documented lifetime; immediate revocation requires an authenticated download path.
