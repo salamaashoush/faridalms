@@ -272,6 +272,7 @@ test("switching the default year moves the flag atomically and keeps the default
     events: string[];
     closingDefault: string;
     defaultAfterRollback: string;
+    weeks: { count: number; first: string; last: string };
   };
   expect(result.refusal).toBe("academic_year.not_active");
   expect(result.switchedIsCurrent).toBe(true);
@@ -283,6 +284,11 @@ test("switching the default year moves the flag atomically and keeps the default
   expect(result.events).toEqual(["made_default"]);
   expect(result.closingDefault).toContain("school_years_default_active_check");
   expect(result.defaultAfterRollback).toBe(result.previousId);
+  expect(result.weeks).toMatchObject({
+    first: "2040-09-01",
+    last: "2041-06-30",
+  });
+  expect(result.weeks.count).toBeGreaterThan(40);
   expect(before?.id).toBe(result.previousId);
 });
 

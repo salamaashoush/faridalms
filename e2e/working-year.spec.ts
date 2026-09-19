@@ -225,7 +225,98 @@ test("administrators switch the working year in the class directory and keep it 
   await expect(
     page.getByRole("link", { name: "Record attendance" }),
   ).toHaveCount(0);
+  await page.goBack();
+  await expect(page).toHaveURL(new RegExp(`year=${from.yearId}`));
+  await expect(page.getByText(from.classA.name, { exact: true })).toBeVisible();
 
   await page.goto(`/admin/classes?year=${crypto.randomUUID()}`);
   await expect(page.getByText("Page not found")).toBeVisible();
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page
+    .context()
+    .addCookies([
+      { name: "language-tag", value: "ar", domain: "127.0.0.1", path: "/" },
+    ]);
+  await page.goto("/admin/academic-years");
+  await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
+  const card = page.locator("article", {
+    has: page.getByRole("heading", { name: from.yearName, exact: true }),
+  });
+  await expect(card.getByText("مغلق", { exact: true })).toBeVisible();
+  await page.goto(`/admin/classes?year=${from.yearId}`);
+  await expect(page.getByText(from.classA.name, { exact: true })).toBeVisible();
+  expect(
+    await page.evaluate(
+      () => document.documentElement.scrollWidth <= window.innerWidth,
+    ),
+  ).toBe(true);
+});
+
+test("a new year gets teaching weeks covering its dates and the overview counts only the default year", async ({
+  request,
+}) => {
+  const admin = await signIn(request, "admin@example.com");
+  const created = await request.post(`${origin}/saveAcademicYear`, {
+    headers: admin,
+    data: {
+      name: `K${crypto.randomUUID().slice(0, 8)}`,
+      startsOn: "2059-09-01",
+      endsOn: "2060-06-30",
+    },
+  });
+  expect(created.status()).toBe(200);
+  const year = (await created.json()) as {
+    id: string;
+    name: string;
+    revision: number;
+  };
+  const read = async () =>
+    (await (
+      await request.post(`${origin}/getAcademicYear`, {
+        headers: admin,
+        data: { id: year.id },
+      })
+    ).json()) as {
+      revision: number;
+      weeks: { id: string; number: number; startsOn: string; endsOn: string }[];
+    };
+  const before = await read();
+  expect(before.weeks[0]).toMatchObject({ number: 1, startsOn: "2059-09-01" });
+  expect(before.weeks.at(-1)?.endsOn).toBe("2060-06-30");
+  const extended = await request.post(`${origin}/saveAcademicYear`, {
+    headers: admin,
+    data: {
+      id: year.id,
+      expectedRevision: before.revision,
+      name: year.name,
+      startsOn: "2059-09-01",
+      endsOn: "2060-07-15",
+    },
+  });
+  expect(extended.status()).toBe(200);
+  const after = await read();
+  const lastBefore = before.weeks.at(-1);
+  expect(after.weeks.slice(0, before.weeks.length - 1)).toEqual(
+    before.weeks.slice(0, -1),
+  );
+  expect(after.weeks[before.weeks.length - 1]).toMatchObject({
+    id: lastBefore?.id,
+    number: lastBefore?.number,
+    startsOn: lastBefore?.startsOn,
+    endsOn: "2060-07-03",
+  });
+  expect(after.weeks.at(-1)).toMatchObject({
+    number: before.weeks.length + 2,
+    endsOn: "2060-07-15",
+  });
+
+  source();
+  const overview = (await (
+    await request.post(`${origin}/getAdminOverview`, { headers: admin })
+  ).json()) as { stats: { classes: number } };
+  const directory = (await (await classes(request, admin, "")).json()) as {
+    total: number;
+  };
+  expect(overview.stats.classes).toBe(directory.total);
 });

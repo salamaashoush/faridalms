@@ -72,6 +72,10 @@ try {
         { id: planned.id, expectedRevision: planned.revision },
         admin.id,
       );
+      const weeks = await tx.query.academicWeeks.findMany({
+        where: { schoolYearId: planned.id },
+        columns: { startsOn: true, endsOn: true },
+      });
       const current = await tx.query.schoolYears.findMany({
         where: { isCurrent: true },
         columns: { id: true },
@@ -108,6 +112,14 @@ try {
         previousRevision: previous.revision,
         events: events.map((row) => row.action),
         closingDefault,
+        weeks: {
+          count: weeks.length,
+          first: weeks.map((week) => week.startsOn).toSorted()[0],
+          last: weeks
+            .map((week) => week.endsOn)
+            .toSorted()
+            .at(-1),
+        },
       };
       throw new RolledBack();
     });
