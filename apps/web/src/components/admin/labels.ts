@@ -46,4 +46,5 @@ export const PERMISSION_LABEL: Record<Permission, () => string> = {
   "messages:send": m.adminPermMessagesSend,
   "newsletters:read": m.adminPermNewslettersRead,
   "calendar:read": m.adminPermCalendarRead,
+  "years:reopen": m.adminPermYearsReopen,
 };

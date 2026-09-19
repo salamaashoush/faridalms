@@ -4,7 +4,11 @@ import * as v from "valibot";
 
 import { AcademicYearEditor } from "~/components/admin/AcademicYearEditor";
 import * as m from "~/i18n/messages";
-import { academicYearQuery } from "~/queries/academic-years";
+import {
+  academicYearEventsQuery,
+  academicYearQuery,
+} from "~/queries/academic-years";
+import { formatDateTime } from "~/utils/datetime";
 
 export const Route = createFileRoute("/_app/admin/academic-year-editor")({
   staticData: { breadcrumb: m.studentSchoolYear },
@@ -12,7 +16,10 @@ export const Route = createFileRoute("/_app/admin/academic-year-editor")({
   loaderDeps: ({ search }) => search,
   loader: async ({ context, deps }) => {
     if (deps.id)
-      await context.queryClient.ensureQueryData(academicYearQuery(deps.id));
+      await Promise.all([
+        context.queryClient.ensureQueryData(academicYearQuery(deps.id)),
+        context.queryClient.ensureQueryData(academicYearEventsQuery(deps.id)),
+      ]);
   },
   component: AcademicYearEditorPage,
 });
@@ -30,23 +37,81 @@ function AcademicYearEditorPage() {
 }
 function EditYear({ id, onClose }: { id: string; onClose: () => void }) {
   const { data } = useSuspenseQuery(academicYearQuery(id));
+  const { data: events } = useSuspenseQuery(academicYearEventsQuery(id));
   return (
-    <AcademicYearEditor
-      key={data.id}
-      initial={{
-        id: data.id,
-        expectedRevision: data.revision,
-        name: data.name,
-        startsOn: data.startsOn,
-        endsOn: data.endsOn,
-        terms: data.terms.map((term) => ({
-          id: term.id,
-          name: term.name,
-          startsOn: term.startsOn,
-          endsOn: term.endsOn,
-        })),
-      }}
-      onClose={onClose}
-    />
+    <>
+      <AcademicYearEditor
+        key={data.id}
+        initial={{
+          id: data.id,
+          expectedRevision: data.revision,
+          name: data.name,
+          startsOn: data.startsOn,
+          endsOn: data.endsOn,
+          terms: data.terms.map((term) => ({
+            id: term.id,
+            name: term.name,
+            startsOn: term.startsOn,
+            endsOn: term.endsOn,
+          })),
+        }}
+        onClose={onClose}
+      />
+      <YearHistory events={events} />
+    </>
+  );
+}
+
+const EVENT_LABEL: Record<string, () => string> = {
+  activated: m.academicYearEventActivated,
+  closed: m.academicYearEventClosed,
+  reopened: m.academicYearEventReopened,
+  made_default: m.academicYearEventMadeDefault,
+};
+
+function YearHistory({
+  events,
+}: {
+  events: {
+    id: string;
+    action: string;
+    reason: string | null;
+    createdAt: Date;
+    actor: { name: string };
+  }[];
+}) {
+  return (
+    <section
+      aria-labelledby="year-history"
+      className="mt-6 rounded-xl border bg-card p-5 sm:p-7"
+    >
+      <h2 id="year-history" className="font-semibold">
+        {m.academicYearHistory()}
+      </h2>
+      {events.length === 0 ? (
+        <p className="mt-2 text-sm text-muted-foreground">
+          {m.academicYearNoHistory()}
+        </p>
+      ) : (
+        <ol className="mt-3 divide-y">
+          {events.map((event) => (
+            <li key={event.id} className="py-3 text-sm">
+              <p className="flex flex-wrap items-baseline justify-between gap-2">
+                <span className="font-medium">
+                  {EVENT_LABEL[event.action]?.() ?? event.action}
+                </span>
+                <span className="text-xs text-muted-foreground">
+                  {event.actor.name} ·{" "}
+                  {formatDateTime(event.createdAt.toISOString())}
+                </span>
+              </p>
+              {event.reason ? (
+                <p className="mt-1 text-muted-foreground">{event.reason}</p>
+              ) : null}
+            </li>
+          ))}
+        </ol>
+      )}
+    </section>
   );
 }

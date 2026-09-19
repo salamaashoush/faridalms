@@ -21,6 +21,7 @@ export function ManagementDialog({
   onClose,
   onSubmit,
   pending,
+  submitLabel,
 }: {
   title: string;
   description: string;
@@ -28,6 +29,7 @@ export function ManagementDialog({
   onClose: () => void;
   onSubmit: () => void;
   pending: boolean;
+  submitLabel?: string;
 }) {
   return (
     <Dialog
@@ -63,7 +65,7 @@ export function ManagementDialog({
               ) : (
                 <Check aria-hidden />
               )}
-              {m.managementSave()}
+              {submitLabel ?? m.managementSave()}
             </Button>
           </div>
         </form>

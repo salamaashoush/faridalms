@@ -3,6 +3,10 @@ import { createFileRoute } from "@tanstack/react-router";
 import { ArrowUpRight, CalendarDays, Plus } from "lucide-react";
 
 import { formatDay } from "~/components/admin/format";
+import {
+  YEAR_STATUS_LABEL,
+  YearLifecycle,
+} from "~/components/admin/YearLifecycle";
 import { ButtonLink } from "~/components/app/ButtonLink";
 import { PageHeader } from "~/components/app/primitives";
 import { Badge } from "~/components/ui/badge";
@@ -41,9 +45,14 @@ function AcademicYearsPage() {
               <div className="grid size-11 place-items-center rounded-xl bg-primary/10 text-primary">
                 <CalendarDays aria-hidden />
               </div>
-              {year.isCurrent ? (
-                <Badge variant="secondary">{m.academicYearDefault()}</Badge>
-              ) : null}
+              <span className="flex flex-wrap justify-end gap-2">
+                <Badge variant="outline">
+                  {YEAR_STATUS_LABEL[year.status]()}
+                </Badge>
+                {year.isCurrent ? (
+                  <Badge variant="secondary">{m.academicYearDefault()}</Badge>
+                ) : null}
+              </span>
             </div>
             <div>
               <h2 className="text-xl font-semibold tracking-tight">
@@ -60,6 +69,7 @@ function AcademicYearsPage() {
                 </div>
               </dl>
             </div>
+            <YearLifecycle year={year} />
             <ButtonLink
               to="/admin/academic-year-editor"
               search={{ id: year.id }}

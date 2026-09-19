@@ -88,6 +88,18 @@ export function getMessageFromError(error: unknown): string {
         return m.timetableTeacherNotFound();
       case "timetable.teacher_busy":
         return m.timetableTeacherBusy();
+      case "academic_year.closed":
+        return m.academicYearClosedError();
+      case "academic_year.transition":
+        return m.academicYearTransitionError();
+      case "academic_year.default_closing":
+        return m.academicYearDefaultClosingError();
+      case "academic_year.reason_required":
+        return m.academicYearReasonRequired();
+      case "academic_year.reopen_forbidden":
+        return m.academicYearReopenForbidden();
+      case "academic_year.not_active":
+        return m.academicYearNotActive();
       case "academic_year.not_found":
         return m.academicYearNotFound();
       case "assignment.revision_conflict":
