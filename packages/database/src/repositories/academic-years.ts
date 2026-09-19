@@ -9,6 +9,7 @@ import {
   termIssue,
   yearTransitionIssue,
 } from "@faridalms/domain/academic-year";
+import { addDays, teachingWeeks, weekdayOf } from "@faridalms/domain/school";
 import { and, desc, eq, inArray, sql } from "drizzle-orm";
 
 import type { Database, DatabaseTransaction } from "../index";
@@ -55,6 +56,7 @@ export async function saveAcademicYear(
       if (!created)
         throw new ManagementError("CONFLICT", "academic_year.name_conflict");
       if (input.terms) await syncTerms(tx, created, input.terms);
+      await ensureWeeks(tx, created);
       return created;
     }
     const [existing] = await tx
@@ -93,6 +95,7 @@ export async function saveAcademicYear(
     if (!updated)
       throw new ManagementError("CONFLICT", "academic_year.revision_conflict");
     if (input.terms) await syncTerms(tx, updated, input.terms);
+    await ensureWeeks(tx, updated);
     return updated;
   });
 }
@@ -238,6 +241,7 @@ export async function applyDefaultAcademicYear(
   if (year.status !== "active")
     throw new ManagementError("BAD_REQUEST", "academic_year.not_active");
   if (year.isCurrent) return year;
+  await ensureWeeks(tx, year);
   await tx
     .update(schema.schoolYears)
     .set({
@@ -318,4 +322,52 @@ export function placementDate(
   if (today < year.startsOn) return year.startsOn;
   if (today > year.endsOn) return year.endsOn;
   return today;
+}
+
+/**
+ * Every year needs teaching weeks: coursework navigation and assignment
+ * ownership read them. A year without any gets weeks covering its dates;
+ * an extended year gets weeks appended after its last one. Existing weeks
+ * are never renumbered, since assignments point at them.
+ */
+async function ensureWeeks(
+  tx: DatabaseTransaction,
+  year: { id: string; startsOn: string; endsOn: string },
+) {
+  const weeks = await tx.query.academicWeeks.findMany({
+    where: { schoolYearId: year.id },
+    columns: { id: true, number: true, endsOn: true },
+  });
+  if (weeks.length === 0) {
+    await tx.insert(schema.academicWeeks).values(
+      teachingWeeks(year.startsOn, year.endsOn).map((week) => ({
+        ...week,
+        schoolYearId: year.id,
+      })),
+    );
+    return;
+  }
+  const last = weeks.reduce((latest, week) =>
+    week.endsOn > latest.endsOn ? week : latest,
+  );
+  if (last.endsOn >= year.endsOn) return;
+  const saturday = addDays(last.endsOn, 6 - weekdayOf(last.endsOn));
+  const completed = saturday < year.endsOn ? saturday : year.endsOn;
+  if (completed > last.endsOn)
+    await tx
+      .update(schema.academicWeeks)
+      .set({ endsOn: completed })
+      .where(eq(schema.academicWeeks.id, last.id));
+  if (completed >= year.endsOn) return;
+  const lastNumber = weeks.reduce(
+    (highest, week) => Math.max(highest, week.number),
+    0,
+  );
+  await tx
+    .insert(schema.academicWeeks)
+    .values(
+      teachingWeeks(addDays(completed, 1), year.endsOn, lastNumber + 1).map(
+        (week) => ({ ...week, schoolYearId: year.id }),
+      ),
+    );
 }
