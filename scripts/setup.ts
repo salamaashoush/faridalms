@@ -12,58 +12,53 @@ if (process.env.CI === "true" || process.env.NODE_ENV === "production") {
 
 const ENV_FILE = join(process.cwd(), ".env");
 const ENV_EXAMPLE_FILE = join(process.cwd(), ".env.example");
-function generateSecret() {
-  return randomBytes(32).toString("base64");
-}
 
-async function updateAuthSecret() {
-  // Generate a new secret
-  const NEW_SECRET = generateSecret();
+/** Values generated per developer when the key is missing or empty. */
+const GENERATED: Record<string, () => string> = {
+  SESSION_SECRET: () => randomBytes(32).toString("base64"),
+  CELL_ROLE_PASSWORD: () => randomBytes(24).toString("hex"),
+  CELL_KEK: () => randomBytes(32).toString("base64"),
+  CELL_SECRET: () => randomBytes(32).toString("base64"),
+};
 
-  // Read the existing .env file
-  try {
-    const data = await readFile(ENV_FILE, "utf8");
-    // Split data into lines
-    const lines = data.split("\n");
-
-    // Find the index of the line containing SESSION_SECRET, if it exists
-    const index = lines.findIndex((line) => line.startsWith("SESSION_SECRET"));
-    const secretLine = `SESSION_SECRET='${NEW_SECRET}'`;
-
-    if (index !== -1) {
-      // A bare `SESSION_SECRET` with no `=`, or an empty value, means unset.
-      const existing = lines[index]?.split("=")[1]?.trim() ?? "";
-      const isSet = existing.replaceAll(/^['"]|['"]$/g, "").length > 0;
-      if (isSet) {
-        console.log("SESSION_SECRET already set!");
-        return;
-      }
-      lines[index] = secretLine;
-    } else {
-      // Append new SESSION_SECRET if not found
-      lines.push(secretLine);
-    }
-
-    // Join the lines back into a single string
-    const updatedData = lines.join("\n");
-
-    // Write the updated data back to the .env file
-    await writeFile(ENV_FILE, updatedData, "utf8");
-    console.log("Updated SESSION_SECRET in .env file.");
-  } catch (err) {
-    console.error("Error reading .env file:", err);
-    return;
-  }
-}
+const keyOf = (line: string) => /^([A-Z0-9_]+)\s*=/.exec(line)?.[1];
+const valueOf = (line: string) =>
+  line
+    .slice(line.indexOf("=") + 1)
+    .trim()
+    .replaceAll(/^['"]|['"]$/g, "");
 
 async function main() {
-  // copy .env.example to .env
   if (!existsSync(ENV_FILE)) {
     await cp(ENV_EXAMPLE_FILE, ENV_FILE);
     console.log("Copied .env.example to .env");
   }
-  // Update the SESSION_SECRET in the .env file
-  await updateAuthSecret();
+  const lines = (await readFile(ENV_FILE, "utf8")).split("\n");
+  const example = (await readFile(ENV_EXAMPLE_FILE, "utf8")).split("\n");
+  const present = new Set(lines.map(keyOf).filter(Boolean));
+  const added: string[] = [];
+  for (const line of example) {
+    const key = keyOf(line);
+    if (key && !present.has(key)) {
+      lines.push(line);
+      present.add(key);
+      added.push(key);
+    }
+  }
+  for (const [key, generate] of Object.entries(GENERATED)) {
+    const index = lines.findIndex((line) => keyOf(line) === key);
+    if (index === -1) {
+      lines.push(`${key}='${generate()}'`);
+      added.push(key);
+    } else if (!valueOf(lines[index] ?? "")) {
+      lines[index] = `${key}='${generate()}'`;
+      added.push(key);
+    }
+  }
+  if (added.length > 0) {
+    await writeFile(ENV_FILE, lines.join("\n"), "utf8");
+    console.log(`Added to .env: ${[...new Set(added)].join(", ")}`);
+  }
 }
 
 try {
