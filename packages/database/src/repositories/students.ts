@@ -150,7 +150,9 @@ export async function getStudentProfile(
       guardianships: access.contacts
         ? {
             with: {
-              guardian: { columns: { id: true, name: true, email: true } },
+              guardian: {
+                columns: { id: true, name: true, email: true, mobile: true },
+              },
             },
           }
         : undefined,

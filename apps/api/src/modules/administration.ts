@@ -14,6 +14,7 @@ import {
   saveClass as saveClassRow,
   managementOptions,
   studentForManagement,
+  studentsWithNameAndBirthdate,
 } from "@faridalms/database/repositories/management";
 import {
   classDirectory,
@@ -33,6 +34,7 @@ import {
   saveStudentSchema,
   saveClassSchema,
   managementOptionsSchema,
+  studentMatchesSchema,
 } from "@faridalms/domain/administration-schema";
 import {
   studentDirectorySchema,
@@ -170,10 +172,20 @@ export const saveClass = protectedProcedure
     const year = await currentSchoolYear(context.db);
     return manage(() => saveClassRow(context.db, input, year.id));
   });
+// saveStudent needs only users:manage and takes a class, guardians and an
+// account, so whoever may save a student may also list those choices.
+const STUDENT_CHOICES = new Set(["classes", "parents", "students"]);
+
 export const getManagementOptions = protectedProcedure
   .input(managementOptionsSchema)
   .handler(async ({ input, context }) => {
-    await requirePermission(context, "school:manage");
+    await requirePermission(
+      context,
+      STUDENT_CHOICES.has(input.kind) &&
+        !context.user.permissions.includes("school:manage")
+        ? "users:manage"
+        : "school:manage",
+    );
     const year = await currentSchoolYear(context.db);
     return managementOptions(
       context.db,
@@ -181,6 +193,7 @@ export const getManagementOptions = protectedProcedure
       input.q,
       year.id,
       input.selectedIds,
+      input.studentId,
     );
   });
 export const getStudentForManagement = protectedProcedure
@@ -191,6 +204,12 @@ export const getStudentForManagement = protectedProcedure
     return manage(() =>
       studentForManagement(context.db, input.id, year.id, context.today),
     );
+  });
+export const getStudentMatches = protectedProcedure
+  .input(studentMatchesSchema)
+  .handler(async ({ input, context }) => {
+    await requirePermission(context, "users:manage");
+    return studentsWithNameAndBirthdate(context.db, input);
   });
 async function manage<T>(action: () => Promise<T>): Promise<T> {
   try {

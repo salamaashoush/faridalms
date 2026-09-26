@@ -1,33 +1,82 @@
 import { ROLE_HOME } from "@faridalms/domain/identity";
-import { createFileRoute, redirect } from "@tanstack/react-router";
+import { useSuspenseQuery } from "@tanstack/react-query";
+import {
+  createFileRoute,
+  Link,
+  redirect,
+  useCanGoBack,
+  useRouter,
+} from "@tanstack/react-router";
 import * as v from "valibot";
 
 import {
   ExistingStudentEditor,
+  prepareStudentEditor,
   StudentEditor,
 } from "~/components/admin/StudentEditor";
+import {
+  BreadcrumbCurrent,
+  BreadcrumbStep,
+} from "~/components/app/WorkspaceBreadcrumb";
+import * as m from "~/i18n/messages";
+import { studentQuery } from "~/queries/school";
 import { currentUserQuery } from "~/queries/user";
-import { getStudentForManagement } from "~/server/school";
 
 export const Route = createFileRoute("/_app/student-editor")({
-  validateSearch: v.object({ id: v.optional(v.pipe(v.string(), v.uuid())) }),
-  loaderDeps: ({ search }) => search,
+  staticData: {
+    trail: <EditorTrail />,
+    section: "/admin/students",
+  },
+  validateSearch: v.object({
+    id: v.optional(v.pipe(v.string(), v.uuid())),
+    // Set by the students list, so leaving returns to it with its filters.
+    from: v.optional(v.picklist(["list"])),
+  }),
+  loaderDeps: ({ search }) => ({ id: search.id }),
   loader: async ({ context, deps }) => {
     const user = await context.queryClient.ensureQueryData(currentUserQuery);
     if (!user.permissions.includes("users:manage"))
       throw redirect({ to: ROLE_HOME[user.role] });
-    if (deps.id)
-      await context.queryClient.ensureQueryData({
-        queryKey: ["student-management", deps.id],
-        queryFn: () => getStudentForManagement({ data: { id: deps.id ?? "" } }),
-      });
+    await prepareStudentEditor(context.queryClient, deps.id);
   },
   component: StudentEditorPage,
 });
-function StudentEditorPage() {
+
+function EditorTrail() {
   const { id } = Route.useSearch();
+  return id ? (
+    <EditTrail studentId={id} />
+  ) : (
+    <BreadcrumbCurrent>{m.managementAddStudent()}</BreadcrumbCurrent>
+  );
+}
+
+function EditTrail({ studentId }: { studentId: string }) {
+  const { profile } = useSuspenseQuery(studentQuery({ studentId })).data;
+  return (
+    <>
+      <BreadcrumbStep
+        render={
+          <Link to="/students/$studentId" params={{ studentId }} search={{}} />
+        }
+      >
+        {profile.fullName}
+      </BreadcrumbStep>
+      <BreadcrumbCurrent>{m.managementEditStudent()}</BreadcrumbCurrent>
+    </>
+  );
+}
+
+function StudentEditorPage() {
+  const { id, from } = Route.useSearch();
   const navigate = Route.useNavigate();
+  const router = useRouter();
+  const canGoBack = useCanGoBack();
   const close = () => {
+    if (from === "list" && canGoBack) {
+      router.history.back();
+      return;
+    }
     void (id
       ? navigate({
           to: "/students/$studentId",
@@ -37,7 +86,7 @@ function StudentEditorPage() {
       : navigate({ to: "/admin/students", search: {} }));
   };
   return id ? (
-    <ExistingStudentEditor id={id} onClose={close} />
+    <ExistingStudentEditor key={id} id={id} onClose={close} />
   ) : (
     <StudentEditor onClose={close} />
   );

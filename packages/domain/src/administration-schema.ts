@@ -43,6 +43,9 @@ export const saveStudentSchema = v.object({
   classId: optionalId,
   guardianIds: v.optional(v.pipe(v.array(id), v.maxLength(20)), []),
   userId: optionalId,
+  // The day a class change takes effect: the old placement ends and the new
+  // one starts on it. Omitted, it is the school's today.
+  effectiveOn: v.optional(v.pipe(v.string(), v.isoDate())),
 });
 export const saveClassSchema = v.object({
   id: v.optional(id),
@@ -60,7 +63,19 @@ export const managementOptionsSchema = v.object({
   selectedIds: v.optional(v.pipe(v.array(id), v.maxLength(20)), []),
   q: v.optional(v.pipe(v.string(), v.maxLength(100)), ""),
   kind: v.picklist(["classes", "teachers", "parents", "students", "subjects"]),
+  // Student accounts already linked to a student are left out, except the one
+  // linked to this student, which it may keep.
+  studentId: v.optional(id),
 });
+export type ManagementOptionsInput = v.InferInput<
+  typeof managementOptionsSchema
+>;
+export const studentMatchesSchema = v.object({
+  firstName: requiredText(64),
+  lastName: requiredText(64),
+  birthdate: v.pipe(v.string(), v.isoDate()),
+});
+export type StudentMatchesInput = v.InferInput<typeof studentMatchesSchema>;
 
 export const schoolProfileSchema = v.object({
   name: requiredText(160),
@@ -83,7 +98,7 @@ export const saveSubjectSchema = v.object({
   slug: v.pipe(
     v.string(),
     v.trim(),
-    v.regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/),
+    v.regex(/^[a-z0-9]+(?:-[a-z0-9]+)*$/, "validation.subject_code"),
     v.maxLength(48),
   ),
   name: requiredText(128),

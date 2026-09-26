@@ -30,6 +30,7 @@ export function DirectoryPagination({
           page: formatNumber(page),
           pages: formatNumber(pages),
           total: formatNumber(total),
+          count: total,
         })}
       </p>
       <PaginationContent>

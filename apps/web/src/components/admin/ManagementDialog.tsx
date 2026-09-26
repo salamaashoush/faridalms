@@ -1,7 +1,6 @@
 import type { ComponentProps, ReactNode } from "react";
 
 import { Check, LoaderCircle } from "lucide-react";
-import { useId } from "react";
 
 import {
   Dialog,
@@ -9,9 +8,8 @@ import {
   DialogDescription,
   DialogTitle,
 } from "~/components/app/dialog";
-import { Field, FieldError, FieldLabel } from "~/components/app/field";
+import { TextField } from "~/components/app/form";
 import { Button } from "~/components/ui/button";
-import { Input } from "~/components/ui/input";
 import * as m from "~/i18n/messages";
 
 export function ManagementDialog({
@@ -76,40 +74,6 @@ export function ManagementDialog({
     </Dialog>
   );
 }
-export function ManagementInput({
-  label,
-  errors,
-  ...props
-}: ComponentProps<typeof Input> & {
-  label: string;
-  errors?: ComponentProps<typeof FieldError>["errors"];
-}) {
-  const generatedId = useId();
-  const id = props.id ?? generatedId;
-  const invalid = Boolean(errors?.some(Boolean));
-  const errorId = `${id}-error`;
-  return (
-    <Field data-invalid={invalid || undefined}>
-      <div className="flex items-baseline justify-between gap-3">
-        <FieldLabel htmlFor={id}>{label}</FieldLabel>
-        {props.required ? null : (
-          <span className="text-xs text-muted-foreground">
-            {m.formOptional()}
-          </span>
-        )}
-      </div>
-      <Input
-        {...props}
-        id={id}
-        className="h-11 sm:h-10"
-        aria-invalid={invalid || undefined}
-        aria-describedby={
-          [props["aria-describedby"], invalid ? errorId : undefined]
-            .filter(Boolean)
-            .join(" ") || undefined
-        }
-      />
-      <FieldError id={errorId} errors={errors} />
-    </Field>
-  );
+export function ManagementInput(props: ComponentProps<typeof TextField>) {
+  return <TextField {...props} />;
 }

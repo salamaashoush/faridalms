@@ -1,3 +1,5 @@
+import type { ManagementOptionsInput } from "@faridalms/domain/administration-schema";
+
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { Suspense, useDeferredValue, useId, useState } from "react";
 
@@ -14,9 +16,9 @@ import {
 } from "~/components/ui/combobox";
 import { Skeleton } from "~/components/ui/skeleton";
 import * as m from "~/i18n/messages";
-import { getManagementOptions } from "~/server/school";
+import { managementOptionsQuery } from "~/queries/school";
 
-type Kind = "classes" | "teachers" | "parents" | "students" | "subjects";
+type Kind = ManagementOptionsInput["kind"];
 interface PickerProps {
   kind: Kind;
   label: string;
@@ -49,7 +51,7 @@ export function RecordPicker({
     />
   );
 }
-export function RecordMultiPicker(props: PickerProps) {
+function RecordMultiPicker(props: PickerProps) {
   return (
     <Suspense
       fallback={
@@ -75,11 +77,9 @@ function Picker({
   const deferredQuery = useDeferredValue(query);
   const selectedIds = useDeferredValue(values);
   const id = useId();
-  const { data } = useSuspenseQuery({
-    queryKey: ["management-options", kind, deferredQuery, selectedIds],
-    queryFn: () =>
-      getManagementOptions({ data: { kind, q: deferredQuery, selectedIds } }),
-  });
+  const { data } = useSuspenseQuery(
+    managementOptionsQuery({ kind, q: deferredQuery, selectedIds }),
+  );
   const names = new Map(data.map((row) => [row.id, row.name]));
   const content = (
     <>

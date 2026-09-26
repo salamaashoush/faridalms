@@ -4,8 +4,15 @@ import type {
   SaveUserInput,
   SaveStudentInput,
   SaveClassInput,
+  StudentMatchesInput,
 } from "@faridalms/domain/administration-schema";
 
+import {
+  INTERNATIONAL_PATTERN,
+  nationalNumber,
+  ONE_DIGIT_CODE_PATTERN,
+  TWO_DIGIT_CODE_PATTERN,
+} from "@faridalms/domain/phone";
 import {
   and,
   eq,
@@ -19,7 +26,7 @@ import {
   or,
 } from "drizzle-orm";
 
-import type { Database } from "../index";
+import type { Database, DatabaseTransaction } from "../index";
 
 import { ACADEMIC_STRUCTURE_LOCK } from "../locks";
 import * as s from "../schema";
@@ -158,10 +165,7 @@ export async function saveStudent(
         },
       })
     )
-      throw new ManagementError(
-        "CONFLICT",
-        "A student already uses this reference",
-      );
+      throw new ManagementError("CONFLICT", "management.reference_conflict");
     const values = {
       reference: input.reference,
       firstName: input.firstName,
@@ -191,13 +195,16 @@ export async function saveStudent(
     });
     if (scheduled)
       throw new ManagementError("CONFLICT", "enrollment.scheduled_conflict");
+    const on = input.effectiveOn
+      ? await changeDate(tx, student.id, input, schoolYearId, today)
+      : today;
     await tx
       .update(s.enrolments)
-      .set({ until: today, updatedAt: new Date() })
+      .set({ until: on, updatedAt: new Date() })
       .where(
         and(
           eq(s.enrolments.studentId, student.id),
-          or(isNull(s.enrolments.until), gt(s.enrolments.until, today)),
+          or(isNull(s.enrolments.until), gt(s.enrolments.until, on)),
           sql`${s.enrolments.classId} in (select ${s.classes.id} from ${s.classes} where ${s.classes.schoolYearId} = ${schoolYearId})`,
           input.classId ? ne(s.enrolments.classId, input.classId) : undefined,
         ),
@@ -207,15 +214,15 @@ export async function saveStudent(
           where: {
             studentId: student.id,
             classId: input.classId,
-            since: { lte: today },
-            OR: [{ until: { isNull: true } }, { until: { gt: today } }],
+            since: { lte: on },
+            OR: [{ until: { isNull: true } }, { until: { gt: on } }],
           },
         })
       : undefined;
     if (input.classId && !continuing)
       await tx
         .insert(s.enrolments)
-        .values({ studentId: student.id, classId: input.classId, since: today })
+        .values({ studentId: student.id, classId: input.classId, since: on })
         .onConflictDoNothing({
           target: [s.enrolments.studentId, s.enrolments.classId],
           where: isNull(s.enrolments.until),
@@ -243,6 +250,67 @@ export async function saveStudent(
         .onConflictDoNothing();
     return student;
   });
+}
+
+/**
+ * The day a requested class change takes effect. It may be backdated, but not
+ * into the future, where saveStudent would refuse every later save of the
+ * record as a scheduled placement, and not to before the current placement
+ * began or an earlier one ended, so a student's placements never overlap.
+ * Nor may it reach back over a register either class has already taken:
+ * rosters come from placements, so the move would take the student off one
+ * past register and put them, with the other class's mark, on another.
+ * A save that keeps the class ignores it.
+ */
+async function changeDate(
+  tx: DatabaseTransaction,
+  studentId: string,
+  input: SaveStudentInput,
+  schoolYearId: string,
+  today: string,
+) {
+  const effectiveOn = input.effectiveOn ?? today;
+  const placements = await tx.query.enrolments.findMany({
+    where: { studentId, class: { schoolYearId } },
+    columns: { classId: true, since: true, until: true },
+  });
+  const current = placements.find(
+    (row) => row.since <= today && (row.until === null || row.until > today),
+  );
+  if ((current?.classId ?? "") === (input.classId ?? "")) return today;
+  if (effectiveOn > today)
+    throw new ManagementError("BAD_REQUEST", "management.move_date_future");
+  const year = await tx.query.schoolYears.findFirst({
+    where: { id: schoolYearId },
+    columns: { startsOn: true },
+  });
+  const earliest = placements
+    .map((row) => (row === current ? row.since : (row.until ?? row.since)))
+    .reduce(
+      (latest, bound) => (bound > latest ? bound : latest),
+      year && year.startsOn < today ? year.startsOn : today,
+    );
+  if (effectiveOn < earliest)
+    throw new ManagementError("BAD_REQUEST", "management.move_date_early");
+  // Today's registers change with the move, as they do for any move that
+  // takes effect today; only earlier days are kept as they were taken.
+  const classIds = [current?.classId, input.classId].filter(
+    (id): id is string => Boolean(id),
+  );
+  const taken = await tx.query.attendance.findFirst({
+    where: {
+      date: { gte: effectiveOn, lt: today },
+      OR: [{ studentId }, { classId: { in: classIds } }],
+    },
+    orderBy: { date: "desc" },
+    columns: { date: true },
+  });
+  if (taken)
+    throw new ManagementError(
+      "CONFLICT",
+      `management.move_date_registers:${taken.date}`,
+    );
+  return effectiveOn;
 }
 
 export async function saveClass(
@@ -331,6 +399,7 @@ export async function managementOptions(
   query: string,
   schoolYearId: string,
   selectedIds: string[] = [],
+  studentId?: string,
 ) {
   const pattern = `%${query.replace(/[\\%_]/g, "\\$&")}%`;
   if (kind === "classes")
@@ -370,11 +439,49 @@ export async function managementOptions(
       .limit(50);
   const role =
     kind === "teachers" ? "teacher" : kind === "parents" ? "parent" : "student";
+  // saveStudent refuses an account that another student already uses, so it
+  // is never offered.
+  const unlinked =
+    kind === "students"
+      ? sql`not exists (select 1 from ${s.students} where ${s.students.userId} = ${s.users.id}${studentId ? sql` and ${s.students.id} <> ${studentId}` : sql``})`
+      : undefined;
+  // A parent's number is stored and searched however the office has it to
+  // hand, so besides the digits as typed, which finds a fragment, both sides
+  // are compared on the national number (see nationalNumber).
+  const typed = query.replace(/\D/g, "");
+  const wanted = nationalNumber(query);
+  const unprefixed = typed.replace(/^0+/, "");
+  const mobile = sql`coalesce(${s.users.mobile}, '')`;
+  const mobileDigits = sql`regexp_replace(${mobile}, '[^0-9]', '', 'g')`;
+  const withCode = sql`ltrim(${mobileDigits}, '0')`;
+  const storedNational = sql`ltrim(case
+    when not (${mobile} ~ ${INTERNATIONAL_PATTERN} or ${mobileDigits} like '00%') then ${mobileDigits}
+    when ${withCode} ~ ${ONE_DIGIT_CODE_PATTERN} then substr(${withCode}, 2)
+    when ${withCode} ~ ${TWO_DIGIT_CODE_PATTERN} then substr(${withCode}, 3)
+    else substr(${withCode}, 4)
+  end, '0')`;
+  const phone =
+    kind === "parents" && typed.length >= 4
+      ? or(
+          sql`${mobileDigits} like ${`%${typed}%`}`,
+          wanted.length >= 4
+            ? sql`${storedNational} like ${`%${wanted}%`}`
+            : undefined,
+          // A whole number typed with its country code but without + or 00,
+          // against one stored nationally.
+          unprefixed.length >= 8
+            ? sql`(length(${storedNational}) >= 7 and ${unprefixed} like ('%' || ${storedNational}))`
+            : undefined,
+        )
+      : undefined;
+  // The number is isolated left to right (U+2066 to U+2069), or its spaced
+  // groups would run in reverse order in an Arabic list.
+  const label =
+    kind === "parents"
+      ? sql<string>`${s.users.name} || ' · ' || ${s.users.email} || coalesce(' · ' || chr(8294) || nullif(${s.users.mobile}, '') || chr(8297), '')`
+      : sql<string>`${s.users.name} || ' · ' || ${s.users.email}`;
   return db
-    .select({
-      id: s.users.id,
-      name: sql<string>`${s.users.name} || ' · ' || ${s.users.email}`,
-    })
+    .select({ id: s.users.id, name: label })
     .from(s.users)
     .where(
       and(
@@ -382,7 +489,12 @@ export async function managementOptions(
         or(
           and(
             eq(s.users.isActive, true),
-            or(ilike(s.users.name, pattern), ilike(s.users.email, pattern)),
+            or(
+              ilike(s.users.name, pattern),
+              ilike(s.users.email, pattern),
+              phone,
+            ),
+            unlinked,
           ),
           inArray(s.users.id, selectedIds),
         ),
@@ -394,6 +506,30 @@ export async function managementOptions(
       s.users.id,
     )
     .limit(50);
+}
+
+export async function studentsWithNameAndBirthdate(
+  db: Database,
+  input: StudentMatchesInput,
+) {
+  return db
+    .select({
+      id: s.students.id,
+      reference: s.students.reference,
+      firstName: s.students.firstName,
+      lastName: s.students.lastName,
+      birthdate: s.students.birthdate,
+    })
+    .from(s.students)
+    .where(
+      and(
+        sql`lower(${s.students.firstName}) = lower(${input.firstName})`,
+        sql`lower(${s.students.lastName}) = lower(${input.lastName})`,
+        eq(s.students.birthdate, input.birthdate),
+      ),
+    )
+    .orderBy(s.students.reference)
+    .limit(5);
 }
 
 export async function studentForManagement(
@@ -413,7 +549,22 @@ export async function studentForManagement(
       class: { schoolYearId },
     },
   });
+  const account = student.userId
+    ? await db.query.users.findFirst({
+        where: { id: student.userId },
+        columns: { name: true, email: true },
+      })
+    : undefined;
+  const guardianships = await db.query.guardianships.findMany({
+    where: { studentId: id },
+    columns: { guardianId: true },
+    with: { guardian: { columns: { name: true } } },
+  });
   return {
+    account: account ?? null,
+    guardians: guardianships.flatMap((row) =>
+      row.guardian ? [{ id: row.guardianId, name: row.guardian.name }] : [],
+    ),
     id: student.id,
     reference: student.reference,
     firstName: student.firstName,
@@ -421,12 +572,7 @@ export async function studentForManagement(
     birthdate: student.birthdate ?? "",
     userId: student.userId ?? "",
     classId: enrollment?.classId ?? "",
-    guardianIds: (
-      await db.query.guardianships.findMany({
-        where: { studentId: id },
-        columns: { guardianId: true },
-      })
-    ).map((row) => row.guardianId),
+    guardianIds: guardianships.map((row) => row.guardianId),
   };
 }
 

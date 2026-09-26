@@ -48,3 +48,55 @@ export const PERMISSION_LABEL: Record<Permission, () => string> = {
   "calendar:read": m.adminPermCalendarRead,
   "years:reopen": m.adminPermYearsReopen,
 };
+
+export type PermissionArea = "school" | "teaching" | "family";
+
+export const PERMISSION_AREA_LABEL: Record<PermissionArea, () => string> = {
+  school: m.accessAreaSchool,
+  teaching: m.accessAreaTeaching,
+  family: m.accessAreaFamily,
+};
+
+export const PERMISSION_AREA: Record<Permission, PermissionArea> = {
+  "access:manage": "school",
+  "school:manage": "school",
+  "users:read": "school",
+  "users:manage": "school",
+  "classes:read": "school",
+  "classes:manage": "school",
+  "calendar:manage": "school",
+  "announcements:manage": "school",
+  "site:manage": "school",
+  "reports:read": "school",
+  "years:reopen": "school",
+  "roster:read": "teaching",
+  "assignments:author": "teaching",
+  "assignments:read": "teaching",
+  "submissions:grade": "teaching",
+  "attendance:record": "teaching",
+  "student-profile:read": "family",
+  "student-contacts:read": "family",
+  "student-medical:read": "family",
+  "children:read": "family",
+  "own-work:read": "family",
+  "own-work:submit": "family",
+  "grades:read": "family",
+  "attendance:read": "family",
+  "timetable:read": "family",
+  "messages:read": "family",
+  "messages:send": "family",
+  "newsletters:read": "family",
+  "calendar:read": "family",
+};
+
+/**
+ * Capabilities that open personal data or hand out power over other people's
+ * access, marked wherever a role is shaped so they are granted deliberately.
+ */
+export const SENSITIVE_PERMISSIONS: ReadonlySet<Permission> = new Set([
+  "access:manage",
+  "users:manage",
+  "years:reopen",
+  "student-contacts:read",
+  "student-medical:read",
+]);

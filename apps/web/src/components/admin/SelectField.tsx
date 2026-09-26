@@ -1,4 +1,6 @@
-import { Field, FieldDescription, FieldLabel } from "~/components/app/field";
+import type { ReactNode } from "react";
+
+import { FormField } from "~/components/app/form";
 import {
   Select,
   SelectContent,
@@ -15,45 +17,51 @@ export function SelectField<T extends string>({
   onChange,
   description,
   disabled,
+  optional,
 }: {
   id: string;
   label: string;
   value: T;
   options: { value: T; label: string }[];
   onChange: (value: T) => void;
-  description?: string;
+  description?: ReactNode;
   disabled?: boolean;
+  optional?: boolean;
 }) {
   return (
-    <Field>
-      <FieldLabel id={`${id}-label`} htmlFor={id}>
-        {label}
-      </FieldLabel>
-      <Select
-        items={options}
-        value={value}
-        disabled={disabled}
-        onValueChange={(next) => {
-          const match = options.find((option) => option.value === next);
-          if (match) onChange(match.value);
-        }}
-      >
-        <SelectTrigger
-          id={id}
-          aria-labelledby={`${id}-label ${id}`}
-          className="h-11 w-full sm:h-10"
+    <FormField
+      id={id}
+      labelId={`${id}-label`}
+      label={label}
+      optional={optional}
+      description={description}
+    >
+      {(control) => (
+        <Select
+          items={options}
+          value={value}
+          disabled={disabled}
+          onValueChange={(next) => {
+            const match = options.find((option) => option.value === next);
+            if (match) onChange(match.value);
+          }}
         >
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent>
-          {options.map((option) => (
-            <SelectItem key={option.value} value={option.value}>
-              {option.label}
-            </SelectItem>
-          ))}
-        </SelectContent>
-      </Select>
-      {description ? <FieldDescription>{description}</FieldDescription> : null}
-    </Field>
+          <SelectTrigger
+            {...control}
+            aria-labelledby={`${id}-label ${id}`}
+            className="w-full"
+          >
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            {options.map((option) => (
+              <SelectItem key={option.value} value={option.value}>
+                {option.label}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      )}
+    </FormField>
   );
 }

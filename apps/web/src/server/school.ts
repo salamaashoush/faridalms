@@ -6,6 +6,7 @@ import {
   saveStudentSchema,
   saveClassSchema,
   managementOptionsSchema,
+  studentMatchesSchema,
 } from "@faridalms/domain/administration-schema";
 import {
   recipientQuerySchema,
@@ -189,6 +190,10 @@ export const getStudentForManagement = createServerFn({ method: "GET" })
     v.parse(v.object({ id: v.pipe(v.string(), v.uuid()) }), input),
   )
   .handler(({ data }) => backend().getStudentForManagement(data));
+
+export const getStudentMatches = createServerFn({ method: "GET" })
+  .validator((input: unknown) => v.parse(studentMatchesSchema, input))
+  .handler(({ data }) => backend().getStudentMatches(data));
 
 export const saveSchoolProfile = createServerFn({ method: "POST" })
   .validator((input: unknown) => v.parse(schoolProfileSchema, input))

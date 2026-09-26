@@ -280,6 +280,60 @@ test("administrative writes reject family accounts and cross-school references",
   expect(invalid.status()).toBe(400);
 });
 
+test("a guardian is found by phone whichever way the number was written", async ({
+  request,
+}) => {
+  const headers = await signIn(request, "northwind");
+  const digits = String(Date.now()).slice(-7);
+  const spaced = `${digits.slice(0, 3)} ${digits.slice(3)}`;
+  const create = async (label: string, mobile: string) => {
+    const response = await request.post(`${origin}/v1/saveUser`, {
+      headers,
+      data: {
+        name: `Salama Ashoush ${label} ${digits}`,
+        email: `salama-${label}-${crypto.randomUUID()}@example.com`,
+        role: "parent",
+        mobile,
+        password: "a-long-school-password",
+        isActive: true,
+      },
+    });
+    expect(response.status()).toBe(200);
+    return ((await response.json()) as { id: string }).id;
+  };
+  const [national, international] = await Promise.all([
+    create("national", `0109 ${spaced}`),
+    create("international", `+20 108 ${spaced}`),
+  ]);
+  const found = async (q: string) => {
+    const response = await request.post(`${origin}/v1/getManagementOptions`, {
+      headers,
+      data: { kind: "parents", q },
+    });
+    expect(response.status()).toBe(200);
+    return ((await response.json()) as { id: string }[]).map((row) => row.id);
+  };
+  const [
+    nationalSpaced,
+    nationalPlus,
+    nationalZeros,
+    internationalSpaced,
+    internationalBare,
+  ] = await Promise.all([
+    found(`+20 109 ${spaced}`),
+    found(`+20109${digits}`),
+    found(`0020109${digits}`),
+    found(`0108 ${spaced}`),
+    found(`0108${digits}`),
+  ]);
+  expect(nationalSpaced).toContain(national);
+  expect(nationalPlus).toContain(national);
+  expect(nationalZeros).toContain(national);
+  expect(internationalSpaced).toContain(international);
+  expect(internationalBare).toContain(international);
+  expect(internationalBare).not.toContain(national);
+});
+
 test("teachers message linked families and replies stay private", async ({
   request,
   page,

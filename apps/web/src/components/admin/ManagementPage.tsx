@@ -1,13 +1,14 @@
 import type { ReactNode } from "react";
 
 import { useHydrated } from "@tanstack/react-router";
-import { Check, LoaderCircle } from "lucide-react";
-import { useState } from "react";
+import { LoaderCircle, X } from "lucide-react";
+import { useId, useState } from "react";
 
-import { PageHeader } from "~/components/app/primitives";
 import { UnsavedChangesGuard } from "~/components/app/UnsavedChangesGuard";
+import { PageActions } from "~/components/system/PageActions";
 import { Button } from "~/components/ui/button";
 import * as m from "~/i18n/messages";
+import { cn } from "~/utils/cn";
 import { getMessageFromError } from "~/utils/error";
 
 export function ManagementPage({
@@ -22,9 +23,10 @@ export function ManagementPage({
   actions,
   submitLabel,
   headerActions,
+  width = "form",
 }: {
   title: string;
-  description: string;
+  description?: string;
   children: ReactNode;
   onClose: () => void;
   onSubmit: () => void | Promise<void>;
@@ -34,14 +36,41 @@ export function ManagementPage({
   actions?: ReactNode;
   submitLabel?: string;
   headerActions?: ReactNode;
+  width?: "form" | "document" | "wide";
 }) {
   const [failure, setFailure] = useState<string>();
   const hydrated = useHydrated();
+  const formId = useId();
+  const busy = !hydrated || pending;
   return (
     <>
+      <PageActions>
+        {headerActions ? (
+          <div className="hidden items-center gap-2 md:flex">
+            {headerActions}
+          </div>
+        ) : null}
+        <Button type="button" variant="ghost" onClick={onClose} disabled={busy}>
+          <X aria-hidden />
+          {m.commonClose()}
+        </Button>
+        {actions}
+        <Button type="submit" form={formId} disabled={busy}>
+          {pending ? (
+            <LoaderCircle className="animate-spin" aria-hidden />
+          ) : null}
+          {submitLabel ?? m.managementSave()}
+        </Button>
+      </PageActions>
       <form
+        id={formId}
         noValidate
-        className="mx-auto w-full max-w-5xl space-y-6"
+        className={cn(
+          "mx-auto w-full pb-16",
+          width === "document" && "max-w-3xl",
+          width === "form" && "max-w-4xl",
+          width === "wide" && "max-w-6xl",
+        )}
         onSubmit={async (event) => {
           event.preventDefault();
           const element = event.currentTarget;
@@ -58,48 +87,37 @@ export function ManagementPage({
           }
         }}
       >
-        <PageHeader
-          title={title}
-          description={description}
-          actions={headerActions}
-        />
-        <fieldset
-          disabled={!hydrated || pending}
-          className={
-            sectioned
-              ? "min-w-0 space-y-6"
-              : "min-w-0 space-y-6 rounded-xl border bg-card p-5 sm:p-7"
-          }
-        >
-          {children}
-        </fieldset>
+        <header className="mb-8 grid gap-1.5">
+          <div className="flex flex-wrap items-center gap-3">
+            <h1 className="text-2xl font-semibold tracking-tight text-balance">
+              {title}
+            </h1>
+            {headerActions ? (
+              <div className="flex items-center gap-2 md:hidden">
+                {headerActions}
+              </div>
+            ) : null}
+          </div>
+          {description ? (
+            <p className="max-w-2xl text-sm text-muted-foreground">
+              {description}
+            </p>
+          ) : null}
+        </header>
         {failure ? (
           <p
             role="alert"
-            className="rounded-lg border border-destructive/30 bg-destructive/5 p-4 text-sm text-destructive"
+            className="mb-6 rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive"
           >
             {failure}
           </p>
         ) : null}
-        <div className="sticky bottom-0 z-10 flex flex-wrap justify-end gap-3 rounded-xl border bg-background/95 p-4 shadow-sm backdrop-blur">
-          {actions}
-          <Button
-            type="button"
-            variant="outline"
-            onClick={onClose}
-            disabled={!hydrated || pending}
-          >
-            {m.commonClose()}
-          </Button>
-          <Button type="submit" disabled={!hydrated || pending}>
-            {pending ? (
-              <LoaderCircle className="animate-spin" aria-hidden />
-            ) : (
-              <Check aria-hidden />
-            )}
-            {submitLabel ?? m.managementSave()}
-          </Button>
-        </div>
+        <fieldset
+          disabled={busy}
+          className={cn("min-w-0", sectioned ? "grid gap-12" : "grid gap-6")}
+        >
+          {children}
+        </fieldset>
       </form>
       <UnsavedChangesGuard isDirty={isDirty} pending={pending} />
     </>

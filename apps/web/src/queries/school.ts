@@ -1,3 +1,4 @@
+import type { ManagementOptionsInput } from "@faridalms/domain/administration-schema";
 import type {
   RecipientCursor,
   AssignmentsQuery,
@@ -29,6 +30,7 @@ import {
   getFamilyOverview,
   getGrades,
   getGradingQueue,
+  getManagementOptions,
   getMessage,
   getMessages,
   getMyClasses,
@@ -36,6 +38,7 @@ import {
   getRecipients,
   getSchoolSettings,
   getStudent,
+  getStudentForManagement,
   getStudentOverview,
   getSubjects,
   getTeachingOverview,
@@ -161,6 +164,20 @@ export function allStudentsQuery(query: StudentDirectoryQuery) {
   return queryOptions({
     queryKey: ["students", "all", query],
     queryFn: () => getAllStudents({ data: query }),
+  });
+}
+
+export function studentManagementQuery(id: string) {
+  return queryOptions({
+    queryKey: ["student-management", id],
+    queryFn: () => getStudentForManagement({ data: { id } }),
+  });
+}
+
+export function managementOptionsQuery(query: ManagementOptionsInput) {
+  return queryOptions({
+    queryKey: ["management-options", query],
+    queryFn: () => getManagementOptions({ data: query }),
   });
 }
 

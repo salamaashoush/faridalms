@@ -88,20 +88,22 @@ test("administrators create accounts and students through the shared editors", a
     page.getByRole("cell", { name: "Inactive", exact: true }),
   ).toBeVisible();
   await page.goto("/admin/students");
-  await page.getByRole("button", { name: "Add student", exact: true }).click();
+  await page.getByRole("link", { name: "Add student", exact: true }).click();
   await expect(page).toHaveURL(/\/student-editor/);
   const editor = page.locator("main#main");
   await editor.getByLabel("First name", { exact: true }).fill("Salama");
   await editor
     .getByLabel("Last name", { exact: true })
     .fill(`Ashoush ${unique}`);
-  await editor.getByLabel("Reference", { exact: true }).fill(`TEST-${unique}`);
-  await editor.getByRole("combobox", { name: "Class", exact: true }).click();
+  await editor
+    .getByLabel("Student reference", { exact: true })
+    .fill(`TEST-${unique}`);
+  await editor.getByRole("combobox", { name: /^Class/ }).click();
   await page.getByRole("option", { name: "P1-B", exact: true }).click();
-  await editor.getByRole("button", { name: "Save changes" }).click();
+  await editor.getByRole("button", { name: "Save", exact: true }).click();
   await expect(page).toHaveURL(/\/admin\/students/);
   await page
-    .getByRole("searchbox", { name: "Search records…" })
+    .getByRole("searchbox", { name: "Search students" })
     .fill(`TEST-${unique}`);
   await expect(
     page.getByRole("cell", { name: `TEST-${unique}`, exact: true }),
@@ -111,6 +113,167 @@ test("administrators create accounts and students through the shared editors", a
     fullPage: true,
   });
 });
+test("administrators edit a student record in side sheets and confirm a class move", async ({
+  page,
+}) => {
+  await login(page);
+  const unique = crypto.randomUUID().slice(0, 8);
+  await page.goto("/admin/students");
+  await page.getByRole("link", { name: "Add student", exact: true }).click();
+  const editor = page.locator("main#main");
+  await editor.getByLabel("First name", { exact: true }).fill("Salama");
+  await editor.getByLabel("Last name", { exact: true }).fill("Ashoush");
+  await editor
+    .getByLabel("Student reference", { exact: true })
+    .fill(`TEST-${unique}`);
+  await editor.getByRole("combobox", { name: /^Class/ }).click();
+  await page.getByRole("option", { name: "P1-B", exact: true }).click();
+  await editor.getByRole("button", { name: "Save", exact: true }).click();
+  await expect(page).toHaveURL(/\/admin\/students/);
+  await page
+    .getByRole("searchbox", { name: "Search students" })
+    .fill(`TEST-${unique}`);
+  await page
+    .getByRole("row")
+    .filter({ hasText: `TEST-${unique}` })
+    .getByRole("cell")
+    .nth(2)
+    .click();
+  await expect(page).toHaveURL(/\/students\/[a-f0-9-]+/);
+
+  await page.getByRole("tab", { name: "Details", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Edit personal details", exact: true })
+    .click();
+  const personal = page.getByRole("dialog", { name: "Edit personal details" });
+  const firstName = personal.getByLabel("First name", { exact: true });
+  await firstName.fill("");
+  await personal.getByRole("button", { name: "Save", exact: true }).click();
+  await expect(firstName).toBeFocused();
+  await expect(firstName).toHaveAttribute("aria-invalid", "true");
+  await firstName.fill("Salama");
+  const reference = personal.getByLabel("Student reference", { exact: true });
+  await reference.fill("GIC-2026-0001");
+  await personal.getByRole("button", { name: "Save", exact: true }).click();
+  await expect(reference).toBeFocused();
+  await expect(reference).toHaveAccessibleDescription(
+    "Another student already uses this reference",
+  );
+  await expect(personal.getByRole("alert")).toHaveCount(0);
+  await reference.fill(`TEST-${unique}`);
+  await personal
+    .getByLabel("Last name", { exact: true })
+    .fill(`Ashoush-${unique}`);
+  await personal.getByRole("button", { name: "Save", exact: true }).click();
+  await expect(personal).toHaveCount(0);
+  await expect(
+    page.getByRole("heading", { name: `Salama Ashoush-${unique}` }),
+  ).toBeVisible();
+
+  await page.getByRole("tab", { name: "Family", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Edit guardians", exact: true })
+    .click();
+  const guardians = page.getByRole("dialog", { name: "Edit guardians" });
+  await expect(
+    guardians.getByRole("combobox", { name: /^Guardians/ }),
+  ).toBeVisible();
+  await guardians.getByRole("button", { name: "Cancel", exact: true }).click();
+  await expect(guardians).toHaveCount(0);
+
+  await page.getByRole("tab", { name: "Account", exact: true }).click();
+  await page
+    .getByRole("button", { name: "Change sign-in account", exact: true })
+    .click();
+  const account = page.getByRole("dialog", { name: "Change sign-in account" });
+  await account.getByRole("combobox", { name: /^Sign-in account/ }).click();
+  await page
+    .getByRole("combobox", { name: "Search student accounts…" })
+    .fill("omar");
+  // Omar's account already belongs to Omar's record, so it is never offered.
+  await expect(page.getByText("No matching records")).toBeVisible();
+  await page.keyboard.press("Escape");
+  await account.getByRole("button", { name: "Close", exact: true }).click();
+  await expect(account).toHaveCount(0);
+
+  await page.getByRole("button", { name: "Move class", exact: true }).click();
+  const move = page.getByRole("dialog", { name: "Move class" });
+  const target = move.getByRole("combobox", { name: /^New class/ });
+  await move.getByRole("button", { name: "Continue", exact: true }).click();
+  await expect(target).toBeFocused();
+  await expect(target).toHaveAccessibleDescription(
+    "Choose the class to move to",
+  );
+  await target.click();
+  await expect(
+    page.getByRole("option", { name: "P1-B", exact: true }),
+  ).toHaveCount(0);
+  await page.getByRole("option", { name: "PreKG-A", exact: true }).click();
+  // The student was placed in P1-B today, so the move cannot be backdated
+  // and the date the sheet offers is the school's today.
+  const moveDate = move.getByLabel("Move date", { exact: true });
+  const on = await moveDate.inputValue();
+  expect(on).toMatch(/^\d{4}-\d{2}-\d{2}$/);
+  const shown = new Intl.DateTimeFormat("en", {
+    dateStyle: "medium",
+    timeZone: "UTC",
+  }).format(new Date(`${on}T00:00:00Z`));
+  await expect(moveDate).toHaveAttribute("max", on);
+  await expect(moveDate).toHaveAttribute("min", on);
+  await move.getByRole("button", { name: "Continue", exact: true }).click();
+  await expect(
+    move.getByRole("region", { name: "Check the move" }),
+  ).toBeFocused();
+  await expect(move).toContainText(`The placement in P1-B ends on ${shown}.`);
+  await move.getByRole("button", { name: "Move class", exact: true }).click();
+  await expect(move).toHaveCount(0);
+  await expect(page.getByText("Moved to PreKG-A")).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: "PreKG-A", exact: true }),
+  ).toBeVisible();
+
+  // The old placement ends on the day the new one starts.
+  await page.getByRole("tab", { name: "Enrollment", exact: true }).click();
+  const history = page.getByRole("region", { name: "Enrollment history" });
+  const left = history.getByRole("listitem").filter({ hasText: "P1-B" });
+  const joined = history.getByRole("listitem").filter({ hasText: "PreKG-A" });
+  await expect(left.getByRole("definition")).toHaveText([shown, shown]);
+  await expect(joined.getByRole("definition")).toHaveText([shown]);
+
+  await page.getByRole("button", { name: "More actions", exact: true }).click();
+  await page
+    .getByRole("menuitem", { name: "Remove from class", exact: true })
+    .click();
+  const confirm = page.getByRole("dialog", {
+    name: `Remove Salama Ashoush-${unique} from PreKG-A?`,
+  });
+  await confirm
+    .getByRole("button", { name: "Remove from class", exact: true })
+    .click();
+  await expect(confirm).toHaveCount(0);
+  await expect(
+    page.getByText("No class", { exact: true }).first(),
+  ).toBeVisible();
+});
+
+test("record tabs follow the reading direction in Arabic", async ({
+  page,
+  context,
+}) => {
+  await login(page);
+  await context.addCookies([
+    { name: "language-tag", value: "ar", domain: "127.0.0.1", path: "/" },
+  ]);
+  await page.goto("/admin/students");
+  await page.getByRole("row").nth(1).getByRole("cell").nth(2).click();
+  await expect(page).toHaveURL(/\/students\/[a-f0-9-]+/);
+  await page.getByRole("tab", { name: "نظرة عامة", exact: true }).focus();
+  await page.keyboard.press("ArrowLeft");
+  await expect(
+    page.getByRole("tab", { name: "التفاصيل", exact: true }),
+  ).toBeFocused();
+});
+
 test("calendar events persist, open details and support week and agenda views", async ({
   page,
 }, testInfo) => {
@@ -174,7 +337,7 @@ test("shared tables search, sort and toggle columns without losing URL state", a
   await page.goto("/admin/students");
   await page.getByRole("button", { name: "Name", exact: true }).click();
   await expect(page).toHaveURL(/dir=desc/);
-  await page.getByRole("button", { name: "Columns", exact: true }).click();
+  await page.getByRole("button", { name: "View", exact: true }).click();
   await page
     .getByRole("menuitemcheckbox", { name: "Reference", exact: true })
     .click();
@@ -182,18 +345,86 @@ test("shared tables search, sort and toggle columns without losing URL state", a
   await expect(
     page.getByRole("columnheader", { name: "Reference", exact: true }),
   ).toHaveCount(0);
-  await page.getByRole("searchbox", { name: "Search records…" }).fill("Omar");
+  await page.getByRole("searchbox", { name: "Search students" }).fill("Omar");
   await expect(page).toHaveURL(/q=Omar/);
   await expect(
     page.getByRole("cell", { name: "Omar Ashoush", exact: true }),
   ).toBeVisible();
   await page.reload();
   await expect(
-    page.getByRole("searchbox", { name: "Search records…" }),
+    page.getByRole("searchbox", { name: "Search students" }),
   ).toHaveValue("Omar");
   await expect(
     page.getByRole("cell", { name: "Omar Ashoush", exact: true }),
   ).toBeVisible();
+  await page.getByRole("button", { name: "Reset", exact: true }).click();
+  await expect(page).not.toHaveURL(/q=Omar/);
+  await expect(
+    page.getByRole("searchbox", { name: "Search students" }),
+  ).toHaveValue("");
+  await expect(page).toHaveURL(/dir=desc/);
+});
+
+test("the older directory tables still hide columns", async ({ page }) => {
+  await login(page);
+  await page.goto("/admin/staff");
+  await expect(
+    page.getByRole("columnheader", { name: "Email", exact: true }),
+  ).toBeVisible();
+  await page.getByRole("button", { name: "Columns", exact: true }).click();
+  await page
+    .getByRole("menuitemcheckbox", { name: "Email", exact: true })
+    .click();
+  await page.keyboard.press("Escape");
+  await expect(
+    page.getByRole("columnheader", { name: "Email", exact: true }),
+  ).toHaveCount(0);
+});
+
+test("the student index opens records, exports a selection and filters on a phone", async ({
+  page,
+}) => {
+  await login(page);
+  await page.goto("/admin/students");
+  const omar = page.getByRole("row").filter({ hasText: "Omar Ashoush" });
+  await omar.getByRole("cell").nth(2).click();
+  await expect(page).toHaveURL(/\/students\/[a-f0-9-]+/);
+
+  await page.goBack();
+  const selectAll = page.getByRole("checkbox", {
+    name: "Select all rows on this page",
+    exact: true,
+  });
+  await page
+    .getByRole("checkbox", { name: "Select Omar Ashoush", exact: true })
+    .click();
+  await expect(page).toHaveURL(/\/admin\/students/);
+  await expect(
+    page.getByText("1 selected", { exact: true }).last(),
+  ).toBeVisible();
+  const download = page.waitForEvent("download");
+  await page.getByRole("button", { name: "Export", exact: true }).click();
+  expect((await download).suggestedFilename()).toBe("Students.csv");
+  await page.getByRole("button", { name: "Cancel", exact: true }).click();
+  await expect(selectAll).toBeFocused();
+  await expect(selectAll).not.toBeChecked();
+  await expect(
+    page.getByRole("searchbox", { name: "Search students" }),
+  ).toBeVisible();
+
+  await page.setViewportSize({ width: 390, height: 844 });
+  await page.getByRole("searchbox", { name: "Search students" }).fill("Omar");
+  await expect(page).toHaveURL(/q=Omar/);
+  await page.getByRole("button", { name: /^Filters/ }).click();
+  const sheet = page.getByRole("dialog", { name: "Filters" });
+  await expect(sheet).toBeVisible();
+  await sheet.getByRole("radio", { checked: false }).first().click();
+  await expect(page).toHaveURL(/year=[a-f0-9-]+/);
+  await sheet.getByRole("button", { name: "Reset", exact: true }).click();
+  await expect(page).not.toHaveURL(/q=Omar/);
+  await expect(page).not.toHaveURL(/year=[a-f0-9-]+/);
+  await sheet.getByRole("button", { name: "Done", exact: true }).click();
+  await expect(sheet).toHaveCount(0);
 });
 
 test("teachers publish coursework from the browser", async ({
@@ -256,22 +487,29 @@ test("families navigate shared student and class records with persistent tabs", 
     .click();
   await expect(page).toHaveURL(/\/students\/[a-f0-9-]+/);
   await expect(
-    page.getByRole("heading", { name: "Enrollment history", exact: true }),
-  ).toBeVisible();
-  await expect(
     page.getByRole("heading", { name: "Ali Ashoush", exact: true }),
   ).toBeVisible();
-  await page
-    .getByRole("tab", { name: "Medical information", exact: true })
-    .click();
+  await page.getByRole("tab", { name: "Enrollment", exact: true }).click();
+  await expect(page).toHaveURL(/tab=enrollment/);
+  await expect(
+    page.getByRole("heading", { name: "Enrollment history", exact: true }),
+  ).toBeVisible();
+  await page.getByRole("tab", { name: "Medical", exact: true }).click();
   await expect(page).toHaveURL(/tab=medical/);
   await page.reload();
   await expect(
-    page.getByRole("tab", { name: "Medical information", exact: true }),
+    page.getByRole("tab", { name: "Medical", exact: true }),
   ).toHaveAttribute("aria-selected", "true");
+  await expect(
+    page.getByRole("heading", { name: "Medical information", exact: true }),
+  ).toBeVisible();
   await expect(page.getByRole("button", { name: "Save changes" })).toHaveCount(
     0,
   );
+  await expect(page.getByRole("button", { name: /^Edit/ })).toHaveCount(0);
+  await expect(
+    page.getByRole("button", { name: "Move class", exact: true }),
+  ).toHaveCount(0);
   await page.getByRole("link", { name: "PreKG-A", exact: true }).click();
   await expect(page).toHaveURL(/\/classes\/[a-f0-9-]+/);
   await page.getByRole("tab", { name: "Students", exact: true }).click();

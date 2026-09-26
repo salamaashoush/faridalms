@@ -1,4 +1,8 @@
 import * as m from "~/i18n/messages";
+import { formatDate } from "~/utils/datetime";
+
+/** Followed by the last day a register was taken, which the move would change. */
+export const MOVE_DATE_REGISTERS = "management.move_date_registers:";
 
 export class HttpError extends Error {
   readonly status: number;
@@ -276,6 +280,12 @@ export function getMessageFromError(error: unknown): string {
         return m.managementClassNotFound();
       case "management.subject_code_conflict":
         return m.managementSubjectCodeConflict();
+      case "management.reference_conflict":
+        return m.managementReferenceConflict();
+      case "management.move_date_future":
+        return m.managementMoveDateFuture();
+      case "management.move_date_early":
+        return m.managementMoveDateEarly();
       case "assignment.no_student_record":
         return m.assignmentNoStudentRecord();
       case "auth.invalid_credentials":
@@ -289,6 +299,10 @@ export function getMessageFromError(error: unknown): string {
     }
     if (error.message.startsWith("assignment.incomplete:"))
       return m.assignmentIncomplete();
+    if (error.message.startsWith(MOVE_DATE_REGISTERS))
+      return m.managementMoveDateRegisters({
+        date: formatDate(error.message.slice(MOVE_DATE_REGISTERS.length)),
+      });
     return error.message;
   }
   return m.notificationErrorMessage();

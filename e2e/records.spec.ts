@@ -142,20 +142,18 @@ test("families move between student, class and person records without losing the
   await expect(
     page.getByRole("heading", { name: "Daily record", exact: true }),
   ).toBeVisible();
-  await page.getByRole("tab", { name: "Grades", exact: true }).click();
-  await expect(page).toHaveURL(/tab=grades/);
+  await page.getByRole("tab", { name: "Coursework", exact: true }).click();
+  await expect(page).toHaveURL(/tab=coursework/);
   await expect(
-    page.getByRole("heading", { name: "Grades", exact: true }),
+    page.getByRole("heading", { name: "Results", exact: true }),
   ).toBeVisible();
   await page.reload();
   await expect(
-    page.getByRole("tab", { name: "Grades", exact: true }),
+    page.getByRole("tab", { name: "Coursework", exact: true }),
   ).toHaveAttribute("aria-selected", "true");
 
-  await page
-    .getByRole("tab", { name: "Contact information", exact: true })
-    .click();
-  await expect(page).toHaveURL(/tab=contact/);
+  await page.getByRole("tab", { name: "Family", exact: true }).click();
+  await expect(page).toHaveURL(/tab=family/);
   await page.getByRole("link", { name: "Salama Ashoush", exact: true }).click();
   await expect(page).toHaveURL(/\/people\/[a-f0-9-]+/);
   await expect(
@@ -169,9 +167,9 @@ test("families move between student, class and person records without losing the
   ).toBeVisible();
 
   await page.goBack();
-  await expect(page).toHaveURL(/tab=contact/);
+  await expect(page).toHaveURL(/tab=family/);
   await expect(
-    page.getByRole("tab", { name: "Contact information", exact: true }),
+    page.getByRole("tab", { name: "Family", exact: true }),
   ).toHaveAttribute("aria-selected", "true");
 
   await page
@@ -258,7 +256,7 @@ test("a student reaches their own record from the user menu", async ({
   ).toBeVisible();
   await page.getByRole("link", { name: /Omar Ashoush/ }).click();
   await expect(page).toHaveURL(/\/students\/[a-f0-9-]+/);
-  await page.getByRole("tab", { name: "Assignments", exact: true }).click();
+  await page.getByRole("tab", { name: "Coursework", exact: true }).click();
   await expect(page).toHaveURL(/tab=coursework/);
   await page.getByRole("link", { name: "P1-B", exact: true }).first().click();
   await expect(page).toHaveURL(/\/classes\/[a-f0-9-]+/);
