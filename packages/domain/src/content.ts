@@ -1,5 +1,8 @@
 import * as v from "valibot";
 
+import type { EmbedProvider } from "./embed";
+
+import { embedProviders, isEmbedId } from "./embed";
 import { isSafeContentUrl } from "./rich-text";
 
 const nodeTypes = [
@@ -20,7 +23,30 @@ const nodeTypes = [
   "tablerow",
   "tablecell",
   "horizontalrule",
+  "callout",
+  "toggle",
+  "toggle-title",
+  "toggle-content",
+  "columns",
+  "column",
+  "image",
+  "file",
+  "media",
+  "embed",
+  "diagram",
 ] as const;
+export const calloutTones = [
+  "neutral",
+  "info",
+  "success",
+  "warning",
+  "danger",
+] as const;
+export const columnLayouts = ["1:1", "1:2", "2:1", "1:1:1", "1:1:1:1"] as const;
+export const imageSizes = ["small", "medium", "large", "full"] as const;
+export type CalloutTone = (typeof calloutTones)[number];
+export type ColumnLayout = (typeof columnLayouts)[number];
+export type ImageSize = (typeof imageSizes)[number];
 export interface ContentNode {
   type: (typeof nodeTypes)[number];
   version: 1;
@@ -65,6 +91,21 @@ export interface ContentNode {
   rowStriping?: boolean;
   frozenColumnCount?: number;
   frozenRowCount?: number;
+  tone?: CalloutTone;
+  open?: boolean;
+  layout?: ColumnLayout;
+  fileId?: string;
+  alt?: string;
+  caption?: string;
+  size?: ImageSize;
+  name?: string;
+  mime?: string;
+  bytes?: number;
+  captionsFileId?: string;
+  provider?: EmbedProvider;
+  embedId?: string;
+  sceneFileId?: string;
+  $?: { id?: string };
 }
 export interface ContentDocument {
   root: ContentNode;
@@ -153,6 +194,25 @@ const nodeSchema: v.GenericSchema<ContentNode> = v.lazy(() =>
       rowStriping: v.optional(v.boolean()),
       frozenColumnCount: v.optional(integer(0, 100)),
       frozenRowCount: v.optional(integer(0, 100)),
+      tone: v.optional(v.picklist(calloutTones)),
+      open: v.optional(v.boolean()),
+      layout: v.optional(v.picklist(columnLayouts)),
+      fileId: v.optional(v.pipe(v.string(), v.uuid())),
+      alt: v.optional(v.pipe(v.string(), v.maxLength(500))),
+      caption: v.optional(v.pipe(v.string(), v.maxLength(1000))),
+      size: v.optional(v.picklist(imageSizes)),
+      name: v.optional(v.pipe(v.string(), v.minLength(1), v.maxLength(255))),
+      mime: v.optional(v.pipe(v.string(), v.maxLength(255))),
+      bytes: v.optional(integer(0, 2147483647)),
+      captionsFileId: v.optional(v.pipe(v.string(), v.uuid())),
+      provider: v.optional(v.picklist(embedProviders)),
+      embedId: v.optional(v.pipe(v.string(), v.maxLength(200))),
+      sceneFileId: v.optional(v.pipe(v.string(), v.uuid())),
+      $: v.optional(
+        v.object({
+          id: v.optional(v.pipe(v.string(), v.regex(/^[\da-z]{8,36}$/))),
+        }),
+      ),
     }),
     v.check(validNode),
   ),
@@ -161,6 +221,24 @@ const inline = (child: ContentNode) =>
   ["text", "code-highlight", "tab", "linebreak", "link", "autolink"].includes(
     child.type,
   );
+const blocks = new Set<string>([
+  "paragraph",
+  "heading",
+  "quote",
+  "list",
+  "code",
+  "table",
+  "horizontalrule",
+  "callout",
+  "toggle",
+  "columns",
+  "image",
+  "file",
+  "media",
+  "embed",
+  "diagram",
+]);
+const nestedBlocks = new Set([...blocks].filter((type) => type !== "columns"));
 function validNode(node: ContentNode): boolean {
   const children = node.children ?? [];
   if (["text", "code-highlight", "tab"].includes(node.type))
@@ -171,6 +249,37 @@ function validNode(node: ContentNode): boolean {
     );
   if (["linebreak", "horizontalrule"].includes(node.type))
     return !node.children && node.text === undefined;
+  if (node.type === "image")
+    return !node.children && node.text === undefined && Boolean(node.fileId);
+  if (node.type === "file")
+    return (
+      !node.children &&
+      node.text === undefined &&
+      Boolean(node.fileId) &&
+      Boolean(node.name)
+    );
+  if (node.type === "media")
+    return (
+      !node.children &&
+      node.text === undefined &&
+      Boolean(node.fileId) &&
+      /^(audio|video)\//.test(node.mime ?? "")
+    );
+  if (node.type === "embed")
+    return (
+      !node.children &&
+      node.text === undefined &&
+      node.provider !== undefined &&
+      node.embedId !== undefined &&
+      isEmbedId(node.provider, node.embedId)
+    );
+  if (node.type === "diagram")
+    return (
+      !node.children &&
+      node.text === undefined &&
+      Boolean(node.fileId) &&
+      Boolean(node.sceneFileId)
+    );
   if (
     !node.children ||
     node.text !== undefined ||
@@ -180,17 +289,7 @@ function validNode(node: ContentNode): boolean {
 
   switch (node.type) {
     case "root":
-      return children.every((child) =>
-        [
-          "paragraph",
-          "heading",
-          "quote",
-          "list",
-          "code",
-          "table",
-          "horizontalrule",
-        ].includes(child.type),
-      );
+      return children.every((child) => blocks.has(child.type));
     case "quote":
       return children.every(
         (child) =>
@@ -201,6 +300,7 @@ function validNode(node: ContentNode): boolean {
       );
     case "paragraph":
     case "code":
+    case "toggle-title":
       return children.every(inline);
     case "heading":
       return Boolean(node.tag?.startsWith("h")) && children.every(inline);
@@ -234,6 +334,31 @@ function validNode(node: ContentNode): boolean {
       return children.every((child) =>
         ["paragraph", "heading", "quote", "list", "code"].includes(child.type),
       );
+    case "callout":
+      return (
+        children.length > 0 &&
+        children.every(
+          (child) => child.type !== "callout" && nestedBlocks.has(child.type),
+        )
+      );
+    case "toggle":
+      return (
+        children.length === 2 &&
+        children[0]?.type === "toggle-title" &&
+        children[1]?.type === "toggle-content"
+      );
+    case "toggle-content":
+    case "column":
+      return (
+        children.length > 0 &&
+        children.every((child) => nestedBlocks.has(child.type))
+      );
+    case "columns":
+      return (
+        children.length >= 2 &&
+        children.length <= 4 &&
+        children.every((child) => child.type === "column")
+      );
   }
   return false;
 }
@@ -262,15 +387,41 @@ export const contentDocumentSchema = v.pipe(
       contentPlainText(document).length <= 100000,
   ),
 );
-const visit = (node: ContentNode): string =>
-  node.text ??
-  (node.type === "linebreak"
-    ? "\n"
-    : (node.children ?? [])
-        .map(visit)
-        .join(
-          ["root", "list", "table", "tablerow"].includes(node.type) ? "\n" : "",
-        ));
+const blockSeparated = new Set<string>([
+  "root",
+  "list",
+  "table",
+  "tablerow",
+  "callout",
+  "toggle",
+  "toggle-content",
+  "columns",
+  "column",
+]);
+const visit = (node: ContentNode): string => {
+  if (node.type === "image" || node.type === "diagram")
+    return node.caption || node.alt || "";
+  if (node.type === "media" || node.type === "embed") return node.caption ?? "";
+  if (node.type === "file") return node.name ?? "";
+  return (
+    node.text ??
+    (node.type === "linebreak"
+      ? "\n"
+      : (node.children ?? [])
+          .map(visit)
+          .join(blockSeparated.has(node.type) ? "\n" : ""))
+  );
+};
 export function contentPlainText(document: ContentDocument): string {
   return visit(document.root);
+}
+export function contentFileIds(document: ContentDocument): string[] {
+  const ids = new Set<string>();
+  const pending = [document.root];
+  for (let node = pending.pop(); node; node = pending.pop()) {
+    for (const id of [node.fileId, node.captionsFileId, node.sceneFileId])
+      if (id) ids.add(id);
+    if (node.children) pending.push(...node.children);
+  }
+  return [...ids];
 }

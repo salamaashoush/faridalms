@@ -1,0 +1,139 @@
+export interface EditorStrings {
+  placeholder: string;
+  emptyPlaceholder: string;
+  headingPlaceholder: string;
+  listPlaceholder: string;
+  togglePlaceholder: string;
+  invalid: string;
+  characters: (count: number) => string;
+  formatting: string;
+  undo: string;
+  redo: string;
+  insert: string;
+  groupText: string;
+  groupLists: string;
+  groupMedia: string;
+  groupLayout: string;
+  text: string;
+  textHint: string;
+  heading1: string;
+  heading1Hint: string;
+  heading2: string;
+  heading2Hint: string;
+  heading3: string;
+  heading3Hint: string;
+  bulletList: string;
+  bulletListHint: string;
+  numberedList: string;
+  numberedListHint: string;
+  checklist: string;
+  checklistHint: string;
+  quote: string;
+  quoteHint: string;
+  code: string;
+  codeHint: string;
+  callout: string;
+  calloutHint: string;
+  toggle: string;
+  toggleHint: string;
+  divider: string;
+  dividerHint: string;
+  table: string;
+  tableHint: string;
+  columns2: string;
+  columns3: string;
+  columnsHint: string;
+  image: string;
+  imageHint: string;
+  file: string;
+  fileHint: string;
+  addBlock: string;
+  blockHandle: string;
+  turnInto: string;
+  duplicate: string;
+  delete: string;
+  moveUp: string;
+  moveDown: string;
+  tone: string;
+  toneNeutral: string;
+  toneInfo: string;
+  toneSuccess: string;
+  toneWarning: string;
+  toneDanger: string;
+  columnLayout: string;
+  bold: string;
+  italic: string;
+  underline: string;
+  strikethrough: string;
+  inlineCode: string;
+  highlight: string;
+  textColor: string;
+  defaultColor: string;
+  colors: Record<EditorColor, string>;
+  link: string;
+  linkUrl: string;
+  linkApply: string;
+  linkRemove: string;
+  linkOpen: string;
+  linkInvalid: string;
+  tableTools: string;
+  tableRows: string;
+  tableColumns: string;
+  tableApply: string;
+  tableInvalid: string;
+  addRow: string;
+  addColumn: string;
+  deleteRow: string;
+  deleteColumn: string;
+  deleteTable: string;
+  markdown: string;
+  markdownHint: string;
+  replaceFromMarkdown: string;
+  cancel: string;
+  uploading: string;
+  uploadFailed: string;
+  imageAlt: string;
+  imageCaption: string;
+  imageSize: string;
+  sizeSmall: string;
+  sizeMedium: string;
+  sizeLarge: string;
+  sizeFull: string;
+  downloadFile: string;
+  media: string;
+  mediaHint: string;
+  captions: string;
+  captionsAdd: string;
+  captionsReplace: string;
+  captionsAdded: string;
+  captionsMissing: string;
+  embed: string;
+  embedHint: string;
+  embedUrl: string;
+  embedInsert: string;
+  embedInvalid: string;
+  embedLoad: (provider: string) => string;
+  embedPrivacy: (provider: string) => string;
+  embedOpen: (provider: string) => string;
+  diagram: string;
+  diagramHint: string;
+  diagramEdit: string;
+  diagramSave: string;
+  diagramLoading: string;
+  checkItem: string;
+  codeLanguage: string;
+  plainText: string;
+}
+
+export const editorColors = [
+  "gray",
+  "brown",
+  "orange",
+  "yellow",
+  "green",
+  "blue",
+  "purple",
+  "pink",
+  "red",
+] as const;
+export type EditorColor = (typeof editorColors)[number];

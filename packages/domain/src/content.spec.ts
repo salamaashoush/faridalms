@@ -1,8 +1,11 @@
 import * as v from "valibot";
 import { describe, expect, it } from "vitest";
 
+import type { ContentDocument, ContentNode } from "./content";
+
 import {
   contentDocumentSchema,
+  contentFileIds,
   contentPlainText,
   validContentStyle,
 } from "./content";
@@ -104,5 +107,228 @@ describe("shared content documents", () => {
     ).toBe(true);
     expect(validContentStyle("position:fixed;inset:0")).toBe(false);
     expect(validContentStyle("color:expression(alert(1))")).toBe(false);
+  });
+});
+
+const text = (value: string) => ({
+  type: "text" as const,
+  version: 1 as const,
+  text: value,
+  format: 0,
+});
+const paragraph = (value: string) => ({
+  type: "paragraph" as const,
+  version: 1 as const,
+  format: "" as const,
+  children: [text(value)],
+});
+const documentOf = (...children: ContentNode[]): ContentDocument => ({
+  root: { type: "root", version: 1, format: "", children },
+});
+const fileId = "7f1c2e0a-4b7d-4c2e-9f51-2a0e8c9d1b34";
+const sceneId = "0b8f6c1e-2d4a-4f3b-8e7a-5c9d1e2f3a4b";
+
+describe("block content", () => {
+  it("accepts callouts, toggles, columns and media with stable block ids", () => {
+    const document = documentOf(
+      {
+        type: "callout",
+        version: 1,
+        format: "",
+        tone: "warning",
+        $: { id: "k3j9x0a1b2c3" },
+        children: [paragraph("Pickup moves to 2:30 for Salama.")],
+      },
+      {
+        type: "toggle",
+        version: 1,
+        format: "",
+        open: false,
+        children: [
+          {
+            type: "toggle-title",
+            version: 1,
+            format: "",
+            children: [text("Uniform")],
+          },
+          {
+            type: "toggle-content",
+            version: 1,
+            format: "",
+            children: [paragraph("Sports kit on Mondays.")],
+          },
+        ],
+      },
+      {
+        type: "columns",
+        version: 1,
+        format: "",
+        layout: "1:2",
+        children: [
+          {
+            type: "column",
+            version: 1,
+            format: "",
+            children: [paragraph("Left")],
+          },
+          {
+            type: "column",
+            version: 1,
+            format: "",
+            children: [paragraph("Right")],
+          },
+        ],
+      },
+      {
+        type: "image",
+        version: 1,
+        format: "",
+        fileId,
+        alt: "Class trip",
+        caption: "Trip",
+        size: "large",
+      },
+      {
+        type: "media",
+        version: 1,
+        format: "",
+        fileId,
+        mime: "video/mp4",
+        captionsFileId: sceneId,
+        caption: "Lesson",
+      },
+      {
+        type: "embed",
+        version: 1,
+        format: "",
+        provider: "youtube",
+        embedId: "dQw4w9WgXcQ",
+        caption: "",
+      },
+      {
+        type: "diagram",
+        version: 1,
+        format: "",
+        fileId,
+        sceneFileId: sceneId,
+        caption: "Water cycle",
+        size: "full",
+      },
+      {
+        type: "file",
+        version: 1,
+        format: "",
+        fileId,
+        name: "worksheet.pdf",
+        mime: "application/pdf",
+        bytes: 2048,
+      },
+    );
+    const result = v.safeParse(contentDocumentSchema, document);
+    expect(result.success).toBe(true);
+    if (!result.success) return;
+    expect(result.output.root.children?.[0]?.$?.id).toBe("k3j9x0a1b2c3");
+    expect(contentFileIds(result.output).toSorted()).toEqual(
+      [fileId, sceneId].toSorted(),
+    );
+    expect(contentPlainText(result.output)).toBe(
+      [
+        "Pickup moves to 2:30 for Salama.",
+        "Uniform\nSports kit on Mondays.",
+        "Left\nRight",
+        "Trip",
+        "Lesson",
+        "",
+        "Water cycle",
+        "worksheet.pdf",
+      ].join("\n"),
+    );
+  });
+
+  it("refuses structures the editor cannot represent", () => {
+    const nested = documentOf({
+      type: "columns",
+      version: 1,
+      format: "",
+      layout: "1:1",
+      children: [
+        {
+          type: "column",
+          version: 1,
+          format: "",
+          children: [
+            {
+              type: "columns",
+              version: 1,
+              format: "",
+              layout: "1:1",
+              children: [
+                {
+                  type: "column",
+                  version: 1,
+                  format: "",
+                  children: [paragraph("a")],
+                },
+                {
+                  type: "column",
+                  version: 1,
+                  format: "",
+                  children: [paragraph("b")],
+                },
+              ],
+            },
+          ],
+        },
+        { type: "column", version: 1, format: "", children: [paragraph("c")] },
+      ],
+    });
+    const brokenToggle = documentOf({
+      type: "toggle",
+      version: 1,
+      format: "",
+      open: true,
+      children: [paragraph("no title")],
+    });
+    const calloutInCallout = documentOf({
+      type: "callout",
+      version: 1,
+      format: "",
+      tone: "info",
+      children: [
+        {
+          type: "callout",
+          version: 1,
+          format: "",
+          tone: "info",
+          children: [paragraph("x")],
+        },
+      ],
+    });
+    const badEmbed = documentOf({
+      type: "embed",
+      version: 1,
+      format: "",
+      provider: "youtube",
+      embedId: "https://evil.example/",
+      caption: "",
+    });
+    const scriptMedia = documentOf({
+      type: "media",
+      version: 1,
+      format: "",
+      fileId,
+      mime: "text/html",
+      caption: "",
+    });
+    const badBlockId = documentOf({ ...paragraph("x"), $: { id: "<script>" } });
+    for (const document of [
+      nested,
+      brokenToggle,
+      calloutInCallout,
+      badEmbed,
+      scriptMedia,
+      badBlockId,
+    ])
+      expect(v.safeParse(contentDocumentSchema, document).success).toBe(false);
   });
 });

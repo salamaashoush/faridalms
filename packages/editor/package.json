@@ -1,0 +1,44 @@
+{
+  "name": "@faridalms/editor",
+  "private": true,
+  "type": "module",
+  "sideEffects": [
+    "./src/prism.ts",
+    "./src/diagram-assets.ts",
+    "./src/editor.css"
+  ],
+  "exports": {
+    ".": "./src/index.ts",
+    "./view": "./src/view.tsx",
+    "./nodes": "./src/nodes/index.ts",
+    "./strings": "./src/strings.ts",
+    "./editor.css": "./src/editor.css",
+    "./Editor": "./src/Editor.tsx"
+  },
+  "dependencies": {
+    "@base-ui/react": "^1.8.0",
+    "@excalidraw/excalidraw": "^0.18.1",
+    "@faridalms/domain": "workspace:*",
+    "@floating-ui/dom": "^1.8.0",
+    "@lexical/code": "^0.50.0",
+    "@lexical/code-prism": "^0.50.0",
+    "@lexical/extension": "^0.50.0",
+    "@lexical/history": "^0.50.0",
+    "@lexical/link": "^0.50.0",
+    "@lexical/list": "^0.50.0",
+    "@lexical/markdown": "^0.50.0",
+    "@lexical/react": "^0.50.0",
+    "@lexical/rich-text": "^0.50.0",
+    "@lexical/selection": "^0.50.0",
+    "@lexical/table": "^0.50.0",
+    "@lexical/utils": "^0.50.0",
+    "lexical": "^0.50.0",
+    "lucide-react": "^1.45.0",
+    "prismjs": "^1.30.0",
+    "valibot": "^1.5.0"
+  },
+  "peerDependencies": {
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0"
+  }
+}
