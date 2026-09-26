@@ -17,7 +17,7 @@ import * as v from "valibot";
 
 import { requirePermission } from "../authorization";
 import { protectedProcedure, publicProcedure } from "../procedure";
-import { schoolForHost, withPublicSchool } from "../public-school";
+import { withPublicSchool } from "../public-school";
 
 const id = v.object({ id: v.pipe(v.string(), v.uuid()) });
 
@@ -232,8 +232,3 @@ export const getPublicPost = publicProcedure
       return post;
     }),
   );
-
-/** Which school, if any, publishes its site on the requested host. */
-export const getSchoolForHost = publicProcedure
-  .input(v.object({ host: v.pipe(v.string(), v.maxLength(255)) }))
-  .handler(({ context, input }) => schoolForHost(context, input.host));

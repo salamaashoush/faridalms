@@ -4,9 +4,9 @@ import * as access from "./modules/access";
 import * as administration from "./modules/administration";
 import * as announcements from "./modules/announcements";
 import * as assignments from "./modules/assignments";
-import * as auth from "./modules/auth";
 import * as communication from "./modules/communication";
 import * as files from "./modules/files";
+import * as identity from "./modules/identity";
 import * as learning from "./modules/learning";
 import * as newsletters from "./modules/newsletters";
 import * as notifications from "./modules/notifications";
@@ -20,7 +20,7 @@ import * as teaching from "./modules/teaching";
 import * as timetable from "./modules/timetable";
 
 export const router = {
-  auth,
+  identity,
   ...students,
   ...overviews,
   ...teaching,

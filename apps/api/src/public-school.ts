@@ -29,16 +29,3 @@ export async function withPublicSchool<T>(
     lease.release();
   }
 }
-
-export async function schoolForHost(
-  context: ApiContext,
-  host: string,
-): Promise<{ slug: string; name: string } | null> {
-  const hostname = host.split(":")[0]?.toLowerCase() ?? "";
-  if (!hostname) return null;
-  const [school] = await context.control
-    .select({ slug: schools.slug, name: schools.name })
-    .from(schools)
-    .where(and(eq(schools.publicDomain, hostname), eq(schools.isActive, true)));
-  return school ?? null;
-}

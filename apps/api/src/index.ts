@@ -1,40 +1,34 @@
-import { createControlDatabase } from "@faridalms/database/control";
+import { openCell } from "@faridalms/database/context";
+import { localKek } from "@faridalms/database/crypto";
+import { openDirectory } from "@faridalms/database/directory/client";
 
 import { createApp } from "./app";
+import { createKeyRing } from "./core/keys";
 import { env } from "./env";
 import { createScanner } from "./files/scan";
 import { DiskFileStore } from "./files/store";
-import { FileSweeper } from "./files/sweep";
-import { createProvider } from "./notifications/providers";
-import { NotificationWorker } from "./notifications/worker";
-import { TenantPools } from "./tenancy";
 
-const control = createControlDatabase(env.CONTROL_DATABASE_URL);
-const pools = new TenantPools(env.MAX_TENANT_POOLS, env.TENANT_POOL_SIZE);
-const files = new DiskFileStore(env.FILE_STORAGE_DIR);
-const worker = new NotificationWorker(
-  control,
-  pools,
-  {
-    email: createProvider(env.EMAIL_PROVIDER_URL, env.EMAIL_PROVIDER_TOKEN),
-    sms: createProvider(env.SMS_PROVIDER_URL, env.SMS_PROVIDER_TOKEN),
-  },
-  env.NOTIFICATION_POLL_MS,
-  env.NOTIFICATION_RETRY_BASE_MS,
+const cell = openCell(
+  { app: env.CELL_APP_URL, site: env.CELL_SITE_URL },
+  env.CELL_POOL_SIZE,
 );
-worker.start();
-const scanner = createScanner(env.CLAMD_ADDRESS);
-const sweeper = new FileSweeper(control, pools, files, env.FILE_SWEEP_MS);
-sweeper.start();
+const directory = openDirectory(env.DIRECTORY_URL);
+const kek = localKek(
+  new Uint8Array(Buffer.from(env.CELL_KEK, "base64")),
+  `local:${env.CELL_ID}`,
+);
 const server = Bun.serve({
   port: env.API_PORT,
   // Uploads stream through the raw file route; everything else stays small.
   maxRequestBodySize: env.MAX_UPLOAD_BYTES + 1024 * 1024,
   fetch: createApp({
-    control,
-    pools,
-    files,
-    scanner,
+    cell,
+    directory,
+    keys: createKeyRing(kek, env.CELL_ID),
+    cellId: env.CELL_ID,
+    cellSecret: new Uint8Array(Buffer.from(env.CELL_SECRET, "base64")),
+    files: new DiskFileStore(env.FILE_STORAGE_DIR),
+    scanner: createScanner(env.CLAMD_ADDRESS),
     maxUploadBytes: env.MAX_UPLOAD_BYTES,
   }),
 });
@@ -45,10 +39,8 @@ async function shutdown() {
   if (stopping) return;
   stopping = true;
   await server.stop();
-  await worker.stop();
-  await sweeper.stop();
-  await pools.close();
-  await control.$client.close();
+  await cell.close();
+  await directory.close();
   process.exit(0);
 }
 process.on("SIGTERM", () => {

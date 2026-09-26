@@ -44,22 +44,34 @@ const SIGN_IN_STATES: ReadonlySet<TenantLifecycle> = new Set([
   "frozen",
 ]);
 
+async function beginUnit(tx: CellTransaction, work: UnitOfWork) {
+  const rows = await tx.execute<{ lifecycle: TenantLifecycle | null }>(
+    sql`select app.begin_unit(${work.tenantId}::uuid, ${work.actor.userId ?? null}::uuid, ${work.actor.accountId ?? null}::uuid, ${work.actor.sessionId ?? null}::uuid, ${work.requestId}, ${work.actor.kind}) as lifecycle`,
+  );
+  return rows[0]?.lifecycle ?? null;
+}
+
+/**
+ * Names the actor once the session is known, so the audit trigger records who
+ * acted. The tenant it binds must be the one the unit of work began with.
+ */
+export async function bindActor(tx: CellTransaction, work: UnitOfWork) {
+  await beginUnit(tx, work);
+}
+
 async function unit<T>(
   pool: Pool,
   work: UnitOfWork,
   access: Access,
-  run: (tx: CellTransaction) => Promise<T>,
+  run: (tx: CellTransaction, lifecycle: TenantLifecycle) => Promise<T>,
 ): Promise<T> {
   return pool.transaction(async (tx) => {
-    const rows = await tx.execute<{ lifecycle: TenantLifecycle | null }>(
-      sql`select app.begin_unit(${work.tenantId}::uuid, ${work.actor.userId ?? null}::uuid, ${work.actor.accountId ?? null}::uuid, ${work.actor.sessionId ?? null}::uuid, ${work.requestId}, ${work.actor.kind}) as lifecycle`,
-    );
-    const lifecycle = rows[0]?.lifecycle ?? null;
+    const lifecycle = await beginUnit(tx, work);
     if (lifecycle === null || !SIGN_IN_STATES.has(lifecycle))
       throw new TenantUnavailableError("unknown");
     if (access === "write" && lifecycle !== "active")
       throw new TenantUnavailableError("read_only");
-    return run(tx);
+    return run(tx, lifecycle);
   });
 }
 
@@ -91,7 +103,7 @@ export function openCell(urls: CellUrls, size = 10) {
     withTenant: <T>(
       work: UnitOfWork,
       access: Access,
-      run: (tx: CellTransaction) => Promise<T>,
+      run: (tx: CellTransaction, lifecycle: TenantLifecycle) => Promise<T>,
     ) => unit(pools.app, work, access, run),
     withSite: <T>(work: UnitOfWork, run: (tx: CellTransaction) => Promise<T>) =>
       unit(need(pools.site, "site"), work, "read", run),

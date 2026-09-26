@@ -2,22 +2,18 @@ import { OpenAPIGenerator } from "@orpc/openapi";
 import { OpenAPIHandler } from "@orpc/openapi/fetch";
 import { RPCHandler } from "@orpc/server/fetch";
 import { experimental_ValibotToJsonSchemaConverter as ValibotToJsonSchemaConverter } from "@orpc/valibot";
-import { sql } from "drizzle-orm";
 
 import type { ApiContext } from "./context";
+import type { ApiDependencies, RequestContext } from "./core/context";
 
 import { handlePublicFileRequest } from "./files/public";
 import { handleFileRequest } from "./files/routes";
+import { legacyUnavailable } from "./legacy";
 import { router } from "./router";
 
-export function createApp(
-  dependencies: Pick<
-    ApiContext,
-    "control" | "pools" | "files" | "scanner" | "maxUploadBytes"
-  >,
-) {
-  const rpc = new RPCHandler(router);
-  const api = new OpenAPIHandler(router);
+export function createApp(dependencies: ApiDependencies) {
+  const rpc = new RPCHandler<RequestContext & ApiContext>(router);
+  const api = new OpenAPIHandler<RequestContext & ApiContext>(router);
   const generator = new OpenAPIGenerator({
     schemaConverters: [new ValibotToJsonSchemaConverter()],
   });
@@ -39,13 +35,15 @@ export function createApp(
       if (url.pathname === "/health/live")
         response = Response.json({ status: "ok" });
       else if (url.pathname === "/health/ready") {
-        await dependencies.control.execute(sql`select 1`);
+        await dependencies.cell.ping();
         response = Response.json({ status: "ok" });
       } else if (url.pathname === "/openapi.json")
         response = Response.json(await specification);
       else {
-        const context = {
+        const context: RequestContext & ApiContext = {
           ...dependencies,
+          control: legacyUnavailable,
+          pools: legacyUnavailable,
           headers: request.headers,
           requestId,
         };
@@ -64,7 +62,8 @@ export function createApp(
             Response.json({ code: "NOT_FOUND" }, { status: 404 });
         }
       }
-    } catch {
+    } catch (error) {
+      console.error(JSON.stringify({ requestId, error: String(error) }));
       response = Response.json(
         { code: "INTERNAL_SERVER_ERROR", requestId },
         { status: 500 },

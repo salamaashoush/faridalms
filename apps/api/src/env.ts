@@ -6,29 +6,37 @@ const positiveInteger = v.pipe(
   v.integer(),
   v.minValue(1),
 );
+const bytes = (length: number) =>
+  v.pipe(
+    v.string(),
+    v.base64(),
+    v.check(
+      (value) => Buffer.from(value, "base64").length >= length,
+      `must decode to at least ${length} bytes`,
+    ),
+  );
+
 export const env = v.parse(
   v.object({
-    CONTROL_DATABASE_URL: v.pipe(v.string(), v.url()),
+    // The cell's pools, one login role each; the directory for routing.
+    CELL_APP_URL: v.pipe(v.string(), v.url()),
+    CELL_SITE_URL: v.optional(v.pipe(v.string(), v.url())),
+    DIRECTORY_URL: v.pipe(v.string(), v.url()),
+    CELL_ID: v.pipe(v.string(), v.regex(/^[a-z]{2}-[0-9]{1,2}$/)),
+    // Wraps each tenant's data keys; a deployed cell wraps through its KMS.
+    CELL_KEK: bytes(32),
+    // Derives per-tenant keys for sign-in counters, so no raw identifier is stored.
+    CELL_SECRET: bytes(32),
     API_PORT: v.optional(positiveInteger, "3001"),
-    MAX_TENANT_POOLS: v.optional(positiveInteger, "32"),
-    TENANT_POOL_SIZE: v.optional(positiveInteger, "4"),
+    CELL_POOL_SIZE: v.optional(positiveInteger, "10"),
     // Private uploads land here until an object-store adapter is configured.
     FILE_STORAGE_DIR: v.optional(
       v.pipe(v.string(), v.minLength(1)),
       ".data/files",
     ),
     MAX_UPLOAD_BYTES: v.optional(positiveInteger, String(25 * 1024 * 1024)),
-    // Outbound channels stay off until an endpoint is configured; "memory:"
-    // records sends in process for tests.
-    EMAIL_PROVIDER_URL: v.optional(v.string()),
-    EMAIL_PROVIDER_TOKEN: v.optional(v.string()),
-    SMS_PROVIDER_URL: v.optional(v.string()),
-    SMS_PROVIDER_TOKEN: v.optional(v.string()),
-    NOTIFICATION_POLL_MS: v.optional(positiveInteger, "15000"),
-    NOTIFICATION_RETRY_BASE_MS: v.optional(positiveInteger, "60000"),
     // host:port of a clamd daemon; uploads are only signature-checked without one.
     CLAMD_ADDRESS: v.optional(v.pipe(v.string(), v.regex(/^[^\s:]+:\d+$/))),
-    FILE_SWEEP_MS: v.optional(positiveInteger, String(60 * 60 * 1000)),
   }),
   process.env,
 );
