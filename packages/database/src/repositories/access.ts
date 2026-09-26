@@ -92,6 +92,7 @@ export async function listAccessRoles(db: Database) {
           revision: row.role.revision,
           members,
           stored: true,
+          updatedAt: row.role.updatedAt,
         }
       : {
           id: null,
@@ -102,6 +103,7 @@ export async function listAccessRoles(db: Database) {
           revision: 0,
           members,
           stored: false,
+          updatedAt: null,
         };
   });
   const custom = rows
@@ -115,6 +117,7 @@ export async function listAccessRoles(db: Database) {
       revision: row.role.revision,
       members: row.members,
       stored: true,
+      updatedAt: row.role.updatedAt,
     }));
   return { builtins, custom };
 }

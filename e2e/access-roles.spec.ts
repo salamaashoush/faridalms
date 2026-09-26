@@ -299,11 +299,11 @@ test("administrators shape a role in settings and assign it from the staff direc
   await dialog
     .getByRole("checkbox", { name: "View attendance", exact: true })
     .click();
-  await dialog
-    .getByRole("button", { name: "Save changes", exact: true })
-    .click();
+  await dialog.getByRole("button", { name: "Save", exact: true }).click();
   await expect(dialog).toHaveCount(0);
-  await expect(page.getByText(`Desk ${suffix}`, { exact: true })).toBeVisible();
+  await expect(
+    page.getByRole("link", { name: `Desk ${suffix}`, exact: true }),
+  ).toBeVisible();
   await expect(
     page.getByText("Role created", { exact: true }).first(),
   ).toBeVisible();

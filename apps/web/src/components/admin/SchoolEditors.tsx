@@ -1,133 +1,125 @@
 import type {
   SchoolProfileInput,
-  SaveSubjectInput,
   PublishNewsletterInput,
 } from "@faridalms/domain/administration-schema";
 
 import {
   schoolProfileSchema,
-  saveSubjectSchema,
   publishNewsletterSchema,
 } from "@faridalms/domain/administration-schema";
-import { useForm } from "@tanstack/react-form";
+import { revalidateLogic, useForm, useStore } from "@tanstack/react-form";
 import { useMutation } from "@tanstack/react-query";
+import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { Field, FieldLabel, FieldError } from "~/components/app/field";
+import { ComboboxField } from "~/components/system/ComboboxField";
+import { TextField } from "~/components/system/field";
+import { SettingsSection } from "~/components/system/SettingsSection";
 import { Textarea } from "~/components/ui/textarea";
 import * as m from "~/i18n/messages";
-import {
-  saveSchoolProfile,
-  saveSubject,
-  publishNewsletter,
-} from "~/server/school";
+import { saveSchoolProfile, publishNewsletter } from "~/server/school";
+import { getMessageFromError } from "~/utils/error";
 
 import { ManagementDialog, ManagementInput } from "./ManagementDialog";
 
-export function SchoolProfileEditor({
-  initial,
-  onClose,
+function TimeZoneField({
+  value,
+  onChange,
+  errors,
 }: {
-  initial: SchoolProfileInput;
-  onClose: () => void;
+  value: string;
+  onChange: (value: string) => void;
+  errors?: (string | { message?: string } | undefined)[];
 }) {
-  const mutation = useMutation({
-    mutationFn: saveSchoolProfile,
-    onSuccess: () => {
-      toast.success(m.managementSaved());
-      onClose();
-    },
-  });
-  const form = useForm({
-    defaultValues: initial,
-    validators: { onSubmit: schoolProfileSchema },
-    onSubmit: async ({ value }) => {
-      await mutation.mutateAsync({ data: value });
-    },
-  });
+  const [search, setSearch] = useState("");
+  const zones = useMemo(() => Intl.supportedValuesOf("timeZone"), []);
+  const needle = search.trim().toLocaleLowerCase().replaceAll(" ", "_");
+  const matches = zones.filter((zone) =>
+    zone.toLocaleLowerCase().includes(needle),
+  );
+  // The saved zone is always an option, so the trigger can name it even
+  // when a search leaves it out or this browser does not list it.
+  const options = (
+    value && !matches.includes(value) ? [value, ...matches] : matches
+  ).map((zone) => ({ value: zone, label: zone.replaceAll("_", " ") }));
   return (
-    <ManagementDialog
-      title={m.settingsEditSchool()}
-      description={m.settingsSchoolHint()}
-      onClose={onClose}
-      onSubmit={() => {
-        void form.handleSubmit();
-      }}
-      pending={mutation.isPending}
-    >
-      {(["name", "timeZone"] as const).map((name) => (
-        <form.Field key={name} name={name}>
-          {(field) => (
-            <ManagementInput
-              id={`school-${name}`}
-              label={
-                name === "name" ? m.settingsSchoolName() : m.settingsTimeZone()
-              }
-              value={field.state.value}
-              required
-              onChange={(event) => field.handleChange(event.target.value)}
-              onBlur={field.handleBlur}
-              errors={field.state.meta.errors}
-            />
-          )}
-        </form.Field>
-      ))}
-    </ManagementDialog>
+    <div className="max-w-80">
+      <ComboboxField
+        label={m.settingsTimeZone()}
+        hint={m.settingsTimeZoneHint()}
+        searchLabel={m.settingsTimeZoneSearch()}
+        options={options}
+        value={value ? [value] : []}
+        onChange={(next) => onChange(next[0] ?? value)}
+        search={search}
+        onSearchChange={setSearch}
+        errors={errors}
+      />
+    </div>
   );
 }
-export function SubjectEditor({
+
+export function SchoolProfileSection({
   initial,
-  onClose,
 }: {
-  initial?: SaveSubjectInput;
-  onClose: () => void;
+  initial: SchoolProfileInput;
 }) {
+  const [saved, setSaved] = useState(false);
   const mutation = useMutation({
-    mutationFn: saveSubject,
-    onSuccess: () => {
-      toast.success(m.managementSaved());
-      onClose();
-    },
+    mutationFn: (data: SchoolProfileInput) => saveSchoolProfile({ data }),
+    meta: { inlineError: true },
   });
   const form = useForm({
-    defaultValues: initial ?? { slug: "", name: "", nameAr: "" },
-    validators: { onSubmit: saveSubjectSchema },
-    onSubmit: async ({ value }) => {
-      await mutation.mutateAsync({ data: value });
+    defaultValues: { name: initial.name, timeZone: initial.timeZone },
+    validationLogic: revalidateLogic(),
+    validators: { onDynamic: schoolProfileSchema },
+    onSubmit: async ({ value, formApi }) => {
+      setSaved(false);
+      try {
+        await mutation.mutateAsync(value);
+      } catch {
+        return;
+      }
+      formApi.reset(value);
+      setSaved(true);
     },
   });
-  const labels = {
-    slug: m.settingsSubjectCode(),
-    name: m.adminSubjectNameEn(),
-    nameAr: m.adminSubjectNameAr(),
-  };
+  const dirty = useStore(form.store, (state) => state.isDirty);
   return (
-    <ManagementDialog
-      title={initial ? m.settingsEditSubject() : m.settingsAddSubject()}
-      description={m.settingsSubjectHint()}
-      onClose={onClose}
-      onSubmit={() => {
-        void form.handleSubmit();
-      }}
+    <SettingsSection
+      title={m.settingsProfileTitle()}
+      description={m.settingsSchoolHint()}
+      onSubmit={() => form.handleSubmit()}
       pending={mutation.isPending}
+      error={mutation.error ? getMessageFromError(mutation.error) : null}
+      saved={saved && !dirty}
+      isDirty={() => form.state.isDirty}
     >
-      {(["name", "nameAr", "slug"] as const).map((name) => (
-        <form.Field key={name} name={name}>
-          {(field) => (
-            <ManagementInput
-              id={`subject-${name}`}
-              label={labels[name]}
-              value={field.state.value}
-              required
-              dir={name === "nameAr" ? "rtl" : undefined}
-              onChange={(event) => field.handleChange(event.target.value)}
-              onBlur={field.handleBlur}
-              errors={field.state.meta.errors}
-            />
-          )}
-        </form.Field>
-      ))}
-    </ManagementDialog>
+      <form.Field name="name">
+        {(field) => (
+          <TextField
+            id="school-name"
+            label={m.settingsSchoolName()}
+            width="name"
+            autoComplete="organization"
+            value={field.state.value}
+            onChange={(event) => field.handleChange(event.target.value)}
+            onBlur={field.handleBlur}
+            errors={field.state.meta.errors}
+          />
+        )}
+      </form.Field>
+      <form.Field name="timeZone">
+        {(field) => (
+          <TimeZoneField
+            value={field.state.value}
+            onChange={field.handleChange}
+            errors={field.state.meta.errors}
+          />
+        )}
+      </form.Field>
+    </SettingsSection>
   );
 }
 export function NewsletterEditor({

@@ -34,6 +34,8 @@ export function validationMessage(issue: { message?: string }): string {
       return m.validationEndTime();
     case "validation.slot_overlap":
       return m.validationSlotOverlap();
+    case "validation.subject_code":
+      return m.validationSubjectCode();
   }
   if (!("type" in issue)) return issue.message ?? m.validationInvalid();
   const count =

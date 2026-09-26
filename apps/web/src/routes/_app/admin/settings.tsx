@@ -1,29 +1,37 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { Pencil, Plus, School } from "lucide-react";
+import { Plus } from "lucide-react";
 import { Suspense, useState } from "react";
 import * as v from "valibot";
 
-import type { DataColumn } from "~/components/admin/DataTable";
+import type { AccessRole } from "~/components/admin/AccessRolesPanel";
+import type { Subject, SubjectSort } from "~/components/admin/SubjectCatalogue";
+import type { HeaderAction } from "~/components/system/IndexPage";
 
-import { AccessRolesPanel } from "~/components/admin/AccessRolesPanel";
-import { DataTable } from "~/components/admin/DataTable";
+import {
+  AccessRolesPanel,
+  findRole,
+  RoleSheet,
+  roleKey,
+} from "~/components/admin/AccessRolesPanel";
 import { formatDay } from "~/components/admin/format";
+import { SchoolProfileSection } from "~/components/admin/SchoolEditors";
 import {
-  SchoolProfileEditor,
-  SubjectEditor,
-} from "~/components/admin/SchoolEditors";
+  filterSubjects,
+  SUBJECT_PAGE_SIZE,
+  SubjectCatalogue,
+  SubjectSheet,
+} from "~/components/admin/SubjectCatalogue";
 import { ButtonLink } from "~/components/app/ButtonLink";
-import {
-  PageHeader,
-  SectionCard,
-  Field,
-  FieldGrid,
-} from "~/components/app/primitives";
 import { FeaturesCard } from "~/components/learning/FeaturesCard";
-import { Button } from "~/components/ui/button";
+import { RowLink } from "~/components/system/DataTable";
+import { PageHeader } from "~/components/system/IndexPage";
+import { Fact, Facts, RecordTabs } from "~/components/system/RecordPage";
+import {
+  SettingsPage,
+  SettingsSection,
+} from "~/components/system/SettingsSection";
 import { Skeleton } from "~/components/ui/skeleton";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "~/components/ui/tabs";
 import * as m from "~/i18n/messages";
 import { accessChangesQuery, accessRolesQuery } from "~/queries/access";
 import { schoolFeaturesQuery } from "~/queries/learning";
@@ -32,49 +40,25 @@ import { schoolSettingsQuery, subjectsQuery } from "~/queries/school";
 const searchSchema = v.object({
   section: v.optional(v.picklist(["school", "subjects", "access"]), "school"),
   q: v.optional(v.string(), ""),
+  sort: v.optional(v.picklist(["name", "code"]), "name"),
   dir: v.optional(v.picklist(["asc", "desc"]), "asc"),
   page: v.optional(v.pipe(v.number(), v.integer(), v.minValue(1)), 1),
+  // The open sheet: "new", or the subject or role being edited. A new role
+  // may copy another one, named by "from".
+  subject: v.optional(v.string()),
+  role: v.optional(v.string()),
+  from: v.optional(v.string()),
 });
-interface Subject {
-  id: string;
-  name: string;
-  nameAr: string;
-  slug: string;
-}
-const columns: DataColumn<Subject, "name">[] = [
-  {
-    id: "name",
-    label: m.adminSubjectNameEn,
-    sort: "name",
-    render: (row) => <span className="font-medium">{row.name}</span>,
-  },
-  {
-    id: "nameAr",
-    label: m.adminSubjectNameAr,
-    render: (row) => (
-      <span lang="ar" dir="rtl">
-        {row.nameAr}
-      </span>
-    ),
-  },
-  {
-    id: "slug",
-    label: m.settingsSubjectCode,
-    render: (row) => (
-      <span className="font-mono text-xs text-muted-foreground">
-        {row.slug}
-      </span>
-    ),
-  },
-];
+type Search = v.InferOutput<typeof searchSchema>;
+
 export const Route = createFileRoute("/_app/admin/settings")({
   validateSearch: searchSchema,
   loaderDeps: ({ search }) => ({ section: search.section }),
   loader: async ({ context, deps }) => {
     await Promise.all([
       context.queryClient.ensureQueryData(schoolSettingsQuery),
-      context.queryClient.ensureQueryData(subjectsQuery),
       context.queryClient.ensureQueryData(schoolFeaturesQuery),
+      context.queryClient.ensureQueryData(subjectsQuery),
       ...(deps.section === "access"
         ? [
             context.queryClient.ensureQueryData(accessRolesQuery),
@@ -83,172 +67,247 @@ export const Route = createFileRoute("/_app/admin/settings")({
         : []),
     ]);
   },
-  component: SettingsPage,
+  component: SettingsRoute,
 });
-function SettingsPage() {
+
+/**
+ * A sheet opened from the URL. It stays mounted while it closes, so it can
+ * animate out with its content, and opening it again starts a fresh form.
+ */
+function useUrlSheet(value: string | undefined) {
+  const [previous, setPrevious] = useState(value);
+  const [shown, setShown] = useState(value ? { value, generation: 1 } : null);
+  if (value !== previous) {
+    setPrevious(value);
+    if (value) setShown({ value, generation: (shown?.generation ?? 0) + 1 });
+  }
+  return { shown, open: Boolean(value) };
+}
+
+function SettingsRoute() {
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
-  const settings = useSuspenseQuery(schoolSettingsQuery).data;
+  // An empty catalogue offers Add subject in its empty state instead, so the
+  // page keeps one primary button.
   const subjects = useSuspenseQuery(subjectsQuery).data;
-  const [editing, setEditing] = useState<"school" | "subject" | Subject | null>(
-    null,
-  );
-  const patch = (change: Partial<v.InferOutput<typeof searchSchema>>) => {
-    void navigate({ search: (previous) => ({ ...previous, ...change }) });
+  const patch = (change: Partial<Search>, replace = false) => {
+    void navigate({
+      search: (previous) => ({ ...previous, ...change }),
+      replace,
+    });
   };
-  const filtered = subjects
-    .filter((row) =>
-      `${row.name} ${row.nameAr} ${row.slug}`
-        .toLocaleLowerCase()
-        .includes(search.q.toLocaleLowerCase()),
-    )
-    .toSorted(
-      (a, b) => a.name.localeCompare(b.name) * (search.dir === "asc" ? 1 : -1),
-    );
-  const pages = Math.max(1, Math.ceil(filtered.length / 25));
-  const page = Math.min(search.page, pages);
+  const action: HeaderAction | undefined =
+    search.section === "subjects" && subjects.length
+      ? {
+          label: m.settingsAddSubject(),
+          icon: Plus,
+          onClick: () => patch({ subject: "new" }),
+        }
+      : search.section === "access"
+        ? {
+            label: m.accessNewRole(),
+            icon: Plus,
+            onClick: () => patch({ role: "new", from: undefined }),
+          }
+        : undefined;
   return (
     <>
       <PageHeader
         title={m.adminSettingsTitle()}
-        description={m.settingsSchoolHint()}
+        description={m.adminSettingsSubtitle()}
+        action={action}
       />
-      <Tabs
+      <RecordTabs
+        label={m.adminSettingsTitle()}
+        tabs={[
+          { value: "school", label: m.settingsSchoolTab() },
+          { value: "subjects", label: m.adminSubjectsSection() },
+          { value: "access", label: m.adminPermissionsSection() },
+        ]}
         value={search.section}
-        onValueChange={(value) => {
-          const section = (["school", "subjects", "access"] as const).find(
-            (item) => item === value,
-          );
-          if (section) patch({ section });
-        }}
+        onChange={(section) => void navigate({ search: { section } })}
       >
-        <TabsList
-          variant="line"
-          className="mb-6 border-b"
-          aria-label={m.adminSettingsTitle()}
-        >
-          <TabsTrigger value="school">{m.settingsSchoolName()}</TabsTrigger>
-          <TabsTrigger value="subjects">{m.adminSubjectsSection()}</TabsTrigger>
-          <TabsTrigger value="access">
-            {m.adminPermissionsSection()}
-          </TabsTrigger>
-        </TabsList>
-        <TabsContent value="school">
-          <div className="grid items-start gap-6 xl:grid-cols-2">
-            <SectionCard
-              title={settings.school.name}
-              description={m.settingsSchoolHint()}
-              actions={
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => setEditing("school")}
+        {search.section === "school" ? (
+          <SchoolTab />
+        ) : search.section === "subjects" ? (
+          <SubjectsTab search={search} patch={patch} />
+        ) : (
+          <Suspense fallback={<Skeleton className="h-40 w-full" />}>
+            <AccessTab search={search} patch={patch} />
+          </Suspense>
+        )}
+      </RecordTabs>
+    </>
+  );
+}
+
+function SchoolTab() {
+  const settings = useSuspenseQuery(schoolSettingsQuery).data;
+  return (
+    <SettingsPage>
+      <SchoolProfileSection initial={settings.school} />
+      <SettingsSection
+        title={m.studentSchoolYear()}
+        description={m.settingsYearHint()}
+        footer={
+          <ButtonLink
+            to="/admin/academic-years"
+            variant="outline"
+            className="max-md:h-10"
+          >
+            {m.academicYearsManage()}
+          </ButtonLink>
+        }
+      >
+        <Facts short>
+          <Fact label={m.academicYearName()}>{settings.year.name}</Fact>
+          <Fact label={m.adminStartsOn()}>
+            {formatDay(settings.year.startsOn)}
+          </Fact>
+          <Fact label={m.adminEndsOn()}>{formatDay(settings.year.endsOn)}</Fact>
+        </Facts>
+        <div className="grid gap-2">
+          <h3 className="text-sm leading-5 font-semibold">
+            {m.adminTermsSection()}
+          </h3>
+          {settings.terms.length ? (
+            <ul className="divide-y text-sm leading-5">
+              {settings.terms.map((term) => (
+                <li
+                  key={term.id}
+                  className="flex flex-wrap justify-between gap-x-4 gap-y-1 py-2.5"
                 >
-                  <Pencil aria-hidden />
-                  {m.managementEdit()}
-                </Button>
-              }
-            >
-              <div className="mb-6 grid size-16 place-items-center rounded-2xl bg-primary/10 text-primary">
-                <School className="size-8" aria-hidden />
-              </div>
-              <FieldGrid>
-                <Field label={m.settingsSchoolName()}>
-                  {settings.school.name}
-                </Field>
-                <Field label={m.settingsTimeZone()}>
-                  {settings.school.timeZone}
-                </Field>
-              </FieldGrid>
-            </SectionCard>
-            <SectionCard
-              title={settings.year.name}
-              description={m.studentSchoolYear()}
-              actions={
-                <ButtonLink
-                  to="/admin/academic-years"
-                  variant="outline"
-                  size="sm"
-                >
-                  {m.academicYearsManage()}
-                </ButtonLink>
-              }
-            >
-              <FieldGrid>
-                <Field label={m.adminStartsOn()}>
-                  {formatDay(settings.year.startsOn)}
-                </Field>
-                <Field label={m.adminEndsOn()}>
-                  {formatDay(settings.year.endsOn)}
-                </Field>
-              </FieldGrid>
-              <ul className="mt-6 divide-y">
-                {settings.terms.map((term) => (
-                  <li
-                    key={term.id}
-                    className="flex flex-wrap justify-between gap-2 py-4"
-                  >
-                    <span className="text-sm font-medium">{term.name}</span>
-                    <span className="text-xs text-muted-foreground">
-                      {formatDay(term.startsOn)} · {formatDay(term.endsOn)}
-                    </span>
-                  </li>
-                ))}
-              </ul>
-            </SectionCard>
-            <FeaturesCard />
-          </div>
-        </TabsContent>
-        <TabsContent value="subjects">
-          <div className="mb-4 flex justify-end">
-            <Button onClick={() => setEditing("subject")}>
-              <Plus aria-hidden />
-              {m.settingsAddSubject()}
-            </Button>
-          </div>
-          <DataTable
-            columns={columns}
-            rows={filtered.slice((page - 1) * 25, page * 25)}
-            caption={m.adminSubjectsCaption()}
-            query={search.q}
-            onQuery={(q) => patch({ q, page: 1 })}
-            sort="name"
-            direction={search.dir}
-            onSort={() => patch({ dir: search.dir === "asc" ? "desc" : "asc" })}
-            page={page}
-            pages={pages}
-            total={filtered.length}
-            onPage={(next) => patch({ page: next })}
-            renderActions={(row) => (
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setEditing(row)}
-                aria-label={m.managementEditNamed({ name: row.name })}
-              >
-                <Pencil aria-hidden />
-                {m.managementEdit()}
-              </Button>
-            )}
-          />
-        </TabsContent>
-        <TabsContent value="access">
-          {search.section === "access" ? (
-            <Suspense fallback={<Skeleton className="h-40 w-full" />}>
-              <AccessRolesPanel />
-            </Suspense>
-          ) : null}
-        </TabsContent>
-      </Tabs>
-      {editing === "school" ? (
-        <SchoolProfileEditor
-          initial={settings.school}
-          onClose={() => setEditing(null)}
+                  <span dir="auto" className="font-medium">
+                    {term.name}
+                  </span>
+                  <span className="text-muted-foreground">
+                    {m.settingsTermDates({
+                      start: formatDay(term.startsOn),
+                      end: formatDay(term.endsOn),
+                    })}
+                  </span>
+                </li>
+              ))}
+            </ul>
+          ) : (
+            <p className="text-sm leading-5 text-muted-foreground">
+              {m.adminTermsEmpty()}
+            </p>
+          )}
+        </div>
+      </SettingsSection>
+      <FeaturesCard />
+    </SettingsPage>
+  );
+}
+
+function subjectLink(search: Search) {
+  return (subject: Subject, name: string) => (
+    <RowLink to="/admin/settings" search={{ ...search, subject: subject.id }}>
+      {name}
+    </RowLink>
+  );
+}
+
+function roleLink(role: AccessRole, name: string) {
+  return (
+    <RowLink
+      to="/admin/settings"
+      search={{ section: "access", role: roleKey(role) }}
+    >
+      {name}
+    </RowLink>
+  );
+}
+
+function SubjectsTab({
+  search,
+  patch,
+}: {
+  search: Search;
+  patch: (change: Partial<Search>, replace?: boolean) => void;
+}) {
+  const subjects = useSuspenseQuery(subjectsQuery).data;
+  const filtered = filterSubjects(subjects, search.q, search.sort, search.dir);
+  const pages = Math.max(1, Math.ceil(filtered.length / SUBJECT_PAGE_SIZE));
+  const page = Math.min(search.page, pages);
+  const sheet = useUrlSheet(search.subject);
+  const editing =
+    sheet.shown && sheet.shown.value !== "new"
+      ? subjects.find((subject) => subject.id === sheet.shown?.value)
+      : undefined;
+  const toolbar = {
+    search: {
+      value: search.q,
+      onChange: (q: string) => patch({ q, page: 1 }, true),
+      label: m.settingsSubjectsSearch(),
+      placeholder: m.settingsSubjectsSearchPlaceholder(),
+    },
+    onReset: () => patch({ q: "", page: 1 }),
+  };
+  return (
+    <>
+      <SubjectCatalogue
+        rows={filtered.slice(
+          (page - 1) * SUBJECT_PAGE_SIZE,
+          page * SUBJECT_PAGE_SIZE,
+        )}
+        total={filtered.length}
+        page={page}
+        toolbar={toolbar}
+        sort={{
+          value: search.sort,
+          direction: search.dir,
+          onChange: (sort: SubjectSort, dir) => patch({ sort, dir, page: 1 }),
+        }}
+        onPage={(next) => patch({ page: next })}
+        nameLink={subjectLink(search)}
+        onAdd={() => patch({ subject: "new" })}
+        onEdit={(subject) => patch({ subject: subject.id })}
+      />
+      {sheet.shown && (sheet.shown.value === "new" || editing) ? (
+        <SubjectSheet
+          key={sheet.shown.generation}
+          open={sheet.open}
+          subject={editing}
+          onClose={() => patch({ subject: undefined }, true)}
         />
-      ) : editing ? (
-        <SubjectEditor
-          initial={editing === "subject" ? undefined : editing}
-          onClose={() => setEditing(null)}
+      ) : null}
+    </>
+  );
+}
+
+function AccessTab({
+  search,
+  patch,
+}: {
+  search: Search;
+  patch: (change: Partial<Search>, replace?: boolean) => void;
+}) {
+  const roles = useSuspenseQuery(accessRolesQuery).data;
+  const sheet = useUrlSheet(search.role);
+  const editing =
+    sheet.shown && sheet.shown.value !== "new"
+      ? findRole(roles, sheet.shown.value)
+      : undefined;
+  const copyOf =
+    sheet.shown?.value === "new" && search.from
+      ? findRole(roles, search.from)
+      : undefined;
+  return (
+    <>
+      <AccessRolesPanel
+        nameLink={roleLink}
+        onEdit={(role) => patch({ role: roleKey(role), from: undefined })}
+        onDuplicate={(role) => patch({ role: "new", from: roleKey(role) })}
+      />
+      {sheet.shown && (sheet.shown.value === "new" || editing) ? (
+        <RoleSheet
+          key={sheet.shown.generation}
+          open={sheet.open}
+          role={editing}
+          copyOf={copyOf}
+          onClose={() => patch({ role: undefined, from: undefined }, true)}
         />
       ) : null}
     </>
