@@ -2,7 +2,7 @@ import { createFileRoute } from "@tanstack/react-router";
 import { getCookie } from "@tanstack/react-start/server";
 
 import { env } from "~/env";
-import { SESSION_COOKIE } from "~/server/backend";
+import { currentSchool, sessionCookie } from "~/server/backend";
 
 const FORWARDED = [
   "content-type",
@@ -13,14 +13,18 @@ const FORWARDED = [
 ];
 
 function prepare(request: Request, fileId: string) {
-  const token = getCookie(SESSION_COOKIE);
-  if (!token)
+  const school = currentSchool();
+  const token = school ? getCookie(sessionCookie(school)) : undefined;
+  if (!school || !token)
     return {
       refusal: Response.json({ code: "UNAUTHORIZED" }, { status: 401 }),
     };
   if (!/^[0-9a-f-]{36}$/.test(fileId))
     return { refusal: Response.json({ code: "NOT_FOUND" }, { status: 404 }) };
-  const headers = new Headers({ authorization: `Bearer ${token}` });
+  const headers = new Headers({
+    authorization: `Bearer ${token}`,
+    "x-farida-school": school,
+  });
   for (const name of ["content-type", "content-length"]) {
     const value = request.headers.get(name);
     if (value) headers.set(name, value);

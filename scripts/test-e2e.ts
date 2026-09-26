@@ -1,71 +1,104 @@
-import { createDatabase } from "@faridalms/database";
-import { createControlDatabase } from "@faridalms/database/control";
-import { schools } from "@faridalms/database/control-schema";
+/**
+ * Builds a throwaway cell and directory, seeds them, runs Playwright against
+ * the production build, and drops both databases however the run ends.
+ */
+import { openOwner } from "@faridalms/database/context";
+import { localKek } from "@faridalms/database/crypto";
+import { registerTenants } from "@faridalms/database/directory/seed";
+import { migrate } from "@faridalms/database/migrate";
+import {
+  createCellDatabase,
+  createDirectoryDatabase,
+  dropDatabase,
+  LOGIN_ROLES,
+  provisionRoles,
+} from "@faridalms/database/provision";
+import { seedCell } from "@faridalms/database/seed";
 import { SQL } from "bun";
-import { migrate } from "drizzle-orm/bun-sql/migrator";
+import { randomBytes } from "node:crypto";
 
-const base = new URL(
-  process.env.DATABASE_URL ?? "postgres://northwind:northwind@127.0.0.1:5433/faridalms",
-);
-base.pathname = "/postgres";
-const admin = new SQL(base.toString());
+const adminUrl =
+  process.env.DATABASE_ADMIN_URL ??
+  "postgres://northwind:northwind@127.0.0.1:5433/postgres";
 const suffix = crypto.randomUUID().replaceAll("-", "").slice(0, 12);
-const controlName = `northwind_test_control_${suffix}`;
-async function database(name: string) {
-  if (!/^northwind_test_[a-z0-9_]+$/.test(name))
-    throw new Error("Invalid test database name");
-  await admin.unsafe(`CREATE DATABASE "${name}"`);
-  const url = new URL(base);
+const cellName = `cell_e2e_${suffix}`;
+const directoryName = `directory_e2e_${suffix}`;
+const password =
+  process.env.CELL_ROLE_PASSWORD ?? randomBytes(24).toString("hex");
+const kek = randomBytes(32);
+const cellId = "eg-1";
+
+const urlFor = (name: string, role?: string) => {
+  const url = new URL(adminUrl);
   url.pathname = `/${name}`;
+  if (role) {
+    url.username = role;
+    url.password = password;
+  }
   return url.toString();
-}
-const controlUrl = await database(controlName);
-const control = createControlDatabase(controlUrl);
-await migrate(control, { migrationsFolder: "drizzle-control" });
-for (const slug of ["northwind", "acme"]) {
-  const url = await database(`northwind_test_${slug}_${suffix}`);
-  const db = createDatabase(url);
-  await migrate(db, { migrationsFolder: "drizzle" });
-  await db.$client.close();
-  const seed = Bun.spawn(["bun", "scripts/seed.ts"], {
-    env: { ...process.env, DATABASE_URL: url },
-    stdout: "ignore",
-    stderr: "inherit",
+};
+
+const admin = new SQL(adminUrl);
+let exitCode = 1;
+try {
+  await provisionRoles(
+    admin,
+    Object.fromEntries(LOGIN_ROLES.map((role) => [role, password])),
+  );
+  await createCellDatabase(admin, cellName);
+  await createDirectoryDatabase(admin, directoryName);
+  await migrate(urlFor(cellName), { folder: "drizzle", owner: "cell_owner" });
+  await migrate(urlFor(directoryName), {
+    folder: "drizzle-directory",
+    owner: "directory_owner",
   });
-  if ((await seed.exited) !== 0) throw new Error(`Seed failed for ${slug}`);
-  await control.insert(schools).values({
-    slug,
-    name: slug === "northwind" ? "Northwind School" : "Acme School",
-    databaseUrl: url,
-  });
-}
-await control.$client.close();
-await admin.close();
-const runner = Bun.spawn(
-  [
-    "bun",
-    "run",
-    "playwright",
-    "test",
-    "--config=playwright.config.ts",
-    ...process.argv.slice(2),
-  ],
-  {
-    env: {
-      ...process.env,
-      CONTROL_DATABASE_URL: controlUrl,
-      BACKEND_URL: "http://127.0.0.1:3001",
-      API_PORT: "3001",
-      // Outbound channels record in memory so the tests never deliver anything.
-      EMAIL_PROVIDER_URL: "memory:",
-      SMS_PROVIDER_URL: "memory:",
-      NOTIFICATION_POLL_MS: "500",
-      NOTIFICATION_RETRY_BASE_MS: "1000",
+  const owner = openOwner(urlFor(cellName));
+  const directory = new SQL(urlFor(directoryName));
+  try {
+    const tenants = await seedCell(owner, {
+      kek: localKek(new Uint8Array(kek), `local:${cellId}`),
+      cell: cellId,
+    });
+    await registerTenants(directory, tenants, {
+      id: cellId,
+      appHost: "localhost",
+      apiBaseUrl: "http://127.0.0.1:3001",
+    });
+  } finally {
+    await owner.close();
+    await directory.close();
+  }
+  const runner = Bun.spawn(
+    [
+      "bun",
+      "run",
+      "playwright",
+      "test",
+      "--config=playwright.config.ts",
+      ...process.argv.slice(2),
+    ],
+    {
+      env: {
+        ...process.env,
+        CELL_APP_URL: urlFor(cellName, "app"),
+        CELL_SITE_URL: urlFor(cellName, "site"),
+        DIRECTORY_URL: urlFor(directoryName, "directory_reader"),
+        CELL_ID: cellId,
+        CELL_KEK: kek.toString("base64"),
+        CELL_SECRET: randomBytes(32).toString("base64"),
+        BACKEND_URL: "http://127.0.0.1:3001",
+        API_PORT: "3001",
+      },
+      stdout: "inherit",
+      stderr: "inherit",
     },
-    stdout: "inherit",
-    stderr: "inherit",
-  },
-);
-process.on("SIGINT", () => runner.kill("SIGINT"));
-process.on("SIGTERM", () => runner.kill("SIGTERM"));
-process.exit(await runner.exited);
+  );
+  process.on("SIGINT", () => runner.kill("SIGINT"));
+  process.on("SIGTERM", () => runner.kill("SIGTERM"));
+  exitCode = await runner.exited;
+} finally {
+  await dropDatabase(admin, cellName);
+  await dropDatabase(admin, directoryName);
+  await admin.close();
+}
+process.exit(exitCode);

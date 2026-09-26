@@ -13,6 +13,7 @@ import {
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "~/components/ui/tabs";
+import { legacyPermissions } from "~/data/legacy-role";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { searchQuery } from "~/queries/search";
@@ -42,7 +43,7 @@ function SearchPage() {
   const user = useCurrentUser();
   const [draft, setDraft] = useState(search.q);
   const q = search.q.trim();
-  const kinds = searchableKinds(user.permissions);
+  const kinds = searchableKinds(legacyPermissions(user.workspace));
   const results = useQuery({
     ...searchQuery({ q, kind: search.kind, page: search.page }),
     enabled: q.length > 0,

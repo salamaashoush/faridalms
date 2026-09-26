@@ -1,4 +1,4 @@
-import type { Role } from "@faridalms/domain/identity";
+import type { Workspace } from "@faridalms/domain/workspace";
 
 import { useQueryClient } from "@tanstack/react-query";
 import { Link, useRouter } from "@tanstack/react-router";
@@ -21,11 +21,11 @@ import * as m from "~/i18n/messages";
 import { logout } from "~/server/auth";
 import { cn } from "~/utils/cn";
 
-export const ROLE_LABEL: Record<Role, () => string> = {
+export const WORKSPACE_LABEL: Record<Workspace, () => string> = {
   admin: m.roleAdmin,
-  teacher: m.roleTeacher,
-  parent: m.roleParent,
-  student: m.roleStudent,
+  teach: m.roleTeacher,
+  family: m.roleParent,
+  me: m.roleStudent,
 };
 
 export function initialsOf(name: string): string {
@@ -80,7 +80,7 @@ export function UserMenu({ sidebar = false }: { sidebar?: boolean }) {
                     {user.name}
                   </span>
                   <span className="truncate text-xs text-muted-foreground">
-                    {ROLE_LABEL[user.role]()}
+                    {WORKSPACE_LABEL[user.workspace]()}
                   </span>
                 </span>
                 <ChevronsUpDown
@@ -103,7 +103,7 @@ export function UserMenu({ sidebar = false }: { sidebar?: boolean }) {
                 {user.email}
               </p>
               <p className="pt-1 text-xs leading-none text-primary">
-                {ROLE_LABEL[user.role]()}
+                {WORKSPACE_LABEL[user.workspace]()}
               </p>
             </div>
           </DropdownMenuLabel>

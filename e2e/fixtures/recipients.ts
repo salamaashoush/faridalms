@@ -3,9 +3,7 @@ import { createControlDatabase } from "@faridalms/database/control";
 import { schools } from "@faridalms/database/control-schema";
 import { eq } from "drizzle-orm";
 
-import { env } from "../../apps/api/src/env";
-
-const controlUrl = env.CONTROL_DATABASE_URL;
+const controlUrl = process.env.CONTROL_DATABASE_URL;
 if (
   !controlUrl ||
   !/^\/northwind_test_control_[a-z0-9]+$/.test(new URL(controlUrl).pathname)

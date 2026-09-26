@@ -35,7 +35,7 @@ function AnnouncementsPage() {
         title={m.announcementsTitle()}
         description={m.announcementsSubtitle()}
         actions={
-          data.canManage && user.role === "admin" ? (
+          data.canManage && user.workspace === "admin" ? (
             <ButtonLink to="/admin/announcement-editor" search={{}}>
               <Plus className="size-4" aria-hidden />
               {m.announcementNew()}
@@ -78,7 +78,7 @@ function AnnouncementsPage() {
                   {row.author?.name ? <span>{row.author.name}</span> : null}
                 </p>
               </div>
-              {data.canManage && user.role === "admin" ? (
+              {data.canManage && user.workspace === "admin" ? (
                 <ButtonLink
                   variant="outline"
                   size="sm"

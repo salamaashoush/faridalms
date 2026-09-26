@@ -1,35 +1,50 @@
-import type { Role } from "@faridalms/domain/identity";
+import type { Workspace } from "@faridalms/domain/workspace";
 
 import { createIsomorphicFn, createServerFn } from "@tanstack/react-start";
 import {
   deleteCookie,
   getCookie,
-  getRequestProtocol,
   setCookie,
 } from "@tanstack/react-start/server";
 import * as v from "valibot";
 
 import { loginSchema } from "~/schema/auth";
 
-import { backend, SESSION_COOKIE } from "./backend";
+import {
+  backend,
+  currentSchool,
+  isSecureRequest,
+  SCHOOL_COOKIE,
+  sessionCookie,
+} from "./backend";
 
 export interface AuthState {
   isAuthenticated: boolean;
-  role: Role | null;
+  workspace: Workspace | null;
+  school: string | null;
+}
+
+const signedOut = (school: string | null): AuthState => ({
+  isAuthenticated: false,
+  workspace: null,
+  school,
+});
+
+function isUnauthorized(error: unknown) {
+  return (
+    error instanceof Error && "code" in error && error.code === "UNAUTHORIZED"
+  );
 }
 
 export const getAuthState = createServerFn({ method: "GET" }).handler(
   async (): Promise<AuthState> => {
+    const school = currentSchool();
+    if (!school || !getCookie(sessionCookie(school))) return signedOut(school);
     try {
-      const user = await backend().auth.currentUser();
-      return { isAuthenticated: true, role: user.role };
+      const user = await backend(school).identity.currentUser();
+      return { isAuthenticated: true, workspace: user.workspace, school };
     } catch (error) {
-      if (
-        error instanceof Error &&
-        "code" in error &&
-        error.code === "UNAUTHORIZED"
-      )
-        return { isAuthenticated: false, role: null };
+      if (isUnauthorized(error)) return signedOut(school);
       throw error;
     }
   },
@@ -40,38 +55,44 @@ export const login = createServerFn({ method: "POST" })
     v.parse(loginSchema, input),
   )
   .handler(async ({ data }): Promise<AuthState> => {
-    const session = await backend().auth.signIn(data);
-    setCookie(SESSION_COOKIE, session.token, {
+    const school = currentSchool() ?? data.school;
+    const session = await backend(school).identity.signIn({
+      loginName: data.email,
+      password: data.password,
+    });
+    const options = {
       httpOnly: true,
-      sameSite: "lax",
+      sameSite: "lax" as const,
       path: "/",
       expires: session.expiresAt,
-      secure: getRequestProtocol({ xForwardedProto: true }) === "https",
-    });
-    return { isAuthenticated: true, role: session.role };
+      secure: isSecureRequest(),
+    };
+    setCookie(sessionCookie(school), session.token, options);
+    setCookie(SCHOOL_COOKIE, school, options);
+    return {
+      isAuthenticated: true,
+      workspace: session.workspace,
+      school,
+    };
   });
 
 export const logout = createServerFn({ method: "POST" }).handler(
   async (): Promise<AuthState> => {
-    try {
-      await backend().auth.signOut();
-    } catch (error) {
-      if (
-        !(
-          error instanceof Error &&
-          "code" in error &&
-          error.code === "UNAUTHORIZED"
-        )
-      )
-        throw error;
+    const school = currentSchool();
+    if (school) {
+      try {
+        await backend(school).identity.signOut();
+      } catch (error) {
+        if (!isUnauthorized(error)) throw error;
+      }
+      deleteCookie(sessionCookie(school), { path: "/" });
     }
-    deleteCookie(SESSION_COOKIE, { path: "/" });
-    return { isAuthenticated: false, role: null };
+    return signedOut(school);
   },
 );
 
 export const getCurrentUser = createServerFn({ method: "GET" }).handler(() =>
-  backend().auth.currentUser(),
+  backend().identity.currentUser(),
 );
 
 export const getWorkspacePreferences = createIsomorphicFn()

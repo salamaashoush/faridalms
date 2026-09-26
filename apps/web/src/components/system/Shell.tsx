@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-import { ROLE_HOME } from "@faridalms/domain/identity";
+import { WORKSPACE_HOME } from "@faridalms/domain/workspace";
 import { useQueryClient } from "@tanstack/react-query";
 import { Link, useRouter, useRouterState } from "@tanstack/react-router";
 import {
@@ -23,7 +23,7 @@ import type { NavItem } from "~/components/app/navigation";
 
 import { MOBILE_TABS, NAVIGATION } from "~/components/app/navigation";
 import { NotificationBell } from "~/components/app/NotificationBell";
-import { initialsOf, ROLE_LABEL } from "~/components/app/UserMenu";
+import { initialsOf, WORKSPACE_LABEL } from "~/components/app/UserMenu";
 import { WorkspaceBreadcrumb } from "~/components/app/WorkspaceBreadcrumb";
 import { WorkspaceSearch } from "~/components/app/WorkspaceSearch";
 import { Avatar, AvatarFallback, AvatarImage } from "~/components/ui/avatar";
@@ -82,12 +82,12 @@ const LOCALE_NAME: Record<string, string> = { en: "English", ar: "العربية
 
 function useVisibleNavigation() {
   const user = useCurrentUser();
-  return NAVIGATION[user.role]
+  return NAVIGATION[user.workspace]
     .map((section) => ({
       ...section,
       items: section.items.filter(
         (item) =>
-          (!item.permission || user.permissions.includes(item.permission)) &&
+          (!item.capability || user.capabilities.includes(item.capability)) &&
           (!item.feature || user.features[item.feature]),
       ),
     }))
@@ -150,7 +150,7 @@ function AccountMenu() {
             {user.name}
           </span>
           <span className="truncate text-xs text-muted-foreground">
-            {ROLE_LABEL[user.role]()}
+            {WORKSPACE_LABEL[user.workspace]()}
           </span>
         </span>
         <ChevronsUpDown className="size-4 text-muted-foreground" aria-hidden />
@@ -246,7 +246,7 @@ function SidebarBody() {
       <SidebarHeader className="gap-3 px-3 pt-3 pb-2">
         {/* The mobile sheet's close button sits over the end of this row. */}
         <Link
-          to={ROLE_HOME[user.role]}
+          to={WORKSPACE_HOME[user.workspace]}
           className="flex h-10 items-center gap-2.5 rounded-md px-1.5 outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring in-data-[slot=sheet-content]:me-10"
         >
           <span className="flex size-7 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground">
@@ -355,7 +355,7 @@ function MobileTabs() {
   const { setOpenMobile } = useSidebar();
   const isActive = useIsActive();
   const items = useVisibleNavigation().flatMap((section) => section.items);
-  const tabs = MOBILE_TABS[user.role]
+  const tabs = MOBILE_TABS[user.workspace]
     .map((to) => items.find((item) => item.to === to))
     .filter((item) => item !== undefined);
   return (

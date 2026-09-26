@@ -1,4 +1,4 @@
-import { ROLE_HOME } from "@faridalms/domain/identity";
+import { WORKSPACE_HOME } from "@faridalms/domain/workspace";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import {
   createFileRoute,
@@ -35,8 +35,8 @@ export const Route = createFileRoute("/_app/student-editor")({
   loaderDeps: ({ search }) => ({ id: search.id }),
   loader: async ({ context, deps }) => {
     const user = await context.queryClient.ensureQueryData(currentUserQuery);
-    if (!user.permissions.includes("users:manage"))
-      throw redirect({ to: ROLE_HOME[user.role] });
+    if (!user.capabilities.includes("people:manage"))
+      throw redirect({ to: WORKSPACE_HOME[user.workspace] });
     await prepareStudentEditor(context.queryClient, deps.id);
   },
   component: StudentEditorPage,

@@ -40,7 +40,7 @@ function AnnouncementPage() {
         actions={
           <>
             <Badge variant="outline">{AUDIENCE_LABEL[data.audience]()}</Badge>
-            {data.canManage && user.role === "admin" ? (
+            {data.canManage && user.workspace === "admin" ? (
               <ButtonLink
                 to="/admin/announcement-editor"
                 search={{ id: data.id }}

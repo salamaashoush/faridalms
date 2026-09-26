@@ -18,13 +18,17 @@ export function isHiddenRecordError(error: unknown): boolean {
 export function createApiClient(options: {
   url: string;
   token?: string;
+  /** The school slug the request is for; the API routes the tenant from it. */
+  school?: string;
   fetch?: typeof globalThis.fetch;
 }): RouterClient<AppRouter> {
   return createORPCClient(
     new RPCLink({
       url: options.url,
-      headers: () =>
-        options.token ? { authorization: `Bearer ${options.token}` } : {},
+      headers: () => ({
+        ...(options.token ? { authorization: `Bearer ${options.token}` } : {}),
+        ...(options.school ? { "x-farida-school": options.school } : {}),
+      }),
       fetch:
         options.fetch ??
         ((request, init) =>

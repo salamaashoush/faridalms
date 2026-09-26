@@ -47,8 +47,8 @@ export const Route = createFileRoute("/_app/assignments/$assignmentId")({
     attempt: search.attempt,
   }),
   loader: async ({ context, params, deps }) => {
-    const role = context.auth.role;
-    if (role === "teacher" || role === "admin") {
+    const role = context.auth.workspace;
+    if (role === "teach" || role === "admin") {
       await context.queryClient.ensureQueryData(
         assignmentWorkspaceQuery(params.assignmentId),
       );
@@ -75,7 +75,7 @@ function AssignmentPage() {
   const patch = (change: Partial<typeof search>) => {
     void navigate({ search: (previous) => ({ ...previous, ...change }) });
   };
-  if (auth.role === "teacher" || auth.role === "admin") {
+  if (auth.workspace === "teach" || auth.workspace === "admin") {
     const tab = TEACHER_TABS.find((item) => item === search.tab) ?? "overview";
     return (
       <TeacherAssignmentRecord
@@ -91,7 +91,7 @@ function AssignmentPage() {
       id={assignmentId}
       studentId={search.studentId}
       tab={tab}
-      family={auth.role === "parent"}
+      family={auth.workspace === "family"}
       onTab={(next) => patch({ tab: next })}
       onStudent={(studentId) => patch({ studentId })}
     />

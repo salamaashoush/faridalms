@@ -216,7 +216,7 @@ export function TeacherAssignmentRecord({
             {data.status === "published" ? (
               <WindowBadge window={data.window} />
             ) : null}
-            {data.canAuthor && user.role === "teacher" ? (
+            {data.canAuthor && user.workspace === "teach" ? (
               <ButtonLink
                 to="/teach/assignment-editor"
                 search={{ id: data.id }}

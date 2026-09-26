@@ -116,11 +116,11 @@ export function studentTabsFor(access: Access): Record<StudentTab, boolean> {
  * teacher reads the class instead, and only a class they can open.
  */
 export function todaySource(
-  user: { role: string; permissions: readonly string[] },
+  user: { workspace: string; capabilities: readonly string[] },
   profile: Profile,
 ): { classId: string } | "student" | "no-class" | null {
   if (!profile.classId) return "no-class";
-  if (user.role === "teacher") {
+  if (user.workspace === "teach") {
     const classId = profile.classId;
     return profile.enrollmentHistory.some(
       (entry) => entry.classId === classId && entry.canOpenClass,
@@ -128,7 +128,7 @@ export function todaySource(
       ? { classId }
       : null;
   }
-  return user.permissions.includes("timetable:read") ? "student" : null;
+  return user.capabilities.includes("timetable:read") ? "student" : null;
 }
 
 function formatAge(age: { years: number; months: number }) {
@@ -208,12 +208,12 @@ type MessagesPath = "/admin/messages" | "/teach/messages";
  * administration alone.
  */
 export function guardianMessagesPath(user: {
-  role: string;
-  permissions: readonly string[];
+  workspace: string;
+  capabilities: readonly string[];
 }): MessagesPath | null {
-  if (!user.permissions.includes("messages:send")) return null;
-  if (user.role === "admin") return "/admin/messages";
-  if (user.role === "teacher") return "/teach/messages";
+  if (!user.capabilities.includes("messages:send")) return null;
+  if (user.workspace === "admin") return "/admin/messages";
+  if (user.workspace === "teach") return "/teach/messages";
   return null;
 }
 

@@ -1,5 +1,6 @@
-import type { Permission, Role } from "@faridalms/domain/identity";
-import type { SchoolFeature } from "@faridalms/domain/learning";
+import type { Capability } from "@faridalms/domain/capabilities";
+import type { Feature } from "@faridalms/domain/features";
+import type { Workspace } from "@faridalms/domain/workspace";
 import type { LucideIcon } from "lucide-react";
 
 import {
@@ -31,10 +32,10 @@ export interface NavItem {
   to: string;
   label: () => string;
   icon: LucideIcon;
-  /** Hidden unless the role holds this capability. */
-  permission?: Permission;
+  /** Hidden unless the person holds this capability. */
+  capability?: Capability;
   /** Hidden unless the school has switched this area on. */
-  feature?: SchoolFeature;
+  feature?: Feature;
   /** Match the route exactly, for section index pages. */
   exact?: boolean;
 }
@@ -49,7 +50,7 @@ export interface NavSection {
  * teacher starts from today's teaching, a family from their children, an
  * office from what needs doing. Only routes that exist appear here.
  */
-export const NAVIGATION: Record<Role, NavSection[]> = {
+export const NAVIGATION: Record<Workspace, NavSection[]> = {
   admin: [
     {
       items: [
@@ -87,7 +88,7 @@ export const NAVIGATION: Record<Role, NavSection[]> = {
     },
   ],
 
-  teacher: [
+  teach: [
     {
       items: [
         { to: "/teach", label: m.navToday, icon: Sun, exact: true },
@@ -118,7 +119,7 @@ export const NAVIGATION: Record<Role, NavSection[]> = {
     },
   ],
 
-  parent: [
+  family: [
     {
       items: [
         { to: "/family", label: m.navHome, icon: House, exact: true },
@@ -150,7 +151,7 @@ export const NAVIGATION: Record<Role, NavSection[]> = {
     },
   ],
 
-  student: [
+  me: [
     {
       items: [
         { to: "/me", label: m.navHome, icon: House, exact: true },
@@ -178,14 +179,14 @@ export const NAVIGATION: Record<Role, NavSection[]> = {
 };
 
 /** The four destinations a phone keeps at the bottom; everything else is under More. */
-export const MOBILE_TABS: Record<Role, string[]> = {
+export const MOBILE_TABS: Record<Workspace, string[]> = {
   admin: ["/admin", "/admin/students", "/admin/classes", "/admin/messages"],
-  teacher: ["/teach", "/teach/classes", "/teach/grading", "/teach/messages"],
-  parent: [
+  teach: ["/teach", "/teach/classes", "/teach/grading", "/teach/messages"],
+  family: [
     "/family",
     "/family/assignments",
     "/family/calendar",
     "/family/messages",
   ],
-  student: ["/me", "/me/assignments", "/me/calendar", "/me/messages"],
+  me: ["/me", "/me/assignments", "/me/calendar", "/me/messages"],
 };

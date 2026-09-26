@@ -17,7 +17,10 @@ export const Route = createFileRoute("/_app/modules/$moduleId")({
   validateSearch: v.object({ studentId: v.optional(v.string(), "") }),
   loaderDeps: ({ search }) => ({ studentId: search.studentId }),
   loader: async ({ context, params, deps }) => {
-    if (context.auth.role === "teacher" || context.auth.role === "admin")
+    if (
+      context.auth.workspace === "teach" ||
+      context.auth.workspace === "admin"
+    )
       await context.queryClient.ensureQueryData(
         moduleAuthoringQuery(params.moduleId),
       );
@@ -30,7 +33,7 @@ export const Route = createFileRoute("/_app/modules/$moduleId")({
 });
 function ModulePage() {
   const { auth } = Route.useRouteContext();
-  return auth.role === "teacher" || auth.role === "admin" ? (
+  return auth.workspace === "teach" || auth.workspace === "admin" ? (
     <TeacherModule />
   ) : (
     <LearnerModule />

@@ -11,9 +11,26 @@ import { $ } from "bun";
 const API_PORT = 3181;
 const WEB_PORT = 3180;
 const tag = `smoke-${Date.now()}`;
-const control = process.env.CONTROL_DATABASE_URL;
 const secret = process.env.SESSION_SECRET ?? "";
-if (!control) throw new Error("CONTROL_DATABASE_URL is not set");
+const API_ENV = [
+  "CELL_APP_URL",
+  "CELL_SITE_URL",
+  "DIRECTORY_URL",
+  "CELL_ID",
+  "CELL_KEK",
+  "CELL_SECRET",
+] as const;
+for (const name of [
+  "CELL_APP_URL",
+  "DIRECTORY_URL",
+  "CELL_ID",
+  "CELL_KEK",
+  "CELL_SECRET",
+])
+  if (!process.env[name]) throw new Error(`${name} is not set`);
+const apiEnv = API_ENV.flatMap((name) =>
+  process.env[name] ? ["-e", `${name}=${process.env[name]}`] : [],
+);
 
 const started: string[] = [];
 const outcomes: boolean[] = [];
@@ -57,27 +74,29 @@ try {
   report("both images build", true);
 
   const api = (
-    await $`docker run -d --network host -e CONTROL_DATABASE_URL=${control} -e API_PORT=${API_PORT} -e FILE_STORAGE_DIR=/tmp/files faridalms-api:${tag}`.text()
+    await $`docker run -d --network host ${apiEnv} -e API_PORT=${API_PORT} -e FILE_STORAGE_DIR=/tmp/files faridalms-api:${tag}`.text()
   ).trim();
   started.push(api);
   const live = await waitFor(`http://127.0.0.1:${API_PORT}/health/live`);
   report("api answers /health/live", live !== null);
   const ready = await waitFor(`http://127.0.0.1:${API_PORT}/health/ready`);
-  report(
-    "api answers /health/ready with the control database reachable",
-    ready !== null,
+  report("api answers /health/ready with the cell reachable", ready !== null);
+  const signIn = await fetch(
+    `http://127.0.0.1:${API_PORT}/v1/identity/signIn`,
+    {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        "x-farida-school": "northwind",
+      },
+      body: JSON.stringify({
+        loginName: "principal.northwind@northwind.example.com",
+        password: "farida-development-password",
+      }),
+    },
   );
-  const signIn = await fetch(`http://127.0.0.1:${API_PORT}/v1/auth/signIn`, {
-    method: "POST",
-    headers: { "content-type": "application/json" },
-    body: JSON.stringify({
-      school: "northwind",
-      email: "admin@example.com",
-      password: "northwind1234",
-    }),
-  });
   report(
-    "api signs the seeded administrator in through a school pool",
+    "api signs the seeded principal in on the cell",
     signIn.status === 200,
     `status ${signIn.status}`,
   );

@@ -20,7 +20,7 @@ import { Value } from "~/components/app/primitives";
 import { DataTable, RowLink } from "~/components/system/DataTable";
 import { PageHeader, isFiltered } from "~/components/system/IndexPage";
 import { StatusText } from "~/components/system/status";
-import { usePermission } from "~/hooks/useCurrentUser";
+import { useCapability } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { academicYearsQuery } from "~/queries/academic-years";
 import { allStudentsQuery } from "~/queries/school";
@@ -169,7 +169,7 @@ function copyReference(reference: string) {
 function StudentsPage() {
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
-  const canManage = usePermission("users:manage");
+  const canManage = useCapability("people:manage");
   const data = useSuspenseQuery(allStudentsQuery(search)).data;
   const { data: years } = useSuspenseQuery(academicYearsQuery);
   const defaultYear = years.find((year) => year.isCurrent);

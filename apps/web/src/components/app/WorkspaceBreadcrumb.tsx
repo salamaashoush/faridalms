@@ -65,7 +65,7 @@ export function WorkspaceBreadcrumb() {
   const declared = useRouterState({
     select: (state) => state.matches.at(-1)?.staticData.section ?? null,
   });
-  const items = NAVIGATION[user.role].flatMap((section) => section.items);
+  const items = NAVIGATION[user.workspace].flatMap((section) => section.items);
   const section =
     items.find((item) => item.to === declared) ??
     items

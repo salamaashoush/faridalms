@@ -1,12 +1,14 @@
-import { ROLE_HOME } from "@faridalms/domain/identity";
+import { WORKSPACE_HOME } from "@faridalms/domain/workspace";
 import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
 
 export const Route = createFileRoute("/_app/me")({
   beforeLoad: ({ context }) => {
     // See the note in admin.tsx: the prefix is the role boundary.
-    if (context.auth.role !== "student") {
+    if (context.auth.workspace !== "me") {
       throw redirect({
-        to: context.auth.role ? ROLE_HOME[context.auth.role] : "/sign-in",
+        to: context.auth.workspace
+          ? WORKSPACE_HOME[context.auth.workspace]
+          : "/sign-in",
       });
     }
   },

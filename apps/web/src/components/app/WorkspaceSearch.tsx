@@ -58,11 +58,11 @@ export function WorkspaceSearch({
       index === -1 ? (step === 1 ? 0 : hits.length - 1) : index + step;
     hits[(next + hits.length) % hits.length]?.focus();
   };
-  const pages = NAVIGATION[user.role]
+  const pages = NAVIGATION[user.workspace]
     .flatMap((section) => section.items)
     .filter(
       (item) =>
-        (!item.permission || user.permissions.includes(item.permission)) &&
+        (!item.capability || user.capabilities.includes(item.capability)) &&
         (!item.feature || user.features[item.feature]) &&
         item.label().toLocaleLowerCase().includes(query.toLocaleLowerCase()),
     );

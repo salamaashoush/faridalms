@@ -1,5 +1,6 @@
 import { openOwner } from "@faridalms/database/context";
 import { localKek } from "@faridalms/database/crypto";
+import { registerTenants } from "@faridalms/database/directory/seed";
 import { migrate } from "@faridalms/database/migrate";
 import {
   createCellDatabase,
@@ -78,23 +79,10 @@ async function seed() {
   const directory = new SQL(databaseUrl(config.DIRECTORY_DATABASE));
   try {
     const tenants = await seedCell(owner, { kek, cell: config.CELL_ID });
-    await directory.begin(async (tx) => {
-      await tx`set local role directory_owner`;
-      await tx`insert into cells (id, jurisdiction, provider, region, app_host, api_base_url, state)
-        values (${config.CELL_ID}, 'EG', 'local', 'local', ${config.CELL_APP_HOST}, 'http://127.0.0.1:3001', 'open')
-        on conflict (id) do nothing`;
-      for (const tenant of tenants) {
-        await tx`insert into tenants (id, kind, name_en, name_ar, cell_id, jurisdictions, state)
-          values (${tenant.tenantId}, ${tenant.spec.kind}, ${tenant.spec.nameEn ?? null},
-            ${tenant.spec.nameAr ?? null}, ${config.CELL_ID}, ${`{${tenant.spec.jurisdictions.join(",")}}`}::text[], 'active')`;
-        for (const school of tenant.schools)
-          await tx`insert into schools (id, tenant_id, slug, name_en, name_ar, placement)
-            values (${school.id}, ${tenant.tenantId}, ${school.slug}, ${school.nameEn}, ${school.nameAr}, 'cell')`;
-        await tx`insert into changes (actor, subject_type, subject_id, action, after, reason)
-          values (${`cell:${config.CELL_ID}`}, 'tenant', ${tenant.tenantId}, 'tenant.create',
-            ${JSON.stringify({ schools: tenant.schools.map((school) => school.slug) })}::jsonb,
-            'Development seed')`;
-      }
+    await registerTenants(directory, tenants, {
+      id: config.CELL_ID,
+      appHost: config.CELL_APP_HOST,
+      apiBaseUrl: "http://127.0.0.1:3001",
     });
     console.info(
       `Seeded ${tenants.length} tenants. Password for every login: ${SEED_PASSWORD}`,

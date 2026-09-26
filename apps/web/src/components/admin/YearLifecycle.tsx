@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import { Field, FieldDescription, FieldLabel } from "~/components/app/field";
 import { Button } from "~/components/ui/button";
 import { Textarea } from "~/components/ui/textarea";
-import { usePermission } from "~/hooks/useCurrentUser";
+import { useCapability } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import {
   setAcademicYearStatus,
@@ -33,7 +33,7 @@ interface Year {
 
 export function YearLifecycle({ year }: { year: Year }) {
   const queryClient = useQueryClient();
-  const canReopen = usePermission("years:reopen");
+  const canReopen = useCapability("years:reopen");
   const [dialog, setDialog] = useState<"close" | "reopen">();
   const [reason, setReason] = useState("");
   const [failure, setFailure] = useState<string>();

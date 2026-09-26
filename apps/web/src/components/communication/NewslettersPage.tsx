@@ -12,7 +12,7 @@ import { NewsletterEditor } from "~/components/admin/SchoolEditors";
 import { ButtonLink } from "~/components/app/ButtonLink";
 import { PageHeader, Value } from "~/components/app/primitives";
 import { Button, buttonVariants } from "~/components/ui/button";
-import { usePermission } from "~/hooks/useCurrentUser";
+import { useCapability } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { newslettersQuery } from "~/queries/school";
 import { formatDate } from "~/utils/datetime";
@@ -88,7 +88,7 @@ function NewsletterLink({ row }: { row: Newsletter }) {
 export function NewslettersPage({ search }: { search: NewslettersQuery }) {
   const navigate = useNavigate();
   const data = useSuspenseQuery(newslettersQuery(search)).data;
-  const canManage = usePermission("announcements:manage");
+  const canManage = useCapability("newsletters:manage");
   const [editing, setEditing] = useState(false);
   const patch = (change: Partial<NewslettersQuery>) => {
     void navigate({ to: ".", search: { ...search, ...change } });

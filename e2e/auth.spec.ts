@@ -2,13 +2,13 @@ import type { Page } from "@playwright/test";
 
 import { expect, test } from "@playwright/test";
 
-const PASSWORD = "northwind1234";
+const PASSWORD = "farida-development-password";
 
 const ACCOUNTS = {
-  admin: { email: "admin@example.com", home: "/admin" },
-  teacher: { email: "teacher@example.com", home: "/teach" },
-  parent: { email: "parent@example.com", home: "/family" },
-  student: { email: "omar@example.com", home: "/me" },
+  admin: { email: "principal.northwind@northwind.example.com", home: "/admin" },
+  teacher: { email: "teacher1.northwind@northwind.example.com", home: "/teach" },
+  parent: { email: "parent1001@northwind.example.com", home: "/family" },
+  student: { email: "student1007@northwind.example.com", home: "/me" },
 } as const;
 
 type RoleKey = keyof typeof ACCOUNTS;
@@ -38,7 +38,9 @@ test("a wrong password is refused without revealing whether the account exists",
   page,
 }) => {
   await page.goto("/sign-in");
-  await page.getByRole("textbox", { name: "Email" }).fill("parent@example.com");
+  await page
+    .getByRole("textbox", { name: "Email" })
+    .fill("parent1001@northwind.example.com");
   await page.getByRole("textbox", { name: "Password" }).fill("wrongpassword");
   await page.getByRole("button", { name: "Sign In", exact: true }).click();
 
@@ -78,7 +80,7 @@ test("a parent cannot reach the administration area", async ({ page }) => {
 
 test("signing out clears the session", async ({ page }) => {
   await signIn(page, "parent");
-  await page.getByRole("button", { name: /account menu|user menu/i }).click();
+  await page.getByRole("button", { name: "Account", exact: true }).click();
   await page.getByRole("menuitem", { name: /sign out/i }).click();
 
   await expect(page).toHaveURL(/\/sign-in/);

@@ -48,6 +48,7 @@ import {
 } from "~/components/ui/select";
 import { Skeleton } from "~/components/ui/skeleton";
 import { Textarea } from "~/components/ui/textarea";
+import { LEGACY_ROLE } from "~/data/legacy-role";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { recipientQuery } from "~/queries/people";
@@ -256,10 +257,12 @@ function ComposeForm({
         JSON.stringify({ document, files: files.map((file) => file.id) }) !==
           attachmentBaseline));
 
-  const categoryItems = categoriesFor(user.role).map((value) => ({
-    value,
-    label: CATEGORY_LABEL[value](),
-  }));
+  const categoryItems = categoriesFor(LEGACY_ROLE[user.workspace]).map(
+    (value) => ({
+      value,
+      label: CATEGORY_LABEL[value](),
+    }),
+  );
 
   const studentItems = [
     { value: "", label: m.commComposeAboutNone() },
@@ -711,7 +714,9 @@ function SeededComposeForm({
   const profile = useSuspenseQuery(recipientQuery(seed.to)).data;
   const category = profile ? ROLE_CATEGORY[profile.role] : null;
   const preset =
-    profile && category && categoriesFor(user.role).includes(category)
+    profile &&
+    category &&
+    categoriesFor(LEGACY_ROLE[user.workspace]).includes(category)
       ? {
           category,
           recipientId: profile.id,

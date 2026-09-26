@@ -9,7 +9,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import { ClassPicker } from "~/components/teach/ClassPicker";
-import { usePermission } from "~/hooks/useCurrentUser";
+import { useCapability } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { accessRolesQuery, userAccessQuery } from "~/queries/access";
 import { assignAccessRole } from "~/server/access";
@@ -33,7 +33,7 @@ export function UserEditor({
   onClose: () => void;
 }) {
   const queryClient = useQueryClient();
-  const canManageAccess = usePermission("access:manage");
+  const canManageAccess = useCapability("access:manage");
   const assign = useServerFn(assignAccessRole);
   const roles = useQuery({ ...accessRolesQuery, enabled: canManageAccess });
   const access = useQuery({

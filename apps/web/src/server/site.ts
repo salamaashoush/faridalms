@@ -99,7 +99,7 @@ export const getPublicPost = createServerFn({ method: "GET" })
 export const getSchoolForCurrentHost = createServerFn({
   method: "GET",
 }).handler(() =>
-  backend().getSchoolForHost({
+  backend(null).identity.hostSchool({
     host: (getRequestHeader("host") ?? "").slice(0, 255),
   }),
 );

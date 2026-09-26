@@ -27,7 +27,7 @@ import { ContentEditor } from "~/components/content/ContentEditor";
 import { ContentView } from "~/components/content/ContentView";
 import { MarkdownContent } from "~/components/records/MarkdownContent";
 import { Button } from "~/components/ui/button";
-import { useCurrentUser, usePermission } from "~/hooks/useCurrentUser";
+import { useCurrentUser, useCapability } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { messageQuery } from "~/queries/school";
 import { replyMessage } from "~/server/school";
@@ -248,7 +248,7 @@ export function ThreadView({
   messageId: string;
   onBack: () => void;
 }) {
-  const canSend = usePermission("messages:send");
+  const canSend = useCapability("messages:send");
   const user = useCurrentUser();
   const thread = useSuspenseQuery(messageQuery(messageId)).data;
   const focused = useRef(false);

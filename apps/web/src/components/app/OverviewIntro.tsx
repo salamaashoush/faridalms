@@ -10,11 +10,11 @@ export function OverviewIntro() {
   const user = useCurrentUser();
   const copy = {
     admin: [m.welcomeAdmin(), m.welcomeAdminBody()],
-    teacher: [m.welcomeTeacher(), m.welcomeTeacherBody()],
-    parent: [m.welcomeParent(), m.welcomeParentBody()],
-    student: [m.welcomeStudent(), m.welcomeStudentBody()],
-  }[user.role];
-  const links = NAVIGATION[user.role]
+    teach: [m.welcomeTeacher(), m.welcomeTeacherBody()],
+    family: [m.welcomeParent(), m.welcomeParentBody()],
+    me: [m.welcomeStudent(), m.welcomeStudentBody()],
+  }[user.workspace];
+  const links = NAVIGATION[user.workspace]
     .flatMap((section) => section.items)
     .filter((item) => !item.exact)
     .slice(0, 3);

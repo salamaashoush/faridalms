@@ -16,13 +16,13 @@ import * as m from "~/i18n/messages";
 import { loginSchema } from "~/schema/auth";
 import { login } from "~/server/auth";
 
-const DEMO_PASSWORD = "northwind1234";
+const DEMO_PASSWORD = "farida-development-password";
 
 const DEMO_ACCOUNTS = [
-  { email: "admin@example.com", label: () => m.roleAdmin() },
-  { email: "teacher@example.com", label: () => m.roleTeacher() },
-  { email: "parent@example.com", label: () => m.roleParent() },
-  { email: "omar@example.com", label: () => m.roleStudent() },
+  { email: "principal.northwind@northwind.example.com", label: () => m.roleAdmin() },
+  { email: "teacher1.northwind@northwind.example.com", label: () => m.roleTeacher() },
+  { email: "parent1001@northwind.example.com", label: () => m.roleParent() },
+  { email: "student1007@northwind.example.com", label: () => m.roleStudent() },
 ];
 
 export function SignInForm() {

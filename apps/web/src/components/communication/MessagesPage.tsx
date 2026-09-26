@@ -18,7 +18,7 @@ import { Badge } from "~/components/ui/badge";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 import { Skeleton } from "~/components/ui/skeleton";
-import { usePermission } from "~/hooks/useCurrentUser";
+import { useCapability } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { messageDraftQuery } from "~/queries/message-drafts";
 import { messagesQuery } from "~/queries/school";
@@ -63,7 +63,7 @@ const FOLDER_ICON = { inbox: Inbox, sent: Send };
 
 export function MessagesPage({ search }: { search: MessagesSearch }) {
   const navigate = useNavigate();
-  const canSend = usePermission("messages:send");
+  const canSend = useCapability("messages:send");
   const { folder, q, message: openId, compose } = search;
   const { rows, unread, page, pages, total } = useSuspenseQuery(
     messagesQuery({ folder, q, page: search.page }),

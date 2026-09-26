@@ -25,7 +25,7 @@ import { PageHeader } from "~/components/app/primitives";
 import { Button } from "~/components/ui/button";
 import { Checkbox } from "~/components/ui/checkbox";
 import { Input } from "~/components/ui/input";
-import { usePermission } from "~/hooks/useCurrentUser";
+import { useCapability } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { getLocale } from "~/i18n/runtime";
 import { calendarQuery } from "~/queries/school";
@@ -51,7 +51,7 @@ const viewIcons = { month: CalendarDays, week: Rows3, agenda: List };
 export function CalendarPage({ search }: { search: CalendarQuery }) {
   const navigate = useNavigate();
   const data = useSuspenseQuery(calendarQuery(search)).data;
-  const canManage = usePermission("calendar:manage");
+  const canManage = useCapability("calendar:manage");
   const text = search.q;
   const mutation = useMutation({ mutationFn: saveCalendarEvent });
   const date =

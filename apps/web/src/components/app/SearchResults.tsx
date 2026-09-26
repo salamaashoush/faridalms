@@ -12,6 +12,7 @@ import { Link } from "@tanstack/react-router";
 import { ROLE_LABEL } from "~/components/admin/labels";
 import { EVENT_CATEGORY_LABEL } from "~/components/app/labels";
 import { formatDate } from "~/components/family/format";
+import { LEGACY_ROLE } from "~/data/legacy-role";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 
@@ -186,7 +187,11 @@ export function SearchResults({
           <ul className="flex flex-col">
             {group.rows.map((hit) => (
               <li key={hit.id}>
-                <HitLink hit={hit} role={user.role} onNavigate={onNavigate} />
+                <HitLink
+                  hit={hit}
+                  role={LEGACY_ROLE[user.workspace]}
+                  onNavigate={onNavigate}
+                />
               </li>
             ))}
           </ul>
