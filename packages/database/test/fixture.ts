@@ -1,0 +1,451 @@
+import { and, eq, sql } from "drizzle-orm";
+
+import type { CellTransaction } from "../src/context";
+
+import { writeAudit } from "../src/audit";
+import { withPurpose } from "../src/context";
+import {
+  accessRoles,
+  accounts,
+  calendarGradeLevels,
+  calendars,
+  consentRecords,
+  descriptorOverrides,
+  descriptors,
+  devices,
+  documentFiles,
+  documentLinks,
+  documentTranslations,
+  documents,
+  documentVersions,
+  erasureApprovals,
+  erasureItems,
+  filePublications,
+  fileSubjects,
+  files,
+  identityProviderOrgs,
+  identityProviders,
+  idempotencyKeys,
+  importRows,
+  importRuns,
+  legalHolds,
+  orgFeatures,
+  passkeys,
+  privacyNotices,
+  relationshipRestrictions,
+  savedViews,
+  sealBatches,
+  sealMembers,
+  anchors,
+  sessions,
+  authAttempts,
+  userPreferences,
+  userRelationships,
+  users,
+  loginIdentities,
+} from "../src/tables/index";
+
+const id = () => Bun.randomUUIDv7();
+const bytes = (length: number) =>
+  Buffer.from(crypto.getRandomValues(new Uint8Array(length)));
+
+async function descriptor(
+  tx: CellTransaction,
+  tenantId: string,
+  namespace: string,
+  code: string,
+) {
+  const [row] = await tx
+    .select({ id: descriptors.id })
+    .from(descriptors)
+    .where(
+      and(
+        eq(descriptors.tenantId, tenantId),
+        eq(descriptors.namespace, namespace),
+        eq(descriptors.codeValue, code),
+      ),
+    );
+  if (!row) throw new Error(`descriptor ${namespace}/${code} missing`);
+  return row.id;
+}
+
+/**
+ * Adds one valid row to every tenant table the development seed leaves
+ * empty, so the isolation suite has a row of each tenant in each table.
+ */
+export async function completeFixture(
+  tx: CellTransaction,
+  tenantId: string,
+  schoolId: string,
+) {
+  const [someone] = await tx
+    .select({ id: users.id })
+    .from(users)
+    .where(eq(users.tenantId, tenantId))
+    .limit(1);
+  const [account] = await tx
+    .select({ id: accounts.id, userId: accounts.userId })
+    .from(accounts)
+    .where(eq(accounts.tenantId, tenantId))
+    .limit(1);
+  const [identity] = await tx
+    .select({ id: loginIdentities.id })
+    .from(loginIdentities)
+    .where(eq(loginIdentities.tenantId, tenantId))
+    .limit(1);
+  const [relationship] = await tx
+    .select({
+      id: userRelationships.id,
+      student: userRelationships.studentUserId,
+    })
+    .from(userRelationships)
+    .where(eq(userRelationships.tenantId, tenantId))
+    .limit(1);
+  const [calendar] = await tx
+    .select({ id: calendars.id })
+    .from(calendars)
+    .where(eq(calendars.tenantId, tenantId))
+    .limit(1);
+  if (!someone || !account || !identity || !relationship || !calendar)
+    throw new Error("the development seed must run before the fixture");
+  const userId = someone.id;
+
+  await tx
+    .insert(orgFeatures)
+    .values({ tenantId, orgId: schoolId, feature: "elearning", enabled: true });
+  await tx.insert(descriptorOverrides).values({
+    tenantId,
+    descriptorId: await descriptor(tx, tenantId, "grade_level", "grade_8"),
+    orgId: schoolId,
+    labelAr: "الصف الثاني الإعدادي",
+  });
+  await tx.insert(calendarGradeLevels).values({
+    tenantId,
+    calendarId: calendar.id,
+    gradeLevelDescriptorId: await descriptor(
+      tx,
+      tenantId,
+      "grade_level",
+      "grade_7",
+    ),
+  });
+
+  const photoId = id();
+  await tx.insert(files).values({
+    tenantId,
+    id: photoId,
+    uploadedByUserId: userId,
+    hostType: "user",
+    hostId: userId,
+    purpose: "site_media",
+    name: "sports-day.jpg",
+    mediaType: "image/jpeg",
+    sizeBytes: 1024,
+    storageKey: `t/${tenantId}/f/${photoId}`,
+    linkedAt: new Date(),
+  });
+  await tx.insert(filePublications).values({
+    tenantId,
+    fileId: photoId,
+    filePurpose: "site_media",
+    publicKey: `p/${"a".repeat(26)}/sports-day.jpg`,
+    hostType: "site_page",
+    hostId: id(),
+  });
+  await tx
+    .insert(fileSubjects)
+    .values({ tenantId, fileId: photoId, userId, taggedByUserId: userId });
+
+  const courtOrder = id();
+  const evidence = id();
+  await withPurpose(tx, "custody", async (inner) => {
+    await inner.insert(files).values([
+      {
+        tenantId,
+        id: courtOrder,
+        purpose: "legal_document",
+        name: "court-order.pdf",
+        mediaType: "application/pdf",
+        sizeBytes: 2048,
+        storageKey: `t/${tenantId}/q/${courtOrder}`,
+      },
+      {
+        tenantId,
+        id: evidence,
+        purpose: "evidence",
+        name: "guardianship.pdf",
+        mediaType: "application/pdf",
+        sizeBytes: 2048,
+        storageKey: `t/${tenantId}/q/${evidence}`,
+      },
+    ]);
+    await inner.insert(relationshipRestrictions).values({
+      tenantId,
+      relationshipId: relationship.id,
+      contactRestrictions: "Not to collect the student.",
+      courtOrderFileId: courtOrder,
+      verificationFileId: evidence,
+    });
+  });
+  const report = id();
+  await withPurpose(tx, "health", (inner) =>
+    inner.insert(files).values({
+      tenantId,
+      id: report,
+      purpose: "health_report",
+      name: "medical-report.pdf",
+      mediaType: "application/pdf",
+      sizeBytes: 4096,
+      storageKey: `t/${tenantId}/q/${report}`,
+    }),
+  );
+
+  const providerId = id();
+  await tx.insert(identityProviders).values({
+    tenantId,
+    id: providerId,
+    protocol: "oidc",
+    displayNameEn: "Google Workspace",
+    issuer: "https://accounts.google.com",
+    clientId: "client",
+    allowedIssuerTenants: ["example.com"],
+  });
+  await tx
+    .insert(identityProviderOrgs)
+    .values({ tenantId, identityProviderId: providerId, orgId: schoolId });
+  const passkeyId = id();
+  await tx.insert(passkeys).values({
+    tenantId,
+    id: passkeyId,
+    accountId: account.id,
+    credentialId: bytes(32),
+    publicKey: bytes(77),
+    uvInitialized: true,
+    backupEligible: true,
+    backupState: true,
+    rpId: "example.com",
+  });
+  const deviceId = id();
+  await tx
+    .insert(devices)
+    .values({ tenantId, id: deviceId, accountId: account.id, platform: "ios" });
+  const now = Date.now();
+  await tx.insert(sessions).values({
+    tenantId,
+    accountId: account.id,
+    tokenHash: bytes(32),
+    authenticatedAt: new Date(now),
+    lastSeenAt: new Date(now),
+    idleExpiresAt: new Date(now + 3_600_000),
+    absoluteExpiresAt: new Date(now + 86_400_000),
+    aal: 1,
+    amr: ["pwd"],
+    loginIdentityId: identity.id,
+    context: "staff",
+    clientKind: "ios",
+    deviceId,
+  });
+  await tx.insert(authAttempts).values({
+    tenantId,
+    keyHash: bytes(32),
+    windowEndsAt: new Date(now + 900_000),
+  });
+  await tx.insert(idempotencyKeys).values({
+    tenantId,
+    accountId: account.id,
+    key: "fixture-key-0001",
+    requestHash: bytes(32),
+    procedure: "fixture.create",
+  });
+
+  const documentId = id();
+  await tx.insert(documents).values({
+    tenantId,
+    id: documentId,
+    hostType: "privacy_notice",
+    hostId: id(),
+    orgId: schoolId,
+    kind: "rich_text",
+    schemaVersion: 1,
+    locale: "en",
+    content: { type: "doc", blocks: [] },
+    plainText: "How the school uses personal data.",
+  });
+  await tx.insert(documentVersions).values({
+    tenantId,
+    documentId,
+    documentVersion: 1,
+    reason: "publish",
+    content: { type: "doc", blocks: [] },
+    plainText: "How the school uses personal data.",
+    createdByUserId: userId,
+  });
+  await tx.insert(documentTranslations).values({
+    tenantId,
+    documentId,
+    sourceVersion: 1,
+    targetLocale: "ar",
+    origin: "machine",
+    engine: "fixture",
+    content: { type: "doc", blocks: [] },
+    plainText: "كيف تستخدم المدرسة البيانات الشخصية.",
+  });
+  await tx.insert(documentFiles).values({
+    tenantId,
+    documentId,
+    fileId: photoId,
+    filePurpose: "site_media",
+  });
+  await tx.insert(documentLinks).values({
+    tenantId,
+    documentId,
+    targetType: "url",
+    href: "https://example.com/policy",
+  });
+  const noticeId = id();
+  await tx.insert(privacyNotices).values({
+    tenantId,
+    id: noticeId,
+    kind: "consent_text",
+    purposeDescriptorId: await descriptor(
+      tx,
+      tenantId,
+      "consent_purpose",
+      "photo_school_website",
+    ),
+    orgId: schoolId,
+    locale: "en",
+    versionLabel: "2026-1",
+    documentId,
+    publishedAt: new Date(),
+  });
+  await tx.insert(consentRecords).values({
+    tenantId,
+    subjectUserId: relationship.student,
+    purposeDescriptorId: await descriptor(
+      tx,
+      tenantId,
+      "consent_purpose",
+      "photo_school_website",
+    ),
+    decision: "granted",
+    noticeId,
+    givenByUserId: userId,
+    capacity: "school_on_behalf",
+    legalBasis: "consent",
+    explicit: true,
+    written: true,
+    method: "electronic",
+    recordedByUserId: userId,
+    validDuring: "[2026-09-01,)",
+  });
+
+  const erasedSubject = id();
+  await tx
+    .insert(users)
+    .values({ tenantId, id: erasedSubject, fullNameEn: "Held Person" });
+  const approvalId = id();
+  await tx.insert(erasureApprovals).values({
+    tenantId,
+    id: approvalId,
+    subjectUserId: erasedSubject,
+    basis: "data_subject_request",
+    approvedByUserId: userId,
+  });
+  await tx
+    .insert(erasureItems)
+    .values({ tenantId, approvalId, objectType: "file", objectId: id() });
+  await tx.insert(legalHolds).values({
+    tenantId,
+    subjectUserId: erasedSubject,
+    reason: "Open investigation.",
+    placedByUserId: userId,
+  });
+
+  await tx.execute(sql`insert into core.activity_events (tenant_id, actor_user_id, verb, object_type, object_id, org_id)
+    values (${tenantId}::uuid, ${userId}::uuid, 'viewed', 'lesson', ${id()}::uuid, ${schoolId}::uuid)`);
+
+  const importFile = id();
+  await tx.insert(files).values({
+    tenantId,
+    id: importFile,
+    purpose: "import_source",
+    name: "students.csv",
+    mediaType: "text/csv",
+    sizeBytes: 512,
+    storageKey: `t/${tenantId}/q/${importFile}`,
+  });
+  const runId = id();
+  await tx.insert(importRuns).values({
+    tenantId,
+    id: runId,
+    orgId: schoolId,
+    kind: "students",
+    mode: "create",
+    sourceFileId: importFile,
+    startedByUserId: userId,
+  });
+  await tx
+    .insert(importRows)
+    .values({ tenantId, importRunId: runId, rowNumber: 1, outcome: "skipped" });
+  await tx.insert(userPreferences).values({
+    tenantId,
+    userId,
+    key: "students.view",
+    value: { density: "compact" },
+  });
+  await tx.insert(savedViews).values({
+    tenantId,
+    ownerUserId: userId,
+    orgId: schoolId,
+    surface: "students",
+    name: "Grade 8",
+    filter: { grade: "grade_8" },
+  });
+
+  const eventId = await writeAudit(tx, tenantId, {
+    action: "user.update",
+    objectType: "user",
+    objectId: userId,
+    subjectUserId: userId,
+    change: {
+      table: "core.users",
+      before: { preferredGivenName: null },
+      after: { preferredGivenName: "Sal" },
+    },
+  });
+  await tx.insert(sealBatches).values({
+    tenantId,
+    batchNo: 1,
+    eventCount: 1,
+    root: bytes(32),
+    hash: bytes(32),
+  });
+  const [logged] = await tx.execute<{ occurred_at: string }>(
+    sql`select occurred_at::text as occurred_at from audit.log where tenant_id = ${tenantId}::uuid and id = ${eventId}::uuid`,
+  );
+  await tx.insert(sealMembers).values({
+    tenantId,
+    eventId,
+    eventOccurredAt: new Date(logged?.occurred_at ?? Date.now()),
+    batchNo: 1,
+  });
+  await tx.insert(anchors).values({
+    tenantId,
+    batchNo: 1,
+    objectKey: `anchors/${tenantId}/1`,
+    objectVersionId: "v1",
+  });
+  const [builtin] = await tx
+    .select({ id: accessRoles.id })
+    .from(accessRoles)
+    .where(eq(accessRoles.tenantId, tenantId))
+    .limit(1);
+  return {
+    documentId,
+    noticeId,
+    builtinRoleId: builtin?.id,
+    photoId,
+    erasedSubject,
+  };
+}

@@ -112,11 +112,27 @@
         "apps/api/src/env.ts",
         "e2e/fixtures/**",
         "scripts/**",
+        "packages/database/test/**",
         ".husky/**"
       ],
       "rules": {
         "no-restricted-properties": "off"
       }
+    },
+    {
+      // Provisioning, migrations, the seed and the database suites issue
+      // statements on one connection, where each depends on what the previous
+      // one created. Promise.all would reorder them, not speed them up.
+      "files": [
+        "packages/database/src/migrate.ts",
+        "packages/database/src/provision.ts",
+        "packages/database/src/seed.ts",
+        "packages/database/test/**",
+        "scripts/db.ts",
+        "scripts/db-verify.ts",
+        "scripts/check-sources.ts"
+      ],
+      "rules": { "no-await-in-loop": "off" }
     },
     {
       "files": ["**/*.spec.ts", "**/*.spec.tsx", "e2e/**"],

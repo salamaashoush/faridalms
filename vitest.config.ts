@@ -22,6 +22,9 @@ export default defineConfig({
             ...configDefaults.exclude,
             "e2e/**",
             "**/*.browser.{test,spec}.{ts,tsx}",
+            // Database integration tests run under Bun against a real cell
+            // (bun run test:db); vitest runs on Node, where Bun SQL is absent.
+            "packages/database/test/**",
           ],
         },
       },
