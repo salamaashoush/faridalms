@@ -8,6 +8,8 @@ import { Inbox, Mail, Paperclip, Search, Send, SquarePen } from "lucide-react";
 import { Suspense } from "react";
 import * as v from "valibot";
 
+import type { ComposeSeed } from "~/components/communication/ComposeMessage";
+
 import { DirectoryPagination } from "~/components/admin/DirectoryPagination";
 import { EmptyState, PageHeader, Value } from "~/components/app/primitives";
 import { ComposeMessage } from "~/components/communication/ComposeMessage";
@@ -25,17 +27,30 @@ import { formatNumber, formatRelativeDays } from "~/utils/datetime";
 
 import { MessageDrafts } from "./MessageDrafts";
 
+const optionalUuid = v.optional(
+  v.union([v.literal(""), v.pipe(v.string(), v.uuid())]),
+  "",
+);
+
+// A link from elsewhere can go stale or be mistyped; a bad value opens the
+// composer unaddressed rather than failing the page.
+const seedUuid = v.fallback(optionalUuid, "");
+
 /**
  * The server contract plus the two things the two-pane layout needs: which
  * message is open, and whether the composer is showing. Both belong in the URL
- * so a link to a message opens that message.
+ * so a link to a message opens that message. A link from elsewhere, such as a
+ * student's guardian, can also name who a new message goes to and which
+ * student it is about.
  */
 export const messagesSearchSchema = v.object({
   ...messagesQuerySchema.entries,
   message: v.optional(v.string(), ""),
   compose: v.optional(v.boolean(), false),
   drafts: v.optional(v.boolean(), false),
-  draft: v.optional(v.union([v.literal(""), v.pipe(v.string(), v.uuid())]), ""),
+  draft: optionalUuid,
+  to: seedUuid,
+  about: seedUuid,
 });
 export type MessagesSearch = v.InferOutput<typeof messagesSearchSchema>;
 
@@ -63,13 +78,18 @@ export function MessagesPage({ search }: { search: MessagesSearch }) {
       <DraftComposer
         key={search.draft || "new"}
         draftId={search.draft}
-        onSaved={(id) => setSearch({ draft: id }, true)}
-        onClose={() => setSearch({ compose: false, draft: "" })}
+        seed={search.to ? { to: search.to, about: search.about } : undefined}
+        onSaved={(id) => setSearch({ draft: id, to: "", about: "" }, true)}
+        onClose={() =>
+          setSearch({ compose: false, draft: "", to: "", about: "" })
+        }
         onSent={(id) =>
           setSearch({
             compose: false,
             drafts: false,
             draft: "",
+            to: "",
+            about: "",
             folder: "sent",
             message: id,
             q: "",
@@ -323,9 +343,11 @@ function DetailSkeleton() {
 
 function DraftComposer({
   draftId,
+  seed,
   ...props
 }: {
   draftId: string;
+  seed?: ComposeSeed;
   onSaved: (id: string) => void;
   onSent: (id: string) => void;
   onClose: () => void;
@@ -333,7 +355,7 @@ function DraftComposer({
   return draftId ? (
     <ResumeDraft draftId={draftId} {...props} />
   ) : (
-    <ComposeMessage {...props} />
+    <ComposeMessage seed={seed} {...props} />
   );
 }
 function ResumeDraft({

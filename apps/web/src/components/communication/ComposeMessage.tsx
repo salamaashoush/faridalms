@@ -1,5 +1,6 @@
 import type { FileSummary } from "@faridalms/database/repositories/files";
 import type { ContentDocument } from "@faridalms/domain/content";
+import type { Role } from "@faridalms/domain/identity";
 import type { ComposeMessageInput } from "@faridalms/domain/school-schema";
 
 import { contentPlainText } from "@faridalms/domain/content";
@@ -49,6 +50,7 @@ import { Skeleton } from "~/components/ui/skeleton";
 import { Textarea } from "~/components/ui/textarea";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
+import { recipientQuery } from "~/queries/people";
 import { visibleStudentsQuery } from "~/queries/school";
 import {
   getMessageDraft,
@@ -70,6 +72,41 @@ const CATEGORY_LABEL: Record<MessageCategory, () => string> = {
 };
 
 type SavedDraft = Awaited<ReturnType<typeof getMessageDraft>>;
+
+/** Who a new message goes to and which student it is about, from a link. */
+export interface ComposeSeed {
+  to: string;
+  about: string;
+}
+
+interface Preset {
+  category: MessageCategory;
+  recipientId: string;
+  recipientLabel: string;
+  studentId: string;
+}
+
+const ROLE_CATEGORY: Record<Role, MessageCategory> = {
+  admin: "administration",
+  teacher: "teachers",
+  parent: "parents",
+  student: "students",
+};
+
+function categoriesFor(role: Role): MessageCategory[] {
+  return MESSAGE_CATEGORIES.filter(
+    (category) =>
+      role === "admin" ||
+      role === "teacher" ||
+      category === "teachers" ||
+      category === "administration",
+  );
+}
+
+function recipientName(person: { name: string; title?: string | null }) {
+  return person.title ? `${person.name} (${person.title})` : person.name;
+}
+
 type ComposeValues = Pick<
   ComposeMessageInput,
   "category" | "recipientId" | "studentId" | "subject" | "body" | "bodyFormat"
@@ -77,11 +114,13 @@ type ComposeValues = Pick<
 
 function ComposeForm({
   initial,
+  preset,
   onSaved,
   onSent,
   onClose,
 }: {
   initial?: SavedDraft;
+  preset?: Preset;
   onSaved: (id: string) => void;
   onSent: (id: string) => void;
   onClose: () => void;
@@ -102,15 +141,15 @@ function ComposeForm({
   const [reviewPending, setReviewPending] = useState(false);
   const [selectionSource, setSelectionSource] = useState(initial);
   const [recipientLabel, setRecipientLabel] = useState(
-    initial?.recipient?.name ?? "",
+    initial?.recipient?.name ?? preset?.recipientLabel ?? "",
   );
   const [recipientVersion, setRecipientVersion] = useState(0);
   const [editorVersion, setEditorVersion] = useState(0);
   const draftMutation = useMutation({ mutationFn: save });
   const [defaultValues, setDefaultValues] = useState<ComposeValues>({
-    category: initial?.category ?? "teachers",
-    recipientId: initial?.recipientId ?? "",
-    studentId: initial?.studentId ?? "",
+    category: initial?.category ?? preset?.category ?? "teachers",
+    recipientId: initial?.recipientId ?? preset?.recipientId ?? "",
+    studentId: initial?.studentId ?? preset?.studentId ?? "",
     subject: initial?.subject ?? "",
     body: initial?.body ?? "",
     bodyFormat: initial?.bodyFormat ?? "rich",
@@ -217,13 +256,7 @@ function ComposeForm({
         JSON.stringify({ document, files: files.map((file) => file.id) }) !==
           attachmentBaseline));
 
-  const categoryItems = MESSAGE_CATEGORIES.filter(
-    (category) =>
-      user.role === "admin" ||
-      user.role === "teacher" ||
-      category === "teachers" ||
-      category === "administration",
-  ).map((value) => ({
+  const categoryItems = categoriesFor(user.role).map((value) => ({
     value,
     label: CATEGORY_LABEL[value](),
   }));
@@ -421,10 +454,10 @@ function ComposeForm({
                                 initialLabel={
                                   selectionSource?.category === category &&
                                   selectionSource.recipient
-                                    ? selectionSource.recipient.title
-                                      ? `${selectionSource.recipient.name} (${selectionSource.recipient.title})`
-                                      : selectionSource.recipient.name
-                                    : undefined
+                                    ? recipientName(selectionSource.recipient)
+                                    : preset?.category === category
+                                      ? preset.recipientLabel
+                                      : undefined
                                 }
                                 category={category}
                                 value={field.state.value}
@@ -658,13 +691,48 @@ function ComposeForm({
   );
 }
 
+/**
+ * A new message addressed from a link. The recipient's own profile names them
+ * and says which group they belong to. Someone this writer can no longer
+ * reach or cannot address, or a student outside what they can see, is left
+ * for them to choose instead.
+ */
+function SeededComposeForm({
+  seed,
+  ...props
+}: {
+  seed: ComposeSeed;
+  onSaved: (id: string) => void;
+  onSent: (id: string) => void;
+  onClose: () => void;
+}) {
+  const user = useCurrentUser();
+  const students = useSuspenseQuery(visibleStudentsQuery).data;
+  const profile = useSuspenseQuery(recipientQuery(seed.to)).data;
+  const category = profile ? ROLE_CATEGORY[profile.role] : null;
+  const preset =
+    profile && category && categoriesFor(user.role).includes(category)
+      ? {
+          category,
+          recipientId: profile.id,
+          recipientLabel: recipientName(profile),
+          studentId: students.some((student) => student.id === seed.about)
+            ? seed.about
+            : "",
+        }
+      : undefined;
+  return <ComposeForm preset={preset} {...props} />;
+}
+
 export function ComposeMessage({
   initial,
+  seed,
   onSaved,
   onSent,
   onClose,
 }: {
   initial?: SavedDraft;
+  seed?: ComposeSeed;
   onSaved: (id: string) => void;
   onSent: (id: string) => void;
   onClose: () => void;
@@ -676,12 +744,21 @@ export function ComposeMessage({
         description={m.commComposeDescription()}
       />
       <Suspense fallback={<Skeleton className="h-96 w-full" />}>
-        <ComposeForm
-          initial={initial}
-          onSaved={onSaved}
-          onSent={onSent}
-          onClose={onClose}
-        />
+        {seed && !initial ? (
+          <SeededComposeForm
+            seed={seed}
+            onSaved={onSaved}
+            onSent={onSent}
+            onClose={onClose}
+          />
+        ) : (
+          <ComposeForm
+            initial={initial}
+            onSaved={onSaved}
+            onSent={onSent}
+            onClose={onClose}
+          />
+        )}
       </Suspense>
     </div>
   );

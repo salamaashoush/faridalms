@@ -8,6 +8,7 @@ import {
   messageDraftQuery,
   messageDraftsQuery,
 } from "~/queries/message-drafts";
+import { recipientQuery } from "~/queries/people";
 import {
   messagesQuery,
   recipientsQuery,
@@ -23,6 +24,7 @@ export const Route = createFileRoute("/_app/me/messages")({
     compose: search.compose,
     draft: search.draft,
     drafts: search.drafts,
+    to: search.to,
   }),
   loader: async ({ context, deps }) => {
     const draft = deps.draft
@@ -55,6 +57,9 @@ export const Route = createFileRoute("/_app/me/messages")({
               recipientsQuery(draft?.category ?? "teachers"),
             ),
           ]
+        : []),
+      ...(deps.compose && deps.to && !deps.draft
+        ? [context.queryClient.ensureQueryData(recipientQuery(deps.to))]
         : []),
     ]);
   },
