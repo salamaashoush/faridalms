@@ -1,3 +1,5 @@
+import type { ReactNode } from "react";
+
 import { notifyManager } from "@tanstack/react-query";
 import { createRouter as createTanStackRouter } from "@tanstack/react-router";
 import { setupRouterSsrQueryIntegration } from "@tanstack/react-router-ssr-query";
@@ -37,6 +39,13 @@ export function getRouter() {
 declare module "@tanstack/react-router" {
   interface StaticDataRouteOption {
     breadcrumb?: () => string;
+    /**
+     * The steps after the section, for a page whose crumbs name the record it
+     * shows. Replaces `breadcrumb`.
+     */
+    trail?: ReactNode;
+    /** The navigation item this page belongs to, when its path does not say. */
+    section?: string;
   }
   interface Register {
     router: ReturnType<typeof getRouter>;

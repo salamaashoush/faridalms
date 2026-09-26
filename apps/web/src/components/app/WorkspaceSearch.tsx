@@ -19,7 +19,11 @@ import { searchQuery } from "~/queries/search";
 import { NAVIGATION } from "./navigation";
 import { SearchResults } from "./SearchResults";
 
-export function WorkspaceSearch() {
+export function WorkspaceSearch({
+  variant = "bar",
+}: {
+  variant?: "bar" | "sidebar";
+}) {
   const hydrated = useHydrated();
   const user = useCurrentUser();
   const navigate = useNavigate();
@@ -103,21 +107,35 @@ export function WorkspaceSearch() {
     >
       <DialogTrigger
         render={
-          <Button
-            disabled={!hydrated}
-            variant="ghost"
-            className="gap-2 text-muted-foreground"
-            aria-label={m.workspaceSearch()}
-          >
-            <Search className="size-4" aria-hidden />
-            <span className="hidden sm:inline">{m.workspaceSearch()}</span>
-            <kbd
-              className="ms-8 hidden rounded border px-1.5 py-0.5 text-[10px] lg:inline"
-              aria-hidden
+          variant === "sidebar" ? (
+            <Button
+              disabled={!hydrated}
+              variant="outline"
+              size="sm"
+              className="w-full justify-start gap-2 bg-background font-normal text-muted-foreground shadow-none"
+              aria-label={m.workspaceSearch()}
             >
-              Ctrl K
-            </kbd>
-          </Button>
+              <Search className="size-4" aria-hidden />
+              <span className="flex-1 truncate text-start">
+                {m.shellSearch()}
+              </span>
+              <kbd
+                className="rounded border bg-muted px-1 font-sans text-[10px] leading-4"
+                aria-hidden
+              >
+                Ctrl K
+              </kbd>
+            </Button>
+          ) : (
+            <Button
+              disabled={!hydrated}
+              variant="ghost"
+              size="icon-sm"
+              aria-label={m.workspaceSearch()}
+            >
+              <Search className="size-4" aria-hidden />
+            </Button>
+          )
         }
       />
       <DialogContent>

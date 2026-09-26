@@ -5,14 +5,18 @@
 /* Defines the @custom-variant data-open / data-closed / data-checked variants
    the Base UI components compile against. Required, not cosmetic. */
 @import "shadcn/tailwind.css";
+@import "@faridalms/editor/editor.css";
 
 @variant dark (&:is(.dark *));
 @plugin "@tailwindcss/typography";
+@source "../../../../packages/editor/src";
 
 @theme inline {
-  --radius-lg: var(--radius);
-  --radius-md: calc(var(--radius) - 2px);
   --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+  --radius-2xl: calc(var(--radius) + 8px);
 
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -43,6 +47,8 @@
   --color-success-foreground: var(--success-foreground);
   --color-warning: var(--warning);
   --color-warning-foreground: var(--warning-foreground);
+  --color-info: var(--info);
+  --color-info-foreground: var(--info-foreground);
 
   --color-border: var(--border);
   --color-input: var(--input);
@@ -116,83 +122,89 @@
     color-scheme: light dark;
   }
 
+  /* One neutral canvas, one accent. Teal carries the brand; the focus ring,
+     selection, links and primary actions all use it so nothing competes. */
   :root {
-    --background: hsl(45 24% 96%);
-    --foreground: hsl(174 24% 13%);
+    --background: hsl(0 0% 100%);
+    --foreground: hsl(200 12% 12%);
     --card: hsl(0 0% 100%);
-    --card-foreground: hsl(240 10% 3.9%);
+    --card-foreground: hsl(200 12% 12%);
     --popover: hsl(0 0% 100%);
-    --popover-foreground: hsl(240 10% 3.9%);
-    --primary: hsl(171 48% 26%);
-    --primary-foreground: hsl(45 45% 97%);
-    --secondary: hsl(240 4.8% 95.9%);
-    --secondary-foreground: hsl(240 5.9% 10%);
-    --muted: hsl(42 17% 93%);
-    --muted-foreground: hsl(240 3.8% 46.1%);
-    --accent: hsl(240 4.8% 95.9%);
-    --accent-foreground: hsl(240 5.9% 10%);
-    --destructive: hsl(0 84.2% 60.2%);
-    --destructive-foreground: hsl(0 0% 98%);
-    --success: hsl(142.1 76.2% 36.3%);
-    --success-foreground: hsl(0 0% 98%);
-    --warning: hsl(37.7 92.1% 50.2%);
-    --warning-foreground: hsl(20.9 91.7% 14.1%);
-    --border: hsl(40 12% 88%);
-    --input: hsl(240 5.9% 90%);
-    --ring: hsl(171 48% 26%);
-    --radius: 0.875rem;
-    --chart-1: hsl(231 55% 55%);
-    --chart-2: hsl(187 62% 40%);
-    --chart-3: hsl(160 50% 42%);
-    --chart-4: hsl(38 84% 56%);
-    --chart-5: hsl(280 45% 58%);
-    --sidebar-background: hsl(0 0% 98%);
-    --sidebar-foreground: hsl(240 5.3% 26.1%);
-    --sidebar-primary: hsl(231 55% 45%);
-    --sidebar-primary-foreground: hsl(0 0% 98%);
-    --sidebar-accent: hsl(240 4.8% 95.9%);
-    --sidebar-accent-foreground: hsl(240 5.9% 10%);
-    --sidebar-border: hsl(220 13% 91%);
-    --sidebar-ring: hsl(231 55% 45%);
+    --popover-foreground: hsl(200 12% 12%);
+    --primary: hsl(171 52% 26%);
+    --primary-foreground: hsl(0 0% 100%);
+    --secondary: hsl(40 12% 95%);
+    --secondary-foreground: hsl(200 12% 14%);
+    --muted: hsl(40 12% 96%);
+    --muted-foreground: hsl(200 5% 40%);
+    --accent: hsl(40 10% 94%);
+    --accent-foreground: hsl(200 12% 12%);
+    --destructive: hsl(2 70% 50%);
+    --destructive-foreground: hsl(0 0% 100%);
+    --success: hsl(146 55% 32%);
+    --success-foreground: hsl(0 0% 100%);
+    --warning: hsl(38 92% 48%);
+    --warning-foreground: hsl(30 80% 16%);
+    --info: hsl(206 70% 42%);
+    --info-foreground: hsl(0 0% 100%);
+    --border: hsl(40 8% 89%);
+    --input: hsl(40 6% 85%);
+    --ring: hsl(171 52% 32%);
+    --radius: 0.5rem;
+    --chart-1: hsl(171 52% 32%);
+    --chart-2: hsl(206 70% 48%);
+    --chart-3: hsl(38 92% 50%);
+    --chart-4: hsl(280 45% 55%);
+    --chart-5: hsl(2 70% 55%);
+    --sidebar-background: hsl(40 14% 97.5%);
+    --sidebar-foreground: hsl(200 8% 26%);
+    --sidebar-primary: hsl(171 52% 26%);
+    --sidebar-primary-foreground: hsl(0 0% 100%);
+    --sidebar-accent: hsl(40 10% 92.5%);
+    --sidebar-accent-foreground: hsl(200 12% 12%);
+    --sidebar-border: hsl(40 8% 90%);
+    --sidebar-ring: hsl(171 52% 32%);
   }
 
   .dark {
-    --background: hsl(230 20% 7%);
-    --foreground: hsl(0 0% 95%);
-    --card: hsl(230 17% 11%);
-    --card-foreground: hsl(0 0% 95%);
-    --popover: hsl(0 0% 9%);
-    --popover-foreground: hsl(0 0% 95%);
-    --primary: hsl(163 45% 66%);
-    --primary-foreground: hsl(231 45% 12%);
-    --secondary: hsl(240 3.7% 15.9%);
-    --secondary-foreground: hsl(0 0% 98%);
-    --muted: hsl(230 12% 16%);
-    --muted-foreground: hsl(240 5% 64.9%);
-    --accent: hsl(230 14% 17%);
-    --accent-foreground: hsl(0 0% 98%);
-    --destructive: hsl(0 72.2% 50.6%);
-    --destructive-foreground: hsl(0 85.7% 97.3%);
-    --success: hsl(142.1 70.6% 45.3%);
-    --success-foreground: hsl(144.9 80.4% 10%);
-    --warning: hsl(47.9 95.8% 53.1%);
-    --warning-foreground: hsl(20.9 91.7% 14.1%);
-    --border: hsl(240 3.7% 15.9%);
-    --input: hsl(240 3.7% 15.9%);
-    --ring: hsl(229 75% 68%);
-    --chart-1: hsl(229 75% 68%);
-    --chart-2: hsl(160 60% 45%);
-    --chart-3: hsl(30 80% 55%);
-    --chart-4: hsl(280 65% 60%);
-    --chart-5: hsl(340 75% 55%);
-    --sidebar-background: hsl(240 5.9% 10%);
-    --sidebar-foreground: hsl(240 4.8% 95.9%);
-    --sidebar-primary: hsl(224.3 76.3% 48%);
-    --sidebar-primary-foreground: hsl(0 0% 100%);
-    --sidebar-accent: hsl(240 3.7% 15.9%);
-    --sidebar-accent-foreground: hsl(240 4.8% 95.9%);
-    --sidebar-border: hsl(240 3.7% 15.9%);
-    --sidebar-ring: hsl(217.2 91.2% 59.8%);
+    --background: hsl(210 6% 9%);
+    --foreground: hsl(0 0% 93%);
+    --card: hsl(210 6% 11%);
+    --card-foreground: hsl(0 0% 93%);
+    --popover: hsl(210 6% 12%);
+    --popover-foreground: hsl(0 0% 93%);
+    --primary: hsl(166 45% 56%);
+    --primary-foreground: hsl(180 30% 8%);
+    --secondary: hsl(210 5% 16%);
+    --secondary-foreground: hsl(0 0% 93%);
+    --muted: hsl(210 5% 14%);
+    --muted-foreground: hsl(210 4% 62%);
+    --accent: hsl(210 5% 17%);
+    --accent-foreground: hsl(0 0% 95%);
+    --destructive: hsl(2 72% 58%);
+    --destructive-foreground: hsl(0 0% 100%);
+    --success: hsl(146 45% 52%);
+    --success-foreground: hsl(146 60% 8%);
+    --warning: hsl(40 90% 58%);
+    --warning-foreground: hsl(30 80% 10%);
+    --info: hsl(206 75% 64%);
+    --info-foreground: hsl(206 60% 10%);
+    --border: hsl(210 5% 19%);
+    --input: hsl(210 5% 23%);
+    --ring: hsl(166 45% 56%);
+    --chart-1: hsl(166 45% 56%);
+    --chart-2: hsl(206 75% 64%);
+    --chart-3: hsl(40 90% 58%);
+    --chart-4: hsl(280 55% 68%);
+    --chart-5: hsl(2 72% 62%);
+    --sidebar-background: hsl(210 6% 7.5%);
+    --sidebar-foreground: hsl(210 4% 76%);
+    --sidebar-primary: hsl(166 45% 56%);
+    --sidebar-primary-foreground: hsl(180 30% 8%);
+    --sidebar-accent: hsl(210 5% 14%);
+    --sidebar-accent-foreground: hsl(0 0% 95%);
+    --sidebar-border: hsl(210 5% 15%);
+    --sidebar-ring: hsl(166 45% 56%);
   }
 }
 
@@ -205,7 +217,7 @@
     -webkit-font-smoothing: antialiased;
   }
   ::selection {
-    background: hsl(163 45% 78% / 0.5);
+    background: color-mix(in oklab, var(--primary) 22%, transparent);
   }
   @media (prefers-reduced-motion: reduce) {
     *,
@@ -249,4 +261,12 @@
     linear-gradient(#577e5614 1px, transparent 1px),
     linear-gradient(90deg, #577e5614 1px, transparent 1px);
   background-size: 32px 32px;
+}
+
+/* An editor's actions take the place of the global tools; search,
+   notifications and language stay one step away on every other page. A
+   record's phone menu sits beside them instead, so the bell stays. */
+header:has([data-slot="page-actions"] > :not([data-keeps-global-tools]))
+  [data-slot="global-tools"] {
+  display: none;
 }

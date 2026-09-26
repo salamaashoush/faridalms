@@ -11,10 +11,19 @@ export interface WeekNavProps {
   onSelect: (week: number) => void;
 }
 
-export function WeekNav({ week, weeks, onSelect }: WeekNavProps) {
+export function weekBounds(
+  week: { number: number },
+  weeks: { number: number }[],
+) {
   const numbers = weeks.map((row) => row.number);
-  const first = numbers.length > 0 ? Math.min(...numbers) : week.number;
-  const last = numbers.length > 0 ? Math.max(...numbers) : week.number;
+  return {
+    first: numbers.length > 0 ? Math.min(...numbers) : week.number,
+    last: numbers.length > 0 ? Math.max(...numbers) : week.number,
+  };
+}
+
+export function WeekNav({ week, weeks, onSelect }: WeekNavProps) {
+  const { first, last } = weekBounds(week, weeks);
 
   return (
     <nav className="flex items-center gap-3" aria-label={m.familyWeekNav()}>

@@ -1,6 +1,6 @@
 import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
 
-import { AppShell } from "~/components/app/AppShell";
+import { Shell } from "~/components/system/Shell";
 import { currentUserQuery } from "~/queries/user";
 import { getWorkspacePreferences } from "~/server/auth";
 
@@ -25,8 +25,8 @@ export const Route = createFileRoute("/_app")({
 function AppLayout() {
   const preferences = Route.useLoaderData();
   return (
-    <AppShell sidebarOpen={preferences.sidebarOpen}>
+    <Shell sidebarOpen={preferences.sidebarOpen}>
       <Outlet />
-    </AppShell>
+    </Shell>
   );
 }

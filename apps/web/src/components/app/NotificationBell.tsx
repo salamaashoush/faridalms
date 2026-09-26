@@ -19,11 +19,12 @@ import {
   unreadNotificationsQuery,
 } from "~/queries/notifications";
 import { markNotificationsRead } from "~/server/notifications";
+import { cn } from "~/utils/cn";
 import { formatNumber, formatRelativeDays } from "~/utils/datetime";
 
 import { notificationText } from "./notification-labels";
 
-export function NotificationBell() {
+export function NotificationBell({ className }: { className?: string }) {
   const queryClient = useQueryClient();
   const navigate = useNavigate();
   const mark = useServerFn(markNotificationsRead);
@@ -56,7 +57,7 @@ export function NotificationBell() {
           <Button
             variant="ghost"
             size="icon"
-            className="relative"
+            className={cn("relative", className)}
             aria-label={
               unread > 0
                 ? m.notifBellUnread({ count: formatNumber(unread) })

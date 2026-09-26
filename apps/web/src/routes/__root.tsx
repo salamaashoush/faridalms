@@ -1,6 +1,7 @@
 import type { QueryClient } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 
+import { DirectionProvider } from "@base-ui/react/direction-provider";
 import {
   createRootRouteWithContext,
   HeadContent,
@@ -152,16 +153,21 @@ interface RootDocumentProps {
 
 function RootDocument({ children }: RootDocumentProps) {
   const locale = getLocale();
+  const direction = getTextDirection(locale);
 
   return (
-    <html suppressHydrationWarning lang={locale} dir={getTextDirection(locale)}>
+    <html suppressHydrationWarning lang={locale} dir={direction}>
       <head>
         <HeadContent />
       </head>
       <body>
         <ThemeProvider attribute="class" enableColorScheme enableSystem>
-          {children}
-          <Toaster position="top-center" />
+          {/* Base UI reads direction from this context, not from the page, for
+              arrow keys in tabs, menus and radios and for popup alignment. */}
+          <DirectionProvider direction={direction}>
+            {children}
+            <Toaster position="top-center" />
+          </DirectionProvider>
         </ThemeProvider>
         <Devtools />
         <Scripts />

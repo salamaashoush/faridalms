@@ -23,6 +23,12 @@ export function formatNumber(value: number): string {
   return new Intl.NumberFormat(getLocale()).format(value);
 }
 
+export function formatList(values: readonly string[]): string {
+  return new Intl.ListFormat(getLocale(), { type: "conjunction" }).format(
+    values,
+  );
+}
+
 export function formatDateTime(isoDate: string): string {
   return new Intl.DateTimeFormat(getLocale(), {
     dateStyle: "medium",

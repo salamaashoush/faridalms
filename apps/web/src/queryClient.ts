@@ -46,9 +46,10 @@ function unwrapServerFnMessage(message: string): string {
 
 function onError(error: Error) {
   error.message = unwrapServerFnMessage(error.message);
-  toast.error(m.notificationErrorTitle(), {
-    description: getMessageFromError(error),
-  });
+  const description = getMessageFromError(error);
+  // Callers that also report the failure reuse the message as the toast id,
+  // so one failure shows one toast.
+  toast.error(m.notificationErrorTitle(), { id: description, description });
 }
 
 export function createQueryClient(): QueryClient {
@@ -62,7 +63,15 @@ export function createQueryClient(): QueryClient {
     },
     queryCache: new QueryCache({ onError }),
     mutationCache: new MutationCache({
-      onError,
+      onError: (error, _variables, _context, mutation) => {
+        // A form that shows the failure beside its fields marks its mutation,
+        // and a toast would only repeat what the person is already reading.
+        if (mutation.meta?.inlineError === true) {
+          error.message = unwrapServerFnMessage(error.message);
+          return;
+        }
+        onError(error);
+      },
       onSettled: () => {
         if (queryClient.isMutating() === 1) {
           return queryClient.invalidateQueries();

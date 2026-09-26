@@ -49,7 +49,22 @@ export function PageHeader({
  * The old portal printed a label and then nothing, so a parent could not tell
  * a missing birthdate from a rendering bug. Absence is stated, in words.
  */
-export function Value({ children }: { children: ReactNode }) {
+// A value that cannot exist for this record, such as a grade for a student
+// with no class, is a dash: "Not recorded" would suggest someone forgot it.
+export function Value({
+  children,
+  notApplicable = false,
+}: {
+  children: ReactNode;
+  notApplicable?: boolean;
+}) {
+  if (notApplicable)
+    return (
+      <span className="text-muted-foreground">
+        <span aria-hidden>—</span>
+        <span className="sr-only">{m.commonNotApplicable()}</span>
+      </span>
+    );
   const empty =
     children === null ||
     children === undefined ||
