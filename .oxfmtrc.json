@@ -27,6 +27,8 @@
     "dist/**",
     "coverage/**",
     "playwright-report/**",
+    "drizzle/**",
+    "drizzle-directory/**",
     "bun.lock"
   ]
 }

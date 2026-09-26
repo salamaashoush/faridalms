@@ -1,2 +1,0 @@
-CREATE TYPE "message_body_format" AS ENUM('plain', 'markdown');--> statement-breakpoint
-ALTER TABLE "messages" ADD COLUMN "body_format" "message_body_format" DEFAULT 'plain'::"message_body_format" NOT NULL;

@@ -1,1 +1,0 @@
-CREATE INDEX "users_recipient_directory_idx" ON "users" ("role","is_active","name","id");

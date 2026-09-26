@@ -1,0 +1,175 @@
+import { SQL } from "bun";
+import { sql } from "drizzle-orm";
+import { drizzle } from "drizzle-orm/bun-sql/postgres";
+
+import type { ActorKind } from "./tables/partitioned";
+import type { TenantLifecycle } from "./tables/records";
+
+function open(url: string, max: number) {
+  return drizzle({
+    client: new SQL({ url, max, idleTimeout: 30, connectionTimeout: 10 }),
+  });
+}
+
+type Pool = ReturnType<typeof open>;
+export type CellTransaction = Parameters<Parameters<Pool["transaction"]>[0]>[0];
+
+export interface UnitOfWork {
+  readonly tenantId: string;
+  readonly requestId: string;
+  readonly actor: {
+    readonly kind: ActorKind;
+    readonly userId?: string;
+    readonly accountId?: string;
+    readonly sessionId?: string;
+  };
+}
+
+export type Access = "read" | "write";
+
+/**
+ * The tenant is unknown, allows no sign-in, or (for a write) is not active.
+ * Callers answer `unknown` exactly like an invalid token, so the response
+ * reveals nothing about which tenants exist, and `read_only` with 503.
+ */
+export class TenantUnavailableError extends Error {
+  constructor(readonly reason: "unknown" | "read_only") {
+    super(`tenant.${reason}`);
+    this.name = "TenantUnavailableError";
+  }
+}
+
+const SIGN_IN_STATES: ReadonlySet<TenantLifecycle> = new Set([
+  "active",
+  "frozen",
+]);
+
+async function unit<T>(
+  pool: Pool,
+  work: UnitOfWork,
+  access: Access,
+  run: (tx: CellTransaction) => Promise<T>,
+): Promise<T> {
+  return pool.transaction(async (tx) => {
+    const rows = await tx.execute<{ lifecycle: TenantLifecycle | null }>(
+      sql`select app.begin_unit(${work.tenantId}::uuid, ${work.actor.userId ?? null}::uuid, ${work.actor.accountId ?? null}::uuid, ${work.actor.sessionId ?? null}::uuid, ${work.requestId}, ${work.actor.kind}) as lifecycle`,
+    );
+    const lifecycle = rows[0]?.lifecycle ?? null;
+    if (lifecycle === null || !SIGN_IN_STATES.has(lifecycle))
+      throw new TenantUnavailableError("unknown");
+    if (access === "write" && lifecycle !== "active")
+      throw new TenantUnavailableError("read_only");
+    return run(tx);
+  });
+}
+
+function need(pool: Pool | undefined, role: string) {
+  if (!pool) throw new Error(`No ${role} pool is configured`);
+  return pool;
+}
+
+export interface CellUrls {
+  app: string;
+  site?: string;
+  integration?: string;
+  worker?: string;
+}
+
+/**
+ * The cell's connection pools, one per runtime role. Nothing outside this
+ * module sees a pool: every query runs inside a unit of work that has bound
+ * the tenant to its transaction.
+ */
+export function openCell(urls: CellUrls, size = 10) {
+  const pools = {
+    app: open(urls.app, size),
+    site: urls.site ? open(urls.site, Math.max(2, size / 2)) : undefined,
+    integration: urls.integration ? open(urls.integration, 4) : undefined,
+    worker: urls.worker ? open(urls.worker, 4) : undefined,
+  };
+  return {
+    withTenant: <T>(
+      work: UnitOfWork,
+      access: Access,
+      run: (tx: CellTransaction) => Promise<T>,
+    ) => unit(pools.app, work, access, run),
+    withSite: <T>(work: UnitOfWork, run: (tx: CellTransaction) => Promise<T>) =>
+      unit(need(pools.site, "site"), work, "read", run),
+    withIntegration: <T>(
+      work: UnitOfWork,
+      access: Access,
+      run: (tx: CellTransaction) => Promise<T>,
+    ) => unit(need(pools.integration, "integration"), work, access, run),
+    withWorker: <T>(
+      work: UnitOfWork,
+      access: Access,
+      run: (tx: CellTransaction) => Promise<T>,
+    ) => unit(need(pools.worker, "worker"), work, access, run),
+    /** Liveness of the app pool, for readiness probes. */
+    ping: async () => {
+      await pools.app.execute(sql`select 1`);
+    },
+    close: async () => {
+      await Promise.all(
+        Object.values(pools)
+          .filter((pool): pool is Pool => pool !== undefined)
+          .map((pool) => pool.$client.close()),
+      );
+    },
+  };
+}
+
+export type Cell = ReturnType<typeof openCell>;
+
+/**
+ * Operator work as the schema owner: provisioning a tenant, the development
+ * seed. The owner is bound by the isolation policy too, so each call still
+ * names one tenant.
+ */
+export function openOwner(url: string) {
+  const pool = open(url, 2);
+  return {
+    asOwner: <T>(
+      tenantId: string,
+      requestId: string,
+      run: (tx: CellTransaction) => Promise<T>,
+    ) =>
+      pool.transaction(async (tx) => {
+        await tx.execute(sql`set local role cell_owner`);
+        await tx.execute(
+          sql`select app.begin_unit(${tenantId}::uuid, null, null, null, ${requestId}, 'operator')`,
+        );
+        return run(tx);
+      }),
+    close: () => pool.$client.close(),
+  };
+}
+
+export type Purpose = "health" | "demographics" | "custody";
+
+/**
+ * Runs `work` with a special-category purpose set, inside a savepoint. When
+ * `work` throws, rolling back to the savepoint also clears the purpose, so a
+ * caller that catches the error never carries on with it set.
+ */
+export async function withPurpose<T>(
+  tx: CellTransaction,
+  purpose: Purpose,
+  work: (tx: CellTransaction) => Promise<T>,
+): Promise<T> {
+  return tx.transaction(async (inner) => {
+    await inner.execute(
+      sql`select set_config('app.purpose', ${purpose}, true)`,
+    );
+    const result = await work(inner);
+    await inner.execute(sql`select set_config('app.purpose', '', true)`);
+    return result;
+  });
+}
+
+export async function currentPurpose(tx: CellTransaction): Promise<string> {
+  const rows = await tx.execute<{ purpose: string | null }>(
+    sql`select current_setting('app.purpose', true) as purpose`,
+  );
+  return rows[0]?.purpose ?? "";
+}
