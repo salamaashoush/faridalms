@@ -6,17 +6,11 @@
   "adminAccountState": "Account",
   "adminActive": "Active",
   "adminAllRoles": "All roles",
-  "adminAttendanceHint": "Across every recorded session",
   "adminCapability": "Capability",
-  "adminClassListCaption": "Every class running this year, with its homeroom teacher and enrolment count.",
-  "adminClassListTitle": "Classes and enrolment",
-  "adminClassesEmpty": "No classes have been set up yet.",
   "adminClassesSubtitle": "Every class this year, the subjects it takes and who is enrolled.",
   "adminClassesTitle": "Classes",
-  "adminDateRange": "{from} to {to}",
   "adminEmail": "Email",
   "adminEndsOn": "Ends",
-  "adminEnrolled": "Enrolled",
   "adminEnrolledCount": "{count} enrolled",
   "adminFilterByRole": "Filter by role",
   "adminHideRoster": "Hide roster",
@@ -30,8 +24,6 @@
   "adminNoStudentsBody": "Clear the search to see everyone enrolled.",
   "adminNoStudentsTitle": "No students match this search",
   "adminNoSubjects": "No subjects are linked to this class.",
-  "adminOverviewSubtitle": "How the school is running right now.",
-  "adminOverviewTitle": "School overview",
   "adminPermAnnouncementsManage": "Manage announcements",
   "adminPermAssignmentsAuthor": "Set assignments",
   "adminPermAttendanceRead": "View attendance",
@@ -100,23 +92,14 @@
   "adminTermsCount": "{count} terms",
   "adminTermsEmpty": "No terms are recorded for this school year.",
   "adminTermsSection": "Terms",
-  "adminTotalAssignments": "Assignments set",
-  "adminTotalClasses": "Classes",
-  "adminTotalStudents": "Students",
-  "adminTotalTeachers": "Teachers",
-  "adminUpcomingEmpty": "No events are scheduled.",
-  "adminUpcomingTitle": "Upcoming calendar events",
   "adminViewRoster": "View roster",
   "appName": "Farida LMS",
   "appTagline": "School portal",
   "assignmentsDue": "Due {date}",
-  "assignmentsEmpty": "No assignments set for this week.",
   "assignmentsStatus": "Status",
-  "assignmentsTeacher": "Teacher",
   "assignmentsWeek": "Week {number}",
   "assignmentsWeekRange": "{from} to {to}",
   "attendanceRate": "Attendance rate",
-  "attendanceRecord": "Record attendance",
   "attendanceTitle": "Attendance",
   "authDemoAccounts": "Demo accounts",
   "authDemoHint": "Any of these, with password {password}.",
@@ -159,7 +142,6 @@
   "authSignUpTitle": "Sign Up",
   "calendarGeneral": "School events",
   "calendarNationalVacation": "National holidays",
-  "calendarNoEvents": "No events this month.",
   "calendarSchoolVacation": "School holidays",
   "commCalendarAgendaEmpty": "No events to show.",
   "commCalendarDateRange": "{from} to {to}",
@@ -169,7 +151,6 @@
   "commCalendarSubtitle": "School events, national holidays and school holidays.",
   "commCalendarTodayCell": "Today, {date}",
   "commComposeNoRecipients": "Nobody in this group can receive messages right now.",
-  "commMessagesAllRead": "Nothing unread.",
   "commMessagesSubtitle": "Messages between you and the school, in one place.",
   "commNewslettersCount": "{count} newsletters",
   "commNewslettersEmptyTitle": "No newsletters found",
@@ -195,11 +176,9 @@
   "commonOf": "of",
   "commonPreviousMonth": "Previous month",
   "commonPreviousWeek": "Previous week",
-  "commonProvisional": "To be confirmed",
   "commonSave": "Save",
   "commonSearch": "Search",
   "commonSelectStudent": "Select student",
-  "commonViewAll": "View all",
   "dayFriday": "Friday",
   "dayMonday": "Monday",
   "daySaturday": "Saturday",
@@ -215,15 +194,10 @@
   "errorTitle": "Something went wrong",
   "familyAllClearBody": "No overdue work and no unread messages.",
   "familyAttentionOverdue": "{count} overdue for {name}",
-  "familyAttentionUnread": "{count} unread messages",
-  "familyChildrenSubtitle": "Everything the school holds about your child.",
   "familyDueDate": "Due date",
-  "familyEventRange": "{from} to {to}",
   "familyMobile": "Mobile",
-  "familyNoChildren": "No children are linked to this account.",
   "familyNoEmergencyContacts": "No emergency contacts recorded.",
   "familyNoMedicalReports": "No medical reports uploaded.",
-  "familyNoUpcoming": "Nothing is scheduled in the coming days.",
   "familyOpenProfile": "Open profile",
   "familyPercentValue": "{value}%",
   "familyPhotoAlt": "Photo of {name}",
@@ -231,20 +205,10 @@
   "familySubjectScore": "{subject}: {percent} percent",
   "familyUploadedOn": "Uploaded",
   "familyWeekNav": "Week navigation",
-  "familyYourChildren": "Your children",
   "gradesTitle": "Grades",
   "localeToggleLabel": "Change language",
-  "meAllCaughtUp": "Nothing is waiting to be handed in. Keep it up.",
-  "meDaysRecorded": "{count} days recorded",
-  "meDueSoon": "Due soon",
-  "meDueSoonSubtitle": "Ordered by when it is due, soonest first.",
   "meFeedback": "Teacher feedback",
-  "meNextLesson": "Next lesson",
-  "meNoLessonsToday": "No lessons on your timetable today.",
-  "meOverviewSubtitle": "Everything you need to do, in one place.",
-  "meOverviewTitle": "My work",
   "meSubmitToast": "Your work has been handed in.",
-  "meTimeRange": "{from} to {to}",
   "memberBackToMembers": "Back to members",
   "memberDetailsSubtitle": "Role, team and recent activity for this member.",
   "memberDetailsTitle": "Details",
@@ -321,22 +285,17 @@
   "overviewAttendanceRate": "Attendance",
   "overviewAverageGrade": "Average grade",
   "overviewDueThisWeek": "Due this week",
-  "overviewGreeting": "Welcome back, {name}",
   "overviewNeedsAttention": "Needs attention",
   "overviewNextDue": "Next due",
-  "overviewNoWork": "No work outstanding",
   "overviewOverdue": "Overdue",
   "overviewRecentSubtitle": "The latest events across your workspace.",
   "overviewRecentTitle": "Recent activity",
-  "overviewSchoolYear": "School year {year}",
   "overviewStatActive": "Active",
   "overviewStatInvited": "Invited",
   "overviewStatSuspended": "Suspended",
   "overviewStatTotal": "Total members",
   "overviewSubtitle": "How your team is doing right now.",
   "overviewTitle": "Overview",
-  "overviewUnread": "Unread messages",
-  "overviewUpcoming": "Upcoming",
   "overviewViewAllActivity": "View all activity",
   "roleAdmin": "Administrator",
   "roleParent": "Parent",
@@ -485,36 +444,22 @@
   "teachClassesSubtitle": "Every class you teach, and who is in it.",
   "teachFeedbackFor": "Feedback for {student}",
   "teachGradeSaved": "Grade saved",
-  "teachGradingQueue": "Awaiting grading",
-  "teachGradingSubtitle": "Work handed in and waiting for a mark.",
-  "teachHandedIn": "{done} of {total} handed in",
   "teachHideRoster": "Hide roster",
   "teachHideRosterFor": "Hide roster for {class}",
   "teachMyClassesTitle": "My classes",
   "teachNoClasses": "You are not teaching any classes yet.",
-  "teachNoGrading": "Nothing is waiting to be graded.",
-  "teachNoUpcoming": "No upcoming events.",
-  "teachOverviewSubtitle": "What needs you today, across every class you teach.",
-  "teachOverviewTitle": "Teaching overview",
   "teachRoster": "Roster",
   "teachSaveGrade": "Save grade",
   "teachScoreFor": "Score for {student}, out of {max}",
   "teachShowRoster": "Show roster",
   "teachShowRosterFor": "Show roster for {class}",
-  "teachStatClasses": "Classes taught",
-  "teachStatStudents": "Students taught",
   "teachSubjects": "Subjects",
   "teachSubmissionsLabel": "Handed in",
   "teachSubmittedOn": "Handed in {date}",
-  "teachThisWeek": "This week's assignments",
-  "teachTimeRange": "{from} to {to}",
-  "teachTodayLessons": "Today's lessons",
   "themeDark": "Dark",
   "themeLight": "Light",
   "themeSystem": "System",
   "themeTitle": "Switch Theme",
-  "timetableNoLessons": "No lessons scheduled.",
-  "timetableRoom": "Room",
   "typePresentation": "Presentation",
   "typeProject": "Project",
   "typeQuiz": "Quiz",
@@ -611,11 +556,6 @@
   "managementClassesSubtitle": "Build teaching teams and organize your school’s classrooms.",
   "managementRosterHint": "Students currently enrolled and the teachers supporting them.",
   "courseworkStatus": "Status",
-  "courseworkView": "View work",
-  "dashboardContactSchool": "Contact school",
-  "dashboardLearningNext": "Coming up in learning",
-  "dashboardStayConnected": "Stay connected",
-  "dashboardMessagesHint": "Conversations with your school and teaching team.",
   "managementColumns": "Columns",
   "settingsSchoolHint": "School identity and the timezone used for attendance, dates, and deadlines.",
   "settingsSchoolName": "School name",
@@ -3038,5 +2978,155 @@
   "siteErrTitle": "Enter a title in the site's first language.",
   "siteErrLink": "Use a page of this site such as /pages/about, or a full https address.",
   "siteErrEmbed": "That video or document cannot be shown.",
-  "siteErrStale": "Someone changed this at the same time. Reload and try again."
+  "siteErrStale": "Someone changed this at the same time. Reload and try again.",
+  "homeAbsent": "Absent today",
+  "homeAbsentUnexplained": "Absent today, no reason given",
+  "homeAllChildren": "All children",
+  "homeAttendance": "Attendance",
+  "homeAttendanceToday": "Today",
+  "homeAttendanceWeek": "This week",
+  "homeAttentionAbsence": "Absent today with no reason: tell the school",
+  "homeAttentionMissing": "Missing: {title}",
+  "homeAttentionResult": "New result: {title}",
+  "homeChecklistClasses": "Classes set up for next year",
+  "homeChecklistStudents": "Students placed in next year",
+  "homeChecklistYear": "Next school year created",
+  "homeChildClear": "Nothing needs you today.",
+  "homeChildren": "Children",
+  "homeChildrenHint": "Follow each child's work, grades, attendance and week.",
+  "homeClassNews": "Class news",
+  "homeClasses": "Classes",
+  "homeClearBody": "Nothing needs you right now. New work, messages and news will show here.",
+  "homeClearTitle": "All clear",
+  "homeContinue": "Continue learning",
+  "homeDone": "Done",
+  "homeDueSoon": "Due soon",
+  "homeDueThisWeek": "Due this week",
+  "homeHandedInOf": "{count} of {total} handed in",
+  "homeLate": "Late today",
+  "homeLatestNewsletter": "Latest newsletter",
+  "homeLessonsToday": "Today's lessons",
+  "homeNeedsAction": "Needs action",
+  "homeNeedsAttention": "Needs your attention",
+  "homeNext": "Next",
+  "homeNextSevenDays": "Next 7 days",
+  "homeNextYear": "Next school year",
+  "homeNow": "Now",
+  "homeOpenAnnouncements": "All announcements",
+  "homeOpenAttendance": "Attendance",
+  "homeOpenCalendar": "Calendar",
+  "homeOpenChild": "Only this child",
+  "homeOpenClasses": "All classes",
+  "homeOpenCoursework": "Coursework",
+  "homeOpenMessages": "Messages",
+  "homeOpenNewsletters": "All newsletters",
+  "homeOpenTimetable": "Timetable",
+  "homeOpenToDo": "To do",
+  "homeOpenToReview": "To review",
+  "homeOpenYears": "School years",
+  "homePinnedNews": "Pinned news",
+  "homePresent": "Present today",
+  "homeReadOf": "{count} of {total} read",
+  "homeRecentNews": "Recent news",
+  "homeRegisterInProgress": "Register started",
+  "homeRegisterNotTaken": "Register not taken",
+  "homeRegisterTaken": "Register taken",
+  "homeRemindAll": "Remind all",
+  "homeReminded": "Teachers reminded",
+  "homeRoom": "Room {room}",
+  "homeThisWeek": "This week",
+  "homeToDo": "To do",
+  "homeToReview": "To review",
+  "homeUnreadMessages": "Unread messages",
+  "homeYearEnds": "This year ends on {date}.",
+  "homeFailedNotifications": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "{count} notice failed to send",
+        "countPlural=*": "{count} notices failed to send"
+      }
+    }
+  ],
+  "homeRegistersNotTaken": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "{count} register not taken yet",
+        "countPlural=*": "{count} registers not taken yet"
+      }
+    }
+  ],
+  "homeStudentCount": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "{count} student",
+        "countPlural=*": "{count} students"
+      }
+    }
+  ],
+  "homeToGradeCount": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "{count} to mark",
+        "countPlural=*": "{count} to mark"
+      }
+    }
+  ],
+  "homeToReviewCount": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "{count} piece of work waiting",
+        "countPlural=*": "{count} pieces of work waiting"
+      }
+    }
+  ],
+  "homeUnexplainedAbsences": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "{count} absence today with no reason",
+        "countPlural=*": "{count} absences today with no reason"
+      }
+    }
+  ],
+  "homeUnreadCount": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "{count} unread conversation",
+        "countPlural=*": "{count} unread conversations"
+      }
+    }
+  ],
+  "homeWithoutGuardian": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "{count} student without a guardian",
+        "countPlural=*": "{count} students without a guardian"
+      }
+    }
+  ],
+  "homeWithoutHomeroomTeacher": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "{count} homeroom without a teacher",
+        "countPlural=*": "{count} homerooms without a teacher"
+      }
+    }
+  ]
 }

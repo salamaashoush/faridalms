@@ -1,74 +1,121 @@
-import { studentScopedQuerySchema } from "@faridalms/domain/school-schema";
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { createFileRoute, Link, redirect } from "@tanstack/react-router";
-import { ArrowUpRight } from "lucide-react";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import {
+  BookOpen,
+  ClipboardList,
+  Layers,
+  Table2,
+  UserCheck,
+  Users,
+} from "lucide-react";
 
-import { PersonAvatar } from "~/components/admin/PersonAvatar";
-import { PageHeader, Value } from "~/components/app/primitives";
-import { Card, CardContent } from "~/components/ui/card";
+import { displayName } from "~/components/people/format";
+import { EmptyState, PageHeader } from "~/components/system/IndexPage";
+import { phoneLink, RecordSection } from "~/components/system/RecordPage";
+import { inLocale, useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
-import { studentQuery, visibleStudentsQuery } from "~/queries/school";
+import { personRecordQuery } from "~/queries/students";
+import { currentUserQuery } from "~/queries/user";
+import { cn } from "~/utils/cn";
 
 export const Route = createFileRoute("/_app/family/children")({
-  validateSearch: studentScopedQuerySchema,
-  loaderDeps: ({ search }) => search,
-  loader: async ({ context, deps }) => {
-    if (deps.studentId) {
-      const { profile } = await context.queryClient.ensureQueryData(
-        studentQuery(deps),
-      );
-      throw redirect({
-        to: "/students/$studentId",
-        params: { studentId: profile.id },
-        search: {},
-      });
-    }
-    await context.queryClient.ensureQueryData(visibleStudentsQuery);
+  loader: async ({ context }) => {
+    const user = await context.queryClient.ensureQueryData(currentUserQuery);
+    await context.queryClient.ensureQueryData(personRecordQuery(user.id));
   },
   component: ChildrenPage,
 });
+
+const link =
+  "inline-flex min-h-9 items-center gap-2 rounded-md border px-3 text-sm font-medium hover:bg-muted";
+
+/** Each child with the places a family follows them: work, grades, attendance, week and modules. */
 function ChildrenPage() {
-  const { data } = useSuspenseQuery(visibleStudentsQuery);
+  const user = useCurrentUser();
+  const children = useSuspenseQuery(personRecordQuery(user.id)).data.children;
+  const modules = user.features.elearning;
   return (
     <>
-      <PageHeader
-        title={m.navChildren()}
-        description={m.familyChildrenSubtitle()}
-      />
-      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-3">
-        {data.map((student) => (
-          <Card key={student.id} className="gap-0 py-0">
-            <CardContent className="p-5">
-              <Link
-                to="/students/$studentId"
-                params={{ studentId: student.id }}
-                search={{}}
-                className="group flex items-center gap-4 rounded-md focus-visible:outline-2 focus-visible:outline-ring"
+      <PageHeader title={m.navChildren()} description={m.homeChildrenHint()} />
+      {children.length === 0 ? (
+        <EmptyState
+          icon={Users}
+          title={m.courseworkNoChildren()}
+          description={m.courseworkNoChildrenBody()}
+        />
+      ) : (
+        <div className="grid gap-6 lg:grid-cols-2">
+          {children.map((child) => {
+            const search = { studentId: child.studentId };
+            return (
+              <RecordSection
+                key={child.studentId}
+                title={displayName(child)}
+                description={
+                  child.relation
+                    ? inLocale(child.relation.labelEn, child.relation.labelAr)
+                    : undefined
+                }
               >
-                <PersonAvatar
-                  name={student.fullName}
-                  photoUrl={student.photoUrl}
-                />
-                <div className="min-w-0 flex-1">
-                  <h2 className="font-semibold group-hover:text-primary">
-                    {student.fullName}
-                  </h2>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    <Value>{student.className}</Value>
-                  </p>
-                </div>
-                <ArrowUpRight
-                  className="size-4 text-muted-foreground rtl:-rotate-90"
-                  aria-hidden
-                />
-              </Link>
-              <p className="mt-5 border-t pt-3 text-xs text-muted-foreground">
-                {m.familyReference()}: {student.reference}
-              </p>
-            </CardContent>
-          </Card>
-        ))}
-      </div>
+                <ul className="flex flex-wrap gap-2">
+                  <li>
+                    <Link
+                      to="/family/assignments"
+                      search={search}
+                      className={cn(link, phoneLink)}
+                    >
+                      <ClipboardList aria-hidden className="size-4" />
+                      {m.navCoursework()}
+                    </Link>
+                  </li>
+                  <li>
+                    <Link
+                      to="/family/grades"
+                      search={search}
+                      className={cn(link, phoneLink)}
+                    >
+                      <BookOpen aria-hidden className="size-4" />
+                      {m.navGrades()}
+                    </Link>
+                  </li>
+                  <li>
+                    <Link
+                      to="/family/attendance"
+                      search={search}
+                      className={cn(link, phoneLink)}
+                    >
+                      <UserCheck aria-hidden className="size-4" />
+                      {m.navAttendance()}
+                    </Link>
+                  </li>
+                  <li>
+                    <Link
+                      to="/family/timetable"
+                      search={search}
+                      className={cn(link, phoneLink)}
+                    >
+                      <Table2 aria-hidden className="size-4" />
+                      {m.navTimetable()}
+                    </Link>
+                  </li>
+                  {modules ? (
+                    <li>
+                      <Link
+                        to="/family/modules"
+                        search={search}
+                        className={cn(link, phoneLink)}
+                      >
+                        <Layers aria-hidden className="size-4" />
+                        {m.navModules()}
+                      </Link>
+                    </li>
+                  ) : null}
+                </ul>
+              </RecordSection>
+            );
+          })}
+        </div>
+      )}
     </>
   );
 }

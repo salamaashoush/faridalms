@@ -1,273 +1,340 @@
+import type { LinkProps } from "@tanstack/react-router";
+
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { createFileRoute, Link } from "@tanstack/react-router";
 import {
-  ArrowUpRight,
-  BookOpen,
-  CalendarClock,
-  GraduationCap,
-  Mail,
-  Users,
-  UserCheck,
-} from "lucide-react";
+  createFileRoute,
+  Link,
+  stripSearchParams,
+} from "@tanstack/react-router";
+import { House } from "lucide-react";
 import * as v from "valibot";
 
-import { PersonAvatar } from "~/components/admin/PersonAvatar";
-import { ButtonLink } from "~/components/app/ButtonLink";
+import type { Tone } from "~/components/system/status";
+
+import { classTitle } from "~/components/classes/format";
+import { formatInstant } from "~/components/coursework/format";
 import {
-  EmptyState,
-  PageHeader,
-  SectionCard,
-  StatTile,
-  Value,
-} from "~/components/app/primitives";
-import { UpcomingList } from "~/components/family/UpcomingList";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "~/components/ui/tabs";
-import { useCurrentUser } from "~/hooks/useCurrentUser";
+  HomeCard,
+  HomeItem,
+  HomeList,
+  itemLink,
+} from "~/components/home/parts";
+import { displayName } from "~/components/people/format";
+import { EmptyState, PageHeader } from "~/components/system/IndexPage";
+import { RecordColumns } from "~/components/system/RecordPage";
+import { StatusText } from "~/components/system/status";
+import { inLocale, useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
-import { familyOverviewQuery } from "~/queries/school";
-import { formatDate, formatNumber } from "~/utils/datetime";
+import { familyHomeQuery } from "~/queries/home";
+import { cn } from "~/utils/cn";
+import { formatDate } from "~/utils/datetime";
 
 export const Route = createFileRoute("/_app/family/")({
-  validateSearch: v.object({ studentId: v.optional(v.string()) }),
-  loader: ({ context }) =>
-    context.queryClient.ensureQueryData(familyOverviewQuery),
-  component: FamilyOverviewPage,
+  validateSearch: v.object({
+    child: v.fallback(
+      v.optional(v.union([v.literal(""), v.pipe(v.string(), v.uuid())]), ""),
+      "",
+    ),
+  }),
+  search: { middlewares: [stripSearchParams({ child: "" })] },
+  loaderDeps: ({ search }) => ({ child: search.child }),
+  loader: ({ context, deps }) =>
+    context.queryClient.ensureQueryData(familyHomeQuery(deps.child)),
+  component: FamilyHome,
 });
-function FamilyOverviewPage() {
-  const user = useCurrentUser();
-  const search = Route.useSearch();
-  const navigate = Route.useNavigate();
-  const { schoolYear, overviews, unread, upcoming } =
-    useSuspenseQuery(familyOverviewQuery).data;
-  const selected =
-    overviews.find((row) => row.student.id === search.studentId) ??
-    overviews[0];
+
+type Data = Awaited<
+  ReturnType<NonNullable<ReturnType<typeof familyHomeQuery>["queryFn"]>>
+>;
+type Child = Data["children"][number];
+
+const PRESENCE: Record<
+  Child["presence"],
+  { label: () => string; tone: Tone } | null
+> = {
+  present: { label: m.homePresent, tone: "success" },
+  late: { label: m.homeLate, tone: "warning" },
+  absent: { label: m.homeAbsent, tone: "neutral" },
+  absent_unexplained: { label: m.homeAbsentUnexplained, tone: "danger" },
+  none: null,
+};
+
+const chip =
+  "inline-flex min-h-9 items-center rounded-full border px-3 text-sm hover:bg-muted aria-[current=page]:border-primary aria-[current=page]:bg-primary/10 aria-[current=page]:text-primary";
+
+function attentionOf(
+  item: Child["attention"][number],
+  child: Child,
+): { label: string; link: LinkProps } {
+  const search = { studentId: child.studentId };
+  switch (item.kind) {
+    case "absence":
+      return {
+        label: m.homeAttentionAbsence(),
+        link: { to: "/family/attendance", search },
+      };
+    case "missing":
+      return {
+        label: m.homeAttentionMissing({ title: item.title }),
+        link: { to: "/family/assignments", search },
+      };
+    case "result":
+      return {
+        label: m.homeAttentionResult({ title: item.title }),
+        link: { to: "/family/grades", search },
+      };
+  }
+  return { label: "", link: { to: "/family" } };
+}
+
+const lesson = (slot: Child["now"], label: string) =>
+  slot
+    ? `${label}: ${classTitle({ code: slot.classCode, titleEn: slot.classTitleEn, titleAr: slot.classTitleAr })}`
+    : null;
+
+function ChildCard({
+  child,
+  timeZone,
+  single,
+}: {
+  child: Child;
+  timeZone: string;
+  single: boolean;
+}) {
+  const presence = PRESENCE[child.presence];
   return (
-    <>
-      <PageHeader
-        title={m.overviewGreeting({ name: user.name })}
-        description={m.overviewSchoolYear({ year: schoolYear })}
-        actions={
-          <ButtonLink to="/family/messages" search={{ compose: true }}>
-            <Mail className="size-4" aria-hidden />
-            {m.dashboardContactSchool()}
-          </ButtonLink>
-        }
-      />
-      {selected ? (
-        <Tabs
-          value={selected.student.id}
-          onValueChange={(value) => {
-            if (typeof value === "string")
-              void navigate({ search: { studentId: value } });
-          }}
-        >
-          <div className="mb-5 overflow-x-auto">
-            <TabsList
-              variant="line"
-              className="h-auto gap-4 border-b pb-2"
-              aria-label={m.familyYourChildren()}
-            >
-              {overviews.map((row) => (
-                <TabsTrigger
-                  key={row.student.id}
-                  value={row.student.id}
-                  className="gap-3 px-2 py-3"
-                >
-                  <PersonAvatar name={row.student.fullName} />
-                  <span className="text-start">
-                    <span className="block text-sm font-semibold">
-                      {row.student.fullName}
-                    </span>
-                    <span className="mt-0.5 block text-xs text-muted-foreground">
-                      <Value>{row.student.className}</Value>
-                    </span>
-                  </span>
-                </TabsTrigger>
-              ))}
-            </TabsList>
+    <HomeCard
+      title={displayName(child)}
+      description={
+        [lesson(child.now, m.homeNow()), lesson(child.next, m.homeNext())]
+          .filter(Boolean)
+          .join(" · ") || undefined
+      }
+      action={
+        single
+          ? undefined
+          : {
+              label: m.homeOpenChild(),
+              link: { to: "/family", search: { child: child.studentId } },
+            }
+      }
+    >
+      <div className="grid gap-4">
+        {presence ? (
+          <p className="text-sm">
+            <StatusText tone={presence.tone}>{presence.label()}</StatusText>
+          </p>
+        ) : null}
+        {child.attention.length > 0 ? (
+          <div className="grid gap-1">
+            <h3 className="text-sm font-semibold">{m.homeNeedsAttention()}</h3>
+            <HomeList>
+              {child.attention.map((item) => {
+                const shown = attentionOf(item, child);
+                return (
+                  <HomeItem
+                    key={`${item.kind}-${item.id}`}
+                    title={
+                      <Link {...shown.link} className={itemLink}>
+                        <bdi>{shown.label}</bdi>
+                      </Link>
+                    }
+                    facts={[
+                      item.classCode
+                        ? classTitle({
+                            code: item.classCode,
+                            titleEn: item.classTitleEn,
+                            titleAr: item.classTitleAr,
+                          })
+                        : null,
+                    ]}
+                  />
+                );
+              })}
+            </HomeList>
           </div>
-          <TabsContent value={selected.student.id} className="space-y-6">
-            <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
-              <StatTile
-                label={m.overviewAttendanceRate()}
-                value={
-                  <Value>
-                    {selected.attendance.rate === null
-                      ? null
-                      : m.familyPercentValue({
-                          value: formatNumber(selected.attendance.rate),
-                        })}
-                  </Value>
-                }
-                icon={UserCheck}
-              />
-              <StatTile
-                label={m.overviewAverageGrade()}
-                value={
-                  <Value>
-                    {selected.average === null
-                      ? null
-                      : m.familyPercentValue({
-                          value: formatNumber(selected.average),
-                        })}
-                  </Value>
-                }
-                icon={GraduationCap}
-              />
-              <StatTile
-                label={m.overviewDueThisWeek()}
-                value={formatNumber(selected.dueThisWeek)}
-                icon={BookOpen}
-              />
-              <StatTile
-                label={m.overviewOverdue()}
-                value={formatNumber(selected.overdue)}
-                icon={CalendarClock}
-                tone={selected.overdue > 0 ? "warning" : "default"}
-              />
-            </div>
-            <div className="grid items-start gap-6 xl:grid-cols-[minmax(0,1fr)_21rem]">
-              <div className="space-y-6">
-                <SectionCard
-                  title={m.dashboardLearningNext()}
-                  actions={
-                    <ButtonLink
-                      to="/family/assignments"
-                      search={{ studentId: selected.student.id }}
-                      variant="ghost"
-                      size="sm"
-                    >
-                      {m.commonViewAll()}
-                      <ArrowUpRight className="size-4" aria-hidden />
-                    </ButtonLink>
+        ) : null}
+        {child.due.length > 0 ? (
+          <div className="grid gap-1">
+            <h3 className="text-sm font-semibold">{m.homeDueThisWeek()}</h3>
+            <HomeList>
+              {child.due.map((row) => (
+                <HomeItem
+                  key={row.assignmentId}
+                  title={
+                    <bdi className="text-sm leading-5 font-medium">
+                      {row.title}
+                    </bdi>
                   }
-                >
-                  {selected.nextDue ? (
-                    <div className="grid gap-5 sm:grid-cols-[auto_1fr_auto]">
-                      <span className="grid size-14 place-items-center rounded-2xl bg-primary/10 text-primary">
-                        <BookOpen className="size-6" aria-hidden />
-                      </span>
-                      <div>
-                        <p className="text-xs font-medium text-muted-foreground">
-                          {m.overviewNextDue()}
-                        </p>
-                        <h3 className="mt-1 text-xl font-semibold tracking-tight">
-                          <Link
-                            to="/assignments/$assignmentId"
-                            params={{ assignmentId: selected.nextDue.id }}
-                            search={{}}
-                            className="hover:text-primary hover:underline"
-                          >
-                            {selected.nextDue.title}
-                          </Link>
-                        </h3>
-                        <p className="mt-2 text-sm text-muted-foreground">
-                          {m.assignmentsDue({
-                            date: formatDate(selected.nextDue.dueDate),
-                          })}
-                        </p>
-                      </div>
-                      <ButtonLink
-                        to="/family/assignments"
-                        search={{ studentId: selected.student.id }}
-                        variant="outline"
-                        size="sm"
-                      >
-                        {m.courseworkView()}
-                      </ButtonLink>
-                    </div>
-                  ) : (
-                    <EmptyState title={m.meAllCaughtUp()} icon={BookOpen} />
-                  )}
-                </SectionCard>
-                <SectionCard title={m.dashboardStayConnected()}>
-                  <div className="flex flex-wrap items-center justify-between gap-4">
-                    <div className="flex items-center gap-3">
-                      <span className="grid size-11 place-items-center rounded-xl bg-primary/10 text-primary">
-                        <Mail aria-hidden />
-                      </span>
-                      <div>
-                        <p className="text-sm font-semibold">
-                          {unread
-                            ? m.familyAttentionUnread({
-                                count: formatNumber(unread),
-                              })
-                            : m.commMessagesAllRead()}
-                        </p>
-                        <p className="mt-1 text-xs text-muted-foreground">
-                          {m.dashboardMessagesHint()}
-                        </p>
-                      </div>
-                    </div>
-                    <ButtonLink
-                      to="/family/messages"
-                      variant="outline"
-                      size="sm"
-                    >
-                      {m.navMessages()}
-                    </ButtonLink>
-                  </div>
-                </SectionCard>
-                <div className="grid gap-3 sm:grid-cols-3">
-                  <DashboardShortcut
-                    to="/family/children"
-                    studentId={selected.student.id}
-                    label={m.familyOpenProfile()}
-                    icon="profile"
-                  />
-                  <DashboardShortcut
-                    to="/family/grades"
-                    studentId={selected.student.id}
-                    label={m.navGrades()}
-                    icon="grades"
-                  />
-                  <DashboardShortcut
-                    to="/family/timetable"
-                    studentId={selected.student.id}
-                    label={m.navTimetable()}
-                    icon="calendar"
-                  />
-                </div>
-              </div>
-              <UpcomingList events={upcoming} />
-            </div>
-          </TabsContent>
-        </Tabs>
-      ) : (
-        <EmptyState title={m.familyNoChildren()} icon={Users} />
-      )}
-    </>
+                  facts={[
+                    classTitle({
+                      code: row.classCode,
+                      titleEn: row.classTitleEn,
+                      titleAr: row.classTitleAr,
+                    }),
+                    row.dueAt ? formatInstant(row.dueAt, timeZone) : null,
+                  ]}
+                />
+              ))}
+            </HomeList>
+          </div>
+        ) : null}
+        {!presence && child.attention.length === 0 && child.due.length === 0 ? (
+          <p className="text-sm text-muted-foreground">{m.homeChildClear()}</p>
+        ) : null}
+      </div>
+    </HomeCard>
   );
 }
-function DashboardShortcut({
-  to,
-  studentId,
-  label,
-  icon,
-}: {
-  to: "/family/children" | "/family/grades" | "/family/timetable";
-  studentId: string;
-  label: string;
-  icon: "profile" | "grades" | "calendar";
-}) {
-  const Icon = {
-    profile: Users,
-    grades: GraduationCap,
-    calendar: CalendarClock,
-  }[icon];
+
+/**
+ * A family's home: each child's day and anything that needs the family,
+ * then pinned news and the latest newsletter. The chosen child stays in the
+ * address.
+ */
+function FamilyHome() {
+  const { child } = Route.useSearch();
+  const user = useCurrentUser();
+  const data = useSuspenseQuery(familyHomeQuery(child)).data;
+  const aside = [
+    data.messages.unread > 0 ? (
+      <HomeCard
+        key="messages"
+        title={m.homeUnreadMessages()}
+        description={m.homeUnreadCount({ count: data.messages.unread })}
+        action={{
+          label: m.homeOpenMessages(),
+          link: { to: "/family/messages", search: {} },
+        }}
+      >
+        <HomeList>
+          {data.messages.threads.map((thread) => (
+            <HomeItem
+              key={thread.id}
+              title={
+                <Link
+                  to="/family/messages"
+                  search={{ thread: thread.id }}
+                  className={itemLink}
+                >
+                  <bdi>
+                    {inLocale(
+                      thread.lastAuthorNameEn,
+                      thread.lastAuthorNameAr,
+                    ) || thread.subject}
+                  </bdi>
+                </Link>
+              }
+              facts={[thread.lastBody?.slice(0, 80)]}
+            />
+          ))}
+        </HomeList>
+      </HomeCard>
+    ) : null,
+    data.pinned.length > 0 ? (
+      <HomeCard
+        key="pinned"
+        title={m.homePinnedNews()}
+        action={{
+          label: m.homeOpenAnnouncements(),
+          link: { to: "/announcements", search: {} },
+        }}
+      >
+        <HomeList>
+          {data.pinned.map((row) => (
+            <HomeItem
+              key={row.id}
+              title={
+                <Link
+                  to="/announcements/$announcementId"
+                  params={{ announcementId: row.id }}
+                  className={itemLink}
+                >
+                  <bdi>{row.title}</bdi>
+                </Link>
+              }
+              facts={[row.summary.slice(0, 100)]}
+            />
+          ))}
+        </HomeList>
+      </HomeCard>
+    ) : null,
+    data.newsletter ? (
+      <HomeCard
+        key="newsletter"
+        title={m.homeLatestNewsletter()}
+        action={{
+          label: m.homeOpenNewsletters(),
+          link: { to: "/newsletters", search: {} },
+        }}
+      >
+        <HomeList>
+          <HomeItem
+            title={
+              <Link
+                to="/newsletters/$newsletterId"
+                params={{ newsletterId: data.newsletter.id }}
+                className={itemLink}
+              >
+                <bdi>{data.newsletter.title}</bdi>
+              </Link>
+            }
+            facts={[data.newsletter.summary.slice(0, 120)]}
+          />
+        </HomeList>
+      </HomeCard>
+    ) : null,
+  ].filter(Boolean);
   return (
-    <ButtonLink
-      to={to}
-      search={{ studentId }}
-      variant="outline"
-      className="h-auto justify-between rounded-xl bg-card px-4 py-5"
-    >
-      <span className="flex items-center gap-3">
-        <Icon className="size-5 text-primary" aria-hidden />
-        {label}
-      </span>
-      <ArrowUpRight className="size-4 text-muted-foreground" aria-hidden />
-    </ButtonLink>
+    <>
+      <PageHeader title={m.navHome()} description={formatDate(data.today)} />
+      {data.choices.length > 1 ? (
+        <nav aria-label={m.homeChildren()} className="mb-6">
+          <ul className="flex flex-wrap gap-2">
+            <li>
+              <Link
+                to="/family"
+                search={{}}
+                aria-current={child === "" ? "page" : undefined}
+                className={chip}
+              >
+                {m.homeAllChildren()}
+              </Link>
+            </li>
+            {data.choices.map((choice) => (
+              <li key={choice.studentId}>
+                <Link
+                  to="/family"
+                  search={{ child: choice.studentId }}
+                  aria-current={child === choice.studentId ? "page" : undefined}
+                  className={cn(chip)}
+                >
+                  {displayName(choice)}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        </nav>
+      ) : null}
+      {data.choices.length === 0 ? (
+        <EmptyState
+          icon={House}
+          title={m.courseworkNoChildren()}
+          description={m.courseworkNoChildrenBody()}
+        />
+      ) : (
+        <RecordColumns
+          main={data.children.map((row) => (
+            <ChildCard
+              key={row.studentId}
+              child={row}
+              timeZone={user.school.timeZone}
+              single={data.children.length === 1}
+            />
+          ))}
+          aside={aside.length ? aside : undefined}
+        />
+      )}
+    </>
   );
 }

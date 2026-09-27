@@ -4,12 +4,8 @@ import type { StudentScopedQuery } from "@faridalms/domain/school-schema";
 import { queryOptions } from "@tanstack/react-query";
 
 import {
-  getAdminOverview,
-  getFamilyOverview,
   getManagementOptions,
   getStudent,
-  getStudentOverview,
-  getTeachingOverview,
   getVisibleStudents,
 } from "~/server/school";
 
@@ -25,26 +21,6 @@ export function studentQuery(query: StudentScopedQuery) {
     placeholderData: (previous) => previous,
   });
 }
-
-export const familyOverviewQuery = queryOptions({
-  queryKey: ["overview", "family"],
-  queryFn: () => getFamilyOverview(),
-});
-
-export const studentOverviewQuery = queryOptions({
-  queryKey: ["overview", "student"],
-  queryFn: () => getStudentOverview(),
-});
-
-export const teachingOverviewQuery = queryOptions({
-  queryKey: ["overview", "teaching"],
-  queryFn: () => getTeachingOverview(),
-});
-
-export const adminOverviewQuery = queryOptions({
-  queryKey: ["overview", "admin"],
-  queryFn: () => getAdminOverview(),
-});
 
 export function managementOptionsQuery(query: ManagementOptionsInput) {
   return queryOptions({
