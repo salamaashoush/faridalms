@@ -1,6 +1,7 @@
 import type { ContentDocument } from "@faridalms/domain/content";
 import type { EditorCollaboration, EditorMedia } from "@faridalms/editor";
 
+import { useHydrated } from "@tanstack/react-router";
 import { lazy, Suspense, useMemo } from "react";
 
 import { cn } from "~/utils/cn";
@@ -37,20 +38,23 @@ export function ContentEditor({
   collaboration?: EditorCollaboration;
 }) {
   const strings = useMemo(() => editorStrings(), []);
+  const hydrated = useHydrated();
+  const placeholderBox = (
+    <div
+      aria-busy="true"
+      className={cn(
+        "animate-pulse",
+        variant === "document"
+          ? "min-h-[40vh]"
+          : "min-h-48 rounded-xl border bg-muted/20",
+      )}
+    />
+  );
+  // Lexical needs a DOM, so the server sends the placeholder and the editor
+  // starts in the browser.
+  if (!hydrated) return placeholderBox;
   return (
-    <Suspense
-      fallback={
-        <div
-          aria-busy="true"
-          className={cn(
-            "animate-pulse",
-            variant === "document"
-              ? "min-h-[40vh]"
-              : "min-h-48 rounded-xl border bg-muted/20",
-          )}
-        />
-      }
-    >
+    <Suspense fallback={placeholderBox}>
       <Editor
         id={id}
         label={label}
