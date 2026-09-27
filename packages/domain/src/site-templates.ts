@@ -298,7 +298,7 @@ const PILLARS = section("pillars", "icons", (b) => ({
 const PAGE_HEADER = (title: Words, text: Words) =>
   section(
     "pageHeader",
-    "plain",
+    "banner",
     (b) => ({
       eyebrow: "",
       heading: b.w(title),

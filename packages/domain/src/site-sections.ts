@@ -283,7 +283,7 @@ export const SECTION_SPECS = {
   },
   pageHeader: {
     category: "intro",
-    variants: ["plain", "image"],
+    variants: ["plain", "image", "banner"],
     fields: {
       eyebrow: t(80),
       heading,
