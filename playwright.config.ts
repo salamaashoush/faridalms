@@ -36,6 +36,7 @@ export default defineConfig({
     "learning.spec.ts",
     "site.spec.ts",
     "home.spec.ts",
+    "search.spec.ts",
   ],
   /* Run tests in files in parallel */
   fullyParallel: true,

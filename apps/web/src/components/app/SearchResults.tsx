@@ -1,100 +1,209 @@
-import type { Role } from "@faridalms/domain/identity";
 import type {
+  SearchFlag,
   SearchGroup,
   SearchHit,
   SearchKind,
 } from "@faridalms/domain/search";
+import type { Workspace } from "@faridalms/domain/workspace";
+import type { LucideIcon } from "lucide-react";
+import type { ReactNode } from "react";
 
-import { ROLES } from "@faridalms/domain/identity";
-import { EVENT_CATEGORIES } from "@faridalms/domain/school-schema";
+import { matchedRuns } from "@faridalms/domain/search";
 import { Link } from "@tanstack/react-router";
+import {
+  BookOpen,
+  CalendarDays,
+  ClipboardList,
+  GraduationCap,
+  Inbox,
+  Megaphone,
+  Newspaper,
+  School,
+  Users,
+} from "lucide-react";
 
-import { ROLE_LABEL } from "~/components/admin/labels";
-import { EVENT_CATEGORY_LABEL } from "~/components/app/labels";
-import { formatDate } from "~/components/family/format";
-import { LEGACY_ROLE } from "~/data/legacy-role";
+import { roleLabel } from "~/components/people/format";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
+import { getLocale } from "~/i18n/runtime";
+import { cn } from "~/utils/cn";
+import { formatDate, formatList } from "~/utils/datetime";
 
 export const SEARCH_KIND_LABEL: Record<SearchKind, () => string> = {
   students: m.searchKindStudents,
-  classes: m.searchKindClasses,
   people: m.searchKindPeople,
+  classes: m.searchKindClasses,
   assignments: m.searchKindAssignments,
-  messages: m.searchKindMessages,
-  events: m.searchKindEvents,
-  newsletters: m.searchKindNewsletters,
+  learning: m.searchKindLearning,
   announcements: m.searchKindAnnouncements,
+  newsletters: m.searchKindNewsletters,
+  events: m.searchKindEvents,
+  messages: m.searchKindMessages,
 };
 
-const MESSAGES: Record<
-  Role,
-  "/admin/messages" | "/teach/messages" | "/family/messages" | "/me/messages"
-> = {
+export const SEARCH_KIND_ICON: Record<SearchKind, LucideIcon> = {
+  students: GraduationCap,
+  people: Users,
+  classes: School,
+  assignments: ClipboardList,
+  learning: BookOpen,
+  announcements: Megaphone,
+  newsletters: Newspaper,
+  events: CalendarDays,
+  messages: Inbox,
+};
+
+const FLAG_LABEL: Record<SearchFlag, () => string> = {
+  draft: m.searchFlagDraft,
+  scheduled: m.searchFlagScheduled,
+  archived: m.searchFlagArchived,
+  cancelled: m.searchFlagCancelled,
+};
+
+const MESSAGES = {
   admin: "/admin/messages",
-  teacher: "/teach/messages",
-  parent: "/family/messages",
-  student: "/me/messages",
-};
+  teach: "/teach/messages",
+  family: "/family/messages",
+  me: "/me/messages",
+} as const;
 
-const ROW_CLASS =
-  "flex flex-col gap-1 rounded-lg px-3 py-2.5 text-sm hover:bg-muted focus-visible:outline-2 focus-visible:outline-ring";
+export const HIT_ROW =
+  "flex items-start gap-3 rounded-md px-3 py-2 text-sm outline-none hover:bg-muted focus-visible:bg-muted focus-visible:ring-2 focus-visible:ring-ring";
 
-function contextLabel(hit: SearchHit): string | null {
-  if (!hit.context) return null;
-  if (hit.kind === "people") {
-    const role = ROLES.find((item) => item === hit.context);
-    return role ? ROLE_LABEL[role]() : hit.context;
-  }
-  if (hit.kind === "events") {
-    const category = EVENT_CATEGORIES.find((item) => item === hit.context);
-    return category ? EVENT_CATEGORY_LABEL[category]() : hit.context;
-  }
-  if (hit.kind === "announcements") return m.searchDraft();
-  return hit.context;
+function whenLabel(when: string, timeZone: string) {
+  if (when.length === 10) return formatDate(when);
+  return new Intl.DateTimeFormat(getLocale(), {
+    dateStyle: "medium",
+    timeZone,
+  }).format(new Date(when));
 }
 
-function HitBody({ hit }: { hit: SearchHit }) {
-  const context = contextLabel(hit);
+/** The query's words marked in a title, matched without regard to case. */
+function Marked({ text, q }: { text: string; q: string }) {
+  const words = q
+    .toLocaleLowerCase()
+    .split(/\s+/)
+    .filter((word) => word.length > 1);
+  if (words.length === 0) return text;
+  const lower = text.toLocaleLowerCase();
+  const parts: ReactNode[] = [];
+  let at = 0;
+  while (at < text.length) {
+    let next: { word: string; index: number } | null = null;
+    for (const word of words) {
+      const index = lower.indexOf(word, at);
+      if (index >= 0 && (!next || index < next.index)) next = { word, index };
+    }
+    if (!next) break;
+    if (next.index > at) parts.push(text.slice(at, next.index));
+    const end = next.index + next.word.length;
+    parts.push(
+      <mark
+        key={next.index}
+        className="rounded-sm bg-transparent font-semibold text-foreground"
+      >
+        {text.slice(next.index, end)}
+      </mark>,
+    );
+    at = end;
+  }
+  if (at < text.length) parts.push(text.slice(at));
+  return parts;
+}
+
+function Snippet({ snippet }: { snippet: string }) {
+  let offset = 0;
+  return matchedRuns(snippet).map((run) => {
+    const at = offset;
+    offset += run.text.length;
+    return run.matched ? (
+      <mark
+        key={at}
+        className="rounded-sm bg-primary/15 px-0.5 text-foreground"
+      >
+        {run.text}
+      </mark>
+    ) : (
+      run.text
+    );
+  });
+}
+
+function HitBody({
+  hit,
+  q,
+  icon: Icon,
+}: {
+  hit: SearchHit;
+  q: string;
+  icon: LucideIcon;
+}) {
+  const user = useCurrentUser();
+  const context =
+    hit.roles.length > 0 ? formatList(hit.roles.map(roleLabel)) : hit.context;
   return (
     <>
-      <span className="flex items-baseline justify-between gap-3">
-        <span className="min-w-0 truncate font-medium">{hit.title}</span>
-        {hit.when ? (
-          <span className="shrink-0 text-xs text-muted-foreground tabular-nums">
-            {formatDate(hit.when)}
+      <Icon
+        className="mt-0.5 size-4 shrink-0 text-muted-foreground"
+        aria-hidden
+      />
+      <span className="grid min-w-0 flex-1 gap-0.5">
+        <span className="flex min-w-0 items-baseline gap-2">
+          <span dir="auto" className="min-w-0 truncate font-medium">
+            <Marked text={hit.title} q={q} />
+          </span>
+          {hit.flag ? (
+            <span className="shrink-0 rounded-full bg-muted px-1.5 text-[11px] leading-4 font-medium text-muted-foreground">
+              {FLAG_LABEL[hit.flag]()}
+            </span>
+          ) : null}
+          {hit.when ? (
+            <span className="ms-auto shrink-0 text-xs text-muted-foreground tabular-nums">
+              {whenLabel(hit.when, user.school.timeZone)}
+            </span>
+          ) : null}
+        </span>
+        {context || hit.snippet ? (
+          <span className="flex min-w-0 gap-2 text-[13px] leading-[18px] text-muted-foreground">
+            {context ? (
+              <span dir="auto" className="shrink-0">
+                {context}
+              </span>
+            ) : null}
+            {hit.snippet ? (
+              <span dir="auto" className="line-clamp-2 min-w-0">
+                <Snippet snippet={hit.snippet} />
+              </span>
+            ) : null}
           </span>
         ) : null}
       </span>
-      {hit.snippet || context ? (
-        <span className="flex min-w-0 gap-2 text-xs text-muted-foreground">
-          {context ? <span className="shrink-0">{context}</span> : null}
-          {hit.snippet ? (
-            <span className="min-w-0 truncate">{hit.snippet}</span>
-          ) : null}
-        </span>
-      ) : null}
     </>
   );
 }
 
+/** A result, linked to the page it opens for this workspace. */
 export function HitLink({
   hit,
-  role,
+  q,
+  workspace,
   onNavigate,
+  className,
 }: {
   hit: SearchHit;
-  role: Role;
-  onNavigate?: () => void;
+  q: string;
+  workspace: Workspace;
+  onNavigate?: (hit: SearchHit) => void;
+  className?: string;
 }) {
   const shared = {
-    className: ROW_CLASS,
-    onClick: onNavigate,
+    className: cn(HIT_ROW, className),
+    onClick: () => onNavigate?.(hit),
     "data-search-hit": true,
-    children: <HitBody hit={hit} />,
+    children: <HitBody hit={hit} q={q} icon={SEARCH_KIND_ICON[hit.kind]} />,
   };
-  switch (hit.kind) {
-    case "students":
+  switch (hit.target) {
+    case "student":
       return (
         <Link
           to="/students/$studentId"
@@ -102,15 +211,15 @@ export function HitLink({
           {...shared}
         />
       );
-    case "classes":
-      return (
-        <Link to="/classes/$classId" params={{ classId: hit.id }} {...shared} />
-      );
-    case "people":
+    case "person":
       return (
         <Link to="/people/$userId" params={{ userId: hit.id }} {...shared} />
       );
-    case "assignments":
+    case "class":
+      return (
+        <Link to="/classes/$classId" params={{ classId: hit.id }} {...shared} />
+      );
+    case "assignment":
       return (
         <Link
           to="/assignments/$assignmentId"
@@ -118,15 +227,23 @@ export function HitLink({
           {...shared}
         />
       );
-    case "newsletters":
+    case "module":
       return (
         <Link
-          to="/newsletters/$newsletterId"
-          params={{ newsletterId: hit.id }}
+          to="/modules/$moduleId"
+          params={{ moduleId: hit.id }}
           {...shared}
         />
       );
-    case "announcements":
+    case "lesson":
+      return (
+        <Link
+          to="/lessons/$lessonId"
+          params={{ lessonId: hit.id }}
+          {...shared}
+        />
+      );
+    case "announcement":
       return (
         <Link
           to="/announcements/$announcementId"
@@ -134,11 +251,15 @@ export function HitLink({
           {...shared}
         />
       );
-    case "messages":
+    case "newsletter":
       return (
-        <Link to={MESSAGES[role]} search={{ thread: hit.id }} {...shared} />
+        <Link
+          to="/newsletters/$newsletterId"
+          params={{ newsletterId: hit.id }}
+          {...shared}
+        />
       );
-    case "events":
+    case "event":
       return (
         <Link
           to="/calendar/$eventId"
@@ -146,55 +267,70 @@ export function HitLink({
           {...shared}
         />
       );
+    case "thread":
+      return (
+        <Link
+          to={MESSAGES[workspace]}
+          search={{ thread: hit.id }}
+          {...shared}
+        />
+      );
     default: {
-      const unreachable: never = hit.kind;
+      const unreachable: never = hit.target;
       return unreachable;
     }
   }
 }
 
+/** Results grouped by kind, each group ending in a way to all of its kind when there is more. */
 export function SearchResults({
   groups,
   q,
-  compact = false,
   onNavigate,
+  onMore,
 }: {
   groups: SearchGroup[];
   q: string;
-  compact?: boolean;
-  onNavigate?: () => void;
+  onNavigate?: (hit: SearchHit) => void;
+  /** Opens every result of one kind; without it the group links to the search page. */
+  onMore?: (kind: SearchKind) => void;
 }) {
   const user = useCurrentUser();
   return (
-    <div className="flex flex-col gap-4">
+    <div className="grid gap-4">
       {groups.map((group) => (
         <section key={group.kind} aria-labelledby={`search-${group.kind}`}>
           <h3
             id={`search-${group.kind}`}
-            className="px-3 pb-1 text-xs font-semibold tracking-wide text-muted-foreground uppercase"
+            className="px-3 pb-1 text-xs leading-5 font-medium text-muted-foreground"
           >
-            {SEARCH_KIND_LABEL[group.kind]()} · {group.total}
+            {SEARCH_KIND_LABEL[group.kind]()}
           </h3>
-          <ul className="flex flex-col">
+          <ul className="grid">
             {group.rows.map((hit) => (
-              <li key={hit.id}>
+              <li key={`${hit.target}-${hit.id}`}>
                 <HitLink
                   hit={hit}
-                  role={LEGACY_ROLE[user.workspace]}
+                  q={q}
+                  workspace={user.workspace}
                   onNavigate={onNavigate}
                 />
               </li>
             ))}
           </ul>
-          {compact && group.total > group.rows.length ? (
+          {group.more ? (
             <Link
               to="/search"
-              search={{ q, kind: group.kind, page: 1 }}
-              onClick={onNavigate}
+              search={{ q, kind: group.kind }}
+              onClick={() => onMore?.(group.kind)}
               data-search-hit
-              className="block rounded-lg px-3 py-2 text-xs font-medium text-primary hover:bg-muted focus-visible:outline-2 focus-visible:outline-ring"
+              className="ms-10 inline-flex rounded-md px-3 py-1.5 text-[13px] font-medium text-primary outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring"
             >
-              {m.searchShowAll({ count: group.total })}
+              {m.searchMoreOfKind({
+                kind: SEARCH_KIND_LABEL[group.kind]().toLocaleLowerCase(
+                  getLocale(),
+                ),
+              })}
             </Link>
           ) : null}
         </section>

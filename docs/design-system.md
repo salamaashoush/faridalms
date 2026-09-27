@@ -73,8 +73,9 @@ One 48px top bar per page (Polaris, Notion, Linear):
 
 Global tools live in the sidebar header on desktop: search (Ctrl/Cmd+K),
 notifications, and the school-year switch. The sidebar footer holds the
-account, language and theme. On phones the bar keeps the notification bell at
-the end and page actions collapse into a `•••` menu (Primer PageHeader).
+account, language and theme. On phones the bar keeps search and the
+notification bell at the end and page actions collapse into a `•••` menu
+(Primer PageHeader).
 
 Page padding is 24px, 16px on phones.
 

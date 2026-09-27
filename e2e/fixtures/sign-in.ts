@@ -37,7 +37,7 @@ export async function signInWith(
   await page.waitForURL(`**${home}`);
 }
 
-const FIND_A_PAGE = /^(Find a page…|ابحث عن صفحة…)/;
+const LAUNCHER = /^(Search everything|ابحث في كل شيء)$/;
 
 /**
  * Waits until the page is interactive. A click that lands while React is still
@@ -46,6 +46,6 @@ const FIND_A_PAGE = /^(Find a page…|ابحث عن صفحة…)/;
  */
 export async function untilHydrated(page: Page) {
   await expect(
-    page.getByRole("button", { name: FIND_A_PAGE }).first(),
+    page.getByRole("button", { name: LAUNCHER }).first(),
   ).toBeEnabled();
 }

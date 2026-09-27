@@ -6,4 +6,4 @@ import { backend } from "./backend";
 
 export const search = createServerFn({ method: "GET" })
   .validator((input: unknown) => v.parse(searchQuerySchema, input))
-  .handler(({ data }) => backend().search(data));
+  .handler(({ data }) => backend().search.find(data));

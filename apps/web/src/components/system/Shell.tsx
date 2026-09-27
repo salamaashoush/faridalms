@@ -440,7 +440,11 @@ export function Shell({
               <WorkspaceBreadcrumb />
             </div>
             <PageActionsSlot />
-            <div data-slot="global-tools" className="md:hidden">
+            <div
+              data-slot="global-tools"
+              className="flex items-center md:hidden"
+            >
+              <WorkspaceSearch variant="bar" />
               <NotificationBell className="size-8 max-md:size-10" />
             </div>
           </header>

@@ -1,7 +1,9 @@
+import type { SearchKind } from "@faridalms/domain/search";
+
 import { SEARCH_KINDS, searchableKinds } from "@faridalms/domain/search";
-import { useQuery } from "@tanstack/react-query";
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { SearchX } from "lucide-react";
+import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
+import { createFileRoute } from "@tanstack/react-router";
+import { LoaderCircle, Search, SearchX } from "lucide-react";
 import { useState } from "react";
 import * as v from "valibot";
 
@@ -10,13 +12,12 @@ import {
   SEARCH_KIND_LABEL,
   SearchResults,
 } from "~/components/app/SearchResults";
+import { RecordTabs } from "~/components/system/RecordPage";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
-import { Tabs, TabsList, TabsTrigger } from "~/components/ui/tabs";
-import { legacyPermissions } from "~/data/legacy-role";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
-import { searchQuery } from "~/queries/search";
+import { searchKindQuery, searchQuery } from "~/queries/search";
 
 const TABS = ["all", ...SEARCH_KINDS] as const;
 
@@ -25,124 +26,160 @@ export const Route = createFileRoute("/_app/search")({
   validateSearch: v.object({
     q: v.optional(v.pipe(v.string(), v.maxLength(100)), ""),
     kind: v.optional(v.picklist(TABS), "all"),
-    page: v.optional(v.pipe(v.number(), v.integer(), v.minValue(1)), 1),
   }),
   loaderDeps: ({ search }) => search,
   loader: async ({ context, deps }) => {
-    if (deps.q.trim())
-      await context.queryClient.ensureQueryData(
-        searchQuery({ ...deps, q: deps.q.trim() }),
+    const q = deps.q.trim();
+    if (!q) return;
+    if (deps.kind === "all")
+      await context.queryClient.ensureQueryData(searchQuery(q));
+    else
+      await context.queryClient.ensureInfiniteQueryData(
+        searchKindQuery(q, deps.kind),
       );
   },
   component: SearchPage,
 });
 
+function Nothing({ q }: { q: string }) {
+  return (
+    <EmptyState
+      icon={SearchX}
+      title={m.searchNothing({ q })}
+      body={m.searchNothingTips()}
+    />
+  );
+}
+
+function AllKinds({ q }: { q: string }) {
+  const results = useQuery(searchQuery(q));
+  if (results.isPending)
+    return (
+      <p className="text-sm text-muted-foreground" aria-live="polite">
+        {m.searchLoading()}
+      </p>
+    );
+  if (results.isError)
+    return (
+      <p role="alert" className="text-sm text-destructive">
+        {m.searchFailed()}
+      </p>
+    );
+  if (results.data.groups.length === 0) return <Nothing q={q} />;
+  return (
+    <div className="rounded-lg border bg-card p-2">
+      <SearchResults groups={results.data.groups} q={q} />
+    </div>
+  );
+}
+
+function OneKind({ q, kind }: { q: string; kind: SearchKind }) {
+  const results = useInfiniteQuery(searchKindQuery(q, kind));
+  if (results.isPending)
+    return (
+      <p className="text-sm text-muted-foreground" aria-live="polite">
+        {m.searchLoading()}
+      </p>
+    );
+  if (results.isError)
+    return (
+      <p role="alert" className="text-sm text-destructive">
+        {m.searchFailed()}
+      </p>
+    );
+  const rows = results.data.pages.flatMap((page) => page.groups[0]?.rows ?? []);
+  if (rows.length === 0) return <Nothing q={q} />;
+  return (
+    <div className="grid justify-items-start gap-4">
+      <div className="w-full rounded-lg border bg-card p-2">
+        <SearchResults groups={[{ kind, rows, more: false }]} q={q} />
+      </div>
+      {results.hasNextPage ? (
+        <Button
+          variant="outline"
+          className="max-md:h-10"
+          disabled={results.isFetchingNextPage}
+          onClick={() => void results.fetchNextPage()}
+        >
+          {results.isFetchingNextPage ? (
+            <LoaderCircle className="animate-spin" aria-hidden />
+          ) : null}
+          {m.searchShowMore()}
+        </Button>
+      ) : null}
+    </div>
+  );
+}
+
+/** Every result the viewer may open, all kinds at a glance or one kind in full. */
 function SearchPage() {
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
   const user = useCurrentUser();
   const [draft, setDraft] = useState(search.q);
   const q = search.q.trim();
-  const kinds = searchableKinds(legacyPermissions(user.workspace));
-  const results = useQuery({
-    ...searchQuery({ q, kind: search.kind, page: search.page }),
-    enabled: q.length > 0,
-  });
-  const groups = results.data?.groups ?? [];
+  const kinds = searchableKinds(user.capabilities).filter(
+    (kind) => kind !== "learning" || user.features.elearning,
+  );
+  const tab =
+    search.kind === "all" || kinds.includes(search.kind) ? search.kind : "all";
+  const choose = (kind: (typeof TABS)[number]) =>
+    void navigate({ search: { q, kind } });
   return (
     <>
       <PageHeader
         title={m.searchResultsTitle()}
         description={m.searchResultsHint()}
       />
-      <search>
+      <search className="mb-6">
         <form
-          className="flex gap-2"
+          className="flex max-w-xl gap-2"
           onSubmit={(event) => {
             event.preventDefault();
-            void navigate({
-              search: { q: draft.trim(), kind: search.kind, page: 1 },
-            });
+            void navigate({ search: { q: draft.trim(), kind: tab } });
           }}
         >
-          <Input
-            type="search"
-            aria-label={m.searchQueryLabel()}
-            value={draft}
-            maxLength={100}
-            onChange={(event) => setDraft(event.target.value)}
-          />
-          <Button type="submit">{m.searchSubmit()}</Button>
+          <div className="relative min-w-0 flex-1">
+            <Search
+              className="pointer-events-none absolute start-3 top-1/2 size-4 -translate-y-1/2 text-muted-foreground"
+              aria-hidden
+            />
+            <Input
+              type="search"
+              aria-label={m.searchQueryLabel()}
+              placeholder={m.searchPlaceholder()}
+              value={draft}
+              maxLength={100}
+              enterKeyHint="search"
+              className="ps-9 max-md:h-10"
+              onChange={(event) => setDraft(event.target.value)}
+            />
+          </div>
+          <Button type="submit" className="max-md:h-10">
+            {m.searchSubmit()}
+          </Button>
         </form>
       </search>
-      <Tabs
-        value={search.kind}
-        onValueChange={(value) => {
-          const kind = TABS.find((item) => item === value);
-          if (kind) void navigate({ search: { q, kind, page: 1 } });
-        }}
-        className="gap-6"
+      <RecordTabs
+        label={m.searchResultsTitle()}
+        tabs={[
+          { value: "all" as const, label: m.searchAllKinds() },
+          ...kinds.map((kind) => ({
+            value: kind,
+            label: SEARCH_KIND_LABEL[kind](),
+          })),
+        ]}
+        value={tab}
+        onChange={choose}
       >
-        <TabsList>
-          <TabsTrigger value="all">{m.searchAllKinds()}</TabsTrigger>
-          {kinds.map((kind) => (
-            <TabsTrigger key={kind} value={kind}>
-              {SEARCH_KIND_LABEL[kind]()}
-            </TabsTrigger>
-          ))}
-        </TabsList>
-      </Tabs>
-      {q.length === 0 ? (
-        <EmptyState icon={SearchX} title={m.searchTypeToSearch()} />
-      ) : results.isPending ? (
-        <p className="text-sm text-muted-foreground" aria-live="polite">
-          {m.searchLoading()}
-        </p>
-      ) : results.isError ? (
-        <p role="alert" className="text-sm text-destructive">
-          {m.searchFailed()}
-        </p>
-      ) : groups.length === 0 ? (
-        <EmptyState icon={SearchX} title={m.searchNoResults({ q })} />
-      ) : (
-        <div className="rounded-xl border bg-card p-3">
-          <SearchResults groups={groups} q={q} />
-        </div>
-      )}
-      {results.data && search.kind !== "all" && results.data.pages > 1 ? (
-        <nav
-          aria-label={m.searchResultsTitle()}
-          className="flex items-center justify-between text-sm"
-        >
-          <Link
-            to="/search"
-            search={{
-              q,
-              kind: search.kind,
-              page: Math.max(1, results.data.page - 1),
-            }}
-            disabled={results.data.page <= 1}
-            className="rounded-md border px-3 py-1.5 aria-disabled:opacity-50"
-          >
-            {m.paginationPrevious()}
-          </Link>
-          <span className="text-muted-foreground">
-            {results.data.page} / {results.data.pages}
-          </span>
-          <Link
-            to="/search"
-            search={{
-              q,
-              kind: search.kind,
-              page: Math.min(results.data.pages, results.data.page + 1),
-            }}
-            disabled={results.data.page >= results.data.pages}
-            className="rounded-md border px-3 py-1.5 aria-disabled:opacity-50"
-          >
-            {m.paginationNext()}
-          </Link>
-        </nav>
-      ) : null}
+        {q.length === 0 ? (
+          <EmptyState icon={Search} title={m.searchTypeToSearch()} />
+        ) : tab === "all" ? (
+          <AllKinds q={q} />
+        ) : (
+          <OneKind q={q} kind={tab} />
+        )}
+      </RecordTabs>
     </>
   );
 }
