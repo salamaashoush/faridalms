@@ -1,5 +1,8 @@
-import type { AnnouncementState } from "@faridalms/database/tables/announcements";
-import type { AudienceScope, Urgency } from "@faridalms/domain/announcements";
+import type {
+  AnnouncementState,
+  AudienceScope,
+  Urgency,
+} from "@faridalms/domain/announcements";
 
 import type { Tone } from "~/components/system/status";
 
