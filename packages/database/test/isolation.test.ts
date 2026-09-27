@@ -16,6 +16,7 @@ const DELETE_ALLOWED = new Set([
   "core.passkeys",
   "core.devices",
   "core.files",
+  "core.calendar_feeds",
   "core.file_subjects",
   "core.user_preferences",
   "core.saved_views",

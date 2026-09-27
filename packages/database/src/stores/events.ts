@@ -355,3 +355,69 @@ export async function specialDays(
     noteAr: row.note_ar,
   }));
 }
+
+export interface FeedRow {
+  id: string;
+  createdAt: string;
+  lastFetchedAt: string | null;
+}
+
+/** A person's calendar link at a school, if they have made one. */
+export async function feedOf(
+  tx: Tx,
+  input: { tenantId: string; userId: string; orgId: string },
+): Promise<FeedRow | null> {
+  const [row] = await tx.execute<{
+    id: string;
+    created_at: string;
+    last_fetched_at: string | null;
+  }>(sql`
+    select id, ${isoOf(sql`created_at`)} as created_at, ${isoOf(sql`last_fetched_at`)} as last_fetched_at
+    from core.calendar_feeds
+    where tenant_id = ${input.tenantId}::uuid and user_id = ${input.userId}::uuid
+      and org_id = ${input.orgId}::uuid and status = 'active'`);
+  return row
+    ? {
+        id: row.id,
+        createdAt: row.created_at,
+        lastFetchedAt: row.last_fetched_at,
+      }
+    : null;
+}
+
+/** Retires a person's calendar link, if any, and records a new one by its hash. */
+export async function resetFeed(
+  tx: Tx,
+  input: { tenantId: string; userId: string; orgId: string; tokenHash: string },
+) {
+  await tx.execute(sql`
+    update core.calendar_feeds set status = 'tobedeleted'
+    where tenant_id = ${input.tenantId}::uuid and user_id = ${input.userId}::uuid
+      and org_id = ${input.orgId}::uuid and status = 'active'`);
+  await tx.execute(sql`
+    insert into core.calendar_feeds (tenant_id, user_id, org_id, token_hash)
+    values (${input.tenantId}::uuid, ${input.userId}::uuid, ${input.orgId}::uuid, ${input.tokenHash})`);
+}
+
+/**
+ * The live link a secret opens, with its owner's language, and records the
+ * fetch. Null for a retired link or an owner who is no longer active.
+ */
+export async function openFeed(
+  tx: Tx,
+  input: { tenantId: string; orgId: string; tokenHash: string },
+): Promise<{ userId: string; locale: "ar" | "en" } | null> {
+  const [row] = await tx.execute<{
+    user_id: string;
+    locale: string | null;
+  }>(sql`
+    update core.calendar_feeds f set last_fetched_at = statement_timestamp()
+    from core.users u
+    where f.tenant_id = ${input.tenantId}::uuid and f.org_id = ${input.orgId}::uuid
+      and f.token_hash = ${input.tokenHash} and f.status = 'active'
+      and u.tenant_id = f.tenant_id and u.id = f.user_id and u.status = 'active'
+    returning f.user_id, u.preferred_locale as locale`);
+  return row
+    ? { userId: row.user_id, locale: row.locale === "ar" ? "ar" : "en" }
+    : null;
+}

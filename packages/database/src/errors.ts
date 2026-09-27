@@ -16,6 +16,8 @@ export const CONFLICTS: Record<string, string> = {
   calendars_school_key: "calendar.school_calendar_exists",
   calendar_grade_levels_key: "calendar_grade_level.exists",
   calendar_dates_day_key: "calendar_date.exists",
+  calendar_feeds_owner_key: "calendar_feed.exists",
+  calendar_feeds_token_key: "calendar_feed.exists",
   academic_weeks_number_key: "academic_week.number_taken",
   academic_weeks_excl: "academic_week.overlapping",
   class_periods_code_excl: "class_period.code_overlapping",

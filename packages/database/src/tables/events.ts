@@ -8,6 +8,7 @@ import {
   pgPolicy,
   text,
   time,
+  uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
 
@@ -19,6 +20,8 @@ import {
   core,
   entityColumns,
   entityProfile,
+  eraseAndDelete,
+  erasureOf,
   fk,
   instant,
   pk,
@@ -169,5 +172,38 @@ export const calendarEventAudiences = core.table.withRLS(
       .on(t.tenantId, t.eventId)
       .where(sql`status = 'active'`),
     ...entityProfile(),
+  ],
+);
+
+/**
+ * A person's private calendar link. Only the hash of its secret is kept, so
+ * the link is shown once; resetting it retires this row and the old link
+ * stops at once. What a fetch returns is worked out from the owner's reach
+ * at that moment, so an ended relationship ends the feed too.
+ */
+export const calendarFeeds = core.table.withRLS(
+  "calendar_feeds",
+  {
+    ...tenantColumns(),
+    userId: uuid("user_id").notNull(),
+    orgId: uuid("org_id").notNull(),
+    tokenHash: text("token_hash").notNull(),
+    lastFetchedAt: instant("last_fetched_at"),
+    ...entityColumns(),
+  },
+  (t): PgTableExtraConfigValue[] => [
+    pk("calendar_feeds", t.tenantId, t.id),
+    ...baseConstraints("calendar_feeds", t, tenants),
+    fk("calendar_feeds", [t.tenantId, t.userId], [users.tenantId, users.id]),
+    fk("calendar_feeds", [t.tenantId, t.orgId], [orgs.tenantId, orgs.id]),
+    ck("calendar_feeds", "token_hash", sql`token_hash ~ '^[0-9a-f]{64}$'`),
+    uniqueIndex("calendar_feeds_token_key")
+      .on(t.tenantId, t.tokenHash)
+      .where(sql`status = 'active'`),
+    uniqueIndex("calendar_feeds_owner_key")
+      .on(t.tenantId, t.userId, t.orgId)
+      .where(sql`status = 'active'`),
+    ...entityProfile(),
+    ...eraseAndDelete(erasureOf("user_id")),
   ],
 );

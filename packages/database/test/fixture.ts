@@ -10,6 +10,7 @@ import {
   accessRoles,
   attendanceSettings,
   accounts,
+  calendarFeeds,
   calendarGradeLevels,
   calendars,
   consentRecords,
@@ -399,6 +400,12 @@ export async function completeFixture(
     userId,
     key: "students.view",
     value: { density: "compact" },
+  });
+  await tx.insert(calendarFeeds).values({
+    tenantId,
+    userId,
+    orgId: schoolId,
+    tokenHash: "0".repeat(64),
   });
   await tx.insert(savedViews).values({
     tenantId,
