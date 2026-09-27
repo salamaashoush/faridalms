@@ -282,6 +282,9 @@ export function SelectionToolbarPlugin() {
   useEffect(() => {
     if (mode === "hidden" || mode === "link-edit") return undefined;
     const onFocus = () => {
+      // Opening the link box moves focus into its field while this listener,
+      // wired for the formatting bar, is still attached.
+      if (modeRef.current === "link-edit") return;
       const active = document.activeElement;
       const root = editor.getRootElement();
       if (
