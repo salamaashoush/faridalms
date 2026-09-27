@@ -6,6 +6,10 @@ import { defineConfig, devices } from "@playwright/test";
  */
 // require('dotenv').config();
 
+// The gate runs on its own ports so it can share the machine with `bun run dev`.
+const webPort = process.env.E2E_WEB_PORT ?? "3200";
+const apiPort = process.env.E2E_API_PORT ?? "3201";
+
 /**
  * See https://playwright.dev/docs/test-configuration.
  */
@@ -13,7 +17,7 @@ export default defineConfig({
   testDir: "./e2e",
   // Specs of systems rebuilt on the cell. The rest still drive the per-school
   // API those systems replace, and join this list as each system lands.
-  testMatch: ["auth.spec.ts"],
+  testMatch: ["auth.spec.ts", "people.spec.ts"],
   /* Run tests in files in parallel */
   fullyParallel: true,
   /* Fail the build on CI if you accidentally left test.only in the source code. */
@@ -27,7 +31,7 @@ export default defineConfig({
   /* Shared settings for all the projects below. See https://playwright.dev/docs/api/class-testoptions. */
   use: {
     /* Base URL to use in actions like `await page.goto('/')`. */
-    baseURL: "http://127.0.0.1:3000",
+    baseURL: `http://127.0.0.1:${webPort}`,
 
     /* Collect trace when retrying the failed test. See https://playwright.dev/docs/trace-viewer */
     trace: "on-first-retry",
@@ -80,13 +84,19 @@ export default defineConfig({
   webServer: [
     {
       command: "bun apps/api/src/index.ts",
-      url: "http://127.0.0.1:3001/health/ready",
+      url: `http://127.0.0.1:${apiPort}/health/ready`,
+      env: { API_PORT: apiPort },
       reuseExistingServer: false,
       timeout: 30_000,
     },
     {
       command: "bun run build && bun run start",
-      url: "http://127.0.0.1:3000/api/health",
+      url: `http://127.0.0.1:${webPort}/api/health`,
+      env: {
+        PORT: webPort,
+        API_URL: `http://127.0.0.1:${apiPort}`,
+        BACKEND_URL: `http://127.0.0.1:${apiPort}`,
+      },
       reuseExistingServer: false,
       timeout: 120_000,
     },

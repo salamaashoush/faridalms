@@ -1,0 +1,119 @@
+import type { Locator } from "@playwright/test";
+
+import { expect, test } from "@playwright/test";
+
+import { signIn, untilHydrated } from "./fixtures/sign-in";
+
+async function fillNames(
+  scope: Locator,
+  arabic: [string, string],
+  english: [string, string],
+) {
+  const ar = scope.getByRole("group", { name: "Name in Arabic" });
+  await ar.getByRole("textbox", { name: "First name" }).fill(arabic[0]);
+  await ar.getByRole("textbox", { name: "Family name" }).fill(arabic[1]);
+  const en = scope.getByRole("group", { name: "Name in English" });
+  await en.getByRole("textbox", { name: "First name" }).fill(english[0]);
+  await en.getByRole("textbox", { name: "Family name" }).fill(english[1]);
+}
+
+test("an administrator adds a student with a new guardian and opens both records", async ({
+  page,
+}) => {
+  const unique = crypto.randomUUID().slice(0, 8);
+  const mobile = `010${String(Math.floor(Math.random() * 1e8)).padStart(8, "0")}`;
+  await signIn(page, "admin");
+  await page.goto("/admin/students");
+  await untilHydrated(page);
+  await page.getByRole("link", { name: "Add student", exact: true }).click();
+  await expect(page).toHaveURL(/\/student-editor/);
+
+  const personal = page.getByRole("region", { name: "Personal details" });
+  await fillNames(personal, ["سلامة", "عاشور"], ["Salama", `Ashoush ${unique}`]);
+  await personal
+    .getByRole("textbox", { name: "Student reference" })
+    .fill(`T-${unique}`);
+  await page.getByRole("combobox", { name: /^Grade/ }).click();
+  await page.getByRole("option").nth(1).click();
+
+  await page.getByRole("button", { name: "Add guardian", exact: true }).click();
+  const guardian = page.getByRole("group", { name: "Guardian 1" });
+  await guardian.getByRole("textbox", { name: "Mobile" }).fill(mobile);
+  await fillNames(guardian, ["منى", "عاشور"], ["Mona", `Ashoush ${unique}`]);
+  await page.getByRole("button", { name: "Save", exact: true }).click();
+  await expect(page).toHaveURL(/\/admin\/students/);
+
+  await page.getByRole("searchbox").fill(`T-${unique}`);
+  await expect(page).toHaveURL(new RegExp(`q=T-${unique}`));
+  await page
+    .getByRole("table")
+    .getByRole("link", { name: `Salama Ashoush ${unique}` })
+    .click();
+  await expect(
+    page.getByRole("heading", { level: 1, name: `Salama Ashoush ${unique}` }),
+  ).toBeVisible();
+
+  await page.getByRole("tab", { name: "Family", exact: true }).click();
+  await page.getByRole("link", { name: `Mona Ashoush ${unique}` }).click();
+  await expect(page).toHaveURL(/\/people\/[a-f0-9-]+/);
+  await expect(
+    page.getByRole("heading", { level: 1, name: `Mona Ashoush ${unique}` }),
+  ).toBeVisible();
+  const linked = page.getByRole("region", { name: "Linked students" });
+  await expect(
+    linked.getByRole("link", { name: `Salama Ashoush ${unique}` }),
+  ).toBeVisible();
+  await expect(linked.getByText("Mother", { exact: true })).toBeVisible();
+  await expect(
+    page
+      .getByRole("region", { name: "Roles at this school" })
+      .getByText("Parent"),
+  ).toBeVisible();
+});
+
+test("the student list keeps only the filters a reader changed in the URL", async ({
+  page,
+}) => {
+  await signIn(page, "admin");
+  await page.goto("/admin/students");
+  await untilHydrated(page);
+  await expect(page.getByRole("table")).toBeVisible();
+  await page.getByRole("button", { name: "Name", exact: true }).click();
+  await expect(page).toHaveURL(/\/admin\/students\?dir=desc$/);
+  await page.reload();
+  await expect(page).toHaveURL(/\/admin\/students\?dir=desc$/);
+});
+
+test("record tabs follow the reading direction in Arabic", async ({
+  page,
+  context,
+}) => {
+  await signIn(page, "admin");
+  await context.addCookies([
+    { name: "language-tag", value: "ar", domain: "127.0.0.1", path: "/" },
+  ]);
+  await page.goto("/admin/students");
+  await untilHydrated(page);
+  await page.getByRole("table").getByRole("link").first().click();
+  await expect(page).toHaveURL(/\/students\/[a-f0-9-]+/);
+  await page.getByRole("tab", { name: "نظرة عامة", exact: true }).focus();
+  await page.keyboard.press("ArrowLeft");
+  await expect(
+    page.getByRole("tab", { name: "التفاصيل", exact: true }),
+  ).toBeFocused();
+});
+
+test("a parent opens their own record but not the school's student list", async ({
+  page,
+}) => {
+  await signIn(page, "parent");
+  await page.getByRole("button", { name: "Account", exact: true }).click();
+  await page.getByRole("menuitem", { name: /profile/i }).click();
+  await expect(page).toHaveURL(/\/people\/[a-f0-9-]+/);
+  await expect(
+    page.getByRole("region", { name: "Linked students" }).getByRole("link"),
+  ).not.toHaveCount(0);
+  await expect(
+    page.getByRole("tab", { name: "History", exact: true }),
+  ).toHaveCount(0);
+});

@@ -1,26 +1,8 @@
-import type { Page } from "@playwright/test";
-
 import { expect, test } from "@playwright/test";
 
-const PASSWORD = "farida-development-password";
+import type { RoleKey } from "./fixtures/sign-in";
 
-const ACCOUNTS = {
-  admin: { email: "principal.northwind@northwind.example.com", home: "/admin" },
-  teacher: { email: "teacher1.northwind@northwind.example.com", home: "/teach" },
-  parent: { email: "parent1001@northwind.example.com", home: "/family" },
-  student: { email: "student1007@northwind.example.com", home: "/me" },
-} as const;
-
-type RoleKey = keyof typeof ACCOUNTS;
-
-export async function signIn(page: Page, role: RoleKey) {
-  const account = ACCOUNTS[role];
-  await page.goto("/sign-in");
-  await page.getByRole("textbox", { name: "Email" }).fill(account.email);
-  await page.getByRole("textbox", { name: "Password" }).fill(PASSWORD);
-  await page.getByRole("button", { name: "Sign In", exact: true }).click();
-  await page.waitForURL(`**${account.home}`);
-}
+import { ACCOUNTS, signIn } from "./fixtures/sign-in";
 
 test("unauthenticated visitors are redirected to sign-in", async ({ page }) => {
   await page.goto("/");

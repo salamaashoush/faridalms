@@ -27,6 +27,8 @@ const password =
   process.env.CELL_ROLE_PASSWORD ?? randomBytes(24).toString("hex");
 const kek = randomBytes(32);
 const cellId = "eg-1";
+const webPort = "3200";
+const apiPort = "3201";
 
 const urlFor = (name: string, role?: string) => {
   const url = new URL(adminUrl);
@@ -53,7 +55,7 @@ try {
     owner: "directory_owner",
   });
   const owner = openOwner(urlFor(cellName));
-  const directory = new SQL(urlFor(directoryName));
+  const directory = new SQL(urlFor(directoryName, "directory_admin"));
   try {
     const tenants = await seedCell(owner, {
       kek: localKek(new Uint8Array(kek), `local:${cellId}`),
@@ -62,7 +64,7 @@ try {
     await registerTenants(directory, tenants, {
       id: cellId,
       appHost: "localhost",
-      apiBaseUrl: "http://127.0.0.1:3001",
+      apiBaseUrl: `http://127.0.0.1:${apiPort}`,
     });
   } finally {
     await owner.close();
@@ -86,8 +88,8 @@ try {
         CELL_ID: cellId,
         CELL_KEK: kek.toString("base64"),
         CELL_SECRET: randomBytes(32).toString("base64"),
-        BACKEND_URL: "http://127.0.0.1:3001",
-        API_PORT: "3001",
+        E2E_WEB_PORT: webPort,
+        E2E_API_PORT: apiPort,
       },
       stdout: "inherit",
       stderr: "inherit",
