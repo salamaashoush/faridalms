@@ -20,6 +20,7 @@ import {
   RecordSection,
   RecordTabs,
 } from "~/components/system/RecordPage";
+import { ClassWeek } from "~/components/timetable/Weeks";
 import { Button } from "~/components/ui/button";
 import { inLocale, useCapability } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
@@ -30,12 +31,18 @@ import { displayName, labelOf } from "../people/format";
 import { AddStudentSheet, MoveClassSheet, WithdrawSheet } from "./Enrolment";
 import { classTitle, subjectName } from "./format";
 
-export const CLASS_TABS = ["overview", "students", "attendance"] as const;
+export const CLASS_TABS = [
+  "overview",
+  "students",
+  "timetable",
+  "attendance",
+] as const;
 export type ClassTab = (typeof CLASS_TABS)[number];
 
 const TAB_LABEL: Record<ClassTab, () => string> = {
   overview: m.recordOverview,
   students: m.classesStudents,
+  timetable: m.ttTitle,
   attendance: m.attendanceTitle,
 };
 
@@ -324,6 +331,7 @@ export function ClassRecord({
   const options = useSuspenseQuery(classOptionsQuery).data;
   const navigate = useNavigate();
   const seesAttendance = useCapability("attendance:read");
+  const seesTimetable = useCapability("timetable:read");
   const title = classTitle(data);
   const grade = labelOf(
     options.grades.find((row) => row.id === data.gradeId) ?? null,
@@ -347,7 +355,9 @@ export function ClassRecord({
       value: inLocale(room.nameEn, room.nameAr) || room.code,
     });
   const available = CLASS_TABS.filter(
-    (value) => value !== "attendance" || seesAttendance,
+    (value) =>
+      (value !== "attendance" || seesAttendance) &&
+      (value !== "timetable" || seesTimetable),
   );
   const active = available.includes(tab) ? tab : "overview";
   const tabs: RecordTab<ClassTab>[] = available.map((value) => ({
@@ -359,6 +369,8 @@ export function ClassRecord({
       <RecordColumns main={<StudentsSection data={data} />} />
     ) : active === "attendance" ? (
       <ClassAttendance classId={data.id} />
+    ) : active === "timetable" ? (
+      <ClassWeek classId={data.id} />
     ) : (
       <RecordColumns
         main={

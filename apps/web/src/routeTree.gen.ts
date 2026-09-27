@@ -46,7 +46,7 @@ import { Route as AppAdminSitePageEditorRouteImport } from './routes/_app/admin/
 import { Route as AppAdminSitePostEditorRouteImport } from './routes/_app/admin/site-post-editor'
 import { Route as AppAdminStaffRouteImport } from './routes/_app/admin/staff'
 import { Route as AppAdminStudentsRouteImport } from './routes/_app/admin/students'
-import { Route as AppAdminTimetableEditorRouteImport } from './routes/_app/admin/timetable-editor'
+import { Route as AppAdminTimetableRouteImport } from './routes/_app/admin/timetable'
 import { Route as AppAnnouncementsIndexRouteImport } from './routes/_app/announcements.index'
 import { Route as AppAnnouncementsAnnouncementIdRouteImport } from './routes/_app/announcements.$announcementId'
 import { Route as AppAssignmentsAssignmentIdRouteImport } from './routes/_app/assignments/$assignmentId'
@@ -285,9 +285,9 @@ const AppAdminStudentsRoute = AppAdminStudentsRouteImport.update({
   path: '/students',
   getParentRoute: () => AppAdminRoute,
 } as any)
-const AppAdminTimetableEditorRoute = AppAdminTimetableEditorRouteImport.update({
-  id: '/timetable-editor',
-  path: '/timetable-editor',
+const AppAdminTimetableRoute = AppAdminTimetableRouteImport.update({
+  id: '/timetable',
+  path: '/timetable',
   getParentRoute: () => AppAdminRoute,
 } as any)
 const AppAnnouncementsIndexRoute = AppAnnouncementsIndexRouteImport.update({
@@ -570,7 +570,7 @@ export interface FileRoutesByFullPath {
   '/admin/site-post-editor': typeof AppAdminSitePostEditorRoute
   '/admin/staff': typeof AppAdminStaffRoute
   '/admin/students': typeof AppAdminStudentsRoute
-  '/admin/timetable-editor': typeof AppAdminTimetableEditorRoute
+  '/admin/timetable': typeof AppAdminTimetableRoute
   '/announcements/$announcementId': typeof AppAnnouncementsAnnouncementIdRoute
   '/assignments/$assignmentId': typeof AppAssignmentsAssignmentIdRoute
   '/classes/$classId': typeof AppClassesClassIdRoute
@@ -651,7 +651,7 @@ export interface FileRoutesByTo {
   '/admin/site-post-editor': typeof AppAdminSitePostEditorRoute
   '/admin/staff': typeof AppAdminStaffRoute
   '/admin/students': typeof AppAdminStudentsRoute
-  '/admin/timetable-editor': typeof AppAdminTimetableEditorRoute
+  '/admin/timetable': typeof AppAdminTimetableRoute
   '/announcements/$announcementId': typeof AppAnnouncementsAnnouncementIdRoute
   '/assignments/$assignmentId': typeof AppAssignmentsAssignmentIdRoute
   '/classes/$classId': typeof AppClassesClassIdRoute
@@ -740,7 +740,7 @@ export interface FileRoutesById {
   '/_app/admin/site-post-editor': typeof AppAdminSitePostEditorRoute
   '/_app/admin/staff': typeof AppAdminStaffRoute
   '/_app/admin/students': typeof AppAdminStudentsRoute
-  '/_app/admin/timetable-editor': typeof AppAdminTimetableEditorRoute
+  '/_app/admin/timetable': typeof AppAdminTimetableRoute
   '/_app/announcements/$announcementId': typeof AppAnnouncementsAnnouncementIdRoute
   '/_app/assignments/$assignmentId': typeof AppAssignmentsAssignmentIdRoute
   '/_app/classes/$classId': typeof AppClassesClassIdRoute
@@ -828,7 +828,7 @@ export interface FileRouteTypes {
     | '/admin/site-post-editor'
     | '/admin/staff'
     | '/admin/students'
-    | '/admin/timetable-editor'
+    | '/admin/timetable'
     | '/announcements/$announcementId'
     | '/assignments/$assignmentId'
     | '/classes/$classId'
@@ -909,7 +909,7 @@ export interface FileRouteTypes {
     | '/admin/site-post-editor'
     | '/admin/staff'
     | '/admin/students'
-    | '/admin/timetable-editor'
+    | '/admin/timetable'
     | '/announcements/$announcementId'
     | '/assignments/$assignmentId'
     | '/classes/$classId'
@@ -997,7 +997,7 @@ export interface FileRouteTypes {
     | '/_app/admin/site-post-editor'
     | '/_app/admin/staff'
     | '/_app/admin/students'
-    | '/_app/admin/timetable-editor'
+    | '/_app/admin/timetable'
     | '/_app/announcements/$announcementId'
     | '/_app/assignments/$assignmentId'
     | '/_app/classes/$classId'
@@ -1320,11 +1320,11 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAdminStudentsRouteImport
       parentRoute: typeof AppAdminRoute
     }
-    '/_app/admin/timetable-editor': {
-      id: '/_app/admin/timetable-editor'
-      path: '/timetable-editor'
-      fullPath: '/admin/timetable-editor'
-      preLoaderRoute: typeof AppAdminTimetableEditorRouteImport
+    '/_app/admin/timetable': {
+      id: '/_app/admin/timetable'
+      path: '/timetable'
+      fullPath: '/admin/timetable'
+      preLoaderRoute: typeof AppAdminTimetableRouteImport
       parentRoute: typeof AppAdminRoute
     }
     '/_app/announcements/': {
@@ -1687,7 +1687,7 @@ interface AppAdminRouteChildren {
   AppAdminSitePostEditorRoute: typeof AppAdminSitePostEditorRoute
   AppAdminStaffRoute: typeof AppAdminStaffRoute
   AppAdminStudentsRoute: typeof AppAdminStudentsRoute
-  AppAdminTimetableEditorRoute: typeof AppAdminTimetableEditorRoute
+  AppAdminTimetableRoute: typeof AppAdminTimetableRoute
   AppAdminIndexRoute: typeof AppAdminIndexRoute
 }
 
@@ -1712,7 +1712,7 @@ const AppAdminRouteChildren: AppAdminRouteChildren = {
   AppAdminSitePostEditorRoute: AppAdminSitePostEditorRoute,
   AppAdminStaffRoute: AppAdminStaffRoute,
   AppAdminStudentsRoute: AppAdminStudentsRoute,
-  AppAdminTimetableEditorRoute: AppAdminTimetableEditorRoute,
+  AppAdminTimetableRoute: AppAdminTimetableRoute,
   AppAdminIndexRoute: AppAdminIndexRoute,
 }
 

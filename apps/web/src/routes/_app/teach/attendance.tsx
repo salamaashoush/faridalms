@@ -47,7 +47,7 @@ interface Row {
   id: string;
   classId: string;
   classTitle: string;
-  periodId: string | null;
+  periodId: string;
   periodName: string;
   state: RegisterState;
   counts: AttendanceCounts | null;
@@ -56,47 +56,40 @@ interface Row {
 }
 
 function rowsOf(data: Data): Row[] {
-  const periodName = (periodId: string | null) => {
+  const periodName = (periodId: string) => {
     const period = data.periods.find((row) => row.id === periodId);
     return period ? inLocale(period.nameEn, period.nameAr) : "";
   };
-  return data.classes.flatMap((row) => {
-    const taken = data.registers.filter(
-      (register) => register.classId === row.id,
-    );
-    const expected = taken.some(
+  const classOf = new Map(data.classes.map((row) => [row.id, row]));
+  const cells = [
+    ...data.expected,
+    ...data.registers.filter(
       (register) =>
-        !row.defaultPeriodId || register.periodId === row.defaultPeriodId,
-    )
-      ? []
-      : [
-          {
-            id: `${row.id}|${row.defaultPeriodId ?? ""}`,
-            classId: row.id,
-            classTitle: classTitle(row),
-            periodId: row.defaultPeriodId,
-            periodName: row.defaultPeriodId
-              ? periodName(row.defaultPeriodId)
-              : m.attAnyPeriod(),
-            state: "not_started" as const,
-            counts: null,
-            students: row.students,
-            date: data.date,
-          },
-        ];
+        !data.expected.some(
+          (row) =>
+            row.classId === register.classId &&
+            row.periodId === register.periodId,
+        ),
+    ),
+  ];
+  return cells.flatMap(({ classId, periodId }) => {
+    const found = classOf.get(classId);
+    if (!found) return [];
+    const register = data.registers.find(
+      (row) => row.classId === classId && row.periodId === periodId,
+    );
     return [
-      ...expected,
-      ...taken.map((register) => ({
-        id: `${row.id}|${register.periodId}`,
-        classId: row.id,
-        classTitle: classTitle(row),
-        periodId: register.periodId,
-        periodName: periodName(register.periodId),
-        state: register.state,
-        counts: register.counts,
-        students: register.students,
+      {
+        id: `${classId}|${periodId}`,
+        classId,
+        classTitle: classTitle(found),
+        periodId,
+        periodName: periodName(periodId),
+        state: register?.state ?? "not_started",
+        counts: register?.counts ?? null,
+        students: register?.students ?? found.students,
         date: data.date,
-      })),
+      },
     ];
   });
 }
@@ -106,7 +99,7 @@ function ClassLink({ row }: { row: Row }) {
     <RowLink
       to="/registers/$classId"
       params={{ classId: row.classId }}
-      search={{ date: row.date, periodId: row.periodId ?? undefined }}
+      search={{ date: row.date, periodId: row.periodId }}
     >
       {row.classTitle}
     </RowLink>
@@ -169,7 +162,7 @@ function TeacherAttendancePage() {
     navigate({
       to: "/registers/$classId",
       params: { classId: row.classId },
-      search: { date: row.date, periodId: row.periodId ?? undefined },
+      search: { date: row.date, periodId: row.periodId },
     });
   const rowActions = (row: Row): RowAction[] => [
     {

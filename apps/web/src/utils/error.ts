@@ -140,18 +140,25 @@ export function getMessageFromError(error: unknown): string {
         return m.attRangeInvalid();
       case "enrollment.scheduled_conflict":
         return m.enrollmentScheduledConflict();
-      case "timetable.class_not_found":
-        return m.timetableClassNotFound();
-      case "timetable.revision_conflict":
-        return m.timetableRevisionConflict();
-      case "timetable.overlap":
-        return m.validationSlotOverlap();
-      case "timetable.subject_not_offered":
-        return m.timetableSubjectNotOffered();
-      case "timetable.teacher_not_found":
-        return m.timetableTeacherNotFound();
+      case "timetable.busy":
+        return m.ttBusyError();
+      case "timetable.outside_year":
+        return m.ttOutsideYear();
+      case "timetable.not_school_day":
+        return m.ttNotSchoolDay();
+      case "timetable.no_period":
+        return m.ttNoPeriod();
+      case "timetable.not_in_group":
+        return m.ttNotInGroup();
+      case "timetable.teacher":
+      case "timetable.room":
+        return m.ttChoiceGone();
+      case "timetable.class_busy":
+      case "timetable.group_busy":
+        return m.ttGroupBusy();
       case "timetable.teacher_busy":
-        return m.timetableTeacherBusy();
+      case "timetable.room_busy":
+        return m.ttBusyError();
       case "academic_year.closed":
         return m.academicYearClosedError();
       case "rollover.duplicate_class":

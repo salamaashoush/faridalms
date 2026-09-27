@@ -1,45 +1,44 @@
-import { DEFAULT_STUDENT_SCOPED_QUERY } from "@faridalms/domain/school-schema";
-import { useSuspenseQuery } from "@tanstack/react-query";
-import { createFileRoute } from "@tanstack/react-router";
-import { Table2 } from "lucide-react";
+import { createFileRoute, Link } from "@tanstack/react-router";
 
-import type { TeachingSlot } from "~/components/teach/TimetableWeek";
+import type { CardCell } from "~/components/timetable/Weeks";
 
-import { EmptyState, PageHeader } from "~/components/app/primitives";
-import { TimetableWeek } from "~/components/teach/TimetableWeek";
+import { PageHeader } from "~/components/system/IndexPage";
+import { TeacherWeek, todayOf } from "~/components/timetable/Weeks";
+import { useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
-import { timetableQuery } from "~/queries/school";
+import { teacherWeekQuery } from "~/queries/timetable";
 
 export const Route = createFileRoute("/_app/teach/timetable")({
   loader: async ({ context }) => {
-    await context.queryClient.ensureQueryData(
-      timetableQuery(DEFAULT_STUDENT_SCOPED_QUERY),
-    );
+    await context.queryClient.ensureQueryData(teacherWeekQuery());
   },
-  component: TeachingTimetablePage,
+  component: TeacherTimetablePage,
 });
 
-function TeachingTimetablePage() {
-  const data = useSuspenseQuery(
-    timetableQuery(DEFAULT_STUDENT_SCOPED_QUERY),
-  ).data;
+/** Today's lessons open their register; other days only show. */
+function registerCell(today: number, date: string): CardCell {
+  return function renderCell({ meeting, day, period, card }) {
+    if (day !== today) return card;
+    return (
+      <Link
+        to="/registers/$classId"
+        params={{ classId: meeting.classId }}
+        search={{ date, periodId: period.id }}
+        aria-label={m.ttOpenRegister({ lesson: meeting.classCode })}
+        className="block h-full rounded-md hover:ring-2 hover:ring-ring/40 focus-visible:ring-3 focus-visible:ring-ring/50 focus-visible:outline-none"
+      >
+        {card}
+      </Link>
+    );
+  };
+}
 
-  // `getTimetable` answers a teacher with their own slots, which carry a class
-  // where a student's carry a teacher, so the two shapes only meet as a union.
-  const slots: TeachingSlot[] = data.slots;
-
+function TeacherTimetablePage() {
+  const user = useCurrentUser();
   return (
     <>
-      <PageHeader
-        title={m.timetableTitle()}
-        description={m.teachTimetableSubtitle()}
-      />
-
-      {slots.length === 0 ? (
-        <EmptyState icon={Table2} title={m.timetableNoLessons()} />
-      ) : (
-        <TimetableWeek slots={slots} />
-      )}
+      <PageHeader title={m.ttTitle()} description={m.ttTeacherHint()} />
+      <TeacherWeek cell={registerCell(todayOf(user.today), user.today)} />
     </>
   );
 }

@@ -66,6 +66,12 @@ export const NAVIGATION: Record<Workspace, NavSection[]> = {
           capability: "attendance:manage",
         },
         {
+          to: "/admin/timetable",
+          label: m.navTimetable,
+          icon: Table2,
+          capability: "timetable:manage",
+        },
+        {
           to: "/admin/academic-years",
           label: m.navSchoolYear,
           icon: CalendarCheck,

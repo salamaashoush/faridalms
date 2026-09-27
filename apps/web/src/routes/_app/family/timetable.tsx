@@ -1,22 +1,36 @@
-import { studentScopedQuerySchema } from "@faridalms/domain/school-schema";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
+import { Users } from "lucide-react";
+import * as v from "valibot";
 
-import { Field, PageHeader } from "~/components/app/primitives";
-import { StudentScopeBar } from "~/components/family/StudentScopeBar";
-import { TimetableGrid } from "~/components/family/TimetableGrid";
-import { Card, CardContent } from "~/components/ui/card";
+import type { Facet } from "~/components/system/IndexPage";
+
+import { displayName } from "~/components/people/format";
+import {
+  EmptyState,
+  IndexToolbar,
+  PageHeader,
+} from "~/components/system/IndexPage";
+import { StudentWeek } from "~/components/timetable/Weeks";
+import { useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
-import { timetableQuery, visibleStudentsQuery } from "~/queries/school";
+import { personRecordQuery } from "~/queries/students";
+import { studentWeekQuery } from "~/queries/timetable";
+import { currentUserQuery } from "~/queries/user";
 
 export const Route = createFileRoute("/_app/family/timetable")({
-  validateSearch: studentScopedQuerySchema,
+  validateSearch: v.object({
+    studentId: v.optional(v.pipe(v.string(), v.uuid())),
+  }),
   loaderDeps: ({ search }) => search,
   loader: async ({ context, deps }) => {
-    await Promise.all([
-      context.queryClient.ensureQueryData(timetableQuery(deps)),
-      context.queryClient.ensureQueryData(visibleStudentsQuery),
-    ]);
+    const user = await context.queryClient.ensureQueryData(currentUserQuery);
+    const me = await context.queryClient.ensureQueryData(
+      personRecordQuery(user.id),
+    );
+    const child = deps.studentId ?? me.children[0]?.studentId;
+    if (child)
+      await context.queryClient.ensureQueryData(studentWeekQuery(child));
   },
   component: FamilyTimetablePage,
 });
@@ -24,30 +38,38 @@ export const Route = createFileRoute("/_app/family/timetable")({
 function FamilyTimetablePage() {
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
-  const { className, slots } = useSuspenseQuery(timetableQuery(search)).data;
-
+  const user = useCurrentUser();
+  const children = useSuspenseQuery(personRecordQuery(user.id)).data.children;
+  const current = search.studentId ?? children[0]?.studentId;
+  const childFacet: Facet = {
+    id: "child",
+    label: m.courseworkChild(),
+    single: true,
+    options: children.map((child) => ({
+      value: child.studentId,
+      label: displayName(child),
+    })),
+    selected: current ? [current] : [],
+    defaultSelected: children[0] ? [children[0].studentId] : [],
+    onChange: ([next]) => {
+      void navigate({ search: { studentId: next || undefined } });
+    },
+  };
   return (
     <>
-      <PageHeader
-        title={m.timetableTitle()}
-        description={m.familyTimetableSubtitle()}
-      />
-
-      <StudentScopeBar
-        studentId={search.studentId}
-        onChange={(studentId) => {
-          void navigate({ search: (prev) => ({ ...prev, studentId }) });
-        }}
-      />
-
-      <Card>
-        <CardContent className="px-5">
-          <dl className="mb-5">
-            <Field label={m.studentClass()}>{className}</Field>
-          </dl>
-          <TimetableGrid slots={slots} className={className} />
-        </CardContent>
-      </Card>
+      <PageHeader title={m.ttTitle()} description={m.ttFamilyHint()} />
+      {current ? (
+        <div className="grid gap-6">
+          {children.length > 1 ? <IndexToolbar facets={[childFacet]} /> : null}
+          <StudentWeek studentId={current} />
+        </div>
+      ) : (
+        <EmptyState
+          icon={Users}
+          title={m.courseworkNoChildren()}
+          description={m.courseworkNoChildrenBody()}
+        />
+      )}
     </>
   );
 }
