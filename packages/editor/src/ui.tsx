@@ -27,6 +27,7 @@ export function Floating({
   role,
   id,
   container,
+  boundary,
 }: {
   reference: ReferenceElement | null;
   placement?: Placement;
@@ -37,6 +38,8 @@ export function Floating({
   role?: string;
   id?: string;
   container?: HTMLElement | null;
+  /** Keeps it within this element, such as the editor's text, not just the window. */
+  boundary?: Element | null;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const attach = useCallback(
@@ -61,15 +64,15 @@ export function Floating({
         middleware: [
           inline(),
           offset(8),
-          flip({ padding: 8 }),
-          shift({ padding: 8 }),
+          flip({ padding: 8, ...(boundary ? { boundary } : {}) }),
+          shift({ padding: 8, ...(boundary ? { boundary } : {}) }),
         ],
       }).then(({ x, y }) => {
         floating.style.transform = `translate(${Math.round(x)}px, ${Math.round(y)}px)`;
         floating.style.visibility = "visible";
       });
     });
-  }, [reference, placement]);
+  }, [reference, placement, boundary]);
   if (!reference) return null;
   return createPortal(
     <div
@@ -89,9 +92,17 @@ export function Floating({
   );
 }
 
-export function selectionReference(): ReferenceElement | null {
+/**
+ * The browser selection as something to position against, or nothing when it
+ * lies outside `within`: with a menu focused, the selection can sit elsewhere
+ * with an empty box at the window's corner.
+ */
+export function selectionReference(
+  within?: Element | null,
+): ReferenceElement | null {
   const selection = window.getSelection();
   if (!selection || selection.rangeCount === 0) return null;
+  if (within && !within.contains(selection.anchorNode)) return null;
   const range = selection.getRangeAt(0).cloneRange();
   return {
     getBoundingClientRect: () => range.getBoundingClientRect(),

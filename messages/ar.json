@@ -1080,6 +1080,8 @@
   "editorImageAlt": "صف الصورة لقارئات الشاشة",
   "editorImageCaption": "أضف تعليقاً",
   "editorImageSize": "حجم الصورة",
+  "editorBlockOptions": "خيارات العنصر",
+  "editorBlockSize": "الحجم",
   "editorSizeSmall": "صغير",
   "editorSizeMedium": "متوسط",
   "editorSizeLarge": "كبير",

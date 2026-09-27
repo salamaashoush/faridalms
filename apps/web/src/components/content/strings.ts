@@ -139,6 +139,8 @@ export function editorStrings(): EditorStrings {
     imageAlt: m.editorImageAlt(),
     imageCaption: m.editorImageCaption(),
     imageSize: m.editorImageSize(),
+    blockOptions: m.editorBlockOptions(),
+    blockSize: m.editorBlockSize(),
     sizeSmall: m.editorSizeSmall(),
     sizeMedium: m.editorSizeMedium(),
     sizeLarge: m.editorSizeLarge(),

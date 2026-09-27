@@ -133,6 +133,8 @@ export interface EditorStrings {
   imageAlt: string;
   imageCaption: string;
   imageSize: string;
+  blockOptions: string;
+  blockSize: string;
   sizeSmall: string;
   sizeMedium: string;
   sizeLarge: string;

@@ -16,17 +16,19 @@ import { BlockWithAlignableContents } from "@lexical/react/LexicalBlockWithAlign
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
 import { DecoratorBlockNode } from "@lexical/react/LexicalDecoratorBlockNode";
 import { useLexicalEditable } from "@lexical/react/useLexicalEditable";
-import { useLexicalNodeSelection } from "@lexical/react/useLexicalNodeSelection";
 import { $getDocument, $getNodeByKey } from "lexical";
 import { Download, FileText } from "lucide-react";
 
 import { useEditorEnvironment } from "../context";
 import { blockAlignClass, formatBytes, imageSizeClass } from "../format";
-import { LayoutBar } from "./layout";
+import { useSelectOnClick } from "./select";
 
+// The outline goes round the block's own box, which may be narrower than
+// the column, not round the full-width row that holds it.
 const blockClass = {
   base: "relative my-3",
-  focus: "rounded-lg outline-2 outline-offset-2 outline-ring",
+  focus:
+    "[&>*]:rounded-lg [&>*]:outline-2 [&>*]:outline-offset-2 [&>*]:outline-ring",
 };
 
 export type SerializedImageNode = Spread<
@@ -68,7 +70,7 @@ function ImageBlock({
 }) {
   const { strings, media } = useEditorEnvironment();
   const editable = useLexicalEditable();
-  const [selected] = useLexicalNodeSelection(nodeKey);
+  const selected = useSelectOnClick(nodeKey);
   const update = useNodeUpdate(nodeKey, $isImageNode);
   return (
     <BlockWithAlignableContents
@@ -77,24 +79,13 @@ function ImageBlock({
       nodeKey={nodeKey}
     >
       <figure className={`${imageSizeClass[size]} ${blockAlignClass(format)}`}>
-        <div className="group/media relative">
-          <img
-            src={media?.url(fileId)}
-            alt={alt}
-            draggable={false}
-            loading="lazy"
-            className="block h-auto w-full rounded-lg bg-muted"
-          />
-          {editable ? (
-            <LayoutBar
-              size={size}
-              format={format}
-              visible={selected}
-              onSize={(value) => update((node) => node.setSize(value))}
-              onAlign={(value) => update((node) => node.setFormat(value))}
-            />
-          ) : null}
-        </div>
+        <img
+          src={media?.url(fileId)}
+          alt={alt}
+          draggable={false}
+          loading="lazy"
+          className="block h-auto w-full rounded-lg bg-muted"
+        />
         {editable ? (
           <div className="mt-1.5 grid gap-1">
             <input
@@ -260,6 +251,10 @@ export class ImageNode extends DecoratorBlockNode {
     const writable = this.getWritable();
     writable.__caption = caption;
     return writable;
+  }
+
+  getSize(): ImageSize {
+    return this.getLatest().__size;
   }
 
   setSize(size: ImageSize): this {

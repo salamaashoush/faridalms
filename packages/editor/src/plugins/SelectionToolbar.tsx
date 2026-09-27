@@ -1,13 +1,17 @@
+import type { ImageSize } from "@faridalms/domain/content";
 import type { ReferenceElement } from "@floating-ui/dom";
-import type { BaseSelection } from "lexical";
+import type { BaseSelection, ElementFormatType, NodeKey } from "lexical";
 
 import { Menu } from "@base-ui/react/menu";
+import { imageSizes } from "@faridalms/domain/content";
 import { $isCodeNode } from "@lexical/code";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
 import { useLexicalEditable } from "@lexical/react/useLexicalEditable";
 import { mergeRegister } from "@lexical/utils";
 import {
+  $getNodeByKey,
   $getSelection,
+  $isNodeSelection,
   $isRangeSelection,
   $setSelection,
   COMMAND_PRIORITY_LOW,
@@ -16,6 +20,9 @@ import {
   KEY_ESCAPE_COMMAND,
 } from "lexical";
 import {
+  AlignCenter,
+  AlignLeft,
+  AlignRight,
   Baseline,
   Bold,
   ChevronDown,
@@ -24,6 +31,7 @@ import {
   Italic,
   Link,
   Pencil,
+  PenLine,
   Strikethrough,
   Underline,
   Unlink,
@@ -53,6 +61,13 @@ import {
   OPEN_LINK_EDITOR_COMMAND,
   textColors,
 } from "../formatting";
+import { $isImageNode } from "../nodes/media";
+import {
+  $isDiagramNode,
+  $isEmbedNode,
+  $isMediaNode,
+  EDIT_DIAGRAM_COMMAND,
+} from "../nodes/rich";
 import { editorColors } from "../strings";
 import {
   Floating,
@@ -65,7 +80,29 @@ import {
   shortcutLabel,
 } from "../ui";
 
-type Mode = "hidden" | "format" | "link-edit" | "link-view";
+type Mode = "hidden" | "format" | "link-edit" | "link-view" | "block";
+
+/** A selected picture, drawing, video or embed: what the bar can change. */
+interface BlockFacts {
+  key: NodeKey;
+  drawing: boolean;
+  size: ImageSize;
+  format: ElementFormatType;
+  /** The document's direction, which decides which side start is. */
+  rtl: boolean;
+}
+
+const separator = <span className="mx-0.5 h-5 w-px bg-border" aria-hidden />;
+
+function $layoutBlock(key: NodeKey | null) {
+  const node = key ? $getNodeByKey(key) : null;
+  return $isImageNode(node) ||
+    $isDiagramNode(node) ||
+    $isMediaNode(node) ||
+    $isEmbedNode(node)
+    ? node
+    : null;
+}
 
 interface Facts {
   formats: MarkFormat[];
@@ -90,6 +127,7 @@ export function SelectionToolbarPlugin() {
   const [mode, setMode] = useState<Mode>("hidden");
   const [reference, setReference] = useState<ReferenceElement | null>(null);
   const [facts, setFacts] = useState<Facts>(empty);
+  const [layout, setLayout] = useState<BlockFacts | null>(null);
   const [url, setUrl] = useState("");
   const [invalid, setInvalid] = useState(false);
   const saved = useRef<BaseSelection | null>(null);
@@ -115,6 +153,22 @@ export function SelectionToolbarPlugin() {
       };
     });
 
+  const readBlock = () =>
+    editor.getEditorState().read((): Omit<BlockFacts, "rtl"> | null => {
+      const selection = $getSelection();
+      if (!$isNodeSelection(selection)) return null;
+      const nodes = selection.getNodes();
+      const node =
+        nodes.length === 1 ? $layoutBlock(nodes[0]?.getKey() ?? null) : null;
+      if (!node) return null;
+      return {
+        key: node.getKey(),
+        drawing: $isDiagramNode(node),
+        size: node.getSize(),
+        format: node.getFormat(),
+      };
+    });
+
   const modeRef = useRef<Mode>("hidden");
   const show = (next: Mode) => {
     modeRef.current = next;
@@ -126,18 +180,28 @@ export function SelectionToolbarPlugin() {
     if (modeRef.current === "link-edit") return;
     const root = editor.getRootElement();
     const focused = root !== null && root.contains(document.activeElement);
+    const selected = focused ? readBlock() : null;
+    if (selected) {
+      const element = editor.getElementByKey(selected.key);
+      setLayout({
+        ...selected,
+        rtl: element ? getComputedStyle(element).direction === "rtl" : false,
+      });
+      setReference(element?.querySelector("figure") ?? element);
+      return show("block");
+    }
     const state = focused ? read() : null;
     if (!state) return show("hidden");
     setFacts(state.facts);
     if (!state.collapsed && !state.code && state.text.trim()) {
-      setReference(selectionReference());
+      setReference(selectionReference(root));
       return show("format");
     }
     if (state.collapsed && state.facts.link) {
       const anchor = window.getSelection()?.anchorNode;
       const element =
         anchor instanceof Element ? anchor : anchor?.parentElement;
-      setReference(element?.closest("a") ?? selectionReference());
+      setReference(element?.closest("a") ?? selectionReference(root));
       return show("link-view");
     }
     show("hidden");
@@ -150,7 +214,7 @@ export function SelectionToolbarPlugin() {
       .read(() => $getSelection()?.clone() ?? null);
     setUrl(state?.facts.link ?? "");
     setInvalid(false);
-    setReference(selectionReference() ?? reference);
+    setReference(selectionReference(editor.getRootElement()) ?? reference);
     show("link-edit");
   };
 
@@ -254,6 +318,112 @@ export function SelectionToolbarPlugin() {
     });
     editor.focus();
   };
+
+  // The text area below the fixed toolbar, so the bar never covers that one.
+  const boundary = editor.getRootElement()?.parentElement ?? null;
+
+  if (mode === "block" && layout) {
+    const sizes: Record<ImageSize, string> = {
+      small: strings.sizeSmall,
+      medium: strings.sizeMedium,
+      large: strings.sizeLarge,
+      full: strings.sizeFull,
+    };
+    const aligned =
+      layout.format === "start" || layout.format === "end"
+        ? layout.format
+        : "center";
+    const alignments = [
+      {
+        value: "start",
+        label: strings.alignStart,
+        icon: layout.rtl ? AlignRight : AlignLeft,
+      },
+      { value: "center", label: strings.alignCenter, icon: AlignCenter },
+      {
+        value: "end",
+        label: strings.alignEnd,
+        icon: layout.rtl ? AlignLeft : AlignRight,
+      },
+    ] as const;
+    return (
+      <Floating
+        reference={reference}
+        placement="top"
+        boundary={boundary}
+        className="flex items-center gap-0.5 p-1"
+        keepFocus
+        role="toolbar"
+        label={strings.blockOptions}
+      >
+        <div ref={toolbar} className="contents">
+          {layout.drawing ? (
+            <>
+              <button
+                type="button"
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={() =>
+                  editor.dispatchCommand(EDIT_DIAGRAM_COMMAND, layout.key)
+                }
+                className="inline-flex h-8 items-center gap-1.5 rounded-md px-2 text-sm font-medium text-foreground/80 hover:bg-accent hover:text-foreground [&_svg]:size-4"
+              >
+                <PenLine aria-hidden />
+                {strings.diagramEdit}
+              </button>
+              {separator}
+            </>
+          ) : null}
+          {alignments.map((alignment) => (
+            <ToolButton
+              key={alignment.value}
+              label={alignment.label}
+              active={layout.size !== "full" && aligned === alignment.value}
+              disabled={layout.size === "full"}
+              onClick={() =>
+                editor.update(() =>
+                  $layoutBlock(layout.key)?.setFormat(alignment.value),
+                )
+              }
+            >
+              <alignment.icon aria-hidden />
+            </ToolButton>
+          ))}
+          {separator}
+          <Menu.Root onOpenChange={trackMenu}>
+            <Menu.Trigger
+              aria-label={strings.blockSize}
+              className="inline-flex h-8 items-center gap-1 rounded-md px-2 text-sm font-medium text-foreground/80 hover:bg-accent hover:text-foreground"
+            >
+              {sizes[layout.size]}
+              <ChevronDown className="size-3.5 opacity-60" aria-hidden />
+            </Menu.Trigger>
+            <Menu.Portal>
+              <Menu.Positioner className="z-50" sideOffset={6} align="start">
+                <Menu.Popup className={menuPopupClass} finalFocus={false}>
+                  {imageSizes.map((value) => (
+                    <Menu.Item
+                      key={value}
+                      className={menuItemClass}
+                      onClick={() =>
+                        withSelection(() =>
+                          $layoutBlock(layout.key)?.setSize(value),
+                        )
+                      }
+                    >
+                      <span className="flex-1">{sizes[value]}</span>
+                      {layout.size === value ? (
+                        <span className="size-1.5 rounded-full bg-primary" />
+                      ) : null}
+                    </Menu.Item>
+                  ))}
+                </Menu.Popup>
+              </Menu.Positioner>
+            </Menu.Portal>
+          </Menu.Root>
+        </div>
+      </Floating>
+    );
+  }
 
   if (mode === "link-edit") {
     const submit = () => {
@@ -402,7 +572,8 @@ export function SelectionToolbarPlugin() {
   return (
     <Floating
       reference={reference}
-      placement="top-start"
+      placement="top"
+      boundary={boundary}
       className="flex items-center gap-0.5 p-1"
       keepFocus
       role="toolbar"
@@ -445,7 +616,7 @@ export function SelectionToolbarPlugin() {
             </Menu.Positioner>
           </Menu.Portal>
         </Menu.Root>
-        <span className="mx-0.5 h-5 w-px bg-border" aria-hidden />
+        {separator}
         {marks.map((mark) => (
           <ToolButton
             key={mark.format}
@@ -459,6 +630,7 @@ export function SelectionToolbarPlugin() {
             <mark.icon aria-hidden />
           </ToolButton>
         ))}
+        {separator}
         <ToolButton
           label={strings.link}
           shortcut={shortcutLabel("Mod+K")}

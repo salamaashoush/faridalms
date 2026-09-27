@@ -54,7 +54,9 @@ export function EmbedPlugin() {
             const element = anchor.current
               ? editor.getElementByKey(anchor.current)
               : null;
-            setReference(selectionReference() ?? element);
+            setReference(
+              element ?? selectionReference(editor.getRootElement()),
+            );
             setUrl("");
             setInvalid(false);
             return true;

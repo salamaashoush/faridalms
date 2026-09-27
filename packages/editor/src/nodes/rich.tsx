@@ -18,19 +18,21 @@ import { BlockWithAlignableContents } from "@lexical/react/LexicalBlockWithAlign
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
 import { DecoratorBlockNode } from "@lexical/react/LexicalDecoratorBlockNode";
 import { useLexicalEditable } from "@lexical/react/useLexicalEditable";
-import { useLexicalNodeSelection } from "@lexical/react/useLexicalNodeSelection";
 import { $getDocument, $getNodeByKey, createCommand } from "lexical";
-import { Captions, ExternalLink, PenLine } from "lucide-react";
+import { Captions, ExternalLink } from "lucide-react";
 import { useRef, useState } from "react";
 
 import { useEditorEnvironment } from "../context";
 import { blockAlignClass, diagramImageClass, imageSizeClass } from "../format";
 import { EmbedFrame, MediaPlayer } from "../media-view";
-import { LayoutBar } from "./layout";
+import { useSelectOnClick } from "./select";
 
+// The outline goes round the block's own box, which may be narrower than
+// the column, not round the full-width row that holds it.
 const blockClass = {
   base: "relative my-3",
-  focus: "rounded-lg outline-2 outline-offset-2 outline-ring",
+  focus:
+    "[&>*]:rounded-lg [&>*]:outline-2 [&>*]:outline-offset-2 [&>*]:outline-ring",
 };
 
 export const EDIT_DIAGRAM_COMMAND = createCommand<NodeKey | null>(
@@ -88,8 +90,8 @@ function MediaBlock({
 }) {
   const { strings, media, locale } = useEditorEnvironment();
   const editable = useLexicalEditable();
-  const [selected] = useLexicalNodeSelection(nodeKey);
   const update = useNodeUpdate(nodeKey, $isMediaNode);
+  useSelectOnClick(nodeKey);
   const input = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [failed, setFailed] = useState(false);
@@ -103,24 +105,13 @@ function MediaBlock({
       <figure
         className={`grid gap-1.5 ${imageSizeClass[size]} ${blockAlignClass(format)}`}
       >
-        <div className="group/media relative">
-          <MediaPlayer
-            src={media?.url(fileId)}
-            captions={captionsFileId ? media?.url(captionsFileId) : undefined}
-            video={video}
-            locale={locale}
-            captionsLabel={strings.captions}
-          />
-          {editable ? (
-            <LayoutBar
-              size={size}
-              format={format}
-              visible={selected}
-              onSize={(value) => update((node) => node.setSize(value))}
-              onAlign={(value) => update((node) => node.setFormat(value))}
-            />
-          ) : null}
-        </div>
+        <MediaPlayer
+          src={media?.url(fileId)}
+          captions={captionsFileId ? media?.url(captionsFileId) : undefined}
+          video={video}
+          locale={locale}
+          captionsLabel={strings.captions}
+        />
         {editable ? (
           <>
             <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
@@ -204,8 +195,8 @@ function EmbedBlock({
 }) {
   const { strings } = useEditorEnvironment();
   const editable = useLexicalEditable();
-  const [selected] = useLexicalNodeSelection(nodeKey);
   const update = useNodeUpdate(nodeKey, $isEmbedNode);
+  useSelectOnClick(nodeKey);
   const name = embedProviderNames[provider];
   return (
     <BlockWithAlignableContents
@@ -216,23 +207,12 @@ function EmbedBlock({
       <figure
         className={`grid gap-1.5 ${imageSizeClass[size]} ${blockAlignClass(format)}`}
       >
-        <div className="group/media relative">
-          <EmbedFrame
-            provider={provider}
-            embedId={embedId}
-            loadLabel={strings.embedLoad(name)}
-            privacy={strings.embedPrivacy(name)}
-          />
-          {editable ? (
-            <LayoutBar
-              size={size}
-              format={format}
-              visible={selected}
-              onSize={(value) => update((node) => node.setSize(value))}
-              onAlign={(value) => update((node) => node.setFormat(value))}
-            />
-          ) : null}
-        </div>
+        <EmbedFrame
+          provider={provider}
+          embedId={embedId}
+          loadLabel={strings.embedLoad(name)}
+          privacy={strings.embedPrivacy(name)}
+        />
         <div className="flex items-center justify-between gap-2">
           {editable ? (
             <CaptionInput
@@ -274,12 +254,10 @@ function DiagramBlock({
   caption: string;
   size: ImageSize;
 }) {
-  const [editor] = useLexicalComposerContext();
   const { strings, media } = useEditorEnvironment();
   const editable = useLexicalEditable();
-  const [selected] = useLexicalNodeSelection(nodeKey);
   const update = useNodeUpdate(nodeKey, $isDiagramNode);
-  const edit = () => editor.dispatchCommand(EDIT_DIAGRAM_COMMAND, nodeKey);
+  useSelectOnClick(nodeKey);
   return (
     <BlockWithAlignableContents
       className={blockClass}
@@ -287,37 +265,12 @@ function DiagramBlock({
       nodeKey={nodeKey}
     >
       <figure className={`${imageSizeClass[size]} ${blockAlignClass(format)}`}>
-        <div className="group/media relative overflow-hidden rounded-lg">
-          <img
-            src={media?.url(fileId)}
-            alt={caption || strings.diagram}
-            draggable={false}
-            className={diagramImageClass}
-          />
-          {editable ? (
-            <>
-              <button
-                type="button"
-                onClick={edit}
-                className={`absolute start-2 top-2 inline-flex h-8 items-center gap-1.5 rounded-md border bg-popover px-2.5 text-sm font-medium text-popover-foreground shadow-md transition-opacity hover:bg-accent focus-visible:opacity-100 ${
-                  selected
-                    ? "opacity-100"
-                    : "opacity-0 group-hover/media:opacity-100"
-                }`}
-              >
-                <PenLine className="size-4" aria-hidden />
-                {strings.diagramEdit}
-              </button>
-              <LayoutBar
-                size={size}
-                format={format}
-                visible={selected}
-                onSize={(value) => update((node) => node.setSize(value))}
-                onAlign={(value) => update((node) => node.setFormat(value))}
-              />
-            </>
-          ) : null}
-        </div>
+        <img
+          src={media?.url(fileId)}
+          alt={caption || strings.diagram}
+          draggable={false}
+          className={`${diagramImageClass} rounded-lg`}
+        />
         {editable ? (
           <CaptionInput
             value={caption}
@@ -434,6 +387,10 @@ export class MediaNode extends DecoratorBlockNode {
     return writable;
   }
 
+  getSize(): ImageSize {
+    return this.getLatest().__size;
+  }
+
   setSize(size: ImageSize): this {
     const writable = this.getWritable();
     writable.__size = size;
@@ -546,6 +503,10 @@ export class EmbedNode extends DecoratorBlockNode {
     return writable;
   }
 
+  getSize(): ImageSize {
+    return this.getLatest().__size;
+  }
+
   setSize(size: ImageSize): this {
     const writable = this.getWritable();
     writable.__size = size;
@@ -649,6 +610,10 @@ export class DiagramNode extends DecoratorBlockNode {
     const writable = this.getWritable();
     writable.__caption = caption;
     return writable;
+  }
+
+  getSize(): ImageSize {
+    return this.getLatest().__size;
   }
 
   setSize(size: ImageSize): this {
