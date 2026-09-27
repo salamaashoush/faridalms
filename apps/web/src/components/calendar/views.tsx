@@ -9,7 +9,7 @@ import { CalendarDays, MapPin } from "lucide-react";
 import type { calendarRangeQuery } from "~/queries/calendar";
 
 import { EmptyState } from "~/components/system/IndexPage";
-import { StatusBadge, StatusText } from "~/components/system/status";
+import { StatusBadge } from "~/components/system/status";
 import { dayName } from "~/components/timetable/WeekGrid";
 import * as m from "~/i18n/messages";
 import { cn } from "~/utils/cn";
@@ -17,7 +17,7 @@ import { formatNumber } from "~/utils/datetime";
 
 import {
   CATEGORY_LABEL,
-  CATEGORY_TONE,
+  CATEGORY_MARK,
   specialDayLabel,
   timeLabel,
   weekdayDate,
@@ -30,6 +30,23 @@ export type CalendarEvent = Range["events"][number];
 export type SpecialDay = Range["days"][number];
 
 const MAX_IN_CELL = 3;
+
+export function CategoryIcon({
+  category,
+  className,
+}: {
+  category: CalendarEvent["category"];
+  className?: string;
+}) {
+  const { icon: Icon, colour } = CATEGORY_MARK[category];
+  return (
+    <Icon
+      className={cn("shrink-0", colour, className)}
+      aria-hidden
+      strokeWidth={2.25}
+    />
+  );
+}
 
 function EventChip({ event }: { event: CalendarEvent }) {
   return (
@@ -47,12 +64,9 @@ function EventChip({ event }: { event: CalendarEvent }) {
       {event.state === "draft" ? (
         <span className="sr-only">{m.calDraft()}</span>
       ) : null}
-      <span
-        className={cn(
-          "size-1.5 shrink-0 rounded-full",
-          event.cancelled ? "bg-muted-foreground/50" : "bg-primary",
-        )}
-        aria-hidden
+      <CategoryIcon
+        category={event.category}
+        className={cn("size-3", event.cancelled && "text-muted-foreground")}
       />
       {event.startTime ? (
         <span className="shrink-0 text-muted-foreground tabular-nums">
@@ -200,9 +214,10 @@ function AgendaItem({ event }: { event: CalendarEvent }) {
           ) : null}
         </div>
         <div className="flex flex-wrap items-center gap-x-3 gap-y-1 text-[13px] leading-[18px] text-muted-foreground">
-          <StatusText tone={CATEGORY_TONE[event.category]}>
+          <span className="inline-flex items-center gap-1.5">
+            <CategoryIcon category={event.category} className="size-3.5" />
             {CATEGORY_LABEL[event.category]()}
-          </StatusText>
+          </span>
           {event.location ? (
             <span className="flex min-w-0 items-center gap-1">
               <MapPin className="size-3.5 shrink-0" aria-hidden />

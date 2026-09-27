@@ -5,6 +5,7 @@ import type { ContentDocument } from "@faridalms/domain/content";
 import {
   audiencesOf,
   audienceUsers,
+  reachOf,
   setAudiences,
 } from "@faridalms/database/stores/audiences";
 import {
@@ -23,6 +24,7 @@ import {
   specialDays,
   updateEvent,
 } from "@faridalms/database/stores/events";
+import { childrenOf } from "@faridalms/database/stores/persons";
 import { schoolYears, workingYear } from "@faridalms/database/stores/years";
 import {
   cancelEventSchema,
@@ -150,11 +152,39 @@ registerHostReader("calendar_event", async (context, hostId) => {
   }
 });
 
+/**
+ * Who the viewer is to the audiences, narrowed to one of their children when
+ * a family asks: that child's classes and grade, and what goes to every
+ * student or family.
+ */
+async function reachFor(context: UnitContext, childId: string) {
+  const children = can(context, "children:read")
+    ? await childrenOf(
+        context.tx,
+        { ...teachingScope(context), schoolWide: false },
+        context.actor.userId,
+      )
+    : [];
+  if (!childId) return { reach: await calendarReach(context), children };
+  if (!children.some((child) => child.studentId === childId))
+    throw new ORPCError("NOT_FOUND");
+  const theirs = await reachOf(context.tx, {
+    tenantId: context.tenantId,
+    schoolId: context.schoolId,
+    userId: childId,
+    on: context.today,
+  });
+  return {
+    reach: { ...theirs, staff: false, student: true, guardian: true },
+    children,
+  };
+}
+
 /** The events and the school calendar's special days within a window. */
 export const range = readProcedure
   .input(rangeQuerySchema)
   .handler(async ({ input, context }) => {
-    const reach = await calendarReach(context);
+    const { reach, children } = await reachFor(context, input.child);
     const [events, days] = await Promise.all([
       eventsBetween(context.tx, {
         tenantId: context.tenantId,
@@ -175,8 +205,13 @@ export const range = readProcedure
     return {
       events,
       days,
-      canManage: reach === null,
-      canAuthor: reach === null || can(context, "calendar:author"),
+      canManage: manages(context),
+      canAuthor: manages(context) || can(context, "calendar:author"),
+      children: children.map((child) => ({
+        id: child.studentId,
+        nameEn: child.fullNameEn,
+        nameAr: child.fullNameAr,
+      })),
     };
   });
 

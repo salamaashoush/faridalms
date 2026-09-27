@@ -3892,5 +3892,9 @@
   "calPublishQuietly": "انشر دون إبلاغ أحد",
   "calCancelBodyTell": "تبقى في التقويم موسومة بالإلغاء، ويُبلَّغ الأشخاص الذين تصلهم ({count}).",
   "ntfEventChanged": "تغيّرت فعالية",
-  "ntfEventCancelled": "أُلغيت فعالية"
+  "ntfEventCancelled": "أُلغيت فعالية",
+  "calChildren": "تقويم من",
+  "calAllChildren": "كل الأبناء",
+  "calLegend": "أنواع الفعاليات المعروضة",
+  "calShowAll": "عرض الكل"
 }

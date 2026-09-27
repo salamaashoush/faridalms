@@ -6,7 +6,7 @@ import { login, rejection, sessionFor, signedIn } from "./harness";
 const principal = () => signedIn("northwind", login("principal"));
 const mother = () =>
   signedIn("northwind", login("student").replace("student", "parent"));
-const october = { from: "2026-09-27", to: "2026-10-31" };
+const october = { from: "2026-09-27", to: "2026-10-31", child: "" };
 
 const event = (title: string) => ({
   id: "",
@@ -48,6 +48,23 @@ describe("reading the calendar", () => {
     const opened = await family.calendar.event({ id: trip.id });
     expect(opened.startTime).toBe("08:30");
     expect(opened.audiences).toEqual([]);
+  });
+
+  test("a family narrows the calendar to one child, and only to their own", async () => {
+    const family = await mother();
+    const { children, events } = await family.calendar.range(october);
+    const child = children[0];
+    if (!child) throw new Error("the seeded family has no child");
+    const theirs = await family.calendar.range({ ...october, child: child.id });
+    const ids = new Set(events.map((row) => row.id));
+    expect(theirs.events.length).toBeGreaterThan(0);
+    expect(theirs.events.every((row) => ids.has(row.id))).toBe(true);
+
+    const office = await principal();
+    const me = await office.identity.currentUser();
+    expect(
+      await rejection(family.calendar.range({ ...october, child: me.id })),
+    ).toMatchObject({ code: "NOT_FOUND" });
   });
 
   test("a class's event stays with that class, and staff see their meeting", async () => {

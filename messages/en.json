@@ -3764,5 +3764,9 @@
   "calPublishQuietly": "Publish without telling anyone",
   "calCancelBodyTell": "It stays on the calendar marked cancelled, and the {count} people it reaches are told.",
   "ntfEventChanged": "Event changed",
-  "ntfEventCancelled": "Event cancelled"
+  "ntfEventCancelled": "Event cancelled",
+  "calChildren": "Whose calendar",
+  "calAllChildren": "All children",
+  "calLegend": "Kinds of event to show",
+  "calShowAll": "Show all"
 }

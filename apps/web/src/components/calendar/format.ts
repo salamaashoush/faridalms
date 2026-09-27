@@ -1,6 +1,15 @@
 import type { CalendarCategory } from "@faridalms/domain/calendar";
+import type { LucideIcon } from "lucide-react";
 
-import type { Tone } from "~/components/system/status";
+import {
+  Bus,
+  CalendarDays,
+  Music,
+  PartyPopper,
+  PencilLine,
+  Trophy,
+  Users,
+} from "lucide-react";
 
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
@@ -16,14 +25,24 @@ export const CATEGORY_LABEL: Record<CalendarCategory, () => string> = {
   celebration: m.calCatCelebration,
 };
 
-export const CATEGORY_TONE: Record<CalendarCategory, Tone> = {
-  general: "neutral",
-  meeting: "info",
-  trip: "accent",
-  performance: "accent",
-  sport: "success",
-  exam: "warning",
-  celebration: "success",
+/** Each kind's mark: an icon to read and a colour to scan, never the colour alone. */
+export const CATEGORY_MARK: Record<
+  CalendarCategory,
+  { icon: LucideIcon; colour: string }
+> = {
+  general: {
+    icon: CalendarDays,
+    colour: "text-slate-500 dark:text-slate-400",
+  },
+  meeting: { icon: Users, colour: "text-sky-600 dark:text-sky-400" },
+  trip: { icon: Bus, colour: "text-amber-600 dark:text-amber-400" },
+  performance: { icon: Music, colour: "text-violet-600 dark:text-violet-400" },
+  sport: { icon: Trophy, colour: "text-emerald-600 dark:text-emerald-400" },
+  exam: { icon: PencilLine, colour: "text-rose-600 dark:text-rose-400" },
+  celebration: {
+    icon: PartyPopper,
+    colour: "text-fuchsia-600 dark:text-fuchsia-400",
+  },
 };
 
 export interface Timed {

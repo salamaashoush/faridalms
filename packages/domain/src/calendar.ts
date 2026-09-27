@@ -27,7 +27,12 @@ const isoDate = v.pipe(v.string(), v.isoDate());
 const clock = v.union([v.literal(""), v.pipe(v.string(), v.isoTime())]);
 
 export const rangeQuerySchema = v.pipe(
-  v.object({ from: isoDate, to: isoDate }),
+  v.object({
+    from: isoDate,
+    to: isoDate,
+    /** A family's view narrowed to one child's classes and grade. */
+    child: optionalId,
+  }),
   v.check(
     (range) =>
       range.to >= range.from &&
