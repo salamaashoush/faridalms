@@ -118,18 +118,21 @@ export const options = readProcedure.handler(async ({ context }) => {
       namespace,
       today: context.today,
     });
-  const [grades, relations, sexes, positions, years] = await Promise.all([
-    load("grade_level"),
-    load("relation"),
-    load("sex"),
-    load("staff_position"),
-    schoolYears(context.tx, context.tenantId, context.schoolId),
-  ]);
+  const [grades, relations, sexes, positions, religions, years] =
+    await Promise.all([
+      load("grade_level"),
+      load("relation"),
+      load("sex"),
+      load("staff_position"),
+      load("religion"),
+      schoolYears(context.tx, context.tenantId, context.schoolId),
+    ]);
   return {
     grades,
     relations,
     sexes,
     positions,
+    religions,
     years,
     workingYearId: workingYear(years, context.today)?.id ?? null,
   };

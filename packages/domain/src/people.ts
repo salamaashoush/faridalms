@@ -199,6 +199,54 @@ export const saveStaffSchema = v.object({
 });
 export type SaveStaffInput = v.InferInput<typeof saveStaffSchema>;
 
+export const HEALTH_SEVERITIES = ["mild", "moderate", "severe"] as const;
+
+export const saveHealthRecordSchema = v.object({
+  studentId: id,
+  id: v.optional(id),
+  expectedVersion: v.optional(version),
+  kindId: id,
+  hasAlert: v.boolean(),
+  recordedOn: v.optional(v.union([v.literal(""), isoDate]), ""),
+  text: v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(2000)),
+  severity: v.optional(
+    v.union([v.literal(""), v.picklist(HEALTH_SEVERITIES)]),
+    "",
+  ),
+  actionPlan: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(2000)), ""),
+});
+
+export const removeHealthRecordSchema = v.object({
+  studentId: id,
+  id,
+  expectedVersion: version,
+});
+
+const countryCode = v.pipe(v.string(), v.regex(/^[A-Z]{2}$/));
+
+export const saveDemographicsSchema = v.object({
+  userId: id,
+  expectedVersion: v.nullable(version),
+  birthCountryCode: v.optional(v.union([v.literal(""), countryCode]), ""),
+  birthCity: optionalText(100),
+  nationalityCodes: v.pipe(v.array(countryCode), v.maxLength(4)),
+  religionId: v.optional(v.union([v.literal(""), id]), ""),
+  homeLanguages: v.pipe(
+    v.array(v.pipe(v.string(), v.regex(/^[a-z]{2,3}$/))),
+    v.maxLength(6),
+  ),
+});
+
+export const saveCustodySchema = v.object({
+  studentId: id,
+  relationshipId: id,
+  expectedVersion: version,
+  contactRestrictions: optionalText(250),
+  educationalRights: v.picklist(["full", "restricted", "none"]),
+  communicationIsolated: v.boolean(),
+  pickup: v.nullable(v.picklist(["allowed", "not_allowed", "ask_office"])),
+});
+
 export const setFeatureSchema = v.object({
   feature: v.picklist(FEATURES),
   enabled: v.boolean(),
