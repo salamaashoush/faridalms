@@ -12,7 +12,7 @@ import * as m from "~/i18n/messages";
 import { restoreSitePage, restoreSitePost } from "~/server/site";
 import { getMessageFromError } from "~/utils/error";
 
-import type { Languages } from "./SectionFields";
+import type { Languages } from "./studio/draft";
 
 import { LOCALE_NAME } from "./format";
 

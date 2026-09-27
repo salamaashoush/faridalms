@@ -1,0 +1,141 @@
+/* The school website's theme faces, all SIL OFL and self-hosted. A browser
+   downloads a face only when a page uses it, so listing them all costs only
+   these declarations. */
+@import "@fontsource-variable/cormorant-garamond";
+@import "@fontsource-variable/source-sans-3";
+@import "@fontsource-variable/ibm-plex-sans";
+@import "@fontsource-variable/plus-jakarta-sans";
+@import "@fontsource-variable/fraunces";
+@import "@fontsource-variable/nunito-sans";
+@import "@fontsource-variable/noto-sans";
+@import "@fontsource-variable/alexandria";
+@import "@fontsource-variable/baloo-bhaijaan-2";
+@import "@fontsource-variable/rubik";
+@import "@fontsource-variable/el-messiri";
+@import "@fontsource-variable/cairo";
+@import "@fontsource-variable/readex-pro";
+@import "@fontsource-variable/noto-naskh-arabic";
+@import "@fontsource-variable/markazi-text";
+@import "@fontsource-variable/noto-kufi-arabic";
+@import "@fontsource/amiri/400.css";
+@import "@fontsource/amiri/700.css";
+@import "@fontsource/ibm-plex-sans-arabic/400.css";
+@import "@fontsource/ibm-plex-sans-arabic/500.css";
+@import "@fontsource/ibm-plex-sans-arabic/700.css";
+@import "@fontsource/tajawal/400.css";
+@import "@fontsource/tajawal/500.css";
+@import "@fontsource/tajawal/700.css";
+@import "@fontsource/tajawal/800.css";
+
+/* The public site's own vocabulary. Colours come from the section's scheme
+   variables and faces from the theme's; nothing here is a fixed colour. */
+.site-root {
+  container: site / inline-size;
+  background: var(--s-canvas);
+  color: var(--s-ink);
+  font-family: var(--s-font-body);
+  line-height: var(--s-line);
+}
+.site-section {
+  background: var(--s-bg);
+  color: var(--s-fg);
+  /* The app's own tokens, for shared components drawn inside a section. */
+  --background: var(--s-bg);
+  --foreground: var(--s-fg);
+  --card: var(--s-card);
+  --card-foreground: var(--s-fg);
+  --border: var(--s-border);
+  --muted-foreground: var(--s-muted);
+  --primary: var(--s-link);
+}
+.site-heading {
+  font-family: var(--s-font-heading);
+  color: var(--s-heading);
+  text-transform: var(--s-heading-case);
+  letter-spacing: var(--s-heading-tracking);
+  line-height: 1.15;
+  font-weight: 650;
+  text-wrap: balance;
+}
+.site-display {
+  font-size: clamp(2.25rem, 1.4rem + 4.2cqi, 4.75rem);
+}
+.site-h2 {
+  font-size: clamp(1.6rem, 1.2rem + 1.8cqi, 2.6rem);
+}
+.site-h3 {
+  font-size: clamp(1.1rem, 1rem + 0.5cqi, 1.35rem);
+  line-height: 1.3;
+}
+.site-eyebrow {
+  font-size: 0.8rem;
+  font-weight: 600;
+  letter-spacing: var(--s-heading-tracking);
+  color: var(--s-muted);
+  text-transform: var(--s-heading-case);
+}
+.site-muted {
+  color: var(--s-muted);
+}
+.site-card {
+  background: var(--s-card);
+  border: 1px solid var(--s-border);
+  border-radius: var(--s-radius);
+}
+.site-media {
+  border-radius: var(--s-radius);
+  object-fit: cover;
+  width: 100%;
+  height: 100%;
+}
+.site-button {
+  display: inline-flex;
+  min-height: 2.75rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  padding-inline: 1.25rem;
+  border-radius: var(--s-button-radius);
+  background: var(--s-btn);
+  color: var(--s-btn-fg);
+  font-weight: 600;
+  font-size: 0.95rem;
+  transition: filter 150ms;
+}
+.site-button:hover {
+  filter: brightness(1.08);
+}
+.site-button[data-variant="secondary"] {
+  background: transparent;
+  color: var(--s-fg);
+  box-shadow: inset 0 0 0 1.5px currentColor;
+}
+.site-link {
+  color: var(--s-link);
+  font-weight: 600;
+  text-underline-offset: 0.2em;
+}
+.site-link:hover {
+  text-decoration: underline;
+}
+.site-root :focus-visible {
+  outline: 2px solid var(--s-link, currentColor);
+  outline-offset: 3px;
+}
+.site-prose {
+  color: var(--s-fg);
+}
+.site-prose h2,
+.site-prose h3 {
+  font-family: var(--s-font-heading);
+  color: var(--s-heading);
+}
+.site-prose a {
+  color: var(--s-link);
+}
+@media (prefers-reduced-motion: reduce) {
+  .site-root * {
+    scroll-behavior: auto !important;
+    transition: none !important;
+  }
+}

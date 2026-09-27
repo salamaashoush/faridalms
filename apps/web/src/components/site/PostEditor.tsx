@@ -22,11 +22,12 @@ import * as m from "~/i18n/messages";
 import { publishSitePost, saveSitePost } from "~/server/site";
 import { getMessageFromError } from "~/utils/error";
 
-import type { Languages } from "./SectionFields";
+import type { Languages } from "./studio/draft";
 
-import { ISSUE_LABEL, LOCALE_NAME } from "./format";
+import { LOCALE_NAME } from "./format";
 import { History } from "./History";
 import { PictureField } from "./PictureField";
+import { ISSUE_LABEL } from "./studio/labels";
 
 type Existing = Awaited<
   ReturnType<NonNullable<ReturnType<typeof sitePostQuery>["queryFn"]>>

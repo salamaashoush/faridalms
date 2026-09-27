@@ -19,6 +19,7 @@ import { useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { siteOverviewQuery, sitePostsQuery } from "~/queries/site";
 import { currentUserQuery } from "~/queries/user";
+import siteCss from "~/styles/site.css?url";
 
 const TABS = ["pages", "posts", "categories", "settings"] as const;
 
@@ -50,6 +51,7 @@ export const Route = createFileRoute("/_app/admin/site")({
         : null,
     ]);
   },
+  head: () => ({ links: [{ rel: "stylesheet", href: siteCss }] }),
   component: WebsitePage,
 });
 

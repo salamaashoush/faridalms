@@ -89,8 +89,27 @@
         "@faridalms/api-client": "workspace:*",
         "@faridalms/domain": "workspace:*",
         "@faridalms/editor": "workspace:*",
+        "@fontsource-variable/alexandria": "^5.3.0",
+        "@fontsource-variable/baloo-bhaijaan-2": "^5.3.0",
+        "@fontsource-variable/cairo": "^5.3.0",
+        "@fontsource-variable/cormorant-garamond": "^5.3.0",
+        "@fontsource-variable/el-messiri": "^5.3.0",
+        "@fontsource-variable/fraunces": "^5.3.0",
+        "@fontsource-variable/ibm-plex-sans": "^5.3.0",
         "@fontsource-variable/inter": "^5.3.0",
+        "@fontsource-variable/markazi-text": "^5.3.0",
+        "@fontsource-variable/noto-kufi-arabic": "^5.3.0",
+        "@fontsource-variable/noto-naskh-arabic": "^5.3.0",
+        "@fontsource-variable/noto-sans": "^5.3.0",
         "@fontsource-variable/noto-sans-arabic": "^5.3.0",
+        "@fontsource-variable/nunito-sans": "^5.3.0",
+        "@fontsource-variable/plus-jakarta-sans": "^5.3.0",
+        "@fontsource-variable/readex-pro": "^5.3.0",
+        "@fontsource-variable/rubik": "^5.3.0",
+        "@fontsource-variable/source-sans-3": "^5.3.0",
+        "@fontsource/amiri": "^5.3.0",
+        "@fontsource/ibm-plex-sans-arabic": "^5.3.0",
+        "@fontsource/tajawal": "^5.3.0",
         "@fullcalendar/core": "^7.1.0",
         "@fullcalendar/react": "^7.1.0",
         "@hocuspocus/provider": "^4.7.0",
@@ -370,9 +389,47 @@
 
     "@floating-ui/utils": ["@floating-ui/utils@0.2.12", "", {}, "sha512-HpCo8tmWzLVad5s2d19EhAz5zqrrQ6s69qd6moPMQvkOuSwDT1YgRfWSVuc4ennqrgv3OHppiOGMQ7oC13yIww=="],
 
+    "@fontsource-variable/alexandria": ["@fontsource-variable/alexandria@5.3.0", "", {}, "sha512-SIMkP0elELBKNl58Ak7IhTeLQqclV9ziwC/BAAF7n26cBIuz5kNFQdCUmbaHxLJW1WZlGbfK6WE3rdFmuJHC5A=="],
+
+    "@fontsource-variable/baloo-bhaijaan-2": ["@fontsource-variable/baloo-bhaijaan-2@5.3.0", "", {}, "sha512-StJtquhPlMmOyv/wUN7lATgXSG56gJfG3YQ5fltULrgydL4DqgW5/3vJX9ArWyanjN/V6ShoGKwjjlP+fSTIOQ=="],
+
+    "@fontsource-variable/cairo": ["@fontsource-variable/cairo@5.3.0", "", {}, "sha512-zkxIsVQ406AJXD1qaldeOj+CIsMzRMXRT2x6fkYjNJE2DFsqGMzNGFhdrZdZagq3qX9JwaMaZetMc7/oUlpfpg=="],
+
+    "@fontsource-variable/cormorant-garamond": ["@fontsource-variable/cormorant-garamond@5.3.0", "", {}, "sha512-rgZJ/5w3hi60swAPnrOXpZf5wEH6NTrvm4H8D9Y4b1QIFUqlX14eM3QTMU/eAznjfh0eXpO1QUqsFhiy58aoMg=="],
+
+    "@fontsource-variable/el-messiri": ["@fontsource-variable/el-messiri@5.3.0", "", {}, "sha512-N5tqDwWLQa/PguZdOkYqSRchVDzoGCi7Hu7XNYnF/5rVp5/dIsEDVQ78D/el/3pgFloKiWiWIKbVMLCbvVevLA=="],
+
+    "@fontsource-variable/fraunces": ["@fontsource-variable/fraunces@5.3.0", "", {}, "sha512-9BYGySn4AHEJdgp9Z28tQ3X+laJMEOITXkQarZXeloWQZDq5oOvXJ3kDA8c7MGIfpogIaZfjrQBqmda8POOCKA=="],
+
+    "@fontsource-variable/ibm-plex-sans": ["@fontsource-variable/ibm-plex-sans@5.3.0", "", {}, "sha512-agG8tXFEo0hD9+J7npa4vbbWult52eMLVaQ6WQRlhs/iCAojrMAoejru85W9HTVXHfyUj96KM7gp/KGAS87XaQ=="],
+
     "@fontsource-variable/inter": ["@fontsource-variable/inter@5.3.0", "", {}, "sha512-OupL48va4JNofb97w6NYeF9S7W/kHNKM0Er8Dem5nqi4jeOLrVJDoE8tZEpnMJmtkvNbB1EIPPwHcdkF6b1oUA=="],
 
+    "@fontsource-variable/markazi-text": ["@fontsource-variable/markazi-text@5.3.0", "", {}, "sha512-Lg63OxmiMdTH/cDgXQ4cn9d5zVsvtf5+aGzHFFdTcDM6qbz0K6Liu/YBeTjFp6nE+5b3ElIaziPSaGXZXyDtJQ=="],
+
+    "@fontsource-variable/noto-kufi-arabic": ["@fontsource-variable/noto-kufi-arabic@5.3.0", "", {}, "sha512-I2VKOHPcXg2ltFjSnVY7tfhI/gpWl+kuKzDdC8mv9lSlNQOgbSZBbKSrARDNVJ/d4tWS5ma1POH6OczJV9HL5w=="],
+
+    "@fontsource-variable/noto-naskh-arabic": ["@fontsource-variable/noto-naskh-arabic@5.3.0", "", {}, "sha512-Ot0G5iln5MeLPKp1WNt6AGi4KHbPIVm0GEow2ED6rZ+8Rao+OuswhX4D+RPerc3aQ6teneLdqXSL8VPGorJvGg=="],
+
+    "@fontsource-variable/noto-sans": ["@fontsource-variable/noto-sans@5.3.0", "", {}, "sha512-e3ZuxzY9AL2psXPZlhwhnYrHUHv6PMoyK9MQ7croF0CUgURLqu9EMjW7q2FgVLwij1tjLsIHQrnwQ8aUcg4BiA=="],
+
     "@fontsource-variable/noto-sans-arabic": ["@fontsource-variable/noto-sans-arabic@5.3.0", "", {}, "sha512-Rz8+DBzza3//cmN+DBQajJhx3x+Dx12eUgnQsTOgPWbOT0+In6APmE8z4I/QQnUWfAx+s8l93+60qDT5vJH1sA=="],
+
+    "@fontsource-variable/nunito-sans": ["@fontsource-variable/nunito-sans@5.3.0", "", {}, "sha512-Vk1PSfckNDwgw2yGcsvJP3o/0zEW8Rp6KzbD8Ql/6iRHQshnhhAjt+cSIfAUyp5vQuSlleGHFW2LfYaaex0diw=="],
+
+    "@fontsource-variable/plus-jakarta-sans": ["@fontsource-variable/plus-jakarta-sans@5.3.0", "", {}, "sha512-/l/4r0yyWK9JzAlmA0LiYgGgmJe/Gswt4jTJEzr5QhJfwMbvJZDmYWyW0M4X7yCK69BajMVlV/Lx8g7WDc1+sw=="],
+
+    "@fontsource-variable/readex-pro": ["@fontsource-variable/readex-pro@5.3.0", "", {}, "sha512-ebrEcz8sjzQk92x6K3WtYzOgEKTIDe5D+iPqef0YYvPdqCfxzVkRgpsog5POX4sWa7e4wccCQ1IhmMuRka2hZg=="],
+
+    "@fontsource-variable/rubik": ["@fontsource-variable/rubik@5.3.0", "", {}, "sha512-yQUf8qle24MJYA+EuauyF+cqjjN6I715nGjitt3sGmwZA0XfA4fWJcLq1C/diREZl4Qzn1E80nLMc0ipC/a4Lg=="],
+
+    "@fontsource-variable/source-sans-3": ["@fontsource-variable/source-sans-3@5.3.0", "", {}, "sha512-dpi0GZk7EQe2tYpg6Q0Fx0OmUgnuGu+0rHPgtXqtKhglYmJuP7jZ12Mu1uN+NfRaJRY1Emn8AQJEWzmoZ4wa9g=="],
+
+    "@fontsource/amiri": ["@fontsource/amiri@5.3.0", "", {}, "sha512-i4SWJnVIphj8556EdVzNrEG/Qu82k6JXjXTtSUIohx3tHmo2GHw1Kv60TWo+xjk7Yf1Etb2Gskh0lUFclTKyUw=="],
+
+    "@fontsource/ibm-plex-sans-arabic": ["@fontsource/ibm-plex-sans-arabic@5.3.0", "", {}, "sha512-ZZ4g+JDgQY0NqSh4o0MNWU1sHQmtcee1g++aKAwyJvZxnT5y51JXsN1cIXnaQaMd40dcbK6QFYa+Z1LbaiNuqA=="],
+
+    "@fontsource/tajawal": ["@fontsource/tajawal@5.3.0", "", {}, "sha512-R2GUdHHAebeZ+CyYvulaSECfZe3BWbNjEWX3TXG0Csnx4RADO/zyqk6Y//NYdSx5n74zRJh9HTvd61mpX/UzZQ=="],
 
     "@full-ui/headless-calendar": ["@full-ui/headless-calendar@7.1.0", "", { "peerDependencies": { "temporal-polyfill": "^1.0.1" } }, "sha512-T54tSUik/ia9Jj4xduFHv1p98eVBgLnE33Q6qhpg+WWkqKCLBCbtVyMcTPPIOP5jjTV2MbtjrRvRt1RLSryGHA=="],
 

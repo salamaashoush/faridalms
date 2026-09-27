@@ -2,15 +2,18 @@ import { expect, test } from "@playwright/test";
 
 import { signIn, untilHydrated } from "./fixtures/sign-in";
 
-test("an administrator publishes a bilingual page and visitors read it in either language", async ({
+test("an administrator builds a bilingual page from sections and visitors read it in either language", async ({
   browser,
   page,
 }) => {
   const tag = crypto.randomUUID().slice(0, 6);
   const title = `Clubs ${tag}`;
   await signIn(page, "admin");
-  await page.goto("/admin/site-page-editor");
+  await page.goto("/admin/site");
   await untilHydrated(page);
+  await page.getByRole("link", { name: "New page" }).click();
+  await page.getByRole("button", { name: /^Blank/ }).click();
+
   await page.getByRole("textbox", { name: "Title (English)" }).fill(title);
   await page
     .getByRole("textbox", { name: "Title (Arabic)" })
@@ -18,21 +21,29 @@ test("an administrator publishes a bilingual page and visitors read it in either
   await expect(page.getByRole("textbox", { name: "Address slug" })).toHaveValue(
     `clubs-${tag}`,
   );
+
+  await page.getByRole("tab", { name: "Sections" }).click();
   await page.getByRole("button", { name: "Add section" }).click();
-  await page.getByRole("menuitem", { name: "Words", exact: true }).click();
-  await page
-    .getByRole("textbox", { name: "Heading, English" })
-    .fill("After school");
-  await page
-    .getByRole("textbox", { name: "Heading, Arabic" })
-    .fill("بعد المدرسة");
-  await page.locator("[contenteditable=true]").first().click();
-  await page.keyboard.type("Chess and robotics run on Tuesdays.");
-  await page.locator("[contenteditable=true]").nth(1).click();
-  await page.keyboard.type("الشطرنج والروبوتات يوم الثلاثاء.");
+  await page.getByRole("button", { name: "Add Text: Narrow" }).click();
+  const heading = page.getByRole("textbox", { name: "Heading", exact: true });
+  await heading.fill("After school");
+  const body = page.locator("[contenteditable=true]").first();
+  await expect(body).toContainText("Write a few paragraphs");
+  await body.fill("Chess and robotics run on Tuesdays.");
+  await expect(
+    page.getByRole("main", { name: "Page preview" }).getByText("After school"),
+  ).toBeVisible();
+
+  await page.getByRole("button", { name: "Arabic", exact: true }).click();
+  await heading.fill("بعد المدرسة");
+  await expect(body).toContainText("اكتب بضع فقرات");
+  await body.fill("الشطرنج والروبوتات يوم الثلاثاء.");
+
   await page.getByRole("button", { name: "Publish", exact: true }).click();
-  await expect(page).toHaveURL(/\/admin\/site$/);
-  await expect(page.getByRole("link", { name: title })).toBeVisible();
+  await expect(
+    page.getByText("Published", { exact: true }).first(),
+  ).toBeVisible();
+  await expect(page).toHaveURL(/site-page-editor\?id=/);
 
   const visitorContext = await browser.newContext();
   const visitor = await visitorContext.newPage();
@@ -60,4 +71,18 @@ test("an administrator publishes a bilingual page and visitors read it in either
     visitor.getByRole("link", { name: /Welcome back/ }),
   ).toBeVisible();
   await visitorContext.close();
+});
+
+test("the home page opens with its hero and the school's actions", async ({
+  page,
+}) => {
+  await page.goto("/site/northwind");
+  await expect(page.getByRole("heading", { level: 1 })).toHaveCount(1);
+  await expect(
+    page.getByRole("navigation", { name: "Site navigation" }).first(),
+  ).toBeVisible();
+  await expect(page.getByRole("link", { name: "Apply" }).first()).toBeVisible();
+  await page.getByRole("link", { name: "العربية" }).first().click();
+  await expect(page).toHaveURL(/lang=ar/);
+  await expect(page.locator("html [dir=rtl]").first()).toBeVisible();
 });

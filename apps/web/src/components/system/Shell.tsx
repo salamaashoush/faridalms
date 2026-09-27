@@ -405,6 +405,17 @@ export function Shell({
   children: ReactNode;
   sidebarOpen?: boolean;
 }) {
+  const immersive = useRouterState({
+    select: (state) => state.matches.at(-1)?.staticData.immersive ?? false,
+  });
+  if (immersive)
+    return (
+      <PageActionsProvider>
+        <main id="main" className="h-dvh overflow-hidden bg-background">
+          {children}
+        </main>
+      </PageActionsProvider>
+    );
   return (
     <SidebarProvider defaultOpen={sidebarOpen}>
       <PageActionsProvider>

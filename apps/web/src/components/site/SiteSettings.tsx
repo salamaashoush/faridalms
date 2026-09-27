@@ -106,6 +106,8 @@ export function SiteSettings({ settings }: { settings: Settings }) {
       saveSiteSettings({
         data: {
           ...draft,
+          theme: settings.theme,
+          chrome: settings.chrome,
           expectedVersion: settings.version,
           socialLinks: draft.socialLinks.filter((link) => link.url.trim()),
           bannerUntil: draft.bannerUntil

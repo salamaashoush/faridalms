@@ -1,10 +1,9 @@
 import { SITE_LOCALES } from "@faridalms/domain/website";
-import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, Outlet } from "@tanstack/react-router";
 import * as v from "valibot";
 
-import { SiteShell } from "~/components/site/SiteShell";
 import { publicSiteQuery } from "~/queries/site";
+import siteCss from "~/styles/site.css?url";
 
 /** A school's public website. No one signs in here; the address names the school. */
 export const Route = createFileRoute("/site/$school")({
@@ -18,17 +17,7 @@ export const Route = createFileRoute("/site/$school")({
     ),
   head: ({ loaderData }) => ({
     meta: loaderData ? [{ title: loaderData.name }] : [],
+    links: [{ rel: "stylesheet", href: siteCss }],
   }),
-  component: SiteLayout,
+  component: Outlet,
 });
-
-function SiteLayout() {
-  const { school } = Route.useParams();
-  const { lang } = Route.useSearch();
-  const site = useSuspenseQuery(publicSiteQuery(school, lang)).data;
-  return (
-    <SiteShell site={site} school={school}>
-      <Outlet />
-    </SiteShell>
-  );
-}

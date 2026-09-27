@@ -1,4 +1,5 @@
 import {
+  applyStarterSchema,
   movePageSchema,
   postsQuerySchema,
   publicPageSchema,
@@ -27,6 +28,10 @@ export const getSiteOverview = createServerFn({ method: "GET" }).handler(() =>
 export const saveSiteSettings = createServerFn({ method: "POST" })
   .validator(checked(saveSettingsSchema))
   .handler(({ data }) => backend().site.saveSettings(data));
+
+export const applySiteStarter = createServerFn({ method: "POST" })
+  .validator(checked(applyStarterSchema))
+  .handler(({ data }) => backend().site.applyStarter(data));
 
 export const getSitePage = createServerFn({ method: "GET" })
   .validator(byId)

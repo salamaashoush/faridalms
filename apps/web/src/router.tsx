@@ -50,6 +50,8 @@ declare module "@tanstack/react-router" {
      * viewer's navigation holds wins.
      */
     section?: string | readonly string[];
+    /** The page takes the whole window, without the sidebar or top bar. */
+    immersive?: boolean;
   }
   interface Register {
     router: ReturnType<typeof getRouter>;

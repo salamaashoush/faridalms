@@ -12,6 +12,11 @@ export const Route = createFileRoute("/site/$school/")({
     context.queryClient.ensureQueryData(
       publicPageQuery(params.school, "", deps.lang),
     ),
+  head: ({ loaderData }) => ({
+    meta: loaderData?.description
+      ? [{ name: "description", content: loaderData.description }]
+      : [],
+  }),
   component: HomePage,
 });
 

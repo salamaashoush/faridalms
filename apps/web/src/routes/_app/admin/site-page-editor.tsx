@@ -1,17 +1,29 @@
+import { PAGE_TEMPLATE_IDS } from "@faridalms/domain/site-templates";
+import { resolveTheme } from "@faridalms/domain/site-theme";
 import { WORKSPACE_HOME } from "@faridalms/domain/workspace";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, redirect } from "@tanstack/react-router";
+import { ArrowLeft } from "lucide-react";
 import * as v from "valibot";
 
-import { BreadcrumbCurrent } from "~/components/app/WorkspaceBreadcrumb";
-import { PageEditor } from "~/components/site/PageEditor";
+import { ButtonLink } from "~/components/app/ButtonLink";
+import { TemplateGallery } from "~/components/site/studio/Gallery";
+import { SiteStudio } from "~/components/site/studio/Studio";
+import { useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { siteOverviewQuery, sitePageQuery } from "~/queries/site";
 import { currentUserQuery } from "~/queries/user";
+import siteCss from "~/styles/site.css?url";
+
+const PANELS = ["sections", "page", "styles", "frame"] as const;
 
 export const Route = createFileRoute("/_app/admin/site-page-editor")({
-  staticData: { trail: <EditorTrail />, section: "/admin/site" },
-  validateSearch: v.object({ id: v.optional(v.pipe(v.string(), v.uuid())) }),
+  staticData: { section: "/admin/site", immersive: true },
+  validateSearch: v.object({
+    id: v.optional(v.pipe(v.string(), v.uuid())),
+    template: v.optional(v.picklist(PAGE_TEMPLATE_IDS)),
+    panel: v.optional(v.picklist(PANELS)),
+  }),
   loaderDeps: ({ search }) => ({ id: search.id }),
   loader: async ({ context, deps }) => {
     const user = await context.queryClient.ensureQueryData(currentUserQuery);
@@ -24,41 +36,83 @@ export const Route = createFileRoute("/_app/admin/site-page-editor")({
         : null,
     ]);
   },
+  head: () => ({
+    meta: [{ title: m.siteBuilderTitle() }],
+    links: [{ rel: "stylesheet", href: siteCss }],
+  }),
   component: EditorPage,
 });
 
-function EditorTrail() {
-  const { id } = Route.useSearch();
-  return (
-    <BreadcrumbCurrent>
-      {id ? m.siteEditPage() : m.siteNewPage()}
-    </BreadcrumbCurrent>
-  );
-}
-
-function ExistingEditor({ id, onClose }: { id: string; onClose: () => void }) {
+function ExistingStudio({ id }: { id: string }) {
+  const { panel } = Route.useSearch();
   const existing = useSuspenseQuery(sitePageQuery(id)).data;
   const overview = useSuspenseQuery(siteOverviewQuery).data;
   return (
-    <PageEditor
-      key={`${existing.id}-${existing.version}-${existing.revision}`}
+    <SiteStudio
+      key={existing.id}
       existing={existing}
       overview={overview}
-      onClose={onClose}
+      template={null}
+      initialPanel={panel}
     />
   );
 }
 
-function EditorPage() {
-  const { id } = Route.useSearch();
+/** A new page starts from a template, each drawn in the site's own theme. */
+function TemplateChooser() {
+  const user = useCurrentUser();
   const navigate = Route.useNavigate();
   const overview = useSuspenseQuery(siteOverviewQuery).data;
-  const close = () => {
-    void navigate({ to: "/admin/site", search: {} });
-  };
-  return id ? (
-    <ExistingEditor id={id} onClose={close} />
-  ) : (
-    <PageEditor existing={null} overview={overview} onClose={close} />
+  const locale = overview.settings.primaryLocale;
+  return (
+    <div className="h-dvh overflow-y-auto">
+      <header className="sticky top-0 z-10 flex h-14 items-center gap-2 border-b bg-background/95 px-3 backdrop-blur">
+        <ButtonLink
+          to="/admin/site"
+          variant="ghost"
+          size="icon"
+          className="max-md:size-10"
+          aria-label={m.siteBackToWebsite()}
+        >
+          <ArrowLeft aria-hidden className="rtl:rotate-180" />
+        </ButtonLink>
+        <h1 className="text-base font-semibold">{m.siteChooseTemplate()}</h1>
+      </header>
+      <div className="mx-auto grid max-w-7xl gap-6 px-4 py-8 sm:px-6">
+        <p className="max-w-2xl text-muted-foreground">
+          {m.siteChooseTemplateHint()}
+        </p>
+        <TemplateGallery
+          context={{
+            school: user.school.slug,
+            locale,
+            theme: resolveTheme(overview.settings.theme),
+            fileUrl: (fileId) => `/files/${fileId}`,
+            news: overview.news[locale],
+            contact: overview.school.contact,
+            editing: true,
+          }}
+          onPick={(template) =>
+            void navigate({ search: { template }, replace: true })
+          }
+        />
+      </div>
+    </div>
+  );
+}
+
+function EditorPage() {
+  const { id, template, panel } = Route.useSearch();
+  const overview = useSuspenseQuery(siteOverviewQuery).data;
+  if (id) return <ExistingStudio id={id} />;
+  if (!template) return <TemplateChooser />;
+  return (
+    <SiteStudio
+      key={template}
+      existing={null}
+      overview={overview}
+      template={template}
+      initialPanel={panel ?? "page"}
+    />
   );
 }

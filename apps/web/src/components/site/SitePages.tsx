@@ -7,10 +7,13 @@ import {
   FileText,
   IndentDecrease,
   IndentIncrease,
+  Paintbrush,
   Pencil,
   Plus,
+  Sparkles,
   Trash2,
 } from "lucide-react";
+import { useState } from "react";
 import { toast } from "sonner";
 
 import type { Column, RowAction } from "~/components/system/DataTable";
@@ -20,11 +23,21 @@ import { ButtonLink } from "~/components/app/ButtonLink";
 import { Value } from "~/components/app/primitives";
 import { DataTable, RowLink } from "~/components/system/DataTable";
 import { StatusText } from "~/components/system/status";
+import { Button } from "~/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "~/components/ui/dialog";
+import { useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { moveSitePage, removeSitePage, unpublishSitePage } from "~/server/site";
 import { getMessageFromError } from "~/utils/error";
 
 import { STATE_LABEL, STATE_TONE } from "./format";
+import { Starters } from "./Starters";
 
 type Overview = Awaited<
   ReturnType<NonNullable<(typeof siteOverviewQuery)["queryFn"]>>
@@ -119,6 +132,8 @@ const pageCard = (primary: "en" | "ar") => ({
 
 /** The site's pages as its menu tree: reorder, nest, publish and open each. */
 export function SitePages({ overview }: { overview: Overview }) {
+  const user = useCurrentUser();
+  const [starting, setStarting] = useState(false);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const primary = overview.settings.primaryLocale;
@@ -228,11 +243,63 @@ export function SitePages({ overview }: { overview: Overview }) {
       {m.siteNewPage()}
     </ButtonLink>
   );
+  const home = overview.pages.find((page) => page.isHome);
+  const locale = overview.settings.primaryLocale;
+  const starters = (hasPages: boolean) => (
+    <Starters
+      locale={locale}
+      school={user.school.slug}
+      news={overview.news[locale]}
+      contact={overview.school.contact}
+      hasPages={hasPages}
+    />
+  );
+  if (rows.length === 0)
+    return (
+      <div className="grid gap-6">
+        <div className="flex flex-wrap items-end justify-between gap-4">
+          <div className="grid max-w-2xl gap-1">
+            <h2 className="text-lg font-semibold">{m.siteStartersTitle()}</h2>
+            <p className="text-sm text-muted-foreground">
+              {m.siteStartersHint()}
+            </p>
+          </div>
+          <ButtonLink
+            to="/admin/site-page-editor"
+            search={{}}
+            variant="outline"
+          >
+            <Plus aria-hidden />
+            {m.siteStartBlank()}
+          </ButtonLink>
+        </div>
+        {starters(false)}
+      </div>
+    );
   return (
     <div className="grid gap-4">
-      {rows.length > 0 ? (
-        <div className="flex justify-end">{create}</div>
-      ) : null}
+      <div className="flex flex-wrap justify-end gap-2">
+        <Button
+          type="button"
+          variant="outline"
+          className="max-md:h-10"
+          onClick={() => setStarting(true)}
+        >
+          <Sparkles aria-hidden />
+          {m.siteUseAStarter()}
+        </Button>
+        {home ? (
+          <ButtonLink
+            to="/admin/site-page-editor"
+            search={{ id: home.id, panel: "styles" }}
+            variant="outline"
+          >
+            <Paintbrush aria-hidden />
+            {m.siteDesignSite()}
+          </ButtonLink>
+        ) : null}
+        {create}
+      </div>
       <DataTable
         caption={m.sitePagesCaption()}
         rows={rows}
@@ -247,6 +314,17 @@ export function SitePages({ overview }: { overview: Overview }) {
           action: create,
         }}
       />
+      <Dialog open={starting} onOpenChange={setStarting}>
+        <DialogContent className="max-h-[calc(100dvh-2rem)] overflow-y-auto sm:max-w-[min(1100px,calc(100%-2rem))]">
+          <DialogHeader>
+            <DialogTitle>{m.siteStartersTitle()}</DialogTitle>
+            <DialogDescription>
+              {m.siteStartersExistingHint()}
+            </DialogDescription>
+          </DialogHeader>
+          {starters(true)}
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

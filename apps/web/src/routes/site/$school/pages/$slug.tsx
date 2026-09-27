@@ -13,7 +13,14 @@ export const Route = createFileRoute("/site/$school/pages/$slug")({
       publicPageQuery(params.school, params.slug, deps.lang),
     ),
   head: ({ loaderData }) => ({
-    meta: loaderData ? [{ title: loaderData.title }] : [],
+    meta: loaderData
+      ? [
+          { title: loaderData.title },
+          ...(loaderData.description
+            ? [{ name: "description", content: loaderData.description }]
+            : []),
+        ]
+      : [],
   }),
   component: SitePage,
 });

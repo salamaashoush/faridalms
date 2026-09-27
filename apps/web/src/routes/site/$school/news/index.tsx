@@ -8,7 +8,7 @@ import {
 } from "@tanstack/react-router";
 import * as v from "valibot";
 
-import { PostList } from "~/components/site/PublicPage";
+import { NewsFrame, PostList } from "~/components/site/PublicPage";
 import { langSearch } from "~/components/site/SiteShell";
 import * as m from "~/i18n/messages";
 import { publicPostsQuery, publicSiteQuery } from "~/queries/site";
@@ -45,7 +45,7 @@ export const Route = createFileRoute("/site/$school/news/")({
 });
 
 const chip =
-  "inline-flex min-h-9 items-center rounded-full border px-3 text-sm hover:bg-muted aria-[current=true]:border-primary aria-[current=true]:bg-primary/10 aria-[current=true]:text-primary";
+  "inline-flex min-h-10 items-center rounded-full border border-[var(--s-border)] px-4 text-sm font-medium hover:bg-[var(--s-card)] aria-[current=true]:border-[var(--s-btn)] aria-[current=true]:bg-[var(--s-btn)] aria-[current=true]:text-[var(--s-btn-fg)]";
 
 function NewsPage() {
   const { school } = Route.useParams();
@@ -67,10 +67,7 @@ function NewsPage() {
     page: change.page ?? 1,
   });
   return (
-    <div className="grid gap-8">
-      <h1 className="text-3xl leading-tight font-semibold tracking-tight sm:text-4xl">
-        {m.siteNews({}, t)}
-      </h1>
+    <NewsFrame site={shell} school={school} title={m.siteNews({}, t)}>
       {shell.categories.length ? (
         <nav aria-label={m.siteCategories({}, t)}>
           <ul className="flex flex-wrap gap-2">
@@ -121,7 +118,7 @@ function NewsPage() {
           >
             {m.sitePrevious({}, t)}
           </Link>
-          <span className="text-sm text-muted-foreground">
+          <span className="site-muted text-sm">
             {m.sitePageOf({ page: search.page, pages }, t)}
           </span>
           <Link
@@ -138,6 +135,6 @@ function NewsPage() {
           </Link>
         </nav>
       ) : null}
-    </div>
+    </NewsFrame>
   );
 }
