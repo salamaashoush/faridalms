@@ -1,6 +1,7 @@
 import type { PageSection, SiteLocale } from "@faridalms/domain/site-sections";
 import type { LucideIcon } from "lucide-react";
 
+import { withoutEmphasis } from "@faridalms/domain/site-sections";
 import {
   Award,
   Blocks,
@@ -84,7 +85,8 @@ function gist(section: PageSection): string {
   const data = section.data as Record<string, unknown>;
   for (const key of ["heading", "text", "quote"]) {
     const words = data[key];
-    if (typeof words === "string" && words.trim()) return words;
+    if (typeof words === "string" && words.trim())
+      return withoutEmphasis(words);
   }
   return "";
 }

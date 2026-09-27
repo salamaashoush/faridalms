@@ -126,7 +126,7 @@
     font-weight: 850;
   }
   .site-root[data-emphasis="colour"] .site-em {
-    color: var(--s-link);
+    color: var(--s-em, var(--s-link));
   }
   .site-root[data-emphasis="highlight"] .site-em {
     padding-inline: 0.12em;

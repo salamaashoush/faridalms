@@ -7,6 +7,7 @@ import type {
 } from "@faridalms/domain/site-sections";
 import type { CSSProperties, FormEvent } from "react";
 
+import { withoutEmphasis } from "@faridalms/domain/site-sections";
 import { useHydrated } from "@tanstack/react-router";
 import {
   ArrowRight,
@@ -84,6 +85,7 @@ const OVER_PICTURE = {
   "--s-btn": "#fff",
   "--s-btn-fg": "#111",
   "--s-border": "rgba(255,255,255,.35)",
+  "--s-em": "var(--s-accent)",
 } as CSSProperties;
 
 const Arrow = ({ className }: { className?: string }) => (
@@ -313,7 +315,7 @@ function Slides({ section, context, first }: Props<"slides">) {
     return (
       <section
         aria-roledescription="carousel"
-        aria-label={slides[0]?.heading}
+        aria-label={withoutEmphasis(slides[0]?.heading ?? "")}
         className="grid items-center gap-10 @4xl/site:grid-cols-2 @4xl/site:gap-16"
       >
         <div className="grid">
@@ -361,7 +363,7 @@ function Slides({ section, context, first }: Props<"slides">) {
   return (
     <section
       aria-roledescription="carousel"
-      aria-label={slides[0]?.heading}
+      aria-label={withoutEmphasis(slides[0]?.heading ?? "")}
       className={cn(
         "relative isolate grid overflow-hidden",
         HEIGHT[data.height],

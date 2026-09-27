@@ -87,9 +87,9 @@ function StarterCard({
           })}
         </p>
         <div className="flex gap-1">
-          {Object.values(THEMES[plan.theme].palette).map((colour) => (
+          {Object.entries(THEMES[plan.theme].palette).map(([role, colour]) => (
             <span
-              key={colour}
+              key={role}
               className="size-4 rounded-full border border-black/10"
               style={{ background: colour }}
             />

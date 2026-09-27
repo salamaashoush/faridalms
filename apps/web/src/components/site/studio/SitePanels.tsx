@@ -131,9 +131,9 @@ function ThemeCard({
           {THEME_HINT[id]()}
         </span>
         <span className="mt-0.5 flex gap-1">
-          {Object.values(theme.palette).map((colour) => (
+          {Object.entries(theme.palette).map(([role, colour]) => (
             <span
-              key={colour}
+              key={role}
               className="size-3.5 rounded-full border border-black/10"
               style={{ background: colour }}
             />

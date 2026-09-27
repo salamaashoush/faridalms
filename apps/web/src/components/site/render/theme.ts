@@ -107,6 +107,7 @@ export function schemeStyle(theme: Theme, scheme: SchemeId): CSSProperties {
 
 /** Words over a photograph or video read white on its darkened overlay. */
 export const overMediaStyle = {
+  "--s-em": "var(--s-accent)",
   "--s-fg": "#FFFFFF",
   "--s-heading": "#FFFFFF",
   "--s-muted": "rgba(255,255,255,0.82)",
