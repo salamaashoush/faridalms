@@ -156,7 +156,7 @@ function FamilyOverviewPage() {
                           <Link
                             to="/assignments/$assignmentId"
                             params={{ assignmentId: selected.nextDue.id }}
-                            search={{ studentId: selected.student.id }}
+                            search={{}}
                             className="hover:text-primary hover:underline"
                           >
                             {selected.nextDue.title}

@@ -21,11 +21,11 @@ import type { getMessage } from "~/server/school";
 
 import { PersonAvatar } from "~/components/admin/PersonAvatar";
 import { Value } from "~/components/app/primitives";
-import { fileSizeLabel } from "~/components/assignments/FileList";
 import { FileUploader } from "~/components/assignments/FileUploader";
 import { ContentEditor } from "~/components/content/ContentEditor";
 import { ContentView } from "~/components/content/ContentView";
 import { MarkdownContent } from "~/components/records/MarkdownContent";
+import { fileSizeLabel } from "~/components/system/FileList";
 import { Button } from "~/components/ui/button";
 import { useCurrentUser, useCapability } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";

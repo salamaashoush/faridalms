@@ -6,12 +6,11 @@ import { LoaderCircle, Upload, X } from "lucide-react";
 import { useId, useRef, useState } from "react";
 
 import { Field, FieldDescription, FieldLabel } from "~/components/app/field";
+import { FileList, fileSizeLabel } from "~/components/system/FileList";
 import { Button } from "~/components/ui/button";
 import * as m from "~/i18n/messages";
 import { initiateUpload } from "~/server/files";
 import { getMessageFromError } from "~/utils/error";
-
-import { FileList, fileSizeLabel } from "./FileList";
 
 interface Pending {
   key: string;

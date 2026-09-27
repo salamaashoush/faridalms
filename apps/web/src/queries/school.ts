@@ -4,7 +4,6 @@ import type {
   AssignmentsQuery,
   AttendanceRegisterQuery,
   CalendarQuery,
-  ClassScopedQuery,
   MessagesQuery,
   NewslettersQuery,
   StudentScopedQuery,
@@ -14,15 +13,12 @@ import { queryOptions } from "@tanstack/react-query";
 
 import {
   getAdminOverview,
-  getAssignmentDetail,
   getAssignments,
   getAttendance,
   getAttendanceRegister,
   getCalendar,
-  getClassAssignments,
   getFamilyOverview,
   getGrades,
-  getGradingQueue,
   getManagementOptions,
   getMessage,
   getMessages,
@@ -79,21 +75,6 @@ export function assignmentsQuery(query: AssignmentsQuery) {
   });
 }
 
-export function assignmentDetailQuery(id: string) {
-  return queryOptions({
-    queryKey: ["assignments", "detail", id],
-    queryFn: () => getAssignmentDetail({ data: { id } }),
-  });
-}
-
-export function classAssignmentsQuery(query: ClassScopedQuery) {
-  return queryOptions({
-    queryKey: ["assignments", "class", query],
-    queryFn: () => getClassAssignments({ data: query }),
-    placeholderData: (previous) => previous,
-  });
-}
-
 export function attendanceQuery(query: StudentScopedQuery) {
   return queryOptions({
     queryKey: ["attendance", query],
@@ -129,11 +110,6 @@ export function timetableQuery(query: StudentScopedQuery) {
 export const myClassesQuery = queryOptions({
   queryKey: ["classes", "mine"],
   queryFn: () => getMyClasses(),
-});
-
-export const gradingQueueQuery = queryOptions({
-  queryKey: ["grading", "queue"],
-  queryFn: () => getGradingQueue(),
 });
 
 export function managementOptionsQuery(query: ManagementOptionsInput) {

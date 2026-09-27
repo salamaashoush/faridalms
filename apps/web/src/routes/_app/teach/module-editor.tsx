@@ -3,19 +3,18 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import * as v from "valibot";
 
-import type { getAuthoringContext } from "~/server/assignments";
+import type { getModuleClasses } from "~/server/learning";
 
 import { ModuleWorkspace } from "~/components/learning/ModuleWorkspace";
 import * as m from "~/i18n/messages";
-import { authoringContextQuery } from "~/queries/assignments";
-import { moduleAuthoringQuery } from "~/queries/learning";
+import { moduleAuthoringQuery, moduleClassesQuery } from "~/queries/learning";
 
 export const Route = createFileRoute("/_app/teach/module-editor")({
   staticData: { breadcrumb: m.learningModuleDesign },
   validateSearch: v.object({ id: v.optional(v.pipe(v.string(), v.uuid())) }),
   loaderDeps: ({ search }) => search,
   loader: async ({ context, deps }) => {
-    await context.queryClient.ensureQueryData(authoringContextQuery(""));
+    await context.queryClient.ensureQueryData(moduleClassesQuery);
     if (deps.id)
       await context.queryClient.ensureQueryData(moduleAuthoringQuery(deps.id));
   },
@@ -24,9 +23,7 @@ export const Route = createFileRoute("/_app/teach/module-editor")({
 function EditorPage() {
   const { id } = Route.useSearch();
   const navigate = Route.useNavigate();
-  const {
-    data: { classes },
-  } = useSuspenseQuery(authoringContextQuery(""));
+  const { data: classes } = useSuspenseQuery(moduleClassesQuery);
   const close = () => {
     void navigate({ to: "/teach/modules" });
   };
@@ -49,7 +46,7 @@ function EditorPage() {
     <NewModule classes={classes} onClose={close} onSaved={saved} />
   );
 }
-type Classes = Awaited<ReturnType<typeof getAuthoringContext>>["classes"];
+type Classes = Awaited<ReturnType<typeof getModuleClasses>>;
 function Existing({
   id,
   classes,

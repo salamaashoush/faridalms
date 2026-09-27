@@ -6,12 +6,17 @@ import {
   getLearnerModules,
   getLessonAuthoring,
   getModuleAuthoring,
+  getModuleClasses,
   getTeachingModules,
 } from "~/server/learning";
 
 export const teachingModulesQuery = queryOptions({
   queryKey: ["learning", "teaching"],
   queryFn: () => getTeachingModules(),
+});
+export const moduleClassesQuery = queryOptions({
+  queryKey: ["learning", "classes"],
+  queryFn: () => getModuleClasses(),
 });
 export const moduleAuthoringQuery = (id: string) =>
   queryOptions({

@@ -304,6 +304,7 @@ export const editor = readProcedure
     ]);
     return {
       ...assignment,
+      rubric: assignment.rubric as unknown as Rubric | null,
       brief: (brief?.content ?? null) as ContentDocument | null,
       resources,
       selection:
@@ -535,6 +536,7 @@ export const record = readProcedure
     ]);
     return {
       ...assignment,
+      rubric: assignment.rubric as unknown as Rubric | null,
       phase: assignmentPhase(assignment, context.now),
       class: classRow
         ? {
@@ -844,7 +846,11 @@ export const work = readProcedure
         can(context, "own-work:submit") &&
         !row.excused &&
         canHandIn(
-          { ...assignment, dueAt, resubmission: assignment.resubmission },
+          {
+            ...assignment,
+            dueAt,
+            resubmission: assignment.resubmission || row.needsRevision,
+          },
           row.attempts,
           row.released || row.needsRevision,
           context.now,
@@ -962,7 +968,11 @@ export const handIn = writeProcedure
     if (
       row.excused ||
       !canHandIn(
-        { ...assignment, dueAt, resubmission: assignment.resubmission },
+        {
+          ...assignment,
+          dueAt,
+          resubmission: assignment.resubmission || row.needsRevision,
+        },
         row.attempts,
         row.released || row.needsRevision,
         context.now,

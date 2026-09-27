@@ -99,7 +99,7 @@ export function ChildCard({
                 <Link
                   to="/assignments/$assignmentId"
                   params={{ assignmentId: nextDue.id }}
-                  search={{ studentId: student.id }}
+                  search={{}}
                   className="hover:text-primary hover:underline"
                 >
                   {nextDue.title}

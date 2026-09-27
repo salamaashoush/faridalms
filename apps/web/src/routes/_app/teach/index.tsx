@@ -1,7 +1,4 @@
-import {
-  DEFAULT_ATTENDANCE_REGISTER_QUERY,
-  DEFAULT_CLASS_SCOPED_QUERY,
-} from "@faridalms/domain/school-schema";
+import { DEFAULT_ATTENDANCE_REGISTER_QUERY } from "@faridalms/domain/school-schema";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import {
@@ -142,7 +139,7 @@ function TeachingOverviewPage() {
                         <Link
                           to="/assignments/$assignmentId"
                           params={{ assignmentId: row.assignment.id }}
-                          search={{ tab: "learners" }}
+                          search={{ tab: "work" }}
                           className="hover:text-primary hover:underline"
                         >
                           {row.assignment.title}
@@ -178,7 +175,7 @@ function TeachingOverviewPage() {
               variant="outline"
               size="sm"
               to="/teach/assignments"
-              search={DEFAULT_CLASS_SCOPED_QUERY}
+              search={{}}
             >
               {m.commonViewAll()}
             </ButtonLink>

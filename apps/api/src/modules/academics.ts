@@ -3,34 +3,19 @@ import {
   attendanceForStudent,
   attendanceSummary,
   currentSchoolYear,
-  getAssignment,
   gradeAverage,
   gradesForStudent,
   resolveWeek,
   timetableForClass,
   timetableForTeacher,
 } from "@faridalms/database/repositories/academics";
-import { ManagementError } from "@faridalms/database/repositories/management";
 import { getStudentSummary } from "@faridalms/database/repositories/students";
-import {
-  saveSubmissionDraft,
-  submitAttempt,
-} from "@faridalms/database/repositories/submissions";
-import { plainContent } from "@faridalms/domain/content-conversion";
 import {
   assignmentsQuerySchema,
   studentScopedQuerySchema,
-  submitWorkSchema,
 } from "@faridalms/domain/school-schema";
-import { ORPCError } from "@orpc/server";
-import * as v from "valibot";
 
-import {
-  requirePermission,
-  assessmentScope,
-  requireStudentAccess,
-  visibleClassIds,
-} from "../authorization";
+import { requirePermission, requireStudentAccess } from "../authorization";
 import { protectedProcedure } from "../procedure";
 
 export const getAssignments = protectedProcedure
@@ -57,73 +42,6 @@ export const getAssignments = protectedProcedure
         weekId: week.id,
       }),
     };
-  });
-
-export const getAssignmentDetail = protectedProcedure
-  .input(v.object({ id: v.string() }))
-  .handler(async ({ input: data, context }) => {
-    const user = await requirePermission(context, "assignments:read");
-    const row = await getAssignment(
-      context.db,
-      data.id,
-      assessmentScope(context),
-      user.studentIds,
-    );
-    if (!row) {
-      throw new ORPCError("NOT_FOUND");
-    }
-    if (row.status === "draft" && assessmentScope(context).kind === "none")
-      throw new ORPCError("NOT_FOUND");
-
-    const allowedClasses = await visibleClassIds(context, user);
-    const hasOwnHistory = row.submissions.some((submission) =>
-      user.studentIds.includes(submission.studentId),
-    );
-    if (!allowedClasses.includes(row.classId) && !hasOwnHistory) {
-      throw new ORPCError("NOT_FOUND");
-    }
-
-    return row;
-  });
-
-export const submitAssignment = protectedProcedure
-  .input(submitWorkSchema)
-  .handler(async ({ input: data, context }) => {
-    const user = await requirePermission(context, "own-work:submit");
-    if (!user.ownStudentId) {
-      throw new Error("This account is not linked to a student record");
-    }
-    const learner = { userId: user.id, studentId: user.ownStudentId };
-    const current = await context.db.query.submissions.findFirst({
-      where: { assignmentId: data.assignmentId, studentId: learner.studentId },
-      columns: { revision: true },
-    });
-    try {
-      const draft = await saveSubmissionDraft(
-        context.db,
-        {
-          assignmentId: data.assignmentId,
-          expectedRevision: current?.revision ?? 0,
-          content: plainContent(data.content),
-          fileIds: [],
-        },
-        learner,
-        new Date(),
-        context.today,
-      );
-      await submitAttempt(
-        context.db,
-        { assignmentId: data.assignmentId, expectedRevision: draft.revision },
-        learner,
-        new Date(),
-        context.today,
-      );
-    } catch (error) {
-      if (error instanceof ManagementError)
-        throw new ORPCError(error.code, { message: error.message });
-      throw error;
-    }
-    return { submitted: true as const };
   });
 
 export const getAttendance = protectedProcedure

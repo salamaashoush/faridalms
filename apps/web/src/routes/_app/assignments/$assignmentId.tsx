@@ -1,99 +1,76 @@
+import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import * as v from "valibot";
 
+import { BreadcrumbCurrent } from "~/components/app/WorkspaceBreadcrumb";
 import {
-  LEARNER_TABS,
-  LearnerAssignmentRecord,
-} from "~/components/assignments/LearnerAssignmentRecord";
-import {
-  TEACHER_TABS,
-  TeacherAssignmentRecord,
-} from "~/components/assignments/TeacherAssignmentRecord";
-import * as m from "~/i18n/messages";
-import {
-  assignmentWorkspaceQuery,
-  attemptReviewQuery,
-  learnerAssignmentQuery,
-} from "~/queries/assignments";
-import { visibleStudentsQuery } from "~/queries/school";
+  AssignmentRecord,
+  RECORD_TABS,
+} from "~/components/coursework/AssignmentRecord";
+import { LearnerWork } from "~/components/coursework/LearnerWork";
+import { assignmentRecordQuery, myWorkQuery } from "~/queries/coursework";
 
-const LEARNER_STATES = [
-  "all",
-  "scheduled",
-  "not_started",
-  "draft",
-  "submitted",
-  "returned",
-  "missing",
-] as const;
+const learns = (workspace: string | null) => workspace === "me";
 
 /**
- * One canonical record for every role. Teachers get the workspace, learners
- * and families get the brief and the work; the API decides which the caller
- * may read.
+ * One address for a piece of work: its teacher reads the brief and everyone's
+ * standing, a student reads the brief and works on their own attempt.
  */
 export const Route = createFileRoute("/_app/assignments/$assignmentId")({
-  staticData: { breadcrumb: m.assignmentsTitle },
+  staticData: {
+    trail: <AssignmentTrail />,
+    section: ["/teach/assignments", "/me/assignments"],
+  },
   validateSearch: v.object({
-    tab: v.optional(v.picklist([...TEACHER_TABS, ...LEARNER_TABS]), "overview"),
-    studentId: v.optional(v.string(), ""),
-    attempt: v.optional(v.string(), ""),
-    q: v.optional(v.string(), ""),
-    state: v.optional(v.picklist(LEARNER_STATES), "all"),
-    page: v.optional(v.pipe(v.number(), v.integer(), v.minValue(1)), 1),
+    tab: v.fallback(v.optional(v.picklist(RECORD_TABS), "brief"), "brief"),
   }),
-  loaderDeps: ({ search }) => ({
-    studentId: search.studentId,
-    attempt: search.attempt,
-  }),
-  loader: async ({ context, params, deps }) => {
-    const role = context.auth.workspace;
-    if (role === "teach" || role === "admin") {
+  loader: async ({ context, params }) => {
+    if (learns(context.auth.workspace))
       await context.queryClient.ensureQueryData(
-        assignmentWorkspaceQuery(params.assignmentId),
+        myWorkQuery(params.assignmentId),
       );
-      if (deps.attempt)
-        await context.queryClient.ensureQueryData(
-          attemptReviewQuery(deps.attempt),
-        );
-      return;
-    }
-    await Promise.all([
-      context.queryClient.ensureQueryData(
-        learnerAssignmentQuery(params.assignmentId, deps.studentId),
-      ),
-      context.queryClient.ensureQueryData(visibleStudentsQuery),
-    ]);
+    else
+      await context.queryClient.ensureQueryData(
+        assignmentRecordQuery(params.assignmentId),
+      );
   },
   component: AssignmentPage,
 });
+
+function TeacherTrail({ id }: { id: string }) {
+  const data = useSuspenseQuery(assignmentRecordQuery(id)).data;
+  return <BreadcrumbCurrent>{data.title}</BreadcrumbCurrent>;
+}
+
+function LearnerTrail({ id }: { id: string }) {
+  const data = useSuspenseQuery(myWorkQuery(id)).data;
+  return <BreadcrumbCurrent>{data.assignment.title}</BreadcrumbCurrent>;
+}
+
+function AssignmentTrail() {
+  const { assignmentId } = Route.useParams();
+  const { auth } = Route.useRouteContext();
+  return learns(auth.workspace) ? (
+    <LearnerTrail id={assignmentId} />
+  ) : (
+    <TeacherTrail id={assignmentId} />
+  );
+}
+
 function AssignmentPage() {
   const { assignmentId } = Route.useParams();
-  const search = Route.useSearch();
-  const navigate = Route.useNavigate();
+  const { tab } = Route.useSearch();
   const { auth } = Route.useRouteContext();
-  const patch = (change: Partial<typeof search>) => {
-    void navigate({ search: (previous) => ({ ...previous, ...change }) });
-  };
-  if (auth.workspace === "teach" || auth.workspace === "admin") {
-    const tab = TEACHER_TABS.find((item) => item === search.tab) ?? "overview";
-    return (
-      <TeacherAssignmentRecord
-        id={assignmentId}
-        search={{ ...search, tab }}
-        onSearch={patch}
-      />
-    );
-  }
-  const tab = LEARNER_TABS.find((item) => item === search.tab) ?? "brief";
+  const navigate = Route.useNavigate();
+  if (learns(auth.workspace))
+    return <LearnerWork assignmentId={assignmentId} />;
   return (
-    <LearnerAssignmentRecord
-      id={assignmentId}
-      studentId={search.studentId}
+    <AssignmentRecord
+      assignmentId={assignmentId}
       tab={tab}
-      family={auth.workspace === "family"}
-      onTab={(next) => patch({ tab: next })}
-      onStudent={(studentId) => patch({ studentId })}
+      onTab={(next) => {
+        void navigate({ search: (previous) => ({ ...previous, tab: next }) });
+      }}
     />
   );
 }

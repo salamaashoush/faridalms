@@ -4,8 +4,8 @@ import type { LessonAnswers } from "@faridalms/domain/learning";
 import { CircleCheck, CircleX, Download } from "lucide-react";
 import { useState } from "react";
 
-import { fileSizeLabel } from "~/components/assignments/FileList";
 import { ContentView } from "~/components/content/ContentView";
+import { fileSizeLabel } from "~/components/system/FileList";
 import { Button } from "~/components/ui/button";
 import { Checkbox } from "~/components/ui/checkbox";
 import * as m from "~/i18n/messages";

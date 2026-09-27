@@ -21,6 +21,9 @@ const parse =
 export const getTeachingModules = createServerFn({ method: "GET" }).handler(
   () => backend().getTeachingModules(),
 );
+export const getModuleClasses = createServerFn({ method: "GET" }).handler(() =>
+  backend().getModuleClasses(),
+);
 export const getModuleAuthoring = createServerFn({ method: "GET" })
   .validator(parse(idSchema))
   .handler(({ data }) => record(backend().getModuleAuthoring(data)));

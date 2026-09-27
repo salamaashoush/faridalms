@@ -80,6 +80,7 @@ import { Route as AppTeachAssignmentsRouteImport } from './routes/_app/teach/ass
 import { Route as AppTeachAttendanceRouteImport } from './routes/_app/teach/attendance'
 import { Route as AppTeachCalendarRouteImport } from './routes/_app/teach/calendar'
 import { Route as AppTeachClassesRouteImport } from './routes/_app/teach/classes'
+import { Route as AppTeachGradebookRouteImport } from './routes/_app/teach/gradebook'
 import { Route as AppTeachGradingRouteImport } from './routes/_app/teach/grading'
 import { Route as AppTeachLessonEditorRouteImport } from './routes/_app/teach/lesson-editor'
 import { Route as AppTeachMessagesRouteImport } from './routes/_app/teach/messages'
@@ -456,6 +457,11 @@ const AppTeachClassesRoute = AppTeachClassesRouteImport.update({
   path: '/classes',
   getParentRoute: () => AppTeachRoute,
 } as any)
+const AppTeachGradebookRoute = AppTeachGradebookRouteImport.update({
+  id: '/gradebook',
+  path: '/gradebook',
+  getParentRoute: () => AppTeachRoute,
+} as any)
 const AppTeachGradingRoute = AppTeachGradingRouteImport.update({
   id: '/grading',
   path: '/grading',
@@ -582,6 +588,7 @@ export interface FileRoutesByFullPath {
   '/teach/attendance': typeof AppTeachAttendanceRoute
   '/teach/calendar': typeof AppTeachCalendarRoute
   '/teach/classes': typeof AppTeachClassesRoute
+  '/teach/gradebook': typeof AppTeachGradebookRoute
   '/teach/grading': typeof AppTeachGradingRoute
   '/teach/lesson-editor': typeof AppTeachLessonEditorRoute
   '/teach/messages': typeof AppTeachMessagesRoute
@@ -660,6 +667,7 @@ export interface FileRoutesByTo {
   '/teach/attendance': typeof AppTeachAttendanceRoute
   '/teach/calendar': typeof AppTeachCalendarRoute
   '/teach/classes': typeof AppTeachClassesRoute
+  '/teach/gradebook': typeof AppTeachGradebookRoute
   '/teach/grading': typeof AppTeachGradingRoute
   '/teach/lesson-editor': typeof AppTeachLessonEditorRoute
   '/teach/messages': typeof AppTeachMessagesRoute
@@ -746,6 +754,7 @@ export interface FileRoutesById {
   '/_app/teach/attendance': typeof AppTeachAttendanceRoute
   '/_app/teach/calendar': typeof AppTeachCalendarRoute
   '/_app/teach/classes': typeof AppTeachClassesRoute
+  '/_app/teach/gradebook': typeof AppTeachGradebookRoute
   '/_app/teach/grading': typeof AppTeachGradingRoute
   '/_app/teach/lesson-editor': typeof AppTeachLessonEditorRoute
   '/_app/teach/messages': typeof AppTeachMessagesRoute
@@ -831,6 +840,7 @@ export interface FileRouteTypes {
     | '/teach/attendance'
     | '/teach/calendar'
     | '/teach/classes'
+    | '/teach/gradebook'
     | '/teach/grading'
     | '/teach/lesson-editor'
     | '/teach/messages'
@@ -909,6 +919,7 @@ export interface FileRouteTypes {
     | '/teach/attendance'
     | '/teach/calendar'
     | '/teach/classes'
+    | '/teach/gradebook'
     | '/teach/grading'
     | '/teach/lesson-editor'
     | '/teach/messages'
@@ -994,6 +1005,7 @@ export interface FileRouteTypes {
     | '/_app/teach/attendance'
     | '/_app/teach/calendar'
     | '/_app/teach/classes'
+    | '/_app/teach/gradebook'
     | '/_app/teach/grading'
     | '/_app/teach/lesson-editor'
     | '/_app/teach/messages'
@@ -1522,6 +1534,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppTeachClassesRouteImport
       parentRoute: typeof AppTeachRoute
     }
+    '/_app/teach/gradebook': {
+      id: '/_app/teach/gradebook'
+      path: '/gradebook'
+      fullPath: '/teach/gradebook'
+      preLoaderRoute: typeof AppTeachGradebookRouteImport
+      parentRoute: typeof AppTeachRoute
+    }
     '/_app/teach/grading': {
       id: '/_app/teach/grading'
       path: '/grading'
@@ -1721,6 +1740,7 @@ interface AppTeachRouteChildren {
   AppTeachAttendanceRoute: typeof AppTeachAttendanceRoute
   AppTeachCalendarRoute: typeof AppTeachCalendarRoute
   AppTeachClassesRoute: typeof AppTeachClassesRoute
+  AppTeachGradebookRoute: typeof AppTeachGradebookRoute
   AppTeachGradingRoute: typeof AppTeachGradingRoute
   AppTeachLessonEditorRoute: typeof AppTeachLessonEditorRoute
   AppTeachMessagesRoute: typeof AppTeachMessagesRoute
@@ -1736,6 +1756,7 @@ const AppTeachRouteChildren: AppTeachRouteChildren = {
   AppTeachAttendanceRoute: AppTeachAttendanceRoute,
   AppTeachCalendarRoute: AppTeachCalendarRoute,
   AppTeachClassesRoute: AppTeachClassesRoute,
+  AppTeachGradebookRoute: AppTeachGradebookRoute,
   AppTeachGradingRoute: AppTeachGradingRoute,
   AppTeachLessonEditorRoute: AppTeachLessonEditorRoute,
   AppTeachMessagesRoute: AppTeachMessagesRoute,

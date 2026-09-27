@@ -51,20 +51,6 @@ export const DEFAULT_ASSIGNMENTS_QUERY: AssignmentsQuery = v.parse(
   {},
 );
 
-export const classScopedQuerySchema = v.object({
-  classId: v.optional(v.string(), ""),
-  week: v.optional(v.pipe(v.number(), v.integer(), v.minValue(1))),
-  status: v.optional(
-    v.picklist(["all", "draft", "published", "archived"]),
-    "all",
-  ),
-});
-export type ClassScopedQuery = v.InferOutput<typeof classScopedQuerySchema>;
-export const DEFAULT_CLASS_SCOPED_QUERY: ClassScopedQuery = v.parse(
-  classScopedQuerySchema,
-  {},
-);
-
 export const attendanceRegisterQuerySchema = v.object({
   classId: v.optional(v.string(), ""),
   date: v.optional(v.string(), ""),
@@ -186,18 +172,6 @@ export const composeMessageSchema = v.pipe(
 export type ComposeMessageInput = v.InferInput<typeof composeMessageSchema>;
 export type ComposeMessageOutput = v.InferOutput<typeof composeMessageSchema>;
 
-export const submitWorkSchema = v.object({
-  content: v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(20000)),
-  assignmentId: v.pipe(v.string(), v.minLength(1)),
-});
-
-export const gradeSubmissionSchema = v.object({
-  submissionId: v.pipe(v.string(), v.minLength(1)),
-  score: v.pipe(v.number(), v.integer(), v.minValue(0)),
-  feedback: v.optional(v.string(), ""),
-});
-export type GradeSubmissionInput = v.InferInput<typeof gradeSubmissionSchema>;
-
 export const recordAttendanceSchema = v.object({
   classId: v.pipe(v.string(), v.minLength(1)),
   date: v.pipe(v.string(), v.isoDate()),
@@ -246,23 +220,6 @@ export const studentDirectorySchema = v.object({
 export type StudentDirectoryQuery = v.InferOutput<
   typeof studentDirectorySchema
 >;
-
-export const createAssignmentSchema = v.pipe(
-  v.object({
-    classId: v.pipe(v.string(), v.uuid()),
-    subjectId: v.pipe(v.string(), v.uuid()),
-    title: v.pipe(v.string(), v.trim(), v.minLength(3), v.maxLength(255)),
-    description: v.pipe(
-      v.string(),
-      v.trim(),
-      v.minLength(1),
-      v.maxLength(20000),
-    ),
-    dueDate: v.pipe(v.string(), v.isoDate()),
-    maxScore: v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(1000)),
-  }),
-  v.check((input) => Number.isFinite(Date.parse(input.dueDate))),
-);
 
 export const classDirectorySchema = v.object({
   year: workingYearSchema,

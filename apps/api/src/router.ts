@@ -1,7 +1,6 @@
 import * as academics from "./modules/academics";
 import * as administration from "./modules/administration";
 import * as announcements from "./modules/announcements";
-import * as assignments from "./modules/assignments";
 import * as communication from "./modules/communication";
 import * as learning from "./modules/learning";
 import * as newsletters from "./modules/newsletters";
@@ -44,7 +43,6 @@ export const router = {
   ...academics,
   ...communication,
   ...newsletters,
-  ...assignments,
   ...notifications,
   ...announcements,
   ...people,

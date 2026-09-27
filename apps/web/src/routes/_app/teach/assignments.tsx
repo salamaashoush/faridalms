@@ -1,250 +1,262 @@
-import { classScopedQuerySchema } from "@faridalms/domain/school-schema";
+import type {
+  TeacherListQuery,
+  TeacherTab,
+} from "@faridalms/domain/coursework";
+
+import { TEACHER_TABS, teacherListSchema } from "@faridalms/domain/coursework";
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { Pencil, Plus } from "lucide-react";
+import { createFileRoute, stripSearchParams } from "@tanstack/react-router";
+import { ClipboardList, ClipboardPen, Pencil, Plus } from "lucide-react";
 import * as v from "valibot";
 
-import type { DataColumn } from "~/components/admin/DataTable";
-import type { getClassAssignments } from "~/server/school";
+import type { Column, RowAction } from "~/components/system/DataTable";
+import type {
+  Facet,
+  HeaderAction,
+  IndexToolbarProps,
+} from "~/components/system/IndexPage";
 
-import { DataTable } from "~/components/admin/DataTable";
-import { TableFilter } from "~/components/admin/TableFilter";
 import { ButtonLink } from "~/components/app/ButtonLink";
-import { SubjectIcon } from "~/components/app/labels";
-import { PageHeader, Value } from "~/components/app/primitives";
-import { AssignmentStatusBadge } from "~/components/assignments/labels";
-import { WeekNav } from "~/components/family/WeekNav";
-import { ClassPicker } from "~/components/teach/ClassPicker";
-import { formatDate, subjectName } from "~/components/teach/format";
-import { HandedIn } from "~/components/teach/HandedIn";
+import { Value } from "~/components/app/primitives";
+import { classTitle } from "~/components/classes/format";
+import {
+  formatInstant,
+  PHASE_LABEL,
+  PHASE_TONE,
+} from "~/components/coursework/format";
+import { DataTable, RowLink } from "~/components/system/DataTable";
+import { PageHeader } from "~/components/system/IndexPage";
+import { RecordTabs } from "~/components/system/RecordPage";
+import { StatusText } from "~/components/system/status";
+import { useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
-import { classAssignmentsQuery, myClassesQuery } from "~/queries/school";
+import {
+  courseworkListQuery,
+  courseworkOptionsQuery,
+} from "~/queries/coursework";
+import { formatNumber } from "~/utils/datetime";
 
-const searchSchema = v.object({
-  ...classScopedQuerySchema.entries,
-  q: v.optional(v.string(), ""),
-  sort: v.optional(v.picklist(["title", "due", "class"]), "due"),
-  dir: v.optional(v.picklist(["asc", "desc"]), "asc"),
-  page: v.optional(v.pipe(v.number(), v.integer(), v.minValue(1)), 1),
-});
-type Search = v.InferOutput<typeof searchSchema>;
-type Assignment = Awaited<
-  ReturnType<typeof getClassAssignments>
->["rows"][number];
-const columns: DataColumn<Assignment, Search["sort"]>[] = [
-  {
-    id: "title",
-    label: m.courseworkTitle,
-    sort: "title",
-    render: (row) => (
-      <div>
-        <Link
-          to="/assignments/$assignmentId"
-          params={{ assignmentId: row.id }}
-          search={{}}
-          className="font-medium hover:text-primary hover:underline"
-        >
-          {row.title}
-        </Link>
-        <p className="mt-1 flex items-center gap-1.5 text-xs text-muted-foreground">
-          <SubjectIcon icon={row.subject?.icon ?? ""} />
-          <Value>{subjectName(row.subject)}</Value>
-        </p>
-      </div>
-    ),
-  },
-  {
-    id: "status",
-    label: m.courseworkStatus,
-    render: (row) => <AssignmentStatusBadge status={row.status} />,
-  },
-  {
-    id: "class",
-    label: m.studentClass,
-    sort: "class",
-    render: (row) =>
-      row.class ? (
-        <Link
-          to="/classes/$classId"
-          params={{ classId: row.class.id }}
-          search={{}}
-          className="hover:underline"
-        >
-          {row.class.name}
-        </Link>
-      ) : (
-        <Value>{null}</Value>
-      ),
-  },
-  {
-    id: "due",
-    label: m.meDueDate,
-    sort: "due",
-    render: (row) => (
-      <span className="text-sm tabular-nums">{formatDate(row.dueDate)}</span>
-    ),
-  },
-  {
-    id: "work",
-    label: m.teachGradingQueue,
-    render: (row) =>
-      row.status === "draft" ? (
-        <span className="text-sm text-muted-foreground">
-          {m.assignmentNotPublished()}
-        </span>
-      ) : row.canAssess ? (
-        <HandedIn done={row.submittedCount} total={row.recipientCount} />
-      ) : (
-        <span className="text-sm text-muted-foreground">
-          {m.courseworkAssessmentRestricted()}
-        </span>
-      ),
-  },
-];
+type Data = Awaited<
+  ReturnType<NonNullable<ReturnType<typeof courseworkListQuery>["queryFn"]>>
+>;
+type Row = Data["rows"][number];
+
+const DEFAULT_SEARCH = v.parse(teacherListSchema, {});
+
 export const Route = createFileRoute("/_app/teach/assignments")({
-  validateSearch: searchSchema,
-  loaderDeps: ({ search }) => ({
-    classId: search.classId,
-    week: search.week,
-    status: search.status,
-  }),
+  validateSearch: teacherListSchema,
+  search: { middlewares: [stripSearchParams(DEFAULT_SEARCH)] },
+  loaderDeps: ({ search }) => search,
   loader: async ({ context, deps }) => {
     await Promise.all([
-      context.queryClient.ensureQueryData(classAssignmentsQuery(deps)),
-      context.queryClient.ensureQueryData(myClassesQuery),
+      context.queryClient.ensureQueryData(courseworkListQuery(deps)),
+      context.queryClient.ensureQueryData(courseworkOptionsQuery),
     ]);
   },
-  component: TeachingAssignmentsPage,
+  component: CourseworkPage,
 });
-function TeachingAssignmentsPage() {
+
+const TAB_LABEL: Record<TeacherTab, () => string> = {
+  to_grade: m.courseworkTabToGrade,
+  assigned: m.courseworkTabAssigned,
+  scheduled: m.courseworkTabScheduled,
+  drafts: m.courseworkTabDrafts,
+  past: m.courseworkTabPast,
+};
+
+function Title({ row }: { row: Row }) {
+  return (
+    <RowLink
+      to="/assignments/$assignmentId"
+      params={{ assignmentId: row.id }}
+      search={{}}
+    >
+      {row.title}
+    </RowLink>
+  );
+}
+
+function Phase({ row }: { row: Row }) {
+  return (
+    <StatusText tone={PHASE_TONE[row.phase]}>
+      {PHASE_LABEL[row.phase]()}
+    </StatusText>
+  );
+}
+
+function progress(row: Row) {
+  if (row.phase === "draft") return null;
+  const parts = [
+    m.courseworkHandedInOf({
+      count: formatNumber(row.handedIn),
+      total: formatNumber(row.recipients),
+    }),
+  ];
+  if (row.missing) parts.push(m.courseworkMissingCount({ count: row.missing }));
+  if (row.toGrade) parts.push(m.courseworkToGradeCount({ count: row.toGrade }));
+  return parts.join(" · ");
+}
+
+function Due({ row, timeZone }: { row: Row; timeZone: string }) {
+  return row.dueAt ? (
+    <Value>{formatInstant(row.dueAt, timeZone)}</Value>
+  ) : (
+    <span className="text-muted-foreground">{m.courseworkNoDueDate()}</span>
+  );
+}
+
+// Built per render: headers read the request's locale, which a module-level
+// array would fix at whichever language first loaded the module on the server.
+function columns(timeZone: string): Column<Row>[] {
+  return [
+    {
+      id: "title",
+      header: m.courseworkTitle(),
+      primary: true,
+      cell: (row) => (
+        <div className="grid min-w-0">
+          <Title row={row} />
+          <span className="text-[13px] leading-[18px] text-muted-foreground">
+            {classTitle({
+              code: row.classCode,
+              titleEn: row.classTitleEn,
+              titleAr: row.classTitleAr,
+            })}
+          </span>
+        </div>
+      ),
+    },
+    {
+      id: "status",
+      header: m.courseworkStatus(),
+      cell: (row) => <Phase row={row} />,
+    },
+    {
+      id: "due",
+      header: m.courseworkDue(),
+      cell: (row) => <Due row={row} timeZone={timeZone} />,
+    },
+    {
+      id: "progress",
+      header: m.courseworkProgress(),
+      cell: (row) => (
+        <Value notApplicable={row.phase === "draft"}>{progress(row)}</Value>
+      ),
+    },
+  ];
+}
+
+const card = {
+  title: (row: Row) => <Title row={row} />,
+  status: (row: Row) => <Phase row={row} />,
+  fact: (row: Row) => progress(row),
+};
+
+function CourseworkPage() {
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
-  const { week, weeks, rows } = useSuspenseQuery(
-    classAssignmentsQuery({
-      classId: search.classId,
-      week: search.week,
-      status: search.status,
-    }),
-  ).data;
-  const classes = useSuspenseQuery(myClassesQuery).data;
-  const patch = (change: Partial<Search>) => {
+  const user = useCurrentUser();
+  const data = useSuspenseQuery(courseworkListQuery(search)).data;
+  const options = useSuspenseQuery(courseworkOptionsQuery).data;
+  const patch = (change: Partial<TeacherListQuery>) => {
     void navigate({ search: (previous) => ({ ...previous, ...change }) });
   };
-  const authoring = classes.some((row) => row.authoringSubjects.length > 0);
-  const filtered = rows
-    .filter((row) =>
-      `${row.title} ${row.class?.name ?? ""} ${subjectName(row.subject)}`
-        .toLocaleLowerCase()
-        .includes(search.q.toLocaleLowerCase()),
-    )
-    .toSorted((a, b) => {
-      const values = {
-        title: [a.title, b.title],
-        due: [a.dueDate, b.dueDate],
-        class: [a.class?.name ?? "", b.class?.name ?? ""],
-      }[search.sort];
-      return (
-        ((values[0] ?? "").localeCompare(values[1] ?? "") ||
-          a.id.localeCompare(b.id)) * (search.dir === "asc" ? 1 : -1)
-      );
-    });
-  const pages = Math.max(1, Math.ceil(filtered.length / 25));
-  const page = Math.min(search.page, pages);
+  const classFacet: Facet = {
+    id: "class",
+    label: m.studentClass(),
+    single: true,
+    options: options.classes.map((row) => ({
+      value: row.id,
+      label: classTitle(row),
+    })),
+    selected: search.classId ? [search.classId] : [],
+    onChange: ([next = ""]) => patch({ classId: next }),
+  };
+  const toolbar: IndexToolbarProps = {
+    search: {
+      value: search.q,
+      onChange: (q) => patch({ q }),
+      label: m.courseworkSearchHint(),
+      placeholder: m.courseworkSearchPlaceholder(),
+    },
+    facets: [classFacet],
+    onReset: () => patch({ q: "", classId: "" }),
+  };
+  const create: HeaderAction | undefined =
+    options.classes.length > 0
+      ? {
+          label: m.courseworkNew(),
+          icon: Plus,
+          link: { to: "/teach/assignment-editor", search: {} },
+        }
+      : undefined;
+  const rowActions = (row: Row): RowAction[] => [
+    ...(row.toGrade > 0
+      ? [
+          {
+            label: m.courseworkGrade(),
+            icon: ClipboardPen,
+            inline: true,
+            onSelect: () =>
+              navigate({
+                to: "/assignments/$assignmentId",
+                params: { assignmentId: row.id },
+                search: { tab: "work" },
+              }),
+          },
+        ]
+      : []),
+    ...(row.phase !== "archived"
+      ? [
+          {
+            label: m.courseworkEdit(),
+            icon: Pencil,
+            onSelect: () =>
+              navigate({
+                to: "/teach/assignment-editor",
+                search: { id: row.id },
+              }),
+          },
+        ]
+      : []),
+  ];
   return (
     <>
       <PageHeader
-        title={m.assignmentsTitle()}
-        description={m.teachAssignmentsSubtitle()}
-        actions={
-          authoring ? (
-            <ButtonLink
-              to="/teach/assignment-editor"
-              search={{ classId: search.classId || undefined }}
-            >
-              <Plus className="size-4" aria-hidden />
-              {m.assignmentDesignTitle()}
-            </ButtonLink>
-          ) : undefined
-        }
+        title={m.courseworkTitlePage()}
+        description={m.courseworkHint()}
+        action={create}
       />
-      <div className="mb-5 flex flex-wrap items-center justify-between gap-4">
-        <ClassPicker
-          id="assignments-class"
-          label={m.teachFilterClass()}
-          value={search.classId}
-          classes={classes}
-          withAllOption
-          onChange={(classId) => patch({ classId, page: 1 })}
-        />
-        <WeekNav
-          week={week}
-          weeks={weeks}
-          onSelect={(number) => patch({ week: number, page: 1 })}
-        />
-      </div>
-      <DataTable
-        columns={columns}
-        rows={filtered.slice((page - 1) * 25, page * 25)}
-        caption={m.assignmentsTitle()}
-        query={search.q}
-        onQuery={(q) => patch({ q, page: 1 })}
-        sort={search.sort}
-        direction={search.dir}
-        onSort={(sort) =>
-          patch({
-            sort,
-            dir: search.sort === sort && search.dir === "asc" ? "desc" : "asc",
-          })
-        }
-        page={page}
-        pages={pages}
-        total={filtered.length}
-        onPage={(next) => patch({ page: next })}
-        filters={
-          <TableFilter
-            label={m.courseworkStatus()}
-            value={search.status}
-            classes={[
-              { id: "all", name: m.courseworkAll() },
-              { id: "draft", name: m.assignmentStatusDraft() },
-              { id: "published", name: m.assignmentStatusPublished() },
-              { id: "archived", name: m.assignmentStatusArchived() },
-            ]}
-            onChange={(value) => {
-              const status = (
-                ["all", "draft", "published", "archived"] as const
-              ).find((item) => item === value);
-              if (status) patch({ status, page: 1 });
-            }}
-          />
-        }
-        renderActions={(row) => (
-          <div className="flex justify-end gap-1">
-            {row.canAssess ? (
-              <ButtonLink
-                to="/teach/assignment-editor"
-                search={{ id: row.id }}
-                variant="ghost"
-                size="sm"
-                aria-label={m.managementEditNamed({ name: row.title })}
-              >
-                <Pencil className="size-4" aria-hidden />
-                {m.managementEdit()}
+      <RecordTabs
+        label={m.courseworkSections()}
+        tabs={TEACHER_TABS.map((value) => ({
+          value,
+          label: `${TAB_LABEL[value]()} ${formatNumber(data.counts[value])}`,
+        }))}
+        value={search.tab}
+        onChange={(tab) => patch({ tab })}
+      >
+        <DataTable
+          caption={m.courseworkCaption()}
+          rows={data.rows}
+          columns={columns(user.school.timeZone)}
+          rowLabel={(row) => row.title}
+          toolbar={toolbar}
+          rowActions={rowActions}
+          card={card}
+          empty={{
+            icon: ClipboardList,
+            title: m.courseworkEmptyTitle(),
+            description: m.courseworkEmptyBody(),
+            action: create ? (
+              <ButtonLink to="/teach/assignment-editor" search={{}}>
+                <Plus aria-hidden />
+                {m.courseworkNew()}
               </ButtonLink>
-            ) : null}
-            <ButtonLink
-              to="/assignments/$assignmentId"
-              params={{ assignmentId: row.id }}
-              search={{ tab: "learners" }}
-              variant="ghost"
-              size="sm"
-              aria-label={m.courseworkOpenNamed({ title: row.title })}
-            >
-              {m.commonOpen()}
-            </ButtonLink>
-          </div>
-        )}
-      />
+            ) : undefined,
+          }}
+        />
+      </RecordTabs>
     </>
   );
 }

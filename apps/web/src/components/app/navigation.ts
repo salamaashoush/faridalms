@@ -100,6 +100,7 @@ export const NAVIGATION: Record<Workspace, NavSection[]> = {
           label: m.navCoursework,
           icon: ClipboardList,
         },
+        { to: "/teach/gradebook", label: m.navGradebook, icon: BookOpen },
         { to: "/teach/attendance", label: m.navAttendance, icon: UserCheck },
         { to: "/teach/timetable", label: m.navTimetable, icon: Table2 },
         {

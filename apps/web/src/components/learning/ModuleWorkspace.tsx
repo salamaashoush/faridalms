@@ -10,7 +10,7 @@ import { useRef, useState } from "react";
 import { toast } from "sonner";
 import * as v from "valibot";
 
-import type { getAuthoringContext } from "~/server/assignments";
+import type { getModuleClasses } from "~/server/learning";
 
 import { ManagementInput } from "~/components/admin/ManagementDialog";
 import { ManagementPage } from "~/components/admin/ManagementPage";
@@ -29,7 +29,7 @@ import {
 import { formatNumber } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
-type AuthoringContext = Awaited<ReturnType<typeof getAuthoringContext>>;
+type ModuleClasses = Awaited<ReturnType<typeof getModuleClasses>>;
 
 const ISSUE_LABEL: Record<string, () => string> = {
   "learning.title_required": m.learningIssueTitle,
@@ -46,7 +46,7 @@ export function ModuleWorkspace({
 }: {
   initial: SaveModuleInput;
   status: "draft" | "published";
-  classes: AuthoringContext["classes"];
+  classes: ModuleClasses;
   onSaved: (id: string) => void;
   onClose: () => void;
 }) {

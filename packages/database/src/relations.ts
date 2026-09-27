@@ -78,9 +78,6 @@ export const relations = defineRelations(schema, (r) => ({
       to: r.users.id,
     }),
     lessonLinks: r.many.lessonFiles(),
-    resourceLinks: r.many.assignmentResources(),
-    attemptLinks: r.many.submissionAttemptFiles(),
-    draftLinks: r.many.submissionDraftFiles(),
     messageLinks: r.many.messageAttachments(),
     messageDraftLinks: r.many.messageDraftFiles(),
   },
@@ -101,25 +98,6 @@ export const relations = defineRelations(schema, (r) => ({
     file: r.one.privateFiles({
       from: r.messageDraftFiles.fileId,
       to: r.privateFiles.id,
-    }),
-  },
-
-  studentGroups: {
-    class: r.one.classes({
-      from: r.studentGroups.classId,
-      to: r.classes.id,
-    }),
-    members: r.many.studentGroupMembers(),
-  },
-
-  studentGroupMembers: {
-    group: r.one.studentGroups({
-      from: r.studentGroupMembers.groupId,
-      to: r.studentGroups.id,
-    }),
-    student: r.one.students({
-      from: r.studentGroupMembers.studentId,
-      to: r.students.id,
     }),
   },
 
@@ -207,7 +185,6 @@ export const relations = defineRelations(schema, (r) => ({
     assignments: r.many.assignments(),
     timetableSlots: r.many.timetableSlots(),
     attendance: r.many.attendance(),
-    groups: r.many.studentGroups(),
   },
 
   enrolments: {
@@ -277,7 +254,6 @@ export const relations = defineRelations(schema, (r) => ({
     }),
     submissions: r.many.submissions(),
     recipients: r.many.assignmentRecipients(),
-    resources: r.many.assignmentResources(),
   },
 
   assignmentRecipients: {
@@ -291,17 +267,6 @@ export const relations = defineRelations(schema, (r) => ({
     }),
   },
 
-  assignmentResources: {
-    assignment: r.one.assignments({
-      from: r.assignmentResources.assignmentId,
-      to: r.assignments.id,
-    }),
-    file: r.one.privateFiles({
-      from: r.assignmentResources.fileId,
-      to: r.privateFiles.id,
-    }),
-  },
-
   submissions: {
     assignment: r.one.assignments({
       from: r.submissions.assignmentId,
@@ -312,7 +277,6 @@ export const relations = defineRelations(schema, (r) => ({
       to: r.students.id,
     }),
     attempts: r.many.submissionAttempts(),
-    draftFiles: r.many.submissionDraftFiles(),
     currentAttempt: r.one.submissionAttempts({
       from: r.submissions.currentAttemptId,
       to: r.submissionAttempts.id,
@@ -323,23 +287,11 @@ export const relations = defineRelations(schema, (r) => ({
     }),
   },
 
-  submissionDraftFiles: {
-    submission: r.one.submissions({
-      from: r.submissionDraftFiles.submissionId,
-      to: r.submissions.id,
-    }),
-    file: r.one.privateFiles({
-      from: r.submissionDraftFiles.fileId,
-      to: r.privateFiles.id,
-    }),
-  },
-
   submissionAttempts: {
     submission: r.one.submissions({
       from: r.submissionAttempts.submissionId,
       to: r.submissions.id,
     }),
-    files: r.many.submissionAttemptFiles(),
     assessment: r.one.assessments({
       from: r.submissionAttempts.id,
       to: r.assessments.attemptId,
@@ -347,17 +299,6 @@ export const relations = defineRelations(schema, (r) => ({
     submittedBy: r.one.users({
       from: r.submissionAttempts.submittedById,
       to: r.users.id,
-    }),
-  },
-
-  submissionAttemptFiles: {
-    attempt: r.one.submissionAttempts({
-      from: r.submissionAttemptFiles.attemptId,
-      to: r.submissionAttempts.id,
-    }),
-    file: r.one.privateFiles({
-      from: r.submissionAttemptFiles.fileId,
-      to: r.privateFiles.id,
     }),
   },
 

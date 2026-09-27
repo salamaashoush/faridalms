@@ -1,5 +1,6 @@
 import * as repo from "@faridalms/database/repositories/learning";
 import { ManagementError } from "@faridalms/database/repositories/management";
+import { listClasses } from "@faridalms/database/repositories/school";
 import {
   answerQuizSchema,
   completeLessonSchema,
@@ -67,6 +68,20 @@ export const getTeachingModules = protectedProcedure.handler(
       await visibleClassIds(context, user),
       actor(context).scope,
     );
+  },
+);
+
+/** Classes the teacher can set a module in, with the subjects they author there. */
+export const getModuleClasses = protectedProcedure.handler(
+  async ({ context }) => {
+    const user = await requirePermission(context, "assignments:author");
+    await requireLearning(context);
+    const classes = await listClasses(
+      context.db,
+      await visibleClassIds(context, user),
+      actor(context).scope,
+    );
+    return classes.filter((row) => row.authoringSubjects.length > 0);
   },
 );
 

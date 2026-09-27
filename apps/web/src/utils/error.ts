@@ -72,6 +72,37 @@ export function getMessageFromError(error: unknown): string {
         return m.yearsReasonRequired();
       case "academic_session.overlapping":
         return m.errorTermsOverlapping();
+      case "coursework.closed":
+        return m.errorCourseworkClosed();
+      case "coursework.nothing_to_hand_in":
+        return m.errorCourseworkNothingToHandIn();
+      case "coursework.cannot_undo":
+        return m.errorCourseworkCannotUndo();
+      case "coursework.brief_empty":
+        return m.errorCourseworkBriefEmpty();
+      case "coursework.audience_empty":
+        return m.courseworkAudienceRequired();
+      case "coursework.not_draft":
+        return m.errorCourseworkNotDraft();
+      case "coursework.rubric_total":
+        return m.errorCourseworkRubricTotal();
+      case "coursework.rubric_needs_points":
+        return m.courseworkPointsRequired();
+      case "coursework.due_before_available":
+        return m.validationDueAfterAvailable();
+      case "coursework.close_before_due":
+        return m.validationCloseAfterDue();
+      case "coursework.deduction_required":
+        return m.courseworkDeductionRequired();
+      case "coursework.too_many_files":
+        return m.errorCourseworkTooManyFiles();
+      case "coursework.score_range":
+      case "gradebook.score_range":
+        return m.errorScoreRange();
+      case "gradebook.not_in_class":
+        return m.errorGradebookNotInClass();
+      case "file.not_attachable":
+        return m.errorFileNotAttachable();
       case "enrollment.future_placement":
         return m.errorFuturePlacement();
       case "enrollment.outside_year":

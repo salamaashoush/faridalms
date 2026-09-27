@@ -210,7 +210,7 @@ export function AssignmentsSection({
                   <Link
                     to="/assignments/$assignmentId"
                     params={{ assignmentId: row.id }}
-                    search={{ studentId }}
+                    search={{}}
                     dir="auto"
                     className={`text-sm leading-5 font-medium hover:text-primary hover:underline ${phoneLink}`}
                   >

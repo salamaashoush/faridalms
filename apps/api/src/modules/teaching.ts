@@ -1,6 +1,5 @@
 import {
   assignmentsForClasses,
-  assessmentFilter,
   attendanceForClassOn,
   currentSchoolYear,
   gradingQueue,
@@ -8,10 +7,6 @@ import {
   resolveWeek,
   timetableForTeacher,
 } from "@faridalms/database/repositories/academics";
-import {
-  publishAssignment,
-  saveAssignment,
-} from "@faridalms/database/repositories/assignments";
 import {
   unreadCount,
   upcomingEvents,
@@ -21,14 +16,8 @@ import {
   getClassDetail,
   listClasses,
 } from "@faridalms/database/repositories/school";
-import { assessAttempt } from "@faridalms/database/repositories/submissions";
-import { plainContent } from "@faridalms/domain/content-conversion";
-import { zonedInstant } from "@faridalms/domain/school";
 import {
-  createAssignmentSchema,
   attendanceRegisterQuerySchema,
-  classScopedQuerySchema,
-  gradeSubmissionSchema,
   recordAttendanceSchema,
 } from "@faridalms/domain/school-schema";
 import { ORPCError } from "@orpc/server";
@@ -93,96 +82,6 @@ export const getMyClasses = protectedProcedure.handler(async ({ context }) => {
     assessmentScope(context, "assignments:author"),
   );
 });
-
-export const getClassAssignments = protectedProcedure
-  .input(classScopedQuerySchema)
-  .handler(async ({ input: data, context }) => {
-    const user = await requirePermission(context, "assignments:read");
-    const allowed = await visibleClassIds(context, user);
-    if (data.classId && !allowed.includes(data.classId))
-      throw new ORPCError("FORBIDDEN");
-    const classIds =
-      data.classId && allowed.includes(data.classId) ? [data.classId] : allowed;
-    const year = await currentSchoolYear(context.db);
-    const { week, weeks } = await resolveWeek(
-      context.db,
-      year.id,
-      data.week,
-      context.today,
-    );
-
-    return {
-      today: context.today,
-      classId: data.classId || null,
-      week,
-      weeks,
-      rows: await assignmentsForClasses(
-        context.db,
-        classIds,
-        assessmentScope(context),
-        week.id,
-        data.status === "all" ? undefined : data.status,
-      ),
-    };
-  });
-
-export const getGradingQueue = protectedProcedure.handler(
-  async ({ context }) => {
-    const user = await requirePermission(context, "submissions:grade");
-    return gradingQueue(
-      context.db,
-      await visibleClassIds(context, user),
-      assessmentScope(context),
-    );
-  },
-);
-
-/** Quick grading of the latest attempt with a plain-text comment. */
-export const submitGrade = protectedProcedure
-  .input(gradeSubmissionSchema)
-  .handler(async ({ input: data, context }) => {
-    const user = await requirePermission(context, "submissions:grade");
-    const allowed = await visibleClassIds(context, user);
-    const submission = await context.db.query.submissions.findFirst({
-      where: {
-        id: data.submissionId,
-        assignment: {
-          classId: { in: allowed },
-          RAW: (table) => assessmentFilter(table, assessmentScope(context)),
-        },
-      },
-      with: { assignment: { columns: { maxScore: true, rubric: true } } },
-    });
-    if (!submission?.assignment || !submission.currentAttemptId)
-      throw new ORPCError("NOT_FOUND");
-    if (data.score > submission.assignment.maxScore)
-      throw new ORPCError("BAD_REQUEST", {
-        message: "grading.score_exceeds_max",
-      });
-    if (submission.assignment.rubric.length)
-      throw new ORPCError("BAD_REQUEST", {
-        message: "assessment.rubric_required",
-      });
-    try {
-      await assessAttempt(
-        context.db,
-        {
-          attemptId: submission.currentAttemptId,
-          score: data.score,
-          rubricScores: [],
-          feedback: data.feedback ? plainContent(data.feedback) : null,
-          release: true,
-        },
-        { userId: user.id, name: user.name, scope: assessmentScope(context) },
-        new Date(),
-      );
-    } catch (error) {
-      if (error instanceof ManagementError)
-        throw new ORPCError(error.code, { message: error.message });
-      throw error;
-    }
-    return { graded: true as const };
-  });
 
 export const getAttendanceRegister = protectedProcedure
   .input(attendanceRegisterQuerySchema)
@@ -257,71 +156,6 @@ export const saveAttendance = protectedProcedure
         context.today,
       );
       return { saved: marks.length, marks };
-    } catch (error) {
-      if (error instanceof ManagementError)
-        throw new ORPCError(error.code, { message: error.message });
-      throw error;
-    }
-  });
-
-/**
- * One-step publication for simple written work: the designer's model with
- * its defaults, published to the whole class and due at the end of the day.
- */
-export const createAssignment = protectedProcedure
-  .input(createAssignmentSchema)
-  .handler(async ({ context, input }) => {
-    const user = await requirePermission(context, "assignments:author");
-    const classes = await visibleClassIds(context, user);
-    if (!classes.includes(input.classId)) throw new ORPCError("FORBIDDEN");
-    if (input.dueDate < context.today)
-      throw new ORPCError("BAD_REQUEST", {
-        message: "assignment.due_in_past",
-      });
-    const actor = {
-      userId: user.id,
-      name: user.name,
-      scope: assessmentScope(context, "assignments:author"),
-    };
-    try {
-      const draft = await saveAssignment(
-        context.db,
-        {
-          id: crypto.randomUUID(),
-          expectedRevision: 0,
-          classId: input.classId,
-          subjectId: input.subjectId,
-          type: "written_assignment",
-          title: input.title,
-          instructions: plainContent(input.description),
-          resourceFileIds: [],
-          recipients: { mode: "class", groupIds: [], studentIds: [] },
-          availableFrom: "",
-          dueAt: zonedInstant(
-            input.dueDate,
-            "23:59",
-            context.school.timeZone,
-          ).toISOString(),
-          closesAt: "",
-          latePolicy: "not_accepted",
-          lateDeductionPercent: 0,
-          submissionFormat: "written",
-          maxAttachments: 0,
-          maxAttachmentBytes: 10 * 1024 * 1024,
-          resubmission: "not_allowed",
-          maxScore: input.maxScore,
-          rubric: [],
-        },
-        actor,
-        { today: context.today, timeZone: context.school.timeZone },
-      );
-      const published = await publishAssignment(
-        context.db,
-        draft.id,
-        draft.revision,
-        actor,
-      );
-      return { id: published.id };
     } catch (error) {
       if (error instanceof ManagementError)
         throw new ORPCError(error.code, { message: error.message });

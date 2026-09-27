@@ -5,19 +5,15 @@ import {
 import {
   recipientQuerySchema,
   replyMessageSchema,
-  createAssignmentSchema,
   assignmentsQuerySchema,
   attendanceRegisterQuerySchema,
   calendarEventSchema,
   calendarQuerySchema,
-  classScopedQuerySchema,
   composeMessageSchema,
-  gradeSubmissionSchema,
   messagesQuerySchema,
   newslettersQuerySchema,
   recordAttendanceSchema,
   studentScopedQuerySchema,
-  submitWorkSchema,
 } from "@faridalms/domain/school-schema";
 import { createServerFn } from "@tanstack/react-start";
 import * as v from "valibot";
@@ -48,18 +44,6 @@ export const getMyClasses = createServerFn({ method: "GET" }).handler(() =>
   backend().getMyClasses(),
 );
 
-export const getClassAssignments = createServerFn({ method: "GET" })
-  .validator((input: unknown) => v.parse(classScopedQuerySchema, input))
-  .handler(({ data }) => backend().getClassAssignments(data));
-
-export const getGradingQueue = createServerFn({ method: "GET" }).handler(() =>
-  backend().getGradingQueue(),
-);
-
-export const submitGrade = createServerFn({ method: "POST" })
-  .validator((input: unknown) => v.parse(gradeSubmissionSchema, input))
-  .handler(({ data }) => backend().submitGrade(data));
-
 export const getAttendanceRegister = createServerFn({ method: "GET" })
   .validator((input: unknown) => v.parse(attendanceRegisterQuerySchema, input))
   .handler(({ data }) => backend().getAttendanceRegister(data));
@@ -75,14 +59,6 @@ export const getAdminOverview = createServerFn({ method: "GET" }).handler(() =>
 export const getAssignments = createServerFn({ method: "GET" })
   .validator((input: unknown) => v.parse(assignmentsQuerySchema, input))
   .handler(({ data }) => backend().getAssignments(data));
-
-export const getAssignmentDetail = createServerFn({ method: "GET" })
-  .validator((input: unknown) => v.parse(v.object({ id: v.string() }), input))
-  .handler(({ data }) => record(backend().getAssignmentDetail(data)));
-
-export const submitAssignment = createServerFn({ method: "POST" })
-  .validator((input: unknown) => v.parse(submitWorkSchema, input))
-  .handler(({ data }) => backend().submitAssignment(data));
 
 export const getAttendance = createServerFn({ method: "GET" })
   .validator((input: unknown) => v.parse(studentScopedQuerySchema, input))
@@ -119,12 +95,6 @@ export const getNewsletters = createServerFn({ method: "GET" })
 export const getCalendar = createServerFn({ method: "GET" })
   .validator((input: unknown) => v.parse(calendarQuerySchema, input))
   .handler(({ data }) => backend().getCalendar(data));
-
-export const createAssignment = createServerFn({ method: "POST" })
-  .validator((input: v.InferInput<typeof createAssignmentSchema>) =>
-    v.parse(createAssignmentSchema, input),
-  )
-  .handler(({ data }) => backend().createAssignment(data));
 
 export const saveCalendarEvent = createServerFn({ method: "POST" })
   .validator((input: unknown) => v.parse(calendarEventSchema, input))

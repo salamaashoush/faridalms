@@ -404,38 +404,6 @@ export const classSubjects = pgTable(
   (table) => [unique("class_subjects_key").on(table.classId, table.subjectId)],
 );
 
-/** Teacher-made subsets of a class roster, reused as assignment audiences. */
-export const studentGroups = pgTable(
-  "student_groups",
-  {
-    id: uuid().primaryKey().defaultRandom(),
-    classId: uuid("class_id")
-      .notNull()
-      .references(() => classes.id, { onDelete: "cascade" }),
-    name: varchar({ length: 64 }).notNull(),
-    createdById: uuid("created_by_id").references(() => users.id, {
-      onDelete: "set null",
-    }),
-    ...timestamps,
-  },
-  (table) => [
-    unique("student_groups_class_name_key").on(table.classId, table.name),
-  ],
-);
-
-export const studentGroupMembers = pgTable(
-  "student_group_members",
-  {
-    groupId: uuid("group_id")
-      .notNull()
-      .references(() => studentGroups.id, { onDelete: "cascade" }),
-    studentId: uuid("student_id")
-      .notNull()
-      .references(() => students.id, { onDelete: "cascade" }),
-  },
-  (table) => [primaryKey({ columns: [table.groupId, table.studentId] })],
-);
-
 // --- private files ------------------------------------------------------------
 
 /**
@@ -609,23 +577,6 @@ export const assignmentRecipients = pgTable(
   ],
 );
 
-export const assignmentResources = pgTable(
-  "assignment_resources",
-  {
-    assignmentId: uuid("assignment_id")
-      .notNull()
-      .references(() => assignments.id, { onDelete: "cascade" }),
-    fileId: uuid("file_id")
-      .notNull()
-      .references(() => privateFiles.id, { onDelete: "restrict" }),
-    position: smallint().notNull().default(0),
-  },
-  (table) => [
-    primaryKey({ columns: [table.assignmentId, table.fileId] }),
-    index("assignment_resources_file_idx").on(table.fileId),
-  ],
-);
-
 /**
  * One aggregate per student per assignment. The mutable draft lives here; each
  * hand-in becomes an immutable attempt, and the score columns mirror the
@@ -665,23 +616,6 @@ export const submissions = pgTable(
   ],
 );
 
-export const submissionDraftFiles = pgTable(
-  "submission_draft_files",
-  {
-    submissionId: uuid("submission_id")
-      .notNull()
-      .references(() => submissions.id, { onDelete: "cascade" }),
-    fileId: uuid("file_id")
-      .notNull()
-      .references(() => privateFiles.id, { onDelete: "restrict" }),
-    position: smallint().notNull().default(0),
-  },
-  (table) => [
-    primaryKey({ columns: [table.submissionId, table.fileId] }),
-    index("submission_draft_files_file_idx").on(table.fileId),
-  ],
-);
-
 /** A hand-in as it was at the moment of submission. Never updated afterwards. */
 export const submissionAttempts = pgTable(
   "submission_attempts",
@@ -714,23 +648,6 @@ export const submissionAttempts = pgTable(
       table.sourceRevision,
     ),
     check("submission_attempts_number_check", sql`${table.number} > 0`),
-  ],
-);
-
-export const submissionAttemptFiles = pgTable(
-  "submission_attempt_files",
-  {
-    attemptId: uuid("attempt_id")
-      .notNull()
-      .references(() => submissionAttempts.id, { onDelete: "cascade" }),
-    fileId: uuid("file_id")
-      .notNull()
-      .references(() => privateFiles.id, { onDelete: "restrict" }),
-    position: smallint().notNull().default(0),
-  },
-  (table) => [
-    primaryKey({ columns: [table.attemptId, table.fileId] }),
-    index("submission_attempt_files_file_idx").on(table.fileId),
   ],
 );
 
