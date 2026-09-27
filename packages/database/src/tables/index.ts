@@ -11,3 +11,4 @@ export * from "./people";
 export * from "./records";
 export * from "./teaching";
 export * from "./tenancy";
+export * from "./timetable";

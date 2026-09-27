@@ -224,12 +224,12 @@ export async function calendarSummary(
   };
 }
 
-interface SchoolWeek {
+export interface SchoolWeek {
   weekStart: number;
   weekendDays: number[];
 }
 
-async function schoolWeek(
+export async function schoolWeek(
   tx: CellTransaction,
   tenantId: string,
   schoolId: string,
@@ -486,11 +486,16 @@ async function narrowChildren(
     update core.academic_weeks set span = span * ${span}
     where ${scope} and span && ${span} and not ${span} @> span`);
   await renumberWeeks(tx, tenantId, yearId);
-  await tx.execute(sql`
-    update core.class_periods set status = 'tobedeleted'
-    where ${scope} and not valid_during && ${span}`);
+  await Promise.all(
+    [sql`core.class_periods`, sql`core.class_meetings`].map((table) =>
+      tx.execute(sql`
+        update ${table} set status = 'tobedeleted'
+        where ${scope} and not valid_during && ${span}`),
+    ),
+  );
   for (const table of [
     sql`core.class_periods`,
+    sql`core.class_meetings`,
     sql`core.student_school_years`,
     sql`core.enrollments`,
   ])
@@ -514,6 +519,7 @@ async function widenChildren(
   const scope = sql`tenant_id = ${tenantId}::uuid and school_year_id = ${yearId}::uuid and status = 'active'`;
   for (const table of [
     sql`core.class_periods`,
+    sql`core.class_meetings`,
     sql`core.student_school_years`,
     sql`core.enrollments`,
   ]) {

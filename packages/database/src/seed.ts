@@ -1,6 +1,7 @@
 import { plainContent } from "@faridalms/domain/content-conversion";
 import { CATALOGUE } from "@faridalms/domain/descriptors/catalogue";
 import { addDays, teachingWeeks } from "@faridalms/domain/school";
+import { schoolDays } from "@faridalms/domain/timetable";
 import { and, eq, sql } from "drizzle-orm";
 
 import type { CellTransaction, openOwner } from "./context";
@@ -25,6 +26,7 @@ import {
   classGroupMembers,
   classGroups,
   classes,
+  classMeetings,
   classPeriods,
   contactPoints,
   courses,
@@ -1204,9 +1206,93 @@ async function seedSchool(
     teachers,
     pupils,
   );
+  await seedTimetable(tx, tenantId, schoolId, yearId);
   await seedCoursework(tx, tenantId, schoolId, yearId);
   await seedAttendance(tx, tenantId, schoolId, yearId);
   return { yearId, teachers };
+}
+
+/**
+ * A week for every homeroom: its subject classes rotate through the lesson
+ * periods, each homeroom in its own room, and a subject's teacher never meets
+ * two grades at once because each grade starts the rotation one step on.
+ */
+async function seedTimetable(
+  tx: Tx,
+  tenantId: string,
+  schoolId: string,
+  yearId: string,
+) {
+  const [school] = await tx
+    .select({ weekStart: orgs.weekStart, weekendDays: orgs.weekendDays })
+    .from(orgs)
+    .where(and(eq(orgs.tenantId, tenantId), eq(orgs.id, schoolId)));
+  if (!school) throw new Error("no seeded school");
+  const days = schoolDays(school.weekStart, school.weekendDays);
+  const periods = await tx
+    .select({ id: classPeriods.id })
+    .from(classPeriods)
+    .where(
+      and(
+        eq(classPeriods.tenantId, tenantId),
+        eq(classPeriods.schoolYearId, yearId),
+        eq(classPeriods.kind, "lesson"),
+      ),
+    )
+    .orderBy(classPeriods.sequence);
+  const rooms = await tx
+    .select({ id: locations.id })
+    .from(locations)
+    .where(
+      and(
+        eq(locations.tenantId, tenantId),
+        eq(locations.orgId, schoolId),
+        eq(locations.kind, "room"),
+      ),
+    )
+    .orderBy(locations.code);
+  const offered = await tx.execute<{
+    id: string;
+    homeroom_class_id: string;
+    teacher_id: string;
+  }>(sql`
+    select c.id, c.homeroom_class_id, e.user_id as teacher_id
+    from core.classes c
+    join core.enrollments e on e.tenant_id = c.tenant_id and e.class_id = c.id
+      and e.role = 'teacher' and e.is_primary
+    join core.classes h on h.tenant_id = c.tenant_id and h.id = c.homeroom_class_id
+    where c.tenant_id = ${tenantId}::uuid and c.org_id = ${schoolId}::uuid
+      and c.school_year_id = ${yearId}::uuid and c.class_type = 'scheduled'
+    order by h.code, c.code`);
+  const homerooms = [...new Set(offered.map((row) => row.homeroom_class_id))];
+  const meetings: (typeof classMeetings.$inferInsert)[] = [];
+  for (const [grade, homeroomId] of homerooms.entries()) {
+    const subjects = offered.filter(
+      (row) => row.homeroom_class_id === homeroomId,
+    );
+    const room = rooms[grade % Math.max(rooms.length, 1)];
+    for (const [dayIndex, weekday] of days.entries())
+      for (const [periodIndex, period] of periods.entries()) {
+        const taught =
+          subjects[(periodIndex + dayIndex + grade) % subjects.length];
+        if (!taught) continue;
+        meetings.push({
+          tenantId,
+          orgId: schoolId,
+          classId: taught.id,
+          classType: "scheduled",
+          schoolYearId: yearId,
+          groupClassId: homeroomId,
+          weekday,
+          classPeriodId: period.id,
+          teacherUserId: taught.teacher_id,
+          locationId: room?.id ?? null,
+          validDuring: `[${YEAR.start},${YEAR.end})`,
+        });
+      }
+  }
+  for (let index = 0; index < meetings.length; index += 200)
+    await tx.insert(classMeetings).values(meetings.slice(index, index + 200));
 }
 
 /**

@@ -187,6 +187,10 @@ describe("temporal keys", () => {
         params: [a.tenantId, school.year],
       },
       {
+        text: `update core.class_meetings set valid_during = '[2026-09-13,2027-06-10)' where tenant_id = $1 and school_year_id = $2`,
+        params: [a.tenantId, school.year],
+      },
+      {
         text: `update core.academic_sessions set span = '[2027-02-07,2027-06-10)' where tenant_id = $1 and parent_id = $2 and sequence = 2`,
         params: [a.tenantId, school.year],
       },

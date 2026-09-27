@@ -1,68 +1,84 @@
 import * as v from "valibot";
 
-/** 0 = Sunday. The Egyptian school week runs Sunday to Thursday. */
-export const SCHOOL_WEEKDAYS = [0, 1, 2, 3, 4] as const;
-export type SchoolWeekday = (typeof SCHOOL_WEEKDAYS)[number];
+/** ISO weekdays, 1 for Monday to 7 for Sunday, as `core.orgs` stores them. */
+export type IsoWeekday = 1 | 2 | 3 | 4 | 5 | 6 | 7;
+
+export function isoWeekday(iso: string): IsoWeekday {
+  const day = new Date(`${iso}T00:00:00Z`).getUTCDay();
+  return (day === 0 ? 7 : day) as IsoWeekday;
+}
+
+/** The school's teaching days in week order, starting from its first day. */
+export function schoolDays(
+  weekStart: number,
+  weekendDays: readonly number[],
+): IsoWeekday[] {
+  const days: IsoWeekday[] = [];
+  for (let offset = 0; offset < 7; offset += 1) {
+    const day = (((weekStart - 1 + offset) % 7) + 1) as IsoWeekday;
+    if (!weekendDays.includes(day)) days.push(day);
+  }
+  return days;
+}
+
+/**
+ * How a placement meets a teacher or room already booked elsewhere at the
+ * same time: refuse and ask, take them from the other class, or keep both
+ * and flag the clash.
+ */
+export const CLASH_RESOLUTIONS = ["ask", "move", "keep"] as const;
+export type ClashResolution = (typeof CLASH_RESOLUTIONS)[number];
 
 const id = v.pipe(v.string(), v.uuid());
-const clock = v.pipe(v.string(), v.regex(/^([01]\d|2[0-3]):[0-5]\d$/));
+const optionalId = v.optional(v.union([v.literal(""), id]), "");
+const isoDate = v.pipe(v.string(), v.isoDate());
+const weekday = v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(7));
 
-export const timetableSlotSchema = v.pipe(
-  v.object({
-    weekday: v.picklist(SCHOOL_WEEKDAYS),
-    startTime: clock,
-    endTime: clock,
-    subjectId: id,
-    /** Empty falls back to the teacher responsible for the subject in the class. */
-    teacherId: v.optional(v.union([v.literal(""), id]), ""),
-    room: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(32)), ""),
-  }),
-  v.forward(
-    v.check((value) => value.endTime > value.startTime, "validation.end_time"),
-    ["endTime"],
-  ),
-);
-export type TimetableSlotInput = v.InferInput<typeof timetableSlotSchema>;
+export const gridQuerySchema = v.object({
+  classId: id,
+  on: v.optional(v.union([v.literal(""), isoDate]), ""),
+});
 
-interface Span {
-  weekday: number;
-  startTime: string;
-  endTime: string;
-}
+export const weekQuerySchema = v.object({
+  on: v.optional(v.union([v.literal(""), isoDate]), ""),
+});
 
-export function slotsCollide(a: Span, b: Span): boolean {
-  return (
-    a.weekday === b.weekday &&
-    a.startTime < b.endTime &&
-    b.startTime < a.endTime
-  );
-}
+export const teacherWeekSchema = v.object({
+  teacherId: optionalId,
+  on: v.optional(v.union([v.literal(""), isoDate]), ""),
+});
 
-/** Indexes of every slot that shares time with another slot in the same list. */
-export function collidingSlots(slots: readonly Span[]): number[] {
-  const hits = new Set<number>();
-  slots.forEach((slot, index) => {
-    slots.forEach((other, otherIndex) => {
-      if (index !== otherIndex && slotsCollide(slot, other)) hits.add(index);
-    });
-  });
-  return [...hits].toSorted((a, b) => a - b);
-}
+export const roomWeekSchema = v.object({
+  roomId: id,
+  on: v.optional(v.union([v.literal(""), isoDate]), ""),
+});
 
-export const saveTimetableSchema = v.pipe(
-  v.object({
-    classId: id,
-    expectedRevision: v.pipe(v.number(), v.integer(), v.minValue(1)),
-    slots: v.pipe(v.array(timetableSlotSchema), v.maxLength(80)),
-  }),
-  v.forward(
-    v.check(
-      (value) => collidingSlots(value.slots).length === 0,
-      "validation.slot_overlap",
-    ),
-    ["slots"],
-  ),
-);
-export type SaveTimetableInput = v.InferInput<typeof saveTimetableSchema>;
+export const studentWeekSchema = v.object({ studentId: optionalId });
 
-export const timetableQuerySchema = v.object({ classId: id });
+const cell = {
+  /** The class whose grid is edited: a homeroom, or a class of its own. */
+  classId: id,
+  weekday,
+  periodId: id,
+  /** The first day the change applies; earlier days keep what they had. */
+  from: isoDate,
+};
+
+export const placeSchema = v.object({
+  ...cell,
+  /** The class that meets in the cell: one of the homeroom's subject classes. */
+  meetingClassId: id,
+  teacherId: optionalId,
+  roomId: optionalId,
+  resolve: v.optional(v.picklist(CLASH_RESOLUTIONS), "ask"),
+});
+export type Place = v.InferOutput<typeof placeSchema>;
+
+export const clearSchema = v.object(cell);
+export type ClearCell = v.InferOutput<typeof clearSchema>;
+
+export const clashCheckSchema = v.object({
+  ...cell,
+  teacherId: optionalId,
+  roomId: optionalId,
+});
