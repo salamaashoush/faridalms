@@ -1,7 +1,12 @@
 import * as v from "valibot";
 import { describe, expect, it } from "vitest";
 
-import { eventIcs, monthWeeks, saveEventSchema } from "./calendar";
+import {
+  eventIcs,
+  materialChange,
+  monthWeeks,
+  saveEventSchema,
+} from "./calendar";
 import { plainContent } from "./content-conversion";
 
 describe("month weeks", () => {
@@ -95,5 +100,43 @@ describe("saving an event", () => {
         endTime: "",
       }).success,
     ).toBe(true);
+  });
+});
+
+describe("material changes", () => {
+  const planned = {
+    startsOn: "2026-10-20",
+    endsOn: "2026-10-20",
+    startTime: "09:00",
+    endTime: "10:00",
+    location: "Room 12",
+    audiences: [
+      { scope: "class", classId: "a", gradeId: "" },
+      { scope: "families", classId: "", gradeId: "" },
+    ],
+  };
+
+  it("counts a new day, hour, place or audience, in any order of audiences", () => {
+    expect(
+      materialChange(planned, { ...planned, startsOn: "2026-10-21" }),
+    ).toBe(true);
+    expect(materialChange(planned, { ...planned, endTime: "11:00" })).toBe(
+      true,
+    );
+    expect(materialChange(planned, { ...planned, location: "Hall" })).toBe(
+      true,
+    );
+    expect(
+      materialChange(planned, {
+        ...planned,
+        audiences: [{ scope: "school", classId: "", gradeId: "" }],
+      }),
+    ).toBe(true);
+    expect(
+      materialChange(planned, {
+        ...planned,
+        audiences: planned.audiences.toReversed(),
+      }),
+    ).toBe(false);
   });
 });

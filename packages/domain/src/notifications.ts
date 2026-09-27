@@ -22,6 +22,7 @@ export interface NoticeParams {
   title?: string;
   preview?: string;
   updated?: boolean;
+  cancelled?: boolean;
   actorName?: string;
   actorNameAr?: string;
   studentName?: string;

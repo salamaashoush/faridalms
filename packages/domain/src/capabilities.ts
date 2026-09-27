@@ -25,6 +25,7 @@ export const CAPABILITIES = [
   "classes:read",
   "classes:manage",
   "calendar:manage",
+  "calendar:author",
   "announcements:manage",
   "newsletters:manage",
   "site:manage",
@@ -79,6 +80,7 @@ const TEACHING: readonly Capability[] = [
   "reports:read",
   "learning:author",
   "learning:read",
+  "calendar:author",
 ];
 
 const ADMINISTRATION: readonly Capability[] = CAPABILITIES.filter(

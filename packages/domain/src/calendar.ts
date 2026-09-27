@@ -52,6 +52,8 @@ export const saveEventSchema = v.pipe(
     provisional: v.boolean(),
     audiences: v.pipe(v.array(audienceSchema), v.minLength(1), v.maxLength(20)),
     description: contentDocumentSchema,
+    /** Tell a published event's audience about this change. */
+    sendUpdate: v.optional(v.boolean(), false),
   }),
   v.forward(
     v.check((input) => input.endsOn >= input.startsOn, "calendar.ends_before"),
@@ -82,6 +84,43 @@ export const eventRefSchema = v.object({
   id,
   expectedVersion: v.pipe(v.number(), v.integer(), v.minValue(1)),
 });
+
+export const publishEventSchema = v.object({
+  id,
+  expectedVersion: v.pipe(v.number(), v.integer(), v.minValue(1)),
+  /** Tell the audience now, or let it appear quietly. */
+  notify: v.boolean(),
+});
+
+interface Planned {
+  startsOn: string;
+  endsOn: string;
+  startTime: string | null;
+  endTime: string | null;
+  location: string | null;
+  audiences: readonly { scope: string; classId?: string; gradeId?: string }[];
+}
+
+const audienceKey = (audiences: Planned["audiences"]) =>
+  audiences
+    .map((one) => `${one.scope}:${one.classId ?? ""}:${one.gradeId ?? ""}`)
+    .toSorted()
+    .join("|");
+
+/**
+ * Whether an edit changes when, where or for whom, the changes people must
+ * hear about; a new title or description alone can go quietly.
+ */
+export function materialChange(before: Planned, after: Planned): boolean {
+  return (
+    before.startsOn !== after.startsOn ||
+    before.endsOn !== after.endsOn ||
+    (before.startTime ?? "") !== (after.startTime ?? "") ||
+    (before.endTime ?? "") !== (after.endTime ?? "") ||
+    (before.location ?? "") !== (after.location ?? "") ||
+    audienceKey(before.audiences) !== audienceKey(after.audiences)
+  );
+}
 
 export const cancelEventSchema = v.object({
   id,
