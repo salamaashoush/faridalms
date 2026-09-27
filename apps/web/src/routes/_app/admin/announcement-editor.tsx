@@ -1,72 +1,63 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
 import * as v from "valibot";
 
-import { AnnouncementEditor } from "~/components/communication/AnnouncementEditor";
+import { AnnouncementEditor } from "~/components/announcements/AnnouncementEditor";
 import * as m from "~/i18n/messages";
-import { announcementQuery } from "~/queries/notifications";
+import {
+  announcementEditorQuery,
+  announcementOptionsQuery,
+} from "~/queries/announcements";
 
 export const Route = createFileRoute("/_app/admin/announcement-editor")({
-  staticData: { breadcrumb: m.announcementNew, section: "/announcements" },
+  staticData: { breadcrumb: m.annEditorBreadcrumb, section: "/announcements" },
   validateSearch: v.object({ id: v.optional(v.pipe(v.string(), v.uuid())) }),
   loaderDeps: ({ search }) => search,
   loader: async ({ context, deps }) => {
-    if (deps.id)
-      await context.queryClient.ensureQueryData(announcementQuery(deps.id));
+    await Promise.all([
+      context.queryClient.ensureQueryData(announcementOptionsQuery),
+      ...(deps.id
+        ? [
+            context.queryClient.ensureQueryData(
+              announcementEditorQuery(deps.id),
+            ),
+          ]
+        : []),
+    ]);
   },
   component: EditorPage,
 });
 
-function EditorPage() {
-  const { id } = Route.useSearch();
-  const navigate = Route.useNavigate();
-  // A new announcement gets its address once its first draft is saved; the
-  // editor that created it stays mounted so typing is never interrupted.
-  const [created, setCreated] = useState<string | null>(null);
-  const close = () =>
-    void navigate({ to: "/announcements", search: { page: 1 } });
-  const onCreated = (announcementId: string) => {
-    setCreated(announcementId);
-    void navigate({
-      to: "/admin/announcement-editor",
-      search: { id: announcementId },
-      replace: true,
-    });
-  };
-  const onPublished = (announcementId: string) =>
-    void navigate({
-      to: "/announcements/$announcementId",
-      params: { announcementId },
-    });
-  return id && id !== created ? (
-    <Existing
-      key={id}
-      id={id}
-      onClose={close}
-      onCreated={onCreated}
-      onPublished={onPublished}
-    />
-  ) : (
+function Existing({
+  id,
+  onClose,
+}: {
+  id: string;
+  onClose: (id?: string) => void;
+}) {
+  const existing = useSuspenseQuery(announcementEditorQuery(id)).data;
+  return (
     <AnnouncementEditor
-      key="new"
-      initial={null}
-      onClose={close}
-      onCreated={onCreated}
-      onPublished={onPublished}
+      key={existing.version}
+      existing={existing}
+      onClose={onClose}
     />
   );
 }
 
-function Existing({
-  id,
-  ...props
-}: {
-  id: string;
-  onClose: () => void;
-  onCreated: (id: string) => void;
-  onPublished: (id: string) => void;
-}) {
-  const { data } = useSuspenseQuery(announcementQuery(id));
-  return <AnnouncementEditor initial={data} {...props} />;
+function EditorPage() {
+  const { id } = Route.useSearch();
+  const navigate = Route.useNavigate();
+  const close = (saved?: string) =>
+    void (saved
+      ? navigate({
+          to: "/announcements/$announcementId",
+          params: { announcementId: saved },
+        })
+      : navigate({ to: "/announcements", search: {} }));
+  return id ? (
+    <Existing id={id} onClose={close} />
+  ) : (
+    <AnnouncementEditor existing={null} onClose={close} />
+  );
 }

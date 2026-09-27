@@ -118,6 +118,16 @@ export function getMessageFromError(error: unknown): string {
         return m.messageDraftConflict();
       case "message_draft.incomplete":
         return m.messageDraftIncomplete();
+      case "announcements.archived":
+        return m.annErrArchived();
+      case "announcements.already_out":
+        return m.annErrAlreadyOut();
+      case "announcements.nobody":
+        return m.annErrNobody();
+      case "announcements.no_ack":
+        return m.annErrNoAck();
+      case "announcements.audience_target":
+        return m.annAudienceTarget();
       case "messages.no_guardians":
         return m.msgNoGuardians();
       case "messages.recipient":

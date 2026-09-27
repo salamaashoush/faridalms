@@ -1,105 +1,290 @@
+import type { ManageQuery } from "@faridalms/domain/announcements";
+
+import { MANAGE_TABS } from "@faridalms/domain/announcements";
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { Megaphone, Plus } from "lucide-react";
+import {
+  createFileRoute,
+  Link,
+  stripSearchParams,
+} from "@tanstack/react-router";
+import { CircleCheck, Megaphone, Pin, Plus } from "lucide-react";
 import * as v from "valibot";
 
-import { DirectoryPagination } from "~/components/admin/DirectoryPagination";
-import { ButtonLink } from "~/components/app/ButtonLink";
-import { EmptyState, PageHeader } from "~/components/app/primitives";
-import { AUDIENCE_LABEL } from "~/components/communication/announcement-labels";
-import { Badge } from "~/components/ui/badge";
-import { useCurrentUser } from "~/hooks/useCurrentUser";
+import type { Column } from "~/components/system/DataTable";
+
+import { URGENCY_LABEL, URGENCY_TONE } from "~/components/announcements/format";
+import { formatInstant } from "~/components/coursework/format";
+import { DataTable, RowLink } from "~/components/system/DataTable";
+import {
+  EmptyState,
+  IndexToolbar,
+  PageHeader,
+} from "~/components/system/IndexPage";
+import { RecordTabs } from "~/components/system/RecordPage";
+import { StatusBadge, StatusText } from "~/components/system/status";
+import { inLocale, useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
-import { announcementsQuery } from "~/queries/notifications";
-import { formatDateTime } from "~/utils/datetime";
+import {
+  announcementFeedQuery,
+  managedAnnouncementsQuery,
+} from "~/queries/announcements";
+import { cn } from "~/utils/cn";
+import { formatDate, formatNumber } from "~/utils/datetime";
+
+const TABS = ["current", "past", ...MANAGE_TABS] as const;
+type Tab = (typeof TABS)[number];
+
+const searchSchema = v.object({
+  tab: v.fallback(v.optional(v.picklist(TABS), "current"), "current"),
+  q: v.optional(v.pipe(v.string(), v.maxLength(100)), ""),
+});
+const DEFAULT_SEARCH = v.parse(searchSchema, {});
+
+const isManage = (tab: Tab): tab is ManageQuery["tab"] =>
+  (MANAGE_TABS as readonly string[]).includes(tab);
 
 export const Route = createFileRoute("/_app/announcements/")({
-  staticData: { breadcrumb: m.announcementsTitle },
-  validateSearch: v.object({
-    page: v.optional(v.pipe(v.number(), v.integer(), v.minValue(1)), 1),
-  }),
+  staticData: { breadcrumb: m.annTitle },
+  validateSearch: searchSchema,
+  search: { middlewares: [stripSearchParams(DEFAULT_SEARCH)] },
   loaderDeps: ({ search }) => search,
-  loader: ({ context, deps }) =>
-    context.queryClient.ensureQueryData(announcementsQuery(deps.page)),
+  loader: async ({ context, deps }) => {
+    const { queryClient } = context;
+    if (isManage(deps.tab))
+      await queryClient.ensureQueryData(
+        managedAnnouncementsQuery({ tab: deps.tab, q: deps.q }),
+      );
+    else
+      await queryClient.ensureQueryData(
+        announcementFeedQuery({ tab: deps.tab, q: deps.q }),
+      );
+  },
   component: AnnouncementsPage,
 });
 
+const TAB_LABEL: Record<Tab, () => string> = {
+  current: m.annTabCurrent,
+  past: m.annTabPast,
+  drafts: m.annTabDrafts,
+  scheduled: m.annTabScheduled,
+  published: m.annTabSent,
+  archived: m.annTabArchived,
+};
+
+type FeedRow = Awaited<
+  ReturnType<NonNullable<ReturnType<typeof announcementFeedQuery>["queryFn"]>>
+>["rows"][number];
+type ManagedRow = Awaited<
+  ReturnType<
+    NonNullable<ReturnType<typeof managedAnnouncementsQuery>["queryFn"]>
+  >
+>["rows"][number];
+
+function FeedItem({ row, timeZone }: { row: FeedRow; timeZone: string }) {
+  const unread = row.readAt === null;
+  return (
+    <li className="grid gap-1.5 py-4">
+      <div className="flex flex-wrap items-center gap-2">
+        {row.pinned ? (
+          <Pin
+            className="size-4 text-muted-foreground"
+            aria-label={m.annPinned()}
+          />
+        ) : null}
+        <Link
+          to="/announcements/$announcementId"
+          params={{ announcementId: row.id }}
+          className={cn(
+            "min-w-0 text-base leading-6 hover:text-primary hover:underline",
+            unread ? "font-semibold" : "font-medium",
+          )}
+        >
+          <bdi>{row.title}</bdi>
+        </Link>
+        {row.urgency === "normal" ? null : (
+          <StatusBadge tone={URGENCY_TONE[row.urgency]}>
+            {URGENCY_LABEL[row.urgency]()}
+          </StatusBadge>
+        )}
+        {unread ? <span className="sr-only">{m.annUnread()}</span> : null}
+      </div>
+      <p className="text-[13px] leading-[18px] text-muted-foreground">
+        {[
+          inLocale(row.authorNameEn, row.authorNameAr),
+          row.publishAt ? formatInstant(row.publishAt, timeZone) : null,
+        ]
+          .filter(Boolean)
+          .join(" · ")}
+      </p>
+      {row.summary ? (
+        <p
+          dir="auto"
+          className="line-clamp-2 text-sm leading-5 text-foreground/90"
+        >
+          {row.summary}
+        </p>
+      ) : null}
+      {row.requiresAck ? (
+        row.acknowledgedAt ? (
+          <StatusText tone="success">{m.annAcknowledged()}</StatusText>
+        ) : (
+          <StatusText tone="warning">
+            {row.ackDueOn
+              ? m.annAckDue({ date: formatDate(row.ackDueOn) })
+              : m.annAckNeeded()}
+          </StatusText>
+        )
+      ) : null}
+    </li>
+  );
+}
+
+function Feed({ tab, q }: { tab: "current" | "past"; q: string }) {
+  const user = useCurrentUser();
+  const { rows } = useSuspenseQuery(announcementFeedQuery({ tab, q })).data;
+  if (rows.length === 0)
+    return (
+      <EmptyState
+        icon={Megaphone}
+        title={tab === "past" ? m.annNoPast() : m.annNothing()}
+        description={m.annNothingBody()}
+      />
+    );
+  return (
+    <ul
+      className="divide-y rounded-lg border bg-card px-5"
+      aria-label={m.annTitle()}
+    >
+      {rows.map((row) => (
+        <FeedItem key={row.id} row={row} timeZone={user.school.timeZone} />
+      ))}
+    </ul>
+  );
+}
+
+function ManagedTitle({ row }: { row: ManagedRow }) {
+  return row.state === "draft" ? (
+    <RowLink to="/admin/announcement-editor" search={{ id: row.id }}>
+      {row.title}
+    </RowLink>
+  ) : (
+    <RowLink
+      to="/announcements/$announcementId"
+      params={{ announcementId: row.id }}
+    >
+      {row.title}
+    </RowLink>
+  );
+}
+
+function reach(row: ManagedRow) {
+  if (row.recipients === 0) return "–";
+  const read = m.annReadOf({
+    count: formatNumber(row.read),
+    total: formatNumber(row.recipients),
+  });
+  return row.requiresAck
+    ? `${read} · ${m.annAckOf({ count: formatNumber(row.acknowledged) })}`
+    : read;
+}
+
+// Built per render: headers read the request's locale, which a module-level
+// array would fix at whichever language first loaded the module on the server.
+function managedColumns(timeZone: string): Column<ManagedRow>[] {
+  return [
+    {
+      id: "title",
+      header: m.annColTitle(),
+      primary: true,
+      cell: (row) => <ManagedTitle row={row} />,
+    },
+    {
+      id: "urgency",
+      header: m.annColUrgency(),
+      cell: (row) => (
+        <StatusText tone={URGENCY_TONE[row.urgency]}>
+          {URGENCY_LABEL[row.urgency]()}
+        </StatusText>
+      ),
+    },
+    {
+      id: "when",
+      header: m.annColWhen(),
+      cell: (row) =>
+        row.publishAt ? formatInstant(row.publishAt, timeZone) : "–",
+    },
+    { id: "reach", header: m.annColReach(), cell: (row) => reach(row) },
+  ];
+}
+
+const managedCard = {
+  title: (row: ManagedRow) => <ManagedTitle row={row} />,
+  fact: (row: ManagedRow) => reach(row),
+};
+
+function Managed({ tab, q }: { tab: ManageQuery["tab"]; q: string }) {
+  const user = useCurrentUser();
+  const { rows } = useSuspenseQuery(managedAnnouncementsQuery({ tab, q })).data;
+  return (
+    <DataTable
+      caption={m.annManagedCaption()}
+      rows={rows}
+      columns={managedColumns(user.school.timeZone)}
+      rowLabel={(row) => row.title}
+      card={managedCard}
+      empty={{
+        icon: CircleCheck,
+        title: m.annManagedEmpty(),
+        description: m.annManagedEmptyBody(),
+      }}
+    />
+  );
+}
+
 function AnnouncementsPage() {
-  const { page } = Route.useSearch();
+  const search = Route.useSearch();
   const navigate = Route.useNavigate();
   const user = useCurrentUser();
-  const { data } = useSuspenseQuery(announcementsQuery(page));
+  const manages = user.capabilities.includes("announcements:manage");
+  const tabs = TABS.filter((tab) => manages || !isManage(tab));
   return (
     <>
       <PageHeader
-        title={m.announcementsTitle()}
-        description={m.announcementsSubtitle()}
-        actions={
-          data.canManage && user.workspace === "admin" ? (
-            <ButtonLink to="/admin/announcement-editor" search={{}}>
-              <Plus className="size-4" aria-hidden />
-              {m.announcementNew()}
-            </ButtonLink>
-          ) : undefined
+        title={m.annTitle()}
+        description={m.annHint()}
+        action={
+          manages
+            ? {
+                label: m.annNew(),
+                icon: Plus,
+                link: { to: "/admin/announcement-editor", search: {} },
+              }
+            : undefined
         }
       />
-      {data.rows.length === 0 ? (
-        <EmptyState icon={Megaphone} title={m.announcementsEmpty()} />
-      ) : (
-        <ul className="divide-y rounded-xl border bg-card">
-          {data.rows.map((row) => (
-            <li
-              key={row.id}
-              className="flex flex-wrap items-start justify-between gap-4 p-5"
-            >
-              <div className="min-w-0 flex-1">
-                <Link
-                  to="/announcements/$announcementId"
-                  params={{ announcementId: row.id }}
-                  className="font-semibold hover:text-primary hover:underline"
-                >
-                  {row.title || m.announcementUntitled()}
-                </Link>
-                <p className="mt-1 line-clamp-2 text-sm text-muted-foreground">
-                  {row.summary}
-                </p>
-                <p className="mt-2 flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                  <Badge variant="outline">
-                    {AUDIENCE_LABEL[row.audience]()}
-                  </Badge>
-                  {row.status === "draft" ? (
-                    <Badge variant="secondary">
-                      {m.assignmentStatusDraft()}
-                    </Badge>
-                  ) : null}
-                  {row.publishedAt ? (
-                    <span>{formatDateTime(row.publishedAt.toISOString())}</span>
-                  ) : null}
-                  {row.author?.name ? <span>{row.author.name}</span> : null}
-                </p>
-              </div>
-              {data.canManage && user.workspace === "admin" ? (
-                <ButtonLink
-                  variant="outline"
-                  size="sm"
-                  to="/admin/announcement-editor"
-                  search={{ id: row.id }}
-                >
-                  {m.managementEdit()}
-                </ButtonLink>
-              ) : null}
-            </li>
-          ))}
-        </ul>
-      )}
-      <div className="mt-4">
-        <DirectoryPagination
-          page={data.page}
-          pages={data.pages}
-          total={data.total}
-          onPage={(next) => void navigate({ search: { page: next } })}
-        />
-      </div>
+      <RecordTabs
+        label={m.annTitle()}
+        tabs={tabs.map((value) => ({ value, label: TAB_LABEL[value]() }))}
+        value={search.tab}
+        onChange={(tab) => void navigate({ search: { tab } })}
+      >
+        <div className="grid gap-4">
+          <IndexToolbar
+            search={{
+              value: search.q,
+              onChange: (q) =>
+                void navigate({ search: (previous) => ({ ...previous, q }) }),
+              label: m.annSearch(),
+              placeholder: m.annSearchPlaceholder(),
+            }}
+          />
+          {isManage(search.tab) ? (
+            <Managed tab={search.tab} q={search.q} />
+          ) : (
+            <Feed tab={search.tab} q={search.q} />
+          )}
+        </div>
+      </RecordTabs>
     </>
   );
 }
