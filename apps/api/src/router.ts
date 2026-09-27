@@ -15,7 +15,9 @@ import * as teaching from "./modules/teaching";
 import * as timetable from "./modules/timetable";
 import * as accessSystem from "./systems/access";
 import * as classesSystem from "./systems/classes";
+import * as courseworkSystem from "./systems/coursework";
 import * as filesSystem from "./systems/files";
+import * as gradebookSystem from "./systems/gradebook";
 import * as identity from "./systems/identity";
 import * as peopleSystem from "./systems/people";
 import * as recordsSystem from "./systems/records";
@@ -32,6 +34,8 @@ export const router = {
   classes: classesSystem,
   years: yearsSystem,
   files: filesSystem,
+  coursework: courseworkSystem,
+  gradebook: gradebookSystem,
   rollover: rolloverSystem,
   ...students,
   ...overviews,

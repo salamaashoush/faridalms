@@ -1,0 +1,143 @@
+import { sql } from "drizzle-orm";
+
+import type { CellTransaction } from "../context";
+
+import { uuidArray } from "./sql";
+
+type Tx = CellTransaction;
+
+export interface HostedDocument {
+  id: string;
+  version: number;
+  content: Record<string, unknown>;
+  plainText: string;
+  frozenAt: string | null;
+}
+
+export interface Host {
+  type: string;
+  id: string;
+}
+
+export async function documentOf(
+  tx: Tx,
+  tenantId: string,
+  host: Host,
+): Promise<HostedDocument | null> {
+  const [row] = await tx.execute<{
+    id: string;
+    version: number;
+    content: Record<string, unknown>;
+    plain_text: string;
+    frozen_at: string | null;
+  }>(sql`
+    select id, version, content, plain_text, frozen_at::text as frozen_at from core.documents
+    where tenant_id = ${tenantId}::uuid and host_type = ${host.type} and host_id = ${host.id}::uuid
+      and status = 'active' and translation_of_id is null
+    order by created_at desc limit 1`);
+  return row
+    ? {
+        id: row.id,
+        version: row.version,
+        content: row.content,
+        plainText: row.plain_text,
+        frozenAt: row.frozen_at,
+      }
+    : null;
+}
+
+/**
+ * Records the media a document embeds, and marks those files linked so the
+ * sweep keeps them. Files the document no longer embeds lose their row.
+ */
+async function syncMedia(
+  tx: Tx,
+  input: { tenantId: string; documentId: string; fileIds: readonly string[] },
+) {
+  await tx.execute(sql`
+    update core.document_files set status = 'tobedeleted'
+    where tenant_id = ${input.tenantId}::uuid and document_id = ${input.documentId}::uuid
+      and status = 'active' and not (file_id = any(${uuidArray(input.fileIds)}))`);
+  if (input.fileIds.length === 0) return;
+  await tx.execute(sql`
+    insert into core.document_files (tenant_id, document_id, file_id, file_purpose)
+    select f.tenant_id, ${input.documentId}::uuid, f.id, f.purpose from core.files f
+    where f.tenant_id = ${input.tenantId}::uuid and f.id = any(${uuidArray(input.fileIds)})
+      and f.status = 'active' and f.state = 'ready' and f.purpose = 'document_media'
+      and not exists (
+        select 1 from core.document_files d
+        where d.tenant_id = f.tenant_id and d.document_id = ${input.documentId}::uuid
+          and d.file_id = f.id and d.status = 'active')`);
+  await tx.execute(sql`
+    update core.files set linked_at = statement_timestamp()
+    where tenant_id = ${input.tenantId}::uuid and id = any(${uuidArray(input.fileIds)})
+      and linked_at is null and state = 'ready' and purpose = 'document_media'`);
+}
+
+/** Writes a host's document, creating it the first time. */
+export async function saveDocument(
+  tx: Tx,
+  input: {
+    tenantId: string;
+    orgId: string;
+    host: Host;
+    content: Record<string, unknown>;
+    plainText: string;
+    mediaIds: readonly string[];
+    userId: string;
+  },
+): Promise<{ id: string; version: number }> {
+  const existing = await documentOf(tx, input.tenantId, input.host);
+  let saved: { id: string; version: number } | undefined;
+  if (existing) {
+    [saved] = await tx.execute<{ id: string; version: number }>(sql`
+      update core.documents
+      set content = ${input.content}::jsonb, plain_text = ${input.plainText},
+          last_edited_by_user_id = ${input.userId}::uuid, last_edited_at = statement_timestamp()
+      where tenant_id = ${input.tenantId}::uuid and id = ${existing.id}::uuid
+      returning id, version`);
+  } else {
+    [saved] = await tx.execute<{ id: string; version: number }>(sql`
+      insert into core.documents (tenant_id, host_type, host_id, org_id, kind, schema_version,
+        content, plain_text, last_edited_by_user_id, last_edited_at)
+      values (${input.tenantId}::uuid, ${input.host.type}, ${input.host.id}::uuid,
+        ${input.orgId}::uuid, 'rich_text', 1, ${input.content}::jsonb, ${input.plainText},
+        ${input.userId}::uuid, statement_timestamp())
+      returning id, version`);
+  }
+  if (!saved) throw new Error("document was not saved");
+  await syncMedia(tx, {
+    tenantId: input.tenantId,
+    documentId: saved.id,
+    fileIds: input.mediaIds,
+  });
+  return saved;
+}
+
+/**
+ * Copies a host's document onto another host, frozen: a handed-in attempt
+ * keeps exactly what was sent even as the draft changes later.
+ */
+export async function freezeCopy(
+  tx: Tx,
+  input: { tenantId: string; from: Host; to: Host },
+): Promise<string | null> {
+  const [row] = await tx.execute<{ id: string }>(sql`
+    insert into core.documents (tenant_id, host_type, host_id, org_id, kind, schema_version,
+      content, plain_text, frozen_at, last_edited_by_user_id, last_edited_at)
+    select tenant_id, ${input.to.type}, ${input.to.id}::uuid, org_id, kind, schema_version,
+      content, plain_text, statement_timestamp(), last_edited_by_user_id, last_edited_at
+    from core.documents
+    where tenant_id = ${input.tenantId}::uuid and host_type = ${input.from.type}
+      and host_id = ${input.from.id}::uuid and status = 'active' and translation_of_id is null
+    order by created_at desc limit 1
+    returning id`);
+  if (!row) return null;
+  await tx.execute(sql`
+    insert into core.document_files (tenant_id, document_id, file_id, file_purpose)
+    select d.tenant_id, ${row.id}::uuid, d.file_id, d.file_purpose from core.document_files d
+    join core.documents s on s.tenant_id = d.tenant_id and s.id = d.document_id
+    where d.tenant_id = ${input.tenantId}::uuid and s.host_type = ${input.from.type}
+      and s.host_id = ${input.from.id}::uuid and s.status = 'active' and d.status = 'active'`);
+  return row.id;
+}

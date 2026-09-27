@@ -251,3 +251,18 @@ export async function retireUnlinkedFiles(
         and f.status = 'active' and f.id not in (select id from retired))`);
   return rows.map((row) => row.storage_key);
 }
+
+/** Moves a host's files onto another host, as handing in moves a draft's files onto its attempt. */
+export async function rehostFiles(
+  tx: Tx,
+  input: {
+    tenantId: string;
+    from: { type: string; id: string };
+    to: { type: string; id: string };
+  },
+) {
+  await tx.execute(sql`
+    update core.files set host_type = ${input.to.type}, host_id = ${input.to.id}::uuid
+    where tenant_id = ${input.tenantId}::uuid and host_type = ${input.from.type}
+      and host_id = ${input.from.id}::uuid and status = 'active'`);
+}
