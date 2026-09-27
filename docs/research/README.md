@@ -10,6 +10,11 @@ with new evidence recorded here.
   NN/g, Notion, Linear, shadcn). Rules: [../design-system.md](../design-system.md).
 - [coursework.md](coursework.md): creating, handing in, grading, rubrics and
   family visibility (Classroom, Canvas, Teams, Schoology, Seesaw, Moodle).
+- [course-design.md](course-design.md): interactive lessons and activities,
+  from content blocks to knowledge checks, open responses, practice sets and
+  graded quizzes, with authoring, accessibility, Arabic answer folding and
+  the data they need (Rise, H5P, Canvas, Moodle, QTI 3, Seesaw, Edpuzzle,
+  Khan Academy).
 - [communication.md](communication.md): messaging, announcements, newsletters,
   calendar, notifications (ParentSquare, Remind, ClassDojo, Seesaw, Bloomz,
   Brightwheel, Mailchimp, Smore).
