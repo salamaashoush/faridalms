@@ -99,11 +99,11 @@ describe("SignForm", () => {
     await userEvent.click(screen.getByRole("button", { name: m.roleParent() }));
 
     expect(screen.getByLabelText(m.authSignInFormEmail())).toHaveValue(
-      "parent@example.com",
+      "parent1001@northwind.example.com",
     );
     // Filling only the email would leave the form looking ready but failing.
     expect(screen.getByLabelText(m.authSignInFormPassword())).toHaveValue(
-      "northwind1234",
+      "farida-development-password",
     );
   });
 
