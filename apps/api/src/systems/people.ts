@@ -10,6 +10,7 @@ import {
   signInOf,
   updatePasswordSignIn,
 } from "@faridalms/database/stores/accounts";
+import { homeroomsOn } from "@faridalms/database/stores/classes";
 import {
   descriptorId,
   descriptorsFor,
@@ -64,7 +65,11 @@ import {
   updatePerson,
   updateRelationship,
 } from "@faridalms/database/stores/students";
-import { schoolYears, workingYear } from "@faridalms/database/stores/years";
+import {
+  dayIn,
+  schoolYears,
+  workingYear,
+} from "@faridalms/database/stores/years";
 import {
   endRelationshipSchema,
   guardianLookupSchema,
@@ -196,6 +201,12 @@ export const students = readProcedure
       },
     );
     const byId = new Map(grades.map((grade) => [grade.id, grade]));
+    const homerooms = await homeroomsOn(
+      context.tx,
+      context,
+      rows.map((row) => row.id),
+      dayIn(year, context.today),
+    );
     return {
       year: {
         id: year.id,
@@ -210,6 +221,7 @@ export const students = readProcedure
           grade: grade
             ? { id: grade.id, labelEn: grade.labelEn, labelAr: grade.labelAr }
             : null,
+          homeroom: homerooms.get(row.id) ?? null,
         };
       }),
       total,

@@ -17,6 +17,7 @@ import * as students from "./modules/students";
 import * as teaching from "./modules/teaching";
 import * as timetable from "./modules/timetable";
 import * as accessSystem from "./systems/access";
+import * as classesSystem from "./systems/classes";
 import * as identity from "./systems/identity";
 import * as peopleSystem from "./systems/people";
 import * as recordsSystem from "./systems/records";
@@ -28,6 +29,7 @@ export const router = {
   access: accessSystem,
   school: schoolSystem,
   records: recordsSystem,
+  classes: classesSystem,
   ...students,
   ...overviews,
   ...teaching,
