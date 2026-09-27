@@ -4210,5 +4210,90 @@
   "lrnMoveItemDown": "انقل {item} لأسفل",
   "lrnMovedTo": "{item} الآن في الموضع {position} من {total}",
   "lrnLockedTitle": "هذا الدرس لم يُفتح بعد",
-  "lrnBackToModules": "العودة إلى الوحدات"
+  "lrnBackToModules": "العودة إلى الوحدات",
+  "courseworkFormatQuiz": "اختبار يُصحَّح تلقائيًا",
+  "quizNotAnswered": "لم تتم الإجابة",
+  "quizAnswerKept": "حُفظت الإجابة. تُصحَّح عند تسليم الاختبار.",
+  "quizKeepAnswer": "احفظ الإجابة",
+  "quizChangeAnswer": "غيّر الإجابة",
+  "quizKeepHighest": "أعلى درجة",
+  "quizKeepLatest": "آخر محاولة",
+  "quizKeepAverage": "متوسط كل المحاولات",
+  "quizKeepFirst": "المحاولة الأولى",
+  "quizRevealAnswers": "الإجابات الصحيحة مع الشرح",
+  "quizRevealMarks": "أي الإجابات كانت صحيحة فقط",
+  "quizRevealReturned": "لا شيء حتى تعيده",
+  "quizQuestionsNeeded": "أضف سؤالًا واحدًا على الأقل.",
+  "quizQuestionsIncomplete": "بعض الأسئلة غير مكتملة. انظر إلى الرسائل تحت كل منها.",
+  "quizPointsFromQuestions": "بقيمة {points} درجة، مجموع درجات أسئلة الاختبار.",
+  "quizSection": "الاختبار",
+  "quizSectionHint": "يجيب الطلاب عن هذه الأسئلة ويسلّمونها معًا. تُصحَّح كل إجابة لحظة التسليم.",
+  "quizStartedHint": "بدأ الطلاب هذا الاختبار، فلا يمكن تغيير أسئلته بعد الآن. ويمكن تغيير الإعدادات.",
+  "quizAttempts": "المحاولات",
+  "quizAttemptsUnlimited": "بلا حد",
+  "quizAttemptsCount": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=zero": "لا محاولات",
+        "countPlural=one": "محاولة واحدة",
+        "countPlural=two": "محاولتان",
+        "countPlural=few": "{count} محاولات",
+        "countPlural=many": "{count} محاولة",
+        "countPlural=*": "{count} محاولة"
+      }
+    }
+  ],
+  "quizKeep": "الدرجة المعتمدة",
+  "quizReveal": "بعد التسليم يرى الطلاب",
+  "quizRevealHint": "يرون درجتهم دائمًا ما لم تحجب النتائج حتى تعيدها.",
+  "quizShuffle": "اخلط الأسئلة",
+  "quizShuffleHint": "يراها كل طالب بترتيبه الخاص. يبقى النص بين الأسئلة في مكانه.",
+  "quizQuestions": "الأسئلة",
+  "quizResults": "النتائج",
+  "quizScoreOf": "{score} من {total}",
+  "quizPendingMarks": "ما زال لدى معلمك إجابات كتابية ليصحّحها، فقد ترتفع هذه الدرجة.",
+  "quizResultsLater": "سيعيد معلمك النتائج.",
+  "quizAttemptTitle": "المحاولة {number}",
+  "quizAttemptsHintUnlimited": "أجب عن الأسئلة ثم سلّم الاختبار. يمكنك إعادته بعد ذلك.",
+  "quizAttemptsHint": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=zero": "لا محاولات متبقية.",
+        "countPlural=one": "أجب عن الأسئلة ثم سلّم الاختبار. هذه محاولتك الأخيرة.",
+        "countPlural=two": "أجب عن الأسئلة ثم سلّم الاختبار. بقيت لك محاولتان.",
+        "countPlural=few": "أجب عن الأسئلة ثم سلّم الاختبار. بقيت لك {count} محاولات.",
+        "countPlural=many": "أجب عن الأسئلة ثم سلّم الاختبار. بقيت لك {count} محاولة.",
+        "countPlural=*": "أجب عن الأسئلة ثم سلّم الاختبار. بقيت لك {count} محاولة."
+      }
+    }
+  ],
+  "quizAnsweredOf": "أُجيب عن {count} من {total}",
+  "quizHandIn": "سلّم الاختبار",
+  "quizUnanswered": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=zero": "كل الأسئلة مُجاب عنها.",
+        "countPlural=one": "سؤال واحد بلا إجابة ولن ينال درجة.",
+        "countPlural=two": "سؤالان بلا إجابة ولن ينالا درجة.",
+        "countPlural=few": "{count} أسئلة بلا إجابة ولن تنال درجة.",
+        "countPlural=many": "{count} سؤالًا بلا إجابة ولن تنال درجة.",
+        "countPlural=*": "{count} سؤال بلا إجابة ولن تنال درجة."
+      }
+    }
+  ],
+  "quizHandInBody": "كل الأسئلة مُجاب عنها. التسليم يصحّحها كلها.",
+  "quizClosed": "هذا الاختبار مغلق.",
+  "quizAnswers": "الإجابات",
+  "errQuizGate": "لا يحتوي الاختبار على نقاط متابعة؛ يرى الطلاب كل الأسئلة معًا.",
+  "errQuizRubric": "يُصحَّح الاختبار بأسئلته، فلا يأخذ سلّم تقدير.",
+  "errFormatFixed": "لا يمكن أن يصبح العمل المُسند اختبارًا، ولا أن يصبح الاختبار عملًا آخر.",
+  "errNotQuiz": "هذا العمل ليس اختبارًا.",
+  "quizPointsHint": "صفر يُخرج السؤال من الدرجة.",
+  "quizPartlyRight": "صحيح جزئيًا"
 }

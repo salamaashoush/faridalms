@@ -72,6 +72,19 @@ export function getMessageFromError(error: unknown): string {
         return m.yearsReasonRequired();
       case "academic_session.overlapping":
         return m.errorTermsOverlapping();
+      case "coursework.quiz_needed":
+      case "coursework.quiz_questions":
+        return m.quizQuestionsNeeded();
+      case "coursework.quiz_gate":
+        return m.errQuizGate();
+      case "coursework.quiz_rubric":
+        return m.errQuizRubric();
+      case "coursework.quiz_started":
+        return m.quizStartedHint();
+      case "coursework.format_fixed":
+        return m.errFormatFixed();
+      case "coursework.not_quiz":
+        return m.errNotQuiz();
       case "coursework.closed":
         return m.errorCourseworkClosed();
       case "coursework.nothing_to_hand_in":

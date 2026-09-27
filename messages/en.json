@@ -4066,5 +4066,78 @@
   "lrnMoveItemDown": "Move {item} down",
   "lrnMovedTo": "{item} is now {position} of {total}",
   "lrnLockedTitle": "This lesson is not open yet",
-  "lrnBackToModules": "Back to modules"
+  "lrnBackToModules": "Back to modules",
+  "courseworkFormatQuiz": "A quiz, marked for them",
+  "quizNotAnswered": "Not answered",
+  "quizAnswerKept": "Answer kept. It is marked when you hand the quiz in.",
+  "quizKeepAnswer": "Keep answer",
+  "quizChangeAnswer": "Change answer",
+  "quizKeepHighest": "The highest score",
+  "quizKeepLatest": "The latest attempt",
+  "quizKeepAverage": "The average of all attempts",
+  "quizKeepFirst": "The first attempt",
+  "quizRevealAnswers": "Right answers and explanations",
+  "quizRevealMarks": "Only which answers were right",
+  "quizRevealReturned": "Nothing until you return it",
+  "quizQuestionsNeeded": "Add at least one question.",
+  "quizQuestionsIncomplete": "Some questions are not finished. Look for the messages below each one.",
+  "quizPointsFromQuestions": "Worth {points} points, the total of the quiz's questions.",
+  "quizSection": "Quiz",
+  "quizSectionHint": "Students answer these questions and hand them in together. Each answer is marked the moment they do.",
+  "quizStartedHint": "Students have started this quiz, so its questions can no longer change. The settings still can.",
+  "quizAttempts": "Attempts",
+  "quizAttemptsUnlimited": "As many as they like",
+  "quizAttemptsCount": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "{count} attempt",
+        "countPlural=*": "{count} attempts"
+      }
+    }
+  ],
+  "quizKeep": "The score that counts",
+  "quizReveal": "After handing in, students see",
+  "quizRevealHint": "They always see their score unless you keep results until you return them.",
+  "quizShuffle": "Shuffle the questions",
+  "quizShuffleHint": "Each student meets them in their own order. Text between questions stays in place.",
+  "quizQuestions": "Questions",
+  "quizResults": "Results",
+  "quizScoreOf": "{score} of {total}",
+  "quizPendingMarks": "Your teacher still has written answers to mark, so this score may rise.",
+  "quizResultsLater": "Your teacher will return the results.",
+  "quizAttemptTitle": "Attempt {number}",
+  "quizAttemptsHintUnlimited": "Answer the questions, then hand the quiz in. You can take it again after.",
+  "quizAttemptsHint": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "Answer the questions, then hand the quiz in. This is your last attempt.",
+        "countPlural=*": "Answer the questions, then hand the quiz in. You have {count} attempts left."
+      }
+    }
+  ],
+  "quizAnsweredOf": "{count} of {total} answered",
+  "quizHandIn": "Hand in quiz",
+  "quizUnanswered": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "{count} question has no answer and will score nothing.",
+        "countPlural=*": "{count} questions have no answer and will score nothing."
+      }
+    }
+  ],
+  "quizHandInBody": "Every question is answered. Handing in marks them all.",
+  "quizClosed": "This quiz is closed.",
+  "quizAnswers": "Answers",
+  "errQuizGate": "A quiz has no continue gates; students see every question at once.",
+  "errQuizRubric": "A quiz is marked by its questions, so it takes no rubric.",
+  "errFormatFixed": "Work already assigned cannot become a quiz, and a quiz cannot become other work.",
+  "errNotQuiz": "This work is not a quiz.",
+  "quizPointsHint": "0 leaves the question out of the score.",
+  "quizPartlyRight": "Partly right"
 }

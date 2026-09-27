@@ -18,7 +18,7 @@ import {
   Eye,
   Lightbulb,
 } from "lucide-react";
-import { useId, useRef, useState } from "react";
+import { createContext, useContext, useId, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { Button } from "~/components/ui/button";
@@ -36,6 +36,16 @@ import * as m from "~/i18n/messages";
 import { cn } from "~/utils/cn";
 import { formatList, formatNumber } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
+
+/**
+ * How questions behave: practice marks each answer at once, a quiz keeps
+ * answers until the whole quiz is handed in, and review shows a handed-in
+ * attempt read-only with whatever its marks reveal.
+ */
+export type CheckMode = "practice" | "quiz" | "review";
+export const CheckModeContext = createContext<CheckMode>("practice");
+/** Who reads a reviewed answer, so a mark's feedback is addressed to them. */
+export const ReviewerContext = createContext<"student" | "teacher">("student");
 
 /** Where a question's answers go: the server for a student, local marking in a teacher's preview. */
 export interface CheckDriver {
@@ -83,7 +93,10 @@ function useCheck(
   view: CheckView | undefined,
   driver: CheckDriver,
 ) {
-  const [editing, setEditing] = useState(!view || view.tries === 0);
+  const mode = useContext(CheckModeContext);
+  const [editing, setEditing] = useState(
+    mode !== "review" && (!view || view.tries === 0),
+  );
   const respond = useMutation({
     mutationFn: (response: LessonResponse) => driver.respond(blockId, response),
     onSuccess: () => setEditing(false),
@@ -98,6 +111,7 @@ function useCheck(
 }
 
 function Verdict({ view }: { view: CheckView }) {
+  const mode = useContext(CheckModeContext);
   if (view.correct)
     return (
       <p className="inline-flex items-center gap-2 text-sm leading-5 font-medium text-success">
@@ -105,7 +119,15 @@ function Verdict({ view }: { view: CheckView }) {
         {m.lrnRight()}
       </p>
     );
-  if (view.revealed)
+  // A handed-in quiz shows its answers without anyone asking for them.
+  if (mode === "review" && view.fraction > 0)
+    return (
+      <p className="inline-flex items-center gap-2 text-sm leading-5 font-medium text-warning-foreground dark:text-warning">
+        <CircleCheck aria-hidden className="size-4" />
+        {m.quizPartlyRight()}
+      </p>
+    );
+  if (view.revealed && mode !== "review")
     return (
       <p className="inline-flex items-center gap-2 text-sm leading-5 font-medium text-muted-foreground">
         <Eye aria-hidden className="size-4" />
@@ -160,6 +182,36 @@ function Outcome({ view, keyText }: { view: CheckView; keyText?: string }) {
       ) : null}
     </>
   );
+}
+
+/** What a question says under its answer, by mode. */
+function CheckStatus({
+  view,
+  editing,
+  keyText,
+}: {
+  view: CheckView | undefined;
+  editing: boolean;
+  keyText?: string;
+}) {
+  const mode = useContext(CheckModeContext);
+  if (mode === "review")
+    return view && (view.tries > 0 || view.revealed) ? (
+      <Outcome view={view} keyText={keyText} />
+    ) : (
+      <p className="text-sm leading-5 text-muted-foreground">
+        {m.quizNotAnswered()}
+      </p>
+    );
+  if (!view || editing || !(view.tries > 0 || view.revealed)) return null;
+  if (mode === "quiz")
+    return (
+      <p className="inline-flex items-center gap-2 text-sm leading-5 text-muted-foreground">
+        <Check aria-hidden className="size-4" />
+        {m.quizAnswerKept()}
+      </p>
+    );
+  return <Outcome view={view} keyText={keyText} />;
 }
 
 function CheckCard({
@@ -228,7 +280,29 @@ function Retry({
   onTryAgain: () => void;
   onReveal: () => void;
 }) {
-  if (settled) return null;
+  const mode = useContext(CheckModeContext);
+  if (mode === "review" || (mode === "practice" && settled)) return null;
+  if (mode === "quiz")
+    return editing ? (
+      <Button
+        key="save"
+        type="submit"
+        className="max-md:h-10"
+        disabled={!canCheck || pending}
+      >
+        {m.quizKeepAnswer()}
+      </Button>
+    ) : (
+      <Button
+        key="change"
+        type="button"
+        variant="outline"
+        className="max-md:h-10"
+        onClick={onTryAgain}
+      >
+        {m.quizChangeAnswer()}
+      </Button>
+    );
   return (
     <>
       {/* Distinct keys, or React turns the clicked Try again into the submit
@@ -355,9 +429,12 @@ function ChoiceCheck({
   const [selected, setSelected] = useState<string[]>(
     view?.response?.type === "choice" ? view.response.optionIds : [],
   );
+  const mode = useContext(CheckModeContext);
   const settled = isSettled(block, view);
   const markOf = (optionId: string): Mark => {
-    if (editing || !view) return null;
+    if (editing || !view || mode === "quiz") return null;
+    if (!view.key && view.correct && selected.includes(optionId))
+      return "right";
     if (view.key) {
       if (view.key.includes(optionId)) return "right";
       return selected.includes(optionId) ? "wrong" : null;
@@ -378,11 +455,7 @@ function ChoiceCheck({
       block={block}
       legendId={legend}
       onSubmit={check}
-      status={
-        view && !editing && (view.tries > 0 || view.revealed) ? (
-          <Outcome view={view} />
-        ) : null
-      }
+      status={<CheckStatus view={view} editing={editing} />}
       actions={
         <Retry
           view={view}
@@ -499,12 +572,11 @@ function TypedCheck({
       legendId={legend}
       onSubmit={check}
       status={
-        view && !editing && (view.tries > 0 || view.revealed) ? (
-          <Outcome
-            view={view}
-            keyText={view.key ? formatList(view.key) : undefined}
-          />
-        ) : null
+        <CheckStatus
+          view={view}
+          editing={editing}
+          keyText={view?.key ? formatList(view.key) : undefined}
+        />
       }
       actions={
         <Retry
@@ -595,11 +667,7 @@ function GapsCheck({
       block={block}
       legendId={legend}
       onSubmit={check}
-      status={
-        view && !editing && (view.tries > 0 || view.revealed) ? (
-          <Outcome view={view} />
-        ) : null
-      }
+      status={<CheckStatus view={view} editing={editing} />}
       actions={
         <Retry
           view={view}
@@ -718,11 +786,7 @@ function MatchingCheck({
       onSubmit={() => {
         if (canCheck) respond.mutate({ type: "matching", pairs });
       }}
-      status={
-        view && !editing && (view.tries > 0 || view.revealed) ? (
-          <Outcome view={view} />
-        ) : null
-      }
+      status={<CheckStatus view={view} editing={editing} />}
       actions={
         <Retry
           view={view}
@@ -846,12 +910,11 @@ function OrderingCheck({
       legendId={legend}
       onSubmit={() => respond.mutate({ type: "ordering", order })}
       status={
-        view && !editing && (view.tries > 0 || view.revealed) ? (
-          <Outcome
-            view={view}
-            keyText={view.key ? formatList(view.key) : undefined}
-          />
-        ) : null
+        <CheckStatus
+          view={view}
+          editing={editing}
+          keyText={view?.key ? formatList(view.key) : undefined}
+        />
       }
       actions={
         <Retry
@@ -959,11 +1022,7 @@ function SortingCheck({
       onSubmit={() => {
         if (canCheck) respond.mutate({ type: "sorting", groups });
       }}
-      status={
-        view && !editing && (view.tries > 0 || view.revealed) ? (
-          <Outcome view={view} />
-        ) : null
-      }
+      status={<CheckStatus view={view} editing={editing} />}
       actions={
         <Retry
           view={view}
@@ -1050,12 +1109,21 @@ function WrittenCheck({
       driver.respond(block.id, { type: "written", text: text.trim() }),
     onError: (error) => toast.error(getMessageFromError(error)),
   });
+  const mode = useContext(CheckModeContext);
+  const reviewer = useContext(ReviewerContext);
   const words = countWords(text);
   const over = block.wordLimit !== null && words > block.wordLimit;
   const marked = view?.marked ?? false;
+  const locked = marked || mode === "review";
   const waits = block.points > 0;
   const status =
-    !view || view.tries === 0 ? null : marked ? (
+    !view || view.tries === 0 ? (
+      mode === "review" ? (
+        <p className="text-sm leading-5 text-muted-foreground">
+          {m.quizNotAnswered()}
+        </p>
+      ) : null
+    ) : marked ? (
       <>
         <p className="inline-flex items-center gap-2 text-sm leading-5 font-medium">
           <CircleCheck aria-hidden className="size-4 text-success" />
@@ -1069,7 +1137,9 @@ function WrittenCheck({
         {view.markFeedback ? (
           <div className="grid gap-1 rounded-md bg-muted/60 px-3 py-2">
             <p className="text-[13px] leading-[18px] font-medium text-muted-foreground">
-              {m.lrnTeacherFeedback()}
+              {reviewer === "teacher"
+                ? m.lrnFeedbackLabel()
+                : m.lrnTeacherFeedback()}
             </p>
             <p dir="auto" className="text-sm leading-6 whitespace-pre-wrap">
               {view.markFeedback}
@@ -1080,7 +1150,11 @@ function WrittenCheck({
     ) : text.trim() === sent.trim() ? (
       <p className="inline-flex items-center gap-2 text-sm leading-5 text-muted-foreground">
         <Check aria-hidden className="size-4" />
-        {waits ? m.lrnWaitingMark() : m.lrnAnswerSaved()}
+        {mode === "quiz"
+          ? m.quizAnswerKept()
+          : waits
+            ? m.lrnWaitingMark()
+            : m.lrnAnswerSaved()}
       </p>
     ) : null;
   return (
@@ -1093,7 +1167,7 @@ function WrittenCheck({
       }}
       status={status}
       actions={
-        marked ? null : (
+        locked ? null : (
           <Button
             type="submit"
             className="max-md:h-10"
@@ -1104,7 +1178,11 @@ function WrittenCheck({
               respond.isPending
             }
           >
-            {sent ? m.lrnUpdateAnswer() : m.lrnSaveAnswer()}
+            {mode === "quiz"
+              ? m.quizKeepAnswer()
+              : sent
+                ? m.lrnUpdateAnswer()
+                : m.lrnSaveAnswer()}
           </Button>
         )
       }
@@ -1119,7 +1197,7 @@ function WrittenCheck({
           rows={5}
           maxLength={20000}
           value={text}
-          readOnly={marked}
+          readOnly={locked}
           onChange={(event) => setText(event.target.value)}
           aria-invalid={over || undefined}
           aria-describedby={`${field}-count`}

@@ -28,7 +28,7 @@ import {
   parseGaps,
 } from "@faridalms/domain/learning";
 import { ArrowDown, ArrowUp, ChevronDown, Plus, X } from "lucide-react";
-import { useId, useState } from "react";
+import { createContext, useContext, useId, useState } from "react";
 
 import { CheckboxRow } from "~/components/people/fields";
 import { FormField, SelectField } from "~/components/system/field";
@@ -41,6 +41,9 @@ import { cn } from "~/utils/cn";
 import { formatChoices, formatNumber } from "~/utils/datetime";
 
 type Change<T> = (next: T) => void;
+
+/** Questions written for a quiz, where each gets one answer per attempt and no hints. */
+export const QuizEditingContext = createContext(false);
 
 const TRIES = ["unlimited", "1", "2", "3", "5"] as const;
 
@@ -150,18 +153,20 @@ function CheckSettings({
 }) {
   const [open, setOpen] = useState(false);
   const panel = useId();
+  const quiz = useContext(QuizEditingContext);
   const written = block.type === "written";
+  const practice = !written && !quiz;
   const summary = [
     block.points === 0 ? m.lrnPractice() : m.lrnPoints({ count: block.points }),
-    ...(written
-      ? []
-      : [
+    ...(practice
+      ? [
           block.tries === null
             ? m.lrnTriesUnlimited()
             : m.lrnTriesCount({ count: block.tries }),
           ...(block.hint ? [m.lrnWithHint()] : []),
-          ...(block.explanation ? [m.lrnWithExplanation()] : []),
-        ]),
+        ]
+      : []),
+    ...(!written && block.explanation ? [m.lrnWithExplanation()] : []),
   ];
   return (
     <div className="grid gap-3 border-t pt-3">
@@ -190,7 +195,13 @@ function CheckSettings({
           <FormField
             id={`block-${block.id}-points`}
             label={m.lrnPointsLabel()}
-            hint={written ? m.lrnWrittenPointsHint() : m.lrnPointsHint()}
+            hint={
+              written
+                ? m.lrnWrittenPointsHint()
+                : quiz
+                  ? m.quizPointsHint()
+                  : m.lrnPointsHint()
+            }
           >
             {(control) => (
               <Input
@@ -209,7 +220,7 @@ function CheckSettings({
               />
             )}
           </FormField>
-          {written ? null : (
+          {practice ? (
             <SelectField
               id={`block-${block.id}-tries`}
               label={m.lrnTries()}
@@ -229,49 +240,49 @@ function CheckSettings({
                 })
               }
             />
-          )}
+          ) : null}
         </div>
+        {practice ? (
+          <FormField
+            id={`block-${block.id}-hint`}
+            label={m.lrnHintLabel()}
+            hint={m.lrnHintHint()}
+            optional
+          >
+            {(control) => (
+              <Textarea
+                {...control}
+                dir="auto"
+                rows={2}
+                maxLength={500}
+                value={block.hint}
+                onChange={(event) =>
+                  onChange({ ...block, hint: event.target.value })
+                }
+              />
+            )}
+          </FormField>
+        ) : null}
         {written ? null : (
-          <>
-            <FormField
-              id={`block-${block.id}-hint`}
-              label={m.lrnHintLabel()}
-              hint={m.lrnHintHint()}
-              optional
-            >
-              {(control) => (
-                <Textarea
-                  {...control}
-                  dir="auto"
-                  rows={2}
-                  maxLength={500}
-                  value={block.hint}
-                  onChange={(event) =>
-                    onChange({ ...block, hint: event.target.value })
-                  }
-                />
-              )}
-            </FormField>
-            <FormField
-              id={`block-${block.id}-explanation`}
-              label={m.lrnExplanation()}
-              hint={m.lrnExplanationHint()}
-              optional
-            >
-              {(control) => (
-                <Textarea
-                  {...control}
-                  dir="auto"
-                  rows={2}
-                  maxLength={1000}
-                  value={block.explanation}
-                  onChange={(event) =>
-                    onChange({ ...block, explanation: event.target.value })
-                  }
-                />
-              )}
-            </FormField>
-          </>
+          <FormField
+            id={`block-${block.id}-explanation`}
+            label={m.lrnExplanation()}
+            hint={m.lrnExplanationHint()}
+            optional
+          >
+            {(control) => (
+              <Textarea
+                {...control}
+                dir="auto"
+                rows={2}
+                maxLength={1000}
+                value={block.explanation}
+                onChange={(event) =>
+                  onChange({ ...block, explanation: event.target.value })
+                }
+              />
+            )}
+          </FormField>
         )}
       </div>
     </div>

@@ -81,6 +81,7 @@ function Settings({ data }: { data: Data }) {
     online: m.courseworkFormatOnline(),
     files: m.courseworkFormatFiles(),
     none: m.courseworkFormatNone(),
+    quiz: m.courseworkFormatQuiz(),
   }[data.submissionFormat];
   return (
     <RecordSection title={m.courseworkSettings()}>

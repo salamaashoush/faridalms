@@ -1,14 +1,24 @@
 import type { ContentDocument } from "@faridalms/domain/content";
 import type {
   LatePolicy,
+  QuizKeep,
+  QuizReveal,
   Rubric,
   SubmissionFormat,
 } from "@faridalms/domain/coursework";
 import type { FileSummary } from "@faridalms/domain/file";
+import type { LessonBlock } from "@faridalms/domain/learning";
 
 import { emptyContent } from "@faridalms/domain/content-conversion";
-import { rubricTotal } from "@faridalms/domain/coursework";
+import {
+  MAX_QUIZ_ATTEMPTS,
+  QUIZ_KEEPS,
+  QUIZ_REVEALS,
+  quizPoints,
+  rubricTotal,
+} from "@faridalms/domain/coursework";
 import { MAX_FILE_BYTES } from "@faridalms/domain/file";
+import { isCheck } from "@faridalms/domain/learning";
 import { zonedInstant, zonedLocal } from "@faridalms/domain/school";
 import {
   useMutation,
@@ -23,6 +33,12 @@ import type { assignmentEditorQuery } from "~/queries/coursework";
 
 import { useCollaboration } from "~/components/content/collaboration";
 import { ContentEditor } from "~/components/content/ContentEditor";
+import {
+  blockIssue,
+  QuizEditingContext,
+} from "~/components/learning/BlockFields";
+import { BlockList, newBlock, tidy } from "~/components/learning/BlockList";
+import { CheckboxRow } from "~/components/people/fields";
 import { ComboboxField } from "~/components/system/ComboboxField";
 import { FormField, SelectField, TextField } from "~/components/system/field";
 import { FileField } from "~/components/system/FileField";
@@ -32,6 +48,7 @@ import { inLocale, useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { classGroupsQuery, courseworkOptionsQuery } from "~/queries/coursework";
 import { publishAssignment, saveAssignment } from "~/server/coursework";
+import { formatNumber } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
 import { classTitle } from "../classes/format";
@@ -63,7 +80,52 @@ interface Draft {
   latePolicy: LatePolicy;
   deduction: string;
   resubmission: boolean;
+  quiz: QuizDraft;
 }
+
+interface QuizDraft {
+  attempts: string;
+  keep: QuizKeep;
+  reveal: QuizReveal;
+  shuffle: boolean;
+  blocks: LessonBlock[];
+}
+
+const KEEP_LABEL: Record<QuizKeep, () => string> = {
+  highest: m.quizKeepHighest,
+  latest: m.quizKeepLatest,
+  average: m.quizKeepAverage,
+  first: m.quizKeepFirst,
+};
+
+const REVEAL_LABEL: Record<QuizReveal, () => string> = {
+  answers: m.quizRevealAnswers,
+  marks: m.quizRevealMarks,
+  returned: m.quizRevealReturned,
+};
+
+const QUIZ_EXCLUDES = ["gate"] as const;
+
+const FORMATS: readonly SubmissionFormat[] = [
+  "both",
+  "online",
+  "files",
+  "none",
+  "quiz",
+];
+
+const FORMAT_LABEL: Record<SubmissionFormat, () => string> = {
+  both: m.courseworkFormatBoth,
+  online: m.courseworkFormatOnline,
+  files: m.courseworkFormatFiles,
+  none: m.courseworkFormatNone,
+  quiz: m.courseworkFormatQuiz,
+};
+
+const ATTEMPTS = [
+  "unlimited",
+  ...Array.from({ length: MAX_QUIZ_ATTEMPTS }, (_, index) => String(index + 1)),
+];
 
 type Field =
   | "classId"
@@ -72,7 +134,8 @@ type Field =
   | "closesAt"
   | "points"
   | "audience"
-  | "deduction";
+  | "deduction"
+  | "quiz";
 
 const FIELD_ERRORS: Partial<Record<string, Field>> = {
   "coursework.due_before_available": "dueAt",
@@ -81,6 +144,9 @@ const FIELD_ERRORS: Partial<Record<string, Field>> = {
   "coursework.rubric_needs_points": "points",
   "coursework.rubric_total": "points",
   "coursework.audience_empty": "audience",
+  "coursework.quiz_questions": "quiz",
+  "coursework.quiz_started": "quiz",
+  "coursework.quiz_gate": "quiz",
 };
 
 function initialDraft(
@@ -111,6 +177,13 @@ function initialDraft(
       latePolicy: "accept",
       deduction: "10",
       resubmission: false,
+      quiz: {
+        attempts: "1",
+        keep: "highest",
+        reveal: "answers",
+        shuffle: false,
+        blocks: [newBlock("choice")],
+      },
     };
   return {
     classId: existing.classId,
@@ -133,6 +206,24 @@ function initialDraft(
     latePolicy: existing.latePolicy,
     deduction: String(existing.lateDeductionPercent ?? 10),
     resubmission: existing.resubmission,
+    quiz: existing.quiz
+      ? {
+          attempts:
+            existing.quiz.attempts === null
+              ? "unlimited"
+              : String(existing.quiz.attempts),
+          keep: existing.quiz.keep,
+          reveal: existing.quiz.reveal,
+          shuffle: existing.quiz.shuffle,
+          blocks: existing.quiz.content.blocks,
+        }
+      : {
+          attempts: "1",
+          keep: "highest",
+          reveal: "answers",
+          shuffle: false,
+          blocks: [newBlock("choice")],
+        },
   };
 }
 
@@ -187,6 +278,14 @@ export function AssignmentEditor({
     enabled: Boolean(draft.classId),
   }).data;
   const published = existing !== null && existing.state !== "draft";
+  const isQuiz = draft.submissionFormat === "quiz";
+  const started = existing?.quiz?.started ?? false;
+  const quizContent = {
+    version: 2 as const,
+    blocks: draft.quiz.blocks.map(tidy),
+  };
+  const setQuiz = <K extends keyof QuizDraft>(key: K, value: QuizDraft[K]) =>
+    set("quiz", { ...draft.quiz, [key]: value });
   const input = () => ({
     ...(existing ? { id: existing.id, expectedVersion: version } : {}),
     classId: draft.classId,
@@ -206,9 +305,21 @@ export function AssignmentEditor({
     submissionFormat: draft.submissionFormat,
     maxFiles: Number(draft.maxFiles) || 1,
     resubmission: draft.resubmission,
-    points: draft.graded ? Number(draft.points) : null,
-    rubric: draft.graded ? draft.rubric : null,
+    points: isQuiz ? null : draft.graded ? Number(draft.points) : null,
+    rubric: !isQuiz && draft.graded ? draft.rubric : null,
     gradingPeriodId: draft.gradingPeriodId,
+    quiz: isQuiz
+      ? {
+          attempts:
+            draft.quiz.attempts === "unlimited"
+              ? null
+              : Number(draft.quiz.attempts),
+          keep: draft.quiz.keep,
+          reveal: draft.quiz.reveal,
+          shuffle: draft.quiz.shuffle,
+          content: quizContent,
+        }
+      : null,
   });
   const save = useMutation({
     mutationFn: () => saveAssignment({ data: input() }),
@@ -225,8 +336,14 @@ export function AssignmentEditor({
     const found: typeof errors = {};
     if (!draft.classId) found.classId = m.validationSelection();
     if (!draft.title.trim()) found.title = m.validationRequired();
-    if (draft.graded && !(Number(draft.points) > 0))
+    if (!isQuiz && draft.graded && !(Number(draft.points) > 0))
       found.points = m.courseworkPointsRequired();
+    if (isQuiz && !started) {
+      if (!draft.quiz.blocks.some(isCheck))
+        found.quiz = m.quizQuestionsNeeded();
+      else if (draft.quiz.blocks.some((block) => blockIssue(block)))
+        found.quiz = m.quizQuestionsIncomplete();
+    }
     if (draft.latePolicy === "deduct" && !(Number(draft.deduction) >= 1))
       found.deduction = m.courseworkDeductionRequired();
     if (
@@ -451,15 +568,26 @@ export function AssignmentEditor({
           errors={fieldError("closesAt")}
         />
       </FormSection>
-      <FormSection title={m.courseworkSectionGrading()}>
-        <label className="flex min-h-9 cursor-pointer items-center gap-3 text-sm leading-5 max-md:min-h-10">
-          <Checkbox
-            checked={draft.graded}
-            onCheckedChange={(next) => set("graded", next)}
-          />
-          {m.courseworkGraded()}
-        </label>
-        {draft.graded ? (
+      <FormSection
+        title={m.courseworkSectionGrading()}
+        description={
+          isQuiz
+            ? m.quizPointsFromQuestions({
+                points: formatNumber(quizPoints(quizContent)),
+              })
+            : undefined
+        }
+      >
+        {isQuiz ? null : (
+          <label className="flex min-h-9 cursor-pointer items-center gap-3 text-sm leading-5 max-md:min-h-10">
+            <Checkbox
+              checked={draft.graded}
+              onCheckedChange={(next) => set("graded", next)}
+            />
+            {m.courseworkGraded()}
+          </label>
+        )}
+        {draft.graded && !isQuiz ? (
           <>
             <SelectField
               id="work-rubric"
@@ -526,13 +654,15 @@ export function AssignmentEditor({
           id="work-format"
           label={m.courseworkFormat()}
           value={draft.submissionFormat}
-          options={[
-            { value: "both", label: m.courseworkFormatBoth() },
-            { value: "online", label: m.courseworkFormatOnline() },
-            { value: "files", label: m.courseworkFormatFiles() },
-            { value: "none", label: m.courseworkFormatNone() },
-          ]}
+          options={FORMATS.filter(
+            // Work already out cannot turn into a quiz, or a quiz into other work.
+            (value) =>
+              value !== "quiz" ||
+              !published ||
+              existing.submissionFormat === "quiz",
+          ).map((value) => ({ value, label: FORMAT_LABEL[value]() }))}
           onChange={(value) => set("submissionFormat", value)}
+          disabled={published && existing.submissionFormat === "quiz"}
           width="name"
         />
         {draft.submissionFormat === "files" ||
@@ -573,14 +703,88 @@ export function AssignmentEditor({
             errors={fieldError("deduction")}
           />
         ) : null}
-        <label className="flex min-h-9 cursor-pointer items-center gap-3 text-sm leading-5 max-md:min-h-10">
-          <Checkbox
-            checked={draft.resubmission}
-            onCheckedChange={(next) => set("resubmission", next)}
-          />
-          {m.courseworkResubmission()}
-        </label>
+        {isQuiz ? null : (
+          <label className="flex min-h-9 cursor-pointer items-center gap-3 text-sm leading-5 max-md:min-h-10">
+            <Checkbox
+              checked={draft.resubmission}
+              onCheckedChange={(next) => set("resubmission", next)}
+            />
+            {m.courseworkResubmission()}
+          </label>
+        )}
       </FormSection>
+      {isQuiz ? (
+        <FormSection
+          title={m.quizSection()}
+          description={started ? m.quizStartedHint() : m.quizSectionHint()}
+        >
+          <SelectField
+            id="quiz-attempts"
+            label={m.quizAttempts()}
+            value={draft.quiz.attempts}
+            options={ATTEMPTS.map((value) => ({
+              value,
+              label:
+                value === "unlimited"
+                  ? m.quizAttemptsUnlimited()
+                  : m.quizAttemptsCount({ count: Number(value) }),
+            }))}
+            onChange={(value) => setQuiz("attempts", value)}
+            width="name"
+          />
+          {draft.quiz.attempts === "1" ? null : (
+            <SelectField
+              id="quiz-keep"
+              label={m.quizKeep()}
+              value={draft.quiz.keep}
+              options={QUIZ_KEEPS.map((value) => ({
+                value,
+                label: KEEP_LABEL[value](),
+              }))}
+              onChange={(value) => setQuiz("keep", value)}
+              width="name"
+            />
+          )}
+          <SelectField
+            id="quiz-reveal"
+            label={m.quizReveal()}
+            hint={m.quizRevealHint()}
+            value={draft.quiz.reveal}
+            options={QUIZ_REVEALS.map((value) => ({
+              value,
+              label: REVEAL_LABEL[value](),
+            }))}
+            onChange={(value) => setQuiz("reveal", value)}
+            width="name"
+          />
+          <CheckboxRow
+            label={m.quizShuffle()}
+            hint={m.quizShuffleHint()}
+            checked={draft.quiz.shuffle}
+            onChange={(value) => setQuiz("shuffle", value)}
+          />
+          <fieldset disabled={started} className="grid min-w-0 gap-2">
+            <QuizEditingContext.Provider value>
+              <legend className="sr-only">{m.quizQuestions()}</legend>
+              <BlockList
+                blocks={draft.quiz.blocks}
+                onChange={(update) =>
+                  setDraft((current) => ({
+                    ...current,
+                    quiz: {
+                      ...current.quiz,
+                      blocks: update(current.quiz.blocks),
+                    },
+                  }))
+                }
+                shown={Boolean(errors.quiz)}
+                missing={errors.quiz ?? null}
+                exclude={QUIZ_EXCLUDES}
+              />
+            </QuizEditingContext.Provider>
+          </fieldset>
+        </FormSection>
+      ) : null}
     </RecordForm>
   );
 }

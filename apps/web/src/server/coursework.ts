@@ -1,10 +1,12 @@
 import {
   assessSchema,
   handInSchema,
+  markQuizAnswerSchema,
   publishSchema,
   saveAssignmentSchema,
   saveDraftSchema,
   saveGroupSchema,
+  saveQuizAnswerSchema,
   saveRubricSchema,
   studentWorkActionSchema,
   teacherListSchema,
@@ -84,6 +86,14 @@ export const saveMyDraft = createServerFn({ method: "POST" })
 export const handInWork = createServerFn({ method: "POST" })
   .validator(checked(handInSchema))
   .handler(({ data }) => backend().coursework.handIn(data));
+
+export const saveQuizAnswer = createServerFn({ method: "POST" })
+  .validator(checked(saveQuizAnswerSchema))
+  .handler(({ data }) => backend().coursework.saveQuizAnswer(data));
+
+export const markQuizAnswer = createServerFn({ method: "POST" })
+  .validator(checked(markQuizAnswerSchema))
+  .handler(({ data }) => backend().coursework.markQuizAnswer(data));
 
 export const undoHandIn = createServerFn({ method: "POST" })
   .validator(checked(v.object({ assignmentId: uuid })))

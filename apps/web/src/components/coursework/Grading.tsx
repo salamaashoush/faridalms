@@ -31,6 +31,7 @@ import { getMessageFromError } from "~/utils/error";
 
 import { displayName } from "../people/format";
 import { formatInstant } from "./format";
+import { QuizAttempts } from "./QuizWork";
 
 type Data = Awaited<
   ReturnType<NonNullable<ReturnType<typeof gradingQuery>["queryFn"]>>
@@ -269,6 +270,7 @@ export function Grading({
   studentId: string;
 }) {
   const data = useSuspenseQuery(gradingQuery(assignmentId, studentId)).data;
+  const queryClient = useQueryClient();
   const user = useCurrentUser();
   const navigate = useNavigate();
   const index = data.queue.findIndex((row) => row.studentId === studentId);
@@ -349,7 +351,14 @@ export function Grading({
               : undefined
           }
         >
-          {attempt ? (
+          {data.quiz ? (
+            <QuizAttempts
+              quiz={data.quiz}
+              onMarked={() =>
+                queryClient.invalidateQueries({ queryKey: ["coursework"] })
+              }
+            />
+          ) : attempt ? (
             <div className="grid gap-4">
               {attempt.content ? (
                 <ContentView
@@ -365,7 +374,8 @@ export function Grading({
         </RecordSection>
         <RecordSection title={m.courseworkGradeTitle()}>
           <GradeForm
-            key={`${studentId}-${attempt?.id ?? ""}`}
+            // A marked quiz answer changes the score, so the form starts again from it.
+            key={`${studentId}-${attempt?.id ?? ""}-${attempt?.assessment?.score ?? ""}`}
             data={data}
             onDone={nextToGrade}
           />

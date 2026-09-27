@@ -108,3 +108,70 @@ test("a teacher's gradebook shows the class's work and term grades", async ({
     sheet.getByRole("columnheader", { name: "Term grade" }),
   ).toBeVisible();
 });
+
+test("a quiz is answered question by question, marked at hand-in, and its results shown", async ({
+  browser,
+  page,
+}) => {
+  const title = `Nouns ${crypto.randomUUID().slice(0, 6)}`;
+  await signInWith(page, TEACHER, PASSWORD, "/teach");
+  await page.goto("/teach/assignment-editor");
+  await untilHydrated(page);
+  await page.locator("#work-class").click();
+  await page.getByRole("option", { name: "8A Arabic", exact: true }).click();
+  await page.getByRole("textbox", { name: "Assignment title" }).fill(title);
+  await page.locator("[contenteditable=true]").first().click();
+  await page.keyboard.type("Answer both questions, then hand the quiz in.");
+  await page.locator("#work-format").click();
+  await page.getByRole("option", { name: "A quiz, marked for them" }).click();
+  const questions = page.getByRole("textbox", {
+    name: "Question",
+    exact: true,
+  });
+  await questions.nth(0).fill("Which is a noun?");
+  await page.getByRole("textbox", { name: "Option 1" }).fill("Book");
+  await page.getByRole("textbox", { name: "Option 2" }).fill("Run");
+  await page.getByRole("checkbox", { name: "Option 1 is right" }).click();
+  await page.getByRole("button", { name: "Add part", exact: true }).click();
+  await page.getByRole("menuitem", { name: /^Typed answer/ }).click();
+  await questions.nth(1).fill("The capital of Egypt?");
+  await page
+    .getByRole("textbox", { name: "Accepted answer 1" })
+    .fill("القاهرة");
+  await page.getByRole("button", { name: "Assign", exact: true }).click();
+  await expect(page).toHaveURL(/\/assignments\/[a-f0-9-]+/);
+
+  const studentContext = await browser.newContext();
+  const student = await studentContext.newPage();
+  await signInWith(
+    student,
+    ACCOUNTS.student.email,
+    PASSWORD,
+    ACCOUNTS.student.home,
+  );
+  await student.goto("/me/assignments");
+  await untilHydrated(student);
+  await student.getByRole("link", { name: title }).click();
+  await expect(
+    student.getByRole("heading", { level: 1, name: title }),
+  ).toBeVisible();
+  await untilHydrated(student);
+  await student.getByRole("radio", { name: "Book" }).click();
+  await student.getByRole("button", { name: "Keep answer" }).first().click();
+  const typed = student.getByRole("textbox", { name: "Your answer" });
+  await typed.fill("القاهره");
+  await typed.press("Enter");
+  await expect(student.getByText("2 of 2 answered")).toBeVisible();
+  await student.getByRole("button", { name: "Hand in quiz" }).click();
+  await student
+    .getByRole("dialog")
+    .getByRole("button", { name: "Hand in quiz" })
+    .click();
+  await expect(
+    student.getByRole("button", { name: /Attempt 1 · 2 of 2/ }),
+  ).toBeVisible();
+  await expect(
+    student.locator("output").getByText("Right", { exact: true }),
+  ).toHaveCount(2);
+  await studentContext.close();
+});

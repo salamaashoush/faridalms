@@ -38,6 +38,7 @@ import { getMessageFromError } from "~/utils/error";
 
 import { classTitle } from "../classes/format";
 import { formatInstant, formatScore, STATE_LABEL, STATE_TONE } from "./format";
+import { QuizWork } from "./QuizWork";
 import { useDocumentMedia } from "./useDocumentMedia";
 
 type Data = Awaited<
@@ -348,10 +349,14 @@ export function LearnerWork({ assignmentId }: { assignmentId: string }) {
                 <RecordEmpty>{m.courseworkNoBrief()}</RecordEmpty>
               )}
             </RecordSection>
-            <YourWork
-              key={`${data.submission.version}-${data.attempts.length}`}
-              data={data}
-            />
+            {data.quiz ? (
+              <QuizWork key={data.attempts.length} data={data} />
+            ) : (
+              <YourWork
+                key={`${data.submission.version}-${data.attempts.length}`}
+                data={data}
+              />
+            )}
           </>
         }
         aside={
