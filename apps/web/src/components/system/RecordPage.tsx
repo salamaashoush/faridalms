@@ -54,7 +54,10 @@ export function RecordHeader({
   alerts = NO_ALERTS,
   action,
   menu = NO_ACTIONS,
+  variant = "record",
 }: {
+  /** A document's title reads at the size it was written in. */
+  variant?: "record" | "document";
   title: string;
   photoUrl?: string | null;
   initials?: string;
@@ -96,7 +99,12 @@ export function RecordHeader({
           <div className="flex min-h-8 flex-wrap items-center gap-x-3 gap-y-1">
             <h1
               dir="auto"
-              className="min-w-0 text-2xl leading-8 font-semibold tracking-tight break-words"
+              className={cn(
+                "min-w-0 font-semibold tracking-tight break-words",
+                variant === "document"
+                  ? "text-[30px] leading-[38px]"
+                  : "text-2xl leading-8",
+              )}
             >
               {title}
             </h1>

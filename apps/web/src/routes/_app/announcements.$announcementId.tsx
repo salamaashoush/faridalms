@@ -5,7 +5,7 @@ import {
 } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
 import { Archive, CircleCheck, Pencil, Send } from "lucide-react";
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import type { Column } from "~/components/system/DataTable";
@@ -23,9 +23,10 @@ import { DataTable } from "~/components/system/DataTable";
 import {
   Fact,
   Facts,
+  phoneLink,
   RecordHeader,
-  RecordSection,
 } from "~/components/system/RecordPage";
+import { SheetPanel } from "~/components/system/SheetPanel";
 import { StatusText } from "~/components/system/status";
 import { Button } from "~/components/ui/button";
 import { inLocale, useCurrentUser } from "~/hooks/useCurrentUser";
@@ -37,6 +38,7 @@ import {
   markAnnouncementSeen,
   publishAnnouncement,
 } from "~/server/announcements";
+import { cn } from "~/utils/cn";
 import { formatDate, formatNumber } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
@@ -126,7 +128,15 @@ function reportCard(timeZone: string, withAck: boolean) {
   };
 }
 
-function Report({ data }: { data: Data }) {
+function Report({
+  data,
+  open,
+  onOpenChange,
+}: {
+  data: Data;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
   const user = useCurrentUser();
   const rows: ReportRow[] = (data.report ?? []).map((row) => ({
     ...row,
@@ -135,27 +145,30 @@ function Report({ data }: { data: Data }) {
   const read = rows.filter((row) => row.readAt).length;
   const acknowledged = rows.filter((row) => row.acknowledgedAt).length;
   return (
-    <RecordSection title={m.annReport()} description={m.annReportHint()}>
-      <div className="grid gap-4">
-        <Facts short>
-          <Fact label={m.annReached()}>{formatNumber(rows.length)}</Fact>
-          <Fact label={m.annColRead()}>{formatNumber(read)}</Fact>
-          {data.requiresAck ? (
-            <Fact label={m.annColAcknowledged()}>
-              {formatNumber(acknowledged)}
-            </Fact>
-          ) : null}
-        </Facts>
-        <DataTable
-          caption={m.annReport()}
-          rows={rows}
-          columns={reportColumns(user.school.timeZone, data.requiresAck)}
-          rowLabel={(row) => inLocale(row.fullNameEn, row.fullNameAr)}
-          card={reportCard(user.school.timeZone, data.requiresAck)}
-          empty={{ title: m.annNotSent() }}
-        />
-      </div>
-    </RecordSection>
+    <SheetPanel
+      open={open}
+      onOpenChange={onOpenChange}
+      title={m.annReport()}
+      description={m.annReportHint()}
+    >
+      <Facts short>
+        <Fact label={m.annReached()}>{formatNumber(rows.length)}</Fact>
+        <Fact label={m.annColRead()}>{formatNumber(read)}</Fact>
+        {data.requiresAck ? (
+          <Fact label={m.annColAcknowledged()}>
+            {formatNumber(acknowledged)}
+          </Fact>
+        ) : null}
+      </Facts>
+      <DataTable
+        caption={m.annReport()}
+        rows={rows}
+        columns={reportColumns(user.school.timeZone, data.requiresAck)}
+        rowLabel={(row) => inLocale(row.fullNameEn, row.fullNameAr)}
+        card={reportCard(user.school.timeZone, data.requiresAck)}
+        empty={{ title: m.annNotSent() }}
+      />
+    </SheetPanel>
   );
 }
 
@@ -203,6 +216,9 @@ function AnnouncementPage() {
       toast.error(getMessageFromError(error));
     }
   };
+  const [reporting, setReporting] = useState(false);
+  const reached = data.report?.length ?? 0;
+  const readCount = (data.report ?? []).filter((row) => row.readAt).length;
   const facts: HeaderFact[] = [
     {
       label: m.annAuthor(),
@@ -222,10 +238,33 @@ function AnnouncementPage() {
         data.audiences.map(audienceLabel),
       ),
     },
+    ...(data.canManage && data.report
+      ? [
+          {
+            label: m.annReport(),
+            value: (
+              <button
+                type="button"
+                className={cn(
+                  "font-medium text-primary underline-offset-4 hover:underline",
+                  phoneLink,
+                )}
+                onClick={() => setReporting(true)}
+              >
+                {m.annReadOf({
+                  count: formatNumber(readCount),
+                  total: formatNumber(reached),
+                })}
+              </button>
+            ),
+          },
+        ]
+      : []),
   ];
   return (
-    <div className="mx-auto grid w-full max-w-3xl gap-6">
+    <div className="mx-auto grid w-full max-w-[720px] gap-6">
       <RecordHeader
+        variant="document"
         title={data.title}
         facts={facts}
         status={
@@ -282,16 +321,14 @@ function AnnouncementPage() {
           })}
         </p>
       ) : null}
-      <article className="rounded-lg border bg-card p-5 sm:p-8">
-        {data.body ? (
-          <ContentView
-            document={data.body}
-            fileUrl={(fileId) => `/files/${fileId}`}
-          />
-        ) : null}
-      </article>
+      {data.body ? (
+        <ContentView
+          document={data.body}
+          fileUrl={(fileId) => `/files/${fileId}`}
+        />
+      ) : null}
       {data.requiresAck && !data.canManage ? (
-        <div className="flex flex-wrap items-center gap-3 rounded-lg border bg-card p-4">
+        <div className="flex flex-wrap items-center gap-3 rounded-lg bg-muted/50 px-5 py-4">
           {data.acknowledgedAt ? (
             <StatusText tone="success">
               {m.annAcknowledgedOn({
@@ -320,7 +357,9 @@ function AnnouncementPage() {
           )}
         </div>
       ) : null}
-      {data.canManage ? <Report data={data} /> : null}
+      {data.canManage ? (
+        <Report data={data} open={reporting} onOpenChange={setReporting} />
+      ) : null}
     </div>
   );
 }
