@@ -21,6 +21,7 @@ import {
   snapshotPublish,
 } from "./stores/documents";
 import { addNewsletterRecipients } from "./stores/newsletters";
+import { insertDeliveries, insertNotifications } from "./stores/notifications";
 import {
   academicSessions,
   academicWeeks,
@@ -1231,6 +1232,7 @@ async function seedSchool(
   await seedAnnouncements(tx, tenantId, schoolId);
   await seedNewsletters(tx, tenantId, schoolId);
   await seedEvents(tx, tenantId, schoolId, yearId);
+  await seedNotifications(tx, tenantId, schoolId);
   return { yearId, teachers };
 }
 
@@ -1675,6 +1677,50 @@ async function seedEvents(
       plainText: plan.body,
     });
   }
+}
+
+/**
+ * The trip notice waiting on each family it reached, with the email the
+ * development cell could not send for want of a gateway.
+ */
+async function seedNotifications(tx: Tx, tenantId: string, schoolId: string) {
+  const rows = await tx.execute<{
+    id: string;
+    title: string;
+    user_id: string;
+  }>(sql`
+    select a.id, a.title, r.user_id from core.announcements a
+    join core.announcement_recipients r on r.tenant_id = a.tenant_id and r.announcement_id = a.id
+    where a.tenant_id = ${tenantId}::uuid and a.org_id = ${schoolId}::uuid
+      and a.requires_ack and a.state = 'published'`);
+  const inserted = await insertNotifications(tx, {
+    tenantId,
+    orgId: schoolId,
+    actorId: null,
+    rows: rows.map((row) => ({
+      userId: row.user_id,
+      kind: "announcement" as const,
+      subjectType: "announcement",
+      subjectId: row.id,
+      params: { title: row.title },
+      needsAction: true,
+    })),
+  });
+  await insertDeliveries(tx, {
+    tenantId,
+    rows: inserted.map((row) => ({
+      notificationId: row.id,
+      notificationCreatedAt: row.createdAt,
+      userId: row.userId,
+      channel: "email" as const,
+      address: null,
+      locale: "en" as const,
+      state: "skipped" as const,
+      reason: "no_provider" as const,
+      dueAt: new Date(row.createdAt),
+      digest: false,
+    })),
+  });
 }
 
 /** A seeded moment in the week before the seeded today. */

@@ -7,6 +7,7 @@ import type { AttendanceMeaning } from "@faridalms/domain/attendance";
  */
 import { sql } from "drizzle-orm";
 import {
+  boolean,
   bytea,
   date,
   integer,
@@ -115,6 +116,73 @@ export const attendanceEvents = core.table("attendance_events", {
   createdAt: instant("created_at")
     .notNull()
     .default(sql`statement_timestamp()`),
+});
+
+export type NotificationKind =
+  | "announcement"
+  | "urgent"
+  | "newsletter"
+  | "message"
+  | "absence"
+  | "event"
+  | "reminder";
+export type DeliveryChannel = "email" | "sms";
+export type DeliveryState = "pending" | "sent" | "failed" | "skipped";
+export type DeliveryReason =
+  | "preference_off"
+  | "no_address"
+  | "unreachable"
+  | "no_provider"
+  | "withdrawn"
+  | "provider_error"
+  | "gave_up";
+
+export const notifications = core.table("notifications", {
+  tenantId: uuid("tenant_id").notNull(),
+  id: uuid("id")
+    .notNull()
+    .default(sql`uuidv7()`),
+  createdAt: instant("created_at")
+    .notNull()
+    .default(sql`statement_timestamp()`),
+  userId: uuid("user_id").notNull(),
+  orgId: uuid("org_id").notNull(),
+  kind: text("kind").$type<NotificationKind>().notNull(),
+  subjectType: text("subject_type").notNull(),
+  subjectId: uuid("subject_id").notNull(),
+  actorUserId: uuid("actor_user_id"),
+  params: jsonb("params")
+    .$type<Record<string, unknown>>()
+    .notNull()
+    .default(sql`'{}'`),
+  needsAction: boolean("needs_action").notNull().default(false),
+  readAt: instant("read_at"),
+  actedAt: instant("acted_at"),
+  status: text("status").notNull().default("active"),
+});
+
+export const notificationDeliveries = core.table("notification_deliveries", {
+  tenantId: uuid("tenant_id").notNull(),
+  id: uuid("id")
+    .notNull()
+    .default(sql`uuidv7()`),
+  createdAt: instant("created_at")
+    .notNull()
+    .default(sql`statement_timestamp()`),
+  notificationId: uuid("notification_id").notNull(),
+  notificationCreatedAt: instant("notification_created_at").notNull(),
+  userId: uuid("user_id").notNull(),
+  channel: text("channel").$type<DeliveryChannel>().notNull(),
+  address: text("address"),
+  locale: text("locale").$type<"ar" | "en">().notNull(),
+  state: text("state").$type<DeliveryState>().notNull(),
+  reason: text("reason").$type<DeliveryReason>(),
+  dueAt: instant("due_at").notNull(),
+  attempts: smallint("attempts").notNull().default(0),
+  lastError: text("last_error"),
+  receipt: text("receipt"),
+  sentAt: instant("sent_at"),
+  status: text("status").notNull().default("active"),
 });
 
 const search = pgSchema("search").existing();
