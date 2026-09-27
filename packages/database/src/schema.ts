@@ -903,36 +903,6 @@ export const messageDraftFiles = pgTable(
   ],
 );
 
-export const newsletterDrafts = pgTable(
-  "newsletter_drafts",
-  {
-    id: uuid().primaryKey(),
-    schoolYearId: uuid("school_year_id")
-      .notNull()
-      .references(() => schoolYears.id),
-    title: varchar({ length: 255 }).notNull(),
-    summary: text().notNull(),
-    document: jsonb().$type<NewsletterDocument>().notNull(),
-    revision: integer().notNull().default(1),
-    publishedNewsletterId: uuid("published_newsletter_id"),
-    createdById: uuid("created_by_id").references(() => users.id, {
-      onDelete: "set null",
-    }),
-    updatedById: uuid("updated_by_id").references(() => users.id, {
-      onDelete: "set null",
-    }),
-    ...timestamps,
-  },
-  (table) => [
-    check("newsletter_drafts_revision_check", sql`${table.revision} > 0`),
-    index("newsletter_drafts_year_updated_idx").on(
-      table.schoolYearId,
-      table.updatedAt,
-      table.id,
-    ),
-  ],
-);
-
 export const newsletters = pgTable(
   "newsletters",
   {

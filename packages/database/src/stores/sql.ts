@@ -11,6 +11,10 @@ export function uuidArray(ids: readonly string[]): SQL {
   )}]`;
 }
 
+/** A timestamp as the ISO string the API returns, whatever the session time zone. */
+export const isoOf = (column: SQL) =>
+  sql`to_char(${column} at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')`;
+
 export function textArray(values: readonly string[]): SQL {
   if (values.length === 0) return sql`array[]::text[]`;
   return sql`array[${sql.join(

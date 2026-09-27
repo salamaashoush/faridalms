@@ -3,27 +3,15 @@ import {
   saveCalendarEvent as saveCalendarEventRow,
   eventsInRange,
   listEvents,
-  listNewsletters,
 } from "@faridalms/database/repositories/communication";
 import {
   calendarEventSchema,
   calendarQuerySchema,
-  newslettersQuerySchema,
 } from "@faridalms/domain/school-schema";
 import { ORPCError } from "@orpc/server";
 
 import { requirePermission } from "../authorization";
 import { protectedProcedure } from "../procedure";
-
-export const getNewsletters = protectedProcedure
-  .input(newslettersQuerySchema)
-  .handler(async ({ input: data, context }) => {
-    await requirePermission(context, "newsletters:read");
-    return {
-      ...(await listNewsletters(context.db, data)),
-      today: context.today,
-    };
-  });
 
 export const getCalendar = protectedProcedure
   .input(calendarQuerySchema)

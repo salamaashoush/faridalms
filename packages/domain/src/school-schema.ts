@@ -43,21 +43,6 @@ export const DEFAULT_MESSAGES_QUERY: MessagesQuery = v.parse(
   {},
 );
 
-export const newslettersQuerySchema = v.object({
-  q: v.optional(v.string(), ""),
-  page: v.optional(
-    v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(10000)),
-    1,
-  ),
-  sort: v.optional(v.picklist(["title", "date"]), "date"),
-  dir: v.optional(v.picklist(["asc", "desc"]), "desc"),
-});
-export type NewslettersQuery = v.InferOutput<typeof newslettersQuerySchema>;
-export const DEFAULT_NEWSLETTERS_QUERY: NewslettersQuery = v.parse(
-  newslettersQuerySchema,
-  {},
-);
-
 export const calendarQuerySchema = v.object({
   q: v.optional(v.pipe(v.string(), v.maxLength(200)), ""),
   showEvents: v.optional(v.boolean(), true),

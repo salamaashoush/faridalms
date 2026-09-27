@@ -88,12 +88,6 @@ export const announcementRevisionSchema = v.object({
   id,
   expectedRevision: v.pipe(v.number(), v.integer(), v.minValue(1)),
 });
-export const publishNewsletterDraftSchema = v.object({
-  id,
-  expectedRevision: v.pipe(v.number(), v.integer(), v.minValue(1)),
-  publishedOn: v.pipe(v.string(), v.isoDate()),
-});
-
 /**
  * Grows from the base delay (a minute in production) to half a day, so a
  * flapping provider is not hammered. Tests shrink the base to a second.

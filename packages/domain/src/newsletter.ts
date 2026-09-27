@@ -141,15 +141,3 @@ export function moveNewsletterBlock(
     })),
   };
 }
-
-export const saveNewsletterDraftSchema = v.object({
-  id,
-  expectedRevision: v.pipe(v.number(), v.integer(), v.minValue(0)),
-  schoolYearId: id,
-  title: text(255),
-  summary: text(10000),
-  document: newsletterDocumentSchema,
-});
-export type SaveNewsletterDraftInput = v.InferOutput<
-  typeof saveNewsletterDraftSchema
->;

@@ -1,5 +1,3 @@
-import type { PublishNewsletterInput } from "@faridalms/domain/administration-schema";
-
 import {
   INTERNATIONAL_PATTERN,
   nationalNumber,
@@ -138,17 +136,4 @@ export async function managementOptions(
       s.users.id,
     )
     .limit(50);
-}
-
-export async function publishNewsletter(
-  db: Database,
-  input: PublishNewsletterInput,
-  schoolYearId: string,
-) {
-  const [saved] = await db
-    .insert(s.newsletters)
-    .values({ ...input, schoolYearId })
-    .returning({ id: s.newsletters.id });
-  if (!saved) throw new Error("Newsletter insert returned no row");
-  return saved;
 }

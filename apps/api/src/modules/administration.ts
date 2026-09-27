@@ -1,21 +1,13 @@
 import { placementDate } from "@faridalms/database/repositories/academic-years";
 import { currentSchoolYear } from "@faridalms/database/repositories/academics";
 import { upcomingEvents } from "@faridalms/database/repositories/communication";
-import {
-  publishNewsletter as publishNewsletterRow,
-  ManagementError,
-  managementOptions,
-} from "@faridalms/database/repositories/management";
+import { managementOptions } from "@faridalms/database/repositories/management";
 import {
   classDirectory,
   schoolAttendanceRate,
   schoolStats,
 } from "@faridalms/database/repositories/school";
-import {
-  publishNewsletterSchema,
-  managementOptionsSchema,
-} from "@faridalms/domain/administration-schema";
-import { ORPCError } from "@orpc/server";
+import { managementOptionsSchema } from "@faridalms/domain/administration-schema";
 
 import { requirePermission } from "../authorization";
 import { protectedProcedure } from "../procedure";
@@ -79,21 +71,4 @@ export const getManagementOptions = protectedProcedure
       input.selectedIds,
       input.studentId,
     );
-  });
-async function manage<T>(action: () => Promise<T>): Promise<T> {
-  try {
-    return await action();
-  } catch (error) {
-    if (error instanceof ManagementError)
-      throw new ORPCError(error.code, { message: error.message });
-    throw error;
-  }
-}
-
-export const publishNewsletter = protectedProcedure
-  .input(publishNewsletterSchema)
-  .handler(async ({ input, context }) => {
-    await requirePermission(context, "announcements:manage");
-    const year = await currentSchoolYear(context.db);
-    return manage(() => publishNewsletterRow(context.db, input, year.id));
   });

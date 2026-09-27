@@ -1,6 +1,7 @@
 import { sql } from "drizzle-orm";
 
 import type { CellTransaction } from "../context";
+import type { DocumentKind } from "../tables/documents";
 
 import { uuidArray } from "./sql";
 
@@ -85,24 +86,27 @@ export async function saveDocument(
     plainText: string;
     mediaIds: readonly string[];
     userId: string;
+    kind?: DocumentKind;
+    locale?: "en" | "ar" | null;
   },
 ): Promise<{ id: string; version: number }> {
   const existing = await documentOf(tx, input.tenantId, input.host);
+  const locale = input.locale ?? null;
   let saved: { id: string; version: number } | undefined;
   if (existing) {
     [saved] = await tx.execute<{ id: string; version: number }>(sql`
       update core.documents
-      set content = ${input.content}::jsonb, plain_text = ${input.plainText},
+      set content = ${input.content}::jsonb, plain_text = ${input.plainText}, locale = ${locale},
           last_edited_by_user_id = ${input.userId}::uuid, last_edited_at = statement_timestamp()
       where tenant_id = ${input.tenantId}::uuid and id = ${existing.id}::uuid
       returning id, version`);
   } else {
     [saved] = await tx.execute<{ id: string; version: number }>(sql`
       insert into core.documents (tenant_id, host_type, host_id, org_id, kind, schema_version,
-        content, plain_text, last_edited_by_user_id, last_edited_at)
+        locale, content, plain_text, last_edited_by_user_id, last_edited_at)
       values (${input.tenantId}::uuid, ${input.host.type}, ${input.host.id}::uuid,
-        ${input.orgId}::uuid, 'rich_text', 1, ${input.content}::jsonb, ${input.plainText},
-        ${input.userId}::uuid, statement_timestamp())
+        ${input.orgId}::uuid, ${input.kind ?? "rich_text"}, 1, ${locale}, ${input.content}::jsonb,
+        ${input.plainText}, ${input.userId}::uuid, statement_timestamp())
       returning id, version`);
   }
   if (!saved) throw new Error("document was not saved");
@@ -140,4 +144,137 @@ export async function freezeCopy(
     where d.tenant_id = ${input.tenantId}::uuid and s.host_type = ${input.from.type}
       and s.host_id = ${input.from.id}::uuid and s.status = 'active' and d.status = 'active'`);
   return row.id;
+}
+
+type TranslationRecord = {
+  id: string;
+  version: number;
+  content: Record<string, unknown>;
+  plain_text: string;
+  frozen_at: string | null;
+};
+
+export async function translationOf(
+  tx: Tx,
+  tenantId: string,
+  originalId: string,
+): Promise<HostedDocument | null> {
+  const [row] = await tx.execute<TranslationRecord>(sql`
+    select id, version, content, plain_text, frozen_at::text as frozen_at from core.documents
+    where tenant_id = ${tenantId}::uuid and translation_of_id = ${originalId}::uuid
+      and status = 'active'
+    order by created_at desc limit 1`);
+  return row
+    ? {
+        id: row.id,
+        version: row.version,
+        content: row.content,
+        plainText: row.plain_text,
+        frozenAt: row.frozen_at,
+      }
+    : null;
+}
+
+/** Writes the other language of a document, on the same host, creating it the first time. */
+export async function saveTranslation(
+  tx: Tx,
+  input: {
+    tenantId: string;
+    orgId: string;
+    host: Host;
+    originalId: string;
+    locale: "en" | "ar";
+    kind: DocumentKind;
+    content: Record<string, unknown>;
+    plainText: string;
+    mediaIds: readonly string[];
+    userId: string;
+  },
+): Promise<{ id: string; version: number }> {
+  const existing = await translationOf(tx, input.tenantId, input.originalId);
+  const [saved] = existing
+    ? await tx.execute<{ id: string; version: number }>(sql`
+        update core.documents
+        set content = ${input.content}::jsonb, plain_text = ${input.plainText}, locale = ${input.locale},
+            last_edited_by_user_id = ${input.userId}::uuid, last_edited_at = statement_timestamp()
+        where tenant_id = ${input.tenantId}::uuid and id = ${existing.id}::uuid
+        returning id, version`)
+    : await tx.execute<{ id: string; version: number }>(sql`
+        insert into core.documents (tenant_id, host_type, host_id, org_id, kind, schema_version,
+          locale, translation_of_id, content, plain_text, last_edited_by_user_id, last_edited_at)
+        values (${input.tenantId}::uuid, ${input.host.type}, ${input.host.id}::uuid,
+          ${input.orgId}::uuid, ${input.kind}, 1, ${input.locale}, ${input.originalId}::uuid,
+          ${input.content}::jsonb, ${input.plainText}, ${input.userId}::uuid, statement_timestamp())
+        returning id, version`);
+  if (!saved) throw new Error("translation was not saved");
+  await syncMedia(tx, {
+    tenantId: input.tenantId,
+    documentId: saved.id,
+    fileIds: input.mediaIds,
+  });
+  return saved;
+}
+
+/** The other language is no longer kept: its document and media go. */
+export async function dropTranslation(
+  tx: Tx,
+  input: { tenantId: string; originalId: string },
+): Promise<void> {
+  const existing = await translationOf(tx, input.tenantId, input.originalId);
+  if (!existing) return;
+  await syncMedia(tx, {
+    tenantId: input.tenantId,
+    documentId: existing.id,
+    fileIds: [],
+  });
+  await tx.execute(sql`
+    update core.documents set status = 'tobedeleted'
+    where tenant_id = ${input.tenantId}::uuid and id = ${existing.id}::uuid`);
+}
+
+/**
+ * Snapshots a document as published. Publishing the same revision twice
+ * keeps the one snapshot.
+ */
+export async function snapshotPublish(
+  tx: Tx,
+  input: { tenantId: string; documentId: string; userId: string },
+): Promise<void> {
+  await tx.execute(sql`
+    insert into core.document_versions (tenant_id, document_id, document_version, reason,
+      content, plain_text, created_by_user_id)
+    select tenant_id, id, version, 'publish', content, plain_text, ${input.userId}::uuid
+    from core.documents
+    where tenant_id = ${input.tenantId}::uuid and id = ${input.documentId}::uuid and status = 'active'
+    on conflict do nothing`);
+}
+
+export interface PublishedVersion {
+  documentVersion: number;
+  content: Record<string, unknown>;
+  plainText: string;
+}
+
+/** The last published snapshot of a document, what its readers see. */
+export async function publishedVersion(
+  tx: Tx,
+  tenantId: string,
+  documentId: string,
+): Promise<PublishedVersion | null> {
+  const [row] = await tx.execute<{
+    document_version: number;
+    content: Record<string, unknown>;
+    plain_text: string;
+  }>(sql`
+    select document_version, content, plain_text from core.document_versions
+    where tenant_id = ${tenantId}::uuid and document_id = ${documentId}::uuid
+      and reason = 'publish' and redacted_at is null
+    order by created_at desc, document_version desc limit 1`);
+  return row
+    ? {
+        documentVersion: row.document_version,
+        content: row.content,
+        plainText: row.plain_text,
+      }
+    : null;
 }

@@ -1,27 +1,25 @@
-import type { Audience } from "@faridalms/database/stores/announcements";
 import type { AnnouncementState } from "@faridalms/database/tables/announcements";
 import type { ContentDocument } from "@faridalms/domain/content";
 
 import {
   addRecipients,
   announcementById,
-  audiencesOf,
-  audienceUsers,
   deliveryReport,
   feedOf,
-  gradesInYear,
   insertAnnouncement,
   managedAnnouncements,
   markSeen,
   recipientOf,
   resetReads,
-  setAudiences,
   setState,
   updateAnnouncement,
 } from "@faridalms/database/stores/announcements";
+import {
+  audiencesOf,
+  audienceUsers,
+  setAudiences,
+} from "@faridalms/database/stores/audiences";
 import { documentOf, saveDocument } from "@faridalms/database/stores/documents";
-import { gridOwners } from "@faridalms/database/stores/timetable";
-import { schoolYears, workingYear } from "@faridalms/database/stores/years";
 import {
   archiveAnnouncementSchema,
   feedQuerySchema,
@@ -36,6 +34,7 @@ import * as v from "valibot";
 
 import type { UnitContext } from "../core/context";
 
+import { audienceChoices, audienceOf } from "../core/audiences";
 import {
   audit,
   can,
@@ -53,18 +52,6 @@ const TAB_STATES: Record<string, AnnouncementState[]> = {
   published: ["published"],
   archived: ["archived"],
 };
-
-function audienceOf(input: {
-  scope: Audience["scope"];
-  classId: string;
-  gradeId: string;
-}): Audience {
-  return {
-    scope: input.scope,
-    classId: input.classId || null,
-    gradeId: input.gradeId || null,
-  };
-}
 
 /** An announcement of this school the viewer may read, or not found. */
 async function readable(context: UnitContext, announcementId: string) {
@@ -128,22 +115,7 @@ export const manage = readProcedure
 /** The classes and grades an announcement can go to. */
 export const options = readProcedure.handler(async ({ context }) => {
   requireCapability(context, "announcements:manage");
-  const year = workingYear(
-    await schoolYears(context.tx, context.tenantId, context.schoolId),
-    context.today,
-  );
-  if (!year) return { classes: [], grades: [] };
-  const classes = await gridOwners(context.tx, {
-    tenantId: context.tenantId,
-    schoolId: context.schoolId,
-    yearId: year.id,
-  });
-  const grades = await gradesInYear(context.tx, {
-    tenantId: context.tenantId,
-    schoolId: context.schoolId,
-    yearId: year.id,
-  });
-  return { classes, grades };
+  return audienceChoices(context);
 });
 
 export const editor = readProcedure
@@ -154,7 +126,10 @@ export const editor = readProcedure
     if (!row || row.orgId !== context.schoolId)
       throw new ORPCError("NOT_FOUND");
     const [audiences, body] = await Promise.all([
-      audiencesOf(context.tx, context.tenantId, row.id),
+      audiencesOf(context.tx, context.tenantId, {
+        kind: "announcement",
+        id: row.id,
+      }),
       documentOf(context.tx, context.tenantId, {
         type: "announcement",
         id: row.id,
@@ -174,7 +149,10 @@ export const record = readProcedure
     const { row, recipient } = await readable(context, input.id);
     const manages = can(context, "announcements:manage");
     const [audiences, body, report] = await Promise.all([
-      audiencesOf(context.tx, context.tenantId, row.id),
+      audiencesOf(context.tx, context.tenantId, {
+        kind: "announcement",
+        id: row.id,
+      }),
       documentOf(context.tx, context.tenantId, {
         type: "announcement",
         id: row.id,
@@ -242,7 +220,7 @@ export const save = writeProcedure
     }
     await setAudiences(context.tx, {
       tenantId: context.tenantId,
-      announcementId,
+      owner: { kind: "announcement", id: announcementId },
       audiences: input.audiences.map(audienceOf),
     });
     await saveDocument(context.tx, {
@@ -286,7 +264,10 @@ export const publish = writeProcedure
       throw new ORPCError("BAD_REQUEST", {
         message: "announcements.already_out",
       });
-    const audiences = await audiencesOf(context.tx, context.tenantId, row.id);
+    const audiences = await audiencesOf(context.tx, context.tenantId, {
+      kind: "announcement",
+      id: row.id,
+    });
     const users = await audienceUsers(
       context.tx,
       {

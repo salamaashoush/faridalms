@@ -5,7 +5,7 @@ import { sql } from "drizzle-orm";
 import type { CellTransaction } from "../context";
 import type { ThreadKind, ThreadRole } from "../tables/messaging";
 
-import { uuidArray } from "./sql";
+import { isoOf, uuidArray } from "./sql";
 
 type Tx = CellTransaction;
 
@@ -199,9 +199,6 @@ export interface ThreadSummary {
     fullNameAr: string | null;
   }[];
 }
-
-const isoOf = (column: SQL) =>
-  sql`to_char(${column} at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')`;
 
 /** The viewer's conversations, newest first; unread ones only when asked. */
 export async function threadsOf(
