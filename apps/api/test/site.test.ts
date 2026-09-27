@@ -1,6 +1,7 @@
 import type { PageSection } from "@faridalms/domain/website";
 
 import { plainContent } from "@faridalms/domain/content-conversion";
+import { newSection } from "@faridalms/domain/website";
 import { describe, expect, test } from "bun:test";
 
 import {
@@ -34,6 +35,17 @@ describe("the public website", () => {
     expect(shell.menu.map((entry) => entry.title)).toEqual([
       "الرئيسية",
       "من نحن",
+      "الأكاديمي",
+      "القبول",
+      "زُرنا",
+      "أولياء الأمور",
+      "تواصل معنا",
+    ]);
+    expect(shell.theme.id).toBe("meridian");
+    expect(shell.actions.map((action) => action.label)).toEqual([
+      "استفسر",
+      "زُرنا",
+      "قدّم الآن",
     ]);
 
     const home = await site.publicSitePage({
@@ -44,7 +56,7 @@ describe("the public website", () => {
     const [hero] = home.sections;
     expect(hero?.section).toMatchObject({
       type: "hero",
-      heading: "نتعلّم معًا كل يوم",
+      data: { heading: "مدرسة يُعرف فيها كل طفل ويُتحدّى" },
     });
     expect(home.news.map((row) => row.title)).toContain("أهلًا بعودتكم");
 
@@ -53,7 +65,7 @@ describe("the public website", () => {
         site.publicSitePage({
           school: "northwind",
           locale: "en",
-          slug: "admissions",
+          slug: "no-such-page",
         }),
       ),
     ).toMatchObject({ code: "NOT_FOUND" });
@@ -103,14 +115,21 @@ describe("publishing a page", () => {
     if (!about) throw new Error("the seed has no about page");
     const opened = await api.site.page({ id: about.id });
     const heroId = crypto.randomUUID();
-    const hero = (alt: string): PageSection => ({
+    const blank = newSection("hero");
+    const hero = (alt: string, heading = "Our library"): PageSection => ({
+      ...blank,
       id: heroId,
-      type: "hero",
-      heading: "Our library",
-      text: "",
-      image: { fileId: file.id, alt },
-      actionLabel: "",
-      actionHref: "",
+      data: {
+        ...blank.data,
+        heading,
+        media: {
+          kind: "image",
+          fileId: file.id,
+          alt,
+          posterFileId: null,
+          captionsFileId: null,
+        },
+      },
     });
     const save = (english: string, arabic: string, expectedVersion: number) =>
       api.site.savePage({
@@ -123,13 +142,15 @@ describe("publishing a page", () => {
         inMenu: true,
         content: {
           sections: [hero(english), ...opened.content.sections],
+          description: "",
           reviewed: [],
         },
         translation: {
           sections: [
-            { ...hero(arabic), heading: "مكتبتنا" },
+            hero(arabic, "مكتبتنا"),
             ...(opened.translation?.sections ?? []),
           ],
+          description: "",
           reviewed: [],
         },
       });
@@ -165,8 +186,10 @@ describe("publishing a page", () => {
       slug: "about",
     });
     expect(page.sections[0]?.section).toMatchObject({
-      heading: "مكتبتنا",
-      image: { fileId: file.id, alt: "تلاميذ يقرؤون" },
+      data: {
+        heading: "مكتبتنا",
+        media: { fileId: file.id, alt: "تلاميذ يقرؤون" },
+      },
     });
     const key = page.media[file.id];
     if (!key) throw new Error("the picture was not published");
@@ -184,6 +207,7 @@ describe("publishing a page", () => {
       inMenu: true,
       content: {
         sections: [hero("Pupils reading in the library")],
+        description: "",
         reviewed: [],
       },
       translation: null,
@@ -266,5 +290,37 @@ describe("publishing a post", () => {
     expect(read.bodyLocale).toBe("en");
     const { rows } = await api.site.posts({ tab: "published", q: "book" });
     expect(rows.map((row) => row.slug)).toEqual(["book-week"]);
+  });
+});
+
+/** Every page but the one a starter recreates, as it stood. */
+const untouched = (
+  rows: { id: string; slug: string; state: string; version: number }[],
+) =>
+  rows
+    .filter((row) => row.slug !== "visit")
+    .map((row) => [row.id, row.state, row.version]);
+
+describe("starting from a starter", () => {
+  test("adds the starter's missing pages as drafts in both languages and takes its theme", async () => {
+    const { api } = await principal();
+    const before = await api.site.overview();
+    const visitBefore = before.pages.find((row) => row.slug === "visit");
+    if (!visitBefore) throw new Error("no seeded visit page");
+    await api.site.removeSitePage({ id: visitBefore.id });
+    const { created } = await api.site.applyStarter({
+      starter: "heritage",
+      withTheme: true,
+    });
+    expect(created).toHaveLength(1);
+    const after = await api.site.overview();
+    const visit = after.pages.find((row) => row.slug === "visit");
+    expect(visit?.state).toBe("draft");
+    expect(untouched(after.pages)).toEqual(untouched(before.pages));
+    expect(after.settings.theme.id).toBe("heritage");
+    if (!visit) throw new Error("no visit page");
+    const page = await api.site.page({ id: visit.id });
+    expect(page.content.sections.length).toBeGreaterThan(0);
+    expect(page.gaps.missing).toEqual([]);
   });
 });

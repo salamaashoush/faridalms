@@ -25,6 +25,7 @@ import {
   postById,
   publicCategories,
   publicMenu,
+  publicationsOf,
   publicPage,
   publicPost,
   publicPosts,
@@ -49,7 +50,20 @@ import {
 } from "@faridalms/database/stores/site";
 import { contentFileIds, contentPlainText } from "@faridalms/domain/content";
 import {
+  buildTemplate,
+  STARTERS,
+  starterChrome,
+} from "@faridalms/domain/site-templates";
+import {
+  defaultTheme,
+  emptyChrome,
+  resolveTheme,
+  siteChromeSchema,
+  siteThemeSchema,
+} from "@faridalms/domain/site-theme";
+import {
   alignTranslation,
+  applyStarterSchema,
   localizedSections,
   movePageSchema,
   pageContentSchema,
@@ -103,13 +117,26 @@ const DEFAULT_SETTINGS = {
   bannerAr: "",
   bannerTone: "info" as const,
   bannerUntil: null,
+  theme: defaultTheme(),
+  chrome: emptyChrome(),
 };
 
+/** Stored theme and chrome read through their schemas, so new fields get their defaults. */
+function normalised<T extends { theme: unknown; chrome: unknown }>(row: T) {
+  return {
+    ...row,
+    theme: parsed(siteThemeSchema, row.theme, defaultTheme()),
+    chrome: parsed(siteChromeSchema, row.chrome, emptyChrome()),
+  };
+}
+
 async function settingsFor(context: UnitContext) {
-  return (
-    (await siteSettings(context.tx, context.tenantId, context.schoolId)) ??
-    DEFAULT_SETTINGS
+  const row = await siteSettings(
+    context.tx,
+    context.tenantId,
+    context.schoolId,
   );
+  return row ? normalised(row) : DEFAULT_SETTINGS;
 }
 
 const otherLocale = (locale: SiteLocale): SiteLocale =>
@@ -154,7 +181,7 @@ function parsed<T>(
   return result.success ? result.output : fallback;
 }
 
-const EMPTY_PAGE: PageContent = { sections: [], reviewed: [] };
+const EMPTY_PAGE: PageContent = { sections: [], description: "", reviewed: [] };
 
 async function pageDocuments(context: UnitContext, pageId: string) {
   const original = await documentOf(
@@ -237,14 +264,39 @@ const shownState = (
     ? ("scheduled" as const)
     : (row.state as "draft" | "published" | "archived");
 
-/** Everything the website screen lists: settings, the page tree and the categories. */
+const PREVIEW_POSTS = 6;
+
+/**
+ * Everything the website screen lists: settings, the page tree and the
+ * categories, with the school's name, contact and latest posts so the
+ * builder draws pages the way visitors will see them.
+ */
 export const overview = readProcedure.handler(async ({ context }) => {
   requireCapability(context, "site:manage");
-  const [settings, pages, categories] = await Promise.all([
-    settingsFor(context),
-    sitePages(context.tx, context.tenantId, context.schoolId),
-    siteCategories(context.tx, context.tenantId, context.schoolId),
-  ]);
+  const latest = (locale: SiteLocale) =>
+    publicPosts(context.tx, {
+      orgId: context.schoolId,
+      locale,
+      categoryId: null,
+      limit: PREVIEW_POSTS,
+      offset: 0,
+    });
+  const [settings, pages, categories, school, newsEn, newsAr] =
+    await Promise.all([
+      settingsFor(context),
+      sitePages(context.tx, context.tenantId, context.schoolId),
+      siteCategories(context.tx, context.tenantId, context.schoolId),
+      publicSchool(context.tx, context.schoolId),
+      latest("en"),
+      latest("ar"),
+    ]);
+  const logo = settings.id
+    ? await publicationsOf(context.tx, {
+        tenantId: context.tenantId,
+        hostType: "site_settings",
+        hostId: settings.id,
+      })
+    : [];
   return {
     settings,
     pages: pages.map((row) => ({
@@ -253,6 +305,19 @@ export const overview = readProcedure.handler(async ({ context }) => {
       changed: row.revisedAt !== null,
     })),
     categories,
+    school: {
+      nameEn: school?.nameEn ?? "",
+      nameAr: school?.nameAr ?? null,
+      contact: {
+        address: school?.address ?? null,
+        phone: school?.phone ?? null,
+        email: school?.email ?? null,
+      },
+    },
+    logoKey:
+      logo.find((row) => row.fileId === settings.chrome.logoFileId)
+        ?.publicKey ?? null,
+    news: { en: newsEn.rows, ar: newsAr.rows },
   };
 });
 
@@ -267,11 +332,30 @@ export const saveSettings = writeProcedure
       bannerUntil: input.bannerUntil || null,
     });
     if (version === null) throw conflict();
+    const saved = await siteSettings(
+      context.tx,
+      context.tenantId,
+      context.schoolId,
+    );
+    if (saved)
+      await publishMedia(
+        context,
+        {
+          tenantId: context.tenantId,
+          hostType: "site_settings",
+          hostId: saved.id,
+        },
+        input.chrome.logoFileId ? [input.chrome.logoFileId] : [],
+      );
     await audit(context, {
       action: "site.settings",
       objectType: "org",
       objectId: context.schoolId,
-      details: { live: input.live, bilingual: input.bilingual },
+      details: {
+        live: input.live,
+        bilingual: input.bilingual,
+        theme: input.theme.id,
+      },
     });
     return { version };
   });
@@ -527,6 +611,9 @@ export const publishPage = writeProcedure
             settings.primaryLocale,
             locale,
           ),
+          description:
+            (locale !== settings.primaryLocale && translation?.description) ||
+            documents.content.description,
         },
         media,
         visibleFrom: publishedAt,
@@ -1072,6 +1159,102 @@ export const restorePost = writeProcedure
     return { restored: true };
   });
 
+/**
+ * Starts a site from a starter: its theme and frame, and each of its pages
+ * as a draft with placeholder words in both languages. Pages whose address
+ * is already taken are left as they are.
+ */
+export const applyStarter = writeProcedure
+  .input(applyStarterSchema)
+  .handler(async ({ input, context }) => {
+    requireCapability(context, "site:manage");
+    const settings = await settingsFor(context);
+    const starter = STARTERS[input.starter];
+    const existing = new Set(
+      (await sitePages(context.tx, context.tenantId, context.schoolId)).map(
+        (row) => row.slug,
+      ),
+    );
+    const hasHome = (
+      await sitePages(context.tx, context.tenantId, context.schoolId)
+    ).some((row) => row.isHome);
+    const created: string[] = [];
+    for (const plan of starter.pages) {
+      if (existing.has(plan.slug)) continue;
+      const home = Boolean(plan.home) && !hasHome;
+      const inserted = await insertPage(context.tx, {
+        tenantId: context.tenantId,
+        orgId: context.schoolId,
+        authorId: context.actor.userId,
+        parentId: null,
+        slug: plan.slug,
+        titleEn: plan.title[0],
+        titleAr: plan.title[1],
+        inMenu: true,
+        isHome: home,
+      });
+      const built = buildTemplate(plan.template, settings.primaryLocale);
+      const content: PageContent = {
+        sections: built.content,
+        description: "",
+        reviewed: [],
+      };
+      const host = pageHost(inserted.id);
+      const original = await saveDocument(context.tx, {
+        tenantId: context.tenantId,
+        orgId: context.schoolId,
+        host,
+        kind: "page",
+        locale: settings.primaryLocale,
+        content,
+        plainText: pagePlainText(content),
+        mediaIds: [],
+        userId: context.actor.userId,
+      });
+      if (settings.bilingual) {
+        const translation: PageContent = {
+          sections: built.translation,
+          description: "",
+          reviewed: [],
+        };
+        await saveTranslation(context.tx, {
+          tenantId: context.tenantId,
+          orgId: context.schoolId,
+          host,
+          originalId: original.id,
+          locale: otherLocale(settings.primaryLocale),
+          kind: "page",
+          content: translation,
+          plainText: pagePlainText(translation),
+          mediaIds: [],
+          userId: context.actor.userId,
+        });
+      }
+      created.push(inserted.id);
+    }
+    if (input.withTheme) {
+      const version = await saveSiteSettings(context.tx, {
+        tenantId: context.tenantId,
+        orgId: context.schoolId,
+        ...settings,
+        expectedVersion: settings.version,
+        theme: { ...settings.theme, id: starter.theme },
+        chrome:
+          settings.chrome.actions.length || settings.chrome.footerColumns.length
+            ? settings.chrome
+            : starterChrome(starter.pages),
+      });
+      if (version === null) throw conflict();
+    }
+    await audit(context, {
+      action: "site.starter",
+      objectType: "org",
+      objectId: context.schoolId,
+      details: { starter: input.starter, pages: created.length },
+    });
+    return { created };
+  });
+
 async function liveSettings(
   tx: UnitContext["tx"],
   tenantId: string,
@@ -1079,7 +1262,7 @@ async function liveSettings(
 ) {
   const settings = await siteSettings(tx, tenantId, schoolId);
   if (!settings?.live) throw new ORPCError("NOT_FOUND");
-  return settings;
+  return normalised(settings);
 }
 
 function resolveLocale(
@@ -1101,11 +1284,19 @@ export const publicSite = publicProcedure
       async ({ tx, tenantId, schoolId, now }) => {
         const settings = await liveSettings(tx, tenantId, schoolId);
         const locale = resolveLocale(settings, input.locale);
-        const [school, menu, categories] = await Promise.all([
+        const [school, menu, categories, logo] = await Promise.all([
           publicSchool(tx, schoolId),
           publicMenu(tx, { orgId: schoolId, locale }),
           publicCategories(tx, schoolId),
+          publicationsOf(tx, {
+            tenantId,
+            hostType: "site_settings",
+            hostId: settings.id,
+          }),
         ]);
+        const say = (words: { en: string; ar: string }) =>
+          words[locale] || words[settings.primaryLocale];
+        const chrome = settings.chrome;
         if (!school) throw new ORPCError("NOT_FOUND");
         const banner =
           (locale === "ar" ? settings.bannerAr : settings.bannerEn) ||
@@ -1128,6 +1319,32 @@ export const publicSite = publicProcedure
               : settings.taglineEn),
           banner: bannerOn ? { text: banner, tone: settings.bannerTone } : null,
           socialLinks: settings.socialLinks,
+          theme: resolveTheme(settings.theme),
+          logoKey:
+            logo.find((row) => row.fileId === chrome.logoFileId)?.publicKey ??
+            null,
+          utility: chrome.utility.map((item) => ({
+            id: item.id,
+            label: say(item.label),
+            href: item.href,
+          })),
+          actions: chrome.actions.map((item) => ({
+            id: item.id,
+            label: say(item.label),
+            href: item.href,
+            style: item.style,
+          })),
+          footerColumns: chrome.footerColumns.map((column) => ({
+            id: column.id,
+            title: say(column.title),
+            links: column.links.map((item) => ({
+              id: item.id,
+              label: say(item.label),
+              href: item.href,
+            })),
+          })),
+          footerNote: say(chrome.footerNote),
+          dock: chrome.dock,
           contact: {
             address: school.address,
             phone: school.phone,
@@ -1162,14 +1379,14 @@ export const publicSitePage = publicProcedure
           slug: input.slug,
         });
         if (!row) throw new ORPCError("NOT_FOUND");
-        const sections = (row.content.sections ?? []) as {
-          section: { type: string; count?: number };
-        }[];
+        const sections = (row.content.sections ?? []) as ReturnType<
+          typeof localizedSections
+        >;
         const wanted = Math.max(
           0,
-          ...sections
-            .filter((item) => item.section.type === "news")
-            .map((item) => item.section.count ?? 0),
+          ...sections.flatMap((item) =>
+            item.section.type === "news" ? [item.section.data.count] : [],
+          ),
         );
         const news = wanted
           ? (
@@ -1186,9 +1403,11 @@ export const publicSitePage = publicProcedure
           locale,
           title: row.title,
           isHome: row.isHome,
-          sections: row.content.sections as ReturnType<
-            typeof localizedSections
-          >,
+          sections,
+          description:
+            typeof row.content.description === "string"
+              ? row.content.description
+              : "",
           media: row.media,
           news,
         };
