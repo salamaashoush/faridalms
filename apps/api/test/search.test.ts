@@ -101,7 +101,7 @@ describe("search", () => {
     expect(ids(theirs, "assignments")).toHaveLength(0);
   });
 
-  test("words in a conversation find it for its members, not the office", async () => {
+  test("words in a conversation find it for its members, not another family", async () => {
     const family = await mother();
     const inbox = await family.api.messages.inbox({});
     const thread = inbox.rows[0];
@@ -117,8 +117,12 @@ describe("search", () => {
     expect(hit?.target).toBe("thread");
     expect(hit?.snippet).toContain("\u0002");
 
-    const office = await principal();
-    const theirs = await office.search.find({ q: word, kind: "messages" });
+    const me = await family.api.identity.currentUser();
+    const parents = [login("parent", 0, 0), login("parent", 0, 1)];
+    let outsider = await signedIn("northwind", parents[0] ?? "");
+    if ((await outsider.identity.currentUser()).id === me.id)
+      outsider = await signedIn("northwind", parents[1] ?? "");
+    const theirs = await outsider.search.find({ q: word, kind: "messages" });
     expect(ids(theirs, "messages")).not.toContain(thread.id);
   });
 });
