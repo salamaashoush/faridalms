@@ -11,6 +11,7 @@ import { SelectField } from "~/components/system/field";
 import { Button } from "~/components/ui/button";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
+import { formatList } from "~/utils/datetime";
 
 import { SCOPE_LABEL } from "./format";
 
@@ -25,6 +26,26 @@ export interface AudienceChoices {
 }
 
 export const MAX_AUDIENCES = 20;
+
+/** Who a draft reaches, named in a line; rows still missing a class or grade are left out. */
+export function audienceSummary(
+  audiences: AudienceInput[],
+  choices: AudienceChoices,
+): string {
+  return formatList(
+    audiences.flatMap((row) => {
+      if (row.scope === "class") {
+        const found = choices.classes.find((item) => item.id === row.classId);
+        return found ? [classTitle(found)] : [];
+      }
+      if (row.scope === "grade") {
+        const found = choices.grades.find((item) => item.id === row.gradeId);
+        return found ? [inLocale(found.labelEn, found.labelAr)] : [];
+      }
+      return [SCOPE_LABEL[row.scope]()];
+    }),
+  );
+}
 
 export function audienceIssue(audiences: AudienceInput[]): string | null {
   return audiences.some(

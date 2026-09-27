@@ -13,6 +13,7 @@ export function editorStrings(): EditorStrings {
     invalid: m.editorInvalid(),
     characters: (count) => m.editorCharacters({ count }),
     formatting: m.editorFormatting(),
+    moreTools: m.editorMoreTools(),
     undo: m.editorUndo(),
     redo: m.editorRedo(),
     insert: m.editorInsert(),

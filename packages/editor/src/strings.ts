@@ -7,6 +7,7 @@ export interface EditorStrings {
   invalid: string;
   characters: (count: number) => string;
   formatting: string;
+  moreTools: string;
   undo: string;
   redo: string;
   insert: string;

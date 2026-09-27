@@ -82,15 +82,15 @@ const instant = (date: string, time: string | null) =>
   new Date(`${date}T${time ?? "00:00"}:00Z`);
 
 /**
- * When an event happens, in full: its days and, if timed, its hours. The
- * locale lays out the range, so Arabic reads it in its own order.
+ * When an event happens: its days and, if timed, its hours, in full or
+ * short. The locale lays out the range, so Arabic reads it in its own order.
  */
-export function whenLabel(event: Timed) {
+export function whenLabel(event: Timed, style: "long" | "short" = "long") {
   const timed = event.startTime !== null && event.endTime !== null;
   return new Intl.DateTimeFormat(getLocale(), {
-    weekday: "long",
+    weekday: style,
     day: "numeric",
-    month: "long",
+    month: style,
     ...(timed
       ? { hour: "2-digit", minute: "2-digit", hourCycle: "h23" }
       : undefined),

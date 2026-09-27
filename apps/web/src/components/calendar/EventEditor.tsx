@@ -19,6 +19,7 @@ import { toast } from "sonner";
 import {
   AudienceList,
   audienceIssue,
+  audienceSummary,
 } from "~/components/announcements/AudienceList";
 import { ContentEditor } from "~/components/content/ContentEditor";
 import { useDocumentMedia } from "~/components/coursework/useDocumentMedia";
@@ -50,7 +51,7 @@ import {
 } from "~/server/calendar";
 import { getMessageFromError } from "~/utils/error";
 
-import { CATEGORY_LABEL } from "./format";
+import { CATEGORY_LABEL, whenLabel } from "./format";
 
 type Existing = Awaited<
   ReturnType<NonNullable<ReturnType<typeof calendarEventQuery>["queryFn"]>>
@@ -132,6 +133,25 @@ function issuesOf(draft: Draft) {
   };
 }
 
+function draftWhen(draft: Draft) {
+  if (!draft.startsOn) return "";
+  const endsOn = draft.endsOn >= draft.startsOn ? draft.endsOn : draft.startsOn;
+  const timed =
+    !draft.allDay &&
+    draft.startTime !== "" &&
+    draft.endTime !== "" &&
+    (endsOn > draft.startsOn || draft.endTime > draft.startTime);
+  return whenLabel(
+    {
+      startsOn: draft.startsOn,
+      endsOn,
+      startTime: timed ? draft.startTime : null,
+      endTime: timed ? draft.endTime : null,
+    },
+    "short",
+  );
+}
+
 /**
  * An event written as a document: the title and description take the page,
  * when, where and who it is for sit beside them. Drafts save themselves once
@@ -172,6 +192,7 @@ export function EventEditor({
   const [tellOnPublish, setTellOnPublish] = useState(true);
   const [tellChoice, setTellChoice] = useState<boolean | null>(null);
   const [asking, setAsking] = useState(false);
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const [pending, setPending] = useState<"publish" | "update" | null>(null);
   const live = state === "published";
   const issues = issuesOf(draft);
@@ -221,8 +242,13 @@ export function EventEditor({
     [change],
   );
 
+  const inPanel = Boolean(
+    issues.endsOn || issues.startTime || issues.endTime || issues.audiences,
+  );
+
   const publish = async () => {
     setShown(true);
+    if (inPanel) setDetailsOpen(true);
     if (!ready) return;
     setPending("publish");
     try {
@@ -252,6 +278,7 @@ export function EventEditor({
 
   const update = async () => {
     setShown(true);
+    if (inPanel) setDetailsOpen(true);
     setAsking(false);
     if (!ready) return;
     setPending("update");
@@ -378,6 +405,12 @@ export function EventEditor({
             />
           </div>
         }
+        summary={[
+          draftWhen(draft),
+          draft.location.trim(),
+          audienceSummary(draft.audiences, options),
+        ]}
+        details={{ open: detailsOpen, onOpenChange: setDetailsOpen }}
         aside={
           <DetailsPanel title={m.docDetails()}>
             <DetailsSection title={m.calSectionWhen()}>

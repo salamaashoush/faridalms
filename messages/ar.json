@@ -992,6 +992,7 @@
   "editorInvalid": "تعذر حفظ بعض المحتوى. تراجع عن التغيير الأخير أو أزل التنسيق غير المدعوم؛ كتابتك ما زالت في المحرر.",
   "editorCharacters": "{count} حرف",
   "editorFormatting": "تنسيق النص",
+  "editorMoreTools": "أدوات أخرى",
   "editorUndo": "تراجع",
   "editorRedo": "إعادة",
   "editorInsert": "إدراج",
@@ -4353,5 +4354,6 @@
   "annStatePublished": "مُرسل",
   "annStateArchived": "مؤرشف",
   "docDetails": "التفاصيل",
+  "docDone": "تم",
   "annAudienceNumber": "الجمهور {number}"
 }

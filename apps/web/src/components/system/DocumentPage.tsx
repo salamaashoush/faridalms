@@ -1,17 +1,38 @@
 import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
-import { ArrowLeft, LoaderCircle, TriangleAlert } from "lucide-react";
+import {
+  ArrowLeft,
+  ChevronDown,
+  LoaderCircle,
+  SlidersHorizontal,
+  TriangleAlert,
+} from "lucide-react";
+import {
+  createContext,
+  useContext,
+  useRef,
+  useState,
+  useSyncExternalStore,
+} from "react";
 
 import type { SaveState } from "~/hooks/useAutosave";
 
 import { Button } from "~/components/ui/button";
+import {
+  Sheet,
+  SheetContent,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from "~/components/ui/sheet";
 import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
 } from "~/components/ui/tooltip";
 import * as m from "~/i18n/messages";
+import { getLocale, getTextDirection } from "~/i18n/runtime";
 import { cn } from "~/utils/cn";
 
 import type { ActionItem } from "./ActionMenu";
@@ -22,6 +43,21 @@ import { PageActions } from "./PageActions";
 import { StatusBadge } from "./status";
 
 const NO_ACTIONS: ActionItem[] = [];
+
+/** Where the details panel is drawn: beside the document, or in a sheet. */
+const DetailsPlacement = createContext<"side" | "sheet">("side");
+
+function useMedia(query: string) {
+  return useSyncExternalStore(
+    (notify) => {
+      const list = window.matchMedia(query);
+      list.addEventListener("change", notify);
+      return () => list.removeEventListener("change", notify);
+    },
+    () => window.matchMedia(query).matches,
+    () => false,
+  );
+}
 
 export interface PrimaryAction {
   label: string;
@@ -90,6 +126,8 @@ export function DocumentPage({
   menu = NO_ACTIONS,
   title,
   aside,
+  summary = [],
+  details,
   children,
 }: {
   heading: string;
@@ -107,8 +145,22 @@ export function DocumentPage({
   menu?: ActionItem[];
   title: ReactNode;
   aside?: ReactNode;
+  /** The item's key settings in a few words, shown on phones in place of the panel. */
+  summary?: string[];
+  /** Opens the details on phones, where the panel is not beside the text. */
+  details?: { open: boolean; onOpenChange: (open: boolean) => void };
   children: ReactNode;
 }) {
+  const [ownOpen, setOwnOpen] = useState(false);
+  const open = details?.open ?? ownOpen;
+  const setOpen = details?.onOpenChange ?? setOwnOpen;
+  const wide = useMedia("(min-width: 64rem)");
+  const phone = !useMedia("(min-width: 48rem)");
+  const inSheet = aside !== undefined && open && !wide;
+  const end = getTextDirection(getLocale()) === "rtl" ? "left" : "right";
+  // Focusing the first field would raise the phone keyboard before anything
+  // is chosen, so the sheet starts at its title.
+  const sheetTitle = useRef<HTMLHeadingElement>(null);
   return (
     <>
       <PageActions
@@ -200,18 +252,70 @@ export function DocumentPage({
         className={cn(
           "mx-auto grid w-full max-w-[1080px] gap-x-12 gap-y-6",
           aside
-            ? "[grid-template-areas:'title'_'aside'_'body'] lg:grid-cols-[minmax(0,1fr)_280px] lg:[grid-template-areas:'title_title'_'body_aside']"
+            ? "[grid-template-areas:'title'_'summary'_'body'] lg:grid-cols-[minmax(0,1fr)_280px] lg:[grid-template-areas:'title_title'_'body_aside']"
             : "max-w-[720px] [grid-template-areas:'title'_'body']",
         )}
       >
         <div className="max-w-[720px] min-w-0 [grid-area:title]">{title}</div>
         {aside ? (
-          <aside className="min-w-0 [grid-area:aside] lg:sticky lg:top-16 lg:self-start">
+          <button
+            type="button"
+            aria-haspopup="dialog"
+            onClick={() => setOpen(true)}
+            className="flex min-h-11 w-full min-w-0 items-center gap-3 rounded-lg border bg-card px-3 text-start text-sm [grid-area:summary] hover:bg-muted/50 lg:hidden"
+          >
+            <SlidersHorizontal
+              className="size-4 shrink-0 text-muted-foreground"
+              aria-hidden
+            />
+            <span className="shrink-0 font-medium">{m.docDetails()}</span>
+            <span className="min-w-0 flex-1 truncate text-muted-foreground">
+              {summary.filter(Boolean).join(" · ")}
+            </span>
+            <ChevronDown
+              className="size-4 shrink-0 text-muted-foreground"
+              aria-hidden
+            />
+          </button>
+        ) : null}
+        {aside && !inSheet ? (
+          <aside className="min-w-0 [grid-area:aside] max-lg:hidden lg:sticky lg:top-16 lg:self-start">
             {aside}
           </aside>
         ) : null}
         <div className="min-w-0 pb-24 [grid-area:body]">{children}</div>
       </div>
+      {aside ? (
+        <Sheet open={inSheet} onOpenChange={setOpen}>
+          <SheetContent
+            side={phone ? "bottom" : end}
+            initialFocus={sheetTitle}
+            className="gap-0 p-0 data-[side=bottom]:max-h-[88dvh] data-[side=bottom]:rounded-t-xl data-[side=left]:w-full data-[side=right]:w-full data-[side=left]:sm:max-w-[400px] data-[side=right]:sm:max-w-[400px]"
+          >
+            <SheetHeader className="border-b px-5 py-3.5 pe-14">
+              <SheetTitle
+                ref={sheetTitle}
+                tabIndex={-1}
+                className="text-base leading-6 font-semibold outline-none"
+              >
+                {m.docDetails()}
+              </SheetTitle>
+            </SheetHeader>
+            <div className="min-h-0 flex-1 overflow-y-auto px-5 py-5">
+              <DetailsPlacement value="sheet">{aside}</DetailsPlacement>
+            </div>
+            <SheetFooter className="border-t px-5 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+              <Button
+                type="button"
+                className="h-10 w-full"
+                onClick={() => setOpen(false)}
+              >
+                {m.docDone()}
+              </Button>
+            </SheetFooter>
+          </SheetContent>
+        </Sheet>
+      ) : null}
     </>
   );
 }
@@ -274,6 +378,9 @@ export function DetailsPanel({
   title: string;
   children: ReactNode;
 }) {
+  // In the phone sheet the sheet's own title names it and frames it already.
+  if (useContext(DetailsPlacement) === "sheet")
+    return <div className="grid gap-5">{children}</div>;
   return (
     <section className="grid gap-5 rounded-lg border bg-card p-4">
       <h2 className="text-sm font-semibold">{title}</h2>

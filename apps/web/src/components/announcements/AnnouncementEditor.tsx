@@ -41,7 +41,7 @@ import {
 } from "~/server/announcements";
 import { getMessageFromError } from "~/utils/error";
 
-import { AudienceList, audienceIssue } from "./AudienceList";
+import { AudienceList, audienceIssue, audienceSummary } from "./AudienceList";
 import { STATE_LABEL, STATE_TONE, URGENCY_LABEL } from "./format";
 
 type Existing = Awaited<
@@ -118,6 +118,7 @@ export function AnnouncementEditor({
     null,
   );
   const [asking, setAsking] = useState(false);
+  const [detailsOpen, setDetailsOpen] = useState(false);
   const live = state === "published";
 
   const persist = useCallback(
@@ -168,7 +169,10 @@ export function AnnouncementEditor({
     if (!draft.title.trim()) found.push(m.annTitleNeeded());
     if (!contentPlainText(draft.body).trim()) found.push(m.annBodyNeeded());
     const audience = audienceIssue(draft.audiences);
-    if (audience) found.push(audience);
+    if (audience) {
+      found.push(audience);
+      setDetailsOpen(true);
+    }
     return found;
   };
 
@@ -345,6 +349,11 @@ export function AnnouncementEditor({
             />
           </div>
         }
+        summary={[
+          audienceSummary(draft.audiences, options),
+          URGENCY_LABEL[draft.urgency](),
+        ]}
+        details={{ open: detailsOpen, onOpenChange: setDetailsOpen }}
         aside={
           <DetailsPanel title={m.docDetails()}>
             <DetailsSection

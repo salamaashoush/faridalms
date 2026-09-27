@@ -980,6 +980,7 @@
   "editorInvalid": "Some content cannot be saved. Undo the last change or remove unsupported formatting; your writing remains in the editor.",
   "editorCharacters": "{count} characters",
   "editorFormatting": "Text formatting",
+  "editorMoreTools": "More tools",
   "editorUndo": "Undo",
   "editorRedo": "Redo",
   "editorInsert": "Insert",
@@ -4197,5 +4198,6 @@
   "annStatePublished": "Sent",
   "annStateArchived": "Archived",
   "docDetails": "Details",
+  "docDone": "Done",
   "annAudienceNumber": "Audience {number}"
 }
