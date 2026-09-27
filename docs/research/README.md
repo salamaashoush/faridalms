@@ -21,5 +21,9 @@ with new evidence recorded here.
 - [backend-architecture.md](backend-architecture.md): standards (OneRoster,
   Ed-Fi, LTI), tenancy, API, auth, jobs, real-time, files, search, law.
 - [editor-engines.md](editor-engines.md): the content editor engine choice.
+- [website-builder.md](website-builder.md): school website platforms
+  (Finalsite, Apptegy, Edlio, Blackbaud, Campus Suite), theme and section
+  models (Squarespace, WordPress, Webflow, Framer, Wix), 16 school sites
+  measured, Arabic fonts. Specification: [../systems/website.md](../systems/website.md).
 
 Product behaviour built from these: [../product-spec.md](../product-spec.md).

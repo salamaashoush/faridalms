@@ -61,3 +61,17 @@ what follows from them. A decision changes only by a new entry here.
   [../systems/platform-foundation.md](../systems/platform-foundation.md): the
   schema is `packages/database/src` itself and `drizzle.config.ts` writes its
   migrations to `drizzle/`.
+
+## Website (2026-09-27)
+
+- **The school website is a marketing site, not an app screen.** Salama rejected
+  a form-based page editor with one fixed look. The website gets themes, starter
+  templates, a section library with layout variants and a live canvas editor,
+  built from [website-builder.md](website-builder.md) and specified in
+  [../systems/website.md](../systems/website.md).
+- **Themes are data.** A school picks one of seven themes and adjusts palette
+  roles, fonts, shape and chrome; content never carries colours or CSS, so a
+  theme switch re-skins every page.
+- **Both languages are authored.** No machine-translation widget; every page
+  keeps its second language as a translation document, as the foundation
+  requires.
