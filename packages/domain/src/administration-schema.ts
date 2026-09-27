@@ -31,22 +31,6 @@ export const saveUserSchema = v.pipe(
     ["password"],
   ),
 );
-export const saveStudentSchema = v.object({
-  id: v.optional(id),
-  reference: requiredText(24),
-  firstName: requiredText(64),
-  lastName: requiredText(64),
-  birthdate: v.optional(
-    v.union([v.literal(""), v.pipe(v.string(), v.isoDate())]),
-    "",
-  ),
-  classId: optionalId,
-  guardianIds: v.optional(v.pipe(v.array(id), v.maxLength(20)), []),
-  userId: optionalId,
-  // The day a class change takes effect: the old placement ends and the new
-  // one starts on it. Omitted, it is the school's today.
-  effectiveOn: v.optional(v.pipe(v.string(), v.isoDate())),
-});
 export const saveClassSchema = v.object({
   id: v.optional(id),
   name: requiredText(32),
@@ -57,7 +41,6 @@ export const saveClassSchema = v.object({
   subjects: v.array(v.object({ subjectId: id, teacherId: id })),
 });
 export type SaveUserInput = v.InferInput<typeof saveUserSchema>;
-export type SaveStudentInput = v.InferInput<typeof saveStudentSchema>;
 export type SaveClassInput = v.InferInput<typeof saveClassSchema>;
 export const managementOptionsSchema = v.object({
   selectedIds: v.optional(v.pipe(v.array(id), v.maxLength(20)), []),
@@ -70,12 +53,6 @@ export const managementOptionsSchema = v.object({
 export type ManagementOptionsInput = v.InferInput<
   typeof managementOptionsSchema
 >;
-export const studentMatchesSchema = v.object({
-  firstName: requiredText(64),
-  lastName: requiredText(64),
-  birthdate: v.pipe(v.string(), v.isoDate()),
-});
-export type StudentMatchesInput = v.InferInput<typeof studentMatchesSchema>;
 
 export const schoolProfileSchema = v.object({
   name: requiredText(160),

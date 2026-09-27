@@ -3,10 +3,8 @@ import {
   saveSubjectSchema,
   publishNewsletterSchema,
   saveUserSchema,
-  saveStudentSchema,
   saveClassSchema,
   managementOptionsSchema,
-  studentMatchesSchema,
 } from "@faridalms/domain/administration-schema";
 import {
   recipientQuerySchema,
@@ -14,7 +12,6 @@ import {
   staffDirectorySchema,
   classDirectorySchema,
   createAssignmentSchema,
-  studentDirectorySchema,
   assignmentsQuerySchema,
   attendanceRegisterQuerySchema,
   calendarEventSchema,
@@ -84,12 +81,6 @@ export const saveAttendance = createServerFn({ method: "POST" })
 export const getAdminOverview = createServerFn({ method: "GET" }).handler(() =>
   backend().getAdminOverview(),
 );
-
-export const getAllStudents = createServerFn({ method: "GET" })
-  .validator((input: v.InferInput<typeof studentDirectorySchema>) =>
-    v.parse(studentDirectorySchema, input),
-  )
-  .handler(({ data }) => record(backend().getAllStudents(data)));
 
 export const getAllUsers = createServerFn({ method: "GET" })
   .validator((input: v.InferInput<typeof staffDirectorySchema>) =>
@@ -173,10 +164,6 @@ export const saveUser = createServerFn({ method: "POST" })
   .validator((input: unknown) => v.parse(saveUserSchema, input))
   .handler(({ data }) => backend().saveUser(data));
 
-export const saveStudent = createServerFn({ method: "POST" })
-  .validator((input: unknown) => v.parse(saveStudentSchema, input))
-  .handler(({ data }) => backend().saveStudent(data));
-
 export const saveClass = createServerFn({ method: "POST" })
   .validator((input: unknown) => v.parse(saveClassSchema, input))
   .handler(({ data }) => backend().saveClass(data));
@@ -184,16 +171,6 @@ export const saveClass = createServerFn({ method: "POST" })
 export const getManagementOptions = createServerFn({ method: "GET" })
   .validator((input: unknown) => v.parse(managementOptionsSchema, input))
   .handler(({ data }) => backend().getManagementOptions(data));
-
-export const getStudentForManagement = createServerFn({ method: "GET" })
-  .validator((input: unknown) =>
-    v.parse(v.object({ id: v.pipe(v.string(), v.uuid()) }), input),
-  )
-  .handler(({ data }) => backend().getStudentForManagement(data));
-
-export const getStudentMatches = createServerFn({ method: "GET" })
-  .validator((input: unknown) => v.parse(studentMatchesSchema, input))
-  .handler(({ data }) => backend().getStudentMatches(data));
 
 export const saveSchoolProfile = createServerFn({ method: "POST" })
   .validator((input: unknown) => v.parse(schoolProfileSchema, input))

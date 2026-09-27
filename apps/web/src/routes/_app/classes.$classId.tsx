@@ -348,7 +348,7 @@ function ClassAttendance({
               <Link
                 to="/students/$studentId"
                 params={{ studentId: student.id }}
-                search={{ tab: "attendance" }}
+                search={{}}
                 className="flex items-center gap-3 font-medium hover:text-primary hover:underline"
               >
                 <PersonAvatar

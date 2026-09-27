@@ -10,16 +10,16 @@ import {
 import * as v from "valibot";
 
 import {
-  ExistingStudentEditor,
-  prepareStudentEditor,
-  StudentEditor,
-} from "~/components/admin/StudentEditor";
-import {
   BreadcrumbCurrent,
   BreadcrumbStep,
 } from "~/components/app/WorkspaceBreadcrumb";
+import { displayName } from "~/components/people/format";
+import {
+  ExistingStudentEditor,
+  StudentEditor,
+} from "~/components/people/StudentEditor";
 import * as m from "~/i18n/messages";
-import { studentQuery } from "~/queries/school";
+import { peopleOptionsQuery, studentRecordQuery } from "~/queries/students";
 import { currentUserQuery } from "~/queries/user";
 
 export const Route = createFileRoute("/_app/student-editor")({
@@ -29,15 +29,20 @@ export const Route = createFileRoute("/_app/student-editor")({
   },
   validateSearch: v.object({
     id: v.optional(v.pipe(v.string(), v.uuid())),
-    // Set by the students list, so leaving returns to it with its filters.
-    from: v.optional(v.picklist(["list"])),
+    // Set by the list or the record, so leaving returns there.
+    from: v.optional(v.picklist(["list", "record"])),
   }),
   loaderDeps: ({ search }) => ({ id: search.id }),
   loader: async ({ context, deps }) => {
     const user = await context.queryClient.ensureQueryData(currentUserQuery);
     if (!user.capabilities.includes("people:manage"))
       throw redirect({ to: WORKSPACE_HOME[user.workspace] });
-    await prepareStudentEditor(context.queryClient, deps.id);
+    await Promise.all([
+      context.queryClient.ensureQueryData(peopleOptionsQuery),
+      deps.id
+        ? context.queryClient.ensureQueryData(studentRecordQuery(deps.id))
+        : null,
+    ]);
   },
   component: StudentEditorPage,
 });
@@ -52,7 +57,7 @@ function EditorTrail() {
 }
 
 function EditTrail({ studentId }: { studentId: string }) {
-  const { profile } = useSuspenseQuery(studentQuery({ studentId })).data;
+  const record = useSuspenseQuery(studentRecordQuery(studentId)).data;
   return (
     <>
       <BreadcrumbStep
@@ -60,7 +65,7 @@ function EditTrail({ studentId }: { studentId: string }) {
           <Link to="/students/$studentId" params={{ studentId }} search={{}} />
         }
       >
-        {profile.fullName}
+        {displayName(record)}
       </BreadcrumbStep>
       <BreadcrumbCurrent>{m.managementEditStudent()}</BreadcrumbCurrent>
     </>
@@ -73,7 +78,7 @@ function StudentEditorPage() {
   const router = useRouter();
   const canGoBack = useCanGoBack();
   const close = () => {
-    if (from === "list" && canGoBack) {
+    if (from && canGoBack) {
       router.history.back();
       return;
     }

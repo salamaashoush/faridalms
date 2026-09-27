@@ -3,12 +3,6 @@ import { isNotFound } from "@tanstack/react-router";
 
 import { getPerson } from "~/server/people";
 
-export const personQuery = (id: string) =>
-  queryOptions({
-    queryKey: ["people", id],
-    queryFn: () => getPerson({ data: { id } }),
-  });
-
 /**
  * Someone a link addresses a new message to, or null when the viewer cannot
  * reach them: a removed guardian, or a student no longer in the teacher's

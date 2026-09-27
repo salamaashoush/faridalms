@@ -2,7 +2,6 @@ import type { ManagementOptionsInput } from "@faridalms/domain/administration-sc
 import type {
   RecipientCursor,
   AssignmentsQuery,
-  StudentDirectoryQuery,
   StaffDirectoryQuery,
   ClassDirectoryQuery,
   AttendanceRegisterQuery,
@@ -18,7 +17,6 @@ import { queryOptions } from "@tanstack/react-query";
 import {
   getAdminOverview,
   getAllClasses,
-  getAllStudents,
   getAllUsers,
   getAssignmentDetail,
   getAssignments,
@@ -38,7 +36,6 @@ import {
   getRecipients,
   getSchoolSettings,
   getStudent,
-  getStudentForManagement,
   getStudentOverview,
   getSubjects,
   getTeachingOverview,
@@ -159,20 +156,6 @@ export const gradingQueueQuery = queryOptions({
   queryKey: ["grading", "queue"],
   queryFn: () => getGradingQueue(),
 });
-
-export function allStudentsQuery(query: StudentDirectoryQuery) {
-  return queryOptions({
-    queryKey: ["students", "all", query],
-    queryFn: () => getAllStudents({ data: query }),
-  });
-}
-
-export function studentManagementQuery(id: string) {
-  return queryOptions({
-    queryKey: ["student-management", id],
-    queryFn: () => getStudentForManagement({ data: { id } }),
-  });
-}
 
 export function managementOptionsQuery(query: ManagementOptionsInput) {
   return queryOptions({

@@ -7,6 +7,7 @@ import {
 } from "@tanstack/react-start/server";
 
 import { env } from "~/env";
+import { getLocale } from "~/i18n/runtime";
 
 /** The school chosen at sign-in, for hosts that do not name one. */
 export const SCHOOL_COOKIE = "farida-school";
@@ -44,6 +45,7 @@ export function backend(school: string | null = currentSchool()) {
   return createApiClient({
     url: `${env.BACKEND_URL}/rpc`,
     school: school ?? undefined,
+    locale: getLocale(),
     token: school ? getCookie(sessionCookie(school)) : undefined,
   });
 }

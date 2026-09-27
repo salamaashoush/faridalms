@@ -36,6 +36,12 @@ export function validationMessage(issue: { message?: string }): string {
       return m.validationSlotOverlap();
     case "validation.subject_code":
       return m.validationSubjectCode();
+    case "validation.name_required":
+      return m.validationNameRequired();
+    case "validation.reference":
+      return m.validationReference();
+    case "validation.role_required":
+      return m.validationRoleRequired();
   }
   if (!("type" in issue)) return issue.message ?? m.validationInvalid();
   const count =

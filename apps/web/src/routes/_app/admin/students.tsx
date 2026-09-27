@@ -1,10 +1,18 @@
-import type { StudentDirectoryQuery } from "@faridalms/domain/school-schema";
+import type { StudentDirectoryQuery } from "@faridalms/domain/people";
 
-import { studentDirectorySchema } from "@faridalms/domain/school-schema";
+import { studentDirectorySchema } from "@faridalms/domain/people";
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { createFileRoute } from "@tanstack/react-router";
-import { Copy, Download, Pencil, Plus, UsersRound } from "lucide-react";
+import { createFileRoute, stripSearchParams } from "@tanstack/react-router";
+import {
+  CalendarX,
+  Copy,
+  Download,
+  Pencil,
+  Plus,
+  UsersRound,
+} from "lucide-react";
 import { toast } from "sonner";
+import * as v from "valibot";
 
 import type { Column, RowAction } from "~/components/system/DataTable";
 import type {
@@ -14,39 +22,45 @@ import type {
 } from "~/components/system/IndexPage";
 
 import { PersonAvatar } from "~/components/admin/PersonAvatar";
-import { YEAR_STATUS_LABEL } from "~/components/admin/YearLifecycle";
 import { ButtonLink } from "~/components/app/ButtonLink";
 import { Value } from "~/components/app/primitives";
+import {
+  displayName,
+  formatPhone,
+  labelOf,
+  otherName,
+  STATUS_LABEL,
+  STATUS_TONE,
+} from "~/components/people/format";
 import { DataTable, RowLink } from "~/components/system/DataTable";
-import { PageHeader, isFiltered } from "~/components/system/IndexPage";
+import {
+  EmptyState,
+  PageHeader,
+  isFiltered,
+} from "~/components/system/IndexPage";
 import { StatusText } from "~/components/system/status";
-import { useCapability } from "~/hooks/useCurrentUser";
+import { inLocale, useCapability } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
-import { academicYearsQuery } from "~/queries/academic-years";
-import { allStudentsQuery } from "~/queries/school";
+import { peopleOptionsQuery, studentsQuery } from "~/queries/students";
 import { downloadCsv } from "~/utils/csv";
 
 type Sort = StudentDirectoryQuery["sort"];
-
-interface StudentRow {
-  id: string;
-  fullName: string;
-  reference: string;
-  photoUrl: string | null;
-  grade: string | null;
-  className: string | null;
-  homeroomTeacher: string | null;
-}
+type Data = Awaited<
+  ReturnType<NonNullable<ReturnType<typeof studentsQuery>["queryFn"]>>
+>;
+type StudentRow = Data["rows"][number];
 
 const PAGE_SIZES = [25, 50] as const;
+const DEFAULT_SEARCH = v.parse(studentDirectorySchema, {});
 
 export const Route = createFileRoute("/_app/admin/students")({
   validateSearch: studentDirectorySchema,
+  search: { middlewares: [stripSearchParams(DEFAULT_SEARCH)] },
   loaderDeps: ({ search }) => search,
   loader: async ({ context, deps }) => {
     await Promise.all([
-      context.queryClient.ensureQueryData(allStudentsQuery(deps)),
-      context.queryClient.ensureQueryData(academicYearsQuery),
+      context.queryClient.ensureQueryData(studentsQuery(deps)),
+      context.queryClient.ensureQueryData(peopleOptionsQuery),
     ]);
   },
   component: StudentsPage,
@@ -59,35 +73,35 @@ function StudentName({ row }: { row: StudentRow }) {
       params={{ studentId: row.id }}
       search={{}}
     >
-      {row.fullName}
+      {displayName(row)}
     </RowLink>
   );
 }
 
-// A missing class needs attention only in the year being run; in any other
-// year it is history.
-function StudentClass({ row, current }: { row: StudentRow; current: boolean }) {
-  return row.className ? (
-    <span dir="auto">{row.className}</span>
-  ) : (
-    <StatusText tone={current ? "warning" : "neutral"}>
-      {m.studentsNoClass()}
-    </StatusText>
-  );
-}
-
-function Reference({ value }: { value: string }) {
-  return (
+function Reference({ value }: { value: string | null }) {
+  return value ? (
     <span
       dir="ltr"
       className="font-mono text-[13px] leading-[18px] text-muted-foreground tabular-nums"
     >
       {value}
     </span>
+  ) : (
+    <Value>{null}</Value>
   );
 }
 
-function studentColumns(current: boolean): Column<StudentRow, Sort>[] {
+function Status({ row }: { row: StudentRow }) {
+  return (
+    <StatusText tone={STATUS_TONE[row.status]}>
+      {STATUS_LABEL[row.status]()}
+    </StatusText>
+  );
+}
+
+// Built per render: headers read the request's locale, which a module-level
+// array would fix at whichever language first loaded the module on the server.
+function studentColumns(): Column<StudentRow, Sort>[] {
   return [
     {
       id: "name",
@@ -95,9 +109,19 @@ function studentColumns(current: boolean): Column<StudentRow, Sort>[] {
       sort: "name",
       primary: true,
       cell: (row) => (
-        <div className="flex items-center gap-3">
-          <PersonAvatar name={row.fullName} photoUrl={row.photoUrl} size="sm" />
-          <StudentName row={row} />
+        <div className="flex min-w-0 items-center gap-3">
+          <PersonAvatar name={displayName(row)} size="sm" />
+          <div className="grid min-w-0">
+            <StudentName row={row} />
+            {otherName(row) ? (
+              <span
+                dir="auto"
+                className="truncate text-[13px] leading-[18px] text-muted-foreground"
+              >
+                {otherName(row)}
+              </span>
+            ) : null}
+          </div>
         </div>
       ),
     },
@@ -108,53 +132,69 @@ function studentColumns(current: boolean): Column<StudentRow, Sort>[] {
       cell: (row) => <Reference value={row.reference} />,
     },
     {
-      id: "class",
-      header: m.studentClass(),
-      sort: "class",
-      cell: (row) => <StudentClass row={row} current={current} />,
-    },
-    {
       id: "grade",
       header: m.studentGrade(),
       sort: "grade",
-      cell: (row) => <Value notApplicable={!row.className}>{row.grade}</Value>,
+      cell: (row) => (
+        <Value notApplicable={!row.grade}>{labelOf(row.grade)}</Value>
+      ),
     },
     {
-      id: "homeroom",
-      header: m.studentsHomeroomTeacher(),
-      sort: "homeroom",
-      cell: (row) => (
-        <Value notApplicable={!row.className}>{row.homeroomTeacher}</Value>
-      ),
+      id: "status",
+      header: m.studentStatus(),
+      cell: (row) => <Status row={row} />,
+    },
+    {
+      id: "guardian",
+      header: m.studentsGuardianPhone(),
+      cell: (row) =>
+        row.guardianPhone ? (
+          <bdi dir="ltr" className="tabular-nums">
+            {formatPhone(row.guardianPhone)}
+          </bdi>
+        ) : (
+          <StatusText tone="warning">{m.studentsMissingGuardian()}</StatusText>
+        ),
+    },
+    {
+      id: "account",
+      header: m.studentsAccount(),
+      cell: (row) =>
+        row.hasAccount ? (
+          <StatusText tone="success">{m.studentsHasAccount()}</StatusText>
+        ) : (
+          <StatusText tone="neutral">{m.studentsNoAccount()}</StatusText>
+        ),
     },
   ];
 }
 
-function studentCard(current: boolean) {
-  return {
-    leading: (row: StudentRow) => (
-      <PersonAvatar name={row.fullName} photoUrl={row.photoUrl} />
-    ),
-    title: (row: StudentRow) => <StudentName row={row} />,
-    fact: (row: StudentRow) => <StudentClass row={row} current={current} />,
-  };
-}
+const card = {
+  leading: (row: StudentRow) => <PersonAvatar name={displayName(row)} />,
+  title: (row: StudentRow) => <StudentName row={row} />,
+  fact: (row: StudentRow) => (
+    <span className="flex flex-wrap items-center gap-x-3">
+      <Status row={row} />
+      {row.grade ? <span>{labelOf(row.grade)}</span> : null}
+    </span>
+  ),
+};
 
 function exportStudents(rows: StudentRow[]) {
   downloadCsv(`${m.adminStudentsTitle()}.csv`, [
     [
       m.adminName(),
       m.adminReference(),
-      m.studentClass(),
       m.studentGrade(),
-      m.studentsHomeroomTeacher(),
+      m.studentStatus(),
+      m.studentsGuardianPhone(),
     ],
     ...rows.map((row) => [
-      row.fullName,
-      row.reference,
-      row.className,
-      row.grade,
-      row.homeroomTeacher,
+      displayName(row),
+      row.reference ?? "",
+      labelOf(row.grade) ?? "",
+      STATUS_LABEL[row.status](),
+      row.guardianPhone ?? "",
     ]),
   ]);
 }
@@ -170,28 +210,65 @@ function StudentsPage() {
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
   const canManage = useCapability("people:manage");
-  const data = useSuspenseQuery(allStudentsQuery(search)).data;
-  const { data: years } = useSuspenseQuery(academicYearsQuery);
-  const defaultYear = years.find((year) => year.isCurrent);
-  const current = data.year.id === defaultYear?.id;
+  const data = useSuspenseQuery(studentsQuery(search)).data;
+  const options = useSuspenseQuery(peopleOptionsQuery).data;
   const patch = (change: Partial<StudentDirectoryQuery>) => {
     void navigate({ search: (previous) => ({ ...previous, ...change }) });
   };
+  if (!data.year)
+    return (
+      <>
+        <PageHeader title={m.adminStudentsTitle()} />
+        <EmptyState
+          icon={CalendarX}
+          title={m.studentsNoYear()}
+          description={m.studentsNoYearBody()}
+        />
+      </>
+    );
   const yearFacet: Facet = {
     id: "year",
     label: m.workingYear(),
     single: true,
-    options: years.map((year) => ({
+    options: options.years.map((year) => ({
       value: year.id,
-      label: year.name,
-      hint: year.isCurrent
-        ? m.workingYearDefaultHint()
-        : YEAR_STATUS_LABEL[year.status](),
+      label: inLocale(year.titleEn, year.titleAr),
+      hint:
+        year.id === options.workingYearId
+          ? m.workingYearDefaultHint()
+          : undefined,
     })),
     selected: [data.year.id],
-    defaultSelected: defaultYear ? [defaultYear.id] : [],
+    defaultSelected: options.workingYearId ? [options.workingYearId] : [],
     onChange: ([year = ""]) =>
-      patch({ year: year === defaultYear?.id ? "" : year, page: 1 }),
+      patch({ year: year === options.workingYearId ? "" : year, page: 1 }),
+  };
+  const gradeFacet: Facet = {
+    id: "grade",
+    label: m.studentGrade(),
+    options: options.grades.map((grade) => ({
+      value: grade.id,
+      label: labelOf(grade) ?? grade.code,
+    })),
+    selected: search.grade,
+    onChange: (grade) => patch({ grade, page: 1 }),
+  };
+  const attentionFacet: Facet = {
+    id: "missing",
+    label: m.studentsNeedsAttention(),
+    options: [
+      { value: "guardian", label: m.studentsMissingGuardian() },
+      { value: "account", label: m.studentsMissingAccount() },
+    ],
+    selected: search.missing,
+    onChange: (missing) =>
+      patch({
+        missing: missing.filter(
+          (value): value is "guardian" | "account" =>
+            value === "guardian" || value === "account",
+        ),
+        page: 1,
+      }),
   };
   const rowActions = (row: StudentRow): RowAction[] => [
     ...(canManage
@@ -207,11 +284,15 @@ function StudentsPage() {
           },
         ]
       : []),
-    {
-      label: m.studentsCopyReference(),
-      icon: Copy,
-      onSelect: () => copyReference(row.reference),
-    },
+    ...(row.reference
+      ? [
+          {
+            label: m.studentsCopyReference(),
+            icon: Copy,
+            onSelect: () => copyReference(row.reference ?? ""),
+          },
+        ]
+      : []),
   ];
   const create: HeaderAction | undefined = canManage
     ? {
@@ -224,11 +305,11 @@ function StudentsPage() {
     search: {
       value: search.q,
       onChange: (q) => patch({ q, page: 1 }),
-      label: m.studentsSearch(),
+      label: m.studentsSearchHint(),
       placeholder: m.studentsSearchPlaceholder(),
     },
-    facets: [yearFacet],
-    onReset: () => patch({ q: "", year: "", page: 1 }),
+    facets: [yearFacet, gradeFacet, attentionFacet],
+    onReset: () => patch({ q: "", year: "", grade: [], missing: [], page: 1 }),
   };
   const firstRun = data.total === 0 && !isFiltered(toolbar);
   return (
@@ -241,8 +322,8 @@ function StudentsPage() {
       <DataTable
         caption={m.adminStudentsCaption()}
         rows={data.rows}
-        columns={studentColumns(current)}
-        rowLabel={(row) => row.fullName}
+        columns={studentColumns()}
+        rowLabel={(row) => displayName(row)}
         toolbar={toolbar}
         sort={{
           value: search.sort,
@@ -269,7 +350,7 @@ function StudentsPage() {
             if (pageSize) patch({ pageSize, page: 1 });
           },
         }}
-        card={studentCard(current)}
+        card={card}
         empty={{
           icon: UsersRound,
           title: m.studentsEmptyTitle(),
