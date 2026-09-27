@@ -61,8 +61,8 @@ const card = (
 const HERO_HOME = section("hero", "fullbleed", (b) => ({
   eyebrow: b.w(["Welcome", "أهلًا بكم"]),
   heading: b.w([
-    "Where every child is known and challenged",
-    "مدرسة يُعرف فيها كل طفل ويُتحدّى",
+    "Where every child is *known* and *challenged*",
+    "مدرسة يُعرف فيها *كل طفل* ويُتحدّى",
   ]),
   text: b.w([
     "A caring community with high expectations, from the early years to graduation.",
@@ -654,7 +654,7 @@ const SLIDES = section("slides", "fullbleed", (b) => ({
     slide(
       b,
       ["Admissions open", "القبول مفتوح"],
-      ["A place for every kind of curious", "مكان لكل عقل فضولي"],
+      ["A place for every kind of *curious*", "مكان لكل عقل *فضولي*"],
       [
         "Applications for next September are open. Visit us and see a school day.",
         "باب التقديم لشهر سبتمبر القادم مفتوح. زُرنا وشاهد يومًا دراسيًا.",
@@ -700,8 +700,8 @@ const BLOCKS = section("blocks", "columns", (b) => ({
           data: {
             eyebrow: b.w(["Why families choose us", "لماذا تختارنا الأسر"]),
             text: b.w([
-              "Small classes, big ambitions",
-              "فصول صغيرة وطموحات كبيرة",
+              "Small classes, *big* ambitions",
+              "فصول صغيرة وطموحات *كبيرة*",
             ]),
             size: "l" as const,
           },

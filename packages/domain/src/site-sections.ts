@@ -952,10 +952,14 @@ type LooseColumn = {
   blocks: { id: string; type: BlockType; data: Loose }[];
 };
 
+/** Words as read aloud or searched, without the asterisks that mark emphasis. */
+export const withoutEmphasis = (words: string) =>
+  words.replace(/\*([^*\n]+)\*/g, "$1");
+
 function scalarWords(field: ScalarField, value: unknown): string[] {
   switch (field.kind) {
     case "text":
-      return [value as string];
+      return [withoutEmphasis(value as string)];
     case "rich":
       return [contentPlainText(value as ContentDocument)];
     case "image":

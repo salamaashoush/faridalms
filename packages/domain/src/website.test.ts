@@ -310,7 +310,7 @@ describe("free-form blocks", () => {
     const heading = blocks.find((block) => block.type === "heading");
     const image = blocks.find((block) => block.type === "image");
     expect(heading?.type === "heading" && heading.data.text).toBe(
-      "فصول صغيرة وطموحات كبيرة",
+      "فصول صغيرة وطموحات *كبيرة*",
     );
     expect(image?.type === "image" && image.data.image.fileId).toBe(picture);
   });

@@ -35,6 +35,23 @@ fonts (heading and body, Latin and Arabic), `radius` (0, 4, 8, 16, 24),
 `headingCase` (none, upper; Latin only) and `divider` (none, curve, wave,
 angle).
 
+Six tokens give a theme its voice, with values measured from school sites
+that read as designed ([research](../research/website-visual-design.md)):
+
+- `headingScale`: classic, editorial or statement type, from 36 to 128px
+  display sizes, with Arabic keeping a taller line and no negative tracking.
+- `emphasis`: how words a school wraps in `*asterisks*` inside a heading are
+  set: italic serif, weight contrast, accent colour, highlight or underline.
+  Arabic has no italic, so italic becomes colour.
+- `card`: flat, outlined or raised.
+- `image`: the shape of feature pictures: square, rounded, arch or leaf,
+  written with logical properties so it mirrors in Arabic.
+- `eyebrow`: plain, with a rule, or a tag.
+- `motion`: none, subtle (16px rise) or lively (24px). Sections rise into view
+  on `cubic-bezier(.25,1,.5,1)`, lists stagger by 80ms, figures count up.
+  Content already on screen is never hidden, and under reduced motion
+  sections only fade.
+
 Five **colour schemes** are generated from the palette: canvas, soft, brand,
 accent and ink. Each fixes background, heading, body, muted, link, border,
 card and button colours, and every text pair is checked for WCAG AA (4.5:1
@@ -60,11 +77,31 @@ A section is `{ id, type, variant, style, data }`.
   translation, structure from the original), plain text for search and the
   publish checks.
 
-Types: hero, page header, announcement, welcome, text, image and text, cards,
-divisions, stats, pillars, quote, voices, video, gallery, timeline, people,
-collapsible content, logos, news, events, admissions actions, steps, fees and
-dates, contact, quick links and embed. The enquiry form, social feed and
-module-driven events wait for their own systems.
+Types: hero, slider, page header, announcement, welcome, text, blocks,
+image and text, cards, divisions, stats, pillars, quote, voices, video,
+gallery, timeline, people, collapsible content, logos (including a moving
+strip), news, events, admissions actions, steps, fees and dates, contact,
+enquiry form, quick links and embed.
+
+- **Slider:** slides with their own picture, words and buttons. They turn
+  every 7 or 10 seconds, with previous, next, dot and pause controls, and
+  stay still for visitors who ask for less motion.
+- **Blocks:** the open canvas. A layout of one to four columns (1, 1:1, 2:1,
+  1:2, 1:1:1, 1:1:1:1), each a stack of blocks: heading, text, picture,
+  buttons, list, figure, quote, feature, video, space and divider. Blocks
+  take preset sizes, shapes and proportions, never free pixels; the
+  translation overlay and the checks reach into them.
+- **Enquiry form:** name and email, with phone optional, required or hidden
+  and the child's year asked or hidden, for an admissions enquiry, a visit
+  request or a general message. Messages land in the website screen's
+  Enquiries tab.
+- **No photographs yet:** where a picture belongs but none is chosen, the
+  section draws artwork from the palette, seeded by the section so it never
+  changes between visits. Heroes get a mesh gradient with grain; other slots
+  get geometric compositions.
+- **Rhythm:** adjacent sections on the same colour share one gap.
+- **New fields:** a field added to a section later takes its initial value in
+  content saved before it, and published copies are read through the schema.
 
 ## Editor
 
@@ -84,6 +121,16 @@ starters (Independent heritage, International, Early years, Arabic-first
 national, One-page launch) are domain data: sections with placeholder words
 in both languages and no stock photographs.
 
+## Enquiries
+
+The site role may add an enquiry and read back only the organisation,
+network key, status and time, which it needs to count a flood. A form sent
+with its hidden field filled, or within 2.5 seconds of opening, is answered
+as received and dropped. Five an hour from one network and sixty an hour for
+a school are the limits. The network key is an HMAC of the /24 or /48
+prefix under a per-tenant key, so no address is stored. Staff see open and
+handled enquiries, reply by email and mark each one dealt with.
+
 ## Publishing checks
 
 Blocking: a picture without a description, a first-level heading in a body,
@@ -93,6 +140,7 @@ unpublished pages.
 
 ## Deferred
 
-Enquiry form and admissions leads, social feed, events from the calendar,
-approval workflow, saved sections, page permissions, host-based routing, Hijri
-dates.
+Admissions pipeline beyond the enquiry inbox, social feed, events from the
+calendar, approval workflow, saved sections, page permissions, host-based
+routing, Hijri dates, photo tone (duotone, mono), crest ornaments and girih
+patterns, a hide-on-scroll header and a motto footer.
