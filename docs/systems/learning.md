@@ -9,10 +9,15 @@ What modules and lessons do, built from
   with a caption and a transcript, a continue gate, and questions. A teacher
   adds any of them from one menu, at the end or between two parts, and can
   move, copy or remove each.
-- Questions come in six kinds: multiple choice (one or several right, with
-  feedback per option and shuffling), true or false, a typed answer, blanks in
-  a passage (typed or chosen from a list), a number (exact give or take, or a
-  range), and a written answer.
+- Questions come in nine kinds. Multiple choice has one or several right
+  options, feedback per option and shuffling; true or false is its short form.
+  A typed answer, blanks in a passage (typed or chosen from a list) and a
+  number (exact give or take, or a range) check what students write.
+  Matching pairs prompts with answers, extra answers included. Ordering gives
+  credit for the whole order or for each neighbouring pair. Sorting puts items
+  into two to four groups. A written answer goes to the teacher.
+- None needs dragging: matches are chosen from a list, items move with arrow
+  buttons, and groups are chosen per item.
 - Each question has points (none makes it practice), a hint shown after a
   wrong try, an explanation, and a number of tries before the answer shows;
   unlimited tries keep the answer back until the student asks for it. The
@@ -30,7 +35,8 @@ What modules and lessons do, built from
   feedback of what was chosen, and the hint; the answer and explanation follow
   once the question is right, revealed or out of tries.
 - A continue gate hides what follows until every question above it is
-  settled and the student chooses to go on.
+  settled and the student chooses to go on. A lesson not open yet says why
+  instead of failing.
 - Every try is a row of its own. A question's credit is its best try less a
   third for each extra try, nothing once the answer was shown, weighted by
   points. A student may start again once every question is settled; the best
