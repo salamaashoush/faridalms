@@ -65,6 +65,16 @@ function hero(heading: string, alt: string, label: string): SectionOf<"hero"> {
   };
 }
 
+function withFocus(section: SectionOf<"hero">, x: number, y: number) {
+  return {
+    ...section,
+    data: {
+      ...section.data,
+      media: { ...section.data.media, focus: { x, y } },
+    },
+  };
+}
+
 function cards(): PageSection {
   const section = newSection("cards");
   return {
@@ -104,6 +114,22 @@ describe("sections", () => {
       }).success,
     ).toBe(false);
   });
+
+  it("keep a picture's focal point, within the picture", () => {
+    const section = hero("Welcome", "The front gate", "Apply now");
+    const focused = (focus: unknown) => ({
+      ...section,
+      data: { ...section.data, media: { ...section.data.media, focus } },
+    });
+    const parsed = v.parse(pageSectionSchema, focused({ x: 30, y: 20 }));
+    expect(parsed.data).toMatchObject({ media: { focus: { x: 30, y: 20 } } });
+    expect(
+      v.safeParse(pageSectionSchema, focused({ x: 101, y: 20 })).success,
+    ).toBe(false);
+    expect(
+      v.safeParse(pageSectionSchema, focused({ x: 12.5, y: 20 })).success,
+    ).toBe(false);
+  });
 });
 
 describe("the other language of a page", () => {
@@ -132,6 +158,15 @@ describe("the other language of a page", () => {
     expect(translationGaps(english, aligned)).toEqual({
       missing: ["0192f0a4-7a1c-7b5a-9a2e-2e6f1f2a3b45"],
       unreviewed: [],
+    });
+  });
+
+  it("frames the picture on the original's focal point", () => {
+    const original = withFocus(hero("Welcome", "The gate", "Apply"), 30, 70);
+    const translated = withFocus(hero("أهلًا", "البوابة", "قدّم"), 0, 0);
+    expect(overlay(original, translated).data).toMatchObject({
+      heading: "أهلًا",
+      media: { alt: "البوابة", focus: { x: 30, y: 70 } },
     });
   });
 

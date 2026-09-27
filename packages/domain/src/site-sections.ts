@@ -97,9 +97,15 @@ type ScalarField =
 type ColumnsField = { kind: "columns"; max: number };
 export type Field = ScalarField | ItemsField | ColumnsField;
 
+/** Where a picture's subject sits, in percent, so any crop keeps it in view. */
+export interface SiteFocus {
+  x: number;
+  y: number;
+}
 export interface SiteImage {
   fileId: string | null;
   alt: string;
+  focus?: SiteFocus;
 }
 export interface SiteMedia {
   kind: "image" | "video";
@@ -107,6 +113,7 @@ export interface SiteMedia {
   alt: string;
   posterFileId: string | null;
   captionsFileId: string | null;
+  focus?: SiteFocus;
 }
 export interface SiteLink {
   id: string;
@@ -639,6 +646,9 @@ const hrefSchema = v.pipe(
   v.check(isSiteHref, "site.link"),
 );
 
+const percent = v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(100));
+const focusSchema = v.optional(v.object({ x: percent, y: percent }));
+
 export const sectionStyleSchema = v.object({
   scheme: v.optional(v.picklist(SCHEMES), "canvas"),
   background: v.optional(
@@ -647,6 +657,7 @@ export const sectionStyleSchema = v.object({
       fileId: v.nullable(id),
       posterFileId: v.nullable(id),
       overlay: v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(80)),
+      focus: focusSchema,
     }),
     { kind: "none", fileId: null, posterFileId: null, overlay: 40 },
   ),
@@ -695,6 +706,7 @@ function scalarSchema(field: ScalarField): v.GenericSchema {
       return v.object({
         fileId: v.nullable(id),
         alt: v.pipe(v.string(), v.maxLength(300)),
+        focus: focusSchema,
       });
     case "media":
       return v.object({
@@ -703,6 +715,7 @@ function scalarSchema(field: ScalarField): v.GenericSchema {
         alt: v.pipe(v.string(), v.maxLength(300)),
         posterFileId: v.nullable(id),
         captionsFileId: v.nullable(id),
+        focus: focusSchema,
       });
     case "links":
       return v.pipe(
