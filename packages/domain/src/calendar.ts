@@ -46,7 +46,8 @@ export const saveEventSchema = v.pipe(
   v.object({
     id: optionalId,
     expectedVersion: v.pipe(v.number(), v.integer(), v.minValue(0)),
-    title: v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(200)),
+    titleEn: v.pipe(v.string(), v.trim(), v.maxLength(200)),
+    titleAr: v.pipe(v.string(), v.trim(), v.maxLength(200)),
     category: v.picklist(CALENDAR_CATEGORIES),
     startsOn: isoDate,
     endsOn: isoDate,
@@ -59,7 +60,16 @@ export const saveEventSchema = v.pipe(
     description: contentDocumentSchema,
     /** Tell a published event's audience about this change. */
     sendUpdate: v.optional(v.boolean(), false),
+    /** Also shown on the school's website; the office decides. */
+    public: v.optional(v.boolean(), false),
   }),
+  v.forward(
+    v.check(
+      (input) => input.titleEn !== "" || input.titleAr !== "",
+      "calendar.title_needed",
+    ),
+    ["titleEn"],
+  ),
   v.forward(
     v.check((input) => input.endsOn >= input.startsOn, "calendar.ends_before"),
     ["endsOn"],

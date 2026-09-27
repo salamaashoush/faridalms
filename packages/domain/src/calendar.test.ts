@@ -71,7 +71,8 @@ describe("saving an event", () => {
   const input = {
     id: "",
     expectedVersion: 0,
-    title: "Match",
+    titleEn: "Match",
+    titleAr: "",
     category: "sport",
     startsOn: "2026-10-22",
     endsOn: "2026-10-22",
@@ -86,6 +87,19 @@ describe("saving an event", () => {
 
   it("refuses a timed event that ends before it starts on one day", () => {
     expect(v.safeParse(saveEventSchema, input).success).toBe(false);
+  });
+
+  it("needs a title in at least one language", () => {
+    const timed = { ...input, endTime: "11:00" };
+    expect(v.safeParse(saveEventSchema, timed).success).toBe(true);
+    expect(
+      v.safeParse(saveEventSchema, { ...timed, titleEn: "", titleAr: "مباراة" })
+        .success,
+    ).toBe(true);
+    expect(
+      v.safeParse(saveEventSchema, { ...timed, titleEn: " ", titleAr: "" })
+        .success,
+    ).toBe(false);
   });
 
   it("accepts it across two days, and all day without times", () => {

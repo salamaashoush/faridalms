@@ -20,6 +20,7 @@ export type NotificationKind = (typeof NOTIFICATION_KINDS)[number];
  */
 export interface NoticeParams {
   title?: string;
+  titleAr?: string;
   preview?: string;
   updated?: boolean;
   cancelled?: boolean;

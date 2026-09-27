@@ -531,6 +531,9 @@ export const SECTION_SPECS = {
     variants: ["list", "cards"],
     fields: {
       heading,
+      /** The school calendar's public events, or a list typed here. */
+      source: choice(["calendar", "typed"]),
+      count: { kind: "number", min: 1, max: 12, initial: 4 },
       items: {
         kind: "items",
         max: 12,
@@ -965,6 +968,27 @@ export function newBlock<T extends BlockType>(type: T): BlockOf<T> {
 
 export const fieldsOf = (type: SectionType): Record<string, Field> =>
   SECTION_SPECS[type].fields;
+/** Fields that apply only while another field has a certain value. */
+const SHOWN_WHEN: Partial<
+  Record<
+    SectionType,
+    Record<string, (data: Record<string, unknown>) => boolean>
+  >
+> = {
+  events: {
+    count: (data) => data.source !== "typed",
+    items: (data) => data.source === "typed",
+  },
+};
+
+/** A section's fields that apply to it as it stands, for the inspector to show. */
+export function shownFields(section: PageSection): [string, Field][] {
+  const rules = SHOWN_WHEN[section.type] ?? {};
+  return Object.entries(fieldsOf(section.type)).filter(
+    ([key]) => rules[key]?.(section.data as Record<string, unknown>) ?? true,
+  );
+}
+
 export const blockFieldsOf = (type: BlockType): BlockFields =>
   BLOCK_SPECS[type].fields;
 
