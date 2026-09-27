@@ -1,6 +1,7 @@
+import { plainContent } from "@faridalms/domain/content-conversion";
 import { CATALOGUE } from "@faridalms/domain/descriptors/catalogue";
 import { addDays, teachingWeeks } from "@faridalms/domain/school";
-import { and, eq } from "drizzle-orm";
+import { and, eq, sql } from "drizzle-orm";
 
 import type { CellTransaction, openOwner } from "./context";
 import type { KeyEncryptionKey } from "./crypto";
@@ -12,17 +13,23 @@ import { newUserHandle } from "./stores/accounts";
 import {
   academicSessions,
   academicWeeks,
+  assessments,
+  assignmentRecipients,
+  assignments,
   accessRoleAssignments,
   accessRoles,
   accounts,
   calendarDates,
   calendars,
+  classGroupMembers,
+  classGroups,
   classes,
   classPeriods,
   contactPoints,
   courses,
   demographics,
   descriptors,
+  documents,
   enrollments,
   externalIds,
   healthRecords,
@@ -31,7 +38,11 @@ import {
   locations,
   loginIdentities,
   orgs,
+  periodGrades,
+  rubrics,
   studentSchoolYears,
+  submissionAttempts,
+  submissions,
   tenantKeys,
   userRelationships,
   userRoles,
@@ -610,6 +621,233 @@ async function seedClasses(
   }
 }
 
+/**
+ * Coursework in every subject class: work already due with handed-in,
+ * graded and returned attempts, work due later, a draft, a group, a rubric
+ * and first-term grades, so each coursework page has something to show.
+ */
+async function seedCoursework(
+  tx: Tx,
+  tenantId: string,
+  schoolId: string,
+  yearId: string,
+) {
+  const offerings = await tx.execute<{
+    id: string;
+    homeroom_class_id: string;
+    teacher_id: string;
+    title_en: string | null;
+  }>(sql`
+    select c.id, c.homeroom_class_id, e.user_id as teacher_id, c.title_en
+    from core.classes c
+    join core.enrollments e on e.tenant_id = c.tenant_id and e.class_id = c.id and e.role = 'teacher'
+    where c.tenant_id = ${tenantId}::uuid and c.school_year_id = ${yearId}::uuid
+      and c.class_type = 'scheduled'
+    order by c.code`);
+  const [term] = await tx
+    .select({ id: academicSessions.id })
+    .from(academicSessions)
+    .where(
+      and(
+        eq(academicSessions.tenantId, tenantId),
+        eq(academicSessions.schoolYearId, yearId),
+        eq(academicSessions.type, "term"),
+      ),
+    )
+    .orderBy(academicSessions.sequence)
+    .limit(1);
+  const brief = (hostId: string, text: string) =>
+    tx.insert(documents).values({
+      tenantId,
+      hostType: "assignment",
+      hostId,
+      orgId: schoolId,
+      kind: "rich_text",
+      schemaVersion: 1,
+      content: plainContent(text) as unknown as Record<string, unknown>,
+      plainText: text,
+    });
+  const rubric = {
+    criteria: [
+      {
+        id: "understanding",
+        title: "Understanding",
+        levels: [
+          { id: "secure", title: "Secure", points: 6 },
+          { id: "developing", title: "Developing", points: 3 },
+        ],
+      },
+      {
+        id: "presentation",
+        title: "Presentation",
+        levels: [
+          { id: "clear", title: "Clear", points: 4 },
+          { id: "unclear", title: "Needs work", points: 1 },
+        ],
+      },
+    ],
+  };
+  for (const [index, offering] of offerings.entries()) {
+    const roster = await tx.execute<{ user_id: string }>(sql`
+      select user_id from core.enrollments
+      where tenant_id = ${tenantId}::uuid and class_id = ${offering.homeroom_class_id}::uuid
+        and role = 'student'
+      order by user_id`);
+    const students = roster.map((row) => row.user_id);
+    const base = {
+      tenantId,
+      orgId: schoolId,
+      classId: offering.id,
+      classType: "scheduled" as const,
+      schoolYearId: yearId,
+      gradingPeriodId: term?.id ?? null,
+      authorUserId: offering.teacher_id,
+    };
+    const dueId = Bun.randomUUIDv7();
+    const laterId = Bun.randomUUIDv7();
+    const draftId = Bun.randomUUIDv7();
+    await tx.insert(assignments).values([
+      {
+        ...base,
+        id: dueId,
+        title: "Chapter 1 review",
+        state: "published",
+        availableFrom: new Date("2026-09-15T06:00:00Z"),
+        dueAt: new Date("2026-09-24T12:00:00Z"),
+        points: 10,
+        rubric,
+        publishedAt: new Date("2026-09-15T06:00:00Z"),
+      },
+      {
+        ...base,
+        id: laterId,
+        title: "Project: my neighbourhood",
+        state: "published",
+        availableFrom: new Date("2026-09-20T06:00:00Z"),
+        dueAt: new Date("2026-10-22T12:00:00Z"),
+        latePolicy: "deduct",
+        lateDeductionPercent: 10,
+        points: 20,
+        publishedAt: new Date("2026-09-20T06:00:00Z"),
+      },
+      {
+        ...base,
+        id: draftId,
+        title: "Quiz preparation",
+        submissionFormat: "none",
+      },
+    ]);
+    await brief(dueId, "Answer the review questions at the end of chapter 1.");
+    await brief(
+      laterId,
+      "Describe three places near your home and why they matter to you.",
+    );
+    await brief(draftId, "Revise the vocabulary list before Thursday.");
+    if (students.length === 0) continue;
+    await tx.insert(assignmentRecipients).values(
+      [dueId, laterId].flatMap((assignmentId) =>
+        students.map((studentUserId) => ({
+          tenantId,
+          assignmentId,
+          studentUserId,
+          source: "class" as const,
+        })),
+      ),
+    );
+    for (const [position, studentUserId] of students.slice(0, 3).entries()) {
+      const submissionId = Bun.randomUUIDv7();
+      await tx.insert(submissions).values({
+        tenantId,
+        id: submissionId,
+        assignmentId: dueId,
+        studentUserId,
+        state: position === 0 ? "returned" : "submitted",
+      });
+      const attemptId = Bun.randomUUIDv7();
+      await tx.insert(submissionAttempts).values({
+        tenantId,
+        id: attemptId,
+        submissionId,
+        studentUserId,
+        number: 1,
+        isLate: position === 2,
+        submittedAt: new Date(
+          position === 2 ? "2026-09-25T09:00:00Z" : "2026-09-23T15:00:00Z",
+        ),
+        submittedByUserId: studentUserId,
+      });
+      const answer = "My answers to the review questions.";
+      await tx.insert(documents).values({
+        tenantId,
+        hostType: "submission_attempt",
+        hostId: attemptId,
+        orgId: schoolId,
+        kind: "rich_text",
+        schemaVersion: 1,
+        content: plainContent(answer) as unknown as Record<string, unknown>,
+        plainText: answer,
+        frozenAt: new Date(
+          position === 2 ? "2026-09-25T09:00:00Z" : "2026-09-23T15:00:00Z",
+        ),
+      });
+      if (position < 2)
+        await tx.insert(assessments).values({
+          tenantId,
+          attemptId,
+          submissionId,
+          studentUserId,
+          score: position === 0 ? 8 : 7,
+          effectiveScore: position === 0 ? 8 : 7,
+          feedback: position === 0 ? "Well reasoned answers." : null,
+          gradedByUserId: offering.teacher_id,
+          releasedAt: position === 0 ? new Date("2026-09-26T10:00:00Z") : null,
+        });
+    }
+    const groupId = Bun.randomUUIDv7();
+    await tx.insert(classGroups).values({
+      tenantId,
+      id: groupId,
+      orgId: schoolId,
+      classId: offering.id,
+      classType: "scheduled",
+      schoolYearId: yearId,
+      titleEn: "Reading group",
+      titleAr: "مجموعة القراءة",
+      createdByUserId: offering.teacher_id,
+    });
+    await tx.insert(classGroupMembers).values(
+      students.slice(0, 2).map((studentUserId) => ({
+        tenantId,
+        groupId,
+        studentUserId,
+      })),
+    );
+    if (index === 0)
+      await tx.insert(rubrics).values({
+        tenantId,
+        orgId: schoolId,
+        ownerUserId: offering.teacher_id,
+        title: "Written answers",
+        criteria: rubric,
+      });
+    if (term && index % TAUGHT_SUBJECTS.length === 0)
+      await tx.insert(periodGrades).values(
+        students.map((studentUserId, position) => ({
+          tenantId,
+          orgId: schoolId,
+          classId: offering.id,
+          classType: "scheduled" as const,
+          schoolYearId: yearId,
+          gradingPeriodId: term.id,
+          studentUserId,
+          score: 70 + position * 4,
+          recordedByUserId: offering.teacher_id,
+          releasedAt: new Date("2026-09-26T10:00:00Z"),
+        })),
+      );
+  }
+}
+
 async function seedSchool(
   tx: Tx,
   tenant: ProvisionedTenant,
@@ -964,6 +1202,7 @@ async function seedSchool(
     teachers,
     pupils,
   );
+  await seedCoursework(tx, tenantId, schoolId, yearId);
   return { yearId, teachers };
 }
 

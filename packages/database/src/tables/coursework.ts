@@ -1,0 +1,531 @@
+import type { PgTableExtraConfigValue } from "drizzle-orm/pg-core";
+
+import { sql } from "drizzle-orm";
+import {
+  boolean,
+  index,
+  integer,
+  jsonb,
+  numeric,
+  smallint,
+  text,
+  uniqueIndex,
+  uuid,
+} from "drizzle-orm/pg-core";
+
+import type { ClassType } from "./teaching";
+
+import { academicSessions } from "./calendar";
+import {
+  baseConstraints,
+  ck,
+  core,
+  entityColumns,
+  entityProfile,
+  fk,
+  instant,
+  pk,
+  tenantColumns,
+  uq,
+} from "./conventions";
+import { users } from "./people";
+import { classes } from "./teaching";
+import { tenants } from "./tenancy";
+
+/** A teacher's named set of students in one class, for giving work to some. */
+export const classGroups = core.table.withRLS(
+  "class_groups",
+  {
+    ...tenantColumns(),
+    orgId: uuid("org_id").notNull(),
+    classId: uuid("class_id").notNull(),
+    classType: text("class_type").$type<ClassType>().notNull(),
+    schoolYearId: uuid("school_year_id").notNull(),
+    titleEn: text("title_en"),
+    titleAr: text("title_ar"),
+    createdByUserId: uuid("created_by_user_id"),
+    ...entityColumns(),
+  },
+  (t): PgTableExtraConfigValue[] => [
+    pk("class_groups", t.tenantId, t.id),
+    ...baseConstraints("class_groups", t, tenants),
+    fk(
+      "class_groups",
+      [t.tenantId, t.classId, t.classType, t.schoolYearId, t.orgId],
+      [
+        classes.tenantId,
+        classes.id,
+        classes.classType,
+        classes.schoolYearId,
+        classes.orgId,
+      ],
+    ),
+    fk(
+      "class_groups",
+      [t.tenantId, t.createdByUserId],
+      [users.tenantId, users.id],
+    ),
+    ck("class_groups", "title_en", sql`char_length(title_en) between 1 and 80`),
+    ck("class_groups", "title_ar", sql`char_length(title_ar) between 1 and 80`),
+    ck("class_groups", "title", sql`num_nonnulls(title_en, title_ar) >= 1`),
+    index("class_groups_class_idx")
+      .on(t.tenantId, t.classId)
+      .where(sql`status = 'active'`),
+    ...entityProfile(),
+  ],
+);
+
+export const classGroupMembers = core.table.withRLS(
+  "class_group_members",
+  {
+    ...tenantColumns(),
+    groupId: uuid("group_id").notNull(),
+    studentUserId: uuid("student_user_id").notNull(),
+    ...entityColumns(),
+  },
+  (t): PgTableExtraConfigValue[] => [
+    pk("class_group_members", t.tenantId, t.id),
+    ...baseConstraints("class_group_members", t, tenants),
+    fk(
+      "class_group_members",
+      [t.tenantId, t.groupId],
+      [classGroups.tenantId, classGroups.id],
+    ),
+    fk(
+      "class_group_members",
+      [t.tenantId, t.studentUserId],
+      [users.tenantId, users.id],
+    ),
+    uniqueIndex("class_group_members_key")
+      .on(t.tenantId, t.groupId, t.studentUserId)
+      .where(sql`status = 'active'`),
+    ...entityProfile(),
+  ],
+);
+
+export type AssignmentState = "draft" | "published" | "archived";
+export type LatePolicy = "accept" | "deduct" | "refuse";
+export type SubmissionFormat = "online" | "files" | "both" | "none";
+export type Audience = "class" | "selected";
+
+/**
+ * Coursework for one class, and the gradebook line item its results belong
+ * to (OneRoster lineItem). Its brief is a document hosted by the assignment;
+ * scheduled, past due and closed are read from the dates, not stored.
+ */
+export const assignments = core.table.withRLS(
+  "assignments",
+  {
+    ...tenantColumns(),
+    orgId: uuid("org_id").notNull(),
+    classId: uuid("class_id").notNull(),
+    classType: text("class_type").$type<ClassType>().notNull(),
+    schoolYearId: uuid("school_year_id").notNull(),
+    gradingPeriodId: uuid("grading_period_id"),
+    authorUserId: uuid("author_user_id").notNull(),
+    title: text("title").notNull(),
+    state: text("state").$type<AssignmentState>().notNull().default("draft"),
+    audience: text("audience").$type<Audience>().notNull().default("class"),
+    availableFrom: instant("available_from"),
+    dueAt: instant("due_at"),
+    closesAt: instant("closes_at"),
+    latePolicy: text("late_policy")
+      .$type<LatePolicy>()
+      .notNull()
+      .default("accept"),
+    lateDeductionPercent: smallint("late_deduction_percent"),
+    submissionFormat: text("submission_format")
+      .$type<SubmissionFormat>()
+      .notNull()
+      .default("both"),
+    maxFiles: smallint("max_files").notNull().default(5),
+    resubmission: boolean("resubmission").notNull().default(false),
+    points: numeric("points", { precision: 7, scale: 2, mode: "number" }),
+    rubric: jsonb("rubric").$type<Record<string, unknown>>(),
+    publishedAt: instant("published_at"),
+    archivedAt: instant("archived_at"),
+    ...entityColumns(),
+  },
+  (t): PgTableExtraConfigValue[] => [
+    pk("assignments", t.tenantId, t.id),
+    ...baseConstraints("assignments", t, tenants),
+    fk(
+      "assignments",
+      [t.tenantId, t.classId, t.classType, t.schoolYearId, t.orgId],
+      [
+        classes.tenantId,
+        classes.id,
+        classes.classType,
+        classes.schoolYearId,
+        classes.orgId,
+      ],
+    ),
+    fk(
+      "assignments",
+      [t.tenantId, t.gradingPeriodId],
+      [academicSessions.tenantId, academicSessions.id],
+    ),
+    fk("assignments", [t.tenantId, t.authorUserId], [users.tenantId, users.id]),
+    ck("assignments", "title", sql`char_length(title) between 1 and 200`),
+    ck(
+      "assignments",
+      "state",
+      sql`state in ('draft', 'published', 'archived')`,
+    ),
+    ck("assignments", "audience", sql`audience in ('class', 'selected')`),
+    ck(
+      "assignments",
+      "late_policy",
+      sql`late_policy in ('accept', 'deduct', 'refuse')`,
+    ),
+    ck(
+      "assignments",
+      "late_deduction",
+      sql`(late_policy = 'deduct') = (late_deduction_percent is not null) and (late_deduction_percent is null or late_deduction_percent between 1 and 100)`,
+    ),
+    ck(
+      "assignments",
+      "submission_format",
+      sql`submission_format in ('online', 'files', 'both', 'none')`,
+    ),
+    ck("assignments", "max_files", sql`max_files between 1 and 20`),
+    ck("assignments", "points", sql`points is null or points > 0`),
+    ck(
+      "assignments",
+      "rubric",
+      sql`rubric is null or (jsonb_typeof(rubric) = 'object' and octet_length(rubric::text) <= 65536)`,
+    ),
+    ck(
+      "assignments",
+      "dates",
+      sql`(available_from is null or due_at is null or due_at >= available_from) and (due_at is null or closes_at is null or closes_at >= due_at) and (available_from is null or closes_at is null or closes_at >= available_from)`,
+    ),
+    ck(
+      "assignments",
+      "published",
+      sql`state = 'draft' or published_at is not null`,
+    ),
+    index("assignments_class_idx")
+      .on(t.tenantId, t.classId, t.state)
+      .where(sql`status = 'active'`),
+    index("assignments_year_idx")
+      .on(t.tenantId, t.orgId, t.schoolYearId)
+      .where(sql`status = 'active'`),
+    ...entityProfile({ integration: true }),
+  ],
+);
+
+export type RecipientSource = "class" | "group" | "student";
+
+/**
+ * Who an assignment is for, recorded when it is published, so a student who
+ * moves class keeps the work they were given. A due date here extends the
+ * assignment's for that student alone.
+ */
+export const assignmentRecipients = core.table.withRLS(
+  "assignment_recipients",
+  {
+    ...tenantColumns(),
+    assignmentId: uuid("assignment_id").notNull(),
+    studentUserId: uuid("student_user_id").notNull(),
+    source: text("source").$type<RecipientSource>().notNull(),
+    groupId: uuid("group_id"),
+    dueAt: instant("due_at"),
+    ...entityColumns(),
+  },
+  (t): PgTableExtraConfigValue[] => [
+    pk("assignment_recipients", t.tenantId, t.id),
+    ...baseConstraints("assignment_recipients", t, tenants),
+    fk(
+      "assignment_recipients",
+      [t.tenantId, t.assignmentId],
+      [assignments.tenantId, assignments.id],
+    ),
+    fk(
+      "assignment_recipients",
+      [t.tenantId, t.studentUserId],
+      [users.tenantId, users.id],
+    ),
+    fk(
+      "assignment_recipients",
+      [t.tenantId, t.groupId],
+      [classGroups.tenantId, classGroups.id],
+    ),
+    ck(
+      "assignment_recipients",
+      "source",
+      sql`source in ('class', 'group', 'student')`,
+    ),
+    ck(
+      "assignment_recipients",
+      "group",
+      sql`(source = 'group') = (group_id is not null)`,
+    ),
+    uniqueIndex("assignment_recipients_key")
+      .on(t.tenantId, t.assignmentId, t.studentUserId)
+      .where(sql`status = 'active'`),
+    index("assignment_recipients_student_idx")
+      .on(t.tenantId, t.studentUserId)
+      .where(sql`status = 'active'`),
+    ...entityProfile(),
+  ],
+);
+
+export type SubmissionState = "draft" | "submitted" | "returned";
+
+/**
+ * One student's work on one assignment. The draft is a document hosted by
+ * the submission; handing in freezes a copy into an attempt, so an earlier
+ * attempt never changes, and the current attempt is the latest.
+ */
+export const submissions = core.table.withRLS(
+  "submissions",
+  {
+    ...tenantColumns(),
+    assignmentId: uuid("assignment_id").notNull(),
+    studentUserId: uuid("student_user_id").notNull(),
+    state: text("state").$type<SubmissionState>().notNull().default("draft"),
+    excused: boolean("excused").notNull().default(false),
+    needsRevision: boolean("needs_revision").notNull().default(false),
+    ...entityColumns(),
+  },
+  (t): PgTableExtraConfigValue[] => [
+    pk("submissions", t.tenantId, t.id),
+    uq("submissions", t.tenantId, t.id, t.studentUserId),
+    ...baseConstraints("submissions", t, tenants),
+    fk(
+      "submissions",
+      [t.tenantId, t.assignmentId],
+      [assignments.tenantId, assignments.id],
+    ),
+    fk(
+      "submissions",
+      [t.tenantId, t.studentUserId],
+      [users.tenantId, users.id],
+    ),
+    ck(
+      "submissions",
+      "state",
+      sql`state in ('draft', 'submitted', 'returned')`,
+    ),
+    uniqueIndex("submissions_key")
+      .on(t.tenantId, t.assignmentId, t.studentUserId)
+      .where(sql`status = 'active'`),
+    index("submissions_student_idx")
+      .on(t.tenantId, t.studentUserId)
+      .where(sql`status = 'active'`),
+    ...entityProfile(),
+  ],
+);
+
+export const submissionAttempts = core.table.withRLS(
+  "submission_attempts",
+  {
+    ...tenantColumns(),
+    submissionId: uuid("submission_id").notNull(),
+    studentUserId: uuid("student_user_id").notNull(),
+    number: integer("number").notNull(),
+    isLate: boolean("is_late").notNull(),
+    submittedAt: instant("submitted_at")
+      .notNull()
+      .default(sql`statement_timestamp()`),
+    submittedByUserId: uuid("submitted_by_user_id").notNull(),
+    ...entityColumns(),
+  },
+  (t): PgTableExtraConfigValue[] => [
+    pk("submission_attempts", t.tenantId, t.id),
+    uq("submission_attempts", t.tenantId, t.id, t.submissionId),
+    ...baseConstraints("submission_attempts", t, tenants),
+    fk(
+      "submission_attempts",
+      [t.tenantId, t.submissionId, t.studentUserId],
+      [submissions.tenantId, submissions.id, submissions.studentUserId],
+    ),
+    fk(
+      "submission_attempts",
+      [t.tenantId, t.submittedByUserId],
+      [users.tenantId, users.id],
+    ),
+    ck("submission_attempts", "number", sql`number between 1 and 100`),
+    uniqueIndex("submission_attempts_number_key")
+      .on(t.tenantId, t.submissionId, t.number)
+      .where(sql`status = 'active'`),
+    ...entityProfile(),
+  ],
+);
+
+/**
+ * The teacher's judgement of one attempt (OneRoster result): a draft until it
+ * is released, which returns the work. The effective score applies the late
+ * deduction the assignment set.
+ */
+export const assessments = core.table.withRLS(
+  "assessments",
+  {
+    ...tenantColumns(),
+    attemptId: uuid("attempt_id").notNull(),
+    submissionId: uuid("submission_id").notNull(),
+    studentUserId: uuid("student_user_id").notNull(),
+    score: numeric("score", { precision: 7, scale: 2, mode: "number" }),
+    effectiveScore: numeric("effective_score", {
+      precision: 7,
+      scale: 2,
+      mode: "number",
+    }),
+    rubricScores: jsonb("rubric_scores").$type<Record<string, unknown>>(),
+    feedback: text("feedback"),
+    privateNote: text("private_note"),
+    gradedByUserId: uuid("graded_by_user_id").notNull(),
+    gradedAt: instant("graded_at")
+      .notNull()
+      .default(sql`statement_timestamp()`),
+    releasedAt: instant("released_at"),
+    ...entityColumns(),
+  },
+  (t): PgTableExtraConfigValue[] => [
+    pk("assessments", t.tenantId, t.id),
+    ...baseConstraints("assessments", t, tenants),
+    fk(
+      "assessments",
+      [t.tenantId, t.attemptId, t.submissionId],
+      [
+        submissionAttempts.tenantId,
+        submissionAttempts.id,
+        submissionAttempts.submissionId,
+      ],
+    ),
+    fk(
+      "assessments",
+      [t.tenantId, t.submissionId, t.studentUserId],
+      [submissions.tenantId, submissions.id, submissions.studentUserId],
+    ),
+    fk(
+      "assessments",
+      [t.tenantId, t.gradedByUserId],
+      [users.tenantId, users.id],
+    ),
+    ck("assessments", "score", sql`score is null or score >= 0`),
+    ck(
+      "assessments",
+      "effective_score",
+      sql`effective_score is null or effective_score >= 0`,
+    ),
+    ck(
+      "assessments",
+      "rubric_scores",
+      sql`rubric_scores is null or jsonb_typeof(rubric_scores) = 'object'`,
+    ),
+    ck(
+      "assessments",
+      "feedback",
+      sql`char_length(feedback) between 1 and 10000`,
+    ),
+    ck(
+      "assessments",
+      "private_note",
+      sql`char_length(private_note) between 1 and 2000`,
+    ),
+    uniqueIndex("assessments_attempt_key")
+      .on(t.tenantId, t.attemptId)
+      .where(sql`status = 'active'`),
+    ...entityProfile({ integration: true }),
+  ],
+);
+
+/** A teacher's rubric kept for reuse; attaching one copies it onto the work. */
+export const rubrics = core.table.withRLS(
+  "rubrics",
+  {
+    ...tenantColumns(),
+    orgId: uuid("org_id").notNull(),
+    ownerUserId: uuid("owner_user_id").notNull(),
+    title: text("title").notNull(),
+    criteria: jsonb("criteria").$type<Record<string, unknown>>().notNull(),
+    ...entityColumns(),
+  },
+  (t): PgTableExtraConfigValue[] => [
+    pk("rubrics", t.tenantId, t.id),
+    ...baseConstraints("rubrics", t, tenants),
+    fk("rubrics", [t.tenantId, t.ownerUserId], [users.tenantId, users.id]),
+    ck("rubrics", "title", sql`char_length(title) between 1 and 120`),
+    ck(
+      "rubrics",
+      "criteria",
+      sql`jsonb_typeof(criteria) = 'object' and octet_length(criteria::text) <= 65536`,
+    ),
+    index("rubrics_owner_idx")
+      .on(t.tenantId, t.ownerUserId)
+      .where(sql`status = 'active'`),
+    ...entityProfile(),
+  ],
+);
+
+/**
+ * A student's grade in a class for a term, the period grade the gradebook
+ * and report cards show; families see it once it is released.
+ */
+export const periodGrades = core.table.withRLS(
+  "period_grades",
+  {
+    ...tenantColumns(),
+    orgId: uuid("org_id").notNull(),
+    classId: uuid("class_id").notNull(),
+    classType: text("class_type").$type<ClassType>().notNull(),
+    schoolYearId: uuid("school_year_id").notNull(),
+    gradingPeriodId: uuid("grading_period_id").notNull(),
+    studentUserId: uuid("student_user_id").notNull(),
+    score: numeric("score", { precision: 7, scale: 2, mode: "number" }),
+    maxScore: numeric("max_score", { precision: 7, scale: 2, mode: "number" })
+      .notNull()
+      .default(100),
+    comment: text("comment"),
+    recordedByUserId: uuid("recorded_by_user_id").notNull(),
+    releasedAt: instant("released_at"),
+    ...entityColumns(),
+  },
+  (t): PgTableExtraConfigValue[] => [
+    pk("period_grades", t.tenantId, t.id),
+    ...baseConstraints("period_grades", t, tenants),
+    fk(
+      "period_grades",
+      [t.tenantId, t.classId, t.classType, t.schoolYearId, t.orgId],
+      [
+        classes.tenantId,
+        classes.id,
+        classes.classType,
+        classes.schoolYearId,
+        classes.orgId,
+      ],
+    ),
+    fk(
+      "period_grades",
+      [t.tenantId, t.gradingPeriodId],
+      [academicSessions.tenantId, academicSessions.id],
+    ),
+    fk(
+      "period_grades",
+      [t.tenantId, t.studentUserId],
+      [users.tenantId, users.id],
+    ),
+    fk(
+      "period_grades",
+      [t.tenantId, t.recordedByUserId],
+      [users.tenantId, users.id],
+    ),
+    ck("period_grades", "max_score", sql`max_score > 0`),
+    ck(
+      "period_grades",
+      "score",
+      sql`score is null or (score >= 0 and score <= max_score)`,
+    ),
+    ck(
+      "period_grades",
+      "comment",
+      sql`char_length(comment) between 1 and 2000`,
+    ),
+    uniqueIndex("period_grades_key")
+      .on(t.tenantId, t.classId, t.gradingPeriodId, t.studentUserId)
+      .where(sql`status = 'active'`),
+    ...entityProfile({ integration: true }),
+  ],
+);
