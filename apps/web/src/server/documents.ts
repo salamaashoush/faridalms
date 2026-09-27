@@ -1,0 +1,30 @@
+import { createServerFn } from "@tanstack/react-start";
+import * as v from "valibot";
+
+import { env } from "~/env";
+
+import { backend } from "./backend";
+import { checked } from "./input";
+
+const hostSchema = v.object({
+  hostType: v.pipe(v.string(), v.regex(/^[a-z][a-z0-9_]{1,62}$/)),
+  hostId: v.pipe(v.string(), v.uuid()),
+});
+
+/**
+ * A ticket to join a record's document live, with the server to join. Null
+ * when live editing is not set up or this viewer cannot have it, and the
+ * editor then works alone as before.
+ */
+export const collaborate = createServerFn({ method: "POST" })
+  .validator(checked(hostSchema))
+  .handler(async ({ data }) => {
+    const url = env.COLLAB_URL;
+    if (!url) return null;
+    try {
+      const ticket = await backend().documents.collaborate(data);
+      return { ...ticket, url };
+    } catch {
+      return null;
+    }
+  });

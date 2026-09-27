@@ -21,6 +21,7 @@ import { toast } from "sonner";
 
 import type { assignmentEditorQuery } from "~/queries/coursework";
 
+import { useCollaboration } from "~/components/content/collaboration";
 import { ContentEditor } from "~/components/content/ContentEditor";
 import { ComboboxField } from "~/components/system/ComboboxField";
 import { FormField, SelectField, TextField } from "~/components/system/field";
@@ -154,6 +155,10 @@ export function AssignmentEditor({
   const user = useCurrentUser();
   const timeZone = user.school.timeZone;
   const media = useDocumentMedia();
+  // Co-teachers write a brief together once it exists; a new one starts alone.
+  const live = useCollaboration(
+    existing ? { hostType: "assignment", hostId: existing.id } : null,
+  );
   const queryClient = useQueryClient();
   const leaving = useRef(false);
   const [initial] = useState(() =>
@@ -288,9 +293,16 @@ export function AssignmentEditor({
         onClose(saved.id);
       }}
       onCancel={() => onClose()}
-      isDirty={() =>
-        !leaving.current && JSON.stringify(draft) !== JSON.stringify(initial)
-      }
+      isDirty={() => {
+        if (leaving.current) return false;
+        // A live brief is stored as it is typed, by whoever types it, so only
+        // the other fields can be left unsaved.
+        const fields = (value: typeof draft) =>
+          JSON.stringify(
+            live.state === "live" ? { ...value, brief: null } : value,
+          );
+        return fields(draft) !== fields(initial);
+      }}
       pending={save.isPending || publish.isPending}
       error={failure ? getMessageFromError(failure) : null}
     >
@@ -329,13 +341,23 @@ export function AssignmentEditor({
         >
           {(control) => (
             <div className="min-w-0">
-              <ContentEditor
-                id={control.id}
-                label={m.courseworkBrief()}
-                value={draft.brief}
-                onChange={(value) => set("brief", value)}
-                media={media}
-              />
+              {live.state === "loading" ? (
+                <div
+                  aria-busy="true"
+                  className="min-h-48 animate-pulse rounded-xl border bg-muted/20"
+                />
+              ) : (
+                <ContentEditor
+                  id={control.id}
+                  label={m.courseworkBrief()}
+                  value={draft.brief}
+                  onChange={(value) => set("brief", value)}
+                  media={media}
+                  collaboration={
+                    live.state === "live" ? live.collaboration : undefined
+                  }
+                />
+              )}
             </div>
           )}
         </FormField>

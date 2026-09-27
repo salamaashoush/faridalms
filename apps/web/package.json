@@ -16,6 +16,7 @@
     "@fontsource-variable/noto-sans-arabic": "^5.3.0",
     "@fullcalendar/core": "^7.1.0",
     "@fullcalendar/react": "^7.1.0",
+    "@hocuspocus/provider": "^4.7.0",
     "@lexical/code": "^0.50.0",
     "@lexical/extension": "^0.50.0",
     "@lexical/history": "^0.50.0",
@@ -57,6 +58,7 @@
     "tailwind-merge": "^3.7.0",
     "temporal-polyfill": "^1.0.5",
     "valibot": "^1.5.0",
-    "valibot-env": "^1.0.0"
+    "valibot-env": "^1.0.0",
+    "yjs": "^13.6.33"
   }
 }

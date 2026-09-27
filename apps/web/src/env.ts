@@ -8,6 +8,9 @@ export const env = createEnv({
       BACKEND_URL: v.pipe(v.string(), v.url()),
       // The cell's application host; `<school>.<APP_HOST>` names a school.
       APP_HOST: v.optional(v.pipe(v.string(), v.toLowerCase())),
+      // The collaboration server's WebSocket URL as browsers reach it; unset
+      // turns live editing off and every editor works alone.
+      COLLAB_URL: v.optional(v.pipe(v.string(), v.url())),
     },
     shared: {
       // "test" belongs here: vitest sets NODE_ENV=test, and without it every

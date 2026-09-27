@@ -9,6 +9,7 @@ import { defineConfig, devices } from "@playwright/test";
 // The gate runs on its own ports so it can share the machine with `bun run dev`.
 const webPort = process.env.E2E_WEB_PORT ?? "3200";
 const apiPort = process.env.E2E_API_PORT ?? "3201";
+const collabPort = process.env.E2E_COLLAB_PORT ?? "3202";
 
 /**
  * See https://playwright.dev/docs/test-configuration.
@@ -31,6 +32,7 @@ export default defineConfig({
     "newsletters.spec.ts",
     "calendar.spec.ts",
     "notifications.spec.ts",
+    "collaboration.spec.ts",
   ],
   /* Run tests in files in parallel */
   fullyParallel: true,
@@ -104,12 +106,20 @@ export default defineConfig({
       timeout: 30_000,
     },
     {
+      command: "bun apps/collab/src/index.ts",
+      url: `http://127.0.0.1:${collabPort}/health/live`,
+      env: { COLLAB_PORT: collabPort },
+      reuseExistingServer: false,
+      timeout: 30_000,
+    },
+    {
       command: "bun run build && bun run start",
       url: `http://127.0.0.1:${webPort}/api/health`,
       env: {
         PORT: webPort,
         API_URL: `http://127.0.0.1:${apiPort}`,
         BACKEND_URL: `http://127.0.0.1:${apiPort}`,
+        COLLAB_URL: `ws://127.0.0.1:${collabPort}`,
       },
       reuseExistingServer: false,
       timeout: 120_000,

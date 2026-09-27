@@ -1,5 +1,5 @@
 import type { ContentDocument } from "@faridalms/domain/content";
-import type { EditorMedia } from "@faridalms/editor";
+import type { EditorCollaboration, EditorMedia } from "@faridalms/editor";
 
 import { lazy, Suspense, useMemo } from "react";
 
@@ -21,6 +21,7 @@ export function ContentEditor({
   media,
   placeholder,
   initialFocus,
+  collaboration,
 }: {
   id: string;
   label: string;
@@ -33,6 +34,7 @@ export function ContentEditor({
   media?: EditorMedia;
   placeholder?: string;
   initialFocus?: boolean;
+  collaboration?: EditorCollaboration;
 }) {
   const strings = useMemo(() => editorStrings(), []);
   return (
@@ -62,6 +64,7 @@ export function ContentEditor({
         placeholder={placeholder}
         initialFocus={initialFocus}
         strings={strings}
+        collaboration={collaboration}
       />
     </Suspense>
   );
