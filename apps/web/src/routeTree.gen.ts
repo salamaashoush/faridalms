@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as AuthRouteImport } from './routes/_auth'
 import { Route as AppAdminRouteImport } from './routes/_app/admin'
+import { Route as AppEventEditorRouteImport } from './routes/_app/event-editor'
 import { Route as AppFamilyRouteImport } from './routes/_app/family'
 import { Route as AppMeRouteImport } from './routes/_app/me'
 import { Route as AppNotificationPreferencesRouteImport } from './routes/_app/notification-preferences'
@@ -32,7 +33,6 @@ import { Route as AppAdminAnnouncementEditorRouteImport } from './routes/_app/ad
 import { Route as AppAdminAttendanceRouteImport } from './routes/_app/admin/attendance'
 import { Route as AppAdminClassEditorRouteImport } from './routes/_app/admin/class-editor'
 import { Route as AppAdminClassesRouteImport } from './routes/_app/admin/classes'
-import { Route as AppAdminEventEditorRouteImport } from './routes/_app/admin/event-editor'
 import { Route as AppAdminFamiliesRouteImport } from './routes/_app/admin/families'
 import { Route as AppAdminMessagesRouteImport } from './routes/_app/admin/messages'
 import { Route as AppAdminNewsletterEditorRouteImport } from './routes/_app/admin/newsletter-editor'
@@ -109,6 +109,11 @@ const AuthRoute = AuthRouteImport.update({
 const AppAdminRoute = AppAdminRouteImport.update({
   id: '/admin',
   path: '/admin',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppEventEditorRoute = AppEventEditorRouteImport.update({
+  id: '/event-editor',
+  path: '/event-editor',
   getParentRoute: () => AppRoute,
 } as any)
 const AppFamilyRoute = AppFamilyRouteImport.update({
@@ -207,11 +212,6 @@ const AppAdminClassEditorRoute = AppAdminClassEditorRouteImport.update({
 const AppAdminClassesRoute = AppAdminClassesRouteImport.update({
   id: '/classes',
   path: '/classes',
-  getParentRoute: () => AppAdminRoute,
-} as any)
-const AppAdminEventEditorRoute = AppAdminEventEditorRouteImport.update({
-  id: '/event-editor',
-  path: '/event-editor',
   getParentRoute: () => AppAdminRoute,
 } as any)
 const AppAdminFamiliesRoute = AppAdminFamiliesRouteImport.update({
@@ -519,6 +519,7 @@ const SiteSchoolPagesSlugRoute = SiteSchoolPagesSlugRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AppAdminRouteWithChildren
+  '/event-editor': typeof AppEventEditorRoute
   '/family': typeof AppFamilyRouteWithChildren
   '/me': typeof AppMeRouteWithChildren
   '/notification-preferences': typeof AppNotificationPreferencesRoute
@@ -537,7 +538,6 @@ export interface FileRoutesByFullPath {
   '/admin/attendance': typeof AppAdminAttendanceRoute
   '/admin/class-editor': typeof AppAdminClassEditorRoute
   '/admin/classes': typeof AppAdminClassesRoute
-  '/admin/event-editor': typeof AppAdminEventEditorRoute
   '/admin/families': typeof AppAdminFamiliesRoute
   '/admin/messages': typeof AppAdminMessagesRoute
   '/admin/newsletter-editor': typeof AppAdminNewsletterEditorRoute
@@ -601,6 +601,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/event-editor': typeof AppEventEditorRoute
   '/notification-preferences': typeof AppNotificationPreferencesRoute
   '/notifications': typeof AppNotificationsRoute
   '/search': typeof AppSearchRoute
@@ -615,7 +616,6 @@ export interface FileRoutesByTo {
   '/admin/attendance': typeof AppAdminAttendanceRoute
   '/admin/class-editor': typeof AppAdminClassEditorRoute
   '/admin/classes': typeof AppAdminClassesRoute
-  '/admin/event-editor': typeof AppAdminEventEditorRoute
   '/admin/families': typeof AppAdminFamiliesRoute
   '/admin/messages': typeof AppAdminMessagesRoute
   '/admin/newsletter-editor': typeof AppAdminNewsletterEditorRoute
@@ -683,6 +683,7 @@ export interface FileRoutesById {
   '/_app': typeof AppRouteWithChildren
   '/_auth': typeof AuthRouteWithChildren
   '/_app/admin': typeof AppAdminRouteWithChildren
+  '/_app/event-editor': typeof AppEventEditorRoute
   '/_app/family': typeof AppFamilyRouteWithChildren
   '/_app/me': typeof AppMeRouteWithChildren
   '/_app/notification-preferences': typeof AppNotificationPreferencesRoute
@@ -701,7 +702,6 @@ export interface FileRoutesById {
   '/_app/admin/attendance': typeof AppAdminAttendanceRoute
   '/_app/admin/class-editor': typeof AppAdminClassEditorRoute
   '/_app/admin/classes': typeof AppAdminClassesRoute
-  '/_app/admin/event-editor': typeof AppAdminEventEditorRoute
   '/_app/admin/families': typeof AppAdminFamiliesRoute
   '/_app/admin/messages': typeof AppAdminMessagesRoute
   '/_app/admin/newsletter-editor': typeof AppAdminNewsletterEditorRoute
@@ -768,6 +768,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/admin'
+    | '/event-editor'
     | '/family'
     | '/me'
     | '/notification-preferences'
@@ -786,7 +787,6 @@ export interface FileRouteTypes {
     | '/admin/attendance'
     | '/admin/class-editor'
     | '/admin/classes'
-    | '/admin/event-editor'
     | '/admin/families'
     | '/admin/messages'
     | '/admin/newsletter-editor'
@@ -850,6 +850,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/event-editor'
     | '/notification-preferences'
     | '/notifications'
     | '/search'
@@ -864,7 +865,6 @@ export interface FileRouteTypes {
     | '/admin/attendance'
     | '/admin/class-editor'
     | '/admin/classes'
-    | '/admin/event-editor'
     | '/admin/families'
     | '/admin/messages'
     | '/admin/newsletter-editor'
@@ -931,6 +931,7 @@ export interface FileRouteTypes {
     | '/_app'
     | '/_auth'
     | '/_app/admin'
+    | '/_app/event-editor'
     | '/_app/family'
     | '/_app/me'
     | '/_app/notification-preferences'
@@ -949,7 +950,6 @@ export interface FileRouteTypes {
     | '/_app/admin/attendance'
     | '/_app/admin/class-editor'
     | '/_app/admin/classes'
-    | '/_app/admin/event-editor'
     | '/_app/admin/families'
     | '/_app/admin/messages'
     | '/_app/admin/newsletter-editor'
@@ -1050,6 +1050,13 @@ declare module '@tanstack/react-router' {
       path: '/admin'
       fullPath: '/admin'
       preLoaderRoute: typeof AppAdminRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/event-editor': {
+      id: '/_app/event-editor'
+      path: '/event-editor'
+      fullPath: '/event-editor'
+      preLoaderRoute: typeof AppEventEditorRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/family': {
@@ -1183,13 +1190,6 @@ declare module '@tanstack/react-router' {
       path: '/classes'
       fullPath: '/admin/classes'
       preLoaderRoute: typeof AppAdminClassesRouteImport
-      parentRoute: typeof AppAdminRoute
-    }
-    '/_app/admin/event-editor': {
-      id: '/_app/admin/event-editor'
-      path: '/event-editor'
-      fullPath: '/admin/event-editor'
-      preLoaderRoute: typeof AppAdminEventEditorRouteImport
       parentRoute: typeof AppAdminRoute
     }
     '/_app/admin/families': {
@@ -1615,7 +1615,6 @@ interface AppAdminRouteChildren {
   AppAdminAttendanceRoute: typeof AppAdminAttendanceRoute
   AppAdminClassEditorRoute: typeof AppAdminClassEditorRoute
   AppAdminClassesRoute: typeof AppAdminClassesRoute
-  AppAdminEventEditorRoute: typeof AppAdminEventEditorRoute
   AppAdminFamiliesRoute: typeof AppAdminFamiliesRoute
   AppAdminMessagesRoute: typeof AppAdminMessagesRoute
   AppAdminNewsletterEditorRoute: typeof AppAdminNewsletterEditorRoute
@@ -1638,7 +1637,6 @@ const AppAdminRouteChildren: AppAdminRouteChildren = {
   AppAdminAttendanceRoute: AppAdminAttendanceRoute,
   AppAdminClassEditorRoute: AppAdminClassEditorRoute,
   AppAdminClassesRoute: AppAdminClassesRoute,
-  AppAdminEventEditorRoute: AppAdminEventEditorRoute,
   AppAdminFamiliesRoute: AppAdminFamiliesRoute,
   AppAdminMessagesRoute: AppAdminMessagesRoute,
   AppAdminNewsletterEditorRoute: AppAdminNewsletterEditorRoute,
@@ -1742,6 +1740,7 @@ const AppTeachRouteWithChildren = AppTeachRoute._addFileChildren(
 
 interface AppRouteChildren {
   AppAdminRoute: typeof AppAdminRouteWithChildren
+  AppEventEditorRoute: typeof AppEventEditorRoute
   AppFamilyRoute: typeof AppFamilyRouteWithChildren
   AppMeRoute: typeof AppMeRouteWithChildren
   AppNotificationPreferencesRoute: typeof AppNotificationPreferencesRoute
@@ -1769,6 +1768,7 @@ interface AppRouteChildren {
 
 const AppRouteChildren: AppRouteChildren = {
   AppAdminRoute: AppAdminRouteWithChildren,
+  AppEventEditorRoute: AppEventEditorRoute,
   AppFamilyRoute: AppFamilyRouteWithChildren,
   AppMeRoute: AppMeRouteWithChildren,
   AppNotificationPreferencesRoute: AppNotificationPreferencesRoute,

@@ -40,8 +40,13 @@ function EventChip({ event }: { event: CalendarEvent }) {
       className={cn(
         "flex min-w-0 items-center gap-1.5 rounded px-1.5 py-0.5 text-xs leading-4 hover:bg-accent",
         event.cancelled && "text-muted-foreground line-through",
+        event.state === "draft" &&
+          "border border-dashed border-muted-foreground/50 text-muted-foreground",
       )}
     >
+      {event.state === "draft" ? (
+        <span className="sr-only">{m.calDraft()}</span>
+      ) : null}
       <span
         className={cn(
           "size-1.5 shrink-0 rounded-full",
@@ -184,6 +189,9 @@ function AgendaItem({ event }: { event: CalendarEvent }) {
           >
             <bdi>{event.title}</bdi>
           </Link>
+          {event.state === "draft" ? (
+            <StatusBadge tone="neutral">{m.calDraft()}</StatusBadge>
+          ) : null}
           {event.cancelled ? (
             <StatusBadge tone="danger">{m.calCancelled()}</StatusBadge>
           ) : null}

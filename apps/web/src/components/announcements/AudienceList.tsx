@@ -42,11 +42,14 @@ export function AudienceList({
   onChange,
   choices,
   error,
+  scopes = AUDIENCE_SCOPES,
 }: {
   value: AudienceInput[];
   onChange: (next: AudienceInput[]) => void;
   choices: AudienceChoices;
   error: string | null;
+  /** The scopes this author may address; teachers reach only their classes. */
+  scopes?: readonly AudienceScope[];
 }) {
   const setAt = (index: number, next: AudienceInput) =>
     onChange(value.map((row, at) => (at === index ? next : row)));
@@ -61,7 +64,7 @@ export function AudienceList({
             width="name"
             className="w-48"
             value={row.scope}
-            options={AUDIENCE_SCOPES.map((scope) => ({
+            options={scopes.map((scope) => ({
               value: scope,
               label: SCOPE_LABEL[scope](),
             }))}

@@ -87,7 +87,7 @@ function CalendarPage() {
   const month = search.month || user.today.slice(0, 7);
   const weekStart = user.school.weekStart as IsoWeekday;
   const window = windowOf({ view, month, today: user.today, weekStart });
-  const { events, days, canManage } = useSuspenseQuery(
+  const { events, days, canAuthor } = useSuspenseQuery(
     calendarRangeQuery({ from: window.from, to: window.to }),
   ).data;
   const last = addDays(`${shiftMonth(month, 1)}-01`, -1);
@@ -107,11 +107,11 @@ function CalendarPage() {
         title={m.calTitle()}
         description={m.calHint()}
         action={
-          canManage
+          canAuthor
             ? {
                 label: m.calNew(),
                 icon: Plus,
-                link: { to: "/admin/event-editor", search: {} },
+                link: { to: "/event-editor", search: {} },
               }
             : undefined
         }

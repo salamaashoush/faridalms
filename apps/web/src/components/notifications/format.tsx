@@ -79,7 +79,14 @@ export function noticeText(notice: Notice): { title: string; body: string } {
           .join(" · "),
       };
     case "event":
-      return { title: m.ntfEvent(), body: title };
+      return {
+        title: params.cancelled
+          ? m.ntfEventCancelled()
+          : params.updated
+            ? m.ntfEventChanged()
+            : m.ntfEvent(),
+        body: [title, date ? formatDate(date) : ""].filter(Boolean).join(" · "),
+      };
     case "reminder":
       return {
         title: m.ntfReminder({

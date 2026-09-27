@@ -2,7 +2,14 @@ import { eventIcs } from "@faridalms/domain/calendar";
 import { contentFileIds, contentPlainText } from "@faridalms/domain/content";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { Ban, CalendarPlus, Pencil, RotateCcw, Trash2 } from "lucide-react";
+import {
+  Ban,
+  CalendarPlus,
+  Pencil,
+  RotateCcw,
+  Send,
+  Trash2,
+} from "lucide-react";
 import { toast } from "sonner";
 
 import type { HeaderFact } from "~/components/system/RecordPage";
@@ -16,7 +23,11 @@ import { Button } from "~/components/ui/button";
 import { inLocale, useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { calendarEventQuery } from "~/queries/calendar";
-import { cancelCalendarEvent, removeCalendarEvent } from "~/server/calendar";
+import {
+  cancelCalendarEvent,
+  publishCalendarEvent,
+  removeCalendarEvent,
+} from "~/server/calendar";
 import { formatList } from "~/utils/datetime";
 
 export const Route = createFileRoute("/_app/calendar/$eventId")({
@@ -59,11 +70,13 @@ function EventPage() {
   const data = useSuspenseQuery(calendarEventQuery(eventId)).data;
   const refresh = () =>
     queryClient.invalidateQueries({ queryKey: ["calendar"] });
+  const draft = data.state === "draft";
+  const upcoming = data.endsOn >= user.today;
   const facts: HeaderFact[] = [
     { label: m.calWhen(), value: whenLabel(data) },
     ...(data.location ? [{ label: m.calWhere(), value: data.location }] : []),
     { label: m.calCategory(), value: CATEGORY_LABEL[data.category]() },
-    ...(data.canManage && data.audiences.length > 0
+    ...(data.canEdit && data.audiences.length > 0
       ? [
           {
             label: m.calFor(),
@@ -72,92 +85,126 @@ function EventPage() {
         ]
       : []),
   ];
+  const edit = {
+    label: m.annEdit(),
+    icon: Pencil,
+    onSelect: () =>
+      void navigate({ to: "/event-editor", search: { id: data.id } }),
+  };
+  const publish = async (notify: boolean) => {
+    const result = await publishCalendarEvent({
+      data: { id: data.id, expectedVersion: data.version, notify },
+    });
+    await refresh();
+    toast.success(
+      notify ? m.calPublishedTold({ count: result.told }) : m.calPublished(),
+    );
+  };
+  const remove = {
+    label: m.calDelete(),
+    icon: Trash2,
+    destructive: true,
+    confirm: {
+      title: m.calDeleteTitle(),
+      body: m.calDeleteBody(),
+      label: m.calDelete(),
+    },
+    onSelect: async () => {
+      await removeCalendarEvent({
+        data: { id: data.id, expectedVersion: data.version },
+      });
+      await refresh();
+      toast.success(m.calDeleted());
+      await navigate({ to: "/calendar", search: {} });
+    },
+  };
+  const cancelOrRestore = data.cancelled
+    ? {
+        label: m.calRestore(),
+        icon: RotateCcw,
+        onSelect: async () => {
+          await cancelCalendarEvent({
+            data: {
+              id: data.id,
+              expectedVersion: data.version,
+              cancelled: false,
+            },
+          });
+          await refresh();
+          toast.success(m.calRestored());
+        },
+      }
+    : {
+        label: m.calCancel(),
+        icon: Ban,
+        confirm: {
+          title: m.calCancelTitle(),
+          body: draft
+            ? m.calCancelBody()
+            : m.calCancelBodyTell({ count: data.reached }),
+          label: m.calCancel(),
+        },
+        onSelect: async () => {
+          await cancelCalendarEvent({
+            data: {
+              id: data.id,
+              expectedVersion: data.version,
+              cancelled: true,
+            },
+          });
+          await refresh();
+          toast.success(m.calCancelledToast());
+        },
+      };
   return (
     <div className="mx-auto grid w-full max-w-3xl gap-6">
       <RecordHeader
         title={data.title}
         facts={facts}
         status={
-          data.cancelled
-            ? { label: m.calCancelled(), tone: "danger" }
-            : data.provisional
-              ? { label: m.calProvisional(), tone: "warning" }
-              : undefined
+          draft
+            ? { label: m.calDraft(), tone: "neutral" }
+            : data.cancelled
+              ? { label: m.calCancelled(), tone: "danger" }
+              : data.provisional
+                ? { label: m.calProvisional(), tone: "warning" }
+                : undefined
         }
         action={
-          data.canManage
-            ? {
-                label: m.annEdit(),
-                icon: Pencil,
-                onClick: () =>
-                  void navigate({
-                    to: "/admin/event-editor",
-                    search: { id: data.id },
-                  }),
-              }
-            : undefined
+          !data.canEdit
+            ? undefined
+            : draft
+              ? {
+                  label: m.calPublishTell({ count: data.reached }),
+                  icon: Send,
+                  onClick: () => void publish(true),
+                }
+              : { label: edit.label, icon: Pencil, onClick: edit.onSelect }
         }
         menu={
-          data.canManage
-            ? [
-                data.cancelled
-                  ? {
-                      label: m.calRestore(),
-                      icon: RotateCcw,
-                      onSelect: async () => {
-                        await cancelCalendarEvent({
-                          data: {
-                            id: data.id,
-                            expectedVersion: data.version,
-                            cancelled: false,
-                          },
-                        });
-                        await refresh();
-                        toast.success(m.calRestored());
-                      },
-                    }
-                  : {
-                      label: m.calCancel(),
-                      icon: Ban,
-                      confirm: {
-                        title: m.calCancelTitle(),
-                        body: m.calCancelBody(),
-                        label: m.calCancel(),
-                      },
-                      onSelect: async () => {
-                        await cancelCalendarEvent({
-                          data: {
-                            id: data.id,
-                            expectedVersion: data.version,
-                            cancelled: true,
-                          },
-                        });
-                        await refresh();
-                        toast.success(m.calCancelledToast());
-                      },
-                    },
-                {
-                  label: m.calDelete(),
-                  icon: Trash2,
-                  destructive: true,
-                  confirm: {
-                    title: m.calDeleteTitle(),
-                    body: m.calDeleteBody(),
-                    label: m.calDelete(),
+          !data.canEdit
+            ? []
+            : draft
+              ? [
+                  edit,
+                  {
+                    label: m.calPublishQuietly(),
+                    icon: Send,
+                    onSelect: () => publish(false),
                   },
-                  onSelect: async () => {
-                    await removeCalendarEvent({
-                      data: { id: data.id, expectedVersion: data.version },
-                    });
-                    await refresh();
-                    toast.success(m.calDeleted());
-                    await navigate({ to: "/calendar", search: {} });
-                  },
-                },
-              ]
-            : []
+                  remove,
+                ]
+              : [
+                  cancelOrRestore,
+                  ...(upcoming && !data.cancelled ? [] : [remove]),
+                ]
         }
       />
+      {draft && data.canEdit ? (
+        <p className="rounded-md border bg-muted/40 px-4 py-3 text-sm text-muted-foreground">
+          {m.calDraftNote()}
+        </p>
+      ) : null}
       <div>
         <Button
           type="button"

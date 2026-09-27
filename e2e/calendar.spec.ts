@@ -23,7 +23,7 @@ test("the office adds an event for families, who see it and then see it called o
   const title = `Book swap (${browserName} ${crypto.randomUUID().slice(0, 6)})`;
   const day = DAY[browserName] ?? "2026-11-13";
   await signIn(page, "admin");
-  await page.goto("/admin/event-editor");
+  await page.goto("/event-editor");
   await untilHydrated(page);
   await page.getByRole("textbox", { name: "Title" }).fill(title);
   await page.getByRole("textbox", { name: "Where" }).fill("Library");
@@ -32,7 +32,7 @@ test("the office adds an event for families, who see it and then see it called o
   await page.getByLabel("Ends at").fill("14:00");
   await page.getByRole("combobox", { name: "To" }).click();
   await page.getByRole("option", { name: "Families" }).click();
-  await page.getByRole("button", { name: "Save" }).click();
+  await page.getByRole("button", { name: "Publish", exact: true }).click();
   await expect(page).toHaveURL(/\/calendar\/[a-f0-9-]+/);
   await expect(
     page.getByRole("heading", { level: 1, name: title }),

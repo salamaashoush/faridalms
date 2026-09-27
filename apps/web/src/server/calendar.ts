@@ -1,6 +1,7 @@
 import {
   cancelEventSchema,
   eventRefSchema,
+  publishEventSchema,
   rangeQuerySchema,
   saveEventSchema,
 } from "@faridalms/domain/calendar";
@@ -32,3 +33,7 @@ export const cancelCalendarEvent = createServerFn({ method: "POST" })
 export const removeCalendarEvent = createServerFn({ method: "POST" })
   .validator(checked(eventRefSchema))
   .handler(({ data }) => backend().calendar.remove(data));
+
+export const publishCalendarEvent = createServerFn({ method: "POST" })
+  .validator(checked(publishEventSchema))
+  .handler(({ data }) => backend().calendar.publish(data));

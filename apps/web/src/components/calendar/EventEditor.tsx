@@ -2,7 +2,10 @@ import type { AudienceInput } from "@faridalms/domain/announcements";
 import type { CalendarCategory } from "@faridalms/domain/calendar";
 import type { ContentDocument } from "@faridalms/domain/content";
 
-import { CALENDAR_CATEGORIES } from "@faridalms/domain/calendar";
+import {
+  CALENDAR_CATEGORIES,
+  materialChange,
+} from "@faridalms/domain/calendar";
 import { emptyContent } from "@faridalms/domain/content-conversion";
 import {
   useMutation,
@@ -25,7 +28,7 @@ import { FormField, SelectField, TextField } from "~/components/system/field";
 import { FormSection, RecordForm } from "~/components/system/RecordForm";
 import * as m from "~/i18n/messages";
 import { calendarOptionsQuery } from "~/queries/calendar";
-import { saveCalendarEvent } from "~/server/calendar";
+import { publishCalendarEvent, saveCalendarEvent } from "~/server/calendar";
 import { getMessageFromError } from "~/utils/error";
 
 import { CATEGORY_LABEL } from "./format";
@@ -48,7 +51,11 @@ interface Draft {
   description: ContentDocument;
 }
 
-function draftOf(existing: Existing | null, day: string): Draft {
+function draftOf(
+  existing: Existing | null,
+  day: string,
+  manages: boolean,
+): Draft {
   return {
     title: existing?.title ?? "",
     category: existing?.category ?? "general",
@@ -65,33 +72,55 @@ function draftOf(existing: Existing | null, day: string): Draft {
           classId: row.classId ?? "",
           gradeId: row.gradeId ?? "",
         }))
-      : [{ scope: "school", classId: "", gradeId: "" }],
+      : [
+          manages
+            ? { scope: "school", classId: "", gradeId: "" }
+            : { scope: "class", classId: "", gradeId: "" },
+        ],
     description: existing?.description ?? emptyContent(),
   };
 }
 
-/** What happens, when and where, and who it is for. */
+const plan = (value: Draft) => ({
+  ...value,
+  startTime: value.allDay ? null : value.startTime,
+  endTime: value.allDay ? null : value.endTime,
+  location: value.location.trim() || null,
+});
+
+/**
+ * What happens, when and where, and who it is for. A new event is a draft
+ * until published; a published one tells its people of a change only when
+ * the author says so, pre-ticked when the date, time, place or audience moved.
+ */
 export function EventEditor({
   existing,
   day,
+  manages,
   onClose,
 }: {
   existing: Existing | null;
   day: string;
+  /** The author manages the whole calendar rather than their own classes. */
+  manages: boolean;
   onClose: (id?: string) => void;
 }) {
   const options = useSuspenseQuery(calendarOptionsQuery).data;
   const queryClient = useQueryClient();
   const media = useDocumentMedia();
-  const [initial] = useState(() => draftOf(existing, day));
+  const [initial] = useState(() => draftOf(existing, day, manages));
   const [draft, setDraft] = useState(initial);
   const [shown, setShown] = useState(false);
+  const published = existing?.state === "published";
+  const [tellOnPublish, setTellOnPublish] = useState(true);
+  const [tellChoice, setTellChoice] = useState<boolean | null>(null);
+  const tellChange = tellChoice ?? materialChange(plan(initial), plan(draft));
   const leaving = useRef(false);
   const set = <K extends keyof Draft>(key: K, value: Draft[K]) =>
     setDraft((current) => ({ ...current, [key]: value }));
   const save = useMutation({
-    mutationFn: () =>
-      saveCalendarEvent({
+    mutationFn: async (publish: boolean) => {
+      const saved = await saveCalendarEvent({
         data: {
           id: existing?.id ?? "",
           expectedVersion: existing?.version ?? 0,
@@ -99,8 +128,19 @@ export function EventEditor({
           title: draft.title.trim(),
           startTime: draft.allDay ? "" : draft.startTime,
           endTime: draft.allDay ? "" : draft.endTime,
+          sendUpdate: published && tellChange,
         },
-      }),
+      });
+      if (!publish) return { ...saved, told: 0 };
+      const out = await publishCalendarEvent({
+        data: {
+          id: saved.id,
+          expectedVersion: saved.version,
+          notify: tellOnPublish,
+        },
+      });
+      return { ...saved, told: out.told };
+    },
   });
   const issues = {
     title: draft.title.trim() ? null : m.calTitleNeeded(),
@@ -122,18 +162,31 @@ export function EventEditor({
   return (
     <RecordForm
       title={existing ? m.calEditTitle() : m.calNewTitle()}
-      onSubmit={async () => {
+      submitLabel={published ? m.commonSave() : m.calPublish()}
+      secondary={
+        published ? undefined : { label: m.calSaveDraft(), intent: "draft" }
+      }
+      onSubmit={async (intent) => {
         setShown(true);
         if (Object.values(issues).some(Boolean)) return;
-        let saved: { id: string; version: number };
+        const publish = !published && intent !== "draft";
+        let saved: { id: string; version: number; told: number };
         try {
-          saved = await save.mutateAsync();
+          saved = await save.mutateAsync(publish);
         } catch {
           return;
         }
         await queryClient.invalidateQueries({ queryKey: ["calendar"] });
         leaving.current = true;
-        toast.success(m.calSaved());
+        toast.success(
+          publish
+            ? saved.told > 0
+              ? m.calPublishedTold({ count: saved.told })
+              : m.calPublished()
+            : published
+              ? m.calSaved()
+              : m.calDraftSaved(),
+        );
         onClose(saved.id);
       }}
       onCancel={() => onClose()}
@@ -248,6 +301,7 @@ export function EventEditor({
           onChange={(audiences) => set("audiences", audiences)}
           choices={options}
           error={shown ? issues.audiences : null}
+          scopes={manages ? undefined : ["class"]}
         />
       </FormSection>
       <FormSection title={m.calSectionDetails()}>
@@ -264,6 +318,23 @@ export function EventEditor({
             </div>
           )}
         </FormField>
+      </FormSection>
+      <FormSection title={m.calSectionTelling()}>
+        {published ? (
+          <CheckboxRow
+            label={m.calTellChange({ count: existing.reached })}
+            hint={m.calTellChangeHint()}
+            checked={tellChange}
+            onChange={setTellChoice}
+          />
+        ) : (
+          <CheckboxRow
+            label={m.calTellOnPublish()}
+            hint={m.calTellOnPublishHint()}
+            checked={tellOnPublish}
+            onChange={setTellOnPublish}
+          />
+        )}
       </FormSection>
     </RecordForm>
   );
