@@ -13,7 +13,7 @@ import {
   RESUBMISSION_POLICIES,
   SUBMISSION_FORMATS,
 } from "@faridalms/domain/assignment";
-import { FILE_PURPOSES, FILE_STATES } from "@faridalms/domain/file";
+import { FILE_STATES } from "@faridalms/domain/file";
 import { PERMISSIONS } from "@faridalms/domain/identity";
 import { LEARNING_STATUSES } from "@faridalms/domain/learning";
 import {
@@ -85,7 +85,13 @@ export const resubmissionPolicyEnum = pgEnum(
   RESUBMISSION_POLICIES,
 );
 export const recipientModeEnum = pgEnum("recipient_mode", RECIPIENT_MODES);
-export const filePurposeEnum = pgEnum("file_purpose", FILE_PURPOSES);
+export const filePurposeEnum = pgEnum("file_purpose", [
+  "assignment_resource",
+  "submission_attachment",
+  "message_attachment",
+  "site_media",
+  "lesson_media",
+]);
 export const fileStateEnum = pgEnum("file_state", FILE_STATES);
 export const schoolYearStatusEnum = pgEnum(
   "school_year_status",

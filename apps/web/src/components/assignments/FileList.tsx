@@ -1,4 +1,4 @@
-import type { FileSummary } from "@faridalms/database/repositories/files";
+import type { FileSummary } from "@faridalms/domain/file";
 
 import { Download, Paperclip, X } from "lucide-react";
 

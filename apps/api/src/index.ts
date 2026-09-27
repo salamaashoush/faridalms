@@ -9,7 +9,11 @@ import { createScanner } from "./files/scan";
 import { DiskFileStore } from "./files/store";
 
 const cell = openCell(
-  { app: env.CELL_APP_URL, site: env.CELL_SITE_URL },
+  {
+    app: env.CELL_APP_URL,
+    site: env.CELL_SITE_URL,
+    worker: env.CELL_WORKER_URL,
+  },
   env.CELL_POOL_SIZE,
 );
 const directory = openDirectory(env.DIRECTORY_URL);

@@ -1,4 +1,4 @@
-import type { FileSummary } from "@faridalms/database/repositories/files";
+import type { FileSummary } from "@faridalms/domain/file";
 import type { SaveSiteSettingsInput, SocialLink } from "@faridalms/domain/site";
 
 import {

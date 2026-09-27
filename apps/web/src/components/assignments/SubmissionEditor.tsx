@@ -1,5 +1,5 @@
-import type { FileSummary } from "@faridalms/database/repositories/files";
 import type { ContentDocument } from "@faridalms/domain/content";
+import type { FileSummary } from "@faridalms/domain/file";
 
 import { contentPlainText } from "@faridalms/domain/content";
 import { emptyContent } from "@faridalms/domain/content-conversion";
@@ -132,7 +132,7 @@ export function SubmissionEditor({ assignment }: { assignment: Learner }) {
         {attachments ? (
           <FileUploader
             label={m.attemptFiles()}
-            purpose="submission_attachment"
+            purpose="submission"
             value={files}
             onChange={setFiles}
             maxFiles={assignment.maxAttachments}

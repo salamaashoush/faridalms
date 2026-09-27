@@ -1,5 +1,5 @@
-import type { FileSummary } from "@faridalms/database/repositories/files";
 import type { ContentDocument } from "@faridalms/domain/content";
+import type { FileSummary } from "@faridalms/domain/file";
 
 import { ContentView } from "~/components/content/ContentView";
 import * as m from "~/i18n/messages";

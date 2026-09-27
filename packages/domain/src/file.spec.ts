@@ -51,7 +51,7 @@ describe("acceptedMediaType", () => {
   it("rejects an initiation for a disallowed type or size", () => {
     expect(
       v.safeParse(initiateUploadSchema, {
-        purpose: "assignment_resource",
+        purpose: "attachment",
         name: "script.js",
         mediaType: "text/javascript",
         sizeBytes: 10,
@@ -59,7 +59,7 @@ describe("acceptedMediaType", () => {
     ).toBe(false);
     expect(
       v.safeParse(initiateUploadSchema, {
-        purpose: "assignment_resource",
+        purpose: "attachment",
         name: "video.mp4",
         mediaType: "video/mp4",
         sizeBytes: 26 * 1024 * 1024,

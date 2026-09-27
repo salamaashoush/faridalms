@@ -3,7 +3,6 @@ import * as administration from "./modules/administration";
 import * as announcements from "./modules/announcements";
 import * as assignments from "./modules/assignments";
 import * as communication from "./modules/communication";
-import * as files from "./modules/files";
 import * as learning from "./modules/learning";
 import * as newsletters from "./modules/newsletters";
 import * as notifications from "./modules/notifications";
@@ -16,6 +15,7 @@ import * as teaching from "./modules/teaching";
 import * as timetable from "./modules/timetable";
 import * as accessSystem from "./systems/access";
 import * as classesSystem from "./systems/classes";
+import * as filesSystem from "./systems/files";
 import * as identity from "./systems/identity";
 import * as peopleSystem from "./systems/people";
 import * as recordsSystem from "./systems/records";
@@ -31,6 +31,7 @@ export const router = {
   records: recordsSystem,
   classes: classesSystem,
   years: yearsSystem,
+  files: filesSystem,
   rollover: rolloverSystem,
   ...students,
   ...overviews,
@@ -40,7 +41,6 @@ export const router = {
   ...communication,
   ...newsletters,
   ...assignments,
-  ...files,
   ...notifications,
   ...announcements,
   ...people,

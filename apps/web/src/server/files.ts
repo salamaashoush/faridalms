@@ -2,7 +2,8 @@ import { initiateUploadSchema } from "@faridalms/domain/file";
 import { createServerFn } from "@tanstack/react-start";
 
 import { backend } from "./backend";
+import { checked } from "./input";
 
 export const initiateUpload = createServerFn({ method: "POST" })
-  .inputValidator(initiateUploadSchema)
-  .handler(({ data }) => backend().initiateUpload(data));
+  .validator(checked(initiateUploadSchema))
+  .handler(({ data }) => backend().files.initiate(data));

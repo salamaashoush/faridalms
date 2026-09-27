@@ -1,3 +1,4 @@
+import type { Cell } from "@faridalms/database/context";
 import type { SeededTenant } from "@faridalms/database/seed";
 import type { RouterClient } from "@orpc/server";
 
@@ -21,6 +22,7 @@ import { randomBytes } from "node:crypto";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
+import type { FileStore } from "../src/files/store";
 import type { AppRouter } from "../src/router";
 
 import { createApp } from "../src/app";
@@ -49,6 +51,8 @@ const urlFor = (name: string, role?: string) => {
 interface State {
   tenants: SeededTenant[];
   handler: (request: Request) => Promise<Response>;
+  cell: Cell;
+  files: FileStore;
   close: () => Promise<void>;
 }
 let state: State | undefined;
@@ -78,21 +82,27 @@ export async function setUp() {
   });
   await owner.close();
   await directorySql.close();
-  const cell = openCell({ app: urlFor(cellName, "app") }, 4);
+  const cell = openCell(
+    { app: urlFor(cellName, "app"), worker: urlFor(cellName, "worker") },
+    4,
+  );
   const directory = openDirectory(urlFor(directoryName, "directory_reader"), 0);
+  const files = new DiskFileStore(join(tmpdir(), `farida-api-test-${suffix}`));
   const handler = createApp({
     cell,
     directory,
     keys: createKeyRing(kek, "eg-1"),
     cellId: "eg-1",
     cellSecret: new Uint8Array(randomBytes(32)),
-    files: new DiskFileStore(join(tmpdir(), `farida-api-test-${suffix}`)),
+    files,
     scanner: null,
     maxUploadBytes: 1024 * 1024,
   });
   state = {
     tenants,
     handler,
+    cell,
+    files,
     close: async () => {
       await cell.close();
       await directory.close();
@@ -153,4 +163,28 @@ export async function rejection(call: Promise<unknown>): Promise<unknown> {
     return error;
   }
   throw new Error("The call succeeded but was expected to fail");
+}
+
+/** Signs a seeded login in and returns its token beside the bound client. */
+export async function sessionFor(school: string, loginName: string) {
+  const session = await client(school).identity.signIn({
+    loginName,
+    password: SEED_PASSWORD,
+  });
+  return { api: client(school, session.token), token: session.token };
+}
+
+/** A request outside the RPC handler, such as the raw file route. */
+export function raw(
+  school: string,
+  token: string,
+  path: string,
+  init: RequestInit = {},
+) {
+  const headers = new Headers(init.headers);
+  headers.set("authorization", `Bearer ${token}`);
+  headers.set(SCHOOL_HEADER, school);
+  return seeded().handler(
+    new Request(`http://api.test${path}`, { ...init, headers }),
+  );
 }

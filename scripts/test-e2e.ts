@@ -84,6 +84,7 @@ try {
         ...process.env,
         CELL_APP_URL: urlFor(cellName, "app"),
         CELL_SITE_URL: urlFor(cellName, "site"),
+        CELL_WORKER_URL: urlFor(cellName, "worker"),
         DIRECTORY_URL: urlFor(directoryName, "directory_reader"),
         CELL_ID: cellId,
         CELL_KEK: kek.toString("base64"),

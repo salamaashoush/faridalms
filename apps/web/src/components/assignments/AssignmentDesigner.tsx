@@ -1,10 +1,10 @@
-import type { FileSummary } from "@faridalms/database/repositories/files";
 import type {
   AssignmentRecipientsInput,
   RubricCriterion,
   SaveAssignmentInput,
 } from "@faridalms/domain/assignment";
 import type { ContentDocument } from "@faridalms/domain/content";
+import type { FileSummary } from "@faridalms/domain/file";
 
 import {
   ASSIGNMENT_TYPES,
@@ -441,7 +441,7 @@ export function AssignmentDesigner({
         <FileUploader
           label={m.assignmentResources()}
           description={m.assignmentResourcesHint()}
-          purpose="assignment_resource"
+          purpose="attachment"
           value={resources}
           onChange={setResources}
           maxFiles={MAX_ATTACHMENTS}

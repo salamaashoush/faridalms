@@ -1,4 +1,4 @@
-import { mkdir, rm } from "node:fs/promises";
+import { mkdir, rename, rm } from "node:fs/promises";
 import { dirname, join, resolve } from "node:path";
 
 export interface StoredObject {
@@ -23,10 +23,11 @@ export interface FileStore {
     limit: number,
   ): Promise<StoredObject>;
   open(key: string): Promise<ReadableStream<Uint8Array> | null>;
+  move(from: string, to: string): Promise<void>;
   remove(key: string): Promise<void>;
 }
 
-const KEY = /^[0-9a-f-]{36}\/[0-9a-f-]{36}$/;
+const KEY = /^t\/[0-9a-f-]{36}\/[qfh]\/[0-9a-f-]{36}$/;
 
 export class DiskFileStore implements FileStore {
   private readonly root: string;
@@ -70,6 +71,12 @@ export class DiskFileStore implements FileStore {
     const file = Bun.file(this.path(key));
     if (!(await file.exists())) return null;
     return file.stream();
+  }
+
+  async move(from: string, to: string) {
+    const target = this.path(to);
+    await mkdir(dirname(target), { recursive: true });
+    await rename(this.path(from), target);
   }
 
   async remove(key: string) {

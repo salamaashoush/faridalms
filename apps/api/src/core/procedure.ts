@@ -87,80 +87,96 @@ export const publicProcedure = os
 /** Resolves the school named by the request, for flows before sign-in. */
 export const schoolProcedure = publicProcedure.use(
   async ({ context, next }) => {
-    const slug = context.headers.get(SCHOOL_HEADER)?.trim().toLowerCase();
-    const school = slug ? await context.directory.bySlug(slug) : null;
+    const school = await schoolOf(context);
     if (!school) throw new ORPCError("UNAUTHORIZED");
     return next({ context: { school } satisfies Partial<SchoolContext> });
   },
 );
 
+/** The school a request names, from the host or the school cookie the web forwards. */
+export async function schoolOf(
+  context: RequestContext,
+): Promise<SchoolContext["school"] | null> {
+  const slug = context.headers.get(SCHOOL_HEADER)?.trim().toLowerCase();
+  return slug ? context.directory.bySlug(slug) : null;
+}
+
 /**
- * One transaction per procedure. The tenant comes from the session token, the
- * school from the request, and they must agree; then the session is found
+ * One transaction per unit of work. The tenant comes from the session token,
+ * the school from the request, and they must agree; then the session is found
  * under row level security, the actor bound for the audit trigger, and the
  * person's access at that school resolved once for the whole unit of work.
  */
-function unit(access: Access) {
-  return schoolProcedure.use(async ({ context, next }) => {
-    const token = parseToken(bearer(context.headers));
-    if (!token || token.tenantId !== context.school.tenantId)
-      throw new ORPCError("UNAUTHORIZED");
-    return context.cell.withTenant(
-      {
+export async function openUnit<T>(
+  context: SchoolContext,
+  access: Access,
+  run: (unit: Omit<UnitContext, keyof SchoolContext>) => Promise<T>,
+): Promise<T> {
+  const token = parseToken(bearer(context.headers));
+  if (!token || token.tenantId !== context.school.tenantId)
+    throw new ORPCError("UNAUTHORIZED");
+  return context.cell.withTenant(
+    {
+      tenantId: token.tenantId,
+      requestId: context.requestId,
+      actor: { kind: "user" },
+    },
+    access,
+    async (tx, lifecycle) => {
+      const session = await findSession(tx, token.tenantId, token.tokenHash);
+      if (!session) throw new ORPCError("UNAUTHORIZED");
+      await bindActor(tx, {
         tenantId: token.tenantId,
         requestId: context.requestId,
-        actor: { kind: "user" },
-      },
-      access,
-      async (tx, lifecycle) => {
-        const session = await findSession(tx, token.tenantId, token.tokenHash);
-        if (!session) throw new ORPCError("UNAUTHORIZED");
-        await bindActor(tx, {
-          tenantId: token.tenantId,
-          requestId: context.requestId,
-          actor: {
-            kind: "user",
-            userId: session.userId,
-            accountId: session.accountId,
-            sessionId: session.id,
-          },
-        });
-        if (lifecycle === "active")
-          await touchSession(tx, session, LIFETIME[session.context].idle);
-        const schoolId = context.school.schoolId;
-        const now = new Date();
-        const today = dateIn(await schoolZone(tx, schoolId), now);
-        const resolved = await effectiveAccess(tx, {
-          tenantId: token.tenantId,
+        actor: {
+          kind: "user",
           userId: session.userId,
-          orgId: schoolId,
-          today,
+          accountId: session.accountId,
+          sessionId: session.id,
+        },
+      });
+      if (lifecycle === "active")
+        await touchSession(tx, session, LIFETIME[session.context].idle);
+      const schoolId = context.school.schoolId;
+      const now = new Date();
+      const today = dateIn(await schoolZone(tx, schoolId), now);
+      const resolved = await effectiveAccess(tx, {
+        tenantId: token.tenantId,
+        userId: session.userId,
+        orgId: schoolId,
+        today,
+        context: session.context,
+      });
+      if (!resolved.contexts.includes(session.context))
+        throw new ORPCError("UNAUTHORIZED");
+      return run({
+        tx,
+        tenantId: token.tenantId,
+        schoolId,
+        today,
+        now,
+        actor: {
+          userId: session.userId,
+          accountId: session.accountId,
+          sessionId: session.id,
           context: session.context,
-        });
-        if (!resolved.contexts.includes(session.context))
-          throw new ORPCError("UNAUTHORIZED");
-        const unitContext: Omit<UnitContext, keyof SchoolContext> = {
-          tx,
-          tenantId: token.tenantId,
-          schoolId,
-          today,
-          now,
-          actor: {
-            userId: session.userId,
-            accountId: session.accountId,
-            sessionId: session.id,
-            context: session.context,
-            profile: resolved.profile,
-            workspace: WORKSPACE_OF[resolved.profile],
-            roles: resolved.roles,
-            capabilities: resolved.capabilities,
-            contexts: resolved.contexts,
-          },
-        };
-        return next({ context: unitContext });
-      },
-    );
-  });
+          profile: resolved.profile,
+          workspace: WORKSPACE_OF[resolved.profile],
+          roles: resolved.roles,
+          capabilities: resolved.capabilities,
+          contexts: resolved.contexts,
+        },
+      });
+    },
+  );
+}
+
+function unit(access: Access) {
+  return schoolProcedure.use(async ({ context, next }) =>
+    openUnit(context, access, async (unitContext) =>
+      next({ context: unitContext }),
+    ),
+  );
 }
 
 /** Reads; they succeed while the tenant is frozen for a move. */

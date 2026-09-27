@@ -1,4 +1,4 @@
-import type { FileSummary } from "@faridalms/database/repositories/files";
+import type { FileSummary } from "@faridalms/domain/file";
 import type { LessonBlock, LessonDocument } from "@faridalms/domain/learning";
 
 import { emptyContent } from "@faridalms/domain/content-conversion";
@@ -247,7 +247,7 @@ function BlockEditor({
           <FileUploader
             label={m.learningMediaFile()}
             description={m.learningMediaHint()}
-            purpose="lesson_media"
+            purpose="document_media"
             value={value}
             onChange={(updater) => {
               const [file] = updater(value).slice(-1);
@@ -268,7 +268,7 @@ function BlockEditor({
               <FileUploader
                 label={m.learningCaptionsFile()}
                 description={m.learningCaptionsHint()}
-                purpose="lesson_media"
+                purpose="document_media"
                 value={
                   block.captionsFileId
                     ? [

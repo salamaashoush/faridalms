@@ -1,5 +1,4 @@
-import type { FileSummary } from "@faridalms/database/repositories/files";
-import type { FilePurpose } from "@faridalms/domain/file";
+import type { FilePurpose, FileSummary } from "@faridalms/domain/file";
 
 import { ACCEPTED_EXTENSIONS, mediaTypeFor } from "@faridalms/domain/file";
 import { useServerFn } from "@tanstack/react-start";

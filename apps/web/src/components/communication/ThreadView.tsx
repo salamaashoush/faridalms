@@ -1,5 +1,5 @@
-import type { FileSummary } from "@faridalms/database/repositories/files";
 import type { ContentDocument } from "@faridalms/domain/content";
+import type { FileSummary } from "@faridalms/domain/file";
 
 import { emptyContent } from "@faridalms/domain/content-conversion";
 import {
@@ -215,7 +215,7 @@ function ReplyComposer({ threadId }: { threadId: string }) {
         />
         <FileUploader
           label={m.messagesAttachFiles()}
-          purpose="message_attachment"
+          purpose="attachment"
           value={files}
           onChange={setFiles}
           maxFiles={MESSAGE_ATTACHMENT_LIMIT}

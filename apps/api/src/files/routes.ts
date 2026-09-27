@@ -1,9 +1,10 @@
+import { TenantUnavailableError } from "@faridalms/database/context";
 import {
-  completeFile,
-  fileWithLinks,
-  pendingFile,
-  rejectFile,
-} from "@faridalms/database/repositories/files";
+  fileById,
+  quarantineKey,
+  readyKey,
+  settleFile,
+} from "@faridalms/database/stores/files";
 import {
   contentBytesNeeded,
   contentDisposition,
@@ -11,152 +12,189 @@ import {
 } from "@faridalms/domain/file";
 import { ORPCError } from "@orpc/server";
 
-import type { ApiContext } from "../context";
+import type { RequestContext, SchoolContext } from "../core/context";
 
-import { authenticate } from "../session";
+import { openUnit, schoolOf } from "../core/procedure";
 import { canReadFile } from "./authorize";
 import { ScanUnavailableError } from "./scan";
 import { readPrefix, StoreError } from "./store";
 
 const PATH = /^\/v1\/files\/([0-9a-f-]{36})\/content$/;
 
+type Rejection =
+  | "too_large"
+  | "size_mismatch"
+  | "content_mismatch"
+  | "infected"
+  | "scan_unavailable";
+
 function problem(status: number, code: string, requestId: string) {
   return Response.json({ code, requestId }, { status });
 }
 
 /**
+ * The verdict is written as the worker, the only runtime role that may set
+ * a file's state, digest and key.
+ */
+async function settle(
+  context: SchoolContext,
+  fileId: string,
+  verdict: Parameters<typeof settleFile>[1]["verdict"],
+) {
+  return context.cell.withWorker(
+    {
+      tenantId: context.school.tenantId,
+      requestId: context.requestId,
+      actor: { kind: "system" },
+    },
+    "write",
+    (tx) =>
+      settleFile(tx, {
+        tenantId: context.school.tenantId,
+        id: fileId,
+        verdict,
+      }),
+  );
+}
+
+async function receive(
+  request: Request,
+  context: SchoolContext,
+  fileId: string,
+): Promise<Response> {
+  const file = await openUnit(context, "read", async (unit) => {
+    const found = await fileById(unit.tx, unit.tenantId, fileId);
+    return found &&
+      found.state === "initiated" &&
+      found.uploadedByUserId === unit.actor.userId
+      ? found
+      : null;
+  });
+  if (!file) return problem(404, "NOT_FOUND", context.requestId);
+  const declared = Number(request.headers.get("content-length"));
+  if (Number.isFinite(declared) && declared > 0 && declared !== file.sizeBytes)
+    return problem(400, "file.size_mismatch", context.requestId);
+  if (!request.body) return problem(400, "file.empty", context.requestId);
+  const tenantId = context.school.tenantId;
+  const waiting = quarantineKey(tenantId, fileId);
+  const refuse = async (status: number, reason: Rejection) => {
+    await context.files.remove(waiting);
+    await settle(context, fileId, { state: "rejected", reason });
+    return problem(status, `file.${reason}`, context.requestId);
+  };
+  let stored;
+  try {
+    stored = await context.files.write(
+      waiting,
+      request.body,
+      Math.min(file.sizeBytes, context.maxUploadBytes),
+    );
+  } catch (error) {
+    if (error instanceof StoreError) return refuse(413, "too_large");
+    throw error;
+  }
+  if (stored.sizeBytes !== file.sizeBytes) return refuse(400, "size_mismatch");
+  const head = await readPrefix(
+    context.files,
+    waiting,
+    contentBytesNeeded(file.name, stored.sizeBytes),
+  );
+  if (!contentMatchesName(file.name, head))
+    return refuse(422, "content_mismatch");
+  if (context.scanner) {
+    const body = await context.files.open(waiting);
+    if (!body) return refuse(400, "size_mismatch");
+    try {
+      const verdict = await context.scanner.scan(body);
+      if (!verdict.clean) {
+        console.warn(
+          JSON.stringify({
+            requestId: context.requestId,
+            file: fileId,
+            signature: verdict.signature,
+          }),
+        );
+        return refuse(422, "infected");
+      }
+    } catch (error) {
+      if (!(error instanceof ScanUnavailableError)) throw error;
+      console.error(
+        JSON.stringify({
+          requestId: context.requestId,
+          file: fileId,
+          scanner: error.message,
+        }),
+      );
+      return refuse(503, "scan_unavailable");
+    }
+  }
+  await context.files.move(waiting, readyKey(tenantId, fileId));
+  const settled = await settle(context, fileId, {
+    state: "ready",
+    sha256: stored.sha256,
+    scanEngine: context.scanner ? "clamd" : null,
+  });
+  if (!settled) return problem(409, "file.not_pending", context.requestId);
+  return Response.json({
+    id: file.id,
+    name: file.name,
+    mediaType: file.mediaType,
+    sizeBytes: file.sizeBytes,
+  });
+}
+
+async function send(
+  request: Request,
+  context: SchoolContext,
+  fileId: string,
+): Promise<Response> {
+  const file = await openUnit(context, "read", async (unit) => {
+    const found = await fileById(unit.tx, unit.tenantId, fileId);
+    if (!found || found.state !== "ready") return null;
+    return (await canReadFile({ ...context, ...unit }, found)) ? found : null;
+  });
+  if (!file) return problem(404, "NOT_FOUND", context.requestId);
+  const body = await context.files.open(file.storageKey);
+  if (!body) return problem(404, "NOT_FOUND", context.requestId);
+  return new Response(request.method === "HEAD" ? null : body, {
+    headers: {
+      "content-type": file.mediaType,
+      "content-length": String(file.sizeBytes),
+      "content-disposition": contentDisposition(file.name),
+      "cache-control": "private, no-store",
+      "x-content-type-options": "nosniff",
+    },
+  });
+}
+
+/**
  * File bytes travel outside the RPC serialiser: a stream in, a stream out,
- * with the same session resolution every procedure uses.
+ * with the same session resolution every procedure uses. No transaction is
+ * held while bytes move.
  */
 export async function handleFileRequest(
   request: Request,
   url: URL,
-  context: ApiContext,
+  context: RequestContext,
 ): Promise<Response | null> {
   const match = PATH.exec(url.pathname);
   if (!match?.[1]) return null;
-  const fileId = match[1];
-  let session;
+  const school = await schoolOf(context);
+  if (!school) return problem(401, "UNAUTHORIZED", context.requestId);
+  const scoped: SchoolContext = { ...context, school };
   try {
-    session = await authenticate(context);
+    if (request.method === "PUT")
+      return await receive(request, scoped, match[1]);
+    if (request.method === "GET" || request.method === "HEAD")
+      return await send(request, scoped, match[1]);
+    return problem(405, "METHOD_NOT_ALLOWED", context.requestId);
   } catch (error) {
     if (error instanceof ORPCError)
       return problem(error.status, error.code, context.requestId);
+    if (error instanceof TenantUnavailableError)
+      return error.reason === "unknown"
+        ? problem(401, "UNAUTHORIZED", context.requestId)
+        : problem(503, "tenant.read_only", context.requestId);
     throw error;
-  }
-  const school = { ...context, ...session };
-  try {
-    if (request.method === "PUT") {
-      const file = await pendingFile(session.db, fileId, session.user.id);
-      if (!file) return problem(404, "NOT_FOUND", context.requestId);
-      const declared = Number(request.headers.get("content-length"));
-      if (
-        Number.isFinite(declared) &&
-        declared > 0 &&
-        declared !== file.sizeBytes
-      )
-        return problem(400, "file.size_mismatch", context.requestId);
-      if (!request.body) return problem(400, "file.empty", context.requestId);
-      let stored;
-      try {
-        stored = await context.files.write(
-          file.storageKey,
-          request.body,
-          Math.min(file.sizeBytes, context.maxUploadBytes),
-        );
-      } catch (error) {
-        if (error instanceof StoreError) {
-          await rejectFile(session.db, fileId, session.user.id, "too_large");
-          return problem(413, "file.too_large", context.requestId);
-        }
-        throw error;
-      }
-      const refuse = async (
-        status: number,
-        reason:
-          | "size_mismatch"
-          | "content_mismatch"
-          | "infected"
-          | "scan_unavailable",
-      ) => {
-        await context.files.remove(file.storageKey);
-        await rejectFile(session.db, fileId, session.user.id, reason);
-        return problem(status, `file.${reason}`, context.requestId);
-      };
-      if (stored.sizeBytes !== file.sizeBytes)
-        return refuse(400, "size_mismatch");
-      const head = await readPrefix(
-        context.files,
-        file.storageKey,
-        contentBytesNeeded(file.name, stored.sizeBytes),
-      );
-      if (!contentMatchesName(file.name, head))
-        return refuse(422, "content_mismatch");
-      let scannedAt: Date | null = null;
-      if (context.scanner) {
-        const body = await context.files.open(file.storageKey);
-        if (!body) return refuse(400, "size_mismatch");
-        try {
-          const verdict = await context.scanner.scan(body);
-          if (!verdict.clean) {
-            console.warn(
-              JSON.stringify({
-                requestId: context.requestId,
-                file: fileId,
-                signature: verdict.signature,
-              }),
-            );
-            return refuse(422, "infected");
-          }
-        } catch (error) {
-          if (!(error instanceof ScanUnavailableError)) throw error;
-          console.error(
-            JSON.stringify({
-              requestId: context.requestId,
-              file: fileId,
-              scanner: error.message,
-            }),
-          );
-          return refuse(503, "scan_unavailable");
-        }
-        scannedAt = new Date();
-      }
-      const completed = await completeFile(
-        session.db,
-        fileId,
-        session.user.id,
-        { ...stored, scannedAt },
-      );
-      if (!completed)
-        return problem(409, "file.not_pending", context.requestId);
-      return Response.json({
-        id: completed.id,
-        name: completed.name,
-        mediaType: completed.mediaType,
-        sizeBytes: completed.sizeBytes,
-        sha256: completed.sha256,
-      });
-    }
-    if (request.method === "GET" || request.method === "HEAD") {
-      const file = await fileWithLinks(session.db, fileId);
-      if (!file || file.state !== "ready")
-        return problem(404, "NOT_FOUND", context.requestId);
-      if (!(await canReadFile(school, file)))
-        return problem(404, "NOT_FOUND", context.requestId);
-      const body = await context.files.open(file.storageKey);
-      if (!body) return problem(404, "NOT_FOUND", context.requestId);
-      return new Response(request.method === "HEAD" ? null : body, {
-        headers: {
-          "content-type": file.mediaType,
-          "content-length": String(file.sizeBytes),
-          "content-disposition": contentDisposition(file.name),
-          "cache-control": "private, no-store",
-          "x-content-type-options": "nosniff",
-        },
-      });
-    }
-    return problem(405, "METHOD_NOT_ALLOWED", context.requestId);
-  } finally {
-    session.release();
   }
 }

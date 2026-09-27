@@ -1,15 +1,25 @@
 import * as v from "valibot";
 
+/**
+ * What a person may upload a file for; the purposes the cell's files table
+ * pins. Health reports, evidence and imports have flows of their own.
+ */
 export const FILE_PURPOSES = [
-  "assignment_resource",
-  "submission_attachment",
-  "message_attachment",
+  "attachment",
+  "submission",
+  "document_media",
   "site_media",
-  "lesson_media",
 ] as const;
 export const MESSAGE_ATTACHMENT_LIMIT = 5;
 export const MESSAGE_ATTACHMENT_BYTES = 10 * 1024 * 1024;
 export type FilePurpose = (typeof FILE_PURPOSES)[number];
+
+export interface FileSummary {
+  id: string;
+  name: string;
+  mediaType: string;
+  sizeBytes: number;
+}
 export const FILE_STATES = ["initiated", "ready", "rejected"] as const;
 export const MAX_FILE_BYTES = 25 * 1024 * 1024;
 
