@@ -1,10 +1,21 @@
+import type { AttendanceMeaning } from "@faridalms/domain/attendance";
+
 /**
  * Tables drizzle-kit cannot create: partitioned tables and the search index.
  * Their DDL lives only in custom migrations; these declarations give queries
  * their types. `drizzle.config.ts` does not list this module.
  */
 import { sql } from "drizzle-orm";
-import { bytea, jsonb, pgSchema, text, uuid } from "drizzle-orm/pg-core";
+import {
+  bytea,
+  date,
+  integer,
+  jsonb,
+  pgSchema,
+  smallint,
+  text,
+  uuid,
+} from "drizzle-orm/pg-core";
 
 import { audit, core, instant, tsvector } from "./conventions";
 
@@ -70,6 +81,40 @@ export const activityEvents = core.table("activity_events", {
   contextId: uuid("context_id"),
   sessionId: uuid("session_id"),
   result: jsonb("result").$type<Record<string, unknown>>(),
+});
+
+/**
+ * Ed-Fi's student section attendance event: one student's mark in one
+ * register, partitioned by the day it was taken.
+ */
+export const attendanceEvents = core.table("attendance_events", {
+  tenantId: uuid("tenant_id").notNull(),
+  id: uuid("id")
+    .notNull()
+    .default(sql`uuidv7()`),
+  takenOn: date("taken_on", { mode: "string" }).notNull(),
+  registerId: uuid("register_id").notNull(),
+  studentUserId: uuid("student_user_id").notNull(),
+  categoryDescriptorId: uuid("category_descriptor_id").notNull(),
+  categoryMeaning: text("category_meaning")
+    .$type<AttendanceMeaning>()
+    .notNull(),
+  reasonDescriptorId: uuid("reason_descriptor_id"),
+  minutes: smallint("minutes"),
+  note: text("note"),
+  recordedByUserId: uuid("recorded_by_user_id").notNull(),
+  status: text("status").notNull().default("active"),
+  dateLastModified: instant("date_last_modified")
+    .notNull()
+    .default(sql`statement_timestamp()`),
+  version: integer("version").notNull().default(1),
+  metadata: jsonb("metadata")
+    .$type<Record<string, unknown>>()
+    .notNull()
+    .default(sql`'{}'`),
+  createdAt: instant("created_at")
+    .notNull()
+    .default(sql`statement_timestamp()`),
 });
 
 const search = pgSchema("search").existing();

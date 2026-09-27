@@ -7,6 +7,7 @@ import { withPurpose } from "../src/context";
 import {
   academicSessions,
   accessRoles,
+  attendanceSettings,
   accounts,
   calendarGradeLevels,
   calendars,
@@ -461,6 +462,13 @@ export async function completeFixture(
     span: "[2035-09-01,2036-07-01)",
     schoolYear: 2036,
     lifecycle: "upcoming",
+  });
+  await tx.insert(attendanceSettings).values({
+    tenantId,
+    orgId: schoolId,
+    teacherEditDays: 7,
+    noticeDelayMinutes: 30,
+    chronicPercent: 10,
   });
   await tx.insert(yearRollovers).values({
     tenantId,

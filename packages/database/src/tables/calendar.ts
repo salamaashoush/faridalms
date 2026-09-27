@@ -344,6 +344,7 @@ export const classPeriods = core.table.withRLS(
   },
   (t): PgTableExtraConfigValue[] => [
     pk("class_periods", t.tenantId, t.id),
+    uq("class_periods", t.tenantId, t.id, t.schoolYearId, t.orgId),
     ...baseConstraints("class_periods", t, tenants),
     fk(
       "class_periods",

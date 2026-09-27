@@ -13,6 +13,7 @@ import { newUserHandle } from "./stores/accounts";
 import {
   academicSessions,
   academicWeeks,
+  attendanceRegisters,
   assessments,
   assignmentRecipients,
   assignments,
@@ -48,6 +49,7 @@ import {
   userRoles,
   users,
 } from "./tables/index";
+import { attendanceEvents } from "./tables/partitioned";
 import { provisionTenant } from "./tenants";
 
 /** A small deterministic generator, so every reset produces the same people. */
@@ -1203,7 +1205,115 @@ async function seedSchool(
     pupils,
   );
   await seedCoursework(tx, tenantId, schoolId, yearId);
+  await seedAttendance(tx, tenantId, schoolId, yearId);
   return { yearId, teachers };
+}
+
+/**
+ * The daily register of every homeroom for the year's first two weeks, with
+ * the odd absence and late arrival, some explained and some not, so the
+ * office has something to follow up and families something to read.
+ */
+async function seedAttendance(
+  tx: Tx,
+  tenantId: string,
+  schoolId: string,
+  yearId: string,
+) {
+  const roll = random(0x0a77e4d);
+  const [categories, reasons] = await Promise.all([
+    descriptorIds(tx, tenantId, "attendance_category"),
+    descriptorIds(tx, tenantId, "attendance_reason"),
+  ]);
+  const days = await tx.execute<{ day_on: string }>(sql`
+    select to_char(d.day_on, 'YYYY-MM-DD') as day_on from core.calendar_dates d
+    join core.descriptors e on e.tenant_id = d.tenant_id and e.id = d.event_descriptor_id
+    where d.tenant_id = ${tenantId}::uuid and d.school_year_id = ${yearId}::uuid
+      and e.code_value = 'instructional_day' and d.day_on between ${YEAR.start}::date and '2026-09-24'::date
+    order by d.day_on`);
+  const [period] = await tx
+    .select({ id: classPeriods.id })
+    .from(classPeriods)
+    .where(
+      and(
+        eq(classPeriods.tenantId, tenantId),
+        eq(classPeriods.schoolYearId, yearId),
+        eq(classPeriods.officialAttendance, true),
+      ),
+    )
+    .limit(1);
+  if (!period) throw new Error("no official attendance period");
+  const homerooms = await tx.execute<{
+    id: string;
+    teacher_id: string;
+    students: string;
+  }>(sql`
+    select c.id, t.user_id as teacher_id,
+           coalesce((select array_agg(s.user_id order by s.user_id) from core.enrollments s
+             where s.tenant_id = c.tenant_id and s.class_id = c.id and s.role = 'student'
+               and s.status = 'active')::text[], '{}')::text as students
+    from core.classes c
+    join core.enrollments t on t.tenant_id = c.tenant_id and t.class_id = c.id
+      and t.role = 'teacher' and t.is_primary
+    where c.tenant_id = ${tenantId}::uuid and c.org_id = ${schoolId}::uuid
+      and c.school_year_id = ${yearId}::uuid and c.class_type = 'homeroom'
+    order by c.code`);
+  const registers: (typeof attendanceRegisters.$inferInsert)[] = [];
+  const events: (typeof attendanceEvents.$inferInsert)[] = [];
+  for (const homeroom of homerooms) {
+    const students = homeroom.students
+      .replace(/[{}]/g, "")
+      .split(",")
+      .filter(Boolean);
+    for (const { day_on: day } of days) {
+      const registerId = Bun.randomUUIDv7();
+      registers.push({
+        tenantId,
+        id: registerId,
+        orgId: schoolId,
+        classId: homeroom.id,
+        classType: "homeroom",
+        schoolYearId: yearId,
+        classPeriodId: period.id,
+        takenOn: day,
+        state: "submitted",
+        recordedByUserId: homeroom.teacher_id,
+        submittedAt: new Date(`${day}T05:55:00Z`),
+      });
+      for (const studentId of students) {
+        const chance = roll();
+        const meaning =
+          chance < 0.04
+            ? "absent"
+            : chance < 0.09
+              ? "late"
+              : chance < 0.1
+                ? "excused"
+                : "present";
+        const explained =
+          meaning === "excused" || (meaning !== "present" && roll() < 0.5);
+        events.push({
+          tenantId,
+          takenOn: day,
+          registerId,
+          studentUserId: studentId,
+          categoryDescriptorId: need(categories, meaning),
+          categoryMeaning: meaning,
+          reasonDescriptorId: explained
+            ? need(reasons, meaning === "late" ? "transport" : "illness")
+            : null,
+          minutes: meaning === "late" ? 5 + Math.floor(roll() * 20) : null,
+          recordedByUserId: homeroom.teacher_id,
+        });
+      }
+    }
+  }
+  for (let index = 0; index < registers.length; index += 200)
+    await tx
+      .insert(attendanceRegisters)
+      .values(registers.slice(index, index + 200));
+  for (let index = 0; index < events.length; index += 500)
+    await tx.insert(attendanceEvents).values(events.slice(index, index + 500));
 }
 
 async function seedHealth(

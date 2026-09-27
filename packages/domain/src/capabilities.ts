@@ -35,6 +35,7 @@ export const CAPABILITIES = [
   "submissions:grade",
   "attendance:record",
   "attendance:read",
+  "attendance:manage",
   "grades:read",
   "timetable:read",
   "timetable:manage",

@@ -954,13 +954,68 @@ export const CATALOGUE: readonly SeedNamespace[] = [
       },
     ],
   },
+  {
+    namespace: "attendance_category",
+    open: true,
+    meaningRequired: true,
+    edfiDescriptor: "AttendanceEventCategoryDescriptor",
+    values: [
+      {
+        code: "present",
+        en: "Present",
+        ar: "حاضر",
+        meaning: "present",
+        edfi: "In Attendance",
+      },
+      {
+        code: "absent",
+        en: "Absent",
+        ar: "غائب",
+        meaning: "absent",
+        edfi: "Unexcused Absence",
+      },
+      {
+        code: "late",
+        en: "Late",
+        ar: "متأخر",
+        meaning: "late",
+        edfi: "Tardy",
+      },
+      {
+        code: "excused",
+        en: "Excused absence",
+        ar: "غياب بعذر",
+        meaning: "excused",
+        edfi: "Excused Absence",
+      },
+      {
+        code: "left_early",
+        en: "Left early",
+        ar: "انصرف مبكرًا",
+        meaning: "left_early",
+        edfi: "Early departure",
+      },
+    ],
+  },
+  {
+    namespace: "attendance_reason",
+    open: true,
+    meaningRequired: false,
+    values: [
+      { code: "illness", en: "Illness", ar: "مرض" },
+      { code: "medical", en: "Medical appointment", ar: "موعد طبي" },
+      { code: "family", en: "Family matter", ar: "ظرف عائلي" },
+      { code: "religious", en: "Religious observance", ar: "مناسبة دينية" },
+      { code: "transport", en: "Transport", ar: "المواصلات" },
+      { code: "school_activity", en: "School activity", ar: "نشاط مدرسي" },
+      { code: "other", en: "Other", ar: "أخرى" },
+    ],
+  },
 ];
 
 /** Namespaces other systems own, reserved so names do not collide. */
 export const RESERVED_NAMESPACES = [
   "course_level",
-  "attendance_category",
-  "attendance_reason",
   "grade_type",
   "event_category",
   "announcement_category",
