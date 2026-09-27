@@ -154,9 +154,9 @@ export function DocumentPage({
   const [ownOpen, setOwnOpen] = useState(false);
   const open = details?.open ?? ownOpen;
   const setOpen = details?.onOpenChange ?? setOwnOpen;
-  const wide = useMedia("(min-width: 64rem)");
+  const wideScreen = useMedia("(min-width: 64rem)");
   const phone = !useMedia("(min-width: 48rem)");
-  const inSheet = aside !== undefined && open && !wide;
+  const inSheet = aside !== undefined && open && !wideScreen;
   const end = getTextDirection(getLocale()) === "rtl" ? "left" : "right";
   // Focusing the first field would raise the phone keyboard before anything
   // is chosen, so the sheet starts at its title.
@@ -250,7 +250,7 @@ export function DocumentPage({
       <h1 className="sr-only">{heading}</h1>
       <div
         className={cn(
-          "mx-auto grid w-full max-w-[1080px] gap-x-12 gap-y-6",
+          "mx-auto grid w-full max-w-[1080px] grid-cols-[minmax(0,1fr)] gap-x-12 gap-y-6",
           aside
             ? "[grid-template-areas:'title'_'summary'_'body'] lg:grid-cols-[minmax(0,1fr)_280px] lg:[grid-template-areas:'title_title'_'body_aside']"
             : "max-w-[720px] [grid-template-areas:'title'_'body']",
