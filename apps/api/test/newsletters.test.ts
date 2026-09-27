@@ -1,6 +1,10 @@
 import type { AudienceInput } from "@faridalms/domain/announcements";
+import type { ContentDocument } from "@faridalms/domain/content";
 
-import { plainContent } from "@faridalms/domain/content-conversion";
+import {
+  headedContent,
+  plainContent,
+} from "@faridalms/domain/content-conversion";
 import { describe, expect, test } from "bun:test";
 
 import { login, rejection, sessionFor, signedIn } from "./harness";
@@ -13,36 +17,32 @@ const families: AudienceInput[] = [
   { scope: "families", classId: "", gradeId: "" },
 ];
 
-const edition = (title: string, heading: string, arabic?: string) => {
-  const sectionId = crypto.randomUUID();
-  return {
-    id: "",
-    expectedVersion: 0,
-    title,
-    primaryLocale: "en" as const,
-    bilingual: arabic !== undefined,
-    audiences: families,
-    content: {
-      sections: [
-        { id: sectionId, heading, body: plainContent(`${heading} in full.`) },
-      ],
-      reviewed: [],
-    },
-    translation:
-      arabic === undefined
-        ? null
-        : {
-            sections: [
-              {
-                id: sectionId,
-                heading: arabic,
-                body: plainContent(`${arabic} بالتفصيل.`),
-              },
-            ],
-            reviewed: [sectionId],
-          },
-  };
-};
+/** The level-two headings of a document, in order. */
+const headings = (document: ContentDocument | null | undefined) =>
+  (document?.root.children ?? [])
+    .filter((node) => node.type === "heading")
+    .map((node) => node.children?.map((child) => child.text).join("") ?? "");
+
+const edition = (
+  title: string,
+  heading: string,
+  arabic?: string,
+  body = `${heading} in full.`,
+) => ({
+  id: "",
+  expectedVersion: 0,
+  title,
+  primaryLocale: "en" as const,
+  bilingual: arabic !== undefined,
+  audiences: families,
+  body: headedContent([{ heading, body: plainContent(body) }]),
+  translation:
+    arabic === undefined
+      ? null
+      : headedContent([
+          { heading: arabic, body: plainContent(`${arabic} بالتفصيل.`) },
+        ]),
+});
 
 describe("reading newsletters", () => {
   test("a family opens September's edition in both languages and the office sees it read", async () => {
@@ -54,13 +54,14 @@ describe("reading newsletters", () => {
     expect(september.summary).toContain("From the principal");
 
     const opened = await family.newsletters.record({ id: september.id });
-    expect(opened.content.sections.map((section) => section.heading)).toEqual([
+    expect(headings(opened.body)).toEqual([
       "From the principal",
       "Dates for October",
       "Clubs",
     ]);
-    expect(opened.translation?.sections[0]?.heading).toBe("كلمة المديرة");
+    expect(headings(opened.translation)[0]).toBe("كلمة المديرة");
     expect(opened.report).toBeNull();
+    expect(opened.translationReview).toBeNull();
     await family.newsletters.seen({ id: september.id });
 
     const office = await principal();
@@ -89,31 +90,20 @@ describe("writing newsletters", () => {
     });
     expect(sent.recipients).toBeGreaterThan(0);
 
-    const draft = await office.newsletters.editor({ id: saved.id });
-    const sectionId = draft.content?.sections[0]?.id ?? "";
     const changed = await office.newsletters.save({
       ...edition(
         "Sports day",
         "Sports day moves to Monday",
         "يوم الرياضة الاثنين",
+        "Rain on Friday.",
       ),
       id: saved.id,
       expectedVersion: sent.version,
-      content: {
-        sections: [
-          {
-            id: sectionId,
-            heading: "Sports day moves to Monday",
-            body: plainContent("Rain on Friday."),
-          },
-        ],
-        reviewed: [],
-      },
     });
 
     const family = await mother();
     const before = await family.newsletters.record({ id: saved.id });
-    expect(before.content.sections[0]?.heading).toBe("Sports day is Friday");
+    expect(headings(before.body)).toEqual(["Sports day is Friday"]);
     expect(
       (await office.newsletters.record({ id: saved.id })).changedSince,
     ).toBe(true);
@@ -123,37 +113,140 @@ describe("writing newsletters", () => {
       expectedVersion: changed.version,
     });
     const after = await family.newsletters.record({ id: saved.id });
-    expect(after.content.sections[0]?.heading).toBe(
-      "Sports day moves to Monday",
-    );
+    expect(headings(after.body)).toEqual(["Sports day moves to Monday"]);
     expect(after.revisedAt).not.toBeNull();
+  });
+
+  test("a checked translation lapses once either language's words change", async () => {
+    const office = await principal();
+    const saved = await office.newsletters.save(
+      edition("Library week", "Library week", "أسبوع المكتبة"),
+    );
+    const checked = await office.newsletters.review({
+      id: saved.id,
+      expectedVersion: saved.version,
+      reviewed: true,
+    });
+    expect(checked.review?.current).toBe(true);
+
+    const respaced = await office.newsletters.save({
+      ...edition("Library week", "Library week", "أسبوع المكتبة"),
+      id: saved.id,
+      expectedVersion: checked.version,
+      body: headedContent([
+        {
+          heading: "Library  week",
+          body: plainContent("Library week in full. "),
+        },
+      ]),
+    });
+    expect(
+      (await office.newsletters.editor({ id: saved.id })).translationReview
+        ?.current,
+    ).toBe(true);
+
+    const moved = await office.newsletters.save({
+      ...edition(
+        "Library week",
+        "Library week",
+        "أسبوع المكتبة",
+        "Bring a book to swap.",
+      ),
+      id: saved.id,
+      expectedVersion: respaced.version,
+    });
+    const stale = await office.newsletters.editor({ id: saved.id });
+    expect(stale.translationReview?.current).toBe(false);
+
+    const again = await office.newsletters.review({
+      id: saved.id,
+      expectedVersion: moved.version,
+      reviewed: true,
+    });
+    expect(again.review?.current).toBe(true);
+
+    await office.newsletters.save({
+      ...edition(
+        "Library week",
+        "Library week",
+        "أسبوع المكتبة والقراءة",
+        "Bring a book to swap.",
+      ),
+      id: saved.id,
+      expectedVersion: again.version,
+    });
+    expect(
+      (await office.newsletters.editor({ id: saved.id })).translationReview,
+    ).toBeNull();
+  });
+
+  test("an unwritten translation cannot be checked", async () => {
+    const office = await principal();
+    const saved = await office.newsletters.save({
+      ...edition("One language", "One language", ""),
+      translation: plainContent(""),
+    });
+    expect(
+      await rejection(
+        office.newsletters.review({
+          id: saved.id,
+          expectedVersion: saved.version,
+          reviewed: true,
+        }),
+      ),
+    ).toMatchObject({
+      code: "CONFLICT",
+      message: "newsletters.nothing_to_check",
+    });
   });
 
   test("a scheduled edition waits, and a duplicate starts as a draft in both languages", async () => {
     const office = await principal();
-    const later = await office.newsletters.save(
+    const written = await office.newsletters.save(
       edition("Winter term", "Winter term plans", "خطط الفصل الشتوي"),
     );
+    const later = await office.newsletters.review({
+      id: written.id,
+      expectedVersion: written.version,
+      reviewed: true,
+    });
     await office.newsletters.publish({
-      id: later.id,
+      id: written.id,
       expectedVersion: later.version,
       publishAt: new Date(Date.now() + 7 * 86_400_000).toISOString(),
     });
     const family = await mother();
     expect(
       (await family.newsletters.list({})).rows.some(
-        (row) => row.id === later.id,
+        (row) => row.id === written.id,
       ),
     ).toBe(false);
     expect(
-      await rejection(family.newsletters.record({ id: later.id })),
+      await rejection(family.newsletters.record({ id: written.id })),
     ).toMatchObject({ code: "NOT_FOUND" });
 
-    const copy = await office.newsletters.duplicate({ id: later.id });
+    const copy = await office.newsletters.duplicate({ id: written.id });
     const opened = await office.newsletters.editor({ id: copy.id });
     expect(opened.state).toBe("draft");
     expect(opened.audiences.map((row) => row.scope)).toEqual(["families"]);
-    expect(opened.translation?.sections[0]?.heading).toBe("خطط الفصل الشتوي");
+    expect(headings(opened.translation)[0]).toBe("خطط الفصل الشتوي");
+    expect(opened.translationReview?.current).toBe(true);
+  });
+
+  test("an edition with nothing written cannot go out", async () => {
+    const office = await principal();
+    const empty = await office.newsletters.save({
+      ...edition("Blank", "Blank"),
+      body: plainContent(" "),
+    });
+    expect(
+      await rejection(
+        office.newsletters.publish({
+          id: empty.id,
+          expectedVersion: empty.version,
+        }),
+      ),
+    ).toMatchObject({ code: "CONFLICT", message: "newsletters.empty" });
   });
 
   test("only those who manage newsletters write them", async () => {

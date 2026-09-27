@@ -2362,17 +2362,7 @@
   "nlPrimaryLanguage": "Written in",
   "nlPrimaryLanguageHint": "The language you write the edition in first.",
   "nlBilingual": "Also write it in {language}",
-  "nlBilingualHint": "Readers choose the language. A section not yet translated shows in {language}.",
-  "nlSectionSections": "Sections",
-  "nlSectionsHint": "Each section has a heading and its text, with pictures and links.",
-  "nlSectionNumber": "Section {number}",
-  "nlHeading": "Heading",
-  "nlBody": "Text",
-  "nlMoveUp": "Move section up",
-  "nlMoveDown": "Move section down",
-  "nlRemoveSection": "Remove section",
-  "nlAddSection": "Add section",
-  "nlSectionsNeeded": "Write at least one section.",
+  "nlBilingualHint": "Readers choose the language. Until the translation is written, it shows in {language}.",
   "nlTitleNeeded": "Enter a title.",
   "nlStartFrom": "Start from",
   "nlTemplateBlank": "A blank edition",
@@ -2387,28 +2377,21 @@
   "nlLangEn": "English",
   "nlLangAr": "العربية",
   "nlReviewed": "Checked against the original",
-  "nlReviewedHint": "Tick once someone has compared this section with the {language} original. Editing it clears the tick.",
+  "nlReviewedHint": "Tick once someone has compared the translation with the {language} original. Changing the translation clears the tick, and a change to the original shows here.",
   "nlPreview": "Preview",
   "nlUntitled": "Untitled edition",
-  "nlMissingTranslation": [
-    {
-      "declarations": [
-        "input count",
-        "input value",
-        "input language",
-        "input primary",
-        "local countPlural = count: plural"
-      ],
-      "selectors": ["countPlural"],
-      "match": {
-        "countPlural=one": "1 section has no {language} yet. Readers who choose {language} see it in {primary}.",
-        "countPlural=*": "{value} sections have no {language} yet. Readers who choose {language} see them in {primary}."
-      }
-    }
-  ],
-  "nlSaveQuietly": "Save without publishing",
+  "nlShowOriginal": "Show the {language} original",
+  "nlOriginalTitle": "The {language} original",
+  "nlBodyNeeded": "Write something in the edition.",
+  "nlNotTranslated": "Not written in {language} yet, so it shows in {original}.",
+  "nlTranslationMissing": "The {language} translation is not written yet.",
+  "nlTranslationUnreviewed": "Nobody has checked the translation against the original yet.",
+  "nlTranslationStale": "The original changed after the translation was checked. Check it again.",
+  "nlTranslationReviewed": "Checked against the original by {name}, {date}.",
+  "nlTranslation": "Translation",
+  "nlErrNothingToCheck": "Write the translation before marking it checked.",
   "nlPublishChanges": "Publish changes",
-  "nlPublishedHint": "Readers keep the edition they received. Saving keeps your edits private until you publish the changes.",
+  "nlPublishedHint": "Readers keep the edition they received. Your edits save as you write and stay private until you publish the changes.",
   "nlSaved": "Edition saved.",
   "nlPublished": "Edition published.",
   "nlScheduled": "Edition scheduled.",
@@ -2424,20 +2407,6 @@
   "nlStateArchived": "Archived",
   "nlReportHint": "Everyone this edition reached, those yet to open it first.",
   "nlNotSent": "This edition has not reached anyone yet.",
-  "nlUnreviewed": [
-    {
-      "declarations": [
-        "input count",
-        "input value",
-        "local countPlural = count: plural"
-      ],
-      "selectors": ["countPlural"],
-      "match": {
-        "countPlural=one": "1 translated section has not been checked.",
-        "countPlural=*": "{value} translated sections have not been checked."
-      }
-    }
-  ],
   "nlErrArchived": "This edition is archived and can no longer change.",
   "nlErrAlreadyOut": "This edition is already out, so it cannot be scheduled. Publish the changes instead.",
   "nlNameEn": "English",

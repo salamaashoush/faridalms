@@ -1,10 +1,7 @@
-import type {
-  NewsletterContent,
-  NewsletterLocale,
-  NewsletterSection,
-} from "@faridalms/domain/newsletters";
+import type { ContentDocument } from "@faridalms/domain/content";
+import type { NewsletterLocale } from "@faridalms/domain/newsletters";
 
-import { sectionWritten } from "@faridalms/domain/newsletters";
+import { documentWritten } from "@faridalms/domain/newsletters";
 
 import { ContentView } from "~/components/content/ContentView";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
@@ -24,82 +21,72 @@ export const LOCALE_NAME: Record<NewsletterLocale, () => string> = {
 export const otherLocale = (locale: NewsletterLocale): NewsletterLocale =>
   locale === "en" ? "ar" : "en";
 
-export interface ShownSection {
-  section: NewsletterSection;
-  locale: NewsletterLocale;
-}
-
-/**
- * An edition in one language. A section the translation lacks shows in the
- * original language, marked as such, rather than going missing.
- */
-export function sectionsIn(
-  content: NewsletterContent,
-  translation: NewsletterContent | null,
-  primary: NewsletterLocale,
-  locale: NewsletterLocale,
-): ShownSection[] {
-  if (locale === primary || !translation)
-    return content.sections.map((section) => ({ section, locale: primary }));
-  const byId = new Map(
-    translation.sections.map((section) => [section.id, section]),
-  );
-  return content.sections.map((section) => {
-    const match = byId.get(section.id);
-    return match && sectionWritten(match)
-      ? { section: match, locale }
-      : { section, locale: primary };
-  });
-}
-
 const fileUrl = (fileId: string) => `/files/${fileId}`;
 
-export function EditionSections({ sections }: { sections: ShownSection[] }) {
+/**
+ * An edition in one language. Until the translation is written the original
+ * shows in its place, saying so, rather than the reader meeting a blank page.
+ */
+function EditionIn({
+  body,
+  translation,
+  primary,
+  locale,
+}: {
+  body: ContentDocument;
+  translation: ContentDocument | null;
+  primary: NewsletterLocale;
+  locale: NewsletterLocale;
+}) {
+  const translated = locale !== primary && documentWritten(translation);
+  const shown = translated && translation ? translation : body;
+  const shownLocale = translated ? locale : primary;
   return (
-    <article className="divide-y rounded-lg border bg-card">
-      {sections.map(({ section, locale }) => (
-        <section
-          key={section.id}
-          lang={locale}
-          dir={locale === "ar" ? "rtl" : "ltr"}
-          className="grid min-w-0 gap-3 p-5 sm:p-8"
-        >
-          {section.heading ? (
-            <h2 className="text-lg leading-7 font-semibold text-balance">
-              {section.heading}
-            </h2>
-          ) : null}
-          <ContentView document={section.body} fileUrl={fileUrl} />
-        </section>
-      ))}
-    </article>
+    <div className="grid gap-4">
+      {locale !== primary && !translated ? (
+        <p className="text-[13px] leading-[18px] text-muted-foreground">
+          {m.nlNotTranslated({
+            language: LOCALE_NAME[locale](),
+            original: LOCALE_NAME[primary](),
+          })}
+        </p>
+      ) : null}
+      <div lang={shownLocale}>
+        <ContentView document={shown} fileUrl={fileUrl} />
+      </div>
+    </div>
   );
 }
 
 /** An edition to read, with a switch between its languages when it has two. */
 export function NewsletterView({
-  content,
+  body,
   translation,
   primary,
   locale,
   onLocaleChange,
 }: {
-  content: NewsletterContent;
-  translation: NewsletterContent | null;
+  body: ContentDocument;
+  translation: ContentDocument | null;
   primary: NewsletterLocale;
   locale: NewsletterLocale;
   onLocaleChange: (locale: NewsletterLocale) => void;
 }) {
   if (!translation)
     return (
-      <EditionSections sections={sectionsIn(content, null, primary, primary)} />
+      <EditionIn
+        body={body}
+        translation={null}
+        primary={primary}
+        locale={primary}
+      />
     );
   const locales = [primary, otherLocale(primary)];
   return (
     <Tabs
       value={locale}
       onValueChange={(value: NewsletterLocale) => onLocaleChange(value)}
-      className="grid gap-4"
+      className="grid gap-5"
     >
       <TabsList aria-label={m.nlLanguage()}>
         {locales.map((value) => (
@@ -110,8 +97,11 @@ export function NewsletterView({
       </TabsList>
       {locales.map((value) => (
         <TabsContent key={value} value={value}>
-          <EditionSections
-            sections={sectionsIn(content, translation, primary, value)}
+          <EditionIn
+            body={body}
+            translation={translation}
+            primary={primary}
+            locale={value}
           />
         </TabsContent>
       ))}

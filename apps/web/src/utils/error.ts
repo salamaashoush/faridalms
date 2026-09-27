@@ -143,8 +143,10 @@ export function getMessageFromError(error: unknown): string {
         return m.nlErrAlreadyOut();
       case "newsletters.nobody":
         return m.annErrNobody();
-      case "newsletters.no_sections":
-        return m.nlSectionsNeeded();
+      case "newsletters.empty":
+        return m.nlBodyNeeded();
+      case "newsletters.nothing_to_check":
+        return m.nlErrNothingToCheck();
       case "messages.no_guardians":
         return m.msgNoGuardians();
       case "messages.recipient":

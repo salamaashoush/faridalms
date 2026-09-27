@@ -3,6 +3,7 @@ import {
   manageNewslettersSchema,
   newsletterRefSchema,
   publishNewsletterSchema,
+  reviewTranslationSchema,
   saveNewsletterSchema,
 } from "@faridalms/domain/newsletters";
 import { createServerFn } from "@tanstack/react-start";
@@ -37,6 +38,10 @@ export const saveNewsletter = createServerFn({ method: "POST" })
 export const publishNewsletter = createServerFn({ method: "POST" })
   .validator(checked(publishNewsletterSchema))
   .handler(({ data }) => backend().newsletters.publish(data));
+
+export const reviewNewsletterTranslation = createServerFn({ method: "POST" })
+  .validator(checked(reviewTranslationSchema))
+  .handler(({ data }) => backend().newsletters.review(data));
 
 export const archiveNewsletter = createServerFn({ method: "POST" })
   .validator(checked(newsletterRefSchema))

@@ -25,7 +25,7 @@ export type NewsletterState = "draft" | "scheduled" | "published" | "archived";
 export type NewsletterLocale = "en" | "ar";
 
 /**
- * An edition of the school's newsletter. Its sections are the document hosted
+ * An edition of the school's newsletter. It is written as the document hosted
  * as `newsletter` in `primary_locale`, with the other language as that
  * document's translation when `bilingual`. Readers see the `publish` version
  * taken when it went out, so later edits stay private until published again.
@@ -43,6 +43,13 @@ export const newsletters = core.table.withRLS(
     authorUserId: uuid("author_user_id").notNull(),
     /** The last time a changed edition replaced the one readers had. */
     revisedAt: instant("revised_at"),
+    /**
+     * Who checked the translation against the original, when, and a digest
+     * of the original's words then, which tells whether it has changed since.
+     */
+    translationReviewedAt: instant("translation_reviewed_at"),
+    translationReviewedByUserId: uuid("translation_reviewed_by_user_id"),
+    translationSourceDigest: text("translation_source_digest"),
     ...entityColumns(),
   },
   (t): PgTableExtraConfigValue[] => [
@@ -50,6 +57,16 @@ export const newsletters = core.table.withRLS(
     ...baseConstraints("newsletters", t, tenants),
     fk("newsletters", [t.tenantId, t.orgId], [orgs.tenantId, orgs.id]),
     fk("newsletters", [t.tenantId, t.authorUserId], [users.tenantId, users.id]),
+    fk(
+      "newsletters",
+      [t.tenantId, t.translationReviewedByUserId],
+      [users.tenantId, users.id],
+    ),
+    ck(
+      "newsletters",
+      "translation_review",
+      sql`(translation_reviewed_at is null) = (translation_reviewed_by_user_id is null) and (translation_reviewed_at is null) = (translation_source_digest is null)`,
+    ),
     ck("newsletters", "title", sql`char_length(title) between 1 and 200`),
     ck("newsletters", "primary_locale", sql`primary_locale in ('en', 'ar')`),
     ck(

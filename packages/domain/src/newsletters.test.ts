@@ -1,68 +1,58 @@
 import { describe, expect, it } from "vitest";
 
-import { plainContent } from "./content-conversion";
-import { alignTranslation, translationGaps } from "./newsletters";
+import { contentPlainText } from "./content";
+import {
+  emptyContent,
+  headedContent,
+  plainContent,
+} from "./content-conversion";
+import { documentWritten, translationState } from "./newsletters";
 
-const first = "0192f0a4-7a1c-7b5a-9a2e-2e6f1f2a3b41";
-const second = "0192f0a4-7a1c-7b5a-9a2e-2e6f1f2a3b42";
-const third = "0192f0a4-7a1c-7b5a-9a2e-2e6f1f2a3b43";
+describe("translation state", () => {
+  const written = plainContent("مرحبًا بعودتكم.");
 
-const section = (id: string, heading: string, body = "") => ({
-  id,
-  heading,
-  body: plainContent(body),
-});
-
-const original = {
-  sections: [
-    section(first, "From the principal", "Welcome back."),
-    section(second, "Clubs", "Chess starts on Monday."),
-    section(third, ""),
-  ],
-  reviewed: [],
-};
-
-describe("translation gaps", () => {
-  it("counts written sections the translation lacks or nobody has checked", () => {
-    expect(
-      translationGaps(original, {
-        sections: [section(first, "كلمة المديرة", "مرحبًا بعودتكم.")],
-        reviewed: [],
-      }),
-    ).toEqual({ missing: [second], unreviewed: [first] });
+  it("asks for a translation that has nothing in it", () => {
+    for (const translation of [null, emptyContent(), plainContent("  ")])
+      expect(
+        translationState({ translation, reviewed: true, current: true }),
+      ).toBe("missing");
   });
 
-  it("ignores an empty section of the original and a checked one", () => {
+  it("tells a checked translation from one the original has moved past", () => {
     expect(
-      translationGaps(original, {
-        sections: [section(first, "كلمة المديرة"), section(second, "الأندية")],
-        reviewed: [first, second],
+      translationState({
+        translation: written,
+        reviewed: false,
+        current: true,
       }),
-    ).toEqual({ missing: [], unreviewed: [] });
-  });
-
-  it("treats a translation with nothing written as missing throughout", () => {
+    ).toBe("unreviewed");
     expect(
-      translationGaps(original, {
-        sections: [section(first, "  ")],
-        reviewed: [first],
-      }).missing,
-    ).toEqual([first, second]);
+      translationState({
+        translation: written,
+        reviewed: true,
+        current: false,
+      }),
+    ).toBe("stale");
+    expect(
+      translationState({ translation: written, reviewed: true, current: true }),
+    ).toBe("reviewed");
   });
 });
 
-describe("aligning a translation", () => {
-  it("follows the original's order and drops sections it no longer has", () => {
-    const stray = "0192f0a4-7a1c-7b5a-9a2e-2e6f1f2a3b49";
-    const aligned = alignTranslation(original, {
-      sections: [
-        section(second, "الأندية"),
-        section(stray, "قسم محذوف"),
-        section(first, "كلمة المديرة"),
-      ],
-      reviewed: [stray, second],
-    });
-    expect(aligned.sections.map((item) => item.id)).toEqual([first, second]);
-    expect(aligned.reviewed).toEqual([second]);
+describe("headed content", () => {
+  it("turns each part into a level-two heading and its text", () => {
+    const document = headedContent([
+      { heading: "From the principal", body: plainContent("Welcome back.") },
+      { heading: " ", body: plainContent("No heading here.") },
+    ]);
+    expect(document.root.children?.map((node) => node.type)).toEqual([
+      "heading",
+      "paragraph",
+      "paragraph",
+    ]);
+    expect(document.root.children?.[0]?.tag).toBe("h2");
+    expect(contentPlainText(document)).toContain("From the principal");
+    expect(documentWritten(document)).toBe(true);
+    expect(documentWritten(headedContent([]))).toBe(false);
   });
 });

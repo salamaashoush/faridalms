@@ -1,27 +1,22 @@
 import type { AudienceInput } from "@faridalms/domain/announcements";
 import type { ContentDocument } from "@faridalms/domain/content";
 import type {
-  NewsletterContent,
   NewsletterLocale,
-  NewsletterSection,
+  TranslationState,
 } from "@faridalms/domain/newsletters";
-import type { EditorMedia } from "@faridalms/editor";
 
-import { contentPlainText } from "@faridalms/domain/content";
-import { emptyContent } from "@faridalms/domain/content-conversion";
 import {
-  MAX_SECTIONS,
+  emptyContent,
+  headedContent,
+} from "@faridalms/domain/content-conversion";
+import {
+  documentWritten,
   NEWSLETTER_LOCALES,
-  sectionWritten,
-  translationGaps,
+  translationState,
 } from "@faridalms/domain/newsletters";
-import {
-  useMutation,
-  useQueryClient,
-  useSuspenseQuery,
-} from "@tanstack/react-query";
-import { ArrowDown, ArrowUp, Eye, Plus, Trash2, X } from "lucide-react";
-import { useId, useRef, useState } from "react";
+import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
+import { Archive, CalendarClock, Send } from "lucide-react";
+import { useCallback, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import type { newsletterEditorQuery } from "~/queries/newsletters";
@@ -29,27 +24,36 @@ import type { newsletterEditorQuery } from "~/queries/newsletters";
 import {
   AudienceList,
   audienceIssue,
+  audienceSummary,
 } from "~/components/announcements/AudienceList";
 import { ContentEditor } from "~/components/content/ContentEditor";
+import { ContentView } from "~/components/content/ContentView";
+import { formatInstant } from "~/components/coursework/format";
 import { useDocumentMedia } from "~/components/coursework/useDocumentMedia";
 import { CheckboxRow } from "~/components/people/fields";
-import { FormField, SelectField, TextField } from "~/components/system/field";
-import { FormSection, RecordForm } from "~/components/system/RecordForm";
+import {
+  DetailsPanel,
+  DetailsSection,
+  DocumentPage,
+  DocumentTitle,
+} from "~/components/system/DocumentPage";
+import { FormField, SelectField } from "~/components/system/field";
+import { SheetPanel } from "~/components/system/SheetPanel";
 import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
-import {
-  Sheet,
-  SheetClose,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from "~/components/ui/sheet";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
+import { Tabs, TabsList, TabsTrigger } from "~/components/ui/tabs";
+import { useAutosave } from "~/hooks/useAutosave";
+import { inLocale, useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
-import { getLocale, getTextDirection } from "~/i18n/runtime";
+import { getLocale } from "~/i18n/runtime";
 import { newsletterOptionsQuery } from "~/queries/newsletters";
-import { publishNewsletter, saveNewsletter } from "~/server/newsletters";
-import { formatNumber } from "~/utils/datetime";
+import {
+  archiveNewsletter,
+  publishNewsletter,
+  reviewNewsletterTranslation,
+  saveNewsletter,
+} from "~/server/newsletters";
+import { cn } from "~/utils/cn";
 import { getMessageFromError } from "~/utils/error";
 
 import {
@@ -62,29 +66,21 @@ import {
 type Existing = Awaited<
   ReturnType<NonNullable<ReturnType<typeof newsletterEditorQuery>["queryFn"]>>
 >;
-
-interface Translated {
-  heading: string;
-  body: ContentDocument;
-  reviewed: boolean;
-}
+type Review = Existing["translationReview"];
 
 interface Draft {
   title: string;
   primaryLocale: NewsletterLocale;
   bilingual: boolean;
   audiences: AudienceInput[];
-  sections: NewsletterSection[];
-  translated: Record<string, Translated>;
-  when: "now" | "later";
-  sendAt: string;
+  body: ContentDocument;
+  translation: ContentDocument;
 }
 
-const TEMPLATES = ["blank", "weekly", "monthly"] as const;
+const TEMPLATES = ["weekly", "monthly"] as const;
 type Template = (typeof TEMPLATES)[number];
 
 const TEMPLATE_LABEL: Record<Template, () => string> = {
-  blank: m.nlTemplateBlank,
   weekly: m.nlTemplateWeekly,
   monthly: m.nlTemplateMonthly,
 };
@@ -94,7 +90,6 @@ const TEMPLATE_HEADINGS: Record<
   Template,
   ((inputs: object, options: { locale: NewsletterLocale }) => string)[]
 > = {
-  blank: [],
   weekly: [m.nlStarterPrincipal, m.nlStarterWeek, m.nlStarterDates],
   monthly: [
     m.nlStarterPrincipal,
@@ -104,27 +99,21 @@ const TEMPLATE_HEADINGS: Record<
   ],
 };
 
-const UNTRANSLATED: Translated = {
-  heading: "",
-  body: emptyContent(),
-  reviewed: false,
+const STATE_LABEL: Record<Existing["state"], () => string> = {
+  draft: m.nlStateDraft,
+  scheduled: m.nlStateScheduled,
+  published: m.annStatePublished,
+  archived: m.nlStateArchived,
 };
 
-const emptySection = (heading = ""): NewsletterSection => ({
-  id: crypto.randomUUID(),
-  heading,
-  body: emptyContent(),
-});
+const STATE_TONE = {
+  draft: "neutral",
+  scheduled: "info",
+  published: "success",
+  archived: "neutral",
+} as const;
 
 function draftOf(existing: Existing | null): Draft {
-  const translated: Record<string, Translated> = {};
-  const reviewed = new Set(existing?.translation?.reviewed ?? []);
-  for (const section of existing?.translation?.sections ?? [])
-    translated[section.id] = {
-      heading: section.heading,
-      body: section.body,
-      reviewed: reviewed.has(section.id),
-    };
   return {
     title: existing?.title ?? "",
     primaryLocale:
@@ -137,622 +126,525 @@ function draftOf(existing: Existing | null): Draft {
           gradeId: row.gradeId ?? "",
         }))
       : [{ scope: "families", classId: "", gradeId: "" }],
-    sections: existing?.content?.sections.length
-      ? existing.content.sections
-      : [emptySection()],
-    translated,
-    when: "now",
-    sendAt: "",
+    body: existing?.body ?? emptyContent(),
+    translation: existing?.translation ?? emptyContent(),
   };
 }
 
-function contentOf(draft: Draft): NewsletterContent {
-  return { sections: draft.sections, reviewed: [] };
-}
-
-function translationOf(draft: Draft): NewsletterContent | null {
-  if (!draft.bilingual) return null;
-  const sections = draft.sections.flatMap((section) => {
-    const match = draft.translated[section.id];
-    return match && sectionWritten(match)
-      ? [{ id: section.id, heading: match.heading, body: match.body }]
-      : [];
-  });
-  return {
-    sections,
-    reviewed: sections
-      .filter((section) => draft.translated[section.id]?.reviewed)
-      .map((section) => section.id),
-  };
-}
-
-const dirOf = (locale: NewsletterLocale) => getTextDirection(locale);
-
-function SectionCard({
-  section,
-  index,
-  count,
-  locale,
-  media,
-  onChange,
-  onMove,
-  onRemove,
+function TranslationNote({
+  state,
+  review,
+  language,
 }: {
-  section: NewsletterSection;
-  index: number;
-  count: number;
-  locale: NewsletterLocale;
-  media: EditorMedia;
-  onChange: (next: NewsletterSection) => void;
-  onMove: (by: -1 | 1) => void;
-  onRemove: () => void;
+  state: TranslationState;
+  review: Review;
+  language: string;
 }) {
-  // A new section's id is random, so the server and the browser would give
-  // its fields different ids; useId agrees on both sides.
-  const fieldId = useId();
+  const user = useCurrentUser();
+  const text =
+    state === "missing"
+      ? m.nlTranslationMissing({ language })
+      : state === "unreviewed"
+        ? m.nlTranslationUnreviewed()
+        : state === "stale"
+          ? m.nlTranslationStale()
+          : review
+            ? m.nlTranslationReviewed({
+                name: inLocale(review.byEn, review.byAr),
+                date: formatInstant(review.at, user.school.timeZone),
+              })
+            : "";
   return (
-    <div className="grid min-w-0 gap-4 rounded-lg border bg-card p-4">
-      <div className="flex items-center justify-between gap-2">
-        <h3 className="text-sm leading-5 font-semibold">
-          {m.nlSectionNumber({ number: formatNumber(index + 1) })}
-        </h3>
-        <div className="flex gap-1">
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-sm"
-            className="max-md:size-10"
-            aria-label={m.nlMoveUp()}
-            disabled={index === 0}
-            onClick={() => onMove(-1)}
-          >
-            <ArrowUp aria-hidden />
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-sm"
-            className="max-md:size-10"
-            aria-label={m.nlMoveDown()}
-            disabled={index === count - 1}
-            onClick={() => onMove(1)}
-          >
-            <ArrowDown aria-hidden />
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-sm"
-            className="max-md:size-10"
-            aria-label={m.nlRemoveSection()}
-            disabled={count === 1}
-            onClick={onRemove}
-          >
-            <Trash2 aria-hidden />
-          </Button>
-        </div>
-      </div>
-      <div className="grid min-w-0 gap-4">
-        <TextField
-          id={`${fieldId}-heading`}
-          lang={locale}
-          dir="auto"
-          label={m.nlHeading()}
-          optional
-          maxLength={200}
-          autoComplete="off"
-          value={section.heading}
-          onChange={(event) =>
-            onChange({ ...section, heading: event.target.value })
-          }
-        />
-        <FormField id={`${fieldId}-body`} label={m.nlBody()}>
-          {(control) => (
-            <div className="min-w-0">
-              <ContentEditor
-                id={control.id}
-                label={m.nlBody()}
-                value={section.body}
-                onChange={(body) => onChange({ ...section, body })}
-                media={media}
-              />
-            </div>
-          )}
-        </FormField>
-      </div>
-    </div>
+    <p
+      className={cn(
+        "text-[13px] leading-[18px]",
+        state === "reviewed"
+          ? "text-muted-foreground"
+          : "text-warning-foreground dark:text-warning",
+      )}
+    >
+      {text}
+    </p>
   );
 }
 
-function TranslationCard({
-  section,
-  index,
-  primary,
-  value,
-  media,
-  onChange,
-}: {
-  section: NewsletterSection;
-  index: number;
-  primary: NewsletterLocale;
-  value: Translated;
-  media: EditorMedia;
-  onChange: (next: Translated) => void;
-}) {
-  const fieldId = useId();
-  const locale = otherLocale(primary);
-  const reference = contentPlainText(section.body).trim();
-  return (
-    <div className="grid min-w-0 gap-4 rounded-lg border bg-card p-4">
-      <h3 className="text-sm leading-5 font-semibold">
-        {m.nlSectionNumber({ number: formatNumber(index + 1) })}
-      </h3>
-      <div
-        lang={primary}
-        dir={dirOf(primary)}
-        className="grid gap-1 rounded-md bg-muted/60 px-3 py-2.5 text-[13px] leading-[18px] text-muted-foreground"
-      >
-        {section.heading ? (
-          <p className="font-medium text-foreground">{section.heading}</p>
-        ) : null}
-        {reference ? <p className="line-clamp-3">{reference}</p> : null}
-      </div>
-      <div className="grid min-w-0 gap-4">
-        <TextField
-          id={`${fieldId}-heading`}
-          lang={locale}
-          dir="auto"
-          label={m.nlHeading()}
-          optional
-          maxLength={200}
-          autoComplete="off"
-          value={value.heading}
-          onChange={(event) =>
-            onChange({ ...value, heading: event.target.value, reviewed: false })
-          }
-        />
-        <FormField id={`${fieldId}-body`} label={m.nlBody()}>
-          {(control) => (
-            <div className="min-w-0">
-              <ContentEditor
-                id={control.id}
-                label={m.nlBody()}
-                value={value.body}
-                onChange={(body) =>
-                  onChange({ ...value, body, reviewed: false })
-                }
-                media={media}
-              />
-            </div>
-          )}
-        </FormField>
-      </div>
-      <CheckboxRow
-        label={m.nlReviewed()}
-        hint={m.nlReviewedHint({ language: LOCALE_NAME[primary]() })}
-        checked={value.reviewed}
-        onChange={(reviewed) => onChange({ ...value, reviewed })}
-      />
-    </div>
-  );
-}
-
-function PreviewSheet({
-  open,
-  onOpenChange,
-  draft,
-}: {
-  open: boolean;
-  onOpenChange: (open: boolean) => void;
-  draft: Draft;
-}) {
-  const [locale, setLocale] = useState<NewsletterLocale>(draft.primaryLocale);
-  const side = getTextDirection(getLocale()) === "rtl" ? "left" : "right";
-  return (
-    <Sheet open={open} onOpenChange={onOpenChange}>
-      <SheetContent
-        side={side}
-        showCloseButton={false}
-        className="gap-0 p-0 data-[side=left]:w-full data-[side=right]:w-full data-[side=left]:sm:max-w-[640px] data-[side=right]:sm:max-w-[640px]"
-      >
-        <SheetHeader className="border-b px-6 py-4 pe-14 max-md:pe-16">
-          <SheetTitle className="text-base leading-6 font-semibold">
-            {m.nlPreview()}
-          </SheetTitle>
-        </SheetHeader>
-        <div className="grid min-h-0 flex-1 content-start gap-4 overflow-y-auto bg-muted/30 px-4 py-6 sm:px-6">
-          <h2
-            dir="auto"
-            className="text-xl leading-7 font-semibold text-balance"
-          >
-            {draft.title || m.nlUntitled()}
-          </h2>
-          <NewsletterView
-            content={contentOf(draft)}
-            translation={translationOf(draft)}
-            primary={draft.primaryLocale}
-            locale={draft.bilingual ? locale : draft.primaryLocale}
-            onLocaleChange={setLocale}
-          />
-        </div>
-        <SheetClose
-          render={
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon-sm"
-              aria-label={m.commonClose()}
-              className="absolute end-4 top-3 max-md:top-2 max-md:size-10"
-            />
-          }
-        >
-          <X aria-hidden />
-        </SheetClose>
-      </SheetContent>
-    </Sheet>
-  );
-}
-
-/** Title, audience, sections in one or two languages, and when it goes out. */
+/**
+ * An edition written as a document in its first language, with its other
+ * language written beside that original when it has two. Drafts, and edits to
+ * an edition already out, save themselves; readers keep what they received
+ * until it is published again.
+ */
 export function NewsletterEditor({
   existing,
   onClose,
+  onCreated,
 }: {
   existing: Existing | null;
   onClose: (id?: string) => void;
+  onCreated: (id: string) => void;
 }) {
   const options = useSuspenseQuery(newsletterOptionsQuery).data;
   const queryClient = useQueryClient();
   const media = useDocumentMedia();
-  const [initial] = useState(() => draftOf(existing));
-  const [draft, setDraft] = useState(initial);
-  const [shown, setShown] = useState(false);
-  const [previewing, setPreviewing] = useState(false);
-  const [writing, setWriting] = useState<NewsletterLocale>(
-    initial.primaryLocale,
+  const id = useRef(existing?.id ?? "");
+  const version = useRef(existing?.version ?? 0);
+  const [stored, setStored] = useState(existing !== null);
+  const state = existing?.state ?? "draft";
+  const [draft, setDraft] = useState<Draft>(() => draftOf(existing));
+  const [review, setReview] = useState<Review>(
+    existing?.translationReview ?? null,
   );
-  const leaving = useRef(false);
-  const published = existing?.state === "published";
-  const set = <K extends keyof Draft>(key: K, value: Draft[K]) =>
-    setDraft((current) => ({ ...current, [key]: value }));
-  const setSection = (index: number, next: NewsletterSection) =>
-    set(
-      "sections",
-      draft.sections.map((section, at) => (at === index ? next : section)),
-    );
-  const moveSection = (index: number, by: -1 | 1) => {
-    const next = [...draft.sections];
-    const [moved] = next.splice(index, 1);
-    if (!moved) return;
-    next.splice(index + by, 0, moved);
-    set("sections", next);
-  };
-  const applyTemplate = (template: Template) =>
-    set(
-      "sections",
-      template === "blank"
-        ? [emptySection()]
-        : TEMPLATE_HEADINGS[template].map((heading) =>
-            emptySection(heading({}, { locale: draft.primaryLocale })),
-          ),
-    );
-  const save = useMutation({
-    mutationFn: () =>
-      saveNewsletter({
-        data: {
-          id: existing?.id ?? "",
-          expectedVersion: existing?.version ?? 0,
-          title: draft.title.trim(),
-          primaryLocale: draft.primaryLocale,
-          bilingual: draft.bilingual,
-          audiences: draft.audiences,
-          content: contentOf(draft),
-          translation: translationOf(draft),
-        },
-      }),
-  });
-  const publish = useMutation({
-    mutationFn: (saved: { id: string; version: number }) =>
-      publishNewsletter({
-        data: {
-          id: saved.id,
-          expectedVersion: saved.version,
-          publishAt:
-            draft.when === "later" && draft.sendAt
-              ? new Date(draft.sendAt).toISOString()
-              : "",
-        },
-      }),
-  });
-  const issues = {
-    title: draft.title.trim() ? null : m.nlTitleNeeded(),
-    audiences: audienceIssue(draft.audiences),
-    sections: !draft.sections.some(sectionWritten)
-      ? m.nlSectionsNeeded()
-      : null,
-    sendAt:
-      draft.when === "later" && !draft.sendAt ? m.annSendAtNeeded() : null,
-  };
-  const gaps = draft.bilingual
-    ? translationGaps(contentOf(draft), translationOf(draft))
-    : { missing: [], unreviewed: [] };
+  const [changed, setChanged] = useState(existing?.changedSince ?? false);
+  const [writing, setWriting] = useState<NewsletterLocale>(
+    () => existing?.primaryLocale ?? (getLocale() === "ar" ? "ar" : "en"),
+  );
+  const [sendAt, setSendAt] = useState("");
+  const [editorKey, setEditorKey] = useState(0);
+  const [valid, setValid] = useState(true);
+  const [issues, setIssues] = useState<string[]>([]);
+  const [pending, setPending] = useState<
+    "publish" | "review" | "archive" | null
+  >(null);
+  const [previewing, setPreviewing] = useState(false);
+  const [comparing, setComparing] = useState(false);
+  const [previewLocale, setPreviewLocale] = useState<NewsletterLocale>(
+    draft.primaryLocale,
+  );
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const live = state === "published";
   const other = otherLocale(draft.primaryLocale);
-  const untouched = !existing && !draft.sections.some(sectionWritten);
-  const failure = save.error ?? publish.error;
-  const sectionList = (
-    <div className="grid gap-4">
-      {draft.sections.map((section, index) => (
-        <SectionCard
-          key={section.id}
-          section={section}
-          index={index}
-          count={draft.sections.length}
-          locale={draft.primaryLocale}
-          media={media}
-          onChange={(next) => setSection(index, next)}
-          onMove={(by) => moveSection(index, by)}
-          onRemove={() =>
-            set(
-              "sections",
-              draft.sections.filter((_, at) => at !== index),
-            )
-          }
-        />
-      ))}
-      {shown && issues.sections ? (
-        <p role="alert" className="text-[13px] leading-[18px] text-destructive">
-          {issues.sections}
-        </p>
-      ) : null}
-      {draft.sections.length < MAX_SECTIONS ? (
-        <div>
-          <Button
-            type="button"
-            variant="outline"
-            className="max-md:h-10"
-            onClick={() => set("sections", [...draft.sections, emptySection()])}
-          >
-            <Plus aria-hidden />
-            {m.nlAddSection()}
-          </Button>
-        </div>
-      ) : null}
+
+  const persist = useCallback(
+    async (value: Draft) => {
+      if (!valid) throw new Error("content.invalid");
+      const saved = await saveNewsletter({
+        data: {
+          id: id.current,
+          expectedVersion: version.current,
+          title: value.title.trim(),
+          primaryLocale: value.primaryLocale,
+          bilingual: value.bilingual,
+          audiences: value.audiences,
+          body: value.body,
+          translation: value.bilingual ? value.translation : null,
+        },
+      });
+      const created = !id.current;
+      id.current = saved.id;
+      version.current = saved.version;
+      setStored(true);
+      setReview(saved.translationReview);
+      if (live) setChanged(true);
+      await queryClient.invalidateQueries({ queryKey: ["newsletters"] });
+      if (created) onCreated(saved.id);
+    },
+    [valid, live, queryClient, onCreated],
+  );
+
+  // The server needs a title and a reachable audience to store an edition.
+  const autosave = useAutosave({
+    value: draft,
+    save: persist,
+    enabled:
+      state !== "archived" &&
+      draft.title.trim() !== "" &&
+      audienceIssue(draft.audiences) === null,
+  });
+
+  const change = useCallback((patch: Partial<Draft>) => {
+    setIssues([]);
+    setDraft((current) => ({ ...current, ...patch }));
+  }, []);
+  const changeBody = useCallback(
+    (body: ContentDocument) => change({ body }),
+    [change],
+  );
+  const changeTranslation = useCallback(
+    (translation: ContentDocument) => change({ translation }),
+    [change],
+  );
+
+  const translation = draft.bilingual
+    ? translationState({
+        translation: draft.translation,
+        reviewed: review !== null,
+        current: review?.current ?? false,
+      })
+    : null;
+
+  const applyTemplate = (template: Template) => {
+    change({
+      body: headedContent(
+        TEMPLATE_HEADINGS[template].map((heading) => ({
+          heading: heading({}, { locale: draft.primaryLocale }),
+          body: emptyContent(),
+        })),
+      ),
+    });
+    setEditorKey((key) => key + 1);
+  };
+
+  const later = !live && sendAt !== "";
+
+  const problems = () => {
+    const found: string[] = [];
+    if (!draft.title.trim()) found.push(m.nlTitleNeeded());
+    if (!documentWritten(draft.body)) found.push(m.nlBodyNeeded());
+    const audience = audienceIssue(draft.audiences);
+    if (audience) {
+      found.push(audience);
+      setDetailsOpen(true);
+    }
+    return found;
+  };
+
+  const publish = async () => {
+    const found = problems();
+    setIssues(found);
+    if (found.length) return;
+    setPending("publish");
+    try {
+      await persist(draft);
+      autosave.markSaved(draft);
+      await publishNewsletter({
+        data: {
+          id: id.current,
+          expectedVersion: version.current,
+          publishAt: later ? new Date(sendAt).toISOString() : "",
+        },
+      });
+      await queryClient.invalidateQueries({ queryKey: ["newsletters"] });
+      toast.success(
+        live
+          ? m.nlChangesPublished()
+          : later
+            ? m.nlScheduled()
+            : m.nlPublished(),
+      );
+      onClose(id.current);
+    } catch (error) {
+      toast.error(getMessageFromError(error));
+    } finally {
+      setPending(null);
+    }
+  };
+
+  // The check is taken against the original as stored, so what is on screen
+  // is saved first.
+  const markReviewed = async (reviewed: boolean) => {
+    setPending("review");
+    try {
+      await persist(draft);
+      autosave.markSaved(draft);
+      const out = await reviewNewsletterTranslation({
+        data: { id: id.current, expectedVersion: version.current, reviewed },
+      });
+      version.current = out.version;
+      setReview(out.review);
+    } catch (error) {
+      toast.error(getMessageFromError(error));
+    } finally {
+      setPending(null);
+    }
+  };
+
+  const archive = async () => {
+    setPending("archive");
+    try {
+      autosave.flush();
+      await archiveNewsletter({
+        data: { id: id.current, expectedVersion: version.current },
+      });
+      await queryClient.invalidateQueries({ queryKey: ["newsletters"] });
+      toast.success(m.nlArchived());
+      onClose();
+    } catch (error) {
+      toast.error(getMessageFromError(error));
+      setPending(null);
+    }
+  };
+
+  const untouched =
+    !stored && !documentWritten(draft.body) && writing === draft.primaryLocale;
+  const translating = draft.bilingual && writing === other;
+
+  const editorFor = (locale: NewsletterLocale) => (
+    <div lang={locale} className="min-w-0">
+      <ContentEditor
+        key={`${editorKey}-${locale}`}
+        id={
+          locale === draft.primaryLocale
+            ? "newsletter-body"
+            : "newsletter-translation"
+        }
+        label={
+          locale === draft.primaryLocale
+            ? LOCALE_LABEL[locale]()
+            : `${m.nlTranslation()} (${LOCALE_LABEL[locale]()})`
+        }
+        variant="document"
+        value={locale === draft.primaryLocale ? draft.body : draft.translation}
+        onChange={
+          locale === draft.primaryLocale ? changeBody : changeTranslation
+        }
+        onValidityChange={setValid}
+        media={media}
+      />
     </div>
   );
+
   return (
     <>
-      <RecordForm
-        title={existing ? m.nlEditTitle() : m.nlNewTitle()}
-        submitLabel={published ? m.nlSaveQuietly() : m.annSaveDraft()}
-        secondary={
-          published
-            ? { label: m.nlPublishChanges(), intent: "publish" }
+      <DocumentPage
+        heading={existing ? m.nlEditTitle() : m.nlNewTitle()}
+        onBack={() => {
+          autosave.flush();
+          onClose(id.current || undefined);
+        }}
+        status={{ label: STATE_LABEL[state](), tone: STATE_TONE[state] }}
+        saveState={autosave.state}
+        onRetry={autosave.retry}
+        primary={
+          state === "archived" || (live && !changed)
+            ? undefined
             : {
-                label:
-                  draft.when === "later" ? m.annSchedule() : m.annPublish(),
-                intent: "publish",
+                label: live
+                  ? m.nlPublishChanges()
+                  : later
+                    ? m.annSchedule()
+                    : m.annPublish(),
+                icon: later ? CalendarClock : Send,
+                pending: pending === "publish",
+                onClick: () => void publish(),
               }
         }
-        onSubmit={async (intent) => {
-          setShown(true);
-          if (Object.values(issues).some(Boolean)) return;
-          let saved: { id: string; version: number };
-          try {
-            saved = await save.mutateAsync();
-          } catch {
-            return;
-          }
-          if (intent === "publish") {
-            try {
-              await publish.mutateAsync(saved);
-            } catch {
-              return;
-            }
-          }
-          await queryClient.invalidateQueries({ queryKey: ["newsletters"] });
-          leaving.current = true;
-          toast.success(
-            intent === "publish"
-              ? published
-                ? m.nlChangesPublished()
-                : draft.when === "later"
-                  ? m.nlScheduled()
-                  : m.nlPublished()
-              : m.nlSaved(),
-          );
-          onClose(saved.id);
-        }}
-        onCancel={() => onClose()}
-        isDirty={() =>
-          !leaving.current && JSON.stringify(draft) !== JSON.stringify(initial)
+        preview={{ label: m.nlPreview(), onClick: () => setPreviewing(true) }}
+        menu={
+          stored && state !== "archived"
+            ? [
+                {
+                  label: m.annArchive(),
+                  icon: Archive,
+                  destructive: true,
+                  onSelect: () => void archive(),
+                  confirm: {
+                    title: m.annArchiveTitle({
+                      title: draft.title.trim() || m.nlUntitled(),
+                    }),
+                    body: m.annArchiveBody(),
+                    label: m.annArchive(),
+                  },
+                },
+              ]
+            : []
         }
-        pending={save.isPending || publish.isPending}
-        error={failure ? getMessageFromError(failure) : null}
-      >
-        <FormSection title={m.nlSectionEdition()}>
-          <TextField
-            id="newsletter-title"
-            label={m.annColTitle()}
-            width="name"
-            dir="auto"
-            maxLength={200}
-            autoComplete="off"
-            value={draft.title}
-            onChange={(event) => set("title", event.target.value)}
-            errors={shown && issues.title ? [issues.title] : undefined}
-          />
-          <SelectField
-            id="newsletter-language"
-            label={m.nlPrimaryLanguage()}
-            hint={m.nlPrimaryLanguageHint()}
-            width="name"
-            value={draft.primaryLocale}
-            options={NEWSLETTER_LOCALES.map((locale) => ({
-              value: locale,
-              label: LOCALE_LABEL[locale](),
-            }))}
-            onChange={(primaryLocale) => {
-              setDraft((current) => ({ ...current, primaryLocale }));
-              setWriting(primaryLocale);
-            }}
-          />
-          <CheckboxRow
-            label={m.nlBilingual({ language: LOCALE_NAME[other]() })}
-            hint={m.nlBilingualHint({
-              language: LOCALE_NAME[draft.primaryLocale](),
-            })}
-            checked={draft.bilingual}
-            onChange={(bilingual) => {
-              set("bilingual", bilingual);
-              if (!bilingual) setWriting(draft.primaryLocale);
-            }}
-          />
-        </FormSection>
-        <FormSection
-          title={m.annSectionAudience()}
-          description={m.annAudienceHint()}
-        >
-          <AudienceList
-            value={draft.audiences}
-            onChange={(audiences) => set("audiences", audiences)}
-            choices={options}
-            error={shown ? issues.audiences : null}
-          />
-        </FormSection>
-        <FormSection
-          title={m.nlSectionSections()}
-          description={m.nlSectionsHint()}
-        >
-          <div className="flex flex-wrap items-end gap-3">
-            {untouched ? (
-              <SelectField
-                id="newsletter-template"
-                label={m.nlStartFrom()}
-                width="name"
-                value="blank"
-                options={TEMPLATES.map((template) => ({
-                  value: template,
-                  label: TEMPLATE_LABEL[template](),
-                }))}
-                onChange={applyTemplate}
-              />
-            ) : null}
-            <Button
-              type="button"
-              variant="outline"
-              className="max-md:h-10"
-              onClick={() => setPreviewing(true)}
-            >
-              <Eye aria-hidden />
-              {m.nlPreview()}
-            </Button>
-          </div>
-          {draft.bilingual ? (
-            <Tabs
-              value={writing}
-              onValueChange={(value: NewsletterLocale) => setWriting(value)}
-              className="grid gap-4"
-            >
-              <TabsList aria-label={m.nlLanguage()}>
-                {[draft.primaryLocale, other].map((locale) => (
-                  <TabsTrigger key={locale} value={locale} lang={locale}>
-                    {LOCALE_LABEL[locale]()}
-                  </TabsTrigger>
-                ))}
-              </TabsList>
-              <TabsContent value={draft.primaryLocale}>
-                {sectionList}
-              </TabsContent>
-              <TabsContent value={other}>
-                <div className="grid gap-4">
-                  {draft.sections.map((section, index) => (
-                    <TranslationCard
-                      key={section.id}
-                      section={section}
-                      index={index}
-                      primary={draft.primaryLocale}
-                      value={draft.translated[section.id] ?? UNTRANSLATED}
-                      media={media}
-                      onChange={(next) =>
-                        set("translated", {
-                          ...draft.translated,
-                          [section.id]: next,
-                        })
-                      }
-                    />
+        summary={[
+          audienceSummary(draft.audiences, options),
+          draft.bilingual
+            ? m.nlBothLanguages()
+            : LOCALE_LABEL[draft.primaryLocale](),
+        ]}
+        details={{ open: detailsOpen, onOpenChange: setDetailsOpen }}
+        title={
+          <div className="grid gap-3">
+            {issues.length ? (
+              <div
+                role="alert"
+                className="rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive"
+              >
+                <ul className="list-disc ps-5">
+                  {issues.map((issue) => (
+                    <li key={issue}>{issue}</li>
                   ))}
-                </div>
-              </TabsContent>
-            </Tabs>
-          ) : (
-            sectionList
-          )}
-        </FormSection>
-        <FormSection title={m.annSectionDelivery()}>
-          {draft.bilingual &&
-          (gaps.missing.length > 0 || gaps.unreviewed.length > 0) ? (
-            <div className="grid gap-1 rounded-lg border border-warning/60 bg-warning/10 px-4 py-3 text-sm leading-5">
-              {gaps.missing.length > 0 ? (
-                <p>
-                  {m.nlMissingTranslation({
-                    count: gaps.missing.length,
-                    value: formatNumber(gaps.missing.length),
-                    language: LOCALE_NAME[other](),
-                    primary: LOCALE_NAME[draft.primaryLocale](),
-                  })}
-                </p>
-              ) : null}
-              {gaps.unreviewed.length > 0 ? (
-                <p>
-                  {m.nlUnreviewed({
-                    count: gaps.unreviewed.length,
-                    value: formatNumber(gaps.unreviewed.length),
-                  })}
-                </p>
-              ) : null}
-            </div>
-          ) : null}
-          {published ? (
-            <p className="text-sm leading-5 text-muted-foreground">
-              {m.nlPublishedHint()}
-            </p>
-          ) : (
-            <>
+                </ul>
+              </div>
+            ) : null}
+            <DocumentTitle
+              id="newsletter-title"
+              label={m.annColTitle()}
+              placeholder={m.nlUntitled()}
+              maxLength={200}
+              value={draft.title}
+              onChange={(title) => change({ title })}
+              onEnter={() =>
+                document
+                  .getElementById(
+                    translating ? "newsletter-translation" : "newsletter-body",
+                  )
+                  ?.focus()
+              }
+            />
+          </div>
+        }
+        aside={
+          <DetailsPanel title={m.docDetails()}>
+            <DetailsSection title={m.nlSectionEdition()}>
               <SelectField
-                id="newsletter-when"
-                label={m.annWhen()}
-                width="name"
-                value={draft.when}
-                options={[
-                  { value: "now", label: m.annWhenNow() },
-                  { value: "later", label: m.annWhenLater() },
-                ]}
-                onChange={(when) => set("when", when)}
+                id="newsletter-language"
+                label={m.nlPrimaryLanguage()}
+                hint={m.nlPrimaryLanguageHint()}
+                value={draft.primaryLocale}
+                options={NEWSLETTER_LOCALES.map((locale) => ({
+                  value: locale,
+                  label: LOCALE_LABEL[locale](),
+                }))}
+                onChange={(primaryLocale) => {
+                  change({ primaryLocale });
+                  setWriting(primaryLocale);
+                }}
               />
-              {draft.when === "later" ? (
+              <CheckboxRow
+                label={m.nlBilingual({ language: LOCALE_NAME[other]() })}
+                hint={m.nlBilingualHint({
+                  language: LOCALE_NAME[draft.primaryLocale](),
+                })}
+                checked={draft.bilingual}
+                onChange={(bilingual) => {
+                  change({ bilingual });
+                  if (!bilingual) setWriting(draft.primaryLocale);
+                }}
+              />
+            </DetailsSection>
+            {draft.bilingual && translation ? (
+              <DetailsSection title={m.nlTranslation()}>
+                <TranslationNote
+                  state={translation}
+                  review={review}
+                  language={LOCALE_NAME[other]()}
+                />
+                <CheckboxRow
+                  label={m.nlReviewed()}
+                  hint={m.nlReviewedHint({
+                    language: LOCALE_NAME[draft.primaryLocale](),
+                  })}
+                  checked={translation === "reviewed"}
+                  onChange={(checked) => {
+                    if (pending !== "review") void markReviewed(checked);
+                  }}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="justify-self-start max-md:h-10"
+                  onClick={() => setComparing(true)}
+                >
+                  {m.nlShowOriginal({
+                    language: LOCALE_NAME[draft.primaryLocale](),
+                  })}
+                </Button>
+              </DetailsSection>
+            ) : null}
+            <DetailsSection
+              title={m.annSectionAudience()}
+              hint={m.annAudienceHint()}
+            >
+              <AudienceList
+                value={draft.audiences}
+                onChange={(audiences) => change({ audiences })}
+                choices={options}
+                error={null}
+              />
+            </DetailsSection>
+            <DetailsSection title={m.annSectionDelivery()}>
+              {live ? (
+                <p className="text-[13px] leading-[18px] text-muted-foreground">
+                  {m.nlPublishedHint()}
+                </p>
+              ) : (
                 <FormField
                   id="newsletter-send-at"
                   label={m.annSendAt()}
-                  errors={shown && issues.sendAt ? [issues.sendAt] : undefined}
+                  hint={m.annSendAtHint()}
+                  optional
                 >
                   {(control) => (
                     <Input
                       {...control}
                       type="datetime-local"
-                      className="w-60 max-md:h-10"
-                      value={draft.sendAt}
-                      onChange={(event) => set("sendAt", event.target.value)}
+                      className="w-full max-md:h-10"
+                      value={sendAt}
+                      onChange={(event) => setSendAt(event.target.value)}
                     />
                   )}
                 </FormField>
-              ) : null}
-            </>
-          )}
-        </FormSection>
-      </RecordForm>
-      {previewing ? (
-        <PreviewSheet open onOpenChange={setPreviewing} draft={draft} />
-      ) : null}
+              )}
+            </DetailsSection>
+          </DetailsPanel>
+        }
+      >
+        <div className="grid gap-4">
+          {untouched ? (
+            <div className="flex flex-wrap items-center gap-2 text-[13px] text-muted-foreground">
+              <span>{m.nlStartFrom()}</span>
+              {TEMPLATES.map((template) => (
+                <Button
+                  key={template}
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="max-md:h-10"
+                  onClick={() => applyTemplate(template)}
+                >
+                  {TEMPLATE_LABEL[template]()}
+                </Button>
+              ))}
+            </div>
+          ) : null}
+          {draft.bilingual ? (
+            <Tabs
+              value={writing}
+              onValueChange={(value: NewsletterLocale) => setWriting(value)}
+            >
+              <TabsList aria-label={m.nlLanguage()}>
+                <TabsTrigger
+                  value={draft.primaryLocale}
+                  lang={draft.primaryLocale}
+                >
+                  {LOCALE_LABEL[draft.primaryLocale]()}
+                </TabsTrigger>
+                <TabsTrigger value={other} lang={other}>
+                  {LOCALE_LABEL[other]()}
+                </TabsTrigger>
+              </TabsList>
+            </Tabs>
+          ) : null}
+          {editorFor(translating ? other : draft.primaryLocale)}
+        </div>
+      </DocumentPage>
+      <SheetPanel
+        open={comparing}
+        onOpenChange={setComparing}
+        title={m.nlOriginalTitle({
+          language: LOCALE_NAME[draft.primaryLocale](),
+        })}
+      >
+        <div lang={draft.primaryLocale}>
+          <ContentView
+            document={draft.body}
+            fileUrl={(fileId) => `/files/${fileId}`}
+          />
+        </div>
+      </SheetPanel>
+      <SheetPanel
+        open={previewing}
+        onOpenChange={setPreviewing}
+        title={m.nlPreview()}
+      >
+        <h2
+          dir="auto"
+          className="text-2xl leading-8 font-semibold tracking-tight"
+        >
+          {draft.title || m.nlUntitled()}
+        </h2>
+        <NewsletterView
+          body={draft.body}
+          translation={draft.bilingual ? draft.translation : null}
+          primary={draft.primaryLocale}
+          locale={draft.bilingual ? previewLocale : draft.primaryLocale}
+          onLocaleChange={setPreviewLocale}
+        />
+      </SheetPanel>
     </>
   );
 }

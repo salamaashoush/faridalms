@@ -19,20 +19,23 @@ test("the office sends an edition in two languages and a family reads it in Arab
   await page.goto("/admin/newsletter-editor");
   await untilHydrated(page);
   await page.getByRole("textbox", { name: "Title" }).fill(title);
-  await page
-    .getByRole("textbox", { name: "Heading" })
-    .fill("Every class visits the library");
-  await page.locator("[contenteditable=true]").first().click();
+  await page.locator("#newsletter-body").click();
+  await page.keyboard.type("## Every class visits the library");
+  await page.keyboard.press("Enter");
   await page.keyboard.type("Bring a book to swap on Thursday.");
   await page.getByRole("checkbox", { name: "Also write it in Arabic" }).click();
   await page.getByRole("tab", { name: "العربية" }).click();
-  const arabic = page.getByRole("tabpanel", { name: "العربية" });
-  await arabic.getByRole("textbox", { name: "Heading" }).fill("أسبوع الكتاب");
-  await arabic.locator("[contenteditable=true]").click();
+  await page.locator("#newsletter-translation").click();
+  await page.keyboard.type("## ");
+  await page.keyboard.insertText("أسبوع الكتاب");
+  await page.keyboard.press("Enter");
   await page.keyboard.insertText("أحضروا كتابًا للتبادل يوم الخميس.");
-  await arabic
+  await page
     .getByRole("checkbox", { name: "Checked against the original" })
     .click();
+  await expect(
+    page.getByText(/^Checked against the original by/),
+  ).toBeVisible();
   await page.getByRole("button", { name: "Send now" }).click();
   await expect(page).toHaveURL(/\/newsletters\/[a-f0-9-]+/);
   await expect(
@@ -68,8 +71,10 @@ test("the office sends an edition in two languages and a family reads it in Arab
 
   await page.goto(editionUrl);
   await untilHydrated(page);
+  await page.getByRole("button", { name: /of \d+ read/ }).click();
   await expect(
     page
+      .getByRole("dialog")
       .getByRole("table", { name: "Who it reached" })
       .getByRole("row", { name: /Sara Sabry/ }),
   ).not.toContainText("Not read");

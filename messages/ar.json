@@ -2422,17 +2422,7 @@
   "nlPrimaryLanguage": "لغة الكتابة",
   "nlPrimaryLanguageHint": "اللغة التي تكتب بها الإصدار أولًا.",
   "nlBilingual": "كتابته أيضًا باللغة {language}",
-  "nlBilingualHint": "يختار القراء اللغة. يظهر القسم غير المترجم بعد باللغة {language}.",
-  "nlSectionSections": "الأقسام",
-  "nlSectionsHint": "لكل قسم عنوان ونص، مع الصور والروابط.",
-  "nlSectionNumber": "القسم {number}",
-  "nlHeading": "العنوان",
-  "nlBody": "النص",
-  "nlMoveUp": "نقل القسم لأعلى",
-  "nlMoveDown": "نقل القسم لأسفل",
-  "nlRemoveSection": "إزالة القسم",
-  "nlAddSection": "إضافة قسم",
-  "nlSectionsNeeded": "اكتب قسمًا واحدًا على الأقل.",
+  "nlBilingualHint": "يختار القراء اللغة. إلى أن تُكتب الترجمة تظهر النشرة باللغة {language}.",
   "nlTitleNeeded": "أدخل عنوانًا.",
   "nlStartFrom": "البدء من",
   "nlTemplateBlank": "إصدار فارغ",
@@ -2447,32 +2437,21 @@
   "nlLangEn": "English",
   "nlLangAr": "العربية",
   "nlReviewed": "تمت مراجعته مقابل الأصل",
-  "nlReviewedHint": "ضع علامة بعد مقارنة هذا القسم بالأصل المكتوب باللغة {language}. التعديل يزيل العلامة.",
+  "nlReviewedHint": "ضع علامة بعد مقارنة الترجمة بالأصل المكتوب باللغة {language}. تعديل الترجمة يزيل العلامة، ويظهر هنا أي تغيير في الأصل.",
   "nlPreview": "معاينة",
   "nlUntitled": "إصدار بلا عنوان",
-  "nlMissingTranslation": [
-    {
-      "declarations": [
-        "input count",
-        "input value",
-        "input language",
-        "input primary",
-        "local countPlural = count: plural"
-      ],
-      "selectors": ["countPlural"],
-      "match": {
-        "countPlural=zero": "لا توجد أقسام دون ترجمة إلى اللغة {language}.",
-        "countPlural=one": "قسم واحد لم يُترجم إلى اللغة {language} بعد، ويظهر لمن يختارها باللغة {primary}.",
-        "countPlural=two": "قسمان لم يُترجما إلى اللغة {language} بعد، ويظهران لمن يختارها باللغة {primary}.",
-        "countPlural=few": "{value} أقسام لم تُترجم إلى اللغة {language} بعد، وتظهر لمن يختارها باللغة {primary}.",
-        "countPlural=many": "{value} قسمًا لم تُترجم إلى اللغة {language} بعد، وتظهر لمن يختارها باللغة {primary}.",
-        "countPlural=*": "{value} قسم لم يُترجم إلى اللغة {language} بعد، ويظهر لمن يختارها باللغة {primary}."
-      }
-    }
-  ],
-  "nlSaveQuietly": "حفظ دون نشر",
+  "nlShowOriginal": "عرض الأصل باللغة {language}",
+  "nlOriginalTitle": "الأصل باللغة {language}",
+  "nlBodyNeeded": "اكتب شيئًا في النشرة.",
+  "nlNotTranslated": "لم تُكتب النشرة باللغة {language} بعد، فتظهر باللغة {original}.",
+  "nlTranslationMissing": "لم تُكتب الترجمة إلى {language} بعد.",
+  "nlTranslationUnreviewed": "لم يراجع أحد الترجمة مقابل الأصل بعد.",
+  "nlTranslationStale": "تغيّر الأصل بعد مراجعة الترجمة. راجعها مرة أخرى.",
+  "nlTranslationReviewed": "راجعها {name} مقابل الأصل، {date}.",
+  "nlTranslation": "الترجمة",
+  "nlErrNothingToCheck": "اكتب الترجمة قبل تعليمها كمراجَعة.",
   "nlPublishChanges": "نشر التغييرات",
-  "nlPublishedHint": "يحتفظ القراء بالإصدار الذي وصلهم. الحفظ يبقي تعديلاتك خاصة حتى تنشر التغييرات.",
+  "nlPublishedHint": "يحتفظ القراء بالإصدار الذي وصلهم. تُحفظ تعديلاتك أثناء الكتابة وتبقى خاصة حتى تنشر التغييرات.",
   "nlSaved": "تم حفظ الإصدار.",
   "nlPublished": "تم نشر الإصدار.",
   "nlScheduled": "تمت جدولة الإصدار.",
@@ -2488,24 +2467,6 @@
   "nlStateArchived": "مؤرشف",
   "nlReportHint": "كل من وصله هذا الإصدار، ومن لم يفتحه أولًا.",
   "nlNotSent": "لم يصل هذا الإصدار إلى أحد بعد.",
-  "nlUnreviewed": [
-    {
-      "declarations": [
-        "input count",
-        "input value",
-        "local countPlural = count: plural"
-      ],
-      "selectors": ["countPlural"],
-      "match": {
-        "countPlural=zero": "لا توجد أقسام مترجمة دون مراجعة.",
-        "countPlural=one": "قسم مترجم واحد لم تتم مراجعته.",
-        "countPlural=two": "قسمان مترجمان لم تتم مراجعتهما.",
-        "countPlural=few": "{value} أقسام مترجمة لم تتم مراجعتها.",
-        "countPlural=many": "{value} قسمًا مترجمًا لم تتم مراجعتها.",
-        "countPlural=*": "{value} قسم مترجم لم تتم مراجعته."
-      }
-    }
-  ],
   "nlErrArchived": "هذا الإصدار مؤرشف ولا يمكن تغييره.",
   "nlErrAlreadyOut": "هذا الإصدار أُرسل بالفعل، فلا يمكن جدولته. انشر التغييرات بدلًا من ذلك.",
   "nlNameEn": "الإنجليزية",

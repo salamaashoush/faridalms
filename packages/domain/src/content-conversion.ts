@@ -169,3 +169,44 @@ export function plainContent(text: string): ContentDocument {
     },
   };
 }
+
+/**
+ * A document of headed parts: each heading a level-two heading followed by
+ * its text, as newsletters were written before they became one document.
+ */
+export function headedContent(
+  parts: { heading: string; body: ContentDocument }[],
+): ContentDocument {
+  const children = parts.flatMap(({ heading, body }) => [
+    ...(heading.trim()
+      ? [
+          {
+            type: "heading" as const,
+            version: 1 as const,
+            tag: "h2" as const,
+            children: [
+              {
+                type: "text" as const,
+                version: 1 as const,
+                format: 0,
+                detail: 0,
+                mode: "normal" as const,
+                style: "",
+                text: heading.trim(),
+              },
+            ],
+            direction: null,
+            format: "" as const,
+            indent: 0,
+          },
+        ]
+      : []),
+    ...(body.root.children ?? []),
+  ]);
+  return {
+    root: {
+      ...emptyContent().root,
+      children: children.length ? children : emptyContent().root.children,
+    },
+  };
+}

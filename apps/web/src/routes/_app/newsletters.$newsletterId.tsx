@@ -22,11 +22,16 @@ import {
 } from "~/components/newsletters/NewsletterView";
 import { DataTable } from "~/components/system/DataTable";
 import {
+  ReaderWidthToggle,
+  useReaderWidth,
+} from "~/components/system/ReaderWidth";
+import {
   Fact,
   Facts,
+  phoneLink,
   RecordHeader,
-  RecordSection,
 } from "~/components/system/RecordPage";
+import { SheetPanel } from "~/components/system/SheetPanel";
 import { StatusText } from "~/components/system/status";
 import { Button } from "~/components/ui/button";
 import { inLocale, useCurrentUser } from "~/hooks/useCurrentUser";
@@ -39,6 +44,7 @@ import {
   markNewsletterSeen,
   publishNewsletter,
 } from "~/server/newsletters";
+import { cn } from "~/utils/cn";
 import { formatNumber } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
@@ -97,7 +103,15 @@ function reportCard(timeZone: string) {
   };
 }
 
-function Report({ data }: { data: Data }) {
+function Report({
+  data,
+  open,
+  onOpenChange,
+}: {
+  data: Data;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
   const user = useCurrentUser();
   const rows: ReportRow[] = (data.report ?? []).map((row) => ({
     ...row,
@@ -105,22 +119,25 @@ function Report({ data }: { data: Data }) {
   }));
   const read = rows.filter((row) => row.readAt).length;
   return (
-    <RecordSection title={m.annReport()} description={m.nlReportHint()}>
-      <div className="grid gap-4">
-        <Facts short>
-          <Fact label={m.annReached()}>{formatNumber(rows.length)}</Fact>
-          <Fact label={m.annColRead()}>{formatNumber(read)}</Fact>
-        </Facts>
-        <DataTable
-          caption={m.annReport()}
-          rows={rows}
-          columns={reportColumns(user.school.timeZone)}
-          rowLabel={(row) => inLocale(row.fullNameEn, row.fullNameAr)}
-          card={reportCard(user.school.timeZone)}
-          empty={{ title: m.nlNotSent() }}
-        />
-      </div>
-    </RecordSection>
+    <SheetPanel
+      open={open}
+      onOpenChange={onOpenChange}
+      title={m.annReport()}
+      description={m.nlReportHint()}
+    >
+      <Facts short>
+        <Fact label={m.annReached()}>{formatNumber(rows.length)}</Fact>
+        <Fact label={m.annColRead()}>{formatNumber(read)}</Fact>
+      </Facts>
+      <DataTable
+        caption={m.annReport()}
+        rows={rows}
+        columns={reportColumns(user.school.timeZone)}
+        rowLabel={(row) => inLocale(row.fullNameEn, row.fullNameAr)}
+        card={reportCard(user.school.timeZone)}
+        empty={{ title: m.nlNotSent() }}
+      />
+    </SheetPanel>
   );
 }
 
@@ -161,6 +178,8 @@ function NewsletterPage() {
       ? viewer
       : data.primaryLocale,
   );
+  const [reporting, setReporting] = useState(false);
+  const width = useReaderWidth();
   const refresh = () =>
     queryClient.invalidateQueries({ queryKey: ["newsletters"] });
   const { mutate: markSeen } = useMutation({
@@ -231,13 +250,44 @@ function NewsletterPage() {
           },
         ]
       : []),
+    ...(data.canManage && data.report && !data.preview
+      ? [
+          {
+            label: m.annReport(),
+            value: (
+              <button
+                type="button"
+                className={cn(
+                  "font-medium text-primary underline-offset-4 hover:underline",
+                  phoneLink,
+                )}
+                onClick={() => setReporting(true)}
+              >
+                {m.annReadOf({
+                  count: formatNumber(
+                    data.report.filter((row) => row.readAt).length,
+                  ),
+                  total: formatNumber(data.report.length),
+                })}
+              </button>
+            ),
+          },
+        ]
+      : []),
   ];
   const editable = data.canManage && data.state !== "archived";
   return (
-    <div className="mx-auto grid w-full max-w-3xl gap-6">
+    <div
+      className={cn(
+        "mx-auto grid w-full gap-6",
+        width.wide ? "max-w-none" : "max-w-[720px]",
+      )}
+    >
       <RecordHeader
+        variant="document"
         title={data.title}
         facts={facts}
+        tools={<ReaderWidthToggle wide={width.wide} onToggle={width.toggle} />}
         status={
           data.state === "draft"
             ? { label: m.nlStateDraft(), tone: "neutral" }
@@ -305,13 +355,15 @@ function NewsletterPage() {
         </Notice>
       ) : null}
       <NewsletterView
-        content={data.content}
+        body={data.body}
         translation={data.translation}
         primary={data.primaryLocale}
         locale={locale}
         onLocaleChange={setLocale}
       />
-      {data.canManage && !data.preview ? <Report data={data} /> : null}
+      {data.canManage && !data.preview ? (
+        <Report data={data} open={reporting} onOpenChange={setReporting} />
+      ) : null}
     </div>
   );
 }

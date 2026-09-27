@@ -1,5 +1,5 @@
 import type { NewsletterState } from "@faridalms/database/tables/newsletters";
-import type { NewsletterContent } from "@faridalms/domain/newsletters";
+import type { ContentDocument } from "@faridalms/domain/content";
 
 import {
   audiencesOf,
@@ -24,18 +24,21 @@ import {
   newsletterById,
   newsletterRecipientOf,
   newsletterReport,
+  reviewTranslation,
   setNewsletterState,
+  translationReview,
   updateNewsletter,
 } from "@faridalms/database/stores/newsletters";
 import { readSubject } from "@faridalms/database/stores/notifications";
+import { contentFileIds, contentPlainText } from "@faridalms/domain/content";
+import { emptyContent } from "@faridalms/domain/content-conversion";
 import {
-  alignTranslation,
-  editionFileIds,
-  editionPlainText,
+  documentWritten,
   listQuerySchema,
   manageNewslettersSchema,
   newsletterRefSchema,
   publishNewsletterSchema,
+  reviewTranslationSchema,
   saveNewsletterSchema,
 } from "@faridalms/domain/newsletters";
 import { ORPCError } from "@orpc/server";
@@ -125,9 +128,9 @@ async function edition(context: UnitContext, newsletterId: string) {
   ]);
   if (!published) return null;
   return {
-    content: published.content as unknown as NewsletterContent,
+    body: published.content as unknown as ContentDocument,
     translation: (publishedTranslation?.content ??
-      null) as unknown as NewsletterContent | null,
+      null) as unknown as ContentDocument | null,
     changedSince:
       original.version > published.documentVersion ||
       (translation !== null &&
@@ -172,20 +175,24 @@ export const editor = readProcedure
   .handler(async ({ input, context }) => {
     requireCapability(context, "newsletters:manage");
     const row = await ofSchool(context, input.id);
-    const [audiences, { original, translation }] = await Promise.all([
-      audiencesOf(context.tx, context.tenantId, {
-        kind: "newsletter",
-        id: row.id,
-      }),
-      drafts(context, row.id),
-    ]);
+    const [audiences, { original, translation }, review, out] =
+      await Promise.all([
+        audiencesOf(context.tx, context.tenantId, {
+          kind: "newsletter",
+          id: row.id,
+        }),
+        drafts(context, row.id),
+        translationReview(context.tx, context.tenantId, row.id),
+        edition(context, row.id),
+      ]);
     return {
       ...row,
       audiences,
-      content: (original?.content ??
-        null) as unknown as NewsletterContent | null,
+      changedSince: out?.changedSince ?? false,
+      body: (original?.content ?? null) as unknown as ContentDocument | null,
       translation: (translation?.content ??
-        null) as unknown as NewsletterContent | null,
+        null) as unknown as ContentDocument | null,
+      translationReview: review,
     };
   });
 
@@ -198,7 +205,7 @@ export const record = readProcedure
   .handler(async ({ input, context }) => {
     const { row, recipient } = await readable(context, input.id);
     const manages = can(context, "newsletters:manage");
-    const [audiences, out, report] = await Promise.all([
+    const [audiences, out, report, review] = await Promise.all([
       audiencesOf(context.tx, context.tenantId, {
         kind: "newsletter",
         id: row.id,
@@ -210,17 +217,18 @@ export const record = readProcedure
             newsletterId: row.id,
           })
         : Promise.resolve(null),
+      manages
+        ? translationReview(context.tx, context.tenantId, row.id)
+        : Promise.resolve(null),
     ]);
     let shown = out;
     if (!shown && manages) {
       const { original, translation } = await drafts(context, row.id);
       shown = {
-        content: (original?.content ?? {
-          sections: [],
-          reviewed: [],
-        }) as unknown as NewsletterContent,
+        body: (original?.content ??
+          emptyContent()) as unknown as ContentDocument,
         translation: (translation?.content ??
-          null) as unknown as NewsletterContent | null,
+          null) as unknown as ContentDocument | null,
         changedSince: false,
       };
     }
@@ -228,8 +236,9 @@ export const record = readProcedure
     return {
       ...row,
       audiences,
-      content: shown.content,
+      body: shown.body,
       translation: row.bilingual ? shown.translation : null,
+      translationReview: review,
       preview: out === null,
       changedSince: shown.changedSince,
       readAt: recipient?.readAt ?? null,
@@ -250,6 +259,7 @@ export const save = writeProcedure
     let newsletterId = input.id;
     let version: number;
     let keepFiles: string[] = [];
+    let before: { plainText: string } | null = null;
     if (input.id) {
       const row = await ofSchool(context, input.id);
       if (row.state === "archived")
@@ -263,12 +273,13 @@ export const save = writeProcedure
       if (next === null)
         throw new ORPCError("CONFLICT", { message: "conflict.version" });
       version = next;
+      before = (await drafts(context, row.id)).translation;
       const out = await edition(context, row.id);
       // What readers already have must keep its pictures while edits wait.
       if (out)
         keepFiles = [
-          ...editionFileIds(out.content),
-          ...(out.translation ? editionFileIds(out.translation) : []),
+          ...contentFileIds(out.body),
+          ...(out.translation ? contentFileIds(out.translation) : []),
         ];
     } else {
       const created = await insertNewsletter(context.tx, {
@@ -285,20 +296,18 @@ export const save = writeProcedure
       owner: { kind: "newsletter", id: newsletterId },
       audiences: input.audiences.map(audienceOf),
     });
-    const content = { sections: input.content.sections, reviewed: [] };
     const original = await saveDocument(context.tx, {
       tenantId: context.tenantId,
       orgId: context.schoolId,
       host: host(newsletterId),
       kind: "newsletter",
       locale: input.primaryLocale,
-      content,
-      plainText: editionPlainText(content),
-      mediaIds: [...new Set([...editionFileIds(content), ...keepFiles])],
+      content: input.body,
+      plainText: contentPlainText(input.body),
+      mediaIds: [...new Set([...contentFileIds(input.body), ...keepFiles])],
       userId: context.actor.userId,
     });
     if (input.bilingual && input.translation) {
-      const translation = alignTranslation(content, input.translation);
       await saveTranslation(context.tx, {
         tenantId: context.tenantId,
         orgId: context.schoolId,
@@ -306,9 +315,9 @@ export const save = writeProcedure
         originalId: original.id,
         locale: input.primaryLocale === "en" ? "ar" : "en",
         kind: "newsletter",
-        content: translation,
-        plainText: editionPlainText(translation),
-        mediaIds: editionFileIds(translation),
+        content: input.translation,
+        plainText: contentPlainText(input.translation),
+        mediaIds: contentFileIds(input.translation),
         userId: context.actor.userId,
       });
     } else if (!input.bilingual) {
@@ -317,13 +326,36 @@ export const save = writeProcedure
         originalId: original.id,
       });
     }
+    // A check lapses by itself once the original's words change; a translation
+    // rewritten, or dropped, needs checking again.
+    if (
+      !input.bilingual ||
+      !input.translation ||
+      contentPlainText(input.translation) !== (before?.plainText ?? "")
+    ) {
+      const cleared = await reviewTranslation(context.tx, {
+        tenantId: context.tenantId,
+        id: newsletterId,
+        userId: context.actor.userId,
+        reviewed: false,
+      });
+      if (cleared !== null) version = cleared;
+    }
     await audit(context, {
       action: input.id ? "newsletter.update" : "newsletter.create",
       objectType: "newsletter",
       objectId: newsletterId,
       details: { title: input.title },
     });
-    return { id: newsletterId, version };
+    return {
+      id: newsletterId,
+      version,
+      translationReview: await translationReview(
+        context.tx,
+        context.tenantId,
+        newsletterId,
+      ),
+    };
   });
 
 /**
@@ -347,11 +379,11 @@ export const publish = writeProcedure
         message: "newsletters.already_out",
       });
     const { original, translation } = await drafts(context, row.id);
-    const sections =
-      (original?.content as unknown as NewsletterContent | undefined)
-        ?.sections ?? [];
-    if (!original || sections.length === 0)
-      throw new ORPCError("CONFLICT", { message: "newsletters.no_sections" });
+    if (
+      !original ||
+      !documentWritten(original.content as unknown as ContentDocument)
+    )
+      throw new ORPCError("CONFLICT", { message: "newsletters.empty" });
     const audiences = await audiencesOf(context.tx, context.tenantId, {
       kind: "newsletter",
       id: row.id,
@@ -421,6 +453,45 @@ export const publish = writeProcedure
     return { version, recipients: users.length };
   });
 
+/**
+ * Records that the translation was checked against the original as it now
+ * reads, or takes the check back. Only a written translation can be checked.
+ */
+export const review = writeProcedure
+  .input(reviewTranslationSchema)
+  .handler(async ({ input, context }) => {
+    requireCapability(context, "newsletters:manage");
+    const row = await ofSchool(context, input.id);
+    if (row.version !== input.expectedVersion)
+      throw new ORPCError("CONFLICT", { message: "conflict.version" });
+    const { translation } = await drafts(context, row.id);
+    if (
+      input.reviewed &&
+      (!row.bilingual ||
+        !documentWritten(translation?.content as unknown as ContentDocument))
+    )
+      throw new ORPCError("CONFLICT", {
+        message: "newsletters.nothing_to_check",
+      });
+    const version = await reviewTranslation(context.tx, {
+      tenantId: context.tenantId,
+      id: row.id,
+      userId: context.actor.userId,
+      reviewed: input.reviewed,
+    });
+    await audit(context, {
+      action: input.reviewed
+        ? "newsletter.translation_checked"
+        : "newsletter.translation_unchecked",
+      objectType: "newsletter",
+      objectId: row.id,
+    });
+    return {
+      version: version ?? row.version,
+      review: await translationReview(context.tx, context.tenantId, row.id),
+    };
+  });
+
 export const archive = writeProcedure
   .input(newsletterRefSchema)
   .handler(async ({ input, context }) => {
@@ -449,12 +520,13 @@ export const duplicate = writeProcedure
   .handler(async ({ input, context }) => {
     requireCapability(context, "newsletters:manage");
     const row = await ofSchool(context, input.id);
-    const [audiences, { original, translation }] = await Promise.all([
+    const [audiences, { original, translation }, checked] = await Promise.all([
       audiencesOf(context.tx, context.tenantId, {
         kind: "newsletter",
         id: row.id,
       }),
       drafts(context, row.id),
+      translationReview(context.tx, context.tenantId, row.id),
     ]);
     const created = await insertNewsletter(context.tx, {
       tenantId: context.tenantId,
@@ -470,7 +542,7 @@ export const duplicate = writeProcedure
       audiences,
     });
     if (original) {
-      const content = original.content as unknown as NewsletterContent;
+      const content = original.content as unknown as ContentDocument;
       const copy = await saveDocument(context.tx, {
         tenantId: context.tenantId,
         orgId: context.schoolId,
@@ -479,7 +551,7 @@ export const duplicate = writeProcedure
         locale: row.primaryLocale,
         content: original.content,
         plainText: original.plainText,
-        mediaIds: editionFileIds(content),
+        mediaIds: contentFileIds(content),
         userId: context.actor.userId,
       });
       if (row.bilingual && translation)
@@ -492,11 +564,20 @@ export const duplicate = writeProcedure
           kind: "newsletter",
           content: translation.content,
           plainText: translation.plainText,
-          mediaIds: editionFileIds(
-            translation.content as unknown as NewsletterContent,
+          mediaIds: contentFileIds(
+            translation.content as unknown as ContentDocument,
           ),
           userId: context.actor.userId,
         });
+      if (row.bilingual && translation && checked?.current) {
+        const version = await reviewTranslation(context.tx, {
+          tenantId: context.tenantId,
+          id: created.id,
+          userId: context.actor.userId,
+          reviewed: true,
+        });
+        if (version !== null) created.version = version;
+      }
     }
     await audit(context, {
       action: "newsletter.duplicate",

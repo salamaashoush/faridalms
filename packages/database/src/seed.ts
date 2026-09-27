@@ -1,6 +1,9 @@
-import { plainContent } from "@faridalms/domain/content-conversion";
+import { contentPlainText } from "@faridalms/domain/content";
+import {
+  headedContent,
+  plainContent,
+} from "@faridalms/domain/content-conversion";
 import { CATALOGUE } from "@faridalms/domain/descriptors/catalogue";
-import { editionPlainText } from "@faridalms/domain/newsletters";
 import { addDays, teachingWeeks } from "@faridalms/domain/school";
 import {
   buildTemplate,
@@ -1435,15 +1438,14 @@ async function seedAnnouncements(tx: Tx, tenantId: string, schoolId: string) {
   }
 }
 
-const section = (id: string, heading: string, body: string) => ({
-  id,
+const part = (heading: string, body: string) => ({
   heading,
   body: plainContent(body),
 });
 
 /**
- * September's edition sent to the school in both languages, the Arabic
- * checked except one section, and October's still a draft.
+ * September's edition sent to the school in both languages, the Arabic not
+ * yet checked against the English, and October's still a draft.
  */
 async function seedNewsletters(tx: Tx, tenantId: string, schoolId: string) {
   const [principal] = await tx.execute<{ user_id: string }>(sql`
@@ -1452,63 +1454,43 @@ async function seedNewsletters(tx: Tx, tenantId: string, schoolId: string) {
       and r.role in ('principal', 'site_administrator') and r.status = 'active'
     order by r.role, r.user_id limit 1`);
   if (!principal) return;
-  const ids = [
-    Bun.randomUUIDv7(),
-    Bun.randomUUIDv7(),
-    Bun.randomUUIDv7(),
-  ] as const;
   const plans = [
     {
       title: "September newsletter",
       publishAt: new Date("2026-09-18T07:00:00Z"),
-      english: [
-        section(
-          ids[0],
+      english: headedContent([
+        part(
           "From the principal",
           "A warm welcome back to every family. The first weeks have gone smoothly, and the new timetable is settling in.",
         ),
-        section(
-          ids[1],
+        part(
           "Dates for October",
           "The museum trip is on 15 October and parents' evening follows at the end of the month.",
         ),
-        section(
-          ids[2],
+        part(
           "Clubs",
           "Chess, robotics and choir start next week. Sign-up sheets are with homeroom teachers.",
         ),
-      ],
-      arabic: [
-        section(
-          ids[0],
+      ]),
+      arabic: headedContent([
+        part(
           "كلمة المديرة",
           "مرحبًا بعودة جميع الأسر. مرت الأسابيع الأولى بسلاسة، والجدول الجديد يستقر.",
         ),
-        section(
-          ids[1],
+        part(
           "مواعيد أكتوبر",
           "رحلة المتحف في ١٥ أكتوبر، ويليها لقاء أولياء الأمور في نهاية الشهر.",
         ),
-        section(
-          ids[2],
-          "الأندية",
-          "تبدأ أندية الشطرنج والروبوتات والكورال الأسبوع المقبل.",
-        ),
-      ],
-      reviewed: [ids[0], ids[1]],
+        part("الأندية", "تبدأ أندية الشطرنج والروبوتات والكورال الأسبوع المقبل."),
+      ]),
     },
     {
       title: "October newsletter",
       publishAt: null,
-      english: [
-        section(
-          Bun.randomUUIDv7(),
-          "From the principal",
-          "Notes for October will follow.",
-        ),
-      ],
+      english: headedContent([
+        part("From the principal", "Notes for October will follow."),
+      ]),
       arabic: null,
-      reviewed: [],
     },
   ];
   const audience: Audience = { scope: "school", classId: null, gradeId: null };
@@ -1531,15 +1513,14 @@ async function seedNewsletters(tx: Tx, tenantId: string, schoolId: string) {
       audiences: [audience],
     });
     const host = { type: "newsletter", id };
-    const content = { sections: plan.english, reviewed: [] };
     const original = await saveDocument(tx, {
       tenantId,
       orgId: schoolId,
       host,
       kind: "newsletter",
       locale: "en",
-      content,
-      plainText: editionPlainText(content),
+      content: plan.english as unknown as Record<string, unknown>,
+      plainText: contentPlainText(plan.english),
       mediaIds: [],
       userId: principal.user_id,
     });
@@ -1551,8 +1532,8 @@ async function seedNewsletters(tx: Tx, tenantId: string, schoolId: string) {
           originalId: original.id,
           locale: "ar",
           kind: "newsletter",
-          content: { sections: plan.arabic, reviewed: plan.reviewed },
-          plainText: editionPlainText({ sections: plan.arabic, reviewed: [] }),
+          content: plan.arabic as unknown as Record<string, unknown>,
+          plainText: contentPlainText(plan.arabic),
           mediaIds: [],
           userId: principal.user_id,
         })
