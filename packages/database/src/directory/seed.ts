@@ -4,7 +4,8 @@ import type { SeededTenant } from "../seed";
 
 /**
  * Registers seeded tenants and their schools in the directory, with the
- * change rows every directory write carries.
+ * change rows every directory write carries. The connection must be the
+ * operator's role, directory_admin.
  */
 export async function registerTenants(
   directory: SQL,
@@ -12,7 +13,6 @@ export async function registerTenants(
   cell: { id: string; appHost: string; apiBaseUrl: string },
 ) {
   await directory.begin(async (tx) => {
-    await tx`set local role directory_owner`;
     await tx`insert into cells (id, jurisdiction, provider, region, app_host, api_base_url, state)
       values (${cell.id}, 'EG', 'local', 'local', ${cell.appHost}, ${cell.apiBaseUrl}, 'open')
       on conflict (id) do nothing`;

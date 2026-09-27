@@ -676,8 +676,7 @@ async function seedSchool(
       });
 
       const mother =
-        shared?.mother ??
-        person(pick(MOTHERS), [pick(FAMILIES)[0], pick(FAMILIES)[1]], "female");
+        shared?.mother ?? person(pick(MOTHERS), pick(FAMILIES), "female");
       const father = shared?.father ?? person(pick(BOYS), family, "male");
       if (!shared) {
         await insertPerson(tx, tenantId, mother);

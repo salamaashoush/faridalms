@@ -38,9 +38,17 @@ const config = v.parse(
   process.env,
 );
 
-const databaseUrl = (name: string) => {
+const databaseUrl = (name: string, role?: string) => {
   const url = new URL(config.DATABASE_ADMIN_URL);
   url.pathname = `/${name}`;
+  if (role) {
+    if (!config.CELL_ROLE_PASSWORD)
+      throw new Error(
+        "CELL_ROLE_PASSWORD is not set. Run bun install to bootstrap .env.",
+      );
+    url.username = role;
+    url.password = config.CELL_ROLE_PASSWORD;
+  }
   return url.toString();
 };
 
@@ -76,7 +84,9 @@ async function seed() {
     `local:${config.CELL_ID}`,
   );
   const owner = openOwner(databaseUrl(config.CELL_DATABASE));
-  const directory = new SQL(databaseUrl(config.DIRECTORY_DATABASE));
+  const directory = new SQL(
+    databaseUrl(config.DIRECTORY_DATABASE, "directory_admin"),
+  );
   try {
     const tenants = await seedCell(owner, { kek, cell: config.CELL_ID });
     await registerTenants(directory, tenants, {
