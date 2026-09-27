@@ -145,7 +145,7 @@ export function HitLink({
       );
     case "messages":
       return (
-        <Link to={MESSAGES[role]} search={{ message: hit.id }} {...shared} />
+        <Link to={MESSAGES[role]} search={{ thread: hit.id }} {...shared} />
       );
     case "events":
       return (

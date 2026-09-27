@@ -1,8 +1,6 @@
 import type { ManagementOptionsInput } from "@faridalms/domain/administration-schema";
 import type {
-  RecipientCursor,
   CalendarQuery,
-  MessagesQuery,
   NewslettersQuery,
   StudentScopedQuery,
 } from "@faridalms/domain/school-schema";
@@ -14,10 +12,7 @@ import {
   getCalendar,
   getFamilyOverview,
   getManagementOptions,
-  getMessage,
-  getMessages,
   getNewsletters,
-  getRecipients,
   getStudent,
   getStudentOverview,
   getTeachingOverview,
@@ -61,32 +56,6 @@ export function managementOptionsQuery(query: ManagementOptionsInput) {
   return queryOptions({
     queryKey: ["management-options", query],
     queryFn: () => getManagementOptions({ data: query }),
-  });
-}
-
-export function messagesQuery(query: MessagesQuery) {
-  return queryOptions({
-    queryKey: ["messages", query],
-    queryFn: () => getMessages({ data: query }),
-    placeholderData: (previous) => previous,
-  });
-}
-
-export function messageQuery(id: string) {
-  return queryOptions({
-    queryKey: ["messages", "detail", id],
-    queryFn: () => getMessage({ data: { id } }),
-  });
-}
-
-export function recipientsQuery(
-  category: "teachers" | "administration" | "parents" | "students",
-  q = "",
-  cursor?: RecipientCursor,
-) {
-  return queryOptions({
-    queryKey: ["messages", "recipients", category, q, cursor],
-    queryFn: () => getRecipients({ data: { category, q, cursor } }),
   });
 }
 

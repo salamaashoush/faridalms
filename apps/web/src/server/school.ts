@@ -3,12 +3,8 @@ import {
   managementOptionsSchema,
 } from "@faridalms/domain/administration-schema";
 import {
-  recipientQuerySchema,
-  replyMessageSchema,
   calendarEventSchema,
   calendarQuerySchema,
-  composeMessageSchema,
-  messagesQuerySchema,
   newslettersQuerySchema,
   studentScopedQuerySchema,
 } from "@faridalms/domain/school-schema";
@@ -41,22 +37,6 @@ export const getAdminOverview = createServerFn({ method: "GET" }).handler(() =>
   backend().getAdminOverview(),
 );
 
-export const getMessages = createServerFn({ method: "GET" })
-  .validator((input: unknown) => v.parse(messagesQuerySchema, input))
-  .handler(({ data }) => backend().getMessages(data));
-
-export const getMessage = createServerFn({ method: "GET" })
-  .validator((input: unknown) => v.parse(v.object({ id: v.string() }), input))
-  .handler(({ data }) => backend().getMessage(data));
-
-export const getRecipients = createServerFn({ method: "GET" })
-  .validator((input: unknown) => v.parse(recipientQuerySchema, input))
-  .handler(({ data }) => backend().getRecipients(data));
-
-export const sendMessage = createServerFn({ method: "POST" })
-  .validator((input: unknown) => v.parse(composeMessageSchema, input))
-  .handler(({ data }) => backend().sendMessage(data));
-
 export const getNewsletters = createServerFn({ method: "GET" })
   .validator((input: unknown) => v.parse(newslettersQuerySchema, input))
   .handler(({ data }) => backend().getNewsletters(data));
@@ -76,7 +56,3 @@ export const getManagementOptions = createServerFn({ method: "GET" })
 export const publishNewsletter = createServerFn({ method: "POST" })
   .validator((input: unknown) => v.parse(publishNewsletterSchema, input))
   .handler(({ data }) => backend().publishNewsletter(data));
-
-export const replyMessage = createServerFn({ method: "POST" })
-  .validator((input: unknown) => v.parse(replyMessageSchema, input))
-  .handler(({ data }) => backend().replyMessage(data));

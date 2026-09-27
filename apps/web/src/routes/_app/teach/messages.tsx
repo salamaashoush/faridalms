@@ -1,71 +1,42 @@
-import { createFileRoute, redirect } from "@tanstack/react-router";
+import { createFileRoute, stripSearchParams } from "@tanstack/react-router";
+import * as v from "valibot";
 
 import {
+  inboxOf,
   MessagesPage,
   messagesSearchSchema,
-} from "~/components/communication/MessagesPage";
-import {
-  messageDraftQuery,
-  messageDraftsQuery,
-} from "~/queries/message-drafts";
-import { recipientQuery } from "~/queries/people";
-import {
-  messagesQuery,
-  recipientsQuery,
-  visibleStudentsQuery,
-} from "~/queries/school";
+} from "~/components/messages/Inbox";
+import { inboxQuery, threadQuery } from "~/queries/messages";
+
+const DEFAULT_SEARCH = v.parse(messagesSearchSchema, {});
 
 export const Route = createFileRoute("/_app/teach/messages")({
   validateSearch: messagesSearchSchema,
-  loaderDeps: ({ search }) => ({
-    folder: search.folder,
-    q: search.q,
-    page: search.page,
-    compose: search.compose,
-    draft: search.draft,
-    drafts: search.drafts,
-    to: search.to,
-  }),
+  search: { middlewares: [stripSearchParams(DEFAULT_SEARCH)] },
+  loaderDeps: ({ search }) => search,
   loader: async ({ context, deps }) => {
-    const draft = deps.draft
-      ? await context.queryClient.ensureQueryData(messageDraftQuery(deps.draft))
-      : undefined;
-    if (draft?.sentMessageId)
-      throw redirect({
-        to: "/teach/messages",
-        search: {
-          compose: false,
-          drafts: false,
-          draft: "",
-          folder: "sent",
-          page: 1,
-          q: "",
-          message: draft.sentMessageId,
-        },
-      });
     await Promise.all([
-      ...(deps.drafts
-        ? [context.queryClient.ensureQueryData(messageDraftsQuery(deps.page))]
-        : []),
-      context.queryClient.ensureQueryData(
-        messagesQuery({ folder: deps.folder, q: deps.q, page: deps.page }),
-      ),
-      ...(deps.compose
-        ? [
-            context.queryClient.ensureQueryData(visibleStudentsQuery),
-            context.queryClient.ensureQueryData(
-              recipientsQuery(draft?.category ?? "teachers"),
-            ),
-          ]
-        : []),
-      ...(deps.compose && deps.to && !deps.draft
-        ? [context.queryClient.ensureQueryData(recipientQuery(deps.to))]
+      context.queryClient.ensureQueryData(inboxQuery(inboxOf(deps))),
+      ...(deps.thread
+        ? [context.queryClient.ensureQueryData(threadQuery(deps.thread))]
         : []),
     ]);
   },
-  component: RouteComponent,
+  component: MessagesRoute,
 });
 
-function RouteComponent() {
-  return <MessagesPage search={Route.useSearch()} />;
+function MessagesRoute() {
+  const search = Route.useSearch();
+  const navigate = Route.useNavigate();
+  return (
+    <MessagesPage
+      search={search}
+      onSearch={(change, replace) =>
+        void navigate({
+          search: (previous) => ({ ...previous, ...change }),
+          replace,
+        })
+      }
+    />
+  );
 }

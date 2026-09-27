@@ -118,6 +118,10 @@ export function getMessageFromError(error: unknown): string {
         return m.messageDraftConflict();
       case "message_draft.incomplete":
         return m.messageDraftIncomplete();
+      case "messages.no_guardians":
+        return m.msgNoGuardians();
+      case "messages.recipient":
+        return m.msgRecipientGone();
       case "attendance.stale":
         return m.attStale();
       case "attendance.outside_year":
