@@ -29,3 +29,36 @@ export function nationalNumber(text: string) {
       : 3;
   return withCode.slice(code).replace(/^0+/, "");
 }
+
+/** Country calling codes of the jurisdictions schools run in. */
+const CALLING_CODE: Record<string, string> = {
+  EG: "20",
+  SA: "966",
+  AE: "971",
+  KW: "965",
+  QA: "974",
+  BH: "973",
+  OM: "968",
+  JO: "962",
+  GB: "44",
+  US: "1",
+};
+
+/**
+ * The E.164 form of a number typed in a school's country, or null when it
+ * cannot be read as one. "0100 000 0003" in Egypt is "+201000000003".
+ */
+export function toE164(text: string, country: string): string | null {
+  const cleaned = text.replaceAll("(0)", "");
+  const digits = cleaned.replace(/\D/g, "");
+  if (digits === "") return null;
+  let number: string;
+  if (international.test(cleaned)) number = digits;
+  else if (digits.startsWith("00")) number = digits.slice(2);
+  else {
+    const code = CALLING_CODE[country];
+    if (!code) return null;
+    number = code + digits.replace(/^0+/, "");
+  }
+  return /^[1-9][0-9]{6,14}$/.test(number) ? `+${number}` : null;
+}
