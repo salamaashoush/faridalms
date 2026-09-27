@@ -1,116 +1,102 @@
-import { emptyLesson } from "@faridalms/domain/learning";
+import { WORKSPACE_HOME } from "@faridalms/domain/workspace";
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import {
+  createFileRoute,
+  Link,
+  redirect,
+  useCanGoBack,
+  useRouter,
+} from "@tanstack/react-router";
 import * as v from "valibot";
 
-import { LessonWorkspace } from "~/components/learning/LessonWorkspace";
+import {
+  BreadcrumbCurrent,
+  BreadcrumbStep,
+} from "~/components/app/WorkspaceBreadcrumb";
+import { LessonEditor } from "~/components/learning/LessonEditor";
 import * as m from "~/i18n/messages";
-import { lessonAuthoringQuery, moduleAuthoringQuery } from "~/queries/learning";
+import { lessonEditorQuery, moduleRecordQuery } from "~/queries/learning";
+import { currentUserQuery } from "~/queries/user";
 
 export const Route = createFileRoute("/_app/teach/lesson-editor")({
-  staticData: { breadcrumb: m.learningLessonDesign },
+  staticData: { trail: <EditorTrail />, section: "/teach/modules" },
   validateSearch: v.object({
-    module: v.pipe(v.string(), v.uuid()),
     id: v.optional(v.pipe(v.string(), v.uuid())),
+    moduleId: v.pipe(v.string(), v.uuid()),
   }),
   loaderDeps: ({ search }) => search,
   loader: async ({ context, deps }) => {
-    await context.queryClient.ensureQueryData(
-      moduleAuthoringQuery(deps.module),
-    );
-    if (deps.id)
-      await context.queryClient.ensureQueryData(lessonAuthoringQuery(deps.id));
+    const user = await context.queryClient.ensureQueryData(currentUserQuery);
+    if (!user.capabilities.includes("learning:author"))
+      throw redirect({ to: WORKSPACE_HOME[user.workspace] });
+    await Promise.all([
+      context.queryClient.ensureQueryData(moduleRecordQuery(deps.moduleId)),
+      deps.id
+        ? context.queryClient.ensureQueryData(lessonEditorQuery(deps.id))
+        : null,
+    ]);
   },
   component: EditorPage,
 });
+
+function EditorTrail() {
+  const { id, moduleId } = Route.useSearch();
+  const module = useSuspenseQuery(moduleRecordQuery(moduleId)).data;
+  return (
+    <>
+      <BreadcrumbStep
+        render={
+          <Link to="/modules/$moduleId" params={{ moduleId }} search={{}} />
+        }
+      >
+        {module.title}
+      </BreadcrumbStep>
+      <BreadcrumbCurrent>
+        {id ? m.lrnEditLesson() : m.lrnNewLesson()}
+      </BreadcrumbCurrent>
+    </>
+  );
+}
+
+function ExistingEditor({
+  id,
+  moduleId,
+  onClose,
+}: {
+  id: string;
+  moduleId: string;
+  onClose: () => void;
+}) {
+  const existing = useSuspenseQuery(lessonEditorQuery(id)).data;
+  return (
+    <LessonEditor
+      key={existing.id}
+      existing={existing}
+      moduleId={moduleId}
+      onClose={onClose}
+    />
+  );
+}
+
 function EditorPage() {
-  const { id, module } = Route.useSearch();
+  const { id, moduleId } = Route.useSearch();
   const navigate = Route.useNavigate();
-  const { data } = useSuspenseQuery(moduleAuthoringQuery(module));
+  const router = useRouter();
+  const canGoBack = useCanGoBack();
   const close = () => {
-    void navigate({ to: "/teach/module-editor", search: { id: module } });
-  };
-  const saved = (lessonId: string) => {
+    if (canGoBack) {
+      router.history.back();
+      return;
+    }
     void navigate({
-      to: "/teach/lesson-editor",
-      search: { id: lessonId, module },
-      replace: true,
+      to: "/modules/$moduleId",
+      params: { moduleId },
+      search: {},
     });
   };
   return id ? (
-    <Existing
-      key={id}
-      id={id}
-      moduleTitle={data.title}
-      onClose={close}
-      onSaved={saved}
-    />
+    <ExistingEditor id={id} moduleId={moduleId} onClose={close} />
   ) : (
-    <NewLesson
-      moduleId={module}
-      moduleTitle={data.title}
-      position={data.lessons.length}
-      onClose={close}
-      onSaved={saved}
-    />
-  );
-}
-function Existing({
-  id,
-  moduleTitle,
-  onClose,
-  onSaved,
-}: {
-  id: string;
-  moduleTitle: string;
-  onClose: () => void;
-  onSaved: (id: string) => void;
-}) {
-  const { data } = useSuspenseQuery(lessonAuthoringQuery(id));
-  return (
-    <LessonWorkspace
-      initial={{
-        id: data.id,
-        moduleId: data.moduleId,
-        expectedRevision: data.revision,
-        title: data.title,
-        position: data.position,
-        document: data.document,
-      }}
-      moduleTitle={moduleTitle}
-      onClose={onClose}
-      onSaved={onSaved}
-    />
-  );
-}
-function NewLesson({
-  moduleId,
-  moduleTitle,
-  position,
-  onClose,
-  onSaved,
-}: {
-  moduleId: string;
-  moduleTitle: string;
-  position: number;
-  onClose: () => void;
-  onSaved: (id: string) => void;
-}) {
-  const [id] = useState(() => crypto.randomUUID());
-  return (
-    <LessonWorkspace
-      initial={{
-        id,
-        moduleId,
-        expectedRevision: 0,
-        title: "",
-        position,
-        document: emptyLesson(),
-      }}
-      moduleTitle={moduleTitle}
-      onClose={onClose}
-      onSaved={onSaved}
-    />
+    <LessonEditor existing={null} moduleId={moduleId} onClose={close} />
   );
 }

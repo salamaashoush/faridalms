@@ -1,46 +1,63 @@
 import { queryOptions } from "@tanstack/react-query";
 
 import {
-  getLearnerLesson,
-  getLearnerModule,
-  getLearnerModules,
-  getLessonAuthoring,
-  getModuleAuthoring,
-  getModuleClasses,
+  getLearningOptions,
+  getLessonEditor,
+  getModuleOutline,
+  getModuleProgress,
+  getModuleRecord,
+  getMyModules,
   getTeachingModules,
+  openLesson,
 } from "~/server/learning";
 
-export const teachingModulesQuery = queryOptions({
-  queryKey: ["learning", "teaching"],
-  queryFn: () => getTeachingModules(),
+export const learningOptionsQuery = queryOptions({
+  queryKey: ["learning", "options"],
+  queryFn: () => getLearningOptions(),
 });
-export const moduleClassesQuery = queryOptions({
-  queryKey: ["learning", "classes"],
-  queryFn: () => getModuleClasses(),
-});
-export const moduleAuthoringQuery = (id: string) =>
+
+export const teachingModulesQuery = (classId: string) =>
   queryOptions({
-    queryKey: ["learning", "module", id],
-    queryFn: () => getModuleAuthoring({ data: { id } }),
-  });
-export const lessonAuthoringQuery = (id: string) =>
-  queryOptions({
-    queryKey: ["learning", "lesson", id],
-    queryFn: () => getLessonAuthoring({ data: { id } }),
-  });
-export const learnerModulesQuery = (studentId: string) =>
-  queryOptions({
-    queryKey: ["learning", "learner", studentId, "modules"],
-    queryFn: () => getLearnerModules({ data: { studentId } }),
+    queryKey: ["learning", "teaching", classId],
+    queryFn: () => getTeachingModules({ data: { classId } }),
     placeholderData: (previous) => previous,
   });
-export const learnerModuleQuery = (id: string, studentId: string) =>
+
+export const moduleRecordQuery = (id: string) =>
   queryOptions({
-    queryKey: ["learning", "learner", studentId, "module", id],
-    queryFn: () => getLearnerModule({ data: { id, studentId } }),
+    queryKey: ["learning", "module", id],
+    queryFn: () => getModuleRecord({ data: { id } }),
   });
-export const learnerLessonQuery = (id: string, studentId: string) =>
+
+export const lessonEditorQuery = (id: string) =>
   queryOptions({
-    queryKey: ["learning", "learner", studentId, "lesson", id],
-    queryFn: () => getLearnerLesson({ data: { id, studentId } }),
+    queryKey: ["learning", "lesson", id],
+    queryFn: () => getLessonEditor({ data: { id } }),
+  });
+
+export const moduleProgressQuery = (moduleId: string, classId: string) =>
+  queryOptions({
+    queryKey: ["learning", "progress", moduleId, classId],
+    queryFn: () => getModuleProgress({ data: { moduleId, classId } }),
+    placeholderData: (previous) => previous,
+  });
+
+export const myModulesQuery = (studentId: string) =>
+  queryOptions({
+    queryKey: ["learning", "mine", studentId],
+    queryFn: () => getMyModules({ data: { studentId } }),
+  });
+
+export const moduleOutlineQuery = (id: string, studentId: string) =>
+  queryOptions({
+    queryKey: ["learning", "outline", id, studentId],
+    queryFn: () => getModuleOutline({ data: { id, studentId } }),
+  });
+
+/** Opening a lesson records that the student began it, so it is fetched once per visit. */
+export const lessonQuery = (id: string) =>
+  queryOptions({
+    queryKey: ["learning", "play", id],
+    queryFn: () => openLesson({ data: { id } }),
+    staleTime: Number.POSITIVE_INFINITY,
   });

@@ -287,22 +287,36 @@ export function getMessageFromError(error: unknown): string {
         return m.sitePagePublished();
       case "site.not_found":
         return m.siteNotFound();
-      case "learning.revision_conflict":
-        return m.learningRevisionConflict();
-      case "learning.incomplete":
-        return m.learningIncomplete();
-      case "learning.not_found":
-        return m.learningNotFound();
-      case "learning.responsibility":
-        return m.learningResponsibility();
-      case "learning.subject_not_taught":
-        return m.learningSubjectNotTaught();
-      case "learning.media_missing":
-        return m.learningMediaMissing();
-      case "learning.quizzes_pending":
-        return m.learningQuizzesPending();
       case "learning.disabled":
         return m.learningDisabled();
+      case "learning.no_year":
+        return m.lrnErrNoYear();
+      case "learning.class":
+        return m.lrnErrClass();
+      case "learning.prerequisite":
+        return m.lrnErrPrerequisite();
+      case "learning.lesson_required":
+        return m.lrnErrLessonRequired();
+      case "learning.lesson_empty":
+        return m.lrnErrLessonEmpty();
+      case "learning.locked":
+        return m.lrnErrLocked();
+      case "learning.not_done":
+        return m.lrnErrNotDone();
+      case "learning.option":
+        return m.lrnErrOption();
+      case "learning.pass_score":
+        return m.lrnPassScoreNeeded();
+      case "learning.needs_quiz":
+        return m.lrnRuleNeedsQuiz();
+      case "learning.needs_reflection":
+        return m.lrnRuleNeedsReflection();
+      case "learning.captions_required":
+        return m.lrnErrCaptions();
+      case "learning.correct_option":
+        return m.lrnCorrectNeeded();
+      case "module_class.exists":
+        return m.lrnErrClassTwice();
       case "access.escalation":
         return m.accessEscalation();
       case "access.revision_conflict":

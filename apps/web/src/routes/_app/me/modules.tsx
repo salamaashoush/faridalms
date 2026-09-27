@@ -1,22 +1,21 @@
-import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 
-import { PageHeader } from "~/components/app/primitives";
-import { ModuleList } from "~/components/learning/ModuleList";
+import { StudentModuleList } from "~/components/learning/StudentModules";
+import { PageHeader } from "~/components/system/IndexPage";
 import * as m from "~/i18n/messages";
-import { learnerModulesQuery } from "~/queries/learning";
+import { myModulesQuery } from "~/queries/learning";
 
 export const Route = createFileRoute("/_app/me/modules")({
   loader: ({ context }) =>
-    context.queryClient.ensureQueryData(learnerModulesQuery("")),
+    context.queryClient.ensureQueryData(myModulesQuery("")),
   component: MyModulesPage,
 });
+
 function MyModulesPage() {
-  const { data } = useSuspenseQuery(learnerModulesQuery(""));
   return (
     <>
-      <PageHeader title={m.navModules()} description={m.learningMeHint()} />
-      <ModuleList rows={data.rows} studentId={data.studentId} />
+      <PageHeader title={m.navModules()} description={m.lrnMeHint()} />
+      <StudentModuleList studentId="" />
     </>
   );
 }

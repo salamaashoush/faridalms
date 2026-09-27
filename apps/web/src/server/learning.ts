@@ -1,9 +1,13 @@
 import {
-  answerQuizSchema,
-  completeLessonSchema,
-  learnerModuleQuerySchema,
-  learnerModulesQuerySchema,
-  moduleRevisionSchema,
+  answerSchema,
+  duplicateModuleSchema,
+  moduleRefSchema,
+  moveLessonSchema,
+  overrideSchema,
+  positionSchema,
+  progressQuerySchema,
+  publishModuleSchema,
+  reflectSchema,
   saveLessonSchema,
   saveModuleSchema,
 } from "@faridalms/domain/learning";
@@ -11,53 +15,97 @@ import { createServerFn } from "@tanstack/react-start";
 import * as v from "valibot";
 
 import { backend, record } from "./backend";
+import { byId, checked } from "./input";
 
-const idSchema = v.object({ id: v.pipe(v.string(), v.uuid()) });
-const parse =
-  <T extends v.GenericSchema>(schema: T) =>
-  (input: unknown) =>
-    v.parse(schema, input);
+const optionalId = v.optional(
+  v.union([v.literal(""), v.pipe(v.string(), v.uuid())]),
+  "",
+);
 
-export const getTeachingModules = createServerFn({ method: "GET" }).handler(
-  () => backend().getTeachingModules(),
+export const getLearningOptions = createServerFn({ method: "GET" }).handler(
+  () => backend().learning.options(),
 );
-export const getModuleClasses = createServerFn({ method: "GET" }).handler(() =>
-  backend().getModuleClasses(),
-);
-export const getModuleAuthoring = createServerFn({ method: "GET" })
-  .validator(parse(idSchema))
-  .handler(({ data }) => record(backend().getModuleAuthoring(data)));
+
+export const getTeachingModules = createServerFn({ method: "GET" })
+  .validator(checked(v.object({ classId: optionalId })))
+  .handler(({ data }) => backend().learning.modules(data));
+
+export const getModuleRecord = createServerFn({ method: "GET" })
+  .validator(byId)
+  .handler(({ data }) => record(backend().learning.record(data)));
+
 export const saveModule = createServerFn({ method: "POST" })
-  .validator(parse(saveModuleSchema))
-  .handler(({ data }) => backend().saveModule(data));
-export const publishModule = createServerFn({ method: "POST" })
-  .validator(parse(moduleRevisionSchema))
-  .handler(({ data }) => backend().publishModule(data));
-export const unpublishModule = createServerFn({ method: "POST" })
-  .validator(parse(moduleRevisionSchema))
-  .handler(({ data }) => backend().unpublishModule(data));
-export const getLessonAuthoring = createServerFn({ method: "GET" })
-  .validator(parse(idSchema))
-  .handler(({ data }) => record(backend().getLessonAuthoring(data)));
-export const saveLesson = createServerFn({ method: "POST" })
-  .validator(parse(saveLessonSchema))
-  .handler(({ data }) => backend().saveLesson(data));
-export const deleteLesson = createServerFn({ method: "POST" })
-  .validator(parse(idSchema))
-  .handler(({ data }) => backend().deleteLesson(data));
+  .validator(checked(saveModuleSchema))
+  .handler(({ data }) => backend().learning.saveModule(data));
 
-export const getLearnerModules = createServerFn({ method: "GET" })
-  .validator(parse(learnerModulesQuerySchema))
-  .handler(({ data }) => record(backend().getLearnerModules(data)));
-export const getLearnerModule = createServerFn({ method: "GET" })
-  .validator(parse(learnerModuleQuerySchema))
-  .handler(({ data }) => record(backend().getLearnerModule(data)));
-export const getLearnerLesson = createServerFn({ method: "GET" })
-  .validator(parse(learnerModuleQuerySchema))
-  .handler(({ data }) => record(backend().getLearnerLesson(data)));
+export const publishModule = createServerFn({ method: "POST" })
+  .validator(checked(publishModuleSchema))
+  .handler(({ data }) => backend().learning.publishModule(data));
+
+export const unpublishModule = createServerFn({ method: "POST" })
+  .validator(checked(moduleRefSchema))
+  .handler(({ data }) => backend().learning.unpublishModule(data));
+
+export const archiveModule = createServerFn({ method: "POST" })
+  .validator(checked(moduleRefSchema))
+  .handler(({ data }) => backend().learning.archiveModule(data));
+
+export const duplicateModule = createServerFn({ method: "POST" })
+  .validator(checked(duplicateModuleSchema))
+  .handler(({ data }) => backend().learning.duplicateModule(data));
+
+export const getLessonEditor = createServerFn({ method: "GET" })
+  .validator(byId)
+  .handler(({ data }) => record(backend().learning.lesson(data)));
+
+export const saveLesson = createServerFn({ method: "POST" })
+  .validator(checked(saveLessonSchema))
+  .handler(({ data }) => backend().learning.saveLesson(data));
+
+export const moveLesson = createServerFn({ method: "POST" })
+  .validator(checked(moveLessonSchema))
+  .handler(({ data }) => backend().learning.moveLesson(data));
+
+export const removeLesson = createServerFn({ method: "POST" })
+  .validator(byId)
+  .handler(({ data }) => backend().learning.removeLesson(data));
+
+export const getModuleProgress = createServerFn({ method: "GET" })
+  .validator(checked(progressQuerySchema))
+  .handler(({ data }) => record(backend().learning.progress(data)));
+
+export const overrideLesson = createServerFn({ method: "POST" })
+  .validator(checked(overrideSchema))
+  .handler(({ data }) => backend().learning.override(data));
+
+export const getMyModules = createServerFn({ method: "GET" })
+  .validator(checked(v.object({ studentId: optionalId })))
+  .handler(({ data }) => backend().learning.mine(data));
+
+export const getModuleOutline = createServerFn({ method: "GET" })
+  .validator(
+    checked(
+      v.object({ id: v.pipe(v.string(), v.uuid()), studentId: optionalId }),
+    ),
+  )
+  .handler(({ data }) => record(backend().learning.play(data)));
+
+export const openLesson = createServerFn({ method: "POST" })
+  .validator(byId)
+  .handler(({ data }) => record(backend().learning.playLesson(data)));
+
 export const answerQuiz = createServerFn({ method: "POST" })
-  .validator(parse(answerQuizSchema))
-  .handler(({ data }) => backend().answerQuiz(data));
+  .validator(checked(answerSchema))
+  .handler(({ data }) => backend().learning.answer(data));
+
+export const saveReflection = createServerFn({ method: "POST" })
+  .validator(checked(reflectSchema))
+  .handler(({ data }) => backend().learning.reflect(data));
+
 export const completeLesson = createServerFn({ method: "POST" })
-  .validator(parse(completeLessonSchema))
-  .handler(({ data }) => backend().completeLesson(data));
+  .validator(checked(v.object({ lessonId: v.pipe(v.string(), v.uuid()) })))
+  .handler(({ data }) => backend().learning.complete(data));
+
+export const saveReadingPosition = createServerFn({ method: "POST" })
+  .validator(checked(positionSchema))
+  .handler(({ data }) => backend().learning.position(data));

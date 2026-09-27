@@ -1,198 +1,94 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { CircleCheck, Circle } from "lucide-react";
+import { createFileRoute, stripSearchParams } from "@tanstack/react-router";
 import * as v from "valibot";
 
-import { ButtonLink } from "~/components/app/ButtonLink";
-import { SubjectIcon } from "~/components/app/labels";
-import { PageHeader, SectionCard, Value } from "~/components/app/primitives";
-import { subjectLabel } from "~/components/family/format";
-import { PersonLink } from "~/components/records/PersonLink";
-import { Badge } from "~/components/ui/badge";
-import * as m from "~/i18n/messages";
-import { learnerModuleQuery, moduleAuthoringQuery } from "~/queries/learning";
-import { formatNumber } from "~/utils/datetime";
+import { BreadcrumbCurrent } from "~/components/app/WorkspaceBreadcrumb";
+import { MODULE_TABS, ModuleRecord } from "~/components/learning/ModuleRecord";
+import { ModuleOutline } from "~/components/learning/StudentModules";
+import { moduleOutlineQuery, moduleRecordQuery } from "~/queries/learning";
 
+const searchSchema = v.object({
+  tab: v.fallback(v.optional(v.picklist(MODULE_TABS), "lessons"), "lessons"),
+  classId: v.fallback(
+    v.optional(v.union([v.literal(""), v.pipe(v.string(), v.uuid())]), ""),
+    "",
+  ),
+  studentId: v.fallback(
+    v.optional(v.union([v.literal(""), v.pipe(v.string(), v.uuid())]), ""),
+    "",
+  ),
+});
+const DEFAULT_SEARCH = v.parse(searchSchema, {});
+
+const learns = (workspace: string | null) =>
+  workspace === "me" || workspace === "family";
+
+/**
+ * One address for a module: those who teach it manage its lessons and read
+ * everyone's progress, a student works through it, a family follows along.
+ */
 export const Route = createFileRoute("/_app/modules/$moduleId")({
-  validateSearch: v.object({ studentId: v.optional(v.string(), "") }),
+  staticData: {
+    trail: <ModuleTrail />,
+    section: ["/teach/modules", "/me/modules", "/family/modules"],
+  },
+  validateSearch: searchSchema,
+  search: { middlewares: [stripSearchParams(DEFAULT_SEARCH)] },
   loaderDeps: ({ search }) => ({ studentId: search.studentId }),
   loader: async ({ context, params, deps }) => {
-    if (
-      context.auth.workspace === "teach" ||
-      context.auth.workspace === "admin"
-    )
+    if (learns(context.auth.workspace))
       await context.queryClient.ensureQueryData(
-        moduleAuthoringQuery(params.moduleId),
+        moduleOutlineQuery(params.moduleId, deps.studentId),
       );
     else
       await context.queryClient.ensureQueryData(
-        learnerModuleQuery(params.moduleId, deps.studentId),
+        moduleRecordQuery(params.moduleId),
       );
   },
   component: ModulePage,
 });
-function ModulePage() {
-  const { auth } = Route.useRouteContext();
-  return auth.workspace === "teach" || auth.workspace === "admin" ? (
-    <TeacherModule />
-  ) : (
-    <LearnerModule />
-  );
+
+function RecordTrail({ id }: { id: string }) {
+  const data = useSuspenseQuery(moduleRecordQuery(id)).data;
+  return <BreadcrumbCurrent>{data.title}</BreadcrumbCurrent>;
 }
-function TeacherModule() {
-  const { moduleId } = Route.useParams();
-  const { data } = useSuspenseQuery(moduleAuthoringQuery(moduleId));
-  return (
-    <>
-      <PageHeader
-        title={data.title}
-        description={data.summary || undefined}
-        actions={
-          <ButtonLink
-            variant="outline"
-            to="/teach/module-editor"
-            search={{ id: moduleId }}
-          >
-            {m.managementEdit()}
-          </ButtonLink>
-        }
-      />
-      <ModuleMeta
-        subject={data.subject}
-        schoolClass={data.class}
-        author={data.author}
-        status={data.status}
-      />
-      <SectionCard title={m.learningLessons()}>
-        <ol className="divide-y">
-          {data.lessons.map((lesson, index) => (
-            <li key={lesson.id} className="flex items-center gap-4 py-3">
-              <span className="grid size-7 place-items-center rounded-full bg-muted text-xs font-semibold">
-                {formatNumber(index + 1)}
-              </span>
-              <Link
-                to="/lessons/$lessonId"
-                params={{ lessonId: lesson.id }}
-                search={{}}
-                className="min-w-0 flex-1 font-medium hover:text-primary hover:underline"
-              >
-                {lesson.title}
-              </Link>
-              <span className="text-xs text-muted-foreground">
-                {m.learningLessonMeta({
-                  blocks: formatNumber(lesson.blocks),
-                  quizzes: formatNumber(lesson.quizzes),
-                })}
-              </span>
-            </li>
-          ))}
-        </ol>
-      </SectionCard>
-    </>
-  );
+
+function OutlineTrail({ id, studentId }: { id: string; studentId: string }) {
+  const data = useSuspenseQuery(moduleOutlineQuery(id, studentId)).data;
+  return <BreadcrumbCurrent>{data.title}</BreadcrumbCurrent>;
 }
-function LearnerModule() {
+
+function ModuleTrail() {
   const { moduleId } = Route.useParams();
   const { studentId } = Route.useSearch();
-  const { data } = useSuspenseQuery(learnerModuleQuery(moduleId, studentId));
-  const done = data.module.lessons.filter(
-    (lesson) => lesson.completedAt,
-  ).length;
-  return (
-    <>
-      <PageHeader
-        title={data.module.title}
-        description={data.module.summary || undefined}
-      />
-      <ModuleMeta
-        subject={data.module.subject}
-        schoolClass={data.module.class}
-        author={data.module.author}
-        status="published"
-      />
-      <SectionCard
-        title={m.learningLessons()}
-        description={m.learningProgress({
-          done: formatNumber(done),
-          total: formatNumber(data.module.lessons.length),
-        })}
-      >
-        <ol className="divide-y">
-          {data.module.lessons.map((lesson, index) => (
-            <li
-              key={lesson.id}
-              className="flex flex-wrap items-center gap-4 py-3"
-            >
-              {lesson.completedAt ? (
-                <CircleCheck className="size-5 text-primary" aria-hidden />
-              ) : (
-                <Circle className="size-5 text-muted-foreground" aria-hidden />
-              )}
-              <Link
-                to="/lessons/$lessonId"
-                params={{ lessonId: lesson.id }}
-                search={{ studentId: data.studentId }}
-                className="min-w-0 flex-1 font-medium hover:text-primary hover:underline"
-              >
-                {m.learningLessonNumbered({
-                  number: formatNumber(index + 1),
-                  title: lesson.title,
-                })}
-              </Link>
-              <span className="text-xs text-muted-foreground">
-                {lesson.completedAt
-                  ? m.learningLessonDone()
-                  : lesson.quizzes > 0
-                    ? m.learningQuizScore({
-                        correct: formatNumber(lesson.correct),
-                        total: formatNumber(lesson.quizzes),
-                      })
-                    : m.learningLessonOpen()}
-              </span>
-            </li>
-          ))}
-        </ol>
-      </SectionCard>
-    </>
+  const { auth } = Route.useRouteContext();
+  return learns(auth.workspace) ? (
+    <OutlineTrail id={moduleId} studentId={studentId} />
+  ) : (
+    <RecordTrail id={moduleId} />
   );
 }
-function ModuleMeta({
-  subject,
-  schoolClass,
-  author,
-  status,
-}: {
-  subject: { name: string; nameAr?: string; icon: string } | null;
-  schoolClass: { id: string; name: string } | null;
-  author: { id: string; name: string } | null;
-  status: "draft" | "published";
-}) {
+
+function ModulePage() {
+  const { moduleId } = Route.useParams();
+  const { tab, classId, studentId } = Route.useSearch();
+  const { auth } = Route.useRouteContext();
+  const navigate = Route.useNavigate();
+  if (learns(auth.workspace))
+    return <ModuleOutline moduleId={moduleId} studentId={studentId} />;
   return (
-    <p className="-mt-6 mb-6 flex flex-wrap items-center gap-2 text-sm text-muted-foreground">
-      {subject ? <SubjectIcon icon={subject.icon} /> : null}
-      <Value>{subjectLabel(subject)}</Value>
-      <span aria-hidden>·</span>
-      {schoolClass ? (
-        <Link
-          to="/classes/$classId"
-          params={{ classId: schoolClass.id }}
-          search={{}}
-          className="font-medium text-foreground hover:text-primary hover:underline"
-        >
-          {schoolClass.name}
-        </Link>
-      ) : (
-        <Value>{null}</Value>
-      )}
-      {author ? (
-        <>
-          <span aria-hidden>·</span>
-          <PersonLink person={author} />
-        </>
-      ) : null}
-      <Badge variant={status === "published" ? "default" : "outline"}>
-        {status === "published" ? m.siteStatusPublished() : m.siteStatusDraft()}
-      </Badge>
-    </p>
+    <ModuleRecord
+      moduleId={moduleId}
+      tab={tab}
+      classId={classId}
+      onTab={(next) => {
+        void navigate({ search: (previous) => ({ ...previous, tab: next }) });
+      }}
+      onClass={(next) => {
+        void navigate({
+          search: (previous) => ({ ...previous, classId: next }),
+        });
+      }}
+    />
   );
 }

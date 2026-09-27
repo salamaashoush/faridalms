@@ -1,107 +1,111 @@
+import { WORKSPACE_HOME } from "@faridalms/domain/workspace";
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import {
+  createFileRoute,
+  Link,
+  redirect,
+  useCanGoBack,
+  useRouter,
+} from "@tanstack/react-router";
 import * as v from "valibot";
 
-import type { getModuleClasses } from "~/server/learning";
-
-import { ModuleWorkspace } from "~/components/learning/ModuleWorkspace";
+import {
+  BreadcrumbCurrent,
+  BreadcrumbStep,
+} from "~/components/app/WorkspaceBreadcrumb";
+import { ModuleEditor } from "~/components/learning/ModuleEditor";
 import * as m from "~/i18n/messages";
-import { moduleAuthoringQuery, moduleClassesQuery } from "~/queries/learning";
+import { learningOptionsQuery, moduleRecordQuery } from "~/queries/learning";
+import { currentUserQuery } from "~/queries/user";
 
 export const Route = createFileRoute("/_app/teach/module-editor")({
-  staticData: { breadcrumb: m.learningModuleDesign },
-  validateSearch: v.object({ id: v.optional(v.pipe(v.string(), v.uuid())) }),
-  loaderDeps: ({ search }) => search,
+  staticData: { trail: <EditorTrail />, section: "/teach/modules" },
+  validateSearch: v.object({
+    id: v.optional(v.pipe(v.string(), v.uuid())),
+    classId: v.optional(v.pipe(v.string(), v.uuid())),
+  }),
+  loaderDeps: ({ search }) => ({ id: search.id }),
   loader: async ({ context, deps }) => {
-    await context.queryClient.ensureQueryData(moduleClassesQuery);
-    if (deps.id)
-      await context.queryClient.ensureQueryData(moduleAuthoringQuery(deps.id));
+    const user = await context.queryClient.ensureQueryData(currentUserQuery);
+    if (!user.capabilities.includes("learning:author"))
+      throw redirect({ to: WORKSPACE_HOME[user.workspace] });
+    await Promise.all([
+      context.queryClient.ensureQueryData(learningOptionsQuery),
+      deps.id
+        ? context.queryClient.ensureQueryData(moduleRecordQuery(deps.id))
+        : null,
+    ]);
   },
   component: EditorPage,
 });
-function EditorPage() {
+
+function EditorTrail() {
   const { id } = Route.useSearch();
-  const navigate = Route.useNavigate();
-  const { data: classes } = useSuspenseQuery(moduleClassesQuery);
-  const close = () => {
-    void navigate({ to: "/teach/modules" });
-  };
-  const saved = (moduleId: string) => {
-    void navigate({
-      to: "/teach/module-editor",
-      search: { id: moduleId },
-      replace: true,
-    });
-  };
   return id ? (
-    <Existing
-      key={id}
-      id={id}
-      classes={classes}
-      onClose={close}
-      onSaved={saved}
-    />
+    <EditTrail id={id} />
   ) : (
-    <NewModule classes={classes} onClose={close} onSaved={saved} />
+    <BreadcrumbCurrent>{m.lrnNewModule()}</BreadcrumbCurrent>
   );
 }
-type Classes = Awaited<ReturnType<typeof getModuleClasses>>;
-function Existing({
+
+function EditTrail({ id }: { id: string }) {
+  const existing = useSuspenseQuery(moduleRecordQuery(id)).data;
+  return (
+    <>
+      <BreadcrumbStep
+        render={
+          <Link to="/modules/$moduleId" params={{ moduleId: id }} search={{}} />
+        }
+      >
+        {existing.title}
+      </BreadcrumbStep>
+      <BreadcrumbCurrent>{m.lrnEditModule()}</BreadcrumbCurrent>
+    </>
+  );
+}
+
+function ExistingEditor({
   id,
-  classes,
   onClose,
-  onSaved,
 }: {
   id: string;
-  classes: Classes;
-  onClose: () => void;
-  onSaved: (id: string) => void;
+  onClose: (saved?: string) => void;
 }) {
-  const { data } = useSuspenseQuery(moduleAuthoringQuery(id));
+  const existing = useSuspenseQuery(moduleRecordQuery(id)).data;
   return (
-    <ModuleWorkspace
-      initial={{
-        id: data.id,
-        expectedRevision: data.revision,
-        classId: data.classId,
-        subjectId: data.subjectId,
-        title: data.title,
-        summary: data.summary,
-      }}
-      status={data.status}
-      classes={classes}
+    <ModuleEditor
+      key={existing.id}
+      existing={existing}
+      classId=""
       onClose={onClose}
-      onSaved={onSaved}
     />
   );
 }
-function NewModule({
-  classes,
-  onClose,
-  onSaved,
-}: {
-  classes: Classes;
-  onClose: () => void;
-  onSaved: (id: string) => void;
-}) {
-  const [id] = useState(() => crypto.randomUUID());
-  const first = classes[0];
-  if (!first) return <p role="alert">{m.learningNoClasses()}</p>;
-  return (
-    <ModuleWorkspace
-      initial={{
-        id,
-        expectedRevision: 0,
-        classId: first.id,
-        subjectId: first.authoringSubjects[0]?.id ?? "",
-        title: "",
-        summary: "",
-      }}
-      status="draft"
-      classes={classes}
-      onClose={onClose}
-      onSaved={onSaved}
-    />
+
+function EditorPage() {
+  const { id, classId } = Route.useSearch();
+  const navigate = Route.useNavigate();
+  const router = useRouter();
+  const canGoBack = useCanGoBack();
+  const close = (saved?: string) => {
+    if (saved) {
+      void navigate({
+        to: "/modules/$moduleId",
+        params: { moduleId: saved },
+        search: {},
+        replace: true,
+      });
+      return;
+    }
+    if (canGoBack) {
+      router.history.back();
+      return;
+    }
+    void navigate({ to: "/teach/modules", search: {} });
+  };
+  return id ? (
+    <ExistingEditor id={id} onClose={close} />
+  ) : (
+    <ModuleEditor existing={null} classId={classId ?? ""} onClose={close} />
   );
 }

@@ -33,6 +33,7 @@ export default defineConfig({
     "calendar.spec.ts",
     "notifications.spec.ts",
     "collaboration.spec.ts",
+    "learning.spec.ts",
   ],
   /* Run tests in files in parallel */
   fullyParallel: true,
