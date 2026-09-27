@@ -192,14 +192,14 @@ Creating or editing a student, a class, a staff member (Carbon, Primer, GOV.UK).
 
 ### Settings page
 
-School settings, notification preferences (Polaris settings layout).
+School settings, website settings, notification preferences.
 
-- Once the page's own content is 800px wide: two columns per section; the
-  start column (280px) holds the heading and a short description, the end
-  column a card with the fields. The page's width decides, not the screen's,
-  so an open sidebar never squeezes the card.
+- One column of cards, at most 720px wide and 24px apart, the same cards
+  record pages use: the heading and a short description in the card's header
+  above a rule, the fields below.
+- A long card splits its fields into titled groups divided by a rule (name
+  and number, language and time, contact details), still under one Save.
 - Each card saves on its own with Save at the card's footer, start side.
-- Stacked on narrower screens. At most 960px wide, 40px between sections.
 
 ## Forms
 

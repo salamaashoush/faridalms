@@ -8,7 +8,10 @@ import { useMemo, useState } from "react";
 import { CheckboxRow } from "~/components/people/fields";
 import { ComboboxField } from "~/components/system/ComboboxField";
 import { SelectField, TextField } from "~/components/system/field";
-import { SettingsSection } from "~/components/system/SettingsSection";
+import {
+  SettingsGroup,
+  SettingsSection,
+} from "~/components/system/SettingsSection";
 import * as m from "~/i18n/messages";
 import { getLocale } from "~/i18n/runtime";
 import { schoolProfileQuery } from "~/queries/school-settings";
@@ -140,124 +143,130 @@ export function SchoolProfileSection() {
       saved={saved && !dirty}
       isDirty={() => dirty}
     >
-      <TextField
-        id="school-name-ar"
-        label={m.settingsSchoolNameArabic()}
-        dir="rtl"
-        width="name"
-        autoComplete="organization"
-        value={draft.nameAr}
-        onChange={(event) => {
-          setNameError(null);
-          set("nameAr", event.target.value);
-        }}
-        errors={nameError ? [nameError] : undefined}
-      />
-      <TextField
-        id="school-name-en"
-        label={m.settingsSchoolNameEnglish()}
-        dir="ltr"
-        width="name"
-        autoComplete="organization"
-        value={draft.nameEn}
-        onChange={(event) => {
-          setNameError(null);
-          set("nameEn", event.target.value);
-        }}
-      />
-      <TextField
-        id="school-identifier"
-        label={m.settingsSchoolIdentifier()}
-        hint={m.settingsSchoolIdentifierHint()}
-        optional
-        dir="ltr"
-        width="reference"
-        autoComplete="off"
-        value={draft.identifier}
-        onChange={(event) => set("identifier", event.target.value)}
-      />
-      <TimeZoneField
-        value={draft.timeZone}
-        onChange={(value) => set("timeZone", value)}
-      />
-      <SelectField
-        id="school-locale"
-        label={m.settingsDefaultLanguage()}
-        hint={m.settingsDefaultLanguageHint()}
-        value={draft.defaultLocale}
-        options={[
-          { value: "ar", label: m.languageArabic() },
-          { value: "en", label: m.languageEnglish() },
-        ]}
-        onChange={(value) => set("defaultLocale", value)}
-        width="name"
-      />
-      <SelectField
-        id="school-week-start"
-        label={m.settingsWeekStart()}
-        value={String(draft.weekStart)}
-        options={DAYS.map((day) => ({
-          value: String(day),
-          label: dayName(day),
-        }))}
-        onChange={(value) => set("weekStart", Number(value))}
-        width="name"
-      />
-      <fieldset className="grid gap-2">
-        <legend className="mb-1 text-sm leading-5 font-medium">
-          {m.settingsWeekend()}
-        </legend>
-        <div className="flex flex-wrap gap-x-5 gap-y-2">
-          {DAYS.map((day) => (
-            <CheckboxRow
-              key={day}
-              label={dayName(day)}
-              checked={draft.weekendDays.includes(day)}
-              onChange={(checked) =>
-                set(
-                  "weekendDays",
-                  checked
-                    ? [...draft.weekendDays, day]
-                    : draft.weekendDays.filter((held) => held !== day),
-                )
-              }
-            />
-          ))}
-        </div>
-      </fieldset>
-      <TextField
-        id="school-phone"
-        label={m.settingsSchoolPhone()}
-        optional
-        type="tel"
-        dir="ltr"
-        width="phone"
-        autoComplete="off"
-        value={draft.phone}
-        onChange={(event) => set("phone", event.target.value)}
-      />
-      <TextField
-        id="school-email"
-        label={m.settingsSchoolEmail()}
-        optional
-        type="email"
-        dir="ltr"
-        width="name"
-        autoComplete="off"
-        value={draft.email}
-        onChange={(event) => set("email", event.target.value)}
-      />
-      <TextField
-        id="school-website"
-        label={m.settingsSchoolWebsite()}
-        optional
-        type="url"
-        dir="ltr"
-        width="name"
-        autoComplete="off"
-        value={draft.websiteUrl}
-        onChange={(event) => set("websiteUrl", event.target.value)}
-      />
+      <SettingsGroup title={m.settingsGroupIdentity()}>
+        <TextField
+          id="school-name-ar"
+          label={m.settingsSchoolNameArabic()}
+          dir="rtl"
+          width="name"
+          autoComplete="organization"
+          value={draft.nameAr}
+          onChange={(event) => {
+            setNameError(null);
+            set("nameAr", event.target.value);
+          }}
+          errors={nameError ? [nameError] : undefined}
+        />
+        <TextField
+          id="school-name-en"
+          label={m.settingsSchoolNameEnglish()}
+          dir="ltr"
+          width="name"
+          autoComplete="organization"
+          value={draft.nameEn}
+          onChange={(event) => {
+            setNameError(null);
+            set("nameEn", event.target.value);
+          }}
+        />
+        <TextField
+          id="school-identifier"
+          label={m.settingsSchoolIdentifier()}
+          hint={m.settingsSchoolIdentifierHint()}
+          optional
+          dir="ltr"
+          width="reference"
+          autoComplete="off"
+          value={draft.identifier}
+          onChange={(event) => set("identifier", event.target.value)}
+        />
+      </SettingsGroup>
+      <SettingsGroup title={m.settingsGroupLanguageTime()}>
+        <TimeZoneField
+          value={draft.timeZone}
+          onChange={(value) => set("timeZone", value)}
+        />
+        <SelectField
+          id="school-locale"
+          label={m.settingsDefaultLanguage()}
+          hint={m.settingsDefaultLanguageHint()}
+          value={draft.defaultLocale}
+          options={[
+            { value: "ar", label: m.languageArabic() },
+            { value: "en", label: m.languageEnglish() },
+          ]}
+          onChange={(value) => set("defaultLocale", value)}
+          width="name"
+        />
+        <SelectField
+          id="school-week-start"
+          label={m.settingsWeekStart()}
+          value={String(draft.weekStart)}
+          options={DAYS.map((day) => ({
+            value: String(day),
+            label: dayName(day),
+          }))}
+          onChange={(value) => set("weekStart", Number(value))}
+          width="name"
+        />
+        <fieldset className="grid gap-2">
+          <legend className="mb-1 text-sm leading-5 font-medium">
+            {m.settingsWeekend()}
+          </legend>
+          <div className="grid grid-cols-2 gap-x-5 gap-y-2 @sm:grid-cols-4">
+            {DAYS.map((day) => (
+              <CheckboxRow
+                key={day}
+                label={dayName(day)}
+                checked={draft.weekendDays.includes(day)}
+                onChange={(checked) =>
+                  set(
+                    "weekendDays",
+                    checked
+                      ? [...draft.weekendDays, day]
+                      : draft.weekendDays.filter((held) => held !== day),
+                  )
+                }
+              />
+            ))}
+          </div>
+        </fieldset>
+      </SettingsGroup>
+      <SettingsGroup title={m.settingsGroupContact()}>
+        <TextField
+          id="school-phone"
+          label={m.settingsSchoolPhone()}
+          optional
+          type="tel"
+          dir="ltr"
+          width="phone"
+          autoComplete="off"
+          value={draft.phone}
+          onChange={(event) => set("phone", event.target.value)}
+        />
+        <TextField
+          id="school-email"
+          label={m.settingsSchoolEmail()}
+          optional
+          type="email"
+          dir="ltr"
+          width="name"
+          autoComplete="off"
+          value={draft.email}
+          onChange={(event) => set("email", event.target.value)}
+        />
+        <TextField
+          id="school-website"
+          label={m.settingsSchoolWebsite()}
+          optional
+          type="url"
+          dir="ltr"
+          width="name"
+          autoComplete="off"
+          value={draft.websiteUrl}
+          onChange={(event) => set("websiteUrl", event.target.value)}
+        />
+      </SettingsGroup>
     </SettingsSection>
   );
 }

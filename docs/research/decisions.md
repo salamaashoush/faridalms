@@ -62,6 +62,11 @@ what follows from them. A decision changes only by a new entry here.
   schema is `packages/database/src` itself and `drizzle.config.ts` writes its
   migrations to `drizzle/`.
 
+- **Settings pages use the record page's cards.** Salama judged the
+  two-column settings layout (heading beside a card) out of step with the rest
+  of the product. Settings are now one column of cards with the heading inside,
+  as record pages are, and long cards group their fields under small headings.
+
 ## Website (2026-09-27)
 
 - **The school website is a marketing site, not an app screen.** Salama rejected

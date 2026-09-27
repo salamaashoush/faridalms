@@ -3861,5 +3861,8 @@
   "siteTextureHint": "نقش هادئ فوق لون القسم.",
   "siteFocusHint": "اسحب النقطة إلى ما يجب أن يبقى ظاهرًا عند قص الصورة.",
   "siteFocusHandle": "نقطة التركيز، {x}٪ أفقيًا و{y}٪ عموديًا. حرّكها بمفاتيح الأسهم.",
-  "siteVariantPageHeaderBanner": "شريط صورة"
+  "siteVariantPageHeaderBanner": "شريط صورة",
+  "settingsGroupIdentity": "الاسم والرقم",
+  "settingsGroupLanguageTime": "اللغة والوقت",
+  "settingsGroupContact": "بيانات التواصل"
 }

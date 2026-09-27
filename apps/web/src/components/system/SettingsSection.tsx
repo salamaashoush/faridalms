@@ -46,9 +46,7 @@ export function SettingsPage({ children }: { children: ReactNode }) {
   const all = [...sections.values()];
   return (
     <UnsavedContext.Provider value={register}>
-      <div className="@container/settings grid w-full max-w-[960px] gap-10">
-        {children}
-      </div>
+      <div className="grid w-full max-w-[720px] gap-6">{children}</div>
       <UnsavedChangesGuard
         isDirty={() => all.some((section) => section.isDirty())}
         pending={all.some((section) => section.pending)}
@@ -74,10 +72,9 @@ function useUnsaved(isDirty: (() => boolean) | undefined, pending: boolean) {
 }
 
 /**
- * One group of settings: what it is on the start side, the fields in a card
- * on the end side, stacked while the settings page is narrower than 800px.
- * A section with `onSubmit` is its own form with Save at the start of the
- * card's footer, so saving one never sends another's half-finished edits.
+ * One group of settings as a card: its title and description, then the
+ * fields. A section with `onSubmit` is its own form with Save at the start of
+ * the card's footer, so saving one never sends another's half-finished edits.
  * Without it the card only shows, and `footer` can hold a way to where it is
  * changed.
  */
@@ -108,7 +105,7 @@ export function SettingsSection({
   const hydrated = useHydrated();
   const guarded = useUnsaved(isDirty, pending);
   const body = (
-    <div className="@container grid min-w-0 gap-6 p-5">
+    <div className="@container grid min-w-0 gap-6 px-5 pt-5 pb-6">
       {error ? (
         <p
           role="alert"
@@ -121,14 +118,13 @@ export function SettingsSection({
       {children}
     </div>
   );
-  const card = "min-w-0 rounded-lg border bg-card text-card-foreground";
   const footerRow = "flex flex-wrap items-center gap-3 border-t px-5 py-4";
   return (
     <section
       aria-labelledby={headingId}
-      className="grid gap-4 @min-[800px]/settings:grid-cols-[280px_minmax(0,1fr)] @min-[800px]/settings:gap-8"
+      className="min-w-0 rounded-lg border bg-card text-card-foreground"
     >
-      <div className="min-w-0">
+      <div className="border-b px-5 py-4">
         <h2 id={headingId} className="text-base leading-6 font-semibold">
           {title}
         </h2>
@@ -142,7 +138,7 @@ export function SettingsSection({
         <form
           noValidate
           aria-labelledby={headingId}
-          className={card}
+          className="min-w-0"
           onSubmit={(event) => {
             event.preventDefault();
             const form = event.currentTarget;
@@ -187,11 +183,31 @@ export function SettingsSection({
           ) : null}
         </form>
       ) : (
-        <div className={card}>
+        <>
           {body}
           {footer ? <div className={footerRow}>{footer}</div> : null}
-        </div>
+        </>
       )}
     </section>
+  );
+}
+
+/** Related fields inside a settings card, under a small heading of their own. */
+export function SettingsGroup({
+  title,
+  children,
+}: {
+  title: string;
+  children: ReactNode;
+}) {
+  return (
+    <div className="border-t pt-6 first:border-t-0 first:pt-0">
+      <fieldset className="grid min-w-0 gap-6">
+        <legend className="mb-5 text-sm leading-5 font-semibold">
+          {title}
+        </legend>
+        {children}
+      </fieldset>
+    </div>
   );
 }
