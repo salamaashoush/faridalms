@@ -11,6 +11,8 @@ import { formatBytes, imageSizeClass } from "./format";
 import { EmbedFrame, MediaPlayer } from "./media-view";
 import { editorTheme } from "./theme";
 
+export { editorFrame } from "./frame";
+
 export interface ViewStrings {
   checklist: string;
   downloadFile: string;

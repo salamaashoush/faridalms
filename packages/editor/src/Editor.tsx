@@ -26,6 +26,7 @@ import type { EditorStrings } from "./strings";
 import { $currentBlock } from "./blocks";
 import { EditorEnvironmentProvider, useEditorEnvironment } from "./context";
 import { ShortcutsExtension } from "./extensions";
+import { editorFrame } from "./frame";
 import { contentExtensions } from "./headless";
 import { markdownTransformers } from "./markdown";
 import { BlockHandlePlugin } from "./plugins/BlockHandle";
@@ -39,7 +40,6 @@ import { SlashMenuPlugin } from "./plugins/SlashMenu";
 import { TablePlugin } from "./plugins/Table";
 import { ToolbarPlugin } from "./plugins/Toolbar";
 import { editorTheme } from "./theme";
-import { cx } from "./ui";
 
 /**
  * Live editing: the document's shared state comes from the provider, which
@@ -198,45 +198,20 @@ function Surface({
     .join(" ");
 
   return (
-    <div
-      className={cx(
-        "fe-surface group/editor relative",
-        document
-          ? "fe-document"
-          : "overflow-visible rounded-xl border bg-background shadow-xs transition-shadow focus-within:border-ring/50 focus-within:ring-3 focus-within:ring-ring/15",
-        invalid && "border-destructive",
-      )}
-    >
+    <div className={editorFrame.surface(document, invalid)}>
       {toolbar && !disabled ? (
-        <div
-          className={cx(
-            document
-              ? "sticky top-12 z-20 -mx-1 mb-3 rounded-lg border bg-background/95 backdrop-blur supports-backdrop-filter:bg-background/80"
-              : "overflow-hidden rounded-t-xl",
-          )}
-        >
+        <div className={editorFrame.toolbar(document)}>
           <ToolbarPlugin disabled={disabled} />
         </div>
       ) : null}
-      <div
-        ref={setAnchor}
-        className={cx(
-          "fe relative",
-          document
-            ? "min-h-[40vh] ps-9 sm:-ms-14 sm:ps-14"
-            : "min-h-36 ps-10 pe-4 py-3",
-        )}
-      >
+      <div ref={setAnchor} className={editorFrame.content(document)}>
         <ContentEditable
           id={id}
           aria-label={label}
           aria-multiline="true"
           aria-invalid={invalid}
           aria-describedby={described || undefined}
-          className={cx(
-            "fe-editable outline-none",
-            document ? "min-h-[40vh] pb-24" : "min-h-30",
-          )}
+          className={editorFrame.editable(document)}
         />
         <BlockHandlePlugin anchor={anchor} />
         <CodeLanguagePlugin anchor={anchor} />
@@ -250,12 +225,7 @@ function Surface({
       <EmbedPlugin />
       <DiagramPlugin />
       {!document || upload !== "idle" ? (
-        <div
-          className={cx(
-            "flex items-center justify-between gap-3 px-4 py-1.5 text-xs text-muted-foreground",
-            !document && "border-t bg-muted/20 rounded-b-xl",
-          )}
-        >
+        <div className={editorFrame.footer(document)}>
           <span
             aria-live="polite"
             className={upload === "failed" ? "text-destructive" : undefined}
