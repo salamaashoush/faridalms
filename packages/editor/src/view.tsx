@@ -1,7 +1,11 @@
 import type { ContentDocument, ContentNode } from "@faridalms/domain/content";
 import type { CSSProperties, ReactNode } from "react";
 
-import { validContentStyle } from "@faridalms/domain/content";
+import {
+  contentPlainText,
+  textDirection,
+  validContentStyle,
+} from "@faridalms/domain/content";
 import { embedPage, embedProviderNames } from "@faridalms/domain/embed";
 import { isSafeContentUrl } from "@faridalms/domain/rich-text";
 import { Download, ExternalLink, FileText } from "lucide-react";
@@ -440,7 +444,10 @@ export function ContentRenderer({
   className?: string;
 }) {
   return (
-    <div className={className ? `fe ${className}` : "fe"}>
+    <div
+      className={className ? `fe ${className}` : "fe"}
+      dir={textDirection(contentPlainText(document)) ?? undefined}
+    >
       {render(document.root, "root", { strings, fileUrl, locale })}
     </div>
   );

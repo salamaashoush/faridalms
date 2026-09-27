@@ -8,6 +8,7 @@ import {
   contentFileIds,
   contentPlainText,
   validContentStyle,
+  textDirection,
 } from "./content";
 import { emptyContent, richTextToContent } from "./content-conversion";
 import { plainTextDocument } from "./rich-text";
@@ -330,5 +331,15 @@ describe("block content", () => {
       badBlockId,
     ])
       expect(v.safeParse(contentDocumentSchema, document).success).toBe(false);
+  });
+});
+
+describe("text direction", () => {
+  it("reads the first letter, not digits or punctuation", () => {
+    expect(textDirection("12. قراءة الفصل")).toBe("rtl");
+    expect(textDirection("— Term planning, 2026")).toBe("ltr");
+    expect(textDirection("Staff meeting في المكتبة")).toBe("ltr");
+    expect(textDirection("2026 - 10:30")).toBeNull();
+    expect(textDirection("")).toBeNull();
   });
 });

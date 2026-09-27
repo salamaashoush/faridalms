@@ -415,6 +415,22 @@ const visit = (node: ContentNode): string => {
 export function contentPlainText(document: ContentDocument): string {
   return visit(document.root);
 }
+
+const STRONG_RTL = /[\u0590-\u08FF\uFB1D-\uFDFF\uFE70-\uFEFF]/u;
+const STRONG = /[\p{L}]/u;
+
+/**
+ * The direction a text reads in, from its first letter: Arabic or Hebrew make
+ * it right to left, any other script left to right. Digits and punctuation
+ * decide nothing, so a text without letters has no direction of its own.
+ */
+export function textDirection(text: string): "ltr" | "rtl" | null {
+  for (const character of text) {
+    if (STRONG_RTL.test(character)) return "rtl";
+    if (STRONG.test(character)) return "ltr";
+  }
+  return null;
+}
 export function contentFileIds(document: ContentDocument): string[] {
   const ids = new Set<string>();
   const pending = [document.root];
