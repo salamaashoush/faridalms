@@ -577,6 +577,21 @@ export const SECTION_SPECS = {
     variants: ["details", "map"],
     fields: { heading, text: t(500, true), mapHref: { kind: "href" } },
   },
+  form: {
+    category: "conversion",
+    variants: ["split", "stacked", "card"],
+    fields: {
+      eyebrow: t(80),
+      heading,
+      text: intro,
+      purpose: choice(["enquiry", "visit", "general"]),
+      phone: choice(["ask", "require", "hide"]),
+      grade: choice(["ask", "hide"]),
+      submit: t(25),
+      thanks: t(300, true),
+      media: { kind: "media" },
+    },
+  },
   quickLinks: {
     category: "conversion",
     variants: ["tiles", "audience", "list"],

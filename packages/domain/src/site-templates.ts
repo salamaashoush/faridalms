@@ -787,6 +787,39 @@ const BLOCKS = section("blocks", "columns", (b) => ({
   ],
 }));
 
+const FORM = (
+  purpose: "enquiry" | "visit" | "general",
+  heading: Words,
+  text: Words,
+) =>
+  section(
+    "form",
+    "split",
+    (b) => ({
+      eyebrow: b.w(["Get in touch", "تواصل معنا"]),
+      heading: b.w(heading),
+      text: b.w(text),
+      purpose,
+      phone: "ask" as const,
+      grade: purpose === "general" ? ("hide" as const) : ("ask" as const),
+      submit: b.w(["Send", "أرسل"]),
+      thanks: b.w([
+        "Thank you. We will reply within two working days.",
+        "شكرًا لك. سنرد خلال يومي عمل.",
+      ]),
+    }),
+    { scheme: "soft" },
+  );
+
+const ENQUIRY_FORM = FORM(
+  "enquiry",
+  ["Ask us anything", "اسألنا عن أي شيء"],
+  [
+    "Tell us a little about your child and we will be in touch.",
+    "أخبرنا قليلًا عن طفلك وسنتواصل معك.",
+  ],
+);
+
 /** A sample of every section, for the builder to show and insert. */
 const SAMPLES: Record<SectionType, (b: Builder) => PageSection> = {
   hero: HERO_HOME,
@@ -826,6 +859,7 @@ const SAMPLES: Record<SectionType, (b: Builder) => PageSection> = {
   contact: CONTACT,
   quickLinks: QUICK_LINKS,
   embed: EMBED,
+  form: ENQUIRY_FORM,
 };
 
 /**
@@ -875,7 +909,7 @@ export const PAGE_TEMPLATES = {
     STEPS,
     FEES,
     FAQ,
-    ADMISSIONS_TRIAD,
+    ENQUIRY_FORM,
   ],
   visit: [
     PAGE_HEADER(
@@ -885,6 +919,14 @@ export const PAGE_TEMPLATES = {
     TEXT(
       ["Open mornings", "أيام الأبواب المفتوحة"],
       ["Join a tour led by our students.", "انضم إلى جولة يقودها طلابنا."],
+    ),
+    FORM(
+      "visit",
+      ["Book a visit", "احجز زيارة"],
+      [
+        "Choose a morning that suits you and we will confirm by email.",
+        "اختر صباحًا يناسبك وسنؤكد لك بالبريد الإلكتروني.",
+      ],
     ),
     CONTACT,
   ],
@@ -913,6 +955,11 @@ export const PAGE_TEMPLATES = {
       ["We would love to hear from you.", "يسعدنا أن نسمع منكم."],
     ),
     CONTACT,
+    FORM(
+      "general",
+      ["Send us a message", "أرسل لنا رسالة"],
+      ["We read every message.", "نقرأ كل رسالة."],
+    ),
     FAQ,
   ],
 } satisfies Record<string, ((b: Builder) => PageSection)[]>;
