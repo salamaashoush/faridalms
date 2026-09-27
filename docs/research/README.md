@@ -25,5 +25,8 @@ with new evidence recorded here.
   (Finalsite, Apptegy, Edlio, Blackbaud, Campus Suite), theme and section
   models (Squarespace, WordPress, Webflow, Framer, Wix), 16 school sites
   measured, Arabic fonts. Specification: [../systems/website.md](../systems/website.md).
+- [website-visual-design.md](website-visual-design.md): twelve school sites and
+  the craft marketing sites measured for type voice, shape, rhythm and motion,
+  the builder block systems, and the tokens the website takes from them.
 
 Product behaviour built from these: [../product-spec.md](../product-spec.md).

@@ -23,6 +23,18 @@ export const HEADERS = ["classic", "centered", "overlay", "minimal"] as const;
 export const FOOTERS = ["sitemap", "compact", "contact"] as const;
 export const HEADING_CASES = ["none", "upper"] as const;
 export const DIVIDERS = ["none", "curve", "wave", "angle"] as const;
+export const HEADING_SCALES = ["classic", "editorial", "statement"] as const;
+export const EMPHASES = [
+  "italic",
+  "weight",
+  "colour",
+  "highlight",
+  "underline",
+] as const;
+export const CARD_STYLES = ["flat", "outlined", "raised"] as const;
+export const IMAGE_SHAPES = ["square", "rounded", "arch", "leaf"] as const;
+export const EYEBROWS = ["plain", "rule", "pill"] as const;
+export const MOTIONS = ["none", "subtle", "lively"] as const;
 
 export type Radius = (typeof RADII)[number];
 export type ButtonShape = (typeof BUTTON_SHAPES)[number];
@@ -31,6 +43,12 @@ export type HeaderStyle = (typeof HEADERS)[number];
 export type FooterStyle = (typeof FOOTERS)[number];
 export type HeadingCase = (typeof HEADING_CASES)[number];
 export type Divider = (typeof DIVIDERS)[number];
+export type HeadingScale = (typeof HEADING_SCALES)[number];
+export type CardStyle = (typeof CARD_STYLES)[number];
+export type ImageShape = (typeof IMAGE_SHAPES)[number];
+export type EyebrowStyle = (typeof EYEBROWS)[number];
+export type Motion = (typeof MOTIONS)[number];
+export type Emphasis = (typeof EMPHASES)[number];
 
 export interface FontFace {
   /** The CSS family name the self-hosted font registers. */
@@ -170,6 +188,12 @@ export interface Theme {
   footer: FooterStyle;
   headingCase: HeadingCase;
   divider: Divider;
+  headingScale: HeadingScale;
+  card: CardStyle;
+  image: ImageShape;
+  eyebrow: EyebrowStyle;
+  motion: Motion;
+  emphasis: Emphasis;
 }
 
 /**
@@ -199,6 +223,12 @@ export const THEMES: Record<ThemeId, Theme> = {
     footer: "sitemap",
     headingCase: "none",
     divider: "none",
+    headingScale: "editorial",
+    card: "outlined",
+    image: "arch",
+    eyebrow: "rule",
+    emphasis: "italic",
+    motion: "subtle",
   },
   meridian: {
     id: "meridian",
@@ -222,6 +252,12 @@ export const THEMES: Record<ThemeId, Theme> = {
     footer: "sitemap",
     headingCase: "none",
     divider: "none",
+    headingScale: "classic",
+    card: "raised",
+    image: "rounded",
+    eyebrow: "pill",
+    emphasis: "colour",
+    motion: "subtle",
   },
   brightStart: {
     id: "brightStart",
@@ -245,6 +281,12 @@ export const THEMES: Record<ThemeId, Theme> = {
     footer: "contact",
     headingCase: "none",
     divider: "wave",
+    headingScale: "classic",
+    card: "raised",
+    image: "leaf",
+    eyebrow: "pill",
+    emphasis: "underline",
+    motion: "lively",
   },
   oasis: {
     id: "oasis",
@@ -268,6 +310,12 @@ export const THEMES: Record<ThemeId, Theme> = {
     footer: "contact",
     headingCase: "none",
     divider: "none",
+    headingScale: "editorial",
+    card: "flat",
+    image: "arch",
+    eyebrow: "rule",
+    emphasis: "colour",
+    motion: "subtle",
   },
   editorial: {
     id: "editorial",
@@ -291,6 +339,12 @@ export const THEMES: Record<ThemeId, Theme> = {
     footer: "compact",
     headingCase: "none",
     divider: "none",
+    headingScale: "statement",
+    card: "flat",
+    image: "square",
+    eyebrow: "plain",
+    emphasis: "weight",
+    motion: "lively",
   },
   evergreen: {
     id: "evergreen",
@@ -314,6 +368,12 @@ export const THEMES: Record<ThemeId, Theme> = {
     footer: "sitemap",
     headingCase: "none",
     divider: "curve",
+    headingScale: "editorial",
+    card: "outlined",
+    image: "leaf",
+    eyebrow: "rule",
+    emphasis: "italic",
+    motion: "subtle",
   },
   civic: {
     id: "civic",
@@ -337,6 +397,12 @@ export const THEMES: Record<ThemeId, Theme> = {
     footer: "sitemap",
     headingCase: "none",
     divider: "none",
+    headingScale: "classic",
+    card: "outlined",
+    image: "square",
+    eyebrow: "plain",
+    emphasis: "colour",
+    motion: "none",
   },
 };
 
@@ -372,6 +438,12 @@ export const siteThemeSchema = v.object({
   footer: v.optional(v.picklist(FOOTERS)),
   headingCase: v.optional(v.picklist(HEADING_CASES)),
   divider: v.optional(v.picklist(DIVIDERS)),
+  headingScale: v.optional(v.picklist(HEADING_SCALES)),
+  card: v.optional(v.picklist(CARD_STYLES)),
+  image: v.optional(v.picklist(IMAGE_SHAPES)),
+  eyebrow: v.optional(v.picklist(EYEBROWS)),
+  motion: v.optional(v.picklist(MOTIONS)),
+  emphasis: v.optional(v.picklist(EMPHASES)),
 });
 export type SiteTheme = v.InferOutput<typeof siteThemeSchema>;
 
@@ -390,6 +462,12 @@ export function resolveTheme(choice: SiteTheme | null | undefined): Theme {
     footer: choice.footer ?? base.footer,
     headingCase: choice.headingCase ?? base.headingCase,
     divider: choice.divider ?? base.divider,
+    headingScale: choice.headingScale ?? base.headingScale,
+    card: choice.card ?? base.card,
+    image: choice.image ?? base.image,
+    eyebrow: choice.eyebrow ?? base.eyebrow,
+    motion: choice.motion ?? base.motion,
+    emphasis: choice.emphasis ?? base.emphasis,
   };
 }
 

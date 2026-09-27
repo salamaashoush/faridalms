@@ -73,7 +73,7 @@ type NumberField = {
 type IconField = { kind: "icon" };
 type DateField = { kind: "date" };
 type EmbedField = { kind: "embed" };
-type ItemsField = {
+export type ItemsField = {
   kind: "items";
   max: number;
   fields: Record<string, ScalarField>;
@@ -90,7 +90,9 @@ type ScalarField =
   | IconField
   | DateField
   | EmbedField;
-export type Field = ScalarField | ItemsField;
+/** Columns of freely arranged blocks, the builder's open canvas. */
+type ColumnsField = { kind: "columns"; max: number };
+export type Field = ScalarField | ItemsField | ColumnsField;
 
 export interface SiteImage {
   fileId: string | null;
@@ -136,9 +138,11 @@ type ScalarValue<F> = F extends TextField
                     : F extends EmbedField
                       ? SiteEmbed | null
                       : never;
-type ValueOf<F> = F extends { kind: "items"; fields: infer G }
-  ? ({ id: string } & { -readonly [K in keyof G]: ScalarValue<G[K]> })[]
-  : ScalarValue<F>;
+type ValueOf<F> = F extends ColumnsField
+  ? SiteColumn[]
+  : F extends { kind: "items"; fields: infer G }
+    ? ({ id: string } & { -readonly [K in keyof G]: ScalarValue<G[K]> })[]
+    : ScalarValue<F>;
 type DataOf<Fs> = { -readonly [K in keyof Fs]: ValueOf<Fs[K]> };
 
 const t = (max: number, multiline = false): TextField => ({
@@ -148,6 +152,67 @@ const t = (max: number, multiline = false): TextField => ({
 });
 const heading = t(200);
 const intro = t(600, true);
+const choice = <const O extends readonly [string, ...string[]]>(
+  options: O,
+) => ({
+  kind: "choice" as const,
+  options,
+});
+
+export const MAX_BLOCKS = 12;
+
+/**
+ * The blocks a free-form section is built from, each with its own fields,
+ * so a school can compose layouts no fixed section offers.
+ */
+export const BLOCK_SPECS = {
+  heading: {
+    fields: { eyebrow: t(80), text: t(200), size: choice(["l", "m", "xl"]) },
+  },
+  paragraph: { fields: { body: { kind: "rich" } } },
+  image: {
+    fields: {
+      image: { kind: "image" },
+      shape: choice(["theme", "square", "rounded", "circle"]),
+      ratio: choice(["landscape", "square", "portrait", "wide"]),
+    },
+  },
+  buttons: { fields: { actions: { kind: "links", max: 3 } } },
+  list: {
+    fields: {
+      items: {
+        kind: "items",
+        max: 12,
+        fields: { icon: { kind: "icon" }, text: t(200) },
+      },
+    },
+  },
+  stat: { fields: { value: t(20), label: t(80) } },
+  quote: { fields: { quote: t(600, true), name: t(100), role: t(100) } },
+  feature: {
+    fields: { icon: { kind: "icon" }, title: t(120), text: t(300, true) },
+  },
+  video: { fields: { media: { kind: "media" }, embed: { kind: "embed" } } },
+  spacer: { fields: { size: choice(["m", "s", "l"]) } },
+  divider: { fields: { style: choice(["line", "dots", "ornament"]) } },
+} as const satisfies Record<
+  string,
+  { fields: Record<string, ScalarField | ItemsField> }
+>;
+export type BlockType = keyof typeof BLOCK_SPECS;
+export const BLOCK_TYPES = Object.keys(BLOCK_SPECS) as BlockType[];
+export type SiteBlock = {
+  [T in BlockType]: {
+    id: string;
+    type: T;
+    data: DataOf<(typeof BLOCK_SPECS)[T]["fields"]>;
+  };
+}[BlockType];
+export type BlockOf<T extends BlockType> = Extract<SiteBlock, { type: T }>;
+export interface SiteColumn {
+  id: string;
+  blocks: SiteBlock[];
+}
 
 export const SECTION_CATEGORIES = [
   "intro",
@@ -180,6 +245,25 @@ export const SECTION_SPECS = {
       media: { kind: "media" },
       actions: { kind: "links", max: 3 },
       height: { kind: "choice", options: ["m", "s", "l", "screen"] },
+    },
+  },
+  slides: {
+    category: "intro",
+    variants: ["fullbleed", "split"],
+    fields: {
+      height: choice(["l", "m", "screen"]),
+      interval: choice(["7", "10", "off"]),
+      items: {
+        kind: "items",
+        max: 6,
+        fields: {
+          image: { kind: "image" },
+          eyebrow: t(80),
+          heading,
+          text: t(400, true),
+          actions: { kind: "links", max: 2 },
+        },
+      },
     },
   },
   pageHeader: {
@@ -216,6 +300,18 @@ export const SECTION_SPECS = {
     category: "story",
     variants: ["narrow", "columns"],
     fields: { eyebrow: t(80), heading, body: { kind: "rich" } },
+  },
+  blocks: {
+    category: "story",
+    variants: ["columns"],
+    fields: {
+      eyebrow: t(80),
+      heading,
+      text: intro,
+      layout: choice(["1-1", "2-1", "1-2", "1-1-1", "1-1-1-1", "1"]),
+      valign: choice(["start", "center"]),
+      columns: { kind: "columns", max: 4 },
+    },
   },
   imageText: {
     category: "story",
@@ -392,7 +488,7 @@ export const SECTION_SPECS = {
   },
   logos: {
     category: "people",
-    variants: ["row", "grid"],
+    variants: ["row", "grid", "marquee"],
     fields: {
       heading,
       items: {
@@ -627,8 +723,10 @@ function scalarSchema(field: ScalarField): v.GenericSchema {
   return v.never();
 }
 
-function fieldSchema(field: Field): v.GenericSchema {
-  if (field.kind !== "items") return scalarSchema(field);
+/** A block's fields read like a small section's. */
+type BlockFields = Record<string, ScalarField | ItemsField>;
+
+function itemsSchema(field: ItemsField): v.GenericSchema {
   return v.pipe(
     v.array(
       v.object({
@@ -636,13 +734,53 @@ function fieldSchema(field: Field): v.GenericSchema {
         ...Object.fromEntries(
           Object.entries(field.fields).map(([key, inner]) => [
             key,
-            scalarSchema(inner),
+            v.optional(scalarSchema(inner), () => initialScalar(inner)),
           ]),
         ),
       }),
     ),
     v.maxLength(field.max),
   );
+}
+
+function dataSchema(fields: Record<string, Field>): v.GenericSchema {
+  // A field added later takes its initial value in content saved before it
+  // existed, so that content keeps validating.
+  return v.object(
+    Object.fromEntries(
+      Object.entries(fields).map(([key, field]) => [
+        key,
+        v.optional(fieldSchema(field), () => initialOf(field)),
+      ]),
+    ),
+  );
+}
+
+const blockSchema = v.variant(
+  "type",
+  BLOCK_TYPES.map((type) =>
+    v.object({
+      id,
+      type: v.literal(type),
+      data: dataSchema(BLOCK_SPECS[type].fields),
+    }),
+  ) as unknown as v.VariantOptions<"type">,
+);
+
+function fieldSchema(field: Field): v.GenericSchema {
+  if (field.kind === "items") return itemsSchema(field);
+  if (field.kind === "columns")
+    return v.pipe(
+      v.array(
+        v.object({
+          id,
+          blocks: v.pipe(v.array(blockSchema), v.maxLength(MAX_BLOCKS)),
+        }),
+      ),
+      v.minLength(1),
+      v.maxLength(field.max),
+    );
+  return scalarSchema(field);
 }
 
 const sectionSchemas = SECTION_TYPES.map((type) => {
@@ -652,14 +790,7 @@ const sectionSchemas = SECTION_TYPES.map((type) => {
     type: v.literal(type),
     variant: v.picklist(spec.variants),
     style: v.optional(sectionStyleSchema, defaultStyle),
-    data: v.object(
-      Object.fromEntries(
-        Object.entries(spec.fields).map(([key, field]) => [
-          key,
-          fieldSchema(field),
-        ]),
-      ),
-    ),
+    data: dataSchema(spec.fields),
   });
 });
 
@@ -710,8 +841,21 @@ function initialScalar(field: ScalarField): unknown {
   return null;
 }
 
-const initialOf = (field: Field): unknown =>
-  field.kind === "items" ? [] : initialScalar(field);
+function initialData(fields: Record<string, Field>): Record<string, unknown> {
+  return Object.fromEntries(
+    Object.entries(fields).map(([key, field]) => [key, initialOf(field)]),
+  );
+}
+
+function initialOf(field: Field): unknown {
+  if (field.kind === "items") return [];
+  if (field.kind === "columns")
+    return [
+      { id: crypto.randomUUID(), blocks: [] },
+      { id: crypto.randomUUID(), blocks: [] },
+    ];
+  return initialScalar(field);
+}
 
 /** A new, empty section of a type in its first layout. */
 export function newSection<T extends SectionType>(type: T): SectionOf<T> {
@@ -721,12 +865,7 @@ export function newSection<T extends SectionType>(type: T): SectionOf<T> {
     type,
     variant: spec.variants[0],
     style: defaultStyle(),
-    data: Object.fromEntries(
-      Object.entries(spec.fields).map(([key, field]) => [
-        key,
-        initialOf(field),
-      ]),
-    ),
+    data: initialData(spec.fields),
   } as unknown as SectionOf<T>;
 }
 
@@ -745,10 +884,58 @@ export function newItem(
   };
 }
 
+/**
+ * The columns a layout asks for: new ones start empty, and the blocks of
+ * columns a narrower layout drops move into its last column.
+ */
+export function fitColumns(
+  columns: SiteColumn[],
+  layout: string,
+): SiteColumn[] {
+  const count = layout.split("-").length;
+  if (columns.length === count) return columns;
+  if (columns.length < count)
+    return [
+      ...columns,
+      ...Array.from({ length: count - columns.length }, () => ({
+        id: crypto.randomUUID(),
+        blocks: [],
+      })),
+    ];
+  const kept = columns.slice(0, count);
+  const last = kept.at(-1);
+  if (!last) return columns;
+  return [
+    ...kept.slice(0, -1),
+    {
+      ...last,
+      blocks: [
+        ...last.blocks,
+        ...columns.slice(count).flatMap((column) => column.blocks),
+      ],
+    },
+  ];
+}
+
+/** A new, empty block of a kind. */
+export function newBlock<T extends BlockType>(type: T): BlockOf<T> {
+  return {
+    id: crypto.randomUUID(),
+    type,
+    data: initialData(BLOCK_SPECS[type].fields),
+  } as unknown as BlockOf<T>;
+}
+
 export const fieldsOf = (type: SectionType): Record<string, Field> =>
   SECTION_SPECS[type].fields;
+export const blockFieldsOf = (type: BlockType): BlockFields =>
+  BLOCK_SPECS[type].fields;
 
 type Loose = Record<string, unknown>;
+type LooseColumn = {
+  id: string;
+  blocks: { id: string; type: BlockType; data: Loose }[];
+};
 
 function scalarWords(field: ScalarField, value: unknown): string[] {
   switch (field.kind) {
@@ -767,20 +954,30 @@ function scalarWords(field: ScalarField, value: unknown): string[] {
 }
 
 function fieldWords(field: Field, value: unknown): string[] {
-  if (field.kind !== "items") return scalarWords(field, value);
-  return (value as Loose[]).flatMap((item) =>
-    Object.entries(field.fields).flatMap(([key, inner]) =>
-      scalarWords(inner, item[key]),
-    ),
+  if (field.kind === "items")
+    return (value as Loose[]).flatMap((item) =>
+      Object.entries(field.fields).flatMap(([key, inner]) =>
+        scalarWords(inner, item[key]),
+      ),
+    );
+  if (field.kind === "columns")
+    return (value as LooseColumn[]).flatMap((column) =>
+      column.blocks.flatMap((block) =>
+        dataWords(blockFieldsOf(block.type), block.data),
+      ),
+    );
+  return scalarWords(field, value);
+}
+
+function dataWords(fields: Record<string, Field>, data: Loose): string[] {
+  return Object.entries(fields).flatMap(([key, field]) =>
+    fieldWords(field, data[key]),
   );
 }
 
 /** Every piece of wording in a section, in reading order. */
 export function sectionWords(section: PageSection): string[] {
-  const data = section.data as Loose;
-  return Object.entries(fieldsOf(section.type)).flatMap(([key, field]) =>
-    fieldWords(field, data[key]),
-  );
+  return dataWords(fieldsOf(section.type), section.data);
 }
 
 export const sectionWritten = (section: PageSection) =>
@@ -834,29 +1031,99 @@ function scalarBlank(field: ScalarField, original: unknown): unknown {
   }
 }
 
+function fieldBlank(field: Field, original: unknown): unknown {
+  if (field.kind === "items")
+    return (original as Loose[]).map((item) => ({
+      ...item,
+      ...Object.fromEntries(
+        Object.entries(field.fields).map(([key, inner]) => [
+          key,
+          scalarBlank(inner, item[key]),
+        ]),
+      ),
+    }));
+  if (field.kind === "columns")
+    return (original as LooseColumn[]).map((column) => ({
+      ...column,
+      blocks: column.blocks.map((block) => ({
+        ...block,
+        data: dataBlank(blockFieldsOf(block.type), block.data),
+      })),
+    }));
+  return scalarBlank(field, original);
+}
+
+function dataBlank(fields: Record<string, Field>, data: Loose): Loose {
+  return Object.fromEntries(
+    Object.entries(fields).map(([key, field]) => [
+      key,
+      fieldBlank(field, data[key]),
+    ]),
+  );
+}
+
 function fieldOverlay(
   field: Field,
   original: unknown,
   translated: unknown,
 ): unknown {
-  if (field.kind !== "items") return scalarOverlay(field, original, translated);
-  const byId = new Map(
-    ((translated as Loose[] | undefined) ?? []).map((item) => [item.id, item]),
+  if (field.kind === "items") {
+    const byId = new Map(
+      ((translated as Loose[] | undefined) ?? []).map((item) => [
+        item.id,
+        item,
+      ]),
+    );
+    return (original as Loose[]).map((item) => {
+      const match = byId.get(item.id);
+      return {
+        ...item,
+        ...Object.fromEntries(
+          Object.entries(field.fields).map(([key, inner]) => [
+            key,
+            match
+              ? scalarOverlay(inner, item[key], match[key])
+              : scalarBlank(inner, item[key]),
+          ]),
+        ),
+      };
+    });
+  }
+  if (field.kind === "columns") {
+    const blocks = new Map(
+      ((translated as LooseColumn[] | undefined) ?? [])
+        .flatMap((column) => column.blocks)
+        .map((block) => [block.id, block]),
+    );
+    return (original as LooseColumn[]).map((column) => ({
+      ...column,
+      blocks: column.blocks.map((block) => {
+        const match = blocks.get(block.id);
+        const fields = blockFieldsOf(block.type);
+        return {
+          ...block,
+          data:
+            match && match.type === block.type
+              ? dataOverlay(fields, block.data, match.data)
+              : dataBlank(fields, block.data),
+        };
+      }),
+    }));
+  }
+  return scalarOverlay(field, original, translated);
+}
+
+function dataOverlay(
+  fields: Record<string, Field>,
+  original: Loose,
+  translated: Loose,
+): Loose {
+  return Object.fromEntries(
+    Object.entries(fields).map(([key, field]) => [
+      key,
+      fieldOverlay(field, original[key], translated[key]),
+    ]),
   );
-  return (original as Loose[]).map((item) => {
-    const match = byId.get(item.id);
-    return {
-      ...item,
-      ...Object.fromEntries(
-        Object.entries(field.fields).map(([key, inner]) => [
-          key,
-          match
-            ? scalarOverlay(inner, item[key], match[key])
-            : scalarBlank(inner, item[key]),
-        ]),
-      ),
-    };
-  });
 }
 
 /**
@@ -869,40 +1136,17 @@ export function overlay(
   translated: PageSection | undefined,
 ): PageSection {
   if (!translated || translated.type !== original.type) return original;
-  const data = original.data as Loose;
-  const theirs = translated.data as Loose;
   return {
     ...original,
-    data: Object.fromEntries(
-      Object.entries(fieldsOf(original.type)).map(([key, field]) => [
-        key,
-        fieldOverlay(field, data[key], theirs[key]),
-      ]),
-    ),
+    data: dataOverlay(fieldsOf(original.type), original.data, translated.data),
   } as PageSection;
 }
 
 /** A section's structure with none of its words, where a translation starts. */
 export function wordless(section: PageSection): PageSection {
-  const data = section.data as Loose;
   return {
     ...section,
-    data: Object.fromEntries(
-      Object.entries(fieldsOf(section.type)).map(([key, field]) => [
-        key,
-        field.kind === "items"
-          ? (data[key] as Loose[]).map((item) => ({
-              ...item,
-              ...Object.fromEntries(
-                Object.entries(field.fields).map(([inner, innerField]) => [
-                  inner,
-                  scalarBlank(innerField, item[inner]),
-                ]),
-              ),
-            }))
-          : scalarBlank(field, data[key]),
-      ]),
-    ),
+    data: dataBlank(fieldsOf(section.type), section.data),
   } as PageSection;
 }
 
@@ -941,18 +1185,36 @@ function scalarFiles(field: ScalarField, value: unknown): string[] {
   }
 }
 
+/** Applies a check to every scalar value in some data, however deeply its blocks nest. */
+function eachScalar<R>(
+  fields: Record<string, Field>,
+  data: Loose,
+  visit: (field: ScalarField, value: unknown) => R[],
+): R[] {
+  return Object.entries(fields).flatMap(([key, field]) => {
+    const value = data[key];
+    if (field.kind === "items")
+      return (value as Loose[]).flatMap((item) =>
+        Object.entries(field.fields).flatMap(([inner, innerField]) =>
+          visit(innerField, item[inner]),
+        ),
+      );
+    if (field.kind === "columns")
+      return (value as LooseColumn[]).flatMap((column) =>
+        column.blocks.flatMap((block) =>
+          eachScalar(blockFieldsOf(block.type), block.data, visit),
+        ),
+      );
+    return visit(field, value);
+  });
+}
+
 /** Every file a section shows: pictures, videos, posters, captions and background. */
 export function sectionFileIds(section: PageSection): string[] {
-  const data = section.data as Loose;
-  const found = Object.entries(fieldsOf(section.type)).flatMap(
-    ([key, field]) =>
-      field.kind === "items"
-        ? (data[key] as Loose[]).flatMap((item) =>
-            Object.entries(field.fields).flatMap(([inner, innerField]) =>
-              scalarFiles(innerField, item[inner]),
-            ),
-          )
-        : scalarFiles(field, data[key]),
+  const found = eachScalar(
+    fieldsOf(section.type),
+    section.data as Loose,
+    scalarFiles,
   );
   const background = section.style.background;
   if (background.kind !== "none")
@@ -1024,17 +1286,9 @@ function scalarIssues(field: ScalarField, value: unknown): SiteIssueCode[] {
  * title, a button without its words or target, or a link that says nothing.
  */
 export function sectionIssues(section: PageSection): SiteIssueCode[] {
-  const data = section.data as Loose;
-  const found = new Set<SiteIssueCode>(
-    Object.entries(fieldsOf(section.type)).flatMap(([key, field]) =>
-      field.kind === "items"
-        ? (data[key] as Loose[]).flatMap((item) =>
-            Object.entries(field.fields).flatMap(([inner, innerField]) =>
-              scalarIssues(innerField, item[inner]),
-            ),
-          )
-        : scalarIssues(field, data[key]),
+  return [
+    ...new Set(
+      eachScalar(fieldsOf(section.type), section.data as Loose, scalarIssues),
     ),
-  );
-  return [...found];
+  ];
 }

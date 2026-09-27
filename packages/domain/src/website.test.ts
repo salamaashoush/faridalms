@@ -4,7 +4,13 @@ import { describe, expect, it } from "vitest";
 import type { PageContent, PageSection, SectionOf } from "./website";
 
 import { plainContent } from "./content-conversion";
-import { SECTION_SPECS, SECTION_TYPES } from "./site-sections";
+import {
+  fitColumns,
+  overlay,
+  SECTION_SPECS,
+  SECTION_TYPES,
+  sectionIssues,
+} from "./site-sections";
 import {
   buildSection,
   buildTemplate,
@@ -272,5 +278,52 @@ describe("templates", () => {
       );
       expect(THEME_IDS).toContain(STARTERS[starter].theme);
     }
+  });
+});
+
+describe("free-form blocks", () => {
+  it("translate block by block, keeping the original's pictures and layout", () => {
+    const { content, translation } = buildSection("blocks", "columns", "en");
+    if (content.type !== "blocks" || translation.type !== "blocks")
+      throw new Error("blocks");
+    const withPicture = {
+      ...content,
+      data: {
+        ...content.data,
+        columns: content.data.columns.map((column) => ({
+          ...column,
+          blocks: column.blocks.map((block) =>
+            block.type === "image"
+              ? {
+                  ...block,
+                  data: { ...block.data, image: { fileId: picture, alt: "" } },
+                }
+              : block,
+          ),
+        })),
+      },
+    };
+    expect(sectionIssues(withPicture)).toContain("alt");
+    const shown = overlay(withPicture, translation);
+    if (shown.type !== "blocks") throw new Error("blocks");
+    const blocks = shown.data.columns.flatMap((column) => column.blocks);
+    const heading = blocks.find((block) => block.type === "heading");
+    const image = blocks.find((block) => block.type === "image");
+    expect(heading?.type === "heading" && heading.data.text).toBe(
+      "فصول صغيرة وطموحات كبيرة",
+    );
+    expect(image?.type === "image" && image.data.image.fileId).toBe(picture);
+  });
+
+  it("move the blocks of dropped columns into the last one kept", () => {
+    const { content } = buildSection("blocks", "columns", "en");
+    if (content.type !== "blocks") throw new Error("blocks");
+    const count = content.data.columns.flatMap(
+      (column) => column.blocks,
+    ).length;
+    const one = fitColumns(content.data.columns, "1");
+    expect(one).toHaveLength(1);
+    expect(one[0]?.blocks).toHaveLength(count);
+    expect(fitColumns(content.data.columns, "1-1-1-1")).toHaveLength(4);
   });
 });

@@ -58,7 +58,7 @@ const card = (
   href,
 });
 
-const HERO_HOME = section("hero", "split", (b) => ({
+const HERO_HOME = section("hero", "fullbleed", (b) => ({
   eyebrow: b.w(["Welcome", "أهلًا بكم"]),
   heading: b.w([
     "Where every child is known and challenged",
@@ -632,9 +632,166 @@ const EMBED = section("embed", "inset", (b) => ({
   embed: null,
 }));
 
+const slide = (
+  b: Builder,
+  eyebrow: Words,
+  heading: Words,
+  text: Words,
+  action: [Words, string],
+) => ({
+  id: b.id(),
+  image: noImage,
+  eyebrow: b.w(eyebrow),
+  heading: b.w(heading),
+  text: b.w(text),
+  actions: [link(b, action[0], action[1])],
+});
+
+const SLIDES = section("slides", "fullbleed", (b) => ({
+  height: "l" as const,
+  interval: "7" as const,
+  items: [
+    slide(
+      b,
+      ["Admissions open", "القبول مفتوح"],
+      ["A place for every kind of curious", "مكان لكل عقل فضولي"],
+      [
+        "Applications for next September are open. Visit us and see a school day.",
+        "باب التقديم لشهر سبتمبر القادم مفتوح. زُرنا وشاهد يومًا دراسيًا.",
+      ],
+      [["Book a visit", "احجز زيارة"], "/pages/visit"],
+    ),
+    slide(
+      b,
+      ["Results", "النتائج"],
+      ["Our best results in a decade", "أفضل نتائجنا منذ عشر سنوات"],
+      [
+        "Nine in ten students reached their first-choice university.",
+        "تسعة من كل عشرة طلاب التحقوا بجامعتهم الأولى.",
+      ],
+      [["See the results", "اطّلع على النتائج"], "/news"],
+    ),
+    slide(
+      b,
+      ["Community", "المجتمع"],
+      ["Families at the heart of school life", "الأسر في قلب الحياة المدرسية"],
+      [
+        "Concerts, fairs and open mornings bring us together all year.",
+        "الحفلات والمعارض والأيام المفتوحة تجمعنا طوال العام.",
+      ],
+      [["Latest news", "آخر الأخبار"], "/news"],
+    ),
+  ],
+}));
+
+const BLOCKS = section("blocks", "columns", (b) => ({
+  eyebrow: "",
+  heading: "",
+  text: "",
+  layout: "2-1" as const,
+  valign: "center" as const,
+  columns: [
+    {
+      id: b.id(),
+      blocks: [
+        {
+          id: b.id(),
+          type: "heading" as const,
+          data: {
+            eyebrow: b.w(["Why families choose us", "لماذا تختارنا الأسر"]),
+            text: b.w([
+              "Small classes, big ambitions",
+              "فصول صغيرة وطموحات كبيرة",
+            ]),
+            size: "l" as const,
+          },
+        },
+        {
+          id: b.id(),
+          type: "paragraph" as const,
+          data: {
+            body: plainContent(
+              b.w([
+                "Every teacher knows every child by name. That is where good learning starts.",
+                "كل معلّم يعرف كل طفل باسمه، ومن هنا يبدأ التعلّم الجيد.",
+              ]),
+            ),
+          },
+        },
+        {
+          id: b.id(),
+          type: "list" as const,
+          data: {
+            items: [
+              {
+                id: b.id(),
+                icon: "users" as const,
+                text: b.w([
+                  "Classes of twenty or fewer",
+                  "فصول من عشرين طالبًا أو أقل",
+                ]),
+              },
+              {
+                id: b.id(),
+                icon: "globe" as const,
+                text: b.w([
+                  "Bilingual from the first day",
+                  "ثنائية اللغة منذ اليوم الأول",
+                ]),
+              },
+              {
+                id: b.id(),
+                icon: "trophy" as const,
+                text: b.w([
+                  "Sixty clubs and teams a week",
+                  "ستون ناديًا وفريقًا كل أسبوع",
+                ]),
+              },
+            ],
+          },
+        },
+        {
+          id: b.id(),
+          type: "buttons" as const,
+          data: {
+            actions: [link(b, ["Book a visit", "احجز زيارة"], "/pages/visit")],
+          },
+        },
+      ],
+    },
+    {
+      id: b.id(),
+      blocks: [
+        {
+          id: b.id(),
+          type: "image" as const,
+          data: {
+            image: noImage,
+            shape: "theme" as const,
+            ratio: "portrait" as const,
+          },
+        },
+        {
+          id: b.id(),
+          type: "stat" as const,
+          data: {
+            value: "20",
+            label: b.w([
+              "students per class, at most",
+              "طالبًا في الفصل كحدّ أقصى",
+            ]),
+          },
+        },
+      ],
+    },
+  ],
+}));
+
 /** A sample of every section, for the builder to show and insert. */
 const SAMPLES: Record<SectionType, (b: Builder) => PageSection> = {
   hero: HERO_HOME,
+  slides: SLIDES,
+  blocks: BLOCKS,
   pageHeader: PAGE_HEADER(
     ["Page title", "عنوان الصفحة"],
     ["A sentence about what this page offers.", "جملة عمّا تقدّمه هذه الصفحة."],
@@ -700,7 +857,7 @@ export const PAGE_TEMPLATES = {
   homeClassic: [HERO_HOME, STATS, DIVISIONS, WELCOME, ADMISSIONS_TRIAD, NEWS],
   homeStory: [HERO_HOME, PILLARS, VOICES, DIVISIONS, NEWS, ADMISSIONS_TRIAD],
   homeAdmissions: [HERO_HOME, ADMISSIONS_TRIAD, STEPS, STATS, VOICES],
-  homeCommunity: [HERO_HOME, QUICK_LINKS, NEWS, VOICES, CONTACT],
+  homeCommunity: [SLIDES, QUICK_LINKS, NEWS, VOICES, CONTACT],
   about: [
     PAGE_HEADER(
       ["About us", "من نحن"],
