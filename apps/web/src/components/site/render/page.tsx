@@ -18,6 +18,8 @@ const OPENERS = new Set<PageSection["type"]>(["hero", "pageHeader"]);
 /** Whether a page's first section already says its title as the one first-level heading. */
 export function opensWithTitle(sections: ShownSection[]): boolean {
   const first = sections[0]?.section;
+  if (first?.type === "slides")
+    return Boolean(first.data.items[0]?.heading.trim());
   return Boolean(
     first &&
     OPENERS.has(first.type) &&
@@ -25,13 +27,32 @@ export function opensWithTitle(sections: ShownSection[]): boolean {
   );
 }
 
-/** Whether the page opens on a full-bleed picture an overlay header can sit on. */
+/** Whether the page opens on a full-bleed picture, film or artwork an overlay header can sit on. */
 export function opensOnPicture(sections: ShownSection[]): boolean {
   const first = sections[0]?.section;
   return (
-    first?.type === "hero" &&
-    first.variant === "fullbleed" &&
-    Boolean(first.data.media.fileId)
+    (first?.type === "hero" || first?.type === "slides") &&
+    first.variant === "fullbleed"
+  );
+}
+
+const EDGE = new Set<PageSection["type"]>(["hero", "slides"]);
+
+/**
+ * Whether a section runs on from the one above: the same colour, no
+ * picture behind either and no shaped edge between them.
+ */
+function continues(
+  before: PageSection | undefined,
+  section: PageSection,
+): boolean {
+  if (!before || EDGE.has(before.type) || EDGE.has(section.type)) return false;
+  return (
+    before.style.scheme === section.style.scheme &&
+    before.style.background.kind === "none" &&
+    section.style.background.kind === "none" &&
+    before.style.dividerBottom === "none" &&
+    section.style.dividerTop === "none"
   );
 }
 
@@ -92,6 +113,7 @@ export function PageSections({
             shownIn={item.locale}
             context={context}
             first={titled && index === 0}
+            joined={continues(sections[index - 1]?.section, item.section)}
           />
         );
         return (

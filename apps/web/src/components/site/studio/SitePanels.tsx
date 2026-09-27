@@ -10,12 +10,18 @@ import type { EditorMedia } from "@faridalms/editor";
 
 import {
   BUTTON_SHAPES,
+  CARD_STYLES,
   DENSITIES,
+  EMPHASES,
+  EYEBROWS,
   FONTS,
   fontsFor,
   FOOTERS,
   HEADERS,
   HEADING_CASES,
+  HEADING_SCALES,
+  IMAGE_SHAPES,
+  MOTIONS,
   paletteWarnings,
   RADII,
   resolveTheme,
@@ -52,12 +58,18 @@ import { Disclosure, PanelGroup, Segmented, StudioField } from "./controls";
 import { FilePick, useUpload } from "./fields";
 import {
   BUTTON_LABEL,
+  CARD_LABEL,
   CASE_LABEL,
   DENSITY_LABEL,
+  EMPHASIS_LABEL,
+  EYEBROW_LABEL,
   FOOTER_LABEL,
   HEADER_LABEL,
+  MOTION_LABEL,
   PALETTE_LABEL,
+  SCALE_LABEL,
   SCHEME_LABEL,
+  SHAPE_LABEL,
   THEME_HINT,
   THEME_LABEL,
 } from "./labels";
@@ -81,7 +93,7 @@ function ThemeCard({
 }) {
   const theme = THEMES[id];
   const heading = `"${FONTS[theme.fonts.headingLatin].family}", ${FONTS[theme.fonts.headingLatin].fallback}`;
-  const body = `"${FONTS[theme.fonts.bodyLatin].family}", ${FONTS[theme.fonts.bodyLatin].fallback}`;
+  const arabic = `"${FONTS[theme.fonts.headingArabic].family}", ${FONTS[theme.fonts.headingArabic].fallback}`;
   const button =
     theme.button === "pill"
       ? 999
@@ -92,43 +104,41 @@ function ThemeCard({
     <button
       type="button"
       aria-pressed={selected}
+      aria-label={THEME_LABEL[id]()}
       onClick={onPick}
-      className="grid overflow-hidden rounded-xl border text-start transition-shadow hover:shadow-md aria-pressed:border-primary aria-pressed:ring-2 aria-pressed:ring-primary/30"
+      className="grid grid-cols-[6.5rem_minmax(0,1fr)] overflow-hidden rounded-xl border text-start transition-shadow hover:shadow-md aria-pressed:border-primary aria-pressed:ring-2 aria-pressed:ring-primary/30"
     >
-      <div
+      <span
         aria-hidden
-        className="grid gap-2 p-3"
+        className="grid content-center justify-items-start gap-2 p-3"
         style={{ background: theme.palette.canvas, color: theme.palette.ink }}
       >
         <span
-          className="text-xl leading-tight font-semibold"
-          style={{ fontFamily: heading, color: theme.palette.primary }}
+          className="flex items-baseline gap-1.5 text-2xl leading-none font-semibold"
+          style={{ color: theme.palette.primary }}
         >
-          Aa · أب
+          <span style={{ fontFamily: heading }}>Aa</span>
+          <span style={{ fontFamily: arabic }}>أب</span>
         </span>
-        <span className="text-xs" style={{ fontFamily: body }}>
+        <span
+          className="h-5 w-14"
+          style={{ background: theme.palette.primary, borderRadius: button }}
+        />
+      </span>
+      <span className="grid content-center gap-1 px-3 py-2.5">
+        <span className="text-sm font-semibold">{THEME_LABEL[id]()}</span>
+        <span className="text-xs leading-4 text-muted-foreground">
           {THEME_HINT[id]()}
         </span>
-        <span className="flex items-center gap-1.5">
-          <span
-            className="px-3 py-1 text-[11px] font-semibold text-white"
-            style={{ background: theme.palette.primary, borderRadius: button }}
-          >
-            {m.siteApply()}
-          </span>
-          {[theme.palette.surface, theme.palette.accent, theme.palette.ink].map(
-            (colour) => (
-              <span
-                key={colour}
-                className="size-4 rounded-full border border-black/10"
-                style={{ background: colour }}
-              />
-            ),
-          )}
+        <span className="mt-0.5 flex gap-1">
+          {Object.values(theme.palette).map((colour) => (
+            <span
+              key={colour}
+              className="size-3.5 rounded-full border border-black/10"
+              style={{ background: colour }}
+            />
+          ))}
         </span>
-      </div>
-      <span className="border-t bg-card px-3 py-2 text-sm font-medium">
-        {THEME_LABEL[id]()}
       </span>
     </button>
   );
@@ -194,7 +204,7 @@ export function StylesPanel({
   return (
     <div>
       <PanelGroup title={m.siteThemes()} hint={m.siteThemesHint()}>
-        <fieldset className="grid grid-cols-2 gap-2">
+        <fieldset className="grid gap-2">
           <legend className="sr-only">{m.siteThemes()}</legend>
           {THEME_IDS.map((id) => (
             <ThemeCard
@@ -355,6 +365,41 @@ export function StylesPanel({
             onChange={(density) => set("density", density)}
           />
         </StudioField>
+        <StudioField label={m.siteCardStyle()}>
+          <Segmented
+            label={m.siteCardStyle()}
+            value={resolved.card}
+            options={CARD_STYLES.map((value) => ({
+              value,
+              label: CARD_LABEL[value](),
+            }))}
+            onChange={(card) => set("card", card)}
+          />
+        </StudioField>
+        <StudioField label={m.siteImageShape()} hint={m.siteImageShapeHint()}>
+          <Segmented
+            label={m.siteImageShape()}
+            value={resolved.image}
+            options={IMAGE_SHAPES.map((value) => ({
+              value,
+              label: SHAPE_LABEL[value](),
+            }))}
+            onChange={(image) => set("image", image)}
+          />
+        </StudioField>
+      </PanelGroup>
+      <PanelGroup title={m.siteTypography()}>
+        <StudioField label={m.siteHeadingScale()}>
+          <Segmented
+            label={m.siteHeadingScale()}
+            value={resolved.headingScale}
+            options={HEADING_SCALES.map((value) => ({
+              value,
+              label: SCALE_LABEL[value](),
+            }))}
+            onChange={(headingScale) => set("headingScale", headingScale)}
+          />
+        </StudioField>
         <StudioField label={m.siteHeadingCase()} hint={m.siteHeadingCaseHint()}>
           <Segmented
             label={m.siteHeadingCase()}
@@ -366,6 +411,39 @@ export function StylesPanel({
             onChange={(headingCase) => set("headingCase", headingCase)}
           />
         </StudioField>
+        <StudioField label={m.siteEmphasisStyle()} hint={m.siteEmphasisHint()}>
+          <Segmented
+            label={m.siteEmphasisStyle()}
+            value={resolved.emphasis}
+            options={EMPHASES.map((value) => ({
+              value,
+              label: EMPHASIS_LABEL[value](),
+            }))}
+            onChange={(emphasis) => set("emphasis", emphasis)}
+          />
+        </StudioField>
+        <StudioField label={m.siteEyebrowStyle()}>
+          <Segmented
+            label={m.siteEyebrowStyle()}
+            value={resolved.eyebrow}
+            options={EYEBROWS.map((value) => ({
+              value,
+              label: EYEBROW_LABEL[value](),
+            }))}
+            onChange={(eyebrow) => set("eyebrow", eyebrow)}
+          />
+        </StudioField>
+      </PanelGroup>
+      <PanelGroup title={m.siteMotionLevel()} hint={m.siteMotionHint()}>
+        <Segmented
+          label={m.siteMotionLevel()}
+          value={resolved.motion}
+          options={MOTIONS.map((value) => ({
+            value,
+            label: MOTION_LABEL[value](),
+          }))}
+          onChange={(motion) => set("motion", motion)}
+        />
       </PanelGroup>
       <PanelGroup title={m.siteHeaderAndFooter()}>
         <StudioField label={m.siteHeaderStyle()}>

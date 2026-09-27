@@ -6,7 +6,11 @@ import type {
 } from "@faridalms/domain/site-sections";
 import type { SchemeId } from "@faridalms/domain/site-theme";
 
-import { fieldsOf, SECTION_SPECS } from "@faridalms/domain/site-sections";
+import {
+  fieldsOf,
+  fitColumns,
+  SECTION_SPECS,
+} from "@faridalms/domain/site-sections";
 import { DIVIDERS, SCHEMES, schemesOf } from "@faridalms/domain/site-theme";
 import { AlignCenter, AlignLeft, CircleAlert, X } from "lucide-react";
 
@@ -69,8 +73,6 @@ function VariantPicker({
               width={1200}
               theme={context.theme}
               locale={context.locale}
-              scale={0.13}
-              fit={false}
             >
               <SiteSection
                 section={{ ...section, variant } as PageSection}
@@ -160,10 +162,10 @@ export function Inspector({
   const otherLocale = languages.other;
   const target = wordsOnly ? shown : section;
   const setData = (key: string, value: unknown) => {
-    const next = {
-      ...target,
-      data: { ...target.data, [key]: value },
-    } as PageSection;
+    const data: Record<string, unknown> = { ...target.data, [key]: value };
+    if (target.type === "blocks" && key === "layout")
+      data.columns = fitColumns(target.data.columns, String(value));
+    const next = { ...target, data } as PageSection;
     if (wordsOnly) onWords(next, `${section.id}:${key}`);
     else onChange(next, `${section.id}:${key}`);
   };

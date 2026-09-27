@@ -1,4 +1,5 @@
 import type {
+  BlockType,
   IconId,
   SectionCategory,
   SectionStyle,
@@ -9,11 +10,17 @@ import type {
 import type { PageTemplate, StarterId } from "@faridalms/domain/site-templates";
 import type {
   ButtonShape,
+  CardStyle,
   Density,
   Divider,
   FooterStyle,
   HeaderStyle,
+  Emphasis,
+  EyebrowStyle,
   HeadingCase,
+  HeadingScale,
+  ImageShape,
+  Motion,
   Palette,
   SchemeId,
   ThemeId,
@@ -23,10 +30,12 @@ import * as m from "~/i18n/messages";
 
 export const SECTION_LABEL: Record<SectionType, () => string> = {
   hero: m.siteTypeHero,
+  slides: m.siteTypeSlides,
   pageHeader: m.siteTypePageHeader,
   announcement: m.siteTypeAnnouncement,
   welcome: m.siteTypeWelcome,
   text: m.siteTypeText,
+  blocks: m.siteTypeBlocks,
   imageText: m.siteTypeImageText,
   cards: m.siteTypeCards,
   divisions: m.siteTypeDivisions,
@@ -52,10 +61,12 @@ export const SECTION_LABEL: Record<SectionType, () => string> = {
 
 export const SECTION_HINT: Record<SectionType, () => string> = {
   hero: m.siteTypeHintHero,
+  slides: m.siteTypeHintSlides,
   pageHeader: m.siteTypeHintPageHeader,
   announcement: m.siteTypeHintAnnouncement,
   welcome: m.siteTypeHintWelcome,
   text: m.siteTypeHintText,
+  blocks: m.siteTypeHintBlocks,
   imageText: m.siteTypeHintImageText,
   cards: m.siteTypeHintCards,
   divisions: m.siteTypeHintDivisions,
@@ -88,6 +99,13 @@ export const VARIANT_LABEL: {
     split: m.siteVariantHeroSplit,
     inset: m.siteVariantHeroInset,
     type: m.siteVariantHeroType,
+  },
+  slides: {
+    fullbleed: m.siteVariantSlidesFullbleed,
+    split: m.siteVariantSlidesSplit,
+  },
+  blocks: {
+    columns: m.siteVariantBlocksColumns,
   },
   pageHeader: {
     plain: m.siteVariantPageHeaderPlain,
@@ -167,6 +185,7 @@ export const VARIANT_LABEL: {
   logos: {
     row: m.siteVariantLogosRow,
     grid: m.siteVariantLogosGrid,
+    marquee: m.siteVariantLogosMarquee,
   },
   news: {
     grid: m.siteVariantNewsGrid,
@@ -246,13 +265,13 @@ export const FIELD_LABEL: Record<string, () => string> = {
   location: m.siteFieldLocation,
   note: m.siteFieldNote,
   mapHref: m.siteFieldMapHref,
-};
-
-export const HEIGHT_LABEL: Record<string, () => string> = {
-  s: m.siteHeightS,
-  m: m.siteHeightM,
-  l: m.siteHeightL,
-  screen: m.siteHeightScreen,
+  size: m.siteFieldSize,
+  shape: m.siteFieldShape,
+  ratio: m.siteFieldRatio,
+  style: m.siteFieldStyle,
+  interval: m.siteFieldInterval,
+  layout: m.siteFieldLayout,
+  valign: m.siteFieldValign,
 };
 
 export const AUDIENCE_LABEL: Record<string, () => string> = {
@@ -430,4 +449,107 @@ export const ISSUE_LABEL: Record<SiteIssueCode, () => string> = {
   action: m.siteIssueAction,
   captions: m.siteIssueCaptions,
   label: m.siteIssueLabel,
+};
+
+export const SCALE_LABEL: Record<HeadingScale, () => string> = {
+  classic: m.siteScaleClassic,
+  editorial: m.siteScaleEditorial,
+  statement: m.siteScaleStatement,
+};
+
+export const CARD_LABEL: Record<CardStyle, () => string> = {
+  flat: m.siteCardFlat,
+  outlined: m.siteCardOutlined,
+  raised: m.siteCardRaised,
+};
+
+export const SHAPE_LABEL: Record<ImageShape, () => string> = {
+  square: m.siteShapeSquare,
+  rounded: m.siteShapeRounded,
+  arch: m.siteShapeArch,
+  leaf: m.siteShapeLeaf,
+};
+
+export const EYEBROW_LABEL: Record<EyebrowStyle, () => string> = {
+  plain: m.siteEyebrowPlain,
+  rule: m.siteEyebrowRule,
+  pill: m.siteEyebrowPill,
+};
+
+export const EMPHASIS_LABEL: Record<Emphasis, () => string> = {
+  italic: m.siteEmphasisItalic,
+  weight: m.siteEmphasisWeight,
+  colour: m.siteEmphasisColour,
+  highlight: m.siteEmphasisHighlight,
+  underline: m.siteEmphasisUnderline,
+};
+
+export const MOTION_LABEL: Record<Motion, () => string> = {
+  none: m.siteMotionNone,
+  subtle: m.siteMotionSubtle,
+  lively: m.siteMotionLively,
+};
+
+export const BLOCK_LABEL: Record<BlockType, () => string> = {
+  heading: m.siteBlockHeading,
+  paragraph: m.siteBlockParagraph,
+  image: m.siteBlockImage,
+  buttons: m.siteBlockButtons,
+  list: m.siteBlockList,
+  stat: m.siteBlockStat,
+  quote: m.siteBlockQuote,
+  feature: m.siteBlockFeature,
+  video: m.siteBlockVideo,
+  spacer: m.siteBlockSpacer,
+  divider: m.siteBlockDivider,
+};
+
+/** The words for each option of a choice field, by field name then option. */
+export const CHOICE_LABEL: Record<string, Record<string, () => string>> = {
+  height: {
+    s: m.siteChoiceHeightS,
+    m: m.siteChoiceHeightM,
+    l: m.siteChoiceHeightL,
+    screen: m.siteChoiceHeightScreen,
+  },
+  size: {
+    s: m.siteChoiceSizeS,
+    m: m.siteChoiceSizeM,
+    l: m.siteChoiceSizeL,
+    xl: m.siteChoiceSizeXl,
+  },
+  shape: {
+    theme: m.siteChoiceShapeTheme,
+    square: m.siteChoiceShapeSquare,
+    rounded: m.siteChoiceShapeRounded,
+    circle: m.siteChoiceShapeCircle,
+  },
+  ratio: {
+    landscape: m.siteChoiceRatioLandscape,
+    square: m.siteChoiceRatioSquare,
+    portrait: m.siteChoiceRatioPortrait,
+    wide: m.siteChoiceRatioWide,
+  },
+  style: {
+    line: m.siteChoiceStyleLine,
+    dots: m.siteChoiceStyleDots,
+    ornament: m.siteChoiceStyleOrnament,
+  },
+  interval: {
+    "7": m.siteChoiceInterval7,
+    "10": m.siteChoiceInterval10,
+    off: m.siteChoiceIntervalOff,
+  },
+  layout: {
+    "1-1": m.siteChoiceLayout11,
+    "2-1": m.siteChoiceLayout21,
+    "1-2": m.siteChoiceLayout12,
+    "1-1-1": m.siteChoiceLayout111,
+    "1-1-1-1": m.siteChoiceLayout1111,
+    "1": m.siteChoiceLayout1,
+  },
+  valign: {
+    start: m.siteChoiceValignStart,
+    center: m.siteChoiceValignCenter,
+  },
 };

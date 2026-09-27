@@ -9,16 +9,17 @@ import {
   TriangleAlert,
   X,
 } from "lucide-react";
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 import * as m from "~/i18n/messages";
 import { cn } from "~/utils/cn";
 
 import type { RenderContext } from "./parts";
 
+import { useReveal } from "./motion";
 import { SiteAnchor } from "./parts";
 import { ContactList } from "./sections";
-import { schemeStyle, themeStyle } from "./theme";
+import { schemeStyle, themeAttributes, themeStyle } from "./theme";
 
 export interface FrameLink {
   id: string;
@@ -756,11 +757,15 @@ export function SiteFrame({
   children: ReactNode;
 }) {
   const t = { locale: context.locale };
+  const root = useRef<HTMLDivElement>(null);
+  useReveal(root, context.editing ? "none" : context.theme.motion);
   return (
     <div
+      ref={root}
       lang={context.locale}
       dir={context.locale === "ar" ? "rtl" : "ltr"}
       className="site-root relative flex min-h-full flex-col overflow-x-clip"
+      {...themeAttributes(context.theme, context.editing)}
       style={{
         ...themeStyle(context.theme, context.locale),
         ...schemeStyle(context.theme, "canvas"),

@@ -50,11 +50,9 @@ const THUMB_WIDTH = 1200;
 function Thumbnail({
   section,
   context,
-  scale,
 }: {
   section: PageSection;
   context: RenderContext;
-  scale: number;
 }) {
   return (
     <div
@@ -66,8 +64,6 @@ function Thumbnail({
         width={THUMB_WIDTH}
         theme={context.theme}
         locale={context.locale}
-        scale={scale}
-        fit={false}
       >
         <SiteSection
           section={section}
@@ -117,7 +113,7 @@ function TypeCard({
         })}
       >
         <div className="border-b transition-opacity group-hover:opacity-90">
-          <Thumbnail section={sample.content} context={context} scale={0.26} />
+          <Thumbnail section={sample.content} context={context} />
         </div>
         <span className="grid gap-0.5 px-3 pt-3">
           <span className="text-sm font-semibold">{SECTION_LABEL[type]()}</span>
@@ -282,8 +278,6 @@ export function TemplateGallery({
                   width={THUMB_WIDTH}
                   theme={context.theme}
                   locale={context.locale}
-                  scale={0.3}
-                  fit={false}
                 >
                   <PageSections
                     sections={(built[template] ?? []).map((section) => ({

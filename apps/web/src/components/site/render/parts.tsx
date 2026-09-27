@@ -44,6 +44,7 @@ import { useRef, useState } from "react";
 import { ContentView } from "~/components/content/ContentView";
 import { cn } from "~/utils/cn";
 
+import { SiteArt } from "./art";
 import { overMediaStyle, schemeStyle } from "./theme";
 
 export interface NewsItem {
@@ -203,13 +204,35 @@ export function Eyebrow({ children }: { children: string }) {
   return children ? <p className="site-eyebrow">{children}</p> : null;
 }
 
+/** Words a school wraps in asterisks, set in the theme's second voice. */
+export function Emphasised({ children }: { children: string }) {
+  const parts = children.split(/(\*[^*\n]+\*)/);
+  if (parts.length === 1) return children;
+  let offset = 0;
+  return parts.map((part) => {
+    const at = offset;
+    offset += part.length;
+    return part.length > 2 && part.startsWith("*") && part.endsWith("*") ? (
+      <em key={at} className="site-em">
+        {part.slice(1, -1)}
+      </em>
+    ) : (
+      part
+    );
+  });
+}
+
+const SIZE = { display: "site-display", h2: "site-h2", h3: "site-h3" } as const;
+
 export function Heading({
   children,
   level = 2,
+  size,
   className,
 }: {
   children: string;
   level?: 1 | 2 | 3;
+  size?: keyof typeof SIZE;
   className?: string;
 }) {
   if (!children) return null;
@@ -218,11 +241,11 @@ export function Heading({
     <Tag
       className={cn(
         "site-heading",
-        level === 1 ? "site-display" : level === 2 ? "site-h2" : "site-h3",
+        SIZE[size ?? (level === 1 ? "display" : level === 2 ? "h2" : "h3")],
         className,
       )}
     >
-      {children}
+      <Emphasised>{children}</Emphasised>
     </Tag>
   );
 }
@@ -263,33 +286,29 @@ export function Prose({
   );
 }
 
-/** A picture, or in the builder a quiet placeholder where one belongs. */
+/**
+ * A picture, or where none is chosen yet, artwork in the theme's colours.
+ * A feature picture takes the theme's image shape.
+ */
 export function Picture({
   image,
   context,
   className,
   ratio,
+  seed = "",
+  feature = false,
+  art = true,
 }: {
   image: SiteImage;
   context: RenderContext;
   className?: string;
   ratio?: string;
+  seed?: string;
+  feature?: boolean;
+  art?: boolean;
 }) {
   const src = image.fileId ? context.fileUrl(image.fileId) : null;
-  if (!src)
-    return context.editing ? (
-      <div
-        aria-hidden
-        className={cn(
-          "grid place-items-center rounded-[var(--s-radius)] bg-[color-mix(in_srgb,var(--s-fg)_8%,transparent)]",
-          className,
-        )}
-        style={{ aspectRatio: ratio }}
-      >
-        <ImageIcon className="size-8 opacity-40" />
-      </div>
-    ) : null;
-  return (
+  const body = src ? (
     <img
       src={src}
       alt={image.alt}
@@ -297,7 +316,25 @@ export function Picture({
       className={cn("site-media", className)}
       style={{ aspectRatio: ratio }}
     />
-  );
+  ) : art ? (
+    <SiteArt
+      seed={seed || ratio || "picture"}
+      className={className}
+      ratio={ratio}
+    />
+  ) : context.editing ? (
+    <div
+      aria-hidden
+      className={cn(
+        "grid place-items-center rounded-[var(--s-radius)] bg-[color-mix(in_srgb,var(--s-fg)_8%,transparent)]",
+        className,
+      )}
+      style={{ aspectRatio: ratio }}
+    >
+      <ImageIcon className="size-8 opacity-40" />
+    </div>
+  ) : null;
+  return feature && body ? <div className="site-feature">{body}</div> : body;
 }
 
 /**
@@ -309,11 +346,15 @@ export function MediaView({
   context,
   className,
   ratio,
+  seed,
+  feature = false,
 }: {
   media: SiteMedia;
   context: RenderContext;
   className?: string;
   ratio?: string;
+  seed?: string;
+  feature?: boolean;
 }) {
   if (media.kind === "image")
     return (
@@ -322,6 +363,8 @@ export function MediaView({
         context={context}
         className={className}
         ratio={ratio}
+        seed={seed}
+        feature={feature}
       />
     );
   const src = media.fileId ? context.fileUrl(media.fileId) : null;
@@ -332,6 +375,8 @@ export function MediaView({
         context={context}
         className={className}
         ratio={ratio}
+        seed={seed}
+        feature={feature}
       />
     );
   const poster = media.posterFileId
@@ -355,7 +400,7 @@ export function MediaView({
 }
 
 /** A decorative, muted background film, paused on request and for reduced motion. */
-function BackgroundVideo({
+export function BackgroundVideo({
   src,
   poster,
   pauseLabel,
@@ -445,6 +490,7 @@ export function SectionFrame({
   children,
   full = false,
   padded = true,
+  joined = false,
   labels,
 }: {
   section: PageSection;
@@ -453,6 +499,8 @@ export function SectionFrame({
   /** The section fills the width whatever its width setting says. */
   full?: boolean;
   padded?: boolean;
+  /** It continues the section above on the same colour, so the two share one gap. */
+  joined?: boolean;
   labels: { pause: string; play: string };
 }) {
   const style = section.style;
@@ -504,13 +552,17 @@ export function SectionFrame({
       ) : null}
       <DividerShape divider={style.dividerTop} edge="top" />
       <div
+        data-reveal
         className={cn(
           "relative mx-auto w-full",
           !full && "px-5 @3xl/site:px-8",
         )}
         style={{
           maxWidth: full ? "none" : WIDTH[style.width],
-          paddingBlock: padded
+          paddingBlockStart: padded
+            ? `calc(var(--s-space) * ${SPACING[style.spacing] * (joined ? 0.3 : 1)})`
+            : undefined,
+          paddingBlockEnd: padded
             ? `calc(var(--s-space) * ${SPACING[style.spacing]})`
             : undefined,
         }}

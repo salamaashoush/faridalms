@@ -56,13 +56,7 @@ function StarterCard({
         inert
         className="pointer-events-none h-64 overflow-hidden border-b bg-white"
       >
-        <Viewport
-          width={1280}
-          theme={theme}
-          locale={locale}
-          scale={0.3}
-          fit={false}
-        >
+        <Viewport width={1280} theme={theme} locale={locale}>
           <PageSections
             sections={sections.map((section) => ({ section, locale }))}
             title=""

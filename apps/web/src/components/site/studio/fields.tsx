@@ -1,7 +1,10 @@
 import type { ContentDocument } from "@faridalms/domain/content";
 import type {
   BADGES,
+  BlockType,
   Field,
+  SiteBlock,
+  SiteColumn,
   IconId,
   SiteEmbed,
   SiteImage,
@@ -14,7 +17,14 @@ import type { MouseEvent, ReactNode } from "react";
 
 import { Popover } from "@base-ui/react/popover";
 import { embedProviderNames, parseEmbedUrl } from "@faridalms/domain/embed";
-import { ICONS, newItem } from "@faridalms/domain/site-sections";
+import {
+  BLOCK_TYPES,
+  blockFieldsOf,
+  ICONS,
+  MAX_BLOCKS,
+  newBlock,
+  newItem,
+} from "@faridalms/domain/site-sections";
 import {
   ArrowDown,
   ArrowUp,
@@ -31,6 +41,12 @@ import { toast } from "sonner";
 
 import { ContentEditor } from "~/components/content/ContentEditor";
 import { Button } from "~/components/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "~/components/ui/dropdown-menu";
 import { Input } from "~/components/ui/input";
 import {
   Select,
@@ -48,8 +64,9 @@ import { SiteIcon } from "../render/parts";
 import { Disclosure, Segmented, StudioField } from "./controls";
 import {
   AUDIENCE_LABEL,
+  BLOCK_LABEL,
+  CHOICE_LABEL,
   FIELD_LABEL,
-  HEIGHT_LABEL,
   ICON_LABEL,
 } from "./labels";
 
@@ -154,6 +171,7 @@ function TextControl({
   max,
   multiline,
   locale,
+  hint,
   onChange,
 }: {
   id: string;
@@ -162,6 +180,7 @@ function TextControl({
   max: number;
   multiline?: boolean;
   locale: SiteLocale;
+  hint?: string;
   onChange: (value: string) => void;
 }) {
   const near = value.length > max * 0.8;
@@ -170,6 +189,7 @@ function TextControl({
     <StudioField
       id={id}
       label={label}
+      hint={hint}
       counter={
         near ? (
           <span className="text-xs text-muted-foreground tabular-nums">
@@ -471,6 +491,13 @@ function HrefInput({
   );
 }
 
+/** A button inside a disclosure's summary acts without opening or closing it. */
+const stop = (event: MouseEvent, run: () => void) => {
+  event.preventDefault();
+  event.stopPropagation();
+  run();
+};
+
 function moved<T>(items: T[], index: number, by: -1 | 1): T[] {
   const next = [...items];
   const [item] = next.splice(index, 1);
@@ -713,15 +740,11 @@ function ChoiceControl({
   onChange: (value: string) => void;
 }) {
   const text = (option: string) =>
-    name === "height"
-      ? (HEIGHT_LABEL[option]?.() ?? option)
-      : name === "audience"
-        ? (AUDIENCE_LABEL[option]?.() ?? option)
-        : name === "badge"
-          ? BADGE_NAME[option as (typeof BADGES)[number]] || m.siteBadgeNone()
-          : /^\d+$/.test(option)
-            ? formatNumber(Number(option))
-            : option;
+    name === "badge"
+      ? BADGE_NAME[option as (typeof BADGES)[number]] || m.siteBadgeNone()
+      : (CHOICE_LABEL[name]?.[option]?.() ??
+        AUDIENCE_LABEL[option]?.() ??
+        (/^\d+$/.test(option) ? formatNumber(Number(option)) : option));
   if (options.length <= 4)
     return (
       <StudioField label={label}>
@@ -759,7 +782,12 @@ function ChoiceControl({
 const hasWords = (field: Field): boolean =>
   field.kind === "items"
     ? Object.values(field.fields).some(hasWords)
-    : ["text", "rich", "image", "media", "links"].includes(field.kind);
+    : ["text", "rich", "image", "media", "links", "columns"].includes(
+        field.kind,
+      );
+
+/** Fields drawn through the heading component, where asterisks mark emphasis. */
+const EMPHASISABLE = new Set(["heading"]);
 
 /** One field of a section, drawn from its declaration. */
 export function FieldControl({
@@ -790,6 +818,7 @@ export function FieldControl({
           max={field.max}
           multiline={field.multiline}
           locale={context.locale}
+          hint={EMPHASISABLE.has(name) ? m.siteHeadingFieldHint() : undefined}
           onChange={onChange}
         />
       );
@@ -921,18 +950,181 @@ export function FieldControl({
           onChange={onChange}
         />
       );
+    case "columns":
+      return (
+        <ColumnsControl
+          id={id}
+          value={value as SiteColumn[]}
+          context={context}
+          onChange={onChange}
+        />
+      );
   }
   return null;
 }
 
-type Item = Record<string, unknown> & { id: string };
+/**
+ * The blocks of each column: open one to edit it, add blocks from the
+ * list, and move them within their column.
+ */
+function ColumnsControl({
+  id,
+  value,
+  context,
+  onChange,
+}: {
+  id: string;
+  value: SiteColumn[];
+  context: FieldContext;
+  onChange: (value: SiteColumn[]) => void;
+}) {
+  const setColumn = (index: number, blocks: SiteBlock[]) =>
+    onChange(
+      value.map((column, at) =>
+        at === index ? { ...column, blocks } : column,
+      ),
+    );
+  return (
+    <div className="grid gap-3">
+      {value.map((column, index) => (
+        <fieldset
+          key={column.id}
+          className="grid gap-2 rounded-xl border border-dashed p-2.5"
+        >
+          <legend className="px-1 text-sm font-medium">
+            {m.siteColumnBlocks({ number: formatNumber(index + 1) })}
+          </legend>
+          {column.blocks.length === 0 ? (
+            <p className="px-1 text-[13px] text-muted-foreground">
+              {m.siteNoBlocks()}
+            </p>
+          ) : null}
+          <ul className="grid gap-2">
+            {column.blocks.map((block, at) => {
+              const name = BLOCK_LABEL[block.type]();
+              const setBlock = (next: SiteBlock) =>
+                setColumn(
+                  index,
+                  column.blocks.map((item) =>
+                    item.id === next.id ? next : item,
+                  ),
+                );
+              return (
+                <li key={block.id}>
+                  <Disclosure
+                    summary={name}
+                    actions={
+                      context.wordsOnly ? null : (
+                        <span className="flex shrink-0 gap-0.5">
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon-xs"
+                            aria-label={m.siteMoveBlockUp({ block: name })}
+                            disabled={at === 0}
+                            onClick={(event) =>
+                              stop(event, () =>
+                                setColumn(index, moved(column.blocks, at, -1)),
+                              )
+                            }
+                          >
+                            <ArrowUp aria-hidden />
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon-xs"
+                            aria-label={m.siteMoveBlockDown({ block: name })}
+                            disabled={at === column.blocks.length - 1}
+                            onClick={(event) =>
+                              stop(event, () =>
+                                setColumn(index, moved(column.blocks, at, 1)),
+                              )
+                            }
+                          >
+                            <ArrowDown aria-hidden />
+                          </Button>
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon-xs"
+                            aria-label={m.siteRemoveBlock({ block: name })}
+                            onClick={(event) =>
+                              stop(event, () =>
+                                setColumn(
+                                  index,
+                                  column.blocks.filter(
+                                    (item) => item.id !== block.id,
+                                  ),
+                                ),
+                              )
+                            }
+                          >
+                            <Trash2 aria-hidden />
+                          </Button>
+                        </span>
+                      )
+                    }
+                  >
+                    {Object.entries(blockFieldsOf(block.type)).map(
+                      ([key, field]) => (
+                        <FieldControl
+                          key={key}
+                          name={key}
+                          field={field}
+                          value={(block.data as Record<string, unknown>)[key]}
+                          context={context}
+                          prefix={`${id}-${block.id}`}
+                          onChange={(next) =>
+                            setBlock({
+                              ...block,
+                              data: { ...block.data, [key]: next },
+                            } as SiteBlock)
+                          }
+                        />
+                      ),
+                    )}
+                  </Disclosure>
+                </li>
+              );
+            })}
+          </ul>
+          {context.wordsOnly || column.blocks.length >= MAX_BLOCKS ? null : (
+            <DropdownMenu>
+              <DropdownMenuTrigger
+                render={
+                  <Button
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    className="justify-self-start max-md:h-10"
+                  />
+                }
+              >
+                <Plus aria-hidden />
+                {m.siteAddBlock()}
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-48">
+                {BLOCK_TYPES.map((type: BlockType) => (
+                  <DropdownMenuItem
+                    key={type}
+                    onClick={() =>
+                      setColumn(index, [...column.blocks, newBlock(type)])
+                    }
+                  >
+                    {BLOCK_LABEL[type]()}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
+        </fieldset>
+      ))}
+    </div>
+  );
+}
 
-/** A button inside a disclosure's summary acts without opening or closing it. */
-const stop = (event: MouseEvent, run: () => void) => {
-  event.preventDefault();
-  event.stopPropagation();
-  run();
-};
+type Item = Record<string, unknown> & { id: string };
 
 function summaryOf(item: Item, index: number): string {
   for (const key of ["title", "name", "label", "year", "value", "quote"]) {

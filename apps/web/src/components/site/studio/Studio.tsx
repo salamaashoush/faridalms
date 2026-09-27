@@ -1,6 +1,7 @@
 import type { PageSection, SiteLocale } from "@faridalms/domain/site-sections";
 import type { PageTemplate } from "@faridalms/domain/site-templates";
 
+import { Tabs } from "@base-ui/react/tabs";
 import { buildTemplate } from "@faridalms/domain/site-templates";
 import { resolveTheme } from "@faridalms/domain/site-theme";
 import { sectionComplete, sectionWritten } from "@faridalms/domain/website";
@@ -59,7 +60,6 @@ import {
   SheetHeader,
   SheetTitle,
 } from "~/components/ui/sheet";
-import { Tabs, TabsList, TabsTrigger } from "~/components/ui/tabs";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import {
@@ -586,10 +586,13 @@ export function SiteStudio({
     await invalidate();
     if (!pageId) {
       setPageId(result.id);
+      // The draft was just saved, but the guard still holds the render
+      // before that; this address change loses nothing.
       void navigate({
         to: "/admin/site-page-editor",
         search: { id: result.id },
         replace: true,
+        ignoreBlocker: true,
       });
     }
     return result;
@@ -833,25 +836,34 @@ export function SiteStudio({
       />
     );
   const rail = (
-    <Tabs
+    <Tabs.Root
       value={panel}
       onValueChange={(value) => setPanel(value as StudioPanel)}
-      className="flex min-h-0 flex-1 flex-col gap-0"
+      orientation="vertical"
+      className="flex min-h-0 flex-1"
     >
-      <TabsList className="m-2 grid h-auto w-auto grid-cols-4">
+      <Tabs.List className="flex w-[72px] shrink-0 flex-col items-stretch gap-1 border-e bg-muted/30 px-2 py-3">
         {railTabs.map((tab) => (
-          <TabsTrigger
+          <Tabs.Tab
             key={tab.value}
             value={tab.value}
-            className="flex h-auto flex-col gap-0.5 py-1.5 text-[11px]"
+            className="group flex flex-col items-center gap-1 rounded-lg px-1 py-2 text-[11px] leading-tight font-medium text-muted-foreground transition-colors outline-none hover:bg-muted hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring data-active:bg-primary/12 data-active:text-primary"
           >
-            <tab.icon aria-hidden className="size-4" />
-            {tab.label}
-          </TabsTrigger>
+            <tab.icon aria-hidden className="size-5" />
+            <span className="max-w-full text-center">{tab.label}</span>
+          </Tabs.Tab>
         ))}
-      </TabsList>
-      <div className="min-h-0 flex-1 overflow-y-auto border-t">{panelBody}</div>
-    </Tabs>
+      </Tabs.List>
+      <Tabs.Panel
+        value={panel}
+        className="min-h-0 min-w-0 flex-1 overflow-y-auto outline-none"
+      >
+        <h2 className="border-b px-4 py-3 text-sm font-semibold">
+          {railTabs.find((tab) => tab.value === panel)?.label}
+        </h2>
+        {panelBody}
+      </Tabs.Panel>
+    </Tabs.Root>
   );
 
   const title = titleIn(languages.primary) || m.siteUntitledPage();
@@ -1095,7 +1107,7 @@ export function SiteStudio({
       <div className="flex min-h-0 flex-1">
         <aside
           aria-label={m.siteBuilderPanels()}
-          className="flex w-[300px] shrink-0 flex-col border-e max-lg:hidden"
+          className="flex w-[360px] shrink-0 flex-col border-e max-lg:hidden"
         >
           {rail}
         </aside>

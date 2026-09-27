@@ -3,11 +3,13 @@ import type { LucideIcon } from "lucide-react";
 
 import {
   Award,
+  Blocks,
   CalendarDays,
   CircleAlert,
   Contact,
   EyeOff,
   FileText,
+  GalleryHorizontal,
   GalleryHorizontalEnd,
   GitCommitVertical,
   GripVertical,
@@ -46,6 +48,8 @@ import { SECTION_LABEL } from "./labels";
 
 export const SECTION_ICON: Record<PageSection["type"], LucideIcon> = {
   hero: PanelTop,
+  slides: GalleryHorizontal,
+  blocks: Blocks,
   pageHeader: LayoutPanelTop,
   announcement: Megaphone,
   welcome: Mail,

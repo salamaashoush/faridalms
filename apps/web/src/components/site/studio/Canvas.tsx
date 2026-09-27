@@ -16,7 +16,7 @@ import type { CanvasSection } from "./draft";
 
 import { SiteFrame } from "../render/frame";
 import { opensOnPicture, PageSections } from "../render/page";
-import { schemeStyle, themeStyle } from "../render/theme";
+import { schemeStyle, themeAttributes, themeStyle } from "../render/theme";
 import { SECTION_LABEL } from "./labels";
 
 export const DEVICES = { desktop: 1440, tablet: 820, phone: 390 } as const;
@@ -60,6 +60,7 @@ export function Viewport({
         className="site-root mx-auto"
         lang={locale}
         dir={locale === "ar" ? "rtl" : "ltr"}
+        {...themeAttributes(theme, true)}
         style={{
           width,
           zoom: scale,

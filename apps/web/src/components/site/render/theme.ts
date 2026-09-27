@@ -4,7 +4,14 @@ import type { CSSProperties } from "react";
 
 import { FONTS, schemesOf } from "@faridalms/domain/site-theme";
 
-const SPACE = { compact: "3.5rem", regular: "5rem", airy: "7rem" } as const;
+const SPACE = {
+  compact: "clamp(3rem, 2.333rem + 2.963cqi, 5rem)",
+  regular: "clamp(4rem, 2.833rem + 5.185cqi, 7.5rem)",
+  airy: "clamp(5.5rem, 4rem + 6.667cqi, 10rem)",
+} as const;
+
+/** Faces with a real italic, which the italic emphasis borrows; others fall back to Fraunces. */
+const ITALIC_FACES = new Set(["cormorant", "fraunces"]);
 
 function stack(font: keyof typeof FONTS, fallback: keyof typeof FONTS): string {
   const face = FONTS[font];
@@ -40,12 +47,46 @@ export function themeStyle(theme: Theme, locale: SiteLocale): CSSProperties {
     "--s-heading-tracking":
       theme.headingCase === "upper" && !arabic ? "0.04em" : "normal",
     "--s-line": arabic ? "1.8" : "1.6",
+    "--s-font-accent": ITALIC_FACES.has(theme.fonts.headingLatin)
+      ? `"${FONTS[theme.fonts.headingLatin].family}", serif`
+      : `"${FONTS.fraunces.family}", serif`,
+    "--s-heading-weight":
+      theme.headingScale === "statement"
+        ? "800"
+        : theme.headingScale === "editorial"
+          ? FONTS[arabic ? theme.fonts.headingArabic : theme.fonts.headingLatin]
+              .fallback === "serif"
+            ? "500"
+            : "600"
+          : "650",
+    "--s-display-tracking":
+      arabic || theme.headingCase === "upper"
+        ? "normal"
+        : theme.headingScale === "statement"
+          ? "-0.04em"
+          : theme.headingScale === "editorial"
+            ? "-0.02em"
+            : "-0.01em",
+    "--s-eyebrow-case": arabic ? "none" : "uppercase",
+    "--s-eyebrow-tracking": arabic ? "normal" : "0.14em",
     "--s-canvas": theme.palette.canvas,
     "--s-surface": theme.palette.surface,
     "--s-primary": theme.palette.primary,
     "--s-accent": theme.palette.accent,
     "--s-ink": theme.palette.ink,
   } as CSSProperties;
+}
+
+/** The theme's choices the stylesheet reads from the site's root. */
+export function themeAttributes(theme: Theme, editing = false) {
+  return {
+    "data-scale": theme.headingScale,
+    "data-card": theme.card,
+    "data-image": theme.image,
+    "data-eyebrow": theme.eyebrow,
+    "data-motion": editing ? "none" : theme.motion,
+    "data-emphasis": theme.emphasis,
+  };
 }
 
 /** One colour scheme as the variables a section's contents read. */
