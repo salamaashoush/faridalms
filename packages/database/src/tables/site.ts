@@ -1,3 +1,4 @@
+import type { SiteChrome, SiteTheme } from "@faridalms/domain/site-theme";
 import type { SocialLink } from "@faridalms/domain/website";
 import type { SQL } from "drizzle-orm";
 import type { PgTableExtraConfigValue } from "drizzle-orm/pg-core";
@@ -75,6 +76,14 @@ export const siteSettings = core.table.withRLS(
       .notNull()
       .default("info"),
     bannerUntil: instant("banner_until"),
+    theme: jsonb("theme")
+      .$type<SiteTheme>()
+      .notNull()
+      .default(sql`'{}'`),
+    chrome: jsonb("chrome")
+      .$type<SiteChrome>()
+      .notNull()
+      .default(sql`'{}'`),
     ...entityColumns(),
   },
   (t): PgTableExtraConfigValue[] => [
@@ -95,6 +104,16 @@ export const siteSettings = core.table.withRLS(
       "site_settings",
       "banner_tone",
       sql`banner_tone in ('info', 'warning', 'danger')`,
+    ),
+    ck(
+      "site_settings",
+      "theme",
+      sql`jsonb_typeof(theme) = 'object' and octet_length(theme::text) <= 8192`,
+    ),
+    ck(
+      "site_settings",
+      "chrome",
+      sql`jsonb_typeof(chrome) = 'object' and octet_length(chrome::text) <= 65536`,
     ),
     uniqueIndex("site_settings_org_key")
       .on(t.tenantId, t.orgId)

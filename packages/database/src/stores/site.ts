@@ -1,3 +1,5 @@
+import type { SiteChrome, SiteTheme } from "@faridalms/domain/site-theme";
+
 import { sql } from "drizzle-orm";
 
 import type { CellTransaction } from "../context";
@@ -26,6 +28,8 @@ export interface SettingsRow {
   bannerAr: string;
   bannerTone: BannerTone;
   bannerUntil: string | null;
+  theme: SiteTheme;
+  chrome: SiteChrome;
 }
 
 type SettingsRecord = {
@@ -41,10 +45,13 @@ type SettingsRecord = {
   banner_ar: string;
   banner_tone: BannerTone;
   banner_until: string | null;
+  theme: SiteTheme;
+  chrome: SiteChrome;
 };
 
 const settingsColumns = sql`id, version, live, primary_locale, bilingual, tagline_en, tagline_ar,
-  social_links, banner_en, banner_ar, banner_tone, ${isoOf(sql`banner_until`)} as banner_until`;
+  social_links, banner_en, banner_ar, banner_tone, ${isoOf(sql`banner_until`)} as banner_until,
+  theme, chrome`;
 
 function settingsOf(row: SettingsRecord): SettingsRow {
   return {
@@ -60,6 +67,8 @@ function settingsOf(row: SettingsRecord): SettingsRow {
     bannerAr: row.banner_ar,
     bannerTone: row.banner_tone,
     bannerUntil: row.banner_until,
+    theme: row.theme,
+    chrome: row.chrome,
   };
 }
 
@@ -89,11 +98,13 @@ export async function saveSiteSettings(
   // A bound array would travel as a Postgres array, so the links go as JSON text.
   const values = sql`${input.live}, ${input.primaryLocale}, ${input.bilingual}, ${input.taglineEn},
     ${input.taglineAr}, ${JSON.stringify(input.socialLinks)}::text::jsonb, ${input.bannerEn}, ${input.bannerAr},
-    ${input.bannerTone}, ${input.bannerUntil}::timestamptz`;
+    ${input.bannerTone}, ${input.bannerUntil}::timestamptz, ${input.theme}::jsonb,
+    ${input.chrome}::jsonb`;
   if (input.expectedVersion === 0) {
     const [row] = await tx.execute<{ version: number }>(sql`
       insert into core.site_settings (tenant_id, org_id, live, primary_locale, bilingual,
-        tagline_en, tagline_ar, social_links, banner_en, banner_ar, banner_tone, banner_until)
+        tagline_en, tagline_ar, social_links, banner_en, banner_ar, banner_tone, banner_until,
+        theme, chrome)
       values (${input.tenantId}::uuid, ${input.orgId}::uuid, ${values})
       on conflict do nothing
       returning version`);
@@ -102,7 +113,7 @@ export async function saveSiteSettings(
   const [row] = await tx.execute<{ version: number }>(sql`
     update core.site_settings
     set (live, primary_locale, bilingual, tagline_en, tagline_ar, social_links, banner_en,
-      banner_ar, banner_tone, banner_until) = (${values})
+      banner_ar, banner_tone, banner_until, theme, chrome) = (${values})
     where tenant_id = ${input.tenantId}::uuid and org_id = ${input.orgId}::uuid
       and version = ${input.expectedVersion} and status = 'active'
     returning version`);
