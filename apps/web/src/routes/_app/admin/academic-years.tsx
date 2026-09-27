@@ -17,6 +17,7 @@ import {
 } from "~/components/years/format";
 import {
   lifecycleActions,
+  rolloverActions,
   useYearLifecycle,
 } from "~/components/years/YearLifecycle";
 import * as m from "~/i18n/messages";
@@ -126,6 +127,9 @@ function YearsPage() {
           },
         ]
       : []),
+    ...rolloverActions(row, current, data.access, (source, target) => {
+      void navigate({ to: "/admin/rollover", search: { source, target } });
+    }),
     ...lifecycleActions(row, data.access, lifecycle.open),
   ];
   return (

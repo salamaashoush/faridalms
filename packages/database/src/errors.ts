@@ -34,6 +34,7 @@ export const CONFLICTS: Record<string, string> = {
   classes_code_key: "class.code_taken",
   enrollments_excl: "enrollment.overlapping",
   enrollments_homeroom_excl: "enrollment.homeroom_overlapping",
+  year_rollovers_years_key: "rollover.exists",
   user_roles_role_excl: "role.overlapping",
   user_relationships_excl: "relationship.overlapping",
   accounts_tenant_id_webauthn_user_handle_key: "account.handle_taken",

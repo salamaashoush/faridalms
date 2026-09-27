@@ -100,8 +100,13 @@ test("an administrator adds a class and a student from another class joins it", 
   await expect(
     classes.getByRole("link", { name: title, exact: true }),
   ).toBeVisible();
+  // Rollovers running beside this spec give the student next year's 8A too;
+  // the class they left is this year's.
   await expect(
-    classes.getByRole("link", { name: "8A", exact: true }),
+    classes
+      .getByRole("listitem")
+      .filter({ hasText: "2026–2027" })
+      .getByRole("link", { name: "8A", exact: true }),
   ).toBeVisible();
 });
 

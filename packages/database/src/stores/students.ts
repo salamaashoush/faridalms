@@ -663,6 +663,8 @@ export async function place(
     calendarId: string | null;
     /** The day the grade takes effect; today by default, never before the year. */
     from?: string;
+    entryTypeId?: string | null;
+    source?: "manual" | "rollover";
   },
 ) {
   const wanted = input.from ?? scope.today;
@@ -701,7 +703,8 @@ export async function place(
       validDuring: `[${start},${input.year.endsBefore})`,
       gradeLevelDescriptorId: input.gradeId,
       calendarId: input.calendarId,
-      source: "manual",
+      entryTypeDescriptorId: input.entryTypeId ?? null,
+      source: input.source ?? "manual",
     });
   }
   await ensureStudentRole(tx, scope, input.studentId, start);

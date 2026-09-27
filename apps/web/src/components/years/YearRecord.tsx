@@ -23,7 +23,11 @@ import { cn } from "~/utils/cn";
 import { formatNumber } from "~/utils/datetime";
 
 import { STANDING_LABEL, STANDING_TONE, yearDates, yearTitle } from "./format";
-import { lifecycleActions, useYearLifecycle } from "./YearLifecycle";
+import {
+  lifecycleActions,
+  rolloverActions,
+  useYearLifecycle,
+} from "./YearLifecycle";
 
 export const YEAR_TABS = ["overview", "history"] as const;
 export type YearTab = (typeof YEAR_TABS)[number];
@@ -156,7 +160,19 @@ export function YearRecord({
               }
             : undefined
         }
-        menu={lifecycleActions(year, year.access, lifecycle.open)}
+        menu={[
+          ...rolloverActions(
+            year,
+            current,
+            year.access,
+            (source, target) =>
+              void navigate({
+                to: "/admin/rollover",
+                search: { source, target },
+              }),
+          ),
+          ...lifecycleActions(year, year.access, lifecycle.open),
+        ]}
       />
       <RecordTabs
         label={m.yearsSections()}

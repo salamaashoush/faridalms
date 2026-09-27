@@ -1,7 +1,7 @@
 import type { YearAction, YearLifecycle } from "@faridalms/domain/years";
 
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { CalendarCheck, Lock, LockOpen } from "lucide-react";
+import { CalendarCheck, CopyPlus, Lock, LockOpen } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -205,4 +205,20 @@ export function lifecycleActions(
       },
     ];
   return [];
+}
+
+export function rolloverActions(
+  year: { id: string; lifecycle: YearLifecycle },
+  current: { id: string } | null,
+  access: { manage: boolean },
+  open: (source: string, target: string) => void,
+): ActionItem[] {
+  if (!access.manage || !current || year.lifecycle !== "upcoming") return [];
+  return [
+    {
+      label: m.yearsRollover(),
+      icon: CopyPlus,
+      onSelect: () => open(current.id, year.id),
+    },
+  ];
 }

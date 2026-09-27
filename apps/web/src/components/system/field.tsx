@@ -178,6 +178,7 @@ export function SelectField<T extends string>({
   disabled,
   width = "full",
   className,
+  labelHidden,
 }: {
   id?: string;
   label: string;
@@ -190,6 +191,7 @@ export function SelectField<T extends string>({
   disabled?: boolean;
   width?: keyof typeof widths;
   className?: string;
+  labelHidden?: boolean;
 }) {
   return (
     <FormField
@@ -199,6 +201,7 @@ export function SelectField<T extends string>({
       hint={hint}
       errors={errors}
       className={className}
+      labelHidden={labelHidden}
     >
       {(control) => (
         <Select

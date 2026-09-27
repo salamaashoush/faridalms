@@ -5,6 +5,7 @@ import {
   boolean,
   date,
   index,
+  jsonb,
   smallint,
   text,
   time,
@@ -20,12 +21,14 @@ import {
   entityColumns,
   entityProfile,
   fk,
+  instant,
   pk,
   range,
   tenantColumns,
   uq,
 } from "./conventions";
 import { descriptors } from "./descriptors";
+import { users } from "./people";
 import { orgs, tenants } from "./tenancy";
 
 export type SessionType =
@@ -375,5 +378,90 @@ export const classPeriods = core.table.withRLS(
     ),
     ck("class_periods", "valid_during", range.bounded("valid_during")),
     ...entityProfile({ integration: true }),
+  ],
+);
+
+export type RolloverState = "draft" | "applied";
+
+/**
+ * The draft that carries a school's classes and students from one year into
+ * the next: the classes to create and where each student goes, revised until
+ * it is applied once. The applied outcome is kept, so applying again returns
+ * it instead of creating anything twice.
+ */
+export const yearRollovers = core.table.withRLS(
+  "year_rollovers",
+  {
+    ...tenantColumns(),
+    orgId: uuid("org_id").notNull(),
+    sourceYearId: uuid("source_year_id").notNull(),
+    sourceYearType: text("source_year_type").notNull().default("school_year"),
+    targetYearId: uuid("target_year_id").notNull(),
+    targetYearType: text("target_year_type").notNull().default("school_year"),
+    state: text("state").$type<RolloverState>().notNull().default("draft"),
+    plan: jsonb("plan").$type<Record<string, unknown>>().notNull(),
+    outcome: jsonb("outcome").$type<Record<string, unknown>>(),
+    appliedAt: instant("applied_at"),
+    appliedByUserId: uuid("applied_by_user_id"),
+    ...entityColumns(),
+  },
+  (t): PgTableExtraConfigValue[] => [
+    pk("year_rollovers", t.tenantId, t.id),
+    ...baseConstraints("year_rollovers", t, tenants),
+    fk(
+      "year_rollovers",
+      [t.tenantId, t.sourceYearId, t.sourceYearType, t.sourceYearId, t.orgId],
+      [
+        academicSessions.tenantId,
+        academicSessions.id,
+        academicSessions.type,
+        academicSessions.schoolYearId,
+        academicSessions.orgId,
+      ],
+      "_source",
+    ),
+    fk(
+      "year_rollovers",
+      [t.tenantId, t.targetYearId, t.targetYearType, t.targetYearId, t.orgId],
+      [
+        academicSessions.tenantId,
+        academicSessions.id,
+        academicSessions.type,
+        academicSessions.schoolYearId,
+        academicSessions.orgId,
+      ],
+      "_target",
+    ),
+    fk(
+      "year_rollovers",
+      [t.tenantId, t.appliedByUserId],
+      [users.tenantId, users.id],
+    ),
+    ck(
+      "year_rollovers",
+      "source_year_type",
+      sql`source_year_type = 'school_year'`,
+    ),
+    ck(
+      "year_rollovers",
+      "target_year_type",
+      sql`target_year_type = 'school_year'`,
+    ),
+    ck("year_rollovers", "state", sql`state in ('draft', 'applied')`),
+    ck("year_rollovers", "years", sql`source_year_id <> target_year_id`),
+    ck(
+      "year_rollovers",
+      "plan",
+      sql`jsonb_typeof(plan) = 'object' and octet_length(plan::text) <= 4194304`,
+    ),
+    ck(
+      "year_rollovers",
+      "applied",
+      sql`(state = 'applied') = (applied_at is not null and outcome is not null)`,
+    ),
+    uniqueIndex("year_rollovers_years_key")
+      .on(t.tenantId, t.sourceYearId, t.targetYearId)
+      .where(sql`status = 'active'`),
+    ...entityProfile(),
   ],
 );

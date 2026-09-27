@@ -1,17 +1,11 @@
+import type { RolloverQuery } from "@faridalms/domain/rollover";
+
 import { queryOptions } from "@tanstack/react-query";
 
 import { getRollover } from "~/server/rollover";
 
-export const rolloverQuery = (query: {
-  sourceYearId: string;
-  targetYearId: string;
-}) =>
+export const rolloverQuery = (query: RolloverQuery) =>
   queryOptions({
-    queryKey: [
-      "academic-years",
-      "rollover",
-      query.sourceYearId,
-      query.targetYearId,
-    ],
+    queryKey: ["years", "rollover", query],
     queryFn: () => getRollover({ data: query }),
   });

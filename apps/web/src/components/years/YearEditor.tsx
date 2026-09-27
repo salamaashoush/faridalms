@@ -6,11 +6,12 @@ import { Plus, X } from "lucide-react";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 
+import type { yearQuery } from "~/queries/years";
+
 import { TextField } from "~/components/system/field";
 import { FormSection, RecordForm } from "~/components/system/RecordForm";
 import { Button } from "~/components/ui/button";
 import * as m from "~/i18n/messages";
-import type { yearQuery } from "~/queries/years";
 import { saveYear } from "~/server/years";
 import { getMessageFromError } from "~/utils/error";
 

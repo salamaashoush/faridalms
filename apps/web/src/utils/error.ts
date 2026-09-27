@@ -119,30 +119,30 @@ export function getMessageFromError(error: unknown): string {
         return m.academicYearClosedError();
       case "rollover.duplicate_class":
         return m.rolloverDuplicateClass();
-      case "rollover.duplicate_name":
-        return m.rolloverDuplicateName();
+      case "rollover.duplicate_code":
+        return m.rolloverDuplicateCode();
+      case "rollover.class_name":
+        return m.rolloverClassName();
       case "rollover.duplicate_subject":
         return m.rolloverDuplicateSubject();
       case "rollover.duplicate_student":
         return m.rolloverDuplicateStudent();
-      case "rollover.withdraw_target":
-        return m.rolloverWithdrawTarget();
+      case "rollover.target_for_leaver":
+        return m.rolloverTargetForLeaver();
       case "rollover.missing_target":
         return m.rolloverMissingTarget();
-      case "rollover.source_planning":
-        return m.rolloverSourcePlanning();
+      case "rollover.source_not_started":
+        return m.rolloverSourceNotStarted();
       case "rollover.overlap":
         return m.rolloverOverlap();
       case "rollover.applied":
         return m.rolloverAlreadyApplied();
-      case "rollover.revision_conflict":
-        return m.rolloverRevisionConflict();
       case "rollover.not_saved":
         return m.rolloverNotSaved();
       case "rollover.plan_stale":
         return m.rolloverPlanStale();
-      case "rollover.name_taken":
-        return m.rolloverNameTaken();
+      case "rollover.exists":
+        return m.rolloverExists();
       case "academic_year.not_found":
         return m.academicYearNotFound();
       case "assignment.revision_conflict":

@@ -6,40 +6,32 @@ import { rolloverPlanIssue, rolloverYearsIssue } from "./rollover";
 
 const key = (n: number) => `00000000-0000-4000-8000-00000000000${n}`;
 
+const cls = {
+  key: key(1),
+  sourceClassId: key(5),
+  include: true,
+  code: "8-A",
+  titleEn: "8A",
+  titleAr: "",
+  gradeId: "",
+  locationId: "",
+  homeroomTeacherId: "",
+  subjects: [],
+};
+
 function plan(overrides: Partial<RolloverPlan> = {}): RolloverPlan {
   return {
     classes: [
+      cls,
       {
-        key: key(1),
-        sourceClassId: key(5),
-        include: true,
-        name: "P2-A",
-        grade: "P2",
-        stage: "primary",
-        room: "",
-        homeroomTeacherId: "",
-        subjects: [],
-      },
-      {
+        ...cls,
         key: key(2),
         sourceClassId: key(6),
         include: false,
-        name: "P2-B",
-        grade: "P2",
-        stage: "primary",
-        room: "",
-        homeroomTeacherId: "",
-        subjects: [],
+        code: "8-B",
       },
     ],
-    students: [
-      {
-        studentId: key(7),
-        sourceClassId: key(5),
-        decision: "promote",
-        targetKey: key(1),
-      },
-    ],
+    students: [{ studentId: key(7), outcome: "promote", targetKey: key(1) }],
     ...overrides,
   };
 }
@@ -54,33 +46,30 @@ describe("rolloverPlanIssue", () => {
       rolloverPlanIssue(
         plan({
           students: [
-            {
-              studentId: key(7),
-              sourceClassId: key(6),
-              decision: "repeat",
-              targetKey: key(2),
-            },
+            { studentId: key(7), outcome: "retain", targetKey: key(2) },
           ],
+        }),
+      ),
+    ).toBe("rollover.missing_target");
+    expect(
+      rolloverPlanIssue(
+        plan({
+          students: [{ studentId: key(7), outcome: "promote", targetKey: "" }],
         }),
       ),
     ).toBe("rollover.missing_target");
   });
 
-  it("refuses a withdrawn student with a target and a student listed twice", () => {
+  it("refuses a leaver with a target and a student listed twice", () => {
     expect(
       rolloverPlanIssue(
         plan({
           students: [
-            {
-              studentId: key(7),
-              sourceClassId: key(5),
-              decision: "withdraw",
-              targetKey: key(1),
-            },
+            { studentId: key(7), outcome: "leave", targetKey: key(1) },
           ],
         }),
       ),
-    ).toBe("rollover.withdraw_target");
+    ).toBe("rollover.target_for_leaver");
     const student = plan().students[0];
     if (!student) throw new Error("Missing student");
     expect(rolloverPlanIssue(plan({ students: [student, student] }))).toBe(
@@ -88,56 +77,47 @@ describe("rolloverPlanIssue", () => {
     );
   });
 
-  it("refuses two included classes with the same name", () => {
-    const [first] = plan().classes;
-    if (!first) throw new Error("Missing class");
+  it("refuses two included classes with the same code and a class with no name", () => {
     expect(
       rolloverPlanIssue(
-        plan({
-          classes: [first, { ...first, key: key(3), name: "p2-a " }],
-        }),
+        plan({ classes: [cls, { ...cls, key: key(3), code: "8-a " }] }),
       ),
-    ).toBe("rollover.duplicate_name");
+    ).toBe("rollover.duplicate_code");
+    expect(
+      rolloverPlanIssue(plan({ classes: [{ ...cls, titleEn: " " }] })),
+    ).toBe("rollover.class_name");
   });
 });
 
 describe("rolloverYearsIssue", () => {
   const source = {
     startsOn: "2026-09-01",
-    endsOn: "2027-06-30",
-    status: "active",
+    endsBefore: "2027-07-01",
+    lifecycle: "current" as const,
   };
+  const target = {
+    startsOn: "2027-09-01",
+    endsBefore: "2028-07-01",
+    lifecycle: "upcoming" as const,
+  };
+  const today = "2027-05-01";
 
-  it("wants the target to start after the source ends", () => {
+  it("wants the target to start on or after the day the source ends", () => {
+    expect(rolloverYearsIssue(source, target, today)).toBeNull();
     expect(
-      rolloverYearsIssue(source, {
-        startsOn: "2027-09-01",
-        status: "planning",
-      }),
-    ).toBeNull();
-    expect(
-      rolloverYearsIssue(source, {
-        startsOn: "2027-06-30",
-        status: "planning",
-      }),
+      rolloverYearsIssue(source, { ...target, startsOn: "2027-06-30" }, today),
     ).toBe("rollover.overlap");
   });
 
-  it("refuses a closed year on either side and a source still being planned", () => {
+  it("refuses a closed year on either side and a source not yet started", () => {
     expect(
-      rolloverYearsIssue(source, { startsOn: "2027-09-01", status: "closed" }),
-    ).toBe("academic_year.closed");
+      rolloverYearsIssue(source, { ...target, lifecycle: "closed" }, today),
+    ).toBe("school_year.closed");
     expect(
-      rolloverYearsIssue(
-        { ...source, status: "closed" },
-        { startsOn: "2027-09-01", status: "planning" },
-      ),
-    ).toBe("academic_year.closed");
-    expect(
-      rolloverYearsIssue(
-        { ...source, status: "planning" },
-        { startsOn: "2027-09-01", status: "planning" },
-      ),
-    ).toBe("rollover.source_planning");
+      rolloverYearsIssue({ ...source, lifecycle: "closed" }, target, today),
+    ).toBe("school_year.closed");
+    expect(rolloverYearsIssue(source, target, "2026-08-01")).toBe(
+      "rollover.source_not_started",
+    );
   });
 });

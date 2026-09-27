@@ -48,8 +48,7 @@ describe("school years", () => {
     const { years, access } = await api.years.directory();
     const classes = await api.classes.directory({});
     const enrolled = await api.people.students({ status: ["enrolled"] });
-    expect(years).toHaveLength(1);
-    expect(years[0]).toMatchObject({
+    expect(years.find((row) => row.lifecycle === "current")).toMatchObject({
       lifecycle: "current",
       standing: "current",
       terms: 2,

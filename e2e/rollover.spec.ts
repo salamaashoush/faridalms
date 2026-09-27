@@ -1,369 +1,106 @@
-import type { APIRequestContext } from "@playwright/test";
+import type { Page } from "@playwright/test";
 
 import { expect, test } from "@playwright/test";
-import { execFileSync } from "node:child_process";
 
-const origin = "http://127.0.0.1:3001/v1";
+import { signIn, untilHydrated } from "./fixtures/sign-in";
 
-async function signIn(request: APIRequestContext, email: string) {
-  const response = await request.post(`${origin}/auth/signIn`, {
-    data: { school: "northwind", email, password: "northwind1234" },
+// Each browser rolls the current year into a target year of its own, since
+// years may not overlap.
+const TARGET = {
+  chromium: { title: "2040–2041", start: "2040-09-09", end: "2041-06-13" },
+  firefox: { title: "2042–2043", start: "2042-09-07", end: "2043-06-11" },
+  webkit: { title: "2044–2045", start: "2044-09-11", end: "2045-06-15" },
+} as const;
+
+// Other specs add students with no class while this one runs; a student who
+// stays needs a class, so each of them is marked as leaving.
+async function resolveBlockers(page: Page) {
+  const blocked = page.getByRole("listitem").filter({
+    has: page.getByRole("combobox", { name: /Choose a class$/ }),
   });
-  expect(response.status()).toBe(200);
-  const session = (await response.json()) as { token: string };
-  return { authorization: `Bearer ${session.token}` };
+  while ((await blocked.count()) > 0) {
+    await blocked
+      .first()
+      .getByRole("combobox", { name: /^Decision for / })
+      .click();
+    await page.getByRole("option", { name: "Leaves" }).click();
+  }
 }
 
-interface Source {
-  yearId: string;
-  yearName: string;
-  endsOn: string;
-  classA: { id: string; name: string };
-  classB: { id: string; name: string };
-  teacherId: string;
-  homeroomId: string;
-  students: Record<
-    "promoted" | "repeating" | "leaving",
-    { id: string; name: string }
-  >;
+async function applyPlan(page: Page) {
+  await page.getByRole("button", { name: "Review and apply" }).click();
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { name: "Apply rollover" })
+    .click();
 }
 
-interface Plan {
-  classes: {
-    key: string;
-    sourceClassId: string;
-    include: boolean;
-    name: string;
-    grade: string;
-    stage: string;
-    room: string;
-    homeroomTeacherId: string;
-    subjects: { subjectId: string; teacherId: string }[];
-  }[];
-  students: {
-    studentId: string;
-    sourceClassId: string;
-    decision: string;
-    targetKey: string;
-  }[];
-}
-
-function source(): Source {
-  return JSON.parse(
-    execFileSync("bun", ["e2e/fixtures/rollover-source.ts"], {
-      encoding: "utf8",
-    }),
-  ) as Source;
-}
-
-async function targetYear(
-  request: APIRequestContext,
-  admin: Record<string, string>,
-  startsOn: string,
-  endsOn: string,
-) {
-  const response = await request.post(`${origin}/saveAcademicYear`, {
-    headers: admin,
-    data: {
-      name: `T${crypto.randomUUID().slice(0, 8)}`,
-      startsOn,
-      endsOn,
-    },
-  });
-  expect(response.status()).toBe(200);
-  return (await response.json()) as { id: string; name: string };
-}
-
-async function history(
-  request: APIRequestContext,
-  admin: Record<string, string>,
-  studentId: string,
-) {
-  const response = await request.post(`${origin}/getStudent`, {
-    headers: admin,
-    data: { studentId },
-  });
-  expect(response.status()).toBe(200);
-  return (
-    (await response.json()) as {
-      profile: {
-        enrollmentHistory: {
-          classId: string;
-          since: string;
-          until: string | null;
-        }[];
-      };
-    }
-  ).profile.enrollmentHistory;
-}
-
-test("a reviewed rollover creates the next year's classes and placements once and moves nothing already recorded", async ({
-  request,
-}) => {
-  const admin = await signIn(request, "admin@example.com");
-  const teacher = await signIn(request, "sara@example.com");
-  const from = source();
-  const target = await targetYear(request, admin, "2051-09-01", "2052-06-30");
-  const query = { sourceYearId: from.yearId, targetYearId: target.id };
-
-  expect(
-    (
-      await request.post(`${origin}/getRollover`, {
-        headers: teacher,
-        data: query,
-      })
-    ).status(),
-  ).toBe(403);
-  const preview = await request.post(`${origin}/getRollover`, {
-    headers: admin,
-    data: query,
-  });
-  expect(preview.status()).toBe(200);
-  const proposed = (await preview.json()) as {
-    status: string;
-    revision: number;
-    issue: string | null;
-    plan: Plan;
-  };
-  expect(proposed).toMatchObject({ status: "new", revision: 0, issue: null });
-  const rowA = proposed.plan.classes.find(
-    (row) => row.sourceClassId === from.classA.id,
-  );
-  const rowB = proposed.plan.classes.find(
-    (row) => row.sourceClassId === from.classB.id,
-  );
-  if (!rowA || !rowB) throw new Error("The proposal lost a class");
-  expect(rowA).toMatchObject({
-    include: true,
-    name: from.classA.name,
-    homeroomTeacherId: from.homeroomId,
-  });
-  expect(rowA.subjects).toHaveLength(2);
-  expect(proposed.plan.students).toHaveLength(3);
-  expect(
-    proposed.plan.students.every(
-      (row) =>
-        row.decision === "promote" &&
-        row.targetKey ===
-          (row.sourceClassId === from.classA.id ? rowA.key : rowB.key),
-    ),
-  ).toBe(true);
-
-  const plan: Plan = {
-    classes: [
-      { ...rowA, name: `P2-A ${from.yearName}` },
-      { ...rowB, name: `P2-B ${from.yearName}` },
-    ],
-    students: proposed.plan.students.map((row) =>
-      row.studentId === from.students.repeating.id
-        ? { ...row, decision: "repeat", targetKey: rowB.key }
-        : row.studentId === from.students.leaving.id
-          ? { ...row, decision: "withdraw", targetKey: "" }
-          : row,
-    ),
-  };
-  const duplicate = await request.post(`${origin}/saveRollover`, {
-    headers: admin,
-    data: {
-      ...query,
-      expectedRevision: 0,
-      plan: {
-        ...plan,
-        classes: plan.classes.map((row) => ({ ...row, name: "P2" })),
-      },
-    },
-  });
-  expect(duplicate.status()).toBe(400);
-  expect(((await duplicate.json()) as { message: string }).message).toBe(
-    "rollover.duplicate_name",
-  );
-  const assignment = await request.post(`${origin}/createAssignment`, {
-    headers: admin,
-    data: {
-      classId: from.classA.id,
-      subjectId: rowA.subjects[0]?.subjectId,
-      title: "Salama end of year reading",
-      description: "Stays with the class it was set for.",
-      dueDate: from.endsOn,
-      maxScore: 10,
-    },
-  });
-  expect(assignment.status()).toBe(200);
-  const { id: assignmentId } = (await assignment.json()) as { id: string };
-  const saved = await request.post(`${origin}/saveRollover`, {
-    headers: admin,
-    data: { ...query, expectedRevision: 0, plan },
-  });
-  expect(saved.status()).toBe(200);
-  expect(await saved.json()).toEqual({ revision: 1 });
-  expect(
-    (
-      await request.post(`${origin}/saveRollover`, {
-        headers: admin,
-        data: { ...query, expectedRevision: 0, plan },
-      })
-    ).status(),
-  ).toBe(409);
-  expect(
-    (
-      await request.post(`${origin}/applyRollover`, {
-        headers: admin,
-        data: { ...query, expectedRevision: 5 },
-      })
-    ).status(),
-  ).toBe(409);
-
-  const [first, again] = await Promise.all([
-    request.post(`${origin}/applyRollover`, {
-      headers: admin,
-      data: { ...query, expectedRevision: 1 },
-    }),
-    request.post(`${origin}/applyRollover`, {
-      headers: admin,
-      data: { ...query, expectedRevision: 1 },
-    }),
-  ]);
-  expect([first.status(), again.status()]).toEqual([200, 200]);
-  const result = (await first.json()) as {
-    classes: { key: string; classId: string; name: string }[];
-    enrolled: number;
-    withdrawn: number;
-  };
-  expect(await again.json()).toEqual(result);
-  expect(result).toMatchObject({ enrolled: 2, withdrawn: 1 });
-  expect(result.classes.map((row) => row.name).toSorted()).toEqual(
-    [`P2-A ${from.yearName}`, `P2-B ${from.yearName}`].toSorted(),
-  );
-  const newA = result.classes.find((row) => row.key === rowA.key)?.classId;
-  const newB = result.classes.find((row) => row.key === rowB.key)?.classId;
-  if (!newA || !newB) throw new Error("Missing created classes");
-
-  const createdA = (await (
-    await request.post(`${origin}/getClass`, {
-      headers: admin,
-      data: { id: newA },
-    })
-  ).json()) as {
-    homeroomTeacher: { id: string } | null;
-    subjects: { teacher: { id: string } | null }[];
-    schoolYear: string | null;
-  };
-  expect(createdA.homeroomTeacher?.id).toBe(from.homeroomId);
-  expect(createdA.subjects).toHaveLength(2);
-  expect(createdA.schoolYear).toBe(target.name);
-  const recorded = await request.post(`${origin}/getAssignmentDetail`, {
-    headers: admin,
-    data: { id: assignmentId },
-  });
-  expect(recorded.status()).toBe(200);
-  expect(await recorded.json()).toMatchObject({
-    class: { id: from.classA.id },
-  });
-
-  const dayAfter = new Date(`${from.endsOn}T00:00:00Z`);
-  dayAfter.setUTCDate(dayAfter.getUTCDate() + 1);
-  const ended = dayAfter.toISOString().slice(0, 10);
-  const promoted = await history(request, admin, from.students.promoted.id);
-  expect(promoted).toContainEqual(
-    expect.objectContaining({ classId: from.classA.id, until: ended }),
-  );
-  expect(promoted).toContainEqual(
-    expect.objectContaining({
-      classId: newA,
-      since: "2051-09-01",
-      until: null,
-    }),
-  );
-  const repeating = await history(request, admin, from.students.repeating.id);
-  expect(repeating).toContainEqual(
-    expect.objectContaining({ classId: newB, since: "2051-09-01" }),
-  );
-  const leaving = await history(request, admin, from.students.leaving.id);
-  expect(leaving).toHaveLength(1);
-  expect(leaving[0]).toMatchObject({ classId: from.classB.id, until: ended });
-
-  const reread = (await (
-    await request.post(`${origin}/getRollover`, { headers: admin, data: query })
-  ).json()) as { status: string; result: unknown };
-  expect(reread).toMatchObject({ status: "applied", result });
-  const afterApply = await request.post(`${origin}/saveRollover`, {
-    headers: admin,
-    data: { ...query, expectedRevision: 1, plan },
-  });
-  expect(afterApply.status()).toBe(409);
-  expect(((await afterApply.json()) as { message: string }).message).toBe(
-    "rollover.applied",
-  );
-
-  const overlapping = await targetYear(
-    request,
-    admin,
-    from.endsOn,
-    "2053-06-30",
-  );
-  const blocked = (await (
-    await request.post(`${origin}/getRollover`, {
-      headers: admin,
-      data: { sourceYearId: from.yearId, targetYearId: overlapping.id },
-    })
-  ).json()) as { issue: string | null };
-  expect(blocked.issue).toBe("rollover.overlap");
-});
-
-test("administrators review and apply a rollover from the year directory", async ({
+test("an administrator rolls the current year into the next and opens a new class", async ({
   page,
-  request,
-}, testInfo) => {
-  const admin = await signIn(request, "admin@example.com");
-  const from = source();
-  const target = await targetYear(request, admin, "2054-09-01", "2055-06-30");
+  browserName,
+}) => {
+  const target = TARGET[browserName];
+  const unique = crypto.randomUUID().slice(0, 6);
+  await signIn(page, "admin");
+  await page.goto("/admin/academic-year-editor");
+  await untilHydrated(page);
+  await page
+    .getByRole("textbox", { name: "Year name in English" })
+    .fill(target.title);
+  await page.getByLabel("First day", { exact: true }).fill(target.start);
+  await page.getByLabel("Last day", { exact: true }).fill(target.end);
+  await page.getByRole("button", { name: "Save", exact: true }).click();
+  await expect(page).toHaveURL(/\/years\/[a-f0-9-]+/);
 
-  await page.goto("/sign-in");
+  await page.getByRole("button", { name: "More actions" }).last().click();
   await page
-    .getByRole("textbox", { name: "Email", exact: true })
-    .fill("admin@example.com");
-  await page
-    .getByRole("textbox", { name: "Password", exact: true })
-    .fill("northwind1234");
-  await page.getByRole("button", { name: "Sign In", exact: true }).click();
-  await expect(page.locator("main#main")).toBeVisible();
-  await page.goto(`/admin/rollover?source=${from.yearId}&target=${target.id}`);
+    .getByRole("menuitem", { name: "Roll over into this year" })
+    .click();
+  await expect(page).toHaveURL(/\/admin\/rollover/);
   await expect(
     page.getByRole("heading", {
       level: 1,
-      name: `Roll over into ${target.name}`,
+      name: `Roll over into ${target.title}`,
     }),
   ).toBeVisible();
-  const classA = page.getByRole("group", {
-    name: `Continue ${from.classA.name}`,
-  });
-  await classA.getByLabel("Class name").fill(`P2-A ${from.yearName}`);
-  await page
-    .getByRole("combobox", {
-      name: `Decision for ${from.students.leaving.name}`,
-    })
-    .click();
-  await page.getByRole("option", { name: "Withdraw", exact: true }).click();
-  await expect(page.getByText("Leaves at the end of this year.")).toBeVisible();
-  await page.screenshot({
-    path: testInfo.outputPath("rollover-plan.png"),
-    fullPage: true,
-  });
-  await page.getByRole("button", { name: "Save plan", exact: true }).click();
-  await expect(page.getByText("Changes saved").first()).toBeVisible();
-  await page
-    .getByRole("button", { name: "Apply rollover", exact: true })
-    .click();
-  const dialog = page.getByRole("dialog");
-  await dialog
-    .getByRole("button", { name: "Apply rollover", exact: true })
-    .click();
+
+  const first = page.getByRole("group", { name: "7A", exact: true });
+  await first
+    .getByRole("textbox", { name: "Class name in English" })
+    .fill(`Next ${unique}`);
+  const decision = page
+    .getByRole("combobox", { name: /^Decision for / })
+    .first();
+  await decision.click();
+  await page.getByRole("option", { name: "Graduates" }).click();
+  await resolveBlockers(page);
+  await page.getByRole("button", { name: "Save plan" }).click();
+  await expect(page.getByText("Plan saved")).toBeVisible();
+
+  await applyPlan(page);
+  const summary = page.getByText(/^Applied from /);
+  const stale = page.getByText(/changed since the plan was saved/);
+  await expect(summary.or(stale)).toBeVisible();
+  // A student placed after the save makes the draft stale; it reconciles with
+  // who is placed now and is applied again, as a person would.
+  if (await stale.isVisible()) {
+    await page.keyboard.press("Escape");
+    await page.reload();
+    await untilHydrated(page);
+    await resolveBlockers(page);
+    await page.getByRole("button", { name: "Save plan" }).click();
+    await expect(page.getByText("Plan saved")).toBeVisible();
+    await applyPlan(page);
+  }
+  await expect(summary).toBeVisible();
+
+  const created = page
+    .getByRole("region", { name: "New classes" })
+    .getByRole("link")
+    .first();
+  await created.click();
   await expect(
-    page.getByText(
-      `Applied from ${from.yearName}: 2 classes, 2 students placed, 1 withdrawn.`,
-    ),
+    page.getByRole("heading", { level: 1, name: `Next ${unique}` }),
   ).toBeVisible();
-  await expect(
-    page.getByRole("link", { name: `P2-A ${from.yearName}` }),
-  ).toBeVisible();
+  await expect(page.getByText(target.title).first()).toBeVisible();
 });

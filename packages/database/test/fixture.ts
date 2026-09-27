@@ -5,6 +5,7 @@ import type { CellTransaction } from "../src/context";
 import { writeAudit } from "../src/audit";
 import { withPurpose } from "../src/context";
 import {
+  academicSessions,
   accessRoles,
   accounts,
   calendarGradeLevels,
@@ -43,6 +44,7 @@ import {
   userRelationships,
   users,
   loginIdentities,
+  yearRollovers,
 } from "../src/tables/index";
 
 const id = () => Bun.randomUUIDv7();
@@ -435,6 +437,37 @@ export async function completeFixture(
     batchNo: 1,
     objectKey: `anchors/${tenantId}/1`,
     objectVersionId: "v1",
+  });
+  const [current] = await tx
+    .select({ id: academicSessions.id })
+    .from(academicSessions)
+    .where(
+      and(
+        eq(academicSessions.tenantId, tenantId),
+        eq(academicSessions.orgId, schoolId),
+        eq(academicSessions.type, "school_year"),
+      ),
+    )
+    .limit(1);
+  if (!current) throw new Error("the development seed must run first");
+  const nextYear = id();
+  await tx.insert(academicSessions).values({
+    tenantId,
+    id: nextYear,
+    orgId: schoolId,
+    type: "school_year",
+    schoolYearId: nextYear,
+    titleEn: "Fixture year",
+    span: "[2035-09-01,2036-07-01)",
+    schoolYear: 2036,
+    lifecycle: "upcoming",
+  });
+  await tx.insert(yearRollovers).values({
+    tenantId,
+    orgId: schoolId,
+    sourceYearId: current.id,
+    targetYearId: nextYear,
+    plan: { classes: [], students: [] },
   });
   const [builtin] = await tx
     .select({ id: accessRoles.id })
