@@ -24,8 +24,9 @@ import { Captions, ExternalLink, PenLine } from "lucide-react";
 import { useRef, useState } from "react";
 
 import { useEditorEnvironment } from "../context";
-import { imageSizeClass } from "../format";
+import { blockAlignClass, diagramImageClass, imageSizeClass } from "../format";
 import { EmbedFrame, MediaPlayer } from "../media-view";
+import { LayoutBar } from "./layout";
 
 const blockClass = {
   base: "relative my-3",
@@ -75,6 +76,7 @@ function MediaBlock({
   mime,
   captionsFileId,
   caption,
+  size,
 }: {
   nodeKey: NodeKey;
   format: ElementFormatType;
@@ -82,9 +84,11 @@ function MediaBlock({
   mime: string;
   captionsFileId: string;
   caption: string;
+  size: ImageSize;
 }) {
   const { strings, media, locale } = useEditorEnvironment();
   const editable = useLexicalEditable();
+  const [selected] = useLexicalNodeSelection(nodeKey);
   const update = useNodeUpdate(nodeKey, $isMediaNode);
   const input = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
@@ -96,14 +100,27 @@ function MediaBlock({
       format={format}
       nodeKey={nodeKey}
     >
-      <figure className="grid gap-1.5">
-        <MediaPlayer
-          src={media?.url(fileId)}
-          captions={captionsFileId ? media?.url(captionsFileId) : undefined}
-          video={video}
-          locale={locale}
-          captionsLabel={strings.captions}
-        />
+      <figure
+        className={`grid gap-1.5 ${imageSizeClass[size]} ${blockAlignClass(format)}`}
+      >
+        <div className="group/media relative">
+          <MediaPlayer
+            src={media?.url(fileId)}
+            captions={captionsFileId ? media?.url(captionsFileId) : undefined}
+            video={video}
+            locale={locale}
+            captionsLabel={strings.captions}
+          />
+          {editable ? (
+            <LayoutBar
+              size={size}
+              format={format}
+              visible={selected}
+              onSize={(value) => update((node) => node.setSize(value))}
+              onAlign={(value) => update((node) => node.setFormat(value))}
+            />
+          ) : null}
+        </div>
         {editable ? (
           <>
             <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
@@ -176,15 +193,18 @@ function EmbedBlock({
   provider,
   embedId,
   caption,
+  size,
 }: {
   nodeKey: NodeKey;
   format: ElementFormatType;
   provider: EmbedProvider;
   embedId: string;
   caption: string;
+  size: ImageSize;
 }) {
   const { strings } = useEditorEnvironment();
   const editable = useLexicalEditable();
+  const [selected] = useLexicalNodeSelection(nodeKey);
   const update = useNodeUpdate(nodeKey, $isEmbedNode);
   const name = embedProviderNames[provider];
   return (
@@ -193,13 +213,26 @@ function EmbedBlock({
       format={format}
       nodeKey={nodeKey}
     >
-      <figure className="grid gap-1.5">
-        <EmbedFrame
-          provider={provider}
-          embedId={embedId}
-          loadLabel={strings.embedLoad(name)}
-          privacy={strings.embedPrivacy(name)}
-        />
+      <figure
+        className={`grid gap-1.5 ${imageSizeClass[size]} ${blockAlignClass(format)}`}
+      >
+        <div className="group/media relative">
+          <EmbedFrame
+            provider={provider}
+            embedId={embedId}
+            loadLabel={strings.embedLoad(name)}
+            privacy={strings.embedPrivacy(name)}
+          />
+          {editable ? (
+            <LayoutBar
+              size={size}
+              format={format}
+              visible={selected}
+              onSize={(value) => update((node) => node.setSize(value))}
+              onAlign={(value) => update((node) => node.setFormat(value))}
+            />
+          ) : null}
+        </div>
         <div className="flex items-center justify-between gap-2">
           {editable ? (
             <CaptionInput
@@ -253,27 +286,36 @@ function DiagramBlock({
       format={format}
       nodeKey={nodeKey}
     >
-      <figure className={`group/diagram mx-auto ${imageSizeClass[size]}`}>
-        <div className="relative overflow-hidden rounded-lg border bg-white">
+      <figure className={`${imageSizeClass[size]} ${blockAlignClass(format)}`}>
+        <div className="group/media relative overflow-hidden rounded-lg">
           <img
             src={media?.url(fileId)}
             alt={caption || strings.diagram}
             draggable={false}
-            className="block h-auto w-full"
+            className={diagramImageClass}
           />
           {editable ? (
-            <button
-              type="button"
-              onClick={edit}
-              className={`absolute end-2 top-2 inline-flex h-8 items-center gap-1.5 rounded-md border bg-popover px-2.5 text-sm font-medium text-popover-foreground shadow-md transition-opacity hover:bg-accent focus-visible:opacity-100 ${
-                selected
-                  ? "opacity-100"
-                  : "opacity-0 group-hover/diagram:opacity-100"
-              }`}
-            >
-              <PenLine className="size-4" aria-hidden />
-              {strings.diagramEdit}
-            </button>
+            <>
+              <button
+                type="button"
+                onClick={edit}
+                className={`absolute start-2 top-2 inline-flex h-8 items-center gap-1.5 rounded-md border bg-popover px-2.5 text-sm font-medium text-popover-foreground shadow-md transition-opacity hover:bg-accent focus-visible:opacity-100 ${
+                  selected
+                    ? "opacity-100"
+                    : "opacity-0 group-hover/media:opacity-100"
+                }`}
+              >
+                <PenLine className="size-4" aria-hidden />
+                {strings.diagramEdit}
+              </button>
+              <LayoutBar
+                size={size}
+                format={format}
+                visible={selected}
+                onSize={(value) => update((node) => node.setSize(value))}
+                onAlign={(value) => update((node) => node.setFormat(value))}
+              />
+            </>
           ) : null}
         </div>
         {editable ? (
@@ -292,7 +334,13 @@ function DiagramBlock({
 }
 
 export type SerializedMediaNode = Spread<
-  { fileId: string; mime: string; captionsFileId?: string; caption: string },
+  {
+    fileId: string;
+    mime: string;
+    captionsFileId?: string;
+    caption: string;
+    size?: ImageSize;
+  },
   SerializedDecoratorBlockNode
 >;
 
@@ -301,12 +349,14 @@ export class MediaNode extends DecoratorBlockNode {
   __mime: string;
   __captionsFileId: string;
   __caption: string;
+  __size: ImageSize;
 
   constructor(
     fileId = "",
     mime = "video/mp4",
     captionsFileId = "",
     caption = "",
+    size: ImageSize = "full",
     format?: ElementFormatType,
     key?: NodeKey,
   ) {
@@ -315,6 +365,7 @@ export class MediaNode extends DecoratorBlockNode {
     this.__mime = mime;
     this.__captionsFileId = captionsFileId;
     this.__caption = caption;
+    this.__size = size;
   }
 
   $config() {
@@ -327,6 +378,7 @@ export class MediaNode extends DecoratorBlockNode {
       node.__mime,
       node.__captionsFileId,
       node.__caption,
+      node.__size,
       node.__format,
       node.__key,
     );
@@ -342,6 +394,7 @@ export class MediaNode extends DecoratorBlockNode {
     node.__mime = json.mime;
     node.__captionsFileId = json.captionsFileId ?? "";
     node.__caption = json.caption;
+    node.__size = json.size ?? "full";
     return node;
   }
 
@@ -355,6 +408,7 @@ export class MediaNode extends DecoratorBlockNode {
         ? { captionsFileId: node.__captionsFileId }
         : {}),
       caption: node.__caption,
+      size: node.__size,
     };
   }
 
@@ -380,6 +434,12 @@ export class MediaNode extends DecoratorBlockNode {
     return writable;
   }
 
+  setSize(size: ImageSize): this {
+    const writable = this.getWritable();
+    writable.__size = size;
+    return writable;
+  }
+
   decorate(_editor: LexicalEditor, _config: EditorConfig): JSX.Element {
     return (
       <MediaBlock
@@ -389,13 +449,19 @@ export class MediaNode extends DecoratorBlockNode {
         mime={this.__mime}
         captionsFileId={this.__captionsFileId}
         caption={this.__caption}
+        size={this.__size}
       />
     );
   }
 }
 
 export type SerializedEmbedNode = Spread<
-  { provider: EmbedProvider; embedId: string; caption: string },
+  {
+    provider: EmbedProvider;
+    embedId: string;
+    caption: string;
+    size?: ImageSize;
+  },
   SerializedDecoratorBlockNode
 >;
 
@@ -403,11 +469,13 @@ export class EmbedNode extends DecoratorBlockNode {
   __provider: EmbedProvider;
   __embedId: string;
   __caption: string;
+  __size: ImageSize;
 
   constructor(
     provider: EmbedProvider = "youtube",
     embedId = "",
     caption = "",
+    size: ImageSize = "full",
     format?: ElementFormatType,
     key?: NodeKey,
   ) {
@@ -415,6 +483,7 @@ export class EmbedNode extends DecoratorBlockNode {
     this.__provider = provider;
     this.__embedId = embedId;
     this.__caption = caption;
+    this.__size = size;
   }
 
   $config() {
@@ -426,6 +495,7 @@ export class EmbedNode extends DecoratorBlockNode {
       node.__provider,
       node.__embedId,
       node.__caption,
+      node.__size,
       node.__format,
       node.__key,
     );
@@ -440,6 +510,7 @@ export class EmbedNode extends DecoratorBlockNode {
     node.__provider = json.provider;
     node.__embedId = json.embedId;
     node.__caption = json.caption;
+    node.__size = json.size ?? "full";
     return node;
   }
 
@@ -450,6 +521,7 @@ export class EmbedNode extends DecoratorBlockNode {
       provider: node.__provider,
       embedId: node.__embedId,
       caption: node.__caption,
+      size: node.__size,
     };
   }
 
@@ -474,6 +546,12 @@ export class EmbedNode extends DecoratorBlockNode {
     return writable;
   }
 
+  setSize(size: ImageSize): this {
+    const writable = this.getWritable();
+    writable.__size = size;
+    return writable;
+  }
+
   decorate(_editor: LexicalEditor, _config: EditorConfig): JSX.Element {
     return (
       <EmbedBlock
@@ -482,6 +560,7 @@ export class EmbedNode extends DecoratorBlockNode {
         provider={this.__provider}
         embedId={this.__embedId}
         caption={this.__caption}
+        size={this.__size}
       />
     );
   }
@@ -572,6 +651,12 @@ export class DiagramNode extends DecoratorBlockNode {
     return writable;
   }
 
+  setSize(size: ImageSize): this {
+    const writable = this.getWritable();
+    writable.__size = size;
+    return writable;
+  }
+
   setFiles(fileId: string, sceneFileId: string): this {
     const writable = this.getWritable();
     writable.__fileId = fileId;
@@ -607,7 +692,7 @@ export function $createDiagramNode(
   fileId: string,
   sceneFileId: string,
 ): DiagramNode {
-  return new DiagramNode(fileId, sceneFileId);
+  return new DiagramNode(fileId, sceneFileId, "", "full");
 }
 
 export function $isMediaNode(

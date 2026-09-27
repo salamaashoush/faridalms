@@ -36,8 +36,9 @@ export default function DiagramBoard({
             elements,
             appState: {
               ...appState,
-              exportBackground: true,
+              exportBackground: false,
               exportWithDarkMode: false,
+              exportScale: 2,
             },
             files,
             mimeType: "image/png",

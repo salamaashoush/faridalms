@@ -7,7 +7,12 @@ import { isSafeContentUrl } from "@faridalms/domain/rich-text";
 import { Download, ExternalLink, FileText } from "lucide-react";
 import { createElement } from "react";
 
-import { formatBytes, imageSizeClass } from "./format";
+import {
+  blockAlignClass,
+  diagramImageClass,
+  formatBytes,
+  imageSizeClass,
+} from "./format";
 import { EmbedFrame, MediaPlayer } from "./media-view";
 import { editorTheme } from "./theme";
 
@@ -285,9 +290,7 @@ function render(node: ContentNode, key: string, context: Context): ReactNode {
       return (
         <figure
           key={key}
-          className={`my-3 ${imageSizeClass[node.size ?? "large"]} ${
-            node.format === "center" || !node.format ? "mx-auto" : ""
-          }`}
+          className={`my-3 ${imageSizeClass[node.size ?? "large"]} ${blockAlignClass(node.format)}`}
         >
           <img
             src={src}
@@ -307,7 +310,10 @@ function render(node: ContentNode, key: string, context: Context): ReactNode {
       const src = node.fileId ? context.fileUrl?.(node.fileId) : undefined;
       if (!src) return null;
       return (
-        <figure key={key} className="my-3 grid gap-1.5">
+        <figure
+          key={key}
+          className={`my-3 grid gap-1.5 ${imageSizeClass[node.size ?? "full"]} ${blockAlignClass(node.format)}`}
+        >
           <MediaPlayer
             src={src}
             captions={
@@ -332,7 +338,10 @@ function render(node: ContentNode, key: string, context: Context): ReactNode {
       const name = embedProviderNames[node.provider];
       const embed = { provider: node.provider, embedId: node.embedId };
       return (
-        <figure key={key} className="my-3 grid gap-1.5">
+        <figure
+          key={key}
+          className={`my-3 grid gap-1.5 ${imageSizeClass[node.size ?? "full"]} ${blockAlignClass(node.format)}`}
+        >
           <EmbedFrame
             {...embed}
             loadLabel={context.strings.embedLoad(name)}
@@ -365,13 +374,13 @@ function render(node: ContentNode, key: string, context: Context): ReactNode {
       return (
         <figure
           key={key}
-          className={`mx-auto my-3 ${imageSizeClass[node.size ?? "large"]}`}
+          className={`my-3 ${imageSizeClass[node.size ?? "large"]} ${blockAlignClass(node.format)}`}
         >
           <img
             src={src}
             alt={node.caption || context.strings.diagram}
             loading="lazy"
-            className="block h-auto w-full rounded-lg border bg-white"
+            className={`${diagramImageClass} rounded-lg`}
           />
           {node.caption ? (
             <figcaption className="mt-1.5 text-center text-sm text-muted-foreground">

@@ -12,7 +12,6 @@ import type {
 } from "lexical";
 import type { JSX } from "react";
 
-import { imageSizes } from "@faridalms/domain/content";
 import { BlockWithAlignableContents } from "@lexical/react/LexicalBlockWithAlignableContents";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
 import { DecoratorBlockNode } from "@lexical/react/LexicalDecoratorBlockNode";
@@ -22,7 +21,8 @@ import { $getDocument, $getNodeByKey } from "lexical";
 import { Download, FileText } from "lucide-react";
 
 import { useEditorEnvironment } from "../context";
-import { formatBytes, imageSizeClass } from "../format";
+import { blockAlignClass, formatBytes, imageSizeClass } from "../format";
+import { LayoutBar } from "./layout";
 
 const blockClass = {
   base: "relative my-3",
@@ -70,20 +70,14 @@ function ImageBlock({
   const editable = useLexicalEditable();
   const [selected] = useLexicalNodeSelection(nodeKey);
   const update = useNodeUpdate(nodeKey, $isImageNode);
-  const labels: Record<ImageSize, string> = {
-    small: strings.sizeSmall,
-    medium: strings.sizeMedium,
-    large: strings.sizeLarge,
-    full: strings.sizeFull,
-  };
   return (
     <BlockWithAlignableContents
       className={blockClass}
       format={format}
       nodeKey={nodeKey}
     >
-      <figure className={`group/image mx-auto ${imageSizeClass[size]}`}>
-        <div className="relative">
+      <figure className={`${imageSizeClass[size]} ${blockAlignClass(format)}`}>
+        <div className="group/media relative">
           <img
             src={media?.url(fileId)}
             alt={alt}
@@ -91,24 +85,14 @@ function ImageBlock({
             loading="lazy"
             className="block h-auto w-full rounded-lg bg-muted"
           />
-          {editable && selected ? (
-            <div
-              role="toolbar"
-              aria-label={strings.imageSize}
-              className="absolute end-2 top-2 flex gap-0.5 rounded-lg border bg-popover p-0.5 text-popover-foreground shadow-md"
-            >
-              {imageSizes.map((value) => (
-                <button
-                  key={value}
-                  type="button"
-                  aria-pressed={size === value}
-                  className="rounded-md px-2 py-1 text-xs font-medium hover:bg-accent aria-pressed:bg-accent"
-                  onClick={() => update((node) => node.setSize(value))}
-                >
-                  {labels[value]}
-                </button>
-              ))}
-            </div>
+          {editable ? (
+            <LayoutBar
+              size={size}
+              format={format}
+              visible={selected}
+              onSize={(value) => update((node) => node.setSize(value))}
+              onAlign={(value) => update((node) => node.setFormat(value))}
+            />
           ) : null}
         </div>
         {editable ? (
@@ -384,7 +368,7 @@ export class FileNode extends DecoratorBlockNode {
 export function $createImageNode(
   fileId: string,
   alt = "",
-  size: ImageSize = "large",
+  size: ImageSize = "full",
 ): ImageNode {
   return new ImageNode(fileId, alt, "", size);
 }
