@@ -14,6 +14,7 @@ export * from "./messaging";
 export * from "./newsletters";
 export * from "./people";
 export * from "./records";
+export * from "./site";
 export * from "./teaching";
 export * from "./tenancy";
 export * from "./timetable";

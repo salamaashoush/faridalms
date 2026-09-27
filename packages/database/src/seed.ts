@@ -3,6 +3,7 @@ import { CATALOGUE } from "@faridalms/domain/descriptors/catalogue";
 import { editionPlainText } from "@faridalms/domain/newsletters";
 import { addDays, teachingWeeks } from "@faridalms/domain/school";
 import { schoolDays } from "@faridalms/domain/timetable";
+import { localizedSections, pagePlainText } from "@faridalms/domain/website";
 import { and, eq, sql } from "drizzle-orm";
 
 import type { CellTransaction, openOwner } from "./context";
@@ -30,6 +31,16 @@ import {
 import { addNewsletterRecipients } from "./stores/newsletters";
 import { insertDeliveries, insertNotifications } from "./stores/notifications";
 import { setOrgFeature } from "./stores/school";
+import {
+  insertPage,
+  insertPost,
+  saveCategory,
+  saveSiteSettings,
+  setPageState,
+  setPostState,
+  writePublishedPage,
+  writePublishedPost,
+} from "./stores/site";
 import {
   academicSessions,
   academicWeeks,
@@ -1242,6 +1253,7 @@ async function seedSchool(
   await seedEvents(tx, tenantId, schoolId, yearId);
   await seedNotifications(tx, tenantId, schoolId);
   await seedLearning(tx, tenantId, schoolId, yearId);
+  await seedSite(tx, tenantId, schoolId);
   return { yearId, teachers };
 }
 
@@ -2335,4 +2347,479 @@ export async function seedCell(
     });
   }
   return result;
+}
+
+type SeedSection = Parameters<typeof pagePlainText>[0]["sections"][number];
+
+/**
+ * A live, bilingual website: a home page and an about page published in both
+ * languages, an admissions page still in draft, and news posts.
+ */
+async function seedSite(tx: Tx, tenantId: string, schoolId: string) {
+  const [principal] = await tx.execute<{ user_id: string }>(sql`
+    select r.user_id from core.user_roles r
+    where r.tenant_id = ${tenantId}::uuid and r.org_id = ${schoolId}::uuid
+      and r.role in ('principal', 'site_administrator') and r.status = 'active'
+    order by r.role, r.user_id limit 1`);
+  if (!principal) return;
+  const userId = principal.user_id;
+  await saveSiteSettings(tx, {
+    tenantId,
+    orgId: schoolId,
+    expectedVersion: 0,
+    live: true,
+    primaryLocale: "en",
+    bilingual: true,
+    taglineEn: "Learning together, every day",
+    taglineAr: "نتعلّم معًا كل يوم",
+    socialLinks: [
+      { kind: "facebook", url: "https://www.facebook.com/example" },
+    ],
+    bannerEn: "",
+    bannerAr: "",
+    bannerTone: "info",
+    bannerUntil: null,
+  });
+  const news = await saveCategory(tx, {
+    tenantId,
+    orgId: schoolId,
+    id: "",
+    expectedVersion: 0,
+    slug: "news",
+    nameEn: "News",
+    nameAr: "أخبار",
+  });
+  await saveCategory(tx, {
+    tenantId,
+    orgId: schoolId,
+    id: "",
+    expectedVersion: 0,
+    slug: "events",
+    nameEn: "Events",
+    nameAr: "فعاليات",
+  });
+
+  const hero = Bun.randomUUIDv7();
+  const intro = Bun.randomUUIDv7();
+  const cards = Bun.randomUUIDv7();
+  const latest = Bun.randomUUIDv7();
+  const card = [Bun.randomUUIDv7(), Bun.randomUUIDv7(), Bun.randomUUIDv7()];
+  const faq = Bun.randomUUIDv7();
+  const story = Bun.randomUUIDv7();
+  const answer = [Bun.randomUUIDv7(), Bun.randomUUIDv7()];
+  const noImage = { fileId: null, alt: "" };
+  const pages: {
+    slug: string;
+    home: boolean;
+    titleEn: string;
+    titleAr: string;
+    published: boolean;
+    english: SeedSection[];
+    arabic: SeedSection[] | null;
+  }[] = [
+    {
+      slug: "home",
+      home: true,
+      titleEn: "Home",
+      titleAr: "الرئيسية",
+      published: true,
+      english: [
+        {
+          id: hero,
+          type: "hero",
+          heading: "Learning together, every day",
+          text: "A school where every child is known, stretched and cared for.",
+          image: noImage,
+          actionLabel: "Visit the admissions page",
+          actionHref: "/pages/admissions",
+        },
+        {
+          id: intro,
+          type: "text",
+          heading: "About our school",
+          body: plainContent(
+            "We teach from kindergarten to grade twelve in English and Arabic, with small classes and a strong arts programme.",
+          ),
+        },
+        {
+          id: cards,
+          type: "cards",
+          heading: "Find your way",
+          items: [
+            {
+              id: card[0] ?? "",
+              title: "Admissions",
+              text: "How to apply and when.",
+              image: noImage,
+              href: "/pages/admissions",
+            },
+            {
+              id: card[1] ?? "",
+              title: "About us",
+              text: "Our story and our values.",
+              image: noImage,
+              href: "/pages/about",
+            },
+            {
+              id: card[2] ?? "",
+              title: "School news",
+              text: "What is happening this term.",
+              image: noImage,
+              href: "/news",
+            },
+          ],
+        },
+        { id: latest, type: "news", heading: "Latest news", count: 3 },
+      ],
+      arabic: [
+        {
+          id: hero,
+          type: "hero",
+          heading: "نتعلّم معًا كل يوم",
+          text: "مدرسة يُعرف فيها كل طفل ويُتحدّى ويُرعى.",
+          image: noImage,
+          actionLabel: "زيارة صفحة القبول",
+          actionHref: "/pages/admissions",
+        },
+        {
+          id: intro,
+          type: "text",
+          heading: "عن مدرستنا",
+          body: plainContent(
+            "ندرّس من الروضة حتى الصف الثاني عشر باللغتين الإنجليزية والعربية، في فصول صغيرة وبرنامج فنون قوي.",
+          ),
+        },
+        {
+          id: cards,
+          type: "cards",
+          heading: "اعثر على طريقك",
+          items: [
+            {
+              id: card[0] ?? "",
+              title: "القبول",
+              text: "كيف ومتى تتقدّم.",
+              image: noImage,
+              href: "/pages/admissions",
+            },
+            {
+              id: card[1] ?? "",
+              title: "من نحن",
+              text: "قصتنا وقيمنا.",
+              image: noImage,
+              href: "/pages/about",
+            },
+            {
+              id: card[2] ?? "",
+              title: "أخبار المدرسة",
+              text: "ما يجري هذا الفصل.",
+              image: noImage,
+              href: "/news",
+            },
+          ],
+        },
+        { id: latest, type: "news", heading: "آخر الأخبار", count: 3 },
+      ],
+    },
+    {
+      slug: "about",
+      home: false,
+      titleEn: "About us",
+      titleAr: "من نحن",
+      published: true,
+      english: [
+        {
+          id: story,
+          type: "text",
+          heading: "Our story",
+          body: plainContent(
+            "Founded in 1998, the school has grown from two classrooms to a full campus.",
+          ),
+        },
+        {
+          id: faq,
+          type: "accordion",
+          heading: "Questions families ask",
+          items: [
+            {
+              id: answer[0] ?? "",
+              title: "When does the day start?",
+              text: "Doors open at 7:30 and lessons begin at 8:00.",
+            },
+            {
+              id: answer[1] ?? "",
+              title: "Is there a bus service?",
+              text: "Yes, buses cover most of the city. Ask the office for routes.",
+            },
+          ],
+        },
+      ],
+      arabic: [
+        {
+          id: story,
+          type: "text",
+          heading: "قصتنا",
+          body: plainContent(
+            "تأسست المدرسة عام 1998، ونمت من فصلين إلى حرم متكامل.",
+          ),
+        },
+        {
+          id: faq,
+          type: "accordion",
+          heading: "أسئلة تطرحها الأسر",
+          items: [
+            {
+              id: answer[0] ?? "",
+              title: "متى يبدأ اليوم الدراسي؟",
+              text: "تُفتح الأبواب الساعة 7:30 وتبدأ الحصص الساعة 8:00.",
+            },
+            {
+              id: answer[1] ?? "",
+              title: "هل توجد حافلات؟",
+              text: "نعم، تغطي الحافلات معظم المدينة. اسأل المكتب عن المسارات.",
+            },
+          ],
+        },
+      ],
+    },
+    {
+      slug: "admissions",
+      home: false,
+      titleEn: "Admissions",
+      titleAr: "",
+      published: false,
+      english: [
+        {
+          id: Bun.randomUUIDv7(),
+          type: "text",
+          heading: "Applying for next year",
+          body: plainContent(
+            "Applications open in January. Visit us on an open morning first.",
+          ),
+        },
+      ],
+      arabic: null,
+    },
+  ];
+  const publishedAt = "2026-09-01T07:00:00.000Z";
+  for (const plan of pages) {
+    const created = await insertPage(tx, {
+      tenantId,
+      orgId: schoolId,
+      authorId: userId,
+      parentId: null,
+      slug: plan.slug,
+      titleEn: plan.titleEn,
+      titleAr: plan.titleAr,
+      inMenu: true,
+      isHome: plan.home,
+    });
+    const host = { type: "site_page", id: created.id };
+    const content = { sections: plan.english, reviewed: [] };
+    const original = await saveDocument(tx, {
+      tenantId,
+      orgId: schoolId,
+      host,
+      kind: "page",
+      locale: "en",
+      content,
+      plainText: pagePlainText(content),
+      mediaIds: [],
+      userId,
+    });
+    const translation = plan.arabic
+      ? { sections: plan.arabic, reviewed: plan.arabic.map((item) => item.id) }
+      : null;
+    const other = translation
+      ? await saveTranslation(tx, {
+          tenantId,
+          orgId: schoolId,
+          host,
+          originalId: original.id,
+          locale: "ar",
+          kind: "page",
+          content: translation,
+          plainText: pagePlainText(translation),
+          mediaIds: [],
+          userId,
+        })
+      : null;
+    if (!plan.published) continue;
+    await setPageState(tx, {
+      tenantId,
+      id: created.id,
+      expectedVersion: created.version,
+      state: "published",
+      publishedAt,
+    });
+    await snapshotPublish(tx, { tenantId, documentId: original.id, userId });
+    if (other)
+      await snapshotPublish(tx, { tenantId, documentId: other.id, userId });
+    const page = {
+      id: created.id,
+      version: created.version + 1,
+      orgId: schoolId,
+      parentId: null,
+      position: pages.indexOf(plan),
+      slug: plan.slug,
+      isHome: plan.home,
+      inMenu: true,
+      titleEn: plan.titleEn,
+      titleAr: plan.titleAr,
+      state: "published" as const,
+      publishedAt,
+      revisedAt: null,
+    };
+    for (const locale of ["en", "ar"] as const)
+      await writePublishedPage(tx, {
+        tenantId,
+        orgId: schoolId,
+        page,
+        locale,
+        title: (locale === "ar" ? plan.titleAr : plan.titleEn) || plan.titleEn,
+        content: {
+          sections: localizedSections(content, translation, "en", locale),
+        },
+        media: {},
+        visibleFrom: publishedAt,
+      });
+  }
+
+  const posts = [
+    {
+      slug: "welcome-back",
+      titleEn: "Welcome back",
+      titleAr: "أهلًا بعودتكم",
+      excerptEn:
+        "The new year has started, with new teachers and a new timetable.",
+      excerptAr: "بدأ العام الجديد بمعلّمين جدد وجدول جديد.",
+      bodyEn:
+        "The new year has started smoothly. Thank you to every family for a calm first week.",
+      bodyAr: "بدأ العام الجديد بهدوء. شكرًا لكل أسرة على أسبوع أول هادئ.",
+      pinned: true,
+      published: true,
+    },
+    {
+      slug: "science-fair",
+      titleEn: "Science fair winners",
+      titleAr: "الفائزون في معرض العلوم",
+      excerptEn:
+        "Grade eight took first place with a water filter made from sand.",
+      excerptAr: "فاز الصف الثامن بالمركز الأول بمرشّح ماء من الرمل.",
+      bodyEn:
+        "Grade eight took first place with a water filter made from sand and charcoal.",
+      bodyAr: "فاز الصف الثامن بالمركز الأول بمرشّح ماء من الرمل والفحم.",
+      pinned: false,
+      published: true,
+    },
+    {
+      slug: "sports-day",
+      titleEn: "Sports day",
+      titleAr: "",
+      excerptEn: "Sports day is on 20 November.",
+      excerptAr: "",
+      bodyEn: "Sports day is on 20 November, with races for every grade.",
+      bodyAr: "",
+      pinned: false,
+      published: false,
+    },
+  ];
+  for (const plan of posts) {
+    const created = await insertPost(tx, {
+      tenantId,
+      orgId: schoolId,
+      authorId: userId,
+      categoryId: news?.id ?? null,
+      slug: plan.slug,
+      titleEn: plan.titleEn,
+      titleAr: plan.titleAr,
+      excerptEn: plan.excerptEn,
+      excerptAr: plan.excerptAr,
+      coverFileId: null,
+      coverAltEn: "",
+      coverAltAr: "",
+      pinned: plan.pinned,
+    });
+    const host = { type: "site_post", id: created.id };
+    const english = { body: plainContent(plan.bodyEn), reviewed: false };
+    const original = await saveDocument(tx, {
+      tenantId,
+      orgId: schoolId,
+      host,
+      kind: "rich_text",
+      locale: "en",
+      content: english,
+      plainText: plan.bodyEn,
+      mediaIds: [],
+      userId,
+    });
+    const arabic = plan.bodyAr
+      ? { body: plainContent(plan.bodyAr), reviewed: true }
+      : null;
+    const other = arabic
+      ? await saveTranslation(tx, {
+          tenantId,
+          orgId: schoolId,
+          host,
+          originalId: original.id,
+          locale: "ar",
+          kind: "rich_text",
+          content: arabic,
+          plainText: plan.bodyAr,
+          mediaIds: [],
+          userId,
+        })
+      : null;
+    if (!plan.published) continue;
+    await setPostState(tx, {
+      tenantId,
+      id: created.id,
+      expectedVersion: created.version,
+      state: "published",
+      publishedAt,
+    });
+    await snapshotPublish(tx, { tenantId, documentId: original.id, userId });
+    if (other)
+      await snapshotPublish(tx, { tenantId, documentId: other.id, userId });
+    const post = {
+      id: created.id,
+      version: created.version + 1,
+      orgId: schoolId,
+      categoryId: news?.id ?? null,
+      slug: plan.slug,
+      titleEn: plan.titleEn,
+      titleAr: plan.titleAr,
+      excerptEn: plan.excerptEn,
+      excerptAr: plan.excerptAr,
+      coverFileId: null,
+      coverAltEn: "",
+      coverAltAr: "",
+      pinned: plan.pinned,
+      state: "published" as const,
+      publishedAt,
+      revisedAt: null,
+      announcementId: null,
+      authorNameEn: null,
+      authorNameAr: null,
+    };
+    for (const locale of ["en", "ar"] as const) {
+      const translated = locale === "ar" && arabic;
+      await writePublishedPost(tx, {
+        tenantId,
+        orgId: schoolId,
+        post,
+        locale,
+        title: (locale === "ar" ? plan.titleAr : plan.titleEn) || plan.titleEn,
+        excerpt:
+          (locale === "ar" ? plan.excerptAr : plan.excerptEn) || plan.excerptEn,
+        coverKey: null,
+        coverAlt: "",
+        content: {
+          body: translated ? arabic.body : english.body,
+          locale: translated ? "ar" : "en",
+        },
+        media: {},
+        visibleFrom: publishedAt,
+      });
+    }
+  }
 }
