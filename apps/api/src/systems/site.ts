@@ -17,6 +17,7 @@ import {
   versionsOf,
 } from "@faridalms/database/stores/documents";
 import {
+  insertEnquiry,
   insertPage,
   insertPost,
   markRevised,
@@ -30,13 +31,16 @@ import {
   publicPost,
   publicPosts,
   publicSchool,
+  recentEnquiries,
   removeCategory,
   removePage,
   saveCategory,
   saveSiteSettings,
+  setEnquiryHandled,
   setPageState,
   setPostState,
   siteCategories,
+  siteEnquiries,
   sitePages,
   sitePosts,
   siteSettings,
@@ -64,7 +68,10 @@ import {
 import {
   alignTranslation,
   applyStarterSchema,
+  enquiriesQuerySchema,
+  enquirySchema,
   localizedSections,
+  markEnquirySchema,
   movePageSchema,
   pageContentSchema,
   pageFileIds,
@@ -101,6 +108,7 @@ import {
   requireCapability,
   writeProcedure,
 } from "../core/procedure";
+import { attemptKey, ipPrefix } from "../core/session";
 import { publishMedia, withPublicSite, withdrawMedia } from "../core/site";
 
 const id = v.pipe(v.string(), v.uuid());
@@ -1474,3 +1482,118 @@ export const publicSitePost = publicProcedure
       },
     ),
   );
+
+/** Five messages an hour from one network, sixty for a whole school. */
+const ENQUIRIES_PER_NETWORK = 5;
+const ENQUIRIES_PER_SCHOOL = 60;
+/** Faster than a person can type a name and an address. */
+const MIN_FILL_MS = 2500;
+
+/**
+ * A visitor's message from a form section on a published page. A form that
+ * came back filled by a script, or faster than a person can type, is
+ * answered as if received and dropped, so the script learns nothing.
+ */
+export const submitEnquiry = publicProcedure
+  .input(enquirySchema)
+  .handler(({ input, context }) =>
+    withPublicSite(
+      context,
+      input.school,
+      async ({ tx, tenantId, schoolId }) => {
+        const settings = await liveSettings(tx, tenantId, schoolId);
+        const locale = resolveLocale(settings, input.locale);
+        const published = await publicPage(tx, {
+          orgId: schoolId,
+          locale,
+          slug: input.page,
+        });
+        const form = (
+          (published?.content.sections ?? []) as ReturnType<
+            typeof localizedSections
+          >
+        )
+          .map((item) => v.safeParse(pageSectionSchema, item.section))
+          .flatMap((read) => (read.success ? [read.output] : []))
+          .find((section) => section.id === input.sectionId);
+        if (!published || form?.type !== "form")
+          throw new ORPCError("BAD_REQUEST", { message: "site.form" });
+        if (input.website || input.elapsed < MIN_FILL_MS)
+          return { received: true };
+        if (form.data.phone === "require" && !input.phone)
+          throw new ORPCError("BAD_REQUEST", {
+            message: "validation.required",
+          });
+        const network = ipPrefix(context.headers);
+        const networkKey = network
+          ? attemptKey(
+              context.cellSecret,
+              tenantId,
+              `enquiry:${network}`,
+            ).toString("hex")
+          : "";
+        const recent = await recentEnquiries(tx, {
+          orgId: schoolId,
+          networkKey,
+        });
+        if (
+          recent.fromNetwork >= ENQUIRIES_PER_NETWORK ||
+          recent.forSchool >= ENQUIRIES_PER_SCHOOL
+        )
+          throw new ORPCError("TOO_MANY_REQUESTS", {
+            message: "site.too_many",
+          });
+        await insertEnquiry(tx, {
+          tenantId,
+          orgId: schoolId,
+          pageId: published.pageId,
+          sectionId: form.id,
+          locale,
+          purpose: form.data.purpose,
+          name: input.name,
+          email: input.email,
+          phone: form.data.phone === "hide" ? "" : input.phone,
+          childYear: form.data.grade === "hide" ? "" : input.childYear,
+          message: input.message,
+          networkKey,
+        });
+        return { received: true };
+      },
+    ),
+  );
+
+/** The school's website enquiries, open ones or those already dealt with. */
+export const enquiries = readProcedure
+  .input(enquiriesQuerySchema)
+  .handler(async ({ input, context }) => {
+    requireCapability(context, "site:manage");
+    return {
+      rows: await siteEnquiries(context.tx, {
+        tenantId: context.tenantId,
+        orgId: context.schoolId,
+        handled: input.handled,
+        limit: 200,
+      }),
+    };
+  });
+
+export const markEnquiry = writeProcedure
+  .input(markEnquirySchema)
+  .handler(async ({ input, context }) => {
+    requireCapability(context, "site:manage");
+    const version = await setEnquiryHandled(context.tx, {
+      tenantId: context.tenantId,
+      orgId: context.schoolId,
+      id: input.id,
+      expectedVersion: input.expectedVersion,
+      handledBy: input.handled ? context.actor.userId : null,
+    });
+    if (version === null) throw conflict();
+    await audit(context, {
+      action: "site.enquiry_handled",
+      objectType: "site_enquiry",
+      objectId: input.id,
+      details: { handled: input.handled },
+    });
+    return { version };
+  });

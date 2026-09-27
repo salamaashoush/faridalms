@@ -1,8 +1,13 @@
 import type { PageSection } from "@faridalms/domain/website";
+import type { RouterClient } from "@orpc/server";
 
 import { plainContent } from "@faridalms/domain/content-conversion";
 import { newSection } from "@faridalms/domain/website";
+import { createORPCClient } from "@orpc/client";
+import { RPCLink } from "@orpc/client/fetch";
 import { describe, expect, test } from "bun:test";
+
+import type { AppRouter } from "../src/router";
 
 import {
   client,
@@ -322,5 +327,100 @@ describe("starting from a starter", () => {
     const page = await api.site.page({ id: visit.id });
     expect(page.content.sections.length).toBeGreaterThan(0);
     expect(page.gaps.missing).toEqual([]);
+  });
+});
+
+/** A visitor whose requests arrive through the web server from one address. */
+function visitorFrom(address: string) {
+  const { handler } = seeded();
+  const api: RouterClient<AppRouter> = createORPCClient(
+    new RPCLink({
+      url: "http://api.test/rpc",
+      headers: () => ({ "x-forwarded-for": address }),
+      fetch: (request, init) => handler(new Request(request, init)),
+    }),
+  );
+  return api.site;
+}
+
+describe("website enquiries", () => {
+  test("arrive from a published form, drop what a script sent, and slow a flood", async () => {
+    const page = await visitor().publicSitePage({
+      school: "northwind",
+      locale: "en",
+      slug: "admissions",
+    });
+    const form = page.sections.find((item) => item.section.type === "form");
+    if (!form) throw new Error("no form on the admissions page");
+    const base = {
+      school: "northwind",
+      locale: "en" as const,
+      page: "admissions",
+      sectionId: form.section.id,
+      name: "Salama Ashoush",
+      email: "salama@example.com",
+      phone: "",
+      childYear: "Grade 3",
+      message: "Could we visit on Thursday?",
+      website: "",
+      elapsed: 9000,
+    };
+    const site = visitorFrom("203.0.113.7");
+    expect(await site.submitEnquiry(base)).toEqual({ received: true });
+    expect(
+      await site.submitEnquiry({ ...base, name: "Robot", website: "spam" }),
+    ).toEqual({ received: true });
+    expect(
+      await site.submitEnquiry({ ...base, name: "Too fast", elapsed: 300 }),
+    ).toEqual({ received: true });
+    expect(
+      await rejection(
+        site.submitEnquiry({ ...base, sectionId: crypto.randomUUID() }),
+      ),
+    ).toMatchObject({ message: "site.form" });
+
+    for (let sent = 1; sent < 5; sent += 1)
+      await site.submitEnquiry({ ...base, name: `Parent ${sent}` });
+    expect(
+      await rejection(site.submitEnquiry({ ...base, name: "One too many" })),
+    ).toMatchObject({ message: "site.too_many" });
+    expect(
+      await visitorFrom("198.51.100.4").submitEnquiry({
+        ...base,
+        name: "Another family",
+      }),
+    ).toEqual({ received: true });
+
+    const { api } = await principal();
+    const open = await api.site.enquiries({ handled: false });
+    const names = open.rows.map((row) => row.name);
+    expect(names).toContain("Salama Ashoush");
+    expect(names).toContain("Another family");
+    expect(names).not.toContain("Robot");
+    expect(names).not.toContain("Too fast");
+    expect(names).not.toContain("One too many");
+    const first = open.rows.find((row) => row.name === "Salama Ashoush");
+    expect(first).toMatchObject({
+      purpose: "enquiry",
+      childYear: "Grade 3",
+      pageTitle: "Admissions",
+    });
+    if (!first) throw new Error("no enquiry");
+    await api.site.markEnquiry({
+      id: first.id,
+      expectedVersion: first.version,
+      handled: true,
+    });
+    const handled = await api.site.enquiries({ handled: true });
+    expect(handled.rows.map((row) => row.id)).toContain(first.id);
+    expect(
+      await rejection(
+        api.site.markEnquiry({
+          id: first.id,
+          expectedVersion: first.version,
+          handled: false,
+        }),
+      ),
+    ).toMatchObject({ message: "conflict.version" });
   });
 });

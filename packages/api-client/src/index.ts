@@ -22,6 +22,8 @@ export function createApiClient(options: {
   school?: string;
   /** The reader's language, for sorting and labels. */
   locale?: string;
+  /** The visitor's address chain as the web server received it, for throttling. */
+  forwardedFor?: string;
   fetch?: typeof globalThis.fetch;
 }): RouterClient<AppRouter> {
   return createORPCClient(
@@ -31,6 +33,9 @@ export function createApiClient(options: {
         ...(options.token ? { authorization: `Bearer ${options.token}` } : {}),
         ...(options.school ? { "x-farida-school": options.school } : {}),
         ...(options.locale ? { "x-farida-locale": options.locale } : {}),
+        ...(options.forwardedFor
+          ? { "x-forwarded-for": options.forwardedFor }
+          : {}),
       }),
       fetch:
         options.fetch ??
