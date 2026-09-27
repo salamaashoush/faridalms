@@ -183,6 +183,10 @@ describe("temporal keys", () => {
         params: [a.tenantId, school.year],
       },
       {
+        text: `update core.enrollments set valid_during = '[2026-09-13,2027-06-10)' where tenant_id = $1 and school_year_id = $2`,
+        params: [a.tenantId, school.year],
+      },
+      {
         text: `update core.academic_sessions set span = '[2027-02-07,2027-06-10)' where tenant_id = $1 and parent_id = $2 and sequence = 2`,
         params: [a.tenantId, school.year],
       },
@@ -750,5 +754,67 @@ describe("search", () => {
     ]);
     expect(result.error).toBeUndefined();
     expect(result.rows[0]?.n).toBe(1);
+  });
+});
+
+describe("teaching", () => {
+  test("a student is in one homeroom at a time, and no enrollment outlasts its year", async () => {
+    const { a } = harness();
+    const school = await schoolOf(a.tenantId);
+    const second = await probe("app", a.tenantId, [
+      {
+        text: `insert into core.classes (tenant_id, org_id, school_year_id, class_type, code, title_en)
+               values ($1, $2, $3, 'homeroom', 'X-B', 'XB') returning id`,
+        params: [a.tenantId, school.id, school.year],
+      },
+      {
+        text: `insert into core.enrollments (tenant_id, class_id, class_type, school_year_id, org_id, user_id, role,
+                 valid_during, source)
+               select e.tenant_id, (select id from core.classes where tenant_id = $1 and code = 'X-B'), 'homeroom',
+                 e.school_year_id, e.org_id, e.user_id, 'student', '[2026-10-01,2027-06-18)', 'manual'
+               from core.enrollments e
+               where e.tenant_id = $1 and e.role = 'student' and e.class_type = 'homeroom' limit 1`,
+        params: [a.tenantId],
+      },
+    ]);
+    expect(second.error?.code).toBe("23P01");
+    const outlast = await probe("app", a.tenantId, [
+      {
+        text: `update core.enrollments set valid_during = '[2026-09-13,2027-07-01)'
+               where tenant_id = $1 and role = 'student'`,
+        params: [a.tenantId],
+      },
+    ]);
+    expect(outlast.error?.code).toBe("23503");
+  });
+
+  test("a teacher reaches the students of the classes they teach, and no others", async () => {
+    const { a } = harness();
+    const school = await schoolOf(a.tenantId);
+    const taught = await one<{
+      teacher: string;
+      reached: number;
+      placed: number;
+    }>(
+      `select t.user_id as teacher,
+              (select count(*)::int from core.enrollments s
+                 where s.tenant_id = t.tenant_id and s.class_id = t.class_id and s.role = 'student') as reached,
+              (select count(*)::int from core.student_school_years p
+                 where p.tenant_id = t.tenant_id and p.org_id = $2) as placed
+       from core.enrollments t
+       join core.classes c on c.tenant_id = t.tenant_id and c.id = t.class_id and c.class_type = 'homeroom'
+       where t.tenant_id = $1 and t.role = 'teacher' and c.org_id = $2 limit 1`,
+      [a.tenantId, school.id],
+    );
+    const seen = await probe<{ reached: number }>("app", a.tenantId, [
+      {
+        text: `select count(*)::int as reached
+               from app.visible_students($1, $2, '2026-10-01', false)`,
+        params: [taught.teacher, school.id],
+      },
+    ]);
+    expect(seen.error).toBeUndefined();
+    expect(seen.rows[0]?.reached).toBe(taught.reached);
+    expect(taught.reached).toBeLessThan(taught.placed);
   });
 });

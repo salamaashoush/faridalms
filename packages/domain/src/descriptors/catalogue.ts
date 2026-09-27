@@ -732,6 +732,112 @@ export const CATALOGUE: readonly SeedNamespace[] = [
     ],
   },
   {
+    namespace: "subject",
+    open: true,
+    meaningRequired: false,
+    edfiDescriptor: "AcademicSubjectDescriptor",
+    values: [
+      { code: "arabic", en: "Arabic", ar: "اللغة العربية", edfi: "Other" },
+      {
+        code: "english",
+        en: "English",
+        ar: "اللغة الإنجليزية",
+        edfi: "English Language Arts",
+      },
+      {
+        code: "mathematics",
+        en: "Mathematics",
+        ar: "الرياضيات",
+        edfi: "Mathematics",
+      },
+      { code: "science", en: "Science", ar: "العلوم", edfi: "Science" },
+      {
+        code: "social_studies",
+        en: "Social studies",
+        ar: "الدراسات الاجتماعية",
+        edfi: "Social Studies",
+      },
+      {
+        code: "islamic_education",
+        en: "Islamic education",
+        ar: "التربية الإسلامية",
+        edfi: "Religious Education and Theology",
+      },
+      {
+        code: "christian_education",
+        en: "Christian education",
+        ar: "التربية المسيحية",
+        edfi: "Religious Education and Theology",
+      },
+      {
+        code: "french",
+        en: "French",
+        ar: "اللغة الفرنسية",
+        edfi: "Foreign Language and Literature",
+      },
+      {
+        code: "computing",
+        en: "Computing",
+        ar: "الحاسب الآلي",
+        edfi: "Computer and Information Sciences",
+      },
+      {
+        code: "art",
+        en: "Art",
+        ar: "التربية الفنية",
+        edfi: "Fine and Performing Arts",
+      },
+      {
+        code: "music",
+        en: "Music",
+        ar: "التربية الموسيقية",
+        edfi: "Fine and Performing Arts",
+      },
+      {
+        code: "physical_education",
+        en: "Physical education",
+        ar: "التربية البدنية",
+        edfi: "Physical, Health, and Safety Education",
+      },
+    ],
+  },
+  {
+    namespace: "classroom_position",
+    open: false,
+    meaningRequired: true,
+    edfiDescriptor: "ClassroomPositionDescriptor",
+    values: [
+      {
+        code: "teacher_of_record",
+        en: "Class teacher",
+        ar: "معلم الفصل",
+        meaning: "teacher_of_record",
+        edfi: "Teacher of Record",
+      },
+      {
+        code: "assistant",
+        en: "Assistant teacher",
+        ar: "معلم مساعد",
+        meaning: "assistant",
+        edfi: "Assistant Teacher",
+      },
+      {
+        code: "support",
+        en: "Support teacher",
+        ar: "معلم دعم",
+        meaning: "support",
+        edfi: "Support Teacher",
+      },
+      {
+        code: "substitute",
+        en: "Substitute teacher",
+        ar: "معلم بديل",
+        meaning: "substitute",
+        edfi: "Substitute Teacher",
+      },
+    ],
+  },
+  {
     namespace: "religion",
     open: false,
     meaningRequired: false,
@@ -852,8 +958,6 @@ export const CATALOGUE: readonly SeedNamespace[] = [
 
 /** Namespaces other systems own, reserved so names do not collide. */
 export const RESERVED_NAMESPACES = [
-  "subject",
-  "classroom_position",
   "course_level",
   "attendance_category",
   "attendance_reason",

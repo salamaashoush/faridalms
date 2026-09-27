@@ -36,16 +36,24 @@ describe("students", () => {
     }
   });
 
-  test("a teacher reaches no student record before classes connect them", async () => {
+  test("a teacher reaches the students of the classes they teach, and no others", async () => {
     const principal = await signedIn("northwind", login("principal"));
-    const [first] = (await principal.people.students({})).rows;
+    const everyone = (await principal.people.students({ pageSize: 50 })).rows;
     const teacher = await signedIn("northwind", login("teacher"));
-    expect((await teacher.people.students({})).total).toBe(0);
+    const mine = await teacher.people.students({ pageSize: 50 });
+    expect(mine.total).toBeGreaterThan(0);
+    expect(mine.total).toBeLessThan(everyone.length);
+    const taught = new Set(mine.rows.map((row) => row.id));
+    const other = everyone.find((row) => !taught.has(row.id));
+    if (!other) throw new Error("seed student outside the teacher's classes");
     expect(
-      await rejection(teacher.people.student({ id: first?.id ?? "" })),
+      await rejection(teacher.people.student({ id: other.id })),
     ).toMatchObject({
       code: "NOT_FOUND",
     });
+    const own = mine.rows[0];
+    if (!own) throw new Error("seed taught student");
+    expect((await teacher.people.student({ id: own.id })).id).toBe(own.id);
   });
 
   test("a family session cannot run the directory", async () => {

@@ -1,3 +1,4 @@
+import { CATALOGUE } from "@faridalms/domain/descriptors/catalogue";
 import { and, eq } from "drizzle-orm";
 
 import type { CellTransaction, openOwner } from "./context";
@@ -15,10 +16,13 @@ import {
   accounts,
   calendarDates,
   calendars,
+  classes,
   classPeriods,
   contactPoints,
+  courses,
   demographics,
   descriptors,
+  enrollments,
   externalIds,
   healthRecords,
   householdMembers,
@@ -490,6 +494,133 @@ interface SchoolPlan {
   studentsPerGrade: number;
 }
 
+const TAUGHT_SUBJECTS = ["arabic", "english", "mathematics", "science"];
+
+/** "grade_7" is "7" and "kg2" is "KG2" in class codes and English titles. */
+function gradeShort(grade: string) {
+  return grade.startsWith("kg")
+    ? grade.toUpperCase()
+    : grade.replace("grade_", "");
+}
+
+function gradeShortAr(grade: string) {
+  return grade.startsWith("kg")
+    ? `روضة ${grade.slice(2)}`
+    : grade.replace("grade_", "");
+}
+
+/**
+ * One homeroom per grade with its class teacher, and four subject classes
+ * taught to it by subject specialists, so a teacher reaches only the grades
+ * they teach. Students are enrolled in their grade's homeroom for the year.
+ */
+async function seedClasses(
+  tx: Tx,
+  tenantId: string,
+  schoolId: string,
+  yearId: string,
+  grades: readonly string[],
+  teachers: readonly Person[],
+  pupils: ReadonlyMap<string, readonly string[]>,
+) {
+  const [gradeIds, subjectIds, positions] = await Promise.all([
+    descriptorIds(tx, tenantId, "grade_level"),
+    descriptorIds(tx, tenantId, "subject"),
+    descriptorIds(tx, tenantId, "classroom_position"),
+  ]);
+  const subjectNames = new Map(
+    (
+      CATALOGUE.find((entry) => entry.namespace === "subject")?.values ?? []
+    ).map((value) => [value.code, value]),
+  );
+  const span = `[${YEAR.start},${YEAR.end})`;
+  const teacherOf = (index: number) => {
+    const teacher = teachers[index % teachers.length];
+    if (!teacher) throw new Error("no seeded teacher");
+    return teacher;
+  };
+  for (const [gradeIndex, grade] of grades.entries()) {
+    const short = gradeShort(grade);
+    const homeroomId = Bun.randomUUIDv7();
+    await tx.insert(classes).values({
+      tenantId,
+      id: homeroomId,
+      orgId: schoolId,
+      schoolYearId: yearId,
+      classType: "homeroom",
+      code: `${short}-A`,
+      titleEn: `${short}A`,
+      titleAr: `${gradeShortAr(grade)} أ`,
+      gradeLevelDescriptorId: need(gradeIds, grade),
+    });
+    const homeroom = {
+      tenantId,
+      classId: homeroomId,
+      classType: "homeroom" as const,
+      schoolYearId: yearId,
+      orgId: schoolId,
+      validDuring: span,
+      source: "manual" as const,
+    };
+    await tx.insert(enrollments).values([
+      {
+        ...homeroom,
+        userId: teacherOf(gradeIndex).id,
+        role: "teacher",
+        isPrimary: true,
+        classroomPositionDescriptorId: need(positions, "teacher_of_record"),
+      },
+      ...(pupils.get(grade) ?? []).map((userId) => ({
+        ...homeroom,
+        userId,
+        role: "student" as const,
+      })),
+    ]);
+    for (const [subjectIndex, subject] of TAUGHT_SUBJECTS.entries()) {
+      const names = subjectNames.get(subject);
+      const courseId = Bun.randomUUIDv7();
+      await tx.insert(courses).values({
+        tenantId,
+        id: courseId,
+        orgId: schoolId,
+        code: `${subject.toUpperCase().slice(0, 4)}-${short}`,
+        titleEn: `${names?.en ?? subject} ${short}`,
+        titleAr: `${names?.ar ?? subject} ${gradeShortAr(grade)}`,
+        subjectDescriptorId: need(subjectIds, subject),
+        gradeLevelDescriptorId: need(gradeIds, grade),
+      });
+      const classId = Bun.randomUUIDv7();
+      await tx.insert(classes).values({
+        tenantId,
+        id: classId,
+        orgId: schoolId,
+        schoolYearId: yearId,
+        classType: "scheduled",
+        code: `${short}-A-${subject.toUpperCase().slice(0, 4)}`,
+        titleEn: `${short}A ${names?.en ?? subject}`,
+        titleAr: `${gradeShortAr(grade)} أ ${names?.ar ?? subject}`,
+        courseId,
+        homeroomClassId: homeroomId,
+        subjectDescriptorId: need(subjectIds, subject),
+        gradeLevelDescriptorId: need(gradeIds, grade),
+      });
+      await tx.insert(enrollments).values({
+        tenantId,
+        classId,
+        classType: "scheduled",
+        schoolYearId: yearId,
+        orgId: schoolId,
+        userId: teacherOf(subjectIndex + 1).id,
+        role: "teacher",
+        isPrimary: true,
+        classroomPositionDescriptorId: need(positions, "teacher_of_record"),
+        validDuring: span,
+        source: "manual",
+      });
+    }
+  }
+}
+
 async function seedSchool(
   tx: Tx,
   tenant: ProvisionedTenant,
@@ -621,6 +752,7 @@ async function seedSchool(
     );
   else context.shared.teacher = teachers[0];
 
+  const pupils = new Map<string, string[]>();
   for (const grade of plan.grades) {
     for (let index = 0; index < plan.studentsPerGrade; index += 1) {
       const shared =
@@ -640,6 +772,7 @@ async function seedSchool(
         birthDate: `${birthYear}-0${1 + Math.floor(next() * 9)}-1${Math.floor(next() * 9)}`,
         birthDateSource: "school_record",
       });
+      pupils.set(grade, [...(pupils.get(grade) ?? []), student.id]);
       await tx.insert(studentSchoolYears).values({
         tenantId,
         studentUserId: student.id,
@@ -839,6 +972,15 @@ async function seedSchool(
       grantedByUserId: principal.id,
       reason: "Runs admissions this year.",
     });
+  await seedClasses(
+    tx,
+    tenantId,
+    schoolId,
+    yearId,
+    plan.grades,
+    teachers,
+    pupils,
+  );
   return { yearId, teachers };
 }
 
