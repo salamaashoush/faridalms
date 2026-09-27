@@ -1,14 +1,10 @@
 import type { ManagementOptionsInput } from "@faridalms/domain/administration-schema";
-import type {
-  CalendarQuery,
-  StudentScopedQuery,
-} from "@faridalms/domain/school-schema";
+import type { StudentScopedQuery } from "@faridalms/domain/school-schema";
 
 import { queryOptions } from "@tanstack/react-query";
 
 import {
   getAdminOverview,
-  getCalendar,
   getFamilyOverview,
   getManagementOptions,
   getStudent,
@@ -54,13 +50,5 @@ export function managementOptionsQuery(query: ManagementOptionsInput) {
   return queryOptions({
     queryKey: ["management-options", query],
     queryFn: () => getManagementOptions({ data: query }),
-  });
-}
-
-export function calendarQuery(query: CalendarQuery) {
-  return queryOptions({
-    queryKey: ["calendar", query],
-    queryFn: () => getCalendar({ data: query }),
-    placeholderData: (previous) => previous,
   });
 }

@@ -30,9 +30,9 @@ import { Route as AppAdminAcademicYearEditorRouteImport } from './routes/_app/ad
 import { Route as AppAdminAcademicYearsRouteImport } from './routes/_app/admin/academic-years'
 import { Route as AppAdminAnnouncementEditorRouteImport } from './routes/_app/admin/announcement-editor'
 import { Route as AppAdminAttendanceRouteImport } from './routes/_app/admin/attendance'
-import { Route as AppAdminCalendarRouteImport } from './routes/_app/admin/calendar'
 import { Route as AppAdminClassEditorRouteImport } from './routes/_app/admin/class-editor'
 import { Route as AppAdminClassesRouteImport } from './routes/_app/admin/classes'
+import { Route as AppAdminEventEditorRouteImport } from './routes/_app/admin/event-editor'
 import { Route as AppAdminFamiliesRouteImport } from './routes/_app/admin/families'
 import { Route as AppAdminMessagesRouteImport } from './routes/_app/admin/messages'
 import { Route as AppAdminNewsletterEditorRouteImport } from './routes/_app/admin/newsletter-editor'
@@ -48,12 +48,13 @@ import { Route as AppAdminTimetableRouteImport } from './routes/_app/admin/timet
 import { Route as AppAnnouncementsIndexRouteImport } from './routes/_app/announcements.index'
 import { Route as AppAnnouncementsAnnouncementIdRouteImport } from './routes/_app/announcements.$announcementId'
 import { Route as AppAssignmentsAssignmentIdRouteImport } from './routes/_app/assignments/$assignmentId'
+import { Route as AppCalendarIndexRouteImport } from './routes/_app/calendar.index'
+import { Route as AppCalendarEventIdRouteImport } from './routes/_app/calendar.$eventId'
 import { Route as AppClassesClassIdRouteImport } from './routes/_app/classes.$classId'
 import { Route as AppFamiliesHouseholdIdRouteImport } from './routes/_app/families.$householdId'
 import { Route as AppFamilyIndexRouteImport } from './routes/_app/family/index'
 import { Route as AppFamilyAssignmentsRouteImport } from './routes/_app/family/assignments'
 import { Route as AppFamilyAttendanceRouteImport } from './routes/_app/family/attendance'
-import { Route as AppFamilyCalendarRouteImport } from './routes/_app/family/calendar'
 import { Route as AppFamilyChildrenRouteImport } from './routes/_app/family/children'
 import { Route as AppFamilyGradesRouteImport } from './routes/_app/family/grades'
 import { Route as AppFamilyMessagesRouteImport } from './routes/_app/family/messages'
@@ -63,7 +64,6 @@ import { Route as AppLessonsLessonIdRouteImport } from './routes/_app/lessons.$l
 import { Route as AppMeIndexRouteImport } from './routes/_app/me/index'
 import { Route as AppMeAssignmentsRouteImport } from './routes/_app/me/assignments'
 import { Route as AppMeAttendanceRouteImport } from './routes/_app/me/attendance'
-import { Route as AppMeCalendarRouteImport } from './routes/_app/me/calendar'
 import { Route as AppMeGradesRouteImport } from './routes/_app/me/grades'
 import { Route as AppMeMessagesRouteImport } from './routes/_app/me/messages'
 import { Route as AppMeModulesRouteImport } from './routes/_app/me/modules'
@@ -78,7 +78,6 @@ import { Route as AppTeachIndexRouteImport } from './routes/_app/teach/index'
 import { Route as AppTeachAssignmentEditorRouteImport } from './routes/_app/teach/assignment-editor'
 import { Route as AppTeachAssignmentsRouteImport } from './routes/_app/teach/assignments'
 import { Route as AppTeachAttendanceRouteImport } from './routes/_app/teach/attendance'
-import { Route as AppTeachCalendarRouteImport } from './routes/_app/teach/calendar'
 import { Route as AppTeachClassesRouteImport } from './routes/_app/teach/classes'
 import { Route as AppTeachGradebookRouteImport } from './routes/_app/teach/gradebook'
 import { Route as AppTeachGradingRouteImport } from './routes/_app/teach/grading'
@@ -200,11 +199,6 @@ const AppAdminAttendanceRoute = AppAdminAttendanceRouteImport.update({
   path: '/attendance',
   getParentRoute: () => AppAdminRoute,
 } as any)
-const AppAdminCalendarRoute = AppAdminCalendarRouteImport.update({
-  id: '/calendar',
-  path: '/calendar',
-  getParentRoute: () => AppAdminRoute,
-} as any)
 const AppAdminClassEditorRoute = AppAdminClassEditorRouteImport.update({
   id: '/class-editor',
   path: '/class-editor',
@@ -213,6 +207,11 @@ const AppAdminClassEditorRoute = AppAdminClassEditorRouteImport.update({
 const AppAdminClassesRoute = AppAdminClassesRouteImport.update({
   id: '/classes',
   path: '/classes',
+  getParentRoute: () => AppAdminRoute,
+} as any)
+const AppAdminEventEditorRoute = AppAdminEventEditorRouteImport.update({
+  id: '/event-editor',
+  path: '/event-editor',
   getParentRoute: () => AppAdminRoute,
 } as any)
 const AppAdminFamiliesRoute = AppAdminFamiliesRouteImport.update({
@@ -294,6 +293,16 @@ const AppAssignmentsAssignmentIdRoute =
     path: '/assignments/$assignmentId',
     getParentRoute: () => AppRoute,
   } as any)
+const AppCalendarIndexRoute = AppCalendarIndexRouteImport.update({
+  id: '/calendar/',
+  path: '/calendar/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppCalendarEventIdRoute = AppCalendarEventIdRouteImport.update({
+  id: '/calendar/$eventId',
+  path: '/calendar/$eventId',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppClassesClassIdRoute = AppClassesClassIdRouteImport.update({
   id: '/classes/$classId',
   path: '/classes/$classId',
@@ -317,11 +326,6 @@ const AppFamilyAssignmentsRoute = AppFamilyAssignmentsRouteImport.update({
 const AppFamilyAttendanceRoute = AppFamilyAttendanceRouteImport.update({
   id: '/attendance',
   path: '/attendance',
-  getParentRoute: () => AppFamilyRoute,
-} as any)
-const AppFamilyCalendarRoute = AppFamilyCalendarRouteImport.update({
-  id: '/calendar',
-  path: '/calendar',
   getParentRoute: () => AppFamilyRoute,
 } as any)
 const AppFamilyChildrenRoute = AppFamilyChildrenRouteImport.update({
@@ -367,11 +371,6 @@ const AppMeAssignmentsRoute = AppMeAssignmentsRouteImport.update({
 const AppMeAttendanceRoute = AppMeAttendanceRouteImport.update({
   id: '/attendance',
   path: '/attendance',
-  getParentRoute: () => AppMeRoute,
-} as any)
-const AppMeCalendarRoute = AppMeCalendarRouteImport.update({
-  id: '/calendar',
-  path: '/calendar',
   getParentRoute: () => AppMeRoute,
 } as any)
 const AppMeGradesRoute = AppMeGradesRouteImport.update({
@@ -444,11 +443,6 @@ const AppTeachAssignmentsRoute = AppTeachAssignmentsRouteImport.update({
 const AppTeachAttendanceRoute = AppTeachAttendanceRouteImport.update({
   id: '/attendance',
   path: '/attendance',
-  getParentRoute: () => AppTeachRoute,
-} as any)
-const AppTeachCalendarRoute = AppTeachCalendarRouteImport.update({
-  id: '/calendar',
-  path: '/calendar',
   getParentRoute: () => AppTeachRoute,
 } as any)
 const AppTeachClassesRoute = AppTeachClassesRouteImport.update({
@@ -541,9 +535,9 @@ export interface FileRoutesByFullPath {
   '/admin/academic-years': typeof AppAdminAcademicYearsRoute
   '/admin/announcement-editor': typeof AppAdminAnnouncementEditorRoute
   '/admin/attendance': typeof AppAdminAttendanceRoute
-  '/admin/calendar': typeof AppAdminCalendarRoute
   '/admin/class-editor': typeof AppAdminClassEditorRoute
   '/admin/classes': typeof AppAdminClassesRoute
+  '/admin/event-editor': typeof AppAdminEventEditorRoute
   '/admin/families': typeof AppAdminFamiliesRoute
   '/admin/messages': typeof AppAdminMessagesRoute
   '/admin/newsletter-editor': typeof AppAdminNewsletterEditorRoute
@@ -558,11 +552,11 @@ export interface FileRoutesByFullPath {
   '/admin/timetable': typeof AppAdminTimetableRoute
   '/announcements/$announcementId': typeof AppAnnouncementsAnnouncementIdRoute
   '/assignments/$assignmentId': typeof AppAssignmentsAssignmentIdRoute
+  '/calendar/$eventId': typeof AppCalendarEventIdRoute
   '/classes/$classId': typeof AppClassesClassIdRoute
   '/families/$householdId': typeof AppFamiliesHouseholdIdRoute
   '/family/assignments': typeof AppFamilyAssignmentsRoute
   '/family/attendance': typeof AppFamilyAttendanceRoute
-  '/family/calendar': typeof AppFamilyCalendarRoute
   '/family/children': typeof AppFamilyChildrenRoute
   '/family/grades': typeof AppFamilyGradesRoute
   '/family/messages': typeof AppFamilyMessagesRoute
@@ -571,7 +565,6 @@ export interface FileRoutesByFullPath {
   '/lessons/$lessonId': typeof AppLessonsLessonIdRoute
   '/me/assignments': typeof AppMeAssignmentsRoute
   '/me/attendance': typeof AppMeAttendanceRoute
-  '/me/calendar': typeof AppMeCalendarRoute
   '/me/grades': typeof AppMeGradesRoute
   '/me/messages': typeof AppMeMessagesRoute
   '/me/modules': typeof AppMeModulesRoute
@@ -584,7 +577,6 @@ export interface FileRoutesByFullPath {
   '/teach/assignment-editor': typeof AppTeachAssignmentEditorRoute
   '/teach/assignments': typeof AppTeachAssignmentsRoute
   '/teach/attendance': typeof AppTeachAttendanceRoute
-  '/teach/calendar': typeof AppTeachCalendarRoute
   '/teach/classes': typeof AppTeachClassesRoute
   '/teach/gradebook': typeof AppTeachGradebookRoute
   '/teach/grading': typeof AppTeachGradingRoute
@@ -597,6 +589,7 @@ export interface FileRoutesByFullPath {
   '/site-media/$school/$fileId': typeof SiteMediaSchoolFileIdRoute
   '/admin/': typeof AppAdminIndexRoute
   '/announcements/': typeof AppAnnouncementsIndexRoute
+  '/calendar/': typeof AppCalendarIndexRoute
   '/family/': typeof AppFamilyIndexRoute
   '/me/': typeof AppMeIndexRoute
   '/newsletters/': typeof AppNewslettersIndexRoute
@@ -620,9 +613,9 @@ export interface FileRoutesByTo {
   '/admin/academic-years': typeof AppAdminAcademicYearsRoute
   '/admin/announcement-editor': typeof AppAdminAnnouncementEditorRoute
   '/admin/attendance': typeof AppAdminAttendanceRoute
-  '/admin/calendar': typeof AppAdminCalendarRoute
   '/admin/class-editor': typeof AppAdminClassEditorRoute
   '/admin/classes': typeof AppAdminClassesRoute
+  '/admin/event-editor': typeof AppAdminEventEditorRoute
   '/admin/families': typeof AppAdminFamiliesRoute
   '/admin/messages': typeof AppAdminMessagesRoute
   '/admin/newsletter-editor': typeof AppAdminNewsletterEditorRoute
@@ -637,11 +630,11 @@ export interface FileRoutesByTo {
   '/admin/timetable': typeof AppAdminTimetableRoute
   '/announcements/$announcementId': typeof AppAnnouncementsAnnouncementIdRoute
   '/assignments/$assignmentId': typeof AppAssignmentsAssignmentIdRoute
+  '/calendar/$eventId': typeof AppCalendarEventIdRoute
   '/classes/$classId': typeof AppClassesClassIdRoute
   '/families/$householdId': typeof AppFamiliesHouseholdIdRoute
   '/family/assignments': typeof AppFamilyAssignmentsRoute
   '/family/attendance': typeof AppFamilyAttendanceRoute
-  '/family/calendar': typeof AppFamilyCalendarRoute
   '/family/children': typeof AppFamilyChildrenRoute
   '/family/grades': typeof AppFamilyGradesRoute
   '/family/messages': typeof AppFamilyMessagesRoute
@@ -650,7 +643,6 @@ export interface FileRoutesByTo {
   '/lessons/$lessonId': typeof AppLessonsLessonIdRoute
   '/me/assignments': typeof AppMeAssignmentsRoute
   '/me/attendance': typeof AppMeAttendanceRoute
-  '/me/calendar': typeof AppMeCalendarRoute
   '/me/grades': typeof AppMeGradesRoute
   '/me/messages': typeof AppMeMessagesRoute
   '/me/modules': typeof AppMeModulesRoute
@@ -663,7 +655,6 @@ export interface FileRoutesByTo {
   '/teach/assignment-editor': typeof AppTeachAssignmentEditorRoute
   '/teach/assignments': typeof AppTeachAssignmentsRoute
   '/teach/attendance': typeof AppTeachAttendanceRoute
-  '/teach/calendar': typeof AppTeachCalendarRoute
   '/teach/classes': typeof AppTeachClassesRoute
   '/teach/gradebook': typeof AppTeachGradebookRoute
   '/teach/grading': typeof AppTeachGradingRoute
@@ -676,6 +667,7 @@ export interface FileRoutesByTo {
   '/site-media/$school/$fileId': typeof SiteMediaSchoolFileIdRoute
   '/admin': typeof AppAdminIndexRoute
   '/announcements': typeof AppAnnouncementsIndexRoute
+  '/calendar': typeof AppCalendarIndexRoute
   '/family': typeof AppFamilyIndexRoute
   '/me': typeof AppMeIndexRoute
   '/newsletters': typeof AppNewslettersIndexRoute
@@ -707,9 +699,9 @@ export interface FileRoutesById {
   '/_app/admin/academic-years': typeof AppAdminAcademicYearsRoute
   '/_app/admin/announcement-editor': typeof AppAdminAnnouncementEditorRoute
   '/_app/admin/attendance': typeof AppAdminAttendanceRoute
-  '/_app/admin/calendar': typeof AppAdminCalendarRoute
   '/_app/admin/class-editor': typeof AppAdminClassEditorRoute
   '/_app/admin/classes': typeof AppAdminClassesRoute
+  '/_app/admin/event-editor': typeof AppAdminEventEditorRoute
   '/_app/admin/families': typeof AppAdminFamiliesRoute
   '/_app/admin/messages': typeof AppAdminMessagesRoute
   '/_app/admin/newsletter-editor': typeof AppAdminNewsletterEditorRoute
@@ -724,11 +716,11 @@ export interface FileRoutesById {
   '/_app/admin/timetable': typeof AppAdminTimetableRoute
   '/_app/announcements/$announcementId': typeof AppAnnouncementsAnnouncementIdRoute
   '/_app/assignments/$assignmentId': typeof AppAssignmentsAssignmentIdRoute
+  '/_app/calendar/$eventId': typeof AppCalendarEventIdRoute
   '/_app/classes/$classId': typeof AppClassesClassIdRoute
   '/_app/families/$householdId': typeof AppFamiliesHouseholdIdRoute
   '/_app/family/assignments': typeof AppFamilyAssignmentsRoute
   '/_app/family/attendance': typeof AppFamilyAttendanceRoute
-  '/_app/family/calendar': typeof AppFamilyCalendarRoute
   '/_app/family/children': typeof AppFamilyChildrenRoute
   '/_app/family/grades': typeof AppFamilyGradesRoute
   '/_app/family/messages': typeof AppFamilyMessagesRoute
@@ -737,7 +729,6 @@ export interface FileRoutesById {
   '/_app/lessons/$lessonId': typeof AppLessonsLessonIdRoute
   '/_app/me/assignments': typeof AppMeAssignmentsRoute
   '/_app/me/attendance': typeof AppMeAttendanceRoute
-  '/_app/me/calendar': typeof AppMeCalendarRoute
   '/_app/me/grades': typeof AppMeGradesRoute
   '/_app/me/messages': typeof AppMeMessagesRoute
   '/_app/me/modules': typeof AppMeModulesRoute
@@ -750,7 +741,6 @@ export interface FileRoutesById {
   '/_app/teach/assignment-editor': typeof AppTeachAssignmentEditorRoute
   '/_app/teach/assignments': typeof AppTeachAssignmentsRoute
   '/_app/teach/attendance': typeof AppTeachAttendanceRoute
-  '/_app/teach/calendar': typeof AppTeachCalendarRoute
   '/_app/teach/classes': typeof AppTeachClassesRoute
   '/_app/teach/gradebook': typeof AppTeachGradebookRoute
   '/_app/teach/grading': typeof AppTeachGradingRoute
@@ -763,6 +753,7 @@ export interface FileRoutesById {
   '/site-media/$school/$fileId': typeof SiteMediaSchoolFileIdRoute
   '/_app/admin/': typeof AppAdminIndexRoute
   '/_app/announcements/': typeof AppAnnouncementsIndexRoute
+  '/_app/calendar/': typeof AppCalendarIndexRoute
   '/_app/family/': typeof AppFamilyIndexRoute
   '/_app/me/': typeof AppMeIndexRoute
   '/_app/newsletters/': typeof AppNewslettersIndexRoute
@@ -793,9 +784,9 @@ export interface FileRouteTypes {
     | '/admin/academic-years'
     | '/admin/announcement-editor'
     | '/admin/attendance'
-    | '/admin/calendar'
     | '/admin/class-editor'
     | '/admin/classes'
+    | '/admin/event-editor'
     | '/admin/families'
     | '/admin/messages'
     | '/admin/newsletter-editor'
@@ -810,11 +801,11 @@ export interface FileRouteTypes {
     | '/admin/timetable'
     | '/announcements/$announcementId'
     | '/assignments/$assignmentId'
+    | '/calendar/$eventId'
     | '/classes/$classId'
     | '/families/$householdId'
     | '/family/assignments'
     | '/family/attendance'
-    | '/family/calendar'
     | '/family/children'
     | '/family/grades'
     | '/family/messages'
@@ -823,7 +814,6 @@ export interface FileRouteTypes {
     | '/lessons/$lessonId'
     | '/me/assignments'
     | '/me/attendance'
-    | '/me/calendar'
     | '/me/grades'
     | '/me/messages'
     | '/me/modules'
@@ -836,7 +826,6 @@ export interface FileRouteTypes {
     | '/teach/assignment-editor'
     | '/teach/assignments'
     | '/teach/attendance'
-    | '/teach/calendar'
     | '/teach/classes'
     | '/teach/gradebook'
     | '/teach/grading'
@@ -849,6 +838,7 @@ export interface FileRouteTypes {
     | '/site-media/$school/$fileId'
     | '/admin/'
     | '/announcements/'
+    | '/calendar/'
     | '/family/'
     | '/me/'
     | '/newsletters/'
@@ -872,9 +862,9 @@ export interface FileRouteTypes {
     | '/admin/academic-years'
     | '/admin/announcement-editor'
     | '/admin/attendance'
-    | '/admin/calendar'
     | '/admin/class-editor'
     | '/admin/classes'
+    | '/admin/event-editor'
     | '/admin/families'
     | '/admin/messages'
     | '/admin/newsletter-editor'
@@ -889,11 +879,11 @@ export interface FileRouteTypes {
     | '/admin/timetable'
     | '/announcements/$announcementId'
     | '/assignments/$assignmentId'
+    | '/calendar/$eventId'
     | '/classes/$classId'
     | '/families/$householdId'
     | '/family/assignments'
     | '/family/attendance'
-    | '/family/calendar'
     | '/family/children'
     | '/family/grades'
     | '/family/messages'
@@ -902,7 +892,6 @@ export interface FileRouteTypes {
     | '/lessons/$lessonId'
     | '/me/assignments'
     | '/me/attendance'
-    | '/me/calendar'
     | '/me/grades'
     | '/me/messages'
     | '/me/modules'
@@ -915,7 +904,6 @@ export interface FileRouteTypes {
     | '/teach/assignment-editor'
     | '/teach/assignments'
     | '/teach/attendance'
-    | '/teach/calendar'
     | '/teach/classes'
     | '/teach/gradebook'
     | '/teach/grading'
@@ -928,6 +916,7 @@ export interface FileRouteTypes {
     | '/site-media/$school/$fileId'
     | '/admin'
     | '/announcements'
+    | '/calendar'
     | '/family'
     | '/me'
     | '/newsletters'
@@ -958,9 +947,9 @@ export interface FileRouteTypes {
     | '/_app/admin/academic-years'
     | '/_app/admin/announcement-editor'
     | '/_app/admin/attendance'
-    | '/_app/admin/calendar'
     | '/_app/admin/class-editor'
     | '/_app/admin/classes'
+    | '/_app/admin/event-editor'
     | '/_app/admin/families'
     | '/_app/admin/messages'
     | '/_app/admin/newsletter-editor'
@@ -975,11 +964,11 @@ export interface FileRouteTypes {
     | '/_app/admin/timetable'
     | '/_app/announcements/$announcementId'
     | '/_app/assignments/$assignmentId'
+    | '/_app/calendar/$eventId'
     | '/_app/classes/$classId'
     | '/_app/families/$householdId'
     | '/_app/family/assignments'
     | '/_app/family/attendance'
-    | '/_app/family/calendar'
     | '/_app/family/children'
     | '/_app/family/grades'
     | '/_app/family/messages'
@@ -988,7 +977,6 @@ export interface FileRouteTypes {
     | '/_app/lessons/$lessonId'
     | '/_app/me/assignments'
     | '/_app/me/attendance'
-    | '/_app/me/calendar'
     | '/_app/me/grades'
     | '/_app/me/messages'
     | '/_app/me/modules'
@@ -1001,7 +989,6 @@ export interface FileRouteTypes {
     | '/_app/teach/assignment-editor'
     | '/_app/teach/assignments'
     | '/_app/teach/attendance'
-    | '/_app/teach/calendar'
     | '/_app/teach/classes'
     | '/_app/teach/gradebook'
     | '/_app/teach/grading'
@@ -1014,6 +1001,7 @@ export interface FileRouteTypes {
     | '/site-media/$school/$fileId'
     | '/_app/admin/'
     | '/_app/announcements/'
+    | '/_app/calendar/'
     | '/_app/family/'
     | '/_app/me/'
     | '/_app/newsletters/'
@@ -1183,13 +1171,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAdminAttendanceRouteImport
       parentRoute: typeof AppAdminRoute
     }
-    '/_app/admin/calendar': {
-      id: '/_app/admin/calendar'
-      path: '/calendar'
-      fullPath: '/admin/calendar'
-      preLoaderRoute: typeof AppAdminCalendarRouteImport
-      parentRoute: typeof AppAdminRoute
-    }
     '/_app/admin/class-editor': {
       id: '/_app/admin/class-editor'
       path: '/class-editor'
@@ -1202,6 +1183,13 @@ declare module '@tanstack/react-router' {
       path: '/classes'
       fullPath: '/admin/classes'
       preLoaderRoute: typeof AppAdminClassesRouteImport
+      parentRoute: typeof AppAdminRoute
+    }
+    '/_app/admin/event-editor': {
+      id: '/_app/admin/event-editor'
+      path: '/event-editor'
+      fullPath: '/admin/event-editor'
+      preLoaderRoute: typeof AppAdminEventEditorRouteImport
       parentRoute: typeof AppAdminRoute
     }
     '/_app/admin/families': {
@@ -1309,6 +1297,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAssignmentsAssignmentIdRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/calendar/': {
+      id: '/_app/calendar/'
+      path: '/calendar'
+      fullPath: '/calendar/'
+      preLoaderRoute: typeof AppCalendarIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/calendar/$eventId': {
+      id: '/_app/calendar/$eventId'
+      path: '/calendar/$eventId'
+      fullPath: '/calendar/$eventId'
+      preLoaderRoute: typeof AppCalendarEventIdRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/classes/$classId': {
       id: '/_app/classes/$classId'
       path: '/classes/$classId'
@@ -1342,13 +1344,6 @@ declare module '@tanstack/react-router' {
       path: '/attendance'
       fullPath: '/family/attendance'
       preLoaderRoute: typeof AppFamilyAttendanceRouteImport
-      parentRoute: typeof AppFamilyRoute
-    }
-    '/_app/family/calendar': {
-      id: '/_app/family/calendar'
-      path: '/calendar'
-      fullPath: '/family/calendar'
-      preLoaderRoute: typeof AppFamilyCalendarRouteImport
       parentRoute: typeof AppFamilyRoute
     }
     '/_app/family/children': {
@@ -1412,13 +1407,6 @@ declare module '@tanstack/react-router' {
       path: '/attendance'
       fullPath: '/me/attendance'
       preLoaderRoute: typeof AppMeAttendanceRouteImport
-      parentRoute: typeof AppMeRoute
-    }
-    '/_app/me/calendar': {
-      id: '/_app/me/calendar'
-      path: '/calendar'
-      fullPath: '/me/calendar'
-      preLoaderRoute: typeof AppMeCalendarRouteImport
       parentRoute: typeof AppMeRoute
     }
     '/_app/me/grades': {
@@ -1517,13 +1505,6 @@ declare module '@tanstack/react-router' {
       path: '/attendance'
       fullPath: '/teach/attendance'
       preLoaderRoute: typeof AppTeachAttendanceRouteImport
-      parentRoute: typeof AppTeachRoute
-    }
-    '/_app/teach/calendar': {
-      id: '/_app/teach/calendar'
-      path: '/calendar'
-      fullPath: '/teach/calendar'
-      preLoaderRoute: typeof AppTeachCalendarRouteImport
       parentRoute: typeof AppTeachRoute
     }
     '/_app/teach/classes': {
@@ -1632,9 +1613,9 @@ interface AppAdminRouteChildren {
   AppAdminAcademicYearsRoute: typeof AppAdminAcademicYearsRoute
   AppAdminAnnouncementEditorRoute: typeof AppAdminAnnouncementEditorRoute
   AppAdminAttendanceRoute: typeof AppAdminAttendanceRoute
-  AppAdminCalendarRoute: typeof AppAdminCalendarRoute
   AppAdminClassEditorRoute: typeof AppAdminClassEditorRoute
   AppAdminClassesRoute: typeof AppAdminClassesRoute
+  AppAdminEventEditorRoute: typeof AppAdminEventEditorRoute
   AppAdminFamiliesRoute: typeof AppAdminFamiliesRoute
   AppAdminMessagesRoute: typeof AppAdminMessagesRoute
   AppAdminNewsletterEditorRoute: typeof AppAdminNewsletterEditorRoute
@@ -1655,9 +1636,9 @@ const AppAdminRouteChildren: AppAdminRouteChildren = {
   AppAdminAcademicYearsRoute: AppAdminAcademicYearsRoute,
   AppAdminAnnouncementEditorRoute: AppAdminAnnouncementEditorRoute,
   AppAdminAttendanceRoute: AppAdminAttendanceRoute,
-  AppAdminCalendarRoute: AppAdminCalendarRoute,
   AppAdminClassEditorRoute: AppAdminClassEditorRoute,
   AppAdminClassesRoute: AppAdminClassesRoute,
+  AppAdminEventEditorRoute: AppAdminEventEditorRoute,
   AppAdminFamiliesRoute: AppAdminFamiliesRoute,
   AppAdminMessagesRoute: AppAdminMessagesRoute,
   AppAdminNewsletterEditorRoute: AppAdminNewsletterEditorRoute,
@@ -1680,7 +1661,6 @@ const AppAdminRouteWithChildren = AppAdminRoute._addFileChildren(
 interface AppFamilyRouteChildren {
   AppFamilyAssignmentsRoute: typeof AppFamilyAssignmentsRoute
   AppFamilyAttendanceRoute: typeof AppFamilyAttendanceRoute
-  AppFamilyCalendarRoute: typeof AppFamilyCalendarRoute
   AppFamilyChildrenRoute: typeof AppFamilyChildrenRoute
   AppFamilyGradesRoute: typeof AppFamilyGradesRoute
   AppFamilyMessagesRoute: typeof AppFamilyMessagesRoute
@@ -1692,7 +1672,6 @@ interface AppFamilyRouteChildren {
 const AppFamilyRouteChildren: AppFamilyRouteChildren = {
   AppFamilyAssignmentsRoute: AppFamilyAssignmentsRoute,
   AppFamilyAttendanceRoute: AppFamilyAttendanceRoute,
-  AppFamilyCalendarRoute: AppFamilyCalendarRoute,
   AppFamilyChildrenRoute: AppFamilyChildrenRoute,
   AppFamilyGradesRoute: AppFamilyGradesRoute,
   AppFamilyMessagesRoute: AppFamilyMessagesRoute,
@@ -1708,7 +1687,6 @@ const AppFamilyRouteWithChildren = AppFamilyRoute._addFileChildren(
 interface AppMeRouteChildren {
   AppMeAssignmentsRoute: typeof AppMeAssignmentsRoute
   AppMeAttendanceRoute: typeof AppMeAttendanceRoute
-  AppMeCalendarRoute: typeof AppMeCalendarRoute
   AppMeGradesRoute: typeof AppMeGradesRoute
   AppMeMessagesRoute: typeof AppMeMessagesRoute
   AppMeModulesRoute: typeof AppMeModulesRoute
@@ -1719,7 +1697,6 @@ interface AppMeRouteChildren {
 const AppMeRouteChildren: AppMeRouteChildren = {
   AppMeAssignmentsRoute: AppMeAssignmentsRoute,
   AppMeAttendanceRoute: AppMeAttendanceRoute,
-  AppMeCalendarRoute: AppMeCalendarRoute,
   AppMeGradesRoute: AppMeGradesRoute,
   AppMeMessagesRoute: AppMeMessagesRoute,
   AppMeModulesRoute: AppMeModulesRoute,
@@ -1733,7 +1710,6 @@ interface AppTeachRouteChildren {
   AppTeachAssignmentEditorRoute: typeof AppTeachAssignmentEditorRoute
   AppTeachAssignmentsRoute: typeof AppTeachAssignmentsRoute
   AppTeachAttendanceRoute: typeof AppTeachAttendanceRoute
-  AppTeachCalendarRoute: typeof AppTeachCalendarRoute
   AppTeachClassesRoute: typeof AppTeachClassesRoute
   AppTeachGradebookRoute: typeof AppTeachGradebookRoute
   AppTeachGradingRoute: typeof AppTeachGradingRoute
@@ -1749,7 +1725,6 @@ const AppTeachRouteChildren: AppTeachRouteChildren = {
   AppTeachAssignmentEditorRoute: AppTeachAssignmentEditorRoute,
   AppTeachAssignmentsRoute: AppTeachAssignmentsRoute,
   AppTeachAttendanceRoute: AppTeachAttendanceRoute,
-  AppTeachCalendarRoute: AppTeachCalendarRoute,
   AppTeachClassesRoute: AppTeachClassesRoute,
   AppTeachGradebookRoute: AppTeachGradebookRoute,
   AppTeachGradingRoute: AppTeachGradingRoute,
@@ -1777,6 +1752,7 @@ interface AppRouteChildren {
   AppTeachRoute: typeof AppTeachRouteWithChildren
   AppAnnouncementsAnnouncementIdRoute: typeof AppAnnouncementsAnnouncementIdRoute
   AppAssignmentsAssignmentIdRoute: typeof AppAssignmentsAssignmentIdRoute
+  AppCalendarEventIdRoute: typeof AppCalendarEventIdRoute
   AppClassesClassIdRoute: typeof AppClassesClassIdRoute
   AppFamiliesHouseholdIdRoute: typeof AppFamiliesHouseholdIdRoute
   AppLessonsLessonIdRoute: typeof AppLessonsLessonIdRoute
@@ -1787,6 +1763,7 @@ interface AppRouteChildren {
   AppStudentsStudentIdRoute: typeof AppStudentsStudentIdRoute
   AppYearsYearIdRoute: typeof AppYearsYearIdRoute
   AppAnnouncementsIndexRoute: typeof AppAnnouncementsIndexRoute
+  AppCalendarIndexRoute: typeof AppCalendarIndexRoute
   AppNewslettersIndexRoute: typeof AppNewslettersIndexRoute
 }
 
@@ -1802,6 +1779,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppTeachRoute: AppTeachRouteWithChildren,
   AppAnnouncementsAnnouncementIdRoute: AppAnnouncementsAnnouncementIdRoute,
   AppAssignmentsAssignmentIdRoute: AppAssignmentsAssignmentIdRoute,
+  AppCalendarEventIdRoute: AppCalendarEventIdRoute,
   AppClassesClassIdRoute: AppClassesClassIdRoute,
   AppFamiliesHouseholdIdRoute: AppFamiliesHouseholdIdRoute,
   AppLessonsLessonIdRoute: AppLessonsLessonIdRoute,
@@ -1812,6 +1790,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppStudentsStudentIdRoute: AppStudentsStudentIdRoute,
   AppYearsYearIdRoute: AppYearsYearIdRoute,
   AppAnnouncementsIndexRoute: AppAnnouncementsIndexRoute,
+  AppCalendarIndexRoute: AppCalendarIndexRoute,
   AppNewslettersIndexRoute: AppNewslettersIndexRoute,
 }
 

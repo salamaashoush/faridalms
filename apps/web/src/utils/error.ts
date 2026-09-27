@@ -365,8 +365,10 @@ export function getMessageFromError(error: unknown): string {
         return m.gradingScoreExceedsMax();
       case "assignment.due_in_past":
         return m.assignmentDueInPast();
-      case "calendar.revision_conflict":
-        return m.calendarRevisionConflict();
+      case "calendar.ends_before":
+        return m.calEndsBefore();
+      case "calendar.times_needed":
+        return m.calTimesNeeded();
     }
     if (error.message.startsWith("validation."))
       return validationMessage({ message: error.message });

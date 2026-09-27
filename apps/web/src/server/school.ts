@@ -1,9 +1,5 @@
 import { managementOptionsSchema } from "@faridalms/domain/administration-schema";
-import {
-  calendarEventSchema,
-  calendarQuerySchema,
-  studentScopedQuerySchema,
-} from "@faridalms/domain/school-schema";
+import { studentScopedQuerySchema } from "@faridalms/domain/school-schema";
 import { createServerFn } from "@tanstack/react-start";
 import * as v from "valibot";
 
@@ -32,14 +28,6 @@ export const getTeachingOverview = createServerFn({ method: "GET" }).handler(
 export const getAdminOverview = createServerFn({ method: "GET" }).handler(() =>
   backend().getAdminOverview(),
 );
-
-export const getCalendar = createServerFn({ method: "GET" })
-  .validator((input: unknown) => v.parse(calendarQuerySchema, input))
-  .handler(({ data }) => backend().getCalendar(data));
-
-export const saveCalendarEvent = createServerFn({ method: "POST" })
-  .validator((input: unknown) => v.parse(calendarEventSchema, input))
-  .handler(({ data }) => backend().saveCalendarEvent(data));
 
 export const getManagementOptions = createServerFn({ method: "GET" })
   .validator((input: unknown) => v.parse(managementOptionsSchema, input))

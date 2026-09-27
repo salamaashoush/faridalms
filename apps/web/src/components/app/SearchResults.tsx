@@ -36,15 +36,6 @@ const MESSAGES: Record<
   parent: "/family/messages",
   student: "/me/messages",
 };
-const CALENDAR: Record<
-  Role,
-  "/admin/calendar" | "/teach/calendar" | "/family/calendar" | "/me/calendar"
-> = {
-  admin: "/admin/calendar",
-  teacher: "/teach/calendar",
-  parent: "/family/calendar",
-  student: "/me/calendar",
-};
 
 const ROW_CLASS =
   "flex flex-col gap-1 rounded-lg px-3 py-2.5 text-sm hover:bg-muted focus-visible:outline-2 focus-visible:outline-ring";
@@ -150,8 +141,8 @@ export function HitLink({
     case "events":
       return (
         <Link
-          to={CALENDAR[role]}
-          search={{ event: hit.id, date: hit.when ?? "" }}
+          to="/calendar/$eventId"
+          params={{ eventId: hit.id }}
           {...shared}
         />
       );
