@@ -2,6 +2,13 @@ import * as v from "valibot";
 
 import { contentDocumentSchema } from "./content";
 
+export const ANNOUNCEMENT_STATES = [
+  "draft",
+  "scheduled",
+  "published",
+  "archived",
+] as const;
+export type AnnouncementState = (typeof ANNOUNCEMENT_STATES)[number];
 export const URGENCIES = ["normal", "important", "urgent"] as const;
 export type Urgency = (typeof URGENCIES)[number];
 export const AUDIENCE_SCOPES = [

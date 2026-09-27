@@ -4332,5 +4332,21 @@
   "editorMergeCells": "ادمج الخلايا",
   "editorSplitCell": "افصل الخلية",
   "editorStripesOn": "لوّن الصفوف بالتناوب",
-  "editorStripesOff": "صفوف بلا تلوين"
+  "editorStripesOff": "صفوف بلا تلوين",
+  "docPreview": "معاينة",
+  "docTitle": "العنوان",
+  "annBodyNeeded": "اكتب الرسالة.",
+  "annIncomplete": "أكمل ما يلي قبل الإرسال:",
+  "annUntitled": "إعلان بلا عنوان",
+  "annArchiveTitle": "أرشفة {title}؟",
+  "annArchiveBody": "يختفي من كل الصفحات. يبقى سجله ومن قرأه.",
+  "annSendAtHint": "اتركه فارغًا ليُرسل عند اختيار إرسال.",
+  "annUpdateTitle": "تحديث الإعلان",
+  "annUpdateBody": "وصل الإعلان إلى الناس بالفعل. أتخبرهم بالتغيير أم تحفظه بهدوء؟",
+  "annStateDraft": "مسودة",
+  "annStateScheduled": "مجدول",
+  "annStatePublished": "مُرسل",
+  "annStateArchived": "مؤرشف",
+  "docDetails": "التفاصيل",
+  "annAudienceNumber": "الجمهور {number}"
 }

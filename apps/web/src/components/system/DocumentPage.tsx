@@ -281,3 +281,30 @@ export function DetailsPanel({
     </section>
   );
 }
+
+/** One group of settings inside the details panel, ruled off from the one above. */
+export function DetailsSection({
+  title,
+  hint,
+  children,
+}: {
+  title: string;
+  hint?: string;
+  children: ReactNode;
+}) {
+  return (
+    <section className="grid gap-4 border-t pt-5 first-of-type:border-t-0 first-of-type:pt-0">
+      <div className="grid gap-1">
+        <h3 className="text-xs leading-4 font-semibold tracking-wide text-muted-foreground uppercase">
+          {title}
+        </h3>
+        {hint ? (
+          <p className="text-[13px] leading-[18px] text-muted-foreground">
+            {hint}
+          </p>
+        ) : null}
+      </div>
+      {children}
+    </section>
+  );
+}

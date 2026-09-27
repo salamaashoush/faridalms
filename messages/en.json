@@ -4176,5 +4176,21 @@
   "editorMergeCells": "Merge cells",
   "editorSplitCell": "Split cell",
   "editorStripesOn": "Stripe rows",
-  "editorStripesOff": "Plain rows"
+  "editorStripesOff": "Plain rows",
+  "docPreview": "Preview",
+  "docTitle": "Title",
+  "annBodyNeeded": "Write the message.",
+  "annIncomplete": "Finish these before sending:",
+  "annUntitled": "Untitled announcement",
+  "annArchiveTitle": "Archive {title}?",
+  "annArchiveBody": "It leaves every feed. Its record and who read it are kept.",
+  "annSendAtHint": "Leave empty to send when you choose Send.",
+  "annUpdateTitle": "Update the announcement",
+  "annUpdateBody": "People already have it. Tell them it changed, or save the change quietly?",
+  "annStateDraft": "Draft",
+  "annStateScheduled": "Scheduled",
+  "annStatePublished": "Sent",
+  "annStateArchived": "Archived",
+  "docDetails": "Details",
+  "annAudienceNumber": "Audience {number}"
 }

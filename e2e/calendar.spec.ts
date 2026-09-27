@@ -30,7 +30,7 @@ test("the office adds an event for families, who see it and then see it called o
   await page.getByLabel("Starts on").fill(day);
   await page.getByLabel("Starts at").fill("13:00");
   await page.getByLabel("Ends at").fill("14:00");
-  await page.getByRole("combobox", { name: "To" }).click();
+  await page.getByRole("combobox", { name: "Audience 1" }).click();
   await page.getByRole("option", { name: "Families" }).click();
   await page.getByRole("button", { name: "Publish", exact: true }).click();
   await expect(page).toHaveURL(/\/calendar\/[a-f0-9-]+/);

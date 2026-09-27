@@ -31,16 +31,19 @@ export const Route = createFileRoute("/_app/admin/announcement-editor")({
 function Existing({
   id,
   onClose,
+  onCreated,
 }: {
   id: string;
   onClose: (id?: string) => void;
+  onCreated: (id: string) => void;
 }) {
   const existing = useSuspenseQuery(announcementEditorQuery(id)).data;
   return (
     <AnnouncementEditor
-      key={existing.version}
+      key={existing.id}
       existing={existing}
       onClose={onClose}
+      onCreated={onCreated}
     />
   );
 }
@@ -55,9 +58,12 @@ function EditorPage() {
           params: { announcementId: saved },
         })
       : navigate({ to: "/announcements", search: {} }));
+  // The first autosave gives a new draft its address, so a reload reopens it.
+  const created = (saved: string) =>
+    void navigate({ search: { id: saved }, replace: true });
   return id ? (
-    <Existing id={id} onClose={close} />
+    <Existing id={id} onClose={close} onCreated={created} />
   ) : (
-    <AnnouncementEditor existing={null} onClose={close} />
+    <AnnouncementEditor existing={null} onClose={close} onCreated={created} />
   );
 }

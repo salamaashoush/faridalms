@@ -1,3 +1,4 @@
+import type { AnnouncementState } from "@faridalms/database/tables/announcements";
 import type { AudienceScope, Urgency } from "@faridalms/domain/announcements";
 
 import type { Tone } from "~/components/system/status";
@@ -16,6 +17,20 @@ export const URGENCY_TONE: Record<Urgency, Tone> = {
   normal: "neutral",
   important: "warning",
   urgent: "danger",
+};
+
+export const STATE_LABEL: Record<AnnouncementState, () => string> = {
+  draft: m.annStateDraft,
+  scheduled: m.annStateScheduled,
+  published: m.annStatePublished,
+  archived: m.annStateArchived,
+};
+
+export const STATE_TONE: Record<AnnouncementState, Tone> = {
+  draft: "neutral",
+  scheduled: "info",
+  published: "success",
+  archived: "neutral",
 };
 
 export const SCOPE_LABEL: Record<AudienceScope, () => string> = {

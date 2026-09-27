@@ -56,57 +56,60 @@ export function AudienceList({
   return (
     <div className="grid gap-3">
       {value.map((row, index) => (
-        <div key={index} className="flex flex-wrap items-end gap-2">
-          <SelectField
-            id={`audience-${index}-scope`}
-            label={m.annAudience()}
-            labelHidden={index > 0}
-            width="name"
-            className="w-48"
-            value={row.scope}
-            options={scopes.map((scope) => ({
-              value: scope,
-              label: SCOPE_LABEL[scope](),
-            }))}
-            onChange={(scope: AudienceScope) =>
-              setAt(index, { scope, classId: "", gradeId: "" })
-            }
-          />
-          {row.scope === "class" ? (
+        <div
+          key={index}
+          className={
+            value.length > 1
+              ? "grid grid-cols-[minmax(0,1fr)_auto] items-start gap-2"
+              : "grid"
+          }
+        >
+          <div className="grid gap-2">
             <SelectField
-              id={`audience-${index}-class`}
-              label={m.annClass()}
-              labelHidden={index > 0}
-              width="name"
-              className="w-48"
-              value={row.classId}
-              options={[
-                { value: "", label: m.annPickClass() },
-                ...choices.classes.map((item) => ({
-                  value: item.id,
-                  label: classTitle(item),
-                })),
-              ]}
-              onChange={(classId) => setAt(index, { ...row, classId })}
+              id={`audience-${index}-scope`}
+              label={m.annAudienceNumber({ number: index + 1 })}
+              labelHidden
+              value={row.scope}
+              options={scopes.map((scope) => ({
+                value: scope,
+                label: SCOPE_LABEL[scope](),
+              }))}
+              onChange={(scope: AudienceScope) =>
+                setAt(index, { scope, classId: "", gradeId: "" })
+              }
             />
-          ) : row.scope === "grade" ? (
-            <SelectField
-              id={`audience-${index}-grade`}
-              label={m.annGrade()}
-              labelHidden={index > 0}
-              width="name"
-              className="w-48"
-              value={row.gradeId}
-              options={[
-                { value: "", label: m.annPickGrade() },
-                ...choices.grades.map((item) => ({
-                  value: item.id,
-                  label: inLocale(item.labelEn, item.labelAr),
-                })),
-              ]}
-              onChange={(gradeId) => setAt(index, { ...row, gradeId })}
-            />
-          ) : null}
+            {row.scope === "class" ? (
+              <SelectField
+                id={`audience-${index}-class`}
+                label={m.annClass()}
+                labelHidden
+                value={row.classId}
+                options={[
+                  { value: "", label: m.annPickClass() },
+                  ...choices.classes.map((item) => ({
+                    value: item.id,
+                    label: classTitle(item),
+                  })),
+                ]}
+                onChange={(classId) => setAt(index, { ...row, classId })}
+              />
+            ) : row.scope === "grade" ? (
+              <SelectField
+                id={`audience-${index}-grade`}
+                label={m.annGrade()}
+                labelHidden
+                value={row.gradeId}
+                options={[
+                  { value: "", label: m.annPickGrade() },
+                  ...choices.grades.map((item) => ({
+                    value: item.id,
+                    label: inLocale(item.labelEn, item.labelAr),
+                  })),
+                ]}
+                onChange={(gradeId) => setAt(index, { ...row, gradeId })}
+              />
+            ) : null}
+          </div>
           {value.length > 1 ? (
             <Button
               type="button"
@@ -130,8 +133,9 @@ export function AudienceList({
         <div>
           <Button
             type="button"
-            variant="outline"
-            className="max-md:h-10"
+            variant="ghost"
+            size="sm"
+            className="-ms-2 max-md:h-10"
             onClick={() =>
               onChange([...value, { scope: "class", classId: "", gradeId: "" }])
             }
