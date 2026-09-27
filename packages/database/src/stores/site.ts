@@ -5,6 +5,7 @@ import { sql } from "drizzle-orm";
 import type { CellTransaction } from "../context";
 import type {
   BannerTone,
+  EnquiryPurpose,
   SiteLocale,
   SiteState,
   SocialLink,
@@ -1034,4 +1035,133 @@ export async function publicCategories(
     nameEn: row.name_en,
     nameAr: row.name_ar,
   }));
+}
+
+export interface NewEnquiry {
+  tenantId: string;
+  orgId: string;
+  pageId: string | null;
+  sectionId: string | null;
+  locale: SiteLocale;
+  purpose: EnquiryPurpose;
+  name: string;
+  email: string;
+  phone: string;
+  childYear: string;
+  message: string;
+  networkKey: string;
+}
+
+/**
+ * How many enquiries arrived in the last hour, from one network and for the
+ * whole school, read as the site role, which sees no more than that.
+ */
+export async function recentEnquiries(
+  tx: Tx,
+  input: { orgId: string; networkKey: string },
+): Promise<{ fromNetwork: number; forSchool: number }> {
+  const [row] = await tx.execute<{
+    from_network: number;
+    for_school: number;
+  }>(sql`
+    select count(*) filter (where network_key = ${input.networkKey} and network_key <> '')::int as from_network,
+      count(*)::int as for_school
+    from core.site_enquiries
+    where org_id = ${input.orgId}::uuid and status = 'active'
+      and created_at > statement_timestamp() - interval '1 hour'`);
+  return {
+    fromNetwork: row?.from_network ?? 0,
+    forSchool: row?.for_school ?? 0,
+  };
+}
+
+/** Records an enquiry. The site role may add it but not read it back. */
+export async function insertEnquiry(tx: Tx, input: NewEnquiry): Promise<void> {
+  await tx.execute(sql`
+    insert into core.site_enquiries (tenant_id, org_id, page_id, section_id, locale, purpose,
+      name, email, phone, child_year, message, network_key)
+    values (${input.tenantId}::uuid, ${input.orgId}::uuid, ${input.pageId}::uuid,
+      ${input.sectionId}::uuid, ${input.locale}, ${input.purpose}, ${input.name}, ${input.email},
+      ${input.phone}, ${input.childYear}, ${input.message}, ${input.networkKey})`);
+}
+
+export interface EnquiryRow {
+  id: string;
+  version: number;
+  purpose: EnquiryPurpose;
+  locale: SiteLocale;
+  name: string;
+  email: string;
+  phone: string;
+  childYear: string;
+  message: string;
+  pageTitle: string;
+  createdAt: string;
+  handledAt: string | null;
+}
+
+/** A school's enquiries, the newest first; open ones only unless asked. */
+export async function siteEnquiries(
+  tx: Tx,
+  input: { tenantId: string; orgId: string; handled: boolean; limit: number },
+): Promise<EnquiryRow[]> {
+  const rows = await tx.execute<{
+    id: string;
+    version: number;
+    purpose: EnquiryPurpose;
+    locale: SiteLocale;
+    name: string;
+    email: string;
+    phone: string;
+    child_year: string;
+    message: string;
+    page_title: string | null;
+    created_at: string;
+    handled_at: string | null;
+  }>(sql`
+    select e.id, e.version, e.purpose, e.locale, e.name, e.email, e.phone, e.child_year, e.message,
+      coalesce(nullif(p.title_en, ''), p.title_ar) as page_title,
+      ${isoOf(sql`e.created_at`)} as created_at,
+      case when e.handled_at is null then null else ${isoOf(sql`e.handled_at`)} end as handled_at
+    from core.site_enquiries e
+    left join core.site_pages p on p.tenant_id = e.tenant_id and p.id = e.page_id
+    where e.tenant_id = ${input.tenantId}::uuid and e.org_id = ${input.orgId}::uuid
+      and e.status = 'active' and (e.handled_at is not null) = ${input.handled}
+    order by e.created_at desc, e.id
+    limit ${input.limit}`);
+  return rows.map((row) => ({
+    id: row.id,
+    version: row.version,
+    purpose: row.purpose,
+    locale: row.locale,
+    name: row.name,
+    email: row.email,
+    phone: row.phone,
+    childYear: row.child_year,
+    message: row.message,
+    pageTitle: row.page_title ?? "",
+    createdAt: row.created_at,
+    handledAt: row.handled_at,
+  }));
+}
+
+/** Marks an enquiry dealt with, or open again; null when it changed meanwhile. */
+export async function setEnquiryHandled(
+  tx: Tx,
+  input: {
+    tenantId: string;
+    orgId: string;
+    id: string;
+    expectedVersion: number;
+    handledBy: string | null;
+  },
+): Promise<number | null> {
+  const [row] = await tx.execute<{ version: number }>(sql`
+    update core.site_enquiries
+    set handled_by = ${input.handledBy}::uuid,
+      handled_at = case when ${input.handledBy}::uuid is null then null else statement_timestamp() end
+    where tenant_id = ${input.tenantId}::uuid and org_id = ${input.orgId}::uuid and id = ${input.id}::uuid
+      and version = ${input.expectedVersion} and status = 'active'
+    returning version`);
+  return row?.version ?? null;
 }

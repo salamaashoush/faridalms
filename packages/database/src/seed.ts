@@ -37,6 +37,7 @@ import { addNewsletterRecipients } from "./stores/newsletters";
 import { insertDeliveries, insertNotifications } from "./stores/notifications";
 import { setOrgFeature } from "./stores/school";
 import {
+  insertEnquiry,
   insertPage,
   insertPost,
   saveCategory,
@@ -2627,4 +2628,37 @@ async function seedSite(tx: Tx, tenantId: string, schoolId: string) {
       });
     }
   }
+  const [admissions] = await tx.execute<{ id: string }>(sql`
+    select id from core.site_pages
+    where tenant_id = ${tenantId}::uuid and org_id = ${schoolId}::uuid and slug = 'admissions'
+      and status = 'active'`);
+  for (const enquiry of [
+    {
+      name: "Salama Ashoush",
+      email: "salama.family@example.com",
+      phone: "+971 50 000 0001",
+      childYear: "Grade 2",
+      message:
+        "We are moving to the city in January. Is there a place in grade 2?",
+      purpose: "enquiry" as const,
+      locale: "en" as const,
+    },
+    {
+      name: "سلامة عشوش",
+      email: "family.ar@example.com",
+      phone: "",
+      childYear: "الروضة الأولى",
+      message: "نرغب في زيارة المدرسة صباح يوم الخميس.",
+      purpose: "visit" as const,
+      locale: "ar" as const,
+    },
+  ])
+    await insertEnquiry(tx, {
+      tenantId,
+      orgId: schoolId,
+      pageId: admissions?.id ?? null,
+      sectionId: null,
+      networkKey: "",
+      ...enquiry,
+    });
 }

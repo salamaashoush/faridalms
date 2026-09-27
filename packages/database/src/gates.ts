@@ -28,7 +28,8 @@ unversioned_update_allowed(name, role) as (values
   ('core.tenant_keys', 'retention'), ('core.document_versions', 'retention')),
 column_granted(name, role) as (values
   ('core.tenants', 'app'), ('core.orgs', 'app'), ('core.descriptors', 'app'), ('core.files', 'app'),
-  ('core.accounts', 'app'), ('core.passkeys', 'app'), ('core.access_roles', 'app')),
+  ('core.accounts', 'app'), ('core.passkeys', 'app'), ('core.access_roles', 'app'),
+  ('core.site_enquiries', 'site')),
 purpose_gated(name, policy, purpose) as (values
   ('health.records', 'purpose_gate', 'health'), ('core.demographics', 'purpose_gate', 'demographics'),
   ('core.relationship_restrictions', 'purpose_gate', 'custody'), ('core.files', 'files_purpose_gate', null)),

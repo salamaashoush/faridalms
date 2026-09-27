@@ -420,3 +420,75 @@ export const sitePublishedPosts = core.table.withRLS(
     siteRead(visible),
   ],
 );
+
+export type EnquiryPurpose = "enquiry" | "visit" | "general";
+
+/**
+ * A message a visitor sent from a form on the public website. The site role
+ * may only add rows; it reads nothing back but the network key and time it
+ * needs to slow down a flood from one place.
+ */
+export const siteEnquiries = core.table.withRLS(
+  "site_enquiries",
+  {
+    ...tenantColumns(),
+    orgId: uuid("org_id").notNull(),
+    pageId: uuid("page_id"),
+    sectionId: uuid("section_id"),
+    locale: text("locale").$type<SiteLocale>().notNull(),
+    purpose: text("purpose").$type<EnquiryPurpose>().notNull(),
+    name: text("name").notNull(),
+    email: text("email").notNull(),
+    phone: text("phone").notNull().default(""),
+    childYear: text("child_year").notNull().default(""),
+    message: text("message").notNull().default(""),
+    networkKey: text("network_key").notNull().default(""),
+    handledAt: instant("handled_at"),
+    handledBy: uuid("handled_by"),
+    ...entityColumns(),
+  },
+  (t): PgTableExtraConfigValue[] => [
+    pk("site_enquiries", t.tenantId, t.id),
+    ...baseConstraints("site_enquiries", t, tenants),
+    fk("site_enquiries", [t.tenantId, t.orgId], [orgs.tenantId, orgs.id]),
+    fk("site_enquiries", [t.tenantId, t.handledBy], [users.tenantId, users.id]),
+    ck("site_enquiries", "locale", sql`locale in ('en', 'ar')`),
+    ck(
+      "site_enquiries",
+      "purpose",
+      sql`purpose in ('enquiry', 'visit', 'general')`,
+    ),
+    ck("site_enquiries", "name", sql`char_length(name) between 1 and 120`),
+    ck(
+      "site_enquiries",
+      "email",
+      sql`char_length(email) between 3 and 254 and email like '%_@_%'`,
+    ),
+    ck("site_enquiries", "phone", sql`char_length(phone) <= 40`),
+    ck("site_enquiries", "child_year", sql`char_length(child_year) <= 60`),
+    ck("site_enquiries", "message", sql`char_length(message) <= 2000`),
+    ck("site_enquiries", "network_key", sql`char_length(network_key) <= 128`),
+    ck(
+      "site_enquiries",
+      "handled",
+      sql`(handled_at is null) = (handled_by is null)`,
+    ),
+    index("site_enquiries_org_idx")
+      .on(t.tenantId, t.orgId, t.createdAt)
+      .where(sql`status = 'active'`),
+    index("site_enquiries_network_idx")
+      .on(t.tenantId, t.networkKey, t.createdAt)
+      .where(sql`status = 'active'`),
+    ...entityProfile(),
+    pgPolicy("p_site_insert", {
+      for: "insert",
+      to: roles.site,
+      withCheck: sql`status = 'active' and handled_at is null`,
+    }),
+    pgPolicy("p_site_select", {
+      for: "select",
+      to: roles.site,
+      using: sql`status = 'active' and created_at > statement_timestamp() - interval '1 day'`,
+    }),
+  ],
+);
