@@ -119,7 +119,12 @@ async function checkAudiences(
 /** Tells an event's audience it is new, changed or called off. */
 async function tell(
   context: UnitContext,
-  row: { id: string; title: string; startsOn: string },
+  row: {
+    id: string;
+    titleEn: string | null;
+    titleAr: string | null;
+    startsOn: string;
+  },
   change: { updated?: boolean; cancelled?: boolean },
 ) {
   const audiences = await audiencesOf(context.tx, context.tenantId, {
@@ -138,7 +143,12 @@ async function tell(
   return notify(context, people, {
     kind: "event",
     subject: { type: "calendar_event", id: row.id },
-    params: { title: row.title, date: row.startsOn, ...change },
+    params: {
+      title: row.titleEn ?? row.titleAr ?? "",
+      titleAr: row.titleAr ?? undefined,
+      date: row.startsOn,
+      ...change,
+    },
     collapse: !change.cancelled,
   });
 }
@@ -289,7 +299,9 @@ export const save = writeProcedure
     requireCapability(context, "calendar:manage", "calendar:author");
     await checkAudiences(context, input.audiences);
     const fields = {
-      title: input.title,
+      titleEn: input.titleEn || null,
+      titleAr: input.titleAr || null,
+      public: manages(context) && input.public,
       category: input.category,
       startsOn: input.startsOn,
       endsOn: input.endsOn,
@@ -341,14 +353,23 @@ export const save = writeProcedure
     if (told)
       await tell(
         context,
-        { id: eventId, title: input.title, startsOn: input.startsOn },
+        {
+          id: eventId,
+          titleEn: fields.titleEn,
+          titleAr: fields.titleAr,
+          startsOn: input.startsOn,
+        },
         { updated: true },
       );
     await audit(context, {
       action: input.id ? "calendar_event.update" : "calendar_event.create",
       objectType: "calendar_event",
       objectId: eventId,
-      details: { title: input.title, startsOn: input.startsOn, told },
+      details: {
+        title: fields.titleEn ?? fields.titleAr,
+        startsOn: input.startsOn,
+        told,
+      },
     });
     return { id: eventId, version };
   });
@@ -437,7 +458,7 @@ export const remove = writeProcedure
       action: "calendar_event.delete",
       objectType: "calendar_event",
       objectId: row.id,
-      details: { title: row.title },
+      details: { title: row.titleEn ?? row.titleAr },
     });
     return { removed: true };
   });

@@ -424,3 +424,88 @@ describe("website enquiries", () => {
     ).toMatchObject({ message: "conflict.version" });
   });
 });
+
+function listing(): PageSection {
+  const blank = newSection("events");
+  return {
+    ...blank,
+    id: "0192f0a4-7a1c-7b5a-9a2e-2e6f1f2a3c01",
+    data: { ...blank.data, heading: "Coming up", source: "calendar", count: 6 },
+  };
+}
+
+describe("events on the website", () => {
+  test("an events section lists the calendar's public published events in the visitor's language", async () => {
+    const { api } = await principal();
+    const { pages, events } = await api.site.overview();
+    expect(events.some((row) => row.titleEn === "Staff meeting")).toBe(false);
+    const contact = pages.find((row) => row.slug === "contact");
+    if (!contact) throw new Error("the seed has no contact page");
+    const opened = await api.site.page({ id: contact.id });
+    const saved = await api.site.savePage({
+      id: contact.id,
+      expectedVersion: opened.version,
+      parentId: "",
+      slug: "contact",
+      titleEn: opened.titleEn,
+      titleAr: opened.titleAr,
+      inMenu: true,
+      content: {
+        ...opened.content,
+        sections: [...opened.content.sections, listing()],
+      },
+      translation: {
+        sections: [
+          ...(opened.translation?.sections ?? []),
+          { ...listing(), data: { ...listing().data, heading: "قريبًا" } },
+        ],
+        description: "",
+        reviewed: [],
+      },
+    });
+    await api.site.publishPage({
+      id: contact.id,
+      expectedVersion: saved.version,
+    });
+
+    const draft = await api.calendar.save({
+      id: "",
+      expectedVersion: 0,
+      titleEn: "Open morning",
+      titleAr: "صباح مفتوح",
+      category: "general",
+      startsOn: "2027-01-12",
+      endsOn: "2027-01-12",
+      allDay: true,
+      startTime: "",
+      endTime: "",
+      location: "Main hall",
+      provisional: false,
+      audiences: [{ scope: "school", classId: "", gradeId: "" }],
+      description: plainContent(""),
+      public: true,
+    });
+    const read = () =>
+      visitor().publicSitePage({
+        school: "northwind",
+        locale: "ar",
+        slug: "contact",
+      });
+    const before = await read();
+    expect(before.events.map((row) => row.titleAr)).toContain(
+      "مباراة كرة القدم مع مدرسة النيل",
+    );
+    expect(before.events.some((row) => row.id === draft.id)).toBe(false);
+
+    await api.calendar.publish({
+      id: draft.id,
+      expectedVersion: draft.version,
+      notify: false,
+    });
+    const after = await read();
+    expect(after.events.find((row) => row.id === draft.id)).toMatchObject({
+      titleAr: "صباح مفتوح",
+      location: "Main hall",
+    });
+  });
+});

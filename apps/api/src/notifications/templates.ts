@@ -64,6 +64,7 @@ function paramsOf(locale: "en" | "ar", value: NoticeParams): NoticeParams {
     (locale === "ar" ? ar || en : en || ar) || undefined;
   return {
     ...value,
+    title: pick(value.title, value.titleAr),
     actorName: pick(value.actorName, value.actorNameAr),
     studentName: pick(value.studentName, value.studentNameAr),
     className: pick(value.className, value.classNameAr),

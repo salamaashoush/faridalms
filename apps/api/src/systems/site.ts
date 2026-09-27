@@ -16,6 +16,7 @@ import {
   translationOf,
   versionsOf,
 } from "@faridalms/database/stores/documents";
+import { publicEvents } from "@faridalms/database/stores/events";
 import {
   insertEnquiry,
   insertPage,
@@ -36,6 +37,7 @@ import {
   removePage,
   saveCategory,
   saveSiteSettings,
+  schoolToday,
   setEnquiryHandled,
   setPageState,
   setPostState,
@@ -274,6 +276,8 @@ const shownState = (
     : (row.state as "draft" | "published" | "archived");
 
 const PREVIEW_POSTS = 6;
+/** The most events an events section lists. */
+const MAX_EVENTS = 12;
 
 /**
  * Everything the website screen lists: settings, the page tree and the
@@ -290,7 +294,7 @@ export const overview = readProcedure.handler(async ({ context }) => {
       limit: PREVIEW_POSTS,
       offset: 0,
     });
-  const [settings, pages, categories, school, newsEn, newsAr] =
+  const [settings, pages, categories, school, newsEn, newsAr, events] =
     await Promise.all([
       settingsFor(context),
       sitePages(context.tx, context.tenantId, context.schoolId),
@@ -298,6 +302,11 @@ export const overview = readProcedure.handler(async ({ context }) => {
       publicSchool(context.tx, context.schoolId),
       latest("en"),
       latest("ar"),
+      publicEvents(context.tx, {
+        orgId: context.schoolId,
+        from: context.today,
+        limit: MAX_EVENTS,
+      }),
     ]);
   const logo = settings.id
     ? await publicationsOf(context.tx, {
@@ -327,6 +336,7 @@ export const overview = readProcedure.handler(async ({ context }) => {
       logo.find((row) => row.fileId === settings.chrome.logoFileId)
         ?.publicKey ?? null,
     news: { en: newsEn.rows, ar: newsAr.rows },
+    events,
   };
 });
 
@@ -1415,6 +1425,22 @@ export const publicSitePage = publicProcedure
               })
             ).rows
           : [];
+        const coming = Math.max(
+          0,
+          ...sections.flatMap((item) =>
+            item.section.type === "events" &&
+            item.section.data.source === "calendar"
+              ? [item.section.data.count]
+              : [],
+          ),
+        );
+        const events = coming
+          ? await publicEvents(tx, {
+              orgId: schoolId,
+              from: await schoolToday(tx, schoolId),
+              limit: coming,
+            })
+          : [];
         return {
           locale,
           title: row.title,
@@ -1426,6 +1452,7 @@ export const publicSitePage = publicProcedure
               : "",
           media: row.media,
           news,
+          events,
         };
       },
     ),
