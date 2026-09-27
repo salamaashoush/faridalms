@@ -34,6 +34,7 @@ import { DiagramPlugin } from "./plugins/diagram";
 import { DirectionPlugin } from "./plugins/Direction";
 import { EmbedPlugin } from "./plugins/embed";
 import { MediaPlugin } from "./plugins/media";
+import { PastePlugin } from "./plugins/paste";
 import { PlaceholderPlugin } from "./plugins/Placeholder";
 import { SelectionToolbarPlugin } from "./plugins/SelectionToolbar";
 import { SlashMenuPlugin } from "./plugins/SlashMenu";
@@ -223,6 +224,7 @@ function Surface({
       <SelectionToolbarPlugin />
       <MediaPlugin onStatus={setUpload} />
       <EmbedPlugin />
+      <PastePlugin />
       <DiagramPlugin />
       {!document || upload !== "idle" ? (
         <div className={editorFrame.footer(document)}>

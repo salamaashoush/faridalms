@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { embedPage, embedSource, parseEmbedUrl } from "./embed";
+import {
+  embedPage,
+  embedSource,
+  isEmbedCode,
+  parseEmbedInput,
+  parseEmbedUrl,
+} from "./embed";
 
 describe("embeddable links", () => {
   it("recognises the providers teachers paste most", () => {
@@ -58,6 +64,23 @@ describe("embeddable links", () => {
       "not a link",
     ])
       expect(parseEmbedUrl(link)).toBeNull();
+  });
+
+  it("reads embed code through its source address", () => {
+    const code =
+      '<iframe width="560" height="315" src="https://www.youtube.com/embed/RUSCz41aDug?si=OuILiNmyH6QtjUfj" title="YouTube video player" frameborder="0" allowfullscreen></iframe>';
+    expect(isEmbedCode(code)).toBe(true);
+    expect(parseEmbedInput(code)).toEqual({
+      provider: "youtube",
+      embedId: "RUSCz41aDug",
+    });
+    expect(
+      parseEmbedInput("https://www.youtube.com/embed/RUSCz41aDug?si=abc"),
+    ).toEqual({ provider: "youtube", embedId: "RUSCz41aDug" });
+    expect(
+      parseEmbedInput('<iframe src="https://evil.example/embed/x"></iframe>'),
+    ).toBeNull();
+    expect(isEmbedCode("see <iframe> for details")).toBe(false);
   });
 
   it("builds privacy-preserving player addresses", () => {

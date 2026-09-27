@@ -68,7 +68,7 @@ import {
   $isMediaNode,
   EDIT_DIAGRAM_COMMAND,
 } from "../nodes/rich";
-import { updateFromOutside } from "../outside";
+import { focusText, textFocus, updateFromOutside } from "../outside";
 import { editorColors } from "../strings";
 import {
   Floating,
@@ -398,7 +398,10 @@ export function SelectionToolbarPlugin() {
             </Menu.Trigger>
             <Menu.Portal>
               <Menu.Positioner className="z-50" sideOffset={6} align="start">
-                <Menu.Popup className={menuPopupClass} finalFocus={false}>
+                <Menu.Popup
+                  className={menuPopupClass}
+                  finalFocus={textFocus(editor)}
+                >
                   {imageSizes.map((value) => (
                     <Menu.Item
                       key={value}
@@ -464,7 +467,7 @@ export function SelectionToolbarPlugin() {
               if (event.key === "Escape") {
                 event.preventDefault();
                 show("hidden");
-                editor.focus();
+                focusText(editor);
               }
             }}
             className="h-8 min-w-0 flex-1 rounded-md border bg-background px-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/30 aria-invalid:border-destructive"
@@ -591,7 +594,7 @@ export function SelectionToolbarPlugin() {
             <Menu.Positioner className="z-50" sideOffset={6} align="start">
               <Menu.Popup
                 className={cx(menuPopupClass, "max-h-80 overflow-y-auto")}
-                finalFocus={false}
+                finalFocus={textFocus(editor)}
               >
                 {convertible.map((block) => (
                   <Menu.Item
@@ -662,6 +665,7 @@ function ColorMenu({
     value: string | null,
   ) => void;
 }) {
+  const [editor] = useLexicalComposerContext();
   const { strings } = useEditorEnvironment();
   const swatch = (color: EditorColor, background: boolean) => (
     <Menu.Item
@@ -711,7 +715,7 @@ function ColorMenu({
         <Menu.Positioner className="z-50" sideOffset={6} align="start">
           <Menu.Popup
             className={cx(menuPopupClass, "max-h-96 w-56 overflow-y-auto")}
-            finalFocus={false}
+            finalFocus={textFocus(editor)}
           >
             <Menu.Group>
               <Menu.GroupLabel className="px-2 pt-1.5 pb-1 text-xs font-medium text-muted-foreground">

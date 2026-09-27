@@ -2,7 +2,7 @@ import type { Embed } from "@faridalms/domain/embed";
 import type { ReferenceElement } from "@floating-ui/dom";
 import type { NodeKey } from "lexical";
 
-import { parseEmbedUrl } from "@faridalms/domain/embed";
+import { parseEmbedInput } from "@faridalms/domain/embed";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
 import { mergeRegister } from "@lexical/utils";
 import {
@@ -10,9 +10,7 @@ import {
   $getNodeByKey,
   $getRoot,
   $isParagraphNode,
-  COMMAND_PRIORITY_HIGH,
   COMMAND_PRIORITY_LOW,
-  PASTE_COMMAND,
   createCommand,
 } from "lexical";
 import { useEffect, useRef, useState } from "react";
@@ -20,11 +18,12 @@ import { useEffect, useRef, useState } from "react";
 import { $anchorFor } from "../blocks";
 import { useEditorEnvironment } from "../context";
 import { $createEmbedNode } from "../nodes";
+import { focusText, updateFromOutside } from "../outside";
 import { Floating, selectionReference } from "../ui";
 
 export const OPEN_EMBED_COMMAND = createCommand<void>("FARIDA_OPEN_EMBED");
 
-function $placeEmbed(anchorKey: NodeKey | null, embed: Embed) {
+export function $placeEmbed(anchorKey: NodeKey | null, embed: Embed) {
   const node = $createEmbedNode(embed.provider, embed.embedId);
   const anchor = anchorKey ? $getNodeByKey(anchorKey) : null;
   if (!anchor || !anchor.isAttached()) $getRoot().append(node);
@@ -63,27 +62,6 @@ export function EmbedPlugin() {
           },
           COMMAND_PRIORITY_LOW,
         ),
-        editor.registerCommand(
-          PASTE_COMMAND,
-          (event) => {
-            if (!(event instanceof ClipboardEvent)) return false;
-            const text =
-              event.clipboardData?.getData("text/plain").trim() ?? "";
-            if (!text || /\s/.test(text)) return false;
-            const embed = parseEmbedUrl(text);
-            const block = $anchorFor("embed");
-            if (
-              !embed ||
-              !$isParagraphNode(block) ||
-              block.getTextContentSize() > 0
-            )
-              return false;
-            event.preventDefault();
-            $placeEmbed(block.getKey(), embed);
-            return true;
-          },
-          COMMAND_PRIORITY_HIGH,
-        ),
       ),
     [editor],
   );
@@ -91,7 +69,7 @@ export function EmbedPlugin() {
   if (!reference) return null;
   const close = () => {
     setReference(null);
-    editor.focus();
+    focusText(editor);
   };
   const dismiss = (element: HTMLFormElement | null) => {
     if (!element) return undefined;
@@ -110,22 +88,24 @@ export function EmbedPlugin() {
     >
       <form
         ref={dismiss}
+        data-editor-prompt=""
         className="grid gap-2"
         onSubmit={(event) => {
           event.preventDefault();
-          const embed = parseEmbedUrl(url);
+          const embed = parseEmbedInput(url);
           if (!embed) {
             setInvalid(true);
             return;
           }
-          editor.update(() => $placeEmbed(anchor.current, embed));
-          close();
+          setReference(null);
+          updateFromOutside(editor, () => $placeEmbed(anchor.current, embed));
         }}
       >
         <div className="flex items-center gap-1.5">
           <input
             ref={(element) => element?.focus()}
-            type="url"
+            type="text"
+            inputMode="url"
             dir="ltr"
             aria-label={strings.embedUrl}
             aria-invalid={invalid}

@@ -88,6 +88,23 @@ export function parseEmbedUrl(input: string): Embed | null {
   return null;
 }
 
+const IFRAME_SOURCE = /<iframe\b[^>]*?\bsrc\s*=\s*["']([^"']+)["']/i;
+
+/**
+ * An embed from what a person pastes or types: a link, or the `<iframe>` code
+ * a site hands out under Share then Embed, read through its source address.
+ */
+export function parseEmbedInput(input: string): Embed | null {
+  const code = IFRAME_SOURCE.exec(input);
+  return parseEmbedUrl(code?.[1] ? code[1].replaceAll("&amp;", "&") : input);
+}
+
+/** Whether a pasted text is embed code rather than words about it. */
+export function isEmbedCode(input: string): boolean {
+  const text = input.trim();
+  return /^<iframe\b/i.test(text) && /<\/iframe>$|\/?>$/i.test(text);
+}
+
 const sources: Record<EmbedProvider, (id: string) => string> = {
   youtube: (id) => `https://www.youtube-nocookie.com/embed/${id}?rel=0`,
   vimeo: (id) => `https://player.vimeo.com/video/${id}?dnt=1`,

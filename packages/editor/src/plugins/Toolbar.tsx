@@ -72,7 +72,7 @@ import {
 import { useEditorEnvironment } from "../context";
 import { $activeFormats, OPEN_LINK_EDITOR_COMMAND } from "../formatting";
 import { markdownTransformers } from "../markdown";
-import { updateFromOutside } from "../outside";
+import { textFocus, updateFromOutside } from "../outside";
 import { Tip, ToolButton, cx, menuItemClass, menuPopupClass } from "../ui";
 import { $runBlock } from "./insert";
 
@@ -363,7 +363,7 @@ export function ToolbarPlugin({ disabled }: { disabled: boolean }) {
             <Menu.Positioner className="z-50" sideOffset={6} align="start">
               <Menu.Popup
                 className={cx(menuPopupClass, "max-h-80 overflow-y-auto")}
-                finalFocus={false}
+                finalFocus={textFocus(editor)}
               >
                 {turnInto.map((item) => (
                   <Menu.Item
@@ -500,7 +500,7 @@ export function ToolbarPlugin({ disabled }: { disabled: boolean }) {
             <Menu.Positioner className="z-50" sideOffset={6} align="start">
               <Menu.Popup
                 className={cx(menuPopupClass, "max-h-96 w-64 overflow-y-auto")}
-                finalFocus={false}
+                finalFocus={textFocus(editor)}
               >
                 {insertable.map((item) => (
                   <Menu.Item
@@ -603,7 +603,7 @@ export function ToolbarPlugin({ disabled }: { disabled: boolean }) {
             <Menu.Positioner className="z-50" sideOffset={6} align="end">
               <Menu.Popup
                 className={cx(menuPopupClass, "max-h-96 w-60 overflow-y-auto")}
-                finalFocus={false}
+                finalFocus={textFocus(editor)}
               >
                 {hidden.map((tool, index) => (
                   <div key={tool.key} className="contents">
@@ -714,7 +714,10 @@ function TableTools({
           align={anchor === undefined ? "start" : "end"}
           anchor={anchor}
         >
-          <Popover.Popup className="w-64 rounded-lg border bg-popover p-3 text-popover-foreground shadow-lg outline-none">
+          <Popover.Popup
+            data-editor-prompt=""
+            className="w-64 rounded-lg border bg-popover p-3 text-popover-foreground shadow-lg outline-none"
+          >
             <Popover.Title className="mb-2 text-sm font-semibold">
               {strings.tableTools}
             </Popover.Title>
@@ -878,11 +881,10 @@ function MarkdownDialog({
               type="button"
               className={primaryButton}
               onClick={() => {
-                editor.update(() =>
+                setOpen(false);
+                updateFromOutside(editor, () =>
                   $convertFromMarkdownString(markdown, markdownTransformers),
                 );
-                setOpen(false);
-                editor.focus();
               }}
             >
               {strings.replaceFromMarkdown}

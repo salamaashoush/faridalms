@@ -62,7 +62,7 @@ import type { EditorStrings } from "../strings";
 
 import { useEditorEnvironment } from "../context";
 import { backgroundColors } from "../formatting";
-import { updateFromOutside } from "../outside";
+import { textFocus, updateFromOutside } from "../outside";
 import { editorColors } from "../strings";
 import { cx, menuItemClass, menuPopupClass } from "../ui";
 
@@ -578,6 +578,7 @@ export function TablePlugin({ anchor }: { anchor: HTMLElement | null }) {
             className="z-50"
           >
             <Menu.Popup
+              finalFocus={textFocus(editor)}
               className={cx(menuPopupClass, "max-h-[70vh] overflow-y-auto")}
             >
               {menu ? (

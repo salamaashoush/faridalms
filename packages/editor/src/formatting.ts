@@ -16,6 +16,8 @@ import {
 
 import type { EditorColor } from "./strings";
 
+import { updateFromOutside } from "./outside";
+
 export const OPEN_LINK_EDITOR_COMMAND = createCommand<void>(
   "FARIDA_OPEN_LINK_EDITOR",
 );
@@ -110,7 +112,7 @@ export function applyLink(
   saved: BaseSelection | null,
   url: string | null,
 ) {
-  editor.update(() => {
+  updateFromOutside(editor, () => {
     if (saved) $setSelection(saved.clone());
     const selection = $getSelection();
     if (!$isRangeSelection(selection)) return;
@@ -121,5 +123,4 @@ export function applyLink(
     }
     $toggleLink(url);
   });
-  editor.focus();
 }

@@ -2,6 +2,7 @@ import type { ImageSize } from "@faridalms/domain/content";
 import type { EmbedProvider } from "@faridalms/domain/embed";
 import type { SerializedDecoratorBlockNode } from "@lexical/react/LexicalDecoratorBlockNode";
 import type {
+  DOMConversionMap,
   DOMExportOutput,
   EditorConfig,
   ElementFormatType,
@@ -13,7 +14,11 @@ import type {
 } from "lexical";
 import type { JSX } from "react";
 
-import { embedPage, embedProviderNames } from "@faridalms/domain/embed";
+import {
+  embedPage,
+  embedProviderNames,
+  parseEmbedUrl,
+} from "@faridalms/domain/embed";
 import { BlockWithAlignableContents } from "@lexical/react/LexicalBlockWithAlignableContents";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
 import { DecoratorBlockNode } from "@lexical/react/LexicalDecoratorBlockNode";
@@ -456,6 +461,20 @@ export class EmbedNode extends DecoratorBlockNode {
       node.__format,
       node.__key,
     );
+  }
+
+  static importDOM(): DOMConversionMap | null {
+    return {
+      iframe: () => ({
+        conversion: (element: HTMLElement) => {
+          const embed = parseEmbedUrl(element.getAttribute("src") ?? "");
+          return {
+            node: embed ? new EmbedNode(embed.provider, embed.embedId) : null,
+          };
+        },
+        priority: 1,
+      }),
+    };
   }
 
   static importJSON(json: SerializedEmbedNode): EmbedNode {

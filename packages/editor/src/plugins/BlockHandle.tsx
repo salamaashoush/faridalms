@@ -49,7 +49,7 @@ import {
   $createColumnNode,
   columnCount,
 } from "../nodes";
-import { updateFromOutside } from "../outside";
+import { textFocus, updateFromOutside } from "../outside";
 import { Tip, cx, menuItemClass, menuPopupClass, shortcutLabel } from "../ui";
 
 const DRAG_TYPE = "application/x-farida-block";
@@ -383,7 +383,7 @@ export function BlockHandlePlugin({ anchor }: { anchor: HTMLElement | null }) {
               const key = hovered?.key;
               if (!key) return;
               const above = event.altKey;
-              editor.update(() => {
+              updateFromOutside(editor, () => {
                 const block = $getNodeByKey(key);
                 if (!block) return;
                 const paragraph = $createParagraphNode();
@@ -393,7 +393,6 @@ export function BlockHandlePlugin({ anchor }: { anchor: HTMLElement | null }) {
                 const selection = $getSelection();
                 if ($isRangeSelection(selection)) selection.insertText("/");
               });
-              editor.focus();
             }}
             className="flex size-6 items-center justify-center rounded text-muted-foreground/70 hover:bg-accent hover:text-foreground"
           >
@@ -445,7 +444,10 @@ export function BlockHandlePlugin({ anchor }: { anchor: HTMLElement | null }) {
               sideOffset={6}
               className="z-50"
             >
-              <Menu.Popup className={menuPopupClass} finalFocus={false}>
+              <Menu.Popup
+                className={menuPopupClass}
+                finalFocus={textFocus(editor)}
+              >
                 {facts?.convertible ? (
                   <Menu.SubmenuRoot>
                     <Menu.SubmenuTrigger className={menuItemClass}>
