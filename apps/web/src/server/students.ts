@@ -1,7 +1,9 @@
 import {
+  accountStateSchema,
   endRelationshipSchema,
   guardianLookupSchema,
   saveRelationshipSchema,
+  saveSignInSchema,
   saveStudentSchema,
   studentDirectorySchema,
   studentMatchesSchema,
@@ -10,20 +12,7 @@ import { createServerFn } from "@tanstack/react-start";
 import * as v from "valibot";
 
 import { backend, record } from "./backend";
-
-/**
- * Checks the input here for a fast refusal and forwards it as typed: the API
- * parses it again, and some fields only take their final form there.
- */
-function checked<S extends v.GenericSchema>(schema: S) {
-  return (input: v.InferInput<S>) => {
-    v.parse(schema, input);
-    return input;
-  };
-}
-
-const byId = (input: unknown) =>
-  v.parse(v.object({ id: v.pipe(v.string(), v.uuid()) }), input);
+import { byId, checked } from "./input";
 
 export const getPeopleOptions = createServerFn({ method: "GET" }).handler(() =>
   backend().people.options(),
@@ -46,7 +35,7 @@ export const getStudentMatches = createServerFn({ method: "GET" })
   .handler(({ data }) => backend().people.matches(data));
 
 export const findGuardians = createServerFn({ method: "GET" })
-  .validator((input: unknown) => v.parse(guardianLookupSchema, input))
+  .validator(checked(guardianLookupSchema))
   .handler(({ data }) => backend().people.findGuardians(data));
 
 export const saveStudent = createServerFn({ method: "POST" })
@@ -70,3 +59,11 @@ export const getPersonRecord = createServerFn({ method: "GET" })
 export const getPersonHistory = createServerFn({ method: "GET" })
   .validator(byId)
   .handler(({ data }) => record(backend().people.personHistory(data)));
+
+export const saveSignIn = createServerFn({ method: "POST" })
+  .validator(checked(saveSignInSchema))
+  .handler(({ data }) => backend().people.saveSignIn(data));
+
+export const setSignInState = createServerFn({ method: "POST" })
+  .validator(checked(accountStateSchema))
+  .handler(({ data }) => backend().people.setSignInState(data));

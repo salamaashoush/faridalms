@@ -40,6 +40,10 @@ export function getMessageFromError(error: unknown): string {
     switch (error.message) {
       case "system.moving":
         return m.systemMoving();
+      case "conflict.version":
+        return m.errorConflictVersion();
+      case "contact_point.phone_invalid":
+        return m.errorPhoneInvalid();
       case "content.invalid":
         return m.contentInvalid();
       case "newsletter.revision_conflict":

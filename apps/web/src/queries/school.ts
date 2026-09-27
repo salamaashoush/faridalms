@@ -2,7 +2,6 @@ import type { ManagementOptionsInput } from "@faridalms/domain/administration-sc
 import type {
   RecipientCursor,
   AssignmentsQuery,
-  StaffDirectoryQuery,
   ClassDirectoryQuery,
   AttendanceRegisterQuery,
   CalendarQuery,
@@ -17,7 +16,6 @@ import { queryOptions } from "@tanstack/react-query";
 import {
   getAdminOverview,
   getAllClasses,
-  getAllUsers,
   getAssignmentDetail,
   getAssignments,
   getAttendance,
@@ -161,13 +159,6 @@ export function managementOptionsQuery(query: ManagementOptionsInput) {
   return queryOptions({
     queryKey: ["management-options", query],
     queryFn: () => getManagementOptions({ data: query }),
-  });
-}
-
-export function allUsersQuery(query: StaffDirectoryQuery) {
-  return queryOptions({
-    queryKey: ["users", "all", query],
-    queryFn: () => getAllUsers({ data: query }),
   });
 }
 

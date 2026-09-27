@@ -1,7 +1,5 @@
-import {
-  saveClassSchema,
-  saveUserSchema,
-} from "@faridalms/domain/administration-schema";
+import { saveClassSchema } from "@faridalms/domain/administration-schema";
+import { saveSignInSchema } from "@faridalms/domain/people";
 import * as v from "valibot";
 import { describe, expect, it } from "vitest";
 
@@ -27,17 +25,14 @@ describe("localized form validation", () => {
   });
 
   it("explains password union failures without exposing validator internals", () => {
-    const result = v.safeParse(saveUserSchema, {
-      id: "00000000-0000-4000-8000-000000000001",
-      name: "Salama Ashoush",
-      email: "salama@example.com",
-      role: "teacher",
+    const result = v.safeParse(saveSignInSchema, {
+      userId: "00000000-0000-4000-8000-000000000001",
+      loginName: "salama@example.com",
       password: "short",
-      isActive: true,
     });
     expect(result.success).toBe(false);
     expect(result.issues?.map(validationMessage)).toContain(
-      m.validationMinLength({ count: 12 }),
+      m.validationMinLength({ count: 15 }),
     );
   });
 

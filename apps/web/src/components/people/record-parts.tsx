@@ -64,13 +64,19 @@ export function AccountSection({
   account,
   description,
   none,
+  action,
 }: {
   account: Account | null;
   description: string;
   none: string;
+  action?: ReactNode;
 }) {
   return (
-    <RecordSection title={m.studentSignInAccount()} description={description}>
+    <RecordSection
+      title={m.studentSignInAccount()}
+      description={description}
+      action={action}
+    >
       {account ? (
         <Facts>
           <Fact label={m.accountLoginName()}>

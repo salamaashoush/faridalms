@@ -1,195 +1,319 @@
-import type { Role } from "@faridalms/domain/identity";
-import type { StaffDirectoryQuery } from "@faridalms/domain/school-schema";
+import type { StaffDirectoryQuery } from "@faridalms/domain/people";
 
-import { ROLES } from "@faridalms/domain/identity";
-import { staffDirectorySchema } from "@faridalms/domain/school-schema";
+import {
+  STAFF_ROLE_CHOICES,
+  staffDirectorySchema,
+} from "@faridalms/domain/people";
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { createFileRoute, Link } from "@tanstack/react-router";
-import { Pencil, Plus } from "lucide-react";
-import { useState } from "react";
+import { createFileRoute, stripSearchParams } from "@tanstack/react-router";
+import { Copy, Download, Pencil, Plus, UsersRound } from "lucide-react";
+import { toast } from "sonner";
+import * as v from "valibot";
 
-import type { DataColumn } from "~/components/admin/DataTable";
+import type { Column, RowAction } from "~/components/system/DataTable";
+import type {
+  Facet,
+  HeaderAction,
+  IndexToolbarProps,
+} from "~/components/system/IndexPage";
 
-import { DataTable } from "~/components/admin/DataTable";
-import { formatMoment } from "~/components/admin/format";
-import { ROLE_LABEL } from "~/components/admin/labels";
 import { PersonAvatar } from "~/components/admin/PersonAvatar";
-import { TableFilter } from "~/components/admin/TableFilter";
-import { UserEditor } from "~/components/admin/UserEditor";
-import { PageHeader, Value } from "~/components/app/primitives";
-import { Badge } from "~/components/ui/badge";
-import { Button } from "~/components/ui/button";
+import { ButtonLink } from "~/components/app/ButtonLink";
+import { Value } from "~/components/app/primitives";
+import {
+  displayName,
+  formatPhone,
+  labelOf,
+  otherName,
+  roleLabel,
+} from "~/components/people/format";
+import { DataTable, RowLink } from "~/components/system/DataTable";
+import { PageHeader, isFiltered } from "~/components/system/IndexPage";
+import { StatusText } from "~/components/system/status";
+import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
-import { allUsersQuery } from "~/queries/school";
+import { staffQuery } from "~/queries/staff";
+import { downloadCsv } from "~/utils/csv";
+import { formatDateTime, formatList } from "~/utils/datetime";
 
-interface Account {
-  id: string;
-  name: string;
-  email: string;
-  role: Role;
-  title: string | null;
-  isActive: boolean;
-  lastSignedInAt: Date | null;
-}
-const columns: DataColumn<Account, StaffDirectoryQuery["sort"]>[] = [
-  {
-    id: "name",
-    label: m.adminName,
-    sort: "name",
-    render: (row) => (
-      <div className="flex items-center gap-3">
-        <PersonAvatar name={row.name} />
-        <div>
-          <Link
-            to="/people/$userId"
-            params={{ userId: row.id }}
-            className="font-medium hover:text-primary hover:underline"
-          >
-            {row.name}
-          </Link>
-          <p className="text-xs text-muted-foreground">
-            <Value>{row.title}</Value>
-          </p>
-        </div>
-      </div>
-    ),
-  },
-  {
-    id: "email",
-    label: m.adminEmail,
-    sort: "email",
-    render: (row) => <span className="text-muted-foreground">{row.email}</span>,
-  },
-  {
-    id: "role",
-    label: m.adminRole,
-    sort: "role",
-    render: (row) => (
-      <Badge variant="secondary">{ROLE_LABEL[row.role]()}</Badge>
-    ),
-  },
-  {
-    id: "status",
-    label: m.adminAccountState,
-    sort: "status",
-    render: (row) => (
-      <Badge
-        variant="outline"
-        className={
-          row.isActive
-            ? "border-primary/20 bg-primary/5 text-primary"
-            : "text-muted-foreground"
-        }
-      >
-        {row.isActive ? m.adminActive() : m.adminInactive()}
-      </Badge>
-    ),
-  },
-  {
-    id: "last",
-    label: m.adminLastSignIn,
-    render: (row) => (
-      <span className="text-xs text-muted-foreground">
-        <Value>{formatMoment(row.lastSignedInAt)}</Value>
-      </span>
-    ),
-  },
-];
+type Sort = StaffDirectoryQuery["sort"];
+type Data = Awaited<
+  ReturnType<NonNullable<ReturnType<typeof staffQuery>["queryFn"]>>
+>;
+type StaffRow = Data["rows"][number];
+
+const PAGE_SIZES = [25, 50] as const;
+const DEFAULT_SEARCH = v.parse(staffDirectorySchema, {});
+const FACET_ROLES = [...STAFF_ROLE_CHOICES, "district_administrator"];
+
 export const Route = createFileRoute("/_app/admin/staff")({
   validateSearch: staffDirectorySchema,
+  search: { middlewares: [stripSearchParams(DEFAULT_SEARCH)] },
   loaderDeps: ({ search }) => search,
   loader: ({ context, deps }) =>
-    context.queryClient.ensureQueryData(allUsersQuery(deps)),
-  component: AccountsPage,
+    context.queryClient.ensureQueryData(staffQuery(deps)),
+  component: StaffPage,
 });
-function AccountsPage() {
+
+/** The job title, or the position when it says more than the role does. */
+function titleOf(row: StaffRow) {
+  const title = inLocale(row.titleEn, row.titleAr) || labelOf(row.position);
+  if (!title) return null;
+  const roles = new Set(row.roles.map((role) => roleLabel(role).toLowerCase()));
+  return roles.has(title.toLowerCase()) ? null : title;
+}
+
+function StaffName({ row }: { row: StaffRow }) {
+  return (
+    <RowLink to="/people/$userId" params={{ userId: row.id }} search={{}}>
+      {displayName(row)}
+    </RowLink>
+  );
+}
+
+function Roles({ row }: { row: StaffRow }) {
+  return <span>{formatList(row.roles.map(roleLabel))}</span>;
+}
+
+function SignIn({ account }: { account: StaffRow["account"] }) {
+  if (!account) return <Value>{null}</Value>;
+  if (!account.state)
+    return <StatusText tone="neutral">{m.studentsNoAccount()}</StatusText>;
+  if (account.state === "disabled")
+    return <StatusText tone="neutral">{m.accountDisabled()}</StatusText>;
+  if (!account.lastSignInAt)
+    return <StatusText tone="warning">{m.accountNeverSignedIn()}</StatusText>;
+  return (
+    <span className="text-muted-foreground">
+      {formatDateTime(account.lastSignInAt)}
+    </span>
+  );
+}
+
+// Built per render: headers read the request's locale, which a module-level
+// array would fix at whichever language first loaded the module on the server.
+function staffColumns(manage: boolean): Column<StaffRow, Sort>[] {
+  return [
+    {
+      id: "name",
+      header: m.adminName(),
+      sort: "name",
+      primary: true,
+      cell: (row) => (
+        <div className="flex min-w-0 items-center gap-3">
+          <PersonAvatar name={displayName(row)} size="sm" />
+          <div className="grid min-w-0">
+            <StaffName row={row} />
+            {otherName(row) ? (
+              <span
+                dir="auto"
+                className="truncate text-[13px] leading-[18px] text-muted-foreground"
+              >
+                {otherName(row)}
+              </span>
+            ) : null}
+          </div>
+        </div>
+      ),
+    },
+    {
+      id: "role",
+      header: m.adminRole(),
+      sort: "role",
+      cell: (row) => (
+        <div className="grid min-w-0">
+          <Roles row={row} />
+          {titleOf(row) ? (
+            <span
+              dir="auto"
+              className="truncate text-[13px] leading-[18px] text-muted-foreground"
+            >
+              {titleOf(row)}
+            </span>
+          ) : null}
+        </div>
+      ),
+    },
+    {
+      id: "email",
+      header: m.adminEmail(),
+      cell: (row) =>
+        row.email ? (
+          <bdi dir="ltr" className="truncate">
+            {row.email}
+          </bdi>
+        ) : (
+          <Value>{null}</Value>
+        ),
+    },
+    {
+      id: "phone",
+      header: m.familyMobile(),
+      cell: (row) =>
+        row.phone ? (
+          <bdi dir="ltr" className="tabular-nums">
+            {formatPhone(row.phone)}
+          </bdi>
+        ) : (
+          <Value>{null}</Value>
+        ),
+    },
+    ...(manage
+      ? [
+          {
+            id: "signedIn",
+            header: m.staffLastSignIn(),
+            sort: "signedIn" as const,
+            cell: (row: StaffRow) => <SignIn account={row.account} />,
+          },
+        ]
+      : []),
+  ];
+}
+
+const card = {
+  leading: (row: StaffRow) => <PersonAvatar name={displayName(row)} />,
+  title: (row: StaffRow) => <StaffName row={row} />,
+  fact: (row: StaffRow) => (
+    <span className="flex flex-wrap items-center gap-x-3">
+      <Roles row={row} />
+      {titleOf(row) ? <span dir="auto">{titleOf(row)}</span> : null}
+    </span>
+  ),
+};
+
+function exportStaff(rows: StaffRow[]) {
+  downloadCsv(`${m.adminStaffTitle()}.csv`, [
+    [
+      m.adminName(),
+      m.adminRole(),
+      m.staffTitle(),
+      m.adminEmail(),
+      m.familyMobile(),
+    ],
+    ...rows.map((row) => [
+      displayName(row),
+      row.roles.map(roleLabel).join(", "),
+      titleOf(row) ?? "",
+      row.email ?? "",
+      row.phone ?? "",
+    ]),
+  ]);
+}
+
+function copyEmail(email: string) {
+  return navigator.clipboard.writeText(email).then(
+    () => toast.success(m.staffEmailCopied()),
+    () => toast.error(m.studentsCopyFailed()),
+  );
+}
+
+function StaffPage() {
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
-  const data = useSuspenseQuery(allUsersQuery(search)).data;
-  const [editing, setEditing] = useState<Account | "new" | null>(null);
+  const data = useSuspenseQuery(staffQuery(search)).data;
   const patch = (change: Partial<StaffDirectoryQuery>) => {
     void navigate({ search: (previous) => ({ ...previous, ...change }) });
   };
+  const roleFacet: Facet = {
+    id: "role",
+    label: m.adminRole(),
+    options: FACET_ROLES.map((role) => ({
+      value: role,
+      label: roleLabel(role),
+    })),
+    selected: search.role,
+    onChange: (role) => patch({ role, page: 1 }),
+  };
+  const rowActions = (row: StaffRow): RowAction[] => [
+    ...(data.manage
+      ? [
+          {
+            label: m.staffEdit(),
+            icon: Pencil,
+            onSelect: () =>
+              navigate({
+                to: "/staff-editor",
+                search: { id: row.id, from: "list" },
+              }),
+          },
+        ]
+      : []),
+    ...(row.email
+      ? [
+          {
+            label: m.staffCopyEmail(),
+            icon: Copy,
+            onSelect: () => copyEmail(row.email ?? ""),
+          },
+        ]
+      : []),
+  ];
+  const create: HeaderAction | undefined = data.manage
+    ? {
+        label: m.staffAdd(),
+        icon: Plus,
+        link: { to: "/staff-editor", search: { from: "list" } },
+      }
+    : undefined;
+  const toolbar: IndexToolbarProps = {
+    search: {
+      value: search.q,
+      onChange: (q) => patch({ q, page: 1 }),
+      label: m.staffSearchHint(),
+      placeholder: m.staffSearchPlaceholder(),
+    },
+    facets: [roleFacet],
+    onReset: () => patch({ q: "", role: [], page: 1 }),
+  };
+  const firstRun = data.total === 0 && !isFiltered(toolbar);
   return (
     <>
       <PageHeader
         title={m.adminStaffTitle()}
-        description={m.managementAccountsSubtitle()}
-        actions={
-          <Button onClick={() => setEditing("new")}>
-            <Plus aria-hidden />
-            {m.managementAddAccount()}
-          </Button>
-        }
+        count={search.q ? undefined : data.total}
+        action={firstRun ? undefined : create}
       />
       <DataTable
-        columns={columns}
-        caption={m.adminStaffCaption()}
-        query={search.q}
-        onQuery={(q) => patch({ q, page: 1 })}
-        sort={search.sort}
-        direction={search.dir}
-        onSort={(sort) =>
-          patch({
-            sort,
-            dir: search.sort === sort && search.dir === "asc" ? "desc" : "asc",
-          })
-        }
-        {...data}
-        onPage={(page) => patch({ page })}
-        filters={
-          <>
-            <TableFilter
-              id="directory-role"
-              label={m.adminRole()}
-              value={search.role}
-              classes={[
-                { id: "all", name: m.adminAllRoles() },
-                ...ROLES.map((id) => ({ id, name: ROLE_LABEL[id]() })),
-              ]}
-              onChange={(value) => {
-                const role = (["all", ...ROLES] as const).find(
-                  (item) => item === value,
-                );
-                if (role) patch({ role, page: 1 });
-              }}
-            />
-            <TableFilter
-              id="directory-status"
-              label={m.adminAccountState()}
-              value={search.status}
-              classes={[
-                { id: "all", name: m.managementAllStatuses() },
-                { id: "active", name: m.adminActive() },
-                { id: "inactive", name: m.adminInactive() },
-              ]}
-              onChange={(value) => {
-                const status = (["all", "active", "inactive"] as const).find(
-                  (item) => item === value,
-                );
-                if (status) patch({ status, page: 1 });
-              }}
-            />
-          </>
-        }
-        renderActions={(row) => (
-          <Button
-            size="sm"
-            variant="ghost"
-            onClick={() => setEditing(row)}
-            aria-label={m.managementEditNamed({ name: row.name })}
-          >
-            <Pencil className="size-4" aria-hidden />
-            {m.managementEdit()}
-          </Button>
-        )}
+        caption={m.staffCaption()}
+        rows={data.rows}
+        columns={staffColumns(data.manage)}
+        rowLabel={(row) => displayName(row)}
+        toolbar={toolbar}
+        sort={{
+          value: search.sort,
+          direction: search.dir,
+          onChange: (sort, dir) => patch({ sort, dir, page: 1 }),
+        }}
+        rowActions={rowActions}
+        batchActions={[
+          { label: m.studentsExport(), icon: Download, onSelect: exportStaff },
+        ]}
+        pagination={{
+          page: data.page,
+          pages: data.pages,
+          total: data.total,
+          pageSize: search.pageSize,
+          pageSizes: [...PAGE_SIZES],
+          onPage: (page) => patch({ page }),
+          onPageSize: (size) => {
+            const pageSize = PAGE_SIZES.find((option) => option === size);
+            if (pageSize) patch({ pageSize, page: 1 });
+          },
+        }}
+        card={card}
+        empty={{
+          icon: UsersRound,
+          title: m.staffEmptyTitle(),
+          description: m.staffEmptyBody(),
+          action: data.manage ? (
+            <ButtonLink to="/staff-editor" search={{ from: "list" }}>
+              <Plus aria-hidden />
+              {m.staffAdd()}
+            </ButtonLink>
+          ) : undefined,
+        }}
       />
-      {editing ? (
-        <UserEditor
-          initial={editing === "new" ? undefined : editing}
-          onClose={() => setEditing(null)}
-        />
-      ) : null}
     </>
   );
 }

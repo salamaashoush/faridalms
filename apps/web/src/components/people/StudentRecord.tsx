@@ -55,13 +55,8 @@ import {
   STATUS_LABEL,
   STATUS_TONE,
 } from "./format";
-import {
-  AccountSection,
-  Deferred,
-  Email,
-  HistorySection,
-  Phone,
-} from "./record-parts";
+import { Deferred, Email, HistorySection, Phone } from "./record-parts";
+import { SignInSection } from "./SignInSection";
 import { StudentSheets, useEndLink } from "./StudentSheets";
 
 export const STUDENT_TABS = [
@@ -525,8 +520,11 @@ export function StudentRecord({
       body = (
         <RecordColumns
           main={
-            <AccountSection
+            <SignInSection
+              userId={studentId}
+              name={name}
               account={data.account}
+              manage={access.manage}
               description={m.studentAccountHintCell()}
               none={m.studentAccountNone()}
             />

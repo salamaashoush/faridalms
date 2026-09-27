@@ -2,14 +2,12 @@ import {
   schoolProfileSchema,
   saveSubjectSchema,
   publishNewsletterSchema,
-  saveUserSchema,
   saveClassSchema,
   managementOptionsSchema,
 } from "@faridalms/domain/administration-schema";
 import {
   recipientQuerySchema,
   replyMessageSchema,
-  staffDirectorySchema,
   classDirectorySchema,
   createAssignmentSchema,
   assignmentsQuerySchema,
@@ -82,12 +80,6 @@ export const getAdminOverview = createServerFn({ method: "GET" }).handler(() =>
   backend().getAdminOverview(),
 );
 
-export const getAllUsers = createServerFn({ method: "GET" })
-  .validator((input: v.InferInput<typeof staffDirectorySchema>) =>
-    v.parse(staffDirectorySchema, input),
-  )
-  .handler(({ data }) => backend().getAllUsers(data));
-
 export const getAllClasses = createServerFn({ method: "GET" })
   .validator((input: v.InferInput<typeof classDirectorySchema>) =>
     v.parse(classDirectorySchema, input),
@@ -159,10 +151,6 @@ export const createAssignment = createServerFn({ method: "POST" })
 export const saveCalendarEvent = createServerFn({ method: "POST" })
   .validator((input: unknown) => v.parse(calendarEventSchema, input))
   .handler(({ data }) => backend().saveCalendarEvent(data));
-
-export const saveUser = createServerFn({ method: "POST" })
-  .validator((input: unknown) => v.parse(saveUserSchema, input))
-  .handler(({ data }) => backend().saveUser(data));
 
 export const saveClass = createServerFn({ method: "POST" })
   .validator((input: unknown) => v.parse(saveClassSchema, input))

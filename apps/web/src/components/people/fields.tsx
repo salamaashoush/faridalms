@@ -169,7 +169,7 @@ export const PARENT_FLAGS: Omit<FlagsDraft, "relationId"> = {
   pickup: "allowed",
 };
 
-function CheckboxRow({
+export function CheckboxRow({
   label,
   hint,
   checked,

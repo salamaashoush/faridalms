@@ -1,7 +1,8 @@
 import type { ReactNode } from "react";
 
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { Link } from "@tanstack/react-router";
+import { Link, useNavigate } from "@tanstack/react-router";
+import { Pencil } from "lucide-react";
 
 import type { HeaderFact, RecordTab } from "~/components/system/RecordPage";
 
@@ -20,15 +21,11 @@ import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { personHistoryQuery, personRecordQuery } from "~/queries/students";
 import { cn } from "~/utils/cn";
+import { formatList } from "~/utils/datetime";
 
 import { displayName, labelOf, otherName, roleLabel } from "./format";
-import {
-  AccountSection,
-  Deferred,
-  Email,
-  HistorySection,
-  Phone,
-} from "./record-parts";
+import { Deferred, Email, HistorySection, Phone } from "./record-parts";
+import { SignInSection } from "./SignInSection";
 
 export const PERSON_TABS = ["overview", "account", "history"] as const;
 export type PersonTab = (typeof PERSON_TABS)[number];
@@ -48,7 +45,7 @@ export function personTabsFor(
 ): Record<PersonTab, boolean> {
   return {
     overview: true,
-    account: access.manage || access.self,
+    account: access.manage || access.self || access.signIn,
     history: access.history,
   };
 }
@@ -186,6 +183,7 @@ export function PersonRecord({
   onTab: (tab: PersonTab) => void;
 }) {
   const data = useSuspenseQuery(personRecordQuery(userId)).data;
+  const navigate = useNavigate();
   const name = displayName(data);
   const available = personTabsFor(data.access);
   const tabs: RecordTab<PersonTab>[] = PERSON_TABS.filter(
@@ -200,9 +198,12 @@ export function PersonRecord({
       label: m.peopleOtherName(),
       value: <span dir="auto">{second}</span>,
     });
-  const [current] = data.roles;
-  if (current)
-    facts.push({ label: m.personRoles(), value: roleLabel(current.role) });
+  const held = [...new Set(data.roles.map((role) => role.role))];
+  if (held.length)
+    facts.push({
+      label: m.personRoles(),
+      value: formatList(held.map(roleLabel)),
+    });
 
   let body: ReactNode;
   switch (active) {
@@ -230,8 +231,15 @@ export function PersonRecord({
       body = (
         <RecordColumns
           main={
-            <AccountSection
+            <SignInSection
+              userId={userId}
+              name={name}
               account={data.account}
+              manage={data.access.signIn}
+              suggestedLogin={
+                data.contacts?.find((contact) => contact.kind === "email")
+                  ?.value ?? ""
+              }
               description={m.personAccountHint()}
               none={m.personAccountNone()}
             />
@@ -254,7 +262,24 @@ export function PersonRecord({
 
   return (
     <div className="mx-auto w-full max-w-6xl">
-      <RecordHeader title={name} initials={initialsOf(name)} facts={facts} />
+      <RecordHeader
+        title={name}
+        initials={initialsOf(name)}
+        facts={facts}
+        action={
+          data.access.staff
+            ? {
+                label: m.staffEdit(),
+                icon: Pencil,
+                onClick: () =>
+                  void navigate({
+                    to: "/staff-editor",
+                    search: { id: userId, from: "record" },
+                  }),
+              }
+            : undefined
+        }
+      />
       {tabs.length > 1 ? (
         <RecordTabs
           label={m.personRecordSections()}

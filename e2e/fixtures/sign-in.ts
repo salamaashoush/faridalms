@@ -15,11 +15,20 @@ export type RoleKey = keyof typeof ACCOUNTS;
 
 export async function signIn(page: Page, role: RoleKey) {
   const account = ACCOUNTS[role];
+  await signInWith(page, account.email, PASSWORD, account.home);
+}
+
+export async function signInWith(
+  page: Page,
+  email: string,
+  password: string,
+  home: string,
+) {
   await page.goto("/sign-in");
-  await page.getByRole("textbox", { name: "Email" }).fill(account.email);
-  await page.getByRole("textbox", { name: "Password" }).fill(PASSWORD);
+  await page.getByRole("textbox", { name: "Email" }).fill(email);
+  await page.getByRole("textbox", { name: "Password" }).fill(password);
   await page.getByRole("button", { name: "Sign In", exact: true }).click();
-  await page.waitForURL(`**${account.home}`);
+  await page.waitForURL(`**${home}`);
 }
 
 const FIND_A_PAGE = /^(Find a page…|ابحث عن صفحة…)/;

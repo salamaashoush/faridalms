@@ -2,7 +2,7 @@ import type { Locator } from "@playwright/test";
 
 import { expect, test } from "@playwright/test";
 
-import { signIn, untilHydrated } from "./fixtures/sign-in";
+import { signIn, signInWith, untilHydrated } from "./fixtures/sign-in";
 
 async function fillNames(
   scope: Locator,
@@ -116,4 +116,51 @@ test("a parent opens their own record but not the school's student list", async 
   await expect(
     page.getByRole("tab", { name: "History", exact: true }),
   ).toHaveCount(0);
+});
+
+test("an administrator adds a staff member, opens their sign-in and they sign in", async ({
+  page,
+  browser,
+}) => {
+  const unique = crypto.randomUUID().slice(0, 8);
+  const email = `staff-${unique}@northwind.example.com`;
+  const password = "a long enough pass phrase";
+  await signIn(page, "admin");
+  await page.goto("/admin/staff");
+  await untilHydrated(page);
+  await page.getByRole("link", { name: "Add staff member" }).first().click();
+  await expect(page).toHaveURL(/\/staff-editor/);
+  await fillNames(
+    page.getByRole("main"),
+    ["سلامة", "نور"],
+    ["Salama", `Nour ${unique}`],
+  );
+  await page.getByRole("textbox", { name: "Email" }).fill(email);
+  await page.getByRole("checkbox", { name: "Counselor" }).click();
+  await page.getByRole("button", { name: "Save", exact: true }).click();
+  await expect(page).toHaveURL(/\/admin\/staff/);
+
+  await page.getByRole("searchbox").fill(email);
+  const row = page
+    .getByRole("table")
+    .getByRole("row")
+    .filter({ hasText: email });
+  await expect(row).toContainText("Teacher and Counselor");
+  await row.getByRole("link", { name: `Salama Nour ${unique}` }).click();
+  await page.getByRole("tab", { name: "Account", exact: true }).click();
+  await page.getByRole("button", { name: "Create sign-in" }).click();
+  const sheet = page.getByRole("dialog", { name: "Create sign-in" });
+  await expect(
+    sheet.getByRole("textbox", { name: "Sign-in name" }),
+  ).toHaveValue(email);
+  await sheet.getByLabel("Password").fill(password);
+  await sheet.getByRole("button", { name: "Save" }).click();
+  await expect(sheet).toHaveCount(0);
+  await expect(page.getByText(email, { exact: true })).toBeVisible();
+
+  const context = await browser.newContext();
+  const staff = await context.newPage();
+  await signInWith(staff, email, password, "/teach");
+  await expect(staff.getByRole("heading", { level: 1 })).toBeVisible();
+  await context.close();
 });
