@@ -1,5 +1,4 @@
 import * as administration from "./modules/administration";
-import * as learning from "./modules/learning";
 import * as overviews from "./modules/overviews";
 import * as search from "./modules/search";
 import * as site from "./modules/site";
@@ -15,6 +14,7 @@ import * as documentsSystem from "./systems/documents";
 import * as filesSystem from "./systems/files";
 import * as gradebookSystem from "./systems/gradebook";
 import * as identity from "./systems/identity";
+import * as learningSystem from "./systems/learning";
 import * as messagesSystem from "./systems/messages";
 import * as newslettersSystem from "./systems/newsletters";
 import * as notificationsSystem from "./systems/notifications";
@@ -45,12 +45,12 @@ export const router = {
   newsletters: newslettersSystem,
   calendar: calendarSystem,
   notifications: notificationsSystem,
+  learning: learningSystem,
   ...students,
   ...overviews,
   ...teaching,
   ...administration,
   ...site,
-  ...learning,
   ...search,
 };
 export type AppRouter = typeof router;

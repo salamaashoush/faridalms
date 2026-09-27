@@ -38,7 +38,6 @@ export const relations = defineRelations(schema, (r) => ({
       from: r.privateFiles.ownerId,
       to: r.users.id,
     }),
-    lessonLinks: r.many.lessonFiles(),
     messageLinks: r.many.messageAttachments(),
     messageDraftLinks: r.many.messageDraftFiles(),
   },
@@ -412,53 +411,6 @@ export const relations = defineRelations(schema, (r) => ({
       to: r.users.id,
     }),
     revisions: r.many.sitePostRevisions(),
-  },
-
-  learningModules: {
-    class: r.one.classes({
-      from: r.learningModules.classId,
-      to: r.classes.id,
-    }),
-    subject: r.one.subjects({
-      from: r.learningModules.subjectId,
-      to: r.subjects.id,
-    }),
-    author: r.one.users({
-      from: r.learningModules.authorId,
-      to: r.users.id,
-    }),
-    lessons: r.many.lessons(),
-  },
-
-  lessons: {
-    module: r.one.learningModules({
-      from: r.lessons.moduleId,
-      to: r.learningModules.id,
-    }),
-    files: r.many.lessonFiles(),
-    progress: r.many.lessonProgress(),
-  },
-
-  lessonFiles: {
-    lesson: r.one.lessons({
-      from: r.lessonFiles.lessonId,
-      to: r.lessons.id,
-    }),
-    file: r.one.privateFiles({
-      from: r.lessonFiles.fileId,
-      to: r.privateFiles.id,
-    }),
-  },
-
-  lessonProgress: {
-    lesson: r.one.lessons({
-      from: r.lessonProgress.lessonId,
-      to: r.lessons.id,
-    }),
-    student: r.one.students({
-      from: r.lessonProgress.studentId,
-      to: r.students.id,
-    }),
   },
 
   sitePostRevisions: {
