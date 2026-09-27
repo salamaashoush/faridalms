@@ -1,33 +1,22 @@
 import "./prism";
 import type { ContentDocument } from "@faridalms/domain/content";
+import type { Provider } from "@lexical/yjs";
+import type { Doc } from "yjs";
 
 import {
   contentDocumentSchema,
   contentPlainText,
 } from "@faridalms/domain/content";
-import { isSafeContentUrl } from "@faridalms/domain/rich-text";
-import {
-  $isCodeNode,
-  CodeExtension,
-  getCodeLanguageOptions,
-} from "@lexical/code";
+import { $isCodeNode, getCodeLanguageOptions } from "@lexical/code";
 import { CodePrismExtension } from "@lexical/code-prism";
-import { HorizontalRuleExtension } from "@lexical/extension";
 import { HistoryExtension } from "@lexical/history";
-import {
-  AutoLinkExtension,
-  autoLinkEmailMatcher,
-  autoLinkUrlMatcher,
-  LinkExtension,
-} from "@lexical/link";
-import { CheckListExtension, ListExtension } from "@lexical/list";
 import { registerMarkdownShortcuts } from "@lexical/markdown";
+import { LexicalCollaboration } from "@lexical/react/LexicalCollaborationContext";
+import { CollaborationPlugin } from "@lexical/react/LexicalCollaborationPlugin";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
 import { ContentEditable } from "@lexical/react/LexicalContentEditable";
 import { LexicalExtensionComposer } from "@lexical/react/LexicalExtensionComposer";
-import { RichTextExtension } from "@lexical/rich-text";
-import { TableExtension } from "@lexical/table";
-import { $getNodeByKey, configExtension, defineExtension } from "lexical";
+import { $getNodeByKey, defineExtension } from "lexical";
 import { useEffect, useMemo, useState } from "react";
 import * as v from "valibot";
 
@@ -36,7 +25,8 @@ import type { EditorStrings } from "./strings";
 
 import { $currentBlock } from "./blocks";
 import { EditorEnvironmentProvider, useEditorEnvironment } from "./context";
-import { BlocksExtension, ShortcutsExtension } from "./extensions";
+import { ShortcutsExtension } from "./extensions";
+import { contentExtensions } from "./headless";
 import { markdownTransformers } from "./markdown";
 import { BlockHandlePlugin } from "./plugins/BlockHandle";
 import { DiagramPlugin } from "./plugins/diagram";
@@ -49,6 +39,18 @@ import { SlashMenuPlugin } from "./plugins/SlashMenu";
 import { ToolbarPlugin } from "./plugins/Toolbar";
 import { editorTheme } from "./theme";
 import { cx } from "./ui";
+
+/**
+ * Live editing: the document's shared state comes from the provider, which
+ * the host builds for a room it holds a ticket for. The server fills a new
+ * room from stored content, so the editor never seeds it.
+ */
+export interface EditorCollaboration {
+  id: string;
+  providerFactory: (id: string, docs: Map<string, Doc>) => Provider;
+  username: string;
+  color: string;
+}
 
 export interface EditorProps {
   id: string;
@@ -65,6 +67,7 @@ export interface EditorProps {
   initialFocus?: boolean;
   locale?: string;
   describedBy?: string;
+  collaboration?: EditorCollaboration;
 }
 
 export default function Editor({
@@ -72,28 +75,21 @@ export default function Editor({
   media,
   locale,
   value,
+  collaboration,
   ...props
 }: EditorProps) {
+  // Live editing keeps its own undo history in the shared document, so the
+  // local one stays out, and the content comes from the room rather than here.
   const [extension] = useState(() =>
     defineExtension({
       name: "faridalms/editor",
       namespace: "faridalms-content",
       theme: editorTheme,
-      $initialEditorState: JSON.stringify(value),
+      $initialEditorState: collaboration ? null : JSON.stringify(value),
       dependencies: [
-        RichTextExtension,
-        HistoryExtension,
-        ListExtension,
-        CheckListExtension,
-        configExtension(LinkExtension, { validateUrl: isSafeContentUrl }),
-        configExtension(AutoLinkExtension, {
-          matchers: [autoLinkUrlMatcher, autoLinkEmailMatcher],
-        }),
-        TableExtension,
-        CodeExtension,
+        ...contentExtensions,
+        ...(collaboration ? [] : [HistoryExtension]),
         CodePrismExtension,
-        HorizontalRuleExtension,
-        BlocksExtension,
         ShortcutsExtension,
       ],
     }),
@@ -110,11 +106,27 @@ export default function Editor({
     }),
     [strings, media, locale],
   );
+  const composer = (
+    <LexicalExtensionComposer extension={extension} contentEditable={null}>
+      <Surface {...props} />
+      {collaboration ? (
+        <CollaborationPlugin
+          id={collaboration.id}
+          providerFactory={collaboration.providerFactory}
+          shouldBootstrap={false}
+          username={collaboration.username}
+          cursorColor={collaboration.color}
+        />
+      ) : null}
+    </LexicalExtensionComposer>
+  );
   return (
     <EditorEnvironmentProvider value={environment}>
-      <LexicalExtensionComposer extension={extension} contentEditable={null}>
-        <Surface {...props} />
-      </LexicalExtensionComposer>
+      {collaboration ? (
+        <LexicalCollaboration>{composer}</LexicalCollaboration>
+      ) : (
+        composer
+      )}
     </EditorEnvironmentProvider>
   );
 }

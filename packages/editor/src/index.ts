@@ -1,5 +1,6 @@
 export { default as Editor } from "./Editor";
-export type { EditorProps } from "./Editor";
+export type { EditorCollaboration, EditorProps } from "./Editor";
+export type { Provider, ProviderAwareness } from "@lexical/yjs";
 export type { EditorEnvironment, EditorMedia, UploadedFile } from "./context";
 export type { EditorColor, EditorStrings } from "./strings";
 export { editorColors } from "./strings";

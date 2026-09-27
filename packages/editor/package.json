@@ -13,7 +13,8 @@
     "./nodes": "./src/nodes/index.ts",
     "./strings": "./src/strings.ts",
     "./editor.css": "./src/editor.css",
-    "./Editor": "./src/Editor.tsx"
+    "./Editor": "./src/Editor.tsx",
+    "./headless": "./src/headless.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.8.0",
@@ -32,10 +33,12 @@
     "@lexical/selection": "^0.50.0",
     "@lexical/table": "^0.50.0",
     "@lexical/utils": "^0.50.0",
+    "@lexical/yjs": "^0.50.0",
     "lexical": "^0.50.0",
     "lucide-react": "^1.45.0",
     "prismjs": "^1.30.0",
-    "valibot": "^1.5.0"
+    "valibot": "^1.5.0",
+    "yjs": "^13.6.33"
   },
   "peerDependencies": {
     "react": "^19.3.0",
