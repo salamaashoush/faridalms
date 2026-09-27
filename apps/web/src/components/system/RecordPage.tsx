@@ -54,10 +54,13 @@ export function RecordHeader({
   alerts = NO_ALERTS,
   action,
   menu = NO_ACTIONS,
+  tools,
   variant = "record",
 }: {
   /** A document's title reads at the size it was written in. */
   variant?: "record" | "document";
+  /** Small view controls before the menu, such as a document's width. */
+  tools?: ReactNode;
   title: string;
   photoUrl?: string | null;
   initials?: string;
@@ -153,8 +156,9 @@ export function RecordHeader({
           ) : null}
         </div>
       </div>
-      {action || menu.length ? (
+      {action || menu.length || tools ? (
         <div className="flex shrink-0 items-center gap-2 max-md:hidden">
+          {tools}
           <ActionMenu
             label={m.docMoreActions()}
             actions={menu}

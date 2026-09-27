@@ -4200,6 +4200,7 @@
   "annStatePublished": "Sent",
   "annStateArchived": "Archived",
   "docDetails": "Details",
+  "docFullWidth": "Full width",
   "docDone": "Done",
   "annAudienceNumber": "Audience {number}"
 }

@@ -21,6 +21,10 @@ import { ContentView } from "~/components/content/ContentView";
 import { formatInstant } from "~/components/coursework/format";
 import { DataTable } from "~/components/system/DataTable";
 import {
+  ReaderWidthToggle,
+  useReaderWidth,
+} from "~/components/system/ReaderWidth";
+import {
   Fact,
   Facts,
   phoneLink,
@@ -217,6 +221,7 @@ function AnnouncementPage() {
     }
   };
   const [reporting, setReporting] = useState(false);
+  const width = useReaderWidth();
   const reached = data.report?.length ?? 0;
   const readCount = (data.report ?? []).filter((row) => row.readAt).length;
   const facts: HeaderFact[] = [
@@ -262,11 +267,17 @@ function AnnouncementPage() {
       : []),
   ];
   return (
-    <div className="mx-auto grid w-full max-w-[720px] gap-6">
+    <div
+      className={cn(
+        "mx-auto grid w-full gap-6",
+        width.wide ? "max-w-none" : "max-w-[720px]",
+      )}
+    >
       <RecordHeader
         variant="document"
         title={data.title}
         facts={facts}
+        tools={<ReaderWidthToggle wide={width.wide} onToggle={width.toggle} />}
         status={
           data.urgency === "normal"
             ? undefined
