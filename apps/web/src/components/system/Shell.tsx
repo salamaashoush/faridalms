@@ -103,7 +103,7 @@ function useIsActive() {
   });
   return (item: NavItem) =>
     section
-      ? item.to === section
+      ? [section].flat().includes(item.to)
       : item.exact
         ? pathname === item.to
         : pathname === item.to || pathname.startsWith(`${item.to}/`);

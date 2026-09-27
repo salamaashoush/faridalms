@@ -44,8 +44,12 @@ declare module "@tanstack/react-router" {
      * shows. Replaces `breadcrumb`.
      */
     trail?: ReactNode;
-    /** The navigation item this page belongs to, when its path does not say. */
-    section?: string;
+    /**
+     * The navigation item this page belongs to, when its path does not say.
+     * A page shared across workspaces lists one per workspace; the first the
+     * viewer's navigation holds wins.
+     */
+    section?: string | readonly string[];
   }
   interface Register {
     router: ReturnType<typeof getRouter>;

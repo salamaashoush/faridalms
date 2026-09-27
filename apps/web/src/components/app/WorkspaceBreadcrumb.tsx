@@ -66,8 +66,9 @@ export function WorkspaceBreadcrumb() {
     select: (state) => state.matches.at(-1)?.staticData.section ?? null,
   });
   const items = NAVIGATION[user.workspace].flatMap((section) => section.items);
+  const declaredPaths = declared === null ? [] : [declared].flat();
   const section =
-    items.find((item) => item.to === declared) ??
+    items.find((item) => declaredPaths.includes(item.to)) ??
     items
       .filter(
         (item) => pathname === item.to || pathname.startsWith(`${item.to}/`),
