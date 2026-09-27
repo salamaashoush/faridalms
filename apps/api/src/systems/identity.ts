@@ -243,6 +243,7 @@ export const currentUser = readProcedure.handler(async ({ context }) => {
       timeZone: school.timeZone ?? "UTC",
       weekStart: school.weekStart,
       weekendDays: school.weekendDays,
+      secondaryCalendar: school.secondaryCalendar,
     },
     today: context.today,
   };

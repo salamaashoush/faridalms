@@ -441,6 +441,7 @@ export async function schoolProfile(tx: Tx, orgId: string) {
       defaultLocale: orgs.defaultLocale,
       weekStart: orgs.weekStart,
       weekendDays: orgs.weekendDays,
+      secondaryCalendar: orgs.secondaryCalendar,
       countryCode: orgs.countryCode,
     })
     .from(orgs)

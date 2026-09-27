@@ -70,3 +70,22 @@ export function formatMonthLabel(isoMonth: string): string {
     timeZone: "UTC",
   }).format(new Date(`${isoMonth.slice(0, 7)}-01T00:00:00.000Z`));
 }
+
+/**
+ * A day in the school's second calendar, such as "3 Rabiʻ II" in Hijri, or
+ * null when the school keeps none. The calendar is always named: CLDR moved
+ * some Arabic regions' default away from Hijri, so a locale alone decides
+ * nothing.
+ */
+export function secondaryDate(
+  isoDate: string,
+  calendar: "islamic-umalqura" | "islamic-civil" | null,
+  options: Intl.DateTimeFormatOptions = { day: "numeric", month: "short" },
+): string | null {
+  if (!calendar) return null;
+  return new Intl.DateTimeFormat(getLocale(), {
+    ...options,
+    calendar,
+    timeZone: "UTC",
+  }).format(new Date(`${isoDate.slice(0, 10)}T00:00:00.000Z`));
+}

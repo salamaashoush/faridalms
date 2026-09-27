@@ -239,3 +239,36 @@ describe("calendar links", () => {
     expect((await fetchFeed("x".repeat(43))).status).toBe(404);
   });
 });
+
+describe("a second calendar", () => {
+  test("a school keeps Hijri dates beside Gregorian and everyone signed in learns which", async () => {
+    const office = await signedIn("acme", login("principal", 1));
+    const profile = await office.school.profile();
+    const save = (
+      secondaryCalendar: "" | "islamic-umalqura",
+      version: number,
+    ) =>
+      office.school.saveProfile({
+        expectedVersion: version,
+        nameEn: profile.nameEn ?? "",
+        nameAr: profile.nameAr ?? "",
+        identifier: profile.identifier ?? "",
+        timeZone: profile.timeZone ?? "Africa/Cairo",
+        defaultLocale: profile.defaultLocale ?? "ar",
+        weekStart: profile.weekStart,
+        weekendDays: profile.weekendDays,
+        secondaryCalendar,
+        phone: profile.phone ?? "",
+        email: profile.email ?? "",
+        websiteUrl: profile.websiteUrl ?? "",
+      });
+    const saved = await save("islamic-umalqura", profile.version);
+    expect((await office.identity.currentUser()).school.secondaryCalendar).toBe(
+      "islamic-umalqura",
+    );
+    await save("", saved.version);
+    expect(
+      (await office.identity.currentUser()).school.secondaryCalendar,
+    ).toBeNull();
+  });
+});

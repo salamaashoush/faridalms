@@ -3965,5 +3965,10 @@
   "calSubscribeReset": "إنشاء رابط جديد",
   "calSubscribeResetHint": "يتوقف الرابط القديم فورًا على كل جهاز استخدمه.",
   "calSubscribeMake": "إنشاء رابط تقويمي",
-  "calSubscribeDelay": "تفحص تطبيقات التقويم الرابط وفق جدولها، فقد يستغرق ظهور التغيير يومًا. تصلك التغييرات والإلغاءات أيضًا كإشعارات."
+  "calSubscribeDelay": "تفحص تطبيقات التقويم الرابط وفق جدولها، فقد يستغرق ظهور التغيير يومًا. تصلك التغييرات والإلغاءات أيضًا كإشعارات.",
+  "settingsSecondaryCalendar": "التقويم الثاني",
+  "settingsSecondaryCalendarHint": "يظهر بجانب التواريخ الميلادية في التقويم. العطلات التي تتحدد برؤية الهلال تحتاج إلى وسمها كمتوقعة.",
+  "settingsSecondaryNone": "بلا",
+  "settingsSecondaryUmmAlQura": "هجري، أم القرى",
+  "settingsSecondaryTabular": "هجري، حسابي"
 }

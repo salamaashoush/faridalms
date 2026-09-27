@@ -3837,5 +3837,10 @@
   "calSubscribeReset": "Make a new link",
   "calSubscribeResetHint": "The old link stops working at once, on every device that used it.",
   "calSubscribeMake": "Make my calendar link",
-  "calSubscribeDelay": "Calendar apps check the link on their own schedule, so a change can take up to a day to appear. Changes and cancellations also reach you as notices."
+  "calSubscribeDelay": "Calendar apps check the link on their own schedule, so a change can take up to a day to appear. Changes and cancellations also reach you as notices.",
+  "settingsSecondaryCalendar": "Second calendar",
+  "settingsSecondaryCalendarHint": "Shown beside Gregorian dates on the calendar. Holidays set by the moon still need marking as expected.",
+  "settingsSecondaryNone": "None",
+  "settingsSecondaryUmmAlQura": "Hijri, Umm al-Qura",
+  "settingsSecondaryTabular": "Hijri, tabular"
 }

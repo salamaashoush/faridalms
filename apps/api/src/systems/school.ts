@@ -49,6 +49,7 @@ export const saveProfile = writeProcedure
       schoolId: context.schoolId,
       ...input,
       weekendDays: [...input.weekendDays].toSorted((a, b) => a - b),
+      secondaryCalendar: input.secondaryCalendar || null,
     });
     if (!saved)
       throw new ORPCError("CONFLICT", { message: "conflict.version" });

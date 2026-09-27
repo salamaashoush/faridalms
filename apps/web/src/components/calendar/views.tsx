@@ -11,9 +11,10 @@ import type { calendarRangeQuery } from "~/queries/calendar";
 import { EmptyState } from "~/components/system/IndexPage";
 import { StatusBadge } from "~/components/system/status";
 import { dayName } from "~/components/timetable/WeekGrid";
+import { useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { cn } from "~/utils/cn";
-import { formatNumber } from "~/utils/datetime";
+import { formatNumber, secondaryDate } from "~/utils/datetime";
 
 import {
   CATEGORY_LABEL,
@@ -98,6 +99,7 @@ export function MonthGrid({
   events: CalendarEvent[];
   days: SpecialDay[];
 }) {
+  const secondary = useCurrentUser().school.secondaryCalendar;
   const weeks = monthWeeks(month, weekStart);
   const special = new Map(days.map((row) => [row.day, row]));
   const header = weeks[0] ?? [];
@@ -147,6 +149,11 @@ export function MonthGrid({
                     >
                       {formatNumber(Number(day.slice(8)))}
                     </span>
+                    {secondary && inMonth ? (
+                      <span className="truncate text-[11px] leading-4 text-muted-foreground">
+                        {secondaryDate(day, secondary)}
+                      </span>
+                    ) : null}
                   </div>
                   {holiday ? (
                     <p className="truncate px-1.5 text-xs leading-4 text-muted-foreground">
@@ -247,6 +254,7 @@ export function Agenda({
   days: SpecialDay[];
   className?: string;
 }) {
+  const secondary = useCurrentUser().school.secondaryCalendar;
   const dates = [
     ...new Set([
       ...days.map((row) => row.day),
@@ -288,6 +296,15 @@ export function Agenda({
           >
             <h2 className="flex flex-wrap items-center gap-2 text-sm leading-5 font-semibold">
               {weekdayDate(day)}
+              {secondary ? (
+                <span className="font-normal text-muted-foreground">
+                  {secondaryDate(day, secondary, {
+                    day: "numeric",
+                    month: "long",
+                    year: "numeric",
+                  })}
+                </span>
+              ) : null}
               {day === today ? (
                 <StatusBadge tone="accent">{m.calToday()}</StatusBadge>
               ) : null}

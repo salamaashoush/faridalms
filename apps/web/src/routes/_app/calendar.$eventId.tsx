@@ -32,7 +32,7 @@ import {
   publishCalendarEvent,
   removeCalendarEvent,
 } from "~/server/calendar";
-import { formatList } from "~/utils/datetime";
+import { formatList, secondaryDate } from "~/utils/datetime";
 
 export const Route = createFileRoute("/_app/calendar/$eventId")({
   staticData: { trail: <EventTrail />, section: "/calendar" },
@@ -79,7 +79,19 @@ function EventPage() {
   const draft = data.state === "draft";
   const upcoming = data.endsOn >= user.today;
   const facts: HeaderFact[] = [
-    { label: m.calWhen(), value: whenLabel(data) },
+    {
+      label: m.calWhen(),
+      value: [
+        whenLabel(data),
+        secondaryDate(data.startsOn, user.school.secondaryCalendar, {
+          day: "numeric",
+          month: "long",
+          year: "numeric",
+        }),
+      ]
+        .filter(Boolean)
+        .join(" · "),
+    },
     ...(data.location ? [{ label: m.calWhere(), value: data.location }] : []),
     { label: m.calCategory(), value: CATEGORY_LABEL[data.category]() },
     ...(data.canEdit && data.audiences.length > 0

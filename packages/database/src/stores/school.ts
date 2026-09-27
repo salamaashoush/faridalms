@@ -22,6 +22,7 @@ export async function schoolSettings(
       defaultLocale: orgs.defaultLocale,
       weekStart: orgs.weekStart,
       weekendDays: orgs.weekendDays,
+      secondaryCalendar: orgs.secondaryCalendar,
       countryCode: orgs.countryCode,
       phone: orgs.phone,
       email: orgs.email,
@@ -51,6 +52,7 @@ export async function updateSchool(
     defaultLocale: "ar" | "en";
     weekStart: number;
     weekendDays: number[];
+    secondaryCalendar: "islamic-umalqura" | "islamic-civil" | null;
     phone: string | null;
     email: string | null;
     websiteUrl: string | null;

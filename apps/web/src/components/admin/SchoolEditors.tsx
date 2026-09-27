@@ -77,6 +77,7 @@ interface ProfileDraft {
   defaultLocale: "ar" | "en";
   weekStart: number;
   weekendDays: number[];
+  secondaryCalendar: "" | "islamic-umalqura" | "islamic-civil";
   phone: string;
   email: string;
   websiteUrl: string;
@@ -91,6 +92,7 @@ function draftOf(profile: Profile): ProfileDraft {
     defaultLocale: profile.defaultLocale ?? "ar",
     weekStart: profile.weekStart,
     weekendDays: [...profile.weekendDays],
+    secondaryCalendar: profile.secondaryCalendar ?? "",
     phone: profile.phone ?? "",
     email: profile.email ?? "",
     websiteUrl: profile.websiteUrl ?? "",
@@ -231,6 +233,24 @@ export function SchoolProfileSection() {
             ))}
           </div>
         </fieldset>
+        <SelectField
+          id="school-secondary-calendar"
+          label={m.settingsSecondaryCalendar()}
+          hint={m.settingsSecondaryCalendarHint()}
+          value={draft.secondaryCalendar || "none"}
+          options={[
+            { value: "none", label: m.settingsSecondaryNone() },
+            {
+              value: "islamic-umalqura",
+              label: m.settingsSecondaryUmmAlQura(),
+            },
+            { value: "islamic-civil", label: m.settingsSecondaryTabular() },
+          ]}
+          onChange={(value) =>
+            set("secondaryCalendar", value === "none" ? "" : value)
+          }
+          width="name"
+        />
       </SettingsGroup>
       <SettingsGroup title={m.settingsGroupContact()}>
         <TextField

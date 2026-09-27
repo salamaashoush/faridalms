@@ -111,6 +111,10 @@ export const orgs = core.table.withRLS(
       .notNull()
       .default(sql`'{5,6}'`),
     countryCode: text("country_code"),
+    /** A calendar shown beside the Gregorian one, for schools that keep Hijri dates. */
+    secondaryCalendar: text("secondary_calendar").$type<
+      "islamic-umalqura" | "islamic-civil"
+    >(),
     address: jsonb("address").$type<PostalAddress>(),
     phone: text("phone"),
     email: text("email"),
@@ -140,6 +144,11 @@ export const orgs = core.table.withRLS(
     ck("orgs", "default_locale", sql`default_locale in ('ar', 'en')`),
     ck("orgs", "week_start", sql`week_start between 1 and 7`),
     ck("orgs", "weekend_days", sql`weekend_days <@ '{1,2,3,4,5,6,7}'`),
+    ck(
+      "orgs",
+      "secondary_calendar",
+      sql`secondary_calendar in ('islamic-umalqura', 'islamic-civil')`,
+    ),
     ck("orgs", "country_code", sql`country_code ~ '^[A-Z]{2}$'`),
     ck("orgs", "address", sql`jsonb_typeof(address) = 'object'`),
     ck("orgs", "phone", sql`char_length(phone) between 1 and 40`),

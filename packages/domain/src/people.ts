@@ -319,6 +319,10 @@ export const saveSchoolSchema = v.object({
     v.array(v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(7))),
     v.maxLength(3),
   ),
+  secondaryCalendar: v.optional(
+    v.picklist(["", "islamic-umalqura", "islamic-civil"]),
+    "",
+  ),
   phone: optionalText(40),
   email: optionalText(254),
   websiteUrl: optionalText(2048),
