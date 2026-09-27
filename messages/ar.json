@@ -3950,5 +3950,20 @@
   "siteEventCancelled": "أُلغيت",
   "siteEventTbc": "لم يتأكد الموعد",
   "siteEventsNone": "لا شيء مخطط حاليًا. عُد قريبًا.",
-  "siteEventsFromCalendar": "تظهر هنا الفعاليات العامة من التقويم. اختر عرض الفعالية على الموقع عند تحريرها في التقويم."
+  "siteEventsFromCalendar": "تظهر هنا الفعاليات العامة من التقويم. اختر عرض الفعالية على الموقع عند تحريرها في التقويم.",
+  "calSubscribe": "إضافة إلى تطبيق التقويم",
+  "calSubscribeTitle": "احتفظ بهذا التقويم في تطبيق التقويم الخاص بك",
+  "calSubscribeHint": "رابط خاص يعرض الفعاليات الموجهة إليك وأيام إغلاق المدرسة في تقويم Google أو Apple أو Outlook.",
+  "calSubscribeLink": "رابط تقويمك",
+  "calSubscribeCopy": "نسخ",
+  "calSubscribeCopied": "نُسخ",
+  "calSubscribeGoogle": "إضافة إلى تقويم Google",
+  "calSubscribeApple": "إضافة إلى تقويم Apple أو Outlook",
+  "calSubscribeOnce": "احتفظ بهذا الرابط لنفسك: من يملكه يستطيع قراءة تقويمك. لا يظهر إلا الآن.",
+  "calSubscribeExisting": "أنشأت رابط تقويم في {date}. آخر قراءة له: {read}.",
+  "calSubscribeNeverRead": "لم يُقرأ بعد",
+  "calSubscribeReset": "إنشاء رابط جديد",
+  "calSubscribeResetHint": "يتوقف الرابط القديم فورًا على كل جهاز استخدمه.",
+  "calSubscribeMake": "إنشاء رابط تقويمي",
+  "calSubscribeDelay": "تفحص تطبيقات التقويم الرابط وفق جدولها، فقد يستغرق ظهور التغيير يومًا. تصلك التغييرات والإلغاءات أيضًا كإشعارات."
 }

@@ -2,6 +2,7 @@ import * as v from "valibot";
 import { describe, expect, it } from "vitest";
 
 import {
+  calendarIcs,
   eventIcs,
   materialChange,
   monthWeeks,
@@ -64,6 +65,28 @@ describe("iCalendar", () => {
     );
     for (const line of file.split("\r\n"))
       expect(new TextEncoder().encode(line).length).toBeLessThanOrEqual(75);
+  });
+});
+
+describe("a subscribed calendar", () => {
+  it("names itself, flags cancelled events in the title and adds closed days as free time", () => {
+    const file = calendarIcs({
+      name: "Northwind calendar",
+      events: [
+        event,
+        { ...event, id: "e2", cancelled: true, title: "Concert" },
+      ],
+      days: [{ day: "2026-10-06", title: "Public holiday: Armed Forces Day" }],
+      timeZone: "Africa/Cairo",
+      stamp: new Date("2026-09-27T08:00:00Z"),
+      cancelledLabel: "Cancelled",
+      urlOf: (id) => `https://school.example.com/calendar/${id}`,
+    });
+    expect(file).toContain("X-WR-CALNAME:Northwind calendar");
+    expect(file).toContain("SUMMARY:Cancelled: Concert");
+    expect(file).toContain("UID:day-2026-10-06@farida-lms");
+    expect(file).toContain("TRANSP:TRANSPARENT");
+    expect(file.match(/BEGIN:VEVENT/g)).toHaveLength(3);
   });
 });
 

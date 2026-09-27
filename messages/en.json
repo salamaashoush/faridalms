@@ -3822,5 +3822,20 @@
   "siteEventCancelled": "Cancelled",
   "siteEventTbc": "To be confirmed",
   "siteEventsNone": "Nothing is planned just now. Check back soon.",
-  "siteEventsFromCalendar": "The calendar's public events appear here. Mark an event to show on the website when you edit it in the calendar."
+  "siteEventsFromCalendar": "The calendar's public events appear here. Mark an event to show on the website when you edit it in the calendar.",
+  "calSubscribe": "Add to my calendar app",
+  "calSubscribeTitle": "Keep this calendar in your own calendar app",
+  "calSubscribeHint": "A private link shows the events meant for you, and the days the school is closed, in Google Calendar, Apple Calendar or Outlook.",
+  "calSubscribeLink": "Your calendar link",
+  "calSubscribeCopy": "Copy",
+  "calSubscribeCopied": "Copied",
+  "calSubscribeGoogle": "Add to Google Calendar",
+  "calSubscribeApple": "Add to Apple Calendar or Outlook",
+  "calSubscribeOnce": "Keep this link to yourself: anyone who has it can read your calendar. It is shown only now.",
+  "calSubscribeExisting": "You made a calendar link on {date}. It was last read {read}.",
+  "calSubscribeNeverRead": "never",
+  "calSubscribeReset": "Make a new link",
+  "calSubscribeResetHint": "The old link stops working at once, on every device that used it.",
+  "calSubscribeMake": "Make my calendar link",
+  "calSubscribeDelay": "Calendar apps check the link on their own schedule, so a change can take up to a day to appear. Changes and cancellations also reach you as notices."
 }

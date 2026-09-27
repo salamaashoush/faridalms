@@ -37,3 +37,11 @@ export const removeCalendarEvent = createServerFn({ method: "POST" })
 export const publishCalendarEvent = createServerFn({ method: "POST" })
   .validator(checked(publishEventSchema))
   .handler(({ data }) => backend().calendar.publish(data));
+
+export const getCalendarFeed = createServerFn({ method: "GET" }).handler(() =>
+  backend().calendar.feed(),
+);
+
+export const resetCalendarFeed = createServerFn({ method: "POST" }).handler(
+  () => backend().calendar.resetFeed(),
+);

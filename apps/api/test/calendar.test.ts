@@ -1,7 +1,7 @@
 import { plainContent } from "@faridalms/domain/content-conversion";
 import { describe, expect, test } from "bun:test";
 
-import { login, rejection, sessionFor, signedIn } from "./harness";
+import { login, rejection, seeded, sessionFor, signedIn } from "./harness";
 
 const principal = () => signedIn("northwind", login("principal"));
 const mother = () =>
@@ -211,5 +211,31 @@ describe("keeping the calendar", () => {
       }),
     );
     expect(seen).toMatchObject({ code: "FORBIDDEN" });
+  });
+});
+
+describe("calendar links", () => {
+  test("a family's private link carries its events and closed days, and a new link stops the old", async () => {
+    const family = await mother();
+    expect(await family.calendar.feed()).toBeNull();
+    const made = await family.calendar.resetFeed();
+    const fetchFeed = (token: string) =>
+      seeded().handler(
+        new Request(`http://api.test/feeds/${made.school}/${token}.ics`),
+      );
+    const response = await fetchFeed(made.token);
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-type")).toContain("text/calendar");
+    const body = await response.text();
+    expect(body).toContain("BEGIN:VCALENDAR");
+    expect(body).toContain("Museum trip");
+    expect(body).not.toContain("Staff meeting");
+    expect(body).toContain("Armed Forces Day");
+    expect((await family.calendar.feed())?.lastFetchedAt).not.toBeNull();
+
+    const again = await family.calendar.resetFeed();
+    expect((await fetchFeed(made.token)).status).toBe(404);
+    expect((await fetchFeed(again.token)).status).toBe(200);
+    expect((await fetchFeed("x".repeat(43))).status).toBe(404);
   });
 });

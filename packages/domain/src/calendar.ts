@@ -208,15 +208,16 @@ function fold(line: string): string {
   return parts.join("\r\n ");
 }
 
-/**
- * One event as an iCalendar file. Timed events are written in UTC from the
- * school's wall clock, so every calendar app places them at the same instant
- * without needing the zone's rules.
- */
-export function eventIcs(
-  event: IcsEvent,
-  input: { timeZone: string; stamp: Date },
-): string {
+interface IcsOptions {
+  timeZone: string;
+  stamp: Date;
+  /** Put before a cancelled event's title: some calendar apps ignore its status. */
+  cancelledLabel?: string;
+  /** Where the event can be read in the app. */
+  urlOf?: (id: string) => string;
+}
+
+function vevent(event: IcsEvent, input: IcsOptions): string[] {
   const when =
     event.startTime && event.endTime
       ? [
@@ -227,25 +228,76 @@ export function eventIcs(
           `DTSTART;VALUE=DATE:${icsDate(event.startsOn)}`,
           `DTEND;VALUE=DATE:${icsDate(addDays(event.endsOn, 1))}`,
         ];
-  const lines = [
-    "BEGIN:VCALENDAR",
-    "VERSION:2.0",
-    "PRODID:-//Farida LMS//Calendar//EN",
-    "CALSCALE:GREGORIAN",
-    "METHOD:PUBLISH",
+  const title =
+    event.cancelled && input.cancelledLabel
+      ? `${input.cancelledLabel}: ${event.title}`
+      : event.title;
+  return [
     "BEGIN:VEVENT",
     `UID:${event.id}@farida-lms`,
     `DTSTAMP:${icsInstant(input.stamp)}`,
     `SEQUENCE:${event.version}`,
     ...when,
-    `SUMMARY:${icsText(event.title)}`,
+    `SUMMARY:${icsText(title)}`,
     ...(event.location ? [`LOCATION:${icsText(event.location)}`] : []),
     ...(event.description ? [`DESCRIPTION:${icsText(event.description)}`] : []),
+    ...(input.urlOf ? [`URL:${input.urlOf(event.id)}`] : []),
     `STATUS:${event.cancelled ? "CANCELLED" : "CONFIRMED"}`,
     "END:VEVENT",
-    "END:VCALENDAR",
   ];
-  return `${lines.map(fold).join("\r\n")}\r\n`;
+}
+
+const HEAD = [
+  "BEGIN:VCALENDAR",
+  "VERSION:2.0",
+  "PRODID:-//Farida LMS//Calendar//EN",
+  "CALSCALE:GREGORIAN",
+  "METHOD:PUBLISH",
+];
+
+const file = (lines: string[]) => `${lines.map(fold).join("\r\n")}\r\n`;
+
+/**
+ * One event as an iCalendar file. Timed events are written in UTC from the
+ * school's wall clock, so every calendar app places them at the same instant
+ * without needing the zone's rules.
+ */
+export function eventIcs(event: IcsEvent, input: IcsOptions): string {
+  return file([...HEAD, ...vevent(event, input), "END:VCALENDAR"]);
+}
+
+/**
+ * A person's whole calendar as one subscribable file: the events that reach
+ * them and the days the school is shut, as all-day entries that do not
+ * block time. Apps poll it on their own schedule, hours apart.
+ */
+export function calendarIcs(
+  input: IcsOptions & {
+    name: string;
+    events: IcsEvent[];
+    days: { day: string; title: string }[];
+  },
+): string {
+  const days = input.days.flatMap((day) => [
+    "BEGIN:VEVENT",
+    `UID:day-${day.day}@farida-lms`,
+    `DTSTAMP:${icsInstant(input.stamp)}`,
+    `DTSTART;VALUE=DATE:${icsDate(day.day)}`,
+    `DTEND;VALUE=DATE:${icsDate(addDays(day.day, 1))}`,
+    `SUMMARY:${icsText(day.title)}`,
+    "TRANSP:TRANSPARENT",
+    "END:VEVENT",
+  ]);
+  return file([
+    ...HEAD,
+    `NAME:${icsText(input.name)}`,
+    `X-WR-CALNAME:${icsText(input.name)}`,
+    "REFRESH-INTERVAL;VALUE=DURATION:PT6H",
+    "X-PUBLISHED-TTL:PT6H",
+    ...input.events.flatMap((event) => vevent(event, input)),
+    ...days,
+    "END:VCALENDAR",
+  ]);
 }
 
 /** Day meanings on which lessons are held; everything else keeps the school shut. */

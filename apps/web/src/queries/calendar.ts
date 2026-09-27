@@ -4,6 +4,7 @@ import { queryOptions } from "@tanstack/react-query";
 
 import {
   getCalendarEvent,
+  getCalendarFeed,
   getCalendarOptions,
   getCalendarRange,
 } from "~/server/calendar";
@@ -25,3 +26,8 @@ export const calendarEventQuery = (id: string) =>
     queryKey: ["calendar", "event", id],
     queryFn: () => getCalendarEvent({ data: { id } }),
   });
+
+export const calendarFeedQuery = queryOptions({
+  queryKey: ["calendar", "feed"],
+  queryFn: () => getCalendarFeed(),
+});

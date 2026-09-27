@@ -17,9 +17,11 @@ import {
   eventById,
   eventReaches,
   eventsBetween,
+  feedOf,
   insertEvent,
   publishEvent,
   removeEvent,
+  resetFeed as resetFeedRow,
   setCancelled,
   specialDays,
   updateEvent,
@@ -39,6 +41,7 @@ import * as v from "valibot";
 
 import type { UnitContext } from "../core/context";
 
+import { hashFeedToken, newFeedToken } from "../calendar/feed";
 import { audienceChoices, audienceOf, calendarReach } from "../core/audiences";
 import { notify } from "../core/notify";
 import {
@@ -462,3 +465,34 @@ export const remove = writeProcedure
     });
     return { removed: true };
   });
+
+/** Whether the viewer has a calendar link at this school, and when it was last read. */
+export const feed = readProcedure.handler(async ({ context }) => {
+  requireCapability(context, "calendar:read");
+  return feedOf(context.tx, {
+    tenantId: context.tenantId,
+    userId: context.actor.userId,
+    orgId: context.schoolId,
+  });
+});
+
+/**
+ * Makes the viewer a new calendar link, retiring any old one at once. The
+ * secret is returned this once; only its hash is kept.
+ */
+export const resetFeed = writeProcedure.handler(async ({ context }) => {
+  requireCapability(context, "calendar:read");
+  const token = newFeedToken();
+  await resetFeedRow(context.tx, {
+    tenantId: context.tenantId,
+    userId: context.actor.userId,
+    orgId: context.schoolId,
+    tokenHash: hashFeedToken(token),
+  });
+  await audit(context, {
+    action: "calendar_feed.reset",
+    objectType: "user",
+    objectId: context.actor.userId,
+  });
+  return { token, school: context.school.slug };
+});

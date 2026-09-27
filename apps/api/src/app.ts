@@ -7,6 +7,7 @@ import { experimental_ValibotToJsonSchemaConverter as ValibotToJsonSchemaConvert
 import type { ApiContext } from "./context";
 import type { ApiDependencies, RequestContext } from "./core/context";
 
+import { handleCalendarFeed } from "./calendar/feed";
 import { handlePublicFileRequest } from "./files/public";
 import { handleFileRequest } from "./files/routes";
 import { legacyUnavailable } from "./legacy";
@@ -80,6 +81,7 @@ export function createApp(dependencies: ApiDependencies) {
         };
         const file =
           (await handlePublicFileRequest(request, url, context)) ??
+          (await handleCalendarFeed(request, url, context)) ??
           (await handleFileRequest(request, url, context));
         if (file) response = file;
         else {

@@ -11,6 +11,7 @@ import * as v from "valibot";
 
 import { ButtonLink } from "~/components/app/ButtonLink";
 import { CATEGORY_LABEL } from "~/components/calendar/format";
+import { Subscribe } from "~/components/calendar/Subscribe";
 import { Agenda, CategoryIcon, MonthGrid } from "~/components/calendar/views";
 import { PageHeader } from "~/components/system/IndexPage";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
@@ -204,10 +205,13 @@ function CalendarPage() {
               </ButtonLink>
             )}
           </div>
-          <TabsList aria-label={m.calView()}>
-            <TabsTrigger value="month">{m.calViewMonth()}</TabsTrigger>
-            <TabsTrigger value="agenda">{m.calViewAgenda()}</TabsTrigger>
-          </TabsList>
+          <div className="flex items-center gap-2">
+            <Subscribe />
+            <TabsList aria-label={m.calView()}>
+              <TabsTrigger value="month">{m.calViewMonth()}</TabsTrigger>
+              <TabsTrigger value="agenda">{m.calViewAgenda()}</TabsTrigger>
+            </TabsList>
+          </div>
         </div>
         {children.length > 1 ? (
           <nav aria-label={m.calChildren()} className="flex flex-wrap gap-2">

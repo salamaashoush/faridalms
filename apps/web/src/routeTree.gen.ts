@@ -87,6 +87,7 @@ import { Route as AppTeachModuleEditorRouteImport } from './routes/_app/teach/mo
 import { Route as AppTeachModulesRouteImport } from './routes/_app/teach/modules'
 import { Route as AppTeachTimetableRouteImport } from './routes/_app/teach/timetable'
 import { Route as AppYearsYearIdRouteImport } from './routes/_app/years.$yearId'
+import { Route as FeedsSchoolFileRouteImport } from './routes/feeds/$school/$file'
 import { Route as SiteSchoolIndexRouteImport } from './routes/site/$school/index'
 import { Route as PublicMediaPTokenNameRouteImport } from './routes/public-media/p.$token.$name'
 import { Route as SiteSchoolNewsIndexRouteImport } from './routes/site/$school/news/index'
@@ -490,6 +491,11 @@ const AppYearsYearIdRoute = AppYearsYearIdRouteImport.update({
   path: '/years/$yearId',
   getParentRoute: () => AppRoute,
 } as any)
+const FeedsSchoolFileRoute = FeedsSchoolFileRouteImport.update({
+  id: '/feeds/$school/$file',
+  path: '/feeds/$school/$file',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SiteSchoolIndexRoute = SiteSchoolIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -586,6 +592,7 @@ export interface FileRoutesByFullPath {
   '/teach/modules': typeof AppTeachModulesRoute
   '/teach/timetable': typeof AppTeachTimetableRoute
   '/years/$yearId': typeof AppYearsYearIdRoute
+  '/feeds/$school/$file': typeof FeedsSchoolFileRoute
   '/admin/': typeof AppAdminIndexRoute
   '/announcements/': typeof AppAnnouncementsIndexRoute
   '/calendar/': typeof AppCalendarIndexRoute
@@ -664,6 +671,7 @@ export interface FileRoutesByTo {
   '/teach/modules': typeof AppTeachModulesRoute
   '/teach/timetable': typeof AppTeachTimetableRoute
   '/years/$yearId': typeof AppYearsYearIdRoute
+  '/feeds/$school/$file': typeof FeedsSchoolFileRoute
   '/admin': typeof AppAdminIndexRoute
   '/announcements': typeof AppAnnouncementsIndexRoute
   '/calendar': typeof AppCalendarIndexRoute
@@ -750,6 +758,7 @@ export interface FileRoutesById {
   '/_app/teach/modules': typeof AppTeachModulesRoute
   '/_app/teach/timetable': typeof AppTeachTimetableRoute
   '/_app/years/$yearId': typeof AppYearsYearIdRoute
+  '/feeds/$school/$file': typeof FeedsSchoolFileRoute
   '/_app/admin/': typeof AppAdminIndexRoute
   '/_app/announcements/': typeof AppAnnouncementsIndexRoute
   '/_app/calendar/': typeof AppCalendarIndexRoute
@@ -835,6 +844,7 @@ export interface FileRouteTypes {
     | '/teach/modules'
     | '/teach/timetable'
     | '/years/$yearId'
+    | '/feeds/$school/$file'
     | '/admin/'
     | '/announcements/'
     | '/calendar/'
@@ -913,6 +923,7 @@ export interface FileRouteTypes {
     | '/teach/modules'
     | '/teach/timetable'
     | '/years/$yearId'
+    | '/feeds/$school/$file'
     | '/admin'
     | '/announcements'
     | '/calendar'
@@ -998,6 +1009,7 @@ export interface FileRouteTypes {
     | '/_app/teach/modules'
     | '/_app/teach/timetable'
     | '/_app/years/$yearId'
+    | '/feeds/$school/$file'
     | '/_app/admin/'
     | '/_app/announcements/'
     | '/_app/calendar/'
@@ -1019,6 +1031,7 @@ export interface RootRouteChildren {
   ApiHealthRoute: typeof ApiHealthRoute
   FilesFileIdRoute: typeof FilesFileIdRoute
   SiteSchoolRoute: typeof SiteSchoolRouteWithChildren
+  FeedsSchoolFileRoute: typeof FeedsSchoolFileRoute
   PublicMediaPTokenNameRoute: typeof PublicMediaPTokenNameRoute
 }
 
@@ -1570,6 +1583,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppYearsYearIdRouteImport
       parentRoute: typeof AppRoute
     }
+    '/feeds/$school/$file': {
+      id: '/feeds/$school/$file'
+      path: '/feeds/$school/$file'
+      fullPath: '/feeds/$school/$file'
+      preLoaderRoute: typeof FeedsSchoolFileRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/site/$school/': {
       id: '/site/$school/'
       path: '/'
@@ -1831,6 +1851,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiHealthRoute: ApiHealthRoute,
   FilesFileIdRoute: FilesFileIdRoute,
   SiteSchoolRoute: SiteSchoolRouteWithChildren,
+  FeedsSchoolFileRoute: FeedsSchoolFileRoute,
   PublicMediaPTokenNameRoute: PublicMediaPTokenNameRoute,
 }
 export const routeTree = rootRouteImport
