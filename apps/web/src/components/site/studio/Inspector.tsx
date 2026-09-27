@@ -31,7 +31,7 @@ import { LOCALE_NAME } from "../format";
 import { SiteSection } from "../render/sections";
 import { Viewport } from "./Canvas";
 import { PanelGroup, Segmented, StudioField } from "./controls";
-import { FieldControl, FilePick, useUpload } from "./fields";
+import { FieldControl, FilePick, FocusPicker, useUpload } from "./fields";
 import {
   ALIGN_LABEL,
   DIVIDER_LABEL,
@@ -409,21 +409,26 @@ export function Inspector({
                     kind,
                     fileId: kind === background.kind ? background.fileId : null,
                     posterFileId: null,
+                    focus:
+                      kind === background.kind ? background.focus : undefined,
                   })
                 }
               />
               {background.kind === "none" ? null : (
                 <div className="grid gap-3">
+                  {background.fileId && background.kind === "image" ? (
+                    <FocusPicker
+                      src={`/files/${background.fileId}`}
+                      value={background.focus}
+                      onChange={(focus) =>
+                        setStyle("background", { ...background, focus })
+                      }
+                    />
+                  ) : null}
                   <div className="flex items-center gap-3">
-                    <div className="grid aspect-[16/10] w-28 place-items-center overflow-hidden rounded-md border bg-muted">
-                      {background.fileId && background.kind === "image" ? (
-                        <img
-                          src={`/files/${background.fileId}`}
-                          alt=""
-                          className="size-full object-cover"
-                        />
-                      ) : null}
-                    </div>
+                    {background.fileId && background.kind === "image" ? null : (
+                      <div className="grid aspect-[16/10] w-28 place-items-center overflow-hidden rounded-md border bg-muted" />
+                    )}
                     <FilePick
                       accept={
                         background.kind === "image"
@@ -436,7 +441,11 @@ export function Inspector({
                       busy={uploading.busy}
                       onFile={(file) =>
                         void uploading.upload(file, (fileId) =>
-                          setStyle("background", { ...background, fileId }),
+                          setStyle("background", {
+                            ...background,
+                            fileId,
+                            focus: undefined,
+                          }),
                         )
                       }
                     />

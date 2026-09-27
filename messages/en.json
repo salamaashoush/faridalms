@@ -3730,5 +3730,7 @@
   "sitePatternLines": "Lines",
   "sitePatternGrain": "Grain",
   "siteTexture": "Texture",
-  "siteTextureHint": "A quiet pattern over the section's colour."
+  "siteTextureHint": "A quiet pattern over the section's colour.",
+  "siteFocusHint": "Drag the dot onto what must stay in view when the picture is cropped.",
+  "siteFocusHandle": "Focal point, {x}% across and {y}% down. Move it with the arrow keys."
 }

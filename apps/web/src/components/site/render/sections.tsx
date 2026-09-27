@@ -52,6 +52,7 @@ import {
   SiteIcon,
   siteDate,
 } from "./parts";
+import { focusStyle } from "./theme";
 
 type Props<T extends PageSection["type"]> = {
   section: SectionOf<T>;
@@ -130,6 +131,7 @@ function Backdrop({
           src={src}
           alt={media.alt}
           className="site-photo size-full object-cover"
+          style={focusStyle(media.focus)}
         />
       ) : (
         <SiteArt seed={seed} kind="mesh" className="rounded-none" />
@@ -486,6 +488,7 @@ function Slides({ section, context, first }: Props<"slides">) {
                       ? "scale-105"
                       : "scale-100",
                   )}
+                  style={focusStyle(slide.image.focus)}
                 />
               ) : (
                 <SiteArt seed={slide.id} kind="mesh" className="rounded-none" />

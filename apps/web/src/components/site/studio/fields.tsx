@@ -7,13 +7,14 @@ import type {
   SiteColumn,
   IconId,
   SiteEmbed,
+  SiteFocus,
   SiteImage,
   SiteLink,
   SiteLocale,
   SiteMedia,
 } from "@faridalms/domain/site-sections";
 import type { EditorMedia } from "@faridalms/editor";
-import type { MouseEvent, ReactNode } from "react";
+import type { MouseEvent, PointerEvent, ReactNode } from "react";
 
 import { Popover } from "@base-ui/react/popover";
 import { embedProviderNames, parseEmbedUrl } from "@faridalms/domain/embed";
@@ -261,6 +262,79 @@ function Thumb({
   );
 }
 
+const CENTRE: SiteFocus = { x: 50, y: 50 };
+const NUDGE: Record<string, [number, number]> = {
+  ArrowLeft: [-1, 0],
+  ArrowRight: [1, 0],
+  ArrowUp: [0, -1],
+  ArrowDown: [0, 1],
+};
+const percent = (value: number) =>
+  Math.min(100, Math.max(0, Math.round(value)));
+
+/** The spot every crop of a picture keeps in view, set by dragging a dot onto it. */
+export function FocusPicker({
+  src,
+  value = CENTRE,
+  onChange,
+}: {
+  src: string;
+  value?: SiteFocus;
+  onChange: (focus: SiteFocus) => void;
+}) {
+  const place = (event: PointerEvent<HTMLDivElement>) => {
+    const box = event.currentTarget.getBoundingClientRect();
+    onChange({
+      x: percent(((event.clientX - box.left) / box.width) * 100),
+      y: percent(((event.clientY - box.top) / box.height) * 100),
+    });
+  };
+  return (
+    <div className="grid gap-1.5">
+      <div
+        className="relative w-fit max-w-full cursor-crosshair touch-none overflow-hidden rounded-md border select-none"
+        onPointerDown={(event) => {
+          event.currentTarget.setPointerCapture(event.pointerId);
+          place(event);
+        }}
+        onPointerMove={(event) => {
+          if (event.currentTarget.hasPointerCapture(event.pointerId))
+            place(event);
+        }}
+      >
+        <img
+          src={src}
+          alt=""
+          draggable={false}
+          className="block max-h-44 w-auto max-w-full"
+        />
+        <button
+          type="button"
+          aria-label={m.siteFocusHandle({
+            x: formatNumber(value.x),
+            y: formatNumber(value.y),
+          })}
+          onKeyDown={(event) => {
+            const step = NUDGE[event.key];
+            if (!step) return;
+            event.preventDefault();
+            const by = event.shiftKey ? 1 : 5;
+            onChange({
+              x: percent(value.x + step[0] * by),
+              y: percent(value.y + step[1] * by),
+            });
+          }}
+          className="absolute size-6 -translate-x-1/2 -translate-y-1/2 rounded-full border-2 border-white bg-primary/70 shadow-[0_0_0_1px_rgb(0_0_0/0.35),0_2px_6px_rgb(0_0_0/0.3)] outline-none focus-visible:ring-3 focus-visible:ring-ring/60"
+          style={{ left: `${value.x}%`, top: `${value.y}%` }}
+        />
+      </div>
+      <p className="text-[13px] leading-[18px] text-muted-foreground">
+        {m.siteFocusHint()}
+      </p>
+    </div>
+  );
+}
+
 function ImageControl({
   id,
   label,
@@ -275,10 +349,18 @@ function ImageControl({
   onChange: (value: SiteImage) => void;
 }) {
   const { busy, upload } = useUpload(context.media);
+  const framed = context.wordsOnly ? null : value.fileId;
   return (
     <StudioField label={label}>
+      {framed ? (
+        <FocusPicker
+          src={fileUrl(framed)}
+          value={value.focus}
+          onChange={(focus) => onChange({ ...value, focus })}
+        />
+      ) : null}
       <div className="flex items-center gap-3">
-        <Thumb fileId={value.fileId} />
+        {framed ? null : <Thumb fileId={value.fileId} />}
         {context.wordsOnly ? null : (
           <div className="flex flex-wrap gap-1.5">
             <FilePick
@@ -286,7 +368,9 @@ function ImageControl({
               label={value.fileId ? m.siteReplace() : m.siteUpload()}
               busy={busy}
               onFile={(file) =>
-                void upload(file, (fileId) => onChange({ ...value, fileId }))
+                void upload(file, (fileId) =>
+                  onChange({ fileId, alt: value.alt }),
+                )
               }
             />
             {value.fileId ? (
@@ -331,6 +415,7 @@ function MediaControl({
 }) {
   const { busy, upload } = useUpload(context.media);
   const video = value.kind === "video";
+  const framed = video || context.wordsOnly ? null : value.fileId;
   return (
     <StudioField label={label}>
       {context.wordsOnly ? null : (
@@ -352,11 +437,20 @@ function MediaControl({
           }
         />
       )}
-      <div className="flex items-center gap-3">
-        <Thumb
-          fileId={video ? (value.posterFileId ?? value.fileId) : value.fileId}
-          video={video && !value.posterFileId}
+      {framed ? (
+        <FocusPicker
+          src={fileUrl(framed)}
+          value={value.focus}
+          onChange={(focus) => onChange({ ...value, focus })}
         />
+      ) : null}
+      <div className="flex items-center gap-3">
+        {framed ? null : (
+          <Thumb
+            fileId={video ? (value.posterFileId ?? value.fileId) : value.fileId}
+            video={video && !value.posterFileId}
+          />
+        )}
         {context.wordsOnly ? null : (
           <div className="flex flex-wrap gap-1.5">
             <FilePick
@@ -371,7 +465,9 @@ function MediaControl({
               busy={busy}
               icon={video ? <Film aria-hidden /> : undefined}
               onFile={(file) =>
-                void upload(file, (fileId) => onChange({ ...value, fileId }))
+                void upload(file, (fileId) =>
+                  onChange({ ...value, fileId, focus: undefined }),
+                )
               }
             />
             {value.fileId ? (

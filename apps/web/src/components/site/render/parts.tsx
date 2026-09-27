@@ -45,7 +45,7 @@ import { ContentView } from "~/components/content/ContentView";
 import { cn } from "~/utils/cn";
 
 import { SiteArt } from "./art";
-import { overMediaStyle, ratioStyle, schemeStyle } from "./theme";
+import { focusStyle, overMediaStyle, ratioStyle, schemeStyle } from "./theme";
 
 export interface NewsItem {
   postId: string;
@@ -443,7 +443,7 @@ export function Picture({
       alt={image.alt}
       loading="lazy"
       className={cn("site-media", art && "site-photo", className)}
-      style={ratioStyle(ratio, phoneRatio)}
+      style={{ ...ratioStyle(ratio, phoneRatio), ...focusStyle(image.focus) }}
     />
   ) : art ? (
     <SiteArt
@@ -669,6 +669,7 @@ export function SectionFrame({
               src={backgroundSrc}
               alt=""
               className="absolute inset-0 size-full object-cover"
+              style={focusStyle(background.focus)}
             />
           ) : (
             <BackgroundVideo
