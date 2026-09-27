@@ -28,7 +28,7 @@ import type { AppRouter } from "../src/router";
 import { createApp } from "../src/app";
 import { createKeyRing } from "../src/core/keys";
 import { LOCALE_HEADER, SCHOOL_HEADER } from "../src/core/procedure";
-import { DiskFileStore } from "../src/files/store";
+import { DiskFileStore, PUBLIC_KEY } from "../src/files/store";
 
 const adminUrl =
   process.env.DATABASE_ADMIN_URL ??
@@ -85,11 +85,19 @@ export async function setUp() {
   await owner.close();
   await directorySql.close();
   const cell = openCell(
-    { app: urlFor(cellName, "app"), worker: urlFor(cellName, "worker") },
+    {
+      app: urlFor(cellName, "app"),
+      site: urlFor(cellName, "site"),
+      worker: urlFor(cellName, "worker"),
+    },
     4,
   );
   const directory = openDirectory(urlFor(directoryName, "directory_reader"), 0);
   const files = new DiskFileStore(join(tmpdir(), `farida-api-test-${suffix}`));
+  const publicMedia = new DiskFileStore(
+    join(tmpdir(), `farida-api-test-${suffix}`, "public-media"),
+    PUBLIC_KEY,
+  );
   const cellSecret = new Uint8Array(randomBytes(32));
   const handler = createApp({
     cell,
@@ -98,6 +106,7 @@ export async function setUp() {
     cellId: "eg-1",
     cellSecret,
     files,
+    publicMedia,
     scanner: null,
     maxUploadBytes: 1024 * 1024,
     channels: { email: true, sms: false },

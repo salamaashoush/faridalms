@@ -11,8 +11,6 @@ import type { ContentDocument } from "@faridalms/domain/content";
 import { createDatabase, schema } from "@faridalms/database";
 import { eq, sql } from "drizzle-orm";
 
-import { seedSite } from "./seed-site";
-
 const db = createDatabase(process.env.DATABASE_URL ?? "");
 const {
   academicWeeks,
@@ -1012,9 +1010,6 @@ async function main() {
       provisional,
     })),
   );
-
-  console.log("Public site…");
-  await seedSite(db, userId("admin@example.com"));
 
   console.log("\nSeeded. Sign in with any of:");
   for (const row of userRows) {

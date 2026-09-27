@@ -1,3 +1,4 @@
+import type { SocialLink } from "@faridalms/domain/website";
 import type { SQL } from "drizzle-orm";
 import type { PgTableExtraConfigValue } from "drizzle-orm/pg-core";
 
@@ -33,10 +34,7 @@ import { orgs, tenants } from "./tenancy";
 export type SiteLocale = "en" | "ar";
 export type SiteState = "draft" | "published" | "archived";
 export type BannerTone = "info" | "warning" | "danger";
-export interface SocialLink {
-  kind: string;
-  url: string;
-}
+export type { SocialLink };
 
 const slugPattern = sql`'^[a-z0-9]+(-[a-z0-9]+)*$'`;
 

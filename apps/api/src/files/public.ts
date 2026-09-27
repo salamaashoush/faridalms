@@ -1,66 +1,54 @@
-import { schema } from "@faridalms/database";
-import { publicAssetIds } from "@faridalms/database/repositories/site";
-import { contentDisposition } from "@faridalms/domain/file";
-import { ORPCError } from "@orpc/server";
-import { and, eq } from "drizzle-orm";
+import type { RequestContext } from "../core/context";
 
-import type { ApiContext } from "../context";
+import { PUBLIC_KEY } from "./store";
 
-import { withPublicSchool } from "../public-school";
+const PATH = /^\/public-media\/(p\/[a-z0-9]{26}\/[A-Za-z0-9._-]{1,120})$/;
 
-const PATH =
-  /^\/v1\/sites\/([a-z0-9]+(?:-[a-z0-9]+)*)\/files\/([0-9a-f-]{36})\/content$/;
-
-function refuse(status: number, code: string, requestId: string) {
-  return Response.json({ code, requestId }, { status });
-}
+const TYPES: Record<string, string> = {
+  png: "image/png",
+  jpg: "image/jpeg",
+  jpeg: "image/jpeg",
+  gif: "image/gif",
+  webp: "image/webp",
+  pdf: "application/pdf",
+  mp4: "video/mp4",
+  mp3: "audio/mpeg",
+  vtt: "text/vtt",
+  txt: "text/plain",
+};
 
 /**
- * Site media is the one file class the public may read, and only while the
- * page, post or logo that points at it is published. The school comes from
- * the path, so a file from one tenant never answers under another's slug.
+ * The public-media bucket: copies of published files under unguessable keys,
+ * served to anyone and cached for long, with no database read. A withdrawn
+ * publication has already deleted its object, so it answers not found.
  */
 export async function handlePublicFileRequest(
   request: Request,
   url: URL,
-  context: ApiContext,
+  context: RequestContext,
 ): Promise<Response | null> {
-  const match = PATH.exec(url.pathname);
-  if (!match?.[1] || !match[2]) return null;
+  const key = PATH.exec(url.pathname)?.[1];
+  if (!key) return null;
   if (request.method !== "GET" && request.method !== "HEAD")
-    return refuse(405, "METHOD_NOT_ALLOWED", context.requestId);
-  const [, slug, fileId] = match;
-  try {
-    return await withPublicSchool(context, slug, async (db) => {
-      const [file] = await db
-        .select()
-        .from(schema.privateFiles)
-        .where(
-          and(
-            eq(schema.privateFiles.id, fileId),
-            eq(schema.privateFiles.purpose, "site_media"),
-            eq(schema.privateFiles.state, "ready"),
-          ),
-        );
-      if (!file) return refuse(404, "NOT_FOUND", context.requestId);
-      const allowed = await publicAssetIds(db, new Date());
-      if (!allowed.has(file.id))
-        return refuse(404, "NOT_FOUND", context.requestId);
-      const body = await context.files.open(file.storageKey);
-      if (!body) return refuse(404, "NOT_FOUND", context.requestId);
-      return new Response(request.method === "HEAD" ? null : body, {
-        headers: {
-          "content-type": file.mediaType,
-          "content-length": String(file.sizeBytes),
-          "content-disposition": contentDisposition(file.name, "inline"),
-          "cache-control": "public, max-age=300",
-          "x-content-type-options": "nosniff",
-        },
-      });
-    });
-  } catch (error) {
-    if (error instanceof ORPCError)
-      return refuse(error.status, error.code, context.requestId);
-    throw error;
-  }
+    return Response.json(
+      { code: "METHOD_NOT_ALLOWED", requestId: context.requestId },
+      { status: 405 },
+    );
+  const body = PUBLIC_KEY.test(key)
+    ? await context.publicMedia.open(key)
+    : null;
+  if (!body)
+    return Response.json(
+      { code: "NOT_FOUND", requestId: context.requestId },
+      { status: 404 },
+    );
+  const extension = key.split(".").pop()?.toLowerCase() ?? "";
+  return new Response(request.method === "HEAD" ? null : body, {
+    headers: {
+      "content-type": TYPES[extension] ?? "application/octet-stream",
+      "content-disposition": "inline",
+      "cache-control": "public, max-age=31536000, immutable",
+      "x-content-type-options": "nosniff",
+    },
+  });
 }

@@ -1,0 +1,1026 @@
+import { sql } from "drizzle-orm";
+
+import type { CellTransaction } from "../context";
+import type {
+  BannerTone,
+  SiteLocale,
+  SiteState,
+  SocialLink,
+} from "../tables/site";
+import type { PostalAddress } from "../tables/tenancy";
+
+import { isoOf, textArray, uuidArray } from "./sql";
+
+type Tx = CellTransaction;
+
+export interface SettingsRow {
+  id: string;
+  version: number;
+  live: boolean;
+  primaryLocale: SiteLocale;
+  bilingual: boolean;
+  taglineEn: string;
+  taglineAr: string;
+  socialLinks: SocialLink[];
+  bannerEn: string;
+  bannerAr: string;
+  bannerTone: BannerTone;
+  bannerUntil: string | null;
+}
+
+type SettingsRecord = {
+  id: string;
+  version: number;
+  live: boolean;
+  primary_locale: SiteLocale;
+  bilingual: boolean;
+  tagline_en: string;
+  tagline_ar: string;
+  social_links: SocialLink[];
+  banner_en: string;
+  banner_ar: string;
+  banner_tone: BannerTone;
+  banner_until: string | null;
+};
+
+const settingsColumns = sql`id, version, live, primary_locale, bilingual, tagline_en, tagline_ar,
+  social_links, banner_en, banner_ar, banner_tone, ${isoOf(sql`banner_until`)} as banner_until`;
+
+function settingsOf(row: SettingsRecord): SettingsRow {
+  return {
+    id: row.id,
+    version: row.version,
+    live: row.live,
+    primaryLocale: row.primary_locale,
+    bilingual: row.bilingual,
+    taglineEn: row.tagline_en,
+    taglineAr: row.tagline_ar,
+    socialLinks: row.social_links,
+    bannerEn: row.banner_en,
+    bannerAr: row.banner_ar,
+    bannerTone: row.banner_tone,
+    bannerUntil: row.banner_until,
+  };
+}
+
+/** A school's website settings; the site role reads them too. */
+export async function siteSettings(
+  tx: Tx,
+  tenantId: string,
+  orgId: string,
+): Promise<SettingsRow | null> {
+  const [row] = await tx.execute<SettingsRecord>(sql`
+    select ${settingsColumns} from core.site_settings
+    where tenant_id = ${tenantId}::uuid and org_id = ${orgId}::uuid and status = 'active'`);
+  return row ? settingsOf(row) : null;
+}
+
+export type SettingsFields = Omit<SettingsRow, "id" | "version">;
+
+/** Writes the settings, creating them the first time; null when someone saved first. */
+export async function saveSiteSettings(
+  tx: Tx,
+  input: SettingsFields & {
+    tenantId: string;
+    orgId: string;
+    expectedVersion: number;
+  },
+): Promise<number | null> {
+  // A bound array would travel as a Postgres array, so the links go as JSON text.
+  const values = sql`${input.live}, ${input.primaryLocale}, ${input.bilingual}, ${input.taglineEn},
+    ${input.taglineAr}, ${JSON.stringify(input.socialLinks)}::text::jsonb, ${input.bannerEn}, ${input.bannerAr},
+    ${input.bannerTone}, ${input.bannerUntil}::timestamptz`;
+  if (input.expectedVersion === 0) {
+    const [row] = await tx.execute<{ version: number }>(sql`
+      insert into core.site_settings (tenant_id, org_id, live, primary_locale, bilingual,
+        tagline_en, tagline_ar, social_links, banner_en, banner_ar, banner_tone, banner_until)
+      values (${input.tenantId}::uuid, ${input.orgId}::uuid, ${values})
+      on conflict do nothing
+      returning version`);
+    return row?.version ?? null;
+  }
+  const [row] = await tx.execute<{ version: number }>(sql`
+    update core.site_settings
+    set (live, primary_locale, bilingual, tagline_en, tagline_ar, social_links, banner_en,
+      banner_ar, banner_tone, banner_until) = (${values})
+    where tenant_id = ${input.tenantId}::uuid and org_id = ${input.orgId}::uuid
+      and version = ${input.expectedVersion} and status = 'active'
+    returning version`);
+  return row?.version ?? null;
+}
+
+export interface PageRow {
+  id: string;
+  version: number;
+  orgId: string;
+  parentId: string | null;
+  position: number;
+  slug: string;
+  isHome: boolean;
+  inMenu: boolean;
+  titleEn: string;
+  titleAr: string;
+  state: SiteState;
+  publishedAt: string | null;
+  revisedAt: string | null;
+}
+
+type PageRecord = {
+  id: string;
+  version: number;
+  org_id: string;
+  parent_id: string | null;
+  position: number;
+  slug: string;
+  is_home: boolean;
+  in_menu: boolean;
+  title_en: string;
+  title_ar: string;
+  state: SiteState;
+  published_at: string | null;
+  revised_at: string | null;
+};
+
+const pageColumns = sql`id, version, org_id, parent_id, position, slug, is_home, in_menu,
+  title_en, title_ar, state, ${isoOf(sql`published_at`)} as published_at,
+  ${isoOf(sql`revised_at`)} as revised_at`;
+
+function pageOf(row: PageRecord): PageRow {
+  return {
+    id: row.id,
+    version: row.version,
+    orgId: row.org_id,
+    parentId: row.parent_id,
+    position: row.position,
+    slug: row.slug,
+    isHome: row.is_home,
+    inMenu: row.in_menu,
+    titleEn: row.title_en,
+    titleAr: row.title_ar,
+    state: row.state,
+    publishedAt: row.published_at,
+    revisedAt: row.revised_at,
+  };
+}
+
+/** Every page of the school's site that is not archived, in menu order. */
+export async function sitePages(
+  tx: Tx,
+  tenantId: string,
+  orgId: string,
+): Promise<PageRow[]> {
+  const rows = await tx.execute<PageRecord>(sql`
+    select ${pageColumns} from core.site_pages
+    where tenant_id = ${tenantId}::uuid and org_id = ${orgId}::uuid and status = 'active'
+    order by is_home desc, position, id`);
+  return rows.map(pageOf);
+}
+
+export async function pageById(
+  tx: Tx,
+  tenantId: string,
+  id: string,
+): Promise<PageRow | null> {
+  const [row] = await tx.execute<PageRecord>(sql`
+    select ${pageColumns} from core.site_pages
+    where tenant_id = ${tenantId}::uuid and id = ${id}::uuid and status = 'active'`);
+  return row ? pageOf(row) : null;
+}
+
+export interface PageFields {
+  parentId: string | null;
+  slug: string;
+  titleEn: string;
+  titleAr: string;
+  inMenu: boolean;
+}
+
+export async function insertPage(
+  tx: Tx,
+  input: PageFields & {
+    tenantId: string;
+    orgId: string;
+    authorId: string;
+    isHome?: boolean;
+  },
+): Promise<{ id: string; version: number }> {
+  const [row] = await tx.execute<{ id: string; version: number }>(sql`
+    insert into core.site_pages (tenant_id, org_id, parent_id, position, slug, is_home, in_menu,
+      title_en, title_ar, author_user_id)
+    values (${input.tenantId}::uuid, ${input.orgId}::uuid, ${input.parentId}::uuid,
+      (select coalesce(max(position) + 1, 0) from core.site_pages
+        where tenant_id = ${input.tenantId}::uuid and org_id = ${input.orgId}::uuid
+          and parent_id is not distinct from ${input.parentId}::uuid and status = 'active'),
+      ${input.slug}, ${input.isHome ?? false}, ${input.inMenu}, ${input.titleEn}, ${input.titleAr},
+      ${input.authorId}::uuid)
+    returning id, version`);
+  if (!row) throw new Error("page was not inserted");
+  return row;
+}
+
+/** Saves a page's fields; a published page is marked as changed since publishing. */
+export async function updatePage(
+  tx: Tx,
+  input: PageFields & {
+    tenantId: string;
+    id: string;
+    expectedVersion: number;
+  },
+): Promise<number | null> {
+  const [row] = await tx.execute<{ version: number }>(sql`
+    update core.site_pages
+    set slug = ${input.slug}, title_en = ${input.titleEn}, title_ar = ${input.titleAr},
+        in_menu = ${input.inMenu},
+        revised_at = case when state = 'published' then statement_timestamp() else revised_at end
+    where tenant_id = ${input.tenantId}::uuid and id = ${input.id}::uuid
+      and version = ${input.expectedVersion} and status = 'active'
+    returning version`);
+  return row?.version ?? null;
+}
+
+export async function setPageState(
+  tx: Tx,
+  input: {
+    tenantId: string;
+    id: string;
+    expectedVersion: number;
+    state: SiteState;
+    publishedAt: string | null;
+  },
+): Promise<number | null> {
+  const [row] = await tx.execute<{ version: number }>(sql`
+    update core.site_pages
+    set state = ${input.state}, published_at = ${input.publishedAt}::timestamptz, revised_at = null
+    where tenant_id = ${input.tenantId}::uuid and id = ${input.id}::uuid
+      and version = ${input.expectedVersion} and status = 'active'
+    returning version`);
+  return row?.version ?? null;
+}
+
+/**
+ * Puts a page under a parent at a position among its siblings, closing the
+ * gap it leaves; the others keep their order.
+ */
+export async function placePage(
+  tx: Tx,
+  input: {
+    tenantId: string;
+    orgId: string;
+    id: string;
+    parentId: string | null;
+    position: number;
+  },
+): Promise<void> {
+  const siblings = await tx.execute<{ id: string }>(sql`
+    select id from core.site_pages
+    where tenant_id = ${input.tenantId}::uuid and org_id = ${input.orgId}::uuid
+      and parent_id is not distinct from ${input.parentId}::uuid and status = 'active'
+      and id <> ${input.id}::uuid
+    order by position, id`);
+  const order = siblings.map((row) => row.id);
+  order.splice(Math.min(input.position, order.length), 0, input.id);
+  await tx.execute(sql`
+    update core.site_pages p
+    set parent_id = ${input.parentId}::uuid, position = o.ordinality - 1
+    from unnest(${uuidArray(order)}) with ordinality as o(id, ordinality)
+    where p.tenant_id = ${input.tenantId}::uuid and p.id = o.id`);
+}
+
+export async function removePage(
+  tx: Tx,
+  input: { tenantId: string; id: string },
+): Promise<void> {
+  await tx.execute(sql`
+    update core.site_pages set status = 'tobedeleted'
+    where tenant_id = ${input.tenantId}::uuid and id = ${input.id}::uuid and status = 'active'`);
+}
+
+/** Writes what visitors read of a page in one language, replacing the last copy. */
+export async function writePublishedPage(
+  tx: Tx,
+  input: {
+    tenantId: string;
+    orgId: string;
+    page: PageRow;
+    locale: SiteLocale;
+    title: string;
+    content: Record<string, unknown>;
+    media: Record<string, string>;
+    visibleFrom: string;
+  },
+): Promise<void> {
+  const { page } = input;
+  const [updated] = await tx.execute<{ id: string }>(sql`
+    update core.site_published_pages
+    set slug = ${page.slug}, parent_id = ${page.parentId}::uuid, position = ${page.position},
+        is_home = ${page.isHome}, in_menu = ${page.inMenu}, title = ${input.title},
+        content = ${input.content}::jsonb, media = ${input.media}::jsonb,
+        visible_from = ${input.visibleFrom}::timestamptz
+    where tenant_id = ${input.tenantId}::uuid and page_id = ${page.id}::uuid
+      and locale = ${input.locale} and status = 'active'
+    returning id`);
+  if (updated) return;
+  await tx.execute(sql`
+    insert into core.site_published_pages (tenant_id, page_id, org_id, locale, slug, parent_id,
+      position, is_home, in_menu, title, content, media, visible_from)
+    values (${input.tenantId}::uuid, ${page.id}::uuid, ${input.orgId}::uuid, ${input.locale},
+      ${page.slug}, ${page.parentId}::uuid, ${page.position}, ${page.isHome}, ${page.inMenu},
+      ${input.title}, ${input.content}::jsonb, ${input.media}::jsonb,
+      ${input.visibleFrom}::timestamptz)`);
+}
+
+/** Keeps the published copies' place in the menu in step with the page tree. */
+export async function syncPublishedPlaces(
+  tx: Tx,
+  input: { tenantId: string; orgId: string },
+): Promise<void> {
+  await tx.execute(sql`
+    update core.site_published_pages c
+    set parent_id = p.parent_id, position = p.position, in_menu = p.in_menu
+    from core.site_pages p
+    where c.tenant_id = ${input.tenantId}::uuid and c.org_id = ${input.orgId}::uuid
+      and p.tenant_id = c.tenant_id and p.id = c.page_id and c.status = 'active'
+      and (c.parent_id is distinct from p.parent_id or c.position <> p.position
+        or c.in_menu <> p.in_menu)`);
+}
+
+/** Visitors no longer see the page, in any language. */
+export async function withdrawPage(
+  tx: Tx,
+  input: { tenantId: string; pageId: string },
+): Promise<void> {
+  await tx.execute(sql`
+    update core.site_published_pages set status = 'tobedeleted'
+    where tenant_id = ${input.tenantId}::uuid and page_id = ${input.pageId}::uuid
+      and status = 'active'`);
+}
+
+export interface CategoryRow {
+  id: string;
+  version: number;
+  slug: string;
+  nameEn: string;
+  nameAr: string;
+  position: number;
+  posts: number;
+}
+
+export async function siteCategories(
+  tx: Tx,
+  tenantId: string,
+  orgId: string,
+): Promise<CategoryRow[]> {
+  const rows = await tx.execute<{
+    id: string;
+    version: number;
+    slug: string;
+    name_en: string;
+    name_ar: string;
+    position: number;
+    posts: number;
+  }>(sql`
+    select c.id, c.version, c.slug, c.name_en, c.name_ar, c.position,
+      (select count(*)::int from core.site_posts p
+        where p.tenant_id = c.tenant_id and p.category_id = c.id and p.status = 'active') as posts
+    from core.site_categories c
+    where c.tenant_id = ${tenantId}::uuid and c.org_id = ${orgId}::uuid and c.status = 'active'
+    order by c.position, c.id`);
+  return rows.map((row) => ({
+    id: row.id,
+    version: row.version,
+    slug: row.slug,
+    nameEn: row.name_en,
+    nameAr: row.name_ar,
+    position: row.position,
+    posts: row.posts,
+  }));
+}
+
+export async function saveCategory(
+  tx: Tx,
+  input: {
+    tenantId: string;
+    orgId: string;
+    id: string;
+    expectedVersion: number;
+    slug: string;
+    nameEn: string;
+    nameAr: string;
+  },
+): Promise<{ id: string; version: number } | null> {
+  if (!input.id) {
+    const [row] = await tx.execute<{ id: string; version: number }>(sql`
+      insert into core.site_categories (tenant_id, org_id, slug, name_en, name_ar, position)
+      values (${input.tenantId}::uuid, ${input.orgId}::uuid, ${input.slug}, ${input.nameEn},
+        ${input.nameAr}, (select coalesce(max(position) + 1, 0) from core.site_categories
+          where tenant_id = ${input.tenantId}::uuid and org_id = ${input.orgId}::uuid
+            and status = 'active'))
+      returning id, version`);
+    return row ?? null;
+  }
+  const [row] = await tx.execute<{ id: string; version: number }>(sql`
+    update core.site_categories
+    set slug = ${input.slug}, name_en = ${input.nameEn}, name_ar = ${input.nameAr}
+    where tenant_id = ${input.tenantId}::uuid and org_id = ${input.orgId}::uuid
+      and id = ${input.id}::uuid and version = ${input.expectedVersion} and status = 'active'
+    returning id, version`);
+  return row ?? null;
+}
+
+/** A category goes; its posts stay, uncategorised. */
+export async function removeCategory(
+  tx: Tx,
+  input: { tenantId: string; orgId: string; id: string },
+): Promise<boolean> {
+  await tx.execute(sql`
+    update core.site_posts set category_id = null
+    where tenant_id = ${input.tenantId}::uuid and category_id = ${input.id}::uuid`);
+  await tx.execute(sql`
+    update core.site_published_posts set category_id = null
+    where tenant_id = ${input.tenantId}::uuid and category_id = ${input.id}::uuid`);
+  const [row] = await tx.execute<{ id: string }>(sql`
+    update core.site_categories set status = 'tobedeleted'
+    where tenant_id = ${input.tenantId}::uuid and org_id = ${input.orgId}::uuid
+      and id = ${input.id}::uuid and status = 'active'
+    returning id`);
+  return Boolean(row);
+}
+
+export interface PostRow {
+  id: string;
+  version: number;
+  orgId: string;
+  categoryId: string | null;
+  slug: string;
+  titleEn: string;
+  titleAr: string;
+  excerptEn: string;
+  excerptAr: string;
+  coverFileId: string | null;
+  coverAltEn: string;
+  coverAltAr: string;
+  pinned: boolean;
+  state: SiteState;
+  publishedAt: string | null;
+  revisedAt: string | null;
+  announcementId: string | null;
+  authorNameEn: string | null;
+  authorNameAr: string | null;
+}
+
+type PostRecord = {
+  id: string;
+  version: number;
+  org_id: string;
+  category_id: string | null;
+  slug: string;
+  title_en: string;
+  title_ar: string;
+  excerpt_en: string;
+  excerpt_ar: string;
+  cover_file_id: string | null;
+  cover_alt_en: string;
+  cover_alt_ar: string;
+  pinned: boolean;
+  state: SiteState;
+  published_at: string | null;
+  revised_at: string | null;
+  announcement_id: string | null;
+  author_en: string | null;
+  author_ar: string | null;
+};
+
+const postColumns = sql`p.id, p.version, p.org_id, p.category_id, p.slug, p.title_en, p.title_ar,
+  p.excerpt_en, p.excerpt_ar, p.cover_file_id, p.cover_alt_en, p.cover_alt_ar, p.pinned, p.state,
+  ${isoOf(sql`p.published_at`)} as published_at, ${isoOf(sql`p.revised_at`)} as revised_at,
+  p.announcement_id, u.full_name_en as author_en, u.full_name_ar as author_ar`;
+
+const postFrom = sql`core.site_posts p
+  join core.users u on u.tenant_id = p.tenant_id and u.id = p.author_user_id`;
+
+function postOf(row: PostRecord): PostRow {
+  return {
+    id: row.id,
+    version: row.version,
+    orgId: row.org_id,
+    categoryId: row.category_id,
+    slug: row.slug,
+    titleEn: row.title_en,
+    titleAr: row.title_ar,
+    excerptEn: row.excerpt_en,
+    excerptAr: row.excerpt_ar,
+    coverFileId: row.cover_file_id,
+    coverAltEn: row.cover_alt_en,
+    coverAltAr: row.cover_alt_ar,
+    pinned: row.pinned,
+    state: row.state,
+    publishedAt: row.published_at,
+    revisedAt: row.revised_at,
+    announcementId: row.announcement_id,
+    authorNameEn: row.author_en,
+    authorNameAr: row.author_ar,
+  };
+}
+
+export type PostTab = "published" | "scheduled" | "drafts" | "archived";
+
+const tabFilter: Record<PostTab, ReturnType<typeof sql>> = {
+  published: sql`p.state = 'published' and p.published_at <= statement_timestamp()`,
+  scheduled: sql`p.state = 'published' and p.published_at > statement_timestamp()`,
+  drafts: sql`p.state = 'draft'`,
+  archived: sql`p.state = 'archived'`,
+};
+
+/** The school's posts on one tab, pinned first then newest, with every tab's count. */
+export async function sitePosts(
+  tx: Tx,
+  input: { tenantId: string; orgId: string; tab: PostTab; q: string },
+): Promise<{ rows: PostRow[]; counts: Record<PostTab, number> }> {
+  const needle = `%${input.q.replace(/[\\%_]/g, "\\$&")}%`;
+  const scope = sql`p.tenant_id = ${input.tenantId}::uuid and p.org_id = ${input.orgId}::uuid
+    and p.status = 'active'`;
+  const search = input.q
+    ? sql`and (p.title_en ilike ${needle} or p.title_ar ilike ${needle})`
+    : sql``;
+  const rows = await tx.execute<PostRecord>(sql`
+    select ${postColumns} from ${postFrom}
+    where ${scope} and ${tabFilter[input.tab]} ${search}
+    order by p.pinned desc, coalesce(p.published_at, p.date_last_modified) desc, p.id
+    limit 200`);
+  const [counts] = await tx.execute<Record<PostTab, number>>(sql`
+    select
+      count(*) filter (where ${tabFilter.published})::int as published,
+      count(*) filter (where ${tabFilter.scheduled})::int as scheduled,
+      count(*) filter (where ${tabFilter.drafts})::int as drafts,
+      count(*) filter (where ${tabFilter.archived})::int as archived
+    from core.site_posts p where ${scope} ${search}`);
+  return {
+    rows: rows.map(postOf),
+    counts: counts ?? { published: 0, scheduled: 0, drafts: 0, archived: 0 },
+  };
+}
+
+export async function postById(
+  tx: Tx,
+  tenantId: string,
+  id: string,
+): Promise<PostRow | null> {
+  const [row] = await tx.execute<PostRecord>(sql`
+    select ${postColumns} from ${postFrom}
+    where p.tenant_id = ${tenantId}::uuid and p.id = ${id}::uuid and p.status = 'active'`);
+  return row ? postOf(row) : null;
+}
+
+export interface PostFields {
+  categoryId: string | null;
+  slug: string;
+  titleEn: string;
+  titleAr: string;
+  excerptEn: string;
+  excerptAr: string;
+  coverFileId: string | null;
+  coverAltEn: string;
+  coverAltAr: string;
+  pinned: boolean;
+}
+
+export async function insertPost(
+  tx: Tx,
+  input: PostFields & { tenantId: string; orgId: string; authorId: string },
+): Promise<{ id: string; version: number }> {
+  const [row] = await tx.execute<{ id: string; version: number }>(sql`
+    insert into core.site_posts (tenant_id, org_id, category_id, slug, title_en, title_ar,
+      excerpt_en, excerpt_ar, cover_file_id, cover_alt_en, cover_alt_ar, pinned, author_user_id)
+    values (${input.tenantId}::uuid, ${input.orgId}::uuid, ${input.categoryId}::uuid,
+      ${input.slug}, ${input.titleEn}, ${input.titleAr}, ${input.excerptEn}, ${input.excerptAr},
+      ${input.coverFileId}::uuid, ${input.coverAltEn}, ${input.coverAltAr}, ${input.pinned},
+      ${input.authorId}::uuid)
+    returning id, version`);
+  if (!row) throw new Error("post was not inserted");
+  return row;
+}
+
+export async function updatePost(
+  tx: Tx,
+  input: PostFields & { tenantId: string; id: string; expectedVersion: number },
+): Promise<number | null> {
+  const [row] = await tx.execute<{ version: number }>(sql`
+    update core.site_posts
+    set category_id = ${input.categoryId}::uuid, slug = ${input.slug},
+        title_en = ${input.titleEn}, title_ar = ${input.titleAr},
+        excerpt_en = ${input.excerptEn}, excerpt_ar = ${input.excerptAr},
+        cover_file_id = ${input.coverFileId}::uuid, cover_alt_en = ${input.coverAltEn},
+        cover_alt_ar = ${input.coverAltAr}, pinned = ${input.pinned},
+        revised_at = case when state = 'published' then statement_timestamp() else revised_at end
+    where tenant_id = ${input.tenantId}::uuid and id = ${input.id}::uuid
+      and version = ${input.expectedVersion} and status = 'active'
+    returning version`);
+  return row?.version ?? null;
+}
+
+export async function setPostState(
+  tx: Tx,
+  input: {
+    tenantId: string;
+    id: string;
+    expectedVersion: number;
+    state: SiteState;
+    publishedAt: string | null;
+    announcementId?: string | null;
+  },
+): Promise<number | null> {
+  const [row] = await tx.execute<{ version: number }>(sql`
+    update core.site_posts
+    set state = ${input.state}, published_at = ${input.publishedAt}::timestamptz,
+        revised_at = null,
+        announcement_id = coalesce(${input.announcementId ?? null}::uuid, announcement_id)
+    where tenant_id = ${input.tenantId}::uuid and id = ${input.id}::uuid
+      and version = ${input.expectedVersion} and status = 'active'
+    returning version`);
+  return row?.version ?? null;
+}
+
+export async function writePublishedPost(
+  tx: Tx,
+  input: {
+    tenantId: string;
+    orgId: string;
+    post: PostRow;
+    locale: SiteLocale;
+    title: string;
+    excerpt: string;
+    coverKey: string | null;
+    coverAlt: string;
+    content: Record<string, unknown>;
+    media: Record<string, string>;
+    visibleFrom: string;
+  },
+): Promise<void> {
+  const { post } = input;
+  const [updated] = await tx.execute<{ id: string }>(sql`
+    update core.site_published_posts
+    set slug = ${post.slug}, category_id = ${post.categoryId}::uuid, title = ${input.title},
+        excerpt = ${input.excerpt}, cover_key = ${input.coverKey}, cover_alt = ${input.coverAlt},
+        pinned = ${post.pinned}, content = ${input.content}::jsonb, media = ${input.media}::jsonb,
+        visible_from = ${input.visibleFrom}::timestamptz
+    where tenant_id = ${input.tenantId}::uuid and post_id = ${post.id}::uuid
+      and locale = ${input.locale} and status = 'active'
+    returning id`);
+  if (updated) return;
+  await tx.execute(sql`
+    insert into core.site_published_posts (tenant_id, post_id, org_id, locale, slug, category_id,
+      title, excerpt, cover_key, cover_alt, pinned, content, media, visible_from)
+    values (${input.tenantId}::uuid, ${post.id}::uuid, ${input.orgId}::uuid, ${input.locale},
+      ${post.slug}, ${post.categoryId}::uuid, ${input.title}, ${input.excerpt}, ${input.coverKey},
+      ${input.coverAlt}, ${post.pinned}, ${input.content}::jsonb, ${input.media}::jsonb,
+      ${input.visibleFrom}::timestamptz)`);
+}
+
+export async function withdrawPost(
+  tx: Tx,
+  input: { tenantId: string; postId: string },
+): Promise<void> {
+  await tx.execute(sql`
+    update core.site_published_posts set status = 'tobedeleted'
+    where tenant_id = ${input.tenantId}::uuid and post_id = ${input.postId}::uuid
+      and status = 'active'`);
+}
+
+export interface Publication {
+  fileId: string;
+  publicKey: string;
+}
+
+/** The files a page or post shows publicly now, by the key each is served under. */
+export async function publicationsOf(
+  tx: Tx,
+  input: { tenantId: string; hostType: string; hostId: string },
+): Promise<Publication[]> {
+  const rows = await tx.execute<{ file_id: string; public_key: string }>(sql`
+    select file_id, public_key from core.file_publications
+    where tenant_id = ${input.tenantId}::uuid and host_type = ${input.hostType}
+      and host_id = ${input.hostId}::uuid and status = 'active' and unpublished_at is null`);
+  return rows.map((row) => ({
+    fileId: row.file_id,
+    publicKey: row.public_key,
+  }));
+}
+
+export async function recordPublication(
+  tx: Tx,
+  input: {
+    tenantId: string;
+    fileId: string;
+    purpose: string;
+    publicKey: string;
+    hostType: string;
+    hostId: string;
+  },
+): Promise<void> {
+  await tx.execute(sql`
+    insert into core.file_publications (tenant_id, file_id, file_purpose, public_key, host_type,
+      host_id)
+    values (${input.tenantId}::uuid, ${input.fileId}::uuid, ${input.purpose}, ${input.publicKey},
+      ${input.hostType}, ${input.hostId}::uuid)`);
+}
+
+/** Ends the publications of these files for a host; the keys come back so their objects go. */
+export async function endPublications(
+  tx: Tx,
+  input: {
+    tenantId: string;
+    hostType: string;
+    hostId: string;
+    keepFileIds: readonly string[];
+  },
+): Promise<string[]> {
+  const rows = await tx.execute<{ public_key: string }>(sql`
+    update core.file_publications set unpublished_at = statement_timestamp()
+    where tenant_id = ${input.tenantId}::uuid and host_type = ${input.hostType}
+      and host_id = ${input.hostId}::uuid and status = 'active' and unpublished_at is null
+      and not (file_id = any(${uuidArray(input.keepFileIds)}))
+    returning public_key`);
+  return rows.map((row) => row.public_key);
+}
+
+export interface PublishableFile {
+  id: string;
+  purpose: string;
+  name: string;
+  storageKey: string;
+  mediaType: string;
+}
+
+/** The ready files of this school that may be published, by id. */
+export async function publishableFiles(
+  tx: Tx,
+  input: { tenantId: string; fileIds: readonly string[] },
+): Promise<PublishableFile[]> {
+  if (input.fileIds.length === 0) return [];
+  const rows = await tx.execute<{
+    id: string;
+    purpose: string;
+    name: string;
+    storage_key: string;
+    media_type: string;
+  }>(sql`
+    select id, purpose, name, storage_key, media_type from core.files
+    where tenant_id = ${input.tenantId}::uuid and id = any(${uuidArray(input.fileIds)})
+      and status = 'active' and state = 'ready'
+      and purpose = any(${textArray(["site_media", "logo", "document_media"])})`);
+  return rows.map((row) => ({
+    id: row.id,
+    purpose: row.purpose,
+    name: row.name,
+    storageKey: row.storage_key,
+    mediaType: row.media_type,
+  }));
+}
+
+/**
+ * The people shown in these files who have not given consent for their
+ * picture on the public website, which stops a publication.
+ */
+export async function subjectsWithoutConsent(
+  tx: Tx,
+  input: { tenantId: string; fileIds: readonly string[] },
+): Promise<string[]> {
+  if (input.fileIds.length === 0) return [];
+  const rows = await tx.execute<{ user_id: string }>(sql`
+    select distinct s.user_id from core.file_subjects s
+    where s.tenant_id = ${input.tenantId}::uuid and s.file_id = any(${uuidArray(input.fileIds)})
+      and s.status = 'active'
+      and not exists (
+        select 1 from core.current_consents c
+        join core.descriptors d on d.tenant_id = c.tenant_id and d.id = c.purpose_descriptor_id
+        where c.tenant_id = s.tenant_id and c.subject_user_id = s.user_id
+          and d.system_meaning = 'photo_public' and c.decision = 'granted'
+          and c.valid_during @> current_date)`);
+  return rows.map((row) => row.user_id);
+}
+
+export interface PublicPage {
+  pageId: string;
+  slug: string;
+  isHome: boolean;
+  title: string;
+  content: Record<string, unknown>;
+  media: Record<string, string>;
+}
+
+export interface MenuEntry {
+  pageId: string;
+  parentId: string | null;
+  slug: string;
+  isHome: boolean;
+  title: string;
+}
+
+/** The site's menu in one language: published pages shown in it, in tree order. */
+export async function publicMenu(
+  tx: Tx,
+  input: { orgId: string; locale: SiteLocale },
+): Promise<MenuEntry[]> {
+  const rows = await tx.execute<{
+    page_id: string;
+    parent_id: string | null;
+    slug: string;
+    is_home: boolean;
+    title: string;
+  }>(sql`
+    select page_id, parent_id, slug, is_home, title from core.site_published_pages
+    where org_id = ${input.orgId}::uuid and locale = ${input.locale} and in_menu
+    order by is_home desc, position, page_id`);
+  return rows.map((row) => ({
+    pageId: row.page_id,
+    parentId: row.parent_id,
+    slug: row.slug,
+    isHome: row.is_home,
+    title: row.title,
+  }));
+}
+
+export async function publicPage(
+  tx: Tx,
+  input: { orgId: string; locale: SiteLocale; slug: string },
+): Promise<PublicPage | null> {
+  const which = input.slug ? sql`slug = ${input.slug}` : sql`is_home`;
+  const [row] = await tx.execute<{
+    page_id: string;
+    slug: string;
+    is_home: boolean;
+    title: string;
+    content: Record<string, unknown>;
+    media: Record<string, string>;
+  }>(sql`
+    select page_id, slug, is_home, title, content, media from core.site_published_pages
+    where org_id = ${input.orgId}::uuid and locale = ${input.locale} and ${which}
+    limit 1`);
+  return row
+    ? {
+        pageId: row.page_id,
+        slug: row.slug,
+        isHome: row.is_home,
+        title: row.title,
+        content: row.content,
+        media: row.media,
+      }
+    : null;
+}
+
+export interface PublicPost {
+  postId: string;
+  slug: string;
+  categoryId: string | null;
+  title: string;
+  excerpt: string;
+  coverKey: string | null;
+  coverAlt: string;
+  pinned: boolean;
+  publishedAt: string;
+}
+
+const publicPostColumns = sql`post_id, slug, category_id, title, excerpt, cover_key, cover_alt,
+  pinned, ${isoOf(sql`visible_from`)} as visible_from`;
+
+type PublicPostRecord = {
+  post_id: string;
+  slug: string;
+  category_id: string | null;
+  title: string;
+  excerpt: string;
+  cover_key: string | null;
+  cover_alt: string;
+  pinned: boolean;
+  visible_from: string;
+};
+
+function publicPostOf(row: PublicPostRecord): PublicPost {
+  return {
+    postId: row.post_id,
+    slug: row.slug,
+    categoryId: row.category_id,
+    title: row.title,
+    excerpt: row.excerpt,
+    coverKey: row.cover_key,
+    coverAlt: row.cover_alt,
+    pinned: row.pinned,
+    publishedAt: row.visible_from,
+  };
+}
+
+/** Published posts in one language, pinned first then newest, a page at a time. */
+export async function publicPosts(
+  tx: Tx,
+  input: {
+    orgId: string;
+    locale: SiteLocale;
+    categoryId: string | null;
+    limit: number;
+    offset: number;
+  },
+): Promise<{ rows: PublicPost[]; total: number }> {
+  const category = input.categoryId
+    ? sql`and category_id = ${input.categoryId}::uuid`
+    : sql``;
+  const rows = await tx.execute<PublicPostRecord>(sql`
+    select ${publicPostColumns} from core.site_published_posts
+    where org_id = ${input.orgId}::uuid and locale = ${input.locale} ${category}
+    order by pinned desc, visible_from desc, post_id
+    limit ${input.limit} offset ${input.offset}`);
+  const [count] = await tx.execute<{ total: number }>(sql`
+    select count(*)::int as total from core.site_published_posts
+    where org_id = ${input.orgId}::uuid and locale = ${input.locale} ${category}`);
+  return { rows: rows.map(publicPostOf), total: count?.total ?? 0 };
+}
+
+export async function publicPost(
+  tx: Tx,
+  input: { orgId: string; locale: SiteLocale; slug: string },
+): Promise<
+  | (PublicPost & {
+      content: Record<string, unknown>;
+      media: Record<string, string>;
+    })
+  | null
+> {
+  const [row] = await tx.execute<
+    PublicPostRecord & {
+      content: Record<string, unknown>;
+      media: Record<string, string>;
+    }
+  >(sql`
+    select ${publicPostColumns}, content, media from core.site_published_posts
+    where org_id = ${input.orgId}::uuid and locale = ${input.locale} and slug = ${input.slug}
+    limit 1`);
+  return row
+    ? { ...publicPostOf(row), content: row.content, media: row.media }
+    : null;
+}
+
+/** A published page or post was edited: visitors still read the last copy. */
+export async function markRevised(
+  tx: Tx,
+  input: { tenantId: string; kind: "page" | "post"; id: string },
+): Promise<void> {
+  const table = sql.identifier(
+    input.kind === "page" ? "site_pages" : "site_posts",
+  );
+  await tx.execute(sql`
+    update core.${table} set revised_at = statement_timestamp()
+    where tenant_id = ${input.tenantId}::uuid and id = ${input.id}::uuid
+      and state = 'published' and status = 'active'`);
+}
+
+export interface PublicSchool {
+  nameEn: string;
+  nameAr: string | null;
+  address: PostalAddress | null;
+  phone: string | null;
+  email: string | null;
+}
+
+/** What a school's website may say about the school itself. */
+export async function publicSchool(
+  tx: Tx,
+  orgId: string,
+): Promise<PublicSchool | null> {
+  const [row] = await tx.execute<{
+    name_en: string;
+    name_ar: string | null;
+    address: PostalAddress | null;
+    phone: string | null;
+    email: string | null;
+  }>(sql`
+    select name_en, name_ar, address, phone, email from core.orgs
+    where id = ${orgId}::uuid and status = 'active'`);
+  return row
+    ? {
+        nameEn: row.name_en,
+        nameAr: row.name_ar,
+        address: row.address,
+        phone: row.phone,
+        email: row.email,
+      }
+    : null;
+}
+
+export async function publicCategories(
+  tx: Tx,
+  orgId: string,
+): Promise<{ id: string; slug: string; nameEn: string; nameAr: string }[]> {
+  const rows = await tx.execute<{
+    id: string;
+    slug: string;
+    name_en: string;
+    name_ar: string;
+  }>(sql`
+    select id, slug, name_en, name_ar from core.site_categories
+    where org_id = ${orgId}::uuid order by position, id`);
+  return rows.map((row) => ({
+    id: row.id,
+    slug: row.slug,
+    nameEn: row.name_en,
+    nameAr: row.name_ar,
+  }));
+}

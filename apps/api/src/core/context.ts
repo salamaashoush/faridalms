@@ -18,6 +18,8 @@ export interface ApiDependencies {
   cellId: string;
   cellSecret: Uint8Array<ArrayBuffer>;
   files: FileStore;
+  /** The public-media bucket published files are copied to. */
+  publicMedia: FileStore;
   scanner: FileScanner | null;
   maxUploadBytes: number;
   /** Which outside channels have a gateway; the rest are logged as skipped. */
@@ -54,4 +56,9 @@ export interface UnitContext extends SchoolContext {
   /** Today in the school's time zone, one clock for the unit of work. */
   today: string;
   now: Date;
+  /**
+   * Work outside the database that must wait until the unit commits, such as
+   * deleting stored bytes a record no longer points at; a rollback skips it.
+   */
+  afterCommit: (task: () => Promise<void>) => void;
 }

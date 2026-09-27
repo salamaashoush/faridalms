@@ -3,7 +3,7 @@ import { sql } from "drizzle-orm";
 import type { CellTransaction } from "../context";
 import type { DocumentKind } from "../tables/documents";
 
-import { uuidArray } from "./sql";
+import { isoOf, uuidArray } from "./sql";
 
 type Tx = CellTransaction;
 
@@ -277,6 +277,75 @@ export async function publishedVersion(
         plainText: row.plain_text,
       }
     : null;
+}
+
+export interface VersionRow {
+  documentVersion: number;
+  reason: "publish" | "checkpoint" | "before_restore" | "import";
+  createdAt: string;
+  createdByNameEn: string | null;
+  createdByNameAr: string | null;
+}
+
+/** A document's snapshots, newest first. */
+export async function versionsOf(
+  tx: Tx,
+  tenantId: string,
+  documentId: string,
+): Promise<VersionRow[]> {
+  const rows = await tx.execute<{
+    document_version: number;
+    reason: VersionRow["reason"];
+    created_at: string;
+    name_en: string | null;
+    name_ar: string | null;
+  }>(sql`
+    select v.document_version, v.reason, ${isoOf(sql`v.created_at`)} as created_at,
+      u.full_name_en as name_en, u.full_name_ar as name_ar
+    from core.document_versions v
+    left join core.users u on u.tenant_id = v.tenant_id and u.id = v.created_by_user_id
+    where v.tenant_id = ${tenantId}::uuid and v.document_id = ${documentId}::uuid
+      and v.redacted_at is null
+    order by v.created_at desc, v.document_version desc
+    limit 100`);
+  return rows.map((row) => ({
+    documentVersion: row.document_version,
+    reason: row.reason,
+    createdAt: row.created_at,
+    createdByNameEn: row.name_en,
+    createdByNameAr: row.name_ar,
+  }));
+}
+
+/**
+ * Readies a restore: keeps the current content as a `before_restore`
+ * snapshot and answers the earlier snapshot's content, which the caller
+ * saves as a new revision through its host; history is never rewritten.
+ * Null when there is no such snapshot.
+ */
+export async function contentToRestore(
+  tx: Tx,
+  input: {
+    tenantId: string;
+    documentId: string;
+    documentVersion: number;
+    userId: string;
+  },
+): Promise<Record<string, unknown> | null> {
+  const [snapshot] = await tx.execute<{ content: Record<string, unknown> }>(sql`
+    select content from core.document_versions
+    where tenant_id = ${input.tenantId}::uuid and document_id = ${input.documentId}::uuid
+      and document_version = ${input.documentVersion} and redacted_at is null
+    order by created_at desc limit 1`);
+  if (!snapshot) return null;
+  await tx.execute(sql`
+    insert into core.document_versions (tenant_id, document_id, document_version, reason,
+      content, plain_text, created_by_user_id)
+    select tenant_id, id, version, 'before_restore', content, plain_text, ${input.userId}::uuid
+    from core.documents
+    where tenant_id = ${input.tenantId}::uuid and id = ${input.documentId}::uuid and status = 'active'
+    on conflict do nothing`);
+  return snapshot.content;
 }
 
 /**

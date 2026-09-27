@@ -1,7 +1,6 @@
 import * as administration from "./modules/administration";
 import * as overviews from "./modules/overviews";
 import * as search from "./modules/search";
-import * as site from "./modules/site";
 import * as students from "./modules/students";
 import * as teaching from "./modules/teaching";
 import * as accessSystem from "./systems/access";
@@ -22,6 +21,7 @@ import * as peopleSystem from "./systems/people";
 import * as recordsSystem from "./systems/records";
 import * as rolloverSystem from "./systems/rollover";
 import * as schoolSystem from "./systems/school";
+import * as siteSystem from "./systems/site";
 import * as timetableSystem from "./systems/timetable";
 import * as yearsSystem from "./systems/years";
 
@@ -46,11 +46,11 @@ export const router = {
   calendar: calendarSystem,
   notifications: notificationsSystem,
   learning: learningSystem,
+  site: siteSystem,
   ...students,
   ...overviews,
   ...teaching,
   ...administration,
-  ...site,
   ...search,
 };
 export type AppRouter = typeof router;

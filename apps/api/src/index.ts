@@ -1,12 +1,13 @@
 import { openCell } from "@faridalms/database/context";
 import { localKek } from "@faridalms/database/crypto";
 import { openDirectory } from "@faridalms/database/directory/client";
+import { join } from "node:path";
 
 import { createApp } from "./app";
 import { createKeyRing } from "./core/keys";
 import { env } from "./env";
 import { createScanner } from "./files/scan";
-import { DiskFileStore } from "./files/store";
+import { DiskFileStore, PUBLIC_KEY } from "./files/store";
 import { createProvider } from "./notifications/providers";
 import { startDelivery } from "./notifications/scheduler";
 
@@ -34,6 +35,10 @@ const server = Bun.serve({
     cellId: env.CELL_ID,
     cellSecret: new Uint8Array(Buffer.from(env.CELL_SECRET, "base64")),
     files: new DiskFileStore(env.FILE_STORAGE_DIR),
+    publicMedia: new DiskFileStore(
+      join(env.FILE_STORAGE_DIR, "public-media"),
+      PUBLIC_KEY,
+    ),
     scanner: createScanner(env.CLAMD_ADDRESS),
     maxUploadBytes: env.MAX_UPLOAD_BYTES,
     channels: {

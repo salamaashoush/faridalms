@@ -27,17 +27,21 @@ export interface FileStore {
   remove(key: string): Promise<void>;
 }
 
-const KEY = /^t\/[0-9a-f-]{36}\/[qfh]\/[0-9a-f-]{36}$/;
+const PRIVATE_KEY = /^t\/[0-9a-f-]{36}\/[qfh]\/[0-9a-f-]{36}$/;
+/** Objects in the public-media bucket, under a published file's public key. */
+export const PUBLIC_KEY = /^p\/[a-z0-9]{26}\/[A-Za-z0-9._-]{1,120}$/;
 
 export class DiskFileStore implements FileStore {
   private readonly root: string;
+  private readonly keys: RegExp;
 
-  constructor(root: string) {
+  constructor(root: string, keys: RegExp = PRIVATE_KEY) {
     this.root = resolve(root);
+    this.keys = keys;
   }
 
   private path(key: string) {
-    if (!KEY.test(key)) throw new StoreError("invalid_key");
+    if (!this.keys.test(key)) throw new StoreError("invalid_key");
     return join(this.root, key);
   }
 

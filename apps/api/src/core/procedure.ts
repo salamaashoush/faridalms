@@ -115,7 +115,8 @@ export async function openUnit<T>(
   const token = parseToken(bearer(context.headers));
   if (!token || token.tenantId !== context.school.tenantId)
     throw new ORPCError("UNAUTHORIZED");
-  return context.cell.withTenant(
+  const deferred: (() => Promise<void>)[] = [];
+  const result = await context.cell.withTenant(
     {
       tenantId: token.tenantId,
       requestId: context.requestId,
@@ -166,9 +167,25 @@ export async function openUnit<T>(
           capabilities: resolved.capabilities,
           contexts: resolved.contexts,
         },
+        afterCommit: (task) => {
+          deferred.push(task);
+        },
       });
     },
   );
+  for (const task of deferred) {
+    try {
+      await task();
+    } catch (error) {
+      console.error(
+        JSON.stringify({
+          requestId: context.requestId,
+          afterCommit: error instanceof Error ? error.message : String(error),
+        }),
+      );
+    }
+  }
+  return result;
 }
 
 function unit(access: Access) {
