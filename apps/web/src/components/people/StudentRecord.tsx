@@ -56,6 +56,7 @@ import {
   STATUS_LABEL,
   STATUS_TONE,
 } from "./format";
+import { HomesSection } from "./Households";
 import { Deferred, Email, HistorySection, Phone } from "./record-parts";
 import {
   CustodySection,
@@ -512,6 +513,9 @@ export function StudentRecord({
                   <CustodySection studentId={studentId} />
                 </Deferred>
               ) : null}
+              <Deferred>
+                <HomesSection userId={studentId} />
+              </Deferred>
             </>
           }
         />

@@ -311,3 +311,37 @@ test("a health alert and a pickup restriction show on the student's header", asy
   await expect(page.getByText("May not collect the student")).toBeVisible();
   await expect(page.getByText("Custody note", { exact: true })).toBeVisible();
 });
+
+test("an administrator makes a family and adds a student as a second home", async ({
+  page,
+}) => {
+  const unique = crypto.randomUUID().slice(0, 8);
+  await signIn(page, "admin");
+  await page.goto("/admin/families");
+  await untilHydrated(page);
+  await page.getByRole("button", { name: "Add family" }).click();
+  const sheet = page.getByRole("dialog", { name: "Add family" });
+  await sheet
+    .getByRole("textbox", { name: "Family name in English" })
+    .fill(`Home ${unique}`);
+  await sheet.getByRole("button", { name: "Save" }).click();
+  await expect(page).toHaveURL(/\/families\/[a-f0-9-]+/);
+  await expect(
+    page.getByRole("heading", { level: 1, name: `Home ${unique}` }),
+  ).toBeVisible();
+
+  await page.getByRole("button", { name: "Add member" }).first().click();
+  const add = page.getByRole("dialog", { name: "Add member" });
+  await add.getByRole("combobox", { name: /^Person/ }).click();
+  await page.getByPlaceholder(/Search Person/).fill("Tarek");
+  await page
+    .getByRole("option", { name: /Tarek .* Student/ })
+    .first()
+    .click();
+  await add.getByRole("combobox", { name: /^Home/ }).click();
+  await page.getByRole("option", { name: "Second home" }).click();
+  await add.getByRole("button", { name: "Save" }).click();
+  await expect(add).toHaveCount(0);
+  const children = page.getByRole("region", { name: "Children" });
+  await expect(children.getByText(/Second home/)).toBeVisible();
+});

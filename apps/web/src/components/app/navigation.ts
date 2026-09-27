@@ -56,6 +56,7 @@ export const NAVIGATION: Record<Workspace, NavSection[]> = {
       items: [
         { to: "/admin", label: m.navToday, icon: Sun, exact: true },
         { to: "/admin/students", label: m.navStudents, icon: GraduationCap },
+        { to: "/admin/families", label: m.navFamilies, icon: House },
         { to: "/admin/staff", label: m.navStaff, icon: Users },
         { to: "/admin/classes", label: m.navClasses, icon: School },
         {

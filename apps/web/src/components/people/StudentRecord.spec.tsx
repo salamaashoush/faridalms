@@ -34,6 +34,16 @@ vi.mock("~/server/students", () => ({
   getPersonHistory: vi.fn(),
 }));
 
+vi.mock("~/server/households", () => ({
+  getHouseholds: vi.fn(),
+  getHousehold: vi.fn(),
+  getHouseholdsOf: vi.fn(() => Promise.resolve([])),
+  saveHousehold: vi.fn(),
+  addToHousehold: vi.fn(),
+  endHouseholdMembership: vi.fn(),
+  searchPeople: vi.fn(),
+}));
+
 const STUDENT = "0b6f6a58-3f7e-4d51-9b1d-6f1f0f7f1a01";
 const MOTHER = "0b6f6a58-3f7e-4d51-9b1d-6f1f0f7f1a05";
 
