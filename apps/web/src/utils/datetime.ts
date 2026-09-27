@@ -18,6 +18,23 @@ export function formatRelativeDays(
   return formatter.format(days, "day");
 }
 
+/** How long ago an instant was, in the largest whole unit: "5 minutes ago", "yesterday". */
+export function formatAgo(iso: string, now: number = Date.now()): string {
+  const seconds = Math.round((Date.parse(iso) - now) / 1000);
+  const formatter = new Intl.RelativeTimeFormat(getLocale(), {
+    numeric: "auto",
+  });
+  const steps: [Intl.RelativeTimeFormatUnit, number][] = [
+    ["day", 86_400],
+    ["hour", 3600],
+    ["minute", 60],
+  ];
+  for (const [unit, size] of steps)
+    if (Math.abs(seconds) >= size)
+      return formatter.format(Math.round(seconds / size), unit);
+  return formatter.format(0, "minute");
+}
+
 /** Locale-aware: 10,000 in English, ١٠٬٠٠٠ in Arabic. */
 export function formatNumber(value: number): string {
   return new Intl.NumberFormat(getLocale()).format(value);

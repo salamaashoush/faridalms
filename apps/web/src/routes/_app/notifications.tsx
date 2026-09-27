@@ -3,36 +3,44 @@ import {
   useQueryClient,
   useSuspenseQuery,
 } from "@tanstack/react-query";
-import { createFileRoute } from "@tanstack/react-router";
-import { useServerFn } from "@tanstack/react-start";
-import { BellOff, CheckCheck } from "lucide-react";
+import { createFileRoute, stripSearchParams } from "@tanstack/react-router";
+import { BellOff, CheckCheck, Settings } from "lucide-react";
 import * as v from "valibot";
 
-import { DirectoryPagination } from "~/components/admin/DirectoryPagination";
-import { ButtonLink } from "~/components/app/ButtonLink";
 import {
-  NOTIFICATION_TYPE_LABEL,
-  notificationText,
-} from "~/components/app/notification-labels";
-import { EmptyState, PageHeader } from "~/components/app/primitives";
-import { Badge } from "~/components/ui/badge";
-import { Button } from "~/components/ui/button";
+  KIND_ICON,
+  NoticeLink,
+  noticeText,
+} from "~/components/notifications/format";
+import { Pagination } from "~/components/system/DataTable";
+import { EmptyState, PageHeader } from "~/components/system/IndexPage";
+import { RecordTabs } from "~/components/system/RecordPage";
+import { useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { notificationsQuery } from "~/queries/notifications";
 import { markNotificationsRead } from "~/server/notifications";
 import { cn } from "~/utils/cn";
-import { formatDateTime } from "~/utils/datetime";
+import { formatAgo, formatNumber } from "~/utils/datetime";
+
+const TABS = ["all", "action"] as const;
+
+const searchSchema = v.object({
+  tab: v.fallback(v.optional(v.picklist(TABS), "all"), "all"),
+  page: v.fallback(
+    v.optional(v.pipe(v.number(), v.integer(), v.minValue(1)), 1),
+    1,
+  ),
+});
+const DEFAULT_SEARCH = v.parse(searchSchema, {});
 
 export const Route = createFileRoute("/_app/notifications")({
   staticData: { breadcrumb: m.notifTitle },
-  validateSearch: v.object({
-    page: v.optional(v.pipe(v.number(), v.integer(), v.minValue(1)), 1),
-    unread: v.optional(v.boolean(), false),
-  }),
+  validateSearch: searchSchema,
+  search: { middlewares: [stripSearchParams(DEFAULT_SEARCH)] },
   loaderDeps: ({ search }) => search,
   loader: ({ context, deps }) =>
     context.queryClient.ensureQueryData(
-      notificationsQuery(deps.page, deps.unread),
+      notificationsQuery(deps.tab, deps.page),
     ),
   component: NotificationsPage,
 });
@@ -40,120 +48,142 @@ export const Route = createFileRoute("/_app/notifications")({
 function NotificationsPage() {
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
+  const user = useCurrentUser();
   const queryClient = useQueryClient();
-  const mark = useServerFn(markNotificationsRead);
-  const { data } = useSuspenseQuery(
-    notificationsQuery(search.page, search.unread),
-  );
-  const markAll = useMutation({
-    mutationFn: () => mark({ data: { ids: [] } }),
-    onSuccess: () =>
-      queryClient.invalidateQueries({ queryKey: ["notifications"] }),
-  });
-  const openOne = useMutation({
-    mutationFn: (id: string) => mark({ data: { ids: [id] } }),
+  const data = useSuspenseQuery(
+    notificationsQuery(search.tab, search.page),
+  ).data;
+  const { mutate: markRead, isPending } = useMutation({
+    mutationFn: (ids: string[]) => markNotificationsRead({ data: { ids } }),
     onSuccess: () =>
       queryClient.invalidateQueries({ queryKey: ["notifications"] }),
   });
   return (
-    <>
+    <div className="mx-auto grid w-full max-w-3xl">
       <PageHeader
         title={m.notifTitle()}
-        description={
+        description={m.ntfHint()}
+        action={{
+          label: m.notifPreferences(),
+          icon: Settings,
+          link: { to: "/notification-preferences" },
+        }}
+        menu={
           data.unread > 0
-            ? m.notifBellUnread({ count: String(data.unread) })
-            : m.notifAllRead()
-        }
-        actions={
-          <div className="flex flex-wrap gap-2">
-            <ButtonLink
-              variant={search.unread ? "secondary" : "outline"}
-              to="/notifications"
-              search={{ page: 1, unread: !search.unread }}
-            >
-              {m.notifUnreadOnly()}
-            </ButtonLink>
-            <Button
-              variant="outline"
-              disabled={data.unread === 0 || markAll.isPending}
-              onClick={() => markAll.mutate()}
-            >
-              <CheckCheck className="size-4" aria-hidden />
-              {m.notifMarkAllRead()}
-            </Button>
-            <ButtonLink variant="outline" to="/notification-preferences">
-              {m.notifPreferences()}
-            </ButtonLink>
-          </div>
+            ? [
+                {
+                  label: m.ntfMarkAll(),
+                  icon: CheckCheck,
+                  onSelect: () => markRead([]),
+                },
+              ]
+            : []
         }
       />
-      {data.rows.length === 0 ? (
-        <EmptyState icon={BellOff} title={m.notifEmpty()} />
-      ) : (
-        <ol className="divide-y rounded-xl border bg-card">
-          {data.rows.map((row) => {
-            const text = notificationText(row.type, row.payload);
-            return (
-              <li key={row.id}>
-                <a
-                  href={row.path}
-                  onClick={(event) => {
-                    event.preventDefault();
-                    if (!row.readAt) openOne.mutate(row.id);
-                    void navigate({ href: row.path });
-                  }}
-                  className={cn(
-                    "flex items-start gap-3 p-4 hover:bg-muted/50",
-                    row.readAt ? "" : "bg-primary/5",
-                  )}
-                >
-                  <span
-                    className={cn(
-                      "mt-2 size-2 shrink-0 rounded-full",
-                      row.readAt ? "bg-transparent" : "bg-primary",
-                    )}
-                    aria-hidden
-                  />
-                  <span className="min-w-0 flex-1">
-                    <span className="flex flex-wrap items-baseline justify-between gap-2">
-                      <span
+      <RecordTabs
+        label={m.notifTitle()}
+        tabs={[
+          { value: "all", label: m.ntfTabAll() },
+          {
+            value: "action",
+            label:
+              data.waiting > 0
+                ? m.ntfTabActionCount({ count: formatNumber(data.waiting) })
+                : m.ntfTabAction(),
+          },
+        ]}
+        value={search.tab}
+        onChange={(tab) => void navigate({ search: { tab } })}
+      >
+        {data.rows.length === 0 ? (
+          <EmptyState
+            icon={BellOff}
+            title={search.tab === "action" ? m.ntfNoAction() : m.notifEmpty()}
+            description={
+              search.tab === "action" ? m.ntfNoActionBody() : m.ntfEmptyBody()
+            }
+          />
+        ) : (
+          <div className="grid gap-4">
+            <ul className="divide-y rounded-lg border bg-card">
+              {data.rows.map((row) => {
+                const text = noticeText(row);
+                const Icon = KIND_ICON[row.kind];
+                const unread = row.readAt === null;
+                return (
+                  <li key={row.id}>
+                    <NoticeLink
+                      notice={row}
+                      workspace={user.workspace}
+                      onClick={() => {
+                        if (unread && !isPending) markRead([row.id]);
+                      }}
+                      className="flex items-start gap-3 px-4 py-3 hover:bg-accent/50 focus-visible:outline-2 focus-visible:outline-ring"
+                    >
+                      <Icon
                         className={cn(
-                          "text-sm",
-                          row.readAt ? "font-medium" : "font-semibold",
+                          "mt-0.5 size-4 shrink-0",
+                          row.kind === "urgent"
+                            ? "text-destructive"
+                            : "text-muted-foreground",
                         )}
-                      >
-                        {text.title}
+                        aria-hidden
+                      />
+                      <span className="grid min-w-0 flex-1 gap-0.5">
+                        <span className="flex flex-wrap items-baseline justify-between gap-x-3">
+                          <span
+                            className={cn(
+                              "min-w-0 text-sm leading-5",
+                              unread ? "font-semibold" : "font-medium",
+                            )}
+                          >
+                            {text.title}
+                            {unread ? (
+                              <span className="sr-only"> {m.annUnread()}</span>
+                            ) : null}
+                          </span>
+                          <span className="shrink-0 text-xs leading-4 text-muted-foreground">
+                            {formatAgo(row.createdAt)}
+                          </span>
+                        </span>
+                        {text.body ? (
+                          <bdi className="line-clamp-2 text-[13px] leading-[18px] text-muted-foreground">
+                            {text.body}
+                          </bdi>
+                        ) : null}
+                        {row.needsAction && !row.actedAt ? (
+                          <span className="text-xs leading-4 font-medium text-warning-foreground dark:text-warning">
+                            {m.ntfNeedsYou()}
+                          </span>
+                        ) : null}
                       </span>
-                      <span className="text-xs text-muted-foreground">
-                        {formatDateTime(row.createdAt.toISOString())}
-                      </span>
-                    </span>
-                    <span className="mt-0.5 block text-sm text-muted-foreground">
-                      {text.body}
-                    </span>
-                    <Badge variant="outline" className="mt-2">
-                      {NOTIFICATION_TYPE_LABEL[row.type]()}
-                    </Badge>
-                    {row.readAt ? null : (
-                      <span className="sr-only">{m.messagesUnread()}</span>
-                    )}
-                  </span>
-                </a>
-              </li>
-            );
-          })}
-        </ol>
-      )}
-      <div className="mt-4">
-        <DirectoryPagination
-          page={data.page}
-          pages={data.pages}
-          total={data.total}
-          onPage={(page) =>
-            void navigate({ search: (previous) => ({ ...previous, page }) })
-          }
-        />
-      </div>
-    </>
+                      {unread ? (
+                        <span
+                          className="mt-1.5 size-2 shrink-0 rounded-full bg-primary"
+                          aria-hidden
+                        />
+                      ) : null}
+                    </NoticeLink>
+                  </li>
+                );
+              })}
+            </ul>
+            {data.pages > 1 ? (
+              <Pagination
+                page={data.page}
+                pages={data.pages}
+                total={data.total}
+                pageSize={30}
+                onPage={(page) =>
+                  void navigate({
+                    search: (previous) => ({ ...previous, page }),
+                  })
+                }
+              />
+            ) : null}
+          </div>
+        )}
+      </RecordTabs>
+    </div>
   );
 }

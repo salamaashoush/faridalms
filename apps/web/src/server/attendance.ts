@@ -4,6 +4,7 @@ import {
   dayQuerySchema,
   excuseSchema,
   registerQuerySchema,
+  remindSchema,
   reportQuerySchema,
   saveRegisterSchema,
 } from "@faridalms/domain/attendance";
@@ -60,3 +61,7 @@ export const getClassAttendance = createServerFn({ method: "GET" })
   .handler(({ data }) =>
     record(backend().attendance.classSummary({ classId: data.id })),
   );
+
+export const remindTeachers = createServerFn({ method: "POST" })
+  .validator(checked(remindSchema))
+  .handler(({ data }) => backend().attendance.remind(data));

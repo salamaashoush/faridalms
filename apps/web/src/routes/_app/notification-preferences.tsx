@@ -1,143 +1,248 @@
-import { NOTIFICATION_TYPES } from "@faridalms/domain/notification";
+import type {
+  ChoosableKind,
+  EmailMode,
+  Preferences,
+  SmsMode,
+} from "@faridalms/domain/notifications";
+import type { Workspace } from "@faridalms/domain/workspace";
+
+import {
+  CHOOSABLE_KINDS,
+  EMAIL_MODES,
+  SMS_MODES,
+} from "@faridalms/domain/notifications";
 import {
   useMutation,
   useQueryClient,
   useSuspenseQuery,
 } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
-import { toast } from "sonner";
 
-import { ManagementPage } from "~/components/admin/ManagementPage";
+import { KIND_ICON } from "~/components/notifications/format";
+import { CheckboxRow } from "~/components/people/fields";
+import { SelectField, TextField } from "~/components/system/field";
+import { PageHeader } from "~/components/system/IndexPage";
 import {
-  Field,
-  FieldContent,
-  FieldDescription,
-  FieldLabel,
-} from "~/components/app/field";
-import { NOTIFICATION_TYPE_LABEL } from "~/components/app/notification-labels";
-import { Button } from "~/components/ui/button";
-import { Checkbox } from "~/components/ui/checkbox";
+  SettingsPage,
+  SettingsSection,
+} from "~/components/system/SettingsSection";
+import { useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { notificationPreferencesQuery } from "~/queries/notifications";
 import { saveNotificationPreferences } from "~/server/notifications";
+import { getMessageFromError } from "~/utils/error";
 
 export const Route = createFileRoute("/_app/notification-preferences")({
-  staticData: { breadcrumb: m.notifPreferences },
+  staticData: { breadcrumb: m.notifPreferences, section: "/notifications" },
   loader: ({ context }) =>
     context.queryClient.ensureQueryData(notificationPreferencesQuery),
   component: PreferencesPage,
 });
 
-function Toggle({
-  label,
-  hint,
-  id,
-  checked,
-  onChange,
-}: {
-  label: string;
-  hint: string;
-  id: string;
-  checked: boolean;
-  onChange: (next: boolean) => void;
-}) {
-  return (
-    <Field orientation="horizontal">
-      <Checkbox id={id} checked={checked} onCheckedChange={onChange} />
-      <FieldContent>
-        <FieldLabel htmlFor={id}>{label}</FieldLabel>
-        {hint ? <FieldDescription>{hint}</FieldDescription> : null}
-      </FieldContent>
-    </Field>
+const KIND_LABEL: Record<ChoosableKind, () => string> = {
+  announcement: m.ntfKindAnnouncement,
+  newsletter: m.ntfKindNewsletter,
+  message: m.ntfKindMessage,
+  absence: m.ntfKindAbsence,
+  event: m.ntfKindEvent,
+  reminder: m.ntfKindReminder,
+};
+
+const EMAIL_LABEL: Record<EmailMode, () => string> = {
+  instant: m.ntfModeInstant,
+  digest: m.ntfModeDigest,
+  off: m.ntfModeOff,
+};
+
+const SMS_LABEL: Record<SmsMode, () => string> = {
+  instant: m.ntfModeInstant,
+  off: m.ntfModeOff,
+};
+
+/** Absences reach families and register reminders reach staff; nobody else gets them. */
+function kindsFor(workspace: Workspace): readonly ChoosableKind[] {
+  return CHOOSABLE_KINDS.filter(
+    (kind) =>
+      (kind !== "absence" || workspace === "family") &&
+      (kind !== "reminder" || workspace === "teach" || workspace === "admin"),
   );
 }
 
+interface Draft {
+  preferences: Preferences;
+  locale: "en" | "ar";
+}
+
 function PreferencesPage() {
-  const navigate = Route.useNavigate();
+  const data = useSuspenseQuery(notificationPreferencesQuery).data;
+  const user = useCurrentUser();
   const queryClient = useQueryClient();
-  const save = useServerFn(saveNotificationPreferences);
-  const { data } = useSuspenseQuery(notificationPreferencesQuery);
-  const [baseline, setBaseline] = useState(data);
-  const [values, setValues] = useState(data);
-  const mutation = useMutation({
-    mutationFn: () => save({ data: values }),
-    onSuccess: async (saved) => {
-      setBaseline(saved);
-      setValues(saved);
-      await queryClient.invalidateQueries({ queryKey: ["notifications"] });
-      toast.success(m.managementSaved());
+  const [draft, setDraft] = useState<Draft>({
+    preferences: data.preferences,
+    locale: data.locale,
+  });
+  const [baseline, setBaseline] = useState(() => JSON.stringify(draft));
+  const save = useMutation({
+    mutationFn: () => saveNotificationPreferences({ data: draft }),
+    onSuccess: async () => {
+      setBaseline(JSON.stringify(draft));
+      await queryClient.invalidateQueries({
+        queryKey: ["notifications", "preferences"],
+      });
     },
   });
+  const set = (next: Partial<Preferences>) =>
+    setDraft((current) => ({
+      ...current,
+      preferences: { ...current.preferences, ...next },
+    }));
+  const dirty = () => JSON.stringify(draft) !== baseline;
+  const common = {
+    onSubmit: () => save.mutateAsync(),
+    pending: save.isPending,
+    error: save.error ? getMessageFromError(save.error) : null,
+    saved: save.isSuccess && !dirty(),
+    isDirty: dirty,
+  };
   return (
-    <ManagementPage
-      title={m.notifPreferences()}
-      description={m.notifPreferencesHint()}
-      pending={mutation.isPending}
-      onClose={() =>
-        void navigate({
-          to: "/notifications",
-          search: { page: 1, unread: false },
-        })
-      }
-      onSubmit={() => mutation.mutateAsync().then(() => undefined)}
-      isDirty={() => JSON.stringify(values) !== JSON.stringify(baseline)}
-    >
-      <fieldset className="min-w-0 space-y-4">
-        <legend className="text-sm font-semibold">{m.notifChannels()}</legend>
-        <Toggle
-          label={m.notifChannelEmail()}
-          hint={m.notifChannelEmailHint()}
-          id="pref-email"
-          checked={values.email}
-          onChange={(email) => setValues((current) => ({ ...current, email }))}
-        />
-        <Toggle
-          label={m.notifChannelSms()}
-          hint={m.notifChannelSmsHint()}
-          id="pref-sms"
-          checked={values.sms}
-          onChange={(sms) => setValues((current) => ({ ...current, sms }))}
-        />
-      </fieldset>
-      <fieldset className="min-w-0 space-y-3">
-        <legend className="text-sm font-semibold">{m.notifLanguage()}</legend>
-        <div className="flex gap-2">
-          {(["en", "ar"] as const).map((locale) => (
-            <Button
-              key={locale}
-              type="button"
-              variant={values.locale === locale ? "secondary" : "outline"}
-              aria-pressed={values.locale === locale}
-              onClick={() => setValues((current) => ({ ...current, locale }))}
-            >
-              {locale === "en" ? m.newsletterEnglish() : m.newsletterArabic()}
-            </Button>
-          ))}
-        </div>
-      </fieldset>
-      <fieldset className="min-w-0 space-y-3">
-        <legend className="text-sm font-semibold">{m.notifMuted()}</legend>
-        <FieldDescription>{m.notifMutedHint()}</FieldDescription>
-        {NOTIFICATION_TYPES.map((type) => (
-          <Toggle
-            key={type}
-            label={NOTIFICATION_TYPE_LABEL[type]()}
-            hint=""
-            id={`mute-${type}`}
-            checked={values.mutedTypes.includes(type)}
-            onChange={(muted) =>
-              setValues((current) => ({
-                ...current,
-                mutedTypes: muted
-                  ? [...current.mutedTypes, type]
-                  : current.mutedTypes.filter((item) => item !== type),
-              }))
+    <>
+      <PageHeader title={m.notifPreferences()} description={m.ntfPrefsHint()} />
+      <SettingsPage>
+        <SettingsSection
+          title={m.ntfSectionChannels()}
+          description={m.ntfSectionChannelsHint()}
+          {...common}
+        >
+          <ul className="grid gap-5">
+            <li className="grid gap-1">
+              <p className="flex items-center gap-2 text-sm leading-5 font-medium">
+                <KIND_ICON.urgent
+                  className="size-4 text-destructive"
+                  aria-hidden
+                />
+                {m.ntfKindUrgent()}
+              </p>
+              <p className="text-[13px] leading-[18px] text-muted-foreground">
+                {m.ntfUrgentLocked()}
+              </p>
+            </li>
+            {kindsFor(user.workspace).map((kind) => {
+              const Icon = KIND_ICON[kind];
+              return (
+                <li
+                  key={kind}
+                  className="grid gap-3 border-t pt-5 @min-[560px]:grid-cols-[minmax(0,1fr)_auto] @min-[560px]:items-end"
+                >
+                  <p className="flex items-center gap-2 text-sm leading-5 font-medium @min-[560px]:self-center">
+                    <Icon
+                      className="size-4 text-muted-foreground"
+                      aria-hidden
+                    />
+                    {KIND_LABEL[kind]()}
+                  </p>
+                  <div className="flex flex-wrap gap-3">
+                    <SelectField
+                      id={`email-${kind}`}
+                      label={m.ntfEmail()}
+                      className="w-40"
+                      value={draft.preferences.email[kind]}
+                      options={EMAIL_MODES.map((mode) => ({
+                        value: mode,
+                        label: EMAIL_LABEL[mode](),
+                      }))}
+                      onChange={(mode) =>
+                        set({
+                          email: { ...draft.preferences.email, [kind]: mode },
+                        })
+                      }
+                    />
+                    <SelectField
+                      id={`sms-${kind}`}
+                      label={m.ntfSms()}
+                      className="w-32"
+                      value={draft.preferences.sms[kind]}
+                      options={SMS_MODES.map((mode) => ({
+                        value: mode,
+                        label: SMS_LABEL[mode](),
+                      }))}
+                      onChange={(mode) =>
+                        set({ sms: { ...draft.preferences.sms, [kind]: mode } })
+                      }
+                    />
+                  </div>
+                </li>
+              );
+            })}
+          </ul>
+          {data.channels.email && data.channels.sms ? null : (
+            <p className="text-[13px] leading-[18px] text-muted-foreground">
+              {data.channels.email
+                ? m.ntfNoSms()
+                : data.channels.sms
+                  ? m.ntfNoEmail()
+                  : m.ntfNoChannels()}
+            </p>
+          )}
+        </SettingsSection>
+        <SettingsSection
+          title={m.ntfSectionTiming()}
+          description={m.ntfSectionTimingHint()}
+          {...common}
+        >
+          <div className="flex flex-wrap items-start gap-4">
+            <TextField
+              id="quiet-from"
+              label={m.ntfQuietFrom()}
+              optional
+              type="time"
+              width="date"
+              value={draft.preferences.quietFrom}
+              onChange={(event) => set({ quietFrom: event.target.value })}
+            />
+            <TextField
+              id="quiet-to"
+              label={m.ntfQuietTo()}
+              optional
+              type="time"
+              width="date"
+              value={draft.preferences.quietTo}
+              onChange={(event) => set({ quietTo: event.target.value })}
+            />
+          </div>
+          <CheckboxRow
+            label={m.ntfWeekendMute()}
+            hint={m.ntfWeekendMuteHint()}
+            checked={draft.preferences.weekendMute}
+            onChange={(weekendMute) => set({ weekendMute })}
+          />
+          <TextField
+            id="digest-at"
+            label={m.ntfDigestAt()}
+            hint={m.ntfDigestAtHint()}
+            type="time"
+            width="date"
+            value={draft.preferences.digestAt}
+            onChange={(event) =>
+              event.target.value && set({ digestAt: event.target.value })
             }
           />
-        ))}
-      </fieldset>
-    </ManagementPage>
+          <SelectField
+            id="notify-language"
+            label={m.ntfLanguage()}
+            hint={m.ntfLanguageHint()}
+            width="name"
+            value={draft.locale}
+            options={[
+              { value: "en", label: m.nlLangEn() },
+              { value: "ar", label: m.nlLangAr() },
+            ]}
+            onChange={(locale) =>
+              setDraft((current) => ({ ...current, locale }))
+            }
+          />
+        </SettingsSection>
+      </SettingsPage>
+    </>
   );
 }

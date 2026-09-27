@@ -1,33 +1,35 @@
+import type { DeliveryLogQuery } from "@faridalms/domain/notifications";
+
 import { queryOptions } from "@tanstack/react-query";
 
 import {
-  getNotificationAudit,
+  getDeliveryLog,
   getNotificationPreferences,
   getNotifications,
-  getUnreadNotificationCount,
+  getRecentNotifications,
 } from "~/server/notifications";
 
-export const unreadNotificationsQuery = queryOptions({
-  queryKey: ["notifications", "unread"],
-  queryFn: () => getUnreadNotificationCount(),
-  refetchInterval: 30_000,
+export const recentNotificationsQuery = queryOptions({
+  queryKey: ["notifications", "recent"],
+  queryFn: () => getRecentNotifications(),
+  refetchInterval: 60_000,
 });
-export const notificationsQuery = (page: number, unreadOnly: boolean) =>
+
+export const notificationsQuery = (tab: "action" | "all", page: number) =>
   queryOptions({
-    queryKey: ["notifications", "list", page, unreadOnly],
-    queryFn: () => getNotifications({ data: { page, unreadOnly } }),
+    queryKey: ["notifications", "list", tab, page],
+    queryFn: () => getNotifications({ data: { tab, page } }),
+    placeholderData: (previous) => previous,
   });
+
 export const notificationPreferencesQuery = queryOptions({
   queryKey: ["notifications", "preferences"],
   queryFn: () => getNotificationPreferences(),
 });
-export const notificationAuditQuery = (query: {
-  page: number;
-  q: string;
-  state: "all" | "pending" | "sent" | "failed" | "skipped";
-  channel: "all" | "in_app" | "email" | "sms";
-}) =>
+
+export const deliveryLogQuery = (query: DeliveryLogQuery) =>
   queryOptions({
-    queryKey: ["notifications", "audit", query],
-    queryFn: () => getNotificationAudit({ data: query }),
+    queryKey: ["notifications", "deliveries", query],
+    queryFn: () => getDeliveryLog({ data: query }),
+    placeholderData: (previous) => previous,
   });

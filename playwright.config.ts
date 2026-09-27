@@ -30,6 +30,7 @@ export default defineConfig({
     "announcements.spec.ts",
     "newsletters.spec.ts",
     "calendar.spec.ts",
+    "notifications.spec.ts",
   ],
   /* Run tests in files in parallel */
   fullyParallel: true,

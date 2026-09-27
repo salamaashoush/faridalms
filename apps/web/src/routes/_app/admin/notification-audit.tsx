@@ -1,185 +1,211 @@
-import type {
-  DeliveryState,
-  NotificationChannel,
-} from "@faridalms/domain/notification";
+import type { DeliveryLogQuery } from "@faridalms/domain/notifications";
 
+import {
+  DELIVERY_CHANNELS,
+  DELIVERY_STATES,
+  deliveryLogSchema,
+} from "@faridalms/domain/notifications";
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { createFileRoute } from "@tanstack/react-router";
+import { createFileRoute, stripSearchParams } from "@tanstack/react-router";
+import { Send } from "lucide-react";
 import * as v from "valibot";
 
-import type { DataColumn } from "~/components/admin/DataTable";
-import type { getNotificationAudit } from "~/server/notifications";
+import type { Column } from "~/components/system/DataTable";
+import type { Tone } from "~/components/system/status";
+import type { deliveryLogQuery as Query } from "~/queries/notifications";
 
-import { DataTable } from "~/components/admin/DataTable";
-import { TableFilter } from "~/components/admin/TableFilter";
-import {
-  NOTIFICATION_TYPE_LABEL,
-  notificationText,
-} from "~/components/app/notification-labels";
-import { PageHeader, Value } from "~/components/app/primitives";
-import { Badge } from "~/components/ui/badge";
+import { formatInstant } from "~/components/coursework/format";
+import { DataTable } from "~/components/system/DataTable";
+import { IndexToolbar, PageHeader } from "~/components/system/IndexPage";
+import { StatusText } from "~/components/system/status";
+import { inLocale, useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
-import { notificationAuditQuery } from "~/queries/notifications";
-import { formatDateTime, formatNumber } from "~/utils/datetime";
+import { deliveryLogQuery } from "~/queries/notifications";
 
-const STATES = ["all", "pending", "sent", "failed", "skipped"] as const;
-const CHANNELS = ["all", "in_app", "email", "sms"] as const;
-type Row = Awaited<ReturnType<typeof getNotificationAudit>>["rows"][number];
-
-export const STATE_LABEL: Record<DeliveryState, () => string> = {
-  pending: m.deliveryPending,
-  sent: m.deliverySent,
-  failed: m.deliveryFailed,
-  skipped: m.deliverySkipped,
-};
-export const CHANNEL_LABEL: Record<NotificationChannel, () => string> = {
-  in_app: m.channelInApp,
-  email: m.notifChannelEmail,
-  sms: m.notifChannelSms,
-};
-
-const columns: DataColumn<Row, "created">[] = [
-  {
-    id: "created",
-    label: m.messagesDate,
-    sort: "created",
-    render: (row) => (
-      <span className="text-xs tabular-nums">
-        {formatDateTime(row.createdAt.toISOString())}
-      </span>
-    ),
-  },
-  {
-    id: "recipient",
-    label: m.messagesRecipient,
-    render: (row) => <Value>{row.notification.recipient.name}</Value>,
-  },
-  {
-    id: "notification",
-    label: m.notifTitle,
-    render: (row) => (
-      <div>
-        <p className="text-sm font-medium">
-          {
-            notificationText(row.notification.type, row.notification.payload)
-              .title
-          }
-        </p>
-        <p className="text-xs text-muted-foreground">
-          {NOTIFICATION_TYPE_LABEL[row.notification.type]()}
-        </p>
-      </div>
-    ),
-  },
-  {
-    id: "channel",
-    label: m.notifChannels,
-    render: (row) => (
-      <span>
-        {CHANNEL_LABEL[row.channel]()}
-        {row.address ? (
-          <span className="block text-xs text-muted-foreground">
-            {row.address}
-          </span>
-        ) : null}
-      </span>
-    ),
-  },
-  {
-    id: "state",
-    label: m.courseworkStatus,
-    render: (row) => (
-      <div className="space-y-1">
-        <Badge
-          variant={
-            row.state === "sent"
-              ? "default"
-              : row.state === "failed"
-                ? "destructive"
-                : "outline"
-          }
-        >
-          {STATE_LABEL[row.state]()}
-        </Badge>
-        <p className="text-xs text-muted-foreground">
-          {m.deliveryAttempts({ count: formatNumber(row.attempts) })}
-          {row.lastError ? ` · ${row.lastError}` : ""}
-          {row.providerReceipt ? ` · ${row.providerReceipt}` : ""}
-        </p>
-      </div>
-    ),
-  },
-];
+const DEFAULT_SEARCH = v.parse(deliveryLogSchema, {});
 
 export const Route = createFileRoute("/_app/admin/notification-audit")({
-  staticData: { breadcrumb: m.notifAudit },
-  validateSearch: v.object({
-    page: v.optional(v.pipe(v.number(), v.integer(), v.minValue(1)), 1),
-    q: v.optional(v.string(), ""),
-    state: v.optional(v.picklist(STATES), "all"),
-    channel: v.optional(v.picklist(CHANNELS), "all"),
-  }),
+  staticData: { breadcrumb: m.ntfLogTitle },
+  validateSearch: deliveryLogSchema,
+  search: { middlewares: [stripSearchParams(DEFAULT_SEARCH)] },
   loaderDeps: ({ search }) => search,
   loader: ({ context, deps }) =>
-    context.queryClient.ensureQueryData(notificationAuditQuery(deps)),
-  component: AuditPage,
+    context.queryClient.ensureQueryData(deliveryLogQuery(deps)),
+  component: DeliveryLogPage,
 });
 
-function AuditPage() {
+type Row = Awaited<
+  ReturnType<NonNullable<ReturnType<typeof Query>["queryFn"]>>
+>["rows"][number];
+
+const STATE_LABEL: Record<Row["state"], () => string> = {
+  pending: m.ntfStatePending,
+  sent: m.ntfStateSent,
+  failed: m.ntfStateFailed,
+  skipped: m.ntfStateSkipped,
+};
+
+const STATE_TONE: Record<Row["state"], Tone> = {
+  pending: "info",
+  sent: "success",
+  failed: "danger",
+  skipped: "neutral",
+};
+
+const REASON_LABEL: Record<NonNullable<Row["reason"]>, () => string> = {
+  preference_off: m.ntfReasonOff,
+  no_address: m.ntfReasonNoAddress,
+  unreachable: m.ntfReasonUnreachable,
+  no_provider: m.ntfReasonNoProvider,
+  withdrawn: m.ntfReasonWithdrawn,
+  provider_error: m.ntfReasonError,
+  gave_up: m.ntfReasonGaveUp,
+};
+
+const CHANNEL_LABEL: Record<Row["channel"], () => string> = {
+  email: m.ntfEmail,
+  sms: m.ntfSms,
+};
+
+function State({ row }: { row: Row }) {
+  return (
+    <span className="grid gap-0.5">
+      <StatusText tone={STATE_TONE[row.state]}>
+        {STATE_LABEL[row.state]()}
+      </StatusText>
+      {row.reason ? (
+        <span className="text-xs leading-4 text-muted-foreground">
+          {REASON_LABEL[row.reason]()}
+        </span>
+      ) : null}
+    </span>
+  );
+}
+
+// Built per render: headers read the request's locale, which a module-level
+// array would fix at whichever language first loaded the module on the server.
+function columns(timeZone: string): Column<Row>[] {
+  return [
+    {
+      id: "person",
+      header: m.annColPerson(),
+      primary: true,
+      cell: (row) => <bdi>{inLocale(row.fullNameEn, row.fullNameAr)}</bdi>,
+    },
+    {
+      id: "about",
+      header: m.ntfColAbout(),
+      cell: (row) => <bdi className="truncate">{row.title ?? "–"}</bdi>,
+    },
+    {
+      id: "channel",
+      header: m.ntfColChannel(),
+      cell: (row) => CHANNEL_LABEL[row.channel](),
+    },
+    {
+      id: "state",
+      header: m.ntfColState(),
+      cell: (row) => <State row={row} />,
+    },
+    {
+      id: "when",
+      header: m.ntfColWhen(),
+      cell: (row) => formatInstant(row.sentAt ?? row.dueAt, timeZone),
+    },
+  ];
+}
+
+const card = {
+  title: (row: Row) => <bdi>{inLocale(row.fullNameEn, row.fullNameAr)}</bdi>,
+  status: (row: Row) => <State row={row} />,
+  fact: (row: Row) => `${CHANNEL_LABEL[row.channel]()} · ${row.title ?? ""}`,
+};
+
+function DeliveryLogPage() {
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
-  const { data } = useSuspenseQuery(notificationAuditQuery(search));
-  const patch = (change: Partial<typeof search>) =>
-    void navigate({ search: (previous) => ({ ...previous, ...change }) });
+  const user = useCurrentUser();
+  const data = useSuspenseQuery(deliveryLogQuery(search)).data;
+  const update = (next: Partial<DeliveryLogQuery>) =>
+    void navigate({
+      search: (previous) => ({ ...previous, page: 1, ...next }),
+    });
   return (
     <>
-      <PageHeader title={m.notifAudit()} description={m.notifAuditHint()} />
-      <DataTable
-        rows={data.rows}
-        columns={columns}
-        caption={m.notifAudit()}
-        query={search.q}
-        onQuery={(q) => patch({ q, page: 1 })}
-        sort="created"
-        direction="desc"
-        onSort={() => undefined}
-        page={data.page}
-        pages={data.pages}
-        total={data.total}
-        onPage={(page) => patch({ page })}
-        filters={
-          <>
-            <TableFilter
-              label={m.courseworkStatus()}
-              value={search.state}
-              classes={STATES.map((state) => ({
-                id: state,
-                name:
-                  state === "all" ? m.courseworkAll() : STATE_LABEL[state](),
-              }))}
-              onChange={(value) => {
-                const state = STATES.find((item) => item === value);
-                if (state) patch({ state, page: 1 });
-              }}
-            />
-            <TableFilter
-              label={m.notifChannels()}
-              value={search.channel}
-              classes={CHANNELS.map((channel) => ({
-                id: channel,
-                name:
-                  channel === "all"
-                    ? m.courseworkAll()
-                    : CHANNEL_LABEL[channel](),
-              }))}
-              onChange={(value) => {
-                const channel = CHANNELS.find((item) => item === value);
-                if (channel) patch({ channel, page: 1 });
-              }}
-            />
-          </>
-        }
+      <PageHeader
+        title={m.ntfLogTitle()}
+        count={data.total}
+        description={m.ntfLogHint()}
       />
+      <div className="grid gap-4">
+        <IndexToolbar
+          search={{
+            value: search.q,
+            onChange: (q) => update({ q }),
+            label: m.ntfLogSearch(),
+            placeholder: m.ntfLogSearchPlaceholder(),
+          }}
+          facets={[
+            {
+              id: "state",
+              label: m.ntfColState(),
+              single: true,
+              defaultSelected: ["all"],
+              selected: [search.state],
+              options: [
+                { value: "all", label: m.ntfAll() },
+                ...DELIVERY_STATES.map((state) => ({
+                  value: state,
+                  label: STATE_LABEL[state](),
+                })),
+              ],
+              onChange: ([state]) =>
+                update({
+                  state: (state ?? "all") as DeliveryLogQuery["state"],
+                }),
+            },
+            {
+              id: "channel",
+              label: m.ntfColChannel(),
+              single: true,
+              defaultSelected: ["all"],
+              selected: [search.channel],
+              options: [
+                { value: "all", label: m.ntfAll() },
+                ...DELIVERY_CHANNELS.map((channel) => ({
+                  value: channel,
+                  label: CHANNEL_LABEL[channel](),
+                })),
+              ],
+              onChange: ([channel]) =>
+                update({
+                  channel: (channel ?? "all") as DeliveryLogQuery["channel"],
+                }),
+            },
+          ]}
+          onReset={() => void navigate({ search: {} })}
+        />
+        <DataTable
+          caption={m.ntfLogTitle()}
+          rows={data.rows}
+          columns={columns(user.school.timeZone)}
+          rowLabel={(row) => inLocale(row.fullNameEn, row.fullNameAr)}
+          card={card}
+          pagination={{
+            page: data.page,
+            pages: data.pages,
+            total: data.total,
+            pageSize: 30,
+            onPage: (page) =>
+              void navigate({ search: (previous) => ({ ...previous, page }) }),
+          }}
+          empty={{
+            icon: Send,
+            title: m.ntfLogEmpty(),
+            description: m.ntfLogEmptyBody(),
+          }}
+        />
+      </div>
     </>
   );
 }

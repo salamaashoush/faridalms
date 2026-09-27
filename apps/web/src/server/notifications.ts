@@ -1,28 +1,34 @@
 import {
-  deliveryAuditQuerySchema,
-  markNotificationsReadSchema,
-  notificationsQuerySchema,
-  saveNotificationPreferencesSchema,
-} from "@faridalms/domain/notification";
+  deliveryLogSchema,
+  listNotificationsSchema,
+  markReadSchema,
+  savePreferencesSchema,
+} from "@faridalms/domain/notifications";
 import { createServerFn } from "@tanstack/react-start";
 
 import { backend } from "./backend";
+import { checked } from "./input";
 
 export const getNotifications = createServerFn({ method: "GET" })
-  .inputValidator(notificationsQuerySchema)
-  .handler(({ data }) => backend().getNotifications(data));
-export const getUnreadNotificationCount = createServerFn({
+  .validator(checked(listNotificationsSchema))
+  .handler(({ data }) => backend().notifications.list(data));
+
+export const getRecentNotifications = createServerFn({
   method: "GET",
-}).handler(() => backend().getUnreadNotificationCount());
+}).handler(() => backend().notifications.recent());
+
 export const markNotificationsRead = createServerFn({ method: "POST" })
-  .inputValidator(markNotificationsReadSchema)
-  .handler(({ data }) => backend().markNotificationsRead(data));
+  .validator(checked(markReadSchema))
+  .handler(({ data }) => backend().notifications.markRead(data));
+
 export const getNotificationPreferences = createServerFn({
   method: "GET",
-}).handler(() => backend().getNotificationPreferences());
+}).handler(() => backend().notifications.preferences());
+
 export const saveNotificationPreferences = createServerFn({ method: "POST" })
-  .inputValidator(saveNotificationPreferencesSchema)
-  .handler(({ data }) => backend().saveNotificationPreferences(data));
-export const getNotificationAudit = createServerFn({ method: "GET" })
-  .inputValidator(deliveryAuditQuerySchema)
-  .handler(({ data }) => backend().getNotificationAudit(data));
+  .validator(checked(savePreferencesSchema))
+  .handler(({ data }) => backend().notifications.savePreferences(data));
+
+export const getDeliveryLog = createServerFn({ method: "GET" })
+  .validator(checked(deliveryLogSchema))
+  .handler(({ data }) => backend().notifications.deliveries(data));
