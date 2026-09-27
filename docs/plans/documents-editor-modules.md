@@ -67,6 +67,12 @@ Website pages stay a visual section builder: that is its own design
 
 Done: tables worked in place (grips to drag or open row and column menus,
 cell menu with colour and alignment, merge and split, resizing, stripes).
+Pictures, drawings, video and embeds share one width and alignment, set from
+the floating bar that also formats text; the editor keeps exactly two bars,
+the fixed toolbar (whose tools that do not fit move into a More menu) and that
+floating bar. A document reads in its own direction, taken from its first
+letter, and the server draws it in the editor's frame before the editor loads.
+Document pages put the text first on phones, with the details in a sheet.
 
 Next, in order:
 
