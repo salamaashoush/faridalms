@@ -87,16 +87,45 @@ describe("keeping the calendar", () => {
 
     const saved = await office.calendar.save(event("Book fair briefing"));
     const family = await mother();
-    expect(
+    const listed = async () =>
       (await family.calendar.range(october)).events.some(
         (row) => row.id === saved.id,
-      ),
-    ).toBe(true);
+      );
+    expect(await listed()).toBe(false);
+    expect(
+      await rejection(family.calendar.event({ id: saved.id })),
+    ).toMatchObject({ code: "NOT_FOUND" });
 
-    const off = await office.calendar.cancel({
+    const before = (await family.notifications.list({ tab: "all" })).total;
+    const out = await office.calendar.publish({
       id: saved.id,
       expectedVersion: saved.version,
+      notify: true,
+    });
+    expect(out.told).toBeGreaterThan(0);
+    expect(await listed()).toBe(true);
+    const notices = await family.notifications.list({ tab: "all" });
+    expect(notices.total).toBe(before + 1);
+    expect(notices.rows[0]).toMatchObject({
+      kind: "event",
+      params: { title: "Book fair briefing" },
+    });
+
+    expect(
+      await rejection(
+        office.calendar.remove({ id: saved.id, expectedVersion: out.version }),
+      ),
+    ).toMatchObject({ message: "calendar.cancel_first" });
+    const off = await office.calendar.cancel({
+      id: saved.id,
+      expectedVersion: out.version,
       cancelled: true,
+    });
+    expect(
+      (await family.notifications.list({ tab: "all" })).rows[0],
+    ).toMatchObject({
+      kind: "event",
+      params: { cancelled: true },
     });
     expect((await family.calendar.event({ id: saved.id })).cancelled).toBe(
       true,
@@ -111,10 +140,58 @@ describe("keeping the calendar", () => {
     ).toMatchObject({ code: "NOT_FOUND" });
   });
 
-  test("only those who manage the calendar change it", async () => {
+  test("only those who manage the calendar address the school, its families or other classes", async () => {
     const teacher = await sessionFor("northwind", login("teacher", 0, 1));
     expect(
       await rejection(teacher.api.calendar.save(event("Not mine"))),
     ).toMatchObject({ code: "FORBIDDEN" });
+
+    const { classes } = await teacher.api.calendar.options();
+    const own = classes[0];
+    if (!own) throw new Error("the seeded teacher has no class");
+    const office = await principal();
+    const all = (await office.calendar.options()).classes;
+    const other = all.find(
+      (row) => !classes.some((mine) => mine.id === row.id),
+    );
+    if (!other) throw new Error("the seed has no class the teacher lacks");
+    expect(
+      await rejection(
+        teacher.api.calendar.save({
+          ...event("Their trip"),
+          audiences: [{ scope: "class", classId: other.id, gradeId: "" }],
+        }),
+      ),
+    ).toMatchObject({ code: "FORBIDDEN" });
+  });
+
+  test("a teacher puts a test on their class's calendar and can change only their own", async () => {
+    const teacher = await sessionFor("northwind", login("teacher", 0, 1));
+    const { classes, grades } = await teacher.api.calendar.options();
+    expect(grades).toEqual([]);
+    const own = classes[0];
+    if (!own) throw new Error("the seeded teacher has no class");
+    const saved = await teacher.api.calendar.save({
+      ...event("Unit test: fractions"),
+      category: "exam",
+      audiences: [{ scope: "class", classId: own.id, gradeId: "" }],
+    });
+    const draft = await teacher.api.calendar.event({ id: saved.id });
+    expect(draft).toMatchObject({ state: "draft", canEdit: true });
+    await teacher.api.calendar.publish({
+      id: saved.id,
+      expectedVersion: saved.version,
+      notify: false,
+    });
+
+    const other = await sessionFor("northwind", login("teacher", 0, 2));
+    const seen = await rejection(
+      other.api.calendar.cancel({
+        id: saved.id,
+        expectedVersion: 2,
+        cancelled: true,
+      }),
+    );
+    expect(seen).toMatchObject({ code: "FORBIDDEN" });
   });
 });

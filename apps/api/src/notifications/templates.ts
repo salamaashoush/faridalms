@@ -23,7 +23,10 @@ const LINES: Record<"en" | "ar", Record<NotificationKind, Line>> = {
       `New message from ${p.actorName ?? "the school"}${p.preview ? `: ${p.preview}` : ""}`,
     absence: (p) =>
       `${p.studentName ?? "Your child"} was marked absent on ${p.date ?? "today"}${p.className ? ` (${p.className})` : ""}.`,
-    event: (p) => `Event: ${p.title ?? ""}`,
+    event: (p) =>
+      p.cancelled
+        ? `Cancelled: ${p.title ?? ""}${p.date ? ` on ${p.date}` : ""}`
+        : `${p.updated ? "Event changed" : "Event"}: ${p.title ?? ""}${p.date ? ` on ${p.date}` : ""}`,
     reminder: (p) =>
       `Reminder: the register for ${p.className ?? "your class"} on ${p.date ?? "today"} is not taken yet.`,
   },
@@ -36,7 +39,10 @@ const LINES: Record<"en" | "ar", Record<NotificationKind, Line>> = {
       `رسالة جديدة من ${p.actorName ?? "المدرسة"}${p.preview ? `: ${p.preview}` : ""}`,
     absence: (p) =>
       `سُجّل غياب ${p.studentName ?? "طفلك"} يوم ${p.date ?? "اليوم"}${p.className ? ` (${p.className})` : ""}.`,
-    event: (p) => `فعالية: ${p.title ?? ""}`,
+    event: (p) =>
+      p.cancelled
+        ? `أُلغيت: ${p.title ?? ""}${p.date ? ` يوم ${p.date}` : ""}`
+        : `${p.updated ? "تغيّرت فعالية" : "فعالية"}: ${p.title ?? ""}${p.date ? ` يوم ${p.date}` : ""}`,
     reminder: (p) =>
       `تذكير: لم يُسجَّل حضور ${p.className ?? "فصلك"} يوم ${p.date ?? "اليوم"} بعد.`,
   },

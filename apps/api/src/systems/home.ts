@@ -177,6 +177,8 @@ export const teacher = readProcedure.handler(async ({ context }) => {
     eventsBetween(context.tx, {
       tenantId: context.tenantId,
       schoolId: context.schoolId,
+      viewerId: context.actor.userId,
+      drafts: false,
       from: context.today,
       to: addDays(context.today, 6),
       reach: await reachOf(context.tx, {
@@ -693,6 +695,8 @@ export const admin = readProcedure.handler(async ({ context }) => {
     await eventsBetween(context.tx, {
       tenantId: context.tenantId,
       schoolId: context.schoolId,
+      viewerId: context.actor.userId,
+      drafts: false,
       from: context.today,
       to: addDays(context.today, 6),
       reach: null,

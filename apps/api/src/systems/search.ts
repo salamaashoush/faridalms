@@ -169,7 +169,8 @@ async function resolverOf(
     }
     case "events": {
       const reach = await calendarReach(context);
-      return (ids) => eventsAmong(context.tx, { ...base, ids, reach });
+      return (ids) =>
+        eventsAmong(context.tx, { ...base, ids, reach, viewerId });
     }
     case "messages":
       return (ids) => threadsAmong(context.tx, { ...base, ids, viewerId });
