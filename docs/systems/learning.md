@@ -1,0 +1,58 @@
+# Learning
+
+What modules and lessons do, built from
+[../research/course-design.md](../research/course-design.md).
+
+## Lessons
+
+- A lesson is a list of parts: text with pictures, video and files, media
+  with a caption and a transcript, a continue gate, and questions. A teacher
+  adds any of them from one menu, at the end or between two parts, and can
+  move, copy or remove each.
+- Questions come in six kinds: multiple choice (one or several right, with
+  feedback per option and shuffling), true or false, a typed answer, blanks in
+  a passage (typed or chosen from a list), a number (exact give or take, or a
+  range), and a written answer.
+- Each question has points (none makes it practice), a hint shown after a
+  wrong try, an explanation, and a number of tries before the answer shows;
+  unlimited tries keep the answer back until the student asks for it. The
+  settings sit behind one summary line, so the defaults are enough.
+- Typed answers and blanks fold Arabic before comparing: short vowels,
+  tatweel, the forms of alef, alef maqsura and the three digit scripts, and
+  ة as ه when the teacher allows it. A close-enough match forgives
+  one slip up to nine letters and two above. Numbers read Arabic-Indic digits
+  and the Arabic decimal separator.
+
+## Students
+
+- Keys, hints, explanations and option feedback stay on the server until a
+  try calls for them. A try says right or not with an icon and text, the
+  feedback of what was chosen, and the hint; the answer and explanation follow
+  once the question is right, revealed or out of tries.
+- A continue gate hides what follows until every question above it is
+  settled and the student chooses to go on.
+- Every try is a row of its own. A question's credit is its best try less a
+  third for each extra try, nothing once the answer was shown, weighted by
+  points. A student may start again once every question is settled; the best
+  finished attempt's score stays.
+- A student who comes back is offered the place where they stopped reading.
+
+## Teachers
+
+- Students play the version a teacher last showed them. Saving a lesson in an
+  open module shows it at once unless the teacher saves without showing.
+  Lessons of a draft module are shown when the module opens.
+- A preview marks answers in the browser and saves nothing, and starts over
+  on request.
+- The module's Answers tab lists each written question with its class's
+  answers, unmarked first. A question with points takes a mark and feedback;
+  one without takes feedback alone. The student sees both, and the answer
+  closes once marked.
+
+## Next
+
+Templates for common lesson shapes, checks before showing a lesson, a
+captions editor for video, narration on each part, image alt text and a
+decorative flag, a practice set with a mode for the youngest students, a
+graded quiz as an assignment format feeding the gradebook, and a question
+bank.
