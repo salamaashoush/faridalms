@@ -4,6 +4,7 @@ import type { CellTransaction } from "../src/context";
 
 import { writeAudit } from "../src/audit";
 import { withPurpose } from "../src/context";
+import { setOrgFeature } from "../src/stores/school";
 import {
   academicSessions,
   accessRoles,
@@ -31,7 +32,6 @@ import {
   importRows,
   importRuns,
   legalHolds,
-  orgFeatures,
   passkeys,
   privacyNotices,
   relationshipRestrictions,
@@ -113,9 +113,12 @@ export async function completeFixture(
     throw new Error("the development seed must run before the fixture");
   const userId = someone.id;
 
-  await tx
-    .insert(orgFeatures)
-    .values({ tenantId, orgId: schoolId, feature: "elearning", enabled: true });
+  await setOrgFeature(tx, {
+    tenantId,
+    orgId: schoolId,
+    feature: "elearning",
+    enabled: true,
+  });
   await tx.insert(descriptorOverrides).values({
     tenantId,
     descriptorId: await descriptor(tx, tenantId, "grade_level", "grade_8"),

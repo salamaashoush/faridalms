@@ -8,6 +8,7 @@ export * from "./descriptors";
 export * from "./documents";
 export * from "./events";
 export * from "./files";
+export * from "./learning";
 export * from "./membership";
 export * from "./messaging";
 export * from "./newsletters";

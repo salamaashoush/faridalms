@@ -51,6 +51,8 @@ export const CONFLICTS: Record<string, string> = {
   thread_members_key: "thread_member.exists",
   announcement_recipients_key: "announcement_recipient.exists",
   newsletter_recipients_key: "newsletter_recipient.exists",
+  module_classes_key: "module_class.exists",
+  lesson_progress_key: "lesson_progress.exists",
   user_roles_role_excl: "role.overlapping",
   user_relationships_excl: "relationship.overlapping",
   accounts_tenant_id_webauthn_user_handle_key: "account.handle_taken",

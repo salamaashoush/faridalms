@@ -20,8 +20,16 @@ import {
   saveTranslation,
   snapshotPublish,
 } from "./stores/documents";
+import {
+  insertLesson,
+  insertModule,
+  recordProgress,
+  setModuleClasses,
+  setModuleState,
+} from "./stores/learning";
 import { addNewsletterRecipients } from "./stores/newsletters";
 import { insertDeliveries, insertNotifications } from "./stores/notifications";
+import { setOrgFeature } from "./stores/school";
 import {
   academicSessions,
   academicWeeks,
@@ -1233,6 +1241,7 @@ async function seedSchool(
   await seedNewsletters(tx, tenantId, schoolId);
   await seedEvents(tx, tenantId, schoolId, yearId);
   await seedNotifications(tx, tenantId, schoolId);
+  await seedLearning(tx, tenantId, schoolId, yearId);
   return { yearId, teachers };
 }
 
@@ -1721,6 +1730,165 @@ async function seedNotifications(tx: Tx, tenantId: string, schoolId: string) {
       digest: false,
     })),
   });
+}
+
+/**
+ * A published module for 8A, or the first homeroom of a school without one
+ * (a reading, a quiz and a reflection), with the
+ * first lesson done by one student, and a draft the teacher is still writing.
+ */
+async function seedLearning(
+  tx: Tx,
+  tenantId: string,
+  schoolId: string,
+  yearId: string,
+) {
+  await setOrgFeature(tx, {
+    tenantId,
+    orgId: schoolId,
+    feature: "elearning",
+    enabled: true,
+  });
+  const [homeroom] = await tx.execute<{ id: string; teacher_id: string }>(sql`
+    select c.id, e.user_id as teacher_id from core.classes c
+    join core.enrollments e on e.tenant_id = c.tenant_id and e.class_id = c.id
+      and e.role = 'teacher' and e.status = 'active'
+    where c.tenant_id = ${tenantId}::uuid and c.school_year_id = ${yearId}::uuid
+      and c.class_type = 'homeroom' and c.status = 'active'
+    order by (c.title_en = '8A') desc, c.code, e.user_id limit 1`);
+  if (!homeroom) return;
+  const [student] = await tx.execute<{ user_id: string }>(sql`
+    select user_id from core.enrollments
+    where tenant_id = ${tenantId}::uuid and class_id = ${homeroom.id}::uuid
+      and role = 'student' and status = 'active'
+    order by user_id limit 1`);
+  const quizId = Bun.randomUUIDv7();
+  const right = Bun.randomUUIDv7();
+  const plans = [
+    {
+      title: "Reading stories together",
+      summary: "How stories are built, with a short check and a reflection.",
+      published: true,
+      lessons: [
+        {
+          title: "What makes a story",
+          completion: "view" as const,
+          blocks: [
+            {
+              id: Bun.randomUUIDv7(),
+              type: "content",
+              content: plainContent(
+                "Every story has characters, a setting and a problem that gets solved.",
+              ),
+            },
+          ],
+        },
+        {
+          title: "Check your understanding",
+          completion: "quiz" as const,
+          blocks: [
+            {
+              id: quizId,
+              type: "quiz",
+              question: "Which of these is part of every story?",
+              options: [
+                { id: right, text: "A problem that gets solved" },
+                { id: Bun.randomUUIDv7(), text: "A dragon" },
+                { id: Bun.randomUUIDv7(), text: "A happy song" },
+              ],
+              correctOptionIds: [right],
+              explanation: "Stories move because a problem needs solving.",
+            },
+          ],
+        },
+        {
+          title: "Your favourite story",
+          completion: "reflection" as const,
+          blocks: [
+            {
+              id: Bun.randomUUIDv7(),
+              type: "reflection",
+              prompt:
+                "Which story do you love, and what problem does it solve?",
+            },
+          ],
+        },
+      ],
+    },
+    {
+      title: "Poetry out loud",
+      summary: "Rhythm and rhyme, read aloud.",
+      published: false,
+      lessons: [
+        {
+          title: "Hearing the beat",
+          completion: "mark" as const,
+          blocks: [
+            {
+              id: Bun.randomUUIDv7(),
+              type: "content",
+              content: plainContent("Clap along as you read the first poem."),
+            },
+          ],
+        },
+      ],
+    },
+  ];
+  for (const plan of plans) {
+    const created = await insertModule(tx, {
+      tenantId,
+      schoolId,
+      yearId,
+      authorId: homeroom.teacher_id,
+      title: plan.title,
+      summary: plan.summary,
+      sequential: true,
+      prerequisiteId: null,
+    });
+    await setModuleClasses(tx, {
+      tenantId,
+      moduleId: created.id,
+      classIds: [homeroom.id],
+    });
+    const lessonIds: string[] = [];
+    for (const lesson of plan.lessons) {
+      const row = await insertLesson(tx, {
+        tenantId,
+        moduleId: created.id,
+        title: lesson.title,
+        completion: lesson.completion,
+        passScore: null,
+      });
+      lessonIds.push(row.id);
+      const content = { version: 1, blocks: lesson.blocks };
+      await tx.insert(documents).values({
+        tenantId,
+        hostType: "lesson",
+        hostId: row.id,
+        orgId: schoolId,
+        kind: "lesson",
+        schemaVersion: 1,
+        content,
+        plainText: lesson.title,
+      });
+    }
+    if (plan.published)
+      await setModuleState(tx, {
+        tenantId,
+        id: created.id,
+        expectedVersion: created.version,
+        state: "published",
+        publishAt: new Date("2026-09-20T06:00:00Z").toISOString(),
+      });
+    const [first] = lessonIds;
+    if (plan.published && student && first)
+      await recordProgress(tx, {
+        tenantId,
+        lessonId: first,
+        studentId: student.user_id,
+        completed: { by: "student" },
+      });
+  }
 }
 
 /** A seeded moment in the week before the seeded today. */
