@@ -110,6 +110,7 @@
         "playwright.config.ts",
         "drizzle*.config.ts",
         "apps/api/src/env.ts",
+        "apps/collab/src/env.ts",
         "e2e/fixtures/**",
         "scripts/**",
         "packages/database/test/**",

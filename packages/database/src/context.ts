@@ -134,6 +134,24 @@ export function openCell(urls: CellUrls, size = 10) {
 export type Cell = ReturnType<typeof openCell>;
 
 /**
+ * The collaboration server's one pool, as the `collab` role: it reads and
+ * writes collaborative documents and their checkpoints, and nothing else.
+ */
+export function openCollab(url: string, size = 4) {
+  const pool = open(url, size);
+  return {
+    withCollab: <T>(
+      work: UnitOfWork,
+      access: Access,
+      run: (tx: CellTransaction) => Promise<T>,
+    ) => unit(pool, work, access, run),
+    close: () => pool.$client.close(),
+  };
+}
+
+export type Collab = ReturnType<typeof openCollab>;
+
+/**
  * Operator work as the schema owner: provisioning a tenant, the development
  * seed. The owner is bound by the isolation policy too, so each call still
  * names one tenant.

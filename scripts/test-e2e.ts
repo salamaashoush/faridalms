@@ -29,6 +29,7 @@ const kek = randomBytes(32);
 const cellId = "eg-1";
 const webPort = "3200";
 const apiPort = "3201";
+const collabPort = "3202";
 
 const urlFor = (name: string, role?: string) => {
   const url = new URL(adminUrl);
@@ -85,12 +86,14 @@ try {
         CELL_APP_URL: urlFor(cellName, "app"),
         CELL_SITE_URL: urlFor(cellName, "site"),
         CELL_WORKER_URL: urlFor(cellName, "worker"),
+        CELL_COLLAB_URL: urlFor(cellName, "collab"),
         DIRECTORY_URL: urlFor(directoryName, "directory_reader"),
         CELL_ID: cellId,
         CELL_KEK: kek.toString("base64"),
         CELL_SECRET: randomBytes(32).toString("base64"),
         E2E_WEB_PORT: webPort,
         E2E_API_PORT: apiPort,
+        E2E_COLLAB_PORT: collabPort,
       },
       stdout: "inherit",
       stderr: "inherit",

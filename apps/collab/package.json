@@ -1,0 +1,22 @@
+{
+  "name": "@faridalms/collab",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/server.ts"
+  },
+  "scripts": {
+    "dev": "bun --watch src/index.ts",
+    "start": "bun src/index.ts"
+  },
+  "dependencies": {
+    "@faridalms/database": "workspace:*",
+    "@faridalms/domain": "workspace:*",
+    "@faridalms/editor": "workspace:*",
+    "@hocuspocus/server": "^4.7.0",
+    "@lexical/yjs": "^0.50.0",
+    "lexical": "^0.50.0",
+    "valibot": "^1.5.0",
+    "yjs": "^13.6.33"
+  }
+}
