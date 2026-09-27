@@ -506,7 +506,12 @@ async function seedSchool(
     shared: {
       reference: number;
       teacher?: Person;
-      siblingsOf?: { mother: Person; father: Person; family: Name };
+      siblingsOf?: {
+        mother: Person;
+        father: Person;
+        family: Name;
+        household: string;
+      };
     };
   },
 ) {
@@ -670,6 +675,7 @@ async function seedSchool(
       const mother =
         shared?.mother ?? person(pick(MOTHERS), pick(FAMILIES), "female");
       const father = shared?.father ?? person(pick(BOYS), family, "male");
+      let household = shared?.household ?? "";
       if (!shared) {
         await insertPerson(tx, tenantId, mother);
         await insertPerson(tx, tenantId, father);
@@ -689,7 +695,7 @@ async function seedSchool(
             smsCapable: true,
             source: "manual",
           });
-        const household = Bun.randomUUIDv7();
+        household = Bun.randomUUIDv7();
         await tx.insert(households).values({
           tenantId,
           id: household,
@@ -724,8 +730,15 @@ async function seedSchool(
           grade === plan.grades[0] &&
           !context.shared.siblingsOf
         )
-          context.shared.siblingsOf = { mother, father, family };
+          context.shared.siblingsOf = { mother, father, family, household };
       }
+      await tx.insert(householdMembers).values({
+        tenantId,
+        householdId: household,
+        userId: student.id,
+        memberKind: "child",
+        validDuring: "[2024-09-01,)",
+      });
       for (const [parent, relation, portal] of [
         [mother, "mother", true],
         [father, "father", index % 3 !== 0],
