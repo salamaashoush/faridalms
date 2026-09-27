@@ -1,5 +1,4 @@
 import * as administration from "./modules/administration";
-import * as communication from "./modules/communication";
 import * as learning from "./modules/learning";
 import * as notifications from "./modules/notifications";
 import * as overviews from "./modules/overviews";
@@ -10,6 +9,7 @@ import * as teaching from "./modules/teaching";
 import * as accessSystem from "./systems/access";
 import * as announcementsSystem from "./systems/announcements";
 import * as attendanceSystem from "./systems/attendance";
+import * as calendarSystem from "./systems/calendar";
 import * as classesSystem from "./systems/classes";
 import * as courseworkSystem from "./systems/coursework";
 import * as filesSystem from "./systems/files";
@@ -41,11 +41,11 @@ export const router = {
   messages: messagesSystem,
   announcements: announcementsSystem,
   newsletters: newslettersSystem,
+  calendar: calendarSystem,
   ...students,
   ...overviews,
   ...teaching,
   ...administration,
-  ...communication,
   ...notifications,
   ...site,
   ...learning,

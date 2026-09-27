@@ -43,31 +43,6 @@ export const DEFAULT_MESSAGES_QUERY: MessagesQuery = v.parse(
   {},
 );
 
-export const calendarQuerySchema = v.object({
-  q: v.optional(v.pipe(v.string(), v.maxLength(200)), ""),
-  showEvents: v.optional(v.boolean(), true),
-  /** ISO year-month, e.g. 2026-09. Empty means the month containing today. */
-  month: v.optional(
-    v.union([
-      v.literal(""),
-      v.pipe(v.string(), v.regex(/^\d{4}-(0[1-9]|1[0-2])$/)),
-    ]),
-    "",
-  ),
-  date: v.optional(
-    v.union([v.literal(""), v.pipe(v.string(), v.isoDate())]),
-    "",
-  ),
-  view: v.optional(v.picklist(["month", "week", "agenda"]), "month"),
-  event: v.optional(v.string(), ""),
-  categories: v.optional(v.array(v.picklist(EVENT_CATEGORIES)), []),
-});
-export type CalendarQuery = v.InferOutput<typeof calendarQuerySchema>;
-export const DEFAULT_CALENDAR_QUERY: CalendarQuery = v.parse(
-  calendarQuerySchema,
-  {},
-);
-
 // --- mutations ----------------------------------------------------------------
 
 export const MESSAGE_BODY_FORMATS = ["plain", "markdown", "rich"] as const;
@@ -159,39 +134,6 @@ export const classDirectorySchema = v.object({
   pageSize: v.optional(v.picklist([12, 24, 48]), 12),
 });
 export type ClassDirectoryQuery = v.InferOutput<typeof classDirectorySchema>;
-
-const calendarEventFields = {
-  id: v.optional(v.pipe(v.string(), v.uuid())),
-  expectedRevision: v.optional(v.pipe(v.number(), v.integer(), v.minValue(0))),
-  title: v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(255)),
-  /** Plain text, kept for clients without the editor; the document wins when both arrive. */
-  description: v.optional(v.pipe(v.string(), v.maxLength(20000)), ""),
-  category: v.picklist(EVENT_CATEGORIES),
-  startsOn: v.pipe(v.string(), v.isoDate()),
-  endsOn: v.pipe(v.string(), v.isoDate()),
-  provisional: v.boolean(),
-};
-
-/** The editable fields alone; the form keeps the rich document outside its state. */
-export const calendarEventFormSchema = v.pipe(
-  v.object(calendarEventFields),
-  v.forward(
-    v.check((value) => value.endsOn >= value.startsOn, "validation.end_date"),
-    ["endsOn"],
-  ),
-);
-
-export const calendarEventSchema = v.pipe(
-  v.object({
-    ...calendarEventFields,
-    document: v.optional(contentDocumentSchema),
-  }),
-  v.forward(
-    v.check((value) => value.endsOn >= value.startsOn, "validation.end_date"),
-    ["endsOn"],
-  ),
-);
-export type CalendarEventInput = v.InferInput<typeof calendarEventSchema>;
 
 export const recipientCursorSchema = v.object({
   name: v.pipe(v.string(), v.maxLength(255)),

@@ -1,0 +1,195 @@
+import * as v from "valibot";
+
+import type { IsoWeekday } from "./timetable";
+
+import { audienceSchema } from "./announcements";
+import { contentDocumentSchema } from "./content";
+import { addDays, daysBetween, shiftMonth, zonedInstant } from "./school";
+import { isoWeekday } from "./timetable";
+
+export const CALENDAR_CATEGORIES = [
+  "general",
+  "meeting",
+  "trip",
+  "performance",
+  "sport",
+  "exam",
+  "celebration",
+] as const;
+export type CalendarCategory = (typeof CALENDAR_CATEGORIES)[number];
+
+/** The longest window one request reads: six weeks of a month grid, with room. */
+export const MAX_RANGE_DAYS = 120;
+
+const id = v.pipe(v.string(), v.uuid());
+const optionalId = v.optional(v.union([v.literal(""), id]), "");
+const isoDate = v.pipe(v.string(), v.isoDate());
+const clock = v.union([v.literal(""), v.pipe(v.string(), v.isoTime())]);
+
+export const rangeQuerySchema = v.pipe(
+  v.object({ from: isoDate, to: isoDate }),
+  v.check(
+    (range) =>
+      range.to >= range.from &&
+      daysBetween(range.from, range.to) <= MAX_RANGE_DAYS,
+    "calendar.range",
+  ),
+);
+export type RangeQuery = v.InferOutput<typeof rangeQuerySchema>;
+
+export const saveEventSchema = v.pipe(
+  v.object({
+    id: optionalId,
+    expectedVersion: v.pipe(v.number(), v.integer(), v.minValue(0)),
+    title: v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(200)),
+    category: v.picklist(CALENDAR_CATEGORIES),
+    startsOn: isoDate,
+    endsOn: isoDate,
+    allDay: v.boolean(),
+    startTime: clock,
+    endTime: clock,
+    location: v.pipe(v.string(), v.trim(), v.maxLength(200)),
+    provisional: v.boolean(),
+    audiences: v.pipe(v.array(audienceSchema), v.minLength(1), v.maxLength(20)),
+    description: contentDocumentSchema,
+  }),
+  v.forward(
+    v.check((input) => input.endsOn >= input.startsOn, "calendar.ends_before"),
+    ["endsOn"],
+  ),
+  v.forward(
+    v.check(
+      (input) =>
+        input.allDay || (input.startTime !== "" && input.endTime !== ""),
+      "calendar.times_needed",
+    ),
+    ["startTime"],
+  ),
+  v.forward(
+    v.check(
+      (input) =>
+        input.allDay ||
+        input.endsOn > input.startsOn ||
+        input.endTime > input.startTime,
+      "calendar.ends_before",
+    ),
+    ["endTime"],
+  ),
+);
+export type SaveEvent = v.InferOutput<typeof saveEventSchema>;
+
+export const eventRefSchema = v.object({
+  id,
+  expectedVersion: v.pipe(v.number(), v.integer(), v.minValue(1)),
+});
+
+export const cancelEventSchema = v.object({
+  id,
+  expectedVersion: v.pipe(v.number(), v.integer(), v.minValue(1)),
+  cancelled: v.boolean(),
+});
+
+/** Whole weeks covering a month, starting on the school's first weekday. */
+export function monthWeeks(month: string, weekStart: IsoWeekday): string[][] {
+  const first = `${month}-01`;
+  const lead = (isoWeekday(first) - weekStart + 7) % 7;
+  const start = addDays(first, -lead);
+  const next = `${shiftMonth(month, 1)}-01`;
+  const weeks: string[][] = [];
+  for (let day = start; day < next; day = addDays(day, 7))
+    weeks.push(Array.from({ length: 7 }, (_, index) => addDays(day, index)));
+  return weeks;
+}
+
+/** Whether an event falls on a day, counting every day of one spanning several. */
+export function onDay(
+  event: { startsOn: string; endsOn: string },
+  day: string,
+): boolean {
+  return event.startsOn <= day && day <= event.endsOn;
+}
+
+interface IcsEvent {
+  id: string;
+  title: string;
+  startsOn: string;
+  endsOn: string;
+  startTime: string | null;
+  endTime: string | null;
+  location: string | null;
+  description: string;
+  cancelled: boolean;
+  version: number;
+}
+
+const icsText = (value: string) =>
+  value
+    .replaceAll("\\", "\\\\")
+    .replaceAll("\n", "\\n")
+    .replaceAll(",", "\\,")
+    .replaceAll(";", "\\;");
+
+const icsDate = (iso: string) => iso.replaceAll("-", "");
+const icsInstant = (at: Date) =>
+  `${at.toISOString().replaceAll(/[-:]/g, "").slice(0, 15)}Z`;
+
+/** RFC 5545 folds lines longer than 75 octets onto continuation lines. */
+function fold(line: string): string {
+  const bytes = new TextEncoder().encode(line);
+  if (bytes.length <= 75) return line;
+  const parts: string[] = [];
+  let current = "";
+  let size = 0;
+  for (const char of line) {
+    const width = new TextEncoder().encode(char).length;
+    if (size + width > (parts.length === 0 ? 75 : 74)) {
+      parts.push(current);
+      current = "";
+      size = 0;
+    }
+    current += char;
+    size += width;
+  }
+  parts.push(current);
+  return parts.join("\r\n ");
+}
+
+/**
+ * One event as an iCalendar file. Timed events are written in UTC from the
+ * school's wall clock, so every calendar app places them at the same instant
+ * without needing the zone's rules.
+ */
+export function eventIcs(
+  event: IcsEvent,
+  input: { timeZone: string; stamp: Date },
+): string {
+  const when =
+    event.startTime && event.endTime
+      ? [
+          `DTSTART:${icsInstant(zonedInstant(event.startsOn, event.startTime, input.timeZone))}`,
+          `DTEND:${icsInstant(zonedInstant(event.endsOn, event.endTime, input.timeZone))}`,
+        ]
+      : [
+          `DTSTART;VALUE=DATE:${icsDate(event.startsOn)}`,
+          `DTEND;VALUE=DATE:${icsDate(addDays(event.endsOn, 1))}`,
+        ];
+  const lines = [
+    "BEGIN:VCALENDAR",
+    "VERSION:2.0",
+    "PRODID:-//Farida LMS//Calendar//EN",
+    "CALSCALE:GREGORIAN",
+    "METHOD:PUBLISH",
+    "BEGIN:VEVENT",
+    `UID:${event.id}@farida-lms`,
+    `DTSTAMP:${icsInstant(input.stamp)}`,
+    `SEQUENCE:${event.version}`,
+    ...when,
+    `SUMMARY:${icsText(event.title)}`,
+    ...(event.location ? [`LOCATION:${icsText(event.location)}`] : []),
+    ...(event.description ? [`DESCRIPTION:${icsText(event.description)}`] : []),
+    `STATUS:${event.cancelled ? "CANCELLED" : "CONFIRMED"}`,
+    "END:VEVENT",
+    "END:VCALENDAR",
+  ];
+  return `${lines.map(fold).join("\r\n")}\r\n`;
+}

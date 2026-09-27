@@ -5,6 +5,8 @@ import { sql } from "drizzle-orm";
 import type { CellTransaction } from "../context";
 import type { AudienceScope } from "../tables/announcements";
 
+import { uuidArray } from "./sql";
+
 type Tx = CellTransaction;
 
 export interface Audience {
@@ -15,13 +17,14 @@ export interface Audience {
 
 /** What an audience list belongs to; each kind keeps its own audience table. */
 export interface AudienceOwner {
-  kind: "announcement" | "newsletter";
+  kind: "announcement" | "newsletter" | "calendar_event";
   id: string;
 }
 
 const OWNERS = {
   announcement: { table: "announcement_audiences", column: "announcement_id" },
   newsletter: { table: "newsletter_audiences", column: "newsletter_id" },
+  calendar_event: { table: "calendar_event_audiences", column: "event_id" },
 } as const;
 
 function ownerSql(owner: AudienceOwner) {
@@ -191,4 +194,95 @@ export async function setAudiences(
       ),
       sql`, `,
     )}`);
+}
+
+/** What a person belongs to on a day, as the audience scopes see it. */
+export interface Reach {
+  staff: boolean;
+  student: boolean;
+  guardian: boolean;
+  classIds: string[];
+  gradeIds: string[];
+}
+
+/**
+ * The same membership `audienceUsers` resolves, turned around: whether the
+ * scopes name this person. A class covers its students (through the homeroom
+ * a subject class is taught to), their families and its teachers; a grade
+ * covers its homerooms the same way.
+ */
+export async function reachOf(
+  tx: Tx,
+  input: { tenantId: string; schoolId: string; userId: string; on: string },
+): Promise<Reach> {
+  const [row] = await tx.execute<{
+    staff: boolean;
+    student: boolean;
+    guardian: boolean;
+    class_ids: string[];
+    grade_ids: string[];
+  }>(sql`
+    with children as (
+      select l.student_user_id as user_id from core.user_relationships l
+      where l.tenant_id = ${input.tenantId}::uuid and l.related_user_id = ${input.userId}::uuid
+        and l.status = 'active' and l.portal_access and l.valid_during @> ${input.on}::date
+        and not coalesce(l.communication_isolated, false)
+    ), enrolled as (
+      select e.user_id, e.class_id from core.enrollments e
+      join core.classes c on c.tenant_id = e.tenant_id and c.id = e.class_id
+      where e.tenant_id = ${input.tenantId}::uuid and e.role = 'student' and e.status = 'active'
+        and e.valid_during @> ${input.on}::date and c.org_id = ${input.schoolId}::uuid
+        and c.status = 'active'
+        and (e.user_id = ${input.userId}::uuid or e.user_id in (select user_id from children))
+    ), taught as (
+      select e.class_id from core.enrollments e
+      join core.classes c on c.tenant_id = e.tenant_id and c.id = e.class_id
+      where e.tenant_id = ${input.tenantId}::uuid and e.user_id = ${input.userId}::uuid
+        and e.role in ('teacher', 'aide') and e.status = 'active'
+        and e.valid_during @> ${input.on}::date and c.org_id = ${input.schoolId}::uuid
+        and c.status = 'active'
+    ), member as (
+      select class_id from enrolled
+      union select k.id from core.classes k
+        where k.tenant_id = ${input.tenantId}::uuid
+          and k.homeroom_class_id in (select class_id from enrolled)
+      union select class_id from taught
+    )
+    select
+      exists (select 1 from core.user_roles r
+        where r.tenant_id = ${input.tenantId}::uuid and r.user_id = ${input.userId}::uuid
+          and r.org_id = ${input.schoolId}::uuid and r.status = 'active'
+          and r.valid_during @> ${input.on}::date and r.role in ${STAFF_ROLES}) as staff,
+      exists (select 1 from enrolled where user_id = ${input.userId}::uuid) as student,
+      exists (select 1 from enrolled where user_id <> ${input.userId}::uuid) as guardian,
+      coalesce((select json_agg(distinct class_id) from member), '[]'::json) as class_ids,
+      coalesce((select json_agg(distinct c.grade_level_descriptor_id) from core.classes c
+        where c.tenant_id = ${input.tenantId}::uuid and c.class_type = 'homeroom'
+          and c.grade_level_descriptor_id is not null
+          and c.id in (select class_id from enrolled union select class_id from taught)), '[]'::json)
+        as grade_ids`);
+  return {
+    staff: row?.staff ?? false,
+    student: row?.student ?? false,
+    guardian: row?.guardian ?? false,
+    classIds: row?.class_ids ?? [],
+    gradeIds: row?.grade_ids ?? [],
+  };
+}
+
+/** Whether any audience of the owner in `ownerId` names someone with this reach. */
+export function reaches(
+  input: { tenantId: string; kind: AudienceOwner["kind"]; ownerId: SQL },
+  reach: Reach,
+): SQL {
+  const { table, column } = ownerSql({ kind: input.kind, id: "" });
+  return sql`exists (select 1 from ${table} x
+    where x.tenant_id = ${input.tenantId}::uuid and x.${column} = ${input.ownerId}
+      and x.status = 'active'
+      and ((x.scope = 'school' and ${reach.staff || reach.student || reach.guardian})
+        or (x.scope = 'staff' and ${reach.staff})
+        or (x.scope = 'students' and ${reach.student})
+        or (x.scope = 'families' and ${reach.guardian})
+        or (x.scope = 'class' and x.class_id = any(${uuidArray(reach.classIds)}))
+        or (x.scope = 'grade' and x.grade_descriptor_id = any(${uuidArray(reach.gradeIds)}))))`;
 }
