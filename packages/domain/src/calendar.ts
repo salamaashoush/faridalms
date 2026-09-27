@@ -237,3 +237,68 @@ export function eventIcs(
   ];
   return `${lines.map(fold).join("\r\n")}\r\n`;
 }
+
+/** Day meanings on which lessons are held; everything else keeps the school shut. */
+export const SCHOOL_DAY_MEANINGS: readonly string[] = [
+  "instructional_day",
+  "exam_day",
+  "early_dismissal",
+  "make_up_day",
+];
+
+/**
+ * What a range of days can be marked as. `normal` puts each day back to a
+ * school day or a weekend by the school's week; a make-up day may land on a
+ * weekend, every other kind leaves weekends as they are.
+ */
+export const DAY_KINDS = [
+  "normal",
+  "public_holiday",
+  "school_holiday",
+  "exam_day",
+  "teacher_only_day",
+  "early_dismissal",
+  "make_up_day",
+  "weather_closure",
+  "emergency_closure",
+  "other",
+] as const;
+export type DayKind = (typeof DAY_KINDS)[number];
+
+/** The longest range one change marks: a whole school year. */
+export const MAX_PAINT_DAYS = 366;
+
+const note = v.pipe(v.string(), v.trim(), v.maxLength(200));
+
+export const paintDaysSchema = v.pipe(
+  v.object({
+    yearId: id,
+    from: isoDate,
+    to: isoDate,
+    kind: v.picklist(DAY_KINDS),
+    noteEn: note,
+    noteAr: note,
+    provisional: v.boolean(),
+  }),
+  v.forward(
+    v.check(
+      (input) =>
+        input.to >= input.from &&
+        daysBetween(input.from, input.to) < MAX_PAINT_DAYS,
+      "calendar.range",
+    ),
+    ["to"],
+  ),
+);
+export type PaintDays = v.InferOutput<typeof paintDaysSchema>;
+
+export const targetDaysSchema = v.object({
+  yearId: id,
+  target: v.nullable(
+    v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(366)),
+  ),
+});
+
+/** How many of a year's days hold lessons. */
+export const schoolDayCount = (days: readonly { meaning: string }[]) =>
+  days.filter((day) => SCHOOL_DAY_MEANINGS.includes(day.meaning)).length;

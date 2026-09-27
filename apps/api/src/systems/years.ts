@@ -1,14 +1,20 @@
 import {
   calendarSummary,
   createYear,
+  holdYear,
   objectHistory,
+  paintDays,
+  schoolWeek,
   schoolYears,
+  setTargetDays,
   setYearLifecycle,
   termsOf,
   updateYear,
   YearChangeError,
+  yearCalendar,
   yearDirectory,
 } from "@faridalms/database/stores/years";
+import { paintDaysSchema, targetDaysSchema } from "@faridalms/domain/calendar";
 import {
   saveYearSchema,
   yearLifecycleSchema,
@@ -230,4 +236,88 @@ export const lifecycle = writeProcedure
       },
     });
     return { id: year.id, replaced };
+  });
+
+/** A year's school calendar day by day, with its terms and the count it aims at. */
+export const days = readProcedure
+  .input(v.object({ id }))
+  .handler(async ({ input, context }) => {
+    requireCapability(
+      context,
+      "years:manage",
+      "school:manage",
+      "calendar:manage",
+    );
+    const year = await yearOf(context, input.id);
+    const [calendar, terms] = await Promise.all([
+      yearCalendar(context.tx, context.tenantId, year.id),
+      termsOf(context.tx, context.tenantId, year.id),
+    ]);
+    return {
+      ...calendar,
+      terms,
+      canEdit: can(context, "calendar:manage") && year.lifecycle !== "closed",
+    };
+  });
+
+/** A year of this school whose calendar can still change, held open until the write ends. */
+async function openYear(context: UnitContext, yearId: string) {
+  requireCapability(context, "calendar:manage");
+  const year = await yearOf(context, yearId);
+  const held = await holdYear(context.tx, context.tenantId, year.id);
+  if (held === "closed")
+    throw new ORPCError("CONFLICT", { message: "school_year.closed" });
+  return year;
+}
+
+/**
+ * Marks a run of days as holidays, exam days, staff days, closures or back
+ * to normal. Registers follow at once: a day that stops being a school day
+ * asks for none.
+ */
+export const paint = writeProcedure
+  .input(paintDaysSchema)
+  .handler(async ({ input, context }) => {
+    const year = await openYear(context, input.yearId);
+    const week = await schoolWeek(
+      context.tx,
+      context.tenantId,
+      context.schoolId,
+    );
+    const changed = await paintDays(context.tx, {
+      tenantId: context.tenantId,
+      yearId: year.id,
+      from: input.from,
+      to: input.to,
+      kind: input.kind,
+      noteEn: input.noteEn || null,
+      noteAr: input.noteAr || null,
+      provisional: input.provisional,
+      weekendDays: week.weekendDays,
+    });
+    await audit(context, {
+      action: "calendar_dates.mark",
+      objectType: "academic_session",
+      objectId: year.id,
+      details: { from: input.from, to: input.to, kind: input.kind, changed },
+    });
+    return { changed };
+  });
+
+export const target = writeProcedure
+  .input(targetDaysSchema)
+  .handler(async ({ input, context }) => {
+    const year = await openYear(context, input.yearId);
+    await setTargetDays(context.tx, {
+      tenantId: context.tenantId,
+      yearId: year.id,
+      target: input.target,
+    });
+    await audit(context, {
+      action: "calendar.target_days",
+      objectType: "academic_session",
+      objectId: year.id,
+      details: { target: input.target },
+    });
+    return { target: input.target };
   });

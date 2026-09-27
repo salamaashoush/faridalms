@@ -6,6 +6,7 @@ import type {
 import type { SQL } from "drizzle-orm";
 
 import { DEFAULT_ATTENDANCE_SETTINGS } from "@faridalms/domain/attendance";
+import { SCHOOL_DAY_MEANINGS } from "@faridalms/domain/calendar";
 import { sql } from "drizzle-orm";
 
 import type { CellTransaction } from "../context";
@@ -124,13 +125,6 @@ export async function attendanceCodes(
   };
 }
 
-const SCHOOL_DAY_MEANINGS = new Set([
-  "instructional_day",
-  "exam_day",
-  "early_dismissal",
-  "make_up_day",
-]);
-
 /**
  * Whether the school calendar holds lessons on a day: false on weekends,
  * holidays and closures, null where the calendar says nothing about it.
@@ -145,7 +139,7 @@ export async function isSchoolDay(
     where d.tenant_id = ${input.tenantId}::uuid and d.school_year_id = ${input.yearId}::uuid
       and d.day_on = ${input.day}::date and d.status = 'active'`);
   if (rows.length === 0) return null;
-  return rows.some((row) => SCHOOL_DAY_MEANINGS.has(row.meaning ?? ""));
+  return rows.some((row) => SCHOOL_DAY_MEANINGS.includes(row.meaning ?? ""));
 }
 
 export interface PeriodRow {

@@ -402,6 +402,10 @@ export function getMessageFromError(error: unknown): string {
         return m.calEndsBefore();
       case "calendar.times_needed":
         return m.calTimesNeeded();
+      case "calendar.cancel_first":
+        return m.calCancelFirst();
+      case "calendar.audience":
+        return m.calAudienceNotAllowed();
     }
     if (error.message.startsWith("validation."))
       return validationMessage({ message: error.message });

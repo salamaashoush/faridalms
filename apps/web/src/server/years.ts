@@ -1,3 +1,4 @@
+import { paintDaysSchema, targetDaysSchema } from "@faridalms/domain/calendar";
 import { saveYearSchema, yearLifecycleSchema } from "@faridalms/domain/years";
 import { createServerFn } from "@tanstack/react-start";
 
@@ -23,3 +24,15 @@ export const saveYear = createServerFn({ method: "POST" })
 export const changeYearLifecycle = createServerFn({ method: "POST" })
   .validator(checked(yearLifecycleSchema))
   .handler(({ data }) => backend().years.lifecycle(data));
+
+export const getYearDays = createServerFn({ method: "GET" })
+  .validator(byId)
+  .handler(({ data }) => record(backend().years.days(data)));
+
+export const paintYearDays = createServerFn({ method: "POST" })
+  .validator(checked(paintDaysSchema))
+  .handler(({ data }) => backend().years.paint(data));
+
+export const setYearTarget = createServerFn({ method: "POST" })
+  .validator(checked(targetDaysSchema))
+  .handler(({ data }) => backend().years.target(data));

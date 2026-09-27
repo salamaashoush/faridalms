@@ -161,6 +161,8 @@ export const calendars = core.table.withRLS(
     kind: text("kind").$type<"school" | "grade_level" | "staff">().notNull(),
     titleEn: text("title_en"),
     titleAr: text("title_ar"),
+    /** The school days the authority expects in the year, to count against. */
+    targetDays: smallint("target_days"),
     ...entityColumns(),
   },
   (t): PgTableExtraConfigValue[] => [
@@ -184,6 +186,11 @@ export const calendars = core.table.withRLS(
     ck("calendars", "title_en", sql`char_length(title_en) between 1 and 80`),
     ck("calendars", "title_ar", sql`char_length(title_ar) between 1 and 80`),
     ck("calendars", "title", sql`num_nonnulls(title_en, title_ar) >= 1`),
+    ck(
+      "calendars",
+      "target_days",
+      sql`target_days is null or target_days between 1 and 366`,
+    ),
     uniqueIndex("calendars_code_key")
       .on(t.tenantId, t.schoolYearId, t.code)
       .where(sql`status = 'active'`),
@@ -242,6 +249,8 @@ export const calendarDates = core.table.withRLS(
       .generatedAlwaysAs(sql`'calendar_event'`),
     noteEn: text("note_en"),
     noteAr: text("note_ar"),
+    /** Waits on an announcement, as holidays set by the moon do; shown as expected. */
+    provisional: boolean("provisional").notNull().default(false),
     ...entityColumns(),
   },
   (t): PgTableExtraConfigValue[] => [

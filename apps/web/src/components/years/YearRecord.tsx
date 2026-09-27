@@ -28,9 +28,16 @@ import {
   rolloverActions,
   useYearLifecycle,
 } from "./YearLifecycle";
+import { YearPlanner } from "./YearPlanner";
 
-export const YEAR_TABS = ["overview", "history"] as const;
+export const YEAR_TABS = ["overview", "days", "history"] as const;
 export type YearTab = (typeof YEAR_TABS)[number];
+
+const TAB_LABEL: Record<YearTab, () => string> = {
+  overview: m.recordOverview,
+  days: m.plannerTab,
+  history: m.recordHistory,
+};
 
 type YearData = Awaited<
   ReturnType<NonNullable<ReturnType<typeof yearQuery>["queryFn"]>>
@@ -136,7 +143,7 @@ export function YearRecord({
   ];
   const tabs: RecordTab<YearTab>[] = YEAR_TABS.map((value) => ({
     value,
-    label: value === "overview" ? m.recordOverview() : m.recordHistory(),
+    label: TAB_LABEL[value](),
   }));
   return (
     <div className="mx-auto w-full max-w-6xl">
@@ -182,6 +189,12 @@ export function YearRecord({
       >
         {tab === "history" ? (
           <RecordColumns main={<YearHistory yearId={year.id} />} />
+        ) : tab === "days" ? (
+          <YearPlanner
+            yearId={year.id}
+            startsOn={year.startsOn}
+            endsBefore={year.endsBefore}
+          />
         ) : (
           <RecordColumns
             main={<TermsSection year={year} />}

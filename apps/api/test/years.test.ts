@@ -1,3 +1,4 @@
+import { schoolDayCount } from "@faridalms/domain/calendar";
 import { teachingWeeks } from "@faridalms/domain/school";
 import { describe, expect, test } from "bun:test";
 
@@ -213,5 +214,93 @@ describe("school years", () => {
       "academic_session.closed",
     ]);
     expect(events[0]?.reason).toBe("Correct a mistyped grade");
+  });
+});
+
+describe("planning school days", () => {
+  test("the office marks a week's holiday, weekends stay, and puts it back", async () => {
+    const office = await northwindPrincipal();
+    const year = await currentYear(office);
+    const before = await office.years.days({ id: year.id });
+    expect(before.canEdit).toBe(true);
+    const week = before.days.filter(
+      (day) => day.day >= "2027-05-02" && day.day <= "2027-05-08",
+    );
+    const weekdays = week.filter((day) => day.meaning !== "weekend").length;
+
+    const marked = await office.years.paint({
+      yearId: year.id,
+      from: "2027-05-02",
+      to: "2027-05-08",
+      kind: "school_holiday",
+      noteEn: "Spring break",
+      noteAr: "عطلة الربيع",
+      provisional: true,
+    });
+    expect(marked.changed).toBe(weekdays);
+    const after = await office.years.days({ id: year.id });
+    const inWeek = after.days.filter(
+      (day) => day.day >= "2027-05-02" && day.day <= "2027-05-08",
+    );
+    expect(inWeek.filter((day) => day.meaning === "weekend")).toHaveLength(
+      week.length - weekdays,
+    );
+    expect(
+      inWeek.filter((day) => day.meaning === "school_holiday"),
+    ).toHaveLength(weekdays);
+    expect(
+      inWeek.find((day) => day.meaning === "school_holiday"),
+    ).toMatchObject({ noteEn: "Spring break", provisional: true });
+    expect(schoolDayCount(after.days)).toBe(
+      schoolDayCount(before.days) - weekdays,
+    );
+
+    const friday = inWeek.find((day) => day.meaning === "weekend");
+    if (!friday) throw new Error("the week has no weekend day");
+    await office.years.paint({
+      yearId: year.id,
+      from: friday.day,
+      to: friday.day,
+      kind: "make_up_day",
+      noteEn: "",
+      noteAr: "",
+      provisional: false,
+    });
+    await office.years.paint({
+      yearId: year.id,
+      from: "2027-05-02",
+      to: "2027-05-08",
+      kind: "normal",
+      noteEn: "",
+      noteAr: "",
+      provisional: false,
+    });
+    const restored = await office.years.days({ id: year.id });
+    expect(schoolDayCount(restored.days)).toBe(schoolDayCount(before.days));
+    expect(restored.days.find((day) => day.day === friday.day)?.meaning).toBe(
+      "weekend",
+    );
+
+    await office.years.target({ yearId: year.id, target: 180 });
+    expect((await office.years.days({ id: year.id })).targetDays).toBe(180);
+  });
+
+  test("teachers do not change school days", async () => {
+    const office = await northwindPrincipal();
+    const year = await currentYear(office);
+    const teacher = await signedIn("northwind", login("teacher", 0, 1));
+    expect(
+      await rejection(
+        teacher.years.paint({
+          yearId: year.id,
+          from: "2027-05-10",
+          to: "2027-05-10",
+          kind: "exam_day",
+          noteEn: "",
+          noteAr: "",
+          provisional: false,
+        }),
+      ),
+    ).toMatchObject({ code: "FORBIDDEN" });
   });
 });

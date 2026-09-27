@@ -1,3 +1,4 @@
+import { SCHOOL_DAY_MEANINGS } from "@faridalms/domain/calendar";
 import { addDays, teachingWeeks, weekdayOf } from "@faridalms/domain/school";
 import { sql } from "drizzle-orm";
 
@@ -10,7 +11,7 @@ import {
   calendarDates,
   calendars,
 } from "../tables/calendar";
-import { bounds } from "./sql";
+import { bounds, textArray } from "./sql";
 
 export interface SchoolYear {
   id: string;
@@ -212,16 +213,121 @@ export async function calendarSummary(
       (select count(*)::int from core.calendar_dates d
         join core.descriptors e on e.tenant_id = d.tenant_id and e.id = d.event_descriptor_id
         where d.tenant_id = ${tenantId}::uuid and d.school_year_id = ${yearId}::uuid
-          and d.status = 'active' and e.code_value = 'instructional_day') as school_days,
+          and d.status = 'active' and e.system_meaning = any(${textArray(SCHOOL_DAY_MEANINGS)})) as school_days,
       (select count(*)::int from core.calendar_dates d
         join core.descriptors e on e.tenant_id = d.tenant_id and e.id = d.event_descriptor_id
         where d.tenant_id = ${tenantId}::uuid and d.school_year_id = ${yearId}::uuid
-          and d.status = 'active' and e.code_value not in ('instructional_day', 'weekend')) as closed_days`);
+          and d.status = 'active' and e.system_meaning <> 'weekend'
+          and not e.system_meaning = any(${textArray(SCHOOL_DAY_MEANINGS)})) as closed_days`);
   return {
     weeks: row?.weeks ?? 0,
     schoolDays: row?.school_days ?? 0,
     closedDays: row?.closed_days ?? 0,
   };
+}
+
+export interface CalendarDay {
+  day: string;
+  meaning: string;
+  noteEn: string | null;
+  noteAr: string | null;
+  provisional: boolean;
+}
+
+/** Every day of a year's school calendar with what it is, and the count it aims at. */
+export async function yearCalendar(
+  tx: CellTransaction,
+  tenantId: string,
+  yearId: string,
+): Promise<{ targetDays: number | null; days: CalendarDay[] }> {
+  const [calendar] = await tx.execute<{ target_days: number | null }>(sql`
+    select target_days from core.calendars
+    where tenant_id = ${tenantId}::uuid and school_year_id = ${yearId}::uuid
+      and kind = 'school' and status = 'active'`);
+  const rows = await tx.execute<{
+    day: string;
+    meaning: string;
+    note_en: string | null;
+    note_ar: string | null;
+    provisional: boolean;
+  }>(sql`
+    select to_char(d.day_on, 'YYYY-MM-DD') as day, e.system_meaning as meaning,
+           d.note_en, d.note_ar, d.provisional
+    from core.calendar_dates d
+    join core.calendars c on c.tenant_id = d.tenant_id and c.id = d.calendar_id
+      and c.kind = 'school' and c.status = 'active'
+    join core.descriptors e on e.tenant_id = d.tenant_id and e.id = d.event_descriptor_id
+    where d.tenant_id = ${tenantId}::uuid and d.school_year_id = ${yearId}::uuid and d.status = 'active'
+    order by d.day_on`);
+  return {
+    targetDays: calendar?.target_days ?? null,
+    days: rows.map((row) => ({
+      day: row.day,
+      meaning: row.meaning,
+      noteEn: row.note_en,
+      noteAr: row.note_ar,
+      provisional: row.provisional,
+    })),
+  };
+}
+
+/**
+ * Marks the school calendar's days in `[from, to]` as one kind, returning how
+ * many changed. Weekends stay weekends except for a make-up day, and `normal`
+ * returns each day to a school day or weekend by the school's week.
+ */
+export async function paintDays(
+  tx: CellTransaction,
+  input: {
+    tenantId: string;
+    yearId: string;
+    from: string;
+    to: string;
+    kind: string;
+    noteEn: string | null;
+    noteAr: string | null;
+    provisional: boolean;
+    weekendDays: number[];
+  },
+): Promise<number> {
+  const normal = input.kind === "normal";
+  const meanings = normal ? ["instructional_day", "weekend"] : [input.kind];
+  const found = await tx.execute<{ id: string; meaning: string }>(sql`
+    select distinct on (system_meaning) id, system_meaning as meaning from core.descriptors
+    where tenant_id = ${input.tenantId}::uuid and namespace = 'calendar_event'
+      and system_meaning = any(${textArray(meanings)}) and status = 'active'
+    order by system_meaning, org_id nulls first`);
+  const idOf = new Map(found.map((row) => [row.meaning, row.id]));
+  const target = normal
+    ? sql`case when extract(isodow from d.day_on)::int = any(${`{${input.weekendDays.join(",")}}`}::int[])
+        then ${idOf.get("weekend") ?? null}::uuid else ${idOf.get("instructional_day") ?? null}::uuid end`
+    : sql`${idOf.get(input.kind) ?? null}::uuid`;
+  if (meanings.some((meaning) => !idOf.has(meaning)))
+    throw new Error(`calendar day descriptor missing for ${input.kind}`);
+  const rows = await tx.execute<{ id: string }>(sql`
+    update core.calendar_dates d
+    set event_descriptor_id = ${target},
+        note_en = ${normal ? null : input.noteEn || null},
+        note_ar = ${normal ? null : input.noteAr || null},
+        provisional = ${!normal && input.provisional}
+    from core.calendars c, core.descriptors e
+    where d.tenant_id = ${input.tenantId}::uuid and d.school_year_id = ${input.yearId}::uuid
+      and d.status = 'active' and d.day_on between ${input.from}::date and ${input.to}::date
+      and c.tenant_id = d.tenant_id and c.id = d.calendar_id and c.kind = 'school' and c.status = 'active'
+      and e.tenant_id = d.tenant_id and e.id = d.event_descriptor_id
+      and (${normal || input.kind === "make_up_day"} or e.system_meaning <> 'weekend')
+    returning d.id`);
+  return rows.length;
+}
+
+export async function setTargetDays(
+  tx: CellTransaction,
+  input: { tenantId: string; yearId: string; target: number | null },
+) {
+  await tx.execute(sql`
+    update core.calendars set target_days = ${input.target}
+    where tenant_id = ${input.tenantId}::uuid and school_year_id = ${input.yearId}::uuid
+      and kind = 'school' and status = 'active'`);
 }
 
 export interface SchoolWeek {
