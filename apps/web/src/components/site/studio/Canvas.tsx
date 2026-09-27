@@ -16,6 +16,7 @@ import type { CanvasSection } from "./draft";
 
 import { SiteFrame } from "../render/frame";
 import { opensOnPicture, PageSections } from "../render/page";
+import { TextEditContext } from "../render/parts";
 import { schemeStyle, themeAttributes, themeStyle } from "../render/theme";
 import { SECTION_LABEL } from "./labels";
 
@@ -91,6 +92,7 @@ function SectionChrome({
   onDuplicate,
   onRemove,
   onInsert,
+  onText,
   children,
 }: {
   item: CanvasSection;
@@ -103,6 +105,7 @@ function SectionChrome({
   onDuplicate: () => void;
   onRemove: () => void;
   onInsert: (at: number) => void;
+  onText: (field: string, value: string) => void;
   children: ReactNode;
 }) {
   const label = SECTION_LABEL[item.section.type]();
@@ -115,7 +118,11 @@ function SectionChrome({
         item.hidden && "opacity-40",
       )}
     >
-      {children}
+      {/* Once selected, a section's words take typing and its overlay
+          lets clicks through to them. */}
+      <TextEditContext.Provider value={selected ? onText : null}>
+        {children}
+      </TextEditContext.Provider>
       <button
         type="button"
         aria-label={m.siteSelectSection({
@@ -127,7 +134,7 @@ function SectionChrome({
         className={cn(
           "absolute inset-0 z-10 cursor-pointer outline-offset-[-3px] hover:outline-2 hover:outline-[#2563eb]/60 hover:outline-dashed focus-visible:outline-3 focus-visible:outline-[#2563eb]",
           selected &&
-            "outline-3 outline-[#2563eb] outline-solid hover:outline-solid",
+            "pointer-events-none outline-3 outline-[#2563eb] outline-solid hover:outline-solid",
         )}
       />
       <span
@@ -232,6 +239,7 @@ export function Canvas({
   onDuplicate,
   onRemove,
   onInsert,
+  onText,
 }: {
   device: Device;
   locale: SiteLocale;
@@ -245,6 +253,7 @@ export function Canvas({
   onDuplicate: (id: string) => void;
   onRemove: (id: string) => void;
   onInsert: (at: number) => void;
+  onText: (id: string, field: string, value: string) => void;
 }) {
   const scroller = useRef<HTMLDivElement>(null);
   useEffect(() => {
@@ -303,6 +312,9 @@ export function Canvas({
                       onDuplicate={() => onDuplicate(shown.section.id)}
                       onRemove={() => onRemove(shown.section.id)}
                       onInsert={onInsert}
+                      onText={(field, value) =>
+                        onText(shown.section.id, field, value)
+                      }
                     >
                       {rendered}
                     </SectionChrome>

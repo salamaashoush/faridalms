@@ -143,15 +143,21 @@ function Backdrop({
 function Hero({ section, context, first }: Props<"hero">) {
   const { data, variant } = section;
   const center = section.style.align === "center";
-  const title = <Heading level={first ? 1 : 2}>{data.heading}</Heading>;
+  const title = (
+    <Heading level={first ? 1 : 2} field="heading">
+      {data.heading}
+    </Heading>
+  );
   const words = (
     <div
       data-stagger
       className={cn("grid gap-6", center && "justify-items-center text-center")}
     >
-      <Eyebrow>{data.eyebrow}</Eyebrow>
+      <Eyebrow field="eyebrow">{data.eyebrow}</Eyebrow>
       {title}
-      <Lead className="max-w-2xl text-[1.15rem]">{data.text}</Lead>
+      <Lead className="max-w-2xl text-[1.15rem]" field="text">
+        {data.text}
+      </Lead>
       <Actions
         actions={data.actions}
         context={context}
@@ -246,16 +252,19 @@ function Hero({ section, context, first }: Props<"hero">) {
     return (
       <div className="relative grid gap-10 py-[calc(var(--s-space)*0.25)]">
         <div className="relative z-10 grid gap-8 @3xl/site:max-w-[72%]">
-          <Eyebrow>{data.eyebrow}</Eyebrow>
+          <Eyebrow field="eyebrow">{data.eyebrow}</Eyebrow>
           <Heading
             level={first ? 1 : 2}
             size="display"
             className="max-w-none text-[clamp(3rem,1rem+8.5cqi,9.5rem)] leading-[0.92]"
+            field="heading"
           >
             {data.heading}
           </Heading>
           <div className="grid items-end gap-6 @3xl/site:grid-cols-[1fr_auto]">
-            <Lead className="max-w-xl text-[1.15rem]">{data.text}</Lead>
+            <Lead className="max-w-xl text-[1.15rem]" field="text">
+              {data.text}
+            </Lead>
             <Actions actions={data.actions} context={context} />
           </div>
         </div>
@@ -275,9 +284,11 @@ function Hero({ section, context, first }: Props<"hero">) {
     return (
       <div className="grid justify-items-center gap-12 text-center">
         <div data-stagger className="grid max-w-4xl justify-items-center gap-6">
-          <Eyebrow>{data.eyebrow}</Eyebrow>
+          <Eyebrow field="eyebrow">{data.eyebrow}</Eyebrow>
           {title}
-          <Lead className="text-[1.15rem]">{data.text}</Lead>
+          <Lead className="text-[1.15rem]" field="text">
+            {data.text}
+          </Lead>
           <Actions
             actions={data.actions}
             context={context}
@@ -508,11 +519,13 @@ function PageHeader({ section, context, first }: Props<"pageHeader">) {
       )}
     >
       <div data-stagger className="grid max-w-3xl gap-5">
-        <Eyebrow>{data.eyebrow}</Eyebrow>
-        <Heading level={first ? 1 : 2} size="display">
+        <Eyebrow field="eyebrow">{data.eyebrow}</Eyebrow>
+        <Heading level={first ? 1 : 2} size="display" field="heading">
           {data.heading}
         </Heading>
-        <Lead className="text-[1.15rem]">{data.text}</Lead>
+        <Lead className="text-[1.15rem]" field="text">
+          {data.text}
+        </Lead>
       </div>
       {variant === "image" ? (
         <MediaView
@@ -565,7 +578,7 @@ function Welcome({ section, context }: Props<"welcome">) {
   if (variant === "letter")
     return (
       <div className="mx-auto grid max-w-3xl gap-6">
-        <Heading>{data.heading}</Heading>
+        <Heading field="heading">{data.heading}</Heading>
         <div className="text-lg">
           <Prose body={data.body} context={context} />
         </div>
@@ -586,7 +599,7 @@ function Welcome({ section, context }: Props<"welcome">) {
         />
       </div>
       <div className="grid gap-6">
-        <Heading>{data.heading}</Heading>
+        <Heading field="heading">{data.heading}</Heading>
         <div className="text-lg">
           <Prose body={data.body} context={context} />
         </div>
@@ -605,8 +618,8 @@ function Text({ section, context }: Props<"text">) {
         variant === "narrow" ? "mx-auto max-w-3xl" : "",
       )}
     >
-      <Eyebrow>{data.eyebrow}</Eyebrow>
-      <Heading>{data.heading}</Heading>
+      <Eyebrow field="eyebrow">{data.eyebrow}</Eyebrow>
+      <Heading field="heading">{data.heading}</Heading>
       <div
         className={cn(
           "text-[1.075rem]",
@@ -631,8 +644,8 @@ function ImageText({ section, context }: Props<"imageText">) {
       )}
       style={variant === "overlap" ? { background: "var(--s-bg)" } : undefined}
     >
-      <Eyebrow>{data.eyebrow}</Eyebrow>
-      <Heading>{data.heading}</Heading>
+      <Eyebrow field="eyebrow">{data.eyebrow}</Eyebrow>
+      <Heading field="heading">{data.heading}</Heading>
       <Prose body={data.body} context={context} />
       <Actions actions={data.actions} context={context} className="mt-1" />
     </div>
@@ -914,6 +927,7 @@ function Stats({ section, context }: Props<"stats">) {
         className={
           section.style.align === "center" ? "mx-auto max-w-3xl" : "max-w-3xl"
         }
+        field="heading"
       >
         {data.heading}
       </Heading>
@@ -1233,8 +1247,8 @@ function Video({ section, context }: Props<"video">) {
     return (
       <div className="grid items-center gap-12 @3xl/site:grid-cols-[2fr_3fr] @4xl/site:gap-16">
         <div data-stagger className="grid gap-5">
-          <Heading>{data.heading}</Heading>
-          <Lead>{data.text}</Lead>
+          <Heading field="heading">{data.heading}</Heading>
+          <Lead field="text">{data.text}</Lead>
           <Actions actions={data.actions} context={context} />
         </div>
         {player}
@@ -1577,7 +1591,7 @@ function Logos({ section, context }: Props<"logos">) {
   if (variant === "marquee")
     return (
       <div className="grid gap-10">
-        <Heading level={3} className="text-center">
+        <Heading level={3} className="text-center" field="heading">
           {data.heading}
         </Heading>
         <div className="relative overflow-hidden [mask-image:linear-gradient(to_right,transparent,black_12%,black_88%,transparent)]">
@@ -1618,7 +1632,7 @@ function Logos({ section, context }: Props<"logos">) {
     );
   return (
     <div className="grid gap-10">
-      <Heading level={3} className="text-center">
+      <Heading level={3} className="text-center" field="heading">
         {data.heading}
       </Heading>
       <ul
@@ -1669,7 +1683,7 @@ function News({ section, context }: Props<"news">) {
   return (
     <div>
       <div className="mb-12 flex flex-wrap items-end justify-between gap-4">
-        <Heading>{data.heading}</Heading>
+        <Heading field="heading">{data.heading}</Heading>
         <SiteAnchor
           href="/news"
           context={context}
@@ -1853,8 +1867,12 @@ function Admissions({ section, context }: Props<"admissions">) {
           {variant === "keyDate" && date ? (
             <span className="site-eyebrow">{date}</span>
           ) : null}
-          <Heading size="display">{data.heading}</Heading>
-          <Lead className="text-[1.15rem]">{data.text}</Lead>
+          <Heading size="display" field="heading">
+            {data.heading}
+          </Heading>
+          <Lead className="text-[1.15rem]" field="text">
+            {data.text}
+          </Lead>
         </div>
         <Actions
           actions={data.items.flatMap((item) => item.actions)}
@@ -2042,8 +2060,8 @@ function Contact({ section, context }: Props<"contact">) {
       )}
     >
       <div className="grid content-start gap-6">
-        <Heading>{data.heading}</Heading>
-        <Lead>{data.text}</Lead>
+        <Heading field="heading">{data.heading}</Heading>
+        <Lead field="text">{data.text}</Lead>
         <div className="text-lg">
           <ContactList context={context} />
         </div>
@@ -2133,9 +2151,9 @@ function EnquiryForm({ section, context }: Props<"form">) {
   );
   const words = (
     <div data-stagger className="grid content-start gap-5">
-      <Eyebrow>{data.eyebrow}</Eyebrow>
-      <Heading>{data.heading}</Heading>
-      <Lead>{data.text}</Lead>
+      <Eyebrow field="eyebrow">{data.eyebrow}</Eyebrow>
+      <Heading field="heading">{data.heading}</Heading>
+      <Lead field="text">{data.text}</Lead>
     </div>
   );
   const form =
@@ -2360,7 +2378,7 @@ function Embed({ section, context }: Props<"embed">) {
   const { data } = section;
   return (
     <div className="mx-auto grid max-w-4xl gap-8">
-      <Heading>{data.heading}</Heading>
+      <Heading field="heading">{data.heading}</Heading>
       {data.embed ? (
         <div className="site-feature">
           <ContentView

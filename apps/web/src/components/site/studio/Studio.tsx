@@ -1173,6 +1173,24 @@ export function SiteStudio({
             onDuplicate={duplicate}
             onRemove={remove}
             onInsert={(at) => setGalleryAt(at)}
+            onText={(id, field, value) => {
+              const section = page.sections.find((item) => item.id === id);
+              if (!section) return;
+              const target = editingOther ? otherOf(page, section) : section;
+              const next = {
+                ...target,
+                data: { ...target.data, [field]: value },
+              } as PageSection;
+              if (editingOther)
+                updatePage((current) => ({
+                  ...current,
+                  translated: { ...current.translated, [id]: next },
+                }));
+              else
+                setSections((current) =>
+                  current.map((item) => (item.id === id ? next : item)),
+                );
+            }}
           />
         </main>
         <aside

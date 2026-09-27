@@ -39,7 +39,7 @@ import {
   Users,
   Utensils,
 } from "lucide-react";
-import { useRef, useState } from "react";
+import { createContext, useContext, useRef, useState } from "react";
 
 import { ContentView } from "~/components/content/ContentView";
 import { cn } from "~/utils/cn";
@@ -202,19 +202,132 @@ export function Actions({
   );
 }
 
-export function Eyebrow({ children }: { children: string }) {
-  return children ? <p className="site-eyebrow">{children}</p> : null;
+/** The builder's way to take words typed straight onto the canvas. */
+export const TextEditContext = createContext<
+  ((field: string, value: string) => void) | null
+>(null);
+
+const EMPHASIS = /(\*[^*\n]+\*)/;
+
+const marked = (part: string) =>
+  part.length > 2 && part.startsWith("*") && part.endsWith("*");
+
+/** Where a point in the drawn words falls in the raw text, past the asterisks. */
+function rawOffset(raw: string, drawn: number): number {
+  let seen = 0;
+  let at = 0;
+  for (const part of raw.split(EMPHASIS)) {
+    const inner = marked(part) ? 1 : 0;
+    const shown = part.length - inner * 2;
+    if (drawn <= seen + shown) return at + inner + drawn - seen;
+    seen += shown;
+    at += part.length;
+  }
+  return raw.length;
+}
+
+function drawnOffset(element: HTMLElement, x: number, y: number): number {
+  const point =
+    "caretPositionFromPoint" in document
+      ? document.caretPositionFromPoint(x, y)
+      : null;
+  if (!point || !element.contains(point.offsetNode))
+    return element.textContent.length;
+  const range = document.createRange();
+  range.setStart(element, 0);
+  range.setEnd(point.offsetNode, point.offset);
+  return range.toString().length;
+}
+
+function showRaw(element: HTMLElement, raw: string, caret = raw.length) {
+  element.textContent = raw;
+  getSelection()?.collapse(element.firstChild ?? element, caret);
+}
+
+/**
+ * Words a school can type over in the builder: on focus the element shows
+ * its raw text, asterisks and all; on leaving, the words are saved and the
+ * element is drawn afresh. Outside the builder it is plain markup.
+ */
+function Editable({
+  tag: Tag,
+  field,
+  value,
+  multiline = false,
+  className,
+  children,
+}: {
+  tag: "h1" | "h2" | "h3" | "p";
+  field?: string;
+  value: string;
+  multiline?: boolean;
+  className?: string;
+  children: ReactNode;
+}) {
+  const edit = useContext(TextEditContext);
+  const [round, setRound] = useState(0);
+  if (!edit || !field) return <Tag className={className}>{children}</Tag>;
+  return (
+    <Tag
+      key={round}
+      contentEditable="plaintext-only"
+      suppressContentEditableWarning
+      spellCheck
+      className={cn(className, "site-editable")}
+      onMouseDown={(event) => {
+        const element = event.currentTarget;
+        if (document.activeElement === element) return;
+        // Swapping in the raw text moves every character, so the caret the
+        // browser would place under the pointer lands on the wrong word.
+        event.preventDefault();
+        const drawn = drawnOffset(element, event.clientX, event.clientY);
+        element.focus();
+        showRaw(element, value, rawOffset(value, drawn));
+      }}
+      onFocus={(event) => showRaw(event.currentTarget, value)}
+      onKeyDown={(event) => {
+        if (event.key === "Escape") {
+          event.currentTarget.textContent = value;
+          event.currentTarget.blur();
+        } else if (event.key === "Enter" && !multiline) {
+          event.preventDefault();
+          event.currentTarget.blur();
+        }
+      }}
+      onBlur={(event) => {
+        const typed = event.currentTarget.textContent.trim();
+        setRound((current) => current + 1);
+        if (typed !== value) edit(field, typed);
+      }}
+    >
+      {children}
+    </Tag>
+  );
+}
+
+export function Eyebrow({
+  children,
+  field,
+}: {
+  children: string;
+  field?: string;
+}) {
+  return children ? (
+    <Editable tag="p" field={field} value={children} className="site-eyebrow">
+      {children}
+    </Editable>
+  ) : null;
 }
 
 /** Words a school wraps in asterisks, set in the theme's second voice. */
 export function Emphasised({ children }: { children: string }) {
-  const parts = children.split(/(\*[^*\n]+\*)/);
+  const parts = children.split(EMPHASIS);
   if (parts.length === 1) return children;
   let offset = 0;
   return parts.map((part) => {
     const at = offset;
     offset += part.length;
-    return part.length > 2 && part.startsWith("*") && part.endsWith("*") ? (
+    return marked(part) ? (
       <em key={at} className="site-em">
         {part.slice(1, -1)}
       </em>
@@ -231,16 +344,21 @@ export function Heading({
   level = 2,
   size,
   className,
+  field,
 }: {
   children: string;
   level?: 1 | 2 | 3;
   size?: keyof typeof SIZE;
   className?: string;
+  /** The section field these words come from, for typing over them in the builder. */
+  field?: string;
 }) {
   if (!children) return null;
-  const Tag = level === 1 ? "h1" : level === 2 ? "h2" : "h3";
   return (
-    <Tag
+    <Editable
+      tag={level === 1 ? "h1" : level === 2 ? "h2" : "h3"}
+      field={field}
+      value={children}
       className={cn(
         "site-heading",
         SIZE[size ?? (level === 1 ? "display" : level === 2 ? "h2" : "h3")],
@@ -248,26 +366,32 @@ export function Heading({
       )}
     >
       <Emphasised>{children}</Emphasised>
-    </Tag>
+    </Editable>
   );
 }
 
 export function Lead({
   children,
   className,
+  field,
 }: {
   children: string;
   className?: string;
+  field?: string;
 }) {
   return children ? (
-    <p
+    <Editable
+      tag="p"
+      field={field}
+      value={children}
+      multiline
       className={cn(
         "site-muted text-lg leading-[1.6] whitespace-pre-line",
         className,
       )}
     >
       {children}
-    </p>
+    </Editable>
   ) : null;
 }
 
@@ -609,9 +733,9 @@ export function SectionIntro({
         center && "mx-auto justify-items-center text-center",
       )}
     >
-      <Eyebrow>{eyebrow}</Eyebrow>
-      <Heading>{heading}</Heading>
-      <Lead>{text}</Lead>
+      <Eyebrow field="eyebrow">{eyebrow}</Eyebrow>
+      <Heading field="heading">{heading}</Heading>
+      <Lead field="text">{text}</Lead>
     </div>
   );
 }
