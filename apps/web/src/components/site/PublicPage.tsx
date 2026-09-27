@@ -33,10 +33,13 @@ export function PublicPageView({
   page,
   site,
   school,
+  slug,
 }: {
   page: Page;
   site: PublicSite;
   school: string;
+  /** The page's address, "" for the home page. */
+  slug: string;
 }) {
   return (
     <SiteShell
@@ -51,6 +54,7 @@ export function PublicPageView({
         context={publicContext(site, school, {
           media: page.media,
           news: page.news,
+          page: slug,
         })}
       />
     </SiteShell>

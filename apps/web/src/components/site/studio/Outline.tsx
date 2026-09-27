@@ -30,6 +30,7 @@ import {
   Quote,
   Receipt,
   School,
+  Send,
   Sparkles,
   Type,
   Users,
@@ -73,6 +74,7 @@ export const SECTION_ICON: Record<PageSection["type"], LucideIcon> = {
   steps: ListChecks,
   fees: Receipt,
   contact: Contact,
+  form: Send,
   quickLinks: Link2,
   embed: Code2,
 };

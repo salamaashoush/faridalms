@@ -30,5 +30,7 @@ function SitePage() {
   const { lang } = site.useSearch();
   const shell = useSuspenseQuery(publicSiteQuery(school, lang)).data;
   const page = useSuspenseQuery(publicPageQuery(school, slug, lang)).data;
-  return <PublicPageView page={page} site={shell} school={school} />;
+  return (
+    <PublicPageView page={page} site={shell} school={school} slug={slug} />
+  );
 }

@@ -47,6 +47,7 @@ export function backend(school: string | null = currentSchool()) {
     school: school ?? undefined,
     locale: getLocale(),
     token: school ? getCookie(sessionCookie(school)) : undefined,
+    forwardedFor: getRequestHeader("x-forwarded-for"),
   });
 }
 

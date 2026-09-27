@@ -32,7 +32,11 @@ const langQuery = (site: PublicSite) =>
 export function publicContext(
   site: PublicSite,
   school: string,
-  input: { media?: Record<string, string>; news?: NewsItem[] } = {},
+  input: {
+    media?: Record<string, string>;
+    news?: NewsItem[];
+    page?: string;
+  } = {},
 ): RenderContext {
   return {
     school,
@@ -45,6 +49,7 @@ export function publicContext(
     news: input.news ?? [],
     contact: site.contact,
     query: langQuery(site),
+    page: input.page,
   };
 }
 

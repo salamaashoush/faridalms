@@ -86,3 +86,33 @@ test("the home page opens with its hero and the school's actions", async ({
   await expect(page).toHaveURL(/lang=ar/);
   await expect(page.locator("html [dir=rtl]").first()).toBeVisible();
 });
+
+test("a family sends an enquiry and the school finds it in the website's enquiries", async ({
+  browser,
+  page,
+}) => {
+  const name = `Family ${crypto.randomUUID().slice(0, 6)}`;
+  const visitorContext = await browser.newContext();
+  const visitor = await visitorContext.newPage();
+  await visitor.clock.install();
+  await visitor.goto("/site/northwind/pages/admissions");
+  await visitor.getByRole("textbox", { name: "Your name" }).fill(name);
+  await visitor
+    .getByRole("textbox", { name: "Email" })
+    .fill("family@example.com");
+  await visitor
+    .getByRole("textbox", { name: /Message/ })
+    .fill("Is there a place in grade 4 next term?");
+  // A person takes a while to fill the form; faster sends are dropped as scripts.
+  await visitor.clock.fastForward(5000);
+  await visitor.getByRole("button", { name: "Send", exact: true }).click();
+  await expect(
+    visitor.getByText("Thank you. We will reply within two working days."),
+  ).toBeVisible();
+  await visitorContext.close();
+
+  await signIn(page, "admin");
+  await page.goto("/admin/site?tab=enquiries");
+  await untilHydrated(page);
+  await expect(page.getByText(name).first()).toBeVisible();
+});

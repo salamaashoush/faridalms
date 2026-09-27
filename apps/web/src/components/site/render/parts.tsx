@@ -71,6 +71,8 @@ export interface RenderContext {
   fileUrl: (fileId: string) => string | null;
   news: NewsItem[];
   contact: SiteContact | null;
+  /** The page's address inside the site, "" for the home page; forms send it with a message. */
+  page?: string;
   /** Carried by every link inside the site, such as the language when it is not the site's first. */
   query?: string;
   /** In the builder: links do not navigate and missing pictures show where they go. */

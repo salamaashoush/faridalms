@@ -55,6 +55,7 @@ export const SECTION_LABEL: Record<SectionType, () => string> = {
   steps: m.siteTypeSteps,
   fees: m.siteTypeFees,
   contact: m.siteTypeContact,
+  form: m.siteTypeForm,
   quickLinks: m.siteTypeQuickLinks,
   embed: m.siteTypeEmbed,
 };
@@ -86,6 +87,7 @@ export const SECTION_HINT: Record<SectionType, () => string> = {
   steps: m.siteTypeHintSteps,
   fees: m.siteTypeHintFees,
   contact: m.siteTypeHintContact,
+  form: m.siteTypeHintForm,
   quickLinks: m.siteTypeHintQuickLinks,
   embed: m.siteTypeHintEmbed,
 };
@@ -213,6 +215,11 @@ export const VARIANT_LABEL: {
     details: m.siteVariantContactDetails,
     map: m.siteVariantContactMap,
   },
+  form: {
+    split: m.siteVariantFormSplit,
+    stacked: m.siteVariantFormStacked,
+    card: m.siteVariantFormCard,
+  },
   quickLinks: {
     tiles: m.siteVariantQuickLinksTiles,
     audience: m.siteVariantQuickLinksAudience,
@@ -272,6 +279,11 @@ export const FIELD_LABEL: Record<string, () => string> = {
   interval: m.siteFieldInterval,
   layout: m.siteFieldLayout,
   valign: m.siteFieldValign,
+  purpose: m.siteFieldPurpose,
+  phone: m.siteFieldPhone,
+  grade: m.siteFieldGrade,
+  submit: m.siteFieldSubmit,
+  thanks: m.siteFieldThanks,
 };
 
 export const AUDIENCE_LABEL: Record<string, () => string> = {
@@ -551,5 +563,19 @@ export const CHOICE_LABEL: Record<string, Record<string, () => string>> = {
   valign: {
     start: m.siteChoiceValignStart,
     center: m.siteChoiceValignCenter,
+  },
+  purpose: {
+    enquiry: m.siteChoicePurposeEnquiry,
+    visit: m.siteChoicePurposeVisit,
+    general: m.siteChoicePurposeGeneral,
+  },
+  phone: {
+    ask: m.siteChoicePhoneAsk,
+    require: m.siteChoicePhoneRequire,
+    hide: m.siteChoicePhoneHide,
+  },
+  grade: {
+    ask: m.siteChoiceGradeAsk,
+    hide: m.siteChoiceGradeHide,
   },
 };

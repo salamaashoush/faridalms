@@ -300,6 +300,10 @@ export function getMessageFromError(error: unknown): string {
         return m.siteErrLink();
       case "site.embed":
         return m.siteErrEmbed();
+      case "site.too_many":
+        return m.siteErrTooMany();
+      case "site.form":
+        return m.siteErrForm();
       case "site.stale":
         return m.siteErrStale();
       case "learning.disabled":

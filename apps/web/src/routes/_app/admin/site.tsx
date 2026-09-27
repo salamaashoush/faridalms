@@ -10,6 +10,7 @@ import { ExternalLink } from "lucide-react";
 import * as v from "valibot";
 
 import { SiteCategories } from "~/components/site/SiteCategories";
+import { SiteEnquiries } from "~/components/site/SiteEnquiries";
 import { SitePages } from "~/components/site/SitePages";
 import { SitePosts } from "~/components/site/SitePosts";
 import { SiteSettings } from "~/components/site/SiteSettings";
@@ -17,11 +18,15 @@ import { PageHeader } from "~/components/system/IndexPage";
 import { RecordTabs } from "~/components/system/RecordPage";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
-import { siteOverviewQuery, sitePostsQuery } from "~/queries/site";
+import {
+  siteEnquiriesQuery,
+  siteOverviewQuery,
+  sitePostsQuery,
+} from "~/queries/site";
 import { currentUserQuery } from "~/queries/user";
 import siteCss from "~/styles/site.css?url";
 
-const TABS = ["pages", "posts", "categories", "settings"] as const;
+const TABS = ["pages", "posts", "enquiries", "categories", "settings"] as const;
 
 const searchSchema = v.object({
   tab: v.fallback(v.optional(v.picklist(TABS), "pages"), "pages"),
@@ -30,6 +35,7 @@ const searchSchema = v.object({
     "published",
   ),
   q: v.fallback(v.optional(v.pipe(v.string(), v.maxLength(100)), ""), ""),
+  handled: v.fallback(v.optional(v.boolean(), false), false),
 });
 type Search = v.InferOutput<typeof searchSchema>;
 const DEFAULT_SEARCH = v.parse(searchSchema, {});
@@ -49,6 +55,9 @@ export const Route = createFileRoute("/_app/admin/site")({
             sitePostsQuery({ tab: deps.posts, q: deps.q }),
           )
         : null,
+      deps.tab === "enquiries"
+        ? context.queryClient.ensureQueryData(siteEnquiriesQuery(deps.handled))
+        : null,
     ]);
   },
   head: () => ({ links: [{ rel: "stylesheet", href: siteCss }] }),
@@ -58,6 +67,7 @@ export const Route = createFileRoute("/_app/admin/site")({
 const TAB_LABEL: Record<(typeof TABS)[number], () => string> = {
   pages: m.siteTabPages,
   posts: m.siteTabPosts,
+  enquiries: m.siteTabEnquiries,
   categories: m.siteTabCategories,
   settings: m.siteTabSettings,
 };
@@ -105,6 +115,11 @@ function WebsitePage() {
                 ...(change.q === undefined ? {} : { q: change.q }),
               })
             }
+          />
+        ) : search.tab === "enquiries" ? (
+          <SiteEnquiries
+            handled={search.handled}
+            onHandled={(handled) => patch({ handled })}
           />
         ) : search.tab === "categories" ? (
           <SiteCategories categories={overview.categories} />

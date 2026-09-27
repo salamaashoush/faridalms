@@ -5,8 +5,9 @@ import type {
   SiteBlock,
   SiteLocale,
 } from "@faridalms/domain/site-sections";
-import type { CSSProperties } from "react";
+import type { CSSProperties, FormEvent } from "react";
 
+import { useHydrated } from "@tanstack/react-router";
 import {
   ArrowRight,
   ArrowUpRight,
@@ -21,10 +22,11 @@ import {
   Phone,
   Play,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import { ContentView } from "~/components/content/ContentView";
 import * as m from "~/i18n/messages";
+import { submitSiteEnquiry } from "~/server/site";
 import { cn } from "~/utils/cn";
 
 import type { RenderContext } from "./parts";
@@ -1680,7 +1682,7 @@ function Steps({ section, context }: Props<"steps">) {
           <li
             key={item.id}
             className={cn(
-              "relative grid gap-4 text-start",
+              "relative grid content-start gap-4 text-start",
               variant === "horizontal"
                 ? "@5xl/site:after:absolute @5xl/site:after:start-16 @5xl/site:after:top-7 @5xl/site:after:h-px @5xl/site:after:w-[calc(100%-3rem)] @5xl/site:after:bg-[var(--s-border)] @5xl/site:last:after:hidden"
                 : "grid-cols-[3.5rem_1fr] gap-6 pb-10 before:absolute before:start-7 before:top-14 before:bottom-0 before:w-px before:bg-[var(--s-border)] last:before:hidden",
@@ -1843,6 +1845,223 @@ function Contact({ section, context }: Props<"contact">) {
           </span>
         </div>
       ) : null}
+    </div>
+  );
+}
+
+type FormState = "idle" | "sending" | "sent" | "failed" | "limited";
+
+/**
+ * An enquiry form. It sends only from a published page; in the builder it
+ * shows what visitors will fill in.
+ */
+function EnquiryForm({ section, context }: Props<"form">) {
+  const { data, variant } = section;
+  const t = { locale: context.locale };
+  const opened = useRef(0);
+  const [state, setState] = useState<FormState>("idle");
+  // Uncontrolled inputs keep what someone typed before the page hydrated,
+  // and sending waits for hydration so nothing posts natively.
+  const hydrated = useHydrated();
+  useEffect(() => {
+    opened.current = Date.now();
+  }, []);
+  const send = async (event: FormEvent<HTMLFormElement>) => {
+    event.preventDefault();
+    if (context.editing || state === "sending") return;
+    const form = new FormData(event.currentTarget);
+    const read = (key: string) => {
+      const value = form.get(key);
+      return typeof value === "string" ? value : "";
+    };
+    setState("sending");
+    try {
+      await submitSiteEnquiry({
+        data: {
+          school: context.school,
+          locale: context.locale,
+          page: context.page ?? "",
+          sectionId: section.id,
+          name: read("name"),
+          email: read("email"),
+          phone: read("phone"),
+          childYear: read("childYear"),
+          message: read("message"),
+          website: read("website"),
+          elapsed: Date.now() - opened.current,
+        },
+      });
+      setState("sent");
+    } catch (error) {
+      setState(
+        error instanceof Error && error.message === "site.too_many"
+          ? "limited"
+          : "failed",
+      );
+    }
+  };
+  const id = (name: string) => `${section.id}-${name}`;
+  const optional = (
+    <span className="site-muted font-normal"> {m.siteFormOptional({}, t)}</span>
+  );
+  const words = (
+    <div data-stagger className="grid content-start gap-5">
+      <Eyebrow>{data.eyebrow}</Eyebrow>
+      <Heading>{data.heading}</Heading>
+      <Lead>{data.text}</Lead>
+    </div>
+  );
+  const form =
+    state === "sent" ? (
+      <output className="site-card grid content-center justify-items-start gap-4 p-8">
+        <span className="grid size-12 place-items-center rounded-full bg-[var(--s-btn)] text-[var(--s-btn-fg)]">
+          <Check aria-hidden className="size-6" />
+        </span>
+        <span className="site-heading site-h3">{data.thanks}</span>
+      </output>
+    ) : (
+      <form
+        onSubmit={(event) => void send(event)}
+        className={cn(
+          "grid gap-4",
+          variant === "card" && "site-card p-6 @3xl/site:p-8",
+        )}
+        noValidate={false}
+      >
+        <div className="grid gap-4 @3xl/site:grid-cols-2">
+          <label htmlFor={id("name")} className="site-label">
+            {m.siteFormName({}, t)}
+            <input
+              id={id("name")}
+              className="site-input"
+              required
+              maxLength={120}
+              autoComplete="name"
+              name="name"
+              disabled={context.editing}
+            />
+          </label>
+          <label htmlFor={id("email")} className="site-label">
+            {m.siteFormEmail({}, t)}
+            <input
+              id={id("email")}
+              className="site-input"
+              type="email"
+              required
+              maxLength={254}
+              autoComplete="email"
+              dir="ltr"
+              name="email"
+              disabled={context.editing}
+            />
+          </label>
+          {data.phone === "hide" ? null : (
+            <label htmlFor={id("phone")} className="site-label">
+              <span>
+                {m.siteFormPhone({}, t)}
+                {data.phone === "ask" ? optional : null}
+              </span>
+              <input
+                id={id("phone")}
+                className="site-input"
+                type="tel"
+                required={data.phone === "require"}
+                maxLength={40}
+                autoComplete="tel"
+                dir="ltr"
+                name="phone"
+                disabled={context.editing}
+              />
+            </label>
+          )}
+          {data.grade === "hide" ? null : (
+            <label htmlFor={id("year")} className="site-label">
+              <span>
+                {m.siteFormYear({}, t)}
+                {optional}
+              </span>
+              <input
+                id={id("year")}
+                className="site-input"
+                maxLength={60}
+                name="childYear"
+                disabled={context.editing}
+              />
+            </label>
+          )}
+        </div>
+        <label htmlFor={id("message")} className="site-label">
+          <span>
+            {m.siteFormMessage({}, t)}
+            {optional}
+          </span>
+          <textarea
+            id={id("message")}
+            className="site-input min-h-32"
+            maxLength={2000}
+            name="message"
+            disabled={context.editing}
+          />
+        </label>
+        <div
+          aria-hidden
+          className="absolute -start-[9999px] size-px overflow-hidden"
+        >
+          <label htmlFor={id("website")}>{m.siteFormLeaveEmpty({}, t)}</label>
+          <input
+            id={id("website")}
+            tabIndex={-1}
+            autoComplete="off"
+            name="website"
+          />
+        </div>
+        {state === "failed" || state === "limited" ? (
+          <p role="alert" className="text-sm font-semibold text-[#B42318]">
+            {state === "limited"
+              ? m.siteFormTooMany({}, t)
+              : m.siteFormFailed({}, t)}
+          </p>
+        ) : null}
+        <div className="flex flex-wrap items-center gap-4">
+          <button
+            type="submit"
+            className="site-button"
+            disabled={!hydrated || state === "sending" || context.editing}
+          >
+            {state === "sending"
+              ? m.siteFormSending({}, t)
+              : data.submit || m.siteFormSend({}, t)}
+          </button>
+          <p className="site-muted text-sm">
+            {context.editing
+              ? m.siteFormPreview({}, t)
+              : m.siteFormPrivacy({}, t)}
+          </p>
+        </div>
+      </form>
+    );
+  if (variant === "split")
+    return (
+      <div className="grid items-start gap-12 @4xl/site:grid-cols-[2fr_3fr] @4xl/site:gap-16">
+        <div className="grid gap-8">
+          {words}
+          {data.media.fileId ? (
+            <MediaView
+              media={data.media}
+              context={context}
+              ratio="4 / 3"
+              seed={section.id}
+              feature
+            />
+          ) : null}
+        </div>
+        <div className="relative">{form}</div>
+      </div>
+    );
+  return (
+    <div className="relative mx-auto grid max-w-3xl gap-10">
+      <div className="text-center [&_.site-eyebrow]:mx-auto">{words}</div>
+      {form}
     </div>
   );
 }
@@ -2200,6 +2419,10 @@ export function SiteSection({
         return <Fees section={section} context={context} first={first} />;
       case "contact":
         return <Contact section={section} context={context} first={first} />;
+      case "form":
+        return (
+          <EnquiryForm section={section} context={context} first={first} />
+        );
       case "quickLinks":
         return <QuickLinks section={section} context={context} first={first} />;
       case "embed":
