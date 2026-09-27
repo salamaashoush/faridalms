@@ -59,6 +59,9 @@
         "@orpc/valibot": "latest",
         "valibot": "^1.4.2",
       },
+      "devDependencies": {
+        "@orpc/client": "latest",
+      },
     },
     "apps/web": {
       "name": "@faridalms/web",

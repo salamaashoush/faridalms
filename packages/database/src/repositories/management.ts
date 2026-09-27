@@ -2,9 +2,7 @@ import type {
   SaveSubjectInput,
   PublishNewsletterInput,
   SaveUserInput,
-  SaveStudentInput,
   SaveClassInput,
-  StudentMatchesInput,
 } from "@faridalms/domain/administration-schema";
 
 import {
@@ -13,20 +11,9 @@ import {
   ONE_DIGIT_CODE_PATTERN,
   TWO_DIGIT_CODE_PATTERN,
 } from "@faridalms/domain/phone";
-import {
-  and,
-  eq,
-  gt,
-  ilike,
-  isNull,
-  ne,
-  sql,
-  inArray,
-  notInArray,
-  or,
-} from "drizzle-orm";
+import { and, eq, ilike, ne, sql, inArray, or } from "drizzle-orm";
 
-import type { Database, DatabaseTransaction } from "../index";
+import type { Database } from "../index";
 
 import { ACADEMIC_STRUCTURE_LOCK } from "../locks";
 import * as s from "../schema";
@@ -107,210 +94,6 @@ export async function saveUser(
     if (!row) throw new Error("Account insert returned no row");
     return row;
   });
-}
-
-export async function saveStudent(
-  db: Database,
-  input: SaveStudentInput,
-  schoolYearId: string,
-  today: string,
-) {
-  return db.transaction(async (tx) => {
-    await tx.execute(
-      sql`select pg_advisory_xact_lock(${ACADEMIC_STRUCTURE_LOCK})`,
-    );
-    if (input.birthdate && input.birthdate > today)
-      throw new ManagementError("BAD_REQUEST", "management.birthdate_future");
-    if (
-      input.classId &&
-      !(await tx.query.classes.findFirst({
-        where: { id: input.classId, schoolYearId },
-      }))
-    )
-      throw new ManagementError("BAD_REQUEST", "management.class_not_current");
-    const guardianIds = [...new Set(input.guardianIds ?? [])];
-    const parents = guardianIds.length
-      ? await tx.query.users.findMany({
-          where: { id: { in: guardianIds }, role: "parent" },
-          columns: { id: true },
-        })
-      : [];
-    if (parents.length !== guardianIds.length)
-      throw new ManagementError("BAD_REQUEST", "management.parents_invalid");
-    if (
-      input.userId &&
-      !(await tx.query.users.findFirst({
-        where: { id: input.userId, role: "student", isActive: true },
-      }))
-    )
-      throw new ManagementError(
-        "BAD_REQUEST",
-        "management.student_account_invalid",
-      );
-    if (
-      input.userId &&
-      (await tx.query.students.findFirst({
-        where: {
-          RAW: (table) =>
-            sql`${and(eq(table.userId, input.userId ?? ""), input.id ? ne(table.id, input.id) : undefined)}`,
-        },
-      }))
-    )
-      throw new ManagementError("CONFLICT", "management.account_linked");
-    if (
-      await tx.query.students.findFirst({
-        where: {
-          RAW: (table) =>
-            sql`${and(eq(table.reference, input.reference), input.id ? ne(table.id, input.id) : undefined)}`,
-        },
-      })
-    )
-      throw new ManagementError("CONFLICT", "management.reference_conflict");
-    const values = {
-      reference: input.reference,
-      firstName: input.firstName,
-      lastName: input.lastName,
-      birthdate: input.birthdate || null,
-      userId: input.userId || null,
-      updatedAt: new Date(),
-    };
-    const [student] = input.id
-      ? await tx
-          .update(s.students)
-          .set(values)
-          .where(eq(s.students.id, input.id))
-          .returning({ id: s.students.id })
-      : await tx
-          .insert(s.students)
-          .values(values)
-          .returning({ id: s.students.id });
-    if (!student)
-      throw new ManagementError("NOT_FOUND", "management.student_not_found");
-    const scheduled = await tx.query.enrolments.findFirst({
-      where: {
-        studentId: student.id,
-        since: { gt: today },
-        class: { schoolYearId },
-      },
-    });
-    if (scheduled)
-      throw new ManagementError("CONFLICT", "enrollment.scheduled_conflict");
-    const on = input.effectiveOn
-      ? await changeDate(tx, student.id, input, schoolYearId, today)
-      : today;
-    await tx
-      .update(s.enrolments)
-      .set({ until: on, updatedAt: new Date() })
-      .where(
-        and(
-          eq(s.enrolments.studentId, student.id),
-          or(isNull(s.enrolments.until), gt(s.enrolments.until, on)),
-          sql`${s.enrolments.classId} in (select ${s.classes.id} from ${s.classes} where ${s.classes.schoolYearId} = ${schoolYearId})`,
-          input.classId ? ne(s.enrolments.classId, input.classId) : undefined,
-        ),
-      );
-    const continuing = input.classId
-      ? await tx.query.enrolments.findFirst({
-          where: {
-            studentId: student.id,
-            classId: input.classId,
-            since: { lte: on },
-            OR: [{ until: { isNull: true } }, { until: { gt: on } }],
-          },
-        })
-      : undefined;
-    if (input.classId && !continuing)
-      await tx
-        .insert(s.enrolments)
-        .values({ studentId: student.id, classId: input.classId, since: on })
-        .onConflictDoNothing({
-          target: [s.enrolments.studentId, s.enrolments.classId],
-          where: isNull(s.enrolments.until),
-        });
-    await tx
-      .delete(s.guardianships)
-      .where(
-        and(
-          eq(s.guardianships.studentId, student.id),
-          guardianIds.length
-            ? notInArray(s.guardianships.guardianId, guardianIds)
-            : undefined,
-        ),
-      );
-    if (guardianIds.length)
-      await tx
-        .insert(s.guardianships)
-        .values(
-          guardianIds.map((guardianId) => ({
-            guardianId,
-            studentId: student.id,
-            relation: "guardian" as const,
-          })),
-        )
-        .onConflictDoNothing();
-    return student;
-  });
-}
-
-/**
- * The day a requested class change takes effect. It may be backdated, but not
- * into the future, where saveStudent would refuse every later save of the
- * record as a scheduled placement, and not to before the current placement
- * began or an earlier one ended, so a student's placements never overlap.
- * Nor may it reach back over a register either class has already taken:
- * rosters come from placements, so the move would take the student off one
- * past register and put them, with the other class's mark, on another.
- * A save that keeps the class ignores it.
- */
-async function changeDate(
-  tx: DatabaseTransaction,
-  studentId: string,
-  input: SaveStudentInput,
-  schoolYearId: string,
-  today: string,
-) {
-  const effectiveOn = input.effectiveOn ?? today;
-  const placements = await tx.query.enrolments.findMany({
-    where: { studentId, class: { schoolYearId } },
-    columns: { classId: true, since: true, until: true },
-  });
-  const current = placements.find(
-    (row) => row.since <= today && (row.until === null || row.until > today),
-  );
-  if ((current?.classId ?? "") === (input.classId ?? "")) return today;
-  if (effectiveOn > today)
-    throw new ManagementError("BAD_REQUEST", "management.move_date_future");
-  const year = await tx.query.schoolYears.findFirst({
-    where: { id: schoolYearId },
-    columns: { startsOn: true },
-  });
-  const earliest = placements
-    .map((row) => (row === current ? row.since : (row.until ?? row.since)))
-    .reduce(
-      (latest, bound) => (bound > latest ? bound : latest),
-      year && year.startsOn < today ? year.startsOn : today,
-    );
-  if (effectiveOn < earliest)
-    throw new ManagementError("BAD_REQUEST", "management.move_date_early");
-  // Today's registers change with the move, as they do for any move that
-  // takes effect today; only earlier days are kept as they were taken.
-  const classIds = [current?.classId, input.classId].filter(
-    (id): id is string => Boolean(id),
-  );
-  const taken = await tx.query.attendance.findFirst({
-    where: {
-      date: { gte: effectiveOn, lt: today },
-      OR: [{ studentId }, { classId: { in: classIds } }],
-    },
-    orderBy: { date: "desc" },
-    columns: { date: true },
-  });
-  if (taken)
-    throw new ManagementError(
-      "CONFLICT",
-      `management.move_date_registers:${taken.date}`,
-    );
-  return effectiveOn;
 }
 
 export async function saveClass(
@@ -506,74 +289,6 @@ export async function managementOptions(
       s.users.id,
     )
     .limit(50);
-}
-
-export async function studentsWithNameAndBirthdate(
-  db: Database,
-  input: StudentMatchesInput,
-) {
-  return db
-    .select({
-      id: s.students.id,
-      reference: s.students.reference,
-      firstName: s.students.firstName,
-      lastName: s.students.lastName,
-      birthdate: s.students.birthdate,
-    })
-    .from(s.students)
-    .where(
-      and(
-        sql`lower(${s.students.firstName}) = lower(${input.firstName})`,
-        sql`lower(${s.students.lastName}) = lower(${input.lastName})`,
-        eq(s.students.birthdate, input.birthdate),
-      ),
-    )
-    .orderBy(s.students.reference)
-    .limit(5);
-}
-
-export async function studentForManagement(
-  db: Database,
-  id: string,
-  schoolYearId: string,
-  today: string,
-) {
-  const student = await db.query.students.findFirst({ where: { id } });
-  if (!student)
-    throw new ManagementError("NOT_FOUND", "management.student_not_found");
-  const enrollment = await db.query.enrolments.findFirst({
-    where: {
-      studentId: id,
-      since: { lte: today },
-      OR: [{ until: { isNull: true } }, { until: { gt: today } }],
-      class: { schoolYearId },
-    },
-  });
-  const account = student.userId
-    ? await db.query.users.findFirst({
-        where: { id: student.userId },
-        columns: { name: true, email: true },
-      })
-    : undefined;
-  const guardianships = await db.query.guardianships.findMany({
-    where: { studentId: id },
-    columns: { guardianId: true },
-    with: { guardian: { columns: { name: true } } },
-  });
-  return {
-    account: account ?? null,
-    guardians: guardianships.flatMap((row) =>
-      row.guardian ? [{ id: row.guardianId, name: row.guardian.name }] : [],
-    ),
-    id: student.id,
-    reference: student.reference,
-    firstName: student.firstName,
-    lastName: student.lastName,
-    birthdate: student.birthdate ?? "",
-    userId: student.userId ?? "",
-    classId: enrollment?.classId ?? "",
-    guardianIds: guardianships.map((row) => row.guardianId),
-  };
 }
 
 export async function saveSubject(db: Database, input: SaveSubjectInput) {

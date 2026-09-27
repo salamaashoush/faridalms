@@ -25,6 +25,7 @@ export default defineConfig({
             // Database integration tests run under Bun against a real cell
             // (bun run test:db); vitest runs on Node, where Bun SQL is absent.
             "packages/database/test/**",
+            "apps/api/test/**",
           ],
         },
       },

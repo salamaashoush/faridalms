@@ -1,5 +1,6 @@
 import { OpenAPIGenerator } from "@orpc/openapi";
 import { OpenAPIHandler } from "@orpc/openapi/fetch";
+import { onError, ORPCError } from "@orpc/server";
 import { RPCHandler } from "@orpc/server/fetch";
 import { experimental_ValibotToJsonSchemaConverter as ValibotToJsonSchemaConverter } from "@orpc/valibot";
 
@@ -11,9 +12,39 @@ import { handleFileRequest } from "./files/routes";
 import { legacyUnavailable } from "./legacy";
 import { router } from "./router";
 
+/**
+ * Expected failures are ORPCErrors; anything else is a bug worth a log line
+ * with the request id. Only the error's class and message are logged: a stack
+ * of driver errors can quote parameters, and parameters can be personal data.
+ */
+function logUnexpected(error: unknown, context: RequestContext) {
+  if (error instanceof ORPCError && error.code !== "INTERNAL_SERVER_ERROR")
+    return;
+  const causes: string[] = [];
+  let current: unknown = error;
+  for (let depth = 0; depth < 3 && current instanceof Error; depth += 1) {
+    const code = (current as { errno?: string }).errno;
+    causes.push(
+      `${current.name}${code ? ` ${code}` : ""}: ${current.message.split("\n")[0]?.slice(0, 200)}`,
+    );
+    current = current.cause;
+  }
+  console.error(
+    JSON.stringify({ requestId: context.requestId, error: causes }),
+  );
+}
+
 export function createApp(dependencies: ApiDependencies) {
-  const rpc = new RPCHandler<RequestContext & ApiContext>(router);
-  const api = new OpenAPIHandler<RequestContext & ApiContext>(router);
+  const rpc = new RPCHandler<RequestContext & ApiContext>(router, {
+    interceptors: [
+      onError((error, options) => logUnexpected(error, options.context)),
+    ],
+  });
+  const api = new OpenAPIHandler<RequestContext & ApiContext>(router, {
+    interceptors: [
+      onError((error, options) => logUnexpected(error, options.context)),
+    ],
+  });
   const generator = new OpenAPIGenerator({
     schemaConverters: [new ValibotToJsonSchemaConverter()],
   });

@@ -10,7 +10,7 @@ import {
   findSession,
   schoolProfile,
   touchSession,
-} from "@faridalms/database/repositories/identity";
+} from "@faridalms/database/stores/identity";
 import { WORKSPACE_OF } from "@faridalms/domain/workspace";
 import { ORPCError, os } from "@orpc/server";
 
@@ -20,6 +20,7 @@ import { bearer, LIFETIME, parseToken } from "./session";
 
 /** The school slug the web backend forwards, taken from the host or the school cookie. */
 export const SCHOOL_HEADER = "x-farida-school";
+export const LOCALE_HEADER = "x-farida-locale";
 
 const zones = new Map<string, { at: number; zone: string }>();
 
@@ -185,4 +186,9 @@ export function audit(context: UnitContext, entry: AuditEntry) {
     orgId: context.schoolId,
     ...entry,
   });
+}
+
+/** The reader's language, for sorting names and resolving labels. */
+export function localeOf(context: RequestContext): "ar" | "en" {
+  return context.headers.get(LOCALE_HEADER) === "ar" ? "ar" : "en";
 }

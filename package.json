@@ -34,12 +34,13 @@
     "dev:web": "bun --env-file=.env run --cwd apps/web dev",
     "dev:api": "bun --env-file=.env run apps/api/src/index.ts",
     "start:api": "bun --env-file-if-exists=.env apps/api/src/index.ts",
-    "ready": "bun run lint && bun run type-check && bun run test --run && bun run db:verify && bun run test:e2e",
+    "ready": "bun run lint && bun run type-check && bun run test --run && bun run db:verify && bun run test:api && bun run test:e2e",
     "smoke:containers": "bun --env-file=.env scripts/smoke-containers.ts",
     "db:generate:directory": "bun --bun drizzle-kit generate --config drizzle.directory.config.ts",
     "db:provision": "bun --env-file-if-exists=.env scripts/db.ts provision",
     "db:verify": "bun --env-file-if-exists=.env scripts/db-verify.ts",
-    "test:db": "bun --env-file-if-exists=.env test --preload ./packages/database/test/setup.ts packages/database/test"
+    "test:db": "bun --env-file-if-exists=.env test --preload ./packages/database/test/setup.ts packages/database/test",
+    "test:api": "bun --env-file-if-exists=.env test --preload ./apps/api/test/setup.ts apps/api/test"
   },
   "dependencies": {
     "@faridalms/database": "workspace:*",

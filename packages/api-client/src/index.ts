@@ -20,6 +20,8 @@ export function createApiClient(options: {
   token?: string;
   /** The school slug the request is for; the API routes the tenant from it. */
   school?: string;
+  /** The reader's language, for sorting and labels. */
+  locale?: string;
   fetch?: typeof globalThis.fetch;
 }): RouterClient<AppRouter> {
   return createORPCClient(
@@ -28,6 +30,7 @@ export function createApiClient(options: {
       headers: () => ({
         ...(options.token ? { authorization: `Bearer ${options.token}` } : {}),
         ...(options.school ? { "x-farida-school": options.school } : {}),
+        ...(options.locale ? { "x-farida-locale": options.locale } : {}),
       }),
       fetch:
         options.fetch ??

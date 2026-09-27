@@ -113,6 +113,7 @@
         "e2e/fixtures/**",
         "scripts/**",
         "packages/database/test/**",
+        "apps/api/test/**",
         ".husky/**"
       ],
       "rules": {

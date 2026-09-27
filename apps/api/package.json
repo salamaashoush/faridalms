@@ -17,5 +17,8 @@
     "@orpc/server": "latest",
     "@orpc/valibot": "latest",
     "valibot": "^1.4.2"
+  },
+  "devDependencies": {
+    "@orpc/client": "latest"
   }
 }

@@ -14,7 +14,7 @@ import {
   schoolFeatures,
   schoolProfile,
   viewer,
-} from "@faridalms/database/repositories/identity";
+} from "@faridalms/database/stores/identity";
 import {
   signInSchema,
   switchContextSchema,

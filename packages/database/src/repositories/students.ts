@@ -1,21 +1,7 @@
-import type {
-  StaffDirectoryQuery,
-  StudentDirectoryQuery,
-} from "@faridalms/domain/school-schema";
+import type { StaffDirectoryQuery } from "@faridalms/domain/school-schema";
 
 import { ageOn } from "@faridalms/domain/school";
-import {
-  and,
-  count,
-  eq,
-  gt,
-  ilike,
-  inArray,
-  isNull,
-  lte,
-  or,
-  sql,
-} from "drizzle-orm";
+import { and, count, eq, ilike, inArray, isNull, or, sql } from "drizzle-orm";
 
 import type { Database } from "../index";
 
@@ -291,73 +277,6 @@ export async function rosterFor(
       ),
     );
   return [...new Set(rows.map((row) => row.studentId))];
-}
-
-export async function studentDirectory(
-  db: Database,
-  query: StudentDirectoryQuery,
-  placement: { schoolYearId: string; on: string },
-) {
-  const { students, enrolments, classes, users } = schema;
-  const placed = and(
-    eq(enrolments.studentId, students.id),
-    lte(enrolments.since, placement.on),
-    or(isNull(enrolments.until), gt(enrolments.until, placement.on)),
-    sql`${enrolments.classId} in (select id from ${classes} where ${classes.schoolYearId} = ${placement.schoolYearId})`,
-  );
-  const name = sql<string>`${students.firstName} || ' ' || ${students.lastName}`;
-  const sortColumns = {
-    name,
-    reference: students.reference,
-    grade: classes.grade,
-    class: classes.name,
-    homeroom: users.name,
-  };
-  const needle = `%${query.q.replaceAll(/[\\%_]/g, "\\$&")}%`;
-  const filter = query.q
-    ? or(
-        ilike(name, needle),
-        ilike(students.reference, needle),
-        ilike(classes.name, needle),
-        ilike(classes.grade, needle),
-        ilike(users.name, needle),
-      )
-    : undefined;
-  const source = db
-    .select({
-      id: students.id,
-      fullName: name,
-      reference: students.reference,
-      photoUrl: students.photoUrl,
-      grade: classes.grade,
-      className: classes.name,
-      homeroomTeacher: users.name,
-    })
-    .from(students)
-    .leftJoin(enrolments, placed)
-    .leftJoin(classes, eq(enrolments.classId, classes.id))
-    .leftJoin(users, eq(classes.homeroomTeacherId, users.id))
-    .where(filter);
-  const [totals] = await db
-    .select({ total: count() })
-    .from(students)
-    .leftJoin(enrolments, placed)
-    .leftJoin(classes, eq(enrolments.classId, classes.id))
-    .leftJoin(users, eq(classes.homeroomTeacherId, users.id))
-    .where(filter);
-  const total = totals?.total ?? 0;
-  const pages = Math.max(1, Math.ceil(total / query.pageSize));
-  const page = Math.min(query.page, pages);
-  const column = sortColumns[query.sort];
-  const order =
-    query.dir === "asc"
-      ? sql`${column} asc nulls last`
-      : sql`${column} desc nulls last`;
-  const rows = await source
-    .orderBy(order, students.id)
-    .limit(query.pageSize)
-    .offset((page - 1) * query.pageSize);
-  return { rows, total, page, pages };
 }
 
 export async function staffDirectory(db: Database, query: StaffDirectoryQuery) {

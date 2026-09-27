@@ -10,11 +10,8 @@ import {
   publishNewsletter as publishNewsletterRow,
   ManagementError,
   saveUser as saveUserRow,
-  saveStudent as saveStudentRow,
   saveClass as saveClassRow,
   managementOptions,
-  studentForManagement,
-  studentsWithNameAndBirthdate,
 } from "@faridalms/database/repositories/management";
 import {
   classDirectory,
@@ -22,28 +19,21 @@ import {
   schoolAttendanceRate,
   schoolStats,
 } from "@faridalms/database/repositories/school";
-import {
-  studentDirectory,
-  staffDirectory,
-} from "@faridalms/database/repositories/students";
+import { staffDirectory } from "@faridalms/database/repositories/students";
 import {
   schoolProfileSchema,
   saveSubjectSchema,
   publishNewsletterSchema,
   saveUserSchema,
-  saveStudentSchema,
   saveClassSchema,
   managementOptionsSchema,
-  studentMatchesSchema,
 } from "@faridalms/domain/administration-schema";
 import {
-  studentDirectorySchema,
   staffDirectorySchema,
   classDirectorySchema,
 } from "@faridalms/domain/school-schema";
 import { ORPCError } from "@orpc/server";
 import { and, eq } from "drizzle-orm";
-import * as v from "valibot";
 
 import { requirePermission } from "../authorization";
 import { protectedProcedure } from "../procedure";
@@ -83,20 +73,6 @@ export const getAdminOverview = protectedProcedure.handler(
     };
   },
 );
-
-export const getAllStudents = protectedProcedure
-  .input(studentDirectorySchema)
-  .handler(async ({ context, input }) => {
-    await requirePermission(context, "users:read");
-    const year = await manage(() => workingYear(context.db, input.year));
-    return {
-      ...(await studentDirectory(context.db, input, {
-        schoolYearId: year.id,
-        on: placementDate(year, context.today),
-      })),
-      year,
-    };
-  });
 
 export const getAllUsers = protectedProcedure
   .input(staffDirectorySchema)
@@ -156,15 +132,6 @@ export const saveUser = protectedProcedure
         );
     return saved;
   });
-export const saveStudent = protectedProcedure
-  .input(saveStudentSchema)
-  .handler(async ({ input, context }) => {
-    await requirePermission(context, "users:manage");
-    const year = await currentSchoolYear(context.db);
-    return manage(() =>
-      saveStudentRow(context.db, input, year.id, context.today),
-    );
-  });
 export const saveClass = protectedProcedure
   .input(saveClassSchema)
   .handler(async ({ input, context }) => {
@@ -172,8 +139,8 @@ export const saveClass = protectedProcedure
     const year = await currentSchoolYear(context.db);
     return manage(() => saveClassRow(context.db, input, year.id));
   });
-// saveStudent needs only users:manage and takes a class, guardians and an
-// account, so whoever may save a student may also list those choices.
+// Class, parent and student pickers serve editors gated on users:manage, so
+// that permission is enough to list those choices.
 const STUDENT_CHOICES = new Set(["classes", "parents", "students"]);
 
 export const getManagementOptions = protectedProcedure
@@ -195,21 +162,6 @@ export const getManagementOptions = protectedProcedure
       input.selectedIds,
       input.studentId,
     );
-  });
-export const getStudentForManagement = protectedProcedure
-  .input(v.object({ id: v.pipe(v.string(), v.uuid()) }))
-  .handler(async ({ input, context }) => {
-    await requirePermission(context, "users:manage");
-    const year = await currentSchoolYear(context.db);
-    return manage(() =>
-      studentForManagement(context.db, input.id, year.id, context.today),
-    );
-  });
-export const getStudentMatches = protectedProcedure
-  .input(studentMatchesSchema)
-  .handler(async ({ input, context }) => {
-    await requirePermission(context, "users:manage");
-    return studentsWithNameAndBirthdate(context.db, input);
   });
 async function manage<T>(action: () => Promise<T>): Promise<T> {
   try {
