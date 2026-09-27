@@ -1,9 +1,4 @@
-import type {
-  PublicPageQuery,
-  PublicPostsQuery,
-  PublicSiteQuery,
-  SitePostsQuery,
-} from "@faridalms/domain/site";
+import type { PostsQuery, SiteLocale } from "@faridalms/domain/website";
 
 import { queryOptions } from "@tanstack/react-query";
 
@@ -12,85 +7,73 @@ import {
   getPublicPost,
   getPublicPosts,
   getPublicSite,
-  getSiteCategories,
+  getSiteOverview,
   getSitePage,
-  getSitePages,
   getSitePost,
-  getSitePostRevision,
-  getSitePostRevisions,
+  getSitePostOptions,
   getSitePosts,
-  getSiteSettings,
 } from "~/server/site";
 
-export const siteSettingsQuery = queryOptions({
-  queryKey: ["site", "settings"],
-  queryFn: () => getSiteSettings(),
+export const siteOverviewQuery = queryOptions({
+  queryKey: ["site", "overview"],
+  queryFn: () => getSiteOverview(),
 });
-export const sitePagesQuery = queryOptions({
-  queryKey: ["site", "pages"],
-  queryFn: () => getSitePages(),
-});
+
 export const sitePageQuery = (id: string) =>
   queryOptions({
     queryKey: ["site", "page", id],
     queryFn: () => getSitePage({ data: { id } }),
   });
-export const siteCategoriesQuery = queryOptions({
-  queryKey: ["site", "categories"],
-  queryFn: () => getSiteCategories(),
-});
-export const sitePostsQuery = (query: SitePostsQuery) =>
+
+export const sitePostsQuery = (search: PostsQuery) =>
   queryOptions({
-    queryKey: ["site", "posts", query],
-    queryFn: () => getSitePosts({ data: query }),
+    queryKey: ["site", "posts", search],
+    queryFn: () => getSitePosts({ data: search }),
     placeholderData: (previous) => previous,
   });
+
+export const sitePostOptionsQuery = queryOptions({
+  queryKey: ["site", "post-options"],
+  queryFn: () => getSitePostOptions(),
+});
+
 export const sitePostQuery = (id: string) =>
   queryOptions({
     queryKey: ["site", "post", id],
     queryFn: () => getSitePost({ data: { id } }),
   });
-export const sitePostRevisionsQuery = (id: string) =>
+
+export const publicSiteQuery = (school: string, locale?: SiteLocale) =>
   queryOptions({
-    queryKey: ["site", "post", id, "revisions"],
-    queryFn: () => getSitePostRevisions({ data: { id } }),
-  });
-export const sitePostRevisionQuery = (id: string, revision: number) =>
-  queryOptions({
-    queryKey: ["site", "post", id, "revision", revision],
-    queryFn: () => getSitePostRevision({ data: { id, revision } }),
+    queryKey: ["public-site", school, locale ?? ""],
+    queryFn: () => getPublicSite({ data: { school, locale } }),
   });
 
-export const publicSiteQuery = (query: PublicSiteQuery) =>
+export const publicPageQuery = (
+  school: string,
+  slug: string,
+  locale?: SiteLocale,
+) =>
   queryOptions({
-    queryKey: ["public-site", query.school, query.locale ?? ""],
-    queryFn: () => getPublicSite({ data: query }),
+    queryKey: ["public-site", school, locale ?? "", "page", slug],
+    queryFn: () => getPublicPage({ data: { school, slug, locale } }),
   });
-export const publicPageQuery = (query: PublicPageQuery) =>
+
+export const publicPostsQuery = (
+  school: string,
+  input: { category: string; page: number; locale?: SiteLocale },
+) =>
   queryOptions({
-    queryKey: [
-      "public-site",
-      query.school,
-      query.locale ?? "",
-      "page",
-      query.slug,
-    ],
-    queryFn: () => getPublicPage({ data: query }),
+    queryKey: ["public-site", school, input.locale ?? "", "posts", input],
+    queryFn: () => getPublicPosts({ data: { school, ...input } }),
   });
-export const publicPostsQuery = (query: PublicPostsQuery) =>
+
+export const publicPostQuery = (
+  school: string,
+  slug: string,
+  locale?: SiteLocale,
+) =>
   queryOptions({
-    queryKey: ["public-site", query.school, query.locale ?? "", "posts", query],
-    queryFn: () => getPublicPosts({ data: query }),
-    placeholderData: (previous) => previous,
-  });
-export const publicPostQuery = (query: PublicPageQuery) =>
-  queryOptions({
-    queryKey: [
-      "public-site",
-      query.school,
-      query.locale ?? "",
-      "post",
-      query.slug,
-    ],
-    queryFn: () => getPublicPost({ data: query }),
+    queryKey: ["public-site", school, locale ?? "", "post", slug],
+    queryFn: () => getPublicPost({ data: { school, slug, locale } }),
   });

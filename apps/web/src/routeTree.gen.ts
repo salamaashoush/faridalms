@@ -87,10 +87,10 @@ import { Route as AppTeachModuleEditorRouteImport } from './routes/_app/teach/mo
 import { Route as AppTeachModulesRouteImport } from './routes/_app/teach/modules'
 import { Route as AppTeachTimetableRouteImport } from './routes/_app/teach/timetable'
 import { Route as AppYearsYearIdRouteImport } from './routes/_app/years.$yearId'
-import { Route as SiteMediaSchoolFileIdRouteImport } from './routes/site-media/$school.$fileId'
 import { Route as SiteSchoolIndexRouteImport } from './routes/site/$school/index'
-import { Route as SiteSchoolBlogIndexRouteImport } from './routes/site/$school/blog/index'
-import { Route as SiteSchoolBlogSlugRouteImport } from './routes/site/$school/blog/$slug'
+import { Route as PublicMediaPTokenNameRouteImport } from './routes/public-media/p.$token.$name'
+import { Route as SiteSchoolNewsIndexRouteImport } from './routes/site/$school/news/index'
+import { Route as SiteSchoolNewsSlugRouteImport } from './routes/site/$school/news/$slug'
 import { Route as SiteSchoolPagesSlugRouteImport } from './routes/site/$school/pages/$slug'
 
 const IndexRoute = IndexRouteImport.update({
@@ -490,24 +490,24 @@ const AppYearsYearIdRoute = AppYearsYearIdRouteImport.update({
   path: '/years/$yearId',
   getParentRoute: () => AppRoute,
 } as any)
-const SiteMediaSchoolFileIdRoute = SiteMediaSchoolFileIdRouteImport.update({
-  id: '/site-media/$school/$fileId',
-  path: '/site-media/$school/$fileId',
-  getParentRoute: () => rootRouteImport,
-} as any)
 const SiteSchoolIndexRoute = SiteSchoolIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => SiteSchoolRoute,
 } as any)
-const SiteSchoolBlogIndexRoute = SiteSchoolBlogIndexRouteImport.update({
-  id: '/blog/',
-  path: '/blog/',
+const PublicMediaPTokenNameRoute = PublicMediaPTokenNameRouteImport.update({
+  id: '/public-media/p/$token/$name',
+  path: '/public-media/p/$token/$name',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SiteSchoolNewsIndexRoute = SiteSchoolNewsIndexRouteImport.update({
+  id: '/news/',
+  path: '/news/',
   getParentRoute: () => SiteSchoolRoute,
 } as any)
-const SiteSchoolBlogSlugRoute = SiteSchoolBlogSlugRouteImport.update({
-  id: '/blog/$slug',
-  path: '/blog/$slug',
+const SiteSchoolNewsSlugRoute = SiteSchoolNewsSlugRouteImport.update({
+  id: '/news/$slug',
+  path: '/news/$slug',
   getParentRoute: () => SiteSchoolRoute,
 } as any)
 const SiteSchoolPagesSlugRoute = SiteSchoolPagesSlugRouteImport.update({
@@ -586,7 +586,6 @@ export interface FileRoutesByFullPath {
   '/teach/modules': typeof AppTeachModulesRoute
   '/teach/timetable': typeof AppTeachTimetableRoute
   '/years/$yearId': typeof AppYearsYearIdRoute
-  '/site-media/$school/$fileId': typeof SiteMediaSchoolFileIdRoute
   '/admin/': typeof AppAdminIndexRoute
   '/announcements/': typeof AppAnnouncementsIndexRoute
   '/calendar/': typeof AppCalendarIndexRoute
@@ -595,9 +594,10 @@ export interface FileRoutesByFullPath {
   '/newsletters/': typeof AppNewslettersIndexRoute
   '/teach/': typeof AppTeachIndexRoute
   '/site/$school/': typeof SiteSchoolIndexRoute
-  '/site/$school/blog/$slug': typeof SiteSchoolBlogSlugRoute
+  '/public-media/p/$token/$name': typeof PublicMediaPTokenNameRoute
+  '/site/$school/news/$slug': typeof SiteSchoolNewsSlugRoute
   '/site/$school/pages/$slug': typeof SiteSchoolPagesSlugRoute
-  '/site/$school/blog/': typeof SiteSchoolBlogIndexRoute
+  '/site/$school/news/': typeof SiteSchoolNewsIndexRoute
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
@@ -664,7 +664,6 @@ export interface FileRoutesByTo {
   '/teach/modules': typeof AppTeachModulesRoute
   '/teach/timetable': typeof AppTeachTimetableRoute
   '/years/$yearId': typeof AppYearsYearIdRoute
-  '/site-media/$school/$fileId': typeof SiteMediaSchoolFileIdRoute
   '/admin': typeof AppAdminIndexRoute
   '/announcements': typeof AppAnnouncementsIndexRoute
   '/calendar': typeof AppCalendarIndexRoute
@@ -673,9 +672,10 @@ export interface FileRoutesByTo {
   '/newsletters': typeof AppNewslettersIndexRoute
   '/teach': typeof AppTeachIndexRoute
   '/site/$school': typeof SiteSchoolIndexRoute
-  '/site/$school/blog/$slug': typeof SiteSchoolBlogSlugRoute
+  '/public-media/p/$token/$name': typeof PublicMediaPTokenNameRoute
+  '/site/$school/news/$slug': typeof SiteSchoolNewsSlugRoute
   '/site/$school/pages/$slug': typeof SiteSchoolPagesSlugRoute
-  '/site/$school/blog': typeof SiteSchoolBlogIndexRoute
+  '/site/$school/news': typeof SiteSchoolNewsIndexRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -750,7 +750,6 @@ export interface FileRoutesById {
   '/_app/teach/modules': typeof AppTeachModulesRoute
   '/_app/teach/timetable': typeof AppTeachTimetableRoute
   '/_app/years/$yearId': typeof AppYearsYearIdRoute
-  '/site-media/$school/$fileId': typeof SiteMediaSchoolFileIdRoute
   '/_app/admin/': typeof AppAdminIndexRoute
   '/_app/announcements/': typeof AppAnnouncementsIndexRoute
   '/_app/calendar/': typeof AppCalendarIndexRoute
@@ -759,9 +758,10 @@ export interface FileRoutesById {
   '/_app/newsletters/': typeof AppNewslettersIndexRoute
   '/_app/teach/': typeof AppTeachIndexRoute
   '/site/$school/': typeof SiteSchoolIndexRoute
-  '/site/$school/blog/$slug': typeof SiteSchoolBlogSlugRoute
+  '/public-media/p/$token/$name': typeof PublicMediaPTokenNameRoute
+  '/site/$school/news/$slug': typeof SiteSchoolNewsSlugRoute
   '/site/$school/pages/$slug': typeof SiteSchoolPagesSlugRoute
-  '/site/$school/blog/': typeof SiteSchoolBlogIndexRoute
+  '/site/$school/news/': typeof SiteSchoolNewsIndexRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -835,7 +835,6 @@ export interface FileRouteTypes {
     | '/teach/modules'
     | '/teach/timetable'
     | '/years/$yearId'
-    | '/site-media/$school/$fileId'
     | '/admin/'
     | '/announcements/'
     | '/calendar/'
@@ -844,9 +843,10 @@ export interface FileRouteTypes {
     | '/newsletters/'
     | '/teach/'
     | '/site/$school/'
-    | '/site/$school/blog/$slug'
+    | '/public-media/p/$token/$name'
+    | '/site/$school/news/$slug'
     | '/site/$school/pages/$slug'
-    | '/site/$school/blog/'
+    | '/site/$school/news/'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
@@ -913,7 +913,6 @@ export interface FileRouteTypes {
     | '/teach/modules'
     | '/teach/timetable'
     | '/years/$yearId'
-    | '/site-media/$school/$fileId'
     | '/admin'
     | '/announcements'
     | '/calendar'
@@ -922,9 +921,10 @@ export interface FileRouteTypes {
     | '/newsletters'
     | '/teach'
     | '/site/$school'
-    | '/site/$school/blog/$slug'
+    | '/public-media/p/$token/$name'
+    | '/site/$school/news/$slug'
     | '/site/$school/pages/$slug'
-    | '/site/$school/blog'
+    | '/site/$school/news'
   id:
     | '__root__'
     | '/'
@@ -998,7 +998,6 @@ export interface FileRouteTypes {
     | '/_app/teach/modules'
     | '/_app/teach/timetable'
     | '/_app/years/$yearId'
-    | '/site-media/$school/$fileId'
     | '/_app/admin/'
     | '/_app/announcements/'
     | '/_app/calendar/'
@@ -1007,9 +1006,10 @@ export interface FileRouteTypes {
     | '/_app/newsletters/'
     | '/_app/teach/'
     | '/site/$school/'
-    | '/site/$school/blog/$slug'
+    | '/public-media/p/$token/$name'
+    | '/site/$school/news/$slug'
     | '/site/$school/pages/$slug'
-    | '/site/$school/blog/'
+    | '/site/$school/news/'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -1019,7 +1019,7 @@ export interface RootRouteChildren {
   ApiHealthRoute: typeof ApiHealthRoute
   FilesFileIdRoute: typeof FilesFileIdRoute
   SiteSchoolRoute: typeof SiteSchoolRouteWithChildren
-  SiteMediaSchoolFileIdRoute: typeof SiteMediaSchoolFileIdRoute
+  PublicMediaPTokenNameRoute: typeof PublicMediaPTokenNameRoute
 }
 
 declare module '@tanstack/react-router' {
@@ -1570,13 +1570,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppYearsYearIdRouteImport
       parentRoute: typeof AppRoute
     }
-    '/site-media/$school/$fileId': {
-      id: '/site-media/$school/$fileId'
-      path: '/site-media/$school/$fileId'
-      fullPath: '/site-media/$school/$fileId'
-      preLoaderRoute: typeof SiteMediaSchoolFileIdRouteImport
-      parentRoute: typeof rootRouteImport
-    }
     '/site/$school/': {
       id: '/site/$school/'
       path: '/'
@@ -1584,18 +1577,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SiteSchoolIndexRouteImport
       parentRoute: typeof SiteSchoolRoute
     }
-    '/site/$school/blog/': {
-      id: '/site/$school/blog/'
-      path: '/blog'
-      fullPath: '/site/$school/blog/'
-      preLoaderRoute: typeof SiteSchoolBlogIndexRouteImport
+    '/public-media/p/$token/$name': {
+      id: '/public-media/p/$token/$name'
+      path: '/public-media/p/$token/$name'
+      fullPath: '/public-media/p/$token/$name'
+      preLoaderRoute: typeof PublicMediaPTokenNameRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/site/$school/news/': {
+      id: '/site/$school/news/'
+      path: '/news'
+      fullPath: '/site/$school/news/'
+      preLoaderRoute: typeof SiteSchoolNewsIndexRouteImport
       parentRoute: typeof SiteSchoolRoute
     }
-    '/site/$school/blog/$slug': {
-      id: '/site/$school/blog/$slug'
-      path: '/blog/$slug'
-      fullPath: '/site/$school/blog/$slug'
-      preLoaderRoute: typeof SiteSchoolBlogSlugRouteImport
+    '/site/$school/news/$slug': {
+      id: '/site/$school/news/$slug'
+      path: '/news/$slug'
+      fullPath: '/site/$school/news/$slug'
+      preLoaderRoute: typeof SiteSchoolNewsSlugRouteImport
       parentRoute: typeof SiteSchoolRoute
     }
     '/site/$school/pages/$slug': {
@@ -1808,16 +1808,16 @@ const AuthRouteWithChildren = AuthRoute._addFileChildren(AuthRouteChildren)
 
 interface SiteSchoolRouteChildren {
   SiteSchoolIndexRoute: typeof SiteSchoolIndexRoute
-  SiteSchoolBlogSlugRoute: typeof SiteSchoolBlogSlugRoute
+  SiteSchoolNewsSlugRoute: typeof SiteSchoolNewsSlugRoute
   SiteSchoolPagesSlugRoute: typeof SiteSchoolPagesSlugRoute
-  SiteSchoolBlogIndexRoute: typeof SiteSchoolBlogIndexRoute
+  SiteSchoolNewsIndexRoute: typeof SiteSchoolNewsIndexRoute
 }
 
 const SiteSchoolRouteChildren: SiteSchoolRouteChildren = {
   SiteSchoolIndexRoute: SiteSchoolIndexRoute,
-  SiteSchoolBlogSlugRoute: SiteSchoolBlogSlugRoute,
+  SiteSchoolNewsSlugRoute: SiteSchoolNewsSlugRoute,
   SiteSchoolPagesSlugRoute: SiteSchoolPagesSlugRoute,
-  SiteSchoolBlogIndexRoute: SiteSchoolBlogIndexRoute,
+  SiteSchoolNewsIndexRoute: SiteSchoolNewsIndexRoute,
 }
 
 const SiteSchoolRouteWithChildren = SiteSchoolRoute._addFileChildren(
@@ -1831,7 +1831,7 @@ const rootRouteChildren: RootRouteChildren = {
   ApiHealthRoute: ApiHealthRoute,
   FilesFileIdRoute: FilesFileIdRoute,
   SiteSchoolRoute: SiteSchoolRouteWithChildren,
-  SiteMediaSchoolFileIdRoute: SiteMediaSchoolFileIdRoute,
+  PublicMediaPTokenNameRoute: PublicMediaPTokenNameRoute,
 }
 export const routeTree = rootRouteImport
   ._addFileChildren(rootRouteChildren)

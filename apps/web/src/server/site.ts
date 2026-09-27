@@ -1,101 +1,118 @@
 import {
-  publicPageQuerySchema,
-  publicPostsQuerySchema,
-  publicSiteQuerySchema,
-  publishSitePostSchema,
-  saveSiteCategorySchema,
-  saveSitePageSchema,
-  saveSitePostSchema,
-  saveSiteSettingsSchema,
-  sitePageRevisionSchema,
-  sitePostsQuerySchema,
-} from "@faridalms/domain/site";
+  movePageSchema,
+  postsQuerySchema,
+  publicPageSchema,
+  publicPostSchema,
+  publicPostsSchema,
+  publicSiteSchema,
+  publishPostSchema,
+  publishSchema,
+  restoreSchema,
+  saveCategorySchema,
+  savePageSchema,
+  savePostSchema,
+  saveSettingsSchema,
+  siteRefSchema,
+} from "@faridalms/domain/website";
 import { createServerFn } from "@tanstack/react-start";
 import { getRequestHeader } from "@tanstack/react-start/server";
-import * as v from "valibot";
 
 import { backend, record } from "./backend";
+import { byId, checked } from "./input";
 
-const idSchema = v.object({ id: v.pipe(v.string(), v.uuid()) });
-const parse =
-  <T extends v.GenericSchema>(schema: T) =>
-  (input: unknown) =>
-    v.parse(schema, input);
-
-export const getSiteSettings = createServerFn({ method: "GET" }).handler(() =>
-  backend().getSiteSettings(),
+export const getSiteOverview = createServerFn({ method: "GET" }).handler(() =>
+  backend().site.overview(),
 );
+
 export const saveSiteSettings = createServerFn({ method: "POST" })
-  .validator(parse(saveSiteSettingsSchema))
-  .handler(({ data }) => backend().saveSiteSettings(data));
+  .validator(checked(saveSettingsSchema))
+  .handler(({ data }) => backend().site.saveSettings(data));
 
-export const getSitePages = createServerFn({ method: "GET" }).handler(() =>
-  backend().getSitePages(),
-);
 export const getSitePage = createServerFn({ method: "GET" })
-  .validator(parse(idSchema))
-  .handler(({ data }) => record(backend().getSitePage(data)));
-export const saveSitePage = createServerFn({ method: "POST" })
-  .validator(parse(saveSitePageSchema))
-  .handler(({ data }) => backend().saveSitePage(data));
-export const publishSitePage = createServerFn({ method: "POST" })
-  .validator(parse(sitePageRevisionSchema))
-  .handler(({ data }) => backend().publishSitePage(data));
-export const unpublishSitePage = createServerFn({ method: "POST" })
-  .validator(parse(sitePageRevisionSchema))
-  .handler(({ data }) => backend().unpublishSitePage(data));
-export const deleteSitePage = createServerFn({ method: "POST" })
-  .validator(parse(idSchema))
-  .handler(({ data }) => backend().deleteSitePage(data));
+  .validator(byId)
+  .handler(({ data }) => record(backend().site.page(data)));
 
-export const getSiteCategories = createServerFn({ method: "GET" }).handler(() =>
-  backend().getSiteCategories(),
-);
+export const saveSitePage = createServerFn({ method: "POST" })
+  .validator(checked(savePageSchema))
+  .handler(({ data }) => backend().site.savePage(data));
+
+export const publishSitePage = createServerFn({ method: "POST" })
+  .validator(checked(publishSchema))
+  .handler(({ data }) => backend().site.publishPage(data));
+
+export const unpublishSitePage = createServerFn({ method: "POST" })
+  .validator(checked(siteRefSchema))
+  .handler(({ data }) => backend().site.unpublishPage(data));
+
+export const moveSitePage = createServerFn({ method: "POST" })
+  .validator(checked(movePageSchema))
+  .handler(({ data }) => backend().site.movePage(data));
+
+export const removeSitePage = createServerFn({ method: "POST" })
+  .validator(byId)
+  .handler(({ data }) => backend().site.removeSitePage(data));
+
+export const restoreSitePage = createServerFn({ method: "POST" })
+  .validator(checked(restoreSchema))
+  .handler(({ data }) => backend().site.restorePage(data));
+
 export const saveSiteCategory = createServerFn({ method: "POST" })
-  .validator(parse(saveSiteCategorySchema))
-  .handler(({ data }) => backend().saveSiteCategory(data));
+  .validator(checked(saveCategorySchema))
+  .handler(({ data }) => backend().site.saveSiteCategory(data));
+
+export const removeSiteCategory = createServerFn({ method: "POST" })
+  .validator(byId)
+  .handler(({ data }) => backend().site.removeSiteCategory(data));
 
 export const getSitePosts = createServerFn({ method: "GET" })
-  .validator(parse(sitePostsQuerySchema))
-  .handler(({ data }) => backend().getSitePosts(data));
+  .validator(checked(postsQuerySchema))
+  .handler(({ data }) => backend().site.posts(data));
+
+export const getSitePostOptions = createServerFn({ method: "GET" }).handler(
+  () => backend().site.postOptions(),
+);
+
 export const getSitePost = createServerFn({ method: "GET" })
-  .validator(parse(idSchema))
-  .handler(({ data }) => record(backend().getSitePost(data)));
+  .validator(byId)
+  .handler(({ data }) => record(backend().site.post(data)));
+
 export const saveSitePost = createServerFn({ method: "POST" })
-  .validator(parse(saveSitePostSchema))
-  .handler(({ data }) => backend().saveSitePost(data));
+  .validator(checked(savePostSchema))
+  .handler(({ data }) => backend().site.savePost(data));
+
 export const publishSitePost = createServerFn({ method: "POST" })
-  .validator(parse(publishSitePostSchema))
-  .handler(({ data }) => backend().publishSitePost(data));
+  .validator(checked(publishPostSchema))
+  .handler(({ data }) => backend().site.publishPost(data));
+
 export const unpublishSitePost = createServerFn({ method: "POST" })
-  .validator(parse(sitePageRevisionSchema))
-  .handler(({ data }) => backend().unpublishSitePost(data));
-export const getSitePostRevisions = createServerFn({ method: "GET" })
-  .validator(parse(idSchema))
-  .handler(({ data }) => backend().getSitePostRevisions(data));
-export const getSitePostRevision = createServerFn({ method: "GET" })
-  .validator(
-    parse(
-      v.object({
-        id: v.pipe(v.string(), v.uuid()),
-        revision: v.pipe(v.number(), v.integer(), v.minValue(1)),
-      }),
-    ),
-  )
-  .handler(({ data }) => record(backend().getSitePostRevision(data)));
+  .validator(checked(siteRefSchema))
+  .handler(({ data }) => backend().site.unpublishPost(data));
+
+export const archiveSitePost = createServerFn({ method: "POST" })
+  .validator(checked(siteRefSchema))
+  .handler(({ data }) => backend().site.archivePost(data));
+
+export const restoreSitePost = createServerFn({ method: "POST" })
+  .validator(checked(restoreSchema))
+  .handler(({ data }) => backend().site.restorePost(data));
 
 export const getPublicSite = createServerFn({ method: "GET" })
-  .validator(parse(publicSiteQuerySchema))
-  .handler(({ data }) => record(backend().getPublicSite(data)));
+  .validator(checked(publicSiteSchema))
+  .handler(({ data }) => record(backend().site.publicSite(data)));
+
 export const getPublicPage = createServerFn({ method: "GET" })
-  .validator(parse(publicPageQuerySchema))
-  .handler(({ data }) => record(backend().getPublicPage(data)));
+  .validator(checked(publicPageSchema))
+  .handler(({ data }) => record(backend().site.publicSitePage(data)));
+
 export const getPublicPosts = createServerFn({ method: "GET" })
-  .validator(parse(publicPostsQuerySchema))
-  .handler(({ data }) => record(backend().getPublicPosts(data)));
+  .validator(checked(publicPostsSchema))
+  .handler(({ data }) => record(backend().site.publicSitePosts(data)));
+
 export const getPublicPost = createServerFn({ method: "GET" })
-  .validator(parse(publicPageQuerySchema))
-  .handler(({ data }) => record(backend().getPublicPost(data)));
+  .validator(checked(publicPostSchema))
+  .handler(({ data }) => record(backend().site.publicSitePost(data)));
+
+/** The school whose own domain this request came in on, if any. */
 export const getSchoolForCurrentHost = createServerFn({
   method: "GET",
 }).handler(() =>

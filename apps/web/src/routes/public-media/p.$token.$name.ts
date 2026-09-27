@@ -4,27 +4,27 @@ import { env } from "~/env";
 
 const FORWARDED = [
   "content-type",
-  "content-length",
   "content-disposition",
   "cache-control",
   "x-content-type-options",
 ];
 
 /**
- * Public site media passes through without a session. The API decides what
- * the public may see; this route only keeps the browser off the API host.
+ * Published files, served to anyone without a session. In production the
+ * public-media domain serves the bucket directly; here the API does, and this
+ * route only keeps the browser off the API host.
  */
-export const Route = createFileRoute("/site-media/$school/$fileId")({
+export const Route = createFileRoute("/public-media/p/$token/$name")({
   server: {
     handlers: {
       GET: async ({ params }) => {
         if (
-          !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(params.school) ||
-          !/^[0-9a-f-]{36}$/.test(params.fileId)
+          !/^[a-z0-9]{26}$/.test(params.token) ||
+          !/^[A-Za-z0-9._-]{1,120}$/.test(params.name)
         )
           return Response.json({ code: "NOT_FOUND" }, { status: 404 });
         const upstream = await fetch(
-          `${env.BACKEND_URL}/v1/sites/${params.school}/files/${params.fileId}/content`,
+          `${env.BACKEND_URL}/public-media/p/${params.token}/${params.name}`,
         );
         const headers = new Headers();
         for (const name of FORWARDED) {

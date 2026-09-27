@@ -34,6 +34,7 @@ export default defineConfig({
     "notifications.spec.ts",
     "collaboration.spec.ts",
     "learning.spec.ts",
+    "site.spec.ts",
   ],
   /* Run tests in files in parallel */
   fullyParallel: true,

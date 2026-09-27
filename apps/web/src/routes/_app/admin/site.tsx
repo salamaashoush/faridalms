@@ -1,100 +1,118 @@
-import { sitePostsQuerySchema } from "@faridalms/domain/site";
+import { POST_TABS } from "@faridalms/domain/website";
+import { WORKSPACE_HOME } from "@faridalms/domain/workspace";
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { createFileRoute } from "@tanstack/react-router";
-import { Suspense } from "react";
+import {
+  createFileRoute,
+  redirect,
+  stripSearchParams,
+} from "@tanstack/react-router";
+import { ExternalLink } from "lucide-react";
 import * as v from "valibot";
 
-import { PageHeader } from "~/components/app/primitives";
-import { SiteCategoriesPanel } from "~/components/site/SiteCategoriesPanel";
-import { SitePagesPanel } from "~/components/site/SitePagesPanel";
-import { SitePostsPanel } from "~/components/site/SitePostsPanel";
-import { SiteSettingsForm } from "~/components/site/SiteSettingsForm";
-import { Skeleton } from "~/components/ui/skeleton";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
+import { SiteCategories } from "~/components/site/SiteCategories";
+import { SitePages } from "~/components/site/SitePages";
+import { SitePosts } from "~/components/site/SitePosts";
+import { SiteSettings } from "~/components/site/SiteSettings";
+import { PageHeader } from "~/components/system/IndexPage";
+import { RecordTabs } from "~/components/system/RecordPage";
+import { useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
-import {
-  siteCategoriesQuery,
-  sitePagesQuery,
-  sitePostsQuery,
-  siteSettingsQuery,
-} from "~/queries/site";
+import { siteOverviewQuery, sitePostsQuery } from "~/queries/site";
+import { currentUserQuery } from "~/queries/user";
 
-const TABS = ["settings", "pages", "posts", "categories"] as const;
-type Tab = (typeof TABS)[number];
-const isTab = (value: string): value is Tab =>
-  TABS.some((tab) => tab === value);
+const TABS = ["pages", "posts", "categories", "settings"] as const;
+
+const searchSchema = v.object({
+  tab: v.fallback(v.optional(v.picklist(TABS), "pages"), "pages"),
+  posts: v.fallback(
+    v.optional(v.picklist(POST_TABS), "published"),
+    "published",
+  ),
+  q: v.fallback(v.optional(v.pipe(v.string(), v.maxLength(100)), ""), ""),
+});
+type Search = v.InferOutput<typeof searchSchema>;
+const DEFAULT_SEARCH = v.parse(searchSchema, {});
 
 export const Route = createFileRoute("/_app/admin/site")({
-  staticData: { breadcrumb: m.siteTitle },
-  validateSearch: v.object({
-    tab: v.optional(v.picklist(TABS), "settings"),
-    ...sitePostsQuerySchema.entries,
-  }),
+  validateSearch: searchSchema,
+  search: { middlewares: [stripSearchParams(DEFAULT_SEARCH)] },
   loaderDeps: ({ search }) => search,
   loader: async ({ context, deps }) => {
-    await context.queryClient.ensureQueryData(siteSettingsQuery);
-    if (deps.tab === "pages")
-      await context.queryClient.ensureQueryData(sitePagesQuery);
-    if (deps.tab === "posts")
-      await context.queryClient.ensureQueryData(
-        sitePostsQuery({ page: deps.page, status: deps.status }),
-      );
-    if (deps.tab === "categories")
-      await context.queryClient.ensureQueryData(siteCategoriesQuery);
+    const user = await context.queryClient.ensureQueryData(currentUserQuery);
+    if (!user.capabilities.includes("site:manage"))
+      throw redirect({ to: WORKSPACE_HOME[user.workspace] });
+    await Promise.all([
+      context.queryClient.ensureQueryData(siteOverviewQuery),
+      deps.tab === "posts"
+        ? context.queryClient.ensureQueryData(
+            sitePostsQuery({ tab: deps.posts, q: deps.q }),
+          )
+        : null,
+    ]);
   },
-  component: SiteAdminPage,
+  component: WebsitePage,
 });
-function SiteAdminPage() {
+
+const TAB_LABEL: Record<(typeof TABS)[number], () => string> = {
+  pages: m.siteTabPages,
+  posts: m.siteTabPosts,
+  categories: m.siteTabCategories,
+  settings: m.siteTabSettings,
+};
+
+function WebsitePage() {
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
-  const { data } = useSuspenseQuery(siteSettingsQuery);
-  const patch = (change: Partial<typeof search>) => {
+  const user = useCurrentUser();
+  const overview = useSuspenseQuery(siteOverviewQuery).data;
+  const patch = (change: Partial<Search>) => {
     void navigate({ search: (previous) => ({ ...previous, ...change }) });
   };
   return (
     <>
-      <PageHeader title={m.siteTitle()} description={m.siteHint()} />
-      <Tabs
+      <PageHeader
+        title={m.siteTitle()}
+        description={m.siteHint()}
+        action={
+          overview.settings.live
+            ? {
+                label: m.siteView(),
+                icon: ExternalLink,
+                link: {
+                  to: "/site/$school",
+                  params: { school: user.school.slug },
+                },
+              }
+            : undefined
+        }
+      />
+      <RecordTabs
+        label={m.siteSections()}
+        tabs={TABS.map((value) => ({ value, label: TAB_LABEL[value]() }))}
         value={search.tab}
-        onValueChange={(tab) => {
-          if (isTab(tab)) patch({ tab });
-        }}
-        className="gap-6"
+        onChange={(tab) => patch({ tab })}
       >
-        <TabsList>
-          <TabsTrigger value="settings">{m.siteTabSettings()}</TabsTrigger>
-          <TabsTrigger value="pages">{m.siteTabPages()}</TabsTrigger>
-          <TabsTrigger value="posts">{m.siteTabPosts()}</TabsTrigger>
-          <TabsTrigger value="categories">{m.siteTabCategories()}</TabsTrigger>
-        </TabsList>
-        <TabsContent value="settings">
-          <SiteSettingsForm key={data.settings.revision} data={data} />
-        </TabsContent>
-        <TabsContent value="pages">
-          {search.tab === "pages" ? (
-            <Suspense fallback={<Skeleton className="h-40 w-full" />}>
-              <SitePagesPanel />
-            </Suspense>
-          ) : null}
-        </TabsContent>
-        <TabsContent value="posts">
-          {search.tab === "posts" ? (
-            <Suspense fallback={<Skeleton className="h-40 w-full" />}>
-              <SitePostsPanel
-                query={{ page: search.page, status: search.status }}
-                onQuery={(next) => patch(next)}
-              />
-            </Suspense>
-          ) : null}
-        </TabsContent>
-        <TabsContent value="categories">
-          {search.tab === "categories" ? (
-            <Suspense fallback={<Skeleton className="h-40 w-full" />}>
-              <SiteCategoriesPanel />
-            </Suspense>
-          ) : null}
-        </TabsContent>
-      </Tabs>
+        {search.tab === "pages" ? (
+          <SitePages overview={overview} />
+        ) : search.tab === "posts" ? (
+          <SitePosts
+            search={{ tab: search.posts, q: search.q }}
+            onSearch={(change) =>
+              patch({
+                ...(change.tab ? { posts: change.tab } : {}),
+                ...(change.q === undefined ? {} : { q: change.q }),
+              })
+            }
+          />
+        ) : search.tab === "categories" ? (
+          <SiteCategories categories={overview.categories} />
+        ) : (
+          <SiteSettings
+            key={overview.settings.version}
+            settings={overview.settings}
+          />
+        )}
+      </RecordTabs>
     </>
   );
 }

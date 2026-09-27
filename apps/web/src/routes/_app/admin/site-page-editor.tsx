@@ -1,111 +1,64 @@
+import { WORKSPACE_HOME } from "@faridalms/domain/workspace";
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 import * as v from "valibot";
 
-import { SitePageWorkspace } from "~/components/site/SitePageWorkspace";
+import { BreadcrumbCurrent } from "~/components/app/WorkspaceBreadcrumb";
+import { PageEditor } from "~/components/site/PageEditor";
 import * as m from "~/i18n/messages";
-import { getLocale } from "~/i18n/runtime";
-import { sitePageQuery, siteSettingsQuery } from "~/queries/site";
+import { siteOverviewQuery, sitePageQuery } from "~/queries/site";
+import { currentUserQuery } from "~/queries/user";
 
 export const Route = createFileRoute("/_app/admin/site-page-editor")({
-  staticData: { breadcrumb: m.sitePageDesign },
+  staticData: { trail: <EditorTrail />, section: "/admin/site" },
   validateSearch: v.object({ id: v.optional(v.pipe(v.string(), v.uuid())) }),
-  loaderDeps: ({ search }) => search,
+  loaderDeps: ({ search }) => ({ id: search.id }),
   loader: async ({ context, deps }) => {
-    await context.queryClient.ensureQueryData(siteSettingsQuery);
-    if (deps.id)
-      await context.queryClient.ensureQueryData(sitePageQuery(deps.id));
+    const user = await context.queryClient.ensureQueryData(currentUserQuery);
+    if (!user.capabilities.includes("site:manage"))
+      throw redirect({ to: WORKSPACE_HOME[user.workspace] });
+    await Promise.all([
+      context.queryClient.ensureQueryData(siteOverviewQuery),
+      deps.id
+        ? context.queryClient.ensureQueryData(sitePageQuery(deps.id))
+        : null,
+    ]);
   },
   component: EditorPage,
 });
+
+function EditorTrail() {
+  const { id } = Route.useSearch();
+  return (
+    <BreadcrumbCurrent>
+      {id ? m.siteEditPage() : m.siteNewPage()}
+    </BreadcrumbCurrent>
+  );
+}
+
+function ExistingEditor({ id, onClose }: { id: string; onClose: () => void }) {
+  const existing = useSuspenseQuery(sitePageQuery(id)).data;
+  const overview = useSuspenseQuery(siteOverviewQuery).data;
+  return (
+    <PageEditor
+      key={`${existing.id}-${existing.version}-${existing.revision}`}
+      existing={existing}
+      overview={overview}
+      onClose={onClose}
+    />
+  );
+}
+
 function EditorPage() {
   const { id } = Route.useSearch();
   const navigate = Route.useNavigate();
-  const { data: settings } = useSuspenseQuery(siteSettingsQuery);
+  const overview = useSuspenseQuery(siteOverviewQuery).data;
   const close = () => {
-    void navigate({ to: "/admin/site", search: { tab: "pages" } });
-  };
-  const saved = (pageId: string) => {
-    void navigate({
-      to: "/admin/site-page-editor",
-      search: { id: pageId },
-      replace: true,
-    });
+    void navigate({ to: "/admin/site", search: {} });
   };
   return id ? (
-    <Existing
-      key={id}
-      id={id}
-      school={settings.school.slug}
-      onClose={close}
-      onSaved={saved}
-    />
+    <ExistingEditor id={id} onClose={close} />
   ) : (
-    <NewPage school={settings.school.slug} onClose={close} onSaved={saved} />
-  );
-}
-function Existing({
-  id,
-  school,
-  onClose,
-  onSaved,
-}: {
-  id: string;
-  school: string;
-  onClose: () => void;
-  onSaved: (id: string) => void;
-}) {
-  const { data } = useSuspenseQuery(sitePageQuery(id));
-  return (
-    <SitePageWorkspace
-      initial={{
-        id: data.id,
-        expectedRevision: data.revision,
-        slug: data.slug,
-        locale: data.locale,
-        title: data.title,
-        summary: data.summary,
-        navGroup: data.navGroup,
-        navOrder: data.navOrder,
-        showInNav: data.showInNav,
-        document: data.document,
-      }}
-      status={data.status}
-      school={school}
-      onClose={onClose}
-      onSaved={onSaved}
-    />
-  );
-}
-function NewPage({
-  school,
-  onClose,
-  onSaved,
-}: {
-  school: string;
-  onClose: () => void;
-  onSaved: (id: string) => void;
-}) {
-  const [id] = useState(() => crypto.randomUUID());
-  return (
-    <SitePageWorkspace
-      initial={{
-        id,
-        expectedRevision: 0,
-        slug: "",
-        locale: getLocale(),
-        title: "",
-        summary: "",
-        navGroup: "",
-        navOrder: 0,
-        showInNav: true,
-        document: { version: 1, locale: getLocale(), sections: [] },
-      }}
-      status="draft"
-      school={school}
-      onClose={onClose}
-      onSaved={onSaved}
-    />
+    <PageEditor existing={null} overview={overview} onClose={close} />
   );
 }

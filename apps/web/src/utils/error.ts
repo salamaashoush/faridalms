@@ -277,16 +277,31 @@ export function getMessageFromError(error: unknown): string {
         return m.announcementNotFound();
       case "announcement.incomplete":
         return m.announcementIncomplete();
-      case "site.revision_conflict":
-        return m.siteRevisionConflict();
       case "site.slug_taken":
-        return m.siteSlugTaken();
-      case "site.incomplete":
-        return m.siteIncomplete();
-      case "site.page_published":
-        return m.sitePagePublished();
-      case "site.not_found":
-        return m.siteNotFound();
+        return m.siteErrSlugTaken();
+      case "site.home":
+      case "site.home_exists":
+        return m.siteErrHome();
+      case "site.has_children":
+        return m.siteErrHasChildren();
+      case "site.parent":
+        return m.siteErrParent();
+      case "site.empty":
+        return m.siteErrEmpty();
+      case "site.issues":
+        return m.siteErrIssues();
+      case "site.consent":
+        return m.siteErrConsent();
+      case "site.file":
+        return m.siteErrFile();
+      case "site.title":
+        return m.siteErrTitle();
+      case "site.link":
+        return m.siteErrLink();
+      case "site.embed":
+        return m.siteErrEmbed();
+      case "site.stale":
+        return m.siteErrStale();
       case "learning.disabled":
         return m.learningDisabled();
       case "learning.no_year":

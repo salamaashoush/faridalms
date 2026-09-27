@@ -1,109 +1,64 @@
-import { emptyContent } from "@faridalms/domain/content-conversion";
+import { WORKSPACE_HOME } from "@faridalms/domain/workspace";
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { createFileRoute } from "@tanstack/react-router";
-import { useState } from "react";
+import { createFileRoute, redirect } from "@tanstack/react-router";
 import * as v from "valibot";
 
-import { SitePostWorkspace } from "~/components/site/SitePostWorkspace";
+import { BreadcrumbCurrent } from "~/components/app/WorkspaceBreadcrumb";
+import { PostEditor } from "~/components/site/PostEditor";
 import * as m from "~/i18n/messages";
-import { getLocale } from "~/i18n/runtime";
-import { siteCategoriesQuery, sitePostQuery } from "~/queries/site";
+import { sitePostOptionsQuery, sitePostQuery } from "~/queries/site";
+import { currentUserQuery } from "~/queries/user";
 
 export const Route = createFileRoute("/_app/admin/site-post-editor")({
-  staticData: { breadcrumb: m.sitePostWrite },
+  staticData: { trail: <EditorTrail />, section: "/admin/site" },
   validateSearch: v.object({ id: v.optional(v.pipe(v.string(), v.uuid())) }),
-  loaderDeps: ({ search }) => search,
+  loaderDeps: ({ search }) => ({ id: search.id }),
   loader: async ({ context, deps }) => {
-    await context.queryClient.ensureQueryData(siteCategoriesQuery);
-    if (deps.id)
-      await context.queryClient.ensureQueryData(sitePostQuery(deps.id));
+    const user = await context.queryClient.ensureQueryData(currentUserQuery);
+    if (!user.capabilities.includes("site:manage"))
+      throw redirect({ to: WORKSPACE_HOME[user.workspace] });
+    await Promise.all([
+      context.queryClient.ensureQueryData(sitePostOptionsQuery),
+      deps.id
+        ? context.queryClient.ensureQueryData(sitePostQuery(deps.id))
+        : null,
+    ]);
   },
   component: EditorPage,
 });
+
+function EditorTrail() {
+  const { id } = Route.useSearch();
+  return (
+    <BreadcrumbCurrent>
+      {id ? m.siteEditPost() : m.siteNewPost()}
+    </BreadcrumbCurrent>
+  );
+}
+
+function ExistingEditor({ id, onClose }: { id: string; onClose: () => void }) {
+  const existing = useSuspenseQuery(sitePostQuery(id)).data;
+  const options = useSuspenseQuery(sitePostOptionsQuery).data;
+  return (
+    <PostEditor
+      key={`${existing.id}-${existing.version}-${existing.revision}`}
+      existing={existing}
+      options={options}
+      onClose={onClose}
+    />
+  );
+}
+
 function EditorPage() {
   const { id } = Route.useSearch();
   const navigate = Route.useNavigate();
+  const options = useSuspenseQuery(sitePostOptionsQuery).data;
   const close = () => {
     void navigate({ to: "/admin/site", search: { tab: "posts" } });
   };
-  const saved = (postId: string) => {
-    void navigate({
-      to: "/admin/site-post-editor",
-      search: { id: postId },
-      replace: true,
-    });
-  };
   return id ? (
-    <Existing key={id} id={id} onClose={close} onSaved={saved} />
+    <ExistingEditor id={id} onClose={close} />
   ) : (
-    <NewPost onClose={close} onSaved={saved} />
-  );
-}
-function useCategories() {
-  const { data } = useSuspenseQuery(siteCategoriesQuery);
-  return data.map((category) => ({ id: category.id, name: category.name }));
-}
-function Existing({
-  id,
-  onClose,
-  onSaved,
-}: {
-  id: string;
-  onClose: () => void;
-  onSaved: (id: string) => void;
-}) {
-  const { data } = useSuspenseQuery(sitePostQuery(id));
-  const categories = useCategories();
-  return (
-    <SitePostWorkspace
-      initial={{
-        id: data.id,
-        expectedRevision: data.revision,
-        slug: data.slug,
-        locale: data.locale,
-        title: data.title,
-        summary: data.summary,
-        categoryId: data.categoryId,
-        coverFileId: data.coverFileId,
-        document: data.document,
-      }}
-      cover={data.cover}
-      status={data.status}
-      publishAt={data.publishAt}
-      categories={categories}
-      onClose={onClose}
-      onSaved={onSaved}
-    />
-  );
-}
-function NewPost({
-  onClose,
-  onSaved,
-}: {
-  onClose: () => void;
-  onSaved: (id: string) => void;
-}) {
-  const [id] = useState(() => crypto.randomUUID());
-  const categories = useCategories();
-  return (
-    <SitePostWorkspace
-      initial={{
-        id,
-        expectedRevision: 0,
-        slug: "",
-        locale: getLocale(),
-        title: "",
-        summary: "",
-        categoryId: null,
-        coverFileId: null,
-        document: emptyContent(),
-      }}
-      cover={null}
-      status="draft"
-      publishAt={null}
-      categories={categories}
-      onClose={onClose}
-      onSaved={onSaved}
-    />
+    <PostEditor existing={null} options={options} onClose={close} />
   );
 }
