@@ -1,18 +1,26 @@
 import { plainContent } from "@faridalms/domain/content-conversion";
 import { CATALOGUE } from "@faridalms/domain/descriptors/catalogue";
+import { editionPlainText } from "@faridalms/domain/newsletters";
 import { addDays, teachingWeeks } from "@faridalms/domain/school";
 import { schoolDays } from "@faridalms/domain/timetable";
 import { and, eq, sql } from "drizzle-orm";
 
 import type { CellTransaction, openOwner } from "./context";
 import type { KeyEncryptionKey } from "./crypto";
-import type { Audience } from "./stores/announcements";
+import type { Audience } from "./stores/audiences";
 import type { ProvisionedTenant, TenantSpec } from "./tenants";
 
 import { withPurpose } from "./context";
 import { encryptField } from "./crypto";
 import { newUserHandle } from "./stores/accounts";
-import { addRecipients, audienceUsers } from "./stores/announcements";
+import { addRecipients } from "./stores/announcements";
+import { audienceUsers, setAudiences } from "./stores/audiences";
+import {
+  saveDocument,
+  saveTranslation,
+  snapshotPublish,
+} from "./stores/documents";
+import { addNewsletterRecipients } from "./stores/newsletters";
 import {
   academicSessions,
   academicWeeks,
@@ -46,6 +54,7 @@ import {
   loginIdentities,
   messages,
   messageThreads,
+  newsletters,
   orgs,
   periodGrades,
   rubrics,
@@ -1218,6 +1227,7 @@ async function seedSchool(
   await seedAttendance(tx, tenantId, schoolId, yearId);
   await seedMessages(tx, tenantId, schoolId, yearId);
   await seedAnnouncements(tx, tenantId, schoolId);
+  await seedNewsletters(tx, tenantId, schoolId);
   return { yearId, teachers };
 }
 
@@ -1390,6 +1400,148 @@ async function seedAnnouncements(tx: Tx, tenantId: string, schoolId: string) {
           plan.audience,
         ]),
       });
+  }
+}
+
+const section = (id: string, heading: string, body: string) => ({
+  id,
+  heading,
+  body: plainContent(body),
+});
+
+/**
+ * September's edition sent to the school in both languages, the Arabic
+ * checked except one section, and October's still a draft.
+ */
+async function seedNewsletters(tx: Tx, tenantId: string, schoolId: string) {
+  const [principal] = await tx.execute<{ user_id: string }>(sql`
+    select r.user_id from core.user_roles r
+    where r.tenant_id = ${tenantId}::uuid and r.org_id = ${schoolId}::uuid
+      and r.role in ('principal', 'site_administrator') and r.status = 'active'
+    order by r.role, r.user_id limit 1`);
+  if (!principal) return;
+  const ids = [
+    Bun.randomUUIDv7(),
+    Bun.randomUUIDv7(),
+    Bun.randomUUIDv7(),
+  ] as const;
+  const plans = [
+    {
+      title: "September newsletter",
+      publishAt: new Date("2026-09-18T07:00:00Z"),
+      english: [
+        section(
+          ids[0],
+          "From the principal",
+          "A warm welcome back to every family. The first weeks have gone smoothly, and the new timetable is settling in.",
+        ),
+        section(
+          ids[1],
+          "Dates for October",
+          "The museum trip is on 15 October and parents' evening follows at the end of the month.",
+        ),
+        section(
+          ids[2],
+          "Clubs",
+          "Chess, robotics and choir start next week. Sign-up sheets are with homeroom teachers.",
+        ),
+      ],
+      arabic: [
+        section(
+          ids[0],
+          "كلمة المديرة",
+          "مرحبًا بعودة جميع الأسر. مرت الأسابيع الأولى بسلاسة، والجدول الجديد يستقر.",
+        ),
+        section(
+          ids[1],
+          "مواعيد أكتوبر",
+          "رحلة المتحف في ١٥ أكتوبر، ويليها لقاء أولياء الأمور في نهاية الشهر.",
+        ),
+        section(
+          ids[2],
+          "الأندية",
+          "تبدأ أندية الشطرنج والروبوتات والكورال الأسبوع المقبل.",
+        ),
+      ],
+      reviewed: [ids[0], ids[1]],
+    },
+    {
+      title: "October newsletter",
+      publishAt: null,
+      english: [
+        section(
+          Bun.randomUUIDv7(),
+          "From the principal",
+          "Notes for October will follow.",
+        ),
+      ],
+      arabic: null,
+      reviewed: [],
+    },
+  ];
+  const audience: Audience = { scope: "school", classId: null, gradeId: null };
+  for (const plan of plans) {
+    const id = Bun.randomUUIDv7();
+    await tx.insert(newsletters).values({
+      tenantId,
+      id,
+      orgId: schoolId,
+      title: plan.title,
+      primaryLocale: "en",
+      bilingual: plan.arabic !== null,
+      state: plan.publishAt ? "published" : "draft",
+      publishAt: plan.publishAt,
+      authorUserId: principal.user_id,
+    });
+    await setAudiences(tx, {
+      tenantId,
+      owner: { kind: "newsletter", id },
+      audiences: [audience],
+    });
+    const host = { type: "newsletter", id };
+    const content = { sections: plan.english, reviewed: [] };
+    const original = await saveDocument(tx, {
+      tenantId,
+      orgId: schoolId,
+      host,
+      kind: "newsletter",
+      locale: "en",
+      content,
+      plainText: editionPlainText(content),
+      mediaIds: [],
+      userId: principal.user_id,
+    });
+    const translation = plan.arabic
+      ? await saveTranslation(tx, {
+          tenantId,
+          orgId: schoolId,
+          host,
+          originalId: original.id,
+          locale: "ar",
+          kind: "newsletter",
+          content: { sections: plan.arabic, reviewed: plan.reviewed },
+          plainText: editionPlainText({ sections: plan.arabic, reviewed: [] }),
+          mediaIds: [],
+          userId: principal.user_id,
+        })
+      : null;
+    if (!plan.publishAt) continue;
+    for (const document of [original, translation])
+      if (document)
+        await snapshotPublish(tx, {
+          tenantId,
+          documentId: document.id,
+          userId: principal.user_id,
+        });
+    await addNewsletterRecipients(tx, {
+      tenantId,
+      newsletterId: id,
+      userIds: await audienceUsers(
+        tx,
+        { tenantId, schoolId, on: "2026-09-27" },
+        [audience],
+      ),
+    });
   }
 }
 

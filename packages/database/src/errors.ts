@@ -50,6 +50,7 @@ export const CONFLICTS: Record<string, string> = {
   class_meetings_room_excl: "timetable.room_busy",
   thread_members_key: "thread_member.exists",
   announcement_recipients_key: "announcement_recipient.exists",
+  newsletter_recipients_key: "newsletter_recipient.exists",
   user_roles_role_excl: "role.overlapping",
   user_relationships_excl: "relationship.overlapping",
   accounts_tenant_id_webauthn_user_handle_key: "account.handle_taken",
