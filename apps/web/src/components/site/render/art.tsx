@@ -2,6 +2,8 @@ import type { ReactNode } from "react";
 
 import { cn } from "~/utils/cn";
 
+import { ratioStyle } from "./theme";
+
 function hash(seed: string): number {
   let value = 2166136261;
   for (let index = 0; index < seed.length; index++) {
@@ -199,11 +201,14 @@ export function SiteArt({
   className,
   ratio,
   kind = "shapes",
+  phoneRatio,
 }: {
   seed: string;
   className?: string;
   ratio?: string;
   kind?: "shapes" | "mesh";
+  /** The proportions on a phone, where a tall picture would fill the screen. */
+  phoneRatio?: string;
 }) {
   if (kind === "mesh")
     return (
@@ -212,7 +217,7 @@ export function SiteArt({
         viewBox="0 0 400 300"
         preserveAspectRatio="xMidYMid slice"
         className={cn("site-media block", className)}
-        style={{ aspectRatio: ratio }}
+        style={ratioStyle(ratio, phoneRatio)}
       >
         <Mesh seed={seed} />
       </svg>
@@ -221,14 +226,14 @@ export function SiteArt({
   const pick = (from: readonly string[]) =>
     from[Math.floor(next() * from.length)] ?? from[0] ?? "var(--s-primary)";
   const draw =
-    COMPOSITIONS[hash(seed) % COMPOSITIONS.length] ?? COMPOSITIONS[0];
+    COMPOSITIONS[Math.floor(next() * COMPOSITIONS.length)] ?? COMPOSITIONS[0];
   return (
     <svg
       aria-hidden
       viewBox="0 0 400 300"
       preserveAspectRatio="xMidYMid slice"
       className={cn("site-media block", className)}
-      style={{ aspectRatio: ratio }}
+      style={ratioStyle(ratio, phoneRatio)}
     >
       {draw?.(next, pick)}
     </svg>

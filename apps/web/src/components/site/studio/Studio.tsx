@@ -20,6 +20,7 @@ import {
   Paintbrush,
   PanelsTopLeft,
   Redo2,
+  Save as SaveIcon,
   Smartphone,
   SquarePen,
   Tablet,
@@ -106,6 +107,11 @@ type Overview = Awaited<
 export type StudioPanel = "sections" | "page" | "styles" | "frame";
 
 const SLUG = /^[a-z0-9]+(-[a-z0-9]+)*$/;
+
+const LOCALE_SHORT: Record<SiteLocale, () => string> = {
+  en: m.siteLocaleShortEn,
+  ar: m.siteLocaleShortAr,
+};
 
 function pageDraftOf(
   existing: Existing | null,
@@ -889,7 +895,7 @@ export function SiteStudio({
               <Button
                 type="button"
                 variant="ghost"
-                className="max-w-[16rem] min-w-0 gap-1.5 px-2 max-md:h-10"
+                className="max-w-[16rem] min-w-0 gap-1.5 px-2 max-md:h-10 max-sm:max-w-[7.5rem]"
               />
             }
           >
@@ -982,7 +988,7 @@ export function SiteStudio({
                 )
               }
             >
-              {LOCALE_NAME[
+              {LOCALE_SHORT[
                 locale === languages.primary ? otherLocale : languages.primary
               ]()}
             </Button>
@@ -1002,7 +1008,7 @@ export function SiteStudio({
             type="button"
             variant="ghost"
             size="icon-sm"
-            className="max-md:size-10"
+            className="max-md:size-10 max-sm:hidden"
             aria-label={m.siteRedo()}
             disabled={!history.canRedo}
             onClick={history.redo}
@@ -1044,7 +1050,8 @@ export function SiteStudio({
           <Button
             type="button"
             variant="outline"
-            className="max-md:h-10"
+            className="max-md:h-10 max-sm:w-10 max-sm:px-0"
+            aria-label={m.siteSave()}
             disabled={busy || (!dirty && Boolean(pageId))}
             onClick={() =>
               void doSave().then(
@@ -1052,7 +1059,8 @@ export function SiteStudio({
               )
             }
           >
-            {m.siteSave()}
+            <SaveIcon aria-hidden className="sm:hidden" />
+            <span className="max-sm:hidden">{m.siteSave()}</span>
           </Button>
           <div className="flex">
             <Button
@@ -1061,7 +1069,10 @@ export function SiteStudio({
               disabled={busy}
               onClick={() => void doPublish("")}
             >
-              {published ? m.sitePublishChanges() : m.sitePublish()}
+              <span className="max-sm:hidden">
+                {published ? m.sitePublishChanges() : m.sitePublish()}
+              </span>
+              <span className="sm:hidden">{m.sitePublish()}</span>
             </Button>
             <DropdownMenu>
               <DropdownMenuTrigger
@@ -1171,8 +1182,22 @@ export function SiteStudio({
         open={sheet !== null && !wide}
         onOpenChange={(open) => !open && setSheet(null)}
       >
-        <SheetContent side="bottom" className="h-[85dvh] gap-0 p-0">
-          <SheetHeader className="border-b">
+        <SheetContent
+          side="bottom"
+          showCloseButton={!(sheet === "inspector" && selectedSection)}
+          className="h-[85dvh] gap-0 rounded-t-2xl p-0"
+        >
+          <div
+            aria-hidden
+            className="mx-auto mt-2 h-1.5 w-10 shrink-0 rounded-full bg-muted-foreground/30"
+          />
+          <SheetHeader
+            className={cn(
+              "border-b",
+              // The section's own settings carry its name and a close button.
+              sheet === "inspector" && selectedSection && "sr-only",
+            )}
+          >
             <SheetTitle>
               {sheet === "inspector"
                 ? selectedSection

@@ -45,7 +45,7 @@ import { ContentView } from "~/components/content/ContentView";
 import { cn } from "~/utils/cn";
 
 import { SiteArt } from "./art";
-import { overMediaStyle, schemeStyle } from "./theme";
+import { overMediaStyle, ratioStyle, schemeStyle } from "./theme";
 
 export interface NewsItem {
   postId: string;
@@ -300,6 +300,7 @@ export function Picture({
   seed = "",
   feature = false,
   art = true,
+  phoneRatio,
 }: {
   image: SiteImage;
   context: RenderContext;
@@ -308,6 +309,8 @@ export function Picture({
   seed?: string;
   feature?: boolean;
   art?: boolean;
+  /** The proportions on a phone, where a tall picture would fill the screen. */
+  phoneRatio?: string;
 }) {
   const src = image.fileId ? context.fileUrl(image.fileId) : null;
   const body = src ? (
@@ -315,14 +318,15 @@ export function Picture({
       src={src}
       alt={image.alt}
       loading="lazy"
-      className={cn("site-media", className)}
-      style={{ aspectRatio: ratio }}
+      className={cn("site-media", art && "site-photo", className)}
+      style={ratioStyle(ratio, phoneRatio)}
     />
   ) : art ? (
     <SiteArt
       seed={seed || ratio || "picture"}
       className={className}
       ratio={ratio}
+      phoneRatio={phoneRatio}
     />
   ) : context.editing ? (
     <div
@@ -331,7 +335,7 @@ export function Picture({
         "grid place-items-center rounded-[var(--s-radius)] bg-[color-mix(in_srgb,var(--s-fg)_8%,transparent)]",
         className,
       )}
-      style={{ aspectRatio: ratio }}
+      style={ratioStyle(ratio, phoneRatio)}
     >
       <ImageIcon className="size-8 opacity-40" />
     </div>
@@ -350,6 +354,7 @@ export function MediaView({
   ratio,
   seed,
   feature = false,
+  phoneRatio,
 }: {
   media: SiteMedia;
   context: RenderContext;
@@ -357,6 +362,7 @@ export function MediaView({
   ratio?: string;
   seed?: string;
   feature?: boolean;
+  phoneRatio?: string;
 }) {
   if (media.kind === "image")
     return (
@@ -367,6 +373,7 @@ export function MediaView({
         ratio={ratio}
         seed={seed}
         feature={feature}
+        phoneRatio={phoneRatio}
       />
     );
   const src = media.fileId ? context.fileUrl(media.fileId) : null;
@@ -379,6 +386,7 @@ export function MediaView({
         ratio={ratio}
         seed={seed}
         feature={feature}
+        phoneRatio={phoneRatio}
       />
     );
   const poster = media.posterFileId
@@ -393,7 +401,7 @@ export function MediaView({
       preload="metadata"
       poster={poster}
       className={cn("site-media bg-black", className)}
-      style={{ aspectRatio: ratio ?? "16 / 9" }}
+      style={ratioStyle(ratio ?? "16 / 9", phoneRatio)}
     >
       <source src={src} type="video/mp4" />
       <track kind="captions" src={captions} srcLang={context.locale} default />

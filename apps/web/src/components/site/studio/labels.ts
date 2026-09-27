@@ -22,6 +22,7 @@ import type {
   ImageShape,
   Motion,
   Palette,
+  PhotoTone,
   SchemeId,
   ThemeId,
 } from "@faridalms/domain/site-theme";
@@ -494,6 +495,13 @@ export const EMPHASIS_LABEL: Record<Emphasis, () => string> = {
   colour: m.siteEmphasisColour,
   highlight: m.siteEmphasisHighlight,
   underline: m.siteEmphasisUnderline,
+};
+
+export const TONE_LABEL: Record<PhotoTone, () => string> = {
+  natural: m.siteToneNatural,
+  warm: m.siteToneWarm,
+  mono: m.siteToneMono,
+  duotone: m.siteToneDuotone,
 };
 
 export const MOTION_LABEL: Record<Motion, () => string> = {

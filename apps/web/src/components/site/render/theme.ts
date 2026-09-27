@@ -86,6 +86,7 @@ export function themeAttributes(theme: Theme, editing = false) {
     "data-eyebrow": theme.eyebrow,
     "data-motion": editing ? "none" : theme.motion,
     "data-emphasis": theme.emphasis,
+    "data-tone": theme.photoTone,
   };
 }
 
@@ -117,3 +118,34 @@ export const overMediaStyle = {
   "--s-btn": "#FFFFFF",
   "--s-btn-fg": "#111111",
 } as CSSProperties;
+
+/**
+ * A picture's proportions as variables the stylesheet reads, so a phone can
+ * take its own: a portrait that suits a column would fill a phone's screen.
+ */
+export function ratioStyle(ratio?: string, phoneRatio?: string): CSSProperties {
+  return {
+    ...(ratio ? { "--s-ratio": ratio } : {}),
+    ...(phoneRatio ? { "--s-phone-ratio": phoneRatio } : {}),
+  } as CSSProperties;
+}
+
+function channels(colour: string): [number, number, number] {
+  const value = Number.parseInt(colour.slice(1), 16);
+  return [(value >> 16) & 255, (value >> 8) & 255, value & 255].map(
+    (channel) => channel / 255,
+  ) as [number, number, number];
+}
+
+/**
+ * The duotone as filter tables: shadows in the brand colour, highlights in
+ * the page colour, so photographs from different phones read as one set.
+ */
+export function duotoneTables(theme: Theme) {
+  const dark = channels(theme.palette.primary);
+  const light = channels(theme.palette.canvas);
+  return dark.map(
+    (channel, index) =>
+      `${channel.toFixed(3)} ${(light[index] ?? 1).toFixed(3)}`,
+  ) as [string, string, string];
+}

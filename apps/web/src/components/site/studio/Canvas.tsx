@@ -250,7 +250,7 @@ export function Canvas({
   return (
     <div
       ref={scroller}
-      className="@container h-full overflow-auto bg-[#e9ebef] p-4 dark:bg-[#1b1d22]"
+      className="@container h-full overflow-auto bg-[#e9ebef] p-4 max-lg:p-0 dark:bg-[#1b1d22]"
     >
       <Viewport
         width={DEVICES[device]}
@@ -258,7 +258,7 @@ export function Canvas({
         locale={locale}
         className={cn("mx-auto", device !== "desktop" && "max-w-full")}
       >
-        <div className="overflow-hidden rounded-[10px] shadow-[0_8px_40px_rgba(15,23,42,.18)]">
+        <div className="overflow-hidden rounded-[10px] shadow-[0_8px_40px_rgba(15,23,42,.18)] max-lg:rounded-none max-lg:shadow-none">
           <SiteFrame
             frame={frame}
             context={context}

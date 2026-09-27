@@ -212,6 +212,12 @@
     object-fit: cover;
     width: 100%;
     height: 100%;
+    aspect-ratio: var(--s-ratio, auto);
+  }
+  @container site (width < 48rem) {
+    .site-media {
+      aspect-ratio: var(--s-phone-ratio, var(--s-ratio, auto));
+    }
   }
   .site-card .site-media,
   .site-zoom .site-media {
@@ -245,6 +251,20 @@
   }
   .site-feature .site-media {
     border-radius: 0;
+  }
+  /* One tone for photographs from many phones; artwork keeps its colours. */
+  .site-root[data-tone="warm"] .site-photo {
+    filter: sepia(0.18) saturate(1.12) contrast(1.03);
+  }
+  .site-root[data-tone="mono"] .site-photo {
+    filter: grayscale(1) contrast(1.05);
+    transition: filter 600ms var(--s-ease);
+  }
+  .site-root[data-tone="mono"] a:hover .site-photo {
+    filter: none;
+  }
+  .site-root[data-tone="duotone"] .site-photo {
+    filter: url(#site-duotone);
   }
   .site-button {
     display: inline-flex;

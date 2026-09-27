@@ -22,6 +22,7 @@ import {
   HEADING_SCALES,
   IMAGE_SHAPES,
   MOTIONS,
+  PHOTO_TONES,
   paletteWarnings,
   RADII,
   resolveTheme,
@@ -70,6 +71,7 @@ import {
   SCALE_LABEL,
   SCHEME_LABEL,
   SHAPE_LABEL,
+  TONE_LABEL,
   THEME_HINT,
   THEME_LABEL,
 } from "./labels";
@@ -385,6 +387,17 @@ export function StylesPanel({
               label: SHAPE_LABEL[value](),
             }))}
             onChange={(image) => set("image", image)}
+          />
+        </StudioField>
+        <StudioField label={m.sitePhotoTone()} hint={m.sitePhotoToneHint()}>
+          <Segmented
+            label={m.sitePhotoTone()}
+            value={resolved.photoTone}
+            options={PHOTO_TONES.map((value) => ({
+              value,
+              label: TONE_LABEL[value](),
+            }))}
+            onChange={(photoTone) => set("photoTone", photoTone)}
           />
         </StudioField>
       </PanelGroup>

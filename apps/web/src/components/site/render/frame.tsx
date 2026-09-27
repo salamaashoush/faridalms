@@ -3,13 +3,14 @@ import type { CSSProperties, ReactNode } from "react";
 
 import {
   ChevronDown,
+  ChevronRight,
   Info,
   Menu,
   OctagonAlert,
   TriangleAlert,
   X,
 } from "lucide-react";
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 import * as m from "~/i18n/messages";
 import { cn } from "~/utils/cn";
@@ -19,7 +20,12 @@ import type { RenderContext } from "./parts";
 import { useReveal } from "./motion";
 import { SiteAnchor } from "./parts";
 import { ContactList } from "./sections";
-import { schemeStyle, themeAttributes, themeStyle } from "./theme";
+import {
+  duotoneTables,
+  schemeStyle,
+  themeAttributes,
+  themeStyle,
+} from "./theme";
 
 export interface FrameLink {
   id: string;
@@ -297,14 +303,14 @@ function MenuPanel({
   const top = frame.menu.filter((entry) => !entry.parentId);
   return (
     <div
-      className="site-section absolute inset-x-0 top-full z-40 border-t border-[var(--s-border)] shadow-2xl"
+      className="site-section absolute inset-x-0 top-full z-40 border-t border-[var(--s-border)] shadow-2xl @max-3xl/site:h-[calc(100svh-4.5rem)] @max-3xl/site:overflow-y-auto"
       style={schemeStyle(context.theme, "canvas")}
     >
       <nav
         aria-label={m.siteNavigation({}, t)}
         className="mx-auto grid max-w-[84rem] gap-6 px-5 py-6 @3xl/site:px-8 @4xl/site:grid-cols-3"
       >
-        <ul className="grid gap-1 @4xl/site:col-span-2 @4xl/site:grid-cols-2">
+        <ul className="grid divide-y divide-[var(--s-border)] @4xl/site:col-span-2 @4xl/site:grid-cols-2 @4xl/site:gap-x-8 @4xl/site:divide-y-0">
           {top.map((entry) => {
             const children = frame.menu.filter(
               (item) => item.parentId === entry.id,
@@ -314,9 +320,16 @@ function MenuPanel({
                 <SiteAnchor
                   href={entry.href}
                   context={context}
-                  className="site-heading block py-2 text-xl font-semibold"
+                  className={cn(
+                    "site-heading flex min-h-14 items-center justify-between gap-4 py-2 text-xl font-semibold",
+                    entry.href === frame.currentHref && "text-[var(--s-link)]",
+                  )}
                 >
                   {entry.label}
+                  <ChevronRight
+                    aria-hidden
+                    className="size-5 opacity-40 rtl:-scale-x-100"
+                  />
                 </SiteAnchor>
                 {children.length ? (
                   <ul className="mb-2 grid gap-0.5 border-s border-[var(--s-border)] ps-4">
@@ -406,7 +419,106 @@ function MenuButton({
   );
 }
 
-function Header({
+type Pin = "top" | "shown" | "hidden";
+
+/**
+ * Where the pinned bar stands: out of the way near the top, shown as soon
+ * as a visitor scrolls back up, hidden again while they read on down.
+ */
+function usePin(enabled: boolean): Pin {
+  const [pin, setPin] = useState<Pin>("top");
+  useEffect(() => {
+    if (!enabled) return undefined;
+    let last = window.scrollY;
+    const onScroll = () => {
+      const y = window.scrollY;
+      const next: Pin | null =
+        y < 320
+          ? "top"
+          : y < last - 4
+            ? "shown"
+            : y > last + 4
+              ? "hidden"
+              : null;
+      if (next) setPin(next);
+      last = y;
+    };
+    window.addEventListener("scroll", onScroll, { passive: true });
+    return () => window.removeEventListener("scroll", onScroll);
+  }, [enabled]);
+  return pin;
+}
+
+/**
+ * A compact bar that slides down from the top when a visitor scrolls back
+ * up, so the menu and the admissions actions are never a long scroll away.
+ */
+function PinnedBar({
+  frame,
+  context,
+  pin,
+}: {
+  frame: SiteFrameModel;
+  context: RenderContext;
+  pin: Pin;
+}) {
+  const [open, setOpen] = useState(false);
+  const shown = pin === "shown" || open;
+  return (
+    <div
+      aria-hidden={!shown}
+      inert={!shown}
+      className={cn(
+        "site-section fixed inset-x-0 top-0 z-40 border-b border-[var(--s-border)] shadow-[0_4px_20px_rgb(0_0_0/0.08)] transition-transform duration-[350ms] ease-[cubic-bezier(.165,.84,.44,1)] motion-reduce:transition-none",
+        shown ? "translate-y-0" : "-translate-y-full",
+      )}
+      style={schemeStyle(context.theme, "canvas")}
+    >
+      <div className="mx-auto flex max-w-[84rem] items-center gap-4 px-5 py-2 @3xl/site:px-8">
+        <Brand frame={frame} context={context} />
+        <div className="ms-auto flex items-center gap-2">
+          <DesktopNav frame={frame} context={context} />
+          <FrameActions
+            frame={frame}
+            context={context}
+            compact
+            className="ms-2 @max-5xl/site:hidden"
+          />
+          <MenuButton
+            open={open}
+            onToggle={() => setOpen((value) => !value)}
+            context={context}
+          />
+        </div>
+      </div>
+      {open ? (
+        <MenuPanel
+          frame={frame}
+          context={context}
+          onClose={() => setOpen(false)}
+        />
+      ) : null}
+    </div>
+  );
+}
+
+function Header(props: {
+  frame: SiteFrameModel;
+  context: RenderContext;
+  overlay: boolean;
+}) {
+  const pin = usePin(!props.context.editing);
+  return (
+    <>
+      <HeaderBar {...props} />
+      {props.context.editing ? null : (
+        <PinnedBar frame={props.frame} context={props.context} pin={pin} />
+      )}
+    </>
+  );
+}
+
+function HeaderBar({
   frame,
   context,
   overlay,
@@ -758,6 +870,7 @@ export function SiteFrame({
 }) {
   const t = { locale: context.locale };
   const root = useRef<HTMLDivElement>(null);
+  const duotone = duotoneTables(context.theme);
   useReveal(root, context.editing ? "none" : context.theme.motion);
   return (
     <div
@@ -779,6 +892,19 @@ export function SiteFrame({
           {m.siteSkipToContent({}, t)}
         </a>
       )}
+      <svg aria-hidden className="absolute size-0">
+        <filter id="site-duotone" colorInterpolationFilters="sRGB">
+          <feColorMatrix
+            type="matrix"
+            values="0.2126 0.7152 0.0722 0 0 0.2126 0.7152 0.0722 0 0 0.2126 0.7152 0.0722 0 0 0 0 0 1 0"
+          />
+          <feComponentTransfer>
+            <feFuncR type="table" tableValues={duotone[0]} />
+            <feFuncG type="table" tableValues={duotone[1]} />
+            <feFuncB type="table" tableValues={duotone[2]} />
+          </feComponentTransfer>
+        </filter>
+      </svg>
       <Banner frame={frame} />
       <div className="relative flex flex-1 flex-col">
         <Header frame={frame} context={context} overlay={overlay} />

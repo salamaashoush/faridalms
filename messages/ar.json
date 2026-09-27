@@ -3834,5 +3834,19 @@
   "siteChoiceGradeAsk": "اسأل",
   "siteChoiceGradeHide": "مخفي",
   "siteFormSend": "أرسل",
-  "siteFormLeaveEmpty": "اترك هذا فارغًا"
+  "siteFormLeaveEmpty": "اترك هذا فارغًا",
+  "siteEmbedEmpty": "الصق عنوان فيديو أو خريطة أو نموذج في إعدادات هذا القسم.",
+  "siteOpenPhoto": "افتح الصورة: {alt}",
+  "siteClosePhoto": "أغلق الصورة",
+  "sitePreviousPhoto": "الصورة السابقة",
+  "siteNextPhoto": "الصورة التالية",
+  "sitePhotoCount": "{number} من {count}",
+  "sitePhotoTone": "الصور الفوتوغرافية",
+  "sitePhotoToneHint": "يوحّد اللون الواحد الصور الملتقطة بهواتف مختلفة، وتحتفظ الرسومات بألوانها.",
+  "siteToneNatural": "طبيعية",
+  "siteToneWarm": "دافئة",
+  "siteToneMono": "أبيض وأسود",
+  "siteToneDuotone": "ثنائية اللون",
+  "siteLocaleShortEn": "EN",
+  "siteLocaleShortAr": "عربي"
 }

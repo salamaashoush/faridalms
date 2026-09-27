@@ -11,6 +11,7 @@ import { withoutEmphasis } from "@faridalms/domain/site-sections";
 import { useHydrated } from "@tanstack/react-router";
 import {
   ArrowRight,
+  CalendarDays,
   ArrowUpRight,
   Check,
   ChevronLeft,
@@ -22,6 +23,7 @@ import {
   Pause,
   Phone,
   Play,
+  X,
 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
@@ -124,7 +126,11 @@ function Backdrop({
           playLabel={m.sitePlayVideo({}, t)}
         />
       ) : src ? (
-        <img src={src} alt={media.alt} className="size-full object-cover" />
+        <img
+          src={src}
+          alt={media.alt}
+          className="site-photo size-full object-cover"
+        />
       ) : (
         <SiteArt seed={seed} kind="mesh" className="rounded-none" />
       )}
@@ -175,7 +181,7 @@ function Hero({ section, context, first }: Props<"hero">) {
     );
   if (variant === "split")
     return (
-      <div className="grid items-center gap-12 py-[calc(var(--s-space)*0.25)] @4xl/site:grid-cols-[1.05fr_1fr] @4xl/site:gap-16">
+      <div className="grid items-center gap-12 py-[calc(var(--s-space)*0.25)] @3xl/site:grid-cols-[1.05fr_1fr] @4xl/site:gap-16">
         {words}
         <div className="relative">
           <div
@@ -188,6 +194,7 @@ function Hero({ section, context, first }: Props<"hero">) {
             ratio="4 / 5"
             seed={section.id}
             feature
+            phoneRatio="4 / 3"
             className="max-h-[40rem]"
           />
         </div>
@@ -316,7 +323,7 @@ function Slides({ section, context, first }: Props<"slides">) {
       <section
         aria-roledescription="carousel"
         aria-label={withoutEmphasis(slides[0]?.heading ?? "")}
-        className="grid items-center gap-10 @4xl/site:grid-cols-2 @4xl/site:gap-16"
+        className="grid items-center gap-10 @3xl/site:grid-cols-2 @4xl/site:gap-16"
       >
         <div className="grid">
           {slides.map((slide, at) => (
@@ -353,6 +360,7 @@ function Slides({ section, context, first }: Props<"slides">) {
                 ratio="4 / 5"
                 seed={slide.id}
                 feature
+                phoneRatio="4 / 3"
                 className="max-h-[40rem]"
               />
             </div>
@@ -391,7 +399,7 @@ function Slides({ section, context, first }: Props<"slides">) {
                   src={src}
                   alt=""
                   className={cn(
-                    "size-full object-cover transition-transform duration-[7000ms] ease-out",
+                    "site-photo size-full object-cover transition-transform duration-[7000ms] ease-out",
                     at === current && !context.editing
                       ? "scale-105"
                       : "scale-100",
@@ -425,7 +433,7 @@ function PageHeader({ section, context, first }: Props<"pageHeader">) {
       className={cn(
         "grid items-center gap-10",
         variant === "image" &&
-          "@4xl/site:grid-cols-[1.2fr_1fr] @4xl/site:gap-16",
+          "@3xl/site:grid-cols-[1.2fr_1fr] @4xl/site:gap-16",
       )}
     >
       <div data-stagger className="grid max-w-3xl gap-5">
@@ -494,14 +502,15 @@ function Welcome({ section, context }: Props<"welcome">) {
       </div>
     );
   return (
-    <div className="grid items-center gap-12 @4xl/site:grid-cols-[5fr_7fr] @4xl/site:gap-20">
-      <div className={cn(variant === "portraitEnd" && "@4xl/site:order-2")}>
+    <div className="grid items-center gap-12 @3xl/site:grid-cols-[5fr_7fr] @4xl/site:gap-20">
+      <div className={cn(variant === "portraitEnd" && "@3xl/site:order-2")}>
         <Picture
           image={data.portrait}
           context={context}
           ratio="4 / 5"
           seed={section.id}
           feature
+          phoneRatio="1 / 1"
           className="max-h-[38rem]"
         />
       </div>
@@ -547,7 +556,7 @@ function ImageText({ section, context }: Props<"imageText">) {
       className={cn(
         "grid gap-6",
         variant === "overlap" &&
-          "site-card relative z-10 p-8 shadow-xl @4xl/site:-ms-28 @4xl/site:p-12",
+          "site-card relative z-10 p-8 shadow-xl @3xl/site:-ms-28 @4xl/site:p-12",
       )}
       style={variant === "overlap" ? { background: "var(--s-bg)" } : undefined}
     >
@@ -558,8 +567,8 @@ function ImageText({ section, context }: Props<"imageText">) {
     </div>
   );
   return (
-    <div className="grid items-center gap-12 @4xl/site:grid-cols-2 @4xl/site:gap-20">
-      <div className={cn(variant === "mediaEnd" && "@4xl/site:order-2")}>
+    <div className="grid items-center gap-12 @3xl/site:grid-cols-2 @4xl/site:gap-20">
+      <div className={cn(variant === "mediaEnd" && "@3xl/site:order-2")}>
         <MediaView
           media={data.media}
           context={context}
@@ -572,6 +581,13 @@ function ImageText({ section, context }: Props<"imageText">) {
     </div>
   );
 }
+
+/**
+ * On a phone a row of cards becomes a rail that scrolls sideways, the next
+ * card peeking in, instead of a column many screens long.
+ */
+const PHONE_RAIL =
+  "-mx-5 flex snap-x snap-mandatory gap-4 overflow-x-auto scroll-px-5 px-5 pb-3 [&>li]:w-[78cqi] [&>li]:shrink-0 [&>li]:snap-start @3xl/site:mx-0 @3xl/site:grid @3xl/site:gap-6 @3xl/site:overflow-visible @3xl/site:px-0 @3xl/site:pb-0 @3xl/site:[&>li]:w-auto";
 
 const COLUMNS = {
   "2": "@3xl/site:grid-cols-2",
@@ -639,6 +655,7 @@ function Cards({ section, context }: Props<"cards">) {
                       ratio="3 / 2"
                       seed={item.id}
                       className="rounded-none"
+                      phoneRatio="16 / 9"
                     />
                   </div>
                 ) : null}
@@ -718,7 +735,7 @@ function Divisions({ section, context }: Props<"divisions">) {
           ))}
         </ul>
       ) : (
-        <ul data-stagger className="grid gap-6 @3xl/site:grid-cols-3">
+        <ul data-stagger className={cn(PHONE_RAIL, "@3xl/site:grid-cols-3")}>
           {data.items.map((item) => (
             <li key={item.id}>
               <SiteAnchor
@@ -830,7 +847,7 @@ function Stats({ section, context }: Props<"stats">) {
         {data.heading}
       </Heading>
       {variant === "overImage" ? (
-        <div className="grid items-center gap-12 @4xl/site:grid-cols-2 @4xl/site:gap-16">
+        <div className="grid items-center gap-12 @3xl/site:grid-cols-2 @4xl/site:gap-16">
           <MediaView
             media={data.media}
             context={context}
@@ -857,9 +874,9 @@ function Pillars({ section, context }: Props<"pillars">) {
         {data.items.map((item, index) => (
           <div
             key={item.id}
-            className="grid items-center gap-10 @4xl/site:grid-cols-2 @4xl/site:gap-20"
+            className="grid items-center gap-10 @3xl/site:grid-cols-2 @4xl/site:gap-20"
           >
-            <div className={cn(index % 2 === 1 && "@4xl/site:order-2")}>
+            <div className={cn(index % 2 === 1 && "@3xl/site:order-2")}>
               <Picture
                 image={item.image}
                 context={context}
@@ -890,10 +907,18 @@ function Pillars({ section, context }: Props<"pillars">) {
       />
       <ol
         data-stagger
-        className="grid gap-x-10 gap-y-12 @3xl/site:grid-cols-2 @5xl/site:grid-cols-4"
+        className="grid gap-x-10 gap-y-8 @3xl/site:grid-cols-2 @3xl/site:gap-y-12 @5xl/site:grid-cols-4"
       >
         {data.items.map((item, index) => (
-          <li key={item.id} className="grid content-start gap-4">
+          <li
+            key={item.id}
+            className={cn(
+              "grid content-start gap-4",
+              // On a phone an icon sits beside its words, not above them.
+              variant === "icons" &&
+                "grid-cols-[3rem_1fr] gap-x-4 gap-y-1.5 @3xl/site:grid-cols-1 @3xl/site:gap-4 [&>*:first-child]:row-span-2 @3xl/site:[&>*:first-child]:row-span-1",
+            )}
+          >
             {variant === "numbered" ? (
               <span className="site-heading border-b border-[var(--s-border)] pb-4 text-5xl font-bold text-[var(--s-link)] tabular-nums">
                 {new Intl.NumberFormat(context.locale, {
@@ -1012,7 +1037,7 @@ function Voices({ section, context }: Props<"voices">) {
         className={cn(
           variant === "carousel"
             ? "-mx-5 flex snap-x snap-mandatory gap-6 overflow-x-auto px-5 pb-4 @3xl/site:-mx-8 @3xl/site:px-8 [&>li]:w-[min(26rem,85cqi)] [&>li]:shrink-0 [&>li]:snap-start"
-            : "grid gap-6 @3xl/site:grid-cols-2 @5xl/site:grid-cols-3",
+            : cn(PHONE_RAIL, "@3xl/site:grid-cols-2 @5xl/site:grid-cols-3"),
         )}
       >
         {items.map((item) => (
@@ -1135,7 +1160,7 @@ function Video({ section, context }: Props<"video">) {
   );
   if (variant === "beside")
     return (
-      <div className="grid items-center gap-12 @4xl/site:grid-cols-[2fr_3fr] @4xl/site:gap-16">
+      <div className="grid items-center gap-12 @3xl/site:grid-cols-[2fr_3fr] @4xl/site:gap-16">
         <div data-stagger className="grid gap-5">
           <Heading>{data.heading}</Heading>
           <Lead>{data.text}</Lead>
@@ -1163,8 +1188,107 @@ function Video({ section, context }: Props<"video">) {
   );
 }
 
+/**
+ * A photograph opened large, over the page, with the others a step away.
+ * The native dialog traps focus and closes on Escape.
+ */
+function Lightbox({
+  photos,
+  index,
+  context,
+  onClose,
+  onGo,
+}: {
+  photos: { id: string; src: string; alt: string }[];
+  index: number | null;
+  context: RenderContext;
+  onClose: () => void;
+  onGo: (index: number) => void;
+}) {
+  const t = { locale: context.locale };
+  const dialog = useRef<HTMLDialogElement>(null);
+  const count = photos.length;
+  const current = index === null ? undefined : photos[index];
+  useEffect(() => {
+    const element = dialog.current;
+    if (!element) return undefined;
+    if (index === null) {
+      if (element.open) element.close();
+      return undefined;
+    }
+    if (!element.open) element.showModal();
+    const rtl = context.locale === "ar";
+    const onKey = (event: KeyboardEvent) => {
+      if (event.key !== "ArrowLeft" && event.key !== "ArrowRight") return;
+      const forward = (event.key === "ArrowRight") !== rtl;
+      onGo((index + (forward ? 1 : -1) + count) % count);
+    };
+    element.addEventListener("keydown", onKey);
+    return () => element.removeEventListener("keydown", onKey);
+  }, [index, count, context.locale, onGo]);
+  return (
+    <dialog
+      ref={dialog}
+      onClose={onClose}
+      className="m-0 h-dvh max-h-none w-screen max-w-none bg-black/95 p-0 text-white backdrop:bg-black/80"
+    >
+      {current ? (
+        <figure className="grid h-full grid-rows-[1fr_auto] gap-3 p-4 @3xl/site:p-10">
+          <img
+            src={current.src}
+            alt={current.alt}
+            className="size-full min-h-0 object-contain"
+          />
+          <figcaption className="flex items-center justify-between gap-4 text-sm">
+            <span dir="auto" className="opacity-85">
+              {current.alt}
+            </span>
+            <span className="shrink-0 tabular-nums opacity-70">
+              {m.sitePhotoCount({ number: (index ?? 0) + 1, count }, t)}
+            </span>
+          </figcaption>
+        </figure>
+      ) : null}
+      <button
+        type="button"
+        onClick={onClose}
+        aria-label={m.siteClosePhoto({}, t)}
+        className="absolute end-4 top-4 grid size-11 place-items-center rounded-full bg-white/10 hover:bg-white/20"
+      >
+        <X aria-hidden className="size-5" />
+      </button>
+      {count > 1 && index !== null ? (
+        <>
+          <button
+            type="button"
+            onClick={() => onGo((index - 1 + count) % count)}
+            aria-label={m.sitePreviousPhoto({}, t)}
+            className="absolute start-4 top-1/2 grid size-12 -translate-y-1/2 place-items-center rounded-full bg-white/10 hover:bg-white/20"
+          >
+            <ChevronLeft aria-hidden className="size-6 rtl:-scale-x-100" />
+          </button>
+          <button
+            type="button"
+            onClick={() => onGo((index + 1) % count)}
+            aria-label={m.siteNextPhoto({}, t)}
+            className="absolute end-4 top-1/2 grid size-12 -translate-y-1/2 place-items-center rounded-full bg-white/10 hover:bg-white/20"
+          >
+            <ChevronRight aria-hidden className="size-6 rtl:-scale-x-100" />
+          </button>
+        </>
+      ) : null}
+    </dialog>
+  );
+}
+
 function Gallery({ section, context }: Props<"gallery">) {
   const { data, variant } = section;
+  const t = { locale: context.locale };
+  const [open, setOpen] = useState<number | null>(null);
+  const photos = data.items.flatMap((item) => {
+    const src = item.image.fileId ? context.fileUrl(item.image.fileId) : null;
+    return src ? [{ id: item.id, src, alt: item.image.alt }] : [];
+  });
   return (
     <div>
       <SectionIntro
@@ -1178,17 +1302,11 @@ function Gallery({ section, context }: Props<"gallery">) {
             ? "columns-2 gap-4 @4xl/site:columns-3 [&>li]:mb-4 [&>li]:break-inside-avoid"
             : variant === "carousel"
               ? "-mx-5 flex snap-x snap-mandatory gap-4 overflow-x-auto px-5 pb-4 @3xl/site:-mx-8 @3xl/site:px-8 [&>li]:w-[min(30rem,85cqi)] [&>li]:shrink-0 [&>li]:snap-start"
-              : "grid auto-rows-[minmax(10rem,18cqi)] grid-cols-2 gap-4 @4xl/site:grid-cols-4",
+              : "grid auto-rows-[minmax(8rem,18cqi)] grid-cols-2 gap-3 @3xl/site:gap-4 @4xl/site:grid-cols-4",
         )}
       >
-        {data.items.map((item, index) => (
-          <li
-            key={item.id}
-            className={cn(
-              variant === "grid" && index === 0 && "col-span-2 row-span-2",
-              variant === "grid" && index === 3 && "@4xl/site:col-span-2",
-            )}
-          >
+        {data.items.map((item, index) => {
+          const picture = (
             <Picture
               image={item.image}
               context={context}
@@ -1204,9 +1322,39 @@ function Gallery({ section, context }: Props<"gallery">) {
               }
               className={variant === "grid" ? "size-full" : undefined}
             />
-          </li>
-        ))}
+          );
+          const at = photos.findIndex((photo) => photo.id === item.id);
+          return (
+            <li
+              key={item.id}
+              className={cn(
+                variant === "grid" && index === 0 && "col-span-2 row-span-2",
+                variant === "grid" && index === 3 && "@4xl/site:col-span-2",
+              )}
+            >
+              {at >= 0 && !context.editing ? (
+                <button
+                  type="button"
+                  onClick={() => setOpen(at)}
+                  aria-label={m.siteOpenPhoto({ alt: item.image.alt }, t)}
+                  className="site-zoom block size-full cursor-zoom-in overflow-hidden rounded-[var(--s-radius)]"
+                >
+                  {picture}
+                </button>
+              ) : (
+                picture
+              )}
+            </li>
+          );
+        })}
       </ul>
+      <Lightbox
+        photos={photos}
+        index={open}
+        context={context}
+        onClose={() => setOpen(null)}
+        onGo={setOpen}
+      />
     </div>
   );
 }
@@ -1234,8 +1382,8 @@ function Timeline({ section }: Props<"timeline">) {
               className={cn(
                 "absolute size-4 rounded-full border-4 border-[var(--s-bg)] bg-[var(--s-link)] outline-2 outline-[var(--s-link)]",
                 variant === "horizontal"
-                  ? "start-0 -top-[3.1rem]"
-                  : "-start-[3.1rem] top-2",
+                  ? "start-0 -top-[calc(3rem+1px)]"
+                  : "-start-[calc(3rem+1px)] top-2",
               )}
             />
             <span className="site-heading text-3xl font-bold text-[var(--s-link)]">
@@ -1295,7 +1443,7 @@ function Accordion({ section }: Props<"accordion">) {
     <div
       className={cn(
         variant === "columns"
-          ? "grid gap-12 @4xl/site:grid-cols-[2fr_3fr] @4xl/site:gap-20"
+          ? "grid gap-12 @3xl/site:grid-cols-[2fr_3fr] @4xl/site:gap-20"
           : "mx-auto max-w-3xl",
       )}
     >
@@ -1434,7 +1582,7 @@ function Cover({
           src={publicMediaUrl(item.coverKey)}
           alt={item.coverAlt}
           loading="lazy"
-          className={cn("site-media rounded-none", className)}
+          className={cn("site-media site-photo rounded-none", className)}
         />
       ) : (
         <SiteArt seed={item.postId} className={cn("rounded-none", className)} />
@@ -1496,7 +1644,7 @@ function News({ section, context }: Props<"news">) {
           className={cn(
             "grid gap-6",
             variant === "featured"
-              ? "@4xl/site:grid-cols-2"
+              ? "@3xl/site:grid-cols-2"
               : "@3xl/site:grid-cols-2 @5xl/site:grid-cols-3",
           )}
         >
@@ -1505,7 +1653,7 @@ function News({ section, context }: Props<"news">) {
             return (
               <li
                 key={item.postId}
-                className={cn(lead && "@4xl/site:row-span-2")}
+                className={cn(lead && "@3xl/site:row-span-2")}
               >
                 <SiteAnchor
                   href={`/news/${item.slug}`}
@@ -1586,16 +1734,22 @@ function Events({ section, context }: Props<"events">) {
                   variant === "cards" && "h-full flex-col items-start p-7",
                 )}
               >
-                <span className="grid min-w-[4.5rem] place-items-center rounded-[max(var(--s-radius),0.75rem)] bg-[var(--s-btn)] px-3 py-3 text-[var(--s-btn-fg)]">
-                  <span
-                    className="site-heading text-3xl leading-none font-bold"
-                    style={{ color: "inherit" }}
-                  >
-                    {day}
-                  </span>
-                  <span className="text-xs font-bold tracking-wider uppercase">
-                    {month}
-                  </span>
+                <span className="grid min-h-[4.5rem] min-w-[4.5rem] shrink-0 place-items-center rounded-[max(var(--s-radius),0.75rem)] bg-[var(--s-btn)] px-3 py-3 text-[var(--s-btn-fg)]">
+                  {day ? (
+                    <>
+                      <span
+                        className="site-heading text-3xl leading-none font-bold"
+                        style={{ color: "inherit" }}
+                      >
+                        {day}
+                      </span>
+                      <span className="text-xs font-bold tracking-wider uppercase">
+                        {month}
+                      </span>
+                    </>
+                  ) : (
+                    <CalendarDays aria-hidden className="size-7" />
+                  )}
                 </span>
                 <span className="grid flex-1 gap-1">
                   <span className="site-heading site-h3">{item.title}</span>
@@ -1623,7 +1777,7 @@ function Admissions({ section, context }: Props<"admissions">) {
   const date = data.date ? siteDate(data.date, context.locale) : null;
   if (variant === "banner" || variant === "keyDate")
     return (
-      <div className="grid items-center gap-10 @4xl/site:grid-cols-[1fr_auto]">
+      <div className="grid items-center gap-10 @3xl/site:grid-cols-[1fr_auto]">
         <div data-stagger className="grid max-w-3xl gap-4">
           {variant === "keyDate" && date ? (
             <span className="site-eyebrow">{date}</span>
@@ -1644,10 +1798,10 @@ function Admissions({ section, context }: Props<"admissions">) {
         {data.items.map((item, index) => (
           <li
             key={item.id}
-            className="site-card relative grid content-between gap-8 p-8 text-start"
+            className="site-card relative grid content-between gap-6 p-6 text-start @3xl/site:gap-8 @3xl/site:p-8"
           >
             <div className="grid gap-3">
-              <span className="site-heading text-5xl font-bold text-[var(--s-link)] tabular-nums opacity-40">
+              <span className="site-heading text-4xl font-bold text-[var(--s-link)] tabular-nums opacity-40 @3xl/site:text-5xl">
                 {new Intl.NumberFormat(context.locale).format(index + 1)}
               </span>
               <Heading level={3}>{item.title}</Heading>
@@ -1676,7 +1830,7 @@ function Steps({ section, context }: Props<"steps">) {
         data-stagger
         className={cn(
           variant === "horizontal"
-            ? "grid gap-10 @3xl/site:grid-cols-2 @5xl/site:grid-cols-4"
+            ? "grid gap-0 @3xl/site:grid-cols-2 @3xl/site:gap-10 @5xl/site:grid-cols-4"
             : "mx-auto grid max-w-3xl gap-0",
         )}
       >
@@ -1686,7 +1840,7 @@ function Steps({ section, context }: Props<"steps">) {
             className={cn(
               "relative grid content-start gap-4 text-start",
               variant === "horizontal"
-                ? "@5xl/site:after:absolute @5xl/site:after:start-16 @5xl/site:after:top-7 @5xl/site:after:h-px @5xl/site:after:w-[calc(100%-3rem)] @5xl/site:after:bg-[var(--s-border)] @5xl/site:last:after:hidden"
+                ? "grid-cols-[3.5rem_1fr] gap-x-5 pb-8 before:absolute before:start-7 before:top-14 before:bottom-0 before:w-px before:bg-[var(--s-border)] last:before:hidden @3xl/site:grid-cols-1 @3xl/site:gap-4 @3xl/site:pb-0 @3xl/site:before:hidden @5xl/site:after:absolute @5xl/site:after:start-16 @5xl/site:after:top-7 @5xl/site:after:h-px @5xl/site:after:w-[calc(100%-3rem)] @5xl/site:after:bg-[var(--s-border)] @5xl/site:last:after:hidden"
                 : "grid-cols-[3.5rem_1fr] gap-6 pb-10 before:absolute before:start-7 before:top-14 before:bottom-0 before:w-px before:bg-[var(--s-border)] last:before:hidden",
             )}
           >
@@ -1813,7 +1967,7 @@ function Contact({ section, context }: Props<"contact">) {
       className={cn(
         "grid gap-12",
         variant === "map" &&
-          "items-center @4xl/site:grid-cols-2 @4xl/site:gap-16",
+          "items-center @3xl/site:grid-cols-2 @4xl/site:gap-16",
       )}
     >
       <div className="grid content-start gap-6">
@@ -2044,7 +2198,7 @@ function EnquiryForm({ section, context }: Props<"form">) {
     );
   if (variant === "split")
     return (
-      <div className="grid items-start gap-12 @4xl/site:grid-cols-[2fr_3fr] @4xl/site:gap-16">
+      <div className="grid items-start gap-12 @3xl/site:grid-cols-[2fr_3fr] @4xl/site:gap-16">
         <div className="grid gap-8">
           {words}
           {data.media.fileId ? (
@@ -2131,7 +2285,7 @@ function QuickLinks({ section, context }: Props<"quickLinks">) {
   );
 }
 
-function Embed({ section }: Props<"embed">) {
+function Embed({ section, context }: Props<"embed">) {
   const { data } = section;
   return (
     <div className="mx-auto grid max-w-4xl gap-8">
@@ -2142,6 +2296,10 @@ function Embed({ section }: Props<"embed">) {
             document={embedDocument(data.embed.provider, data.embed.embedId)}
           />
         </div>
+      ) : context.editing ? (
+        <p className="site-muted grid min-h-48 place-items-center rounded-[var(--s-radius)] border-2 border-dashed border-[var(--s-border)] p-8 text-center">
+          {m.siteEmbedEmpty({}, { locale: context.locale })}
+        </p>
       ) : null}
     </div>
   );
@@ -2149,8 +2307,8 @@ function Embed({ section }: Props<"embed">) {
 
 const LAYOUT: Record<string, string> = {
   "1-1": "@3xl/site:grid-cols-2",
-  "2-1": "@4xl/site:grid-cols-[2fr_1fr]",
-  "1-2": "@4xl/site:grid-cols-[1fr_2fr]",
+  "2-1": "@3xl/site:grid-cols-[2fr_1fr]",
+  "1-2": "@3xl/site:grid-cols-[1fr_2fr]",
   "1-1-1": "@3xl/site:grid-cols-3",
   "1-1-1-1": "@3xl/site:grid-cols-2 @5xl/site:grid-cols-4",
   "1": "mx-auto max-w-3xl",
@@ -2201,6 +2359,7 @@ function BlockView({
           seed={block.id}
           ratio={RATIO[ratio]}
           className={cn(
+            "max-h-[36rem]",
             shape === "square" && "rounded-none",
             shape === "rounded" && "rounded-[max(var(--s-radius),1.25rem)]",
             shape === "circle" && "rounded-full",

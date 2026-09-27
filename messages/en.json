@@ -3706,5 +3706,19 @@
   "siteChoiceGradeAsk": "Ask",
   "siteChoiceGradeHide": "Hidden",
   "siteFormSend": "Send",
-  "siteFormLeaveEmpty": "Leave this empty"
+  "siteFormLeaveEmpty": "Leave this empty",
+  "siteEmbedEmpty": "Paste a video, map or form address in this section's settings.",
+  "siteOpenPhoto": "Open picture: {alt}",
+  "siteClosePhoto": "Close picture",
+  "sitePreviousPhoto": "Previous picture",
+  "siteNextPhoto": "Next picture",
+  "sitePhotoCount": "{number} of {count}",
+  "sitePhotoTone": "Photographs",
+  "sitePhotoToneHint": "One tone evens out photographs taken on different phones. Artwork keeps its colours.",
+  "siteToneNatural": "Natural",
+  "siteToneWarm": "Warm",
+  "siteToneMono": "Black and white",
+  "siteToneDuotone": "Brand duotone",
+  "siteLocaleShortEn": "EN",
+  "siteLocaleShortAr": "عربي"
 }
