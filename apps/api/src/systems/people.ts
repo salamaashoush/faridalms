@@ -2,6 +2,7 @@ import type { Descriptor } from "@faridalms/database/stores/descriptors";
 import type { Scope } from "@faridalms/database/stores/students";
 import type { StudentStatus } from "@faridalms/domain/people";
 
+import { rolesForSchool } from "@faridalms/database/stores/access";
 import {
   createPasswordAccount,
   revokeAccountSessions,
@@ -73,6 +74,7 @@ import * as v from "valibot";
 
 import type { UnitContext } from "../core/context";
 
+import { guardingAccess, requireGrantable } from "../core/access";
 import {
   audit,
   can,
@@ -643,12 +645,6 @@ export const endLink = writeProcedure
     return { ended: true };
   });
 
-export const school = readProcedure.handler(async ({ context }) => {
-  const profile = await schoolProfile(context.tx, context.schoolId);
-  if (!profile) throw new ORPCError("NOT_FOUND");
-  return profile;
-});
-
 function labelFrom(list: Descriptor[], value: string | null) {
   const found = list.find((row) => row.id === value);
   return found ? { labelEn: found.labelEn, labelAr: found.labelAr } : null;
@@ -722,6 +718,7 @@ export const person = readProcedure
         manage,
         signIn,
         staff: staffMember && can(context, "staff:manage"),
+        roles: staffMember && can(context, "access:manage"),
         history: manage || can(context, "audit:read"),
       },
     };
@@ -833,6 +830,27 @@ export const staffMember = readProcedure
     };
   });
 
+/**
+ * A natural role brings its built-in access role, so adding one must not
+ * give anyone more than the person adding it holds.
+ */
+async function requireRolesGrantable(
+  context: UnitContext,
+  userId: string,
+  roles: readonly string[],
+) {
+  const [held, builtins] = await Promise.all([
+    rolesAt(context.tx, scopeOf(context), userId),
+    rolesForSchool(context.tx, scopeOf(context)),
+  ]);
+  const current = new Set(held.map((row) => row.role));
+  for (const added of roles.filter((role) => !current.has(role)))
+    requireGrantable(
+      context,
+      builtins.find((row) => row.builtinKey === added)?.capabilities ?? [],
+    );
+}
+
 export const saveStaff = writeProcedure
   .input(saveStaffSchema)
   .handler(async ({ input, context }) => {
@@ -924,12 +942,15 @@ export const saveStaff = writeProcedure
         value: input.phone,
         normalized: phone,
       });
-    await setStaffRoles(tx, scopeOf(context), userId, {
-      roles: input.roles,
-      positionId: input.positionId || null,
-      titleEn: input.titleEn,
-      titleAr: input.titleAr,
-    });
+    await requireRolesGrantable(context, userId, input.roles);
+    await guardingAccess(context, () =>
+      setStaffRoles(tx, scopeOf(context), userId, {
+        roles: input.roles,
+        positionId: input.positionId || null,
+        titleEn: input.titleEn,
+        titleAr: input.titleAr,
+      }),
+    );
     await audit(context, {
       action: "role.change",
       objectType: "user",
@@ -1023,13 +1044,15 @@ export const setSignInState = writeProcedure
     await requireSignInManager(context, input.userId);
     const current = await signInOf(context.tx, context.tenantId, input.userId);
     if (!current) throw new ORPCError("NOT_FOUND");
-    await setAccountState(context.tx, {
-      tenantId: context.tenantId,
-      accountId: current.accountId,
-      state: input.state,
-      reason: input.reason,
-      byUserId: context.actor.userId,
-    });
+    await guardingAccess(context, () =>
+      setAccountState(context.tx, {
+        tenantId: context.tenantId,
+        accountId: current.accountId,
+        state: input.state,
+        reason: input.reason,
+        byUserId: context.actor.userId,
+      }),
+    );
     await audit(context, {
       action: input.state === "disabled" ? "account.disable" : "account.enable",
       objectType: "account",

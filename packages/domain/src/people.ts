@@ -1,6 +1,7 @@
 import * as v from "valibot";
 
 import { CAPABILITIES } from "./capabilities";
+import { FEATURES } from "./features";
 
 const id = v.pipe(v.string(), v.uuid());
 const version = v.pipe(v.number(), v.integer(), v.minValue(1));
@@ -198,6 +199,11 @@ export const saveStaffSchema = v.object({
 });
 export type SaveStaffInput = v.InferInput<typeof saveStaffSchema>;
 
+export const setFeatureSchema = v.object({
+  feature: v.picklist(FEATURES),
+  enabled: v.boolean(),
+});
+
 export const saveSignInSchema = v.object({
   userId: id,
   loginName: v.pipe(email, v.email()),
@@ -252,6 +258,13 @@ export const assignAccessRoleSchema = v.object({
   startsOn: v.optional(isoDate),
   endsOn: v.optional(v.union([v.literal(""), isoDate]), ""),
   reason: optionalText(500),
+});
+
+export const accessChangesSchema = v.object({
+  page: v.optional(
+    v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(10000)),
+    1,
+  ),
 });
 
 export const endAccessAssignmentSchema = v.object({

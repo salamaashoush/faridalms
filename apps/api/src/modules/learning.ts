@@ -1,7 +1,6 @@
 import * as repo from "@faridalms/database/repositories/learning";
 import { ManagementError } from "@faridalms/database/repositories/management";
 import {
-  SCHOOL_FEATURES,
   answerQuizSchema,
   completeLessonSchema,
   learnerModuleQuerySchema,
@@ -56,20 +55,6 @@ async function requireOwnStudent(context: SchoolContext) {
 }
 
 // --- features -------------------------------------------------------------------
-
-export const getSchoolFeatures = protectedProcedure.handler(
-  async ({ context }) => {
-    await requirePermission(context, "school:manage");
-    return repo.getFeatures(context.db);
-  },
-);
-
-export const setSchoolFeature = protectedProcedure
-  .input(v.object({ key: v.picklist(SCHOOL_FEATURES), enabled: v.boolean() }))
-  .handler(async ({ context, input }) => {
-    const user = await requirePermission(context, "school:manage");
-    return repo.setFeature(context.db, input.key, input.enabled, user.id);
-  });
 
 // --- authoring ------------------------------------------------------------------
 

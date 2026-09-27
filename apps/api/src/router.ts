@@ -1,6 +1,5 @@
 import * as academicYears from "./modules/academic-years";
 import * as academics from "./modules/academics";
-import * as access from "./modules/access";
 import * as administration from "./modules/administration";
 import * as announcements from "./modules/announcements";
 import * as assignments from "./modules/assignments";
@@ -17,12 +16,16 @@ import * as site from "./modules/site";
 import * as students from "./modules/students";
 import * as teaching from "./modules/teaching";
 import * as timetable from "./modules/timetable";
+import * as accessSystem from "./systems/access";
 import * as identity from "./systems/identity";
 import * as peopleSystem from "./systems/people";
+import * as schoolSystem from "./systems/school";
 
 export const router = {
   identity,
   people: peopleSystem,
+  access: accessSystem,
+  school: schoolSystem,
   ...students,
   ...overviews,
   ...teaching,
@@ -38,7 +41,6 @@ export const router = {
   ...people,
   ...site,
   ...learning,
-  ...access,
   ...timetable,
   ...search,
   ...rollover,

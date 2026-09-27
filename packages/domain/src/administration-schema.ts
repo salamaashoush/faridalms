@@ -26,22 +26,6 @@ export type ManagementOptionsInput = v.InferInput<
   typeof managementOptionsSchema
 >;
 
-export const schoolProfileSchema = v.object({
-  name: requiredText(160),
-  timeZone: v.pipe(
-    v.string(),
-    v.check((value) => {
-      try {
-        return Boolean(
-          new Intl.DateTimeFormat("en", { timeZone: value }).resolvedOptions()
-            .timeZone,
-        );
-      } catch {
-        return false;
-      }
-    }, "validation.time_zone"),
-  ),
-});
 export const saveSubjectSchema = v.object({
   id: v.optional(id),
   slug: v.pipe(
@@ -66,7 +50,6 @@ export const publishNewsletterSchema = v.object({
   ),
   publishedOn: v.pipe(v.string(), v.isoDate()),
 });
-export type SchoolProfileInput = v.InferInput<typeof schoolProfileSchema>;
 export type SaveSubjectInput = v.InferInput<typeof saveSubjectSchema>;
 export type PublishNewsletterInput = v.InferInput<
   typeof publishNewsletterSchema

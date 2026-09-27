@@ -52,22 +52,6 @@ export async function getFeatures(
   return result;
 }
 
-export async function setFeature(
-  db: Database,
-  key: SchoolFeature,
-  enabled: boolean,
-  userId: string,
-) {
-  await db
-    .insert(schoolFeatures)
-    .values({ key, enabled, updatedById: userId })
-    .onConflictDoUpdate({
-      target: schoolFeatures.key,
-      set: { enabled, updatedById: userId, updatedAt: new Date() },
-    });
-  return getFeatures(db);
-}
-
 // --- authoring ------------------------------------------------------------------
 
 async function requireOffering(

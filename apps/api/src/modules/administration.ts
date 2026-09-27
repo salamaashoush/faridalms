@@ -1,4 +1,3 @@
-import { schools } from "@faridalms/database/control-schema";
 import {
   placementDate,
   workingYear,
@@ -19,7 +18,6 @@ import {
   schoolStats,
 } from "@faridalms/database/repositories/school";
 import {
-  schoolProfileSchema,
   saveSubjectSchema,
   publishNewsletterSchema,
   saveClassSchema,
@@ -27,7 +25,6 @@ import {
 } from "@faridalms/domain/administration-schema";
 import { classDirectorySchema } from "@faridalms/domain/school-schema";
 import { ORPCError } from "@orpc/server";
-import { eq } from "drizzle-orm";
 
 import { requirePermission } from "../authorization";
 import { protectedProcedure } from "../procedure";
@@ -80,24 +77,6 @@ export const getSubjects = protectedProcedure.handler(async ({ context }) => {
   return listSubjects(context.db);
 });
 
-export const getSchoolSettings = protectedProcedure.handler(
-  async ({ context }) => {
-    await requirePermission(context, "school:manage");
-    const year = await currentSchoolYear(context.db);
-    const terms = await context.db.query.terms.findMany({
-      where: { schoolYearId: year.id },
-      orderBy: { startsOn: "asc" },
-      columns: { id: true, name: true, startsOn: true, endsOn: true },
-    });
-
-    return {
-      school: { name: context.school.name, timeZone: context.school.timeZone },
-      year: { name: year.name, startsOn: year.startsOn, endsOn: year.endsOn },
-      terms,
-    };
-  },
-);
-
 export const saveClass = protectedProcedure
   .input(saveClassSchema)
   .handler(async ({ input, context }) => {
@@ -139,16 +118,6 @@ async function manage<T>(action: () => Promise<T>): Promise<T> {
   }
 }
 
-export const saveSchoolProfile = protectedProcedure
-  .input(schoolProfileSchema)
-  .handler(async ({ input, context }) => {
-    await requirePermission(context, "school:manage");
-    await context.control
-      .update(schools)
-      .set(input)
-      .where(eq(schools.id, context.school.id));
-    return { saved: true };
-  });
 export const saveSubject = protectedProcedure
   .input(saveSubjectSchema)
   .handler(async ({ input, context }) => {
