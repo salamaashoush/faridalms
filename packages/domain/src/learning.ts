@@ -23,6 +23,11 @@ export const MAX_LESSON_BLOCKS = 60;
 export const MAX_CHOICE_OPTIONS = 8;
 export const MAX_ACCEPTED_ANSWERS = 10;
 export const MAX_GAPS = 20;
+export const MAX_PAIRS = 8;
+export const MAX_DISTRACTORS = 4;
+export const MAX_ORDER_ITEMS = 10;
+export const MAX_SORT_GROUPS = 4;
+export const MAX_SORT_ITEMS = 20;
 export const MAX_MODULE_CLASSES = 20;
 /** Taken off a check's credit for each try after the first, as Moodle's interactive mode does. */
 export const TRY_PENALTY = 1 / 3;
@@ -192,6 +197,57 @@ export const lessonBlockSchema = v.variant("type", [
   ),
   v.object({
     ...checkFields,
+    type: v.literal("matching"),
+    pairs: v.pipe(
+      v.array(
+        v.object({ id, prompt: requiredText(300), answer: requiredText(300) }),
+      ),
+      v.minLength(2),
+      v.maxLength(MAX_PAIRS),
+    ),
+    /** Answers that match no prompt, so the last pair is still a choice. */
+    distractors: v.pipe(
+      v.array(v.object({ id, text: requiredText(300) })),
+      v.maxLength(MAX_DISTRACTORS),
+    ),
+  }),
+  v.object({
+    ...checkFields,
+    type: v.literal("ordering"),
+    /** In their right order; students see them shuffled. */
+    items: v.pipe(
+      v.array(v.object({ id, text: requiredText(300) })),
+      v.minLength(2),
+      v.maxLength(MAX_ORDER_ITEMS),
+    ),
+    /** Credit for the whole order only, or for each neighbouring pair in order. */
+    scoring: v.picklist(["all", "neighbours"]),
+  }),
+  v.pipe(
+    v.object({
+      ...checkFields,
+      type: v.literal("sorting"),
+      groups: v.pipe(
+        v.array(v.object({ id, name: requiredText(100) })),
+        v.minLength(2),
+        v.maxLength(MAX_SORT_GROUPS),
+      ),
+      items: v.pipe(
+        v.array(v.object({ id, text: requiredText(300), groupId: id })),
+        v.minLength(2),
+        v.maxLength(MAX_SORT_ITEMS),
+      ),
+    }),
+    v.check(
+      (block) =>
+        block.items.every((item) =>
+          block.groups.some((group) => group.id === item.groupId),
+        ),
+      "learning.sort_group",
+    ),
+  ),
+  v.object({
+    ...checkFields,
     type: v.literal("written"),
     /** Null for no limit. */
     wordLimit: v.nullable(
@@ -205,9 +261,19 @@ export type ChoiceBlock = Extract<LessonBlock, { type: "choice" }>;
 export type TextBlock = Extract<LessonBlock, { type: "text" }>;
 export type GapsBlock = Extract<LessonBlock, { type: "gaps" }>;
 export type NumberBlock = Extract<LessonBlock, { type: "number" }>;
+export type MatchingBlock = Extract<LessonBlock, { type: "matching" }>;
+export type OrderingBlock = Extract<LessonBlock, { type: "ordering" }>;
+export type SortingBlock = Extract<LessonBlock, { type: "sorting" }>;
 export type WrittenBlock = Extract<LessonBlock, { type: "written" }>;
 /** A question the server marks the moment it is answered. */
-export type AutoBlock = ChoiceBlock | TextBlock | GapsBlock | NumberBlock;
+export type AutoBlock =
+  | ChoiceBlock
+  | TextBlock
+  | GapsBlock
+  | NumberBlock
+  | MatchingBlock
+  | OrderingBlock
+  | SortingBlock;
 export type CheckBlock = AutoBlock | WrittenBlock;
 
 const AUTO_TYPES = new Set<LessonBlockType>([
@@ -215,6 +281,9 @@ const AUTO_TYPES = new Set<LessonBlockType>([
   "text",
   "gaps",
   "number",
+  "matching",
+  "ordering",
+  "sorting",
 ]);
 
 export const isAuto = (block: LessonBlock): block is AutoBlock =>
@@ -365,6 +434,21 @@ export function lessonPlainText(document: LessonDocument): string {
           return "";
         case "gaps":
           return [block.prompt, gapText(block)].join("\n");
+        case "matching":
+          return [
+            block.prompt,
+            ...block.pairs.map((pair) => `${pair.prompt}: ${pair.answer}`),
+          ].join("\n");
+        case "ordering":
+          return [block.prompt, ...block.items.map((item) => item.text)].join(
+            "\n",
+          );
+        case "sorting":
+          return [
+            block.prompt,
+            ...block.groups.map((group) => group.name),
+            ...block.items.map((item) => item.text),
+          ].join("\n");
         default:
           return block.prompt;
       }
@@ -410,6 +494,12 @@ export const responseSchema = v.variant("type", [
     answers: v.record(id, text(200)),
   }),
   v.object({ type: v.literal("number"), text: requiredText(60) }),
+  v.object({ type: v.literal("matching"), pairs: v.record(id, id) }),
+  v.object({
+    type: v.literal("ordering"),
+    order: v.pipe(v.array(id), v.minLength(2), v.maxLength(MAX_ORDER_ITEMS)),
+  }),
+  v.object({ type: v.literal("sorting"), groups: v.record(id, id) }),
   v.object({ type: v.literal("written"), text: requiredText(20000) }),
 ]);
 export type LessonResponse = v.InferOutput<typeof responseSchema>;
@@ -420,8 +510,8 @@ export interface Marked {
   correct: boolean;
   /** The feedback of each option the student chose. */
   feedback: string[];
-  /** Per gap, whether it was right. */
-  gaps: Record<string, boolean>;
+  /** Per blank, pair or item, whether it was right. */
+  parts: Record<string, boolean>;
 }
 
 const round = (value: number) => Math.round(value * 10000) / 10000;
@@ -435,7 +525,17 @@ export function markResponse(
   block: AutoBlock,
   response: LessonResponse,
 ): Marked {
-  const none: Marked = { fraction: 0, correct: false, feedback: [], gaps: {} };
+  const none: Marked = { fraction: 0, correct: false, feedback: [], parts: {} };
+  const share = (results: Record<string, boolean>): Marked => {
+    const values = Object.values(results);
+    const hits = values.filter(Boolean).length;
+    return {
+      ...none,
+      fraction: round(hits / values.length),
+      correct: hits === values.length,
+      parts: results,
+    };
+  };
   switch (block.type) {
     case "choice": {
       if (response.type !== "choice") return none;
@@ -476,13 +576,7 @@ export function markResponse(
           return [gap.id, right];
         }),
       );
-      const hits = Object.values(results).filter(Boolean).length;
-      return {
-        ...none,
-        fraction: round(hits / gaps.length),
-        correct: hits === gaps.length,
-        gaps: results,
-      };
+      return share(results);
     }
     case "number": {
       if (response.type !== "number") return none;
@@ -497,6 +591,66 @@ export function markResponse(
               : block.tolerance) +
               1e-9;
       return { ...none, fraction: correct ? 1 : 0, correct };
+    }
+    case "matching": {
+      if (response.type !== "matching") return none;
+      // Compared by text, so two prompts sharing an answer accept either copy.
+      const texts = new Map([
+        ...block.pairs.map((pair) => [pair.id, pair.answer] as const),
+        ...block.distractors.map((other) => [other.id, other.text] as const),
+      ]);
+      return share(
+        Object.fromEntries(
+          block.pairs.map((pair) => {
+            const chosen = response.pairs[pair.id];
+            return [
+              pair.id,
+              chosen !== undefined && texts.get(chosen) === pair.answer,
+            ];
+          }),
+        ),
+      );
+    }
+    case "ordering": {
+      if (response.type !== "ordering") return none;
+      const expected = block.items.map((item) => item.id);
+      const { order } = response;
+      if (
+        order.length !== expected.length ||
+        new Set(order).size !== order.length ||
+        !order.every((itemId) => expected.includes(itemId))
+      )
+        return none;
+      const parts = Object.fromEntries(
+        order.map((itemId, index) => [itemId, expected[index] === itemId]),
+      );
+      const exact = Object.values(parts).every(Boolean);
+      if (block.scoring === "all")
+        return { ...none, fraction: exact ? 1 : 0, correct: exact, parts };
+      let neighbours = 0;
+      for (let index = 0; index < order.length - 1; index++)
+        if (
+          expected.indexOf(order[index + 1] ?? "") ===
+          expected.indexOf(order[index] ?? "") + 1
+        )
+          neighbours++;
+      return {
+        ...none,
+        fraction: round(neighbours / (order.length - 1)),
+        correct: exact,
+        parts,
+      };
+    }
+    case "sorting": {
+      if (response.type !== "sorting") return none;
+      return share(
+        Object.fromEntries(
+          block.items.map((item) => [
+            item.id,
+            response.groups[item.id] === item.groupId,
+          ]),
+        ),
+      );
     }
   }
   return none;
@@ -597,7 +751,15 @@ export type StudentBlock =
         | { type: "gap"; id: string; options: string[] }
       )[];
     })
-  | Pick<NumberBlock, "id" | "type" | "prompt" | "points" | "tries">;
+  | Pick<NumberBlock, "id" | "type" | "prompt" | "points" | "tries">
+  | (Omit<MatchingBlock, "distractors" | "explanation" | "hint" | "pairs"> & {
+      prompts: { id: string; text: string }[];
+      choices: { id: string; text: string }[];
+    })
+  | Omit<OrderingBlock, "explanation" | "hint">
+  | (Omit<SortingBlock, "explanation" | "hint" | "items"> & {
+      items: { id: string; text: string }[];
+    });
 
 function shuffled<T>(items: T[], seed: string): T[] {
   let state = 0;
@@ -675,6 +837,48 @@ export function studentBlocks(
           points: block.points,
           tries: block.tries,
         };
+      case "matching": {
+        const {
+          pairs,
+          distractors,
+          explanation: _why,
+          hint: _hint,
+          ...rest
+        } = block;
+        // One choice per distinct answer, so a repeated answer is not a clue.
+        const seen = new Set<string>();
+        const choices = [
+          ...pairs.map((pair) => ({ id: pair.id, text: pair.answer })),
+          ...distractors,
+        ].filter((choice) => {
+          if (seen.has(choice.text)) return false;
+          seen.add(choice.text);
+          return true;
+        });
+        return {
+          ...rest,
+          prompts: pairs.map((pair) => ({ id: pair.id, text: pair.prompt })),
+          choices: shuffled(choices, `${seed}:${block.id}`),
+        };
+      }
+      case "ordering": {
+        const { explanation: _why, hint: _hint, ...rest } = block;
+        let items = shuffled(block.items, `${seed}:${block.id}`);
+        // A shuffle that lands on the answer would hand it over; turn it once.
+        if (items.every((item, index) => item.id === block.items[index]?.id))
+          items = [...items.slice(1), ...items.slice(0, 1)];
+        return { ...rest, items };
+      }
+      case "sorting": {
+        const { explanation: _why, hint: _hint, items, ...rest } = block;
+        return {
+          ...rest,
+          items: shuffled(
+            items.map((item) => ({ id: item.id, text: item.text })),
+            `${seed}:${block.id}`,
+          ),
+        };
+      }
       case "written": {
         const { explanation: _why, hint: _hint, ...rest } = block;
         return rest;
@@ -704,8 +908,48 @@ export function answerKey(block: AutoBlock): string[] {
             ? `${block.value} ± ${block.tolerance}${block.percent ? "%" : ""}`
             : String(block.value),
       ];
+    case "matching":
+      return block.pairs.map((pair) => `${pair.prompt}: ${pair.answer}`);
+    case "ordering":
+      return block.items.map((item) => item.text);
+    case "sorting":
+      return block.items.map(
+        (item) =>
+          `${item.text}: ${block.groups.find((group) => group.id === item.groupId)?.name ?? ""}`,
+      );
   }
   return [];
+}
+
+/** The right answer for each blank, pair or item, shown beside it once settled. */
+export function partKey(block: AutoBlock): Record<string, string> {
+  switch (block.type) {
+    case "gaps":
+      return Object.fromEntries(
+        block.segments.flatMap((segment) =>
+          segment.type === "gap"
+            ? [[segment.id, segment.answers[0] ?? ""]]
+            : [],
+        ),
+      );
+    case "matching":
+      return Object.fromEntries(
+        block.pairs.map((pair) => [pair.id, pair.answer]),
+      );
+    case "ordering":
+      return Object.fromEntries(
+        block.items.map((item, index) => [item.id, String(index + 1)]),
+      );
+    case "sorting":
+      return Object.fromEntries(
+        block.items.map((item) => [
+          item.id,
+          block.groups.find((group) => group.id === item.groupId)?.name ?? "",
+        ]),
+      );
+    default:
+      return {};
+  }
 }
 
 export const saveModuleSchema = v.object({
@@ -884,10 +1128,11 @@ export interface CheckView {
   fraction: number;
   triesLeft: number | null;
   feedback: string[];
-  gaps: Record<string, boolean>;
+  parts: Record<string, boolean>;
   /** Offered after a wrong try, before the answer is shown. */
   hint: string | null;
   key: string[] | null;
+  partKey: Record<string, string> | null;
   explanation: string | null;
   marked: boolean;
   /** Points a written answer earned, once marked. */
@@ -918,9 +1163,10 @@ export function describeCheck(
     fraction: 0,
     triesLeft: null,
     feedback: [],
-    gaps: {},
+    parts: {},
     hint: null,
     key: null,
+    partKey: null,
     explanation: null,
     marked: state?.marked ?? false,
     credit: null,
@@ -942,9 +1188,10 @@ export function describeCheck(
     fraction: state?.fraction ?? 0,
     triesLeft: block.tries === null ? null : Math.max(0, block.tries - tries),
     feedback: marked?.feedback ?? [],
-    gaps: marked?.gaps ?? {},
+    parts: marked?.parts ?? {},
     hint: !open && marked && !marked.correct && block.hint ? block.hint : null,
     key: open ? answerKey(block) : null,
+    partKey: open ? partKey(block) : null,
     explanation: open ? block.explanation : null,
   };
 }

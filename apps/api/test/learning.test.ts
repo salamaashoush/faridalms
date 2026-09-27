@@ -10,6 +10,7 @@ const mother = () =>
 type Api = Awaited<ReturnType<typeof student>>;
 
 const TITLE = "Reading stories together";
+const id = () => crypto.randomUUID();
 
 /** The seeded teachers split into one who teaches the module and one who does not. */
 async function teachers() {
@@ -160,7 +161,7 @@ describe("learning a module", () => {
     });
     expect(half.check).toMatchObject({
       fraction: 0.5,
-      gaps: { [first]: true, [second]: false },
+      parts: { [first]: true, [second]: false },
       key: null,
     });
     expect(half.completed).toBe(false);
@@ -251,6 +252,122 @@ describe("learning a module", () => {
     const me = await (await student()).identity.currentUser();
     const { rows } = await family.learning.mine({ studentId: me.id });
     expect(rows.some((row) => row.title === TITLE)).toBe(true);
+  });
+});
+
+describe("matching, ordering and sorting", () => {
+  test("a student answers each kind in a new module and finishes with full marks", async () => {
+    const { keeper } = await teachers();
+    const { rows } = await keeper.learning.modules({});
+    const source = rows.find((row) => row.title === TITLE);
+    if (!source) throw new Error("no module");
+    const saved = await keeper.learning.saveModule({
+      id: "",
+      expectedVersion: 0,
+      title: "Planets",
+      summary: "",
+      classIds: source.classes.map((item) => item.id),
+      prerequisiteId: "",
+      sequential: false,
+    });
+    const common = {
+      points: 1,
+      hint: "",
+      explanation: "",
+      tries: null,
+    };
+    const pairs = [
+      { id: id(), prompt: "Red planet", answer: "Mars" },
+      { id: id(), prompt: "Ringed planet", answer: "Saturn" },
+    ];
+    const items = ["Mercury", "Venus", "Earth"].map((text) => ({
+      id: id(),
+      text,
+    }));
+    const groups = [
+      { id: id(), name: "Rocky" },
+      { id: id(), name: "Gas giant" },
+    ];
+    const sorted = [
+      { id: id(), text: "Earth", groupId: groups[0]?.id ?? "" },
+      { id: id(), text: "Jupiter", groupId: groups[1]?.id ?? "" },
+    ];
+    const blocks = [
+      {
+        ...common,
+        id: id(),
+        type: "matching" as const,
+        prompt: "Match each planet.",
+        pairs,
+        distractors: [{ id: id(), text: "Pluto" }],
+      },
+      {
+        ...common,
+        id: id(),
+        type: "ordering" as const,
+        prompt: "Order them from the sun.",
+        items,
+        scoring: "all" as const,
+      },
+      {
+        ...common,
+        id: id(),
+        type: "sorting" as const,
+        prompt: "Sort the planets.",
+        groups,
+        items: sorted,
+      },
+    ];
+    await keeper.learning.saveLesson({
+      id: "",
+      moduleId: saved.id,
+      expectedVersion: 0,
+      title: "Order and sort",
+      completion: "quiz",
+      passScore: null,
+      content: { version: 2, blocks },
+      publish: false,
+    });
+    await keeper.learning.publishModule({
+      id: saved.id,
+      expectedVersion: saved.version,
+    });
+
+    const pupil = await student();
+    const outline = await pupil.learning.play({ id: saved.id });
+    const lessonId = outline.lessons[0]?.id ?? "";
+    const opened = await pupil.learning.playLesson({ id: lessonId });
+    const ordering = blockOf(opened, "ordering");
+    expect(ordering.items.map((item) => item.id)).not.toEqual(
+      items.map((item) => item.id),
+    );
+    expect(JSON.stringify(opened.blocks)).not.toContain("groupId");
+    const [matching, , sorting] = blocks;
+    if (!matching || !sorting) throw new Error("blocks");
+    await pupil.learning.respond({
+      lessonId,
+      blockId: matching.id,
+      response: {
+        type: "matching",
+        pairs: Object.fromEntries(pairs.map((pair) => [pair.id, pair.id])),
+      },
+    });
+    await pupil.learning.respond({
+      lessonId,
+      blockId: ordering.id,
+      response: { type: "ordering", order: items.map((item) => item.id) },
+    });
+    const done = await pupil.learning.respond({
+      lessonId,
+      blockId: sorting.id,
+      response: {
+        type: "sorting",
+        groups: Object.fromEntries(
+          sorted.map((item) => [item.id, item.groupId]),
+        ),
+      },
+    });
+    expect(done).toMatchObject({ completed: true, score: 100 });
   });
 });
 

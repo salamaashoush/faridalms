@@ -5,7 +5,10 @@ import type {
   ChoiceBlock,
   GapsBlock,
   LessonDocument,
+  MatchingBlock,
   NumberBlock,
+  OrderingBlock,
+  SortingBlock,
   TextBlock,
 } from "./learning";
 
@@ -18,6 +21,7 @@ import {
   lessonScore,
   markResponse,
   parseGaps,
+  partKey,
   studentBlocks,
   upgradeLesson,
 } from "./learning";
@@ -133,7 +137,7 @@ describe("marking answers", () => {
     expect(marked).toMatchObject({
       fraction: 0.5,
       correct: false,
-      gaps: { [uuid(31)]: true, [uuid(32)]: false },
+      parts: { [uuid(31)]: true, [uuid(32)]: false },
     });
   });
 
@@ -304,5 +308,112 @@ describe("writing blanks", () => {
     );
     expect(after.slice(0, 2)).toEqual(ids);
     expect(after[2]).not.toBe(ids[1]);
+  });
+});
+
+describe("matching, ordering and sorting", () => {
+  const matching: MatchingBlock = {
+    ...common,
+    id: uuid(8),
+    type: "matching",
+    prompt: "Match each country to its capital.",
+    pairs: [
+      { id: uuid(81), prompt: "Egypt", answer: "Cairo" },
+      { id: uuid(82), prompt: "Jordan", answer: "Amman" },
+      { id: uuid(83), prompt: "Egypt's capital", answer: "Cairo" },
+    ],
+    distractors: [{ id: uuid(84), text: "Tunis" }],
+  };
+  const ordering: OrderingBlock = {
+    ...common,
+    id: uuid(9),
+    type: "ordering",
+    prompt: "Put the planets in order from the sun.",
+    items: [
+      { id: uuid(91), text: "Mercury" },
+      { id: uuid(92), text: "Venus" },
+      { id: uuid(93), text: "Earth" },
+      { id: uuid(94), text: "Mars" },
+    ],
+    scoring: "neighbours",
+  };
+  const sorting: SortingBlock = {
+    ...common,
+    id: uuid(10),
+    type: "sorting",
+    prompt: "Sort the animals.",
+    groups: [
+      { id: uuid(101), name: "Mammals" },
+      { id: uuid(102), name: "Birds" },
+    ],
+    items: [
+      { id: uuid(103), text: "Camel", groupId: uuid(101) },
+      { id: uuid(104), text: "Falcon", groupId: uuid(102) },
+      { id: uuid(105), text: "Bat", groupId: uuid(101) },
+    ],
+  };
+
+  it("marks each pair by its answer, so a repeated answer is offered once and accepted for both", () => {
+    const [shown] = studentBlocks({ version: 2, blocks: [matching] }, "s");
+    if (shown?.type !== "matching") throw new Error("matching expected");
+    expect(shown.choices.map((item) => item.text).toSorted()).toEqual([
+      "Amman",
+      "Cairo",
+      "Tunis",
+    ]);
+    const marked = markResponse(matching, {
+      type: "matching",
+      pairs: {
+        [uuid(81)]: uuid(81),
+        [uuid(82)]: uuid(84),
+        [uuid(83)]: uuid(81),
+      },
+    });
+    expect(marked).toMatchObject({
+      fraction: 0.6667,
+      correct: false,
+      parts: { [uuid(81)]: true, [uuid(82)]: false, [uuid(83)]: true },
+    });
+  });
+
+  it("credits an order by neighbours in place and never shows it already solved", () => {
+    const swapped = markResponse(ordering, {
+      type: "ordering",
+      order: [uuid(91), uuid(92), uuid(94), uuid(93)],
+    });
+    expect(swapped).toMatchObject({ fraction: 0.3333, correct: false });
+    expect(
+      markResponse(
+        { ...ordering, scoring: "all" },
+        { type: "ordering", order: [uuid(91), uuid(92), uuid(94), uuid(93)] },
+      ).fraction,
+    ).toBe(0);
+    expect(
+      markResponse(ordering, { type: "ordering", order: [uuid(91), uuid(91)] })
+        .fraction,
+    ).toBe(0);
+    for (const seed of ["a", "b", "c", "d", "e", "f"]) {
+      const [shown] = studentBlocks({ version: 2, blocks: [ordering] }, seed);
+      if (shown?.type !== "ordering") throw new Error("ordering expected");
+      expect(shown.items.map((item) => item.id)).not.toEqual(
+        ordering.items.map((item) => item.id),
+      );
+    }
+  });
+
+  it("sorts items into groups without telling the student which is which", () => {
+    const [shown] = studentBlocks({ version: 2, blocks: [sorting] }, "s");
+    expect(JSON.stringify(shown)).not.toContain("groupId");
+    expect(
+      markResponse(sorting, {
+        type: "sorting",
+        groups: { [uuid(103)]: uuid(101), [uuid(104)]: uuid(101) },
+      }),
+    ).toMatchObject({ fraction: 0.3333, parts: { [uuid(105)]: false } });
+    expect(partKey(sorting)).toEqual({
+      [uuid(103)]: "Mammals",
+      [uuid(104)]: "Birds",
+      [uuid(105)]: "Mammals",
+    });
   });
 });
