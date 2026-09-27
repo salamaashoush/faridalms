@@ -6,14 +6,18 @@ import { and, eq, sql } from "drizzle-orm";
 
 import type { CellTransaction, openOwner } from "./context";
 import type { KeyEncryptionKey } from "./crypto";
+import type { Audience } from "./stores/announcements";
 import type { ProvisionedTenant, TenantSpec } from "./tenants";
 
 import { withPurpose } from "./context";
 import { encryptField } from "./crypto";
 import { newUserHandle } from "./stores/accounts";
+import { addRecipients, audienceUsers } from "./stores/announcements";
 import {
   academicSessions,
   academicWeeks,
+  announcementAudiences,
+  announcements,
   attendanceRegisters,
   assessments,
   assignmentRecipients,
@@ -1213,6 +1217,7 @@ async function seedSchool(
   await seedCoursework(tx, tenantId, schoolId, yearId);
   await seedAttendance(tx, tenantId, schoolId, yearId);
   await seedMessages(tx, tenantId, schoolId, yearId);
+  await seedAnnouncements(tx, tenantId, schoolId);
   return { yearId, teachers };
 }
 
@@ -1297,6 +1302,95 @@ async function seedTimetable(
   }
   for (let index = 0; index < meetings.length; index += 200)
     await tx.insert(classMeetings).values(meetings.slice(index, index + 200));
+}
+
+/**
+ * A pinned welcome to everyone, a trip notice families must acknowledge, and
+ * a draft still being written, so the feed, the reader and the editor each
+ * open on something.
+ */
+async function seedAnnouncements(tx: Tx, tenantId: string, schoolId: string) {
+  const [principal] = await tx.execute<{ user_id: string }>(sql`
+    select r.user_id from core.user_roles r
+    where r.tenant_id = ${tenantId}::uuid and r.org_id = ${schoolId}::uuid
+      and r.role in ('principal', 'site_administrator') and r.status = 'active'
+    order by r.role, r.user_id limit 1`);
+  if (!principal) return;
+  const on = "2026-09-27";
+  const plans: {
+    title: string;
+    body: string;
+    audience: Audience;
+    urgency: "normal" | "important";
+    pinnedUntil?: string;
+    requiresAck?: boolean;
+    ackDueOn?: string;
+    publishAt: Date | null;
+  }[] = [
+    {
+      title: "Welcome to the new school year",
+      body: "Registers open at 7:45 each morning. The timetable and the reading lists for the term are in the app.",
+      audience: { scope: "school", classId: null, gradeId: null },
+      urgency: "normal",
+      pinnedUntil: "2026-10-31",
+      publishAt: new Date("2026-09-13T06:00:00Z"),
+    },
+    {
+      title: "Museum trip permission",
+      body: "The museum trip is on 15 October. Please acknowledge that your child may join by 8 October.",
+      audience: { scope: "families", classId: null, gradeId: null },
+      urgency: "important",
+      requiresAck: true,
+      ackDueOn: "2026-10-08",
+      publishAt: new Date("2026-09-24T09:00:00Z"),
+    },
+    {
+      title: "Parents' evening",
+      body: "Parents' evening dates will follow once teachers confirm their slots.",
+      audience: { scope: "families", classId: null, gradeId: null },
+      urgency: "normal",
+      publishAt: null,
+    },
+  ];
+  for (const plan of plans) {
+    const id = Bun.randomUUIDv7();
+    await tx.insert(announcements).values({
+      tenantId,
+      id,
+      orgId: schoolId,
+      title: plan.title,
+      urgency: plan.urgency,
+      state: plan.publishAt ? "published" : "draft",
+      publishAt: plan.publishAt,
+      pinnedUntil: plan.pinnedUntil ?? null,
+      requiresAck: plan.requiresAck ?? false,
+      ackDueOn: plan.ackDueOn ?? null,
+      authorUserId: principal.user_id,
+    });
+    await tx.insert(announcementAudiences).values({
+      tenantId,
+      announcementId: id,
+      scope: plan.audience.scope,
+    });
+    await tx.insert(documents).values({
+      tenantId,
+      hostType: "announcement",
+      hostId: id,
+      orgId: schoolId,
+      kind: "rich_text",
+      schemaVersion: 1,
+      content: plainContent(plan.body) as unknown as Record<string, unknown>,
+      plainText: plan.body,
+    });
+    if (plan.publishAt)
+      await addRecipients(tx, {
+        tenantId,
+        announcementId: id,
+        userIds: await audienceUsers(tx, { tenantId, schoolId, on }, [
+          plan.audience,
+        ]),
+      });
+  }
 }
 
 /** A seeded moment in the week before the seeded today. */
