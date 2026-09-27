@@ -37,11 +37,12 @@ section 4).
 1. **Announcements** (done 2026-09-27): DocumentPage editor with audiences,
    urgency, pinning, expiry, acknowledgement and scheduling in the details
    panel; reader as a page, delivery report in a side panel.
-2. **Newsletters**: content becomes one document per language instead of a
-   list of sections. The translation is edited beside the original, and a
-   translation marked reviewed shows when the original changed after the
-   review. The migration joins each edition's sections into one document,
-   headings becoming level-two headings.
+2. **Newsletters** (done 2026-09-27): one document per language instead of a
+   list of sections, written in the same page on either language's tab, with
+   the original a click away. A translation marked checked shows when the
+   original changed after the check, and a changed translation needs checking
+   again. The migration joined each edition's sections into one document,
+   headings becoming level-two headings, and kept whole-edition checks.
 3. **Calendar events** (done 2026-09-27): DocumentPage with the
    description as the document and dates, place, audiences, kind, public
    flag and telling in the details panel; an event reads in a side panel

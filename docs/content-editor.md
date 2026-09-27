@@ -19,9 +19,10 @@ Assignment briefs, learner responses, assessment feedback, new messages and
 replies now save the shared document; the assignment record, attempt history
 and conversation view render it through the static renderer. Plain-text and
 Markdown messages written by older clients keep their format and renderers.
-Announcements are written and read through it, and newsletter drafts publish
-into immutable editions read on their own page. Calendar event descriptions
-are not connected yet.
+Announcements, calendar events and newsletters are written as one document
+each; a newsletter keeps one document per language, the translation checked
+as a whole against the original, and publishes into immutable editions read
+on their own page.
 
 `apps/web/src/components/content/ContentEditor.tsx` uses Lexical's extension API
 with stable initialization. `ContentToolbar.tsx` supplies the shared controls.
