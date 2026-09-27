@@ -1,4 +1,5 @@
 import { CATALOGUE } from "@faridalms/domain/descriptors/catalogue";
+import { addDays, teachingWeeks } from "@faridalms/domain/school";
 import { and, eq } from "drizzle-orm";
 
 import type { CellTransaction, openOwner } from "./context";
@@ -29,6 +30,7 @@ import {
   households,
   locations,
   loginIdentities,
+  orgs,
   studentSchoolYears,
   tenantKeys,
   userRelationships,
@@ -150,12 +152,6 @@ const need = <K, V>(map: Map<K, V>, key: K): V => {
   return value;
 };
 
-function addDays(day: string, days: number): string {
-  const date = new Date(`${day}T00:00:00Z`);
-  date.setUTCDate(date.getUTCDate() + days);
-  return date.toISOString().slice(0, 10);
-}
-
 const isoWeekday = (day: string) => {
   const weekday = new Date(`${day}T00:00:00Z`).getUTCDay();
   return weekday === 0 ? 7 : weekday;
@@ -225,13 +221,14 @@ const YEAR: YearPlan = {
   ],
 };
 
-async function seedYear(
-  tx: Tx,
-  tenantId: string,
-  schoolId: string,
-  weekendDays: number[],
-) {
+async function seedYear(tx: Tx, tenantId: string, schoolId: string) {
   const events = await descriptorIds(tx, tenantId, "calendar_event");
+  const [school] = await tx
+    .select({ weekStart: orgs.weekStart, weekendDays: orgs.weekendDays })
+    .from(orgs)
+    .where(and(eq(orgs.tenantId, tenantId), eq(orgs.id, schoolId)));
+  if (!school) throw new Error("Seed school is missing");
+  const { weekStart, weekendDays } = school;
   const yearId = Bun.randomUUIDv7();
   await tx.insert(academicSessions).values({
     tenantId,
@@ -272,7 +269,6 @@ async function seedYear(
     titleAr: "التقويم المدرسي",
   });
   const days: (typeof calendarDates.$inferInsert)[] = [];
-  const teaching: string[] = [];
   for (let day = YEAR.start; day < YEAR.end; day = addDays(day, 1)) {
     const holiday = YEAR.holidays.find((h) => day >= h.start && day < h.end);
     const weekend = weekendDays.includes(isoWeekday(day));
@@ -281,7 +277,6 @@ async function seedYear(
       : holiday
         ? holiday.code
         : "instructional_day";
-    if (code === "instructional_day") teaching.push(day);
     days.push({
       tenantId,
       calendarId,
@@ -294,25 +289,19 @@ async function seedYear(
   }
   for (let index = 0; index < days.length; index += 100)
     await tx.insert(calendarDates).values(days.slice(index, index + 100));
-  const weeks: (typeof academicWeeks.$inferInsert)[] = [];
-  let weekStart = YEAR.start;
-  let number = 1;
-  while (weekStart < YEAR.end) {
-    const weekEnd =
-      addDays(weekStart, 7) < YEAR.end ? addDays(weekStart, 7) : YEAR.end;
-    if (teaching.some((day) => day >= weekStart && day < weekEnd)) {
-      weeks.push({
-        tenantId,
-        schoolYearId: yearId,
-        number,
-        span: `[${weekStart},${weekEnd})`,
-        labelEn: `Week ${number}`,
-        labelAr: `الأسبوع ${number}`,
-      });
-      number += 1;
-    }
-    weekStart = weekEnd;
-  }
+  const weeks = teachingWeeks(
+    YEAR.start,
+    addDays(YEAR.end, -1),
+    1,
+    weekStart,
+  ).map((week) => ({
+    tenantId,
+    schoolYearId: yearId,
+    number: week.number,
+    span: `[${week.startsOn},${addDays(week.endsOn, 1)})`,
+    labelEn: `Week ${week.number}`,
+    labelAr: `الأسبوع ${week.number}`,
+  }));
   await tx.insert(academicWeeks).values(weeks);
   const periods: [
     code: string,
@@ -632,7 +621,6 @@ async function seedSchool(
     kek: KeyEncryptionKey;
     cell: string;
     domain: string;
-    weekendDays: number[];
     logins: SeededTenant["logins"];
     shared: {
       reference: number;
@@ -653,12 +641,7 @@ async function seedSchool(
     if (value === undefined) throw new Error("empty list");
     return value;
   };
-  const { yearId, calendarId } = await seedYear(
-    tx,
-    tenantId,
-    schoolId,
-    context.weekendDays,
-  );
+  const { yearId, calendarId } = await seedYear(tx, tenantId, schoolId);
   const positions = await descriptorIds(tx, tenantId, "staff_position");
   const grades = await descriptorIds(tx, tenantId, "grade_level");
   const relations = await descriptorIds(tx, tenantId, "relation");
@@ -1147,7 +1130,6 @@ export async function seedCell(
         kek: options.kek,
         cell: options.cell,
         domain: plan.domain,
-        weekendDays: plan.spec.jurisdictions.includes("AE") ? [6, 7] : [5, 6],
         logins,
         shared: { reference: 1000 },
       };

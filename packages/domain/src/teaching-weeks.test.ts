@@ -38,4 +38,12 @@ describe("teachingWeeks", () => {
       { number: 45, startsOn: "2027-07-04", endsOn: "2027-07-10" },
     ]);
   });
+
+  it("starts each week on the school's first weekday", () => {
+    expect(teachingWeeks("2026-09-02", "2026-09-15", 1, 1)).toEqual([
+      { number: 1, startsOn: "2026-09-02", endsOn: "2026-09-06" },
+      { number: 2, startsOn: "2026-09-07", endsOn: "2026-09-13" },
+      { number: 3, startsOn: "2026-09-14", endsOn: "2026-09-15" },
+    ]);
+  });
 });

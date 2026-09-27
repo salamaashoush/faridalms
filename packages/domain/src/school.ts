@@ -116,19 +116,22 @@ export function weekForDate<T extends DatedWeek>(
 
 /**
  * Teaching weeks covering an inclusive date range with no gaps: each runs
- * from a Sunday, the first day of the Egyptian school week, to the next
- * Saturday, clipped to the range. Numbering continues from `firstNumber`.
+ * from the school's first weekday (ISO, Sunday by default, the first day of
+ * the Egyptian school week) to the day before the next, clipped to the range.
+ * Numbering continues from `firstNumber`.
  */
 export function teachingWeeks(
   startsOn: string,
   endsOn: string,
   firstNumber = 1,
+  weekStart = 7,
 ): { number: number; startsOn: string; endsOn: string }[] {
   const weeks: { number: number; startsOn: string; endsOn: string }[] = [];
+  const first = weekStart % 7;
   let cursor = startsOn;
   while (cursor <= endsOn) {
-    const saturday = addDays(cursor, 6 - weekdayOf(cursor));
-    const last = saturday < endsOn ? saturday : endsOn;
+    const lastDay = addDays(cursor, (first + 6 - weekdayOf(cursor)) % 7);
+    const last = lastDay < endsOn ? lastDay : endsOn;
     weeks.push({
       number: firstNumber + weeks.length,
       startsOn: cursor,
