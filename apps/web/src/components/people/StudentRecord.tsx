@@ -57,6 +57,11 @@ import {
   STATUS_TONE,
 } from "./format";
 import { Deferred, Email, HistorySection, Phone } from "./record-parts";
+import {
+  CustodySection,
+  DemographicsSection,
+  HealthSection,
+} from "./RecordSections";
 import { SignInSection } from "./SignInSection";
 import { StudentSheets, useEndLink } from "./StudentSheets";
 
@@ -65,6 +70,7 @@ export const STUDENT_TABS = [
   "details",
   "family",
   "enrollment",
+  "health",
   "account",
   "history",
 ] as const;
@@ -75,6 +81,7 @@ const TAB_LABEL: Record<StudentTab, () => string> = {
   details: m.studentTabDetails,
   family: m.studentTabFamily,
   enrollment: m.studentTabEnrollment,
+  health: m.studentTabHealth,
   account: m.studentTabAccount,
   history: m.recordHistory,
 };
@@ -93,6 +100,7 @@ export function studentTabsFor(
     details: true,
     family: access.contacts,
     enrollment: true,
+    health: access.health,
     account: access.manage,
     history: access.history,
   };
@@ -472,10 +480,17 @@ export function StudentRecord({
       body = (
         <RecordColumns
           main={
-            <PersonalSection
-              data={data}
-              onEdit={access.manage ? open({ kind: "personal" }) : undefined}
-            />
+            <>
+              <PersonalSection
+                data={data}
+                onEdit={access.manage ? open({ kind: "personal" }) : undefined}
+              />
+              {access.demographics ? (
+                <Deferred>
+                  <DemographicsSection studentId={studentId} />
+                </Deferred>
+              ) : null}
+            </>
           }
         />
       );
@@ -484,11 +499,20 @@ export function StudentRecord({
       body = (
         <RecordColumns
           main={
-            <GuardiansSection
-              data={data}
-              onAdd={access.manage ? open({ kind: "add-guardian" }) : undefined}
-              itemActions={guardianActions}
-            />
+            <>
+              <GuardiansSection
+                data={data}
+                onAdd={
+                  access.manage ? open({ kind: "add-guardian" }) : undefined
+                }
+                itemActions={guardianActions}
+              />
+              {access.custody ? (
+                <Deferred>
+                  <CustodySection studentId={studentId} />
+                </Deferred>
+              ) : null}
+            </>
           }
         />
       );
@@ -506,6 +530,17 @@ export function StudentRecord({
                   : undefined
               }
             />
+          }
+        />
+      );
+      break;
+    case "health":
+      body = (
+        <RecordColumns
+          main={
+            <Deferred>
+              <HealthSection studentId={studentId} />
+            </Deferred>
           }
         />
       );

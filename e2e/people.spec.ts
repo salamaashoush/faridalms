@@ -254,3 +254,60 @@ test("the school profile saves its fields and refuses a weekend start", async ({
     "+20 2 1234 5678",
   );
 });
+
+test("a health alert and a pickup restriction show on the student's header", async ({
+  page,
+}) => {
+  const unique = crypto.randomUUID().slice(0, 8);
+  await signIn(page, "admin");
+  await page.goto("/admin/students");
+  await untilHydrated(page);
+  await page.getByRole("link", { name: "Add student", exact: true }).click();
+  const personal = page.getByRole("region", { name: "Personal details" });
+  await fillNames(personal, ["سلامة", "حسن"], ["Salama", `Hassan ${unique}`]);
+  await personal
+    .getByRole("textbox", { name: "Student reference" })
+    .fill(`H-${unique}`);
+  await page.getByRole("button", { name: "Add guardian", exact: true }).click();
+  const guardian = page.getByRole("group", { name: "Guardian 1" });
+  await guardian
+    .getByRole("textbox", { name: "Mobile" })
+    .fill(`012${String(Math.floor(Math.random() * 1e8)).padStart(8, "0")}`);
+  await fillNames(guardian, ["منى", "حسن"], ["Mona", `Hassan ${unique}`]);
+  await page.getByRole("button", { name: "Save", exact: true }).click();
+  await expect(page).toHaveURL(/\/admin\/students/);
+  await page.getByRole("searchbox").fill(`H-${unique}`);
+  await page
+    .getByRole("table")
+    .getByRole("link", { name: `Salama Hassan ${unique}` })
+    .click();
+
+  await page.getByRole("tab", { name: "Health", exact: true }).click();
+  await page.getByRole("button", { name: "Add health record" }).click();
+  const sheet = page.getByRole("dialog", { name: "Add health record" });
+  await sheet.getByRole("textbox", { name: "Details" }).fill("Peanuts");
+  await sheet
+    .getByRole("checkbox", {
+      name: "Show a medical alert on the student's record",
+    })
+    .click();
+  await sheet.getByRole("button", { name: "Save" }).click();
+  await expect(sheet).toHaveCount(0);
+  await expect(page.getByText("Medical alert", { exact: true })).toBeVisible();
+
+  await page.getByRole("tab", { name: "Family", exact: true }).click();
+  await page
+    .getByRole("button", { name: `Edit custody for Mona Hassan ${unique}` })
+    .click();
+  const custody = page.getByRole("dialog", {
+    name: `Edit custody for Mona Hassan ${unique}`,
+  });
+  await custody
+    .getByRole("combobox", { name: "May collect the student" })
+    .click();
+  await page.getByRole("option", { name: "Not allowed to collect" }).click();
+  await custody.getByRole("button", { name: "Save" }).click();
+  await expect(custody).toHaveCount(0);
+  await expect(page.getByText("May not collect the student")).toBeVisible();
+  await expect(page.getByText("Custody note", { exact: true })).toBeVisible();
+});
