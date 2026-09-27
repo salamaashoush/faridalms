@@ -8,6 +8,7 @@ import { useState } from "react";
 import type { HeaderFact, RecordTab } from "~/components/system/RecordPage";
 
 import { initialsOf } from "~/components/app/UserMenu";
+import { ClassAttendance } from "~/components/attendance/ClassAttendance";
 import { formatDate } from "~/components/family/format";
 import { ActionMenu } from "~/components/system/ActionMenu";
 import {
@@ -20,7 +21,7 @@ import {
   RecordTabs,
 } from "~/components/system/RecordPage";
 import { Button } from "~/components/ui/button";
-import { inLocale } from "~/hooks/useCurrentUser";
+import { inLocale, useCapability } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { classOptionsQuery, classRecordQuery } from "~/queries/classes";
 import { cn } from "~/utils/cn";
@@ -29,8 +30,14 @@ import { displayName, labelOf } from "../people/format";
 import { AddStudentSheet, MoveClassSheet, WithdrawSheet } from "./Enrolment";
 import { classTitle, subjectName } from "./format";
 
-export const CLASS_TABS = ["overview", "students"] as const;
+export const CLASS_TABS = ["overview", "students", "attendance"] as const;
 export type ClassTab = (typeof CLASS_TABS)[number];
+
+const TAB_LABEL: Record<ClassTab, () => string> = {
+  overview: m.recordOverview,
+  students: m.classesStudents,
+  attendance: m.attendanceTitle,
+};
 
 type ClassData = Awaited<
   ReturnType<NonNullable<ReturnType<typeof classRecordQuery>["queryFn"]>>
@@ -316,6 +323,7 @@ export function ClassRecord({
   const data = useSuspenseQuery(classRecordQuery(classId)).data;
   const options = useSuspenseQuery(classOptionsQuery).data;
   const navigate = useNavigate();
+  const seesAttendance = useCapability("attendance:read");
   const title = classTitle(data);
   const grade = labelOf(
     options.grades.find((row) => row.id === data.gradeId) ?? null,
@@ -338,13 +346,19 @@ export function ClassRecord({
       label: m.classesRoom(),
       value: inLocale(room.nameEn, room.nameAr) || room.code,
     });
-  const tabs: RecordTab<ClassTab>[] = CLASS_TABS.map((value) => ({
+  const available = CLASS_TABS.filter(
+    (value) => value !== "attendance" || seesAttendance,
+  );
+  const active = available.includes(tab) ? tab : "overview";
+  const tabs: RecordTab<ClassTab>[] = available.map((value) => ({
     value,
-    label: value === "overview" ? m.recordOverview() : m.classesStudents(),
+    label: TAB_LABEL[value](),
   }));
   const body =
-    tab === "students" ? (
+    active === "students" ? (
       <RecordColumns main={<StudentsSection data={data} />} />
+    ) : active === "attendance" ? (
+      <ClassAttendance classId={data.id} />
     ) : (
       <RecordColumns
         main={
@@ -401,7 +415,7 @@ export function ClassRecord({
       <RecordTabs
         label={m.classesSections()}
         tabs={tabs}
-        value={tab}
+        value={active}
         onChange={onTab}
       >
         {body}

@@ -1,5 +1,4 @@
 import type { AssessmentScope } from "@faridalms/domain/academic-access";
-import type { RecordAttendanceInput } from "@faridalms/domain/school-schema";
 
 import { assignmentWindow, learnerState } from "@faridalms/domain/assignment";
 import { addDays, schoolDate, weekForDate } from "@faridalms/domain/school";
@@ -8,8 +7,6 @@ import { and, count, eq, gte, inArray, lte, sql } from "drizzle-orm";
 import type { Database, DatabaseTransaction } from "../index";
 
 import { schema } from "../index";
-import { ACADEMIC_STRUCTURE_LOCK } from "../locks";
-import { ManagementError } from "./management";
 
 export { addDays };
 
@@ -343,39 +340,6 @@ export async function attendanceSummary(
   return summary;
 }
 
-/** One summary per student, for a class roster in a single round trip. */
-export async function attendanceSummaries(
-  db: Database,
-  studentIds: string[],
-): Promise<Map<string, AttendanceSummary>> {
-  const summaries = new Map<string, AttendanceSummary>();
-  if (studentIds.length === 0) return summaries;
-  const rows = await db
-    .select({
-      studentId: schema.attendance.studentId,
-      status: schema.attendance.status,
-      n: count(),
-    })
-    .from(schema.attendance)
-    .where(inArray(schema.attendance.studentId, studentIds))
-    .groupBy(schema.attendance.studentId, schema.attendance.status);
-  for (const row of rows) {
-    const summary = summaries.get(row.studentId) ?? {
-      present: 0,
-      absent: 0,
-      late: 0,
-      excused: 0,
-      total: 0,
-      rate: null,
-    };
-    summary[row.status] = row.n;
-    summary.total += row.n;
-    summary.rate = Math.round((summary.present / summary.total) * 100);
-    summaries.set(row.studentId, summary);
-  }
-  return summaries;
-}
-
 export async function attendanceForStudent(
   db: Database,
   studentId: string,
@@ -385,132 +349,6 @@ export async function attendanceForStudent(
     where: { studentId },
     orderBy: { date: "desc" },
     limit,
-  });
-}
-
-export async function attendanceForClassOn(
-  db: Database,
-  classId: string,
-  date: string,
-) {
-  return db.query.attendance.findMany({
-    where: { classId, date },
-    with: {
-      student: { columns: { id: true, firstName: true, lastName: true } },
-    },
-  });
-}
-
-export async function recordAttendance(
-  db: Database,
-  input: RecordAttendanceInput,
-  recordedById: string,
-  scope: AssessmentScope,
-  today: string,
-) {
-  return db.transaction(async (tx) => {
-    await tx.execute(
-      sql`select pg_advisory_xact_lock_shared(${ACADEMIC_STRUCTURE_LOCK})`,
-    );
-    const schoolClass = await tx.query.classes.findFirst({
-      where: { id: input.classId },
-      with: {
-        schoolYear: true,
-        classSubjects: { columns: { teacherId: true } },
-      },
-    });
-    if (!schoolClass?.schoolYear)
-      throw new ManagementError("NOT_FOUND", "attendance.class_missing");
-    if (schoolClass.schoolYear.status === "closed")
-      throw new ManagementError("CONFLICT", "academic_year.closed");
-    if (
-      scope.kind === "none" ||
-      (scope.kind === "teacher" &&
-        (!schoolClass.schoolYear.isCurrent ||
-          (schoolClass.homeroomTeacherId !== scope.userId &&
-            !schoolClass.classSubjects.some(
-              (subject) => subject.teacherId === scope.userId,
-            ))))
-    )
-      throw new ManagementError(
-        "FORBIDDEN",
-        "attendance.responsibility_changed",
-      );
-    if (
-      input.date < schoolClass.schoolYear.startsOn ||
-      input.date > schoolClass.schoolYear.endsOn
-    ) {
-      throw new ManagementError("BAD_REQUEST", "attendance.outside_year");
-    }
-    if (input.date > today)
-      throw new ManagementError("BAD_REQUEST", "attendance.future_date");
-    const enrollment = await tx.query.enrolments.findMany({
-      where: {
-        classId: input.classId,
-        since: { lte: input.date },
-        OR: [{ until: { isNull: true } }, { until: { gt: input.date } }],
-      },
-      columns: { studentId: true },
-    });
-    const students = new Set(enrollment.map((row) => row.studentId));
-    if (input.entries.some((entry) => !students.has(entry.studentId)))
-      throw new ManagementError("FORBIDDEN", "attendance.roster_changed");
-    if (input.entries.length === 0) return [];
-    const existing = await tx
-      .select()
-      .from(schema.attendance)
-      .where(
-        and(
-          eq(schema.attendance.date, input.date),
-          inArray(
-            schema.attendance.studentId,
-            input.entries.map((entry) => entry.studentId),
-          ),
-        ),
-      )
-      .orderBy(schema.attendance.studentId)
-      .for("update");
-    const byStudent = new Map(existing.map((row) => [row.studentId, row]));
-    for (const entry of input.entries) {
-      const current = byStudent.get(entry.studentId);
-      if (current && current.classId !== input.classId)
-        throw new ManagementError("CONFLICT", "attendance.class_conflict");
-      if ((current?.revision ?? null) !== (entry.expectedRevision ?? null))
-        throw new ManagementError("CONFLICT", "attendance.revision_conflict");
-    }
-    const saved = await tx
-      .insert(schema.attendance)
-      .values(
-        input.entries
-          .toSorted((a, b) => a.studentId.localeCompare(b.studentId))
-          .map((entry) => ({
-            studentId: entry.studentId,
-            classId: input.classId,
-            date: input.date,
-            status: entry.status,
-            revision: (entry.expectedRevision ?? 0) + 1,
-            note: entry.note || null,
-            recordedById,
-          })),
-      )
-      .onConflictDoUpdate({
-        target: [schema.attendance.studentId, schema.attendance.date],
-        set: {
-          status: sql`excluded.status`,
-          revision: sql`excluded.revision`,
-          note: sql`excluded.note`,
-          recordedById: sql`excluded.recorded_by_id`,
-          updatedAt: new Date(),
-        },
-        setWhere: sql`${schema.attendance.classId} = excluded.class_id and ${schema.attendance.revision} = excluded.revision - 1`,
-      })
-      .returning({
-        studentId: schema.attendance.studentId,
-        revision: schema.attendance.revision,
-      });
-    if (saved.length !== input.entries.length)
-      throw new ManagementError("CONFLICT", "attendance.revision_conflict");
-    return saved;
   });
 }
 

@@ -99,40 +99,6 @@ test("directory pages are bounded, stable and searchable", async ({
   expect(await search.json()).toMatchObject({ rows: [], total: 0 });
 });
 
-test("an invalid attendance batch writes no records", async ({ request }) => {
-  const headers = await signIn(request, "northwind", "teacher@example.com");
-  const response = await request.post(`${origin}/v1/getAttendanceRegister`, {
-    headers,
-    data: {},
-  });
-  const register = (await response.json()) as {
-    classId: string;
-    date: string;
-    marks: unknown[];
-  };
-  const mutation = await request.post(`${origin}/v1/saveAttendance`, {
-    headers,
-    data: {
-      classId: register.classId,
-      date: register.date,
-      entries: [
-        {
-          studentId: "00000000-0000-4000-8000-000000000000",
-          status: "present",
-        },
-      ],
-    },
-  });
-  expect(mutation.status()).toBe(403);
-  const after = await request.post(`${origin}/v1/getAttendanceRegister`, {
-    headers,
-    data: { classId: register.classId, date: register.date },
-  });
-  expect(((await after.json()) as { marks: unknown[] }).marks).toEqual(
-    register.marks,
-  );
-});
-
 test("the API exposes a machine-readable contract and request IDs", async ({
   request,
 }) => {

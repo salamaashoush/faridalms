@@ -19,6 +19,8 @@ import {
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 
+import type { assignmentEditorQuery } from "~/queries/coursework";
+
 import { ContentEditor } from "~/components/content/ContentEditor";
 import { ComboboxField } from "~/components/system/ComboboxField";
 import { FormField, SelectField, TextField } from "~/components/system/field";
@@ -27,12 +29,7 @@ import { FormSection, RecordForm } from "~/components/system/RecordForm";
 import { Checkbox } from "~/components/ui/checkbox";
 import { inLocale, useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
-import type {
-  assignmentEditorQuery} from "~/queries/coursework";
-import {
-  classGroupsQuery,
-  courseworkOptionsQuery,
-} from "~/queries/coursework";
+import { classGroupsQuery, courseworkOptionsQuery } from "~/queries/coursework";
 import { publishAssignment, saveAssignment } from "~/server/coursework";
 import { getMessageFromError } from "~/utils/error";
 

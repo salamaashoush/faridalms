@@ -51,16 +51,6 @@ export const DEFAULT_ASSIGNMENTS_QUERY: AssignmentsQuery = v.parse(
   {},
 );
 
-export const attendanceRegisterQuerySchema = v.object({
-  classId: v.optional(v.string(), ""),
-  date: v.optional(v.string(), ""),
-});
-export type AttendanceRegisterQuery = v.InferOutput<
-  typeof attendanceRegisterQuerySchema
->;
-export const DEFAULT_ATTENDANCE_REGISTER_QUERY: AttendanceRegisterQuery =
-  v.parse(attendanceRegisterQuerySchema, {});
-
 export const messagesQuerySchema = v.object({
   page: v.optional(
     v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(10000)),
@@ -171,31 +161,6 @@ export const composeMessageSchema = v.pipe(
 );
 export type ComposeMessageInput = v.InferInput<typeof composeMessageSchema>;
 export type ComposeMessageOutput = v.InferOutput<typeof composeMessageSchema>;
-
-export const recordAttendanceSchema = v.object({
-  classId: v.pipe(v.string(), v.minLength(1)),
-  date: v.pipe(v.string(), v.isoDate()),
-  entries: v.pipe(
-    v.array(
-      v.object({
-        studentId: v.pipe(v.string(), v.minLength(1)),
-        status: v.picklist(ATTENDANCE_STATUSES),
-        expectedRevision: v.optional(
-          v.nullable(v.pipe(v.number(), v.integer(), v.minValue(1))),
-          null,
-        ),
-        note: v.optional(v.string(), ""),
-      }),
-    ),
-    v.maxLength(500),
-    v.check(
-      (entries) =>
-        new Set(entries.map((entry) => entry.studentId)).size ===
-        entries.length,
-    ),
-  ),
-});
-export type RecordAttendanceInput = v.InferInput<typeof recordAttendanceSchema>;
 
 /** An explicit working year, or empty for the school's default year. */
 export const workingYearSchema = v.optional(

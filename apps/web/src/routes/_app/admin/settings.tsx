@@ -22,6 +22,7 @@ import {
   SubjectSheet,
 } from "~/components/admin/SubjectCatalogue";
 import { ButtonLink } from "~/components/app/ButtonLink";
+import { AttendanceRules } from "~/components/attendance/AttendanceRules";
 import { formatDate } from "~/components/family/format";
 import { FeaturesCard } from "~/components/learning/FeaturesCard";
 import { lastDay } from "~/components/people/format";
@@ -36,6 +37,7 @@ import { Skeleton } from "~/components/ui/skeleton";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { accessChangesQuery, accessRolesQuery } from "~/queries/access";
+import { attendanceSettingsQuery } from "~/queries/attendance";
 import { subjectsQuery } from "~/queries/classes";
 import {
   schoolFeaturesQuery,
@@ -44,7 +46,10 @@ import {
 import { peopleOptionsQuery } from "~/queries/students";
 
 const searchSchema = v.object({
-  section: v.optional(v.picklist(["school", "subjects", "access"]), "school"),
+  section: v.optional(
+    v.picklist(["school", "subjects", "attendance", "access"]),
+    "school",
+  ),
   q: v.optional(v.string(), ""),
   sort: v.optional(v.picklist(["name", "code"]), "name"),
   dir: v.optional(v.picklist(["asc", "desc"]), "asc"),
@@ -70,6 +75,8 @@ export const Route = createFileRoute("/_app/admin/settings")({
       ]);
     else if (deps.section === "subjects")
       await queryClient.ensureQueryData(subjectsQuery);
+    else if (deps.section === "attendance")
+      await queryClient.ensureQueryData(attendanceSettingsQuery);
     else
       await Promise.all([
         queryClient.ensureQueryData(accessRolesQuery),
@@ -134,6 +141,7 @@ function SettingsRoute() {
         tabs={[
           { value: "school", label: m.settingsSchoolTab() },
           { value: "subjects", label: m.adminSubjectsSection() },
+          { value: "attendance", label: m.attendanceTitle() },
           { value: "access", label: m.adminPermissionsSection() },
         ]}
         value={search.section}
@@ -143,6 +151,10 @@ function SettingsRoute() {
           <SchoolTab />
         ) : search.section === "subjects" ? (
           <SubjectsTab search={search} patch={patch} />
+        ) : search.section === "attendance" ? (
+          <SettingsPage>
+            <AttendanceRules />
+          </SettingsPage>
         ) : (
           <Suspense fallback={<Skeleton className="h-40 w-full" />}>
             <AccessTab search={search} patch={patch} />

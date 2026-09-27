@@ -1,4 +1,3 @@
-import { DEFAULT_ATTENDANCE_REGISTER_QUERY } from "@faridalms/domain/school-schema";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import {
@@ -63,11 +62,7 @@ function TeachingOverviewPage() {
         title={m.teachOverviewTitle()}
         description={m.teachOverviewSubtitle()}
         actions={
-          <ButtonLink
-            variant="outline"
-            to="/teach/attendance"
-            search={DEFAULT_ATTENDANCE_REGISTER_QUERY}
-          >
+          <ButtonLink variant="outline" to="/teach/attendance" search={{}}>
             <CalendarDays aria-hidden />
             {m.attendanceRecord()}
           </ButtonLink>

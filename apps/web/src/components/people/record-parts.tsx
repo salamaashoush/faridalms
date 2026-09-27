@@ -124,6 +124,8 @@ const ACTION_LABEL: Record<string, () => string> = {
   "academic_session.made_current": m.historyYearMadeCurrent,
   "academic_session.closed": m.historyYearClosed,
   "academic_session.reopened": m.historyYearReopened,
+  "attendance.mark_change": m.historyAttendanceChange,
+  "attendance.excuse": m.historyAttendanceExcuse,
 };
 
 interface Entry {

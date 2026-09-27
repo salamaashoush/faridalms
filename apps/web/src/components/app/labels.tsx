@@ -10,7 +10,6 @@ import {
   Palette,
 } from "lucide-react";
 
-import { Badge } from "~/components/ui/badge";
 import * as m from "~/i18n/messages";
 import { cn } from "~/utils/cn";
 
@@ -73,17 +72,6 @@ export const EVENT_CATEGORY_CLASS: Record<EventCategory, string> = {
   school_vacation:
     "bg-[var(--success)]/15 text-[var(--success)] border-[var(--success)]/30",
 };
-
-export function AttendanceBadge({ status }: { status: AttendanceStatus }) {
-  const className = {
-    present: "border-transparent bg-[var(--success)]/15 text-[var(--success)]",
-    absent: "border-transparent bg-destructive/15 text-destructive",
-    late: "border-transparent bg-[var(--warning)]/20 text-[var(--warning-foreground)] dark:text-[var(--warning)]",
-    excused: "border-transparent bg-muted text-muted-foreground",
-  }[status];
-
-  return <Badge className={className}>{ATTENDANCE_LABEL[status]()}</Badge>;
-}
 
 /** Score as a percentage band, so a number also reads as good or poor. */
 export function ScorePill({

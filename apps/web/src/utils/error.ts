@@ -2,8 +2,8 @@ import * as m from "~/i18n/messages";
 import { formatDate } from "~/utils/datetime";
 import { validationMessage } from "~/utils/validation";
 
-/** Followed by the last day a register was taken, which the move would change. */
-export const MOVE_DATE_REGISTERS = "management.move_date_registers:";
+/** Followed by the last day a register marks the student, which the change would undo. */
+const REGISTERS_AFTER = "enrollment.registers_after:";
 
 export class HttpError extends Error {
   readonly status: number;
@@ -118,20 +118,26 @@ export function getMessageFromError(error: unknown): string {
         return m.messageDraftConflict();
       case "message_draft.incomplete":
         return m.messageDraftIncomplete();
-      case "attendance.revision_conflict":
-        return m.attendanceRevisionConflict();
+      case "attendance.stale":
+        return m.attStale();
       case "attendance.outside_year":
         return m.attendanceOutsideYear();
-      case "attendance.future_date":
-        return m.attendanceFutureDate();
-      case "attendance.roster_changed":
-        return m.attendanceRosterChanged();
-      case "attendance.class_conflict":
-        return m.attendanceClassConflict();
-      case "attendance.class_missing":
-        return m.attendanceClassMissing();
-      case "attendance.responsibility_changed":
-        return m.attendanceResponsibilityChanged();
+      case "attendance.future":
+        return m.attFutureDay();
+      case "attendance.not_roster":
+        return m.attNotRoster();
+      case "attendance.window":
+        return m.attOutsideWindow();
+      case "attendance.closed":
+        return m.attClosedYear();
+      case "attendance.not_school_day":
+        return m.attNotSchoolDay();
+      case "attendance.no_period":
+        return m.attNoPeriod();
+      case "attendance.reason":
+        return m.attReasonInvalid();
+      case "attendance.range":
+        return m.attRangeInvalid();
       case "enrollment.scheduled_conflict":
         return m.enrollmentScheduledConflict();
       case "timetable.class_not_found":
@@ -345,9 +351,9 @@ export function getMessageFromError(error: unknown): string {
       return validationMessage({ message: error.message });
     if (error.message.startsWith("assignment.incomplete:"))
       return m.assignmentIncomplete();
-    if (error.message.startsWith(MOVE_DATE_REGISTERS))
-      return m.managementMoveDateRegisters({
-        date: formatDate(error.message.slice(MOVE_DATE_REGISTERS.length)),
+    if (error.message.startsWith(REGISTERS_AFTER))
+      return m.enrollmentRegistersAfter({
+        date: formatDate(error.message.slice(REGISTERS_AFTER.length)),
       });
     return error.message;
   }

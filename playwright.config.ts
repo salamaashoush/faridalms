@@ -24,6 +24,7 @@ export default defineConfig({
     "years.spec.ts",
     "rollover.spec.ts",
     "coursework.spec.ts",
+    "attendance.spec.ts",
   ],
   /* Run tests in files in parallel */
   fullyParallel: true,

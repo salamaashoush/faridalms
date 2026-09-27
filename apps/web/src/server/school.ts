@@ -6,13 +6,11 @@ import {
   recipientQuerySchema,
   replyMessageSchema,
   assignmentsQuerySchema,
-  attendanceRegisterQuerySchema,
   calendarEventSchema,
   calendarQuerySchema,
   composeMessageSchema,
   messagesQuerySchema,
   newslettersQuerySchema,
-  recordAttendanceSchema,
   studentScopedQuerySchema,
 } from "@faridalms/domain/school-schema";
 import { createServerFn } from "@tanstack/react-start";
@@ -39,18 +37,6 @@ export const getStudentOverview = createServerFn({ method: "GET" }).handler(
 export const getTeachingOverview = createServerFn({ method: "GET" }).handler(
   () => backend().getTeachingOverview(),
 );
-
-export const getMyClasses = createServerFn({ method: "GET" }).handler(() =>
-  backend().getMyClasses(),
-);
-
-export const getAttendanceRegister = createServerFn({ method: "GET" })
-  .validator((input: unknown) => v.parse(attendanceRegisterQuerySchema, input))
-  .handler(({ data }) => backend().getAttendanceRegister(data));
-
-export const saveAttendance = createServerFn({ method: "POST" })
-  .validator((input: unknown) => v.parse(recordAttendanceSchema, input))
-  .handler(({ data }) => backend().saveAttendance(data));
 
 export const getAdminOverview = createServerFn({ method: "GET" }).handler(() =>
   backend().getAdminOverview(),

@@ -2,7 +2,6 @@ import type { ManagementOptionsInput } from "@faridalms/domain/administration-sc
 import type {
   RecipientCursor,
   AssignmentsQuery,
-  AttendanceRegisterQuery,
   CalendarQuery,
   MessagesQuery,
   NewslettersQuery,
@@ -15,14 +14,12 @@ import {
   getAdminOverview,
   getAssignments,
   getAttendance,
-  getAttendanceRegister,
   getCalendar,
   getFamilyOverview,
   getGrades,
   getManagementOptions,
   getMessage,
   getMessages,
-  getMyClasses,
   getNewsletters,
   getRecipients,
   getStudent,
@@ -83,14 +80,6 @@ export function attendanceQuery(query: StudentScopedQuery) {
   });
 }
 
-export function attendanceRegisterQuery(query: AttendanceRegisterQuery) {
-  return queryOptions({
-    queryKey: ["attendance", "register", query],
-    queryFn: () => getAttendanceRegister({ data: query }),
-    placeholderData: (previous) => previous,
-  });
-}
-
 export function gradesQuery(query: StudentScopedQuery) {
   return queryOptions({
     queryKey: ["grades", query],
@@ -106,11 +95,6 @@ export function timetableQuery(query: StudentScopedQuery) {
     placeholderData: (previous) => previous,
   });
 }
-
-export const myClassesQuery = queryOptions({
-  queryKey: ["classes", "mine"],
-  queryFn: () => getMyClasses(),
-});
 
 export function managementOptionsQuery(query: ManagementOptionsInput) {
   return queryOptions({

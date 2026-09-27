@@ -60,6 +60,12 @@ export const NAVIGATION: Record<Workspace, NavSection[]> = {
         { to: "/admin/staff", label: m.navStaff, icon: Users },
         { to: "/admin/classes", label: m.navClasses, icon: School },
         {
+          to: "/admin/attendance",
+          label: m.navAttendance,
+          icon: UserCheck,
+          capability: "attendance:manage",
+        },
+        {
           to: "/admin/academic-years",
           label: m.navSchoolYear,
           icon: CalendarCheck,

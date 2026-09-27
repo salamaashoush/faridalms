@@ -22,6 +22,7 @@ import type {
 
 import { Value } from "~/components/app/primitives";
 import { initialsOf } from "~/components/app/UserMenu";
+import { StudentAttendance } from "~/components/attendance/StudentAttendance";
 import { ageOn, formatDate } from "~/components/family/format";
 import { ActionMenu } from "~/components/system/ActionMenu";
 import {
@@ -72,6 +73,7 @@ export const STUDENT_TABS = [
   "details",
   "family",
   "enrollment",
+  "attendance",
   "health",
   "account",
   "history",
@@ -83,6 +85,7 @@ const TAB_LABEL: Record<StudentTab, () => string> = {
   details: m.studentTabDetails,
   family: m.studentTabFamily,
   enrollment: m.studentTabEnrollment,
+  attendance: m.attendanceTitle,
   health: m.studentTabHealth,
   account: m.studentTabAccount,
   history: m.recordHistory,
@@ -102,6 +105,7 @@ export function studentTabsFor(
     details: true,
     family: access.contacts,
     enrollment: true,
+    attendance: access.attendance,
     health: access.health,
     account: access.manage,
     history: access.history,
@@ -548,6 +552,13 @@ export function StudentRecord({
             />
           }
         />
+      );
+      break;
+    case "attendance":
+      body = (
+        <Deferred>
+          <StudentAttendance studentId={studentId} />
+        </Deferred>
       );
       break;
     case "health":
