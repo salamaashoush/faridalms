@@ -46,6 +46,12 @@ export function formatList(values: readonly string[]): string {
   );
 }
 
+export function formatChoices(values: readonly string[]): string {
+  return new Intl.ListFormat(getLocale(), { type: "disjunction" }).format(
+    values,
+  );
+}
+
 export function formatDateTime(isoDate: string): string {
   return new Intl.DateTimeFormat(getLocale(), {
     dateStyle: "medium",

@@ -1,13 +1,14 @@
 import {
-  answerSchema,
   duplicateModuleSchema,
+  markSchema,
   moduleRefSchema,
   moveLessonSchema,
   overrideSchema,
   positionSchema,
   progressQuerySchema,
   publishModuleSchema,
-  reflectSchema,
+  respondSchema,
+  revealSchema,
   saveLessonSchema,
   saveModuleSchema,
 } from "@faridalms/domain/learning";
@@ -94,13 +95,29 @@ export const openLesson = createServerFn({ method: "POST" })
   .validator(byId)
   .handler(({ data }) => record(backend().learning.playLesson(data)));
 
-export const answerQuiz = createServerFn({ method: "POST" })
-  .validator(checked(answerSchema))
-  .handler(({ data }) => backend().learning.answer(data));
+export const respondToCheck = createServerFn({ method: "POST" })
+  .validator(checked(respondSchema))
+  .handler(({ data }) => backend().learning.respond(data));
 
-export const saveReflection = createServerFn({ method: "POST" })
-  .validator(checked(reflectSchema))
-  .handler(({ data }) => backend().learning.reflect(data));
+export const revealCheck = createServerFn({ method: "POST" })
+  .validator(checked(revealSchema))
+  .handler(({ data }) => backend().learning.reveal(data));
+
+export const retryLesson = createServerFn({ method: "POST" })
+  .validator(checked(v.object({ lessonId: v.pipe(v.string(), v.uuid()) })))
+  .handler(({ data }) => backend().learning.retry(data));
+
+export const publishLesson = createServerFn({ method: "POST" })
+  .validator(byId)
+  .handler(({ data }) => backend().learning.publishLesson(data));
+
+export const getWrittenAnswers = createServerFn({ method: "GET" })
+  .validator(checked(progressQuerySchema))
+  .handler(({ data }) => record(backend().learning.answers(data)));
+
+export const markAnswer = createServerFn({ method: "POST" })
+  .validator(checked(markSchema))
+  .handler(({ data }) => backend().learning.mark(data));
 
 export const completeLesson = createServerFn({ method: "POST" })
   .validator(checked(v.object({ lessonId: v.pipe(v.string(), v.uuid()) })))

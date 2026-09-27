@@ -1,3 +1,5 @@
+import type { ReactNode } from "react";
+
 import {
   useMutation,
   useQuery,
@@ -58,6 +60,7 @@ import { cn } from "~/utils/cn";
 import { formatNumber } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
+import { Answers } from "./Answers";
 import {
   COMPLETION_LABEL,
   shownState,
@@ -65,7 +68,7 @@ import {
   STATE_TONE,
 } from "./format";
 
-export const MODULE_TABS = ["lessons", "progress"] as const;
+export const MODULE_TABS = ["lessons", "progress", "answers"] as const;
 export type ModuleTab = (typeof MODULE_TABS)[number];
 
 type Data = Awaited<
@@ -440,14 +443,16 @@ function Matrix({ moduleId, classId }: { moduleId: string; classId: string }) {
   );
 }
 
-function ProgressTab({
+function ClassTab({
   data,
   classId,
   onClass,
+  view: View,
 }: {
   data: Data;
   classId: string;
   onClass: (classId: string) => void;
+  view: (props: { moduleId: string; classId: string }) => ReactNode;
 }) {
   const current = data.classes.some((row) => row.id === classId)
     ? classId
@@ -475,7 +480,7 @@ function ProgressTab({
   return (
     <div className="grid gap-4">
       {data.classes.length > 1 ? <IndexToolbar facets={[facet]} /> : null}
-      {current ? <Matrix moduleId={data.id} classId={current} /> : null}
+      {current ? <View moduleId={data.id} classId={current} /> : null}
     </div>
   );
 }
@@ -528,6 +533,7 @@ export function ModuleRecord({
       label: `${m.lrnLessons()} ${formatNumber(data.lessons.length)}`,
     },
     { value: "progress", label: m.lrnProgress() },
+    { value: "answers", label: m.lrnAnswersTab() },
   ];
   const ref = { id: data.id, expectedVersion: data.version };
   return (
@@ -626,7 +632,12 @@ export function ModuleRecord({
             aside={<About data={data} />}
           />
         ) : (
-          <ProgressTab data={data} classId={classId} onClass={onClass} />
+          <ClassTab
+            data={data}
+            classId={classId}
+            onClass={onClass}
+            view={tab === "progress" ? Matrix : Answers}
+          />
         )}
       </RecordTabs>
     </div>

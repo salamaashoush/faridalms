@@ -1,25 +1,37 @@
 import type {
+  CheckBlock,
   LessonBlock,
   LessonCompletion,
-  QuizBlock,
 } from "@faridalms/domain/learning";
+import type { LucideIcon } from "lucide-react";
+import type { ReactElement } from "react";
 
 import { emptyContent } from "@faridalms/domain/content-conversion";
 import {
+  isAuto,
+  isCheck,
   LESSON_COMPLETIONS,
   MAX_LESSON_BLOCKS,
-  MAX_QUIZ_OPTIONS,
 } from "@faridalms/domain/learning";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  useMutation,
+  useQueryClient,
+  useSuspenseQuery,
+} from "@tanstack/react-query";
 import {
   ArrowDown,
+  ArrowDownToLine,
   ArrowUp,
+  Brackets,
+  Copy,
+  Hash,
   ListChecks,
   MessageSquareText,
   Plus,
+  TextCursorInput,
+  ToggleLeft,
   Trash2,
   Type,
-  X,
 } from "lucide-react";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
@@ -31,14 +43,21 @@ import { useDocumentMedia } from "~/components/coursework/useDocumentMedia";
 import { FormField, SelectField, TextField } from "~/components/system/field";
 import { FormSection, RecordForm } from "~/components/system/RecordForm";
 import { Button } from "~/components/ui/button";
-import { Checkbox } from "~/components/ui/checkbox";
-import { Input } from "~/components/ui/input";
-import { Textarea } from "~/components/ui/textarea";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuTrigger,
+} from "~/components/ui/dropdown-menu";
 import * as m from "~/i18n/messages";
+import { moduleRecordQuery } from "~/queries/learning";
 import { saveLesson } from "~/server/learning";
 import { formatNumber } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
+import { blockIssue, CheckFields, MediaFields } from "./BlockFields";
 import { COMPLETION_LABEL } from "./format";
 
 type Existing = Awaited<
@@ -54,146 +73,248 @@ interface Draft {
 
 const BLOCK_LABEL: Record<LessonBlock["type"], () => string> = {
   content: m.lrnBlockText,
-  quiz: m.lrnBlockQuestion,
-  reflection: m.lrnBlockReflection,
   media: m.lrnBlockMedia,
+  gate: m.lrnBlockGate,
+  choice: m.lrnBlockChoice,
+  text: m.lrnBlockTyped,
+  gaps: m.lrnBlockGaps,
+  number: m.lrnBlockNumber,
+  written: m.lrnBlockWritten,
 };
 
-const newOption = () => ({ id: crypto.randomUUID(), text: "" });
+type Kind =
+  | "content"
+  | "gate"
+  | "choice"
+  | "truefalse"
+  | "text"
+  | "gaps"
+  | "number"
+  | "written";
 
-function blockIssue(block: LessonBlock): string | null {
-  if (block.type === "quiz") {
-    if (!block.question.trim()) return m.lrnQuestionNeeded();
-    if (block.options.filter((option) => option.text.trim()).length < 2)
-      return m.lrnOptionsNeeded();
-    if (block.correctOptionIds.length === 0) return m.lrnCorrectNeeded();
+const KINDS: {
+  group: () => string;
+  items: {
+    kind: Kind;
+    icon: LucideIcon;
+    label: () => string;
+    hint: () => string;
+  }[];
+}[] = [
+  {
+    group: m.lrnGroupContent,
+    items: [
+      {
+        kind: "content",
+        icon: Type,
+        label: m.lrnBlockText,
+        hint: m.lrnKindTextHint,
+      },
+      {
+        kind: "gate",
+        icon: ArrowDownToLine,
+        label: m.lrnBlockGate,
+        hint: m.lrnKindGateHint,
+      },
+    ],
+  },
+  {
+    group: m.lrnGroupQuestions,
+    items: [
+      {
+        kind: "choice",
+        icon: ListChecks,
+        label: m.lrnBlockChoice,
+        hint: m.lrnKindChoiceHint,
+      },
+      {
+        kind: "truefalse",
+        icon: ToggleLeft,
+        label: m.lrnKindTrueFalse,
+        hint: m.lrnKindTrueFalseHint,
+      },
+      {
+        kind: "text",
+        icon: TextCursorInput,
+        label: m.lrnBlockTyped,
+        hint: m.lrnKindTypedHint,
+      },
+      {
+        kind: "gaps",
+        icon: Brackets,
+        label: m.lrnBlockGaps,
+        hint: m.lrnKindGapsHint,
+      },
+      {
+        kind: "number",
+        icon: Hash,
+        label: m.lrnBlockNumber,
+        hint: m.lrnKindNumberHint,
+      },
+      {
+        kind: "written",
+        icon: MessageSquareText,
+        label: m.lrnBlockWritten,
+        hint: m.lrnKindWrittenHint,
+      },
+    ],
+  },
+];
+
+const option = (text = "") => ({ id: crypto.randomUUID(), text, feedback: "" });
+
+function newBlock(kind: Kind): LessonBlock {
+  const id = crypto.randomUUID();
+  const check = {
+    id,
+    prompt: "",
+    points: 1,
+    hint: "",
+    explanation: "",
+    tries: null,
+  };
+  const matching = {
+    caseSensitive: false,
+    closeEnough: false,
+    tehMarbuta: true,
+  };
+  switch (kind) {
+    case "content":
+      return { id, type: "content", content: emptyContent() };
+    case "gate":
+      return { id, type: "gate", requires: "above" };
+    case "choice":
+      return {
+        ...check,
+        type: "choice",
+        options: [option(), option()],
+        correctOptionIds: [],
+        multiple: false,
+        shuffle: true,
+      };
+    case "truefalse": {
+      const right = option(m.lrnTrue());
+      return {
+        ...check,
+        type: "choice",
+        options: [right, option(m.lrnFalse())],
+        correctOptionIds: [right.id],
+        multiple: false,
+        shuffle: false,
+      };
+    }
+    case "text":
+      return { ...check, ...matching, type: "text", answers: [""] };
+    case "gaps":
+      return {
+        ...check,
+        ...matching,
+        type: "gaps",
+        prompt: m.lrnGapsPrompt(),
+        segments: [],
+      };
+    case "number":
+      return {
+        ...check,
+        type: "number",
+        mode: "exact",
+        value: 0,
+        tolerance: 0,
+        percent: false,
+        min: 0,
+        max: 0,
+      };
   }
-  if (block.type === "reflection" && !block.prompt.trim())
-    return m.lrnPromptNeeded();
-  return null;
+  return { ...check, points: 0, type: "written", wordLimit: null };
 }
 
-function QuizFields({
-  block,
-  onChange,
-}: {
-  block: QuizBlock;
-  onChange: (next: QuizBlock) => void;
-}) {
-  const setOption = (index: number, text: string) =>
-    onChange({
+/** A copy with new ids throughout, so answers to the original never match it. */
+function duplicate(block: LessonBlock): LessonBlock {
+  const id = crypto.randomUUID();
+  if (block.type === "choice") {
+    const ids = new Map(
+      block.options.map((item) => [item.id, crypto.randomUUID()]),
+    );
+    return {
       ...block,
-      options: block.options.map((option, at) =>
-        at === index ? { ...option, text } : option,
+      id,
+      options: block.options.map((item) => ({
+        ...item,
+        id: ids.get(item.id) ?? item.id,
+      })),
+      correctOptionIds: block.correctOptionIds.map(
+        (item) => ids.get(item) ?? item,
       ),
-    });
-  const toggle = (optionId: string, correct: boolean) =>
-    onChange({
+    };
+  }
+  if (block.type === "gaps")
+    return {
       ...block,
-      correctOptionIds: correct
-        ? [...block.correctOptionIds, optionId]
-        : block.correctOptionIds.filter((item) => item !== optionId),
-    });
+      id,
+      segments: block.segments.map((segment) =>
+        segment.type === "gap"
+          ? { ...segment, id: crypto.randomUUID() }
+          : segment,
+      ),
+    };
+  return { ...structuredClone(block), id };
+}
+
+/** Empty options and answers are dropped on save rather than refused. */
+function tidy(block: LessonBlock): LessonBlock {
+  if (block.type === "choice") {
+    const options = block.options.filter((item) => item.text.trim());
+    return {
+      ...block,
+      options,
+      correctOptionIds: block.correctOptionIds.filter((item) =>
+        options.some((kept) => kept.id === item),
+      ),
+    };
+  }
+  if (block.type === "text")
+    return {
+      ...block,
+      answers: block.answers.map((item) => item.trim()).filter(Boolean),
+    };
+  return block;
+}
+
+function Inserter({
+  trigger,
+  onPick,
+}: {
+  trigger: ReactElement;
+  onPick: (kind: Kind) => void;
+}) {
   return (
-    <div className="grid gap-4">
-      <FormField id={`quiz-${block.id}-question`} label={m.lrnQuestion()}>
-        {(control) => (
-          <Textarea
-            {...control}
-            dir="auto"
-            rows={2}
-            maxLength={1000}
-            value={block.question}
-            onChange={(event) =>
-              onChange({ ...block, question: event.target.value })
-            }
-          />
-        )}
-      </FormField>
-      <fieldset className="grid gap-2">
-        <legend className="mb-1 text-sm leading-5 font-medium">
-          {m.lrnOptions()}
-        </legend>
-        <p className="text-[13px] leading-[18px] text-muted-foreground">
-          {m.lrnOptionsHint()}
-        </p>
-        {block.options.map((option, index) => (
-          <div key={option.id} className="flex items-center gap-2">
-            <Checkbox
-              aria-label={m.lrnCorrectFor({ number: formatNumber(index + 1) })}
-              checked={block.correctOptionIds.includes(option.id)}
-              onCheckedChange={(checked) => toggle(option.id, checked)}
-            />
-            <Input
-              aria-label={m.lrnOptionNumber({
-                number: formatNumber(index + 1),
-              })}
-              dir="auto"
-              maxLength={300}
-              className="min-w-0 flex-1 max-md:h-10"
-              value={option.text}
-              onChange={(event) => setOption(index, event.target.value)}
-            />
-            {block.options.length > 2 ? (
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon-sm"
-                className="max-md:size-10"
-                aria-label={m.lrnRemoveOption()}
-                onClick={() =>
-                  onChange({
-                    ...block,
-                    options: block.options.filter(
-                      (item) => item.id !== option.id,
-                    ),
-                    correctOptionIds: block.correctOptionIds.filter(
-                      (item) => item !== option.id,
-                    ),
-                  })
-                }
+    <DropdownMenu>
+      <DropdownMenuTrigger render={trigger} />
+      <DropdownMenuContent align="start" className="w-80">
+        {KINDS.map((group) => (
+          <DropdownMenuGroup key={group.group()}>
+            <DropdownMenuLabel>{group.group()}</DropdownMenuLabel>
+            {group.items.map((item) => (
+              <DropdownMenuItem
+                key={item.kind}
+                className="items-start gap-3 py-2"
+                onClick={() => onPick(item.kind)}
               >
-                <X aria-hidden />
-              </Button>
-            ) : null}
-          </div>
+                <item.icon aria-hidden className="mt-0.5 size-4 shrink-0" />
+                <span className="grid gap-0.5">
+                  <span className="text-sm leading-5 font-medium">
+                    {item.label()}
+                  </span>
+                  <span className="text-[13px] leading-[18px] text-muted-foreground">
+                    {item.hint()}
+                  </span>
+                </span>
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuGroup>
         ))}
-        {block.options.length < MAX_QUIZ_OPTIONS ? (
-          <div>
-            <Button
-              type="button"
-              variant="ghost"
-              className="max-md:h-10"
-              onClick={() =>
-                onChange({ ...block, options: [...block.options, newOption()] })
-              }
-            >
-              <Plus aria-hidden />
-              {m.lrnAddOption()}
-            </Button>
-          </div>
-        ) : null}
-      </fieldset>
-      <FormField
-        id={`quiz-${block.id}-explanation`}
-        label={m.lrnExplanation()}
-        hint={m.lrnExplanationHint()}
-        optional
-      >
-        {(control) => (
-          <Textarea
-            {...control}
-            dir="auto"
-            rows={2}
-            maxLength={1000}
-            value={block.explanation}
-            onChange={(event) =>
-              onChange({ ...block, explanation: event.target.value })
-            }
-          />
-        )}
-      </FormField>
-    </div>
+      </DropdownMenuContent>
+    </DropdownMenu>
   );
 }
 
@@ -204,6 +325,7 @@ function BlockCard({
   shown,
   onChange,
   onMove,
+  onDuplicate,
   onRemove,
 }: {
   block: LessonBlock;
@@ -212,10 +334,37 @@ function BlockCard({
   shown: boolean;
   onChange: (next: LessonBlock) => void;
   onMove: (by: -1 | 1) => void;
+  onDuplicate: () => void;
   onRemove: () => void;
 }) {
   const media = useDocumentMedia();
   const issue = shown ? blockIssue(block) : null;
+  const tools: {
+    label: string;
+    icon: LucideIcon;
+    onClick: () => void;
+    disabled?: boolean;
+  }[] = [
+    {
+      label: m.lrnMoveUp(),
+      icon: ArrowUp,
+      onClick: () => onMove(-1),
+      disabled: index === 0,
+    },
+    {
+      label: m.lrnMoveDown(),
+      icon: ArrowDown,
+      onClick: () => onMove(1),
+      disabled: index === count - 1,
+    },
+    {
+      label: m.lrnDuplicateBlock(),
+      icon: Copy,
+      onClick: onDuplicate,
+      disabled: count >= MAX_LESSON_BLOCKS,
+    },
+    { label: m.lrnRemoveBlock(), icon: Trash2, onClick: onRemove },
+  ];
   return (
     <div className="grid min-w-0 gap-4 rounded-lg border bg-card p-4">
       <div className="flex items-center justify-between gap-2">
@@ -226,42 +375,29 @@ function BlockCard({
           })}
         </h3>
         <div className="flex gap-1">
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-sm"
-            className="max-md:size-10"
-            aria-label={m.lrnMoveUp()}
-            disabled={index === 0}
-            onClick={() => onMove(-1)}
-          >
-            <ArrowUp aria-hidden />
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-sm"
-            className="max-md:size-10"
-            aria-label={m.lrnMoveDown()}
-            disabled={index === count - 1}
-            onClick={() => onMove(1)}
-          >
-            <ArrowDown aria-hidden />
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon-sm"
-            className="max-md:size-10"
-            aria-label={m.lrnRemoveBlock()}
-            onClick={onRemove}
-          >
-            <Trash2 aria-hidden />
-          </Button>
+          {tools.map((tool) => (
+            <Button
+              key={tool.label}
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              className="max-md:size-10"
+              aria-label={tool.label}
+              title={tool.label}
+              disabled={tool.disabled}
+              onClick={tool.onClick}
+            >
+              <tool.icon aria-hidden />
+            </Button>
+          ))}
         </div>
       </div>
       {block.type === "content" ? (
-        <FormField id={`block-${block.id}`} label={m.lrnBlockText()}>
+        <FormField
+          id={`block-${block.id}`}
+          label={m.lrnBlockText()}
+          labelHidden
+        >
           {(control) => (
             <div className="min-w-0">
               <ContentEditor
@@ -274,27 +410,17 @@ function BlockCard({
             </div>
           )}
         </FormField>
-      ) : block.type === "quiz" ? (
-        <QuizFields block={block} onChange={onChange} />
-      ) : block.type === "reflection" ? (
-        <FormField id={`block-${block.id}`} label={m.lrnPrompt()}>
-          {(control) => (
-            <Textarea
-              {...control}
-              dir="auto"
-              rows={2}
-              maxLength={1000}
-              value={block.prompt}
-              onChange={(event) =>
-                onChange({ ...block, prompt: event.target.value })
-              }
-            />
-          )}
-        </FormField>
-      ) : (
+      ) : block.type === "gate" ? (
         <p className="text-sm leading-5 text-muted-foreground">
-          <bdi>{block.name}</bdi>
+          {m.lrnGateHint()}
         </p>
+      ) : block.type === "media" ? (
+        <MediaFields block={block} onChange={onChange} />
+      ) : (
+        <CheckFields
+          block={block}
+          onChange={(next: CheckBlock) => onChange(next)}
+        />
       )}
       {issue ? (
         <p role="alert" className="text-[13px] leading-[18px] text-destructive">
@@ -305,7 +431,7 @@ function BlockCard({
   );
 }
 
-/** A lesson's title, what finishes it, and its blocks of text, questions and prompts. */
+/** A lesson's title, what finishes it, and its blocks of text, media and questions. */
 export function LessonEditor({
   existing,
   moduleId,
@@ -316,58 +442,40 @@ export function LessonEditor({
   onClose: () => void;
 }) {
   const queryClient = useQueryClient();
+  const module = useSuspenseQuery(moduleRecordQuery(moduleId)).data;
+  const open = module.state === "published";
   const [initial] = useState<Draft>(() => ({
     title: existing?.title ?? "",
     completion: existing?.completion ?? "view",
     passScore: existing?.passScore ? String(existing.passScore) : "",
-    blocks: existing?.content.blocks ?? [
-      { id: crypto.randomUUID(), type: "content", content: emptyContent() },
-    ],
+    blocks: existing?.content.blocks ?? [newBlock("content")],
   }));
   const [draft, setDraft] = useState(initial);
   const [shown, setShown] = useState(false);
   const leaving = useRef(false);
   const set = <K extends keyof Draft>(key: K, value: Draft[K]) =>
     setDraft((current) => ({ ...current, [key]: value }));
-  const setBlock = (index: number, next: LessonBlock) =>
-    set(
-      "blocks",
-      draft.blocks.map((block, at) => (at === index ? next : block)),
-    );
-  const moveBlock = (index: number, by: -1 | 1) => {
-    const next = [...draft.blocks];
-    const [moved] = next.splice(index, 1);
-    if (!moved) return;
-    next.splice(index + by, 0, moved);
-    set("blocks", next);
-  };
-  const add = (type: "content" | "quiz" | "reflection") => {
-    const id = crypto.randomUUID();
-    const block: LessonBlock =
-      type === "content"
-        ? { id, type, content: emptyContent() }
-        : type === "quiz"
-          ? {
-              id,
-              type,
-              question: "",
-              options: [newOption(), newOption()],
-              correctOptionIds: [],
-              explanation: "",
-            }
-          : { id, type, prompt: "" };
-    set("blocks", [...draft.blocks, block]);
-  };
+  const setBlocks = (update: (blocks: LessonBlock[]) => LessonBlock[]) =>
+    setDraft((current) => ({ ...current, blocks: update(current.blocks) }));
+  const insert = (at: number, block: LessonBlock) =>
+    setBlocks((blocks) => [...blocks.slice(0, at), block, ...blocks.slice(at)]);
+  const moveBlock = (index: number, by: -1 | 1) =>
+    setBlocks((blocks) => {
+      const next = [...blocks];
+      const [moved] = next.splice(index, 1);
+      if (moved) next.splice(index + by, 0, moved);
+      return next;
+    });
   const passScore = Number(draft.passScore);
   const issues = {
     title: draft.title.trim() ? null : m.lrnTitleNeeded(),
     blocks: draft.blocks.length === 0 ? m.lrnBlocksNeeded() : null,
     rule:
       (draft.completion === "quiz" || draft.completion === "score") &&
-      !draft.blocks.some((block) => block.type === "quiz")
+      !draft.blocks.some(isAuto)
         ? m.lrnRuleNeedsQuiz()
         : draft.completion === "reflection" &&
-            !draft.blocks.some((block) => block.type === "reflection")
+            !draft.blocks.some((block) => block.type === "written")
           ? m.lrnRuleNeedsReflection()
           : null,
     passScore:
@@ -378,7 +486,7 @@ export function LessonEditor({
     each: draft.blocks.some((block) => blockIssue(block)) ? "blocks" : null,
   };
   const save = useMutation({
-    mutationFn: () =>
+    mutationFn: (publish: boolean) =>
       saveLesson({
         data: {
           id: existing?.id ?? "",
@@ -387,36 +495,38 @@ export function LessonEditor({
           title: draft.title.trim(),
           completion: draft.completion,
           passScore: draft.completion === "score" ? passScore : null,
-          content: {
-            version: 1,
-            blocks: draft.blocks.map((block) =>
-              block.type === "quiz"
-                ? {
-                    ...block,
-                    options: block.options.filter((option) =>
-                      option.text.trim(),
-                    ),
-                  }
-                : block,
-            ),
-          },
+          content: { version: 2, blocks: draft.blocks.map(tidy) },
+          publish,
         },
       }),
   });
+  const questions = draft.blocks.filter(isCheck).length;
+  const addAt = (at: number) => (kind: Kind) => insert(at, newBlock(kind));
   return (
     <RecordForm
       title={existing ? m.lrnEditLesson() : m.lrnNewLesson()}
-      onSubmit={async () => {
+      submitLabel={open ? m.lrnSaveAndShow() : m.commonSave()}
+      secondary={
+        open ? { label: m.lrnSaveHidden(), intent: "hidden" } : undefined
+      }
+      onSubmit={async (intent) => {
         setShown(true);
         if (Object.values(issues).some(Boolean)) return;
+        let result;
         try {
-          await save.mutateAsync();
+          result = await save.mutateAsync(open && intent !== "hidden");
         } catch {
           return;
         }
         await queryClient.invalidateQueries({ queryKey: ["learning"] });
         leaving.current = true;
-        toast.success(m.lrnLessonSaved());
+        toast.success(
+          result.published
+            ? m.lrnLessonShown()
+            : open
+              ? m.lrnLessonSavedHidden()
+              : m.lrnLessonSaved(),
+        );
         onClose();
       }}
       onCancel={onClose}
@@ -426,7 +536,14 @@ export function LessonEditor({
       pending={save.isPending}
       error={save.error ? getMessageFromError(save.error) : null}
     >
-      <FormSection title={m.lrnSectionLesson()}>
+      <FormSection
+        title={m.lrnSectionLesson()}
+        description={
+          open && existing?.published?.changed
+            ? m.lrnChangesWaiting()
+            : undefined
+        }
+      >
         <TextField
           id="lesson-title"
           label={m.lrnLessonTitle()}
@@ -467,24 +584,61 @@ export function LessonEditor({
           />
         ) : null}
       </FormSection>
-      <FormSection title={m.lrnSectionBlocks()} description={m.lrnBlocksHint()}>
-        <div className="grid gap-4">
+      <FormSection
+        title={m.lrnSectionBlocks()}
+        description={
+          questions > 0
+            ? m.lrnBlocksSummary({
+                parts: formatNumber(draft.blocks.length),
+                questions: formatNumber(questions),
+              })
+            : m.lrnBlocksHint()
+        }
+      >
+        <div className="grid gap-2">
           {draft.blocks.map((block, index) => (
-            <BlockCard
-              key={block.id}
-              block={block}
-              index={index}
-              count={draft.blocks.length}
-              shown={shown}
-              onChange={(next) => setBlock(index, next)}
-              onMove={(by) => moveBlock(index, by)}
-              onRemove={() =>
-                set(
-                  "blocks",
-                  draft.blocks.filter((_, at) => at !== index),
-                )
-              }
-            />
+            <div key={block.id} className="grid gap-2">
+              <BlockCard
+                block={block}
+                index={index}
+                count={draft.blocks.length}
+                shown={shown}
+                onChange={(next) =>
+                  setBlocks((blocks) =>
+                    blocks.map((item) => (item.id === block.id ? next : item)),
+                  )
+                }
+                onMove={(by) => moveBlock(index, by)}
+                onDuplicate={() => insert(index + 1, duplicate(block))}
+                onRemove={() =>
+                  setBlocks((blocks) =>
+                    blocks.filter((item) => item.id !== block.id),
+                  )
+                }
+              />
+              {index < draft.blocks.length - 1 &&
+              draft.blocks.length < MAX_LESSON_BLOCKS ? (
+                <div className="flex justify-center">
+                  <Inserter
+                    onPick={addAt(index + 1)}
+                    trigger={
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-sm"
+                        className="text-muted-foreground max-md:size-10"
+                        aria-label={m.lrnAddAfter({
+                          number: formatNumber(index + 1),
+                        })}
+                        title={m.lrnAddPart()}
+                      >
+                        <Plus aria-hidden />
+                      </Button>
+                    }
+                  />
+                </div>
+              ) : null}
+            </div>
           ))}
           {shown && issues.blocks ? (
             <p
@@ -495,34 +649,20 @@ export function LessonEditor({
             </p>
           ) : null}
           {draft.blocks.length < MAX_LESSON_BLOCKS ? (
-            <div className="flex flex-wrap gap-2">
-              <Button
-                type="button"
-                variant="outline"
-                className="max-md:h-10"
-                onClick={() => add("content")}
-              >
-                <Type aria-hidden />
-                {m.lrnAddText()}
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                className="max-md:h-10"
-                onClick={() => add("quiz")}
-              >
-                <ListChecks aria-hidden />
-                {m.lrnAddQuestion()}
-              </Button>
-              <Button
-                type="button"
-                variant="outline"
-                className="max-md:h-10"
-                onClick={() => add("reflection")}
-              >
-                <MessageSquareText aria-hidden />
-                {m.lrnAddReflection()}
-              </Button>
+            <div className="pt-2">
+              <Inserter
+                onPick={addAt(draft.blocks.length)}
+                trigger={
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="max-md:h-10"
+                  >
+                    <Plus aria-hidden />
+                    {m.lrnAddPart()}
+                  </Button>
+                }
+              />
             </div>
           ) : null}
         </div>

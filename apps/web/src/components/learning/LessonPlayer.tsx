@@ -1,11 +1,20 @@
 import type {
+  CheckView,
   LessonBlock,
   LessonCompletion,
+  LessonResponse,
+  StoredTry,
   StudentBlock,
 } from "@faridalms/domain/learning";
 
-import { Checkbox as CheckboxPrimitive } from "@base-ui/react/checkbox";
-import { Radio } from "@base-ui/react/radio";
+import {
+  checkBlocks,
+  checkStates,
+  describeCheck,
+  isAuto,
+  markResponse,
+  studentBlocks,
+} from "@faridalms/domain/learning";
 import {
   useMutation,
   useQueryClient,
@@ -13,14 +22,17 @@ import {
 } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import {
+  ArrowDown,
   ArrowLeft,
   ArrowRight,
-  Check,
   CircleCheck,
-  CircleX,
+  Eye,
+  Lock,
   Pencil,
+  RotateCcw,
 } from "lucide-react";
-import { useId, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 import { toast } from "sonner";
 
 import { ButtonLink } from "~/components/app/ButtonLink";
@@ -28,20 +40,25 @@ import { ContentView } from "~/components/content/ContentView";
 import { RecordHeader } from "~/components/system/RecordPage";
 import { Button } from "~/components/ui/button";
 import { Progress } from "~/components/ui/progress";
-import { RadioGroup } from "~/components/ui/radio-group";
-import { Textarea } from "~/components/ui/textarea";
 import * as m from "~/i18n/messages";
 import { lessonEditorQuery, lessonQuery } from "~/queries/learning";
-import { answerQuiz, completeLesson, saveReflection } from "~/server/learning";
-import { cn } from "~/utils/cn";
+import {
+  completeLesson,
+  respondToCheck,
+  retryLesson,
+  revealCheck,
+  saveReadingPosition,
+} from "~/server/learning";
 import { formatNumber } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
+
+import type { CheckDriver } from "./Checks";
+
+import { CheckBlockView, isCheckBlock, isSettled } from "./Checks";
 
 type Played = Awaited<
   ReturnType<NonNullable<ReturnType<typeof lessonQuery>["queryFn"]>>
 >;
-type QuizAnswer = Played["answers"]["quiz"][string];
-type QuizView = Extract<StudentBlock, { type: "quiz" }>;
 
 const fileUrl = (fileId: string) => `/files/${fileId}`;
 
@@ -53,29 +70,34 @@ const RULE_HINT: Record<LessonCompletion, (() => string) | null> = {
   reflection: m.lrnRuleReflection,
 };
 
+const ruleText = (completion: LessonCompletion, passScore: number | null) =>
+  completion === "score"
+    ? m.lrnRuleScore({ score: formatNumber(passScore ?? 100) })
+    : RULE_HINT[completion]?.();
+
 function Media({ block }: { block: Extract<LessonBlock, { type: "media" }> }) {
   const src = fileUrl(block.fileId);
   const captions = block.captionsFileId ? fileUrl(block.captionsFileId) : null;
   return (
     <figure className="grid gap-2">
-      {captions && block.mediaType.startsWith("video/") ? (
+      {block.mediaType.startsWith("video/") ? (
         <video controls preload="metadata" className="w-full rounded-lg">
           <source src={src} type={block.mediaType} />
           <track
             kind="captions"
-            src={captions}
+            src={captions ?? undefined}
             srcLang={block.captionsLang}
-            default
+            default={Boolean(captions)}
           />
         </video>
-      ) : captions && block.mediaType.startsWith("audio/") ? (
+      ) : block.mediaType.startsWith("audio/") ? (
         <audio controls preload="metadata" className="w-full">
           <source src={src} type={block.mediaType} />
           <track
             kind="captions"
-            src={captions}
+            src={captions ?? undefined}
             srcLang={block.captionsLang}
-            default
+            default={Boolean(captions)}
           />
         </audio>
       ) : block.mediaType.startsWith("image/") ? (
@@ -96,252 +118,224 @@ function Media({ block }: { block: Extract<LessonBlock, { type: "media" }> }) {
           {block.caption}
         </figcaption>
       ) : null}
+      {block.transcript ? (
+        <details className="rounded-lg border px-4 py-2 text-sm leading-6">
+          <summary className="cursor-pointer py-1 font-medium">
+            {m.lrnTranscript()}
+          </summary>
+          <p dir="auto" className="pt-2 pb-1 whitespace-pre-wrap">
+            {block.transcript}
+          </p>
+        </details>
+      ) : null}
     </figure>
   );
 }
 
-const choiceRow =
-  "group flex min-h-12 w-full cursor-pointer items-center gap-3 rounded-lg border px-4 py-3 text-start text-sm leading-5 outline-none transition-colors hover:bg-muted/50 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-default";
-
-function Outcome({ outcome }: { outcome: "right" | "wrong" | null }) {
-  if (outcome === "right")
-    return <CircleCheck aria-hidden className="size-4 shrink-0 text-success" />;
-  if (outcome === "wrong")
-    return <CircleX aria-hidden className="size-4 shrink-0 text-destructive" />;
-  return null;
-}
-
-// Once answered, the row shows whether it was right instead of that it was chosen.
-const outcomeRow = (answered: boolean, outcome: "right" | "wrong" | null) =>
-  cn(
-    !answered && "data-checked:border-primary/50 data-checked:bg-primary/5",
-    outcome === "right" && "border-success/40 bg-success/10",
-    outcome === "wrong" && "border-destructive/40 bg-destructive/5",
-  );
-
-function Quiz({
-  block,
-  lessonId,
-  previous,
-  onAnswered,
+function Gate({
+  open,
+  done,
+  total,
+  onContinue,
 }: {
-  block: QuizView;
-  lessonId: string;
-  previous: QuizAnswer | undefined;
-  onAnswered: (completed: boolean) => void;
+  open: boolean;
+  done: number;
+  total: number;
+  onContinue: () => void;
 }) {
-  const legend = useId();
-  const [selected, setSelected] = useState<string[]>(previous?.optionIds ?? []);
-  const [result, setResult] = useState<{
-    correct: boolean;
-    correctOptionIds: string[];
-    explanation: string;
-  } | null>(previous ?? null);
-  const answer = useMutation({
-    mutationFn: () =>
-      answerQuiz({
-        data: { lessonId, blockId: block.id, optionIds: selected },
-      }),
-    onSuccess: (response) => {
-      setResult(response);
-      onAnswered(response.completed);
-    },
-    onError: (error) => toast.error(getMessageFromError(error)),
-  });
-  const outcome = (optionId: string) => {
-    if (!result) return null;
-    if (result.correctOptionIds.includes(optionId)) return "right";
-    return selected.includes(optionId) ? "wrong" : null;
-  };
-  const locked = result !== null;
-  return (
-    <fieldset
-      aria-labelledby={legend}
-      className="grid gap-3 rounded-lg border bg-card p-5"
-    >
-      <p id={legend} dir="auto" className="text-base leading-6 font-semibold">
-        {block.question}
-      </p>
-      {block.multiple ? (
-        <p className="text-[13px] leading-[18px] text-muted-foreground">
-          {m.lrnChooseAll()}
-        </p>
-      ) : null}
-      {block.multiple ? (
-        <div className="grid gap-2">
-          {block.options.map((option) => (
-            <CheckboxPrimitive.Root
-              key={option.id}
-              disabled={locked}
-              checked={selected.includes(option.id)}
-              onCheckedChange={(checked) =>
-                setSelected((current) =>
-                  checked
-                    ? [...current, option.id]
-                    : current.filter((item) => item !== option.id),
-                )
-              }
-              className={cn(choiceRow, outcomeRow(locked, outcome(option.id)))}
-            >
-              <span
-                aria-hidden
-                className="grid size-4 shrink-0 place-items-center rounded-[4px] border border-input group-data-checked:border-primary group-data-checked:bg-primary group-data-checked:text-primary-foreground"
-              >
-                <CheckboxPrimitive.Indicator>
-                  <Check className="size-3.5" />
-                </CheckboxPrimitive.Indicator>
-              </span>
-              <span dir="auto" className="min-w-0 flex-1">
-                {option.text}
-              </span>
-              <Outcome outcome={outcome(option.id)} />
-            </CheckboxPrimitive.Root>
-          ))}
-        </div>
-      ) : (
-        <RadioGroup
-          aria-labelledby={legend}
-          disabled={locked}
-          value={selected[0] ?? ""}
-          onValueChange={(value) => setSelected([String(value)])}
-          className="gap-2"
-        >
-          {block.options.map((option) => (
-            <Radio.Root
-              key={option.id}
-              value={option.id}
-              className={cn(choiceRow, outcomeRow(locked, outcome(option.id)))}
-            >
-              <span
-                aria-hidden
-                className="grid size-4 shrink-0 place-items-center rounded-full border border-input group-data-checked:border-primary group-data-checked:bg-primary"
-              >
-                <Radio.Indicator className="size-2 rounded-full bg-primary-foreground" />
-              </span>
-              <span dir="auto" className="min-w-0 flex-1">
-                {option.text}
-              </span>
-              <Outcome outcome={outcome(option.id)} />
-            </Radio.Root>
-          ))}
-        </RadioGroup>
-      )}
-      <div aria-live="polite" className="grid gap-2">
-        {result ? (
-          <>
-            <p
-              className={cn(
-                "inline-flex items-center gap-2 text-sm leading-5 font-medium",
-                result.correct ? "text-success" : "text-destructive",
-              )}
-            >
-              {result.correct ? (
-                <CircleCheck aria-hidden className="size-4" />
-              ) : (
-                <CircleX aria-hidden className="size-4" />
-              )}
-              {result.correct ? m.lrnRight() : m.lrnNotQuite()}
-            </p>
-            {result.explanation ? (
-              <p dir="auto" className="text-sm leading-6 text-muted-foreground">
-                {result.explanation}
-              </p>
-            ) : null}
-          </>
-        ) : null}
-      </div>
-      <div className="flex flex-wrap gap-2">
-        {locked ? (
-          result.correct ? null : (
-            <Button
-              type="button"
-              variant="outline"
-              className="max-md:h-10"
-              onClick={() => {
-                setResult(null);
-                setSelected([]);
-              }}
-            >
-              {m.lrnTryAgain()}
-            </Button>
-          )
-        ) : (
-          <Button
-            type="button"
-            className="max-md:h-10"
-            disabled={selected.length === 0 || answer.isPending}
-            onClick={() => answer.mutate()}
-          >
-            {m.lrnCheck()}
-          </Button>
-        )}
-      </div>
-    </fieldset>
-  );
-}
-
-function Reflection({
-  blockId,
-  prompt,
-  lessonId,
-  previous,
-  onSaved,
-}: {
-  blockId: string;
-  prompt: string;
-  lessonId: string;
-  previous: string;
-  onSaved: (completed: boolean) => void;
-}) {
-  const field = useId();
-  const [text, setText] = useState(previous);
-  const [saved, setSaved] = useState(previous);
-  const save = useMutation({
-    mutationFn: () =>
-      saveReflection({ data: { lessonId, blockId, text: text.trim() } }),
-    onSuccess: (response) => {
-      setSaved(text);
-      onSaved(response.completed);
-    },
-    onError: (error) => toast.error(getMessageFromError(error)),
-  });
-  return (
-    <div className="grid gap-3 rounded-lg border bg-card p-5">
-      <label
-        htmlFor={field}
-        dir="auto"
-        className="text-base leading-6 font-semibold"
-      >
-        {prompt}
-      </label>
-      <Textarea
-        id={field}
-        dir="auto"
-        rows={4}
-        maxLength={4000}
-        value={text}
-        onChange={(event) => setText(event.target.value)}
-      />
-      <div className="flex flex-wrap items-center gap-3">
-        <Button
-          type="button"
-          className="max-md:h-10"
-          disabled={!text.trim() || text === saved || save.isPending}
-          onClick={() => save.mutate()}
-        >
-          {m.lrnSaveAnswer()}
+  if (open)
+    return (
+      <div className="flex justify-center">
+        <Button type="button" className="max-md:h-10" onClick={onContinue}>
+          {m.lrnContinue()}
+          <ArrowDown aria-hidden />
         </Button>
-        {saved && text === saved ? (
-          <span
-            aria-live="polite"
-            className="text-[13px] leading-[18px] text-muted-foreground"
-          >
-            {m.lrnAnswerSaved()}
-          </span>
-        ) : null}
       </div>
+    );
+  return (
+    <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 rounded-lg border border-dashed px-5 py-4 text-sm leading-5 text-muted-foreground">
+      <Lock aria-hidden className="size-4" />
+      <span>{m.lrnGateLocked()}</span>
+      <span className="tabular-nums">
+        {m.lrnGateProgress({
+          count: formatNumber(done),
+          total: formatNumber(total),
+        })}
+      </span>
     </div>
   );
+}
+
+/**
+ * A lesson's blocks as its student meets them, stopping at each continue gate
+ * until the questions above it are settled and the student moves on.
+ */
+function LessonBody({
+  blocks,
+  checks,
+  driver,
+  position,
+  onReach,
+}: {
+  blocks: StudentBlock[];
+  checks: Record<string, CheckView>;
+  driver: CheckDriver;
+  position?: string | null;
+  onReach?: (blockId: string) => void;
+}) {
+  const settledAbove = (index: number) => {
+    const above = blocks.slice(0, index).filter(isCheckBlock);
+    return {
+      total: above.length,
+      done: above.filter((block) => isSettled(block, checks[block.id])).length,
+    };
+  };
+  const reached = position
+    ? blocks.findIndex((block) => block.id === position)
+    : -1;
+  const [passed, setPassed] = useState<ReadonlySet<string>>(
+    () =>
+      new Set(
+        blocks.flatMap((block, index) => {
+          if (block.type !== "gate") return [];
+          const { done, total } = settledAbove(index);
+          // A gate over questions opens when they are settled, even after a
+          // fresh attempt; one over reading alone stays open once read past.
+          return (total > 0 ? done === total : index < reached)
+            ? [block.id]
+            : [];
+        }),
+      ),
+  );
+  const [resumed, setResumed] = useState(false);
+  const shown: { block: StudentBlock; index: number }[] = [];
+  for (const [index, block] of blocks.entries()) {
+    shown.push({ block, index });
+    if (block.type === "gate" && !passed.has(block.id)) break;
+  }
+  const resumeAt =
+    !resumed && reached > 0 && shown.some(({ index }) => index === reached)
+      ? blocks[reached]?.id
+      : undefined;
+
+  return (
+    <>
+      {resumeAt ? (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-muted/50 px-5 py-3">
+          <p className="text-sm leading-5 text-muted-foreground">
+            {m.lrnResumeHint()}
+          </p>
+          <Button
+            type="button"
+            variant="outline"
+            className="max-md:h-10"
+            onClick={() => {
+              setResumed(true);
+              const target = document.getElementById(`block-${resumeAt}`);
+              target?.scrollIntoView({ block: "start" });
+              target?.focus({ preventScroll: true });
+            }}
+          >
+            {m.lrnResume()}
+            <ArrowDown aria-hidden />
+          </Button>
+        </div>
+      ) : null}
+      {shown.map(({ block, index }) => {
+        let body;
+        if (block.type === "gate") {
+          if (passed.has(block.id)) return null;
+          const { done, total } = settledAbove(index);
+          body = (
+            <Gate
+              open={done === total}
+              done={done}
+              total={total}
+              onContinue={() => {
+                // The blocks after the gate must exist before focus can move to them.
+                flushSync(() =>
+                  setPassed((current) => new Set([...current, block.id])),
+                );
+                const next = blocks[index + 1];
+                if (next) {
+                  document.getElementById(`block-${next.id}`)?.focus();
+                  onReach?.(next.id);
+                }
+              }}
+            />
+          );
+        } else if (block.type === "content")
+          body = <ContentView document={block.content} fileUrl={fileUrl} />;
+        else if (block.type === "media") body = <Media block={block} />;
+        else if (isCheckBlock(block))
+          body = (
+            <CheckBlockView
+              block={block}
+              view={checks[block.id]}
+              driver={driver}
+            />
+          );
+        return (
+          <section
+            key={block.id}
+            id={`block-${block.id}`}
+            // A gate is passed by choosing to continue, never by scrolling to it.
+            data-block={block.type === "gate" ? undefined : block.id}
+            tabIndex={-1}
+            className="scroll-mt-24 outline-none"
+          >
+            {body}
+          </section>
+        );
+      })}
+    </>
+  );
+}
+
+/** Saves the furthest block a student has scrolled to, a moment after they stop. */
+function useReadingPosition(
+  lessonId: string,
+  blocks: StudentBlock[],
+  saved: string | null,
+) {
+  const furthest = useRef(
+    saved ? blocks.findIndex((block) => block.id === saved) : -1,
+  );
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const reach = (blockId: string) => {
+    const index = blocks.findIndex((block) => block.id === blockId);
+    if (index <= furthest.current) return;
+    furthest.current = index;
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = setTimeout(() => {
+      // A lost position only means the lesson opens at the top next time.
+      void saveReadingPosition({ data: { lessonId, blockId } }).catch(
+        () => undefined,
+      );
+    }, 1500);
+  };
+  useEffect(() => {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        for (const entry of entries)
+          if (entry.isIntersecting)
+            reach((entry.target as HTMLElement).dataset.block ?? "");
+      },
+      { threshold: 0.6 },
+    );
+    for (const element of document.querySelectorAll<HTMLElement>(
+      "[data-block]",
+    ))
+      observer.observe(element);
+    return () => observer.disconnect();
+  });
+  useEffect(
+    () => () => {
+      if (timer.current) clearTimeout(timer.current);
+    },
+    [],
+  );
+  return reach;
 }
 
 function Footer({ data }: { data: Played }) {
@@ -389,17 +383,42 @@ function Footer({ data }: { data: Played }) {
   );
 }
 
-/** One lesson for its student: read, answer, reflect, and move on when it is done. */
+/** One lesson for its student: read, answer, and move on when it is done. */
 export function LessonPlayer({ lessonId }: { lessonId: string }) {
-  const data = useSuspenseQuery(lessonQuery(lessonId)).data;
+  const query = lessonQuery(lessonId);
+  const data = useSuspenseQuery(query).data;
   const queryClient = useQueryClient();
-  const refresh = async () => {
-    await queryClient.invalidateQueries({ queryKey: ["learning"] });
+  const refresh = () =>
+    queryClient.invalidateQueries({ queryKey: ["learning"] });
+  const apply = async (
+    blockId: string,
+    result: { check: CheckView; score: number | null; completed: boolean },
+  ) => {
+    queryClient.setQueryData(query.queryKey, (old) =>
+      old
+        ? {
+            ...old,
+            checks: { ...old.checks, [blockId]: result.check },
+            score: result.score,
+          }
+        : old,
+    );
+    if (result.completed && !data.completedAt) {
+      await refresh();
+      toast.success(m.lrnLessonFinished());
+    }
   };
-  const settled = async (completed: boolean) => {
-    if (!completed || data.completedAt) return;
-    await refresh();
-    toast.success(m.lrnLessonFinished());
+  const driver: CheckDriver = {
+    respond: async (blockId, response) => {
+      const result = await respondToCheck({
+        data: { lessonId, blockId, response },
+      });
+      await apply(blockId, result);
+    },
+    reveal: async (blockId) => {
+      const result = await revealCheck({ data: { lessonId, blockId } });
+      await apply(blockId, result);
+    },
   };
   const complete = useMutation({
     mutationFn: () => completeLesson({ data: { lessonId } }),
@@ -409,32 +428,40 @@ export function LessonPlayer({ lessonId }: { lessonId: string }) {
     },
     onError: (error) => toast.error(getMessageFromError(error)),
   });
-  const hint =
-    data.completion === "score"
-      ? m.lrnRuleScore({ score: formatNumber(data.passScore ?? 100) })
-      : RULE_HINT[data.completion]?.();
+  const retry = useMutation({
+    mutationFn: () => retryLesson({ data: { lessonId } }),
+    onSuccess: async () => {
+      await refresh();
+      window.scrollTo({ top: 0 });
+      toast.success(m.lrnNewAttempt());
+    },
+    onError: (error) => toast.error(getMessageFromError(error)),
+  });
+  const reach = useReadingPosition(lessonId, data.blocks, data.position);
+
+  const checks = data.blocks.filter(isCheckBlock);
+  const auto = checks.filter((block) => block.type !== "written");
+  const allSettled = auto.every((block) =>
+    isSettled(block, data.checks[block.id]),
+  );
+  const canRetry = auto.length > 0 && allSettled;
+  const hint = ruleText(data.completion, data.passScore);
+  const place = m.lrnLessonOf({
+    number: formatNumber(data.index + 1),
+    total: formatNumber(data.total),
+  });
   return (
     <article className="mx-auto grid w-full max-w-3xl gap-6">
-      <div className="grid gap-2">
-        <Progress
-          value={((data.index + 1) / data.total) * 100}
-          aria-label={m.lrnPlace()}
-          getAriaValueText={() =>
-            m.lrnLessonOf({
-              number: formatNumber(data.index + 1),
-              total: formatNumber(data.total),
-            })
-          }
-          className="gap-1"
-        >
-          <span className="text-[13px] leading-[18px] text-muted-foreground tabular-nums">
-            {m.lrnLessonOf({
-              number: formatNumber(data.index + 1),
-              total: formatNumber(data.total),
-            })}
-          </span>
-        </Progress>
-      </div>
+      <Progress
+        value={((data.index + 1) / data.total) * 100}
+        aria-label={m.lrnPlace()}
+        getAriaValueText={() => place}
+        className="gap-1"
+      >
+        <span className="text-[13px] leading-[18px] text-muted-foreground tabular-nums">
+          {place}
+        </span>
+      </Progress>
       <RecordHeader
         title={data.title}
         status={
@@ -442,61 +469,76 @@ export function LessonPlayer({ lessonId }: { lessonId: string }) {
             ? { label: m.lrnLessonDone(), tone: "success" }
             : undefined
         }
-        facts={
-          data.score === null
+        facts={[
+          ...(data.score === null
             ? []
             : [
                 {
                   label: m.lrnScore(),
-                  value: m.lrnScoreIs({
-                    value: formatNumber(data.score),
+                  value: m.lrnScoreIs({ value: formatNumber(data.score) }),
+                },
+              ]),
+          ...(data.attempt > 1
+            ? [
+                {
+                  label: m.lrnAttempt(),
+                  value: m.lrnAttemptIs({
+                    number: formatNumber(data.attempt),
                   }),
                 },
               ]
-        }
+            : []),
+        ]}
       />
-      {data.blocks.map((block) =>
-        block.type === "content" ? (
-          <ContentView
-            key={block.id}
-            document={block.content}
-            fileUrl={fileUrl}
-          />
-        ) : block.type === "media" ? (
-          <Media key={block.id} block={block} />
-        ) : block.type === "quiz" ? (
-          <Quiz
-            key={block.id}
-            block={block}
-            lessonId={lessonId}
-            previous={data.answers.quiz[block.id]}
-            onAnswered={(completed) => void settled(completed)}
-          />
-        ) : (
-          <Reflection
-            key={block.id}
-            blockId={block.id}
-            prompt={block.prompt}
-            lessonId={lessonId}
-            previous={data.answers.reflections[block.id]?.text ?? ""}
-            onSaved={(completed) => void settled(completed)}
-          />
-        ),
-      )}
-      {!data.completedAt && (hint || data.completion === "mark") ? (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-muted/50 px-5 py-4">
-          <p className="text-sm leading-5 text-muted-foreground">{hint}</p>
-          {data.completion === "mark" ? (
-            <Button
-              type="button"
-              className="max-md:h-10"
-              disabled={complete.isPending}
-              onClick={() => complete.mutate()}
-            >
-              <CircleCheck aria-hidden />
-              {m.lrnMarkDone()}
-            </Button>
+      <LessonBody
+        key={data.attempt}
+        blocks={data.blocks}
+        checks={data.checks}
+        driver={driver}
+        position={data.position}
+        onReach={reach}
+      />
+      {data.completedAt ? (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-success/30 bg-success/5 px-5 py-4">
+          <p className="inline-flex items-center gap-2 text-sm leading-5 font-medium">
+            <CircleCheck aria-hidden className="size-4 text-success" />
+            {data.score === null
+              ? m.lrnLessonFinished()
+              : m.lrnFinishedScore({ value: formatNumber(data.score) })}
+          </p>
+          {canRetry ? (
+            <RetryButton
+              pending={retry.isPending}
+              onRetry={() => retry.mutate()}
+            />
           ) : null}
+        </div>
+      ) : hint || data.completion === "mark" || canRetry ? (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-muted/50 px-5 py-4">
+          <p className="text-sm leading-5 text-muted-foreground">
+            {canRetry && data.completion === "score"
+              ? m.lrnBelowPass({ score: formatNumber(data.passScore ?? 100) })
+              : hint}
+          </p>
+          <div className="flex flex-wrap gap-2">
+            {canRetry ? (
+              <RetryButton
+                pending={retry.isPending}
+                onRetry={() => retry.mutate()}
+              />
+            ) : null}
+            {data.completion === "mark" ? (
+              <Button
+                type="button"
+                className="max-md:h-10"
+                disabled={complete.isPending}
+                onClick={() => complete.mutate()}
+              >
+                <CircleCheck aria-hidden />
+                {m.lrnMarkDone()}
+              </Button>
+            ) : null}
+          </div>
         </div>
       ) : null}
       <Footer data={data} />
@@ -504,10 +546,92 @@ export function LessonPlayer({ lessonId }: { lessonId: string }) {
   );
 }
 
-/** A lesson as its students will see it, with the right answers shown, for its teacher. */
+function RetryButton({
+  pending,
+  onRetry,
+}: {
+  pending: boolean;
+  onRetry: () => void;
+}) {
+  return (
+    <Button
+      type="button"
+      variant="outline"
+      className="max-md:h-10"
+      disabled={pending}
+      title={m.lrnRetryHint()}
+      onClick={onRetry}
+    >
+      <RotateCcw aria-hidden />
+      {m.lrnRetryLesson()}
+    </Button>
+  );
+}
+
+/**
+ * A lesson as its students will meet it, answered and marked here in the
+ * browser so the teacher can try every question; nothing is saved.
+ */
 export function LessonPreview({ lessonId }: { lessonId: string }) {
   const data = useSuspenseQuery(lessonEditorQuery(lessonId)).data;
   const navigate = useNavigate();
+  const [rows, setRows] = useState<StoredTry[]>([]);
+  const [round, setRound] = useState(0);
+  const blocks = useMemo(
+    () => studentBlocks(data.content, `preview:${round}`),
+    [data.content, round],
+  );
+  const checks = useMemo(() => {
+    const states = checkStates(data.content, rows);
+    return Object.fromEntries(
+      checkBlocks(data.content).map((block) => [
+        block.id,
+        describeCheck(block, rows, states[block.id]),
+      ]),
+    );
+  }, [data.content, rows]);
+  const driver: CheckDriver = {
+    respond: (blockId, response: LessonResponse) => {
+      const block = checkBlocks(data.content).find(
+        (item) => item.id === blockId,
+      );
+      if (!block) return Promise.resolve();
+      const marked = isAuto(block) ? markResponse(block, response) : null;
+      setRows((current) => {
+        const previous = current.filter(
+          (row) =>
+            row.blockId === blockId &&
+            (row.state === "answered" || row.state === "needs_marking"),
+        ).length;
+        return [
+          ...current,
+          {
+            blockId,
+            try: previous + 1,
+            state: marked || block.points === 0 ? "answered" : "needs_marking",
+            fraction: marked ? marked.fraction : null,
+            response,
+            feedback: null,
+          },
+        ];
+      });
+      return Promise.resolve();
+    },
+    reveal: (blockId) => {
+      setRows((current) => [
+        ...current,
+        {
+          blockId,
+          try: 1,
+          state: "revealed",
+          fraction: 0,
+          response: {},
+          feedback: null,
+        },
+      ]);
+      return Promise.resolve();
+    },
+  };
   return (
     <article className="mx-auto grid w-full max-w-3xl gap-6">
       <RecordHeader
@@ -516,12 +640,10 @@ export function LessonPreview({ lessonId }: { lessonId: string }) {
         facts={[
           {
             label: m.lrnCompletion(),
-            value:
-              data.completion === "score"
-                ? m.lrnRuleScore({ score: formatNumber(data.passScore ?? 100) })
-                : (RULE_HINT[data.completion]?.() ?? m.lrnRuleView()),
+            value: ruleText(data.completion, data.passScore) ?? m.lrnRuleView(),
           },
         ]}
+        alerts={[{ label: m.lrnPreviewHint(), tone: "info", icon: Eye }]}
         action={{
           label: m.lrnEditLesson(),
           icon: Pencil,
@@ -531,66 +653,18 @@ export function LessonPreview({ lessonId }: { lessonId: string }) {
               search: { id: data.id, moduleId: data.moduleId },
             }),
         }}
+        menu={[
+          {
+            label: m.lrnStartOver(),
+            icon: RotateCcw,
+            onSelect: () => {
+              setRows([]);
+              setRound((current) => current + 1);
+            },
+          },
+        ]}
       />
-      {data.content.blocks.map((block) =>
-        block.type === "content" ? (
-          <ContentView
-            key={block.id}
-            document={block.content}
-            fileUrl={fileUrl}
-          />
-        ) : block.type === "media" ? (
-          <Media key={block.id} block={block} />
-        ) : block.type === "quiz" ? (
-          <div
-            key={block.id}
-            className="grid gap-3 rounded-lg border bg-card p-5"
-          >
-            <p dir="auto" className="text-base leading-6 font-semibold">
-              {block.question}
-            </p>
-            <ul className="grid gap-2">
-              {block.options.map((option) => {
-                const right = block.correctOptionIds.includes(option.id);
-                return (
-                  <li
-                    key={option.id}
-                    className={cn(
-                      "flex min-h-12 items-center gap-3 rounded-lg border px-4 py-3 text-sm leading-5",
-                      right && "border-success/40 bg-success/10",
-                    )}
-                  >
-                    <span dir="auto" className="min-w-0 flex-1">
-                      {option.text}
-                    </span>
-                    {right ? (
-                      <span className="inline-flex items-center gap-1.5 text-[13px] text-success">
-                        <CircleCheck aria-hidden className="size-4" />
-                        {m.lrnCorrectAnswer()}
-                      </span>
-                    ) : null}
-                  </li>
-                );
-              })}
-            </ul>
-            {block.explanation ? (
-              <p dir="auto" className="text-sm leading-6 text-muted-foreground">
-                {block.explanation}
-              </p>
-            ) : null}
-          </div>
-        ) : (
-          <div
-            key={block.id}
-            className="grid gap-3 rounded-lg border bg-card p-5"
-          >
-            <p dir="auto" className="text-base leading-6 font-semibold">
-              {block.prompt}
-            </p>
-            <div className="min-h-24 rounded-md border border-dashed" />
-          </div>
-        ),
-      )}
+      <LessonBody key={round} blocks={blocks} checks={checks} driver={driver} />
     </article>
   );
 }

@@ -334,6 +334,26 @@ export function getMessageFromError(error: unknown): string {
         return m.lrnErrCaptions();
       case "learning.correct_option":
         return m.lrnCorrectNeeded();
+      case "learning.settled":
+        return m.lrnErrSettled();
+      case "learning.word_limit":
+        return m.lrnErrWordLimit();
+      case "learning.points_over":
+        return m.lrnErrPointsOver();
+      case "learning.response":
+        return m.lrnErrResponse();
+      case "learning.nothing_to_retry":
+        return m.lrnErrNothingToRetry();
+      case "learning.module_draft":
+        return m.lrnErrModuleDraft();
+      case "learning.gap_options":
+        return m.lrnGapChoices();
+      case "learning.gaps_needed":
+        return m.lrnGapsNeeded();
+      case "learning.number_range":
+        return m.lrnRangeOrder();
+      case "learning.duplicate_ids":
+        return m.lrnErrDuplicateIds();
       case "module_class.exists":
         return m.lrnErrClassTwice();
       case "access.escalation":

@@ -8,6 +8,7 @@ import {
   getModuleRecord,
   getMyModules,
   getTeachingModules,
+  getWrittenAnswers,
   openLesson,
 } from "~/server/learning";
 
@@ -39,6 +40,13 @@ export const moduleProgressQuery = (moduleId: string, classId: string) =>
   queryOptions({
     queryKey: ["learning", "progress", moduleId, classId],
     queryFn: () => getModuleProgress({ data: { moduleId, classId } }),
+    placeholderData: (previous) => previous,
+  });
+
+export const writtenAnswersQuery = (moduleId: string, classId: string) =>
+  queryOptions({
+    queryKey: ["learning", "answers", moduleId, classId],
+    queryFn: () => getWrittenAnswers({ data: { moduleId, classId } }),
     placeholderData: (previous) => previous,
   });
 

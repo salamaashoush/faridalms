@@ -11,7 +11,7 @@ import {
 // sits in 8A. Each browser builds its own module, so none reads another's.
 const TEACHER = "teacher2.northwind@northwind.example.com";
 
-test("a teacher builds a module, a student answers its lesson, and the teacher sees it done", async ({
+test("a teacher builds a module, a student answers its lesson, and the teacher marks it and sees it done", async ({
   browser,
   page,
 }) => {
@@ -36,13 +36,26 @@ test("a teacher builds a module, a student answers its lesson, and the teacher s
   await page.getByRole("textbox", { name: "Lesson title" }).fill("Greetings");
   await page.locator("[contenteditable=true]").first().click();
   await page.keyboard.type("A letter opens with a greeting.");
-  await page.getByRole("button", { name: "Add question" }).click();
-  await page
-    .getByRole("textbox", { name: "Question", exact: true })
-    .fill("How does a letter open?");
+  const addPart = async (kind: RegExp) => {
+    await page.getByRole("button", { name: "Add part", exact: true }).click();
+    await page.getByRole("menuitem", { name: kind }).click();
+  };
+  const questions = page.getByRole("textbox", {
+    name: "Question",
+    exact: true,
+  });
+  await addPart(/^Multiple choice/);
+  await questions.nth(0).fill("How does a letter open?");
   await page.getByRole("textbox", { name: "Option 1" }).fill("With a greeting");
   await page.getByRole("textbox", { name: "Option 2" }).fill("With a goodbye");
   await page.getByRole("checkbox", { name: "Option 1 is right" }).click();
+  await addPart(/^Typed answer/);
+  await questions.nth(1).fill("Which word often starts a letter?");
+  await page.getByRole("textbox", { name: "Accepted answer 1" }).fill("Dear");
+  await addPart(/^Written answer/);
+  await questions.nth(2).fill("Write the first line of a letter to a friend.");
+  await page.getByRole("button", { name: "More options" }).nth(2).click();
+  await page.getByRole("spinbutton", { name: "Points" }).last().fill("4");
   await page.locator("#lesson-completion").click();
   await page
     .getByRole("option", { name: "Every question is answered" })
@@ -77,14 +90,37 @@ test("a teacher builds a module, a student answers its lesson, and the teacher s
     student.getByText("A letter opens with a greeting."),
   ).toBeVisible();
   await student.getByRole("radio", { name: "With a goodbye" }).click();
-  await student.getByRole("button", { name: "Check answer" }).click();
-  await expect(student.getByText("Not quite")).toBeVisible();
+  await student.getByRole("button", { name: "Check answer" }).first().click();
+  // Each question reports its verdict in its own status output.
+  const verdicts = student.locator("output");
+  await expect(verdicts.getByText("Not quite")).toBeVisible();
   await student.getByRole("button", { name: "Try again" }).click();
   await student.getByRole("radio", { name: "With a greeting" }).click();
-  await student.getByRole("button", { name: "Check answer" }).click();
-  await expect(student.getByText("Right", { exact: true })).toBeVisible();
-  await expect(student.getByText("Lesson done")).toBeVisible();
+  await student.getByRole("button", { name: "Check answer" }).first().click();
+  await expect(verdicts.getByText("Right", { exact: true })).toBeVisible();
+  const typed = student.getByRole("textbox", { name: "Your answer" }).first();
+  await typed.fill("dear");
+  await typed.press("Enter");
+  await expect(verdicts.getByText("Right", { exact: true })).toHaveCount(2);
+  await expect(student.getByText("Lesson done", { exact: true })).toBeVisible();
+  await student
+    .getByRole("textbox", { name: "Your answer" })
+    .last()
+    .fill("Dear Salama, I hope you are well.");
+  await student.getByRole("button", { name: "Save answer" }).click();
+  await expect(
+    student.getByText("Sent. Your teacher will mark it."),
+  ).toBeVisible();
   await studentContext.close();
+
+  await page.goto(`${recordUrl}?tab=answers`);
+  await untilHydrated(page);
+  await expect(
+    page.getByText("Dear Salama, I hope you are well."),
+  ).toBeVisible();
+  await page.getByRole("spinbutton", { name: "Points out of 4" }).fill("3");
+  await page.getByRole("button", { name: "Save mark" }).click();
+  await expect(page.getByText("Marked: 3 of 4 points")).toBeVisible();
 
   await page.goto(`${recordUrl}?tab=progress`);
   await untilHydrated(page);
