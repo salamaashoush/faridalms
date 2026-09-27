@@ -661,10 +661,12 @@ export async function place(
     year: { id: string; startsOn: string; endsBefore: string };
     gradeId: string;
     calendarId: string | null;
+    /** The day the grade takes effect; today by default, never before the year. */
+    from?: string;
   },
 ) {
-  const start =
-    scope.today > input.year.startsOn ? scope.today : input.year.startsOn;
+  const wanted = input.from ?? scope.today;
+  const start = wanted > input.year.startsOn ? wanted : input.year.startsOn;
   const existing = (await placements(tx, scope, input.studentId)).find(
     (row) =>
       row.schoolYearId === input.year.id && row.from <= start && start < row.to,

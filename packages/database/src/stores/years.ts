@@ -62,3 +62,15 @@ export function workingYear(years: SchoolYear[], today: string) {
     null
   );
 }
+
+/** The day a year is read on: today inside it, else its first or last day. */
+export function dayIn(
+  year: { startsOn: string; endsBefore: string },
+  today: string,
+) {
+  if (today < year.startsOn) return year.startsOn;
+  if (today < year.endsBefore) return today;
+  const last = new Date(`${year.endsBefore}T00:00:00Z`);
+  last.setUTCDate(last.getUTCDate() - 1);
+  return last.toISOString().slice(0, 10);
+}

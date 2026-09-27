@@ -92,3 +92,60 @@ export async function descriptorId(
   if (!row) throw new Error(`descriptor ${namespace}/${code} is missing`);
   return row.id;
 }
+
+/** Adds a value only this school uses, such as a subject it teaches. */
+export async function addSchoolDescriptor(
+  tx: CellTransaction,
+  input: {
+    tenantId: string;
+    orgId: string;
+    namespace: string;
+    code: string;
+    labelEn: string | null;
+    labelAr: string | null;
+    color: string | null;
+  },
+) {
+  const rows = await tx.execute<{ id: string }>(sql`
+    insert into core.descriptors (tenant_id, namespace, code_value, label_en, label_ar, color, org_id)
+    values (${input.tenantId}::uuid, ${input.namespace}, ${input.code}, ${input.labelEn}, ${input.labelAr},
+      ${input.color}, ${input.orgId}::uuid)
+    returning id`);
+  const row = rows[0];
+  if (!row) throw new Error("descriptor was not created");
+  return row.id;
+}
+
+/**
+ * Relabels a value at a school: its own value is changed in place, a shared
+ * one through an override at the school, so other schools keep their labels.
+ */
+export async function relabelDescriptor(
+  tx: CellTransaction,
+  input: {
+    tenantId: string;
+    orgId: string;
+    descriptorId: string;
+    labelEn: string | null;
+    labelAr: string | null;
+    color: string | null;
+  },
+) {
+  const own = await tx.execute<{ id: string }>(sql`
+    update core.descriptors set label_en = ${input.labelEn}, label_ar = ${input.labelAr}, color = ${input.color}
+    where tenant_id = ${input.tenantId}::uuid and id = ${input.descriptorId}::uuid and org_id = ${input.orgId}::uuid
+      and status = 'active'
+    returning id`);
+  if (own.length > 0) return;
+  const overridden = await tx.execute<{ id: string }>(sql`
+    update core.descriptor_overrides set label_en = ${input.labelEn}, label_ar = ${input.labelAr},
+      color = ${input.color}
+    where tenant_id = ${input.tenantId}::uuid and descriptor_id = ${input.descriptorId}::uuid
+      and org_id = ${input.orgId}::uuid and status = 'active'
+    returning id`);
+  if (overridden.length > 0) return;
+  await tx.execute(sql`
+    insert into core.descriptor_overrides (tenant_id, descriptor_id, org_id, label_en, label_ar, color)
+    values (${input.tenantId}::uuid, ${input.descriptorId}::uuid, ${input.orgId}::uuid, ${input.labelEn},
+      ${input.labelAr}, ${input.color})`);
+}
