@@ -69,10 +69,13 @@ export function PageHeader({
   action?: HeaderAction;
   menu?: ActionItem[];
 }) {
+  // The action shares the title's line and the description runs beneath
+  // both, so on a phone a long description never pushes the action onto a
+  // row of its own.
   return (
-    <header className="mb-6 flex flex-wrap items-start justify-between gap-x-4 gap-y-3">
-      <div className="min-w-0">
-        <div className="flex min-h-9 items-center gap-2 max-md:min-h-10">
+    <header className="mb-6 grid gap-1">
+      <div className="flex items-start justify-between gap-4">
+        <div className="flex min-h-9 min-w-0 items-center gap-2 max-md:min-h-10">
           <h1 className="text-2xl leading-8 font-semibold tracking-tight">
             {title}
           </h1>
@@ -85,22 +88,22 @@ export function PageHeader({
             </p>
           )}
         </div>
-        {description ? (
-          <p className="mt-1 text-[13px] leading-[18px] text-muted-foreground">
-            {description}
-          </p>
+        {action || menu.length ? (
+          <div className="flex shrink-0 items-center gap-2">
+            <ActionMenu
+              label={m.docMoreActions()}
+              actions={menu}
+              size="icon"
+              className="max-md:size-10"
+            />
+            {action ? <HeaderActionButton action={action} /> : null}
+          </div>
         ) : null}
       </div>
-      {action || menu.length ? (
-        <div className="flex shrink-0 items-center gap-2">
-          <ActionMenu
-            label={m.docMoreActions()}
-            actions={menu}
-            size="icon"
-            className="max-md:size-10"
-          />
-          {action ? <HeaderActionButton action={action} /> : null}
-        </div>
+      {description ? (
+        <p className="text-[13px] leading-[18px] text-muted-foreground">
+          {description}
+        </p>
       ) : null}
     </header>
   );
