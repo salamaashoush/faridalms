@@ -1,6 +1,7 @@
 import type { Scope } from "@faridalms/database/stores/students";
 import type { SchoolYear } from "@faridalms/database/stores/years";
 
+import { lastMarkInClass } from "@faridalms/database/stores/attendance";
 import {
   classById,
   classDetail,
@@ -79,6 +80,24 @@ async function yearOf(context: UnitContext, requested: string) {
     : workingYear(years, context.today);
   if (requested && !year) throw new ORPCError("NOT_FOUND");
   return { years, year: year ?? null };
+}
+
+/**
+ * Ending an enrolment on a day before a register that already marks the
+ * student would leave that register counting someone no longer in the class.
+ */
+async function refuseOverRegisters(
+  context: UnitContext,
+  input: { studentId: string; classId: string; from: string },
+) {
+  const last = await lastMarkInClass(context.tx, {
+    tenantId: context.tenantId,
+    ...input,
+  });
+  if (last)
+    throw new ORPCError("CONFLICT", {
+      message: `enrollment.registers_after:${last}`,
+    });
 }
 
 async function requireOpen(context: UnitContext, year: SchoolYear) {
@@ -293,6 +312,11 @@ export const enrol = writeProcedure
       if (current?.classId === target.id)
         return { id: current.id, moved: false };
       if (current) {
+        await refuseOverRegisters(context, {
+          studentId: input.studentId,
+          classId: current.classId,
+          from,
+        });
         await endStudentEnrollment(context.tx, {
           tenantId: context.tenantId,
           id: current.id,
@@ -353,6 +377,11 @@ export const withdraw = writeProcedure
       throw new ORPCError("BAD_REQUEST", {
         message: "enrollment.outside_dates",
       });
+    await refuseOverRegisters(context, {
+      studentId: input.studentId,
+      classId: episode.classId,
+      from: on,
+    });
     const ended = await endStudentEnrollment(context.tx, {
       tenantId: context.tenantId,
       id: input.enrollmentId,

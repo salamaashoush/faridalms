@@ -13,6 +13,7 @@ import * as students from "./modules/students";
 import * as teaching from "./modules/teaching";
 import * as timetable from "./modules/timetable";
 import * as accessSystem from "./systems/access";
+import * as attendanceSystem from "./systems/attendance";
 import * as classesSystem from "./systems/classes";
 import * as courseworkSystem from "./systems/coursework";
 import * as filesSystem from "./systems/files";
@@ -35,6 +36,7 @@ export const router = {
   files: filesSystem,
   coursework: courseworkSystem,
   gradebook: gradebookSystem,
+  attendance: attendanceSystem,
   rollover: rolloverSystem,
   ...students,
   ...overviews,

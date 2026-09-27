@@ -1,11 +1,11 @@
 import type { Scope } from "@faridalms/database/stores/students";
 
-import { classById } from "@faridalms/database/stores/classes";
 import {
-  namesOf,
+  classById,
   rosterOf,
   teachesClass,
-} from "@faridalms/database/stores/coursework";
+} from "@faridalms/database/stores/classes";
+import { namesOf } from "@faridalms/database/stores/coursework";
 import {
   classResults,
   classWork,

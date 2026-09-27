@@ -277,6 +277,7 @@ export const student = readProcedure
         demographics: can(context, "demographics:read"),
         custody: can(context, "custody:read"),
         history: can(context, "people:manage") || can(context, "audit:read"),
+        attendance: can(context, "attendance:read"),
       },
     };
   });

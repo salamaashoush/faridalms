@@ -796,3 +796,44 @@ export async function roomsOf(tx: Tx, tenantId: string, schoolId: string) {
     nameAr: row.name_ar,
   }));
 }
+
+/**
+ * The classes the viewer keeps (sets and grades work in, takes registers
+ * for): every class for school-wide staff, otherwise those they teach or
+ * assist in, at any point of the class's year. Reaching a class, as a
+ * homeroom teacher reaches its subject classes, is not enough to keep it.
+ */
+export const taughtClasses = (scope: Scope) =>
+  sql`(select c.id from core.classes c
+    where c.tenant_id = ${scope.tenantId}::uuid and c.org_id = ${scope.schoolId}::uuid and c.status = 'active'
+      and (${scope.schoolWide} or exists (
+        select 1 from core.enrollments e
+        where e.tenant_id = c.tenant_id and e.class_id = c.id and e.user_id = ${scope.viewerId}::uuid
+          and e.role in ('teacher', 'aide') and e.status = 'active')))`;
+
+export async function teachesClass(
+  tx: Tx,
+  scope: Scope,
+  classId: string,
+): Promise<boolean> {
+  const [row] = await tx.execute<{ taught: boolean }>(sql`
+    select ${classId}::uuid in ${taughtClasses(scope)} as taught`);
+  return row?.taught ?? false;
+}
+
+export async function rosterOf(
+  tx: Tx,
+  tenantId: string,
+  classId: string,
+  on: string,
+): Promise<string[]> {
+  const rows = await tx.execute<{ user_id: string }>(sql`
+    select distinct e.user_id from core.enrollments e
+    where e.tenant_id = ${tenantId}::uuid and e.role = 'student' and e.status = 'active'
+      and e.valid_during @> ${on}::date
+      and e.class_id = coalesce(
+        (select c.homeroom_class_id from core.classes c
+          where c.tenant_id = ${tenantId}::uuid and c.id = ${classId}::uuid),
+        ${classId}::uuid)`);
+  return rows.map((row) => row.user_id);
+}

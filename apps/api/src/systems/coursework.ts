@@ -6,7 +6,12 @@ import type {
   TeacherTab,
 } from "@faridalms/domain/coursework";
 
-import { classById, classesTaughtBy } from "@faridalms/database/stores/classes";
+import {
+  classById,
+  classesTaughtBy,
+  rosterOf,
+  teachesClass,
+} from "@faridalms/database/stores/classes";
 import {
   assessmentOf,
   assignmentById,
@@ -20,10 +25,8 @@ import {
   isRecipient,
   learnerAssignments,
   namesOf,
-  teachesClass,
   releaseAssessments,
   removeGroup,
-  rosterOf,
   rubricsOf,
   saveAssessment,
   saveGroup,
