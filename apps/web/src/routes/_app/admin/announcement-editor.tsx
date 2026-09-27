@@ -1,5 +1,6 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
+import { useState } from "react";
 import * as v from "valibot";
 
 import { AnnouncementEditor } from "~/components/announcements/AnnouncementEditor";
@@ -58,10 +59,14 @@ function EditorPage() {
           params: { announcementId: saved },
         })
       : navigate({ to: "/announcements", search: {} }));
-  // The first autosave gives a new draft its address, so a reload reopens it.
-  const created = (saved: string) =>
+  // The first autosave gives a new draft its address, so a reload reopens
+  // it; the editor already open stays mounted with what is being typed.
+  const [started, setStarted] = useState<string | null>(null);
+  const created = (saved: string) => {
+    setStarted(saved);
     void navigate({ search: { id: saved }, replace: true });
-  return id ? (
+  };
+  return id && id !== started ? (
     <Existing id={id} onClose={close} onCreated={created} />
   ) : (
     <AnnouncementEditor existing={null} onClose={close} onCreated={created} />
