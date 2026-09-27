@@ -1,7 +1,6 @@
 import type {
   SaveSubjectInput,
   PublishNewsletterInput,
-  SaveUserInput,
   SaveClassInput,
 } from "@faridalms/domain/administration-schema";
 
@@ -29,71 +28,6 @@ export class ManagementError extends Error {
   ) {
     super(message);
   }
-}
-
-export async function saveUser(
-  db: Database,
-  input: SaveUserInput,
-  actorId: string,
-  passwordHash?: string,
-) {
-  return db.transaction(async (tx) => {
-    await tx.execute(sql`select pg_advisory_xact_lock(741903)`);
-    if (input.id === actorId && (!input.isActive || input.role !== "admin"))
-      throw new ManagementError("FORBIDDEN", "management.self_admin_removal");
-    const duplicate = await tx.query.users.findFirst({
-      where: {
-        RAW: (table) =>
-          sql`${and(sql`lower(${table.email}) = ${input.email.toLowerCase()}`, input.id ? ne(table.id, input.id) : undefined)}`,
-      },
-    });
-    if (duplicate)
-      throw new ManagementError("CONFLICT", "management.email_in_use");
-    const values = {
-      name: input.name,
-      email: input.email.toLowerCase(),
-      role: input.role,
-      title: input.title || null,
-      mobile: input.mobile || null,
-      isActive: input.isActive,
-      updatedAt: new Date(),
-    };
-    if (input.id) {
-      const existing = await tx.query.users.findFirst({
-        where: { id: input.id },
-      });
-      if (!existing)
-        throw new ManagementError("NOT_FOUND", "management.account_not_found");
-      if (existing.role !== input.role) {
-        const [teaching, guardian, student] = await Promise.all([
-          tx.query.classSubjects.findFirst({ where: { teacherId: input.id } }),
-          tx.query.guardianships.findFirst({ where: { guardianId: input.id } }),
-          tx.query.students.findFirst({ where: { userId: input.id } }),
-        ]);
-        const homeroom = await tx.query.classes.findFirst({
-          where: { homeroomTeacherId: input.id },
-        });
-        if (teaching || guardian || student || homeroom)
-          throw new ManagementError(
-            "CONFLICT",
-            "management.role_relationships",
-          );
-      }
-      await tx
-        .update(s.users)
-        .set({ ...values, ...(passwordHash ? { passwordHash } : {}) })
-        .where(eq(s.users.id, input.id));
-      return { id: input.id };
-    }
-    if (!passwordHash)
-      throw new ManagementError("BAD_REQUEST", "A password is required");
-    const [row] = await tx
-      .insert(s.users)
-      .values({ ...values, passwordHash })
-      .returning({ id: s.users.id });
-    if (!row) throw new Error("Account insert returned no row");
-    return row;
-  });
 }
 
 export async function saveClass(

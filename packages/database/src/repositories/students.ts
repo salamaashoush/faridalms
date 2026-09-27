@@ -1,7 +1,5 @@
-import type { StaffDirectoryQuery } from "@faridalms/domain/school-schema";
-
 import { ageOn } from "@faridalms/domain/school";
-import { and, count, eq, ilike, inArray, isNull, or, sql } from "drizzle-orm";
+import { and, inArray, isNull, sql } from "drizzle-orm";
 
 import type { Database } from "../index";
 
@@ -277,51 +275,4 @@ export async function rosterFor(
       ),
     );
   return [...new Set(rows.map((row) => row.studentId))];
-}
-
-export async function staffDirectory(db: Database, query: StaffDirectoryQuery) {
-  const needle = `%${query.q.replaceAll(/[\\%_]/g, "\\$&")}%`;
-  const filter = and(
-    query.role === "all" ? undefined : eq(schema.users.role, query.role),
-    query.status === "all"
-      ? undefined
-      : eq(schema.users.isActive, query.status === "active"),
-    query.q
-      ? or(ilike(schema.users.name, needle), ilike(schema.users.email, needle))
-      : undefined,
-  );
-  const columns = {
-    name: schema.users.name,
-    email: schema.users.email,
-    role: schema.users.role,
-    status: schema.users.isActive,
-  };
-  const order =
-    query.dir === "asc"
-      ? sql`${columns[query.sort]} asc`
-      : sql`${columns[query.sort]} desc`;
-  const [totals] = await db
-    .select({ total: count() })
-    .from(schema.users)
-    .where(filter);
-  const total = totals?.total ?? 0;
-  const pages = Math.max(1, Math.ceil(total / query.pageSize));
-  const page = Math.min(query.page, pages);
-  const rows = await db
-    .select({
-      id: schema.users.id,
-      name: schema.users.name,
-      email: schema.users.email,
-      role: schema.users.role,
-      title: schema.users.title,
-      mobile: schema.users.mobile,
-      isActive: schema.users.isActive,
-      lastSignedInAt: schema.users.lastSignedInAt,
-    })
-    .from(schema.users)
-    .where(filter)
-    .orderBy(order, schema.users.id)
-    .limit(query.pageSize)
-    .offset((page - 1) * query.pageSize);
-  return { rows, total, page, pages };
 }

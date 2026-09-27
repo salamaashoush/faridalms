@@ -1,4 +1,4 @@
-import { schools, sessions } from "@faridalms/database/control-schema";
+import { schools } from "@faridalms/database/control-schema";
 import {
   placementDate,
   workingYear,
@@ -9,7 +9,6 @@ import {
   saveSubject as saveSubjectRow,
   publishNewsletter as publishNewsletterRow,
   ManagementError,
-  saveUser as saveUserRow,
   saveClass as saveClassRow,
   managementOptions,
 } from "@faridalms/database/repositories/management";
@@ -19,21 +18,16 @@ import {
   schoolAttendanceRate,
   schoolStats,
 } from "@faridalms/database/repositories/school";
-import { staffDirectory } from "@faridalms/database/repositories/students";
 import {
   schoolProfileSchema,
   saveSubjectSchema,
   publishNewsletterSchema,
-  saveUserSchema,
   saveClassSchema,
   managementOptionsSchema,
 } from "@faridalms/domain/administration-schema";
-import {
-  staffDirectorySchema,
-  classDirectorySchema,
-} from "@faridalms/domain/school-schema";
+import { classDirectorySchema } from "@faridalms/domain/school-schema";
 import { ORPCError } from "@orpc/server";
-import { and, eq } from "drizzle-orm";
+import { eq } from "drizzle-orm";
 
 import { requirePermission } from "../authorization";
 import { protectedProcedure } from "../procedure";
@@ -74,13 +68,6 @@ export const getAdminOverview = protectedProcedure.handler(
   },
 );
 
-export const getAllUsers = protectedProcedure
-  .input(staffDirectorySchema)
-  .handler(async ({ context, input }) => {
-    await requirePermission(context, "users:read");
-    return staffDirectory(context.db, input);
-  });
-
 export const getAllClasses = protectedProcedure
   .input(classDirectorySchema)
   .handler(async ({ context, input }) => {
@@ -111,27 +98,6 @@ export const getSchoolSettings = protectedProcedure.handler(
   },
 );
 
-export const saveUser = protectedProcedure
-  .input(saveUserSchema)
-  .handler(async ({ input, context }) => {
-    const actor = await requirePermission(context, "users:manage");
-    const passwordHash = input.password
-      ? await Bun.password.hash(input.password, { algorithm: "argon2id" })
-      : undefined;
-    const saved = await manage(() =>
-      saveUserRow(context.db, input, actor.id, passwordHash),
-    );
-    if (input.id && (passwordHash || !input.isActive))
-      await context.control
-        .delete(sessions)
-        .where(
-          and(
-            eq(sessions.schoolId, context.school.id),
-            eq(sessions.userId, input.id),
-          ),
-        );
-    return saved;
-  });
 export const saveClass = protectedProcedure
   .input(saveClassSchema)
   .handler(async ({ input, context }) => {

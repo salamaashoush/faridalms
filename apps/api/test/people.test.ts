@@ -237,3 +237,230 @@ describe("person records", () => {
     expect(record.account).toBeNull();
   });
 });
+
+describe("staff", () => {
+  test("the directory lists the school's staff and the group's administrators", async () => {
+    const api = await signedIn("northwind", login("principal"));
+    const list = await api.people.staff({});
+    const roles = list.rows.flatMap((row) => row.roles);
+    expect(roles).toContain("principal");
+    expect(roles).toContain("teacher");
+    expect(roles).toContain("district_administrator");
+    expect(
+      list.rows.filter((row) => row.roles.includes("teacher")).length,
+    ).toBeGreaterThanOrEqual(6);
+    expect(list.rows.every((row) => row.account !== null)).toBe(true);
+    const teachers = await api.people.staff({ role: ["teacher"] });
+    expect(teachers.rows.every((row) => row.roles.includes("teacher"))).toBe(
+      true,
+    );
+  });
+
+  test("a teacher reads colleagues without sign-in details and opens the group administrator", async () => {
+    const teacher = await signedIn("northwind", login("teacher"));
+    const list = await teacher.people.staff({});
+    expect(list.manage).toBe(false);
+    expect(list.rows.every((row) => row.account === null)).toBe(true);
+    const admin = list.rows.find((row) =>
+      row.roles.includes("district_administrator"),
+    );
+    if (!admin) throw new Error("seed group administrator");
+    const record = await teacher.people.person({ id: admin.id });
+    expect(record.roles.map((role) => role.role)).toContain(
+      "district_administrator",
+    );
+    const parent = await signedIn("northwind", login("parent"));
+    expect(await rejection(parent.people.staff({}))).toMatchObject({
+      code: "FORBIDDEN",
+    });
+  });
+
+  test("adding a staff member records their roles, position and work contacts", async () => {
+    const api = await signedIn("northwind", login("principal"));
+    const options = await api.people.options();
+    const position = options.positions.find((row) => row.code === "teacher");
+    const saved = await api.people.saveStaff({
+      names: names("Salama Ashoush", "سلامة عاشور"),
+      email: "Salama.Ashoush@northwind.example.com",
+      phone: "0100 555 0101",
+      roles: ["teacher", "counselor"],
+      positionId: position?.id ?? "",
+      titleEn: "Head of science",
+      titleAr: "رئيس قسم العلوم",
+    });
+    const member = await api.people.staffMember({ id: saved.id });
+    expect(member.roles.toSorted()).toEqual(["counselor", "teacher"]);
+    expect(member.email).toBe("salama.ashoush@northwind.example.com");
+    expect(member.titleEn).toBe("Head of science");
+    const found = await api.people.staff({
+      q: "salama.ashoush@northwind.example.com",
+    });
+    expect(found.rows.map((row) => row.id)).toEqual([saved.id]);
+    expect(found.rows[0]?.position?.labelEn).toBeTruthy();
+    const byPhone = await api.people.staff({ q: "01005550101" });
+    expect(byPhone.rows.map((row) => row.id)).toEqual([saved.id]);
+
+    await api.people.saveStaff({
+      id: saved.id,
+      expectedVersion: saved.version,
+      names: names("Salama Ashoush", "سلامة عاشور"),
+      email: "salama.ashoush@northwind.example.com",
+      phone: "",
+      roles: ["teacher"],
+      titleEn: "",
+      titleAr: "",
+    });
+    const after = await api.people.staffMember({ id: saved.id });
+    expect(after.roles).toEqual(["teacher"]);
+    expect(after.phone).toBe("");
+    expect(after.titleEn).toBe("");
+  });
+
+  test("a person found by their email joins the staff without a second record", async () => {
+    const api = await signedIn("northwind", login("principal"));
+    const list = await api.people.students({ q: "GA1004" });
+    const student = await api.people.student({ id: list.rows[0]?.id ?? "" });
+    const guardian = student.guardians?.find((row) => row.contacts.length > 0);
+    const phone = guardian?.contacts.find((row) => row.kind === "phone")?.value;
+    if (!guardian || !phone) throw new Error("seed guardian phone");
+    const matches = await api.people.findGuardians({ phone });
+    expect(matches.map((row) => row.id)).toContain(guardian.userId);
+    await api.people.saveStaff({
+      existingUserId: guardian.userId,
+      names: names("Ignored Name", "اسم متجاهل"),
+      email: "second.job@northwind.example.com",
+      roles: ["aide"],
+    });
+    const record = await api.people.person({ id: guardian.userId });
+    const held = record.roles.map((role) => role.role);
+    expect(held).toContain("aide");
+    expect(held.some((role) => role === "parent" || role === "guardian")).toBe(
+      true,
+    );
+    expect(record.fullNameEn).toBe(guardian.fullNameEn);
+  });
+
+  test("a phone that cannot be read is refused before anything is saved", async () => {
+    const api = await signedIn("northwind", login("principal"));
+    expect(
+      await rejection(
+        api.people.saveStaff({
+          names: names("Salama Hassan", "سلامة حسن"),
+          email: "salama.hassan@northwind.example.com",
+          phone: "12",
+          roles: ["staff"],
+        }),
+      ),
+    ).toMatchObject({ message: "contact_point.phone_invalid" });
+    const found = await api.people.staff({
+      q: "salama.hassan@northwind.example.com",
+    });
+    expect(found.total).toBe(0);
+  });
+});
+
+describe("sign-in", () => {
+  const password = "correct horse battery staple";
+
+  async function newStaff(email: string) {
+    const api = await signedIn("northwind", login("principal"));
+    const saved = await api.people.saveStaff({
+      names: names("Salama Nour", "سلامة نور"),
+      email,
+      roles: ["teacher"],
+    });
+    return { api, id: saved.id };
+  }
+
+  test("an administrator opens a sign-in, and a new password ends the old sessions", async () => {
+    const { api, id } = await newStaff("salama.nour@northwind.example.com");
+    await api.people.saveSignIn({
+      userId: id,
+      loginName: "salama.nour@northwind.example.com",
+      password,
+    });
+    const first = await client("northwind").identity.signIn({
+      loginName: "salama.nour@northwind.example.com",
+      password,
+    });
+    const session = client("northwind", first.token);
+    expect((await session.identity.currentUser()).id).toBe(id);
+    const record = await api.people.person({ id });
+    expect(record.access.signIn).toBe(true);
+    expect(record.account?.loginName).toBe("salama.nour@northwind.example.com");
+
+    await api.people.saveSignIn({
+      userId: id,
+      loginName: "salama.nour@northwind.example.com",
+      password: `${password} again`,
+    });
+    expect(await rejection(session.identity.currentUser())).toMatchObject({
+      code: "UNAUTHORIZED",
+    });
+  });
+
+  test("a disabled sign-in is refused until it is enabled again", async () => {
+    const { api, id } = await newStaff("salama.fawzy@northwind.example.com");
+    await api.people.saveSignIn({
+      userId: id,
+      loginName: "salama.fawzy@northwind.example.com",
+      password,
+    });
+    await api.people.setSignInState({ userId: id, state: "disabled" });
+    expect(
+      await rejection(
+        client("northwind").identity.signIn({
+          loginName: "salama.fawzy@northwind.example.com",
+          password,
+        }),
+      ),
+    ).toMatchObject({ message: "auth.invalid_credentials" });
+    await api.people.setSignInState({ userId: id, state: "active" });
+    const session = await client("northwind").identity.signIn({
+      loginName: "salama.fawzy@northwind.example.com",
+      password,
+    });
+    expect(session.token).toBeTruthy();
+  });
+
+  test("short passwords, taken login names, one's own account and teachers are refused", async () => {
+    const { api, id } = await newStaff("salama.adel@northwind.example.com");
+    expect(
+      await rejection(
+        api.people.saveSignIn({
+          userId: id,
+          loginName: "salama.adel@northwind.example.com",
+          password: "short",
+        }),
+      ),
+    ).toMatchObject({ code: "BAD_REQUEST" });
+    expect(
+      await rejection(
+        api.people.saveSignIn({
+          userId: id,
+          loginName: login("teacher"),
+          password,
+        }),
+      ),
+    ).toMatchObject({
+      code: "CONFLICT",
+      message: "login_identity.login_name_taken",
+    });
+    const me = await api.identity.currentUser();
+    expect(
+      await rejection(
+        api.people.setSignInState({ userId: me.id, state: "disabled" }),
+      ),
+    ).toMatchObject({ code: "FORBIDDEN", message: "account.self" });
+    const teacher = await signedIn("northwind", login("teacher"));
+    expect(
+      await rejection(
+        teacher.people.saveSignIn({
+          userId: id,
+          loginName: "salama.adel@northwind.example.com",
+          password,
+        }),
+      ),
+    ).toMatchObject({ code: "FORBIDDEN" });
+  });
+});

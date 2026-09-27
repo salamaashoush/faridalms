@@ -184,6 +184,7 @@ export const STAFF_ROLE_CHOICES = [
 export const saveStaffSchema = v.object({
   id: v.optional(id),
   expectedVersion: v.optional(version),
+  existingUserId: v.optional(id),
   names: personNamesSchema,
   email: v.pipe(email, v.email()),
   phone: v.optional(phone, ""),
@@ -196,6 +197,23 @@ export const saveStaffSchema = v.object({
   titleAr: optionalText(100),
 });
 export type SaveStaffInput = v.InferInput<typeof saveStaffSchema>;
+
+export const saveSignInSchema = v.object({
+  userId: id,
+  loginName: v.pipe(email, v.email()),
+  // Empty keeps the current password; a sign-in being created needs one.
+  password: v.union([
+    v.literal(""),
+    v.pipe(v.string(), v.minLength(15), v.maxLength(256)),
+  ]),
+});
+export type SaveSignInInput = v.InferInput<typeof saveSignInSchema>;
+
+export const accountStateSchema = v.object({
+  userId: id,
+  state: v.picklist(["active", "disabled"]),
+  reason: optionalText(500),
+});
 
 export const saveSchoolSchema = v.object({
   expectedVersion: version,

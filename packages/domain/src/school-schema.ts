@@ -264,20 +264,6 @@ export const createAssignmentSchema = v.pipe(
   v.check((input) => Number.isFinite(Date.parse(input.dueDate))),
 );
 
-export const staffDirectorySchema = v.object({
-  q: studentDirectorySchema.entries.q,
-  sort: v.optional(v.picklist(["name", "email", "role", "status"]), "name"),
-  dir: studentDirectorySchema.entries.dir,
-  status: v.optional(v.picklist(["all", "active", "inactive"]), "all"),
-  role: v.optional(
-    v.picklist(["all", "admin", "teacher", "parent", "student"]),
-    "all",
-  ),
-  page: studentDirectorySchema.entries.page,
-  pageSize: studentDirectorySchema.entries.pageSize,
-});
-export type StaffDirectoryQuery = v.InferOutput<typeof staffDirectorySchema>;
-
 export const classDirectorySchema = v.object({
   year: workingYearSchema,
   sort: v.optional(v.picklist(["name", "grade", "room"]), "name"),

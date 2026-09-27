@@ -3,6 +3,13 @@ import type { Scope } from "@faridalms/database/stores/students";
 import type { StudentStatus } from "@faridalms/domain/people";
 
 import {
+  createPasswordAccount,
+  revokeAccountSessions,
+  setAccountState,
+  signInOf,
+  updatePasswordSignIn,
+} from "@faridalms/database/stores/accounts";
+import {
   descriptorId,
   descriptorsFor,
 } from "@faridalms/database/stores/descriptors";
@@ -12,8 +19,15 @@ import {
   childrenOf,
   contactsOf,
   isVisiblePerson,
+  replaceContact,
   rolesAt,
 } from "@faridalms/database/stores/persons";
+import {
+  schoolRoleIds,
+  setStaffRoles,
+  STAFF_ROLES,
+  staffDirectory,
+} from "@faridalms/database/stores/staff";
 import {
   accountOf,
   addContact,
@@ -43,8 +57,12 @@ import { schoolYears, workingYear } from "@faridalms/database/stores/years";
 import {
   endRelationshipSchema,
   guardianLookupSchema,
+  accountStateSchema,
   saveRelationshipSchema,
+  saveSignInSchema,
+  saveStaffSchema,
   saveStudentSchema,
+  staffDirectorySchema,
   studentDirectorySchema,
   studentMatchesSchema,
   studentStatus,
@@ -65,6 +83,7 @@ import {
 } from "../core/procedure";
 
 const id = v.pipe(v.string(), v.uuid());
+const STAFF_ROLE_SET: ReadonlySet<string> = new Set(STAFF_ROLES);
 
 function scopeOf(context: UnitContext): Scope {
   return {
@@ -263,7 +282,12 @@ export const matches = readProcedure
 export const findGuardians = readProcedure
   .input(guardianLookupSchema)
   .handler(async ({ input, context }) => {
-    requireCapability(context, "people:manage", "guardians:manage");
+    requireCapability(
+      context,
+      "people:manage",
+      "guardians:manage",
+      "staff:manage",
+    );
     if (input.phone) {
       const normalized = toE164(input.phone, await countryOf(context));
       return normalized
@@ -661,13 +685,14 @@ export const person = readProcedure
           ? contactsOf(context.tx, context.tenantId, input.id)
           : Promise.resolve(null),
         childrenOf(context.tx, scope, input.id),
-        manage || self
-          ? accountOf(context.tx, context.tenantId, input.id)
-          : Promise.resolve(null),
+        accountOf(context.tx, context.tenantId, input.id),
         labels("relation"),
         labels("staff_position"),
       ]);
     const personal = manage || self;
+    const staffMember = roles.some((role) => STAFF_ROLE_SET.has(role.role));
+    const signIn =
+      !self && (staffMember ? can(context, "staff:manage") : manage);
     return {
       id: record.id,
       version: record.version,
@@ -690,11 +715,13 @@ export const person = readProcedure
         ...child,
         relation: labelFrom(relations, child.relationId),
       })),
-      account,
+      account: personal || signIn ? account : null,
       today: context.today,
       access: {
         self,
         manage,
+        signIn,
+        staff: staffMember && can(context, "staff:manage"),
         history: manage || can(context, "audit:read"),
       },
     };
@@ -712,4 +739,302 @@ export const personHistory = readProcedure
       limit: 50,
       before: input.before,
     });
+  });
+
+export const staff = readProcedure
+  .input(staffDirectorySchema)
+  .handler(async ({ input, context }) => {
+    requireCapability(context, "people:read", "staff:manage");
+    const phone = /^[+0-9 ()-]{7,}$/.test(input.q)
+      ? toE164(input.q, await countryOf(context))
+      : null;
+    const [{ rows, total }, positions] = await Promise.all([
+      staffDirectory(context.tx, scopeOf(context), {
+        q: input.q,
+        phone,
+        roles: input.role,
+        sort: input.sort,
+        dir: input.dir,
+        page: input.page,
+        pageSize: input.pageSize,
+        locale: localeOf(context),
+      }),
+      descriptorsFor(context.tx, {
+        tenantId: context.tenantId,
+        schoolId: context.schoolId,
+        namespace: "staff_position",
+        today: context.today,
+        includeRetired: true,
+      }),
+    ]);
+    const manage = can(context, "staff:manage");
+    const contacts = manage || can(context, "contacts:read");
+    return {
+      rows: rows.map((row) => ({
+        id: row.id,
+        fullNameEn: row.fullNameEn,
+        fullNameAr: row.fullNameAr,
+        photoFileId: row.photoFileId,
+        roles: row.roles,
+        titleEn: row.titleEn,
+        titleAr: row.titleAr,
+        position: labelFrom(positions, row.positionId),
+        email: contacts ? row.email : null,
+        phone: contacts ? row.phone : null,
+        account: manage
+          ? { state: row.accountState, lastSignInAt: row.lastSignInAt }
+          : null,
+      })),
+      total,
+      page: input.page,
+      pages: Math.max(1, Math.ceil(total / input.pageSize)),
+      manage,
+    };
+  });
+
+/** What the staff editor starts from: names, work contacts and the roles held here. */
+export const staffMember = readProcedure
+  .input(v.object({ id }))
+  .handler(async ({ input, context }) => {
+    requireCapability(context, "staff:manage");
+    if (!(await isVisiblePerson(context.tx, scopeOf(context), input.id)))
+      throw new ORPCError("NOT_FOUND");
+    const record = await readPerson(context.tx, input.id);
+    if (!record) throw new ORPCError("NOT_FOUND");
+    const [roles, contacts] = await Promise.all([
+      rolesAt(context.tx, scopeOf(context), input.id),
+      contactsOf(context.tx, context.tenantId, input.id),
+    ]);
+    const staffRoles = roles.filter((role) => STAFF_ROLE_SET.has(role.role));
+    const here = await schoolRoleIds(context.tx, scopeOf(context), input.id);
+    const first = staffRoles.find((role) => here.has(role.id));
+    return {
+      id: record.id,
+      version: record.version,
+      fullNameEn: record.fullNameEn,
+      fullNameAr: record.fullNameAr,
+      givenNameAr: record.givenNameAr,
+      middleNameAr: record.middleNameAr,
+      familyNameAr: record.familyNameAr,
+      givenNameEn: record.givenNameEn,
+      middleNameEn: record.middleNameEn,
+      familyNameEn: record.familyNameEn,
+      email: contacts.find((contact) => contact.kind === "email")?.value ?? "",
+      phone: contacts.find((contact) => contact.kind === "phone")?.value ?? "",
+      roles: staffRoles
+        .filter((role) => here.has(role.id))
+        .map((role) => role.role),
+      groupRoles: staffRoles
+        .filter((role) => !here.has(role.id))
+        .map((role) => role.role),
+      positionId: first?.positionId ?? "",
+      titleEn: first?.titleEn ?? "",
+      titleAr: first?.titleAr ?? "",
+    };
+  });
+
+export const saveStaff = writeProcedure
+  .input(saveStaffSchema)
+  .handler(async ({ input, context }) => {
+    requireCapability(context, "staff:manage");
+    const tx = context.tx;
+    const country = await countryOf(context);
+    const phone = input.phone ? toE164(input.phone, country) : null;
+    if (input.phone && !phone)
+      throw new ORPCError("BAD_REQUEST", {
+        message: "contact_point.phone_invalid",
+      });
+    let userId: string;
+    if (input.id) {
+      if (!(await isVisiblePerson(tx, scopeOf(context), input.id)))
+        throw new ORPCError("NOT_FOUND");
+      const before = await readPerson(tx, input.id);
+      if (!before) throw new ORPCError("NOT_FOUND");
+      const updated = await updatePerson(tx, {
+        tenantId: context.tenantId,
+        userId: input.id,
+        expectedVersion: input.expectedVersion ?? 0,
+        names: input.names,
+        preferredGivenName: before.preferredGivenName,
+        birthDate: before.birthDate,
+        sexId: before.sexId,
+      });
+      if (!updated)
+        throw new ORPCError("CONFLICT", { message: "conflict.version" });
+      userId = input.id;
+      await audit(context, {
+        action: "user.update",
+        objectType: "user",
+        objectId: userId,
+        subjectUserId: userId,
+        change: {
+          table: "core.users",
+          before: nameColumns({
+            ar: {
+              given: before.givenNameAr,
+              middle: before.middleNameAr,
+              family: before.familyNameAr,
+            },
+            en: {
+              given: before.givenNameEn,
+              middle: before.middleNameEn,
+              family: before.familyNameEn,
+            },
+          }),
+          after: nameColumns(input.names),
+        },
+      });
+    } else if (input.existingUserId) {
+      const existing = await readPerson(tx, input.existingUserId);
+      if (!existing) throw new ORPCError("NOT_FOUND");
+      userId = existing.id;
+    } else {
+      const created = await insertPerson(tx, {
+        tenantId: context.tenantId,
+        schoolId: context.schoolId,
+        names: input.names,
+      });
+      userId = created.id;
+      await audit(context, {
+        action: "user.create",
+        objectType: "user",
+        objectId: userId,
+        subjectUserId: userId,
+        change: {
+          table: "core.users",
+          before: null,
+          after: nameColumns(input.names),
+        },
+      });
+    }
+    await replaceContact(tx, {
+      tenantId: context.tenantId,
+      userId,
+      kind: "email",
+      label: "work",
+      value: input.email,
+      normalized: input.email,
+    });
+    if (input.phone || input.id)
+      await replaceContact(tx, {
+        tenantId: context.tenantId,
+        userId,
+        kind: "phone",
+        label: "mobile",
+        value: input.phone,
+        normalized: phone,
+      });
+    await setStaffRoles(tx, scopeOf(context), userId, {
+      roles: input.roles,
+      positionId: input.positionId || null,
+      titleEn: input.titleEn,
+      titleAr: input.titleAr,
+    });
+    await audit(context, {
+      action: "role.change",
+      objectType: "user",
+      objectId: userId,
+      subjectUserId: userId,
+      details: { roles: input.roles, positionId: input.positionId || null },
+    });
+    const saved = await readPerson(tx, userId);
+    return { id: userId, version: saved?.version ?? 1 };
+  });
+
+/**
+ * Who may change a person's sign-in: staff managers for staff, people
+ * managers for everyone else, and nobody for their own account here.
+ */
+async function requireSignInManager(context: UnitContext, userId: string) {
+  const scope = scopeOf(context);
+  const reached =
+    (await isVisiblePerson(context.tx, scope, userId)) ||
+    (await isVisibleStudent(context.tx, scope, userId));
+  if (!reached) throw new ORPCError("NOT_FOUND");
+  if (userId === context.actor.userId)
+    throw new ORPCError("FORBIDDEN", { message: "account.self" });
+  const roles = await rolesAt(context.tx, scope, userId);
+  if (roles.some((role) => STAFF_ROLE_SET.has(role.role)))
+    requireCapability(context, "staff:manage");
+  else requireCapability(context, "people:manage");
+}
+
+export const saveSignIn = writeProcedure
+  .input(saveSignInSchema)
+  .handler(async ({ input, context }) => {
+    await requireSignInManager(context, input.userId);
+    const current = await signInOf(context.tx, context.tenantId, input.userId);
+    const secretHash = input.password
+      ? await Bun.password.hash(input.password, { algorithm: "argon2id" })
+      : null;
+    if (!current) {
+      if (!secretHash)
+        throw new ORPCError("BAD_REQUEST", {
+          message: "validation.new_password",
+        });
+      const accountId = await createPasswordAccount(context.tx, {
+        tenantId: context.tenantId,
+        userId: input.userId,
+        loginName: input.loginName,
+        secretHash,
+        linkedByUserId: context.actor.userId,
+      });
+      await audit(context, {
+        action: "account.create",
+        objectType: "account",
+        objectId: accountId,
+        subjectUserId: input.userId,
+        details: { method: "password", linkMethod: "admin" },
+      });
+      return { accountId };
+    }
+    const saved = await updatePasswordSignIn(context.tx, {
+      tenantId: context.tenantId,
+      userId: input.userId,
+      accountId: current.accountId,
+      identityId: current.identityId,
+      loginName: input.loginName,
+      secretHash,
+      linkedByUserId: context.actor.userId,
+    });
+    if (!saved)
+      throw new ORPCError("BAD_REQUEST", {
+        message: "validation.new_password",
+      });
+    if (secretHash)
+      await revokeAccountSessions(
+        context.tx,
+        context.tenantId,
+        current.accountId,
+      );
+    await audit(context, {
+      action: secretHash ? "account.password_set" : "account.login_name_change",
+      objectType: "account",
+      objectId: current.accountId,
+      subjectUserId: input.userId,
+      details: { loginNameChanged: current.loginName !== input.loginName },
+    });
+    return { accountId: current.accountId };
+  });
+
+export const setSignInState = writeProcedure
+  .input(accountStateSchema)
+  .handler(async ({ input, context }) => {
+    await requireSignInManager(context, input.userId);
+    const current = await signInOf(context.tx, context.tenantId, input.userId);
+    if (!current) throw new ORPCError("NOT_FOUND");
+    await setAccountState(context.tx, {
+      tenantId: context.tenantId,
+      accountId: current.accountId,
+      state: input.state,
+      reason: input.reason,
+      byUserId: context.actor.userId,
+    });
+    await audit(context, {
+      action: input.state === "disabled" ? "account.disable" : "account.enable",
+      objectType: "account",
+      objectId: current.accountId,
+      subjectUserId: input.userId,
+    });
+    return { state: input.state };
   });

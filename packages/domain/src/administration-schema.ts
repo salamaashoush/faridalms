@@ -1,36 +1,9 @@
 import * as v from "valibot";
 
-import { ROLES } from "./identity";
-
 const id = v.pipe(v.string(), v.uuid());
 const optionalId = v.optional(v.union([v.literal(""), id]), "");
 const requiredText = (max: number) =>
   v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(max));
-export const saveUserSchema = v.pipe(
-  v.object({
-    id: v.optional(id),
-    name: requiredText(128),
-    email: v.pipe(v.string(), v.trim(), v.email(), v.maxLength(255)),
-    role: v.picklist(ROLES),
-    title: v.optional(v.pipe(v.string(), v.maxLength(128)), ""),
-    mobile: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(32)), ""),
-    password: v.optional(
-      v.union([
-        v.literal(""),
-        v.pipe(v.string(), v.minLength(12), v.maxLength(128)),
-      ]),
-      "",
-    ),
-    isActive: v.boolean(),
-  }),
-  v.forward(
-    v.check(
-      (value) => Boolean(value.id) || value.password.length >= 12,
-      "validation.new_password",
-    ),
-    ["password"],
-  ),
-);
 export const saveClassSchema = v.object({
   id: v.optional(id),
   name: requiredText(32),
@@ -40,7 +13,6 @@ export const saveClassSchema = v.object({
   homeroomTeacherId: optionalId,
   subjects: v.array(v.object({ subjectId: id, teacherId: id })),
 });
-export type SaveUserInput = v.InferInput<typeof saveUserSchema>;
 export type SaveClassInput = v.InferInput<typeof saveClassSchema>;
 export const managementOptionsSchema = v.object({
   selectedIds: v.optional(v.pipe(v.array(id), v.maxLength(20)), []),
