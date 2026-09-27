@@ -119,6 +119,21 @@ export async function filesOfHost(
   return rows.map(fileOf);
 }
 
+/** The ready files of many hosts of one type, for a page of messages. */
+export async function filesOfHosts(
+  tx: Tx,
+  tenantId: string,
+  host: { type: string; ids: readonly string[] },
+): Promise<(StoredFile & { hostId: string })[]> {
+  if (host.ids.length === 0) return [];
+  const rows = await tx.execute<FileRecord & { host_id: string }>(sql`
+    select ${columns}, host_id from core.files
+    where tenant_id = ${tenantId}::uuid and host_type = ${host.type}
+      and host_id = any(${uuidArray(host.ids)}) and status = 'active' and state = 'ready'
+    order by created_at, id`);
+  return rows.map((row) => ({ ...fileOf(row), hostId: row.host_id }));
+}
+
 /**
  * Gives ready files a host. A file is linked once: another host's file, one
  * the actor did not upload, or one not yet verified is refused by returning
