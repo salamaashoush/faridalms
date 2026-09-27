@@ -71,6 +71,21 @@ describe("contentMatchesName", () => {
     ).toBe(false);
   });
 
+  it("accepts a drawing only when it is an Excalidraw scene", () => {
+    expect(
+      contentMatchesName(
+        "drawing.excalidraw",
+        bytes('{"type":"excalidraw","version":2,"elements":[]}'),
+      ),
+    ).toBe(true);
+    expect(
+      contentMatchesName("drawing.excalidraw", bytes('{"type":"other"}')),
+    ).toBe(false);
+    expect(
+      contentMatchesName("drawing.excalidraw", bytes("<script>x</script>")),
+    ).toBe(false);
+  });
+
   it("never passes bytes that carry no signature", () => {
     expect(
       ACCEPTED_EXTENSIONS.filter((extension) =>

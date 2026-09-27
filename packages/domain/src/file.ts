@@ -75,6 +75,7 @@ const ACCEPTED_TYPES: Record<string, readonly string[]> = {
   mp4: ["video/mp4"],
   webm: ["video/webm"],
   vtt: ["text/vtt"],
+  excalidraw: ["application/json"],
   zip: ["application/zip", "application/x-zip-compressed"],
 };
 
@@ -125,7 +126,22 @@ const SIGNATURES: Record<string, readonly (readonly [number, number[]])[][]> = {
   webm: [[[0, [0x1a, 0x45, 0xdf, 0xa3]]]],
 };
 
-const TEXT_EXTENSIONS = new Set(["txt", "md", "csv", "vtt"]);
+const TEXT_EXTENSIONS = new Set(["txt", "md", "csv", "vtt", "excalidraw"]);
+
+/** A drawing's editable scene, as the editor's drawing board saves it. */
+function isExcalidrawScene(text: string): boolean {
+  try {
+    const scene: unknown = JSON.parse(text);
+    return (
+      typeof scene === "object" &&
+      scene !== null &&
+      "type" in scene &&
+      scene.type === "excalidraw"
+    );
+  } catch {
+    return false;
+  }
+}
 
 /** Extensions whose content can be checked, for the guard that every accepted one can. */
 export const CONTENT_CHECKED_EXTENSIONS = [
@@ -140,8 +156,8 @@ export function contentBytesNeeded(name: string, sizeBytes: number): number {
 
 /**
  * Whether stored bytes are what the name claims. Text must be UTF-8 without
- * NUL bytes (WebVTT must also carry its header); other formats must open with
- * their signature.
+ * NUL bytes (WebVTT must also carry its header, a drawing must be a scene);
+ * other formats must open with their signature.
  */
 export function contentMatchesName(name: string, bytes: Uint8Array): boolean {
   const extension = fileExtension(name);
@@ -153,6 +169,7 @@ export function contentMatchesName(name: string, bytes: Uint8Array): boolean {
     } catch {
       return false;
     }
+    if (extension === "excalidraw") return isExcalidrawScene(text);
     return extension !== "vtt" || /^\uFEFF?WEBVTT(?:[ \t\r\n]|$)/.test(text);
   }
   const alternatives = SIGNATURES[extension];

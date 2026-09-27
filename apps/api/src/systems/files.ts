@@ -10,7 +10,15 @@ import { requireCapability, writeProcedure } from "../core/procedure";
 const UPLOADERS: Record<FilePurpose, Capability[]> = {
   attachment: ["assignments:author", "messages:send"],
   submission: ["own-work:submit"],
-  document_media: ["assignments:author", "learning:author", "site:manage"],
+  document_media: [
+    "assignments:author",
+    "learning:author",
+    "site:manage",
+    "calendar:author",
+    "calendar:manage",
+    "announcements:manage",
+    "newsletters:manage",
+  ],
   site_media: ["site:manage"],
 };
 
