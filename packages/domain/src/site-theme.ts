@@ -35,6 +35,7 @@ export const CARD_STYLES = ["flat", "outlined", "raised"] as const;
 export const IMAGE_SHAPES = ["square", "rounded", "arch", "leaf"] as const;
 export const EYEBROWS = ["plain", "rule", "pill"] as const;
 export const MOTIONS = ["none", "subtle", "lively"] as const;
+export const PHOTO_TONES = ["natural", "warm", "mono", "duotone"] as const;
 
 export type Radius = (typeof RADII)[number];
 export type ButtonShape = (typeof BUTTON_SHAPES)[number];
@@ -49,6 +50,7 @@ export type ImageShape = (typeof IMAGE_SHAPES)[number];
 export type EyebrowStyle = (typeof EYEBROWS)[number];
 export type Motion = (typeof MOTIONS)[number];
 export type Emphasis = (typeof EMPHASES)[number];
+export type PhotoTone = (typeof PHOTO_TONES)[number];
 
 export interface FontFace {
   /** The CSS family name the self-hosted font registers. */
@@ -194,6 +196,7 @@ export interface Theme {
   eyebrow: EyebrowStyle;
   motion: Motion;
   emphasis: Emphasis;
+  photoTone: PhotoTone;
 }
 
 /**
@@ -227,6 +230,7 @@ export const THEMES: Record<ThemeId, Theme> = {
     card: "outlined",
     image: "arch",
     eyebrow: "rule",
+    photoTone: "warm",
     emphasis: "italic",
     motion: "subtle",
   },
@@ -256,6 +260,7 @@ export const THEMES: Record<ThemeId, Theme> = {
     card: "raised",
     image: "rounded",
     eyebrow: "pill",
+    photoTone: "natural",
     emphasis: "colour",
     motion: "subtle",
   },
@@ -285,6 +290,7 @@ export const THEMES: Record<ThemeId, Theme> = {
     card: "raised",
     image: "leaf",
     eyebrow: "pill",
+    photoTone: "natural",
     emphasis: "underline",
     motion: "lively",
   },
@@ -314,6 +320,7 @@ export const THEMES: Record<ThemeId, Theme> = {
     card: "flat",
     image: "arch",
     eyebrow: "rule",
+    photoTone: "warm",
     emphasis: "colour",
     motion: "subtle",
   },
@@ -343,6 +350,7 @@ export const THEMES: Record<ThemeId, Theme> = {
     card: "flat",
     image: "square",
     eyebrow: "plain",
+    photoTone: "mono",
     emphasis: "weight",
     motion: "lively",
   },
@@ -372,6 +380,7 @@ export const THEMES: Record<ThemeId, Theme> = {
     card: "outlined",
     image: "leaf",
     eyebrow: "rule",
+    photoTone: "natural",
     emphasis: "italic",
     motion: "subtle",
   },
@@ -401,6 +410,7 @@ export const THEMES: Record<ThemeId, Theme> = {
     card: "outlined",
     image: "square",
     eyebrow: "plain",
+    photoTone: "natural",
     emphasis: "colour",
     motion: "none",
   },
@@ -444,6 +454,7 @@ export const siteThemeSchema = v.object({
   eyebrow: v.optional(v.picklist(EYEBROWS)),
   motion: v.optional(v.picklist(MOTIONS)),
   emphasis: v.optional(v.picklist(EMPHASES)),
+  photoTone: v.optional(v.picklist(PHOTO_TONES)),
 });
 export type SiteTheme = v.InferOutput<typeof siteThemeSchema>;
 
@@ -468,6 +479,7 @@ export function resolveTheme(choice: SiteTheme | null | undefined): Theme {
     eyebrow: choice.eyebrow ?? base.eyebrow,
     motion: choice.motion ?? base.motion,
     emphasis: choice.emphasis ?? base.emphasis,
+    photoTone: choice.photoTone ?? base.photoTone,
   };
 }
 
