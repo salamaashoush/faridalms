@@ -12,8 +12,14 @@ import * as v from "valibot";
 import { ButtonLink } from "~/components/app/ButtonLink";
 import { EventSheet } from "~/components/calendar/EventSheet";
 import { CATEGORY_LABEL } from "~/components/calendar/format";
+import { KindFilter } from "~/components/calendar/KindFilter";
 import { Subscribe } from "~/components/calendar/Subscribe";
-import { Agenda, CategoryIcon, MonthGrid } from "~/components/calendar/views";
+import {
+  Agenda,
+  CategoryIcon,
+  MonthCompact,
+  MonthGrid,
+} from "~/components/calendar/views";
 import { PageHeader } from "~/components/system/IndexPage";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
 import { inLocale, useCurrentUser } from "~/hooks/useCurrentUser";
@@ -138,6 +144,9 @@ function CalendarPage() {
           : [...search.hide, category],
       }),
     });
+  const showAll = () =>
+    void navigate({ search: (previous) => ({ ...previous, hide: [] }) });
+  const thisMonth = user.today.slice(0, 7);
   const last = addDays(`${shiftMonth(month, 1)}-01`, -1);
   const agenda = (className?: string) => (
     <Agenda
@@ -172,7 +181,7 @@ function CalendarPage() {
         className="grid gap-4"
       >
         <div className="flex flex-wrap items-center justify-between gap-3">
-          <div className="flex items-center gap-1">
+          <div className="flex items-center gap-1 max-md:w-full">
             <ButtonLink
               to="/calendar"
               search={(previous) => ({
@@ -186,6 +195,12 @@ function CalendarPage() {
             >
               <ChevronLeft className="rtl:rotate-180" aria-hidden />
             </ButtonLink>
+            <h2
+              className="min-w-44 text-center text-lg leading-7 font-semibold max-md:flex-1"
+              aria-live="polite"
+            >
+              {formatMonthLabel(month)}
+            </h2>
             <ButtonLink
               to="/calendar"
               search={(previous) => ({
@@ -199,29 +214,42 @@ function CalendarPage() {
             >
               <ChevronRight className="rtl:rotate-180" aria-hidden />
             </ButtonLink>
-            <h2
-              className="ms-2 text-lg leading-7 font-semibold"
-              aria-live="polite"
-            >
-              {formatMonthLabel(month)}
-            </h2>
-            {month === user.today.slice(0, 7) ? null : (
+            {month === thisMonth ? null : (
               <ButtonLink
                 to="/calendar"
                 search={(previous) => ({ ...previous, month: "" })}
                 variant="ghost"
-                className="ms-1 max-md:h-10"
+                className="ms-1 max-md:hidden"
               >
                 {m.calToday()}
               </ButtonLink>
             )}
           </div>
-          <div className="flex items-center gap-2">
-            <Subscribe />
+          <div className="flex items-center gap-2 max-md:w-full">
             <TabsList aria-label={m.calView()}>
               <TabsTrigger value="month">{m.calViewMonth()}</TabsTrigger>
               <TabsTrigger value="agenda">{m.calViewAgenda()}</TabsTrigger>
             </TabsList>
+            {month === thisMonth ? null : (
+              <ButtonLink
+                to="/calendar"
+                search={(previous) => ({ ...previous, month: "" })}
+                variant="ghost"
+                className="h-10 md:hidden"
+              >
+                {m.calToday()}
+              </ButtonLink>
+            )}
+            <div className="flex items-center gap-2 max-md:ms-auto">
+              <div className="md:hidden">
+                <KindFilter
+                  hidden={hidden}
+                  onToggle={toggle}
+                  onShowAll={showAll}
+                />
+              </div>
+              <Subscribe />
+            </div>
           </div>
         </div>
         {children.length > 1 ? (
@@ -244,7 +272,7 @@ function CalendarPage() {
             )}
           </nav>
         ) : null}
-        <fieldset className="flex flex-wrap items-center gap-1.5">
+        <fieldset className="flex flex-wrap items-center gap-1.5 max-md:hidden">
           <legend className="sr-only">{m.calLegend()}</legend>
           {CALENDAR_CATEGORIES.map((category) => (
             <button
@@ -252,7 +280,7 @@ function CalendarPage() {
               type="button"
               aria-pressed={!hidden.has(category)}
               onClick={() => toggle(category)}
-              className="inline-flex h-8 items-center gap-1.5 rounded-full border px-2.5 text-[13px] text-muted-foreground transition-colors hover:bg-muted aria-pressed:border-border aria-pressed:bg-card aria-pressed:text-foreground max-md:h-10 [&:not([aria-pressed=true])]:border-dashed [&:not([aria-pressed=true])]:line-through"
+              className="inline-flex h-8 items-center gap-1.5 rounded-full border px-2.5 text-[13px] text-muted-foreground transition-colors hover:bg-muted aria-pressed:border-border aria-pressed:bg-card aria-pressed:text-foreground [&:not([aria-pressed=true])]:border-dashed [&:not([aria-pressed=true])]:line-through"
             >
               <CategoryIcon
                 category={category}
@@ -267,12 +295,8 @@ function CalendarPage() {
           {search.hide.length > 0 ? (
             <button
               type="button"
-              onClick={() =>
-                void navigate({
-                  search: (previous) => ({ ...previous, hide: [] }),
-                })
-              }
-              className="ms-1 h-8 rounded-md px-2 text-[13px] font-medium text-primary hover:bg-muted max-md:h-10"
+              onClick={showAll}
+              className="ms-1 h-8 rounded-md px-2 text-[13px] font-medium text-primary hover:bg-muted"
             >
               {m.calShowAll()}
             </button>
@@ -289,7 +313,16 @@ function CalendarPage() {
               days={days}
             />
           </div>
-          {agenda("md:hidden")}
+          <div className="md:hidden">
+            <MonthCompact
+              month={month}
+              weekStart={weekStart}
+              weekend={user.school.weekendDays}
+              today={user.today}
+              events={events}
+              days={days}
+            />
+          </div>
         </TabsContent>
         <TabsContent value="agenda">{agenda()}</TabsContent>
       </Tabs>

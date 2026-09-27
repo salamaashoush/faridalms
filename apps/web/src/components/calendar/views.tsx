@@ -5,6 +5,7 @@ import { addDays } from "@faridalms/domain/school";
 import { isoWeekday } from "@faridalms/domain/timetable";
 import { Link } from "@tanstack/react-router";
 import { CalendarDays, MapPin } from "lucide-react";
+import { useState } from "react";
 
 import type { calendarRangeQuery } from "~/queries/calendar";
 
@@ -196,7 +197,7 @@ export function MonthGrid({
 
 function AgendaItem({ event }: { event: CalendarEvent }) {
   return (
-    <li className="grid grid-cols-[6.5rem_minmax(0,1fr)] gap-3 py-3 max-sm:grid-cols-1 max-sm:gap-1">
+    <li className="grid grid-cols-[6.5rem_minmax(0,1fr)] gap-3 py-2.5 max-sm:grid-cols-1 max-sm:gap-1">
       <span className="text-sm leading-5 text-muted-foreground tabular-nums">
         <bdi dir="ltr">{timeLabel(event)}</bdi>
       </span>
@@ -286,46 +287,205 @@ export function Agenda({
     );
   const special = new Map(days.map((row) => [row.day, row]));
   return (
-    <ol className={cn("grid gap-3", className)} aria-label={m.calAgenda()}>
+    <ol
+      className={cn("divide-y border-y", className)}
+      aria-label={m.calAgenda()}
+    >
       {dates.map((day) => {
         const holiday = special.get(day);
         const on = events.filter((event) => onDay(event, day));
+        const notes = [
+          secondary
+            ? secondaryDate(day, secondary, { day: "numeric", month: "long" })
+            : "",
+          holiday ? specialDayLabel(holiday) : "",
+        ].filter(Boolean);
         return (
           <li
             key={day}
             id={`day-${day}`}
-            className="scroll-mt-20 rounded-lg border bg-card px-4 py-3"
+            className="grid scroll-mt-20 grid-cols-[3.25rem_minmax(0,1fr)] gap-3 py-2"
           >
-            <h2 className="flex flex-wrap items-center gap-2 text-sm leading-5 font-semibold">
-              {weekdayDate(day)}
-              {secondary ? (
-                <span className="font-normal text-muted-foreground">
-                  {secondaryDate(day, secondary, {
-                    day: "numeric",
-                    month: "long",
-                    year: "numeric",
-                  })}
-                </span>
+            <DayMark day={day} today={today} />
+            <div className="grid min-w-0 content-start">
+              {notes.length ? (
+                <p className="pt-2.5 text-[13px] leading-[18px] text-muted-foreground">
+                  {notes.join(" · ")}
+                </p>
               ) : null}
-              {day === today ? (
-                <StatusBadge tone="accent">{m.calToday()}</StatusBadge>
+              {on.length > 0 ? (
+                <ul className="divide-y">
+                  {on.map((event) => (
+                    <AgendaItem key={event.id} event={event} />
+                  ))}
+                </ul>
               ) : null}
-            </h2>
-            {holiday ? (
-              <p className="mt-1 text-[13px] leading-[18px] text-muted-foreground">
-                {specialDayLabel(holiday)}
-              </p>
-            ) : null}
-            {on.length > 0 ? (
-              <ul className="mt-1 divide-y">
-                {on.map((event) => (
-                  <AgendaItem key={event.id} event={event} />
-                ))}
-              </ul>
-            ) : null}
+            </div>
           </li>
         );
       })}
     </ol>
+  );
+}
+
+/** A day as a calendar app marks it: the weekday over its number, today filled. */
+function DayMark({ day, today }: { day: string; today: string }) {
+  return (
+    <h2 className="grid content-start justify-items-center gap-0.5 pt-1.5 text-center">
+      <span
+        aria-hidden
+        className="text-xs leading-4 font-medium text-muted-foreground uppercase"
+      >
+        {dayName(isoWeekday(day), "short")}
+      </span>
+      <span
+        aria-hidden
+        className={cn(
+          "grid size-9 place-items-center rounded-full text-lg leading-6 font-semibold tabular-nums",
+          day === today && "bg-primary text-primary-foreground",
+        )}
+      >
+        {formatNumber(Number(day.slice(8)))}
+      </span>
+      <span className="sr-only">
+        {day === today
+          ? `${weekdayDate(day)}, ${m.calToday()}`
+          : weekdayDate(day)}
+      </span>
+    </h2>
+  );
+}
+
+const MAX_DOTS = 3;
+
+/**
+ * A month on a phone: the days with a dot for each kind of event on them,
+ * and the chosen day's events beneath, the way phone calendars show a month.
+ */
+export function MonthCompact({
+  month,
+  weekStart,
+  weekend,
+  today,
+  events,
+  days,
+}: {
+  month: string;
+  weekStart: IsoWeekday;
+  weekend: readonly number[];
+  today: string;
+  events: CalendarEvent[];
+  days: SpecialDay[];
+}) {
+  const secondary = useCurrentUser().school.secondaryCalendar;
+  const weeks = monthWeeks(month, weekStart);
+  const special = new Map(days.map((row) => [row.day, row]));
+  const start = today.startsWith(month) ? today : `${month}-01`;
+  const [selected, setSelected] = useState(start);
+  const [shown, setShown] = useState(month);
+  if (shown !== month) {
+    setShown(month);
+    setSelected(start);
+  }
+  const chosen = events.filter((event) => onDay(event, selected));
+  const holiday = special.get(selected);
+  return (
+    <div className="grid gap-4">
+      <fieldset className="min-w-0">
+        <legend className="sr-only">{m.calMonthCaption()}</legend>
+        <div className="grid grid-cols-7 pb-1" aria-hidden>
+          {(weeks[0] ?? []).map((day) => (
+            <span
+              key={day}
+              className="text-center text-xs leading-4 font-medium text-muted-foreground"
+            >
+              {dayName(isoWeekday(day), "short")}
+            </span>
+          ))}
+        </div>
+        {weeks.map((week) => (
+          <div key={week[0]} className="grid grid-cols-7">
+            {week.map((day) => {
+              const inMonth = day.startsWith(month);
+              const kinds = [
+                ...new Set(
+                  events
+                    .filter((event) => onDay(event, day))
+                    .map((event) => event.category),
+                ),
+              ];
+              const quiet =
+                weekend.includes(isoWeekday(day)) || special.has(day);
+              return (
+                <button
+                  key={day}
+                  type="button"
+                  disabled={!inMonth}
+                  aria-pressed={day === selected}
+                  aria-label={
+                    kinds.length
+                      ? `${weekdayDate(day)}, ${m.calHasEvents()}`
+                      : weekdayDate(day)
+                  }
+                  onClick={() => setSelected(day)}
+                  className="group grid h-14 content-start justify-items-center gap-1 pt-1 disabled:opacity-30"
+                >
+                  <span
+                    className={cn(
+                      "grid size-8 place-items-center rounded-full text-sm leading-5 tabular-nums group-aria-pressed:ring-2 group-aria-pressed:ring-primary",
+                      quiet && "text-muted-foreground",
+                      day === today &&
+                        "bg-primary font-semibold text-primary-foreground",
+                    )}
+                  >
+                    {formatNumber(Number(day.slice(8)))}
+                  </span>
+                  <span className="flex h-1.5 gap-0.5" aria-hidden>
+                    {kinds.slice(0, MAX_DOTS).map((kind) => (
+                      <span
+                        key={kind}
+                        className={cn(
+                          "size-1.5 rounded-full bg-current",
+                          CATEGORY_MARK[kind].colour,
+                        )}
+                      />
+                    ))}
+                  </span>
+                </button>
+              );
+            })}
+          </div>
+        ))}
+      </fieldset>
+      <section aria-live="polite" className="grid gap-1 border-t pt-3">
+        <h2 className="flex flex-wrap items-baseline gap-x-2 text-sm leading-5 font-semibold">
+          {weekdayDate(selected)}
+          {secondary ? (
+            <span className="text-[13px] font-normal text-muted-foreground">
+              {secondaryDate(selected, secondary, {
+                day: "numeric",
+                month: "long",
+              })}
+            </span>
+          ) : null}
+        </h2>
+        {holiday ? (
+          <p className="text-[13px] leading-[18px] text-muted-foreground">
+            {specialDayLabel(holiday)}
+          </p>
+        ) : null}
+        {chosen.length ? (
+          <ul className="divide-y">
+            {chosen.map((event) => (
+              <AgendaItem key={event.id} event={event} />
+            ))}
+          </ul>
+        ) : (
+          <p className="py-2 text-sm leading-5 text-muted-foreground">
+            {m.calNothingOnDay()}
+          </p>
+        )}
+      </section>
+    </div>
   );
 }

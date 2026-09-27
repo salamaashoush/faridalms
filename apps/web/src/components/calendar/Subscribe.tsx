@@ -48,13 +48,13 @@ export function Subscribe() {
         render={
           <Button
             variant="outline"
-            className="max-md:h-10"
+            className="max-md:size-10 max-md:px-0"
             disabled={!hydrated}
           />
         }
       >
         <CalendarSync aria-hidden />
-        {m.calSubscribe()}
+        <span className="max-md:sr-only">{m.calSubscribe()}</span>
       </DialogTrigger>
       <DialogContent className="sm:max-w-lg">
         <DialogTitle>{m.calSubscribeTitle()}</DialogTitle>
