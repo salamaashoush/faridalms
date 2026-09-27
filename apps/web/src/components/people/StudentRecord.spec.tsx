@@ -121,6 +121,7 @@ const RECORD: StudentData = {
     custody: false,
     history: false,
     attendance: false,
+    coursework: false,
   },
 };
 

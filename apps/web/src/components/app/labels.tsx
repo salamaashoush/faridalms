@@ -13,7 +13,6 @@ import {
 import * as m from "~/i18n/messages";
 import { cn } from "~/utils/cn";
 
-type AttendanceStatus = "present" | "absent" | "late" | "excused";
 type AssignmentType =
   | "written_assignment"
   | "project"
@@ -49,13 +48,6 @@ export const ASSIGNMENT_TYPE_LABEL: Record<AssignmentType, () => string> = {
   reading: m.typeReading,
   quiz: m.typeQuiz,
   presentation: m.typePresentation,
-};
-
-export const ATTENDANCE_LABEL: Record<AttendanceStatus, () => string> = {
-  present: m.attendancePresent,
-  absent: m.attendanceAbsent,
-  late: m.attendanceLate,
-  excused: m.attendanceExcused,
 };
 
 export const EVENT_CATEGORY_LABEL: Record<EventCategory, () => string> = {

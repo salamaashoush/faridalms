@@ -49,6 +49,10 @@ export const getChildCoursework = createServerFn({ method: "GET" })
   .validator(checked(v.object({ studentId: uuid })))
   .handler(({ data }) => record(backend().coursework.child(data)));
 
+export const getStudentCoursework = createServerFn({ method: "GET" })
+  .validator(checked(v.object({ studentId: uuid })))
+  .handler(({ data }) => record(backend().coursework.student(data)));
+
 export const getClassGroups = createServerFn({ method: "GET" })
   .validator(checked(v.object({ classId: uuid })))
   .handler(({ data }) => record(backend().coursework.groups(data)));

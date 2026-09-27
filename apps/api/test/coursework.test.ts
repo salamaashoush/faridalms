@@ -307,3 +307,23 @@ describe("handing in and returning work", () => {
     ).toBe(200);
   });
 });
+
+describe("coursework on the student record", () => {
+  test("staff who reach a student read their work; families keep to their own pages", async () => {
+    const student = await sessionFor("northwind", login("student"));
+    const me = await student.api.identity.currentUser();
+    const office = await signedIn("northwind", login("principal"));
+    const record = await office.coursework.student({ studentId: me.id });
+    const own = await student.api.coursework.mine();
+    expect(record.rows.map((row) => row.assignmentId).toSorted()).toEqual(
+      own.rows.map((row) => row.assignmentId).toSorted(),
+    );
+    const parent = await signedIn(
+      "northwind",
+      login("student").replace("student", "parent"),
+    );
+    expect(
+      await rejection(parent.coursework.student({ studentId: me.id })),
+    ).toMatchObject({ code: "FORBIDDEN" });
+  });
+});

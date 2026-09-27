@@ -1,4 +1,3 @@
-import * as academics from "./modules/academics";
 import * as administration from "./modules/administration";
 import * as announcements from "./modules/announcements";
 import * as communication from "./modules/communication";
@@ -43,7 +42,6 @@ export const router = {
   ...overviews,
   ...teaching,
   ...administration,
-  ...academics,
   ...communication,
   ...newsletters,
   ...notifications,

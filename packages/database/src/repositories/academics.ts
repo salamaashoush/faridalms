@@ -340,32 +340,6 @@ export async function attendanceSummary(
   return summary;
 }
 
-export async function attendanceForStudent(
-  db: Database,
-  studentId: string,
-  limit = 90,
-) {
-  return db.query.attendance.findMany({
-    where: { studentId },
-    orderBy: { date: "desc" },
-    limit,
-  });
-}
-
-export async function gradesForStudent(db: Database, studentId: string) {
-  return db.query.grades.findMany({
-    where: { studentId },
-    with: {
-      subject: {
-        columns: { name: true, nameAr: true, slug: true, icon: true },
-      },
-      term: { columns: { name: true } },
-      teacher: { columns: { name: true } },
-    },
-    orderBy: { score: "desc" },
-  });
-}
-
 /** Mean percentage across graded subjects, or `null` when there are none. */
 export async function gradeAverage(
   db: Database,

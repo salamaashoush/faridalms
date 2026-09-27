@@ -21,13 +21,6 @@ export const MESSAGE_CATEGORIES = [
   "parents",
   "students",
 ] as const;
-export const ATTENDANCE_STATUSES = [
-  "present",
-  "absent",
-  "late",
-  "excused",
-] as const;
-
 /**
  * Search-param contracts. Every field is optional with a default, because a
  * bare route with no search must be valid.
@@ -36,21 +29,6 @@ export const studentScopedQuerySchema = v.object({
   studentId: v.optional(v.string(), ""),
 });
 export type StudentScopedQuery = v.InferOutput<typeof studentScopedQuerySchema>;
-export const DEFAULT_STUDENT_SCOPED_QUERY: StudentScopedQuery = v.parse(
-  studentScopedQuerySchema,
-  {},
-);
-
-export const assignmentsQuerySchema = v.object({
-  studentId: v.optional(v.string(), ""),
-  week: v.optional(v.pipe(v.number(), v.integer(), v.minValue(1))),
-});
-export type AssignmentsQuery = v.InferOutput<typeof assignmentsQuerySchema>;
-export const DEFAULT_ASSIGNMENTS_QUERY: AssignmentsQuery = v.parse(
-  assignmentsQuerySchema,
-  {},
-);
-
 export const messagesQuerySchema = v.object({
   page: v.optional(
     v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(10000)),

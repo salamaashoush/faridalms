@@ -1116,27 +1116,39 @@ export const mine = readProcedure.handler(async ({ context }) => {
   };
 });
 
+/** A student's work this year as their family or school reads it: released results only. */
+async function workOf(context: UnitContext, studentId: string) {
+  if (!(await isVisibleStudent(context.tx, scopeOf(context), studentId)))
+    throw new ORPCError("NOT_FOUND");
+  const year = await currentYear(context);
+  if (!year) return { rows: [], now: context.now.toISOString() };
+  const rows = await learnerAssignments(context.tx, {
+    tenantId: context.tenantId,
+    studentId,
+    yearId: year.id,
+  });
+  return {
+    rows: learnerView(rows, context.now),
+    now: context.now.toISOString(),
+  };
+}
+
 /** A child's coursework for their family: never draft grades, never other students. */
 export const child = readProcedure
   .input(v.object({ studentId: id }))
-  .handler(async ({ input, context }) => {
+  .handler(({ input, context }) => {
     requireCapability(context, "children:read");
     requireCapability(context, "assignments:read");
-    if (
-      !(await isVisibleStudent(context.tx, scopeOf(context), input.studentId))
-    )
-      throw new ORPCError("NOT_FOUND");
-    const year = await currentYear(context);
-    if (!year) return { rows: [], now: context.now.toISOString() };
-    const rows = await learnerAssignments(context.tx, {
-      tenantId: context.tenantId,
-      studentId: input.studentId,
-      yearId: year.id,
-    });
-    return {
-      rows: learnerView(rows, context.now),
-      now: context.now.toISOString(),
-    };
+    return workOf(context, input.studentId);
+  });
+
+/** A student's coursework for the staff who reach their record. */
+export const student = readProcedure
+  .input(v.object({ studentId: id }))
+  .handler(({ input, context }) => {
+    requireCapability(context, "people:read");
+    requireCapability(context, "assignments:read");
+    return workOf(context, input.studentId);
   });
 
 /** A class's groups and roster, for choosing who gets work. */

@@ -6,6 +6,7 @@ import {
   getAssignmentEditor,
   getAssignmentRecord,
   getChildCoursework,
+  getStudentCoursework,
   getClassGroups,
   getCoursework,
   getCourseworkOptions,
@@ -58,6 +59,12 @@ export const childCourseworkQuery = (studentId: string) =>
   queryOptions({
     queryKey: ["coursework", "child", studentId],
     queryFn: () => getChildCoursework({ data: { studentId } }),
+  });
+
+export const studentCourseworkQuery = (studentId: string) =>
+  queryOptions({
+    queryKey: ["coursework", "student", studentId],
+    queryFn: () => getStudentCoursework({ data: { studentId } }),
   });
 
 export const classGroupsQuery = (classId: string) =>

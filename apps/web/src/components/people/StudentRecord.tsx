@@ -23,6 +23,7 @@ import type {
 import { Value } from "~/components/app/primitives";
 import { initialsOf } from "~/components/app/UserMenu";
 import { StudentAttendance } from "~/components/attendance/StudentAttendance";
+import { StudentCoursework } from "~/components/coursework/StudentCoursework";
 import { ageOn, formatDate } from "~/components/family/format";
 import { ActionMenu } from "~/components/system/ActionMenu";
 import {
@@ -73,6 +74,7 @@ export const STUDENT_TABS = [
   "details",
   "family",
   "enrollment",
+  "coursework",
   "attendance",
   "health",
   "account",
@@ -85,6 +87,7 @@ const TAB_LABEL: Record<StudentTab, () => string> = {
   details: m.studentTabDetails,
   family: m.studentTabFamily,
   enrollment: m.studentTabEnrollment,
+  coursework: m.courseworkRecordTab,
   attendance: m.attendanceTitle,
   health: m.studentTabHealth,
   account: m.studentTabAccount,
@@ -105,6 +108,7 @@ export function studentTabsFor(
     details: true,
     family: access.contacts,
     enrollment: true,
+    coursework: access.coursework,
     attendance: access.attendance,
     health: access.health,
     account: access.manage,
@@ -552,6 +556,13 @@ export function StudentRecord({
             />
           }
         />
+      );
+      break;
+    case "coursework":
+      body = (
+        <Deferred>
+          <StudentCoursework studentId={studentId} />
+        </Deferred>
       );
       break;
     case "attendance":

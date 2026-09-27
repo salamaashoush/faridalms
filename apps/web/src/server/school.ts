@@ -5,7 +5,6 @@ import {
 import {
   recipientQuerySchema,
   replyMessageSchema,
-  assignmentsQuerySchema,
   calendarEventSchema,
   calendarQuerySchema,
   composeMessageSchema,
@@ -41,22 +40,6 @@ export const getTeachingOverview = createServerFn({ method: "GET" }).handler(
 export const getAdminOverview = createServerFn({ method: "GET" }).handler(() =>
   backend().getAdminOverview(),
 );
-
-export const getAssignments = createServerFn({ method: "GET" })
-  .validator((input: unknown) => v.parse(assignmentsQuerySchema, input))
-  .handler(({ data }) => backend().getAssignments(data));
-
-export const getAttendance = createServerFn({ method: "GET" })
-  .validator((input: unknown) => v.parse(studentScopedQuerySchema, input))
-  .handler(({ data }) => backend().getAttendance(data));
-
-export const getGrades = createServerFn({ method: "GET" })
-  .validator((input: unknown) => v.parse(studentScopedQuerySchema, input))
-  .handler(({ data }) => backend().getGrades(data));
-
-export const getTimetable = createServerFn({ method: "GET" })
-  .validator((input: unknown) => v.parse(studentScopedQuerySchema, input))
-  .handler(({ data }) => backend().getTimetable(data));
 
 export const getMessages = createServerFn({ method: "GET" })
   .validator((input: unknown) => v.parse(messagesQuerySchema, input))

@@ -1,7 +1,6 @@
 import type { ManagementOptionsInput } from "@faridalms/domain/administration-schema";
 import type {
   RecipientCursor,
-  AssignmentsQuery,
   CalendarQuery,
   MessagesQuery,
   NewslettersQuery,
@@ -12,11 +11,8 @@ import { queryOptions } from "@tanstack/react-query";
 
 import {
   getAdminOverview,
-  getAssignments,
-  getAttendance,
   getCalendar,
   getFamilyOverview,
-  getGrades,
   getManagementOptions,
   getMessage,
   getMessages,
@@ -25,7 +21,6 @@ import {
   getStudent,
   getStudentOverview,
   getTeachingOverview,
-  getTimetable,
   getVisibleStudents,
 } from "~/server/school";
 
@@ -61,40 +56,6 @@ export const adminOverviewQuery = queryOptions({
   queryKey: ["overview", "admin"],
   queryFn: () => getAdminOverview(),
 });
-
-export function assignmentsQuery(query: AssignmentsQuery) {
-  return queryOptions({
-    // The whole query is the key, so every week and child is cached separately
-    // and stepping back to a previous week is instant.
-    queryKey: ["assignments", query],
-    queryFn: () => getAssignments({ data: query }),
-    placeholderData: (previous) => previous,
-  });
-}
-
-export function attendanceQuery(query: StudentScopedQuery) {
-  return queryOptions({
-    queryKey: ["attendance", query],
-    queryFn: () => getAttendance({ data: query }),
-    placeholderData: (previous) => previous,
-  });
-}
-
-export function gradesQuery(query: StudentScopedQuery) {
-  return queryOptions({
-    queryKey: ["grades", query],
-    queryFn: () => getGrades({ data: query }),
-    placeholderData: (previous) => previous,
-  });
-}
-
-export function timetableQuery(query: StudentScopedQuery) {
-  return queryOptions({
-    queryKey: ["timetable", query],
-    queryFn: () => getTimetable({ data: query }),
-    placeholderData: (previous) => previous,
-  });
-}
 
 export function managementOptionsQuery(query: ManagementOptionsInput) {
   return queryOptions({
