@@ -215,8 +215,11 @@ describe("keeping the calendar", () => {
 });
 
 describe("calendar links", () => {
-  test("a family's private link carries its events and closed days, and a new link stops the old", async () => {
+  test("a family's private link carries its events and closed days in their language, and a new link stops the old", async () => {
     const family = await mother();
+    // Other suites change this family's language; the feed follows it.
+    const before = await family.notifications.preferences();
+    await family.notifications.savePreferences({ ...before, locale: "en" });
     expect(await family.calendar.feed()).toBeNull();
     const made = await family.calendar.resetFeed();
     const fetchFeed = (token: string) =>
@@ -232,6 +235,12 @@ describe("calendar links", () => {
     expect(body).not.toContain("Staff meeting");
     expect(body).toContain("Armed Forces Day");
     expect((await family.calendar.feed())?.lastFetchedAt).not.toBeNull();
+
+    await family.notifications.savePreferences({ ...before, locale: "ar" });
+    const arabic = await (await fetchFeed(made.token)).text();
+    expect(arabic).toContain("رحلة المتحف");
+    expect(arabic).toContain("عيد القوات المسلحة");
+    await family.notifications.savePreferences(before);
 
     const again = await family.calendar.resetFeed();
     expect((await fetchFeed(made.token)).status).toBe(404);
