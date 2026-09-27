@@ -51,6 +51,7 @@ import type { StudentSheet } from "./StudentSheets";
 import {
   displayName,
   labelOf,
+  lastDay,
   otherName,
   STATUS_LABEL,
   STATUS_TONE,
@@ -348,13 +349,6 @@ function EnrollmentHistory({ data }: { data: StudentData }) {
       )}
     </RecordSection>
   );
-}
-
-/** Ranges are half-open, so the last day shown is the one before the end. */
-function lastDay(endsBefore: string) {
-  const date = new Date(`${endsBefore}T00:00:00Z`);
-  date.setUTCDate(date.getUTCDate() - 1);
-  return date.toISOString().slice(0, 10);
 }
 
 function StudentHistory({ studentId }: { studentId: string }) {

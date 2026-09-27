@@ -23,15 +23,22 @@ import { personHistoryQuery, personRecordQuery } from "~/queries/students";
 import { cn } from "~/utils/cn";
 import { formatList } from "~/utils/datetime";
 
+import { AccessSection } from "./AccessSection";
 import { displayName, labelOf, otherName, roleLabel } from "./format";
 import { Deferred, Email, HistorySection, Phone } from "./record-parts";
 import { SignInSection } from "./SignInSection";
 
-export const PERSON_TABS = ["overview", "account", "history"] as const;
+export const PERSON_TABS = [
+  "overview",
+  "access",
+  "account",
+  "history",
+] as const;
 export type PersonTab = (typeof PERSON_TABS)[number];
 
 const TAB_LABEL: Record<PersonTab, () => string> = {
   overview: m.recordOverview,
+  access: m.accessTab,
   account: m.studentTabAccount,
   history: m.recordHistory,
 };
@@ -45,6 +52,7 @@ export function personTabsFor(
 ): Record<PersonTab, boolean> {
   return {
     overview: true,
+    access: access.roles,
     account: access.manage || access.self || access.signIn,
     history: access.history,
   };
@@ -223,6 +231,17 @@ export function PersonRecord({
             data.contacts ? (
               <ContactsSection contacts={data.contacts} />
             ) : undefined
+          }
+        />
+      );
+      break;
+    case "access":
+      body = (
+        <RecordColumns
+          main={
+            <Deferred>
+              <AccessSection userId={userId} name={name} today={data.today} />
+            </Deferred>
           }
         />
       );

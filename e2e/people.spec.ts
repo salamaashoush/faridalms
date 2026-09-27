@@ -2,7 +2,12 @@ import type { Locator } from "@playwright/test";
 
 import { expect, test } from "@playwright/test";
 
-import { signIn, signInWith, untilHydrated } from "./fixtures/sign-in";
+import {
+  PASSWORD,
+  signIn,
+  signInWith,
+  untilHydrated,
+} from "./fixtures/sign-in";
 
 async function fillNames(
   scope: Locator,
@@ -163,4 +168,89 @@ test("an administrator adds a staff member, opens their sign-in and they sign in
   await signInWith(staff, email, password, "/teach");
   await expect(staff.getByRole("heading", { level: 1 })).toBeVisible();
   await context.close();
+});
+
+test("an administrator makes a role and gives it to a teacher", async ({
+  page,
+}) => {
+  const unique = crypto.randomUUID().slice(0, 8);
+  await signIn(page, "admin");
+  await page.goto("/admin/settings?section=access");
+  await untilHydrated(page);
+  await page.getByRole("button", { name: "New role" }).click();
+  const sheet = page.getByRole("dialog", { name: "New role" });
+  await sheet
+    .getByRole("textbox", { name: "Name in English" })
+    .fill(`Timetabler ${unique}`);
+  await sheet.getByRole("checkbox", { name: "Build the timetable" }).click();
+  await sheet.getByRole("button", { name: "Save" }).click();
+  await expect(sheet).toHaveCount(0);
+  await expect(
+    page.getByRole("link", { name: `Timetabler ${unique}` }),
+  ).toBeVisible();
+
+  await page.goto("/admin/staff?role=%5B%22teacher%22%5D");
+  await untilHydrated(page);
+  await page.getByRole("table").getByRole("link").first().click();
+  await page.getByRole("tab", { name: "Access", exact: true }).click();
+  await page.getByRole("button", { name: "Assign role" }).click();
+  const assign = page.getByRole("dialog", { name: "Assign role" });
+  await assign.getByRole("combobox", { name: /^Role/ }).click();
+  await page.getByRole("option", { name: `Timetabler ${unique}` }).click();
+  await assign.getByRole("button", { name: "Save" }).click();
+  await expect(assign).toHaveCount(0);
+  await expect(
+    page.getByText(`Timetabler ${unique}`, { exact: true }),
+  ).toBeVisible();
+  await expect(
+    page.getByText("Build the timetable", { exact: true }),
+  ).toBeVisible();
+});
+
+// Each browser project edits a different school, so the three runs never
+// race on one profile's version.
+const PROFILE_ADMIN: Record<
+  "chromium" | "firefox" | "webkit",
+  [school: string, email: string]
+> = {
+  chromium: ["northwind", "principal.northwind@northwind.example.com"],
+  firefox: ["northwind-east", "principal.northwind-east@northwind.example.com"],
+  webkit: ["acme", "principal.acme@acme.example.com"],
+};
+
+test("the school profile saves its fields and refuses a weekend start", async ({
+  page,
+  browserName,
+}) => {
+  const [school, email] = PROFILE_ADMIN[browserName];
+  await signInWith(page, email, PASSWORD, "/admin", school);
+  await page.goto("/admin/settings");
+  await untilHydrated(page);
+  const profile = page.getByRole("region", { name: "School profile" });
+  const weekStart = profile.getByRole("combobox", {
+    name: "First day of the school week",
+  });
+  const start = await weekStart.innerText();
+  // Whatever the school's weekend is, the day the week starts on today is a
+  // working day; making it a weekend day as well must be refused.
+  const startDay = start.trim();
+  await profile.getByRole("checkbox", { name: startDay, exact: true }).click();
+  await profile
+    .getByRole("textbox", { name: "School phone" })
+    .fill("+20 2 1234 5678");
+  await profile.getByRole("button", { name: "Save" }).click();
+  await expect(
+    profile.getByText("The school week can't start on a weekend day."),
+  ).toBeVisible();
+
+  await profile.getByRole("checkbox", { name: startDay, exact: true }).click();
+  await profile.getByRole("button", { name: "Save" }).click();
+  await expect(
+    profile.getByText("The school week can't start on a weekend day."),
+  ).toHaveCount(0);
+  await expect(profile.getByText(/saved/i)).toBeVisible();
+  await page.reload();
+  await expect(page.getByRole("textbox", { name: "School phone" })).toHaveValue(
+    "+20 2 1234 5678",
+  );
 });

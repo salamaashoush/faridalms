@@ -3,21 +3,23 @@ import { queryOptions } from "@tanstack/react-query";
 import {
   getAccessChanges,
   getAccessRoles,
-  getUserAccess,
+  getPersonAccess,
 } from "~/server/access";
 
 export const accessRolesQuery = queryOptions({
   queryKey: ["access", "roles"],
   queryFn: () => getAccessRoles(),
 });
+
 export const accessChangesQuery = (page: number) =>
   queryOptions({
     queryKey: ["access", "changes", page],
     queryFn: () => getAccessChanges({ data: { page } }),
     placeholderData: (previous) => previous,
   });
-export const userAccessQuery = (userId: string) =>
+
+export const personAccessQuery = (userId: string) =>
   queryOptions({
-    queryKey: ["access", "user", userId],
-    queryFn: () => getUserAccess({ data: { userId } }),
+    queryKey: ["access", "person", userId],
+    queryFn: () => getPersonAccess({ data: { userId } }),
   });

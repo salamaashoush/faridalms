@@ -2,7 +2,7 @@ import type { Page } from "@playwright/test";
 
 import { expect } from "@playwright/test";
 
-const PASSWORD = "farida-development-password";
+export const PASSWORD = "farida-development-password";
 
 export const ACCOUNTS = {
   admin: { email: "principal.northwind@northwind.example.com", home: "/admin" },
@@ -23,8 +23,14 @@ export async function signInWith(
   email: string,
   password: string,
   home: string,
+  school?: string,
 ) {
   await page.goto("/sign-in");
+  if (school) {
+    const code = page.getByRole("textbox", { name: "School code" });
+    await expect(code).toBeEnabled();
+    await code.fill(school);
+  }
   await page.getByRole("textbox", { name: "Email" }).fill(email);
   await page.getByRole("textbox", { name: "Password" }).fill(password);
   await page.getByRole("button", { name: "Sign In", exact: true }).click();

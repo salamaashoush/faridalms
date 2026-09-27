@@ -1,5 +1,4 @@
 import {
-  schoolProfileSchema,
   saveSubjectSchema,
   publishNewsletterSchema,
   saveClassSchema,
@@ -90,10 +89,6 @@ export const getSubjects = createServerFn({ method: "GET" }).handler(() =>
   backend().getSubjects(),
 );
 
-export const getSchoolSettings = createServerFn({ method: "GET" }).handler(() =>
-  backend().getSchoolSettings(),
-);
-
 export const getAssignments = createServerFn({ method: "GET" })
   .validator((input: unknown) => v.parse(assignmentsQuerySchema, input))
   .handler(({ data }) => backend().getAssignments(data));
@@ -159,10 +154,6 @@ export const saveClass = createServerFn({ method: "POST" })
 export const getManagementOptions = createServerFn({ method: "GET" })
   .validator((input: unknown) => v.parse(managementOptionsSchema, input))
   .handler(({ data }) => backend().getManagementOptions(data));
-
-export const saveSchoolProfile = createServerFn({ method: "POST" })
-  .validator((input: unknown) => v.parse(schoolProfileSchema, input))
-  .handler(({ data }) => backend().saveSchoolProfile(data));
 
 export const saveSubject = createServerFn({ method: "POST" })
   .validator((input: unknown) => v.parse(saveSubjectSchema, input))

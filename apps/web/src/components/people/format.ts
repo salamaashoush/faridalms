@@ -70,3 +70,10 @@ export const NATURAL_ROLE_LABEL: Record<string, () => string> = {
 export function roleLabel(role: string): string {
   return NATURAL_ROLE_LABEL[role]?.() ?? role;
 }
+
+/** Ranges are half-open, so the last day shown is the one before the end. */
+export function lastDay(endsBefore: string) {
+  const date = new Date(`${endsBefore}T00:00:00Z`);
+  date.setUTCDate(date.getUTCDate() - 1);
+  return date.toISOString().slice(0, 10);
+}

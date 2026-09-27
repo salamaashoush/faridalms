@@ -1,5 +1,6 @@
 import * as m from "~/i18n/messages";
 import { formatDate } from "~/utils/datetime";
+import { validationMessage } from "~/utils/validation";
 
 /** Followed by the last day a register was taken, which the move would change. */
 export const MOVE_DATE_REGISTERS = "management.move_date_registers:";
@@ -44,6 +45,14 @@ export function getMessageFromError(error: unknown): string {
         return m.errorConflictVersion();
       case "contact_point.phone_invalid":
         return m.errorPhoneInvalid();
+      case "access.last_manager":
+        return m.errorAccessLastManager();
+      case "access.not_held":
+        return m.errorAccessNotHeld();
+      case "account.self":
+        return m.errorAccountSelf();
+      case "school.week_start_weekend":
+        return m.errorWeekStartWeekend();
       case "content.invalid":
         return m.contentInvalid();
       case "newsletter.revision_conflict":
@@ -303,6 +312,8 @@ export function getMessageFromError(error: unknown): string {
       case "calendar.revision_conflict":
         return m.calendarRevisionConflict();
     }
+    if (error.message.startsWith("validation."))
+      return validationMessage({ message: error.message });
     if (error.message.startsWith("assignment.incomplete:"))
       return m.assignmentIncomplete();
     if (error.message.startsWith(MOVE_DATE_REGISTERS))

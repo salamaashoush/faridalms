@@ -32,7 +32,6 @@ import {
   getMyClasses,
   getNewsletters,
   getRecipients,
-  getSchoolSettings,
   getStudent,
   getStudentOverview,
   getSubjects,
@@ -165,11 +164,6 @@ export function managementOptionsQuery(query: ManagementOptionsInput) {
 export const subjectsQuery = queryOptions({
   queryKey: ["subjects"],
   queryFn: () => getSubjects(),
-});
-
-export const schoolSettingsQuery = queryOptions({
-  queryKey: ["school", "settings"],
-  queryFn: () => getSchoolSettings(),
 });
 
 export function messagesQuery(query: MessagesQuery) {

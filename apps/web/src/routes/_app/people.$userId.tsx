@@ -7,6 +7,7 @@ import {
   personTabsFor,
 } from "~/components/people/PersonRecord";
 import * as m from "~/i18n/messages";
+import { accessRolesQuery, personAccessQuery } from "~/queries/access";
 import { personHistoryQuery, personRecordQuery } from "~/queries/students";
 
 export const Route = createFileRoute("/_app/people/$userId")({
@@ -32,6 +33,11 @@ export const Route = createFileRoute("/_app/people/$userId")({
       });
     if (deps.tab === "history")
       await queryClient.ensureQueryData(personHistoryQuery(params.userId));
+    if (deps.tab === "access")
+      await Promise.all([
+        queryClient.ensureQueryData(personAccessQuery(params.userId)),
+        queryClient.ensureQueryData(accessRolesQuery),
+      ]);
   },
   component: PersonPage,
 });

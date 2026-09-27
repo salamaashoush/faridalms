@@ -1,5 +1,4 @@
 import {
-  SCHOOL_FEATURES,
   answerQuizSchema,
   completeLessonSchema,
   learnerModuleQuerySchema,
@@ -18,15 +17,6 @@ const parse =
   <T extends v.GenericSchema>(schema: T) =>
   (input: unknown) =>
     v.parse(schema, input);
-
-export const getSchoolFeatures = createServerFn({ method: "GET" }).handler(() =>
-  backend().getSchoolFeatures(),
-);
-export const setSchoolFeature = createServerFn({ method: "POST" })
-  .validator(
-    parse(v.object({ key: v.picklist(SCHOOL_FEATURES), enabled: v.boolean() })),
-  )
-  .handler(({ data }) => backend().setSchoolFeature(data));
 
 export const getTeachingModules = createServerFn({ method: "GET" }).handler(
   () => backend().getTeachingModules(),

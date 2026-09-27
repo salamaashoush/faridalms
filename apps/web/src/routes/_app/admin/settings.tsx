@@ -1,4 +1,4 @@
-import { useSuspenseQuery } from "@tanstack/react-query";
+import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { Plus } from "lucide-react";
 import { Suspense, useState } from "react";
@@ -12,9 +12,7 @@ import {
   AccessRolesPanel,
   findRole,
   RoleSheet,
-  roleKey,
 } from "~/components/admin/AccessRolesPanel";
-import { formatDay } from "~/components/admin/format";
 import { SchoolProfileSection } from "~/components/admin/SchoolEditors";
 import {
   filterSubjects,
@@ -23,7 +21,9 @@ import {
   SubjectSheet,
 } from "~/components/admin/SubjectCatalogue";
 import { ButtonLink } from "~/components/app/ButtonLink";
+import { formatDate } from "~/components/family/format";
 import { FeaturesCard } from "~/components/learning/FeaturesCard";
+import { lastDay } from "~/components/people/format";
 import { RowLink } from "~/components/system/DataTable";
 import { PageHeader } from "~/components/system/IndexPage";
 import { Fact, Facts, RecordTabs } from "~/components/system/RecordPage";
@@ -32,10 +32,15 @@ import {
   SettingsSection,
 } from "~/components/system/SettingsSection";
 import { Skeleton } from "~/components/ui/skeleton";
+import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { accessChangesQuery, accessRolesQuery } from "~/queries/access";
-import { schoolFeaturesQuery } from "~/queries/learning";
-import { schoolSettingsQuery, subjectsQuery } from "~/queries/school";
+import { subjectsQuery } from "~/queries/school";
+import {
+  schoolFeaturesQuery,
+  schoolProfileQuery,
+} from "~/queries/school-settings";
+import { peopleOptionsQuery } from "~/queries/students";
 
 const searchSchema = v.object({
   section: v.optional(v.picklist(["school", "subjects", "access"]), "school"),
@@ -55,17 +60,20 @@ export const Route = createFileRoute("/_app/admin/settings")({
   validateSearch: searchSchema,
   loaderDeps: ({ search }) => ({ section: search.section }),
   loader: async ({ context, deps }) => {
-    await Promise.all([
-      context.queryClient.ensureQueryData(schoolSettingsQuery),
-      context.queryClient.ensureQueryData(schoolFeaturesQuery),
-      context.queryClient.ensureQueryData(subjectsQuery),
-      ...(deps.section === "access"
-        ? [
-            context.queryClient.ensureQueryData(accessRolesQuery),
-            context.queryClient.ensureQueryData(accessChangesQuery(1)),
-          ]
-        : []),
-    ]);
+    const { queryClient } = context;
+    if (deps.section === "school")
+      await Promise.all([
+        queryClient.ensureQueryData(schoolProfileQuery),
+        queryClient.ensureQueryData(schoolFeaturesQuery),
+        queryClient.ensureQueryData(peopleOptionsQuery),
+      ]);
+    else if (deps.section === "subjects")
+      await queryClient.ensureQueryData(subjectsQuery);
+    else
+      await Promise.all([
+        queryClient.ensureQueryData(accessRolesQuery),
+        queryClient.ensureQueryData(accessChangesQuery(1)),
+      ]);
   },
   component: SettingsRoute,
 });
@@ -89,7 +97,9 @@ function SettingsRoute() {
   const navigate = Route.useNavigate();
   // An empty catalogue offers Add subject in its empty state instead, so the
   // page keeps one primary button.
-  const subjects = useSuspenseQuery(subjectsQuery).data;
+  const subjects =
+    useQuery({ ...subjectsQuery, enabled: search.section === "subjects" })
+      .data ?? [];
   const patch = (change: Partial<Search>, replace = false) => {
     void navigate({
       search: (previous) => ({ ...previous, ...change }),
@@ -142,13 +152,14 @@ function SettingsRoute() {
 }
 
 function SchoolTab() {
-  const settings = useSuspenseQuery(schoolSettingsQuery).data;
+  const options = useSuspenseQuery(peopleOptionsQuery).data;
+  const year = options.years.find((row) => row.id === options.workingYearId);
   return (
     <SettingsPage>
-      <SchoolProfileSection initial={settings.school} />
+      <SchoolProfileSection />
       <SettingsSection
-        title={m.studentSchoolYear()}
-        description={m.settingsYearHint()}
+        title={m.settingsWorkingYear()}
+        description={m.settingsWorkingYearHint()}
         footer={
           <ButtonLink
             to="/admin/academic-years"
@@ -159,42 +170,21 @@ function SchoolTab() {
           </ButtonLink>
         }
       >
-        <Facts short>
-          <Fact label={m.academicYearName()}>{settings.year.name}</Fact>
-          <Fact label={m.adminStartsOn()}>
-            {formatDay(settings.year.startsOn)}
-          </Fact>
-          <Fact label={m.adminEndsOn()}>{formatDay(settings.year.endsOn)}</Fact>
-        </Facts>
-        <div className="grid gap-2">
-          <h3 className="text-sm leading-5 font-semibold">
-            {m.adminTermsSection()}
-          </h3>
-          {settings.terms.length ? (
-            <ul className="divide-y text-sm leading-5">
-              {settings.terms.map((term) => (
-                <li
-                  key={term.id}
-                  className="flex flex-wrap justify-between gap-x-4 gap-y-1 py-2.5"
-                >
-                  <span dir="auto" className="font-medium">
-                    {term.name}
-                  </span>
-                  <span className="text-muted-foreground">
-                    {m.settingsTermDates({
-                      start: formatDay(term.startsOn),
-                      end: formatDay(term.endsOn),
-                    })}
-                  </span>
-                </li>
-              ))}
-            </ul>
-          ) : (
-            <p className="text-sm leading-5 text-muted-foreground">
-              {m.adminTermsEmpty()}
-            </p>
-          )}
-        </div>
+        {year ? (
+          <Facts short>
+            <Fact label={m.academicYearName()}>
+              {inLocale(year.titleEn, year.titleAr)}
+            </Fact>
+            <Fact label={m.adminStartsOn()}>{formatDate(year.startsOn)}</Fact>
+            <Fact label={m.adminEndsOn()}>
+              {formatDate(lastDay(year.endsBefore))}
+            </Fact>
+          </Facts>
+        ) : (
+          <p className="text-sm leading-5 text-muted-foreground">
+            {m.settingsNoWorkingYear()}
+          </p>
+        )}
       </SettingsSection>
       <FeaturesCard />
     </SettingsPage>
@@ -211,10 +201,7 @@ function subjectLink(search: Search) {
 
 function roleLink(role: AccessRole, name: string) {
   return (
-    <RowLink
-      to="/admin/settings"
-      search={{ section: "access", role: roleKey(role) }}
-    >
+    <RowLink to="/admin/settings" search={{ section: "access", role: role.id }}>
       {name}
     </RowLink>
   );
@@ -227,7 +214,9 @@ function SubjectsTab({
   search: Search;
   patch: (change: Partial<Search>, replace?: boolean) => void;
 }) {
-  const subjects = useSuspenseQuery(subjectsQuery).data;
+  const subjects =
+    useQuery({ ...subjectsQuery, enabled: search.section === "subjects" })
+      .data ?? [];
   const filtered = filterSubjects(subjects, search.q, search.sort, search.dir);
   const pages = Math.max(1, Math.ceil(filtered.length / SUBJECT_PAGE_SIZE));
   const page = Math.min(search.page, pages);
@@ -298,8 +287,8 @@ function AccessTab({
     <>
       <AccessRolesPanel
         nameLink={roleLink}
-        onEdit={(role) => patch({ role: roleKey(role), from: undefined })}
-        onDuplicate={(role) => patch({ role: "new", from: roleKey(role) })}
+        onEdit={(role) => patch({ role: role.id, from: undefined })}
+        onDuplicate={(role) => patch({ role: "new", from: role.id })}
       />
       {sheet.shown && (sheet.shown.value === "new" || editing) ? (
         <RoleSheet

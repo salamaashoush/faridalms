@@ -3,14 +3,13 @@ import {
   useQueryClient,
   useSuspenseQuery,
 } from "@tanstack/react-query";
-import { useServerFn } from "@tanstack/react-start";
 import { useState } from "react";
 
 import { SettingsSection } from "~/components/system/SettingsSection";
 import { Checkbox } from "~/components/ui/checkbox";
 import * as m from "~/i18n/messages";
-import { schoolFeaturesQuery } from "~/queries/learning";
-import { setSchoolFeature } from "~/server/learning";
+import { schoolFeaturesQuery } from "~/queries/school-settings";
+import { setSchoolFeature } from "~/server/school-settings";
 import { getMessageFromError } from "~/utils/error";
 
 export function FeaturesCard() {
@@ -18,10 +17,9 @@ export function FeaturesCard() {
   const { data } = useSuspenseQuery(schoolFeaturesQuery);
   const [elearning, setElearning] = useState(data.elearning);
   const [saved, setSaved] = useState(false);
-  const save = useServerFn(setSchoolFeature);
   const mutation = useMutation({
     mutationFn: (enabled: boolean) =>
-      save({ data: { key: "elearning", enabled } }),
+      setSchoolFeature({ data: { feature: "elearning", enabled } }),
     meta: { inlineError: true },
     onSuccess: async (features) => {
       queryClient.setQueryData(schoolFeaturesQuery.queryKey, features);
