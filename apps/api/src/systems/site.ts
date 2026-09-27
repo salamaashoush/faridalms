@@ -70,6 +70,7 @@ import {
   pageFileIds,
   pageIssues,
   pagePlainText,
+  pageSectionSchema,
   postContentSchema,
   postIssues,
   postsQuerySchema,
@@ -1379,9 +1380,16 @@ export const publicSitePage = publicProcedure
           slug: input.slug,
         });
         if (!row) throw new ORPCError("NOT_FOUND");
-        const sections = (row.content.sections ?? []) as ReturnType<
-          typeof localizedSections
-        >;
+        // Published copies are read through the schema, so a section
+        // published before a field existed gets that field's default.
+        const sections = (
+          (row.content.sections ?? []) as ReturnType<typeof localizedSections>
+        ).flatMap((item) => {
+          const read = v.safeParse(pageSectionSchema, item.section);
+          return read.success
+            ? [{ section: read.output, locale: item.locale }]
+            : [];
+        });
         const wanted = Math.max(
           0,
           ...sections.flatMap((item) =>
