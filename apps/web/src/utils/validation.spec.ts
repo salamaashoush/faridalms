@@ -1,4 +1,4 @@
-import { saveClassSchema } from "@faridalms/domain/administration-schema";
+import { saveClassSchema } from "@faridalms/domain/classes";
 import { saveSignInSchema } from "@faridalms/domain/people";
 import * as v from "valibot";
 import { describe, expect, it } from "vitest";
@@ -10,15 +10,14 @@ import { validationMessage } from "./validation";
 describe("localized form validation", () => {
   it("explains missing class details and subject selections", () => {
     const result = v.safeParse(saveClassSchema, {
-      name: " ",
-      grade: "",
-      stage: "primary",
-      subjects: [{ subjectId: "", teacherId: "" }],
+      yearId: "",
+      code: " ",
+      subjects: [{ subjectId: "", teacherIds: [""] }],
     });
     expect(result.success).toBe(false);
     expect(result.issues?.map(validationMessage)).toEqual([
-      m.validationRequired(),
-      m.validationRequired(),
+      m.validationSelection(),
+      m.validationClassCode(),
       m.validationSelection(),
       m.validationSelection(),
     ]);

@@ -1,49 +1,91 @@
+import { WORKSPACE_HOME } from "@faridalms/domain/workspace";
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { createFileRoute } from "@tanstack/react-router";
+import {
+  createFileRoute,
+  Link,
+  redirect,
+  useCanGoBack,
+  useRouter,
+} from "@tanstack/react-router";
 import * as v from "valibot";
 
-import { ClassEditor } from "~/components/admin/ClassEditor";
-import { classQuery } from "~/queries/school";
+import {
+  BreadcrumbCurrent,
+  BreadcrumbStep,
+} from "~/components/app/WorkspaceBreadcrumb";
+import {
+  ClassEditor,
+  ExistingClassEditor,
+} from "~/components/classes/ClassEditor";
+import { classTitle } from "~/components/classes/format";
+import * as m from "~/i18n/messages";
+import { classOptionsQuery, classRecordQuery } from "~/queries/classes";
+import { currentUserQuery } from "~/queries/user";
 
 export const Route = createFileRoute("/_app/admin/class-editor")({
-  validateSearch: v.object({ id: v.optional(v.pipe(v.string(), v.uuid())) }),
+  staticData: {
+    trail: <EditorTrail />,
+    section: "/admin/classes",
+  },
+  validateSearch: v.object({
+    year: v.pipe(v.string(), v.uuid()),
+    id: v.optional(v.pipe(v.string(), v.uuid())),
+  }),
   loaderDeps: ({ search }) => search,
   loader: async ({ context, deps }) => {
-    if (deps.id) await context.queryClient.ensureQueryData(classQuery(deps.id));
+    const user = await context.queryClient.ensureQueryData(currentUserQuery);
+    if (!user.capabilities.includes("classes:manage"))
+      throw redirect({ to: WORKSPACE_HOME[user.workspace] });
+    await Promise.all([
+      context.queryClient.ensureQueryData(classOptionsQuery),
+      deps.id
+        ? context.queryClient.ensureQueryData(classRecordQuery(deps.id))
+        : null,
+    ]);
   },
   component: ClassEditorPage,
 });
-function ClassEditorPage() {
+
+function EditorTrail() {
   const { id } = Route.useSearch();
-  const navigate = Route.useNavigate();
-  const close = () => {
-    void navigate({ to: "/admin/classes", search: {} });
-  };
   return id ? (
-    <EditClass id={id} onClose={close} />
+    <EditTrail classId={id} />
   ) : (
-    <ClassEditor onClose={close} />
+    <BreadcrumbCurrent>{m.classesAdd()}</BreadcrumbCurrent>
   );
 }
 
-function EditClass({ id, onClose }: { id: string; onClose: () => void }) {
-  const { data } = useSuspenseQuery(classQuery(id));
+function EditTrail({ classId }: { classId: string }) {
+  const record = useSuspenseQuery(classRecordQuery(classId)).data;
   return (
-    <ClassEditor
-      initial={{
-        id: data.id,
-        name: data.name,
-        grade: data.grade,
-        stage: data.stage,
-        room: data.room ?? "",
-        homeroomTeacherId: data.homeroomTeacher?.id ?? "",
-        subjects: data.subjects.flatMap((link) =>
-          link.subject && link.teacher
-            ? [{ subjectId: link.subject.id, teacherId: link.teacher.id }]
-            : [],
-        ),
-      }}
-      onClose={onClose}
-    />
+    <>
+      <BreadcrumbStep
+        render={
+          <Link to="/classes/$classId" params={{ classId }} search={{}} />
+        }
+      >
+        {classTitle(record)}
+      </BreadcrumbStep>
+      <BreadcrumbCurrent>{m.classesEdit()}</BreadcrumbCurrent>
+    </>
+  );
+}
+
+function ClassEditorPage() {
+  const { year, id } = Route.useSearch();
+  const navigate = Route.useNavigate();
+  const router = useRouter();
+  const canGoBack = useCanGoBack();
+  const close = () => {
+    if (canGoBack) {
+      router.history.back();
+      return;
+    }
+    void navigate({ to: "/admin/classes", search: {} });
+  };
+  return id ? (
+    <ExistingClassEditor key={id} id={id} onClose={close} />
+  ) : (
+    <ClassEditor yearId={year} onClose={close} />
   );
 }

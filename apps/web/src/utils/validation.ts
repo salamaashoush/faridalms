@@ -42,6 +42,8 @@ export function validationMessage(issue: { message?: string }): string {
       return m.validationReference();
     case "validation.role_required":
       return m.validationRoleRequired();
+    case "validation.class_code":
+      return m.validationClassCode();
   }
   if (!("type" in issue)) return issue.message ?? m.validationInvalid();
   const count =

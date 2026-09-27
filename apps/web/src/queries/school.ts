@@ -2,7 +2,6 @@ import type { ManagementOptionsInput } from "@faridalms/domain/administration-sc
 import type {
   RecipientCursor,
   AssignmentsQuery,
-  ClassDirectoryQuery,
   AttendanceRegisterQuery,
   CalendarQuery,
   ClassScopedQuery,
@@ -15,13 +14,11 @@ import { queryOptions } from "@tanstack/react-query";
 
 import {
   getAdminOverview,
-  getAllClasses,
   getAssignmentDetail,
   getAssignments,
   getAttendance,
   getAttendanceRegister,
   getCalendar,
-  getClass,
   getClassAssignments,
   getFamilyOverview,
   getGrades,
@@ -34,7 +31,6 @@ import {
   getRecipients,
   getStudent,
   getStudentOverview,
-  getSubjects,
   getTeachingOverview,
   getTimetable,
   getVisibleStudents,
@@ -135,20 +131,6 @@ export const myClassesQuery = queryOptions({
   queryFn: () => getMyClasses(),
 });
 
-export function allClassesQuery(query: ClassDirectoryQuery) {
-  return queryOptions({
-    queryKey: ["classes", "all", query],
-    queryFn: () => getAllClasses({ data: query }),
-  });
-}
-
-export function classQuery(id: string) {
-  return queryOptions({
-    queryKey: ["classes", "detail", id],
-    queryFn: () => getClass({ data: { id } }),
-  });
-}
-
 export const gradingQueueQuery = queryOptions({
   queryKey: ["grading", "queue"],
   queryFn: () => getGradingQueue(),
@@ -160,11 +142,6 @@ export function managementOptionsQuery(query: ManagementOptionsInput) {
     queryFn: () => getManagementOptions({ data: query }),
   });
 }
-
-export const subjectsQuery = queryOptions({
-  queryKey: ["subjects"],
-  queryFn: () => getSubjects(),
-});
 
 export function messagesQuery(query: MessagesQuery) {
   return queryOptions({

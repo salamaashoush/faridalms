@@ -33,7 +33,6 @@ import * as m from "~/i18n/messages";
 import {
   assignmentsQuery,
   attendanceQuery,
-  classQuery,
   gradesQuery,
   timetableQuery,
 } from "~/queries/school";
@@ -382,21 +381,6 @@ export function TodayForStudent({
 }) {
   const { slots } = useSuspenseQuery(timetableQuery({ studentId })).data;
   return <TodayLessons slots={slots} today={today} />;
-}
-
-/**
- * A teacher's own timetable request returns their lessons, not the
- * student's, so a teacher reads the class timetable instead.
- */
-export function TodayForClass({
-  classId,
-  today,
-}: {
-  classId: string;
-  today: string;
-}) {
-  const { timetable } = useSuspenseQuery(classQuery(classId)).data;
-  return <TodayLessons slots={timetable} today={today} />;
 }
 
 export function TodayWithoutClass() {

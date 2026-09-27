@@ -53,6 +53,15 @@ export function getMessageFromError(error: unknown): string {
         return m.errorAccountSelf();
       case "school.week_start_weekend":
         return m.errorWeekStartWeekend();
+      case "class.code_taken":
+        return m.errorClassCodeTaken();
+      case "school_year.closed":
+        return m.errorSchoolYearClosed();
+      case "enrollment.future_placement":
+        return m.errorFuturePlacement();
+      case "enrollment.outside_year":
+      case "enrollment.outside_dates":
+        return m.errorEnrollmentOutsideYear();
       case "content.invalid":
         return m.contentInvalid();
       case "newsletter.revision_conflict":

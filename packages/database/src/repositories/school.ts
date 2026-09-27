@@ -123,10 +123,6 @@ export async function getClassDetail(db: Database, id: string, date: string) {
   };
 }
 
-export async function listSubjects(db: Database) {
-  return db.query.subjects.findMany({ orderBy: { name: "asc" } });
-}
-
 export interface SchoolStats {
   students: number;
   classes: number;

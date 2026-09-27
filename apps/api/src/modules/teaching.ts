@@ -2,12 +2,10 @@ import {
   assignmentsForClasses,
   assessmentFilter,
   attendanceForClassOn,
-  attendanceSummaries,
   currentSchoolYear,
   gradingQueue,
   recordAttendance,
   resolveWeek,
-  timetableForClass,
   timetableForTeacher,
 } from "@faridalms/database/repositories/academics";
 import {
@@ -34,7 +32,6 @@ import {
   recordAttendanceSchema,
 } from "@faridalms/domain/school-schema";
 import { ORPCError } from "@orpc/server";
-import * as v from "valibot";
 
 import {
   assessmentScope,
@@ -96,51 +93,6 @@ export const getMyClasses = protectedProcedure.handler(async ({ context }) => {
     assessmentScope(context, "assignments:author"),
   );
 });
-
-export const getClass = protectedProcedure
-  .input(v.object({ id: v.string() }))
-  .handler(async ({ input: data, context }) => {
-    const user = await requirePermission(
-      context,
-      context.user.permissions.includes("classes:read")
-        ? "classes:read"
-        : "student-profile:read",
-    );
-    const allowed = await visibleClassIds(context, user);
-    if (!allowed.includes(data.id)) {
-      throw new ORPCError("NOT_FOUND");
-    }
-    const detail = await getClassDetail(context.db, data.id, context.today);
-    if (!detail) {
-      throw new ORPCError("NOT_FOUND");
-    }
-    const roster = user.permissions.includes("roster:read")
-      ? detail.roster
-      : detail.roster.filter((student) => user.studentIds.includes(student.id));
-    const summaries = user.permissions.includes("attendance:read")
-      ? await attendanceSummaries(
-          context.db,
-          roster.map((student) => student.id),
-        )
-      : null;
-    return {
-      ...detail,
-      roster,
-      timetable: await timetableForClass(context.db, data.id),
-      attendance: summaries
-        ? roster.map((student) => ({
-            student,
-            summary: summaries.get(student.id) ?? null,
-          }))
-        : null,
-      canManage:
-        user.permissions.includes("classes:manage") &&
-        detail.schoolYearStatus !== "closed",
-      canRecordAttendance:
-        user.permissions.includes("attendance:record") &&
-        detail.schoolYearStatus !== "closed",
-    };
-  });
 
 export const getClassAssignments = protectedProcedure
   .input(classScopedQuerySchema)

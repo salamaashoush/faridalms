@@ -1,12 +1,11 @@
-import type { SaveSubjectInput } from "@faridalms/domain/administration-schema";
 import type { ReactNode } from "react";
 
-import { saveSubjectSchema } from "@faridalms/domain/administration-schema";
 import { revalidateLogic, useForm } from "@tanstack/react-form";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { BookOpen, Pencil, Plus } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import * as v from "valibot";
 
 import type {
   Column,
@@ -21,7 +20,7 @@ import { SheetForm } from "~/components/system/SheetForm";
 import { Button } from "~/components/ui/button";
 import * as m from "~/i18n/messages";
 import { getLocale } from "~/i18n/runtime";
-import { saveSubject } from "~/server/school";
+import { saveSubject } from "~/server/classes";
 import { getMessageFromError } from "~/utils/error";
 
 export interface Subject {
@@ -29,6 +28,20 @@ export interface Subject {
   name: string;
   nameAr: string;
   slug: string;
+}
+
+export function subjectOf(row: {
+  id: string;
+  code: string;
+  labelEn: string | null;
+  labelAr: string | null;
+}): Subject {
+  return {
+    id: row.id,
+    name: row.labelEn ?? "",
+    nameAr: row.labelAr ?? "",
+    slug: row.code,
+  };
 }
 
 export type SubjectSort = "name" | "code";
@@ -183,7 +196,32 @@ export function SubjectCatalogue({
   );
 }
 
-const EMPTY: SaveSubjectInput = { slug: "", name: "", nameAr: "" };
+interface SubjectDraft {
+  name: string;
+  nameAr: string;
+  slug: string;
+}
+
+const EMPTY: SubjectDraft = { slug: "", name: "", nameAr: "" };
+
+const subjectFormSchema = v.pipe(
+  v.object({
+    name: v.pipe(v.string(), v.maxLength(80)),
+    nameAr: v.pipe(v.string(), v.maxLength(80)),
+    slug: v.pipe(
+      v.string(),
+      v.trim(),
+      v.regex(/^[a-z][a-z0-9_]{1,39}$/i, "validation.subject_code"),
+    ),
+  }),
+  v.forward(
+    v.check(
+      (value) => value.name.trim() !== "" || value.nameAr.trim() !== "",
+      "validation.name_required",
+    ),
+    ["name"],
+  ),
+);
 
 export function SubjectSheet({
   open,
@@ -200,29 +238,38 @@ export function SubjectSheet({
     value: string;
     message: string;
   } | null>(null);
+  const queryClient = useQueryClient();
   const mutation = useMutation({
-    mutationFn: (data: SaveSubjectInput) => saveSubject({ data }),
+    mutationFn: (value: SubjectDraft) =>
+      saveSubject({
+        data: {
+          ...(subject ? { id: subject.id } : {}),
+          code: value.slug.trim(),
+          labelEn: value.name,
+          labelAr: value.nameAr,
+        },
+      }),
     meta: { inlineError: true },
   });
   const form = useForm({
-    defaultValues: subject ?? EMPTY,
+    defaultValues: subject
+      ? { name: subject.name, nameAr: subject.nameAr, slug: subject.slug }
+      : EMPTY,
     validationLogic: revalidateLogic(),
-    validators: { onDynamic: saveSubjectSchema },
+    validators: { onDynamic: subjectFormSchema },
     onSubmit: async ({ value }) => {
       setRefused(null);
       try {
         await mutation.mutateAsync(value);
       } catch (error) {
-        if (
-          error instanceof Error &&
-          error.message === "management.subject_code_conflict"
-        )
+        if (error instanceof Error && error.message === "descriptor.code_taken")
           setRefused({
             value: value.slug.trim(),
             message: getMessageFromError(error),
           });
         return;
       }
+      await queryClient.invalidateQueries({ queryKey: ["classes"] });
       toast.success(m.managementSaved());
       onClose();
     },
@@ -282,6 +329,7 @@ export function SubjectSheet({
             autoComplete="off"
             autoCapitalize="none"
             spellCheck={false}
+            disabled={Boolean(subject)}
             value={field.state.value}
             onChange={(event) => field.handleChange(event.target.value)}
             onBlur={field.handleBlur}

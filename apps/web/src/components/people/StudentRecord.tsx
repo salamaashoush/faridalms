@@ -48,6 +48,7 @@ import { cn } from "~/utils/cn";
 
 import type { StudentSheet } from "./StudentSheets";
 
+import { StudentClasses } from "../classes/StudentClasses";
 import {
   displayName,
   labelOf,
@@ -524,7 +525,18 @@ export function StudentRecord({
     case "enrollment":
       body = (
         <RecordColumns
-          main={<EnrollmentHistory data={data} />}
+          main={
+            <>
+              <Deferred>
+                <StudentClasses
+                  student={{ id: studentId, name }}
+                  today={data.today}
+                  manage={access.manage}
+                />
+              </Deferred>
+              <EnrollmentHistory data={data} />
+            </>
+          }
           aside={
             <PlacementSection
               data={data}

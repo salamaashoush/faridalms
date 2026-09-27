@@ -1,13 +1,10 @@
 import {
-  saveSubjectSchema,
   publishNewsletterSchema,
-  saveClassSchema,
   managementOptionsSchema,
 } from "@faridalms/domain/administration-schema";
 import {
   recipientQuerySchema,
   replyMessageSchema,
-  classDirectorySchema,
   createAssignmentSchema,
   assignmentsQuerySchema,
   attendanceRegisterQuerySchema,
@@ -51,10 +48,6 @@ export const getMyClasses = createServerFn({ method: "GET" }).handler(() =>
   backend().getMyClasses(),
 );
 
-export const getClass = createServerFn({ method: "GET" })
-  .validator((input: unknown) => v.parse(v.object({ id: v.string() }), input))
-  .handler(({ data }) => record(backend().getClass(data)));
-
 export const getClassAssignments = createServerFn({ method: "GET" })
   .validator((input: unknown) => v.parse(classScopedQuerySchema, input))
   .handler(({ data }) => backend().getClassAssignments(data));
@@ -77,16 +70,6 @@ export const saveAttendance = createServerFn({ method: "POST" })
 
 export const getAdminOverview = createServerFn({ method: "GET" }).handler(() =>
   backend().getAdminOverview(),
-);
-
-export const getAllClasses = createServerFn({ method: "GET" })
-  .validator((input: v.InferInput<typeof classDirectorySchema>) =>
-    v.parse(classDirectorySchema, input),
-  )
-  .handler(({ data }) => record(backend().getAllClasses(data)));
-
-export const getSubjects = createServerFn({ method: "GET" }).handler(() =>
-  backend().getSubjects(),
 );
 
 export const getAssignments = createServerFn({ method: "GET" })
@@ -147,17 +130,9 @@ export const saveCalendarEvent = createServerFn({ method: "POST" })
   .validator((input: unknown) => v.parse(calendarEventSchema, input))
   .handler(({ data }) => backend().saveCalendarEvent(data));
 
-export const saveClass = createServerFn({ method: "POST" })
-  .validator((input: unknown) => v.parse(saveClassSchema, input))
-  .handler(({ data }) => backend().saveClass(data));
-
 export const getManagementOptions = createServerFn({ method: "GET" })
   .validator((input: unknown) => v.parse(managementOptionsSchema, input))
   .handler(({ data }) => backend().getManagementOptions(data));
-
-export const saveSubject = createServerFn({ method: "POST" })
-  .validator((input: unknown) => v.parse(saveSubjectSchema, input))
-  .handler(({ data }) => backend().saveSubject(data));
 
 export const publishNewsletter = createServerFn({ method: "POST" })
   .validator((input: unknown) => v.parse(publishNewsletterSchema, input))

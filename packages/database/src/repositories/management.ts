@@ -1,8 +1,4 @@
-import type {
-  SaveSubjectInput,
-  PublishNewsletterInput,
-  SaveClassInput,
-} from "@faridalms/domain/administration-schema";
+import type { PublishNewsletterInput } from "@faridalms/domain/administration-schema";
 
 import {
   INTERNATIONAL_PATTERN,
@@ -10,11 +6,10 @@ import {
   ONE_DIGIT_CODE_PATTERN,
   TWO_DIGIT_CODE_PATTERN,
 } from "@faridalms/domain/phone";
-import { and, eq, ilike, ne, sql, inArray, or } from "drizzle-orm";
+import { and, eq, ilike, sql, inArray, or } from "drizzle-orm";
 
 import type { Database } from "../index";
 
-import { ACADEMIC_STRUCTURE_LOCK } from "../locks";
 import * as s from "../schema";
 
 export class ManagementError extends Error {
@@ -28,86 +23,6 @@ export class ManagementError extends Error {
   ) {
     super(message);
   }
-}
-
-export async function saveClass(
-  db: Database,
-  input: SaveClassInput,
-  schoolYearId: string,
-) {
-  return db.transaction(async (tx) => {
-    await tx.execute(
-      sql`select pg_advisory_xact_lock(${ACADEMIC_STRUCTURE_LOCK})`,
-    );
-    const teacherIds = new Set(
-      [
-        input.homeroomTeacherId,
-        ...input.subjects.map((row) => row.teacherId),
-      ].filter(Boolean),
-    );
-    const teachers = await tx.query.users.findMany({
-      where: { role: "teacher", isActive: true },
-      columns: { id: true },
-    });
-    if ([...teacherIds].some((id) => !teachers.some((row) => row.id === id)))
-      throw new ManagementError("BAD_REQUEST", "management.teachers_inactive");
-    if (
-      new Set(input.subjects.map((row) => row.subjectId)).size !==
-      input.subjects.length
-    )
-      throw new ManagementError("BAD_REQUEST", "management.subject_duplicate");
-    const subjects = await tx.query.subjects.findMany({
-      columns: { id: true },
-    });
-    if (
-      input.subjects.some(
-        (row) => !subjects.some((subject) => subject.id === row.subjectId),
-      )
-    )
-      throw new ManagementError("BAD_REQUEST", "management.subject_not_found");
-    if (
-      await tx.query.classes.findFirst({
-        where: {
-          RAW: (table) =>
-            sql`${and(eq(table.name, input.name), eq(table.schoolYearId, schoolYearId), input.id ? ne(table.id, input.id) : undefined)}`,
-        },
-      })
-    )
-      throw new ManagementError("CONFLICT", "management.class_name_conflict");
-    const values = {
-      name: input.name,
-      grade: input.grade,
-      stage: input.stage,
-      room: input.room || null,
-      homeroomTeacherId: input.homeroomTeacherId || null,
-      updatedAt: new Date(),
-    };
-    const [row] = input.id
-      ? await tx
-          .update(s.classes)
-          .set({ ...values, revision: sql`${s.classes.revision} + 1` })
-          .where(
-            and(
-              eq(s.classes.id, input.id),
-              eq(s.classes.schoolYearId, schoolYearId),
-            ),
-          )
-          .returning({ id: s.classes.id })
-      : await tx
-          .insert(s.classes)
-          .values({ ...values, schoolYearId })
-          .returning({ id: s.classes.id });
-    if (!row)
-      throw new ManagementError("NOT_FOUND", "management.class_not_found");
-    await tx.delete(s.classSubjects).where(eq(s.classSubjects.classId, row.id));
-    if (input.subjects.length)
-      await tx
-        .insert(s.classSubjects)
-        .values(
-          input.subjects.map((subject) => ({ classId: row.id, ...subject })),
-        );
-    return row;
-  });
 }
 
 export async function managementOptions(
@@ -225,34 +140,6 @@ export async function managementOptions(
     .limit(50);
 }
 
-export async function saveSubject(db: Database, input: SaveSubjectInput) {
-  const { id, ...values } = input;
-  return db.transaction(async (tx) => {
-    await tx.execute(sql`select pg_advisory_xact_lock(741906)`);
-    if (
-      await tx.query.subjects.findFirst({
-        where: {
-          RAW: (table) =>
-            sql`${and(eq(table.slug, input.slug), id ? ne(table.id, id) : undefined)}`,
-        },
-      })
-    )
-      throw new ManagementError("CONFLICT", "management.subject_code_conflict");
-    const [saved] = id
-      ? await tx
-          .update(s.subjects)
-          .set({ ...values, updatedAt: new Date() })
-          .where(eq(s.subjects.id, id))
-          .returning({ id: s.subjects.id })
-      : await tx
-          .insert(s.subjects)
-          .values(values)
-          .returning({ id: s.subjects.id });
-    if (!saved)
-      throw new ManagementError("NOT_FOUND", "management.subject_not_found");
-    return saved;
-  });
-}
 export async function publishNewsletter(
   db: Database,
   input: PublishNewsletterInput,

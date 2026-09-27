@@ -18,6 +18,7 @@ import {
   filterSubjects,
   SUBJECT_PAGE_SIZE,
   SubjectCatalogue,
+  subjectOf,
   SubjectSheet,
 } from "~/components/admin/SubjectCatalogue";
 import { ButtonLink } from "~/components/app/ButtonLink";
@@ -35,7 +36,7 @@ import { Skeleton } from "~/components/ui/skeleton";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { accessChangesQuery, accessRolesQuery } from "~/queries/access";
-import { subjectsQuery } from "~/queries/school";
+import { subjectsQuery } from "~/queries/classes";
 import {
   schoolFeaturesQuery,
   schoolProfileQuery,
@@ -97,9 +98,10 @@ function SettingsRoute() {
   const navigate = Route.useNavigate();
   // An empty catalogue offers Add subject in its empty state instead, so the
   // page keeps one primary button.
-  const subjects =
-    useQuery({ ...subjectsQuery, enabled: search.section === "subjects" })
-      .data ?? [];
+  const subjects = (
+    useQuery({ ...subjectsQuery, enabled: search.section === "subjects" }).data
+      ?.rows ?? []
+  ).map(subjectOf);
   const patch = (change: Partial<Search>, replace = false) => {
     void navigate({
       search: (previous) => ({ ...previous, ...change }),
@@ -214,9 +216,10 @@ function SubjectsTab({
   search: Search;
   patch: (change: Partial<Search>, replace?: boolean) => void;
 }) {
-  const subjects =
-    useQuery({ ...subjectsQuery, enabled: search.section === "subjects" })
-      .data ?? [];
+  const subjects = (
+    useQuery({ ...subjectsQuery, enabled: search.section === "subjects" }).data
+      ?.rows ?? []
+  ).map(subjectOf);
   const filtered = filterSubjects(subjects, search.q, search.sort, search.dir);
   const pages = Math.max(1, Math.ceil(filtered.length / SUBJECT_PAGE_SIZE));
   const page = Math.min(search.page, pages);

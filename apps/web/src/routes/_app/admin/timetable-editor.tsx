@@ -51,7 +51,7 @@ function TimetableEditorPage() {
         void navigate({
           to: "/classes/$classId",
           params: { classId },
-          search: { tab: "timetable" },
+          search: {},
         });
       }}
     />

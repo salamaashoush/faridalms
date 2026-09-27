@@ -140,6 +140,22 @@ function studentColumns(): Column<StudentRow, Sort>[] {
       ),
     },
     {
+      id: "class",
+      header: m.studentsClass(),
+      cell: (row) =>
+        row.homeroom ? (
+          <RowLink
+            to="/classes/$classId"
+            params={{ classId: row.homeroom.classId }}
+            search={{}}
+          >
+            {inLocale(row.homeroom.titleEn, row.homeroom.titleAr)}
+          </RowLink>
+        ) : (
+          <StatusText tone="warning">{m.studentsNoClass()}</StatusText>
+        ),
+    },
+    {
       id: "status",
       header: m.studentStatus(),
       cell: (row) => <Status row={row} />,
@@ -176,6 +192,9 @@ const card = {
     <span className="flex flex-wrap items-center gap-x-3">
       <Status row={row} />
       {row.grade ? <span>{labelOf(row.grade)}</span> : null}
+      {row.homeroom ? (
+        <span>{inLocale(row.homeroom.titleEn, row.homeroom.titleAr)}</span>
+      ) : null}
     </span>
   ),
 };
