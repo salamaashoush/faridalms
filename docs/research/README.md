@@ -13,6 +13,10 @@ with new evidence recorded here.
 - [communication.md](communication.md): messaging, announcements, newsletters,
   calendar, notifications (ParentSquare, Remind, ClassDojo, Seesaw, Bloomz,
   Brightwheel, Mailchimp, Smore).
+- [calendar-planning.md](calendar-planning.md): the school-day planner, event
+  publishing and notices, teacher events, personal feeds, recurrence, RSVP,
+  conference booking and Hijri dates (Veracross, Blackbaud, Arbor, Finalsite,
+  PowerSchool, ParentSquare, Bloomz, SchoolCloud, Localist, RFC 5545).
 - [administration.md](administration.md): directories, records, enrolment,
   attendance, timetable, rollover, roles (PowerSchool, Arbor, Veracross,
   Blackbaud, Toddle, ManageBac, Moodle, Canvas).
