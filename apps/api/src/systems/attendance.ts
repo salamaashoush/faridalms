@@ -33,6 +33,7 @@ import {
 } from "@faridalms/database/stores/classes";
 import { namesOf } from "@faridalms/database/stores/coursework";
 import { isVisibleStudent } from "@faridalms/database/stores/students";
+import { meetingsOn } from "@faridalms/database/stores/timetable";
 import {
   dayIn,
   holdYear,
@@ -55,6 +56,7 @@ import {
   teacherMayEdit,
 } from "@faridalms/domain/attendance";
 import { addDays } from "@faridalms/domain/school";
+import { isoWeekday } from "@faridalms/domain/timetable";
 import { ORPCError } from "@orpc/server";
 import * as v from "valibot";
 
@@ -195,6 +197,7 @@ export const day = readProcedure
         year: null,
         periods: [],
         classes: [],
+        expected: [],
         registers: [],
       };
     const date = input.date || dayIn(year, context.today);
@@ -237,11 +240,10 @@ export const day = readProcedure
         titleAr: row.titleAr,
         classType: row.classType,
         students: row.students,
-        defaultPeriodId:
-          row.classType === "homeroom"
-            ? (periods.find((period) => period.official)?.id ?? null)
-            : null,
       })),
+      expected: board
+        .filter((row) => taught.has(row.classId))
+        .map((row) => ({ classId: row.classId, periodId: row.periodId })),
       registers: board
         .filter((row) => taught.has(row.classId) && row.registerId)
         .map((row) => ({
@@ -272,9 +274,20 @@ export const register = readProcedure
       yearId: year.id,
       day: input.date,
     });
+    const meets = input.periodId
+      ? []
+      : (
+          await meetingsOn(context.tx, {
+            tenantId: context.tenantId,
+            on: input.date,
+            filter: { groupIds: [], classIds: [classRow.id] },
+          })
+        ).filter((row) => row.weekday === isoWeekday(input.date));
     const period = input.periodId
       ? periods.find((row) => row.id === input.periodId)
-      : defaultPeriod(periods, classRow.classType);
+      : (periods.find((row) =>
+          meets.some((meeting) => meeting.periodId === row.id),
+        ) ?? defaultPeriod(periods, classRow.classType));
     if (!period)
       throw new ORPCError("BAD_REQUEST", { message: "attendance.no_period" });
     const [roster, existing, codes, access] = await Promise.all([

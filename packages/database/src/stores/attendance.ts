@@ -493,8 +493,9 @@ export interface BoardRow {
 }
 
 /**
- * A school day's registers: every homeroom's daily register, taken or not,
- * and every other register taken that day.
+ * A school day's registers: every homeroom's daily register and every class
+ * the timetable has meeting that day, taken or not, and any other register
+ * taken that day.
  */
 export async function dayBoard(
   tx: Tx,
@@ -535,6 +536,12 @@ export async function dayBoard(
         and c.tenant_id = ${input.tenantId}::uuid and c.org_id = ${input.schoolId}::uuid
         and c.school_year_id = ${input.yearId}::uuid and c.class_type = 'homeroom'
         and c.status = 'active'
+      union
+      select m.class_id, m.class_period_id from core.class_meetings m
+      where m.tenant_id = ${input.tenantId}::uuid and m.org_id = ${input.schoolId}::uuid
+        and m.school_year_id = ${input.yearId}::uuid and m.status = 'active'
+        and m.valid_during @> ${input.day}::date
+        and m.weekday = extract(isodow from ${input.day}::date)
       union
       select g.class_id, g.class_period_id from core.attendance_registers g
       where g.tenant_id = ${input.tenantId}::uuid and g.org_id = ${input.schoolId}::uuid
