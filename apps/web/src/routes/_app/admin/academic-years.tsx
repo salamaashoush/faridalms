@@ -1,100 +1,161 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { createFileRoute } from "@tanstack/react-router";
-import { ArrowUpRight, CalendarDays, Plus } from "lucide-react";
+import { createFileRoute, useNavigate } from "@tanstack/react-router";
+import { CalendarDays, Pencil, Plus } from "lucide-react";
 
-import { formatDay } from "~/components/admin/format";
-import {
-  YEAR_STATUS_LABEL,
-  YearLifecycle,
-} from "~/components/admin/YearLifecycle";
+import type { Column, RowAction } from "~/components/system/DataTable";
+import type { HeaderAction } from "~/components/system/IndexPage";
+
 import { ButtonLink } from "~/components/app/ButtonLink";
-import { PageHeader } from "~/components/app/primitives";
-import { Badge } from "~/components/ui/badge";
+import { DataTable, RowLink } from "~/components/system/DataTable";
+import { PageHeader } from "~/components/system/IndexPage";
+import { StatusText } from "~/components/system/status";
+import {
+  STANDING_LABEL,
+  STANDING_TONE,
+  yearDates,
+  yearTitle,
+} from "~/components/years/format";
+import {
+  lifecycleActions,
+  useYearLifecycle,
+} from "~/components/years/YearLifecycle";
 import * as m from "~/i18n/messages";
-import { academicYearsQuery } from "~/queries/academic-years";
+import { yearsQuery } from "~/queries/years";
+import { formatNumber } from "~/utils/datetime";
+
+type Data = Awaited<ReturnType<NonNullable<(typeof yearsQuery)["queryFn"]>>>;
+type YearRow = Data["years"][number];
 
 export const Route = createFileRoute("/_app/admin/academic-years")({
-  staticData: { breadcrumb: m.academicYearsTitle },
   loader: async ({ context }) => {
-    await context.queryClient.ensureQueryData(academicYearsQuery);
+    await context.queryClient.ensureQueryData(yearsQuery);
   },
-  component: AcademicYearsPage,
+  component: YearsPage,
 });
 
-function AcademicYearsPage() {
-  const { data: years } = useSuspenseQuery(academicYearsQuery);
-  const defaultYear = years.find((year) => year.isCurrent);
+function YearName({ row }: { row: YearRow }) {
+  return (
+    <RowLink to="/years/$yearId" params={{ yearId: row.id }} search={{}}>
+      {yearTitle(row)}
+    </RowLink>
+  );
+}
+
+function Standing({ row }: { row: YearRow }) {
+  return (
+    <StatusText tone={STANDING_TONE[row.standing]}>
+      {STANDING_LABEL[row.standing]()}
+    </StatusText>
+  );
+}
+
+function Count({ value }: { value: number }) {
+  return <span className="tabular-nums">{formatNumber(value)}</span>;
+}
+
+// Built per render: headers read the request's locale, which a module-level
+// array would fix at whichever language first loaded the module on the server.
+function yearColumns(): Column<YearRow>[] {
+  return [
+    {
+      id: "name",
+      header: m.yearsName(),
+      primary: true,
+      cell: (row) => <YearName row={row} />,
+    },
+    { id: "dates", header: m.yearsDates(), cell: (row) => yearDates(row) },
+    {
+      id: "status",
+      header: m.yearsStatus(),
+      cell: (row) => <Standing row={row} />,
+    },
+    {
+      id: "terms",
+      header: m.yearsTerms(),
+      className: "text-end",
+      cell: (row) => <Count value={row.terms} />,
+    },
+    {
+      id: "classes",
+      header: m.adminClassesTitle(),
+      className: "text-end",
+      cell: (row) => <Count value={row.classes} />,
+    },
+    {
+      id: "students",
+      header: m.classesStudents(),
+      className: "text-end",
+      cell: (row) => <Count value={row.students} />,
+    },
+  ];
+}
+
+const card = {
+  title: (row: YearRow) => <YearName row={row} />,
+  fact: (row: YearRow) => (
+    <span className="flex flex-wrap items-center gap-x-3">
+      <Standing row={row} />
+      <span>{yearDates(row)}</span>
+    </span>
+  ),
+};
+
+function YearsPage() {
+  const data = useSuspenseQuery(yearsQuery).data;
+  const navigate = useNavigate();
+  const current = data.years.find((row) => row.lifecycle === "current") ?? null;
+  const lifecycle = useYearLifecycle(current);
+  const create: HeaderAction | undefined = data.access.manage
+    ? {
+        label: m.yearsAdd(),
+        icon: Plus,
+        link: { to: "/admin/academic-year-editor", search: {} },
+      }
+    : undefined;
+  const rowActions = (row: YearRow): RowAction[] => [
+    ...(data.access.manage && row.lifecycle !== "closed"
+      ? [
+          {
+            label: m.yearsEdit(),
+            icon: Pencil,
+            onSelect: () =>
+              navigate({
+                to: "/admin/academic-year-editor",
+                search: { id: row.id },
+              }),
+          },
+        ]
+      : []),
+    ...lifecycleActions(row, data.access, lifecycle.open),
+  ];
   return (
     <>
       <PageHeader
         title={m.academicYearsTitle()}
-        description={m.academicYearsHint()}
-        actions={
-          <ButtonLink to="/admin/academic-year-editor" search={{}}>
-            <Plus aria-hidden />
-            {m.academicYearCreate()}
-          </ButtonLink>
-        }
+        description={m.yearsHint()}
+        count={data.years.length}
+        action={data.years.length === 0 ? undefined : create}
       />
-      <div className="grid gap-5 md:grid-cols-2 xl:grid-cols-3">
-        {years.map((year) => (
-          <article
-            key={year.id}
-            className="flex flex-col gap-5 rounded-xl border bg-card p-6"
-          >
-            <div className="flex items-center justify-between gap-3">
-              <div className="grid size-11 place-items-center rounded-xl bg-primary/10 text-primary">
-                <CalendarDays aria-hidden />
-              </div>
-              <span className="flex flex-wrap justify-end gap-2">
-                <Badge variant="outline">
-                  {YEAR_STATUS_LABEL[year.status]()}
-                </Badge>
-                {year.isCurrent ? (
-                  <Badge variant="secondary">{m.academicYearDefault()}</Badge>
-                ) : null}
-              </span>
-            </div>
-            <div>
-              <h2 className="text-xl font-semibold tracking-tight">
-                {year.name}
-              </h2>
-              <dl className="mt-4 grid grid-cols-2 gap-3 text-sm">
-                <div>
-                  <dt className="text-muted-foreground">{m.adminStartsOn()}</dt>
-                  <dd className="mt-1">{formatDay(year.startsOn)}</dd>
-                </div>
-                <div>
-                  <dt className="text-muted-foreground">{m.adminEndsOn()}</dt>
-                  <dd className="mt-1">{formatDay(year.endsOn)}</dd>
-                </div>
-              </dl>
-            </div>
-            <YearLifecycle year={year} />
-            {defaultYear && !year.isCurrent && year.status !== "closed" ? (
-              <ButtonLink
-                to="/admin/rollover"
-                search={{ source: defaultYear.id, target: year.id }}
-                variant="outline"
-                size="sm"
-                className="justify-between"
-              >
-                {m.rolloverFrom({ source: defaultYear.name })}
-                <ArrowUpRight className="rtl:-scale-x-100" aria-hidden />
-              </ButtonLink>
-            ) : null}
-            <ButtonLink
-              to="/admin/academic-year-editor"
-              search={{ id: year.id }}
-              variant="outline"
-              className="mt-auto justify-between"
-            >
-              {m.managementEditNamed({ name: year.name })}
-              <ArrowUpRight className="rtl:-scale-x-100" aria-hidden />
+      <DataTable
+        caption={m.yearsCaption()}
+        rows={data.years}
+        columns={yearColumns()}
+        rowLabel={(row) => yearTitle(row)}
+        rowActions={rowActions}
+        card={card}
+        empty={{
+          icon: CalendarDays,
+          title: m.yearsEmptyTitle(),
+          description: m.yearsEmptyBody(),
+          action: data.access.manage ? (
+            <ButtonLink to="/admin/academic-year-editor" search={{}}>
+              <Plus aria-hidden />
+              {m.yearsAdd()}
             </ButtonLink>
-          </article>
-        ))}
-      </div>
+          ) : undefined,
+        }}
+      />
+      {lifecycle.sheet}
     </>
   );
 }

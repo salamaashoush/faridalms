@@ -1,4 +1,3 @@
-import * as academicYears from "./modules/academic-years";
 import * as academics from "./modules/academics";
 import * as administration from "./modules/administration";
 import * as announcements from "./modules/announcements";
@@ -22,6 +21,7 @@ import * as identity from "./systems/identity";
 import * as peopleSystem from "./systems/people";
 import * as recordsSystem from "./systems/records";
 import * as schoolSystem from "./systems/school";
+import * as yearsSystem from "./systems/years";
 
 export const router = {
   identity,
@@ -30,12 +30,12 @@ export const router = {
   school: schoolSystem,
   records: recordsSystem,
   classes: classesSystem,
+  years: yearsSystem,
   ...students,
   ...overviews,
   ...teaching,
   ...administration,
   ...academics,
-  ...academicYears,
   ...communication,
   ...newsletters,
   ...assignments,

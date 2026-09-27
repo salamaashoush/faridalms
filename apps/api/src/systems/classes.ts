@@ -32,6 +32,7 @@ import {
 } from "@faridalms/database/stores/students";
 import {
   dayIn,
+  holdYear,
   schoolYears,
   workingYear,
 } from "@faridalms/database/stores/years";
@@ -84,8 +85,10 @@ async function yearOf(context: UnitContext, requested: string) {
   return { years, year: year ?? null };
 }
 
-function requireOpen(year: SchoolYear) {
-  if (year.lifecycle === "closed")
+async function requireOpen(context: UnitContext, year: SchoolYear) {
+  const lifecycle = await holdYear(context.tx, context.tenantId, year.id);
+  if (!lifecycle) throw new ORPCError("NOT_FOUND");
+  if (lifecycle === "closed")
     throw new ORPCError("CONFLICT", { message: "school_year.closed" });
 }
 
@@ -250,7 +253,7 @@ export const save = writeProcedure
     requireCapability(context, "classes:manage");
     const { year } = await yearOf(context, input.yearId);
     if (!year) throw new ORPCError("NOT_FOUND");
-    requireOpen(year);
+    await requireOpen(context, year);
     if (!input.titleEn && !input.titleAr)
       throw new ORPCError("BAD_REQUEST", {
         message: "validation.name_required",
@@ -430,7 +433,7 @@ export const enrol = writeProcedure
       throw new ORPCError("NOT_FOUND");
     const { year } = await yearOf(context, target.schoolYearId);
     if (!year) throw new ORPCError("NOT_FOUND");
-    requireOpen(year);
+    await requireOpen(context, year);
     const from = input.from || dayIn(year, context.today);
     if (from < year.startsOn || from >= year.endsBefore)
       throw new ORPCError("BAD_REQUEST", {
@@ -505,7 +508,7 @@ export const withdraw = writeProcedure
     if (!episode) throw new ORPCError("NOT_FOUND");
     const { year } = await yearOf(context, episode.schoolYearId);
     if (!year) throw new ORPCError("NOT_FOUND");
-    requireOpen(year);
+    await requireOpen(context, year);
     const on = input.on || dayIn(year, context.today);
     if (on < episode.from || on >= episode.to)
       throw new ORPCError("BAD_REQUEST", {

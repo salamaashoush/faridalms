@@ -86,6 +86,7 @@ import { Route as AppTeachMessagesRouteImport } from './routes/_app/teach/messag
 import { Route as AppTeachModuleEditorRouteImport } from './routes/_app/teach/module-editor'
 import { Route as AppTeachModulesRouteImport } from './routes/_app/teach/modules'
 import { Route as AppTeachTimetableRouteImport } from './routes/_app/teach/timetable'
+import { Route as AppYearsYearIdRouteImport } from './routes/_app/years.$yearId'
 import { Route as SiteMediaSchoolFileIdRouteImport } from './routes/site-media/$school.$fileId'
 import { Route as SiteSchoolIndexRouteImport } from './routes/site/$school/index'
 import { Route as SiteSchoolBlogIndexRouteImport } from './routes/site/$school/blog/index'
@@ -485,6 +486,11 @@ const AppTeachTimetableRoute = AppTeachTimetableRouteImport.update({
   path: '/timetable',
   getParentRoute: () => AppTeachRoute,
 } as any)
+const AppYearsYearIdRoute = AppYearsYearIdRouteImport.update({
+  id: '/years/$yearId',
+  path: '/years/$yearId',
+  getParentRoute: () => AppRoute,
+} as any)
 const SiteMediaSchoolFileIdRoute = SiteMediaSchoolFileIdRouteImport.update({
   id: '/site-media/$school/$fileId',
   path: '/site-media/$school/$fileId',
@@ -582,6 +588,7 @@ export interface FileRoutesByFullPath {
   '/teach/module-editor': typeof AppTeachModuleEditorRoute
   '/teach/modules': typeof AppTeachModulesRoute
   '/teach/timetable': typeof AppTeachTimetableRoute
+  '/years/$yearId': typeof AppYearsYearIdRoute
   '/site-media/$school/$fileId': typeof SiteMediaSchoolFileIdRoute
   '/admin/': typeof AppAdminIndexRoute
   '/announcements/': typeof AppAnnouncementsIndexRoute
@@ -659,6 +666,7 @@ export interface FileRoutesByTo {
   '/teach/module-editor': typeof AppTeachModuleEditorRoute
   '/teach/modules': typeof AppTeachModulesRoute
   '/teach/timetable': typeof AppTeachTimetableRoute
+  '/years/$yearId': typeof AppYearsYearIdRoute
   '/site-media/$school/$fileId': typeof SiteMediaSchoolFileIdRoute
   '/admin': typeof AppAdminIndexRoute
   '/announcements': typeof AppAnnouncementsIndexRoute
@@ -744,6 +752,7 @@ export interface FileRoutesById {
   '/_app/teach/module-editor': typeof AppTeachModuleEditorRoute
   '/_app/teach/modules': typeof AppTeachModulesRoute
   '/_app/teach/timetable': typeof AppTeachTimetableRoute
+  '/_app/years/$yearId': typeof AppYearsYearIdRoute
   '/site-media/$school/$fileId': typeof SiteMediaSchoolFileIdRoute
   '/_app/admin/': typeof AppAdminIndexRoute
   '/_app/announcements/': typeof AppAnnouncementsIndexRoute
@@ -828,6 +837,7 @@ export interface FileRouteTypes {
     | '/teach/module-editor'
     | '/teach/modules'
     | '/teach/timetable'
+    | '/years/$yearId'
     | '/site-media/$school/$fileId'
     | '/admin/'
     | '/announcements/'
@@ -905,6 +915,7 @@ export interface FileRouteTypes {
     | '/teach/module-editor'
     | '/teach/modules'
     | '/teach/timetable'
+    | '/years/$yearId'
     | '/site-media/$school/$fileId'
     | '/admin'
     | '/announcements'
@@ -989,6 +1000,7 @@ export interface FileRouteTypes {
     | '/_app/teach/module-editor'
     | '/_app/teach/modules'
     | '/_app/teach/timetable'
+    | '/_app/years/$yearId'
     | '/site-media/$school/$fileId'
     | '/_app/admin/'
     | '/_app/announcements/'
@@ -1552,6 +1564,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppTeachTimetableRouteImport
       parentRoute: typeof AppTeachRoute
     }
+    '/_app/years/$yearId': {
+      id: '/_app/years/$yearId'
+      path: '/years/$yearId'
+      fullPath: '/years/$yearId'
+      preLoaderRoute: typeof AppYearsYearIdRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/site-media/$school/$fileId': {
       id: '/site-media/$school/$fileId'
       path: '/site-media/$school/$fileId'
@@ -1749,6 +1768,7 @@ interface AppRouteChildren {
   AppNewslettersNewsletterIdRoute: typeof AppNewslettersNewsletterIdRoute
   AppPeopleUserIdRoute: typeof AppPeopleUserIdRoute
   AppStudentsStudentIdRoute: typeof AppStudentsStudentIdRoute
+  AppYearsYearIdRoute: typeof AppYearsYearIdRoute
   AppAnnouncementsIndexRoute: typeof AppAnnouncementsIndexRoute
 }
 
@@ -1771,6 +1791,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppNewslettersNewsletterIdRoute: AppNewslettersNewsletterIdRoute,
   AppPeopleUserIdRoute: AppPeopleUserIdRoute,
   AppStudentsStudentIdRoute: AppStudentsStudentIdRoute,
+  AppYearsYearIdRoute: AppYearsYearIdRoute,
   AppAnnouncementsIndexRoute: AppAnnouncementsIndexRoute,
 }
 

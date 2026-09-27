@@ -1,122 +1,98 @@
+import { WORKSPACE_HOME } from "@faridalms/domain/workspace";
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { createFileRoute } from "@tanstack/react-router";
+import {
+  createFileRoute,
+  Link,
+  redirect,
+  useCanGoBack,
+  useRouter,
+} from "@tanstack/react-router";
 import * as v from "valibot";
 
-import { AcademicYearEditor } from "~/components/admin/AcademicYearEditor";
-import * as m from "~/i18n/messages";
 import {
-  academicYearEventsQuery,
-  academicYearQuery,
-} from "~/queries/academic-years";
-import { formatDateTime } from "~/utils/datetime";
+  BreadcrumbCurrent,
+  BreadcrumbStep,
+} from "~/components/app/WorkspaceBreadcrumb";
+import { yearTitle } from "~/components/years/format";
+import { YearEditor } from "~/components/years/YearEditor";
+import * as m from "~/i18n/messages";
+import { currentUserQuery } from "~/queries/user";
+import { yearQuery } from "~/queries/years";
 
 export const Route = createFileRoute("/_app/admin/academic-year-editor")({
-  staticData: { breadcrumb: m.studentSchoolYear },
+  staticData: {
+    trail: <EditorTrail />,
+    section: "/admin/academic-years",
+  },
   validateSearch: v.object({ id: v.optional(v.pipe(v.string(), v.uuid())) }),
   loaderDeps: ({ search }) => search,
   loader: async ({ context, deps }) => {
-    if (deps.id)
-      await Promise.all([
-        context.queryClient.ensureQueryData(academicYearQuery(deps.id)),
-        context.queryClient.ensureQueryData(academicYearEventsQuery(deps.id)),
-      ]);
+    const user = await context.queryClient.ensureQueryData(currentUserQuery);
+    if (!user.capabilities.includes("years:manage"))
+      throw redirect({ to: WORKSPACE_HOME[user.workspace] });
+    if (deps.id) await context.queryClient.ensureQueryData(yearQuery(deps.id));
   },
-  component: AcademicYearEditorPage,
+  component: YearEditorPage,
 });
-function AcademicYearEditorPage() {
+
+function EditorTrail() {
   const { id } = Route.useSearch();
-  const navigate = Route.useNavigate();
-  const close = () => {
-    void navigate({ to: "/admin/academic-years" });
-  };
   return id ? (
-    <EditYear id={id} onClose={close} />
+    <EditTrail yearId={id} />
   ) : (
-    <AcademicYearEditor onClose={close} />
+    <BreadcrumbCurrent>{m.yearsAdd()}</BreadcrumbCurrent>
   );
 }
-function EditYear({ id, onClose }: { id: string; onClose: () => void }) {
-  const { data } = useSuspenseQuery(academicYearQuery(id));
-  const { data: events } = useSuspenseQuery(academicYearEventsQuery(id));
+
+function EditTrail({ yearId }: { yearId: string }) {
+  const year = useSuspenseQuery(yearQuery(yearId)).data;
   return (
     <>
-      <AcademicYearEditor
-        key={data.id}
-        initial={{
-          id: data.id,
-          expectedRevision: data.revision,
-          name: data.name,
-          startsOn: data.startsOn,
-          endsOn: data.endsOn,
-          terms: data.terms.map((term) => ({
-            id: term.id,
-            name: term.name,
-            startsOn: term.startsOn,
-            endsOn: term.endsOn,
-          })),
-        }}
-        onClose={onClose}
-      />
-      <YearHistory events={events} />
+      <BreadcrumbStep
+        render={<Link to="/years/$yearId" params={{ yearId }} search={{}} />}
+      >
+        {yearTitle(year)}
+      </BreadcrumbStep>
+      <BreadcrumbCurrent>{m.yearsEdit()}</BreadcrumbCurrent>
     </>
   );
 }
 
-const EVENT_LABEL: Record<string, () => string> = {
-  activated: m.academicYearEventActivated,
-  closed: m.academicYearEventClosed,
-  reopened: m.academicYearEventReopened,
-  made_default: m.academicYearEventMadeDefault,
-  rolled_over: m.academicYearEventRolledOver,
-};
-
-function YearHistory({
-  events,
+function ExistingYear({
+  id,
+  onClose,
 }: {
-  events: {
-    id: string;
-    action: string;
-    reason: string | null;
-    createdAt: Date;
-    actor: { name: string };
-  }[];
+  id: string;
+  onClose: (id?: string) => void;
 }) {
-  return (
-    <section
-      aria-labelledby="year-history"
-      className="mt-6 rounded-xl border bg-card p-5 sm:p-7"
-    >
-      <h2 id="year-history" className="font-semibold">
-        {m.academicYearHistory()}
-      </h2>
-      {events.length === 0 ? (
-        <p className="mt-2 text-sm text-muted-foreground">
-          {m.academicYearNoHistory()}
-        </p>
-      ) : (
-        <ol className="mt-3 divide-y">
-          {events.map((event) => (
-            <li key={event.id} className="py-3 text-sm">
-              <p className="flex flex-wrap items-baseline justify-between gap-2">
-                <span className="font-medium">
-                  {EVENT_LABEL[event.action]?.() ?? event.action}
-                </span>
-                <span className="text-xs text-muted-foreground">
-                  {event.actor.name} ·{" "}
-                  {formatDateTime(event.createdAt.toISOString())}
-                </span>
-              </p>
-              {event.reason ? (
-                <p className="mt-1 text-muted-foreground">
-                  {event.action === "rolled_over"
-                    ? m.academicYearRolledOverFrom({ source: event.reason })
-                    : event.reason}
-                </p>
-              ) : null}
-            </li>
-          ))}
-        </ol>
-      )}
-    </section>
+  const year = useSuspenseQuery(yearQuery(id)).data;
+  return <YearEditor key={year.id} year={year} onClose={onClose} />;
+}
+
+function YearEditorPage() {
+  const { id } = Route.useSearch();
+  const navigate = Route.useNavigate();
+  const router = useRouter();
+  const canGoBack = useCanGoBack();
+  const close = (saved?: string) => {
+    if (!id && saved) {
+      void navigate({
+        to: "/years/$yearId",
+        params: { yearId: saved },
+        search: {},
+        replace: true,
+      });
+      return;
+    }
+    if (canGoBack) {
+      router.history.back();
+      return;
+    }
+    void navigate({ to: "/admin/academic-years" });
+  };
+  return id ? (
+    <ExistingYear id={id} onClose={close} />
+  ) : (
+    <YearEditor onClose={close} />
   );
 }

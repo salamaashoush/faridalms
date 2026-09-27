@@ -57,6 +57,21 @@ export function getMessageFromError(error: unknown): string {
         return m.errorClassCodeTaken();
       case "school_year.closed":
         return m.errorSchoolYearClosed();
+      case "school_year.overlapping":
+        return m.errorYearOverlapping();
+      case "school_year.end_year_fixed":
+      case "school_year.end_mismatch":
+        return m.errorYearEndFixed();
+      case "school_year.rows_outside_dates":
+        return m.errorYearRowsOutside();
+      case "school_year.current_closing":
+        return m.errorYearCurrentClosing();
+      case "school_year.transition":
+        return m.errorYearTransition();
+      case "school_year.reason_required":
+        return m.yearsReasonRequired();
+      case "academic_session.overlapping":
+        return m.errorTermsOverlapping();
       case "enrollment.future_placement":
         return m.errorFuturePlacement();
       case "enrollment.outside_year":
@@ -88,22 +103,6 @@ export function getMessageFromError(error: unknown): string {
         return m.attendanceResponsibilityChanged();
       case "enrollment.scheduled_conflict":
         return m.enrollmentScheduledConflict();
-      case "academic_year.name_conflict":
-        return m.academicYearNameConflict();
-      case "academic_year.revision_conflict":
-        return m.academicYearRevisionConflict();
-      case "academic_year.shrink":
-        return m.academicYearShrink();
-      case "academic_year.term_outside":
-        return m.validationTermOutside();
-      case "academic_year.term_overlap":
-        return m.validationTermOverlap();
-      case "academic_year.term_name_conflict":
-        return m.validationTermNameConflict();
-      case "academic_year.term_not_found":
-        return m.academicYearTermNotFound();
-      case "academic_year.term_in_use":
-        return m.academicYearTermInUse();
       case "timetable.class_not_found":
         return m.timetableClassNotFound();
       case "timetable.revision_conflict":
@@ -118,16 +117,6 @@ export function getMessageFromError(error: unknown): string {
         return m.timetableTeacherBusy();
       case "academic_year.closed":
         return m.academicYearClosedError();
-      case "academic_year.transition":
-        return m.academicYearTransitionError();
-      case "academic_year.default_closing":
-        return m.academicYearDefaultClosingError();
-      case "academic_year.reason_required":
-        return m.academicYearReasonRequired();
-      case "academic_year.reopen_forbidden":
-        return m.academicYearReopenForbidden();
-      case "academic_year.not_active":
-        return m.academicYearNotActive();
       case "rollover.duplicate_class":
         return m.rolloverDuplicateClass();
       case "rollover.duplicate_name":

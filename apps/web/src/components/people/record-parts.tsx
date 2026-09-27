@@ -118,6 +118,12 @@ const ACTION_LABEL: Record<string, () => string> = {
   "relationship.create": m.historyRelationshipCreate,
   "relationship.update": m.historyRelationshipUpdate,
   "relationship.end": m.historyRelationshipEnd,
+  "academic_session.create": m.historyYearCreate,
+  "academic_session.update": m.historyYearUpdate,
+  "academic_session.span_change": m.historyYearDates,
+  "academic_session.made_current": m.historyYearMadeCurrent,
+  "academic_session.closed": m.historyYearClosed,
+  "academic_session.reopened": m.historyYearReopened,
 };
 
 interface Entry {
@@ -126,6 +132,7 @@ interface Entry {
   action: string;
   actorNameEn: string | null;
   actorNameAr: string | null;
+  reason?: string | null;
 }
 
 export function HistorySection({ entries }: { entries: Entry[] }) {
@@ -151,6 +158,11 @@ export function HistorySection({ entries }: { entries: Entry[] }) {
                     : m.historySystem(),
                 ].join(" · ")}
               </span>
+              {entry.reason ? (
+                <span dir="auto" className="text-sm leading-5">
+                  {entry.reason}
+                </span>
+              ) : null}
             </li>
           ))}
         </RecordList>

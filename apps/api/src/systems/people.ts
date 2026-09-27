@@ -67,6 +67,7 @@ import {
 } from "@faridalms/database/stores/students";
 import {
   dayIn,
+  holdYear,
   schoolYears,
   workingYear,
 } from "@faridalms/database/stores/years";
@@ -547,6 +548,8 @@ export const saveStudent = writeProcedure
       const year = workingYear(years, context.today);
       if (!year)
         throw new ORPCError("BAD_REQUEST", { message: "school_year.missing" });
+      if ((await holdYear(tx, context.tenantId, year.id)) === "closed")
+        throw new ORPCError("CONFLICT", { message: "school_year.closed" });
       const result = await place(tx, scope, {
         studentId,
         year,

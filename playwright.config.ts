@@ -17,7 +17,12 @@ export default defineConfig({
   testDir: "./e2e",
   // Specs of systems rebuilt on the cell. The rest still drive the per-school
   // API those systems replace, and join this list as each system lands.
-  testMatch: ["auth.spec.ts", "people.spec.ts", "classes.spec.ts"],
+  testMatch: [
+    "auth.spec.ts",
+    "people.spec.ts",
+    "classes.spec.ts",
+    "years.spec.ts",
+  ],
   /* Run tests in files in parallel */
   fullyParallel: true,
   /* Fail the build on CI if you accidentally left test.only in the source code. */
