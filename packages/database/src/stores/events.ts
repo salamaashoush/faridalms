@@ -13,7 +13,8 @@ export interface EventRow {
   id: string;
   version: number;
   orgId: string;
-  title: string;
+  titleEn: string | null;
+  titleAr: string | null;
   category: EventCategory;
   startsOn: string;
   endsOn: string;
@@ -23,6 +24,7 @@ export interface EventRow {
   provisional: boolean;
   cancelled: boolean;
   state: EventState;
+  public: boolean;
   publishedAt: string | null;
   updateSentAt: string | null;
   authorUserId: string;
@@ -30,10 +32,10 @@ export interface EventRow {
   authorNameAr: string | null;
 }
 
-const columns = sql`e.id, e.version, e.org_id, e.title, e.category,
+const columns = sql`e.id, e.version, e.org_id, e.title_en, e.title_ar, e.category,
   to_char(e.starts_on, 'YYYY-MM-DD') as starts_on, to_char(e.ends_on, 'YYYY-MM-DD') as ends_on,
   to_char(e.start_time, 'HH24:MI') as start_time, to_char(e.end_time, 'HH24:MI') as end_time,
-  e.location, e.provisional, e.cancelled, e.state, ${isoOf(sql`e.published_at`)} as published_at,
+  e.location, e.provisional, e.cancelled, e.state, e.public, ${isoOf(sql`e.published_at`)} as published_at,
   ${isoOf(sql`e.update_sent_at`)} as update_sent_at, e.author_user_id,
   u.full_name_en as author_en, u.full_name_ar as author_ar`;
 
@@ -41,7 +43,8 @@ type EventRecord = {
   id: string;
   version: number;
   org_id: string;
-  title: string;
+  title_en: string | null;
+  title_ar: string | null;
   category: EventCategory;
   starts_on: string;
   ends_on: string;
@@ -51,6 +54,7 @@ type EventRecord = {
   provisional: boolean;
   cancelled: boolean;
   state: EventState;
+  public: boolean;
   published_at: string | null;
   update_sent_at: string | null;
   author_user_id: string;
@@ -63,7 +67,8 @@ function rowOf(row: EventRecord): EventRow {
     id: row.id,
     version: row.version,
     orgId: row.org_id,
-    title: row.title,
+    titleEn: row.title_en,
+    titleAr: row.title_ar,
     category: row.category,
     startsOn: row.starts_on,
     endsOn: row.ends_on,
@@ -73,6 +78,7 @@ function rowOf(row: EventRecord): EventRow {
     provisional: row.provisional,
     cancelled: row.cancelled,
     state: row.state,
+    public: row.public,
     publishedAt: row.published_at,
     updateSentAt: row.update_sent_at,
     authorUserId: row.author_user_id,
@@ -148,13 +154,15 @@ export async function eventsBetween(
             )})`
           : sql`true`
       }
-    order by e.starts_on, e.start_time nulls first, e.title, e.id
+    order by e.starts_on, e.start_time nulls first, coalesce(e.title_en, e.title_ar), e.id
     limit 1000`);
   return rows.map(rowOf);
 }
 
 export interface EventFields {
-  title: string;
+  titleEn: string | null;
+  titleAr: string | null;
+  public: boolean;
   category: EventCategory;
   startsOn: string;
   endsOn: string;
@@ -170,11 +178,11 @@ export async function insertEvent(
   input: EventFields & { tenantId: string; schoolId: string; authorId: string },
 ): Promise<{ id: string; version: number }> {
   const [row] = await tx.execute<{ id: string; version: number }>(sql`
-    insert into core.calendar_events (tenant_id, org_id, title, category, starts_on, ends_on,
-      start_time, end_time, location, provisional, state, author_user_id)
-    values (${input.tenantId}::uuid, ${input.schoolId}::uuid, ${input.title}, ${input.category},
+    insert into core.calendar_events (tenant_id, org_id, title_en, title_ar, category, starts_on, ends_on,
+      start_time, end_time, location, provisional, public, state, author_user_id)
+    values (${input.tenantId}::uuid, ${input.schoolId}::uuid, ${input.titleEn}, ${input.titleAr}, ${input.category},
       ${input.startsOn}::date, ${input.endsOn}::date, ${input.startTime}::time, ${input.endTime}::time,
-      ${input.location}, ${input.provisional}, 'draft', ${input.authorId}::uuid)
+      ${input.location}, ${input.provisional}, ${input.public}, 'draft', ${input.authorId}::uuid)
     returning id, version`);
   if (!row) throw new Error("event not written");
   return row;
@@ -192,7 +200,8 @@ export async function updateEvent(
 ): Promise<number | null> {
   const [row] = await tx.execute<{ version: number }>(sql`
     update core.calendar_events
-    set title = ${input.title}, category = ${input.category}, starts_on = ${input.startsOn}::date,
+    set title_en = ${input.titleEn}, title_ar = ${input.titleAr}, public = ${input.public},
+        category = ${input.category}, starts_on = ${input.startsOn}::date,
         ends_on = ${input.endsOn}::date, start_time = ${input.startTime}::time,
         end_time = ${input.endTime}::time, location = ${input.location},
         provisional = ${input.provisional},
@@ -244,6 +253,62 @@ export async function removeEvent(
       and version = ${input.expectedVersion} and status = 'active'
     returning id`);
   return rows.length > 0;
+}
+
+export interface PublicEvent {
+  id: string;
+  titleEn: string | null;
+  titleAr: string | null;
+  category: EventCategory;
+  startsOn: string;
+  endsOn: string;
+  startTime: string | null;
+  endTime: string | null;
+  location: string | null;
+  provisional: boolean;
+  cancelled: boolean;
+}
+
+/** A school's public events still to come or under way, soonest first, for its website. */
+export async function publicEvents(
+  tx: Tx,
+  input: { orgId: string; from: string; limit: number },
+): Promise<PublicEvent[]> {
+  const rows = await tx.execute<{
+    id: string;
+    title_en: string | null;
+    title_ar: string | null;
+    category: EventCategory;
+    starts_on: string;
+    ends_on: string;
+    start_time: string | null;
+    end_time: string | null;
+    location: string | null;
+    provisional: boolean;
+    cancelled: boolean;
+  }>(sql`
+    select e.id, e.title_en, e.title_ar, e.category,
+      to_char(e.starts_on, 'YYYY-MM-DD') as starts_on, to_char(e.ends_on, 'YYYY-MM-DD') as ends_on,
+      to_char(e.start_time, 'HH24:MI') as start_time, to_char(e.end_time, 'HH24:MI') as end_time,
+      e.location, e.provisional, e.cancelled
+    from core.calendar_events e
+    where e.org_id = ${input.orgId}::uuid and e.status = 'active' and e.public
+      and e.state = 'published' and e.ends_on >= ${input.from}::date
+    order by e.starts_on, e.start_time nulls first, e.id
+    limit ${input.limit}`);
+  return rows.map((row) => ({
+    id: row.id,
+    titleEn: row.title_en,
+    titleAr: row.title_ar,
+    category: row.category,
+    startsOn: row.starts_on,
+    endsOn: row.ends_on,
+    startTime: row.start_time,
+    endTime: row.end_time,
+    location: row.location,
+    provisional: row.provisional,
+    cancelled: row.cancelled,
+  }));
 }
 
 export interface SpecialDay {

@@ -1606,6 +1606,8 @@ async function seedEvents(
   const staff: Audience = { scope: "staff", classId: null, gradeId: null };
   const plans: {
     title: string;
+    titleAr: string;
+    public?: boolean;
     category: "trip" | "meeting" | "sport" | "performance";
     startsOn: string;
     endsOn?: string;
@@ -1619,6 +1621,7 @@ async function seedEvents(
   }[] = [
     {
       title: "Staff meeting",
+      titleAr: "اجتماع المعلمين",
       category: "meeting",
       startsOn: "2026-09-30",
       startTime: "14:30",
@@ -1629,6 +1632,7 @@ async function seedEvents(
     },
     {
       title: "Museum trip",
+      titleAr: "رحلة المتحف",
       category: "trip",
       startsOn: "2026-10-15",
       startTime: "08:30",
@@ -1641,6 +1645,7 @@ async function seedEvents(
     },
     {
       title: "Parents' evening",
+      titleAr: "أمسية أولياء الأمور",
       category: "meeting",
       startsOn: "2026-10-29",
       startTime: "17:00",
@@ -1651,6 +1656,8 @@ async function seedEvents(
     },
     {
       title: "Football against Nile School",
+      titleAr: "مباراة كرة القدم مع مدرسة النيل",
+      public: true,
       category: "sport",
       startsOn: "2026-10-22",
       provisional: true,
@@ -1659,6 +1666,8 @@ async function seedEvents(
     },
     {
       title: "Autumn concert",
+      titleAr: "الحفل الخريفي",
+      public: true,
       category: "performance",
       startsOn: "2026-10-01",
       startTime: "18:00",
@@ -1674,7 +1683,9 @@ async function seedEvents(
       tenantId,
       id,
       orgId: schoolId,
-      title: plan.title,
+      titleEn: plan.title,
+      titleAr: plan.titleAr,
+      public: plan.public ?? false,
       category: plan.category,
       startsOn: plan.startsOn,
       endsOn: plan.endsOn ?? plan.startsOn,

@@ -1,7 +1,15 @@
 import type { PgTableExtraConfigValue } from "drizzle-orm/pg-core";
 
 import { sql } from "drizzle-orm";
-import { boolean, date, index, text, time, uuid } from "drizzle-orm/pg-core";
+import {
+  boolean,
+  date,
+  index,
+  pgPolicy,
+  text,
+  time,
+  uuid,
+} from "drizzle-orm/pg-core";
 
 import type { AudienceScope } from "./announcements";
 
@@ -14,6 +22,7 @@ import {
   fk,
   instant,
   pk,
+  roles,
   tenantColumns,
 } from "./conventions";
 import { descriptors } from "./descriptors";
@@ -45,7 +54,8 @@ export const calendarEvents = core.table.withRLS(
   {
     ...tenantColumns(),
     orgId: uuid("org_id").notNull(),
-    title: text("title").notNull(),
+    titleEn: text("title_en"),
+    titleAr: text("title_ar"),
     category: text("category").$type<EventCategory>().notNull(),
     startsOn: date("starts_on", { mode: "string" }).notNull(),
     endsOn: date("ends_on", { mode: "string" }).notNull(),
@@ -57,6 +67,8 @@ export const calendarEvents = core.table.withRLS(
     provisional: boolean("provisional").notNull().default(false),
     cancelled: boolean("cancelled").notNull().default(false),
     state: text("state").$type<EventState>().notNull().default("published"),
+    /** Shown on the school's website to anyone; only for published events the office chooses. */
+    public: boolean("public").notNull().default(false),
     publishedAt: instant("published_at"),
     /** When its audience was last told of a change. */
     updateSentAt: instant("update_sent_at"),
@@ -72,7 +84,17 @@ export const calendarEvents = core.table.withRLS(
       [t.tenantId, t.authorUserId],
       [users.tenantId, users.id],
     ),
-    ck("calendar_events", "title", sql`char_length(title) between 1 and 200`),
+    ck(
+      "calendar_events",
+      "title_en",
+      sql`char_length(title_en) between 1 and 200`,
+    ),
+    ck(
+      "calendar_events",
+      "title_ar",
+      sql`char_length(title_ar) between 1 and 200`,
+    ),
+    ck("calendar_events", "title", sql`num_nonnulls(title_en, title_ar) >= 1`),
     ck(
       "calendar_events",
       "category",
@@ -94,6 +116,11 @@ export const calendarEvents = core.table.withRLS(
     index("calendar_events_org_idx")
       .on(t.tenantId, t.orgId, t.startsOn, t.endsOn)
       .where(sql`status = 'active'`),
+    pgPolicy("p_site_select", {
+      for: "select",
+      to: roles.site,
+      using: sql`status = 'active' and public and state = 'published'`,
+    }),
     ...entityProfile(),
   ],
 );

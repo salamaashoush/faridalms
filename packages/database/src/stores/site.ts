@@ -1017,6 +1017,14 @@ export async function publicSchool(
     : null;
 }
 
+/** Today in the school's own time zone, for what counts as still to come. */
+export async function schoolToday(tx: Tx, orgId: string): Promise<string> {
+  const [row] = await tx.execute<{ today: string }>(sql`
+    select to_char((statement_timestamp() at time zone coalesce(time_zone, 'UTC'))::date, 'YYYY-MM-DD') as today
+    from core.orgs where id = ${orgId}::uuid`);
+  return row?.today ?? new Date().toISOString().slice(0, 10);
+}
+
 export async function publicCategories(
   tx: Tx,
   orgId: string,

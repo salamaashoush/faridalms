@@ -309,7 +309,9 @@ export async function eventsAmong(
   const own = sql`e.author_user_id = ${input.viewerId}::uuid`;
   return found(
     await tx.execute<Raw>(sql`
-      select e.id, 'calendar_event' as type, e.title, ${snippetOf(sql`d.plain_text`, input.q)} as snippet,
+      select e.id, 'calendar_event' as type,
+        ${input.ar ? sql`coalesce(e.title_ar, e.title_en)` : sql`coalesce(e.title_en, e.title_ar)`} as title,
+        ${snippetOf(sql`d.plain_text`, input.q)} as snippet,
         e.location as context, e.starts_on::text as "when",
         case when e.cancelled then 'cancelled' when e.state = 'draft' then 'draft' end as flag, null as roles
       from core.calendar_events e
