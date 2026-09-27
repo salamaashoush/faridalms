@@ -40,6 +40,8 @@ import {
   households,
   locations,
   loginIdentities,
+  messages,
+  messageThreads,
   orgs,
   periodGrades,
   rubrics,
@@ -47,6 +49,7 @@ import {
   submissionAttempts,
   submissions,
   tenantKeys,
+  threadMembers,
   userRelationships,
   userRoles,
   users,
@@ -1209,6 +1212,7 @@ async function seedSchool(
   await seedTimetable(tx, tenantId, schoolId, yearId);
   await seedCoursework(tx, tenantId, schoolId, yearId);
   await seedAttendance(tx, tenantId, schoolId, yearId);
+  await seedMessages(tx, tenantId, schoolId, yearId);
   return { yearId, teachers };
 }
 
@@ -1293,6 +1297,136 @@ async function seedTimetable(
   }
   for (let index = 0; index < meetings.length; index += 200)
     await tx.insert(classMeetings).values(meetings.slice(index, index + 200));
+}
+
+/** A seeded moment in the week before the seeded today. */
+const at = (day: number, hour: number) =>
+  new Date(Date.UTC(2026, 8, 20 + day, hour, 15));
+
+/**
+ * A family thread between every homeroom teacher and each of their students'
+ * guardians, some answered, and a staff group of the school's teachers, so
+ * every inbox opens on something.
+ */
+async function seedMessages(
+  tx: Tx,
+  tenantId: string,
+  schoolId: string,
+  yearId: string,
+) {
+  const pairs = await tx.execute<{
+    teacher_id: string;
+    student_id: string;
+    guardians: string;
+  }>(sql`
+    select t.user_id as teacher_id, s.user_id as student_id,
+           coalesce((select array_agg(l.related_user_id order by l.related_user_id)
+             from core.user_relationships l
+             where l.tenant_id = s.tenant_id and l.student_user_id = s.user_id
+               and l.status = 'active' and l.portal_access
+               and not coalesce(l.communication_isolated, false))::text[], '{}')::text as guardians
+    from core.classes c
+    join core.enrollments t on t.tenant_id = c.tenant_id and t.class_id = c.id
+      and t.role = 'teacher' and t.is_primary
+    join core.enrollments s on s.tenant_id = c.tenant_id and s.class_id = c.id and s.role = 'student'
+    where c.tenant_id = ${tenantId}::uuid and c.org_id = ${schoolId}::uuid
+      and c.school_year_id = ${yearId}::uuid and c.class_type = 'homeroom'
+    order by c.code, s.user_id`);
+  const threads: (typeof messageThreads.$inferInsert)[] = [];
+  const members: (typeof threadMembers.$inferInsert)[] = [];
+  const posts: (typeof messages.$inferInsert)[] = [];
+  for (const [index, pair] of pairs.entries()) {
+    const guardians = pair.guardians
+      .replace(/[{}]/g, "")
+      .split(",")
+      .filter(Boolean);
+    if (guardians.length === 0) continue;
+    const threadId = Bun.randomUUIDv7();
+    const answered = index % 2 === 0;
+    threads.push({
+      tenantId,
+      id: threadId,
+      orgId: schoolId,
+      kind: "family",
+      studentUserId: pair.student_id,
+      createdByUserId: pair.teacher_id,
+      lastMessageAt: at(answered ? 2 : 1, 9),
+    });
+    members.push(
+      {
+        tenantId,
+        threadId,
+        userId: pair.teacher_id,
+        role: "owner",
+        joinedAt: at(1, 8),
+        lastReadAt: at(2, 9),
+      },
+      ...guardians.map((userId) => ({
+        tenantId,
+        threadId,
+        userId,
+        joinedAt: at(1, 8),
+        lastReadAt: answered ? at(2, 9) : null,
+      })),
+    );
+    posts.push({
+      tenantId,
+      threadId,
+      authorUserId: pair.teacher_id,
+      body: "Welcome back. The first weeks went well; please check the timetable and the reading list for the term.",
+      createdAt: at(1, 8),
+    });
+    if (answered)
+      posts.push({
+        tenantId,
+        threadId,
+        authorUserId: guardians[0] ?? pair.teacher_id,
+        body: "Thank you. We have the reading list and will keep an eye on homework.",
+        createdAt: at(2, 9),
+      });
+  }
+  const staff = [...new Set(pairs.map((pair) => pair.teacher_id))];
+  const [lead] = staff;
+  if (lead && staff.length > 1) {
+    const threadId = Bun.randomUUIDv7();
+    threads.push({
+      tenantId,
+      id: threadId,
+      orgId: schoolId,
+      kind: "group",
+      subject: "Homeroom teachers",
+      createdByUserId: lead,
+      lastMessageAt: at(3, 7),
+    });
+    members.push(
+      ...staff.map((userId) => ({
+        tenantId,
+        threadId,
+        userId,
+        role: userId === lead ? ("owner" as const) : ("member" as const),
+        joinedAt: at(3, 7),
+        lastReadAt: userId === lead ? at(3, 7) : null,
+      })),
+    );
+    posts.push({
+      tenantId,
+      threadId,
+      authorUserId: lead,
+      body: "Registers are due by 8:00 each morning. Shout here if a roster looks wrong.",
+      createdAt: at(3, 7),
+    });
+  }
+  for (let index = 0; index < threads.length; index += 200)
+    await tx.insert(messageThreads).values(threads.slice(index, index + 200));
+  for (let index = 0; index < members.length; index += 200)
+    await tx.insert(threadMembers).values(members.slice(index, index + 200));
+  for (let index = 0; index < posts.length; index += 200)
+    await tx.insert(messages).values(posts.slice(index, index + 200));
+  // Messages take the moment they are written; whoever had read them has
+  // read them as written.
+  await tx.execute(sql`
+    update core.thread_members set last_read_at = statement_timestamp()
+    where tenant_id = ${tenantId}::uuid and last_read_at is not null`);
 }
 
 /**

@@ -48,6 +48,7 @@ export const CONFLICTS: Record<string, string> = {
   class_meetings_group_excl: "timetable.group_busy",
   class_meetings_teacher_excl: "timetable.teacher_busy",
   class_meetings_room_excl: "timetable.room_busy",
+  thread_members_key: "thread_member.exists",
   user_roles_role_excl: "role.overlapping",
   user_relationships_excl: "relationship.overlapping",
   accounts_tenant_id_webauthn_user_handle_key: "account.handle_taken",

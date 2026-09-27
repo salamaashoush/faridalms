@@ -7,6 +7,7 @@ export * from "./descriptors";
 export * from "./documents";
 export * from "./files";
 export * from "./membership";
+export * from "./messaging";
 export * from "./people";
 export * from "./records";
 export * from "./teaching";
