@@ -9,7 +9,15 @@ import { Checkbox as CheckboxPrimitive } from "@base-ui/react/checkbox";
 import { Radio } from "@base-ui/react/radio";
 import { parseNumber } from "@faridalms/domain/answers";
 import { useMutation } from "@tanstack/react-query";
-import { Check, CircleCheck, CircleX, Eye, Lightbulb } from "lucide-react";
+import {
+  ArrowDown,
+  ArrowUp,
+  Check,
+  CircleCheck,
+  CircleX,
+  Eye,
+  Lightbulb,
+} from "lucide-react";
 import { useId, useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -41,14 +49,24 @@ export type CheckStudentBlock =
   | Of<"text">
   | Of<"gaps">
   | Of<"number">
+  | Of<"matching">
+  | Of<"ordering">
+  | Of<"sorting">
   | Of<"written">;
 
+const CHECK_TYPES = new Set<StudentBlock["type"]>([
+  "choice",
+  "text",
+  "gaps",
+  "number",
+  "matching",
+  "ordering",
+  "sorting",
+  "written",
+]);
+
 export const isCheckBlock = (block: StudentBlock): block is CheckStudentBlock =>
-  block.type === "choice" ||
-  block.type === "text" ||
-  block.type === "gaps" ||
-  block.type === "number" ||
-  block.type === "written";
+  CHECK_TYPES.has(block.type);
 
 /** Answered right, answer shown, or for a written answer, sent. */
 export const isSettled = (
@@ -272,6 +290,43 @@ function MarkIcon({ mark }: { mark: Mark }) {
         {mark === "right" ? m.lrnRight() : m.lrnNotQuite()}
       </span>
     </>
+  );
+}
+
+/** Right or wrong for one blank, pair or item, once a try is marked and not being redone. */
+const partMark = (
+  view: CheckView | undefined,
+  editing: boolean,
+  partId: string,
+): Mark =>
+  editing || !view || view.tries === 0 || !(partId in view.parts)
+    ? null
+    : view.parts[partId]
+      ? "right"
+      : "wrong";
+
+/** Keeps the parts a try got right, so trying again means fixing only the rest. */
+const keepRight = (
+  answers: Record<string, string>,
+  view: CheckView | undefined,
+) =>
+  Object.fromEntries(
+    Object.entries(answers).filter(([partId]) => view?.parts[partId] === true),
+  );
+
+const markBorder = (mark: Mark) =>
+  cn(
+    mark === "right" && "border-success/60",
+    mark === "wrong" && "border-destructive/50",
+  );
+
+function RightPart({ mark, text }: { mark: Mark; text: string | undefined }) {
+  if (mark !== "wrong" || text === undefined) return null;
+  return (
+    <span className="text-sm leading-5 font-medium text-success">
+      <span className="sr-only">{m.lrnCorrectAnswer()} </span>
+      <bdi>{text}</bdi>
+    </span>
   );
 }
 
@@ -535,12 +590,6 @@ function GapsCheck({
     if (canCheck) respond.mutate({ type: "gaps", answers });
   };
   const locked = !editing || settled;
-  const markOf = (gapId: string): Mark =>
-    editing || !view || view.tries === 0 || !(gapId in view.gaps)
-      ? null
-      : view.gaps[gapId]
-        ? "right"
-        : "wrong";
   return (
     <CheckCard
       block={block}
@@ -559,13 +608,7 @@ function GapsCheck({
           canCheck={canCheck}
           pending={respond.isPending || reveal.isPending}
           onTryAgain={() => {
-            setAnswers((current) =>
-              Object.fromEntries(
-                Object.entries(current).filter(
-                  ([gapId]) => view?.gaps[gapId] === true,
-                ),
-              ),
-            );
+            setAnswers((current) => keepRight(current, view));
             setEditing(true);
           }}
           onReveal={() => reveal.mutate()}
@@ -582,8 +625,7 @@ function GapsCheck({
             );
           const number = gaps.indexOf(segment) + 1;
           const label = m.lrnBlankNumber({ number: formatNumber(number) });
-          const mark = markOf(segment.id);
-          const right = view?.key?.[number - 1];
+          const mark = partMark(view, editing, segment.id);
           return (
             <span
               key={segment.id}
@@ -604,11 +646,7 @@ function GapsCheck({
                   <SelectTrigger
                     size="sm"
                     aria-label={label}
-                    className={cn(
-                      "min-w-28",
-                      mark === "right" && "border-success/60",
-                      mark === "wrong" && "border-destructive/50",
-                    )}
+                    className={cn("min-w-28", markBorder(mark))}
                   >
                     <SelectValue placeholder={m.lrnChooseWord()} />
                   </SelectTrigger>
@@ -635,24 +673,361 @@ function GapsCheck({
                   spellCheck={false}
                   maxLength={200}
                   dir="auto"
-                  className={cn(
-                    "h-8 w-32",
-                    mark === "right" && "border-success/60",
-                    mark === "wrong" && "border-destructive/50",
-                  )}
+                  className={cn("h-8 w-32", markBorder(mark))}
                 />
               )}
               <MarkIcon mark={mark} />
-              {mark !== "right" && right !== undefined ? (
-                <span className="text-sm leading-5 font-medium text-success">
-                  <span className="sr-only">{m.lrnCorrectAnswer()} </span>
-                  <bdi>{right}</bdi>
-                </span>
-              ) : null}
+              <RightPart mark={mark} text={view?.partKey?.[segment.id]} />
             </span>
           );
         })}
       </div>
+    </CheckCard>
+  );
+}
+
+function MatchingCheck({
+  block,
+  view,
+  driver,
+}: {
+  block: Of<"matching">;
+  view: CheckView | undefined;
+  driver: CheckDriver;
+}) {
+  const legend = useId();
+  const { editing, setEditing, respond, reveal } = useCheck(
+    block.id,
+    view,
+    driver,
+  );
+  const [pairs, setPairs] = useState<Record<string, string>>(
+    view?.response?.type === "matching" ? view.response.pairs : {},
+  );
+  const settled = isSettled(block, view);
+  const canCheck = block.prompts.every((prompt) => pairs[prompt.id]);
+  const locked = !editing || settled;
+  const items = block.choices.map((choice) => ({
+    value: choice.id,
+    label: choice.text,
+  }));
+  return (
+    <CheckCard
+      block={block}
+      legendId={legend}
+      onSubmit={() => {
+        if (canCheck) respond.mutate({ type: "matching", pairs });
+      }}
+      status={
+        view && !editing && (view.tries > 0 || view.revealed) ? (
+          <Outcome view={view} />
+        ) : null
+      }
+      actions={
+        <Retry
+          view={view}
+          editing={editing}
+          settled={settled}
+          canCheck={canCheck}
+          pending={respond.isPending || reveal.isPending}
+          onTryAgain={() => {
+            setPairs((current) => keepRight(current, view));
+            setEditing(true);
+          }}
+          onReveal={() => reveal.mutate()}
+        />
+      }
+    >
+      <ul className="grid gap-2">
+        {block.prompts.map((prompt) => {
+          const mark = partMark(view, editing, prompt.id);
+          const label = `${legend}-${prompt.id}`;
+          return (
+            <li
+              key={prompt.id}
+              className="grid gap-2 rounded-lg border px-4 py-3 sm:grid-cols-2 sm:items-center"
+            >
+              <span
+                id={label}
+                dir="auto"
+                className="text-sm leading-5 font-medium"
+              >
+                {prompt.text}
+              </span>
+              <span className="flex min-w-0 items-center gap-2">
+                <Select
+                  items={items}
+                  value={pairs[prompt.id] ?? null}
+                  onValueChange={(value) => {
+                    if (value !== null)
+                      setPairs((current) => ({
+                        ...current,
+                        [prompt.id]: value,
+                      }));
+                  }}
+                  disabled={locked}
+                >
+                  <SelectTrigger
+                    aria-labelledby={label}
+                    className={cn(
+                      "w-full min-w-0 max-md:h-10",
+                      markBorder(mark),
+                    )}
+                  >
+                    <SelectValue placeholder={m.lrnChooseMatch()} />
+                  </SelectTrigger>
+                  <SelectContent>
+                    {items.map((item) => (
+                      <SelectItem key={item.value} value={item.value}>
+                        {item.label}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <MarkIcon mark={mark} />
+              </span>
+              {mark === "wrong" && view?.partKey ? (
+                <span className="sm:col-start-2">
+                  <RightPart mark={mark} text={view.partKey[prompt.id]} />
+                </span>
+              ) : null}
+            </li>
+          );
+        })}
+      </ul>
+    </CheckCard>
+  );
+}
+
+function OrderingCheck({
+  block,
+  view,
+  driver,
+}: {
+  block: Of<"ordering">;
+  view: CheckView | undefined;
+  driver: CheckDriver;
+}) {
+  const legend = useId();
+  const { editing, setEditing, respond, reveal } = useCheck(
+    block.id,
+    view,
+    driver,
+  );
+  const [order, setOrder] = useState<string[]>(
+    view?.response?.type === "ordering"
+      ? view.response.order
+      : block.items.map((item) => item.id),
+  );
+  const [moved, setMoved] = useState("");
+  const settled = isSettled(block, view);
+  const locked = !editing || settled;
+  const textOf = (itemId: string) =>
+    block.items.find((item) => item.id === itemId)?.text ?? "";
+  const move = (index: number, by: -1 | 1) => {
+    const target = index + by;
+    if (locked || target < 0 || target >= order.length) return;
+    const next = [...order];
+    const [itemId] = next.splice(index, 1);
+    if (!itemId) return;
+    next.splice(target, 0, itemId);
+    setOrder(next);
+    setMoved(
+      m.lrnMovedTo({
+        item: textOf(itemId),
+        position: formatNumber(target + 1),
+        total: formatNumber(order.length),
+      }),
+    );
+  };
+  return (
+    <CheckCard
+      block={block}
+      legendId={legend}
+      onSubmit={() => respond.mutate({ type: "ordering", order })}
+      status={
+        view && !editing && (view.tries > 0 || view.revealed) ? (
+          <Outcome
+            view={view}
+            keyText={view.key ? formatList(view.key) : undefined}
+          />
+        ) : null
+      }
+      actions={
+        <Retry
+          view={view}
+          editing={editing}
+          settled={settled}
+          canCheck
+          pending={respond.isPending || reveal.isPending}
+          onTryAgain={() => setEditing(true)}
+          onReveal={() => reveal.mutate()}
+        />
+      }
+    >
+      <div className="grid gap-2">
+        <p className="text-[13px] leading-[18px] text-muted-foreground">
+          {m.lrnOrderHint()}
+        </p>
+        <ol className="grid gap-2">
+          {order.map((itemId, index) => {
+            const mark = partMark(view, editing, itemId);
+            const text = textOf(itemId);
+            return (
+              <li
+                key={itemId}
+                className={cn(
+                  "flex min-h-12 items-center gap-3 rounded-lg border py-1.5 ps-4 pe-1.5",
+                  markBorder(mark),
+                )}
+              >
+                <span className="w-5 shrink-0 text-sm text-muted-foreground tabular-nums">
+                  {formatNumber(index + 1)}
+                </span>
+                <span dir="auto" className="min-w-0 flex-1 text-sm leading-5">
+                  {text}
+                </span>
+                <MarkIcon mark={mark} />
+                {locked ? null : (
+                  <span className="flex shrink-0">
+                    {/* aria-disabled rather than disabled, so focus stays on the
+                        button when its item reaches either end. */}
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-sm"
+                      className="aria-disabled:opacity-40 max-md:size-10"
+                      aria-label={m.lrnMoveItemUp({ item: text })}
+                      aria-disabled={index === 0 || undefined}
+                      onClick={() => move(index, -1)}
+                    >
+                      <ArrowUp aria-hidden />
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-sm"
+                      className="aria-disabled:opacity-40 max-md:size-10"
+                      aria-label={m.lrnMoveItemDown({ item: text })}
+                      aria-disabled={index === order.length - 1 || undefined}
+                      onClick={() => move(index, 1)}
+                    >
+                      <ArrowDown aria-hidden />
+                    </Button>
+                  </span>
+                )}
+              </li>
+            );
+          })}
+        </ol>
+        <p aria-live="polite" className="sr-only">
+          {moved}
+        </p>
+      </div>
+    </CheckCard>
+  );
+}
+
+const groupChip =
+  "min-h-8 cursor-pointer rounded-full border px-3 py-1 text-[13px] leading-5 outline-none transition-colors hover:bg-muted/50 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 data-checked:border-primary data-checked:bg-primary data-checked:text-primary-foreground data-disabled:cursor-default data-disabled:hover:bg-transparent data-disabled:data-checked:hover:bg-primary max-md:min-h-10";
+
+function SortingCheck({
+  block,
+  view,
+  driver,
+}: {
+  block: Of<"sorting">;
+  view: CheckView | undefined;
+  driver: CheckDriver;
+}) {
+  const legend = useId();
+  const { editing, setEditing, respond, reveal } = useCheck(
+    block.id,
+    view,
+    driver,
+  );
+  const [groups, setGroups] = useState<Record<string, string>>(
+    view?.response?.type === "sorting" ? view.response.groups : {},
+  );
+  const settled = isSettled(block, view);
+  const canCheck = block.items.every((item) => groups[item.id]);
+  const locked = !editing || settled;
+  return (
+    <CheckCard
+      block={block}
+      legendId={legend}
+      onSubmit={() => {
+        if (canCheck) respond.mutate({ type: "sorting", groups });
+      }}
+      status={
+        view && !editing && (view.tries > 0 || view.revealed) ? (
+          <Outcome view={view} />
+        ) : null
+      }
+      actions={
+        <Retry
+          view={view}
+          editing={editing}
+          settled={settled}
+          canCheck={canCheck}
+          pending={respond.isPending || reveal.isPending}
+          onTryAgain={() => {
+            setGroups((current) => keepRight(current, view));
+            setEditing(true);
+          }}
+          onReveal={() => reveal.mutate()}
+        />
+      }
+    >
+      <ul className="grid gap-2">
+        {block.items.map((item) => {
+          const mark = partMark(view, editing, item.id);
+          const label = `${legend}-${item.id}`;
+          return (
+            <li
+              key={item.id}
+              className={cn(
+                "flex flex-wrap items-center justify-between gap-x-4 gap-y-2 rounded-lg border px-4 py-3",
+                markBorder(mark),
+              )}
+            >
+              <span
+                id={label}
+                dir="auto"
+                className="text-sm leading-5 font-medium"
+              >
+                {item.text}
+              </span>
+              <span className="flex flex-wrap items-center gap-2">
+                <RadioGroup
+                  aria-labelledby={label}
+                  value={groups[item.id] ?? ""}
+                  onValueChange={(value) =>
+                    setGroups((current) => ({
+                      ...current,
+                      [item.id]: String(value),
+                    }))
+                  }
+                  disabled={locked}
+                  className="flex w-auto flex-wrap gap-1.5"
+                >
+                  {block.groups.map((group) => (
+                    <Radio.Root
+                      key={group.id}
+                      value={group.id}
+                      className={groupChip}
+                    >
+                      <bdi>{group.name}</bdi>
+                    </Radio.Root>
+                  ))}
+                </RadioGroup>
+                <MarkIcon mark={mark} />
+                <RightPart mark={mark} text={view?.partKey?.[item.id]} />
+              </span>
+            </li>
+          );
+        })}
+      </ul>
     </CheckCard>
   );
 }
@@ -783,5 +1158,11 @@ export function CheckBlockView({
     return <GapsCheck block={block} view={view} driver={driver} />;
   if (block.type === "written")
     return <WrittenCheck block={block} view={view} driver={driver} />;
+  if (block.type === "matching")
+    return <MatchingCheck block={block} view={view} driver={driver} />;
+  if (block.type === "ordering")
+    return <OrderingCheck block={block} view={view} driver={driver} />;
+  if (block.type === "sorting")
+    return <SortingCheck block={block} view={view} driver={driver} />;
   return <TypedCheck block={block} view={view} driver={driver} />;
 }

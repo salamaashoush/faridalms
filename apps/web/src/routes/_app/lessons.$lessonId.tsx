@@ -1,14 +1,21 @@
-import { useSuspenseQuery } from "@tanstack/react-query";
-import { createFileRoute, Link } from "@tanstack/react-router";
+import type { ErrorComponentProps } from "@tanstack/react-router";
 
+import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
+import { createFileRoute, Link } from "@tanstack/react-router";
+import { Lock } from "lucide-react";
+
+import { ButtonLink } from "~/components/app/ButtonLink";
 import {
   BreadcrumbCurrent,
   BreadcrumbStep,
 } from "~/components/app/WorkspaceBreadcrumb";
+import { DefaultCatchBoundary } from "~/components/DefaultCatchBoundary";
 import {
   LessonPlayer,
   LessonPreview,
 } from "~/components/learning/LessonPlayer";
+import { EmptyState } from "~/components/system/IndexPage";
+import * as m from "~/i18n/messages";
 import { lessonEditorQuery, lessonQuery } from "~/queries/learning";
 
 const learns = (workspace: string | null) => workspace === "me";
@@ -28,6 +35,7 @@ export const Route = createFileRoute("/_app/lessons/$lessonId")({
       );
   },
   component: LessonPage,
+  errorComponent: LessonError,
 });
 
 function Trail({
@@ -56,8 +64,9 @@ function Trail({
 }
 
 function PlayerTrail({ id }: { id: string }) {
-  const data = useSuspenseQuery(lessonQuery(id)).data;
-  return <Trail module={data.module} title={data.title} />;
+  // A locked lesson fails to open; the page explains why and the trail stays empty.
+  const { data } = useQuery({ ...lessonQuery(id), retry: false });
+  return data ? <Trail module={data.module} title={data.title} /> : null;
 }
 
 function PreviewTrail({ id }: { id: string }) {
@@ -82,5 +91,28 @@ function LessonPage() {
     <LessonPlayer key={lessonId} lessonId={lessonId} />
   ) : (
     <LessonPreview lessonId={lessonId} />
+  );
+}
+
+/** A lesson that is not open yet says so and points back to the modules. */
+function LessonError(props: ErrorComponentProps) {
+  if (
+    !(props.error instanceof Error) ||
+    props.error.message !== "learning.locked"
+  )
+    return <DefaultCatchBoundary {...props} />;
+  return (
+    <div className="mx-auto w-full max-w-3xl">
+      <EmptyState
+        icon={Lock}
+        title={m.lrnLockedTitle()}
+        description={m.lrnErrLocked()}
+        action={
+          <ButtonLink to="/me/modules" search={{}} className="max-md:h-10">
+            {m.lrnBackToModules()}
+          </ButtonLink>
+        }
+      />
+    </div>
   );
 }

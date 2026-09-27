@@ -3,22 +3,31 @@ import type {
   ChoiceBlock,
   GapsBlock,
   LessonBlock,
+  MatchingBlock,
   NumberBlock,
+  OrderingBlock,
+  SortingBlock,
   TextBlock,
   WrittenBlock,
 } from "@faridalms/domain/learning";
+import type { ReactNode } from "react";
 
 import { parseNumber } from "@faridalms/domain/answers";
 import {
   gapsSource,
   MAX_ACCEPTED_ANSWERS,
   MAX_CHOICE_OPTIONS,
+  MAX_DISTRACTORS,
   MAX_GAPS,
+  MAX_ORDER_ITEMS,
+  MAX_PAIRS,
+  MAX_SORT_GROUPS,
+  MAX_SORT_ITEMS,
   needsCaptions,
   needsTranscript,
   parseGaps,
 } from "@faridalms/domain/learning";
-import { ChevronDown, Plus, X } from "lucide-react";
+import { ArrowDown, ArrowUp, ChevronDown, Plus, X } from "lucide-react";
 import { useId, useState } from "react";
 
 import { CheckboxRow } from "~/components/people/fields";
@@ -67,6 +76,24 @@ export function blockIssue(block: LessonBlock): string | null {
     case "number":
       return block.mode === "range" && block.min > block.max
         ? m.lrnRangeOrder()
+        : null;
+    case "matching": {
+      const started = block.pairs.filter(
+        (pair) => pair.prompt.trim() || pair.answer.trim(),
+      );
+      if (started.some((pair) => !pair.prompt.trim() || !pair.answer.trim()))
+        return m.lrnPairIncomplete();
+      return started.length < 2 ? m.lrnPairsNeeded() : null;
+    }
+    case "ordering":
+      return block.items.filter((item) => item.text.trim()).length < 2
+        ? m.lrnItemsNeeded()
+        : null;
+    case "sorting":
+      if (block.groups.some((group) => !group.name.trim()))
+        return m.lrnGroupNameNeeded();
+      return block.items.filter((item) => item.text.trim()).length < 2
+        ? m.lrnItemsNeeded()
         : null;
     case "media":
       if (needsCaptions(block.mediaType) && !block.captionsFileId)
@@ -679,6 +706,437 @@ function NumberFields({
   );
 }
 
+/** A list of short text rows a teacher adds to, edits and removes from. */
+function RowList<T extends { id: string }>({
+  legend,
+  hint,
+  rows,
+  min,
+  max,
+  addLabel,
+  onAdd,
+  onRemove,
+  removeLabel,
+  onMove,
+  moveLabels,
+  children,
+}: {
+  legend: string;
+  hint: string;
+  rows: T[];
+  min: number;
+  max: number;
+  addLabel: string;
+  onAdd: () => void;
+  onRemove: (id: string) => void;
+  removeLabel: (number: string) => string;
+  onMove?: (index: number, by: -1 | 1) => void;
+  moveLabels?: {
+    up: (number: string) => string;
+    down: (number: string) => string;
+  };
+  children: (row: T, index: number) => ReactNode;
+}) {
+  return (
+    <fieldset className="grid gap-2">
+      <legend className="mb-1 text-sm leading-5 font-medium">{legend}</legend>
+      <p className="text-[13px] leading-[18px] text-muted-foreground">{hint}</p>
+      {rows.map((row, index) => {
+        const number = formatNumber(index + 1);
+        return (
+          <div key={row.id} className="flex items-center gap-2">
+            {children(row, index)}
+            {onMove && moveLabels ? (
+              <>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  className="max-md:size-10"
+                  aria-label={moveLabels.up(number)}
+                  disabled={index === 0}
+                  onClick={() => onMove(index, -1)}
+                >
+                  <ArrowUp aria-hidden />
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon-sm"
+                  className="max-md:size-10"
+                  aria-label={moveLabels.down(number)}
+                  disabled={index === rows.length - 1}
+                  onClick={() => onMove(index, 1)}
+                >
+                  <ArrowDown aria-hidden />
+                </Button>
+              </>
+            ) : null}
+            {rows.length > min ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                className="max-md:size-10"
+                aria-label={removeLabel(number)}
+                onClick={() => onRemove(row.id)}
+              >
+                <X aria-hidden />
+              </Button>
+            ) : null}
+          </div>
+        );
+      })}
+      {rows.length < max ? (
+        <div>
+          <Button
+            type="button"
+            variant="ghost"
+            className="max-md:h-10"
+            onClick={onAdd}
+          >
+            <Plus aria-hidden />
+            {addLabel}
+          </Button>
+        </div>
+      ) : null}
+    </fieldset>
+  );
+}
+
+const rowInput = "min-w-0 flex-1 max-md:h-10";
+
+function MatchingFields({
+  block,
+  onChange,
+}: {
+  block: MatchingBlock;
+  onChange: Change<MatchingBlock>;
+}) {
+  const setPair = (
+    pairId: string,
+    patch: Partial<MatchingBlock["pairs"][number]>,
+  ) =>
+    onChange({
+      ...block,
+      pairs: block.pairs.map((pair) =>
+        pair.id === pairId ? { ...pair, ...patch } : pair,
+      ),
+    });
+  return (
+    <>
+      <RowList
+        legend={m.lrnPairs()}
+        hint={m.lrnPairsHint()}
+        rows={block.pairs}
+        min={2}
+        max={MAX_PAIRS}
+        addLabel={m.lrnAddPair()}
+        onAdd={() =>
+          onChange({
+            ...block,
+            pairs: [
+              ...block.pairs,
+              { id: crypto.randomUUID(), prompt: "", answer: "" },
+            ],
+          })
+        }
+        onRemove={(pairId) =>
+          onChange({
+            ...block,
+            pairs: block.pairs.filter((pair) => pair.id !== pairId),
+          })
+        }
+        removeLabel={(number) => m.lrnRemovePair({ number })}
+      >
+        {(pair, index) => (
+          <div className="grid min-w-0 flex-1 gap-2 sm:grid-cols-2">
+            <Input
+              aria-label={m.lrnPairPrompt({ number: formatNumber(index + 1) })}
+              placeholder={m.lrnPairPromptPlaceholder()}
+              dir="auto"
+              maxLength={300}
+              className={rowInput}
+              value={pair.prompt}
+              onChange={(event) =>
+                setPair(pair.id, { prompt: event.target.value })
+              }
+            />
+            <Input
+              aria-label={m.lrnPairAnswer({ number: formatNumber(index + 1) })}
+              placeholder={m.lrnPairAnswerPlaceholder()}
+              dir="auto"
+              maxLength={300}
+              className={rowInput}
+              value={pair.answer}
+              onChange={(event) =>
+                setPair(pair.id, { answer: event.target.value })
+              }
+            />
+          </div>
+        )}
+      </RowList>
+      <RowList
+        legend={m.lrnDistractors()}
+        hint={m.lrnDistractorsHint()}
+        rows={block.distractors}
+        min={0}
+        max={MAX_DISTRACTORS}
+        addLabel={m.lrnAddDistractor()}
+        onAdd={() =>
+          onChange({
+            ...block,
+            distractors: [
+              ...block.distractors,
+              { id: crypto.randomUUID(), text: "" },
+            ],
+          })
+        }
+        onRemove={(otherId) =>
+          onChange({
+            ...block,
+            distractors: block.distractors.filter(
+              (other) => other.id !== otherId,
+            ),
+          })
+        }
+        removeLabel={(number) => m.lrnRemoveDistractor({ number })}
+      >
+        {(other, index) => (
+          <Input
+            aria-label={m.lrnDistractorNumber({
+              number: formatNumber(index + 1),
+            })}
+            dir="auto"
+            maxLength={300}
+            className={rowInput}
+            value={other.text}
+            onChange={(event) =>
+              onChange({
+                ...block,
+                distractors: block.distractors.map((item) =>
+                  item.id === other.id
+                    ? { ...item, text: event.target.value }
+                    : item,
+                ),
+              })
+            }
+          />
+        )}
+      </RowList>
+    </>
+  );
+}
+
+function OrderingFields({
+  block,
+  onChange,
+}: {
+  block: OrderingBlock;
+  onChange: Change<OrderingBlock>;
+}) {
+  return (
+    <>
+      <RowList
+        legend={m.lrnOrderItems()}
+        hint={m.lrnOrderItemsHint()}
+        rows={block.items}
+        min={2}
+        max={MAX_ORDER_ITEMS}
+        addLabel={m.lrnAddItem()}
+        onAdd={() =>
+          onChange({
+            ...block,
+            items: [...block.items, { id: crypto.randomUUID(), text: "" }],
+          })
+        }
+        onRemove={(itemId) =>
+          onChange({
+            ...block,
+            items: block.items.filter((item) => item.id !== itemId),
+          })
+        }
+        removeLabel={(number) => m.lrnRemoveItem({ number })}
+        onMove={(index, by) => {
+          const items = [...block.items];
+          const [moved] = items.splice(index, 1);
+          if (moved) items.splice(index + by, 0, moved);
+          onChange({ ...block, items });
+        }}
+        moveLabels={{
+          up: (number) => m.lrnMoveItemNumberUp({ number }),
+          down: (number) => m.lrnMoveItemNumberDown({ number }),
+        }}
+      >
+        {(item, index) => (
+          <>
+            <span className="w-5 shrink-0 text-sm text-muted-foreground tabular-nums">
+              {formatNumber(index + 1)}
+            </span>
+            <Input
+              aria-label={m.lrnItemNumber({ number: formatNumber(index + 1) })}
+              dir="auto"
+              maxLength={300}
+              className={rowInput}
+              value={item.text}
+              onChange={(event) =>
+                onChange({
+                  ...block,
+                  items: block.items.map((row) =>
+                    row.id === item.id
+                      ? { ...row, text: event.target.value }
+                      : row,
+                  ),
+                })
+              }
+            />
+          </>
+        )}
+      </RowList>
+      <SelectField
+        id={`block-${block.id}-scoring`}
+        label={m.lrnOrderScoring()}
+        width="name"
+        value={block.scoring}
+        options={[
+          { value: "all", label: m.lrnScoreAll() },
+          { value: "neighbours", label: m.lrnScoreNeighbours() },
+        ]}
+        onChange={(scoring) => onChange({ ...block, scoring })}
+      />
+    </>
+  );
+}
+
+function SortingFields({
+  block,
+  onChange,
+}: {
+  block: SortingBlock;
+  onChange: Change<SortingBlock>;
+}) {
+  const groupItems = block.groups.map((group, index) => ({
+    value: group.id,
+    label:
+      group.name.trim() ||
+      m.lrnGroupNumber({ number: formatNumber(index + 1) }),
+  }));
+  return (
+    <>
+      <RowList
+        legend={m.lrnGroups()}
+        hint={m.lrnGroupsHint()}
+        rows={block.groups}
+        min={2}
+        max={MAX_SORT_GROUPS}
+        addLabel={m.lrnAddGroup()}
+        onAdd={() =>
+          onChange({
+            ...block,
+            groups: [...block.groups, { id: crypto.randomUUID(), name: "" }],
+          })
+        }
+        onRemove={(groupId) => {
+          const groups = block.groups.filter((group) => group.id !== groupId);
+          const fallback = groups[0]?.id ?? "";
+          onChange({
+            ...block,
+            groups,
+            items: block.items.map((item) =>
+              item.groupId === groupId ? { ...item, groupId: fallback } : item,
+            ),
+          });
+        }}
+        removeLabel={(number) => m.lrnRemoveGroup({ number })}
+      >
+        {(group, index) => (
+          <Input
+            aria-label={m.lrnGroupNumber({ number: formatNumber(index + 1) })}
+            dir="auto"
+            maxLength={100}
+            className={rowInput}
+            value={group.name}
+            onChange={(event) =>
+              onChange({
+                ...block,
+                groups: block.groups.map((row) =>
+                  row.id === group.id
+                    ? { ...row, name: event.target.value }
+                    : row,
+                ),
+              })
+            }
+          />
+        )}
+      </RowList>
+      <RowList
+        legend={m.lrnSortItems()}
+        hint={m.lrnSortItemsHint()}
+        rows={block.items}
+        min={2}
+        max={MAX_SORT_ITEMS}
+        addLabel={m.lrnAddItem()}
+        onAdd={() =>
+          onChange({
+            ...block,
+            items: [
+              ...block.items,
+              {
+                id: crypto.randomUUID(),
+                text: "",
+                groupId: block.groups[0]?.id ?? "",
+              },
+            ],
+          })
+        }
+        onRemove={(itemId) =>
+          onChange({
+            ...block,
+            items: block.items.filter((item) => item.id !== itemId),
+          })
+        }
+        removeLabel={(number) => m.lrnRemoveItem({ number })}
+      >
+        {(item, index) => (
+          <div className="grid min-w-0 flex-1 gap-2 sm:grid-cols-[minmax(0,1fr)_12rem]">
+            <Input
+              aria-label={m.lrnItemNumber({ number: formatNumber(index + 1) })}
+              dir="auto"
+              maxLength={300}
+              className={rowInput}
+              value={item.text}
+              onChange={(event) =>
+                onChange({
+                  ...block,
+                  items: block.items.map((row) =>
+                    row.id === item.id
+                      ? { ...row, text: event.target.value }
+                      : row,
+                  ),
+                })
+              }
+            />
+            <SelectField
+              label={m.lrnItemGroup({ number: formatNumber(index + 1) })}
+              labelHidden
+              value={item.groupId}
+              options={groupItems}
+              onChange={(groupId) =>
+                onChange({
+                  ...block,
+                  items: block.items.map((row) =>
+                    row.id === item.id ? { ...row, groupId } : row,
+                  ),
+                })
+              }
+            />
+          </div>
+        )}
+      </RowList>
+    </>
+  );
+}
+
 function WrittenFields({
   block,
   onChange,
@@ -743,6 +1201,12 @@ export function CheckFields({
         <GapsFields block={block} onChange={onChange} />
       ) : block.type === "number" ? (
         <NumberFields block={block} onChange={onChange} />
+      ) : block.type === "matching" ? (
+        <MatchingFields block={block} onChange={onChange} />
+      ) : block.type === "ordering" ? (
+        <OrderingFields block={block} onChange={onChange} />
+      ) : block.type === "sorting" ? (
+        <SortingFields block={block} onChange={onChange} />
       ) : (
         <WrittenFields block={block} onChange={onChange} />
       )}

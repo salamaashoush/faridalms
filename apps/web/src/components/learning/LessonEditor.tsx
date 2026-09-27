@@ -21,13 +21,16 @@ import {
 import {
   ArrowDown,
   ArrowDownToLine,
+  ArrowLeftRight,
   ArrowUp,
   Brackets,
   Copy,
   Hash,
   ListChecks,
+  ListOrdered,
   MessageSquareText,
   Plus,
+  Shapes,
   TextCursorInput,
   ToggleLeft,
   Trash2,
@@ -79,6 +82,9 @@ const BLOCK_LABEL: Record<LessonBlock["type"], () => string> = {
   text: m.lrnBlockTyped,
   gaps: m.lrnBlockGaps,
   number: m.lrnBlockNumber,
+  matching: m.lrnBlockMatching,
+  ordering: m.lrnBlockOrdering,
+  sorting: m.lrnBlockSorting,
   written: m.lrnBlockWritten,
 };
 
@@ -90,6 +96,9 @@ type Kind =
   | "text"
   | "gaps"
   | "number"
+  | "matching"
+  | "ordering"
+  | "sorting"
   | "written";
 
 const KINDS: {
@@ -152,6 +161,24 @@ const KINDS: {
         hint: m.lrnKindNumberHint,
       },
       {
+        kind: "matching",
+        icon: ArrowLeftRight,
+        label: m.lrnBlockMatching,
+        hint: m.lrnKindMatchingHint,
+      },
+      {
+        kind: "ordering",
+        icon: ListOrdered,
+        label: m.lrnBlockOrdering,
+        hint: m.lrnKindOrderingHint,
+      },
+      {
+        kind: "sorting",
+        icon: Shapes,
+        label: m.lrnBlockSorting,
+        hint: m.lrnKindSortingHint,
+      },
+      {
         kind: "written",
         icon: MessageSquareText,
         label: m.lrnBlockWritten,
@@ -162,6 +189,10 @@ const KINDS: {
 ];
 
 const option = (text = "") => ({ id: crypto.randomUUID(), text, feedback: "" });
+const row = <T extends object>(fields: T) => ({
+  id: crypto.randomUUID(),
+  ...fields,
+});
 
 function newBlock(kind: Kind): LessonBlock {
   const id = crypto.randomUUID();
@@ -224,6 +255,32 @@ function newBlock(kind: Kind): LessonBlock {
         min: 0,
         max: 0,
       };
+    case "matching":
+      return {
+        ...check,
+        type: "matching",
+        pairs: [
+          row({ prompt: "", answer: "" }),
+          row({ prompt: "", answer: "" }),
+        ],
+        distractors: [],
+      };
+    case "ordering":
+      return {
+        ...check,
+        type: "ordering",
+        items: [row({ text: "" }), row({ text: "" }), row({ text: "" })],
+        scoring: "neighbours",
+      };
+    case "sorting": {
+      const groups = [row({ name: "" }), row({ name: "" })];
+      return {
+        ...check,
+        type: "sorting",
+        groups,
+        items: groups.map((group) => row({ text: "", groupId: group.id })),
+      };
+    }
   }
   return { ...check, points: 0, type: "written", wordLimit: null };
 }
@@ -245,6 +302,40 @@ function duplicate(block: LessonBlock): LessonBlock {
       correctOptionIds: block.correctOptionIds.map(
         (item) => ids.get(item) ?? item,
       ),
+    };
+  }
+  if (block.type === "matching")
+    return {
+      ...block,
+      id,
+      pairs: block.pairs.map((pair) => ({ ...pair, id: crypto.randomUUID() })),
+      distractors: block.distractors.map((other) => ({
+        ...other,
+        id: crypto.randomUUID(),
+      })),
+    };
+  if (block.type === "ordering")
+    return {
+      ...block,
+      id,
+      items: block.items.map((item) => ({ ...item, id: crypto.randomUUID() })),
+    };
+  if (block.type === "sorting") {
+    const ids = new Map(
+      block.groups.map((group) => [group.id, crypto.randomUUID()]),
+    );
+    return {
+      ...block,
+      id,
+      groups: block.groups.map((group) => ({
+        ...group,
+        id: ids.get(group.id) ?? group.id,
+      })),
+      items: block.items.map((item) => ({
+        ...item,
+        id: crypto.randomUUID(),
+        groupId: ids.get(item.groupId) ?? item.groupId,
+      })),
     };
   }
   if (block.type === "gaps")
@@ -272,6 +363,18 @@ function tidy(block: LessonBlock): LessonBlock {
       ),
     };
   }
+  if (block.type === "matching")
+    return {
+      ...block,
+      pairs: block.pairs.filter(
+        (pair) => pair.prompt.trim() || pair.answer.trim(),
+      ),
+      distractors: block.distractors.filter((other) => other.text.trim()),
+    };
+  if (block.type === "ordering")
+    return { ...block, items: block.items.filter((item) => item.text.trim()) };
+  if (block.type === "sorting")
+    return { ...block, items: block.items.filter((item) => item.text.trim()) };
   if (block.type === "text")
     return {
       ...block,

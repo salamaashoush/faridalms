@@ -354,6 +354,8 @@ export function getMessageFromError(error: unknown): string {
         return m.lrnRangeOrder();
       case "learning.duplicate_ids":
         return m.lrnErrDuplicateIds();
+      case "learning.sort_group":
+        return m.lrnErrSortGroup();
       case "module_class.exists":
         return m.lrnErrClassTwice();
       case "access.escalation":
