@@ -7,6 +7,8 @@ import { createKeyRing } from "./core/keys";
 import { env } from "./env";
 import { createScanner } from "./files/scan";
 import { DiskFileStore } from "./files/store";
+import { createProvider } from "./notifications/providers";
+import { startDelivery } from "./notifications/scheduler";
 
 const cell = openCell(
   {
@@ -34,15 +36,35 @@ const server = Bun.serve({
     files: new DiskFileStore(env.FILE_STORAGE_DIR),
     scanner: createScanner(env.CLAMD_ADDRESS),
     maxUploadBytes: env.MAX_UPLOAD_BYTES,
+    channels: {
+      email: Boolean(env.EMAIL_WEBHOOK_URL),
+      sms: Boolean(env.SMS_WEBHOOK_URL),
+    },
   }),
 });
 console.info(`Farida LMS API listening on port ${server.port}`);
+
+const gateways = {
+  email: createProvider(env.EMAIL_WEBHOOK_URL, env.NOTIFY_WEBHOOK_TOKEN),
+  sms: createProvider(env.SMS_WEBHOOK_URL, env.NOTIFY_WEBHOOK_TOKEN),
+};
+const stopDelivery =
+  env.CELL_WORKER_URL && (gateways.email || gateways.sms)
+    ? startDelivery({
+        cell,
+        directory,
+        cellId: env.CELL_ID,
+        gateways,
+        intervalMs: 30_000,
+      })
+    : null;
 
 let stopping = false;
 async function shutdown() {
   if (stopping) return;
   stopping = true;
   await server.stop();
+  await stopDelivery?.();
   await cell.close();
   await directory.close();
   process.exit(0);

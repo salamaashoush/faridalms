@@ -1019,3 +1019,16 @@ export async function lastMarkInClass(
       and (c.id = ${input.classId}::uuid or c.homeroom_class_id = ${input.classId}::uuid)`);
   return row?.last ?? null;
 }
+
+/** Whether any register of the day still has the student absent without a reason. */
+export async function absentUnexplainedOn(
+  tx: Tx,
+  input: { tenantId: string; studentId: string; day: string },
+): Promise<boolean> {
+  const [row] = await tx.execute<{ absent: boolean }>(sql`
+    select exists (select 1 from core.attendance_events
+      where tenant_id = ${input.tenantId}::uuid and student_user_id = ${input.studentId}::uuid
+        and taken_on = ${input.day}::date and status = 'active'
+        and category_meaning = 'absent' and reason_descriptor_id is null) as absent`);
+  return row?.absent ?? false;
+}

@@ -1,0 +1,235 @@
+import { plainContent } from "@faridalms/domain/content-conversion";
+import { DEFAULT_PREFERENCES } from "@faridalms/domain/notifications";
+import { addDays } from "@faridalms/domain/school";
+import { describe, expect, test } from "bun:test";
+
+import { deliverTenant } from "../src/notifications/deliver";
+import { MemoryProvider } from "../src/notifications/providers";
+import { login, rejection, seeded, sessionFor, signedIn } from "./harness";
+
+const principal = () => signedIn("northwind", login("principal"));
+const mother = () =>
+  signedIn("northwind", login("student").replace("student", "parent"));
+
+const announce = async (
+  office: Awaited<ReturnType<typeof principal>>,
+  title: string,
+  urgency: "normal" | "urgent",
+) => {
+  const saved = await office.announcements.save({
+    id: "",
+    expectedVersion: 0,
+    title,
+    body: plainContent(`${title}.`),
+    audiences: [{ scope: "families", classId: "", gradeId: "" }],
+    urgency,
+    pinnedUntil: "",
+    expiresOn: "",
+    requiresAck: false,
+    ackDueOn: "",
+  });
+  await office.announcements.publish({
+    id: saved.id,
+    expectedVersion: saved.version,
+  });
+  return saved.id;
+};
+
+describe("the notification centre", () => {
+  test("a notice that asks for acknowledgement waits under action until given", async () => {
+    const office = await principal();
+    const saved = await office.announcements.save({
+      id: "",
+      expectedVersion: 0,
+      title: "Swimming consent",
+      body: plainContent("Please acknowledge the swimming lessons."),
+      audiences: [{ scope: "families", classId: "", gradeId: "" }],
+      urgency: "normal",
+      pinnedUntil: "",
+      expiresOn: "",
+      requiresAck: true,
+      ackDueOn: "",
+    });
+    await office.announcements.publish({
+      id: saved.id,
+      expectedVersion: saved.version,
+    });
+    const family = await mother();
+    const waiting = await family.notifications.list({ tab: "action" });
+    const notice = waiting.rows.find((row) => row.subjectId === saved.id);
+    if (!notice) throw new Error("the family got no notice");
+    expect(notice.needsAction).toBe(true);
+    expect(waiting.waiting).toBeGreaterThan(0);
+
+    await family.announcements.seen({ id: saved.id, acknowledge: true });
+    const after = await family.notifications.list({ tab: "action" });
+    expect(after.rows.some((row) => row.id === notice.id)).toBe(false);
+    const all = await family.notifications.list({ tab: "all" });
+    expect(all.rows.find((row) => row.id === notice.id)?.readAt).not.toBeNull();
+  });
+
+  test("a busy thread rings once until it is read", async () => {
+    const office = await principal();
+    const family = await mother();
+    const me = await family.identity.currentUser();
+    const { threadId } = await office.messages.start({
+      kind: "direct",
+      recipientIds: [me.id],
+      studentId: "",
+      subject: "",
+      body: "Could we speak on Monday?",
+      fileIds: [],
+    });
+    await office.messages.send({
+      threadId,
+      body: "Or Tuesday.",
+      fileIds: [],
+    });
+    const about = (await family.notifications.list({ tab: "all" })).rows.filter(
+      (row) => row.subjectId === threadId,
+    );
+    expect(about).toHaveLength(1);
+    expect(about[0]?.kind).toBe("message");
+
+    await family.messages.markRead({ threadId });
+    expect(
+      (await family.notifications.list({ tab: "all" })).rows.find(
+        (row) => row.subjectId === threadId,
+      )?.readAt,
+    ).not.toBeNull();
+  });
+});
+
+describe("reaching people outside the app", () => {
+  test("choices decide the email, but an urgent notice goes regardless", async () => {
+    const family = await mother();
+    await family.notifications.savePreferences({
+      preferences: {
+        ...DEFAULT_PREFERENCES,
+        email: { ...DEFAULT_PREFERENCES.email, announcement: "off" },
+      },
+      locale: "ar",
+    });
+    expect((await family.notifications.preferences()).locale).toBe("ar");
+
+    const office = await principal();
+    await announce(office, "Library closed Thursday", "normal");
+    await announce(office, "Early closing today", "urgent");
+
+    const me = await family.identity.currentUser();
+    const mine = async (title: string) =>
+      (
+        await office.notifications.deliveries({ channel: "email", q: title })
+      ).rows.find((row) => row.userId === me.id);
+    expect((await mine("Library closed Thursday"))?.reason).toBe(
+      "preference_off",
+    );
+    const urgent = await mine("Early closing today");
+    expect(urgent?.kind).toBe("urgent");
+    expect(["pending", "skipped"]).toContain(urgent?.state ?? "");
+  });
+
+  test("a pass sends what is due and a failing gateway retries", async () => {
+    const { cell, tenants } = seeded();
+    const tenantId = tenants[0]?.tenantId;
+    if (!tenantId) throw new Error("no seeded tenant");
+    const office = await principal();
+    await announce(office, "Photos day", "urgent");
+    const email = new MemoryProvider();
+    const first = await deliverTenant(
+      cell,
+      { email, sms: null },
+      tenantId,
+      new Date(),
+    );
+    expect(first.sent).toBeGreaterThan(0);
+    expect(email.sent.some((row) => row.subject.includes("Photos day"))).toBe(
+      true,
+    );
+    const log = await office.notifications.deliveries({
+      state: "sent",
+      q: "Photos day",
+    });
+    expect(log.rows.length).toBeGreaterThan(0);
+    const again = await deliverTenant(
+      cell,
+      { email, sms: null },
+      tenantId,
+      new Date(),
+    );
+    expect(again.sent).toBe(0);
+  });
+
+  test("only the office reads the delivery log", async () => {
+    const teacher = await sessionFor("northwind", login("teacher", 0, 1));
+    expect(
+      await rejection(teacher.api.notifications.deliveries({})),
+    ).toMatchObject({ code: "FORBIDDEN" });
+  });
+});
+
+describe("absence notices", () => {
+  test("an unexplained absence tells the family once, and a correction takes it back", async () => {
+    const office = await principal();
+    const student = await sessionFor("northwind", login("student"));
+    const me = await student.api.identity.currentUser();
+    const probe = await office.attendance.day({});
+    let date = addDays(probe.today, -1);
+    while (
+      [5, 6].includes(new Date(`${date}T00:00:00Z`).getUTCDay()) ||
+      date === "2026-10-06"
+    )
+      date = addDays(date, -1);
+    const { rows } = await office.attendance.board({ date });
+    const registers = await Promise.all(
+      rows
+        .filter((row) => row.classType === "homeroom")
+        .map((row) =>
+          office.attendance.register({
+            classId: row.classId,
+            date,
+            periodId: row.periodId,
+          }),
+        ),
+    );
+    const homeroom = registers.find((register) =>
+      register.students.some((row) => row.id === me.id),
+    );
+    if (!homeroom) throw new Error("the seeded student has no homeroom");
+    const marks = (meaning: "absent" | "present") =>
+      homeroom.students.map((row) => ({
+        studentId: row.id,
+        meaning: row.id === me.id ? meaning : ("present" as const),
+      }));
+    const absent = await office.attendance.save({
+      classId: homeroom.class.id,
+      date,
+      periodId: homeroom.period.id,
+      expectedVersion: homeroom.register?.version ?? 0,
+      marks: marks("absent"),
+    });
+
+    const family = await mother();
+    const notices = () =>
+      family.notifications
+        .list({ tab: "all" })
+        .then((page) =>
+          page.rows.filter(
+            (row) =>
+              row.kind === "absence" &&
+              row.subjectId === me.id &&
+              row.params.date === date,
+          ),
+        );
+    expect(await notices()).toHaveLength(1);
+
+    await office.attendance.save({
+      classId: homeroom.class.id,
+      date,
+      periodId: homeroom.period.id,
+      expectedVersion: absent.version,
+      marks: marks("present"),
+    });
+    expect(await notices()).toHaveLength(0);
+  });
+});

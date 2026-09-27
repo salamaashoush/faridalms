@@ -97,6 +97,7 @@ export async function setUp() {
     files,
     scanner: null,
     maxUploadBytes: 1024 * 1024,
+    channels: { email: true, sms: false },
   });
   state = {
     tenants,

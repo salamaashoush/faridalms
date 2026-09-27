@@ -20,6 +20,7 @@ import {
   unreachable,
   unreadThreads,
 } from "@faridalms/database/stores/messages";
+import { readSubject } from "@faridalms/database/stores/notifications";
 import { isVisibleStudent } from "@faridalms/database/stores/students";
 import {
   draftSchema,
@@ -35,6 +36,7 @@ import * as v from "valibot";
 
 import type { UnitContext } from "../core/context";
 
+import { notify } from "../core/notify";
 import {
   audit,
   can,
@@ -194,6 +196,35 @@ export const recipients = readProcedure
     };
   });
 
+/**
+ * Tells the other members a message arrived. Someone still holding an unread
+ * notice about the thread gets no second one, so a busy thread rings once.
+ */
+async function tellMembers(
+  context: UnitContext,
+  threadId: string,
+  body: string,
+) {
+  const members = await membersOf(context.tx, context.tenantId, threadId);
+  const author = members.find(
+    (member) => member.userId === context.actor.userId,
+  );
+  await notify(
+    context,
+    members.map((member) => member.userId),
+    {
+      kind: "message",
+      subject: { type: "message_thread", id: threadId },
+      params: {
+        actorName: author?.fullNameEn ?? author?.fullNameAr ?? "",
+        actorNameAr: author?.fullNameAr ?? author?.fullNameEn ?? "",
+        preview: body.slice(0, 140),
+      },
+      collapse: true,
+    },
+  );
+}
+
 export const send = writeProcedure
   .input(sendSchema)
   .handler(async ({ input, context }) => {
@@ -206,6 +237,7 @@ export const send = writeProcedure
       body: input.body,
     });
     await attach(context, posted.id, input.fileIds);
+    await tellMembers(context, row.id, input.body);
     return posted;
   });
 
@@ -306,6 +338,7 @@ export const start = writeProcedure
       body: input.body,
     });
     await attach(context, posted.id, input.fileIds);
+    await tellMembers(context, threadId, input.body);
     if (created)
       await audit(context, {
         action: "message_thread.create",
@@ -326,6 +359,12 @@ export const markRead = writeProcedure
       tenantId: context.tenantId,
       threadId: row.id,
       userId: context.actor.userId,
+    });
+    await readSubject(context.tx, {
+      tenantId: context.tenantId,
+      userId: context.actor.userId,
+      subjectType: "message_thread",
+      subjectId: row.id,
     });
     return { read: true };
   });

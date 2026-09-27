@@ -70,6 +70,14 @@ export function openDirectory(url: string, ttlMs = 60_000) {
       }),
     schoolsOfTenant: async (tenantId: string) =>
       select().where(eq(schools.tenantId, tenantId)),
+    /** The tenants a cell serves, for its background passes. */
+    tenantsOfCell: async (cellId: string) => {
+      const rows = await db
+        .selectDistinct({ tenantId: tenants.id })
+        .from(tenants)
+        .where(eq(tenants.cellId, cellId));
+      return rows.map((row) => row.tenantId);
+    },
     forget: () => cache.clear(),
     close: () => db.$client.close(),
   };

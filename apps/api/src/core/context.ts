@@ -20,6 +20,8 @@ export interface ApiDependencies {
   files: FileStore;
   scanner: FileScanner | null;
   maxUploadBytes: number;
+  /** Which outside channels have a gateway; the rest are logged as skipped. */
+  channels: { email: boolean; sms: boolean };
 }
 
 export interface RequestContext extends ApiDependencies {

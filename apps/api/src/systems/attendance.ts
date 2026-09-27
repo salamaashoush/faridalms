@@ -1,12 +1,15 @@
 import type {
   Descriptor,
+  MarkChange,
   PeriodRow,
 } from "@faridalms/database/stores/attendance";
+import type { ClassRow } from "@faridalms/database/stores/classes";
 import type { Scope } from "@faridalms/database/stores/students";
 import type { SchoolYear } from "@faridalms/database/stores/years";
 import type { AttendanceMeaning } from "@faridalms/domain/attendance";
 
 import {
+  absentUnexplainedOn,
   absencesBetween,
   AttendanceConflict,
   attendanceCodes,
@@ -29,9 +32,12 @@ import {
   classesTaughtBy,
   reachesClass,
   rosterOf,
+  teachersOn,
   teachesClass,
 } from "@faridalms/database/stores/classes";
 import { namesOf } from "@faridalms/database/stores/coursework";
+import { messagingGuardians } from "@faridalms/database/stores/messages";
+import { noticed, withdraw } from "@faridalms/database/stores/notifications";
 import { isVisibleStudent } from "@faridalms/database/stores/students";
 import { meetingsOn } from "@faridalms/database/stores/timetable";
 import {
@@ -50,6 +56,7 @@ import {
   isChronic,
   registerQuerySchema,
   registerState,
+  remindSchema,
   reportQuerySchema,
   saveRegisterSchema,
   summarise,
@@ -62,6 +69,7 @@ import * as v from "valibot";
 
 import type { UnitContext } from "../core/context";
 
+import { notify } from "../core/notify";
 import {
   audit,
   can,
@@ -360,6 +368,76 @@ export const register = readProcedure
     };
   });
 
+const missing = (mark: MarkChange["after"]) =>
+  mark !== null && mark.meaning === "absent" && !mark.reasonId;
+
+/**
+ * Tells a student's families of a new unexplained absence, once a day, after
+ * the school's notice delay so a teacher can correct a slip first. A
+ * correction that leaves the day clear takes the notice back.
+ */
+async function noticeAbsences(
+  context: UnitContext,
+  classRow: ClassRow,
+  takenOn: string,
+  changes: readonly MarkChange[],
+) {
+  for (const change of changes)
+    if (
+      missing(change.before) &&
+      !missing(change.after) &&
+      !(await absentUnexplainedOn(context.tx, {
+        tenantId: context.tenantId,
+        studentId: change.studentId,
+        day: takenOn,
+      }))
+    )
+      await withdraw(context.tx, {
+        tenantId: context.tenantId,
+        subjectType: "student_absence",
+        subjectId: change.studentId,
+        key: { param: "date", value: takenOn },
+      });
+  const fresh = changes
+    .filter((change) => missing(change.after) && !missing(change.before))
+    .map((change) => change.studentId);
+  if (fresh.length === 0) return;
+  const [settings, names] = await Promise.all([
+    settingsOf(context.tx, context.tenantId, context.schoolId),
+    namesOf(context.tx, context.tenantId, fresh),
+  ]);
+  for (const student of names) {
+    const subject = { type: "student_absence", id: student.id };
+    if (
+      await noticed(context.tx, {
+        tenantId: context.tenantId,
+        subjectType: subject.type,
+        subjectId: subject.id,
+        key: { param: "date", value: takenOn },
+      })
+    )
+      continue;
+    const guardians = await messagingGuardians(context.tx, {
+      tenantId: context.tenantId,
+      studentId: student.id,
+      on: takenOn,
+    });
+    await notify(context, guardians, {
+      kind: "absence",
+      subject,
+      params: {
+        studentId: student.id,
+        studentName: student.fullNameEn ?? student.fullNameAr ?? "",
+        studentNameAr: student.fullNameAr ?? student.fullNameEn ?? "",
+        className: classRow.titleEn ?? classRow.code,
+        classNameAr: classRow.titleAr ?? classRow.titleEn ?? classRow.code,
+        date: takenOn,
+      },
+      delayMinutes: settings.noticeDelayMinutes,
+    });
+  }
+}
+
 export const save = writeProcedure
   .input(saveRegisterSchema)
   .handler(async ({ input, context }) => {
@@ -462,6 +540,7 @@ export const save = writeProcedure
             }),
           ),
       );
+      await noticeAbsences(context, classRow, input.date, saved.changes);
       return { version: saved.version, state };
     } catch (error) {
       if (error instanceof AttendanceConflict)
@@ -508,6 +587,45 @@ export const board = readProcedure
       }),
       rows,
     };
+  });
+
+/**
+ * Reminds the teachers of classes whose register for the day is still not
+ * taken. A teacher who has not opened the last reminder gets no second one.
+ */
+export const remind = writeProcedure
+  .input(remindSchema)
+  .handler(async ({ input, context }) => {
+    requireCapability(context, "attendance:manage");
+    let reminded = 0;
+    for (const classId of new Set(input.classIds)) {
+      const classRow = await classById(context.tx, context, classId);
+      if (!classRow) throw new ORPCError("NOT_FOUND");
+      const teachers = await teachersOn(
+        context.tx,
+        context.tenantId,
+        classRow.id,
+        input.date,
+      );
+      reminded += await notify(context, teachers, {
+        kind: "reminder",
+        subject: { type: "class", id: classRow.id },
+        params: {
+          classId: classRow.id,
+          className: classRow.titleEn ?? classRow.code,
+          classNameAr: classRow.titleAr ?? classRow.titleEn ?? classRow.code,
+          date: input.date,
+        },
+        collapse: true,
+      });
+    }
+    await audit(context, {
+      action: "attendance.remind",
+      objectType: "attendance_register",
+      objectId: null,
+      details: { date: input.date, classes: input.classIds.length, reminded },
+    });
+    return { reminded };
   });
 
 /** Absences and late arrivals to follow up, unexplained first. */

@@ -21,6 +21,10 @@ import {
 } from "@faridalms/database/stores/audiences";
 import { documentOf, saveDocument } from "@faridalms/database/stores/documents";
 import {
+  markActed,
+  readSubject,
+} from "@faridalms/database/stores/notifications";
+import {
   archiveAnnouncementSchema,
   feedQuerySchema,
   manageQuerySchema,
@@ -35,6 +39,7 @@ import * as v from "valibot";
 import type { UnitContext } from "../core/context";
 
 import { audienceChoices, audienceOf } from "../core/audiences";
+import { notify } from "../core/notify";
 import {
   audit,
   can,
@@ -303,6 +308,14 @@ export const publish = writeProcedure
         tenantId: context.tenantId,
         announcementId: row.id,
       });
+    // A scheduled one tells nobody yet; its readers hear when it is out.
+    if (!later)
+      await notify(context, users, {
+        kind: row.urgency === "urgent" ? "urgent" : "announcement",
+        subject: { type: "announcement", id: row.id },
+        params: { title: row.title, updated: updating },
+        needsAction: row.requiresAck,
+      });
     await audit(context, {
       action: updating
         ? "announcement.update_sent"
@@ -358,5 +371,14 @@ export const seen = writeProcedure
       userId: context.actor.userId,
       acknowledge: input.acknowledge,
     });
+    const subject = {
+      tenantId: context.tenantId,
+      userId: context.actor.userId,
+      subjectType: "announcement",
+      subjectId: row.id,
+    };
+    await (input.acknowledge
+      ? markActed(context.tx, subject)
+      : readSubject(context.tx, subject));
     return { seen: true };
   });

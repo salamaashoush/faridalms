@@ -39,6 +39,10 @@ export const env = v.parse(
     MAX_UPLOAD_BYTES: v.optional(positiveInteger, String(25 * 1024 * 1024)),
     // host:port of a clamd daemon; uploads are only signature-checked without one.
     CLAMD_ADDRESS: v.optional(v.pipe(v.string(), v.regex(/^[^\s:]+:\d+$/))),
+    // Transactional email and SMS gateways that accept a JSON POST.
+    EMAIL_WEBHOOK_URL: v.optional(v.pipe(v.string(), v.url())),
+    SMS_WEBHOOK_URL: v.optional(v.pipe(v.string(), v.url())),
+    NOTIFY_WEBHOOK_TOKEN: v.optional(v.pipe(v.string(), v.minLength(1))),
   }),
   process.env,
 );

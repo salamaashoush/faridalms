@@ -208,3 +208,8 @@ export function isChronic(
 ): boolean {
   return summary.rate !== null && 100 - summary.rate >= chronicPercent;
 }
+
+export const remindSchema = v.object({
+  date: isoDate,
+  classIds: v.pipe(v.array(id), v.minLength(1), v.maxLength(100)),
+});

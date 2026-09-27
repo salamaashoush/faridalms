@@ -1,6 +1,5 @@
 import * as administration from "./modules/administration";
 import * as learning from "./modules/learning";
-import * as notifications from "./modules/notifications";
 import * as overviews from "./modules/overviews";
 import * as search from "./modules/search";
 import * as site from "./modules/site";
@@ -17,6 +16,7 @@ import * as gradebookSystem from "./systems/gradebook";
 import * as identity from "./systems/identity";
 import * as messagesSystem from "./systems/messages";
 import * as newslettersSystem from "./systems/newsletters";
+import * as notificationsSystem from "./systems/notifications";
 import * as peopleSystem from "./systems/people";
 import * as recordsSystem from "./systems/records";
 import * as rolloverSystem from "./systems/rollover";
@@ -42,11 +42,11 @@ export const router = {
   announcements: announcementsSystem,
   newsletters: newslettersSystem,
   calendar: calendarSystem,
+  notifications: notificationsSystem,
   ...students,
   ...overviews,
   ...teaching,
   ...administration,
-  ...notifications,
   ...site,
   ...learning,
   ...search,

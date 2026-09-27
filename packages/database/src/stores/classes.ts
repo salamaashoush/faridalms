@@ -837,3 +837,17 @@ export async function rosterOf(
         ${classId}::uuid)`);
   return rows.map((row) => row.user_id);
 }
+
+/** Who teaches a class on a day. */
+export async function teachersOn(
+  tx: Tx,
+  tenantId: string,
+  classId: string,
+  on: string,
+): Promise<string[]> {
+  const rows = await tx.execute<{ user_id: string }>(sql`
+    select distinct e.user_id from core.enrollments e
+    where e.tenant_id = ${tenantId}::uuid and e.class_id = ${classId}::uuid
+      and e.role in ('teacher', 'aide') and e.status = 'active' and e.valid_during @> ${on}::date`);
+  return rows.map((row) => row.user_id);
+}

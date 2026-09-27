@@ -27,6 +27,7 @@ import {
   setNewsletterState,
   updateNewsletter,
 } from "@faridalms/database/stores/newsletters";
+import { readSubject } from "@faridalms/database/stores/notifications";
 import {
   alignTranslation,
   editionFileIds,
@@ -43,6 +44,7 @@ import * as v from "valibot";
 import type { UnitContext } from "../core/context";
 
 import { audienceChoices, audienceOf } from "../core/audiences";
+import { notify } from "../core/notify";
 import {
   audit,
   can,
@@ -395,6 +397,13 @@ export const publish = writeProcedure
       newsletterId: row.id,
       userIds: users,
     });
+    // A revised edition replaces what readers have without ringing again.
+    if (!later && !revising)
+      await notify(context, users, {
+        kind: "newsletter",
+        subject: { type: "newsletter", id: row.id },
+        params: { title: row.title },
+      });
     await audit(context, {
       action: revising
         ? "newsletter.revise"
@@ -508,6 +517,12 @@ export const seen = writeProcedure
       tenantId: context.tenantId,
       newsletterId: row.id,
       userId: context.actor.userId,
+    });
+    await readSubject(context.tx, {
+      tenantId: context.tenantId,
+      userId: context.actor.userId,
+      subjectType: "newsletter",
+      subjectId: row.id,
     });
     return { seen: true };
   });
