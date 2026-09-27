@@ -38,6 +38,8 @@ export function getMessageFromError(error: unknown): string {
   }
   if (hasMessage(error)) {
     switch (error.message) {
+      case "system.moving":
+        return m.systemMoving();
       case "content.invalid":
         return m.contentInvalid();
       case "newsletter.revision_conflict":

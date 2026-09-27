@@ -44,6 +44,18 @@ function unwrapServerFnMessage(message: string): string {
   );
 }
 
+// The API names a decision with a dotted code: a system still moving to the
+// cell, a refused permission, a rejected value. Asking again returns the same
+// answer, and every mutation waits for its retries through the invalidation
+// below, so only failures without a code are retried.
+const DECIDED = /^[a-z][a-z_]*\.[a-z_.]+/;
+
+function worthRetrying(failureCount: number, error: Error) {
+  return (
+    failureCount < 3 && !DECIDED.test(unwrapServerFnMessage(error.message))
+  );
+}
+
 function onError(error: Error) {
   error.message = unwrapServerFnMessage(error.message);
   const description = getMessageFromError(error);
@@ -59,9 +71,19 @@ export function createQueryClient(): QueryClient {
       hydrate: { deserializeData: deserialize },
       queries: {
         refetchOnReconnect: () => !queryClient.isMutating(),
+        retry: worthRetrying,
       },
     },
-    queryCache: new QueryCache({ onError }),
+    queryCache: new QueryCache({
+      onError: (error) => {
+        // A page of a system still moving says so in its own error view; a
+        // background widget of one (the bell, a count) stays quiet instead of
+        // raising the same toast on every page.
+        error.message = unwrapServerFnMessage(error.message);
+        if (error.message === "system.moving") return;
+        onError(error);
+      },
+    }),
     mutationCache: new MutationCache({
       onError: (error, _variables, _context, mutation) => {
         // A form that shows the failure beside its fields marks its mutation,
