@@ -113,6 +113,10 @@ chosen section or the page. Undo and redo, save, publish now or later,
 publish checks, version history with restore. The site styles panel shows
 the themes as live cards and the overrides with a contrast readout.
 
+Headings, labels and leads of the selected section are typed straight on the
+canvas, asterisks and all. Every picture carries a focal point the school
+drags into place, and crops and zooms keep it in view.
+
 ## Templates
 
 Page templates (Home in four arrangements, About, Head's welcome, Admissions,
@@ -138,9 +142,27 @@ a vague link label, a button without its target, a video without captions,
 a button label over 25 characters. Warning: missing translation, links to
 unpublished pages.
 
-## Deferred
+## Next
 
-Admissions pipeline beyond the enquiry inbox, social feed, events from the
-calendar, approval workflow, saved sections, page permissions, host-based
-routing, Hijri dates, photo tone (duotone, mono), crest ornaments and girih
-patterns, a hide-on-scroll header and a motto footer.
+Builder work still to do, most useful first:
+
+1. **Media library.** Pictures uploaded once are chosen again from a library
+   in any section or page, with their description kept and a focal point per
+   use.
+2. **Saved sections.** A school saves a finished section and inserts it on
+   other pages, as a copy or kept in step everywhere it appears.
+3. **Visibility by screen.** A section can be hidden on phones or on larger
+   screens, shown in the builder with a marker.
+4. **Events from the calendar.** The events section lists the school's public
+   calendar events instead of items typed by hand.
+5. **Form fields.** A form chooses its own fields (choice, date, number,
+   consent) beyond the fixed enquiry set, and its enquiries keep them.
+6. **Copy and paste sections** between pages and languages, and drag to
+   reorder on the canvas as well as in the outline.
+7. **Heritage ornament.** Crest and girih patterns as section textures, a motto
+   footer, a film that grows to full width as it scrolls in, and a statement
+   whose words fill in as it scrolls.
+8. **Focal point on video posters.**
+
+Later: admissions pipeline beyond the enquiry inbox, social feed, approval
+workflow, page permissions, host-based routing, Hijri dates.
