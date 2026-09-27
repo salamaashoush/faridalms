@@ -62,6 +62,7 @@ import type { EditorStrings } from "../strings";
 
 import { useEditorEnvironment } from "../context";
 import { backgroundColors } from "../formatting";
+import { updateFromOutside } from "../outside";
 import { editorColors } from "../strings";
 import { cx, menuItemClass, menuPopupClass } from "../ui";
 
@@ -397,13 +398,12 @@ export function TablePlugin({ anchor }: { anchor: HTMLElement | null }) {
     change: (table: TableNode, cell: TableCellNode | null) => void,
   ) => {
     if (!target) return;
-    editor.update(() => {
+    updateFromOutside(editor, () => {
       const table = $getNodeByKey(target.tableKey);
       if (!$isTableNode(table)) return;
       const cell = target.cell ? $getNodeByKey(target.cell.key) : null;
       change(table, $isTableCellNode(cell) ? cell : null);
     });
-    editor.focus();
   };
 
   /** Moves width between a column and its neighbour, keeping the table's width. */

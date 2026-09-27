@@ -49,6 +49,7 @@ import {
   $createColumnNode,
   columnCount,
 } from "../nodes";
+import { updateFromOutside } from "../outside";
 import { Tip, cx, menuItemClass, menuPopupClass, shortcutLabel } from "../ui";
 
 const DRAG_TYPE = "application/x-farida-block";
@@ -298,11 +299,10 @@ export function BlockHandlePlugin({ anchor }: { anchor: HTMLElement | null }) {
     const key = hovered?.key;
     setMenu(false);
     if (!key) return;
-    editor.update(() => {
+    updateFromOutside(editor, () => {
       const block = $getNodeByKey(key);
       if (block) change(block);
     });
-    editor.focus();
   };
 
   useEffect(() => {

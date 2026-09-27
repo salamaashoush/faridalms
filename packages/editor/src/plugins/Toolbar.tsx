@@ -72,6 +72,7 @@ import {
 import { useEditorEnvironment } from "../context";
 import { $activeFormats, OPEN_LINK_EDITOR_COMMAND } from "../formatting";
 import { markdownTransformers } from "../markdown";
+import { updateFromOutside } from "../outside";
 import { Tip, ToolButton, cx, menuItemClass, menuPopupClass } from "../ui";
 import { $runBlock } from "./insert";
 
@@ -258,14 +259,12 @@ export function ToolbarPlugin({ disabled }: { disabled: boolean }) {
       .getEditorState()
       .read(() => $getSelection()?.clone() ?? null);
   };
-  const restore = (change: () => void) => {
-    editor.update(() => {
+  const restore = (change: () => void) =>
+    updateFromOutside(editor, () => {
       if (saved.current) $setSelection(saved.current.clone());
       else $getRoot().selectEnd();
       change();
     });
-    editor.focus();
-  };
 
   const marks: { format: MarkFormat; label: string; icon: typeof Bold }[] = [
     { format: "bold", label: strings.bold, icon: Bold },
@@ -364,6 +363,7 @@ export function ToolbarPlugin({ disabled }: { disabled: boolean }) {
             <Menu.Positioner className="z-50" sideOffset={6} align="start">
               <Menu.Popup
                 className={cx(menuPopupClass, "max-h-80 overflow-y-auto")}
+                finalFocus={false}
               >
                 {turnInto.map((item) => (
                   <Menu.Item
@@ -500,6 +500,7 @@ export function ToolbarPlugin({ disabled }: { disabled: boolean }) {
             <Menu.Positioner className="z-50" sideOffset={6} align="start">
               <Menu.Popup
                 className={cx(menuPopupClass, "max-h-96 w-64 overflow-y-auto")}
+                finalFocus={false}
               >
                 {insertable.map((item) => (
                   <Menu.Item

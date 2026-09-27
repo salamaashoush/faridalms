@@ -68,6 +68,7 @@ import {
   $isMediaNode,
   EDIT_DIAGRAM_COMMAND,
 } from "../nodes/rich";
+import { updateFromOutside } from "../outside";
 import { editorColors } from "../strings";
 import {
   Floating,
@@ -311,13 +312,11 @@ export function SelectionToolbarPlugin() {
     } else menus.current = Math.max(0, menus.current - 1);
   };
 
-  const withSelection = (change: () => void) => {
-    editor.update(() => {
+  const withSelection = (change: () => void) =>
+    updateFromOutside(editor, () => {
       if (saved.current) $setSelection(saved.current.clone());
       change();
     });
-    editor.focus();
-  };
 
   // The text area below the fixed toolbar, so the bar never covers that one.
   const boundary = editor.getRootElement()?.parentElement ?? null;
