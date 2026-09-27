@@ -6,6 +6,7 @@ import type { ProvisionedTenant, TenantSpec } from "./tenants";
 
 import { withPurpose } from "./context";
 import { encryptField } from "./crypto";
+import { newUserHandle } from "./stores/accounts";
 import {
   academicSessions,
   academicWeeks,
@@ -405,15 +406,6 @@ async function insertPerson(
   });
 }
 
-function userHandle(tenantId: string): Buffer {
-  const handle = new Uint8Array(64);
-  const hex = tenantId.replaceAll("-", "");
-  for (let index = 0; index < 16; index += 1)
-    handle[index] = Number.parseInt(hex.slice(index * 2, index * 2 + 2), 16);
-  handle.set(crypto.getRandomValues(new Uint8Array(48)), 16);
-  return Buffer.from(handle);
-}
-
 async function giveAccount(
   tx: Tx,
   tenantId: string,
@@ -427,7 +419,7 @@ async function giveAccount(
     id: accountId,
     userId,
     state: "active",
-    webauthnUserHandle: userHandle(tenantId),
+    webauthnUserHandle: newUserHandle(tenantId),
   });
   await tx.insert(loginIdentities).values({
     tenantId,

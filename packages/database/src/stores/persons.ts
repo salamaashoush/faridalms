@@ -138,3 +138,38 @@ export async function childrenOf(
       visible: row.visible,
     }));
 }
+
+/**
+ * Sets a person's contact of one kind and label: an unchanged value stays,
+ * a changed one replaces the old row, and an empty one removes it.
+ */
+export async function replaceContact(
+  tx: Tx,
+  input: {
+    tenantId: string;
+    userId: string;
+    kind: "phone" | "email";
+    label: "mobile" | "work";
+    value: string;
+    normalized: string | null;
+  },
+) {
+  const held = await tx.execute<{ id: string; normalized: string | null }>(sql`
+    select id, normalized from core.contact_points
+    where tenant_id = ${input.tenantId}::uuid and user_id = ${input.userId}::uuid and kind = ${input.kind}
+      and status = 'active'`);
+  if (
+    input.normalized &&
+    held.some((row) => row.normalized === input.normalized)
+  )
+    return;
+  await tx.execute(sql`
+    update core.contact_points set status = 'tobedeleted'
+    where tenant_id = ${input.tenantId}::uuid and user_id = ${input.userId}::uuid and kind = ${input.kind}
+      and label = ${input.label} and status = 'active'`);
+  if (!input.normalized) return;
+  await tx.execute(sql`
+    insert into core.contact_points (tenant_id, user_id, kind, label, value, normalized, sms_capable, source)
+    values (${input.tenantId}::uuid, ${input.userId}::uuid, ${input.kind}, ${input.label}, ${input.value},
+      ${input.normalized}, ${input.kind === "phone" ? true : null}, 'manual')`);
+}
