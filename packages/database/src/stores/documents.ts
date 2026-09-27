@@ -278,3 +278,24 @@ export async function publishedVersion(
       }
     : null;
 }
+
+/**
+ * Opens a document to live editing. A frozen document never becomes
+ * collaborative; the answer says whether this one is.
+ */
+export async function makeCollaborative(
+  tx: Tx,
+  input: { tenantId: string; documentId: string },
+): Promise<boolean> {
+  const [row] = await tx.execute<{ collaborative: boolean }>(sql`
+    update core.documents set collaborative = true
+    where tenant_id = ${input.tenantId}::uuid and id = ${input.documentId}::uuid
+      and status = 'active' and frozen_at is null and not collaborative
+    returning collaborative`);
+  if (row) return true;
+  const [current] = await tx.execute<{ collaborative: boolean }>(sql`
+    select collaborative from core.documents
+    where tenant_id = ${input.tenantId}::uuid and id = ${input.documentId}::uuid
+      and status = 'active'`);
+  return current?.collaborative ?? false;
+}

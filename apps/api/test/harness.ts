@@ -52,6 +52,8 @@ interface State {
   tenants: SeededTenant[];
   handler: (request: Request) => Promise<Response>;
   cell: Cell;
+  cellSecret: Uint8Array<ArrayBuffer>;
+  collabUrl: string;
   files: FileStore;
   close: () => Promise<void>;
 }
@@ -88,12 +90,13 @@ export async function setUp() {
   );
   const directory = openDirectory(urlFor(directoryName, "directory_reader"), 0);
   const files = new DiskFileStore(join(tmpdir(), `farida-api-test-${suffix}`));
+  const cellSecret = new Uint8Array(randomBytes(32));
   const handler = createApp({
     cell,
     directory,
     keys: createKeyRing(kek, "eg-1"),
     cellId: "eg-1",
-    cellSecret: new Uint8Array(randomBytes(32)),
+    cellSecret,
     files,
     scanner: null,
     maxUploadBytes: 1024 * 1024,
@@ -103,6 +106,8 @@ export async function setUp() {
     tenants,
     handler,
     cell,
+    cellSecret,
+    collabUrl: urlFor(cellName, "collab"),
     files,
     close: async () => {
       await cell.close();

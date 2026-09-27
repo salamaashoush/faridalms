@@ -27,3 +27,24 @@ export async function canReadFile(
   const reader = readers.get(file.hostType);
   return reader ? reader(context, file.hostId) : false;
 }
+
+/**
+ * Who may change a kind of record's document, keyed by host type. Only hosts
+ * with a writer can be edited live; the rest open read-only if at all.
+ */
+const writers = new Map<string, HostReader>();
+
+export function registerHostWriter(hostType: string, writer: HostReader) {
+  writers.set(hostType, writer);
+}
+
+export async function hostAccess(
+  context: UnitContext,
+  host: { type: string; id: string },
+): Promise<"write" | "read" | null> {
+  const writer = writers.get(host.type);
+  if (writer && (await writer(context, host.id))) return "write";
+  const reader = readers.get(host.type);
+  if (reader && (await reader(context, host.id))) return "read";
+  return null;
+}

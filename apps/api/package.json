@@ -19,6 +19,12 @@
     "valibot": "^1.4.2"
   },
   "devDependencies": {
-    "@orpc/client": "latest"
+    "@faridalms/collab": "workspace:*",
+    "@faridalms/editor": "workspace:*",
+    "@hocuspocus/provider": "^4.7.0",
+    "@lexical/yjs": "^0.50.0",
+    "@orpc/client": "latest",
+    "lexical": "^0.50.0",
+    "yjs": "^13.6.33"
   }
 }

@@ -92,7 +92,7 @@ import {
   requireCapability,
   writeProcedure,
 } from "../core/procedure";
-import { registerHostReader } from "../files/authorize";
+import { registerHostReader, registerHostWriter } from "../files/authorize";
 
 const id = v.pipe(v.string(), v.uuid());
 
@@ -193,6 +193,15 @@ async function readable(
 registerHostReader("assignment", (context, hostId) =>
   readable(context, { type: "assignment", id: hostId }),
 );
+registerHostWriter("assignment", async (context, hostId) => {
+  if (!can(context, "assignments:author")) return false;
+  try {
+    await taughtAssignment(context, hostId);
+    return true;
+  } catch {
+    return false;
+  }
+});
 registerHostReader("submission", (context, hostId) =>
   readable(context, { type: "submission", id: hostId }),
 );
