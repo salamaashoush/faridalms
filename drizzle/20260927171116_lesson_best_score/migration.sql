@@ -1,0 +1,2 @@
+ALTER TABLE "core"."lesson_progress" ADD COLUMN "best_score" smallint;--> statement-breakpoint
+ALTER TABLE "core"."lesson_progress" ADD CONSTRAINT "lesson_progress_best_score_check" CHECK (best_score is null or best_score between 0 and 100);

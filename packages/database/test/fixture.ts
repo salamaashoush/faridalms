@@ -33,6 +33,8 @@ import {
   importRows,
   importRuns,
   legalHolds,
+  lessonResponses,
+  lessons,
   passkeys,
   privacyNotices,
   relationshipRestrictions,
@@ -406,6 +408,23 @@ export async function completeFixture(
     userId,
     orgId: schoolId,
     tokenHash: "0".repeat(64),
+  });
+  const [lesson] = await tx
+    .select({ id: lessons.id })
+    .from(lessons)
+    .where(eq(lessons.tenantId, tenantId))
+    .limit(1);
+  if (!lesson) throw new Error("the development seed must run first");
+  await tx.insert(lessonResponses).values({
+    tenantId,
+    lessonId: lesson.id,
+    studentUserId: userId,
+    blockId: id(),
+    try: 1,
+    kind: "choice",
+    response: { type: "choice", optionIds: [] },
+    fraction: 0,
+    state: "answered",
   });
   await tx.insert(savedViews).values({
     tenantId,

@@ -1,5 +1,5 @@
-import type { LessonRow, ModuleRow } from "@faridalms/database/stores/learning";
-import type { LessonAnswers, LessonDocument } from "@faridalms/domain/learning";
+import type { ModuleRow } from "@faridalms/database/stores/learning";
+import type { CheckBlock, LessonDocument } from "@faridalms/domain/learning";
 
 import { reachOf } from "@faridalms/database/stores/audiences";
 import {
@@ -8,11 +8,17 @@ import {
   teachesClass,
 } from "@faridalms/database/stores/classes";
 import { namesOf } from "@faridalms/database/stores/coursework";
-import { documentOf, saveDocument } from "@faridalms/database/stores/documents";
+import {
+  documentOf,
+  publishedVersion,
+  saveDocument,
+  snapshotPublish,
+} from "@faridalms/database/stores/documents";
 import { schoolFeatures } from "@faridalms/database/stores/identity";
 import {
   classesOfModule,
   insertLesson,
+  insertResponse,
   insertModule,
   lessonById,
   lessonsOf,
@@ -21,38 +27,45 @@ import {
   modulesForClasses,
   orderLessons,
   progressIn,
+  publishedLessons,
   recordProgress,
+  responsesOf,
   removeLesson as tombstoneLesson,
   setModuleClasses,
   setModuleState,
   studentModules,
   updateLesson,
   updateModule,
+  writtenAnswers,
 } from "@faridalms/database/stores/learning";
 import { isVisibleStudent } from "@faridalms/database/stores/students";
 import { gridOwners } from "@faridalms/database/stores/timetable";
 import { schoolYears, workingYear } from "@faridalms/database/stores/years";
 import {
-  answerSchema,
-  answersOf,
+  checkBlocks,
+  checkStates,
   completionMet,
+  describeCheck,
   duplicateModuleSchema,
-  emptyLesson,
+  isAuto,
   lessonFileIds,
   lessonPlainText,
   lessonScore,
+  markResponse,
+  markSchema,
   moduleRefSchema,
   moveLessonSchema,
   overrideSchema,
   positionSchema,
   progressQuerySchema,
   publishModuleSchema,
-  quizBlocks,
-  quizIsCorrect,
-  reflectSchema,
+  respondSchema,
+  revealSchema,
   saveLessonSchema,
   saveModuleSchema,
+  settled,
   studentBlocks,
+  upgradeLesson,
 } from "@faridalms/domain/learning";
 import { ORPCError } from "@orpc/server";
 import * as v from "valibot";
@@ -214,6 +227,7 @@ async function openModule(
   return { row, locked };
 }
 
+/** The lesson as its teacher is writing it. */
 async function lessonDocument(
   context: UnitContext,
   lessonId: string,
@@ -222,10 +236,48 @@ async function lessonDocument(
     type: "lesson",
     id: lessonId,
   });
-  return (
-    (document?.content as unknown as LessonDocument | undefined) ??
-    emptyLesson()
+  return upgradeLesson(document?.content);
+}
+
+/**
+ * The version of a lesson students play: the last one published. Edits wait
+ * in the draft until the teacher publishes them, so a question never changes
+ * under an answer already given.
+ */
+async function publishedLesson(context: UnitContext, lessonId: string) {
+  const document = await documentOf(context.tx, context.tenantId, {
+    type: "lesson",
+    id: lessonId,
+  });
+  if (!document) return null;
+  const published = await publishedVersion(
+    context.tx,
+    context.tenantId,
+    document.id,
   );
+  return published
+    ? {
+        versionId: published.id,
+        documentVersion: published.documentVersion,
+        draftVersion: document.version,
+        content: upgradeLesson(published.content),
+      }
+    : null;
+}
+
+async function publishLessons(context: UnitContext, lessonIds: string[]) {
+  for (const lessonId of lessonIds) {
+    const document = await documentOf(context.tx, context.tenantId, {
+      type: "lesson",
+      id: lessonId,
+    });
+    if (document)
+      await snapshotPublish(context.tx, {
+        tenantId: context.tenantId,
+        documentId: document.id,
+        userId: context.actor.userId,
+      });
+  }
 }
 
 /** Each lesson's state for a student: done, open, or locked behind an earlier one. */
@@ -405,6 +457,10 @@ export const publishModule = writeProcedure
     });
     if (version === null)
       throw new ORPCError("CONFLICT", { message: "conflict.version" });
+    await publishLessons(
+      context,
+      lessons.map((lesson) => lesson.id),
+    );
     await audit(context, {
       action: "module.publish",
       objectType: "learning_module",
@@ -521,11 +577,38 @@ export const lesson = readProcedure
     const row = await lessonById(context.tx, context.tenantId, input.id);
     if (!row) throw new ORPCError("NOT_FOUND");
     const owner = await editable(context, row.moduleId);
+    const published = await publishedLesson(context, row.id);
     return {
       ...row,
-      module: { id: owner.id, title: owner.title },
+      module: { id: owner.id, title: owner.title, state: owner.state },
       content: await lessonDocument(context, row.id),
+      published: published
+        ? {
+            documentVersion: published.documentVersion,
+            changed: published.draftVersion > published.documentVersion,
+          }
+        : null,
     };
+  });
+
+/** Puts a lesson's edits in front of its students. */
+export const publishLesson = writeProcedure
+  .input(v.object({ id }))
+  .handler(async ({ input, context }) => {
+    const row = await lessonById(context.tx, context.tenantId, input.id);
+    if (!row) throw new ORPCError("NOT_FOUND");
+    const owner = await editable(context, row.moduleId);
+    if (owner.state !== "published")
+      throw new ORPCError("CONFLICT", { message: "learning.module_draft" });
+    if (lessonPlainText(await lessonDocument(context, row.id)).trim() === "")
+      throw new ORPCError("CONFLICT", { message: "learning.lesson_empty" });
+    await publishLessons(context, [row.id]);
+    await audit(context, {
+      action: "lesson.publish",
+      objectType: "lesson",
+      objectId: row.id,
+    });
+    return { published: true };
   });
 
 export const saveLesson = writeProcedure
@@ -576,7 +659,16 @@ export const saveLesson = writeProcedure
       objectId: lessonId,
       details: { moduleId: owner.id, title: input.title },
     });
-    return { id: lessonId, version };
+    const published = input.publish && owner.state === "published";
+    if (published) {
+      await publishLessons(context, [lessonId]);
+      await audit(context, {
+        action: "lesson.publish",
+        objectType: "lesson",
+        objectId: lessonId,
+      });
+    }
+    return { id: lessonId, version, published };
   });
 
 export const moveLesson = writeProcedure
@@ -721,7 +813,7 @@ export const mine = readProcedure
     };
   });
 
-/** A module's lessons as a student meets them: done, open or locked. */
+/** A module's lessons as a student meets them: done, open or locked, the unpublished left out. */
 export const play = readProcedure
   .input(
     v.object({ id, studentId: v.optional(v.union([v.literal(""), id]), "") }),
@@ -729,7 +821,7 @@ export const play = readProcedure
   .handler(async ({ input, context }) => {
     const { studentId, own } = await learner(context, input.studentId);
     const { row, locked } = await openModule(context, input.id, studentId);
-    const lessons = await lessonsOf(context.tx, context.tenantId, row.id);
+    const lessons = await studentLessons(context, row.id);
     const cells = await progressIn(context.tx, {
       tenantId: context.tenantId,
       lessonIds: lessons.map((item) => item.id),
@@ -746,6 +838,17 @@ export const play = readProcedure
     };
   });
 
+/** A module's lessons that students can play: those with a published version. */
+async function studentLessons(context: UnitContext, moduleId: string) {
+  const lessons = await lessonsOf(context.tx, context.tenantId, moduleId);
+  const published = await publishedLessons(
+    context.tx,
+    context.tenantId,
+    lessons.map((item) => item.id),
+  );
+  return lessons.filter((item) => published.has(item.id));
+}
+
 async function playable(context: UnitContext, lessonId: string) {
   requireCapability(context, "learning:read");
   const row = await lessonById(context.tx, context.tenantId, lessonId);
@@ -756,7 +859,7 @@ async function playable(context: UnitContext, lessonId: string) {
     row.moduleId,
     studentId,
   );
-  const lessons = await lessonsOf(context.tx, context.tenantId, owner.id);
+  const lessons = await studentLessons(context, owner.id);
   const cells = await progressIn(context.tx, {
     tenantId: context.tenantId,
     lessonIds: lessons.map((item) => item.id),
@@ -767,87 +870,107 @@ async function playable(context: UnitContext, lessonId: string) {
   );
   const states = outline(owner, lessons, done, locked);
   const state = states.find((item) => item.id === row.id)?.state;
+  if (state === undefined) throw new ORPCError("NOT_FOUND");
   if (state === "locked")
     throw new ORPCError("CONFLICT", { message: "learning.locked" });
+  const published = await publishedLesson(context, row.id);
+  if (!published) throw new ORPCError("NOT_FOUND");
+  const own = cells.find((cell) => cell.lessonId === row.id) ?? null;
+  const attempt = own?.attempts ?? 1;
+  const rows = await responsesOf(context.tx, {
+    tenantId: context.tenantId,
+    lessonId: row.id,
+    studentId,
+    attempt,
+  });
   return {
     row,
     owner,
     states,
     studentId,
-    mine: cells.find((cell) => cell.lessonId === row.id) ?? null,
-    content: await lessonDocument(context, row.id),
+    own,
+    attempt,
+    rows,
+    versionId: published.versionId,
+    content: published.content,
+    checks: checkStates(published.content, rows),
   };
 }
 
-/** Finishes the lesson when the student's work now meets its rule. */
-async function settle(
-  context: UnitContext,
-  input: {
-    lesson: LessonRow;
-    content: LessonDocument;
-    answers: LessonAnswers;
-    studentId: string;
-  },
-) {
-  const met = completionMet(input.lesson, input.content, input.answers);
-  if (met)
-    await recordProgress(context.tx, {
-      tenantId: context.tenantId,
-      lessonId: input.lesson.id,
-      studentId: input.studentId,
-      completed: { by: "student" },
-    });
-  return met;
+type Played = Awaited<ReturnType<typeof playable>>;
+
+const viewOf = (block: CheckBlock, played: Pick<Played, "rows" | "checks">) =>
+  describeCheck(block, played.rows, played.checks[block.id]);
+
+/** Recomputes a student's score from their attempt, keeping their best, and finishes the lesson when its rule is met. */
+async function settle(context: UnitContext, played: Played) {
+  const rows = await responsesOf(context.tx, {
+    tenantId: context.tenantId,
+    lessonId: played.row.id,
+    studentId: played.studentId,
+    attempt: played.attempt,
+  });
+  const checks = checkStates(played.content, rows);
+  const score = lessonScore(played.content, checks);
+  // Measured against earlier attempts only: within one, showing an answer
+  // may still lower the score.
+  const best =
+    score === null
+      ? (played.own?.score ?? null)
+      : Math.max(score, played.own?.bestScore ?? 0);
+  const met = completionMet(played.row, played.content, checks);
+  await recordProgress(context.tx, {
+    tenantId: context.tenantId,
+    lessonId: played.row.id,
+    studentId: played.studentId,
+    score: best,
+    ...(met ? { completed: { by: "student" as const } } : {}),
+  });
+  return {
+    checks,
+    score,
+    best,
+    completed: met || Boolean(played.own?.completedAt),
+    rows,
+  };
 }
 
-/** One lesson for its student: the blocks without answers, and what they have done. */
+/** One lesson for its student: the published blocks without answers, and what they have done. */
 export const playLesson = writeProcedure
   .input(v.object({ id }))
   .handler(async ({ input, context }) => {
-    const {
-      row,
-      owner,
-      states,
-      studentId,
-      mine: progressRow,
-      content,
-    } = await playable(context, input.id);
-    const answers = answersOf(progressRow?.answers);
-    if (row.completion === "view")
-      await settle(context, { lesson: row, content, answers, studentId });
-    else if (!progressRow)
+    const played = await playable(context, input.id);
+    const { row, owner, states, own } = played;
+    if (!own)
       await recordProgress(context.tx, {
         tenantId: context.tenantId,
         lessonId: row.id,
-        studentId,
+        studentId: played.studentId,
       });
+    const completed =
+      row.completion === "view"
+        ? (await settle(context, played)).completed
+        : Boolean(own?.completedAt);
     const index = states.findIndex((item) => item.id === row.id);
-    const quizzes = new Map(
-      quizBlocks(content).map((block) => [block.id, block]),
-    );
     return {
       ...row,
       module: { id: owner.id, title: owner.title },
-      blocks: studentBlocks(content),
-      answers: {
-        quiz: Object.fromEntries(
-          Object.entries(answers.quiz).map(([blockId, answer]) => [
-            blockId,
-            {
-              ...answer,
-              correctOptionIds: quizzes.get(blockId)?.correctOptionIds ?? [],
-              explanation: quizzes.get(blockId)?.explanation ?? "",
-            },
-          ]),
-        ),
-        reflections: answers.reflections,
-      },
-      completedAt:
-        row.completion === "view"
-          ? (progressRow?.completedAt ?? context.now.toISOString())
-          : (progressRow?.completedAt ?? null),
-      score: progressRow?.score ?? null,
-      position: progressRow?.position ?? null,
+      blocks: studentBlocks(
+        played.content,
+        `${played.studentId}:${played.attempt}`,
+      ),
+      checks: Object.fromEntries(
+        checkBlocks(played.content).map((block) => [
+          block.id,
+          viewOf(block, played),
+        ]),
+      ),
+      attempt: played.attempt,
+      completedAt: completed
+        ? (own?.completedAt ?? context.now.toISOString())
+        : null,
+      score: own?.score ?? null,
+      position: own?.position ?? null,
       previous: states[index - 1]?.id ?? null,
       next:
         states[index + 1] && states[index + 1]?.state !== "locked"
@@ -858,104 +981,138 @@ export const playLesson = writeProcedure
     };
   });
 
-/** A student answers a quiz block; they learn at once whether it was right. */
-export const answer = writeProcedure
-  .input(answerSchema)
+/**
+ * A student answers a question. An auto-marked one is marked at once and
+ * says whether it was right, with the feedback of what they chose; its
+ * answer and explanation appear only once they get it right, run out of
+ * tries or ask for it. A written answer waits for the teacher when it
+ * carries points, and can be rewritten until it is marked.
+ */
+export const respond = writeProcedure
+  .input(respondSchema)
   .handler(async ({ input, context }) => {
-    const {
-      row,
-      studentId,
-      mine: progressRow,
-      content,
-    } = await playable(context, input.lessonId);
-    const block = quizBlocks(content).find((item) => item.id === input.blockId);
+    const played = await playable(context, input.lessonId);
+    const block = checkBlocks(played.content).find(
+      (item) => item.id === input.blockId,
+    );
     if (!block) throw new ORPCError("NOT_FOUND");
+    if (input.response.type !== block.type)
+      throw new ORPCError("BAD_REQUEST", { message: "learning.response" });
+    const state = played.checks[block.id];
+    if (block.type === "written" ? state?.marked : settled(block, state))
+      throw new ORPCError("CONFLICT", { message: "learning.settled" });
     if (
-      input.optionIds.some(
+      block.type === "choice" &&
+      input.response.type === "choice" &&
+      input.response.optionIds.some(
         (optionId) => !block.options.some((option) => option.id === optionId),
       )
     )
       throw new ORPCError("BAD_REQUEST", { message: "learning.option" });
-    const answers = answersOf(progressRow?.answers);
-    const correct = quizIsCorrect(block, input.optionIds);
-    answers.quiz[block.id] = {
-      optionIds: input.optionIds,
-      correct,
-      tries: (answers.quiz[block.id]?.tries ?? 0) + 1,
-    };
-    await recordProgress(context.tx, {
+    if (
+      block.type === "written" &&
+      input.response.type === "written" &&
+      block.wordLimit !== null &&
+      input.response.text.split(/\s+/).filter(Boolean).length > block.wordLimit
+    )
+      throw new ORPCError("BAD_REQUEST", { message: "learning.word_limit" });
+    const marked = isAuto(block) ? markResponse(block, input.response) : null;
+    await insertResponse(context.tx, {
       tenantId: context.tenantId,
-      lessonId: row.id,
-      studentId,
-      answers: answers as unknown as Record<string, unknown>,
-      score: lessonScore(content, answers),
-      attempt: true,
+      lessonId: played.row.id,
+      documentVersionId: played.versionId,
+      studentId: played.studentId,
+      blockId: block.id,
+      attempt: played.attempt,
+      try: (state?.tries ?? 0) + 1,
+      kind: block.type,
+      response: input.response,
+      fraction: marked ? marked.fraction : null,
+      state: marked
+        ? "answered"
+        : block.points > 0
+          ? "needs_marking"
+          : "answered",
     });
-    const completed = await settle(context, {
-      lesson: row,
-      content,
-      answers,
-      studentId,
-    });
+    const result = await settle(context, played);
+    const after = { ...played, rows: result.rows, checks: result.checks };
     return {
-      correct,
-      correctOptionIds: block.correctOptionIds,
-      explanation: block.explanation,
-      score: lessonScore(content, answers),
-      completed,
+      check: viewOf(block, after),
+      score: result.best,
+      completed: result.completed,
     };
   });
 
-export const reflect = writeProcedure
-  .input(reflectSchema)
+/** A student asks to see a question's answer; it counts for nothing after that. */
+export const reveal = writeProcedure
+  .input(revealSchema)
   .handler(async ({ input, context }) => {
-    const {
-      row,
-      studentId,
-      mine: progressRow,
-      content,
-    } = await playable(context, input.lessonId);
-    if (
-      !content.blocks.some(
-        (block) => block.type === "reflection" && block.id === input.blockId,
-      )
-    )
-      throw new ORPCError("NOT_FOUND");
-    const answers = answersOf(progressRow?.answers);
-    answers.reflections[input.blockId] = { text: input.text };
+    const played = await playable(context, input.lessonId);
+    const block = checkBlocks(played.content).find(
+      (item) => item.id === input.blockId,
+    );
+    if (!block || !isAuto(block)) throw new ORPCError("NOT_FOUND");
+    const state = played.checks[block.id];
+    if (!settled(block, state))
+      await insertResponse(context.tx, {
+        tenantId: context.tenantId,
+        lessonId: played.row.id,
+        documentVersionId: played.versionId,
+        studentId: played.studentId,
+        blockId: block.id,
+        attempt: played.attempt,
+        try: Math.max(1, state?.tries ?? 0),
+        kind: block.type,
+        response: {},
+        fraction: 0,
+        state: "revealed",
+      });
+    const result = await settle(context, played);
+    const after = { ...played, rows: result.rows, checks: result.checks };
+    return {
+      check: viewOf(block, after),
+      score: result.best,
+      completed: result.completed,
+    };
+  });
+
+/**
+ * Starts the lesson again with fresh questions once every one is settled, so
+ * an attempt is never left before showing an answer could lower its score.
+ * The best score so far stays.
+ */
+export const retry = writeProcedure
+  .input(v.object({ lessonId: id }))
+  .handler(async ({ input, context }) => {
+    const played = await playable(context, input.lessonId);
+    const auto = checkBlocks(played.content).filter(isAuto);
+    if (auto.length === 0)
+      throw new ORPCError("CONFLICT", { message: "learning.nothing_to_retry" });
+    if (!auto.every((block) => settled(block, played.checks[block.id])))
+      throw new ORPCError("CONFLICT", { message: "learning.not_done" });
     await recordProgress(context.tx, {
       tenantId: context.tenantId,
-      lessonId: row.id,
-      studentId,
-      answers: answers as unknown as Record<string, unknown>,
+      lessonId: played.row.id,
+      studentId: played.studentId,
+      nextAttempt: true,
     });
-    return {
-      completed: await settle(context, {
-        lesson: row,
-        content,
-        answers,
-        studentId,
-      }),
-    };
+    return { attempt: played.attempt + 1 };
   });
 
 /** A student says they are done; lessons with a stricter rule need that rule met. */
 export const complete = writeProcedure
   .input(v.object({ lessonId: id }))
   .handler(async ({ input, context }) => {
-    const {
-      row,
-      studentId,
-      mine: progressRow,
-      content,
-    } = await playable(context, input.lessonId);
-    const answers = answersOf(progressRow?.answers);
-    if (row.completion !== "mark" && !completionMet(row, content, answers))
+    const played = await playable(context, input.lessonId);
+    if (
+      played.row.completion !== "mark" &&
+      !completionMet(played.row, played.content, played.checks)
+    )
       throw new ORPCError("CONFLICT", { message: "learning.not_done" });
     await recordProgress(context.tx, {
       tenantId: context.tenantId,
-      lessonId: row.id,
-      studentId,
+      lessonId: played.row.id,
+      studentId: played.studentId,
       completed: { by: "student" },
     });
     return { completed: true };
@@ -973,4 +1130,125 @@ export const position = writeProcedure
       position: input.blockId,
     });
     return { saved: true };
+  });
+
+async function enrolledIn(
+  context: UnitContext,
+  moduleId: string,
+  studentId: string,
+) {
+  const classes = await classesOfModule(context.tx, context.tenantId, moduleId);
+  for (const item of classes)
+    if (
+      (
+        await rosterOf(context.tx, context.tenantId, item.id, context.today)
+      ).includes(studentId)
+    )
+      return true;
+  return false;
+}
+
+/** The written answers of a class in a module, for its teacher to read and mark. */
+export const answers = readProcedure
+  .input(progressQuerySchema)
+  .handler(async ({ input, context }) => {
+    const row = await editable(context, input.moduleId);
+    const classes = await classesOfModule(context.tx, context.tenantId, row.id);
+    if (!classes.some((item) => item.id === input.classId))
+      throw new ORPCError("NOT_FOUND");
+    const [lessons, roster] = await Promise.all([
+      lessonsOf(context.tx, context.tenantId, row.id),
+      rosterOf(context.tx, context.tenantId, input.classId, context.today),
+    ]);
+    const questions: {
+      lessonId: string;
+      lessonTitle: string;
+      blockId: string;
+      prompt: string;
+      points: number;
+    }[] = [];
+    for (const item of lessons) {
+      const published = await publishedLesson(context, item.id);
+      for (const block of checkBlocks(
+        published?.content ?? { version: 2, blocks: [] },
+      ))
+        if (block.type === "written")
+          questions.push({
+            lessonId: item.id,
+            lessonTitle: item.title,
+            blockId: block.id,
+            prompt: block.prompt,
+            points: block.points,
+          });
+    }
+    const [students, written] = await Promise.all([
+      namesOf(context.tx, context.tenantId, roster),
+      writtenAnswers(context.tx, {
+        tenantId: context.tenantId,
+        lessonIds: lessons.map((item) => item.id),
+        studentIds: roster,
+      }),
+    ]);
+    const asked = new Set(questions.map((question) => question.blockId));
+    return {
+      students,
+      questions,
+      answers: written.filter((answer) => asked.has(answer.blockId)),
+    };
+  });
+
+/**
+ * A teacher marks a written answer out of its points, with feedback the
+ * student reads; an answer worth no points takes feedback alone.
+ */
+export const mark = writeProcedure
+  .input(markSchema)
+  .handler(async ({ input, context }) => {
+    const row = await lessonById(context.tx, context.tenantId, input.lessonId);
+    if (!row) throw new ORPCError("NOT_FOUND");
+    const owner = await editable(context, row.moduleId);
+    if (!(await enrolledIn(context, owner.id, input.studentId)))
+      throw new ORPCError("NOT_FOUND");
+    const published = await publishedLesson(context, row.id);
+    const block = checkBlocks(
+      published?.content ?? { version: 2, blocks: [] },
+    ).find((item) => item.id === input.blockId);
+    if (!block || block.type !== "written") throw new ORPCError("NOT_FOUND");
+    if (input.points > block.points)
+      throw new ORPCError("BAD_REQUEST", { message: "learning.points_over" });
+    const answer = (
+      await writtenAnswers(context.tx, {
+        tenantId: context.tenantId,
+        lessonIds: [row.id],
+        studentIds: [input.studentId],
+      })
+    ).find((item) => item.blockId === block.id);
+    if (!answer) throw new ORPCError("NOT_FOUND");
+    await insertResponse(context.tx, {
+      tenantId: context.tenantId,
+      lessonId: row.id,
+      documentVersionId: published?.versionId ?? null,
+      studentId: input.studentId,
+      blockId: block.id,
+      attempt: answer.attempt,
+      try: answer.try,
+      kind: "written",
+      response: {},
+      fraction:
+        block.points === 0
+          ? null
+          : Math.round((input.points / block.points) * 10000) / 10000,
+      state: "marked",
+      feedback: input.feedback || null,
+      markedBy: context.actor.userId,
+    });
+    await audit(context, {
+      action: "lesson.mark",
+      objectType: "lesson",
+      objectId: row.id,
+      subjectUserId: input.studentId,
+      studentUserId: input.studentId,
+      details: { blockId: block.id, points: input.points },
+    });
+    return { marked: true };
   });

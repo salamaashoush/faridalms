@@ -1,7 +1,11 @@
 import { sql } from "drizzle-orm";
 
 import type { CellTransaction } from "../context";
-import type { LessonCompletion, ModuleState } from "../tables/learning";
+import type {
+  LessonCompletion,
+  ModuleState,
+  ResponseState,
+} from "../tables/learning";
 
 import { isoOf, uuidArray } from "./sql";
 
@@ -376,8 +380,8 @@ export interface ProgressRow {
   completedAt: string | null;
   completedBy: "student" | "teacher" | null;
   score: number | null;
+  bestScore: number | null;
   attempts: number;
-  answers: Record<string, unknown>;
   position: string | null;
 }
 
@@ -388,8 +392,8 @@ type ProgressRecord = {
   completed_at: string | null;
   completed_by: "student" | "teacher" | null;
   score: number | null;
+  best_score: number | null;
   attempts: number;
-  answers: Record<string, unknown>;
   position: string | null;
 };
 
@@ -401,8 +405,8 @@ function progressOf(row: ProgressRecord): ProgressRow {
     completedAt: row.completed_at,
     completedBy: row.completed_by,
     score: row.score,
+    bestScore: row.best_score,
     attempts: row.attempts,
-    answers: row.answers,
     position: row.position,
   };
 }
@@ -419,7 +423,7 @@ export async function progressIn(
   if (input.lessonIds.length === 0 || input.studentIds.length === 0) return [];
   const rows = await tx.execute<ProgressRecord>(sql`
     select lesson_id, student_user_id, ${isoOf(sql`started_at`)} as started_at,
-      ${isoOf(sql`completed_at`)} as completed_at, completed_by, score, attempts, answers, position
+      ${isoOf(sql`completed_at`)} as completed_at, completed_by, score, best_score, attempts, position
     from core.lesson_progress
     where tenant_id = ${input.tenantId}::uuid and status = 'active'
       and lesson_id = any(${uuidArray(input.lessonIds)})
@@ -437,9 +441,9 @@ export async function recordProgress(
     tenantId: string;
     lessonId: string;
     studentId: string;
-    answers?: Record<string, unknown>;
     score?: number | null;
-    attempt?: boolean;
+    /** Start the next attempt, keeping this one's score as the best so far. */
+    nextAttempt?: boolean;
     position?: string;
     completed?: { by: "student" | "teacher" } | null;
   },
@@ -449,9 +453,10 @@ export async function recordProgress(
     values (${input.tenantId}::uuid, ${input.lessonId}::uuid, ${input.studentId}::uuid)
     on conflict do nothing`);
   const sets = [
-    ...(input.answers ? [sql`answers = ${input.answers}::jsonb`] : []),
     ...(input.score === undefined ? [] : [sql`score = ${input.score}`]),
-    ...(input.attempt ? [sql`attempts = attempts + 1`] : []),
+    ...(input.nextAttempt
+      ? [sql`attempts = attempts + 1`, sql`best_score = score`]
+      : []),
     ...(input.position === undefined
       ? []
       : [sql`position = ${input.position}`]),
@@ -530,4 +535,190 @@ export async function studentModules(
     lessons: row.lessons,
     completed: row.completed,
   }));
+}
+
+export interface StoredResponse {
+  id: string;
+  blockId: string;
+  attempt: number;
+  try: number;
+  kind: string;
+  response: Record<string, unknown>;
+  fraction: number | null;
+  state: ResponseState;
+  feedback: string | null;
+  documentVersionId: string | null;
+  createdAt: string;
+}
+
+type ResponseRecord = {
+  id: string;
+  block_id: string;
+  attempt: number;
+  try: number;
+  kind: string;
+  response: Record<string, unknown>;
+  fraction: string | number | null;
+  state: ResponseState;
+  feedback: string | null;
+  document_version_id: string | null;
+  created_at: string;
+  student_user_id: string;
+  lesson_id: string;
+};
+
+const responseOf = (row: ResponseRecord): StoredResponse => ({
+  id: row.id,
+  blockId: row.block_id,
+  attempt: row.attempt,
+  try: row.try,
+  kind: row.kind,
+  response: row.response,
+  fraction: row.fraction === null ? null : Number(row.fraction),
+  state: row.state,
+  feedback: row.feedback,
+  documentVersionId: row.document_version_id,
+  createdAt: row.created_at,
+});
+
+/** A student's rows in one attempt at a lesson, in the order given. */
+export async function responsesOf(
+  tx: Tx,
+  input: {
+    tenantId: string;
+    lessonId: string;
+    studentId: string;
+    attempt: number;
+  },
+): Promise<StoredResponse[]> {
+  const rows = await tx.execute<ResponseRecord>(sql`
+    select id, block_id, attempt, try, kind, response, fraction, state, feedback,
+      document_version_id, ${isoOf(sql`created_at`)} as created_at, student_user_id, lesson_id
+    from core.lesson_responses
+    where tenant_id = ${input.tenantId}::uuid and lesson_id = ${input.lessonId}::uuid
+      and student_user_id = ${input.studentId}::uuid and attempt = ${input.attempt}
+    order by created_at, try, id`);
+  return rows.map(responseOf);
+}
+
+export async function insertResponse(
+  tx: Tx,
+  input: {
+    tenantId: string;
+    lessonId: string;
+    documentVersionId: string | null;
+    studentId: string;
+    blockId: string;
+    attempt: number;
+    try: number;
+    kind: string;
+    response: Record<string, unknown>;
+    fraction: number | null;
+    state: ResponseState;
+    feedback?: string | null;
+    markedBy?: string | null;
+  },
+): Promise<void> {
+  await tx.execute(sql`
+    insert into core.lesson_responses (tenant_id, lesson_id, document_version_id, student_user_id,
+      block_id, attempt, try, kind, response, fraction, state, feedback, marked_by_user_id)
+    values (${input.tenantId}::uuid, ${input.lessonId}::uuid, ${input.documentVersionId}::uuid,
+      ${input.studentId}::uuid, ${input.blockId}::uuid, ${input.attempt}, ${input.try}, ${input.kind},
+      ${input.response}::jsonb, ${input.fraction}, ${input.state}, ${input.feedback ?? null},
+      ${input.markedBy ?? null}::uuid)`);
+}
+
+export interface WrittenAnswer {
+  lessonId: string;
+  studentId: string;
+  blockId: string;
+  attempt: number;
+  try: number;
+  text: string;
+  sentAt: string;
+  /** The teacher's latest mark on this answer, if any. */
+  fraction: number | null;
+  feedback: string | null;
+  marked: boolean;
+}
+
+/**
+ * The latest written answer of each student to each question, in their
+ * current attempt, with its mark if it has one.
+ */
+export async function writtenAnswers(
+  tx: Tx,
+  input: {
+    tenantId: string;
+    lessonIds: readonly string[];
+    studentIds: readonly string[];
+  },
+): Promise<WrittenAnswer[]> {
+  if (input.lessonIds.length === 0 || input.studentIds.length === 0) return [];
+  const rows = await tx.execute<{
+    lesson_id: string;
+    student_user_id: string;
+    block_id: string;
+    attempt: number;
+    try: number;
+    text: string;
+    sent_at: string;
+    fraction: string | number | null;
+    feedback: string | null;
+    marked: boolean;
+  }>(sql`
+    with current as (
+      select p.lesson_id, p.student_user_id, p.attempts from core.lesson_progress p
+      where p.tenant_id = ${input.tenantId}::uuid and p.status = 'active'
+        and p.lesson_id = any(${uuidArray(input.lessonIds)})
+        and p.student_user_id = any(${uuidArray(input.studentIds)})
+    ), latest as (
+      select distinct on (r.lesson_id, r.student_user_id, r.block_id)
+        r.lesson_id, r.student_user_id, r.block_id, r.attempt, r.try, r.response->>'text' as text,
+        ${isoOf(sql`r.created_at`)} as sent_at
+      from core.lesson_responses r
+      join current c on c.lesson_id = r.lesson_id and c.student_user_id = r.student_user_id
+        and c.attempts = r.attempt
+      where r.tenant_id = ${input.tenantId}::uuid and r.kind = 'written'
+        and r.state in ('answered', 'needs_marking')
+      order by r.lesson_id, r.student_user_id, r.block_id, r.try desc, r.created_at desc
+    )
+    select l.*, m.fraction, m.feedback, m.id is not null as marked
+    from latest l
+    left join lateral (
+      select id, fraction, feedback from core.lesson_responses x
+      where x.tenant_id = ${input.tenantId}::uuid and x.lesson_id = l.lesson_id
+        and x.student_user_id = l.student_user_id and x.block_id = l.block_id
+        and x.attempt = l.attempt and x.try = l.try and x.state = 'marked'
+      order by x.created_at desc limit 1) m on true
+    order by l.sent_at`);
+  return rows.map((row) => ({
+    lessonId: row.lesson_id,
+    studentId: row.student_user_id,
+    blockId: row.block_id,
+    attempt: row.attempt,
+    try: row.try,
+    text: row.text,
+    sentAt: row.sent_at,
+    fraction: row.fraction === null ? null : Number(row.fraction),
+    feedback: row.feedback,
+    marked: row.marked,
+  }));
+}
+
+/** The lessons among these that have a published version students can play. */
+export async function publishedLessons(
+  tx: Tx,
+  tenantId: string,
+  lessonIds: readonly string[],
+): Promise<Set<string>> {
+  if (lessonIds.length === 0) return new Set();
+  const rows = await tx.execute<{ host_id: string }>(sql`
+    select d.host_id from core.documents d
+    where d.tenant_id = ${tenantId}::uuid and d.host_type = 'lesson' and d.status = 'active'
+      and d.translation_of_id is null and d.host_id = any(${uuidArray(lessonIds)})
+      and exists (select 1 from core.document_versions v
+        where v.tenant_id = d.tenant_id and v.document_id = d.id and v.reason = 'publish'
+          and v.redacted_at is null)`);
+  return new Set(rows.map((row) => row.host_id));
 }

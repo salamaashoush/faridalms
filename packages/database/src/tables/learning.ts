@@ -5,6 +5,7 @@ import {
   boolean,
   index,
   jsonb,
+  numeric,
   smallint,
   text,
   uniqueIndex,
@@ -20,9 +21,11 @@ import {
   entityProfile,
   fk,
   instant,
+  ledgerProfile,
   pk,
   tenantColumns,
 } from "./conventions";
+import { documentVersions } from "./documents";
 import { users } from "./people";
 import { classes } from "./teaching";
 import { orgs, tenants } from "./tenancy";
@@ -179,8 +182,9 @@ export const lessons = core.table.withRLS(
 );
 
 /**
- * Where a student is in a lesson: their answers, their score, and whether it
- * is done, by their own work or a teacher's override.
+ * Where a student is in a lesson: their score, where they stopped reading,
+ * and whether it is done, by their own work or a teacher's override. Their
+ * answers are the rows of `lesson_responses`.
  */
 export const lessonProgress = core.table.withRLS(
   "lesson_progress",
@@ -194,11 +198,10 @@ export const lessonProgress = core.table.withRLS(
     completedAt: instant("completed_at"),
     completedBy: text("completed_by").$type<"student" | "teacher">(),
     score: smallint("score"),
-    attempts: smallint("attempts").notNull().default(0),
-    answers: jsonb("answers")
-      .$type<Record<string, unknown>>()
-      .notNull()
-      .default(sql`'{}'`),
+    /** The best score of the attempts before this one; the score never drops below it. */
+    bestScore: smallint("best_score"),
+    /** The attempt the student is on; a fresh try at the whole lesson starts the next. */
+    attempts: smallint("attempts").notNull().default(1),
     position: text("position"),
     ...entityColumns(),
   },
@@ -230,12 +233,12 @@ export const lessonProgress = core.table.withRLS(
       "score",
       sql`score is null or score between 0 and 100`,
     ),
-    ck("lesson_progress", "attempts", sql`attempts between 0 and 1000`),
     ck(
       "lesson_progress",
-      "answers",
-      sql`jsonb_typeof(answers) = 'object' and octet_length(answers::text) <= 65536`,
+      "best_score",
+      sql`best_score is null or best_score between 0 and 100`,
     ),
+    ck("lesson_progress", "attempts", sql`attempts between 1 and 1000`),
     ck(
       "lesson_progress",
       "position",
@@ -248,5 +251,103 @@ export const lessonProgress = core.table.withRLS(
       .on(t.tenantId, t.studentUserId)
       .where(sql`status = 'active'`),
     ...entityProfile(),
+  ],
+);
+
+export type ResponseState =
+  | "answered"
+  | "revealed"
+  | "needs_marking"
+  | "marked";
+
+/**
+ * Every answer a student gives in a lesson, one row per try, never changed.
+ * A teacher's mark on a written answer is a further row for the same try, so
+ * the history stays whole. Each row names the published version of the
+ * lesson it answered, so an edit never slides a question under its answers.
+ */
+export const lessonResponses = core.table.withRLS(
+  "lesson_responses",
+  {
+    ...tenantColumns(),
+    lessonId: uuid("lesson_id").notNull(),
+    documentVersionId: uuid("document_version_id"),
+    studentUserId: uuid("student_user_id").notNull(),
+    blockId: uuid("block_id").notNull(),
+    attempt: smallint("attempt").notNull().default(1),
+    try: smallint("try").notNull(),
+    kind: text("kind").notNull(),
+    response: jsonb("response").$type<Record<string, unknown>>().notNull(),
+    /** From 0 to 1; empty while a written answer waits for its mark. */
+    fraction: numeric("fraction", { precision: 5, scale: 4, mode: "number" }),
+    state: text("state").$type<ResponseState>().notNull(),
+    feedback: text("feedback"),
+    markedByUserId: uuid("marked_by_user_id"),
+    createdAt: instant("created_at")
+      .notNull()
+      .default(sql`statement_timestamp()`),
+  },
+  (t): PgTableExtraConfigValue[] => [
+    pk("lesson_responses", t.tenantId, t.id),
+    fk("lesson_responses", [t.tenantId], [tenants.tenantId]),
+    fk(
+      "lesson_responses",
+      [t.tenantId, t.lessonId],
+      [lessons.tenantId, lessons.id],
+    ),
+    fk(
+      "lesson_responses",
+      [t.tenantId, t.documentVersionId],
+      [documentVersions.tenantId, documentVersions.id],
+    ),
+    fk(
+      "lesson_responses",
+      [t.tenantId, t.studentUserId],
+      [users.tenantId, users.id],
+    ),
+    fk(
+      "lesson_responses",
+      [t.tenantId, t.markedByUserId],
+      [users.tenantId, users.id],
+    ),
+    ck("lesson_responses", "attempt", sql`attempt between 1 and 1000`),
+    ck("lesson_responses", "try", sql`try between 1 and 1000`),
+    ck(
+      "lesson_responses",
+      "kind",
+      sql`kind in ('choice', 'text', 'gaps', 'number', 'written')`,
+    ),
+    ck(
+      "lesson_responses",
+      "response",
+      sql`jsonb_typeof(response) = 'object' and octet_length(response::text) <= 65536`,
+    ),
+    ck(
+      "lesson_responses",
+      "fraction",
+      sql`fraction is null or fraction between 0 and 1`,
+    ),
+    ck(
+      "lesson_responses",
+      "state",
+      sql`state in ('answered', 'revealed', 'needs_marking', 'marked')`,
+    ),
+    ck(
+      "lesson_responses",
+      "marked",
+      sql`(state = 'marked') = (marked_by_user_id is not null) and (state <> 'needs_marking' or fraction is null)`,
+    ),
+    ck(
+      "lesson_responses",
+      "feedback",
+      sql`feedback is null or char_length(feedback) between 1 and 2000`,
+    ),
+    index("lesson_responses_student_idx").on(
+      t.tenantId,
+      t.lessonId,
+      t.studentUserId,
+      t.attempt,
+    ),
+    ...ledgerProfile(),
   ],
 );

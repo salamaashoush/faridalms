@@ -1818,15 +1818,74 @@ async function seedLearning(
           blocks: [
             {
               id: quizId,
-              type: "quiz",
-              question: "Which of these is part of every story?",
+              type: "choice",
+              prompt: "Which of these is part of every story?",
+              points: 1,
+              hint: "Think about what makes the characters act.",
+              explanation: "Stories move because a problem needs solving.",
+              tries: null,
               options: [
-                { id: right, text: "A problem that gets solved" },
-                { id: Bun.randomUUIDv7(), text: "A dragon" },
-                { id: Bun.randomUUIDv7(), text: "A happy song" },
+                {
+                  id: right,
+                  text: "A problem that gets solved",
+                  feedback: "Yes: without a problem, nothing happens.",
+                },
+                {
+                  id: Bun.randomUUIDv7(),
+                  text: "A dragon",
+                  feedback: "Some stories have dragons, but most do not.",
+                },
+                {
+                  id: Bun.randomUUIDv7(),
+                  text: "A happy song",
+                  feedback: "",
+                },
               ],
               correctOptionIds: [right],
-              explanation: "Stories move because a problem needs solving.",
+              multiple: false,
+              shuffle: true,
+            },
+            {
+              id: Bun.randomUUIDv7(),
+              type: "text",
+              prompt: "What do we call the place and time a story happens?",
+              points: 1,
+              hint: "It starts with s.",
+              explanation: "The setting is where and when a story happens.",
+              tries: 3,
+              answers: ["setting", "المكان والزمان"],
+              caseSensitive: false,
+              closeEnough: true,
+              tehMarbuta: true,
+            },
+            {
+              id: Bun.randomUUIDv7(),
+              type: "gaps",
+              prompt: "Complete the sentence.",
+              points: 2,
+              hint: "",
+              explanation: "",
+              tries: null,
+              caseSensitive: false,
+              closeEnough: true,
+              tehMarbuta: false,
+              segments: [
+                { type: "text", text: "The people in a story are its " },
+                {
+                  type: "gap",
+                  id: Bun.randomUUIDv7(),
+                  answers: ["characters"],
+                  options: [],
+                },
+                { type: "text", text: ", and the story ends when the " },
+                {
+                  type: "gap",
+                  id: Bun.randomUUIDv7(),
+                  answers: ["problem"],
+                  options: ["problem", "setting", "title"],
+                },
+                { type: "text", text: " is solved." },
+              ],
             },
           ],
         },
@@ -1836,9 +1895,14 @@ async function seedLearning(
           blocks: [
             {
               id: Bun.randomUUIDv7(),
-              type: "reflection",
+              type: "written",
               prompt:
                 "Which story do you love, and what problem does it solve?",
+              points: 4,
+              hint: "",
+              explanation: "",
+              tries: null,
+              wordLimit: 200,
             },
           ],
         },
@@ -1889,17 +1953,26 @@ async function seedLearning(
         passScore: null,
       });
       lessonIds.push(row.id);
-      const content = { version: 1, blocks: lesson.blocks };
-      await tx.insert(documents).values({
-        tenantId,
-        hostType: "lesson",
-        hostId: row.id,
-        orgId: schoolId,
-        kind: "lesson",
-        schemaVersion: 1,
-        content,
-        plainText: lesson.title,
-      });
+      const content = { version: 2, blocks: lesson.blocks };
+      const [document] = await tx
+        .insert(documents)
+        .values({
+          tenantId,
+          hostType: "lesson",
+          hostId: row.id,
+          orgId: schoolId,
+          kind: "lesson",
+          schemaVersion: 2,
+          content,
+          plainText: lesson.title,
+        })
+        .returning({ id: documents.id });
+      if (plan.published && document)
+        await snapshotPublish(tx, {
+          tenantId,
+          documentId: document.id,
+          userId: homeroom.teacher_id,
+        });
     }
     if (plan.published)
       await setModuleState(tx, {

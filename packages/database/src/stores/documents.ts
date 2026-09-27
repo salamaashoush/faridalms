@@ -250,6 +250,7 @@ export async function snapshotPublish(
 }
 
 export interface PublishedVersion {
+  id: string;
   documentVersion: number;
   content: Record<string, unknown>;
   plainText: string;
@@ -262,16 +263,18 @@ export async function publishedVersion(
   documentId: string,
 ): Promise<PublishedVersion | null> {
   const [row] = await tx.execute<{
+    id: string;
     document_version: number;
     content: Record<string, unknown>;
     plain_text: string;
   }>(sql`
-    select document_version, content, plain_text from core.document_versions
+    select id, document_version, content, plain_text from core.document_versions
     where tenant_id = ${tenantId}::uuid and document_id = ${documentId}::uuid
       and reason = 'publish' and redacted_at is null
     order by created_at desc, document_version desc limit 1`);
   return row
     ? {
+        id: row.id,
         documentVersion: row.document_version,
         content: row.content,
         plainText: row.plain_text,
