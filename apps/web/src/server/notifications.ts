@@ -2,15 +2,11 @@ import {
   deliveryAuditQuerySchema,
   markNotificationsReadSchema,
   notificationsQuerySchema,
-  publishNewsletterDraftSchema,
   saveNotificationPreferencesSchema,
 } from "@faridalms/domain/notification";
 import { createServerFn } from "@tanstack/react-start";
-import * as v from "valibot";
 
 import { backend } from "./backend";
-
-const id = v.pipe(v.string(), v.uuid());
 
 export const getNotifications = createServerFn({ method: "GET" })
   .inputValidator(notificationsQuerySchema)
@@ -30,10 +26,3 @@ export const saveNotificationPreferences = createServerFn({ method: "POST" })
 export const getNotificationAudit = createServerFn({ method: "GET" })
   .inputValidator(deliveryAuditQuerySchema)
   .handler(({ data }) => backend().getNotificationAudit(data));
-
-export const publishNewsletterDraft = createServerFn({ method: "POST" })
-  .inputValidator(publishNewsletterDraftSchema)
-  .handler(({ data }) => backend().publishNewsletterDraft(data));
-export const getNewsletter = createServerFn({ method: "GET" })
-  .inputValidator(v.object({ id }))
-  .handler(({ data }) => backend().getNewsletter(data));

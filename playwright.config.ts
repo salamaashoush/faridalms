@@ -28,6 +28,7 @@ export default defineConfig({
     "timetable.spec.ts",
     "messages.spec.ts",
     "announcements.spec.ts",
+    "newsletters.spec.ts",
   ],
   /* Run tests in files in parallel */
   fullyParallel: true,

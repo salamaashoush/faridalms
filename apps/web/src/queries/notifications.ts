@@ -1,7 +1,6 @@
 import { queryOptions } from "@tanstack/react-query";
 
 import {
-  getNewsletter,
   getNotificationAudit,
   getNotificationPreferences,
   getNotifications,
@@ -31,9 +30,4 @@ export const notificationAuditQuery = (query: {
   queryOptions({
     queryKey: ["notifications", "audit", query],
     queryFn: () => getNotificationAudit({ data: query }),
-  });
-export const newsletterQuery = (id: string) =>
-  queryOptions({
-    queryKey: ["newsletters", "edition", id],
-    queryFn: () => getNewsletter({ data: { id } }),
   });

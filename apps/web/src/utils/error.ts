@@ -110,10 +110,6 @@ export function getMessageFromError(error: unknown): string {
         return m.errorEnrollmentOutsideYear();
       case "content.invalid":
         return m.contentInvalid();
-      case "newsletter.revision_conflict":
-        return m.newsletterDraftConflict();
-      case "newsletter.invalid_text":
-        return m.newsletterInvalidText();
       case "message_draft.revision_conflict":
         return m.messageDraftConflict();
       case "message_draft.incomplete":
@@ -128,6 +124,14 @@ export function getMessageFromError(error: unknown): string {
         return m.annErrNoAck();
       case "announcements.audience_target":
         return m.annAudienceTarget();
+      case "newsletters.archived":
+        return m.nlErrArchived();
+      case "newsletters.already_out":
+        return m.nlErrAlreadyOut();
+      case "newsletters.nobody":
+        return m.annErrNobody();
+      case "newsletters.no_sections":
+        return m.nlSectionsNeeded();
       case "messages.no_guardians":
         return m.msgNoGuardians();
       case "messages.recipient":
@@ -273,10 +277,6 @@ export function getMessageFromError(error: unknown): string {
         return m.announcementNotFound();
       case "announcement.incomplete":
         return m.announcementIncomplete();
-      case "newsletter.incomplete":
-        return m.newsletterIncomplete();
-      case "newsletter.not_found":
-        return m.academicYearNotFound();
       case "site.revision_conflict":
         return m.siteRevisionConflict();
       case "site.slug_taken":

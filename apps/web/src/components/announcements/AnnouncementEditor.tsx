@@ -1,38 +1,31 @@
-import type {
-  AudienceInput,
-  AudienceScope,
-  Urgency,
-} from "@faridalms/domain/announcements";
+import type { AudienceInput, Urgency } from "@faridalms/domain/announcements";
 import type { ContentDocument } from "@faridalms/domain/content";
 
-import { AUDIENCE_SCOPES, URGENCIES } from "@faridalms/domain/announcements";
+import { URGENCIES } from "@faridalms/domain/announcements";
 import { emptyContent } from "@faridalms/domain/content-conversion";
 import {
   useMutation,
   useQueryClient,
   useSuspenseQuery,
 } from "@tanstack/react-query";
-import { Plus, X } from "lucide-react";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 
 import type { announcementEditorQuery } from "~/queries/announcements";
 
-import { classTitle } from "~/components/classes/format";
 import { ContentEditor } from "~/components/content/ContentEditor";
 import { useDocumentMedia } from "~/components/coursework/useDocumentMedia";
 import { CheckboxRow } from "~/components/people/fields";
 import { FormField, SelectField, TextField } from "~/components/system/field";
 import { FormSection, RecordForm } from "~/components/system/RecordForm";
-import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
-import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { announcementOptionsQuery } from "~/queries/announcements";
 import { publishAnnouncement, saveAnnouncement } from "~/server/announcements";
 import { getMessageFromError } from "~/utils/error";
 
-import { SCOPE_LABEL, URGENCY_LABEL } from "./format";
+import { AudienceList, audienceIssue } from "./AudienceList";
+import { URGENCY_LABEL } from "./format";
 
 type Existing = Awaited<
   ReturnType<NonNullable<ReturnType<typeof announcementEditorQuery>["queryFn"]>>
@@ -124,21 +117,10 @@ export function AnnouncementEditor({
   });
   const issues = {
     title: draft.title.trim() ? null : m.annTitleNeeded(),
-    audiences: draft.audiences.some(
-      (row) =>
-        (row.scope === "class" && !row.classId) ||
-        (row.scope === "grade" && !row.gradeId),
-    )
-      ? m.annAudienceTarget()
-      : null,
+    audiences: audienceIssue(draft.audiences),
     sendAt:
       draft.when === "later" && !draft.sendAt ? m.annSendAtNeeded() : null,
   };
-  const setAudience = (index: number, next: AudienceInput) =>
-    set(
-      "audiences",
-      draft.audiences.map((row, at) => (at === index ? next : row)),
-    );
   const failure = save.error ?? publish.error;
   return (
     <RecordForm
@@ -218,109 +200,12 @@ export function AnnouncementEditor({
         title={m.annSectionAudience()}
         description={m.annAudienceHint()}
       >
-        <div className="grid gap-3">
-          {draft.audiences.map((row, index) => (
-            <div key={index} className="flex flex-wrap items-end gap-2">
-              <SelectField
-                id={`audience-${index}-scope`}
-                label={m.annAudience()}
-                labelHidden={index > 0}
-                width="name"
-                className="w-48"
-                value={row.scope}
-                options={AUDIENCE_SCOPES.map((scope) => ({
-                  value: scope,
-                  label: SCOPE_LABEL[scope](),
-                }))}
-                onChange={(scope: AudienceScope) =>
-                  setAudience(index, { scope, classId: "", gradeId: "" })
-                }
-              />
-              {row.scope === "class" ? (
-                <SelectField
-                  id={`audience-${index}-class`}
-                  label={m.annClass()}
-                  labelHidden={index > 0}
-                  width="name"
-                  className="w-48"
-                  value={row.classId}
-                  options={[
-                    { value: "", label: m.annPickClass() },
-                    ...options.classes.map((item) => ({
-                      value: item.id,
-                      label: classTitle(item),
-                    })),
-                  ]}
-                  onChange={(classId) =>
-                    setAudience(index, { ...row, classId })
-                  }
-                />
-              ) : row.scope === "grade" ? (
-                <SelectField
-                  id={`audience-${index}-grade`}
-                  label={m.annGrade()}
-                  labelHidden={index > 0}
-                  width="name"
-                  className="w-48"
-                  value={row.gradeId}
-                  options={[
-                    { value: "", label: m.annPickGrade() },
-                    ...options.grades.map((item) => ({
-                      value: item.id,
-                      label: inLocale(item.labelEn, item.labelAr),
-                    })),
-                  ]}
-                  onChange={(gradeId) =>
-                    setAudience(index, { ...row, gradeId })
-                  }
-                />
-              ) : null}
-              {draft.audiences.length > 1 ? (
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="icon"
-                  className="max-md:size-10"
-                  aria-label={m.annRemoveAudience()}
-                  onClick={() =>
-                    set(
-                      "audiences",
-                      draft.audiences.filter((_, at) => at !== index),
-                    )
-                  }
-                >
-                  <X aria-hidden />
-                </Button>
-              ) : null}
-            </div>
-          ))}
-          {shown && issues.audiences ? (
-            <p
-              role="alert"
-              className="text-[13px] leading-[18px] text-destructive"
-            >
-              {issues.audiences}
-            </p>
-          ) : null}
-          {draft.audiences.length < 20 ? (
-            <div>
-              <Button
-                type="button"
-                variant="outline"
-                className="max-md:h-10"
-                onClick={() =>
-                  set("audiences", [
-                    ...draft.audiences,
-                    { scope: "class", classId: "", gradeId: "" },
-                  ])
-                }
-              >
-                <Plus aria-hidden />
-                {m.annAddAudience()}
-              </Button>
-            </div>
-          ) : null}
-        </div>
+        <AudienceList
+          value={draft.audiences}
+          onChange={(audiences) => set("audiences", audiences)}
+          choices={options}
+          error={shown ? issues.audiences : null}
+        />
       </FormSection>
       <FormSection title={m.annSectionDelivery()}>
         <SelectField

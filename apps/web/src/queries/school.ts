@@ -1,7 +1,6 @@
 import type { ManagementOptionsInput } from "@faridalms/domain/administration-schema";
 import type {
   CalendarQuery,
-  NewslettersQuery,
   StudentScopedQuery,
 } from "@faridalms/domain/school-schema";
 
@@ -12,7 +11,6 @@ import {
   getCalendar,
   getFamilyOverview,
   getManagementOptions,
-  getNewsletters,
   getStudent,
   getStudentOverview,
   getTeachingOverview,
@@ -56,14 +54,6 @@ export function managementOptionsQuery(query: ManagementOptionsInput) {
   return queryOptions({
     queryKey: ["management-options", query],
     queryFn: () => getManagementOptions({ data: query }),
-  });
-}
-
-export function newslettersQuery(query: NewslettersQuery) {
-  return queryOptions({
-    queryKey: ["newsletters", query],
-    queryFn: () => getNewsletters({ data: query }),
-    placeholderData: (previous) => previous,
   });
 }
 

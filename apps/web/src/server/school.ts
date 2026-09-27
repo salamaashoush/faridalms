@@ -1,11 +1,7 @@
-import {
-  publishNewsletterSchema,
-  managementOptionsSchema,
-} from "@faridalms/domain/administration-schema";
+import { managementOptionsSchema } from "@faridalms/domain/administration-schema";
 import {
   calendarEventSchema,
   calendarQuerySchema,
-  newslettersQuerySchema,
   studentScopedQuerySchema,
 } from "@faridalms/domain/school-schema";
 import { createServerFn } from "@tanstack/react-start";
@@ -37,10 +33,6 @@ export const getAdminOverview = createServerFn({ method: "GET" }).handler(() =>
   backend().getAdminOverview(),
 );
 
-export const getNewsletters = createServerFn({ method: "GET" })
-  .validator((input: unknown) => v.parse(newslettersQuerySchema, input))
-  .handler(({ data }) => backend().getNewsletters(data));
-
 export const getCalendar = createServerFn({ method: "GET" })
   .validator((input: unknown) => v.parse(calendarQuerySchema, input))
   .handler(({ data }) => backend().getCalendar(data));
@@ -52,7 +44,3 @@ export const saveCalendarEvent = createServerFn({ method: "POST" })
 export const getManagementOptions = createServerFn({ method: "GET" })
   .validator((input: unknown) => v.parse(managementOptionsSchema, input))
   .handler(({ data }) => backend().getManagementOptions(data));
-
-export const publishNewsletter = createServerFn({ method: "POST" })
-  .validator((input: unknown) => v.parse(publishNewsletterSchema, input))
-  .handler(({ data }) => backend().publishNewsletter(data));
