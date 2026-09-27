@@ -56,6 +56,9 @@ export const BADGES = [
   "cognia",
 ] as const;
 export const AUDIENCES = ["student", "parent", "staff", "alumni"] as const;
+/** Quiet textures a section can lay over its colour. */
+export const PATTERNS = ["none", "dots", "grid", "lines", "grain"] as const;
+export type Pattern = (typeof PATTERNS)[number];
 
 type TextField = { kind: "text"; max: number; multiline?: boolean };
 type RichField = { kind: "rich" };
@@ -237,12 +240,17 @@ interface SectionSpec {
 export const SECTION_SPECS = {
   hero: {
     category: "intro",
-    variants: ["fullbleed", "split", "inset", "type"],
+    variants: ["fullbleed", "split", "inset", "type", "collage", "statement"],
     fields: {
       eyebrow: t(80),
       heading,
       text: t(500, true),
       media: { kind: "media" },
+      more: {
+        kind: "items",
+        max: 2,
+        fields: { image: { kind: "image" } },
+      },
       actions: { kind: "links", max: 3 },
       height: { kind: "choice", options: ["m", "s", "l", "screen"] },
     },
@@ -647,6 +655,7 @@ export const sectionStyleSchema = v.object({
   align: v.optional(v.picklist(["start", "center"]), "start"),
   dividerTop: v.optional(v.picklist(DIVIDERS), "none"),
   dividerBottom: v.optional(v.picklist(DIVIDERS), "none"),
+  pattern: v.optional(v.picklist(PATTERNS), "none"),
   anchor: v.optional(
     v.union([
       v.literal(""),
