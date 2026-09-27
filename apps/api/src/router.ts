@@ -1,8 +1,6 @@
 import * as administration from "./modules/administration";
-import * as overviews from "./modules/overviews";
 import * as search from "./modules/search";
 import * as students from "./modules/students";
-import * as teaching from "./modules/teaching";
 import * as accessSystem from "./systems/access";
 import * as announcementsSystem from "./systems/announcements";
 import * as attendanceSystem from "./systems/attendance";
@@ -12,6 +10,7 @@ import * as courseworkSystem from "./systems/coursework";
 import * as documentsSystem from "./systems/documents";
 import * as filesSystem from "./systems/files";
 import * as gradebookSystem from "./systems/gradebook";
+import * as homeSystem from "./systems/home";
 import * as identity from "./systems/identity";
 import * as learningSystem from "./systems/learning";
 import * as messagesSystem from "./systems/messages";
@@ -47,9 +46,8 @@ export const router = {
   notifications: notificationsSystem,
   learning: learningSystem,
   site: siteSystem,
+  home: homeSystem,
   ...students,
-  ...overviews,
-  ...teaching,
   ...administration,
   ...search,
 };
