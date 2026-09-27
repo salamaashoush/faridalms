@@ -15,6 +15,16 @@ import {
   descriptorsFor,
 } from "@faridalms/database/stores/descriptors";
 import { historyOf } from "@faridalms/database/stores/history";
+import {
+  addHouseholdMember,
+  endHouseholdMember,
+  householdById,
+  householdsForSchool,
+  householdsOf,
+  insertHousehold,
+  searchReached,
+  updateHousehold,
+} from "@faridalms/database/stores/households";
 import { schoolProfile } from "@faridalms/database/stores/identity";
 import {
   childrenOf,
@@ -59,6 +69,11 @@ import {
   endRelationshipSchema,
   guardianLookupSchema,
   accountStateSchema,
+  addHouseholdMemberSchema,
+  endHouseholdMemberSchema,
+  householdsQuerySchema,
+  personSearchSchema,
+  saveHouseholdSchema,
   saveRelationshipSchema,
   saveSignInSchema,
   saveStaffSchema,
@@ -1063,4 +1078,162 @@ export const setSignInState = writeProcedure
       subjectUserId: input.userId,
     });
     return { state: input.state };
+  });
+
+export const households = readProcedure
+  .input(householdsQuerySchema)
+  .handler(async ({ input, context }) => {
+    requireCapability(context, "people:read", "people:manage");
+    const { rows, total } = await householdsForSchool(
+      context.tx,
+      scopeOf(context),
+      {
+        q: input.q,
+        page: input.page,
+        pageSize: input.pageSize,
+        locale: localeOf(context),
+      },
+    );
+    return {
+      rows,
+      total,
+      page: input.page,
+      pages: Math.max(1, Math.ceil(total / input.pageSize)),
+      manage: can(context, "people:manage") || can(context, "guardians:manage"),
+    };
+  });
+
+export const household = readProcedure
+  .input(v.object({ id }))
+  .handler(async ({ input, context }) => {
+    requireCapability(context, "people:read", "people:manage");
+    const row = await householdById(context.tx, scopeOf(context), input.id);
+    if (!row) throw new ORPCError("NOT_FOUND");
+    return {
+      ...row,
+      manage: can(context, "people:manage") || can(context, "guardians:manage"),
+    };
+  });
+
+/** The households a student or person lives in, for their record. */
+export const householdsOfPerson = readProcedure
+  .input(v.object({ userId: id }))
+  .handler(async ({ input, context }) => {
+    requireCapability(context, "people:read", "people:manage");
+    const scope = scopeOf(context);
+    const reached =
+      (await isVisibleStudent(context.tx, scope, input.userId)) ||
+      (await isVisiblePerson(context.tx, scope, input.userId));
+    if (!reached) throw new ORPCError("NOT_FOUND");
+    return householdsOf(
+      context.tx,
+      context.tenantId,
+      input.userId,
+      context.today,
+    );
+  });
+
+export const saveHousehold = writeProcedure
+  .input(saveHouseholdSchema)
+  .handler(async ({ input, context }) => {
+    requireCapability(context, "people:manage", "guardians:manage");
+    if (!input.nameEn && !input.nameAr)
+      throw new ORPCError("BAD_REQUEST", {
+        message: "validation.name_required",
+      });
+    const fields = {
+      nameEn: input.nameEn,
+      nameAr: input.nameAr,
+      primaryLanguage: input.primaryLanguage || null,
+    };
+    if (!input.id) {
+      const created = await insertHousehold(context.tx, {
+        tenantId: context.tenantId,
+        ...fields,
+      });
+      await audit(context, {
+        action: "household.create",
+        objectType: "household",
+        objectId: created.id,
+        change: { table: "core.households", before: null, after: fields },
+      });
+      return created;
+    }
+    if (!(await householdById(context.tx, scopeOf(context), input.id)))
+      throw new ORPCError("NOT_FOUND");
+    const saved = await updateHousehold(context.tx, {
+      tenantId: context.tenantId,
+      id: input.id,
+      expectedVersion: input.expectedVersion ?? 0,
+      ...fields,
+    });
+    if (!saved)
+      throw new ORPCError("CONFLICT", { message: "conflict.version" });
+    await audit(context, {
+      action: "household.update",
+      objectType: "household",
+      objectId: input.id,
+      details: { changed: ["name_en", "name_ar", "primary_language"] },
+    });
+    return saved;
+  });
+
+export const addToHousehold = writeProcedure
+  .input(addHouseholdMemberSchema)
+  .handler(async ({ input, context }) => {
+    requireCapability(context, "people:manage", "guardians:manage");
+    const scope = scopeOf(context);
+    if (!(await householdById(context.tx, scope, input.householdId)))
+      throw new ORPCError("NOT_FOUND");
+    const reached =
+      (await isVisibleStudent(context.tx, scope, input.userId)) ||
+      (await isVisiblePerson(context.tx, scope, input.userId));
+    if (!reached) throw new ORPCError("NOT_FOUND");
+    const memberId = await addHouseholdMember(context.tx, {
+      tenantId: context.tenantId,
+      householdId: input.householdId,
+      userId: input.userId,
+      kind: input.kind,
+      residence: input.residence,
+      from: context.today,
+    });
+    await audit(context, {
+      action: "household.member_add",
+      objectType: "household",
+      objectId: input.householdId,
+      subjectUserId: input.userId,
+      details: { kind: input.kind, residence: input.residence },
+    });
+    return { id: memberId };
+  });
+
+export const endHouseholdMembership = writeProcedure
+  .input(endHouseholdMemberSchema)
+  .handler(async ({ input, context }) => {
+    requireCapability(context, "people:manage", "guardians:manage");
+    if (!(await householdById(context.tx, scopeOf(context), input.householdId)))
+      throw new ORPCError("NOT_FOUND");
+    const userId = await endHouseholdMember(context.tx, {
+      tenantId: context.tenantId,
+      householdId: input.householdId,
+      id: input.memberId,
+      expectedVersion: input.expectedVersion,
+      today: context.today,
+    });
+    if (!userId)
+      throw new ORPCError("CONFLICT", { message: "conflict.version" });
+    await audit(context, {
+      action: "household.member_end",
+      objectType: "household",
+      objectId: input.householdId,
+      subjectUserId: userId,
+    });
+    return { ended: true };
+  });
+
+export const searchPeople = readProcedure
+  .input(personSearchSchema)
+  .handler(async ({ input, context }) => {
+    requireCapability(context, "people:manage", "guardians:manage");
+    return searchReached(context.tx, scopeOf(context), input.q);
   });

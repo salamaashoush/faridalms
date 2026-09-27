@@ -464,3 +464,65 @@ describe("sign-in", () => {
     ).toMatchObject({ code: "FORBIDDEN" });
   });
 });
+
+describe("households", () => {
+  test("the Families list shows each household with its adults and children", async () => {
+    const api = await signedIn("northwind", login("principal"));
+    const list = await api.people.households({});
+    expect(list.total).toBeGreaterThan(0);
+    const family = list.rows[0];
+    if (!family) throw new Error("seed household");
+    expect(family.members.some((member) => member.kind === "adult")).toBe(true);
+    expect(family.members.some((member) => member.kind === "child")).toBe(true);
+    const student = family.members.find((member) => member.kind === "child");
+    if (!student) throw new Error("seed child");
+    const ofStudent = await api.people.householdsOfPerson({
+      userId: student.userId,
+    });
+    expect(ofStudent.map((row) => row.id)).toContain(family.id);
+  });
+
+  test("a child joins a second household as a secondary home, then leaves it", async () => {
+    const api = await signedIn("northwind", login("principal"));
+    const list = await api.people.students({ q: "GA1006" });
+    const studentId = list.rows[0]?.id ?? "";
+    const created = await api.people.saveHousehold({
+      nameEn: "Father's home",
+      nameAr: "منزل الأب",
+    });
+    await api.people.addToHousehold({
+      householdId: created.id,
+      userId: studentId,
+      kind: "child",
+      residence: "secondary",
+    });
+    const homes = await api.people.householdsOfPerson({ userId: studentId });
+    expect(homes.find((row) => row.id === created.id)?.residence).toBe(
+      "secondary",
+    );
+    const household = await api.people.household({ id: created.id });
+    const member = household.members.find((row) => row.userId === studentId);
+    if (!member) throw new Error("member missing");
+    await api.people.endHouseholdMembership({
+      householdId: created.id,
+      memberId: member.id,
+      expectedVersion: member.version,
+    });
+    expect(
+      (await api.people.householdsOfPerson({ userId: studentId })).map(
+        (row) => row.id,
+      ),
+    ).not.toContain(created.id);
+  });
+
+  test("a teacher cannot change households and a parent cannot list them", async () => {
+    const teacher = await signedIn("northwind", login("teacher"));
+    expect(
+      await rejection(teacher.people.saveHousehold({ nameEn: "Nope" })),
+    ).toMatchObject({ code: "FORBIDDEN" });
+    const parent = await signedIn("northwind", login("parent"));
+    expect(await rejection(parent.people.households({}))).toMatchObject({
+      code: "FORBIDDEN",
+    });
+  });
+});

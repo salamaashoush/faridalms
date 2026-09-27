@@ -247,6 +247,44 @@ export const saveCustodySchema = v.object({
   pickup: v.nullable(v.picklist(["allowed", "not_allowed", "ask_office"])),
 });
 
+export const householdsQuerySchema = v.object({
+  q: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(100)), ""),
+  page: v.optional(
+    v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(10000)),
+    1,
+  ),
+  pageSize: v.optional(v.picklist([25, 50]), 25),
+});
+export type HouseholdsQuery = v.InferOutput<typeof householdsQuerySchema>;
+
+export const saveHouseholdSchema = v.object({
+  id: v.optional(id),
+  expectedVersion: v.optional(version),
+  nameEn: optionalText(120),
+  nameAr: optionalText(120),
+  primaryLanguage: v.optional(
+    v.union([v.literal(""), v.pipe(v.string(), v.regex(/^[a-z]{2,3}$/))]),
+    "",
+  ),
+});
+
+export const addHouseholdMemberSchema = v.object({
+  householdId: id,
+  userId: id,
+  kind: v.picklist(["adult", "child"]),
+  residence: v.optional(v.picklist(["primary", "secondary"]), "primary"),
+});
+
+export const endHouseholdMemberSchema = v.object({
+  householdId: id,
+  memberId: id,
+  expectedVersion: version,
+});
+
+export const personSearchSchema = v.object({
+  q: v.pipe(v.string(), v.trim(), v.minLength(2), v.maxLength(100)),
+});
+
 export const setFeatureSchema = v.object({
   feature: v.picklist(FEATURES),
   enabled: v.boolean(),
