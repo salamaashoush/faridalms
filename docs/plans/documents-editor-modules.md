@@ -42,9 +42,10 @@ section 4).
    translation marked reviewed shows when the original changed after the
    review. The migration joins each edition's sections into one document,
    headings becoming level-two headings.
-3. **Calendar events**: DocumentPage with the description as the document
-   and dates, place, audiences, kind and public flag in the details panel;
-   event page as a reader.
+3. **Calendar events** (done 2026-09-27): DocumentPage with the
+   description as the document and dates, place, audiences, kind, public
+   flag and telling in the details panel; an event reads in a side panel
+   over the calendar instead of on its own page.
 4. **Assignments**: DocumentPage with the brief as the document; due dates,
    audience, grading and hand-in settings in the details panel. A quiz's
    questions become question blocks in the same document instead of a

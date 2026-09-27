@@ -30,6 +30,13 @@ as school days.
   with `calendar:manage`, which also decides whether an event is public.
 - The month grid and agenda filter by kind from the legend, kept in the
   address, and a family with several children narrows the calendar to one.
+- An event opens in a side panel over the calendar, its address carrying the
+  event so it can be shared; links from feeds, notices and search open the
+  same panel over the event's month.
+- Events are written as documents: the title and description take the page,
+  and when, where, kind, audience, website and telling sit in the details
+  panel. Drafts save themselves once they have a title and possible times;
+  edits to a published event wait for Update.
 
 ## Beyond the app
 
