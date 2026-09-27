@@ -269,6 +269,12 @@
   background: var(--fe-subtle);
   font-weight: 600;
 }
+.fe .fe-table-striped tr:nth-child(even) > .fe-cell:not(.fe-cell-header) {
+  background: color-mix(in oklab, var(--fe-subtle) 70%, transparent);
+}
+.fe .fe-cell > .fe-p {
+  margin: 0;
+}
 .fe .fe-cell-selected {
   background: color-mix(in oklab, var(--fe-accent) 14%, transparent);
 }

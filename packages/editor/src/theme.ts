@@ -70,6 +70,7 @@ export const editorTheme: EditorThemeClasses = {
   tableCellHeader: "fe-cell-header",
   tableSelection: "fe-table-selection",
   tableCellSelected: "fe-cell-selected",
+  tableRowStriping: "fe-table-striped",
   hr: "fe-hr",
   hrSelected: "fe-hr-selected",
   callout: "fe-callout",

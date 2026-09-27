@@ -501,7 +501,8 @@ function $selectInside(node: LexicalNode) {
 
 function $createStructure(type: BlockType): LexicalNode | null {
   if (type === "divider") return $createHorizontalRuleNode();
-  if (type === "table") return $createTableNodeWithDimensions(3, 3, true);
+  if (type === "table")
+    return $createTableNodeWithDimensions(3, 3, { rows: true, columns: false });
   if (type === "columns2" || type === "columns3") {
     const columns = $createColumnsNode(type === "columns2" ? "1:1" : "1:1:1");
     for (let index = 0; index < (type === "columns2" ? 2 : 3); index++)

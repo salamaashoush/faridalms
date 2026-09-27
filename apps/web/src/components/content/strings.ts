@@ -1,6 +1,7 @@
 import type { EditorStrings } from "@faridalms/editor/strings";
 
 import * as m from "~/i18n/messages";
+import { formatNumber } from "~/utils/datetime";
 
 export function editorStrings(): EditorStrings {
   return {
@@ -90,6 +91,44 @@ export function editorStrings(): EditorStrings {
     deleteRow: m.editorDeleteRow(),
     deleteColumn: m.editorDeleteColumn(),
     deleteTable: m.editorDeleteTable(),
+    rowHandle: (number) => m.editorRowHandle({ number: formatNumber(number) }),
+    columnHandle: (number) =>
+      m.editorColumnHandle({ number: formatNumber(number) }),
+    cellMenu: m.editorCellMenu(),
+    addRowAtEnd: m.editorAddRowAtEnd(),
+    addColumnAtEnd: m.editorAddColumnAtEnd(),
+    insertRowAbove: m.editorInsertRowAbove(),
+    insertRowBelow: m.editorInsertRowBelow(),
+    insertColumnBefore: m.editorInsertColumnBefore(),
+    insertColumnAfter: m.editorInsertColumnAfter(),
+    moveRowUp: m.editorMoveRowUp(),
+    moveRowDown: m.editorMoveRowDown(),
+    moveColumnBefore: m.editorMoveColumnBefore(),
+    moveColumnAfter: m.editorMoveColumnAfter(),
+    headerRowOn: m.editorHeaderRowOn(),
+    headerRowOff: m.editorHeaderRowOff(),
+    headerColumnOn: m.editorHeaderColumnOn(),
+    headerColumnOff: m.editorHeaderColumnOff(),
+    tableStyle: m.editorTableStyle(),
+    tableDanger: m.editorTableDanger(),
+    tableInsert: m.editorTableInsert(),
+    tableWhole: m.editorTableWhole(),
+    cellColor: m.editorCellColor(),
+    textAlign: m.editorTextAlign(),
+    alignStart: m.editorAlignStart(),
+    alignCenter: m.editorAlignCenter(),
+    alignEnd: m.editorAlignEnd(),
+    verticalAlign: m.editorVerticalAlign(),
+    alignTop: m.editorAlignTop(),
+    alignMiddle: m.editorAlignMiddle(),
+    alignBottom: m.editorAlignBottom(),
+    widenColumn: m.editorWidenColumn(),
+    narrowColumn: m.editorNarrowColumn(),
+    equalColumns: m.editorEqualColumns(),
+    mergeCells: m.editorMergeCells(),
+    splitCell: m.editorSplitCell(),
+    stripesOn: m.editorStripesOn(),
+    stripesOff: m.editorStripesOff(),
     markdown: m.editorMarkdown(),
     markdownHint: m.editorMarkdownHint(),
     replaceFromMarkdown: m.editorReplaceFromMarkdown(),

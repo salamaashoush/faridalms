@@ -36,6 +36,7 @@ import { MediaPlugin } from "./plugins/media";
 import { PlaceholderPlugin } from "./plugins/Placeholder";
 import { SelectionToolbarPlugin } from "./plugins/SelectionToolbar";
 import { SlashMenuPlugin } from "./plugins/SlashMenu";
+import { TablePlugin } from "./plugins/Table";
 import { ToolbarPlugin } from "./plugins/Toolbar";
 import { editorTheme } from "./theme";
 import { cx } from "./ui";
@@ -239,6 +240,7 @@ function Surface({
         />
         <BlockHandlePlugin anchor={anchor} />
         <CodeLanguagePlugin anchor={anchor} />
+        <TablePlugin anchor={anchor} />
       </div>
       <DirectionPlugin />
       <PlaceholderPlugin empty={placeholder ?? strings.emptyPlaceholder} />

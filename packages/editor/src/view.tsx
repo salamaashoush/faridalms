@@ -5,6 +5,7 @@ import { validContentStyle } from "@faridalms/domain/content";
 import { embedPage, embedProviderNames } from "@faridalms/domain/embed";
 import { isSafeContentUrl } from "@faridalms/domain/rich-text";
 import { Download, ExternalLink, FileText } from "lucide-react";
+import { createElement } from "react";
 
 import { formatBytes, imageSizeClass } from "./format";
 import { EmbedFrame, MediaPlayer } from "./media-view";
@@ -193,7 +194,20 @@ function render(node: ContentNode, key: string, context: Context): ReactNode {
     case "table":
       return (
         <div key={key} className="fe-table-wrap">
-          <table className="fe-table">
+          <table
+            className={
+              node.rowStriping ? "fe-table fe-table-striped" : "fe-table"
+            }
+          >
+            {node.colWidths?.length
+              ? createElement(
+                  "colgroup",
+                  null,
+                  ...node.colWidths.map((width) =>
+                    createElement("col", { style: { width } }),
+                  ),
+                )
+              : null}
             <tbody>{children}</tbody>
           </table>
         </div>
