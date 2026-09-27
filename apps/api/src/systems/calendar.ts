@@ -2,7 +2,6 @@ import type { ContentDocument } from "@faridalms/domain/content";
 
 import {
   audiencesOf,
-  reachOf,
   setAudiences,
 } from "@faridalms/database/stores/audiences";
 import { documentOf, saveDocument } from "@faridalms/database/stores/documents";
@@ -28,7 +27,7 @@ import * as v from "valibot";
 
 import type { UnitContext } from "../core/context";
 
-import { audienceChoices, audienceOf } from "../core/audiences";
+import { audienceChoices, audienceOf, calendarReach } from "../core/audiences";
 import {
   audit,
   can,
@@ -40,22 +39,11 @@ import { registerHostReader } from "../files/authorize";
 
 const id = v.pipe(v.string(), v.uuid());
 
-/** Who the viewer is to the audience scopes today; managers see every event. */
-async function viewerReach(context: UnitContext) {
-  if (can(context, "calendar:manage")) return null;
-  return reachOf(context.tx, {
-    tenantId: context.tenantId,
-    schoolId: context.schoolId,
-    userId: context.actor.userId,
-    on: context.today,
-  });
-}
-
 /** An event of this school the viewer is invited to, or not found. */
 async function readable(context: UnitContext, eventId: string) {
   const row = await eventById(context.tx, context.tenantId, eventId);
   if (!row || row.orgId !== context.schoolId) throw new ORPCError("NOT_FOUND");
-  const reach = await viewerReach(context);
+  const reach = await calendarReach(context);
   if (
     reach &&
     !(await eventReaches(
@@ -81,7 +69,7 @@ registerHostReader("calendar_event", async (context, hostId) => {
 export const range = readProcedure
   .input(rangeQuerySchema)
   .handler(async ({ input, context }) => {
-    const reach = await viewerReach(context);
+    const reach = await calendarReach(context);
     const [events, days] = await Promise.all([
       eventsBetween(context.tx, {
         tenantId: context.tenantId,

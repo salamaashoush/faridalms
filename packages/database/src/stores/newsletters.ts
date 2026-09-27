@@ -60,7 +60,7 @@ function rowOf(row: NewsletterRecord): NewsletterRow {
 }
 
 /** The published text of an edition's original, for previews and search. */
-const publishedText = sql`(select v.plain_text from core.documents d
+export const publishedText = sql`(select v.plain_text from core.documents d
   join core.document_versions v on v.tenant_id = d.tenant_id and v.document_id = d.id
     and v.reason = 'publish' and v.redacted_at is null
   where d.tenant_id = n.tenant_id and d.host_type = 'newsletter' and d.host_id = n.id

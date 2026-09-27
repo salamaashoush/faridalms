@@ -1,11 +1,13 @@
 import type { Audience } from "@faridalms/database/stores/audiences";
 import type { AudienceInput } from "@faridalms/domain/announcements";
 
-import { gradesInYear } from "@faridalms/database/stores/audiences";
+import { gradesInYear, reachOf } from "@faridalms/database/stores/audiences";
 import { gridOwners } from "@faridalms/database/stores/timetable";
 import { schoolYears, workingYear } from "@faridalms/database/stores/years";
 
 import type { UnitContext } from "./context";
+
+import { can } from "./procedure";
 
 export function audienceOf(input: AudienceInput): Audience {
   return {
@@ -32,4 +34,15 @@ export async function audienceChoices(context: UnitContext) {
     gradesInYear(context.tx, scope),
   ]);
   return { classes, grades };
+}
+
+/** Who the viewer is to the calendar's audience scopes today; managers see every event. */
+export async function calendarReach(context: UnitContext) {
+  if (can(context, "calendar:manage")) return null;
+  return reachOf(context.tx, {
+    tenantId: context.tenantId,
+    schoolId: context.schoolId,
+    userId: context.actor.userId,
+    on: context.today,
+  });
 }

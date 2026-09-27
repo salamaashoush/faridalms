@@ -1,5 +1,4 @@
 import * as administration from "./modules/administration";
-import * as search from "./modules/search";
 import * as students from "./modules/students";
 import * as accessSystem from "./systems/access";
 import * as announcementsSystem from "./systems/announcements";
@@ -20,6 +19,7 @@ import * as peopleSystem from "./systems/people";
 import * as recordsSystem from "./systems/records";
 import * as rolloverSystem from "./systems/rollover";
 import * as schoolSystem from "./systems/school";
+import * as searchSystem from "./systems/search";
 import * as siteSystem from "./systems/site";
 import * as timetableSystem from "./systems/timetable";
 import * as yearsSystem from "./systems/years";
@@ -47,8 +47,8 @@ export const router = {
   learning: learningSystem,
   site: siteSystem,
   home: homeSystem,
+  search: searchSystem,
   ...students,
   ...administration,
-  ...search,
 };
 export type AppRouter = typeof router;
