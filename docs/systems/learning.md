@@ -55,10 +55,28 @@ What modules and lessons do, built from
   one without takes feedback alone. The student sees both, and the answer
   closes once marked.
 
+## Graded quizzes
+
+- A quiz is an assignment format that asks the same kinds of questions as a
+  lesson, without continue gates, hints or tries. It is worth the total of
+  its questions' points.
+- The teacher chooses how many attempts a student has, which score counts
+  (highest, latest, average or first), whether each student meets the
+  questions in their own order, and what a student sees after handing in:
+  the right answers and explanations, only which answers were right, or
+  nothing until the teacher returns it.
+- Students keep each answer as they give it and hand the attempt in whole.
+  Every answer is marked then; a written answer with points waits for the
+  teacher, who marks it from the grading page, and the score follows.
+- The score that counts goes onto the latest attempt's assessment, so the
+  gradebook reads a quiz like any other work. A quiz that marks itself
+  completely is returned at once unless the teacher keeps results back.
+- Once a student has started, the questions stay as they are; the settings
+  can still change.
+
 ## Next
 
 Templates for common lesson shapes, checks before showing a lesson, a
 captions editor for video, narration on each part, image alt text and a
-decorative flag, a practice set with a mode for the youngest students, a
-graded quiz as an assignment format feeding the gradebook, and a question
-bank.
+decorative flag, a practice set with a mode for the youngest students, time
+limits on quizzes with extra time per student, and a question bank.
