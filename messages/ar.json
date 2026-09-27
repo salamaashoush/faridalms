@@ -3354,7 +3354,7 @@
   "siteFieldAudience": "المتحدّث",
   "siteFieldEmbed": "المحتوى المضمّن",
   "siteFieldYear": "السنة",
-  "siteFieldCount": "عدد المنشورات",
+  "siteFieldCount": "العدد المعروض",
   "siteFieldCategory": "التصنيف",
   "siteFieldLocation": "المكان",
   "siteFieldNote": "ملاحظة",
@@ -3938,5 +3938,17 @@
   "calAudienceNotAllowed": "يمكنك إضافة فعاليات للفصول التي تدرّسها فقط.",
   "plannerBetweenTerms": "بين الفصول الدراسية",
   "plannerMarkedList": "الأيام المحددة",
-  "plannerClosedCount": "{count} يومًا بلا دروس"
+  "plannerClosedCount": "{count} يومًا بلا دروس",
+  "calTitleEn": "العنوان بالإنجليزية",
+  "calTitleAr": "العنوان بالعربية",
+  "calTitleHint": "اكتب واحدًا على الأقل. يرى كل قارئ، والموقع، العنوان بلغته إن وُجد العنوانان.",
+  "calSectionWebsite": "موقع المدرسة",
+  "calPublicLabel": "اعرضها على موقع المدرسة",
+  "calPublicHint": "يراها أي زائر في قسم الفعاليات بالموقع بعد نشرها. لا تعرض الرحلات وفعاليات الفصول لأنها تكشف أماكن الأطفال.",
+  "siteChoiceSourceCalendar": "تقويم المدرسة",
+  "siteChoiceSourceTyped": "مكتوبة هنا",
+  "siteEventCancelled": "أُلغيت",
+  "siteEventTbc": "لم يتأكد الموعد",
+  "siteEventsNone": "لا شيء مخطط حاليًا. عُد قريبًا.",
+  "siteEventsFromCalendar": "تظهر هنا الفعاليات العامة من التقويم. اختر عرض الفعالية على الموقع عند تحريرها في التقويم."
 }

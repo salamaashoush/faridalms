@@ -38,7 +38,9 @@ type Existing = Awaited<
 >;
 
 interface Draft {
-  title: string;
+  titleEn: string;
+  titleAr: string;
+  public: boolean;
   category: CalendarCategory;
   startsOn: string;
   endsOn: string;
@@ -57,7 +59,9 @@ function draftOf(
   manages: boolean,
 ): Draft {
   return {
-    title: existing?.title ?? "",
+    titleEn: existing?.titleEn ?? "",
+    titleAr: existing?.titleAr ?? "",
+    public: existing?.public ?? false,
     category: existing?.category ?? "general",
     startsOn: existing?.startsOn ?? day,
     endsOn: existing?.endsOn ?? day,
@@ -125,7 +129,8 @@ export function EventEditor({
           id: existing?.id ?? "",
           expectedVersion: existing?.version ?? 0,
           ...draft,
-          title: draft.title.trim(),
+          titleEn: draft.titleEn.trim(),
+          titleAr: draft.titleAr.trim(),
           startTime: draft.allDay ? "" : draft.startTime,
           endTime: draft.allDay ? "" : draft.endTime,
           sendUpdate: published && tellChange,
@@ -143,7 +148,8 @@ export function EventEditor({
     },
   });
   const issues = {
-    title: draft.title.trim() ? null : m.calTitleNeeded(),
+    titleEn:
+      draft.titleEn.trim() || draft.titleAr.trim() ? null : m.calTitleNeeded(),
     endsOn: draft.endsOn < draft.startsOn ? m.calEndsBefore() : null,
     startTime:
       !draft.allDay && (!draft.startTime || !draft.endTime)
@@ -198,15 +204,26 @@ export function EventEditor({
     >
       <FormSection title={m.calSectionEvent()}>
         <TextField
-          id="event-title"
-          label={m.annColTitle()}
+          id="event-title-en"
+          label={m.calTitleEn()}
+          hint={m.calTitleHint()}
           width="name"
-          dir="auto"
+          dir="ltr"
           maxLength={200}
           autoComplete="off"
-          value={draft.title}
-          onChange={(event) => set("title", event.target.value)}
-          errors={shown && issues.title ? [issues.title] : undefined}
+          value={draft.titleEn}
+          onChange={(event) => set("titleEn", event.target.value)}
+          errors={shown && issues.titleEn ? [issues.titleEn] : undefined}
+        />
+        <TextField
+          id="event-title-ar"
+          label={m.calTitleAr()}
+          width="name"
+          dir="rtl"
+          maxLength={200}
+          autoComplete="off"
+          value={draft.titleAr}
+          onChange={(event) => set("titleAr", event.target.value)}
         />
         <SelectField
           id="event-category"
@@ -319,6 +336,16 @@ export function EventEditor({
           )}
         </FormField>
       </FormSection>
+      {manages ? (
+        <FormSection title={m.calSectionWebsite()}>
+          <CheckboxRow
+            label={m.calPublicLabel()}
+            hint={m.calPublicHint()}
+            checked={draft.public}
+            onChange={(value) => set("public", value)}
+          />
+        </FormSection>
+      ) : null}
       <FormSection title={m.calSectionTelling()}>
         {published ? (
           <CheckboxRow

@@ -1804,8 +1804,47 @@ function News({ section, context }: Props<"news">) {
   );
 }
 
+interface Listed {
+  id: string;
+  date: string;
+  title: string;
+  location: string;
+  href: string;
+  /** A time, or that it is called off or not yet confirmed. */
+  note: string;
+}
+
+/** What the events section lists: the calendar's public events, or its own typed items. */
+function listedEvents(
+  data: SectionOf<"events">["data"],
+  context: RenderContext,
+): Listed[] {
+  const t = { locale: context.locale };
+  if (data.source === "typed")
+    return data.items.map((item) => ({ ...item, note: "" }));
+  return (context.events ?? []).slice(0, data.count).map((event) => ({
+    id: event.id,
+    date: event.startsOn,
+    title:
+      (context.locale === "ar"
+        ? (event.titleAr ?? event.titleEn)
+        : (event.titleEn ?? event.titleAr)) ?? "",
+    location: event.location ?? "",
+    href: "",
+    note: event.cancelled
+      ? m.siteEventCancelled({}, t)
+      : event.provisional
+        ? m.siteEventTbc({}, t)
+        : event.startTime
+          ? event.startTime
+          : "",
+  }));
+}
+
 function Events({ section, context }: Props<"events">) {
   const { data, variant } = section;
+  const t = { locale: context.locale };
+  const items = listedEvents(data, context);
   const dayMonth = (date: string) => {
     if (!date) return { day: "", month: "" };
     const at = new Date(`${date}T00:00:00Z`);
@@ -1826,6 +1865,13 @@ function Events({ section, context }: Props<"events">) {
         heading={data.heading}
         center={section.style.align === "center"}
       />
+      {items.length === 0 ? (
+        <p className="site-muted">
+          {context.editing && data.source !== "typed"
+            ? m.siteEventsFromCalendar({}, t)
+            : m.siteEventsNone({}, t)}
+        </p>
+      ) : null}
       <ul
         data-stagger
         className={cn(
@@ -1834,7 +1880,7 @@ function Events({ section, context }: Props<"events">) {
             : "grid gap-3",
         )}
       >
-        {data.items.map((item) => {
+        {items.map((item) => {
           const { day, month } = dayMonth(item.date);
           return (
             <li key={item.id}>
@@ -1865,10 +1911,19 @@ function Events({ section, context }: Props<"events">) {
                 </span>
                 <span className="grid flex-1 gap-1">
                   <span className="site-heading site-h3">{item.title}</span>
-                  {item.location ? (
-                    <span className="site-muted inline-flex items-center gap-1.5 text-sm">
-                      <MapPin aria-hidden className="size-4" />
-                      {item.location}
+                  {item.location || item.note ? (
+                    <span className="site-muted inline-flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+                      {item.note ? (
+                        <span dir="auto">
+                          <bdi>{item.note}</bdi>
+                        </span>
+                      ) : null}
+                      {item.location ? (
+                        <span className="inline-flex items-center gap-1.5">
+                          <MapPin aria-hidden className="size-4" />
+                          {item.location}
+                        </span>
+                      ) : null}
                     </span>
                   ) : null}
                 </span>

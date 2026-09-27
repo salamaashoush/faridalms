@@ -2,6 +2,7 @@ import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { Sun } from "lucide-react";
 
+import { eventTitle } from "~/components/calendar/format";
 import { classTitle } from "~/components/classes/format";
 import { formatInstant } from "~/components/coursework/format";
 import {
@@ -186,7 +187,7 @@ function TodayPage() {
                   params={{ eventId: event.id }}
                   className={itemLink}
                 >
-                  <bdi>{event.title}</bdi>
+                  <bdi>{eventTitle(event)}</bdi>
                 </Link>
               }
               facts={[formatDate(event.startsOn), event.location]}

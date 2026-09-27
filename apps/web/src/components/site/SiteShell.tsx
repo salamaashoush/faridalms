@@ -9,7 +9,7 @@ import type { publicSiteQuery } from "~/queries/site";
 import * as m from "~/i18n/messages";
 
 import type { SiteFrameModel } from "./render/frame";
-import type { NewsItem, RenderContext } from "./render/parts";
+import type { NewsItem, RenderContext, SiteEvent } from "./render/parts";
 
 import { SiteFrame } from "./render/frame";
 import { publicMediaUrl } from "./render/parts";
@@ -35,6 +35,7 @@ export function publicContext(
   input: {
     media?: Record<string, string>;
     news?: NewsItem[];
+    events?: SiteEvent[];
     page?: string;
   } = {},
 ): RenderContext {
@@ -47,6 +48,7 @@ export function publicContext(
       return key ? publicMediaUrl(key) : null;
     },
     news: input.news ?? [],
+    events: input.events ?? [],
     contact: site.contact,
     query: langQuery(site),
     page: input.page,

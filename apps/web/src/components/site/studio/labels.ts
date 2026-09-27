@@ -539,6 +539,10 @@ export const BLOCK_LABEL: Record<BlockType, () => string> = {
 
 /** The words for each option of a choice field, by field name then option. */
 export const CHOICE_LABEL: Record<string, Record<string, () => string>> = {
+  source: {
+    calendar: m.siteChoiceSourceCalendar,
+    typed: m.siteChoiceSourceTyped,
+  },
   height: {
     s: m.siteChoiceHeightS,
     m: m.siteChoiceHeightM,

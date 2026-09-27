@@ -7,10 +7,10 @@ import type {
 import type { SchemeId } from "@faridalms/domain/site-theme";
 
 import {
-  fieldsOf,
   fitColumns,
   PATTERNS,
   SECTION_SPECS,
+  shownFields,
 } from "@faridalms/domain/site-sections";
 import { DIVIDERS, SCHEMES, schemesOf } from "@faridalms/domain/site-theme";
 import { AlignCenter, AlignLeft, CircleAlert, X } from "lucide-react";
@@ -200,7 +200,7 @@ export function Inspector({
           })}
         </p>
       ) : null}
-      {Object.entries(fieldsOf(section.type)).map(([key, field]) => (
+      {shownFields(section).map(([key, field]) => (
         <FieldControl
           key={`${locale}-${key}`}
           name={key}

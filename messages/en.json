@@ -3238,7 +3238,7 @@
   "siteFieldAudience": "Who is speaking",
   "siteFieldEmbed": "Embedded content",
   "siteFieldYear": "Year",
-  "siteFieldCount": "Posts shown",
+  "siteFieldCount": "How many are shown",
   "siteFieldCategory": "Category",
   "siteFieldLocation": "Place",
   "siteFieldNote": "Note",
@@ -3810,5 +3810,17 @@
   "calAudienceNotAllowed": "You can add events only for classes you teach.",
   "plannerBetweenTerms": "Between terms",
   "plannerMarkedList": "Marked days",
-  "plannerClosedCount": "{count} days without lessons"
+  "plannerClosedCount": "{count} days without lessons",
+  "calTitleEn": "Title in English",
+  "calTitleAr": "Title in Arabic",
+  "calTitleHint": "Give at least one. Each reader, and the website, sees the title in their language when both are given.",
+  "calSectionWebsite": "School website",
+  "calPublicLabel": "Show it on the school website",
+  "calPublicHint": "Anyone can see it in the website's events once it is published. Keep trips and class events off it, since they tell where children will be.",
+  "siteChoiceSourceCalendar": "The school calendar",
+  "siteChoiceSourceTyped": "Typed here",
+  "siteEventCancelled": "Cancelled",
+  "siteEventTbc": "To be confirmed",
+  "siteEventsNone": "Nothing is planned just now. Check back soon.",
+  "siteEventsFromCalendar": "The calendar's public events appear here. Mark an event to show on the website when you edit it in the calendar."
 }

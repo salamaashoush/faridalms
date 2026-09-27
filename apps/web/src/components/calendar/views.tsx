@@ -18,6 +18,7 @@ import { formatNumber } from "~/utils/datetime";
 import {
   CATEGORY_LABEL,
   CATEGORY_MARK,
+  eventTitle,
   specialDayLabel,
   timeLabel,
   weekdayDate,
@@ -53,7 +54,7 @@ function EventChip({ event }: { event: CalendarEvent }) {
     <Link
       to="/calendar/$eventId"
       params={{ eventId: event.id }}
-      title={event.title}
+      title={eventTitle(event)}
       className={cn(
         "flex min-w-0 items-center gap-1.5 rounded px-1.5 py-0.5 text-xs leading-4 hover:bg-accent",
         event.cancelled && "text-muted-foreground line-through",
@@ -73,7 +74,7 @@ function EventChip({ event }: { event: CalendarEvent }) {
           <bdi dir="ltr">{event.startTime}</bdi>
         </span>
       ) : null}
-      <bdi className="truncate">{event.title}</bdi>
+      <bdi className="truncate">{eventTitle(event)}</bdi>
     </Link>
   );
 }
@@ -201,7 +202,7 @@ function AgendaItem({ event }: { event: CalendarEvent }) {
               event.cancelled && "text-muted-foreground line-through",
             )}
           >
-            <bdi>{event.title}</bdi>
+            <bdi>{eventTitle(event)}</bdi>
           </Link>
           {event.state === "draft" ? (
             <StatusBadge tone="neutral">{m.calDraft()}</StatusBadge>

@@ -45,7 +45,7 @@ export const KIND_ICON: Record<NotificationKind, LucideIcon> = {
 /** What a notice says, in the reader's language, from what its producer recorded. */
 export function noticeText(notice: Notice): { title: string; body: string } {
   const { params } = notice;
-  const title = params.title ?? "";
+  const title = both(params.title, params.titleAr);
   const date = params.date ?? "";
   switch (notice.kind) {
     case "announcement":

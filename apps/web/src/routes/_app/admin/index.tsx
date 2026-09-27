@@ -10,6 +10,7 @@ import { BellRing, Sun } from "lucide-react";
 import { toast } from "sonner";
 
 import { formatPercent } from "~/components/admin/format";
+import { eventTitle } from "~/components/calendar/format";
 import {
   HomeCard,
   HomeItem,
@@ -281,7 +282,7 @@ function AdminToday() {
                   params={{ eventId: event.id }}
                   className={itemLink}
                 >
-                  <bdi>{event.title}</bdi>
+                  <bdi>{eventTitle(event)}</bdi>
                 </Link>
               }
               facts={[formatDate(event.startsOn), event.location]}

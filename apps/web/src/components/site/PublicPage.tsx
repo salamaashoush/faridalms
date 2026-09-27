@@ -54,6 +54,7 @@ export function PublicPageView({
         context={publicContext(site, school, {
           media: page.media,
           news: page.news,
+          events: page.events,
           page: slug,
         })}
       />

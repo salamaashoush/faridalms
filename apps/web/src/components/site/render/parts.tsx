@@ -63,6 +63,21 @@ export interface SiteContact {
   email: string | null;
 }
 
+/** A public event from the school calendar, as the website lists it. */
+export interface SiteEvent {
+  id: string;
+  titleEn: string | null;
+  titleAr: string | null;
+  category: string;
+  startsOn: string;
+  endsOn: string;
+  startTime: string | null;
+  endTime: string | null;
+  location: string | null;
+  provisional: boolean;
+  cancelled: boolean;
+}
+
 export interface RenderContext {
   school: string;
   locale: SiteLocale;
@@ -70,6 +85,8 @@ export interface RenderContext {
   /** Where a file the page shows is served from, or null when it cannot be. */
   fileUrl: (fileId: string) => string | null;
   news: NewsItem[];
+  /** The school calendar's public events still to come, soonest first. */
+  events?: SiteEvent[];
   contact: SiteContact | null;
   /** The page's address inside the site, "" for the home page; forms send it with a message. */
   page?: string;

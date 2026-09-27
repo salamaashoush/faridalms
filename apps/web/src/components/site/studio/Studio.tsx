@@ -407,6 +407,7 @@ export function SiteStudio({
     news: overview.news[locale].length
       ? overview.news[locale]
       : overview.news[languages.primary],
+    events: overview.events,
     contact: overview.school.contact,
     editing: true,
   };

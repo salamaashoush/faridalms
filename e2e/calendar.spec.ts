@@ -25,7 +25,7 @@ test("the office adds an event for families, who see it and then see it called o
   await signIn(page, "admin");
   await page.goto("/event-editor");
   await untilHydrated(page);
-  await page.getByRole("textbox", { name: "Title" }).fill(title);
+  await page.getByRole("textbox", { name: "Title in English" }).fill(title);
   await page.getByRole("textbox", { name: "Where" }).fill("Library");
   await page.getByLabel("Starts on").fill(day);
   await page.getByLabel("Starts at").fill("13:00");

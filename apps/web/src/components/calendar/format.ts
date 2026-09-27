@@ -45,6 +45,12 @@ export const CATEGORY_MARK: Record<
   },
 };
 
+/** An event's title in the reader's language, or the other when it has only one. */
+export const eventTitle = (event: {
+  titleEn: string | null;
+  titleAr: string | null;
+}) => inLocale(event.titleEn, event.titleAr);
+
 export interface Timed {
   startsOn: string;
   endsOn: string;

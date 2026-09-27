@@ -16,7 +16,11 @@ import type { HeaderFact } from "~/components/system/RecordPage";
 
 import { audienceLabel } from "~/components/announcements/format";
 import { BreadcrumbCurrent } from "~/components/app/WorkspaceBreadcrumb";
-import { CATEGORY_LABEL, whenLabel } from "~/components/calendar/format";
+import {
+  CATEGORY_LABEL,
+  eventTitle,
+  whenLabel,
+} from "~/components/calendar/format";
 import { ContentView } from "~/components/content/ContentView";
 import { RecordHeader } from "~/components/system/RecordPage";
 import { Button } from "~/components/ui/button";
@@ -44,20 +48,22 @@ type Data = Awaited<
 function EventTrail() {
   const { eventId } = Route.useParams();
   const data = useSuspenseQuery(calendarEventQuery(eventId)).data;
-  return <BreadcrumbCurrent>{data.title}</BreadcrumbCurrent>;
+  return <BreadcrumbCurrent>{eventTitle(data)}</BreadcrumbCurrent>;
 }
 
 function download(data: Data, timeZone: string) {
+  const title = eventTitle(data);
   const file = eventIcs(
     {
       ...data,
+      title,
       description: data.description ? contentPlainText(data.description) : "",
     },
     { timeZone, stamp: new Date() },
   );
   const link = document.createElement("a");
   link.href = URL.createObjectURL(new Blob([file], { type: "text/calendar" }));
-  link.download = `${data.title.replaceAll(/[^\p{L}\p{N}]+/gu, "-") || "event"}.ics`;
+  link.download = `${title.replaceAll(/[^\p{L}\p{N}]+/gu, "-") || "event"}.ics`;
   link.click();
   URL.revokeObjectURL(link.href);
 }
@@ -159,7 +165,7 @@ function EventPage() {
   return (
     <div className="mx-auto grid w-full max-w-3xl gap-6">
       <RecordHeader
-        title={data.title}
+        title={eventTitle(data)}
         facts={facts}
         status={
           draft
