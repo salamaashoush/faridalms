@@ -1195,3 +1195,125 @@ export function describeCheck(
     explanation: open ? block.explanation : null,
   };
 }
+
+const CHECK_TYPES = new Set<LessonBlockType>([...AUTO_TYPES, "written"]);
+
+/**
+ * A quiz as its student sees it: a lesson's blocks, with the questions in the
+ * student's own order when the teacher asks, text between them left where it
+ * stands.
+ */
+export function studentQuiz(
+  document: LessonDocument,
+  seed: string,
+  shuffle: boolean,
+): StudentBlock[] {
+  const blocks = studentBlocks(document, seed);
+  if (!shuffle) return blocks;
+  const slots = blocks.flatMap((block, index) =>
+    CHECK_TYPES.has(block.type) ? [index] : [],
+  );
+  const order = shuffled(
+    slots.map((slot) => blocks[slot] as StudentBlock),
+    `${seed}:order`,
+  );
+  const result = [...blocks];
+  slots.forEach((slot, index) => {
+    result[slot] = order[index] as StudentBlock;
+  });
+  return result;
+}
+
+/** One stored quiz answer, as marked when its attempt was handed in. */
+export interface QuizAnswer {
+  blockId: string;
+  response: Record<string, unknown>;
+  fraction: number | null;
+  state: "draft" | "marked" | "needs_marking";
+  feedback: string | null;
+}
+
+/**
+ * Each question's result in one handed-in attempt. "answers" shows the key,
+ * explanation and option feedback; "marks" only whether each part was right.
+ * Hints belong to practice and never show.
+ */
+export function quizViews(
+  document: LessonDocument,
+  answers: readonly QuizAnswer[],
+  show: "answers" | "marks",
+): Record<string, CheckView> {
+  const blocks = checkBlocks(document);
+  const rows: StoredTry[] = answers.flatMap((answer): StoredTry[] => {
+    const block = blocks.find((item) => item.id === answer.blockId);
+    if (!block) return [];
+    const base = {
+      blockId: answer.blockId,
+      try: 1,
+      response: answer.response,
+      feedback: null,
+    };
+    if (block.type !== "written")
+      return [{ ...base, state: "answered", fraction: answer.fraction ?? 0 }];
+    const sent: StoredTry = { ...base, state: "needs_marking", fraction: null };
+    return answer.state === "marked"
+      ? [
+          sent,
+          {
+            ...base,
+            state: "marked",
+            fraction: answer.fraction,
+            feedback: answer.feedback,
+          },
+        ]
+      : [sent];
+  });
+  const states = checkStates(document, rows);
+  return Object.fromEntries(
+    blocks.map((block) => {
+      const state = states[block.id];
+      const view = describeCheck(
+        block,
+        rows,
+        state && isAuto(block) ? { ...state, revealed: true } : state,
+      );
+      const shown =
+        show === "answers"
+          ? view
+          : {
+              ...view,
+              key: null,
+              partKey: null,
+              explanation: null,
+              feedback: [],
+            };
+      return [block.id, { ...shown, hint: null, triesLeft: null }];
+    }),
+  );
+}
+
+const wordsIn = (value: string) => value.split(/\s+/).filter(Boolean).length;
+
+/** Why an answer cannot be taken for this question, or null when it can. */
+export function responseIssue(
+  block: CheckBlock,
+  response: LessonResponse,
+): "learning.response" | "learning.option" | "learning.word_limit" | null {
+  if (response.type !== block.type) return "learning.response";
+  if (
+    block.type === "choice" &&
+    response.type === "choice" &&
+    response.optionIds.some(
+      (optionId) => !block.options.some((option) => option.id === optionId),
+    )
+  )
+    return "learning.option";
+  if (
+    block.type === "written" &&
+    response.type === "written" &&
+    block.wordLimit !== null &&
+    wordsIn(response.text) > block.wordLimit
+  )
+    return "learning.word_limit";
+  return null;
+}

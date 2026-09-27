@@ -1,3 +1,5 @@
+import type { LessonResponse } from "@faridalms/domain/learning";
+
 import { plainContent } from "@faridalms/domain/content-conversion";
 import { describe, expect, test } from "bun:test";
 
@@ -325,5 +327,201 @@ describe("coursework on the student record", () => {
     expect(
       await rejection(parent.coursework.student({ studentId: me.id })),
     ).toMatchObject({ code: "FORBIDDEN" });
+  });
+});
+
+const uuid = () => crypto.randomUUID();
+
+describe("quizzes", () => {
+  const common = { hint: "", explanation: "Because.", tries: null };
+
+  async function quizFor(reveal: "answers" | "marks" | "returned") {
+    const teacher = await arabicTeacher();
+    const student = await sessionFor("northwind", login("student"));
+    const me = await student.api.identity.currentUser();
+    const target = await classOfStudent(teacher.api, me.id);
+    const right = uuid();
+    const choice = {
+      ...common,
+      id: uuid(),
+      type: "choice" as const,
+      prompt: "Which is a noun?",
+      points: 2,
+      options: [
+        { id: right, text: "Book", feedback: "" },
+        { id: uuid(), text: "Run", feedback: "A verb." },
+      ],
+      correctOptionIds: [right],
+      multiple: false,
+      shuffle: false,
+    };
+    const typed = {
+      ...common,
+      id: uuid(),
+      type: "text" as const,
+      prompt: "The capital of Egypt?",
+      points: 2,
+      answers: ["القاهرة"],
+      caseSensitive: false,
+      closeEnough: false,
+      tehMarbuta: true,
+    };
+    const written = {
+      ...common,
+      id: uuid(),
+      type: "written" as const,
+      prompt: "Describe your street.",
+      points: 4,
+      wordLimit: null,
+    };
+    const saved = await teacher.api.coursework.save(
+      draft(target.id, `Quiz ${reveal}`, {
+        submissionFormat: "quiz",
+        points: null,
+        quiz: {
+          attempts: 2,
+          keep: "highest",
+          reveal,
+          shuffle: false,
+          content: { version: 2, blocks: [choice, typed, written] },
+        },
+      }),
+    );
+    await teacher.api.coursework.publish({
+      id: saved.id,
+      expectedVersion: saved.version,
+    });
+    return { teacher, student, me, saved, choice, typed, written, right };
+  }
+
+  test("a quiz is marked at hand-in, its written answer waits for the teacher, and the best attempt counts", async () => {
+    const { teacher, student, me, saved, choice, typed, written, right } =
+      await quizFor("answers");
+    const editor = await teacher.api.coursework.editor({ id: saved.id });
+    expect(editor.points).toBe(8);
+    expect(editor.quiz?.started).toBe(false);
+
+    const open = await student.api.coursework.work({ id: saved.id });
+    expect(open.quiz?.open).toBe(true);
+    expect(JSON.stringify(open.quiz?.blocks)).not.toContain("correctOptionIds");
+    expect(JSON.stringify(open.quiz?.blocks)).not.toContain("القاهرة");
+    const answer = (blockId: string, response: LessonResponse) =>
+      student.api.coursework.saveQuizAnswer({
+        assignmentId: saved.id,
+        blockId,
+        response,
+      });
+    await answer(choice.id, { type: "choice", optionIds: [right] });
+    await answer(typed.id, { type: "text", text: "Giza" });
+    await answer(written.id, { type: "written", text: "Trees and a bakery." });
+    expect(
+      await rejection(
+        teacher.api.coursework.save(
+          draft(editor.classId, "Quiz answers", {
+            id: saved.id,
+            expectedVersion: editor.version,
+            submissionFormat: "quiz",
+            points: null,
+            quiz: { ...editor.quiz, content: { version: 2, blocks: [choice] } },
+          }),
+        ),
+      ),
+    ).toMatchObject({ code: "CONFLICT", message: "coursework.quiz_started" });
+
+    const first = await student.api.coursework.work({ id: saved.id });
+    await student.api.coursework.handIn({
+      assignmentId: saved.id,
+      expectedVersion: first.submission.version,
+    });
+    const after = await student.api.coursework.work({ id: saved.id });
+    expect(after.quiz?.results[0]).toMatchObject({ score: 2, pending: true });
+    expect(after.quiz?.results[0]?.checks?.[typed.id]).toMatchObject({
+      correct: false,
+      key: ["القاهرة"],
+    });
+    expect(after.state).toBe("handed_in");
+    expect(after.quiz?.attempt).toBe(2);
+    expect(after.quiz?.open).toBe(true);
+
+    const grading = await teacher.api.coursework.grading({
+      assignmentId: saved.id,
+      studentId: me.id,
+    });
+    const attempt = grading.quiz?.attempts[0];
+    if (!attempt) throw new Error("no attempt");
+    expect(attempt.checks[written.id]).toMatchObject({ marked: false });
+    expect(
+      await rejection(
+        teacher.api.coursework.markQuizAnswer({
+          attemptId: attempt.attemptId,
+          blockId: written.id,
+          points: 5,
+        }),
+      ),
+    ).toMatchObject({ message: "learning.points_over" });
+    await teacher.api.coursework.markQuizAnswer({
+      attemptId: attempt.attemptId,
+      blockId: written.id,
+      points: 3,
+      feedback: "Name the bakery.",
+    });
+    const marked = await teacher.api.coursework.grading({
+      assignmentId: saved.id,
+      studentId: me.id,
+    });
+    expect(marked.attempts[0]?.assessment).toMatchObject({ score: 5 });
+
+    await answer(choice.id, { type: "choice", optionIds: [right] });
+    await answer(typed.id, { type: "text", text: "القاهره" });
+    const second = await student.api.coursework.work({ id: saved.id });
+    await student.api.coursework.handIn({
+      assignmentId: saved.id,
+      expectedVersion: second.submission.version,
+    });
+    const done = await student.api.coursework.work({ id: saved.id });
+    // Attempt one earned 5 once marked, attempt two 4 with no written answer.
+    expect(done.quiz?.results.map((result) => result.score)).toEqual([5, 4]);
+    expect(done.quiz?.open).toBe(false);
+    expect(done.state).toBe("returned");
+    expect(done.attempts[1]?.assessment).toMatchObject({ score: 5 });
+    expect(
+      await rejection(
+        student.api.coursework.saveQuizAnswer({
+          assignmentId: saved.id,
+          blockId: choice.id,
+          response: { type: "choice", optionIds: [right] },
+        }),
+      ),
+    ).toMatchObject({ message: "coursework.closed" });
+  });
+
+  test("a quiz shown only when returned keeps its results back until then", async () => {
+    const { teacher, student, me, saved, choice, right } =
+      await quizFor("returned");
+    await student.api.coursework.saveQuizAnswer({
+      assignmentId: saved.id,
+      blockId: choice.id,
+      response: { type: "choice", optionIds: [right] },
+    });
+    const open = await student.api.coursework.work({ id: saved.id });
+    await student.api.coursework.handIn({
+      assignmentId: saved.id,
+      expectedVersion: open.submission.version,
+    });
+    const hidden = await student.api.coursework.work({ id: saved.id });
+    expect(hidden.quiz?.results[0]).toMatchObject({
+      score: null,
+      checks: null,
+    });
+    await teacher.api.coursework.act({
+      assignmentId: saved.id,
+      action: "return",
+      studentIds: [me.id],
+    });
+    const shown = await student.api.coursework.work({ id: saved.id });
+    expect(shown.quiz?.results[0]?.score).toBe(2);
+    expect(shown.quiz?.results[0]?.checks?.[choice.id]).toMatchObject({
+      correct: true,
+    });
   });
 });

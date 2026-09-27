@@ -60,6 +60,7 @@ import {
   progressQuerySchema,
   publishModuleSchema,
   respondSchema,
+  responseIssue,
   revealSchema,
   saveLessonSchema,
   saveModuleSchema,
@@ -996,26 +997,11 @@ export const respond = writeProcedure
       (item) => item.id === input.blockId,
     );
     if (!block) throw new ORPCError("NOT_FOUND");
-    if (input.response.type !== block.type)
-      throw new ORPCError("BAD_REQUEST", { message: "learning.response" });
+    const issue = responseIssue(block, input.response);
+    if (issue) throw new ORPCError("BAD_REQUEST", { message: issue });
     const state = played.checks[block.id];
     if (block.type === "written" ? state?.marked : settled(block, state))
       throw new ORPCError("CONFLICT", { message: "learning.settled" });
-    if (
-      block.type === "choice" &&
-      input.response.type === "choice" &&
-      input.response.optionIds.some(
-        (optionId) => !block.options.some((option) => option.id === optionId),
-      )
-    )
-      throw new ORPCError("BAD_REQUEST", { message: "learning.option" });
-    if (
-      block.type === "written" &&
-      input.response.type === "written" &&
-      block.wordLimit !== null &&
-      input.response.text.split(/\s+/).filter(Boolean).length > block.wordLimit
-    )
-      throw new ORPCError("BAD_REQUEST", { message: "learning.word_limit" });
     const marked = isAuto(block) ? markResponse(block, input.response) : null;
     await insertResponse(context.tx, {
       tenantId: context.tenantId,

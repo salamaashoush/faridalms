@@ -36,6 +36,8 @@ import {
   lessonResponses,
   lessons,
   passkeys,
+  quizAnswers,
+  submissions,
   privacyNotices,
   relationshipRestrictions,
   savedViews,
@@ -425,6 +427,20 @@ export async function completeFixture(
     response: { type: "choice", optionIds: [] },
     fraction: 0,
     state: "answered",
+  });
+  const [submission] = await tx
+    .select({ id: submissions.id, studentUserId: submissions.studentUserId })
+    .from(submissions)
+    .where(eq(submissions.tenantId, tenantId))
+    .limit(1);
+  if (!submission) throw new Error("the development seed must run first");
+  await tx.insert(quizAnswers).values({
+    tenantId,
+    submissionId: submission.id,
+    studentUserId: submission.studentUserId,
+    attempt: 1,
+    blockId: id(),
+    response: { type: "text", text: "Cairo" },
   });
   await tx.insert(savedViews).values({
     tenantId,

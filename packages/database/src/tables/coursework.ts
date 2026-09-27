@@ -105,7 +105,9 @@ export const classGroupMembers = core.table.withRLS(
 
 export type AssignmentState = "draft" | "published" | "archived";
 export type LatePolicy = "accept" | "deduct" | "refuse";
-export type SubmissionFormat = "online" | "files" | "both" | "none";
+export type SubmissionFormat = "online" | "files" | "both" | "none" | "quiz";
+export type QuizKeep = "highest" | "latest" | "average" | "first";
+export type QuizReveal = "answers" | "marks" | "returned";
 export type Audience = "class" | "selected";
 
 /**
@@ -142,6 +144,11 @@ export const assignments = core.table.withRLS(
     resubmission: boolean("resubmission").notNull().default(false),
     points: numeric("points", { precision: 7, scale: 2, mode: "number" }),
     rubric: jsonb("rubric").$type<Record<string, unknown>>(),
+    /** For a quiz: attempts allowed (empty for no limit), which score counts, and what a student sees after each. */
+    quizAttempts: smallint("quiz_attempts"),
+    quizKeep: text("quiz_keep").$type<QuizKeep>(),
+    quizReveal: text("quiz_reveal").$type<QuizReveal>(),
+    quizShuffle: boolean("quiz_shuffle").notNull().default(false),
     publishedAt: instant("published_at"),
     archivedAt: instant("archived_at"),
     ...entityColumns(),
@@ -186,7 +193,12 @@ export const assignments = core.table.withRLS(
     ck(
       "assignments",
       "submission_format",
-      sql`submission_format in ('online', 'files', 'both', 'none')`,
+      sql`submission_format in ('online', 'files', 'both', 'none', 'quiz')`,
+    ),
+    ck(
+      "assignments",
+      "quiz",
+      sql`(submission_format = 'quiz') = (quiz_keep is not null and quiz_reveal is not null) and (quiz_attempts is null or quiz_attempts between 1 and 10) and (quiz_keep is null or quiz_keep in ('highest', 'latest', 'average', 'first')) and (quiz_reveal is null or quiz_reveal in ('answers', 'marks', 'returned'))`,
     ),
     ck("assignments", "max_files", sql`max_files between 1 and 20`),
     ck("assignments", "points", sql`points is null or points > 0`),
@@ -375,7 +387,8 @@ export const assessments = core.table.withRLS(
     rubricScores: jsonb("rubric_scores").$type<Record<string, unknown>>(),
     feedback: text("feedback"),
     privateNote: text("private_note"),
-    gradedByUserId: uuid("graded_by_user_id").notNull(),
+    /** Empty while a quiz's own marking is all there is. */
+    gradedByUserId: uuid("graded_by_user_id"),
     gradedAt: instant("graded_at")
       .notNull()
       .default(sql`statement_timestamp()`),
@@ -429,6 +442,70 @@ export const assessments = core.table.withRLS(
       .on(t.tenantId, t.attemptId)
       .where(sql`status = 'active'`),
     ...entityProfile({ integration: true }),
+  ],
+);
+
+export type QuizAnswerState = "draft" | "marked" | "needs_marking";
+
+/**
+ * A student's answer to one quiz question in one attempt. It changes freely
+ * while the attempt is open; handing in marks it, and a written answer waits
+ * for its teacher's mark.
+ */
+export const quizAnswers = core.table.withRLS(
+  "quiz_answers",
+  {
+    ...tenantColumns(),
+    submissionId: uuid("submission_id").notNull(),
+    studentUserId: uuid("student_user_id").notNull(),
+    attempt: smallint("attempt").notNull(),
+    blockId: uuid("block_id").notNull(),
+    response: jsonb("response").$type<Record<string, unknown>>().notNull(),
+    /** From 0 to 1 once marked. */
+    fraction: numeric("fraction", { precision: 5, scale: 4, mode: "number" }),
+    state: text("state").$type<QuizAnswerState>().notNull().default("draft"),
+    feedback: text("feedback"),
+    markedByUserId: uuid("marked_by_user_id"),
+    ...entityColumns(),
+  },
+  (t): PgTableExtraConfigValue[] => [
+    pk("quiz_answers", t.tenantId, t.id),
+    ...baseConstraints("quiz_answers", t, tenants),
+    fk(
+      "quiz_answers",
+      [t.tenantId, t.submissionId, t.studentUserId],
+      [submissions.tenantId, submissions.id, submissions.studentUserId],
+    ),
+    fk(
+      "quiz_answers",
+      [t.tenantId, t.markedByUserId],
+      [users.tenantId, users.id],
+    ),
+    ck("quiz_answers", "attempt", sql`attempt between 1 and 100`),
+    ck(
+      "quiz_answers",
+      "response",
+      sql`jsonb_typeof(response) = 'object' and octet_length(response::text) <= 65536`,
+    ),
+    ck(
+      "quiz_answers",
+      "fraction",
+      sql`fraction is null or fraction between 0 and 1`,
+    ),
+    ck(
+      "quiz_answers",
+      "state",
+      sql`state in ('draft', 'marked', 'needs_marking') and (state <> 'draft' or fraction is null)`,
+    ),
+    ck(
+      "quiz_answers",
+      "feedback",
+      sql`feedback is null or char_length(feedback) between 1 and 2000`,
+    ),
+    uniqueIndex("quiz_answers_key")
+      .on(t.tenantId, t.submissionId, t.attempt, t.blockId)
+      .where(sql`status = 'active'`),
+    ...entityProfile(),
   ],
 );
 

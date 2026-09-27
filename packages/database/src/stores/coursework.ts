@@ -6,6 +6,8 @@ import type {
   Audience,
   LatePolicy,
   RecipientSource,
+  QuizKeep,
+  QuizReveal,
   SubmissionFormat,
   SubmissionState,
 } from "../tables/coursework";
@@ -39,6 +41,10 @@ export interface AssignmentRow {
   resubmission: boolean;
   points: number | null;
   rubric: Record<string, unknown> | null;
+  quizAttempts: number | null;
+  quizKeep: QuizKeep | null;
+  quizReveal: QuizReveal | null;
+  quizShuffle: boolean;
   publishedAt: string | null;
 }
 
@@ -64,6 +70,10 @@ type AssignmentRecord = {
   resubmission: boolean;
   points: string | null;
   rubric: Record<string, unknown> | null;
+  quiz_attempts: number | null;
+  quiz_keep: QuizKeep | null;
+  quiz_reveal: QuizReveal | null;
+  quiz_shuffle: boolean;
   published_at: string | null;
 };
 
@@ -73,7 +83,7 @@ const assignmentColumns = sql`a.id, a.version, a.org_id, a.class_id, a.class_typ
   to_char(a.due_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as due_at,
   to_char(a.closes_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as closes_at,
   a.late_policy, a.late_deduction_percent, a.submission_format, a.max_files, a.resubmission,
-  a.points::text as points, a.rubric,
+  a.points::text as points, a.rubric, a.quiz_attempts, a.quiz_keep, a.quiz_reveal, a.quiz_shuffle,
   to_char(a.published_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as published_at`;
 
 function assignmentOf(row: AssignmentRecord): AssignmentRow {
@@ -99,6 +109,10 @@ function assignmentOf(row: AssignmentRecord): AssignmentRow {
     resubmission: row.resubmission,
     points: row.points === null ? null : Number(row.points),
     rubric: row.rubric,
+    quizAttempts: row.quiz_attempts,
+    quizKeep: row.quiz_keep,
+    quizReveal: row.quiz_reveal,
+    quizShuffle: row.quiz_shuffle,
     publishedAt: row.published_at,
   };
 }
@@ -128,6 +142,10 @@ export interface AssignmentFields {
   points: number | null;
   rubric: Record<string, unknown> | null;
   gradingPeriodId: string | null;
+  quizAttempts: number | null;
+  quizKeep: QuizKeep | null;
+  quizReveal: QuizReveal | null;
+  quizShuffle: boolean;
 }
 
 export async function insertAssignment(
@@ -142,14 +160,16 @@ export async function insertAssignment(
   const [row] = await tx.execute<{ id: string; version: number }>(sql`
     insert into core.assignments (tenant_id, org_id, class_id, class_type, school_year_id,
       grading_period_id, author_user_id, title, audience, available_from, due_at, closes_at,
-      late_policy, late_deduction_percent, submission_format, max_files, resubmission, points, rubric)
+      late_policy, late_deduction_percent, submission_format, max_files, resubmission, points, rubric,
+      quiz_attempts, quiz_keep, quiz_reveal, quiz_shuffle)
     values (${input.tenantId}::uuid, ${input.orgId}::uuid, ${input.classRow.id}::uuid,
       ${input.classRow.classType}, ${input.classRow.schoolYearId}::uuid,
       ${input.gradingPeriodId}::uuid, ${input.authorUserId}::uuid, ${input.title},
       ${input.audience}, ${input.availableFrom}::timestamptz, ${input.dueAt}::timestamptz,
       ${input.closesAt}::timestamptz, ${input.latePolicy}, ${input.lateDeductionPercent},
       ${input.submissionFormat}, ${input.maxFiles}, ${input.resubmission}, ${input.points},
-      ${input.rubric}::jsonb)
+      ${input.rubric}::jsonb, ${input.quizAttempts}, ${input.quizKeep}, ${input.quizReveal},
+      ${input.quizShuffle})
     returning id, version`);
   if (!row) throw new Error("assignment was not created");
   return row;
@@ -172,7 +192,9 @@ export async function updateAssignment(
         late_deduction_percent = ${input.lateDeductionPercent},
         submission_format = ${input.submissionFormat}, max_files = ${input.maxFiles},
         resubmission = ${input.resubmission}, points = ${input.points},
-        rubric = ${input.rubric}::jsonb, grading_period_id = ${input.gradingPeriodId}::uuid
+        rubric = ${input.rubric}::jsonb, grading_period_id = ${input.gradingPeriodId}::uuid,
+        quiz_attempts = ${input.quizAttempts}, quiz_keep = ${input.quizKeep},
+        quiz_reveal = ${input.quizReveal}, quiz_shuffle = ${input.quizShuffle}
     where tenant_id = ${input.tenantId}::uuid and id = ${input.id}::uuid
       and version = ${input.expectedVersion} and status = 'active' and state <> 'archived'
     returning version`);
@@ -656,6 +678,8 @@ export interface AssessmentRow {
   rubricScores: Record<string, string> | null;
   feedback: string | null;
   privateNote: string | null;
+  /** Null when a quiz marked itself. */
+  gradedByUserId: string | null;
   releasedAt: string | null;
   gradedAt: string;
 }
@@ -673,11 +697,12 @@ export async function assessmentOf(
     rubric_scores: Record<string, string> | null;
     feedback: string | null;
     private_note: string | null;
+    graded_by_user_id: string | null;
     released_at: string | null;
     graded_at: string;
   }>(sql`
     select id, version, score::text as score, effective_score::text as effective_score,
-      rubric_scores, feedback, private_note,
+      rubric_scores, feedback, private_note, graded_by_user_id,
       to_char(released_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as released_at,
       to_char(graded_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as graded_at
     from core.assessments
@@ -692,6 +717,7 @@ export async function assessmentOf(
         rubricScores: row.rubric_scores,
         feedback: row.feedback,
         privateNote: row.private_note,
+        gradedByUserId: row.graded_by_user_id,
         releasedAt: row.released_at,
         gradedAt: row.graded_at,
       }
@@ -711,7 +737,8 @@ export async function saveAssessment(
     rubricScores: Record<string, string> | null;
     feedback: string | null;
     privateNote: string | null;
-    userId: string;
+    /** Null when a quiz marked itself. */
+    userId: string | null;
   },
 ): Promise<{ id: string; version: number }> {
   const [row] = await tx.execute<{ id: string; version: number }>(sql`
@@ -1034,15 +1061,17 @@ export async function attemptById(
   submissionId: string;
   studentId: string;
   assignmentId: string;
+  number: number;
   isLate: boolean;
 } | null> {
   const [row] = await tx.execute<{
     submission_id: string;
     student_id: string;
     assignment_id: string;
+    number: number;
     is_late: boolean;
   }>(sql`
-    select t.submission_id, t.student_user_id as student_id, s.assignment_id, t.is_late
+    select t.submission_id, t.student_user_id as student_id, s.assignment_id, t.number, t.is_late
     from core.submission_attempts t
     join core.submissions s on s.tenant_id = t.tenant_id and s.id = t.submission_id
     where t.tenant_id = ${tenantId}::uuid and t.id = ${attemptId}::uuid and t.status = 'active'`);
@@ -1051,6 +1080,7 @@ export async function attemptById(
         submissionId: row.submission_id,
         studentId: row.student_id,
         assignmentId: row.assignment_id,
+        number: row.number,
         isLate: row.is_late,
       }
     : null;

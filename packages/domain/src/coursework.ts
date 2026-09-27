@@ -1,11 +1,31 @@
 import * as v from "valibot";
 
+import type { CheckBlock, LessonDocument } from "./learning";
+
 import { contentDocumentSchema, contentPlainText } from "./content";
+import { checkBlocks, lessonDocumentSchema, responseSchema } from "./learning";
 
 export const LATE_POLICIES = ["accept", "deduct", "refuse"] as const;
 export type LatePolicy = (typeof LATE_POLICIES)[number];
-export const SUBMISSION_FORMATS = ["online", "files", "both", "none"] as const;
+export const SUBMISSION_FORMATS = [
+  "online",
+  "files",
+  "both",
+  "none",
+  "quiz",
+] as const;
 export type SubmissionFormat = (typeof SUBMISSION_FORMATS)[number];
+/** Which attempt's score counts when a quiz may be taken more than once. */
+export const QUIZ_KEEPS = ["highest", "latest", "average", "first"] as const;
+export type QuizKeep = (typeof QUIZ_KEEPS)[number];
+/**
+ * What a student sees after handing a quiz in: the right answers and
+ * explanations, only which questions were right, or nothing until the
+ * teacher returns it.
+ */
+export const QUIZ_REVEALS = ["answers", "marks", "returned"] as const;
+export type QuizReveal = (typeof QUIZ_REVEALS)[number];
+export const MAX_QUIZ_ATTEMPTS = 10;
 export const AUDIENCES = ["class", "selected"] as const;
 export type Audience = (typeof AUDIENCES)[number];
 export const MAX_RESOURCES = 10;
@@ -67,6 +87,24 @@ export function rubricTotal(rubric: Rubric): number {
   );
 }
 
+export const quizSchema = v.object({
+  /** Null lets a student take it as often as they like before it closes. */
+  attempts: v.nullable(
+    v.pipe(
+      v.number(),
+      v.integer(),
+      v.minValue(1),
+      v.maxValue(MAX_QUIZ_ATTEMPTS),
+    ),
+  ),
+  keep: v.picklist(QUIZ_KEEPS),
+  reveal: v.picklist(QUIZ_REVEALS),
+  /** Each student meets the questions in their own order. */
+  shuffle: v.boolean(),
+  content: lessonDocumentSchema,
+});
+export type QuizSettings = v.InferOutput<typeof quizSchema>;
+
 export const saveAssignmentSchema = v.object({
   id: v.optional(id),
   expectedVersion: v.optional(version),
@@ -96,6 +134,7 @@ export const saveAssignmentSchema = v.object({
   points: v.nullable(v.pipe(points, v.minValue(0.5))),
   rubric: v.nullable(rubricSchema),
   gradingPeriodId: v.optional(v.union([v.literal(""), id]), ""),
+  quiz: v.optional(v.nullable(quizSchema), null),
 });
 export type SaveAssignmentInput = v.InferInput<typeof saveAssignmentSchema>;
 export type SaveAssignment = v.InferOutput<typeof saveAssignmentSchema>;
@@ -106,7 +145,11 @@ export type AssignmentIssue =
   | "coursework.deduction_required"
   | "coursework.rubric_needs_points"
   | "coursework.audience_empty"
-  | "coursework.brief_empty";
+  | "coursework.brief_empty"
+  | "coursework.quiz_needed"
+  | "coursework.quiz_questions"
+  | "coursework.quiz_gate"
+  | "coursework.quiz_rubric";
 
 const instantOf = (value: string) => (value ? Date.parse(value) : null);
 
@@ -123,14 +166,26 @@ export function assignmentIssue(input: SaveAssignment): AssignmentIssue | null {
     return "coursework.deduction_required";
   if (input.rubric && input.points === null)
     return "coursework.rubric_needs_points";
+  if ((input.submissionFormat === "quiz") !== (input.quiz !== null))
+    return "coursework.quiz_needed";
+  if (input.quiz) {
+    if (input.rubric) return "coursework.quiz_rubric";
+    if (input.quiz.content.blocks.some((block) => block.type === "gate"))
+      return "coursework.quiz_gate";
+  }
   return null;
 }
 
 /** What still stops a draft being assigned. Empty means it can go out. */
 export function publishIssues(
-  input: Pick<SaveAssignment, "brief" | "audience" | "groupIds" | "studentIds">,
+  input: Pick<
+    SaveAssignment,
+    "brief" | "audience" | "groupIds" | "studentIds"
+  > & { quiz?: LessonDocument | null },
 ): AssignmentIssue[] {
   const issues: AssignmentIssue[] = [];
+  if (input.quiz && quizPoints(input.quiz) === 0)
+    issues.push("coursework.quiz_questions");
   if (!contentPlainText(input.brief).trim())
     issues.push("coursework.brief_empty");
   if (
@@ -349,3 +404,73 @@ export const savePeriodGradesSchema = v.object({
 });
 
 export const releasePeriodSchema = v.object({ classId: id, periodId: id });
+
+/** What a quiz is worth: the points of all its questions. */
+export function quizPoints(document: LessonDocument): number {
+  return checkBlocks(document).reduce((sum, block) => sum + block.points, 0);
+}
+
+const hundredths = (value: number) => Math.round(value * 100) / 100;
+
+/**
+ * One attempt's score: each question's points times the share it earned. A
+ * written answer not marked yet counts nothing until it is.
+ */
+export function attemptScore(
+  document: LessonDocument,
+  fractions: Record<string, number | null | undefined>,
+): number {
+  return hundredths(
+    checkBlocks(document).reduce(
+      (sum: number, block: CheckBlock) =>
+        sum + block.points * (fractions[block.id] ?? 0),
+      0,
+    ),
+  );
+}
+
+/** The score that counts across a student's attempts, in the order taken. */
+export function keptScore(
+  scores: readonly number[],
+  keep: QuizKeep,
+): number | null {
+  if (scores.length === 0) return null;
+  switch (keep) {
+    case "highest":
+      return Math.max(...scores);
+    case "latest":
+      return scores.at(-1) ?? null;
+    case "first":
+      return scores[0] ?? null;
+    case "average":
+      return hundredths(
+        scores.reduce((sum, score) => sum + score, 0) / scores.length,
+      );
+  }
+  return null;
+}
+
+/** Whether a student may start or hand in another quiz attempt now. */
+export function canTakeQuiz(
+  schedule: Schedule,
+  attempts: number,
+  allowed: number | null,
+  now: Date,
+): boolean {
+  const phase = assignmentPhase(schedule, now);
+  if (phase !== "assigned" && phase !== "past_due") return false;
+  return allowed === null || attempts < allowed;
+}
+
+export const saveQuizAnswerSchema = v.object({
+  assignmentId: id,
+  blockId: id,
+  response: v.nullable(responseSchema),
+});
+
+export const markQuizAnswerSchema = v.object({
+  attemptId: id,
+  blockId: id,
+  points: v.pipe(v.number(), v.minValue(0), v.maxValue(100)),
+  feedback: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(2000)), ""),
+});
