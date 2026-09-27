@@ -4,6 +4,7 @@ import type {
   SectionOf,
   SiteBlock,
   SiteLocale,
+  SiteMedia,
 } from "@faridalms/domain/site-sections";
 import type { CSSProperties, FormEvent } from "react";
 
@@ -47,6 +48,7 @@ import {
   Prose,
   publicMediaUrl,
   SectionFrame,
+  fullBleed,
   SectionIntro,
   SiteAnchor,
   SiteIcon,
@@ -104,7 +106,7 @@ function Backdrop({
   context,
   seed,
 }: {
-  media: SectionOf<"hero">["data"]["media"];
+  media: SiteMedia;
   context: RenderContext;
   seed: string;
 }) {
@@ -513,6 +515,36 @@ function Slides({ section, context, first }: Props<"slides">) {
 
 function PageHeader({ section, context, first }: Props<"pageHeader">) {
   const { data, variant } = section;
+  const center = section.style.align === "center";
+  const words = (
+    <div
+      data-stagger
+      className={cn(
+        "grid max-w-3xl gap-5",
+        center && "mx-auto justify-items-center",
+      )}
+    >
+      <Eyebrow field="eyebrow">{data.eyebrow}</Eyebrow>
+      <Heading level={first ? 1 : 2} size="display" field="heading">
+        {data.heading}
+      </Heading>
+      <Lead className="text-[1.15rem]" field="text">
+        {data.text}
+      </Lead>
+    </div>
+  );
+  if (variant === "banner")
+    return (
+      <div
+        className="relative isolate flex min-h-[21rem] items-end overflow-hidden @3xl/site:min-h-[28rem]"
+        style={OVER_PICTURE}
+      >
+        <Backdrop media={data.media} context={context} seed={section.id} />
+        <div className="mx-auto w-full max-w-[84rem] px-5 pt-40 pb-12 @3xl/site:px-8 @3xl/site:pb-16">
+          {words}
+        </div>
+      </div>
+    );
   return (
     <div
       className={cn(
@@ -521,15 +553,7 @@ function PageHeader({ section, context, first }: Props<"pageHeader">) {
           "@3xl/site:grid-cols-[1.2fr_1fr] @4xl/site:gap-16",
       )}
     >
-      <div data-stagger className="grid max-w-3xl gap-5">
-        <Eyebrow field="eyebrow">{data.eyebrow}</Eyebrow>
-        <Heading level={first ? 1 : 2} size="display" field="heading">
-          {data.heading}
-        </Heading>
-        <Lead className="text-[1.15rem]" field="text">
-          {data.text}
-        </Lead>
-      </div>
+      {words}
       {variant === "image" ? (
         <MediaView
           media={data.media}
@@ -2592,8 +2616,6 @@ function Blocks({ section, context }: Props<"blocks">) {
   );
 }
 
-const EDGE_TO_EDGE = new Set<PageSection["type"]>(["hero", "slides"]);
-
 /**
  * One section as visitors see it. A section shown in the other language
  * carries that language, so screen readers pronounce it right.
@@ -2612,8 +2634,7 @@ export function SiteSection({
   joined?: boolean;
 }) {
   const t = { locale: context.locale };
-  const full =
-    EDGE_TO_EDGE.has(section.type) && section.variant === "fullbleed";
+  const full = fullBleed(section);
   const body = (() => {
     switch (section.type) {
       case "hero":

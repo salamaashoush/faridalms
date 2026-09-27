@@ -582,6 +582,16 @@ export function BackgroundVideo({
   );
 }
 
+const FULL_BLEED: Partial<Record<PageSection["type"], string>> = {
+  hero: "fullbleed",
+  slides: "fullbleed",
+  pageHeader: "banner",
+};
+
+/** Whether a section runs edge to edge over a picture, film or artwork. */
+export const fullBleed = (section: PageSection) =>
+  FULL_BLEED[section.type] === section.variant;
+
 const SPACING = { s: 0.6, m: 1, l: 1.45 } as const;
 const WIDTH = { contained: "72rem", wide: "84rem", full: "none" } as const;
 

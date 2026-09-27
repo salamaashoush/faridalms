@@ -116,6 +116,7 @@ export const VARIANT_LABEL: {
   pageHeader: {
     plain: m.siteVariantPageHeaderPlain,
     image: m.siteVariantPageHeaderImage,
+    banner: m.siteVariantPageHeaderBanner,
   },
   announcement: {
     strip: m.siteVariantAnnouncementStrip,

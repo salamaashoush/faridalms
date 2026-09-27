@@ -6,6 +6,7 @@ import { Fragment } from "react";
 
 import type { RenderContext } from "./parts";
 
+import { fullBleed } from "./parts";
 import { SiteSection } from "./sections";
 
 export interface ShownSection {
@@ -30,10 +31,7 @@ export function opensWithTitle(sections: ShownSection[]): boolean {
 /** Whether the page opens on a full-bleed picture, film or artwork an overlay header can sit on. */
 export function opensOnPicture(sections: ShownSection[]): boolean {
   const first = sections[0]?.section;
-  return (
-    (first?.type === "hero" || first?.type === "slides") &&
-    first.variant === "fullbleed"
-  );
+  return first ? fullBleed(first) : false;
 }
 
 const EDGE = new Set<PageSection["type"]>(["hero", "slides"]);
@@ -46,7 +44,14 @@ function continues(
   before: PageSection | undefined,
   section: PageSection,
 ): boolean {
-  if (!before || EDGE.has(before.type) || EDGE.has(section.type)) return false;
+  if (
+    !before ||
+    EDGE.has(before.type) ||
+    EDGE.has(section.type) ||
+    fullBleed(before) ||
+    fullBleed(section)
+  )
+    return false;
   return (
     before.style.scheme === section.style.scheme &&
     before.style.background.kind === "none" &&
