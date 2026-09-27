@@ -560,6 +560,12 @@ export function SectionFrame({
           />
         </div>
       ) : null}
+      {style.pattern === "none" ? null : (
+        <div
+          aria-hidden
+          className={`site-pattern site-pattern-${style.pattern} pointer-events-none absolute inset-0`}
+        />
+      )}
       <DividerShape divider={style.dividerTop} edge="top" />
       <div
         data-reveal

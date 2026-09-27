@@ -3720,5 +3720,15 @@
   "siteToneMono": "Black and white",
   "siteToneDuotone": "Brand duotone",
   "siteLocaleShortEn": "EN",
-  "siteLocaleShortAr": "عربي"
+  "siteLocaleShortAr": "عربي",
+  "siteVariantHeroCollage": "Collage",
+  "siteVariantHeroStatement": "Statement",
+  "siteFieldMore": "More pictures",
+  "sitePatternNone": "None",
+  "sitePatternDots": "Dots",
+  "sitePatternGrid": "Grid",
+  "sitePatternLines": "Lines",
+  "sitePatternGrain": "Grain",
+  "siteTexture": "Texture",
+  "siteTextureHint": "A quiet pattern over the section's colour."
 }

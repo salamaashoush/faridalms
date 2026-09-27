@@ -10,6 +10,12 @@ function hash(seed: string): number {
     value ^= seed.charCodeAt(index);
     value = Math.imul(value, 16777619);
   }
+  // Murmur's finaliser, so seeds that differ by one character still land far apart.
+  value ^= value >>> 16;
+  value = Math.imul(value, 0x85ebca6b);
+  value ^= value >>> 13;
+  value = Math.imul(value, 0xc2b2ae35);
+  value ^= value >>> 16;
   return value >>> 0;
 }
 

@@ -27,7 +27,14 @@ import {
   Undo2,
   X,
 } from "lucide-react";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  useCallback,
+  useEffect,
+  useEffectEvent,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { toast } from "sonner";
 
 import type { siteOverviewQuery, sitePageQuery } from "~/queries/site";
@@ -497,6 +504,33 @@ export function SiteStudio({
     setSections((current) => current.filter((section) => section.id !== id));
     if (selected === id) setSelected(null);
   };
+
+  // The selected section answers the keys people expect from a layout
+  // editor; all of it can be undone.
+  const onSectionKey = useEffectEvent((event: KeyboardEvent) => {
+    if (!selected || editableTarget(event.target) || galleryAt !== null) return;
+    const command = event.metaKey || event.ctrlKey;
+    if (event.key === "Delete" || event.key === "Backspace") {
+      event.preventDefault();
+      remove(selected);
+    } else if (command && event.key.toLowerCase() === "d") {
+      event.preventDefault();
+      duplicate(selected);
+    } else if (
+      event.altKey &&
+      (event.key === "ArrowUp" || event.key === "ArrowDown")
+    ) {
+      event.preventDefault();
+      moveSection(selected, event.key === "ArrowUp" ? -1 : 1);
+    } else if (event.key === "Escape") {
+      setSelected(null);
+    }
+  });
+  useEffect(() => {
+    const listen = (event: KeyboardEvent) => onSectionKey(event);
+    window.addEventListener("keydown", listen);
+    return () => window.removeEventListener("keydown", listen);
+  }, []);
 
   const invalidate = () =>
     queryClient.invalidateQueries({ queryKey: ["site"] });

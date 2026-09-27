@@ -3848,5 +3848,15 @@
   "siteToneMono": "أبيض وأسود",
   "siteToneDuotone": "ثنائية اللون",
   "siteLocaleShortEn": "EN",
-  "siteLocaleShortAr": "عربي"
+  "siteLocaleShortAr": "عربي",
+  "siteVariantHeroCollage": "مجموعة صور",
+  "siteVariantHeroStatement": "عبارة لافتة",
+  "siteFieldMore": "صور إضافية",
+  "sitePatternNone": "بلا",
+  "sitePatternDots": "نقاط",
+  "sitePatternGrid": "شبكة",
+  "sitePatternLines": "خطوط",
+  "sitePatternGrain": "حبيبات",
+  "siteTexture": "النقش",
+  "siteTextureHint": "نقش هادئ فوق لون القسم."
 }

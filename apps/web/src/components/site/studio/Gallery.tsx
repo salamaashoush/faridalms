@@ -103,15 +103,18 @@ function TypeCard({
     onPick(buildSection(type, chosen as never, primary));
   return (
     <li className="grid content-start overflow-hidden rounded-xl border bg-card shadow-xs">
-      <button
-        type="button"
-        onClick={() => insert(variant)}
-        className="group grid text-start focus-visible:outline-2 focus-visible:outline-primary"
-        aria-label={m.siteAddSectionNamed({
-          section: SECTION_LABEL[type](),
-          layout: labels[variant]?.() ?? "",
-        })}
-      >
+      {/* The preview holds live buttons of its own, so the card's button
+          lies over it rather than around it. */}
+      <div className="group relative grid text-start">
+        <button
+          type="button"
+          onClick={() => insert(variant)}
+          className="absolute inset-0 z-10 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-primary"
+          aria-label={m.siteAddSectionNamed({
+            section: SECTION_LABEL[type](),
+            layout: labels[variant]?.() ?? "",
+          })}
+        />
         <div className="border-b transition-opacity group-hover:opacity-90">
           <Thumbnail section={sample.content} context={context} />
         </div>
@@ -121,7 +124,7 @@ function TypeCard({
             {SECTION_HINT[type]()}
           </span>
         </span>
-      </button>
+      </div>
       {variants.length > 1 ? (
         <fieldset className="flex flex-wrap gap-1 p-3">
           <legend className="sr-only">{m.siteLayouts()}</legend>
@@ -256,11 +259,13 @@ export function TemplateGallery({
     <ul className="grid gap-5 sm:grid-cols-2 xl:grid-cols-3">
       {PAGE_TEMPLATE_IDS.map((template) => (
         <li key={template}>
-          <button
-            type="button"
-            onClick={() => onPick(template)}
-            className="group grid w-full overflow-hidden rounded-xl border bg-card text-start shadow-xs transition-shadow hover:shadow-md focus-visible:outline-2 focus-visible:outline-primary"
-          >
+          <div className="group relative grid w-full overflow-hidden rounded-xl border bg-card text-start shadow-xs transition-shadow hover:shadow-md">
+            <button
+              type="button"
+              onClick={() => onPick(template)}
+              aria-label={`${TEMPLATE_LABEL[template]()}: ${TEMPLATE_HINT[template]()}`}
+              className="absolute inset-0 z-10 rounded-xl focus-visible:outline-2 focus-visible:outline-primary"
+            />
             <div
               aria-hidden
               inert
@@ -298,7 +303,7 @@ export function TemplateGallery({
                 {TEMPLATE_HINT[template]()}
               </span>
             </span>
-          </button>
+          </div>
         </li>
       ))}
     </ul>

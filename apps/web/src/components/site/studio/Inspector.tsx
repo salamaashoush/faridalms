@@ -9,6 +9,7 @@ import type { SchemeId } from "@faridalms/domain/site-theme";
 import {
   fieldsOf,
   fitColumns,
+  PATTERNS,
   SECTION_SPECS,
 } from "@faridalms/domain/site-sections";
 import { DIVIDERS, SCHEMES, schemesOf } from "@faridalms/domain/site-theme";
@@ -19,6 +20,7 @@ import { Button } from "~/components/ui/button";
 import { Input } from "~/components/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
 import * as m from "~/i18n/messages";
+import { cn } from "~/utils/cn";
 import { formatNumber } from "~/utils/datetime";
 
 import type { RenderContext } from "../render/parts";
@@ -34,6 +36,7 @@ import {
   ALIGN_LABEL,
   DIVIDER_LABEL,
   ISSUE_LABEL,
+  PATTERN_LABEL,
   SCHEME_LABEL,
   SECTION_HINT,
   SECTION_LABEL,
@@ -57,13 +60,21 @@ function VariantPicker({
     <fieldset className="grid grid-cols-2 gap-2">
       <legend className="sr-only">{m.siteLayout()}</legend>
       {variants.map((variant) => (
-        <button
+        <div
           key={variant}
-          type="button"
-          aria-pressed={section.variant === variant}
-          onClick={() => onChange(variant)}
-          className="grid overflow-hidden rounded-lg border bg-card text-start aria-pressed:border-primary aria-pressed:ring-2 aria-pressed:ring-primary/30"
+          className={cn(
+            "relative grid overflow-hidden rounded-lg border bg-card text-start",
+            section.variant === variant &&
+              "border-primary ring-2 ring-primary/30",
+          )}
         >
+          <button
+            type="button"
+            aria-pressed={section.variant === variant}
+            aria-label={labels[variant]?.()}
+            onClick={() => onChange(variant)}
+            className="absolute inset-0 z-10 rounded-lg focus-visible:outline-2 focus-visible:outline-primary"
+          />
           <div
             aria-hidden
             inert
@@ -85,7 +96,7 @@ function VariantPicker({
           <span className="px-2 py-1.5 text-xs font-medium">
             {labels[variant]?.()}
           </span>
-        </button>
+        </div>
       ))}
     </fieldset>
   );
@@ -460,6 +471,17 @@ export function Inspector({
                   </StudioField>
                 </div>
               )}
+            </PanelGroup>
+            <PanelGroup title={m.siteTexture()} hint={m.siteTextureHint()}>
+              <Segmented
+                label={m.siteTexture()}
+                value={style.pattern}
+                options={PATTERNS.map((value) => ({
+                  value,
+                  label: PATTERN_LABEL[value](),
+                }))}
+                onChange={(pattern) => setStyle("pattern", pattern)}
+              />
             </PanelGroup>
             <PanelGroup title={m.siteDividers()}>
               <StudioField label={m.siteDividerTop()}>

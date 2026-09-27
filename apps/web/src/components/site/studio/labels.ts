@@ -1,6 +1,7 @@
 import type {
   BlockType,
   IconId,
+  Pattern,
   SectionCategory,
   SectionStyle,
   SectionType,
@@ -102,6 +103,8 @@ export const VARIANT_LABEL: {
     split: m.siteVariantHeroSplit,
     inset: m.siteVariantHeroInset,
     type: m.siteVariantHeroType,
+    collage: m.siteVariantHeroCollage,
+    statement: m.siteVariantHeroStatement,
   },
   slides: {
     fullbleed: m.siteVariantSlidesFullbleed,
@@ -280,6 +283,7 @@ export const FIELD_LABEL: Record<string, () => string> = {
   interval: m.siteFieldInterval,
   layout: m.siteFieldLayout,
   valign: m.siteFieldValign,
+  more: m.siteFieldMore,
   purpose: m.siteFieldPurpose,
   phone: m.siteFieldPhone,
   grade: m.siteFieldGrade,
@@ -495,6 +499,14 @@ export const EMPHASIS_LABEL: Record<Emphasis, () => string> = {
   colour: m.siteEmphasisColour,
   highlight: m.siteEmphasisHighlight,
   underline: m.siteEmphasisUnderline,
+};
+
+export const PATTERN_LABEL: Record<Pattern, () => string> = {
+  none: m.sitePatternNone,
+  dots: m.sitePatternDots,
+  grid: m.sitePatternGrid,
+  lines: m.sitePatternLines,
+  grain: m.sitePatternGrain,
 };
 
 export const TONE_LABEL: Record<PhotoTone, () => string> = {

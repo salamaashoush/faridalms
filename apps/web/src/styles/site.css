@@ -266,6 +266,44 @@
   .site-root[data-tone="duotone"] .site-photo {
     filter: url(#site-duotone);
   }
+  /* Textures drawn in the section's own text colour, so they suit any
+     scheme, and faded towards the edges so they never fight the words. */
+  .site-pattern {
+    mask-image: radial-gradient(ellipse at 50% 40%, black 30%, transparent 80%);
+  }
+  .site-pattern-dots {
+    background-image: radial-gradient(
+      color-mix(in srgb, var(--s-fg) 22%, transparent) 1.2px,
+      transparent 1.6px
+    );
+    background-size: 22px 22px;
+  }
+  .site-pattern-grid {
+    background-image:
+      linear-gradient(
+        color-mix(in srgb, var(--s-fg) 10%, transparent) 1px,
+        transparent 1px
+      ),
+      linear-gradient(
+        90deg,
+        color-mix(in srgb, var(--s-fg) 10%, transparent) 1px,
+        transparent 1px
+      );
+    background-size: 48px 48px;
+  }
+  .site-pattern-lines {
+    background-image: repeating-linear-gradient(
+      135deg,
+      color-mix(in srgb, var(--s-fg) 9%, transparent) 0 1px,
+      transparent 1px 14px
+    );
+  }
+  .site-pattern-grain {
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix type='saturate' values='0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='.5'/%3E%3C/svg%3E");
+    mask-image: none;
+    opacity: 0.35;
+    mix-blend-mode: overlay;
+  }
   .site-button {
     display: inline-flex;
     min-height: 2.75rem;

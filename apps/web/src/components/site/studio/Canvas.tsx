@@ -1,6 +1,6 @@
 import type { SiteLocale } from "@faridalms/domain/site-sections";
 import type { Theme } from "@faridalms/domain/site-theme";
-import type { ReactNode } from "react";
+import type { CSSProperties, ReactNode } from "react";
 
 import { ArrowDown, ArrowUp, Copy, EyeOff, Plus, Trash2 } from "lucide-react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
@@ -18,6 +18,9 @@ import { SiteFrame } from "../render/frame";
 import { opensOnPicture, PageSections } from "../render/page";
 import { schemeStyle, themeAttributes, themeStyle } from "../render/theme";
 import { SECTION_LABEL } from "./labels";
+
+/** Builder controls inside the zoomed canvas keep their true size. */
+const UNZOOM = { zoom: "calc(1 / var(--canvas-zoom, 1))" } as CSSProperties;
 
 export const DEVICES = { desktop: 1440, tablet: 820, phone: 390 } as const;
 export type Device = keyof typeof DEVICES;
@@ -61,12 +64,15 @@ export function Viewport({
         lang={locale}
         dir={locale === "ar" ? "rtl" : "ltr"}
         {...themeAttributes(theme, true)}
-        style={{
-          width,
-          zoom: scale,
-          ...themeStyle(theme, locale),
-          ...schemeStyle(theme, "canvas"),
-        }}
+        style={
+          {
+            width,
+            zoom: scale,
+            "--canvas-zoom": scale,
+            ...themeStyle(theme, locale),
+            ...schemeStyle(theme, "canvas"),
+          } as CSSProperties
+        }
       >
         {children}
       </div>
@@ -126,6 +132,7 @@ function SectionChrome({
       />
       <span
         aria-hidden
+        style={UNZOOM}
         className={cn(
           "pointer-events-none absolute start-3 top-3 z-20 rounded bg-[#2563eb] px-2 py-1 font-sans text-xs font-semibold text-white opacity-0 group-hover/section:opacity-100",
           selected && "opacity-100",
@@ -142,6 +149,7 @@ function SectionChrome({
         <div
           role="toolbar"
           aria-label={label}
+          style={UNZOOM}
           className="absolute end-3 top-3 z-20 flex gap-0.5 rounded-lg bg-[#111827] p-1 font-sans text-white shadow-lg"
         >
           <Button
@@ -198,6 +206,7 @@ function SectionChrome({
         type="button"
         onClick={() => onInsert(index + 1)}
         aria-label={m.siteInsertSectionAfter({ section: label })}
+        style={UNZOOM}
         className="absolute start-1/2 bottom-0 z-20 grid size-9 -translate-x-1/2 translate-y-1/2 place-items-center rounded-full bg-[#2563eb] text-white opacity-0 shadow-lg transition-opacity group-hover/section:opacity-100 focus-visible:opacity-100 rtl:translate-x-1/2"
       >
         <Plus aria-hidden className="size-5" />

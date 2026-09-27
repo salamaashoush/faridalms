@@ -200,6 +200,77 @@ function Hero({ section, context, first }: Props<"hero">) {
         </div>
       </div>
     );
+  if (variant === "collage") {
+    const [second, third] = data.more;
+    return (
+      <div className="grid items-center gap-12 @3xl/site:grid-cols-[1fr_1.1fr] @4xl/site:gap-16">
+        {words}
+        <div className="relative mx-auto aspect-square w-full max-w-xl">
+          <div className="site-feature absolute inset-y-[4%] start-[14%] w-[60%]">
+            <MediaView
+              media={data.media}
+              context={context}
+              seed={section.id}
+              className="size-full rounded-none"
+            />
+          </div>
+          <div className="absolute end-0 top-[8%] aspect-[4/3] w-[42%] overflow-hidden rounded-[max(var(--s-radius),0.75rem)] shadow-xl ring-8 ring-[var(--s-bg)]">
+            <Picture
+              image={second?.image ?? { fileId: null, alt: "" }}
+              context={context}
+              seed={second?.id ?? `${section.id}-2`}
+              className="size-full rounded-none"
+            />
+          </div>
+          <div className="absolute start-0 bottom-[6%] aspect-square w-[36%] overflow-hidden rounded-full shadow-xl ring-8 ring-[var(--s-bg)]">
+            <Picture
+              image={third?.image ?? { fileId: null, alt: "" }}
+              context={context}
+              seed={third?.id ?? `${section.id}-3`}
+              className="size-full rounded-none"
+            />
+          </div>
+          <span
+            aria-hidden
+            className="absolute end-[10%] bottom-0 size-14 rounded-full bg-[var(--s-accent)]"
+          />
+          <span
+            aria-hidden
+            className="absolute start-[8%] top-0 size-6 rounded-full border-4 border-[var(--s-link)]"
+          />
+        </div>
+      </div>
+    );
+  }
+  if (variant === "statement")
+    return (
+      <div className="relative grid gap-10 py-[calc(var(--s-space)*0.25)]">
+        <div className="relative z-10 grid gap-8 @3xl/site:max-w-[72%]">
+          <Eyebrow>{data.eyebrow}</Eyebrow>
+          <Heading
+            level={first ? 1 : 2}
+            size="display"
+            className="max-w-none text-[clamp(3rem,1rem+8.5cqi,9.5rem)] leading-[0.92]"
+          >
+            {data.heading}
+          </Heading>
+          <div className="grid items-end gap-6 @3xl/site:grid-cols-[1fr_auto]">
+            <Lead className="max-w-xl text-[1.15rem]">{data.text}</Lead>
+            <Actions actions={data.actions} context={context} />
+          </div>
+        </div>
+        <div className="site-feature -rotate-2 shadow-2xl @3xl/site:absolute @3xl/site:end-0 @3xl/site:top-[10%] @3xl/site:w-[30%]">
+          <MediaView
+            media={data.media}
+            context={context}
+            ratio="4 / 5"
+            seed={section.id}
+            phoneRatio="4 / 3"
+            className="rounded-none"
+          />
+        </div>
+      </div>
+    );
   if (variant === "inset")
     return (
       <div className="grid justify-items-center gap-12 text-center">
