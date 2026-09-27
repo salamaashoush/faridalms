@@ -12,6 +12,7 @@ import {
   entityColumns,
   entityProfile,
   fk,
+  instant,
   pk,
   tenantColumns,
 } from "./conventions";
@@ -29,12 +30,15 @@ export type EventCategory =
   | "exam"
   | "celebration";
 
+export type EventState = "draft" | "published";
+
 /**
  * Something people attend: a trip, a parents' evening, a match. Days the
  * school is closed are the school calendar's `calendar_dates`, not events.
  * Dates and times are the school's wall clock, so an event keeps its hour
  * across a daylight-saving change. Its description is the document hosted as
- * `calendar_event`.
+ * `calendar_event`. A draft is seen by its author and those who manage the
+ * calendar; publishing is when its audience may be told.
  */
 export const calendarEvents = core.table.withRLS(
   "calendar_events",
@@ -52,6 +56,10 @@ export const calendarEvents = core.table.withRLS(
     /** The date is not confirmed yet; shown as "to be confirmed". */
     provisional: boolean("provisional").notNull().default(false),
     cancelled: boolean("cancelled").notNull().default(false),
+    state: text("state").$type<EventState>().notNull().default("published"),
+    publishedAt: instant("published_at"),
+    /** When its audience was last told of a change. */
+    updateSentAt: instant("update_sent_at"),
     authorUserId: uuid("author_user_id").notNull(),
     ...entityColumns(),
   },
@@ -76,6 +84,7 @@ export const calendarEvents = core.table.withRLS(
       sql`location is null or char_length(location) between 1 and 200`,
     ),
     ck("calendar_events", "ends_on", sql`ends_on >= starts_on`),
+    ck("calendar_events", "state", sql`state in ('draft', 'published')`),
     ck(
       "calendar_events",
       "times",

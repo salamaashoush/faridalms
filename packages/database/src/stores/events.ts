@@ -1,10 +1,11 @@
 import { sql } from "drizzle-orm";
 
 import type { CellTransaction } from "../context";
-import type { EventCategory } from "../tables/events";
+import type { EventCategory, EventState } from "../tables/events";
 import type { Reach } from "./audiences";
 
 import { reaches } from "./audiences";
+import { isoOf } from "./sql";
 
 type Tx = CellTransaction;
 
@@ -21,6 +22,9 @@ export interface EventRow {
   location: string | null;
   provisional: boolean;
   cancelled: boolean;
+  state: EventState;
+  publishedAt: string | null;
+  updateSentAt: string | null;
   authorUserId: string;
   authorNameEn: string | null;
   authorNameAr: string | null;
@@ -29,7 +33,8 @@ export interface EventRow {
 const columns = sql`e.id, e.version, e.org_id, e.title, e.category,
   to_char(e.starts_on, 'YYYY-MM-DD') as starts_on, to_char(e.ends_on, 'YYYY-MM-DD') as ends_on,
   to_char(e.start_time, 'HH24:MI') as start_time, to_char(e.end_time, 'HH24:MI') as end_time,
-  e.location, e.provisional, e.cancelled, e.author_user_id,
+  e.location, e.provisional, e.cancelled, e.state, ${isoOf(sql`e.published_at`)} as published_at,
+  ${isoOf(sql`e.update_sent_at`)} as update_sent_at, e.author_user_id,
   u.full_name_en as author_en, u.full_name_ar as author_ar`;
 
 type EventRecord = {
@@ -45,6 +50,9 @@ type EventRecord = {
   location: string | null;
   provisional: boolean;
   cancelled: boolean;
+  state: EventState;
+  published_at: string | null;
+  update_sent_at: string | null;
   author_user_id: string;
   author_en: string | null;
   author_ar: string | null;
@@ -64,6 +72,9 @@ function rowOf(row: EventRecord): EventRow {
     location: row.location,
     provisional: row.provisional,
     cancelled: row.cancelled,
+    state: row.state,
+    publishedAt: row.published_at,
+    updateSentAt: row.update_sent_at,
     authorUserId: row.author_user_id,
     authorNameEn: row.author_en,
     authorNameAr: row.author_ar,
@@ -102,33 +113,39 @@ export async function eventReaches(
 
 /**
  * The school's events overlapping `[from, to]`, in the order they happen. With
- * a reach, only those whose audience names that person; without, all of them.
+ * a reach, only those whose audience names that person or that they wrote;
+ * without, all of them. Drafts only when asked for, and then only the
+ * viewer's own unless they manage the calendar.
  */
 export async function eventsBetween(
   tx: Tx,
   input: {
     tenantId: string;
     schoolId: string;
+    viewerId: string;
     from: string;
     to: string;
     reach: Reach | null;
+    drafts: boolean;
   },
 ): Promise<EventRow[]> {
+  const own = sql`e.author_user_id = ${input.viewerId}::uuid`;
   const rows = await tx.execute<EventRecord>(sql`
     select ${columns} from core.calendar_events e
     join core.users u on u.tenant_id = e.tenant_id and u.id = e.author_user_id
     where e.tenant_id = ${input.tenantId}::uuid and e.org_id = ${input.schoolId}::uuid
       and e.status = 'active' and e.starts_on <= ${input.to}::date and e.ends_on >= ${input.from}::date
+      and (e.state = 'published' or ${input.drafts} and (${input.reach === null} or ${own}))
       and ${
         input.reach
-          ? reaches(
+          ? sql`(${own} or ${reaches(
               {
                 tenantId: input.tenantId,
                 kind: "calendar_event",
                 ownerId: sql`e.id`,
               },
               input.reach,
-            )
+            )})`
           : sql`true`
       }
     order by e.starts_on, e.start_time nulls first, e.title, e.id
@@ -147,16 +164,17 @@ export interface EventFields {
   provisional: boolean;
 }
 
+/** A new event, a draft until it is published. */
 export async function insertEvent(
   tx: Tx,
   input: EventFields & { tenantId: string; schoolId: string; authorId: string },
 ): Promise<{ id: string; version: number }> {
   const [row] = await tx.execute<{ id: string; version: number }>(sql`
     insert into core.calendar_events (tenant_id, org_id, title, category, starts_on, ends_on,
-      start_time, end_time, location, provisional, author_user_id)
+      start_time, end_time, location, provisional, state, author_user_id)
     values (${input.tenantId}::uuid, ${input.schoolId}::uuid, ${input.title}, ${input.category},
       ${input.startsOn}::date, ${input.endsOn}::date, ${input.startTime}::time, ${input.endTime}::time,
-      ${input.location}, ${input.provisional}, ${input.authorId}::uuid)
+      ${input.location}, ${input.provisional}, 'draft', ${input.authorId}::uuid)
     returning id, version`);
   if (!row) throw new Error("event not written");
   return row;
@@ -168,6 +186,8 @@ export async function updateEvent(
     tenantId: string;
     id: string;
     expectedVersion: number;
+    /** Its audience is being told of this change. */
+    updateSent: boolean;
   },
 ): Promise<number | null> {
   const [row] = await tx.execute<{ version: number }>(sql`
@@ -175,7 +195,8 @@ export async function updateEvent(
     set title = ${input.title}, category = ${input.category}, starts_on = ${input.startsOn}::date,
         ends_on = ${input.endsOn}::date, start_time = ${input.startTime}::time,
         end_time = ${input.endTime}::time, location = ${input.location},
-        provisional = ${input.provisional}
+        provisional = ${input.provisional},
+        update_sent_at = case when ${input.updateSent} then statement_timestamp() else update_sent_at end
     where tenant_id = ${input.tenantId}::uuid and id = ${input.id}::uuid
       and version = ${input.expectedVersion} and status = 'active'
     returning version`);
@@ -189,12 +210,26 @@ export async function setCancelled(
     id: string;
     expectedVersion: number;
     cancelled: boolean;
+    updateSent: boolean;
   },
 ): Promise<number | null> {
   const [row] = await tx.execute<{ version: number }>(sql`
-    update core.calendar_events set cancelled = ${input.cancelled}
+    update core.calendar_events set cancelled = ${input.cancelled},
+      update_sent_at = case when ${input.updateSent} then statement_timestamp() else update_sent_at end
     where tenant_id = ${input.tenantId}::uuid and id = ${input.id}::uuid
       and version = ${input.expectedVersion} and status = 'active'
+    returning version`);
+  return row?.version ?? null;
+}
+
+export async function publishEvent(
+  tx: Tx,
+  input: { tenantId: string; id: string; expectedVersion: number },
+): Promise<number | null> {
+  const [row] = await tx.execute<{ version: number }>(sql`
+    update core.calendar_events set state = 'published', published_at = statement_timestamp()
+    where tenant_id = ${input.tenantId}::uuid and id = ${input.id}::uuid
+      and version = ${input.expectedVersion} and status = 'active' and state = 'draft'
     returning version`);
   return row?.version ?? null;
 }

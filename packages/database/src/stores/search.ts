@@ -297,31 +297,37 @@ export async function newslettersAmong(
   );
 }
 
-/** Calendar events among `ids` whose audience names the viewer; with no reach, all of them. */
+/**
+ * Calendar events among `ids` whose audience names the viewer or that they
+ * wrote; with no reach, all of them. Drafts stay with their author and those
+ * who manage the calendar.
+ */
 export async function eventsAmong(
   tx: Tx,
-  input: Among & { reach: Reach | null },
+  input: Among & { reach: Reach | null; viewerId: string },
 ) {
+  const own = sql`e.author_user_id = ${input.viewerId}::uuid`;
   return found(
     await tx.execute<Raw>(sql`
       select e.id, 'calendar_event' as type, e.title, ${snippetOf(sql`d.plain_text`, input.q)} as snippet,
         e.location as context, e.starts_on::text as "when",
-        case when e.cancelled then 'cancelled' end as flag, null as roles
+        case when e.cancelled then 'cancelled' when e.state = 'draft' then 'draft' end as flag, null as roles
       from core.calendar_events e
       left join core.documents d on d.tenant_id = e.tenant_id and d.host_type = 'calendar_event'
         and d.host_id = e.id and d.status = 'active' and d.translation_of_id is null
       where e.tenant_id = ${input.tenantId}::uuid and e.org_id = ${input.schoolId}::uuid
         and e.id = any(${uuidArray(input.ids)}) and e.status = 'active'
+        and (e.state = 'published' or ${input.reach === null} or ${own})
         and ${
           input.reach
-            ? reaches(
+            ? sql`(${own} or ${reaches(
                 {
                   tenantId: input.tenantId,
                   kind: "calendar_event",
                   ownerId: sql`e.id`,
                 },
                 input.reach,
-              )
+              )})`
             : sql`true`
         }`),
   );
