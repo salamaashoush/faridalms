@@ -8,14 +8,13 @@ import {
 } from "@faridalms/domain/calendar";
 import { emptyContent } from "@faridalms/domain/content-conversion";
 import {
-  useMutation,
+  useQuery,
   useQueryClient,
   useSuspenseQuery,
 } from "@tanstack/react-query";
-import { useRef, useState } from "react";
+import { Send, Trash2 } from "lucide-react";
+import { useCallback, useRef, useState } from "react";
 import { toast } from "sonner";
-
-import type { calendarEventQuery } from "~/queries/calendar";
 
 import {
   AudienceList,
@@ -24,11 +23,31 @@ import {
 import { ContentEditor } from "~/components/content/ContentEditor";
 import { useDocumentMedia } from "~/components/coursework/useDocumentMedia";
 import { CheckboxRow } from "~/components/people/fields";
-import { FormField, SelectField, TextField } from "~/components/system/field";
-import { FormSection, RecordForm } from "~/components/system/RecordForm";
+import {
+  DetailsPanel,
+  DetailsSection,
+  DocumentPage,
+  DocumentTitle,
+} from "~/components/system/DocumentPage";
+import { SelectField, TextField } from "~/components/system/field";
+import { Button } from "~/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "~/components/ui/dialog";
+import { useAutosave } from "~/hooks/useAutosave";
 import * as m from "~/i18n/messages";
-import { calendarOptionsQuery } from "~/queries/calendar";
-import { publishCalendarEvent, saveCalendarEvent } from "~/server/calendar";
+import { getLocale } from "~/i18n/runtime";
+import { calendarEventQuery, calendarOptionsQuery } from "~/queries/calendar";
+import {
+  publishCalendarEvent,
+  removeCalendarEvent,
+  saveCalendarEvent,
+} from "~/server/calendar";
 import { getMessageFromError } from "~/utils/error";
 
 import { CATEGORY_LABEL } from "./format";
@@ -92,63 +111,9 @@ const plan = (value: Draft) => ({
   location: value.location.trim() || null,
 });
 
-/**
- * What happens, when and where, and who it is for. A new event is a draft
- * until published; a published one tells its people of a change only when
- * the author says so, pre-ticked when the date, time, place or audience moved.
- */
-export function EventEditor({
-  existing,
-  day,
-  manages,
-  onClose,
-}: {
-  existing: Existing | null;
-  day: string;
-  /** The author manages the whole calendar rather than their own classes. */
-  manages: boolean;
-  onClose: (id?: string) => void;
-}) {
-  const options = useSuspenseQuery(calendarOptionsQuery).data;
-  const queryClient = useQueryClient();
-  const media = useDocumentMedia();
-  const [initial] = useState(() => draftOf(existing, day, manages));
-  const [draft, setDraft] = useState(initial);
-  const [shown, setShown] = useState(false);
-  const published = existing?.state === "published";
-  const [tellOnPublish, setTellOnPublish] = useState(true);
-  const [tellChoice, setTellChoice] = useState<boolean | null>(null);
-  const tellChange = tellChoice ?? materialChange(plan(initial), plan(draft));
-  const leaving = useRef(false);
-  const set = <K extends keyof Draft>(key: K, value: Draft[K]) =>
-    setDraft((current) => ({ ...current, [key]: value }));
-  const save = useMutation({
-    mutationFn: async (publish: boolean) => {
-      const saved = await saveCalendarEvent({
-        data: {
-          id: existing?.id ?? "",
-          expectedVersion: existing?.version ?? 0,
-          ...draft,
-          titleEn: draft.titleEn.trim(),
-          titleAr: draft.titleAr.trim(),
-          startTime: draft.allDay ? "" : draft.startTime,
-          endTime: draft.allDay ? "" : draft.endTime,
-          sendUpdate: published && tellChange,
-        },
-      });
-      if (!publish) return { ...saved, told: 0 };
-      const out = await publishCalendarEvent({
-        data: {
-          id: saved.id,
-          expectedVersion: saved.version,
-          notify: tellOnPublish,
-        },
-      });
-      return { ...saved, told: out.told };
-    },
-  });
-  const issues = {
-    titleEn:
+function issuesOf(draft: Draft) {
+  return {
+    title:
       draft.titleEn.trim() || draft.titleAr.trim() ? null : m.calTitleNeeded(),
     endsOn: draft.endsOn < draft.startsOn ? m.calEndsBefore() : null,
     startTime:
@@ -165,204 +130,427 @@ export function EventEditor({
         : null,
     audiences: audienceIssue(draft.audiences),
   };
+}
+
+/**
+ * An event written as a document: the title and description take the page,
+ * when, where and who it is for sit beside them. Drafts save themselves once
+ * they could be stored; publishing tells its people if the author says so,
+ * and edits after that wait for Update, which asks whether to tell them,
+ * pre-ticked when the date, time, place or audience moved.
+ */
+export function EventEditor({
+  existing,
+  day,
+  manages,
+  onClose,
+  onCreated,
+}: {
+  existing: Existing | null;
+  day: string;
+  /** The author manages the whole calendar rather than their own classes. */
+  manages: boolean;
+  onClose: (id?: string) => void;
+  onCreated: (id: string) => void;
+}) {
+  const options = useSuspenseQuery(calendarOptionsQuery).data;
+  const queryClient = useQueryClient();
+  const media = useDocumentMedia();
+  const id = useRef(existing?.id ?? "");
+  const version = useRef(existing?.version ?? 0);
+  const [storedId, setStoredId] = useState(existing?.id ?? "");
+  const latest = useQuery({
+    ...calendarEventQuery(storedId),
+    enabled: storedId !== "",
+  }).data;
+  const [state, setState] = useState(existing?.state ?? "draft");
+  const [draft, setDraft] = useState(() => draftOf(existing, day, manages));
+  const [sent, setSent] = useState(draft);
+  const [editorKey, setEditorKey] = useState(0);
+  const [valid, setValid] = useState(true);
+  const [shown, setShown] = useState(false);
+  const [tellOnPublish, setTellOnPublish] = useState(true);
+  const [tellChoice, setTellChoice] = useState<boolean | null>(null);
+  const [asking, setAsking] = useState(false);
+  const [pending, setPending] = useState<"publish" | "update" | null>(null);
+  const live = state === "published";
+  const issues = issuesOf(draft);
+  const ready = !Object.values(issues).some(Boolean);
+  const reached = latest?.reached ?? existing?.reached ?? 0;
+  const cancelled = latest?.cancelled ?? existing?.cancelled ?? false;
+  const tellChange = tellChoice ?? materialChange(plan(sent), plan(draft));
+
+  const persist = useCallback(
+    async (value: Draft, sendUpdate = false) => {
+      if (!valid) throw new Error("content.invalid");
+      const saved = await saveCalendarEvent({
+        data: {
+          id: id.current,
+          expectedVersion: version.current,
+          ...value,
+          titleEn: value.titleEn.trim(),
+          titleAr: value.titleAr.trim(),
+          startTime: value.allDay ? "" : value.startTime,
+          endTime: value.allDay ? "" : value.endTime,
+          sendUpdate,
+        },
+      });
+      const created = !id.current;
+      id.current = saved.id;
+      version.current = saved.version;
+      setStoredId(saved.id);
+      await queryClient.invalidateQueries({ queryKey: ["calendar"] });
+      if (created) onCreated(saved.id);
+    },
+    [valid, queryClient, onCreated],
+  );
+
+  // The server refuses a draft with no title or impossible times, so one is
+  // stored only once it could be.
+  const autosave = useAutosave({
+    value: draft,
+    save: persist,
+    enabled: !live && ready,
+  });
+
+  const change = useCallback((patch: Partial<Draft>) => {
+    setDraft((current) => ({ ...current, ...patch }));
+  }, []);
+  const changeDescription = useCallback(
+    (description: ContentDocument) => change({ description }),
+    [change],
+  );
+
+  const publish = async () => {
+    setShown(true);
+    if (!ready) return;
+    setPending("publish");
+    try {
+      autosave.markSaved(draft);
+      await persist(draft);
+      const out = await publishCalendarEvent({
+        data: {
+          id: id.current,
+          expectedVersion: version.current,
+          notify: tellOnPublish,
+        },
+      });
+      await queryClient.invalidateQueries({ queryKey: ["calendar"] });
+      setState("published");
+      toast.success(
+        out.told > 0
+          ? m.calPublishedTold({ count: out.told })
+          : m.calPublished(),
+      );
+      onClose(id.current);
+    } catch (error) {
+      toast.error(getMessageFromError(error));
+    } finally {
+      setPending(null);
+    }
+  };
+
+  const update = async () => {
+    setShown(true);
+    setAsking(false);
+    if (!ready) return;
+    setPending("update");
+    try {
+      await persist(draft, tellChange);
+      setSent(draft);
+      setTellChoice(null);
+      toast.success(m.calSaved());
+    } catch (error) {
+      toast.error(getMessageFromError(error));
+    } finally {
+      setPending(null);
+    }
+  };
+
+  const titleKey = getLocale() === "ar" ? "titleAr" : "titleEn";
+  const otherKey = titleKey === "titleAr" ? "titleEn" : "titleAr";
+  const changed = live && JSON.stringify(draft) !== JSON.stringify(sent);
+  const listed = Object.values(issues).filter((issue) => issue !== null);
+  const errorOf = (issue: string | null) =>
+    shown && issue ? [issue] : undefined;
+
   return (
-    <RecordForm
-      title={existing ? m.calEditTitle() : m.calNewTitle()}
-      submitLabel={published ? m.commonSave() : m.calPublish()}
-      secondary={
-        published ? undefined : { label: m.calSaveDraft(), intent: "draft" }
-      }
-      onSubmit={async (intent) => {
-        setShown(true);
-        if (Object.values(issues).some(Boolean)) return;
-        const publish = !published && intent !== "draft";
-        let saved: { id: string; version: number; told: number };
-        try {
-          saved = await save.mutateAsync(publish);
-        } catch {
-          return;
+    <>
+      <DocumentPage
+        heading={existing ? m.calEditTitle() : m.calNewTitle()}
+        onBack={() => {
+          autosave.flush();
+          onClose(id.current || undefined);
+        }}
+        status={
+          live
+            ? cancelled
+              ? { label: m.calCancelled(), tone: "danger" }
+              : { label: m.calStatePublished(), tone: "success" }
+            : { label: m.calDraft(), tone: "neutral" }
         }
-        await queryClient.invalidateQueries({ queryKey: ["calendar"] });
-        leaving.current = true;
-        toast.success(
-          publish
-            ? saved.told > 0
-              ? m.calPublishedTold({ count: saved.told })
-              : m.calPublished()
-            : published
-              ? m.calSaved()
-              : m.calDraftSaved(),
-        );
-        onClose(saved.id);
-      }}
-      onCancel={() => onClose()}
-      isDirty={() =>
-        !leaving.current && JSON.stringify(draft) !== JSON.stringify(initial)
-      }
-      pending={save.isPending}
-      error={save.error ? getMessageFromError(save.error) : null}
-    >
-      <FormSection title={m.calSectionEvent()}>
-        <TextField
-          id="event-title-en"
-          label={m.calTitleEn()}
-          hint={m.calTitleHint()}
-          width="name"
-          dir="ltr"
-          maxLength={200}
-          autoComplete="off"
-          value={draft.titleEn}
-          onChange={(event) => set("titleEn", event.target.value)}
-          errors={shown && issues.titleEn ? [issues.titleEn] : undefined}
-        />
-        <TextField
-          id="event-title-ar"
-          label={m.calTitleAr()}
-          width="name"
-          dir="rtl"
-          maxLength={200}
-          autoComplete="off"
-          value={draft.titleAr}
-          onChange={(event) => set("titleAr", event.target.value)}
-        />
-        <SelectField
-          id="event-category"
-          label={m.calCategory()}
-          width="name"
-          value={draft.category}
-          options={CALENDAR_CATEGORIES.map((category) => ({
-            value: category,
-            label: CATEGORY_LABEL[category](),
-          }))}
-          onChange={(category) => set("category", category)}
-        />
-        <TextField
-          id="event-location"
-          label={m.calWhere()}
-          optional
-          width="name"
-          dir="auto"
-          maxLength={200}
-          autoComplete="off"
-          value={draft.location}
-          onChange={(event) => set("location", event.target.value)}
-        />
-      </FormSection>
-      <FormSection title={m.calSectionWhen()}>
-        <div className="flex flex-wrap items-start gap-4">
-          <TextField
-            id="event-starts"
-            label={m.calStartsOn()}
-            type="date"
-            width="date"
-            value={draft.startsOn}
-            onChange={(event) => {
-              const startsOn = event.target.value;
-              setDraft((current) => ({
-                ...current,
-                startsOn,
-                endsOn: current.endsOn < startsOn ? startsOn : current.endsOn,
-              }));
-            }}
-          />
-          <TextField
-            id="event-ends"
-            label={m.calEndsOn()}
-            type="date"
-            width="date"
-            min={draft.startsOn}
-            value={draft.endsOn}
-            onChange={(event) => set("endsOn", event.target.value)}
-            errors={shown && issues.endsOn ? [issues.endsOn] : undefined}
-          />
-        </div>
-        <CheckboxRow
-          label={m.calAllDay()}
-          checked={draft.allDay}
-          onChange={(allDay) => set("allDay", allDay)}
-        />
-        {draft.allDay ? null : (
-          <div className="flex flex-wrap items-start gap-4">
-            <TextField
-              id="event-start-time"
-              label={m.calStartTime()}
-              type="time"
-              width="date"
-              value={draft.startTime}
-              onChange={(event) => set("startTime", event.target.value)}
-              errors={
-                shown && issues.startTime ? [issues.startTime] : undefined
+        saveState={autosave.state}
+        onRetry={autosave.retry}
+        unpublished={
+          changed
+            ? {
+                pending: pending === "update",
+                onDiscard: () => {
+                  setDraft(sent);
+                  setTellChoice(null);
+                  setEditorKey((key) => key + 1);
+                },
+                onUpdate: () => setAsking(true),
               }
-            />
-            <TextField
-              id="event-end-time"
-              label={m.calEndTime()}
-              type="time"
-              width="date"
-              value={draft.endTime}
-              onChange={(event) => set("endTime", event.target.value)}
-              errors={shown && issues.endTime ? [issues.endTime] : undefined}
+            : undefined
+        }
+        primary={
+          live
+            ? undefined
+            : {
+                label: m.calPublish(),
+                icon: Send,
+                pending: pending === "publish",
+                onClick: () => void publish(),
+              }
+        }
+        preview={
+          storedId
+            ? {
+                label: m.docPreview(),
+                onClick: () =>
+                  window.open(`/calendar/${storedId}`, "_blank", "noopener"),
+              }
+            : undefined
+        }
+        menu={
+          storedId && !live
+            ? [
+                {
+                  label: m.calDelete(),
+                  icon: Trash2,
+                  destructive: true,
+                  confirm: {
+                    title: m.calDeleteTitle(),
+                    body: m.calDeleteBody(),
+                    label: m.calDelete(),
+                  },
+                  onSelect: async () => {
+                    autosave.markSaved(draft);
+                    await removeCalendarEvent({
+                      data: {
+                        id: id.current,
+                        expectedVersion: version.current,
+                      },
+                    });
+                    await queryClient.invalidateQueries({
+                      queryKey: ["calendar"],
+                    });
+                    toast.success(m.calDeleted());
+                    onClose();
+                  },
+                },
+              ]
+            : []
+        }
+        title={
+          <div className="grid gap-3">
+            {shown && listed.length > 0 ? (
+              <div
+                role="alert"
+                className="rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive"
+              >
+                <ul className="list-disc ps-5">
+                  {listed.map((issue) => (
+                    <li key={issue}>{issue}</li>
+                  ))}
+                </ul>
+              </div>
+            ) : null}
+            <DocumentTitle
+              id="event-title"
+              label={titleKey === "titleEn" ? m.calTitleEn() : m.calTitleAr()}
+              placeholder={m.calUntitled()}
+              maxLength={200}
+              value={draft[titleKey]}
+              onChange={(title) => change({ [titleKey]: title })}
+              onEnter={() => document.getElementById("event-body")?.focus()}
             />
           </div>
-        )}
-        <CheckboxRow
-          label={m.calProvisionalLabel()}
-          hint={m.calProvisionalHint()}
-          checked={draft.provisional}
-          onChange={(provisional) => set("provisional", provisional)}
-        />
-      </FormSection>
-      <FormSection title={m.calSectionFor()} description={m.annAudienceHint()}>
-        <AudienceList
-          value={draft.audiences}
-          onChange={(audiences) => set("audiences", audiences)}
-          choices={options}
-          error={shown ? issues.audiences : null}
-          scopes={manages ? undefined : ["class"]}
-        />
-      </FormSection>
-      <FormSection title={m.calSectionDetails()}>
-        <FormField id="event-description" label={m.calDescription()} optional>
-          {(control) => (
-            <div className="min-w-0">
-              <ContentEditor
-                id={control.id}
-                label={m.calDescription()}
-                value={draft.description}
-                onChange={(description) => set("description", description)}
-                media={media}
+        }
+        aside={
+          <DetailsPanel title={m.docDetails()}>
+            <DetailsSection title={m.calSectionWhen()}>
+              <TextField
+                id="event-starts"
+                label={m.calStartsOn()}
+                type="date"
+                value={draft.startsOn}
+                onChange={(event) => {
+                  const startsOn = event.target.value;
+                  setDraft((current) => ({
+                    ...current,
+                    startsOn,
+                    endsOn:
+                      current.endsOn < startsOn ? startsOn : current.endsOn,
+                  }));
+                }}
               />
-            </div>
-          )}
-        </FormField>
-      </FormSection>
-      {manages ? (
-        <FormSection title={m.calSectionWebsite()}>
+              <TextField
+                id="event-ends"
+                label={m.calEndsOn()}
+                type="date"
+                min={draft.startsOn}
+                value={draft.endsOn}
+                onChange={(event) => change({ endsOn: event.target.value })}
+                errors={errorOf(issues.endsOn)}
+              />
+              <CheckboxRow
+                label={m.calAllDay()}
+                checked={draft.allDay}
+                onChange={(allDay) => change({ allDay })}
+              />
+              {draft.allDay ? null : (
+                <div className="grid grid-cols-2 items-start gap-3">
+                  <TextField
+                    id="event-start-time"
+                    label={m.calStartTime()}
+                    type="time"
+                    value={draft.startTime}
+                    onChange={(event) =>
+                      change({ startTime: event.target.value })
+                    }
+                    errors={errorOf(issues.startTime)}
+                  />
+                  <TextField
+                    id="event-end-time"
+                    label={m.calEndTime()}
+                    type="time"
+                    value={draft.endTime}
+                    onChange={(event) =>
+                      change({ endTime: event.target.value })
+                    }
+                    errors={errorOf(issues.endTime)}
+                  />
+                </div>
+              )}
+              <CheckboxRow
+                label={m.calProvisionalLabel()}
+                hint={m.calProvisionalHint()}
+                checked={draft.provisional}
+                onChange={(provisional) => change({ provisional })}
+              />
+            </DetailsSection>
+            <DetailsSection title={m.calSectionEvent()}>
+              <SelectField
+                id="event-category"
+                label={m.calCategory()}
+                value={draft.category}
+                options={CALENDAR_CATEGORIES.map((category) => ({
+                  value: category,
+                  label: CATEGORY_LABEL[category](),
+                }))}
+                onChange={(category) => change({ category })}
+              />
+              <TextField
+                id="event-location"
+                label={m.calWhere()}
+                optional
+                dir="auto"
+                maxLength={200}
+                autoComplete="off"
+                value={draft.location}
+                onChange={(event) => change({ location: event.target.value })}
+              />
+              <TextField
+                id="event-other-title"
+                label={otherKey === "titleAr" ? m.calTitleAr() : m.calTitleEn()}
+                hint={m.calTitleHint()}
+                optional
+                dir={otherKey === "titleAr" ? "rtl" : "ltr"}
+                maxLength={200}
+                autoComplete="off"
+                value={draft[otherKey]}
+                onChange={(event) => change({ [otherKey]: event.target.value })}
+              />
+            </DetailsSection>
+            <DetailsSection
+              title={m.calSectionFor()}
+              hint={m.annAudienceHint()}
+            >
+              <AudienceList
+                value={draft.audiences}
+                onChange={(audiences) => change({ audiences })}
+                choices={options}
+                error={shown ? issues.audiences : null}
+                scopes={manages ? undefined : ["class"]}
+              />
+            </DetailsSection>
+            {manages ? (
+              <DetailsSection title={m.calSectionWebsite()}>
+                <CheckboxRow
+                  label={m.calPublicLabel()}
+                  hint={m.calPublicHint()}
+                  checked={draft.public}
+                  onChange={(value) => change({ public: value })}
+                />
+              </DetailsSection>
+            ) : null}
+            {live ? null : (
+              <DetailsSection title={m.calSectionTelling()}>
+                <CheckboxRow
+                  label={m.calTellOnPublish()}
+                  hint={m.calTellOnPublishHint()}
+                  checked={tellOnPublish}
+                  onChange={setTellOnPublish}
+                />
+              </DetailsSection>
+            )}
+          </DetailsPanel>
+        }
+      >
+        <ContentEditor
+          key={editorKey}
+          id="event-body"
+          label={m.calDescription()}
+          variant="document"
+          value={draft.description}
+          onChange={changeDescription}
+          onValidityChange={setValid}
+          media={media}
+        />
+      </DocumentPage>
+      <Dialog open={asking} onOpenChange={setAsking}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>{m.calUpdateTitle()}</DialogTitle>
+            <DialogDescription>{m.calUpdateBody()}</DialogDescription>
+          </DialogHeader>
           <CheckboxRow
-            label={m.calPublicLabel()}
-            hint={m.calPublicHint()}
-            checked={draft.public}
-            onChange={(value) => set("public", value)}
-          />
-        </FormSection>
-      ) : null}
-      <FormSection title={m.calSectionTelling()}>
-        {published ? (
-          <CheckboxRow
-            label={m.calTellChange({ count: existing.reached })}
+            label={m.calTellChange({ count: reached })}
             hint={m.calTellChangeHint()}
             checked={tellChange}
             onChange={setTellChoice}
           />
-        ) : (
-          <CheckboxRow
-            label={m.calTellOnPublish()}
-            hint={m.calTellOnPublishHint()}
-            checked={tellOnPublish}
-            onChange={setTellOnPublish}
-          />
-        )}
-      </FormSection>
-    </RecordForm>
+          <DialogFooter>
+            <Button
+              type="button"
+              variant="outline"
+              disabled={pending === "update"}
+              onClick={() => setAsking(false)}
+            >
+              {m.commonCancel()}
+            </Button>
+            <Button
+              type="button"
+              disabled={pending === "update"}
+              onClick={() => void update()}
+            >
+              {m.docUpdate()}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

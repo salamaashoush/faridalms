@@ -1,5 +1,6 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
+import { useState } from "react";
 import * as v from "valibot";
 
 import { EventEditor } from "~/components/calendar/EventEditor";
@@ -30,20 +31,23 @@ function Existing({
   day,
   manages,
   onClose,
+  onCreated,
 }: {
   id: string;
   day: string;
   manages: boolean;
   onClose: (id?: string) => void;
+  onCreated: (id: string) => void;
 }) {
   const existing = useSuspenseQuery(calendarEventQuery(id)).data;
   return (
     <EventEditor
-      key={existing.version}
+      key={existing.id}
       existing={existing}
       day={day}
       manages={manages}
       onClose={onClose}
+      onCreated={onCreated}
     />
   );
 }
@@ -53,16 +57,24 @@ function EditorPage() {
   const navigate = Route.useNavigate();
   const user = useCurrentUser();
   const manages = user.capabilities.includes("calendar:manage");
+  const [created, setCreated] = useState<string | null>(null);
   const close = (saved?: string) =>
     void (saved
       ? navigate({ to: "/calendar/$eventId", params: { eventId: saved } })
       : navigate({ to: "/calendar", search: {} }));
-  return id ? (
+  // The first autosave gives a new draft its address, so a reload reopens
+  // it; the editor already open stays mounted with what is being typed.
+  const onCreated = (saved: string) => {
+    setCreated(saved);
+    void navigate({ search: { id: saved }, replace: true });
+  };
+  return id && id !== created ? (
     <Existing
       id={id}
       day={day ?? user.today}
       manages={manages}
       onClose={close}
+      onCreated={onCreated}
     />
   ) : (
     <EventEditor
@@ -70,6 +82,7 @@ function EditorPage() {
       day={day ?? user.today}
       manages={manages}
       onClose={close}
+      onCreated={onCreated}
     />
   );
 }

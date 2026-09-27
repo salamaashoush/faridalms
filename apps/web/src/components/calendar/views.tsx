@@ -53,8 +53,9 @@ export function CategoryIcon({
 function EventChip({ event }: { event: CalendarEvent }) {
   return (
     <Link
-      to="/calendar/$eventId"
-      params={{ eventId: event.id }}
+      from="/calendar/"
+      to="/calendar"
+      search={(previous) => ({ ...previous, event: event.id })}
       title={eventTitle(event)}
       className={cn(
         "flex min-w-0 items-center gap-1.5 rounded px-1.5 py-0.5 text-xs leading-4 hover:bg-accent",
@@ -202,8 +203,9 @@ function AgendaItem({ event }: { event: CalendarEvent }) {
       <div className="grid min-w-0 gap-1">
         <div className="flex flex-wrap items-center gap-2">
           <Link
-            to="/calendar/$eventId"
-            params={{ eventId: event.id }}
+            from="/calendar/"
+            to="/calendar"
+            search={(previous) => ({ ...previous, event: event.id })}
             className={cn(
               "min-w-0 text-sm leading-5 font-medium hover:text-primary hover:underline",
               event.cancelled && "text-muted-foreground line-through",

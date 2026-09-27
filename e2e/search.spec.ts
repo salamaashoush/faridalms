@@ -63,7 +63,10 @@ test("the results page groups every kind and opens one kind in full", async ({
     .getByRole("link", { name: /Egyptian Museum/ })
     .first()
     .click();
-  await expect(page).toHaveURL(/\/calendar\/[a-f0-9-]+/);
+  await expect(page).toHaveURL(/\/calendar\?.*event=[a-f0-9-]+/);
+  await expect(
+    page.getByRole("dialog").getByText("Egyptian Museum"),
+  ).toBeVisible();
 });
 
 test("a family on a phone searches in Arabic and finds its news but no students", async ({

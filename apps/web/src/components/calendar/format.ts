@@ -78,19 +78,27 @@ export function timeLabel(event: Timed) {
     : m.calAllDay();
 }
 
-/** When an event happens, in full: its days and, if timed, its hours. */
+const instant = (date: string, time: string | null) =>
+  new Date(`${date}T${time ?? "00:00"}:00Z`);
+
+/**
+ * When an event happens, in full: its days and, if timed, its hours. The
+ * locale lays out the range, so Arabic reads it in its own order.
+ */
 export function whenLabel(event: Timed) {
-  if (event.startsOn === event.endsOn)
-    return event.startTime
-      ? `${weekdayDate(event.startsOn)}, ${timeLabel(event)}`
-      : weekdayDate(event.startsOn);
-  const from = event.startTime
-    ? `${shortDate(event.startsOn)} ${event.startTime}`
-    : shortDate(event.startsOn);
-  const to = event.endTime
-    ? `${shortDate(event.endsOn)} ${event.endTime}`
-    : shortDate(event.endsOn);
-  return m.ttTimeRange({ from, to });
+  const timed = event.startTime !== null && event.endTime !== null;
+  return new Intl.DateTimeFormat(getLocale(), {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    ...(timed
+      ? { hour: "2-digit", minute: "2-digit", hourCycle: "h23" }
+      : undefined),
+    timeZone: "UTC",
+  }).formatRange(
+    instant(event.startsOn, event.startTime),
+    instant(event.endsOn, event.endTime),
+  );
 }
 
 export function specialDayLabel(special: {

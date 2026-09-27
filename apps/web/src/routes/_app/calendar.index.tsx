@@ -10,6 +10,7 @@ import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
 import * as v from "valibot";
 
 import { ButtonLink } from "~/components/app/ButtonLink";
+import { EventSheet } from "~/components/calendar/EventSheet";
 import { CATEGORY_LABEL } from "~/components/calendar/format";
 import { Subscribe } from "~/components/calendar/Subscribe";
 import { Agenda, CategoryIcon, MonthGrid } from "~/components/calendar/views";
@@ -17,7 +18,7 @@ import { PageHeader } from "~/components/system/IndexPage";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
 import { inLocale, useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
-import { calendarRangeQuery } from "~/queries/calendar";
+import { calendarEventQuery, calendarRangeQuery } from "~/queries/calendar";
 import { currentUserQuery } from "~/queries/user";
 import { cn } from "~/utils/cn";
 import { formatMonthLabel } from "~/utils/datetime";
@@ -43,6 +44,11 @@ const searchSchema = v.object({
     [],
   ),
   child: v.fallback(
+    v.optional(v.union([v.literal(""), v.pipe(v.string(), v.uuid())]), ""),
+    "",
+  ),
+  /** The event open in the side panel, so its address can be shared. */
+  event: v.fallback(
     v.optional(v.union([v.literal(""), v.pipe(v.string(), v.uuid())]), ""),
     "",
   ),
@@ -85,13 +91,18 @@ export const Route = createFileRoute("/_app/calendar/")({
       today: user.today,
       weekStart: user.school.weekStart as IsoWeekday,
     });
-    await context.queryClient.ensureQueryData(
-      calendarRangeQuery({
-        from: window.from,
-        to: window.to,
-        child: deps.child,
-      }),
-    );
+    await Promise.all([
+      context.queryClient.ensureQueryData(
+        calendarRangeQuery({
+          from: window.from,
+          to: window.to,
+          child: deps.child,
+        }),
+      ),
+      deps.event
+        ? context.queryClient.prefetchQuery(calendarEventQuery(deps.event))
+        : null,
+    ]);
   },
   component: CalendarPage,
 });
@@ -282,6 +293,14 @@ function CalendarPage() {
         </TabsContent>
         <TabsContent value="agenda">{agenda()}</TabsContent>
       </Tabs>
+      <EventSheet
+        eventId={search.event || null}
+        onClose={() =>
+          void navigate({
+            search: (previous) => ({ ...previous, event: "" }),
+          })
+        }
+      />
     </>
   );
 }
