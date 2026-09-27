@@ -6,6 +6,7 @@ export * from "./calendar";
 export * from "./coursework";
 export * from "./descriptors";
 export * from "./documents";
+export * from "./events";
 export * from "./files";
 export * from "./membership";
 export * from "./messaging";

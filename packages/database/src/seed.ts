@@ -34,6 +34,8 @@ import {
   accessRoles,
   accounts,
   calendarDates,
+  calendarEventAudiences,
+  calendarEvents,
   calendars,
   classGroupMembers,
   classGroups,
@@ -1228,6 +1230,7 @@ async function seedSchool(
   await seedMessages(tx, tenantId, schoolId, yearId);
   await seedAnnouncements(tx, tenantId, schoolId);
   await seedNewsletters(tx, tenantId, schoolId);
+  await seedEvents(tx, tenantId, schoolId, yearId);
   return { yearId, teachers };
 }
 
@@ -1541,6 +1544,135 @@ async function seedNewsletters(tx: Tx, tenantId: string, schoolId: string) {
         { tenantId, schoolId, on: "2026-09-27" },
         [audience],
       ),
+    });
+  }
+}
+
+/**
+ * A month of events around the seeded today: a trip for one class, a staff
+ * meeting, parents' evening, a match still to be confirmed and one called off.
+ */
+async function seedEvents(
+  tx: Tx,
+  tenantId: string,
+  schoolId: string,
+  yearId: string,
+) {
+  const [principal] = await tx.execute<{ user_id: string }>(sql`
+    select r.user_id from core.user_roles r
+    where r.tenant_id = ${tenantId}::uuid and r.org_id = ${schoolId}::uuid
+      and r.role in ('principal', 'site_administrator') and r.status = 'active'
+    order by r.role, r.user_id limit 1`);
+  const [eight] = await tx.execute<{ id: string }>(sql`
+    select id from core.classes
+    where tenant_id = ${tenantId}::uuid and school_year_id = ${yearId}::uuid
+      and class_type = 'homeroom' and title_en = '8A' and status = 'active'`);
+  if (!principal) return;
+  const school: Audience = { scope: "school", classId: null, gradeId: null };
+  const families: Audience = {
+    scope: "families",
+    classId: null,
+    gradeId: null,
+  };
+  const staff: Audience = { scope: "staff", classId: null, gradeId: null };
+  const plans: {
+    title: string;
+    category: "trip" | "meeting" | "sport" | "performance";
+    startsOn: string;
+    endsOn?: string;
+    startTime?: string;
+    endTime?: string;
+    location?: string;
+    provisional?: boolean;
+    cancelled?: boolean;
+    audiences: Audience[];
+    body: string;
+  }[] = [
+    {
+      title: "Staff meeting",
+      category: "meeting",
+      startsOn: "2026-09-30",
+      startTime: "14:30",
+      endTime: "15:30",
+      location: "Library",
+      audiences: [staff],
+      body: "Term planning and the new attendance registers.",
+    },
+    {
+      title: "Museum trip",
+      category: "trip",
+      startsOn: "2026-10-15",
+      startTime: "08:30",
+      endTime: "13:00",
+      location: "Egyptian Museum",
+      audiences: eight
+        ? [{ scope: "class", classId: eight.id, gradeId: null }]
+        : [families],
+      body: "Buses leave from the main gate. Bring a packed lunch.",
+    },
+    {
+      title: "Parents' evening",
+      category: "meeting",
+      startsOn: "2026-10-29",
+      startTime: "17:00",
+      endTime: "19:30",
+      location: "Main hall",
+      audiences: [families, staff],
+      body: "Meet each of your child's teachers for ten minutes.",
+    },
+    {
+      title: "Football against Nile School",
+      category: "sport",
+      startsOn: "2026-10-22",
+      provisional: true,
+      audiences: [school],
+      body: "The date depends on the league draw.",
+    },
+    {
+      title: "Autumn concert",
+      category: "performance",
+      startsOn: "2026-10-01",
+      startTime: "18:00",
+      endTime: "19:30",
+      cancelled: true,
+      audiences: [school],
+      body: "Moved to December; a new date will follow.",
+    },
+  ];
+  for (const plan of plans) {
+    const id = Bun.randomUUIDv7();
+    await tx.insert(calendarEvents).values({
+      tenantId,
+      id,
+      orgId: schoolId,
+      title: plan.title,
+      category: plan.category,
+      startsOn: plan.startsOn,
+      endsOn: plan.endsOn ?? plan.startsOn,
+      startTime: plan.startTime ?? null,
+      endTime: plan.endTime ?? null,
+      location: plan.location ?? null,
+      provisional: plan.provisional ?? false,
+      cancelled: plan.cancelled ?? false,
+      authorUserId: principal.user_id,
+    });
+    await tx.insert(calendarEventAudiences).values(
+      plan.audiences.map((audience) => ({
+        tenantId,
+        eventId: id,
+        scope: audience.scope,
+        classId: audience.classId,
+      })),
+    );
+    await tx.insert(documents).values({
+      tenantId,
+      hostType: "calendar_event",
+      hostId: id,
+      orgId: schoolId,
+      kind: "rich_text",
+      schemaVersion: 1,
+      content: plainContent(plan.body) as unknown as Record<string, unknown>,
+      plainText: plan.body,
     });
   }
 }
