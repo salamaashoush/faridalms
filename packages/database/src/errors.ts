@@ -46,6 +46,7 @@ export const CONFLICTS: Record<string, string> = {
   period_grades_key: "period_grade.exists",
   year_rollovers_years_key: "rollover.exists",
   attendance_settings_org_key: "attendance.stale",
+  retention_settings_org_key: "conflict.version",
   attendance_registers_key: "attendance.stale",
   attendance_events_key: "attendance.stale",
   class_meetings_class_excl: "timetable.class_busy",

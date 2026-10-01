@@ -37,6 +37,7 @@ export default defineConfig({
     "site.spec.ts",
     "home.spec.ts",
     "search.spec.ts",
+    "privacy.spec.ts",
   ],
   /* Run tests in files in parallel */
   fullyParallel: true,

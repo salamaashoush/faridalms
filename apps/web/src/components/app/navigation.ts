@@ -19,6 +19,7 @@ import {
   Megaphone,
   Newspaper,
   School,
+  ShieldCheck,
   Send,
   Settings,
   Sun,
@@ -98,6 +99,12 @@ export const NAVIGATION: Record<Workspace, NavSection[]> = {
           label: m.navExams,
           icon: Award,
           capability: "exams:manage",
+        },
+        {
+          to: "/privacy",
+          label: m.navPrivacy,
+          icon: ShieldCheck,
+          capability: "privacy:manage",
         },
         {
           to: "/admin/notification-audit",

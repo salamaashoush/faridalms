@@ -21,6 +21,7 @@ export const CAPABILITIES = [
   "custody:write",
   "identifiers:read",
   "erasure:approve",
+  "privacy:manage",
   "audit:read",
   "classes:read",
   "classes:manage",

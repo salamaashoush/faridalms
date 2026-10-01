@@ -332,6 +332,14 @@ export function getMessageFromError(error: unknown): string {
         return m.courseworkErrCategoryUnknown();
       case "grading.weights_total":
         return m.gradingCategoryIncomplete();
+      case "privacy.person_unknown":
+        return m.privacyErrPersonUnknown();
+      case "privacy.hold_unknown":
+        return m.privacyErrHoldUnknown();
+      case "privacy.age_too_young":
+        return m.privacyAgeInvalid();
+      case "privacy.student_rule_incomplete":
+        return m.privacyYearsInvalid();
       case "file.quota_school":
         return m.fileQuotaSchool();
       case "file.quota_class":

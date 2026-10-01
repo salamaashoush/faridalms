@@ -18,6 +18,7 @@ import * as messagesSystem from "./systems/messages";
 import * as newslettersSystem from "./systems/newsletters";
 import * as notificationsSystem from "./systems/notifications";
 import * as peopleSystem from "./systems/people";
+import * as privacySystem from "./systems/privacy";
 import * as recordsSystem from "./systems/records";
 import * as rolloverSystem from "./systems/rollover";
 import * as schoolSystem from "./systems/school";
@@ -42,6 +43,7 @@ export const router = {
   exams: examsSystem,
   gradebook: gradebookSystem,
   grading: gradingSystem,
+  privacy: privacySystem,
   attendance: attendanceSystem,
   rollover: rolloverSystem,
   timetable: timetableSystem,

@@ -28,6 +28,7 @@ import {
   gradeScales,
   gradeScaleVersions,
   programmeCategories,
+  retentionSettings,
   programmeGradeLevels,
   programmes,
   familyShares,
@@ -510,6 +511,13 @@ export async function completeFixture(
     })
     .returning();
   if (!programme) throw new Error("programme fixture missing");
+  await tx.insert(retentionSettings).values({
+    tenantId,
+    orgId: schoolId,
+    studentRule: "until_age",
+    studentValue: 25,
+    staffYears: 6,
+  });
   await tx.insert(programmeCategories).values({
     tenantId,
     programmeId: programme.id,
