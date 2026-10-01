@@ -239,7 +239,7 @@ export class QuestionPromptNode extends ElementNode {
   createDOM(config: EditorConfig, editor: LexicalEditor): HTMLElement {
     const dom = $getDocument().createElement("div");
     dom.dataset.questionPrompt = "";
-    dom.dataset.placeholder = labels.get(editor)?.prompt ?? "";
+    dom.dataset.emptyLabel = labels.get(editor)?.prompt ?? "";
     const name = theme(config, "questionPrompt");
     if (name) addClassNamesToElement(dom, name);
     return dom;
@@ -338,7 +338,7 @@ export class QuestionOptionNode extends ElementNode {
     const dom = $getDocument().createElement("div");
     dom.dataset.questionOption = "";
     dom.dataset.correct = String(this.__correct);
-    dom.dataset.placeholder = labels.get(editor)?.option ?? "";
+    dom.dataset.emptyLabel = labels.get(editor)?.option ?? "";
     dom.setAttribute("aria-checked", String(this.__correct));
     const name = theme(config, "questionOption");
     if (name) addClassNamesToElement(dom, name);
@@ -460,7 +460,7 @@ export class QuestionAnswerNode extends ElementNode {
     const extra =
       $isQuestionNode(question) && question.getSettings().kind === "matching";
     dom.dataset.questionAnswer = extra ? "extra" : "";
-    dom.dataset.placeholder = (extra ? text?.extra : text?.answer) ?? "";
+    dom.dataset.emptyLabel = (extra ? text?.extra : text?.answer) ?? "";
     const name = theme(config, "questionAnswer");
     if (name) addClassNamesToElement(dom, name);
     return dom;
@@ -609,7 +609,7 @@ export class QuestionSideNode extends ElementNode {
     const text = labels.get(editor);
     const holder = this.getParent();
     dom.dataset.questionSide = "";
-    dom.dataset.placeholder =
+    dom.dataset.emptyLabel =
       (holder instanceof QuestionGroupNode
         ? text?.groupName
         : this.getIndexWithinParent() === 0
@@ -641,7 +641,7 @@ export class QuestionPassageNode extends ElementNode {
   createDOM(config: EditorConfig, editor: LexicalEditor): HTMLElement {
     const dom = $getDocument().createElement("div");
     dom.dataset.questionPassage = "";
-    dom.dataset.placeholder = labels.get(editor)?.passage ?? "";
+    dom.dataset.emptyLabel = labels.get(editor)?.passage ?? "";
     const name = theme(config, "questionPassage");
     if (name) addClassNamesToElement(dom, name);
     return dom;
