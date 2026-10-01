@@ -225,6 +225,7 @@ export function FileCard({
   locale,
   editing = false,
   captionField,
+  actions,
 }: {
   file: FileFacts;
   url: string | undefined;
@@ -234,6 +235,8 @@ export function FileCard({
   locale: string;
   editing?: boolean;
   captionField?: React.ReactNode;
+  /** Further buttons for this file, such as removing it from a list. */
+  actions?: React.ReactNode;
 }) {
   const [viewing, setViewing] = useState(false);
   const family = fileFamily(file.name, file.mime);
@@ -280,6 +283,7 @@ export function FileCard({
             {row}
           </a>
         )}
+        {actions}
         {url ? (
           <a
             href={`${url}?download`}

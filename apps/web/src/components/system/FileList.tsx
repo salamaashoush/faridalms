@@ -1,9 +1,12 @@
 import type { FileSummary } from "@faridalms/domain/file";
 
-import { Download, Paperclip, X } from "lucide-react";
+import { FileCard } from "@faridalms/editor/files";
+import { X } from "lucide-react";
 
+import { fileStrings } from "~/components/content/strings";
 import { Button } from "~/components/ui/button";
 import * as m from "~/i18n/messages";
+import { getLocale } from "~/i18n/runtime";
 import { formatNumber } from "~/utils/datetime";
 
 export function fileSizeLabel(bytes: number): string {
@@ -17,7 +20,11 @@ export function fileSizeLabel(bytes: number): string {
   });
 }
 
-/** Downloads go through the web's file route, which forwards the session to the API. */
+/**
+ * Files outside a document, such as work handed in or a message's
+ * attachments, shown as the same cards and viewer a document uses. The web's
+ * file route forwards the session, so only people allowed to read open them.
+ */
 export function FileList({
   files,
   onRemove,
@@ -33,44 +40,36 @@ export function FileList({
     return emptyLabel ? (
       <p className="text-sm text-muted-foreground">{emptyLabel}</p>
     ) : null;
+  const strings = fileStrings();
   return (
-    <ul className="divide-y rounded-lg border bg-background">
+    <ul className="grid gap-2">
       {files.map((file) => (
-        <li key={file.id} className="flex items-center gap-3 px-3 py-2">
-          <Paperclip
-            className="size-4 shrink-0 text-muted-foreground"
-            aria-hidden
+        <li key={file.id}>
+          <FileCard
+            file={{
+              name: file.name,
+              mime: file.mediaType,
+              bytes: file.sizeBytes,
+            }}
+            url={`/files/${file.id}`}
+            strings={strings}
+            locale={getLocale()}
+            actions={
+              onRemove ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="icon"
+                  className="size-10"
+                  disabled={disabled}
+                  aria-label={m.fileRemoveNamed({ name: file.name })}
+                  onClick={() => onRemove(file.id)}
+                >
+                  <X className="size-4" aria-hidden />
+                </Button>
+              ) : undefined
+            }
           />
-          <a
-            href={`/files/${file.id}`}
-            download={file.name}
-            className="min-w-0 flex-1 truncate text-sm font-medium hover:underline"
-          >
-            {file.name}
-          </a>
-          <span className="text-xs whitespace-nowrap text-muted-foreground">
-            {fileSizeLabel(file.sizeBytes)}
-          </span>
-          <a
-            href={`/files/${file.id}`}
-            download={file.name}
-            className="rounded-md p-1.5 text-muted-foreground hover:bg-muted hover:text-foreground"
-            aria-label={m.fileDownloadNamed({ name: file.name })}
-          >
-            <Download className="size-4" aria-hidden />
-          </a>
-          {onRemove ? (
-            <Button
-              type="button"
-              variant="ghost"
-              size="icon-sm"
-              disabled={disabled}
-              aria-label={m.fileRemoveNamed({ name: file.name })}
-              onClick={() => onRemove(file.id)}
-            >
-              <X className="size-4" aria-hidden />
-            </Button>
-          ) : null}
         </li>
       ))}
     </ul>

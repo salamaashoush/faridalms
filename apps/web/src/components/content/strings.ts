@@ -1,7 +1,22 @@
+import type { FileStrings } from "@faridalms/editor/files";
 import type { EditorStrings } from "@faridalms/editor/strings";
 
 import * as m from "~/i18n/messages";
 import { formatNumber } from "~/utils/datetime";
+
+/** What file cards and the viewer say, wherever a file is shown. */
+export function fileStrings(): FileStrings {
+  return {
+    downloadFile: m.editorDownloadFile(),
+    openFile: m.fileOpen(),
+    picture: m.filePicture(),
+    copyFileLink: m.fileCopyLink(),
+    fileLinkCopied: m.fileLinkCopied(),
+    closeViewer: m.fileCloseViewer(),
+    noPreview: m.fileNoPreview(),
+    captions: m.editorCaptions(),
+  };
+}
 
 export function editorStrings(): EditorStrings {
   return {

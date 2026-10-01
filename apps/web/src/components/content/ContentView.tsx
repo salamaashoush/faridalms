@@ -5,6 +5,8 @@ import { ContentRenderer } from "@faridalms/editor/view";
 import * as m from "~/i18n/messages";
 import { getLocale } from "~/i18n/runtime";
 
+import { fileStrings } from "./strings";
+
 export function ContentView({
   document,
   fileUrl,
@@ -18,15 +20,8 @@ export function ContentView({
     <ContentRenderer
       document={document}
       strings={{
+        ...fileStrings(),
         checklist: m.editorCheckItem(),
-        downloadFile: m.editorDownloadFile(),
-        openFile: m.fileOpen(),
-        picture: m.filePicture(),
-        copyFileLink: m.fileCopyLink(),
-        fileLinkCopied: m.fileLinkCopied(),
-        closeViewer: m.fileCloseViewer(),
-        noPreview: m.fileNoPreview(),
-        captions: m.editorCaptions(),
         diagram: m.editorDiagram(),
         embedLoad: (provider) => m.editorEmbedLoad({ provider }),
         embedPrivacy: (provider) => m.editorEmbedPrivacy({ provider }),
