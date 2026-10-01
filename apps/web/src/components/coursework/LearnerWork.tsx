@@ -6,6 +6,7 @@ import { Button } from "@faridalms/ui/button";
 import { cn } from "@faridalms/ui/cn";
 import {
   useMutation,
+  useQuery,
   useQueryClient,
   useSuspenseQuery,
 } from "@tanstack/react-query";
@@ -17,6 +18,13 @@ import type { HeaderFact } from "~/components/system/RecordPage";
 
 import { ContentEditor } from "~/components/content/ContentEditor";
 import { ContentView } from "~/components/content/ContentView";
+import {
+  DeclarationFields,
+  declarationReady,
+  DeclareSheet,
+  NO_DECLARATION,
+} from "~/components/exams/Declaration";
+import { isolatedLine, sessionName } from "~/components/exams/names";
 import { FormField } from "~/components/system/field";
 import { FileList } from "~/components/system/FileList";
 import {
@@ -33,6 +41,7 @@ import { SheetForm } from "~/components/system/SheetForm";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { myWorkQuery } from "~/queries/coursework";
+import { myStandingQuery } from "~/queries/exams";
 import { handInWork, saveMyDraft, undoHandIn } from "~/server/coursework";
 import { formatNumber } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
@@ -144,8 +153,15 @@ function YourWork({ data }: { data: Data }) {
   const [version, setVersion] = useState(data.submission.version);
   const [dirty, setDirty] = useState(false);
   const [confirming, setConfirming] = useState(false);
+  const standing = useQuery(myStandingQuery(data.assignment.id)).data;
+  const declaring = Boolean(standing?.declarationRequired);
+  const [declaration, setDeclaration] = useState(NO_DECLARATION);
+  const [tried, setTried] = useState(false);
   const refresh = () =>
-    queryClient.invalidateQueries({ queryKey: ["coursework"] });
+    Promise.all([
+      queryClient.invalidateQueries({ queryKey: ["coursework"] }),
+      queryClient.invalidateQueries({ queryKey: ["exams"] }),
+    ]);
   const save = useMutation({
     mutationFn: () =>
       saveMyDraft({
@@ -167,7 +183,13 @@ function YourWork({ data }: { data: Data }) {
         if (format !== "none") current = (await save.mutateAsync()).version;
       }
       return handInWork({
-        data: { assignmentId: data.assignment.id, expectedVersion: current },
+        data: {
+          assignmentId: data.assignment.id,
+          expectedVersion: current,
+          ...(declaring && declarationReady(declaration)
+            ? { declaration }
+            : {}),
+        },
       });
     },
     meta: { inlineError: true },
@@ -219,6 +241,7 @@ function YourWork({ data }: { data: Data }) {
                   }}
                   onUploadingChange={setUploading}
                   media={media}
+                  aiUse
                 />
               </div>
             )}
@@ -289,6 +312,8 @@ function YourWork({ data }: { data: Data }) {
         pending={handIn.isPending}
         error={handIn.error ? getMessageFromError(handIn.error) : null}
         onSubmit={async () => {
+          setTried(true);
+          if (declaring && !declarationReady(declaration)) return;
           await handIn.mutateAsync().then(
             async () => {
               await refresh();
@@ -304,8 +329,46 @@ function YourWork({ data }: { data: Data }) {
             ? m.courseworkHandInBodyAgain()
             : m.courseworkHandInBody()}
         </p>
+        {declaring && standing ? (
+          <DeclarationFields
+            value={declaration}
+            onChange={setDeclaration}
+            evidenceRequired={standing.aiEvidenceRequired}
+            tried={tried}
+          />
+        ) : null}
       </SheetForm>
     </RecordSection>
+  );
+}
+
+/** Work a teacher handed in for the student still waits for their declaration. */
+function OutstandingDeclaration({ data }: { data: Data }) {
+  const standing = useQuery(myStandingQuery(data.assignment.id)).data;
+  const [open, setOpen] = useState(false);
+  if (
+    !standing?.declarationRequired ||
+    !standing.latestAttemptId ||
+    standing.latestDeclared
+  )
+    return null;
+  return (
+    <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-warning/40 bg-warning/10 p-4">
+      <p className="text-sm leading-5">{m.declarationOutstanding()}</p>
+      <Button
+        type="button"
+        className="max-md:h-10"
+        onClick={() => setOpen(true)}
+      >
+        {m.declarationSign()}
+      </Button>
+      <DeclareSheet
+        open={open}
+        attemptId={standing.latestAttemptId}
+        evidenceRequired={standing.aiEvidenceRequired}
+        onClose={() => setOpen(false)}
+      />
+    </div>
   );
 }
 
@@ -313,6 +376,7 @@ export function LearnerWork({ assignmentId }: { assignmentId: string }) {
   const data = useSuspenseQuery(myWorkQuery(assignmentId)).data;
   const user = useCurrentUser();
   const width = useReaderWidth();
+  const standing = useQuery(myStandingQuery(assignmentId)).data;
   const facts: HeaderFact[] = [];
   if (data.assignment.class)
     facts.push({
@@ -330,6 +394,11 @@ export function LearnerWork({ assignmentId }: { assignmentId: string }) {
     facts.push({
       label: m.courseworkPoints(),
       value: m.courseworkPointsCount({ count: data.assignment.points }),
+    });
+  if (standing?.session)
+    facts.push({
+      label: m.courseworkExamFact(),
+      value: isolatedLine([sessionName(standing.session), standing.component]),
     });
   return (
     <div
@@ -361,6 +430,7 @@ export function LearnerWork({ assignmentId }: { assignmentId: string }) {
           data={data}
         />
       )}
+      {data.quiz ? null : <OutstandingDeclaration data={data} />}
       {data.attempts.length > 0 ? (
         <RecordSection variant="page" title={m.courseworkAttempts()}>
           <RecordList>

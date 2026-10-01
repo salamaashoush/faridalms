@@ -5,6 +5,7 @@ import { cn } from "@faridalms/ui/cn";
 import { Textarea } from "@faridalms/ui/textarea";
 import {
   useMutation,
+  useQuery,
   useQueryClient,
   useSuspenseQuery,
 } from "@tanstack/react-query";
@@ -14,6 +15,7 @@ import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { ContentView } from "~/components/content/ContentView";
+import { CourseworkStanding } from "~/components/exams/Authentication";
 import { FormField, SelectField, TextField } from "~/components/system/field";
 import { FileList } from "~/components/system/FileList";
 import {
@@ -25,6 +27,7 @@ import { StatusText } from "~/components/system/status";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { gradingQuery } from "~/queries/coursework";
+import { workStandingQuery } from "~/queries/exams";
 import { actOnWork, assessAttempt } from "~/server/coursework";
 import { formatNumber } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
@@ -93,6 +96,14 @@ function GradeForm({ data, onDone }: { data: Data; onDone: () => void }) {
   const [note, setNote] = useState(saved?.privateNote ?? "");
   const [error, setError] = useState<string | null>(null);
   const queryClient = useQueryClient();
+  const standing = useQuery({
+    ...workStandingQuery(data.assignment.id),
+    enabled: !data.quiz,
+  }).data;
+  // Confirmed coursework is final, so it is never sent back to revise.
+  const final =
+    standing?.students.find((row) => row.studentId === data.student.studentId)
+      ?.authentication?.outcome === "confirmed";
   const assess = useMutation({
     mutationFn: () =>
       assessAttempt({
@@ -134,8 +145,16 @@ function GradeForm({ data, onDone }: { data: Data; onDone: () => void }) {
     if (!check()) return;
     try {
       await assess.mutateAsync();
-      if (then) await act.mutateAsync(then);
+      const acted = then ? await act.mutateAsync(then) : null;
       await queryClient.invalidateQueries({ queryKey: ["coursework"] });
+      if (acted && "held" in acted) {
+        toast.warning(
+          then === "return"
+            ? m.authenticationNeededToReturn()
+            : m.authenticationFinalNoRevision(),
+        );
+        return;
+      }
       toast.success(
         then === "return"
           ? m.courseworkReturnedDone()
@@ -243,15 +262,17 @@ function GradeForm({ data, onDone }: { data: Data; onDone: () => void }) {
           <Save aria-hidden />
           {m.courseworkSaveDraftGrade()}
         </Button>
-        <Button
-          type="button"
-          variant="outline"
-          className="max-md:h-10"
-          onClick={() => void run("revise")}
-        >
-          <RotateCcw aria-hidden />
-          {m.courseworkReturnRevise()}
-        </Button>
+        {final ? null : (
+          <Button
+            type="button"
+            variant="outline"
+            className="max-md:h-10"
+            onClick={() => void run("revise")}
+          >
+            <RotateCcw aria-hidden />
+            {m.courseworkReturnRevise()}
+          </Button>
+        )}
       </div>
     </div>
   );
@@ -373,12 +394,20 @@ export function Grading({
           )}
         </RecordSection>
         <RecordSection title={m.courseworkGradeTitle()}>
-          <GradeForm
-            // A marked quiz answer changes the score, so the form starts again from it.
-            key={`${studentId}-${attempt?.id ?? ""}-${attempt?.assessment?.score ?? ""}`}
-            data={data}
-            onDone={nextToGrade}
-          />
+          <div className="grid gap-4">
+            {data.quiz ? null : (
+              <CourseworkStanding
+                assignmentId={assignmentId}
+                studentId={studentId}
+              />
+            )}
+            <GradeForm
+              // A marked quiz answer changes the score, so the form starts again from it.
+              key={`${studentId}-${attempt?.id ?? ""}-${attempt?.assessment?.score ?? ""}`}
+              data={data}
+              onDone={nextToGrade}
+            />
+          </div>
         </RecordSection>
       </div>
     </div>

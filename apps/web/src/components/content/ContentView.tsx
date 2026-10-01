@@ -5,7 +5,7 @@ import { ContentRenderer } from "@faridalms/editor/view";
 import * as m from "~/i18n/messages";
 import { getLocale } from "~/i18n/runtime";
 
-import { fileStrings } from "./strings";
+import { aiUseStrings, fileStrings } from "./strings";
 
 export function ContentView({
   document,
@@ -21,6 +21,7 @@ export function ContentView({
       document={document}
       strings={{
         ...fileStrings(),
+        ...aiUseStrings(),
         checklist: m.editorCheckItem(),
         studentCopy: m.editorStudentCopy(),
         diagram: m.editorDiagram(),

@@ -268,6 +268,12 @@ export function editorStrings(): EditorStrings {
     checkItem: m.editorCheckItem(),
     codeLanguage: m.editorCodeLanguage(),
     plainText: m.editorPlainText(),
+    ...aiUseStrings(),
+    aiUseHint: m.editorAiUseHint(),
+    aiUseToolPlaceholder: m.editorAiUseToolPlaceholder(),
+    aiUseHowPlaceholder: m.editorAiUseHowPlaceholder(),
+    aiUseAttach: m.editorAiUseAttach(),
+    aiUseRemove: (name) => m.editorAiUseRemove({ name }),
     media: m.editorMedia(),
     mediaHint: m.editorMediaHint(),
     captions: m.editorCaptions(),
@@ -314,5 +320,17 @@ export function editorStrings(): EditorStrings {
       pink: m.editorColorPink(),
       red: m.editorColorRed(),
     },
+  };
+}
+
+/** What reading an AI-use acknowledgement says. */
+export function aiUseStrings() {
+  return {
+    aiUse: m.editorAiUse(),
+    aiUseTool: m.editorAiUseTool(),
+    aiUseDate: m.editorAiUseDate(),
+    aiUsePrompt: m.editorAiUsePrompt(),
+    aiUseHow: m.editorAiUseHow(),
+    aiUseEvidence: m.editorAiUseEvidence(),
   };
 }

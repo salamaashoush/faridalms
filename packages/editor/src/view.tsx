@@ -11,17 +11,19 @@ import { isSafeContentUrl } from "@faridalms/domain/rich-text";
 import { ExternalLink } from "lucide-react";
 import { createElement } from "react";
 
-import type { FileFacts, FileStrings } from "./files";
+import type { FileFacts } from "./files";
+import type { AiUseViewStrings } from "./nodes/ai-use";
 
 import { useFileFacts } from "./file-facts";
 import { FileCard, PictureView, StoredImage } from "./files";
 import { blockAlignClass, diagramImageClass, imageSizeClass } from "./format";
 import { EmbedFrame, MediaPlayer, MediaTranscript } from "./media-view";
+import { AiUseView } from "./nodes/ai-use";
 import { editorTheme } from "./theme";
 
 export { editorFrame } from "./frame";
 
-export interface ViewStrings extends FileStrings {
+export interface ViewStrings extends AiUseViewStrings {
   checklist: string;
   studentCopy: string;
   diagram: string;
@@ -320,6 +322,22 @@ function render(node: ContentNode, key: string, context: Context): ReactNode {
       );
     case "gate":
       return null;
+    case "ai-use":
+      return (
+        <AiUseView
+          key={key}
+          fields={{
+            tool: node.aiTool ?? "",
+            date: node.aiDate ?? "",
+            prompt: node.aiPrompt ?? "",
+            use: node.aiUse ?? "",
+            evidence: node.aiEvidence ?? [],
+          }}
+          strings={context.strings}
+          locale={context.locale}
+          url={(fileId) => context.fileUrl?.(fileId)}
+        />
+      );
     case "question-passage":
       return (
         <div key={key} className="fe-question-passage" dir="auto">

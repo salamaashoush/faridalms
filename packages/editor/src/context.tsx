@@ -46,6 +46,8 @@ export interface EditorEnvironment {
   lockQuestions?: boolean;
   /** Part of the document may be set aside as each student's copy. */
   starter?: boolean;
+  /** A student's work may acknowledge using an AI tool. */
+  aiUse?: boolean;
 }
 
 const Context = createContext<EditorEnvironment | null>(null);

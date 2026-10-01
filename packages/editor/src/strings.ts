@@ -272,6 +272,17 @@ export interface EditorStrings {
   checkItem: string;
   codeLanguage: string;
   plainText: string;
+  aiUse: string;
+  aiUseHint: string;
+  aiUseTool: string;
+  aiUseToolPlaceholder: string;
+  aiUseDate: string;
+  aiUsePrompt: string;
+  aiUseHow: string;
+  aiUseHowPlaceholder: string;
+  aiUseEvidence: string;
+  aiUseAttach: string;
+  aiUseRemove: (name: string) => string;
 }
 
 export const editorColors = [

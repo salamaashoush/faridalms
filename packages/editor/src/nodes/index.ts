@@ -3,6 +3,7 @@ import type { ElementNode, LexicalNode } from "lexical";
 import { $isTableCellNode } from "@lexical/table";
 import { $isRootNode, createState } from "lexical";
 
+import { AiUseNode } from "./ai-use";
 import { $isCalloutNode, CalloutNode } from "./callout";
 import { $isColumnNode, ColumnNode, ColumnsNode } from "./columns";
 import { GateNode } from "./gate";
@@ -27,6 +28,7 @@ import {
   ToggleTitleNode,
 } from "./toggle";
 
+export * from "./ai-use";
 export * from "./callout";
 export * from "./columns";
 export * from "./gate";
@@ -59,6 +61,7 @@ export const blockNodes = [
   QuestionGapNode,
   GateNode,
   StarterNode,
+  AiUseNode,
 ];
 
 export const blockIdState = createState("id", {

@@ -48,3 +48,19 @@ export function sessionBoard(
   const board = boards.find((row) => row.id === session.boardId);
   return board ? boardTitle(board) : "";
 }
+
+// First-strong isolates, built from code points since the formatter turns
+// escapes into invisible literal characters.
+const FSI = String.fromCodePoint(0x2068);
+const PDI = String.fromCodePoint(0x2069);
+
+/**
+ * Parts such as a session's name and its English component name, each kept
+ * in its own direction so a mixed line reads in order in either language.
+ */
+export function isolatedLine(parts: readonly (string | null | undefined)[]) {
+  return parts
+    .filter((part): part is string => Boolean(part))
+    .map((part) => `${FSI}${part}${PDI}`)
+    .join(" · ");
+}

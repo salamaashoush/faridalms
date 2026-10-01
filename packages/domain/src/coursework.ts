@@ -3,6 +3,7 @@ import * as v from "valibot";
 import type { CheckBlock, LessonDocument } from "./learning";
 
 import { contentDocumentSchema, contentPlainText } from "./content";
+import { declarationSchema } from "./exams";
 import { checkBlocks, lessonDocumentSchema, responseSchema } from "./learning";
 
 export const LATE_POLICIES = ["accept", "deduct", "refuse"] as const;
@@ -320,6 +321,8 @@ export type SaveDraftInput = v.InferOutput<typeof saveDraftSchema>;
 export const handInSchema = v.object({
   assignmentId: id,
   expectedVersion: v.pipe(v.number(), v.integer(), v.minValue(0)),
+  /** Asked for when the work is assessed coursework for an exam session. */
+  declaration: v.optional(declarationSchema),
 });
 
 export const assessSchema = v.object({

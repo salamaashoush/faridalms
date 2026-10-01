@@ -45,6 +45,7 @@ const nodeTypes = [
   "question-gap",
   "gate",
   "starter",
+  "ai-use",
 ] as const;
 /**
  * The questions a document can ask, each marked by the server from the
@@ -161,7 +162,20 @@ export interface ContentNode {
   rangeMin?: number;
   rangeMax?: number;
   scoring?: "all" | "neighbours";
+  aiTool?: string;
+  aiDate?: string;
+  aiPrompt?: string;
+  aiUse?: string;
+  aiEvidence?: AiEvidence[];
   $?: { id?: string };
+}
+
+/** A screenshot or file a student keeps as evidence of using an AI tool. */
+export interface AiEvidence {
+  fileId: string;
+  name: string;
+  mime: string;
+  bytes: number;
 }
 export interface ContentDocument {
   root: ContentNode;
@@ -292,6 +306,25 @@ const nodeSchema: v.GenericSchema<ContentNode> = v.lazy(() =>
       rangeMin: v.optional(v.pipe(v.number(), v.finite())),
       rangeMax: v.optional(v.pipe(v.number(), v.finite())),
       scoring: v.optional(v.picklist(["all", "neighbours"])),
+      aiTool: v.optional(v.pipe(v.string(), v.maxLength(200))),
+      aiDate: v.optional(
+        v.union([v.literal(""), v.pipe(v.string(), v.isoDate())]),
+      ),
+      aiPrompt: v.optional(v.pipe(v.string(), v.maxLength(4000))),
+      aiUse: v.optional(v.pipe(v.string(), v.maxLength(4000))),
+      aiEvidence: v.optional(
+        v.pipe(
+          v.array(
+            v.object({
+              fileId: v.pipe(v.string(), v.uuid()),
+              name: v.pipe(v.string(), v.minLength(1), v.maxLength(255)),
+              mime: v.pipe(v.string(), v.maxLength(255)),
+              bytes: integer(0, 2147483647),
+            }),
+          ),
+          v.maxLength(20),
+        ),
+      ),
       $: v.optional(
         v.object({
           id: v.optional(v.pipe(v.string(), v.regex(/^[\da-z]{8,36}$/))),
@@ -324,6 +357,7 @@ const blocks = new Set<string>([
   "question",
   "gate",
   "starter",
+  "ai-use",
 ]);
 // Columns, questions, gates and each student's copy stand only at the top
 // of a document.
@@ -339,7 +373,7 @@ function validNode(node: ContentNode): boolean {
       !node.children &&
       typeof node.format === "number"
     );
-  if (["linebreak", "horizontalrule", "gate"].includes(node.type))
+  if (["linebreak", "horizontalrule", "gate", "ai-use"].includes(node.type))
     return !node.children && node.text === undefined;
   if (node.type === "image")
     return !node.children && node.text === undefined && Boolean(node.fileId);
@@ -587,6 +621,7 @@ export function contentFileIds(document: ContentDocument): string[] {
   for (let node = pending.pop(); node; node = pending.pop()) {
     for (const id of [node.fileId, node.captionsFileId, node.sceneFileId])
       if (id) ids.add(id);
+    for (const evidence of node.aiEvidence ?? []) ids.add(evidence.fileId);
     if (node.children) pending.push(...node.children);
   }
   return [...ids];
@@ -634,4 +669,34 @@ export function withoutStarter(brief: ContentDocument): ContentDocument {
       ),
     },
   };
+}
+
+/** The places a document acknowledges using an AI tool. */
+export function aiUsesOf(document: ContentDocument): ContentNode[] {
+  const found: ContentNode[] = [];
+  const pending = [document.root];
+  for (let node = pending.shift(); node; node = pending.shift()) {
+    if (node.type === "ai-use") found.push(node);
+    if (node.children) pending.push(...node.children);
+  }
+  return found;
+}
+
+export type AiUseGap = "tool" | "date" | "use" | "evidence";
+
+/**
+ * What an acknowledgement still lacks: the boards ask for the tool, the date
+ * and how it was used, and JCQ also for the prompts and output kept as
+ * evidence.
+ */
+export function aiUseGaps(
+  node: ContentNode,
+  evidenceRequired: boolean,
+): AiUseGap[] {
+  const gaps: AiUseGap[] = [];
+  if (!node.aiTool?.trim()) gaps.push("tool");
+  if (!node.aiDate) gaps.push("date");
+  if (!node.aiUse?.trim() && !node.aiPrompt?.trim()) gaps.push("use");
+  if (evidenceRequired && !node.aiEvidence?.length) gaps.push("evidence");
+  return gaps;
 }

@@ -300,6 +300,24 @@ export function getMessageFromError(error: unknown): string {
         return m.examErrBelowBoard();
       case "exam.session_exists":
         return m.examErrSessionExists();
+      case "coursework.declaration_needed":
+        return m.courseworkErrDeclarationNeeded();
+      case "coursework.ai_use_missing":
+        return m.courseworkErrAiMissing();
+      case "coursework.ai_use_incomplete":
+        return m.courseworkErrAiIncomplete();
+      case "coursework.ai_use_in_work":
+        return m.courseworkErrAiInWork();
+      case "coursework.declaration_outstanding":
+        return m.courseworkErrDeclarationOutstanding();
+      case "coursework.final":
+        return m.courseworkErrFinal();
+      case "coursework.declared_already":
+        return m.courseworkErrDeclaredAlready();
+      case "coursework.not_for_quiz":
+        return m.courseworkErrNotForQuiz();
+      case "coursework.reason_needed":
+        return m.authenticationReasonNeeded();
       case "file.quota_school":
         return m.fileQuotaSchool();
       case "file.quota_class":

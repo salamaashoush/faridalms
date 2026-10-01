@@ -1,27 +1,51 @@
 import type { ExamSessionRow } from "@faridalms/database/stores/exams";
+import type { ContentDocument } from "@faridalms/domain/content";
 import type { ExamBoard, ExamSeries } from "@faridalms/domain/exams";
 
 import {
+  assignmentById,
+  attemptById,
+  studentWork,
+} from "@faridalms/database/stores/coursework";
+import { documentOf } from "@faridalms/database/stores/documents";
+import {
+  authenticationsOf,
+  courseworkOf,
+  courseworkSummaries,
+  declarationAttempt,
+  declarationsOf,
   examBoardsOf,
   examChanges,
   examSessionById,
   examSessionsOf,
+  insertDeclaration,
   insertExamSession,
   retireExamSession,
+  saveAuthentication,
   saveExamBoard,
+  setCoursework as setCoursework_,
   updateExamSession,
 } from "@faridalms/database/stores/exams";
+import { adoptFiles, filesOfHosts } from "@faridalms/database/stores/files";
 import {
   addOfficialSessionSchema,
+  assignmentRefSchema,
+  authenticateSchema,
+  DECLARATION_STATEMENT,
+  declareSchema,
   examHistorySchema,
+  paperDeclarationSchema,
   retireSessionSchema,
   saveBoardSchema,
   saveSessionSchema,
+  setCourseworkSchema,
 } from "@faridalms/domain/exams";
 import { ORPCError } from "@orpc/server";
 
 import type { UnitContext } from "../core/context";
 
+import { assessedRules, declarationProblem } from "../core/assessed";
+import { learnerAssignment, taughtAssignment } from "../core/coursework-access";
 import {
   audit,
   can,
@@ -29,6 +53,7 @@ import {
   requireCapability,
   writeProcedure,
 } from "../core/procedure";
+import { hostAccess, registerHostReader } from "../files/authorize";
 
 const HISTORY_PAGE = 25;
 
@@ -306,4 +331,364 @@ export const history = readProcedure
       limit: HISTORY_PAGE,
       offset: (input.page - 1) * HISTORY_PAGE,
     });
+  });
+
+async function sessionViews(context: UnitContext, alsoIds: string[] = []) {
+  const [official, rows] = await Promise.all([
+    officialSeries(context),
+    examSessionsOf(context.tx, {
+      tenantId: context.tenantId,
+      orgId: context.schoolId,
+      alsoIds,
+    }),
+  ]);
+  return rows.map((row) => viewOf(row, official));
+}
+
+// Whoever reads the attempt a paper declaration covers reads its scan, and
+// so do the school's exams officers.
+registerHostReader("attempt_declaration", async (context, id) => {
+  const attemptId = await declarationAttempt(context.tx, {
+    tenantId: context.tenantId,
+    id,
+  });
+  if (!attemptId) return false;
+  if (can(context, "exams:manage")) return true;
+  return (
+    (await hostAccess(context, {
+      type: "submission_attempt",
+      id: attemptId,
+    })) !== null
+  );
+});
+
+/** The exam session an assignment is assessed coursework for, for its teachers. */
+export const coursework = readProcedure
+  .input(assignmentRefSchema)
+  .handler(async ({ input, context }) => {
+    requireCapability(context, "assignments:author");
+    const assignment = await taughtAssignment(context, input.assignmentId);
+    return courseworkOf(context.tx, {
+      tenantId: context.tenantId,
+      assignmentId: assignment.id,
+    });
+  });
+
+export const setCoursework = writeProcedure
+  .input(setCourseworkSchema)
+  .handler(async ({ input, context }) => {
+    requireCapability(context, "assignments:author");
+    const assignment = await taughtAssignment(context, input.assignmentId);
+    if (input.sessionId) {
+      if (assignment.submissionFormat === "quiz")
+        refuse("coursework.not_for_quiz");
+      const session = await examSessionById(context.tx, {
+        tenantId: context.tenantId,
+        orgId: context.schoolId,
+        id: input.sessionId,
+      });
+      if (!session) refuse("exam.session_unknown");
+    }
+    await setCoursework_(context.tx, {
+      tenantId: context.tenantId,
+      assignmentId: assignment.id,
+      sessionId: input.sessionId,
+      component: input.sessionId ? input.component : null,
+      userId: context.actor.userId,
+    });
+    await audit(context, {
+      action: input.sessionId ? "coursework.assess" : "coursework.unassess",
+      objectType: "assignment",
+      objectId: assignment.id,
+      details: { sessionId: input.sessionId, component: input.component },
+    });
+    return courseworkOf(context.tx, {
+      tenantId: context.tenantId,
+      assignmentId: assignment.id,
+    });
+  });
+
+function rulesView(
+  rules: NonNullable<Awaited<ReturnType<typeof assessedRules>>>,
+  session: ExamSessionView | undefined,
+) {
+  return {
+    component: rules.coursework.component,
+    declarationRequired: rules.declarationRequired,
+    aiEvidenceRequired: rules.aiEvidenceRequired,
+    session: session ?? null,
+  };
+}
+
+/**
+ * Where each student's latest attempt stands: declared or not, and the
+ * teacher's word on it. Teachers grade from this; exams officers follow it.
+ */
+async function standing(context: UnitContext, assignmentId: string) {
+  const rules = await assessedRules(context, assignmentId);
+  if (!rules) return null;
+  const [work, sessions] = await Promise.all([
+    studentWork(context.tx, { tenantId: context.tenantId, assignmentId }),
+    sessionViews(context, [rules.coursework.sessionId]),
+  ]);
+  const attemptIds = work.flatMap((row) =>
+    row.attemptId ? [row.attemptId] : [],
+  );
+  const scope = { tenantId: context.tenantId, attemptIds };
+  const [declarations, authentications] = await Promise.all([
+    declarationsOf(context.tx, scope),
+    authenticationsOf(context.tx, scope),
+  ]);
+  const scans = await filesOfHosts(context.tx, context.tenantId, {
+    type: "attempt_declaration",
+    ids: declarations.map((row) => row.id),
+  });
+  return {
+    ...rulesView(
+      rules,
+      sessions.find((row) => row.id === rules.coursework.sessionId),
+    ),
+    students: work.map((row) => {
+      const declaration = declarations.find(
+        (item) => item.attemptId === row.attemptId,
+      );
+      const authentication = authentications.find(
+        (item) => item.attemptId === row.attemptId,
+      );
+      const scan = declaration
+        ? scans.find((file) => file.hostId === declaration.id)
+        : undefined;
+      return {
+        studentId: row.studentId,
+        fullNameEn: row.fullNameEn,
+        fullNameAr: row.fullNameAr,
+        attemptId: row.attemptId,
+        submittedAt: row.submittedAt,
+        released: row.released,
+        declaration: declaration
+          ? {
+              kind: declaration.kind,
+              aiUsed: declaration.aiUsed,
+              declaredAt: declaration.declaredAt,
+              scan: scan ? { id: scan.id, name: scan.name } : null,
+            }
+          : null,
+        authentication: authentication
+          ? {
+              outcome: authentication.outcome,
+              note: authentication.note,
+              teacherEn: authentication.teacherNameEn,
+              teacherAr: authentication.teacherNameAr,
+              at: authentication.at,
+            }
+          : null,
+      };
+    }),
+  };
+}
+
+/** Each student's declaration and authentication, for the teacher grading. */
+export const workStanding = readProcedure
+  .input(assignmentRefSchema)
+  .handler(async ({ input, context }) => {
+    requireCapability(context, "submissions:grade");
+    const assignment = await taughtAssignment(context, input.assignmentId);
+    return standing(context, assignment.id);
+  });
+
+/** What handing in asks of the student, and which attempts await their declaration. */
+export const myStanding = readProcedure
+  .input(assignmentRefSchema)
+  .handler(async ({ input, context }) => {
+    const { assignment } = await learnerAssignment(context, input.assignmentId);
+    const rules = await assessedRules(context, assignment.id);
+    if (!rules) return null;
+    const [row] = await studentWork(context.tx, {
+      tenantId: context.tenantId,
+      assignmentId: assignment.id,
+      studentId: context.actor.userId,
+    });
+    const sessions = await sessionViews(context, [rules.coursework.sessionId]);
+    const declared = row?.attemptId
+      ? await declarationsOf(context.tx, {
+          tenantId: context.tenantId,
+          attemptIds: [row.attemptId],
+        })
+      : [];
+    return {
+      ...rulesView(
+        rules,
+        sessions.find((item) => item.id === rules.coursework.sessionId),
+      ),
+      latestAttemptId: row?.attemptId ?? null,
+      latestDeclared: declared.length > 0,
+    };
+  });
+
+/** An attempt of an assessed assignment whose declaration is still outstanding. */
+async function undeclared(context: UnitContext, attemptId: string) {
+  const attempt = await attemptById(context.tx, context.tenantId, attemptId);
+  if (!attempt) throw new ORPCError("NOT_FOUND");
+  const rules = await assessedRules(context, attempt.assignmentId);
+  if (!rules?.declarationRequired) refuse("coursework.no_declaration");
+  const existing = await declarationsOf(context.tx, {
+    tenantId: context.tenantId,
+    attemptIds: [attemptId],
+  });
+  if (existing.length) refuse("coursework.declared_already");
+  return { attempt, rules };
+}
+
+/** A student declares an attempt their teacher handed in for them. */
+export const declare = writeProcedure
+  .input(declareSchema)
+  .handler(async ({ input, context }) => {
+    const { attempt, rules } = await undeclared(context, input.attemptId);
+    if (attempt.studentId !== context.actor.userId)
+      throw new ORPCError("NOT_FOUND");
+    await learnerAssignment(context, attempt.assignmentId);
+    const frozen = await documentOf(context.tx, context.tenantId, {
+      type: "submission_attempt",
+      id: input.attemptId,
+    });
+    const problem = declarationProblem(
+      (frozen?.content as unknown as ContentDocument | undefined) ?? null,
+      input.aiUsed,
+      rules.aiEvidenceRequired,
+    );
+    if (problem) refuse(problem);
+    await insertDeclaration(context.tx, {
+      tenantId: context.tenantId,
+      attemptId: input.attemptId,
+      studentId: context.actor.userId,
+      kind: "student",
+      statement: DECLARATION_STATEMENT,
+      aiUsed: input.aiUsed,
+      userId: context.actor.userId,
+    });
+    await audit(context, {
+      action: "coursework.declare",
+      objectType: "submission_attempt",
+      objectId: input.attemptId,
+      studentUserId: context.actor.userId,
+      details: { aiUsed: input.aiUsed },
+    });
+    return { ok: true };
+  });
+
+/** A teacher records a declaration the student signed on paper, with its scan if kept. */
+export const recordPaperDeclaration = writeProcedure
+  .input(paperDeclarationSchema)
+  .handler(async ({ input, context }) => {
+    requireCapability(context, "submissions:grade");
+    const { attempt } = await undeclared(context, input.attemptId);
+    await taughtAssignment(context, attempt.assignmentId);
+    const declaration = await insertDeclaration(context.tx, {
+      tenantId: context.tenantId,
+      attemptId: input.attemptId,
+      studentId: attempt.studentId,
+      kind: "paper",
+      statement: DECLARATION_STATEMENT,
+      aiUsed: null,
+      userId: context.actor.userId,
+    });
+    if (input.scanFileId) {
+      const adopted = await adoptFiles(context.tx, {
+        tenantId: context.tenantId,
+        userId: context.actor.userId,
+        host: { type: "attempt_declaration", id: declaration.id },
+        ids: [input.scanFileId],
+      });
+      if (!adopted.length)
+        throw new ORPCError("FORBIDDEN", { message: "file.not_attachable" });
+    }
+    await audit(context, {
+      action: "coursework.declare_paper",
+      objectType: "submission_attempt",
+      objectId: input.attemptId,
+      studentUserId: attempt.studentId,
+      details: { scan: Boolean(input.scanFileId) },
+    });
+    return { ok: true };
+  });
+
+/**
+ * The teacher's word that the work is the student's own, or that they cannot
+ * give it and why. It needs the student's declaration first where the
+ * session asks for one; confirmed work is final.
+ */
+export const authenticate = writeProcedure
+  .input(authenticateSchema)
+  .handler(async ({ input, context }) => {
+    requireCapability(context, "submissions:grade");
+    const attempt = await attemptById(
+      context.tx,
+      context.tenantId,
+      input.attemptId,
+    );
+    if (!attempt) throw new ORPCError("NOT_FOUND");
+    await taughtAssignment(context, attempt.assignmentId);
+    const rules = await assessedRules(context, attempt.assignmentId);
+    if (!rules) refuse("coursework.not_assessed");
+    const scope = {
+      tenantId: context.tenantId,
+      attemptIds: [input.attemptId],
+    };
+    if (
+      rules.declarationRequired &&
+      !(await declarationsOf(context.tx, scope)).length
+    )
+      refuse("coursework.declaration_outstanding");
+    const [before] = await authenticationsOf(context.tx, scope);
+    if (before?.outcome === "confirmed")
+      throw new ORPCError("CONFLICT", { message: "coursework.final" });
+    await saveAuthentication(context.tx, {
+      tenantId: context.tenantId,
+      attemptId: input.attemptId,
+      outcome: input.outcome,
+      note: input.note,
+      userId: context.actor.userId,
+    });
+    await audit(context, {
+      action: `coursework.${input.outcome}`,
+      objectType: "submission_attempt",
+      objectId: input.attemptId,
+      studentUserId: attempt.studentId,
+      details: { note: input.note, before: before?.outcome ?? null },
+    });
+    return { ok: true };
+  });
+
+/** All assessed coursework in the school, for its exams officers. */
+export const courseworkList = readProcedure.handler(async ({ context }) => {
+  requireCapability(context, "exams:manage");
+  const rows = await courseworkSummaries(context.tx, {
+    tenantId: context.tenantId,
+    orgId: context.schoolId,
+  });
+  const sessions = await sessionViews(
+    context,
+    rows.map((row) => row.sessionId),
+  );
+  return rows.map((row) => ({
+    ...row,
+    session: sessions.find((session) => session.id === row.sessionId) ?? null,
+  }));
+});
+
+/** One piece of assessed coursework, student by student, for its exams officers. */
+export const courseworkStudents = readProcedure
+  .input(assignmentRefSchema)
+  .handler(async ({ input, context }) => {
+    requireCapability(context, "exams:manage");
+    const assignment = await assignmentById(
+      context.tx,
+      context.tenantId,
+      input.assignmentId,
+    );
+    if (!assignment || assignment.orgId !== context.schoolId)
+      throw new ORPCError("NOT_FOUND");
+    const found = await standing(context, assignment.id);
+    if (!found) throw new ORPCError("NOT_FOUND");
+    return { title: assignment.title, ...found };
   });

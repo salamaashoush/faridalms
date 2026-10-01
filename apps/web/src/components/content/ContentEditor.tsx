@@ -35,6 +35,7 @@ export function ContentEditor({
   gates,
   lockQuestions,
   starter,
+  aiUse,
 }: {
   id: string;
   label: string;
@@ -54,6 +55,7 @@ export function ContentEditor({
   gates?: boolean;
   lockQuestions?: boolean;
   starter?: boolean;
+  aiUse?: boolean;
 }) {
   const strings = useMemo(() => editorStrings(), []);
   const hydrated = useHydrated();
@@ -102,6 +104,7 @@ export function ContentEditor({
         gates={gates}
         lockQuestions={lockQuestions}
         starter={starter}
+        aiUse={aiUse}
       />
     </Suspense>
   );

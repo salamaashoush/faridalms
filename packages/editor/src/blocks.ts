@@ -69,6 +69,7 @@ import {
   Pilcrow,
   Quote,
   Shapes,
+  Sparkles,
   Table,
   TextCursorInput,
   ToggleRight,
@@ -77,6 +78,7 @@ import {
 import type { EditorStrings } from "./strings";
 
 import {
+  $createAiUseNode,
   $createCalloutNode,
   $createColumnNode,
   $createQuestionNode,
@@ -126,7 +128,8 @@ export type BlockType =
   | "gapsQuestion"
   | "trueFalseQuestion"
   | "gate"
-  | "studentCopy";
+  | "studentCopy"
+  | "aiUse";
 
 export type BlockGroup = "text" | "lists" | "media" | "layout" | "questions";
 
@@ -157,6 +160,8 @@ export interface BlockDefinition {
   question?: boolean;
   /** Offered only in a brief, whose students each get a copy to work in. */
   starter?: boolean;
+  /** Offered only in a student's own work. */
+  aiUse?: boolean;
 }
 
 /** Which kinds of block a document may hold. */
@@ -165,6 +170,7 @@ export interface BlockScope {
   questions: boolean;
   gates: boolean;
   starter: boolean;
+  aiUse: boolean;
 }
 
 export function blockScope(environment: {
@@ -172,6 +178,7 @@ export function blockScope(environment: {
   questions?: boolean;
   gates?: boolean;
   starter?: boolean;
+  aiUse?: boolean;
 }): BlockScope {
   const questions = Boolean(environment.questions);
   return {
@@ -179,6 +186,7 @@ export function blockScope(environment: {
     questions,
     gates: environment.gates ?? questions,
     starter: Boolean(environment.starter),
+    aiUse: Boolean(environment.aiUse),
   };
 }
 
@@ -186,7 +194,8 @@ export const offered = (block: BlockDefinition, scope: BlockScope) =>
   (scope.media || !block.media) &&
   (scope.questions || !block.question) &&
   (scope.gates || block.type !== "gate") &&
-  (scope.starter || !block.starter);
+  (scope.starter || !block.starter) &&
+  (scope.aiUse || !block.aiUse);
 
 export const blockDefinitions: BlockDefinition[] = [
   {
@@ -276,6 +285,24 @@ export const blockDefinitions: BlockDefinition[] = [
     keywords: ["quote", "blockquote", "citation", "اقتباس"],
     shortcut: ">",
     convertible: true,
+  },
+  {
+    type: "aiUse",
+    group: "media",
+    icon: Sparkles,
+    label: (s) => s.aiUse,
+    hint: (s) => s.aiUseHint,
+    keywords: [
+      "ai",
+      "chatgpt",
+      "gemini",
+      "acknowledge",
+      "cite",
+      "ذكاء",
+      "اصطناعي",
+    ],
+    media: true,
+    aiUse: true,
   },
   {
     type: "studentCopy",
@@ -682,6 +709,7 @@ function $createStructure(type: BlockType): LexicalNode | null {
   if (kind) return $createQuestionNode(kind);
   if (type === "divider") return $createHorizontalRuleNode();
   if (type === "gate") return new GateNode();
+  if (type === "aiUse") return $createAiUseNode();
   if (type === "studentCopy")
     return new StarterNode().append($createParagraphNode());
   if (type === "table")

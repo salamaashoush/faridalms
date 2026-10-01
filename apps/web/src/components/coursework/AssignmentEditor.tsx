@@ -34,6 +34,7 @@ import type { assignmentEditorQuery } from "~/queries/coursework";
 import { UnsavedChangesGuard } from "~/components/app/UnsavedChangesGuard";
 import { useCollaboration } from "~/components/content/collaboration";
 import { ContentEditor } from "~/components/content/ContentEditor";
+import { CourseworkSetting } from "~/components/exams/CourseworkSetting";
 import { blockIssue } from "~/components/learning/issues";
 import { CheckboxRow } from "~/components/people/fields";
 import { ComboboxField } from "~/components/system/ComboboxField";
@@ -1021,6 +1022,7 @@ export function AssignmentEditor({
                 />
               )}
             </DetailsSection>
+            {isQuiz ? null : <CourseworkSetting assignmentId={storedId} />}
             {isQuiz ? (
               <DetailsSection title={m.quizSection()}>
                 <SelectField

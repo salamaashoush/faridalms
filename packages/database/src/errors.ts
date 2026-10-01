@@ -82,6 +82,9 @@ export const CONFLICTS: Record<string, string> = {
   document_files_key: "document_file.exists",
   user_preferences_key: "user_preference.exists",
   exam_sessions_official_key: "exam.session_exists",
+  coursework_assessments_assignment_key: "coursework.assessed_exists",
+  attempt_declarations_attempt_key: "coursework.declared_already",
+  attempt_authentications_attempt_key: "coursework.authenticated_already",
 };
 
 /** Checks whose failure means something to a person, not just a bad shape. */

@@ -110,3 +110,54 @@ export interface ExamChangeDetails {
   before?: ExamSessionRules;
   after?: ExamSessionRules | { titleEn: string | null; titleAr: string | null };
 }
+
+/**
+ * The wording students agree to, named so a later rewording leaves earlier
+ * declarations recording what was agreed. It covers what JCQ, Cambridge and
+ * the IB ask a candidate to confirm: own work, sources and AI use
+ * acknowledged, no help beyond what was allowed, and what follows if not.
+ */
+export const DECLARATION_STATEMENT = "2026-10";
+
+const uuid = v.pipe(v.string(), v.uuid());
+
+export const setCourseworkSchema = v.object({
+  assignmentId: uuid,
+  /** Null takes the assignment off assessed coursework. */
+  sessionId: v.nullable(uuid),
+  component: v.nullable(
+    v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(120)),
+  ),
+});
+
+/** What a student agrees to at hand-in, and whether they used an AI tool. */
+export const declarationSchema = v.object({
+  agreed: v.literal(true),
+  aiUsed: v.boolean(),
+});
+
+export const declareSchema = v.object({
+  attemptId: uuid,
+  ...declarationSchema.entries,
+});
+
+export const paperDeclarationSchema = v.object({
+  attemptId: uuid,
+  scanFileId: v.optional(uuid),
+});
+
+export const authenticateSchema = v.pipe(
+  v.object({
+    attemptId: uuid,
+    outcome: v.picklist(["confirmed", "not_confirmed"]),
+    note: v.nullable(
+      v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(2000)),
+    ),
+  }),
+  v.check(
+    (input) => input.outcome === "confirmed" || input.note !== null,
+    "coursework.reason_needed",
+  ),
+);
+
+export const assignmentRefSchema = v.object({ assignmentId: uuid });
