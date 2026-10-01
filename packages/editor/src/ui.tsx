@@ -58,6 +58,13 @@ export function Floating({
     const floating = ref.current;
     if (!floating || !reference) return undefined;
     return autoUpdate(reference, floating, () => {
+      // Never wider than the space it is kept in, so a long bar wraps rather
+      // than running off a phone's screen, where shifting cannot help.
+      const room = Math.min(
+        boundary?.getBoundingClientRect().width ?? window.innerWidth,
+        window.innerWidth,
+      );
+      floating.style.maxWidth = `${Math.max(0, room - 16)}px`;
       void computePosition(reference, floating, {
         placement,
         strategy: "fixed",
