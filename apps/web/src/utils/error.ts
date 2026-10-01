@@ -280,6 +280,8 @@ export function getMessageFromError(error: unknown): string {
         return m.fileScanUnavailable();
       case "file.size_mismatch":
         return m.fileSizeMismatch();
+      case "file.replace_kind":
+        return m.fileReplaceKind();
       case "group.name_conflict":
         return m.groupNameConflict();
       case "group.student_not_enrolled":

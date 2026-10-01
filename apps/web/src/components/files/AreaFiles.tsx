@@ -15,7 +15,9 @@ import {
   Download,
   Eye,
   FolderOpen,
+  History,
   Pencil,
+  Replace,
   RotateCcw,
   Trash2,
   Upload,
@@ -36,7 +38,13 @@ import { Button } from "~/components/ui/button";
 import * as m from "~/i18n/messages";
 import { getLocale } from "~/i18n/runtime";
 import { areaFilesQuery } from "~/queries/files";
-import { addToArea, renameInArea, trashInArea } from "~/server/files";
+import {
+  addToArea,
+  getFileVersions,
+  renameInArea,
+  replaceInArea,
+  trashInArea,
+} from "~/server/files";
 import { formatDate, formatList, formatNumber } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
@@ -184,6 +192,20 @@ function areaCard(area: Area) {
   };
 }
 
+/** What the replacement chooser offers: files of the same kind as the one replaced. */
+function sameKind(
+  file: AreaFile,
+  accept: Record<"image" | "file" | "media" | "captions", string[]>,
+) {
+  const family = fileFamily(file.name, file.mediaType);
+  if (family === "image") return accept.image.join(",");
+  if (family === "audio")
+    return accept.media.filter((type) => type.startsWith("audio/")).join(",");
+  if (family === "video")
+    return accept.media.filter((type) => type.startsWith("video/")).join(",");
+  return accept.file.join(",");
+}
+
 interface Pending {
   key: string;
   name: string;
@@ -202,7 +224,12 @@ export function AreaFiles({ area, title }: { area: Area; title: string }) {
   const media = useDocumentMedia();
   const add = useServerFn(addToArea);
   const trash = useServerFn(trashInArea);
+  const replace = useServerFn(replaceInArea);
+  const refreshFacts = useRefreshFileFacts();
   const input = useRef<HTMLInputElement>(null);
+  const replacement = useRef<HTMLInputElement>(null);
+  const [replacing, setReplacing] = useState<AreaFile | null>(null);
+  const [versionsOf, setVersionsOf] = useState<AreaFile | null>(null);
   const [search, setSearch] = useState("");
   const [kinds, setKinds] = useState<string[]>([]);
   const [sort, setSort] = useState<{ value: Sort; direction: "asc" | "desc" }>({
@@ -219,7 +246,8 @@ export function AreaFiles({ area, title }: { area: Area; title: string }) {
       queryKey: ["files", "area", area.type, area.id],
     });
 
-  const upload = async (file: File) => {
+  /** Uploads a file into the area, or as the new bytes of one already there. */
+  const upload = async (file: File, target?: AreaFile) => {
     const key = crypto.randomUUID();
     const change = (patch: Partial<Pending>) =>
       setPending((rows) =>
@@ -233,7 +261,13 @@ export function AreaFiles({ area, title }: { area: Area; title: string }) {
       const sent = await media.upload(file, "file", {
         onProgress: (progress) => change({ progress }),
       });
-      await add({ data: { area, ids: [sent.fileId] } });
+      if (target) {
+        await replace({
+          data: { area, id: target.id, sourceId: sent.fileId },
+        });
+        refreshFacts([target.id]);
+        toast.success(m.filesReplaced());
+      } else await add({ data: { area, ids: [sent.fileId] } });
       setPending((rows) => rows.filter((row) => row.key !== key));
       await refresh();
     } catch (error) {
@@ -276,6 +310,26 @@ export function AreaFiles({ area, title }: { area: Area; title: string }) {
       icon: Pencil,
       onSelect: () => setRenaming(file),
     },
+    {
+      label: m.filesReplace(),
+      icon: Replace,
+      onSelect: () => {
+        setReplacing(file);
+        const chooser = replacement.current;
+        if (!chooser) return;
+        chooser.accept = sameKind(file, media.accept);
+        chooser.click();
+      },
+    },
+    ...(file.versions > 0
+      ? [
+          {
+            label: m.filesVersions(),
+            icon: History,
+            onSelect: () => setVersionsOf(file),
+          },
+        ]
+      : []),
     {
       label: m.filesDelete(),
       icon: Trash2,
@@ -341,6 +395,16 @@ export function AreaFiles({ area, title }: { area: Area; title: string }) {
               const chosen = [...(event.target.files ?? [])];
               event.target.value = "";
               for (const file of chosen) void upload(file);
+            }}
+          />
+          <input
+            ref={replacement}
+            type="file"
+            hidden
+            onChange={(event) => {
+              const [chosen] = event.target.files ?? [];
+              event.target.value = "";
+              if (chosen && replacing) void upload(chosen, replacing);
             }}
           />
         </div>
@@ -455,6 +519,17 @@ export function AreaFiles({ area, title }: { area: Area; title: string }) {
           onRenamed={refresh}
         />
       ) : null}
+      <VersionsSheet
+        area={area}
+        file={versionsOf}
+        onOpenChange={(open) => {
+          if (!open) setVersionsOf(null);
+        }}
+        onRestored={async (id) => {
+          refreshFacts([id]);
+          await refresh();
+        }}
+      />
       <TrashSheet
         area={area}
         open={trashOpen}
@@ -597,6 +672,123 @@ function TrashSheet({
           })}
         </RecordList>
       )}
+    </SheetPanel>
+  );
+}
+
+function VersionsSheet({
+  area,
+  file,
+  onOpenChange,
+  onRestored,
+}: {
+  area: Area;
+  file: AreaFile | null;
+  onOpenChange: (open: boolean) => void;
+  onRestored: (id: string) => Promise<unknown>;
+}) {
+  const fetchVersions = useServerFn(getFileVersions);
+  const restore = useServerFn(replaceInArea);
+  const listed = useQuery({
+    queryKey: ["files", "versions", file?.id],
+    queryFn: () =>
+      file
+        ? fetchVersions({ data: { area, id: file.id } })
+        : Promise.resolve({ versions: [] }),
+    enabled: file !== null,
+  });
+  const [busy, setBusy] = useState<string | null>(null);
+  const [viewing, setViewing] = useState<string | null>(null);
+  const versions = listed.data?.versions ?? [];
+  const shown = versions.find((row) => row.id === viewing);
+  return (
+    <SheetPanel
+      open={file !== null}
+      onOpenChange={onOpenChange}
+      title={file ? `${m.filesVersions()}: ${file.name}` : m.filesVersions()}
+      description={m.filesVersionsHint()}
+    >
+      {listed.isPending ? (
+        <div aria-busy="true" className="min-h-24" />
+      ) : versions.length === 0 ? (
+        <RecordEmpty>{m.filesVersionsEmpty()}</RecordEmpty>
+      ) : (
+        <RecordList>
+          {versions.map((version) => {
+            const until = new Date(
+              new Date(version.replacedAt).getTime() +
+                TRASH_DAYS * 24 * 60 * 60 * 1000,
+            ).toISOString();
+            return (
+              <li key={version.id} className="flex items-center gap-3 py-3">
+                <FileIcon
+                  file={{ name: version.name, mime: version.mediaType }}
+                  className="size-5 shrink-0 text-muted-foreground"
+                />
+                <span className="grid min-w-0 flex-1 gap-0.5">
+                  <button
+                    type="button"
+                    onClick={() => setViewing(version.id)}
+                    className="truncate text-start text-sm leading-5 font-medium hover:text-primary hover:underline"
+                  >
+                    <bdi>{version.name}</bdi>
+                  </button>
+                  <span className="text-[13px] leading-[18px] text-muted-foreground">
+                    {m.filesVersionFact({
+                      date: formatDate(version.replacedAt),
+                      until: formatDate(until),
+                    })}
+                  </span>
+                </span>
+                <Button
+                  type="button"
+                  variant="outline"
+                  className="max-md:h-10"
+                  disabled={busy !== null || !file}
+                  aria-label={m.filesRestoreNamed({ name: version.name })}
+                  onClick={async () => {
+                    if (!file) return;
+                    setBusy(version.id);
+                    try {
+                      await restore({
+                        data: { area, id: file.id, sourceId: version.id },
+                      });
+                      await Promise.all([
+                        listed.refetch(),
+                        onRestored(file.id),
+                      ]);
+                      toast.success(m.filesVersionRestored());
+                    } catch (error) {
+                      toast.error(getMessageFromError(error));
+                    } finally {
+                      setBusy(null);
+                    }
+                  }}
+                >
+                  <RotateCcw aria-hidden />
+                  {m.filesRestore()}
+                </Button>
+              </li>
+            );
+          })}
+        </RecordList>
+      )}
+      {shown ? (
+        <FileViewer
+          file={{
+            name: shown.name,
+            mime: shown.mediaType,
+            bytes: shown.sizeBytes,
+          }}
+          url={`/files/${shown.id}`}
+          open
+          onOpenChange={(open) => {
+            if (!open) setViewing(null);
+          }}
+          strings={fileStrings()}
+          locale={getLocale()}
+        />
+      ) : null}
     </SheetPanel>
   );
 }

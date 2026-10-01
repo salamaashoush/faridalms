@@ -4468,5 +4468,13 @@
   "filesTrashEmpty": "لا شيء في المحذوفات",
   "filesTrashFact": "حُذف {date} · يُحذف نهائيًا {until}",
   "filesUploadProgress": "جارٍ رفع {name}، {percent}",
-  "fileRemoved": "أُزيل هذا الملف أو تعذّر فتحه."
+  "fileRemoved": "أُزيل هذا الملف أو تعذّر فتحه.",
+  "filesReplace": "استبدال",
+  "filesReplaced": "تم الاستبدال",
+  "filesVersions": "الإصدارات السابقة",
+  "filesVersionsHint": "تبقى الملفات المستبدَلة هنا ٣٠ يومًا. استعادة أحدها تجعله الملف الحالي، ويصبح الملف الحالي إصدارًا سابقًا.",
+  "filesVersionsEmpty": "لا توجد إصدارات سابقة",
+  "filesVersionFact": "استُبدل {date} · يُحذف نهائيًا {until}",
+  "filesVersionRestored": "استُعيد الإصدار السابق",
+  "fileReplaceKind": "استبدل الملف بملف من النوع نفسه: صورة بصورة، وملف PDF بملف PDF."
 }

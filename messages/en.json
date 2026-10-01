@@ -4312,5 +4312,13 @@
   "filesTrashEmpty": "Nothing in the trash",
   "filesTrashFact": "Deleted {date} · gone for good {until}",
   "filesUploadProgress": "Uploading {name}, {percent}",
-  "fileRemoved": "This file was removed or can't be opened."
+  "fileRemoved": "This file was removed or can't be opened.",
+  "filesReplace": "Replace",
+  "filesReplaced": "Replaced",
+  "filesVersions": "Previous versions",
+  "filesVersionsHint": "Files replaced here stay for 30 days. Restoring one makes it current again, and the current file becomes a previous version.",
+  "filesVersionsEmpty": "No previous versions",
+  "filesVersionFact": "Replaced {date} · gone for good {until}",
+  "filesVersionRestored": "Previous version restored",
+  "fileReplaceKind": "Replace a file with the same kind of file: a picture with a picture, a PDF with a PDF."
 }

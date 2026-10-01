@@ -451,3 +451,107 @@ describe("files in documents", () => {
     ).toMatchObject({ code: "NOT_FOUND" });
   });
 });
+
+const readFile = (token: string, id: string) =>
+  raw("northwind", token, `/v1/files/${id}/content`);
+
+describe("replacing a file in a class's files", () => {
+  test("shows the new bytes everywhere, keeps the old ones 30 days, and restores them", async () => {
+    const teacher = await sessionFor("northwind", login("teacher", 0, 1));
+    const student = await sessionFor("northwind", login("student"));
+    const me = await student.api.identity.currentUser();
+    const media = async (name: string, body: string, mediaType: string) => {
+      const file = await teacher.api.files.initiate({
+        purpose: "document_media",
+        name,
+        mediaType,
+        sizeBytes: text(body).size,
+      });
+      const put = await raw(
+        "northwind",
+        teacher.token,
+        `/v1/files/${file.id}/content`,
+        { method: "PUT", body: text(body) },
+      );
+      expect(put.status).toBe(200);
+      return file.id;
+    };
+    const { classes } = await teacher.api.coursework.options();
+    let classId = "";
+    for (const row of classes.filter((item) => item.classType === "scheduled"))
+      if (
+        (await teacher.api.coursework.groups({ classId: row.id })).roster.some(
+          (pupil) => pupil.id === me.id,
+        )
+      )
+        classId = row.id;
+    const first = await media("worksheet.txt", "version one", "text/plain");
+    const saved = await teacher.api.coursework.save({
+      classId,
+      title: "Replaced worksheet",
+      brief: withFile(first, "Fill in the worksheet."),
+      audience: "class",
+      latePolicy: "accept",
+      submissionFormat: "both",
+      points: 10,
+      rubric: null,
+    });
+    await teacher.api.coursework.publish({
+      id: saved.id,
+      expectedVersion: saved.version,
+    });
+    const area = { type: "class" as const, id: classId };
+
+    const pdf = await media(
+      "worksheet.pdf",
+      "%PDF-1.4\n%%EOF\n",
+      "application/pdf",
+    );
+    expect(
+      await rejection(
+        teacher.api.files.replaceInArea({ area, id: first, sourceId: pdf }),
+      ),
+    ).toMatchObject({ message: "file.replace_kind" });
+
+    const second = await media("worksheet v2.txt", "version two", "text/plain");
+    await teacher.api.files.replaceInArea({
+      area,
+      id: first,
+      sourceId: second,
+    });
+    expect(await (await readFile(student.token, first)).text()).toBe(
+      "version two",
+    );
+    expect(
+      (await student.api.files.facts({ ids: [first] })).files[0]?.name,
+    ).toBe("worksheet v2.txt");
+    const { versions } = await teacher.api.files.versions({ area, id: first });
+    expect(versions.map((row) => row.name)).toEqual(["worksheet.txt"]);
+    const old = versions[0]?.id ?? "";
+    expect(await (await readFile(teacher.token, old)).text()).toBe(
+      "version one",
+    );
+    expect((await readFile(student.token, old)).status).toBe(404);
+
+    await teacher.api.files.replaceInArea({ area, id: first, sourceId: old });
+    expect(await (await readFile(student.token, first)).text()).toBe(
+      "version one",
+    );
+    const after = await teacher.api.files.versions({ area, id: first });
+    expect(after.versions.map((row) => row.name)).toEqual(["worksheet v2.txt"]);
+
+    const { cell, files, tenants } = seeded();
+    await sweepTenantFiles(
+      cell,
+      files,
+      tenants[0]?.tenantId ?? "",
+      new Date(Date.now() + 31 * 24 * 60 * 60 * 1000),
+    );
+    expect(
+      (await teacher.api.files.versions({ area, id: first })).versions,
+    ).toEqual([]);
+    expect(await (await readFile(student.token, first)).text()).toBe(
+      "version one",
+    );
+  });
+});

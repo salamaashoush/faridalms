@@ -4,13 +4,17 @@ import type { FilePurpose } from "@faridalms/domain/file";
 import {
   adoptFiles,
   areaFiles,
+  fileById,
   filesByIds,
+  fileVersions,
   initiateFile,
   renameAreaFile,
+  replaceFileBytes,
   trashAreaFile,
 } from "@faridalms/database/stores/files";
 import {
   fileAreaSchema,
+  fileFamily,
   initiateUploadSchema,
   safeFilename,
 } from "@faridalms/domain/file";
@@ -197,4 +201,96 @@ export const facts = readProcedure
           sizeBytes: file.sizeBytes,
         })),
     };
+  });
+
+async function areaFile(
+  context: UnitContext,
+  place: v.InferOutput<typeof fileAreaSchema>,
+  id: string,
+) {
+  await keptArea(context, place);
+  const file = await fileById(context.tx, context.tenantId, id);
+  if (
+    !file ||
+    file.state !== "ready" ||
+    file.trashedAt ||
+    file.hostType !== place.type ||
+    file.hostId !== place.id
+  )
+    throw new ORPCError("NOT_FOUND");
+  return file;
+}
+
+/** A file's previous versions, while the trash keeps them. */
+export const versions = readProcedure
+  .input(v.object(areaFileSchema.entries))
+  .handler(async ({ input, context }) => {
+    await areaFile(context, input.area, input.id);
+    const rows = await fileVersions(context.tx, context.tenantId, input.id);
+    return {
+      versions: rows.map((row) => ({
+        id: row.id,
+        name: row.name,
+        mediaType: row.mediaType,
+        sizeBytes: row.sizeBytes,
+        replacedAt: row.trashedAt ?? "",
+      })),
+    };
+  });
+
+/**
+ * Replaces a file's bytes with the viewer's new upload, or with one of its
+ * previous versions, so every document showing it shows the new ones. Only
+ * the same kind of file may stand in, so a picture block never receives a
+ * spreadsheet. What it held stays as a previous version for 30 days.
+ */
+export const replaceInArea = writeProcedure
+  .input(
+    v.object({
+      ...areaFileSchema.entries,
+      sourceId: v.pipe(v.string(), v.uuid()),
+    }),
+  )
+  .handler(async ({ input, context }) => {
+    const target = await areaFile(context, input.area, input.id);
+    const source = await fileById(context.tx, context.tenantId, input.sourceId);
+    const usable =
+      source?.state === "ready" &&
+      ((source.hostType === null &&
+        source.uploadedByUserId === context.actor.userId &&
+        source.purpose === target.purpose) ||
+        (source.hostType === "file_version" && source.hostId === target.id));
+    if (!source || !usable) throw new ORPCError("NOT_FOUND");
+    if (
+      fileFamily(source.name, source.mediaType) !==
+      fileFamily(target.name, target.mediaType)
+    )
+      throw new ORPCError("BAD_REQUEST", { message: "file.replace_kind" });
+    const replaced = await context.cell.withWorker(
+      {
+        tenantId: context.tenantId,
+        requestId: context.requestId,
+        actor: { kind: "system" },
+      },
+      "write",
+      (tx) =>
+        replaceFileBytes(tx, {
+          tenantId: context.tenantId,
+          targetId: target.id,
+          sourceId: source.id,
+          userId: context.actor.userId,
+        }),
+    );
+    if (!replaced) throw new ORPCError("CONFLICT");
+    await audit(context, {
+      action: "file.replaced",
+      objectType: "file",
+      objectId: target.id,
+      details: {
+        hostType: input.area.type,
+        hostId: input.area.id,
+        restored: source.hostType === "file_version",
+      },
+    });
+    return { ok: true };
   });

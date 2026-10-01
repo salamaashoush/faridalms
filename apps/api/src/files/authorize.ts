@@ -86,6 +86,19 @@ export async function canReadFile(
   context: UnitContext,
   file: StoredFile,
 ): Promise<boolean> {
+  if (file.hostType === "file_version" && file.hostId) {
+    const [current] = await filesByIds(context.tx, context.tenantId, [
+      file.hostId,
+    ]);
+    return Boolean(
+      current?.hostType &&
+      current.hostId &&
+      (await mayKeepArea(context, {
+        type: current.hostType,
+        id: current.hostId,
+      })),
+    );
+  }
   if (file.trashedAt) return false;
   if (file.uploadedByUserId === context.actor.userId) return true;
   if (!file.hostType || !file.hostId) return false;

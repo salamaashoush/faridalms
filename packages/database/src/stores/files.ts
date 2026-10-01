@@ -435,6 +435,8 @@ export interface AreaFile {
   createdAt: string;
   uploadedByUserId: string | null;
   trashedAt: string | null;
+  /** Earlier files replaced here, kept for the trash window. */
+  versions: number;
   /** The lessons and assignments whose documents show it. */
   usedIn: { hostType: string; hostId: string; title: string }[];
 }
@@ -454,10 +456,14 @@ export async function areaFiles(
     created_at: string;
     uploaded_by_user_id: string | null;
     trashed_at: string | null;
+    versions: string | number;
     used_in: AreaFile["usedIn"];
   }>(sql`
     select f.id, f.name, f.media_type, f.size_bytes, ${isoOf(sql`f.created_at`)} as created_at,
       f.uploaded_by_user_id, ${isoOf(sql`f.trashed_at`)} as trashed_at,
+      (select count(*) from core.files v
+        where v.tenant_id = f.tenant_id and v.host_type = 'file_version'
+          and v.host_id = f.id and v.status = 'active') as versions,
       coalesce((
         select jsonb_agg(distinct jsonb_build_object(
           'hostType', d.host_type, 'hostId', d.host_id,
@@ -485,6 +491,7 @@ export async function areaFiles(
     createdAt: row.created_at,
     uploadedByUserId: row.uploaded_by_user_id,
     trashedAt: row.trashed_at,
+    versions: Number(row.versions),
     usedIn: row.used_in,
   }));
 }
@@ -553,4 +560,73 @@ export async function retireTrashedFiles(
       where f.tenant_id = ${tenantId}::uuid and f.storage_key = r.storage_key
         and f.status = 'active' and f.id not in (select id from retired))`);
   return rows.map((row) => row.storage_key);
+}
+
+/**
+ * Puts another file's verified bytes under an existing file, so every
+ * document showing it shows the new ones, and keeps the bytes it had as a
+ * previous version in the trash for the sweep's window. The other file,
+ * a new upload or a previous version being restored, is retired; its
+ * object lives on under the file it went into. Run as the worker, the only
+ * role that may change what a row points at.
+ */
+export async function replaceFileBytes(
+  tx: Tx,
+  input: {
+    tenantId: string;
+    targetId: string;
+    sourceId: string;
+    userId: string;
+  },
+): Promise<boolean> {
+  const rows = await tx.execute<{ id: string }>(sql`
+    with target as (
+      select * from core.files
+      where tenant_id = ${input.tenantId}::uuid and id = ${input.targetId}::uuid
+        and status = 'active' and state = 'ready'
+      for update),
+    source as (
+      select * from core.files
+      where tenant_id = ${input.tenantId}::uuid and id = ${input.sourceId}::uuid
+        and status = 'active' and state = 'ready'),
+    kept as (
+      insert into core.files (tenant_id, uploaded_by_user_id, purpose, name, media_type,
+        size_bytes, sha256, state, storage_key, encryption, key_version, scanned_at,
+        scan_engine, ready_at, linked_at, width, height, duration_ms, derivatives,
+        host_type, host_id, trashed_at, metadata)
+      select t.tenant_id, t.uploaded_by_user_id, t.purpose, t.name, t.media_type,
+        t.size_bytes, t.sha256, t.state, t.storage_key, t.encryption, t.key_version,
+        t.scanned_at, t.scan_engine, t.ready_at, statement_timestamp(), t.width, t.height,
+        t.duration_ms, t.derivatives, 'file_version', t.id, statement_timestamp(),
+        jsonb_build_object('replacedBy', ${input.userId}::text)
+      from target t, source
+      returning id)
+    update core.files f
+    set name = s.name, media_type = s.media_type, size_bytes = s.size_bytes,
+      sha256 = s.sha256, storage_key = s.storage_key, encryption = s.encryption,
+      key_version = s.key_version, scanned_at = s.scanned_at, scan_engine = s.scan_engine,
+      ready_at = s.ready_at, width = s.width, height = s.height,
+      duration_ms = s.duration_ms, derivatives = s.derivatives
+    from source s, kept
+    where f.tenant_id = ${input.tenantId}::uuid and f.id = ${input.targetId}::uuid
+    returning f.id`);
+  if (rows.length === 0) return false;
+  await tx.execute(sql`
+    update core.files set status = 'tobedeleted'
+    where tenant_id = ${input.tenantId}::uuid and id = ${input.sourceId}::uuid`);
+  return true;
+}
+
+/** A file's previous versions, newest first, while the trash keeps them. */
+export async function fileVersions(
+  tx: Tx,
+  tenantId: string,
+  fileId: string,
+): Promise<StoredFile[]> {
+  const rows = await tx.execute<FileRecord>(sql`
+    select ${columns} from core.files
+    where tenant_id = ${tenantId}::uuid and host_type = 'file_version'
+      and host_id = ${fileId}::uuid and status = 'active'
+    order by trashed_at desc`);
+  return rows.map(fileOf);
 }

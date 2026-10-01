@@ -50,3 +50,13 @@ export const getFileFacts = createServerFn({ method: "POST" })
     ),
   )
   .handler(({ data }) => backend().files.facts(data));
+
+export const getFileVersions = createServerFn({ method: "GET" })
+  .validator(checked(v.object(areaFile)))
+  .handler(({ data }) => backend().files.versions(data));
+
+export const replaceInArea = createServerFn({ method: "POST" })
+  .validator(
+    checked(v.object({ ...areaFile, sourceId: v.pipe(v.string(), v.uuid()) })),
+  )
+  .handler(({ data }) => backend().files.replaceInArea(data));
