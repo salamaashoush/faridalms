@@ -8,25 +8,32 @@ const names = (en: string, ar: string) => ({
   ar: { given: ar.split(" ")[0], family: ar.split(" ").slice(1).join(" ") },
 });
 
+let pastYearId: string | undefined;
+
 /** Adds a student whose only school year ended on 30 June 2020. */
-async function leaver(api: Awaited<ReturnType<typeof signedIn>>) {
+async function leaver(
+  api: Awaited<ReturnType<typeof signedIn>>,
+  reference = "GA9301",
+) {
   const options = await api.people.options();
   const grade = options.grades.find((row) => row.code === "grade_7");
   if (!grade) throw new Error("options");
   const created = await api.people.saveStudent({
     names: names("Salama Leaver", "سلامة المغادر"),
-    reference: "GA9301",
+    reference,
     birthDate: "2002-05-20",
     gradeId: grade.id,
     guardians: [],
   });
-  const { id: pastYearId } = await api.years.save({
-    titleEn: "2019–2020",
-    titleAr: "",
-    startsOn: "2019-09-01",
-    endsOn: "2020-06-30",
-    terms: [],
-  });
+  pastYearId ??= (
+    await api.years.save({
+      titleEn: "2019–2020",
+      titleAr: "",
+      startsOn: "2019-09-01",
+      endsOn: "2020-06-30",
+      terms: [],
+    })
+  ).id;
   const { cell, tenants } = seeded();
   const tenantId = tenants[0]?.tenantId ?? "";
   await cell.withWorker(
@@ -258,5 +265,155 @@ describe("retention review", () => {
     expect(
       await rejection(api.privacy.closeBreach({ id, actions: "Again." })),
     ).toMatchObject({ code: "NOT_FOUND", message: "privacy.breach_closed" });
+  });
+});
+
+/**
+ * Runs as the principal holding erasure for a while. Nobody may grant what
+ * they do not hold, so the role and its assignment are made as an operator
+ * makes the first one, then ended.
+ */
+async function withErasure(
+  run: (api: Awaited<ReturnType<typeof signedIn>>) => Promise<void>,
+) {
+  const api = await signedIn("northwind", login("principal"));
+  const me = await api.identity.currentUser();
+  const role = await api.access.saveRole({
+    nameEn: `Data protection officer ${crypto.randomUUID().slice(0, 8)}`,
+    capabilities: ["privacy:manage"],
+  });
+  const { cell, tenants } = seeded();
+  const tenantId = tenants[0]?.tenantId ?? "";
+  const operator = (statement: ReturnType<typeof sql>) =>
+    cell.withWorker(
+      { tenantId, requestId: crypto.randomUUID(), actor: { kind: "operator" } },
+      "write",
+      (tx) => tx.execute(statement),
+    );
+  await operator(sql`
+    update core.access_roles set capabilities = capabilities || array['erasure:approve']
+    where tenant_id = ${tenantId}::uuid and id = ${role.id}::uuid`);
+  await operator(sql`
+    insert into core.access_role_assignments (tenant_id, user_id, access_role_id, org_id, valid_during, reason)
+    select ${tenantId}::uuid, ${me.id}::uuid, ${role.id}::uuid,
+           coalesce(r.org_id, (select u.org_id from core.user_roles u
+                               where u.tenant_id = r.tenant_id and u.user_id = ${me.id}::uuid
+                                 and u.role = 'principal' and u.status = 'active' limit 1)),
+           daterange(current_date - 1, null),
+           'Approves erasures for the school.'
+    from core.access_roles r where r.tenant_id = ${tenantId}::uuid and r.id = ${role.id}::uuid`);
+  try {
+    await run(await signedIn("northwind", login("principal")));
+  } finally {
+    await operator(sql`
+      update core.access_role_assignments set valid_during = daterange(lower(valid_during), current_date)
+      where tenant_id = ${tenantId}::uuid and access_role_id = ${role.id}::uuid`);
+  }
+}
+
+describe("erasure", () => {
+  test("an approved leaver is erased as the retention role, leaving proof and no personal data", async () => {
+    await withErasure(async (api) => {
+      const id = await leaver(api, "GA9311");
+      await api.privacy.saveRetention({
+        studentRule: "years_after_leaving",
+        studentValue: 1,
+        staffYears: null,
+      });
+      const teacher = await signedIn("northwind", login("teacher"));
+      expect(
+        await rejection(
+          teacher.privacy.approveErasure({
+            subjectUserId: id,
+            basis: "retention_schedule",
+            requestId: null,
+            reference: null,
+          }),
+        ),
+      ).toMatchObject({ code: "FORBIDDEN" });
+
+      const approved = await api.privacy.approveErasure({
+        subjectUserId: id,
+        basis: "retention_schedule",
+        requestId: null,
+        reference: null,
+      });
+      expect(approved.id).toBeString();
+      const { counts } = await api.privacy.runErasure({ subjectUserId: id });
+      expect(counts).toMatchObject({
+        users: 1,
+        student_school_years: 1,
+        external_ids: 1,
+      });
+
+      const { cell, tenants } = seeded();
+      const tenantId = tenants[0]?.tenantId ?? "";
+      const [row] = await cell.withWorker(
+        { tenantId, requestId: crypto.randomUUID(), actor: { kind: "system" } },
+        "read",
+        (tx) =>
+          tx.execute<{
+            names: number;
+            erased: boolean;
+            status: string;
+            ids: number;
+          }>(sql`
+            select num_nonnulls(full_name_en, full_name_ar, given_name_en, birth_date)::int as names,
+                   erased_at is not null as erased, status,
+                   (select count(*)::int from core.external_ids e
+                     where e.tenant_id = u.tenant_id and e.user_id = u.id) as ids
+            from core.users u where tenant_id = ${tenantId}::uuid and id = ${id}::uuid`),
+      );
+      expect(row).toEqual({
+        names: 0,
+        erased: true,
+        status: "tobedeleted",
+        ids: 0,
+      });
+
+      const after = await api.privacy.overview();
+      expect(after.review.map((item) => item.userId)).not.toContain(id);
+      expect(
+        after.erasures.find((item) => item.subjectUserId === id)?.erasedAt,
+      ).not.toBeNull();
+      expect(
+        await rejection(api.privacy.runErasure({ subjectUserId: id })),
+      ).toMatchObject({ code: "CONFLICT", message: "privacy.erased" });
+    });
+  });
+
+  test("a hold or an unfinished date refuses the approval", async () => {
+    await withErasure(async (api) => {
+      const id = await leaver(api, "GA9312");
+      await api.privacy.saveRetention({
+        studentRule: "years_after_leaving",
+        studentValue: 20,
+        staffYears: null,
+      });
+      expect(
+        await rejection(
+          api.privacy.approveErasure({
+            subjectUserId: id,
+            basis: "retention_schedule",
+            requestId: null,
+            reference: null,
+          }),
+        ),
+      ).toMatchObject({ message: "privacy.not_yet_due" });
+      await api.privacy.placeHold({ subjectUserId: id, reason: "A claim." });
+      expect(
+        await rejection(
+          api.privacy.approveErasure({
+            subjectUserId: id,
+            basis: "regulator_order",
+            requestId: null,
+            reference: "Order 12/2026",
+          }),
+        ),
+      ).toMatchObject({ code: "CONFLICT", message: "privacy.erasure_held" });
+      expect(
+        await rejection(api.privacy.runErasure({ subjectUserId: id })),
+      ).toMatchObject({ message: "privacy.erasure_not_approved" });
+    });
   });
 });

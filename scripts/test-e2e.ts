@@ -86,6 +86,7 @@ try {
         CELL_APP_URL: urlFor(cellName, "app"),
         CELL_SITE_URL: urlFor(cellName, "site"),
         CELL_WORKER_URL: urlFor(cellName, "worker"),
+        CELL_RETENTION_URL: urlFor(cellName, "retention"),
         CELL_COLLAB_URL: urlFor(cellName, "collab"),
         DIRECTORY_URL: urlFor(directoryName, "directory_reader"),
         CELL_ID: cellId,

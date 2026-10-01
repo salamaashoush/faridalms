@@ -94,6 +94,7 @@ export async function setUp() {
       app: urlFor(cellName, "app"),
       site: urlFor(cellName, "site"),
       worker: urlFor(cellName, "worker"),
+      retention: urlFor(cellName, "retention"),
     },
     4,
   );

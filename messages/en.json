@@ -4829,5 +4829,55 @@
   "privacyWasTold": "They were told",
   "privacyWhyNotTold": "Why they were not told",
   "privacyWhyNotToldHint": "Leave empty while it is still being decided.",
-  "privacyWithoutDelay": "Tell without delay"
+  "privacyWithoutDelay": "Tell without delay",
+  "privacyApprovedBy": "approved {date} by {name}",
+  "privacyBasis": "Basis",
+  "privacyBasisSchedule": "The school's retention rules",
+  "privacyBasisRequest": "The person's request to erase",
+  "privacyBasisOrder": "A regulator's order",
+  "privacyErase": "Erase",
+  "privacyEraseAction": "Erase…",
+  "privacyErased": "Erased",
+  "privacyErasedOn": "Erased {date}",
+  "privacyErasedPerson": "Erased person",
+  "privacyEraseGoes": "Their name, birth date, photo, contact details, sign-in and the work they handed in will be destroyed.",
+  "privacyEraseStays": "Grades, attendance and class records stay as the school's records, attached to no one. The approval is kept as proof.",
+  "privacyEraseIrreversible": "This cannot be undone.",
+  "privacyEraseTitle": "Erase {name}",
+  "privacyErasureItems": [
+    {
+      "declarations": [
+        "input count",
+        "input value",
+        "local countPlural = count: plural"
+      ],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "{value} item listed",
+        "countPlural=*": "{value} items listed"
+      }
+    }
+  ],
+  "privacyErasurePending": "Erasure approved, not yet run",
+  "privacyErasuresTitle": "Erasures",
+  "privacyErasuresHint": "Each erasure's approval stays as proof of what was destroyed, when and on whose authority.",
+  "privacyErasureUnavailable": "Erasure is not yet switched on for this school's server. Ask Farida support to turn it on.",
+  "privacyOrderReference": "The order's reference",
+  "privacyOrderReferenceNeeded": "Enter the order's reference.",
+  "privacyRunErasure": "Run the erasure",
+  "privacyRunErasureTitle": "Erase {name} now?",
+  "privacyRunErasureBody": "The erasure was approved but did not finish. Running it destroys this person's data. This cannot be undone.",
+  "privacyTypeName": "Type {name} to confirm",
+  "privacyTypeNameMismatch": "Type the name exactly as shown.",
+  "privacyErrErasureHeld": "A legal hold names this person, so nothing about them can be erased.",
+  "privacyErrErasureRequested": "A records request about this person is still open.",
+  "privacyErrErasureExam": "Their exam coursework must be kept until its session's date.",
+  "privacyErrNotLeaver": "Only someone who has left the school can be erased.",
+  "privacyErrNotYetDue": "Their records are not yet due under the school's rules.",
+  "privacyErrErasureRequestNeeded": "Choose the person's open request to erase their records.",
+  "privacyErrErasureNotApproved": "No erasure has been approved for this person.",
+  "privacyErrErased": "This person has already been erased.",
+  "privacyErrErasureBlocked": "The erasure did not run. A legal hold may have been placed since it was approved.",
+  "privacyErasureNotRun": "The erasure was approved but did not run. Run it again from the list.",
+  "privacyErrErasurePending": "An erasure is already approved for this person. Run it from the list."
 }

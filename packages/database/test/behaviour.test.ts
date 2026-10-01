@@ -1,7 +1,16 @@
+import { emptyContent } from "@faridalms/domain/content-conversion";
+import { SQL } from "bun";
 import { describe, expect, test } from "bun:test";
+import { sql } from "drizzle-orm";
+import { drizzle } from "drizzle-orm/bun-sql/postgres";
 
 import { currentPurpose, withPurpose } from "../src/context";
-import { appCell, harness, probe } from "./harness";
+import {
+  approveErasure,
+  erasurePlan,
+  eraseSubject,
+} from "../src/stores/erasure";
+import { appCell, harness, probe, urlFor } from "./harness";
 
 async function one<T>(text: string, params: unknown[] = []): Promise<T> {
   const [row] = await harness().su.unsafe(text, params);
@@ -529,6 +538,103 @@ describe("erasure", () => {
       },
     ]);
     expect(outside.error?.message).toContain("permission denied");
+  });
+});
+
+describe("erasing a student's work", () => {
+  test("redacts their documents and removes the files only their work held, in one rolled-back unit", async () => {
+    const { a } = harness();
+    const t = a.tenantId;
+    const client = new SQL(urlFor(null));
+    const db = drizzle({ client });
+    const rollback = new Error("rolled back");
+    let checked = false;
+    try {
+      await db.transaction(async (tx) => {
+        const [work] = await tx.execute<{
+          student: string;
+          attempt: string;
+          document: string;
+        }>(sql`
+          select t.student_user_id as student, t.id as attempt, d.id as document
+          from core.submission_attempts t
+          join core.documents d on d.tenant_id = t.tenant_id and d.host_type = 'submission_attempt'
+            and d.host_id = t.id and d.status = 'active'
+          where t.tenant_id = ${t}::uuid and t.status = 'active'
+          limit 1`);
+        if (!work) throw new Error("the seed hands in no written work");
+        const fileId = crypto.randomUUID();
+        await tx.execute(sql`
+          insert into core.files (tenant_id, id, purpose, name, media_type, size_bytes, storage_key,
+                                  host_type, host_id, uploaded_by_user_id)
+          values (${t}::uuid, ${fileId}::uuid, 'document_media', 'river.png', 'image/png', 10,
+                  ${`t/${t}/erasure-test`}, 'submission_attempt', ${work.attempt}::uuid,
+                  ${work.student}::uuid)`);
+        await tx.execute(sql`
+          insert into core.document_files (tenant_id, document_id, file_id, file_purpose)
+          values (${t}::uuid, ${work.document}::uuid, ${fileId}::uuid, 'document_media')`);
+
+        const plan = await erasurePlan(tx, {
+          tenantId: t,
+          subjectUserId: work.student,
+        });
+        expect(plan.documents).toContain(work.document);
+        expect(plan.files).toContain(fileId);
+        await approveErasure(tx, {
+          tenantId: t,
+          subjectUserId: work.student,
+          basis: "retention_schedule",
+          requestReference: null,
+          approvedByUserId: work.student,
+          plan,
+        });
+        await tx.execute(sql`delete from core.legal_holds where tenant_id = ${t}::uuid
+          and subject_user_id = ${work.student}::uuid`);
+
+        await tx.execute(sql`set local role retention`);
+        await tx.execute(
+          sql`select app.begin_unit(${t}::uuid, null, null, null, 'probe', 'system')`,
+        );
+        const result = await eraseSubject(tx, {
+          tenantId: t,
+          subjectUserId: work.student,
+          emptyContent: emptyContent(),
+        });
+        await tx.execute(sql`reset role`);
+
+        expect(result.counts.users).toBe(1);
+        expect(result.counts.files).toBeGreaterThanOrEqual(1);
+        expect(result.storageKeys).toContain(`t/${t}/erasure-test`);
+        const [after] = await tx.execute<{
+          plain: string;
+          redacted: number;
+          files: number;
+          links: number;
+          name: string | null;
+        }>(sql`
+          select (select plain_text from core.documents where tenant_id = ${t}::uuid and id = ${work.document}::uuid) as plain,
+                 (select count(*)::int from core.document_versions where tenant_id = ${t}::uuid
+                   and document_id = ${work.document}::uuid and redacted_at is null) as redacted,
+                 (select count(*)::int from core.files where tenant_id = ${t}::uuid and id = ${fileId}::uuid) as files,
+                 (select count(*)::int from core.document_files where tenant_id = ${t}::uuid
+                   and document_id = ${work.document}::uuid) as links,
+                 (select full_name_en from core.users where tenant_id = ${t}::uuid and id = ${work.student}::uuid) as name`);
+        expect(after).toEqual({
+          plain: "",
+          redacted: 0,
+          files: 0,
+          links: 0,
+          name: null,
+        });
+        checked = true;
+        throw rollback;
+      });
+    } catch (error) {
+      if (error !== rollback) throw error;
+    } finally {
+      await client.close();
+    }
+    expect(checked).toBe(true);
   });
 });
 

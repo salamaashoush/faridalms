@@ -386,6 +386,7 @@ export const documentFiles = core.table.withRLS(
       .on(t.tenantId, t.fileId)
       .where(sql`status = 'active'`),
     ...entityProfile(),
+    ...eraseAndDelete(erasureListed("document", "document_id")),
   ],
 );
 

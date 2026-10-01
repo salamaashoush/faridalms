@@ -1,6 +1,12 @@
 import type { BreachRow } from "@faridalms/database/stores/privacy";
 import type { DayKind } from "@faridalms/domain/privacy";
 
+import {
+  approveErasure as approveErasureOf,
+  erasurePlan,
+  eraseSubject,
+  erasuresOf,
+} from "@faridalms/database/stores/erasure";
 import { schoolProfile } from "@faridalms/database/stores/identity";
 import {
   breachById,
@@ -27,7 +33,9 @@ import {
   updateRequest,
 } from "@faridalms/database/stores/privacy";
 import { SCHOOL_DAY_MEANINGS } from "@faridalms/domain/calendar";
+import { emptyContent } from "@faridalms/domain/content-conversion";
 import {
+  approveErasureSchema,
   breachNoticesSchema,
   closeBreachSchema,
   closeRequestSchema,
@@ -42,6 +50,7 @@ import {
   releaseHoldSchema,
   requestDueOn,
   reviewDueOn,
+  runErasureSchema,
   saveBreachSchema,
   saveRequestSchema,
   saveRetentionSchema,
@@ -53,8 +62,11 @@ import type { UnitContext } from "../core/context";
 
 import {
   audit,
+  can,
+  openUnit,
   readProcedure,
   requireCapability,
+  schoolProcedure,
   writeProcedure,
 } from "../core/procedure";
 import { sessionViews } from "../core/sessions";
@@ -137,26 +149,22 @@ async function dayKinds(
 }
 
 /**
- * The school's retention rules, the leavers they bring up for review with
- * whatever blocks each, the legal holds, and the exam sessions whose
- * coursework has passed its keep-until date.
+ * The leavers the school's rules bring up for review, each with whatever
+ * blocks their erasure. An erasure request being fulfilled does not block
+ * the erasure it asks for.
  */
-export const overview = readProcedure.handler(async ({ context }) => {
-  requireCapability(context, "privacy:manage");
+async function reviewOf(context: UnitContext, fulfilling: string | null) {
   const scope = scopeOf(context);
-  const [rules, leavers, holds, requests, sessions, sessionWork, breaches] =
-    await Promise.all([
-      retentionOf(context.tx, scope),
-      leaversOf(context.tx, { ...scope, today: context.today }),
-      holdsOf(context.tx, scope),
-      requestsOf(context.tx, scope),
-      sessionViews(context),
-      sessionWorkOf(context.tx, scope),
-      breachesOf(context.tx, scope),
-    ]);
+  const [rules, leavers, holds, requests, sessions] = await Promise.all([
+    retentionOf(context.tx, scope),
+    leaversOf(context.tx, { ...scope, today: context.today }),
+    holdsOf(context.tx, scope),
+    requestsOf(context.tx, scope),
+    sessionViews(context),
+  ]);
   const openRequest = new Map<string, string>();
   for (const row of requests) {
-    if (row.outcome) continue;
+    if (row.outcome || row.id === fulfilling) continue;
     const due = row.extendedTo ?? row.dueOn;
     const known = openRequest.get(row.subjectUserId);
     if (!known || due < known) openRequest.set(row.subjectUserId, due);
@@ -198,6 +206,29 @@ export const overview = readProcedure.handler(async ({ context }) => {
       block,
     };
   });
+  return { rules, review, holds, requests, sessions };
+}
+
+/**
+ * The school's retention rules, the leavers they bring up for review with
+ * whatever blocks each, the registers of holds, requests, breaches and
+ * erasures, and the exam sessions whose coursework has passed its keep-until
+ * date.
+ */
+export const overview = readProcedure.handler(async ({ context }) => {
+  requireCapability(context, "privacy:manage");
+  const scope = scopeOf(context);
+  const [
+    { rules, review, holds, requests, sessions },
+    sessionWork,
+    breaches,
+    erasures,
+  ] = await Promise.all([
+    reviewOf(context, null),
+    sessionWorkOf(context.tx, scope),
+    breachesOf(context.tx, scope),
+    erasuresOf(context.tx, scope),
+  ]);
   const work = new Map(sessionWork.map((row) => [row.sessionId, row]));
   return {
     today: context.today,
@@ -206,6 +237,11 @@ export const overview = readProcedure.handler(async ({ context }) => {
     holds,
     requests,
     breaches: await breachClocks(context, breaches),
+    erasures,
+    erasure: {
+      approve: can(context, "erasure:approve"),
+      available: context.cell.canErase(),
+    },
     sessions: sessions
       .filter((row) => row.keepUntil < context.today)
       .map((row) => ({
@@ -513,4 +549,141 @@ export const closeBreach = writeProcedure
       objectId: input.id,
       details: { actions: input.actions },
     });
+  });
+
+const BLOCK_ERROR: Record<Block["kind"], string> = {
+  hold: "privacy.erasure_held",
+  request: "privacy.erasure_requested",
+  exam: "privacy.erasure_exam",
+};
+
+/**
+ * Approves erasing a person who has left: on the school's retention rules
+ * once their review date has passed, to fulfil their open erasure request,
+ * or on a regulator's order. Nothing blocking may stand, and the documents,
+ * files and households the erasure will take are listed with the approval.
+ */
+export const approveErasure = writeProcedure
+  .input(approveErasureSchema)
+  .handler(async ({ input, context }) => {
+    requireCapability(context, "erasure:approve");
+    const request = input.requestId
+      ? (await requestsOf(context.tx, scopeOf(context))).find(
+          (row) => row.id === input.requestId,
+        )
+      : null;
+    if (
+      input.requestId &&
+      (!request ||
+        request.outcome ||
+        request.kind !== "erasure" ||
+        request.subjectUserId !== input.subjectUserId)
+    )
+      throw new ORPCError("BAD_REQUEST", {
+        message: "privacy.erasure_request_needed",
+      });
+    const pending = (await erasuresOf(context.tx, scopeOf(context))).some(
+      (row) => row.subjectUserId === input.subjectUserId && !row.erasedAt,
+    );
+    if (pending)
+      throw new ORPCError("CONFLICT", { message: "privacy.erasure_pending" });
+    const { review } = await reviewOf(context, input.requestId);
+    const person = review.find((row) => row.userId === input.subjectUserId);
+    if (!person)
+      throw new ORPCError("NOT_FOUND", { message: "privacy.not_a_leaver" });
+    if (person.block)
+      throw new ORPCError("CONFLICT", {
+        message: BLOCK_ERROR[person.block.kind],
+      });
+    if (
+      input.basis === "retention_schedule" &&
+      (person.dueOn === null || person.dueOn > context.today)
+    )
+      throw new ORPCError("BAD_REQUEST", { message: "privacy.not_yet_due" });
+    const plan = await erasurePlan(context.tx, {
+      tenantId: context.tenantId,
+      subjectUserId: input.subjectUserId,
+    });
+    const id = await approveErasureOf(context.tx, {
+      tenantId: context.tenantId,
+      subjectUserId: input.subjectUserId,
+      basis: input.basis,
+      requestReference: input.requestId ?? input.reference,
+      approvedByUserId: context.actor.userId,
+      plan,
+    });
+    const listed = {
+      documents: plan.documents.length,
+      files: plan.files.length,
+      households: plan.households.length,
+    };
+    await audit(context, {
+      action: "privacy_erasure.approve",
+      objectType: "erasure_approval",
+      objectId: id,
+      subjectUserId: input.subjectUserId,
+      details: { basis: input.basis, ...listed },
+    });
+    return { id, ...listed };
+  });
+
+/**
+ * Runs an approved erasure. The approval must have committed before the
+ * `retention` role can see it, so this is its own call, in three units of
+ * work: check, erase as `retention`, then record what was done. A failed
+ * run leaves the approval standing to be run again.
+ */
+export const runErasure = schoolProcedure
+  .input(runErasureSchema)
+  .handler(async ({ input, context }) => {
+    const ready = await openUnit(context, "read", async (opened) => {
+      const unit = { ...context, ...opened };
+      requireCapability(unit, "erasure:approve");
+      const erasures = await erasuresOf(unit.tx, scopeOf(unit));
+      const approval = erasures.find(
+        (row) => row.subjectUserId === input.subjectUserId,
+      );
+      if (!approval)
+        throw new ORPCError("NOT_FOUND", {
+          message: "privacy.erasure_not_approved",
+        });
+      if (approval.erasedAt)
+        throw new ORPCError("CONFLICT", { message: "privacy.erased" });
+      return { tenantId: unit.tenantId, approvalId: approval.id };
+    });
+    if (!context.cell.canErase())
+      throw new ORPCError("SERVICE_UNAVAILABLE", {
+        message: "privacy.erasure_unavailable",
+      });
+    const result = await context.cell.withRetention(
+      {
+        tenantId: ready.tenantId,
+        requestId: context.requestId,
+        actor: { kind: "system" },
+      },
+      (tx) =>
+        eraseSubject(tx, {
+          tenantId: ready.tenantId,
+          subjectUserId: input.subjectUserId,
+          emptyContent: emptyContent(),
+        }),
+    );
+    const erased = (result.counts.users ?? 0) === 1;
+    await openUnit(context, "write", async (opened) => {
+      const unit = { ...context, ...opened };
+      await audit(unit, {
+        action: "privacy_erasure.run",
+        objectType: "erasure_approval",
+        objectId: ready.approvalId,
+        subjectUserId: input.subjectUserId,
+        outcome: erased ? "success" : "failed",
+        details: { counts: result.counts },
+      });
+      if (erased)
+        for (const key of result.storageKeys)
+          unit.afterCommit(() => context.files.remove(key));
+    });
+    if (!erased)
+      throw new ORPCError("CONFLICT", { message: "privacy.erasure_blocked" });
+    return { counts: result.counts };
   });

@@ -24,6 +24,8 @@ export const env = v.parse(
       CELL_SITE_URL: v.optional(v.pipe(v.string(), v.url())),
       // Settles uploads: only the worker role may set a file's state and digest.
       CELL_WORKER_URL: v.optional(v.pipe(v.string(), v.url())),
+      // Runs approved erasures: the only role that may null a person's data.
+      CELL_RETENTION_URL: v.optional(v.pipe(v.string(), v.url())),
       DIRECTORY_URL: v.pipe(v.string(), v.url()),
       CELL_ID: v.pipe(v.string(), v.regex(/^[a-z]{2}-[0-9]{1,2}$/)),
       // Wraps each tenant's data keys; a deployed cell wraps through its KMS.

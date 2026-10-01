@@ -4993,5 +4993,59 @@
   "privacyWasTold": "تم الإبلاغ",
   "privacyWhyNotTold": "سبب عدم الإبلاغ",
   "privacyWhyNotToldHint": "اتركه فارغًا ما دام القرار لم يُتخذ بعد.",
-  "privacyWithoutDelay": "الإبلاغ دون تأخير"
+  "privacyWithoutDelay": "الإبلاغ دون تأخير",
+  "privacyApprovedBy": "وافق عليه {name} في {date}",
+  "privacyBasis": "الأساس",
+  "privacyBasisSchedule": "قواعد الاحتفاظ في المدرسة",
+  "privacyBasisRequest": "طلب الشخص محو بياناته",
+  "privacyBasisOrder": "أمر من جهة رقابية",
+  "privacyErase": "محو",
+  "privacyEraseAction": "محو…",
+  "privacyErased": "تم المحو",
+  "privacyErasedOn": "مُحي في {date}",
+  "privacyErasedPerson": "شخص ممحوّ",
+  "privacyEraseGoes": "سيُتلف اسمه وتاريخ ميلاده وصورته وبيانات التواصل والدخول والأعمال التي سلّمها.",
+  "privacyEraseStays": "تبقى الدرجات والحضور وسجلات الفصول ضمن سجلات المدرسة دون ربطها بأحد. وتُحفظ الموافقة دليلًا.",
+  "privacyEraseIrreversible": "لا يمكن التراجع عن ذلك.",
+  "privacyEraseTitle": "محو {name}",
+  "privacyErasureItems": [
+    {
+      "declarations": [
+        "input count",
+        "input value",
+        "local countPlural = count: plural"
+      ],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=zero": "لا عناصر مدرجة",
+        "countPlural=one": "عنصر واحد مدرج",
+        "countPlural=two": "عنصران مدرجان",
+        "countPlural=few": "{value} عناصر مدرجة",
+        "countPlural=many": "{value} عنصرًا مدرجًا",
+        "countPlural=*": "{value} عنصر مدرج"
+      }
+    }
+  ],
+  "privacyErasurePending": "تمت الموافقة على المحو ولم يُنفَّذ بعد",
+  "privacyErasuresTitle": "عمليات المحو",
+  "privacyErasuresHint": "تبقى موافقة كل عملية محو دليلًا على ما أُتلف ومتى وبأي صلاحية.",
+  "privacyErasureUnavailable": "لم يُفعَّل المحو بعد على خادم هذه المدرسة. اطلب من دعم فريدة تفعيله.",
+  "privacyOrderReference": "مرجع الأمر",
+  "privacyOrderReferenceNeeded": "أدخل مرجع الأمر.",
+  "privacyRunErasure": "تنفيذ المحو",
+  "privacyRunErasureTitle": "محو {name} الآن؟",
+  "privacyRunErasureBody": "تمت الموافقة على المحو لكنه لم يكتمل. تنفيذه يُتلف بيانات هذا الشخص. لا يمكن التراجع عن ذلك.",
+  "privacyTypeName": "اكتب {name} للتأكيد",
+  "privacyTypeNameMismatch": "اكتب الاسم كما يظهر تمامًا.",
+  "privacyErrErasureHeld": "يوجد تجميد قانوني على هذا الشخص، فلا يمكن محو أي شيء يخصه.",
+  "privacyErrErasureRequested": "ما زال هناك طلب سجلات مفتوح بشأن هذا الشخص.",
+  "privacyErrErasureExam": "يجب حفظ أعماله المقيّمة حتى موعد دورتها.",
+  "privacyErrNotLeaver": "لا يُمحى إلا من غادر المدرسة.",
+  "privacyErrNotYetDue": "لم يحن بعد موعد سجلاته وفق قواعد المدرسة.",
+  "privacyErrErasureRequestNeeded": "اختر طلب الشخص المفتوح لمحو سجلاته.",
+  "privacyErrErasureNotApproved": "لم تتم الموافقة على محو هذا الشخص.",
+  "privacyErrErased": "تم محو هذا الشخص من قبل.",
+  "privacyErrErasureBlocked": "لم يُنفَّذ المحو. ربما وُضع تجميد قانوني بعد الموافقة.",
+  "privacyErasureNotRun": "تمت الموافقة على المحو لكنه لم يُنفَّذ. نفّذه مرة أخرى من القائمة.",
+  "privacyErrErasurePending": "توجد موافقة على محو هذا الشخص بالفعل. نفّذها من القائمة."
 }

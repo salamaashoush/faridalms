@@ -352,6 +352,30 @@ export function getMessageFromError(error: unknown): string {
         return m.privacyErrBreachClosed();
       case "privacy.breach_notices_open":
         return m.privacyErrBreachNoticesOpen();
+      case "privacy.erasure_held":
+        return m.privacyErrErasureHeld();
+      case "privacy.erasure_requested":
+        return m.privacyErrErasureRequested();
+      case "privacy.erasure_exam":
+        return m.privacyErrErasureExam();
+      case "privacy.not_a_leaver":
+        return m.privacyErrNotLeaver();
+      case "privacy.not_yet_due":
+        return m.privacyErrNotYetDue();
+      case "privacy.erasure_request_needed":
+        return m.privacyErrErasureRequestNeeded();
+      case "privacy.erasure_reference_needed":
+        return m.privacyOrderReferenceNeeded();
+      case "privacy.erasure_not_approved":
+        return m.privacyErrErasureNotApproved();
+      case "privacy.erased":
+        return m.privacyErrErased();
+      case "privacy.erasure_unavailable":
+        return m.privacyErasureUnavailable();
+      case "privacy.erasure_blocked":
+        return m.privacyErrErasureBlocked();
+      case "privacy.erasure_pending":
+        return m.privacyErrErasurePending();
       case "file.quota_school":
         return m.fileQuotaSchool();
       case "file.quota_class":

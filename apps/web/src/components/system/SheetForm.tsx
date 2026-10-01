@@ -28,6 +28,7 @@ export function SheetForm({
   pending = false,
   error,
   submitLabel = m.commonSave(),
+  destructive = false,
   children,
 }: {
   open: boolean;
@@ -37,6 +38,8 @@ export function SheetForm({
   pending?: boolean;
   error?: string | null;
   submitLabel?: string;
+  /** The submit destroys something, so it takes the destructive colour. */
+  destructive?: boolean;
   children: ReactNode;
 }) {
   const side = getTextDirection(getLocale()) === "rtl" ? "left" : "right";
@@ -87,7 +90,12 @@ export function SheetForm({
             {children}
           </div>
           <SheetFooter className="mt-0 flex-row justify-start gap-2 border-t px-6 py-4 pb-[max(1rem,env(safe-area-inset-bottom))]">
-            <Button type="submit" className="max-md:h-10" disabled={pending}>
+            <Button
+              type="submit"
+              variant={destructive ? "destructive" : "default"}
+              className="max-md:h-10"
+              disabled={pending}
+            >
               {pending ? (
                 <LoaderCircle className="animate-spin" aria-hidden />
               ) : null}

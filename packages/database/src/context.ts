@@ -85,6 +85,8 @@ export interface CellUrls {
   site?: string;
   integration?: string;
   worker?: string;
+  /** The only role that may erase; absent where erasure is not run. */
+  retention?: string;
 }
 
 /**
@@ -98,6 +100,7 @@ export function openCell(urls: CellUrls, size = 10) {
     site: urls.site ? open(urls.site, Math.max(2, size / 2)) : undefined,
     integration: urls.integration ? open(urls.integration, 4) : undefined,
     worker: urls.worker ? open(urls.worker, 4) : undefined,
+    retention: urls.retention ? open(urls.retention, 1) : undefined,
   };
   return {
     withTenant: <T>(
@@ -117,6 +120,12 @@ export function openCell(urls: CellUrls, size = 10) {
       access: Access,
       run: (tx: CellTransaction) => Promise<T>,
     ) => unit(need(pools.worker, "worker"), work, access, run),
+    /** Whether erasure can run in this deployment. */
+    canErase: () => pools.retention !== undefined,
+    withRetention: <T>(
+      work: UnitOfWork,
+      run: (tx: CellTransaction) => Promise<T>,
+    ) => unit(need(pools.retention, "retention"), work, "write", run),
     /** Liveness of the app pool, for readiness probes. */
     ping: async () => {
       await pools.app.execute(sql`select 1`);

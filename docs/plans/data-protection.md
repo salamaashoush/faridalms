@@ -52,3 +52,21 @@ sections 4.7 and 6.13), whose tables (`erasure_approvals`, `erasure_items`,
 4. **Consent and breach registers.** Consent records per purpose (the table
    exists), and a breach register with Egypt's 72-hour regulator notice and
    3-working-day notice to people.
+
+## 3. Erasure as built
+
+- Approving and running are two calls. The approval must commit before the
+  `retention` role can see it, and a run that fails leaves the approval
+  standing, shown as "approved, not yet run", to be run again.
+- The API needs `CELL_RETENTION_URL`, a connection as `retention`. Without
+  it the review list says erasure is not switched on, and nothing runs.
+- What a run destroys: the person's name, birth date, photo, demographics,
+  contact points, external ids, sign-in (accounts tombstoned; identities,
+  passkeys, devices, sessions deleted), preferences, saved views, calendar
+  feeds, health records, custody restrictions, household memberships, audit
+  payloads and activity events; the drafts and handed-in copies of their
+  work redacted with every version; the files only that work held.
+- Not yet covered: quiz answers, lesson responses and messages they wrote
+  stay attached to the anonymised person, because `retention` holds no
+  grant on those tables; health and custody files are not listed. Each
+  needs a grant and a policy reviewed against the catalogue check.

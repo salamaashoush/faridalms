@@ -330,3 +330,34 @@ export const closeBreachSchema = v.object({
   id: v.pipe(v.string(), v.uuid()),
   actions: note(4000),
 });
+
+export const ERASURE_BASES = [
+  "retention_schedule",
+  "data_subject_request",
+  "regulator_order",
+] as const;
+export type ErasureBasis = (typeof ERASURE_BASES)[number];
+
+export const approveErasureSchema = v.pipe(
+  v.object({
+    subjectUserId: v.pipe(v.string(), v.uuid()),
+    basis: v.picklist(ERASURE_BASES),
+    /** The erasure request it fulfils, for a data subject's request. */
+    requestId: v.nullable(v.pipe(v.string(), v.uuid())),
+    /** The order's own reference, for a regulator's order. */
+    reference: v.nullable(note(120)),
+  }),
+  v.check(
+    (input) =>
+      (input.basis === "data_subject_request") === (input.requestId !== null),
+    "privacy.erasure_request_needed",
+  ),
+  v.check(
+    (input) => input.basis !== "regulator_order" || input.reference !== null,
+    "privacy.erasure_reference_needed",
+  ),
+);
+
+export const runErasureSchema = v.object({
+  subjectUserId: v.pipe(v.string(), v.uuid()),
+});

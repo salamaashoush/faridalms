@@ -3,7 +3,7 @@ import type { StudentRetention } from "@faridalms/domain/privacy";
 import { Button } from "@faridalms/ui/button";
 import { Textarea } from "@faridalms/ui/textarea";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Archive, Lock, LockOpen, ShieldCheck } from "lucide-react";
+import { Archive, Eraser, Lock, LockOpen, ShieldCheck } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -28,6 +28,8 @@ import { placeHold, releaseHold, saveRetention } from "~/server/privacy";
 import { formatDate, formatNumber } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
+import { erasable, ErasuresSection } from "./Erasure";
+
 export type PrivacyOverview = Awaited<ReturnType<typeof getPrivacyOverview>>;
 export type ReviewRow = PrivacyOverview["review"][number];
 export type HoldRow = PrivacyOverview["holds"][number];
@@ -41,7 +43,10 @@ function useRefresh() {
 function standing(
   row: ReviewRow,
   today: string,
+  pending: ReadonlySet<string>,
 ): { tone: Tone; label: string } {
+  if (pending.has(row.userId))
+    return { tone: "warning", label: m.privacyErasurePending() };
   if (row.block?.kind === "hold")
     return { tone: "info", label: m.privacyOnHold() };
   if (row.block?.kind === "request")
@@ -67,7 +72,10 @@ const KIND_LABEL: Record<ReviewRow["kind"], () => string> = {
   staff: m.privacyKindStaff,
 };
 
-function reviewColumns(today: string): Column<ReviewRow>[] {
+function reviewColumns(
+  today: string,
+  pending: ReadonlySet<string>,
+): Column<ReviewRow>[] {
   return [
     {
       id: "name",
@@ -102,13 +110,23 @@ function reviewColumns(today: string): Column<ReviewRow>[] {
     {
       id: "status",
       header: m.privacyStatus(),
-      cell: (row) => <StandingStatus row={row} today={today} />,
+      cell: (row) => (
+        <StandingStatus row={row} today={today} pending={pending} />
+      ),
     },
   ];
 }
 
-function StandingStatus({ row, today }: { row: ReviewRow; today: string }) {
-  const { tone, label } = standing(row, today);
+function StandingStatus({
+  row,
+  today,
+  pending,
+}: {
+  row: ReviewRow;
+  today: string;
+  pending: ReadonlySet<string>;
+}) {
+  const { tone, label } = standing(row, today, pending);
   return <StatusText tone={tone}>{label}</StatusText>;
 }
 
@@ -124,10 +142,12 @@ export function PersonName({
   );
 }
 
-function reviewCard(today: string) {
+function reviewCard(today: string, pending: ReadonlySet<string>) {
   return {
     title: (row: ReviewRow) => <PersonName row={row} />,
-    status: (row: ReviewRow) => <StandingStatus row={row} today={today} />,
+    status: (row: ReviewRow) => (
+      <StandingStatus row={row} today={today} pending={pending} />
+    ),
     fact: (row: ReviewRow) =>
       m.privacyLeftFact({
         kind: KIND_LABEL[row.kind](),
@@ -184,16 +204,46 @@ export function ReviewTable({
   onHold,
   onRelease,
   onRules,
+  onErase,
+  onRun,
 }: {
   overview: PrivacyOverview;
   onHold: (row: ReviewRow) => void;
   onRelease: (hold: HoldRow) => void;
   onRules: () => void;
+  onErase: (row: ReviewRow) => void;
+  onRun: (row: ReviewRow) => void;
 }) {
   const holdOf = new Map(overview.holds.map((row) => [row.subjectUserId, row]));
+  const pending = new Set(
+    overview.erasures
+      .filter((row) => !row.erasedAt)
+      .map((row) => row.subjectUserId),
+  );
+  const approver = overview.erasure.approve && overview.erasure.available;
   const rowActions = (row: ReviewRow): RowAction[] => {
     const hold = holdOf.get(row.userId);
+    const erasure: RowAction[] = !approver
+      ? []
+      : pending.has(row.userId)
+        ? [
+            {
+              label: m.privacyRunErasure(),
+              icon: Eraser,
+              onSelect: () => onRun(row),
+            },
+          ]
+        : erasable(overview, row)
+          ? [
+              {
+                label: m.privacyEraseAction(),
+                icon: Eraser,
+                onSelect: () => onErase(row),
+              },
+            ]
+          : [];
     return [
+      ...erasure,
       hold
         ? {
             label: m.privacyReleaseHold(),
@@ -223,13 +273,18 @@ export function ReviewTable({
           </button>
         </p>
       ) : null}
+      {overview.erasure.approve && !overview.erasure.available ? (
+        <p className="text-sm leading-5 text-muted-foreground">
+          {m.privacyErasureUnavailable()}
+        </p>
+      ) : null}
       <DataTable
         caption={m.privacyReviewCaption()}
         rows={reviewOrder(overview.review)}
-        columns={reviewColumns(overview.today)}
+        columns={reviewColumns(overview.today, pending)}
         rowLabel={displayName}
         rowActions={rowActions}
-        card={reviewCard(overview.today)}
+        card={reviewCard(overview.today, pending)}
         empty={{
           icon: ShieldCheck,
           title: m.privacyNoLeavers(),
@@ -266,6 +321,7 @@ export function ReviewTable({
           </ul>
         </RecordSection>
       ) : null}
+      <ErasuresSection overview={overview} />
     </div>
   );
 }

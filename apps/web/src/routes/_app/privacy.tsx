@@ -25,6 +25,7 @@ import {
   RetentionSheet,
   ReviewTable,
 } from "~/components/privacy/DataProtection";
+import { ErasureSheet, RunErasureDialog } from "~/components/privacy/Erasure";
 import {
   CloseRequestSheet,
   ExtendSheet,
@@ -65,7 +66,9 @@ type Open =
   | { kind: "close"; request: RequestRow }
   | { kind: "breach"; breach: BreachRow | null }
   | { kind: "notices"; breach: BreachRow }
-  | { kind: "closeBreach"; breach: BreachRow };
+  | { kind: "closeBreach"; breach: BreachRow }
+  | { kind: "erase"; person: ReviewRow }
+  | { kind: "run"; person: ReviewRow };
 
 function PrivacyPage() {
   const { tab } = Route.useSearch();
@@ -125,6 +128,8 @@ function PrivacyPage() {
             onHold={(person) => show({ kind: "hold", person })}
             onRelease={(hold) => show({ kind: "release", hold })}
             onRules={() => void navigate({ search: { tab: "retention" } })}
+            onErase={(person) => show({ kind: "erase", person })}
+            onRun={(person) => show({ kind: "run", person })}
           />
         ) : tab === "requests" ? (
           <RequestsTable
@@ -217,6 +222,21 @@ function PrivacyPage() {
           key={shown.generation}
           open={isOpen}
           breach={shown.open.breach}
+          onClose={close}
+        />
+      ) : shown?.open.kind === "erase" ? (
+        <ErasureSheet
+          key={shown.generation}
+          open={isOpen}
+          overview={overview}
+          person={shown.open.person}
+          onClose={close}
+        />
+      ) : shown?.open.kind === "run" ? (
+        <RunErasureDialog
+          key={shown.generation}
+          open={isOpen}
+          person={shown.open.person}
           onClose={close}
         />
       ) : shown?.open.kind === "rules" ? (

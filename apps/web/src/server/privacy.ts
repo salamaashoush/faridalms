@@ -1,10 +1,12 @@
 import {
+  approveErasureSchema,
   breachNoticesSchema,
   closeBreachSchema,
   closeRequestSchema,
   extendRequestSchema,
   placeHoldSchema,
   releaseHoldSchema,
+  runErasureSchema,
   saveBreachSchema,
   saveRequestSchema,
   saveRetentionSchema,
@@ -53,3 +55,11 @@ export const breachNotices = createServerFn({ method: "POST" })
 export const closeBreach = createServerFn({ method: "POST" })
   .validator(checked(closeBreachSchema))
   .handler(({ data }) => backend().privacy.closeBreach(data));
+
+export const approveErasure = createServerFn({ method: "POST" })
+  .validator(checked(approveErasureSchema))
+  .handler(({ data }) => backend().privacy.approveErasure(data));
+
+export const runErasure = createServerFn({ method: "POST" })
+  .validator(checked(runErasureSchema))
+  .handler(({ data }) => backend().privacy.runErasure(data));
