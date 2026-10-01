@@ -104,7 +104,7 @@ function Results({ quiz }: { quiz: LearnerQuiz }) {
   const [shown, setShown] = useState(quiz.results.at(-1)?.number ?? 0);
   const result = quiz.results.find((item) => item.number === shown);
   return (
-    <RecordSection title={m.quizResults()}>
+    <RecordSection variant="page" title={m.quizResults()}>
       <div className="grid gap-4">
         <ul className="flex flex-wrap gap-2">
           {quiz.results.map((item) => (
@@ -208,6 +208,7 @@ export function QuizWork({ data }: { data: Work }) {
       {quiz.results.length > 0 ? <Results quiz={quiz} /> : null}
       {quiz.open ? (
         <RecordSection
+          variant="page"
           title={m.quizAttemptTitle({ number: formatNumber(quiz.attempt) })}
           description={
             left === null
@@ -270,7 +271,7 @@ export function QuizWork({ data }: { data: Work }) {
           </SheetForm>
         </RecordSection>
       ) : quiz.results.length === 0 ? (
-        <RecordSection title={m.courseworkYourWork()}>
+        <RecordSection variant="page" title={m.courseworkYourWork()}>
           <RecordEmpty>{m.quizClosed()}</RecordEmpty>
         </RecordSection>
       ) : null}

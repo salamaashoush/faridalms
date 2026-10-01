@@ -318,21 +318,35 @@ export function RecordSection({
   description,
   edit,
   action,
+  variant = "card",
   children,
 }: {
   title: string;
   description?: ReactNode;
   edit?: { label: string; onClick: () => void };
   action?: ReactNode;
+  /** Under a document read as a page, a part is ruled off rather than framed. */
+  variant?: "card" | "page";
   children: ReactNode;
 }) {
   const headingId = useId();
+  const page = variant === "page";
   return (
     <section
       aria-labelledby={headingId}
-      className="@container min-w-0 rounded-lg border bg-card text-card-foreground"
+      className={cn(
+        "@container min-w-0",
+        page
+          ? "border-t pt-6"
+          : "rounded-lg border bg-card text-card-foreground",
+      )}
     >
-      <div className="flex flex-wrap items-start justify-between gap-x-3 px-5 pt-4">
+      <div
+        className={cn(
+          "flex flex-wrap items-start justify-between gap-x-3",
+          page ? "" : "px-5 pt-4",
+        )}
+      >
         <div className="min-w-0 flex-1 basis-56 py-1.5">
           <h2 id={headingId} className="text-base leading-6 font-semibold">
             {title}
@@ -361,7 +375,7 @@ export function RecordSection({
           </div>
         ) : null}
       </div>
-      <div className="px-5 pt-3 pb-5">{children}</div>
+      <div className={page ? "pt-3" : "px-5 pt-3 pb-5"}>{children}</div>
     </section>
   );
 }

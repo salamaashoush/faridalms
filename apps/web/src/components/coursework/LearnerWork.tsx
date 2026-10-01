@@ -21,7 +21,10 @@ import { FormField } from "~/components/system/field";
 import { FileField } from "~/components/system/FileField";
 import { FileList } from "~/components/system/FileList";
 import {
-  RecordColumns,
+  ReaderWidthToggle,
+  useReaderWidth,
+} from "~/components/system/ReaderWidth";
+import {
   RecordEmpty,
   RecordHeader,
   RecordList,
@@ -33,6 +36,7 @@ import { useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { myWorkQuery } from "~/queries/coursework";
 import { handInWork, saveMyDraft, undoHandIn } from "~/server/coursework";
+import { cn } from "~/utils/cn";
 import { formatNumber } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
@@ -176,6 +180,7 @@ function YourWork({ data }: { data: Data }) {
   });
   return (
     <RecordSection
+      variant="page"
       title={m.courseworkYourWork()}
       description={
         data.canHandIn
@@ -308,6 +313,7 @@ function YourWork({ data }: { data: Data }) {
 export function LearnerWork({ assignmentId }: { assignmentId: string }) {
   const data = useSuspenseQuery(myWorkQuery(assignmentId)).data;
   const user = useCurrentUser();
+  const width = useReaderWidth();
   const facts: HeaderFact[] = [];
   if (data.assignment.class)
     facts.push({
@@ -327,64 +333,49 @@ export function LearnerWork({ assignmentId }: { assignmentId: string }) {
       value: m.courseworkPointsCount({ count: data.assignment.points }),
     });
   return (
-    <div className="mx-auto w-full max-w-6xl">
+    <div
+      className={cn(
+        "mx-auto grid w-full gap-6",
+        width.wide ? "max-w-none" : "max-w-[720px]",
+      )}
+    >
       <RecordHeader
+        variant="document"
         title={data.assignment.title}
         facts={facts}
+        tools={<ReaderWidthToggle wide={width.wide} onToggle={width.toggle} />}
         status={{
           label: STATE_LABEL[data.state](),
           tone: STATE_TONE[data.state],
         }}
       />
-      <RecordColumns
-        main={
-          <>
-            <RecordSection title={m.courseworkBrief()}>
-              {data.brief ? (
-                <ContentView
-                  document={data.brief}
-                  fileUrl={(id) => `/files/${id}`}
-                />
-              ) : (
-                <RecordEmpty>{m.courseworkNoBrief()}</RecordEmpty>
-              )}
-            </RecordSection>
-            {data.quiz ? (
-              <QuizWork key={data.attempts.length} data={data} />
-            ) : (
-              <YourWork
-                key={`${data.submission.version}-${data.attempts.length}`}
-                data={data}
-              />
-            )}
-          </>
-        }
-        aside={
-          <>
-            <RecordSection title={m.courseworkResources()}>
-              <FileList
-                files={data.resources}
-                emptyLabel={m.courseworkNoResources()}
-              />
-            </RecordSection>
-            <RecordSection title={m.courseworkAttempts()}>
-              {data.attempts.length === 0 ? (
-                <RecordEmpty>{m.courseworkNoAttempts()}</RecordEmpty>
-              ) : (
-                <RecordList>
-                  {data.attempts.toReversed().map((attempt) => (
-                    <AttemptItem
-                      key={attempt.id}
-                      data={data}
-                      attempt={attempt}
-                    />
-                  ))}
-                </RecordList>
-              )}
-            </RecordSection>
-          </>
-        }
-      />
+      {data.brief ? (
+        <ContentView document={data.brief} fileUrl={(id) => `/files/${id}`} />
+      ) : (
+        <RecordEmpty>{m.courseworkNoBrief()}</RecordEmpty>
+      )}
+      {data.resources.length > 0 ? (
+        <RecordSection variant="page" title={m.courseworkResources()}>
+          <FileList files={data.resources} />
+        </RecordSection>
+      ) : null}
+      {data.quiz ? (
+        <QuizWork key={data.attempts.length} data={data} />
+      ) : (
+        <YourWork
+          key={`${data.submission.version}-${data.attempts.length}`}
+          data={data}
+        />
+      )}
+      {data.attempts.length > 0 ? (
+        <RecordSection variant="page" title={m.courseworkAttempts()}>
+          <RecordList>
+            {data.attempts.toReversed().map((attempt) => (
+              <AttemptItem key={attempt.id} data={data} attempt={attempt} />
+            ))}
+          </RecordList>
+        </RecordSection>
+      ) : null}
     </div>
   );
 }

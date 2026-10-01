@@ -15,6 +15,7 @@ import {
   Undo2,
   UserX,
 } from "lucide-react";
+import { useState } from "react";
 import { toast } from "sonner";
 
 import type {
@@ -29,14 +30,19 @@ import { ContentView } from "~/components/content/ContentView";
 import { DataTable } from "~/components/system/DataTable";
 import { FileList } from "~/components/system/FileList";
 import {
+  ReaderWidthToggle,
+  useReaderWidth,
+} from "~/components/system/ReaderWidth";
+import {
   Fact,
   Facts,
-  RecordColumns,
+  phoneLink,
   RecordEmpty,
   RecordHeader,
   RecordSection,
   RecordTabs,
 } from "~/components/system/RecordPage";
+import { SheetPanel } from "~/components/system/SheetPanel";
 import { StatusText } from "~/components/system/status";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
@@ -46,6 +52,7 @@ import {
   archiveAssignment,
   publishAssignment,
 } from "~/server/coursework";
+import { cn } from "~/utils/cn";
 import { formatNumber } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
@@ -68,7 +75,16 @@ type Data = Awaited<
 >;
 type WorkRow = Data["work"][number] & { id: string };
 
-function Settings({ data }: { data: Data }) {
+function Settings({
+  data,
+  open,
+  onOpenChange,
+}: {
+  data: Data;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const user = useCurrentUser();
   const late = {
     accept: m.courseworkLateAccept(),
     deduct: m.courseworkLateDeductBy({
@@ -83,14 +99,27 @@ function Settings({ data }: { data: Data }) {
     none: m.courseworkFormatNone(),
     quiz: m.courseworkFormatQuiz(),
   }[data.submissionFormat];
+  const when = (iso: string | null) =>
+    iso ? formatInstant(iso, user.school.timeZone) : null;
   return (
-    <RecordSection title={m.courseworkSettings()}>
+    <SheetPanel
+      open={open}
+      onOpenChange={onOpenChange}
+      title={m.courseworkSettings()}
+    >
       <Facts>
         <Fact label={m.courseworkAudience()}>
           {data.audience === "class"
             ? m.courseworkAudienceClass()
             : m.courseworkAudienceSelected()}
         </Fact>
+        <Fact label={m.courseworkAvailableFrom()}>
+          {when(data.availableFrom) ?? m.courseworkShownNow()}
+        </Fact>
+        <Fact label={m.courseworkDue()}>
+          {when(data.dueAt) ?? m.courseworkNoDueDate()}
+        </Fact>
+        <Fact label={m.courseworkClosesAt()}>{when(data.closesAt)}</Fact>
         <Fact label={m.courseworkPoints()}>
           {data.points === null
             ? m.courseworkUngraded()
@@ -102,35 +131,25 @@ function Settings({ data }: { data: Data }) {
           {data.resubmission ? m.commonYes() : m.commonNo()}
         </Fact>
       </Facts>
-    </RecordSection>
+    </SheetPanel>
   );
 }
 
 function Brief({ data }: { data: Data }) {
   return (
-    <RecordColumns
-      main={
-        <>
-          <RecordSection title={m.courseworkBrief()}>
-            {data.brief ? (
-              <ContentView
-                document={data.brief}
-                fileUrl={(id) => `/files/${id}`}
-              />
-            ) : (
-              <RecordEmpty>{m.courseworkNoBrief()}</RecordEmpty>
-            )}
-          </RecordSection>
-          <RecordSection title={m.courseworkResources()}>
-            <FileList
-              files={data.resources}
-              emptyLabel={m.courseworkNoResources()}
-            />
-          </RecordSection>
-        </>
-      }
-      aside={<Settings data={data} />}
-    />
+    <div className="grid gap-6">
+      {data.brief ? (
+        <ContentView document={data.brief} fileUrl={(id) => `/files/${id}`} />
+      ) : (
+        <RecordEmpty>{m.courseworkNoBrief()}</RecordEmpty>
+      )}
+      <RecordSection variant="page" title={m.courseworkResources()}>
+        <FileList
+          files={data.resources}
+          emptyLabel={m.courseworkNoResources()}
+        />
+      </RecordSection>
+    </div>
   );
 }
 
@@ -343,6 +362,8 @@ export function AssignmentRecord({
         data: { id: data.id, expectedVersion: data.version },
       }),
   });
+  const width = useReaderWidth();
+  const [settingsOpen, setSettingsOpen] = useState(false);
   const facts: HeaderFact[] = [];
   if (data.class)
     facts.push({ label: m.studentClass(), value: classTitle(data.class) });
@@ -358,6 +379,21 @@ export function AssignmentRecord({
       label: m.courseworkPoints(),
       value: m.courseworkPointsCount({ count: data.points }),
     });
+  facts.push({
+    label: m.courseworkSettings(),
+    value: (
+      <button
+        type="button"
+        className={cn(
+          "font-medium text-primary underline-offset-4 hover:underline",
+          phoneLink,
+        )}
+        onClick={() => setSettingsOpen(true)}
+      >
+        {m.courseworkSettings()}
+      </button>
+    ),
+  });
   const handedIn = data.work.filter((row) => row.attemptId).length;
   const tabs: RecordTab<RecordTabValue>[] = RECORD_TABS.map((value) => ({
     value,
@@ -370,10 +406,17 @@ export function AssignmentRecord({
           }),
   }));
   return (
-    <div className="mx-auto w-full max-w-6xl">
+    <div
+      className={cn(
+        "mx-auto w-full",
+        width.wide ? "max-w-none" : "max-w-[720px]",
+      )}
+    >
       <RecordHeader
+        variant="document"
         title={data.title}
         facts={facts}
+        tools={<ReaderWidthToggle wide={width.wide} onToggle={width.toggle} />}
         status={{
           label: PHASE_LABEL[data.phase](),
           tone: PHASE_TONE[data.phase],
@@ -440,6 +483,11 @@ export function AssignmentRecord({
       >
         {tab === "work" ? <Work data={data} /> : <Brief data={data} />}
       </RecordTabs>
+      <Settings
+        data={data}
+        open={settingsOpen}
+        onOpenChange={setSettingsOpen}
+      />
     </div>
   );
 }
