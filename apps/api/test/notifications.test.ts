@@ -35,6 +35,14 @@ const announce = async (
   return saved.id;
 };
 
+/** A weekend or the seeded holiday, when no register is taken. */
+function offDay(day: string) {
+  return (
+    [5, 6].includes(new Date(`${day}T00:00:00Z`).getUTCDay()) ||
+    day === "2026-10-06"
+  );
+}
+
 describe("the notification centre", () => {
   test("a notice that asks for acknowledgement waits under action until given", async () => {
     const office = await principal();
@@ -174,12 +182,12 @@ describe("absence notices", () => {
     const student = await sessionFor("northwind", login("student"));
     const me = await student.api.identity.currentUser();
     const probe = await office.attendance.day({});
-    let date = addDays(probe.today, -1);
-    while (
-      [5, 6].includes(new Date(`${date}T00:00:00Z`).getUTCDay()) ||
-      date === "2026-10-06"
-    )
-      date = addDays(date, -1);
+    // The school day before the latest one, which the register test takes:
+    // on a weekend both would otherwise walk back to the same day.
+    let date = probe.today;
+    while (offDay(date)) date = addDays(date, -1);
+    date = addDays(date, -1);
+    while (offDay(date)) date = addDays(date, -1);
     const { rows } = await office.attendance.board({ date });
     const registers = await Promise.all(
       rows
