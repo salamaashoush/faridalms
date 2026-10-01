@@ -48,6 +48,14 @@ export const getMyCoursework = createServerFn({ method: "GET" }).handler(() =>
   record(backend().coursework.mine()),
 );
 
+export const getSharedWork = createServerFn({ method: "GET" })
+  .validator(checked(v.object({ studentId: uuid })))
+  .handler(({ data }) => backend().coursework.shared(data));
+
+export const getSharedPiece = createServerFn({ method: "GET" })
+  .validator(checked(v.object({ attemptId: uuid })))
+  .handler(({ data }) => backend().coursework.sharedPiece(data));
+
 export const getChildCoursework = createServerFn({ method: "GET" })
   .validator(checked(v.object({ studentId: uuid })))
   .handler(({ data }) => record(backend().coursework.child(data)));

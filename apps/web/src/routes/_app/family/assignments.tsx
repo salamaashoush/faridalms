@@ -6,6 +6,7 @@ import * as v from "valibot";
 import type { Facet } from "~/components/system/IndexPage";
 
 import { TO_DO, WorkSection } from "~/components/coursework/LearnerList";
+import { SharedWork } from "~/components/coursework/SharedWork";
 import { displayName } from "~/components/people/format";
 import {
   EmptyState,
@@ -76,6 +77,7 @@ function ChildWork({ studentId }: { studentId: string }) {
         empty={m.courseworkNothingReturned()}
         {...props}
       />
+      <SharedWork studentId={studentId} />
     </div>
   );
 }

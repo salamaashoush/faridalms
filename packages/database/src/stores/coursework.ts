@@ -501,6 +501,8 @@ export interface WorkRow {
   score: number | null;
   effectiveScore: number | null;
   released: boolean;
+  /** The latest attempt is shared with the student's family. */
+  shared: boolean;
 }
 
 /**
@@ -531,6 +533,7 @@ export async function studentWork(
     score: string | null;
     effective_score: string | null;
     released: boolean | null;
+    shared: boolean;
   }>(sql`
     select r.student_user_id as student_id, u.full_name_en, u.full_name_ar,
       to_char(coalesce(r.due_at, a.due_at) at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as due_at,
@@ -545,7 +548,9 @@ export async function studentWork(
       t.id as attempt_id, t.is_late,
       to_char(t.submitted_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as submitted_at,
       x.id as assessment_id, x.score::text as score, x.effective_score::text as effective_score,
-      x.released_at is not null as released
+      x.released_at is not null as released,
+      exists (select 1 from core.family_shares h where h.tenant_id = r.tenant_id
+        and h.attempt_id = t.id and h.status = 'active') as shared
     from core.assignment_recipients r
     join core.assignments a on a.tenant_id = r.tenant_id and a.id = r.assignment_id
     join core.users u on u.tenant_id = r.tenant_id and u.id = r.student_user_id
@@ -581,6 +586,88 @@ export async function studentWork(
     effectiveScore:
       row.effective_score === null ? null : Number(row.effective_score),
     released: row.released ?? false,
+    shared: row.shared,
+  }));
+}
+
+/** Shares handed-in work with each student's family; sharing twice keeps one. */
+export async function shareAttempts(
+  tx: Tx,
+  input: {
+    tenantId: string;
+    shares: readonly { attemptId: string; studentId: string }[];
+    userId: string;
+  },
+): Promise<void> {
+  for (const share of input.shares)
+    await tx.execute(sql`
+      insert into core.family_shares (tenant_id, attempt_id, student_user_id, shared_by_user_id)
+      values (${input.tenantId}::uuid, ${share.attemptId}::uuid, ${share.studentId}::uuid,
+        ${input.userId}::uuid)
+      on conflict (tenant_id, attempt_id) where status = 'active' do nothing`);
+}
+
+export async function unshareAttempts(
+  tx: Tx,
+  input: { tenantId: string; attemptIds: readonly string[] },
+): Promise<void> {
+  if (input.attemptIds.length === 0) return;
+  await tx.execute(sql`
+    update core.family_shares set status = 'tobedeleted'
+    where tenant_id = ${input.tenantId}::uuid and attempt_id = any(${uuidArray(input.attemptIds)})
+      and status = 'active'`);
+}
+
+export async function isShared(
+  tx: Tx,
+  tenantId: string,
+  attemptId: string,
+): Promise<boolean> {
+  const [row] = await tx.execute<{ shared: boolean }>(sql`
+    select exists (select 1 from core.family_shares where tenant_id = ${tenantId}::uuid
+      and attempt_id = ${attemptId}::uuid and status = 'active') as shared`);
+  return row?.shared ?? false;
+}
+
+export interface SharedPiece {
+  attemptId: string;
+  assignmentId: string;
+  title: string;
+  classCode: string;
+  sharedAt: string;
+}
+
+/** The work a student's teachers have shared with their family, newest first. */
+export async function sharedWorkOf(
+  tx: Tx,
+  input: { tenantId: string; studentId: string },
+): Promise<SharedPiece[]> {
+  const rows = await tx.execute<{
+    attempt_id: string;
+    assignment_id: string;
+    title: string;
+    class_code: string;
+    shared_at: string;
+  }>(sql`
+    select h.attempt_id, a.id as assignment_id, a.title, c.code as class_code,
+      ${isoOf(sql`h.created_at`)} as shared_at
+    from core.family_shares h
+    join core.submission_attempts t on t.tenant_id = h.tenant_id and t.id = h.attempt_id
+      and t.status = 'active'
+    join core.submissions s on s.tenant_id = t.tenant_id and s.id = t.submission_id
+    join core.assignments a on a.tenant_id = s.tenant_id and a.id = s.assignment_id
+      and a.status = 'active'
+    join core.classes c on c.tenant_id = a.tenant_id and c.id = a.class_id
+    where h.tenant_id = ${input.tenantId}::uuid and h.student_user_id = ${input.studentId}::uuid
+      and h.status = 'active'
+    order by h.created_at desc
+    limit 200`);
+  return rows.map((row) => ({
+    attemptId: row.attempt_id,
+    assignmentId: row.assignment_id,
+    title: row.title,
+    classCode: row.class_code,
+    sharedAt: row.shared_at,
   }));
 }
 

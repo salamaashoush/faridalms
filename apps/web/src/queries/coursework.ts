@@ -3,6 +3,7 @@ import type { TeacherListQuery } from "@faridalms/domain/coursework";
 import { queryOptions } from "@tanstack/react-query";
 
 import {
+  getSharedWork,
   getAssignmentEditor,
   getAssignmentRecord,
   getChildCoursework,
@@ -54,6 +55,12 @@ export const myCourseworkQuery = queryOptions({
   queryKey: ["coursework", "mine"],
   queryFn: () => getMyCoursework(),
 });
+
+export const sharedWorkQuery = (studentId: string) =>
+  queryOptions({
+    queryKey: ["coursework", "shared", studentId],
+    queryFn: () => getSharedWork({ data: { studentId } }),
+  });
 
 export const childCourseworkQuery = (studentId: string) =>
   queryOptions({

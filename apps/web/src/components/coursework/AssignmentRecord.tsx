@@ -12,10 +12,12 @@ import {
   CalendarClock,
   ClipboardPen,
   Download,
+  EyeOff,
   Inbox,
   Pencil,
   RotateCcw,
   Send,
+  Share2,
   Undo2,
   UserX,
 } from "lucide-react";
@@ -260,7 +262,14 @@ function Score({ row, points }: { row: WorkRow; points: number | null }) {
 
 function HandedAt({ row, timeZone }: { row: WorkRow; timeZone: string }) {
   return row.submittedAt ? (
-    <Value>{formatInstant(row.submittedAt, timeZone)}</Value>
+    <Value>
+      {formatInstant(row.submittedAt, timeZone)}
+      {row.shared ? (
+        <span className="ms-2 text-[13px] text-muted-foreground">
+          {m.courseworkSharedMark()}
+        </span>
+      ) : null}
+    </Value>
   ) : (
     <Value notApplicable>{null}</Value>
   );
@@ -367,6 +376,18 @@ function Work({ data }: { data: Data }) {
           onSelect: (selected) =>
             run("excuse", selected, m.courseworkExcusedDone()),
         },
+        {
+          label: m.courseworkShare(),
+          icon: Share2,
+          onSelect: (selected) =>
+            run("share", selected, m.courseworkSharedDone()),
+        },
+        {
+          label: m.courseworkUnshare(),
+          icon: EyeOff,
+          onSelect: (selected) =>
+            run("unshare", selected, m.courseworkUnsharedDone()),
+        },
         ...(handsIn
           ? [
               {
@@ -399,6 +420,19 @@ function Work({ data }: { data: Data }) {
                   inline: true,
                   onSelect: () => grade(row),
                 },
+                row.shared
+                  ? {
+                      label: m.courseworkUnshare(),
+                      icon: EyeOff,
+                      onSelect: () =>
+                        run("unshare", [row], m.courseworkUnsharedDone()),
+                    }
+                  : {
+                      label: m.courseworkShare(),
+                      icon: Share2,
+                      onSelect: () =>
+                        run("share", [row], m.courseworkSharedDone()),
+                    },
               ]
             : []),
           ...(row.excused

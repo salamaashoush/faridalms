@@ -18,6 +18,10 @@ import {
   teachesClass,
 } from "@faridalms/database/stores/classes";
 import {
+  isShared,
+  shareAttempts,
+  sharedWorkOf,
+  unshareAttempts,
   assessmentOf,
   assignmentById,
   attemptById,
@@ -239,12 +243,18 @@ async function readable(
   if (host.type === "submission")
     return owner.studentId === context.actor.userId;
   if (teacher) return true;
+  // A family reads handed-in work only once a teacher has shared it.
   if (host.type === "submission_attempt")
     return (
       owner.studentId === context.actor.userId ||
       (can(context, "children:read") &&
         owner.studentId !== null &&
-        (await isVisibleStudent(context.tx, scopeOf(context), owner.studentId)))
+        (await isVisibleStudent(
+          context.tx,
+          scopeOf(context),
+          owner.studentId,
+        )) &&
+        (await isShared(context.tx, context.tenantId, host.id)))
     );
   if (
     await isRecipient(
@@ -830,55 +840,74 @@ export const act = writeProcedure
       input.studentIds.includes(row.studentId),
     );
     let changed = 0;
-    for (const row of chosen) {
-      if (input.action === "hand_in") {
-        if (await handInFor(context, { assignment, row })) changed += 1;
-        continue;
-      }
-      if (input.action === "return" || input.action === "revise") {
-        if (
-          !row.attemptId ||
-          !row.submissionId ||
-          row.submissionVersion === null
-        )
+    if (input.action === "share" || input.action === "unshare") {
+      const handedIn = chosen.flatMap((row) =>
+        row.attemptId
+          ? [{ attemptId: row.attemptId, studentId: row.studentId }]
+          : [],
+      );
+      if (input.action === "share")
+        await shareAttempts(tx, {
+          tenantId: context.tenantId,
+          shares: handedIn,
+          userId: context.actor.userId,
+        });
+      else
+        await unshareAttempts(tx, {
+          tenantId: context.tenantId,
+          attemptIds: handedIn.map((share) => share.attemptId),
+        });
+      changed = handedIn.length;
+    } else
+      for (const row of chosen) {
+        if (input.action === "hand_in") {
+          if (await handInFor(context, { assignment, row })) changed += 1;
           continue;
-        if (!row.assessmentId)
-          await saveAssessment(tx, {
+        }
+        if (input.action === "return" || input.action === "revise") {
+          if (
+            !row.attemptId ||
+            !row.submissionId ||
+            row.submissionVersion === null
+          )
+            continue;
+          if (!row.assessmentId)
+            await saveAssessment(tx, {
+              tenantId: context.tenantId,
+              attemptId: row.attemptId,
+              submissionId: row.submissionId,
+              studentId: row.studentId,
+              score: null,
+              effectiveScore: null,
+              rubricScores: null,
+              feedback: null,
+              privateNote: null,
+              userId: context.actor.userId,
+            });
+          await releaseAssessments(tx, context.tenantId, [row.attemptId]);
+          await touchSubmission(tx, {
             tenantId: context.tenantId,
-            attemptId: row.attemptId,
-            submissionId: row.submissionId,
-            studentId: row.studentId,
-            score: null,
-            effectiveScore: null,
-            rubricScores: null,
-            feedback: null,
-            privateNote: null,
-            userId: context.actor.userId,
+            id: row.submissionId,
+            expectedVersion: row.submissionVersion,
+            state: "returned",
+            needsRevision: input.action === "revise",
           });
-        await releaseAssessments(tx, context.tenantId, [row.attemptId]);
+          changed += 1;
+          continue;
+        }
+        const submission = await ensureSubmission(tx, {
+          tenantId: context.tenantId,
+          assignmentId: assignment.id,
+          studentId: row.studentId,
+        });
         await touchSubmission(tx, {
           tenantId: context.tenantId,
-          id: row.submissionId,
-          expectedVersion: row.submissionVersion,
-          state: "returned",
-          needsRevision: input.action === "revise",
+          id: submission.id,
+          expectedVersion: submission.version,
+          excused: input.action === "excuse",
         });
         changed += 1;
-        continue;
       }
-      const submission = await ensureSubmission(tx, {
-        tenantId: context.tenantId,
-        assignmentId: assignment.id,
-        studentId: row.studentId,
-      });
-      await touchSubmission(tx, {
-        tenantId: context.tenantId,
-        id: submission.id,
-        expectedVersion: submission.version,
-        excused: input.action === "excuse",
-      });
-      changed += 1;
-    }
     await audit(context, {
       action: `submission.${input.action}`,
       objectType: "assignment",
@@ -1631,6 +1660,36 @@ async function workOf(context: UnitContext, studentId: string) {
     now: context.now.toISOString(),
   };
 }
+
+/** The work teachers have shared with a child's family, newest first. */
+export const shared = readProcedure
+  .input(v.object({ studentId: id }))
+  .handler(async ({ input, context }) => {
+    requireCapability(context, "children:read");
+    if (
+      !(await isVisibleStudent(context.tx, scopeOf(context), input.studentId))
+    )
+      throw new ORPCError("NOT_FOUND");
+    return {
+      pieces: await sharedWorkOf(context.tx, {
+        tenantId: context.tenantId,
+        studentId: input.studentId,
+      }),
+    };
+  });
+
+/** One shared piece of work, as the family reads it. */
+export const sharedPiece = readProcedure
+  .input(v.object({ attemptId: id }))
+  .handler(async ({ input, context }) => {
+    requireCapability(context, "children:read");
+    const host = { type: "submission_attempt", id: input.attemptId };
+    if (!(await readable(context, host))) throw new ORPCError("NOT_FOUND");
+    const document = await documentOf(context.tx, context.tenantId, host);
+    return {
+      content: (document?.content ?? null) as ContentDocument | null,
+    };
+  });
 
 /** A child's coursework for their family: never draft grades, never other students. */
 export const child = readProcedure

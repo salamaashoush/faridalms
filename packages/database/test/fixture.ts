@@ -20,6 +20,8 @@ import {
   documentFiles,
   documentLinks,
   documentTemplates,
+  familyShares,
+  submissionAttempts,
   documentTranslations,
   documents,
   documentVersions,
@@ -450,6 +452,21 @@ export async function completeFixture(
     surface: "students",
     name: "Grade 8",
     filter: { grade: "grade_8" },
+  });
+  const [attempt] = await tx
+    .select({
+      id: submissionAttempts.id,
+      studentUserId: submissionAttempts.studentUserId,
+    })
+    .from(submissionAttempts)
+    .where(eq(submissionAttempts.tenantId, tenantId))
+    .limit(1);
+  if (!attempt) throw new Error("the development seed hands in no work");
+  await tx.insert(familyShares).values({
+    tenantId,
+    attemptId: attempt.id,
+    studentUserId: attempt.studentUserId,
+    sharedByUserId: userId,
   });
   await tx.insert(documentTemplates).values({
     tenantId,

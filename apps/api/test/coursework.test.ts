@@ -541,6 +541,39 @@ describe("handing in and returning work", () => {
     expect(
       answers.some((text) => text.includes("My answers are attached.")),
     ).toBe(true);
+    // Families see handed-in work only once a teacher shares it.
+    const family = await signedIn(
+      "northwind",
+      login("student").replace("student", "parent"),
+    );
+    const attemptId = (
+      await teacher.api.coursework.record({ id: saved.id })
+    ).work.find((row) => row.studentId === me.id)?.attemptId;
+    if (!attemptId) throw new Error("no attempt handed in");
+    expect(
+      await rejection(family.coursework.sharedPiece({ attemptId })),
+    ).toMatchObject({ code: "NOT_FOUND" });
+    await teacher.api.coursework.act({
+      assignmentId: saved.id,
+      action: "share",
+      studentIds: [me.id],
+    });
+    const piece = await family.coursework.sharedPiece({ attemptId });
+    expect(JSON.stringify(piece.content)).toContain("My answers are attached.");
+    expect(
+      (await family.coursework.shared({ studentId: me.id })).pieces.map(
+        (row) => row.attemptId,
+      ),
+    ).toContain(attemptId);
+    await teacher.api.coursework.act({
+      assignmentId: saved.id,
+      action: "unshare",
+      studentIds: [me.id],
+    });
+    expect(
+      await rejection(family.coursework.sharedPiece({ attemptId })),
+    ).toMatchObject({ code: "NOT_FOUND" });
+
     const office = await sessionFor("northwind", login("principal"));
     expect(
       (await raw("northwind", office.token, `/v1/students/${me.id}/portfolio.zip`))
