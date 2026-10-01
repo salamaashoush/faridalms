@@ -39,13 +39,20 @@ export const contentExtensions = [
   BlocksExtension,
 ];
 
-/** An editor with no screen, for turning stored content into Yjs and back. */
-export function buildContentEditor(): LexicalEditor {
+/**
+ * An editor with no screen, for turning stored content into Yjs and back.
+ * One that follows a shared document starts with nothing in it, as the
+ * screen editor does, since a paragraph of its own would not be in the room.
+ */
+export function buildContentEditor(
+  options: { empty?: boolean } = {},
+): LexicalEditor {
   return buildEditorFromExtensions(
     defineExtension({
       name: "faridalms/headless",
       namespace: "faridalms-content",
       dependencies: contentExtensions,
+      ...(options.empty ? { $initialEditorState: null } : {}),
     }),
   );
 }

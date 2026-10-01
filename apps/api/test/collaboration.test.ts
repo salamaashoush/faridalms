@@ -47,7 +47,7 @@ const quiet = {
 /** A client as the browser editor runs it: a Lexical editor bound to the shared document. */
 function client(room: string, token: string) {
   const doc = new Y.Doc();
-  const editor = buildContentEditor();
+  const editor = buildContentEditor({ empty: true });
   const binding = createBinding(
     editor,
     quiet,
@@ -101,6 +101,17 @@ function client(room: string, token: string) {
 
 const held = (value: unknown) =>
   JSON.stringify(value).includes("answer the questions");
+
+/** Adds words to the end of a client's last paragraph, as typing would. */
+function append(editor: ReturnType<typeof client>, words: string) {
+  editor.editor.update(
+    () => {
+      const last = $getRoot().getLastChild();
+      if ($isElementNode(last)) last.append($createTextNode(words));
+    },
+    { discrete: true },
+  );
+}
 
 async function until(check: () => boolean | Promise<boolean>) {
   for (let attempt = 0; attempt < 100; attempt += 1) {
@@ -160,6 +171,52 @@ describe("editing an assignment brief together", () => {
       const opened = await teacher.api.coursework.editor({ id: saved.id });
       return JSON.stringify(opened.brief).includes("Then summarise.");
     });
+  });
+
+  test("a room opened again from its stored state keeps the brief as it was", async () => {
+    const teacher = await arabicTeacher();
+    const { classes } = await teacher.api.coursework.options();
+    const target = classes.find((row) => row.classType === "scheduled");
+    if (!target) throw new Error("the teacher has no scheduled class");
+    const saved = await teacher.api.coursework.save({
+      classId: target.id,
+      title: "Reopened brief",
+      brief: plainContent("First line."),
+      audience: "class",
+      latePolicy: "accept",
+      submissionFormat: "both",
+      points: 10,
+      rubric: null,
+    });
+    const open = async () => {
+      const ticket = await teacher.api.documents.collaborate({
+        hostType: "assignment",
+        hostId: saved.id,
+      });
+      const editor = client(ticket.room, ticket.token);
+      await editor.synced;
+      return editor;
+    };
+    const stored = async () =>
+      JSON.stringify(
+        (await teacher.api.coursework.editor({ id: saved.id })).brief,
+      );
+
+    const first = await open();
+    await until(() => first.text().includes("First line."));
+    append(first, " Second.");
+    await until(async () => (await stored()).includes("Second."));
+    first.provider.destroy();
+    await Bun.sleep(300);
+
+    const again = await open();
+    await until(() => again.text().includes("Second."));
+    append(again, " Third.");
+    await until(async () => (await stored()).includes("Third."));
+    again.provider.destroy();
+    const brief = (await teacher.api.coursework.editor({ id: saved.id })).brief;
+    expect(brief?.root.children).toHaveLength(1);
+    expect(JSON.stringify(brief)).toContain("First line. Second. Third.");
   });
 
   test("live edits to work already out wait for Update before students read them", async () => {

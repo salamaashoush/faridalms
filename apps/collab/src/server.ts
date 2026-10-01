@@ -62,7 +62,7 @@ async function follow(
   doc: Y.Doc,
   stored: Record<string, unknown> | null,
 ): Promise<Live> {
-  const editor = buildContentEditor();
+  const editor = buildContentEditor({ empty: true });
   const binding = createBinding(
     editor,
     silent,
@@ -174,11 +174,11 @@ export function createCollab(input: {
         liveDocument(tx, context.tenantId, context.documentId),
       );
       if (!row) throw new Error("collab.not_found");
+      // The editor is bound first so it reads the stored state as it arrives;
+      // bound after, it would start empty and add a paragraph of its own.
+      const state = await follow(document, row.ydoc ? null : row.content);
       if (row.ydoc) Y.applyUpdate(document, row.ydoc);
-      live.set(
-        documentName,
-        await follow(document, row.ydoc ? null : row.content),
-      );
+      live.set(documentName, state);
       return document;
     },
     async onStoreDocument({
