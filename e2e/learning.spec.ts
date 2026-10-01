@@ -73,6 +73,7 @@ test("a teacher builds a module, a student answers its lesson, and the teacher m
   await page.keyboard.type("/written");
   await page.keyboard.press("Enter");
   await page.keyboard.type("Write the first line of a letter to a friend.");
+  await expect(page.locator("[data-question]")).toHaveCount(3);
   await page.getByRole("button", { name: "2 points" }).click();
   await page.getByRole("menuitem", { name: "4 points" }).click();
   await page.locator("#lesson-completion").click();

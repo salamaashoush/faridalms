@@ -236,6 +236,61 @@ export function lessonOfContent(document: ContentDocument): LessonDocument {
   return { version: 2, blocks };
 }
 
+const opensQuiz = (node: ContentNode) =>
+  node.type === "question" || node.type === "gate";
+
+/** Whether a document asks questions of its own. */
+export function holdsQuestions(document: ContentDocument): boolean {
+  return (document.root.children ?? []).some(
+    (node) => node.type === "question",
+  );
+}
+
+/**
+ * A quiz is written as its brief: the words before its first question are
+ * what students read before they start, and hold no answers.
+ */
+export function quizIntro(document: ContentDocument): ContentDocument {
+  const children = document.root.children ?? [];
+  const first = children.findIndex(opensQuiz);
+  return {
+    root: {
+      ...document.root,
+      children: first < 0 ? children : children.slice(0, first),
+    },
+  };
+}
+
+/** The quiz a brief asks, from its first question on, as marking reads it. */
+export function quizOfBrief(document: ContentDocument): LessonDocument {
+  const children = document.root.children ?? [];
+  const first = children.findIndex(opensQuiz);
+  return lessonOfContent({
+    root: {
+      ...document.root,
+      children: first < 0 ? [] : children.slice(first),
+    },
+  });
+}
+
+/**
+ * A brief with the questions of a quiz kept apart from it written in after
+ * its words, every question keeping its id, for quizzes set before their
+ * questions were part of the brief.
+ */
+export function briefWithQuiz(
+  brief: ContentDocument,
+  quiz: LessonDocument,
+): ContentDocument {
+  const asked = contentOfLesson(quiz)?.root.children ?? [];
+  return {
+    root: {
+      ...brief.root,
+      children: [...(brief.root.children ?? []), ...asked],
+    },
+  };
+}
+
 /**
  * Whether two documents put the same lesson in front of students: the same
  * words and the same questions, whatever ids the editor gave the blocks.

@@ -6,7 +6,15 @@ import type { LessonDocument } from "./learning";
 import { contentDocumentSchema, contentPlainText } from "./content";
 import { plainContent } from "./content-conversion";
 import { lessonDocumentSchema } from "./learning";
-import { contentOfLesson, lessonOfContent, sameLesson } from "./lesson-content";
+import {
+  briefWithQuiz,
+  contentOfLesson,
+  holdsQuestions,
+  lessonOfContent,
+  quizIntro,
+  quizOfBrief,
+  sameLesson,
+} from "./lesson-content";
 
 const lesson: LessonDocument = {
   version: 2,
@@ -264,5 +272,15 @@ describe("lessons written as one document", () => {
       (item) => item.type === "choice",
     );
     expect(block?.type === "choice" ? block.options : []).toHaveLength(2);
+  });
+
+  it("splits a quiz brief into the words students read first and the quiz", () => {
+    const asked = { version: 2 as const, blocks: checks(lesson.blocks) };
+    const brief = briefWithQuiz(plainContent("Read carefully."), asked);
+    expect(holdsQuestions(brief)).toBe(true);
+    expect(contentPlainText(quizIntro(brief))).toBe("Read carefully.");
+    expect(JSON.stringify(quizIntro(brief))).not.toContain("Cairo");
+    expect(checks(quizOfBrief(brief).blocks)).toEqual(asked.blocks);
+    expect(quizOfBrief(plainContent("No questions yet.")).blocks).toEqual([]);
   });
 });

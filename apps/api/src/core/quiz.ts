@@ -1,5 +1,5 @@
 import type { AssignmentRow } from "@faridalms/database/stores/coursework";
-import type { QuizSettings } from "@faridalms/domain/coursework";
+import type { ContentDocument } from "@faridalms/domain/content";
 import type {
   LessonDocument,
   LessonResponse,
@@ -15,7 +15,6 @@ import {
 import {
   documentOf,
   publishedVersion,
-  saveDocument,
   snapshotPublish,
 } from "@faridalms/database/stores/documents";
 import { quizAnswersOf, quizStarted } from "@faridalms/database/stores/quizzes";
@@ -25,41 +24,39 @@ import {
   keptScore,
 } from "@faridalms/domain/coursework";
 import {
-  lessonFileIds,
-  lessonPlainText,
+  checkBlocks,
   responseSchema,
   upgradeLesson,
 } from "@faridalms/domain/learning";
+import {
+  briefWithQuiz,
+  holdsQuestions,
+  quizOfBrief,
+} from "@faridalms/domain/lesson-content";
 import { ORPCError } from "@orpc/server";
 import * as v from "valibot";
 
 import type { UnitContext } from "./context";
 
-import { placeMedia } from "../files/authorize";
-
-/** A quiz's questions live in a lesson document hosted beside the assignment's brief. */
+/**
+ * Where a quiz's questions were kept before they were written in its brief.
+ * Quizzes not edited since still read them from here.
+ */
 export const quizHost = (assignmentId: string) => ({
   type: "assignment_quiz",
   id: assignmentId,
 });
 
-/** The questions as the teacher last saved them. */
-export async function draftQuiz(
-  context: UnitContext,
-  assignmentId: string,
-): Promise<LessonDocument | null> {
-  const document = await documentOf(
-    context.tx,
-    context.tenantId,
-    quizHost(assignmentId),
-  );
-  return document ? upgradeLesson(document.content) : null;
-}
+const briefHost = (assignmentId: string) => ({
+  type: "assignment",
+  id: assignmentId,
+});
 
-/** The questions students answer: the version frozen when the quiz last went out. */
-export async function publishedQuiz(
+/** The questions kept apart from the brief, as last saved or as last sent. */
+async function keptApart(
   context: UnitContext,
   assignmentId: string,
+  sent: boolean,
 ): Promise<LessonDocument | null> {
   const document = await documentOf(
     context.tx,
@@ -67,12 +64,64 @@ export async function publishedQuiz(
     quizHost(assignmentId),
   );
   if (!document) return null;
+  if (!sent) return upgradeLesson(document.content);
   const published = await publishedVersion(
     context.tx,
     context.tenantId,
     document.id,
   );
   return published ? upgradeLesson(published.content) : null;
+}
+
+/** The questions as the teacher last saved them. */
+export async function draftQuiz(
+  context: UnitContext,
+  assignmentId: string,
+): Promise<LessonDocument | null> {
+  const brief = await documentOf(
+    context.tx,
+    context.tenantId,
+    briefHost(assignmentId),
+  );
+  const content = brief?.content as ContentDocument | undefined;
+  if (content && holdsQuestions(content)) return quizOfBrief(content);
+  return (
+    (await keptApart(context, assignmentId, false)) ??
+    (content ? quizOfBrief(content) : null)
+  );
+}
+
+/** The questions students answer: those in the brief as last sent to them. */
+export async function publishedQuiz(
+  context: UnitContext,
+  assignmentId: string,
+): Promise<LessonDocument | null> {
+  const brief = await documentOf(
+    context.tx,
+    context.tenantId,
+    briefHost(assignmentId),
+  );
+  const published = brief
+    ? await publishedVersion(context.tx, context.tenantId, brief.id)
+    : null;
+  const content = published?.content as ContentDocument | undefined;
+  if (content && holdsQuestions(content)) return quizOfBrief(content);
+  return keptApart(context, assignmentId, true);
+}
+
+/**
+ * The brief as its teacher edits it: a quiz whose questions are still kept
+ * apart has them written in, so the next save keeps them in the brief.
+ */
+export async function briefForEditing(
+  context: UnitContext,
+  assignmentId: string,
+  brief: ContentDocument,
+  sent: boolean,
+): Promise<ContentDocument> {
+  if (holdsQuestions(brief)) return brief;
+  const apart = await keptApart(context, assignmentId, sent);
+  return apart ? briefWithQuiz(brief, apart) : brief;
 }
 
 /** The same value whatever order its keys were stored in. */
@@ -90,60 +139,39 @@ function canonical(value: unknown): string {
 }
 
 /**
- * Saves the questions. Once the quiz is out they are frozen again at once,
- * but only until a student starts: after that they stay as they are, so no
- * answer is ever marked against a question that changed.
+ * Once a student has started a quiz its questions stay as they are, so no
+ * answer is ever marked against a question that changed; its other words
+ * may still be edited.
  */
-export async function saveQuiz(
+export async function keepStartedQuestions(
   context: UnitContext,
-  input: { assignmentId: string; quiz: QuizSettings; published: boolean },
+  input: { assignmentId: string; brief: ContentDocument },
 ): Promise<void> {
-  if (input.published) {
-    const current = await draftQuiz(context, input.assignmentId);
-    if (
-      canonical(current) !== canonical(input.quiz.content) &&
-      (await quizStarted(context.tx, context.tenantId, input.assignmentId))
-    )
-      throw new ORPCError("CONFLICT", { message: "coursework.quiz_started" });
-  }
-  const saved = await saveDocument(context.tx, {
-    tenantId: context.tenantId,
-    orgId: context.schoolId,
-    host: quizHost(input.assignmentId),
-    kind: "lesson",
-    ...(await placeMedia(
-      context,
-      quizHost(input.assignmentId),
-      input.quiz.content,
-      lessonFileIds(input.quiz.content),
-    )),
-    plainText: lessonPlainText(input.quiz.content),
-    userId: context.actor.userId,
-  });
-  if (input.published)
-    await snapshotPublish(context.tx, {
-      tenantId: context.tenantId,
-      documentId: saved.id,
-      userId: context.actor.userId,
-    });
+  const current = await draftQuiz(context, input.assignmentId);
+  if (
+    canonical(checkBlocks(current ?? { version: 2, blocks: [] })) !==
+      canonical(checkBlocks(quizOfBrief(input.brief))) &&
+    (await quizStarted(context.tx, context.tenantId, input.assignmentId))
+  )
+    throw new ORPCError("CONFLICT", { message: "coursework.quiz_started" });
 }
 
-/** Freezes the questions as the quiz goes out. */
-export async function publishQuiz(context: UnitContext, assignmentId: string) {
+/** Freezes questions still kept apart from the brief as the quiz goes out. */
+export async function publishKeptApart(
+  context: UnitContext,
+  assignmentId: string,
+) {
   const document = await documentOf(
     context.tx,
     context.tenantId,
     quizHost(assignmentId),
   );
-  if (!document)
-    throw new ORPCError("BAD_REQUEST", {
-      message: "coursework.quiz_questions",
+  if (document)
+    await snapshotPublish(context.tx, {
+      tenantId: context.tenantId,
+      documentId: document.id,
+      userId: context.actor.userId,
     });
-  await snapshotPublish(context.tx, {
-    tenantId: context.tenantId,
-    documentId: document.id,
-    userId: context.actor.userId,
-  });
 }
 
 /** A submission's answers grouped by attempt. */

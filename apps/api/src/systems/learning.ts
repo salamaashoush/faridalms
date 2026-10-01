@@ -69,6 +69,7 @@ import {
   studentBlocks,
   upgradeLesson,
 } from "@faridalms/domain/learning";
+import { isContentDocument } from "@faridalms/domain/lesson-content";
 import { ORPCError } from "@orpc/server";
 import * as v from "valibot";
 
@@ -84,6 +85,7 @@ import {
 import {
   registerHostReader,
   registerHostWriter,
+  registerLiveRules,
   placeMedia,
 } from "../files/authorize";
 
@@ -325,6 +327,27 @@ async function hostReadable(context: UnitContext, lessonId: string) {
 }
 
 registerHostReader("lesson", hostReadable);
+registerLiveRules("lesson", {
+  keyed: () => Promise.resolve(true),
+  // A lesson still stored as a list of blocks is written as one document
+  // before a room opens on it, since the room starts from stored content.
+  prepare: async (context, lessonId) => {
+    const host = { type: "lesson", id: lessonId };
+    const stored = await documentOf(context.tx, context.tenantId, host);
+    if (!stored || isContentDocument(stored.content)) return;
+    const content = { ...lessonContentOf(stored.content) };
+    await saveDocument(context.tx, {
+      tenantId: context.tenantId,
+      orgId: context.schoolId,
+      host,
+      kind: "lesson",
+      content,
+      plainText: contentPlainText(content),
+      mediaIds: contentFileIds(content),
+      userId: context.actor.userId,
+    });
+  },
+});
 registerHostWriter("lesson", async (context, lessonId) => {
   if (!(await isOn(context))) return false;
   const lesson = await lessonById(context.tx, context.tenantId, lessonId);

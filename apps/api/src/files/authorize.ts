@@ -110,3 +110,23 @@ export async function hostAccess(
   if (reader && (await reader(context, host.id))) return "read";
   return null;
 }
+
+/**
+ * How a kind of record's document may be opened live. A keyed document holds
+ * answers its readers must not see, so only its writers may watch it; and a
+ * record may rewrite stored content into the shape a room starts from.
+ */
+export interface LiveRules {
+  keyed: (context: UnitContext, hostId: string) => Promise<boolean>;
+  prepare?: (context: UnitContext, hostId: string) => Promise<void>;
+}
+
+const liveRules = new Map<string, LiveRules>();
+
+export function registerLiveRules(hostType: string, rules: LiveRules) {
+  liveRules.set(hostType, rules);
+}
+
+export function liveRulesOf(hostType: string): LiveRules | undefined {
+  return liveRules.get(hostType);
+}

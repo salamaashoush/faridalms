@@ -93,6 +93,7 @@ import {
   saveQuizAnswerSchema,
   saveRubricSchema,
   studentWorkActionSchema,
+  quizIssue,
   quizPoints,
   teacherListSchema,
 } from "@faridalms/domain/coursework";
@@ -105,6 +106,7 @@ import {
   responseSchema,
   studentQuiz,
 } from "@faridalms/domain/learning";
+import { quizIntro, quizOfBrief } from "@faridalms/domain/lesson-content";
 import { ORPCError } from "@orpc/server";
 import * as v from "valibot";
 
@@ -119,16 +121,18 @@ import {
 } from "../core/procedure";
 import {
   answersByAttempt,
+  briefForEditing,
   draftQuiz,
-  publishQuiz,
+  keepStartedQuestions,
+  publishKeptApart,
   publishedQuiz,
   rescoreQuiz,
   responsesOf,
-  saveQuiz,
 } from "../core/quiz";
 import {
   registerHostReader,
   registerHostWriter,
+  registerLiveRules,
   placeMedia,
 } from "../files/authorize";
 
@@ -183,7 +187,8 @@ async function taughtAssignment(context: UnitContext, assignmentId: string) {
  */
 async function readersBrief(
   context: UnitContext,
-  assignment: { id: string; state: string },
+  assignment: { id: string; state: string; submissionFormat: string },
+  whole = false,
 ): Promise<ContentDocument | null> {
   const document = await documentOf(context.tx, context.tenantId, {
     type: "assignment",
@@ -194,7 +199,12 @@ async function readersBrief(
     assignment.state === "draft"
       ? null
       : await publishedVersion(context.tx, context.tenantId, document.id);
-  return (published ?? document).content as unknown as ContentDocument;
+  const content = (published ?? document).content as unknown as ContentDocument;
+  // A quiz's brief holds its answers; readers get the words before the
+  // first question, and meet the questions as the quiz gives them.
+  return assignment.submissionFormat === "quiz" && !whole
+    ? quizIntro(content)
+    : content;
 }
 
 async function filesView(
@@ -264,6 +274,41 @@ registerHostWriter("assignment", async (context, hostId) => {
 registerHostReader("assignment_quiz", (context, hostId) =>
   readable(context, { type: "assignment", id: hostId }),
 );
+registerLiveRules("assignment_quiz", { keyed: () => Promise.resolve(true) });
+registerLiveRules("assignment", {
+  keyed: async (context, hostId) =>
+    (await assignmentById(context.tx, context.tenantId, hostId))
+      ?.submissionFormat === "quiz",
+  // A quiz whose questions are still kept apart has them written into its
+  // brief before a room opens on it, since the room starts from the brief.
+  prepare: async (context, hostId) => {
+    const assignment = await assignmentById(
+      context.tx,
+      context.tenantId,
+      hostId,
+    );
+    if (assignment?.submissionFormat !== "quiz") return;
+    const host = { type: "assignment", id: hostId };
+    const stored = await documentOf(context.tx, context.tenantId, host);
+    if (!stored) return;
+    const brief = stored.content as unknown as ContentDocument;
+    const written = await briefForEditing(context, hostId, brief, false);
+    if (written === brief) return;
+    await saveDocument(context.tx, {
+      tenantId: context.tenantId,
+      orgId: context.schoolId,
+      host,
+      ...(await placeMedia(
+        context,
+        host,
+        { ...written },
+        contentFileIds(written),
+      )),
+      plainText: contentPlainText(written),
+      userId: context.actor.userId,
+    });
+  },
+});
 registerHostReader("submission", (context, hostId) =>
   readable(context, { type: "submission", id: hostId }),
 );
@@ -375,18 +420,24 @@ export const editor = readProcedure
       }),
       selectionOf(context.tx, context.tenantId, assignment.id),
     ]);
-    const quiz =
-      assignment.submissionFormat === "quiz"
-        ? await draftQuiz(context, assignment.id)
-        : null;
+    const isQuiz = assignment.submissionFormat === "quiz";
+    const quiz = isQuiz ? await draftQuiz(context, assignment.id) : null;
+    const stored = (brief?.content ?? null) as ContentDocument | null;
+    const sent =
+      assignment.state === "draft"
+        ? null
+        : await readersBrief(context, assignment, true);
     return {
       ...assignment,
       rubric: assignment.rubric as unknown as Rubric | null,
-      brief: (brief?.content ?? null) as ContentDocument | null,
+      brief:
+        stored && isQuiz
+          ? await briefForEditing(context, assignment.id, stored, false)
+          : stored,
       publishedBrief:
-        assignment.state === "draft"
-          ? null
-          : await readersBrief(context, assignment),
+        sent && isQuiz
+          ? await briefForEditing(context, assignment.id, sent, true)
+          : sent,
       quiz:
         quiz && assignment.quizKeep && assignment.quizReveal
           ? {
@@ -394,7 +445,6 @@ export const editor = readProcedure
               keep: assignment.quizKeep,
               reveal: assignment.quizReveal,
               shuffle: assignment.quizShuffle,
-              content: quiz,
               started:
                 assignment.state !== "draft" &&
                 (await quizStarted(
@@ -423,7 +473,9 @@ function fieldsOf(input: SaveAssignment) {
     submissionFormat: input.submissionFormat,
     maxFiles: input.maxFiles,
     resubmission: input.resubmission,
-    points: input.quiz ? quizPoints(input.quiz.content) || null : input.points,
+    points: input.quiz
+      ? quizPoints(quizOfBrief(input.brief)) || null
+      : input.points,
     rubric: input.rubric as unknown as Record<string, unknown> | null,
     gradingPeriodId: input.gradingPeriodId || null,
     quizAttempts: input.quiz?.attempts ?? null,
@@ -500,6 +552,12 @@ export const save = writeProcedure
       version = created.version;
     }
     const host = { type: "assignment", id: assignmentId };
+    if (input.quiz && published) {
+      const unfinished = quizIssue(quizOfBrief(input.brief));
+      if (unfinished)
+        throw new ORPCError("BAD_REQUEST", { message: unfinished });
+      await keepStartedQuestions(context, { assignmentId, brief: input.brief });
+    }
     const document = await saveDocument(tx, {
       tenantId: context.tenantId,
       orgId: context.schoolId,
@@ -519,8 +577,6 @@ export const save = writeProcedure
         documentId: document.id,
         userId: context.actor.userId,
       });
-    if (input.quiz)
-      await saveQuiz(context, { assignmentId, quiz: input.quiz, published });
     const selection =
       input.audience === "selected"
         ? { groupIds: input.groupIds, studentIds: input.studentIds }
@@ -587,7 +643,7 @@ export const publish = writeProcedure
         documentId: brief.id,
         userId: context.actor.userId,
       });
-    if (quiz) await publishQuiz(context, assignment.id);
+    if (quiz) await publishKeptApart(context, assignment.id);
     const year = (
       await schoolYears(tx, context.tenantId, context.schoolId)
     ).find((row) => row.id === assignment.schoolYearId);

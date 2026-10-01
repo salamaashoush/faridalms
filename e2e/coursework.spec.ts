@@ -142,20 +142,35 @@ test("a quiz is answered question by question, marked at hand-in, and its result
   await page.keyboard.type("Answer both questions, then hand the quiz in.");
   await page.locator("#work-format").click();
   await page.getByRole("option", { name: "A quiz, marked for them" }).click();
-  const questions = page.getByRole("textbox", {
-    name: "Question",
-    exact: true,
-  });
-  await questions.nth(0).fill("Which is a noun?");
-  await page.getByRole("textbox", { name: "Option 1" }).fill("Book");
-  await page.getByRole("textbox", { name: "Option 2" }).fill("Run");
-  await page.getByRole("checkbox", { name: "Option 1 is right" }).click();
-  await page.getByRole("button", { name: "Add part", exact: true }).click();
-  await page.getByRole("menuitem", { name: /^Typed answer/ }).click();
-  await questions.nth(1).fill("The capital of Egypt?");
+  // A quiz's questions are blocks written in its brief, after its words.
+  await page.getByText("Answer both questions, then hand the quiz in.").click();
+  await page.keyboard.press("End");
+  await page.keyboard.press("Enter");
+  await page.keyboard.type("/choice");
+  await page.keyboard.press("Enter");
+  await page.keyboard.type("Which is a noun?");
+  await page.keyboard.press("Enter");
+  await page.keyboard.type("Book");
+  await page.keyboard.press("Enter");
+  await page.keyboard.type("Run");
   await page
-    .getByRole("textbox", { name: "Accepted answer 1" })
-    .fill("القاهرة");
+    .locator("[data-question-option]")
+    .first()
+    .click({ position: { x: 12, y: 14 } });
+  await expect(page.locator("[data-question-option]").first()).toHaveAttribute(
+    "data-correct",
+    "true",
+  );
+  await page.locator("[data-question-option]").nth(1).click();
+  await page.keyboard.press("End");
+  await page.keyboard.press("Enter");
+  await page.keyboard.press("Enter");
+  await page.keyboard.type("/typed");
+  await page.keyboard.press("Enter");
+  await page.keyboard.type("The capital of Egypt?");
+  await page.keyboard.press("Enter");
+  await page.keyboard.insertText("القاهرة");
+  await expect(page.locator("[data-question]")).toHaveCount(2);
   await page.getByRole("button", { name: "Assign", exact: true }).click();
   await expect(page).toHaveURL(/\/assignments\/[a-f0-9-]+/);
 

@@ -32,8 +32,8 @@ import { moduleRecordQuery } from "~/queries/learning";
 import { saveLesson } from "~/server/learning";
 import { getMessageFromError } from "~/utils/error";
 
-import { blockIssue } from "./BlockFields";
 import { COMPLETION_LABEL } from "./format";
+import { blockIssue } from "./issues";
 
 type Existing = Awaited<
   ReturnType<NonNullable<ReturnType<typeof lessonEditorQuery>["queryFn"]>>

@@ -6,7 +6,6 @@ import type {
   Rubric,
   SubmissionFormat,
 } from "@faridalms/domain/coursework";
-import type { LessonBlock } from "@faridalms/domain/learning";
 
 import { contentPlainText, sameContent } from "@faridalms/domain/content";
 import { emptyContent } from "@faridalms/domain/content-conversion";
@@ -19,6 +18,7 @@ import {
   rubricTotal,
 } from "@faridalms/domain/coursework";
 import { isCheck } from "@faridalms/domain/learning";
+import { quizOfBrief, sameLesson } from "@faridalms/domain/lesson-content";
 import { zonedInstant, zonedLocal } from "@faridalms/domain/school";
 import {
   useQuery,
@@ -34,11 +34,7 @@ import type { assignmentEditorQuery } from "~/queries/coursework";
 import { UnsavedChangesGuard } from "~/components/app/UnsavedChangesGuard";
 import { useCollaboration } from "~/components/content/collaboration";
 import { ContentEditor } from "~/components/content/ContentEditor";
-import {
-  blockIssue,
-  QuizEditingContext,
-} from "~/components/learning/BlockFields";
-import { BlockList, newBlock, tidy } from "~/components/learning/BlockList";
+import { blockIssue } from "~/components/learning/issues";
 import { CheckboxRow } from "~/components/people/fields";
 import { ComboboxField } from "~/components/system/ComboboxField";
 import {
@@ -97,7 +93,6 @@ interface QuizDraft {
   keep: QuizKeep;
   reveal: QuizReveal;
   shuffle: boolean;
-  blocks: LessonBlock[];
 }
 
 const KEEP_LABEL: Record<QuizKeep, () => string> = {
@@ -112,8 +107,6 @@ const REVEAL_LABEL: Record<QuizReveal, () => string> = {
   marks: m.quizRevealMarks,
   returned: m.quizRevealReturned,
 };
-
-const QUIZ_EXCLUDES = ["gate"] as const;
 
 const FORMATS: readonly SubmissionFormat[] = [
   "both",
@@ -157,6 +150,7 @@ const FIELD_ERRORS: Partial<Record<string, Field>> = {
   "coursework.audience_empty": "audience",
   "coursework.brief_empty": "brief",
   "coursework.quiz_questions": "quiz",
+  "coursework.quiz_incomplete": "quiz",
   "coursework.quiz_started": "quiz",
   "coursework.quiz_gate": "quiz",
 };
@@ -184,7 +178,6 @@ const newQuiz = (): QuizDraft => ({
   keep: "highest",
   reveal: "answers",
   shuffle: false,
-  blocks: [newBlock("choice")],
 });
 
 function initialDraft(
@@ -245,7 +238,6 @@ function initialDraft(
           keep: existing.quiz.keep,
           reveal: existing.quiz.reveal,
           shuffle: existing.quiz.shuffle,
-          blocks: existing.quiz.content.blocks,
         }
       : newQuiz(),
   };
@@ -256,11 +248,6 @@ function toInstant(local: string, timeZone: string): string {
   const [date = "", time = "00:00"] = local.split("T");
   return zonedInstant(date, time, timeZone).toISOString();
 }
-
-const quizContentOf = (draft: Draft) => ({
-  version: 2 as const,
-  blocks: draft.quiz.blocks.map(tidy),
-});
 
 /**
  * What stops a draft being stored, then what else stops it going out. The
@@ -284,8 +271,6 @@ function issuesOf(draft: Draft, started: boolean) {
     !(Number.isInteger(deduction) && deduction >= 1 && deduction <= 100)
   )
     blocking.deduction = m.courseworkDeductionRequired();
-  if (quiz && !started && draft.quiz.blocks.some((block) => blockIssue(block)))
-    blocking.quiz = m.quizQuestionsIncomplete();
   const publishing: Partial<Record<Field, string>> = {};
   if (!contentPlainText(draft.brief).trim())
     publishing.brief = m.errorCourseworkBriefEmpty();
@@ -295,8 +280,14 @@ function issuesOf(draft: Draft, started: boolean) {
     draft.studentIds.length === 0
   )
     publishing.audience = m.courseworkAudienceRequired();
-  if (quiz && !started && !draft.quiz.blocks.some(isCheck))
-    publishing.quiz = m.quizQuestionsNeeded();
+  // A quiz's questions are written in its brief, so a half-written one
+  // still saves; each must be whole before students meet it.
+  if (quiz && !started) {
+    const asked = quizOfBrief(draft.brief).blocks.filter(isCheck);
+    const issue = asked.map(blockIssue).find(Boolean);
+    if (asked.length === 0) publishing.quiz = m.quizQuestionsNeeded();
+    else if (issue) publishing.quiz = issue;
+  }
   return { blocking, publishing };
 }
 
@@ -406,7 +397,7 @@ export function AssignmentEditor({
   const archived = state === "archived";
   const isQuiz = draft.submissionFormat === "quiz";
   const started = existing?.quiz?.started ?? false;
-  const quizContent = quizContentOf(draft);
+  const quizContent = quizOfBrief(draft.brief);
   const { blocking, publishing } = issuesOf(draft, started);
   const storable = Object.keys(blocking).length === 0;
 
@@ -448,7 +439,6 @@ export function AssignmentEditor({
               keep: value.quiz.keep,
               reveal: value.quiz.reveal,
               shuffle: value.quiz.shuffle,
-              content: quizContentOf(value),
             }
           : null,
       };
@@ -493,10 +483,12 @@ export function AssignmentEditor({
   const setQuiz = <K extends keyof QuizDraft>(key: K, value: QuizDraft[K]) =>
     set("quiz", { ...draft.quiz, [key]: value });
 
+  // A quiz's brief is compared as students meet it, since the editor writes
+  // out settings a stored question may leave to their defaults.
+  const sameBrief = isQuiz ? sameLesson : sameContent;
   const changed =
     published &&
-    (fieldsOf(draft) !== fieldsOf(sent) ||
-      !sameContent(draft.brief, sent.brief));
+    (fieldsOf(draft) !== fieldsOf(sent) || !sameBrief(draft.brief, sent.brief));
 
   const fail = (error: unknown) => {
     const field =
@@ -716,6 +708,11 @@ export function AssignmentEditor({
                   ))}
                 </ul>
               </div>
+            ) : null}
+            {isQuiz && started ? (
+              <p className="text-sm leading-5 text-muted-foreground">
+                {m.quizStartedHint()}
+              </p>
             ) : null}
             <DocumentTitle
               id="work-title"
@@ -1057,50 +1054,13 @@ export function AssignmentEditor({
               onValidityChange={setValid}
               onUploadingChange={setUploading}
               media={media}
+              questions={isQuiz}
+              gates={false}
+              lockQuestions={started}
               collaboration={shared ? live.collaboration : undefined}
               replace={replace}
             />
           )}
-          {isQuiz ? (
-            <section aria-labelledby="work-questions" className="grid gap-4">
-              <div className="grid gap-1">
-                <h2
-                  id="work-questions"
-                  className="text-lg leading-7 font-semibold"
-                >
-                  {m.quizQuestions()}
-                </h2>
-                <p className="text-sm leading-5 text-muted-foreground">
-                  {started ? m.quizStartedHint() : m.quizSectionHint()}
-                </p>
-              </div>
-              <fieldset disabled={started} className="grid min-w-0 gap-2">
-                <QuizEditingContext.Provider value>
-                  <legend className="sr-only">{m.quizQuestions()}</legend>
-                  <BlockList
-                    blocks={draft.quiz.blocks}
-                    onChange={(change) =>
-                      setDraft((current) => ({
-                        ...current,
-                        quiz: {
-                          ...current.quiz,
-                          blocks: change(current.quiz.blocks),
-                        },
-                      }))
-                    }
-                    shown={shown || Boolean(refused.quiz)}
-                    missing={
-                      refused.quiz ??
-                      (shown
-                        ? (blocking.quiz ?? publishing.quiz ?? null)
-                        : null)
-                    }
-                    exclude={QUIZ_EXCLUDES}
-                  />
-                </QuizEditingContext.Provider>
-              </fieldset>
-            </section>
-          ) : null}
         </div>
       </DocumentPage>
       <UnsavedChangesGuard

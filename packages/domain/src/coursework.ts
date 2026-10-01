@@ -100,7 +100,6 @@ export const quizSchema = v.object({
   reveal: v.picklist(QUIZ_REVEALS),
   /** Each student meets the questions in their own order. */
   shuffle: v.boolean(),
-  content: lessonDocumentSchema,
 });
 export type QuizSettings = v.InferOutput<typeof quizSchema>;
 
@@ -143,6 +142,7 @@ export type AssignmentIssue =
   | "coursework.brief_empty"
   | "coursework.quiz_needed"
   | "coursework.quiz_questions"
+  | "coursework.quiz_incomplete"
   | "coursework.quiz_gate"
   | "coursework.quiz_rubric";
 
@@ -165,9 +165,17 @@ export function assignmentIssue(input: SaveAssignment): AssignmentIssue | null {
     return "coursework.quiz_needed";
   if (input.quiz) {
     if (input.rubric) return "coursework.quiz_rubric";
-    if (input.quiz.content.blocks.some((block) => block.type === "gate"))
+    if (input.brief.root.children?.some((node) => node.type === "gate"))
       return "coursework.quiz_gate";
   }
+  return null;
+}
+
+/** What stops a quiz's questions going out: none to mark, or one unfinished. */
+export function quizIssue(quiz: LessonDocument): AssignmentIssue | null {
+  if (quizPoints(quiz) === 0) return "coursework.quiz_questions";
+  if (!v.safeParse(lessonDocumentSchema, quiz).success)
+    return "coursework.quiz_incomplete";
   return null;
 }
 
@@ -179,8 +187,8 @@ export function publishIssues(
   > & { quiz?: LessonDocument | null },
 ): AssignmentIssue[] {
   const issues: AssignmentIssue[] = [];
-  if (input.quiz && quizPoints(input.quiz) === 0)
-    issues.push("coursework.quiz_questions");
+  const quiz = input.quiz ? quizIssue(input.quiz) : null;
+  if (quiz) issues.push(quiz);
   if (!contentPlainText(input.brief).trim())
     issues.push("coursework.brief_empty");
   if (

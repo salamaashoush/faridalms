@@ -32,6 +32,8 @@ export function ContentEditor({
   replace,
   onUploadingChange,
   questions,
+  gates,
+  lockQuestions,
 }: {
   id: string;
   label: string;
@@ -48,6 +50,8 @@ export function ContentEditor({
   replace?: { to: ContentDocument; at: number };
   onUploadingChange?: (uploading: boolean) => void;
   questions?: boolean;
+  gates?: boolean;
+  lockQuestions?: boolean;
 }) {
   const strings = useMemo(() => editorStrings(), []);
   const hydrated = useHydrated();
@@ -93,6 +97,8 @@ export function ContentEditor({
         replace={replace}
         onUploadingChange={onUploadingChange}
         questions={questions}
+        gates={gates}
+        lockQuestions={lockQuestions}
       />
     </Suspense>
   );

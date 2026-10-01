@@ -1,6 +1,7 @@
 import type { LessonResponse } from "@faridalms/domain/learning";
 
 import { plainContent } from "@faridalms/domain/content-conversion";
+import { briefWithQuiz } from "@faridalms/domain/lesson-content";
 import { describe, expect, test } from "bun:test";
 import { sql } from "drizzle-orm";
 import { strFromU8, unzipSync } from "fflate";
@@ -557,13 +558,11 @@ describe("quizzes", () => {
       draft(target.id, `Quiz ${reveal}`, {
         submissionFormat: "quiz",
         points: null,
-        quiz: {
-          attempts: 2,
-          keep: "highest",
-          reveal,
-          shuffle: false,
-          content: { version: 2, blocks: [choice, typed, written] },
-        },
+        brief: briefWithQuiz(plainContent("Answer every question."), {
+          version: 2,
+          blocks: [choice, typed, written],
+        }),
+        quiz: { attempts: 2, keep: "highest", reveal, shuffle: false },
       }),
     );
     await teacher.api.coursework.publish({
@@ -582,6 +581,23 @@ describe("quizzes", () => {
 
     const open = await student.api.coursework.work({ id: saved.id });
     expect(open.quiz?.open).toBe(true);
+    // The brief holds the questions and their keys; students read only the
+    // words before the first question, and cannot watch the brief live.
+    expect(JSON.stringify(open.brief)).toContain("Answer every question.");
+    expect(JSON.stringify(open.brief)).not.toContain("Which is a noun?");
+    expect(
+      await rejection(
+        student.api.documents.collaborate({
+          hostType: "assignment",
+          hostId: saved.id,
+        }),
+      ),
+    ).toMatchObject({ code: "NOT_FOUND" });
+    expect(open.quiz?.blocks.map((block) => block.type)).toEqual([
+      "choice",
+      "text",
+      "written",
+    ]);
     expect(JSON.stringify(open.quiz?.blocks)).not.toContain("correctOptionIds");
     expect(JSON.stringify(open.quiz?.blocks)).not.toContain("القاهرة");
     const answer = (blockId: string, response: LessonResponse) =>
@@ -601,7 +617,11 @@ describe("quizzes", () => {
             expectedVersion: editor.version,
             submissionFormat: "quiz",
             points: null,
-            quiz: { ...editor.quiz, content: { version: 2, blocks: [choice] } },
+            brief: briefWithQuiz(plainContent("Answer every question."), {
+              version: 2,
+              blocks: [choice],
+            }),
+            quiz: editor.quiz,
           }),
         ),
       ),

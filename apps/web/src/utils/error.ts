@@ -75,6 +75,8 @@ export function getMessageFromError(error: unknown): string {
       case "coursework.quiz_needed":
       case "coursework.quiz_questions":
         return m.quizQuestionsNeeded();
+      case "coursework.quiz_incomplete":
+        return m.courseworkErrQuizIncomplete();
       case "coursework.quiz_gate":
         return m.errQuizGate();
       case "coursework.quiz_rubric":
