@@ -50,6 +50,10 @@ export const setClassGrading = createServerFn({ method: "POST" })
   .validator(checked(classGradingSchema))
   .handler(({ data }) => backend().grading.setClassGrade(data));
 
+export const getClassPlan = createServerFn({ method: "GET" })
+  .validator(checked(classRef))
+  .handler(({ data }) => backend().grading.classPlan(data));
+
 export const regradeTerm = createServerFn({ method: "POST" })
   .validator(checked(regrade))
   .handler(({ data }) => backend().grading.regradeTerm(data));

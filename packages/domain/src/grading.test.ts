@@ -1,7 +1,7 @@
 import * as v from "valibot";
 import { describe, expect, it } from "vitest";
 
-import { bandFor, bandsSchema, SCALE_PRESETS } from "./grading";
+import { bandFor, bandsSchema, SCALE_PRESETS, termPercent } from "./grading";
 
 const preset = (key: string) => {
   const found = SCALE_PRESETS.find((row) => row.key === key);
@@ -50,5 +50,45 @@ describe("grade bands", () => {
     );
     const repeated = [...preset("a_level"), preset("a_level")[0]];
     expect(v.safeParse(bandsSchema, repeated).success).toBe(false);
+  });
+});
+
+function work(
+  categoryId: string | null,
+  score: number | null,
+  points = 10,
+  excused = false,
+) {
+  return { categoryId, score, points, excused };
+}
+
+describe("term percentage", () => {
+  it("weighs categories and shares the weight of empty ones", () => {
+    const categories = [
+      { id: "tests", weight: 40 },
+      { id: "coursework", weight: 40 },
+      { id: "homework", weight: 20 },
+    ];
+    const rows = [
+      work("tests", 8),
+      work("tests", 6),
+      work("coursework", 9),
+      work("coursework", null),
+    ];
+    // Tests 70%, coursework 90%, homework has nothing graded yet.
+    expect(termPercent(rows, categories)).toBeCloseTo(80);
+  });
+
+  it("counts every piece by its points without categories, skipping excused work", () => {
+    const rows = [
+      work(null, 5, 10),
+      work(null, 30, 40),
+      work(null, 0, 10, true),
+    ];
+    expect(termPercent(rows, [])).toBeCloseTo(70);
+  });
+
+  it("has no percentage before anything is graded", () => {
+    expect(termPercent([work(null, null)], [])).toBeNull();
   });
 });

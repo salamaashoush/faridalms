@@ -2,8 +2,9 @@ import type { ExamBoard } from "@faridalms/domain/exams";
 
 import { EXAM_BOARDS } from "@faridalms/domain/exams";
 import { Button } from "@faridalms/ui/button";
+import { Input } from "@faridalms/ui/input";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Archive, GraduationCap, Pencil, Plus } from "lucide-react";
+import { Archive, GraduationCap, Pencil, Plus, X } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -25,6 +26,8 @@ import { formatList, formatNumber } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
 import type { GradingOverview } from "./ScalesTab";
+
+import { weightsLine } from "./format";
 
 export type ProgrammeRow = GradingOverview["programmes"][number];
 
@@ -66,7 +69,9 @@ function columns(names: ReturnType<typeof useNames>): Column<ProgrammeRow>[] {
             {title(row)}
           </span>
           <span className="truncate text-[13px] leading-[18px] text-muted-foreground">
-            {names.levels(row)}
+            {[names.levels(row), weightsLine(row.categories)]
+              .filter(Boolean)
+              .join(" · ")}
           </span>
         </span>
       ),
@@ -146,6 +151,136 @@ export function ProgrammesTable({
   );
 }
 
+interface CategoryDraft {
+  key: string;
+  id?: string;
+  titleEn: string;
+  titleAr: string;
+  weight: string;
+}
+
+/**
+ * How the programme's work weighs in a term grade. Weights add up to 100;
+ * with none, every piece of work counts by its points.
+ */
+function CategoriesEditor({
+  value,
+  onChange,
+  total,
+  problem,
+}: {
+  value: CategoryDraft[];
+  onChange: (value: CategoryDraft[]) => void;
+  total: number;
+  problem: string | null;
+}) {
+  const set = (key: string, change: Partial<CategoryDraft>) =>
+    onChange(
+      value.map((row) => (row.key === key ? { ...row, ...change } : row)),
+    );
+  const cell = "h-9 min-w-0 px-2 max-md:h-10";
+  return (
+    <fieldset className="grid gap-2">
+      <legend className="mb-1 text-sm leading-5 font-medium">
+        {m.gradingCategories()}
+      </legend>
+      <p className="text-[13px] leading-[18px] text-muted-foreground">
+        {m.gradingCategoriesHint()}
+      </p>
+      {value.length ? (
+        <div
+          aria-hidden
+          className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_4.5rem_2rem] gap-2 text-xs text-muted-foreground"
+        >
+          <span>{m.examTitleEn()}</span>
+          <span>{m.examTitleAr()}</span>
+          <span>{m.gradingWeight()}</span>
+        </div>
+      ) : null}
+      {value.map((row, index) => (
+        <div
+          key={row.key}
+          className="grid grid-cols-[minmax(0,1fr)_minmax(0,1fr)_4.5rem_2rem] items-center gap-2"
+        >
+          <Input
+            aria-label={m.gradingCategoryEnRow({ row: index + 1 })}
+            dir="auto"
+            maxLength={60}
+            value={row.titleEn}
+            onChange={(event) => set(row.key, { titleEn: event.target.value })}
+            className={cell}
+          />
+          <Input
+            aria-label={m.gradingCategoryArRow({ row: index + 1 })}
+            dir="auto"
+            lang="ar"
+            maxLength={60}
+            value={row.titleAr}
+            onChange={(event) => set(row.key, { titleAr: event.target.value })}
+            className={cell}
+          />
+          <Input
+            aria-label={m.gradingWeightRow({ row: index + 1 })}
+            type="number"
+            inputMode="decimal"
+            min={0}
+            max={100}
+            step="any"
+            value={row.weight}
+            onChange={(event) => set(row.key, { weight: event.target.value })}
+            className={cell}
+          />
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            aria-label={m.gradingRemoveCategory({ row: index + 1 })}
+            onClick={() =>
+              onChange(value.filter((item) => item.key !== row.key))
+            }
+            className="max-md:size-10"
+          >
+            <X aria-hidden />
+          </Button>
+        </div>
+      ))}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="max-md:h-10"
+          disabled={value.length >= 12}
+          onClick={() =>
+            onChange([
+              ...value,
+              {
+                key: crypto.randomUUID(),
+                titleEn: "",
+                titleAr: "",
+                weight: "",
+              },
+            ])
+          }
+        >
+          <Plus aria-hidden />
+          {m.gradingAddCategory()}
+        </Button>
+        {value.length ? (
+          <span className="text-[13px] leading-[18px] text-muted-foreground tabular-nums">
+            {m.gradingWeightsSum({ total: formatNumber(total) })}
+          </span>
+        ) : null}
+      </div>
+      {problem ? (
+        <p role="alert" className="text-[13px] leading-[18px] text-destructive">
+          {problem}
+        </p>
+      ) : null}
+    </fieldset>
+  );
+}
+
 export function ProgrammeSheet({
   open,
   programme,
@@ -168,7 +303,31 @@ export function ProgrammeSheet({
   const [board, setBoard] = useState(
     programme?.officialBoard ?? programme?.boardId ?? NONE,
   );
+  const [categories, setCategories] = useState<CategoryDraft[]>(() =>
+    (programme?.categories ?? []).map((row) => ({
+      key: row.id,
+      id: row.id,
+      titleEn: row.titleEn ?? "",
+      titleAr: row.titleAr ?? "",
+      weight: String(row.weight),
+    })),
+  );
   const [tried, setTried] = useState(false);
+  const total = categories.reduce(
+    (sum, row) => sum + (Number(row.weight) || 0),
+    0,
+  );
+  const categoryProblem = !categories.length
+    ? null
+    : categories.some(
+          (row) =>
+            (!row.titleEn.trim() && !row.titleAr.trim()) ||
+            !(Number(row.weight) > 0),
+        )
+      ? m.gradingCategoryIncomplete()
+      : Math.abs(total - 100) >= 0.01
+        ? m.gradingWeightsTotal({ total: formatNumber(total) })
+        : null;
   const mutation = useMutation({
     mutationFn: () => {
       const official = (EXAM_BOARDS as readonly string[]).includes(board)
@@ -183,6 +342,12 @@ export function ProgrammeSheet({
           scaleId: scaleId === NONE ? null : scaleId,
           officialBoard: official,
           boardId: official || board === NONE ? null : board,
+          categories: categories.map((row) => ({
+            ...(row.id ? { id: row.id } : {}),
+            titleEn: row.titleEn.trim() || null,
+            titleAr: row.titleAr.trim() || null,
+            weight: Number(row.weight),
+          })),
         },
       });
     },
@@ -200,7 +365,7 @@ export function ProgrammeSheet({
       error={mutation.error ? getMessageFromError(mutation.error) : null}
       onSubmit={async () => {
         setTried(true);
-        if (!titleEn.trim() && !titleAr.trim()) return;
+        if ((!titleEn.trim() && !titleAr.trim()) || categoryProblem) return;
         try {
           await mutation.mutateAsync();
         } catch {
@@ -287,6 +452,12 @@ export function ProgrammeSheet({
           })),
         ]}
         onChange={setBoard}
+      />
+      <CategoriesEditor
+        value={categories}
+        onChange={setCategories}
+        total={total}
+        problem={tried ? categoryProblem : null}
       />
     </SheetForm>
   );

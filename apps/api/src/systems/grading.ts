@@ -1,6 +1,7 @@
 import { classById } from "@faridalms/database/stores/classes";
 import { examBoardsOf } from "@faridalms/database/stores/exams";
 import {
+  classCategories as classCategoriesOf,
   classGrading as classGradingOf,
   insertScaleVersion,
   programmeInUse,
@@ -292,4 +293,63 @@ export const regradeTerm = writeProcedure
       details: { reason: input.reason, ...counts },
     });
     return counts;
+  });
+
+/**
+ * What a class grades by, for everyone who teaches or keeps it: its
+ * programme and that programme's board, the scale and bands in force, and
+ * the categories its work counts in.
+ */
+export const classPlan = readProcedure
+  .input(v.object({ classId: uuid }))
+  .handler(async ({ input, context }) => {
+    if (!can(context, "exams:manage") && !can(context, "classes:manage"))
+      requireCapability(context, "assignments:author");
+    const row = await schoolClass(context, input.classId);
+    const [grading, programmes, scales, categories] = await Promise.all([
+      classGradingOf(context.tx, {
+        tenantId: context.tenantId,
+        classId: row.id,
+        today: context.today,
+      }),
+      programmesOf(context.tx, scopeOf(context)),
+      scalesOf(context.tx, scopeOf(context)),
+      classCategoriesOf(context.tx, {
+        tenantId: context.tenantId,
+        classId: row.id,
+      }),
+    ]);
+    const programme = programmes.find(
+      (item) => item.id === grading?.effectiveProgrammeId,
+    );
+    const scale = scales.find((item) =>
+      item.versions.some((version) => version.id === grading?.versionId),
+    );
+    const version = scale?.versions.find(
+      (item) => item.id === grading?.versionId,
+    );
+    return {
+      programme: programme
+        ? {
+            id: programme.id,
+            titleEn: programme.titleEn,
+            titleAr: programme.titleAr,
+            officialBoard: programme.officialBoard,
+            boardId: programme.boardId,
+            byGradeLevel: !grading?.programmeId,
+          }
+        : null,
+      scale:
+        scale && version
+          ? {
+              id: scale.id,
+              titleEn: scale.titleEn,
+              titleAr: scale.titleAr,
+              display: scale.display,
+              bands: version.bands,
+              own: Boolean(grading?.scaleId),
+            }
+          : null,
+      categories,
+    };
   });

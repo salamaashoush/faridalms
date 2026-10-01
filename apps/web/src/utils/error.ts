@@ -328,6 +328,10 @@ export function getMessageFromError(error: unknown): string {
         return m.gradingBoundRepeated();
       case "grading.no_floor":
         return m.gradingNoFloor();
+      case "coursework.category_unknown":
+        return m.courseworkErrCategoryUnknown();
+      case "grading.weights_total":
+        return m.gradingCategoryIncomplete();
       case "file.quota_school":
         return m.fileQuotaSchool();
       case "file.quota_class":

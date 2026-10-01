@@ -14,6 +14,10 @@ import {
   savePeriodGrade,
   studentPeriodGrades,
 } from "@faridalms/database/stores/gradebook";
+import {
+  classCategories,
+  classGrading,
+} from "@faridalms/database/stores/grading";
 import { isVisibleStudent } from "@faridalms/database/stores/students";
 import {
   dayIn,
@@ -27,6 +31,7 @@ import {
   releasePeriodSchema,
   savePeriodGradesSchema,
 } from "@faridalms/domain/coursework";
+import { termPercent } from "@faridalms/domain/grading";
 import { ORPCError } from "@orpc/server";
 import * as v from "valibot";
 
@@ -105,10 +110,50 @@ export const classBook = readProcedure
         : Promise.resolve([]),
     ]);
     const points = new Map(work.map((row) => [row.id, row.points]));
+    const [categories, grading] = await Promise.all([
+      classCategories(context.tx, {
+        tenantId: context.tenantId,
+        classId: classRow.id,
+      }),
+      classGrading(context.tx, {
+        tenantId: context.tenantId,
+        classId: classRow.id,
+        today: context.today,
+      }),
+    ]);
     const grade = await gradeReader(context, [
       ...results.map((row) => row.gradeScaleVersionId),
       ...grades.map((row) => row.gradeScaleVersionId),
+      grading?.versionId ?? null,
     ]);
+    const termWork = work.filter(
+      (row) =>
+        !period || !row.gradingPeriodId || row.gradingPeriodId === period.id,
+    );
+    // What the term grade would be from the work graded so far, for the
+    // teacher to apply or set aside; the term grade itself stays theirs.
+    const calculated = students.map((student) => {
+      const percent = termPercent(
+        termWork.map((item) => {
+          const result = results.find(
+            (row) =>
+              row.assignmentId === item.id && row.studentId === student.id,
+          );
+          return {
+            categoryId: item.categoryId,
+            points: item.points,
+            score: result?.effectiveScore ?? result?.score ?? null,
+            excused: result?.excused ?? false,
+          };
+        }),
+        categories,
+      );
+      return {
+        studentId: student.id,
+        percent,
+        grade: grade(grading?.versionId ?? null, percent, 100),
+      };
+    });
     return {
       class: {
         id: classRow.id,
@@ -135,7 +180,10 @@ export const classBook = readProcedure
           title: row.title,
           dueAt: row.dueAt,
           points: row.points,
+          categoryId: row.categoryId,
         })),
+      categories,
+      calculated,
       students,
       results: results.map((row) => ({
         ...row,

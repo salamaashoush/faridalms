@@ -243,6 +243,23 @@ export const saveBandsSchema = v.object({
 
 export const retireScaleSchema = v.object({ id: uuid, reason });
 
+export const categorySchema = v.pipe(
+  v.object({
+    id: v.optional(uuid),
+    titleEn: v.nullable(
+      v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(60)),
+    ),
+    titleAr: v.nullable(
+      v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(60)),
+    ),
+    weight: v.pipe(v.number(), v.minValue(0.01), v.maxValue(100)),
+  }),
+  v.check(
+    (input) => Boolean(input.titleEn ?? input.titleAr),
+    "grading.title_needed",
+  ),
+);
+
 export const saveProgrammeSchema = v.pipe(
   v.object({
     id: v.optional(uuid),
@@ -253,6 +270,11 @@ export const saveProgrammeSchema = v.pipe(
     /** The board whose sessions its coursework usually counts for. */
     officialBoard: v.nullable(v.picklist(EXAM_BOARDS)),
     boardId: v.nullable(uuid),
+    /** How work weighs in a term grade; none weighs all work by its points. */
+    categories: v.optional(
+      v.pipe(v.array(categorySchema), v.maxLength(12)),
+      [],
+    ),
   }),
   v.check(
     (input) => Boolean(input.titleEn ?? input.titleAr),
@@ -261,6 +283,14 @@ export const saveProgrammeSchema = v.pipe(
   v.check(
     (input) => !(input.officialBoard && input.boardId),
     "grading.one_board",
+  ),
+  v.check(
+    (input) =>
+      !input.categories.length ||
+      Math.abs(
+        input.categories.reduce((sum, row) => sum + row.weight, 0) - 100,
+      ) < 0.01,
+    "grading.weights_total",
   ),
 );
 
@@ -297,4 +327,47 @@ export function gradeOf(
         display: version.display,
       }
     : null;
+}
+
+export interface WorkResult {
+  categoryId: string | null;
+  points: number | null;
+  /** The score that counts, after any late deduction; empty when ungraded. */
+  score: number | null;
+  excused: boolean;
+}
+
+/**
+ * A term's percentage from its graded work, as Canvas assignment groups
+ * and Classroom grade categories work: each category's points earned over
+ * points possible, weighted, with the weights shared among the categories
+ * that have graded work. Without categories, all work counts by its points.
+ * Ungraded and excused work is left out rather than counted as zero.
+ */
+/** Points earned over points possible, as a percentage. */
+function share(rows: readonly WorkResult[]): number | null {
+  const possible = rows.reduce((sum, row) => sum + (row.points ?? 0), 0);
+  const earned = rows.reduce((sum, row) => sum + (row.score ?? 0), 0);
+  return possible ? (earned / possible) * 100 : null;
+}
+
+export function termPercent(
+  work: readonly WorkResult[],
+  categories: readonly { id: string; weight: number }[],
+): number | null {
+  const graded = work.filter(
+    (row) => !row.excused && row.score !== null && row.points,
+  );
+  if (!categories.length) return share(graded);
+  let weighted = 0;
+  let weights = 0;
+  for (const category of categories) {
+    const percent = share(
+      graded.filter((row) => row.categoryId === category.id),
+    );
+    if (percent === null) continue;
+    weighted += percent * category.weight;
+    weights += category.weight;
+  }
+  return weights ? weighted / weights : null;
 }

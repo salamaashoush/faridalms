@@ -63,6 +63,17 @@ export function formatInstant(iso: string, timeZone: string): string {
   }).format(new Date(iso));
 }
 
+/** An instant in a table cell, where the weekday is noise beside the date. */
+export function formatStamp(iso: string, timeZone: string): string {
+  return new Intl.DateTimeFormat(getLocale(), {
+    day: "numeric",
+    month: "short",
+    hour: "numeric",
+    minute: "2-digit",
+    timeZone,
+  }).format(new Date(iso));
+}
+
 export function formatScore(score: number | null, points: number | null) {
   if (score === null) return "";
   return points === null

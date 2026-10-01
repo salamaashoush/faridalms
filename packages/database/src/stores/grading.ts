@@ -171,7 +171,22 @@ export interface ProgrammeRow {
   officialBoard: string | null;
   boardId: string | null;
   classes: number;
+  categories: CategoryRow[];
 }
+
+export interface CategoryRow {
+  id: string;
+  titleEn: string | null;
+  titleAr: string | null;
+  weight: number;
+}
+
+const categoriesOf = sql`coalesce((select jsonb_agg(jsonb_build_object('id', k.id,
+    'titleEn', k.title_en, 'titleAr', k.title_ar, 'weight', k.weight)
+    order by k.position, k.id)
+  from core.programme_categories k
+  where k.tenant_id = p.tenant_id and k.programme_id = p.id and k.status = 'active'),
+  '[]'::jsonb)`;
 
 export async function programmesOf(
   tx: Tx,
@@ -186,8 +201,10 @@ export async function programmesOf(
     official_board: string | null;
     board_id: string | null;
     classes: number;
+    categories: CategoryRow[];
   }>(sql`
     select p.id, p.title_en, p.title_ar, p.grade_scale_id, p.official_board, p.board_id,
+      ${categoriesOf} as categories,
       coalesce(array(select l.grade_level_descriptor_id::text from core.programme_grade_levels l
         where l.tenant_id = p.tenant_id and l.programme_id = p.id and l.status = 'active'),
         '{}') as grade_level_ids,
@@ -206,6 +223,7 @@ export async function programmesOf(
     officialBoard: row.official_board,
     boardId: row.board_id,
     classes: row.classes,
+    categories: row.categories,
   }));
 }
 
@@ -221,6 +239,12 @@ export async function saveProgramme(
     scaleId: string | null;
     officialBoard: string | null;
     boardId: string | null;
+    categories: readonly {
+      id?: string;
+      titleEn: string | null;
+      titleAr: string | null;
+      weight: number;
+    }[];
   },
 ): Promise<{ id: string } | null> {
   const [row] = input.id
@@ -243,6 +267,11 @@ export async function saveProgramme(
     where tenant_id = ${input.tenantId}::uuid and programme_id = ${row.id}::uuid
       and status = 'active'
       and not (grade_level_descriptor_id = any(${uuidArray(input.gradeLevelIds)}))`);
+  await saveCategories(tx, {
+    tenantId: input.tenantId,
+    programmeId: row.id,
+    categories: input.categories,
+  });
   if (input.gradeLevelIds.length)
     await tx.execute(sql`
       insert into core.programme_grade_levels (tenant_id, programme_id, grade_level_descriptor_id)
@@ -356,4 +385,71 @@ export async function regradeTerm(
       and x.score is not null
     returning x.id`);
   return { terms: terms.length, work: work.length };
+}
+
+/**
+ * Replaces a programme's categories with those given: kept ones by id, new
+ * ones added, and missing ones retired. Work set in a retired category
+ * keeps pointing at it and stops counting toward a weight.
+ */
+async function saveCategories(
+  tx: Tx,
+  input: {
+    tenantId: string;
+    programmeId: string;
+    categories: readonly {
+      id?: string;
+      titleEn: string | null;
+      titleAr: string | null;
+      weight: number;
+    }[];
+  },
+) {
+  const kept = input.categories.flatMap((row) => (row.id ? [row.id] : []));
+  await tx.execute(sql`
+    update core.programme_categories set status = 'tobedeleted'
+    where tenant_id = ${input.tenantId}::uuid and programme_id = ${input.programmeId}::uuid
+      and status = 'active' and not (id = any(${uuidArray(kept)}))`);
+  await Promise.all(
+    input.categories.map(async (row, position) => {
+      const changed = row.id
+        ? await tx.execute<{ id: string }>(sql`
+            update core.programme_categories set title_en = ${row.titleEn},
+              title_ar = ${row.titleAr}, weight = ${row.weight}, position = ${position}
+            where tenant_id = ${input.tenantId}::uuid and id = ${row.id}::uuid
+              and programme_id = ${input.programmeId}::uuid and status = 'active'
+            returning id`)
+        : [];
+      if (changed.length) return;
+      await tx.execute(sql`
+        insert into core.programme_categories (tenant_id, programme_id, title_en, title_ar,
+          weight, position)
+        values (${input.tenantId}::uuid, ${input.programmeId}::uuid, ${row.titleEn},
+          ${row.titleAr}, ${row.weight}, ${position})`);
+    }),
+  );
+}
+
+/** The categories work in a class may count in: its programme's. */
+export async function classCategories(
+  tx: Tx,
+  input: { tenantId: string; classId: string },
+): Promise<CategoryRow[]> {
+  const rows = await tx.execute<{
+    id: string;
+    title_en: string | null;
+    title_ar: string | null;
+    weight: string;
+  }>(sql`
+    select k.id, k.title_en, k.title_ar, k.weight::text as weight
+    from core.programme_categories k
+    where k.tenant_id = ${input.tenantId}::uuid and k.status = 'active'
+      and k.programme_id = app.programme_of(${input.classId}::uuid)
+    order by k.position, k.id`);
+  return rows.map((row) => ({
+    id: row.id,
+    titleEn: row.title_en,
+    titleAr: row.title_ar,
+    weight: Number(row.weight),
+  }));
 }

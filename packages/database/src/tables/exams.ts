@@ -6,6 +6,8 @@ import {
   boolean,
   date,
   index,
+  numeric,
+  smallint,
   text,
   uniqueIndex,
   uuid,
@@ -203,6 +205,56 @@ export const programmeGradeLevels = core.table.withRLS(
       .where(sql`status = 'active'`),
     index("programme_grade_levels_level_idx")
       .on(t.tenantId, t.gradeLevelDescriptorId)
+      .where(sql`status = 'active'`),
+    ...entityProfile(),
+  ],
+);
+
+/**
+ * How a programme weighs its work in a term grade, such as Coursework 40,
+ * Tests 40 and Homework 20. Work set in its classes picks one.
+ */
+export const programmeCategories = core.table.withRLS(
+  "programme_categories",
+  {
+    ...tenantColumns(),
+    programmeId: uuid("programme_id").notNull(),
+    titleEn: text("title_en"),
+    titleAr: text("title_ar"),
+    weight: numeric("weight", {
+      precision: 5,
+      scale: 2,
+      mode: "number",
+    }).notNull(),
+    position: smallint("position").notNull().default(0),
+    ...entityColumns(),
+  },
+  (t): PgTableExtraConfigValue[] => [
+    pk("programme_categories", t.tenantId, t.id),
+    ...baseConstraints("programme_categories", t, tenants),
+    fk(
+      "programme_categories",
+      [t.tenantId, t.programmeId],
+      [programmes.tenantId, programmes.id],
+    ),
+    ck("programme_categories", "weight", sql`weight > 0 and weight <= 100`),
+    ck(
+      "programme_categories",
+      "title_en",
+      sql`char_length(title_en) between 1 and 60`,
+    ),
+    ck(
+      "programme_categories",
+      "title_ar",
+      sql`char_length(title_ar) between 1 and 60`,
+    ),
+    ck(
+      "programme_categories",
+      "title",
+      sql`num_nonnulls(title_en, title_ar) >= 1`,
+    ),
+    index("programme_categories_programme_idx")
+      .on(t.tenantId, t.programmeId)
       .where(sql`status = 'active'`),
     ...entityProfile(),
   ],

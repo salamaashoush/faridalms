@@ -338,6 +338,7 @@ export function ClassRecord({
   const seesTimetable = useCapability("timetable:read");
   const keepsExams = useCapability("exams:manage");
   const keepsClasses = useCapability("classes:manage");
+  const teaches = useCapability("assignments:author");
   const keepsGrading = keepsExams || keepsClasses;
   const title = classTitle(data);
   const grade = labelOf(
@@ -409,10 +410,10 @@ export function ClassRecord({
         aside={
           <>
             <TeachersSection data={data} />
-            {keepsGrading ? (
+            {keepsGrading || teaches ? (
               <ClassGradingSection
                 classId={data.id}
-                canEdit={data.year.lifecycle !== "closed"}
+                canEdit={keepsGrading && data.year.lifecycle !== "closed"}
               />
             ) : null}
           </>

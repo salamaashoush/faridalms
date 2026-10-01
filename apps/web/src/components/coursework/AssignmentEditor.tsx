@@ -49,6 +49,7 @@ import { useAutosave } from "~/hooks/useAutosave";
 import { inLocale, useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { classGroupsQuery, courseworkOptionsQuery } from "~/queries/coursework";
+import { classPlanQuery } from "~/queries/grading";
 import {
   archiveAssignment,
   publishAssignment,
@@ -81,6 +82,7 @@ interface Draft {
   rubricId: string;
   rubric: Rubric | null;
   gradingPeriodId: string;
+  categoryId: string;
   submissionFormat: SubmissionFormat;
   maxFiles: string;
   latePolicy: LatePolicy;
@@ -203,6 +205,7 @@ function initialDraft(
       rubricId: "",
       rubric: null,
       gradingPeriodId: "",
+      categoryId: "",
       submissionFormat: "both",
       maxFiles: "5",
       latePolicy: "accept",
@@ -225,6 +228,7 @@ function initialDraft(
     rubricId: "",
     rubric: existing.rubric,
     gradingPeriodId: existing.gradingPeriodId ?? "",
+    categoryId: existing.categoryId ?? "",
     submissionFormat: existing.submissionFormat,
     maxFiles: String(existing.maxFiles),
     latePolicy: existing.latePolicy,
@@ -395,6 +399,10 @@ export function AssignmentEditor({
     ...classGroupsQuery(draft.classId),
     enabled: Boolean(draft.classId),
   }).data;
+  const plan = useQuery({
+    ...classPlanQuery(draft.classId),
+    enabled: Boolean(draft.classId),
+  }).data;
 
   const published = state === "published";
   const archived = state === "archived";
@@ -433,6 +441,7 @@ export function AssignmentEditor({
         points: quiz ? null : value.graded ? Number(value.points) : null,
         rubric: !quiz && value.graded ? value.rubric : null,
         gradingPeriodId: value.gradingPeriodId,
+        categoryId: value.categoryId,
         quiz: quiz
           ? {
               attempts:
@@ -785,6 +794,8 @@ export function AssignmentEditor({
                     classId: value,
                     groupIds: [],
                     studentIds: [],
+                    // Categories belong to the class's programme.
+                    categoryId: "",
                   }))
                 }
                 errors={errorOf("classId")}
@@ -959,6 +970,28 @@ export function AssignmentEditor({
                       }
                     />
                   ) : null}
+                  {plan?.categories.length ? (
+                    <SelectField
+                      id="work-category"
+                      label={m.courseworkCategory()}
+                      hint={m.courseworkCategoryHint()}
+                      optional
+                      value={draft.categoryId || "none"}
+                      options={[
+                        { value: "none", label: m.courseworkNoCategory() },
+                        ...plan.categories.map((row) => ({
+                          value: row.id,
+                          label: m.courseworkCategoryWeight({
+                            category: inLocale(row.titleEn, row.titleAr),
+                            weight: formatNumber(row.weight),
+                          }),
+                        })),
+                      ]}
+                      onChange={(value) =>
+                        set("categoryId", value === "none" ? "" : value)
+                      }
+                    />
+                  ) : null}
                 </>
               ) : null}
             </DetailsSection>
@@ -1022,7 +1055,16 @@ export function AssignmentEditor({
                 />
               )}
             </DetailsSection>
-            {isQuiz ? null : <CourseworkSetting assignmentId={storedId} />}
+            {isQuiz ? null : (
+              <CourseworkSetting
+                assignmentId={storedId}
+                board={
+                  plan?.programme
+                    ? (plan.programme.officialBoard ?? plan.programme.boardId)
+                    : null
+                }
+              />
+            )}
             {isQuiz ? (
               <DetailsSection title={m.quizSection()}>
                 <SelectField

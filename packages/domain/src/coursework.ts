@@ -129,6 +129,7 @@ export const saveAssignmentSchema = v.object({
   points: v.nullable(v.pipe(points, v.minValue(0.5))),
   rubric: v.nullable(rubricSchema),
   gradingPeriodId: v.optional(v.union([v.literal(""), id]), ""),
+  categoryId: v.optional(v.union([v.literal(""), id]), ""),
   quiz: v.optional(v.nullable(quizSchema), null),
 });
 export type SaveAssignmentInput = v.InferInput<typeof saveAssignmentSchema>;

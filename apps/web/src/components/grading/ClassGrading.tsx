@@ -7,13 +7,17 @@ import { Fact, Facts, RecordSection } from "~/components/system/RecordPage";
 import { SheetForm } from "~/components/system/SheetForm";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
-import { classGradingQuery, gradingOverviewQuery } from "~/queries/grading";
+import {
+  classGradingQuery,
+  classPlanQuery,
+  gradingOverviewQuery,
+} from "~/queries/grading";
 import { setClassGrading } from "~/server/grading";
 import { getMessageFromError } from "~/utils/error";
 
 import type { GradingOverview } from "./ScalesTab";
 
-import { bandsLine } from "./format";
+import { bandsLine, weightsLine } from "./format";
 
 const FOLLOW = "follow";
 
@@ -32,22 +36,21 @@ export function ClassGradingSection({
   canEdit: boolean;
 }) {
   const queryClient = useQueryClient();
-  const overview = useQuery(gradingOverviewQuery).data;
-  const grading = useQuery(classGradingQuery(classId)).data;
+  const plan = useQuery(classPlanQuery(classId)).data;
+  const overview = useQuery({ ...gradingOverviewQuery, enabled: canEdit }).data;
+  const grading = useQuery({
+    ...classGradingQuery(classId),
+    enabled: canEdit,
+  }).data;
   const [editing, setEditing] = useState<{ generation: number } | null>(null);
   const [open, setOpen] = useState(false);
-  if (!overview || !grading) return null;
-  const programme = overview.programmes.find(
-    (row) => row.id === grading.effectiveProgrammeId,
-  );
-  const scaleId = grading.scaleId ?? programme?.scaleId ?? null;
-  const scale = overview.scales.find((row) => row.id === scaleId);
-  const version = scale?.versions.find((row) => row.id === grading.versionId);
+  if (!plan) return null;
+  const { programme, scale } = plan;
   return (
     <RecordSection
       title={m.gradingClassSection()}
       edit={
-        canEdit
+        canEdit && overview && grading
           ? {
               label: m.gradingClassEdit(),
               onClick: () => {
@@ -65,12 +68,12 @@ export function ClassGradingSection({
           {programme ? (
             <>
               <bdi>{title(programme)}</bdi>
-              {grading.programmeId ? null : (
+              {programme.byGradeLevel ? (
                 <span className="text-muted-foreground">
                   {" "}
                   {m.gradingByGradeLevel()}
                 </span>
-              )}
+              ) : null}
             </>
           ) : (
             m.gradingNoProgramme()
@@ -81,25 +84,28 @@ export function ClassGradingSection({
             <span className="grid gap-0.5">
               <span>
                 <bdi>{title(scale)}</bdi>
-                {grading.scaleId ? null : (
+                {scale.own ? null : (
                   <span className="text-muted-foreground">
                     {" "}
                     {m.gradingFromProgramme()}
                   </span>
                 )}
               </span>
-              {version ? (
-                <span className="text-[13px] leading-[18px] text-muted-foreground">
-                  {bandsLine(version.bands)}
-                </span>
-              ) : null}
+              <span className="text-[13px] leading-[18px] text-muted-foreground">
+                {bandsLine(scale.bands)}
+              </span>
             </span>
           ) : (
             m.gradingPointsOnly()
           )}
         </Fact>
+        {plan.categories.length ? (
+          <Fact label={m.gradingCategories()}>
+            {weightsLine(plan.categories)}
+          </Fact>
+        ) : null}
       </Facts>
-      {editing ? (
+      {editing && overview && grading ? (
         <ClassGradingSheet
           key={editing.generation}
           open={open}

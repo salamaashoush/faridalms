@@ -61,6 +61,7 @@ import {
   insertDeclaration,
 } from "@faridalms/database/stores/exams";
 import { filesOfHost, rehostFiles } from "@faridalms/database/stores/files";
+import { classCategories } from "@faridalms/database/stores/grading";
 import {
   markQuizAnswer as storeQuizMark,
   markQuizAttempt,
@@ -126,6 +127,7 @@ import type { UnitContext } from "../core/context";
 
 import {
   assessedRules,
+  attemptMarks,
   confirmedAttempts,
   declarationProblem,
 } from "../core/assessed";
@@ -502,6 +504,7 @@ function fieldsOf(input: SaveAssignment) {
       : input.points,
     rubric: input.rubric as unknown as Record<string, unknown> | null,
     gradingPeriodId: input.gradingPeriodId || null,
+    categoryId: input.categoryId || null,
     quizAttempts: input.quiz?.attempts ?? null,
     quizKeep: input.quiz?.keep ?? null,
     quizReveal: input.quiz?.reveal ?? null,
@@ -533,6 +536,18 @@ export const save = writeProcedure
     if (!classRow || !(await teachesClass(tx, scopeOf(context), classRow.id)))
       throw new ORPCError("NOT_FOUND");
     await requireOpenYear(context, classRow.schoolYearId);
+    if (
+      input.categoryId &&
+      !(
+        await classCategories(tx, {
+          tenantId: context.tenantId,
+          classId: classRow.id,
+        })
+      ).some((row) => row.id === input.categoryId)
+    )
+      throw new ORPCError("BAD_REQUEST", {
+        message: "coursework.category_unknown",
+      });
     let assignmentId: string;
     let version: number;
     let published = false;
@@ -735,8 +750,24 @@ export const record = readProcedure
       }),
       classById(context.tx, context, assignment.classId),
     ]);
+    const [grade, rules] = await Promise.all([
+      gradeReader(
+        context,
+        work.map((row) => row.gradeScaleVersionId),
+      ),
+      assessedRules(context, assignment.id),
+    ]);
+    const marks = rules
+      ? await attemptMarks(
+          context,
+          work.flatMap((row) => (row.attemptId ? [row.attemptId] : [])),
+        )
+      : null;
     return {
       ...assignment,
+      assessed: rules
+        ? { declarationRequired: rules.declarationRequired }
+        : null,
       rubric: assignment.rubric as unknown as Rubric | null,
       phase: assignmentPhase(assignment, context.now),
       class: classRow
@@ -750,6 +781,13 @@ export const record = readProcedure
       brief,
       work: work.map((row) => ({
         ...row,
+        grade: grade(
+          row.gradeScaleVersionId,
+          row.effectiveScore ?? row.score,
+          assignment.points,
+        ),
+        coursework:
+          marks && row.attemptId ? (marks.get(row.attemptId) ?? null) : null,
         learnerState: learnerState(
           {
             availableFrom: assignment.availableFrom,

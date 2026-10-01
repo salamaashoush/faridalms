@@ -1,6 +1,7 @@
 import type { GradeBand, GradeView } from "@faridalms/domain/grading";
 
 import { formatScore } from "~/components/coursework/format";
+import { isolatedLine } from "~/components/exams/names";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { formatNumber } from "~/utils/datetime";
@@ -9,17 +10,23 @@ export function gradeLabel(grade: GradeView): string {
   return inLocale(grade.labelEn, grade.labelAr);
 }
 
-/** A scale's bands in a line, highest first: "A* 90% · A 80% · …". */
+/**
+ * A scale's bands in a line, highest first: "A* 90% · A 80% · …". Each band's
+ * own spaces are non-breaking, so a wrap falls between bands, never inside one.
+ */
 export function bandsLine(bands: readonly GradeBand[]): string {
-  return bands
-    .toSorted((a, b) => b.minPercent - a.minPercent)
-    .map((band) =>
-      m.gradingBandFrom({
-        label: inLocale(band.labelEn, band.labelAr),
-        percent: formatNumber(band.minPercent),
-      }),
-    )
-    .join(" · ");
+  return isolatedLine(
+    bands
+      .toSorted((a, b) => b.minPercent - a.minPercent)
+      .map((band) =>
+        m
+          .gradingBandFrom({
+            label: inLocale(band.labelEn, band.labelAr),
+            percent: formatNumber(band.minPercent),
+          })
+          .replaceAll(" ", "\u00a0"),
+      ),
+  );
 }
 
 /**
@@ -36,7 +43,37 @@ export function resultText(
   if (!grade) return scored;
   if (reader === "learner" && grade.display === "grade")
     return gradeLabel(grade);
-  return scored
-    ? m.gradingWithScore({ grade: gradeLabel(grade), score: scored })
-    : gradeLabel(grade);
+  return scored ? gradeWithScore(grade, scored) : gradeLabel(grade);
+}
+
+/**
+ * The label is isolated because a Latin grade such as "A" would otherwise pull
+ * the score beside it into its own direction, putting the score first in an
+ * Arabic line.
+ */
+export function gradeWithScore(grade: GradeView, score: string): string {
+  return m.gradingWithScore({
+    grade: isolatedLine([gradeLabel(grade)]),
+    score,
+  });
+}
+
+/** A programme's categories in a line: "Coursework 40% · Tests 60%". */
+export function weightsLine(
+  categories: readonly {
+    titleEn: string | null;
+    titleAr: string | null;
+    weight: number;
+  }[],
+): string {
+  return isolatedLine(
+    categories.map((row) =>
+      m
+        .courseworkCategoryWeight({
+          category: inLocale(row.titleEn, row.titleAr),
+          weight: formatNumber(row.weight),
+        })
+        .replaceAll(" ", "\u00a0"),
+    ),
+  );
 }

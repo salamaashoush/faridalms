@@ -6,7 +6,7 @@ import {
   useSuspenseQuery,
 } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
-import { BookOpen, Save, Send } from "lucide-react";
+import { BookOpen, Calculator, Save, Send } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 import * as v from "valibot";
@@ -14,7 +14,7 @@ import * as v from "valibot";
 import type { Facet } from "~/components/system/IndexPage";
 
 import { classTitle } from "~/components/classes/format";
-import { resultText } from "~/components/grading/format";
+import { gradeWithScore, resultText } from "~/components/grading/format";
 import { displayName } from "~/components/people/format";
 import {
   EmptyState,
@@ -27,6 +27,7 @@ import * as m from "~/i18n/messages";
 import { courseworkOptionsQuery } from "~/queries/coursework";
 import { classBookQuery } from "~/queries/gradebook";
 import { releasePeriodGrades, savePeriodGrades } from "~/server/gradebook";
+import { formatNumber } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
 const uuid = v.pipe(v.string(), v.uuid());
@@ -112,6 +113,33 @@ function Sheet({ book }: { book: Book }) {
     (row) => row.score !== null && !row.releasedAt,
   );
   const dirty = JSON.stringify(draft) !== JSON.stringify(initial);
+  const calculatedOf = (studentId: string) =>
+    book.calculated.find((row) => row.studentId === studentId);
+  const calculatedText = (studentId: string) => {
+    const found = calculatedOf(studentId);
+    if (!found || found.percent === null) return "";
+    const percent = m.gradebookPercent({
+      value: formatNumber(Math.round(found.percent * 10) / 10),
+    });
+    return found.grade ? gradeWithScore(found.grade, percent) : percent;
+  };
+  // Term grades are kept out of 100, so a calculated percentage is the score.
+  const applyCalculated = () =>
+    setDraft((current) =>
+      Object.fromEntries(
+        book.students.map((student) => {
+          const row = current[student.id] ?? { score: "", comment: "" };
+          const found = calculatedOf(student.id);
+          return [
+            student.id,
+            found && found.percent !== null
+              ? { ...row, score: String(Math.round(found.percent * 10) / 10) }
+              : row,
+          ];
+        }),
+      ),
+    );
+  const anyCalculated = book.calculated.some((row) => row.percent !== null);
   return (
     <div className="grid gap-4">
       <div className="overflow-x-auto rounded-lg border">
@@ -136,6 +164,9 @@ function Sheet({ book }: { book: Book }) {
                   </span>
                 </th>
               ))}
+              <th scope="col" className="px-3 py-2 text-start font-medium">
+                {m.gradebookCalculated()}
+              </th>
               <th scope="col" className="px-3 py-2 text-start font-medium">
                 {m.gradebookTermGrade()}
               </th>
@@ -187,6 +218,11 @@ function Sheet({ book }: { book: Book }) {
                       </td>
                     );
                   })}
+                  <td className="px-3 py-2 whitespace-nowrap tabular-nums">
+                    {calculatedText(student.id) || (
+                      <span className="text-muted-foreground">–</span>
+                    )}
+                  </td>
                   <td className="px-3 py-2">
                     <Input
                       aria-label={m.gradebookTermGradeFor({ name })}
@@ -253,6 +289,17 @@ function Sheet({ book }: { book: Book }) {
             <Save aria-hidden />
             {m.gradebookSave()}
           </Button>
+          {anyCalculated ? (
+            <Button
+              type="button"
+              variant="outline"
+              className="max-md:h-10"
+              onClick={applyCalculated}
+            >
+              <Calculator aria-hidden />
+              {m.gradebookUseCalculated()}
+            </Button>
+          ) : null}
           <Button
             type="button"
             variant="outline"

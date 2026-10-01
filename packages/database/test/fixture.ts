@@ -27,6 +27,7 @@ import {
   examSessions,
   gradeScales,
   gradeScaleVersions,
+  programmeCategories,
   programmeGradeLevels,
   programmes,
   familyShares,
@@ -509,6 +510,12 @@ export async function completeFixture(
     })
     .returning();
   if (!programme) throw new Error("programme fixture missing");
+  await tx.insert(programmeCategories).values({
+    tenantId,
+    programmeId: programme.id,
+    titleEn: "Coursework",
+    weight: 100,
+  });
   await tx.insert(programmeGradeLevels).values({
     tenantId,
     programmeId: programme.id,

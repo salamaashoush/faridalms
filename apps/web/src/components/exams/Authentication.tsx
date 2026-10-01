@@ -25,6 +25,10 @@ type Standing = NonNullable<
   >
 >;
 export type StudentStanding = Standing["students"][number];
+type Marks = Pick<
+  StudentStanding,
+  "attemptId" | "declaration" | "authentication"
+>;
 
 function useRefresh() {
   const queryClient = useQueryClient();
@@ -36,7 +40,7 @@ function useRefresh() {
 }
 
 /** Where a student's declaration stands, with when and whether AI was used. */
-export function DeclarationStatus({ student }: { student: StudentStanding }) {
+export function DeclarationStatus({ student }: { student: Marks }) {
   const user = useCurrentUser();
   const declaration = student.declaration;
   if (!student.attemptId)
@@ -70,11 +74,7 @@ export function DeclarationStatus({ student }: { student: StudentStanding }) {
 }
 
 /** The teacher's word on the work, in a line. */
-export function AuthenticationStatus({
-  student,
-}: {
-  student: StudentStanding;
-}) {
+export function AuthenticationStatus({ student }: { student: Marks }) {
   const authentication = student.authentication;
   if (!authentication)
     return (
@@ -420,4 +420,34 @@ export function CourseworkStanding({
       ) : null}
     </section>
   );
+}
+
+/** Where a student's assessed coursework stands, for a list of the class's work. */
+export function CourseworkMarks({
+  student,
+  declarationRequired,
+}: {
+  student: Marks;
+  declarationRequired: boolean;
+}) {
+  const step = courseworkStep(student, declarationRequired);
+  return step ? <StatusText tone={step.tone}>{step.label}</StatusText> : null;
+}
+
+/** The one step a student's coursework waits on, or its outcome once done. */
+export function courseworkStep(
+  student: Marks,
+  declarationRequired: boolean,
+): {
+  tone: "warning" | "neutral" | "success" | "danger";
+  label: string;
+} | null {
+  if (!student.attemptId) return null;
+  if (declarationRequired && !student.declaration)
+    return { tone: "warning", label: m.declarationUndeclared() };
+  if (!student.authentication)
+    return { tone: "neutral", label: m.authenticationToConfirm() };
+  return student.authentication.outcome === "confirmed"
+    ? { tone: "success", label: m.authenticationConfirmed() }
+    : { tone: "danger", label: m.authenticationNotConfirmed() };
 }

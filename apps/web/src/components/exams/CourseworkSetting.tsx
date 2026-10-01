@@ -14,12 +14,24 @@ import { sessionName } from "./names";
 
 const NONE = "none";
 
+const boardOf = (session: {
+  official: { board: string } | null;
+  boardId: string | null;
+}) => session.official?.board ?? session.boardId;
+
 /**
  * Sets an assignment as assessed coursework for one of the school's exam
  * sessions, saved as soon as it is chosen. Schools without sessions see
  * nothing here.
  */
-export function CourseworkSetting({ assignmentId }: { assignmentId: string }) {
+export function CourseworkSetting({
+  assignmentId,
+  board,
+}: {
+  assignmentId: string;
+  /** The board of the class's programme, whose sessions come first. */
+  board: string | null;
+}) {
   const queryClient = useQueryClient();
   const overview = useQuery(examOverviewQuery).data;
   const current = useQuery({
@@ -62,10 +74,15 @@ export function CourseworkSetting({ assignmentId }: { assignmentId: string }) {
         disabled={mutation.isPending}
         options={[
           { value: NONE, label: m.courseworkNotAssessed() },
-          ...overview.sessions.map((row) => ({
-            value: row.id,
-            label: sessionName(row),
-          })),
+          ...overview.sessions
+            .toSorted(
+              (a, b) =>
+                Number(boardOf(b) === board) - Number(boardOf(a) === board),
+            )
+            .map((row) => ({
+              value: row.id,
+              label: sessionName(row),
+            })),
         ]}
         onChange={(value) =>
           mutation.mutate({

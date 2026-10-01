@@ -23,7 +23,12 @@ async function classOfStudent(api: Session["api"], studentId: string) {
 }
 
 /** Sets work, has the seeded student hand it in, and grades it out of 10. */
-async function gradedWork(teacher: Session, classId: string, score: number) {
+async function gradedWork(
+  teacher: Session,
+  classId: string,
+  score: number,
+  categoryId = "",
+) {
   const student = await sessionFor("northwind", login("student"));
   const saved = await teacher.api.coursework.save({
     classId,
@@ -34,6 +39,7 @@ async function gradedWork(teacher: Session, classId: string, score: number) {
     submissionFormat: "online",
     points: 10,
     rubric: null,
+    categoryId,
   });
   await teacher.api.coursework.publish({
     id: saved.id,
@@ -179,6 +185,74 @@ describe("grade scales", () => {
         }),
       ),
     ).toMatchObject({ code: "FORBIDDEN" });
+    await officer.grading.setClassGrade({
+      classId: target.id,
+      programmeId: null,
+      scaleId: null,
+    });
+  });
+
+  test("the gradebook calculates a term grade from work weighed by its programme's categories", async () => {
+    const officer = await signedIn("northwind", login("principal"));
+    const teacher = await teacherSession();
+    const me = await (
+      await sessionFor("northwind", login("student"))
+    ).api.identity.currentUser();
+    const target = await classOfStudent(teacher.api, me.id);
+    const igcse = preset("igcse_a_star_g");
+    const scale = await officer.grading.saveScale({
+      titleEn: "Weighted IGCSE",
+      titleAr: null,
+      display: "grade",
+      bands: igcse.bands,
+    });
+    const programme = await officer.grading.saveProgramme({
+      titleEn: "Weighted programme",
+      titleAr: null,
+      gradeLevelIds: [],
+      scaleId: scale.id,
+      officialBoard: null,
+      boardId: null,
+      categories: [
+        { titleEn: "Tests", titleAr: null, weight: 60 },
+        { titleEn: "Homework", titleAr: null, weight: 40 },
+      ],
+    });
+    expect(
+      await rejection(
+        officer.grading.saveProgramme({
+          titleEn: "Overweight",
+          titleAr: null,
+          gradeLevelIds: [],
+          scaleId: null,
+          officialBoard: null,
+          boardId: null,
+          categories: [{ titleEn: "All", titleAr: null, weight: 90 }],
+        }),
+      ),
+    ).toBeDefined();
+    await officer.grading.setClassGrade({
+      classId: target.id,
+      programmeId: programme.id,
+      scaleId: null,
+    });
+    const plan = await teacher.api.grading.classPlan({ classId: target.id });
+    expect(plan).toMatchObject({
+      programme: { id: programme.id, byGradeLevel: false },
+      scale: { id: scale.id, own: false },
+    });
+    const { categories } = plan;
+    const tests = categories.find((row) => row.titleEn === "Tests");
+    const homework = categories.find((row) => row.titleEn === "Homework");
+    if (!tests || !homework) throw new Error("categories missing");
+
+    await gradedWork(teacher, target.id, 8, tests.id);
+    await gradedWork(teacher, target.id, 5, homework.id);
+    const book = await teacher.api.gradebook.classBook({ classId: target.id });
+    // Tests 80% at 60, homework 50% at 40: 68%, a C on IGCSE A* to G.
+    const mine = book.calculated.find((row) => row.studentId === me.id);
+    expect(mine?.percent).toBeCloseTo(68);
+    expect(mine?.grade).toMatchObject({ labelEn: "C" });
     await officer.grading.setClassGrade({
       classId: target.id,
       programmeId: null,

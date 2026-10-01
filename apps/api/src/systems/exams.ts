@@ -26,7 +26,7 @@ import {
   setCoursework as setCoursework_,
   updateExamSession,
 } from "@faridalms/database/stores/exams";
-import { adoptFiles, filesOfHosts } from "@faridalms/database/stores/files";
+import { adoptFiles } from "@faridalms/database/stores/files";
 import {
   addOfficialSessionSchema,
   assignmentRefSchema,
@@ -44,7 +44,11 @@ import { ORPCError } from "@orpc/server";
 
 import type { UnitContext } from "../core/context";
 
-import { assessedRules, declarationProblem } from "../core/assessed";
+import {
+  assessedRules,
+  attemptMarks,
+  declarationProblem,
+} from "../core/assessed";
 import { learnerAssignment, taughtAssignment } from "../core/coursework-access";
 import {
   audit,
@@ -431,59 +435,27 @@ async function standing(context: UnitContext, assignmentId: string) {
     studentWork(context.tx, { tenantId: context.tenantId, assignmentId }),
     sessionViews(context, [rules.coursework.sessionId]),
   ]);
-  const attemptIds = work.flatMap((row) =>
-    row.attemptId ? [row.attemptId] : [],
+  const marks = await attemptMarks(
+    context,
+    work.flatMap((row) => (row.attemptId ? [row.attemptId] : [])),
   );
-  const scope = { tenantId: context.tenantId, attemptIds };
-  const [declarations, authentications] = await Promise.all([
-    declarationsOf(context.tx, scope),
-    authenticationsOf(context.tx, scope),
-  ]);
-  const scans = await filesOfHosts(context.tx, context.tenantId, {
-    type: "attempt_declaration",
-    ids: declarations.map((row) => row.id),
-  });
   return {
     ...rulesView(
       rules,
       sessions.find((row) => row.id === rules.coursework.sessionId),
     ),
-    students: work.map((row) => {
-      const declaration = declarations.find(
-        (item) => item.attemptId === row.attemptId,
-      );
-      const authentication = authentications.find(
-        (item) => item.attemptId === row.attemptId,
-      );
-      const scan = declaration
-        ? scans.find((file) => file.hostId === declaration.id)
-        : undefined;
-      return {
-        studentId: row.studentId,
-        fullNameEn: row.fullNameEn,
-        fullNameAr: row.fullNameAr,
-        attemptId: row.attemptId,
-        submittedAt: row.submittedAt,
-        released: row.released,
-        declaration: declaration
-          ? {
-              kind: declaration.kind,
-              aiUsed: declaration.aiUsed,
-              declaredAt: declaration.declaredAt,
-              scan: scan ? { id: scan.id, name: scan.name } : null,
-            }
-          : null,
-        authentication: authentication
-          ? {
-              outcome: authentication.outcome,
-              note: authentication.note,
-              teacherEn: authentication.teacherNameEn,
-              teacherAr: authentication.teacherNameAr,
-              at: authentication.at,
-            }
-          : null,
-      };
-    }),
+    students: work.map((row) => ({
+      studentId: row.studentId,
+      fullNameEn: row.fullNameEn,
+      fullNameAr: row.fullNameAr,
+      attemptId: row.attemptId,
+      submittedAt: row.submittedAt,
+      released: row.released,
+      ...((row.attemptId ? marks.get(row.attemptId) : undefined) ?? {
+        declaration: null,
+        authentication: null,
+      }),
+    })),
   };
 }
 

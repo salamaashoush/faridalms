@@ -230,6 +230,7 @@ export async function classWork(
     dueAt: string | null;
     points: number | null;
     gradingPeriodId: string | null;
+    categoryId: string | null;
   }[]
 > {
   const rows = await tx.execute<{
@@ -238,8 +239,9 @@ export async function classWork(
     due_at: string | null;
     points: string | null;
     grading_period_id: string | null;
+    category_id: string | null;
   }>(sql`
-    select id, title, points::text as points, grading_period_id,
+    select id, title, points::text as points, grading_period_id, category_id,
       to_char(due_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as due_at
     from core.assignments
     where tenant_id = ${tenantId}::uuid and class_id = ${classId}::uuid
@@ -251,5 +253,6 @@ export async function classWork(
     dueAt: row.due_at,
     points: row.points === null ? null : Number(row.points),
     gradingPeriodId: row.grading_period_id,
+    categoryId: row.category_id,
   }));
 }

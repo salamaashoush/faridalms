@@ -34,6 +34,11 @@ import type { HeaderFact, RecordTab } from "~/components/system/RecordPage";
 
 import { Value } from "~/components/app/primitives";
 import { ContentView } from "~/components/content/ContentView";
+import {
+  CourseworkMarks,
+  courseworkStep,
+} from "~/components/exams/Authentication";
+import { resultText } from "~/components/grading/format";
 import { DataTable } from "~/components/system/DataTable";
 import { TextField } from "~/components/system/field";
 import {
@@ -68,7 +73,7 @@ import { classTitle } from "../classes/format";
 import { displayName } from "../people/format";
 import {
   formatInstant,
-  formatScore,
+  formatStamp,
   PHASE_LABEL,
   PHASE_TONE,
   STATE_LABEL,
@@ -250,7 +255,12 @@ function Score({ row, points }: { row: WorkRow; points: number | null }) {
     return <Value notApplicable>{null}</Value>;
   return (
     <span className="tabular-nums">
-      {formatScore(row.effectiveScore ?? row.score, points)}
+      {resultText(
+        row.grade,
+        row.effectiveScore ?? row.score,
+        points,
+        "teacher",
+      )}
       {row.released ? null : (
         <span className="ms-2 text-[13px] text-muted-foreground">
           {m.courseworkDraftGrade()}
@@ -263,7 +273,7 @@ function Score({ row, points }: { row: WorkRow; points: number | null }) {
 function HandedAt({ row, timeZone }: { row: WorkRow; timeZone: string }) {
   return row.submittedAt ? (
     <Value>
-      {formatInstant(row.submittedAt, timeZone)}
+      {formatStamp(row.submittedAt, timeZone)}
       {row.shared ? (
         <span className="ms-2 text-[13px] text-muted-foreground">
           {m.courseworkSharedMark()}
@@ -280,6 +290,7 @@ function HandedAt({ row, timeZone }: { row: WorkRow; timeZone: string }) {
 function workColumns(
   points: number | null,
   timeZone: string,
+  assessed: { declarationRequired: boolean } | null,
 ): Column<WorkRow>[] {
   return [
     {
@@ -303,17 +314,57 @@ function workColumns(
       header: m.courseworkScore(),
       cell: (row) => <Score row={row} points={points} />,
     },
+    ...(assessed
+      ? [
+          {
+            id: "coursework",
+            header: m.courseworkAuthenticationColumn(),
+            cell: (row: WorkRow) => (
+              <CourseworkMarks
+                student={{
+                  attemptId: row.attemptId,
+                  declaration: row.coursework?.declaration ?? null,
+                  authentication: row.coursework?.authentication ?? null,
+                }}
+                declarationRequired={assessed.declarationRequired}
+              />
+            ),
+          },
+        ]
+      : []),
   ];
 }
 
-function workCard(points: number | null) {
+function workCard(
+  points: number | null,
+  assessed: { declarationRequired: boolean } | null,
+) {
   return {
     title: (row: WorkRow) => <StudentName row={row} />,
     status: (row: WorkRow) => <StateCell row={row} />,
-    fact: (row: WorkRow) =>
-      row.score === null
-        ? null
-        : formatScore(row.effectiveScore ?? row.score, points),
+    fact: (row: WorkRow) => {
+      const facts = [
+        row.score === null
+          ? null
+          : resultText(
+              row.grade,
+              row.effectiveScore ?? row.score,
+              points,
+              "teacher",
+            ),
+        assessed
+          ? courseworkStep(
+              {
+                attemptId: row.attemptId,
+                declaration: row.coursework?.declaration ?? null,
+                authentication: row.coursework?.authentication ?? null,
+              },
+              assessed.declarationRequired,
+            )?.label
+          : null,
+      ].filter(Boolean);
+      return facts.length ? facts.join(" · ") : null;
+    },
   };
 }
 
@@ -479,11 +530,11 @@ function Work({ data }: { data: Data }) {
       <DataTable
         caption={m.courseworkWorkCaption()}
         rows={rows}
-        columns={workColumns(data.points, user.school.timeZone)}
+        columns={workColumns(data.points, user.school.timeZone, data.assessed)}
         rowLabel={(row) => displayName(row)}
         rowActions={rowActions}
         batchActions={batch}
-        card={workCard(data.points)}
+        card={workCard(data.points, data.assessed)}
         empty={{
           title: m.courseworkNoRecipients(),
           description: m.courseworkNoRecipientsBody(),

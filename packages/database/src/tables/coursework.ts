@@ -28,6 +28,7 @@ import {
   tenantColumns,
   uq,
 } from "./conventions";
+import { programmeCategories } from "./exams";
 import { gradeScaleVersions } from "./grading";
 import { users } from "./people";
 import { classes } from "./teaching";
@@ -125,6 +126,8 @@ export const assignments = core.table.withRLS(
     classType: text("class_type").$type<ClassType>().notNull(),
     schoolYearId: uuid("school_year_id").notNull(),
     gradingPeriodId: uuid("grading_period_id"),
+    /** Where the work counts in its class programme's term grade. */
+    categoryId: uuid("category_id"),
     authorUserId: uuid("author_user_id").notNull(),
     title: text("title").notNull(),
     state: text("state").$type<AssignmentState>().notNull().default("draft"),
@@ -202,6 +205,11 @@ export const assignments = core.table.withRLS(
       sql`(submission_format = 'quiz') = (quiz_keep is not null and quiz_reveal is not null) and (quiz_attempts is null or quiz_attempts between 1 and 10) and (quiz_keep is null or quiz_keep in ('highest', 'latest', 'average', 'first')) and (quiz_reveal is null or quiz_reveal in ('answers', 'marks', 'returned'))`,
     ),
     ck("assignments", "max_files", sql`max_files between 1 and 20`),
+    fk(
+      "assignments",
+      [t.tenantId, t.categoryId],
+      [programmeCategories.tenantId, programmeCategories.id],
+    ),
     ck("assignments", "points", sql`points is null or points > 0`),
     ck(
       "assignments",

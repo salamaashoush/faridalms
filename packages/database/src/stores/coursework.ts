@@ -27,6 +27,7 @@ export interface AssignmentRow {
   classType: ClassType;
   schoolYearId: string;
   gradingPeriodId: string | null;
+  categoryId: string | null;
   authorUserId: string;
   title: string;
   state: AssignmentState;
@@ -56,6 +57,7 @@ type AssignmentRecord = {
   class_type: ClassType;
   school_year_id: string;
   grading_period_id: string | null;
+  category_id: string | null;
   author_user_id: string;
   title: string;
   state: AssignmentState;
@@ -78,7 +80,7 @@ type AssignmentRecord = {
 };
 
 const assignmentColumns = sql`a.id, a.version, a.org_id, a.class_id, a.class_type, a.school_year_id,
-  a.grading_period_id, a.author_user_id, a.title, a.state, a.audience,
+  a.grading_period_id, a.category_id, a.author_user_id, a.title, a.state, a.audience,
   to_char(a.available_from at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as available_from,
   to_char(a.due_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as due_at,
   to_char(a.closes_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as closes_at,
@@ -95,6 +97,7 @@ function assignmentOf(row: AssignmentRecord): AssignmentRow {
     classType: row.class_type,
     schoolYearId: row.school_year_id,
     gradingPeriodId: row.grading_period_id,
+    categoryId: row.category_id,
     authorUserId: row.author_user_id,
     title: row.title,
     state: row.state,
@@ -142,6 +145,7 @@ export interface AssignmentFields {
   points: number | null;
   rubric: Record<string, unknown> | null;
   gradingPeriodId: string | null;
+  categoryId: string | null;
   quizAttempts: number | null;
   quizKeep: QuizKeep | null;
   quizReveal: QuizReveal | null;
@@ -161,7 +165,7 @@ export async function insertAssignment(
     insert into core.assignments (tenant_id, org_id, class_id, class_type, school_year_id,
       grading_period_id, author_user_id, title, audience, available_from, due_at, closes_at,
       late_policy, late_deduction_percent, submission_format, max_files, resubmission, points, rubric,
-      quiz_attempts, quiz_keep, quiz_reveal, quiz_shuffle)
+      quiz_attempts, quiz_keep, quiz_reveal, quiz_shuffle, category_id)
     values (${input.tenantId}::uuid, ${input.orgId}::uuid, ${input.classRow.id}::uuid,
       ${input.classRow.classType}, ${input.classRow.schoolYearId}::uuid,
       ${input.gradingPeriodId}::uuid, ${input.authorUserId}::uuid, ${input.title},
@@ -169,7 +173,7 @@ export async function insertAssignment(
       ${input.closesAt}::timestamptz, ${input.latePolicy}, ${input.lateDeductionPercent},
       ${input.submissionFormat}, ${input.maxFiles}, ${input.resubmission}, ${input.points},
       ${input.rubric}::jsonb, ${input.quizAttempts}, ${input.quizKeep}, ${input.quizReveal},
-      ${input.quizShuffle})
+      ${input.quizShuffle}, ${input.categoryId}::uuid)
     returning id, version`);
   if (!row) throw new Error("assignment was not created");
   return row;
@@ -196,6 +200,7 @@ export async function updateAssignment(
         submission_format = ${input.submissionFormat}, max_files = ${input.maxFiles},
         resubmission = ${input.resubmission}, points = ${input.points},
         rubric = ${input.rubric}::jsonb, grading_period_id = ${input.gradingPeriodId}::uuid,
+        category_id = ${input.categoryId}::uuid,
         quiz_attempts = ${input.quizAttempts}, quiz_keep = ${input.quizKeep},
         quiz_reveal = ${input.quizReveal}, quiz_shuffle = ${input.quizShuffle}
     where tenant_id = ${input.tenantId}::uuid and id = ${input.id}::uuid
@@ -503,6 +508,7 @@ export interface WorkRow {
   released: boolean;
   /** The latest attempt is shared with the student's family. */
   shared: boolean;
+  gradeScaleVersionId: string | null;
 }
 
 /**
@@ -534,6 +540,7 @@ export async function studentWork(
     effective_score: string | null;
     released: boolean | null;
     shared: boolean;
+    grade_scale_version_id: string | null;
   }>(sql`
     select r.student_user_id as student_id, u.full_name_en, u.full_name_ar,
       to_char(coalesce(r.due_at, a.due_at) at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as due_at,
@@ -548,7 +555,7 @@ export async function studentWork(
       t.id as attempt_id, t.is_late,
       to_char(t.submitted_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as submitted_at,
       x.id as assessment_id, x.score::text as score, x.effective_score::text as effective_score,
-      x.released_at is not null as released,
+      x.released_at is not null as released, x.grade_scale_version_id,
       exists (select 1 from core.family_shares h where h.tenant_id = r.tenant_id
         and h.attempt_id = t.id and h.status = 'active') as shared
     from core.assignment_recipients r
@@ -587,6 +594,7 @@ export async function studentWork(
       row.effective_score === null ? null : Number(row.effective_score),
     released: row.released ?? false,
     shared: row.shared,
+    gradeScaleVersionId: row.grade_scale_version_id,
   }));
 }
 
