@@ -8,6 +8,7 @@ import {
   MenuOption,
   useBasicTypeaheadTriggerMatch,
 } from "@lexical/react/LexicalTypeaheadMenuPlugin";
+import { $isTextNode } from "lexical";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import type { BlockDefinition, BlockGroup } from "../blocks";
@@ -16,6 +17,28 @@ import { filterBlocks } from "../blocks";
 import { useEditorEnvironment } from "../context";
 import { Floating, cx, selectionReference } from "../ui";
 import { $runBlock } from "./insert";
+
+/**
+ * Takes the typed "/query" out of the text and returns the query. Typing can
+ * run ahead of the menu, which then splits off only the part of the query it
+ * had seen, so the rest is found before it, back to the slash.
+ */
+function $takeQuery(text: TextNode | null): string {
+  if (!text) return "";
+  let typed = text.getTextContent();
+  const previous = text.getPreviousSibling();
+  if (!typed.startsWith("/") && $isTextNode(previous)) {
+    const before = previous.getTextContent();
+    const at = before.lastIndexOf("/");
+    if (at >= 0) {
+      typed = before.slice(at) + typed;
+      if (at === 0) previous.remove();
+      else previous.spliceText(at, before.length - at, "");
+    }
+  }
+  text.remove();
+  return typed.replace(/^\//, "");
+}
 
 class BlockOption extends MenuOption {
   block: BlockDefinition;
@@ -57,8 +80,14 @@ export function SlashMenuPlugin() {
     close: () => void,
   ) => {
     editor.update(() => {
-      text?.remove();
-      $runBlock(editor, option.block.type);
+      const typed = $takeQuery(text);
+      // The option highlighted may come from a shorter query than was typed;
+      // the block typed for wins when the two disagree.
+      const current = filterBlocks(typed, strings, Boolean(media), questions);
+      const block = current.some((item) => item.type === option.block.type)
+        ? option.block
+        : current[0];
+      if (block) $runBlock(editor, block.type);
     });
     close();
   };
