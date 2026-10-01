@@ -10,7 +10,9 @@ import { requireCapability, writeProcedure } from "../core/procedure";
 const UPLOADERS: Record<FilePurpose, Capability[]> = {
   attachment: ["assignments:author", "messages:send"],
   submission: ["own-work:submit"],
+  // Students write their answers as documents with files in them.
   document_media: [
+    "own-work:submit",
     "assignments:author",
     "learning:author",
     "site:manage",

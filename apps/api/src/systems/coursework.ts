@@ -55,7 +55,6 @@ import {
 } from "@faridalms/database/stores/documents";
 import {
   filesOfHost,
-  linkFiles,
   rehostFiles,
   unlinkFiles,
 } from "@faridalms/database/stores/files";
@@ -874,14 +873,17 @@ async function attemptsView(
         filesView(context, { type: "submission_attempt", id: attempt.id }),
         assessmentOf(context.tx, context.tenantId, attempt.id),
       ]);
+      const content = (document?.content ?? null) as ContentDocument | null;
+      // Files handed in beside the answer, before answers held them.
+      const inAnswer = new Set(content ? contentFileIds(content) : []);
       const shown =
         assessment && (includeDrafts || assessment.releasedAt)
           ? assessment
           : null;
       return {
         ...attempt,
-        content: (document?.content ?? null) as ContentDocument | null,
-        files,
+        content,
+        files: files.filter((file) => !inAnswer.has(file.id)),
         assessment: shown
           ? {
               ...shown,
@@ -1077,12 +1079,6 @@ export const work = readProcedure
         id: row.submissionId,
         version: row.submissionVersion ?? 0,
         content: (draft?.content ?? null) as ContentDocument | null,
-        files: row.submissionId
-          ? await filesView(context, {
-              type: "submission",
-              id: row.submissionId,
-            })
-          : [],
       },
       attempts,
       state: learnerState(
@@ -1232,39 +1228,32 @@ export const saveDraft = writeProcedure
       submission.version !== input.expectedVersion
     )
       throw new ORPCError("CONFLICT", { message: "conflict.version" });
-    if (input.fileIds.length > assignment.maxFiles)
-      throw new ORPCError("BAD_REQUEST", {
-        message: "coursework.too_many_files",
-      });
     const host = { type: "submission", id: submission.id };
-    if (input.content)
+    // Files are blocks in the answer: they join the submission as it is
+    // saved, and one taken out of the answer leaves it.
+    let kept: string[] = [];
+    if (input.content) {
+      const placed = await placeMedia(
+        context,
+        host,
+        input.content,
+        contentFileIds(input.content),
+      );
+      if (placed.mediaIds.length > assignment.maxFiles)
+        throw new ORPCError("BAD_REQUEST", {
+          message: "coursework.too_many_files",
+        });
       await saveDocument(tx, {
         tenantId: context.tenantId,
         orgId: context.schoolId,
         host,
-        ...(await placeMedia(
-          context,
-          host,
-          input.content,
-          contentFileIds(input.content),
-        )),
+        ...placed,
         plainText: contentPlainText(input.content),
         userId: context.actor.userId,
       });
-    const linked = await linkFiles(tx, {
-      tenantId: context.tenantId,
-      userId: context.actor.userId,
-      ids: input.fileIds,
-      purpose: "submission",
-      host,
-    });
-    if (linked.length !== input.fileIds.length)
-      throw new ORPCError("BAD_REQUEST", { message: "file.not_attachable" });
-    await unlinkFiles(tx, {
-      tenantId: context.tenantId,
-      host,
-      keep: input.fileIds,
-    });
+      kept = placed.mediaIds;
+    }
+    await unlinkFiles(tx, { tenantId: context.tenantId, host, keep: kept });
     const touched = await touchSubmission(tx, {
       tenantId: context.tenantId,
       id: submission.id,

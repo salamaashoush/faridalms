@@ -36,7 +36,7 @@ async function classOfStudent(
 
 async function upload(
   session: Awaited<ReturnType<typeof arabicTeacher>>,
-  purpose: "document_media" | "submission",
+  purpose: "document_media",
   name: string,
 ) {
   const body = new Blob([`contents of ${name}`]);
@@ -185,7 +185,6 @@ describe("handing in and returning work", () => {
       assignmentId: saved.id,
       expectedVersion: 0,
       content: plainContent("The poem is about home."),
-      fileIds: [],
     });
     const handed = await student.api.coursework.handIn({
       assignmentId: saved.id,
@@ -357,7 +356,6 @@ describe("handing in and returning work", () => {
       assignmentId: saved.id,
       expectedVersion: 0,
       content: plainContent("Sorry it is late."),
-      fileIds: [],
     });
     await student.api.coursework.handIn({
       assignmentId: saved.id,
@@ -419,12 +417,21 @@ describe("handing in and returning work", () => {
         .status,
     ).toBe(200);
 
-    const answer = await upload(student, "submission", "answers.txt");
+    const answer = await upload(student, "document_media", "answers.txt");
+    const work = plainContent("My answers are attached.");
+    work.root.children?.push({
+      type: "file",
+      version: 1,
+      format: "",
+      fileId: answer,
+      name: "answers.txt",
+      mime: "text/plain",
+      bytes: 23,
+    });
     const drafted = await student.api.coursework.saveDraft({
       assignmentId: saved.id,
       expectedVersion: 0,
-      content: null,
-      fileIds: [answer],
+      content: work,
     });
     expect(
       (await raw("northwind", teacher.token, `/v1/files/${answer}/content`)).status,

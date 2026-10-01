@@ -306,7 +306,6 @@ export const saveDraftSchema = v.object({
   assignmentId: id,
   expectedVersion: v.pipe(v.number(), v.integer(), v.minValue(0)),
   content: v.nullable(contentDocumentSchema),
-  fileIds: v.optional(v.pipe(v.array(id), v.maxLength(20)), []),
 });
 export type SaveDraftInput = v.InferOutput<typeof saveDraftSchema>;
 

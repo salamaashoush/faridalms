@@ -1,9 +1,7 @@
 import type { ContentDocument } from "@faridalms/domain/content";
-import type { FileSummary } from "@faridalms/domain/file";
 
 import { contentPlainText } from "@faridalms/domain/content";
 import { emptyContent } from "@faridalms/domain/content-conversion";
-import { MAX_FILE_BYTES } from "@faridalms/domain/file";
 import {
   useMutation,
   useQueryClient,
@@ -18,7 +16,6 @@ import type { HeaderFact } from "~/components/system/RecordPage";
 import { ContentEditor } from "~/components/content/ContentEditor";
 import { ContentView } from "~/components/content/ContentView";
 import { FormField } from "~/components/system/field";
-import { FileField } from "~/components/system/FileField";
 import { FileList } from "~/components/system/FileList";
 import {
   ReaderWidthToggle,
@@ -142,7 +139,8 @@ function YourWork({ data }: { data: Data }) {
   const [content, setContent] = useState<ContentDocument>(
     data.submission.content ?? emptyContent(),
   );
-  const [files, setFiles] = useState<FileSummary[]>(data.submission.files);
+  // Hand-in waits for files still uploading into the answer.
+  const [uploading, setUploading] = useState(false);
   const [version, setVersion] = useState(data.submission.version);
   const [dirty, setDirty] = useState(false);
   const [confirming, setConfirming] = useState(false);
@@ -154,8 +152,7 @@ function YourWork({ data }: { data: Data }) {
         data: {
           assignmentId: data.assignment.id,
           expectedVersion: version,
-          content: format === "online" || format === "both" ? content : null,
-          fileIds: files.map((file) => file.id),
+          content: format === "none" ? null : content,
         },
       }),
     onSuccess: (saved) => {
@@ -194,44 +191,45 @@ function YourWork({ data }: { data: Data }) {
       }
     >
       <div className="grid gap-4">
-        {editable && (format === "online" || format === "both") ? (
-          <FormField id="your-work" label={m.courseworkWriteHere()}>
+        {editable && format !== "none" ? (
+          <FormField
+            id="your-work"
+            label={
+              format === "files"
+                ? m.courseworkYourFiles()
+                : m.courseworkWriteHere()
+            }
+            hint={
+              format === "online" ? undefined : m.courseworkFilesInAnswerHint()
+            }
+          >
             {(control) => (
               <div className="min-w-0">
                 <ContentEditor
                   id={control.id}
-                  label={m.courseworkWriteHere()}
+                  label={
+                    format === "files"
+                      ? m.courseworkYourFiles()
+                      : m.courseworkWriteHere()
+                  }
                   value={content}
                   onChange={(value) => {
                     setContent(value);
                     setDirty(true);
                   }}
+                  onUploadingChange={setUploading}
                   media={media}
                 />
               </div>
             )}
           </FormField>
         ) : null}
-        {editable && (format === "files" || format === "both") ? (
-          <FileField
-            id="your-files"
-            label={m.courseworkYourFiles()}
-            optional={format === "both"}
-            purpose="submission"
-            value={files}
-            onChange={(update) => {
-              setFiles(update);
-              setDirty(true);
-            }}
-            maxFiles={data.assignment.maxFiles}
-            maxBytes={MAX_FILE_BYTES}
-          />
-        ) : null}
         <div className="flex flex-wrap gap-2">
           {data.canHandIn ? (
             <Button
               type="button"
               className="max-md:h-10"
+              disabled={uploading}
               onClick={() => setConfirming(true)}
             >
               <CheckCircle2 aria-hidden />
