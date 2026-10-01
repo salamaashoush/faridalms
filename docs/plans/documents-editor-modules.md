@@ -47,10 +47,17 @@ section 4).
    description as the document and dates, place, audiences, kind, public
    flag and telling in the details panel; an event reads in a side panel
    over the calendar instead of on its own page.
-4. **Assignments**: DocumentPage with the brief as the document; due dates,
-   audience, grading and hand-in settings in the details panel. A quiz's
-   questions become question blocks in the same document instead of a
-   separate question list.
+4. **Assignments** (editor done 2026-10-01): DocumentPage with the brief as
+   the document; class, audience, dates, grading, hand-in and quiz settings in
+   the details panel; a draft may change class until assigned; work already
+   out holds every edit, a brief written together live included, until Update
+   or Discard, because students read the brief as last published. A quiz's
+   questions stay in today's question list under the brief until question
+   blocks land (item 5), then move into the document. Next: readers as pages,
+   then extend due date per student, hand in for a student, inline comments
+   and a comment bank, voice feedback, and a starting document per student
+   ([../research/interactive-coursework.md](../research/interactive-coursework.md)
+   section 1.5).
 5. **Lessons**: one document per lesson. The nine question kinds, continue
    gates and media become editor blocks with inline editing and a settings
    popover; the student player renders the same document with the blocks
@@ -77,11 +84,22 @@ Document pages put the text first on phones, with the details in a sheet.
 
 Next, in order:
 
-1. **Block widget framework**: a decorator-node base with an inline editing
-   view, a settings popover, keyboard entry and exit, copy and paste, and a
-   read-only renderer, so each widget is written once and works in writing,
-   reading and preview.
-2. **Question and gate blocks** on that framework (section 2, item 5).
+1. **Question block framework**, as researched in
+   [../research/editor-question-blocks.md](../research/editor-question-blocks.md):
+   questions are ElementNode trees (prompt and parts as child nodes, so text
+   merges and carets work in live editing) with their settings in NodeState,
+   gaps are inline atomic nodes, and only text-free widgets such as the gate
+   are decorator blocks. Settings appear in a question mode of the one
+   floating bar. Ids stay UUIDs and survive paste; the server derives today's
+   lesson blocks from the document, so marking is unchanged, and strips keys
+   for students from an allowlist. The content schema stays permissive about
+   question internals, with completeness checked at publish.
+2. **Question and gate blocks** on that framework (section 2, item 5), each
+   check gaining a note per wrong option, a help ladder (try again, hint,
+   worked steps) recording first-try correctness, a feedback timing setting,
+   and redemption of missed checks at the end
+   ([../research/interactive-coursework.md](../research/interactive-coursework.md)
+   section 3).
 3. **Slash menu and block handle grouped by family** (text, lists, media,
    layout, questions, activities), searchable, the same in every surface,
    with surfaces able to leave families out (a newsletter has no questions).
@@ -128,9 +146,13 @@ preview domain.
 ## 5. Order of work
 
 1. Newsletters, events, assignments to DocumentPage; readers as pages.
-2. Widget framework, then lessons and quizzes as one document.
+2. Question block framework, then lessons and quizzes as one document, with
+   the teacher's who-chose-what and class progress views.
 3. Grouped slash menu, media blocks, history and templates.
-4. Early-years presentations and narration; module switches.
+4. Early-years presentations and narration, Arabic rendering (joiner-aware
+   gaps and tiles, a harakat setting, an Arabic type scale); module switches.
+   Then mixed review, worked examples with fading, predict blocks and unit
+   checkpoints.
 5. Video module; coding module; blocks module.
 
 Each step lands in small commits with the gates the change can break, and
