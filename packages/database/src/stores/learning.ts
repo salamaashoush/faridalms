@@ -606,6 +606,34 @@ export async function responsesOf(
   return rows.map(responseOf);
 }
 
+/**
+ * Every student's rows in their first attempt at some lessons, which show
+ * what a class made of each question before any second go.
+ */
+export async function firstAttempts(
+  tx: Tx,
+  input: {
+    tenantId: string;
+    lessonIds: readonly string[];
+    studentIds: readonly string[];
+  },
+): Promise<(StoredResponse & { lessonId: string; studentId: string })[]> {
+  if (input.lessonIds.length === 0 || input.studentIds.length === 0) return [];
+  const rows = await tx.execute<ResponseRecord>(sql`
+    select id, block_id, attempt, try, kind, response, fraction, state, feedback,
+      document_version_id, ${isoOf(sql`created_at`)} as created_at, student_user_id, lesson_id
+    from core.lesson_responses
+    where tenant_id = ${input.tenantId}::uuid and attempt = 1
+      and lesson_id = any(${uuidArray(input.lessonIds)})
+      and student_user_id = any(${uuidArray(input.studentIds)})
+    order by created_at, try, id`);
+  return rows.map((row) => ({
+    ...responseOf(row),
+    lessonId: row.lesson_id,
+    studentId: row.student_user_id,
+  }));
+}
+
 export async function insertResponse(
   tx: Tx,
   input: {

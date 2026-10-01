@@ -770,5 +770,31 @@ describe("asking missed questions again", () => {
     expect(reopened.review?.checks[missedOne.id]).toMatchObject({
       correct: true,
     });
+
+    // The teacher sees how the class did first time, and who chose what.
+    const me = await pupil.identity.currentUser();
+    const views = await Promise.all(
+      source.classes.map((item) =>
+        keeper.learning.questions({ moduleId: saved.id, classId: item.id }),
+      ),
+    );
+    const asked = views
+      .flatMap((view) => view.lessons)
+      .flatMap((lesson) => lesson.questions)
+      .filter((question) => me.id in question.standings);
+    const first = asked.find((question) => question.id === missedOne.id);
+    expect(first?.standings[me.id]).toBe("later");
+    expect(first?.firstChoices[me.id]).toEqual([wrong]);
+    expect(
+      asked.find((question) => question.id === knownOne.id)?.standings[me.id],
+    ).toBe("first");
+    expect(
+      await rejection(
+        pupil.learning.questions({
+          moduleId: saved.id,
+          classId: source.classes[0]?.id ?? "",
+        }),
+      ),
+    ).toMatchObject({ code: "NOT_FOUND" });
   });
 });

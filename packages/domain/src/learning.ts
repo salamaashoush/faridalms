@@ -1111,6 +1111,21 @@ export function checkStates(
   return states;
 }
 
+/**
+ * How a student stands on a question, as its teacher reads a class at a
+ * glance: right first time, right after trying, shown the answer, still
+ * working on it, or not reached.
+ */
+export type CheckStanding = "first" | "later" | "shown" | "trying" | "unseen";
+
+export function standingOf(state: CheckState | undefined): CheckStanding {
+  if (!state || (state.tries === 0 && !state.revealed)) return "unseen";
+  if (state.firstTryCorrect) return "first";
+  if (state.correct) return "later";
+  if (state.revealed) return "shown";
+  return "trying";
+}
+
 /** A question the student did not get right first time, now settled. */
 export const missed = (block: CheckBlock, state: CheckState | undefined) =>
   isAuto(block) && settled(block, state) && !state?.firstTryCorrect;

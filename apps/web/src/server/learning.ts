@@ -115,6 +115,10 @@ export const publishLesson = createServerFn({ method: "POST" })
   .validator(byId)
   .handler(({ data }) => backend().learning.publishLesson(data));
 
+export const getClassQuestions = createServerFn({ method: "GET" })
+  .validator(checked(progressQuerySchema))
+  .handler(({ data }) => record(backend().learning.questions(data)));
+
 export const getWrittenAnswers = createServerFn({ method: "GET" })
   .validator(checked(progressQuerySchema))
   .handler(({ data }) => record(backend().learning.answers(data)));

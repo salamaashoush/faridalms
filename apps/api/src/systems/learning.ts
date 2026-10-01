@@ -17,6 +17,7 @@ import {
 import { schoolFeatures } from "@faridalms/database/stores/identity";
 import {
   classesOfModule,
+  firstAttempts,
   insertLesson,
   insertResponse,
   insertModule,
@@ -68,6 +69,7 @@ import {
   saveLessonSchema,
   saveModuleSchema,
   settled,
+  standingOf,
   studentBlocks,
   upgradeLesson,
 } from "@faridalms/domain/learning";
@@ -1304,6 +1306,91 @@ export const answers = readProcedure
       questions,
       answers: written.filter((answer) => asked.has(answer.blockId)),
     };
+  });
+
+/**
+ * How a class did on each marked question, from each student's first
+ * attempt: where every student stands, and for a choice, who first chose
+ * which option. Only those who teach the module see it.
+ */
+export const questions = readProcedure
+  .input(progressQuerySchema)
+  .handler(async ({ input, context }) => {
+    const row = await editable(context, input.moduleId);
+    const classes = await classesOfModule(context.tx, context.tenantId, row.id);
+    if (!classes.some((item) => item.id === input.classId))
+      throw new ORPCError("NOT_FOUND");
+    const [lessons, roster] = await Promise.all([
+      lessonsOf(context.tx, context.tenantId, row.id),
+      rosterOf(context.tx, context.tenantId, input.classId, context.today),
+    ]);
+    const [students, rows] = await Promise.all([
+      namesOf(context.tx, context.tenantId, roster),
+      firstAttempts(context.tx, {
+        tenantId: context.tenantId,
+        lessonIds: lessons.map((item) => item.id),
+        studentIds: roster,
+      }),
+    ]);
+    const asked = [];
+    for (const item of lessons) {
+      const content =
+        (await publishedLesson(context, item.id))?.content ?? null;
+      if (!content) continue;
+      const states = new Map(
+        roster.map((studentId) => [
+          studentId,
+          checkStates(
+            content,
+            rows.filter(
+              (response) =>
+                response.lessonId === item.id &&
+                response.studentId === studentId,
+            ),
+          ),
+        ]),
+      );
+      const checks = checkBlocks(content).filter(isAuto);
+      if (checks.length === 0) continue;
+      asked.push({
+        id: item.id,
+        title: item.title,
+        questions: checks.map((block) => ({
+          id: block.id,
+          kind: block.type,
+          prompt: block.prompt,
+          options:
+            block.type === "choice"
+              ? block.options.map((option) => ({
+                  id: option.id,
+                  text: option.text,
+                  correct: block.correctOptionIds.includes(option.id),
+                }))
+              : null,
+          standings: Object.fromEntries(
+            roster.map((studentId) => [
+              studentId,
+              standingOf(states.get(studentId)?.[block.id]),
+            ]),
+          ),
+          firstChoices: Object.fromEntries(
+            roster.flatMap((studentId) => {
+              const first = rows.find(
+                (response) =>
+                  response.lessonId === item.id &&
+                  response.studentId === studentId &&
+                  response.blockId === block.id &&
+                  response.try === 1 &&
+                  response.state === "answered",
+              )?.response;
+              const chosen = first?.optionIds;
+              return Array.isArray(chosen) ? [[studentId, chosen]] : [];
+            }),
+          ) as Record<string, string[]>,
+        })),
+      });
+    }
+    return { students, lessons: asked };
   });
 
 /**

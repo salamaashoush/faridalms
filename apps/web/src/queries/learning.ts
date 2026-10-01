@@ -1,6 +1,7 @@
 import { queryOptions } from "@tanstack/react-query";
 
 import {
+  getClassQuestions,
   getLearningOptions,
   getLessonEditor,
   getModuleOutline,
@@ -40,6 +41,13 @@ export const moduleProgressQuery = (moduleId: string, classId: string) =>
   queryOptions({
     queryKey: ["learning", "progress", moduleId, classId],
     queryFn: () => getModuleProgress({ data: { moduleId, classId } }),
+    placeholderData: (previous) => previous,
+  });
+
+export const classQuestionsQuery = (moduleId: string, classId: string) =>
+  queryOptions({
+    queryKey: ["learning", "questions", moduleId, classId],
+    queryFn: () => getClassQuestions({ data: { moduleId, classId } }),
     placeholderData: (previous) => previous,
   });
 

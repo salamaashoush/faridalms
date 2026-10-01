@@ -67,8 +67,14 @@ import {
   STATE_LABEL,
   STATE_TONE,
 } from "./format";
+import { ClassQuestions } from "./Questions";
 
-export const MODULE_TABS = ["lessons", "progress", "answers"] as const;
+export const MODULE_TABS = [
+  "lessons",
+  "progress",
+  "questions",
+  "answers",
+] as const;
 export type ModuleTab = (typeof MODULE_TABS)[number];
 
 type Data = Awaited<
@@ -533,6 +539,7 @@ export function ModuleRecord({
       label: `${m.lrnLessons()} ${formatNumber(data.lessons.length)}`,
     },
     { value: "progress", label: m.lrnProgress() },
+    { value: "questions", label: m.lrnQuestionsTab() },
     { value: "answers", label: m.lrnAnswersTab() },
   ];
   const ref = { id: data.id, expectedVersion: data.version };
@@ -636,7 +643,13 @@ export function ModuleRecord({
             data={data}
             classId={classId}
             onClass={onClass}
-            view={tab === "progress" ? Matrix : Answers}
+            view={
+              tab === "progress"
+                ? Matrix
+                : tab === "questions"
+                  ? ClassQuestions
+                  : Answers
+            }
           />
         )}
       </RecordTabs>
