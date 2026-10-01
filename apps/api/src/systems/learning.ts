@@ -87,6 +87,7 @@ import {
   writeProcedure as anyWrite,
 } from "../core/procedure";
 import {
+  registerArea,
   registerHostReader,
   registerHostWriter,
   registerLiveRules,
@@ -331,6 +332,30 @@ async function hostReadable(context: UnitContext, lessonId: string) {
 }
 
 registerHostReader("lesson", hostReadable);
+
+async function editsModule(context: UnitContext, moduleId: string) {
+  if (!(await isOn(context))) return false;
+  const row = await moduleById(context.tx, context.tenantId, moduleId);
+  return Boolean(
+    row && row.orgId === context.schoolId && (await mayEdit(context, row)),
+  );
+}
+
+/**
+ * A module's file area holds its lessons' pictures and recordings. Whoever
+ * may edit the module reads all of it; students only what a lesson they may
+ * open shows.
+ */
+registerArea("module", {
+  reader: editsModule,
+  writer: editsModule,
+  holders: {
+    lesson: async (context, lessonId) => {
+      const lesson = await lessonById(context.tx, context.tenantId, lessonId);
+      return lesson ? { type: "module", id: lesson.moduleId } : null;
+    },
+  },
+});
 registerLiveRules("lesson", {
   keyed: () => Promise.resolve(true),
   // A lesson still stored as a list of blocks is written as one document

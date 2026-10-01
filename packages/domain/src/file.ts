@@ -329,6 +329,14 @@ export function contentDisposition(
   return `${kind}; filename="${ascii}"; filename*=UTF-8''${encodeURIComponent(safe)}`;
 }
 
+/** A class's or module's file area: what its teachers keep for its documents. */
+export const FILE_AREAS = ["class", "module"] as const;
+export type FileArea = (typeof FILE_AREAS)[number];
+export const fileAreaSchema = v.object({
+  type: v.picklist(FILE_AREAS),
+  id: v.pipe(v.string(), v.uuid()),
+});
+
 export const initiateUploadSchema = v.pipe(
   v.object({
     purpose: v.picklist(FILE_PURPOSES),

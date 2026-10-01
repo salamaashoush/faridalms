@@ -141,6 +141,8 @@ export const files = core.table.withRLS(
     scanEngine: text("scan_engine"),
     readyAt: instant("ready_at"),
     linkedAt: instant("linked_at"),
+    /** Deleted from a class's or module's file area; restorable until the sweep retires it. */
+    trashedAt: instant("trashed_at"),
     width: integer("width"),
     height: integer("height"),
     durationMs: integer("duration_ms"),
@@ -225,6 +227,9 @@ export const files = core.table.withRLS(
       .on(t.tenantId, t.state, t.createdAt)
       .where(sql`status = 'active'`),
     index("files_storage_key_idx").on(t.tenantId, t.storageKey),
+    index("files_trashed_idx")
+      .on(t.tenantId, t.trashedAt)
+      .where(sql`status = 'active' and trashed_at is not null`),
     ...entityProfile(),
     ...eraseAndDelete(erasureListed("file", "id")),
     pgPolicy("files_purpose_gate", {

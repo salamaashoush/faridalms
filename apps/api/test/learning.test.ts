@@ -6,8 +6,9 @@ import {
   lessonOfContent,
 } from "@faridalms/domain/lesson-content";
 import { describe, expect, test } from "bun:test";
+import { sql } from "drizzle-orm";
 
-import { login, rejection, seeded, signedIn } from "./harness";
+import { login, raw, rejection, seeded, sessionFor, signedIn } from "./harness";
 
 const student = () => signedIn("northwind", login("student"));
 const mother = () =>
@@ -816,6 +817,87 @@ describe("asking missed questions again", () => {
         }),
       ),
     ).toMatchObject({ code: "NOT_FOUND" });
+  });
+});
+
+describe("a module's file area", () => {
+  test("keeps a lesson's pictures for the module, open to its classes once shown", async () => {
+    const tenant = seeded().tenants[0];
+    const school = tenant?.schools.find((row) => row.slug === "northwind");
+    let keeper: Awaited<ReturnType<typeof sessionFor>> | null = null;
+    for (const row of tenant?.logins ?? []) {
+      if (row.role !== "teacher" || row.schoolId !== school?.id) continue;
+      const session = await sessionFor("northwind", row.loginName);
+      const { rows } = await session.api.learning.modules({});
+      if (rows.some((item) => item.title === TITLE)) {
+        keeper = session;
+        break;
+      }
+    }
+    if (!keeper) throw new Error("no teacher of the module");
+    const { rows } = await keeper.api.learning.modules({});
+    const source = rows.find((row) => row.title === TITLE);
+    if (!source) throw new Error("no module");
+    const saved = await keeper.api.learning.saveModule({
+      id: "",
+      expectedVersion: 0,
+      title: "Leaves",
+      summary: "",
+      classIds: source.classes.map((item) => item.id),
+      prerequisiteId: "",
+      sequential: false,
+    });
+    const body = new Blob(["a drawing of a leaf"]);
+    const file = await keeper.api.files.initiate({
+      purpose: "document_media",
+      name: "leaf.txt",
+      mediaType: "text/plain",
+      sizeBytes: body.size,
+    });
+    await raw("northwind", keeper.token, `/v1/files/${file.id}/content`, {
+      method: "PUT",
+      body,
+    });
+    const content = plainContent("Look at the leaf.");
+    content.root.children?.push({
+      type: "file",
+      version: 1,
+      format: "",
+      fileId: file.id,
+      name: "leaf.txt",
+      mime: "text/plain",
+      bytes: body.size,
+    });
+    await keeper.api.learning.saveLesson({
+      id: "",
+      moduleId: saved.id,
+      expectedVersion: 0,
+      title: "Leaf shapes",
+      completion: "view",
+      passScore: null,
+      content,
+      publish: false,
+    });
+    const pupil = await sessionFor("northwind", login("student"));
+    const path = `/v1/files/${file.id}/content`;
+    expect((await raw("northwind", pupil.token, path)).status).toBe(404);
+    await keeper.api.learning.publishModule({
+      id: saved.id,
+      expectedVersion: saved.version,
+    });
+    expect((await raw("northwind", pupil.token, path)).status).toBe(200);
+    const { cell } = seeded();
+    const tenantId = tenant?.tenantId ?? "";
+    const [row] = await cell.withWorker(
+      { tenantId, requestId: crypto.randomUUID(), actor: { kind: "system" } },
+      "read",
+      (tx) =>
+        tx.execute<{ host_type: string; host_id: string }>(
+          sql`select host_type, host_id from core.files
+            where tenant_id = ${tenantId}::uuid and id = ${file.id}::uuid`,
+        ),
+    );
+    expect(row).toEqual({ host_type: "module", host_id: saved.id });
   });
 });
 

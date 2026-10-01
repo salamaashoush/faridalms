@@ -18,6 +18,7 @@ export interface StoredFile {
   uploadedByUserId: string | null;
   hostType: string | null;
   hostId: string | null;
+  trashedAt: string | null;
 }
 
 type FileRecord = {
@@ -31,10 +32,11 @@ type FileRecord = {
   uploaded_by_user_id: string | null;
   host_type: string | null;
   host_id: string | null;
+  trashed_at: string | null;
 };
 
 const columns = sql`id, purpose, name, media_type, size_bytes, state, storage_key,
-  uploaded_by_user_id, host_type, host_id`;
+  uploaded_by_user_id, host_type, host_id, trashed_at`;
 
 function fileOf(row: FileRecord): StoredFile {
   return {
@@ -48,6 +50,7 @@ function fileOf(row: FileRecord): StoredFile {
     uploadedByUserId: row.uploaded_by_user_id,
     hostType: row.host_type,
     hostId: row.host_id,
+    trashedAt: row.trashed_at,
   };
 }
 
@@ -270,7 +273,8 @@ export async function retireUnlinkedFiles(
 /**
  * Pictures and files no document has held for the whole trash window are
  * retired. A document's saved versions keep their links while they are
- * shown, so only media nothing reads any more goes. Keys come back only when
+ * shown, so only media nothing reads any more goes. A class's or module's
+ * file area is a library kept until a teacher deletes from it. Keys come back only when
  * no active row still points at the same object.
  */
 export async function retireTrashedMedia(
@@ -287,6 +291,7 @@ export async function retireTrashedMedia(
         select f.id from core.files f
         where f.tenant_id = ${tenantId}::uuid and f.purpose = 'document_media'
           and f.status = 'active' and f.state = 'ready' and f.linked_at is not null
+          and f.host_type is distinct from 'class' and f.host_type is distinct from 'module'
           and f.created_at < ${before}::timestamptz
           and not exists (
             select 1 from core.document_files l
@@ -346,6 +351,43 @@ export async function adoptFiles(
 }
 
 /**
+ * Moves files a document already held under its own record into the file
+ * area that record belongs to, as a lesson's pictures join its module's.
+ */
+export async function moveIntoArea(
+  tx: Tx,
+  input: {
+    tenantId: string;
+    from: { type: string; id: string };
+    area: { type: string; id: string };
+    ids: readonly string[];
+  },
+) {
+  if (input.ids.length === 0) return;
+  await tx.execute(sql`
+    update core.files set host_type = ${input.area.type}, host_id = ${input.area.id}::uuid
+    where tenant_id = ${input.tenantId}::uuid and id = any(${uuidArray(input.ids)})
+      and host_type = ${input.from.type} and host_id = ${input.from.id}::uuid
+      and status = 'active'`);
+}
+
+/** The records whose live documents show a file. */
+export async function documentHostsOfFile(
+  tx: Tx,
+  tenantId: string,
+  fileId: string,
+): Promise<{ type: string; id: string }[]> {
+  const rows = await tx.execute<{ host_type: string; host_id: string }>(sql`
+    select distinct d.host_type, d.host_id from core.document_files l
+    join core.documents d on d.tenant_id = l.tenant_id and d.id = l.document_id
+      and d.status = 'active'
+    where l.tenant_id = ${tenantId}::uuid and l.file_id = ${fileId}::uuid
+      and l.status = 'active'
+    limit 50`);
+  return rows.map((row) => ({ type: row.host_type, id: row.host_id }));
+}
+
+/**
  * The copy a record keeps of a file from somewhere else, made the first time
  * it is put in that record's document and reused after. The copy points at
  * the same verified object, so its facts are the source's; removing either
@@ -383,4 +425,132 @@ export async function copyIntoHost(
       and purpose in ('document_media', 'attachment', 'submission')
     returning id`);
   return created?.id ?? null;
+}
+
+export interface AreaFile {
+  id: string;
+  name: string;
+  mediaType: string;
+  sizeBytes: number;
+  createdAt: string;
+  uploadedByUserId: string | null;
+  trashedAt: string | null;
+  /** The lessons and assignments whose documents show it. */
+  usedIn: { hostType: string; hostId: string; title: string }[];
+}
+
+/** A class's or module's file area, or what of it waits in the trash. */
+export async function areaFiles(
+  tx: Tx,
+  tenantId: string,
+  area: { type: string; id: string },
+  trashed: boolean,
+): Promise<AreaFile[]> {
+  const rows = await tx.execute<{
+    id: string;
+    name: string;
+    media_type: string;
+    size_bytes: string | number;
+    created_at: string;
+    uploaded_by_user_id: string | null;
+    trashed_at: string | null;
+    used_in: AreaFile["usedIn"];
+  }>(sql`
+    select f.id, f.name, f.media_type, f.size_bytes, f.created_at, f.uploaded_by_user_id,
+      f.trashed_at,
+      coalesce((
+        select jsonb_agg(distinct jsonb_build_object(
+          'hostType', d.host_type, 'hostId', d.host_id,
+          'title', coalesce(a.title, l.title, '')))
+        from core.document_files l2
+        join core.documents d on d.tenant_id = l2.tenant_id and d.id = l2.document_id
+          and d.status = 'active'
+        left join core.assignments a on a.tenant_id = d.tenant_id and a.id = d.host_id
+          and d.host_type in ('assignment', 'assignment_quiz')
+        left join core.lessons l on l.tenant_id = d.tenant_id and l.id = d.host_id
+          and d.host_type = 'lesson'
+        where l2.tenant_id = f.tenant_id and l2.file_id = f.id and l2.status = 'active'
+      ), '[]'::jsonb) as used_in
+    from core.files f
+    where f.tenant_id = ${tenantId}::uuid and f.host_type = ${area.type}
+      and f.host_id = ${area.id}::uuid and f.status = 'active' and f.state = 'ready'
+      and (f.trashed_at is not null) = ${trashed}
+    order by coalesce(f.trashed_at, f.created_at) desc
+    limit 1000`);
+  return rows.map((row) => ({
+    id: row.id,
+    name: row.name,
+    mediaType: row.media_type,
+    sizeBytes: Number(row.size_bytes),
+    createdAt: row.created_at,
+    uploadedByUserId: row.uploaded_by_user_id,
+    trashedAt: row.trashed_at,
+    usedIn: row.used_in,
+  }));
+}
+
+/** Renames a file in an area; false when it is not there. */
+export async function renameAreaFile(
+  tx: Tx,
+  input: {
+    tenantId: string;
+    area: { type: string; id: string };
+    id: string;
+    name: string;
+  },
+): Promise<boolean> {
+  const rows = await tx.execute(sql`
+    update core.files set name = ${input.name}
+    where tenant_id = ${input.tenantId}::uuid and id = ${input.id}::uuid
+      and host_type = ${input.area.type} and host_id = ${input.area.id}::uuid
+      and status = 'active'
+    returning id`);
+  return rows.length > 0;
+}
+
+/** Moves a file of an area into its trash, or back out; false when it is not there. */
+export async function trashAreaFile(
+  tx: Tx,
+  input: {
+    tenantId: string;
+    area: { type: string; id: string };
+    id: string;
+    trashed: boolean;
+  },
+): Promise<boolean> {
+  const rows = await tx.execute(sql`
+    update core.files
+    set trashed_at = case when ${input.trashed} then statement_timestamp() end
+    where tenant_id = ${input.tenantId}::uuid and id = ${input.id}::uuid
+      and host_type = ${input.area.type} and host_id = ${input.area.id}::uuid
+      and status = 'active' and (trashed_at is null) = ${input.trashed}
+    returning id`);
+  return rows.length > 0;
+}
+
+/**
+ * Files in the trash for the whole window are retired. Keys come back only
+ * when no active row still points at the same object.
+ */
+export async function retireTrashedFiles(
+  tx: Tx,
+  tenantId: string,
+  trashedBefore: Date,
+  limit: number,
+): Promise<string[]> {
+  const rows = await tx.execute<{ storage_key: string }>(sql`
+    with retired as (
+      update core.files set status = 'tobedeleted'
+      where tenant_id = ${tenantId}::uuid and id in (
+        select id from core.files
+        where tenant_id = ${tenantId}::uuid and status = 'active'
+          and trashed_at < ${trashedBefore.toISOString()}::timestamptz
+        order by trashed_at limit ${limit})
+      returning id, storage_key)
+    select distinct r.storage_key from retired r
+    where not exists (
+      select 1 from core.files f
+      where f.tenant_id = ${tenantId}::uuid and f.storage_key = r.storage_key
+        and f.status = 'active' and f.id not in (select id from retired))`);
+  return rows.map((row) => row.storage_key);
 }

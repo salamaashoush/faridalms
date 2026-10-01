@@ -139,6 +139,7 @@ import {
   responsesOf,
 } from "../core/quiz";
 import {
+  registerArea,
   registerHostReader,
   registerHostWriter,
   registerLiveRules,
@@ -287,6 +288,29 @@ registerHostWriter("assignment", async (context, hostId) => {
   } catch {
     return false;
   }
+});
+/**
+ * A class's file area holds what its teachers put in its assignments'
+ * documents, shown wherever the class uses it rather than copied each time.
+ * Its teachers read all of it; students and families only what a document
+ * they may read shows.
+ */
+registerArea("class", {
+  reader: async (context, classId) =>
+    (can(context, "assignments:author") || can(context, "submissions:grade")) &&
+    (await teachesClass(context.tx, scopeOf(context), classId)),
+  writer: async (context, classId) =>
+    can(context, "assignments:author") &&
+    (await teachesClass(context.tx, scopeOf(context), classId)),
+  holders: {
+    assignment: async (context, assignmentId) => {
+      const owner = await courseworkHost(context.tx, context.tenantId, {
+        type: "assignment",
+        id: assignmentId,
+      });
+      return owner ? { type: "class", id: owner.classId } : null;
+    },
+  },
 });
 registerHostReader("assignment_quiz", (context, hostId) =>
   readable(context, { type: "assignment", id: hostId }),

@@ -1,0 +1,2 @@
+ALTER TABLE "core"."files" ADD COLUMN "trashed_at" timestamp with time zone;--> statement-breakpoint
+CREATE INDEX "files_trashed_idx" ON "core"."files" ("tenant_id","trashed_at") WHERE status = 'active' and trashed_at is not null;

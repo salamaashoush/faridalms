@@ -590,6 +590,89 @@ describe("handing in and returning work", () => {
   });
 });
 
+const briefWithMap = (fileId: string) => {
+  const brief = plainContent("Use the map.");
+  brief.root.children?.push({
+    type: "file",
+    version: 1,
+    format: "",
+    fileId,
+    name: "map.txt",
+    mime: "text/plain",
+    bytes: 20,
+  });
+  return brief;
+};
+const fileHost = async (fileId: string) => {
+  const { cell, tenants } = seeded();
+  const tenantId = tenants[0]?.tenantId ?? "";
+  const [row] = await cell.withWorker(
+    { tenantId, requestId: crypto.randomUUID(), actor: { kind: "system" } },
+    "read",
+    (tx) =>
+      tx.execute<{ host_type: string; host_id: string }>(
+        sql`select host_type, host_id from core.files
+          where tenant_id = ${tenantId}::uuid and id = ${fileId}::uuid`,
+      ),
+  );
+  return row;
+};
+
+describe("a class's file area", () => {
+  test("keeps a brief's files for the class, shown again without a copy and copied for another class", async () => {
+    const teacher = await arabicTeacher();
+    const student = await sessionFor("northwind", login("student"));
+    const me = await student.api.identity.currentUser();
+    const target = await classOfStudent(teacher.api, me.id);
+    const other = (await teacher.api.coursework.options()).classes.find(
+      (row) => row.classType === "scheduled" && row.id !== target.id,
+    );
+    if (!other) throw new Error("the Arabic teacher teaches one class only");
+    const map = await upload(teacher, "document_media", "map.txt");
+
+    const first = await teacher.api.coursework.save(
+      draft(target.id, "Map work", { brief: briefWithMap(map) }),
+    );
+    expect(await fileHost(map)).toEqual({
+      host_type: "class",
+      host_id: target.id,
+    });
+
+    const again = await teacher.api.coursework.save(
+      draft(target.id, "Map work again", { brief: briefWithMap(map) }),
+    );
+    const reopened = await teacher.api.coursework.editor({ id: again.id });
+    expect(JSON.stringify(reopened.brief)).toContain(map);
+
+    const elsewhere = await teacher.api.coursework.save(
+      draft(other.id, "Map work elsewhere", { brief: briefWithMap(map) }),
+    );
+    const copied = await teacher.api.coursework.editor({ id: elsewhere.id });
+    expect(JSON.stringify(copied.brief)).not.toContain(map);
+    const copy = /"fileId":"([0-9a-f-]{36})"/.exec(
+      JSON.stringify(copied.brief),
+    )?.[1];
+    expect(copy && (await fileHost(copy))).toEqual({
+      host_type: "class",
+      host_id: other.id,
+    });
+
+    // A student reads the area only through a brief they have been given;
+    // a teacher of other classes not at all.
+    const read = () => raw("northwind", student.token, `/v1/files/${map}/content`);
+    expect((await read()).status).toBe(404);
+    await teacher.api.coursework.publish({
+      id: first.id,
+      expectedVersion: first.version,
+    });
+    expect((await read()).status).toBe(200);
+    const outsider = await sessionFor("northwind", login("teacher", 0, 2));
+    expect(
+      (await raw("northwind", outsider.token, `/v1/files/${map}/content`)).status,
+    ).toBe(404);
+  });
+});
+
 describe("coursework on the student record", () => {
   test("staff who reach a student read their work; families keep to their own pages", async () => {
     const student = await sessionFor("northwind", login("student"));

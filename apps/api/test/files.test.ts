@@ -323,7 +323,7 @@ describe("files in documents", () => {
     ).toMatchObject({ message: "file.not_attachable" });
   });
 
-  test("a file put in another record's document is copied there, and the first record keeps its own", async () => {
+  test("a file put in another class's document is copied there, and the first class keeps its own", async () => {
     const teacher = await sessionFor("northwind", login("teacher", 0, 1));
     const file = await teacher.api.files.initiate({
       purpose: "document_media",
@@ -336,10 +336,13 @@ describe("files in documents", () => {
       body: text("worksheet"),
     });
     const { classes } = await teacher.api.coursework.options();
-    const target = classes.find((row) => row.classType === "scheduled");
-    if (!target) throw new Error("the teacher has no scheduled class");
-    const brief = (title: string) => ({
-      classId: target.id,
+    const [target, other] = classes.filter(
+      (row) => row.classType === "scheduled",
+    );
+    if (!target || !other)
+      throw new Error("the teacher has fewer than two scheduled classes");
+    const brief = (title: string, classId = target.id) => ({
+      classId,
       title,
       brief: withFile(file.id, `${title}.`),
       audience: "class" as const,
@@ -349,7 +352,9 @@ describe("files in documents", () => {
       rubric: null,
     });
     const first = await teacher.api.coursework.save(brief("First use"));
-    const second = await teacher.api.coursework.save(brief("Second use"));
+    const second = await teacher.api.coursework.save(
+      brief("Second use", other.id),
+    );
     const fileIn = async (id: string) => {
       const opened = await teacher.api.coursework.editor({ id });
       return opened.brief?.root.children?.find((node) => node.type === "file")
@@ -360,7 +365,7 @@ describe("files in documents", () => {
     expect(copied).toBeDefined();
     expect(copied).not.toBe(file.id);
     const again = await teacher.api.coursework.save({
-      ...brief("Second use"),
+      ...brief("Second use", other.id),
       id: second.id,
       expectedVersion: second.version,
     });
@@ -374,7 +379,7 @@ describe("files in documents", () => {
     expect(await read.text()).toBe("worksheet");
   });
 
-  test("a file taken out of every document waits in the trash for 30 days", async () => {
+  test("a file deleted from a class's files waits in the trash for 30 days", async () => {
     const teacher = await sessionFor("northwind", login("teacher", 0, 1));
     const file = await teacher.api.files.initiate({
       purpose: "document_media",
@@ -408,17 +413,29 @@ describe("files in documents", () => {
       expectedVersion: saved.version,
       brief: plainContent("Without it."),
     });
+    const area = { type: "class" as const, id: target.id };
+    const listed = await teacher.api.files.area({ area, trashed: false });
+    expect(listed.files.some((row) => row.id === file.id)).toBe(true);
+    await teacher.api.files.trashInArea({ area, id: file.id, trashed: true });
     const { cell, files, tenants } = seeded();
     const tenantId = tenants[0]?.tenantId ?? "";
     const day = 24 * 60 * 60 * 1000;
     const path = `/v1/files/${file.id}/content`;
+    const inTrash = async () =>
+      (await teacher.api.files.area({ area, trashed: true })).files.some(
+        (row) => row.id === file.id,
+      );
+    expect((await raw("northwind", teacher.token, path)).status).toBe(404);
     await sweepTenantFiles(
       cell,
       files,
       tenantId,
       new Date(Date.now() + 29 * day),
     );
+    expect(await inTrash()).toBe(true);
+    await teacher.api.files.trashInArea({ area, id: file.id, trashed: false });
     expect((await raw("northwind", teacher.token, path)).status).toBe(200);
+    await teacher.api.files.trashInArea({ area, id: file.id, trashed: true });
     const swept = await sweepTenantFiles(
       cell,
       files,
@@ -426,6 +443,11 @@ describe("files in documents", () => {
       new Date(Date.now() + 31 * day),
     );
     expect(swept.trashed).toBeGreaterThanOrEqual(1);
-    expect((await raw("northwind", teacher.token, path)).status).toBe(404);
+    expect(await inTrash()).toBe(false);
+    expect(
+      await rejection(
+        teacher.api.files.trashInArea({ area, id: file.id, trashed: false }),
+      ),
+    ).toMatchObject({ code: "NOT_FOUND" });
   });
 });
