@@ -609,7 +609,7 @@ export function DataTable<T extends { id: string }, S extends string>({
       ) : (
         <>
           <div className="hidden overflow-hidden rounded-lg border bg-card md:block">
-            <div className="relative overflow-x-auto">
+            <div className="relative overflow-x-auto overflow-y-hidden">
               <table className="w-full text-sm">
                 <caption className="sr-only">{caption}</caption>
                 <thead className="border-b bg-muted/40">
