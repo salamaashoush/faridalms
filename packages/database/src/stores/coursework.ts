@@ -637,6 +637,8 @@ export interface AttemptRow {
   number: number;
   isLate: boolean;
   submittedAt: string;
+  /** A teacher handed it in for the student, as for work done on paper. */
+  byTeacher: boolean;
 }
 
 export async function attemptsOf(
@@ -649,9 +651,11 @@ export async function attemptsOf(
     number: number;
     is_late: boolean;
     submitted_at: string;
+    by_teacher: boolean;
   }>(sql`
     select id, number, is_late,
-      to_char(submitted_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as submitted_at
+      to_char(submitted_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as submitted_at,
+      submitted_by_user_id <> student_user_id as by_teacher
     from core.submission_attempts
     where tenant_id = ${tenantId}::uuid and submission_id = ${submissionId}::uuid and status = 'active'
     order by number`);
@@ -660,6 +664,7 @@ export async function attemptsOf(
     number: row.number,
     isLate: row.is_late,
     submittedAt: row.submitted_at,
+    byTeacher: row.by_teacher,
   }));
 }
 

@@ -337,6 +337,7 @@ export const STUDENT_WORK_ACTIONS = [
   "revise",
   "excuse",
   "unexcuse",
+  "hand_in",
 ] as const;
 export type StudentWorkAction = (typeof STUDENT_WORK_ACTIONS)[number];
 

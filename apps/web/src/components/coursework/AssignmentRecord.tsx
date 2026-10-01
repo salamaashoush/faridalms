@@ -11,6 +11,7 @@ import {
   Archive,
   CalendarClock,
   ClipboardPen,
+  Inbox,
   Pencil,
   RotateCcw,
   Send,
@@ -317,6 +318,9 @@ function workCard(points: number | null) {
 function Work({ data }: { data: Data }) {
   const user = useCurrentUser();
   const [extending, setExtending] = useState<WorkRow[] | null>(null);
+  // Work done on paper is handed in by the teacher; a quiz only by its student.
+  const handsIn =
+    data.state === "published" && data.submissionFormat !== "quiz";
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const act = useMutation({
@@ -370,6 +374,16 @@ function Work({ data }: { data: Data }) {
           onSelect: (selected) =>
             run("excuse", selected, m.courseworkExcusedDone()),
         },
+        ...(handsIn
+          ? [
+              {
+                label: m.courseworkHandInFor(),
+                icon: Inbox,
+                onSelect: (selected: WorkRow[]) =>
+                  run("hand_in", selected, m.courseworkHandedInDone()),
+              },
+            ]
+          : []),
         ...(data.access.author && data.state === "published"
           ? [
               {
@@ -410,6 +424,18 @@ function Work({ data }: { data: Data }) {
                     run("excuse", [row], m.courseworkExcusedDone()),
                 },
               ]),
+          ...(handsIn &&
+          !row.excused &&
+          (!row.attemptId || row.released || row.needsRevision)
+            ? [
+                {
+                  label: m.courseworkHandInFor(),
+                  icon: Inbox,
+                  onSelect: () =>
+                    run("hand_in", [row], m.courseworkHandedInDone()),
+                },
+              ]
+            : []),
           ...(data.access.author && data.state === "published"
             ? [
                 {

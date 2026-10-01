@@ -99,6 +99,7 @@ function AttemptItem({ data, attempt }: { data: Data; attempt: Attempt }) {
           {[
             formatInstant(attempt.submittedAt, user.school.timeZone),
             attempt.isLate ? m.courseworkLate() : null,
+            attempt.byTeacher ? m.courseworkByTeacher() : null,
           ]
             .filter(Boolean)
             .join(" · ")}

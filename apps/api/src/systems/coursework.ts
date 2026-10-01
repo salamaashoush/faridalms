@@ -706,6 +706,62 @@ export const record = readProcedure
     };
   });
 
+/**
+ * Hands in for a student whatever their draft holds, as for work done on
+ * paper or away from a screen. A quiz is answered only by its student, and
+ * work already with the teacher is left as it is.
+ */
+async function handInFor(
+  context: UnitContext,
+  input: {
+    assignment: { id: string; state: string; submissionFormat: string };
+    row: WorkRow;
+  },
+): Promise<boolean> {
+  const { assignment, row } = input;
+  if (
+    assignment.state !== "published" ||
+    assignment.submissionFormat === "quiz"
+  )
+    return false;
+  if (row.excused) return false;
+  if (row.attemptId && !row.released && !row.needsRevision) return false;
+  const tx = context.tx;
+  const submission = await ensureSubmission(tx, {
+    tenantId: context.tenantId,
+    assignmentId: assignment.id,
+    studentId: row.studentId,
+  });
+  const attemptId = await insertAttempt(tx, {
+    tenantId: context.tenantId,
+    submissionId: submission.id,
+    studentId: row.studentId,
+    number: row.attempts + 1,
+    isLate: isLate(row.dueAt, context.now),
+    userId: context.actor.userId,
+  });
+  const draftHost = { type: "submission", id: submission.id };
+  const attemptHost = { type: "submission_attempt", id: attemptId };
+  await freezeCopy(tx, {
+    tenantId: context.tenantId,
+    from: draftHost,
+    to: attemptHost,
+  });
+  await rehostFiles(tx, {
+    tenantId: context.tenantId,
+    from: draftHost,
+    to: attemptHost,
+  });
+  await touchSubmission(tx, {
+    tenantId: context.tenantId,
+    id: submission.id,
+    expectedVersion: submission.version,
+    state: "submitted",
+    needsRevision: false,
+  });
+  return true;
+}
+
 /** Return, return for revision, excuse or un-excuse the work of several students at once. */
 export const act = writeProcedure
   .input(studentWorkActionSchema)
@@ -723,6 +779,10 @@ export const act = writeProcedure
     );
     let changed = 0;
     for (const row of chosen) {
+      if (input.action === "hand_in") {
+        if (await handInFor(context, { assignment, row })) changed += 1;
+        continue;
+      }
       if (input.action === "return" || input.action === "revise") {
         if (
           !row.attemptId ||

@@ -1901,6 +1901,8 @@
   "courseworkYourFiles": "Your files",
   "courseworkYourWork": "Your work",
   "courseworkYourWorkHint": "Save as you go, then hand in when you are ready.",
+  "courseworkHandInFor": "Hand in for them",
+  "courseworkByTeacher": "Handed in by your teacher",
   "courseworkExtend": "Extend due date",
   "courseworkExtendFor": "For {names}.",
   "courseworkExtendDue": "New due date",

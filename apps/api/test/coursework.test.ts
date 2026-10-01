@@ -301,6 +301,35 @@ describe("handing in and returning work", () => {
     );
   });
 
+  test("a teacher hands in work done on paper, once, and the student sees who did", async () => {
+    const teacher = await arabicTeacher();
+    const student = await sessionFor("northwind", login("student"));
+    const me = await student.api.identity.currentUser();
+    const target = await classOfStudent(teacher.api, me.id);
+    const saved = await teacher.api.coursework.save(
+      draft(target.id, "Poster on paper", { submissionFormat: "online" }),
+    );
+    await teacher.api.coursework.publish({
+      id: saved.id,
+      expectedVersion: saved.version,
+    });
+    const handIn = () =>
+      teacher.api.coursework.act({
+        assignmentId: saved.id,
+        action: "hand_in",
+        studentIds: [me.id],
+      });
+    expect(await handIn()).toEqual({ changed: 1 });
+    expect(await handIn()).toEqual({ changed: 0 });
+    const record = await teacher.api.coursework.record({ id: saved.id });
+    expect(
+      record.work.find((row) => row.studentId === me.id)?.learnerState,
+    ).toBe("handed_in");
+    const work = await student.api.coursework.work({ id: saved.id });
+    expect(work.attempts).toHaveLength(1);
+    expect(work.attempts[0]).toMatchObject({ number: 1, byTeacher: true });
+  });
+
   test("late work under a deduction policy loses its share, and an unassessed attempt can be taken back", async () => {
     const teacher = await arabicTeacher();
     const student = await sessionFor("northwind", login("student"));

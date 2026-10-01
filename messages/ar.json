@@ -1933,6 +1933,8 @@
   "courseworkYourFiles": "ملفاتك",
   "courseworkYourWork": "عملك",
   "courseworkYourWorkHint": "احفظ أثناء العمل، ثم سلّم عندما تكون جاهزًا.",
+  "courseworkHandInFor": "تسليم نيابةً عنهم",
+  "courseworkByTeacher": "سلّمه معلمك",
   "courseworkExtend": "تمديد موعد التسليم",
   "courseworkExtendFor": "لـ {names}.",
   "courseworkExtendDue": "موعد التسليم الجديد",
