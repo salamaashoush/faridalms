@@ -3,10 +3,10 @@ import type {
   RelationshipFlags,
 } from "@faridalms/domain/people";
 
+import { Checkbox } from "@faridalms/ui/checkbox";
 import { useId } from "react";
 
 import { SelectField, TextField } from "~/components/system/field";
-import { Checkbox } from "~/components/ui/checkbox";
 import * as m from "~/i18n/messages";
 
 export interface NamesDraft {

@@ -1,6 +1,5 @@
+import { cn } from "@faridalms/ui/cn";
 import { useId } from "react";
-
-import { cn } from "~/utils/cn";
 
 export interface ChipOption<T extends string> {
   value: T;

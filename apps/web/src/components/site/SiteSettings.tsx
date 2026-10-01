@@ -9,6 +9,7 @@ import {
   SITE_LOCALES,
   SOCIAL_KINDS,
 } from "@faridalms/domain/website";
+import { Button } from "@faridalms/ui/button";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Plus, X } from "lucide-react";
 import { useState } from "react";
@@ -22,7 +23,6 @@ import {
   SettingsPage,
   SettingsSection,
 } from "~/components/system/SettingsSection";
-import { Button } from "~/components/ui/button";
 import * as m from "~/i18n/messages";
 import { saveSiteSettings } from "~/server/site";
 import { getMessageFromError } from "~/utils/error";

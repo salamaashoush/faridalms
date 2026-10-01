@@ -1,3 +1,4 @@
+import { Skeleton } from "@faridalms/ui/skeleton";
 import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { Plus } from "lucide-react";
@@ -34,7 +35,6 @@ import {
   SettingsPage,
   SettingsSection,
 } from "~/components/system/SettingsSection";
-import { Skeleton } from "~/components/ui/skeleton";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { accessChangesQuery, accessRolesQuery } from "~/queries/access";

@@ -1,18 +1,18 @@
 import type { ComponentProps, ReactNode } from "react";
 
-import { CircleAlert } from "lucide-react";
-import { useId } from "react";
-
-import { Input } from "~/components/ui/input";
+import { cn } from "@faridalms/ui/cn";
+import { Input } from "@faridalms/ui/input";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "~/components/ui/select";
+} from "@faridalms/ui/select";
+import { CircleAlert } from "lucide-react";
+import { useId } from "react";
+
 import * as m from "~/i18n/messages";
-import { cn } from "~/utils/cn";
 import { validationMessage } from "~/utils/validation";
 
 type Issue = { message?: string } | string | undefined | null;

@@ -1,6 +1,8 @@
 import type { ManagementOptionsInput } from "@faridalms/domain/administration-schema";
 import type { ComponentProps, ReactNode } from "react";
 
+import { Button } from "@faridalms/ui/button";
+import { Skeleton } from "@faridalms/ui/skeleton";
 import {
   QueryErrorResetBoundary,
   useSuspenseQuery,
@@ -8,8 +10,6 @@ import {
 import { CircleAlert } from "lucide-react";
 import { Component, Suspense, useDeferredValue, useState } from "react";
 
-import { Button } from "~/components/ui/button";
-import { Skeleton } from "~/components/ui/skeleton";
 import * as m from "~/i18n/messages";
 import { managementOptionsQuery } from "~/queries/school";
 import { getMessageFromError } from "~/utils/error";

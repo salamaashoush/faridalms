@@ -1,3 +1,5 @@
+import { Button } from "@faridalms/ui/button";
+import { RadioGroup, RadioGroupItem } from "@faridalms/ui/radio-group";
 import {
   useMutation,
   useQueryClient,
@@ -8,8 +10,6 @@ import { toast } from "sonner";
 
 import { SelectField, TextField } from "~/components/system/field";
 import { SheetForm } from "~/components/system/SheetForm";
-import { Button } from "~/components/ui/button";
-import { RadioGroup, RadioGroupItem } from "~/components/ui/radio-group";
 import * as m from "~/i18n/messages";
 import { peopleOptionsQuery } from "~/queries/students";
 import {

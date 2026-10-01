@@ -1,3 +1,4 @@
+import { Checkbox } from "@faridalms/ui/checkbox";
 import {
   useMutation,
   useQueryClient,
@@ -6,7 +7,6 @@ import {
 import { useState } from "react";
 
 import { SettingsSection } from "~/components/system/SettingsSection";
-import { Checkbox } from "~/components/ui/checkbox";
 import * as m from "~/i18n/messages";
 import { schoolFeaturesQuery } from "~/queries/school-settings";
 import { setSchoolFeature } from "~/server/school-settings";

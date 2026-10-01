@@ -2,10 +2,9 @@ import type { LinkProps } from "@tanstack/react-router";
 import type { VariantProps } from "class-variance-authority";
 import type { ReactNode } from "react";
 
+import { buttonVariants } from "@faridalms/ui/button";
+import { cn } from "@faridalms/ui/cn";
 import { Link } from "@tanstack/react-router";
-
-import { buttonVariants } from "~/components/ui/button";
-import { cn } from "~/utils/cn";
 
 type ButtonLinkProps = LinkProps &
   VariantProps<typeof buttonVariants> & {

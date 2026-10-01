@@ -1,3 +1,4 @@
+import { Button } from "@faridalms/ui/button";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { UserMinus } from "lucide-react";
 import { useState } from "react";
@@ -6,7 +7,6 @@ import type { threadQuery } from "~/queries/messages";
 
 import { ComboboxField } from "~/components/system/ComboboxField";
 import { SheetForm } from "~/components/system/SheetForm";
-import { Button } from "~/components/ui/button";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { messageRecipientsQuery } from "~/queries/messages";

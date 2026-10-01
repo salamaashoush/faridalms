@@ -1,13 +1,14 @@
 import type { ReactNode } from "react";
 
-import { FormField } from "~/components/app/form";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "~/components/ui/select";
+} from "@faridalms/ui/select";
+
+import { FormField } from "~/components/app/form";
 
 export function SelectField<T extends string>({
   id,

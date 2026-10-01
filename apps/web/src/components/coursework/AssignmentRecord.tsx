@@ -1,6 +1,7 @@
 import type { StudentWorkAction } from "@faridalms/domain/coursework";
 
 import { zonedInstant, zonedLocal } from "@faridalms/domain/school";
+import { cn } from "@faridalms/ui/cn";
 import {
   useMutation,
   useQueryClient,
@@ -60,7 +61,6 @@ import {
   extendDueDates,
   publishAssignment,
 } from "~/server/coursework";
-import { cn } from "~/utils/cn";
 import { formatNumber } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 

@@ -1,13 +1,13 @@
 import type { SearchHit } from "@faridalms/domain/search";
 
+import { Button } from "@faridalms/ui/button";
+import { DialogContent } from "@faridalms/ui/dialog";
 import { useQuery } from "@tanstack/react-query";
 import { Link, useHydrated, useNavigate } from "@tanstack/react-router";
 import { ArrowRight, Search } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import { Dialog, DialogTitle, DialogTrigger } from "~/components/app/dialog";
-import { Button } from "~/components/ui/button";
-import { DialogContent } from "~/components/ui/dialog";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { searchQuery } from "~/queries/search";

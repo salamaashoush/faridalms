@@ -4,11 +4,11 @@ import type {
 } from "@faridalms/domain/announcements";
 
 import { AUDIENCE_SCOPES } from "@faridalms/domain/announcements";
+import { Button } from "@faridalms/ui/button";
 import { Plus, X } from "lucide-react";
 
 import { classTitle } from "~/components/classes/format";
 import { SelectField } from "~/components/system/field";
-import { Button } from "~/components/ui/button";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { formatList } from "~/utils/datetime";

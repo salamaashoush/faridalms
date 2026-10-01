@@ -4,6 +4,9 @@ import {
   ATTENDANCE_MEANINGS,
   TIMED_MEANINGS,
 } from "@faridalms/domain/attendance";
+import { Button } from "@faridalms/ui/button";
+import { cn } from "@faridalms/ui/cn";
+import { Input } from "@faridalms/ui/input";
 import {
   useMutation,
   useQueryClient,
@@ -19,13 +22,10 @@ import { classTitle } from "~/components/classes/format";
 import { displayName } from "~/components/people/format";
 import { SelectField } from "~/components/system/field";
 import { RecordHeader } from "~/components/system/RecordPage";
-import { Button } from "~/components/ui/button";
-import { Input } from "~/components/ui/input";
 import { inLocale, useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { registerQuery } from "~/queries/attendance";
 import { saveRegister } from "~/server/attendance";
-import { cn } from "~/utils/cn";
 import { formatNumber } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 

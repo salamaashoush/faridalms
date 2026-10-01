@@ -1,8 +1,8 @@
+import { cn } from "@faridalms/ui/cn";
 import { CircleCheck, TriangleAlert, Mail } from "lucide-react";
 
 import { SectionCard } from "~/components/app/primitives";
 import * as m from "~/i18n/messages";
-import { cn } from "~/utils/cn";
 
 export interface AttentionItem {
   id: string;

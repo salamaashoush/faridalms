@@ -1,5 +1,6 @@
+import { Avatar, AvatarFallback, AvatarImage } from "@faridalms/ui/avatar";
+
 import { initialsOf } from "~/components/app/UserMenu";
-import { Avatar, AvatarFallback, AvatarImage } from "~/components/ui/avatar";
 
 /**
  * The name is always rendered next to this, so the image is decorative and the

@@ -1,3 +1,4 @@
+import { Button } from "@faridalms/ui/button";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Pencil, Plus, Tags, Trash2 } from "lucide-react";
 import { useState } from "react";
@@ -10,7 +11,6 @@ import { Value } from "~/components/app/primitives";
 import { DataTable } from "~/components/system/DataTable";
 import { TextField } from "~/components/system/field";
 import { SheetForm } from "~/components/system/SheetForm";
-import { Button } from "~/components/ui/button";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { removeSiteCategory, saveSiteCategory } from "~/server/site";

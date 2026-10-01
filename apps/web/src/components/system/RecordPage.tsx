@@ -1,15 +1,15 @@
 import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
+import { Avatar, AvatarFallback, AvatarImage } from "@faridalms/ui/avatar";
+import { Button } from "@faridalms/ui/button";
+import { cn } from "@faridalms/ui/cn";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@faridalms/ui/tabs";
 import { Pencil } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 
 import { Value } from "~/components/app/primitives";
-import { Avatar, AvatarFallback, AvatarImage } from "~/components/ui/avatar";
-import { Button } from "~/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
 import * as m from "~/i18n/messages";
-import { cn } from "~/utils/cn";
 
 import type { ActionItem } from "./ActionMenu";
 import type { PrimaryAction } from "./DocumentPage";

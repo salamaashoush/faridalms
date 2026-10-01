@@ -1,5 +1,6 @@
+import { cn } from "@faridalms/ui/cn";
+
 import * as m from "~/i18n/messages";
-import { cn } from "~/utils/cn";
 
 const sizes = {
   sm: "h-8 w-8",

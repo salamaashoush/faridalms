@@ -1,3 +1,5 @@
+import { Button } from "@faridalms/ui/button";
+import { Input } from "@faridalms/ui/input";
 import {
   useMutation,
   useQueryClient,
@@ -20,8 +22,6 @@ import {
   PageHeader,
 } from "~/components/system/IndexPage";
 import { StatusText } from "~/components/system/status";
-import { Button } from "~/components/ui/button";
-import { Input } from "~/components/ui/input";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { courseworkOptionsQuery } from "~/queries/coursework";

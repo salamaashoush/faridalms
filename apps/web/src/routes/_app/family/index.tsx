@@ -1,5 +1,6 @@
 import type { LinkProps } from "@tanstack/react-router";
 
+import { cn } from "@faridalms/ui/cn";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import {
   createFileRoute,
@@ -26,7 +27,6 @@ import { StatusText } from "~/components/system/status";
 import { inLocale, useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { familyHomeQuery } from "~/queries/home";
-import { cn } from "~/utils/cn";
 import { formatDate } from "~/utils/datetime";
 
 export const Route = createFileRoute("/_app/family/")({

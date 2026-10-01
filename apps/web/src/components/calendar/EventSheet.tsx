@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 
 import { eventIcs } from "@faridalms/domain/calendar";
 import { contentFileIds, contentPlainText } from "@faridalms/domain/content";
+import { Button } from "@faridalms/ui/button";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import {
@@ -22,7 +23,6 @@ import { ContentView } from "~/components/content/ContentView";
 import { ActionMenu } from "~/components/system/ActionMenu";
 import { SheetPanel } from "~/components/system/SheetPanel";
 import { StatusBadge } from "~/components/system/status";
-import { Button } from "~/components/ui/button";
 import { inLocale, useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { calendarEventQuery } from "~/queries/calendar";

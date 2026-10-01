@@ -1,5 +1,7 @@
 import type { ComponentProps, ReactNode } from "react";
 
+import { cn } from "@faridalms/ui/cn";
+import { Input } from "@faridalms/ui/input";
 import { useId } from "react";
 
 import {
@@ -8,9 +10,7 @@ import {
   FieldError,
   FieldLabel,
 } from "~/components/app/field";
-import { Input } from "~/components/ui/input";
 import * as m from "~/i18n/messages";
-import { cn } from "~/utils/cn";
 
 type Errors = ComponentProps<typeof FieldError>["errors"];
 

@@ -1,6 +1,7 @@
 import type { SiteLocale, SocialKind } from "@faridalms/domain/website";
 import type { CSSProperties, ReactNode } from "react";
 
+import { cn } from "@faridalms/ui/cn";
 import {
   ChevronDown,
   ChevronRight,
@@ -13,7 +14,6 @@ import {
 import { useEffect, useRef, useState } from "react";
 
 import * as m from "~/i18n/messages";
-import { cn } from "~/utils/cn";
 
 import type { RenderContext } from "./parts";
 

@@ -1,5 +1,6 @@
 import type { LucideIcon } from "lucide-react";
 
+import { cn } from "@faridalms/ui/cn";
 import {
   Activity,
   BookOpen,
@@ -11,7 +12,6 @@ import {
 } from "lucide-react";
 
 import * as m from "~/i18n/messages";
-import { cn } from "~/utils/cn";
 
 type AssignmentType =
   | "written_assignment"

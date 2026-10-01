@@ -1,3 +1,6 @@
+import { Button } from "@faridalms/ui/button";
+import { Input } from "@faridalms/ui/input";
+import { Textarea } from "@faridalms/ui/textarea";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { MessageSquareText, Pencil } from "lucide-react";
 import { useId, useState } from "react";
@@ -7,9 +10,6 @@ import { displayName } from "~/components/people/format";
 import { FormField } from "~/components/system/field";
 import { EmptyState } from "~/components/system/IndexPage";
 import { StatusBadge } from "~/components/system/status";
-import { Button } from "~/components/ui/button";
-import { Input } from "~/components/ui/input";
-import { Textarea } from "~/components/ui/textarea";
 import * as m from "~/i18n/messages";
 import { writtenAnswersQuery } from "~/queries/learning";
 import { markAnswer } from "~/server/learning";

@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 
+import { Button } from "@faridalms/ui/button";
 import { useHydrated } from "@tanstack/react-router";
 import { Check, CircleAlert, LoaderCircle } from "lucide-react";
 import {
@@ -13,7 +14,6 @@ import {
 } from "react";
 
 import { UnsavedChangesGuard } from "~/components/app/UnsavedChangesGuard";
-import { Button } from "~/components/ui/button";
 import * as m from "~/i18n/messages";
 
 interface Unsaved {

@@ -7,7 +7,8 @@ import type {
   SubmissionFormat,
 } from "@faridalms/domain/assignment";
 
-import { Badge } from "~/components/ui/badge";
+import { Badge } from "@faridalms/ui/badge";
+
 import * as m from "~/i18n/messages";
 
 export const ASSIGNMENT_STATUS_LABEL: Record<AssignmentStatus, () => string> = {

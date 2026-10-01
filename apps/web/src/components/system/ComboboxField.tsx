@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-import { Button } from "~/components/ui/button";
+import { Button } from "@faridalms/ui/button";
 import {
   Combobox,
   ComboboxContent,
@@ -9,7 +9,8 @@ import {
   ComboboxItem,
   ComboboxList,
   ComboboxTrigger,
-} from "~/components/ui/combobox";
+} from "@faridalms/ui/combobox";
+
 import * as m from "~/i18n/messages";
 
 import { FormField } from "./field";

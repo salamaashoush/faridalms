@@ -1,11 +1,11 @@
 import type { ReactNode } from "react";
 
+import { Avatar, AvatarFallback, AvatarImage } from "@faridalms/ui/avatar";
 import { useSuspenseQuery } from "@tanstack/react-query";
 
 import { Value } from "~/components/app/primitives";
 import { StudentSwitcher } from "~/components/app/StudentSwitcher";
 import { initialsOf } from "~/components/app/UserMenu";
-import { Avatar, AvatarFallback, AvatarImage } from "~/components/ui/avatar";
 import * as m from "~/i18n/messages";
 import { visibleStudentsQuery } from "~/queries/school";
 

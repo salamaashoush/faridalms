@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 
+import { cn } from "@faridalms/ui/cn";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { Pencil } from "lucide-react";
@@ -20,7 +21,6 @@ import {
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { personHistoryQuery, personRecordQuery } from "~/queries/students";
-import { cn } from "~/utils/cn";
 import { formatList } from "~/utils/datetime";
 
 import { AccessSection } from "./AccessSection";

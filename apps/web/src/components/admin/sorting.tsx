@@ -1,9 +1,9 @@
+import { Button } from "@faridalms/ui/button";
+import { cn } from "@faridalms/ui/cn";
+import { TableHead } from "@faridalms/ui/table";
 import { ArrowDown, ArrowUp, ChevronsUpDown } from "lucide-react";
 
-import { Button } from "~/components/ui/button";
-import { TableHead } from "~/components/ui/table";
 import * as m from "~/i18n/messages";
-import { cn } from "~/utils/cn";
 
 export type SortDirection = "asc" | "desc";
 

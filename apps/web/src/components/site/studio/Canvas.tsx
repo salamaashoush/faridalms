@@ -2,12 +2,12 @@ import type { SiteLocale } from "@faridalms/domain/site-sections";
 import type { Theme } from "@faridalms/domain/site-theme";
 import type { CSSProperties, ReactNode } from "react";
 
+import { Button } from "@faridalms/ui/button";
+import { cn } from "@faridalms/ui/cn";
 import { ArrowDown, ArrowUp, Copy, EyeOff, Plus, Trash2 } from "lucide-react";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 
-import { Button } from "~/components/ui/button";
 import * as m from "~/i18n/messages";
-import { cn } from "~/utils/cn";
 import { formatNumber } from "~/utils/datetime";
 
 import type { SiteFrameModel } from "../render/frame";

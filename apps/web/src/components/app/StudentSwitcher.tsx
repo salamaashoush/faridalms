@@ -1,10 +1,10 @@
+import { Avatar, AvatarFallback, AvatarImage } from "@faridalms/ui/avatar";
+import { cn } from "@faridalms/ui/cn";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { useId } from "react";
 
-import { Avatar, AvatarFallback, AvatarImage } from "~/components/ui/avatar";
 import * as m from "~/i18n/messages";
 import { visibleStudentsQuery } from "~/queries/school";
-import { cn } from "~/utils/cn";
 
 import { initialsOf } from "./UserMenu";
 

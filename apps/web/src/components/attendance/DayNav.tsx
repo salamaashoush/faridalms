@@ -1,7 +1,7 @@
+import { Button } from "@faridalms/ui/button";
+import { Input } from "@faridalms/ui/input";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
-import { Button } from "~/components/ui/button";
-import { Input } from "~/components/ui/input";
 import * as m from "~/i18n/messages";
 
 import { shiftDay } from "./format";

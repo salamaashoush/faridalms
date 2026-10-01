@@ -1,11 +1,11 @@
 import type { FilePurpose, FileSummary } from "@faridalms/domain/file";
 
 import { ACCEPTED_EXTENSIONS, mediaTypeFor } from "@faridalms/domain/file";
+import { Button } from "@faridalms/ui/button";
 import { useServerFn } from "@tanstack/react-start";
 import { LoaderCircle, Upload, X } from "lucide-react";
 import { useRef, useState } from "react";
 
-import { Button } from "~/components/ui/button";
 import * as m from "~/i18n/messages";
 import { initiateUpload } from "~/server/files";
 import { getMessageFromError } from "~/utils/error";

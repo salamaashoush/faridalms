@@ -1,3 +1,4 @@
+import { Button } from "@faridalms/ui/button";
 import {
   useMutation,
   useQueryClient,
@@ -9,7 +10,6 @@ import { toast } from "sonner";
 
 import { SelectField, TextField } from "~/components/system/field";
 import { FormSection, RecordForm } from "~/components/system/RecordForm";
-import { Button } from "~/components/ui/button";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { classOptionsQuery, classRecordQuery } from "~/queries/classes";

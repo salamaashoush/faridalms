@@ -3,6 +3,7 @@ import type { IsoWeekday } from "@faridalms/domain/timetable";
 import { monthWeeks, onDay } from "@faridalms/domain/calendar";
 import { addDays } from "@faridalms/domain/school";
 import { isoWeekday } from "@faridalms/domain/timetable";
+import { cn } from "@faridalms/ui/cn";
 import { Link } from "@tanstack/react-router";
 import { CalendarDays, MapPin } from "lucide-react";
 import { useState } from "react";
@@ -14,7 +15,6 @@ import { StatusBadge } from "~/components/system/status";
 import { dayName } from "~/components/timetable/WeekGrid";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
-import { cn } from "~/utils/cn";
 import { formatNumber, secondaryDate } from "~/utils/datetime";
 
 import {

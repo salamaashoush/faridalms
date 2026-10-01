@@ -1,3 +1,4 @@
+import { Button } from "@faridalms/ui/button";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { KeyRound, Power } from "lucide-react";
 import { useState } from "react";
@@ -6,7 +7,6 @@ import { toast } from "sonner";
 import { ConfirmDialog } from "~/components/system/ConfirmDialog";
 import { TextField } from "~/components/system/field";
 import { SheetForm } from "~/components/system/SheetForm";
-import { Button } from "~/components/ui/button";
 import * as m from "~/i18n/messages";
 import { saveSignIn, setSignInState } from "~/server/students";
 import { getMessageFromError } from "~/utils/error";

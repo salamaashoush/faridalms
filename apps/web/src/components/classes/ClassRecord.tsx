@@ -1,5 +1,7 @@
 import type { ReactNode } from "react";
 
+import { Button } from "@faridalms/ui/button";
+import { cn } from "@faridalms/ui/cn";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { ArrowRightLeft, Pencil, Plus, UserMinus } from "lucide-react";
@@ -22,11 +24,9 @@ import {
   RecordTabs,
 } from "~/components/system/RecordPage";
 import { ClassWeek } from "~/components/timetable/Weeks";
-import { Button } from "~/components/ui/button";
 import { inLocale, useCapability } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { classOptionsQuery, classRecordQuery } from "~/queries/classes";
-import { cn } from "~/utils/cn";
 
 import { displayName, labelOf } from "../people/format";
 import { AddStudentSheet, MoveClassSheet, WithdrawSheet } from "./Enrolment";

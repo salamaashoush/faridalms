@@ -1,8 +1,6 @@
 import type { ReactNode } from "react";
 
-import { CircleAlert, LoaderCircle, X } from "lucide-react";
-
-import { Button } from "~/components/ui/button";
+import { Button } from "@faridalms/ui/button";
 import {
   Sheet,
   SheetClose,
@@ -10,7 +8,9 @@ import {
   SheetFooter,
   SheetHeader,
   SheetTitle,
-} from "~/components/ui/sheet";
+} from "@faridalms/ui/sheet";
+import { CircleAlert, LoaderCircle, X } from "lucide-react";
+
 import * as m from "~/i18n/messages";
 import { getLocale, getTextDirection } from "~/i18n/runtime";
 

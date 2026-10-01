@@ -1,6 +1,6 @@
+import { Button } from "@faridalms/ui/button";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 
-import { Button } from "~/components/ui/button";
 import * as m from "~/i18n/messages";
 
 import { formatDate } from "./format";

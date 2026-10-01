@@ -1,5 +1,6 @@
 import type { ReactNode } from "react";
 
+import { Button } from "@faridalms/ui/button";
 import { revalidateLogic, useForm } from "@tanstack/react-form";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { BookOpen, Pencil, Plus } from "lucide-react";
@@ -17,7 +18,6 @@ import type { IndexToolbarProps } from "~/components/system/IndexPage";
 import { DataTable } from "~/components/system/DataTable";
 import { TextField } from "~/components/system/field";
 import { SheetForm } from "~/components/system/SheetForm";
-import { Button } from "~/components/ui/button";
 import * as m from "~/i18n/messages";
 import { getLocale } from "~/i18n/runtime";
 import { saveSubject } from "~/server/classes";

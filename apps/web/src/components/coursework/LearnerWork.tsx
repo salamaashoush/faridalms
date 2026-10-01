@@ -2,6 +2,8 @@ import type { ContentDocument } from "@faridalms/domain/content";
 
 import { contentPlainText } from "@faridalms/domain/content";
 import { emptyContent } from "@faridalms/domain/content-conversion";
+import { Button } from "@faridalms/ui/button";
+import { cn } from "@faridalms/ui/cn";
 import {
   useMutation,
   useQueryClient,
@@ -28,12 +30,10 @@ import {
   RecordSection,
 } from "~/components/system/RecordPage";
 import { SheetForm } from "~/components/system/SheetForm";
-import { Button } from "~/components/ui/button";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { myWorkQuery } from "~/queries/coursework";
 import { handInWork, saveMyDraft, undoHandIn } from "~/server/coursework";
-import { cn } from "~/utils/cn";
 import { formatNumber } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 

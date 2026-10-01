@@ -5,6 +5,7 @@ import {
   MESSAGE_ATTACHMENT_BYTES,
   MESSAGE_ATTACHMENT_LIMIT,
 } from "@faridalms/domain/file";
+import { Textarea } from "@faridalms/ui/textarea";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
 
@@ -12,7 +13,6 @@ import { ComboboxField } from "~/components/system/ComboboxField";
 import { FormField, SelectField, TextField } from "~/components/system/field";
 import { FileField } from "~/components/system/FileField";
 import { SheetForm } from "~/components/system/SheetForm";
-import { Textarea } from "~/components/ui/textarea";
 import * as m from "~/i18n/messages";
 import { getLocale } from "~/i18n/runtime";
 import { messageRecipientsQuery } from "~/queries/messages";

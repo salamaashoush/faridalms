@@ -1,9 +1,8 @@
 import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
-import { Inbox } from "lucide-react";
-
-import { Card, CardContent } from "~/components/ui/card";
+import { Card, CardContent } from "@faridalms/ui/card";
+import { cn } from "@faridalms/ui/cn";
 import {
   Empty,
   EmptyHeader,
@@ -11,9 +10,10 @@ import {
   EmptyTitle,
   EmptyDescription,
   EmptyContent,
-} from "~/components/ui/empty";
+} from "@faridalms/ui/empty";
+import { Inbox } from "lucide-react";
+
 import * as m from "~/i18n/messages";
-import { cn } from "~/utils/cn";
 
 export function PageHeader({
   title,

@@ -1,4 +1,5 @@
-import { Progress } from "~/components/ui/progress";
+import { Progress } from "@faridalms/ui/progress";
+
 import * as m from "~/i18n/messages";
 import { formatNumber } from "~/utils/datetime";
 

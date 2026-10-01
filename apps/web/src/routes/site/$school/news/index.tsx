@@ -1,4 +1,5 @@
 import { siteSlugSchema } from "@faridalms/domain/website";
+import { cn } from "@faridalms/ui/cn";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import {
   createFileRoute,
@@ -12,7 +13,6 @@ import { NewsFrame, PostList } from "~/components/site/PublicPage";
 import { langSearch } from "~/components/site/SiteShell";
 import * as m from "~/i18n/messages";
 import { publicPostsQuery, publicSiteQuery } from "~/queries/site";
-import { cn } from "~/utils/cn";
 
 const site = getRouteApi("/site/$school");
 

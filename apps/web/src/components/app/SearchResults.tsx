@@ -9,6 +9,7 @@ import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
 import { matchedRuns } from "@faridalms/domain/search";
+import { cn } from "@faridalms/ui/cn";
 import { Link } from "@tanstack/react-router";
 import {
   BookOpen,
@@ -26,7 +27,6 @@ import { roleLabel } from "~/components/people/format";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { getLocale } from "~/i18n/runtime";
-import { cn } from "~/utils/cn";
 import { formatDate, formatList } from "~/utils/datetime";
 
 export const SEARCH_KIND_LABEL: Record<SearchKind, () => string> = {

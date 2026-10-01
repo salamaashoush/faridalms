@@ -1,10 +1,6 @@
 import type { ManagementOptionsInput } from "@faridalms/domain/administration-schema";
 
-import { useSuspenseQuery } from "@tanstack/react-query";
-import { Suspense, useDeferredValue, useId, useState } from "react";
-
-import { Field, FieldLabel, FieldError } from "~/components/app/field";
-import { Button } from "~/components/ui/button";
+import { Button } from "@faridalms/ui/button";
 import {
   Combobox,
   ComboboxContent,
@@ -13,8 +9,12 @@ import {
   ComboboxItem,
   ComboboxList,
   ComboboxTrigger,
-} from "~/components/ui/combobox";
-import { Skeleton } from "~/components/ui/skeleton";
+} from "@faridalms/ui/combobox";
+import { Skeleton } from "@faridalms/ui/skeleton";
+import { useSuspenseQuery } from "@tanstack/react-query";
+import { Suspense, useDeferredValue, useId, useState } from "react";
+
+import { Field, FieldLabel, FieldError } from "~/components/app/field";
 import * as m from "~/i18n/messages";
 import { managementOptionsQuery } from "~/queries/school";
 

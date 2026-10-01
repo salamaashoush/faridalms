@@ -2,10 +2,9 @@ import type { ReactNode } from "react";
 
 import { Toggle } from "@base-ui/react/toggle";
 import { ToggleGroup } from "@base-ui/react/toggle-group";
+import { cn } from "@faridalms/ui/cn";
 import { ChevronDown } from "lucide-react";
 import { useId } from "react";
-
-import { cn } from "~/utils/cn";
 
 /** A labelled block in a studio panel. */
 export function PanelGroup({

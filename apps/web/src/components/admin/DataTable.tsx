@@ -1,6 +1,23 @@
 import type { ColumnDef } from "@tanstack/react-table";
 import type { ReactNode } from "react";
 
+import { Button } from "@faridalms/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuTrigger,
+  DropdownMenuContent,
+  DropdownMenuCheckboxItem,
+} from "@faridalms/ui/dropdown-menu";
+import { Input } from "@faridalms/ui/input";
+import {
+  Table,
+  TableBody,
+  TableCaption,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from "@faridalms/ui/table";
 import {
   columnVisibilityFeature,
   tableFeatures,
@@ -16,23 +33,6 @@ import {
 import { useMemo } from "react";
 
 import { EmptyState } from "~/components/app/primitives";
-import { Button } from "~/components/ui/button";
-import {
-  DropdownMenu,
-  DropdownMenuTrigger,
-  DropdownMenuContent,
-  DropdownMenuCheckboxItem,
-} from "~/components/ui/dropdown-menu";
-import { Input } from "~/components/ui/input";
-import {
-  Table,
-  TableBody,
-  TableCaption,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from "~/components/ui/table";
 import * as m from "~/i18n/messages";
 
 import { DirectoryPagination } from "./DirectoryPagination";

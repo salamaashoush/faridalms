@@ -29,6 +29,15 @@ import {
   THEME_IDS,
   THEMES,
 } from "@faridalms/domain/site-theme";
+import { Button } from "@faridalms/ui/button";
+import { Input } from "@faridalms/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@faridalms/ui/select";
 import {
   ArrowDown,
   ArrowUp,
@@ -40,15 +49,6 @@ import {
 } from "lucide-react";
 
 import { CheckboxRow } from "~/components/people/fields";
-import { Button } from "~/components/ui/button";
-import { Input } from "~/components/ui/input";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "~/components/ui/select";
 import * as m from "~/i18n/messages";
 import { formatNumber } from "~/utils/datetime";
 

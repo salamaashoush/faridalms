@@ -1,10 +1,10 @@
 import type { ReactNode } from "react";
 
+import { Button } from "@faridalms/ui/button";
 import { useRouter } from "@tanstack/react-router";
 import { Compass } from "lucide-react";
 
 import { ButtonLink } from "~/components/app/ButtonLink";
-import { Button } from "~/components/ui/button";
 import * as m from "~/i18n/messages";
 
 import { StatusPage } from "./status/StatusPage";

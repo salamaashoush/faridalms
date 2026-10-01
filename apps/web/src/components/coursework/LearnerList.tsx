@@ -1,5 +1,6 @@
 import type { LearnerState } from "@faridalms/domain/coursework";
 
+import { cn } from "@faridalms/ui/cn";
 import { Link } from "@tanstack/react-router";
 
 import {
@@ -11,7 +12,6 @@ import {
 import { StatusText } from "~/components/system/status";
 import * as m from "~/i18n/messages";
 import { getLocale } from "~/i18n/runtime";
-import { cn } from "~/utils/cn";
 
 import { classTitle } from "../classes/format";
 import { formatInstant, formatScore, STATE_LABEL, STATE_TONE } from "./format";

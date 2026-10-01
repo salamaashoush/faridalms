@@ -1,15 +1,16 @@
 import type { SiteLocale } from "@faridalms/domain/site-sections";
 
-import { CheckboxRow } from "~/components/people/fields";
-import { Input } from "~/components/ui/input";
+import { Input } from "@faridalms/ui/input";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "~/components/ui/select";
-import { Textarea } from "~/components/ui/textarea";
+} from "@faridalms/ui/select";
+import { Textarea } from "@faridalms/ui/textarea";
+
+import { CheckboxRow } from "~/components/people/fields";
 import * as m from "~/i18n/messages";
 
 import type { Languages, PageDraft } from "./draft";

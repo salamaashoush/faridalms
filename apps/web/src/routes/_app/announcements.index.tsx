@@ -1,6 +1,7 @@
 import type { ManageQuery } from "@faridalms/domain/announcements";
 
 import { MANAGE_TABS } from "@faridalms/domain/announcements";
+import { cn } from "@faridalms/ui/cn";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import {
   createFileRoute,
@@ -28,7 +29,6 @@ import {
   announcementFeedQuery,
   managedAnnouncementsQuery,
 } from "~/queries/announcements";
-import { cn } from "~/utils/cn";
 import { formatDate, formatNumber } from "~/utils/datetime";
 
 const TABS = ["current", "past", ...MANAGE_TABS] as const;

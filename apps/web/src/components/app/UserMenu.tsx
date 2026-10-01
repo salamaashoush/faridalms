@@ -1,12 +1,8 @@
 import type { Workspace } from "@faridalms/domain/workspace";
 
-import { useQueryClient } from "@tanstack/react-query";
-import { Link, useRouter } from "@tanstack/react-router";
-import { ChevronsUpDown } from "lucide-react";
-import { useCallback } from "react";
-
-import { Avatar, AvatarFallback, AvatarImage } from "~/components/ui/avatar";
-import { Button } from "~/components/ui/button";
+import { Avatar, AvatarFallback, AvatarImage } from "@faridalms/ui/avatar";
+import { Button } from "@faridalms/ui/button";
+import { cn } from "@faridalms/ui/cn";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -15,11 +11,15 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "~/components/ui/dropdown-menu";
+} from "@faridalms/ui/dropdown-menu";
+import { useQueryClient } from "@tanstack/react-query";
+import { Link, useRouter } from "@tanstack/react-router";
+import { ChevronsUpDown } from "lucide-react";
+import { useCallback } from "react";
+
 import { useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { logout } from "~/server/auth";
-import { cn } from "~/utils/cn";
 
 export const WORKSPACE_LABEL: Record<Workspace, () => string> = {
   admin: m.roleAdmin,

@@ -1,19 +1,19 @@
 import type { LucideIcon } from "lucide-react";
 
-import { Ellipsis } from "lucide-react";
-import { useState } from "react";
-import { toast } from "sonner";
-
-import { Button } from "~/components/ui/button";
+import { Button } from "@faridalms/ui/button";
+import { cn } from "@faridalms/ui/cn";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "~/components/ui/dropdown-menu";
+} from "@faridalms/ui/dropdown-menu";
+import { Ellipsis } from "lucide-react";
+import { useState } from "react";
+import { toast } from "sonner";
+
 import * as m from "~/i18n/messages";
-import { cn } from "~/utils/cn";
 import { getMessageFromError } from "~/utils/error";
 
 import { ConfirmDialog } from "./ConfirmDialog";

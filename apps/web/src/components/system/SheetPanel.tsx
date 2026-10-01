@@ -1,9 +1,7 @@
 import type { ReactNode } from "react";
 
-import { X } from "lucide-react";
-import { useRef } from "react";
-
-import { Button } from "~/components/ui/button";
+import { Button } from "@faridalms/ui/button";
+import { cn } from "@faridalms/ui/cn";
 import {
   Sheet,
   SheetClose,
@@ -11,10 +9,12 @@ import {
   SheetDescription,
   SheetHeader,
   SheetTitle,
-} from "~/components/ui/sheet";
+} from "@faridalms/ui/sheet";
+import { X } from "lucide-react";
+import { useRef } from "react";
+
 import * as m from "~/i18n/messages";
 import { getLocale, getTextDirection } from "~/i18n/runtime";
-import { cn } from "~/utils/cn";
 
 /**
  * Details kept off the page until asked for, in a panel from the end side:

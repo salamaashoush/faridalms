@@ -1,6 +1,5 @@
+import { cn } from "@faridalms/ui/cn";
 import { Link } from "@tanstack/react-router";
-
-import { cn } from "~/utils/cn";
 
 export function PersonLink({
   person,

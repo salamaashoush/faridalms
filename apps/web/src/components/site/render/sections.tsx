@@ -9,6 +9,7 @@ import type {
 import type { CSSProperties, FormEvent } from "react";
 
 import { withoutEmphasis } from "@faridalms/domain/site-sections";
+import { cn } from "@faridalms/ui/cn";
 import { useHydrated } from "@tanstack/react-router";
 import {
   ArrowRight,
@@ -31,7 +32,6 @@ import { useEffect, useRef, useState } from "react";
 import { ContentView } from "~/components/content/ContentView";
 import * as m from "~/i18n/messages";
 import { submitSiteEnquiry } from "~/server/site";
-import { cn } from "~/utils/cn";
 
 import type { RenderContext } from "./parts";
 

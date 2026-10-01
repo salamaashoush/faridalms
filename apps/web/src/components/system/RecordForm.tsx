@@ -1,11 +1,11 @@
 import type { FormEvent, ReactNode, Ref } from "react";
 
+import { Button } from "@faridalms/ui/button";
 import { useHydrated } from "@tanstack/react-router";
 import { CircleAlert, LoaderCircle } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 
 import { UnsavedChangesGuard } from "~/components/app/UnsavedChangesGuard";
-import { Button } from "~/components/ui/button";
 import * as m from "~/i18n/messages";
 import { getMessageFromError } from "~/utils/error";
 

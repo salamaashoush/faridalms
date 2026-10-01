@@ -2,6 +2,7 @@ import type { QueryClient } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 
 import { DirectionProvider } from "@base-ui/react/direction-provider";
+import { Toaster } from "@faridalms/ui/sonner";
 import {
   createRootRouteWithContext,
   HeadContent,
@@ -13,7 +14,6 @@ import { lazy, Suspense, useSyncExternalStore } from "react";
 
 import type { AuthState } from "~/server/auth";
 
-import { Toaster } from "~/components/ui/sonner";
 import * as m from "~/i18n/messages";
 import { getLocale, getTextDirection } from "~/i18n/runtime";
 import { currentUserQuery } from "~/queries/user";

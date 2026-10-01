@@ -1,3 +1,11 @@
+import { Button } from "@faridalms/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+} from "@faridalms/ui/dialog";
 import { useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import {
@@ -23,14 +31,6 @@ import { ButtonLink } from "~/components/app/ButtonLink";
 import { Value } from "~/components/app/primitives";
 import { DataTable, RowLink } from "~/components/system/DataTable";
 import { StatusText } from "~/components/system/status";
-import { Button } from "~/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "~/components/ui/dialog";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { moveSitePage, removeSitePage, unpublishSitePage } from "~/server/site";

@@ -1,3 +1,4 @@
+import { cn } from "@faridalms/ui/cn";
 import {
   useMutation,
   useQuery,
@@ -32,7 +33,6 @@ import {
   saveHousehold,
   searchPeople,
 } from "~/server/households";
-import { cn } from "~/utils/cn";
 import { formatList } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 

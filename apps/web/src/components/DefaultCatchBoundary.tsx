@@ -1,10 +1,10 @@
 import type { ErrorComponentProps } from "@tanstack/react-router";
 
+import { Button } from "@faridalms/ui/button";
 import { rootRouteId, useMatch, useRouter } from "@tanstack/react-router";
 import { RefreshCw, TriangleAlert } from "lucide-react";
 
 import { ButtonLink } from "~/components/app/ButtonLink";
-import { Button } from "~/components/ui/button";
 import * as m from "~/i18n/messages";
 import { getMessageFromError } from "~/utils/error";
 

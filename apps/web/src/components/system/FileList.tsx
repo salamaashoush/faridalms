@@ -1,10 +1,10 @@
 import type { FileSummary } from "@faridalms/domain/file";
 
 import { FileCard } from "@faridalms/editor/files";
+import { Button } from "@faridalms/ui/button";
 import { X } from "lucide-react";
 
 import { fileStrings } from "~/components/content/strings";
-import { Button } from "~/components/ui/button";
 import * as m from "~/i18n/messages";
 import { getLocale } from "~/i18n/runtime";
 import { formatNumber } from "~/utils/datetime";

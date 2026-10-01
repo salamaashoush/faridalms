@@ -1,6 +1,7 @@
 import type { RichTextDocument } from "@faridalms/domain/rich-text";
 
 import { richTextDocumentSchema } from "@faridalms/domain/rich-text";
+import { Button } from "@faridalms/ui/button";
 import { EditorContent, useEditor, useEditorState } from "@tiptap/react";
 import { StarterKit } from "@tiptap/starter-kit";
 import {
@@ -16,7 +17,6 @@ import {
 import { useEffect, useState } from "react";
 import * as v from "valibot";
 
-import { Button } from "~/components/ui/button";
 import * as m from "~/i18n/messages";
 
 export function RichTextComposer({

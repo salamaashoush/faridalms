@@ -1,12 +1,8 @@
+import { Button } from "@faridalms/ui/button";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@faridalms/ui/tooltip";
 import { FoldHorizontal, UnfoldHorizontal } from "lucide-react";
 import { useSyncExternalStore } from "react";
 
-import { Button } from "~/components/ui/button";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "~/components/ui/tooltip";
 import * as m from "~/i18n/messages";
 
 const KEY = "reader-width";

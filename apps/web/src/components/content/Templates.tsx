@@ -1,20 +1,14 @@
 import type { ContentDocument } from "@faridalms/domain/content";
 import type { TemplateKind } from "@faridalms/domain/templates";
 
-import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ChevronDown, LayoutTemplate, LoaderCircle } from "lucide-react";
-import { useState } from "react";
-import { toast } from "sonner";
-
-import { TextField } from "~/components/system/field";
-import { Button } from "~/components/ui/button";
+import { Button } from "@faridalms/ui/button";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogFooter,
   DialogTitle,
-} from "~/components/ui/dialog";
+} from "@faridalms/ui/dialog";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -23,7 +17,13 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "~/components/ui/dropdown-menu";
+} from "@faridalms/ui/dropdown-menu";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { ChevronDown, LayoutTemplate, LoaderCircle } from "lucide-react";
+import { useState } from "react";
+import { toast } from "sonner";
+
+import { TextField } from "~/components/system/field";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import {

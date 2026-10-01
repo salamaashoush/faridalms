@@ -1,9 +1,9 @@
+import { Button } from "@faridalms/ui/button";
 import { ImagePlus, X } from "lucide-react";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { useDocumentMedia } from "~/components/coursework/useDocumentMedia";
-import { Button } from "~/components/ui/button";
 import * as m from "~/i18n/messages";
 
 /** Uploads a picture as document media and shows what is chosen. */

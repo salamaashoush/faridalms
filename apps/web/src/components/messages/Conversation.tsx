@@ -4,6 +4,9 @@ import {
   MESSAGE_ATTACHMENT_BYTES,
   MESSAGE_ATTACHMENT_LIMIT,
 } from "@faridalms/domain/file";
+import { Button } from "@faridalms/ui/button";
+import { cn } from "@faridalms/ui/cn";
+import { Textarea } from "@faridalms/ui/textarea";
 import {
   useMutation,
   useQueryClient,
@@ -15,8 +18,6 @@ import { useEffect, useRef, useState } from "react";
 
 import { FileField } from "~/components/system/FileField";
 import { FileList } from "~/components/system/FileList";
-import { Button } from "~/components/ui/button";
-import { Textarea } from "~/components/ui/textarea";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { threadQuery } from "~/queries/messages";
@@ -25,7 +26,6 @@ import {
   saveThreadDraft,
   sendMessage,
 } from "~/server/messages";
-import { cn } from "~/utils/cn";
 import { getMessageFromError } from "~/utils/error";
 
 import { dayHeading, dayOf, nameOf, threadTitle, timeOf } from "./format";

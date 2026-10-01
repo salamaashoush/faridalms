@@ -1,5 +1,6 @@
 import type { LinkProps } from "@tanstack/react-router";
 
+import { Button } from "@faridalms/ui/button";
 import {
   useMutation,
   useQueryClient,
@@ -20,7 +21,6 @@ import {
 import { EmptyState, PageHeader } from "~/components/system/IndexPage";
 import { Fact, Facts, RecordColumns } from "~/components/system/RecordPage";
 import { StatusText } from "~/components/system/status";
-import { Button } from "~/components/ui/button";
 import * as m from "~/i18n/messages";
 import { adminHomeQuery } from "~/queries/home";
 import { remindTeachers } from "~/server/attendance";

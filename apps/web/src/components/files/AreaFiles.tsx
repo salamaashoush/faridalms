@@ -3,6 +3,7 @@ import type { FileArea, FileFamily } from "@faridalms/domain/file";
 import { fileFamily } from "@faridalms/domain/file";
 import { useRefreshFileFacts } from "@faridalms/editor/file-facts";
 import { FileIcon, fileMeta, FileViewer } from "@faridalms/editor/files";
+import { Button } from "@faridalms/ui/button";
 import {
   useMutation,
   useQuery,
@@ -36,7 +37,6 @@ import { TextField } from "~/components/system/field";
 import { RecordEmpty, RecordList } from "~/components/system/RecordPage";
 import { SheetForm } from "~/components/system/SheetForm";
 import { SheetPanel } from "~/components/system/SheetPanel";
-import { Button } from "~/components/ui/button";
 import * as m from "~/i18n/messages";
 import { getLocale } from "~/i18n/runtime";
 import { areaFilesQuery } from "~/queries/files";

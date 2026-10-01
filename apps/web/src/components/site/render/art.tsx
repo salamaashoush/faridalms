@@ -1,6 +1,6 @@
 import type { ReactNode } from "react";
 
-import { cn } from "~/utils/cn";
+import { cn } from "@faridalms/ui/cn";
 
 import { ratioStyle } from "./theme";
 

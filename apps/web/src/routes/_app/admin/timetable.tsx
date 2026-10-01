@@ -1,3 +1,4 @@
+import { Input } from "@faridalms/ui/input";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, stripSearchParams } from "@tanstack/react-router";
 import { CalendarCheck2, CalendarX2 } from "lucide-react";
@@ -20,7 +21,6 @@ import {
   teacherLabel,
   TeacherWeek,
 } from "~/components/timetable/Weeks";
-import { Input } from "~/components/ui/input";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import {

@@ -1,7 +1,5 @@
 import type { ReactElement, ReactNode } from "react";
 
-import { Link, useRouterState } from "@tanstack/react-router";
-
 import {
   Breadcrumb,
   BreadcrumbItem,
@@ -9,7 +7,9 @@ import {
   BreadcrumbList,
   BreadcrumbPage,
   BreadcrumbSeparator,
-} from "~/components/ui/breadcrumb";
+} from "@faridalms/ui/breadcrumb";
+import { Link, useRouterState } from "@tanstack/react-router";
+
 import { useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 

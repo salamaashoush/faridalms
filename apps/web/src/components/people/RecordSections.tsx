@@ -1,3 +1,4 @@
+import { Button } from "@faridalms/ui/button";
 import {
   useMutation,
   useQueryClient,
@@ -20,7 +21,6 @@ import {
 } from "~/components/system/RecordPage";
 import { SheetForm } from "~/components/system/SheetForm";
 import { StatusBadge, StatusText } from "~/components/system/status";
-import { Button } from "~/components/ui/button";
 import * as m from "~/i18n/messages";
 import {
   custodyQuery,

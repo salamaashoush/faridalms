@@ -7,6 +7,15 @@ import {
   materialChange,
 } from "@faridalms/domain/calendar";
 import { emptyContent } from "@faridalms/domain/content-conversion";
+import { Button } from "@faridalms/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@faridalms/ui/dialog";
 import {
   useQuery,
   useQueryClient,
@@ -31,15 +40,6 @@ import {
   DocumentTitle,
 } from "~/components/system/DocumentPage";
 import { SelectField, TextField } from "~/components/system/field";
-import { Button } from "~/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "~/components/ui/dialog";
 import { useAutosave } from "~/hooks/useAutosave";
 import * as m from "~/i18n/messages";
 import { getLocale } from "~/i18n/runtime";

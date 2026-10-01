@@ -1,3 +1,4 @@
+import { Button } from "@faridalms/ui/button";
 import {
   useMutation,
   useQueryClient,
@@ -17,7 +18,6 @@ import {
 } from "~/components/system/RecordPage";
 import { SheetForm } from "~/components/system/SheetForm";
 import { StatusBadge } from "~/components/system/status";
-import { Button } from "~/components/ui/button";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { accessRolesQuery, personAccessQuery } from "~/queries/access";

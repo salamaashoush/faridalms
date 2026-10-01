@@ -1,12 +1,12 @@
 import type { SiteLocale } from "@faridalms/domain/website";
 
+import { Button } from "@faridalms/ui/button";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 
 import { formatInstant } from "~/components/coursework/format";
 import { RecordList } from "~/components/system/RecordPage";
-import { Button } from "~/components/ui/button";
 import { inLocale, useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { restoreSitePage, restoreSitePost } from "~/server/site";

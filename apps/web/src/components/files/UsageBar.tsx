@@ -1,9 +1,9 @@
 import { WARN_SHARE } from "@faridalms/domain/plans";
+import { cn } from "@faridalms/ui/cn";
 import { TriangleAlert } from "lucide-react";
 
 import { fileSizeLabel } from "~/components/system/FileList";
 import * as m from "~/i18n/messages";
-import { cn } from "~/utils/cn";
 
 /**
  * How full a storage limit is, warning once it passes the warning share. The

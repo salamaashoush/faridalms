@@ -1,6 +1,7 @@
 import type { LinkProps } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 
+import { cn } from "@faridalms/ui/cn";
 import { Link } from "@tanstack/react-router";
 
 import type { Tone } from "~/components/system/status";
@@ -15,7 +16,6 @@ import { StatusBadge, StatusText } from "~/components/system/status";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { getLocale } from "~/i18n/runtime";
-import { cn } from "~/utils/cn";
 
 export const itemLink = cn(
   "justify-self-start text-sm leading-5 font-medium hover:text-primary hover:underline",

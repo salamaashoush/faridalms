@@ -1,3 +1,5 @@
+import { cn } from "@faridalms/ui/cn";
+import { Progress } from "@faridalms/ui/progress";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { CircleCheck, Lock, Play } from "lucide-react";
@@ -13,11 +15,9 @@ import {
   RecordSection,
 } from "~/components/system/RecordPage";
 import { StatusText } from "~/components/system/status";
-import { Progress } from "~/components/ui/progress";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { moduleOutlineQuery, myModulesQuery } from "~/queries/learning";
-import { cn } from "~/utils/cn";
 import { formatNumber } from "~/utils/datetime";
 
 import { LESSON_STATE_LABEL } from "./format";

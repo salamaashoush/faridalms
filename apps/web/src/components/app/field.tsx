@@ -1,6 +1,7 @@
 import type { ComponentProps } from "react";
 
-import { FieldError as PrimitiveFieldError } from "~/components/ui/field";
+import { FieldError as PrimitiveFieldError } from "@faridalms/ui/field";
+
 import { validationMessage } from "~/utils/validation";
 
 export {
@@ -13,7 +14,7 @@ export {
   FieldSet,
   FieldContent,
   FieldTitle,
-} from "~/components/ui/field";
+} from "@faridalms/ui/field";
 
 export function FieldError({
   errors,

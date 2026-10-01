@@ -1,3 +1,5 @@
+import { Button } from "@faridalms/ui/button";
+import { Input } from "@faridalms/ui/input";
 import { useForm } from "@tanstack/react-form";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useRouter, useHydrated } from "@tanstack/react-router";
@@ -10,8 +12,6 @@ import {
   FieldGroup,
   FieldLabel,
 } from "~/components/app/field";
-import { Button } from "~/components/ui/button";
-import { Input } from "~/components/ui/input";
 import * as m from "~/i18n/messages";
 import { loginSchema } from "~/schema/auth";
 import { login } from "~/server/auth";

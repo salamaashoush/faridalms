@@ -14,6 +14,10 @@ import {
   NEWSLETTER_LOCALES,
   translationState,
 } from "@faridalms/domain/newsletters";
+import { Button } from "@faridalms/ui/button";
+import { cn } from "@faridalms/ui/cn";
+import { Input } from "@faridalms/ui/input";
+import { Tabs, TabsList, TabsTrigger } from "@faridalms/ui/tabs";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { Archive, CalendarClock, Send } from "lucide-react";
 import { useCallback, useRef, useState } from "react";
@@ -39,9 +43,6 @@ import {
 } from "~/components/system/DocumentPage";
 import { FormField, SelectField } from "~/components/system/field";
 import { SheetPanel } from "~/components/system/SheetPanel";
-import { Button } from "~/components/ui/button";
-import { Input } from "~/components/ui/input";
-import { Tabs, TabsList, TabsTrigger } from "~/components/ui/tabs";
 import { useAutosave } from "~/hooks/useAutosave";
 import { inLocale, useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
@@ -53,7 +54,6 @@ import {
   reviewNewsletterTranslation,
   saveNewsletter,
 } from "~/server/newsletters";
-import { cn } from "~/utils/cn";
 import { getMessageFromError } from "~/utils/error";
 
 import {

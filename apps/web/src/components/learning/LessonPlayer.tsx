@@ -20,6 +20,8 @@ import {
   upgradeLesson,
 } from "@faridalms/domain/learning";
 import { StoredImage } from "@faridalms/editor/files";
+import { Button } from "@faridalms/ui/button";
+import { Progress } from "@faridalms/ui/progress";
 import {
   useMutation,
   useQueryClient,
@@ -44,8 +46,6 @@ import { ButtonLink } from "~/components/app/ButtonLink";
 import { ContentView } from "~/components/content/ContentView";
 import { ReadAloud, YoungContext } from "~/components/learning/ReadAloud";
 import { RecordHeader } from "~/components/system/RecordPage";
-import { Button } from "~/components/ui/button";
-import { Progress } from "~/components/ui/progress";
 import * as m from "~/i18n/messages";
 import { lessonEditorQuery, lessonQuery } from "~/queries/learning";
 import {

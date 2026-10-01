@@ -1,3 +1,5 @@
+import { Button } from "@faridalms/ui/button";
+import { cn } from "@faridalms/ui/cn";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { Link } from "@tanstack/react-router";
 import { ArrowRightLeft, UserMinus } from "lucide-react";
@@ -11,12 +13,10 @@ import {
   RecordSection,
 } from "~/components/system/RecordPage";
 import { StatusText } from "~/components/system/status";
-import { Button } from "~/components/ui/button";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { enrollmentHistoryQuery } from "~/queries/classes";
 import { peopleOptionsQuery } from "~/queries/students";
-import { cn } from "~/utils/cn";
 
 import { lastDay } from "../people/format";
 import { MoveClassSheet, WithdrawSheet } from "./Enrolment";

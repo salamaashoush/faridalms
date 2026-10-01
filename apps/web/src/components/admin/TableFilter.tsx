@@ -1,14 +1,13 @@
-import { PlusCircle } from "lucide-react";
-
-import { Badge } from "~/components/ui/badge";
-import { Button } from "~/components/ui/button";
+import { Badge } from "@faridalms/ui/badge";
+import { Button } from "@faridalms/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuTrigger,
   DropdownMenuRadioGroup,
   DropdownMenuRadioItem,
-} from "~/components/ui/dropdown-menu";
+} from "@faridalms/ui/dropdown-menu";
+import { PlusCircle } from "lucide-react";
 
 export function TableFilter({
   label,

@@ -1,5 +1,6 @@
 import type { ReportQuery } from "@faridalms/domain/attendance";
 
+import { Button } from "@faridalms/ui/button";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { Download, FileBarChart } from "lucide-react";
 
@@ -9,7 +10,6 @@ import type { Facet } from "~/components/system/IndexPage";
 import { classTitle } from "~/components/classes/format";
 import { DataTable, RowLink } from "~/components/system/DataTable";
 import { StatusText } from "~/components/system/status";
-import { Button } from "~/components/ui/button";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { attendanceReportQuery } from "~/queries/attendance";

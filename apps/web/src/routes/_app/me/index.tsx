@@ -1,3 +1,4 @@
+import { Progress } from "@faridalms/ui/progress";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import { House, Play } from "lucide-react";
@@ -18,7 +19,6 @@ import {
 import { EmptyState, PageHeader } from "~/components/system/IndexPage";
 import { RecordColumns } from "~/components/system/RecordPage";
 import { StatusText } from "~/components/system/status";
-import { Progress } from "~/components/ui/progress";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { studentHomeQuery } from "~/queries/home";

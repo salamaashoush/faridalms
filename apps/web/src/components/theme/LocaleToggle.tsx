@@ -1,14 +1,14 @@
-import { Languages } from "lucide-react";
-
-import type { Locale } from "~/i18n/runtime";
-
-import { Button } from "~/components/ui/button";
+import { Button } from "@faridalms/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-} from "~/components/ui/dropdown-menu";
+} from "@faridalms/ui/dropdown-menu";
+import { Languages } from "lucide-react";
+
+import type { Locale } from "~/i18n/runtime";
+
 import * as m from "~/i18n/messages";
 import { getLocale, locales, setLocale } from "~/i18n/runtime";
 

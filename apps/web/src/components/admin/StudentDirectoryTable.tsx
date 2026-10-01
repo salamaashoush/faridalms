@@ -1,9 +1,6 @@
 import type { StudentDirectoryQuery } from "@faridalms/domain/school-schema";
 import type { ColumnDef } from "@tanstack/react-table";
 
-import { tableFeatures, useTable } from "@tanstack/react-table";
-
-import { Value } from "~/components/app/primitives";
 import {
   Table,
   TableBody,
@@ -11,7 +8,10 @@ import {
   TableCell,
   TableHeader,
   TableRow,
-} from "~/components/ui/table";
+} from "@faridalms/ui/table";
+import { tableFeatures, useTable } from "@tanstack/react-table";
+
+import { Value } from "~/components/app/primitives";
 import * as m from "~/i18n/messages";
 
 import { PersonAvatar } from "./PersonAvatar";

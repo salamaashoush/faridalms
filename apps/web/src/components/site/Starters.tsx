@@ -7,13 +7,13 @@ import {
   STARTERS,
 } from "@faridalms/domain/site-templates";
 import { resolveTheme, THEMES } from "@faridalms/domain/site-theme";
+import { Button } from "@faridalms/ui/button";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { Check } from "lucide-react";
 import { useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { CheckboxRow } from "~/components/people/fields";
-import { Button } from "~/components/ui/button";
 import * as m from "~/i18n/messages";
 import { applySiteStarter } from "~/server/site";
 import { formatNumber } from "~/utils/datetime";

@@ -1,5 +1,6 @@
 import type { YearAction, YearLifecycle } from "@faridalms/domain/years";
 
+import { Textarea } from "@faridalms/ui/textarea";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { CalendarCheck, CopyPlus, Lock, LockOpen } from "lucide-react";
 import { useState } from "react";
@@ -9,7 +10,6 @@ import type { ActionItem } from "~/components/system/ActionMenu";
 
 import { FormField } from "~/components/system/field";
 import { SheetForm } from "~/components/system/SheetForm";
-import { Textarea } from "~/components/ui/textarea";
 import * as m from "~/i18n/messages";
 import { changeYearLifecycle } from "~/server/years";
 import { getMessageFromError } from "~/utils/error";

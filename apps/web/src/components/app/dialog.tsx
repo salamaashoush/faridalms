@@ -1,9 +1,9 @@
 import type { ComponentProps } from "react";
 
+import { Button } from "@faridalms/ui/button";
+import { DialogContent as Content, DialogClose } from "@faridalms/ui/dialog";
 import { X } from "lucide-react";
 
-import { Button } from "~/components/ui/button";
-import { DialogContent as Content, DialogClose } from "~/components/ui/dialog";
 import * as m from "~/i18n/messages";
 
 export {
@@ -14,7 +14,7 @@ export {
   DialogHeader,
   DialogFooter,
   DialogClose,
-} from "~/components/ui/dialog";
+} from "@faridalms/ui/dialog";
 
 export function DialogContent({
   children,

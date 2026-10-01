@@ -5,6 +5,32 @@ import { Tabs } from "@base-ui/react/tabs";
 import { buildTemplate } from "@faridalms/domain/site-templates";
 import { resolveTheme } from "@faridalms/domain/site-theme";
 import { sectionComplete, sectionWritten } from "@faridalms/domain/website";
+import { Button } from "@faridalms/ui/button";
+import { cn } from "@faridalms/ui/cn";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@faridalms/ui/dialog";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuGroup,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@faridalms/ui/dropdown-menu";
+import { Input } from "@faridalms/ui/input";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@faridalms/ui/sheet";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
 import {
@@ -43,31 +69,6 @@ import { ButtonLink } from "~/components/app/ButtonLink";
 import { UnsavedChangesGuard } from "~/components/app/UnsavedChangesGuard";
 import { useDocumentMedia } from "~/components/coursework/useDocumentMedia";
 import { StatusBadge } from "~/components/system/status";
-import { Button } from "~/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "~/components/ui/dialog";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuGroup,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "~/components/ui/dropdown-menu";
-import { Input } from "~/components/ui/input";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from "~/components/ui/sheet";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import {
@@ -76,7 +77,6 @@ import {
   saveSiteSettings,
   unpublishSitePage,
 } from "~/server/site";
-import { cn } from "~/utils/cn";
 import { formatNumber } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 

@@ -1,9 +1,7 @@
 import type { CalendarCategory } from "@faridalms/domain/calendar";
 
 import { CALENDAR_CATEGORIES } from "@faridalms/domain/calendar";
-import { ListFilter } from "lucide-react";
-
-import { Button } from "~/components/ui/button";
+import { Button } from "@faridalms/ui/button";
 import {
   DropdownMenu,
   DropdownMenuCheckboxItem,
@@ -11,7 +9,9 @@ import {
   DropdownMenuItem,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
-} from "~/components/ui/dropdown-menu";
+} from "@faridalms/ui/dropdown-menu";
+import { ListFilter } from "lucide-react";
+
 import * as m from "~/i18n/messages";
 import { formatNumber } from "~/utils/datetime";
 

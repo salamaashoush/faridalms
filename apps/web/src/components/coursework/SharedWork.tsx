@@ -1,3 +1,10 @@
+import { Button } from "@faridalms/ui/button";
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from "@faridalms/ui/sheet";
 import { useQuery } from "@tanstack/react-query";
 import { useState } from "react";
 
@@ -7,13 +14,6 @@ import {
   RecordList,
   RecordSection,
 } from "~/components/system/RecordPage";
-import { Button } from "~/components/ui/button";
-import {
-  Sheet,
-  SheetContent,
-  SheetHeader,
-  SheetTitle,
-} from "~/components/ui/sheet";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { getLocale, getTextDirection } from "~/i18n/runtime";

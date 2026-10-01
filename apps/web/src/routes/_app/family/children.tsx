@@ -1,3 +1,4 @@
+import { cn } from "@faridalms/ui/cn";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, Link } from "@tanstack/react-router";
 import {
@@ -16,7 +17,6 @@ import { inLocale, useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { personRecordQuery } from "~/queries/students";
 import { currentUserQuery } from "~/queries/user";
-import { cn } from "~/utils/cn";
 
 export const Route = createFileRoute("/_app/family/children")({
   loader: async ({ context }) => {

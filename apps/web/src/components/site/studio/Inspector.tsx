@@ -13,14 +13,14 @@ import {
   shownFields,
 } from "@faridalms/domain/site-sections";
 import { DIVIDERS, SCHEMES, schemesOf } from "@faridalms/domain/site-theme";
+import { Button } from "@faridalms/ui/button";
+import { cn } from "@faridalms/ui/cn";
+import { Input } from "@faridalms/ui/input";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@faridalms/ui/tabs";
 import { AlignCenter, AlignLeft, CircleAlert, X } from "lucide-react";
 
 import { CheckboxRow } from "~/components/people/fields";
-import { Button } from "~/components/ui/button";
-import { Input } from "~/components/ui/input";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
 import * as m from "~/i18n/messages";
-import { cn } from "~/utils/cn";
 import { formatNumber } from "~/utils/datetime";
 
 import type { RenderContext } from "../render/parts";

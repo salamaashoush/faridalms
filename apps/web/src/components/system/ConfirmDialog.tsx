@@ -1,13 +1,13 @@
-import { CircleAlert, LoaderCircle } from "lucide-react";
-
-import { Button } from "~/components/ui/button";
+import { Button } from "@faridalms/ui/button";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogFooter,
   DialogTitle,
-} from "~/components/ui/dialog";
+} from "@faridalms/ui/dialog";
+import { CircleAlert, LoaderCircle } from "lucide-react";
+
 import * as m from "~/i18n/messages";
 
 /**

@@ -1,11 +1,12 @@
-import { Field, FieldLabel } from "~/components/app/field";
 import {
   Select,
   SelectContent,
   SelectItem,
   SelectTrigger,
   SelectValue,
-} from "~/components/ui/select";
+} from "@faridalms/ui/select";
+
+import { Field, FieldLabel } from "~/components/app/field";
 import * as m from "~/i18n/messages";
 
 export interface ClassOption {

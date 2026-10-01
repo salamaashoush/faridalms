@@ -1,7 +1,7 @@
+import { Button } from "@faridalms/ui/button";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { Download } from "lucide-react";
 
-import { Button } from "~/components/ui/button";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { studentCourseworkQuery } from "~/queries/coursework";

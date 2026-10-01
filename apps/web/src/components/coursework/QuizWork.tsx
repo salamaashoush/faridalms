@@ -4,6 +4,9 @@ import type {
   StudentBlock,
 } from "@faridalms/domain/learning";
 
+import { Button } from "@faridalms/ui/button";
+import { Input } from "@faridalms/ui/input";
+import { Textarea } from "@faridalms/ui/textarea";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { CheckCircle2 } from "lucide-react";
 import { useState } from "react";
@@ -21,9 +24,6 @@ import {
 import { FormField } from "~/components/system/field";
 import { RecordEmpty, RecordSection } from "~/components/system/RecordPage";
 import { SheetForm } from "~/components/system/SheetForm";
-import { Button } from "~/components/ui/button";
-import { Input } from "~/components/ui/input";
-import { Textarea } from "~/components/ui/textarea";
 import * as m from "~/i18n/messages";
 import { myWorkQuery } from "~/queries/coursework";
 import {

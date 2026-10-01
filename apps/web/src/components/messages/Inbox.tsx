@@ -1,17 +1,17 @@
 import type { InboxQuery } from "@faridalms/domain/messages";
 
+import { cn } from "@faridalms/ui/cn";
+import { Input } from "@faridalms/ui/input";
+import { Skeleton } from "@faridalms/ui/skeleton";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { Inbox as InboxIcon, PenSquare, Search } from "lucide-react";
 import { Suspense } from "react";
 import * as v from "valibot";
 
 import { EmptyState, PageHeader } from "~/components/system/IndexPage";
-import { Input } from "~/components/ui/input";
-import { Skeleton } from "~/components/ui/skeleton";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { inboxQuery } from "~/queries/messages";
-import { cn } from "~/utils/cn";
 
 import { Conversation } from "./Conversation";
 import { nameOf, threadTitle, whenShort } from "./format";

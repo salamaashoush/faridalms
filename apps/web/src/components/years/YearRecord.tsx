@@ -1,3 +1,4 @@
+import { cn } from "@faridalms/ui/cn";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { Pencil } from "lucide-react";
@@ -19,7 +20,6 @@ import {
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { yearHistoryQuery, yearQuery, yearsQuery } from "~/queries/years";
-import { cn } from "~/utils/cn";
 import { formatNumber } from "~/utils/datetime";
 
 import { STANDING_LABEL, STANDING_TONE, yearDates, yearTitle } from "./format";

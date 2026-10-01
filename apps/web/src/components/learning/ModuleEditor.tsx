@@ -1,3 +1,4 @@
+import { Textarea } from "@faridalms/ui/textarea";
 import {
   useMutation,
   useQueryClient,
@@ -13,7 +14,6 @@ import { CheckboxRow } from "~/components/people/fields";
 import { ComboboxField } from "~/components/system/ComboboxField";
 import { FormField, SelectField, TextField } from "~/components/system/field";
 import { FormSection, RecordForm } from "~/components/system/RecordForm";
-import { Textarea } from "~/components/ui/textarea";
 import * as m from "~/i18n/messages";
 import { learningOptionsQuery } from "~/queries/learning";
 import { saveModule } from "~/server/learning";

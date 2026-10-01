@@ -1,5 +1,6 @@
 import type { ComponentProps, ReactNode } from "react";
 
+import { Button } from "@faridalms/ui/button";
 import { Check, LoaderCircle } from "lucide-react";
 
 import {
@@ -9,7 +10,6 @@ import {
   DialogTitle,
 } from "~/components/app/dialog";
 import { TextField } from "~/components/app/form";
-import { Button } from "~/components/ui/button";
 import * as m from "~/i18n/messages";
 
 export function ManagementDialog({

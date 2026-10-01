@@ -3,6 +3,16 @@ import type { TemplateKind } from "@faridalms/domain/templates";
 import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
+import { Button } from "@faridalms/ui/button";
+import { cn } from "@faridalms/ui/cn";
+import {
+  Sheet,
+  SheetContent,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from "@faridalms/ui/sheet";
+import { Tooltip, TooltipContent, TooltipTrigger } from "@faridalms/ui/tooltip";
 import {
   ArrowLeft,
   ChevronDown,
@@ -27,22 +37,8 @@ import {
   SaveTemplateDialog,
   TemplatePicker,
 } from "~/components/content/Templates";
-import { Button } from "~/components/ui/button";
-import {
-  Sheet,
-  SheetContent,
-  SheetFooter,
-  SheetHeader,
-  SheetTitle,
-} from "~/components/ui/sheet";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from "~/components/ui/tooltip";
 import * as m from "~/i18n/messages";
 import { getLocale, getTextDirection } from "~/i18n/runtime";
-import { cn } from "~/utils/cn";
 
 import type { ActionItem } from "./ActionMenu";
 import type { Tone } from "./status";

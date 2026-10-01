@@ -1,7 +1,7 @@
+import { Input } from "@faridalms/ui/input";
 import { Search, X } from "lucide-react";
 import { useId } from "react";
 
-import { Input } from "~/components/ui/input";
 import * as m from "~/i18n/messages";
 
 export function SearchField({

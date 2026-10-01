@@ -1,3 +1,4 @@
+import { Avatar, AvatarFallback, AvatarImage } from "@faridalms/ui/avatar";
 import { Link } from "@tanstack/react-router";
 import {
   BookOpen,
@@ -14,7 +15,6 @@ import {
   Value,
 } from "~/components/app/primitives";
 import { initialsOf } from "~/components/app/UserMenu";
-import { Avatar, AvatarFallback, AvatarImage } from "~/components/ui/avatar";
 import * as m from "~/i18n/messages";
 import { formatNumber } from "~/utils/datetime";
 

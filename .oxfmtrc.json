@@ -18,7 +18,7 @@
     "functions": ["cn", "cva"]
   },
   "ignorePatterns": [
-    "apps/web/src/components/ui/**",
+    "packages/ui/src/**",
     "**/node_modules/**",
     "apps/web/src/i18n/**",
     "apps/web/src/routeTree.gen.ts",

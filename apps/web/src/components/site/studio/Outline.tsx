@@ -2,6 +2,8 @@ import type { PageSection, SiteLocale } from "@faridalms/domain/site-sections";
 import type { LucideIcon } from "lucide-react";
 
 import { withoutEmphasis } from "@faridalms/domain/site-sections";
+import { Button } from "@faridalms/ui/button";
+import { cn } from "@faridalms/ui/cn";
 import {
   Award,
   Blocks,
@@ -41,9 +43,7 @@ import {
 } from "lucide-react";
 import { useId, useState } from "react";
 
-import { Button } from "~/components/ui/button";
 import * as m from "~/i18n/messages";
-import { cn } from "~/utils/cn";
 import { formatNumber } from "~/utils/datetime";
 
 import { SECTION_LABEL } from "./labels";

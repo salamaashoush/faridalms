@@ -1,11 +1,11 @@
-import { ChevronLeft, ChevronRight } from "lucide-react";
-
-import { Button } from "~/components/ui/button";
+import { Button } from "@faridalms/ui/button";
 import {
   Pagination,
   PaginationContent,
   PaginationItem,
-} from "~/components/ui/pagination";
+} from "@faridalms/ui/pagination";
+import { ChevronLeft, ChevronRight } from "lucide-react";
+
 import * as m from "~/i18n/messages";
 import { formatNumber } from "~/utils/datetime";
 

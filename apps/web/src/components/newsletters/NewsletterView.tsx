@@ -2,9 +2,9 @@ import type { ContentDocument } from "@faridalms/domain/content";
 import type { NewsletterLocale } from "@faridalms/domain/newsletters";
 
 import { documentWritten } from "@faridalms/domain/newsletters";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@faridalms/ui/tabs";
 
 import { ContentView } from "~/components/content/ContentView";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
 import * as m from "~/i18n/messages";
 
 export const LOCALE_LABEL: Record<NewsletterLocale, () => string> = {

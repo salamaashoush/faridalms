@@ -1,6 +1,7 @@
 import type { ManageNewslettersQuery } from "@faridalms/domain/newsletters";
 
 import { MANAGE_TABS } from "@faridalms/domain/announcements";
+import { cn } from "@faridalms/ui/cn";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import {
   createFileRoute,
@@ -27,7 +28,6 @@ import {
   newslettersQuery,
 } from "~/queries/newsletters";
 import { currentUserQuery } from "~/queries/user";
-import { cn } from "~/utils/cn";
 import { formatNumber } from "~/utils/datetime";
 
 const TABS = ["editions", ...MANAGE_TABS] as const;

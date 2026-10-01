@@ -4,6 +4,16 @@ import type { ContentDocument } from "@faridalms/domain/content";
 import { URGENCIES } from "@faridalms/domain/announcements";
 import { contentPlainText } from "@faridalms/domain/content";
 import { emptyContent } from "@faridalms/domain/content-conversion";
+import { Button } from "@faridalms/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@faridalms/ui/dialog";
+import { Input } from "@faridalms/ui/input";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { Archive, CalendarClock, Send } from "lucide-react";
 import { useCallback, useRef, useState } from "react";
@@ -21,16 +31,6 @@ import {
   DocumentTitle,
 } from "~/components/system/DocumentPage";
 import { FormField, SelectField, TextField } from "~/components/system/field";
-import { Button } from "~/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "~/components/ui/dialog";
-import { Input } from "~/components/ui/input";
 import { useAutosave } from "~/hooks/useAutosave";
 import * as m from "~/i18n/messages";
 import { announcementOptionsQuery } from "~/queries/announcements";

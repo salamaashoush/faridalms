@@ -4,6 +4,8 @@ import type { Workspace } from "@faridalms/domain/workspace";
 
 import { CALENDAR_CATEGORIES, monthWeeks } from "@faridalms/domain/calendar";
 import { addDays, shiftMonth } from "@faridalms/domain/school";
+import { cn } from "@faridalms/ui/cn";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@faridalms/ui/tabs";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, stripSearchParams } from "@tanstack/react-router";
 import { ChevronLeft, ChevronRight, Plus } from "lucide-react";
@@ -21,12 +23,10 @@ import {
   MonthGrid,
 } from "~/components/calendar/views";
 import { PageHeader } from "~/components/system/IndexPage";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "~/components/ui/tabs";
 import { inLocale, useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { calendarEventQuery, calendarRangeQuery } from "~/queries/calendar";
 import { currentUserQuery } from "~/queries/user";
-import { cn } from "~/utils/cn";
 import { formatMonthLabel } from "~/utils/datetime";
 
 const VIEWS = ["month", "agenda"] as const;

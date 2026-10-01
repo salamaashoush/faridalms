@@ -1,5 +1,8 @@
 import type { Rubric } from "@faridalms/domain/coursework";
 
+import { Button } from "@faridalms/ui/button";
+import { cn } from "@faridalms/ui/cn";
+import { Textarea } from "@faridalms/ui/textarea";
 import {
   useMutation,
   useQueryClient,
@@ -19,13 +22,10 @@ import {
   RecordSection,
 } from "~/components/system/RecordPage";
 import { StatusText } from "~/components/system/status";
-import { Button } from "~/components/ui/button";
-import { Textarea } from "~/components/ui/textarea";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { gradingQuery } from "~/queries/coursework";
 import { actOnWork, assessAttempt } from "~/server/coursework";
-import { cn } from "~/utils/cn";
 import { formatNumber } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 

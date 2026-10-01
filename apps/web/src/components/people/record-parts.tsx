@@ -1,5 +1,7 @@
 import type { ReactNode } from "react";
 
+import { cn } from "@faridalms/ui/cn";
+import { Skeleton } from "@faridalms/ui/skeleton";
 import { Suspense } from "react";
 
 import { Value } from "~/components/app/primitives";
@@ -12,10 +14,8 @@ import {
   RecordSection,
 } from "~/components/system/RecordPage";
 import { StatusText } from "~/components/system/status";
-import { Skeleton } from "~/components/ui/skeleton";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
-import { cn } from "~/utils/cn";
 import { formatDateTime } from "~/utils/datetime";
 
 import { formatPhone } from "./format";

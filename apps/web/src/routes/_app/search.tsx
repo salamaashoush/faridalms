@@ -1,6 +1,8 @@
 import type { SearchKind } from "@faridalms/domain/search";
 
 import { SEARCH_KINDS, searchableKinds } from "@faridalms/domain/search";
+import { Button } from "@faridalms/ui/button";
+import { Input } from "@faridalms/ui/input";
 import { useInfiniteQuery, useQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import { LoaderCircle, Search, SearchX } from "lucide-react";
@@ -13,8 +15,6 @@ import {
   SearchResults,
 } from "~/components/app/SearchResults";
 import { RecordTabs } from "~/components/system/RecordPage";
-import { Button } from "~/components/ui/button";
-import { Input } from "~/components/ui/input";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { searchKindQuery, searchQuery } from "~/queries/search";

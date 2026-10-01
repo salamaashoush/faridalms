@@ -11,6 +11,7 @@ import type { Divider, Theme } from "@faridalms/domain/site-theme";
 import type { LucideIcon } from "lucide-react";
 import type { CSSProperties, ReactNode } from "react";
 
+import { cn } from "@faridalms/ui/cn";
 import {
   Award,
   BookOpen,
@@ -42,7 +43,6 @@ import {
 import { createContext, useContext, useRef, useState } from "react";
 
 import { ContentView } from "~/components/content/ContentView";
-import { cn } from "~/utils/cn";
 
 import { SiteArt } from "./art";
 import { focusStyle, overMediaStyle, ratioStyle, schemeStyle } from "./theme";

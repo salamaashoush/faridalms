@@ -1,3 +1,6 @@
+import { Button } from "@faridalms/ui/button";
+import { Tabs, TabsList, TabsTrigger, TabsContent } from "@faridalms/ui/tabs";
+import { Textarea } from "@faridalms/ui/textarea";
 import { useHydrated } from "@tanstack/react-router";
 import {
   Bold,
@@ -14,9 +17,6 @@ import {
 } from "lucide-react";
 import { useRef } from "react";
 
-import { Button } from "~/components/ui/button";
-import { Tabs, TabsList, TabsTrigger, TabsContent } from "~/components/ui/tabs";
-import { Textarea } from "~/components/ui/textarea";
 import * as m from "~/i18n/messages";
 
 import { MarkdownContent } from "./MarkdownContent";

@@ -16,19 +16,19 @@ import {
   buildTemplate,
   PAGE_TEMPLATE_IDS,
 } from "@faridalms/domain/site-templates";
-import { Search } from "lucide-react";
-import { useMemo, useState } from "react";
-
+import { cn } from "@faridalms/ui/cn";
 import {
   Dialog,
   DialogContent,
   DialogDescription,
   DialogHeader,
   DialogTitle,
-} from "~/components/ui/dialog";
-import { Input } from "~/components/ui/input";
+} from "@faridalms/ui/dialog";
+import { Input } from "@faridalms/ui/input";
+import { Search } from "lucide-react";
+import { useMemo, useState } from "react";
+
 import * as m from "~/i18n/messages";
-import { cn } from "~/utils/cn";
 
 import type { RenderContext } from "../render/parts";
 

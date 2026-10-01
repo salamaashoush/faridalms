@@ -9,6 +9,8 @@ import {
 } from "@faridalms/domain/calendar";
 import { addDays, shiftMonth } from "@faridalms/domain/school";
 import { isoWeekday } from "@faridalms/domain/timetable";
+import { Button } from "@faridalms/ui/button";
+import { cn } from "@faridalms/ui/cn";
 import {
   useMutation,
   useQueryClient,
@@ -22,13 +24,11 @@ import { toast } from "sonner";
 import { CheckboxRow } from "~/components/people/fields";
 import { SelectField, TextField } from "~/components/system/field";
 import { dayName } from "~/components/timetable/WeekGrid";
-import { Button } from "~/components/ui/button";
 import { inLocale, useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { getLocale } from "~/i18n/runtime";
 import { yearDaysQuery } from "~/queries/years";
 import { paintYearDays, setYearTarget } from "~/server/years";
-import { cn } from "~/utils/cn";
 import { formatDate, formatMonthLabel, formatNumber } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 

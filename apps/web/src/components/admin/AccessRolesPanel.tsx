@@ -1,6 +1,7 @@
 import type { Capability } from "@faridalms/domain/capabilities";
 import type { ReactNode } from "react";
 
+import { Checkbox } from "@faridalms/ui/checkbox";
 import {
   useMutation,
   useQueryClient,
@@ -24,7 +25,6 @@ import { TextField } from "~/components/system/field";
 import { RecordEmpty, RecordSection } from "~/components/system/RecordPage";
 import { SheetForm } from "~/components/system/SheetForm";
 import { StatusBadge } from "~/components/system/status";
-import { Checkbox } from "~/components/ui/checkbox";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { accessChangesQuery, accessRolesQuery } from "~/queries/access";

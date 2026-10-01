@@ -1,3 +1,4 @@
+import { cn } from "@faridalms/ui/cn";
 import {
   useMutation,
   useQueryClient,
@@ -19,7 +20,6 @@ import { useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { notificationsQuery } from "~/queries/notifications";
 import { markNotificationsRead } from "~/server/notifications";
-import { cn } from "~/utils/cn";
 import { formatAgo, formatNumber } from "~/utils/datetime";
 
 const TABS = ["all", "action"] as const;

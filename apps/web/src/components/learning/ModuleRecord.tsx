@@ -1,5 +1,7 @@
 import type { ReactNode } from "react";
 
+import { Button } from "@faridalms/ui/button";
+import { cn } from "@faridalms/ui/cn";
 import {
   useMutation,
   useQuery,
@@ -44,7 +46,6 @@ import {
   RecordSection,
   RecordTabs,
 } from "~/components/system/RecordPage";
-import { Button } from "~/components/ui/button";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { moduleProgressQuery, moduleRecordQuery } from "~/queries/learning";
@@ -57,7 +58,6 @@ import {
   removeLesson,
   unpublishModule,
 } from "~/server/learning";
-import { cn } from "~/utils/cn";
 import { formatNumber } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 

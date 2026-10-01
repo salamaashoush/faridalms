@@ -1,5 +1,7 @@
 import type { ReactNode } from "react";
 
+import { Button } from "@faridalms/ui/button";
+import { cn } from "@faridalms/ui/cn";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import {
@@ -38,7 +40,6 @@ import {
   RecordTabs,
 } from "~/components/system/RecordPage";
 import { StatusText } from "~/components/system/status";
-import { Button } from "~/components/ui/button";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import {
@@ -46,7 +47,6 @@ import {
   studentHistoryQuery,
   studentRecordQuery,
 } from "~/queries/students";
-import { cn } from "~/utils/cn";
 
 import type { StudentSheet } from "./StudentSheets";
 

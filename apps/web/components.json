@@ -5,15 +5,15 @@
   "tsx": true,
   "tailwind": {
     "config": "",
-    "css": "src/styles/globals.css",
+    "css": "../../packages/ui/src/theme.css",
     "baseColor": "neutral",
     "cssVariables": true,
     "prefix": ""
   },
   "aliases": {
     "components": "~/components",
-    "utils": "~/utils/cn",
-    "ui": "~/components/ui",
+    "utils": "@faridalms/ui/cn",
+    "ui": "@faridalms/ui",
     "lib": "~/lib",
     "hooks": "~/hooks"
   },

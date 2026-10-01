@@ -1,8 +1,8 @@
 import { textDirection } from "@faridalms/domain/content";
+import { Button } from "@faridalms/ui/button";
 import { Volume2 } from "lucide-react";
 import { createContext, useSyncExternalStore } from "react";
 
-import { Button } from "~/components/ui/button";
 import * as m from "~/i18n/messages";
 import { getLocale } from "~/i18n/runtime";
 

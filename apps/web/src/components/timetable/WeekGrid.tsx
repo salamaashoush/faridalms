@@ -1,11 +1,11 @@
 import type { ReactNode } from "react";
 
+import { cn } from "@faridalms/ui/cn";
 import { useState } from "react";
 
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { getLocale } from "~/i18n/runtime";
-import { cn } from "~/utils/cn";
 
 export interface GridPeriod {
   id: string;

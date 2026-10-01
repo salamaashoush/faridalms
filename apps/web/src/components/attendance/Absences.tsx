@@ -1,5 +1,6 @@
 import type { AbsencesQuery } from "@faridalms/domain/attendance";
 
+import { Input } from "@faridalms/ui/input";
 import {
   useMutation,
   useQueryClient,
@@ -22,7 +23,6 @@ import { DataTable, RowLink } from "~/components/system/DataTable";
 import { SelectField, TextField } from "~/components/system/field";
 import { SheetForm } from "~/components/system/SheetForm";
 import { StatusText } from "~/components/system/status";
-import { Input } from "~/components/ui/input";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { absencesQuery } from "~/queries/attendance";
