@@ -36,3 +36,17 @@ export const renameInArea = createServerFn({ method: "POST" })
 export const trashInArea = createServerFn({ method: "POST" })
   .validator(checked(v.object({ ...areaFile, trashed: v.boolean() })))
   .handler(({ data }) => backend().files.trashInArea(data));
+
+export const getFileFacts = createServerFn({ method: "POST" })
+  .validator(
+    checked(
+      v.object({
+        ids: v.pipe(
+          v.array(v.pipe(v.string(), v.uuid())),
+          v.minLength(1),
+          v.maxLength(100),
+        ),
+      }),
+    ),
+  )
+  .handler(({ data }) => backend().files.facts(data));

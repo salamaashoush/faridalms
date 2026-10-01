@@ -1,5 +1,5 @@
 import type { ContentDocument, ContentNode } from "@faridalms/domain/content";
-import type { CSSProperties, ReactNode } from "react";
+import type { ComponentProps, CSSProperties, ReactNode } from "react";
 
 import {
   contentPlainText,
@@ -11,8 +11,9 @@ import { isSafeContentUrl } from "@faridalms/domain/rich-text";
 import { ExternalLink } from "lucide-react";
 import { createElement } from "react";
 
-import type { FileStrings } from "./files";
+import type { FileFacts, FileStrings } from "./files";
 
+import { useFileFacts } from "./file-facts";
 import { FileCard, PictureView, StoredImage } from "./files";
 import { blockAlignClass, diagramImageClass, imageSizeClass } from "./format";
 import { EmbedFrame, MediaPlayer, MediaTranscript } from "./media-view";
@@ -457,8 +458,9 @@ function render(node: ContentNode, key: string, context: Context): ReactNode {
       const href = node.fileId ? context.fileUrl?.(node.fileId) : undefined;
       return (
         <div key={key} className="my-3">
-          <FileCard
-            file={{
+          <ReadFile
+            fileId={node.fileId}
+            kept={{
               name: node.name ?? "",
               mime: node.mime ?? "",
               bytes: node.bytes ?? 0,
@@ -474,6 +476,17 @@ function render(node: ContentNode, key: string, context: Context): ReactNode {
     }
   }
   return null;
+}
+
+function ReadFile({
+  fileId,
+  kept,
+  ...card
+}: Omit<ComponentProps<typeof FileCard>, "file"> & {
+  fileId: string | undefined;
+  kept: Required<FileFacts>;
+}) {
+  return <FileCard file={useFileFacts(fileId, kept)} {...card} />;
 }
 
 export function ContentRenderer({

@@ -1,8 +1,20 @@
+import { FileFactsProvider } from "@faridalms/editor/file-facts";
 import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
 
 import { Shell } from "~/components/system/Shell";
 import { currentUserQuery } from "~/queries/user";
 import { getWorkspacePreferences } from "~/server/auth";
+import { getFileFacts } from "~/server/files";
+
+async function currentFacts(ids: string[]) {
+  const { files } = await getFileFacts({ data: { ids } });
+  return Object.fromEntries(
+    files.map((file) => [
+      file.id,
+      { name: file.name, mime: file.mediaType, bytes: file.sizeBytes },
+    ]),
+  );
+}
 
 export const Route = createFileRoute("/_app")({
   beforeLoad: ({ context, location }) => {
@@ -25,8 +37,10 @@ export const Route = createFileRoute("/_app")({
 function AppLayout() {
   const preferences = Route.useLoaderData();
   return (
-    <Shell sidebarOpen={preferences.sidebarOpen}>
-      <Outlet />
-    </Shell>
+    <FileFactsProvider resolve={currentFacts}>
+      <Shell sidebarOpen={preferences.sidebarOpen}>
+        <Outlet />
+      </Shell>
+    </FileFactsProvider>
   );
 }

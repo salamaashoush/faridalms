@@ -670,6 +670,20 @@ describe("a class's file area", () => {
     expect(
       (await raw("northwind", outsider.token, `/v1/files/${map}/content`)).status,
     ).toBe(404);
+
+    // Cards read a file's current name: a rename in the area shows to the
+    // brief's readers, and nothing at all to people who may not open it.
+    await teacher.api.files.renameInArea({
+      area: { type: "class", id: target.id },
+      id: map,
+      name: "Map of the Nile.txt",
+    });
+    expect(
+      (await student.api.files.facts({ ids: [map] })).files.map(
+        (file) => file.name,
+      ),
+    ).toEqual(["Map of the Nile.txt"]);
+    expect((await outsider.api.files.facts({ ids: [map] })).files).toEqual([]);
   });
 });
 

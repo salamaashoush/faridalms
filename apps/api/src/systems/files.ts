@@ -4,6 +4,7 @@ import type { FilePurpose } from "@faridalms/domain/file";
 import {
   adoptFiles,
   areaFiles,
+  filesByIds,
   initiateFile,
   renameAreaFile,
   trashAreaFile,
@@ -24,7 +25,7 @@ import {
   requireCapability,
   writeProcedure,
 } from "../core/procedure";
-import { mayKeepArea } from "../files/authorize";
+import { canReadFile, mayKeepArea } from "../files/authorize";
 
 const UPLOADERS: Record<FilePurpose, Capability[]> = {
   attachment: ["assignments:author", "messages:send"],
@@ -161,4 +162,39 @@ export const trashInArea = writeProcedure
       details: { hostType: input.area.type, hostId: input.area.id },
     });
     return { ok: true };
+  });
+
+/**
+ * What files are called and weigh now, for the cards of documents that
+ * show them; only files the reader may open are answered.
+ */
+export const facts = readProcedure
+  .input(
+    v.object({
+      ids: v.pipe(
+        v.array(v.pipe(v.string(), v.uuid())),
+        v.minLength(1),
+        v.maxLength(100),
+      ),
+    }),
+  )
+  .handler(async ({ input, context }) => {
+    const found = await filesByIds(context.tx, context.tenantId, input.ids);
+    const readable = await Promise.all(
+      found.map(async (file) =>
+        file.state === "ready" && (await canReadFile(context, file))
+          ? file
+          : null,
+      ),
+    );
+    return {
+      files: readable
+        .filter((file) => file !== null)
+        .map((file) => ({
+          id: file.id,
+          name: file.name,
+          mediaType: file.mediaType,
+          sizeBytes: file.sizeBytes,
+        })),
+    };
   });

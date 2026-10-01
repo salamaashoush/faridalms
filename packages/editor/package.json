@@ -11,6 +11,7 @@
     ".": "./src/index.ts",
     "./view": "./src/view.tsx",
     "./files": "./src/files.tsx",
+    "./file-facts": "./src/file-facts.tsx",
     "./nodes": "./src/nodes/index.ts",
     "./strings": "./src/strings.ts",
     "./editor.css": "./src/editor.css",

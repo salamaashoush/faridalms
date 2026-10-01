@@ -1,6 +1,7 @@
 import type { FileArea, FileFamily } from "@faridalms/domain/file";
 
 import { fileFamily } from "@faridalms/domain/file";
+import { useRefreshFileFacts } from "@faridalms/editor/file-facts";
 import { FileIcon, fileMeta, FileViewer } from "@faridalms/editor/files";
 import {
   useMutation,
@@ -476,6 +477,7 @@ function RenameSheet({
   onRenamed: () => Promise<unknown>;
 }) {
   const rename = useServerFn(renameInArea);
+  const refreshFacts = useRefreshFileFacts();
   const [name, setName] = useState(file.name);
   const mutation = useMutation({
     mutationFn: () => rename({ data: { area, id: file.id, name } }),
@@ -493,6 +495,7 @@ function RenameSheet({
         if (!name.trim()) return;
         await mutation.mutateAsync().then(
           async () => {
+            refreshFacts([file.id]);
             await onRenamed();
             toast.success(m.filesRenamed());
             onClose();

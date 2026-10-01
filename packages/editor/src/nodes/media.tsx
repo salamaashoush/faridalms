@@ -25,6 +25,7 @@ import {
 import { useEffect, useState } from "react";
 
 import { useEditorEnvironment } from "../context";
+import { useFileFacts } from "../file-facts";
 import { FileCard, FileViewer, StoredImage } from "../files";
 import { blockAlignClass, imageSizeClass } from "../format";
 import { useSelectOnClick } from "./select";
@@ -207,7 +208,7 @@ function FileBlock({
     [editor, nodeKey],
   );
   const url = media?.url(fileId);
-  const file = { name, mime, bytes };
+  const file = useFileFacts(fileId, { name, mime, bytes });
   return (
     <BlockWithAlignableContents
       className={blockClass}
