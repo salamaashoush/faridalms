@@ -19,6 +19,7 @@ import { UnsavedChangesGuard } from "~/components/app/UnsavedChangesGuard";
 import { useCollaboration } from "~/components/content/collaboration";
 import { ContentEditor } from "~/components/content/ContentEditor";
 import { useDocumentMedia } from "~/components/coursework/useDocumentMedia";
+import { CheckboxRow } from "~/components/people/fields";
 import {
   DetailsPanel,
   DetailsSection,
@@ -43,6 +44,7 @@ interface Draft {
   title: string;
   completion: LessonCompletion;
   passScore: string;
+  review: boolean;
   content: ContentDocument;
 }
 
@@ -79,6 +81,7 @@ export function LessonEditor({
     title: existing?.title ?? "",
     completion: existing?.completion ?? "view",
     passScore: existing?.passScore ? String(existing.passScore) : "",
+    review: existing?.review ?? false,
     content: existing?.content ?? emptyContent(),
   }));
   const [draft, setDraft] = useState(start);
@@ -140,6 +143,7 @@ export function LessonEditor({
           completion: value.completion,
           passScore:
             value.completion === "score" ? Number(value.passScore) : null,
+          review: value.review,
           content: shared ? content.current : value.content,
           publish,
         },
@@ -321,6 +325,12 @@ export function LessonEditor({
                   errors={passIssue && checking ? [passIssue] : undefined}
                 />
               ) : null}
+              <CheckboxRow
+                label={m.lrnReview()}
+                hint={m.lrnReviewHint()}
+                checked={draft.review}
+                onChange={(review) => set("review", review)}
+              />
             </DetailsSection>
           </DetailsPanel>
         }

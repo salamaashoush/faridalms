@@ -661,3 +661,114 @@ describe("lessons written as documents", () => {
     expect(editing.content).toHaveProperty("root");
   });
 });
+
+describe("asking missed questions again", () => {
+  test("a question missed first time comes back once at the end and leaves the score", async () => {
+    const { keeper } = await teachers();
+    const { rows } = await keeper.learning.modules({});
+    const source = rows.find((row) => row.title === TITLE);
+    if (!source) throw new Error("no module");
+    const saved = await keeper.learning.saveModule({
+      id: "",
+      expectedVersion: 0,
+      title: "Review",
+      summary: "",
+      classIds: source.classes.map((item) => item.id),
+      prerequisiteId: "",
+      sequential: false,
+    });
+    const right = id();
+    const wrong = id();
+    const missedOne = {
+      id: id(),
+      type: "choice" as const,
+      prompt: "Which is a noun?",
+      points: 1,
+      hint: "",
+      explanation: "A thing.",
+      tries: null,
+      options: [
+        { id: right, text: "Tree", feedback: "" },
+        { id: wrong, text: "Run", feedback: "" },
+      ],
+      correctOptionIds: [right],
+      multiple: false,
+      shuffle: false,
+    };
+    const knownOne = {
+      ...missedOne,
+      id: id(),
+      prompt: "Which is a verb?",
+      options: [
+        { id: right, text: "Jump", feedback: "" },
+        { id: wrong, text: "Chair", feedback: "" },
+      ],
+    };
+    await keeper.learning.saveLesson({
+      id: "",
+      moduleId: saved.id,
+      expectedVersion: 0,
+      title: "Nouns and verbs",
+      completion: "quiz",
+      passScore: null,
+      review: true,
+      content: written([missedOne, knownOne]),
+      publish: false,
+    });
+    await keeper.learning.publishModule({
+      id: saved.id,
+      expectedVersion: saved.version,
+    });
+
+    const pupil = await student();
+    const outline = await pupil.learning.play({ id: saved.id });
+    const lessonId = outline.lessons[0]?.id ?? "";
+    const choose = (blockId: string, optionId: string) =>
+      pupil.learning.respond({
+        lessonId,
+        blockId,
+        response: { type: "choice", optionIds: [optionId] },
+      });
+    await choose(missedOne.id, wrong);
+    const midway = await choose(missedOne.id, right);
+    expect(midway.review).toBeNull();
+    const last = await choose(knownOne.id, right);
+    expect(last.review?.blocks.map((block) => block.id)).toEqual([
+      missedOne.id,
+    ]);
+    const scored = last.score;
+
+    const again = await pupil.learning.reviewAnswer({
+      lessonId,
+      blockId: missedOne.id,
+      response: { type: "choice", optionIds: [right] },
+    });
+    expect(again.check).toMatchObject({
+      correct: true,
+      explanation: "A thing.",
+    });
+    expect(
+      await rejection(
+        pupil.learning.reviewAnswer({
+          lessonId,
+          blockId: missedOne.id,
+          response: { type: "choice", optionIds: [right] },
+        }),
+      ),
+    ).toMatchObject({ code: "CONFLICT", message: "learning.settled" });
+    expect(
+      await rejection(
+        pupil.learning.reviewAnswer({
+          lessonId,
+          blockId: knownOne.id,
+          response: { type: "choice", optionIds: [right] },
+        }),
+      ),
+    ).toMatchObject({ code: "NOT_FOUND" });
+    const reopened = await pupil.learning.playLesson({ id: lessonId });
+    expect(reopened.score).toBe(scored);
+    expect(reopened.review?.checks[missedOne.id]).toMatchObject({
+      correct: true,
+    });
+  });
+});

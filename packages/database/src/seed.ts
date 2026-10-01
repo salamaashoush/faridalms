@@ -1932,6 +1932,7 @@ async function seedLearning(
         title: lesson.title,
         completion: lesson.completion,
         passScore: null,
+        review: false,
       });
       lessonIds.push(row.id);
       const content = { version: 2, blocks: lesson.blocks };

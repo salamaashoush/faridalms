@@ -99,6 +99,10 @@ export const respondToCheck = createServerFn({ method: "POST" })
   .validator(checked(respondSchema))
   .handler(({ data }) => backend().learning.respond(data));
 
+export const answerReview = createServerFn({ method: "POST" })
+  .validator(checked(respondSchema))
+  .handler(({ data }) => backend().learning.reviewAnswer(data));
+
 export const revealCheck = createServerFn({ method: "POST" })
   .validator(checked(revealSchema))
   .handler(({ data }) => backend().learning.reveal(data));

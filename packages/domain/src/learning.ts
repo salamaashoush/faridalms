@@ -677,6 +677,8 @@ export interface CheckState {
   /** For a written answer: marked by the teacher, and with what feedback. */
   marked: boolean;
   firstTryCorrect: boolean;
+  /** How a question missed at first went when asked again at the end. */
+  review: number | null;
 }
 
 /** Whether a question is settled: answered right, revealed, or for a written one, sent. */
@@ -1010,6 +1012,8 @@ export const saveLessonSchema = v.pipe(
       v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(100)),
     ),
     content: contentDocumentSchema,
+    /** Ask the questions missed first time once more at the end. */
+    review: v.optional(v.boolean(), false),
     /** Put the saved lesson in front of students at once, when its module is open. */
     publish: v.optional(v.boolean(), false),
   }),
@@ -1063,7 +1067,7 @@ export const progressQuerySchema = v.object({ moduleId: id, classId: id });
 export interface ResponseRow {
   blockId: string;
   try: number;
-  state: "answered" | "revealed" | "needs_marking" | "marked";
+  state: "answered" | "revealed" | "needs_marking" | "marked" | "reviewed";
   fraction: number | null;
 }
 
@@ -1101,9 +1105,58 @@ export function checkStates(
       firstTryCorrect: answered.some(
         (row) => row.try === 1 && row.fraction === 1,
       ),
+      review: mine.find((row) => row.state === "reviewed")?.fraction ?? null,
     };
   }
   return states;
+}
+
+/** A question the student did not get right first time, now settled. */
+export const missed = (block: CheckBlock, state: CheckState | undefined) =>
+  isAuto(block) && settled(block, state) && !state?.firstTryCorrect;
+
+/**
+ * The questions a lesson asks again at its end: those missed first time,
+ * once every question is settled, so the second go is from memory.
+ */
+export function reviewBlocks(
+  document: LessonDocument,
+  states: Record<string, CheckState>,
+): AutoBlock[] {
+  const asked = autoBlocks(document);
+  if (!asked.every((block) => settled(block, states[block.id]))) return [];
+  return asked.filter((block) => missed(block, states[block.id]));
+}
+
+/** A question asked again at the end: the answer given then, and how it went. */
+export function describeReview(
+  block: AutoBlock,
+  rows: readonly StoredTry[],
+): CheckView {
+  const row = rows.find(
+    (item) => item.blockId === block.id && item.state === "reviewed",
+  );
+  const response = (row?.response ?? null) as LessonResponse | null;
+  const marked = response ? markResponse(block, response) : null;
+  const done = row !== undefined;
+  return {
+    tries: done ? 1 : 0,
+    response,
+    correct: row?.fraction === 1,
+    // One go only: a wrong one is settled with its answer shown.
+    revealed: done && row.fraction !== 1,
+    fraction: row?.fraction ?? 0,
+    triesLeft: done ? 0 : 1,
+    feedback: marked?.feedback ?? [],
+    parts: marked?.parts ?? {},
+    hint: null,
+    key: done ? answerKey(block) : null,
+    partKey: done ? partKey(block) : null,
+    explanation: done ? block.explanation : null,
+    marked: false,
+    credit: null,
+    markFeedback: null,
+  };
 }
 
 /** A stored try with what the student sent and any teacher feedback. */

@@ -47,6 +47,7 @@ import {
   checkStates,
   completionMet,
   describeCheck,
+  describeReview,
   duplicateModuleSchema,
   isAuto,
   lessonContentOf,
@@ -61,6 +62,7 @@ import {
   progressQuerySchema,
   publishModuleSchema,
   respondSchema,
+  reviewBlocks,
   responseIssue,
   revealSchema,
   saveLessonSchema,
@@ -580,6 +582,7 @@ export const duplicateModule = writeProcedure
         title: lesson.title,
         completion: lesson.completion,
         passScore: lesson.passScore,
+        review: lesson.review,
       });
       const stored = await documentOf(context.tx, context.tenantId, {
         type: "lesson",
@@ -664,6 +667,7 @@ export const saveLesson = writeProcedure
       title: input.title,
       completion: input.completion,
       passScore: input.passScore,
+      review: input.review,
     };
     let lessonId = input.id;
     let version: number;
@@ -953,6 +957,30 @@ type Played = Awaited<ReturnType<typeof playable>>;
 const viewOf = (block: CheckBlock, played: Pick<Played, "rows" | "checks">) =>
   describeCheck(block, played.rows, played.checks[block.id]);
 
+/**
+ * The questions a lesson asks again once every one is settled, for lessons
+ * that do, with how each went; nothing until then.
+ */
+function reviewOf(
+  played: Pick<
+    Played,
+    "row" | "content" | "rows" | "checks" | "studentId" | "attempt"
+  >,
+) {
+  if (!played.row.review) return null;
+  const asked = reviewBlocks(played.content, played.checks);
+  if (asked.length === 0) return null;
+  return {
+    blocks: studentBlocks(
+      { version: 2, blocks: asked },
+      `${played.studentId}:${played.attempt}:review`,
+    ),
+    checks: Object.fromEntries(
+      asked.map((block) => [block.id, describeReview(block, played.rows)]),
+    ),
+  };
+}
+
 /** Recomputes a student's score from their attempt, keeping their best, and finishes the lesson when its rule is met. */
 async function settle(context: UnitContext, played: Played) {
   const rows = await responsesOf(context.tx, {
@@ -1016,6 +1044,7 @@ export const playLesson = writeProcedure
           viewOf(block, played),
         ]),
       ),
+      review: reviewOf(played),
       attempt: played.attempt,
       completedAt: completed
         ? (own?.completedAt ?? context.now.toISOString())
@@ -1076,6 +1105,7 @@ export const respond = writeProcedure
       check: viewOf(block, after),
       score: result.best,
       completed: result.completed,
+      review: reviewOf(after),
     };
   });
 
@@ -1109,7 +1139,50 @@ export const reveal = writeProcedure
       check: viewOf(block, after),
       score: result.best,
       completed: result.completed,
+      review: reviewOf(after),
     };
+  });
+
+/**
+ * A student answers a question asked again at the end. It is marked at once
+ * with its answer shown, once only, and leaves the score as it was: the
+ * score says how the lesson went, the second go what stuck.
+ */
+export const reviewAnswer = writeProcedure
+  .input(respondSchema)
+  .handler(async ({ input, context }) => {
+    const played = await playable(context, input.lessonId);
+    const block = played.row.review
+      ? reviewBlocks(played.content, played.checks).find(
+          (item) => item.id === input.blockId,
+        )
+      : undefined;
+    if (!block) throw new ORPCError("NOT_FOUND");
+    const issue = responseIssue(block, input.response);
+    if (issue) throw new ORPCError("BAD_REQUEST", { message: issue });
+    if (played.checks[block.id]?.review !== null)
+      throw new ORPCError("CONFLICT", { message: "learning.settled" });
+    const marked = markResponse(block, input.response);
+    await insertResponse(context.tx, {
+      tenantId: context.tenantId,
+      lessonId: played.row.id,
+      documentVersionId: played.versionId,
+      studentId: played.studentId,
+      blockId: block.id,
+      attempt: played.attempt,
+      try: (played.checks[block.id]?.tries ?? 0) + 1,
+      kind: block.type,
+      response: input.response,
+      fraction: marked.fraction,
+      state: "reviewed",
+    });
+    const rows = await responsesOf(context.tx, {
+      tenantId: context.tenantId,
+      lessonId: played.row.id,
+      studentId: played.studentId,
+      attempt: played.attempt,
+    });
+    return { check: describeReview(block, rows) };
   });
 
 /**

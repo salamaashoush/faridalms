@@ -45,6 +45,7 @@ import * as m from "~/i18n/messages";
 import { lessonEditorQuery, lessonQuery } from "~/queries/learning";
 import {
   completeLesson,
+  answerReview,
   respondToCheck,
   retryLesson,
   revealCheck,
@@ -393,7 +394,12 @@ export function LessonPlayer({ lessonId }: { lessonId: string }) {
     queryClient.invalidateQueries({ queryKey: ["learning"] });
   const apply = async (
     blockId: string,
-    result: { check: CheckView; score: number | null; completed: boolean },
+    result: {
+      check: CheckView;
+      score: number | null;
+      completed: boolean;
+      review: (typeof data)["review"];
+    },
   ) => {
     queryClient.setQueryData(query.queryKey, (old) =>
       old
@@ -401,6 +407,7 @@ export function LessonPlayer({ lessonId }: { lessonId: string }) {
             ...old,
             checks: { ...old.checks, [blockId]: result.check },
             score: result.score,
+            review: result.review,
           }
         : old,
     );
@@ -420,6 +427,26 @@ export function LessonPlayer({ lessonId }: { lessonId: string }) {
       const result = await revealCheck({ data: { lessonId, blockId } });
       await apply(blockId, result);
     },
+  };
+  // A question asked again is answered once and leaves the score alone.
+  const reviewDriver: CheckDriver = {
+    respond: async (blockId, response) => {
+      const result = await answerReview({
+        data: { lessonId, blockId, response },
+      });
+      queryClient.setQueryData(query.queryKey, (old) =>
+        old?.review
+          ? {
+              ...old,
+              review: {
+                ...old.review,
+                checks: { ...old.review.checks, [blockId]: result.check },
+              },
+            }
+          : old,
+      );
+    },
+    reveal: () => Promise.resolve(),
   };
   const complete = useMutation({
     mutationFn: () => completeLesson({ data: { lessonId } }),
@@ -499,6 +526,29 @@ export function LessonPlayer({ lessonId }: { lessonId: string }) {
         position={data.position}
         onReach={reach}
       />
+      {data.review ? (
+        <section
+          aria-labelledby="lesson-review"
+          className="grid gap-6 border-t pt-6"
+        >
+          <div className="grid gap-1">
+            <h2 id="lesson-review" className="text-lg leading-7 font-semibold">
+              {m.lrnOnceMore()}
+            </h2>
+            <p className="text-sm leading-5 text-muted-foreground">
+              {m.lrnOnceMoreHint()}
+            </p>
+          </div>
+          {data.review.blocks.filter(isCheckBlock).map((block) => (
+            <CheckBlockView
+              key={block.id}
+              block={block}
+              view={data.review?.checks[block.id]}
+              driver={reviewDriver}
+            />
+          ))}
+        </section>
+      ) : null}
       {data.completedAt ? (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-success/30 bg-success/5 px-5 py-4">
           <p className="inline-flex items-center gap-2 text-sm leading-5 font-medium">

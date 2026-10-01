@@ -2862,6 +2862,10 @@
       }
     }
   ],
+  "lrnReview": "Ask what they missed again at the end",
+  "lrnReviewHint": "Each question a student did not get right first time comes back once after the last one. Their score stays as it was.",
+  "lrnOnceMore": "Once more",
+  "lrnOnceMoreHint": "The questions you did not get right the first time. Your score stays as it is.",
   "lrnStateDraft": "Draft",
   "lrnStateOpen": "Open",
   "lrnStateScheduled": "Scheduled",

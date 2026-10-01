@@ -152,6 +152,8 @@ export const lessons = core.table.withRLS(
       .notNull()
       .default("view"),
     passScore: smallint("pass_score"),
+    /** Questions missed on the first try are asked once more at the end. */
+    review: boolean("review").notNull().default(false),
     ...entityColumns(),
   },
   (t): PgTableExtraConfigValue[] => [
@@ -258,7 +260,9 @@ export type ResponseState =
   | "answered"
   | "revealed"
   | "needs_marking"
-  | "marked";
+  | "marked"
+  /** A question missed at first, answered again at the lesson's end. */
+  | "reviewed";
 
 /**
  * Every answer a student gives in a lesson, one row per try, never changed.
@@ -330,7 +334,7 @@ export const lessonResponses = core.table.withRLS(
     ck(
       "lesson_responses",
       "state",
-      sql`state in ('answered', 'revealed', 'needs_marking', 'marked')`,
+      sql`state in ('answered', 'revealed', 'needs_marking', 'marked', 'reviewed')`,
     ),
     ck(
       "lesson_responses",

@@ -165,6 +165,7 @@ describe("scoring a lesson", () => {
     revealed: false,
     marked: false,
     firstTryCorrect: true,
+    review: null,
   };
 
   it("takes a share off each extra try and gives nothing once the answer is revealed", () => {
