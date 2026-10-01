@@ -25,7 +25,7 @@ import {
 import { useEffect, useState } from "react";
 
 import { useEditorEnvironment } from "../context";
-import { FileCard, FileViewer } from "../files";
+import { FileCard, FileViewer, StoredImage } from "../files";
 import { blockAlignClass, imageSizeClass } from "../format";
 import { useSelectOnClick } from "./select";
 
@@ -100,11 +100,12 @@ function ImageBlock({
       nodeKey={nodeKey}
     >
       <figure className={`${imageSizeClass[size]} ${blockAlignClass(format)}`}>
-        <img
+        <StoredImage
           src={media?.url(fileId)}
           alt={decorative ? "" : alt}
           draggable={false}
           loading="lazy"
+          removed={strings.fileRemoved}
           className="block h-auto w-full rounded-lg bg-muted"
         />
         {editable ? (

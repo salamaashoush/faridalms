@@ -1,6 +1,7 @@
 import type { FileDisplay } from "@faridalms/domain/content";
 import type { FileFamily } from "@faridalms/domain/file";
 import type { LucideIcon } from "lucide-react";
+import type { ImgHTMLAttributes } from "react";
 
 import { Dialog } from "@base-ui/react/dialog";
 import { fileFamily, fileTypeLabel, previewable } from "@faridalms/domain/file";
@@ -9,6 +10,7 @@ import {
   Download,
   File,
   FileArchive,
+  ImageOff,
   FileImage,
   FileMusic,
   FileSpreadsheet,
@@ -18,7 +20,7 @@ import {
   Presentation,
   X,
 } from "lucide-react";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 
 import type { EditorStrings } from "./strings";
 
@@ -39,6 +41,52 @@ const ICON: Record<FileFamily, LucideIcon> = {
   other: File,
 };
 
+/**
+ * A stored picture, or a note in its place when it cannot be had: deleted
+ * from its file area, or never readable by this reader. A picture that
+ * failed before the page came alive is caught when it mounts, since its
+ * error event has already gone.
+ */
+export function StoredImage({
+  removed,
+  alt,
+  className,
+  ...props
+}: ImgHTMLAttributes<HTMLImageElement> & { removed: string }) {
+  const [failed, setFailed] = useState(false);
+  const checked = useCallback((image: HTMLImageElement | null) => {
+    if (image?.complete && image.currentSrc && image.naturalWidth === 0)
+      setFailed(true);
+  }, []);
+  if (failed)
+    return (
+      <span className="flex min-h-24 w-full items-center justify-center gap-2 rounded-lg border border-dashed bg-muted/40 px-4 py-6 text-sm text-muted-foreground [&_svg]:size-4">
+        <ImageOff aria-hidden />
+        {removed}
+      </span>
+    );
+  return (
+    <img
+      ref={checked}
+      alt={alt}
+      onError={() => setFailed(true)}
+      className={className}
+      {...props}
+    />
+  );
+}
+
+export function FileIcon({
+  file,
+  className,
+}: {
+  file: FileFacts;
+  className?: string;
+}) {
+  const Icon = ICON[fileFamily(file.name, file.mime)];
+  return <Icon aria-hidden className={className} />;
+}
+
 /** What reading a file needs to say, shared by the editor and the reader. */
 export type FileStrings = Pick<
   EditorStrings,
@@ -51,6 +99,7 @@ export type FileStrings = Pick<
   | "captions"
   | "transcript"
   | "picture"
+  | "fileRemoved"
 >;
 
 export interface FileFacts {
@@ -360,10 +409,11 @@ export function PictureView({
         onClick={() => setOpen(true)}
         className="block w-full cursor-zoom-in rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
       >
-        <img
+        <StoredImage
           src={src}
           alt={alt}
           loading="lazy"
+          removed={strings.fileRemoved}
           className="block h-auto w-full rounded-lg bg-muted"
         />
       </button>

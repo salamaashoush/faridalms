@@ -31,6 +31,7 @@ import type { HeaderFact, RecordTab } from "~/components/system/RecordPage";
 
 import { ButtonLink } from "~/components/app/ButtonLink";
 import { classTitle } from "~/components/classes/format";
+import { AreaFiles } from "~/components/files/AreaFiles";
 import { displayName } from "~/components/people/format";
 import { DataTable, RowLink } from "~/components/system/DataTable";
 import { EmptyState, IndexToolbar } from "~/components/system/IndexPage";
@@ -74,6 +75,7 @@ export const MODULE_TABS = [
   "progress",
   "questions",
   "answers",
+  "files",
 ] as const;
 export type ModuleTab = (typeof MODULE_TABS)[number];
 
@@ -541,6 +543,7 @@ export function ModuleRecord({
     { value: "progress", label: m.lrnProgress() },
     { value: "questions", label: m.lrnQuestionsTab() },
     { value: "answers", label: m.lrnAnswersTab() },
+    { value: "files", label: m.filesTab() },
   ];
   const ref = { id: data.id, expectedVersion: data.version };
   return (
@@ -637,6 +640,11 @@ export function ModuleRecord({
           <RecordColumns
             main={<Lessons data={data} />}
             aside={<About data={data} />}
+          />
+        ) : tab === "files" ? (
+          <AreaFiles
+            area={{ type: "module", id: data.id }}
+            title={data.title}
           />
         ) : (
           <ClassTab

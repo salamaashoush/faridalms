@@ -19,6 +19,7 @@ import {
   studentBlocks,
   upgradeLesson,
 } from "@faridalms/domain/learning";
+import { StoredImage } from "@faridalms/editor/files";
 import {
   useMutation,
   useQueryClient,
@@ -117,7 +118,12 @@ function Media({ block }: { block: Extract<LessonBlock, { type: "media" }> }) {
           />
         </audio>
       ) : block.mediaType.startsWith("image/") ? (
-        <img src={src} alt={block.caption} className="rounded-lg" />
+        <StoredImage
+          src={src}
+          alt={block.caption}
+          removed={m.fileRemoved()}
+          className="rounded-lg"
+        />
       ) : (
         <a
           href={src}

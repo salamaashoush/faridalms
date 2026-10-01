@@ -10,6 +10,7 @@ import type { HeaderFact, RecordTab } from "~/components/system/RecordPage";
 import { initialsOf } from "~/components/app/UserMenu";
 import { ClassAttendance } from "~/components/attendance/ClassAttendance";
 import { formatDate } from "~/components/family/format";
+import { AreaFiles } from "~/components/files/AreaFiles";
 import { ActionMenu } from "~/components/system/ActionMenu";
 import {
   phoneLink,
@@ -36,6 +37,7 @@ export const CLASS_TABS = [
   "students",
   "timetable",
   "attendance",
+  "files",
 ] as const;
 export type ClassTab = (typeof CLASS_TABS)[number];
 
@@ -44,6 +46,7 @@ const TAB_LABEL: Record<ClassTab, () => string> = {
   students: m.classesStudents,
   timetable: m.ttTitle,
   attendance: m.attendanceTitle,
+  files: m.filesTab,
 };
 
 type ClassData = Awaited<
@@ -357,7 +360,8 @@ export function ClassRecord({
   const available = CLASS_TABS.filter(
     (value) =>
       (value !== "attendance" || seesAttendance) &&
-      (value !== "timetable" || seesTimetable),
+      (value !== "timetable" || seesTimetable) &&
+      (value !== "files" || data.access.files),
   );
   const active = available.includes(tab) ? tab : "overview";
   const tabs: RecordTab<ClassTab>[] = available.map((value) => ({
@@ -371,6 +375,8 @@ export function ClassRecord({
       <ClassAttendance classId={data.id} />
     ) : active === "timetable" ? (
       <ClassWeek classId={data.id} />
+    ) : active === "files" ? (
+      <AreaFiles area={{ type: "class", id: data.id }} title={title} />
     ) : (
       <RecordColumns
         main={

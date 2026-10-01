@@ -3,7 +3,7 @@ import { sql } from "drizzle-orm";
 import type { CellTransaction } from "../context";
 import type { FilePurpose, FileState } from "../tables/files";
 
-import { uuidArray } from "./sql";
+import { isoOf, uuidArray } from "./sql";
 
 type Tx = CellTransaction;
 
@@ -36,7 +36,7 @@ type FileRecord = {
 };
 
 const columns = sql`id, purpose, name, media_type, size_bytes, state, storage_key,
-  uploaded_by_user_id, host_type, host_id, trashed_at`;
+  uploaded_by_user_id, host_type, host_id, ${isoOf(sql`trashed_at`)} as trashed_at`;
 
 function fileOf(row: FileRecord): StoredFile {
   return {
@@ -456,8 +456,8 @@ export async function areaFiles(
     trashed_at: string | null;
     used_in: AreaFile["usedIn"];
   }>(sql`
-    select f.id, f.name, f.media_type, f.size_bytes, f.created_at, f.uploaded_by_user_id,
-      f.trashed_at,
+    select f.id, f.name, f.media_type, f.size_bytes, ${isoOf(sql`f.created_at`)} as created_at,
+      f.uploaded_by_user_id, ${isoOf(sql`f.trashed_at`)} as trashed_at,
       coalesce((
         select jsonb_agg(distinct jsonb_build_object(
           'hostType', d.host_type, 'hostId', d.host_id,

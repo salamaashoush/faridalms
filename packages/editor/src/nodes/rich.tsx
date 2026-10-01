@@ -29,6 +29,7 @@ import { useEffect, useRef, useState } from "react";
 
 import { CaptionsEditor } from "../captions";
 import { useEditorEnvironment } from "../context";
+import { StoredImage } from "../files";
 import { blockAlignClass, diagramImageClass, imageSizeClass } from "../format";
 import { EmbedFrame, MediaPlayer, MediaTranscript } from "../media-view";
 import { useSelectOnClick } from "./select";
@@ -308,10 +309,11 @@ function DiagramBlock({
       nodeKey={nodeKey}
     >
       <figure className={`${imageSizeClass[size]} ${blockAlignClass(format)}`}>
-        <img
+        <StoredImage
           src={media?.url(fileId)}
           alt={caption || strings.diagram}
           draggable={false}
+          removed={strings.fileRemoved}
           className={`${diagramImageClass} rounded-lg`}
         />
         {editable ? (

@@ -213,6 +213,7 @@ export interface EditorStrings {
   questionWords: (count: number) => string;
   openFile: string;
   picture: string;
+  fileRemoved: string;
   copyFileLink: string;
   fileLinkCopied: string;
   closeViewer: string;

@@ -55,6 +55,7 @@ import {
   requireCapability,
   writeProcedure,
 } from "../core/procedure";
+import { mayKeepArea } from "../files/authorize";
 
 const id = v.pipe(v.string(), v.uuid());
 
@@ -232,6 +233,7 @@ export const record = readProcedure
           (can(context, "classes:manage") || can(context, "people:manage")) &&
           year.lifecycle !== "closed",
         staff: staffViewer,
+        files: await mayKeepArea(context, { type: "class", id: input.id }),
       },
     };
   });

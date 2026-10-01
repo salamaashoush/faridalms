@@ -13,7 +13,7 @@ import { createElement } from "react";
 
 import type { FileStrings } from "./files";
 
-import { FileCard, PictureView } from "./files";
+import { FileCard, PictureView, StoredImage } from "./files";
 import { blockAlignClass, diagramImageClass, imageSizeClass } from "./format";
 import { EmbedFrame, MediaPlayer, MediaTranscript } from "./media-view";
 import { editorTheme } from "./theme";
@@ -438,10 +438,11 @@ function render(node: ContentNode, key: string, context: Context): ReactNode {
           key={key}
           className={`my-3 ${imageSizeClass[node.size ?? "large"]} ${blockAlignClass(node.format)}`}
         >
-          <img
+          <StoredImage
             src={src}
             alt={node.caption || context.strings.diagram}
             loading="lazy"
+            removed={context.strings.fileRemoved}
             className={`${diagramImageClass} rounded-lg`}
           />
           {node.caption ? (
