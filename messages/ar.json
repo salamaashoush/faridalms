@@ -1077,6 +1077,8 @@
   "editorCancel": "إلغاء",
   "editorUploading": "جارٍ الرفع…",
   "editorUploadFailed": "تعذر رفع ملف. تحقق من نوعه وحجمه ثم حاول مجدداً.",
+  "editorImageDecorative": "للزينة فقط: لا شيء لوصفه",
+  "editorImageAltMissing": "صِف هذه الصورة لقارئات الشاشة، أو علّمها للزينة فقط.",
   "editorImageAlt": "صف الصورة لقارئات الشاشة",
   "editorImageCaption": "أضف تعليقاً",
   "editorImageSize": "حجم الصورة",

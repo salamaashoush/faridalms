@@ -345,7 +345,7 @@ function render(node: ContentNode, key: string, context: Context): ReactNode {
         <PictureView
           key={key}
           src={src}
-          alt={node.alt ?? ""}
+          alt={node.decorative ? "" : (node.alt ?? "")}
           caption={node.caption ?? ""}
           className={`my-3 ${imageSizeClass[node.size ?? "large"]} ${blockAlignClass(node.format)}`}
           strings={context.strings}

@@ -38,7 +38,13 @@ const blockClass = {
 };
 
 export type SerializedImageNode = Spread<
-  { fileId: string; alt: string; caption: string; size: ImageSize },
+  {
+    fileId: string;
+    alt: string;
+    decorative?: boolean;
+    caption: string;
+    size: ImageSize;
+  },
   SerializedDecoratorBlockNode
 >;
 
@@ -71,6 +77,7 @@ function ImageBlock({
   format,
   fileId,
   alt,
+  decorative,
   caption,
   size,
 }: {
@@ -78,6 +85,7 @@ function ImageBlock({
   format: ElementFormatType;
   fileId: string;
   alt: string;
+  decorative: boolean;
   caption: string;
   size: ImageSize;
 }) {
@@ -94,7 +102,7 @@ function ImageBlock({
       <figure className={`${imageSizeClass[size]} ${blockAlignClass(format)}`}>
         <img
           src={media?.url(fileId)}
-          alt={alt}
+          alt={decorative ? "" : alt}
           draggable={false}
           loading="lazy"
           className="block h-auto w-full rounded-lg bg-muted"
@@ -113,17 +121,37 @@ function ImageBlock({
               className="w-full bg-transparent text-center text-sm text-muted-foreground outline-none placeholder:text-muted-foreground/60"
             />
             {selected ? (
-              <input
-                aria-label={strings.imageAlt}
-                placeholder={strings.imageAlt}
-                value={alt}
-                maxLength={500}
-                onChange={(event) => {
-                  const value = event.target.value;
-                  update((node) => node.setAlt(value));
-                }}
-                className="w-full rounded-md border bg-background px-2 py-1 text-xs outline-none focus-visible:ring-2 focus-visible:ring-ring/30"
-              />
+              <div className="grid gap-1.5">
+                {decorative ? null : (
+                  <input
+                    aria-label={strings.imageAlt}
+                    placeholder={strings.imageAlt}
+                    value={alt}
+                    maxLength={500}
+                    onChange={(event) => {
+                      const value = event.target.value;
+                      update((node) => node.setAlt(value));
+                    }}
+                    className="w-full rounded-md border bg-background px-2 py-1 text-xs outline-none focus-visible:ring-2 focus-visible:ring-ring/30"
+                  />
+                )}
+                <label className="inline-flex items-center gap-2 justify-self-center text-xs text-muted-foreground">
+                  <input
+                    type="checkbox"
+                    checked={decorative}
+                    onChange={(event) => {
+                      const value = event.target.checked;
+                      update((node) => node.setDecorative(value));
+                    }}
+                    className="size-3.5 accent-primary"
+                  />
+                  {strings.imageDecorative}
+                </label>
+              </div>
+            ) : !alt.trim() && !decorative ? (
+              <p className="text-center text-xs text-warning-foreground dark:text-warning">
+                {strings.imageAltMissing}
+              </p>
             ) : null}
           </div>
         ) : caption ? (
@@ -229,6 +257,7 @@ function FileBlock({
 export class ImageNode extends DecoratorBlockNode {
   __fileId: string;
   __alt: string;
+  __decorative = false;
   __caption: string;
   __size: ImageSize;
 
@@ -252,7 +281,7 @@ export class ImageNode extends DecoratorBlockNode {
   }
 
   static clone(node: ImageNode): ImageNode {
-    return new ImageNode(
+    const copy = new ImageNode(
       node.__fileId,
       node.__alt,
       node.__caption,
@@ -260,6 +289,8 @@ export class ImageNode extends DecoratorBlockNode {
       node.__format,
       node.__key,
     );
+    copy.__decorative = node.__decorative;
+    return copy;
   }
 
   static importJSON(json: SerializedImageNode): ImageNode {
@@ -270,6 +301,7 @@ export class ImageNode extends DecoratorBlockNode {
     const node = super.updateFromJSON(json).getWritable();
     node.__fileId = json.fileId;
     node.__alt = json.alt;
+    node.__decorative = json.decorative ?? false;
     node.__caption = json.caption;
     node.__size = json.size;
     return node;
@@ -281,6 +313,7 @@ export class ImageNode extends DecoratorBlockNode {
       ...super.exportJSON(),
       fileId: node.__fileId,
       alt: node.__alt,
+      ...(node.__decorative ? { decorative: true } : {}),
       caption: node.__caption,
       size: node.__size,
     };
@@ -301,6 +334,16 @@ export class ImageNode extends DecoratorBlockNode {
   setAlt(alt: string): this {
     const writable = this.getWritable();
     writable.__alt = alt;
+    return writable;
+  }
+
+  isDecorative(): boolean {
+    return this.getLatest().__decorative;
+  }
+
+  setDecorative(decorative: boolean): this {
+    const writable = this.getWritable();
+    writable.__decorative = decorative;
     return writable;
   }
 
@@ -331,6 +374,7 @@ export class ImageNode extends DecoratorBlockNode {
         format={this.__format}
         fileId={this.__fileId}
         alt={this.__alt}
+        decorative={this.__decorative}
         caption={this.__caption}
         size={this.__size}
       />

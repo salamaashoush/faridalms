@@ -124,6 +124,8 @@ export interface ContentNode {
   layout?: ColumnLayout;
   fileId?: string;
   alt?: string;
+  /** A picture that only decorates, so screen readers pass it by. */
+  decorative?: boolean;
   caption?: string;
   size?: ImageSize;
   name?: string;
@@ -252,6 +254,7 @@ const nodeSchema: v.GenericSchema<ContentNode> = v.lazy(() =>
       layout: v.optional(v.picklist(columnLayouts)),
       fileId: v.optional(v.pipe(v.string(), v.uuid())),
       alt: v.optional(v.pipe(v.string(), v.maxLength(500))),
+      decorative: v.optional(v.boolean()),
       caption: v.optional(v.pipe(v.string(), v.maxLength(1000))),
       size: v.optional(v.picklist(imageSizes)),
       name: v.optional(v.pipe(v.string(), v.minLength(1), v.maxLength(255))),

@@ -131,6 +131,8 @@ export interface EditorStrings {
   uploading: string;
   uploadFailed: string;
   imageAlt: string;
+  imageDecorative: string;
+  imageAltMissing: string;
   imageCaption: string;
   imageSize: string;
   blockOptions: string;

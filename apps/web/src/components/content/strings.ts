@@ -153,6 +153,8 @@ export function editorStrings(): EditorStrings {
     uploading: m.editorUploading(),
     uploadFailed: m.editorUploadFailed(),
     imageAlt: m.editorImageAlt(),
+    imageDecorative: m.editorImageDecorative(),
+    imageAltMissing: m.editorImageAltMissing(),
     imageCaption: m.editorImageCaption(),
     imageSize: m.editorImageSize(),
     blockOptions: m.editorBlockOptions(),

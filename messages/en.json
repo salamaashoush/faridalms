@@ -1065,6 +1065,8 @@
   "editorCancel": "Cancel",
   "editorUploading": "Uploading…",
   "editorUploadFailed": "A file could not be uploaded. Check its type and size, then try again.",
+  "editorImageDecorative": "Decorative: nothing to describe",
+  "editorImageAltMissing": "Describe this picture for screen readers, or mark it decorative.",
   "editorImageAlt": "Describe the image for screen readers",
   "editorImageCaption": "Add a caption",
   "editorImageSize": "Image size",
