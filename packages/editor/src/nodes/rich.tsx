@@ -27,6 +27,7 @@ import { $getDocument, $getNodeByKey, createCommand } from "lexical";
 import { Captions, ExternalLink, ScrollText } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
+import { CaptionsEditor } from "../captions";
 import { useEditorEnvironment } from "../context";
 import { blockAlignClass, diagramImageClass, imageSizeClass } from "../format";
 import { EmbedFrame, MediaPlayer, MediaTranscript } from "../media-view";
@@ -106,9 +107,7 @@ function MediaBlock({
   const editable = useLexicalEditable();
   const update = useNodeUpdate(nodeKey, $isMediaNode);
   useSelectOnClick(nodeKey);
-  const input = useRef<HTMLInputElement>(null);
-  const [busy, setBusy] = useState(false);
-  const [failed, setFailed] = useState(false);
+  const [captioning, setCaptioning] = useState(false);
   const video = mime.startsWith("video/");
   return (
     <BlockWithAlignableContents
@@ -130,7 +129,7 @@ function MediaBlock({
           <>
             <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
               {/* Audio is followed as well through a transcript as through captions. */}
-              {!captionsFileId && !failed && !video && transcript ? (
+              {!captionsFileId && !video && transcript ? (
                 <span />
               ) : (
                 <span
@@ -142,25 +141,19 @@ function MediaBlock({
                 >
                   {captionsFileId
                     ? strings.captionsAdded
-                    : failed
-                      ? strings.uploadFailed
-                      : video
-                        ? strings.captionsMissing
-                        : strings.transcriptMissing}
+                    : video
+                      ? strings.captionsMissing
+                      : strings.transcriptMissing}
                 </span>
               )}
               <button
                 type="button"
-                disabled={busy || !media}
-                onClick={() => input.current?.click()}
+                disabled={!media}
+                onClick={() => setCaptioning(true)}
                 className="inline-flex h-7 items-center gap-1.5 rounded-md border px-2 font-medium text-foreground hover:bg-accent disabled:opacity-50"
               >
                 <Captions className="size-3.5" aria-hidden />
-                {busy
-                  ? strings.uploading
-                  : captionsFileId
-                    ? strings.captionsReplace
-                    : strings.captionsAdd}
+                {captionsFileId ? strings.captionsReplace : strings.captionsAdd}
               </button>
               {transcript || writing ? null : (
                 <button
@@ -172,25 +165,21 @@ function MediaBlock({
                   {strings.transcriptAdd}
                 </button>
               )}
-              <input
-                ref={input}
-                type="file"
-                hidden
-                accept={media?.accept.captions.join(",")}
-                onChange={async (event) => {
-                  const file = event.target.files?.[0];
-                  event.target.value = "";
-                  if (!file || !media) return;
-                  setBusy(true);
-                  setFailed(false);
-                  try {
-                    const uploaded = await media.upload(file, "captions");
-                    update((node) => node.setCaptions(uploaded.fileId));
-                  } catch {
-                    setFailed(true);
-                  } finally {
-                    setBusy(false);
-                  }
+              <CaptionsEditor
+                open={captioning}
+                onOpenChange={setCaptioning}
+                src={media?.url(fileId)}
+                video={video}
+                captionsSrc={
+                  captionsFileId ? media?.url(captionsFileId) : undefined
+                }
+                language={captionsLang}
+                onSave={async (file, language) => {
+                  if (!media) return;
+                  const uploaded = await media.upload(file, "captions");
+                  update((node) =>
+                    node.setCaptions(uploaded.fileId).setCaptionsLang(language),
+                  );
                 }}
               />
             </div>
@@ -449,6 +438,12 @@ export class MediaNode extends DecoratorBlockNode {
   setCaptions(fileId: string): this {
     const writable = this.getWritable();
     writable.__captionsFileId = fileId;
+    return writable;
+  }
+
+  setCaptionsLang(language: string): this {
+    const writable = this.getWritable();
+    writable.__captionsLang = language;
     return writable;
   }
 

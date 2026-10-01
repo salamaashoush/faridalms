@@ -236,6 +236,18 @@ export interface EditorStrings {
   captionsReplace: string;
   captionsAdded: string;
   captionsMissing: string;
+  captionsClose: string;
+  captionsHint: string;
+  captionsAddLine: string;
+  captionsLanguage: string;
+  captionsEmpty: string;
+  captionsStart: (line: number) => string;
+  captionsEnd: (line: number) => string;
+  captionsRemoveLine: (line: number) => string;
+  captionsLineText: (line: number) => string;
+  captionsUpload: string;
+  captionsSave: string;
+  captionsTimeProblem: string;
   embed: string;
   embedHint: string;
   embedUrl: string;

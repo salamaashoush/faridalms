@@ -5,8 +5,9 @@ import { $getRoot } from "lexical";
 import * as v from "valibot";
 import { describe, expect, it } from "vitest";
 
-import { buildContentEditor } from "./headless";
 import type { ImageNode } from "./nodes";
+
+import { buildContentEditor } from "./headless";
 import { $createImageNode } from "./nodes";
 
 describe("pictures", () => {

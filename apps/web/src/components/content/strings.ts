@@ -261,6 +261,21 @@ export function editorStrings(): EditorStrings {
     captionsReplace: m.editorCaptionsReplace(),
     captionsAdded: m.editorCaptionsAdded(),
     captionsMissing: m.editorCaptionsMissing(),
+    captionsClose: m.editorCaptionsClose(),
+    captionsHint: m.editorCaptionsHint(),
+    captionsAddLine: m.editorCaptionsAddLine(),
+    captionsLanguage: m.editorCaptionsLanguage(),
+    captionsEmpty: m.editorCaptionsEmpty(),
+    captionsStart: (line) =>
+      m.editorCaptionsStart({ line: formatNumber(line) }),
+    captionsEnd: (line) => m.editorCaptionsEnd({ line: formatNumber(line) }),
+    captionsRemoveLine: (line) =>
+      m.editorCaptionsRemoveLine({ line: formatNumber(line) }),
+    captionsLineText: (line) =>
+      m.editorCaptionsLineText({ line: formatNumber(line) }),
+    captionsUpload: m.editorCaptionsUpload(),
+    captionsSave: m.editorCaptionsSave(),
+    captionsTimeProblem: m.editorCaptionsTimeProblem(),
     embed: m.editorEmbed(),
     embedHint: m.editorEmbedHint(),
     embedUrl: m.editorEmbedUrl(),
