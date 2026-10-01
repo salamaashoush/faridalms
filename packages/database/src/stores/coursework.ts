@@ -182,11 +182,14 @@ export async function updateAssignment(
     tenantId: string;
     id: string;
     expectedVersion: number;
+    classRow: { id: string; classType: ClassType; schoolYearId: string };
   },
 ): Promise<{ version: number } | null> {
   const [row] = await tx.execute<{ version: number }>(sql`
     update core.assignments
-    set title = ${input.title}, audience = ${input.audience},
+    set class_id = ${input.classRow.id}::uuid, class_type = ${input.classRow.classType},
+        school_year_id = ${input.classRow.schoolYearId}::uuid,
+        title = ${input.title}, audience = ${input.audience},
         available_from = ${input.availableFrom}::timestamptz, due_at = ${input.dueAt}::timestamptz,
         closes_at = ${input.closesAt}::timestamptz, late_policy = ${input.latePolicy},
         late_deduction_percent = ${input.lateDeductionPercent},

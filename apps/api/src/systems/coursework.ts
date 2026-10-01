@@ -463,7 +463,9 @@ export const save = writeProcedure
     let published = false;
     if (input.id) {
       const existing = await taughtAssignment(context, input.id);
-      if (existing.classId !== classRow.id)
+      // A draft saves itself as it is written, so its class may still change;
+      // once assigned, students and their work belong to that class.
+      if (existing.classId !== classRow.id && existing.state !== "draft")
         throw new ORPCError("BAD_REQUEST", {
           message: "coursework.class_fixed",
         });
@@ -478,6 +480,7 @@ export const save = writeProcedure
       const saved = await updateAssignment(tx, {
         tenantId: context.tenantId,
         id: existing.id,
+        classRow,
         expectedVersion: input.expectedVersion ?? 0,
         ...fieldsOf(input),
       });

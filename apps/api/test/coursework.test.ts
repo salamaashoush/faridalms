@@ -126,6 +126,37 @@ describe("coursework for a teacher", () => {
       ),
     ).toMatchObject({ message: "coursework.brief_empty" });
   });
+
+  test("a draft may move to another class, work already out may not", async () => {
+    const { api } = await arabicTeacher();
+    const { classes } = await api.coursework.options();
+    const [first, second] = classes.filter(
+      (row) => row.classType === "scheduled",
+    );
+    if (!first || !second) throw new Error("two seed classes");
+    const saved = await api.coursework.save(draft(first.id, "Moving draft"));
+    const moved = await api.coursework.save({
+      ...draft(second.id, "Moving draft"),
+      id: saved.id,
+      expectedVersion: saved.version,
+    });
+    expect((await api.coursework.editor({ id: saved.id })).classId).toBe(
+      second.id,
+    );
+    const published = await api.coursework.publish({
+      id: saved.id,
+      expectedVersion: moved.version,
+    });
+    expect(
+      await rejection(
+        api.coursework.save({
+          ...draft(first.id, "Moving draft"),
+          id: saved.id,
+          expectedVersion: published.version,
+        }),
+      ),
+    ).toMatchObject({ message: "coursework.class_fixed" });
+  });
 });
 
 describe("handing in and returning work", () => {
