@@ -8,7 +8,13 @@ import {
   MenuOption,
   useBasicTypeaheadTriggerMatch,
 } from "@lexical/react/LexicalTypeaheadMenuPlugin";
-import { $isTextNode } from "lexical";
+import {
+  $getSelection,
+  $isRangeSelection,
+  $isTextNode,
+  COMMAND_PRIORITY_HIGH,
+  KEY_ENTER_COMMAND,
+} from "lexical";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import type { BlockDefinition, BlockGroup } from "../blocks";
@@ -50,11 +56,54 @@ class BlockOption extends MenuOption {
 
 export function SlashMenuPlugin() {
   const [editor] = useLexicalComposerContext();
-  const { strings, media, questions } = useEditorEnvironment();
+  const { strings, media, questions, gates } = useEditorEnvironment();
   const [query, setQuery] = useState<string | null>(null);
   const [caret, setCaret] = useState<ReferenceElement | null>(null);
   const onOpen = useCallback(() => setCaret(selectionReference()), []);
   const onClose = useCallback(() => setCaret(null), []);
+  // Enter can land before the menu has an option highlighted, which it then
+  // ignores; the block typed for is inserted all the same. With an option
+  // highlighted (marked on the root as its active descendant) the menu
+  // chooses, so a choice made with the arrow keys stands.
+  useEffect(
+    () =>
+      editor.registerCommand(
+        KEY_ENTER_COMMAND,
+        (event) => {
+          if (editor.getRootElement()?.hasAttribute("aria-activedescendant"))
+            return false;
+          const selection = $getSelection();
+          if (!$isRangeSelection(selection) || !selection.isCollapsed())
+            return false;
+          const node = selection.anchor.getNode();
+          if (!$isTextNode(node)) return false;
+          const offset = selection.anchor.offset;
+          const typed = /(?:^|\s)\/([^\s/]{1,32})$/.exec(
+            node.getTextContent().slice(0, offset),
+          )?.[1];
+          if (!typed) return false;
+          const [block] = filterBlocks(
+            typed,
+            strings,
+            Boolean(media),
+            questions,
+            gates,
+          );
+          if (!block) return false;
+          event?.preventDefault();
+          node.spliceText(
+            offset - typed.length - 1,
+            typed.length + 1,
+            "",
+            true,
+          );
+          $runBlock(editor, block.type);
+          return true;
+        },
+        COMMAND_PRIORITY_HIGH,
+      ),
+    [editor, strings, media, questions, gates],
+  );
   const trigger = useBasicTypeaheadTriggerMatch("/", {
     minLength: 0,
     maxLength: 32,
@@ -62,10 +111,10 @@ export function SlashMenuPlugin() {
   });
   const options = useMemo(
     () =>
-      filterBlocks(query ?? "", strings, Boolean(media), questions).map(
+      filterBlocks(query ?? "", strings, Boolean(media), questions, gates).map(
         (block) => new BlockOption(block),
       ),
-    [query, strings, media, questions],
+    [query, strings, media, questions, gates],
   );
   const groups: Record<BlockGroup, string> = {
     text: strings.groupText,
@@ -83,7 +132,13 @@ export function SlashMenuPlugin() {
       const typed = $takeQuery(text);
       // The option highlighted may come from a shorter query than was typed;
       // the block typed for wins when the two disagree.
-      const current = filterBlocks(typed, strings, Boolean(media), questions);
+      const current = filterBlocks(
+        typed,
+        strings,
+        Boolean(media),
+        questions,
+        gates,
+      );
       const block = current.some((item) => item.type === option.block.type)
         ? option.block
         : current[0];
