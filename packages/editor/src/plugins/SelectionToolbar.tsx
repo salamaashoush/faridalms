@@ -1,9 +1,10 @@
-import type { ImageSize } from "@faridalms/domain/content";
+import type { FileDisplay, ImageSize } from "@faridalms/domain/content";
 import type { ReferenceElement } from "@floating-ui/dom";
 import type { BaseSelection, ElementFormatType, NodeKey } from "lexical";
 
 import { Menu } from "@base-ui/react/menu";
-import { imageSizes } from "@faridalms/domain/content";
+import { fileDisplays, imageSizes } from "@faridalms/domain/content";
+import { fileFamily } from "@faridalms/domain/file";
 import { $isCodeNode } from "@lexical/code";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
 import { useLexicalEditable } from "@lexical/react/useLexicalEditable";
@@ -27,7 +28,9 @@ import {
   Bold,
   ChevronDown,
   Code,
+  Download,
   ExternalLink,
+  Eye,
   Italic,
   Link,
   Pencil,
@@ -50,6 +53,7 @@ import {
   blockDefinitions,
 } from "../blocks";
 import { useEditorEnvironment } from "../context";
+import { CopyLinkButton } from "../files";
 import {
   $activeFormats,
   $applyColor,
@@ -61,7 +65,7 @@ import {
   OPEN_LINK_EDITOR_COMMAND,
   textColors,
 } from "../formatting";
-import { $isImageNode } from "../nodes/media";
+import { $isFileNode, $isImageNode, OPEN_FILE_COMMAND } from "../nodes/media";
 import {
   $isDiagramNode,
   $isEmbedNode,
@@ -81,7 +85,16 @@ import {
   shortcutLabel,
 } from "../ui";
 
-type Mode = "hidden" | "format" | "link-edit" | "link-view" | "block";
+type Mode = "hidden" | "format" | "link-edit" | "link-view" | "block" | "file";
+
+/** A selected file: what the bar opens, shares or shows. */
+interface FileBarFacts {
+  key: NodeKey;
+  fileId: string;
+  name: string;
+  mime: string;
+  display: FileDisplay;
+}
 
 /** A selected picture, drawing, video or embed: what the bar can change. */
 interface BlockFacts {
@@ -124,11 +137,12 @@ const empty: Facts = {
 export function SelectionToolbarPlugin() {
   const [editor] = useLexicalComposerContext();
   const editable = useLexicalEditable();
-  const { strings } = useEditorEnvironment();
+  const { strings, media } = useEditorEnvironment();
   const [mode, setMode] = useState<Mode>("hidden");
   const [reference, setReference] = useState<ReferenceElement | null>(null);
   const [facts, setFacts] = useState<Facts>(empty);
   const [layout, setLayout] = useState<BlockFacts | null>(null);
+  const [fileFacts, setFileFacts] = useState<FileBarFacts | null>(null);
   const [url, setUrl] = useState("");
   const [invalid, setInvalid] = useState(false);
   const saved = useRef<BaseSelection | null>(null);
@@ -170,6 +184,23 @@ export function SelectionToolbarPlugin() {
       };
     });
 
+  const readFile = () =>
+    editor.getEditorState().read((): FileBarFacts | null => {
+      const selection = $getSelection();
+      if (!$isNodeSelection(selection)) return null;
+      const nodes = selection.getNodes();
+      const node = nodes.length === 1 ? nodes[0] : null;
+      if (!$isFileNode(node)) return null;
+      const file = node.getFile();
+      return {
+        key: node.getKey(),
+        fileId: file.fileId,
+        name: file.name,
+        mime: file.mime,
+        display: file.display,
+      };
+    });
+
   const modeRef = useRef<Mode>("hidden");
   const show = (next: Mode) => {
     modeRef.current = next;
@@ -181,6 +212,12 @@ export function SelectionToolbarPlugin() {
     if (modeRef.current === "link-edit") return;
     const root = editor.getRootElement();
     const focused = root !== null && root.contains(document.activeElement);
+    const file = focused ? readFile() : null;
+    if (file) {
+      setFileFacts(file);
+      setReference(editor.getElementByKey(file.key));
+      return show("file");
+    }
     const selected = focused ? readBlock() : null;
     if (selected) {
       const element = editor.getElementByKey(selected.key);
@@ -425,6 +462,103 @@ export function SelectionToolbarPlugin() {
               </Menu.Positioner>
             </Menu.Portal>
           </Menu.Root>
+        </div>
+      </Floating>
+    );
+  }
+
+  if (mode === "file" && fileFacts) {
+    const fileUrl = media?.url(fileFacts.fileId);
+    const pdf = fileFamily(fileFacts.name, fileFacts.mime) === "pdf";
+    const action =
+      "inline-flex h-8 items-center gap-1.5 rounded-md px-2 text-sm font-medium text-foreground/80 hover:bg-accent hover:text-foreground [&_svg]:size-4";
+    const displays: Record<FileDisplay, string> = {
+      card: strings.fileAsCard,
+      preview: strings.fileAsPreview,
+    };
+    return (
+      <Floating
+        reference={reference}
+        placement="top"
+        boundary={boundary}
+        className="flex items-center gap-0.5 p-1"
+        keepFocus
+        role="toolbar"
+        label={strings.fileOptions}
+      >
+        <div ref={toolbar} className="contents">
+          <button
+            type="button"
+            onMouseDown={(event) => event.preventDefault()}
+            onClick={() =>
+              editor.dispatchCommand(OPEN_FILE_COMMAND, fileFacts.key)
+            }
+            className={action}
+          >
+            <Eye aria-hidden />
+            {strings.openFile}
+          </button>
+          {fileUrl ? (
+            <>
+              <a
+                href={`${fileUrl}?download`}
+                download={fileFacts.name}
+                aria-label={strings.downloadFile}
+                className={action}
+              >
+                <Download aria-hidden />
+              </a>
+              <CopyLinkButton
+                url={fileUrl}
+                strings={strings}
+                className={`${action} [&>span]:sr-only`}
+              />
+            </>
+          ) : null}
+          {pdf ? (
+            <>
+              {separator}
+              <Menu.Root onOpenChange={trackMenu}>
+                <Menu.Trigger
+                  aria-label={strings.fileDisplay}
+                  className={action}
+                >
+                  {displays[fileFacts.display]}
+                  <ChevronDown className="size-3.5 opacity-60" aria-hidden />
+                </Menu.Trigger>
+                <Menu.Portal>
+                  <Menu.Positioner
+                    className="z-50"
+                    sideOffset={6}
+                    align="start"
+                  >
+                    <Menu.Popup
+                      className={menuPopupClass}
+                      finalFocus={textFocus(editor)}
+                    >
+                      {fileDisplays.map((value) => (
+                        <Menu.Item
+                          key={value}
+                          className={menuItemClass}
+                          onClick={() =>
+                            withSelection(() => {
+                              const node = $getNodeByKey(fileFacts.key);
+                              if ($isFileNode(node)) node.setDisplay(value);
+                            })
+                          }
+                        >
+                          <span className="flex-1">{displays[value]}</span>
+                          {fileFacts.display === value ? (
+                            <span className="size-1.5 rounded-full bg-primary" />
+                          ) : null}
+                        </Menu.Item>
+                      ))}
+                    </Menu.Popup>
+                  </Menu.Positioner>
+                </Menu.Portal>
+              </Menu.Root>
+            </>
+          ) : null}
         </div>
       </Floating>
     );

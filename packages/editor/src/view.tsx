@@ -8,24 +8,20 @@ import {
 } from "@faridalms/domain/content";
 import { embedPage, embedProviderNames } from "@faridalms/domain/embed";
 import { isSafeContentUrl } from "@faridalms/domain/rich-text";
-import { Download, ExternalLink, FileText } from "lucide-react";
+import { ExternalLink } from "lucide-react";
 import { createElement } from "react";
 
-import {
-  blockAlignClass,
-  diagramImageClass,
-  formatBytes,
-  imageSizeClass,
-} from "./format";
+import type { FileStrings } from "./files";
+
+import { FileCard } from "./files";
+import { blockAlignClass, diagramImageClass, imageSizeClass } from "./format";
 import { EmbedFrame, MediaPlayer } from "./media-view";
 import { editorTheme } from "./theme";
 
 export { editorFrame } from "./frame";
 
-export interface ViewStrings {
+export interface ViewStrings extends FileStrings {
   checklist: string;
-  downloadFile: string;
-  captions: string;
   diagram: string;
   embedLoad: (provider: string) => string;
   embedPrivacy: (provider: string) => string;
@@ -397,32 +393,19 @@ function render(node: ContentNode, key: string, context: Context): ReactNode {
     case "file": {
       const href = node.fileId ? context.fileUrl?.(node.fileId) : undefined;
       return (
-        <div
-          key={key}
-          className="my-3 flex items-center gap-3 rounded-lg border bg-muted/30 px-3 py-2.5"
-        >
-          <FileText
-            className="size-5 shrink-0 text-muted-foreground"
-            aria-hidden
+        <div key={key} className="my-3">
+          <FileCard
+            file={{
+              name: node.name ?? "",
+              mime: node.mime ?? "",
+              bytes: node.bytes ?? 0,
+            }}
+            url={href}
+            display={node.display}
+            caption={node.caption}
+            strings={context.strings}
+            locale={context.locale}
           />
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-medium">{node.name}</p>
-            {node.bytes !== undefined ? (
-              <p className="text-xs text-muted-foreground">
-                {formatBytes(node.bytes, context.locale)}
-              </p>
-            ) : null}
-          </div>
-          {href ? (
-            <a
-              href={href}
-              download={node.name}
-              aria-label={`${context.strings.downloadFile}: ${node.name ?? ""}`}
-              className="inline-flex size-8 items-center justify-center rounded-md hover:bg-accent"
-            >
-              <Download className="size-4" aria-hidden />
-            </a>
-          ) : null}
         </div>
       );
     }

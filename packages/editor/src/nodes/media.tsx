@@ -1,4 +1,4 @@
-import type { ImageSize } from "@faridalms/domain/content";
+import type { FileDisplay, ImageSize } from "@faridalms/domain/content";
 import type { SerializedDecoratorBlockNode } from "@lexical/react/LexicalDecoratorBlockNode";
 import type {
   DOMExportOutput,
@@ -16,11 +16,17 @@ import { BlockWithAlignableContents } from "@lexical/react/LexicalBlockWithAlign
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
 import { DecoratorBlockNode } from "@lexical/react/LexicalDecoratorBlockNode";
 import { useLexicalEditable } from "@lexical/react/useLexicalEditable";
-import { $getDocument, $getNodeByKey } from "lexical";
-import { Download, FileText } from "lucide-react";
+import {
+  $getDocument,
+  $getNodeByKey,
+  COMMAND_PRIORITY_LOW,
+  createCommand,
+} from "lexical";
+import { useEffect, useState } from "react";
 
 import { useEditorEnvironment } from "../context";
-import { blockAlignClass, formatBytes, imageSizeClass } from "../format";
+import { FileCard, FileViewer } from "../files";
+import { blockAlignClass, imageSizeClass } from "../format";
 import { useSelectOnClick } from "./select";
 
 // The outline goes round the block's own box, which may be narrower than
@@ -37,7 +43,14 @@ export type SerializedImageNode = Spread<
 >;
 
 export type SerializedFileNode = Spread<
-  { fileId: string; name: string; mime: string; bytes: number },
+  {
+    fileId: string;
+    name: string;
+    mime: string;
+    bytes: number;
+    caption?: string;
+    display?: FileDisplay;
+  },
   SerializedDecoratorBlockNode
 >;
 
@@ -123,48 +136,92 @@ function ImageBlock({
   );
 }
 
+/** Asks a file block to open its viewer, from the floating bar. */
+export const OPEN_FILE_COMMAND = createCommand<NodeKey>("FARIDA_OPEN_FILE");
+
 function FileBlock({
   nodeKey,
   format,
   fileId,
   name,
+  mime,
   bytes,
+  caption,
+  display,
 }: {
   nodeKey: NodeKey;
   format: ElementFormatType;
   fileId: string;
   name: string;
+  mime: string;
   bytes: number;
+  caption: string;
+  display: FileDisplay;
 }) {
+  const [editor] = useLexicalComposerContext();
   const { strings, media, locale } = useEditorEnvironment();
+  const editable = useLexicalEditable();
+  const selected = useSelectOnClick(nodeKey);
+  const update = useNodeUpdate(nodeKey, $isFileNode);
+  const [viewing, setViewing] = useState(false);
+  useEffect(
+    () =>
+      editor.registerCommand(
+        OPEN_FILE_COMMAND,
+        (key) => {
+          if (key !== nodeKey) return false;
+          setViewing(true);
+          return true;
+        },
+        COMMAND_PRIORITY_LOW,
+      ),
+    [editor, nodeKey],
+  );
+  const url = media?.url(fileId);
+  const file = { name, mime, bytes };
   return (
     <BlockWithAlignableContents
       className={blockClass}
       format={format}
       nodeKey={nodeKey}
     >
-      <div className="flex items-center gap-3 rounded-lg border bg-muted/30 px-3 py-2.5">
-        <FileText
-          className="size-5 shrink-0 text-muted-foreground"
-          aria-hidden
+      <div onDoubleClick={() => setViewing(true)}>
+        <FileCard
+          file={file}
+          url={url}
+          display={display}
+          caption={caption}
+          strings={strings}
+          locale={locale}
+          editing={editable}
+          captionField={
+            editable && (selected || caption) ? (
+              <input
+                aria-label={strings.fileCaption}
+                placeholder={strings.fileCaption}
+                value={caption}
+                maxLength={1000}
+                dir="auto"
+                onChange={(event) => {
+                  const value = event.target.value;
+                  update((node) => node.setCaption(value));
+                }}
+                className="block w-full border-t bg-transparent px-3 py-2 text-sm text-muted-foreground outline-none placeholder:text-muted-foreground/60"
+              />
+            ) : undefined
+          }
         />
-        <div className="min-w-0 flex-1">
-          <p className="truncate text-sm font-medium">{name}</p>
-          <p className="text-xs text-muted-foreground">
-            {formatBytes(bytes, locale)}
-          </p>
-        </div>
-        {media ? (
-          <a
-            href={media.url(fileId)}
-            download={name}
-            aria-label={`${strings.downloadFile}: ${name}`}
-            className="inline-flex size-8 items-center justify-center rounded-md hover:bg-accent"
-          >
-            <Download className="size-4" aria-hidden />
-          </a>
-        ) : null}
       </div>
+      {url && editable ? (
+        <FileViewer
+          file={file}
+          url={url}
+          open={viewing}
+          onOpenChange={setViewing}
+          strings={strings}
+          locale={locale}
+        />
+      ) : null}
     </BlockWithAlignableContents>
   );
 }
@@ -282,12 +339,16 @@ export class FileNode extends DecoratorBlockNode {
   __name: string;
   __mime: string;
   __bytes: number;
+  __caption: string;
+  __display: FileDisplay;
 
   constructor(
     fileId = "",
     name = "",
     mime = "",
     bytes = 0,
+    caption = "",
+    display: FileDisplay = "card",
     format?: ElementFormatType,
     key?: NodeKey,
   ) {
@@ -296,6 +357,8 @@ export class FileNode extends DecoratorBlockNode {
     this.__name = name;
     this.__mime = mime;
     this.__bytes = bytes;
+    this.__caption = caption;
+    this.__display = display;
   }
 
   $config() {
@@ -308,6 +371,8 @@ export class FileNode extends DecoratorBlockNode {
       node.__name,
       node.__mime,
       node.__bytes,
+      node.__caption,
+      node.__display,
       node.__format,
       node.__key,
     );
@@ -323,6 +388,8 @@ export class FileNode extends DecoratorBlockNode {
     node.__name = json.name;
     node.__mime = json.mime;
     node.__bytes = json.bytes;
+    node.__caption = json.caption ?? "";
+    node.__display = json.display ?? "card";
     return node;
   }
 
@@ -334,6 +401,8 @@ export class FileNode extends DecoratorBlockNode {
       name: node.__name,
       mime: node.__mime,
       bytes: node.__bytes,
+      ...(node.__caption ? { caption: node.__caption } : {}),
+      ...(node.__display === "card" ? {} : { display: node.__display }),
     };
   }
 
@@ -347,6 +416,25 @@ export class FileNode extends DecoratorBlockNode {
     return this.getLatest().__name;
   }
 
+  getFile() {
+    const node = this.getLatest();
+    return {
+      fileId: node.__fileId,
+      name: node.__name,
+      mime: node.__mime,
+      bytes: node.__bytes,
+      display: node.__display,
+    };
+  }
+
+  setCaption(caption: string) {
+    this.getWritable().__caption = caption;
+  }
+
+  setDisplay(display: FileDisplay) {
+    this.getWritable().__display = display;
+  }
+
   decorate(_editor: LexicalEditor, _config: EditorConfig): JSX.Element {
     return (
       <FileBlock
@@ -354,7 +442,10 @@ export class FileNode extends DecoratorBlockNode {
         format={this.__format}
         fileId={this.__fileId}
         name={this.__name}
+        mime={this.__mime}
         bytes={this.__bytes}
+        caption={this.__caption}
+        display={this.__display}
       />
     );
   }

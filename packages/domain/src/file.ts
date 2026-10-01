@@ -195,6 +195,60 @@ export function acceptedMediaType(name: string, mediaType: string): boolean {
 
 export const ACCEPTED_EXTENSIONS = Object.keys(ACCEPTED_TYPES);
 
+/** Files a person may put in a document; captions and drawings have blocks of their own. */
+export const ATTACHABLE_EXTENSIONS = ACCEPTED_EXTENSIONS.filter(
+  (extension) => extension !== "vtt" && extension !== "excalidraw",
+);
+
+export function attachable(name: string): boolean {
+  return ATTACHABLE_EXTENSIONS.includes(fileExtension(name));
+}
+
+export type FileFamily =
+  | "pdf"
+  | "document"
+  | "sheet"
+  | "slides"
+  | "text"
+  | "image"
+  | "audio"
+  | "video"
+  | "archive"
+  | "other";
+
+const FAMILY: Record<string, FileFamily> = {
+  pdf: "pdf",
+  doc: "document",
+  docx: "document",
+  odt: "document",
+  xls: "sheet",
+  xlsx: "sheet",
+  ods: "sheet",
+  csv: "sheet",
+  ppt: "slides",
+  pptx: "slides",
+  odp: "slides",
+  txt: "text",
+  md: "text",
+  zip: "archive",
+};
+
+/** What kind of thing a file is, for its icon and how it opens. */
+export function fileFamily(name: string, mediaType: string): FileFamily {
+  const known = FAMILY[fileExtension(name)];
+  if (known) return known;
+  const type = mediaType.toLowerCase();
+  if (type.startsWith("image/")) return "image";
+  if (type.startsWith("audio/")) return "audio";
+  if (type.startsWith("video/")) return "video";
+  return "other";
+}
+
+/** The short type people read beside a file's size: "PDF", "DOCX". */
+export function fileTypeLabel(name: string): string {
+  return fileExtension(name).toUpperCase();
+}
+
 /** The media type to declare when a browser reports none for a known extension. */
 export function mediaTypeFor(name: string): string | undefined {
   return ACCEPTED_TYPES[fileExtension(name)]?.[0];

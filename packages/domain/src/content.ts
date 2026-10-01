@@ -44,6 +44,9 @@ export const calloutTones = [
 ] as const;
 export const columnLayouts = ["1:1", "1:2", "2:1", "1:1:1", "1:1:1:1"] as const;
 export const imageSizes = ["small", "medium", "large", "full"] as const;
+/** A file reads as a card, or a PDF also shows its pages in the document. */
+export const fileDisplays = ["card", "preview"] as const;
+export type FileDisplay = (typeof fileDisplays)[number];
 export type CalloutTone = (typeof calloutTones)[number];
 export type ColumnLayout = (typeof columnLayouts)[number];
 export type ImageSize = (typeof imageSizes)[number];
@@ -101,6 +104,7 @@ export interface ContentNode {
   name?: string;
   mime?: string;
   bytes?: number;
+  display?: FileDisplay;
   captionsFileId?: string;
   provider?: EmbedProvider;
   embedId?: string;
@@ -204,6 +208,7 @@ const nodeSchema: v.GenericSchema<ContentNode> = v.lazy(() =>
       name: v.optional(v.pipe(v.string(), v.minLength(1), v.maxLength(255))),
       mime: v.optional(v.pipe(v.string(), v.maxLength(255))),
       bytes: v.optional(integer(0, 2147483647)),
+      display: v.optional(v.picklist(fileDisplays)),
       captionsFileId: v.optional(v.pipe(v.string(), v.uuid())),
       provider: v.optional(v.picklist(embedProviders)),
       embedId: v.optional(v.pipe(v.string(), v.maxLength(200))),

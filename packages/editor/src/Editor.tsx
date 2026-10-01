@@ -160,7 +160,6 @@ function Surface({
   const { strings } = useEditorEnvironment();
   const [anchor, setAnchor] = useState<HTMLDivElement | null>(null);
   const [invalid, setInvalid] = useState(false);
-  const [upload, setUpload] = useState<"idle" | "uploading" | "failed">("idle");
   const [count, setCount] = useState(() =>
     editor.getEditorState().read(() => {
       const result = v.safeParse(
@@ -245,25 +244,16 @@ function Surface({
       <PlaceholderPlugin empty={placeholder ?? strings.emptyPlaceholder} />
       <SlashMenuPlugin />
       <SelectionToolbarPlugin />
-      <MediaPlugin onStatus={setUpload} />
+      <MediaPlugin />
       <EmbedPlugin />
       <PastePlugin />
       <DiagramPlugin />
-      {!document || upload !== "idle" ? (
+      {document ? null : (
         <div className={editorFrame.footer(document)}>
-          <span
-            aria-live="polite"
-            className={upload === "failed" ? "text-destructive" : undefined}
-          >
-            {upload === "uploading"
-              ? strings.uploading
-              : upload === "failed"
-                ? strings.uploadFailed
-                : strings.placeholder}
-          </span>
-          {!document ? <span>{strings.characters(count)}</span> : null}
+          <span>{strings.placeholder}</span>
+          <span>{strings.characters(count)}</span>
         </div>
-      ) : null}
+      )}
       {invalid ? (
         <p
           id={errorId}

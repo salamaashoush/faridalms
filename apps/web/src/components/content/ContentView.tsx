@@ -20,6 +20,11 @@ export function ContentView({
       strings={{
         checklist: m.editorCheckItem(),
         downloadFile: m.editorDownloadFile(),
+        openFile: m.fileOpen(),
+        copyFileLink: m.fileCopyLink(),
+        fileLinkCopied: m.fileLinkCopied(),
+        closeViewer: m.fileCloseViewer(),
+        noPreview: m.fileNoPreview(),
         captions: m.editorCaptions(),
         diagram: m.editorDiagram(),
         embedLoad: (provider) => m.editorEmbedLoad({ provider }),

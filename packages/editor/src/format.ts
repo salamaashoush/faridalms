@@ -9,7 +9,8 @@ export function formatBytes(bytes: number, locale: string): string {
   return new Intl.NumberFormat(locale, {
     style: "unit",
     unit: units[unit],
-    unitDisplay: "short",
+    // Short forms read "1.2 MB" but "45 byte", so bytes are spelled out.
+    unitDisplay: unit === 0 ? "long" : "short",
     maximumFractionDigits: unit === 0 ? 0 : 1,
   }).format(value);
 }

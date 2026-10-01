@@ -17,8 +17,19 @@ export type UploadKind =
   | "diagram"
   | "scene";
 
+export interface UploadOptions {
+  signal?: AbortSignal;
+  /** How much has been sent, from 0 to 1. */
+  onProgress?: (progress: number) => void;
+}
+
 export interface EditorMedia {
-  upload: (file: File, kind: UploadKind) => Promise<UploadedFile>;
+  /** Stores a file; a refusal rejects with the server's code as the message. */
+  upload: (
+    file: File,
+    kind: UploadKind,
+    options?: UploadOptions,
+  ) => Promise<UploadedFile>;
   url: (fileId: string) => string;
   accept: Record<"image" | "file" | "media" | "captions", string[]>;
 }
