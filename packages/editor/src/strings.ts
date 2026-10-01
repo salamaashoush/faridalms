@@ -166,6 +166,8 @@ export interface EditorStrings {
   questionGaps: string;
   questionGapsHint: string;
   questionPassage: string;
+  studentCopy: string;
+  studentCopyHint: string;
   questionTrueFalse: string;
   questionTrueFalseHint: string;
   questionTrue: string;

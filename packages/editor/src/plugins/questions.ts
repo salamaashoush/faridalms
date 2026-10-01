@@ -14,6 +14,8 @@ import {
   GateNode,
   QuestionNode,
   setQuestionsLocked,
+  setStarterLabel,
+  StarterNode,
 } from "../nodes";
 
 /** Each line of a question's words, without its answers. */
@@ -30,15 +32,22 @@ function $linesOf(node: LexicalNode): LexicalNode[] {
 /**
  * Where a document asks no questions, such as an announcement, a question
  * pasted in keeps its words as paragraphs and drops its key, and a gate is
- * dropped.
+ * dropped; where no student gets a copy, a part set aside for one stays as
+ * plain text.
  */
 export function QuestionGuardPlugin() {
   const [editor] = useLexicalComposerContext();
   const {
+    strings,
     questions,
     gates = questions,
     lockQuestions,
+    starter,
   } = useEditorEnvironment();
+  useEffect(
+    () => setStarterLabel(editor, strings.studentCopy),
+    [editor, strings],
+  );
   useEffect(
     () => setQuestionsLocked(editor, Boolean(lockQuestions)),
     [editor, lockQuestions],
@@ -56,8 +65,14 @@ export function QuestionGuardPlugin() {
         gates
           ? () => {}
           : editor.registerNodeTransform(GateNode, (gate) => gate.remove()),
+        starter
+          ? () => {}
+          : editor.registerNodeTransform(StarterNode, (node) => {
+              for (const child of node.getChildren()) node.insertBefore(child);
+              node.remove();
+            }),
       ),
-    [editor, questions, gates],
+    [editor, questions, gates, starter],
   );
   return null;
 }

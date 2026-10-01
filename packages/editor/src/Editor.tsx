@@ -91,6 +91,8 @@ export interface EditorProps {
   gates?: boolean;
   /** Questions students have started answering, kept from change. */
   lockQuestions?: boolean;
+  /** A brief may set part of itself aside as each student's copy. */
+  starter?: boolean;
 }
 
 export default function Editor({
@@ -102,6 +104,7 @@ export default function Editor({
   questions = false,
   gates = questions,
   lockQuestions = false,
+  starter = false,
   ...props
 }: EditorProps) {
   // Live editing keeps its own undo history in the shared document, so the
@@ -132,8 +135,9 @@ export default function Editor({
       questions,
       gates,
       lockQuestions,
+      starter,
     }),
-    [strings, media, locale, questions, gates, lockQuestions],
+    [strings, media, locale, questions, gates, lockQuestions, starter],
   );
   const composer = (
     <LexicalExtensionComposer extension={extension} contentEditable={null}>

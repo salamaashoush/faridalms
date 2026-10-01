@@ -21,11 +21,13 @@ import { $isElementNode } from "lexical";
 
 import {
   $isCalloutNode,
+  $isStarterNode,
   $isColumnsNode,
   $isFileNode,
   $isImageNode,
   $isToggleNode,
   CalloutNode,
+  StarterNode,
   ColumnsNode,
   FileNode,
   ImageNode,
@@ -123,9 +125,19 @@ const MEDIA: ElementTransformer = {
   type: "element",
 };
 
+const STARTER: ElementTransformer = {
+  dependencies: [StarterNode],
+  export: (node, traverse) =>
+    $isStarterNode(node) ? exportBlocks(node.getChildren(), traverse) : null,
+  regExp: never,
+  replace: () => false,
+  type: "element",
+};
+
 const custom: ElementTransformer[] = [
   HORIZONTAL_RULE,
   CALLOUT,
+  STARTER,
   TOGGLE,
   COLUMNS,
   MEDIA,
@@ -135,6 +147,7 @@ export const markdownTransformers: Transformer[] = [
   CHECK_LIST,
   HORIZONTAL_RULE,
   CALLOUT,
+  STARTER,
   TOGGLE,
   COLUMNS,
   MEDIA,

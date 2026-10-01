@@ -68,6 +68,8 @@ import {
   $blockTypeOf,
   $turnInto,
   blockDefinitions,
+  blockScope,
+  offered,
 } from "../blocks";
 import { useEditorEnvironment } from "../context";
 import { $activeFormats, OPEN_LINK_EDITOR_COMMAND } from "../formatting";
@@ -204,12 +206,8 @@ function ToolCheck({
 
 export function ToolbarPlugin({ disabled }: { disabled: boolean }) {
   const [editor] = useLexicalComposerContext();
-  const {
-    strings,
-    media,
-    questions,
-    gates = questions,
-  } = useEditorEnvironment();
+  const environment = useEditorEnvironment();
+  const { strings } = environment;
   const [undo, setUndo] = useState(false);
   const [redo, setRedo] = useState(false);
   const [formats, setFormats] = useState<MarkFormat[]>([]);
@@ -288,12 +286,8 @@ export function ToolbarPlugin({ disabled }: { disabled: boolean }) {
   ];
   const current = blockDefinitions.find((item) => item.type === block);
   const turnInto = blockDefinitions.filter((item) => item.convertible);
-  const insertable = blockDefinitions.filter(
-    (item) =>
-      (media || !item.media) &&
-      (questions || !item.question) &&
-      (gates || item.type !== "gate"),
-  );
+  const scope = blockScope(environment);
+  const insertable = blockDefinitions.filter((item) => offered(item, scope));
   const turn = (type: BlockType) =>
     restore(() => {
       const target = $anchorFor(type);

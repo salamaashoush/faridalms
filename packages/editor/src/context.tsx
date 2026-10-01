@@ -44,6 +44,8 @@ export interface EditorEnvironment {
   gates?: boolean;
   /** Questions are shown but kept from change. */
   lockQuestions?: boolean;
+  /** Part of the document may be set aside as each student's copy. */
+  starter?: boolean;
 }
 
 const Context = createContext<EditorEnvironment | null>(null);

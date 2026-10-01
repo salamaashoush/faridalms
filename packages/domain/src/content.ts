@@ -44,6 +44,7 @@ const nodeTypes = [
   "question-passage",
   "question-gap",
   "gate",
+  "starter",
 ] as const;
 /**
  * The questions a document can ask, each marked by the server from the
@@ -322,12 +323,13 @@ const blocks = new Set<string>([
   "diagram",
   "question",
   "gate",
+  "starter",
 ]);
-// Columns, questions and gates stand only at the top of a document.
+// Columns, questions, gates and each student's copy stand only at the top
+// of a document.
+const ROOT_ONLY = new Set(["columns", "question", "gate", "starter"]);
 const nestedBlocks = new Set(
-  [...blocks].filter(
-    (type) => type !== "columns" && type !== "question" && type !== "gate",
-  ),
+  [...blocks].filter((type) => !ROOT_ONLY.has(type)),
 );
 function validNode(node: ContentNode): boolean {
   const children = node.children ?? [];
@@ -469,6 +471,11 @@ function validNode(node: ContentNode): boolean {
       return children.every((child) =>
         ["paragraph", "heading", "quote", "list", "code"].includes(child.type),
       );
+    case "starter":
+      return (
+        children.length > 0 &&
+        children.every((child) => nestedBlocks.has(child.type))
+      );
     case "callout":
       return (
         children.length > 0 &&
@@ -604,4 +611,27 @@ function comparable(value: unknown): unknown {
  */
 export function sameContent(a: ContentDocument, b: ContentDocument): boolean {
   return JSON.stringify(comparable(a)) === JSON.stringify(comparable(b));
+}
+
+/**
+ * What each student starts their answer from: the part of a brief set aside
+ * as each student's copy. Null when the brief sets nothing aside.
+ */
+export function starterOf(brief: ContentDocument): ContentDocument | null {
+  const kept = (brief.root.children ?? [])
+    .filter((node) => node.type === "starter")
+    .flatMap((node) => node.children ?? []);
+  return kept.length > 0 ? { root: { ...brief.root, children: kept } } : null;
+}
+
+/** A brief as students read it, without the part each of them gets a copy of. */
+export function withoutStarter(brief: ContentDocument): ContentDocument {
+  return {
+    root: {
+      ...brief.root,
+      children: (brief.root.children ?? []).filter(
+        (node) => node.type !== "starter",
+      ),
+    },
+  };
 }

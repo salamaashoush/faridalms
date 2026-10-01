@@ -188,6 +188,8 @@ export function editorStrings(): EditorStrings {
     questionGaps: m.editorQuestionGaps(),
     questionGapsHint: m.editorQuestionGapsHint(),
     questionPassage: m.editorQuestionPassage(),
+    studentCopy: m.editorStudentCopy(),
+    studentCopyHint: m.editorStudentCopyHint(),
     questionTrueFalse: m.lrnKindTrueFalse(),
     questionTrueFalseHint: m.lrnKindTrueFalseHint(),
     questionTrue: m.lrnTrue(),

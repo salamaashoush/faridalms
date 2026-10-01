@@ -44,6 +44,7 @@ import {
 import { useEditorEnvironment } from "../context";
 import {
   $isCalloutNode,
+  $isStarterNode,
   $isColumnsNode,
   $nearestBlock,
   $createColumnNode,
@@ -99,7 +100,10 @@ function firstLine(element: HTMLElement): DOMRect | null {
 
 function $handleBlock(node: LexicalNode): LexicalNode | null {
   let block = $nearestBlock(node, false);
-  while (block && $isCalloutNode(block.getParent())) {
+  while (
+    block &&
+    ($isCalloutNode(block.getParent()) || $isStarterNode(block.getParent()))
+  ) {
     const parent = block.getParent();
     block = parent ? $nearestBlock(parent, false) : null;
   }

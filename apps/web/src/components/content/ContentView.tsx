@@ -22,6 +22,7 @@ export function ContentView({
       strings={{
         ...fileStrings(),
         checklist: m.editorCheckItem(),
+        studentCopy: m.editorStudentCopy(),
         diagram: m.editorDiagram(),
         embedLoad: (provider) => m.editorEmbedLoad({ provider }),
         embedPrivacy: (provider) => m.editorEmbedPrivacy({ provider }),

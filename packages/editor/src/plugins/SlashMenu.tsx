@@ -19,7 +19,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 import type { BlockDefinition, BlockGroup } from "../blocks";
 
-import { filterBlocks } from "../blocks";
+import { blockScope, filterBlocks } from "../blocks";
 import { useEditorEnvironment } from "../context";
 import { Floating, cx, selectionReference } from "../ui";
 import { $runBlock } from "./insert";
@@ -56,7 +56,9 @@ class BlockOption extends MenuOption {
 
 export function SlashMenuPlugin() {
   const [editor] = useLexicalComposerContext();
-  const { strings, media, questions, gates } = useEditorEnvironment();
+  const environment = useEditorEnvironment();
+  const { strings } = environment;
+  const scope = useMemo(() => blockScope(environment), [environment]);
   const [query, setQuery] = useState<string | null>(null);
   const [caret, setCaret] = useState<ReferenceElement | null>(null);
   const onOpen = useCallback(() => setCaret(selectionReference()), []);
@@ -82,13 +84,7 @@ export function SlashMenuPlugin() {
             node.getTextContent().slice(0, offset),
           )?.[1];
           if (!typed) return false;
-          const [block] = filterBlocks(
-            typed,
-            strings,
-            Boolean(media),
-            questions,
-            gates,
-          );
+          const [block] = filterBlocks(typed, strings, scope);
           if (!block) return false;
           event?.preventDefault();
           node.spliceText(
@@ -102,7 +98,7 @@ export function SlashMenuPlugin() {
         },
         COMMAND_PRIORITY_HIGH,
       ),
-    [editor, strings, media, questions, gates],
+    [editor, strings, scope],
   );
   const trigger = useBasicTypeaheadTriggerMatch("/", {
     minLength: 0,
@@ -111,10 +107,10 @@ export function SlashMenuPlugin() {
   });
   const options = useMemo(
     () =>
-      filterBlocks(query ?? "", strings, Boolean(media), questions, gates).map(
+      filterBlocks(query ?? "", strings, scope).map(
         (block) => new BlockOption(block),
       ),
-    [query, strings, media, questions, gates],
+    [query, strings, scope],
   );
   const groups: Record<BlockGroup, string> = {
     text: strings.groupText,
@@ -132,13 +128,7 @@ export function SlashMenuPlugin() {
       const typed = $takeQuery(text);
       // The option highlighted may come from a shorter query than was typed;
       // the block typed for wins when the two disagree.
-      const current = filterBlocks(
-        typed,
-        strings,
-        Boolean(media),
-        questions,
-        gates,
-      );
+      const current = filterBlocks(typed, strings, scope);
       const block = current.some((item) => item.type === option.block.type)
         ? option.block
         : current[0];

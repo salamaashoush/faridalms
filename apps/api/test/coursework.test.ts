@@ -244,6 +244,45 @@ describe("handing in and returning work", () => {
     ).toMatchObject({ state: "returned", effectiveScore: 9 });
   });
 
+  test("each student starts from their own copy of the worksheet in the brief", async () => {
+    const teacher = await arabicTeacher();
+    const student = await sessionFor("northwind", login("student"));
+    const me = await student.api.identity.currentUser();
+    const target = await classOfStudent(teacher.api, me.id);
+    const intro = plainContent("Fill in the table about your town.");
+    const sheet = plainContent("Population: ... Rivers: ...");
+    const saved = await teacher.api.coursework.save(
+      draft(target.id, "My town", {
+        brief: {
+          root: {
+            ...intro.root,
+            children: [
+              ...(intro.root.children ?? []),
+              {
+                type: "starter",
+                version: 1,
+                format: "",
+                indent: 0,
+                direction: null,
+                children: sheet.root.children ?? [],
+              },
+            ],
+          },
+        },
+      }),
+    );
+    await teacher.api.coursework.publish({
+      id: saved.id,
+      expectedVersion: saved.version,
+    });
+    const open = await student.api.coursework.work({ id: saved.id });
+    expect(JSON.stringify(open.brief)).toContain("Fill in the table");
+    expect(JSON.stringify(open.brief)).not.toContain("Population");
+    expect(JSON.stringify(open.submission.content)).toContain("Population");
+    const record = await teacher.api.coursework.record({ id: saved.id });
+    expect(JSON.stringify(record.brief)).toContain("Population");
+  });
+
   test("a student given more time is no longer missing, and the class keeps its date", async () => {
     const teacher = await arabicTeacher();
     const student = await sessionFor("northwind", login("student"));

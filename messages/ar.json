@@ -1172,6 +1172,8 @@
   "editorTranscriptAdd": "إضافة النص المكتوب",
   "editorTranscriptHint": "ما يُقال، للطلاب الذين لا يستطيعون السماع",
   "editorTranscriptMissing": "أضف النص المكتوب أو ملف ترجمة حتى يتابع الجميع.",
+  "editorStudentCopy": "نسخة لكل طالب",
+  "editorStudentCopyHint": "ورقة عمل يملؤها كل طالب كإجابته الخاصة",
   "editorQuestionItem": "عنصر",
   "editorQuestionPoints": [
     {

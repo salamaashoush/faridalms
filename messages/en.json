@@ -1156,6 +1156,8 @@
   "editorTranscriptAdd": "Add transcript",
   "editorTranscriptHint": "What is said, for students who cannot hear it",
   "editorTranscriptMissing": "Add a transcript or a captions file so everyone can follow along.",
+  "editorStudentCopy": "Each student's copy",
+  "editorStudentCopyHint": "A worksheet each student fills in as their own answer",
   "editorQuestionItem": "Item",
   "editorQuestionPoints": [
     {

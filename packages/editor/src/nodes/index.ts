@@ -19,6 +19,7 @@ import {
   QuestionSideNode,
 } from "./question";
 import { DiagramNode, EmbedNode, MediaNode } from "./rich";
+import { $isStarterNode, StarterNode } from "./starter";
 import {
   $isToggleContentNode,
   ToggleContentNode,
@@ -32,6 +33,7 @@ export * from "./gate";
 export * from "./media";
 export * from "./question";
 export * from "./rich";
+export * from "./starter";
 export * from "./toggle";
 
 export const blockNodes = [
@@ -56,6 +58,7 @@ export const blockNodes = [
   QuestionPassageNode,
   QuestionGapNode,
   GateNode,
+  StarterNode,
 ];
 
 export const blockIdState = createState("id", {
@@ -70,6 +73,7 @@ export function $isBlockContainer(
   return (
     $isRootNode(node) ||
     $isCalloutNode(node) ||
+    $isStarterNode(node) ||
     $isToggleContentNode(node) ||
     $isColumnNode(node) ||
     (includeCells && $isTableCellNode(node))

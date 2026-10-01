@@ -46,6 +46,7 @@ import {
   Brackets,
   ChevronRight,
   CircleCheck,
+  Copy,
   Clapperboard,
   Code,
   Columns2,
@@ -89,7 +90,9 @@ import {
   $isQuestionNode,
   $isToggleNode,
   $nearestBlock,
+  $isStarterNode,
   GateNode,
+  StarterNode,
 } from "./nodes";
 
 export type BlockType =
@@ -122,7 +125,8 @@ export type BlockType =
   | "sortingQuestion"
   | "gapsQuestion"
   | "trueFalseQuestion"
-  | "gate";
+  | "gate"
+  | "studentCopy";
 
 export type BlockGroup = "text" | "lists" | "media" | "layout" | "questions";
 
@@ -151,7 +155,38 @@ export interface BlockDefinition {
   prompt?: boolean;
   /** Offered only where the document may ask questions, such as a lesson. */
   question?: boolean;
+  /** Offered only in a brief, whose students each get a copy to work in. */
+  starter?: boolean;
 }
+
+/** Which kinds of block a document may hold. */
+export interface BlockScope {
+  media: boolean;
+  questions: boolean;
+  gates: boolean;
+  starter: boolean;
+}
+
+export function blockScope(environment: {
+  media?: unknown;
+  questions?: boolean;
+  gates?: boolean;
+  starter?: boolean;
+}): BlockScope {
+  const questions = Boolean(environment.questions);
+  return {
+    media: Boolean(environment.media),
+    questions,
+    gates: environment.gates ?? questions,
+    starter: Boolean(environment.starter),
+  };
+}
+
+export const offered = (block: BlockDefinition, scope: BlockScope) =>
+  (scope.media || !block.media) &&
+  (scope.questions || !block.question) &&
+  (scope.gates || block.type !== "gate") &&
+  (scope.starter || !block.starter);
 
 export const blockDefinitions: BlockDefinition[] = [
   {
@@ -241,6 +276,15 @@ export const blockDefinitions: BlockDefinition[] = [
     keywords: ["quote", "blockquote", "citation", "اقتباس"],
     shortcut: ">",
     convertible: true,
+  },
+  {
+    type: "studentCopy",
+    group: "layout",
+    icon: Copy,
+    label: (s) => s.studentCopy,
+    hint: (s) => s.studentCopyHint,
+    keywords: ["copy", "worksheet", "template", "student", "نسخة", "ورقة عمل"],
+    starter: true,
   },
   {
     type: "callout",
@@ -453,16 +497,12 @@ export const blockDefinitions: BlockDefinition[] = [
 export function filterBlocks(
   query: string,
   strings: EditorStrings,
-  media: boolean,
-  questions = false,
-  gates = questions,
+  scope: BlockScope,
 ): BlockDefinition[] {
   const needle = query.trim().toLocaleLowerCase();
   return blockDefinitions.filter(
     (block) =>
-      (media || !block.media) &&
-      (questions || !block.question) &&
-      (gates || block.type !== "gate") &&
+      offered(block, scope) &&
       (!needle ||
         block.label(strings).toLocaleLowerCase().includes(needle) ||
         block.keywords.some((keyword) => keyword.startsWith(needle))),
@@ -621,7 +661,7 @@ function $selectInside(node: LexicalNode) {
     node.getFirstChild()?.selectEnd();
     return;
   }
-  if ($isCalloutNode(node) || $isColumnsNode(node)) {
+  if ($isCalloutNode(node) || $isStarterNode(node) || $isColumnsNode(node)) {
     node.getFirstDescendant()?.selectStart();
     return;
   }
@@ -642,6 +682,8 @@ function $createStructure(type: BlockType): LexicalNode | null {
   if (kind) return $createQuestionNode(kind);
   if (type === "divider") return $createHorizontalRuleNode();
   if (type === "gate") return new GateNode();
+  if (type === "studentCopy")
+    return new StarterNode().append($createParagraphNode());
   if (type === "table")
     return $createTableNodeWithDimensions(3, 3, { rows: true, columns: false });
   if (type === "columns2" || type === "columns3") {
@@ -683,6 +725,7 @@ function $allows(container: LexicalNode | null, type: BlockType): boolean {
     type === "columns2" ||
     type === "columns3" ||
     type === "gate" ||
+    type === "studentCopy" ||
     QUESTION_KIND[type]
   )
     return $isRootNode(container);

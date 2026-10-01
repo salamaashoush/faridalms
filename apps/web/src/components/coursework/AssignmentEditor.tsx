@@ -1084,6 +1084,7 @@ export function AssignmentEditor({
               questions={isQuiz}
               gates={false}
               lockQuestions={started}
+              starter={!isQuiz}
               collaboration={shared ? live.collaboration : undefined}
               replace={replace}
             />

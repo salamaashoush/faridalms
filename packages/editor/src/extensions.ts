@@ -59,6 +59,8 @@ import {
   $isToggleContentNode,
   $isToggleNode,
   $isToggleTitleNode,
+  $isStarterNode,
+  StarterNode,
   $createQuestionGroup,
   $createQuestionPair,
   $isQuestionAnswerNode,
@@ -96,6 +98,7 @@ import {
 
 const escapable = (node: LexicalNode | null | undefined): node is ElementNode =>
   $isCalloutNode(node) ||
+  $isStarterNode(node) ||
   $isToggleNode(node) ||
   $isColumnsNode(node) ||
   $isQuestionNode(node);
@@ -389,7 +392,11 @@ function $exitEmptyTrailingParagraph(): boolean {
   const paragraph = selection.anchor.getNode();
   if (!$isParagraphNode(paragraph) || !paragraph.isEmpty()) return false;
   const container = paragraph.getParent();
-  if (!$isCalloutNode(container) && !$isToggleContentNode(container))
+  if (
+    !$isCalloutNode(container) &&
+    !$isStarterNode(container) &&
+    !$isToggleContentNode(container)
+  )
     return false;
   if (
     !paragraph.is(container.getLastChild()) ||
@@ -455,6 +462,10 @@ export const BlocksExtension = defineExtension({
         if ($isLinkNode(node)) $sanitiseLink(node);
       }),
       editor.registerNodeTransform(CalloutNode, $fillEmpty),
+      editor.registerNodeTransform(StarterNode, (node) => {
+        if (!$isRootNode(node.getParent())) $unwrapInto(node);
+        else $fillEmpty(node);
+      }),
       editor.registerNodeTransform(ToggleContentNode, (node) => {
         if (!$isToggleNode(node.getParent())) $unwrapInto(node);
         else $fillEmpty(node);

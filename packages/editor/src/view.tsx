@@ -22,6 +22,7 @@ export { editorFrame } from "./frame";
 
 export interface ViewStrings extends FileStrings {
   checklist: string;
+  studentCopy: string;
   diagram: string;
   embedLoad: (provider: string) => string;
   embedPrivacy: (provider: string) => string;
@@ -249,6 +250,16 @@ function render(node: ContentNode, key: string, context: Context): ReactNode {
         <aside key={key} className="fe-callout" data-tone={node.tone ?? "info"}>
           {children}
         </aside>
+      );
+    case "starter":
+      return (
+        <div
+          key={key}
+          className="fe-starter"
+          data-label={context.strings.studentCopy}
+        >
+          {children}
+        </div>
       );
     case "toggle":
       return (

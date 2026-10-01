@@ -69,7 +69,12 @@ import {
   termsOf,
   workingYear,
 } from "@faridalms/database/stores/years";
-import { contentFileIds, contentPlainText } from "@faridalms/domain/content";
+import {
+  contentFileIds,
+  contentPlainText,
+  starterOf,
+  withoutStarter,
+} from "@faridalms/domain/content";
 import {
   GRACE_MS,
   assessSchema,
@@ -188,7 +193,7 @@ async function taughtAssignment(context: UnitContext, assignmentId: string) {
 async function readersBrief(
   context: UnitContext,
   assignment: { id: string; state: string; submissionFormat: string },
-  whole = false,
+  reader: "teacher" | "student" | "editor" = "teacher",
 ): Promise<ContentDocument | null> {
   const document = await documentOf(context.tx, context.tenantId, {
     type: "assignment",
@@ -200,11 +205,13 @@ async function readersBrief(
       ? null
       : await publishedVersion(context.tx, context.tenantId, document.id);
   const content = (published ?? document).content as unknown as ContentDocument;
+  if (reader === "editor") return content;
   // A quiz's brief holds its answers; readers get the words before the
   // first question, and meet the questions as the quiz gives them.
-  return assignment.submissionFormat === "quiz" && !whole
-    ? quizIntro(content)
-    : content;
+  const shown =
+    assignment.submissionFormat === "quiz" ? quizIntro(content) : content;
+  // Students meet the part set aside for each of them in their own answer.
+  return reader === "student" ? withoutStarter(shown) : shown;
 }
 
 async function filesView(
@@ -426,7 +433,7 @@ export const editor = readProcedure
     const sent =
       assignment.state === "draft"
         ? null
-        : await readersBrief(context, assignment, true);
+        : await readersBrief(context, assignment, "editor");
     return {
       ...assignment,
       rubric: assignment.rubric as unknown as Rubric | null,
@@ -1081,8 +1088,9 @@ export const work = readProcedure
       Date.parse(assignment.availableFrom) > context.now.getTime()
     )
       throw new ORPCError("NOT_FOUND");
-    const [brief, rows, classRow] = await Promise.all([
-      readersBrief(context, assignment),
+    const [brief, whole, rows, classRow] = await Promise.all([
+      readersBrief(context, assignment, "student"),
+      readersBrief(context, assignment, "editor"),
       studentWork(context.tx, {
         tenantId: context.tenantId,
         assignmentId: assignment.id,
@@ -1134,7 +1142,11 @@ export const work = readProcedure
       submission: {
         id: row.submissionId,
         version: row.submissionVersion ?? 0,
-        content: (draft?.content ?? null) as ContentDocument | null,
+        // A first answer starts as the student's own copy of the part of
+        // the brief set aside for each of them.
+        content:
+          (draft?.content as ContentDocument | undefined) ??
+          (whole ? starterOf(whole) : null),
       },
       attempts,
       state: learnerState(
