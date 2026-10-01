@@ -154,6 +154,11 @@ export const lessons = core.table.withRLS(
     passScore: smallint("pass_score"),
     /** Questions missed on the first try are asked once more at the end. */
     review: boolean("review").notNull().default(false),
+    /** Whether students read vowel marks, or choose for themselves. */
+    vowelMarks: text("vowel_marks")
+      .$type<"shown" | "hidden" | "choice">()
+      .notNull()
+      .default("shown"),
     ...entityColumns(),
   },
   (t): PgTableExtraConfigValue[] => [
@@ -166,6 +171,11 @@ export const lessons = core.table.withRLS(
     ),
     ck("lessons", "title", sql`char_length(title) between 1 and 200`),
     ck("lessons", "position", sql`position between 0 and 999`),
+    ck(
+      "lessons",
+      "vowel_marks",
+      sql`vowel_marks in ('shown', 'hidden', 'choice')`,
+    ),
     ck(
       "lessons",
       "completion",

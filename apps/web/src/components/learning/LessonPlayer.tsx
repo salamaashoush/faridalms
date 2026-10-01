@@ -1,4 +1,5 @@
 import type {
+  VowelMarks,
   CheckView,
   LessonBlock,
   LessonCompletion,
@@ -7,6 +8,7 @@ import type {
   StudentBlock,
 } from "@faridalms/domain/learning";
 
+import { allWithoutVowelMarks } from "@faridalms/domain/arabic";
 import {
   checkBlocks,
   checkStates,
@@ -385,6 +387,34 @@ function Footer({ data }: { data: Played }) {
   );
 }
 
+/**
+ * Vowel marks as the lesson sets them: shown, hidden, or the student's to
+ * choose with a toggle. Answers are marked the same either way.
+ */
+function useVowelMarks(setting: VowelMarks) {
+  const [marks, setMarks] = useState(setting !== "hidden");
+  return useMemo(() => {
+    const hidden = setting === "hidden" || (setting === "choice" && !marks);
+    return {
+      strip: <T,>(value: T): T =>
+        hidden ? allWithoutVowelMarks(value) : value,
+      toggle:
+        setting === "choice" ? (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="w-fit max-md:h-10"
+            aria-pressed={!marks}
+            onClick={() => setMarks((current) => !current)}
+          >
+            {marks ? m.lrnHideVowelMarks() : m.lrnShowVowelMarks()}
+          </Button>
+        ) : null,
+    };
+  }, [setting, marks]);
+}
+
 /** One lesson for its student: read, answer, and move on when it is done. */
 export function LessonPlayer({ lessonId }: { lessonId: string }) {
   const query = lessonQuery(lessonId);
@@ -467,6 +497,16 @@ export function LessonPlayer({ lessonId }: { lessonId: string }) {
   });
   const reach = useReadingPosition(lessonId, data.blocks, data.position);
 
+  const vowels = useVowelMarks(data.vowelMarks);
+  const shown = useMemo(
+    () =>
+      vowels.strip({
+        blocks: data.blocks,
+        checks: data.checks,
+        review: data.review,
+      }),
+    [vowels, data.blocks, data.checks, data.review],
+  );
   const checks = data.blocks.filter(isCheckBlock);
   const auto = checks.filter((block) => block.type !== "written");
   const allSettled = auto.every((block) =>
@@ -518,10 +558,11 @@ export function LessonPlayer({ lessonId }: { lessonId: string }) {
             : []),
         ]}
       />
+      {vowels.toggle}
       <LessonBody
         key={data.attempt}
-        blocks={data.blocks}
-        checks={data.checks}
+        blocks={shown.blocks}
+        checks={shown.checks}
         driver={driver}
         position={data.position}
         onReach={reach}
@@ -539,11 +580,11 @@ export function LessonPlayer({ lessonId }: { lessonId: string }) {
               {m.lrnOnceMoreHint()}
             </p>
           </div>
-          {data.review.blocks.filter(isCheckBlock).map((block) => (
+          {shown.review?.blocks.filter(isCheckBlock).map((block) => (
             <CheckBlockView
               key={block.id}
               block={block}
-              view={data.review?.checks[block.id]}
+              view={shown.review?.checks[block.id]}
               driver={reviewDriver}
             />
           ))}
@@ -628,7 +669,11 @@ export function LessonPreview({ lessonId }: { lessonId: string }) {
   const navigate = useNavigate();
   const [rows, setRows] = useState<StoredTry[]>([]);
   const [round, setRound] = useState(0);
-  const lesson = useMemo(() => upgradeLesson(data.content), [data.content]);
+  const vowels = useVowelMarks(data.vowelMarks);
+  const lesson = useMemo(
+    () => vowels.strip(upgradeLesson(data.content)),
+    [vowels, data.content],
+  );
   const blocks = useMemo(
     () => studentBlocks(lesson, `preview:${round}`),
     [lesson, round],
@@ -714,6 +759,7 @@ export function LessonPreview({ lessonId }: { lessonId: string }) {
           },
         ]}
       />
+      {vowels.toggle}
       <LessonBody key={round} blocks={blocks} checks={checks} driver={driver} />
     </article>
   );

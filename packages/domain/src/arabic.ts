@@ -30,3 +30,32 @@ export function joinedAroundGaps<T extends Segment>(
     return text === segment.text ? segment : { ...segment, text };
   });
 }
+
+/**
+ * Vowel marks: Arabic harakat, Quranic annotation signs and Hebrew points.
+ * Early readers need them and older ones learn to read without them, so a
+ * lesson can show its words either way.
+ */
+const VOWEL_MARKS = new RegExp(
+  `[${span(0x064b, 0x065f)}${String.fromCodePoint(0x0670)}${span(0x06d6, 0x06ed)}${span(0x0591, 0x05bd)}${String.fromCodePoint(0x05bf, 0x05c1, 0x05c2, 0x05c4, 0x05c5, 0x05c7)}]`,
+  "gu",
+);
+
+export function withoutVowelMarks(text: string): string {
+  return text.replace(VOWEL_MARKS, "");
+}
+
+/** Any value read for display, with vowel marks taken out of every string. */
+export function allWithoutVowelMarks<T>(value: T): T {
+  if (typeof value === "string") return withoutVowelMarks(value) as T;
+  if (Array.isArray(value))
+    return value.map((item: unknown) => allWithoutVowelMarks(item)) as T;
+  if (value && typeof value === "object")
+    return Object.fromEntries(
+      Object.entries(value).map(([key, item]) => [
+        key,
+        allWithoutVowelMarks(item),
+      ]),
+    ) as T;
+  return value;
+}

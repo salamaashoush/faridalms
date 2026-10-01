@@ -28,6 +28,8 @@ export const LESSON_COMPLETIONS = [
 export type LessonCompletion = (typeof LESSON_COMPLETIONS)[number];
 export const LESSON_MEDIA_BYTES = 200 * 1024 * 1024;
 export const MAX_LESSON_BLOCKS = 60;
+export const VOWEL_MARKS = ["shown", "hidden", "choice"] as const;
+export type VowelMarks = (typeof VOWEL_MARKS)[number];
 export const MAX_CHOICE_OPTIONS = 8;
 export const MAX_ACCEPTED_ANSWERS = 10;
 export const MAX_GAPS = 20;
@@ -1014,6 +1016,8 @@ export const saveLessonSchema = v.pipe(
     content: contentDocumentSchema,
     /** Ask the questions missed first time once more at the end. */
     review: v.optional(v.boolean(), false),
+    /** Whether students read vowel marks, or choose for themselves. */
+    vowelMarks: v.optional(v.picklist(VOWEL_MARKS), "shown"),
     /** Put the saved lesson in front of students at once, when its module is open. */
     publish: v.optional(v.boolean(), false),
   }),

@@ -1,10 +1,11 @@
 import type { ContentDocument } from "@faridalms/domain/content";
-import type { LessonCompletion } from "@faridalms/domain/learning";
+import type { LessonCompletion, VowelMarks } from "@faridalms/domain/learning";
 
 import { emptyContent } from "@faridalms/domain/content-conversion";
 import {
   isCheck,
   LESSON_COMPLETIONS,
+  VOWEL_MARKS,
   lessonIssue,
   lessonPlainText,
 } from "@faridalms/domain/learning";
@@ -36,6 +37,12 @@ import { getMessageFromError } from "~/utils/error";
 import { COMPLETION_LABEL } from "./format";
 import { blockIssue } from "./issues";
 
+const VOWEL_MARKS_LABEL: Record<VowelMarks, () => string> = {
+  shown: m.lrnVowelMarksShown,
+  hidden: m.lrnVowelMarksHidden,
+  choice: m.lrnVowelMarksChoice,
+};
+
 type Existing = Awaited<
   ReturnType<NonNullable<ReturnType<typeof lessonEditorQuery>["queryFn"]>>
 >;
@@ -45,6 +52,7 @@ interface Draft {
   completion: LessonCompletion;
   passScore: string;
   review: boolean;
+  vowelMarks: VowelMarks;
   content: ContentDocument;
 }
 
@@ -82,6 +90,7 @@ export function LessonEditor({
     completion: existing?.completion ?? "view",
     passScore: existing?.passScore ? String(existing.passScore) : "",
     review: existing?.review ?? false,
+    vowelMarks: existing?.vowelMarks ?? "shown",
     content: existing?.content ?? emptyContent(),
   }));
   const [draft, setDraft] = useState(start);
@@ -144,6 +153,7 @@ export function LessonEditor({
           passScore:
             value.completion === "score" ? Number(value.passScore) : null,
           review: value.review,
+          vowelMarks: value.vowelMarks,
           content: shared ? content.current : value.content,
           publish,
         },
@@ -352,6 +362,17 @@ export function LessonEditor({
                   errors={passIssue && checking ? [passIssue] : undefined}
                 />
               ) : null}
+              <SelectField
+                id="lesson-vowel-marks"
+                label={m.lrnVowelMarks()}
+                hint={m.lrnVowelMarksHint()}
+                value={draft.vowelMarks}
+                options={VOWEL_MARKS.map((value) => ({
+                  value,
+                  label: VOWEL_MARKS_LABEL[value](),
+                }))}
+                onChange={(value) => set("vowelMarks", value)}
+              />
               <CheckboxRow
                 label={m.lrnReview()}
                 hint={m.lrnReviewHint()}

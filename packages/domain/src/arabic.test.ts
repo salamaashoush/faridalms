@@ -2,7 +2,11 @@ import { describe, expect, it } from "vitest";
 
 import type { GapSegment } from "./gaps";
 
-import { joinedAroundGaps } from "./arabic";
+import {
+  allWithoutVowelMarks,
+  joinedAroundGaps,
+  withoutVowelMarks,
+} from "./arabic";
 
 const JOINER = String.fromCodePoint(0x200d);
 
@@ -32,5 +36,19 @@ describe("gaps inside Arabic words", () => {
       gap,
     ];
     expect(joinedAroundGaps(segments)).toEqual(segments);
+  });
+});
+
+describe("vowel marks", () => {
+  it("reads Arabic and Hebrew without their vowel marks", () => {
+    expect(withoutVowelMarks("كَتَبَ الوَلَدُ")).toBe("كتب الولد");
+    expect(withoutVowelMarks("שָׁלוֹם")).toBe("שלום");
+    expect(withoutVowelMarks("Read: كِتاب 3")).toBe("Read: كتاب 3");
+  });
+
+  it("takes the marks out of every string in a value", () => {
+    expect(
+      allWithoutVowelMarks({ prompt: "مَا", options: [{ text: "بَيت" }] }),
+    ).toEqual({ prompt: "ما", options: [{ text: "بيت" }] });
   });
 });

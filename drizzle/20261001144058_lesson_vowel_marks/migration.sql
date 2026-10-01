@@ -1,0 +1,2 @@
+ALTER TABLE "core"."lessons" ADD COLUMN "vowel_marks" text DEFAULT 'shown' NOT NULL;--> statement-breakpoint
+ALTER TABLE "core"."lessons" ADD CONSTRAINT "lessons_vowel_marks_check" CHECK (vowel_marks in ('shown', 'hidden', 'choice'));

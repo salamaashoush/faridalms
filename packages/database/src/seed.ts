@@ -1933,6 +1933,7 @@ async function seedLearning(
         completion: lesson.completion,
         passScore: null,
         review: false,
+        vowelMarks: "shown",
       });
       lessonIds.push(row.id);
       const content = { version: 2, blocks: lesson.blocks };
