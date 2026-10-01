@@ -259,7 +259,7 @@ describe("registers and enrolment", () => {
     ).toMatchObject({
       code: "CONFLICT",
       message: expect.stringMatching(
-        /^enrollment\.registers_after:2026-09-\d\d$/,
+        /^enrollment\.registers_after:\d{4}-\d{2}-\d{2}$/,
       ),
     });
   });
