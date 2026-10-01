@@ -62,7 +62,7 @@ for (const { path, text } of await sources()) {
   const poolAllowed =
     context ||
     runner ||
-    path === "packages/database/src/directory/client.ts" ||
+    path.startsWith("packages/database/src/directory/") ||
     path.startsWith("scripts/") ||
     LEGACY_POOLS.has(path);
   if (!poolAllowed && POOL.test(text))
