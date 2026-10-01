@@ -258,6 +258,17 @@ export function LessonEditor({
               }
             : undefined
         }
+        templates={{
+          kind: "lesson",
+          empty: !written,
+          content: draft.content,
+          title: draft.title.trim() || m.lrnUntitled(),
+          onApply: (to) => {
+            content.current = to;
+            setDraft((current) => ({ ...current, content: to }));
+            setReplace((current) => ({ to, at: (current?.at ?? 0) + 1 }));
+          },
+        }}
         history={
           storedId
             ? {

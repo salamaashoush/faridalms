@@ -818,3 +818,32 @@ describe("asking missed questions again", () => {
     ).toMatchObject({ code: "NOT_FOUND" });
   });
 });
+
+describe("templates", () => {
+  test("a teacher keeps a lesson as a template the school starts from", async () => {
+    const { keeper, stranger } = await teachers();
+    const saved = await keeper.templates.save({
+      kind: "lesson",
+      title: "Read, check, reflect",
+      content: plainContent("Read the passage, then answer."),
+    });
+    const listed = await stranger.templates.list({ kind: "lesson" });
+    const found = listed.find((row) => row.id === saved.id);
+    expect(found).toMatchObject({ title: "Read, check, reflect", mine: false });
+    const opened = await stranger.templates.open({ id: saved.id });
+    expect(JSON.stringify(opened.content)).toContain("Read the passage");
+    expect(
+      await rejection(stranger.templates.remove({ id: saved.id })),
+    ).toMatchObject({ code: "FORBIDDEN" });
+    const pupil = await student();
+    expect(
+      await rejection(pupil.templates.list({ kind: "lesson" })),
+    ).toMatchObject({ code: "FORBIDDEN" });
+    await keeper.templates.remove({ id: saved.id });
+    expect(
+      (await keeper.templates.list({ kind: "lesson" })).some(
+        (row) => row.id === saved.id,
+      ),
+    ).toBe(false);
+  });
+});

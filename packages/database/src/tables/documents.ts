@@ -171,6 +171,42 @@ export const documents = core.table.withRLS(
   ],
 );
 
+/**
+ * A document a school keeps to start new ones from, such as a lesson laid
+ * out as read, check and reflect. Its content is the document it hosts, so
+ * its pictures and files belong to it and are copied into each new one.
+ */
+export const documentTemplates = core.table.withRLS(
+  "document_templates",
+  {
+    ...tenantColumns(),
+    orgId: uuid("org_id").notNull(),
+    ownerUserId: uuid("owner_user_id").notNull(),
+    kind: text("kind").$type<"lesson" | "assignment">().notNull(),
+    title: text("title").notNull(),
+    ...entityColumns(),
+  },
+  (t): PgTableExtraConfigValue[] => [
+    pk("document_templates", t.tenantId, t.id),
+    ...baseConstraints("document_templates", t, tenants),
+    fk(
+      "document_templates",
+      [t.tenantId, t.ownerUserId],
+      [users.tenantId, users.id],
+    ),
+    ck("document_templates", "kind", sql`kind in ('lesson', 'assignment')`),
+    ck(
+      "document_templates",
+      "title",
+      sql`char_length(title) between 1 and 120`,
+    ),
+    index("document_templates_org_idx")
+      .on(t.tenantId, t.orgId, t.kind)
+      .where(sql`status = 'active'`),
+    ...entityProfile(),
+  ],
+);
+
 export const documentVersions = core.table.withRLS(
   "document_versions",
   {

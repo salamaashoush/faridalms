@@ -21,6 +21,7 @@ import * as rolloverSystem from "./systems/rollover";
 import * as schoolSystem from "./systems/school";
 import * as searchSystem from "./systems/search";
 import * as siteSystem from "./systems/site";
+import * as templatesSystem from "./systems/templates";
 import * as timetableSystem from "./systems/timetable";
 import * as yearsSystem from "./systems/years";
 
@@ -34,6 +35,7 @@ export const router = {
   years: yearsSystem,
   files: filesSystem,
   documents: documentsSystem,
+  templates: templatesSystem,
   coursework: courseworkSystem,
   gradebook: gradebookSystem,
   attendance: attendanceSystem,

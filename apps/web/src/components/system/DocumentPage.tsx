@@ -1,4 +1,5 @@
 import type { ContentDocument } from "@faridalms/domain/content";
+import type { TemplateKind } from "@faridalms/domain/templates";
 import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
@@ -6,6 +7,7 @@ import {
   ArrowLeft,
   ChevronDown,
   History,
+  LayoutTemplate,
   LoaderCircle,
   SlidersHorizontal,
   TriangleAlert,
@@ -21,6 +23,10 @@ import {
 import type { SaveState } from "~/hooks/useAutosave";
 
 import { DocumentHistory } from "~/components/content/DocumentHistory";
+import {
+  SaveTemplateDialog,
+  TemplatePicker,
+} from "~/components/content/Templates";
 import { Button } from "~/components/ui/button";
 import {
   Sheet,
@@ -129,6 +135,7 @@ export function DocumentPage({
   preview,
   menu = NO_ACTIONS,
   history,
+  templates,
   title,
   aside,
   summary = [],
@@ -163,6 +170,14 @@ export function DocumentPage({
     hostId: string;
     onRestore: (content: ContentDocument) => void;
   };
+  /** Templates of this kind: offered on an empty document, and kept from the menu. */
+  templates?: {
+    kind: TemplateKind;
+    empty: boolean;
+    content: ContentDocument;
+    title: string;
+    onApply: (content: ContentDocument) => void;
+  };
   title: ReactNode;
   aside?: ReactNode;
   /** The item's key settings in a few words, shown on phones in place of the panel. */
@@ -173,16 +188,28 @@ export function DocumentPage({
 }) {
   const [ownOpen, setOwnOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
-  const actions: ActionItem[] = history
-    ? [
-        {
-          label: m.docHistory(),
-          icon: History,
-          onSelect: () => setHistoryOpen(true),
-        },
-        ...menu,
-      ]
-    : menu;
+  const [keeping, setKeeping] = useState(false);
+  const actions: ActionItem[] = [
+    ...(history
+      ? [
+          {
+            label: m.docHistory(),
+            icon: History,
+            onSelect: () => setHistoryOpen(true),
+          },
+        ]
+      : []),
+    ...(templates && !templates.empty
+      ? [
+          {
+            label: m.tplSaveTitle(),
+            icon: LayoutTemplate,
+            onSelect: () => setKeeping(true),
+          },
+        ]
+      : []),
+    ...menu,
+  ];
   const open = details?.open ?? ownOpen;
   const setOpen = details?.onOpenChange ?? setOwnOpen;
   const wideScreen = useMedia("(min-width: 64rem)");
@@ -302,7 +329,12 @@ export function DocumentPage({
             : "max-w-[720px] [grid-template-areas:'title'_'body']",
         )}
       >
-        <div className="max-w-[720px] min-w-0 [grid-area:title]">{title}</div>
+        <div className="grid max-w-[720px] min-w-0 gap-3 [grid-area:title]">
+          {title}
+          {templates?.empty ? (
+            <TemplatePicker kind={templates.kind} onApply={templates.onApply} />
+          ) : null}
+        </div>
         {aside ? (
           <button
             type="button"
@@ -361,6 +393,15 @@ export function DocumentPage({
             </SheetFooter>
           </SheetContent>
         </Sheet>
+      ) : null}
+      {templates && keeping ? (
+        <SaveTemplateDialog
+          open={keeping}
+          onOpenChange={setKeeping}
+          kind={templates.kind}
+          content={templates.content}
+          suggestedTitle={templates.title}
+        />
       ) : null}
       {history ? (
         <DocumentHistory

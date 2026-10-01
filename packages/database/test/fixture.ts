@@ -19,6 +19,7 @@ import {
   devices,
   documentFiles,
   documentLinks,
+  documentTemplates,
   documentTranslations,
   documents,
   documentVersions,
@@ -449,6 +450,13 @@ export async function completeFixture(
     surface: "students",
     name: "Grade 8",
     filter: { grade: "grade_8" },
+  });
+  await tx.insert(documentTemplates).values({
+    tenantId,
+    orgId: schoolId,
+    ownerUserId: userId,
+    kind: "lesson",
+    title: "Read, check, reflect",
   });
 
   const eventId = await writeAudit(tx, tenantId, {

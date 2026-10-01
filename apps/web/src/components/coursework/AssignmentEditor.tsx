@@ -675,6 +675,17 @@ export function AssignmentEditor({
               }
             : undefined
         }
+        templates={{
+          kind: "assignment",
+          empty: !contentPlainText(draft.brief).trim(),
+          content: draft.brief,
+          title: draft.title.trim() || m.courseworkUntitled(),
+          onApply: (to) => {
+            brief.current = to;
+            setDraft((current) => ({ ...current, brief: to }));
+            setReplace((current) => ({ to, at: (current?.at ?? 0) + 1 }));
+          },
+        }}
         history={
           storedId
             ? {
