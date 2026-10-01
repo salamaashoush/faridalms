@@ -20,6 +20,7 @@ import {
   $getNodeByKey,
   $getRoot,
   $parseSerializedNode,
+  $setSelection,
   defineExtension,
 } from "lexical";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -229,6 +230,9 @@ function Surface({
       root.clear();
       for (const child of replace.to.root.children ?? [])
         root.append($parseSerializedNode(child));
+      // The caret pointed into the text just thrown away; leaving it unset
+      // keeps the commit from moving focus into the editor mid-update.
+      $setSelection(null);
     });
   }, [editor, replace]);
 
