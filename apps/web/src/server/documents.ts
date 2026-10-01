@@ -28,3 +28,18 @@ export const collaborate = createServerFn({ method: "POST" })
       return null;
     }
   });
+
+export const getDocumentHistory = createServerFn({ method: "GET" })
+  .validator(checked(hostSchema))
+  .handler(({ data }) => backend().documents.history(data));
+
+export const restoreDocumentVersion = createServerFn({ method: "POST" })
+  .validator(
+    checked(
+      v.object({
+        ...hostSchema.entries,
+        documentVersion: v.pipe(v.number(), v.integer(), v.minValue(1)),
+      }),
+    ),
+  )
+  .handler(({ data }) => backend().documents.restore(data));

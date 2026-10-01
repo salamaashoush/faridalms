@@ -1,9 +1,11 @@
+import type { ContentDocument } from "@faridalms/domain/content";
 import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
 import {
   ArrowLeft,
   ChevronDown,
+  History,
   LoaderCircle,
   SlidersHorizontal,
   TriangleAlert,
@@ -18,6 +20,7 @@ import {
 
 import type { SaveState } from "~/hooks/useAutosave";
 
+import { DocumentHistory } from "~/components/content/DocumentHistory";
 import { Button } from "~/components/ui/button";
 import {
   Sheet,
@@ -125,6 +128,7 @@ export function DocumentPage({
   primary,
   preview,
   menu = NO_ACTIONS,
+  history,
   title,
   aside,
   summary = [],
@@ -153,6 +157,12 @@ export function DocumentPage({
   primary?: PrimaryAction;
   preview?: { label: string; onClick: () => void };
   menu?: ActionItem[];
+  /** The document's earlier versions, offered from the menu, and how to bring one back. */
+  history?: {
+    hostType: string;
+    hostId: string;
+    onRestore: (content: ContentDocument) => void;
+  };
   title: ReactNode;
   aside?: ReactNode;
   /** The item's key settings in a few words, shown on phones in place of the panel. */
@@ -162,6 +172,17 @@ export function DocumentPage({
   children: ReactNode;
 }) {
   const [ownOpen, setOwnOpen] = useState(false);
+  const [historyOpen, setHistoryOpen] = useState(false);
+  const actions: ActionItem[] = history
+    ? [
+        {
+          label: m.docHistory(),
+          icon: History,
+          onSelect: () => setHistoryOpen(true),
+        },
+        ...menu,
+      ]
+    : menu;
   const open = details?.open ?? ownOpen;
   const setOpen = details?.onOpenChange ?? setOwnOpen;
   const wideScreen = useMedia("(min-width: 64rem)");
@@ -270,7 +291,7 @@ export function DocumentPage({
             ) : null}
           </>
         )}
-        <ActionMenu label={m.docMoreActions()} actions={menu} />
+        <ActionMenu label={m.docMoreActions()} actions={actions} />
       </PageActions>
       <h1 className="sr-only">{heading}</h1>
       <div
@@ -340,6 +361,15 @@ export function DocumentPage({
             </SheetFooter>
           </SheetContent>
         </Sheet>
+      ) : null}
+      {history ? (
+        <DocumentHistory
+          open={historyOpen}
+          onOpenChange={setHistoryOpen}
+          hostType={history.hostType}
+          hostId={history.hostId}
+          onRestore={history.onRestore}
+        />
       ) : null}
     </>
   );

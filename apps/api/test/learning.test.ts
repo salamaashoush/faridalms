@@ -647,6 +647,26 @@ describe("lessons written as documents", () => {
     });
   });
 
+  test("a teacher brings back a version students were shown", async () => {
+    const { keeper } = await teachers();
+    const pupil = await student();
+    const { reading } = await lessonsOf(pupil);
+    const host = { hostType: "lesson", hostId: reading.id };
+    const { versions } = await keeper.documents.history(host);
+    const shown = versions.find((row) => row.reason === "publish");
+    if (!shown) throw new Error("no version was shown");
+    const restored = await keeper.documents.restore({
+      ...host,
+      documentVersion: shown.documentVersion,
+    });
+    expect(restored.content).toHaveProperty("root");
+    const after = await keeper.documents.history(host);
+    expect(after.versions[0]?.reason).toBe("before_restore");
+    expect(await rejection(pupil.documents.history(host))).toMatchObject({
+      code: "NOT_FOUND",
+    });
+  });
+
   test("students never watch a lesson's document live", async () => {
     const { keeper } = await teachers();
     const pupil = await student();

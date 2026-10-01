@@ -675,6 +675,22 @@ export function AssignmentEditor({
               }
             : undefined
         }
+        history={
+          storedId
+            ? {
+                hostType: "assignment",
+                hostId: storedId,
+                onRestore: (to) => {
+                  brief.current = to;
+                  setDraft((current) => ({ ...current, brief: to }));
+                  setReplace((current) => ({
+                    to,
+                    at: (current?.at ?? 0) + 1,
+                  }));
+                },
+              }
+            : undefined
+        }
         menu={
           storedId && !archived
             ? [

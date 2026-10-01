@@ -258,6 +258,22 @@ export function LessonEditor({
               }
             : undefined
         }
+        history={
+          storedId
+            ? {
+                hostType: "lesson",
+                hostId: storedId,
+                onRestore: (to) => {
+                  content.current = to;
+                  setDraft((current) => ({ ...current, content: to }));
+                  setReplace((current) => ({
+                    to,
+                    at: (current?.at ?? 0) + 1,
+                  }));
+                },
+              }
+            : undefined
+        }
         title={
           <div className="grid gap-3">
             {listed.length > 0 ? (
