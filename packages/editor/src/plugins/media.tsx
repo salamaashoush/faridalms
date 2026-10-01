@@ -72,6 +72,14 @@ function refusal(code: string, strings: EditorStrings): string {
       return strings.uploadMismatch;
     case "file.scan_unavailable":
       return strings.uploadUnchecked;
+    case "file.quota_school":
+      return strings.uploadNoRoom("school");
+    case "file.quota_class":
+      return strings.uploadNoRoom("class");
+    case "file.quota_module":
+      return strings.uploadNoRoom("module");
+    case "file.quota_person":
+      return strings.uploadNoRoom("person");
     default:
       return strings.uploadFailed;
   }

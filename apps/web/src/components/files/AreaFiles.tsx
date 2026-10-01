@@ -21,6 +21,7 @@ import {
   RotateCcw,
   Trash2,
   Upload,
+  X,
 } from "lucide-react";
 import { useRef, useState } from "react";
 import { toast } from "sonner";
@@ -29,6 +30,7 @@ import type { Column, RowAction } from "~/components/system/DataTable";
 
 import { fileStrings } from "~/components/content/strings";
 import { useDocumentMedia } from "~/components/coursework/useDocumentMedia";
+import { UsageBar } from "~/components/files/UsageBar";
 import { DataTable } from "~/components/system/DataTable";
 import { TextField } from "~/components/system/field";
 import { RecordEmpty, RecordList } from "~/components/system/RecordPage";
@@ -97,7 +99,7 @@ function UsedIn({ file, area }: { file: AreaFile; area: Area }) {
             key={use.hostId}
             to="/teach/lesson-editor"
             search={{ id: use.hostId, moduleId: area.id }}
-            className="block truncate leading-5 hover:text-primary hover:underline"
+            className="block overflow-hidden leading-5 hover:text-primary hover:underline"
           >
             <bdi>{use.title}</bdi>
           </Link>
@@ -107,7 +109,7 @@ function UsedIn({ file, area }: { file: AreaFile; area: Area }) {
             to="/assignments/$assignmentId"
             params={{ assignmentId: use.hostId }}
             search={{}}
-            className="block truncate leading-5 hover:text-primary hover:underline"
+            className="block overflow-hidden leading-5 hover:text-primary hover:underline"
           >
             <bdi>{use.title}</bdi>
           </Link>
@@ -219,9 +221,9 @@ interface Pending {
  * kept for 30 days; the documents showing it show it as removed meanwhile.
  */
 export function AreaFiles({ area, title }: { area: Area; title: string }) {
-  const { files } = useSuspenseQuery(areaFilesQuery(area, false)).data;
+  const { files, usage } = useSuspenseQuery(areaFilesQuery(area, false)).data;
   const queryClient = useQueryClient();
-  const media = useDocumentMedia();
+  const media = useDocumentMedia(area);
   const add = useServerFn(addToArea);
   const trash = useServerFn(trashInArea);
   const replace = useServerFn(replaceInArea);
@@ -409,6 +411,11 @@ export function AreaFiles({ area, title }: { area: Area; title: string }) {
           />
         </div>
       </div>
+      <UsageBar
+        usedBytes={usage.usedBytes}
+        limitBytes={usage.limitBytes}
+        className="max-w-md"
+      />
       {pending.length > 0 ? (
         <ul className="grid gap-2" aria-live="polite">
           {pending.map((row) => (
@@ -422,14 +429,16 @@ export function AreaFiles({ area, title }: { area: Area; title: string }) {
                   <Button
                     type="button"
                     variant="ghost"
-                    size="sm"
+                    size="icon"
+                    className="size-8 max-md:size-10"
+                    aria-label={m.fileDismissNamed({ name: row.name })}
                     onClick={() =>
                       setPending((rows) =>
                         rows.filter((item) => item.key !== row.key),
                       )
                     }
                   >
-                    {m.fileDismissNamed({ name: row.name })}
+                    <X aria-hidden />
                   </Button>
                 ) : null}
               </span>

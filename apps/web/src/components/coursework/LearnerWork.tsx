@@ -133,7 +133,7 @@ function AttemptItem({ data, attempt }: { data: Data; attempt: Attempt }) {
 
 function YourWork({ data }: { data: Data }) {
   const queryClient = useQueryClient();
-  const media = useDocumentMedia();
+  const media = useDocumentMedia({ type: "work", id: data.assignment.id });
   const format = data.assignment.submissionFormat;
   const editable = data.canHandIn;
   const [content, setContent] = useState<ContentDocument>(

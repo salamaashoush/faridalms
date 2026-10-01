@@ -24,6 +24,7 @@ import {
 import { ButtonLink } from "~/components/app/ButtonLink";
 import { AttendanceRules } from "~/components/attendance/AttendanceRules";
 import { formatDate } from "~/components/family/format";
+import { UsageBar } from "~/components/files/UsageBar";
 import { FeaturesCard } from "~/components/learning/FeaturesCard";
 import { lastDay } from "~/components/people/format";
 import { RowLink } from "~/components/system/DataTable";
@@ -42,6 +43,7 @@ import { subjectsQuery } from "~/queries/classes";
 import {
   schoolFeaturesQuery,
   schoolProfileQuery,
+  schoolStorageQuery,
 } from "~/queries/school-settings";
 import { peopleOptionsQuery } from "~/queries/students";
 
@@ -201,7 +203,27 @@ function SchoolTab() {
         )}
       </SettingsSection>
       <FeaturesCard />
+      <StorageSection />
     </SettingsPage>
+  );
+}
+
+function StorageSection() {
+  const storage = useQuery(schoolStorageQuery).data;
+  return (
+    <SettingsSection
+      title={m.settingsStorage()}
+      description={m.settingsStorageHint()}
+    >
+      {storage ? (
+        <UsageBar
+          usedBytes={storage.usedBytes}
+          limitBytes={storage.limitBytes}
+        />
+      ) : (
+        <div aria-busy="true" className="min-h-10" />
+      )}
+    </SettingsSection>
   );
 }
 

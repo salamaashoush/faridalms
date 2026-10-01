@@ -15,8 +15,12 @@ export function fileSizeLabel(bytes: number): string {
     return m.fileSizeKilobytes({
       count: formatNumber(Math.round(bytes / 1024)),
     });
-  return m.fileSizeMegabytes({
-    count: formatNumber(Math.round((bytes / (1024 * 1024)) * 10) / 10),
+  if (bytes < 1024 * 1024 * 1024)
+    return m.fileSizeMegabytes({
+      count: formatNumber(Math.round((bytes / (1024 * 1024)) * 10) / 10),
+    });
+  return m.fileSizeGigabytes({
+    count: formatNumber(Math.round((bytes / (1024 * 1024 * 1024)) * 10) / 10),
   });
 }
 

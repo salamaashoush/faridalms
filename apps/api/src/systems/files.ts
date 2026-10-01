@@ -166,6 +166,7 @@ export const area = readProcedure
   .input(v.object({ area: fileAreaSchema, trashed: v.boolean() }))
   .handler(async ({ input, context }) => {
     await keptArea(context, input.area);
+    const limits = limitsOf(context.school.plan);
     return {
       files: await areaFiles(
         context.tx,
@@ -173,6 +174,11 @@ export const area = readProcedure
         input.area,
         input.trashed,
       ),
+      usage: {
+        ...(await areaStorage(context.tx, context.tenantId, input.area)),
+        limitBytes:
+          input.area.type === "class" ? limits.classBytes : limits.moduleBytes,
+      },
     };
   });
 

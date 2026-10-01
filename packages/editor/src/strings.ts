@@ -230,6 +230,8 @@ export interface EditorStrings {
   uploadWrongType: string;
   uploadEmpty: string;
   uploadInfected: string;
+  /** Why an upload was refused when the storage it counts against is full. */
+  uploadNoRoom: (scope: "school" | "class" | "module" | "person") => string;
   uploadMismatch: string;
   uploadUnchecked: string;
   media: string;

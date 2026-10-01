@@ -4476,5 +4476,19 @@
   "filesVersionsEmpty": "لا توجد إصدارات سابقة",
   "filesVersionFact": "استُبدل {date} · يُحذف نهائيًا {until}",
   "filesVersionRestored": "استُعيد الإصدار السابق",
-  "fileReplaceKind": "استبدل الملف بملف من النوع نفسه: صورة بصورة، وملف PDF بملف PDF."
+  "fileReplaceKind": "استبدل الملف بملف من النوع نفسه: صورة بصورة، وملف PDF بملف PDF.",
+  "fileNearlyFullSchool": "امتلأت مساحة تخزين مدرستك بنسبة {percent}: {used} من {limit}.",
+  "fileNearlyFullClass": "امتلأت ملفات هذا الصف بنسبة {percent}: {used} من {limit}.",
+  "fileNearlyFullModule": "امتلأت ملفات هذه الوحدة بنسبة {percent}: {used} من {limit}.",
+  "fileNearlyFullPerson": "امتلأت ملفاتك الخاصة بنسبة {percent}: {used} من {limit}.",
+  "fileQuotaSchool": "استخدمت مدرستك كل مساحة التخزين. اطلب من مسؤول المدرسة إفراغ بعض المساحة.",
+  "fileQuotaClass": "امتلأت ملفات هذا الصف. احذف الملفات التي لم يعد يحتاجها من تبويب الملفات.",
+  "fileQuotaModule": "امتلأت ملفات هذه الوحدة. احذف الملفات التي لم تعد تحتاجها من تبويب الملفات.",
+  "fileQuotaPerson": "امتلأت ملفاتك الخاصة. احذف الأعمال التي لم تعد تحتاجها، أو اطلب من مدرستك مساحة أكبر.",
+  "filesUsage": "مستخدم {used} من {limit}",
+  "filesUsageLabel": "المساحة المستخدمة",
+  "filesUsageNearlyFull": "قاربت على الامتلاء. احذف الملفات التي لم تعد مطلوبة، أو اطلب من مسؤول المدرسة مساحة أكبر.",
+  "settingsStorage": "التخزين",
+  "settingsStorageHint": "يُحسب هنا كل ما يُرفع في هذه المدرسة مرة واحدة، مهما كثرت المستندات التي تعرضه.",
+  "fileSizeGigabytes": "{count} غيغابايت"
 }

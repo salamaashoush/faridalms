@@ -1,3 +1,4 @@
+import { schoolStorage } from "@faridalms/database/stores/files";
 import { schoolFeatures } from "@faridalms/database/stores/identity";
 import {
   schoolSettings,
@@ -5,6 +6,7 @@ import {
   updateSchool,
 } from "@faridalms/database/stores/school";
 import { saveSchoolSchema, setFeatureSchema } from "@faridalms/domain/people";
+import { limitsOf } from "@faridalms/domain/plans";
 import { ORPCError } from "@orpc/server";
 
 import {
@@ -84,3 +86,14 @@ export const setFeature = writeProcedure
     });
     return schoolFeatures(context.tx, context.tenantId, context.schoolId);
   });
+
+/** How much of the school's storage pool is used, for its administrators. */
+export const storage = readProcedure.handler(async ({ context }) => {
+  requireCapability(context, "school:manage");
+  const used = await schoolStorage(
+    context.tx,
+    context.tenantId,
+    context.schoolId,
+  );
+  return { ...used, limitBytes: limitsOf(context.school.plan).poolBytes };
+});

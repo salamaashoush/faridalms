@@ -282,6 +282,14 @@ export function getMessageFromError(error: unknown): string {
         return m.fileSizeMismatch();
       case "file.replace_kind":
         return m.fileReplaceKind();
+      case "file.quota_school":
+        return m.fileQuotaSchool();
+      case "file.quota_class":
+        return m.fileQuotaClass();
+      case "file.quota_module":
+        return m.fileQuotaModule();
+      case "file.quota_person":
+        return m.fileQuotaPerson();
       case "group.name_conflict":
         return m.groupNameConflict();
       case "group.student_not_enrolled":

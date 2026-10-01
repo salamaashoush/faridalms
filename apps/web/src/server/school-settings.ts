@@ -19,3 +19,7 @@ export const getSchoolFeatures = createServerFn({ method: "GET" }).handler(() =>
 export const setSchoolFeature = createServerFn({ method: "POST" })
   .validator(checked(setFeatureSchema))
   .handler(({ data }) => backend().school.setFeature(data));
+
+export const getSchoolStorage = createServerFn({ method: "GET" }).handler(() =>
+  backend().school.storage(),
+);

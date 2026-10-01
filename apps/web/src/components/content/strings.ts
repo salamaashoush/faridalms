@@ -253,6 +253,13 @@ export function editorStrings(): EditorStrings {
     uploadWrongType: m.fileUploadWrongType(),
     uploadEmpty: m.fileUploadEmpty(),
     uploadInfected: m.fileUploadInfected(),
+    uploadNoRoom: (scope) =>
+      ({
+        school: m.fileQuotaSchool,
+        class: m.fileQuotaClass,
+        module: m.fileQuotaModule,
+        person: m.fileQuotaPerson,
+      })[scope](),
     uploadMismatch: m.fileUploadMismatch(),
     uploadUnchecked: m.fileUploadUnchecked(),
     checkItem: m.editorCheckItem(),

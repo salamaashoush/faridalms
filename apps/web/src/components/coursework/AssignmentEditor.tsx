@@ -343,7 +343,6 @@ export function AssignmentEditor({
   const options = useSuspenseQuery(courseworkOptionsQuery).data;
   const user = useCurrentUser();
   const timeZone = user.school.timeZone;
-  const media = useDocumentMedia();
   const queryClient = useQueryClient();
   // Co-teachers write a brief together once it exists; a new one starts alone.
   const live = useCollaboration(
@@ -370,6 +369,9 @@ export function AssignmentEditor({
     ),
   );
   const [draft, setDraft] = useState(start);
+  const media = useDocumentMedia(
+    draft.classId ? { type: "class", id: draft.classId } : undefined,
+  );
   const [sent, setSent] = useState<Draft>(() => ({
     ...start,
     brief: existing?.publishedBrief ?? start.brief,

@@ -4320,5 +4320,19 @@
   "filesVersionsEmpty": "No previous versions",
   "filesVersionFact": "Replaced {date} · gone for good {until}",
   "filesVersionRestored": "Previous version restored",
-  "fileReplaceKind": "Replace a file with the same kind of file: a picture with a picture, a PDF with a PDF."
+  "fileReplaceKind": "Replace a file with the same kind of file: a picture with a picture, a PDF with a PDF.",
+  "fileNearlyFullSchool": "Your school's storage is {percent} full: {used} of {limit}.",
+  "fileNearlyFullClass": "This class's files are {percent} full: {used} of {limit}.",
+  "fileNearlyFullModule": "This module's files are {percent} full: {used} of {limit}.",
+  "fileNearlyFullPerson": "Your own files are {percent} full: {used} of {limit}.",
+  "fileQuotaSchool": "Your school has used all its storage. Ask a school administrator to make room.",
+  "fileQuotaClass": "This class's files are full. Delete files it no longer needs in its Files tab.",
+  "fileQuotaModule": "This module's files are full. Delete files it no longer needs in its Files tab.",
+  "fileQuotaPerson": "Your own files are full. Delete work you no longer need, or ask your school for more room.",
+  "filesUsage": "{used} of {limit} used",
+  "filesUsageLabel": "Storage used",
+  "filesUsageNearlyFull": "Nearly full. Delete files that are no longer needed, or ask a school administrator for more room.",
+  "settingsStorage": "Storage",
+  "settingsStorageHint": "Everything uploaded in this school counts here once, however many documents show it.",
+  "fileSizeGigabytes": "{count} GB"
 }
