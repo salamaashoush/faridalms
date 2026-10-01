@@ -85,6 +85,7 @@ export const CONFLICTS: Record<string, string> = {
   coursework_assessments_assignment_key: "coursework.assessed_exists",
   attempt_declarations_attempt_key: "coursework.declared_already",
   attempt_authentications_attempt_key: "coursework.authenticated_already",
+  programme_grade_levels_key: "grading.level_repeated",
 };
 
 /** Checks whose failure means something to a person, not just a bad shape. */

@@ -803,6 +803,7 @@ export interface AssessmentRow {
   gradedByUserId: string | null;
   releasedAt: string | null;
   gradedAt: string;
+  gradeScaleVersionId: string | null;
 }
 
 export async function assessmentOf(
@@ -821,9 +822,10 @@ export async function assessmentOf(
     graded_by_user_id: string | null;
     released_at: string | null;
     graded_at: string;
+    grade_scale_version_id: string | null;
   }>(sql`
     select id, version, score::text as score, effective_score::text as effective_score,
-      rubric_scores, feedback, private_note, graded_by_user_id,
+      rubric_scores, feedback, private_note, graded_by_user_id, grade_scale_version_id,
       to_char(released_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as released_at,
       to_char(graded_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as graded_at
     from core.assessments
@@ -841,6 +843,7 @@ export async function assessmentOf(
         gradedByUserId: row.graded_by_user_id,
         releasedAt: row.released_at,
         gradedAt: row.graded_at,
+        gradeScaleVersionId: row.grade_scale_version_id,
       }
     : null;
 }
@@ -860,18 +863,33 @@ export async function saveAssessment(
     privateNote: string | null;
     /** Null when a quiz marked itself. */
     userId: string | null;
+    /** The school's day, which picks the scale bands a new score is graded on. */
+    today: string;
   },
 ): Promise<{ id: string; version: number }> {
+  // A score keeps the bands it was first given under until the score itself
+  // changes, so a school changing its scale leaves earlier grades as given.
   const [row] = await tx.execute<{ id: string; version: number }>(sql`
     insert into core.assessments (tenant_id, attempt_id, submission_id, student_user_id, score,
-      effective_score, rubric_scores, feedback, private_note, graded_by_user_id)
+      effective_score, rubric_scores, feedback, private_note, graded_by_user_id,
+      grade_scale_version_id)
     values (${input.tenantId}::uuid, ${input.attemptId}::uuid, ${input.submissionId}::uuid,
       ${input.studentId}::uuid, ${input.score}, ${input.effectiveScore}, ${input.rubricScores}::jsonb,
-      ${input.feedback}, ${input.privateNote}, ${input.userId}::uuid)
+      ${input.feedback}, ${input.privateNote}, ${input.userId}::uuid,
+      case when ${input.score}::numeric is null then null else (
+        select app.scale_version_of(a.class_id, ${input.today}::date)
+        from core.submissions s
+        join core.assignments a on a.tenant_id = s.tenant_id and a.id = s.assignment_id
+        where s.tenant_id = ${input.tenantId}::uuid and s.id = ${input.submissionId}::uuid) end)
     on conflict (tenant_id, attempt_id) where status = 'active' do update
       set score = excluded.score, effective_score = excluded.effective_score,
           rubric_scores = excluded.rubric_scores, feedback = excluded.feedback,
           private_note = excluded.private_note, graded_by_user_id = excluded.graded_by_user_id,
+          grade_scale_version_id = case
+            when core.assessments.score is not distinct from excluded.score
+              and core.assessments.grade_scale_version_id is not null
+            then core.assessments.grade_scale_version_id
+            else excluded.grade_scale_version_id end,
           graded_at = statement_timestamp()
     returning id, version`);
   if (!row) throw new Error("assessment was not saved");
@@ -915,6 +933,7 @@ export interface LearnerRow {
   released: boolean;
   releasedAt: string | null;
   effectiveScore: number | null;
+  gradeScaleVersionId: string | null;
 }
 
 /** The published work a student was given in a year, with their standing on each. */
@@ -943,6 +962,7 @@ export async function learnerAssignments(
     submitted_at: string | null;
     released_at: string | null;
     effective_score: string | null;
+    grade_scale_version_id: string | null;
   }>(sql`
     select a.id as assignment_id, a.title, a.class_id, c.title_en as class_title_en,
       c.title_ar as class_title_ar, c.code as class_code,
@@ -958,7 +978,8 @@ export async function learnerAssignments(
       t.id as attempt_id, t.is_late,
       to_char(t.submitted_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as submitted_at,
       to_char(x.released_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as released_at,
-      case when x.released_at is not null then x.effective_score::text end as effective_score
+      case when x.released_at is not null then x.effective_score::text end as effective_score,
+      case when x.released_at is not null then x.grade_scale_version_id end as grade_scale_version_id
     from core.assignment_recipients r
     join core.assignments a on a.tenant_id = r.tenant_id and a.id = r.assignment_id
     join core.classes c on c.tenant_id = a.tenant_id and c.id = a.class_id
@@ -996,6 +1017,7 @@ export async function learnerAssignments(
     releasedAt: row.released_at,
     effectiveScore:
       row.effective_score === null ? null : Number(row.effective_score),
+    gradeScaleVersionId: row.grade_scale_version_id,
   }));
 }
 

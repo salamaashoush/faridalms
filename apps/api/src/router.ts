@@ -10,6 +10,7 @@ import * as documentsSystem from "./systems/documents";
 import * as examsSystem from "./systems/exams";
 import * as filesSystem from "./systems/files";
 import * as gradebookSystem from "./systems/gradebook";
+import * as gradingSystem from "./systems/grading";
 import * as homeSystem from "./systems/home";
 import * as identity from "./systems/identity";
 import * as learningSystem from "./systems/learning";
@@ -40,6 +41,7 @@ export const router = {
   coursework: courseworkSystem,
   exams: examsSystem,
   gradebook: gradebookSystem,
+  grading: gradingSystem,
   attendance: attendanceSystem,
   rollover: rolloverSystem,
   timetable: timetableSystem,

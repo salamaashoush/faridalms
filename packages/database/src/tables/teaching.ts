@@ -20,7 +20,9 @@ import {
   uq,
 } from "./conventions";
 import { descriptors } from "./descriptors";
+import { programmes } from "./exams";
 import { locations } from "./files";
+import { gradeScales } from "./grading";
 import { users } from "./people";
 import { importRuns } from "./records";
 import { orgs, tenants } from "./tenancy";
@@ -116,6 +118,10 @@ export const classes = core.table.withRLS(
       .notNull()
       .generatedAlwaysAs(sql`'grade_level'`),
     locationId: uuid("location_id"),
+    /** Empty for the one programme covering the class's grade level. */
+    programmeId: uuid("programme_id"),
+    /** Empty to grade on the programme's scale. */
+    gradeScaleId: uuid("grade_scale_id"),
     ...entityColumns(),
   },
   (t): PgTableExtraConfigValue[] => [
@@ -163,6 +169,16 @@ export const classes = core.table.withRLS(
       "classes",
       [t.tenantId, t.locationId],
       [locations.tenantId, locations.id],
+    ),
+    fk(
+      "classes",
+      [t.tenantId, t.programmeId],
+      [programmes.tenantId, programmes.id],
+    ),
+    fk(
+      "classes",
+      [t.tenantId, t.gradeScaleId],
+      [gradeScales.tenantId, gradeScales.id],
     ),
     ck("classes", "org_type", sql`org_type = 'school'`),
     ck("classes", "school_year_type", sql`school_year_type = 'school_year'`),

@@ -12,6 +12,7 @@ export interface ResultCell {
   released: boolean;
   isLate: boolean;
   excused: boolean;
+  gradeScaleVersionId: string | null;
 }
 
 /** Every recipient's latest result on the class's published work. */
@@ -28,10 +29,11 @@ export async function classResults(
     released: boolean | null;
     is_late: boolean | null;
     excused: boolean | null;
+    grade_scale_version_id: string | null;
   }>(sql`
     select r.assignment_id, r.student_user_id as student_id, x.score::text as score,
       x.effective_score::text as effective_score, x.released_at is not null as released,
-      t.is_late, s.excused
+      t.is_late, s.excused, x.grade_scale_version_id
     from core.assignment_recipients r
     join core.assignments a on a.tenant_id = r.tenant_id and a.id = r.assignment_id
     left join core.submissions s on s.tenant_id = r.tenant_id and s.assignment_id = r.assignment_id
@@ -52,6 +54,7 @@ export async function classResults(
     released: row.released ?? false,
     isLate: row.is_late ?? false,
     excused: row.excused ?? false,
+    gradeScaleVersionId: row.grade_scale_version_id,
   }));
 }
 
@@ -62,6 +65,7 @@ export interface PeriodGradeRow {
   maxScore: number;
   comment: string | null;
   releasedAt: string | null;
+  gradeScaleVersionId: string | null;
 }
 
 export async function periodGradesOf(
@@ -75,9 +79,10 @@ export async function periodGradesOf(
     max_score: string;
     comment: string | null;
     released_at: string | null;
+    grade_scale_version_id: string | null;
   }>(sql`
     select id, student_user_id as student_id, score::text as score, max_score::text as max_score,
-      comment, to_char(released_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as released_at
+      comment, grade_scale_version_id, to_char(released_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as released_at
     from core.period_grades
     where tenant_id = ${input.tenantId}::uuid and class_id = ${input.classId}::uuid
       and grading_period_id = ${input.periodId}::uuid and status = 'active'`);
@@ -88,6 +93,7 @@ export async function periodGradesOf(
     maxScore: Number(row.max_score),
     comment: row.comment,
     releasedAt: row.released_at,
+    gradeScaleVersionId: row.grade_scale_version_id,
   }));
 }
 
@@ -107,21 +113,32 @@ export async function savePeriodGrade(
     maxScore: number;
     comment: string | null;
     userId: string;
+    /** The school's day, which picks the scale bands a new score is graded on. */
+    today: string;
   },
 ) {
   await tx.execute(sql`
     insert into core.period_grades (tenant_id, org_id, class_id, class_type, school_year_id,
-      grading_period_id, student_user_id, score, max_score, comment, recorded_by_user_id)
+      grading_period_id, student_user_id, score, max_score, comment, recorded_by_user_id,
+      grade_scale_version_id)
     values (${input.tenantId}::uuid, ${input.orgId}::uuid, ${input.classRow.id}::uuid,
       ${input.classRow.classType}, ${input.classRow.schoolYearId}::uuid, ${input.periodId}::uuid,
       ${input.studentId}::uuid, ${input.score}, ${input.maxScore}, ${input.comment},
-      ${input.userId}::uuid)
+      ${input.userId}::uuid,
+      case when ${input.score}::numeric is null then null
+        else app.scale_version_of(${input.classRow.id}::uuid, ${input.today}::date) end)
     on conflict (tenant_id, class_id, grading_period_id, student_user_id) where status = 'active'
     do update set
       released_at = case
         when core.period_grades.score is distinct from excluded.score
           or core.period_grades.comment is distinct from excluded.comment then null
         else core.period_grades.released_at end,
+      grade_scale_version_id = case
+        when core.period_grades.score is not distinct from excluded.score
+          and core.period_grades.max_score = excluded.max_score
+          and core.period_grades.grade_scale_version_id is not null
+        then core.period_grades.grade_scale_version_id
+        else excluded.grade_scale_version_id end,
       score = excluded.score, max_score = excluded.max_score, comment = excluded.comment,
       recorded_by_user_id = excluded.recorded_by_user_id`);
 }
@@ -151,6 +168,7 @@ export interface StudentGradeRow {
   score: number | null;
   maxScore: number;
   comment: string | null;
+  gradeScaleVersionId: string | null;
 }
 
 /** A student's released term grades in a year, by class and term. */
@@ -170,11 +188,13 @@ export async function studentPeriodGrades(
     score: string | null;
     max_score: string;
     comment: string | null;
+    grade_scale_version_id: string | null;
   }>(sql`
     select g.class_id, c.code as class_code, c.title_en as class_title_en, c.title_ar as class_title_ar,
       c.subject_descriptor_id as subject_id, g.grading_period_id as period_id,
       p.title_en as period_title_en, p.title_ar as period_title_ar,
-      g.score::text as score, g.max_score::text as max_score, g.comment
+      g.score::text as score, g.max_score::text as max_score, g.comment,
+      g.grade_scale_version_id
     from core.period_grades g
     join core.classes c on c.tenant_id = g.tenant_id and c.id = g.class_id
     join core.academic_sessions p on p.tenant_id = g.tenant_id and p.id = g.grading_period_id
@@ -194,6 +214,7 @@ export async function studentPeriodGrades(
     score: row.score === null ? null : Number(row.score),
     maxScore: Number(row.max_score),
     comment: row.comment,
+    gradeScaleVersionId: row.grade_scale_version_id,
   }));
 }
 

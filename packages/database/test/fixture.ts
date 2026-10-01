@@ -25,6 +25,10 @@ import {
   courseworkAssessments,
   examBoards,
   examSessions,
+  gradeScales,
+  gradeScaleVersions,
+  programmeGradeLevels,
+  programmes,
   familyShares,
   submissionAttempts,
   documentTranslations,
@@ -479,6 +483,41 @@ export async function completeFixture(
     ownerUserId: userId,
     kind: "lesson",
     title: "Read, check, reflect",
+  });
+  const [scale] = await tx
+    .insert(gradeScales)
+    .values({ tenantId, orgId: schoolId, titleEn: "Letters", display: "grade" })
+    .returning();
+  if (!scale) throw new Error("grade scale fixture missing");
+  await tx.insert(gradeScaleVersions).values({
+    tenantId,
+    scaleId: scale.id,
+    effectiveFrom: "2026-09-01",
+    bands: [
+      { labelEn: "A", labelAr: "A", minPercent: 50, gpa: null },
+      { labelEn: "F", labelAr: "F", minPercent: 0, gpa: null },
+    ],
+    createdByUserId: userId,
+  });
+  const [programme] = await tx
+    .insert(programmes)
+    .values({
+      tenantId,
+      orgId: schoolId,
+      titleEn: "Middle years",
+      gradeScaleId: scale.id,
+    })
+    .returning();
+  if (!programme) throw new Error("programme fixture missing");
+  await tx.insert(programmeGradeLevels).values({
+    tenantId,
+    programmeId: programme.id,
+    gradeLevelDescriptorId: await descriptor(
+      tx,
+      tenantId,
+      "grade_level",
+      "grade_8",
+    ),
   });
   const [examBoard] = await tx
     .insert(examBoards)

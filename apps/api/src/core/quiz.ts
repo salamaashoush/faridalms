@@ -239,6 +239,7 @@ export async function rescoreQuiz(
     feedback: previous?.feedback ?? null,
     privateNote: previous?.privateNote ?? null,
     userId: input.graderId ?? previous?.gradedByUserId ?? null,
+    today: context.today,
   });
   if (input.release && !pending && input.assignment.quizReveal !== "returned")
     await releaseAssessments(context.tx, context.tenantId, [latest.id]);

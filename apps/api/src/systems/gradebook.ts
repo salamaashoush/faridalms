@@ -32,6 +32,7 @@ import * as v from "valibot";
 
 import type { UnitContext } from "../core/context";
 
+import { gradeReader } from "../core/grades";
 import {
   audit,
   can,
@@ -103,6 +104,11 @@ export const classBook = readProcedure
           })
         : Promise.resolve([]),
     ]);
+    const points = new Map(work.map((row) => [row.id, row.points]));
+    const grade = await gradeReader(context, [
+      ...results.map((row) => row.gradeScaleVersionId),
+      ...grades.map((row) => row.gradeScaleVersionId),
+    ]);
     return {
       class: {
         id: classRow.id,
@@ -131,8 +137,18 @@ export const classBook = readProcedure
           points: row.points,
         })),
       students,
-      results,
-      grades,
+      results: results.map((row) => ({
+        ...row,
+        grade: grade(
+          row.gradeScaleVersionId,
+          row.effectiveScore ?? row.score,
+          points.get(row.assignmentId) ?? null,
+        ),
+      })),
+      grades: grades.map((row) => ({
+        ...row,
+        grade: grade(row.gradeScaleVersionId, row.score, row.maxScore),
+      })),
     };
   });
 
@@ -174,6 +190,7 @@ export const savePeriodGrades = writeProcedure
         maxScore: input.maxScore,
         comment: grade.comment || null,
         userId: context.actor.userId,
+        today: context.today,
       });
     }
     await audit(context, {
@@ -225,12 +242,20 @@ export const student = readProcedure
     );
     const year = workingYear(years, context.today);
     if (!year) return { year: null, rows: [] };
+    const rows = await studentPeriodGrades(context.tx, {
+      tenantId: context.tenantId,
+      studentId,
+      yearId: year.id,
+    });
+    const grade = await gradeReader(
+      context,
+      rows.map((row) => row.gradeScaleVersionId),
+    );
     return {
       year: { id: year.id, titleEn: year.titleEn, titleAr: year.titleAr },
-      rows: await studentPeriodGrades(context.tx, {
-        tenantId: context.tenantId,
-        studentId,
-        yearId: year.id,
-      }),
+      rows: rows.map((row) => ({
+        ...row,
+        grade: grade(row.gradeScaleVersionId, row.score, row.maxScore),
+      })),
     };
   });

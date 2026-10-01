@@ -28,6 +28,7 @@ import {
   tenantColumns,
   uq,
 } from "./conventions";
+import { gradeScaleVersions } from "./grading";
 import { users } from "./people";
 import { classes } from "./teaching";
 import { tenants } from "./tenancy";
@@ -427,6 +428,8 @@ export const assessments = core.table.withRLS(
       mode: "number",
     }),
     rubricScores: jsonb("rubric_scores").$type<Record<string, unknown>>(),
+    /** The scale bands in force when the score was given; empty without a scale. */
+    gradeScaleVersionId: uuid("grade_scale_version_id"),
     feedback: text("feedback"),
     privateNote: text("private_note"),
     /** Empty while a quiz's own marking is all there is. */
@@ -458,6 +461,11 @@ export const assessments = core.table.withRLS(
       "assessments",
       [t.tenantId, t.gradedByUserId],
       [users.tenantId, users.id],
+    ),
+    fk(
+      "assessments",
+      [t.tenantId, t.gradeScaleVersionId],
+      [gradeScaleVersions.tenantId, gradeScaleVersions.id],
     ),
     ck("assessments", "score", sql`score is null or score >= 0`),
     ck(
@@ -598,6 +606,7 @@ export const periodGrades = core.table.withRLS(
       .notNull()
       .default(100),
     comment: text("comment"),
+    gradeScaleVersionId: uuid("grade_scale_version_id"),
     recordedByUserId: uuid("recorded_by_user_id").notNull(),
     releasedAt: instant("released_at"),
     ...entityColumns(),
@@ -630,6 +639,11 @@ export const periodGrades = core.table.withRLS(
       "period_grades",
       [t.tenantId, t.recordedByUserId],
       [users.tenantId, users.id],
+    ),
+    fk(
+      "period_grades",
+      [t.tenantId, t.gradeScaleVersionId],
+      [gradeScaleVersions.tenantId, gradeScaleVersions.id],
     ),
     ck("period_grades", "max_score", sql`max_score > 0`),
     ck(

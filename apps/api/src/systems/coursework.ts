@@ -135,6 +135,7 @@ import {
   scopeOf,
   taughtAssignment,
 } from "../core/coursework-access";
+import { gradeReader } from "../core/grades";
 import {
   audit,
   can,
@@ -909,6 +910,7 @@ export const act = writeProcedure
               feedback: null,
               privateNote: null,
               userId: context.actor.userId,
+              today: context.today,
             });
           await releaseAssessments(tx, context.tenantId, [row.attemptId]);
           await touchSubmission(tx, {
@@ -979,9 +981,10 @@ async function attemptsView(
   context: UnitContext,
   submissionId: string,
   includeDrafts: boolean,
+  points: number | null,
 ) {
   const attempts = await attemptsOf(context.tx, context.tenantId, submissionId);
-  return Promise.all(
+  const views = await Promise.all(
     attempts.map(async (attempt) => {
       const [document, files, assessment] = await Promise.all([
         documentOf(context.tx, context.tenantId, {
@@ -1011,6 +1014,23 @@ async function attemptsView(
       };
     }),
   );
+  const grade = await gradeReader(
+    context,
+    views.map((view) => view.assessment?.gradeScaleVersionId ?? null),
+  );
+  return views.map((view) => ({
+    ...view,
+    assessment: view.assessment
+      ? {
+          ...view.assessment,
+          grade: grade(
+            view.assessment.gradeScaleVersionId,
+            view.assessment.effectiveScore ?? view.assessment.score,
+            points,
+          ),
+        }
+      : null,
+  }));
 }
 
 /** Every handed-in quiz attempt of one student, marked, for their teacher. */
@@ -1074,7 +1094,7 @@ export const grading = readProcedure
       },
       student: row,
       attempts: row.submissionId
-        ? await attemptsView(context, row.submissionId, true)
+        ? await attemptsView(context, row.submissionId, true, assignment.points)
         : [],
       queue: work.map((item) => ({
         studentId: item.studentId,
@@ -1116,6 +1136,7 @@ export const assess = writeProcedure
       feedback: input.feedback || null,
       privateNote: input.privateNote || null,
       userId: context.actor.userId,
+      today: context.today,
     });
     return saved;
   });
@@ -1164,7 +1185,7 @@ export const work = readProcedure
         })
       : null;
     const attempts = row.submissionId
-      ? await attemptsView(context, row.submissionId, false)
+      ? await attemptsView(context, row.submissionId, false, assignment.points)
       : [];
     const dueAt = recipient.dueAt ?? assignment.dueAt;
     const quiz =
@@ -1674,6 +1695,21 @@ function learnerView(
     }));
 }
 
+/** A student's coursework with its states, and the grades of returned work. */
+async function learnerRows(
+  context: UnitContext,
+  rows: Awaited<ReturnType<typeof learnerAssignments>>,
+) {
+  const grade = await gradeReader(
+    context,
+    rows.map((row) => row.gradeScaleVersionId),
+  );
+  return learnerView(rows, context.now).map((row) => ({
+    ...row,
+    grade: grade(row.gradeScaleVersionId, row.effectiveScore, row.points),
+  }));
+}
+
 /** The student's own coursework this year, each with its state. */
 export const mine = readProcedure.handler(async ({ context }) => {
   requireCapability(context, "own-work:read");
@@ -1685,7 +1721,7 @@ export const mine = readProcedure.handler(async ({ context }) => {
     yearId: year.id,
   });
   return {
-    rows: learnerView(rows, context.now),
+    rows: await learnerRows(context, rows),
     now: context.now.toISOString(),
   };
 });
@@ -1702,7 +1738,7 @@ async function workOf(context: UnitContext, studentId: string) {
     yearId: year.id,
   });
   return {
-    rows: learnerView(rows, context.now),
+    rows: await learnerRows(context, rows),
     now: context.now.toISOString(),
   };
 }

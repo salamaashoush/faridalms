@@ -1,6 +1,7 @@
 export * from "./access";
 export * from "./accounts";
 export * from "./announcements";
+export * from "./assessed";
 export * from "./attendance";
 export * from "./calendar";
 export * from "./coursework";
@@ -9,6 +10,7 @@ export * from "./documents";
 export * from "./events";
 export * from "./exams";
 export * from "./files";
+export * from "./grading";
 export * from "./learning";
 export * from "./membership";
 export * from "./messaging";

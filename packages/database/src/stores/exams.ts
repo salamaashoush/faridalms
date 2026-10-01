@@ -224,7 +224,8 @@ export async function examChanges(
     from audit.log l
     left join core.users a on a.tenant_id = l.tenant_id and a.id = l.actor_user_id
     where l.tenant_id = ${input.tenantId}::uuid and l.org_id = ${input.orgId}::uuid
-      and l.outcome = 'success' and l.action like 'exam\\_%'
+      and l.outcome = 'success'
+      and (l.action like 'exam\\_%' or l.action like 'grading\\_%')
     order by l.occurred_at desc, l.id desc
     limit ${input.limit} offset ${input.offset}`);
   return {
