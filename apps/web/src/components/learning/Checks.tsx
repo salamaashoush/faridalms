@@ -8,6 +8,7 @@ import type { FormEvent, ReactNode } from "react";
 import { Checkbox as CheckboxPrimitive } from "@base-ui/react/checkbox";
 import { Radio } from "@base-ui/react/radio";
 import { parseNumber } from "@faridalms/domain/answers";
+import { joinedAroundGaps } from "@faridalms/domain/arabic";
 import { useMutation } from "@tanstack/react-query";
 import {
   ArrowDown,
@@ -684,7 +685,7 @@ function GapsCheck({
       }
     >
       <div dir="auto" className="text-base leading-10 whitespace-pre-wrap">
-        {block.segments.map((segment, index) => {
+        {joinedAroundGaps(block.segments).map((segment, index) => {
           if (segment.type === "text")
             return (
               <span key={`after-${precedingGap(block.segments, index)}`}>

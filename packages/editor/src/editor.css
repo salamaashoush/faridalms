@@ -26,6 +26,26 @@
   user-select: none;
 }
 
+/* Arabic letters read smaller than Latin ones at the same size, and their
+   dots and vowel marks need room above and below, so text that reads right
+   to left is set a step larger and looser, whatever the page's language. */
+.fe
+  :is(
+    .fe-p,
+    .fe-li:not(.fe-li-nested),
+    .fe-quote,
+    .fe-question-prompt,
+    .fe-question-option,
+    .fe-question-passage,
+    .fe-question-side
+  ):dir(rtl) {
+  font-size: 1.0625em;
+  line-height: 1.85;
+}
+.fe :is(.fe-h1, .fe-h2, .fe-h3):dir(rtl) {
+  line-height: 1.5;
+}
+
 .fe .fe-p {
   margin-block: 0.125rem;
   padding-block: 0.1875rem;
