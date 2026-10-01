@@ -216,9 +216,9 @@ export function SelectField<T extends string>({
           <SelectTrigger
             {...control}
             aria-labelledby={`${control.id}-label ${control.id}`}
-            className={widths[width]}
+            className={cn(widths[width], "min-w-0")}
           >
-            <SelectValue />
+            <SelectValue className="block min-w-0 truncate" />
           </SelectTrigger>
           <SelectContent>
             {options.map((option) => (
