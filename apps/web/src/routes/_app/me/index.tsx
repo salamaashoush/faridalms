@@ -146,7 +146,7 @@ function StudentHome() {
                   <bdi>{row.title}</bdi>
                 </Link>
               }
-              facts={[row.summary.slice(0, 100)]}
+              summary={row.summary}
             />
           ))}
         </HomeList>

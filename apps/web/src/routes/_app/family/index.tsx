@@ -253,7 +253,7 @@ function FamilyHome() {
                   <bdi>{row.title}</bdi>
                 </Link>
               }
-              facts={[row.summary.slice(0, 100)]}
+              summary={row.summary}
             />
           ))}
         </HomeList>
@@ -279,7 +279,7 @@ function FamilyHome() {
                 <bdi>{data.newsletter.title}</bdi>
               </Link>
             }
-            facts={[data.newsletter.summary.slice(0, 120)]}
+            summary={data.newsletter.summary}
           />
         </HomeList>
       </HomeCard>

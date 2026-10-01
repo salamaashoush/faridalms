@@ -1,6 +1,7 @@
 import type { LinkProps } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 
+import { textDirection } from "@faridalms/domain/content";
 import { cn } from "@faridalms/ui/cn";
 import { Link } from "@tanstack/react-router";
 
@@ -67,10 +68,12 @@ export function HomeList({ children }: { children: ReactNode }) {
 export function HomeItem({
   title,
   facts,
+  summary,
   status,
 }: {
   title: ReactNode;
   facts?: (string | null | undefined)[];
+  summary?: string;
   status?: ReactNode;
 }) {
   const shown = (facts ?? []).filter(Boolean);
@@ -91,9 +94,30 @@ export function HomeItem({
             ))}
           </span>
         ) : null}
+        {summary ? <Excerpt text={summary} /> : null}
       </div>
       {status ? <div className={cn(row, "shrink-0")}>{status}</div> : null}
     </li>
+  );
+}
+
+/**
+ * The excerpt takes its own direction so the clamp cuts its end, and aligns to
+ * the page's start so it lines up under the title in either language.
+ */
+function Excerpt({ text }: { text: string }) {
+  const own = textDirection(text);
+  const page = getLocale() === "ar" ? "rtl" : "ltr";
+  return (
+    <p
+      dir={own ?? undefined}
+      className={cn(
+        "line-clamp-2 text-[13px] leading-[18px] text-muted-foreground",
+        own && own !== page && "text-end",
+      )}
+    >
+      {text}
+    </p>
   );
 }
 
