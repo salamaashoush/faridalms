@@ -41,6 +41,7 @@ import {
   $parseSerializedNode,
 } from "lexical";
 import {
+  ArrowDownUp,
   ChevronRight,
   CircleCheck,
   Clapperboard,
@@ -49,6 +50,7 @@ import {
   Columns3,
   Heading1,
   Heading2,
+  Hash,
   Heading3,
   Image,
   List,
@@ -106,7 +108,9 @@ export type BlockType =
   | "diagram"
   | "choiceQuestion"
   | "typedQuestion"
-  | "writtenQuestion";
+  | "writtenQuestion"
+  | "numberQuestion"
+  | "orderingQuestion";
 
 export type BlockGroup = "text" | "lists" | "media" | "layout" | "questions";
 
@@ -114,6 +118,8 @@ const QUESTION_KIND: Partial<Record<BlockType, QuestionKind>> = {
   choiceQuestion: "choice",
   typedQuestion: "text",
   writtenQuestion: "written",
+  numberQuestion: "number",
+  orderingQuestion: "ordering",
 };
 
 export interface BlockDefinition {
@@ -361,6 +367,24 @@ export const blockDefinitions: BlockDefinition[] = [
     label: (s) => s.questionWritten,
     hint: (s) => s.questionWrittenHint,
     keywords: ["question", "written", "essay", "long", "سؤال", "مقال"],
+    question: true,
+  },
+  {
+    type: "numberQuestion",
+    group: "questions",
+    icon: Hash,
+    label: (s) => s.questionNumber,
+    hint: (s) => s.questionNumberHint,
+    keywords: ["question", "number", "numeric", "maths", "سؤال", "رقم"],
+    question: true,
+  },
+  {
+    type: "orderingQuestion",
+    group: "questions",
+    icon: ArrowDownUp,
+    label: (s) => s.questionOrdering,
+    hint: (s) => s.questionOrderingHint,
+    keywords: ["question", "order", "sequence", "sort", "سؤال", "ترتيب"],
     question: true,
   },
 ];

@@ -1,5 +1,5 @@
 import type { ContentDocument } from "@faridalms/domain/content";
-import type { LexicalEditor } from "lexical";
+import type { ElementNode, LexicalEditor } from "lexical";
 
 import { contentDocumentSchema } from "@faridalms/domain/content";
 import { lessonOfContent } from "@faridalms/domain/lesson-content";
@@ -29,7 +29,9 @@ function json(target: LexicalEditor): ContentDocument {
   return target.getEditorState().toJSON() as unknown as ContentDocument;
 }
 
-function withQuestion(kind: "choiceQuestion" | "typedQuestion") {
+function withQuestion(
+  kind: "choiceQuestion" | "typedQuestion" | "orderingQuestion",
+) {
   const target = buildContentEditor();
   target.update(
     () => {
@@ -193,5 +195,40 @@ describe("questions in a document", () => {
       return Boolean(key && first && key === first.getKey());
     });
     expect(inOption).toBe(true);
+  });
+
+  it("keeps an ordering question's items and a number question's key", () => {
+    const target = withQuestion("orderingQuestion");
+    target.update(
+      () => {
+        const question = $getRoot().getChildren().find($isQuestionNode);
+        const [prompt, ...items] = question?.getChildren() ?? [];
+        if ($isQuestionPromptNode(prompt))
+          prompt.append($createTextNode("Order the stages."));
+        ["Egg", "Caterpillar", "Butterfly"].forEach((text, index) => {
+          const item = items[index];
+          if ($isQuestionOptionNode(item)) item.append($createTextNode(text));
+        });
+        const paragraph = $createParagraphNode();
+        $getRoot().append(paragraph);
+        paragraph.select();
+        $insertBlock("numberQuestion");
+        const number = $getRoot().getChildren().filter($isQuestionNode)[1];
+        number?.setSettings({ answerValue: 6, tolerance: 0.5 });
+        number?.getFirstChild<ElementNode>()?.append($createTextNode("Sides?"));
+      },
+      { discrete: true },
+    );
+    const document = json(target);
+    expect(v.safeParse(contentDocumentSchema, document).success).toBe(true);
+    const blocks = lessonOfContent(document).blocks;
+    expect(blocks.find((block) => block.type === "ordering")).toMatchObject({
+      items: [{ text: "Egg" }, { text: "Caterpillar" }, { text: "Butterfly" }],
+    });
+    expect(blocks.find((block) => block.type === "number")).toMatchObject({
+      prompt: "Sides?",
+      value: 6,
+      tolerance: 0.5,
+    });
   });
 });

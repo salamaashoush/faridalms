@@ -438,6 +438,30 @@
     center / contain no-repeat;
   content: "";
 }
+.fe .fe-question[data-kind="ordering"] {
+  counter-reset: order;
+}
+.fe .fe-question[data-kind="ordering"] > .fe-question-option {
+  counter-increment: order;
+}
+.fe .fe-question[data-kind="ordering"] > .fe-question-option::before {
+  border: none;
+  background: color-mix(in oklab, var(--foreground) 8%, transparent);
+  color: var(--fe-muted);
+  font-size: 0.6875rem;
+  font-weight: 600;
+  line-height: 1rem;
+  text-align: center;
+  content: counter(order);
+}
+.fe .fe-question[data-kind="number"]::after {
+  display: block;
+  margin-block-start: 0.25rem;
+  color: var(--fe-success);
+  font-size: 0.875rem;
+  font-weight: 600;
+  content: attr(data-answer);
+}
 .fe .fe-question[data-kind="written"]::after {
   display: block;
   margin-block-start: 0.25rem;

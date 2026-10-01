@@ -43,7 +43,13 @@ const nodeTypes = [
  * The questions a document can ask, each marked by the server from the
  * question's own nodes. More kinds join as their blocks are built.
  */
-export const questionKinds = ["choice", "text", "written"] as const;
+export const questionKinds = [
+  "choice",
+  "text",
+  "written",
+  "number",
+  "ordering",
+] as const;
 export type QuestionKind = (typeof questionKinds)[number];
 export const calloutTones = [
   "neutral",
@@ -134,6 +140,13 @@ export interface ContentNode {
   wordLimit?: number | null;
   hint?: string;
   explanation?: string;
+  numberMode?: "exact" | "range";
+  answerValue?: number;
+  tolerance?: number;
+  percent?: boolean;
+  rangeMin?: number;
+  rangeMax?: number;
+  scoring?: "all" | "neighbours";
   $?: { id?: string };
 }
 export interface ContentDocument {
@@ -253,6 +266,13 @@ const nodeSchema: v.GenericSchema<ContentNode> = v.lazy(() =>
       wordLimit: v.optional(v.nullable(integer(10, 5000))),
       hint: v.optional(v.pipe(v.string(), v.maxLength(500))),
       explanation: v.optional(v.pipe(v.string(), v.maxLength(1000))),
+      numberMode: v.optional(v.picklist(["exact", "range"])),
+      answerValue: v.optional(v.pipe(v.number(), v.finite())),
+      tolerance: v.optional(v.pipe(v.number(), v.finite(), v.minValue(0))),
+      percent: v.optional(v.boolean()),
+      rangeMin: v.optional(v.pipe(v.number(), v.finite())),
+      rangeMax: v.optional(v.pipe(v.number(), v.finite())),
+      scoring: v.optional(v.picklist(["all", "neighbours"])),
       $: v.optional(
         v.object({
           id: v.optional(v.pipe(v.string(), v.regex(/^[\da-z]{8,36}$/))),

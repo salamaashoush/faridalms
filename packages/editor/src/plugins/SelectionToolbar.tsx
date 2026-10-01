@@ -8,6 +8,7 @@ import type {
 } from "lexical";
 
 import { Menu } from "@base-ui/react/menu";
+import { parseNumber } from "@faridalms/domain/answers";
 import { fileDisplays, imageSizes } from "@faridalms/domain/content";
 import { fileFamily } from "@faridalms/domain/file";
 import { $isCodeNode } from "@lexical/code";
@@ -57,8 +58,7 @@ import { useEffect, useEffectEvent, useRef, useState } from "react";
 
 import type { BlockType } from "../blocks";
 import type { MarkFormat } from "../formatting";
-import type { QuestionSettings ,
-  QuestionOptionNode} from "../nodes/question";
+import type { QuestionSettings, QuestionOptionNode } from "../nodes/question";
 import type { EditorColor } from "../strings";
 
 import {
@@ -82,10 +82,7 @@ import {
   textColors,
 } from "../formatting";
 import { $isFileNode, $isImageNode, OPEN_FILE_COMMAND } from "../nodes/media";
-import {
-  $isQuestionNode,
-  $isQuestionOptionNode
-} from "../nodes/question";
+import { $isQuestionNode, $isQuestionOptionNode } from "../nodes/question";
 import {
   $isDiagramNode,
   $isEmbedNode,
@@ -113,7 +110,8 @@ type Mode =
   | "block"
   | "file"
   | "question"
-  | "question-text";
+  | "question-text"
+  | "question-number";
 
 /** The question the caret is in: what the bar shows and changes. */
 interface QuestionBarFacts {
@@ -239,6 +237,14 @@ export function SelectionToolbarPlugin() {
   const [question, setQuestion] = useState<QuestionBarFacts | null>(null);
   const [editing, setEditing] = useState<QuestionText>("hint");
   const [draftText, setDraftText] = useState("");
+  const [numbers, setNumbers] = useState({
+    mode: "exact" as "exact" | "range",
+    value: "",
+    tolerance: "",
+    percent: false,
+    min: "",
+    max: "",
+  });
   const [url, setUrl] = useState("");
   const [invalid, setInvalid] = useState(false);
   const saved = useRef<BaseSelection | null>(null);
@@ -326,7 +332,11 @@ export function SelectionToolbarPlugin() {
 
   const refresh = () => {
     if (pointer.current || menus.current > 0) return;
-    if (modeRef.current === "link-edit" || modeRef.current === "question-text")
+    if (
+      modeRef.current === "link-edit" ||
+      modeRef.current === "question-text" ||
+      modeRef.current === "question-number"
+    )
       return;
     const root = editor.getRootElement();
     const focused = root !== null && root.contains(document.activeElement);
@@ -441,7 +451,12 @@ export function SelectionToolbarPlugin() {
   }, [editor, editable]);
 
   useEffect(() => {
-    if (mode === "hidden" || mode === "link-edit" || mode === "question-text")
+    if (
+      mode === "hidden" ||
+      mode === "link-edit" ||
+      mode === "question-text" ||
+      mode === "question-number"
+    )
       return undefined;
     const onFocus = () => {
       // Opening the link box moves focus into its field while this listener,
@@ -700,6 +715,50 @@ export function SelectionToolbarPlugin() {
               finalFocus={textFocus(editor)}
             />
           )}
+          {settings.kind === "ordering" ? (
+            <BarMenu
+              label={strings.questionScoring}
+              current={
+                settings.scoring === "all"
+                  ? strings.questionScoringAll
+                  : strings.questionScoringNeighbours
+              }
+              values={["all", "neighbours"] as const}
+              text={(value) =>
+                value === "all"
+                  ? strings.questionScoringAll
+                  : strings.questionScoringNeighbours
+              }
+              onPick={(scoring) => change({ scoring })}
+              onOpenChange={trackMenu}
+              finalFocus={textFocus(editor)}
+            />
+          ) : null}
+          {settings.kind === "number" ? (
+            <button
+              type="button"
+              onMouseDown={(event) => event.preventDefault()}
+              onClick={() => {
+                saved.current = editor
+                  .getEditorState()
+                  .read(() => $getSelection()?.clone() ?? null);
+                setNumbers({
+                  mode: settings.numberMode,
+                  value: String(settings.answerValue),
+                  tolerance: settings.tolerance
+                    ? String(settings.tolerance)
+                    : "",
+                  percent: settings.percent,
+                  min: String(settings.rangeMin),
+                  max: String(settings.rangeMax),
+                });
+                show("question-number");
+              }}
+              className="inline-flex h-8 items-center gap-1.5 rounded-md px-2 text-sm font-medium text-foreground/80 hover:bg-accent hover:text-foreground"
+            >
+              {strings.questionSetAnswer}
+            </button>
+          ) : null}
           {separator}
           {settings.kind === "choice" ? (
             <>
@@ -846,6 +905,139 @@ export function SelectionToolbarPlugin() {
           <button
             type="submit"
             className="h-8 justify-self-end rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+          >
+            {strings.questionDone}
+          </button>
+        </form>
+      </Floating>
+    );
+  }
+
+  if (mode === "question-number" && question) {
+    const field =
+      "h-8 w-full min-w-0 rounded-md border bg-background px-2 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/30";
+    const parsed = {
+      value: parseNumber(numbers.value),
+      tolerance: numbers.tolerance ? parseNumber(numbers.tolerance) : 0,
+      min: parseNumber(numbers.min),
+      max: parseNumber(numbers.max),
+    };
+    const valid =
+      numbers.mode === "exact"
+        ? parsed.value !== null &&
+          parsed.tolerance !== null &&
+          parsed.tolerance >= 0
+        : parsed.min !== null &&
+          parsed.max !== null &&
+          parsed.min <= parsed.max;
+    const done = () => {
+      if (!valid) return;
+      withSelection(() => {
+        const node = $getNodeByKey(question.key);
+        if (!$isQuestionNode(node)) return;
+        node.setSettings(
+          numbers.mode === "exact"
+            ? {
+                numberMode: "exact",
+                answerValue: parsed.value ?? 0,
+                tolerance: parsed.tolerance ?? 0,
+                percent: numbers.percent,
+              }
+            : {
+                numberMode: "range",
+                rangeMin: parsed.min ?? 0,
+                rangeMax: parsed.max ?? 0,
+              },
+        );
+      });
+      show("question");
+      focusText(editor);
+    };
+    const input = (
+      key: "value" | "tolerance" | "min" | "max",
+      label: string,
+      focus = false,
+    ) => (
+      <label className="grid gap-1 text-xs font-medium text-muted-foreground">
+        {label}
+        <input
+          ref={focus ? (element) => element?.focus() : undefined}
+          type="text"
+          inputMode="decimal"
+          dir="ltr"
+          value={numbers[key]}
+          onChange={(event) =>
+            setNumbers((current) => ({ ...current, [key]: event.target.value }))
+          }
+          onKeyDown={(event) => {
+            if (event.key === "Escape") {
+              event.preventDefault();
+              show("question");
+              focusText(editor);
+            }
+          }}
+          className={field}
+        />
+      </label>
+    );
+    return (
+      <Floating
+        reference={reference}
+        placement="top-start"
+        className="flex w-80 max-w-[calc(100vw-1rem)] flex-col gap-2 p-2"
+      >
+        <form
+          className="grid gap-2"
+          onSubmit={(event) => {
+            event.preventDefault();
+            done();
+          }}
+        >
+          <div className="grid grid-cols-2 gap-1 rounded-md bg-muted p-0.5">
+            {(["exact", "range"] as const).map((value) => (
+              <button
+                key={value}
+                type="button"
+                aria-pressed={numbers.mode === value}
+                onClick={() =>
+                  setNumbers((current) => ({ ...current, mode: value }))
+                }
+                className="h-7 rounded px-2 text-xs font-medium text-muted-foreground aria-pressed:bg-background aria-pressed:text-foreground aria-pressed:shadow-sm"
+              >
+                {value === "exact"
+                  ? strings.questionExact
+                  : strings.questionRange}
+              </button>
+            ))}
+          </div>
+          {numbers.mode === "exact" ? (
+            <div className="grid grid-cols-2 items-end gap-2">
+              {input("value", strings.questionValue, true)}
+              {input("tolerance", strings.questionTolerance)}
+              <label className="col-span-2 flex items-center gap-2 text-xs text-muted-foreground">
+                <input
+                  type="checkbox"
+                  checked={numbers.percent}
+                  onChange={(event) =>
+                    setNumbers((current) => ({
+                      ...current,
+                      percent: event.target.checked,
+                    }))
+                  }
+                />
+                {strings.questionPercent}
+              </label>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-2">
+              {input("min", strings.questionMin, true)}
+              {input("max", strings.questionMax)}
+            </div>
+          )}
+          <button
+            type="submit"
+            disabled={!valid}
+            className="h-8 justify-self-end rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground hover:bg-primary/90 disabled:opacity-40"
           >
             {strings.questionDone}
           </button>

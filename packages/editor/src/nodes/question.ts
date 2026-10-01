@@ -23,6 +23,7 @@ import {
 export interface QuestionLabels {
   kinds: Record<QuestionKind, string>;
   points: (points: number) => string;
+  answerIs: string;
   prompt: string;
   option: string;
   answer: string;
@@ -51,6 +52,13 @@ export interface QuestionSettings {
   wordLimit: number | null;
   hint: string;
   explanation: string;
+  numberMode: "exact" | "range";
+  answerValue: number;
+  tolerance: number;
+  percent: boolean;
+  rangeMin: number;
+  rangeMax: number;
+  scoring: "all" | "neighbours";
 }
 
 export function defaultSettings(kind: QuestionKind): QuestionSettings {
@@ -67,6 +75,13 @@ export function defaultSettings(kind: QuestionKind): QuestionSettings {
     wordLimit: null,
     hint: "",
     explanation: "",
+    numberMode: "exact",
+    answerValue: 0,
+    tolerance: 0,
+    percent: false,
+    rangeMin: 0,
+    rangeMax: 0,
+    scoring: "all",
   };
 }
 
@@ -78,6 +93,15 @@ export type SerializedQuestionNode = Spread<
 function theme(config: EditorConfig, name: string): string | undefined {
   const value: unknown = config.theme[name];
   return typeof value === "string" ? value : undefined;
+}
+
+/** A number question's key in a few characters: "6", "6 ± 0.5", "2 – 5". */
+export function numberAnswer(settings: QuestionSettings): string {
+  if (settings.numberMode === "range")
+    return `${settings.rangeMin} – ${settings.rangeMax}`;
+  return settings.tolerance
+    ? `${settings.answerValue} ± ${settings.tolerance}${settings.percent ? "%" : ""}`
+    : String(settings.answerValue);
 }
 
 function label(editor: LexicalEditor, settings: QuestionSettings): string {
@@ -130,6 +154,13 @@ export class QuestionNode extends ElementNode {
       wordLimit: json.wordLimit ?? null,
       hint: json.hint ?? "",
       explanation: json.explanation ?? "",
+      numberMode: json.numberMode ?? base.numberMode,
+      answerValue: json.answerValue ?? base.answerValue,
+      tolerance: json.tolerance ?? base.tolerance,
+      percent: json.percent ?? base.percent,
+      rangeMin: json.rangeMin ?? base.rangeMin,
+      rangeMax: json.rangeMax ?? base.rangeMax,
+      scoring: json.scoring ?? base.scoring,
     };
     return node;
   }
@@ -150,6 +181,8 @@ export class QuestionNode extends ElementNode {
     dom.dataset.kind = this.__settings.kind;
     dom.dataset.multiple = String(this.__settings.multiple);
     dom.dataset.label = label(editor, this.__settings);
+    if (this.__settings.kind === "number")
+      dom.dataset.answer = `${labels.get(editor)?.answerIs ?? ""} ${numberAnswer(this.__settings)}`;
     return dom;
   }
 
@@ -158,7 +191,8 @@ export class QuestionNode extends ElementNode {
     // The label carries the kind and points in words, drawn anew.
     if (
       previous.__settings.kind !== settings.kind ||
-      previous.__settings.points !== settings.points
+      previous.__settings.points !== settings.points ||
+      numberAnswer(previous.__settings) !== numberAnswer(settings)
     )
       return true;
     if (previous.__settings.multiple !== settings.multiple)
@@ -305,7 +339,15 @@ export class QuestionOptionNode extends ElementNode {
       const edge = rtl ? rect.right - event.clientX : event.clientX - rect.left;
       if (edge > 30 || !editor.isEditable()) return;
       event.preventDefault();
-      editor.update(() => $toggleCorrect(this.getLatest()));
+      editor.update(() => {
+        const option = this.getLatest();
+        const question = option.getParent();
+        if (
+          $isQuestionNode(question) &&
+          question.getSettings().kind === "choice"
+        )
+          $toggleCorrect(option);
+      });
     });
     return dom;
   }
@@ -420,6 +462,12 @@ export function $createQuestionNode(kind: QuestionKind): QuestionNode {
   question.append(new QuestionPromptNode());
   if (kind === "choice")
     question.append(new QuestionOptionNode(), new QuestionOptionNode());
+  if (kind === "ordering")
+    question.append(
+      new QuestionOptionNode(),
+      new QuestionOptionNode(),
+      new QuestionOptionNode(),
+    );
   if (kind === "text") question.append(new QuestionAnswerNode());
   return question;
 }
@@ -435,7 +483,8 @@ export function $repairQuestion(question: QuestionNode) {
   const kind = question.getSettings().kind;
   for (const child of question.getChildren().slice(1)) {
     const fits =
-      (kind === "choice" && $isQuestionOptionNode(child)) ||
+      ((kind === "choice" || kind === "ordering") &&
+        $isQuestionOptionNode(child)) ||
       (kind === "text" && $isQuestionAnswerNode(child));
     if (fits) continue;
     const paragraph = $createParagraphNode();

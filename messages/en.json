@@ -1121,6 +1121,22 @@
       }
     }
   ],
+  "editorQuestionNumber": "Number answer",
+  "editorQuestionNumberHint": "Students give a number, exact or within a range",
+  "editorQuestionOrdering": "Put in order",
+  "editorQuestionOrderingHint": "Students arrange items in the right order",
+  "editorQuestionAnswerIs": "Answer:",
+  "editorQuestionSetAnswer": "Set the answer",
+  "editorQuestionExact": "An exact number",
+  "editorQuestionRange": "Any number in a range",
+  "editorQuestionValue": "Answer",
+  "editorQuestionTolerance": "Allow either side",
+  "editorQuestionPercent": "as a percentage",
+  "editorQuestionMin": "From",
+  "editorQuestionMax": "To",
+  "editorQuestionScoring": "Marking",
+  "editorQuestionScoringAll": "The whole order",
+  "editorQuestionScoringNeighbours": "Each pair in order",
   "editorQuestionPoints": [
     {
       "declarations": ["input count", "local countPlural = count: plural"],

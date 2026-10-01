@@ -1137,6 +1137,22 @@
       }
     }
   ],
+  "editorQuestionNumber": "إجابة رقمية",
+  "editorQuestionNumberHint": "يكتب الطالب رقمًا، بالضبط أو ضمن مدى",
+  "editorQuestionOrdering": "ترتيب",
+  "editorQuestionOrderingHint": "يرتب الطالب العناصر بالترتيب الصحيح",
+  "editorQuestionAnswerIs": "الإجابة:",
+  "editorQuestionSetAnswer": "تحديد الإجابة",
+  "editorQuestionExact": "رقم محدد",
+  "editorQuestionRange": "أي رقم ضمن مدى",
+  "editorQuestionValue": "الإجابة",
+  "editorQuestionTolerance": "السماح بفرق",
+  "editorQuestionPercent": "كنسبة مئوية",
+  "editorQuestionMin": "من",
+  "editorQuestionMax": "إلى",
+  "editorQuestionScoring": "التصحيح",
+  "editorQuestionScoringAll": "الترتيب كاملًا",
+  "editorQuestionScoringNeighbours": "كل زوج متتالٍ",
   "editorQuestionPoints": [
     {
       "declarations": ["input count", "local countPlural = count: plural"],

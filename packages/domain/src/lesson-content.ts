@@ -81,6 +81,29 @@ function questionBlock(node: ContentNode): LessonBlock | null {
       };
     case "written":
       return { ...check, type: "written", wordLimit: node.wordLimit ?? null };
+    case "number":
+      return {
+        ...check,
+        type: "number",
+        mode: node.numberMode ?? "exact",
+        value: node.answerValue ?? 0,
+        tolerance: node.tolerance ?? 0,
+        percent: node.percent ?? false,
+        min: node.rangeMin ?? 0,
+        max: node.rangeMax ?? 0,
+      };
+    case "ordering":
+      return {
+        ...check,
+        type: "ordering",
+        items: parts
+          .filter((part) => part.type === "question-option")
+          .map((item) => ({
+            id: item.optionId ?? "",
+            text: textOf(item).trim(),
+          })),
+        scoring: node.scoring ?? "all",
+      };
   }
   return null;
 }
@@ -147,7 +170,9 @@ export function questionNode(block: LessonBlock): ContentNode | null {
   if (
     block.type !== "choice" &&
     block.type !== "text" &&
-    block.type !== "written"
+    block.type !== "written" &&
+    block.type !== "number" &&
+    block.type !== "ordering"
   )
     return null;
   const base: ContentNode = {
@@ -188,6 +213,28 @@ export function questionNode(block: LessonBlock): ContentNode | null {
       children: [
         ...(base.children ?? []),
         ...block.answers.map((answer) => inlineOf("question-answer", answer)),
+      ],
+    };
+  if (block.type === "number")
+    return {
+      ...base,
+      numberMode: block.mode,
+      answerValue: block.value,
+      tolerance: block.tolerance,
+      percent: block.percent,
+      rangeMin: block.min,
+      rangeMax: block.max,
+    };
+  if (block.type === "ordering")
+    return {
+      ...base,
+      scoring: block.scoring,
+      children: [
+        ...(base.children ?? []),
+        ...block.items.map((item) => ({
+          ...inlineOf("question-option", item.text),
+          optionId: item.id,
+        })),
       ],
     };
   return { ...base, wordLimit: block.wordLimit };
