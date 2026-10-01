@@ -6,6 +6,7 @@ import { join } from "node:path";
 import { createApp } from "./app";
 import { createKeyRing } from "./core/keys";
 import { env } from "./env";
+import { createFilesHost, linkKey } from "./files/links";
 import { createScanner } from "./files/scan";
 import { DiskFileStore, PUBLIC_KEY, S3FileStore } from "./files/store";
 import { createProvider } from "./notifications/providers";
@@ -49,6 +50,15 @@ const stores =
           PUBLIC_KEY,
         ),
       };
+const cellSecret = new Uint8Array(Buffer.from(env.CELL_SECRET, "base64"));
+const filesPort = env.FILES_PORT ?? env.API_PORT + 2;
+const filesOrigin = (
+  env.FILES_ORIGIN ?? `http://127.0.0.1:${filesPort}`
+).replace(/\/$/, "");
+const filesServer = Bun.serve({
+  port: filesPort,
+  fetch: createFilesHost({ files: stores.files, key: linkKey(cellSecret) }),
+});
 const server = Bun.serve({
   port: env.API_PORT,
   // Uploads stream through the raw file route; everything else stays small.
@@ -58,8 +68,10 @@ const server = Bun.serve({
     directory,
     keys: createKeyRing(kek, env.CELL_ID),
     cellId: env.CELL_ID,
-    cellSecret: new Uint8Array(Buffer.from(env.CELL_SECRET, "base64")),
+    cellSecret,
     ...stores,
+    filesOrigin,
+    linkKey: linkKey(cellSecret),
     scanner: createScanner(env.CLAMD_ADDRESS),
     maxUploadBytes: env.MAX_UPLOAD_BYTES,
     channels: {
@@ -68,7 +80,9 @@ const server = Bun.serve({
     },
   }),
 });
-console.info(`Farida LMS API listening on port ${server.port}`);
+console.info(
+  `Farida LMS API listening on port ${server.port}, files on ${filesServer.port}`,
+);
 
 const gateways = {
   email: createProvider(env.EMAIL_WEBHOOK_URL, env.NOTIFY_WEBHOOK_TOKEN),
@@ -90,6 +104,7 @@ async function shutdown() {
   if (stopping) return;
   stopping = true;
   await server.stop();
+  await filesServer.stop();
   await stopDelivery?.();
   await cell.close();
   await directory.close();

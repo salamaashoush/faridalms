@@ -21,6 +21,9 @@ export interface ApiDependencies {
   /** The public-media bucket published files are copied to. */
   publicMedia: FileStore;
   scanner: FileScanner | null;
+  /** Where signed links point: the cookieless files host. */
+  filesOrigin: string;
+  linkKey: Buffer;
   maxUploadBytes: number;
   /** Which outside channels have a gateway; the rest are logged as skipped. */
   channels: { email: boolean; sms: boolean };

@@ -32,6 +32,9 @@ export const env = v.parse(
       CELL_SECRET: bytes(32),
       API_PORT: v.optional(positiveInteger, "3001"),
       CELL_POOL_SIZE: v.optional(positiveInteger, "10"),
+      // The files host listens beside the API; FILES_ORIGIN is how browsers reach it.
+      FILES_PORT: v.optional(positiveInteger),
+      FILES_ORIGIN: v.optional(v.pipe(v.string(), v.url())),
       FILE_STORAGE: v.optional(v.picklist(["disk", "s3"]), "disk"),
       FILE_STORAGE_DIR: v.optional(
         v.pipe(v.string(), v.minLength(1)),

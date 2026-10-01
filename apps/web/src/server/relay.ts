@@ -11,6 +11,7 @@ const FORWARDED = [
   "content-disposition",
   "cache-control",
   "x-content-type-options",
+  "location",
 ];
 
 /**

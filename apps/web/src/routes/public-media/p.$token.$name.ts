@@ -7,6 +7,7 @@ const FORWARDED = [
   "content-disposition",
   "cache-control",
   "x-content-type-options",
+  "access-control-allow-origin",
 ];
 
 /**

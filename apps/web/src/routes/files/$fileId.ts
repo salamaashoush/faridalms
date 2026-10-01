@@ -20,9 +20,12 @@ export const Route = createFileRoute("/files/$fileId")({
         const prepared = prepare(request, params.fileId);
         if ("refusal" in prepared) return prepared.refusal;
         return relayed(
+          // The API answers with a signed link on the files host; the
+          // browser follows it, so the bytes never pass through here.
           await fetch(prepared.target, {
             method: "GET",
             headers: prepared.headers,
+            redirect: "manual",
           }),
         );
       },

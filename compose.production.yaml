@@ -7,10 +7,12 @@ services:
     environment:
       CONTROL_DATABASE_URL: ${CONTROL_DATABASE_URL:?Set the control database URL}
       API_PORT: 3001
+      FILES_ORIGIN: ${FILES_ORIGIN:?Set the files host origin, its own domain}
       MAX_TENANT_POOLS: ${MAX_TENANT_POOLS:-32}
       TENANT_POOL_SIZE: ${TENANT_POOL_SIZE:-4}
     ports:
       - "127.0.0.1:3001:3001"
+      - "127.0.0.1:3003:3003"
     stop_grace_period: 30s
   web:
     build:

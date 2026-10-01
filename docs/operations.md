@@ -47,11 +47,22 @@ Uploads are private objects owned by the API. A client first declares a file
 (purpose, name, media type, size) and receives a server-generated destination;
 the bytes then stream to `PUT /v1/files/{id}/content` with the same bearer
 token, and the API verifies the size, records the SHA-256 and only then marks
-the file ready. Downloads go through `GET /v1/files/{id}/content`, which
-re-checks the assignment or submission the file is linked to before answering,
-sets an attachment disposition with a safe name, and never caches. The web
-forwards both routes at `/files/{id}` with the session cookie, so a browser
+the file ready. Opening a file asks `GET /v1/files/{id}/content`, which
+re-checks the record the file belongs to, records the opening where that is
+watched, and answers with a redirect to a sealed link on the files host. The
+web forwards both routes at `/files/{id}` with the session cookie, so a browser
 never holds a token or a storage location.
+
+The files host listens inside the API process on `FILES_PORT` (default
+`API_PORT` + 2) and is reached at `FILES_ORIGIN` (default
+`http://127.0.0.1:<FILES_PORT>`); in production give it its own registrable
+domain, so nothing it serves shares cookies or an origin with the application.
+It reads no cookies and no database: a link is the file's storage key, name,
+type, size and disposition, encrypted and signed with a key derived from
+`CELL_SECRET`, and expires after five minutes, or an hour for sound and video
+so a player can keep seeking. It answers ranges, allows any origin to read
+(captions and viewers fetch across origins), and serves everything except PDFs
+under a sandbox policy. Rotating `CELL_SECRET` invalidates every link issued.
 
 `FILE_STORAGE` chooses where the bytes live. With `disk` (the default),
 `FILE_STORAGE_DIR` (default `.data/files`, relative to the API's working

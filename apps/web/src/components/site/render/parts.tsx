@@ -540,6 +540,7 @@ export function MediaView({
     <video
       controls
       preload="metadata"
+      crossOrigin="anonymous"
       poster={poster}
       className={cn("site-media bg-black", className)}
       style={ratioStyle(ratio ?? "16 / 9", phoneRatio)}

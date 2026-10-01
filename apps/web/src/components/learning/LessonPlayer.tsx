@@ -87,7 +87,12 @@ function Media({ block }: { block: Extract<LessonBlock, { type: "media" }> }) {
   return (
     <figure className="grid gap-2">
       {block.mediaType.startsWith("video/") ? (
-        <video controls preload="metadata" className="w-full rounded-lg">
+        <video
+          controls
+          preload="metadata"
+          crossOrigin="anonymous"
+          className="w-full rounded-lg"
+        >
           <source src={src} type={block.mediaType} />
           <track
             kind="captions"
@@ -97,7 +102,12 @@ function Media({ block }: { block: Extract<LessonBlock, { type: "media" }> }) {
           />
         </video>
       ) : block.mediaType.startsWith("audio/") ? (
-        <audio controls preload="metadata" className="w-full">
+        <audio
+          controls
+          preload="metadata"
+          crossOrigin="anonymous"
+          className="w-full"
+        >
           <source src={src} type={block.mediaType} />
           <track
             kind="captions"

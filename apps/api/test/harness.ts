@@ -28,12 +28,14 @@ import type { AppRouter } from "../src/router";
 import { createApp } from "../src/app";
 import { createKeyRing } from "../src/core/keys";
 import { LOCALE_HEADER, SCHOOL_HEADER } from "../src/core/procedure";
+import { createFilesHost, linkKey } from "../src/files/links";
 import { DiskFileStore, PUBLIC_KEY } from "../src/files/store";
 
 const adminUrl =
   process.env.DATABASE_ADMIN_URL ??
   "postgres://northwind:northwind@127.0.0.1:5433/postgres";
 const suffix = randomBytes(6).toString("hex");
+export const FILES_ORIGIN = "http://files.test";
 const cellName = `cell_api_${suffix}`;
 const directoryName = `directory_api_${suffix}`;
 const password =
@@ -51,6 +53,7 @@ const urlFor = (name: string, role?: string) => {
 interface State {
   tenants: SeededTenant[];
   handler: (request: Request) => Promise<Response>;
+  filesHost: (request: Request) => Promise<Response>;
   cell: Cell;
   cellSecret: Uint8Array<ArrayBuffer>;
   collabUrl: string;
@@ -99,6 +102,7 @@ export async function setUp() {
     PUBLIC_KEY,
   );
   const cellSecret = new Uint8Array(randomBytes(32));
+  const filesHost = createFilesHost({ files, key: linkKey(cellSecret) });
   const handler = createApp({
     cell,
     directory,
@@ -108,12 +112,15 @@ export async function setUp() {
     files,
     publicMedia,
     scanner: null,
+    filesOrigin: FILES_ORIGIN,
+    linkKey: linkKey(cellSecret),
     maxUploadBytes: 1024 * 1024,
     channels: { email: true, sms: false },
   });
   state = {
     tenants,
     handler,
+    filesHost,
     cell,
     cellSecret,
     collabUrl: urlFor(cellName, "collab"),
@@ -189,8 +196,12 @@ export async function sessionFor(school: string, loginName: string) {
   return { api: client(school, session.token), token: session.token };
 }
 
-/** A request outside the RPC handler, such as the raw file route. */
-export function raw(
+/**
+ * A request outside the RPC handler, such as the raw file route. A redirect
+ * to a signed link is followed on the files host the way a browser would,
+ * keeping the range asked for; `redirect: "manual"` stops at the redirect.
+ */
+export async function raw(
   school: string,
   token: string,
   path: string,
@@ -199,7 +210,21 @@ export function raw(
   const headers = new Headers(init.headers);
   headers.set("authorization", `Bearer ${token}`);
   headers.set(SCHOOL_HEADER, school);
-  return seeded().handler(
+  const response = await seeded().handler(
     new Request(`http://api.test${path}`, { ...init, headers }),
+  );
+  const location = response.headers.get("location");
+  if (
+    init.redirect === "manual" ||
+    response.status !== 302 ||
+    !location?.startsWith(`${FILES_ORIGIN}/`)
+  )
+    return response;
+  const range = headers.get("range");
+  return seeded().filesHost(
+    new Request(location, {
+      method: init.method ?? "GET",
+      headers: range ? { range } : {},
+    }),
   );
 }

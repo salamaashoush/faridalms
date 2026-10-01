@@ -198,6 +198,7 @@ function CaptionsSheet({
             src={src}
             controls
             preload="metadata"
+            crossOrigin="anonymous"
             className="aspect-video w-full rounded-lg bg-black"
           >
             <track
@@ -214,6 +215,7 @@ function CaptionsSheet({
             src={src}
             controls
             preload="metadata"
+            crossOrigin="anonymous"
             className="w-full"
           >
             <track

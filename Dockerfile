@@ -11,7 +11,7 @@ WORKDIR /app
 ENV NODE_ENV=production API_PORT=3001
 COPY --from=build --chown=bun:bun /app/apps/api/dist ./dist
 USER bun
-EXPOSE 3001
+EXPOSE 3001 3003
 HEALTHCHECK --interval=15s --timeout=3s --start-period=10s --retries=3 CMD bun -e "fetch('http://127.0.0.1:3001/health/ready').then(r=>process.exit(r.ok?0:1)).catch(()=>process.exit(1))"
 CMD ["bun", "dist/index.js"]
 

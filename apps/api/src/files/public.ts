@@ -49,6 +49,7 @@ export async function handlePublicFileRequest(
       "content-disposition": "inline",
       "cache-control": "public, max-age=31536000, immutable",
       "x-content-type-options": "nosniff",
+      "access-control-allow-origin": "*",
     },
   });
 }

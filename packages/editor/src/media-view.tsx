@@ -26,6 +26,7 @@ export function MediaPlayer({
     <video
       controls
       preload="metadata"
+      crossOrigin="anonymous"
       src={src}
       className="block aspect-video w-full rounded-lg bg-black"
     >
@@ -38,7 +39,13 @@ export function MediaPlayer({
       />
     </video>
   ) : (
-    <audio controls preload="metadata" src={src} className="block w-full">
+    <audio
+      controls
+      preload="metadata"
+      crossOrigin="anonymous"
+      src={src}
+      className="block w-full"
+    >
       <track
         kind="captions"
         src={captions}

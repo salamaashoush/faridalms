@@ -10,9 +10,7 @@ import {
   settleFile,
 } from "@faridalms/database/stores/files";
 import {
-  byteRange,
   contentBytesNeeded,
-  contentDisposition,
   contentMatchesName,
   previewable,
 } from "@faridalms/domain/file";
@@ -22,6 +20,7 @@ import type { RequestContext, SchoolContext } from "../core/context";
 
 import { openUnit, schoolOf } from "../core/procedure";
 import { canReadFile } from "./authorize";
+import { linkSeconds, sealLink } from "./links";
 import { ScanUnavailableError } from "./scan";
 import { readPrefix, StoreError } from "./store";
 
@@ -203,36 +202,22 @@ async function send(
         },
       }),
     );
-  const range = byteRange(request.headers.get("range"), file.sizeBytes);
-  if (range === "unsatisfiable")
-    return new Response(null, {
-      status: 416,
-      headers: { "content-range": `bytes */${file.sizeBytes}` },
-    });
-  const body = await context.files.open(file.storageKey, range ?? undefined);
-  if (!body) return problem(404, "NOT_FOUND", context.requestId);
   // A viewer shows what a browser can show by itself; asking to download,
   // or any other type, saves the file under its name.
-  const inline = previewable(file.mediaType) && !download;
-  return new Response(request.method === "HEAD" ? null : body, {
-    status: range ? 206 : 200,
+  const token = sealLink(context.linkKey, {
+    storageKey: file.storageKey,
+    name: file.name,
+    mediaType: file.mediaType,
+    sizeBytes: file.sizeBytes,
+    disposition:
+      previewable(file.mediaType) && !download ? "inline" : "attachment",
+    expires: Math.floor(Date.now() / 1000) + linkSeconds(file.mediaType),
+  });
+  return new Response(null, {
+    status: 302,
     headers: {
-      "content-type": file.mediaType,
-      "content-length": String(
-        range ? range.end - range.start + 1 : file.sizeBytes,
-      ),
-      ...(range
-        ? {
-            "content-range": `bytes ${range.start}-${range.end}/${file.sizeBytes}`,
-          }
-        : {}),
-      "accept-ranges": "bytes",
-      "content-disposition": contentDisposition(
-        file.name,
-        inline ? "inline" : "attachment",
-      ),
+      location: `${context.filesOrigin}/b/${token}`,
       "cache-control": "private, no-store",
-      "x-content-type-options": "nosniff",
     },
   });
 }
