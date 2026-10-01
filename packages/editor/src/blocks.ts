@@ -70,6 +70,7 @@ import {
   Shapes,
   Table,
   TextCursorInput,
+  ToggleRight,
 } from "lucide-react";
 
 import type { EditorStrings } from "./strings";
@@ -78,6 +79,7 @@ import {
   $createCalloutNode,
   $createColumnNode,
   $createQuestionNode,
+  $createTrueFalseQuestion,
   $createColumnsNode,
   $createToggleContentNode,
   $createToggleNode,
@@ -119,12 +121,14 @@ export type BlockType =
   | "matchingQuestion"
   | "sortingQuestion"
   | "gapsQuestion"
+  | "trueFalseQuestion"
   | "gate";
 
 export type BlockGroup = "text" | "lists" | "media" | "layout" | "questions";
 
 const QUESTION_KIND: Partial<Record<BlockType, QuestionKind>> = {
   choiceQuestion: "choice",
+  trueFalseQuestion: "choice",
   typedQuestion: "text",
   writtenQuestion: "written",
   numberQuestion: "number",
@@ -364,6 +368,15 @@ export const blockDefinitions: BlockDefinition[] = [
     question: true,
   },
   {
+    type: "trueFalseQuestion",
+    group: "questions",
+    icon: ToggleRight,
+    label: (s) => s.questionTrueFalse,
+    hint: (s) => s.questionTrueFalseHint,
+    keywords: ["true", "false", "question", "statement", "صواب", "خطأ"],
+    question: true,
+  },
+  {
     type: "typedQuestion",
     group: "questions",
     icon: TextCursorInput,
@@ -442,12 +455,14 @@ export function filterBlocks(
   strings: EditorStrings,
   media: boolean,
   questions = false,
+  gates = questions,
 ): BlockDefinition[] {
   const needle = query.trim().toLocaleLowerCase();
   return blockDefinitions.filter(
     (block) =>
       (media || !block.media) &&
       (questions || !block.question) &&
+      (gates || block.type !== "gate") &&
       (!needle ||
         block.label(strings).toLocaleLowerCase().includes(needle) ||
         block.keywords.some((keyword) => keyword.startsWith(needle))),
@@ -622,6 +637,7 @@ function $selectInside(node: LexicalNode) {
 }
 
 function $createStructure(type: BlockType): LexicalNode | null {
+  if (type === "trueFalseQuestion") return $createTrueFalseQuestion();
   const kind = QUESTION_KIND[type];
   if (kind) return $createQuestionNode(kind);
   if (type === "divider") return $createHorizontalRuleNode();

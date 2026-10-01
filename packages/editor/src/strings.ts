@@ -164,6 +164,10 @@ export interface EditorStrings {
   questionGaps: string;
   questionGapsHint: string;
   questionPassage: string;
+  questionTrueFalse: string;
+  questionTrueFalseHint: string;
+  questionTrue: string;
+  questionFalse: string;
   gate: string;
   gateHint: string;
   transcript: string;

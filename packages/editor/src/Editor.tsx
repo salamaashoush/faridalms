@@ -87,6 +87,10 @@ export interface EditorProps {
   onUploadingChange?: (uploading: boolean) => void;
   /** The document may ask questions, as a lesson or quiz does. */
   questions?: boolean;
+  /** The document may stop at continue gates; a lesson may, a quiz may not. */
+  gates?: boolean;
+  /** Questions students have started answering, kept from change. */
+  lockQuestions?: boolean;
 }
 
 export default function Editor({
@@ -96,6 +100,8 @@ export default function Editor({
   value,
   collaboration,
   questions = false,
+  gates = questions,
+  lockQuestions = false,
   ...props
 }: EditorProps) {
   // Live editing keeps its own undo history in the shared document, so the
@@ -124,8 +130,10 @@ export default function Editor({
           ? "en"
           : document.documentElement.lang || "en"),
       questions,
+      gates,
+      lockQuestions,
     }),
-    [strings, media, locale, questions],
+    [strings, media, locale, questions, gates, lockQuestions],
   );
   const composer = (
     <LexicalExtensionComposer extension={extension} contentEditable={null}>
@@ -194,6 +202,8 @@ function Surface({
       groupName: strings.questionGroupName,
       item: strings.questionItem,
       passage: strings.questionPassage,
+      statementTrue: strings.questionTrue,
+      statementFalse: strings.questionFalse,
     }),
   );
   const [anchor, setAnchor] = useState<HTMLDivElement | null>(null);

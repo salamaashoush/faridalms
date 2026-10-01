@@ -32,6 +32,7 @@ import {
   $isQuestionPromptNode,
   $toggleCorrect,
   QuestionOptionNode,
+  setQuestionLabels,
 } from "./nodes";
 
 function json(target: LexicalEditor): ContentDocument {
@@ -580,5 +581,59 @@ describe("questions in a document", () => {
         .map((option) => option.getTextContent()),
     );
     expect(options).toEqual(["The beginning", "The end"]);
+  });
+
+  it("starts a true or false question with true marked right", () => {
+    const target = buildContentEditor();
+    setQuestionLabels(target, {
+      kinds: {
+        choice: "",
+        text: "",
+        written: "",
+        number: "",
+        ordering: "",
+        matching: "",
+        sorting: "",
+        gaps: "",
+      },
+      points: () => "",
+      answerIs: "",
+      prompt: "",
+      option: "",
+      answer: "",
+      accepted: "",
+      pairPrompt: "",
+      pairAnswer: "",
+      extra: "",
+      groupName: "",
+      item: "",
+      passage: "",
+      statementTrue: "True",
+      statementFalse: "False",
+    });
+    target.update(
+      () => {
+        const paragraph = $createParagraphNode();
+        $getRoot().clear().append(paragraph);
+        paragraph.select();
+        $insertBlock("trueFalseQuestion");
+        $getRoot()
+          .getChildren()
+          .find($isQuestionNode)
+          ?.getFirstChild<ElementNode>()
+          ?.append($createTextNode("The sun is a star."));
+      },
+      { discrete: true },
+    );
+    const block = lessonOfContent(json(target)).blocks.find(
+      (item) => item.type === "choice",
+    );
+    if (block?.type !== "choice") throw new Error("no choice question");
+    expect(block.options.map((option) => option.text)).toEqual([
+      "True",
+      "False",
+    ]);
+    expect(block.correctOptionIds).toEqual([block.options[0]?.id]);
+    expect(block.shuffle).toBe(false);
   });
 });

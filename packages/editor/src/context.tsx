@@ -40,6 +40,10 @@ export interface EditorEnvironment {
   locale: string;
   /** The document may ask questions, as a lesson or quiz does. */
   questions?: boolean;
+  /** The document may stop at continue gates. */
+  gates?: boolean;
+  /** Questions are shown but kept from change. */
+  lockQuestions?: boolean;
 }
 
 const Context = createContext<EditorEnvironment | null>(null);

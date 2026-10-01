@@ -228,7 +228,7 @@ const empty: Facts = {
 export function SelectionToolbarPlugin() {
   const [editor] = useLexicalComposerContext();
   const editable = useLexicalEditable();
-  const { strings, media } = useEditorEnvironment();
+  const { strings, media, lockQuestions } = useEditorEnvironment();
   const [mode, setMode] = useState<Mode>("hidden");
   const [reference, setReference] = useState<ReferenceElement | null>(null);
   const [facts, setFacts] = useState<Facts>(empty);
@@ -370,7 +370,7 @@ export function SelectionToolbarPlugin() {
       setReference(element?.closest("a") ?? selectionReference(root));
       return show("link-view");
     }
-    const asked = readQuestion();
+    const asked = lockQuestions ? null : readQuestion();
     if (asked) {
       setQuestion(asked);
       setReference(editor.getElementByKey(asked.key));

@@ -17,6 +17,8 @@ import {
   $createParagraphNode,
   $createTextNode,
   $getDocument,
+  $getEditor,
+  $getRoot,
   $getSelection,
   $isElementNode,
   $isRangeSelection,
@@ -39,9 +41,39 @@ export interface QuestionLabels {
   groupName: string;
   item: string;
   passage: string;
+  statementTrue: string;
+  statementFalse: string;
 }
 
 const labels = new WeakMap<LexicalEditor, QuestionLabels>();
+const locked = new WeakSet<LexicalEditor>();
+
+/**
+ * Keeps an editor's questions from change once students have started
+ * answering them; the words around them stay editable.
+ */
+export function setQuestionsLocked(editor: LexicalEditor, value: boolean) {
+  if (value) locked.add(editor);
+  else locked.delete(editor);
+  editor.getEditorState().read(() => {
+    for (const node of $getRoot().getChildren()) {
+      const dom = $isQuestionNode(node)
+        ? editor.getElementByKey(node.getKey())
+        : null;
+      if (dom) lockElement(dom, value);
+    }
+  });
+}
+
+function lockElement(dom: HTMLElement, value: boolean) {
+  if (value) {
+    dom.contentEditable = "false";
+    dom.dataset.locked = "";
+  } else {
+    dom.removeAttribute("contenteditable");
+    delete dom.dataset.locked;
+  }
+}
 
 export function setQuestionLabels(
   editor: LexicalEditor,
@@ -192,6 +224,7 @@ export class QuestionNode extends ElementNode {
     dom.dataset.kind = this.__settings.kind;
     dom.dataset.multiple = String(this.__settings.multiple);
     dom.dataset.label = label(editor, this.__settings);
+    if (locked.has(editor)) lockElement(dom, true);
     if (this.__settings.kind === "number")
       dom.dataset.answer = `${labels.get(editor)?.answerIs ?? ""} ${numberAnswer(this.__settings)}`;
     return dom;
@@ -888,6 +921,25 @@ export function $createQuestionNode(kind: QuestionKind): QuestionNode {
   if (kind === "sorting")
     question.append($createQuestionGroup(), $createQuestionGroup());
   if (kind === "gaps") question.append(new QuestionPassageNode());
+  return question;
+}
+
+/** A statement to judge: a choice between true, marked right, and false. */
+export function $createTrueFalseQuestion(): QuestionNode {
+  const text = labels.get($getEditor());
+  const question = new QuestionNode({
+    ...defaultSettings("choice"),
+    shuffle: false,
+  });
+  question.append(
+    new QuestionPromptNode(),
+    new QuestionOptionNode(crypto.randomUUID(), true).append(
+      $createTextNode(text?.statementTrue ?? ""),
+    ),
+    new QuestionOptionNode().append(
+      $createTextNode(text?.statementFalse ?? ""),
+    ),
+  );
   return question;
 }
 
