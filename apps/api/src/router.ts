@@ -7,6 +7,7 @@ import * as calendarSystem from "./systems/calendar";
 import * as classesSystem from "./systems/classes";
 import * as courseworkSystem from "./systems/coursework";
 import * as documentsSystem from "./systems/documents";
+import * as examsSystem from "./systems/exams";
 import * as filesSystem from "./systems/files";
 import * as gradebookSystem from "./systems/gradebook";
 import * as homeSystem from "./systems/home";
@@ -37,6 +38,7 @@ export const router = {
   documents: documentsSystem,
   templates: templatesSystem,
   coursework: courseworkSystem,
+  exams: examsSystem,
   gradebook: gradebookSystem,
   attendance: attendanceSystem,
   rollover: rolloverSystem,

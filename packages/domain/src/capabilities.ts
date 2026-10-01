@@ -48,6 +48,7 @@ export const CAPABILITIES = [
   "own-work:submit",
   "learning:author",
   "learning:read",
+  "exams:manage",
 ] as const;
 export type Capability = (typeof CAPABILITIES)[number];
 

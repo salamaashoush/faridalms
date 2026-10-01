@@ -4,6 +4,7 @@ import type { Workspace } from "@faridalms/domain/workspace";
 import type { LucideIcon } from "lucide-react";
 
 import {
+  Award,
   BookOpen,
   CalendarCheck,
   CalendarDays,
@@ -93,6 +94,12 @@ export const NAVIGATION: Record<Workspace, NavSection[]> = {
         { to: "/admin/site", label: m.navWebsite, icon: Globe },
         { to: "/admin/settings", label: m.navSettings, icon: Settings },
         {
+          to: "/exams",
+          label: m.navExams,
+          icon: Award,
+          capability: "exams:manage",
+        },
+        {
           to: "/admin/notification-audit",
           label: m.navDeliveryLog,
           icon: Send,
@@ -113,6 +120,12 @@ export const NAVIGATION: Record<Workspace, NavSection[]> = {
           icon: ClipboardList,
         },
         { to: "/teach/gradebook", label: m.navGradebook, icon: BookOpen },
+        {
+          to: "/exams",
+          label: m.navExams,
+          icon: Award,
+          capability: "exams:manage",
+        },
         { to: "/teach/attendance", label: m.navAttendance, icon: UserCheck },
         { to: "/teach/timetable", label: m.navTimetable, icon: Table2 },
         {

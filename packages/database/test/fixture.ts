@@ -20,6 +20,8 @@ import {
   documentFiles,
   documentLinks,
   documentTemplates,
+  examBoards,
+  examSessions,
   familyShares,
   submissionAttempts,
   documentTranslations,
@@ -474,6 +476,18 @@ export async function completeFixture(
     ownerUserId: userId,
     kind: "lesson",
     title: "Read, check, reflect",
+  });
+  const [examBoard] = await tx
+    .insert(examBoards)
+    .values({ tenantId, orgId: schoolId, titleEn: "Mocks" })
+    .returning();
+  await tx.insert(examSessions).values({
+    tenantId,
+    orgId: schoolId,
+    boardId: examBoard?.id,
+    titleEn: "Year 11 mocks",
+    sitsIn: "2027-01-01",
+    keepUntil: "2027-07-31",
   });
 
   const eventId = await writeAudit(tx, tenantId, {

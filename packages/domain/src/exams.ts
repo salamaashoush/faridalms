@@ -38,3 +38,75 @@ export const saveSeriesSchema = v.pipe(
   }),
   v.check((input) => input.keepUntil > input.sitsIn, "exam.keep_until_early"),
 );
+
+const title = v.nullable(
+  v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(120)),
+);
+const reason = v.pipe(v.string(), v.trim(), v.maxLength(500));
+const month = v.pipe(
+  isoDate,
+  v.check((value) => value.endsWith("-01"), "exam.sits_in_month"),
+);
+
+/** A board of the school's own. */
+export const saveBoardSchema = v.pipe(
+  v.object({
+    id: v.optional(v.pipe(v.string(), v.uuid())),
+    titleEn: title,
+    titleAr: title,
+  }),
+  v.check(
+    (input) => Boolean(input.titleEn ?? input.titleAr),
+    "exam.title_needed",
+  ),
+);
+
+export const addOfficialSessionSchema = v.object({
+  series: v.pipe(v.string(), v.regex(/^[a-z0-9][a-z0-9-]{2,62}$/)),
+});
+
+/**
+ * A school's session as its exams officer sets it. Changing one needs a
+ * reason; keeping work for less time than the board asks needs saying so.
+ */
+export const saveSessionSchema = v.object({
+  id: v.optional(v.pipe(v.string(), v.uuid())),
+  boardId: v.optional(v.pipe(v.string(), v.uuid())),
+  titleEn: title,
+  titleAr: title,
+  sitsIn: month,
+  /** Null for an official session that follows the board's date. */
+  keepUntil: v.nullable(isoDate),
+  declarationRequired: v.boolean(),
+  aiEvidenceRequired: v.boolean(),
+  reason,
+  belowBoard: v.optional(v.boolean(), false),
+});
+
+export const retireSessionSchema = v.object({
+  id: v.pipe(v.string(), v.uuid()),
+  reason: v.pipe(reason, v.minLength(1)),
+});
+
+export const examHistorySchema = v.object({
+  page: v.optional(v.pipe(v.number(), v.integer(), v.minValue(1)), 1),
+});
+
+/** A session's settings as its history records them. */
+export interface ExamSessionRules {
+  titleEn: string | null;
+  titleAr: string | null;
+  sitsIn: string;
+  keepUntil: string | null;
+  declarationRequired: boolean;
+  aiEvidenceRequired: boolean;
+}
+
+/** What a change to a school's sessions or boards keeps beside it. */
+export interface ExamChangeDetails {
+  reason?: string;
+  series?: string | null;
+  belowBoard?: string;
+  before?: ExamSessionRules;
+  after?: ExamSessionRules | { titleEn: string | null; titleAr: string | null };
+}

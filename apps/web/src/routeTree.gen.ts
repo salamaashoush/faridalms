@@ -14,6 +14,7 @@ import { Route as AppRouteImport } from './routes/_app'
 import { Route as AuthRouteImport } from './routes/_auth'
 import { Route as AppAdminRouteImport } from './routes/_app/admin'
 import { Route as AppEventEditorRouteImport } from './routes/_app/event-editor'
+import { Route as AppExamsRouteImport } from './routes/_app/exams'
 import { Route as AppFamilyRouteImport } from './routes/_app/family'
 import { Route as AppMeRouteImport } from './routes/_app/me'
 import { Route as AppNotificationPreferencesRouteImport } from './routes/_app/notification-preferences'
@@ -117,6 +118,11 @@ const AppAdminRoute = AppAdminRouteImport.update({
 const AppEventEditorRoute = AppEventEditorRouteImport.update({
   id: '/event-editor',
   path: '/event-editor',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppExamsRoute = AppExamsRouteImport.update({
+  id: '/exams',
+  path: '/exams',
   getParentRoute: () => AppRoute,
 } as any)
 const AppFamilyRoute = AppFamilyRouteImport.update({
@@ -540,6 +546,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/admin': typeof AppAdminRouteWithChildren
   '/event-editor': typeof AppEventEditorRoute
+  '/exams': typeof AppExamsRoute
   '/family': typeof AppFamilyRouteWithChildren
   '/me': typeof AppMeRouteWithChildren
   '/notification-preferences': typeof AppNotificationPreferencesRoute
@@ -625,6 +632,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/event-editor': typeof AppEventEditorRoute
+  '/exams': typeof AppExamsRoute
   '/notification-preferences': typeof AppNotificationPreferencesRoute
   '/notifications': typeof AppNotificationsRoute
   '/search': typeof AppSearchRoute
@@ -710,6 +718,7 @@ export interface FileRoutesById {
   '/_auth': typeof AuthRouteWithChildren
   '/_app/admin': typeof AppAdminRouteWithChildren
   '/_app/event-editor': typeof AppEventEditorRoute
+  '/_app/exams': typeof AppExamsRoute
   '/_app/family': typeof AppFamilyRouteWithChildren
   '/_app/me': typeof AppMeRouteWithChildren
   '/_app/notification-preferences': typeof AppNotificationPreferencesRoute
@@ -798,6 +807,7 @@ export interface FileRouteTypes {
     | '/'
     | '/admin'
     | '/event-editor'
+    | '/exams'
     | '/family'
     | '/me'
     | '/notification-preferences'
@@ -883,6 +893,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/event-editor'
+    | '/exams'
     | '/notification-preferences'
     | '/notifications'
     | '/search'
@@ -967,6 +978,7 @@ export interface FileRouteTypes {
     | '/_auth'
     | '/_app/admin'
     | '/_app/event-editor'
+    | '/_app/exams'
     | '/_app/family'
     | '/_app/me'
     | '/_app/notification-preferences'
@@ -1098,6 +1110,13 @@ declare module '@tanstack/react-router' {
       path: '/event-editor'
       fullPath: '/event-editor'
       preLoaderRoute: typeof AppEventEditorRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/exams': {
+      id: '/_app/exams'
+      path: '/exams'
+      fullPath: '/exams'
+      preLoaderRoute: typeof AppExamsRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/family': {
@@ -1803,6 +1822,7 @@ const AppTeachRouteWithChildren = AppTeachRoute._addFileChildren(
 interface AppRouteChildren {
   AppAdminRoute: typeof AppAdminRouteWithChildren
   AppEventEditorRoute: typeof AppEventEditorRoute
+  AppExamsRoute: typeof AppExamsRoute
   AppFamilyRoute: typeof AppFamilyRouteWithChildren
   AppMeRoute: typeof AppMeRouteWithChildren
   AppNotificationPreferencesRoute: typeof AppNotificationPreferencesRoute
@@ -1831,6 +1851,7 @@ interface AppRouteChildren {
 const AppRouteChildren: AppRouteChildren = {
   AppAdminRoute: AppAdminRouteWithChildren,
   AppEventEditorRoute: AppEventEditorRoute,
+  AppExamsRoute: AppExamsRoute,
   AppFamilyRoute: AppFamilyRouteWithChildren,
   AppMeRoute: AppMeRouteWithChildren,
   AppNotificationPreferencesRoute: AppNotificationPreferencesRoute,

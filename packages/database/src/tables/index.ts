@@ -7,6 +7,7 @@ export * from "./coursework";
 export * from "./descriptors";
 export * from "./documents";
 export * from "./events";
+export * from "./exams";
 export * from "./files";
 export * from "./learning";
 export * from "./membership";

@@ -81,6 +81,7 @@ export const CONFLICTS: Record<string, string> = {
   document_translations_key: "document_translation.exists",
   document_files_key: "document_file.exists",
   user_preferences_key: "user_preference.exists",
+  exam_sessions_official_key: "exam.session_exists",
 };
 
 /** Checks whose failure means something to a person, not just a bad shape. */

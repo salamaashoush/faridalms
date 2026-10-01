@@ -284,6 +284,22 @@ export function getMessageFromError(error: unknown): string {
         return m.fileReplaceKind();
       case "feature.not_in_plan":
         return m.featureNotInPlanError();
+      case "exam.series_unknown":
+        return m.examErrSeriesUnknown();
+      case "exam.board_unknown":
+        return m.examErrBoardUnknown();
+      case "exam.keep_until_early":
+        return m.examErrKeepUntilEarly();
+      case "exam.keep_until_needed":
+        return m.examKeepUntilNeeded();
+      case "exam.title_needed":
+        return m.examTitleNeeded();
+      case "exam.reason_needed":
+        return m.examReasonNeeded();
+      case "exam.below_board":
+        return m.examErrBelowBoard();
+      case "exam.session_exists":
+        return m.examErrSessionExists();
       case "file.quota_school":
         return m.fileQuotaSchool();
       case "file.quota_class":
