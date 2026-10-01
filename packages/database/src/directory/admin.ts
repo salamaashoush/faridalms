@@ -1,12 +1,15 @@
+import type { ExamBoard, ExamSeries } from "@faridalms/domain/exams";
 import type { SchoolPlan } from "@faridalms/domain/plans";
 
+import { seriesId } from "@faridalms/domain/exams";
 import { SQL } from "bun";
-import { desc, eq } from "drizzle-orm";
+import { and, asc, desc, eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/bun-sql/postgres";
 
 import {
   cells,
   changes,
+  examSeries,
   schoolPlans,
   schools,
   schoolUsage,
@@ -40,7 +43,7 @@ export interface Change {
   id: string;
   occurredAt: string;
   actor: string;
-  subjectType: string;
+  subjectType: (typeof changes.$inferSelect)["subjectType"];
   subjectId: string;
   action: string;
   before: JsonValue;
@@ -188,11 +191,71 @@ export function openDirectoryAdmin(url: string) {
           reason: input.reason,
         });
       }),
-    changes: async (subjectId?: string): Promise<Change[]> => {
+    series: async (): Promise<ExamSeries[]> =>
+      db
+        .select({
+          id: examSeries.id,
+          board: examSeries.board,
+          sitsIn: examSeries.sitsIn,
+          keepUntil: examSeries.keepUntil,
+          retired: examSeries.retired,
+        })
+        .from(examSeries)
+        .orderBy(asc(examSeries.sitsIn), asc(examSeries.board)),
+    /** Adds an official session or changes its dates, named by board and month. */
+    saveSeries: async (input: {
+      board: ExamBoard;
+      sitsIn: string;
+      keepUntil: string;
+      retired: boolean;
+      operatorId: string;
+      reason: string;
+    }) =>
+      db.transaction(async (tx) => {
+        const id = seriesId(input.board, input.sitsIn);
+        const [before] = await tx
+          .select()
+          .from(examSeries)
+          .where(eq(examSeries.id, id))
+          .for("update");
+        const after = { keepUntil: input.keepUntil, retired: input.retired };
+        await tx
+          .insert(examSeries)
+          .values({
+            id,
+            board: input.board,
+            sitsIn: input.sitsIn,
+            ...after,
+          })
+          .onConflictDoUpdate({
+            target: examSeries.id,
+            set: { ...after, updatedAt: new Date() },
+          });
+        await tx.insert(changes).values({
+          actor: `operator:${input.operatorId}`,
+          subjectType: "exam_series",
+          subjectId: id,
+          action: before ? "series.update" : "series.create",
+          before: before
+            ? { keepUntil: before.keepUntil, retired: before.retired }
+            : null,
+          after,
+          reason: input.reason,
+        });
+        return id;
+      }),
+    changes: async (
+      subject: { id?: string; type?: Change["subjectType"] } = {},
+    ): Promise<Change[]> => {
       const rows = await db
         .select()
         .from(changes)
-        .where(subjectId ? eq(changes.subjectId, subjectId) : undefined)
+        .where(
+          and(
+            subject.id ? eq(changes.subjectId, subject.id) : undefined,
+            subject.type ? eq(changes.subjectType, subject.type) : undefined,
+          ),
+        )
         .orderBy(desc(changes.occurredAt))
         .limit(200);
       return rows.map((row) => ({

@@ -1,10 +1,18 @@
+import type { ExamSeries } from "@faridalms/domain/exams";
 import type { SchoolPlan } from "@faridalms/domain/plans";
 
 import { SQL } from "bun";
-import { and, eq, isNotNull } from "drizzle-orm";
+import { and, asc, eq, isNotNull } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/bun-sql/postgres";
 
-import { cells, hosts, schoolPlans, schools, tenants } from "./schema";
+import {
+  cells,
+  examSeries,
+  hosts,
+  schoolPlans,
+  schools,
+  tenants,
+} from "./schema";
 
 export interface DirectorySchool {
   schoolId: string;
@@ -57,6 +65,7 @@ export function openDirectory(url: string, ttlMs = 60_000) {
     string,
     { at: number; value: DirectorySchool | null }
   >();
+  let series: { at: number; value: ExamSeries[] } | null = null;
   const cached = async (
     key: string,
     load: () => Promise<DirectorySchool | null>,
@@ -115,7 +124,26 @@ export function openDirectory(url: string, ttlMs = 60_000) {
         .where(eq(tenants.cellId, cellId));
       return rows.map((row) => row.tenantId);
     },
-    forget: () => cache.clear(),
+    /** The official exam sessions, kept briefly like the school lookups. */
+    examSeries: async (): Promise<ExamSeries[]> => {
+      if (series && Date.now() - series.at < ttlMs) return series.value;
+      const value = await db
+        .select({
+          id: examSeries.id,
+          board: examSeries.board,
+          sitsIn: examSeries.sitsIn,
+          keepUntil: examSeries.keepUntil,
+          retired: examSeries.retired,
+        })
+        .from(examSeries)
+        .orderBy(asc(examSeries.sitsIn), asc(examSeries.board));
+      series = { at: Date.now(), value };
+      return value;
+    },
+    forget: () => {
+      cache.clear();
+      series = null;
+    },
     close: () => db.$client.close(),
   };
 }

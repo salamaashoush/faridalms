@@ -31,7 +31,7 @@ function Changes() {
           reason given. Operators appear by an opaque id.
         </p>
       </div>
-      <ChangeList changes={changes} schoolName={(id) => names.get(id) ?? id} />
+      <ChangeList changes={changes} subjectName={(id) => names.get(id) ?? id} />
     </div>
   );
 }

@@ -1,8 +1,11 @@
+import type { ExamBoard } from "@faridalms/domain/exams";
+
 import { sql } from "drizzle-orm";
 import {
   bigint,
   boolean,
   check,
+  date,
   foreignKey,
   index,
   integer,
@@ -10,6 +13,7 @@ import {
   pgTable,
   text,
   timestamp,
+  uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
 
@@ -277,6 +281,37 @@ export const schoolUsage = pgTable(
   ],
 );
 
+/**
+ * An exam board's session, such as Cambridge June 2027, and the date
+ * coursework submitted for it must be kept until: after the board's
+ * results enquiries and appeals close. Operators keep the official dates
+ * current; a school may keep its work longer.
+ */
+export const examSeries = pgTable(
+  "exam_series",
+  {
+    id: text("id").primaryKey(),
+    board: text("board").$type<ExamBoard>().notNull(),
+    /** The first day of the month the session sits in, which names it. */
+    sitsIn: date("sits_in", { mode: "string" }).notNull(),
+    keepUntil: date("keep_until", { mode: "string" }).notNull(),
+    retired: boolean("retired").notNull().default(false),
+    updatedAt: instant("updated_at")
+      .notNull()
+      .default(sql`statement_timestamp()`),
+  },
+  (t) => [
+    check("exam_series_id_check", sql`id ~ '^[a-z0-9][a-z0-9-]{2,62}$'`),
+    check(
+      "exam_series_board_check",
+      sql`board in ('cambridge', 'pearson', 'ib', 'jcq')`,
+    ),
+    check("exam_series_sits_in_check", sql`extract(day from sits_in) = 1`),
+    check("exam_series_keep_until_check", sql`keep_until > sits_in`),
+    uniqueIndex("exam_series_board_sits_in_key").on(t.board, t.sitsIn),
+  ],
+);
+
 export const changes = pgTable(
   "changes",
   {
@@ -295,6 +330,7 @@ export const changes = pgTable(
         | "host"
         | "sso_domain"
         | "integration_client"
+        | "exam_series"
       >()
       .notNull(),
     subjectId: text("subject_id").notNull(),
@@ -310,7 +346,7 @@ export const changes = pgTable(
     ),
     check(
       "changes_subject_type_check",
-      sql`subject_type in ('cell', 'tenant', 'school', 'host', 'sso_domain', 'integration_client')`,
+      sql`subject_type in ('cell', 'tenant', 'school', 'host', 'sso_domain', 'integration_client', 'exam_series')`,
     ),
     check("changes_action_check", sql`char_length(action) between 1 and 60`),
     check("changes_reason_check", sql`char_length(reason) between 1 and 500`),

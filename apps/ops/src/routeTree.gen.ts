@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as ChangesRouteImport } from './routes/changes'
+import { Route as SeriesRouteImport } from './routes/series'
 import { Route as SignInRouteImport } from './routes/sign-in'
 import { Route as AuthCallbackRouteImport } from './routes/auth/callback'
 import { Route as AuthLoginRouteImport } from './routes/auth/login'
@@ -25,6 +26,11 @@ const IndexRoute = IndexRouteImport.update({
 const ChangesRoute = ChangesRouteImport.update({
   id: '/changes',
   path: '/changes',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const SeriesRoute = SeriesRouteImport.update({
+  id: '/series',
+  path: '/series',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SignInRoute = SignInRouteImport.update({
@@ -56,6 +62,7 @@ const SchoolsSchoolIdRoute = SchoolsSchoolIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/changes': typeof ChangesRoute
+  '/series': typeof SeriesRoute
   '/sign-in': typeof SignInRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/login': typeof AuthLoginRoute
@@ -65,6 +72,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/changes': typeof ChangesRoute
+  '/series': typeof SeriesRoute
   '/sign-in': typeof SignInRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/login': typeof AuthLoginRoute
@@ -75,6 +83,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/': typeof IndexRoute
   '/changes': typeof ChangesRoute
+  '/series': typeof SeriesRoute
   '/sign-in': typeof SignInRoute
   '/auth/callback': typeof AuthCallbackRoute
   '/auth/login': typeof AuthLoginRoute
@@ -86,6 +95,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/changes'
+    | '/series'
     | '/sign-in'
     | '/auth/callback'
     | '/auth/login'
@@ -95,6 +105,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/changes'
+    | '/series'
     | '/sign-in'
     | '/auth/callback'
     | '/auth/login'
@@ -104,6 +115,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/'
     | '/changes'
+    | '/series'
     | '/sign-in'
     | '/auth/callback'
     | '/auth/login'
@@ -114,6 +126,7 @@ export interface FileRouteTypes {
 export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   ChangesRoute: typeof ChangesRoute
+  SeriesRoute: typeof SeriesRoute
   SignInRoute: typeof SignInRoute
   AuthCallbackRoute: typeof AuthCallbackRoute
   AuthLoginRoute: typeof AuthLoginRoute
@@ -135,6 +148,13 @@ declare module '@tanstack/react-router' {
       path: '/changes'
       fullPath: '/changes'
       preLoaderRoute: typeof ChangesRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/series': {
+      id: '/series'
+      path: '/series'
+      fullPath: '/series'
+      preLoaderRoute: typeof SeriesRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/sign-in': {
@@ -178,6 +198,7 @@ declare module '@tanstack/react-router' {
 const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   ChangesRoute: ChangesRoute,
+  SeriesRoute: SeriesRoute,
   SignInRoute: SignInRoute,
   AuthCallbackRoute: AuthCallbackRoute,
   AuthLoginRoute: AuthLoginRoute,

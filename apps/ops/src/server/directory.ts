@@ -1,6 +1,7 @@
 import type { DirectoryAdmin } from "@faridalms/database/directory/admin";
 
 import { openDirectoryAdmin } from "@faridalms/database/directory/admin";
+import { saveSeriesSchema } from "@faridalms/domain/exams";
 import { savePlanSchema } from "@faridalms/domain/plans";
 import { createServerFn } from "@tanstack/react-start";
 import * as v from "valibot";
@@ -31,7 +32,7 @@ export const getSchool = createServerFn({ method: "GET" })
     requireOperator();
     const [school, changes] = await Promise.all([
       directory().school(data.id),
-      directory().changes(data.id),
+      directory().changes({ id: data.id }),
     ]);
     if (!school) throw new Error("NOT_FOUND");
     return { school, changes };
@@ -58,3 +59,29 @@ export const listChanges = createServerFn({ method: "GET" }).handler(() => {
   requireOperator();
   return directory().changes();
 });
+
+export const listSeries = createServerFn({ method: "GET" }).handler(
+  async () => {
+    requireOperator();
+    const [series, changes] = await Promise.all([
+      directory().series(),
+      directory().changes({ type: "exam_series" }),
+    ]);
+    return { series, changes };
+  },
+);
+
+export const saveSeries = createServerFn({ method: "POST" })
+  .validator((input: v.InferInput<typeof saveSeriesSchema>) =>
+    v.parse(saveSeriesSchema, input),
+  )
+  .handler(async ({ data }) => {
+    const operator = requireOperator();
+    const { reason, ...series } = data;
+    const id = await directory().saveSeries({
+      ...series,
+      operatorId: operator.id,
+      reason,
+    });
+    return { id };
+  });

@@ -1,6 +1,6 @@
 import type { Change } from "@faridalms/database/directory/admin";
 
-import { formatBytes, formatWhen, MODULE_NAMES } from "../format";
+import { formatBytes, formatDay, formatWhen, MODULE_NAMES } from "../format";
 
 const LABEL: Record<string, string> = {
   poolBytes: "School pool",
@@ -8,6 +8,8 @@ const LABEL: Record<string, string> = {
   moduleBytes: "Each module",
   personBytes: "Each person",
   modules: "Modules",
+  keepUntil: "Keep until",
+  retired: "Retired",
 };
 
 function describe(value: unknown, key: string): string {
@@ -17,28 +19,33 @@ function describe(value: unknown, key: string): string {
       .map((module) => MODULE_NAMES[String(module)] ?? module)
       .join(", ");
   if (typeof value === "number") return formatBytes(value);
+  if (typeof value === "boolean") return value ? "yes" : "no";
+  if (key === "keepUntil" && typeof value === "string") return formatDay(value);
   return JSON.stringify(value);
 }
 
-/** What changed in a plan, field by field, from the change log's snapshots. */
-function differences(before: unknown, after: unknown): string[] {
-  const from = (before ?? {}) as Record<string, unknown>;
-  const to = (after ?? {}) as Record<string, unknown>;
-  return Object.keys(LABEL).flatMap((key) =>
-    JSON.stringify(from[key] ?? null) === JSON.stringify(to[key] ?? null)
+/** What changed, field by field, from the change log's snapshots. */
+function differences(change: Change): string[] {
+  const from = (change.before ?? {}) as Record<string, unknown>;
+  const to = (change.after ?? {}) as Record<string, unknown>;
+  const created = change.action.endsWith(".create");
+  return Object.keys(LABEL).flatMap((key) => {
+    if (created)
+      return key in to ? [`${LABEL[key]}: ${describe(to[key], key)}`] : [];
+    return JSON.stringify(from[key] ?? null) === JSON.stringify(to[key] ?? null)
       ? []
       : [
           `${LABEL[key]}: ${describe(from[key], key)} → ${describe(to[key], key)}`,
-        ],
-  );
+        ];
+  });
 }
 
 export function ChangeList({
   changes,
-  schoolName,
+  subjectName,
 }: {
   changes: Change[];
-  schoolName?: (id: string) => string;
+  subjectName?: (id: string) => string;
 }) {
   if (changes.length === 0)
     return <p className="text-sm text-muted-foreground">No changes yet.</p>;
@@ -48,7 +55,7 @@ export function ChangeList({
         <li key={change.id} className="grid gap-1 px-4 py-3 text-sm">
           <div className="flex flex-wrap items-baseline justify-between gap-2">
             <span className="font-medium">
-              {schoolName ? `${schoolName(change.subjectId)}: ` : ""}
+              {subjectName ? `${subjectName(change.subjectId)}: ` : ""}
               {change.action}
             </span>
             <span className="text-xs text-muted-foreground">
@@ -56,7 +63,7 @@ export function ChangeList({
             </span>
           </div>
           <ul className="text-muted-foreground">
-            {differences(change.before, change.after).map((line) => (
+            {differences(change).map((line) => (
               <li key={line}>{line}</li>
             ))}
           </ul>

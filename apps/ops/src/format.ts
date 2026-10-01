@@ -25,3 +25,25 @@ export const MODULE_NAMES: Record<string, string> = {
   video: "Video",
   coding: "Coding and blocks",
 };
+
+export const BOARD_NAMES: Record<string, string> = {
+  cambridge: "Cambridge International",
+  pearson: "Pearson Edexcel",
+  ib: "International Baccalaureate",
+  jcq: "UK boards (JCQ: AQA, OCR, WJEC)",
+};
+
+export function formatMonth(isoDate: string): string {
+  return new Date(`${isoDate}T00:00:00Z`).toLocaleDateString("en-GB", {
+    month: "long",
+    year: "numeric",
+    timeZone: "UTC",
+  });
+}
+
+export function formatDay(isoDate: string): string {
+  return new Date(`${isoDate}T00:00:00Z`).toLocaleDateString("en-GB", {
+    dateStyle: "medium",
+    timeZone: "UTC",
+  });
+}
