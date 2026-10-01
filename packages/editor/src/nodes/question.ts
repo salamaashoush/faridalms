@@ -153,11 +153,14 @@ export class QuestionNode extends ElementNode {
     return dom;
   }
 
-  updateDOM(previous: this, dom: HTMLElement, config: EditorConfig): boolean {
-    void config;
+  updateDOM(previous: this, dom: HTMLElement): boolean {
     const settings = this.__settings;
-    if (previous.__settings.kind !== settings.kind)
-      dom.dataset.kind = settings.kind;
+    // The label carries the kind and points in words, drawn anew.
+    if (
+      previous.__settings.kind !== settings.kind ||
+      previous.__settings.points !== settings.points
+    )
+      return true;
     if (previous.__settings.multiple !== settings.multiple)
       dom.dataset.multiple = String(settings.multiple);
     return false;

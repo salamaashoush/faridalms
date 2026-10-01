@@ -1,6 +1,11 @@
 import type { FileDisplay, ImageSize } from "@faridalms/domain/content";
 import type { ReferenceElement } from "@floating-ui/dom";
-import type { BaseSelection, ElementFormatType, NodeKey } from "lexical";
+import type {
+  BaseSelection,
+  ElementFormatType,
+  LexicalNode,
+  NodeKey,
+} from "lexical";
 
 import { Menu } from "@base-ui/react/menu";
 import { fileDisplays, imageSizes } from "@faridalms/domain/content";
@@ -10,6 +15,7 @@ import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext
 import { useLexicalEditable } from "@lexical/react/useLexicalEditable";
 import { mergeRegister } from "@lexical/utils";
 import {
+  $createParagraphNode,
   $getNodeByKey,
   $getSelection,
   $isNodeSelection,
@@ -26,16 +32,24 @@ import {
   AlignRight,
   Baseline,
   Bold,
+  CaseSensitive,
   ChevronDown,
   Code,
   Download,
   ExternalLink,
   Eye,
   Italic,
+  Lightbulb,
   Link,
+  ListChecks,
+  MessageCircleQuestion,
+  MessageSquare,
   Pencil,
   PenLine,
+  Shuffle,
+  SpellCheck,
   Strikethrough,
+  Trash2,
   Underline,
   Unlink,
 } from "lucide-react";
@@ -43,6 +57,8 @@ import { useEffect, useEffectEvent, useRef, useState } from "react";
 
 import type { BlockType } from "../blocks";
 import type { MarkFormat } from "../formatting";
+import type { QuestionSettings ,
+  QuestionOptionNode} from "../nodes/question";
 import type { EditorColor } from "../strings";
 
 import {
@@ -67,6 +83,10 @@ import {
 } from "../formatting";
 import { $isFileNode, $isImageNode, OPEN_FILE_COMMAND } from "../nodes/media";
 import {
+  $isQuestionNode,
+  $isQuestionOptionNode
+} from "../nodes/question";
+import {
   $isDiagramNode,
   $isEmbedNode,
   $isMediaNode,
@@ -85,7 +105,29 @@ import {
   shortcutLabel,
 } from "../ui";
 
-type Mode = "hidden" | "format" | "link-edit" | "link-view" | "block" | "file";
+type Mode =
+  | "hidden"
+  | "format"
+  | "link-edit"
+  | "link-view"
+  | "block"
+  | "file"
+  | "question"
+  | "question-text";
+
+/** The question the caret is in: what the bar shows and changes. */
+interface QuestionBarFacts {
+  key: NodeKey;
+  settings: QuestionSettings;
+  /** The option the caret is in, whose feedback the bar edits. */
+  option: { key: NodeKey; feedback: string } | null;
+}
+
+type QuestionText = "hint" | "explanation" | "feedback";
+
+const POINTS = [0, 1, 2, 3, 4, 5, 6, 8, 10];
+const TRIES = [null, 1, 2, 3, 5] as const;
+const WORD_LIMITS = [null, 50, 100, 150, 200, 300, 500] as const;
 
 /** A selected file: what the bar opens, shares or shows. */
 interface FileBarFacts {
@@ -109,6 +151,55 @@ interface BlockFacts {
 }
 
 const separator = <span className="mx-0.5 h-5 w-px bg-border" aria-hidden />;
+
+/** A setting picked from a short list, shown by its current value. */
+function BarMenu<T>({
+  label,
+  current,
+  values,
+  text,
+  onPick,
+  onOpenChange,
+  finalFocus,
+}: {
+  label: string;
+  current: string;
+  values: readonly T[];
+  text: (value: T) => string;
+  onPick: (value: T) => void;
+  onOpenChange: (open: boolean) => void;
+  finalFocus: ReturnType<typeof textFocus>;
+}) {
+  return (
+    <Menu.Root onOpenChange={onOpenChange}>
+      <Menu.Trigger
+        aria-label={label}
+        className="inline-flex h-8 items-center gap-1 rounded-md px-2 text-sm font-medium text-foreground/80 hover:bg-accent hover:text-foreground"
+      >
+        {current}
+        <ChevronDown className="size-3.5 opacity-60" aria-hidden />
+      </Menu.Trigger>
+      <Menu.Portal>
+        <Menu.Positioner className="z-50" sideOffset={6} align="start">
+          <Menu.Popup className={menuPopupClass} finalFocus={finalFocus}>
+            {values.map((value) => (
+              <Menu.Item
+                key={String(value)}
+                className={menuItemClass}
+                onClick={() => onPick(value)}
+              >
+                <span className="flex-1">{text(value)}</span>
+                {text(value) === current ? (
+                  <span className="size-1.5 rounded-full bg-primary" />
+                ) : null}
+              </Menu.Item>
+            ))}
+          </Menu.Popup>
+        </Menu.Positioner>
+      </Menu.Portal>
+    </Menu.Root>
+  );
+}
 
 function $layoutBlock(key: NodeKey | null) {
   const node = key ? $getNodeByKey(key) : null;
@@ -145,6 +236,9 @@ export function SelectionToolbarPlugin() {
   const [facts, setFacts] = useState<Facts>(empty);
   const [layout, setLayout] = useState<BlockFacts | null>(null);
   const [fileFacts, setFileFacts] = useState<FileBarFacts | null>(null);
+  const [question, setQuestion] = useState<QuestionBarFacts | null>(null);
+  const [editing, setEditing] = useState<QuestionText>("hint");
+  const [draftText, setDraftText] = useState("");
   const [url, setUrl] = useState("");
   const [invalid, setInvalid] = useState(false);
   const saved = useRef<BaseSelection | null>(null);
@@ -187,6 +281,26 @@ export function SelectionToolbarPlugin() {
       };
     });
 
+  const readQuestion = () =>
+    editor.getEditorState().read((): QuestionBarFacts | null => {
+      const selection = $getSelection();
+      if (!$isRangeSelection(selection)) return null;
+      let node: LexicalNode | null = selection.anchor.getNode();
+      let option: QuestionOptionNode | null = null;
+      while (node && !$isQuestionNode(node)) {
+        if ($isQuestionOptionNode(node)) option = node;
+        node = node.getParent();
+      }
+      if (!$isQuestionNode(node)) return null;
+      return {
+        key: node.getKey(),
+        settings: node.getSettings(),
+        option: option
+          ? { key: option.getKey(), feedback: option.getFeedback() }
+          : null,
+      };
+    });
+
   const readFile = () =>
     editor.getEditorState().read((): FileBarFacts | null => {
       const selection = $getSelection();
@@ -212,7 +326,8 @@ export function SelectionToolbarPlugin() {
 
   const refresh = () => {
     if (pointer.current || menus.current > 0) return;
-    if (modeRef.current === "link-edit") return;
+    if (modeRef.current === "link-edit" || modeRef.current === "question-text")
+      return;
     const root = editor.getRootElement();
     const focused = root !== null && root.contains(document.activeElement);
     const file = focused ? readFile() : null;
@@ -244,6 +359,12 @@ export function SelectionToolbarPlugin() {
         anchor instanceof Element ? anchor : anchor?.parentElement;
       setReference(element?.closest("a") ?? selectionReference(root));
       return show("link-view");
+    }
+    const asked = readQuestion();
+    if (asked) {
+      setQuestion(asked);
+      setReference(editor.getElementByKey(asked.key));
+      return show("question");
     }
     show("hidden");
   };
@@ -320,7 +441,8 @@ export function SelectionToolbarPlugin() {
   }, [editor, editable]);
 
   useEffect(() => {
-    if (mode === "hidden" || mode === "link-edit") return undefined;
+    if (mode === "hidden" || mode === "link-edit" || mode === "question-text")
+      return undefined;
     const onFocus = () => {
       // Opening the link box moves focus into its field while this listener,
       // wired for the formatting bar, is still attached.
@@ -484,6 +606,250 @@ export function SelectionToolbarPlugin() {
             </Menu.Portal>
           </Menu.Root>
         </div>
+      </Floating>
+    );
+  }
+
+  if (mode === "question" && question) {
+    const { settings } = question;
+    const change = (patch: Partial<QuestionSettings>) =>
+      withSelection(() => {
+        const node = $getNodeByKey(question.key);
+        if ($isQuestionNode(node)) node.setSettings(patch);
+      });
+    const toggle = (
+      key:
+        | "multiple"
+        | "shuffle"
+        | "caseSensitive"
+        | "closeEnough"
+        | "tehMarbuta",
+      label: string,
+      icon: React.ReactNode,
+    ) => (
+      <ToolButton
+        label={label}
+        active={settings[key]}
+        onClick={() =>
+          editor.update(() => {
+            const node = $getNodeByKey(question.key);
+            if ($isQuestionNode(node))
+              node.setSettings({ [key]: !node.getSettings()[key] });
+          })
+        }
+      >
+        {icon}
+      </ToolButton>
+    );
+    const write = (field: QuestionText) => {
+      saved.current = editor
+        .getEditorState()
+        .read(() => $getSelection()?.clone() ?? null);
+      setEditing(field);
+      setDraftText(
+        field === "feedback"
+          ? (question.option?.feedback ?? "")
+          : settings[field],
+      );
+      show("question-text");
+    };
+    const triesText = (value: number | null) =>
+      value === null
+        ? strings.questionTriesUntilRight
+        : strings.questionTriesCount(value);
+    const wordsText = (value: number | null) =>
+      value === null ? strings.questionNoLimit : strings.questionWords(value);
+    return (
+      <Floating
+        reference={reference}
+        placement="top-start"
+        boundary={boundary}
+        className="flex flex-wrap items-center gap-0.5 p-1"
+        keepFocus
+        role="toolbar"
+        label={strings.questionOptions}
+      >
+        <div ref={toolbar} className="contents">
+          <BarMenu
+            label={strings.questionPoints(settings.points)}
+            current={strings.questionPoints(settings.points)}
+            values={POINTS}
+            text={(value) => strings.questionPoints(value)}
+            onPick={(points) => change({ points })}
+            onOpenChange={trackMenu}
+            finalFocus={textFocus(editor)}
+          />
+          {settings.kind === "written" ? (
+            <BarMenu
+              label={strings.questionWordLimit}
+              current={wordsText(settings.wordLimit)}
+              values={WORD_LIMITS}
+              text={wordsText}
+              onPick={(wordLimit) => change({ wordLimit })}
+              onOpenChange={trackMenu}
+              finalFocus={textFocus(editor)}
+            />
+          ) : (
+            <BarMenu
+              label={strings.questionTries}
+              current={triesText(settings.tries)}
+              values={TRIES}
+              text={triesText}
+              onPick={(tries) => change({ tries })}
+              onOpenChange={trackMenu}
+              finalFocus={textFocus(editor)}
+            />
+          )}
+          {separator}
+          {settings.kind === "choice" ? (
+            <>
+              {toggle(
+                "multiple",
+                strings.questionSeveral,
+                <ListChecks aria-hidden />,
+              )}
+              {toggle(
+                "shuffle",
+                strings.questionShuffle,
+                <Shuffle aria-hidden />,
+              )}
+            </>
+          ) : null}
+          {settings.kind === "text" ? (
+            <>
+              {toggle(
+                "caseSensitive",
+                strings.questionMatchCase,
+                <CaseSensitive aria-hidden />,
+              )}
+              {toggle(
+                "closeEnough",
+                strings.questionCloseEnough,
+                <SpellCheck aria-hidden />,
+              )}
+              {toggle(
+                "tehMarbuta",
+                strings.questionTehMarbuta,
+                <span aria-hidden className="text-base leading-none">
+                  ة
+                </span>,
+              )}
+            </>
+          ) : null}
+          <ToolButton
+            label={strings.questionHint}
+            active={Boolean(settings.hint)}
+            onClick={() => write("hint")}
+          >
+            <Lightbulb aria-hidden />
+          </ToolButton>
+          <ToolButton
+            label={strings.questionExplanation}
+            active={Boolean(settings.explanation)}
+            onClick={() => write("explanation")}
+          >
+            <MessageCircleQuestion aria-hidden />
+          </ToolButton>
+          {question.option ? (
+            <ToolButton
+              label={strings.questionFeedback}
+              active={Boolean(question.option.feedback)}
+              onClick={() => write("feedback")}
+            >
+              <MessageSquare aria-hidden />
+            </ToolButton>
+          ) : null}
+          {separator}
+          <ToolButton
+            label={strings.questionDelete}
+            onClick={() => {
+              editor.update(() => {
+                const node = $getNodeByKey(question.key);
+                if (!$isQuestionNode(node)) return;
+                const paragraph = $createParagraphNode();
+                node.replace(paragraph);
+                paragraph.selectStart();
+              });
+              show("hidden");
+            }}
+          >
+            <Trash2 aria-hidden />
+          </ToolButton>
+        </div>
+      </Floating>
+    );
+  }
+
+  if (mode === "question-text" && question) {
+    const labels: Record<QuestionText, string> = {
+      hint: strings.questionHint,
+      explanation: strings.questionExplanation,
+      feedback: strings.questionFeedback,
+    };
+    const limits: Record<QuestionText, number> = {
+      hint: 500,
+      explanation: 1000,
+      feedback: 300,
+    };
+    const done = () => {
+      const value = draftText.trim();
+      withSelection(() => {
+        if (editing === "feedback") {
+          const option = question.option
+            ? $getNodeByKey(question.option.key)
+            : null;
+          if ($isQuestionOptionNode(option)) option.setFeedback(value);
+          return;
+        }
+        const node = $getNodeByKey(question.key);
+        if ($isQuestionNode(node)) node.setSettings({ [editing]: value });
+      });
+      show("question");
+      focusText(editor);
+    };
+    return (
+      <Floating
+        reference={reference}
+        placement="top-start"
+        className="flex w-96 max-w-[calc(100vw-1rem)] flex-col gap-1.5 p-2"
+      >
+        <form
+          className="grid gap-1.5"
+          onSubmit={(event) => {
+            event.preventDefault();
+            done();
+          }}
+        >
+          <label className="text-xs font-medium text-muted-foreground">
+            {labels[editing]}
+            <textarea
+              ref={(element) => element?.focus()}
+              dir="auto"
+              rows={2}
+              maxLength={limits[editing]}
+              value={draftText}
+              onChange={(event) => setDraftText(event.target.value)}
+              onKeyDown={(event) => {
+                if (event.key === "Enter" && !event.shiftKey) {
+                  event.preventDefault();
+                  done();
+                }
+                if (event.key === "Escape") {
+                  event.preventDefault();
+                  show("question");
+                  focusText(editor);
+                }
+              }}
+              className="mt-1 block w-full resize-none rounded-md border bg-background px-2 py-1.5 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring/30"
+            />
+          </label>
+          <button
+            type="submit"
+            className="h-8 justify-self-end rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+          >
+            {strings.questionDone}
+          </button>
+        </form>
       </Floating>
     );
   }

@@ -1098,6 +1098,45 @@
   "editorQuestionOption": "خيار",
   "editorQuestionAnswer": "إجابة مقبولة",
   "editorQuestionAccepted": "مقبولة",
+  "editorQuestionOptions": "خيارات السؤال",
+  "editorQuestionTries": "المحاولات",
+  "editorQuestionTriesUntilRight": "حتى الإجابة الصحيحة",
+  "editorQuestionSeveral": "أكثر من إجابة صحيحة",
+  "editorQuestionShuffle": "ترتيب الخيارات عشوائيًا",
+  "editorQuestionMatchCase": "مطابقة الحروف الكبيرة",
+  "editorQuestionCloseEnough": "قبول أخطاء الإملاء البسيطة",
+  "editorQuestionTehMarbuta": "معاملة ه و ة معاملة واحدة",
+  "editorQuestionWordLimit": "حد الكلمات",
+  "editorQuestionNoLimit": "بلا حد",
+  "editorQuestionHint": "تلميح",
+  "editorQuestionExplanation": "شرح بعد الإجابة",
+  "editorQuestionFeedback": "تعليق على هذا الخيار",
+  "editorQuestionDelete": "حذف السؤال",
+  "editorQuestionDone": "تم",
+  "editorQuestionTriesCount": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "محاولة واحدة",
+        "countPlural=two": "محاولتان",
+        "countPlural=few": "{count} محاولات",
+        "countPlural=*": "{count} محاولة"
+      }
+    }
+  ],
+  "editorQuestionWords": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "كلمة واحدة",
+        "countPlural=two": "كلمتان",
+        "countPlural=few": "{count} كلمات",
+        "countPlural=*": "{count} كلمة"
+      }
+    }
+  ],
   "editorQuestionPoints": [
     {
       "declarations": ["input count", "local countPlural = count: plural"],

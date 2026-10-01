@@ -1086,6 +1086,41 @@
   "editorQuestionOption": "Option",
   "editorQuestionAnswer": "An accepted answer",
   "editorQuestionAccepted": "Accepted",
+  "editorQuestionOptions": "Question options",
+  "editorQuestionTries": "Tries",
+  "editorQuestionTriesUntilRight": "Until right",
+  "editorQuestionSeveral": "Several right answers",
+  "editorQuestionShuffle": "Shuffle options",
+  "editorQuestionMatchCase": "Match capital letters",
+  "editorQuestionCloseEnough": "Accept small spelling slips",
+  "editorQuestionTehMarbuta": "Treat ه and ة alike",
+  "editorQuestionWordLimit": "Word limit",
+  "editorQuestionNoLimit": "No limit",
+  "editorQuestionHint": "Hint",
+  "editorQuestionExplanation": "Explanation after answering",
+  "editorQuestionFeedback": "Feedback for this option",
+  "editorQuestionDelete": "Delete question",
+  "editorQuestionDone": "Done",
+  "editorQuestionTriesCount": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "{count} try",
+        "countPlural=*": "{count} tries"
+      }
+    }
+  ],
+  "editorQuestionWords": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "{count} word",
+        "countPlural=*": "{count} words"
+      }
+    }
+  ],
   "editorQuestionPoints": [
     {
       "declarations": ["input count", "local countPlural = count: plural"],

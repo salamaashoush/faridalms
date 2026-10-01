@@ -42,6 +42,7 @@ import { EmbedPlugin } from "./plugins/embed";
 import { MediaPlugin } from "./plugins/media";
 import { PastePlugin } from "./plugins/paste";
 import { PlaceholderPlugin } from "./plugins/Placeholder";
+import { QuestionGuardPlugin } from "./plugins/questions";
 import { SelectionToolbarPlugin } from "./plugins/SelectionToolbar";
 import { SlashMenuPlugin } from "./plugins/SlashMenu";
 import { TablePlugin } from "./plugins/Table";
@@ -271,6 +272,7 @@ function Surface({
       <MediaPlugin onBusyChange={onUploadingChange} />
       <EmbedPlugin />
       <PastePlugin />
+      <QuestionGuardPlugin />
       <DiagramPlugin />
       {document ? null : (
         <div className={editorFrame.footer(document)}>
