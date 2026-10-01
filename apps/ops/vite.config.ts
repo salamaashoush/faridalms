@@ -13,6 +13,7 @@ export default defineConfig({
   // the server at run time.
   optimizeDeps: { exclude: ["bun"] },
   ssr: { external: ["bun"] },
+  build: { rolldownOptions: { external: ["bun"] } },
   plugins: [
     tailwindcss(),
     // tanstackStart must precede viteReact.
