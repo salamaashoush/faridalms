@@ -1,6 +1,4 @@
-import type { ExamSessionRow } from "@faridalms/database/stores/exams";
 import type { ContentDocument } from "@faridalms/domain/content";
-import type { ExamBoard, ExamSeries } from "@faridalms/domain/exams";
 
 import {
   assignmentById,
@@ -43,6 +41,7 @@ import {
 import { ORPCError } from "@orpc/server";
 
 import type { UnitContext } from "../core/context";
+import type { ExamSessionView } from "../core/sessions";
 
 import {
   assessedRules,
@@ -57,54 +56,10 @@ import {
   requireCapability,
   writeProcedure,
 } from "../core/procedure";
+import { officialSeries, sessionViews, viewOf } from "../core/sessions";
 import { hostAccess, registerHostReader } from "../files/authorize";
 
 const HISTORY_PAGE = 25;
-
-export interface ExamSessionView {
-  id: string;
-  official: { series: string; board: ExamBoard } | null;
-  boardId: string | null;
-  titleEn: string | null;
-  titleAr: string | null;
-  sitsIn: string;
-  /** The date work is kept until: the school's own, else the board's. */
-  keepUntil: string;
-  /** The school's own date, when it set one. */
-  ownKeepUntil: string | null;
-  /** The board's official date, for an official session. */
-  boardKeepUntil: string | null;
-  declarationRequired: boolean;
-  aiEvidenceRequired: boolean;
-}
-
-function viewOf(
-  row: ExamSessionRow,
-  official: Map<string, ExamSeries>,
-): ExamSessionView {
-  const series = row.officialSeries ? official.get(row.officialSeries) : null;
-  const keepUntil = row.keepUntil ?? series?.keepUntil;
-  if (!keepUntil) throw new Error(`session ${row.id} has no keep-until date`);
-  return {
-    id: row.id,
-    official: series ? { series: series.id, board: series.board } : null,
-    boardId: row.boardId,
-    titleEn: row.titleEn,
-    titleAr: row.titleAr,
-    sitsIn: row.sitsIn,
-    keepUntil,
-    ownKeepUntil: row.keepUntil,
-    boardKeepUntil: series?.keepUntil ?? null,
-    declarationRequired: row.declarationRequired,
-    aiEvidenceRequired: row.aiEvidenceRequired,
-  };
-}
-
-async function officialSeries(context: UnitContext) {
-  return new Map(
-    (await context.directory.examSeries()).map((series) => [series.id, series]),
-  );
-}
 
 function refuse(message: string): never {
   throw new ORPCError("BAD_REQUEST", { message });
@@ -336,18 +291,6 @@ export const history = readProcedure
       offset: (input.page - 1) * HISTORY_PAGE,
     });
   });
-
-async function sessionViews(context: UnitContext, alsoIds: string[] = []) {
-  const [official, rows] = await Promise.all([
-    officialSeries(context),
-    examSessionsOf(context.tx, {
-      tenantId: context.tenantId,
-      orgId: context.schoolId,
-      alsoIds,
-    }),
-  ]);
-  return rows.map((row) => viewOf(row, official));
-}
 
 // Whoever reads the attempt a paper declaration covers reads its scan, and
 // so do the school's exams officers.
