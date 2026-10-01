@@ -2,6 +2,7 @@ import type {
   EditorState,
   ElementNode,
   LexicalNode,
+  RangeSelection,
   TextNode as TextNodeType,
 } from "lexical";
 
@@ -251,6 +252,19 @@ function $enterInHolder(): boolean {
   return false;
 }
 
+function $caretAtEnd(part: ElementNode, selection: RangeSelection): boolean {
+  const { anchor } = selection;
+  if (anchor.type === "element")
+    return (
+      anchor.key === part.getKey() && anchor.offset === part.getChildrenSize()
+    );
+  const text = anchor.getNode();
+  return (
+    Boolean(part.getLastDescendant()?.is(text)) &&
+    anchor.offset === text.getTextContentSize()
+  );
+}
+
 /** Enter in a prompt goes to the first part; in an empty last part, out of the question. */
 function $enterInQuestion(): boolean {
   const selection = $getSelection();
@@ -283,6 +297,17 @@ function $enterInQuestion(): boolean {
     question.insertAfter(paragraph);
     if (question.getChildrenSize() > 2) node.remove();
     paragraph.selectStart();
+    return true;
+  }
+  // An empty part waiting below is filled before another is added.
+  const next = node.getNextSibling();
+  if (
+    $isElementNode(next) &&
+    next.getType() === node.getType() &&
+    next.isEmpty() &&
+    $caretAtEnd(node, selection)
+  ) {
+    next.selectStart();
     return true;
   }
   return false;

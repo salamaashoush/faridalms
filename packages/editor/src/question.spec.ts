@@ -542,4 +542,43 @@ describe("questions in a document", () => {
       lessonOfContent(document).blocks.map((block) => block.type),
     ).toContain("gate");
   });
+
+  it("fills the empty option below before adding another", () => {
+    const target = withQuestion("choiceQuestion");
+    target.update(
+      () => {
+        const prompt = $getRoot()
+          .getChildren()
+          .find($isQuestionNode)
+          ?.getFirstChild();
+        if ($isQuestionPromptNode(prompt)) prompt.selectEnd();
+      },
+      { discrete: true },
+    );
+    for (const text of ["Which?", "The beginning", "The end"]) {
+      target.update(
+        () => {
+          const selection = $getSelection();
+          if ($isRangeSelection(selection)) selection.insertText(text);
+        },
+        { discrete: true },
+      );
+      if (text !== "The end")
+        target.update(
+          () => {
+            target.dispatchCommand(INSERT_PARAGRAPH_COMMAND, undefined);
+          },
+          { discrete: true },
+        );
+    }
+    const options = target.read("latest", () =>
+      $getRoot()
+        .getChildren()
+        .find($isQuestionNode)
+        ?.getChildren()
+        .filter($isQuestionOptionNode)
+        .map((option) => option.getTextContent()),
+    );
+    expect(options).toEqual(["The beginning", "The end"]);
+  });
 });
