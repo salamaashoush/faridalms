@@ -57,6 +57,7 @@ import {
   Heading3,
   Image,
   List,
+  ListEnd,
   ListChecks,
   ListOrdered,
   Megaphone,
@@ -86,6 +87,7 @@ import {
   $isQuestionNode,
   $isToggleNode,
   $nearestBlock,
+  GateNode,
 } from "./nodes";
 
 export type BlockType =
@@ -116,7 +118,8 @@ export type BlockType =
   | "orderingQuestion"
   | "matchingQuestion"
   | "sortingQuestion"
-  | "gapsQuestion";
+  | "gapsQuestion"
+  | "gate";
 
 export type BlockGroup = "text" | "lists" | "media" | "layout" | "questions";
 
@@ -423,6 +426,15 @@ export const blockDefinitions: BlockDefinition[] = [
     keywords: ["question", "sort", "group", "categorise", "سؤال", "تصنيف"],
     question: true,
   },
+  {
+    type: "gate",
+    group: "questions",
+    icon: ListEnd,
+    label: (s) => s.gate,
+    hint: (s) => s.gateHint,
+    keywords: ["continue", "gate", "stop", "pause", "متابعة", "توقف"],
+    question: true,
+  },
 ];
 
 export function filterBlocks(
@@ -613,6 +625,7 @@ function $createStructure(type: BlockType): LexicalNode | null {
   const kind = QUESTION_KIND[type];
   if (kind) return $createQuestionNode(kind);
   if (type === "divider") return $createHorizontalRuleNode();
+  if (type === "gate") return new GateNode();
   if (type === "table")
     return $createTableNodeWithDimensions(3, 3, { rows: true, columns: false });
   if (type === "columns2" || type === "columns3") {
@@ -650,7 +663,12 @@ const cellTypes = new Set<BlockType>([
 
 function $allows(container: LexicalNode | null, type: BlockType): boolean {
   if ($isTableCellNode(container)) return cellTypes.has(type);
-  if (type === "columns2" || type === "columns3" || QUESTION_KIND[type])
+  if (
+    type === "columns2" ||
+    type === "columns3" ||
+    type === "gate" ||
+    QUESTION_KIND[type]
+  )
     return $isRootNode(container);
   if ($isCalloutNode(container)) return type !== "callout";
   return true;

@@ -24,12 +24,12 @@ import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext
 import { DecoratorBlockNode } from "@lexical/react/LexicalDecoratorBlockNode";
 import { useLexicalEditable } from "@lexical/react/useLexicalEditable";
 import { $getDocument, $getNodeByKey, createCommand } from "lexical";
-import { Captions, ExternalLink } from "lucide-react";
-import { useRef, useState } from "react";
+import { Captions, ExternalLink, ScrollText } from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 
 import { useEditorEnvironment } from "../context";
 import { blockAlignClass, diagramImageClass, imageSizeClass } from "../format";
-import { EmbedFrame, MediaPlayer } from "../media-view";
+import { EmbedFrame, MediaPlayer, MediaTranscript } from "../media-view";
 import { useSelectOnClick } from "./select";
 
 // The outline goes round the block's own box, which may be narrower than
@@ -82,6 +82,8 @@ function MediaBlock({
   fileId,
   mime,
   captionsFileId,
+  captionsLang,
+  transcript,
   caption,
   size,
 }: {
@@ -90,10 +92,17 @@ function MediaBlock({
   fileId: string;
   mime: string;
   captionsFileId: string;
+  captionsLang: string;
+  transcript: string;
   caption: string;
   size: ImageSize;
 }) {
   const { strings, media, locale } = useEditorEnvironment();
+  const [writing, setWriting] = useState(false);
+  const transcriptInput = useRef<HTMLTextAreaElement>(null);
+  useEffect(() => {
+    if (writing) transcriptInput.current?.focus();
+  }, [writing]);
   const editable = useLexicalEditable();
   const update = useNodeUpdate(nodeKey, $isMediaNode);
   useSelectOnClick(nodeKey);
@@ -114,25 +123,32 @@ function MediaBlock({
           src={media?.url(fileId)}
           captions={captionsFileId ? media?.url(captionsFileId) : undefined}
           video={video}
-          locale={locale}
+          locale={captionsLang || locale}
           captionsLabel={strings.captions}
         />
         {editable ? (
           <>
             <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
-              <span
-                className={
-                  captionsFileId
-                    ? undefined
-                    : "text-warning-foreground dark:text-warning"
-                }
-              >
-                {captionsFileId
-                  ? strings.captionsAdded
-                  : failed
-                    ? strings.uploadFailed
-                    : strings.captionsMissing}
-              </span>
+              {/* Audio is followed as well through a transcript as through captions. */}
+              {!captionsFileId && !failed && !video && transcript ? (
+                <span />
+              ) : (
+                <span
+                  className={
+                    captionsFileId
+                      ? undefined
+                      : "text-warning-foreground dark:text-warning"
+                  }
+                >
+                  {captionsFileId
+                    ? strings.captionsAdded
+                    : failed
+                      ? strings.uploadFailed
+                      : video
+                        ? strings.captionsMissing
+                        : strings.transcriptMissing}
+                </span>
+              )}
               <button
                 type="button"
                 disabled={busy || !media}
@@ -146,6 +162,16 @@ function MediaBlock({
                     ? strings.captionsReplace
                     : strings.captionsAdd}
               </button>
+              {transcript || writing ? null : (
+                <button
+                  type="button"
+                  onClick={() => setWriting(true)}
+                  className="inline-flex h-7 items-center gap-1.5 rounded-md border px-2 font-medium text-foreground hover:bg-accent"
+                >
+                  <ScrollText className="size-3.5" aria-hidden />
+                  {strings.transcriptAdd}
+                </button>
+              )}
               <input
                 ref={input}
                 type="file"
@@ -168,16 +194,39 @@ function MediaBlock({
                 }}
               />
             </div>
+            {transcript || writing ? (
+              <label className="grid gap-1 text-xs text-muted-foreground">
+                {strings.transcript}
+                <textarea
+                  ref={transcriptInput}
+                  dir="auto"
+                  value={transcript}
+                  maxLength={20000}
+                  placeholder={strings.transcriptHint}
+                  onChange={(event) => {
+                    const value = event.target.value;
+                    update((node) => node.setTranscript(value));
+                  }}
+                  onBlur={() => setWriting(false)}
+                  className="field-sizing-content max-h-80 min-h-16 w-full resize-none rounded-md border bg-transparent px-2.5 py-2 text-sm text-foreground outline-none focus-visible:border-ring"
+                />
+              </label>
+            ) : null}
             <CaptionInput
               value={caption}
               onChange={(value) => update((node) => node.setCaption(value))}
             />
           </>
-        ) : caption ? (
-          <figcaption className="text-center text-sm text-muted-foreground">
-            {caption}
-          </figcaption>
-        ) : null}
+        ) : (
+          <>
+            {caption ? (
+              <figcaption className="text-center text-sm text-muted-foreground">
+                {caption}
+              </figcaption>
+            ) : null}
+            <MediaTranscript text={transcript} label={strings.transcript} />
+          </>
+        )}
       </figure>
     </BlockWithAlignableContents>
   );
@@ -296,6 +345,8 @@ export type SerializedMediaNode = Spread<
     fileId: string;
     mime: string;
     captionsFileId?: string;
+    captionsLang?: string;
+    transcript?: string;
     caption: string;
     size?: ImageSize;
   },
@@ -306,6 +357,8 @@ export class MediaNode extends DecoratorBlockNode {
   __fileId: string;
   __mime: string;
   __captionsFileId: string;
+  __captionsLang = "";
+  __transcript = "";
   __caption: string;
   __size: ImageSize;
 
@@ -331,7 +384,7 @@ export class MediaNode extends DecoratorBlockNode {
   }
 
   static clone(node: MediaNode): MediaNode {
-    return new MediaNode(
+    const copy = new MediaNode(
       node.__fileId,
       node.__mime,
       node.__captionsFileId,
@@ -340,6 +393,9 @@ export class MediaNode extends DecoratorBlockNode {
       node.__format,
       node.__key,
     );
+    copy.__captionsLang = node.__captionsLang;
+    copy.__transcript = node.__transcript;
+    return copy;
   }
 
   static importJSON(json: SerializedMediaNode): MediaNode {
@@ -351,6 +407,8 @@ export class MediaNode extends DecoratorBlockNode {
     node.__fileId = json.fileId;
     node.__mime = json.mime;
     node.__captionsFileId = json.captionsFileId ?? "";
+    node.__captionsLang = json.captionsLang ?? "";
+    node.__transcript = json.transcript ?? "";
     node.__caption = json.caption;
     node.__size = json.size ?? "full";
     return node;
@@ -365,6 +423,8 @@ export class MediaNode extends DecoratorBlockNode {
       ...(node.__captionsFileId
         ? { captionsFileId: node.__captionsFileId }
         : {}),
+      ...(node.__captionsLang ? { captionsLang: node.__captionsLang } : {}),
+      ...(node.__transcript ? { transcript: node.__transcript } : {}),
       caption: node.__caption,
       size: node.__size,
     };
@@ -392,6 +452,12 @@ export class MediaNode extends DecoratorBlockNode {
     return writable;
   }
 
+  setTranscript(transcript: string): this {
+    const writable = this.getWritable();
+    writable.__transcript = transcript;
+    return writable;
+  }
+
   getSize(): ImageSize {
     return this.getLatest().__size;
   }
@@ -410,6 +476,8 @@ export class MediaNode extends DecoratorBlockNode {
         fileId={this.__fileId}
         mime={this.__mime}
         captionsFileId={this.__captionsFileId}
+        captionsLang={this.__captionsLang}
+        transcript={this.__transcript}
         caption={this.__caption}
         size={this.__size}
       />

@@ -1,8 +1,12 @@
 import type { ContentDocument } from "@faridalms/domain/content";
+import type { LessonDocument } from "@faridalms/domain/learning";
 import type { ElementNode, LexicalEditor } from "lexical";
 
 import { contentDocumentSchema } from "@faridalms/domain/content";
-import { lessonOfContent } from "@faridalms/domain/lesson-content";
+import {
+  contentOfLesson,
+  lessonOfContent,
+} from "@faridalms/domain/lesson-content";
 import {
   $createParagraphNode,
   $createTextNode,
@@ -423,5 +427,119 @@ describe("questions in a document", () => {
     expect(target.read("latest", () => $getRoot().getTextContent())).toBe(
       "See [1] below",
     );
+  });
+
+  it("keeps every id and answer of a lesson loaded into the editor", () => {
+    const lesson: LessonDocument = {
+      version: 2,
+      blocks: [
+        {
+          id: crypto.randomUUID(),
+          type: "media",
+          fileId: crypto.randomUUID(),
+          name: "talk.mp4",
+          mediaType: "video/mp4",
+          sizeBytes: 1000,
+          caption: "A short talk",
+          captionsFileId: crypto.randomUUID(),
+          captionsLang: "en",
+          transcript: "Hello.",
+        },
+        {
+          id: crypto.randomUUID(),
+          type: "choice",
+          prompt: "Pick one",
+          points: 1,
+          hint: "",
+          explanation: "",
+          tries: null,
+          options: [
+            { id: crypto.randomUUID(), text: "A", feedback: "" },
+            { id: crypto.randomUUID(), text: "B", feedback: "Not B" },
+          ],
+          correctOptionIds: [],
+          multiple: false,
+          shuffle: true,
+        },
+        { id: crypto.randomUUID(), type: "gate", requires: "above" },
+        {
+          id: crypto.randomUUID(),
+          type: "gaps",
+          prompt: "Fill in",
+          points: 1,
+          hint: "",
+          explanation: "",
+          tries: null,
+          segments: [
+            { type: "text", text: "Water boils at " },
+            {
+              type: "gap",
+              id: crypto.randomUUID(),
+              answers: ["100"],
+              options: [],
+            },
+            { type: "text", text: " degrees." },
+          ],
+          caseSensitive: false,
+          closeEnough: false,
+          tehMarbuta: true,
+        },
+        {
+          id: crypto.randomUUID(),
+          type: "sorting",
+          prompt: "Sort",
+          points: 1,
+          hint: "",
+          explanation: "",
+          tries: null,
+          groups: [
+            { id: crypto.randomUUID(), name: "Odd" },
+            { id: crypto.randomUUID(), name: "Even" },
+          ],
+          items: [],
+        },
+      ],
+    };
+    const [, choice, , gaps, sorting] = lesson.blocks;
+    if (choice?.type === "choice" && choice.options[0])
+      choice.correctOptionIds = [choice.options[0].id];
+    if (sorting?.type === "sorting" && sorting.groups[0] && sorting.groups[1])
+      sorting.items = [
+        { id: crypto.randomUUID(), text: "3", groupId: sorting.groups[0].id },
+        { id: crypto.randomUUID(), text: "4", groupId: sorting.groups[1].id },
+      ];
+    const document = contentOfLesson(lesson);
+    if (!document) throw new Error("lesson could not become a document");
+    const target = buildContentEditor();
+    target.setEditorState(target.parseEditorState(JSON.stringify(document)));
+    target.update(() => $getRoot().markDirty(), { discrete: true });
+    const back = lessonOfContent(json(target)).blocks;
+    expect(back.filter((block) => block.type === "gate")).toHaveLength(1);
+    for (const block of [choice, gaps, sorting])
+      expect(back.find((item) => item.id === block?.id)).toEqual(block);
+    expect(json(target).root.children?.[0]).toMatchObject({
+      type: "media",
+      captionsLang: "en",
+      transcript: "Hello.",
+    });
+  });
+
+  it("inserts a gate only at the top of the document", () => {
+    const target = buildContentEditor();
+    target.update(
+      () => {
+        const paragraph = $createParagraphNode();
+        $getRoot().clear().append(paragraph);
+        paragraph.select();
+        $insertBlock("gate");
+      },
+      { discrete: true },
+    );
+    const document = json(target);
+    expect(document.root.children?.map((node) => node.type)).toContain("gate");
+    expect(v.safeParse(contentDocumentSchema, document).success).toBe(true);
+    expect(
+      lessonOfContent(document).blocks.map((block) => block.type),
+    ).toContain("gate");
   });
 });

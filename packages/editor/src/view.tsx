@@ -15,7 +15,7 @@ import type { FileStrings } from "./files";
 
 import { FileCard, PictureView } from "./files";
 import { blockAlignClass, diagramImageClass, imageSizeClass } from "./format";
-import { EmbedFrame, MediaPlayer } from "./media-view";
+import { EmbedFrame, MediaPlayer, MediaTranscript } from "./media-view";
 import { editorTheme } from "./theme";
 
 export { editorFrame } from "./frame";
@@ -306,6 +306,8 @@ function render(node: ContentNode, key: string, context: Context): ReactNode {
           {children}
         </div>
       );
+    case "gate":
+      return null;
     case "question-passage":
       return (
         <div key={key} className="fe-question-passage" dir="auto">
@@ -367,7 +369,7 @@ function render(node: ContentNode, key: string, context: Context): ReactNode {
                 : undefined
             }
             video={(node.mime ?? "").startsWith("video/")}
-            locale={context.locale}
+            locale={node.captionsLang ?? context.locale}
             captionsLabel={context.strings.captions}
           />
           {node.caption ? (
@@ -375,6 +377,10 @@ function render(node: ContentNode, key: string, context: Context): ReactNode {
               {node.caption}
             </figcaption>
           ) : null}
+          <MediaTranscript
+            text={node.transcript}
+            label={context.strings.transcript}
+          />
         </figure>
       );
     }

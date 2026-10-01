@@ -49,6 +49,7 @@ export type FileStrings = Pick<
   | "closeViewer"
   | "noPreview"
   | "captions"
+  | "transcript"
   | "picture"
 >;
 

@@ -15,6 +15,7 @@ export function fileStrings(): FileStrings {
     closeViewer: m.fileCloseViewer(),
     noPreview: m.fileNoPreview(),
     captions: m.editorCaptions(),
+    transcript: m.editorTranscript(),
   };
 }
 
@@ -185,6 +186,12 @@ export function editorStrings(): EditorStrings {
     questionGaps: m.editorQuestionGaps(),
     questionGapsHint: m.editorQuestionGapsHint(),
     questionPassage: m.editorQuestionPassage(),
+    gate: m.editorGate(),
+    gateHint: m.editorGateHint(),
+    transcript: m.editorTranscript(),
+    transcriptAdd: m.editorTranscriptAdd(),
+    transcriptHint: m.editorTranscriptHint(),
+    transcriptMissing: m.editorTranscriptMissing(),
     questionNumber: m.editorQuestionNumber(),
     questionNumberHint: m.editorQuestionNumberHint(),
     questionOrdering: m.editorQuestionOrdering(),

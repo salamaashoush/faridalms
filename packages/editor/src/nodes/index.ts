@@ -5,6 +5,7 @@ import { $isRootNode, createState } from "lexical";
 
 import { $isCalloutNode, CalloutNode } from "./callout";
 import { $isColumnNode, ColumnNode, ColumnsNode } from "./columns";
+import { GateNode } from "./gate";
 import { FileNode, ImageNode } from "./media";
 import {
   QuestionAnswerNode,
@@ -27,6 +28,7 @@ import {
 
 export * from "./callout";
 export * from "./columns";
+export * from "./gate";
 export * from "./media";
 export * from "./question";
 export * from "./rich";
@@ -53,6 +55,7 @@ export const blockNodes = [
   QuestionSideNode,
   QuestionPassageNode,
   QuestionGapNode,
+  GateNode,
 ];
 
 export const blockIdState = createState("id", {

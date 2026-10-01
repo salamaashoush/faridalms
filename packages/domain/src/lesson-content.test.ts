@@ -17,6 +17,19 @@ const lesson: LessonDocument = {
       content: plainContent("Read the poem first."),
     },
     {
+      id: crypto.randomUUID(),
+      type: "media",
+      fileId: "1e7c5d8f-9a2b-4c3d-8e4f-a5b6c7d8e9f0",
+      name: "reading.mp3",
+      mediaType: "audio/mpeg",
+      sizeBytes: 48000,
+      caption: "The poem read aloud",
+      captionsFileId: null,
+      captionsLang: "ar",
+      transcript: "Line one.\nLine two.",
+    },
+    { id: crypto.randomUUID(), type: "gate", requires: "above" },
+    {
       id: "7a1f6b1e-4a3b-4c8e-9d2a-1b2c3d4e5f60",
       type: "choice",
       prompt: "Which word is a verb?",
@@ -174,6 +187,9 @@ const lesson: LessonDocument = {
   ],
 };
 
+const checks = (blocks: LessonDocument["blocks"]) =>
+  blocks.filter((block) => !["content", "media", "gate"].includes(block.type));
+
 describe("lessons written as one document", () => {
   it("keeps every question, its id and its key through the document", () => {
     const document = contentOfLesson(lesson);
@@ -181,13 +197,23 @@ describe("lessons written as one document", () => {
     expect(v.safeParse(contentDocumentSchema, document).success).toBe(true);
     const back = lessonOfContent(document);
     expect(v.safeParse(lessonDocumentSchema, back).success).toBe(true);
-    expect(back.blocks.filter((block) => block.type !== "content")).toEqual(
-      lesson.blocks.filter((block) => block.type !== "content"),
-    );
+    expect(checks(back.blocks)).toEqual(checks(lesson.blocks));
+    expect(back.blocks.map((block) => block.type).slice(0, 3)).toEqual([
+      "content",
+      "gate",
+      "choice",
+    ]);
+    expect(document.root.children?.[1]).toMatchObject({
+      type: "media",
+      mime: "audio/mpeg",
+      captionsLang: "ar",
+      transcript: "Line one.\nLine two.",
+    });
     const text = back.blocks.find((block) => block.type === "content");
     expect(
       text?.type === "content" ? contentPlainText(text.content) : "",
     ).toContain("Read the poem first.");
+    expect(contentPlainText(document)).toContain("Line two.");
   });
 
   it("gives the text between questions the same id each time", () => {

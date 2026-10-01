@@ -1148,6 +1148,12 @@
   "editorQuestionGaps": "Fill in the gaps",
   "editorQuestionGapsHint": "A passage with words to fill in",
   "editorQuestionPassage": "Write the passage, putting each answer in [brackets]",
+  "editorGate": "Continue",
+  "editorGateHint": "Students see what follows once they have answered every question above and chosen to continue.",
+  "editorTranscript": "Transcript",
+  "editorTranscriptAdd": "Add transcript",
+  "editorTranscriptHint": "What is said, for students who cannot hear it",
+  "editorTranscriptMissing": "Add a transcript or a captions file so everyone can follow along.",
   "editorQuestionItem": "Item",
   "editorQuestionPoints": [
     {

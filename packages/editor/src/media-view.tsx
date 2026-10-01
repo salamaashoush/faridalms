@@ -50,6 +50,27 @@ export function MediaPlayer({
   );
 }
 
+/** What a recording says, for readers who cannot hear it, folded away. */
+export function MediaTranscript({
+  text,
+  label,
+}: {
+  text: string | undefined;
+  label: string;
+}) {
+  if (!text) return null;
+  return (
+    <details className="group text-sm">
+      <summary className="cursor-pointer text-muted-foreground hover:text-foreground">
+        {label}
+      </summary>
+      <p dir="auto" className="mt-1.5 whitespace-pre-line text-foreground">
+        {text}
+      </p>
+    </details>
+  );
+}
+
 export function EmbedFrame({
   provider,
   embedId,

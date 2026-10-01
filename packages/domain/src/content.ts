@@ -43,6 +43,7 @@ const nodeTypes = [
   "question-side",
   "question-passage",
   "question-gap",
+  "gate",
 ] as const;
 /**
  * The questions a document can ask, each marked by the server from the
@@ -130,6 +131,8 @@ export interface ContentNode {
   bytes?: number;
   display?: FileDisplay;
   captionsFileId?: string;
+  captionsLang?: string;
+  transcript?: string;
   provider?: EmbedProvider;
   embedId?: string;
   sceneFileId?: string;
@@ -256,6 +259,10 @@ const nodeSchema: v.GenericSchema<ContentNode> = v.lazy(() =>
       bytes: v.optional(integer(0, 2147483647)),
       display: v.optional(v.picklist(fileDisplays)),
       captionsFileId: v.optional(v.pipe(v.string(), v.uuid())),
+      captionsLang: v.optional(
+        v.pipe(v.string(), v.regex(/^[a-z]{2,3}(?:-[\da-z]{2,8})*$/i)),
+      ),
+      transcript: v.optional(v.pipe(v.string(), v.maxLength(20000))),
       provider: v.optional(v.picklist(embedProviders)),
       embedId: v.optional(v.pipe(v.string(), v.maxLength(200))),
       sceneFileId: v.optional(v.pipe(v.string(), v.uuid())),
@@ -311,10 +318,13 @@ const blocks = new Set<string>([
   "embed",
   "diagram",
   "question",
+  "gate",
 ]);
-// Columns and questions stand only at the top of a document.
+// Columns, questions and gates stand only at the top of a document.
 const nestedBlocks = new Set(
-  [...blocks].filter((type) => type !== "columns" && type !== "question"),
+  [...blocks].filter(
+    (type) => type !== "columns" && type !== "question" && type !== "gate",
+  ),
 );
 function validNode(node: ContentNode): boolean {
   const children = node.children ?? [];
@@ -324,7 +334,7 @@ function validNode(node: ContentNode): boolean {
       !node.children &&
       typeof node.format === "number"
     );
-  if (["linebreak", "horizontalrule"].includes(node.type))
+  if (["linebreak", "horizontalrule", "gate"].includes(node.type))
     return !node.children && node.text === undefined;
   if (node.type === "image")
     return !node.children && node.text === undefined && Boolean(node.fileId);
@@ -526,7 +536,9 @@ const blockSeparated = new Set<string>([
 const visit = (node: ContentNode): string => {
   if (node.type === "image" || node.type === "diagram")
     return node.caption || node.alt || "";
-  if (node.type === "media" || node.type === "embed") return node.caption ?? "";
+  if (node.type === "media")
+    return [node.caption, node.transcript].filter(Boolean).join("\n");
+  if (node.type === "embed") return node.caption ?? "";
   if (node.type === "file") return node.name ?? "";
   // Accepted answers are the key; they stay out of text anyone can search.
   if (node.type === "question-answer" || node.type === "question-gap")

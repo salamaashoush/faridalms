@@ -202,6 +202,15 @@ export function lessonOfContent(document: ContentDocument): LessonDocument {
     run = [];
   };
   for (const child of document.root.children ?? []) {
+    if (child.type === "gate") {
+      flush();
+      blocks.push({
+        id: runId(`gate:${JSON.stringify(child.$ ?? blocks.length)}`),
+        type: "gate",
+        requires: "above",
+      });
+      continue;
+    }
     if (child.type !== "question") {
       run.push(child);
       continue;
@@ -401,6 +410,40 @@ export function questionNode(block: LessonBlock): ContentNode | null {
   return { ...base, wordLimit: block.wordLimit };
 }
 
+/** A media block as the image, player or file card a document shows it as. */
+function mediaNode(
+  block: Extract<LessonBlock, { type: "media" }>,
+): ContentNode {
+  const leaf = { version: 1, format: "", fileId: block.fileId } as const;
+  if (/^(audio|video)\//.test(block.mediaType))
+    return {
+      ...leaf,
+      type: "media",
+      mime: block.mediaType,
+      caption: block.caption,
+      ...(block.captionsFileId ? { captionsFileId: block.captionsFileId } : {}),
+      captionsLang: block.captionsLang,
+      ...(block.transcript ? { transcript: block.transcript } : {}),
+      size: "full",
+    };
+  if (block.mediaType.startsWith("image/"))
+    return {
+      ...leaf,
+      type: "image",
+      alt: block.caption,
+      caption: block.caption,
+      size: "full",
+    };
+  return {
+    ...leaf,
+    type: "file",
+    name: block.name,
+    mime: block.mediaType,
+    bytes: block.sizeBytes,
+    ...(block.caption ? { caption: block.caption } : {}),
+  };
+}
+
 /**
  * A lesson's blocks as one document, for moving lessons written as lists
  * into the editor. Null when the lesson holds a block documents cannot hold.
@@ -412,6 +455,14 @@ export function contentOfLesson(
   for (const block of lesson.blocks) {
     if (block.type === "content") {
       children.push(...(block.content.root.children ?? []));
+      continue;
+    }
+    if (block.type === "media") {
+      children.push(mediaNode(block));
+      continue;
+    }
+    if (block.type === "gate") {
+      children.push({ type: "gate", version: 1 });
       continue;
     }
     const node = questionNode(block);

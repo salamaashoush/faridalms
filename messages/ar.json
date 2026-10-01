@@ -1164,6 +1164,12 @@
   "editorQuestionGaps": "املأ الفراغات",
   "editorQuestionGapsHint": "فقرة فيها كلمات يكملها الطالب",
   "editorQuestionPassage": "اكتب الفقرة وضع كل إجابة بين [قوسين]",
+  "editorGate": "متابعة",
+  "editorGateHint": "يرى الطالب ما بعده بعد أن يجيب عن كل الأسئلة السابقة ويختار المتابعة.",
+  "editorTranscript": "النص المكتوب",
+  "editorTranscriptAdd": "إضافة النص المكتوب",
+  "editorTranscriptHint": "ما يُقال، للطلاب الذين لا يستطيعون السماع",
+  "editorTranscriptMissing": "أضف النص المكتوب أو ملف ترجمة حتى يتابع الجميع.",
   "editorQuestionItem": "عنصر",
   "editorQuestionPoints": [
     {
