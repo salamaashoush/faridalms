@@ -83,7 +83,7 @@ import {
 import {
   registerHostReader,
   registerHostWriter,
-  usableMedia,
+  placeMedia,
 } from "../files/authorize";
 
 const id = v.pipe(v.string(), v.uuid());
@@ -653,9 +653,13 @@ export const saveLesson = writeProcedure
       orgId: context.schoolId,
       host: { type: "lesson", id: lessonId },
       kind: "lesson",
-      content: input.content,
+      ...(await placeMedia(
+        context,
+        { type: "lesson", id: lessonId },
+        input.content,
+        lessonFileIds(input.content),
+      )),
       plainText: lessonPlainText(input.content),
-      mediaIds: await usableMedia(context, lessonFileIds(input.content)),
       userId: context.actor.userId,
     });
     await audit(context, {

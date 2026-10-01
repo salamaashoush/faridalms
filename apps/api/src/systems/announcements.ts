@@ -47,7 +47,7 @@ import {
   requireCapability,
   writeProcedure,
 } from "../core/procedure";
-import { registerHostReader, usableMedia } from "../files/authorize";
+import { registerHostReader, placeMedia } from "../files/authorize";
 
 const id = v.pipe(v.string(), v.uuid());
 
@@ -232,9 +232,13 @@ export const save = writeProcedure
       tenantId: context.tenantId,
       orgId: context.schoolId,
       host: { type: "announcement", id: announcementId },
-      content: input.body,
+      ...(await placeMedia(
+        context,
+        { type: "announcement", id: announcementId },
+        input.body,
+        contentFileIds(input.body),
+      )),
       plainText: contentPlainText(input.body),
-      mediaIds: await usableMedia(context, contentFileIds(input.body)),
       userId: context.actor.userId,
     });
     await audit(context, {

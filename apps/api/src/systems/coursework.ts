@@ -134,7 +134,7 @@ import {
 import {
   registerHostReader,
   registerHostWriter,
-  usableMedia,
+  placeMedia,
 } from "../files/authorize";
 
 const id = v.pipe(v.string(), v.uuid());
@@ -509,9 +509,13 @@ export const save = writeProcedure
       tenantId: context.tenantId,
       orgId: context.schoolId,
       host,
-      content: input.brief,
+      ...(await placeMedia(
+        context,
+        host,
+        input.brief,
+        contentFileIds(input.brief),
+      )),
       plainText: contentPlainText(input.brief),
-      mediaIds: await usableMedia(context, contentFileIds(input.brief)),
       userId: context.actor.userId,
     });
     if (published)
@@ -1238,9 +1242,13 @@ export const saveDraft = writeProcedure
         tenantId: context.tenantId,
         orgId: context.schoolId,
         host,
-        content: input.content,
+        ...(await placeMedia(
+          context,
+          host,
+          input.content,
+          contentFileIds(input.content),
+        )),
         plainText: contentPlainText(input.content),
-        mediaIds: await usableMedia(context, contentFileIds(input.content)),
         userId: context.actor.userId,
       });
     const linked = await linkFiles(tx, {

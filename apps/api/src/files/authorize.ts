@@ -1,7 +1,10 @@
 import type { StoredFile } from "@faridalms/database/stores/files";
 
-import { hostsEmbedding } from "@faridalms/database/stores/documents";
-import { filesByIds } from "@faridalms/database/stores/files";
+import {
+  adoptFiles,
+  copyIntoHost,
+  filesByIds,
+} from "@faridalms/database/stores/files";
 import { ORPCError } from "@orpc/server";
 
 import type { UnitContext } from "../core/context";
@@ -23,47 +26,68 @@ export function registerHostReader(hostType: string, reader: HostReader) {
 }
 
 /**
- * A file belongs to its host, or, when it is media in a document, to every
- * record whose document shows it: whoever may read one of those may open it.
+ * A file belongs to one record, its host: whoever may read that record may
+ * open it. A file put in another record's document is copied into that
+ * record (placeMedia), so a document never opens up files it only shows.
  */
 export async function canReadFile(
   context: UnitContext,
   file: StoredFile,
 ): Promise<boolean> {
   if (file.uploadedByUserId === context.actor.userId) return true;
-  if (file.hostType && file.hostId) {
-    const reader = readers.get(file.hostType);
-    if (reader && (await reader(context, file.hostId))) return true;
-  }
-  if (file.purpose !== "document_media" && file.purpose !== "attachment")
-    return false;
-  const hosts = await hostsEmbedding(context.tx, context.tenantId, file.id);
-  const allowed = await Promise.all(
-    hosts.map(async (host) => {
-      const reader = readers.get(host.type);
-      return reader ? reader(context, host.id) : false;
-    }),
-  );
-  return allowed.includes(true);
+  if (!file.hostType || !file.hostId) return false;
+  const reader = readers.get(file.hostType);
+  return reader ? reader(context, file.hostId) : false;
 }
 
 /**
- * The media a document may keep: files the author may open themselves. One
- * they could not open (another class's picture, an id typed in by hand) is
- * refused rather than silently shared with the document's readers.
+ * Puts the files a document shows in the keeping of the record it belongs
+ * to: the author's new uploads join that record, and a file from elsewhere
+ * that the author may open is copied into it, the stored content pointing at
+ * the copy. One the author could not open is refused rather than shared.
  */
-export async function usableMedia(
+export async function placeMedia<T>(
   context: UnitContext,
+  host: { type: string; id: string },
+  content: T,
   fileIds: readonly string[],
-): Promise<string[]> {
+): Promise<{ content: T; mediaIds: string[] }> {
   const unique = [...new Set(fileIds)];
   const files = await filesByIds(context.tx, context.tenantId, unique);
-  const readable = await Promise.all(
-    files.map((file) => canReadFile(context, file)),
+  const own = (file: StoredFile) =>
+    file.hostType === null && file.uploadedByUserId === context.actor.userId;
+  const foreign = files.filter(
+    (file) =>
+      !own(file) && !(file.hostType === host.type && file.hostId === host.id),
   );
-  if (readable.includes(false))
-    throw new ORPCError("FORBIDDEN", { message: "file.not_attachable" });
-  return unique;
+  const copies = await Promise.all(
+    foreign.map(async (file) => {
+      const copy = (await canReadFile(context, file))
+        ? await copyIntoHost(context.tx, {
+            tenantId: context.tenantId,
+            userId: context.actor.userId,
+            host,
+            sourceId: file.id,
+          })
+        : null;
+      if (!copy)
+        throw new ORPCError("FORBIDDEN", { message: "file.not_attachable" });
+      return [file.id, copy] as const;
+    }),
+  );
+  await adoptFiles(context.tx, {
+    tenantId: context.tenantId,
+    userId: context.actor.userId,
+    host,
+    ids: files.filter(own).map((file) => file.id),
+  });
+  const replaced = new Map(copies);
+  let text = JSON.stringify(content);
+  for (const [from, to] of replaced) text = text.replaceAll(from, to);
+  return {
+    content: replaced.size ? (JSON.parse(text) as T) : content,
+    mediaIds: unique.map((id) => replaced.get(id) ?? id),
+  };
 }
 
 /**

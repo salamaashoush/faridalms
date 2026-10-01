@@ -35,7 +35,7 @@ import * as v from "valibot";
 
 import type { UnitContext } from "./context";
 
-import { usableMedia } from "../files/authorize";
+import { placeMedia } from "../files/authorize";
 
 /** A quiz's questions live in a lesson document hosted beside the assignment's brief. */
 export const quizHost = (assignmentId: string) => ({
@@ -111,9 +111,13 @@ export async function saveQuiz(
     orgId: context.schoolId,
     host: quizHost(input.assignmentId),
     kind: "lesson",
-    content: input.quiz.content,
+    ...(await placeMedia(
+      context,
+      quizHost(input.assignmentId),
+      input.quiz.content,
+      lessonFileIds(input.quiz.content),
+    )),
     plainText: lessonPlainText(input.quiz.content),
-    mediaIds: await usableMedia(context, lessonFileIds(input.quiz.content)),
     userId: context.actor.userId,
   });
   if (input.published)

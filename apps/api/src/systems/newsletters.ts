@@ -55,7 +55,7 @@ import {
   requireCapability,
   writeProcedure,
 } from "../core/procedure";
-import { registerHostReader, usableMedia } from "../files/authorize";
+import { registerHostReader, placeMedia } from "../files/authorize";
 
 const id = v.pipe(v.string(), v.uuid());
 
@@ -296,20 +296,21 @@ export const save = writeProcedure
       owner: { kind: "newsletter", id: newsletterId },
       audiences: input.audiences.map(audienceOf),
     });
+    const body = await placeMedia(
+      context,
+      host(newsletterId),
+      input.body,
+      contentFileIds(input.body),
+    );
     const original = await saveDocument(context.tx, {
       tenantId: context.tenantId,
       orgId: context.schoolId,
       host: host(newsletterId),
       kind: "newsletter",
       locale: input.primaryLocale,
-      content: input.body,
+      content: body.content,
       plainText: contentPlainText(input.body),
-      mediaIds: [
-        ...new Set([
-          ...(await usableMedia(context, contentFileIds(input.body))),
-          ...keepFiles,
-        ]),
-      ],
+      mediaIds: [...new Set([...body.mediaIds, ...keepFiles])],
       userId: context.actor.userId,
     });
     if (input.bilingual && input.translation) {
@@ -320,9 +321,13 @@ export const save = writeProcedure
         originalId: original.id,
         locale: input.primaryLocale === "en" ? "ar" : "en",
         kind: "newsletter",
-        content: input.translation,
+        ...(await placeMedia(
+          context,
+          host(newsletterId),
+          input.translation,
+          contentFileIds(input.translation),
+        )),
         plainText: contentPlainText(input.translation),
-        mediaIds: await usableMedia(context, contentFileIds(input.translation)),
         userId: context.actor.userId,
       });
     } else if (!input.bilingual) {

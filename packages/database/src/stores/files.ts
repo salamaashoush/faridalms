@@ -281,3 +281,68 @@ export async function rehostFiles(
     where tenant_id = ${input.tenantId}::uuid and host_type = ${input.from.type}
       and host_id = ${input.from.id}::uuid and status = 'active'`);
 }
+
+/**
+ * Gives the author's own new uploads, not yet part of anything, to the
+ * record whose document they were put in. Returns the ids adopted.
+ */
+export async function adoptFiles(
+  tx: Tx,
+  input: {
+    tenantId: string;
+    userId: string;
+    host: { type: string; id: string };
+    ids: readonly string[];
+  },
+): Promise<string[]> {
+  if (input.ids.length === 0) return [];
+  const rows = await tx.execute<{ id: string }>(sql`
+    update core.files
+    set host_type = ${input.host.type}, host_id = ${input.host.id}::uuid,
+      linked_at = coalesce(linked_at, statement_timestamp())
+    where tenant_id = ${input.tenantId}::uuid and id = any(${uuidArray(input.ids)})
+      and host_type is null and uploaded_by_user_id = ${input.userId}::uuid
+      and purpose in ('document_media', 'site_media') and state = 'ready' and status = 'active'
+    returning id`);
+  return rows.map((row) => row.id);
+}
+
+/**
+ * The copy a record keeps of a file from somewhere else, made the first time
+ * it is put in that record's document and reused after. The copy points at
+ * the same verified object, so its facts are the source's; removing either
+ * leaves the other, and the object goes only when no row points at it.
+ */
+export async function copyIntoHost(
+  tx: Tx,
+  input: {
+    tenantId: string;
+    userId: string;
+    host: { type: string; id: string };
+    sourceId: string;
+  },
+): Promise<string | null> {
+  const [existing] = await tx.execute<{ id: string }>(sql`
+    select id from core.files
+    where tenant_id = ${input.tenantId}::uuid and host_type = ${input.host.type}
+      and host_id = ${input.host.id}::uuid and status = 'active'
+      and metadata->>'copiedFrom' = ${input.sourceId}
+    limit 1`);
+  if (existing) return existing.id;
+  const [created] = await tx.execute<{ id: string }>(sql`
+    insert into core.files (tenant_id, uploaded_by_user_id, purpose, name, media_type,
+      size_bytes, sha256, state, storage_key, encryption, key_version, scanned_at,
+      scan_engine, ready_at, linked_at, width, height, duration_ms, derivatives,
+      host_type, host_id, metadata)
+    select tenant_id, ${input.userId}::uuid, 'document_media', name, media_type,
+      size_bytes, sha256, state, storage_key, encryption, key_version, scanned_at,
+      scan_engine, ready_at, statement_timestamp(), width, height, duration_ms, derivatives,
+      ${input.host.type}, ${input.host.id}::uuid,
+      jsonb_build_object('copiedFrom', id::text)
+    from core.files
+    where tenant_id = ${input.tenantId}::uuid and id = ${input.sourceId}::uuid
+      and status = 'active' and state = 'ready'
+      and purpose in ('document_media', 'attachment', 'submission')
+    returning id`);
+  return created?.id ?? null;
+}

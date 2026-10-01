@@ -113,7 +113,7 @@ import {
 } from "../core/procedure";
 import { attemptKey, ipPrefix } from "../core/session";
 import { publishMedia, withPublicSite, withdrawMedia } from "../core/site";
-import { registerHostReader, usableMedia } from "../files/authorize";
+import { registerHostReader, placeMedia } from "../files/authorize";
 
 const id = v.pipe(v.string(), v.uuid());
 
@@ -539,9 +539,13 @@ export const savePage = writeProcedure
       host,
       kind: "page",
       locale: settings.primaryLocale,
-      content: input.content,
+      ...(await placeMedia(
+        context,
+        host,
+        input.content,
+        pageFileIds(input.content),
+      )),
       plainText: pagePlainText(input.content),
-      mediaIds: await usableMedia(context, pageFileIds(input.content)),
       userId: context.actor.userId,
     });
     if (settings.bilingual && input.translation) {
@@ -553,9 +557,8 @@ export const savePage = writeProcedure
         originalId: original.id,
         locale: otherLocale(settings.primaryLocale),
         kind: "page",
-        content: aligned,
+        ...(await placeMedia(context, host, aligned, pageFileIds(aligned))),
         plainText: pagePlainText(aligned),
-        mediaIds: pageFileIds(aligned),
         userId: context.actor.userId,
       });
     } else
@@ -969,12 +972,13 @@ export const savePost = writeProcedure
       host,
       kind: "rich_text",
       locale: settings.primaryLocale,
-      content: input.content,
-      plainText: contentPlainText(input.content.body),
-      mediaIds: await usableMedia(
+      ...(await placeMedia(
         context,
+        host,
+        input.content,
         postMedia(input.content, fields.coverFileId),
-      ),
+      )),
+      plainText: contentPlainText(input.content.body),
       userId: context.actor.userId,
     });
     if (settings.bilingual && input.translation)
@@ -985,12 +989,13 @@ export const savePost = writeProcedure
         originalId: original.id,
         locale: otherLocale(settings.primaryLocale),
         kind: "rich_text",
-        content: input.translation,
-        plainText: contentPlainText(input.translation.body),
-        mediaIds: await usableMedia(
+        ...(await placeMedia(
           context,
+          host,
+          input.translation,
           postMedia(input.translation, null),
-        ),
+        )),
+        plainText: contentPlainText(input.translation.body),
         userId: context.actor.userId,
       });
     else

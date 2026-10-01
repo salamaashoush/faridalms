@@ -322,4 +322,55 @@ describe("files in documents", () => {
       ),
     ).toMatchObject({ message: "file.not_attachable" });
   });
+
+  test("a file put in another record's document is copied there, and the first record keeps its own", async () => {
+    const teacher = await sessionFor("northwind", login("teacher", 0, 1));
+    const file = await teacher.api.files.initiate({
+      purpose: "document_media",
+      name: "worksheet.txt",
+      mediaType: "text/plain",
+      sizeBytes: 9,
+    });
+    await raw("northwind", teacher.token, `/v1/files/${file.id}/content`, {
+      method: "PUT",
+      body: text("worksheet"),
+    });
+    const { classes } = await teacher.api.coursework.options();
+    const target = classes.find((row) => row.classType === "scheduled");
+    if (!target) throw new Error("the teacher has no scheduled class");
+    const brief = (title: string) => ({
+      classId: target.id,
+      title,
+      brief: withFile(file.id, `${title}.`),
+      audience: "class" as const,
+      latePolicy: "accept" as const,
+      submissionFormat: "both" as const,
+      points: 10,
+      rubric: null,
+    });
+    const first = await teacher.api.coursework.save(brief("First use"));
+    const second = await teacher.api.coursework.save(brief("Second use"));
+    const fileIn = async (id: string) => {
+      const opened = await teacher.api.coursework.editor({ id });
+      return opened.brief?.root.children?.find((node) => node.type === "file")
+        ?.fileId;
+    };
+    expect(await fileIn(first.id)).toBe(file.id);
+    const copied = await fileIn(second.id);
+    expect(copied).toBeDefined();
+    expect(copied).not.toBe(file.id);
+    const again = await teacher.api.coursework.save({
+      ...brief("Second use"),
+      id: second.id,
+      expectedVersion: second.version,
+    });
+    expect(again.id).toBe(second.id);
+    expect(await fileIn(second.id)).toBe(copied);
+    const read = await raw(
+      "northwind",
+      teacher.token,
+      `/v1/files/${copied ?? ""}/content`,
+    );
+    expect(await read.text()).toBe("worksheet");
+  });
 });

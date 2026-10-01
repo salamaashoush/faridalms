@@ -101,21 +101,6 @@ async function syncMedia(
       and linked_at is null and state = 'ready' and purpose in ('document_media', 'attachment')`);
 }
 
-/** The records whose documents embed a file, through any document still in use. */
-export async function hostsEmbedding(
-  tx: Tx,
-  tenantId: string,
-  fileId: string,
-): Promise<{ type: string; id: string }[]> {
-  const rows = await tx.execute<{ host_type: string; host_id: string }>(sql`
-    select distinct d.host_type, d.host_id from core.document_files l
-    join core.documents d on d.tenant_id = l.tenant_id and d.id = l.document_id
-      and d.status = 'active'
-    where l.tenant_id = ${tenantId}::uuid and l.file_id = ${fileId}::uuid
-      and l.status = 'active'`);
-  return rows.map((row) => ({ type: row.host_type, id: row.host_id }));
-}
-
 /** Writes a host's document, creating it the first time. */
 export async function saveDocument(
   tx: Tx,
