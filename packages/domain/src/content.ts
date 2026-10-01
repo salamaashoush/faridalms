@@ -34,7 +34,17 @@ const nodeTypes = [
   "media",
   "embed",
   "diagram",
+  "question",
+  "question-prompt",
+  "question-option",
+  "question-answer",
 ] as const;
+/**
+ * The questions a document can ask, each marked by the server from the
+ * question's own nodes. More kinds join as their blocks are built.
+ */
+export const questionKinds = ["choice", "text", "written"] as const;
+export type QuestionKind = (typeof questionKinds)[number];
 export const calloutTones = [
   "neutral",
   "info",
@@ -109,6 +119,21 @@ export interface ContentNode {
   provider?: EmbedProvider;
   embedId?: string;
   sceneFileId?: string;
+  kind?: QuestionKind;
+  questionId?: string;
+  optionId?: string;
+  correct?: boolean;
+  feedback?: string;
+  points?: number;
+  tries?: number | null;
+  multiple?: boolean;
+  shuffle?: boolean;
+  caseSensitive?: boolean;
+  closeEnough?: boolean;
+  tehMarbuta?: boolean;
+  wordLimit?: number | null;
+  hint?: string;
+  explanation?: string;
   $?: { id?: string };
 }
 export interface ContentDocument {
@@ -213,6 +238,21 @@ const nodeSchema: v.GenericSchema<ContentNode> = v.lazy(() =>
       provider: v.optional(v.picklist(embedProviders)),
       embedId: v.optional(v.pipe(v.string(), v.maxLength(200))),
       sceneFileId: v.optional(v.pipe(v.string(), v.uuid())),
+      kind: v.optional(v.picklist(questionKinds)),
+      questionId: v.optional(v.pipe(v.string(), v.uuid())),
+      optionId: v.optional(v.pipe(v.string(), v.uuid())),
+      correct: v.optional(v.boolean()),
+      feedback: v.optional(v.pipe(v.string(), v.maxLength(300))),
+      points: v.optional(integer(0, 100)),
+      tries: v.optional(v.nullable(integer(1, 10))),
+      multiple: v.optional(v.boolean()),
+      shuffle: v.optional(v.boolean()),
+      caseSensitive: v.optional(v.boolean()),
+      closeEnough: v.optional(v.boolean()),
+      tehMarbuta: v.optional(v.boolean()),
+      wordLimit: v.optional(v.nullable(integer(10, 5000))),
+      hint: v.optional(v.pipe(v.string(), v.maxLength(500))),
+      explanation: v.optional(v.pipe(v.string(), v.maxLength(1000))),
       $: v.optional(
         v.object({
           id: v.optional(v.pipe(v.string(), v.regex(/^[\da-z]{8,36}$/))),
@@ -242,8 +282,12 @@ const blocks = new Set<string>([
   "media",
   "embed",
   "diagram",
+  "question",
 ]);
-const nestedBlocks = new Set([...blocks].filter((type) => type !== "columns"));
+// Columns and questions stand only at the top of a document.
+const nestedBlocks = new Set(
+  [...blocks].filter((type) => type !== "columns" && type !== "question"),
+);
 function validNode(node: ContentNode): boolean {
   const children = node.children ?? [];
   if (["text", "code-highlight", "tab"].includes(node.type))
@@ -293,6 +337,23 @@ function validNode(node: ContentNode): boolean {
     return false;
 
   switch (node.type) {
+    case "question":
+      // How complete a question is gets checked when its document is
+      // published; a half-written one still saves.
+      return (
+        Boolean(node.kind && node.questionId) &&
+        children[0]?.type === "question-prompt" &&
+        children
+          .slice(1)
+          .every((child) =>
+            ["question-option", "question-answer"].includes(child.type),
+          )
+      );
+    case "question-prompt":
+    case "question-answer":
+      return children.every(inline);
+    case "question-option":
+      return Boolean(node.optionId) && children.every(inline);
     case "root":
       return children.every((child) => blocks.has(child.type));
     case "quote":
@@ -394,6 +455,7 @@ export const contentDocumentSchema = v.pipe(
 );
 const blockSeparated = new Set<string>([
   "root",
+  "question",
   "list",
   "table",
   "tablerow",
@@ -408,6 +470,8 @@ const visit = (node: ContentNode): string => {
     return node.caption || node.alt || "";
   if (node.type === "media" || node.type === "embed") return node.caption ?? "";
   if (node.type === "file") return node.name ?? "";
+  // Accepted answers are the key; they stay out of text anyone can search.
+  if (node.type === "question-answer") return "";
   return (
     node.text ??
     (node.type === "linebreak"
