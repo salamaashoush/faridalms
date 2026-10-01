@@ -348,6 +348,10 @@ export function getMessageFromError(error: unknown): string {
         return m.privacyClockBeforeReceipt();
       case "privacy.due_needed":
         return m.privacyDueNeeded();
+      case "privacy.breach_closed":
+        return m.privacyErrBreachClosed();
+      case "privacy.breach_notices_open":
+        return m.privacyErrBreachNoticesOpen();
       case "file.quota_school":
         return m.fileQuotaSchool();
       case "file.quota_class":

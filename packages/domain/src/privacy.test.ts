@@ -5,6 +5,10 @@ import {
   addMonths,
   addYears,
   extendedDueOn,
+  peopleDueOn,
+  peopleMustBeTold,
+  regulatorDueAt,
+  regulatorMustBeTold,
   requestDueOn,
   reviewDueOn,
   saveRetentionSchema,
@@ -122,5 +126,24 @@ describe("requestDueOn", () => {
 
   it("extends a UK request by two months", () => {
     expect(extendedDueOn("2026-04-12", dayOf)).toBe("2026-06-14");
+  });
+});
+
+describe("breach notices", () => {
+  it("tells Egypt's regulator of every breach, the UK's unless harmless", () => {
+    expect(regulatorMustBeTold("egypt", "unlikely")).toBe(true);
+    expect(regulatorMustBeTold("uk_gdpr", "unlikely")).toBe(false);
+    expect(regulatorMustBeTold("uk_gdpr", "risk")).toBe(true);
+    expect(peopleMustBeTold("uk_gdpr", "risk")).toBe(false);
+    expect(peopleMustBeTold("uk_gdpr", "high")).toBe(true);
+    expect(peopleMustBeTold("other", "high")).toBe(false);
+  });
+
+  it("gives the regulator 72 hours and Egypt's people 3 working days", () => {
+    expect(regulatorDueAt("2026-10-01T09:30:00.000Z")).toBe(
+      "2026-10-04T09:30:00.000Z",
+    );
+    expect(peopleDueOn("egypt", "2025-12-30", dayOf)).toBe("2026-01-05");
+    expect(peopleDueOn("uk_gdpr", "2025-12-30", dayOf)).toBeNull();
   });
 });

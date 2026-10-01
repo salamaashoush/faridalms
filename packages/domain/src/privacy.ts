@@ -232,3 +232,101 @@ export const closeRequestSchema = v.object({
   outcome: v.picklist(REQUEST_OUTCOMES),
   note: note(1000),
 });
+
+/** The law a breach is reported under, which sets who must be told. */
+export const BREACH_LAWS = ["uk_gdpr", "egypt", "other"] as const;
+export type BreachLaw = (typeof BREACH_LAWS)[number];
+
+/** How likely the breach is to harm the people it touches (UK GDPR Art. 33-34). */
+export const BREACH_RISKS = ["unlikely", "risk", "high"] as const;
+export type BreachRisk = (typeof BREACH_RISKS)[number];
+
+const HOURS_TO_REGULATOR = 72;
+
+/**
+ * Whether the regulator must be told: in Egypt of every breach (Law 151/2020
+ * Art. 7), under UK GDPR unless it is unlikely to risk anyone (Art. 33(1)).
+ */
+export function regulatorMustBeTold(law: BreachLaw, risk: BreachRisk): boolean {
+  if (law === "egypt") return true;
+  if (law === "uk_gdpr") return risk !== "unlikely";
+  return false;
+}
+
+/**
+ * Whether the people affected must be told: in Egypt always, under UK GDPR
+ * when the risk to them is high (Art. 34(1)).
+ */
+export function peopleMustBeTold(law: BreachLaw, risk: BreachRisk): boolean {
+  if (law === "egypt") return true;
+  if (law === "uk_gdpr") return risk === "high";
+  return false;
+}
+
+/** 72 hours from when the school became aware of the breach. */
+export function regulatorDueAt(discoveredAt: string): string {
+  return new Date(
+    Date.parse(discoveredAt) + HOURS_TO_REGULATOR * 3_600_000,
+  ).toISOString();
+}
+
+/**
+ * The day the people affected must be told by: in Egypt 3 working days from
+ * the day the school became aware; elsewhere the law says "without undue
+ * delay", so there is no day to count to.
+ */
+export function peopleDueOn(
+  law: BreachLaw,
+  discoveredOn: string,
+  dayOf: (day: string) => DayKind,
+): string | null {
+  if (law !== "egypt") return null;
+  let day = discoveredOn;
+  for (let left = 3; left > 0;) {
+    day = plusDays(day, 1);
+    if (dayOf(day).working) left -= 1;
+  }
+  return day;
+}
+
+const instantString = v.pipe(v.string(), v.isoTimestamp());
+const optionalNote = (max: number) =>
+  v.nullable(v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(max)));
+
+export const saveBreachSchema = v.object({
+  id: v.optional(v.pipe(v.string(), v.uuid())),
+  title: note(120),
+  description: note(4000),
+  discoveredAt: instantString,
+  law: v.picklist(BREACH_LAWS),
+  risk: v.picklist(BREACH_RISKS),
+  peopleAffected: v.nullable(
+    v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(10_000_000)),
+  ),
+});
+
+/** What was done about telling the regulator and the people affected. */
+export const breachNoticesSchema = v.pipe(
+  v.object({
+    id: v.pipe(v.string(), v.uuid()),
+    regulatorNotifiedAt: v.nullable(instantString),
+    regulatorReference: optionalNote(120),
+    regulatorReason: optionalNote(1000),
+    peopleNotifiedAt: v.nullable(instantString),
+    peopleReason: optionalNote(1000),
+  }),
+  v.check(
+    (input) =>
+      input.regulatorNotifiedAt === null || input.regulatorReason === null,
+    "privacy.breach_regulator_both",
+  ),
+  v.check(
+    (input) => input.peopleNotifiedAt === null || input.peopleReason === null,
+    "privacy.breach_people_both",
+  ),
+);
+
+export const closeBreachSchema = v.object({
+  id: v.pipe(v.string(), v.uuid()),
+  actions: note(4000),
+});

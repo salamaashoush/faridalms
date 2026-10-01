@@ -28,6 +28,7 @@ import {
   gradeScales,
   gradeScaleVersions,
   programmeCategories,
+  breaches,
   recordsRequests,
   retentionSettings,
   programmeGradeLevels,
@@ -518,6 +519,16 @@ export async function completeFixture(
     studentRule: "until_age",
     studentValue: 25,
     staffYears: 6,
+  });
+  await tx.insert(breaches).values({
+    tenantId,
+    orgId: schoolId,
+    title: "Report sent to the wrong family",
+    description: "A term report reached another family.",
+    discoveredAt: new Date("2026-09-10T08:00:00Z"),
+    law: "egypt",
+    risk: "risk",
+    loggedByUserId: userId,
   });
   await tx.insert(recordsRequests).values({
     tenantId,

@@ -1,4 +1,6 @@
 import type {
+  BreachLaw,
+  BreachRisk,
   RequestKind,
   RequestLaw,
   RequestOutcome,
@@ -6,12 +8,16 @@ import type {
   RetentionRules,
 } from "@faridalms/domain/privacy";
 
-import { and, eq, isNull, sql } from "drizzle-orm";
+import { and, desc, eq, isNull, sql } from "drizzle-orm";
 
 import type { CellTransaction } from "../context";
 
 import { legalHolds } from "../tables/documents";
-import { recordsRequests, retentionSettings } from "../tables/privacy";
+import {
+  breaches,
+  recordsRequests,
+  retentionSettings,
+} from "../tables/privacy";
 import { textArray, uuidArray } from "./sql";
 import { STAFF_ROLES } from "./staff";
 
@@ -504,5 +510,182 @@ export async function closeRequest(
       ),
     )
     .returning({ id: recordsRequests.id });
+  return rows.length > 0;
+}
+
+export interface BreachRow {
+  id: string;
+  title: string;
+  description: string;
+  discoveredAt: string;
+  law: BreachLaw;
+  risk: BreachRisk;
+  peopleAffected: number | null;
+  regulatorNotifiedAt: string | null;
+  regulatorReference: string | null;
+  regulatorReason: string | null;
+  peopleNotifiedAt: string | null;
+  peopleReason: string | null;
+  actions: string | null;
+  closedAt: string | null;
+}
+
+const breachColumns = {
+  id: breaches.id,
+  title: breaches.title,
+  description: breaches.description,
+  discoveredAt: breaches.discoveredAt,
+  law: breaches.law,
+  risk: breaches.risk,
+  peopleAffected: breaches.peopleAffected,
+  regulatorNotifiedAt: breaches.regulatorNotifiedAt,
+  regulatorReference: breaches.regulatorReference,
+  regulatorReason: breaches.regulatorReason,
+  peopleNotifiedAt: breaches.peopleNotifiedAt,
+  peopleReason: breaches.peopleReason,
+  actions: breaches.actions,
+  closedAt: breaches.closedAt,
+};
+
+type BreachSelected = Pick<
+  typeof breaches.$inferSelect,
+  keyof typeof breachColumns
+>;
+
+function breachOf(row: BreachSelected): BreachRow {
+  return {
+    ...row,
+    discoveredAt: row.discoveredAt.toISOString(),
+    regulatorNotifiedAt: row.regulatorNotifiedAt?.toISOString() ?? null,
+    peopleNotifiedAt: row.peopleNotifiedAt?.toISOString() ?? null,
+    closedAt: row.closedAt?.toISOString() ?? null,
+  };
+}
+
+/** The school's breaches, open ones first, newest first within each. */
+export async function breachesOf(
+  tx: Tx,
+  scope: OrgScope,
+): Promise<BreachRow[]> {
+  const rows = await tx
+    .select(breachColumns)
+    .from(breaches)
+    .where(
+      and(
+        eq(breaches.tenantId, scope.tenantId),
+        eq(breaches.orgId, scope.orgId),
+        eq(breaches.status, "active"),
+      ),
+    )
+    .orderBy(
+      sql`${breaches.closedAt} is not null`,
+      desc(breaches.discoveredAt),
+    );
+  return rows.map(breachOf);
+}
+
+export interface BreachFields {
+  title: string;
+  description: string;
+  discoveredAt: string;
+  law: BreachLaw;
+  risk: BreachRisk;
+  peopleAffected: number | null;
+}
+
+export async function insertBreach(
+  tx: Tx,
+  input: OrgScope & BreachFields & { loggedByUserId: string },
+): Promise<string> {
+  const [row] = await tx
+    .insert(breaches)
+    .values({ ...input, discoveredAt: new Date(input.discoveredAt) })
+    .returning({ id: breaches.id });
+  if (!row) throw new Error("breach not inserted");
+  return row.id;
+}
+
+const openBreach = (scope: OrgScope & { id: string }) =>
+  and(
+    eq(breaches.tenantId, scope.tenantId),
+    eq(breaches.orgId, scope.orgId),
+    eq(breaches.id, scope.id),
+    eq(breaches.status, "active"),
+    isNull(breaches.closedAt),
+  );
+
+/** Changes an open breach's facts; false when it is closed or not the school's. */
+export async function updateBreach(
+  tx: Tx,
+  input: OrgScope & BreachFields & { id: string },
+): Promise<boolean> {
+  const { tenantId, orgId, id, ...fields } = input;
+  const rows = await tx
+    .update(breaches)
+    .set({ ...fields, discoveredAt: new Date(fields.discoveredAt) })
+    .where(openBreach({ tenantId, orgId, id }))
+    .returning({ id: breaches.id });
+  return rows.length > 0;
+}
+
+export async function setBreachNotices(
+  tx: Tx,
+  input: OrgScope & {
+    id: string;
+    regulatorNotifiedAt: string | null;
+    regulatorReference: string | null;
+    regulatorReason: string | null;
+    peopleNotifiedAt: string | null;
+    peopleReason: string | null;
+  },
+): Promise<boolean> {
+  const { tenantId, orgId, id, ...notices } = input;
+  const rows = await tx
+    .update(breaches)
+    .set({
+      ...notices,
+      regulatorNotifiedAt: notices.regulatorNotifiedAt
+        ? new Date(notices.regulatorNotifiedAt)
+        : null,
+      peopleNotifiedAt: notices.peopleNotifiedAt
+        ? new Date(notices.peopleNotifiedAt)
+        : null,
+    })
+    .where(openBreach({ tenantId, orgId, id }))
+    .returning({ id: breaches.id });
+  return rows.length > 0;
+}
+
+export async function breachById(
+  tx: Tx,
+  scope: OrgScope & { id: string },
+): Promise<BreachRow | null> {
+  const [row] = await tx
+    .select(breachColumns)
+    .from(breaches)
+    .where(
+      and(
+        eq(breaches.tenantId, scope.tenantId),
+        eq(breaches.orgId, scope.orgId),
+        eq(breaches.id, scope.id),
+        eq(breaches.status, "active"),
+      ),
+    );
+  return row ? breachOf(row) : null;
+}
+
+export async function closeBreach(
+  tx: Tx,
+  input: OrgScope & { id: string; actions: string; closedByUserId: string },
+): Promise<boolean> {
+  const rows = await tx
+    .update(breaches)
+    .set({
+      actions: input.actions,
+      closedAt: sql`statement_timestamp()`,
+      closedByUserId: input.closedByUserId,
+    })
+    .where(openBreach(input))
+    .returning({ id: breaches.id });
   return rows.length > 0;
 }

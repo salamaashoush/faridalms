@@ -1,13 +1,18 @@
+import type { BreachRow } from "@faridalms/database/stores/privacy";
 import type { DayKind } from "@faridalms/domain/privacy";
 
 import { schoolProfile } from "@faridalms/database/stores/identity";
 import {
+  breachById,
+  breachesOf,
+  closeBreach as closeBreachOf,
   closeRequest as closeRequestOf,
   dayMeanings,
   examWorkOf,
   extendRequest as extendRequestOf,
   hadAtSchool,
   holdsOf,
+  insertBreach,
   leaversOf,
   placeHold as placeHoldOf,
   insertRequest,
@@ -17,18 +22,27 @@ import {
   retentionOf,
   saveRetention as saveRetentionOf,
   sessionWorkOf,
+  setBreachNotices,
+  updateBreach,
   updateRequest,
 } from "@faridalms/database/stores/privacy";
 import { SCHOOL_DAY_MEANINGS } from "@faridalms/domain/calendar";
 import {
+  breachNoticesSchema,
+  closeBreachSchema,
   closeRequestSchema,
   extendedDueOn,
   extendRequestSchema,
   hasClock,
+  peopleDueOn,
+  peopleMustBeTold,
   placeHoldSchema,
+  regulatorDueAt,
+  regulatorMustBeTold,
   releaseHoldSchema,
   requestDueOn,
   reviewDueOn,
+  saveBreachSchema,
   saveRequestSchema,
   saveRetentionSchema,
 } from "@faridalms/domain/privacy";
@@ -54,6 +68,31 @@ export type Block =
   | { kind: "hold"; reason: string }
   | { kind: "request"; dueOn: string }
   | { kind: "exam"; until: string };
+
+/** Each breach with who must be told and by when. */
+async function breachClocks(context: UnitContext, rows: BreachRow[]) {
+  const profile = await schoolProfile(context.tx, context.schoolId);
+  const dayIn = new Intl.DateTimeFormat("en-CA", {
+    timeZone: profile?.timeZone ?? "UTC",
+  });
+  const discoveredOn = (row: BreachRow) =>
+    dayIn.format(new Date(row.discoveredAt));
+  const first = rows
+    .filter((row) => !row.closedAt)
+    .map(discoveredOn)
+    .toSorted()[0];
+  const dayOf = first ? await dayKinds(context, first) : null;
+  return rows.map((row) => ({
+    ...row,
+    regulatorRequired: regulatorMustBeTold(row.law, row.risk),
+    regulatorDueAt: regulatorDueAt(row.discoveredAt),
+    peopleRequired: peopleMustBeTold(row.law, row.risk),
+    peopleDueOn:
+      dayOf && !row.closedAt
+        ? peopleDueOn(row.law, discoveredOn(row), dayOf)
+        : null,
+  }));
+}
 
 /** The longest a request's clock runs: a month, then two more, then a weekend. */
 const CLOCK_SPAN_DAYS = 200;
@@ -105,7 +144,7 @@ async function dayKinds(
 export const overview = readProcedure.handler(async ({ context }) => {
   requireCapability(context, "privacy:manage");
   const scope = scopeOf(context);
-  const [rules, leavers, holds, requests, sessions, sessionWork] =
+  const [rules, leavers, holds, requests, sessions, sessionWork, breaches] =
     await Promise.all([
       retentionOf(context.tx, scope),
       leaversOf(context.tx, { ...scope, today: context.today }),
@@ -113,6 +152,7 @@ export const overview = readProcedure.handler(async ({ context }) => {
       requestsOf(context.tx, scope),
       sessionViews(context),
       sessionWorkOf(context.tx, scope),
+      breachesOf(context.tx, scope),
     ]);
   const openRequest = new Map<string, string>();
   for (const row of requests) {
@@ -165,6 +205,7 @@ export const overview = readProcedure.handler(async ({ context }) => {
     review,
     holds,
     requests,
+    breaches: await breachClocks(context, breaches),
     sessions: sessions
       .filter((row) => row.keepUntil < context.today)
       .map((row) => ({
@@ -378,5 +419,98 @@ export const closeRequest = writeProcedure
         dueOn: request.extendedTo ?? request.dueOn,
         late: context.today > (request.extendedTo ?? request.dueOn),
       },
+    });
+  });
+
+/** Logs a breach the school has become aware of, or corrects one still open. */
+export const saveBreach = writeProcedure
+  .input(saveBreachSchema)
+  .handler(async ({ input, context }) => {
+    requireCapability(context, "privacy:manage");
+    const { id: given, ...fields } = input;
+    if (given) {
+      const updated = await updateBreach(context.tx, {
+        ...scopeOf(context),
+        id: given,
+        ...fields,
+      });
+      if (!updated)
+        throw new ORPCError("NOT_FOUND", { message: "privacy.breach_closed" });
+    }
+    const id =
+      given ??
+      (await insertBreach(context.tx, {
+        ...scopeOf(context),
+        ...fields,
+        loggedByUserId: context.actor.userId,
+      }));
+    await audit(context, {
+      action: given ? "privacy_breach.update" : "privacy_breach.log",
+      objectType: "breach",
+      objectId: id,
+      details: {
+        title: fields.title,
+        discoveredAt: fields.discoveredAt,
+        law: fields.law,
+        risk: fields.risk,
+        peopleAffected: fields.peopleAffected,
+      },
+    });
+    return { id };
+  });
+
+/** Records who was told of a breach and when, or why they were not. */
+export const breachNotices = writeProcedure
+  .input(breachNoticesSchema)
+  .handler(async ({ input, context }) => {
+    requireCapability(context, "privacy:manage");
+    const { id, ...notices } = input;
+    const saved = await setBreachNotices(context.tx, {
+      ...scopeOf(context),
+      id,
+      ...notices,
+      regulatorReference: notices.regulatorNotifiedAt
+        ? notices.regulatorReference
+        : null,
+    });
+    if (!saved)
+      throw new ORPCError("NOT_FOUND", { message: "privacy.breach_closed" });
+    await audit(context, {
+      action: "privacy_breach.notices",
+      objectType: "breach",
+      objectId: id,
+      details: notices,
+    });
+  });
+
+/** Closes a breach once both notices are settled and its remedy is written. */
+export const closeBreach = writeProcedure
+  .input(closeBreachSchema)
+  .handler(async ({ input, context }) => {
+    requireCapability(context, "privacy:manage");
+    const breach = await breachById(context.tx, {
+      ...scopeOf(context),
+      id: input.id,
+    });
+    if (!breach || breach.closedAt)
+      throw new ORPCError("NOT_FOUND", { message: "privacy.breach_closed" });
+    const settled =
+      (breach.regulatorNotifiedAt ?? breach.regulatorReason) !== null &&
+      (breach.peopleNotifiedAt ?? breach.peopleReason) !== null;
+    if (!settled)
+      throw new ORPCError("BAD_REQUEST", {
+        message: "privacy.breach_notices_open",
+      });
+    await closeBreachOf(context.tx, {
+      ...scopeOf(context),
+      id: input.id,
+      actions: input.actions,
+      closedByUserId: context.actor.userId,
+    });
+    await audit(context, {
+      action: "privacy_breach.close",
+      objectType: "breach",
+      objectId: input.id,
+      details: { actions: input.actions },
     });
   });

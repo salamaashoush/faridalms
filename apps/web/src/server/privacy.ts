@@ -1,8 +1,11 @@
 import {
+  breachNoticesSchema,
+  closeBreachSchema,
   closeRequestSchema,
   extendRequestSchema,
   placeHoldSchema,
   releaseHoldSchema,
+  saveBreachSchema,
   saveRequestSchema,
   saveRetentionSchema,
 } from "@faridalms/domain/privacy";
@@ -38,3 +41,15 @@ export const extendRequest = createServerFn({ method: "POST" })
 export const closeRequest = createServerFn({ method: "POST" })
   .validator(checked(closeRequestSchema))
   .handler(({ data }) => backend().privacy.closeRequest(data));
+
+export const saveBreach = createServerFn({ method: "POST" })
+  .validator(checked(saveBreachSchema))
+  .handler(({ data }) => backend().privacy.saveBreach(data));
+
+export const breachNotices = createServerFn({ method: "POST" })
+  .validator(checked(breachNoticesSchema))
+  .handler(({ data }) => backend().privacy.breachNotices(data));
+
+export const closeBreach = createServerFn({ method: "POST" })
+  .validator(checked(closeBreachSchema))
+  .handler(({ data }) => backend().privacy.closeBreach(data));

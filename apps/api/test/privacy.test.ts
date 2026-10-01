@@ -203,4 +203,60 @@ describe("retention review", () => {
       ),
     ).toMatchObject({ code: "NOT_FOUND", message: "privacy.request_closed" });
   });
+
+  test("a breach is told to whom its law requires before it can be closed", async () => {
+    const api = await signedIn("northwind", login("principal"));
+    const { id } = await api.privacy.saveBreach({
+      title: "Report cards emailed to the wrong family",
+      description: "One family received another child's term report.",
+      discoveredAt: "2026-10-01T08:00:00.000Z",
+      law: "egypt",
+      risk: "unlikely",
+      peopleAffected: 1,
+    });
+    const logged = (await api.privacy.overview()).breaches.find(
+      (row) => row.id === id,
+    );
+    expect(logged).toMatchObject({
+      regulatorRequired: true,
+      regulatorDueAt: "2026-10-04T08:00:00.000Z",
+      peopleRequired: true,
+    });
+    expect((logged?.peopleDueOn ?? "") > "2026-10-01").toBe(true);
+
+    expect(
+      await rejection(
+        api.privacy.closeBreach({ id, actions: "Emails now checked twice." }),
+      ),
+    ).toMatchObject({ message: "privacy.breach_notices_open" });
+    expect(
+      await rejection(
+        api.privacy.breachNotices({
+          id,
+          regulatorNotifiedAt: "2026-10-02T10:00:00.000Z",
+          regulatorReference: null,
+          regulatorReason: "Not needed.",
+          peopleNotifiedAt: null,
+          peopleReason: null,
+        }),
+      ),
+    ).toMatchObject({ code: "BAD_REQUEST" });
+    await api.privacy.breachNotices({
+      id,
+      regulatorNotifiedAt: "2026-10-02T10:00:00.000Z",
+      regulatorReference: "PDPC-2026-0042",
+      regulatorReason: null,
+      peopleNotifiedAt: "2026-10-02T12:00:00.000Z",
+      peopleReason: null,
+    });
+    await api.privacy.closeBreach({ id, actions: "Emails now checked twice." });
+    const closed = (await api.privacy.overview()).breaches.find(
+      (row) => row.id === id,
+    );
+    expect(closed?.closedAt).not.toBeNull();
+    expect(closed?.regulatorReference).toBe("PDPC-2026-0042");
+    expect(
+      await rejection(api.privacy.closeBreach({ id, actions: "Again." })),
+    ).toMatchObject({ code: "NOT_FOUND", message: "privacy.breach_closed" });
+  });
 });

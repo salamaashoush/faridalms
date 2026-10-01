@@ -1,4 +1,6 @@
 import type {
+  BreachLaw,
+  BreachRisk,
   RequestKind,
   RequestLaw,
   RequestOutcome,
@@ -11,6 +13,7 @@ import { sql } from "drizzle-orm";
 import {
   date,
   index,
+  integer,
   smallint,
   text,
   uniqueIndex,
@@ -171,6 +174,81 @@ export const recordsRequests = core.table.withRLS(
       .where(sql`status = 'active' and outcome is null`),
     index("records_requests_subject_idx")
       .on(t.tenantId, t.subjectUserId)
+      .where(sql`status = 'active'`),
+    ...entityProfile(),
+  ],
+);
+
+/**
+ * A personal data breach the school knows of: what happened, who was told
+ * and when, and what was done. Every breach is kept, reported or not (UK
+ * GDPR Art. 33(5); Egypt keeps a breach register).
+ */
+export const breaches = core.table.withRLS(
+  "breaches",
+  {
+    ...tenantColumns(),
+    orgId: uuid("org_id").notNull(),
+    title: text("title").notNull(),
+    description: text("description").notNull(),
+    /** When the school became aware: the regulator's 72 hours start here. */
+    discoveredAt: instant("discovered_at").notNull(),
+    law: text("law").$type<BreachLaw>().notNull(),
+    risk: text("risk").$type<BreachRisk>().notNull(),
+    peopleAffected: integer("people_affected"),
+    regulatorNotifiedAt: instant("regulator_notified_at"),
+    regulatorReference: text("regulator_reference"),
+    /** Why the regulator was not told, when it was not. */
+    regulatorReason: text("regulator_reason"),
+    peopleNotifiedAt: instant("people_notified_at"),
+    peopleReason: text("people_reason"),
+    actions: text("actions"),
+    closedAt: instant("closed_at"),
+    closedByUserId: uuid("closed_by_user_id"),
+    loggedByUserId: uuid("logged_by_user_id").notNull(),
+    ...entityColumns(),
+  },
+  (t): PgTableExtraConfigValue[] => [
+    pk("breaches", t.tenantId, t.id),
+    ...baseConstraints("breaches", t, tenants),
+    fk("breaches", [t.tenantId, t.orgId], [orgs.tenantId, orgs.id]),
+    fk("breaches", [t.tenantId, t.closedByUserId], [users.tenantId, users.id]),
+    fk("breaches", [t.tenantId, t.loggedByUserId], [users.tenantId, users.id]),
+    ck("breaches", "title", sql`char_length(title) between 1 and 120`),
+    ck(
+      "breaches",
+      "description",
+      sql`char_length(description) between 1 and 4000`,
+    ),
+    ck("breaches", "law", sql`law in ('uk_gdpr', 'egypt', 'other')`),
+    ck("breaches", "risk", sql`risk in ('unlikely', 'risk', 'high')`),
+    ck(
+      "breaches",
+      "people_affected",
+      sql`people_affected between 0 and 10000000`,
+    ),
+    ck(
+      "breaches",
+      "regulator",
+      sql`num_nonnulls(regulator_notified_at, regulator_reason) <= 1 and (regulator_reference is null or regulator_notified_at is not null)`,
+    ),
+    ck(
+      "breaches",
+      "people",
+      sql`num_nonnulls(people_notified_at, people_reason) <= 1`,
+    ),
+    ck(
+      "breaches",
+      "notes",
+      sql`char_length(regulator_reference) between 1 and 120 and char_length(regulator_reason) between 1 and 1000 and char_length(people_reason) between 1 and 1000 and char_length(actions) between 1 and 4000`,
+    ),
+    ck(
+      "breaches",
+      "closed",
+      sql`(closed_at is null) = (closed_by_user_id is null) and (closed_at is null or (actions is not null and num_nonnulls(regulator_notified_at, regulator_reason) = 1 and num_nonnulls(people_notified_at, people_reason) = 1))`,
+    ),
+    index("breaches_org_idx")
+      .on(t.tenantId, t.orgId, t.discoveredAt)
       .where(sql`status = 'active'`),
     ...entityProfile(),
   ],

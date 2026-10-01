@@ -1,15 +1,22 @@
 import { WORKSPACE_HOME } from "@faridalms/domain/workspace";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, redirect } from "@tanstack/react-router";
-import { FileText, Lock } from "lucide-react";
+import { FileText, Lock, ShieldAlert } from "lucide-react";
 import { useState } from "react";
 import * as v from "valibot";
 
+import type { BreachRow } from "~/components/privacy/Breaches";
 import type { HoldRow, ReviewRow } from "~/components/privacy/DataProtection";
 import type { RequestRow } from "~/components/privacy/Requests";
 import type { HeaderAction } from "~/components/system/IndexPage";
 
 import { displayName } from "~/components/people/format";
+import {
+  BreachesTable,
+  BreachSheet,
+  CloseBreachSheet,
+  NoticesSheet,
+} from "~/components/privacy/Breaches";
 import {
   HoldSheet,
   HoldsTable,
@@ -30,7 +37,7 @@ import * as m from "~/i18n/messages";
 import { privacyOverviewQuery } from "~/queries/privacy";
 import { currentUserQuery } from "~/queries/user";
 
-const TABS = ["review", "requests", "holds", "retention"] as const;
+const TABS = ["review", "requests", "breaches", "holds", "retention"] as const;
 type Tab = (typeof TABS)[number];
 
 const searchSchema = v.object({
@@ -55,7 +62,10 @@ type Open =
   | { kind: "rules" }
   | { kind: "request"; request: RequestRow | null }
   | { kind: "extend"; request: RequestRow }
-  | { kind: "close"; request: RequestRow };
+  | { kind: "close"; request: RequestRow }
+  | { kind: "breach"; breach: BreachRow | null }
+  | { kind: "notices"; breach: BreachRow }
+  | { kind: "closeBreach"; breach: BreachRow };
 
 function PrivacyPage() {
   const { tab } = Route.useSearch();
@@ -79,6 +89,11 @@ function PrivacyPage() {
       icon: FileText,
       onClick: () => show({ kind: "request", request: null }),
     },
+    breaches: {
+      label: m.privacyLogBreach(),
+      icon: ShieldAlert,
+      onClick: () => show({ kind: "breach", breach: null }),
+    },
     holds: {
       label: m.privacyPlaceHold(),
       icon: Lock,
@@ -97,6 +112,7 @@ function PrivacyPage() {
         tabs={[
           { value: "review", label: m.privacyReviewTab() },
           { value: "requests", label: m.privacyRequestsTab() },
+          { value: "breaches", label: m.privacyBreachesTab() },
           { value: "holds", label: m.privacyHoldsTab() },
           { value: "retention", label: m.privacyRetentionTab() },
         ]}
@@ -117,6 +133,14 @@ function PrivacyPage() {
             onEdit={(request) => show({ kind: "request", request })}
             onExtend={(request) => show({ kind: "extend", request })}
             onClose={(request) => show({ kind: "close", request })}
+          />
+        ) : tab === "breaches" ? (
+          <BreachesTable
+            overview={overview}
+            onAdd={() => show({ kind: "breach", breach: null })}
+            onEdit={(breach) => show({ kind: "breach", breach })}
+            onNotices={(breach) => show({ kind: "notices", breach })}
+            onClose={(breach) => show({ kind: "closeBreach", breach })}
           />
         ) : tab === "holds" ? (
           <HoldsTable
@@ -172,6 +196,27 @@ function PrivacyPage() {
           key={shown.generation}
           open={isOpen}
           request={shown.open.request}
+          onClose={close}
+        />
+      ) : shown?.open.kind === "breach" ? (
+        <BreachSheet
+          key={shown.generation}
+          open={isOpen}
+          breach={shown.open.breach}
+          onClose={close}
+        />
+      ) : shown?.open.kind === "notices" ? (
+        <NoticesSheet
+          key={shown.generation}
+          open={isOpen}
+          breach={shown.open.breach}
+          onClose={close}
+        />
+      ) : shown?.open.kind === "closeBreach" ? (
+        <CloseBreachSheet
+          key={shown.generation}
+          open={isOpen}
+          breach={shown.open.breach}
           onClose={close}
         />
       ) : shown?.open.kind === "rules" ? (
