@@ -15,7 +15,7 @@ import type { ClassType } from "../tables/teaching";
 import type { Scope } from "./students";
 
 import { rosterOf, taughtClasses } from "./classes";
-import { uuidArray } from "./sql";
+import { isoOf, uuidArray } from "./sql";
 
 type Tx = CellTransaction;
 
@@ -1159,4 +1159,52 @@ export async function studentOf(
     select student_user_id from ${table}
     where tenant_id = ${tenantId}::uuid and id = ${file.hostId}::uuid`);
   return row?.student_user_id ?? null;
+}
+
+export interface PortfolioRow {
+  assignmentId: string;
+  title: string;
+  classCode: string;
+  attemptId: string;
+  submittedAt: string;
+  isLate: boolean;
+}
+
+/**
+ * Every piece of work a student has handed in, in any year, with its
+ * latest attempt: what their portfolio holds.
+ */
+export async function handedInWork(
+  tx: Tx,
+  input: { tenantId: string; orgId: string; studentId: string },
+): Promise<PortfolioRow[]> {
+  const rows = await tx.execute<{
+    assignment_id: string;
+    title: string;
+    class_code: string;
+    attempt_id: string;
+    submitted_at: string;
+    is_late: boolean;
+  }>(sql`
+    select a.id as assignment_id, a.title, c.code as class_code, t.id as attempt_id,
+      ${isoOf(sql`t.submitted_at`)} as submitted_at, t.is_late
+    from core.submissions s
+    join core.assignments a on a.tenant_id = s.tenant_id and a.id = s.assignment_id
+      and a.status = 'active' and a.org_id = ${input.orgId}::uuid
+    join core.classes c on c.tenant_id = a.tenant_id and c.id = a.class_id
+    join lateral (
+      select id, is_late, submitted_at from core.submission_attempts t
+      where t.tenant_id = s.tenant_id and t.submission_id = s.id and t.status = 'active'
+      order by t.number desc limit 1) t on true
+    where s.tenant_id = ${input.tenantId}::uuid and s.student_user_id = ${input.studentId}::uuid
+      and s.status = 'active'
+    order by t.submitted_at, a.id`);
+  return rows.map((row) => ({
+    assignmentId: row.assignment_id,
+    title: row.title,
+    classCode: row.class_code,
+    attemptId: row.attempt_id,
+    submittedAt: row.submitted_at,
+    isLate: row.is_late,
+  }));
 }

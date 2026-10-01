@@ -3,6 +3,7 @@ import type { LearnerTab } from "@faridalms/domain/coursework";
 import { LEARNER_TABS } from "@faridalms/domain/coursework";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
+import { Download } from "lucide-react";
 import * as v from "valibot";
 
 import { ByDay, DONE, TO_DO } from "~/components/coursework/LearnerList";
@@ -49,6 +50,14 @@ function ToDoPage() {
       <PageHeader
         title={m.courseworkToDoTitle()}
         description={m.courseworkToDoHint()}
+        menu={[
+          {
+            label: m.courseworkDownloadMine(),
+            icon: Download,
+            onSelect: () =>
+              window.location.assign(`/exports/students/${user.id}`),
+          },
+        ]}
       />
       <RecordTabs
         label={m.courseworkSections()}

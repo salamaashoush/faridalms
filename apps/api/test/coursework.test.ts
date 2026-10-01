@@ -526,6 +526,34 @@ describe("handing in and returning work", () => {
         )
       ).status,
     ).toBe(404);
+
+    // The student's portfolio holds this work too, theirs to take.
+    const portfolio = await raw(
+      "northwind",
+      student.token,
+      `/v1/students/${me.id}/portfolio.zip`,
+    );
+    expect(portfolio.status).toBe(200);
+    const kept = unzipSync(new Uint8Array(await portfolio.arrayBuffer()));
+    const answers = Object.entries(kept)
+      .filter(([path]) => path.endsWith("/answer.txt"))
+      .map(([, bytes]) => strFromU8(bytes));
+    expect(
+      answers.some((text) => text.includes("My answers are attached.")),
+    ).toBe(true);
+    const office = await sessionFor("northwind", login("principal"));
+    expect(
+      (await raw("northwind", office.token, `/v1/students/${me.id}/portfolio.zip`))
+        .status,
+    ).toBe(200);
+    const parent = await sessionFor(
+      "northwind",
+      login("student").replace("student", "parent"),
+    );
+    expect(
+      (await raw("northwind", parent.token, `/v1/students/${me.id}/portfolio.zip`))
+        .status,
+    ).toBe(404);
   });
 });
 

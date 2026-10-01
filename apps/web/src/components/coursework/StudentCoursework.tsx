@@ -1,5 +1,7 @@
 import { useSuspenseQuery } from "@tanstack/react-query";
+import { Download } from "lucide-react";
 
+import { Button } from "~/components/ui/button";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { studentCourseworkQuery } from "~/queries/coursework";
@@ -14,6 +16,15 @@ export function StudentCoursework({ studentId }: { studentId: string }) {
   const props = { timeZone: user.school.timeZone, linked: false };
   return (
     <div className="grid gap-6">
+      <Button
+        type="button"
+        variant="outline"
+        className="w-fit max-md:h-10"
+        onClick={() => window.location.assign(`/exports/students/${studentId}`)}
+      >
+        <Download aria-hidden />
+        {m.courseworkDownloadPortfolio()}
+      </Button>
       <WorkSection
         title={m.courseworkFamilyMissing()}
         items={rows.filter((row) => row.state === "missing")}
