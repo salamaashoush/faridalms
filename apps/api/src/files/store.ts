@@ -22,7 +22,11 @@ export interface FileStore {
     body: ReadableStream<Uint8Array>,
     limit: number,
   ): Promise<StoredObject>;
-  open(key: string): Promise<ReadableStream<Uint8Array> | null>;
+  /** The object's bytes, or only those from `start` to `end` inclusive. */
+  open(
+    key: string,
+    range?: { start: number; end: number },
+  ): Promise<ReadableStream<Uint8Array> | null>;
   move(from: string, to: string): Promise<void>;
   remove(key: string): Promise<void>;
 }
@@ -71,10 +75,12 @@ export class DiskFileStore implements FileStore {
     return { sizeBytes, sha256: hasher.digest("hex") };
   }
 
-  async open(key: string) {
+  async open(key: string, range?: { start: number; end: number }) {
     const file = Bun.file(this.path(key));
     if (!(await file.exists())) return null;
-    return file.stream();
+    return range
+      ? file.slice(range.start, range.end + 1).stream()
+      : file.stream();
   }
 
   async move(from: string, to: string) {

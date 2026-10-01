@@ -7,6 +7,8 @@ import { currentSchool, sessionCookie } from "~/server/backend";
 const FORWARDED = [
   "content-type",
   "content-length",
+  "content-range",
+  "accept-ranges",
   "content-disposition",
   "cache-control",
   "x-content-type-options",
@@ -25,11 +27,15 @@ function prepare(request: Request, fileId: string) {
     authorization: `Bearer ${token}`,
     "x-farida-school": school,
   });
-  for (const name of ["content-type", "content-length"]) {
+  for (const name of ["content-type", "content-length", "range"]) {
     const value = request.headers.get(name);
     if (value) headers.set(name, value);
   }
-  return { headers, target: `${env.BACKEND_URL}/v1/files/${fileId}/content` };
+  const download = new URL(request.url).searchParams.has("download");
+  return {
+    headers,
+    target: `${env.BACKEND_URL}/v1/files/${fileId}/content${download ? "?download" : ""}`,
+  };
 }
 
 function relay(upstream: Response): Response {

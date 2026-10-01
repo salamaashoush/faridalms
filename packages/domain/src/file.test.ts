@@ -2,9 +2,11 @@ import { describe, expect, it } from "vitest";
 
 import {
   ACCEPTED_EXTENSIONS,
+  byteRange,
   CONTENT_CHECKED_EXTENSIONS,
   contentBytesNeeded,
   contentMatchesName,
+  previewable,
 } from "./file";
 
 const bytes = (...values: (number | string)[]) =>
@@ -107,5 +109,36 @@ describe("contentBytesNeeded", () => {
   it("reads a whole text file and only a prefix of anything else", () => {
     expect(contentBytesNeeded("notes.txt", 5000)).toBe(5000);
     expect(contentBytesNeeded("worksheet.pdf", 5000)).toBe(64);
+  });
+});
+
+describe("byteRange", () => {
+  it("reads the ranges a player asks for while seeking", () => {
+    expect(byteRange("bytes=0-", 1000)).toEqual({ start: 0, end: 999 });
+    expect(byteRange("bytes=100-199", 1000)).toEqual({ start: 100, end: 199 });
+    expect(byteRange("bytes=900-5000", 1000)).toEqual({ start: 900, end: 999 });
+    expect(byteRange("bytes=-100", 1000)).toEqual({ start: 900, end: 999 });
+  });
+
+  it("sends the whole file for no range or several, and refuses one past the end", () => {
+    expect(byteRange(null, 1000)).toBeNull();
+    expect(byteRange("bytes=0-1,5-9", 1000)).toBeNull();
+    expect(byteRange("bytes=1000-", 1000)).toBe("unsatisfiable");
+    expect(byteRange("bytes=-0", 1000)).toBe("unsatisfiable");
+  });
+});
+
+describe("previewable", () => {
+  it("shows pictures, PDFs, sound, video and text, and downloads the rest", () => {
+    expect(previewable("application/pdf")).toBe(true);
+    expect(previewable("image/png")).toBe(true);
+    expect(previewable("video/mp4")).toBe(true);
+    expect(previewable("text/plain; charset=utf-8")).toBe(true);
+    expect(
+      previewable(
+        "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      ),
+    ).toBe(false);
+    expect(previewable("text/csv")).toBe(false);
   });
 });

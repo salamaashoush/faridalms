@@ -6,9 +6,11 @@ import {
   settleFile,
 } from "@faridalms/database/stores/files";
 import {
+  byteRange,
   contentBytesNeeded,
   contentDisposition,
   contentMatchesName,
+  previewable,
 } from "@faridalms/domain/file";
 import { ORPCError } from "@orpc/server";
 
@@ -154,13 +156,36 @@ async function send(
     return (await canReadFile({ ...context, ...unit }, found)) ? found : null;
   });
   if (!file) return problem(404, "NOT_FOUND", context.requestId);
-  const body = await context.files.open(file.storageKey);
+  const range = byteRange(request.headers.get("range"), file.sizeBytes);
+  if (range === "unsatisfiable")
+    return new Response(null, {
+      status: 416,
+      headers: { "content-range": `bytes */${file.sizeBytes}` },
+    });
+  const body = await context.files.open(file.storageKey, range ?? undefined);
   if (!body) return problem(404, "NOT_FOUND", context.requestId);
+  // A viewer shows what a browser can show by itself; asking to download,
+  // or any other type, saves the file under its name.
+  const inline =
+    previewable(file.mediaType) &&
+    new URL(request.url).searchParams.get("download") === null;
   return new Response(request.method === "HEAD" ? null : body, {
+    status: range ? 206 : 200,
     headers: {
       "content-type": file.mediaType,
-      "content-length": String(file.sizeBytes),
-      "content-disposition": contentDisposition(file.name),
+      "content-length": String(
+        range ? range.end - range.start + 1 : file.sizeBytes,
+      ),
+      ...(range
+        ? {
+            "content-range": `bytes ${range.start}-${range.end}/${file.sizeBytes}`,
+          }
+        : {}),
+      "accept-ranges": "bytes",
+      "content-disposition": contentDisposition(
+        file.name,
+        inline ? "inline" : "attachment",
+      ),
       "cache-control": "private, no-store",
       "x-content-type-options": "nosniff",
     },

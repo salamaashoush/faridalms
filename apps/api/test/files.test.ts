@@ -214,6 +214,39 @@ function withFile(fileId: string, words: string): ContentDocument {
   return document;
 }
 
+describe("reading a file", () => {
+  test("a viewer gets it inline and in pieces, and asking to download saves it", async () => {
+    const teacher = await sessionFor("northwind", login("teacher"));
+    const { file } = await upload(
+      teacher.token,
+      teacher.api,
+      "notes.txt",
+      text("0123456789"),
+    );
+    const path = `/v1/files/${file.id}/content`;
+    const whole = await raw("northwind", teacher.token, path);
+    expect(whole.headers.get("content-disposition")).toStartWith("inline;");
+    expect(whole.headers.get("accept-ranges")).toBe("bytes");
+
+    const piece = await raw("northwind", teacher.token, path, {
+      headers: { range: "bytes=2-5" },
+    });
+    expect(piece.status).toBe(206);
+    expect(piece.headers.get("content-range")).toBe("bytes 2-5/10");
+    expect(await piece.text()).toBe("2345");
+    expect(
+      (
+        await raw("northwind", teacher.token, path, {
+          headers: { range: "bytes=10-" },
+        })
+      ).status,
+    ).toBe(416);
+
+    const saved = await raw("northwind", teacher.token, `${path}?download`);
+    expect(saved.headers.get("content-disposition")).toStartWith("attachment;");
+  });
+});
+
 describe("files in documents", () => {
   test("a document's file opens for its readers only, and nobody may borrow it", async () => {
     // The seed's second teacher teaches Arabic to every grade, the third English.

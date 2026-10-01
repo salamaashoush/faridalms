@@ -225,6 +225,42 @@ export function safeFilename(name: string): string {
 }
 
 /** RFC 6266 disposition with an ASCII fallback and a UTF-8 form for Arabic names. */
+/**
+ * Types a browser shows on its own without running anything: pictures, PDFs,
+ * sound, video and plain text. Everything else downloads.
+ */
+export function previewable(mediaType: string): boolean {
+  const type = mediaType.toLowerCase().split(";")[0]?.trim() ?? "";
+  return (
+    type === "application/pdf" ||
+    type === "text/plain" ||
+    /^(image|audio|video)\//.test(type)
+  );
+}
+
+/**
+ * The bytes a `Range` header asks for, inclusive, or "unsatisfiable"; null
+ * when there is no single byte range to honour and the whole file is sent.
+ */
+export function byteRange(
+  header: string | null,
+  size: number,
+): { start: number; end: number } | "unsatisfiable" | null {
+  const match = header ? /^bytes=(\d*)-(\d*)$/.exec(header.trim()) : null;
+  if (!match) return null;
+  const [, from = "", to = ""] = match;
+  if (from === "" && to === "") return null;
+  if (from === "") {
+    const suffix = Number(to);
+    if (suffix === 0) return "unsatisfiable";
+    return { start: Math.max(0, size - suffix), end: size - 1 };
+  }
+  const start = Number(from);
+  const end = to === "" ? size - 1 : Math.min(Number(to), size - 1);
+  if (start >= size || end < start) return "unsatisfiable";
+  return { start, end };
+}
+
 export function contentDisposition(
   name: string,
   kind: "attachment" | "inline" = "attachment",
