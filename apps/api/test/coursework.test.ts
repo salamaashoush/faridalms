@@ -2,8 +2,9 @@ import type { LessonResponse } from "@faridalms/domain/learning";
 
 import { plainContent } from "@faridalms/domain/content-conversion";
 import { describe, expect, test } from "bun:test";
+import { sql } from "drizzle-orm";
 
-import { login, raw, rejection, sessionFor, signedIn } from "./harness";
+import { login, raw, rejection, seeded, sessionFor, signedIn } from "./harness";
 
 // The seed's second teacher teaches Arabic to every grade, the third English.
 const arabicTeacher = () => sessionFor("northwind", login("teacher", 0, 1));
@@ -443,6 +444,22 @@ describe("handing in and returning work", () => {
     expect(
       (await raw("northwind", teacher.token, `/v1/files/${answer}/content`)).status,
     ).toBe(200);
+
+    // Opening a student's work is recorded against that student.
+    const { cell, tenants } = seeded();
+    const tenantId = tenants[0]?.tenantId ?? "";
+    const opened = await cell.withWorker(
+      { tenantId, requestId: crypto.randomUUID(), actor: { kind: "system" } },
+      "read",
+      (tx) =>
+        tx.execute<{ student_user_id: string; details: { download: boolean } }>(
+          sql`select student_user_id, details from audit.log
+            where tenant_id = ${tenantId}::uuid and action = 'file.opened'
+              and object_id = ${answer}::uuid`,
+        ),
+    );
+    expect(opened.length).toBeGreaterThan(0);
+    expect(opened[0]?.student_user_id).toBe(me.id);
   });
 });
 

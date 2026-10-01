@@ -1,4 +1,8 @@
+import type { StoredFile } from "@faridalms/database/stores/files";
+
+import { writeAudit } from "@faridalms/database/audit";
 import { TenantUnavailableError } from "@faridalms/database/context";
+import { studentOf } from "@faridalms/database/stores/coursework";
 import {
   fileById,
   quarantineKey,
@@ -145,17 +149,60 @@ async function receive(
   });
 }
 
+/**
+ * Files whose every opening is recorded: a student's work and attempts,
+ * messages, and health and custody papers. Anything else is recorded when
+ * it is downloaded rather than viewed in a page.
+ */
+const WATCHED_HOSTS = new Set(["submission", "submission_attempt", "message"]);
+const WATCHED_PURPOSES = new Set([
+  "health_report",
+  "evidence",
+  "legal_document",
+]);
+
+function watched(file: StoredFile): boolean {
+  return (
+    WATCHED_PURPOSES.has(file.purpose) ||
+    (file.hostType !== null && WATCHED_HOSTS.has(file.hostType))
+  );
+}
+
 async function send(
   request: Request,
   context: SchoolContext,
   fileId: string,
 ): Promise<Response> {
-  const file = await openUnit(context, "read", async (unit) => {
+  const download = new URL(request.url).searchParams.get("download") !== null;
+  const opened = await openUnit(context, "read", async (unit) => {
     const found = await fileById(unit.tx, unit.tenantId, fileId);
     if (!found || found.state !== "ready") return null;
-    return (await canReadFile({ ...context, ...unit }, found)) ? found : null;
+    if (!(await canReadFile({ ...context, ...unit }, found))) return null;
+    return {
+      file: found,
+      logged:
+        found.uploadedByUserId !== unit.actor.userId &&
+        (download || watched(found)),
+    };
   });
-  if (!file) return problem(404, "NOT_FOUND", context.requestId);
+  if (!opened) return problem(404, "NOT_FOUND", context.requestId);
+  const { file } = opened;
+  if (opened.logged && request.method !== "HEAD")
+    await openUnit(context, "write", async (unit) =>
+      writeAudit(unit.tx, unit.tenantId, {
+        action: "file.opened",
+        objectType: "file",
+        objectId: file.id,
+        orgId: context.school.schoolId,
+        studentUserId: await studentOf(unit.tx, unit.tenantId, file),
+        details: {
+          hostType: file.hostType,
+          hostId: file.hostId,
+          purpose: file.purpose,
+          download,
+        },
+      }),
+    );
   const range = byteRange(request.headers.get("range"), file.sizeBytes);
   if (range === "unsatisfiable")
     return new Response(null, {
@@ -166,9 +213,7 @@ async function send(
   if (!body) return problem(404, "NOT_FOUND", context.requestId);
   // A viewer shows what a browser can show by itself; asking to download,
   // or any other type, saves the file under its name.
-  const inline =
-    previewable(file.mediaType) &&
-    new URL(request.url).searchParams.get("download") === null;
+  const inline = previewable(file.mediaType) && !download;
   return new Response(request.method === "HEAD" ? null : body, {
     status: range ? 206 : 200,
     headers: {
