@@ -80,7 +80,11 @@ import {
   requireCapability,
   writeProcedure as anyWrite,
 } from "../core/procedure";
-import { registerHostReader, registerHostWriter } from "../files/authorize";
+import {
+  registerHostReader,
+  registerHostWriter,
+  usableMedia,
+} from "../files/authorize";
 
 const id = v.pipe(v.string(), v.uuid());
 
@@ -651,7 +655,7 @@ export const saveLesson = writeProcedure
       kind: "lesson",
       content: input.content,
       plainText: lessonPlainText(input.content),
-      mediaIds: lessonFileIds(input.content),
+      mediaIds: await usableMedia(context, lessonFileIds(input.content)),
       userId: context.actor.userId,
     });
     await audit(context, {

@@ -131,7 +131,11 @@ import {
   responsesOf,
   saveQuiz,
 } from "../core/quiz";
-import { registerHostReader, registerHostWriter } from "../files/authorize";
+import {
+  registerHostReader,
+  registerHostWriter,
+  usableMedia,
+} from "../files/authorize";
 
 const id = v.pipe(v.string(), v.uuid());
 
@@ -509,7 +513,7 @@ export const save = writeProcedure
       host,
       content: input.brief,
       plainText: contentPlainText(input.brief),
-      mediaIds: contentFileIds(input.brief),
+      mediaIds: await usableMedia(context, contentFileIds(input.brief)),
       userId: context.actor.userId,
     });
     if (published)
@@ -1256,7 +1260,7 @@ export const saveDraft = writeProcedure
         host,
         content: input.content,
         plainText: contentPlainText(input.content),
-        mediaIds: contentFileIds(input.content),
+        mediaIds: await usableMedia(context, contentFileIds(input.content)),
         userId: context.actor.userId,
       });
     const linked = await linkFiles(tx, {

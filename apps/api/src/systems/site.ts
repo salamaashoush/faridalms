@@ -105,6 +105,7 @@ import type { UnitContext } from "../core/context";
 
 import {
   audit,
+  can,
   publicProcedure,
   readProcedure,
   requireCapability,
@@ -112,6 +113,7 @@ import {
 } from "../core/procedure";
 import { attemptKey, ipPrefix } from "../core/session";
 import { publishMedia, withPublicSite, withdrawMedia } from "../core/site";
+import { registerHostReader, usableMedia } from "../files/authorize";
 
 const id = v.pipe(v.string(), v.uuid());
 
@@ -276,6 +278,15 @@ const shownState = (
     : (row.state as "draft" | "published" | "archived");
 
 const PREVIEW_POSTS = 6;
+// Pages and posts are written by whoever manages the site, so each of them
+// opens the pictures and files the others put in.
+registerHostReader("site_page", (context) =>
+  Promise.resolve(can(context, "site:manage")),
+);
+registerHostReader("site_post", (context) =>
+  Promise.resolve(can(context, "site:manage")),
+);
+
 /** The most events an events section lists. */
 const MAX_EVENTS = 12;
 
@@ -530,7 +541,7 @@ export const savePage = writeProcedure
       locale: settings.primaryLocale,
       content: input.content,
       plainText: pagePlainText(input.content),
-      mediaIds: pageFileIds(input.content),
+      mediaIds: await usableMedia(context, pageFileIds(input.content)),
       userId: context.actor.userId,
     });
     if (settings.bilingual && input.translation) {
@@ -960,7 +971,10 @@ export const savePost = writeProcedure
       locale: settings.primaryLocale,
       content: input.content,
       plainText: contentPlainText(input.content.body),
-      mediaIds: postMedia(input.content, fields.coverFileId),
+      mediaIds: await usableMedia(
+        context,
+        postMedia(input.content, fields.coverFileId),
+      ),
       userId: context.actor.userId,
     });
     if (settings.bilingual && input.translation)
@@ -973,7 +987,10 @@ export const savePost = writeProcedure
         kind: "rich_text",
         content: input.translation,
         plainText: contentPlainText(input.translation.body),
-        mediaIds: postMedia(input.translation, null),
+        mediaIds: await usableMedia(
+          context,
+          postMedia(input.translation, null),
+        ),
         userId: context.actor.userId,
       });
     else

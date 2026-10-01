@@ -47,14 +47,40 @@ export async function documentOf(
     : null;
 }
 
+/** The files the last published copy of a document shows, which its readers still open. */
+async function publishedFileIds(
+  tx: Tx,
+  tenantId: string,
+  documentId: string,
+): Promise<string[]> {
+  const rows = await tx.execute<{ id: string }>(sql`
+    select distinct ref #>> '{}' as id
+    from (
+      select content from core.document_versions
+      where tenant_id = ${tenantId}::uuid and document_id = ${documentId}::uuid
+        and reason = 'publish' and redacted_at is null
+      order by created_at desc, document_version desc limit 1) v,
+      lateral jsonb_path_query(v.content,
+        'lax $.**.fileId ? (@ like_regex "^[0-9a-f-]{36}$")') ref`);
+  return rows.map((row) => row.id);
+}
+
 /**
  * Records the media a document embeds, and marks those files linked so the
- * sweep keeps them. Files the document no longer embeds lose their row.
+ * sweep keeps them and its readers may open them. Files the document no
+ * longer embeds lose their row, unless its published copy still shows them.
  */
 async function syncMedia(
   tx: Tx,
   input: { tenantId: string; documentId: string; fileIds: readonly string[] },
 ) {
+  const fileIds = [
+    ...new Set([
+      ...input.fileIds,
+      ...(await publishedFileIds(tx, input.tenantId, input.documentId)),
+    ]),
+  ];
+  input = { ...input, fileIds };
   await tx.execute(sql`
     update core.document_files set status = 'tobedeleted'
     where tenant_id = ${input.tenantId}::uuid and document_id = ${input.documentId}::uuid
@@ -73,6 +99,21 @@ async function syncMedia(
     update core.files set linked_at = statement_timestamp()
     where tenant_id = ${input.tenantId}::uuid and id = any(${uuidArray(input.fileIds)})
       and linked_at is null and state = 'ready' and purpose = 'document_media'`);
+}
+
+/** The records whose documents embed a file, through any document still in use. */
+export async function hostsEmbedding(
+  tx: Tx,
+  tenantId: string,
+  fileId: string,
+): Promise<{ type: string; id: string }[]> {
+  const rows = await tx.execute<{ host_type: string; host_id: string }>(sql`
+    select distinct d.host_type, d.host_id from core.document_files l
+    join core.documents d on d.tenant_id = l.tenant_id and d.id = l.document_id
+      and d.status = 'active'
+    where l.tenant_id = ${tenantId}::uuid and l.file_id = ${fileId}::uuid
+      and l.status = 'active'`);
+  return rows.map((row) => ({ type: row.host_type, id: row.host_id }));
 }
 
 /** Writes a host's document, creating it the first time. */

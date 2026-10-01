@@ -1,3 +1,6 @@
+import type { ContentDocument } from "@faridalms/domain/content";
+
+import { plainContent } from "@faridalms/domain/content-conversion";
 import { describe, expect, test } from "bun:test";
 
 import { sweepTenantFiles } from "../src/files/sweep";
@@ -193,5 +196,97 @@ describe("files", () => {
       (await raw("northwind", teacher.token, `/v1/files/${kept.file.id}/content`))
         .status,
     ).toBe(404);
+  });
+});
+
+/** A brief of a sentence and a file block, as the editor stores one. */
+function withFile(fileId: string, words: string): ContentDocument {
+  const document = plainContent(words);
+  document.root.children?.push({
+    type: "file",
+    version: 1,
+    format: "",
+    fileId,
+    name: "worksheet.txt",
+    mime: "text/plain",
+    bytes: 9,
+  });
+  return document;
+}
+
+describe("files in documents", () => {
+  test("a document's file opens for its readers only, and nobody may borrow it", async () => {
+    // The seed's second teacher teaches Arabic to every grade, the third English.
+    const teacher = await sessionFor("northwind", login("teacher", 0, 1));
+    const student = await sessionFor("northwind", login("student"));
+    const me = await student.api.identity.currentUser();
+    const file = await teacher.api.files.initiate({
+      purpose: "document_media",
+      name: "worksheet.txt",
+      mediaType: "text/plain",
+      sizeBytes: 9,
+    });
+    const put = await raw(
+      "northwind",
+      teacher.token,
+      `/v1/files/${file.id}/content`,
+      {
+        method: "PUT",
+        body: text("worksheet"),
+      },
+    );
+    expect(put.status).toBe(200);
+
+    const { classes } = await teacher.api.coursework.options();
+    let classId = "";
+    for (const row of classes.filter(
+      (item) => item.classType === "scheduled",
+    )) {
+      const { roster } = await teacher.api.coursework.groups({
+        classId: row.id,
+      });
+      if (roster.some((pupil) => pupil.id === me.id)) classId = row.id;
+    }
+    const saved = await teacher.api.coursework.save({
+      classId,
+      title: "Worksheet in the brief",
+      brief: withFile(file.id, "Fill in the worksheet."),
+      audience: "class",
+      latePolicy: "accept",
+      submissionFormat: "both",
+      points: 10,
+      rubric: null,
+    });
+    const read = () =>
+      raw("northwind", student.token, `/v1/files/${file.id}/content`);
+    expect((await read()).status).toBe(404);
+    await teacher.api.coursework.publish({
+      id: saved.id,
+      expectedVersion: saved.version,
+    });
+    expect((await read()).status).toBe(200);
+
+    const english = await sessionFor("northwind", login("teacher", 0, 2));
+    expect(
+      (await raw("northwind", english.token, `/v1/files/${file.id}/content`))
+        .status,
+    ).toBe(404);
+    const theirs = await english.api.coursework.options();
+    const other = theirs.classes.find((row) => row.classType === "scheduled");
+    if (!other) throw new Error("the English teacher has no class");
+    expect(
+      await rejection(
+        english.api.coursework.save({
+          classId: other.id,
+          title: "Borrowed worksheet",
+          brief: withFile(file.id, "Someone else's file."),
+          audience: "class",
+          latePolicy: "accept",
+          submissionFormat: "both",
+          points: 10,
+          rubric: null,
+        }),
+      ),
+    ).toMatchObject({ message: "file.not_attachable" });
   });
 });

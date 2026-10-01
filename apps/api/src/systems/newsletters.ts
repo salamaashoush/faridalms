@@ -55,7 +55,7 @@ import {
   requireCapability,
   writeProcedure,
 } from "../core/procedure";
-import { registerHostReader } from "../files/authorize";
+import { registerHostReader, usableMedia } from "../files/authorize";
 
 const id = v.pipe(v.string(), v.uuid());
 
@@ -304,7 +304,12 @@ export const save = writeProcedure
       locale: input.primaryLocale,
       content: input.body,
       plainText: contentPlainText(input.body),
-      mediaIds: [...new Set([...contentFileIds(input.body), ...keepFiles])],
+      mediaIds: [
+        ...new Set([
+          ...(await usableMedia(context, contentFileIds(input.body))),
+          ...keepFiles,
+        ]),
+      ],
       userId: context.actor.userId,
     });
     if (input.bilingual && input.translation) {
@@ -317,7 +322,7 @@ export const save = writeProcedure
         kind: "newsletter",
         content: input.translation,
         plainText: contentPlainText(input.translation),
-        mediaIds: contentFileIds(input.translation),
+        mediaIds: await usableMedia(context, contentFileIds(input.translation)),
         userId: context.actor.userId,
       });
     } else if (!input.bilingual) {

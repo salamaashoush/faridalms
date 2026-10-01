@@ -51,7 +51,7 @@ import {
   requireCapability,
   writeProcedure,
 } from "../core/procedure";
-import { registerHostReader } from "../files/authorize";
+import { registerHostReader, usableMedia } from "../files/authorize";
 
 const id = v.pipe(v.string(), v.uuid());
 
@@ -350,7 +350,7 @@ export const save = writeProcedure
       host: { type: "calendar_event", id: eventId },
       content: input.description,
       plainText: contentPlainText(input.description),
-      mediaIds: contentFileIds(input.description),
+      mediaIds: await usableMedia(context, contentFileIds(input.description)),
       userId: context.actor.userId,
     });
     if (told)
