@@ -7,7 +7,7 @@ export interface Cue {
   text: string;
 }
 
-const RLM = "‏";
+const RLM = String.fromCodePoint(0x200f);
 
 const pad = (part: number, size = 2) => String(part).padStart(size, "0");
 

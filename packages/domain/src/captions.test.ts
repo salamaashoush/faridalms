@@ -11,7 +11,9 @@ describe("captions", () => {
     const file = vttOf(cues);
     expect(file.startsWith("WEBVTT\n")).toBe(true);
     expect(file).toContain("00:00:01.500 --> 00:00:04.000");
-    expect(file).toContain("‏١٠ كلمات جديدة اليوم");
+    expect(file).toContain(
+      `${String.fromCodePoint(0x200f)}١٠ كلمات جديدة اليوم`,
+    );
     expect(parseVtt(file)).toEqual(cues);
   });
 
