@@ -59,7 +59,12 @@ export const overview = readProcedure.handler(async ({ context }) => {
     scalesOf(context.tx, scopeOf(context)),
     programmesOf(context.tx, scopeOf(context)),
   ]);
-  return { scales, programmes, presets: SCALE_PRESETS };
+  return {
+    scales,
+    programmes,
+    presets: SCALE_PRESETS,
+    today: context.today,
+  };
 });
 
 /** Adds a scale, starting from today with the bands given, or renames one. */

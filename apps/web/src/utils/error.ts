@@ -318,6 +318,16 @@ export function getMessageFromError(error: unknown): string {
         return m.courseworkErrNotForQuiz();
       case "coursework.reason_needed":
         return m.authenticationReasonNeeded();
+      case "grading.scale_in_use":
+        return m.courseworkErrScaleInUse();
+      case "grading.programme_in_use":
+        return m.courseworkErrProgrammeInUse();
+      case "grading.label_repeated":
+        return m.gradingLabelRepeated();
+      case "grading.bound_repeated":
+        return m.gradingBoundRepeated();
+      case "grading.no_floor":
+        return m.gradingNoFloor();
       case "file.quota_school":
         return m.fileQuotaSchool();
       case "file.quota_class":

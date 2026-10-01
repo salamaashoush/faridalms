@@ -1,7 +1,7 @@
 import { WORKSPACE_HOME } from "@faridalms/domain/workspace";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, redirect } from "@tanstack/react-router";
-import { History, Plus } from "lucide-react";
+import { History, Plus, RefreshCcw } from "lucide-react";
 import { useState } from "react";
 import * as v from "valibot";
 
@@ -9,6 +9,9 @@ import type {
   ExamBoardRow,
   ExamSession,
 } from "~/components/exams/ExamSessions";
+import type { ProgrammeRow } from "~/components/grading/ProgrammesTab";
+import type { ScaleRow } from "~/components/grading/ScalesTab";
+import type { HeaderAction } from "~/components/system/IndexPage";
 
 import {
   CourseworkList,
@@ -22,17 +25,36 @@ import {
   SessionSheet,
   SessionsTable,
 } from "~/components/exams/ExamSessions";
+import {
+  ProgrammeSheet,
+  ProgrammesTable,
+  RetireProgrammeDialog,
+} from "~/components/grading/ProgrammesTab";
+import { RegradeSheet } from "~/components/grading/RegradeSheet";
+import {
+  BandsSheet,
+  RetireScaleSheet,
+  ScaleSheet,
+  ScalesTable,
+} from "~/components/grading/ScalesTab";
 import { PageHeader } from "~/components/system/IndexPage";
 import { RecordTabs } from "~/components/system/RecordPage";
 import * as m from "~/i18n/messages";
 import { courseworkListQuery, examOverviewQuery } from "~/queries/exams";
+import { gradingOverviewQuery } from "~/queries/grading";
 import { currentUserQuery } from "~/queries/user";
 
+const TABS = [
+  "coursework",
+  "sessions",
+  "boards",
+  "scales",
+  "programmes",
+] as const;
+type Tab = (typeof TABS)[number];
+
 const searchSchema = v.object({
-  tab: v.optional(
-    v.picklist(["coursework", "sessions", "boards"]),
-    "coursework",
-  ),
+  tab: v.optional(v.picklist(TABS), "coursework"),
 });
 
 export const Route = createFileRoute("/_app/exams")({
@@ -45,6 +67,7 @@ export const Route = createFileRoute("/_app/exams")({
     await Promise.all([
       context.queryClient.ensureQueryData(examOverviewQuery),
       context.queryClient.ensureQueryData(courseworkListQuery),
+      context.queryClient.ensureQueryData(gradingOverviewQuery),
     ]);
   },
   component: ExamsPage,
@@ -55,7 +78,13 @@ type Open =
   | { kind: "retire"; session: ExamSession }
   | { kind: "board"; board?: ExamBoardRow }
   | { kind: "history" }
-  | { kind: "students"; assignmentId: string; title: string };
+  | { kind: "students"; assignmentId: string; title: string }
+  | { kind: "scale"; scale?: ScaleRow }
+  | { kind: "bands"; scale: ScaleRow }
+  | { kind: "retireScale"; scale: ScaleRow }
+  | { kind: "programme"; programme?: ProgrammeRow }
+  | { kind: "retireProgramme"; programme: ProgrammeRow }
+  | { kind: "regrade" };
 
 /**
  * Sheets keep their content while they animate closed, and a new opening
@@ -84,33 +113,47 @@ function ExamsPage() {
   const { tab } = Route.useSearch();
   const navigate = Route.useNavigate();
   const overview = useSuspenseQuery(examOverviewQuery).data;
+  const grading = useSuspenseQuery(gradingOverviewQuery).data;
   const sheet = useSheet();
   const shown = sheet.shown;
+  const adds: Partial<Record<Tab, HeaderAction>> = {
+    sessions: {
+      label: m.examAddSession(),
+      icon: Plus,
+      onClick: () => sheet.show({ kind: "session" }),
+    },
+    boards: {
+      label: m.examAddBoard(),
+      icon: Plus,
+      onClick: () => sheet.show({ kind: "board" }),
+    },
+    scales: {
+      label: m.gradingAddScale(),
+      icon: Plus,
+      onClick: () => sheet.show({ kind: "scale" }),
+    },
+    programmes: {
+      label: m.gradingAddProgramme(),
+      icon: Plus,
+      onClick: () => sheet.show({ kind: "programme" }),
+    },
+  };
   return (
     <>
       <PageHeader
         title={m.examTitle()}
         description={m.examSubtitle()}
-        action={
-          tab === "sessions"
-            ? {
-                label: m.examAddSession(),
-                icon: Plus,
-                onClick: () => sheet.show({ kind: "session" }),
-              }
-            : tab === "boards"
-              ? {
-                  label: m.examAddBoard(),
-                  icon: Plus,
-                  onClick: () => sheet.show({ kind: "board" }),
-                }
-              : undefined
-        }
+        action={adds[tab]}
         menu={[
           {
             label: m.examHistory(),
             icon: History,
             onSelect: () => sheet.show({ kind: "history" }),
+          },
+          {
+            label: m.gradingRegradeTitle(),
+            icon: RefreshCcw,
+            onSelect: () => sheet.show({ kind: "regrade" }),
           },
         ]}
       />
@@ -120,6 +163,8 @@ function ExamsPage() {
           { value: "coursework", label: m.examCourseworkTab() },
           { value: "sessions", label: m.examSessionsTab() },
           { value: "boards", label: m.examBoardsTab() },
+          { value: "scales", label: m.gradingScalesTab() },
+          { value: "programmes", label: m.gradingProgrammesTab() },
         ]}
         value={tab}
         onChange={(next) => void navigate({ search: { tab: next } })}
@@ -141,10 +186,27 @@ function ExamsPage() {
             onEdit={(session) => sheet.show({ kind: "session", session })}
             onRetire={(session) => sheet.show({ kind: "retire", session })}
           />
-        ) : (
+        ) : tab === "boards" ? (
           <BoardsTable
             overview={overview}
             onEdit={(board) => sheet.show({ kind: "board", board })}
+          />
+        ) : tab === "scales" ? (
+          <ScalesTable
+            overview={grading}
+            onAdd={() => sheet.show({ kind: "scale" })}
+            onRename={(scale) => sheet.show({ kind: "scale", scale })}
+            onBands={(scale) => sheet.show({ kind: "bands", scale })}
+            onRetire={(scale) => sheet.show({ kind: "retireScale", scale })}
+          />
+        ) : (
+          <ProgrammesTable
+            overview={grading}
+            onAdd={() => sheet.show({ kind: "programme" })}
+            onEdit={(programme) => sheet.show({ kind: "programme", programme })}
+            onRetire={(programme) =>
+              sheet.show({ kind: "retireProgramme", programme })
+            }
           />
         )}
       </RecordTabs>
@@ -179,6 +241,50 @@ function ExamsPage() {
           onOpenChange={(next) => {
             if (!next) sheet.close();
           }}
+        />
+      ) : shown?.open.kind === "scale" ? (
+        <ScaleSheet
+          key={shown.generation}
+          open={sheet.isOpen}
+          scale={shown.open.scale}
+          overview={grading}
+          onClose={sheet.close}
+        />
+      ) : shown?.open.kind === "bands" ? (
+        <BandsSheet
+          key={shown.generation}
+          open={sheet.isOpen}
+          scale={shown.open.scale}
+          today={grading.today}
+          onClose={sheet.close}
+        />
+      ) : shown?.open.kind === "retireScale" ? (
+        <RetireScaleSheet
+          key={shown.generation}
+          open={sheet.isOpen}
+          scale={shown.open.scale}
+          onClose={sheet.close}
+        />
+      ) : shown?.open.kind === "programme" ? (
+        <ProgrammeSheet
+          key={shown.generation}
+          open={sheet.isOpen}
+          programme={shown.open.programme}
+          overview={grading}
+          onClose={sheet.close}
+        />
+      ) : shown?.open.kind === "retireProgramme" ? (
+        <RetireProgrammeDialog
+          key={shown.generation}
+          open={sheet.isOpen}
+          programme={shown.open.programme}
+          onClose={sheet.close}
+        />
+      ) : shown?.open.kind === "regrade" ? (
+        <RegradeSheet
+          key={shown.generation}
+          open={sheet.isOpen}
+          onClose={sheet.close}
         />
       ) : shown?.open.kind === "history" ? (
         <ExamHistory

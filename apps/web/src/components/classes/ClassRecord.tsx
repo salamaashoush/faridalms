@@ -13,6 +13,7 @@ import { initialsOf } from "~/components/app/UserMenu";
 import { ClassAttendance } from "~/components/attendance/ClassAttendance";
 import { formatDate } from "~/components/family/format";
 import { AreaFiles } from "~/components/files/AreaFiles";
+import { ClassGradingSection } from "~/components/grading/ClassGrading";
 import { ActionMenu } from "~/components/system/ActionMenu";
 import {
   phoneLink,
@@ -335,6 +336,9 @@ export function ClassRecord({
   const navigate = useNavigate();
   const seesAttendance = useCapability("attendance:read");
   const seesTimetable = useCapability("timetable:read");
+  const keepsExams = useCapability("exams:manage");
+  const keepsClasses = useCapability("classes:manage");
+  const keepsGrading = keepsExams || keepsClasses;
   const title = classTitle(data);
   const grade = labelOf(
     options.grades.find((row) => row.id === data.gradeId) ?? null,
@@ -402,7 +406,17 @@ export function ClassRecord({
             </RecordSection>
           )
         }
-        aside={<TeachersSection data={data} />}
+        aside={
+          <>
+            <TeachersSection data={data} />
+            {keepsGrading ? (
+              <ClassGradingSection
+                classId={data.id}
+                canEdit={data.year.lifecycle !== "closed"}
+              />
+            ) : null}
+          </>
+        }
       />
     );
   return (

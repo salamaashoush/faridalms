@@ -14,7 +14,7 @@ import * as v from "valibot";
 import type { Facet } from "~/components/system/IndexPage";
 
 import { classTitle } from "~/components/classes/format";
-import { formatScore } from "~/components/coursework/format";
+import { resultText } from "~/components/grading/format";
 import { displayName } from "~/components/people/format";
 import {
   EmptyState,
@@ -176,7 +176,12 @@ function Sheet({ book }: { book: Book }) {
                                 : "text-muted-foreground italic"
                             }
                           >
-                            {formatScore(score, work.points)}
+                            {resultText(
+                              result?.grade,
+                              score,
+                              work.points,
+                              "teacher",
+                            )}
                           </span>
                         )}
                       </td>

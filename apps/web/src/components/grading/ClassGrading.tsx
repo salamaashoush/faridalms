@@ -1,0 +1,200 @@
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState } from "react";
+import { toast } from "sonner";
+
+import { SelectField } from "~/components/system/field";
+import { Fact, Facts, RecordSection } from "~/components/system/RecordPage";
+import { SheetForm } from "~/components/system/SheetForm";
+import { inLocale } from "~/hooks/useCurrentUser";
+import * as m from "~/i18n/messages";
+import { classGradingQuery, gradingOverviewQuery } from "~/queries/grading";
+import { setClassGrading } from "~/server/grading";
+import { getMessageFromError } from "~/utils/error";
+
+import type { GradingOverview } from "./ScalesTab";
+
+import { bandsLine } from "./format";
+
+const FOLLOW = "follow";
+
+const title = (row: { titleEn: string | null; titleAr: string | null }) =>
+  inLocale(row.titleEn, row.titleAr);
+
+/**
+ * The programme a class belongs to and the scale it grades on, each its
+ * own or followed from the default, for the people who keep them.
+ */
+export function ClassGradingSection({
+  classId,
+  canEdit,
+}: {
+  classId: string;
+  canEdit: boolean;
+}) {
+  const queryClient = useQueryClient();
+  const overview = useQuery(gradingOverviewQuery).data;
+  const grading = useQuery(classGradingQuery(classId)).data;
+  const [editing, setEditing] = useState<{ generation: number } | null>(null);
+  const [open, setOpen] = useState(false);
+  if (!overview || !grading) return null;
+  const programme = overview.programmes.find(
+    (row) => row.id === grading.effectiveProgrammeId,
+  );
+  const scaleId = grading.scaleId ?? programme?.scaleId ?? null;
+  const scale = overview.scales.find((row) => row.id === scaleId);
+  const version = scale?.versions.find((row) => row.id === grading.versionId);
+  return (
+    <RecordSection
+      title={m.gradingClassSection()}
+      edit={
+        canEdit
+          ? {
+              label: m.gradingClassEdit(),
+              onClick: () => {
+                setEditing((current) => ({
+                  generation: (current?.generation ?? 0) + 1,
+                }));
+                setOpen(true);
+              },
+            }
+          : undefined
+      }
+    >
+      <Facts>
+        <Fact label={m.gradingProgramme()}>
+          {programme ? (
+            <>
+              <bdi>{title(programme)}</bdi>
+              {grading.programmeId ? null : (
+                <span className="text-muted-foreground">
+                  {" "}
+                  {m.gradingByGradeLevel()}
+                </span>
+              )}
+            </>
+          ) : (
+            m.gradingNoProgramme()
+          )}
+        </Fact>
+        <Fact label={m.gradingScale()}>
+          {scale ? (
+            <span className="grid gap-0.5">
+              <span>
+                <bdi>{title(scale)}</bdi>
+                {grading.scaleId ? null : (
+                  <span className="text-muted-foreground">
+                    {" "}
+                    {m.gradingFromProgramme()}
+                  </span>
+                )}
+              </span>
+              {version ? (
+                <span className="text-[13px] leading-[18px] text-muted-foreground">
+                  {bandsLine(version.bands)}
+                </span>
+              ) : null}
+            </span>
+          ) : (
+            m.gradingPointsOnly()
+          )}
+        </Fact>
+      </Facts>
+      {editing ? (
+        <ClassGradingSheet
+          key={editing.generation}
+          open={open}
+          classId={classId}
+          programmeId={grading.programmeId}
+          scaleId={grading.scaleId}
+          overview={overview}
+          onClose={() => setOpen(false)}
+          onSaved={() =>
+            queryClient.invalidateQueries({ queryKey: ["grading"] })
+          }
+        />
+      ) : null}
+    </RecordSection>
+  );
+}
+
+function ClassGradingSheet({
+  open,
+  classId,
+  programmeId,
+  scaleId,
+  overview,
+  onClose,
+  onSaved,
+}: {
+  open: boolean;
+  classId: string;
+  programmeId: string | null;
+  scaleId: string | null;
+  overview: GradingOverview;
+  onClose: () => void;
+  onSaved: () => Promise<unknown>;
+}) {
+  const [programme, setProgramme] = useState(programmeId ?? FOLLOW);
+  const [scale, setScale] = useState(scaleId ?? FOLLOW);
+  const mutation = useMutation({
+    mutationFn: () =>
+      setClassGrading({
+        data: {
+          classId,
+          programmeId: programme === FOLLOW ? null : programme,
+          scaleId: scale === FOLLOW ? null : scale,
+        },
+      }),
+    meta: { inlineError: true },
+  });
+  return (
+    <SheetForm
+      open={open}
+      onOpenChange={(next) => {
+        if (!next) onClose();
+      }}
+      title={m.gradingClassEdit()}
+      pending={mutation.isPending}
+      error={mutation.error ? getMessageFromError(mutation.error) : null}
+      onSubmit={async () => {
+        try {
+          await mutation.mutateAsync();
+        } catch {
+          return;
+        }
+        await onSaved();
+        toast.success(m.managementSaved());
+        onClose();
+      }}
+    >
+      <SelectField
+        id="class-programme"
+        label={m.gradingProgramme()}
+        hint={m.gradingClassProgrammeHint()}
+        value={programme}
+        options={[
+          { value: FOLLOW, label: m.gradingByGradeLevelOption() },
+          ...overview.programmes.map((row) => ({
+            value: row.id,
+            label: title(row),
+          })),
+        ]}
+        onChange={setProgramme}
+      />
+      <SelectField
+        id="class-scale"
+        label={m.gradingScale()}
+        hint={m.gradingClassScaleHint()}
+        value={scale}
+        options={[
+          { value: FOLLOW, label: m.gradingFromProgrammeOption() },
+          ...overview.scales.map((row) => ({
+            value: row.id,
+            label: title(row),
+          })),
+        ]}
+        onChange={setScale}
+      />
+    </SheetForm>
+  );
+}

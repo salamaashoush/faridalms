@@ -47,7 +47,8 @@ import { formatNumber } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
 import { classTitle } from "../classes/format";
-import { formatInstant, formatScore, STATE_LABEL, STATE_TONE } from "./format";
+import { resultText } from "../grading/format";
+import { formatInstant, STATE_LABEL, STATE_TONE } from "./format";
 import { QuizWork } from "./QuizWork";
 import { useDocumentMedia } from "./useDocumentMedia";
 
@@ -122,9 +123,11 @@ function AttemptItem({ data, attempt }: { data: Data; attempt: Attempt }) {
         <div className="grid gap-2 rounded-lg bg-muted/50 p-3">
           {assessment.effectiveScore !== null || assessment.score !== null ? (
             <p className="text-sm leading-5 font-medium tabular-nums">
-              {formatScore(
+              {resultText(
+                assessment.grade,
                 assessment.effectiveScore ?? assessment.score,
                 data.assignment.points,
+                "learner",
               )}
             </p>
           ) : null}

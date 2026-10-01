@@ -1,4 +1,5 @@
 import type { LearnerState } from "@faridalms/domain/coursework";
+import type { GradeView } from "@faridalms/domain/grading";
 
 import { cn } from "@faridalms/ui/cn";
 import { Link } from "@tanstack/react-router";
@@ -14,7 +15,8 @@ import * as m from "~/i18n/messages";
 import { getLocale } from "~/i18n/runtime";
 
 import { classTitle } from "../classes/format";
-import { formatInstant, formatScore, STATE_LABEL, STATE_TONE } from "./format";
+import { resultText } from "../grading/format";
+import { formatInstant, STATE_LABEL, STATE_TONE } from "./format";
 
 export interface LearnerItem {
   assignmentId: string;
@@ -25,6 +27,8 @@ export interface LearnerItem {
   dueAt: string | null;
   points: number | null;
   effectiveScore: number | null;
+  /** Absent where the list comes from a view that grades nothing. */
+  grade?: GradeView | null;
   releasedAt: string | null;
   state: LearnerState;
 }
@@ -75,7 +79,7 @@ function Item({
       ? m.courseworkDueOn({ date: formatInstant(item.dueAt, timeZone) })
       : null,
     item.state === "returned" && item.effectiveScore !== null
-      ? formatScore(item.effectiveScore, item.points)
+      ? resultText(item.grade, item.effectiveScore, item.points, "learner")
       : null,
   ].filter(Boolean);
   return (

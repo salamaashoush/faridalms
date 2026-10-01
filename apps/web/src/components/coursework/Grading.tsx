@@ -58,8 +58,9 @@ import { actOnWork, assessAttempt } from "~/server/coursework";
 import { formatNumber } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
+import { resultText } from "../grading/format";
 import { displayName } from "../people/format";
-import { formatInstant, formatScore } from "./format";
+import { formatInstant } from "./format";
 import { QuizAttempts } from "./QuizWork";
 
 type Data = Awaited<
@@ -596,7 +597,12 @@ export function Grading({
                 {[
                   assessed.score === null
                     ? null
-                    : formatScore(assessed.score, data.assignment.points),
+                    : resultText(
+                        assessed.grade,
+                        assessed.effectiveScore ?? assessed.score,
+                        data.assignment.points,
+                        "teacher",
+                      ),
                   assessed.releasedAt
                     ? m.courseworkStateReturned()
                     : m.courseworkDraftGrade(),

@@ -6,9 +6,9 @@ import { RecordList, RecordSection } from "~/components/system/RecordPage";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { studentGradesQuery } from "~/queries/gradebook";
-import { formatNumber } from "~/utils/datetime";
 
 import { classTitle } from "../classes/format";
+import { resultText } from "../grading/format";
 
 /** Released term grades, one section per term, one row per class. */
 export function StudentGrades({ studentId = "" }: { studentId?: string }) {
@@ -51,10 +51,12 @@ export function StudentGrades({ studentId = "" }: { studentId?: string }) {
                   <span className="text-sm leading-5 tabular-nums">
                     {row.score === null
                       ? m.commonNotRecorded()
-                      : m.courseworkScoreOf({
-                          score: formatNumber(row.score),
-                          points: formatNumber(row.maxScore),
-                        })}
+                      : resultText(
+                          row.grade,
+                          row.score,
+                          row.maxScore,
+                          "learner",
+                        )}
                   </span>
                   {row.comment ? (
                     <p
