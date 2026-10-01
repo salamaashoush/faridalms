@@ -48,7 +48,9 @@ import {
 import {
   documentOf,
   freezeCopy,
+  publishedVersion,
   saveDocument,
+  snapshotPublish,
 } from "@faridalms/database/stores/documents";
 import {
   filesOfHost,
@@ -171,6 +173,27 @@ async function taughtAssignment(context: UnitContext, assignmentId: string) {
   )
     throw new ORPCError("NOT_FOUND");
   return assignment;
+}
+
+/**
+ * The brief its readers see. Once work is out that is what was last assigned
+ * or updated: co-teachers write the brief together as they type, and their
+ * edits wait for Update like every other change.
+ */
+async function readersBrief(
+  context: UnitContext,
+  assignment: { id: string; state: string },
+): Promise<ContentDocument | null> {
+  const document = await documentOf(context.tx, context.tenantId, {
+    type: "assignment",
+    id: assignment.id,
+  });
+  if (!document) return null;
+  const published =
+    assignment.state === "draft"
+      ? null
+      : await publishedVersion(context.tx, context.tenantId, document.id);
+  return (published ?? document).content as unknown as ContentDocument;
 }
 
 async function filesView(
@@ -360,6 +383,10 @@ export const editor = readProcedure
       ...assignment,
       rubric: assignment.rubric as unknown as Rubric | null,
       brief: (brief?.content ?? null) as ContentDocument | null,
+      publishedBrief:
+        assignment.state === "draft"
+          ? null
+          : await readersBrief(context, assignment),
       quiz:
         quiz && assignment.quizKeep && assignment.quizReveal
           ? {
@@ -410,7 +437,7 @@ function fieldsOf(input: SaveAssignment) {
 /**
  * Saves an assignment as a draft, or changes one already assigned. The brief
  * and resources are replaced by what was sent; a published assignment's
- * recipients follow its audience.
+ * recipients follow its audience, and its readers see the brief as sent here.
  */
 export const save = writeProcedure
   .input(saveAssignmentSchema)
@@ -471,7 +498,7 @@ export const save = writeProcedure
       version = created.version;
     }
     const host = { type: "assignment", id: assignmentId };
-    await saveDocument(tx, {
+    const document = await saveDocument(tx, {
       tenantId: context.tenantId,
       orgId: context.schoolId,
       host,
@@ -480,6 +507,12 @@ export const save = writeProcedure
       mediaIds: contentFileIds(input.brief),
       userId: context.actor.userId,
     });
+    if (published)
+      await snapshotPublish(tx, {
+        tenantId: context.tenantId,
+        documentId: document.id,
+        userId: context.actor.userId,
+      });
     if (input.quiz)
       await saveQuiz(context, { assignmentId, quiz: input.quiz, published });
     const linked = await linkFiles(tx, {
@@ -556,6 +589,12 @@ export const publish = writeProcedure
       quiz,
     });
     if (issues[0]) throw new ORPCError("BAD_REQUEST", { message: issues[0] });
+    if (brief)
+      await snapshotPublish(tx, {
+        tenantId: context.tenantId,
+        documentId: brief.id,
+        userId: context.actor.userId,
+      });
     if (quiz) await publishQuiz(context, assignment.id);
     const year = (
       await schoolYears(tx, context.tenantId, context.schoolId)
@@ -617,10 +656,7 @@ export const record = readProcedure
     requireCapability(context, "assignments:author", "submissions:grade");
     const assignment = await taughtAssignment(context, input.id);
     const [brief, resources, work, classRow] = await Promise.all([
-      documentOf(context.tx, context.tenantId, {
-        type: "assignment",
-        id: assignment.id,
-      }),
+      readersBrief(context, assignment),
       filesView(context, { type: "assignment", id: assignment.id }),
       studentWork(context.tx, {
         tenantId: context.tenantId,
@@ -640,7 +676,7 @@ export const record = readProcedure
             titleAr: classRow.titleAr,
           }
         : null,
-      brief: (brief?.content ?? null) as ContentDocument | null,
+      brief,
       resources,
       work: work.map((row) => ({
         ...row,
@@ -901,10 +937,7 @@ export const work = readProcedure
     )
       throw new ORPCError("NOT_FOUND");
     const [brief, resources, rows, classRow] = await Promise.all([
-      documentOf(context.tx, context.tenantId, {
-        type: "assignment",
-        id: assignment.id,
-      }),
+      readersBrief(context, assignment),
       filesView(context, { type: "assignment", id: assignment.id }),
       studentWork(context.tx, {
         tenantId: context.tenantId,
@@ -953,7 +986,7 @@ export const work = readProcedure
             }
           : null,
       },
-      brief: (brief?.content ?? null) as ContentDocument | null,
+      brief,
       resources,
       submission: {
         id: row.submissionId,

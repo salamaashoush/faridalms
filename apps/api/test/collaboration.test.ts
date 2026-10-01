@@ -99,6 +99,9 @@ function client(room: string, token: string) {
   return { editor, provider, synced, failed, text };
 }
 
+const held = (value: unknown) =>
+  JSON.stringify(value).includes("answer the questions");
+
 async function until(check: () => boolean | Promise<boolean>) {
   for (let attempt = 0; attempt < 100; attempt += 1) {
     if (await check()) return;
@@ -157,6 +160,83 @@ describe("editing an assignment brief together", () => {
       const opened = await teacher.api.coursework.editor({ id: saved.id });
       return JSON.stringify(opened.brief).includes("Then summarise.");
     });
+  });
+
+  test("live edits to work already out wait for Update before students read them", async () => {
+    const teacher = await arabicTeacher();
+    const student = await sessionFor("northwind", login("student"));
+    const me = await student.api.identity.currentUser();
+    const { classes } = await teacher.api.coursework.options();
+    let target: (typeof classes)[number] | undefined;
+    for (const row of classes.filter(
+      (item) => item.classType === "scheduled",
+    )) {
+      const { roster } = await teacher.api.coursework.groups({
+        classId: row.id,
+      });
+      if (roster.some((pupil) => pupil.id === me.id)) target = row;
+    }
+    if (!target) throw new Error("the seeded student takes no Arabic class");
+    const saved = await teacher.api.coursework.save({
+      classId: target.id,
+      title: "Held brief",
+      brief: plainContent("Read chapter two."),
+      audience: "class",
+      latePolicy: "accept",
+      submissionFormat: "both",
+      points: 10,
+      rubric: null,
+    });
+    await teacher.api.coursework.publish({
+      id: saved.id,
+      expectedVersion: saved.version,
+    });
+
+    const ticket = await teacher.api.documents.collaborate({
+      hostType: "assignment",
+      hostId: saved.id,
+    });
+    const a = client(ticket.room, ticket.token);
+    await a.synced;
+    await until(() => a.text().includes("Read chapter two."));
+    a.editor.update(
+      () => {
+        const opening = $getRoot().getFirstChild();
+        if ($isElementNode(opening))
+          opening.append($createTextNode(" Then answer the questions."));
+      },
+      { discrete: true },
+    );
+    let opened = await teacher.api.coursework.editor({ id: saved.id });
+    await until(async () => {
+      opened = await teacher.api.coursework.editor({ id: saved.id });
+      return JSON.stringify(opened.brief).includes("answer the questions");
+    });
+    a.provider.destroy();
+
+    expect(held(opened.publishedBrief)).toBe(false);
+    expect(
+      held((await student.api.coursework.work({ id: saved.id })).brief),
+    ).toBe(false);
+    expect(
+      held((await teacher.api.coursework.record({ id: saved.id })).brief),
+    ).toBe(false);
+
+    await teacher.api.coursework.save({
+      id: saved.id,
+      expectedVersion: opened.version,
+      classId: target.id,
+      title: "Held brief",
+      brief: opened.brief ?? plainContent(""),
+      audience: "class",
+      latePolicy: "accept",
+      submissionFormat: "both",
+      points: 10,
+      rubric: null,
+    });
+    expect(
+      held((await student.api.coursework.work({ id: saved.id })).brief),
+    ).toBe(true);
   });
 
   test("a teacher without the class gets no ticket, and a forged one is refused", async () => {
