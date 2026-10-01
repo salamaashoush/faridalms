@@ -28,6 +28,7 @@ import {
   gradeScales,
   gradeScaleVersions,
   programmeCategories,
+  recordsRequests,
   retentionSettings,
   programmeGradeLevels,
   programmes,
@@ -517,6 +518,19 @@ export async function completeFixture(
     studentRule: "until_age",
     studentValue: 25,
     staffYears: 6,
+  });
+  await tx.insert(recordsRequests).values({
+    tenantId,
+    orgId: schoolId,
+    subjectUserId: userId,
+    requestedBy: "Salama Ashoush",
+    relation: "self",
+    kind: "access",
+    law: "uk_gdpr",
+    receivedOn: "2026-09-01",
+    clockFrom: "2026-09-01",
+    dueOn: "2026-10-01",
+    loggedByUserId: userId,
   });
   await tx.insert(programmeCategories).values({
     tenantId,

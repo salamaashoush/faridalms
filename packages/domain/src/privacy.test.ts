@@ -1,7 +1,14 @@
 import * as v from "valibot";
 import { describe, expect, it } from "vitest";
 
-import { addYears, reviewDueOn, saveRetentionSchema } from "./privacy";
+import {
+  addMonths,
+  addYears,
+  extendedDueOn,
+  requestDueOn,
+  reviewDueOn,
+  saveRetentionSchema,
+} from "./privacy";
 
 const none = { studentRule: null, studentValue: null, staffYears: null };
 
@@ -74,5 +81,46 @@ describe("saveRetentionSchema", () => {
         staffYears: 6,
       }).success,
     ).toBe(true);
+  });
+});
+
+// A Sunday-to-Thursday school with 1 January a public holiday.
+const dayOf = (day: string) => {
+  const weekday = new Date(`${day}T00:00:00Z`).getUTCDay();
+  const weekend = weekday === 5 || weekday === 6;
+  const holiday = day.endsWith("-01-01");
+  return { school: !weekend && !holiday, working: !weekend && !holiday };
+};
+
+describe("requestDueOn", () => {
+  it("gives UK GDPR a calendar month, the month's end, or the next working day", () => {
+    expect(requestDueOn("uk_gdpr", "access", "2026-03-10", dayOf)).toBe(
+      "2026-04-12",
+    );
+    expect(requestDueOn("uk_gdpr", "erasure", "2026-01-31", dayOf)).toBe(
+      "2026-03-01",
+    );
+    expect(addMonths("2028-01-31", 1)).toBe("2028-02-29");
+  });
+
+  it("counts school and working days, never the first day", () => {
+    expect(requestDueOn("egypt", "access", "2025-12-30", dayOf)).toBe(
+      "2026-01-08",
+    );
+    expect(requestDueOn("england_record", "access", "2026-03-01", dayOf)).toBe(
+      "2026-03-22",
+    );
+  });
+
+  it("gives FERPA 45 days for inspection and leaves other requests to the school", () => {
+    expect(requestDueOn("ferpa", "access", "2026-03-01", dayOf)).toBe(
+      "2026-04-15",
+    );
+    expect(requestDueOn("ferpa", "correction", "2026-03-01", dayOf)).toBeNull();
+    expect(requestDueOn("other", "access", "2026-03-01", dayOf)).toBeNull();
+  });
+
+  it("extends a UK request by two months", () => {
+    expect(extendedDueOn("2026-04-12", dayOf)).toBe("2026-06-14");
   });
 });

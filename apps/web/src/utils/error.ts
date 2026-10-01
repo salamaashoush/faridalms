@@ -340,6 +340,14 @@ export function getMessageFromError(error: unknown): string {
         return m.privacyAgeInvalid();
       case "privacy.student_rule_incomplete":
         return m.privacyYearsInvalid();
+      case "privacy.request_closed":
+        return m.privacyErrRequestClosed();
+      case "privacy.no_extension":
+        return m.privacyErrNoExtension();
+      case "privacy.clock_before_receipt":
+        return m.privacyClockBeforeReceipt();
+      case "privacy.due_needed":
+        return m.privacyDueNeeded();
       case "file.quota_school":
         return m.fileQuotaSchool();
       case "file.quota_class":

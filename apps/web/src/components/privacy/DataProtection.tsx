@@ -44,6 +44,11 @@ function standing(
 ): { tone: Tone; label: string } {
   if (row.block?.kind === "hold")
     return { tone: "info", label: m.privacyOnHold() };
+  if (row.block?.kind === "request")
+    return {
+      tone: "info",
+      label: m.privacyRequestOpen({ date: formatDate(row.block.dueOn) }),
+    };
   if (row.block?.kind === "exam")
     return {
       tone: "neutral",
@@ -107,7 +112,7 @@ function StandingStatus({ row, today }: { row: ReviewRow; today: string }) {
   return <StatusText tone={tone}>{label}</StatusText>;
 }
 
-function PersonName({
+export function PersonName({
   row,
 }: {
   row: { fullNameEn: string | null; fullNameAr: string | null };

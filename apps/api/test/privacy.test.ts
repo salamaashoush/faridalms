@@ -125,4 +125,82 @@ describe("retention review", () => {
       ),
     ).toMatchObject({ code: "BAD_REQUEST" });
   });
+
+  test("a records request runs on its law's clock and blocks erasure while open", async () => {
+    const api = await signedIn("northwind", login("principal"));
+    const { review } = await api.privacy.overview();
+    const subject = review[0];
+    if (!subject) throw new Error("the first test leaves a leaver");
+    const base = {
+      subjectUserId: subject.userId,
+      requestedBy: "Salama Ashoush",
+      relation: "self" as const,
+      kind: "access" as const,
+      receivedOn: "2026-03-02",
+      clockFrom: "2026-03-02",
+      dueOn: null,
+      details: "",
+    };
+
+    const uk = await api.privacy.saveRequest({ ...base, law: "uk_gdpr" });
+    expect(uk.dueOn).toBe("2026-04-02");
+    const us = await api.privacy.saveRequest({ ...base, law: "ferpa" });
+    expect(us.dueOn).toBe("2026-04-16");
+    expect(
+      await rejection(
+        api.privacy.saveRequest({ ...base, law: "other", kind: "objection" }),
+      ),
+    ).toMatchObject({ code: "BAD_REQUEST" });
+
+    const blocked = await api.privacy.overview();
+    expect(
+      blocked.review.find((row) => row.userId === subject.userId)?.block,
+    ).toEqual({ kind: "request", dueOn: "2026-04-02" });
+
+    expect(
+      await api.privacy.extendRequest({
+        id: uk.id,
+        reason: "Records span several systems.",
+      }),
+    ).toEqual({ extendedTo: "2026-06-02" });
+    expect(
+      await rejection(
+        api.privacy.extendRequest({ id: us.id, reason: "Complex." }),
+      ),
+    ).toMatchObject({ message: "privacy.no_extension" });
+    const edited = await api.privacy.saveRequest({
+      ...base,
+      id: uk.id,
+      law: "uk_gdpr",
+      details: "Asked for exam scripts too.",
+    });
+    expect(edited.dueOn).toBe("2026-04-02");
+    expect(
+      (await api.privacy.overview()).requests.find((row) => row.id === uk.id)
+        ?.extendedTo,
+    ).toBe("2026-06-02");
+
+    for (const id of [uk.id, us.id])
+      await api.privacy.closeRequest({
+        id,
+        outcome: "completed",
+        note: "Copies sent by email.",
+      });
+    const closed = await api.privacy.overview();
+    expect(
+      closed.review.find((row) => row.userId === subject.userId)?.block,
+    ).toBeNull();
+    expect(closed.requests.find((row) => row.id === uk.id)?.outcome).toBe(
+      "completed",
+    );
+    expect(
+      await rejection(
+        api.privacy.closeRequest({
+          id: uk.id,
+          outcome: "withdrawn",
+          note: "Again.",
+        }),
+      ),
+    ).toMatchObject({ code: "NOT_FOUND", message: "privacy.request_closed" });
+  });
 });

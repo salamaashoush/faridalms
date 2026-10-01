@@ -1,11 +1,17 @@
-import type { RetentionRules } from "@faridalms/domain/privacy";
+import type {
+  RequestKind,
+  RequestLaw,
+  RequestOutcome,
+  RequestRelation,
+  RetentionRules,
+} from "@faridalms/domain/privacy";
 
 import { and, eq, isNull, sql } from "drizzle-orm";
 
 import type { CellTransaction } from "../context";
 
 import { legalHolds } from "../tables/documents";
-import { retentionSettings } from "../tables/privacy";
+import { recordsRequests, retentionSettings } from "../tables/privacy";
 import { textArray, uuidArray } from "./sql";
 import { STAFF_ROLES } from "./staff";
 
@@ -288,4 +294,215 @@ export async function hadAtSchool(
                      and r.org_id = ${scope.orgId}::uuid and r.status = 'active'
                      and r.role = any(${textArray([...STAFF_ROLES])})) as found`);
   return rows[0]?.found ?? false;
+}
+
+/** What the school's calendars say of each day in a span, by day. */
+export async function dayMeanings(
+  tx: Tx,
+  scope: OrgScope & { from: string; to: string },
+): Promise<Map<string, string[]>> {
+  const rows = await tx.execute<{ day: string; meanings: string[] }>(sql`
+    select d.day_on::text as day, array_agg(e.system_meaning) as meanings
+    from core.calendar_dates d
+    join core.academic_sessions y on y.tenant_id = d.tenant_id and y.id = d.school_year_id
+      and y.org_id = ${scope.orgId}::uuid and y.status = 'active'
+    join core.descriptors e on e.tenant_id = d.tenant_id and e.id = d.event_descriptor_id
+    where d.tenant_id = ${scope.tenantId}::uuid and d.status = 'active'
+      and d.day_on between ${scope.from}::date and ${scope.to}::date
+      and e.system_meaning is not null
+    group by d.day_on`);
+  return new Map(rows.map((row) => [row.day, row.meanings]));
+}
+
+export interface RequestRow {
+  id: string;
+  version: number;
+  subjectUserId: string;
+  fullNameEn: string | null;
+  fullNameAr: string | null;
+  requestedBy: string;
+  relation: RequestRelation;
+  kind: RequestKind;
+  law: RequestLaw;
+  receivedOn: string;
+  clockFrom: string;
+  dueOn: string;
+  extendedTo: string | null;
+  extensionReason: string | null;
+  details: string | null;
+  outcome: RequestOutcome | null;
+  closedAt: string | null;
+  outcomeNote: string | null;
+}
+
+/** The school's records requests, open ones first by the day they fall due. */
+export async function requestsOf(
+  tx: Tx,
+  scope: OrgScope,
+): Promise<RequestRow[]> {
+  const rows = await tx.execute<{
+    id: string;
+    version: number;
+    subject_user_id: string;
+    full_name_en: string | null;
+    full_name_ar: string | null;
+    requested_by: string;
+    relation: RequestRelation;
+    kind: RequestKind;
+    law: RequestLaw;
+    received_on: string;
+    clock_from: string;
+    due_on: string;
+    extended_to: string | null;
+    extension_reason: string | null;
+    details: string | null;
+    outcome: RequestOutcome | null;
+    closed_at: string | null;
+    outcome_note: string | null;
+  }>(sql`
+    select r.id, r.version, r.subject_user_id, u.full_name_en, u.full_name_ar,
+           r.requested_by, r.relation, r.kind, r.law,
+           r.received_on::text as received_on, r.clock_from::text as clock_from,
+           r.due_on::text as due_on, r.extended_to::text as extended_to,
+           r.extension_reason, r.details, r.outcome, r.closed_at::text as closed_at,
+           r.outcome_note
+    from core.records_requests r
+    join core.users u on u.tenant_id = r.tenant_id and u.id = r.subject_user_id
+    where r.tenant_id = ${scope.tenantId}::uuid and r.org_id = ${scope.orgId}::uuid
+      and r.status = 'active'
+    order by r.outcome is not null, coalesce(r.extended_to, r.due_on), r.closed_at desc, r.id`);
+  return rows.map((row) => ({
+    id: row.id,
+    version: row.version,
+    subjectUserId: row.subject_user_id,
+    fullNameEn: row.full_name_en,
+    fullNameAr: row.full_name_ar,
+    requestedBy: row.requested_by,
+    relation: row.relation,
+    kind: row.kind,
+    law: row.law,
+    receivedOn: row.received_on,
+    clockFrom: row.clock_from,
+    dueOn: row.due_on,
+    extendedTo: row.extended_to,
+    extensionReason: row.extension_reason,
+    details: row.details,
+    outcome: row.outcome,
+    closedAt: row.closed_at,
+    outcomeNote: row.outcome_note,
+  }));
+}
+
+export interface RequestFields {
+  subjectUserId: string;
+  requestedBy: string;
+  relation: RequestRelation;
+  kind: RequestKind;
+  law: RequestLaw;
+  receivedOn: string;
+  clockFrom: string;
+  dueOn: string;
+  details: string | null;
+}
+
+export async function insertRequest(
+  tx: Tx,
+  input: OrgScope & RequestFields & { loggedByUserId: string },
+): Promise<string> {
+  const [row] = await tx
+    .insert(recordsRequests)
+    .values(input)
+    .returning({ id: recordsRequests.id });
+  if (!row) throw new Error("records request not inserted");
+  return row.id;
+}
+
+/**
+ * Changes an open request; null when it is closed or not the school's. An
+ * extension stays only while the deadline it extends is unchanged.
+ */
+export async function updateRequest(
+  tx: Tx,
+  input: OrgScope & RequestFields & { id: string; keepExtension: boolean },
+): Promise<{ id: string } | null> {
+  const { tenantId, orgId, id, keepExtension, ...fields } = input;
+  const [row] = await tx
+    .update(recordsRequests)
+    .set(
+      keepExtension
+        ? fields
+        : { ...fields, extendedTo: null, extensionReason: null },
+    )
+    .where(
+      and(
+        eq(recordsRequests.tenantId, tenantId),
+        eq(recordsRequests.orgId, orgId),
+        eq(recordsRequests.id, id),
+        eq(recordsRequests.status, "active"),
+        isNull(recordsRequests.outcome),
+      ),
+    )
+    .returning({ id: recordsRequests.id });
+  return row ?? null;
+}
+
+export async function requestById(
+  tx: Tx,
+  scope: OrgScope & { id: string },
+): Promise<RequestRow | null> {
+  return (
+    (await requestsOf(tx, scope)).find((row) => row.id === scope.id) ?? null
+  );
+}
+
+export async function extendRequest(
+  tx: Tx,
+  input: OrgScope & { id: string; extendedTo: string; reason: string },
+): Promise<boolean> {
+  const rows = await tx
+    .update(recordsRequests)
+    .set({ extendedTo: input.extendedTo, extensionReason: input.reason })
+    .where(
+      and(
+        eq(recordsRequests.tenantId, input.tenantId),
+        eq(recordsRequests.orgId, input.orgId),
+        eq(recordsRequests.id, input.id),
+        eq(recordsRequests.status, "active"),
+        eq(recordsRequests.law, "uk_gdpr"),
+        isNull(recordsRequests.outcome),
+        isNull(recordsRequests.extendedTo),
+      ),
+    )
+    .returning({ id: recordsRequests.id });
+  return rows.length > 0;
+}
+
+export async function closeRequest(
+  tx: Tx,
+  input: OrgScope & {
+    id: string;
+    outcome: RequestOutcome;
+    note: string;
+    closedByUserId: string;
+  },
+): Promise<boolean> {
+  const rows = await tx
+    .update(recordsRequests)
+    .set({
+      outcome: input.outcome,
+      outcomeNote: input.note,
+      closedAt: sql`statement_timestamp()`,
+      closedByUserId: input.closedByUserId,
+    })
+    .where(
+      and(
+        eq(recordsRequests.tenantId, input.tenantId),
+        eq(recordsRequests.orgId, input.orgId),
+        eq(recordsRequests.id, input.id),
+        eq(recordsRequests.status, "active"),
+        isNull(recordsRequests.outcome),
+      ),
+    )
+    .returning({ id: recordsRequests.id });
+  return rows.length > 0;
 }

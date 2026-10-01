@@ -1,11 +1,12 @@
 import { WORKSPACE_HOME } from "@faridalms/domain/workspace";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, redirect } from "@tanstack/react-router";
-import { Lock } from "lucide-react";
+import { FileText, Lock } from "lucide-react";
 import { useState } from "react";
 import * as v from "valibot";
 
 import type { HoldRow, ReviewRow } from "~/components/privacy/DataProtection";
+import type { RequestRow } from "~/components/privacy/Requests";
 import type { HeaderAction } from "~/components/system/IndexPage";
 
 import { displayName } from "~/components/people/format";
@@ -17,13 +18,19 @@ import {
   RetentionSheet,
   ReviewTable,
 } from "~/components/privacy/DataProtection";
+import {
+  CloseRequestSheet,
+  ExtendSheet,
+  RequestSheet,
+  RequestsTable,
+} from "~/components/privacy/Requests";
 import { PageHeader } from "~/components/system/IndexPage";
 import { RecordTabs } from "~/components/system/RecordPage";
 import * as m from "~/i18n/messages";
 import { privacyOverviewQuery } from "~/queries/privacy";
 import { currentUserQuery } from "~/queries/user";
 
-const TABS = ["review", "holds", "retention"] as const;
+const TABS = ["review", "requests", "holds", "retention"] as const;
 type Tab = (typeof TABS)[number];
 
 const searchSchema = v.object({
@@ -45,7 +52,10 @@ export const Route = createFileRoute("/_app/privacy")({
 type Open =
   | { kind: "hold"; person: ReviewRow | null }
   | { kind: "release"; hold: HoldRow }
-  | { kind: "rules" };
+  | { kind: "rules" }
+  | { kind: "request"; request: RequestRow | null }
+  | { kind: "extend"; request: RequestRow }
+  | { kind: "close"; request: RequestRow };
 
 function PrivacyPage() {
   const { tab } = Route.useSearch();
@@ -64,6 +74,11 @@ function PrivacyPage() {
   };
   const close = () => setOpen(false);
   const adds: Partial<Record<Tab, HeaderAction>> = {
+    requests: {
+      label: m.privacyLogRequest(),
+      icon: FileText,
+      onClick: () => show({ kind: "request", request: null }),
+    },
     holds: {
       label: m.privacyPlaceHold(),
       icon: Lock,
@@ -81,6 +96,7 @@ function PrivacyPage() {
         label={m.privacyTitle()}
         tabs={[
           { value: "review", label: m.privacyReviewTab() },
+          { value: "requests", label: m.privacyRequestsTab() },
           { value: "holds", label: m.privacyHoldsTab() },
           { value: "retention", label: m.privacyRetentionTab() },
         ]}
@@ -93,6 +109,14 @@ function PrivacyPage() {
             onHold={(person) => show({ kind: "hold", person })}
             onRelease={(hold) => show({ kind: "release", hold })}
             onRules={() => void navigate({ search: { tab: "retention" } })}
+          />
+        ) : tab === "requests" ? (
+          <RequestsTable
+            overview={overview}
+            onAdd={() => show({ kind: "request", request: null })}
+            onEdit={(request) => show({ kind: "request", request })}
+            onExtend={(request) => show({ kind: "extend", request })}
+            onClose={(request) => show({ kind: "close", request })}
           />
         ) : tab === "holds" ? (
           <HoldsTable
@@ -126,6 +150,28 @@ function PrivacyPage() {
           key={shown.generation}
           open={isOpen}
           hold={shown.open.hold}
+          onClose={close}
+        />
+      ) : shown?.open.kind === "request" ? (
+        <RequestSheet
+          key={shown.generation}
+          open={isOpen}
+          request={shown.open.request}
+          today={overview.today}
+          onClose={close}
+        />
+      ) : shown?.open.kind === "extend" ? (
+        <ExtendSheet
+          key={shown.generation}
+          open={isOpen}
+          request={shown.open.request}
+          onClose={close}
+        />
+      ) : shown?.open.kind === "close" ? (
+        <CloseRequestSheet
+          key={shown.generation}
+          open={isOpen}
+          request={shown.open.request}
           onClose={close}
         />
       ) : shown?.open.kind === "rules" ? (
