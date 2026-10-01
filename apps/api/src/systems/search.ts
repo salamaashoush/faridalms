@@ -9,7 +9,7 @@ import type {
 } from "@faridalms/domain/search";
 
 import { reachOf } from "@faridalms/database/stores/audiences";
-import { orgPath, schoolFeatures } from "@faridalms/database/stores/identity";
+import { orgPath } from "@faridalms/database/stores/identity";
 import { childrenOf } from "@faridalms/database/stores/persons";
 import {
   announcementsAmong,
@@ -35,6 +35,7 @@ import { ORPCError } from "@orpc/server";
 import type { UnitContext } from "../core/context";
 
 import { calendarReach } from "../core/audiences";
+import { featuresOf } from "../core/features";
 import { can, localeOf, readProcedure } from "../core/procedure";
 
 const TYPES: Record<SearchKind, readonly string[]> = {
@@ -265,12 +266,7 @@ async function pageOf(
 async function kindsFor(context: UnitContext): Promise<SearchKind[]> {
   const kinds = searchableKinds(context.actor.capabilities);
   if (!kinds.includes("learning")) return kinds;
-  const features = await schoolFeatures(
-    context.tx,
-    context.tenantId,
-    context.schoolId,
-  );
-  return features.elearning
+  return (await featuresOf(context)).elearning
     ? kinds
     : kinds.filter((kind) => kind !== "learning");
 }

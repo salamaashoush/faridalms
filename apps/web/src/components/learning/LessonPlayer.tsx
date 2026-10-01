@@ -46,6 +46,7 @@ import { ButtonLink } from "~/components/app/ButtonLink";
 import { ContentView } from "~/components/content/ContentView";
 import { ReadAloud, YoungContext } from "~/components/learning/ReadAloud";
 import { RecordHeader } from "~/components/system/RecordPage";
+import { useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { lessonEditorQuery, lessonQuery } from "~/queries/learning";
 import {
@@ -450,6 +451,7 @@ function useVowelMarks(setting: VowelMarks) {
 export function LessonPlayer({ lessonId }: { lessonId: string }) {
   const query = lessonQuery(lessonId);
   const data = useSuspenseQuery(query).data;
+  const earlyYears = useCurrentUser().features.early_years;
   const queryClient = useQueryClient();
   const refresh = () =>
     queryClient.invalidateQueries({ queryKey: ["learning"] });
@@ -590,7 +592,7 @@ export function LessonPlayer({ lessonId }: { lessonId: string }) {
         ]}
       />
       {vowels.toggle}
-      <YoungContext.Provider value={data.young}>
+      <YoungContext.Provider value={data.young && earlyYears}>
         <LessonBody
           key={data.attempt}
           blocks={shown.blocks}
@@ -699,6 +701,7 @@ function RetryButton({
  */
 export function LessonPreview({ lessonId }: { lessonId: string }) {
   const data = useSuspenseQuery(lessonEditorQuery(lessonId)).data;
+  const earlyYears = useCurrentUser().features.early_years;
   const navigate = useNavigate();
   const [rows, setRows] = useState<StoredTry[]>([]);
   const [round, setRound] = useState(0);
@@ -793,7 +796,7 @@ export function LessonPreview({ lessonId }: { lessonId: string }) {
         ]}
       />
       {vowels.toggle}
-      <YoungContext.Provider value={data.young}>
+      <YoungContext.Provider value={data.young && earlyYears}>
         <LessonBody
           key={round}
           blocks={blocks}

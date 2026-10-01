@@ -4334,5 +4334,9 @@
   "filesUsageNearlyFull": "Nearly full. Delete files that are no longer needed, or ask a school administrator for more room.",
   "settingsStorage": "Storage",
   "settingsStorageHint": "Everything uploaded in this school counts here once, however many documents show it.",
-  "fileSizeGigabytes": "{count} GB"
+  "fileSizeGigabytes": "{count} GB",
+  "earlyYearsFeatureToggle": "Early years",
+  "earlyYearsFeatureToggleHint": "Lessons for young children: read aloud on tap, larger answers, and choices that work with a long press.",
+  "featureNotInPlan": "Not in your school's plan. Ask Farida to include it.",
+  "featureNotInPlanError": "That module is not in your school's plan."
 }

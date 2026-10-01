@@ -14,7 +14,6 @@ import {
   saveDocument,
   snapshotPublish,
 } from "@faridalms/database/stores/documents";
-import { schoolFeatures } from "@faridalms/database/stores/identity";
 import {
   classesOfModule,
   firstAttempts,
@@ -79,6 +78,7 @@ import * as v from "valibot";
 
 import type { UnitContext } from "../core/context";
 
+import { featuresOf } from "../core/features";
 import {
   audit,
   can,
@@ -97,12 +97,7 @@ import {
 const id = v.pipe(v.string(), v.uuid());
 
 async function isOn(context: UnitContext) {
-  const features = await schoolFeatures(
-    context.tx,
-    context.tenantId,
-    context.schoolId,
-  );
-  return features.elearning;
+  return (await featuresOf(context)).elearning;
 }
 
 async function switchedOn(context: UnitContext) {

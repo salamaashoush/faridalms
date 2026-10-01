@@ -6,7 +6,7 @@ import {
   updateSchool,
 } from "@faridalms/database/stores/school";
 import { saveSchoolSchema, setFeatureSchema } from "@faridalms/domain/people";
-import { limitsOf } from "@faridalms/domain/plans";
+import { availableModules, limitsOf } from "@faridalms/domain/plans";
 import { ORPCError } from "@orpc/server";
 
 import {
@@ -64,14 +64,27 @@ export const saveProfile = writeProcedure
     return saved;
   });
 
-export const features = readProcedure.handler(({ context }) =>
-  schoolFeatures(context.tx, context.tenantId, context.schoolId),
-);
+/** The school's switches, and which modules its plan lets it switch on. */
+export const features = readProcedure.handler(async ({ context }) => ({
+  switches: await schoolFeatures(
+    context.tx,
+    context.tenantId,
+    context.schoolId,
+  ),
+  available: availableModules(context.school.plan),
+}));
 
 export const setFeature = writeProcedure
   .input(setFeatureSchema)
   .handler(async ({ input, context }) => {
     requireCapability(context, "school:manage");
+    if (
+      input.enabled &&
+      !availableModules(context.school.plan).some(
+        (module) => module === input.feature,
+      )
+    )
+      throw new ORPCError("FORBIDDEN", { message: "feature.not_in_plan" });
     await setOrgFeature(context.tx, {
       tenantId: context.tenantId,
       orgId: context.schoolId,
@@ -84,7 +97,14 @@ export const setFeature = writeProcedure
       objectId: context.schoolId,
       details: { feature: input.feature, enabled: input.enabled },
     });
-    return schoolFeatures(context.tx, context.tenantId, context.schoolId);
+    return {
+      switches: await schoolFeatures(
+        context.tx,
+        context.tenantId,
+        context.schoolId,
+      ),
+      available: availableModules(context.school.plan),
+    };
   });
 
 /** How much of the school's storage pool is used, for its administrators. */

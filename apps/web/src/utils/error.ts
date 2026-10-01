@@ -282,6 +282,8 @@ export function getMessageFromError(error: unknown): string {
         return m.fileSizeMismatch();
       case "file.replace_kind":
         return m.fileReplaceKind();
+      case "feature.not_in_plan":
+        return m.featureNotInPlanError();
       case "file.quota_school":
         return m.fileQuotaSchool();
       case "file.quota_class":

@@ -1,7 +1,14 @@
 import { openDirectoryAdmin } from "@faridalms/database/directory/admin";
 import { describe, expect, test } from "bun:test";
 
-import { seeded, testDirectory } from "./harness";
+import {
+  login,
+  rejection,
+  seeded,
+  setPlan,
+  signedIn,
+  testDirectory,
+} from "./harness";
 
 describe("the operator console's directory access", () => {
   test("sets a school's plan, records who and why, and the cell reads it", async () => {
@@ -47,6 +54,47 @@ describe("the operator console's directory access", () => {
       expect(earlier).toMatchObject({ before: null, after: plan });
     } finally {
       await admin.close();
+    }
+  });
+});
+
+describe("modules a plan offers", () => {
+  test("a school switches on only what its plan includes, and loses what the plan drops", async () => {
+    const school = seeded().tenants[0]?.schools.find(
+      (row) => row.slug === "northwind",
+    );
+    if (!school) throw new Error("no northwind school");
+    const principal = await signedIn("northwind", login("principal"));
+    try {
+      await setPlan(school.id, { modules: ["elearning"] });
+      expect((await principal.school.features()).available).toEqual([
+        "elearning",
+      ]);
+      expect(
+        await rejection(
+          principal.school.setFeature({
+            feature: "early_years",
+            enabled: true,
+          }),
+        ),
+      ).toMatchObject({ message: "feature.not_in_plan" });
+      await principal.school.setFeature({
+        feature: "elearning",
+        enabled: true,
+      });
+      expect((await principal.identity.currentUser()).features).toMatchObject({
+        elearning: true,
+        early_years: false,
+      });
+
+      await setPlan(school.id, { modules: ["early_years"] });
+      expect((await principal.identity.currentUser()).features.elearning).toBe(
+        false,
+      );
+      const { switches } = await principal.school.features();
+      expect(switches.elearning).toBe(true);
+    } finally {
+      await setPlan(school.id, null);
     }
   });
 });

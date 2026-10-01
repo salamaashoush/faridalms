@@ -172,7 +172,8 @@ export async function setPlan(
         insert into school_plans (school_id, pool_bytes, class_bytes, module_bytes,
           person_bytes, modules)
         values (${schoolId}::uuid, ${plan.poolBytes ?? null}, ${plan.classBytes ?? null},
-          ${plan.moduleBytes ?? null}, ${plan.personBytes ?? null}, ${plan.modules ?? null})
+          ${plan.moduleBytes ?? null}, ${plan.personBytes ?? null},
+          ${plan.modules ? `{${plan.modules.join(",")}}` : null}::text[])
         on conflict (school_id) do update set pool_bytes = excluded.pool_bytes,
           class_bytes = excluded.class_bytes, module_bytes = excluded.module_bytes,
           person_bytes = excluded.person_bytes, modules = excluded.modules`;

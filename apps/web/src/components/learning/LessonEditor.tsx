@@ -29,6 +29,7 @@ import {
 } from "~/components/system/DocumentPage";
 import { SelectField, TextField } from "~/components/system/field";
 import { useAutosave } from "~/hooks/useAutosave";
+import { useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { moduleRecordQuery } from "~/queries/learning";
 import { saveLesson } from "~/server/learning";
@@ -76,6 +77,7 @@ export function LessonEditor({
 }) {
   const queryClient = useQueryClient();
   const module = useSuspenseQuery(moduleRecordQuery(moduleId)).data;
+  const earlyYears = useCurrentUser().features.early_years;
   const open = module.state === "published";
   const media = useDocumentMedia({ type: "module", id: moduleId });
   // Co-teachers write a lesson together once it exists; a new one starts alone.
@@ -376,12 +378,14 @@ export function LessonEditor({
                 }))}
                 onChange={(value) => set("vowelMarks", value)}
               />
-              <CheckboxRow
-                label={m.lrnYoung()}
-                hint={m.lrnYoungHint()}
-                checked={draft.young}
-                onChange={(young) => set("young", young)}
-              />
+              {earlyYears ? (
+                <CheckboxRow
+                  label={m.lrnYoung()}
+                  hint={m.lrnYoungHint()}
+                  checked={draft.young}
+                  onChange={(young) => set("young", young)}
+                />
+              ) : null}
               <CheckboxRow
                 label={m.lrnReview()}
                 hint={m.lrnReviewHint()}

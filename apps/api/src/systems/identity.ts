@@ -11,7 +11,6 @@ import {
   recordFailure,
   recordSignIn,
   revokeSession,
-  schoolFeatures,
   schoolProfile,
   viewer,
 } from "@faridalms/database/stores/identity";
@@ -24,6 +23,7 @@ import { ORPCError } from "@orpc/server";
 import { randomBytes } from "node:crypto";
 import * as v from "valibot";
 
+import { featuresOf } from "../core/features";
 import {
   audit,
   dateIn,
@@ -230,11 +230,7 @@ export const currentUser = readProcedure.handler(async ({ context }) => {
     workspace: context.actor.workspace,
     roles: [...context.actor.roles],
     capabilities: [...context.actor.capabilities],
-    features: await schoolFeatures(
-      context.tx,
-      context.tenantId,
-      context.schoolId,
-    ),
+    features: await featuresOf(context),
     school: {
       id: school.id,
       slug: context.school.slug,

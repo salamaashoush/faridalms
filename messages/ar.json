@@ -4490,5 +4490,9 @@
   "filesUsageNearlyFull": "قاربت على الامتلاء. احذف الملفات التي لم تعد مطلوبة، أو اطلب من مسؤول المدرسة مساحة أكبر.",
   "settingsStorage": "التخزين",
   "settingsStorageHint": "يُحسب هنا كل ما يُرفع في هذه المدرسة مرة واحدة، مهما كثرت المستندات التي تعرضه.",
-  "fileSizeGigabytes": "{count} غيغابايت"
+  "fileSizeGigabytes": "{count} غيغابايت",
+  "earlyYearsFeatureToggle": "الطفولة المبكرة",
+  "earlyYearsFeatureToggleHint": "دروس للأطفال الصغار: قراءة بصوت عالٍ عند اللمس، وإجابات أكبر، واختيارات تعمل بالضغط المطوّل.",
+  "featureNotInPlan": "ليست ضمن خطة مدرستك. اطلب من فريدة إضافتها.",
+  "featureNotInPlanError": "هذه الوحدة ليست ضمن خطة مدرستك."
 }
