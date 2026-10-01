@@ -89,6 +89,7 @@ test("a teacher assigns work, a student hands it in, and the returned grade reac
   await expect(row.getByText("Handed in", { exact: true })).toBeVisible();
   await row.getByRole("button", { name: "Grade", exact: true }).click();
   await expect(page).toHaveURL(/\/teach\/grading/);
+  await page.getByRole("button", { name: "Grade", exact: true }).click();
   await page.locator("#grade-score").fill("8");
   await page.locator("#grade-feedback").fill("A warm, well organised letter.");
   await page.getByRole("button", { name: "Return and next" }).click();

@@ -1083,6 +1083,8 @@ export const grading = readProcedure
         needsGrading:
           item.attemptId !== null && !item.released && !item.excused,
         released: item.released,
+        handedIn: item.attemptId !== null,
+        excused: item.excused,
       })),
     };
   });

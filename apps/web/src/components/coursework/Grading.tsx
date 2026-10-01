@@ -2,6 +2,26 @@ import type { Rubric } from "@faridalms/domain/coursework";
 
 import { Button } from "@faridalms/ui/button";
 import { cn } from "@faridalms/ui/cn";
+import {
+  Combobox,
+  ComboboxCollection,
+  ComboboxContent,
+  ComboboxEmpty,
+  ComboboxGroup,
+  ComboboxInput,
+  ComboboxItem,
+  ComboboxLabel,
+  ComboboxList,
+  ComboboxTrigger,
+} from "@faridalms/ui/combobox";
+import {
+  Sheet,
+  SheetClose,
+  SheetContent,
+  SheetFooter,
+  SheetHeader,
+  SheetTitle,
+} from "@faridalms/ui/sheet";
 import { Textarea } from "@faridalms/ui/textarea";
 import {
   useMutation,
@@ -10,7 +30,15 @@ import {
   useSuspenseQuery,
 } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { RotateCcw, Save, Send } from "lucide-react";
+import {
+  ArrowLeft,
+  ChevronLeft,
+  ChevronRight,
+  LoaderCircle,
+  PenLine,
+  Send,
+  X,
+} from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -18,14 +46,12 @@ import { ContentView } from "~/components/content/ContentView";
 import { CourseworkStanding } from "~/components/exams/Authentication";
 import { FormField, SelectField, TextField } from "~/components/system/field";
 import { FileList } from "~/components/system/FileList";
-import {
-  phoneLink,
-  RecordEmpty,
-  RecordSection,
-} from "~/components/system/RecordPage";
-import { StatusText } from "~/components/system/status";
+import { PageActions } from "~/components/system/PageActions";
+import { RecordEmpty } from "~/components/system/RecordPage";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
+import { useMedia } from "~/hooks/useMedia";
 import * as m from "~/i18n/messages";
+import { getLocale, getTextDirection } from "~/i18n/runtime";
 import { gradingQuery } from "~/queries/coursework";
 import { workStandingQuery } from "~/queries/exams";
 import { actOnWork, assessAttempt } from "~/server/coursework";
@@ -33,7 +59,7 @@ import { formatNumber } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
 import { displayName } from "../people/format";
-import { formatInstant } from "./format";
+import { formatInstant, formatScore } from "./format";
 import { QuizAttempts } from "./QuizWork";
 
 type Data = Awaited<
@@ -49,38 +75,151 @@ function levelTotal(rubric: Rubric, scores: Record<string, string>) {
   }, 0);
 }
 
-function Queue({ data }: { data: Data }) {
+type QueueRow = Data["queue"][number];
+type Standing = "to_grade" | "returned" | "not_in" | "excused";
+
+const STANDINGS: Standing[] = ["to_grade", "returned", "not_in", "excused"];
+
+const STANDING_LABEL: Record<Standing, (count: { count: string }) => string> = {
+  to_grade: m.courseworkQueueToGrade,
+  returned: m.courseworkQueueReturned,
+  not_in: m.courseworkQueueNotIn,
+  excused: m.courseworkQueueExcused,
+};
+
+function standingOf(row: QueueRow): Standing {
+  if (row.excused) return "excused";
+  if (row.needsGrading) return "to_grade";
+  if (row.handedIn) return "returned";
+  return "not_in";
+}
+
+/**
+ * Moves between the students of the assignment from the top bar, as
+ * Classroom's grading tool does: back, a searchable list grouped by what
+ * each student's work needs, and next. A class of any size stays one search
+ * away, with what is left to grade at the top.
+ */
+function StudentSwitcher({
+  data,
+  onGo,
+}: {
+  data: Data;
+  onGo: (studentId: string) => void;
+}) {
+  const index = data.queue.findIndex(
+    (row) => row.studentId === data.student.studentId,
+  );
+  const previous = data.queue[index - 1];
+  const next = data.queue[index + 1];
+  const names = new Map(
+    data.queue.map((row) => [row.studentId, displayName(row)]),
+  );
+  const groups = STANDINGS.map((standing) => ({
+    value: standing,
+    items: data.queue
+      .filter((row) => standingOf(row) === standing)
+      .map((row) => row.studentId),
+  })).filter((group) => group.items.length);
+  // Layout containment holds the combobox's fixed, visually hidden input
+  // inside the row; at the page edge its -1px margin widened right-to-left
+  // pages by a pixel and drew a sideways scrollbar.
   return (
-    <nav aria-label={m.courseworkQueue()} className="grid content-start gap-1">
-      {data.queue.map((row) => (
-        <Link
-          key={row.studentId}
-          to="/teach/grading"
-          search={{
-            assignmentId: data.assignment.id,
-            studentId: row.studentId,
-          }}
-          aria-current={
-            row.studentId === data.student.studentId ? "page" : undefined
+    <div className="flex min-w-0 items-center gap-1 contain-layout">
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon-sm"
+        aria-label={m.courseworkPreviousStudent()}
+        disabled={!previous}
+        onClick={() => previous && onGo(previous.studentId)}
+      >
+        <ChevronLeft className="rtl:-scale-x-100" aria-hidden />
+      </Button>
+      <Combobox
+        items={groups}
+        value={data.student.studentId}
+        itemToStringLabel={(item: string) => names.get(item) ?? ""}
+        onValueChange={(value) => {
+          if (typeof value === "string") onGo(value);
+        }}
+      >
+        <ComboboxTrigger
+          aria-label={m.courseworkChooseStudent()}
+          render={
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="w-48 min-w-0 justify-between border-input bg-transparent px-2.5 font-normal max-sm:w-32 dark:bg-input/30"
+            />
           }
-          className={cn(
-            "flex items-center justify-between gap-2 rounded-md px-3 py-2 text-sm hover:bg-muted aria-[current=page]:bg-muted aria-[current=page]:font-medium",
-            phoneLink,
-          )}
         >
-          <bdi className="min-w-0 truncate">{displayName(row)}</bdi>
-          {row.needsGrading ? (
-            <StatusText tone="warning">{m.courseworkToGradeShort()}</StatusText>
-          ) : row.released ? (
-            <StatusText tone="accent">{m.courseworkStateReturned()}</StatusText>
-          ) : null}
-        </Link>
-      ))}
-    </nav>
+          <bdi className="min-w-0 flex-1 truncate text-start">
+            {displayName(data.student)}
+          </bdi>
+        </ComboboxTrigger>
+        <ComboboxContent align="end" className="w-72">
+          <ComboboxInput
+            showTrigger={false}
+            aria-label={m.courseworkSearchStudents()}
+            placeholder={m.courseworkSearchStudents()}
+          />
+          <ComboboxEmpty>{m.managementNoMatches()}</ComboboxEmpty>
+          <ComboboxList>
+            {(group: { value: Standing; items: string[] }) => (
+              <ComboboxGroup key={group.value} items={group.items}>
+                <ComboboxLabel>
+                  {STANDING_LABEL[group.value]({
+                    count: formatNumber(group.items.length),
+                  })}
+                </ComboboxLabel>
+                <ComboboxCollection>
+                  {(item: string) => (
+                    <ComboboxItem
+                      key={item}
+                      value={item}
+                      className="max-md:min-h-10"
+                    >
+                      <bdi className="truncate">{names.get(item)}</bdi>
+                    </ComboboxItem>
+                  )}
+                </ComboboxCollection>
+              </ComboboxGroup>
+            )}
+          </ComboboxList>
+        </ComboboxContent>
+      </Combobox>
+      <Button
+        type="button"
+        variant="ghost"
+        size="icon-sm"
+        aria-label={m.courseworkNextStudent()}
+        disabled={!next}
+        onClick={() => next && onGo(next.studentId)}
+      >
+        <ChevronRight className="rtl:-scale-x-100" aria-hidden />
+      </Button>
+    </div>
   );
 }
 
-function GradeForm({ data, onDone }: { data: Data; onDone: () => void }) {
+/**
+ * The grade for the attempt on screen, in a sheet from the end side: for
+ * assessed coursework the declaration and the teacher's word first, then the
+ * rubric, score and feedback, which stay drafts until the work is returned.
+ */
+function GradeSheet({
+  data,
+  open,
+  onOpenChange,
+  onDone,
+}: {
+  data: Data;
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  onDone: () => void;
+}) {
   const attempt = data.attempts.at(-1);
   const rubric = data.assignment.rubric;
   const saved = attempt?.assessment ?? null;
@@ -126,9 +265,8 @@ function GradeForm({ data, onDone }: { data: Data; onDone: () => void }) {
         },
       }),
   });
-  if (!attempt)
-    return <RecordEmpty>{m.courseworkNothingHandedIn()}</RecordEmpty>;
   const points = data.assignment.points;
+  const pending = assess.isPending || act.isPending;
   const check = () => {
     const value = score === "" ? null : Number(score);
     if (
@@ -163,125 +301,182 @@ function GradeForm({ data, onDone }: { data: Data; onDone: () => void }) {
             : m.courseworkGradeSaved(),
       );
       if (then) onDone();
+      else onOpenChange(false);
     } catch (failure) {
       toast.error(getMessageFromError(failure));
     }
   };
+  const side = getTextDirection(getLocale()) === "rtl" ? "left" : "right";
+  // Beside the work on a wide screen, so the teacher reads while grading;
+  // over it on a narrower one.
+  const beside = useMedia("(min-width: 64rem)");
   return (
-    <div className="grid content-start gap-4">
-      {rubric
-        ? rubric.criteria.map((criterion) => (
-            <SelectField
-              key={criterion.id}
-              id={`level-${criterion.id}`}
-              label={criterion.title}
-              value={levels[criterion.id] ?? "none"}
-              options={[
-                { value: "none", label: m.commonNotRecorded() },
-                ...criterion.levels.map((level) => ({
-                  value: level.id,
-                  label: m.courseworkRubricLevel({
-                    level: level.title,
-                    points: formatNumber(level.points),
-                  }),
-                })),
-              ]}
-              onChange={(value) => {
-                const next = { ...levels };
-                if (value === "none") delete next[criterion.id];
-                else next[criterion.id] = value;
-                setLevels(next);
-                setScore(String(levelTotal(rubric, next)));
-              }}
+    <Sheet
+      modal={!beside}
+      open={open}
+      onOpenChange={(next) => {
+        if (!next && pending) return;
+        onOpenChange(next);
+      }}
+    >
+      <SheetContent
+        side={side}
+        showCloseButton={false}
+        backdrop={!beside}
+        className={cn(
+          // Below the top bar, which keeps moving between students.
+          beside &&
+            "data-[side=left]:top-12 data-[side=left]:h-auto data-[side=right]:top-12 data-[side=right]:h-auto",
+          "gap-0 p-0 data-[side=left]:w-full data-[side=right]:w-full data-[side=left]:sm:max-w-[480px] data-[side=right]:sm:max-w-[480px]",
+        )}
+      >
+        <SheetHeader className="border-b px-6 py-4 pe-14 max-md:pe-16">
+          <SheetTitle className="text-base leading-6 font-semibold">
+            {m.courseworkGradeStudent({ name: displayName(data.student) })}
+          </SheetTitle>
+        </SheetHeader>
+        <SheetClose
+          render={
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              aria-label={m.commonClose()}
+              className="absolute end-4 top-3 max-md:top-2 max-md:size-10"
             />
-          ))
-        : null}
-      <TextField
-        id="grade-score"
-        label={
-          points === null
-            ? m.courseworkScore()
-            : m.courseworkScoreOutOf({ points: formatNumber(points) })
-        }
-        hint={rubric ? m.courseworkScoreFromRubric() : undefined}
-        type="number"
-        inputMode="decimal"
-        min={0}
-        step={0.5}
-        width="score"
-        value={score}
-        onChange={(event) => setScore(event.target.value)}
-        errors={error ? [error] : undefined}
-      />
-      <FormField
-        id="grade-feedback"
-        label={m.courseworkFeedback()}
-        hint={m.courseworkFeedbackHint()}
-      >
-        {(control) => (
-          <Textarea
-            {...control}
-            rows={5}
-            maxLength={10000}
-            value={feedback}
-            onChange={(event) => setFeedback(event.target.value)}
-          />
-        )}
-      </FormField>
-      <FormField
-        id="grade-note"
-        label={m.courseworkPrivateNote()}
-        hint={m.courseworkPrivateNoteHint()}
-        optional
-      >
-        {(control) => (
-          <Textarea
-            {...control}
-            rows={2}
-            maxLength={2000}
-            value={note}
-            onChange={(event) => setNote(event.target.value)}
-          />
-        )}
-      </FormField>
-      <div className="flex flex-wrap gap-2">
-        <Button
-          type="button"
-          className="max-md:h-10"
-          onClick={() => void run("return")}
+          }
         >
-          <Send aria-hidden />
-          {m.courseworkReturnNext()}
-        </Button>
-        <Button
-          type="button"
-          variant="outline"
-          className="max-md:h-10"
-          onClick={() => void run()}
-        >
-          <Save aria-hidden />
-          {m.courseworkSaveDraftGrade()}
-        </Button>
-        {final ? null : (
+          <X aria-hidden />
+        </SheetClose>
+        <div className="grid min-h-0 flex-1 content-start gap-6 overflow-y-auto px-6 py-6">
+          {data.quiz ? null : (
+            <CourseworkStanding
+              assignmentId={data.assignment.id}
+              studentId={data.student.studentId}
+            />
+          )}
+          {rubric
+            ? rubric.criteria.map((criterion) => (
+                <SelectField
+                  key={criterion.id}
+                  id={`level-${criterion.id}`}
+                  label={criterion.title}
+                  value={levels[criterion.id] ?? "none"}
+                  options={[
+                    { value: "none", label: m.commonNotRecorded() },
+                    ...criterion.levels.map((level) => ({
+                      value: level.id,
+                      label: m.courseworkRubricLevel({
+                        level: level.title,
+                        points: formatNumber(level.points),
+                      }),
+                    })),
+                  ]}
+                  onChange={(value) => {
+                    const nextLevels = { ...levels };
+                    if (value === "none") delete nextLevels[criterion.id];
+                    else nextLevels[criterion.id] = value;
+                    setLevels(nextLevels);
+                    setScore(String(levelTotal(rubric, nextLevels)));
+                  }}
+                />
+              ))
+            : null}
+          <TextField
+            id="grade-score"
+            label={
+              points === null
+                ? m.courseworkScore()
+                : m.courseworkScoreOutOf({ points: formatNumber(points) })
+            }
+            hint={rubric ? m.courseworkScoreFromRubric() : undefined}
+            type="number"
+            inputMode="decimal"
+            min={0}
+            step={0.5}
+            width="score"
+            value={score}
+            onChange={(event) => setScore(event.target.value)}
+            errors={error ? [error] : undefined}
+          />
+          <FormField
+            id="grade-feedback"
+            label={m.courseworkFeedback()}
+            hint={m.courseworkFeedbackHint()}
+          >
+            {(control) => (
+              <Textarea
+                {...control}
+                dir="auto"
+                rows={6}
+                maxLength={10000}
+                value={feedback}
+                onChange={(event) => setFeedback(event.target.value)}
+              />
+            )}
+          </FormField>
+          <FormField
+            id="grade-note"
+            label={m.courseworkPrivateNote()}
+            hint={m.courseworkPrivateNoteHint()}
+            optional
+          >
+            {(control) => (
+              <Textarea
+                {...control}
+                dir="auto"
+                rows={3}
+                maxLength={2000}
+                value={note}
+                onChange={(event) => setNote(event.target.value)}
+              />
+            )}
+          </FormField>
+        </div>
+        <SheetFooter className="flex-row flex-wrap justify-start gap-2 border-t px-6 py-3 pb-[max(0.75rem,env(safe-area-inset-bottom))]">
+          <Button
+            type="button"
+            className="max-md:h-10"
+            disabled={pending}
+            onClick={() => void run("return")}
+          >
+            {pending ? (
+              <LoaderCircle className="animate-spin" aria-hidden />
+            ) : (
+              <Send aria-hidden />
+            )}
+            {m.courseworkReturnNext()}
+          </Button>
           <Button
             type="button"
             variant="outline"
             className="max-md:h-10"
-            onClick={() => void run("revise")}
+            disabled={pending}
+            onClick={() => void run()}
           >
-            <RotateCcw aria-hidden />
-            {m.courseworkReturnRevise()}
+            {m.courseworkSaveDraftGrade()}
           </Button>
-        )}
-      </div>
-    </div>
+          {final ? null : (
+            <Button
+              type="button"
+              variant="ghost"
+              className="max-md:h-10"
+              disabled={pending}
+              onClick={() => void run("revise")}
+            >
+              {m.courseworkReturnRevise()}
+            </Button>
+          )}
+        </SheetFooter>
+      </SheetContent>
+    </Sheet>
   );
 }
 
 /**
- * One student's work beside the grade: the class list to move through, the
- * attempts, and the score, rubric and feedback, which stay drafts until the
- * work is returned. J and K move to the next and previous student.
+ * One student's work, read in the document column with the class moved
+ * through from the top bar; the grade opens in a sheet. J and K move to the
+ * next and previous student.
  */
 export function Grading({
   assignmentId,
@@ -294,36 +489,36 @@ export function Grading({
   const queryClient = useQueryClient();
   const user = useCurrentUser();
   const navigate = useNavigate();
+  const [grading, setGrading] = useState(false);
   const index = data.queue.findIndex((row) => row.studentId === studentId);
+  const goTo = (target: string) =>
+    void navigate({
+      to: "/teach/grading",
+      search: { assignmentId, studentId: target },
+    });
   const go = (offset: number) => {
     const next = data.queue[index + offset];
-    if (next)
-      void navigate({
-        to: "/teach/grading",
-        search: { assignmentId, studentId: next.studentId },
-      });
+    if (next) goTo(next.studentId);
   };
+  const backToWork = () =>
+    void navigate({
+      to: "/assignments/$assignmentId",
+      params: { assignmentId },
+      search: { tab: "work" },
+    });
   const nextToGrade = () => {
     const later = data.queue.slice(index + 1).find((row) => row.needsGrading);
     const target =
       later ??
       data.queue.find((row) => row.needsGrading && row.studentId !== studentId);
-    if (target)
-      void navigate({
-        to: "/teach/grading",
-        search: { assignmentId, studentId: target.studentId },
-      });
-    else
-      void navigate({
-        to: "/assignments/$assignmentId",
-        params: { assignmentId },
-        search: { tab: "work" },
-      });
+    if (target) goTo(target.studentId);
+    else backToWork();
   };
   useEffect(() => {
     const onKey = (event: KeyboardEvent) => {
       const target = event.target as HTMLElement | null;
       if (
+        grading ||
         target?.closest(
           "input, textarea, select, [contenteditable=true], [role=combobox]",
         )
@@ -336,42 +531,81 @@ export function Grading({
     return () => window.removeEventListener("keydown", onKey);
   });
   const attempt = data.attempts.at(-1);
+  const assessed = attempt?.assessment ?? null;
+  const facts = attempt
+    ? [
+        m.courseworkAttemptNumber({ number: attempt.number }),
+        formatInstant(attempt.submittedAt, user.school.timeZone),
+        attempt.isLate ? m.courseworkLate() : null,
+      ].filter(Boolean)
+    : [];
   return (
-    <div className="grid gap-6">
-      <header className="flex flex-wrap items-baseline justify-between gap-x-6 gap-y-1">
-        <h1 className="text-2xl leading-8 font-semibold tracking-tight">
-          <Link
-            to="/assignments/$assignmentId"
-            params={{ assignmentId }}
-            search={{ tab: "work" }}
-            className="hover:underline"
+    <>
+      <PageActions
+        leading={
+          <Button
+            type="button"
+            variant="ghost"
+            size="icon-sm"
+            aria-label={m.docBack()}
+            onClick={backToWork}
           >
-            {data.assignment.title}
-          </Link>
-        </h1>
-        <p className="text-sm text-muted-foreground">
-          {m.courseworkGradingPosition({
-            position: formatNumber(index + 1),
-            total: formatNumber(data.queue.length),
-          })}
-        </p>
-      </header>
-      <div className="grid gap-6 lg:grid-cols-[14rem_minmax(0,1fr)_20rem]">
-        <Queue data={data} />
-        <RecordSection
-          title={displayName(data.student)}
-          description={
-            attempt
-              ? [
-                  m.courseworkAttemptNumber({ number: attempt.number }),
-                  formatInstant(attempt.submittedAt, user.school.timeZone),
-                  attempt.isLate ? m.courseworkLate() : null,
+            <ArrowLeft className="rtl:-scale-x-100" aria-hidden />
+          </Button>
+        }
+      >
+        <StudentSwitcher data={data} onGo={goTo} />
+        {attempt ? (
+          <Button
+            type="button"
+            size="sm"
+            aria-label={
+              assessed ? m.courseworkEditGrade() : m.courseworkGradeAction()
+            }
+            className="max-sm:size-8 max-sm:px-0"
+            onClick={() => setGrading(true)}
+          >
+            <PenLine aria-hidden />
+            <span className="max-sm:sr-only">
+              {assessed ? m.courseworkEditGrade() : m.courseworkGradeAction()}
+            </span>
+          </Button>
+        ) : null}
+      </PageActions>
+      <div className={cn(grading && "lg:pe-[480px]")}>
+        <article className="mx-auto grid w-full max-w-[720px] gap-6 pb-24">
+          <header className="grid gap-1">
+            <Link
+              to="/assignments/$assignmentId"
+              params={{ assignmentId }}
+              search={{ tab: "work" }}
+              className="text-[13px] leading-[18px] text-muted-foreground hover:underline"
+            >
+              {data.assignment.title}
+            </Link>
+            <h1 className="text-[30px] leading-[38px] font-semibold tracking-tight">
+              <bdi>{displayName(data.student)}</bdi>
+            </h1>
+            {facts.length ? (
+              <p className="text-sm leading-5 text-muted-foreground">
+                {facts.join(" · ")}
+              </p>
+            ) : null}
+            {assessed ? (
+              <p className="text-sm leading-5">
+                {[
+                  assessed.score === null
+                    ? null
+                    : formatScore(assessed.score, data.assignment.points),
+                  assessed.releasedAt
+                    ? m.courseworkStateReturned()
+                    : m.courseworkDraftGrade(),
                 ]
                   .filter(Boolean)
-                  .join(" · ")
-              : undefined
-          }
-        >
+                  .join(" · ")}
+              </p>
+            ) : null}
+          </header>
           {data.quiz ? (
             <QuizAttempts
               quiz={data.quiz}
@@ -392,24 +626,21 @@ export function Grading({
           ) : (
             <RecordEmpty>{m.courseworkNothingHandedIn()}</RecordEmpty>
           )}
-        </RecordSection>
-        <RecordSection title={m.courseworkGradeTitle()}>
-          <div className="grid gap-4">
-            {data.quiz ? null : (
-              <CourseworkStanding
-                assignmentId={assignmentId}
-                studentId={studentId}
-              />
-            )}
-            <GradeForm
-              // A marked quiz answer changes the score, so the form starts again from it.
-              key={`${studentId}-${attempt?.id ?? ""}-${attempt?.assessment?.score ?? ""}`}
-              data={data}
-              onDone={nextToGrade}
-            />
-          </div>
-        </RecordSection>
+        </article>
       </div>
-    </div>
+      {attempt ? (
+        <GradeSheet
+          // A marked quiz answer or another attempt starts the form again.
+          key={`${studentId}-${attempt.id}-${assessed?.score ?? ""}`}
+          data={data}
+          open={grading}
+          onOpenChange={setGrading}
+          onDone={() => {
+            setGrading(false);
+            nextToGrade();
+          }}
+        />
+      ) : null}
+    </>
   );
 }

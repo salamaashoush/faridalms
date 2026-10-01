@@ -22,13 +22,7 @@ import {
   SlidersHorizontal,
   TriangleAlert,
 } from "lucide-react";
-import {
-  createContext,
-  useContext,
-  useRef,
-  useState,
-  useSyncExternalStore,
-} from "react";
+import { createContext, useContext, useRef, useState } from "react";
 
 import type { SaveState } from "~/hooks/useAutosave";
 
@@ -37,6 +31,7 @@ import {
   SaveTemplateDialog,
   TemplatePicker,
 } from "~/components/content/Templates";
+import { useMedia } from "~/hooks/useMedia";
 import * as m from "~/i18n/messages";
 import { getLocale, getTextDirection } from "~/i18n/runtime";
 
@@ -51,18 +46,6 @@ const NO_ACTIONS: ActionItem[] = [];
 
 /** Where the details panel is drawn: beside the document, or in a sheet. */
 const DetailsPlacement = createContext<"side" | "sheet">("side");
-
-function useMedia(query: string) {
-  return useSyncExternalStore(
-    (notify) => {
-      const list = window.matchMedia(query);
-      list.addEventListener("change", notify);
-      return () => list.removeEventListener("change", notify);
-    },
-    () => window.matchMedia(query).matches,
-    () => false,
-  );
-}
 
 export interface PrimaryAction {
   label: string;
