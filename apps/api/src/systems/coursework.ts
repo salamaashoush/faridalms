@@ -38,6 +38,7 @@ import {
   saveRubric,
   selectionOf,
   setAssignmentState,
+  setRecipientDue,
   setRecipients,
   studentWork,
   teacherAssignments,
@@ -92,6 +93,7 @@ import {
   rubricTotal,
   saveAssignmentSchema,
   saveDraftSchema,
+  extendSchema,
   saveGroupSchema,
   saveQuizAnswerSchema,
   saveRubricSchema,
@@ -770,6 +772,38 @@ export const act = writeProcedure
       objectType: "assignment",
       objectId: assignment.id,
       details: { students: chosen.map((row) => row.studentId) },
+    });
+    return { changed };
+  });
+
+/** Moves the due time for some students, or gives them the assignment's again. */
+export const extend = writeProcedure
+  .input(extendSchema)
+  .handler(async ({ input, context }) => {
+    requireCapability(context, "assignments:author");
+    const assignment = await taughtAssignment(context, input.assignmentId);
+    await requireOpenYear(context, assignment.schoolYearId);
+    if (assignment.state !== "published")
+      throw new ORPCError("CONFLICT", { message: "coursework.not_assigned" });
+    if (
+      input.dueAt &&
+      assignment.availableFrom &&
+      Date.parse(input.dueAt) < Date.parse(assignment.availableFrom)
+    )
+      throw new ORPCError("BAD_REQUEST", {
+        message: "coursework.due_before_available",
+      });
+    const changed = await setRecipientDue(context.tx, {
+      tenantId: context.tenantId,
+      assignmentId: assignment.id,
+      studentIds: input.studentIds,
+      dueAt: input.dueAt || null,
+    });
+    await audit(context, {
+      action: "assignment.extend",
+      objectType: "assignment",
+      objectId: assignment.id,
+      details: { students: input.studentIds, dueAt: input.dueAt || null },
     });
     return { changed };
   });

@@ -346,6 +346,13 @@ export const studentWorkActionSchema = v.object({
   studentIds: v.pipe(v.array(id), v.minLength(1), v.maxLength(500)),
 });
 
+/** A due time of their own for some students; empty gives back the assignment's. */
+export const extendSchema = v.object({
+  assignmentId: id,
+  studentIds: v.pipe(v.array(id), v.minLength(1), v.maxLength(500)),
+  dueAt: v.union([v.literal(""), v.pipe(v.string(), v.isoTimestamp())]),
+});
+
 export const saveGroupSchema = v.object({
   id: v.optional(id),
   classId: id,

@@ -95,6 +95,8 @@ export function getMessageFromError(error: unknown): string {
         return m.errorCourseworkBriefEmpty();
       case "coursework.audience_empty":
         return m.courseworkAudienceRequired();
+      case "coursework.not_assigned":
+        return m.errorCourseworkNotAssigned();
       case "coursework.not_draft":
         return m.errorCourseworkNotDraft();
       case "coursework.rubric_total":

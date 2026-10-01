@@ -445,6 +445,27 @@ export async function setRecipients(
   return count?.n ?? 0;
 }
 
+/**
+ * Gives chosen recipients a due time of their own, or the assignment's again
+ * when `dueAt` is null. Returns how many recipients changed.
+ */
+export async function setRecipientDue(
+  tx: Tx,
+  input: {
+    tenantId: string;
+    assignmentId: string;
+    studentIds: readonly string[];
+    dueAt: string | null;
+  },
+): Promise<number> {
+  const rows = await tx.execute<{ id: string }>(sql`
+    update core.assignment_recipients set due_at = ${input.dueAt}::timestamptz
+    where tenant_id = ${input.tenantId}::uuid and assignment_id = ${input.assignmentId}::uuid
+      and student_user_id = any(${uuidArray(input.studentIds)}) and status = 'active'
+    returning id`);
+  return rows.length;
+}
+
 export async function isRecipient(
   tx: Tx,
   tenantId: string,
@@ -464,6 +485,8 @@ export interface WorkRow {
   fullNameEn: string | null;
   fullNameAr: string | null;
   dueAt: string | null;
+  /** The student has a due time of their own rather than the assignment's. */
+  extended: boolean;
   submissionId: string | null;
   submissionVersion: number | null;
   state: SubmissionState | null;
@@ -493,6 +516,7 @@ export async function studentWork(
     full_name_en: string | null;
     full_name_ar: string | null;
     due_at: string | null;
+    extended: boolean;
     submission_id: string | null;
     submission_version: number | null;
     state: SubmissionState | null;
@@ -510,6 +534,7 @@ export async function studentWork(
   }>(sql`
     select r.student_user_id as student_id, u.full_name_en, u.full_name_ar,
       to_char(coalesce(r.due_at, a.due_at) at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as due_at,
+      r.due_at is not null as extended,
       s.id as submission_id, s.version as submission_version, s.state, s.excused, s.needs_revision,
       exists (select 1 from core.documents d where d.tenant_id = r.tenant_id and d.host_type = 'submission'
         and d.host_id = s.id and d.status = 'active' and d.plain_text <> '')
@@ -540,6 +565,7 @@ export async function studentWork(
     fullNameEn: row.full_name_en,
     fullNameAr: row.full_name_ar,
     dueAt: row.due_at,
+    extended: row.extended,
     submissionId: row.submission_id,
     submissionVersion: row.submission_version,
     state: row.state,

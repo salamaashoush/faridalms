@@ -1,5 +1,6 @@
 import {
   assessSchema,
+  extendSchema,
   handInSchema,
   markQuizAnswerSchema,
   publishSchema,
@@ -74,6 +75,10 @@ export const archiveAssignment = createServerFn({ method: "POST" })
 export const actOnWork = createServerFn({ method: "POST" })
   .validator(checked(studentWorkActionSchema))
   .handler(({ data }) => backend().coursework.act(data));
+
+export const extendDueDates = createServerFn({ method: "POST" })
+  .validator(checked(extendSchema))
+  .handler(({ data }) => backend().coursework.extend(data));
 
 export const assessAttempt = createServerFn({ method: "POST" })
   .validator(checked(assessSchema))

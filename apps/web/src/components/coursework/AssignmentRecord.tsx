@@ -1,5 +1,6 @@
 import type { StudentWorkAction } from "@faridalms/domain/coursework";
 
+import { zonedInstant, zonedLocal } from "@faridalms/domain/school";
 import {
   useMutation,
   useQueryClient,
@@ -8,6 +9,7 @@ import {
 import { useNavigate } from "@tanstack/react-router";
 import {
   Archive,
+  CalendarClock,
   ClipboardPen,
   Pencil,
   RotateCcw,
@@ -28,6 +30,7 @@ import type { HeaderFact, RecordTab } from "~/components/system/RecordPage";
 import { Value } from "~/components/app/primitives";
 import { ContentView } from "~/components/content/ContentView";
 import { DataTable } from "~/components/system/DataTable";
+import { TextField } from "~/components/system/field";
 import { FileList } from "~/components/system/FileList";
 import {
   ReaderWidthToggle,
@@ -42,14 +45,17 @@ import {
   RecordSection,
   RecordTabs,
 } from "~/components/system/RecordPage";
+import { SheetForm } from "~/components/system/SheetForm";
 import { SheetPanel } from "~/components/system/SheetPanel";
 import { StatusText } from "~/components/system/status";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
+import { getLocale } from "~/i18n/runtime";
 import { assignmentRecordQuery } from "~/queries/coursework";
 import {
   actOnWork,
   archiveAssignment,
+  extendDueDates,
   publishAssignment,
 } from "~/server/coursework";
 import { cn } from "~/utils/cn";
@@ -154,10 +160,88 @@ function Brief({ data }: { data: Data }) {
 }
 
 function StateCell({ row }: { row: WorkRow }) {
+  const user = useCurrentUser();
   return (
-    <StatusText tone={STATE_TONE[row.learnerState]}>
-      {STATE_LABEL[row.learnerState]()}
-    </StatusText>
+    <span className="grid gap-0.5">
+      <StatusText tone={STATE_TONE[row.learnerState]}>
+        {STATE_LABEL[row.learnerState]()}
+      </StatusText>
+      {row.extended && row.dueAt ? (
+        <span className="text-[13px] leading-[18px] text-muted-foreground">
+          {m.courseworkOwnDue({
+            date: formatInstant(row.dueAt, user.school.timeZone),
+          })}
+        </span>
+      ) : null}
+    </span>
+  );
+}
+
+/** A due time of their own for the chosen students, on the school's clock. */
+function ExtendSheet({
+  data,
+  rows,
+  onOpenChange,
+}: {
+  data: Data;
+  rows: WorkRow[] | null;
+  onOpenChange: (open: boolean) => void;
+}) {
+  const user = useCurrentUser();
+  const timeZone = user.school.timeZone;
+  const queryClient = useQueryClient();
+  const first = rows?.[0];
+  const [value, setValue] = useState(() => {
+    const due =
+      rows?.length === 1 && first?.extended ? first.dueAt : data.dueAt;
+    return due ? zonedLocal(due, timeZone) : "";
+  });
+  const extend = useMutation({
+    mutationFn: () => {
+      const [date = "", time = "00:00"] = value.split("T");
+      return extendDueDates({
+        data: {
+          assignmentId: data.id,
+          studentIds: (rows ?? []).map((row) => row.studentId),
+          dueAt: value ? zonedInstant(date, time, timeZone).toISOString() : "",
+        },
+      });
+    },
+  });
+  return (
+    <SheetForm
+      open={rows !== null}
+      onOpenChange={onOpenChange}
+      title={m.courseworkExtend()}
+      submitLabel={m.courseworkExtend()}
+      pending={extend.isPending}
+      error={extend.error ? getMessageFromError(extend.error) : null}
+      onSubmit={async () => {
+        await extend.mutateAsync();
+        await queryClient.invalidateQueries({ queryKey: ["coursework"] });
+        toast.success(m.courseworkExtended());
+        onOpenChange(false);
+      }}
+    >
+      <div className="grid gap-5">
+        <p className="text-sm leading-5 text-muted-foreground">
+          {m.courseworkExtendFor({
+            names: new Intl.ListFormat(getLocale(), {
+              type: "conjunction",
+            }).format((rows ?? []).map((row) => displayName(row))),
+          })}
+        </p>
+        <TextField
+          id="extend-due"
+          label={m.courseworkExtendDue()}
+          hint={m.courseworkExtendHint()}
+          optional
+          type="datetime-local"
+          value={value}
+          onChange={(event) => setValue(event.target.value)}
+        />
+      </div>
+    </SheetForm>
   );
 }
 
@@ -232,6 +316,7 @@ function workCard(points: number | null) {
 
 function Work({ data }: { data: Data }) {
   const user = useCurrentUser();
+  const [extending, setExtending] = useState<WorkRow[] | null>(null);
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const act = useMutation({
@@ -285,6 +370,15 @@ function Work({ data }: { data: Data }) {
           onSelect: (selected) =>
             run("excuse", selected, m.courseworkExcusedDone()),
         },
+        ...(data.access.author && data.state === "published"
+          ? [
+              {
+                label: m.courseworkExtend(),
+                icon: CalendarClock,
+                onSelect: (selected: WorkRow[]) => setExtending(selected),
+              },
+            ]
+          : []),
       ]
     : [];
   const rowActions = (row: WorkRow): RowAction[] =>
@@ -316,22 +410,42 @@ function Work({ data }: { data: Data }) {
                     run("excuse", [row], m.courseworkExcusedDone()),
                 },
               ]),
+          ...(data.access.author && data.state === "published"
+            ? [
+                {
+                  label: m.courseworkExtend(),
+                  icon: CalendarClock,
+                  onSelect: () => setExtending([row]),
+                },
+              ]
+            : []),
         ]
       : [];
   return (
-    <DataTable
-      caption={m.courseworkWorkCaption()}
-      rows={rows}
-      columns={workColumns(data.points, user.school.timeZone)}
-      rowLabel={(row) => displayName(row)}
-      rowActions={rowActions}
-      batchActions={batch}
-      card={workCard(data.points)}
-      empty={{
-        title: m.courseworkNoRecipients(),
-        description: m.courseworkNoRecipientsBody(),
-      }}
-    />
+    <>
+      <DataTable
+        caption={m.courseworkWorkCaption()}
+        rows={rows}
+        columns={workColumns(data.points, user.school.timeZone)}
+        rowLabel={(row) => displayName(row)}
+        rowActions={rowActions}
+        batchActions={batch}
+        card={workCard(data.points)}
+        empty={{
+          title: m.courseworkNoRecipients(),
+          description: m.courseworkNoRecipientsBody(),
+        }}
+      />
+      {extending ? (
+        <ExtendSheet
+          data={data}
+          rows={extending}
+          onOpenChange={(open) => {
+            if (!open) setExtending(null);
+          }}
+        />
+      ) : null}
+    </>
   );
 }
 

@@ -242,6 +242,65 @@ describe("handing in and returning work", () => {
     ).toMatchObject({ state: "returned", effectiveScore: 9 });
   });
 
+  test("a student given more time is no longer missing, and the class keeps its date", async () => {
+    const teacher = await arabicTeacher();
+    const student = await sessionFor("northwind", login("student"));
+    const me = await student.api.identity.currentUser();
+    const target = await classOfStudent(teacher.api, me.id);
+    const saved = await teacher.api.coursework.save(
+      draft(target.id, "Extended essay", {
+        dueAt: new Date(Date.now() - 86_400_000).toISOString(),
+        latePolicy: "refuse",
+        submissionFormat: "online",
+      }),
+    );
+    expect(
+      await rejection(
+        teacher.api.coursework.extend({
+          assignmentId: saved.id,
+          studentIds: [me.id],
+          dueAt: new Date(Date.now() + 86_400_000).toISOString(),
+        }),
+      ),
+    ).toMatchObject({ message: "coursework.not_assigned" });
+    await teacher.api.coursework.publish({
+      id: saved.id,
+      expectedVersion: saved.version,
+    });
+    expect((await student.api.coursework.work({ id: saved.id })).state).toBe(
+      "missing",
+    );
+
+    const later = new Date(Date.now() + 86_400_000).toISOString();
+    expect(
+      await teacher.api.coursework.extend({
+        assignmentId: saved.id,
+        studentIds: [me.id],
+        dueAt: later,
+      }),
+    ).toEqual({ changed: 1 });
+    const work = await student.api.coursework.work({ id: saved.id });
+    expect(work.state).toBe("to_do");
+    expect(work.canHandIn).toBe(true);
+    const record = await teacher.api.coursework.record({ id: saved.id });
+    expect(record.work.find((row) => row.studentId === me.id)).toMatchObject({
+      extended: true,
+      learnerState: "to_do",
+    });
+    expect(
+      record.work.find((row) => row.studentId !== me.id)?.learnerState,
+    ).toBe("missing");
+
+    await teacher.api.coursework.extend({
+      assignmentId: saved.id,
+      studentIds: [me.id],
+      dueAt: "",
+    });
+    expect((await student.api.coursework.work({ id: saved.id })).state).toBe(
+      "missing",
+    );
+  });
+
   test("late work under a deduction policy loses its share, and an unassessed attempt can be taken back", async () => {
     const teacher = await arabicTeacher();
     const student = await sessionFor("northwind", login("student"));
