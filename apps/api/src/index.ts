@@ -7,7 +7,7 @@ import { createApp } from "./app";
 import { createKeyRing } from "./core/keys";
 import { env } from "./env";
 import { createScanner } from "./files/scan";
-import { DiskFileStore, PUBLIC_KEY } from "./files/store";
+import { DiskFileStore, PUBLIC_KEY, S3FileStore } from "./files/store";
 import { createProvider } from "./notifications/providers";
 import { startDelivery } from "./notifications/scheduler";
 
@@ -24,6 +24,31 @@ const kek = localKek(
   new Uint8Array(Buffer.from(env.CELL_KEK, "base64")),
   `local:${env.CELL_ID}`,
 );
+function bucket(name: string | undefined) {
+  return new Bun.S3Client({
+    bucket: name,
+    endpoint: env.S3_ENDPOINT,
+    region: env.S3_REGION,
+    accessKeyId: env.S3_ACCESS_KEY_ID,
+    secretAccessKey: env.S3_SECRET_ACCESS_KEY,
+  });
+}
+const stores =
+  env.FILE_STORAGE === "s3"
+    ? {
+        files: new S3FileStore(bucket(env.FILE_BUCKET)),
+        publicMedia: new S3FileStore(
+          bucket(env.PUBLIC_MEDIA_BUCKET),
+          PUBLIC_KEY,
+        ),
+      }
+    : {
+        files: new DiskFileStore(env.FILE_STORAGE_DIR),
+        publicMedia: new DiskFileStore(
+          join(env.FILE_STORAGE_DIR, "public-media"),
+          PUBLIC_KEY,
+        ),
+      };
 const server = Bun.serve({
   port: env.API_PORT,
   // Uploads stream through the raw file route; everything else stays small.
@@ -34,11 +59,7 @@ const server = Bun.serve({
     keys: createKeyRing(kek, env.CELL_ID),
     cellId: env.CELL_ID,
     cellSecret: new Uint8Array(Buffer.from(env.CELL_SECRET, "base64")),
-    files: new DiskFileStore(env.FILE_STORAGE_DIR),
-    publicMedia: new DiskFileStore(
-      join(env.FILE_STORAGE_DIR, "public-media"),
-      PUBLIC_KEY,
-    ),
+    ...stores,
     scanner: createScanner(env.CLAMD_ADDRESS),
     maxUploadBytes: env.MAX_UPLOAD_BYTES,
     channels: {

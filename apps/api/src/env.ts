@@ -17,32 +17,47 @@ const bytes = (length: number) =>
   );
 
 export const env = v.parse(
-  v.object({
-    // The cell's pools, one login role each; the directory for routing.
-    CELL_APP_URL: v.pipe(v.string(), v.url()),
-    CELL_SITE_URL: v.optional(v.pipe(v.string(), v.url())),
-    // Settles uploads: only the worker role may set a file's state and digest.
-    CELL_WORKER_URL: v.optional(v.pipe(v.string(), v.url())),
-    DIRECTORY_URL: v.pipe(v.string(), v.url()),
-    CELL_ID: v.pipe(v.string(), v.regex(/^[a-z]{2}-[0-9]{1,2}$/)),
-    // Wraps each tenant's data keys; a deployed cell wraps through its KMS.
-    CELL_KEK: bytes(32),
-    // Derives per-tenant keys for sign-in counters, so no raw identifier is stored.
-    CELL_SECRET: bytes(32),
-    API_PORT: v.optional(positiveInteger, "3001"),
-    CELL_POOL_SIZE: v.optional(positiveInteger, "10"),
-    // Private uploads land here until an object-store adapter is configured.
-    FILE_STORAGE_DIR: v.optional(
-      v.pipe(v.string(), v.minLength(1)),
-      ".data/files",
+  v.pipe(
+    v.object({
+      // The cell's pools, one login role each; the directory for routing.
+      CELL_APP_URL: v.pipe(v.string(), v.url()),
+      CELL_SITE_URL: v.optional(v.pipe(v.string(), v.url())),
+      // Settles uploads: only the worker role may set a file's state and digest.
+      CELL_WORKER_URL: v.optional(v.pipe(v.string(), v.url())),
+      DIRECTORY_URL: v.pipe(v.string(), v.url()),
+      CELL_ID: v.pipe(v.string(), v.regex(/^[a-z]{2}-[0-9]{1,2}$/)),
+      // Wraps each tenant's data keys; a deployed cell wraps through its KMS.
+      CELL_KEK: bytes(32),
+      // Derives per-tenant keys for sign-in counters, so no raw identifier is stored.
+      CELL_SECRET: bytes(32),
+      API_PORT: v.optional(positiveInteger, "3001"),
+      CELL_POOL_SIZE: v.optional(positiveInteger, "10"),
+      FILE_STORAGE: v.optional(v.picklist(["disk", "s3"]), "disk"),
+      FILE_STORAGE_DIR: v.optional(
+        v.pipe(v.string(), v.minLength(1)),
+        ".data/files",
+      ),
+      S3_ENDPOINT: v.optional(v.pipe(v.string(), v.url())),
+      S3_REGION: v.optional(v.pipe(v.string(), v.minLength(1))),
+      S3_ACCESS_KEY_ID: v.optional(v.pipe(v.string(), v.minLength(1))),
+      S3_SECRET_ACCESS_KEY: v.optional(v.pipe(v.string(), v.minLength(1))),
+      FILE_BUCKET: v.optional(v.pipe(v.string(), v.minLength(1))),
+      PUBLIC_MEDIA_BUCKET: v.optional(v.pipe(v.string(), v.minLength(1))),
+      MAX_UPLOAD_BYTES: v.optional(positiveInteger, String(25 * 1024 * 1024)),
+      // host:port of a clamd daemon; uploads are only signature-checked without one.
+      CLAMD_ADDRESS: v.optional(v.pipe(v.string(), v.regex(/^[^\s:]+:\d+$/))),
+      // Transactional email and SMS gateways that accept a JSON POST.
+      EMAIL_WEBHOOK_URL: v.optional(v.pipe(v.string(), v.url())),
+      SMS_WEBHOOK_URL: v.optional(v.pipe(v.string(), v.url())),
+      NOTIFY_WEBHOOK_TOKEN: v.optional(v.pipe(v.string(), v.minLength(1))),
+    }),
+    v.check(
+      (value) =>
+        value.FILE_STORAGE === "disk" ||
+        (value.FILE_BUCKET !== undefined &&
+          value.PUBLIC_MEDIA_BUCKET !== undefined),
+      "FILE_STORAGE=s3 needs FILE_BUCKET and PUBLIC_MEDIA_BUCKET",
     ),
-    MAX_UPLOAD_BYTES: v.optional(positiveInteger, String(25 * 1024 * 1024)),
-    // host:port of a clamd daemon; uploads are only signature-checked without one.
-    CLAMD_ADDRESS: v.optional(v.pipe(v.string(), v.regex(/^[^\s:]+:\d+$/))),
-    // Transactional email and SMS gateways that accept a JSON POST.
-    EMAIL_WEBHOOK_URL: v.optional(v.pipe(v.string(), v.url())),
-    SMS_WEBHOOK_URL: v.optional(v.pipe(v.string(), v.url())),
-    NOTIFY_WEBHOOK_TOKEN: v.optional(v.pipe(v.string(), v.minLength(1))),
-  }),
+  ),
   process.env,
 );

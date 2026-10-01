@@ -53,11 +53,17 @@ sets an attachment disposition with a safe name, and never caches. The web
 forwards both routes at `/files/{id}` with the session cookie, so a browser
 never holds a token or a storage location.
 
+`FILE_STORAGE` chooses where the bytes live. With `disk` (the default),
 `FILE_STORAGE_DIR` (default `.data/files`, relative to the API's working
-directory) holds objects under `<school id>/<file id>`. Give the API a
-dedicated volume and back it up alongside the school databases; a file record
-without its object is unreadable, and an object without its record is
-unreachable. `MAX_UPLOAD_BYTES` (default 25 MiB) bounds every upload and sizes
+directory) holds private objects under `t/<school id>/...` and published media
+under `public-media/`; give the API a dedicated volume. With `s3`, private
+objects go to `FILE_BUCKET` and published media to `PUBLIC_MEDIA_BUCKET` on any
+S3-compatible service (AWS S3, Cloudflare R2, MinIO, SeaweedFS), reached through
+`S3_ENDPOINT`, `S3_REGION`, `S3_ACCESS_KEY_ID` and `S3_SECRET_ACCESS_KEY`. Large
+uploads go up in parts, and a move is a copy then a delete, since S3 has no
+rename. Keep both buckets private: downloads always pass through the API. Back
+the store up alongside the school databases; a file record without its object
+is unreadable, and an object without its record is unreachable. `MAX_UPLOAD_BYTES` (default 25 MiB) bounds every upload and sizes
 the server's request body limit. Only the extensions and media types listed in
 `packages/domain/src/file.ts` are accepted; executables and SVG stay out.
 

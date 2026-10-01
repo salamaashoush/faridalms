@@ -94,6 +94,70 @@ export class DiskFileStore implements FileStore {
   }
 }
 
+/**
+ * Objects in an S3-compatible bucket (S3, R2, MinIO and the like). The
+ * protocol has no rename, so a move is a copy followed by a delete.
+ */
+export class S3FileStore implements FileStore {
+  private readonly client: Bun.S3Client;
+  private readonly keys: RegExp;
+
+  constructor(client: Bun.S3Client, keys: RegExp = PRIVATE_KEY) {
+    this.client = client;
+    this.keys = keys;
+  }
+
+  private object(key: string) {
+    if (!this.keys.test(key)) throw new StoreError("invalid_key");
+    return this.client.file(key);
+  }
+
+  async write(
+    key: string,
+    body: ReadableStream<Uint8Array>,
+    limit: number,
+  ): Promise<StoredObject> {
+    const object = this.object(key);
+    const sink = object.writer();
+    const hasher = new Bun.CryptoHasher("sha256");
+    let sizeBytes = 0;
+    try {
+      for await (const chunk of body) {
+        sizeBytes += chunk.byteLength;
+        if (sizeBytes > limit) throw new StoreError("too_large");
+        hasher.update(chunk);
+        await sink.write(chunk);
+      }
+      await sink.end();
+    } catch (error) {
+      await Promise.resolve(
+        sink.end(error instanceof Error ? error : undefined),
+      ).catch(() => undefined);
+      await object.delete().catch(() => undefined);
+      throw error;
+    }
+    return { sizeBytes, sha256: hasher.digest("hex") };
+  }
+
+  async open(key: string, range?: { start: number; end: number }) {
+    const object = this.object(key);
+    if (!(await object.exists())) return null;
+    return range
+      ? object.slice(range.start, range.end + 1).stream()
+      : object.stream();
+  }
+
+  async move(from: string, to: string) {
+    const source = this.object(from);
+    await this.object(to).write(source);
+    await source.delete();
+  }
+
+  async remove(key: string) {
+    await this.object(key).delete();
+  }
+}
+
 /** Up to `limit` leading bytes of a stored object, without reading the rest. */
 export async function readPrefix(
   store: FileStore,
