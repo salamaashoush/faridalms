@@ -493,7 +493,7 @@ const EMPTY = new Set<string>();
 // The primary column takes whatever width the others leave and truncates its
 // link there, so a long name cannot push the table into sideways scrolling.
 // max-width 0 is what lets an auto-layout cell shrink below its content.
-const fillColumn = "w-full max-w-0 min-w-40";
+const fillColumn = "w-full max-w-0 min-w-32";
 
 export function DataTable<T extends { id: string }, S extends string>({
   caption,

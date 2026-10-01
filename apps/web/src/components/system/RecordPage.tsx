@@ -127,7 +127,7 @@ export function RecordHeader({
                     <dd className="relative ps-4">
                       <span
                         aria-hidden
-                        className="absolute start-0 w-4 text-center"
+                        className="absolute inset-y-0 start-0 flex w-4 items-center justify-center"
                       >
                         ·
                       </span>
