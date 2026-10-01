@@ -207,6 +207,9 @@ export interface EditorStrings {
   questionHint: string;
   questionExplanation: string;
   questionFeedback: string;
+  questionPicture: string;
+  questionPictureDescribe: string;
+  questionPictureRemove: string;
   questionDelete: string;
   questionDone: string;
   questionTriesCount: (count: number) => string;

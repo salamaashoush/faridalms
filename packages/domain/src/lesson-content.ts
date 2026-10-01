@@ -73,6 +73,22 @@ function segmentsOf(passages: readonly ContentNode[]): GapSegment[] {
   return segments;
 }
 
+/** A part's picture, when it has one. */
+function pictureOf(node: ContentNode | undefined) {
+  return node?.fileId ? { fileId: node.fileId, alt: node.alt ?? "" } : null;
+}
+
+/** Whether a part says anything: words, or a picture. */
+const written = (node: ContentNode | undefined) =>
+  Boolean(textOf(node).trim() || node?.fileId);
+
+/** A part's picture as the attributes its node keeps. */
+function pictureFields(
+  picture: { fileId: string; alt: string } | null | undefined,
+) {
+  return picture ? { fileId: picture.fileId, alt: picture.alt } : {};
+}
+
 function questionBlock(node: ContentNode): LessonBlock | null {
   const [prompt, ...parts] = node.children ?? [];
   if (!node.questionId || !node.kind) return null;
@@ -87,7 +103,7 @@ function questionBlock(node: ContentNode): LessonBlock | null {
   switch (node.kind) {
     case "choice": {
       const options = parts.filter(
-        (part) => part.type === "question-option" && textOf(part).trim(),
+        (part) => part.type === "question-option" && written(part),
       );
       return {
         ...check,
@@ -95,6 +111,7 @@ function questionBlock(node: ContentNode): LessonBlock | null {
         options: options.map((option) => ({
           id: option.optionId ?? "",
           text: textOf(option).trim(),
+          ...(option.fileId ? { picture: pictureOf(option) } : {}),
           feedback: option.feedback ?? "",
         })),
         correctOptionIds: options
@@ -134,12 +151,11 @@ function questionBlock(node: ContentNode): LessonBlock | null {
         ...check,
         type: "ordering",
         items: parts
-          .filter(
-            (part) => part.type === "question-option" && textOf(part).trim(),
-          )
+          .filter((part) => part.type === "question-option" && written(part))
           .map((item) => ({
             id: item.optionId ?? "",
             text: textOf(item).trim(),
+            ...(item.fileId ? { picture: pictureOf(item) } : {}),
           })),
         scoring: node.scoring ?? "all",
       };
@@ -149,20 +165,27 @@ function questionBlock(node: ContentNode): LessonBlock | null {
         type: "matching",
         pairs: parts
           .filter(
-            (part) => part.type === "question-pair" && textOf(part).trim(),
+            (part) =>
+              part.type === "question-pair" &&
+              (written(part.children?.[0]) || written(part.children?.[1])),
           )
-          .map((pair) => ({
-            id: pair.optionId ?? "",
-            prompt: textOf(pair.children?.[0]).trim(),
-            answer: textOf(pair.children?.[1]).trim(),
-          })),
+          .map((pair) => {
+            const [asked, matched] = pair.children ?? [];
+            return {
+              id: pair.optionId ?? "",
+              prompt: textOf(asked).trim(),
+              ...(asked?.fileId ? { promptPicture: pictureOf(asked) } : {}),
+              answer: textOf(matched).trim(),
+              ...(matched?.fileId ? { answerPicture: pictureOf(matched) } : {}),
+            };
+          }),
         distractors: parts
-          .filter((part) => part.type === "question-answer")
+          .filter((part) => part.type === "question-answer" && written(part))
           .map((extra) => ({
             id: extra.optionId ?? "",
             text: textOf(extra).trim(),
-          }))
-          .filter((extra) => extra.text),
+            ...(extra.fileId ? { picture: pictureOf(extra) } : {}),
+          })),
       };
     case "gaps":
       return {
@@ -186,12 +209,11 @@ function questionBlock(node: ContentNode): LessonBlock | null {
         })),
         items: groups.flatMap((group) =>
           (group.children ?? [])
-            .filter(
-              (item) => item.type === "question-option" && textOf(item).trim(),
-            )
+            .filter((item) => item.type === "question-option" && written(item))
             .map((item) => ({
               id: item.optionId ?? "",
               text: textOf(item).trim(),
+              ...(item.fileId ? { picture: pictureOf(item) } : {}),
               groupId: group.optionId ?? "",
             })),
         ),
@@ -402,6 +424,7 @@ export function questionNode(block: LessonBlock): ContentNode | null {
         ...(base.children ?? []),
         ...block.options.map((option) => ({
           ...inlineOf("question-option", option.text),
+          ...pictureFields(option.picture),
           optionId: option.id,
           correct: block.correctOptionIds.includes(option.id),
           feedback: option.feedback,
@@ -445,6 +468,7 @@ export function questionNode(block: LessonBlock): ContentNode | null {
         ...(base.children ?? []),
         ...block.items.map((item) => ({
           ...inlineOf("question-option", item.text),
+          ...pictureFields(item.picture),
           optionId: item.id,
         })),
       ],
@@ -462,12 +486,19 @@ export function questionNode(block: LessonBlock): ContentNode | null {
           direction: null,
           optionId: pair.id,
           children: [
-            inlineOf("question-side", pair.prompt),
-            inlineOf("question-side", pair.answer),
+            {
+              ...inlineOf("question-side", pair.prompt),
+              ...pictureFields(pair.promptPicture),
+            },
+            {
+              ...inlineOf("question-side", pair.answer),
+              ...pictureFields(pair.answerPicture),
+            },
           ],
         })),
         ...block.distractors.map((extra) => ({
           ...inlineOf("question-answer", extra.text),
+          ...pictureFields(extra.picture),
           optionId: extra.id,
         })),
       ],
@@ -490,6 +521,7 @@ export function questionNode(block: LessonBlock): ContentNode | null {
               .filter((item) => item.groupId === group.id)
               .map((item) => ({
                 ...inlineOf("question-option", item.text),
+                ...pictureFields(item.picture),
                 optionId: item.id,
               })),
           ],

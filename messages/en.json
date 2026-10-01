@@ -4338,5 +4338,9 @@
   "earlyYearsFeatureToggle": "Early years",
   "earlyYearsFeatureToggleHint": "Lessons for young children: read aloud on tap, larger answers, and choices that work with a long press.",
   "featureNotInPlan": "Not in your school's plan. Ask Farida to include it.",
-  "featureNotInPlanError": "That module is not in your school's plan."
+  "featureNotInPlanError": "That module is not in your school's plan.",
+  "editorQuestionPicture": "Add a picture",
+  "editorQuestionPictureDescribe": "Describe the picture",
+  "editorQuestionPictureRemove": "Remove the picture",
+  "lrnPictureUnnamed": "Describe each picture that has no words, so everyone can tell what it shows."
 }

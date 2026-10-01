@@ -39,6 +39,8 @@ import {
   Download,
   ExternalLink,
   Eye,
+  ImageOff,
+  ImagePlus,
   Italic,
   Lightbulb,
   Link,
@@ -50,6 +52,7 @@ import {
   Shuffle,
   SpellCheck,
   Strikethrough,
+  TextQuote,
   Trash2,
   Underline,
   Unlink,
@@ -58,7 +61,11 @@ import { useEffect, useEffectEvent, useRef, useState } from "react";
 
 import type { BlockType } from "../blocks";
 import type { MarkFormat } from "../formatting";
-import type { QuestionSettings, QuestionOptionNode } from "../nodes/question";
+import type {
+  PartPicture,
+  QuestionSettings,
+  QuestionOptionNode,
+} from "../nodes/question";
 import type { EditorColor } from "../strings";
 
 import {
@@ -82,7 +89,15 @@ import {
   textColors,
 } from "../formatting";
 import { $isFileNode, $isImageNode, OPEN_FILE_COMMAND } from "../nodes/media";
-import { $isQuestionNode, $isQuestionOptionNode } from "../nodes/question";
+import {
+  $findPart,
+  $holdsPicture,
+  $isQuestionNode,
+  $isQuestionOptionNode,
+  $partAddress,
+  $partPicture,
+  $setPartPicture,
+} from "../nodes/question";
 import {
   $isDiagramNode,
   $isEmbedNode,
@@ -90,6 +105,7 @@ import {
   EDIT_DIAGRAM_COMMAND,
 } from "../nodes/rich";
 import { focusText, textFocus, updateFromOutside } from "../outside";
+import { editorInSlot } from "../slots";
 import { editorColors } from "../strings";
 import {
   Floating,
@@ -119,9 +135,11 @@ interface QuestionBarFacts {
   settings: QuestionSettings;
   /** The option the caret is in, whose feedback the bar edits. */
   option: { key: NodeKey; feedback: string } | null;
+  /** The part the caret is in, when it may show a picture. */
+  part: { key: NodeKey; picture: PartPicture | null } | null;
 }
 
-type QuestionText = "hint" | "explanation" | "feedback";
+type QuestionText = "hint" | "explanation" | "feedback" | "alt";
 
 const POINTS = [0, 1, 2, 3, 4, 5, 6, 8, 10];
 const TRIES = [null, 1, 2, 3, 5] as const;
@@ -248,6 +266,46 @@ export function SelectionToolbarPlugin() {
   const [url, setUrl] = useState("");
   const [invalid, setInvalid] = useState(false);
   const saved = useRef<BaseSelection | null>(null);
+  const [partProblem, setPartProblem] = useState<string | null>(null);
+  /**
+   * Chooses a picture for the question part the caret is in. The chooser is
+   * made on the spot rather than drawn in the bar, since the bar closes while
+   * the system's file dialog has focus.
+   */
+  const choosePartPicture = (partKey: NodeKey) => {
+    if (!media) return;
+    const address = editor.getEditorState().read(() => {
+      const node = $getNodeByKey(partKey);
+      return node ? $partAddress(node) : null;
+    });
+    if (!address) return;
+    const slot = editor.getRootElement()?.id;
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = media.accept.image.join(",");
+    const place = async (file: File) => {
+      try {
+        const uploaded = await media.upload(file, "image");
+        updateFromOutside(editorInSlot(slot) ?? editor, () => {
+          const part = $findPart(address);
+          if (part) $setPartPicture(part, { fileId: uploaded.fileId, alt: "" });
+        });
+      } catch {
+        setPartProblem(strings.uploadFailed);
+      }
+    };
+    // Attached while open: Safari on iOS opens no chooser for a detached input.
+    input.hidden = true;
+    input.addEventListener("change", () => {
+      const [file] = input.files ?? [];
+      input.remove();
+      if (file) void place(file);
+    });
+    input.addEventListener("cancel", () => input.remove());
+    document.body.append(input);
+    input.click();
+  };
+
   const pointer = useRef(false);
   const menus = useRef(0);
   const toolbar = useRef<HTMLDivElement>(null);
@@ -293,8 +351,10 @@ export function SelectionToolbarPlugin() {
       if (!$isRangeSelection(selection)) return null;
       let node: LexicalNode | null = selection.anchor.getNode();
       let option: QuestionOptionNode | null = null;
+      let part: LexicalNode | null = null;
       while (node && !$isQuestionNode(node)) {
         if ($isQuestionOptionNode(node)) option = node;
+        if (!part && $holdsPicture(node)) part = node;
         node = node.getParent();
       }
       if (!$isQuestionNode(node)) return null;
@@ -304,6 +364,7 @@ export function SelectionToolbarPlugin() {
         option: option
           ? { key: option.getKey(), feedback: option.getFeedback() }
           : null,
+        part: part ? { key: part.getKey(), picture: $partPicture(part) } : null,
       };
     });
 
@@ -459,9 +520,15 @@ export function SelectionToolbarPlugin() {
     )
       return undefined;
     const onFocus = () => {
-      // Opening the link box moves focus into its field while this listener,
-      // wired for the formatting bar, is still attached.
-      if (modeRef.current === "link-edit") return;
+      // Opening the link box or a question's text or number form moves focus
+      // into its field while this listener, wired for the bar, is still
+      // attached; a check queued by the click's blur runs after the switch.
+      if (
+        modeRef.current === "link-edit" ||
+        modeRef.current === "question-text" ||
+        modeRef.current === "question-number"
+      )
+        return;
       const active = document.activeElement;
       const root = editor.getRootElement();
       if (
@@ -664,7 +731,9 @@ export function SelectionToolbarPlugin() {
       setDraftText(
         field === "feedback"
           ? (question.option?.feedback ?? "")
-          : settings[field],
+          : field === "alt"
+            ? (question.part?.picture?.alt ?? "")
+            : settings[field],
       );
       show("question-text");
     };
@@ -818,6 +887,47 @@ export function SelectionToolbarPlugin() {
               <MessageSquare aria-hidden />
             </ToolButton>
           ) : null}
+          {question.part && media ? (
+            question.part.picture ? (
+              <>
+                <ToolButton
+                  label={strings.questionPictureDescribe}
+                  active={Boolean(question.part.picture.alt)}
+                  onClick={() => write("alt")}
+                >
+                  <TextQuote aria-hidden />
+                </ToolButton>
+                <ToolButton
+                  label={strings.questionPictureRemove}
+                  onClick={() =>
+                    withSelection(() => {
+                      const part = question.part
+                        ? $getNodeByKey(question.part.key)
+                        : null;
+                      if (part) $setPartPicture(part, null);
+                    })
+                  }
+                >
+                  <ImageOff aria-hidden />
+                </ToolButton>
+              </>
+            ) : (
+              <ToolButton
+                label={strings.questionPicture}
+                onClick={() => {
+                  setPartProblem(null);
+                  if (question.part) choosePartPicture(question.part.key);
+                }}
+              >
+                <ImagePlus aria-hidden />
+              </ToolButton>
+            )
+          ) : null}
+          {partProblem ? (
+            <span role="alert" className="px-1 text-xs text-destructive">
+              {partProblem}
+            </span>
+          ) : null}
           {separator}
           <ToolButton
             label={strings.questionDelete}
@@ -844,11 +954,13 @@ export function SelectionToolbarPlugin() {
       hint: strings.questionHint,
       explanation: strings.questionExplanation,
       feedback: strings.questionFeedback,
+      alt: strings.questionPictureDescribe,
     };
     const limits: Record<QuestionText, number> = {
       hint: 500,
       explanation: 1000,
       feedback: 300,
+      alt: 300,
     };
     const done = () => {
       const value = draftText.trim();
@@ -858,6 +970,13 @@ export function SelectionToolbarPlugin() {
             ? $getNodeByKey(question.option.key)
             : null;
           if ($isQuestionOptionNode(option)) option.setFeedback(value);
+          return;
+        }
+        if (editing === "alt") {
+          const part = question.part ? $getNodeByKey(question.part.key) : null;
+          const picture = part ? $partPicture(part) : null;
+          if (part && picture)
+            $setPartPicture(part, { ...picture, alt: value });
           return;
         }
         const node = $getNodeByKey(question.key);

@@ -284,3 +284,89 @@ describe("lessons written as one document", () => {
     expect(quizOfBrief(plainContent("No questions yet.")).blocks).toEqual([]);
   });
 });
+
+const partId = (n: number) =>
+  `0190a1b2-0000-7000-8000-0000000001${String(n).padStart(2, "0")}`;
+
+describe("pictures on a question's parts", () => {
+  const cat = "0190a1b2-0000-7000-8000-0000000000c1";
+  const dog = "0190a1b2-0000-7000-8000-0000000000d1";
+  const base = { points: 1, hint: "", explanation: "", tries: null };
+  const pictured: LessonDocument = {
+    version: 2,
+    blocks: [
+      {
+        ...base,
+        id: partId(1),
+        type: "choice",
+        prompt: "Which one says meow?",
+        options: [
+          {
+            id: partId(2),
+            text: "",
+            picture: { fileId: cat, alt: "A cat" },
+            feedback: "",
+          },
+          {
+            id: partId(3),
+            text: "Dog",
+            picture: { fileId: dog, alt: "" },
+            feedback: "",
+          },
+        ],
+        correctOptionIds: [partId(2)],
+        multiple: false,
+        shuffle: false,
+      },
+      {
+        ...base,
+        id: partId(4),
+        type: "matching",
+        prompt: "Match each animal to its name.",
+        pairs: [
+          {
+            id: partId(5),
+            prompt: "",
+            promptPicture: { fileId: cat, alt: "A cat" },
+            answer: "Cat",
+          },
+          {
+            id: partId(6),
+            prompt: "",
+            promptPicture: { fileId: dog, alt: "A dog" },
+            answer: "Dog",
+          },
+        ],
+        distractors: [],
+      },
+    ],
+  };
+
+  it("keeps each picture and its description through the document", () => {
+    const document = contentOfLesson(pictured);
+    if (!document) throw new Error("lesson could not become a document");
+    expect(v.safeParse(contentDocumentSchema, document).success).toBe(true);
+    const back = lessonOfContent(document);
+    expect(v.safeParse(lessonDocumentSchema, back).success).toBe(true);
+    expect(checks(back.blocks)).toEqual(checks(pictured.blocks));
+  });
+
+  it("refuses a part with neither words nor a described picture", () => {
+    const [choice] = pictured.blocks;
+    if (choice?.type !== "choice") throw new Error("choice expected");
+    const unnamed: LessonDocument = {
+      version: 2,
+      blocks: [
+        {
+          ...choice,
+          options: choice.options.map((option) => ({
+            ...option,
+            text: "",
+            picture: option.picture ? { ...option.picture, alt: "" } : null,
+          })),
+        },
+      ],
+    };
+    expect(v.safeParse(lessonDocumentSchema, unnamed).success).toBe(false);
+  });
+});

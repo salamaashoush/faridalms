@@ -438,6 +438,19 @@
   padding-block: 0.25rem;
   padding-inline: 2rem 0.5rem;
 }
+/* A part's picture sits above its words, which may be left empty. */
+.fe [data-part-picture] {
+  display: block;
+  margin-block-end: 0.25rem;
+  user-select: none;
+}
+.fe [data-part-picture] img {
+  display: block;
+  max-width: min(100%, 12rem);
+  max-height: 7rem;
+  border-radius: 0.375rem;
+  object-fit: contain;
+}
 .fe .fe-question-option::before {
   position: absolute;
   inset-inline-start: 0.5rem;

@@ -379,6 +379,8 @@ export function getMessageFromError(error: unknown): string {
         return m.lrnErrNothingToRetry();
       case "learning.module_draft":
         return m.lrnErrModuleDraft();
+      case "learning.part_unnamed":
+        return m.lrnPictureUnnamed();
       case "learning.gap_options":
         return m.lrnGapChoices();
       case "learning.gaps_needed":

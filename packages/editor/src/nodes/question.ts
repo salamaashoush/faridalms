@@ -2,6 +2,7 @@ import type { QuestionKind } from "@faridalms/domain/content";
 import type {
   DOMExportOutput,
   EditorConfig,
+  ElementDOMSlot,
   LexicalEditor,
   LexicalNode,
   LexicalUpdateJSON,
@@ -22,9 +23,86 @@ import {
   $getSelection,
   $isElementNode,
   $isRangeSelection,
+  $getState,
   $isTextNode,
+  $setState,
+  createState,
   ElementNode,
 } from "lexical";
+
+/**
+ * A picture on an option, an item or a side of a pair, kept as the flat
+ * `fileId` and `alt` its document stores. Its words may be left out; the
+ * description then names it.
+ */
+const partFileId = createState("fileId", {
+  parse: (value) => (typeof value === "string" ? value : ""),
+});
+const partAlt = createState("alt", {
+  parse: (value) => (typeof value === "string" ? value : ""),
+});
+const pictureStates = [
+  { stateConfig: partFileId, flat: true },
+  { stateConfig: partAlt, flat: true },
+] as const;
+
+export interface PartPicture {
+  fileId: string;
+  alt: string;
+}
+
+const pictureUrls = new WeakMap<LexicalEditor, (fileId: string) => string>();
+
+/** Where an editor's part pictures are read from, set with its media. */
+export function setPartPictureUrl(
+  editor: LexicalEditor,
+  url: (fileId: string) => string,
+) {
+  pictureUrls.set(editor, url);
+}
+
+export function $partPicture(node: LexicalNode): PartPicture | null {
+  const fileId = $getState(node, partFileId);
+  return fileId ? { fileId, alt: $getState(node, partAlt) } : null;
+}
+
+export function $setPartPicture(
+  node: LexicalNode,
+  picture: PartPicture | null,
+) {
+  $setState(node, partFileId, picture?.fileId ?? "");
+  $setState(node, partAlt, picture?.alt ?? "");
+}
+
+/** Compares two versions of a node as they are, not as they are now. */
+const samePicture = (a: LexicalNode, b: LexicalNode) =>
+  $getState(a, partFileId, "direct") === $getState(b, partFileId, "direct") &&
+  $getState(a, partAlt, "direct") === $getState(b, partAlt, "direct");
+
+/** Draws a part's picture ahead of its words, outside what can be typed in. */
+function drawPicture(
+  node: LexicalNode,
+  dom: HTMLElement,
+  editor: LexicalEditor,
+) {
+  const fileId = $getState(node, partFileId);
+  if (!fileId) return;
+  const document = $getDocument();
+  const holder = document.createElement("span");
+  holder.dataset.partPicture = "";
+  holder.contentEditable = "false";
+  const image = document.createElement("img");
+  image.src = pictureUrls.get(editor)?.(fileId) ?? "";
+  image.alt = $getState(node, partAlt);
+  image.draggable = false;
+  holder.append(image);
+  dom.prepend(holder);
+}
+
+function pictureSlot(dom: HTMLElement, slot: ElementDOMSlot): ElementDOMSlot {
+  const picture = dom.querySelector(":scope > [data-part-picture]");
+  return picture ? slot.withAfter(picture) : slot;
+}
 
 /** What a question's chrome says, set by the editor for its language. */
 export interface QuestionLabels {
@@ -293,10 +371,14 @@ function $partAfter(part: ElementNode, next: ElementNode, restore: boolean) {
   return next;
 }
 
-/** Backspace at a part's start goes back to the line above, never merging. */
+/**
+ * Backspace at a part's start goes back to the line above, never merging. An
+ * empty part goes, unless it shows a picture, which is removed on purpose
+ * from the bar rather than lost to a keystroke.
+ */
 function $collapsePart(part: ElementNode): boolean {
   const previous = part.getPreviousSibling();
-  if (part.isEmpty()) part.remove();
+  if (part.isEmpty() && !$partPicture(part)) part.remove();
   if ($isElementNode(previous)) previous.selectEnd();
   return true;
 }
@@ -325,7 +407,10 @@ export class QuestionOptionNode extends ElementNode {
   }
 
   $config() {
-    return this.config("question-option", { extends: ElementNode });
+    return this.config("question-option", {
+      extends: ElementNode,
+      stateConfigs: pictureStates,
+    });
   }
 
   static clone(node: QuestionOptionNode): QuestionOptionNode {
@@ -375,6 +460,7 @@ export class QuestionOptionNode extends ElementNode {
     dom.setAttribute("aria-checked", String(this.__correct));
     const name = theme(config, "questionOption");
     if (name) addClassNamesToElement(dom, name);
+    drawPicture(this, dom, editor);
     // The marker is drawn in the padding at the start; a click there marks
     // the option right, the way a checklist item is ticked.
     dom.addEventListener("click", (event) => {
@@ -396,7 +482,12 @@ export class QuestionOptionNode extends ElementNode {
     return dom;
   }
 
+  getDOMSlot(dom: HTMLElement): ElementDOMSlot {
+    return pictureSlot(dom, super.getDOMSlot(dom));
+  }
+
   updateDOM(previous: this, dom: HTMLElement): boolean {
+    if (!samePicture(previous, this)) return true;
     if (previous.__correct !== this.__correct) {
       dom.dataset.correct = String(this.__correct);
       dom.setAttribute("aria-checked", String(this.__correct));
@@ -453,7 +544,10 @@ export class QuestionAnswerNode extends ElementNode {
   }
 
   $config() {
-    return this.config("question-answer", { extends: ElementNode });
+    return this.config("question-answer", {
+      extends: ElementNode,
+      stateConfigs: pictureStates,
+    });
   }
 
   static clone(node: QuestionAnswerNode): QuestionAnswerNode {
@@ -482,8 +576,12 @@ export class QuestionAnswerNode extends ElementNode {
     return $collapsePart(this);
   }
 
-  updateDOM(): boolean {
-    return false;
+  updateDOM(previous: this): boolean {
+    return !samePicture(previous, this);
+  }
+
+  getDOMSlot(dom: HTMLElement): ElementDOMSlot {
+    return pictureSlot(dom, super.getDOMSlot(dom));
   }
 
   createDOM(config: EditorConfig, editor: LexicalEditor): HTMLElement {
@@ -496,6 +594,7 @@ export class QuestionAnswerNode extends ElementNode {
     dom.dataset.emptyLabel = (extra ? text?.extra : text?.answer) ?? "";
     const name = theme(config, "questionAnswer");
     if (name) addClassNamesToElement(dom, name);
+    drawPicture(this, dom, editor);
     return dom;
   }
 
@@ -634,7 +733,10 @@ export class QuestionGroupNode extends ElementNode {
 /** One line of a pair or a group's name. */
 export class QuestionSideNode extends ElementNode {
   $config() {
-    return this.config("question-side", { extends: ElementNode });
+    return this.config("question-side", {
+      extends: ElementNode,
+      stateConfigs: pictureStates,
+    });
   }
 
   createDOM(config: EditorConfig, editor: LexicalEditor): HTMLElement {
@@ -650,11 +752,16 @@ export class QuestionSideNode extends ElementNode {
           : text?.pairAnswer) ?? "";
     const name = theme(config, "questionSide");
     if (name) addClassNamesToElement(dom, name);
+    drawPicture(this, dom, editor);
     return dom;
   }
 
-  updateDOM(): boolean {
-    return false;
+  getDOMSlot(dom: HTMLElement): ElementDOMSlot {
+    return pictureSlot(dom, super.getDOMSlot(dom));
+  }
+
+  updateDOM(previous: this): boolean {
+    return !samePicture(previous, this);
   }
 
   collapseAtStart(): boolean {
@@ -1010,4 +1117,66 @@ export function $repairHolder(holder: ElementNode) {
     holder.splice(0, 0, [new QuestionSideNode()]);
   for (const child of holder.getChildren().slice(1))
     if (!$isQuestionOptionNode(child)) child.remove();
+}
+
+/**
+ * Whether a part may show a picture: an option or item, a side of a pair, or
+ * an extra answer in a matching question; not a typed answer or a group's
+ * name.
+ */
+export function $holdsPicture(node: LexicalNode): boolean {
+  if (node instanceof QuestionOptionNode) return true;
+  if (node instanceof QuestionSideNode)
+    return node.getParent() instanceof QuestionPairNode;
+  if (node instanceof QuestionAnswerNode) {
+    const question = node.getParent();
+    return (
+      $isQuestionNode(question) && question.getSettings().kind === "matching"
+    );
+  }
+  return false;
+}
+
+/**
+ * Where a part sits, by ids that outlive the editor: an option or extra
+ * answer by its own id, a side of a pair by the pair's id and its place.
+ * A node key would not do, as a new lesson's editor starts again once the
+ * lesson is first saved.
+ */
+export type PartAddress =
+  | { kind: "id"; id: string }
+  | { kind: "side"; pairId: string; index: number };
+
+export function $partAddress(node: LexicalNode): PartAddress | null {
+  if (node instanceof QuestionOptionNode || node instanceof QuestionAnswerNode)
+    return { kind: "id", id: node.getOptionId() };
+  const pair = node.getParent();
+  if (node instanceof QuestionSideNode && pair instanceof QuestionPairNode)
+    return {
+      kind: "side",
+      pairId: pair.getOptionId(),
+      index: node.getIndexWithinParent(),
+    };
+  return null;
+}
+
+export function $findPart(address: PartAddress): LexicalNode | null {
+  const pending: LexicalNode[] = [...$getRoot().getChildren()];
+  for (let node = pending.pop(); node; node = pending.pop()) {
+    if (
+      address.kind === "id" &&
+      (node instanceof QuestionOptionNode ||
+        node instanceof QuestionAnswerNode) &&
+      node.getOptionId() === address.id
+    )
+      return node;
+    if (
+      address.kind === "side" &&
+      node instanceof QuestionPairNode &&
+      node.getOptionId() === address.pairId
+    )
+      return node.getChildAtIndex(address.index);
+    if ($isElementNode(node)) pending.push(...node.getChildren());
+  }
+  return null;
 }

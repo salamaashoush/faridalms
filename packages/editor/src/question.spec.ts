@@ -30,6 +30,7 @@ import {
   $isQuestionPairNode,
   $isQuestionPassageNode,
   $isQuestionPromptNode,
+  $setPartPicture,
   $toggleCorrect,
   QuestionOptionNode,
   setQuestionLabels,
@@ -635,5 +636,78 @@ describe("questions in a document", () => {
     ]);
     expect(block.correctOptionIds).toEqual([block.options[0]?.id]);
     expect(block.shuffle).toBe(false);
+  });
+
+  it("keeps a picture on a part, with its words left out, through the document", () => {
+    const cat = "0190a1b2-0000-7000-8000-0000000000c1";
+    const target = withQuestion("matchingQuestion");
+    target.update(
+      () => {
+        const question = $getRoot().getChildren().find($isQuestionNode);
+        const [prompt, ...pairs] = question?.getChildren() ?? [];
+        if ($isQuestionPromptNode(prompt))
+          prompt.append($createTextNode("Match each animal to its name."));
+        pairs.slice(0, 2).forEach((pair, index) => {
+          if (!$isQuestionPairNode(pair)) throw new Error("no pair");
+          const side = pair.getFirstChild<ElementNode>();
+          if (side)
+            $setPartPicture(side, {
+              fileId: cat,
+              alt: index === 0 ? "A cat" : "Another cat",
+            });
+          write(
+            pair.getLastChild<ElementNode>(),
+            index === 0 ? "Cat" : "Kitten",
+          );
+        });
+      },
+      { discrete: true },
+    );
+    const document = json(target);
+    expect(v.safeParse(contentDocumentSchema, document).success).toBe(true);
+    const matching = lessonOfContent(document).blocks.find(
+      (block) => block.type === "matching",
+    );
+    expect(matching).toMatchObject({
+      pairs: [
+        {
+          prompt: "",
+          promptPicture: { fileId: cat, alt: "A cat" },
+          answer: "Cat",
+        },
+        {
+          prompt: "",
+          promptPicture: { fileId: cat, alt: "Another cat" },
+          answer: "Kitten",
+        },
+      ],
+    });
+    const again = buildContentEditor();
+    again.setEditorState(again.parseEditorState(JSON.stringify(document)));
+    expect(json(again)).toEqual(document);
+  });
+
+  it("keeps an empty option that shows a picture when Backspace reaches its start", () => {
+    const target = withQuestion("choiceQuestion");
+    target.update(
+      () => {
+        const question = $getRoot().getChildren().find($isQuestionNode);
+        const option = question?.getChildren().find($isQuestionOptionNode);
+        if (!option) throw new Error("no option");
+        $setPartPicture(option, {
+          fileId: "0190a1b2-0000-7000-8000-0000000000c1",
+          alt: "A cat",
+        });
+        option.selectStart();
+        option.collapseAtStart();
+      },
+      { discrete: true },
+    );
+    target.getEditorState().read(() => {
+      const question = $getRoot().getChildren().find($isQuestionNode);
+      expect(
+        question?.getChildren().filter($isQuestionOptionNode),
+      ).toHaveLength(2);
+    });
   });
 });

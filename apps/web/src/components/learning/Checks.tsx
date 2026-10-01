@@ -2,6 +2,7 @@ import type {
   CheckView,
   LessonResponse,
   StudentBlock,
+  StudentPart,
 } from "@faridalms/domain/learning";
 import type { FormEvent, ReactNode } from "react";
 
@@ -10,6 +11,7 @@ import { Radio } from "@base-ui/react/radio";
 import { parseNumber } from "@faridalms/domain/answers";
 import { joinedAroundGaps } from "@faridalms/domain/arabic";
 import { textDirection } from "@faridalms/domain/content";
+import { StoredImage } from "@faridalms/editor/files";
 import { Button } from "@faridalms/ui/button";
 import { cn } from "@faridalms/ui/cn";
 import { Input } from "@faridalms/ui/input";
@@ -40,6 +42,47 @@ import { formatList, formatNumber } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
 import { ReadAloud, YoungContext } from "./ReadAloud";
+
+/** A part's picture over its words; with no words, its description names it. */
+function PartView({
+  part,
+  size = "small",
+}: {
+  part: StudentPart;
+  size?: "small" | "card";
+}) {
+  const picture = part.picture;
+  return (
+    <span
+      className={cn(
+        "flex min-w-0",
+        size === "card"
+          ? "flex-col items-center gap-2 text-center"
+          : "items-center gap-3",
+      )}
+    >
+      {picture ? (
+        <StoredImage
+          src={`/files/${picture.fileId}`}
+          alt={part.text ? "" : picture.alt}
+          removed={m.fileRemoved()}
+          draggable={false}
+          className={cn(
+            "shrink-0 rounded-md bg-muted object-contain",
+            size === "card" ? "h-28 w-full max-w-40" : "size-12",
+          )}
+        />
+      ) : null}
+      {part.text ? (
+        <span dir="auto" className="min-w-0">
+          {part.text}
+        </span>
+      ) : null}
+    </span>
+  );
+}
+
+const partLabel = (part: StudentPart) => part.text || part.picture?.alt || "";
 
 /**
  * How questions behave: practice marks each answer at once, a quiz keeps
@@ -221,10 +264,9 @@ function CheckStatus({
 /** What a question says, read aloud to a young child: its prompt, then its choices. */
 function spokenOf(block: CheckStudentBlock): string {
   const parts = [block.prompt];
-  if (block.type === "choice")
-    parts.push(...block.options.map((option) => option.text));
+  if (block.type === "choice") parts.push(...block.options.map(partLabel));
   if (block.type === "ordering" || block.type === "sorting")
-    parts.push(...block.items.map((item) => item.text));
+    parts.push(...block.items.map(partLabel));
   if (block.type === "gaps")
     parts.push(
       block.segments
@@ -485,6 +527,13 @@ function ChoiceCheck({
       respond.mutate({ type: "choice", optionIds: selected });
   };
   const locked = !editing || settled;
+  // Options with pictures read as a grid of cards, the way children choose.
+  const pictured = block.options.some((option) => option.picture);
+  const optionRow = cn(
+    choiceRow,
+    (young || pictured) && youngRow,
+    pictured && "flex-col items-stretch p-3",
+  );
   return (
     <CheckCard
       block={block}
@@ -507,8 +556,13 @@ function ChoiceCheck({
       }
     >
       {block.multiple ? (
-        <div className="grid gap-2">
-          <p className="text-[13px] leading-[18px] text-muted-foreground">
+        <div
+          className={cn(
+            "grid gap-2",
+            pictured && "grid-cols-2 gap-3 sm:grid-cols-3",
+          )}
+        >
+          <p className="col-span-full text-[13px] leading-[18px] text-muted-foreground">
             {m.lrnChooseAll()}
           </p>
           {block.options.map((option) => (
@@ -523,11 +577,7 @@ function ChoiceCheck({
                     : current.filter((item) => item !== option.id),
                 )
               }
-              className={cn(
-                choiceRow,
-                young && youngRow,
-                markRow(editing, markOf(option.id)),
-              )}
+              className={cn(optionRow, markRow(editing, markOf(option.id)))}
               onContextMenu={
                 young ? (event) => event.preventDefault() : undefined
               }
@@ -540,8 +590,8 @@ function ChoiceCheck({
                   <Check className="size-3.5" />
                 </CheckboxPrimitive.Indicator>
               </span>
-              <span dir="auto" className="min-w-0 flex-1">
-                {option.text}
+              <span className="min-w-0 flex-1">
+                <PartView part={option} size={pictured ? "card" : "small"} />
               </span>
               <MarkIcon mark={markOf(option.id)} />
             </CheckboxPrimitive.Root>
@@ -553,17 +603,16 @@ function ChoiceCheck({
           disabled={locked}
           value={selected[0] ?? ""}
           onValueChange={(value) => setSelected([String(value)])}
-          className="gap-2"
+          className={cn(
+            "gap-2",
+            pictured && "grid grid-cols-2 gap-3 sm:grid-cols-3",
+          )}
         >
           {block.options.map((option) => (
             <Radio.Root
               key={option.id}
               value={option.id}
-              className={cn(
-                choiceRow,
-                young && youngRow,
-                markRow(editing, markOf(option.id)),
-              )}
+              className={cn(optionRow, markRow(editing, markOf(option.id)))}
               onContextMenu={
                 young ? (event) => event.preventDefault() : undefined
               }
@@ -574,8 +623,8 @@ function ChoiceCheck({
               >
                 <Radio.Indicator className="size-2 rounded-full bg-primary-foreground" />
               </span>
-              <span dir="auto" className="min-w-0 flex-1">
-                {option.text}
+              <span className="min-w-0 flex-1">
+                <PartView part={option} size={pictured ? "card" : "small"} />
               </span>
               <MarkIcon mark={markOf(option.id)} />
             </Radio.Root>
@@ -826,7 +875,7 @@ function MatchingCheck({
   const locked = !editing || settled;
   const items = block.choices.map((choice) => ({
     value: choice.id,
-    label: choice.text,
+    label: partLabel(choice),
   }));
   return (
     <CheckCard
@@ -860,12 +909,8 @@ function MatchingCheck({
               key={prompt.id}
               className="grid gap-2 rounded-lg border px-4 py-3 sm:grid-cols-2 sm:items-center"
             >
-              <span
-                id={label}
-                dir="auto"
-                className="text-sm leading-5 font-medium"
-              >
-                {prompt.text}
+              <span id={label} className="text-sm leading-5 font-medium">
+                <PartView part={prompt} />
               </span>
               <span className="flex min-w-0 items-center gap-2">
                 <Select
@@ -935,8 +980,9 @@ function OrderingCheck({
   const [moved, setMoved] = useState("");
   const settled = isSettled(block, view);
   const locked = !editing || settled;
-  const textOf = (itemId: string) =>
-    block.items.find((item) => item.id === itemId)?.text ?? "";
+  const partOf = (itemId: string): StudentPart =>
+    block.items.find((item) => item.id === itemId) ?? { id: itemId, text: "" };
+  const textOf = (itemId: string) => partLabel(partOf(itemId));
   const move = (index: number, by: -1 | 1) => {
     const target = index + by;
     if (locked || target < 0 || target >= order.length) return;
@@ -996,8 +1042,8 @@ function OrderingCheck({
                 <span className="w-5 shrink-0 text-sm text-muted-foreground tabular-nums">
                   {formatNumber(index + 1)}
                 </span>
-                <span dir="auto" className="min-w-0 flex-1 text-sm leading-5">
-                  {text}
+                <span className="min-w-0 flex-1 text-sm leading-5">
+                  <PartView part={partOf(itemId)} />
                 </span>
                 <MarkIcon mark={mark} />
                 {locked ? null : (
@@ -1099,12 +1145,8 @@ function SortingCheck({
                 markBorder(mark),
               )}
             >
-              <span
-                id={label}
-                dir="auto"
-                className="text-sm leading-5 font-medium"
-              >
-                {item.text}
+              <span id={label} className="text-sm leading-5 font-medium">
+                <PartView part={item} />
               </span>
               <span className="flex flex-wrap items-center gap-2">
                 <RadioGroup

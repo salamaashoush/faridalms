@@ -21,6 +21,7 @@ import { $anchorFor } from "../blocks";
 import { useEditorEnvironment } from "../context";
 import { fileMeta } from "../files";
 import { $createFileNode, $createImageNode, $createMediaNode } from "../nodes";
+import { editorInSlot } from "../slots";
 
 export type MediaKind = "image" | "file" | "media";
 
@@ -108,6 +109,10 @@ export function MediaPlugin({
   const input = useRef<HTMLInputElement>(null);
   const [kind, setKind] = useState<MediaKind>("image");
   const anchor = useRef<NodeKey | null>(null);
+  const slot = useRef<string | undefined>(undefined);
+  useEffect(() => {
+    slot.current = editor.getRootElement()?.id;
+  });
   const [uploads, setUploads] = useState<Upload[]>([]);
 
   const patch = (id: string, change: Partial<Upload>) =>
@@ -127,8 +132,15 @@ export function MediaPlugin({
         signal: item.controller.signal,
         onProgress: (progress) => patch(item.id, { progress }),
       });
-      editor.update(() => {
-        anchor.current = $insertUploaded(anchor.current, item.kind, uploaded);
+      // A new document's editor starts again when it is first saved; the file
+      // goes into the editor showing the document by then.
+      const showing = editorInSlot(slot.current) ?? editor;
+      showing.update(() => {
+        anchor.current = $insertUploaded(
+          showing === editor ? anchor.current : null,
+          item.kind,
+          uploaded,
+        );
       });
       setUploads((current) => current.filter((row) => row.id !== item.id));
     } catch (error) {

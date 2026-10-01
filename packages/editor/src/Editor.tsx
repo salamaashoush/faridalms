@@ -35,7 +35,7 @@ import { ShortcutsExtension } from "./extensions";
 import { editorFrame } from "./frame";
 import { contentExtensions } from "./headless";
 import { markdownTransformers } from "./markdown";
-import { setQuestionLabels } from "./nodes";
+import { setPartPictureUrl, setQuestionLabels } from "./nodes";
 import { BlockHandlePlugin } from "./plugins/BlockHandle";
 import { DiagramPlugin } from "./plugins/diagram";
 import { DirectionPlugin } from "./plugins/Direction";
@@ -48,6 +48,7 @@ import { SelectionToolbarPlugin } from "./plugins/SelectionToolbar";
 import { SlashMenuPlugin } from "./plugins/SlashMenu";
 import { TablePlugin } from "./plugins/Table";
 import { ToolbarPlugin } from "./plugins/Toolbar";
+import { holdSlot } from "./slots";
 import { editorTheme } from "./theme";
 
 /**
@@ -179,7 +180,12 @@ function Surface({
   onUploadingChange,
 }: Omit<EditorProps, "value" | "media" | "locale" | "strings">) {
   const [editor] = useLexicalComposerContext();
-  const { strings } = useEditorEnvironment();
+  const { strings, media } = useEditorEnvironment();
+  // Question parts draw their pictures as they are first created, as labels
+  // below are, so the address is known before the first render.
+  useState(() =>
+    setPartPictureUrl(editor, (fileId) => media?.url(fileId) ?? ""),
+  );
   // Question nodes draw their labels as they are first created, before any
   // effect could run, so the words are in place from the first render.
   useState(() =>
@@ -229,6 +235,8 @@ function Surface({
   useEffect(() => {
     if (initialFocus) editor.focus();
   }, [editor, initialFocus]);
+
+  useEffect(() => holdSlot(id, editor), [id, editor]);
 
   useEffect(
     () => registerMarkdownShortcuts(editor, markdownTransformers),

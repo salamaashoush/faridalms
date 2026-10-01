@@ -84,12 +84,41 @@ const matching = {
   tehMarbuta: v.boolean(),
 };
 
-export const choiceOptionSchema = v.object({
-  id,
-  text: requiredText(300),
-  /** Shown to a student who picks this option. */
-  feedback: text(300),
-});
+/**
+ * A picture on an option, item or side of a pair. Its words may be left out,
+ * as for children who cannot read yet; its description then names it.
+ */
+export const pictureSchema = v.object({ fileId: id, alt: text(300) });
+export type Picture = v.InferOutput<typeof pictureSchema>;
+const picture = v.optional(v.nullable(pictureSchema));
+
+interface Named {
+  text: string;
+  picture?: Picture | null | undefined;
+}
+
+/** What a part is called: its words, else its picture's description. */
+export const partName = (part: Named) =>
+  part.text.trim() || part.picture?.alt.trim() || "";
+
+const named = <S extends v.GenericSchema<Named, Named>>(schema: S) =>
+  v.pipe(
+    schema,
+    v.check(
+      (part: v.InferOutput<S>) => partName(part) !== "",
+      "learning.part_unnamed",
+    ),
+  );
+
+export const choiceOptionSchema = named(
+  v.object({
+    id,
+    text: text(300),
+    picture,
+    /** Shown to a student who picks this option. */
+    feedback: text(300),
+  }),
+);
 
 const gapSegment = v.variant("type", [
   v.object({
@@ -213,14 +242,30 @@ export const lessonBlockSchema = v.variant("type", [
     type: v.literal("matching"),
     pairs: v.pipe(
       v.array(
-        v.object({ id, prompt: requiredText(300), answer: requiredText(300) }),
+        v.pipe(
+          v.object({
+            id,
+            prompt: text(300),
+            promptPicture: picture,
+            answer: text(300),
+            answerPicture: picture,
+          }),
+          v.check(
+            (pair) =>
+              partName({ text: pair.prompt, picture: pair.promptPicture }) !==
+                "" &&
+              partName({ text: pair.answer, picture: pair.answerPicture }) !==
+                "",
+            "learning.part_unnamed",
+          ),
+        ),
       ),
       v.minLength(2),
       v.maxLength(MAX_PAIRS),
     ),
     /** Answers that match no prompt, so the last pair is still a choice. */
     distractors: v.pipe(
-      v.array(v.object({ id, text: requiredText(300) })),
+      v.array(named(v.object({ id, text: text(300), picture }))),
       v.maxLength(MAX_DISTRACTORS),
     ),
   }),
@@ -229,7 +274,7 @@ export const lessonBlockSchema = v.variant("type", [
     type: v.literal("ordering"),
     /** In their right order; students see them shuffled. */
     items: v.pipe(
-      v.array(v.object({ id, text: requiredText(300) })),
+      v.array(named(v.object({ id, text: text(300), picture }))),
       v.minLength(2),
       v.maxLength(MAX_ORDER_ITEMS),
     ),
@@ -246,7 +291,7 @@ export const lessonBlockSchema = v.variant("type", [
         v.maxLength(MAX_SORT_GROUPS),
       ),
       items: v.pipe(
-        v.array(v.object({ id, text: requiredText(300), groupId: id })),
+        v.array(named(v.object({ id, text: text(300), picture, groupId: id }))),
         v.minLength(2),
         v.maxLength(MAX_SORT_ITEMS),
       ),
@@ -750,6 +795,13 @@ export function completionMet(
  * A block as its student receives it: keys, hints, explanations and option
  * feedback stay on the server until a try calls for them.
  */
+/** A part as a student sees it: its words, its picture, or both. */
+export interface StudentPart {
+  id: string;
+  text: string;
+  picture?: Picture | null;
+}
+
 export type StudentBlock =
   | Exclude<LessonBlock, CheckBlock>
   | Omit<WrittenBlock, "explanation" | "hint">
@@ -757,7 +809,7 @@ export type StudentBlock =
       ChoiceBlock,
       "correctOptionIds" | "explanation" | "hint" | "options"
     > & {
-      options: { id: string; text: string }[];
+      options: StudentPart[];
     })
   | Omit<TextBlock, "answers" | "explanation" | "hint">
   | (Omit<GapsBlock, "explanation" | "hint" | "segments"> & {
@@ -768,12 +820,12 @@ export type StudentBlock =
     })
   | Pick<NumberBlock, "id" | "type" | "prompt" | "points" | "tries">
   | (Omit<MatchingBlock, "distractors" | "explanation" | "hint" | "pairs"> & {
-      prompts: { id: string; text: string }[];
-      choices: { id: string; text: string }[];
+      prompts: StudentPart[];
+      choices: StudentPart[];
     })
   | Omit<OrderingBlock, "explanation" | "hint">
   | (Omit<SortingBlock, "explanation" | "hint" | "items"> & {
-      items: { id: string; text: string }[];
+      items: StudentPart[];
     });
 
 function shuffled<T>(items: T[], seed: string): T[] {
@@ -809,10 +861,13 @@ export function studentBlocks(
           hint: _hint,
           ...rest
         } = block;
-        const options = block.options.map(({ id: optionId, text: label }) => ({
-          id: optionId,
-          text: label,
-        }));
+        const options = block.options.map(
+          ({ id: optionId, text: label, picture: shown }) => ({
+            id: optionId,
+            text: label,
+            picture: shown ?? null,
+          }),
+        );
         return {
           ...rest,
           options: block.shuffle
@@ -862,17 +917,30 @@ export function studentBlocks(
         } = block;
         // One choice per distinct answer, so a repeated answer is not a clue.
         const seen = new Set<string>();
-        const choices = [
-          ...pairs.map((pair) => ({ id: pair.id, text: pair.answer })),
-          ...distractors,
+        const choices: StudentPart[] = [
+          ...pairs.map((pair) => ({
+            id: pair.id,
+            text: pair.answer,
+            picture: pair.answerPicture ?? null,
+          })),
+          ...distractors.map((extra) => ({
+            id: extra.id,
+            text: extra.text,
+            picture: extra.picture ?? null,
+          })),
         ].filter((choice) => {
-          if (seen.has(choice.text)) return false;
-          seen.add(choice.text);
+          const same = `${choice.text}\n${choice.picture?.fileId ?? ""}`;
+          if (seen.has(same)) return false;
+          seen.add(same);
           return true;
         });
         return {
           ...rest,
-          prompts: pairs.map((pair) => ({ id: pair.id, text: pair.prompt })),
+          prompts: pairs.map((pair) => ({
+            id: pair.id,
+            text: pair.prompt,
+            picture: pair.promptPicture ?? null,
+          })),
           choices: shuffled(choices, `${seed}:${block.id}`),
         };
       }
@@ -889,7 +957,11 @@ export function studentBlocks(
         return {
           ...rest,
           items: shuffled(
-            items.map((item) => ({ id: item.id, text: item.text })),
+            items.map((item) => ({
+              id: item.id,
+              text: item.text,
+              picture: item.picture ?? null,
+            })),
             `${seed}:${block.id}`,
           ),
         };
@@ -924,13 +996,16 @@ export function answerKey(block: AutoBlock): string[] {
             : String(block.value),
       ];
     case "matching":
-      return block.pairs.map((pair) => `${pair.prompt}: ${pair.answer}`);
+      return block.pairs.map(
+        (pair) =>
+          `${partName({ text: pair.prompt, picture: pair.promptPicture })}: ${partName({ text: pair.answer, picture: pair.answerPicture })}`,
+      );
     case "ordering":
-      return block.items.map((item) => item.text);
+      return block.items.map(partName);
     case "sorting":
       return block.items.map(
         (item) =>
-          `${item.text}: ${block.groups.find((group) => group.id === item.groupId)?.name ?? ""}`,
+          `${partName(item)}: ${block.groups.find((group) => group.id === item.groupId)?.name ?? ""}`,
       );
   }
   return [];
@@ -949,7 +1024,10 @@ export function partKey(block: AutoBlock): Record<string, string> {
       );
     case "matching":
       return Object.fromEntries(
-        block.pairs.map((pair) => [pair.id, pair.answer]),
+        block.pairs.map((pair) => [
+          pair.id,
+          partName({ text: pair.answer, picture: pair.answerPicture }),
+        ]),
       );
     case "ordering":
       return Object.fromEntries(
