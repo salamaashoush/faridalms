@@ -304,6 +304,10 @@ export class ImageNode extends DecoratorBlockNode {
     return writable;
   }
 
+  getFileId(): string {
+    return this.getLatest().__fileId;
+  }
+
   setCaption(caption: string): this {
     const writable = this.getWritable();
     writable.__caption = caption;

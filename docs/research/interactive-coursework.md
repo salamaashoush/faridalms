@@ -318,3 +318,41 @@ What changes in the plan, in the order the work lands:
 8. **Authoring aids** after the above: suggested checks from a document with
    an unreviewed state that blocks publishing, a school library with copy and
    edit, skill tags rolling up to unit coverage.
+
+## 4. Files in documents
+
+Researched 2026-10-01 when the assignment page still had an attachment list
+beside its brief.
+
+- Document tools put files in the body: Notion's file and PDF blocks
+  (https://www.notion.com/help/images-files-and-media), Confluence's inline
+  file tiles with preview, download and copy
+  (https://support.atlassian.com/confluence-cloud/docs/display-files-and-images/),
+  Linear and GitHub, where an upload becomes part of the text
+  (https://docs.github.com/en/get-started/writing-on-github/working-with-advanced-formatting/attaching-files).
+  Canvas links files inside rich content with an inline or overlay preview.
+- Classroom and Teams keep a separate list only because each item behaves
+  differently per student (a copy for each, edit rights) and their
+  instructions cannot hold files
+  (https://developers.google.com/workspace/classroom/reference/rest/v1/Material,
+  https://learn.microsoft.com/en-us/graph/api/resources/educationassignmentresource).
+- A separate list that is its own data drifts: Confluence's attachment list
+  keeps files the page no longer shows
+  (https://support.atlassian.com/confluence-cloud/docs/manage-uploaded-files/).
+  Jira's panel is a view over one store, and files are shared, not copied.
+- Readers weigh a file before opening it: GOV.UK shows "PDF, 19.5 KB, 7
+  pages" with one focusable link
+  (https://components.publishing.service.gov.uk/component-guide/attachment);
+  Moodle shows size and type by default for slow connections
+  (https://docs.moodle.org/en/File_resource_settings); WebAIM puts the type
+  in the link text; Latin names in Arabic text are isolated with `bdi`.
+
+What Farida does: files are blocks in the document only; `document_files`
+is the index rebuilt from the content on every save and keeps files the
+published copy still shows; whoever may read a document may open its files,
+and saving refuses a file the author could not open. Files are served inline
+for viewing with byte ranges, and download on request. The block shows type
+and size, opens in a viewer (pages, pictures, sound, video), can show a PDF's
+pages in place, and is downloaded or linked from the floating bar. Uploads
+show progress and the reason for a refusal, and publishing waits for them.
+A copy per student, when it comes, is a setting on the file block.

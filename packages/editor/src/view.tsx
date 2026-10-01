@@ -13,7 +13,7 @@ import { createElement } from "react";
 
 import type { FileStrings } from "./files";
 
-import { FileCard } from "./files";
+import { FileCard, PictureView } from "./files";
 import { blockAlignClass, diagramImageClass, imageSizeClass } from "./format";
 import { EmbedFrame, MediaPlayer } from "./media-view";
 import { editorTheme } from "./theme";
@@ -288,22 +288,15 @@ function render(node: ContentNode, key: string, context: Context): ReactNode {
       const src = node.fileId ? context.fileUrl?.(node.fileId) : undefined;
       if (!src) return null;
       return (
-        <figure
+        <PictureView
           key={key}
+          src={src}
+          alt={node.alt ?? ""}
+          caption={node.caption ?? ""}
           className={`my-3 ${imageSizeClass[node.size ?? "large"]} ${blockAlignClass(node.format)}`}
-        >
-          <img
-            src={src}
-            alt={node.alt ?? ""}
-            loading="lazy"
-            className="block h-auto w-full rounded-lg bg-muted"
-          />
-          {node.caption ? (
-            <figcaption className="mt-1.5 text-center text-sm text-muted-foreground">
-              {node.caption}
-            </figcaption>
-          ) : null}
-        </figure>
+          strings={context.strings}
+          locale={context.locale}
+        />
       );
     }
     case "media": {

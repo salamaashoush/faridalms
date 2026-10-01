@@ -147,6 +147,7 @@ export function editorStrings(): EditorStrings {
     sizeFull: m.editorSizeFull(),
     downloadFile: m.editorDownloadFile(),
     openFile: m.fileOpen(),
+    picture: m.filePicture(),
     copyFileLink: m.fileCopyLink(),
     fileLinkCopied: m.fileLinkCopied(),
     closeViewer: m.fileCloseViewer(),

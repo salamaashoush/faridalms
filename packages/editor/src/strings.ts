@@ -141,6 +141,7 @@ export interface EditorStrings {
   sizeFull: string;
   downloadFile: string;
   openFile: string;
+  picture: string;
   copyFileLink: string;
   fileLinkCopied: string;
   closeViewer: string;

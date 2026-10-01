@@ -49,17 +49,22 @@ export type FileStrings = Pick<
   | "closeViewer"
   | "noPreview"
   | "captions"
+  | "picture"
 >;
 
 export interface FileFacts {
   name: string;
   mime: string;
-  bytes: number;
+  /** Unknown for pictures, whose blocks keep only the picture itself. */
+  bytes?: number;
 }
 
 /** "PDF · 1.2 MB": what a reader weighs before opening a file on a slow line. */
 export function fileMeta(file: FileFacts, locale: string): string {
-  return [fileTypeLabel(file.name), formatBytes(file.bytes, locale)]
+  return [
+    fileTypeLabel(file.name),
+    file.bytes === undefined ? "" : formatBytes(file.bytes, locale),
+  ]
     .filter(Boolean)
     .join(" · ");
 }
@@ -318,5 +323,58 @@ export function FileCard({
         />
       ) : null}
     </div>
+  );
+}
+
+/**
+ * A picture as readers see it: a click opens it over the page, where it can
+ * be seen whole, downloaded or linked.
+ */
+export function PictureView({
+  src,
+  alt,
+  caption,
+  className,
+  strings,
+  locale,
+}: {
+  src: string;
+  alt: string;
+  caption: string;
+  className: string;
+  strings: FileStrings;
+  locale: string;
+}) {
+  const [open, setOpen] = useState(false);
+  const name = caption || alt || strings.picture;
+  return (
+    <figure className={className}>
+      <button
+        type="button"
+        aria-label={`${strings.openFile}: ${name}`}
+        onClick={() => setOpen(true)}
+        className="block w-full cursor-zoom-in rounded-lg outline-none focus-visible:ring-2 focus-visible:ring-ring/40"
+      >
+        <img
+          src={src}
+          alt={alt}
+          loading="lazy"
+          className="block h-auto w-full rounded-lg bg-muted"
+        />
+      </button>
+      {caption ? (
+        <figcaption className="mt-1.5 text-center text-sm text-muted-foreground">
+          {caption}
+        </figcaption>
+      ) : null}
+      <FileViewer
+        file={{ name, mime: "image/*" }}
+        url={src}
+        open={open}
+        onOpenChange={setOpen}
+        strings={strings}
+        locale={locale}
+      />
+    </figure>
   );
 }

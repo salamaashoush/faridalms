@@ -21,6 +21,7 @@ export function ContentView({
         checklist: m.editorCheckItem(),
         downloadFile: m.editorDownloadFile(),
         openFile: m.fileOpen(),
+        picture: m.filePicture(),
         copyFileLink: m.fileCopyLink(),
         fileLinkCopied: m.fileLinkCopied(),
         closeViewer: m.fileCloseViewer(),

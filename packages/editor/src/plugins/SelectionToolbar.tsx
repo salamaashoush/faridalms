@@ -100,6 +100,8 @@ interface FileBarFacts {
 interface BlockFacts {
   key: NodeKey;
   drawing: boolean;
+  /** A picture's file, which the bar downloads or links. */
+  pictureId: string | null;
   size: ImageSize;
   format: ElementFormatType;
   /** The document's direction, which decides which side start is. */
@@ -179,6 +181,7 @@ export function SelectionToolbarPlugin() {
       return {
         key: node.getKey(),
         drawing: $isDiagramNode(node),
+        pictureId: $isImageNode(node) ? node.getFileId() : null,
         size: node.getSize(),
         format: node.getFormat(),
       };
@@ -409,6 +412,24 @@ export function SelectionToolbarPlugin() {
                 <PenLine aria-hidden />
                 {strings.diagramEdit}
               </button>
+              {separator}
+            </>
+          ) : null}
+          {layout.pictureId && media ? (
+            <>
+              <a
+                href={`${media.url(layout.pictureId)}?download`}
+                download
+                aria-label={strings.downloadFile}
+                className="inline-flex size-8 items-center justify-center rounded-md text-foreground/80 hover:bg-accent hover:text-foreground [&_svg]:size-4"
+              >
+                <Download aria-hidden />
+              </a>
+              <CopyLinkButton
+                url={media.url(layout.pictureId)}
+                strings={strings}
+                className="inline-flex size-8 items-center justify-center rounded-md text-foreground/80 hover:bg-accent hover:text-foreground [&_svg]:size-4 [&>span]:sr-only"
+              />
               {separator}
             </>
           ) : null}
