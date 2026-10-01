@@ -143,10 +143,11 @@ export async function tearDown() {
   await admin.close();
 }
 
-/** The test directory as the cell's sync job reaches it, and as a superuser reads it. */
+/** The test directory as the cell's sync job, the operator console and a superuser reach it. */
 export function testDirectory() {
   return {
     syncUrl: urlFor(directoryName, "directory_sync"),
+    operatorUrl: urlFor(directoryName, "directory_admin"),
     adminUrl: urlFor(directoryName),
   };
 }

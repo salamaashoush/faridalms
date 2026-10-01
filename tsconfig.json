@@ -24,5 +24,13 @@
     }
   },
   "include": ["."],
-  "exclude": ["node_modules", "**/.output", "**/.nitro", "**/dist"]
+  "exclude": [
+    "node_modules",
+    "**/.output",
+    "**/.nitro",
+    "**/dist",
+    // Checked on its own: both apps register their router with TanStack
+    // Router's global types, and one program would merge the two.
+    "apps/ops"
+  ]
 }

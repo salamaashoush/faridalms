@@ -111,6 +111,7 @@
         "drizzle*.config.ts",
         "apps/api/src/env.ts",
         "apps/collab/src/env.ts",
+        "apps/ops/src/server/env.ts",
         "e2e/fixtures/**",
         "scripts/**",
         "packages/database/test/**",

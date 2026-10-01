@@ -57,6 +57,33 @@ With `DIRECTORY_SYNC_URL` (the `directory_sync` login) set, each worker-capable
 replica reports every school's storage to the directory every
 `USAGE_REPORT_MS` (default five minutes), for the operator console.
 
+## Operator console
+
+`apps/ops` is the platform operators' console: every school with its storage
+against its pool, each school's plan (pool, class, module and person caps, and
+which modules it may use) and the directory's change log. It runs on its own
+host (`ops.<product domain>`), is its own deployable, and is the only process
+holding the `directory_admin` login. Run it with `bun run --cwd apps/ops dev`
+(port 3004).
+
+Operators sign in through the company's OpenID Connect provider; nobody has a
+password in the console and operators are never school accounts. Settings:
+
+- `OPS_DIRECTORY_URL`: the directory as `directory_admin`.
+- `OPS_ORIGIN`: where operators reach the console; register
+  `<OPS_ORIGIN>/auth/callback` as the client's redirect URI.
+- `OPS_OIDC_ISSUER`, `OPS_OIDC_CLIENT_ID`, `OPS_OIDC_CLIENT_SECRET`: the
+  provider and the console's client there.
+- `OPS_OIDC_GROUP`: only accounts whose `OPS_OIDC_GROUP_CLAIM` (default
+  `groups`) names this group may sign in.
+- `OPS_SESSION_SECRET`: 32 random bytes, base64, sealing the session cookie
+  (eight hours).
+
+The change log names an operator by a digest of the provider's issuer and
+subject, never by name. Every plan change requires a reason and lands in the
+log in the same transaction. Cells read plans with the directory's 60-second
+cache.
+
 ## Private files
 
 Uploads are private objects owned by the API. A client first declares a file
