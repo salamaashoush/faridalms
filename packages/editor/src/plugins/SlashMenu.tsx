@@ -27,7 +27,7 @@ class BlockOption extends MenuOption {
 
 export function SlashMenuPlugin() {
   const [editor] = useLexicalComposerContext();
-  const { strings, media } = useEditorEnvironment();
+  const { strings, media, questions } = useEditorEnvironment();
   const [query, setQuery] = useState<string | null>(null);
   const [caret, setCaret] = useState<ReferenceElement | null>(null);
   const onOpen = useCallback(() => setCaret(selectionReference()), []);
@@ -39,16 +39,17 @@ export function SlashMenuPlugin() {
   });
   const options = useMemo(
     () =>
-      filterBlocks(query ?? "", strings, Boolean(media)).map(
+      filterBlocks(query ?? "", strings, Boolean(media), questions).map(
         (block) => new BlockOption(block),
       ),
-    [query, strings, media],
+    [query, strings, media, questions],
   );
   const groups: Record<BlockGroup, string> = {
     text: strings.groupText,
     lists: strings.groupLists,
     media: strings.groupMedia,
     layout: strings.groupLayout,
+    questions: strings.groupQuestions,
   };
   const select = (
     option: BlockOption,

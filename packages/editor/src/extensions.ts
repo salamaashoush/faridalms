@@ -1,4 +1,5 @@
 import type {
+  EditorState,
   ElementNode,
   LexicalNode,
   TextNode as TextNodeType,
@@ -17,11 +18,13 @@ import { $patchStyleText } from "@lexical/selection";
 import { $onEscapeDown, $onEscapeUp, mergeRegister } from "@lexical/utils";
 import {
   $createParagraphNode,
+  $getNodeByKey,
   $getSelection,
   $getState,
   $isElementNode,
   $isParagraphNode,
   $isRangeSelection,
+  $isRootNode,
   $setState,
   COMMAND_PRIORITY_LOW,
   defineExtension,
@@ -55,6 +58,16 @@ import {
   $isToggleContentNode,
   $isToggleNode,
   $isToggleTitleNode,
+  $isQuestionAnswerNode,
+  $isQuestionNode,
+  $isQuestionOptionNode,
+  $isQuestionPromptNode,
+  $repairQuestion,
+  $unwrapStrayPart,
+  QuestionAnswerNode,
+  QuestionNode,
+  QuestionOptionNode,
+  QuestionPromptNode,
   blockIdState,
   blockNodes,
   CalloutNode,
@@ -66,7 +79,10 @@ import {
 } from "./nodes";
 
 const escapable = (node: LexicalNode | null | undefined): node is ElementNode =>
-  $isCalloutNode(node) || $isToggleNode(node) || $isColumnsNode(node);
+  $isCalloutNode(node) ||
+  $isToggleNode(node) ||
+  $isColumnsNode(node) ||
+  $isQuestionNode(node);
 
 function $unwrapInto(node: ElementNode) {
   for (const child of node.getChildren()) node.insertBefore(child);
@@ -89,6 +105,92 @@ function $assignBlockIds(container: ElementNode, seen: Set<string>) {
         if ($isBlockContainer(nested, false)) $assignBlockIds(nested, seen);
     if ($isBlockContainer(child, false)) $assignBlockIds(child, seen);
   }
+}
+
+const questionIdOf = (node: LexicalNode) =>
+  $isQuestionNode(node) ? node.getSettings().questionId : null;
+const optionIdOf = (node: LexicalNode) =>
+  $isQuestionOptionNode(node) ? node.getOptionId() : null;
+
+/**
+ * Answers point at question and option ids, so a copy pasted beside its
+ * original gets new ones while the original, the node that was already in
+ * the document, keeps its own. Remote merges skip transforms, so the server
+ * refuses duplicates as well.
+ */
+function $uniqueAnswerIds(root: ElementNode, previous: EditorState) {
+  const existed = (
+    key: string,
+    id: string,
+    read: (node: LexicalNode) => string | null,
+  ) =>
+    previous.read(() => {
+      const node = $getNodeByKey(key);
+      return node ? read(node) === id : false;
+    });
+  const byId = new Map<string, LexicalNode[]>();
+  for (const child of root.getChildren()) {
+    if (!$isQuestionNode(child)) continue;
+    const add = (id: string, node: LexicalNode) =>
+      byId.set(id, [...(byId.get(id) ?? []), node]);
+    add(child.getSettings().questionId, child);
+    for (const part of child.getChildren())
+      if ($isQuestionOptionNode(part)) add(part.getOptionId(), part);
+  }
+  for (const [id, nodes] of byId) {
+    if (nodes.length < 2) continue;
+    const keeper =
+      nodes.find((node) =>
+        existed(
+          node.getKey(),
+          id,
+          $isQuestionNode(node) ? questionIdOf : optionIdOf,
+        ),
+      ) ?? nodes[0];
+    for (const node of nodes) {
+      if (node === keeper) continue;
+      if ($isQuestionNode(node))
+        node.setSettings({ questionId: crypto.randomUUID() });
+      else if ($isQuestionOptionNode(node))
+        node.setOptionId(crypto.randomUUID());
+    }
+  }
+}
+
+/** Enter in a prompt goes to the first part; in an empty last part, out of the question. */
+function $enterInQuestion(): boolean {
+  const selection = $getSelection();
+  if (!$isRangeSelection(selection) || !selection.isCollapsed()) return false;
+  let node: LexicalNode | null = selection.anchor.getNode();
+  while (
+    node &&
+    !$isQuestionPromptNode(node) &&
+    !$isQuestionOptionNode(node) &&
+    !$isQuestionAnswerNode(node)
+  )
+    node = node.getParent();
+  if (!node || !$isElementNode(node)) return false;
+  const question = node.getParent();
+  if (!$isQuestionNode(question)) return false;
+  if ($isQuestionPromptNode(node)) {
+    const first = node.getNextSibling();
+    if ($isElementNode(first)) {
+      first.selectStart();
+      return true;
+    }
+    const paragraph = $createParagraphNode();
+    question.insertAfter(paragraph);
+    paragraph.selectStart();
+    return true;
+  }
+  if (node.isEmpty() && node.is(question.getLastChild())) {
+    const paragraph = $createParagraphNode();
+    question.insertAfter(paragraph);
+    if (question.getChildrenSize() > 2) node.remove();
+    paragraph.selectStart();
+    return true;
+  }
+  return false;
 }
 
 const hex = (value: number) =>
@@ -209,7 +311,15 @@ export const BlocksExtension = defineExtension({
     mergeRegister(
       editor.registerNodeTransform(RootNode, (root) => {
         $assignBlockIds(root, new Set());
+        $uniqueAnswerIds(root, editor.getEditorState());
       }),
+      editor.registerNodeTransform(QuestionNode, (node) => {
+        if (!$isRootNode(node.getParent())) $unwrapInto(node);
+        else $repairQuestion(node);
+      }),
+      editor.registerNodeTransform(QuestionPromptNode, $unwrapStrayPart),
+      editor.registerNodeTransform(QuestionOptionNode, $unwrapStrayPart),
+      editor.registerNodeTransform(QuestionAnswerNode, $unwrapStrayPart),
       editor.registerNodeTransform(TextNode, $sanitiseText),
       editor.registerNodeTransform(ParagraphNode, $sanitiseElement),
       editor.registerNodeTransform(LinkNode, $sanitiseLink),
@@ -245,7 +355,10 @@ export const BlocksExtension = defineExtension({
       }),
       editor.registerCommand(
         INSERT_PARAGRAPH_COMMAND,
-        () => $enterFromToggleTitle() || $exitEmptyTrailingParagraph(),
+        () =>
+          $enterInQuestion() ||
+          $enterFromToggleTitle() ||
+          $exitEmptyTrailingParagraph(),
         COMMAND_PRIORITY_LOW,
       ),
       editor.registerCommand(

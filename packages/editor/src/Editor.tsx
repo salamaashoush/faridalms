@@ -34,6 +34,7 @@ import { ShortcutsExtension } from "./extensions";
 import { editorFrame } from "./frame";
 import { contentExtensions } from "./headless";
 import { markdownTransformers } from "./markdown";
+import { setQuestionLabels } from "./nodes";
 import { BlockHandlePlugin } from "./plugins/BlockHandle";
 import { DiagramPlugin } from "./plugins/diagram";
 import { DirectionPlugin } from "./plugins/Direction";
@@ -82,6 +83,8 @@ export interface EditorProps {
   replace?: { to: ContentDocument; at: number };
   /** Told whether files are still uploading into the document. */
   onUploadingChange?: (uploading: boolean) => void;
+  /** The document may ask questions, as a lesson or quiz does. */
+  questions?: boolean;
 }
 
 export default function Editor({
@@ -90,6 +93,7 @@ export default function Editor({
   locale,
   value,
   collaboration,
+  questions = false,
   ...props
 }: EditorProps) {
   // Live editing keeps its own undo history in the shared document, so the
@@ -117,8 +121,9 @@ export default function Editor({
         (typeof document === "undefined"
           ? "en"
           : document.documentElement.lang || "en"),
+      questions,
     }),
-    [strings, media, locale],
+    [strings, media, locale, questions],
   );
   const composer = (
     <LexicalExtensionComposer extension={extension} contentEditable={null}>
@@ -161,6 +166,22 @@ function Surface({
 }: Omit<EditorProps, "value" | "media" | "locale" | "strings">) {
   const [editor] = useLexicalComposerContext();
   const { strings } = useEditorEnvironment();
+  // Question nodes draw their labels as they are first created, before any
+  // effect could run, so the words are in place from the first render.
+  useState(() =>
+    setQuestionLabels(editor, {
+      kinds: {
+        choice: strings.questionChoice,
+        text: strings.questionTyped,
+        written: strings.questionWritten,
+      },
+      points: strings.questionPoints,
+      prompt: strings.questionPrompt,
+      option: strings.questionOption,
+      answer: strings.questionAnswer,
+      accepted: strings.questionAccepted,
+    }),
+  );
   const [anchor, setAnchor] = useState<HTMLDivElement | null>(null);
   const [invalid, setInvalid] = useState(false);
   const [count, setCount] = useState(() =>

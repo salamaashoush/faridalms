@@ -140,6 +140,18 @@ export interface EditorStrings {
   sizeLarge: string;
   sizeFull: string;
   downloadFile: string;
+  groupQuestions: string;
+  questionChoice: string;
+  questionChoiceHint: string;
+  questionTyped: string;
+  questionTypedHint: string;
+  questionWritten: string;
+  questionWrittenHint: string;
+  questionPrompt: string;
+  questionOption: string;
+  questionAnswer: string;
+  questionAccepted: string;
+  questionPoints: (points: number) => string;
   openFile: string;
   picture: string;
   copyFileLink: string;

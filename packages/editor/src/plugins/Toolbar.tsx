@@ -204,7 +204,7 @@ function ToolCheck({
 
 export function ToolbarPlugin({ disabled }: { disabled: boolean }) {
   const [editor] = useLexicalComposerContext();
-  const { strings, media } = useEditorEnvironment();
+  const { strings, media, questions } = useEditorEnvironment();
   const [undo, setUndo] = useState(false);
   const [redo, setRedo] = useState(false);
   const [formats, setFormats] = useState<MarkFormat[]>([]);
@@ -283,8 +283,8 @@ export function ToolbarPlugin({ disabled }: { disabled: boolean }) {
   ];
   const current = blockDefinitions.find((item) => item.type === block);
   const turnInto = blockDefinitions.filter((item) => item.convertible);
-  const insertable = blockDefinitions.filter((item) =>
-    media ? true : !item.media,
+  const insertable = blockDefinitions.filter(
+    (item) => (media || !item.media) && (questions || !item.question),
   );
   const turn = (type: BlockType) =>
     restore(() => {

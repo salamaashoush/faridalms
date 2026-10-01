@@ -1,3 +1,4 @@
+import type { QuestionKind } from "@faridalms/domain/content";
 import type { ListType } from "@lexical/list";
 import type {
   ElementNode,
@@ -41,6 +42,7 @@ import {
 } from "lexical";
 import {
   ChevronRight,
+  CircleCheck,
   Clapperboard,
   Code,
   Columns2,
@@ -53,6 +55,7 @@ import {
   ListChecks,
   ListOrdered,
   Megaphone,
+  MessageSquareText,
   Minus,
   MonitorPlay,
   Paperclip,
@@ -60,6 +63,7 @@ import {
   Quote,
   Shapes,
   Table,
+  TextCursorInput,
 } from "lucide-react";
 
 import type { EditorStrings } from "./strings";
@@ -67,12 +71,14 @@ import type { EditorStrings } from "./strings";
 import {
   $createCalloutNode,
   $createColumnNode,
+  $createQuestionNode,
   $createColumnsNode,
   $createToggleContentNode,
   $createToggleNode,
   $createToggleTitleNode,
   $isCalloutNode,
   $isColumnsNode,
+  $isQuestionNode,
   $isToggleNode,
   $nearestBlock,
 } from "./nodes";
@@ -97,9 +103,18 @@ export type BlockType =
   | "file"
   | "media"
   | "embed"
-  | "diagram";
+  | "diagram"
+  | "choiceQuestion"
+  | "typedQuestion"
+  | "writtenQuestion";
 
-export type BlockGroup = "text" | "lists" | "media" | "layout";
+export type BlockGroup = "text" | "lists" | "media" | "layout" | "questions";
+
+const QUESTION_KIND: Partial<Record<BlockType, QuestionKind>> = {
+  choiceQuestion: "choice",
+  typedQuestion: "text",
+  writtenQuestion: "written",
+};
 
 export interface BlockDefinition {
   type: BlockType;
@@ -112,6 +127,8 @@ export interface BlockDefinition {
   convertible?: boolean;
   media?: boolean;
   prompt?: boolean;
+  /** Offered only where the document may ask questions, such as a lesson. */
+  question?: boolean;
 }
 
 export const blockDefinitions: BlockDefinition[] = [
@@ -319,17 +336,46 @@ export const blockDefinitions: BlockDefinition[] = [
     keywords: ["divider", "line", "hr", "separator", "فاصل", "خط"],
     shortcut: "---",
   },
+  {
+    type: "choiceQuestion",
+    group: "questions",
+    icon: CircleCheck,
+    label: (s) => s.questionChoice,
+    hint: (s) => s.questionChoiceHint,
+    keywords: ["question", "choice", "quiz", "mcq", "سؤال", "اختيار"],
+    question: true,
+  },
+  {
+    type: "typedQuestion",
+    group: "questions",
+    icon: TextCursorInput,
+    label: (s) => s.questionTyped,
+    hint: (s) => s.questionTypedHint,
+    keywords: ["question", "typed", "answer", "short", "سؤال", "إجابة"],
+    question: true,
+  },
+  {
+    type: "writtenQuestion",
+    group: "questions",
+    icon: MessageSquareText,
+    label: (s) => s.questionWritten,
+    hint: (s) => s.questionWrittenHint,
+    keywords: ["question", "written", "essay", "long", "سؤال", "مقال"],
+    question: true,
+  },
 ];
 
 export function filterBlocks(
   query: string,
   strings: EditorStrings,
   media: boolean,
+  questions = false,
 ): BlockDefinition[] {
   const needle = query.trim().toLocaleLowerCase();
   return blockDefinitions.filter(
     (block) =>
       (media || !block.media) &&
+      (questions || !block.question) &&
       (!needle ||
         block.label(strings).toLocaleLowerCase().includes(needle) ||
         block.keywords.some((keyword) => keyword.startsWith(needle))),
@@ -480,6 +526,10 @@ export function $turnInto(block: LexicalNode, type: BlockType): LexicalNode {
 }
 
 function $selectInside(node: LexicalNode) {
+  if ($isQuestionNode(node)) {
+    node.getFirstChild()?.selectStart();
+    return;
+  }
   if ($isToggleNode(node)) {
     node.getFirstChild()?.selectEnd();
     return;
@@ -500,6 +550,8 @@ function $selectInside(node: LexicalNode) {
 }
 
 function $createStructure(type: BlockType): LexicalNode | null {
+  const kind = QUESTION_KIND[type];
+  if (kind) return $createQuestionNode(kind);
   if (type === "divider") return $createHorizontalRuleNode();
   if (type === "table")
     return $createTableNodeWithDimensions(3, 3, { rows: true, columns: false });
@@ -538,7 +590,8 @@ const cellTypes = new Set<BlockType>([
 
 function $allows(container: LexicalNode | null, type: BlockType): boolean {
   if ($isTableCellNode(container)) return cellTypes.has(type);
-  if (type === "columns2" || type === "columns3") return $isRootNode(container);
+  if (type === "columns2" || type === "columns3" || QUESTION_KIND[type])
+    return $isRootNode(container);
   if ($isCalloutNode(container)) return type !== "callout";
   return true;
 }

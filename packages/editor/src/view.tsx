@@ -268,6 +268,32 @@ function render(node: ContentNode, key: string, context: Context): ReactNode {
           {children}
         </div>
       );
+    // A question read outside the player shows what it asks, never its key.
+    case "question":
+      return (
+        <div
+          key={key}
+          className="fe-question"
+          data-kind={node.kind}
+          data-multiple={String(node.multiple ?? false)}
+        >
+          {children}
+        </div>
+      );
+    case "question-prompt":
+      return (
+        <div key={key} className="fe-question-prompt" dir="auto">
+          {children}
+        </div>
+      );
+    case "question-option":
+      return (
+        <div key={key} className="fe-question-option" dir="auto">
+          {children}
+        </div>
+      );
+    case "question-answer":
+      return null;
     case "columns":
       return (
         <div

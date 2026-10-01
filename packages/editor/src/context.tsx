@@ -38,6 +38,8 @@ export interface EditorEnvironment {
   strings: EditorStrings;
   media?: EditorMedia;
   locale: string;
+  /** The document may ask questions, as a lesson or quiz does. */
+  questions?: boolean;
 }
 
 const Context = createContext<EditorEnvironment | null>(null);

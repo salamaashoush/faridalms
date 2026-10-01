@@ -1087,6 +1087,31 @@
   "editorSizeLarge": "كبير",
   "editorSizeFull": "كامل العرض",
   "editorDownloadFile": "تنزيل",
+  "editorGroupQuestions": "أسئلة",
+  "editorQuestionChoice": "اختيار من متعدد",
+  "editorQuestionChoiceHint": "يختار الطالب خيارًا أو أكثر",
+  "editorQuestionTyped": "إجابة مكتوبة قصيرة",
+  "editorQuestionTypedHint": "يكتب الطالب كلمة أو عبارة تُقارن بالإجابات المقبولة",
+  "editorQuestionWritten": "إجابة مطولة",
+  "editorQuestionWrittenHint": "يكتب الطالب بحرية وتصحّحها أنت",
+  "editorQuestionPrompt": "اكتب السؤال",
+  "editorQuestionOption": "خيار",
+  "editorQuestionAnswer": "إجابة مقبولة",
+  "editorQuestionAccepted": "مقبولة",
+  "editorQuestionPoints": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=zero": "بلا درجات",
+        "countPlural=one": "درجة واحدة",
+        "countPlural=two": "درجتان",
+        "countPlural=few": "{count} درجات",
+        "countPlural=many": "{count} درجة",
+        "countPlural=*": "{count} درجة"
+      }
+    }
+  ],
   "filePicture": "صورة",
   "fileOpen": "فتح",
   "fileCopyLink": "نسخ الرابط",

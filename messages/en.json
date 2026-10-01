@@ -1075,6 +1075,27 @@
   "editorSizeLarge": "Large",
   "editorSizeFull": "Full width",
   "editorDownloadFile": "Download",
+  "editorGroupQuestions": "Questions",
+  "editorQuestionChoice": "Multiple choice",
+  "editorQuestionChoiceHint": "Students pick one or more options",
+  "editorQuestionTyped": "Typed answer",
+  "editorQuestionTypedHint": "Students type a word or phrase, marked against accepted answers",
+  "editorQuestionWritten": "Written answer",
+  "editorQuestionWrittenHint": "Students write freely; you mark it",
+  "editorQuestionPrompt": "Write the question",
+  "editorQuestionOption": "Option",
+  "editorQuestionAnswer": "An accepted answer",
+  "editorQuestionAccepted": "Accepted",
+  "editorQuestionPoints": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "{count} point",
+        "countPlural=*": "{count} points"
+      }
+    }
+  ],
   "filePicture": "Picture",
   "fileOpen": "Open",
   "fileCopyLink": "Copy link",

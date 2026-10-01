@@ -6,6 +6,12 @@ import { $isRootNode, createState } from "lexical";
 import { $isCalloutNode, CalloutNode } from "./callout";
 import { $isColumnNode, ColumnNode, ColumnsNode } from "./columns";
 import { FileNode, ImageNode } from "./media";
+import {
+  QuestionAnswerNode,
+  QuestionNode,
+  QuestionOptionNode,
+  QuestionPromptNode,
+} from "./question";
 import { DiagramNode, EmbedNode, MediaNode } from "./rich";
 import {
   $isToggleContentNode,
@@ -17,6 +23,7 @@ import {
 export * from "./callout";
 export * from "./columns";
 export * from "./media";
+export * from "./question";
 export * from "./rich";
 export * from "./toggle";
 
@@ -32,6 +39,10 @@ export const blockNodes = [
   MediaNode,
   EmbedNode,
   DiagramNode,
+  QuestionNode,
+  QuestionPromptNode,
+  QuestionOptionNode,
+  QuestionAnswerNode,
 ];
 
 export const blockIdState = createState("id", {
