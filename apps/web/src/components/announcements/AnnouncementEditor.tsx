@@ -239,7 +239,7 @@ export function AnnouncementEditor({
     setPending("archive");
     try {
       if (id.current) {
-        autosave.flush();
+        await autosave.flush();
         await archiveAnnouncement({
           data: { id: id.current, expectedVersion: version.current },
         });
@@ -259,9 +259,8 @@ export function AnnouncementEditor({
     <>
       <DocumentPage
         heading={existing ? m.annEditTitle() : m.annNewTitle()}
-        onBack={() => {
-          autosave.flush();
-          onClose(id.current || undefined);
+        onBack={async () => {
+          if (await autosave.flush()) onClose(id.current || undefined);
         }}
         status={{
           label: STATE_LABEL[state](),

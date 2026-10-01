@@ -353,7 +353,7 @@ export function NewsletterEditor({
   const archive = async () => {
     setPending("archive");
     try {
-      autosave.flush();
+      await autosave.flush();
       await archiveNewsletter({
         data: { id: id.current, expectedVersion: version.current },
       });
@@ -400,9 +400,8 @@ export function NewsletterEditor({
     <>
       <DocumentPage
         heading={existing ? m.nlEditTitle() : m.nlNewTitle()}
-        onBack={() => {
-          autosave.flush();
-          onClose(id.current || undefined);
+        onBack={async () => {
+          if (await autosave.flush()) onClose(id.current || undefined);
         }}
         status={{ label: STATE_LABEL[state](), tone: STATE_TONE[state] }}
         saveState={autosave.state}

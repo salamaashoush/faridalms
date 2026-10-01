@@ -32,7 +32,7 @@ export function useAutosave<T>({
   const running = useRef(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const latestSave = useRef(save);
-  const inflight = useRef<Promise<void>>(Promise.resolve());
+  const inflight = useRef<Promise<boolean>>(Promise.resolve(true));
 
   useEffect(() => {
     latestSave.current = save;
@@ -61,8 +61,10 @@ export function useAutosave<T>({
     inflight.current = (async () => {
       try {
         if (await step()) setState("saved");
+        return true;
       } catch {
         setState("error");
+        return false;
       } finally {
         running.current = false;
       }
@@ -85,9 +87,11 @@ export function useAutosave<T>({
     [],
   );
 
-  const flush = useCallback(() => {
-    if (pending.current !== null) void run();
-  }, [run]);
+  /** Saves what is waiting now; resolves false when the save failed. */
+  const flush = useCallback(
+    () => (pending.current !== null ? run() : inflight.current),
+    [run],
+  );
 
   const onKey = useEffectEvent((event: KeyboardEvent) => {
     if ((event.metaKey || event.ctrlKey) && event.key.toLowerCase() === "s") {

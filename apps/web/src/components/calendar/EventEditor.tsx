@@ -307,9 +307,8 @@ export function EventEditor({
     <>
       <DocumentPage
         heading={existing ? m.calEditTitle() : m.calNewTitle()}
-        onBack={() => {
-          autosave.flush();
-          onClose(id.current || undefined);
+        onBack={async () => {
+          if (await autosave.flush()) onClose(id.current || undefined);
         }}
         status={
           live

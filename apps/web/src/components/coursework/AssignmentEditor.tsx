@@ -630,9 +630,8 @@ export function AssignmentEditor({
     <>
       <DocumentPage
         heading={existing ? m.courseworkEditTitle() : m.courseworkNewTitle()}
-        onBack={() => {
-          autosave.flush();
-          onClose(id.current || undefined);
+        onBack={async () => {
+          if (await autosave.flush()) onClose(id.current || undefined);
         }}
         status={{ label: PHASE_LABEL[phase](), tone: PHASE_TONE[phase] }}
         saveState={autosave.state}
