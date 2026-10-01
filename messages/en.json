@@ -1752,6 +1752,7 @@
   "courseworkClosesHint": "Late work is accepted until then.",
   "courseworkDeduction": "Deduction for late work (%)",
   "courseworkDeductionRequired": "Enter a deduction between 1 and 100.",
+  "courseworkDownloadAll": "Download all work",
   "courseworkDraftGrade": "Draft",
   "courseworkDraftSaved": "Work saved",
   "courseworkDue": "Due",

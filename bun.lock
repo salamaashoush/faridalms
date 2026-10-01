@@ -57,6 +57,7 @@
         "@orpc/openapi": "latest",
         "@orpc/server": "latest",
         "@orpc/valibot": "latest",
+        "fflate": "^0.8.3",
         "valibot": "^1.4.2",
       },
       "devDependencies": {

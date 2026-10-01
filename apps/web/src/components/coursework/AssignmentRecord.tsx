@@ -11,6 +11,7 @@ import {
   Archive,
   CalendarClock,
   ClipboardPen,
+  Download,
   Inbox,
   Pencil,
   RotateCcw,
@@ -583,6 +584,18 @@ export function AssignmentRecord({
                             toast.error(getMessageFromError(error));
                           }
                         },
+                      },
+                    ]
+                  : []),
+                ...(data.access.grade && handedIn > 0
+                  ? [
+                      {
+                        label: m.courseworkDownloadAll(),
+                        icon: Download,
+                        onSelect: () =>
+                          window.location.assign(
+                            `/exports/assignments/${data.id}`,
+                          ),
                       },
                     ]
                   : []),

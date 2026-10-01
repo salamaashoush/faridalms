@@ -3,6 +3,7 @@ import type { LessonResponse } from "@faridalms/domain/learning";
 import { plainContent } from "@faridalms/domain/content-conversion";
 import { describe, expect, test } from "bun:test";
 import { sql } from "drizzle-orm";
+import { strFromU8, unzipSync } from "fflate";
 
 import { login, raw, rejection, seeded, sessionFor, signedIn } from "./harness";
 
@@ -460,6 +461,31 @@ describe("handing in and returning work", () => {
     );
     expect(opened.length).toBeGreaterThan(0);
     expect(opened[0]?.student_user_id).toBe(me.id);
+
+    // Download all: one folder per student, the answer and its files.
+    const zipped = await raw(
+      "northwind",
+      teacher.token,
+      `/v1/assignments/${saved.id}/work.zip`,
+    );
+    expect(zipped.status).toBe(200);
+    expect(zipped.headers.get("content-type")).toBe("application/zip");
+    const archive = unzipSync(new Uint8Array(await zipped.arrayBuffer()));
+    const paths = Object.keys(archive);
+    expect(paths.some((path) => path.endsWith("/answers.txt"))).toBe(true);
+    const answerPath = paths.find((path) => path.endsWith("/answer.txt"));
+    expect(strFromU8(archive[answerPath ?? ""] ?? new Uint8Array())).toContain(
+      "My answers are attached.",
+    );
+    expect(
+      (
+        await raw(
+          "northwind",
+          student.token,
+          `/v1/assignments/${saved.id}/work.zip`,
+        )
+      ).status,
+    ).toBe(404);
   });
 });
 

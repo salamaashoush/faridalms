@@ -1772,6 +1772,7 @@
   "courseworkClosesHint": "يُقبل العمل المتأخر حتى هذا الموعد.",
   "courseworkDeduction": "الخصم على العمل المتأخر (٪)",
   "courseworkDeductionRequired": "أدخل خصمًا بين 1 و100.",
+  "courseworkDownloadAll": "تنزيل كل الأعمال",
   "courseworkDraftGrade": "مسودة",
   "courseworkDraftSaved": "حُفظ العمل",
   "courseworkDue": "موعد التسليم",
