@@ -1,9 +1,17 @@
 import * as v from "valibot";
 
-import type { ContentDocument } from "./content";
+import type { ContentDocument, ContentNode } from "./content";
 
 import { matchAnswer, parseNumber } from "./answers";
 import { contentDocumentSchema, contentPlainText } from "./content";
+import { emptyContent } from "./content-conversion";
+import {
+  contentOfLesson,
+  isContentDocument,
+  lessonOfContent,
+} from "./lesson-content";
+
+export { gapsSource, parseGaps } from "./gaps";
 
 export const SCHOOL_FEATURES = ["elearning"] as const;
 export type SchoolFeature = (typeof SCHOOL_FEATURES)[number];
@@ -147,7 +155,10 @@ export const lessonBlockSchema = v.variant("type", [
         v.minLength(2),
         v.maxLength(MAX_CHOICE_OPTIONS),
       ),
-      correctOptionIds: v.pipe(v.array(id), v.minLength(1)),
+      correctOptionIds: v.pipe(
+        v.array(id),
+        v.minLength(1, "learning.correct_option"),
+      ),
       multiple: v.boolean(),
       shuffle: v.boolean(),
     }),
@@ -314,11 +325,61 @@ export function contentBlock(content: ContentDocument): LessonBlock {
 }
 
 /**
+ * A lesson as its teacher writes it: one document. Lessons stored as a list
+ * of blocks are read as the document they become.
+ */
+export function lessonContentOf(value: unknown): ContentDocument {
+  if (isContentDocument(value)) return value;
+  return contentOfLesson(upgradeLesson(value)) ?? emptyContent();
+}
+
+const mediaOf = (node: ContentNode): ContentNode[] =>
+  node.type === "media" ? [node] : (node.children ?? []).flatMap(mediaOf);
+
+/**
+ * What stops a lesson going in front of students, as an error code: no
+ * words, a question not finished, or a rule for finishing that the lesson
+ * cannot meet. Drafts save whatever their state.
+ */
+export function lessonIssue(lesson: {
+  completion: LessonCompletion;
+  content: ContentDocument;
+}): string | null {
+  const document = lessonOfContent(lesson.content);
+  if (lessonPlainText(document).trim() === "") return "learning.lesson_empty";
+  const uncaptioned = mediaOf(lesson.content.root).some(
+    (node) =>
+      !node.captionsFileId &&
+      ((node.mime ?? "").startsWith("video/") || !node.transcript),
+  );
+  if (uncaptioned) return "learning.captions_required";
+  const parsed = v.safeParse(lessonDocumentSchema, document);
+  if (!parsed.success) {
+    const { message } = parsed.issues[0];
+    return message.startsWith("learning.")
+      ? message
+      : "learning.lesson_incomplete";
+  }
+  if (
+    (lesson.completion === "quiz" || lesson.completion === "score") &&
+    autoBlocks(document).length === 0
+  )
+    return "learning.needs_quiz";
+  if (
+    lesson.completion === "reflection" &&
+    !document.blocks.some((block) => block.type === "written")
+  )
+    return "learning.needs_reflection";
+  return null;
+}
+
+/**
  * A lesson saved before questions had points, hints and feedback, in today's
  * shape: its quizzes become choice questions and its reflections unmarked
  * written answers. Published versions keep whatever shape they had.
  */
 export function upgradeLesson(value: unknown): LessonDocument {
+  if (isContentDocument(value)) return lessonOfContent(value);
   const document = (value ?? {}) as {
     version?: number;
     blocks?: Record<string, unknown>[];
@@ -362,56 +423,6 @@ export function upgradeLesson(value: unknown): LessonDocument {
     }
   });
   return { version: 2, blocks };
-}
-
-type GapSegment = GapsBlock["segments"][number];
-
-/**
- * A passage with its blanks in square brackets, as a teacher types it:
- * [answer/another] for a blank typed into, any of them accepted, and
- * [right|wrong|wrong] for one chosen from a list, the first choice right.
- * Blanks keep the ids they had by position, so answers already given still
- * line up after an edit.
- */
-export function parseGaps(
-  source: string,
-  ids: readonly string[] = [],
-): GapSegment[] {
-  const segments: GapSegment[] = [];
-  let at = 0;
-  let gap = 0;
-  for (const match of source.matchAll(/\[([^[\]]*)\]/g)) {
-    if (match.index > at)
-      segments.push({ type: "text", text: source.slice(at, match.index) });
-    const inner = match[1] ?? "";
-    const listed = inner.includes("|");
-    const parts = inner
-      .split(listed ? "|" : "/")
-      .map((part) => part.trim())
-      .filter(Boolean);
-    segments.push({
-      type: "gap",
-      id: ids[gap] ?? crypto.randomUUID(),
-      answers: listed ? parts.slice(0, 1) : parts,
-      options: listed ? [...new Set(parts)] : [],
-    });
-    gap++;
-    at = match.index + match[0].length;
-  }
-  if (at < source.length)
-    segments.push({ type: "text", text: source.slice(at) });
-  return segments;
-}
-
-export function gapsSource(segments: readonly GapSegment[]): string {
-  return segments
-    .map((segment) => {
-      if (segment.type === "text") return segment.text;
-      if (segment.options.length === 0) return `[${segment.answers.join("/")}]`;
-      const right = segment.answers[0] ?? "";
-      return `[${[right, ...segment.options.filter((option) => option !== right)].join("|")}]`;
-    })
-    .join("");
 }
 
 function gapText(block: GapsBlock): string {
@@ -998,7 +1009,7 @@ export const saveLessonSchema = v.pipe(
     passScore: v.nullable(
       v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(100)),
     ),
-    content: lessonDocumentSchema,
+    content: contentDocumentSchema,
     /** Put the saved lesson in front of students at once, when its module is open. */
     publish: v.optional(v.boolean(), false),
   }),
@@ -1008,24 +1019,6 @@ export const saveLessonSchema = v.pipe(
       "learning.pass_score",
     ),
     ["passScore"],
-  ),
-  v.forward(
-    v.check(
-      (input) =>
-        !["quiz", "score"].includes(input.completion) ||
-        autoBlocks(input.content).length > 0,
-      "learning.needs_quiz",
-    ),
-    ["completion"],
-  ),
-  v.forward(
-    v.check(
-      (input) =>
-        input.completion !== "reflection" ||
-        input.content.blocks.some((block) => block.type === "written"),
-      "learning.needs_reflection",
-    ),
-    ["completion"],
   ),
 );
 export type SaveLesson = v.InferOutput<typeof saveLessonSchema>;

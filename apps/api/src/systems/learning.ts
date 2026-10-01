@@ -1,5 +1,5 @@
 import type { ModuleRow } from "@faridalms/database/stores/learning";
-import type { CheckBlock, LessonDocument } from "@faridalms/domain/learning";
+import type { CheckBlock, LessonCompletion } from "@faridalms/domain/learning";
 
 import { reachOf } from "@faridalms/database/stores/audiences";
 import {
@@ -41,6 +41,7 @@ import {
 import { isVisibleStudent } from "@faridalms/database/stores/students";
 import { gridOwners } from "@faridalms/database/stores/timetable";
 import { schoolYears, workingYear } from "@faridalms/database/stores/years";
+import { contentFileIds, contentPlainText } from "@faridalms/domain/content";
 import {
   checkBlocks,
   checkStates,
@@ -48,8 +49,8 @@ import {
   describeCheck,
   duplicateModuleSchema,
   isAuto,
-  lessonFileIds,
-  lessonPlainText,
+  lessonContentOf,
+  lessonIssue,
   lessonScore,
   markResponse,
   markSchema,
@@ -232,18 +233,6 @@ async function openModule(
   return { row, locked };
 }
 
-/** The lesson as its teacher is writing it. */
-async function lessonDocument(
-  context: UnitContext,
-  lessonId: string,
-): Promise<LessonDocument> {
-  const document = await documentOf(context.tx, context.tenantId, {
-    type: "lesson",
-    id: lessonId,
-  });
-  return upgradeLesson(document?.content);
-}
-
 /**
  * The version of a lesson students play: the last one published. Edits wait
  * in the draft until the teacher publishes them, so a question never changes
@@ -266,8 +255,24 @@ async function publishedLesson(context: UnitContext, lessonId: string) {
         documentVersion: published.documentVersion,
         draftVersion: document.version,
         content: upgradeLesson(published.content),
+        stored: published.content,
       }
     : null;
+}
+
+/** What stops a lesson as it is stored going in front of students. */
+async function storedLessonIssue(
+  context: UnitContext,
+  lesson: { id: string; completion: LessonCompletion },
+) {
+  const document = await documentOf(context.tx, context.tenantId, {
+    type: "lesson",
+    id: lesson.id,
+  });
+  return lessonIssue({
+    completion: lesson.completion,
+    content: lessonContentOf(document?.content),
+  });
 }
 
 async function publishLessons(context: UnitContext, lessonIds: string[]) {
@@ -448,11 +453,10 @@ export const publishModule = writeProcedure
     const lessons = await lessonsOf(context.tx, context.tenantId, row.id);
     if (lessons.length === 0)
       throw new ORPCError("CONFLICT", { message: "learning.lesson_required" });
-    for (const lesson of lessons)
-      if (
-        lessonPlainText(await lessonDocument(context, lesson.id)).trim() === ""
-      )
-        throw new ORPCError("CONFLICT", { message: "learning.lesson_empty" });
+    for (const lesson of lessons) {
+      const issue = await storedLessonIssue(context, lesson);
+      if (issue) throw new ORPCError("CONFLICT", { message: issue });
+    }
     const version = await setModuleState(context.tx, {
       tenantId: context.tenantId,
       id: row.id,
@@ -554,15 +558,23 @@ export const duplicateModule = writeProcedure
         completion: lesson.completion,
         passScore: lesson.passScore,
       });
-      const content = await lessonDocument(context, lesson.id);
+      const stored = await documentOf(context.tx, context.tenantId, {
+        type: "lesson",
+        id: lesson.id,
+      });
+      const content = { ...lessonContentOf(stored?.content) };
       await saveDocument(context.tx, {
         tenantId: context.tenantId,
         orgId: context.schoolId,
         host: { type: "lesson", id: copy.id },
         kind: "lesson",
-        content,
-        plainText: lessonPlainText(content),
-        mediaIds: lessonFileIds(content),
+        ...(await placeMedia(
+          context,
+          { type: "lesson", id: copy.id },
+          content,
+          contentFileIds(content),
+        )),
+        plainText: contentPlainText(content),
         userId: context.actor.userId,
       });
     }
@@ -583,14 +595,19 @@ export const lesson = readProcedure
     if (!row) throw new ORPCError("NOT_FOUND");
     const owner = await editable(context, row.moduleId);
     const published = await publishedLesson(context, row.id);
+    const document = await documentOf(context.tx, context.tenantId, {
+      type: "lesson",
+      id: row.id,
+    });
     return {
       ...row,
       module: { id: owner.id, title: owner.title, state: owner.state },
-      content: await lessonDocument(context, row.id),
+      content: lessonContentOf(document?.content),
       published: published
         ? {
             documentVersion: published.documentVersion,
             changed: published.draftVersion > published.documentVersion,
+            content: lessonContentOf(published.stored),
           }
         : null,
     };
@@ -605,8 +622,8 @@ export const publishLesson = writeProcedure
     const owner = await editable(context, row.moduleId);
     if (owner.state !== "published")
       throw new ORPCError("CONFLICT", { message: "learning.module_draft" });
-    if (lessonPlainText(await lessonDocument(context, row.id)).trim() === "")
-      throw new ORPCError("CONFLICT", { message: "learning.lesson_empty" });
+    const issue = await storedLessonIssue(context, row);
+    if (issue) throw new ORPCError("CONFLICT", { message: issue });
     await publishLessons(context, [row.id]);
     await audit(context, {
       action: "lesson.publish",
@@ -657,9 +674,9 @@ export const saveLesson = writeProcedure
         context,
         { type: "lesson", id: lessonId },
         input.content,
-        lessonFileIds(input.content),
+        contentFileIds(input.content),
       )),
-      plainText: lessonPlainText(input.content),
+      plainText: contentPlainText(input.content),
       userId: context.actor.userId,
     });
     await audit(context, {
@@ -670,6 +687,8 @@ export const saveLesson = writeProcedure
     });
     const published = input.publish && owner.state === "published";
     if (published) {
+      const issue = lessonIssue(input);
+      if (issue) throw new ORPCError("CONFLICT", { message: issue });
       await publishLessons(context, [lessonId]);
       await audit(context, {
         action: "lesson.publish",

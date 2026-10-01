@@ -34,33 +34,53 @@ test("a teacher builds a module, a student answers its lesson, and the teacher m
   await expect(page).toHaveURL(/\/teach\/lesson-editor/);
   await untilHydrated(page);
   await page.getByRole("textbox", { name: "Lesson title" }).fill("Greetings");
-  await page.locator("[contenteditable=true]").first().click();
+  // The lesson is one document: questions are blocks written in its text.
+  await page.locator("#lesson-body").click();
   await page.keyboard.type("A letter opens with a greeting.");
-  const addPart = async (kind: RegExp) => {
-    await page.getByRole("button", { name: "Add part", exact: true }).click();
-    await page.getByRole("menuitem", { name: kind }).click();
+  const ask = async (keyword: string) => {
+    await page.keyboard.press("Enter");
+    await page.keyboard.type(`/${keyword}`);
+    await page.keyboard.press("Enter");
   };
-  const questions = page.getByRole("textbox", {
-    name: "Question",
-    exact: true,
-  });
-  await addPart(/^Multiple choice/);
-  await questions.nth(0).fill("How does a letter open?");
-  await page.getByRole("textbox", { name: "Option 1" }).fill("With a greeting");
-  await page.getByRole("textbox", { name: "Option 2" }).fill("With a goodbye");
-  await page.getByRole("checkbox", { name: "Option 1 is right" }).click();
-  await addPart(/^Typed answer/);
-  await questions.nth(1).fill("Which word often starts a letter?");
-  await page.getByRole("textbox", { name: "Accepted answer 1" }).fill("Dear");
-  await addPart(/^Written answer/);
-  await questions.nth(2).fill("Write the first line of a letter to a friend.");
-  await page.getByRole("button", { name: "More options" }).nth(2).click();
-  await page.getByRole("spinbutton", { name: "Points" }).last().fill("4");
+  const leaveQuestion = async () => {
+    await page.keyboard.press("Enter");
+    await page.keyboard.press("Enter");
+  };
+  await ask("choice");
+  await page.keyboard.type("How does a letter open?");
+  await page.keyboard.press("Enter");
+  await page.keyboard.type("With a greeting");
+  await page.keyboard.press("Enter");
+  await page.keyboard.type("With a goodbye");
+  // An option is marked right by its circle, as a checklist item is ticked.
+  await page
+    .locator("[data-question-option]")
+    .first()
+    .click({ position: { x: 12, y: 14 } });
+  await expect(page.locator("[data-question-option]").first()).toHaveAttribute(
+    "data-correct",
+    "true",
+  );
+  await page.locator("[data-question-option]").nth(1).click();
+  await page.keyboard.press("End");
+  await leaveQuestion();
+  await page.keyboard.type("/typed");
+  await page.keyboard.press("Enter");
+  await page.keyboard.type("Which word often starts a letter?");
+  await page.keyboard.press("Enter");
+  await page.keyboard.type("Dear");
+  await leaveQuestion();
+  await page.keyboard.type("/written");
+  await page.keyboard.press("Enter");
+  await page.keyboard.type("Write the first line of a letter to a friend.");
+  await page.getByRole("button", { name: "2 points" }).click();
+  await page.getByRole("menuitem", { name: "4 points" }).click();
   await page.locator("#lesson-completion").click();
   await page
     .getByRole("option", { name: "Every question is answered" })
     .click();
-  await page.getByRole("button", { name: "Save", exact: true }).click();
+  await expect(page.getByText("Saved", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Back" }).click();
   await expect(page).toHaveURL(recordUrl);
   await expect(page.getByRole("link", { name: "Greetings" })).toBeVisible();
 

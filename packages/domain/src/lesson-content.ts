@@ -1,7 +1,9 @@
 import type { ContentDocument, ContentNode } from "./content";
-import type { GapsBlock, LessonBlock, LessonDocument } from "./learning";
+import type { GapSegment } from "./gaps";
+import type { LessonBlock, LessonDocument } from "./learning";
 
-import { gapsSource, parseGaps } from "./learning";
+import { sameContent } from "./content";
+import { gapsSource, parseGaps } from "./gaps";
 
 /**
  * A lesson is written as one document whose questions are blocks in the
@@ -10,6 +12,11 @@ import { gapsSource, parseGaps } from "./learning";
  * each question a check with the id it was given, so answers already given
  * still match.
  */
+
+/** Whether a stored lesson is a document, rather than a list of blocks. */
+export function isContentDocument(value: unknown): value is ContentDocument {
+  return typeof value === "object" && value !== null && "root" in value;
+}
 
 function textOf(node: ContentNode | undefined): string {
   if (!node) return "";
@@ -39,8 +46,6 @@ function runId(seed: string): string {
     hex.slice(20, 32),
   ].join("-");
 }
-
-type GapSegment = GapsBlock["segments"][number];
 
 /**
  * A gaps passage as the segments marking reads: each paragraph's text in
@@ -81,7 +86,9 @@ function questionBlock(node: ContentNode): LessonBlock | null {
   };
   switch (node.kind) {
     case "choice": {
-      const options = parts.filter((part) => part.type === "question-option");
+      const options = parts.filter(
+        (part) => part.type === "question-option" && textOf(part).trim(),
+      );
       return {
         ...check,
         type: "choice",
@@ -127,7 +134,9 @@ function questionBlock(node: ContentNode): LessonBlock | null {
         ...check,
         type: "ordering",
         items: parts
-          .filter((part) => part.type === "question-option")
+          .filter(
+            (part) => part.type === "question-option" && textOf(part).trim(),
+          )
           .map((item) => ({
             id: item.optionId ?? "",
             text: textOf(item).trim(),
@@ -139,7 +148,9 @@ function questionBlock(node: ContentNode): LessonBlock | null {
         ...check,
         type: "matching",
         pairs: parts
-          .filter((part) => part.type === "question-pair")
+          .filter(
+            (part) => part.type === "question-pair" && textOf(part).trim(),
+          )
           .map((pair) => ({
             id: pair.optionId ?? "",
             prompt: textOf(pair.children?.[0]).trim(),
@@ -175,7 +186,9 @@ function questionBlock(node: ContentNode): LessonBlock | null {
         })),
         items: groups.flatMap((group) =>
           (group.children ?? [])
-            .filter((item) => item.type === "question-option")
+            .filter(
+              (item) => item.type === "question-option" && textOf(item).trim(),
+            )
             .map((item) => ({
               id: item.optionId ?? "",
               text: textOf(item).trim(),
@@ -221,6 +234,27 @@ export function lessonOfContent(document: ContentDocument): LessonDocument {
   }
   flush();
   return { version: 2, blocks };
+}
+
+/**
+ * Whether two documents put the same lesson in front of students: the same
+ * words and the same questions, whatever ids the editor gave the blocks.
+ */
+export function sameLesson(a: ContentDocument, b: ContentDocument): boolean {
+  const left = lessonOfContent(a).blocks;
+  const right = lessonOfContent(b).blocks;
+  return (
+    left.length === right.length &&
+    left.every((block, index) => {
+      const other = right[index];
+      if (block.type === "content")
+        return (
+          other?.type === "content" && sameContent(block.content, other.content)
+        );
+      if (block.type === "gate") return other?.type === "gate";
+      return JSON.stringify(block) === JSON.stringify(other);
+    })
+  );
 }
 
 const paragraphOf = (text: string): ContentNode => ({

@@ -2927,6 +2927,31 @@
   "lrnStart": "ابدأ",
   "lrnState": "الحالة",
   "lrnStateArchived": "مؤرشفة",
+  "lrnStatusModuleDraft": "الوحدة غير مفتوحة بعد",
+  "lrnStatusShown": "معروض للطلاب",
+  "lrnStatusNotShown": "لم يُعرض بعد",
+  "lrnNotSavedTitle": "اكتب عنوانًا للدرس لحفظه",
+  "lrnNotSavedPassMark": "أدخل درجة النجاح لحفظ الدرس",
+  "lrnChangesNotShown": "يرى الطلاب النسخة المعروضة من قبل",
+  "lrnNotShownYet": "لا يرى الطلاب هذا الدرس بعد",
+  "lrnShowStudents": "اعرض للطلاب",
+  "lrnIncomplete": "أكمل ما يلي قبل أن يرى الطلاب الدرس:",
+  "lrnUntitled": "درس بلا عنوان",
+  "lrnSectionFinishing": "إنهاء الدرس",
+  "lrnQuestionCount": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=zero": "لا أسئلة",
+        "countPlural=one": "سؤال واحد",
+        "countPlural=two": "سؤالان",
+        "countPlural=few": "{count} أسئلة",
+        "countPlural=many": "{count} سؤالًا",
+        "countPlural=*": "{count} سؤال"
+      }
+    }
+  ],
   "lrnStateDraft": "مسودة",
   "lrnStateOpen": "مفتوحة",
   "lrnStateScheduled": "مجدولة",
@@ -2946,6 +2971,7 @@
   "lrnErrClass": "يمكنك إسناد الوحدات إلى الصفوف التي تدرّسها فقط.",
   "lrnErrPrerequisite": "لا يمكن أن تُفتح الوحدة بعد نفسها، أو بعد وحدة تُفتح بعدها.",
   "lrnErrLessonRequired": "أضف درسًا قبل فتح الوحدة.",
+  "lrnErrLessonIncomplete": "أحد أسئلة هذا الدرس لم يكتمل بعد.",
   "lrnErrLessonEmpty": "يحتاج كل درس إلى محتوى قبل فتح الوحدة.",
   "lrnErrLocked": "يُفتح هذا الدرس عند إكمال الدرس الذي قبله.",
   "lrnErrNotDone": "أكمل أسئلة الدرس أو تأمّلاته أولًا.",

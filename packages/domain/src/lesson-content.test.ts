@@ -6,7 +6,7 @@ import type { LessonDocument } from "./learning";
 import { contentDocumentSchema, contentPlainText } from "./content";
 import { plainContent } from "./content-conversion";
 import { lessonDocumentSchema } from "./learning";
-import { contentOfLesson, lessonOfContent } from "./lesson-content";
+import { contentOfLesson, lessonOfContent, sameLesson } from "./lesson-content";
 
 const lesson: LessonDocument = {
   version: 2,
@@ -230,5 +230,39 @@ describe("lessons written as one document", () => {
     expect(contentPlainText(document)).not.toContain("Thames");
     expect(contentPlainText(document)).toContain("It stands on the");
     expect(contentPlainText(document)).toContain("The capital of Egypt?");
+  });
+
+  it("sees a lesson as unchanged whatever ids its blocks were given", () => {
+    const document = contentOfLesson(lesson);
+    if (!document) throw new Error("lesson could not become a document");
+    const reopened = structuredClone(document);
+    for (const [index, node] of (reopened.root.children ?? []).entries())
+      node.$ = { id: `block${index}aa` };
+    expect(sameLesson(document, reopened)).toBe(true);
+    const edited = structuredClone(reopened);
+    const first = edited.root.children?.[0]?.children?.[0];
+    if (first) first.text = "Read the poem twice.";
+    expect(sameLesson(document, edited)).toBe(false);
+  });
+
+  it("leaves out options and items still empty", () => {
+    const document = contentOfLesson(lesson);
+    if (!document) throw new Error("lesson could not become a document");
+    const choice = document.root.children?.find(
+      (node) => node.type === "question" && node.kind === "choice",
+    );
+    choice?.children?.push({
+      type: "question-option",
+      version: 1,
+      format: "",
+      indent: 0,
+      direction: null,
+      optionId: crypto.randomUUID(),
+      children: [],
+    });
+    const block = lessonOfContent(document).blocks.find(
+      (item) => item.type === "choice",
+    );
+    expect(block?.type === "choice" ? block.options : []).toHaveLength(2);
   });
 });

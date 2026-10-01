@@ -335,6 +335,8 @@ export function getMessageFromError(error: unknown): string {
         return m.lrnErrLessonRequired();
       case "learning.lesson_empty":
         return m.lrnErrLessonEmpty();
+      case "learning.lesson_incomplete":
+        return m.lrnErrLessonIncomplete();
       case "learning.locked":
         return m.lrnErrLocked();
       case "learning.not_done":

@@ -139,9 +139,16 @@ export function DocumentPage({
   /** Why a draft with changes cannot be stored yet, in place of the save state. */
   notSaved?: string;
   unpublished?: {
-    onDiscard: () => void;
+    /** Absent when there is nothing earlier to go back to. */
+    onDiscard?: () => void;
     onUpdate: () => void;
     pending?: boolean;
+    /**
+     * Where edits are stored as they are made and only wait to be shown,
+     * what waits, said in place of "unsaved", beside the save state.
+     */
+    waiting?: string;
+    updateLabel?: string;
   };
   primary?: PrimaryAction;
   preview?: { label: string; onClick: () => void };
@@ -193,18 +200,23 @@ export function DocumentPage({
         ) : null}
         {unpublished ? (
           <>
+            {unpublished.waiting ? (
+              <SaveIndicator state={saveState} onRetry={onRetry} />
+            ) : null}
             <span className="hidden text-[13px] text-muted-foreground sm:inline">
-              {m.docUnsaved()}
+              {unpublished.waiting ?? m.docUnsaved()}
             </span>
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              disabled={unpublished.pending}
-              onClick={unpublished.onDiscard}
-            >
-              {m.docDiscard()}
-            </Button>
+            {unpublished.onDiscard ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                disabled={unpublished.pending}
+                onClick={unpublished.onDiscard}
+              >
+                {m.docDiscard()}
+              </Button>
+            ) : null}
             <Button
               type="button"
               size="sm"
@@ -214,7 +226,7 @@ export function DocumentPage({
               {unpublished.pending ? (
                 <LoaderCircle className="animate-spin" aria-hidden />
               ) : null}
-              {m.docUpdate()}
+              {unpublished.updateLabel ?? m.docUpdate()}
             </Button>
           </>
         ) : (

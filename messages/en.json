@@ -2851,6 +2851,27 @@
   "lrnStart": "Start",
   "lrnState": "Status",
   "lrnStateArchived": "Archived",
+  "lrnStatusModuleDraft": "Module not open yet",
+  "lrnStatusShown": "Shown to students",
+  "lrnStatusNotShown": "Not shown yet",
+  "lrnNotSavedTitle": "Give the lesson a title to save it",
+  "lrnNotSavedPassMark": "Enter a pass mark to save the lesson",
+  "lrnChangesNotShown": "Students see the version shown before",
+  "lrnNotShownYet": "Students do not see this lesson yet",
+  "lrnShowStudents": "Show students",
+  "lrnIncomplete": "Finish these before students see the lesson:",
+  "lrnUntitled": "Untitled lesson",
+  "lrnSectionFinishing": "Finishing",
+  "lrnQuestionCount": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "{count} question",
+        "countPlural=*": "{count} questions"
+      }
+    }
+  ],
   "lrnStateDraft": "Draft",
   "lrnStateOpen": "Open",
   "lrnStateScheduled": "Scheduled",
@@ -2870,6 +2891,7 @@
   "lrnErrClass": "You can only set modules for classes you teach.",
   "lrnErrPrerequisite": "A module cannot open after itself, or after a module that opens after it.",
   "lrnErrLessonRequired": "Add a lesson before opening the module.",
+  "lrnErrLessonIncomplete": "A question in this lesson is not finished yet.",
   "lrnErrLessonEmpty": "Every lesson needs something in it before the module opens.",
   "lrnErrLocked": "This lesson opens once the one before it is done.",
   "lrnErrNotDone": "Finish the lesson's questions or reflections first.",

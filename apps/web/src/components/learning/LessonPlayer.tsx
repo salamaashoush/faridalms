@@ -14,6 +14,7 @@ import {
   isAuto,
   markResponse,
   studentBlocks,
+  upgradeLesson,
 } from "@faridalms/domain/learning";
 import {
   useMutation,
@@ -577,24 +578,23 @@ export function LessonPreview({ lessonId }: { lessonId: string }) {
   const navigate = useNavigate();
   const [rows, setRows] = useState<StoredTry[]>([]);
   const [round, setRound] = useState(0);
+  const lesson = useMemo(() => upgradeLesson(data.content), [data.content]);
   const blocks = useMemo(
-    () => studentBlocks(data.content, `preview:${round}`),
-    [data.content, round],
+    () => studentBlocks(lesson, `preview:${round}`),
+    [lesson, round],
   );
   const checks = useMemo(() => {
-    const states = checkStates(data.content, rows);
+    const states = checkStates(lesson, rows);
     return Object.fromEntries(
-      checkBlocks(data.content).map((block) => [
+      checkBlocks(lesson).map((block) => [
         block.id,
         describeCheck(block, rows, states[block.id]),
       ]),
     );
-  }, [data.content, rows]);
+  }, [lesson, rows]);
   const driver: CheckDriver = {
     respond: (blockId, response: LessonResponse) => {
-      const block = checkBlocks(data.content).find(
-        (item) => item.id === blockId,
-      );
+      const block = checkBlocks(lesson).find((item) => item.id === blockId);
       if (!block) return Promise.resolve();
       const marked = isAuto(block) ? markResponse(block, response) : null;
       setRows((current) => {

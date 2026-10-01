@@ -1,4 +1,10 @@
+import type { LessonDocument } from "@faridalms/domain/learning";
+
 import { plainContent } from "@faridalms/domain/content-conversion";
+import {
+  contentOfLesson,
+  lessonOfContent,
+} from "@faridalms/domain/lesson-content";
 import { describe, expect, test } from "bun:test";
 
 import { login, rejection, seeded, signedIn } from "./harness";
@@ -11,6 +17,12 @@ type Api = Awaited<ReturnType<typeof student>>;
 
 const TITLE = "Reading stories together";
 const id = () => crypto.randomUUID();
+
+function written(blocks: LessonDocument["blocks"]) {
+  const document = contentOfLesson({ version: 2, blocks });
+  if (!document) throw new Error("the blocks could not become a document");
+  return document;
+}
 
 /** The seeded teachers split into one who teaches the module and one who does not. */
 async function teachers() {
@@ -325,7 +337,7 @@ describe("matching, ordering and sorting", () => {
       title: "Order and sort",
       completion: "quiz",
       passScore: null,
-      content: { version: 2, blocks },
+      content: written(blocks),
       publish: false,
     });
     await keeper.learning.publishModule({
@@ -504,16 +516,7 @@ describe("teaching a module", () => {
       title: "Halves",
       completion: "view",
       passScore: null,
-      content: {
-        version: 2,
-        blocks: [
-          {
-            id: crypto.randomUUID(),
-            type: "content",
-            content: plainContent("A half is one of two equal parts."),
-          },
-        ],
-      },
+      content: plainContent("A half is one of two equal parts."),
       publish: false,
     });
     const published = await keeper.learning.publishModule({
@@ -545,16 +548,7 @@ describe("publishing a lesson", () => {
       title: editing.title,
       completion: editing.completion,
       passScore: editing.passScore,
-      content: {
-        version: 2 as const,
-        blocks: [
-          {
-            id: crypto.randomUUID(),
-            type: "content" as const,
-            content: plainContent("Every story has a problem to solve."),
-          },
-        ],
-      },
+      content: plainContent("Every story has a problem to solve."),
     };
     const saved = await keeper.learning.saveLesson({
       ...draft,
@@ -576,5 +570,94 @@ describe("publishing a lesson", () => {
     expect(shown.published).toBe(true);
     const after = await pupil.learning.playLesson({ id: reading.id });
     expect(JSON.stringify(after.blocks)).toContain("problem to solve");
+  });
+});
+
+describe("lessons written as documents", () => {
+  test("a lesson stored as blocks opens as one document with its question ids", async () => {
+    const { keeper } = await teachers();
+    const pupil = await student();
+    const { check } = await lessonsOf(pupil);
+    const editing = await keeper.learning.lesson({ id: check.id });
+    expect(editing.content).toHaveProperty("root");
+    const asked = lessonOfContent(editing.content)
+      .blocks.filter((block) => block.type !== "content")
+      .map((block) => block.id);
+    const played = (await pupil.learning.playLesson({ id: check.id })).blocks
+      .filter((block) => block.type !== "content")
+      .map((block) => block.id);
+    expect(asked.length).toBeGreaterThan(0);
+    expect(asked).toEqual(played);
+  });
+
+  test("a question without its answer keeps the edit from students", async () => {
+    const { keeper } = await teachers();
+    const pupil = await student();
+    const { reading } = await lessonsOf(pupil);
+    const editing = await keeper.learning.lesson({ id: reading.id });
+    const draft = {
+      id: editing.id,
+      moduleId: editing.moduleId,
+      title: editing.title,
+      completion: editing.completion,
+      passScore: editing.passScore,
+      content: written([
+        {
+          id: id(),
+          type: "choice",
+          prompt: "Which is a noun?",
+          points: 1,
+          hint: "",
+          explanation: "",
+          tries: null,
+          options: [
+            { id: id(), text: "Tree", feedback: "" },
+            { id: id(), text: "Run", feedback: "" },
+          ],
+          correctOptionIds: [],
+          multiple: false,
+          shuffle: false,
+        },
+      ]),
+    };
+    const saved = await keeper.learning.saveLesson({
+      ...draft,
+      expectedVersion: editing.version,
+      publish: false,
+    });
+    expect(
+      await rejection(
+        keeper.learning.saveLesson({
+          ...draft,
+          expectedVersion: saved.version,
+          publish: true,
+        }),
+      ),
+    ).toMatchObject({ code: "CONFLICT", message: "learning.correct_option" });
+    expect(
+      await rejection(keeper.learning.publishLesson({ id: reading.id })),
+    ).toMatchObject({ code: "CONFLICT", message: "learning.correct_option" });
+    const played = await pupil.learning.playLesson({ id: reading.id });
+    expect(JSON.stringify(played.blocks)).not.toContain("Which is a noun?");
+    await keeper.learning.saveLesson({
+      ...draft,
+      content: editing.published?.content ?? editing.content,
+      expectedVersion: saved.version,
+      publish: false,
+    });
+  });
+
+  test("students never watch a lesson's document live", async () => {
+    const { keeper } = await teachers();
+    const pupil = await student();
+    const { reading } = await lessonsOf(pupil);
+    const host = { hostType: "lesson", hostId: reading.id };
+    expect(await rejection(pupil.documents.collaborate(host))).toMatchObject({
+      code: "NOT_FOUND",
+    });
+    const ticket = await keeper.documents.collaborate(host);
+    expect(ticket.access).toBe("write");
+    const editing = await keeper.learning.lesson({ id: reading.id });
+    expect(editing.content).toHaveProperty("root");
   });
 });

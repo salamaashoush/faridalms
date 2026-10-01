@@ -587,7 +587,8 @@ function comparable(value: unknown): unknown {
   if (!value || typeof value !== "object") return value;
   return Object.fromEntries(
     Object.entries(value)
-      .filter(([key]) => key !== "direction")
+      // Block ids and directions are the editor's bookkeeping, not words.
+      .filter(([key]) => key !== "direction" && key !== "$")
       .toSorted(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
       .map(([key, item]) => [key, comparable(item)]),
   );

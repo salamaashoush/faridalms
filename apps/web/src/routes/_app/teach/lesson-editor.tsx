@@ -7,6 +7,7 @@ import {
   useCanGoBack,
   useRouter,
 } from "@tanstack/react-router";
+import { useState } from "react";
 import * as v from "valibot";
 
 import {
@@ -62,10 +63,12 @@ function ExistingEditor({
   id,
   moduleId,
   onClose,
+  onCreated,
 }: {
   id: string;
   moduleId: string;
   onClose: () => void;
+  onCreated: (id: string) => void;
 }) {
   const existing = useSuspenseQuery(lessonEditorQuery(id)).data;
   return (
@@ -74,6 +77,7 @@ function ExistingEditor({
       existing={existing}
       moduleId={moduleId}
       onClose={onClose}
+      onCreated={onCreated}
     />
   );
 }
@@ -83,6 +87,7 @@ function EditorPage() {
   const navigate = Route.useNavigate();
   const router = useRouter();
   const canGoBack = useCanGoBack();
+  const [created, setCreated] = useState<string | null>(null);
   const close = () => {
     if (canGoBack) {
       router.history.back();
@@ -94,9 +99,25 @@ function EditorPage() {
       search: {},
     });
   };
-  return id ? (
-    <ExistingEditor id={id} moduleId={moduleId} onClose={close} />
+  // The first autosave gives a new lesson its address, so a reload reopens
+  // it; the editor already open stays mounted with what is being typed.
+  const onCreated = (saved: string) => {
+    setCreated(saved);
+    void navigate({ search: { id: saved, moduleId }, replace: true });
+  };
+  return id && id !== created ? (
+    <ExistingEditor
+      id={id}
+      moduleId={moduleId}
+      onClose={close}
+      onCreated={onCreated}
+    />
   ) : (
-    <LessonEditor existing={null} moduleId={moduleId} onClose={close} />
+    <LessonEditor
+      existing={null}
+      moduleId={moduleId}
+      onClose={close}
+      onCreated={onCreated}
+    />
   );
 }
