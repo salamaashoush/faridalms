@@ -152,6 +152,15 @@ export interface EditorStrings {
   questionAnswer: string;
   questionAccepted: string;
   questionPoints: (points: number) => string;
+  questionMatching: string;
+  questionMatchingHint: string;
+  questionSorting: string;
+  questionSortingHint: string;
+  questionPairPrompt: string;
+  questionPairAnswer: string;
+  questionExtra: string;
+  questionGroupName: string;
+  questionItem: string;
   questionNumber: string;
   questionNumberHint: string;
   questionOrdering: string;

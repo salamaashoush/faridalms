@@ -38,6 +38,9 @@ const nodeTypes = [
   "question-prompt",
   "question-option",
   "question-answer",
+  "question-pair",
+  "question-group",
+  "question-side",
 ] as const;
 /**
  * The questions a document can ask, each marked by the server from the
@@ -49,6 +52,8 @@ export const questionKinds = [
   "written",
   "number",
   "ordering",
+  "matching",
+  "sorting",
 ] as const;
 export type QuestionKind = (typeof questionKinds)[number];
 export const calloutTones = [
@@ -366,14 +371,32 @@ function validNode(node: ContentNode): boolean {
         children
           .slice(1)
           .every((child) =>
-            ["question-option", "question-answer"].includes(child.type),
+            [
+              "question-option",
+              "question-answer",
+              "question-pair",
+              "question-group",
+            ].includes(child.type),
           )
       );
     case "question-prompt":
     case "question-answer":
+    case "question-side":
       return children.every(inline);
     case "question-option":
       return Boolean(node.optionId) && children.every(inline);
+    case "question-pair":
+      return (
+        Boolean(node.optionId) &&
+        children.length === 2 &&
+        children.every((child) => child.type === "question-side")
+      );
+    case "question-group":
+      return (
+        Boolean(node.optionId) &&
+        children[0]?.type === "question-side" &&
+        children.slice(1).every((child) => child.type === "question-option")
+      );
     case "root":
       return children.every((child) => blocks.has(child.type));
     case "quote":
@@ -476,6 +499,8 @@ export const contentDocumentSchema = v.pipe(
 const blockSeparated = new Set<string>([
   "root",
   "question",
+  "question-pair",
+  "question-group",
   "list",
   "table",
   "tablerow",

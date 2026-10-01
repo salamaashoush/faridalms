@@ -28,6 +28,11 @@ export interface QuestionLabels {
   option: string;
   answer: string;
   accepted: string;
+  pairPrompt: string;
+  pairAnswer: string;
+  extra: string;
+  groupName: string;
+  item: string;
 }
 
 const labels = new WeakMap<LexicalEditor, QuestionLabels>();
@@ -391,10 +396,43 @@ export class QuestionOptionNode extends ElementNode {
   }
 }
 
-/** A typed answer that counts as right. */
+export type SerializedQuestionAnswerNode = Spread<
+  { optionId?: string },
+  SerializedElementNode
+>;
+
+/**
+ * A typed answer that counts as right, or, in a matching question, an
+ * extra answer that matches nothing.
+ */
 export class QuestionAnswerNode extends ElementNode {
+  __optionId: string;
+
+  constructor(optionId: string = crypto.randomUUID(), key?: NodeKey) {
+    super(key);
+    this.__optionId = optionId;
+  }
+
   $config() {
     return this.config("question-answer", { extends: ElementNode });
+  }
+
+  static clone(node: QuestionAnswerNode): QuestionAnswerNode {
+    return new QuestionAnswerNode(node.__optionId, node.__key);
+  }
+
+  static importJSON(json: SerializedQuestionAnswerNode): QuestionAnswerNode {
+    return new QuestionAnswerNode().updateFromJSON(json);
+  }
+
+  updateFromJSON(json: LexicalUpdateJSON<SerializedQuestionAnswerNode>): this {
+    const node = super.updateFromJSON(json).getWritable();
+    node.__optionId = json.optionId ?? crypto.randomUUID();
+    return node;
+  }
+
+  exportJSON(): SerializedQuestionAnswerNode {
+    return { ...super.exportJSON(), optionId: this.getLatest().__optionId };
   }
 
   insertNewAfter(_: RangeSelection, restoreSelection = true): ElementNode {
@@ -411,12 +449,180 @@ export class QuestionAnswerNode extends ElementNode {
 
   createDOM(config: EditorConfig, editor: LexicalEditor): HTMLElement {
     const dom = $getDocument().createElement("div");
-    dom.dataset.questionAnswer = "";
-    dom.dataset.placeholder = labels.get(editor)?.answer ?? "";
-    dom.dataset.label = labels.get(editor)?.accepted ?? "";
+    const text = labels.get(editor);
+    const question = this.getParent();
+    const extra =
+      $isQuestionNode(question) && question.getSettings().kind === "matching";
+    dom.dataset.questionAnswer = extra ? "extra" : "";
+    dom.dataset.placeholder = (extra ? text?.extra : text?.answer) ?? "";
     const name = theme(config, "questionAnswer");
     if (name) addClassNamesToElement(dom, name);
     return dom;
+  }
+
+  getOptionId(): string {
+    return this.getLatest().__optionId;
+  }
+
+  setOptionId(optionId: string): this {
+    const writable = this.getWritable();
+    writable.__optionId = optionId;
+    return writable;
+  }
+}
+
+export type SerializedQuestionHolderNode = Spread<
+  { optionId?: string },
+  SerializedElementNode
+>;
+
+/** Something to match and its match, side by side. */
+export class QuestionPairNode extends ElementNode {
+  __optionId: string;
+
+  constructor(optionId: string = crypto.randomUUID(), key?: NodeKey) {
+    super(key);
+    this.__optionId = optionId;
+  }
+
+  updateFromJSON(json: LexicalUpdateJSON<SerializedQuestionHolderNode>): this {
+    const node = super.updateFromJSON(json).getWritable();
+    node.__optionId = json.optionId ?? crypto.randomUUID();
+    return node;
+  }
+
+  exportJSON(): SerializedQuestionHolderNode {
+    return { ...super.exportJSON(), optionId: this.getLatest().__optionId };
+  }
+
+  updateDOM(): boolean {
+    return false;
+  }
+
+  isShadowRoot(): boolean {
+    return true;
+  }
+
+  getOptionId(): string {
+    return this.getLatest().__optionId;
+  }
+
+  setOptionId(optionId: string): this {
+    const writable = this.getWritable();
+    writable.__optionId = optionId;
+    return writable;
+  }
+
+  $config() {
+    return this.config("question-pair", { extends: ElementNode });
+  }
+
+  static clone(node: QuestionPairNode): QuestionPairNode {
+    return new QuestionPairNode(node.__optionId, node.__key);
+  }
+
+  static importJSON(json: SerializedQuestionHolderNode): QuestionPairNode {
+    return new QuestionPairNode().updateFromJSON(json);
+  }
+
+  createDOM(config: EditorConfig): HTMLElement {
+    const dom = $getDocument().createElement("div");
+    dom.dataset.questionPair = "";
+    const name = theme(config, "questionPair");
+    if (name) addClassNamesToElement(dom, name);
+    return dom;
+  }
+}
+
+/** A named group in a sorting question, with the items that belong in it. */
+export class QuestionGroupNode extends ElementNode {
+  __optionId: string;
+
+  constructor(optionId: string = crypto.randomUUID(), key?: NodeKey) {
+    super(key);
+    this.__optionId = optionId;
+  }
+
+  updateFromJSON(json: LexicalUpdateJSON<SerializedQuestionHolderNode>): this {
+    const node = super.updateFromJSON(json).getWritable();
+    node.__optionId = json.optionId ?? crypto.randomUUID();
+    return node;
+  }
+
+  exportJSON(): SerializedQuestionHolderNode {
+    return { ...super.exportJSON(), optionId: this.getLatest().__optionId };
+  }
+
+  updateDOM(): boolean {
+    return false;
+  }
+
+  isShadowRoot(): boolean {
+    return true;
+  }
+
+  getOptionId(): string {
+    return this.getLatest().__optionId;
+  }
+
+  setOptionId(optionId: string): this {
+    const writable = this.getWritable();
+    writable.__optionId = optionId;
+    return writable;
+  }
+
+  $config() {
+    return this.config("question-group", { extends: ElementNode });
+  }
+
+  static clone(node: QuestionGroupNode): QuestionGroupNode {
+    return new QuestionGroupNode(node.__optionId, node.__key);
+  }
+
+  static importJSON(json: SerializedQuestionHolderNode): QuestionGroupNode {
+    return new QuestionGroupNode().updateFromJSON(json);
+  }
+
+  createDOM(config: EditorConfig): HTMLElement {
+    const dom = $getDocument().createElement("div");
+    dom.dataset.questionGroup = "";
+    const name = theme(config, "questionGroup");
+    if (name) addClassNamesToElement(dom, name);
+    return dom;
+  }
+}
+
+/** One line of a pair or a group's name. */
+export class QuestionSideNode extends ElementNode {
+  $config() {
+    return this.config("question-side", { extends: ElementNode });
+  }
+
+  createDOM(config: EditorConfig, editor: LexicalEditor): HTMLElement {
+    const dom = $getDocument().createElement("div");
+    const text = labels.get(editor);
+    const holder = this.getParent();
+    dom.dataset.questionSide = "";
+    dom.dataset.placeholder =
+      (holder instanceof QuestionGroupNode
+        ? text?.groupName
+        : this.getIndexWithinParent() === 0
+          ? text?.pairPrompt
+          : text?.pairAnswer) ?? "";
+    const name = theme(config, "questionSide");
+    if (name) addClassNamesToElement(dom, name);
+    return dom;
+  }
+
+  updateDOM(): boolean {
+    return false;
+  }
+
+  collapseAtStart(): boolean {
+    const previous =
+      this.getPreviousSibling() ?? this.getParent()?.getPreviousSibling();
+    if ($isElementNode(previous)) previous.selectEnd();
+    return true;
   }
 }
 
@@ -436,6 +642,40 @@ export function $isQuestionOptionNode(
   node: LexicalNode | null | undefined,
 ): node is QuestionOptionNode {
   return node instanceof QuestionOptionNode;
+}
+
+export function $isQuestionPairNode(
+  node: LexicalNode | null | undefined,
+): node is QuestionPairNode {
+  return node instanceof QuestionPairNode;
+}
+
+export function $isQuestionGroupNode(
+  node: LexicalNode | null | undefined,
+): node is QuestionGroupNode {
+  return node instanceof QuestionGroupNode;
+}
+
+export function $isQuestionSideNode(
+  node: LexicalNode | null | undefined,
+): node is QuestionSideNode {
+  return node instanceof QuestionSideNode;
+}
+
+/** A pair with both sides empty, ready to type. */
+export function $createQuestionPair(): QuestionPairNode {
+  return new QuestionPairNode().append(
+    new QuestionSideNode(),
+    new QuestionSideNode(),
+  );
+}
+
+/** A group with its name and one item, ready to type. */
+export function $createQuestionGroup(): QuestionGroupNode {
+  return new QuestionGroupNode().append(
+    new QuestionSideNode(),
+    new QuestionOptionNode(),
+  );
 }
 
 export function $isQuestionAnswerNode(
@@ -469,6 +709,10 @@ export function $createQuestionNode(kind: QuestionKind): QuestionNode {
       new QuestionOptionNode(),
     );
   if (kind === "text") question.append(new QuestionAnswerNode());
+  if (kind === "matching")
+    question.append($createQuestionPair(), $createQuestionPair());
+  if (kind === "sorting")
+    question.append($createQuestionGroup(), $createQuestionGroup());
   return question;
 }
 
@@ -485,7 +729,10 @@ export function $repairQuestion(question: QuestionNode) {
     const fits =
       ((kind === "choice" || kind === "ordering") &&
         $isQuestionOptionNode(child)) ||
-      (kind === "text" && $isQuestionAnswerNode(child));
+      ((kind === "text" || kind === "matching") &&
+        $isQuestionAnswerNode(child)) ||
+      (kind === "matching" && $isQuestionPairNode(child)) ||
+      (kind === "sorting" && $isQuestionGroupNode(child));
     if (fits) continue;
     const paragraph = $createParagraphNode();
     if ($isElementNode(child)) paragraph.append(...child.getChildren());
@@ -494,8 +741,45 @@ export function $repairQuestion(question: QuestionNode) {
   }
 }
 
-/** A prompt or part found outside a question reads as a paragraph. */
+/** A prompt or part found outside its place reads as a paragraph. */
 export function $unwrapStrayPart(node: ElementNode) {
-  if ($isQuestionNode(node.getParent())) return;
+  const parent = node.getParent();
+  if ($isQuestionNode(parent)) return;
+  if ($isQuestionOptionNode(node) && $isQuestionGroupNode(parent)) return;
+  if (
+    $isQuestionSideNode(node) &&
+    ($isQuestionPairNode(parent) || $isQuestionGroupNode(parent))
+  )
+    return;
   node.replace($createParagraphNode().append(...node.getChildren()));
+}
+
+/** A pair keeps exactly two sides; a group its name first, then items. */
+export function $repairHolder(holder: ElementNode) {
+  if (!$isQuestionNode(holder.getParent())) {
+    for (const child of holder.getChildren())
+      holder.insertBefore(
+        $isElementNode(child)
+          ? $createParagraphNode().append(...child.getChildren())
+          : child,
+      );
+    holder.remove();
+    return;
+  }
+  if ($isQuestionPairNode(holder)) {
+    const sides = holder.getChildren().filter($isQuestionSideNode);
+    while (sides.length < 2) {
+      const side = new QuestionSideNode();
+      holder.append(side);
+      sides.push(side);
+    }
+    for (const child of holder.getChildren())
+      if (!sides.slice(0, 2).includes(child as QuestionSideNode))
+        child.remove();
+    return;
+  }
+  if (!$isQuestionSideNode(holder.getFirstChild()))
+    holder.splice(0, 0, [new QuestionSideNode()]);
+  for (const child of holder.getChildren().slice(1))
+    if (!$isQuestionOptionNode(child)) child.remove();
 }

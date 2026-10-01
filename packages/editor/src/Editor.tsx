@@ -177,6 +177,8 @@ function Surface({
         written: strings.questionWritten,
         number: strings.questionNumber,
         ordering: strings.questionOrdering,
+        matching: strings.questionMatching,
+        sorting: strings.questionSorting,
       },
       points: strings.questionPoints,
       answerIs: strings.questionAnswerIs,
@@ -184,6 +186,11 @@ function Surface({
       option: strings.questionOption,
       answer: strings.questionAnswer,
       accepted: strings.questionAccepted,
+      pairPrompt: strings.questionPairPrompt,
+      pairAnswer: strings.questionPairAnswer,
+      extra: strings.questionExtra,
+      groupName: strings.questionGroupName,
+      item: strings.questionItem,
     }),
   );
   const [anchor, setAnchor] = useState<HTMLDivElement | null>(null);

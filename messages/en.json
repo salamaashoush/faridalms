@@ -1137,6 +1137,15 @@
   "editorQuestionScoring": "Marking",
   "editorQuestionScoringAll": "The whole order",
   "editorQuestionScoringNeighbours": "Each pair in order",
+  "editorQuestionMatching": "Matching",
+  "editorQuestionMatchingHint": "Students match each item to its pair",
+  "editorQuestionSorting": "Sort into groups",
+  "editorQuestionSortingHint": "Students put each item in its group",
+  "editorQuestionPairPrompt": "Item",
+  "editorQuestionPairAnswer": "Its match",
+  "editorQuestionExtra": "An extra answer that matches nothing",
+  "editorQuestionGroupName": "Group name",
+  "editorQuestionItem": "Item",
   "editorQuestionPoints": [
     {
       "declarations": ["input count", "local countPlural = count: plural"],

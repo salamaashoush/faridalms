@@ -18,8 +18,10 @@ import { buildContentEditor } from "./headless";
 import {
   $createCalloutNode,
   $createQuestionNode,
+  $isQuestionGroupNode,
   $isQuestionNode,
   $isQuestionOptionNode,
+  $isQuestionPairNode,
   $isQuestionPromptNode,
   $toggleCorrect,
   QuestionOptionNode,
@@ -30,7 +32,12 @@ function json(target: LexicalEditor): ContentDocument {
 }
 
 function withQuestion(
-  kind: "choiceQuestion" | "typedQuestion" | "orderingQuestion",
+  kind:
+    | "choiceQuestion"
+    | "typedQuestion"
+    | "orderingQuestion"
+    | "matchingQuestion"
+    | "sortingQuestion",
 ) {
   const target = buildContentEditor();
   target.update(
@@ -43,6 +50,10 @@ function withQuestion(
     { discrete: true },
   );
   return target;
+}
+
+function write(node: ElementNode | null | undefined, text: string) {
+  node?.append($createTextNode(text));
 }
 
 describe("questions in a document", () => {
@@ -230,5 +241,110 @@ describe("questions in a document", () => {
       value: 6,
       tolerance: 0.5,
     });
+  });
+
+  it("keeps a matching question's pairs and a sorting question's groups", () => {
+    const target = withQuestion("matchingQuestion");
+    target.update(
+      () => {
+        const question = $getRoot().getChildren().find($isQuestionNode);
+        const [prompt, ...pairs] = question?.getChildren() ?? [];
+        if ($isQuestionPromptNode(prompt))
+          prompt.append($createTextNode("Match the words."));
+        [
+          ["Big", "Large"],
+          ["Quick", "Fast"],
+        ].forEach(([left = "", right = ""], index) => {
+          const pair = pairs[index];
+          if (!$isQuestionPairNode(pair)) throw new Error("no pair");
+          write(pair.getFirstChild<ElementNode>(), left);
+          write(pair.getLastChild<ElementNode>(), right);
+        });
+        const paragraph = $createParagraphNode();
+        $getRoot().append(paragraph);
+        paragraph.select();
+        $insertBlock("sortingQuestion");
+        const sorting = $getRoot().getChildren().filter($isQuestionNode)[1];
+        const groups =
+          sorting?.getChildren().filter($isQuestionGroupNode) ?? [];
+        [
+          ["Mammals", "Cat"],
+          ["Birds", "Eagle"],
+        ].forEach(([name = "", item = ""], index) => {
+          const group = groups[index];
+          if (!group) throw new Error("no group");
+          write(group.getFirstChild<ElementNode>(), name);
+          const option = group.getChildren().find($isQuestionOptionNode);
+          write(option, item);
+        });
+      },
+      { discrete: true },
+    );
+    const document = json(target);
+    expect(v.safeParse(contentDocumentSchema, document).success).toBe(true);
+    const blocks = lessonOfContent(document).blocks;
+    expect(blocks.find((block) => block.type === "matching")).toMatchObject({
+      prompt: "Match the words.",
+      pairs: [
+        { prompt: "Big", answer: "Large" },
+        { prompt: "Quick", answer: "Fast" },
+      ],
+    });
+    const sorting = blocks.find((block) => block.type === "sorting");
+    expect(sorting).toMatchObject({
+      groups: [{ name: "Mammals" }, { name: "Birds" }],
+      items: [{ text: "Cat" }, { text: "Eagle" }],
+    });
+    if (sorting?.type !== "sorting") throw new Error("no sorting question");
+    expect(sorting.items[1]?.groupId).toBe(sorting.groups[1]?.id);
+  });
+
+  it("moves from a pair's item to its match, then to a new pair", () => {
+    const target = withQuestion("matchingQuestion");
+    const enter = () =>
+      target.update(
+        () => {
+          target.dispatchCommand(INSERT_PARAGRAPH_COMMAND, undefined);
+        },
+        { discrete: true },
+      );
+    target.update(
+      () => {
+        const pair = $getRoot()
+          .getChildren()
+          .find($isQuestionNode)
+          ?.getChildren()
+          .filter($isQuestionPairNode)
+          .at(-1);
+        pair?.getFirstChild<ElementNode>()?.append($createTextNode("Hot"));
+        pair?.getFirstChild<ElementNode>()?.selectEnd();
+      },
+      { discrete: true },
+    );
+    enter();
+    const where = () =>
+      target.read("latest", () => {
+        const side = $getSelection()?.getNodes()[0];
+        const pair = side?.getParent();
+        const question = $getRoot().getChildren().find($isQuestionNode);
+        const pairs = question?.getChildren().filter($isQuestionPairNode) ?? [];
+        return {
+          pair: pairs.findIndex((item) => item.is(pair)),
+          side: pair?.getChildren().findIndex((item) => item.is(side)),
+          pairs: pairs.length,
+        };
+      });
+    expect(where()).toEqual({ pair: 1, side: 1, pairs: 2 });
+    enter();
+    expect(where()).toEqual({ pair: 2, side: 0, pairs: 3 });
+    const ids = target.read("latest", () =>
+      $getRoot()
+        .getChildren()
+        .find($isQuestionNode)
+        ?.getChildren()
+        .filter($isQuestionPairNode)
+        .map((pair) => pair.getOptionId()),
+    );
+    expect(new Set(ids).size).toBe(3);
   });
 });

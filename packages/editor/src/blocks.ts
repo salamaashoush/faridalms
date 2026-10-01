@@ -42,6 +42,7 @@ import {
 } from "lexical";
 import {
   ArrowDownUp,
+  ArrowLeftRight,
   ChevronRight,
   CircleCheck,
   Clapperboard,
@@ -50,6 +51,7 @@ import {
   Columns3,
   Heading1,
   Heading2,
+  Group,
   Hash,
   Heading3,
   Image,
@@ -110,7 +112,9 @@ export type BlockType =
   | "typedQuestion"
   | "writtenQuestion"
   | "numberQuestion"
-  | "orderingQuestion";
+  | "orderingQuestion"
+  | "matchingQuestion"
+  | "sortingQuestion";
 
 export type BlockGroup = "text" | "lists" | "media" | "layout" | "questions";
 
@@ -120,6 +124,8 @@ const QUESTION_KIND: Partial<Record<BlockType, QuestionKind>> = {
   writtenQuestion: "written",
   numberQuestion: "number",
   orderingQuestion: "ordering",
+  matchingQuestion: "matching",
+  sortingQuestion: "sorting",
 };
 
 export interface BlockDefinition {
@@ -385,6 +391,24 @@ export const blockDefinitions: BlockDefinition[] = [
     label: (s) => s.questionOrdering,
     hint: (s) => s.questionOrderingHint,
     keywords: ["question", "order", "sequence", "sort", "سؤال", "ترتيب"],
+    question: true,
+  },
+  {
+    type: "matchingQuestion",
+    group: "questions",
+    icon: ArrowLeftRight,
+    label: (s) => s.questionMatching,
+    hint: (s) => s.questionMatchingHint,
+    keywords: ["question", "match", "pairs", "connect", "سؤال", "توصيل"],
+    question: true,
+  },
+  {
+    type: "sortingQuestion",
+    group: "questions",
+    icon: Group,
+    label: (s) => s.questionSorting,
+    hint: (s) => s.questionSortingHint,
+    keywords: ["question", "sort", "group", "categorise", "سؤال", "تصنيف"],
     question: true,
   },
 ];

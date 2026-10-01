@@ -1153,6 +1153,15 @@
   "editorQuestionScoring": "التصحيح",
   "editorQuestionScoringAll": "الترتيب كاملًا",
   "editorQuestionScoringNeighbours": "كل زوج متتالٍ",
+  "editorQuestionMatching": "توصيل",
+  "editorQuestionMatchingHint": "يصل الطالب كل عنصر بما يناسبه",
+  "editorQuestionSorting": "تصنيف في مجموعات",
+  "editorQuestionSortingHint": "يضع الطالب كل عنصر في مجموعته",
+  "editorQuestionPairPrompt": "عنصر",
+  "editorQuestionPairAnswer": "ما يناسبه",
+  "editorQuestionExtra": "إجابة إضافية لا تناسب شيئًا",
+  "editorQuestionGroupName": "اسم المجموعة",
+  "editorQuestionItem": "عنصر",
   "editorQuestionPoints": [
     {
       "declarations": ["input count", "local countPlural = count: plural"],

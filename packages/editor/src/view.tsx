@@ -294,6 +294,24 @@ function render(node: ContentNode, key: string, context: Context): ReactNode {
       );
     case "question-answer":
       return null;
+    case "question-pair":
+      return (
+        <div key={key} className="fe-question-pair">
+          {children}
+        </div>
+      );
+    case "question-group":
+      return (
+        <div key={key} className="fe-question-group">
+          {children}
+        </div>
+      );
+    case "question-side":
+      return (
+        <div key={key} className="fe-question-side" dir="auto">
+          {children}
+        </div>
+      );
     case "columns":
       return (
         <div

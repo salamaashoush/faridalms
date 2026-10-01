@@ -84,6 +84,55 @@ const lesson: LessonDocument = {
       scoring: "neighbours",
     },
     {
+      id: "9e5c3f6b-7d0a-4e1f-8b2c-d0e1f2a3b4c5",
+      type: "matching",
+      prompt: "Match each word to its meaning.",
+      points: 3,
+      hint: "",
+      explanation: "",
+      tries: null,
+      pairs: [
+        {
+          id: "0f6d4a7c-8e1b-4f2a-9c3d-e1f2a3b4c5d6",
+          prompt: "Big",
+          answer: "Large",
+        },
+        {
+          id: "1a7e5b8d-9f2c-4a3b-8d4e-f2a3b4c5d6e7",
+          prompt: "Quick",
+          answer: "Fast",
+        },
+      ],
+      distractors: [
+        { id: "2b8f6c9e-0a3d-4b4c-9e5f-a3b4c5d6e7f8", text: "Slow" },
+      ],
+    },
+    {
+      id: "3c9a7d0f-1b4e-4c5d-8f6a-b4c5d6e7f8a9",
+      type: "sorting",
+      prompt: "Sort the animals.",
+      points: 2,
+      hint: "",
+      explanation: "",
+      tries: null,
+      groups: [
+        { id: "4d0b8e1a-2c5f-4d6e-9a7b-c5d6e7f8a9b0", name: "Mammals" },
+        { id: "5e1c9f2b-3d6a-4e7f-8b8c-d6e7f8a9b0c1", name: "Birds" },
+      ],
+      items: [
+        {
+          id: "6f2d0a3c-4e7b-4f8a-9c9d-e7f8a9b0c1d2",
+          text: "Cat",
+          groupId: "4d0b8e1a-2c5f-4d6e-9a7b-c5d6e7f8a9b0",
+        },
+        {
+          id: "7a3e1b4d-5f8c-4a9b-8d0e-f8a9b0c1d2e3",
+          text: "Eagle",
+          groupId: "5e1c9f2b-3d6a-4e7f-8b8c-d6e7f8a9b0c1",
+        },
+      ],
+    },
+    {
       id: "3e9c7f0b-1d4a-4e5f-8b6c-d4e5f6a7b8c9",
       type: "written",
       prompt: "Why does the poet repeat the last line?",

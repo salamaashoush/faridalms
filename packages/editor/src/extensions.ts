@@ -58,16 +58,25 @@ import {
   $isToggleContentNode,
   $isToggleNode,
   $isToggleTitleNode,
+  $createQuestionGroup,
+  $createQuestionPair,
   $isQuestionAnswerNode,
+  $isQuestionGroupNode,
   $isQuestionNode,
   $isQuestionOptionNode,
+  $isQuestionPairNode,
   $isQuestionPromptNode,
+  $isQuestionSideNode,
+  $repairHolder,
   $repairQuestion,
   $unwrapStrayPart,
   QuestionAnswerNode,
+  QuestionGroupNode,
   QuestionNode,
   QuestionOptionNode,
+  QuestionPairNode,
   QuestionPromptNode,
+  QuestionSideNode,
   blockIdState,
   blockNodes,
   CalloutNode,
@@ -110,7 +119,12 @@ function $assignBlockIds(container: ElementNode, seen: Set<string>) {
 const questionIdOf = (node: LexicalNode) =>
   $isQuestionNode(node) ? node.getSettings().questionId : null;
 const optionIdOf = (node: LexicalNode) =>
-  $isQuestionOptionNode(node) ? node.getOptionId() : null;
+  $isQuestionOptionNode(node) ||
+  $isQuestionAnswerNode(node) ||
+  $isQuestionPairNode(node) ||
+  $isQuestionGroupNode(node)
+    ? node.getOptionId()
+    : null;
 
 /**
  * Answers point at question and option ids, so a copy pasted beside its
@@ -134,8 +148,13 @@ function $uniqueAnswerIds(root: ElementNode, previous: EditorState) {
     const add = (id: string, node: LexicalNode) =>
       byId.set(id, [...(byId.get(id) ?? []), node]);
     add(child.getSettings().questionId, child);
-    for (const part of child.getChildren())
-      if ($isQuestionOptionNode(part)) add(part.getOptionId(), part);
+    for (const part of child.getChildren()) {
+      const id = optionIdOf(part);
+      if (id) add(id, part);
+      if ($isQuestionGroupNode(part))
+        for (const item of part.getChildren())
+          if ($isQuestionOptionNode(item)) add(item.getOptionId(), item);
+    }
   }
   for (const [id, nodes] of byId) {
     if (nodes.length < 2) continue;
@@ -151,10 +170,82 @@ function $uniqueAnswerIds(root: ElementNode, previous: EditorState) {
       if (node === keeper) continue;
       if ($isQuestionNode(node))
         node.setSettings({ questionId: crypto.randomUUID() });
-      else if ($isQuestionOptionNode(node))
+      else if (
+        $isQuestionOptionNode(node) ||
+        $isQuestionAnswerNode(node) ||
+        $isQuestionPairNode(node) ||
+        $isQuestionGroupNode(node)
+      )
         node.setOptionId(crypto.randomUUID());
     }
   }
+}
+
+/**
+ * Enter in a pair's first side goes to its match; in its match, to a new
+ * pair, or out of the question from an empty last one. In a group's name it
+ * goes to the first item; from an empty last item, to a new group.
+ */
+function $enterInHolder(): boolean {
+  const selection = $getSelection();
+  if (!$isRangeSelection(selection) || !selection.isCollapsed()) return false;
+  let node: LexicalNode | null = selection.anchor.getNode();
+  while (node && !$isQuestionSideNode(node) && !$isQuestionOptionNode(node))
+    node = node.getParent();
+  if (!node || !$isElementNode(node)) return false;
+  const holder = node.getParent();
+  const question = holder?.getParent();
+  if (!$isQuestionNode(question)) return false;
+  const leave = () => {
+    const paragraph = $createParagraphNode();
+    question.insertAfter(paragraph);
+    paragraph.selectStart();
+    return true;
+  };
+  if ($isQuestionPairNode(holder)) {
+    const [first, second] = holder.getChildren();
+    if (node.is(first) && $isElementNode(second)) {
+      second.selectStart();
+      return true;
+    }
+    if (
+      holder.getTextContentSize() === 0 &&
+      holder.is(question.getLastChild())
+    ) {
+      if (question.getChildren().filter($isQuestionPairNode).length > 2)
+        holder.remove();
+      return leave();
+    }
+    const pair = $createQuestionPair();
+    holder.insertAfter(pair);
+    pair.getFirstChild()?.selectStart();
+    return true;
+  }
+  if ($isQuestionGroupNode(holder)) {
+    if ($isQuestionSideNode(node)) {
+      if (
+        holder.getTextContentSize() === 0 &&
+        holder.is(question.getLastChild())
+      ) {
+        if (question.getChildren().filter($isQuestionGroupNode).length > 2)
+          holder.remove();
+        return leave();
+      }
+      const first = node.getNextSibling();
+      if ($isElementNode(first)) first.selectStart();
+      else
+        holder.append(new QuestionOptionNode()).getLastChild()?.selectStart();
+      return true;
+    }
+    if (node.isEmpty() && node.is(holder.getLastChild())) {
+      if (holder.getChildrenSize() > 2) node.remove();
+      const group = $createQuestionGroup();
+      holder.insertAfter(group);
+      group.getFirstChild()?.selectStart();
+      return true;
+    }
+  }
+  return false;
 }
 
 /** Enter in a prompt goes to the first part; in an empty last part, out of the question. */
@@ -320,6 +411,9 @@ export const BlocksExtension = defineExtension({
       editor.registerNodeTransform(QuestionPromptNode, $unwrapStrayPart),
       editor.registerNodeTransform(QuestionOptionNode, $unwrapStrayPart),
       editor.registerNodeTransform(QuestionAnswerNode, $unwrapStrayPart),
+      editor.registerNodeTransform(QuestionSideNode, $unwrapStrayPart),
+      editor.registerNodeTransform(QuestionPairNode, $repairHolder),
+      editor.registerNodeTransform(QuestionGroupNode, $repairHolder),
       editor.registerNodeTransform(TextNode, $sanitiseText),
       editor.registerNodeTransform(ParagraphNode, $sanitiseElement),
       editor.registerNodeTransform(LinkNode, $sanitiseLink),
@@ -356,6 +450,7 @@ export const BlocksExtension = defineExtension({
       editor.registerCommand(
         INSERT_PARAGRAPH_COMMAND,
         () =>
+          $enterInHolder() ||
           $enterInQuestion() ||
           $enterFromToggleTitle() ||
           $exitEmptyTrailingParagraph(),

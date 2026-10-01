@@ -8,9 +8,12 @@ import { $isColumnNode, ColumnNode, ColumnsNode } from "./columns";
 import { FileNode, ImageNode } from "./media";
 import {
   QuestionAnswerNode,
+  QuestionGroupNode,
   QuestionNode,
   QuestionOptionNode,
+  QuestionPairNode,
   QuestionPromptNode,
+  QuestionSideNode,
 } from "./question";
 import { DiagramNode, EmbedNode, MediaNode } from "./rich";
 import {
@@ -43,6 +46,9 @@ export const blockNodes = [
   QuestionPromptNode,
   QuestionOptionNode,
   QuestionAnswerNode,
+  QuestionPairNode,
+  QuestionGroupNode,
+  QuestionSideNode,
 ];
 
 export const blockIdState = createState("id", {

@@ -104,6 +104,45 @@ function questionBlock(node: ContentNode): LessonBlock | null {
           })),
         scoring: node.scoring ?? "all",
       };
+    case "matching":
+      return {
+        ...check,
+        type: "matching",
+        pairs: parts
+          .filter((part) => part.type === "question-pair")
+          .map((pair) => ({
+            id: pair.optionId ?? "",
+            prompt: textOf(pair.children?.[0]).trim(),
+            answer: textOf(pair.children?.[1]).trim(),
+          })),
+        distractors: parts
+          .filter((part) => part.type === "question-answer")
+          .map((extra) => ({
+            id: extra.optionId ?? "",
+            text: textOf(extra).trim(),
+          }))
+          .filter((extra) => extra.text),
+      };
+    case "sorting": {
+      const groups = parts.filter((part) => part.type === "question-group");
+      return {
+        ...check,
+        type: "sorting",
+        groups: groups.map((group) => ({
+          id: group.optionId ?? "",
+          name: textOf(group.children?.[0]).trim(),
+        })),
+        items: groups.flatMap((group) =>
+          (group.children ?? [])
+            .filter((item) => item.type === "question-option")
+            .map((item) => ({
+              id: item.optionId ?? "",
+              text: textOf(item).trim(),
+              groupId: group.optionId ?? "",
+            })),
+        ),
+      };
+    }
   }
   return null;
 }
@@ -172,7 +211,9 @@ export function questionNode(block: LessonBlock): ContentNode | null {
     block.type !== "text" &&
     block.type !== "written" &&
     block.type !== "number" &&
-    block.type !== "ordering"
+    block.type !== "ordering" &&
+    block.type !== "matching" &&
+    block.type !== "sorting"
   )
     return null;
   const base: ContentNode = {
@@ -234,6 +275,53 @@ export function questionNode(block: LessonBlock): ContentNode | null {
         ...block.items.map((item) => ({
           ...inlineOf("question-option", item.text),
           optionId: item.id,
+        })),
+      ],
+    };
+  if (block.type === "matching")
+    return {
+      ...base,
+      children: [
+        ...(base.children ?? []),
+        ...block.pairs.map((pair): ContentNode => ({
+          type: "question-pair",
+          version: 1,
+          format: "",
+          indent: 0,
+          direction: null,
+          optionId: pair.id,
+          children: [
+            inlineOf("question-side", pair.prompt),
+            inlineOf("question-side", pair.answer),
+          ],
+        })),
+        ...block.distractors.map((extra) => ({
+          ...inlineOf("question-answer", extra.text),
+          optionId: extra.id,
+        })),
+      ],
+    };
+  if (block.type === "sorting")
+    return {
+      ...base,
+      children: [
+        ...(base.children ?? []),
+        ...block.groups.map((group): ContentNode => ({
+          type: "question-group",
+          version: 1,
+          format: "",
+          indent: 0,
+          direction: null,
+          optionId: group.id,
+          children: [
+            inlineOf("question-side", group.name),
+            ...block.items
+              .filter((item) => item.groupId === group.id)
+              .map((item) => ({
+                ...inlineOf("question-option", item.text),
+                optionId: item.id,
+              })),
+          ],
         })),
       ],
     };
