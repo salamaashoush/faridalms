@@ -267,6 +267,41 @@ export async function retireUnlinkedFiles(
   return rows.map((row) => row.storage_key);
 }
 
+/**
+ * Pictures and files no document has held for the whole trash window are
+ * retired. A document's saved versions keep their links while they are
+ * shown, so only media nothing reads any more goes. Keys come back only when
+ * no active row still points at the same object.
+ */
+export async function retireTrashedMedia(
+  tx: Tx,
+  tenantId: string,
+  removedBefore: Date,
+  limit: number,
+): Promise<string[]> {
+  const before = removedBefore.toISOString();
+  const rows = await tx.execute<{ storage_key: string }>(sql`
+    with retired as (
+      update core.files set status = 'tobedeleted'
+      where tenant_id = ${tenantId}::uuid and id in (
+        select f.id from core.files f
+        where f.tenant_id = ${tenantId}::uuid and f.purpose = 'document_media'
+          and f.status = 'active' and f.state = 'ready' and f.linked_at is not null
+          and f.created_at < ${before}::timestamptz
+          and not exists (
+            select 1 from core.document_files l
+            where l.tenant_id = f.tenant_id and l.file_id = f.id
+              and (l.status = 'active' or l.date_last_modified >= ${before}::timestamptz))
+        order by f.created_at limit ${limit})
+      returning id, storage_key)
+    select distinct r.storage_key from retired r
+    where not exists (
+      select 1 from core.files f
+      where f.tenant_id = ${tenantId}::uuid and f.storage_key = r.storage_key
+        and f.status = 'active' and f.id not in (select id from retired))`);
+  return rows.map((row) => row.storage_key);
+}
+
 /** Moves a host's files onto another host, as handing in moves a draft's files onto its attempt. */
 export async function rehostFiles(
   tx: Tx,
@@ -274,12 +309,15 @@ export async function rehostFiles(
     tenantId: string;
     from: { type: string; id: string };
     to: { type: string; id: string };
+    /** Only these files, when given: those the frozen answer holds. */
+    ids?: readonly string[];
   },
 ) {
   await tx.execute(sql`
     update core.files set host_type = ${input.to.type}, host_id = ${input.to.id}::uuid
     where tenant_id = ${input.tenantId}::uuid and host_type = ${input.from.type}
-      and host_id = ${input.from.id}::uuid and status = 'active'`);
+      and host_id = ${input.from.id}::uuid and status = 'active'
+      and (${input.ids === undefined}::boolean or id = any(${uuidArray(input.ids ?? [])}))`);
 }
 
 /**

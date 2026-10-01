@@ -53,11 +53,7 @@ import {
   saveDocument,
   snapshotPublish,
 } from "@faridalms/database/stores/documents";
-import {
-  filesOfHost,
-  rehostFiles,
-  unlinkFiles,
-} from "@faridalms/database/stores/files";
+import { filesOfHost, rehostFiles } from "@faridalms/database/stores/files";
 import {
   markQuizAnswer as storeQuizMark,
   markQuizAttempt,
@@ -736,10 +732,14 @@ async function handInFor(
     from: draftHost,
     to: attemptHost,
   });
+  const draft = await documentOf(tx, context.tenantId, draftHost);
   await rehostFiles(tx, {
     tenantId: context.tenantId,
     from: draftHost,
     to: attemptHost,
+    ids: draft
+      ? contentFileIds(draft.content as unknown as ContentDocument)
+      : [],
   });
   await touchSubmission(tx, {
     tenantId: context.tenantId,
@@ -1229,9 +1229,8 @@ export const saveDraft = writeProcedure
     )
       throw new ORPCError("CONFLICT", { message: "conflict.version" });
     const host = { type: "submission", id: submission.id };
-    // Files are blocks in the answer: they join the submission as it is
-    // saved, and one taken out of the answer leaves it.
-    let kept: string[] = [];
+    // Files are blocks in the answer and join the submission as it is saved;
+    // one taken out stays restorable until the sweep's trash window ends.
     if (input.content) {
       const placed = await placeMedia(
         context,
@@ -1251,9 +1250,7 @@ export const saveDraft = writeProcedure
         plainText: contentPlainText(input.content),
         userId: context.actor.userId,
       });
-      kept = placed.mediaIds;
     }
-    await unlinkFiles(tx, { tenantId: context.tenantId, host, keep: kept });
     const touched = await touchSubmission(tx, {
       tenantId: context.tenantId,
       id: submission.id,
@@ -1307,16 +1304,17 @@ export const handIn = writeProcedure
     )
       throw new ORPCError("CONFLICT", { message: "coursework.closed" });
     const draftHost = { type: "submission", id: submission.id };
-    const [draft, draftFiles] = await Promise.all([
-      documentOf(tx, context.tenantId, draftHost),
-      filesOfHost(tx, context.tenantId, draftHost),
-    ]);
+    const draft = await documentOf(tx, context.tenantId, draftHost);
     const hasText = Boolean(draft?.plainText.trim());
+    const inAnswer = draft
+      ? contentFileIds(draft.content as unknown as ContentDocument)
+      : [];
+    const hasFiles = inAnswer.length > 0;
     const format = assignment.submissionFormat;
     if (
       (format === "online" && !hasText) ||
-      (format === "files" && draftFiles.length === 0) ||
-      (format === "both" && !hasText && draftFiles.length === 0)
+      (format === "files" && !hasFiles) ||
+      (format === "both" && !hasText && !hasFiles)
     )
       throw new ORPCError("BAD_REQUEST", {
         message: "coursework.nothing_to_hand_in",
@@ -1340,6 +1338,7 @@ export const handIn = writeProcedure
       tenantId: context.tenantId,
       from: draftHost,
       to: attemptHost,
+      ids: inAnswer,
     });
     const saved = await touchSubmission(tx, {
       tenantId: context.tenantId,

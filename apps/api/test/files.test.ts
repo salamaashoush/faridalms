@@ -373,4 +373,59 @@ describe("files in documents", () => {
     );
     expect(await read.text()).toBe("worksheet");
   });
+
+  test("a file taken out of every document waits in the trash for 30 days", async () => {
+    const teacher = await sessionFor("northwind", login("teacher", 0, 1));
+    const file = await teacher.api.files.initiate({
+      purpose: "document_media",
+      name: "worksheet.txt",
+      mediaType: "text/plain",
+      sizeBytes: 9,
+    });
+    await raw("northwind", teacher.token, `/v1/files/${file.id}/content`, {
+      method: "PUT",
+      body: text("worksheet"),
+    });
+    const { classes } = await teacher.api.coursework.options();
+    const target = classes.find((row) => row.classType === "scheduled");
+    if (!target) throw new Error("the teacher has no scheduled class");
+    const fields = {
+      classId: target.id,
+      title: "Trashed worksheet",
+      audience: "class" as const,
+      latePolicy: "accept" as const,
+      submissionFormat: "both" as const,
+      points: 10,
+      rubric: null,
+    };
+    const saved = await teacher.api.coursework.save({
+      ...fields,
+      brief: withFile(file.id, "With the worksheet."),
+    });
+    await teacher.api.coursework.save({
+      ...fields,
+      id: saved.id,
+      expectedVersion: saved.version,
+      brief: plainContent("Without it."),
+    });
+    const { cell, files, tenants } = seeded();
+    const tenantId = tenants[0]?.tenantId ?? "";
+    const day = 24 * 60 * 60 * 1000;
+    const path = `/v1/files/${file.id}/content`;
+    await sweepTenantFiles(
+      cell,
+      files,
+      tenantId,
+      new Date(Date.now() + 29 * day),
+    );
+    expect((await raw("northwind", teacher.token, path)).status).toBe(200);
+    const swept = await sweepTenantFiles(
+      cell,
+      files,
+      tenantId,
+      new Date(Date.now() + 31 * day),
+    );
+    expect(swept.trashed).toBeGreaterThanOrEqual(1);
+    expect((await raw("northwind", teacher.token, path)).status).toBe(404);
+  });
 });

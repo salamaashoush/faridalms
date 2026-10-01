@@ -38,6 +38,11 @@ const HOUR = 60 * 60 * 1000;
 export const ABANDONED_UPLOAD_MS = 24 * HOUR;
 /** How long a verified file may stay attached to nothing before it is removed. */
 export const UNLINKED_FILE_MS = 7 * 24 * HOUR;
+/**
+ * How long a picture or file taken out of every document stays restorable,
+ * by undo or a version restore, before it is retired: the trash window.
+ */
+export const TRASHED_MEDIA_MS = 30 * 24 * HOUR;
 /** How long a rejected upload's record is kept for diagnosis. */
 export const REJECTED_FILE_MS = 30 * 24 * HOUR;
 
