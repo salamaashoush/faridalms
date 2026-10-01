@@ -1,7 +1,6 @@
 import type { LinkProps } from "@tanstack/react-router";
 import type { ReactNode } from "react";
 
-import { textDirection } from "@faridalms/domain/content";
 import { cn } from "@faridalms/ui/cn";
 import { Link } from "@tanstack/react-router";
 
@@ -14,6 +13,7 @@ import {
   RecordSection,
 } from "~/components/system/RecordPage";
 import { StatusBadge, StatusText } from "~/components/system/status";
+import { UserText } from "~/components/system/UserText";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { getLocale } from "~/i18n/runtime";
@@ -94,30 +94,16 @@ export function HomeItem({
             ))}
           </span>
         ) : null}
-        {summary ? <Excerpt text={summary} /> : null}
+        {summary ? (
+          <UserText
+            text={summary}
+            lines={2}
+            className="text-[13px] leading-[18px] text-muted-foreground"
+          />
+        ) : null}
       </div>
       {status ? <div className={cn(row, "shrink-0")}>{status}</div> : null}
     </li>
-  );
-}
-
-/**
- * The excerpt takes its own direction so the clamp cuts its end, and aligns to
- * the page's start so it lines up under the title in either language.
- */
-function Excerpt({ text }: { text: string }) {
-  const own = textDirection(text);
-  const page = getLocale() === "ar" ? "rtl" : "ltr";
-  return (
-    <p
-      dir={own ?? undefined}
-      className={cn(
-        "line-clamp-2 text-[13px] leading-[18px] text-muted-foreground",
-        own && own !== page && "text-end",
-      )}
-    >
-      {text}
-    </p>
   );
 }
 
