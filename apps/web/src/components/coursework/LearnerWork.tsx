@@ -355,11 +355,6 @@ export function LearnerWork({ assignmentId }: { assignmentId: string }) {
       ) : (
         <RecordEmpty>{m.courseworkNoBrief()}</RecordEmpty>
       )}
-      {data.resources.length > 0 ? (
-        <RecordSection variant="page" title={m.courseworkResources()}>
-          <FileList files={data.resources} />
-        </RecordSection>
-      ) : null}
       {data.quiz ? (
         <QuizWork key={data.attempts.length} data={data} />
       ) : (

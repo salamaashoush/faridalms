@@ -6,7 +6,6 @@ import type {
   Rubric,
   SubmissionFormat,
 } from "@faridalms/domain/coursework";
-import type { FileSummary } from "@faridalms/domain/file";
 import type { LessonBlock } from "@faridalms/domain/learning";
 
 import { contentPlainText, sameContent } from "@faridalms/domain/content";
@@ -19,7 +18,6 @@ import {
   quizPoints,
   rubricTotal,
 } from "@faridalms/domain/coursework";
-import { MAX_FILE_BYTES } from "@faridalms/domain/file";
 import { isCheck } from "@faridalms/domain/learning";
 import { zonedInstant, zonedLocal } from "@faridalms/domain/school";
 import {
@@ -50,7 +48,6 @@ import {
   DocumentTitle,
 } from "~/components/system/DocumentPage";
 import { SelectField, TextField } from "~/components/system/field";
-import { FileField } from "~/components/system/FileField";
 import { useAutosave } from "~/hooks/useAutosave";
 import { inLocale, useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
@@ -76,7 +73,6 @@ interface Draft {
   classId: string;
   title: string;
   brief: ContentDocument;
-  resources: FileSummary[];
   audience: "class" | "selected";
   groupIds: string[];
   studentIds: string[];
@@ -202,7 +198,6 @@ function initialDraft(
       classId,
       title: "",
       brief: emptyContent(),
-      resources: [],
       audience: "class",
       groupIds: [],
       studentIds: [],
@@ -225,7 +220,6 @@ function initialDraft(
     classId: existing.classId,
     title: existing.title,
     brief: existing.brief ?? emptyContent(),
-    resources: existing.resources,
     audience: existing.audience,
     groupIds: existing.selection.groupIds,
     studentIds: existing.selection.studentIds,
@@ -395,6 +389,8 @@ export function AssignmentEditor({
     at: number;
   }>();
   const [valid, setValid] = useState(true);
+  // Publishing waits for files still uploading, or they would be left out.
+  const [uploading, setUploading] = useState(false);
   const [shown, setShown] = useState(false);
   const [refused, setRefused] = useState<Partial<Record<Field, string>>>({});
   const [detailsOpen, setDetailsOpen] = useState(false);
@@ -424,7 +420,6 @@ export function AssignmentEditor({
         classId: value.classId,
         title: value.title.trim(),
         brief: shared ? brief.current : value.brief,
-        resourceFileIds: value.resources.map((file) => file.id),
         audience: value.audience,
         groupIds: value.audience === "selected" ? value.groupIds : [],
         studentIds: value.audience === "selected" ? value.studentIds : [],
@@ -654,7 +649,7 @@ export function AssignmentEditor({
         unpublished={
           changed
             ? {
-                pending: pending === "update",
+                pending: pending === "update" || uploading,
                 onDiscard: () => {
                   setDraft(sent);
                   brief.current = sent.brief;
@@ -676,6 +671,7 @@ export function AssignmentEditor({
                 label: later ? m.courseworkSchedule() : m.courseworkAssign(),
                 icon: later ? CalendarClock : Send,
                 pending: pending === "assign",
+                disabled: uploading,
                 onClick: () => void assign(),
               }
         }
@@ -1060,26 +1056,12 @@ export function AssignmentEditor({
               value={draft.brief}
               onChange={changeBrief}
               onValidityChange={setValid}
+              onUploadingChange={setUploading}
               media={media}
               collaboration={shared ? live.collaboration : undefined}
               replace={replace}
             />
           )}
-          <FileField
-            id="work-resources"
-            label={m.courseworkResources()}
-            optional
-            purpose="attachment"
-            value={draft.resources}
-            onChange={(change) =>
-              setDraft((current) => ({
-                ...current,
-                resources: change(current.resources),
-              }))
-            }
-            maxFiles={10}
-            maxBytes={MAX_FILE_BYTES}
-          />
           {isQuiz ? (
             <section aria-labelledby="work-questions" className="grid gap-4">
               <div className="grid gap-1">

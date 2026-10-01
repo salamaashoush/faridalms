@@ -367,18 +367,17 @@ export const list = readProcedure
     };
   });
 
-/** What the editor opens with: the assignment, its brief, resources and audience. */
+/** What the editor opens with: the assignment, its brief and audience. */
 export const editor = readProcedure
   .input(v.object({ id }))
   .handler(async ({ input, context }) => {
     requireCapability(context, "assignments:author");
     const assignment = await taughtAssignment(context, input.id);
-    const [brief, resources, selection] = await Promise.all([
+    const [brief, selection] = await Promise.all([
       documentOf(context.tx, context.tenantId, {
         type: "assignment",
         id: assignment.id,
       }),
-      filesView(context, { type: "assignment", id: assignment.id }),
       selectionOf(context.tx, context.tenantId, assignment.id),
     ]);
     const quiz =
@@ -410,7 +409,6 @@ export const editor = readProcedure
                 )),
             }
           : null,
-      resources,
       selection:
         assignment.audience === "selected"
           ? selection
@@ -441,8 +439,8 @@ function fieldsOf(input: SaveAssignment) {
 }
 
 /**
- * Saves an assignment as a draft, or changes one already assigned. The brief
- * and resources are replaced by what was sent; a published assignment's
+ * Saves an assignment as a draft, or changes one already assigned. The brief,
+ * with any files it holds, is replaced by what was sent; a published assignment's
  * recipients follow its audience, and its readers see the brief as sent here.
  */
 export const save = writeProcedure
@@ -524,20 +522,6 @@ export const save = writeProcedure
       });
     if (input.quiz)
       await saveQuiz(context, { assignmentId, quiz: input.quiz, published });
-    const linked = await linkFiles(tx, {
-      tenantId: context.tenantId,
-      userId: context.actor.userId,
-      ids: input.resourceFileIds,
-      purpose: "attachment",
-      host,
-    });
-    if (linked.length !== input.resourceFileIds.length)
-      throw new ORPCError("BAD_REQUEST", { message: "file.not_attachable" });
-    await unlinkFiles(tx, {
-      tenantId: context.tenantId,
-      host,
-      keep: input.resourceFileIds,
-    });
     const selection =
       input.audience === "selected"
         ? { groupIds: input.groupIds, studentIds: input.studentIds }
@@ -658,15 +642,14 @@ export const archive = writeProcedure
     return saved;
   });
 
-/** The assignment as its teacher reads it: brief, resources and everyone's standing. */
+/** The assignment as its teacher reads it: brief and everyone's standing. */
 export const record = readProcedure
   .input(v.object({ id }))
   .handler(async ({ input, context }) => {
     requireCapability(context, "assignments:author", "submissions:grade");
     const assignment = await taughtAssignment(context, input.id);
-    const [brief, resources, work, classRow] = await Promise.all([
+    const [brief, work, classRow] = await Promise.all([
       readersBrief(context, assignment),
-      filesView(context, { type: "assignment", id: assignment.id }),
       studentWork(context.tx, {
         tenantId: context.tenantId,
         assignmentId: assignment.id,
@@ -686,7 +669,6 @@ export const record = readProcedure
           }
         : null,
       brief,
-      resources,
       work: work.map((row) => ({
         ...row,
         learnerState: learnerState(
@@ -1037,9 +1019,8 @@ export const work = readProcedure
       Date.parse(assignment.availableFrom) > context.now.getTime()
     )
       throw new ORPCError("NOT_FOUND");
-    const [brief, resources, rows, classRow] = await Promise.all([
+    const [brief, rows, classRow] = await Promise.all([
       readersBrief(context, assignment),
-      filesView(context, { type: "assignment", id: assignment.id }),
       studentWork(context.tx, {
         tenantId: context.tenantId,
         assignmentId: assignment.id,
@@ -1088,7 +1069,6 @@ export const work = readProcedure
           : null,
       },
       brief,
-      resources,
       submission: {
         id: row.submissionId,
         version: row.submissionVersion ?? 0,

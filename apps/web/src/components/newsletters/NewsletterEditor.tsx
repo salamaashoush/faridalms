@@ -201,6 +201,8 @@ export function NewsletterEditor({
   const [sendAt, setSendAt] = useState("");
   const [editorKey, setEditorKey] = useState(0);
   const [valid, setValid] = useState(true);
+  // Publishing waits for files still uploading, or they would be left out.
+  const [uploading, setUploading] = useState(false);
   const [issues, setIssues] = useState<string[]>([]);
   const [pending, setPending] = useState<
     "publish" | "review" | "archive" | null
@@ -388,6 +390,7 @@ export function NewsletterEditor({
           locale === draft.primaryLocale ? changeBody : changeTranslation
         }
         onValidityChange={setValid}
+        onUploadingChange={setUploading}
         media={media}
       />
     </div>
@@ -415,6 +418,7 @@ export function NewsletterEditor({
                     : m.annPublish(),
                 icon: later ? CalendarClock : Send,
                 pending: pending === "publish",
+                disabled: uploading,
                 onClick: () => void publish(),
               }
         }

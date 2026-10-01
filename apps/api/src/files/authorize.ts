@@ -33,9 +33,10 @@ export async function canReadFile(
   if (file.uploadedByUserId === context.actor.userId) return true;
   if (file.hostType && file.hostId) {
     const reader = readers.get(file.hostType);
-    return reader ? reader(context, file.hostId) : false;
+    if (reader && (await reader(context, file.hostId))) return true;
   }
-  if (file.purpose !== "document_media") return false;
+  if (file.purpose !== "document_media" && file.purpose !== "attachment")
+    return false;
   const hosts = await hostsEmbedding(context.tx, context.tenantId, file.id);
   const allowed = await Promise.all(
     hosts.map(async (host) => {

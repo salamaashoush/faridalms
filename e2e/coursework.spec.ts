@@ -24,6 +24,17 @@ test("a teacher assigns work, a student hands it in, and the returned grade reac
   await page.getByRole("textbox", { name: "Assignment title" }).fill(title);
   await page.locator("[contenteditable=true]").first().click();
   await page.keyboard.type("Write a short letter about your weekend.");
+  await page
+    .locator("input[type=file][hidden]")
+    .first()
+    .setInputFiles({
+      name: "letter-tips.txt",
+      mimeType: "text/plain",
+      buffer: Buffer.from("Start with Dear, end with your name."),
+    });
+  await expect(
+    page.getByRole("link", { name: /^Download: letter-tips\.txt/ }),
+  ).toBeVisible();
   const tomorrow = new Date(Date.now() + 86_400_000).toISOString().slice(0, 10);
   await page.locator("#work-due").fill(`${tomorrow}T14:00`);
   await page.getByRole("button", { name: "Assign", exact: true }).click();
@@ -50,6 +61,13 @@ test("a teacher assigns work, a student hands it in, and the returned grade reac
   await expect(
     student.getByRole("heading", { level: 1, name: title }),
   ).toBeVisible();
+  await student
+    .getByRole("button", { name: /^Open: letter-tips\.txt/ })
+    .click();
+  await expect(
+    student.getByRole("dialog", { name: "letter-tips.txt" }),
+  ).toBeVisible();
+  await student.getByRole("button", { name: "Close" }).click();
   await student.locator("[contenteditable=true]").first().click();
   await student.keyboard.type("Dear Omar, I visited my grandparents.");
   await student.getByRole("button", { name: "Hand in", exact: true }).click();

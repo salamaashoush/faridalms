@@ -32,7 +32,6 @@ import { Value } from "~/components/app/primitives";
 import { ContentView } from "~/components/content/ContentView";
 import { DataTable } from "~/components/system/DataTable";
 import { TextField } from "~/components/system/field";
-import { FileList } from "~/components/system/FileList";
 import {
   ReaderWidthToggle,
   useReaderWidth,
@@ -43,7 +42,6 @@ import {
   phoneLink,
   RecordEmpty,
   RecordHeader,
-  RecordSection,
   RecordTabs,
 } from "~/components/system/RecordPage";
 import { SheetForm } from "~/components/system/SheetForm";
@@ -150,12 +148,6 @@ function Brief({ data }: { data: Data }) {
       ) : (
         <RecordEmpty>{m.courseworkNoBrief()}</RecordEmpty>
       )}
-      <RecordSection variant="page" title={m.courseworkResources()}>
-        <FileList
-          files={data.resources}
-          emptyLabel={m.courseworkNoResources()}
-        />
-      </RecordSection>
     </div>
   );
 }

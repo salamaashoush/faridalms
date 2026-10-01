@@ -36,7 +36,7 @@ async function classOfStudent(
 
 async function upload(
   session: Awaited<ReturnType<typeof arabicTeacher>>,
-  purpose: "attachment" | "submission",
+  purpose: "document_media" | "submission",
   name: string,
 ) {
   const body = new Blob([`contents of ${name}`]);
@@ -391,14 +391,24 @@ describe("handing in and returning work", () => {
     expect(after.attempts.at(-1)?.assessment?.effectiveScore).toBe(9);
   });
 
-  test("resources reach recipients, drafts stay the student's, attempts reach the teacher", async () => {
+  test("a file in the brief reaches recipients, drafts stay the student's, attempts reach the teacher", async () => {
     const teacher = await arabicTeacher();
     const student = await sessionFor("northwind", login("student"));
     const me = await student.api.identity.currentUser();
     const target = await classOfStudent(teacher.api, me.id);
-    const resource = await upload(teacher, "attachment", "worksheet.txt");
+    const resource = await upload(teacher, "document_media", "worksheet.txt");
+    const brief = plainContent("Fill in the worksheet.");
+    brief.root.children?.push({
+      type: "file",
+      version: 1,
+      format: "",
+      fileId: resource,
+      name: "worksheet.txt",
+      mime: "text/plain",
+      bytes: 25,
+    });
     const saved = await teacher.api.coursework.save(
-      draft(target.id, "Worksheet", { resourceFileIds: [resource] }),
+      draft(target.id, "Worksheet", { brief }),
     );
     await teacher.api.coursework.publish({
       id: saved.id,

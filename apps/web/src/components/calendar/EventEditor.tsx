@@ -188,6 +188,8 @@ export function EventEditor({
   const [sent, setSent] = useState(draft);
   const [editorKey, setEditorKey] = useState(0);
   const [valid, setValid] = useState(true);
+  // Publishing waits for files still uploading, or they would be left out.
+  const [uploading, setUploading] = useState(false);
   const [shown, setShown] = useState(false);
   const [tellOnPublish, setTellOnPublish] = useState(true);
   const [tellChoice, setTellChoice] = useState<boolean | null>(null);
@@ -321,7 +323,7 @@ export function EventEditor({
         unpublished={
           changed
             ? {
-                pending: pending === "update",
+                pending: pending === "update" || uploading,
                 onDiscard: () => {
                   setDraft(sent);
                   setTellChoice(null);
@@ -338,6 +340,7 @@ export function EventEditor({
                 label: m.calPublish(),
                 icon: Send,
                 pending: pending === "publish",
+                disabled: uploading,
                 onClick: () => void publish(),
               }
         }
@@ -550,6 +553,7 @@ export function EventEditor({
           value={draft.description}
           onChange={changeDescription}
           onValidityChange={setValid}
+          onUploadingChange={setUploading}
           media={media}
         />
       </DocumentPage>

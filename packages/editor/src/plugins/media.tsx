@@ -89,7 +89,12 @@ function precheck(file: File): string | null {
  * its progress below the text while it uploads and lands where it was put
  * once stored; one that fails says why and can be tried again or removed.
  */
-export function MediaPlugin() {
+export function MediaPlugin({
+  onBusyChange,
+}: {
+  /** Whether files are still uploading, so publishing can wait for them. */
+  onBusyChange?: (busy: boolean) => void;
+}) {
   const [editor] = useLexicalComposerContext();
   const { media, strings, locale } = useEditorEnvironment();
   const input = useRef<HTMLInputElement>(null);
@@ -156,6 +161,9 @@ export function MediaPlugin() {
   );
 
   const busy = uploads.some((item) => !item.error);
+  useEffect(() => {
+    onBusyChange?.(busy);
+  }, [busy, onBusyChange]);
   useEffect(() => {
     if (!busy) return undefined;
     const leave = (event: BeforeUnloadEvent) => event.preventDefault();

@@ -90,7 +90,7 @@ async function syncMedia(
     insert into core.document_files (tenant_id, document_id, file_id, file_purpose)
     select f.tenant_id, ${input.documentId}::uuid, f.id, f.purpose from core.files f
     where f.tenant_id = ${input.tenantId}::uuid and f.id = any(${uuidArray(input.fileIds)})
-      and f.status = 'active' and f.state = 'ready' and f.purpose = 'document_media'
+      and f.status = 'active' and f.state = 'ready' and f.purpose in ('document_media', 'attachment')
       and not exists (
         select 1 from core.document_files d
         where d.tenant_id = f.tenant_id and d.document_id = ${input.documentId}::uuid
@@ -98,7 +98,7 @@ async function syncMedia(
   await tx.execute(sql`
     update core.files set linked_at = statement_timestamp()
     where tenant_id = ${input.tenantId}::uuid and id = any(${uuidArray(input.fileIds)})
-      and linked_at is null and state = 'ready' and purpose = 'document_media'`);
+      and linked_at is null and state = 'ready' and purpose in ('document_media', 'attachment')`);
 }
 
 /** The records whose documents embed a file, through any document still in use. */

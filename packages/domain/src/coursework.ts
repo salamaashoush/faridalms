@@ -28,7 +28,6 @@ export type QuizReveal = (typeof QUIZ_REVEALS)[number];
 export const MAX_QUIZ_ATTEMPTS = 10;
 export const AUDIENCES = ["class", "selected"] as const;
 export type Audience = (typeof AUDIENCES)[number];
-export const MAX_RESOURCES = 10;
 
 /**
  * Work handed in within this long after the due time still counts as on
@@ -111,10 +110,6 @@ export const saveAssignmentSchema = v.object({
   classId: id,
   title: v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(200)),
   brief: contentDocumentSchema,
-  resourceFileIds: v.optional(
-    v.pipe(v.array(id), v.maxLength(MAX_RESOURCES)),
-    [],
-  ),
   audience: v.picklist(AUDIENCES),
   groupIds: v.optional(v.pipe(v.array(id), v.maxLength(30)), []),
   studentIds: v.optional(v.pipe(v.array(id), v.maxLength(500)), []),

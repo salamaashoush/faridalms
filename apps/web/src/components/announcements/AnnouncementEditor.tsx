@@ -113,6 +113,8 @@ export function AnnouncementEditor({
   const [sendAt, setSendAt] = useState(localOf(existing?.publishAt));
   const [editorKey, setEditorKey] = useState(0);
   const [valid, setValid] = useState(true);
+  // Publishing waits for files still uploading, or they would be left out.
+  const [uploading, setUploading] = useState(false);
   const [issues, setIssues] = useState<string[]>([]);
   const [pending, setPending] = useState<"send" | "update" | "archive" | null>(
     null,
@@ -270,7 +272,7 @@ export function AnnouncementEditor({
         unpublished={
           changed
             ? {
-                pending: pending === "update",
+                pending: pending === "update" || uploading,
                 onDiscard: () => {
                   setDraft(sent);
                   setEditorKey((key) => key + 1);
@@ -286,6 +288,7 @@ export function AnnouncementEditor({
                 label: later ? m.annSchedule() : m.annPublish(),
                 icon: later ? CalendarClock : Send,
                 pending: pending === "send",
+                disabled: uploading,
                 onClick: () => void send(),
               }
         }
@@ -445,6 +448,7 @@ export function AnnouncementEditor({
           value={draft.body}
           onChange={changeBody}
           onValidityChange={setValid}
+          onUploadingChange={setUploading}
           media={media}
         />
       </DocumentPage>

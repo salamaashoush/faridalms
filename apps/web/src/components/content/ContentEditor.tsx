@@ -30,6 +30,7 @@ export function ContentEditor({
   initialFocus,
   collaboration,
   replace,
+  onUploadingChange,
 }: {
   id: string;
   label: string;
@@ -44,6 +45,7 @@ export function ContentEditor({
   initialFocus?: boolean;
   collaboration?: EditorCollaboration;
   replace?: { to: ContentDocument; at: number };
+  onUploadingChange?: (uploading: boolean) => void;
 }) {
   const strings = useMemo(() => editorStrings(), []);
   const hydrated = useHydrated();
@@ -87,6 +89,7 @@ export function ContentEditor({
         strings={strings}
         collaboration={collaboration}
         replace={replace}
+        onUploadingChange={onUploadingChange}
       />
     </Suspense>
   );

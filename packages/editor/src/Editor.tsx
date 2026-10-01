@@ -80,6 +80,8 @@ export interface EditorProps {
    * changes, as an edit, so a live room passes it on to everyone in it.
    */
   replace?: { to: ContentDocument; at: number };
+  /** Told whether files are still uploading into the document. */
+  onUploadingChange?: (uploading: boolean) => void;
 }
 
 export default function Editor({
@@ -155,6 +157,7 @@ function Surface({
   initialFocus,
   describedBy,
   replace,
+  onUploadingChange,
 }: Omit<EditorProps, "value" | "media" | "locale" | "strings">) {
   const [editor] = useLexicalComposerContext();
   const { strings } = useEditorEnvironment();
@@ -244,7 +247,7 @@ function Surface({
       <PlaceholderPlugin empty={placeholder ?? strings.emptyPlaceholder} />
       <SlashMenuPlugin />
       <SelectionToolbarPlugin />
-      <MediaPlugin />
+      <MediaPlugin onBusyChange={onUploadingChange} />
       <EmbedPlugin />
       <PastePlugin />
       <DiagramPlugin />
