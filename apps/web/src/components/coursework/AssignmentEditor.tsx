@@ -9,8 +9,10 @@ import type {
 import type { FileSummary } from "@faridalms/domain/file";
 import type { LessonBlock } from "@faridalms/domain/learning";
 
+import { contentPlainText, sameContent } from "@faridalms/domain/content";
 import { emptyContent } from "@faridalms/domain/content-conversion";
 import {
+  assignmentPhase,
   MAX_QUIZ_ATTEMPTS,
   QUIZ_KEEPS,
   QUIZ_REVEALS,
@@ -21,16 +23,17 @@ import { MAX_FILE_BYTES } from "@faridalms/domain/file";
 import { isCheck } from "@faridalms/domain/learning";
 import { zonedInstant, zonedLocal } from "@faridalms/domain/school";
 import {
-  useMutation,
   useQuery,
   useQueryClient,
   useSuspenseQuery,
 } from "@tanstack/react-query";
-import { useRef, useState } from "react";
+import { Archive, CalendarClock, Send } from "lucide-react";
+import { useCallback, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import type { assignmentEditorQuery } from "~/queries/coursework";
 
+import { UnsavedChangesGuard } from "~/components/app/UnsavedChangesGuard";
 import { useCollaboration } from "~/components/content/collaboration";
 import { ContentEditor } from "~/components/content/ContentEditor";
 import {
@@ -40,19 +43,29 @@ import {
 import { BlockList, newBlock, tidy } from "~/components/learning/BlockList";
 import { CheckboxRow } from "~/components/people/fields";
 import { ComboboxField } from "~/components/system/ComboboxField";
-import { FormField, SelectField, TextField } from "~/components/system/field";
+import {
+  DetailsPanel,
+  DetailsSection,
+  DocumentPage,
+  DocumentTitle,
+} from "~/components/system/DocumentPage";
+import { SelectField, TextField } from "~/components/system/field";
 import { FileField } from "~/components/system/FileField";
-import { FormSection, RecordForm } from "~/components/system/RecordForm";
-import { Checkbox } from "~/components/ui/checkbox";
+import { useAutosave } from "~/hooks/useAutosave";
 import { inLocale, useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { classGroupsQuery, courseworkOptionsQuery } from "~/queries/coursework";
-import { publishAssignment, saveAssignment } from "~/server/coursework";
+import {
+  archiveAssignment,
+  publishAssignment,
+  saveAssignment,
+} from "~/server/coursework";
 import { formatNumber } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
 import { classTitle } from "../classes/format";
 import { displayName } from "../people/format";
+import { formatInstant, PHASE_LABEL, PHASE_TONE } from "./format";
 import { useDocumentMedia } from "./useDocumentMedia";
 
 type Existing = Awaited<
@@ -128,8 +141,9 @@ const ATTEMPTS = [
 ];
 
 type Field =
-  | "classId"
   | "title"
+  | "classId"
+  | "brief"
   | "dueAt"
   | "closesAt"
   | "points"
@@ -137,6 +151,7 @@ type Field =
   | "deduction"
   | "quiz";
 
+/** Where a refusal from the server belongs on the page. */
 const FIELD_ERRORS: Partial<Record<string, Field>> = {
   "coursework.due_before_available": "dueAt",
   "coursework.close_before_due": "closesAt",
@@ -144,10 +159,37 @@ const FIELD_ERRORS: Partial<Record<string, Field>> = {
   "coursework.rubric_needs_points": "points",
   "coursework.rubric_total": "points",
   "coursework.audience_empty": "audience",
+  "coursework.brief_empty": "brief",
   "coursework.quiz_questions": "quiz",
   "coursework.quiz_started": "quiz",
   "coursework.quiz_gate": "quiz",
 };
+
+/** Values that stop a draft saving, and so are flagged as they are typed. */
+const AT_ONCE: ReadonlySet<Field> = new Set<Field>([
+  "dueAt",
+  "closesAt",
+  "points",
+  "deduction",
+]);
+
+/** The fields drawn in the details panel, which phones open in a sheet. */
+const IN_PANEL: readonly Field[] = [
+  "classId",
+  "dueAt",
+  "closesAt",
+  "points",
+  "audience",
+  "deduction",
+];
+
+const newQuiz = (): QuizDraft => ({
+  attempts: "1",
+  keep: "highest",
+  reveal: "answers",
+  shuffle: false,
+  blocks: [newBlock("choice")],
+});
 
 function initialDraft(
   existing: Existing | null,
@@ -177,13 +219,7 @@ function initialDraft(
       latePolicy: "accept",
       deduction: "10",
       resubmission: false,
-      quiz: {
-        attempts: "1",
-        keep: "highest",
-        reveal: "answers",
-        shuffle: false,
-        blocks: [newBlock("choice")],
-      },
+      quiz: newQuiz(),
     };
   return {
     classId: existing.classId,
@@ -217,13 +253,7 @@ function initialDraft(
           shuffle: existing.quiz.shuffle,
           blocks: existing.quiz.content.blocks,
         }
-      : {
-          attempts: "1",
-          keep: "highest",
-          reveal: "answers",
-          shuffle: false,
-          blocks: [newBlock("choice")],
-        },
+      : newQuiz(),
   };
 }
 
@@ -233,26 +263,116 @@ function toInstant(local: string, timeZone: string): string {
   return zonedInstant(date, time, timeZone).toISOString();
 }
 
+const quizContentOf = (draft: Draft) => ({
+  version: 2 as const,
+  blocks: draft.quiz.blocks.map(tidy),
+});
+
+/**
+ * What stops a draft being stored, then what else stops it going out. The
+ * first group is checked as the teacher writes, since nothing saves until it
+ * is clear; the second only when they assign.
+ */
+function issuesOf(draft: Draft, started: boolean) {
+  const quiz = draft.submissionFormat === "quiz";
+  const blocking: Partial<Record<Field, string>> = {};
+  if (!draft.title.trim()) blocking.title = m.courseworkTitleNeeded();
+  if (!draft.classId) blocking.classId = m.courseworkClassNeeded();
+  if (draft.availableFrom && draft.dueAt && draft.dueAt < draft.availableFrom)
+    blocking.dueAt = m.validationDueAfterAvailable();
+  if (draft.dueAt && draft.closesAt && draft.closesAt < draft.dueAt)
+    blocking.closesAt = m.validationCloseAfterDue();
+  if (!quiz && draft.graded && !(Number(draft.points) >= 0.5))
+    blocking.points = m.courseworkPointsRequired();
+  const deduction = Number(draft.deduction);
+  if (
+    draft.latePolicy === "deduct" &&
+    !(Number.isInteger(deduction) && deduction >= 1 && deduction <= 100)
+  )
+    blocking.deduction = m.courseworkDeductionRequired();
+  if (quiz && !started && draft.quiz.blocks.some((block) => blockIssue(block)))
+    blocking.quiz = m.quizQuestionsIncomplete();
+  const publishing: Partial<Record<Field, string>> = {};
+  if (!contentPlainText(draft.brief).trim())
+    publishing.brief = m.errorCourseworkBriefEmpty();
+  if (
+    draft.audience === "selected" &&
+    draft.groupIds.length === 0 &&
+    draft.studentIds.length === 0
+  )
+    publishing.audience = m.courseworkAudienceRequired();
+  if (quiz && !started && !draft.quiz.blocks.some(isCheck))
+    publishing.quiz = m.quizQuestionsNeeded();
+  return { blocking, publishing };
+}
+
+/** The dates and late rule in one sentence, as students will meet them. */
+function scheduleSentence(draft: Draft, timeZone: string) {
+  const at = (local: string) =>
+    formatInstant(toInstant(local, timeZone), timeZone);
+  const percent = formatNumber(Number(draft.deduction) || 0);
+  const closes = draft.closesAt ? at(draft.closesAt) : null;
+  const late =
+    draft.latePolicy === "refuse"
+      ? m.courseworkLateRefuseSentence()
+      : draft.latePolicy === "deduct"
+        ? closes
+          ? m.courseworkLateDeductUntilSentence({ percent, date: closes })
+          : m.courseworkLateDeductSentence({ percent })
+        : closes
+          ? m.courseworkLateUntilSentence({ date: closes })
+          : m.courseworkLateAcceptSentence();
+  return [
+    draft.availableFrom
+      ? m.courseworkShownFrom({ date: at(draft.availableFrom) })
+      : m.courseworkShownNow(),
+    draft.dueAt
+      ? m.courseworkDueSentence({ date: at(draft.dueAt) })
+      : m.courseworkNoDueSentence(),
+    draft.dueAt ? late : null,
+  ]
+    .filter(Boolean)
+    .join(" ");
+}
+
+/** The fields as they are compared for unsent edits, without the brief. */
+const fieldsOf = (value: Draft) => JSON.stringify({ ...value, brief: null });
+
+/**
+ * An assignment written as a document: the title and brief take the page,
+ * the class, dates, grading and hand-in rules sit beside them. Drafts save
+ * themselves once they could be stored; work already out holds its edits,
+ * brief included, until Update, since students read it as it is.
+ */
 export function AssignmentEditor({
-  existing = null,
+  existing,
   classId = "",
   onClose,
+  onCreated,
 }: {
-  existing?: Existing | null;
+  existing: Existing | null;
   classId?: string;
   onClose: (id?: string) => void;
+  onCreated: (id: string) => void;
 }) {
   const options = useSuspenseQuery(courseworkOptionsQuery).data;
   const user = useCurrentUser();
   const timeZone = user.school.timeZone;
   const media = useDocumentMedia();
+  const queryClient = useQueryClient();
   // Co-teachers write a brief together once it exists; a new one starts alone.
   const live = useCollaboration(
     existing ? { hostType: "assignment", hostId: existing.id } : null,
   );
-  const queryClient = useQueryClient();
+  const shared = live.state === "live";
+  const id = useRef(existing?.id ?? "");
+  const version = useRef(existing?.version ?? 0);
   const leaving = useRef(false);
-  const [initial] = useState(() =>
+  const [storedId, setStoredId] = useState(existing?.id ?? "");
+  const [state, setState] = useState(existing?.state ?? "draft");
+  // Whether the work is still to come is judged from when the page opened.
+  const [openedAt] = useState(() => Date.now());
+  const [start] = useState(() =>
     initialDraft(
       existing,
       timeZone,
@@ -264,103 +384,239 @@ export function AssignmentEditor({
         "",
     ),
   );
-  const [draft, setDraft] = useState(initial);
-  const [version, setVersion] = useState(existing?.version);
-  const [errors, setErrors] = useState<Partial<Record<Field, string>>>({});
+  const [draft, setDraft] = useState(start);
+  const [sent, setSent] = useState<Draft>(() => ({
+    ...start,
+    brief: existing?.publishedBrief ?? start.brief,
+  }));
+  const brief = useRef(start.brief);
+  const [replace, setReplace] = useState<{
+    to: ContentDocument;
+    at: number;
+  }>();
+  const [valid, setValid] = useState(true);
+  const [shown, setShown] = useState(false);
+  const [refused, setRefused] = useState<Partial<Record<Field, string>>>({});
+  const [detailsOpen, setDetailsOpen] = useState(false);
+  const [pending, setPending] = useState<"assign" | "update" | null>(null);
   const [groupSearch, setGroupSearch] = useState("");
   const [studentSearch, setStudentSearch] = useState("");
-  const set = <K extends keyof Draft>(key: K, value: Draft[K]) => {
-    setErrors((current) => ({ ...current, [key]: undefined }));
-    setDraft((current) => ({ ...current, [key]: value }));
-  };
   const groups = useQuery({
     ...classGroupsQuery(draft.classId),
     enabled: Boolean(draft.classId),
   }).data;
-  const published = existing !== null && existing.state !== "draft";
+
+  const published = state === "published";
+  const archived = state === "archived";
   const isQuiz = draft.submissionFormat === "quiz";
   const started = existing?.quiz?.started ?? false;
-  const quizContent = {
-    version: 2 as const,
-    blocks: draft.quiz.blocks.map(tidy),
-  };
+  const quizContent = quizContentOf(draft);
+  const { blocking, publishing } = issuesOf(draft, started);
+  const storable = Object.keys(blocking).length === 0;
+
+  const inputOf = useCallback(
+    (value: Draft) => {
+      const quiz = value.submissionFormat === "quiz";
+      return {
+        ...(id.current
+          ? { id: id.current, expectedVersion: version.current }
+          : {}),
+        classId: value.classId,
+        title: value.title.trim(),
+        brief: shared ? brief.current : value.brief,
+        resourceFileIds: value.resources.map((file) => file.id),
+        audience: value.audience,
+        groupIds: value.audience === "selected" ? value.groupIds : [],
+        studentIds: value.audience === "selected" ? value.studentIds : [],
+        availableFrom: toInstant(value.availableFrom, timeZone),
+        dueAt: toInstant(value.dueAt, timeZone),
+        closesAt: toInstant(value.closesAt, timeZone),
+        latePolicy: value.latePolicy,
+        ...(value.latePolicy === "deduct"
+          ? { lateDeductionPercent: Number(value.deduction) }
+          : {}),
+        submissionFormat: value.submissionFormat,
+        maxFiles: Math.min(
+          20,
+          Math.max(1, Math.round(Number(value.maxFiles)) || 1),
+        ),
+        resubmission: value.resubmission,
+        points: quiz ? null : value.graded ? Number(value.points) : null,
+        rubric: !quiz && value.graded ? value.rubric : null,
+        gradingPeriodId: value.gradingPeriodId,
+        quiz: quiz
+          ? {
+              attempts:
+                value.quiz.attempts === "unlimited"
+                  ? null
+                  : Number(value.quiz.attempts),
+              keep: value.quiz.keep,
+              reveal: value.quiz.reveal,
+              shuffle: value.quiz.shuffle,
+              content: quizContentOf(value),
+            }
+          : null,
+      };
+    },
+    [shared, timeZone],
+  );
+
+  const persist = useCallback(
+    async (value: Draft) => {
+      if (!valid) throw new Error("content.invalid");
+      const saved = await saveAssignment({ data: inputOf(value) });
+      const created = !id.current;
+      id.current = saved.id;
+      version.current = saved.version;
+      setStoredId(saved.id);
+      await queryClient.invalidateQueries({ queryKey: ["coursework"] });
+      if (created) onCreated(saved.id);
+    },
+    [valid, inputOf, queryClient, onCreated],
+  );
+
+  // A live brief is stored by the room as it is typed, so only the other
+  // fields start a save; the save still sends the brief as it reads now.
+  const saving = shared ? { ...draft, brief: emptyContent() } : draft;
+  const autosave = useAutosave({
+    value: saving,
+    save: persist,
+    enabled: !published && !archived && storable,
+  });
+
+  const set = useCallback(<K extends keyof Draft>(key: K, value: Draft[K]) => {
+    setRefused((current) => ({ ...current, [key]: undefined }));
+    setDraft((current) => ({ ...current, [key]: value }));
+  }, []);
+  const changeBrief = useCallback(
+    (value: ContentDocument) => {
+      brief.current = value;
+      set("brief", value);
+    },
+    [set],
+  );
   const setQuiz = <K extends keyof QuizDraft>(key: K, value: QuizDraft[K]) =>
     set("quiz", { ...draft.quiz, [key]: value });
-  const input = () => ({
-    ...(existing ? { id: existing.id, expectedVersion: version } : {}),
-    classId: draft.classId,
-    title: draft.title.trim(),
-    brief: draft.brief,
-    resourceFileIds: draft.resources.map((file) => file.id),
-    audience: draft.audience,
-    groupIds: draft.audience === "selected" ? draft.groupIds : [],
-    studentIds: draft.audience === "selected" ? draft.studentIds : [],
-    availableFrom: toInstant(draft.availableFrom, timeZone),
-    dueAt: toInstant(draft.dueAt, timeZone),
-    closesAt: toInstant(draft.closesAt, timeZone),
-    latePolicy: draft.latePolicy,
-    ...(draft.latePolicy === "deduct"
-      ? { lateDeductionPercent: Number(draft.deduction) }
-      : {}),
-    submissionFormat: draft.submissionFormat,
-    maxFiles: Number(draft.maxFiles) || 1,
-    resubmission: draft.resubmission,
-    points: isQuiz ? null : draft.graded ? Number(draft.points) : null,
-    rubric: !isQuiz && draft.graded ? draft.rubric : null,
-    gradingPeriodId: draft.gradingPeriodId,
-    quiz: isQuiz
-      ? {
-          attempts:
-            draft.quiz.attempts === "unlimited"
-              ? null
-              : Number(draft.quiz.attempts),
-          keep: draft.quiz.keep,
-          reveal: draft.quiz.reveal,
-          shuffle: draft.quiz.shuffle,
-          content: quizContent,
-        }
-      : null,
-  });
-  const save = useMutation({
-    mutationFn: () => saveAssignment({ data: input() }),
-    meta: { inlineError: true },
-  });
-  const publish = useMutation({
-    mutationFn: (value: { id: string; version: number }) =>
-      publishAssignment({
-        data: { id: value.id, expectedVersion: value.version },
-      }),
-    meta: { inlineError: true },
-  });
-  const validate = () => {
-    const found: typeof errors = {};
-    if (!draft.classId) found.classId = m.validationSelection();
-    if (!draft.title.trim()) found.title = m.validationRequired();
-    if (!isQuiz && draft.graded && !(Number(draft.points) > 0))
-      found.points = m.courseworkPointsRequired();
-    if (isQuiz && !started) {
-      if (!draft.quiz.blocks.some(isCheck))
-        found.quiz = m.quizQuestionsNeeded();
-      else if (draft.quiz.blocks.some((block) => blockIssue(block)))
-        found.quiz = m.quizQuestionsIncomplete();
-    }
-    if (draft.latePolicy === "deduct" && !(Number(draft.deduction) >= 1))
-      found.deduction = m.courseworkDeductionRequired();
-    if (
-      draft.audience === "selected" &&
-      draft.groupIds.length === 0 &&
-      draft.studentIds.length === 0
-    )
-      found.audience = m.courseworkAudienceRequired();
-    return found;
+
+  const changed =
+    published &&
+    (fieldsOf(draft) !== fieldsOf(sent) ||
+      !sameContent(draft.brief, sent.brief));
+
+  const fail = (error: unknown) => {
+    const field =
+      error instanceof Error ? FIELD_ERRORS[error.message] : undefined;
+    if (field) {
+      setRefused({ [field]: getMessageFromError(error) });
+      setShown(true);
+      if (IN_PANEL.includes(field)) setDetailsOpen(true);
+    } else toast.error(getMessageFromError(error));
   };
-  const failure =
-    [save.error, publish.error].find(
-      (error) =>
-        error && !(error instanceof Error && FIELD_ERRORS[error.message]),
-    ) ?? null;
-  const fieldError = (field: Field) =>
-    errors[field] ? [errors[field]] : undefined;
+
+  const check = () => {
+    setShown(true);
+    const found = { ...blocking, ...publishing };
+    if (IN_PANEL.some((field) => found[field])) setDetailsOpen(true);
+    return Object.keys(found).length === 0;
+  };
+
+  const later =
+    draft.availableFrom !== "" &&
+    Date.parse(toInstant(draft.availableFrom, timeZone)) > openedAt;
+
+  const assign = async () => {
+    if (!check()) return;
+    setPending("assign");
+    try {
+      autosave.markSaved(saving);
+      await autosave.settle();
+      await persist(draft);
+      const out = await publishAssignment({
+        data: { id: id.current, expectedVersion: version.current },
+      });
+      version.current = out.version;
+      setState("published");
+      await queryClient.invalidateQueries({ queryKey: ["coursework"] });
+      toast.success(
+        later
+          ? m.courseworkScheduledToast({
+              date: formatInstant(
+                toInstant(draft.availableFrom, timeZone),
+                timeZone,
+              ),
+            })
+          : m.courseworkAssigned(),
+      );
+      leaving.current = true;
+      onClose(id.current);
+    } catch (error) {
+      fail(error);
+    } finally {
+      setPending(null);
+    }
+  };
+
+  const update = async () => {
+    if (!check()) return;
+    setPending("update");
+    try {
+      await persist(draft);
+      setSent(draft);
+      toast.success(m.courseworkUpdated());
+    } catch (error) {
+      fail(error);
+    } finally {
+      setPending(null);
+    }
+  };
+
+  const archive = async () => {
+    try {
+      autosave.markSaved(saving);
+      await autosave.settle();
+      await archiveAssignment({
+        data: { id: id.current, expectedVersion: version.current },
+      });
+      await queryClient.invalidateQueries({ queryKey: ["coursework"] });
+      toast.success(m.courseworkArchived());
+      leaving.current = true;
+      onClose();
+    } catch (error) {
+      toast.error(getMessageFromError(error));
+    }
+  };
+
+  const errorOf = (field: Field) => {
+    const message =
+      refused[field] ??
+      (shown
+        ? (blocking[field] ?? publishing[field])
+        : AT_ONCE.has(field)
+          ? blocking[field]
+          : undefined);
+    return message ? [message] : undefined;
+  };
+  const listed = shown
+    ? [
+        ...new Set(
+          Object.values({ ...blocking, ...publishing, ...refused }).filter(
+            (issue): issue is string => Boolean(issue),
+          ),
+        ),
+      ]
+    : [];
+
+  const phase = assignmentPhase(
+    {
+      state,
+      availableFrom: toInstant(sent.availableFrom, timeZone) || null,
+      dueAt: toInstant(sent.dueAt, timeZone) || null,
+      closesAt: toInstant(sent.closesAt, timeZone) || null,
+      latePolicy: sent.latePolicy,
+    },
+    new Date(openedAt),
+  );
+  const chosenClass = options.classes.find((row) => row.id === draft.classId);
   const groupOptions = (groups?.groups ?? []).map((row) => ({
     value: row.id,
     label: inLocale(row.titleEn, row.titleAr),
@@ -369,422 +625,510 @@ export function AssignmentEditor({
     value: row.id,
     label: displayName(row),
   }));
+  const points = isQuiz
+    ? quizPoints(quizContent)
+    : draft.graded
+      ? Number(draft.points) || 0
+      : null;
+
   return (
-    <RecordForm
-      title={existing ? m.courseworkEditTitle() : m.courseworkNewTitle()}
-      submitLabel={published ? m.commonSave() : m.courseworkSaveDraft()}
-      secondary={
-        published
-          ? undefined
-          : { label: m.courseworkAssign(), intent: "publish" }
-      }
-      onSubmit={async (intent) => {
-        const found = validate();
-        setErrors(found);
-        if (Object.keys(found).length > 0) return;
-        let saved: { id: string; version: number };
-        try {
-          saved = await save.mutateAsync();
-        } catch (error) {
-          const field =
-            error instanceof Error ? FIELD_ERRORS[error.message] : undefined;
-          if (field) setErrors({ [field]: getMessageFromError(error) });
-          return;
+    <>
+      <DocumentPage
+        heading={existing ? m.courseworkEditTitle() : m.courseworkNewTitle()}
+        onBack={() => {
+          autosave.flush();
+          onClose(id.current || undefined);
+        }}
+        status={{ label: PHASE_LABEL[phase](), tone: PHASE_TONE[phase] }}
+        saveState={autosave.state}
+        onRetry={autosave.retry}
+        notSaved={
+          published || archived || storable || !autosave.dirty
+            ? undefined
+            : blocking.title
+              ? m.courseworkNotSavedTitle()
+              : blocking.quiz && Object.keys(blocking).length === 1
+                ? m.courseworkNotSavedQuestions()
+                : m.courseworkNotSavedDetails()
         }
-        setVersion(saved.version);
-        if (intent === "publish") {
-          try {
-            await publish.mutateAsync(saved);
-          } catch (error) {
-            const field =
-              error instanceof Error ? FIELD_ERRORS[error.message] : undefined;
-            if (field) setErrors({ [field]: getMessageFromError(error) });
-            return;
-          }
-        }
-        await queryClient.invalidateQueries({ queryKey: ["coursework"] });
-        leaving.current = true;
-        toast.success(
-          intent === "publish" ? m.courseworkAssigned() : m.managementSaved(),
-        );
-        onClose(saved.id);
-      }}
-      onCancel={() => onClose()}
-      isDirty={() => {
-        if (leaving.current) return false;
-        // A live brief is stored as it is typed, by whoever types it, so only
-        // the other fields can be left unsaved.
-        const fields = (value: typeof draft) =>
-          JSON.stringify(
-            live.state === "live" ? { ...value, brief: null } : value,
-          );
-        return fields(draft) !== fields(initial);
-      }}
-      pending={save.isPending || publish.isPending}
-      error={failure ? getMessageFromError(failure) : null}
-    >
-      <FormSection title={m.courseworkSectionWork()}>
-        <SelectField
-          id="work-class"
-          label={m.studentClass()}
-          value={draft.classId}
-          disabled={existing !== null}
-          options={options.classes.map((row) => ({
-            value: row.id,
-            label: classTitle(row),
-          }))}
-          onChange={(value) => {
-            set("classId", value);
-            set("groupIds", []);
-            set("studentIds", []);
-          }}
-          errors={fieldError("classId")}
-          width="name"
-        />
-        <TextField
-          id="work-title"
-          label={m.courseworkTitle()}
-          width="name"
-          maxLength={200}
-          autoComplete="off"
-          value={draft.title}
-          onChange={(event) => set("title", event.target.value)}
-          errors={fieldError("title")}
-        />
-        <FormField
-          id="work-brief"
-          label={m.courseworkBrief()}
-          hint={m.courseworkBriefHint()}
-        >
-          {(control) => (
-            <div className="min-w-0">
-              {live.state === "loading" ? (
-                <div
-                  aria-busy="true"
-                  className="min-h-48 animate-pulse rounded-xl border bg-muted/20"
-                />
-              ) : (
-                <ContentEditor
-                  id={control.id}
-                  label={m.courseworkBrief()}
-                  value={draft.brief}
-                  onChange={(value) => set("brief", value)}
-                  media={media}
-                  collaboration={
-                    live.state === "live" ? live.collaboration : undefined
-                  }
-                />
-              )}
-            </div>
-          )}
-        </FormField>
-        <FileField
-          id="work-resources"
-          label={m.courseworkResources()}
-          optional
-          purpose="attachment"
-          value={draft.resources}
-          onChange={(update) =>
-            setDraft((current) => ({
-              ...current,
-              resources: update(current.resources),
-            }))
-          }
-          maxFiles={10}
-          maxBytes={MAX_FILE_BYTES}
-        />
-      </FormSection>
-      <FormSection title={m.courseworkSectionWhen()}>
-        <SelectField
-          id="work-audience"
-          label={m.courseworkAudience()}
-          value={draft.audience}
-          options={[
-            { value: "class", label: m.courseworkAudienceClass() },
-            { value: "selected", label: m.courseworkAudienceSelected() },
-          ]}
-          onChange={(value) => set("audience", value)}
-          errors={fieldError("audience")}
-          width="name"
-        />
-        {draft.audience === "selected" ? (
-          <>
-            <ComboboxField
-              label={m.courseworkGroups()}
-              optional
-              multiple
-              options={groupOptions.filter((row) =>
-                row.label.toLowerCase().includes(groupSearch.toLowerCase()),
-              )}
-              value={draft.groupIds}
-              onChange={(value) => set("groupIds", value)}
-              search={groupSearch}
-              onSearchChange={setGroupSearch}
-            />
-            <ComboboxField
-              label={m.courseworkStudents()}
-              optional
-              multiple
-              options={studentOptions.filter((row) =>
-                row.label.toLowerCase().includes(studentSearch.toLowerCase()),
-              )}
-              value={draft.studentIds}
-              onChange={(value) => set("studentIds", value)}
-              search={studentSearch}
-              onSearchChange={setStudentSearch}
-            />
-          </>
-        ) : null}
-        <TextField
-          id="work-due"
-          label={m.courseworkDue()}
-          hint={m.courseworkDueHint()}
-          optional
-          type="datetime-local"
-          width="name"
-          value={draft.dueAt}
-          onChange={(event) => set("dueAt", event.target.value)}
-          errors={fieldError("dueAt")}
-        />
-        <TextField
-          id="work-available"
-          label={m.courseworkAvailableFrom()}
-          hint={m.courseworkAvailableHint()}
-          optional
-          type="datetime-local"
-          width="name"
-          value={draft.availableFrom}
-          onChange={(event) => set("availableFrom", event.target.value)}
-        />
-        <TextField
-          id="work-closes"
-          label={m.courseworkClosesAt()}
-          hint={m.courseworkClosesHint()}
-          optional
-          type="datetime-local"
-          width="name"
-          value={draft.closesAt}
-          onChange={(event) => set("closesAt", event.target.value)}
-          errors={fieldError("closesAt")}
-        />
-      </FormSection>
-      <FormSection
-        title={m.courseworkSectionGrading()}
-        description={
-          isQuiz
-            ? m.quizPointsFromQuestions({
-                points: formatNumber(quizPoints(quizContent)),
-              })
+        unpublished={
+          changed
+            ? {
+                pending: pending === "update",
+                onDiscard: () => {
+                  setDraft(sent);
+                  brief.current = sent.brief;
+                  setRefused({});
+                  setShown(false);
+                  setReplace((current) => ({
+                    to: sent.brief,
+                    at: (current?.at ?? 0) + 1,
+                  }));
+                },
+                onUpdate: () => void update(),
+              }
             : undefined
         }
-      >
-        {isQuiz ? null : (
-          <label className="flex min-h-9 cursor-pointer items-center gap-3 text-sm leading-5 max-md:min-h-10">
-            <Checkbox
-              checked={draft.graded}
-              onCheckedChange={(next) => set("graded", next)}
-            />
-            {m.courseworkGraded()}
-          </label>
-        )}
-        {draft.graded && !isQuiz ? (
-          <>
-            <SelectField
-              id="work-rubric"
-              label={m.courseworkRubric()}
-              optional
-              value={draft.rubricId || (draft.rubric ? "current" : "none")}
-              options={[
-                { value: "none", label: m.courseworkNoRubric() },
-                ...(draft.rubric && !draft.rubricId
-                  ? [{ value: "current", label: m.courseworkRubricAttached() }]
-                  : []),
-                ...options.rubrics.map((row) => ({
-                  value: row.id,
-                  label: row.title,
-                })),
-              ]}
-              onChange={(value) => {
-                if (value === "current") return;
-                const chosen = options.rubrics.find((row) => row.id === value);
-                set("rubricId", chosen ? chosen.id : "");
-                set("rubric", chosen ? chosen.rubric : null);
-                if (chosen) set("points", String(rubricTotal(chosen.rubric)));
-              }}
-              width="name"
-            />
-            <TextField
-              id="work-points"
-              label={m.courseworkPoints()}
-              hint={draft.rubric ? m.courseworkPointsFromRubric() : undefined}
-              type="number"
-              inputMode="decimal"
-              min={0.5}
-              step={0.5}
-              width="score"
-              disabled={draft.rubric !== null}
-              value={draft.points}
-              onChange={(event) => set("points", event.target.value)}
-              errors={fieldError("points")}
-            />
-            {options.terms.length > 0 ? (
-              <SelectField
-                id="work-term"
-                label={m.courseworkTerm()}
-                optional
-                value={draft.gradingPeriodId || "none"}
-                options={[
-                  { value: "none", label: m.commonNotRecorded() },
-                  ...options.terms.map((row) => ({
-                    value: row.id,
-                    label: inLocale(row.titleEn, row.titleAr),
-                  })),
-                ]}
-                onChange={(value) =>
-                  set("gradingPeriodId", value === "none" ? "" : value)
-                }
-                width="name"
-              />
+        primary={
+          published || archived
+            ? undefined
+            : {
+                label: later ? m.courseworkSchedule() : m.courseworkAssign(),
+                icon: later ? CalendarClock : Send,
+                pending: pending === "assign",
+                onClick: () => void assign(),
+              }
+        }
+        preview={
+          storedId
+            ? {
+                label: m.docPreview(),
+                onClick: () =>
+                  window.open(`/assignments/${storedId}`, "_blank", "noopener"),
+              }
+            : undefined
+        }
+        menu={
+          storedId && !archived
+            ? [
+                {
+                  label: m.courseworkArchive(),
+                  icon: Archive,
+                  destructive: true,
+                  confirm: {
+                    title: m.courseworkArchiveTitle({
+                      title: draft.title.trim() || m.courseworkUntitled(),
+                    }),
+                    body: m.courseworkArchiveBody(),
+                    label: m.courseworkArchive(),
+                  },
+                  onSelect: () => archive(),
+                },
+              ]
+            : []
+        }
+        title={
+          <div className="grid gap-3">
+            {listed.length > 0 ? (
+              <div
+                role="alert"
+                className="rounded-lg border border-destructive/30 bg-destructive/5 px-4 py-3 text-sm text-destructive"
+              >
+                <p className="font-medium">{m.courseworkIncomplete()}</p>
+                <ul className="mt-1 list-disc ps-5">
+                  {listed.map((issue) => (
+                    <li key={issue}>{issue}</li>
+                  ))}
+                </ul>
+              </div>
             ) : null}
-          </>
-        ) : null}
-      </FormSection>
-      <FormSection title={m.courseworkSectionHandIn()}>
-        <SelectField
-          id="work-format"
-          label={m.courseworkFormat()}
-          value={draft.submissionFormat}
-          options={FORMATS.filter(
-            // Work already out cannot turn into a quiz, or a quiz into other work.
-            (value) =>
-              value !== "quiz" ||
-              !published ||
-              existing.submissionFormat === "quiz",
-          ).map((value) => ({ value, label: FORMAT_LABEL[value]() }))}
-          onChange={(value) => set("submissionFormat", value)}
-          disabled={published && existing.submissionFormat === "quiz"}
-          width="name"
-        />
-        {draft.submissionFormat === "files" ||
-        draft.submissionFormat === "both" ? (
-          <TextField
-            id="work-max-files"
-            label={m.courseworkMaxFiles()}
-            type="number"
-            min={1}
-            max={20}
-            width="score"
-            value={draft.maxFiles}
-            onChange={(event) => set("maxFiles", event.target.value)}
-          />
-        ) : null}
-        <SelectField
-          id="work-late"
-          label={m.courseworkLatePolicy()}
-          value={draft.latePolicy}
-          options={[
-            { value: "accept", label: m.courseworkLateAccept() },
-            { value: "deduct", label: m.courseworkLateDeduct() },
-            { value: "refuse", label: m.courseworkLateRefuse() },
-          ]}
-          onChange={(value) => set("latePolicy", value)}
-          width="name"
-        />
-        {draft.latePolicy === "deduct" ? (
-          <TextField
-            id="work-deduction"
-            label={m.courseworkDeduction()}
-            type="number"
-            min={1}
-            max={100}
-            width="score"
-            value={draft.deduction}
-            onChange={(event) => set("deduction", event.target.value)}
-            errors={fieldError("deduction")}
-          />
-        ) : null}
-        {isQuiz ? null : (
-          <label className="flex min-h-9 cursor-pointer items-center gap-3 text-sm leading-5 max-md:min-h-10">
-            <Checkbox
-              checked={draft.resubmission}
-              onCheckedChange={(next) => set("resubmission", next)}
+            <DocumentTitle
+              id="work-title"
+              label={m.courseworkTitle()}
+              placeholder={m.courseworkUntitled()}
+              maxLength={200}
+              value={draft.title}
+              onChange={(title) => set("title", title)}
+              onEnter={() => document.getElementById("work-brief")?.focus()}
             />
-            {m.courseworkResubmission()}
-          </label>
-        )}
-      </FormSection>
-      {isQuiz ? (
-        <FormSection
-          title={m.quizSection()}
-          description={started ? m.quizStartedHint() : m.quizSectionHint()}
-        >
-          <SelectField
-            id="quiz-attempts"
-            label={m.quizAttempts()}
-            value={draft.quiz.attempts}
-            options={ATTEMPTS.map((value) => ({
-              value,
-              label:
-                value === "unlimited"
-                  ? m.quizAttemptsUnlimited()
-                  : m.quizAttemptsCount({ count: Number(value) }),
-            }))}
-            onChange={(value) => setQuiz("attempts", value)}
-            width="name"
-          />
-          {draft.quiz.attempts === "1" ? null : (
-            <SelectField
-              id="quiz-keep"
-              label={m.quizKeep()}
-              value={draft.quiz.keep}
-              options={QUIZ_KEEPS.map((value) => ({
-                value,
-                label: KEEP_LABEL[value](),
-              }))}
-              onChange={(value) => setQuiz("keep", value)}
-              width="name"
-            />
-          )}
-          <SelectField
-            id="quiz-reveal"
-            label={m.quizReveal()}
-            hint={m.quizRevealHint()}
-            value={draft.quiz.reveal}
-            options={QUIZ_REVEALS.map((value) => ({
-              value,
-              label: REVEAL_LABEL[value](),
-            }))}
-            onChange={(value) => setQuiz("reveal", value)}
-            width="name"
-          />
-          <CheckboxRow
-            label={m.quizShuffle()}
-            hint={m.quizShuffleHint()}
-            checked={draft.quiz.shuffle}
-            onChange={(value) => setQuiz("shuffle", value)}
-          />
-          <fieldset disabled={started} className="grid min-w-0 gap-2">
-            <QuizEditingContext.Provider value>
-              <legend className="sr-only">{m.quizQuestions()}</legend>
-              <BlockList
-                blocks={draft.quiz.blocks}
-                onChange={(update) =>
+          </div>
+        }
+        summary={[
+          chosenClass ? classTitle(chosenClass) : "",
+          draft.dueAt
+            ? m.courseworkDueOn({
+                date: formatInstant(toInstant(draft.dueAt, timeZone), timeZone),
+              })
+            : m.courseworkNoDueDate(),
+          points === null
+            ? m.courseworkUngraded()
+            : m.courseworkPointsCount({ count: points }),
+        ]}
+        details={{ open: detailsOpen, onOpenChange: setDetailsOpen }}
+        aside={
+          <DetailsPanel title={m.docDetails()}>
+            <DetailsSection title={m.courseworkSectionFor()}>
+              <SelectField
+                id="work-class"
+                label={m.studentClass()}
+                value={draft.classId}
+                disabled={state !== "draft"}
+                options={options.classes.map((row) => ({
+                  value: row.id,
+                  label: classTitle(row),
+                }))}
+                onChange={(value) =>
                   setDraft((current) => ({
                     ...current,
-                    quiz: {
-                      ...current.quiz,
-                      blocks: update(current.quiz.blocks),
-                    },
+                    classId: value,
+                    groupIds: [],
+                    studentIds: [],
                   }))
                 }
-                shown={Boolean(errors.quiz)}
-                missing={errors.quiz ?? null}
-                exclude={QUIZ_EXCLUDES}
+                errors={errorOf("classId")}
               />
-            </QuizEditingContext.Provider>
-          </fieldset>
-        </FormSection>
-      ) : null}
-    </RecordForm>
+              <SelectField
+                id="work-audience"
+                label={m.courseworkAudience()}
+                value={draft.audience}
+                options={[
+                  { value: "class", label: m.courseworkAudienceClass() },
+                  { value: "selected", label: m.courseworkAudienceSelected() },
+                ]}
+                onChange={(value) => set("audience", value)}
+                errors={errorOf("audience")}
+              />
+              {draft.audience === "selected" ? (
+                <>
+                  <ComboboxField
+                    label={m.courseworkGroups()}
+                    optional
+                    multiple
+                    options={groupOptions.filter((row) =>
+                      row.label
+                        .toLowerCase()
+                        .includes(groupSearch.toLowerCase()),
+                    )}
+                    value={draft.groupIds}
+                    onChange={(value) => set("groupIds", value)}
+                    search={groupSearch}
+                    onSearchChange={setGroupSearch}
+                  />
+                  <ComboboxField
+                    label={m.courseworkStudents()}
+                    optional
+                    multiple
+                    options={studentOptions.filter((row) =>
+                      row.label
+                        .toLowerCase()
+                        .includes(studentSearch.toLowerCase()),
+                    )}
+                    value={draft.studentIds}
+                    onChange={(value) => set("studentIds", value)}
+                    search={studentSearch}
+                    onSearchChange={setStudentSearch}
+                  />
+                </>
+              ) : null}
+            </DetailsSection>
+            <DetailsSection
+              title={m.courseworkSectionDates()}
+              hint={scheduleSentence(draft, timeZone)}
+            >
+              <TextField
+                id="work-available"
+                label={m.courseworkAvailableFrom()}
+                hint={m.courseworkAvailableHint()}
+                optional
+                type="datetime-local"
+                value={draft.availableFrom}
+                onChange={(event) => set("availableFrom", event.target.value)}
+              />
+              <TextField
+                id="work-due"
+                label={m.courseworkDue()}
+                hint={m.courseworkDueHint()}
+                optional
+                type="datetime-local"
+                min={draft.availableFrom || undefined}
+                value={draft.dueAt}
+                onChange={(event) => set("dueAt", event.target.value)}
+                errors={errorOf("dueAt")}
+              />
+              <TextField
+                id="work-closes"
+                label={m.courseworkClosesAt()}
+                hint={m.courseworkClosesHint()}
+                optional
+                type="datetime-local"
+                min={draft.dueAt || undefined}
+                value={draft.closesAt}
+                onChange={(event) => set("closesAt", event.target.value)}
+                errors={errorOf("closesAt")}
+              />
+            </DetailsSection>
+            <DetailsSection
+              title={m.courseworkSectionGrading()}
+              hint={
+                isQuiz
+                  ? m.quizPointsFromQuestions({
+                      points: formatNumber(quizPoints(quizContent)),
+                    })
+                  : undefined
+              }
+            >
+              {isQuiz ? null : (
+                <CheckboxRow
+                  label={m.courseworkGraded()}
+                  checked={draft.graded}
+                  onChange={(next) => set("graded", next)}
+                />
+              )}
+              {draft.graded && !isQuiz ? (
+                <>
+                  <SelectField
+                    id="work-rubric"
+                    label={m.courseworkRubric()}
+                    optional
+                    value={
+                      draft.rubricId || (draft.rubric ? "current" : "none")
+                    }
+                    options={[
+                      { value: "none", label: m.courseworkNoRubric() },
+                      ...(draft.rubric && !draft.rubricId
+                        ? [
+                            {
+                              value: "current",
+                              label: m.courseworkRubricAttached(),
+                            },
+                          ]
+                        : []),
+                      ...options.rubrics.map((row) => ({
+                        value: row.id,
+                        label: row.title,
+                      })),
+                    ]}
+                    onChange={(value) => {
+                      if (value === "current") return;
+                      const chosen = options.rubrics.find(
+                        (row) => row.id === value,
+                      );
+                      setDraft((current) => ({
+                        ...current,
+                        rubricId: chosen ? chosen.id : "",
+                        rubric: chosen ? chosen.rubric : null,
+                        points: chosen
+                          ? String(rubricTotal(chosen.rubric))
+                          : current.points,
+                      }));
+                    }}
+                  />
+                  <TextField
+                    id="work-points"
+                    label={m.courseworkPoints()}
+                    hint={
+                      draft.rubric ? m.courseworkPointsFromRubric() : undefined
+                    }
+                    type="number"
+                    inputMode="decimal"
+                    min={0.5}
+                    step={0.5}
+                    width="score"
+                    disabled={draft.rubric !== null}
+                    value={draft.points}
+                    onChange={(event) => set("points", event.target.value)}
+                    errors={errorOf("points")}
+                  />
+                  {options.terms.length > 0 ? (
+                    <SelectField
+                      id="work-term"
+                      label={m.courseworkTerm()}
+                      optional
+                      value={draft.gradingPeriodId || "none"}
+                      options={[
+                        { value: "none", label: m.commonNotRecorded() },
+                        ...options.terms.map((row) => ({
+                          value: row.id,
+                          label: inLocale(row.titleEn, row.titleAr),
+                        })),
+                      ]}
+                      onChange={(value) =>
+                        set("gradingPeriodId", value === "none" ? "" : value)
+                      }
+                    />
+                  ) : null}
+                </>
+              ) : null}
+            </DetailsSection>
+            <DetailsSection title={m.courseworkSectionHandIn()}>
+              <SelectField
+                id="work-format"
+                label={m.courseworkFormat()}
+                value={draft.submissionFormat}
+                options={FORMATS.filter(
+                  // Work already out cannot turn into a quiz, or a quiz into other work.
+                  (value) =>
+                    value !== "quiz" ||
+                    !published ||
+                    existing?.submissionFormat === "quiz",
+                ).map((value) => ({ value, label: FORMAT_LABEL[value]() }))}
+                onChange={(value) => set("submissionFormat", value)}
+                disabled={published && existing?.submissionFormat === "quiz"}
+              />
+              {draft.submissionFormat === "files" ||
+              draft.submissionFormat === "both" ? (
+                <TextField
+                  id="work-max-files"
+                  label={m.courseworkMaxFiles()}
+                  type="number"
+                  min={1}
+                  max={20}
+                  width="score"
+                  value={draft.maxFiles}
+                  onChange={(event) => set("maxFiles", event.target.value)}
+                />
+              ) : null}
+              <SelectField
+                id="work-late"
+                label={m.courseworkLatePolicy()}
+                value={draft.latePolicy}
+                options={[
+                  { value: "accept", label: m.courseworkLateAccept() },
+                  { value: "deduct", label: m.courseworkLateDeduct() },
+                  { value: "refuse", label: m.courseworkLateRefuse() },
+                ]}
+                onChange={(value) => set("latePolicy", value)}
+              />
+              {draft.latePolicy === "deduct" ? (
+                <TextField
+                  id="work-deduction"
+                  label={m.courseworkDeduction()}
+                  type="number"
+                  min={1}
+                  max={100}
+                  width="score"
+                  value={draft.deduction}
+                  onChange={(event) => set("deduction", event.target.value)}
+                  errors={errorOf("deduction")}
+                />
+              ) : null}
+              {isQuiz ? null : (
+                <CheckboxRow
+                  label={m.courseworkResubmission()}
+                  checked={draft.resubmission}
+                  onChange={(next) => set("resubmission", next)}
+                />
+              )}
+            </DetailsSection>
+            {isQuiz ? (
+              <DetailsSection title={m.quizSection()}>
+                <SelectField
+                  id="quiz-attempts"
+                  label={m.quizAttempts()}
+                  value={draft.quiz.attempts}
+                  options={ATTEMPTS.map((value) => ({
+                    value,
+                    label:
+                      value === "unlimited"
+                        ? m.quizAttemptsUnlimited()
+                        : m.quizAttemptsCount({ count: Number(value) }),
+                  }))}
+                  onChange={(value) => setQuiz("attempts", value)}
+                />
+                {draft.quiz.attempts === "1" ? null : (
+                  <SelectField
+                    id="quiz-keep"
+                    label={m.quizKeep()}
+                    value={draft.quiz.keep}
+                    options={QUIZ_KEEPS.map((value) => ({
+                      value,
+                      label: KEEP_LABEL[value](),
+                    }))}
+                    onChange={(value) => setQuiz("keep", value)}
+                  />
+                )}
+                <SelectField
+                  id="quiz-reveal"
+                  label={m.quizReveal()}
+                  hint={m.quizRevealHint()}
+                  value={draft.quiz.reveal}
+                  options={QUIZ_REVEALS.map((value) => ({
+                    value,
+                    label: REVEAL_LABEL[value](),
+                  }))}
+                  onChange={(value) => setQuiz("reveal", value)}
+                />
+                <CheckboxRow
+                  label={m.quizShuffle()}
+                  hint={m.quizShuffleHint()}
+                  checked={draft.quiz.shuffle}
+                  onChange={(value) => setQuiz("shuffle", value)}
+                />
+              </DetailsSection>
+            ) : null}
+          </DetailsPanel>
+        }
+      >
+        <div className="grid grid-cols-[minmax(0,1fr)] gap-10">
+          {live.state === "loading" ? (
+            <div aria-busy="true" className="min-h-48 animate-pulse" />
+          ) : (
+            <ContentEditor
+              id="work-brief"
+              label={m.courseworkBrief()}
+              variant="document"
+              value={draft.brief}
+              onChange={changeBrief}
+              onValidityChange={setValid}
+              media={media}
+              collaboration={shared ? live.collaboration : undefined}
+              replace={replace}
+            />
+          )}
+          <FileField
+            id="work-resources"
+            label={m.courseworkResources()}
+            optional
+            purpose="attachment"
+            value={draft.resources}
+            onChange={(change) =>
+              setDraft((current) => ({
+                ...current,
+                resources: change(current.resources),
+              }))
+            }
+            maxFiles={10}
+            maxBytes={MAX_FILE_BYTES}
+          />
+          {isQuiz ? (
+            <section aria-labelledby="work-questions" className="grid gap-4">
+              <div className="grid gap-1">
+                <h2
+                  id="work-questions"
+                  className="text-lg leading-7 font-semibold"
+                >
+                  {m.quizQuestions()}
+                </h2>
+                <p className="text-sm leading-5 text-muted-foreground">
+                  {started ? m.quizStartedHint() : m.quizSectionHint()}
+                </p>
+              </div>
+              <fieldset disabled={started} className="grid min-w-0 gap-2">
+                <QuizEditingContext.Provider value>
+                  <legend className="sr-only">{m.quizQuestions()}</legend>
+                  <BlockList
+                    blocks={draft.quiz.blocks}
+                    onChange={(change) =>
+                      setDraft((current) => ({
+                        ...current,
+                        quiz: {
+                          ...current.quiz,
+                          blocks: change(current.quiz.blocks),
+                        },
+                      }))
+                    }
+                    shown={shown || Boolean(refused.quiz)}
+                    missing={
+                      refused.quiz ??
+                      (shown
+                        ? (blocking.quiz ?? publishing.quiz ?? null)
+                        : null)
+                    }
+                    exclude={QUIZ_EXCLUDES}
+                  />
+                </QuizEditingContext.Provider>
+              </fieldset>
+            </section>
+          ) : null}
+        </div>
+      </DocumentPage>
+      <UnsavedChangesGuard
+        isDirty={() =>
+          !leaving.current &&
+          (changed || (!published && !archived && !storable && autosave.dirty))
+        }
+        pending={pending !== null}
+      />
+    </>
   );
 }

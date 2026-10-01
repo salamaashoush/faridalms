@@ -16,8 +16,13 @@ import { CollaborationPlugin } from "@lexical/react/LexicalCollaborationPlugin";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
 import { ContentEditable } from "@lexical/react/LexicalContentEditable";
 import { LexicalExtensionComposer } from "@lexical/react/LexicalExtensionComposer";
-import { $getNodeByKey, defineExtension } from "lexical";
-import { useEffect, useMemo, useState } from "react";
+import {
+  $getNodeByKey,
+  $getRoot,
+  $parseSerializedNode,
+  defineExtension,
+} from "lexical";
+import { useEffect, useMemo, useRef, useState } from "react";
 import * as v from "valibot";
 
 import type { EditorMedia } from "./context";
@@ -70,6 +75,11 @@ export interface EditorProps {
   locale?: string;
   describedBy?: string;
   collaboration?: EditorCollaboration;
+  /**
+   * Puts this content in place of what the editor holds each time `at`
+   * changes, as an edit, so a live room passes it on to everyone in it.
+   */
+  replace?: { to: ContentDocument; at: number };
 }
 
 export default function Editor({
@@ -144,6 +154,7 @@ function Surface({
   placeholder,
   initialFocus,
   describedBy,
+  replace,
 }: Omit<EditorProps, "value" | "media" | "locale" | "strings">) {
   const [editor] = useLexicalComposerContext();
   const { strings } = useEditorEnvironment();
@@ -172,6 +183,18 @@ function Surface({
     () => registerMarkdownShortcuts(editor, markdownTransformers),
     [editor],
   );
+
+  const replaced = useRef(replace?.at);
+  useEffect(() => {
+    if (!replace || replace.at === replaced.current) return;
+    replaced.current = replace.at;
+    editor.update(() => {
+      const root = $getRoot();
+      root.clear();
+      for (const child of replace.to.root.children ?? [])
+        root.append($parseSerializedNode(child));
+    });
+  }, [editor, replace]);
 
   useEffect(
     () =>

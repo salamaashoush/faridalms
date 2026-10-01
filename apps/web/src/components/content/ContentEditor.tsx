@@ -29,6 +29,7 @@ export function ContentEditor({
   placeholder,
   initialFocus,
   collaboration,
+  replace,
 }: {
   id: string;
   label: string;
@@ -42,6 +43,7 @@ export function ContentEditor({
   placeholder?: string;
   initialFocus?: boolean;
   collaboration?: EditorCollaboration;
+  replace?: { to: ContentDocument; at: number };
 }) {
   const strings = useMemo(() => editorStrings(), []);
   const hydrated = useHydrated();
@@ -84,6 +86,7 @@ export function ContentEditor({
         initialFocus={initialFocus}
         strings={strings}
         collaboration={collaboration}
+        replace={replace}
       />
     </Suspense>
   );

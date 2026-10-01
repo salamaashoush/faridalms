@@ -7,6 +7,7 @@ import {
   useCanGoBack,
   useRouter,
 } from "@tanstack/react-router";
+import { useState } from "react";
 import * as v from "valibot";
 
 import {
@@ -74,13 +75,20 @@ function EditTrail({ id }: { id: string }) {
 function ExistingEditor({
   id,
   onClose,
+  onCreated,
 }: {
   id: string;
   onClose: (saved?: string) => void;
+  onCreated: (id: string) => void;
 }) {
   const existing = useSuspenseQuery(assignmentEditorQuery(id)).data;
   return (
-    <AssignmentEditor key={existing.id} existing={existing} onClose={onClose} />
+    <AssignmentEditor
+      key={existing.id}
+      existing={existing}
+      onClose={onClose}
+      onCreated={onCreated}
+    />
   );
 }
 
@@ -89,6 +97,7 @@ function EditorPage() {
   const navigate = Route.useNavigate();
   const router = useRouter();
   const canGoBack = useCanGoBack();
+  const [created, setCreated] = useState<string | null>(null);
   const close = (saved?: string) => {
     if (saved) {
       void navigate({
@@ -105,9 +114,20 @@ function EditorPage() {
     }
     void navigate({ to: "/teach/assignments", search: {} });
   };
-  return id ? (
-    <ExistingEditor id={id} onClose={close} />
+  // The first autosave gives a new draft its address, so a reload reopens
+  // it; the editor already open stays mounted with what is being typed.
+  const onCreated = (saved: string) => {
+    setCreated(saved);
+    void navigate({ search: { id: saved }, replace: true });
+  };
+  return id && id !== created ? (
+    <ExistingEditor id={id} onClose={close} onCreated={onCreated} />
   ) : (
-    <AssignmentEditor classId={classId} onClose={close} />
+    <AssignmentEditor
+      existing={null}
+      classId={classId}
+      onClose={close}
+      onCreated={onCreated}
+    />
   );
 }

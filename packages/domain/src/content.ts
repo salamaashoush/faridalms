@@ -441,3 +441,23 @@ export function contentFileIds(document: ContentDocument): string[] {
   }
   return [...ids];
 }
+
+function comparable(value: unknown): unknown {
+  if (Array.isArray(value)) return value.map(comparable);
+  if (!value || typeof value !== "object") return value;
+  return Object.fromEntries(
+    Object.entries(value)
+      .filter(([key]) => key !== "direction")
+      .toSorted(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
+      .map(([key, item]) => [key, comparable(item)]),
+  );
+}
+
+/**
+ * Whether two documents say the same thing. Stored copies come back with
+ * their keys reordered, and the editor works out each block's direction as it
+ * opens one, so neither counts as a change.
+ */
+export function sameContent(a: ContentDocument, b: ContentDocument): boolean {
+  return JSON.stringify(comparable(a)) === JSON.stringify(comparable(b));
+}

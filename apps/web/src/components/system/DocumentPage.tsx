@@ -120,6 +120,7 @@ export function DocumentPage({
   status,
   saveState = "idle",
   onRetry,
+  notSaved,
   unpublished,
   primary,
   preview,
@@ -135,6 +136,8 @@ export function DocumentPage({
   status?: { label: string; tone: Tone };
   saveState?: SaveState;
   onRetry?: () => void;
+  /** Why a draft with changes cannot be stored yet, in place of the save state. */
+  notSaved?: string;
   unpublished?: {
     onDiscard: () => void;
     onUpdate: () => void;
@@ -216,7 +219,17 @@ export function DocumentPage({
           </>
         ) : (
           <>
-            <SaveIndicator state={saveState} onRetry={onRetry} />
+            {notSaved ? (
+              <span
+                className="inline-flex min-w-0 items-center gap-1.5 text-[13px] text-muted-foreground"
+                aria-live="polite"
+              >
+                <TriangleAlert className="size-3.5 shrink-0" aria-hidden />
+                <span className="truncate max-sm:sr-only">{notSaved}</span>
+              </span>
+            ) : (
+              <SaveIndicator state={saveState} onRetry={onRetry} />
+            )}
             {preview ? (
               <Button
                 type="button"
@@ -400,7 +413,7 @@ export function DetailsSection({
   children: ReactNode;
 }) {
   return (
-    <section className="grid gap-4 border-t pt-5 first-of-type:border-t-0 first-of-type:pt-0">
+    <section className="grid grid-cols-[minmax(0,1fr)] gap-4 border-t pt-5 first-of-type:border-t-0 first-of-type:pt-0">
       <div className="grid gap-1">
         <h3 className="text-xs leading-4 font-semibold tracking-wide text-muted-foreground uppercase">
           {title}

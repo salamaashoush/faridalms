@@ -32,15 +32,16 @@ export function useAutosave<T>({
   const running = useRef(false);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const latestSave = useRef(save);
+  const inflight = useRef<Promise<void>>(Promise.resolve());
 
   useEffect(() => {
     latestSave.current = save;
   }, [save]);
 
-  const run = useCallback(async () => {
+  const run = useCallback(() => {
     if (timer.current) clearTimeout(timer.current);
     timer.current = null;
-    if (running.current) return;
+    if (running.current) return inflight.current;
     running.current = true;
     const step = async (): Promise<boolean> => {
       const next = pending.current;
@@ -57,13 +58,16 @@ export function useAutosave<T>({
       await step();
       return true;
     };
-    try {
-      if (await step()) setState("saved");
-    } catch {
-      setState("error");
-    } finally {
-      running.current = false;
-    }
+    inflight.current = (async () => {
+      try {
+        if (await step()) setState("saved");
+      } catch {
+        setState("error");
+      } finally {
+        running.current = false;
+      }
+    })();
+    return inflight.current;
   }, []);
 
   useEffect(() => {
@@ -110,6 +114,14 @@ export function useAutosave<T>({
     };
   }, []);
 
+  /** Cancels a save not yet started and waits for the one under way. */
+  const settle = useCallback(async () => {
+    if (timer.current) clearTimeout(timer.current);
+    timer.current = null;
+    pending.current = null;
+    await inflight.current;
+  }, []);
+
   const markSaved = useCallback((next: T) => {
     const snapshot = JSON.stringify(next);
     saved.current = snapshot;
@@ -124,5 +136,6 @@ export function useAutosave<T>({
     dirty: serialized !== savedSnapshot,
     busy: () => running.current || pending.current !== null,
     markSaved,
+    settle,
   };
 }
