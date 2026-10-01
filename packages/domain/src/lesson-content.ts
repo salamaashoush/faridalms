@@ -1,5 +1,7 @@
 import type { ContentDocument, ContentNode } from "./content";
-import type { LessonBlock, LessonDocument } from "./learning";
+import type { GapsBlock, LessonBlock, LessonDocument } from "./learning";
+
+import { gapsSource, parseGaps } from "./learning";
 
 /**
  * A lesson is written as one document whose questions are blocks in the
@@ -36,6 +38,34 @@ function runId(seed: string): string {
     `${((Number.parseInt(hex[16] ?? "0", 16) & 0x3) | 0x8).toString(16)}${hex.slice(17, 20)}`,
     hex.slice(20, 32),
   ].join("-");
+}
+
+type GapSegment = GapsBlock["segments"][number];
+
+/**
+ * A gaps passage as the segments marking reads: each paragraph's text in
+ * turn, a new line between paragraphs, and each gap's answers read from the
+ * words written in it, "Cairo/القاهرة" or "right|wrong|wrong".
+ */
+function segmentsOf(passages: readonly ContentNode[]): GapSegment[] {
+  const segments: GapSegment[] = [];
+  const write = (text: string) => {
+    const last = segments.at(-1);
+    if (last?.type === "text") last.text += text;
+    else if (text) segments.push({ type: "text", text });
+  };
+  passages.forEach((passage, index) => {
+    if (index > 0) write("\n");
+    for (const child of passage.children ?? []) {
+      if (child.type !== "question-gap") {
+        write(textOf(child));
+        continue;
+      }
+      const [gap] = parseGaps(`[${textOf(child)}]`, [child.optionId ?? ""]);
+      if (gap) segments.push(gap);
+    }
+  });
+  return segments;
 }
 
 function questionBlock(node: ContentNode): LessonBlock | null {
@@ -123,6 +153,17 @@ function questionBlock(node: ContentNode): LessonBlock | null {
           }))
           .filter((extra) => extra.text),
       };
+    case "gaps":
+      return {
+        ...check,
+        type: "gaps",
+        segments: segmentsOf(
+          parts.filter((part) => part.type === "question-passage"),
+        ),
+        caseSensitive: node.caseSensitive ?? false,
+        closeEnough: node.closeEnough ?? false,
+        tehMarbuta: node.tehMarbuta ?? true,
+      };
     case "sorting": {
       const groups = parts.filter((part) => part.type === "question-group");
       return {
@@ -201,6 +242,29 @@ function inlineOf(type: ContentNode["type"], text: string): ContentNode {
   return { ...paragraph, type };
 }
 
+function gapNode(segment: Extract<GapSegment, { type: "gap" }>): ContentNode {
+  return {
+    ...inlineOf("question-gap", gapsSource([segment]).slice(1, -1)),
+    optionId: segment.id,
+  };
+}
+
+function passagesOf(segments: readonly GapSegment[]): ContentNode[] {
+  const passages: ContentNode[] = [inlineOf("question-passage", "")];
+  const current = () => passages.at(-1)?.children ?? [];
+  for (const segment of segments) {
+    if (segment.type === "gap") {
+      current().push(gapNode(segment));
+      continue;
+    }
+    segment.text.split("\n").forEach((line, index) => {
+      if (index > 0) passages.push(inlineOf("question-passage", ""));
+      if (line) current().push(...(paragraphOf(line).children ?? []));
+    });
+  }
+  return passages;
+}
+
 /**
  * A question written as a block in a document, from the check it was. Null
  * for kinds documents cannot hold yet.
@@ -213,7 +277,8 @@ export function questionNode(block: LessonBlock): ContentNode | null {
     block.type !== "number" &&
     block.type !== "ordering" &&
     block.type !== "matching" &&
-    block.type !== "sorting"
+    block.type !== "sorting" &&
+    block.type !== "gaps"
   )
     return null;
   const base: ContentNode = {
@@ -255,6 +320,14 @@ export function questionNode(block: LessonBlock): ContentNode | null {
         ...(base.children ?? []),
         ...block.answers.map((answer) => inlineOf("question-answer", answer)),
       ],
+    };
+  if (block.type === "gaps")
+    return {
+      ...base,
+      caseSensitive: block.caseSensitive,
+      closeEnough: block.closeEnough,
+      tehMarbuta: block.tehMarbuta,
+      children: [...(base.children ?? []), ...passagesOf(block.segments)],
     };
   if (block.type === "number")
     return {

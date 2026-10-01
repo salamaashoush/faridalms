@@ -8,6 +8,7 @@ import {
   $createTextNode,
   $getRoot,
   $getSelection,
+  $isRangeSelection,
   INSERT_PARAGRAPH_COMMAND,
 } from "lexical";
 import * as v from "valibot";
@@ -18,10 +19,12 @@ import { buildContentEditor } from "./headless";
 import {
   $createCalloutNode,
   $createQuestionNode,
+  $isQuestionGapNode,
   $isQuestionGroupNode,
   $isQuestionNode,
   $isQuestionOptionNode,
   $isQuestionPairNode,
+  $isQuestionPassageNode,
   $isQuestionPromptNode,
   $toggleCorrect,
   QuestionOptionNode,
@@ -37,7 +40,8 @@ function withQuestion(
     | "typedQuestion"
     | "orderingQuestion"
     | "matchingQuestion"
-    | "sortingQuestion",
+    | "sortingQuestion"
+    | "gapsQuestion",
 ) {
   const target = buildContentEditor();
   target.update(
@@ -346,5 +350,78 @@ describe("questions in a document", () => {
         .map((pair) => pair.getOptionId()),
     );
     expect(new Set(ids).size).toBe(3);
+  });
+
+  it("makes a bracketed answer typed in a passage a gap", () => {
+    const target = withQuestion("gapsQuestion");
+    const type = (text: string) =>
+      target.update(
+        () => {
+          const selection = $getSelection();
+          if ($isRangeSelection(selection)) selection.insertText(text);
+        },
+        { discrete: true },
+      );
+    target.update(
+      () => {
+        const question = $getRoot().getChildren().find($isQuestionNode);
+        const [prompt, passage] = question?.getChildren() ?? [];
+        write(prompt as ElementNode, "Fill in the gaps.");
+        if ($isQuestionPassageNode(passage)) passage.selectStart();
+      },
+      { discrete: true },
+    );
+    type("The capital is [Cairo/القاهرة]");
+    type(", on the [Nile|Thames]");
+    type(" river.");
+    const shape = target.read("latest", () => {
+      const passage = $getRoot()
+        .getChildren()
+        .find($isQuestionNode)
+        ?.getChildren()
+        .find($isQuestionPassageNode);
+      return passage
+        ?.getChildren()
+        .map((child) =>
+          $isQuestionGapNode(child)
+            ? `[${child.getTextContent()}]`
+            : child.getTextContent(),
+        );
+    });
+    expect(shape).toEqual([
+      "The capital is ",
+      "[Cairo/القاهرة]",
+      ", on the ",
+      "[Nile|Thames]",
+      " river.",
+    ]);
+    const document = json(target);
+    expect(v.safeParse(contentDocumentSchema, document).success).toBe(true);
+    const block = lessonOfContent(document).blocks.find(
+      (item) => item.type === "gaps",
+    );
+    expect(block?.type === "gaps" ? block.segments : []).toMatchObject([
+      { type: "text", text: "The capital is " },
+      { type: "gap", answers: ["Cairo", "القاهرة"], options: [] },
+      { type: "text", text: ", on the " },
+      { type: "gap", answers: ["Nile"], options: ["Nile", "Thames"] },
+      { type: "text", text: " river." },
+    ]);
+  });
+
+  it("writes brackets in ordinary text as they were typed", () => {
+    const target = buildContentEditor();
+    target.update(
+      () => {
+        const paragraph = $createParagraphNode();
+        $getRoot().clear().append(paragraph);
+        paragraph.select();
+        $getSelection()?.insertText("See [1] below");
+      },
+      { discrete: true },
+    );
+    expect(target.read("latest", () => $getRoot().getTextContent())).toBe(
+      "See [1] below",
+    );
   });
 });

@@ -133,6 +133,35 @@ const lesson: LessonDocument = {
       ],
     },
     {
+      id: "8b4f2a5c-6d9e-4b0f-9c1a-e2f3a4b5c6d7",
+      type: "gaps",
+      prompt: "Fill in the gaps.",
+      points: 2,
+      hint: "",
+      explanation: "",
+      tries: null,
+      segments: [
+        { type: "text", text: "The capital of Egypt is " },
+        {
+          type: "gap",
+          id: "9c5a3b6d-7e0f-4c1a-8d2b-f3a4b5c6d7e8",
+          answers: ["Cairo", "القاهرة"],
+          options: [],
+        },
+        { type: "text", text: ".\nIt stands on the " },
+        {
+          type: "gap",
+          id: "0d6b4c7e-8f1a-4d2b-9e3c-a4b5c6d7e8f9",
+          answers: ["Nile"],
+          options: ["Nile", "Thames", "Seine"],
+        },
+        { type: "text", text: " river." },
+      ],
+      caseSensitive: false,
+      closeEnough: true,
+      tehMarbuta: true,
+    },
+    {
       id: "3e9c7f0b-1d4a-4e5f-8b6c-d4e5f6a7b8c9",
       type: "written",
       prompt: "Why does the poet repeat the last line?",
@@ -172,6 +201,8 @@ describe("lessons written as one document", () => {
     const document = contentOfLesson(lesson);
     if (!document) throw new Error("lesson could not become a document");
     expect(contentPlainText(document)).not.toContain("Cairo");
+    expect(contentPlainText(document)).not.toContain("Thames");
+    expect(contentPlainText(document)).toContain("It stands on the");
     expect(contentPlainText(document)).toContain("The capital of Egypt?");
   });
 });

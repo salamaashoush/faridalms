@@ -454,6 +454,31 @@
   text-align: center;
   content: counter(order);
 }
+.fe .fe-question-passage {
+  position: relative;
+  margin-block: 0.25rem;
+  line-height: 2;
+}
+.fe .fe-question-passage:has(> br:only-child)::before {
+  position: absolute;
+  color: color-mix(in oklab, var(--fe-muted) 70%, transparent);
+  pointer-events: none;
+  content: attr(data-placeholder);
+}
+.fe .fe-question-gap {
+  display: inline-block;
+  min-width: 4rem;
+  margin-inline: 0.125rem;
+  border-radius: 0.25rem;
+  border-block-end: 2px solid var(--primary);
+  background: color-mix(in oklab, var(--primary) 10%, transparent);
+  padding-inline: 0.375rem;
+  line-height: 1.5;
+}
+.fe .fe-question-gap:empty {
+  vertical-align: bottom;
+  height: 1.5em;
+}
 .fe .fe-question-pair {
   display: grid;
   grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);

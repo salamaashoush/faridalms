@@ -1161,6 +1161,9 @@
   "editorQuestionPairAnswer": "ما يناسبه",
   "editorQuestionExtra": "إجابة إضافية لا تناسب شيئًا",
   "editorQuestionGroupName": "اسم المجموعة",
+  "editorQuestionGaps": "املأ الفراغات",
+  "editorQuestionGapsHint": "فقرة فيها كلمات يكملها الطالب",
+  "editorQuestionPassage": "اكتب الفقرة وضع كل إجابة بين [قوسين]",
   "editorQuestionItem": "عنصر",
   "editorQuestionPoints": [
     {

@@ -306,6 +306,14 @@ function render(node: ContentNode, key: string, context: Context): ReactNode {
           {children}
         </div>
       );
+    case "question-passage":
+      return (
+        <div key={key} className="fe-question-passage" dir="auto">
+          {children}
+        </div>
+      );
+    case "question-gap":
+      return <span key={key} className="fe-question-gap" />;
     case "question-side":
       return (
         <div key={key} className="fe-question-side" dir="auto">

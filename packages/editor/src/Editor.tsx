@@ -179,6 +179,7 @@ function Surface({
         ordering: strings.questionOrdering,
         matching: strings.questionMatching,
         sorting: strings.questionSorting,
+        gaps: strings.questionGaps,
       },
       points: strings.questionPoints,
       answerIs: strings.questionAnswerIs,
@@ -191,6 +192,7 @@ function Surface({
       extra: strings.questionExtra,
       groupName: strings.questionGroupName,
       item: strings.questionItem,
+      passage: strings.questionPassage,
     }),
   );
   const [anchor, setAnchor] = useState<HTMLDivElement | null>(null);

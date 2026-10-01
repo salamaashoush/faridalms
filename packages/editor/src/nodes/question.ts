@@ -7,6 +7,7 @@ import type {
   LexicalUpdateJSON,
   NodeKey,
   RangeSelection,
+  TextNode,
   SerializedElementNode,
   Spread,
 } from "lexical";
@@ -14,8 +15,12 @@ import type {
 import { addClassNamesToElement } from "@lexical/utils";
 import {
   $createParagraphNode,
+  $createTextNode,
   $getDocument,
+  $getSelection,
   $isElementNode,
+  $isRangeSelection,
+  $isTextNode,
   ElementNode,
 } from "lexical";
 
@@ -33,6 +38,7 @@ export interface QuestionLabels {
   extra: string;
   groupName: string;
   item: string;
+  passage: string;
 }
 
 const labels = new WeakMap<LexicalEditor, QuestionLabels>();
@@ -626,6 +632,174 @@ export class QuestionSideNode extends ElementNode {
   }
 }
 
+/** A paragraph of a gaps passage; Enter adds another below it. */
+export class QuestionPassageNode extends ElementNode {
+  $config() {
+    return this.config("question-passage", { extends: ElementNode });
+  }
+
+  createDOM(config: EditorConfig, editor: LexicalEditor): HTMLElement {
+    const dom = $getDocument().createElement("div");
+    dom.dataset.questionPassage = "";
+    dom.dataset.placeholder = labels.get(editor)?.passage ?? "";
+    const name = theme(config, "questionPassage");
+    if (name) addClassNamesToElement(dom, name);
+    return dom;
+  }
+
+  updateDOM(): boolean {
+    return false;
+  }
+
+  insertNewAfter(_: RangeSelection, restoreSelection = true): ElementNode {
+    return $partAfter(this, new QuestionPassageNode(), restoreSelection);
+  }
+
+  collapseAtStart(): boolean {
+    const previous = this.getPreviousSibling();
+    if ($isQuestionPassageNode(previous)) return false;
+    return $collapsePart(this);
+  }
+}
+
+export type SerializedQuestionGapNode = Spread<
+  { optionId?: string },
+  SerializedElementNode
+>;
+
+/**
+ * A gap in a passage. Its words are its answers, written the way teachers
+ * already type them: "Cairo/القاهرة" for any of several typed answers,
+ * "right|wrong|wrong" for a list to choose from, the first one right.
+ */
+export class QuestionGapNode extends ElementNode {
+  __optionId: string;
+
+  constructor(optionId: string = crypto.randomUUID(), key?: NodeKey) {
+    super(key);
+    this.__optionId = optionId;
+  }
+
+  $config() {
+    return this.config("question-gap", { extends: ElementNode });
+  }
+
+  static clone(node: QuestionGapNode): QuestionGapNode {
+    return new QuestionGapNode(node.__optionId, node.__key);
+  }
+
+  static importJSON(json: SerializedQuestionGapNode): QuestionGapNode {
+    return new QuestionGapNode().updateFromJSON(json);
+  }
+
+  updateFromJSON(json: LexicalUpdateJSON<SerializedQuestionGapNode>): this {
+    const node = super.updateFromJSON(json).getWritable();
+    node.__optionId = json.optionId ?? crypto.randomUUID();
+    return node;
+  }
+
+  exportJSON(): SerializedQuestionGapNode {
+    return { ...super.exportJSON(), optionId: this.getLatest().__optionId };
+  }
+
+  createDOM(config: EditorConfig): HTMLElement {
+    const dom = $getDocument().createElement("span");
+    dom.dataset.questionGap = "";
+    const name = theme(config, "questionGap");
+    if (name) addClassNamesToElement(dom, name);
+    return dom;
+  }
+
+  updateDOM(): boolean {
+    return false;
+  }
+
+  isInline(): true {
+    return true;
+  }
+
+  canBeEmpty(): false {
+    return false;
+  }
+
+  // Typing at either edge writes passage text, never more answers.
+  canInsertTextBefore(): false {
+    return false;
+  }
+
+  canInsertTextAfter(): false {
+    return false;
+  }
+
+  getOptionId(): string {
+    return this.getLatest().__optionId;
+  }
+
+  setOptionId(optionId: string): this {
+    const writable = this.getWritable();
+    writable.__optionId = optionId;
+    return writable;
+  }
+}
+
+export function $isQuestionPassageNode(
+  node: LexicalNode | null | undefined,
+): node is QuestionPassageNode {
+  return node instanceof QuestionPassageNode;
+}
+
+export function $isQuestionGapNode(
+  node: LexicalNode | null | undefined,
+): node is QuestionGapNode {
+  return node instanceof QuestionGapNode;
+}
+
+const GAP = /\[([^[\]]*[^[\]\s][^[\]]*)\]/;
+
+/**
+ * Closing a bracket in a passage makes what it holds a gap, so "[Cairo]"
+ * typed in the text becomes the gap "Cairo" with the caret after it.
+ */
+export function $typeGap(node: TextNode) {
+  if (!$isQuestionPassageNode(node.getParent()) || !node.isSimpleText()) return;
+  const match = GAP.exec(node.getTextContent());
+  if (!match) return;
+  const start = match.index;
+  const end = start + match[0].length;
+  const parts = node.splitText(start, end);
+  const bracketed = parts[start === 0 ? 0 : 1];
+  if (!bracketed) return;
+  const gap = new QuestionGapNode().append(
+    $createTextNode((match[1] ?? "").trim()),
+  );
+  const selection = $getSelection();
+  const caretInside =
+    $isRangeSelection(selection) &&
+    selection.isCollapsed() &&
+    selection.anchor.key === bracketed.getKey();
+  bracketed.replace(gap);
+  if (caretInside) {
+    const after = gap.getNextSibling();
+    if ($isTextNode(after)) after.select(0, 0);
+    else gap.selectNext();
+  }
+}
+
+/** A gap holds only its words, sits only in a passage and is never empty. */
+export function $repairGap(gap: QuestionGapNode) {
+  if (!$isQuestionPassageNode(gap.getParent())) {
+    gap.replace($createTextNode(`[${gap.getTextContent()}]`));
+    return;
+  }
+  if (gap.getTextContent().trim() === "") {
+    gap.remove();
+    return;
+  }
+  for (const child of gap.getChildren())
+    if (!$isTextNode(child))
+      child.replace($createTextNode(child.getTextContent()));
+}
+
 export function $isQuestionNode(
   node: LexicalNode | null | undefined,
 ): node is QuestionNode {
@@ -713,6 +887,7 @@ export function $createQuestionNode(kind: QuestionKind): QuestionNode {
     question.append($createQuestionPair(), $createQuestionPair());
   if (kind === "sorting")
     question.append($createQuestionGroup(), $createQuestionGroup());
+  if (kind === "gaps") question.append(new QuestionPassageNode());
   return question;
 }
 
@@ -732,7 +907,8 @@ export function $repairQuestion(question: QuestionNode) {
       ((kind === "text" || kind === "matching") &&
         $isQuestionAnswerNode(child)) ||
       (kind === "matching" && $isQuestionPairNode(child)) ||
-      (kind === "sorting" && $isQuestionGroupNode(child));
+      (kind === "sorting" && $isQuestionGroupNode(child)) ||
+      (kind === "gaps" && $isQuestionPassageNode(child));
     if (fits) continue;
     const paragraph = $createParagraphNode();
     if ($isElementNode(child)) paragraph.append(...child.getChildren());

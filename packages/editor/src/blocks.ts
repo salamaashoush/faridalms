@@ -43,6 +43,7 @@ import {
 import {
   ArrowDownUp,
   ArrowLeftRight,
+  Brackets,
   ChevronRight,
   CircleCheck,
   Clapperboard,
@@ -114,7 +115,8 @@ export type BlockType =
   | "numberQuestion"
   | "orderingQuestion"
   | "matchingQuestion"
-  | "sortingQuestion";
+  | "sortingQuestion"
+  | "gapsQuestion";
 
 export type BlockGroup = "text" | "lists" | "media" | "layout" | "questions";
 
@@ -126,6 +128,7 @@ const QUESTION_KIND: Partial<Record<BlockType, QuestionKind>> = {
   orderingQuestion: "ordering",
   matchingQuestion: "matching",
   sortingQuestion: "sorting",
+  gapsQuestion: "gaps",
 };
 
 export interface BlockDefinition {
@@ -391,6 +394,15 @@ export const blockDefinitions: BlockDefinition[] = [
     label: (s) => s.questionOrdering,
     hint: (s) => s.questionOrderingHint,
     keywords: ["question", "order", "sequence", "sort", "سؤال", "ترتيب"],
+    question: true,
+  },
+  {
+    type: "gapsQuestion",
+    group: "questions",
+    icon: Brackets,
+    label: (s) => s.questionGaps,
+    hint: (s) => s.questionGapsHint,
+    keywords: ["question", "gaps", "blanks", "cloze", "fill", "سؤال", "فراغات"],
     question: true,
   },
   {

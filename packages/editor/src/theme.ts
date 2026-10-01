@@ -84,6 +84,8 @@ export const editorTheme: EditorThemeClasses = {
   questionPair: "fe-question-pair",
   questionGroup: "fe-question-group",
   questionSide: "fe-question-side",
+  questionPassage: "fe-question-passage",
+  questionGap: "fe-question-gap",
   columns: "fe-columns",
   column: "fe-column",
   indent: "fe-indent",

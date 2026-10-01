@@ -1145,6 +1145,9 @@
   "editorQuestionPairAnswer": "Its match",
   "editorQuestionExtra": "An extra answer that matches nothing",
   "editorQuestionGroupName": "Group name",
+  "editorQuestionGaps": "Fill in the gaps",
+  "editorQuestionGapsHint": "A passage with words to fill in",
+  "editorQuestionPassage": "Write the passage, putting each answer in [brackets]",
   "editorQuestionItem": "Item",
   "editorQuestionPoints": [
     {

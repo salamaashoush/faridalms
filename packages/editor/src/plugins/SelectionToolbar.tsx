@@ -774,7 +774,7 @@ export function SelectionToolbarPlugin() {
               )}
             </>
           ) : null}
-          {settings.kind === "text" ? (
+          {settings.kind === "text" || settings.kind === "gaps" ? (
             <>
               {toggle(
                 "caseSensitive",

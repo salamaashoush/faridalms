@@ -161,6 +161,9 @@ export interface EditorStrings {
   questionExtra: string;
   questionGroupName: string;
   questionItem: string;
+  questionGaps: string;
+  questionGapsHint: string;
+  questionPassage: string;
   questionNumber: string;
   questionNumberHint: string;
   questionOrdering: string;

@@ -67,14 +67,20 @@ import {
   $isQuestionPairNode,
   $isQuestionPromptNode,
   $isQuestionSideNode,
+  $isQuestionGapNode,
+  $isQuestionPassageNode,
+  $repairGap,
   $repairHolder,
   $repairQuestion,
+  $typeGap,
   $unwrapStrayPart,
   QuestionAnswerNode,
+  QuestionGapNode,
   QuestionGroupNode,
   QuestionNode,
   QuestionOptionNode,
   QuestionPairNode,
+  QuestionPassageNode,
   QuestionPromptNode,
   QuestionSideNode,
   blockIdState,
@@ -118,13 +124,14 @@ function $assignBlockIds(container: ElementNode, seen: Set<string>) {
 
 const questionIdOf = (node: LexicalNode) =>
   $isQuestionNode(node) ? node.getSettings().questionId : null;
-const optionIdOf = (node: LexicalNode) =>
+const hasOptionId = (node: LexicalNode) =>
   $isQuestionOptionNode(node) ||
   $isQuestionAnswerNode(node) ||
   $isQuestionPairNode(node) ||
-  $isQuestionGroupNode(node)
-    ? node.getOptionId()
-    : null;
+  $isQuestionGroupNode(node) ||
+  $isQuestionGapNode(node);
+const optionIdOf = (node: LexicalNode) =>
+  hasOptionId(node) ? node.getOptionId() : null;
 
 /**
  * Answers point at question and option ids, so a copy pasted beside its
@@ -151,9 +158,11 @@ function $uniqueAnswerIds(root: ElementNode, previous: EditorState) {
     for (const part of child.getChildren()) {
       const id = optionIdOf(part);
       if (id) add(id, part);
-      if ($isQuestionGroupNode(part))
-        for (const item of part.getChildren())
-          if ($isQuestionOptionNode(item)) add(item.getOptionId(), item);
+      if ($isQuestionGroupNode(part) || $isQuestionPassageNode(part))
+        for (const item of part.getChildren()) {
+          const nested = optionIdOf(item);
+          if (nested) add(nested, item);
+        }
     }
   }
   for (const [id, nodes] of byId) {
@@ -170,13 +179,7 @@ function $uniqueAnswerIds(root: ElementNode, previous: EditorState) {
       if (node === keeper) continue;
       if ($isQuestionNode(node))
         node.setSettings({ questionId: crypto.randomUUID() });
-      else if (
-        $isQuestionOptionNode(node) ||
-        $isQuestionAnswerNode(node) ||
-        $isQuestionPairNode(node) ||
-        $isQuestionGroupNode(node)
-      )
-        node.setOptionId(crypto.randomUUID());
+      else if (hasOptionId(node)) node.setOptionId(crypto.randomUUID());
     }
   }
 }
@@ -257,7 +260,8 @@ function $enterInQuestion(): boolean {
     node &&
     !$isQuestionPromptNode(node) &&
     !$isQuestionOptionNode(node) &&
-    !$isQuestionAnswerNode(node)
+    !$isQuestionAnswerNode(node) &&
+    !$isQuestionPassageNode(node)
   )
     node = node.getParent();
   if (!node || !$isElementNode(node)) return false;
@@ -412,9 +416,14 @@ export const BlocksExtension = defineExtension({
       editor.registerNodeTransform(QuestionOptionNode, $unwrapStrayPart),
       editor.registerNodeTransform(QuestionAnswerNode, $unwrapStrayPart),
       editor.registerNodeTransform(QuestionSideNode, $unwrapStrayPart),
+      editor.registerNodeTransform(QuestionPassageNode, $unwrapStrayPart),
+      editor.registerNodeTransform(QuestionGapNode, $repairGap),
       editor.registerNodeTransform(QuestionPairNode, $repairHolder),
       editor.registerNodeTransform(QuestionGroupNode, $repairHolder),
-      editor.registerNodeTransform(TextNode, $sanitiseText),
+      editor.registerNodeTransform(TextNode, (node) => {
+        $sanitiseText(node);
+        $typeGap(node);
+      }),
       editor.registerNodeTransform(ParagraphNode, $sanitiseElement),
       editor.registerNodeTransform(LinkNode, $sanitiseLink),
       editor.registerNodeTransform(AutoLinkNode, (node) => {

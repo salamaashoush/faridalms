@@ -41,6 +41,8 @@ const nodeTypes = [
   "question-pair",
   "question-group",
   "question-side",
+  "question-passage",
+  "question-gap",
 ] as const;
 /**
  * The questions a document can ask, each marked by the server from the
@@ -54,6 +56,7 @@ export const questionKinds = [
   "ordering",
   "matching",
   "sorting",
+  "gaps",
 ] as const;
 export type QuestionKind = (typeof questionKinds)[number];
 export const calloutTones = [
@@ -376,6 +379,7 @@ function validNode(node: ContentNode): boolean {
               "question-answer",
               "question-pair",
               "question-group",
+              "question-passage",
             ].includes(child.type),
           )
       );
@@ -390,6 +394,15 @@ function validNode(node: ContentNode): boolean {
         Boolean(node.optionId) &&
         children.length === 2 &&
         children.every((child) => child.type === "question-side")
+      );
+    case "question-passage":
+      return children.every(
+        (child) => inline(child) || child.type === "question-gap",
+      );
+    case "question-gap":
+      return (
+        Boolean(node.optionId) &&
+        children.every((child) => child.type === "text")
       );
     case "question-group":
       return (
@@ -516,7 +529,8 @@ const visit = (node: ContentNode): string => {
   if (node.type === "media" || node.type === "embed") return node.caption ?? "";
   if (node.type === "file") return node.name ?? "";
   // Accepted answers are the key; they stay out of text anyone can search.
-  if (node.type === "question-answer") return "";
+  if (node.type === "question-answer" || node.type === "question-gap")
+    return "";
   return (
     node.text ??
     (node.type === "linebreak"
