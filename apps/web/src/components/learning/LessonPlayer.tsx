@@ -9,6 +9,7 @@ import type {
 } from "@faridalms/domain/learning";
 
 import { allWithoutVowelMarks } from "@faridalms/domain/arabic";
+import { contentPlainText, textDirection } from "@faridalms/domain/content";
 import {
   checkBlocks,
   checkStates,
@@ -34,12 +35,13 @@ import {
   Pencil,
   RotateCcw,
 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import { toast } from "sonner";
 
 import { ButtonLink } from "~/components/app/ButtonLink";
 import { ContentView } from "~/components/content/ContentView";
+import { ReadAloud, YoungContext } from "~/components/learning/ReadAloud";
 import { RecordHeader } from "~/components/system/RecordPage";
 import { Button } from "~/components/ui/button";
 import { Progress } from "~/components/ui/progress";
@@ -187,6 +189,7 @@ function LessonBody({
   position?: string | null;
   onReach?: (blockId: string) => void;
 }) {
+  const young = useContext(YoungContext);
   const settledAbove = (index: number) => {
     const above = blocks.slice(0, index).filter(isCheckBlock);
     return {
@@ -269,7 +272,19 @@ function LessonBody({
             />
           );
         } else if (block.type === "content")
-          body = <ContentView document={block.content} fileUrl={fileUrl} />;
+          body = young ? (
+            <div
+              dir={textDirection(contentPlainText(block.content)) ?? undefined}
+              className="flex items-start gap-3"
+            >
+              <ReadAloud text={contentPlainText(block.content)} />
+              <div className="min-w-0 flex-1">
+                <ContentView document={block.content} fileUrl={fileUrl} />
+              </div>
+            </div>
+          ) : (
+            <ContentView document={block.content} fileUrl={fileUrl} />
+          );
         else if (block.type === "media") body = <Media block={block} />;
         else if (isCheckBlock(block))
           body = (
@@ -559,14 +574,16 @@ export function LessonPlayer({ lessonId }: { lessonId: string }) {
         ]}
       />
       {vowels.toggle}
-      <LessonBody
-        key={data.attempt}
-        blocks={shown.blocks}
-        checks={shown.checks}
-        driver={driver}
-        position={data.position}
-        onReach={reach}
-      />
+      <YoungContext.Provider value={data.young}>
+        <LessonBody
+          key={data.attempt}
+          blocks={shown.blocks}
+          checks={shown.checks}
+          driver={driver}
+          position={data.position}
+          onReach={reach}
+        />
+      </YoungContext.Provider>
       {data.review ? (
         <section
           aria-labelledby="lesson-review"
@@ -760,7 +777,14 @@ export function LessonPreview({ lessonId }: { lessonId: string }) {
         ]}
       />
       {vowels.toggle}
-      <LessonBody key={round} blocks={blocks} checks={checks} driver={driver} />
+      <YoungContext.Provider value={data.young}>
+        <LessonBody
+          key={round}
+          blocks={blocks}
+          checks={checks}
+          driver={driver}
+        />
+      </YoungContext.Provider>
     </article>
   );
 }

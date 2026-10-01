@@ -1934,6 +1934,7 @@ async function seedLearning(
         passScore: null,
         review: false,
         vowelMarks: "shown",
+        young: false,
       });
       lessonIds.push(row.id);
       const content = { version: 2, blocks: lesson.blocks };

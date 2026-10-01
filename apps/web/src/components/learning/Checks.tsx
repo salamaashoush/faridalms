@@ -9,6 +9,7 @@ import { Checkbox as CheckboxPrimitive } from "@base-ui/react/checkbox";
 import { Radio } from "@base-ui/react/radio";
 import { parseNumber } from "@faridalms/domain/answers";
 import { joinedAroundGaps } from "@faridalms/domain/arabic";
+import { textDirection } from "@faridalms/domain/content";
 import { useMutation } from "@tanstack/react-query";
 import {
   ArrowDown,
@@ -37,6 +38,8 @@ import * as m from "~/i18n/messages";
 import { cn } from "~/utils/cn";
 import { formatList, formatNumber } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
+
+import { ReadAloud, YoungContext } from "./ReadAloud";
 
 /**
  * How questions behave: practice marks each answer at once, a quiz keeps
@@ -215,6 +218,22 @@ function CheckStatus({
   return <Outcome view={view} keyText={keyText} />;
 }
 
+/** What a question says, read aloud to a young child: its prompt, then its choices. */
+function spokenOf(block: CheckStudentBlock): string {
+  const parts = [block.prompt];
+  if (block.type === "choice")
+    parts.push(...block.options.map((option) => option.text));
+  if (block.type === "ordering" || block.type === "sorting")
+    parts.push(...block.items.map((item) => item.text));
+  if (block.type === "gaps")
+    parts.push(
+      block.segments
+        .map((segment) => (segment.type === "text" ? segment.text : " … "))
+        .join(""),
+    );
+  return parts.filter(Boolean).join(". ");
+}
+
 function CheckCard({
   block,
   onSubmit,
@@ -230,6 +249,7 @@ function CheckCard({
   status: ReactNode;
   actions: ReactNode;
 }) {
+  const young = useContext(YoungContext);
   const submit = (event: FormEvent) => {
     event.preventDefault();
     onSubmit?.();
@@ -237,17 +257,25 @@ function CheckCard({
   return (
     <form onSubmit={submit} className="rounded-lg border bg-card p-5">
       <fieldset aria-labelledby={legendId} className="grid gap-4">
-        <div className="flex items-start justify-between gap-3">
+        <div
+          // The speaker sits where the question's own text starts.
+          dir={young ? (textDirection(block.prompt) ?? undefined) : undefined}
+          className="flex items-start justify-between gap-3"
+        >
+          {young ? <ReadAloud text={spokenOf(block)} /> : null}
           <p
             id={legendId}
             dir="auto"
-            className="text-base leading-6 font-semibold"
+            className={cn(
+              "min-w-0 flex-1 font-semibold",
+              young ? "text-xl leading-8" : "text-base leading-6",
+            )}
           >
             {block.prompt}
           </p>
           {block.points > 0 ? (
             <span className="mt-0.5 shrink-0 text-[13px] leading-[18px] text-muted-foreground tabular-nums">
-              {m.lrnPoints({ count: block.points })}
+              <bdi>{m.lrnPoints({ count: block.points })}</bdi>
             </span>
           ) : null}
         </div>
@@ -344,6 +372,11 @@ function Retry({
   );
 }
 
+// Young children press and hold as often as they tap, so a long press must
+// choose the option rather than open the system's menu.
+const youngRow =
+  "min-h-16 text-lg leading-7 select-none [-webkit-touch-callout:none]";
+
 const choiceRow =
   "group flex min-h-12 w-full cursor-pointer items-center gap-3 rounded-lg border px-4 py-3 text-start text-sm leading-5 outline-none transition-colors hover:bg-muted/50 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 data-disabled:cursor-default data-disabled:hover:bg-transparent";
 
@@ -431,6 +464,7 @@ function ChoiceCheck({
     view?.response?.type === "choice" ? view.response.optionIds : [],
   );
   const mode = useContext(CheckModeContext);
+  const young = useContext(YoungContext);
   const settled = isSettled(block, view);
   const markOf = (optionId: string): Mark => {
     if (editing || !view || mode === "quiz") return null;
@@ -489,7 +523,14 @@ function ChoiceCheck({
                     : current.filter((item) => item !== option.id),
                 )
               }
-              className={cn(choiceRow, markRow(editing, markOf(option.id)))}
+              className={cn(
+                choiceRow,
+                young && youngRow,
+                markRow(editing, markOf(option.id)),
+              )}
+              onContextMenu={
+                young ? (event) => event.preventDefault() : undefined
+              }
             >
               <span
                 aria-hidden
@@ -518,7 +559,14 @@ function ChoiceCheck({
             <Radio.Root
               key={option.id}
               value={option.id}
-              className={cn(choiceRow, markRow(editing, markOf(option.id)))}
+              className={cn(
+                choiceRow,
+                young && youngRow,
+                markRow(editing, markOf(option.id)),
+              )}
+              onContextMenu={
+                young ? (event) => event.preventDefault() : undefined
+              }
             >
               <span
                 aria-hidden

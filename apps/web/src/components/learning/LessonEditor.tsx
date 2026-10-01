@@ -53,6 +53,7 @@ interface Draft {
   passScore: string;
   review: boolean;
   vowelMarks: VowelMarks;
+  young: boolean;
   content: ContentDocument;
 }
 
@@ -91,6 +92,7 @@ export function LessonEditor({
     passScore: existing?.passScore ? String(existing.passScore) : "",
     review: existing?.review ?? false,
     vowelMarks: existing?.vowelMarks ?? "shown",
+    young: existing?.young ?? false,
     content: existing?.content ?? emptyContent(),
   }));
   const [draft, setDraft] = useState(start);
@@ -154,6 +156,7 @@ export function LessonEditor({
             value.completion === "score" ? Number(value.passScore) : null,
           review: value.review,
           vowelMarks: value.vowelMarks,
+          young: value.young,
           content: shared ? content.current : value.content,
           publish,
         },
@@ -372,6 +375,12 @@ export function LessonEditor({
                   label: VOWEL_MARKS_LABEL[value](),
                 }))}
                 onChange={(value) => set("vowelMarks", value)}
+              />
+              <CheckboxRow
+                label={m.lrnYoung()}
+                hint={m.lrnYoungHint()}
+                checked={draft.young}
+                onChange={(young) => set("young", young)}
               />
               <CheckboxRow
                 label={m.lrnReview()}

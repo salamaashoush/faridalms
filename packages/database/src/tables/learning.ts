@@ -154,6 +154,8 @@ export const lessons = core.table.withRLS(
     passScore: smallint("pass_score"),
     /** Questions missed on the first try are asked once more at the end. */
     review: boolean("review").notNull().default(false),
+    /** Set out for young children: text read aloud on a tap, larger answers. */
+    young: boolean("young").notNull().default(false),
     /** Whether students read vowel marks, or choose for themselves. */
     vowelMarks: text("vowel_marks")
       .$type<"shown" | "hidden" | "choice">()
