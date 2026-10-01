@@ -348,6 +348,16 @@ export const initiateUploadSchema = v.pipe(
       v.minValue(1),
       v.maxValue(MAX_FILE_BYTES),
     ),
+    /**
+     * Where the file is going, so the right storage cap is checked: a class's
+     * or module's area, or a student's work on an assignment.
+     */
+    destination: v.optional(
+      v.object({
+        type: v.picklist(["class", "module", "work"]),
+        id: v.pipe(v.string(), v.uuid()),
+      }),
+    ),
   }),
   v.forward(
     v.check(
@@ -358,6 +368,11 @@ export const initiateUploadSchema = v.pipe(
   ),
 );
 export type InitiateUploadInput = v.InferOutput<typeof initiateUploadSchema>;
+export type UploadDestination = NonNullable<InitiateUploadInput["destination"]>;
+
+/** Which storage an upload counts against and is refused by when full. */
+export const STORAGE_SCOPES = ["school", "class", "module", "person"] as const;
+export type StorageScope = (typeof STORAGE_SCOPES)[number];
 
 export function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;

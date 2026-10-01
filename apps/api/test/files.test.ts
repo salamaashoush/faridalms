@@ -1,10 +1,23 @@
 import type { ContentDocument } from "@faridalms/domain/content";
 
+import { openDirectorySync } from "@faridalms/database/directory/client";
 import { plainContent } from "@faridalms/domain/content-conversion";
+import { SQL } from "bun";
 import { describe, expect, test } from "bun:test";
+import { sql } from "drizzle-orm";
 
 import { sweepTenantFiles } from "../src/files/sweep";
-import { login, raw, rejection, seeded, sessionFor, signedIn } from "./harness";
+import { reportTenantUsage } from "../src/files/upkeep";
+import {
+  login,
+  raw,
+  rejection,
+  seeded,
+  sessionFor,
+  setPlan,
+  signedIn,
+  testDirectory,
+} from "./harness";
 
 const text = (value: string) => new Blob([value]);
 
@@ -553,5 +566,131 @@ describe("replacing a file in a class's files", () => {
     expect(await (await readFile(student.token, first)).text()).toBe(
       "version one",
     );
+  });
+});
+
+const declare = (
+  api: Awaited<ReturnType<typeof sessionFor>>["api"],
+  sizeBytes: number,
+  destination?: { type: "class" | "module" | "work"; id: string },
+  purpose: "document_media" | "submission" = "document_media",
+) =>
+  api.files.initiate({
+    purpose,
+    name: "notes.txt",
+    mediaType: "text/plain",
+    sizeBytes,
+    destination,
+  });
+
+describe("storage caps", () => {
+  test("refuse what a class, a person or the school has no room for, warn near the limit, and never refuse a hand-in", async () => {
+    const teacher = await sessionFor("northwind", login("teacher", 0, 1));
+    const student = await sessionFor("northwind", login("student"));
+    const school = seeded().tenants[0]?.schools.find(
+      (row) => row.slug === "northwind",
+    );
+    if (!school) throw new Error("no northwind school");
+    const me = await student.api.identity.currentUser();
+    const { classes } = await teacher.api.coursework.options();
+    let target: (typeof classes)[number] | undefined;
+    for (const row of classes.filter((item) => item.classType === "scheduled"))
+      if (
+        (await teacher.api.coursework.groups({ classId: row.id })).roster.some(
+          (pupil) => pupil.id === me.id,
+        )
+      )
+        target = row;
+    if (!target)
+      throw new Error("the student is in none of the teacher's classes");
+    const area = { type: "class" as const, id: target.id };
+    const { usedBytes } = (
+      await teacher.api.files.area({ area, trashed: false })
+    ).files.reduce(
+      (sum, file) => ({ usedBytes: sum.usedBytes + file.sizeBytes }),
+      { usedBytes: 0 },
+    );
+    try {
+      await setPlan(school.id, { classBytes: usedBytes + 1000 });
+      expect(await declare(teacher.api, 10, area)).toMatchObject({
+        warning: null,
+      });
+      expect((await declare(teacher.api, 900, area)).warning).toMatchObject({
+        scope: "class",
+      });
+      expect(await rejection(declare(teacher.api, 2000, area))).toMatchObject({
+        message: "file.quota_class",
+      });
+
+      await setPlan(school.id, { personBytes: 1 });
+      expect(
+        await rejection(declare(student.api, 50, undefined, "submission")),
+      ).toMatchObject({ message: "file.quota_person" });
+      const work = await teacher.api.coursework.save({
+        classId: target.id,
+        title: "Room for hand-ins",
+        brief: plainContent("Hand in your notes."),
+        audience: "class",
+        latePolicy: "accept",
+        submissionFormat: "both",
+        points: 10,
+        rubric: null,
+      });
+      await teacher.api.coursework.publish({
+        id: work.id,
+        expectedVersion: work.version,
+      });
+      expect(
+        (await declare(student.api, 50, { type: "work", id: work.id })).warning,
+      ).toBeNull();
+
+      await setPlan(school.id, { poolBytes: 1 });
+      expect(await rejection(declare(teacher.api, 10))).toMatchObject({
+        message: "file.quota_school",
+      });
+    } finally {
+      await setPlan(school.id, null);
+    }
+  });
+});
+
+describe("storage reports", () => {
+  test("give the directory each school's storage, counting shared bytes once", async () => {
+    const { cell, directory, tenants } = seeded();
+    const tenantId = tenants[0]?.tenantId ?? "";
+    const { syncUrl, adminUrl } = testDirectory();
+    const sync = openDirectorySync(syncUrl);
+    const admin = new SQL(adminUrl);
+    try {
+      await reportTenantUsage(cell, directory, sync, tenantId);
+      const rows = await admin<
+        { school_id: string; used_bytes: string; measured_at: Date }[]
+      >`select school_id, used_bytes, measured_at from school_usage`;
+      const schools = tenants[0]?.schools.map((row) => row.id) ?? [];
+      expect(rows.map((row) => row.school_id).toSorted()).toEqual(
+        schools.toSorted(),
+      );
+      const measured = await cell.withWorker(
+        { tenantId, requestId: crypto.randomUUID(), actor: { kind: "system" } },
+        "read",
+        (tx) =>
+          tx.execute<{ org_id: string; bytes: string }>(sql`
+            select org_id, sum(size_bytes) as bytes from (
+              select distinct on (org_id, storage_key) org_id, size_bytes from core.files
+              where tenant_id = ${tenantId}::uuid and status = 'active'
+                and state in ('initiated', 'quarantined', 'ready') and org_id is not null
+              order by org_id, storage_key) objects
+            group by org_id`),
+      );
+      for (const row of rows)
+        expect(Number(row.used_bytes)).toBe(
+          Number(
+            measured.find((item) => item.org_id === row.school_id)?.bytes ?? 0,
+          ),
+        );
+    } finally {
+      await sync.close();
+      await admin.close();
+    }
   });
 });

@@ -1,15 +1,23 @@
+import type { StorageUse } from "@faridalms/database/stores/files";
 import type { Capability } from "@faridalms/domain/capabilities";
-import type { FilePurpose } from "@faridalms/domain/file";
+import type {
+  FilePurpose,
+  InitiateUploadInput,
+  StorageScope,
+} from "@faridalms/domain/file";
 
 import {
   adoptFiles,
   areaFiles,
+  areaStorage,
   fileById,
   filesByIds,
   fileVersions,
   initiateFile,
+  personStorage,
   renameAreaFile,
   replaceFileBytes,
+  schoolStorage,
   trashAreaFile,
 } from "@faridalms/database/stores/files";
 import {
@@ -18,6 +26,7 @@ import {
   initiateUploadSchema,
   safeFilename,
 } from "@faridalms/domain/file";
+import { limitsOf, WARN_SHARE } from "@faridalms/domain/plans";
 import { ORPCError } from "@orpc/server";
 import * as v from "valibot";
 
@@ -29,7 +38,7 @@ import {
   requireCapability,
   writeProcedure,
 } from "../core/procedure";
-import { canReadFile, mayKeepArea } from "../files/authorize";
+import { canReadFile, mayKeepArea, mayWorkOn } from "../files/authorize";
 
 const UPLOADERS: Record<FilePurpose, Capability[]> = {
   attachment: ["assignments:author", "messages:send"],
@@ -59,9 +68,11 @@ export const initiate = writeProcedure
     requireCapability(context, ...UPLOADERS[input.purpose]);
     if (input.sizeBytes > context.maxUploadBytes)
       throw new ORPCError("BAD_REQUEST", { message: "file.too_large" });
+    const warning = await roomFor(context, input);
     const file = await initiateFile(context.tx, {
       tenantId: context.tenantId,
       userId: context.actor.userId,
+      orgId: context.schoolId,
       purpose: input.purpose,
       name: safeFilename(input.name),
       mediaType: input.mediaType.toLowerCase().split(";")[0]?.trim() ?? "",
@@ -72,8 +83,71 @@ export const initiate = writeProcedure
       name: file.name,
       mediaType: file.mediaType,
       sizeBytes: file.sizeBytes,
+      warning,
     };
   });
+
+/**
+ * Checks the storage an upload counts against, refusing one that would not
+ * fit, and names the fullest past the warning share. A student's work on an
+ * assignment still open to them is never refused, only counted.
+ */
+async function roomFor(
+  context: UnitContext,
+  input: InitiateUploadInput,
+): Promise<{
+  scope: StorageScope;
+  usedBytes: number;
+  limitBytes: number;
+} | null> {
+  const destination = input.destination;
+  if (
+    destination?.type === "work" &&
+    (await mayWorkOn(context, destination.id))
+  )
+    return null;
+  const limits = limitsOf(context.school.plan);
+  const scopes: { scope: StorageScope; used: StorageUse; limit: number }[] = [
+    {
+      scope: "school",
+      used: await schoolStorage(context.tx, context.tenantId, context.schoolId),
+      limit: limits.poolBytes,
+    },
+  ];
+  if (destination?.type === "class" || destination?.type === "module") {
+    const area = { type: destination.type, id: destination.id };
+    if (!(await mayKeepArea(context, area))) throw new ORPCError("NOT_FOUND");
+    scopes.push({
+      scope: destination.type,
+      used: await areaStorage(context.tx, context.tenantId, area),
+      limit:
+        destination.type === "class" ? limits.classBytes : limits.moduleBytes,
+    });
+  } else if (destination?.type === "work" || input.purpose !== "document_media")
+    scopes.push({
+      scope: "person",
+      used: await personStorage(
+        context.tx,
+        context.tenantId,
+        context.actor.userId,
+      ),
+      limit: limits.personBytes,
+    });
+  for (const { scope, used, limit } of scopes)
+    if (used.usedBytes + input.sizeBytes > limit)
+      throw new ORPCError("FORBIDDEN", { message: `file.quota_${scope}` });
+  const fullest = scopes
+    .map(({ scope, used, limit }) => ({
+      scope,
+      usedBytes: used.usedBytes + input.sizeBytes,
+      limitBytes: limit,
+    }))
+    .toSorted((a, b) => b.usedBytes / b.limitBytes - a.usedBytes / a.limitBytes)
+    .at(0);
+  return fullest && fullest.usedBytes >= fullest.limitBytes * WARN_SHARE
+    ? fullest
+    : null;
+}
 
 async function keptArea(
   context: UnitContext,

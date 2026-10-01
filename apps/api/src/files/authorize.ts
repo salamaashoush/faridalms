@@ -121,6 +121,17 @@ export async function canReadFile(
   return false;
 }
 
+let openWork: HostReader = () => Promise.resolve(false);
+
+/** How coursework tells whether a student may still add work to an assignment. */
+export function registerOpenWork(check: HostReader) {
+  openWork = check;
+}
+
+export function mayWorkOn(context: UnitContext, assignmentId: string) {
+  return openWork(context, assignmentId);
+}
+
 const held = (file: StoredFile, by: { type: string; id: string }) =>
   file.hostType === by.type && file.hostId === by.id;
 
@@ -151,6 +162,7 @@ export async function placeMedia<T>(
         ? await copyIntoHost(context.tx, {
             tenantId: context.tenantId,
             userId: context.actor.userId,
+            orgId: context.schoolId,
             host: keeper,
             sourceId: file.id,
           })

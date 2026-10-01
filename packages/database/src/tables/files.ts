@@ -121,6 +121,8 @@ export const files = core.table.withRLS(
     uploadedByUserId: uuid("uploaded_by_user_id"),
     hostType: text("host_type"),
     hostId: uuid("host_id"),
+    /** The school the file was uploaded in, whose storage it uses. */
+    orgId: uuid("org_id"),
     purpose: text("purpose").$type<FilePurpose>().notNull(),
     name: text("name").notNull(),
     mediaType: text("media_type").notNull(),
@@ -162,6 +164,7 @@ export const files = core.table.withRLS(
       [tenantKeys.tenantId, tenantKeys.purpose, tenantKeys.keyVersion],
     ),
     fk("files", [t.tenantId, t.uploadedByUserId], [users.tenantId, users.id]),
+    fk("files", [t.tenantId, t.orgId], [orgs.tenantId, orgs.id]),
     ck("files", "host_type", sql`host_type ~ '^[a-z][a-z0-9_]{1,62}$'`),
     ck(
       "files",
@@ -227,6 +230,9 @@ export const files = core.table.withRLS(
       .on(t.tenantId, t.state, t.createdAt)
       .where(sql`status = 'active'`),
     index("files_storage_key_idx").on(t.tenantId, t.storageKey),
+    index("files_org_idx")
+      .on(t.tenantId, t.orgId)
+      .where(sql`status = 'active'`),
     index("files_trashed_idx")
       .on(t.tenantId, t.trashedAt)
       .where(sql`status = 'active' and trashed_at is not null`),

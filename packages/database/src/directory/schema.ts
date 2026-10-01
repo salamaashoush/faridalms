@@ -1,9 +1,11 @@
 import { sql } from "drizzle-orm";
 import {
+  bigint,
   boolean,
   check,
   foreignKey,
   index,
+  integer,
   jsonb,
   pgTable,
   text,
@@ -217,6 +219,61 @@ export const integrationClients = pgTable(
     ),
     check("integration_clients_kind_check", sql`kind in ('oneroster', 'lti')`),
     index("integration_clients_tenant_idx").on(t.tenantId),
+  ],
+);
+
+/**
+ * What a school's plan allows: storage for the school and caps for each
+ * class, module and person, and which modules it may use. A missing row or
+ * a null means the platform's default.
+ */
+export const schoolPlans = pgTable(
+  "school_plans",
+  {
+    schoolId: uuid("school_id").primaryKey(),
+    poolBytes: bigint("pool_bytes", { mode: "number" }),
+    classBytes: bigint("class_bytes", { mode: "number" }),
+    moduleBytes: bigint("module_bytes", { mode: "number" }),
+    personBytes: bigint("person_bytes", { mode: "number" }),
+    modules: text("modules").array(),
+    updatedAt: instant("updated_at")
+      .notNull()
+      .default(sql`statement_timestamp()`),
+  },
+  (t) => [
+    foreignKey({
+      name: "school_plans_school_id_fkey",
+      columns: [t.schoolId],
+      foreignColumns: [schools.id],
+    }),
+    check("school_plans_pool_bytes_check", sql`pool_bytes > 0`),
+    check("school_plans_class_bytes_check", sql`class_bytes > 0`),
+    check("school_plans_module_bytes_check", sql`module_bytes > 0`),
+    check("school_plans_person_bytes_check", sql`person_bytes > 0`),
+    check(
+      "school_plans_modules_check",
+      sql`modules <@ array['elearning', 'early_years', 'video', 'coding']::text[]`,
+    ),
+  ],
+);
+
+/** How much storage a school uses, as its cell last measured. */
+export const schoolUsage = pgTable(
+  "school_usage",
+  {
+    schoolId: uuid("school_id").primaryKey(),
+    usedBytes: bigint("used_bytes", { mode: "number" }).notNull(),
+    fileCount: integer("file_count").notNull(),
+    measuredAt: instant("measured_at").notNull(),
+  },
+  (t) => [
+    foreignKey({
+      name: "school_usage_school_id_fkey",
+      columns: [t.schoolId],
+      foreignColumns: [schools.id],
+    }),
+    check("school_usage_used_bytes_check", sql`used_bytes >= 0`),
+    check("school_usage_file_count_check", sql`file_count >= 0`),
   ],
 );
 

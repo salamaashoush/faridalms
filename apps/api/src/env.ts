@@ -47,6 +47,10 @@ export const env = v.parse(
       FILE_BUCKET: v.optional(v.pipe(v.string(), v.minLength(1))),
       PUBLIC_MEDIA_BUCKET: v.optional(v.pipe(v.string(), v.minLength(1))),
       MAX_UPLOAD_BYTES: v.optional(positiveInteger, String(25 * 1024 * 1024)),
+      FILE_SWEEP_MS: v.optional(positiveInteger, String(60 * 60 * 1000)),
+      // The directory_sync login, for reporting each school's storage; without it nothing is reported.
+      DIRECTORY_SYNC_URL: v.optional(v.pipe(v.string(), v.url())),
+      USAGE_REPORT_MS: v.optional(positiveInteger, String(5 * 60 * 1000)),
       // host:port of a clamd daemon; uploads are only signature-checked without one.
       CLAMD_ADDRESS: v.optional(v.pipe(v.string(), v.regex(/^[^\s:]+:\d+$/))),
       // Transactional email and SMS gateways that accept a JSON POST.

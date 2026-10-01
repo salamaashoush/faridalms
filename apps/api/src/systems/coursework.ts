@@ -140,6 +140,7 @@ import {
 } from "../core/quiz";
 import {
   registerArea,
+  registerOpenWork,
   registerHostReader,
   registerHostWriter,
   registerLiveRules,
@@ -1332,6 +1333,15 @@ async function learnerAssignment(context: UnitContext, assignmentId: string) {
   await requireOpenYear(context, assignment.schoolYearId);
   return { assignment, dueAt: recipient.dueAt ?? assignment.dueAt };
 }
+
+registerOpenWork(async (context, assignmentId) => {
+  try {
+    await learnerAssignment(context, assignmentId);
+    return true;
+  } catch {
+    return false;
+  }
+});
 
 /** Autosaves the student's draft: written work and attached files, nothing handed in. */
 export const saveDraft = writeProcedure

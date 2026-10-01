@@ -1,4 +1,5 @@
 import type { Cell } from "@faridalms/database/context";
+import type { Directory } from "@faridalms/database/directory/client";
 import type { SeededTenant } from "@faridalms/database/seed";
 import type { RouterClient } from "@orpc/server";
 
@@ -55,6 +56,7 @@ interface State {
   handler: (request: Request) => Promise<Response>;
   filesHost: (request: Request) => Promise<Response>;
   cell: Cell;
+  directory: Directory;
   cellSecret: Uint8Array<ArrayBuffer>;
   collabUrl: string;
   files: FileStore;
@@ -122,6 +124,7 @@ export async function setUp() {
     handler,
     filesHost,
     cell,
+    directory,
     cellSecret,
     collabUrl: urlFor(cellName, "collab"),
     files,
@@ -138,6 +141,43 @@ export async function tearDown() {
   await dropDatabase(admin, cellName);
   await dropDatabase(admin, directoryName);
   await admin.close();
+}
+
+/** The test directory as the cell's sync job reaches it, and as a superuser reads it. */
+export function testDirectory() {
+  return {
+    syncUrl: urlFor(directoryName, "directory_sync"),
+    adminUrl: urlFor(directoryName),
+  };
+}
+
+/** Writes a school's plan in the test directory, as the operator console would. */
+export async function setPlan(
+  schoolId: string,
+  plan: {
+    poolBytes?: number;
+    classBytes?: number;
+    moduleBytes?: number;
+    personBytes?: number;
+    modules?: string[];
+  } | null,
+) {
+  const admin = new SQL(urlFor(directoryName));
+  try {
+    if (plan === null)
+      await admin`delete from school_plans where school_id = ${schoolId}::uuid`;
+    else
+      await admin`
+        insert into school_plans (school_id, pool_bytes, class_bytes, module_bytes,
+          person_bytes, modules)
+        values (${schoolId}::uuid, ${plan.poolBytes ?? null}, ${plan.classBytes ?? null},
+          ${plan.moduleBytes ?? null}, ${plan.personBytes ?? null}, ${plan.modules ?? null})
+        on conflict (school_id) do update set pool_bytes = excluded.pool_bytes,
+          class_bytes = excluded.class_bytes, module_bytes = excluded.module_bytes,
+          person_bytes = excluded.person_bytes, modules = excluded.modules`;
+  } finally {
+    await admin.close();
+  }
 }
 
 export function seeded() {

@@ -1,6 +1,9 @@
 import { openCell } from "@faridalms/database/context";
 import { localKek } from "@faridalms/database/crypto";
-import { openDirectory } from "@faridalms/database/directory/client";
+import {
+  openDirectory,
+  openDirectorySync,
+} from "@faridalms/database/directory/client";
 import { join } from "node:path";
 
 import { createApp } from "./app";
@@ -9,6 +12,7 @@ import { env } from "./env";
 import { createFilesHost, linkKey } from "./files/links";
 import { createScanner } from "./files/scan";
 import { DiskFileStore, PUBLIC_KEY, S3FileStore } from "./files/store";
+import { startFileUpkeep } from "./files/upkeep";
 import { createProvider } from "./notifications/providers";
 import { startDelivery } from "./notifications/scheduler";
 
@@ -99,6 +103,22 @@ const stopDelivery =
       })
     : null;
 
+const directorySync = env.DIRECTORY_SYNC_URL
+  ? openDirectorySync(env.DIRECTORY_SYNC_URL)
+  : null;
+// Sweeps and reports write as the worker, so they run only where it can log in.
+const stopUpkeep = env.CELL_WORKER_URL
+  ? startFileUpkeep({
+      cell,
+      directory,
+      sync: directorySync,
+      cellId: env.CELL_ID,
+      store: stores.files,
+      sweepMs: env.FILE_SWEEP_MS,
+      reportMs: env.USAGE_REPORT_MS,
+    })
+  : null;
+
 let stopping = false;
 async function shutdown() {
   if (stopping) return;
@@ -106,6 +126,8 @@ async function shutdown() {
   await server.stop();
   await filesServer.stop();
   await stopDelivery?.();
+  await stopUpkeep?.();
+  await directorySync?.close();
   await cell.close();
   await directory.close();
   process.exit(0);

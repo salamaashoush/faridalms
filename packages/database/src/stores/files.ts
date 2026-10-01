@@ -66,6 +66,8 @@ export async function initiateFile(
   input: {
     tenantId: string;
     userId: string;
+    /** The school the upload is made in. */
+    orgId: string;
     purpose: FilePurpose;
     name: string;
     mediaType: string;
@@ -77,10 +79,11 @@ export async function initiateFile(
   );
   if (!id) throw new Error("no id for the file");
   const [row] = await tx.execute<FileRecord>(sql`
-    insert into core.files (tenant_id, id, uploaded_by_user_id, purpose, name, media_type,
-      size_bytes, storage_key)
-    values (${input.tenantId}::uuid, ${id}::uuid, ${input.userId}::uuid, ${input.purpose},
-      ${input.name}, ${input.mediaType}, ${input.sizeBytes}, ${quarantineKey(input.tenantId, id)})
+    insert into core.files (tenant_id, id, uploaded_by_user_id, org_id, purpose, name,
+      media_type, size_bytes, storage_key)
+    values (${input.tenantId}::uuid, ${id}::uuid, ${input.userId}::uuid, ${input.orgId}::uuid,
+      ${input.purpose}, ${input.name}, ${input.mediaType}, ${input.sizeBytes},
+      ${quarantineKey(input.tenantId, id)})
     returning ${columns}`);
   if (!row) throw new Error("file was not recorded");
   return fileOf(row);
@@ -398,6 +401,7 @@ export async function copyIntoHost(
   input: {
     tenantId: string;
     userId: string;
+    orgId: string;
     host: { type: string; id: string };
     sourceId: string;
   },
@@ -410,11 +414,11 @@ export async function copyIntoHost(
     limit 1`);
   if (existing) return existing.id;
   const [created] = await tx.execute<{ id: string }>(sql`
-    insert into core.files (tenant_id, uploaded_by_user_id, purpose, name, media_type,
+    insert into core.files (tenant_id, uploaded_by_user_id, org_id, purpose, name, media_type,
       size_bytes, sha256, state, storage_key, encryption, key_version, scanned_at,
       scan_engine, ready_at, linked_at, width, height, duration_ms, derivatives,
       host_type, host_id, metadata)
-    select tenant_id, ${input.userId}::uuid, 'document_media', name, media_type,
+    select tenant_id, ${input.userId}::uuid, ${input.orgId}::uuid, 'document_media', name, media_type,
       size_bytes, sha256, state, storage_key, encryption, key_version, scanned_at,
       scan_engine, ready_at, statement_timestamp(), width, height, duration_ms, derivatives,
       ${input.host.type}, ${input.host.id}::uuid,
@@ -590,11 +594,11 @@ export async function replaceFileBytes(
       where tenant_id = ${input.tenantId}::uuid and id = ${input.sourceId}::uuid
         and status = 'active' and state = 'ready'),
     kept as (
-      insert into core.files (tenant_id, uploaded_by_user_id, purpose, name, media_type,
+      insert into core.files (tenant_id, uploaded_by_user_id, org_id, purpose, name, media_type,
         size_bytes, sha256, state, storage_key, encryption, key_version, scanned_at,
         scan_engine, ready_at, linked_at, width, height, duration_ms, derivatives,
         host_type, host_id, trashed_at, metadata)
-      select t.tenant_id, t.uploaded_by_user_id, t.purpose, t.name, t.media_type,
+      select t.tenant_id, t.uploaded_by_user_id, t.org_id, t.purpose, t.name, t.media_type,
         t.size_bytes, t.sha256, t.state, t.storage_key, t.encryption, t.key_version,
         t.scanned_at, t.scan_engine, t.ready_at, statement_timestamp(), t.width, t.height,
         t.duration_ms, t.derivatives, 'file_version', t.id, statement_timestamp(),
@@ -629,4 +633,72 @@ export async function fileVersions(
       and host_id = ${fileId}::uuid and status = 'active'
     order by trashed_at desc`);
   return rows.map(fileOf);
+}
+
+export interface StorageUse {
+  usedBytes: number;
+  fileCount: number;
+}
+
+/**
+ * Storage counted once per stored object, since copies and versions share
+ * bytes; uploads still arriving count by their declared size.
+ */
+const counted = (where: ReturnType<typeof sql>) => sql`
+  select coalesce(sum(size_bytes), 0) as used_bytes, count(*) as file_count from (
+    select distinct on (storage_key) size_bytes from core.files f
+    where f.status = 'active' and f.state in ('initiated', 'quarantined', 'ready')
+      and ${where}
+    order by storage_key) objects`;
+
+async function measure(
+  tx: Tx,
+  query: ReturnType<typeof sql>,
+): Promise<StorageUse> {
+  const [row] = await tx.execute<{
+    used_bytes: string | number;
+    file_count: string | number;
+  }>(query);
+  return {
+    usedBytes: Number(row?.used_bytes ?? 0),
+    fileCount: Number(row?.file_count ?? 0),
+  };
+}
+
+/** Everything uploaded in a school, the pool its plan sets. */
+export function schoolStorage(tx: Tx, tenantId: string, orgId: string) {
+  return measure(
+    tx,
+    counted(sql`f.tenant_id = ${tenantId}::uuid and f.org_id = ${orgId}::uuid`),
+  );
+}
+
+/** A class's or module's area, with the previous versions it keeps. */
+export function areaStorage(
+  tx: Tx,
+  tenantId: string,
+  area: { type: string; id: string },
+) {
+  return measure(
+    tx,
+    counted(sql`f.tenant_id = ${tenantId}::uuid and (
+      (f.host_type = ${area.type} and f.host_id = ${area.id}::uuid)
+      or (f.host_type = 'file_version' and f.host_id in (
+        select a.id from core.files a
+        where a.tenant_id = ${tenantId}::uuid and a.host_type = ${area.type}
+          and a.host_id = ${area.id}::uuid and a.status = 'active')))`),
+  );
+}
+
+/**
+ * A person's own work: what they uploaded that sits outside class and
+ * module areas, as answers, hand-ins, messages and uploads not yet placed.
+ */
+export function personStorage(tx: Tx, tenantId: string, userId: string) {
+  return measure(
+    tx,
+    counted(sql`f.tenant_id = ${tenantId}::uuid and f.uploaded_by_user_id = ${userId}::uuid
+      and (f.host_type is null
+        or f.host_type in ('submission', 'submission_attempt', 'message'))`),
+  );
 }

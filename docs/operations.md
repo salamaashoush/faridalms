@@ -41,6 +41,22 @@ For the local Northwind database, `bun run db:init` creates the control database
 missing, migrates both stores and registers the school without resetting data.
 It deliberately does not run the destructive demonstration seed.
 
+## Storage limits
+
+Each school has a storage pool, and caps for each class's and module's files
+and for each person's own work (answers, hand-ins, messages, uploads not yet
+placed). The defaults are 100 GB, 1 GB, 1 GB and 500 MB; a school's plan in
+the directory (`school_plans`, set by the operator console) overrides any of
+them. An upload that would not fit is refused when it is declared, with
+`file.quota_school`, `file.quota_class`, `file.quota_module` or
+`file.quota_person`; past 80% the upload's answer carries a warning. A
+student's work on an assignment still open to them is never refused, only
+counted. Bytes shared by copies and previous versions count once.
+
+With `DIRECTORY_SYNC_URL` (the `directory_sync` login) set, each worker-capable
+replica reports every school's storage to the directory every
+`USAGE_REPORT_MS` (default five minutes), for the operator console.
+
 ## Private files
 
 Uploads are private objects owned by the API. A client first declares a file
@@ -90,8 +106,8 @@ Files stored before a scanner was configured have no `scanned_at` and are not
 rescanned automatically. Refused uploads keep their record with a
 `rejection_reason` and lose their bytes at once.
 
-Each API replica runs a sweep every `FILE_SWEEP_MS` (default one hour) over every
-active school. An upload still `initiated` after 24 hours is rejected as
+Each API replica that can log in as the worker (`CELL_WORKER_URL`) runs a sweep
+every `FILE_SWEEP_MS` (default one hour) over every active school. An upload still `initiated` after 24 hours is rejected as
 `abandoned` and its bytes removed. A ready file that no record and no stored
 document has referred to for 7 days after completion is deleted, record first
 and bytes second, and rejected records are deleted after 30 days. References
