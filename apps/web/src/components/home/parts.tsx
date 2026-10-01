@@ -46,7 +46,7 @@ export function HomeCard({
           <Link
             {...action.link}
             className={cn(
-              "inline-flex min-h-8 items-center px-2 text-sm font-medium text-primary underline-offset-4 hover:underline",
+              "inline-flex min-h-8 items-center rounded-md px-2 text-sm font-medium text-primary underline-offset-4 hover:underline",
               phoneLink,
             )}
           >
@@ -74,17 +74,25 @@ export function HomeItem({
   status?: ReactNode;
 }) {
   const shown = (facts ?? []).filter(Boolean);
+  // The title's first line and the status share one row box, as tall as
+  // the title's link is on a phone, so the two line up.
+  const row = "flex min-h-5 items-center max-md:min-h-10";
   return (
-    <li className="flex flex-wrap items-start justify-between gap-x-6 gap-y-1 py-3">
+    <li className="flex items-start justify-between gap-x-4 py-3">
       <div className="grid min-w-0 gap-0.5">
-        {title}
+        <div className={row}>{title}</div>
         {shown.length ? (
           <span className="text-[13px] leading-[18px] text-muted-foreground">
-            {shown.join(" · ")}
+            {shown.map((fact, index) => (
+              <span key={fact}>
+                {index ? " · " : null}
+                <span className="whitespace-nowrap">{fact}</span>
+              </span>
+            ))}
           </span>
         ) : null}
       </div>
-      {status}
+      {status ? <div className={cn(row, "shrink-0")}>{status}</div> : null}
     </li>
   );
 }

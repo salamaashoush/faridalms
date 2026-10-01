@@ -762,13 +762,8 @@ export function DataTable<T extends { id: string }, S extends string>({
               >
                 {card.leading?.(row)}
                 <div className="grid min-w-0 flex-1 gap-0.5">
-                  <div className="flex min-w-0 items-center gap-2">
-                    <div className="min-w-0 truncate text-sm leading-5">
-                      {card.title(row)}
-                    </div>
-                    {card.status ? (
-                      <div className="ms-auto shrink-0">{card.status(row)}</div>
-                    ) : null}
+                  <div className="min-w-0 truncate text-sm leading-5">
+                    {card.title(row)}
                   </div>
                   {card.fact ? (
                     <div className="truncate text-[13px] leading-[18px] text-muted-foreground">
@@ -776,6 +771,11 @@ export function DataTable<T extends { id: string }, S extends string>({
                     </div>
                   ) : null}
                 </div>
+                {/* Status and menu share one trailing group, centred on the
+                    card, so they read as one line beside the text. */}
+                {card.status ? (
+                  <div className="shrink-0">{card.status(row)}</div>
+                ) : null}
                 {rowActions ? (
                   <ActionMenu
                     label={m.indexRowActions({ name: rowLabel(row) })}

@@ -343,11 +343,11 @@ export function RecordSection({
     >
       <div
         className={cn(
-          "flex flex-wrap items-start justify-between gap-x-3",
+          "flex items-start justify-between gap-x-3",
           page ? "" : "px-5 pt-4",
         )}
       >
-        <div className="min-w-0 flex-1 basis-56 py-1.5">
+        <div className="min-w-0 flex-1 py-1.5">
           <h2 id={headingId} className="text-base leading-6 font-semibold">
             {title}
           </h2>
