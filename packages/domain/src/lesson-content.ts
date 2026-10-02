@@ -202,6 +202,7 @@ function questionBlock(node: ContentNode): LessonBlock | null {
       return {
         ...check,
         type: "matching",
+        ...(node.memory ? { memory: true } : {}),
         pairs: parts
           .filter(
             (part) =>
@@ -529,6 +530,7 @@ export function questionNode(block: LessonBlock): ContentNode | null {
   if (block.type === "matching")
     return {
       ...base,
+      ...(block.memory ? { memory: true } : {}),
       children: [
         ...(base.children ?? []),
         ...block.pairs.map((pair): ContentNode => ({

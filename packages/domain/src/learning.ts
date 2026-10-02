@@ -262,6 +262,8 @@ export const lessonBlockSchema = v.variant("type", [
   v.object({
     ...checkFields,
     type: v.literal("matching"),
+    /** Played as memory pairs: cards face down, turned over two at a time. */
+    memory: v.optional(v.boolean()),
     pairs: v.pipe(
       v.array(
         v.pipe(

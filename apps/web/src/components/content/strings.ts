@@ -229,6 +229,7 @@ export function editorStrings(): EditorStrings {
     questionSpoken: m.editorQuestionSpoken(),
     questionCounting: m.editorQuestionCounting(),
     questionTracing: m.editorQuestionTracing(),
+    questionMemory: m.editorQuestionMemory(),
     questionTracingHint: m.editorQuestionTracingHint(),
     questionDrawTrace: m.editorQuestionDrawTrace(),
     questionDrawTraceHint: m.editorQuestionDrawTraceHint(),

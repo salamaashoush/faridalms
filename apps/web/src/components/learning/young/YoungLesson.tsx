@@ -30,6 +30,7 @@ import { Burst } from "./motion";
 import { playSound, setSoundsOn, soundsOn } from "./sounds";
 import { FoundContext, YoungChoice } from "./YoungChoice";
 import { YoungCounting } from "./YoungCounting";
+import { YoungMemory } from "./YoungMemory";
 import { YoungMatching, YoungOrdering, YoungSorting } from "./YoungPlace";
 import { YoungSpoken } from "./YoungSpoken";
 import { YoungTracing } from "./YoungTracing";
@@ -114,6 +115,8 @@ function StepBlock({
   const answer =
     block.type === "choice" ? (
       <YoungChoice block={block} view={view} driver={driver} />
+    ) : block.type === "matching" && block.memory ? (
+      <YoungMemory block={block} view={view} driver={driver} />
     ) : block.type === "matching" ? (
       <YoungMatching block={block} view={view} driver={driver} />
     ) : block.type === "sorting" ? (

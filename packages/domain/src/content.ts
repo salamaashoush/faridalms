@@ -160,6 +160,8 @@ export interface ContentNode {
   countMode?: "count" | "make";
   countLayout?: "scatter" | "line" | "frame";
   flashSeconds?: number | null;
+  /** A matching question played as memory pairs. */
+  memory?: boolean;
   /** A tracing question's model: strokes of x, y points across a unit square. */
   trace?: number[][];
   hint?: string;
@@ -312,6 +314,7 @@ const nodeSchema: v.GenericSchema<ContentNode> = v.lazy(() =>
       countMode: v.optional(v.picklist(["count", "make"])),
       countLayout: v.optional(v.picklist(["scatter", "line", "frame"])),
       flashSeconds: v.optional(v.nullable(integer(1, 10))),
+      memory: v.optional(v.boolean()),
       trace: v.optional(
         v.pipe(
           v.array(

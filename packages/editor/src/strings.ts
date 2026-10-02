@@ -208,6 +208,7 @@ export interface EditorStrings {
   questionSpoken: string;
   questionCounting: string;
   questionTracing: string;
+  questionMemory: string;
   questionTracingHint: string;
   questionDrawTrace: string;
   questionDrawTraceHint: string;

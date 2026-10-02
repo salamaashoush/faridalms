@@ -44,6 +44,7 @@ import { getMessageFromError } from "~/utils/error";
 import { ReadAloud, YoungContext } from "./ReadAloud";
 import { SpokenRecorder, SpokenStatus } from "./SpokenAnswer";
 import { YoungCounting } from "./young/YoungCounting";
+import { YoungMemory } from "./young/YoungMemory";
 import { YoungMatching, YoungOrdering, YoungSorting } from "./young/YoungPlace";
 import { YoungTracing } from "./young/YoungTracing";
 
@@ -1452,6 +1453,12 @@ export function CheckBlockView({
     return (
       <CheckCard block={block} legendId={legend} status={null} actions={null}>
         <YoungCounting block={block} view={view} driver={driver} />
+      </CheckCard>
+    );
+  if (block.type === "matching" && block.memory && mode === "practice")
+    return (
+      <CheckCard block={block} legendId={legend} status={null} actions={null}>
+        <YoungMemory block={block} view={view} driver={driver} />
       </CheckCard>
     );
   if (block.type === "tracing")

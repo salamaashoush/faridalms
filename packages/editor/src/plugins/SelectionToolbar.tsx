@@ -56,6 +56,7 @@ import {
   Trash2,
   Underline,
   Unlink,
+  Grid2x2,
   Signature,
   Volume2,
 } from "lucide-react";
@@ -775,7 +776,8 @@ export function SelectionToolbarPlugin() {
         | "shuffle"
         | "caseSensitive"
         | "closeEnough"
-        | "tehMarbuta",
+        | "tehMarbuta"
+        | "memory",
       label: string,
       icon: React.ReactNode,
     ) => (
@@ -956,6 +958,9 @@ export function SelectionToolbarPlugin() {
               ) : null}
             </>
           ) : null}
+          {settings.kind === "matching" && lessonActivities
+            ? toggle("memory", strings.questionMemory, <Grid2x2 aria-hidden />)
+            : null}
           {settings.kind === "tracing" ? (
             <ToolButton
               label={strings.questionDrawTrace}

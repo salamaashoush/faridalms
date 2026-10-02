@@ -526,3 +526,33 @@ describe("counting", () => {
     });
   });
 });
+
+describe("memory pairs", () => {
+  it("keeps a matching question played as memory pairs through the document", () => {
+    const pairs: LessonDocument = {
+      version: 2,
+      blocks: [
+        {
+          id: partId(40),
+          type: "matching",
+          prompt: "Find the pairs.",
+          points: 0,
+          hint: "",
+          explanation: "",
+          tries: null,
+          memory: true,
+          pairs: [
+            { id: partId(41), prompt: "Cat", answer: "Meow" },
+            { id: partId(42), prompt: "Dog", answer: "Woof" },
+          ],
+          distractors: [],
+        },
+      ],
+    };
+    const document = contentOfLesson(pairs);
+    if (!document) throw new Error("lesson could not become a document");
+    expect(checks(lessonOfContent(document).blocks)).toEqual(
+      checks(pairs.blocks),
+    );
+  });
+});

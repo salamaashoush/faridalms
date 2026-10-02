@@ -223,6 +223,8 @@ export interface QuestionSettings {
   flashSeconds: number | null;
   /** A tracing question's model, the teacher's strokes across a unit square. */
   trace: number[][];
+  /** A matching question played as memory pairs. */
+  memory: boolean;
   hint: string;
   explanation: string;
   numberMode: "exact" | "range";
@@ -252,6 +254,7 @@ export function defaultSettings(kind: QuestionKind): QuestionSettings {
     countLayout: "scatter",
     flashSeconds: null,
     trace: [],
+    memory: false,
     hint: "",
     explanation: "",
     numberMode: "exact",
@@ -347,6 +350,7 @@ export class QuestionNode extends ElementNode {
       countLayout: json.countLayout ?? base.countLayout,
       flashSeconds: json.flashSeconds ?? null,
       trace: json.trace ?? [],
+      memory: json.memory ?? false,
       hint: json.hint ?? "",
       explanation: json.explanation ?? "",
       numberMode: json.numberMode ?? base.numberMode,
@@ -370,6 +374,7 @@ export class QuestionNode extends ElementNode {
       countLayout,
       flashSeconds,
       trace,
+      memory,
       ...settings
     } = this.getLatest().__settings;
     return {
@@ -380,6 +385,7 @@ export class QuestionNode extends ElementNode {
         ? { count, countMode, countLayout, flashSeconds }
         : {}),
       ...(settings.kind === "tracing" ? { trace } : {}),
+      ...(settings.kind === "matching" && memory ? { memory } : {}),
     };
   }
 
