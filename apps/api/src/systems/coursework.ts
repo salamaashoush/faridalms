@@ -1257,14 +1257,27 @@ export const comment = writeProcedure
   .input(saveCommentSchema)
   .handler(async ({ input, context }) => {
     const attempt = await commentableAttempt(context, input.attemptId);
-    if (!input.id)
+    if (!input.id) {
+      // A bank comment the grader may not use counts for nothing.
+      const bank = input.bankId
+        ? await bankCommentById(context.tx, {
+            tenantId: context.tenantId,
+            orgId: context.schoolId,
+            id: input.bankId,
+          })
+        : null;
       return insertComment(context.tx, {
         tenantId: context.tenantId,
         attemptId: attempt.id,
         userId: context.actor.userId,
         anchor: input.anchor,
         body: input.body,
+        bankCommentId:
+          bank && (bank.shared || bank.ownerId === context.actor.userId)
+            ? bank.id
+            : null,
       });
+    }
     const existing = await commentById(context.tx, context.tenantId, input.id);
     if (!existing || existing.attemptId !== attempt.id)
       throw new ORPCError("NOT_FOUND");

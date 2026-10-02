@@ -376,6 +376,8 @@ export const saveCommentSchema = v.object({
     v.minLength(1),
     v.maxLength(MAX_COMMENT_LENGTH),
   ),
+  /** The bank comment it was picked from, if any. */
+  bankId: v.optional(v.union([v.literal(""), id]), ""),
 });
 export type SaveCommentInput = v.InferOutput<typeof saveCommentSchema>;
 

@@ -8,14 +8,21 @@ import { Button } from "@faridalms/ui/button";
 import { Checkbox } from "@faridalms/ui/checkbox";
 import { cn } from "@faridalms/ui/cn";
 import { Textarea } from "@faridalms/ui/textarea";
-import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { LoaderCircle, MessageSquarePlus, Pencil, Trash2 } from "lucide-react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import {
+  BookmarkPlus,
+  LoaderCircle,
+  MessageSquarePlus,
+  Pencil,
+  Trash2,
+} from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { ContentView } from "~/components/content/ContentView";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
+import { commentBankQuery } from "~/queries/coursework";
 import {
   commentOnWork,
   removeWorkComment,
@@ -139,6 +146,25 @@ function Composer({
     setBody(next);
     onDirty(next.trim() !== (comment?.body ?? ""));
   };
+  const [bankId, setBankId] = useState("");
+  const kept = useQuery({ ...commentBankQuery, enabled: !comment }).data;
+  // Three letters in, the bank offers what matches, as Canvas's library does.
+  const typed = body.trim().toLocaleLowerCase();
+  const suggested =
+    !comment && !bankId && typed.length >= 3
+      ? (kept ?? [])
+          .filter(
+            (row) =>
+              row.body.toLocaleLowerCase().includes(typed) &&
+              row.body.toLocaleLowerCase() !== typed,
+          )
+          .slice(0, 3)
+      : [];
+  const pick = (row: { id: string; body: string }) => {
+    write(row.body);
+    setBankId(row.id);
+    field.current?.focus();
+  };
   const save = useMutation({
     mutationFn: async () => {
       const saved = await commentOnWork({
@@ -148,9 +174,10 @@ function Composer({
           expectedVersion: comment?.version ?? 0,
           anchor: passage.anchor,
           body,
+          bankId,
         },
       });
-      if (keep)
+      if (keep && !bankId)
         await saveToCommentBank({
           data: { id: "", expectedVersion: 0, body, shared: share },
         });
@@ -198,7 +225,25 @@ function Composer({
           }
         }}
       />
-      {comment ? null : (
+      {suggested.length ? (
+        <div className="grid gap-1">
+          <p className="text-xs text-muted-foreground">
+            {m.courseworkBankFromBank()}
+          </p>
+          {suggested.map((row) => (
+            <button
+              key={row.id}
+              type="button"
+              dir="auto"
+              onClick={() => pick(row)}
+              className="-mx-2 line-clamp-2 rounded-md px-2 py-1 text-start text-[13px] leading-[18px] outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring/50"
+            >
+              {row.body}
+            </button>
+          ))}
+        </div>
+      ) : null}
+      {comment || bankId ? null : (
         <SmallCheck
           label={m.courseworkBankKeep()}
           checked={keep}
@@ -217,10 +262,11 @@ function Composer({
           compact
           open={bank}
           onOpenChange={setBank}
-          onPick={(picked) => {
-            write(body.trim() ? `${body.trimEnd()} ${picked}` : picked);
-            field.current?.focus();
-          }}
+          onPick={(picked) =>
+            body.trim()
+              ? write(`${body.trimEnd()} ${picked.body}`)
+              : pick(picked)
+          }
         />
         <span className="flex-1" />
         <Button
@@ -420,6 +466,23 @@ export function CommentedWork({
     inline?.kind === "comment"
       ? comments.filter((comment) => inline.ids.includes(comment.id))
       : [];
+  const bank = useQuery({
+    ...commentBankQuery,
+    enabled: Boolean(attemptId) && shown.length > 0,
+  }).data;
+  const keep = useMutation({
+    mutationFn: (body: string) =>
+      saveToCommentBank({
+        data: { id: "", expectedVersion: 0, body, shared: false },
+      }),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({
+        queryKey: commentBankQuery.queryKey,
+      });
+      toast.success(m.courseworkBankKept());
+    },
+    onError: (failure) => toast.error(getMessageFromError(failure)),
+  });
   const remove = useMutation({
     mutationFn: (comment: WorkComment) =>
       removeWorkComment({
@@ -531,6 +594,20 @@ export function CommentedWork({
                         <CommentMeta comment={comment} />
                         {attemptId && comment.authorId === user.id ? (
                           <span className="flex shrink-0 gap-1">
+                            {bank &&
+                            !bank.some((row) => row.body === comment.body) ? (
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="icon-sm"
+                                aria-label={m.courseworkBankKeep()}
+                                title={m.courseworkBankKeep()}
+                                disabled={keep.isPending}
+                                onClick={() => keep.mutate(comment.body)}
+                              >
+                                <BookmarkPlus aria-hidden />
+                              </Button>
+                            ) : null}
                             <Button
                               type="button"
                               variant="ghost"

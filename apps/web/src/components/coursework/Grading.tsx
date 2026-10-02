@@ -514,11 +514,9 @@ function GradeSheet({
                 <CommentBankPicker
                   open={feedbackBank}
                   onOpenChange={setFeedbackBank}
-                  onPick={(picked) =>
+                  onPick={({ body }) =>
                     setFeedback((current) =>
-                      current.trim()
-                        ? `${current.trimEnd()}\n${picked}`
-                        : picked,
+                      current.trim() ? `${current.trimEnd()}\n${body}` : body,
                     )
                   }
                 />

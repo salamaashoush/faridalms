@@ -988,12 +988,14 @@ export async function insertComment(
     userId: string;
     anchor: Record<string, unknown>;
     body: string;
+    bankCommentId: string | null;
   },
 ): Promise<{ id: string; version: number }> {
   const [row] = await tx.execute<{ id: string; version: number }>(sql`
-    insert into core.work_comments (tenant_id, attempt_id, author_user_id, anchor, body)
+    insert into core.work_comments (tenant_id, attempt_id, author_user_id, anchor, body,
+      bank_comment_id)
     values (${input.tenantId}::uuid, ${input.attemptId}::uuid, ${input.userId}::uuid,
-      ${input.anchor}::jsonb, ${input.body})
+      ${input.anchor}::jsonb, ${input.body}, ${input.bankCommentId}::uuid)
     returning id, version`);
   if (!row) throw new Error("comment was not saved");
   return row;
@@ -1036,9 +1038,11 @@ export interface BankCommentRow {
   ownerId: string;
   body: string;
   shared: boolean;
+  /** How often this grader has commented with it. */
+  uses: number;
 }
 
-/** A grader's own comments, latest first, then those shared at the school. */
+/** A grader's own and the school's shared comments, those they use most first. */
 export async function bankCommentsOf(
   tx: Tx,
   input: { tenantId: string; orgId: string; userId: string },
@@ -1049,12 +1053,18 @@ export async function bankCommentsOf(
     owner_user_id: string;
     body: string;
     shared: boolean;
+    uses: number;
   }>(sql`
-    select id, version, owner_user_id, body, shared from core.bank_comments
-    where tenant_id = ${input.tenantId}::uuid and org_id = ${input.orgId}::uuid
-      and status = 'active'
-      and (owner_user_id = ${input.userId}::uuid or shared)
-    order by owner_user_id = ${input.userId}::uuid desc, date_last_modified desc
+    select b.id, b.version, b.owner_user_id, b.body, b.shared,
+      (select count(*)::int from core.work_comments c
+        where c.tenant_id = b.tenant_id and c.bank_comment_id = b.id
+          and c.author_user_id = ${input.userId}::uuid) as uses
+    from core.bank_comments b
+    where b.tenant_id = ${input.tenantId}::uuid and b.org_id = ${input.orgId}::uuid
+      and b.status = 'active'
+      and (b.owner_user_id = ${input.userId}::uuid or b.shared)
+    order by uses desc, b.owner_user_id = ${input.userId}::uuid desc,
+      b.date_last_modified desc
     limit 500`);
   return rows.map((row) => ({
     id: row.id,
@@ -1062,6 +1072,7 @@ export async function bankCommentsOf(
     ownerId: row.owner_user_id,
     body: row.body,
     shared: row.shared,
+    uses: row.uses,
   }));
 }
 

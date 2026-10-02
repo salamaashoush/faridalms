@@ -510,44 +510,6 @@ export const assessments = core.table.withRLS(
   ],
 );
 
-/**
- * A teacher's comment on a passage of handed-in work, anchored to the frozen
- * attempt rather than written into it. The student sees it once the work is
- * returned; the passage itself is read from the work, never copied here, so
- * erasing the work takes the student's words with it.
- */
-export const workComments = core.table.withRLS(
-  "work_comments",
-  {
-    ...tenantColumns(),
-    attemptId: uuid("attempt_id").notNull(),
-    authorUserId: uuid("author_user_id").notNull(),
-    anchor: jsonb("anchor").$type<Record<string, unknown>>().notNull(),
-    body: text("body").notNull(),
-    ...entityColumns(),
-  },
-  (t): PgTableExtraConfigValue[] => [
-    pk("work_comments", t.tenantId, t.id),
-    ...baseConstraints("work_comments", t, tenants),
-    fk(
-      "work_comments",
-      [t.tenantId, t.attemptId],
-      [submissionAttempts.tenantId, submissionAttempts.id],
-    ),
-    fk(
-      "work_comments",
-      [t.tenantId, t.authorUserId],
-      [users.tenantId, users.id],
-    ),
-    ck("work_comments", "anchor", sql`jsonb_typeof(anchor) = 'object'`),
-    ck("work_comments", "body", sql`char_length(body) between 1 and 2000`),
-    index("work_comments_attempt_idx")
-      .on(t.tenantId, t.attemptId)
-      .where(sql`status = 'active'`),
-    ...entityProfile(),
-  ],
-);
-
 /** A comment a grader keeps to use again, theirs alone or shared with every grader at the school. */
 export const bankComments = core.table.withRLS(
   "bank_comments",
@@ -570,6 +532,51 @@ export const bankComments = core.table.withRLS(
     ck("bank_comments", "body", sql`char_length(body) between 1 and 2000`),
     index("bank_comments_org_idx")
       .on(t.tenantId, t.orgId)
+      .where(sql`status = 'active'`),
+    ...entityProfile(),
+  ],
+);
+
+/**
+ * A teacher's comment on a passage of handed-in work, anchored to the frozen
+ * attempt rather than written into it. The student sees it once the work is
+ * returned; the passage itself is read from the work, never copied here, so
+ * erasing the work takes the student's words with it.
+ */
+export const workComments = core.table.withRLS(
+  "work_comments",
+  {
+    ...tenantColumns(),
+    attemptId: uuid("attempt_id").notNull(),
+    authorUserId: uuid("author_user_id").notNull(),
+    anchor: jsonb("anchor").$type<Record<string, unknown>>().notNull(),
+    body: text("body").notNull(),
+    /** The bank comment it started from, which ranks the bank by use. */
+    bankCommentId: uuid("bank_comment_id"),
+    ...entityColumns(),
+  },
+  (t): PgTableExtraConfigValue[] => [
+    pk("work_comments", t.tenantId, t.id),
+    ...baseConstraints("work_comments", t, tenants),
+    fk(
+      "work_comments",
+      [t.tenantId, t.attemptId],
+      [submissionAttempts.tenantId, submissionAttempts.id],
+    ),
+    fk(
+      "work_comments",
+      [t.tenantId, t.authorUserId],
+      [users.tenantId, users.id],
+    ),
+    fk(
+      "work_comments",
+      [t.tenantId, t.bankCommentId],
+      [bankComments.tenantId, bankComments.id],
+    ),
+    ck("work_comments", "anchor", sql`jsonb_typeof(anchor) = 'object'`),
+    ck("work_comments", "body", sql`char_length(body) between 1 and 2000`),
+    index("work_comments_attempt_idx")
+      .on(t.tenantId, t.attemptId)
       .where(sql`status = 'active'`),
     ...entityProfile(),
   ],

@@ -282,6 +282,26 @@ describe("handing in and returning work", () => {
       body: "A warm opening.",
     });
 
+    // A comment picked from the bank counts as a use of it.
+    const kept = await teacher.api.coursework.saveBankComment({
+      expectedVersion: 0,
+      body: "Start a new paragraph here.",
+      shared: false,
+    });
+    const picked = await teacher.api.coursework.comment({
+      attemptId: attempt.id,
+      expectedVersion: 0,
+      anchor,
+      body: "Start a new paragraph here.",
+      bankId: kept.id,
+    });
+    const ranked = await teacher.api.coursework.commentBank();
+    expect(ranked[0]).toMatchObject({ id: kept.id, uses: 1 });
+    await teacher.api.coursework.uncomment({
+      id: picked.id,
+      expectedVersion: picked.version,
+    });
+
     const shown = await teacher.api.coursework.grading({
       assignmentId: saved.id,
       studentId: me.id,

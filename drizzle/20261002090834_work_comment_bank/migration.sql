@@ -1,0 +1,2 @@
+ALTER TABLE "core"."work_comments" ADD COLUMN "bank_comment_id" uuid;--> statement-breakpoint
+ALTER TABLE "core"."work_comments" ADD CONSTRAINT "work_comments_tenant_id_bank_comment_id_fkey" FOREIGN KEY ("tenant_id","bank_comment_id") REFERENCES "core"."bank_comments"("tenant_id","id") NOT VALID;

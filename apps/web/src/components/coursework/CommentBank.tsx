@@ -2,13 +2,13 @@ import { Popover } from "@base-ui/react/popover";
 import { Button } from "@faridalms/ui/button";
 import { Input } from "@faridalms/ui/input";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { Library, Trash2 } from "lucide-react";
+import { Library, Plus, Trash2 } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
 import * as m from "~/i18n/messages";
 import { commentBankQuery } from "~/queries/coursework";
-import { removeFromCommentBank } from "~/server/coursework";
+import { removeFromCommentBank, saveToCommentBank } from "~/server/coursework";
 import { getMessageFromError } from "~/utils/error";
 
 /**
@@ -24,7 +24,7 @@ export function CommentBankPicker({
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onPick: (body: string) => void;
+  onPick: (picked: { id: string; body: string }) => void;
   /** An icon alone, for the tight row under a comment. */
   compact?: boolean;
 }) {
@@ -40,10 +40,29 @@ export function CommentBankPicker({
       queryClient.invalidateQueries({ queryKey: commentBankQuery.queryKey }),
     onError: (failure) => toast.error(getMessageFromError(failure)),
   });
-  const wanted = search.trim().toLocaleLowerCase();
-  const shown = (bank ?? []).filter((row) =>
+  const create = useMutation({
+    mutationFn: (body: string) =>
+      saveToCommentBank({
+        data: { id: "", expectedVersion: 0, body, shared: false },
+      }),
+    onSuccess: async (saved, body) => {
+      await queryClient.invalidateQueries({
+        queryKey: commentBankQuery.queryKey,
+      });
+      onPick({ id: saved.id, body });
+      onOpenChange(false);
+      setSearch("");
+    },
+    onError: (failure) => toast.error(getMessageFromError(failure)),
+  });
+  const typed = search.trim();
+  const wanted = typed.toLocaleLowerCase();
+  const matching = (bank ?? []).filter((row) =>
     row.body.toLocaleLowerCase().includes(wanted),
   );
+  // Opened empty, the bank shows the five a teacher uses most, as
+  // Classroom's "#" does; typing searches all of it.
+  const shown = typed ? matching : matching.slice(0, 5);
   return (
     <Popover.Root
       open={open}
@@ -86,7 +105,7 @@ export function CommentBankPicker({
                   <li key={row.id} className="flex items-start gap-1">
                     <Popover.Close
                       className="grid min-w-0 flex-1 gap-0.5 rounded-md px-2 py-1.5 text-start text-sm leading-5 outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring/50 max-md:min-h-10"
-                      onClick={() => onPick(row.body)}
+                      onClick={() => onPick({ id: row.id, body: row.body })}
                     >
                       <span dir="auto" className="line-clamp-3">
                         {row.body}
@@ -114,13 +133,31 @@ export function CommentBankPicker({
                   </li>
                 ))}
               </ul>
-            ) : (
+            ) : typed ? null : (
               <p className="px-2 py-3 text-sm text-muted-foreground">
-                {bank.length
-                  ? m.managementNoMatches()
-                  : m.courseworkBankEmpty()}
+                {m.courseworkBankEmpty()}
               </p>
             )}
+            {!typed && matching.length > shown.length ? (
+              <p className="px-2 text-xs text-muted-foreground">
+                {m.courseworkBankMore()}
+              </p>
+            ) : null}
+            {typed && !matching.some((row) => row.body === typed) ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                className="h-auto justify-start py-1.5 text-start whitespace-normal"
+                disabled={create.isPending}
+                onClick={() => create.mutate(typed)}
+              >
+                <Plus aria-hidden />
+                <span className="line-clamp-2">
+                  {m.courseworkBankCreate({ text: typed })}
+                </span>
+              </Button>
+            ) : null}
           </Popover.Popup>
         </Popover.Positioner>
       </Popover.Portal>
