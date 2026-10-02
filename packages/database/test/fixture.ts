@@ -6,8 +6,10 @@ import { writeAudit } from "../src/audit";
 import { withPurpose } from "../src/context";
 import { setOrgFeature } from "../src/stores/school";
 import {
+  absenceReports,
   academicSessions,
   accessRoles,
+  attendanceContacts,
   attendanceSettings,
   accounts,
   calendarFeeds,
@@ -34,6 +36,9 @@ import {
   programmeGradeLevels,
   programmes,
   familyShares,
+  lessonChanges,
+  staffAbsences,
+  studentMovements,
   workComments,
   workCommentReplies,
   workCommentAnswers,
@@ -644,6 +649,66 @@ export async function completeFixture(
     attemptId: attempt.id,
     outcome: "confirmed",
     teacherUserId: userId,
+  });
+
+  const [lessonSlot] = await tx.execute<{
+    class_id: string;
+    class_period_id: string;
+    school_year_id: string;
+  }>(sql`
+    select class_id, class_period_id, school_year_id from core.class_meetings
+    where tenant_id = ${tenantId}::uuid and org_id = ${schoolId}::uuid and status = 'active'
+    limit 1`);
+  if (!lessonSlot) throw new Error("the development seed plans no lessons");
+  const illness = await descriptor(
+    tx,
+    tenantId,
+    "attendance_reason",
+    "illness",
+  );
+  await tx.insert(staffAbsences).values({
+    tenantId,
+    orgId: schoolId,
+    schoolYearId: lessonSlot.school_year_id,
+    userId,
+    span: "[2026-11-02,2026-11-03)",
+    reason: "training",
+  });
+  await tx.insert(lessonChanges).values({
+    tenantId,
+    orgId: schoolId,
+    schoolYearId: lessonSlot.school_year_id,
+    classId: lessonSlot.class_id,
+    classPeriodId: lessonSlot.class_period_id,
+    dayOn: "2026-11-02",
+    cancelled: true,
+  });
+  await tx.insert(absenceReports).values({
+    tenantId,
+    orgId: schoolId,
+    schoolYearId: lessonSlot.school_year_id,
+    studentUserId: relationship.student,
+    reportedByUserId: userId,
+    kind: "absent",
+    span: "[2026-11-02,2026-11-03)",
+    reasonDescriptorId: illness,
+  });
+  await tx.insert(attendanceContacts).values({
+    tenantId,
+    orgId: schoolId,
+    studentUserId: relationship.student,
+    dayOn: "2026-11-02",
+    outcome: "no_answer",
+    recordedByUserId: userId,
+  });
+  await tx.insert(studentMovements).values({
+    tenantId,
+    orgId: schoolId,
+    studentUserId: relationship.student,
+    dayOn: "2026-11-02",
+    direction: "in",
+    at: "09:10",
+    recordedByUserId: userId,
   });
 
   const eventId = await writeAudit(tx, tenantId, {
