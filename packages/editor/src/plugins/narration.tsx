@@ -1,5 +1,6 @@
 import type { NodeKey } from "lexical";
 
+import { NARRATION_MS, spokenWords } from "@faridalms/domain/content";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
 import {
   $getRoot,
@@ -7,8 +8,17 @@ import {
   createCommand,
   isHTMLElement,
 } from "lexical";
-import { LoaderCircle, Mic, Trash2, Upload, X } from "lucide-react";
-import { useEffect, useState } from "react";
+import {
+  Highlighter,
+  LoaderCircle,
+  Mic,
+  Play,
+  Square,
+  Trash2,
+  Upload,
+  X,
+} from "lucide-react";
+import { useEffect, useRef, useState } from "react";
 
 import { useEditorEnvironment } from "../context";
 import { MediaPlayer } from "../media-view";
@@ -19,7 +29,7 @@ import { VoiceRecorder } from "../recorder";
 export const OPEN_NARRATION_COMMAND = createCommand<NodeKey>("OPEN_NARRATION");
 
 /** The longest recording a teacher may give a block, as Seesaw caps a voice note. */
-export const NARRATION_SECONDS = 180;
+export const NARRATION_SECONDS = NARRATION_MS / 1000;
 
 /**
  * Marks each narrated block and part in the editor, so the teacher sees
@@ -76,6 +86,260 @@ function durationOf(file: File): Promise<number | null> {
 const button =
   "inline-flex h-8 items-center gap-1.5 rounded-md px-2.5 text-sm font-medium outline-none hover:bg-muted focus-visible:ring-2 focus-visible:ring-ring/50 disabled:opacity-50 max-md:h-10 [&_svg]:size-4";
 
+/** A block's words and when each starts in its recording, none if untimed. */
+export interface TimedWords {
+  text: string;
+  times: number[];
+}
+
+const SLOWER = 0.75;
+
+/** The word playing at `now`, by when each starts, or -1 before the first. */
+const wordAt = (times: number[], now: number) =>
+  times.findLastIndex((time) => time <= now);
+
+/**
+ * Times each word of a block against its recording, as lyrics are synced by
+ * hand: the recording plays and the teacher taps as each word begins, so a
+ * young child sees the word light while hearing it, in any language. A
+ * press marks the moment rather than a click, which lands on release.
+ */
+function TapAlong({
+  src,
+  words,
+  onWords,
+}: {
+  src: string;
+  words: TimedWords;
+  onWords: (times: number[]) => void;
+}) {
+  const { strings } = useEditorEnvironment();
+  const list = spokenWords(words.text);
+  const timed = words.times.length > 0;
+  const fits = timed && words.times.length === list.length;
+  const audio = useRef<HTMLAudioElement | null>(null);
+  const frame = useRef(0);
+  const taps = useRef<number[]>([]);
+  const tapper = useRef<HTMLButtonElement>(null);
+  const chips = useRef<HTMLOListElement>(null);
+  const [mode, setMode] = useState<"idle" | "tapping" | "preview">("idle");
+  const [slower, setSlower] = useState(false);
+  const [tapped, setTapped] = useState(0);
+  const [lit, setLit] = useState(-1);
+  const [problem, setProblem] = useState<string | null>(null);
+
+  const halt = () => {
+    cancelAnimationFrame(frame.current);
+    audio.current?.pause();
+    audio.current = null;
+  };
+  useEffect(
+    () => () => {
+      cancelAnimationFrame(frame.current);
+      audio.current?.pause();
+    },
+    [],
+  );
+  useEffect(() => {
+    if (mode === "tapping") tapper.current?.focus();
+  }, [mode]);
+  const shown = mode === "tapping" ? tapped : lit;
+  useEffect(() => {
+    chips.current?.children[shown]?.scrollIntoView({ block: "nearest" });
+  }, [shown]);
+
+  /** Plays the recording from its start, saying when it ends. */
+  const play = (onEnd: () => void) => {
+    halt();
+    const player = new Audio(src);
+    // Loading resets the rate to the default, so both are set.
+    player.defaultPlaybackRate = slower ? SLOWER : 1;
+    player.playbackRate = player.defaultPlaybackRate;
+    player.addEventListener("ended", onEnd, { once: true });
+    audio.current = player;
+    return player;
+  };
+
+  const start = () => {
+    setProblem(null);
+    taps.current = [];
+    setTapped(0);
+    const player = play(() => {
+      halt();
+      setMode("idle");
+      setProblem(strings.narrationWordsEnded);
+    });
+    setMode("tapping");
+    void player.play().catch(() => setMode("idle"));
+  };
+
+  const mark = () => {
+    const player = audio.current;
+    if (mode !== "tapping" || !player) return;
+    const now = Math.min(NARRATION_MS, Math.round(player.currentTime * 1000));
+    const times = [...taps.current, Math.max(now, taps.current.at(-1) ?? 0)];
+    taps.current = times;
+    setTapped(times.length);
+    if (times.length < list.length) return;
+    halt();
+    setMode("idle");
+    onWords(times);
+  };
+
+  const preview = () => {
+    setProblem(null);
+    const player = play(() => {
+      halt();
+      setLit(-1);
+      setMode("idle");
+    });
+    const tick = () => {
+      setLit(wordAt(words.times, player.currentTime * 1000));
+      frame.current = requestAnimationFrame(tick);
+    };
+    setMode("preview");
+    void player
+      .play()
+      .then(() => {
+        frame.current = requestAnimationFrame(tick);
+      })
+      .catch(() => setMode("idle"));
+  };
+
+  const stop = () => {
+    halt();
+    setLit(-1);
+    setMode("idle");
+  };
+
+  return (
+    <div className="grid gap-2 border-t pt-3">
+      <div className="grid gap-0.5">
+        <p className="text-sm leading-5 font-medium">
+          {strings.narrationWords}
+        </p>
+        <p className="text-xs leading-4 text-muted-foreground">
+          {mode === "tapping"
+            ? strings.narrationWordsTap
+            : !timed
+              ? strings.narrationWordsHint
+              : fits
+                ? strings.narrationWordsDone
+                : strings.narrationWordsStale}
+        </p>
+      </div>
+      {mode === "idle" ? null : (
+        <ol
+          ref={chips}
+          dir="auto"
+          aria-hidden
+          className="flex max-h-28 flex-wrap gap-x-1 gap-y-0.5 overflow-y-auto rounded-md bg-muted/50 p-2 text-sm leading-6"
+        >
+          {list.map(({ word, at }, index) => (
+            // Words repeat, so where each sits in the text tells them apart.
+            <li
+              key={at}
+              className={
+                index === shown
+                  ? "rounded bg-primary px-0.5 text-primary-foreground"
+                  : mode === "tapping" && index > tapped
+                    ? "px-0.5 text-muted-foreground"
+                    : "px-0.5"
+              }
+            >
+              {word}
+            </li>
+          ))}
+        </ol>
+      )}
+      {mode === "tapping" ? (
+        <div className="grid gap-2">
+          <button
+            ref={tapper}
+            type="button"
+            className="h-16 w-full touch-manipulation rounded-lg bg-primary px-3 text-lg font-semibold text-primary-foreground outline-none select-none focus-visible:ring-2 focus-visible:ring-ring/50"
+            onPointerDown={(event) => {
+              event.preventDefault();
+              mark();
+            }}
+            onKeyDown={(event) => {
+              if (
+                (event.key === " " || event.key === "Enter") &&
+                !event.repeat
+              ) {
+                event.preventDefault();
+                mark();
+              }
+            }}
+          >
+            <span dir="auto">{list[tapped]?.word}</span>
+          </button>
+          <p className="text-xs leading-4 text-muted-foreground tabular-nums">
+            {strings.narrationWordsCount(tapped, list.length)}
+          </p>
+          <button
+            type="button"
+            className={`${button} -ms-2.5 w-fit`}
+            onClick={stop}
+          >
+            <X aria-hidden />
+            {strings.narrationWordsCancel}
+          </button>
+        </div>
+      ) : mode === "preview" ? (
+        <button
+          type="button"
+          className={`${button} -ms-2.5 w-fit`}
+          onClick={stop}
+        >
+          <Square aria-hidden className="fill-current" />
+          {strings.narrationWordsStop}
+        </button>
+      ) : (
+        <>
+          <label className="flex items-center gap-2 text-xs text-muted-foreground">
+            <input
+              type="checkbox"
+              checked={slower}
+              onChange={(event) => setSlower(event.target.checked)}
+            />
+            {strings.narrationWordsSlower}
+          </label>
+          <div className="-ms-2.5 flex flex-wrap items-center gap-1">
+            <button type="button" className={button} onClick={start}>
+              <Highlighter aria-hidden />
+              {timed
+                ? strings.narrationWordsAgain
+                : strings.narrationWordsStart}
+            </button>
+            {fits ? (
+              <button type="button" className={button} onClick={preview}>
+                <Play aria-hidden />
+                {strings.narrationWordsPreview}
+              </button>
+            ) : null}
+            {timed ? (
+              <button
+                type="button"
+                className={`${button} text-destructive`}
+                onClick={() => onWords([])}
+              >
+                <Trash2 aria-hidden />
+                {strings.narrationWordsRemove}
+              </button>
+            ) : null}
+          </div>
+        </>
+      )}
+      {problem ? (
+        <p role="alert" className="text-xs leading-4 text-destructive">
+          {problem}
+        </p>
+      ) : null}
+    </div>
+  );
+}
+
 /**
  * Records, uploads, plays or removes the narration of one block or part.
  * The recording is stored first and only then put on the block, so a
@@ -85,10 +349,15 @@ export function NarrationPanel({
   fileId,
   onChange,
   onClose,
+  words,
+  onWords,
 }: {
   fileId: string | null;
   onChange: (fileId: string | null) => void;
   onClose: () => void;
+  /** A passage's words, which may be timed against the recording. */
+  words?: TimedWords | null;
+  onWords?: (times: number[]) => void;
 }) {
   const { strings, media, locale } = useEditorEnvironment();
   const [again, setAgain] = useState(false);
@@ -198,6 +467,9 @@ export function NarrationPanel({
               {strings.narrationRemove}
             </button>
           </div>
+          {words && onWords && spokenWords(words.text).length > 1 ? (
+            <TapAlong src={media.url(fileId)} words={words} onWords={onWords} />
+          ) : null}
         </>
       ) : (
         <div className="grid justify-items-start gap-2">

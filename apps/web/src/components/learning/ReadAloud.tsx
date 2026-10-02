@@ -1,5 +1,5 @@
 import { voiceCanRead } from "@faridalms/domain/arabic";
-import { textDirection } from "@faridalms/domain/content";
+import { spokenWords, textDirection } from "@faridalms/domain/content";
 import { Button } from "@faridalms/ui/button";
 import { cn } from "@faridalms/ui/cn";
 import { Volume2 } from "lucide-react";
@@ -14,17 +14,27 @@ export const YoungContext = createContext(false);
 // One sound at a time, through one element, which iPad Safari lets play
 // again once a tap has started it.
 let player: HTMLAudioElement | null = null;
+/** Something read aloud: its words, the teacher's recording, and when each word starts in it. */
+export interface Voice {
+  text: string;
+  narration: string | null;
+  words?: number[] | null;
+}
+
 // What reads next once the current sound ends, for a screen read in order.
-let queue: { text: string; narration: string | null }[] = [];
+let queue: Voice[] = [];
 let afterSound: (() => void) | null = null;
 // The utterance being said; one cancelled reports its end late, after the
 // next has begun, and must not move the reading on.
 let speaking: SpeechSynthesisUtterance | null = null;
+// The frame that follows a recording's clock to light its words.
+let following = 0;
 
 export function stopSounds() {
   queue = [];
   afterSound = null;
   speaking = null;
+  cancelAnimationFrame(following);
   player?.pause();
   if ("speechSynthesis" in window) window.speechSynthesis.cancel();
   tellWord(null);
@@ -36,16 +46,48 @@ const soundEnded = () => {
   next?.();
 };
 
+/**
+ * Lights each word of `text` as the recording reaches the moment the teacher
+ * tapped for it. Words timed for other text, since edited, light nothing.
+ */
+function follow(audio: HTMLAudioElement, text: string, times: number[]) {
+  const words = spokenWords(text);
+  if (words.length === 0 || words.length !== times.length) return;
+  let shown = -1;
+  const tick = () => {
+    if (audio.paused) return;
+    const now = audio.currentTime * 1000;
+    const index = times.findLastIndex((time) => time <= now);
+    const word = words[index];
+    if (index !== shown && word) {
+      shown = index;
+      tellWord({ text, start: word.at, length: word.word.length });
+    }
+    following = requestAnimationFrame(tick);
+  };
+  following = requestAnimationFrame(tick);
+}
+
 /** Plays a teacher's recording, stopping whatever was playing. */
-export function playRecording(fileId: string) {
+export function playRecording(fileId: string, voice?: Voice | null) {
   stopSounds();
   if (!player) {
     player = new Audio();
-    player.addEventListener("ended", soundEnded);
+    player.addEventListener("ended", () => {
+      cancelAnimationFrame(following);
+      tellWord(null);
+      soundEnded();
+    });
   }
-  player.src = `/files/${fileId}`;
+  const audio = player;
+  audio.src = `/files/${fileId}`;
   // A refused play (no tap yet, or the file is gone) leaves the page silent.
-  void player.play().catch(() => undefined);
+  void audio
+    .play()
+    .then(() => {
+      if (voice?.words) follow(audio, voice.text, voice.words);
+    })
+    .catch(() => undefined);
 }
 
 const languageOf = (text: string) =>
@@ -71,7 +113,7 @@ const voiceLanguages = () =>
         ),
       ].join(",");
 
-/** The word the browser's voice is saying: where it sits in the text read. */
+/** The word being said, by the browser's voice or a timed recording: where it sits in the text read. */
 export interface SpokenWord {
   text: string;
   start: number;
@@ -80,7 +122,7 @@ export interface SpokenWord {
 
 const wordListeners = new Set<(word: SpokenWord | null) => void>();
 
-/** Hears each word as the browser's voice reaches it, and null when it stops. */
+/** Hears each word as the voice reaches it, and null when it stops. */
 export function onSpokenWord(listener: (word: SpokenWord | null) => void) {
   wordListeners.add(listener);
   return () => {
@@ -132,9 +174,13 @@ function speakable(text: string, voices: string) {
  * the recording if there is one, else the browser's voice where it is safe.
  * Says whether anything played.
  */
-export function sayAloud(text: string, narration: string | null): boolean {
+export function sayAloud(
+  text: string,
+  narration: string | null,
+  words?: number[] | null,
+): boolean {
   if (narration) {
-    playRecording(narration);
+    playRecording(narration, { text, narration, words });
     return true;
   }
   if (!speakable(text, voiceLanguages())) return false;
@@ -146,7 +192,7 @@ function readNext() {
   const item = queue.shift();
   if (!item) return;
   const rest = queue;
-  const played = sayAloud(item.text, item.narration);
+  const played = sayAloud(item.text, item.narration, item.words);
   // Starting a sound stops the last and clears what was waiting; the rest
   // of this screen goes back in line behind it.
   queue = rest;
@@ -159,9 +205,7 @@ function readNext() {
  * each recording where there is one, else the browser's voice where it is
  * safe. Anything else played stops it.
  */
-export function sayInOrder(
-  items: { text: string; narration: string | null }[],
-) {
+export function sayInOrder(items: Voice[]) {
   stopSounds();
   queue = [...items];
   readNext();
@@ -175,12 +219,15 @@ export function sayInOrder(
 export function ReadAloud({
   text,
   narration,
+  words,
   voice = true,
   size = "default",
   className,
 }: {
   text: string;
   narration?: string | null;
+  /** When each word starts in the recording, to light it. */
+  words?: number[] | null;
   /** Whether the browser's voice may stand in for a missing recording. */
   voice?: boolean;
   size?: "small" | "default" | "card" | "large";
@@ -212,7 +259,7 @@ export function ReadAloud({
       onClick={(event) => {
         // A speaker on a card plays the card without choosing it.
         event.stopPropagation();
-        if (narration) playRecording(narration);
+        if (narration) playRecording(narration, { text, narration, words });
         else speak(text);
       }}
     >

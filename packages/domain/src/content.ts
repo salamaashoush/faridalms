@@ -184,8 +184,12 @@ export interface ContentNode {
   aiPrompt?: string;
   aiUse?: string;
   aiEvidence?: AiEvidence[];
-  /** The editor's own facts about a block: its id, and a recording that reads it aloud. */
-  $?: { id?: string; narration?: string };
+  /**
+   * The editor's own facts about a block: its id, a recording that reads it
+   * aloud, and the moment in that recording each of its words starts, in
+   * milliseconds, as the teacher tapped them along.
+   */
+  $?: { id?: string; narration?: string; words?: number[] };
 }
 
 /** A screenshot or file a student keeps as evidence of using an AI tool. */
@@ -198,6 +202,19 @@ export interface AiEvidence {
 export interface ContentDocument {
   root: ContentNode;
 }
+
+/** The longest recording a block may carry, as the editor caps it. */
+export const NARRATION_MS = 180_000;
+/** More words than three minutes of reading holds. */
+export const NARRATED_WORDS = 1000;
+
+/** The words of a passage as they are timed and lit, each with where it starts. */
+export const spokenWords = (text: string) =>
+  [...text.matchAll(/\S+/g)].map((match) => ({
+    word: match[0],
+    at: match.index,
+  }));
+
 const integer = (min: number, max: number) =>
   v.pipe(v.number(), v.integer(), v.minValue(min), v.maxValue(max));
 const color = v.pipe(
@@ -376,6 +393,18 @@ const nodeSchema: v.GenericSchema<ContentNode> = v.lazy(() =>
         v.object({
           id: v.optional(v.pipe(v.string(), v.regex(/^[\da-z]{8,36}$/))),
           narration: v.optional(v.pipe(v.string(), v.uuid())),
+          words: v.optional(
+            v.pipe(
+              v.array(integer(0, NARRATION_MS)),
+              v.maxLength(NARRATED_WORDS),
+              v.check((times) =>
+                times.every(
+                  (time, index) =>
+                    index === 0 || time >= (times[index - 1] ?? 0),
+                ),
+              ),
+            ),
+          ),
         }),
       ),
     }),

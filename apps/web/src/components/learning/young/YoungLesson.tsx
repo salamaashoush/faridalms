@@ -23,6 +23,7 @@ import * as m from "~/i18n/messages";
 import { formatNumber } from "~/utils/datetime";
 
 import type { CheckDriver, CheckStudentBlock } from "../Checks";
+import type { Voice } from "../ReadAloud";
 
 import { CheckBlockView, isCheckBlock, isSettled } from "../Checks";
 import { Media } from "../LessonMedia";
@@ -57,14 +58,18 @@ const SHOWN_ONLY = new Set(["image", "media", "file", "diagram", "scene"]);
  * of a picture book is read before its question is asked.
  */
 function openingVoices(step: StudentBlock[]) {
-  const voices: { text: string; narration: string | null }[] = [];
+  const voices: Voice[] = [];
   for (const block of step) {
     if (block.type === "content")
       for (const node of block.content.root.children ?? []) {
         if (SHOWN_ONLY.has(node.type) && !node.$?.narration) continue;
         const text = nodeText(block, node);
         if (text.trim() || node.$?.narration)
-          voices.push({ text, narration: node.$?.narration ?? null });
+          voices.push({
+            text,
+            narration: node.$?.narration ?? null,
+            words: node.$?.words ?? null,
+          });
       }
     if (isCheckBlock(block)) {
       voices.push({ text: block.prompt, narration: block.narration ?? null });
@@ -100,6 +105,7 @@ function YoungContent({ block }: { block: Content }) {
               <ReadAloud
                 text={text}
                 narration={node.$?.narration ?? null}
+                words={node.$?.words ?? null}
                 size="card"
               />
             </span>

@@ -6,6 +6,7 @@ import type { ContentDocument } from "./content";
 import {
   contentDocumentSchema,
   sameContent,
+  spokenWords,
   starterOf,
   withBlockIds,
   withoutStarter,
@@ -48,6 +49,38 @@ describe("the words a comment points at", () => {
     expect(
       wordsAt(work, { start: { block: "missing1", offset: 0 }, end: start }),
     ).toBe("");
+  });
+});
+
+const timed = (words: number[]) => {
+  const work = plainContent("The cat  sat.");
+  const [first] = work.root.children ?? [];
+  if (first)
+    first.$ = {
+      narration: "01a0e2ff-ce2c-7469-87b6-4df4196afd4f",
+      words,
+    };
+  return v.safeParse(contentDocumentSchema, work);
+};
+
+describe("words timed against a recording", () => {
+  it("finds each word and where it starts, whatever the spaces between", () => {
+    expect(spokenWords(" The cat  sat.")).toEqual([
+      { word: "The", at: 1 },
+      { word: "cat", at: 5 },
+      { word: "sat.", at: 10 },
+    ]);
+  });
+
+  it("keeps times that never go back, within three minutes", () => {
+    const parsed = timed([120, 480, 480]);
+    expect(parsed.success).toBe(true);
+    expect(
+      parsed.success && parsed.output.root.children?.[0]?.$?.words,
+    ).toEqual([120, 480, 480]);
+    expect(timed([480, 120]).success).toBe(false);
+    expect(timed([180_001]).success).toBe(false);
+    expect(timed([1.5]).success).toBe(false);
   });
 });
 

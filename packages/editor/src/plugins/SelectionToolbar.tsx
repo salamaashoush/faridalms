@@ -18,7 +18,9 @@ import { mergeRegister } from "@lexical/utils";
 import {
   $createParagraphNode,
   $getNodeByKey,
+  $getRoot,
   $getSelection,
+  $isElementNode,
   $isNodeSelection,
   $isRangeSelection,
   $setSelection,
@@ -72,6 +74,7 @@ import type {
   QuestionOptionNode,
 } from "../nodes/question";
 import type { EditorColor } from "../strings";
+import type { TimedWords } from "./narration";
 import type { Region } from "./regions";
 
 import {
@@ -100,7 +103,9 @@ import {
   $holdsNarration,
   $narrationOf,
   $narrationTarget,
+  $narrationWordsOf,
   $setNarration,
+  $setNarrationWords,
 } from "../nodes/narration";
 import {
   $findPart,
@@ -306,6 +311,7 @@ export function SelectionToolbarPlugin() {
   const [narrating, setNarrating] = useState<{
     target: NarrationTarget;
     fileId: string | null;
+    words: TimedWords | null;
   } | null>(null);
   /**
    * Chooses a picture for the question part the caret is in. The chooser is
@@ -521,7 +527,19 @@ export function SelectionToolbarPlugin() {
     const found = editor.getEditorState().read(() => {
       const node = $getNodeByKey(key);
       const target = node ? $narrationTarget(node) : null;
-      return node && target ? { target, fileId: $narrationOf(node) } : null;
+      if (!node || !target) return null;
+      // Only a passage of the page lights its words; a question's do not.
+      const passage =
+        $isElementNode(node) &&
+        node.getParent() === $getRoot() &&
+        !$isQuestionNode(node);
+      return {
+        target,
+        fileId: $narrationOf(node),
+        words: passage
+          ? { text: node.getTextContent(), times: $narrationWordsOf(node) }
+          : null,
+      };
     });
     const element = editor.getElementByKey(key);
     if (!found || !element) return;
@@ -1309,14 +1327,19 @@ export function SelectionToolbarPlugin() {
         reference={reference}
         placement="bottom-start"
         boundary={boundary}
+        keepInView
         className="w-80 max-w-[calc(100vw-1rem)] p-3"
       >
         <div ref={toolbar}>
           <NarrationPanel
             fileId={narrating.fileId}
             onChange={(fileId) => {
-              const { target } = narrating;
-              setNarrating({ target, fileId });
+              const { target, words } = narrating;
+              setNarrating({
+                target,
+                fileId,
+                words: words ? { ...words, times: [] } : null,
+              });
               // The upload may finish after a first save restarted the editor.
               updateFromOutside(editorInSlot(slot) ?? editor, () => {
                 const node = $findNarrated(target);
@@ -1324,6 +1347,18 @@ export function SelectionToolbarPlugin() {
               });
             }}
             onClose={close}
+            words={narrating.words}
+            onWords={(times) => {
+              const { target, words } = narrating;
+              setNarrating({
+                ...narrating,
+                words: words ? { ...words, times } : null,
+              });
+              updateFromOutside(editorInSlot(slot) ?? editor, () => {
+                const node = $findNarrated(target);
+                if (node) $setNarrationWords(node, times);
+              });
+            }}
           />
         </div>
       </Floating>

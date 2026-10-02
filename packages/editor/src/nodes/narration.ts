@@ -1,5 +1,6 @@
 import type { LexicalNode } from "lexical";
 
+import { NARRATED_WORDS, NARRATION_MS } from "@faridalms/domain/content";
 import {
   $getRoot,
   $getState,
@@ -30,12 +31,43 @@ export const narrationState = createState("narration", {
     typeof value === "string" && UUID.test(value) ? value : "",
 });
 
+/**
+ * When each word of the block starts in its recording, in milliseconds, so
+ * the words light as the teacher's voice reaches them. A new recording
+ * clears them.
+ */
+export const narrationWordsState = createState("words", {
+  parse: (value): number[] =>
+    Array.isArray(value) &&
+    value.length <= NARRATED_WORDS &&
+    value.every(
+      (time, index) =>
+        Number.isInteger(time) &&
+        time >= 0 &&
+        time <= NARRATION_MS &&
+        (index === 0 || time >= value[index - 1]),
+    )
+      ? value
+      : [],
+  isEqual: (a, b) =>
+    a.length === b.length && a.every((time, index) => time === b[index]),
+});
+
 export function $narrationOf(node: LexicalNode): string | null {
   return $getState(node, narrationState) || null;
 }
 
 export function $setNarration(node: LexicalNode, fileId: string | null) {
   $setState(node, narrationState, fileId ?? "");
+  $setState(node, narrationWordsState, []);
+}
+
+export function $narrationWordsOf(node: LexicalNode): number[] {
+  return $getState(node, narrationWordsState);
+}
+
+export function $setNarrationWords(node: LexicalNode, times: number[]) {
+  $setState(node, narrationWordsState, times);
 }
 
 /** A part that may be read aloud on its own: what a picture may go on, and a group's name. */
