@@ -18,7 +18,7 @@ export const Route = createFileRoute("/_app/teach/timetable")({
 /** Today's lessons open their register; other days only show. */
 function registerCell(date: string): CardCell {
   return function renderCell({ meeting, period, card }) {
-    if (meeting.on !== date) return card;
+    if (meeting.on !== date || meeting.change?.cancelled) return card;
     return (
       <Link
         to="/registers/$classId"

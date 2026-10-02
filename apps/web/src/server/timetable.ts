@@ -1,10 +1,16 @@
 import {
+  changeLessonSchema,
   clashCheckSchema,
   classWeekSchema,
+  clearChangeSchema,
   clearSchema,
+  coverDaySchema,
+  coverOptionsSchema,
   gridQuerySchema,
   placeSchema,
+  removeAbsenceSchema,
   roomWeekSchema,
+  staffAbsenceSchema,
   studentWeekSchema,
   teacherWeekSchema,
   weekQuerySchema,
@@ -53,3 +59,27 @@ export const getStudentWeek = createServerFn({ method: "GET" })
 export const getClassWeek = createServerFn({ method: "GET" })
   .validator(checked(classWeekSchema))
   .handler(({ data }) => record(backend().timetable.classWeek(data)));
+
+export const getCoverDay = createServerFn({ method: "GET" })
+  .validator(checked(coverDaySchema))
+  .handler(({ data }) => backend().cover.day(data));
+
+export const getCoverOptions = createServerFn({ method: "GET" })
+  .validator(checked(coverOptionsSchema))
+  .handler(({ data }) => backend().cover.options(data));
+
+export const recordStaffAbsence = createServerFn({ method: "POST" })
+  .validator(checked(staffAbsenceSchema))
+  .handler(({ data }) => backend().cover.setAbsence(data));
+
+export const endStaffAbsence = createServerFn({ method: "POST" })
+  .validator(checked(removeAbsenceSchema))
+  .handler(({ data }) => backend().cover.removeStaffAbsence(data));
+
+export const changeLesson = createServerFn({ method: "POST" })
+  .validator(checked(changeLessonSchema))
+  .handler(({ data }) => backend().cover.changeLesson(data));
+
+export const restoreLesson = createServerFn({ method: "POST" })
+  .validator(checked(clearChangeSchema))
+  .handler(({ data }) => backend().cover.clearLessonChange(data));

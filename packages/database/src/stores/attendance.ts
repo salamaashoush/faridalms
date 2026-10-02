@@ -505,8 +505,8 @@ export interface BoardRow {
 
 /**
  * A school day's registers: every homeroom's daily register and every class
- * the timetable has meeting that day, taken or not, and any other register
- * taken that day.
+ * the timetable has meeting that day unless cancelled for it, taken or not,
+ * and any other register taken that day.
  */
 export async function dayBoard(
   tx: Tx,
@@ -553,6 +553,10 @@ export async function dayBoard(
         and m.school_year_id = ${input.yearId}::uuid and m.status = 'active'
         and m.valid_during @> ${input.day}::date
         and m.weekday = extract(isodow from ${input.day}::date)
+        and not exists (select 1 from core.lesson_changes x
+          where x.tenant_id = m.tenant_id and x.status = 'active' and x.cancelled
+            and x.class_id = m.class_id and x.class_period_id = m.class_period_id
+            and x.day_on = ${input.day}::date)
       union
       select g.class_id, g.class_period_id from core.attendance_registers g
       where g.tenant_id = ${input.tenantId}::uuid and g.org_id = ${input.schoolId}::uuid

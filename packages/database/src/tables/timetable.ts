@@ -1,11 +1,20 @@
+import type { StaffAbsenceReason } from "@faridalms/domain/timetable";
 import type { PgTableExtraConfigValue } from "drizzle-orm/pg-core";
 
 import { sql } from "drizzle-orm";
-import { boolean, index, smallint, text, uuid } from "drizzle-orm/pg-core";
+import {
+  boolean,
+  date,
+  index,
+  smallint,
+  text,
+  uniqueIndex,
+  uuid,
+} from "drizzle-orm/pg-core";
 
 import type { ClassType } from "./teaching";
 
-import { classPeriods } from "./calendar";
+import { academicSessions, classPeriods } from "./calendar";
 import {
   baseConstraints,
   ck,
@@ -99,6 +108,136 @@ export const classMeetings = core.table.withRLS(
       .where(sql`status = 'active'`),
     index("class_meetings_teacher_idx")
       .on(t.tenantId, t.teacherUserId)
+      .where(sql`status = 'active'`),
+    ...entityProfile(),
+  ],
+);
+
+/**
+ * A member of staff away from school for whole days or some periods of each
+ * day, which leaves their lessons to cover. The reason stays with those who
+ * arrange cover.
+ */
+export const staffAbsences = core.table.withRLS(
+  "staff_absences",
+  {
+    ...tenantColumns(),
+    orgId: uuid("org_id").notNull(),
+    schoolYearId: uuid("school_year_id").notNull(),
+    schoolYearType: text("school_year_type").notNull().default("school_year"),
+    userId: uuid("user_id").notNull(),
+    span: daterange("span").notNull(),
+    /** The periods missed on each day of the span; none means whole days. */
+    periodIds: uuid("period_ids").array(),
+    reason: text("reason").$type<StaffAbsenceReason>().notNull(),
+    note: text("note"),
+    ...entityColumns(),
+  },
+  (t): PgTableExtraConfigValue[] => [
+    pk("staff_absences", t.tenantId, t.id),
+    ...baseConstraints("staff_absences", t, tenants),
+    fk(
+      "staff_absences",
+      [t.tenantId, t.schoolYearId, t.schoolYearType, t.schoolYearId, t.orgId],
+      [
+        academicSessions.tenantId,
+        academicSessions.id,
+        academicSessions.type,
+        academicSessions.schoolYearId,
+        academicSessions.orgId,
+      ],
+    ),
+    fk("staff_absences", [t.tenantId, t.userId], [users.tenantId, users.id]),
+    ck(
+      "staff_absences",
+      "school_year_type",
+      sql`school_year_type = 'school_year'`,
+    ),
+    ck("staff_absences", "span", range.bounded("span")),
+    ck(
+      "staff_absences",
+      "period_ids",
+      sql`period_ids is null or cardinality(period_ids) between 1 and 50`,
+    ),
+    ck(
+      "staff_absences",
+      "reason",
+      sql`reason in ('illness', 'training', 'school_trip', 'personal', 'other')`,
+    ),
+    ck("staff_absences", "note", sql`char_length(note) between 1 and 500`),
+    index("staff_absences_user_idx")
+      .on(t.tenantId, t.userId)
+      .where(sql`status = 'active'`),
+    ...entityProfile(),
+  ],
+);
+
+/**
+ * One day's change to a timetabled lesson: someone covers it, it meets in
+ * another room, or it does not happen. Keyed by class, period and day rather
+ * than by meeting, so a timetable edit from an earlier day leaves it in place.
+ */
+export const lessonChanges = core.table.withRLS(
+  "lesson_changes",
+  {
+    ...tenantColumns(),
+    orgId: uuid("org_id").notNull(),
+    schoolYearId: uuid("school_year_id").notNull(),
+    classId: uuid("class_id").notNull(),
+    classPeriodId: uuid("class_period_id").notNull(),
+    dayOn: date("day_on", { mode: "string" }).notNull(),
+    /** Who teaches it that day instead; none keeps its own teacher. */
+    coverUserId: uuid("cover_user_id"),
+    /** Where it meets that day instead; none keeps its own room. */
+    locationId: uuid("location_id"),
+    cancelled: boolean("cancelled").notNull().default(false),
+    /** For the cover teacher: the work set, where the books are. */
+    note: text("note"),
+    ...entityColumns(),
+  },
+  (t): PgTableExtraConfigValue[] => [
+    pk("lesson_changes", t.tenantId, t.id),
+    ...baseConstraints("lesson_changes", t, tenants),
+    fk(
+      "lesson_changes",
+      [t.tenantId, t.classId],
+      [classes.tenantId, classes.id],
+    ),
+    fk(
+      "lesson_changes",
+      [t.tenantId, t.classPeriodId, t.schoolYearId, t.orgId],
+      [
+        classPeriods.tenantId,
+        classPeriods.id,
+        classPeriods.schoolYearId,
+        classPeriods.orgId,
+      ],
+    ),
+    fk(
+      "lesson_changes",
+      [t.tenantId, t.coverUserId],
+      [users.tenantId, users.id],
+    ),
+    fk(
+      "lesson_changes",
+      [t.tenantId, t.locationId],
+      [locations.tenantId, locations.id],
+    ),
+    ck(
+      "lesson_changes",
+      "shape",
+      sql`(cancelled and cover_user_id is null and location_id is null)
+        or (not cancelled and (cover_user_id is not null or location_id is not null))`,
+    ),
+    ck("lesson_changes", "note", sql`char_length(note) between 1 and 1000`),
+    uniqueIndex("lesson_changes_key")
+      .on(t.tenantId, t.classId, t.classPeriodId, t.dayOn)
+      .where(sql`status = 'active'`),
+    index("lesson_changes_day_idx")
+      .on(t.tenantId, t.dayOn)
+      .where(sql`status = 'active'`),
+    index("lesson_changes_cover_idx")
+      .on(t.tenantId, t.coverUserId)
       .where(sql`status = 'active'`),
     ...entityProfile(),
   ],

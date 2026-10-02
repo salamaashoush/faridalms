@@ -1,3 +1,4 @@
+import type { LessonChange } from "@faridalms/database/stores/cover";
 import type { Scope } from "@faridalms/database/stores/students";
 import type { MeetingRow } from "@faridalms/database/stores/timetable";
 import type { SchoolYear } from "@faridalms/database/stores/years";
@@ -9,6 +10,7 @@ import {
   roomsOf,
   teachesClass,
 } from "@faridalms/database/stores/classes";
+import { changesOn } from "@faridalms/database/stores/cover";
 import { isVisibleStudent } from "@faridalms/database/stores/students";
 import {
   bookingsAt,
@@ -167,6 +169,79 @@ function meetingView(row: MeetingRow) {
     clashAccepted: row.clashAccepted,
     clashing: row.clashing,
   };
+}
+
+const lessonKey = (row: { classId: string; periodId: string }, day: string) =>
+  `${row.classId}:${row.periodId}:${day}`;
+
+function changeView(change: LessonChange | undefined) {
+  if (!change) return null;
+  return {
+    coverId: change.coverId,
+    coverNameEn: change.coverNameEn,
+    coverNameAr: change.coverNameAr,
+    roomId: change.roomId,
+    roomCode: change.roomCode,
+    roomNameEn: change.roomNameEn,
+    roomNameAr: change.roomNameAr,
+    cancelled: change.cancelled,
+    note: change.note,
+  };
+}
+
+/**
+ * A dated week's meetings with each one's change for its day. A teacher's
+ * week also holds the lessons they cover, marked as covers.
+ */
+async function weekLessons(
+  context: UnitContext,
+  meetings: MeetingRow[],
+  days: readonly string[],
+  coverId?: string,
+) {
+  const [changes, covers] = await Promise.all([
+    changesOn(context.tx, {
+      tenantId: context.tenantId,
+      days,
+      filter: { classIds: [...new Set(meetings.map((row) => row.classId))] },
+    }),
+    coverId
+      ? changesOn(context.tx, {
+          tenantId: context.tenantId,
+          days,
+          filter: { coverId },
+        })
+      : Promise.resolve([]),
+  ]);
+  const changeOf = new Map(
+    changes.map((row) => [lessonKey(row, row.day), row]),
+  );
+  const lessons = meetings.map((row) => ({
+    ...meetingView(row),
+    change: changeView(changeOf.get(lessonKey(row, row.on))),
+    cover: false,
+  }));
+  if (covers.length === 0) return lessons;
+  const covered = new Map(covers.map((row) => [lessonKey(row, row.day), row]));
+  const taken = await meetingsOn(context.tx, {
+    tenantId: context.tenantId,
+    on: days[0] ?? context.today,
+    days,
+    filter: {
+      groupIds: [],
+      classIds: [...new Set(covers.map((row) => row.classId))],
+    },
+  });
+  return [
+    ...lessons,
+    ...taken
+      .filter((row) => covered.has(lessonKey(row, row.on)))
+      .map((row) => ({
+        ...meetingView(row),
+        change: changeView(covered.get(lessonKey(row, row.on))),
+        cover: true,
+      })),
+  ];
 }
 
 /** A grid's owner: a homeroom, or a class no homeroom holds. */
@@ -464,7 +539,17 @@ export const teacherWeek = readProcedure
       days: shape.dates.map((row) => row.date),
       filter: { teacherId },
     });
-    return { week: { ...shape, meetings: meetings.map(meetingView) } };
+    return {
+      week: {
+        ...shape,
+        meetings: await weekLessons(
+          context,
+          meetings,
+          shape.dates.map((row) => row.date),
+          teacherId,
+        ),
+      },
+    };
   });
 
 export const roomWeek = readProcedure
@@ -481,7 +566,16 @@ export const roomWeek = readProcedure
       days: shape.dates.map((row) => row.date),
       filter: { roomId: input.roomId },
     });
-    return { week: { ...shape, meetings: meetings.map(meetingView) } };
+    return {
+      week: {
+        ...shape,
+        meetings: await weekLessons(
+          context,
+          meetings,
+          shape.dates.map((row) => row.date),
+        ),
+      },
+    };
   });
 
 /** A student's week: their own, a child's, or any student staff reach. */
@@ -512,7 +606,16 @@ export const studentWeek = readProcedure
       days: shape.dates.map((row) => row.date),
       filter: groups,
     });
-    return { week: { ...shape, meetings: meetings.map(meetingView) } };
+    return {
+      week: {
+        ...shape,
+        meetings: await weekLessons(
+          context,
+          meetings,
+          shape.dates.map((row) => row.date),
+        ),
+      },
+    };
   });
 
 /** A class's week for its record: a homeroom's lessons, or one class's. */
@@ -541,7 +644,14 @@ export const classWeek = readProcedure
           : { groupIds: [], classIds: [row.id] },
     });
     return {
-      week: { ...shape, meetings: meetings.map(meetingView) },
+      week: {
+        ...shape,
+        meetings: await weekLessons(
+          context,
+          meetings,
+          shape.dates.map((day) => day.date),
+        ),
+      },
       canPlan: can(context, "timetable:manage") && year.lifecycle !== "closed",
       gridClassId: row.homeroomClassId ?? row.id,
     };

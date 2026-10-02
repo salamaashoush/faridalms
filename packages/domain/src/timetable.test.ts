@@ -1,6 +1,13 @@
+import * as v from "valibot";
 import { describe, expect, it } from "vitest";
 
-import { isoWeekday, schoolDays, weekDates } from "./timetable";
+import {
+  changeLessonSchema,
+  isoWeekday,
+  schoolDays,
+  staffAbsenceSchema,
+  weekDates,
+} from "./timetable";
 
 describe("school days", () => {
   it("runs from the first day of the week and skips the weekend", () => {
@@ -37,5 +44,45 @@ describe("week dates", () => {
       { day: 4, date: "2026-10-01" },
       { day: 5, date: "2026-10-02" },
     ]);
+  });
+});
+
+describe("one day's lesson changes", () => {
+  const lesson = {
+    classId: "01a0e2ff-cf61-7440-862a-a2f67c1c0d11",
+    periodId: "01a0e2ff-cf61-7440-862a-a2f67c1c0d12",
+    on: "2026-10-05",
+  };
+  const cover = "01a0e2ff-cf61-7440-862a-a2f67c1c0d13";
+
+  it("takes a cover, a room, or a cancellation alone", () => {
+    expect(v.is(changeLessonSchema, { ...lesson, coverId: cover })).toBe(true);
+    expect(v.is(changeLessonSchema, { ...lesson, roomId: cover })).toBe(true);
+    expect(v.is(changeLessonSchema, { ...lesson, cancelled: true })).toBe(true);
+  });
+
+  it("refuses a change that changes nothing, or a cancelled lesson with cover", () => {
+    expect(v.is(changeLessonSchema, lesson)).toBe(false);
+    expect(
+      v.is(changeLessonSchema, { ...lesson, cancelled: true, coverId: cover }),
+    ).toBe(false);
+  });
+
+  it("refuses an absence that ends before it starts", () => {
+    const absence = { userId: cover, reason: "illness" };
+    expect(
+      v.is(staffAbsenceSchema, {
+        ...absence,
+        from: "2026-10-05",
+        to: "2026-10-05",
+      }),
+    ).toBe(true);
+    expect(
+      v.is(staffAbsenceSchema, {
+        ...absence,
+        from: "2026-10-06",
+        to: "2026-10-05",
+      }),
+    ).toBe(false);
   });
 });

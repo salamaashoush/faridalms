@@ -33,6 +33,10 @@ export interface NoticeParams {
   studentId?: string;
   classId?: string;
   date?: string;
+  /** A lesson someone covers, or with `cancelled`, no longer covers. */
+  cover?: boolean;
+  periodName?: string;
+  periodNameAr?: string;
 }
 
 /** Urgent notices reach everyone on every channel, so nobody can turn them off. */

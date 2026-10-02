@@ -1,4 +1,5 @@
 import type { PeriodRow } from "@faridalms/database/stores/attendance";
+import type { LessonChange } from "@faridalms/database/stores/cover";
 import type { MeetingRow } from "@faridalms/database/stores/timetable";
 import type { AttendanceCounts } from "@faridalms/domain/attendance";
 
@@ -23,6 +24,7 @@ import {
   learnerAssignments,
   teacherAssignments,
 } from "@faridalms/database/stores/coursework";
+import { changesOn } from "@faridalms/database/stores/cover";
 import { eventsBetween } from "@faridalms/database/stores/events";
 import { schoolProfile } from "@faridalms/database/stores/identity";
 import { studentModules } from "@faridalms/database/stores/learning";
@@ -106,6 +108,82 @@ interface Slot {
  * A day's lessons in period order, with the one on now and the next one
  * marked from the school's own clock.
  */
+const slotKey = (row: { classId: string; periodId: string }) =>
+  `${row.classId}:${row.periodId}`;
+
+/**
+ * A day's lessons as they are held: cancelled ones gone, and covered or
+ * moved ones with that day's teacher and room. With `coverId`, a teacher's
+ * day: lessons someone else covers for them are gone, and the lessons they
+ * cover are added.
+ */
+async function asHeld(
+  context: UnitContext,
+  meetings: MeetingRow[],
+  day: string,
+  coverId?: string,
+): Promise<MeetingRow[]> {
+  const [changes, covers] = await Promise.all([
+    changesOn(context.tx, {
+      tenantId: context.tenantId,
+      days: [day],
+      filter: { classIds: [...new Set(meetings.map((row) => row.classId))] },
+    }),
+    coverId
+      ? changesOn(context.tx, {
+          tenantId: context.tenantId,
+          days: [day],
+          filter: { coverId },
+        })
+      : Promise.resolve([]),
+  ]);
+  const held = (row: MeetingRow, change: LessonChange | undefined) => {
+    if (!change) return [row];
+    if (change.cancelled) return [];
+    if (coverId && change.coverId && change.coverId !== coverId) return [];
+    return [
+      {
+        ...row,
+        ...(change.coverId
+          ? {
+              teacherId: change.coverId,
+              teacherNameEn: change.coverNameEn,
+              teacherNameAr: change.coverNameAr,
+            }
+          : {}),
+        ...(change.roomId
+          ? {
+              roomId: change.roomId,
+              roomCode: change.roomCode,
+              roomNameEn: change.roomNameEn,
+              roomNameAr: change.roomNameAr,
+            }
+          : {}),
+      },
+    ];
+  };
+  const changeOf = new Map(changes.map((row) => [slotKey(row), row]));
+  const own = meetings.flatMap((row) => held(row, changeOf.get(slotKey(row))));
+  if (covers.length === 0) return own;
+  const coverOf = new Map(covers.map((row) => [slotKey(row), row]));
+  const covered = await meetingsOn(context.tx, {
+    tenantId: context.tenantId,
+    on: day,
+    days: [day],
+    filter: {
+      groupIds: [],
+      classIds: [...new Set(covers.map((row) => row.classId))],
+    },
+  });
+  return [
+    ...own,
+    ...covered.flatMap((row) => {
+      const change = coverOf.get(slotKey(row));
+      return change ? held(row, change) : [];
+    }),
+  ];
+}
+
 function slotsOf(
   meetings: MeetingRow[],
   periods: PeriodRow[],
@@ -220,8 +298,11 @@ export const teacher = readProcedure.handler(async ({ context }) => {
     meetingsOn(context.tx, {
       tenantId: context.tenantId,
       on: context.today,
+      days: [context.today],
       filter: { teacherId: context.actor.userId },
-    }),
+    }).then((rows) =>
+      asHeld(context, rows, context.today, context.actor.userId),
+    ),
     teacherAssignments(
       context.tx,
       { ...scopeOf(context), schoolWide: false },
@@ -416,13 +497,16 @@ async function studentDay(context: UnitContext, studentId: string) {
     ]);
   const meetings =
     groups.groupIds.length || groups.classIds.length
-      ? (
+      ? await asHeld(
+          context,
           await meetingsOn(context.tx, {
             tenantId: context.tenantId,
             on: context.today,
+            days: [context.today],
             filter: { groupIds: groups.groupIds, classIds: groups.classIds },
-          })
-        ).filter((meeting) => meeting.weekday === isoWeekday(context.today))
+          }),
+          context.today,
+        )
       : [];
   const counts = attendance.counts;
   const presence =

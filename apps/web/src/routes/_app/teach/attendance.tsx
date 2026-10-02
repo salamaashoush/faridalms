@@ -53,6 +53,8 @@ interface Row {
   counts: AttendanceCounts | null;
   students: number;
   date: string;
+  /** A lesson the teacher covers for someone away. */
+  cover: boolean;
 }
 
 function rowsOf(data: Data): Row[] {
@@ -78,6 +80,10 @@ function rowsOf(data: Data): Row[] {
     const register = data.registers.find(
       (row) => row.classId === classId && row.periodId === periodId,
     );
+    const cover = data.expected.some(
+      (row) =>
+        row.classId === classId && row.periodId === periodId && row.cover,
+    );
     return [
       {
         id: `${classId}|${periodId}`,
@@ -89,6 +95,7 @@ function rowsOf(data: Data): Row[] {
         counts: register?.counts ?? null,
         students: register?.students ?? found.students,
         date: data.date,
+        cover,
       },
     ];
   });
@@ -135,7 +142,7 @@ function columns(): Column<Row>[] {
       primary: true,
       cell: (row) => <ClassLink row={row} />,
     },
-    { id: "period", header: m.attPeriod(), cell: (row) => row.periodName },
+    { id: "period", header: m.attPeriod(), cell: periodOf },
     { id: "state", header: m.attStatus(), cell: (row) => <State row={row} /> },
     {
       id: "marks",
@@ -147,10 +154,16 @@ function columns(): Column<Row>[] {
   ];
 }
 
+function periodOf(row: Row) {
+  return row.cover
+    ? m.attPeriodCover({ period: row.periodName })
+    : row.periodName;
+}
+
 const card = {
   title: (row: Row) => <ClassLink row={row} />,
   status: (row: Row) => <State row={row} />,
-  fact: (row: Row) => row.periodName,
+  fact: periodOf,
 };
 
 function TeacherAttendancePage() {

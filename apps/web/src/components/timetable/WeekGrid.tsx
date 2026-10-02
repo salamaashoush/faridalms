@@ -277,24 +277,65 @@ export function WeekGrid<T extends GridMeeting>({
   );
 }
 
-/** A meeting as a week reads it: what, then who and where, a line each. */
+/**
+ * A meeting as a week reads it: what, then who and where, a line each, and
+ * what is different about it that day.
+ */
 export function MeetingCard({
   title,
   lines,
   flagged = false,
+  change = null,
+  cancelled = false,
+  note = null,
 }: {
   title: ReactNode;
   lines: (string | null)[];
   flagged?: boolean;
+  change?: string | null;
+  cancelled?: boolean;
+  /** Left for whoever teaches it that day. */
+  note?: string | null;
 }) {
   return (
     <div
       className={cn(
         "grid h-full min-w-0 content-start gap-0.5 rounded-md px-2 py-1.5",
-        flagged ? "bg-warning/15" : "bg-muted/60",
+        flagged
+          ? "bg-warning/15"
+          : change && !cancelled
+            ? "bg-primary/10 ring-1 ring-primary/30 ring-inset"
+            : "bg-muted/60",
+        cancelled && "opacity-70",
       )}
     >
-      <span className="truncate text-sm leading-5 font-medium">{title}</span>
+      <span
+        className={cn(
+          "truncate text-sm leading-5 font-medium",
+          cancelled && "line-through decoration-muted-foreground",
+        )}
+      >
+        {title}
+      </span>
+      {change ? (
+        <span
+          className={cn(
+            "line-clamp-2 text-[13px] leading-[18px] font-medium",
+            cancelled ? "text-muted-foreground" : "text-primary",
+          )}
+        >
+          {change}
+        </span>
+      ) : null}
+      {note ? (
+        <span
+          dir="auto"
+          title={note}
+          className="line-clamp-2 text-[13px] leading-[18px] text-muted-foreground italic"
+        >
+          {note}
+        </span>
+      ) : null}
       {lines.filter(Boolean).map((line) => (
         <span
           key={line}

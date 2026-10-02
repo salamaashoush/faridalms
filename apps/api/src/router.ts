@@ -7,6 +7,7 @@ import * as badgesSystem from "./systems/badges";
 import * as calendarSystem from "./systems/calendar";
 import * as classesSystem from "./systems/classes";
 import * as courseworkSystem from "./systems/coursework";
+import * as coverSystem from "./systems/cover";
 import * as documentsSystem from "./systems/documents";
 import * as examsSystem from "./systems/exams";
 import * as filesSystem from "./systems/files";
@@ -50,6 +51,7 @@ export const router = {
   attendance: attendanceSystem,
   rollover: rolloverSystem,
   timetable: timetableSystem,
+  cover: coverSystem,
   messages: messagesSystem,
   announcements: announcementsSystem,
   newsletters: newslettersSystem,

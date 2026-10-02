@@ -198,6 +198,12 @@ export function getMessageFromError(error: unknown): string {
       case "timetable.teacher_busy":
       case "timetable.room_busy":
         return m.ttBusyError();
+      case "timetable.cover_busy":
+        return m.ttCoverBusy();
+      case "timetable.cover_own":
+        return m.ttCoverOwn();
+      case "timetable.absence_range":
+        return m.ttAbsenceRange();
       case "academic_year.closed":
         return m.academicYearClosedError();
       case "rollover.duplicate_class":

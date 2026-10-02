@@ -27,12 +27,31 @@ type Week = NonNullable<
 >;
 export type Meeting = Week["meetings"][number];
 
-export function roomLabel(meeting: Meeting): string | null {
+/** A meeting as labels read it: planned, or with one day's change. */
+type Labelled = Pick<
+  Meeting,
+  | "roomId"
+  | "roomCode"
+  | "roomNameEn"
+  | "roomNameAr"
+  | "teacherId"
+  | "teacherNameEn"
+  | "teacherNameAr"
+> & { change?: Meeting["change"] };
+
+/** Where it meets: the day's room when it moved, else its own. */
+export function roomLabel(meeting: Labelled): string | null {
+  const moved = meeting.change?.roomId ? meeting.change : null;
+  if (moved)
+    return inLocale(moved.roomNameEn, moved.roomNameAr) || moved.roomCode;
   if (!meeting.roomId) return null;
   return inLocale(meeting.roomNameEn, meeting.roomNameAr) || meeting.roomCode;
 }
 
-export function teacherLabel(meeting: Meeting): string | null {
+/** Who teaches it: the day's cover when there is one, else its own teacher. */
+export function teacherLabel(meeting: Labelled): string | null {
+  const cover = meeting.change?.coverId ? meeting.change : null;
+  if (cover) return inLocale(cover.coverNameEn, cover.coverNameAr);
   return meeting.teacherId
     ? inLocale(meeting.teacherNameEn, meeting.teacherNameAr)
     : null;
@@ -59,9 +78,32 @@ export type CardCell = (input: {
   card: ReactNode;
 }) => ReactNode;
 
+/**
+ * What differs about a lesson on its day. A teacher's own week names who
+ * covers their lesson, and whose lesson they cover; other weeks show the
+ * cover teacher in the teacher's line.
+ */
+function changeLine(meeting: Meeting, own: boolean): string | null {
+  const change = meeting.change;
+  if (!change) return null;
+  if (change.cancelled) return m.ttCancelled();
+  if (meeting.cover)
+    return m.ttCoverFor({
+      name: inLocale(meeting.teacherNameEn, meeting.teacherNameAr),
+    });
+  if (change.coverId)
+    return own
+      ? m.ttCoveredBy({
+          name: inLocale(change.coverNameEn, change.coverNameAr),
+        })
+      : m.ttCoverTeacher();
+  return m.ttRoomChanged();
+}
+
 function weekCell(
   lines: (meeting: Meeting) => (string | null)[],
   cell: CardCell | undefined,
+  own: boolean,
 ) {
   return function renderCell({
     meeting,
@@ -78,6 +120,9 @@ function weekCell(
         title={meetingTitle(meeting)}
         lines={lines(meeting)}
         flagged={meeting.clashing}
+        change={changeLine(meeting, own)}
+        cancelled={meeting.change?.cancelled ?? false}
+        note={meeting.cover ? meeting.change?.note : null}
       />
     );
     return cell ? cell({ meeting, day, period, card }) : card;
@@ -89,6 +134,7 @@ export function Week({
   caption,
   lines,
   cell,
+  own = false,
   pending,
   onWeek,
 }: {
@@ -96,6 +142,8 @@ export function Week({
   caption: string;
   lines: (meeting: Meeting) => (string | null)[];
   cell?: CardCell;
+  /** A teacher's own week, where covers name who covers whom. */
+  own?: boolean;
   pending?: boolean;
   onWeek?: (on: string) => void;
 }) {
@@ -132,7 +180,7 @@ export function Week({
           periods={week.periods}
           meetings={week.meetings}
           today={week.dates.find((day) => day.date === week.today)?.day}
-          cell={weekCell(lines, cell)}
+          cell={weekCell(lines, cell, own)}
         />
       )}
     </div>
@@ -198,6 +246,7 @@ export function TeacherWeek({
       caption={m.ttTeacherCaption()}
       lines={(meeting) => [roomLabel(meeting)]}
       cell={cell}
+      own
       pending={stepped.pending}
       onWeek={on === undefined ? stepped.onWeek : undefined}
     />

@@ -105,3 +105,64 @@ export const clashCheckSchema = v.object({
   teacherId: optionalId,
   roomId: optionalId,
 });
+
+export const STAFF_ABSENCE_REASONS = [
+  "illness",
+  "training",
+  "school_trip",
+  "personal",
+  "other",
+] as const;
+export type StaffAbsenceReason = (typeof STAFF_ABSENCE_REASONS)[number];
+
+export const coverDaySchema = v.object({
+  on: v.optional(v.union([v.literal(""), isoDate]), ""),
+});
+
+export const staffAbsenceSchema = v.pipe(
+  v.object({
+    userId: id,
+    from: isoDate,
+    to: isoDate,
+    /** The periods missed each day; none means whole days. */
+    periodIds: v.optional(v.pipe(v.array(id), v.maxLength(50)), []),
+    reason: v.picklist(STAFF_ABSENCE_REASONS),
+    note: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(500)), ""),
+  }),
+  v.check((input) => input.from <= input.to, "timetable.absence_range"),
+);
+export type StaffAbsenceInput = v.InferOutput<typeof staffAbsenceSchema>;
+
+export const removeAbsenceSchema = v.object({ id });
+
+const lesson = {
+  classId: id,
+  periodId: id,
+  on: isoDate,
+};
+
+export const coverOptionsSchema = v.object(lesson);
+
+/**
+ * One day's change to a lesson: someone covers it, it moves room, or it is
+ * cancelled. A cancelled lesson has neither cover nor room.
+ */
+export const changeLessonSchema = v.pipe(
+  v.object({
+    ...lesson,
+    coverId: optionalId,
+    roomId: optionalId,
+    cancelled: v.optional(v.boolean(), false),
+    note: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(1000)), ""),
+  }),
+  v.check(
+    (input) =>
+      input.cancelled
+        ? !input.coverId && !input.roomId
+        : Boolean(input.coverId || input.roomId),
+    "timetable.change_shape",
+  ),
+);
+export type ChangeLesson = v.InferOutput<typeof changeLessonSchema>;
+
+export const clearChangeSchema = v.object(lesson);

@@ -13,6 +13,7 @@ import { SelectField } from "~/components/system/field";
 import { EmptyState, PageHeader } from "~/components/system/IndexPage";
 import { RecordTabs } from "~/components/system/RecordPage";
 import { StatusText } from "~/components/system/status";
+import { CoverDay } from "~/components/timetable/Cover";
 import { Planner } from "~/components/timetable/Planner";
 import { dayName } from "~/components/timetable/WeekGrid";
 import {
@@ -25,13 +26,14 @@ import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import {
   clashesQuery,
+  coverDayQuery,
   roomWeekQuery,
   teacherWeekQuery,
   timetableGridQuery,
   timetableOptionsQuery,
 } from "~/queries/timetable";
 
-const VIEWS = ["classes", "teachers", "rooms", "clashes"] as const;
+const VIEWS = ["classes", "teachers", "rooms", "cover", "clashes"] as const;
 type View = (typeof VIEWS)[number];
 
 const uuid = v.pipe(v.string(), v.uuid());
@@ -70,6 +72,8 @@ export const Route = createFileRoute("/_app/admin/timetable")({
       await queryClient.ensureQueryData(
         roomWeekQuery(picked.roomId, picked.from),
       );
+    else if (deps.view === "cover")
+      await queryClient.ensureQueryData(coverDayQuery(picked.from));
     else if (deps.view === "clashes")
       await queryClient.ensureQueryData(clashesQuery(picked.from));
   },
@@ -105,6 +109,7 @@ const VIEW_LABEL: Record<View, () => string> = {
   classes: m.ttByClass,
   teachers: m.ttByTeacher,
   rooms: m.ttByRoom,
+  cover: m.ttCover,
   clashes: m.ttClashes,
 };
 
@@ -265,7 +270,11 @@ function TimetablePage() {
                 htmlFor="timetable-from"
                 className="text-sm leading-5 font-medium"
               >
-                {search.view === "classes" ? m.ttChangesFrom() : m.ttWeekOf()}
+                {search.view === "classes"
+                  ? m.ttChangesFrom()
+                  : search.view === "cover"
+                    ? m.ttDay()
+                    : m.ttWeekOf()}
               </label>
               <Input
                 id="timetable-from"
@@ -286,6 +295,8 @@ function TimetablePage() {
             <TeacherWeek teacherId={picked.teacherId} on={picked.from} />
           ) : search.view === "rooms" && picked.roomId ? (
             <RoomWeek roomId={picked.roomId} on={picked.from} />
+          ) : search.view === "cover" ? (
+            <CoverDay on={picked.from} />
           ) : search.view === "clashes" ? (
             <Clashes from={picked.from} />
           ) : null}

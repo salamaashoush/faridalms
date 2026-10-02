@@ -139,15 +139,20 @@ export interface MeetingRow {
 type MeetingFilter =
   | { groupIds: readonly string[]; classIds?: readonly string[] }
   | { teacherId: string }
+  | { teacherIds: readonly string[] }
   | { roomId: string }
-  | { schoolId: string; clashesOnly: true };
+  | { schoolId: string; clashesOnly?: boolean };
 
 function filterOf(filter: MeetingFilter): SQL {
   if ("teacherId" in filter)
     return sql`m.teacher_user_id = ${filter.teacherId}::uuid`;
+  if ("teacherIds" in filter)
+    return sql`m.teacher_user_id = any(${uuidArray(filter.teacherIds)})`;
   if ("roomId" in filter) return sql`m.location_id = ${filter.roomId}::uuid`;
-  if ("clashesOnly" in filter)
-    return sql`m.org_id = ${filter.schoolId}::uuid and m.clash_accepted`;
+  if ("schoolId" in filter)
+    return filter.clashesOnly
+      ? sql`m.org_id = ${filter.schoolId}::uuid and m.clash_accepted`
+      : sql`m.org_id = ${filter.schoolId}::uuid`;
   return sql`(m.group_class_id = any(${uuidArray(filter.groupIds)})
     or m.class_id = any(${uuidArray(filter.classIds ?? [])}))`;
 }

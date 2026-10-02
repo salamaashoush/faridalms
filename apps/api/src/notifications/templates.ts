@@ -28,7 +28,11 @@ const LINES: Record<"en" | "ar", Record<NotificationKind, Line>> = {
         ? `Cancelled: ${p.title ?? ""}${p.date ? ` on ${p.date}` : ""}`
         : `${p.updated ? "Event changed" : "Event"}: ${p.title ?? ""}${p.date ? ` on ${p.date}` : ""}`,
     reminder: (p) =>
-      `Reminder: the register for ${p.className ?? "your class"} on ${p.date ?? "today"} is not taken yet.`,
+      p.cover
+        ? p.cancelled
+          ? `You no longer cover ${p.className ?? "a lesson"} on ${p.date ?? "today"}${p.periodName ? `, ${p.periodName}` : ""}.`
+          : `You cover ${p.className ?? "a lesson"} on ${p.date ?? "today"}${p.periodName ? `, ${p.periodName}` : ""}.`
+        : `Reminder: the register for ${p.className ?? "your class"} on ${p.date ?? "today"} is not taken yet.`,
   },
   ar: {
     announcement: (p) =>
@@ -44,7 +48,11 @@ const LINES: Record<"en" | "ar", Record<NotificationKind, Line>> = {
         ? `أُلغيت: ${p.title ?? ""}${p.date ? ` يوم ${p.date}` : ""}`
         : `${p.updated ? "تغيّرت فعالية" : "فعالية"}: ${p.title ?? ""}${p.date ? ` يوم ${p.date}` : ""}`,
     reminder: (p) =>
-      `تذكير: لم يُسجَّل حضور ${p.className ?? "فصلك"} يوم ${p.date ?? "اليوم"} بعد.`,
+      p.cover
+        ? p.cancelled
+          ? `لم تعد تغطي ${p.className ?? "حصة"} يوم ${p.date ?? "اليوم"}${p.periodName ? `، ${p.periodName}` : ""}.`
+          : `تغطي ${p.className ?? "حصة"} يوم ${p.date ?? "اليوم"}${p.periodName ? `، ${p.periodName}` : ""}.`
+        : `تذكير: لم يُسجَّل حضور ${p.className ?? "فصلك"} يوم ${p.date ?? "اليوم"} بعد.`,
   },
 };
 
@@ -68,6 +76,7 @@ function paramsOf(locale: "en" | "ar", value: NoticeParams): NoticeParams {
     actorName: pick(value.actorName, value.actorNameAr),
     studentName: pick(value.studentName, value.studentNameAr),
     className: pick(value.className, value.classNameAr),
+    periodName: pick(value.periodName, value.periodNameAr),
   };
 }
 

@@ -3,6 +3,8 @@ import { queryOptions } from "@tanstack/react-query";
 import {
   getClashes,
   getClassWeek,
+  getCoverDay,
+  getCoverOptions,
   getRoomWeek,
   getStudentWeek,
   getTeacherWeek,
@@ -49,4 +51,20 @@ export const classWeekQuery = (classId: string, on = "") =>
   queryOptions({
     queryKey: ["timetable", "class", classId, on],
     queryFn: () => getClassWeek({ data: { classId, on } }),
+  });
+
+export const coverDayQuery = (on = "") =>
+  queryOptions({
+    queryKey: ["timetable", "cover", on],
+    queryFn: () => getCoverDay({ data: { on } }),
+  });
+
+export const coverOptionsQuery = (input: {
+  classId: string;
+  periodId: string;
+  on: string;
+}) =>
+  queryOptions({
+    queryKey: ["timetable", "cover-options", input],
+    queryFn: () => getCoverOptions({ data: input }),
   });

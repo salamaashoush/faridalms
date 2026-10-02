@@ -88,6 +88,18 @@ export function noticeText(notice: Notice): { title: string; body: string } {
         body: [title, date ? formatDate(date) : ""].filter(Boolean).join(" · "),
       };
     case "reminder":
+      if (params.cover)
+        return {
+          title: (params.cancelled ? m.ntfCoverOff : m.ntfCover)({
+            name: both(params.className, params.classNameAr),
+          }),
+          body: [
+            date ? formatDate(date) : "",
+            both(params.periodName, params.periodNameAr),
+          ]
+            .filter(Boolean)
+            .join(" · "),
+        };
       return {
         title: m.ntfReminder({
           name: both(params.className, params.classNameAr),
@@ -164,6 +176,12 @@ export function NoticeLink({
         </Link>
       );
     case "reminder":
+      if (notice.params.cover && notice.params.cancelled)
+        return (
+          <Link {...rest} to="/teach/timetable">
+            {children}
+          </Link>
+        );
       return (
         <Link
           {...rest}

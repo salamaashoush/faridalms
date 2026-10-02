@@ -39,6 +39,7 @@ import {
   teachesClass,
 } from "@faridalms/database/stores/classes";
 import { namesOf } from "@faridalms/database/stores/coursework";
+import { changesOn, coveredPeriods } from "@faridalms/database/stores/cover";
 import { messagingGuardians } from "@faridalms/database/stores/messages";
 import { noticed, withdraw } from "@faridalms/database/stores/notifications";
 import { facesOf, isVisibleStudent } from "@faridalms/database/stores/students";
@@ -95,6 +96,30 @@ function teachingScope(context: UnitContext): Scope {
     schoolWide: can(context, "attendance:manage"),
   };
 }
+
+/**
+ * Whether the viewer takes this class's register on a day: a class they
+ * teach, or a lesson they cover then. Covering gives only those periods.
+ */
+async function registerAccess(
+  context: UnitContext,
+  classId: string,
+  date: string,
+): Promise<{ periods: "all" | string[] }> {
+  if (await teachesClass(context.tx, teachingScope(context), classId))
+    return { periods: "all" };
+  return {
+    periods: await coveredPeriods(context.tx, {
+      tenantId: context.tenantId,
+      userId: context.actor.userId,
+      classId,
+      day: date,
+    }),
+  };
+}
+
+const allows = (access: { periods: "all" | string[] }, periodId: string) =>
+  access.periods === "all" || access.periods.includes(periodId);
 
 function studentScope(context: UnitContext): Scope {
   return {
@@ -229,14 +254,34 @@ export const day = readProcedure
         day: on,
       }),
     ]);
-    const board = await dayBoard(context.tx, {
-      tenantId: context.tenantId,
-      schoolId: context.schoolId,
-      yearId: year.id,
-      day: on,
-      officialPeriodId: periods.find((period) => period.official)?.id ?? null,
-    });
+    const [board, covers] = await Promise.all([
+      dayBoard(context.tx, {
+        tenantId: context.tenantId,
+        schoolId: context.schoolId,
+        yearId: year.id,
+        day: on,
+        officialPeriodId: periods.find((period) => period.official)?.id ?? null,
+      }),
+      changesOn(context.tx, {
+        tenantId: context.tenantId,
+        days: [on],
+        filter: { coverId: context.actor.userId },
+      }),
+    ]);
     const taught = new Set(classes.map((row) => row.id));
+    const covering = new Set(
+      covers.map((row) => `${row.classId}:${row.periodId}`),
+    );
+    const mine = (row: { classId: string; periodId: string }) =>
+      taught.has(row.classId) || covering.has(`${row.classId}:${row.periodId}`);
+    const covered = board.filter(
+      (row) =>
+        !taught.has(row.classId) &&
+        covering.has(`${row.classId}:${row.periodId}`),
+    );
+    const coverClasses = [
+      ...new Map(covered.map((row) => [row.classId, row])).values(),
+    ];
     return {
       date: on,
       today: context.today,
@@ -247,19 +292,31 @@ export const day = readProcedure
         closed: year.lifecycle === "closed",
       },
       periods: periods.map(periodView),
-      classes: classes.map((row) => ({
-        id: row.id,
-        code: row.code,
-        titleEn: row.titleEn,
-        titleAr: row.titleAr,
-        classType: row.classType,
-        students: row.students,
+      classes: [
+        ...classes.map((row) => ({
+          id: row.id,
+          code: row.code,
+          titleEn: row.titleEn,
+          titleAr: row.titleAr,
+          classType: row.classType,
+          students: row.students,
+        })),
+        ...coverClasses.map((row) => ({
+          id: row.classId,
+          code: row.classCode,
+          titleEn: row.classTitleEn,
+          titleAr: row.classTitleAr,
+          classType: row.classType,
+          students: row.students,
+        })),
+      ],
+      expected: board.filter(mine).map((row) => ({
+        classId: row.classId,
+        periodId: row.periodId,
+        cover: covering.has(`${row.classId}:${row.periodId}`),
       })),
-      expected: board
-        .filter((row) => taught.has(row.classId))
-        .map((row) => ({ classId: row.classId, periodId: row.periodId })),
       registers: board
-        .filter((row) => taught.has(row.classId) && row.registerId)
+        .filter((row) => mine(row) && row.registerId)
         .map((row) => ({
           classId: row.classId,
           periodId: row.periodId,
@@ -276,9 +333,11 @@ export const register = readProcedure
   .handler(async ({ input, context }) => {
     requireCapability(context, "attendance:record", "attendance:manage");
     const classRow = await classById(context.tx, context, input.classId);
+    if (!classRow) throw new ORPCError("NOT_FOUND");
+    const taking = await registerAccess(context, classRow.id, input.date);
     if (
-      !classRow ||
-      !(await teachesClass(context.tx, teachingScope(context), classRow.id))
+      taking.periods.length === 0 ||
+      (input.periodId && !allows(taking, input.periodId))
     )
       throw new ORPCError("NOT_FOUND");
     const year = await yearOfClass(context, classRow.schoolYearId, input.date);
@@ -299,9 +358,11 @@ export const register = readProcedure
         ).filter((row) => row.weekday === isoWeekday(input.date));
     const period = input.periodId
       ? periods.find((row) => row.id === input.periodId)
-      : (periods.find((row) =>
-          meets.some((meeting) => meeting.periodId === row.id),
-        ) ?? defaultPeriod(periods, classRow.classType));
+      : taking.periods === "all"
+        ? (periods.find((row) =>
+            meets.some((meeting) => meeting.periodId === row.id),
+          ) ?? defaultPeriod(periods, classRow.classType))
+        : periods.find((row) => allows(taking, row.id));
     if (!period)
       throw new ORPCError("BAD_REQUEST", { message: "attendance.no_period" });
     const [roster, existing, codes, access, settings] = await Promise.all([
@@ -403,7 +464,10 @@ async function checkInRegister(
   const classRow = await classById(context.tx, context, input.classId);
   if (
     !classRow ||
-    !(await teachesClass(context.tx, teachingScope(context), classRow.id))
+    !allows(
+      await registerAccess(context, classRow.id, input.date),
+      input.periodId,
+    )
   )
     throw new ORPCError("NOT_FOUND");
   const year = await yearOfClass(context, classRow.schoolYearId, input.date);
@@ -595,7 +659,10 @@ export const save = writeProcedure
     const classRow = await classById(context.tx, context, input.classId);
     if (
       !classRow ||
-      !(await teachesClass(context.tx, teachingScope(context), classRow.id))
+      !allows(
+        await registerAccess(context, classRow.id, input.date),
+        input.periodId,
+      )
     )
       throw new ORPCError("NOT_FOUND");
     const lifecycle = await holdYear(
