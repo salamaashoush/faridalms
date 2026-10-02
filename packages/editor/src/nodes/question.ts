@@ -750,12 +750,13 @@ export class QuestionAnswerNode extends ElementNode {
     dom.dataset.questionAnswer = extra ? "extra" : "";
     dom.dataset.emptyLabel =
       (kind === "spelling"
-        ? this.getPreviousSibling() instanceof QuestionAnswerNode
-          ? text?.extraTiles
-          : text?.wordTiles
+        ? text?.wordTiles
         : extra
           ? text?.extra
           : text?.answer) ?? "";
+    // Which line holds the word is its place, which can change after the
+    // line is drawn, so the style picks this label for every line after it.
+    if (kind === "spelling") dom.dataset.extraLabel = text?.extraTiles ?? "";
     const name = theme(config, "questionAnswer");
     if (name) addClassNamesToElement(dom, name);
     drawPicture(this, dom, editor);
