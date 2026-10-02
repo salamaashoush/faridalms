@@ -59,38 +59,15 @@ type Inline =
     | { kind: "edit"; comment: WorkComment }
   ) & { spot: Spot };
 
-const spotOf = (element: Element, range: Range): Spot => ({
-  getBoundingClientRect: () => range.getBoundingClientRect(),
+// Marks are drawn again as comments change, so a box finds its passage's
+// mark each time it is placed, and keeps the last place if the mark is gone.
+const spotAt = (element: Element, selector: string, last: DOMRect): Spot => ({
+  getBoundingClientRect: () =>
+    element.querySelector(selector)?.getBoundingClientRect() ?? last,
   contextElement: element,
 });
-
-// Every commented work on the page paints into the same two highlights, so
-// each keeps its ranges here and the highlights are rebuilt from all of them.
-const painted = new Map<symbol, { all: Range[]; active: Range[] }>();
-
-function paint() {
-  // Browsers before the Custom Highlight API show comments in the list only.
-  const registry = (CSS as { highlights?: HighlightRegistry }).highlights;
-  if (!registry) return;
-  const all = [...painted.values()].flatMap((entry) => entry.all);
-  const active = [...painted.values()].flatMap((entry) => entry.active);
-  registry.set("fe-comment", new Highlight(...all));
-  registry.set("fe-comment-active", new Highlight(...active));
-}
-
-// Safari has only the older of the two.
-const caretSource: Partial<
-  Pick<Document, "caretPositionFromPoint" | "caretRangeFromPoint">
-> = typeof document === "undefined" ? {} : document;
-
-function caretAt(x: number, y: number): [Node, number] | null {
-  if (caretSource.caretPositionFromPoint) {
-    const position = caretSource.caretPositionFromPoint.call(document, x, y);
-    return position ? [position.offsetNode, position.offset] : null;
-  }
-  const range = caretSource.caretRangeFromPoint?.call(document, x, y);
-  return range ? [range.startContainer, range.startOffset] : null;
-}
+const markOf = (id: string) => `mark[data-comments~="${CSS.escape(id)}"]`;
+const DRAFT = "mark[data-draft]";
 
 function CommentMeta({ comment }: { comment: WorkComment }) {
   const user = useCurrentUser();
@@ -302,7 +279,6 @@ export function CommentedWork({
   const queryClient = useQueryClient();
   const root = useRef<HTMLDivElement>(null);
   const field = useRef<HTMLTextAreaElement>(null);
-  const resolved = useRef<[string, Range][]>([]);
   const tell = useRef(onPassages);
   const told = useRef("");
   const dirty = useRef(false);
@@ -312,45 +288,29 @@ export function CommentedWork({
   const [inline, setInline] = useState<Inline | null>(null);
   const handlers = useRef({ onOpen, attemptId });
 
-  const draft =
-    inline?.kind === "new"
-      ? inline.passage.anchor
-      : inline?.kind === "edit"
-        ? inline.comment.anchor
-        : null;
+  const marks = [
+    ...comments.map((comment) => ({ id: comment.id, ...comment.anchor })),
+    ...(inline?.kind === "new"
+      ? [{ id: "draft", ...inline.passage.anchor, draft: true }]
+      : []),
+  ];
+  const activeMark = inline?.kind === "edit" ? inline.comment.id : active;
 
   useEffect(() => {
     const element = root.current;
-    if (!element) return undefined;
-    const key = Symbol("comments");
-    resolved.current = comments.flatMap((comment): [string, Range][] => {
-      const range = rangeOf(element, comment.anchor);
-      return range ? [[comment.id, range]] : [];
-    });
-    const pending = draft ? rangeOf(element, draft) : null;
-    painted.set(key, {
-      all: resolved.current.map(([, range]) => range),
-      active: [
-        ...resolved.current
-          .filter(([id]) => id === active)
-          .map(([, range]) => range),
-        ...(pending ? [pending] : []),
-      ],
-    });
-    paint();
+    if (!element) return;
     const passages = Object.fromEntries(
-      resolved.current.map(([id, range]) => [id, wordsIn(element, range)]),
+      comments.flatMap((comment) => {
+        const range = rangeOf(element, comment.anchor);
+        return range ? [[comment.id, wordsIn(element, range)]] : [];
+      }),
     );
     const text = JSON.stringify(passages);
     if (text !== told.current) {
       told.current = text;
       tell.current?.(passages);
     }
-    return () => {
-      painted.delete(key);
-      paint();
-    };
-  }, [comments, active, draft]);
+  }, [comments]);
 
   useEffect(() => {
     tell.current = onPassages;
@@ -359,17 +319,14 @@ export function CommentedWork({
 
   useEffect(() => {
     if (!reveal || !active) return;
-    const range = resolved.current.find(([id]) => id === active)?.[1];
     const element = root.current;
-    if (!range || !element) return;
-    range.startContainer.parentElement?.scrollIntoView({
-      block: "center",
-      behavior: "smooth",
-    });
+    const mark = element?.querySelector(markOf(active));
+    if (!element || !mark) return;
+    mark.scrollIntoView({ block: "center", behavior: "smooth" });
     setInline({
       kind: "comment",
       ids: [active],
-      spot: spotOf(element, range),
+      spot: spotAt(element, markOf(active), mark.getBoundingClientRect()),
     });
   }, [reveal, active]);
 
@@ -409,18 +366,18 @@ export function CommentedWork({
     };
     const openAt = (event: MouseEvent) => {
       if (!(document.getSelection()?.isCollapsed ?? true)) return;
-      const caret = caretAt(event.clientX, event.clientY);
-      if (!caret) return;
-      const hits = resolved.current.filter(([, range]) =>
-        range.isPointInRange(...caret),
-      );
-      const [first] = hits;
-      if (!first) return;
-      handlers.current.onOpen(first[0]);
+      const mark =
+        event.target instanceof Element
+          ? event.target.closest("mark[data-comments]")
+          : null;
+      const ids = mark?.getAttribute("data-comments")?.split(" ") ?? [];
+      const [first] = ids;
+      if (!mark || !first || !element.contains(mark)) return;
+      handlers.current.onOpen(first);
       setInline({
         kind: "comment",
-        ids: hits.map(([id]) => id),
-        spot: spotOf(element, first[1]),
+        ids,
+        spot: spotAt(element, markOf(first), mark.getBoundingClientRect()),
       });
     };
     // Ctrl or Cmd with Alt and M comments on the selection, as in Google Docs.
@@ -437,13 +394,12 @@ export function CommentedWork({
       const range = selection.getRangeAt(0);
       if (!element.contains(range.commonAncestorContainer)) return;
       const anchor = anchorOf(element, range);
-      const placed = anchor ? rangeOf(element, anchor) : null;
-      if (!anchor || !placed) return;
+      if (!anchor) return;
       event.preventDefault();
       setInline({
         kind: "new",
         passage: { anchor, words: wordsIn(element, range) },
-        spot: spotOf(element, placed),
+        spot: spotAt(element, DRAFT, range.getBoundingClientRect()),
       });
       setOffer(null);
       selection.removeAllRanges();
@@ -485,7 +441,12 @@ export function CommentedWork({
 
   return (
     <div ref={root} className="relative">
-      <ContentView document={work} fileUrl={(id) => `/files/${id}`} />
+      <ContentView
+        document={work}
+        fileUrl={(id) => `/files/${id}`}
+        marks={marks}
+        activeMark={activeMark}
+      />
       {offer && attemptId ? (
         <Button
           type="button"
@@ -501,7 +462,7 @@ export function CommentedWork({
               setInline({
                 kind: "new",
                 passage: { anchor: offer.anchor, words: offer.words },
-                spot: spotOf(element, range),
+                spot: spotAt(element, DRAFT, range.getBoundingClientRect()),
               });
             setOffer(null);
             document.getSelection()?.removeAllRanges();
@@ -577,10 +538,15 @@ export function CommentedWork({
                               aria-label={m.courseworkCommentEdit()}
                               onClick={() =>
                                 inline &&
+                                root.current &&
                                 setInline({
                                   kind: "edit",
                                   comment,
-                                  spot: inline.spot,
+                                  spot: spotAt(
+                                    root.current,
+                                    markOf(comment.id),
+                                    inline.spot.getBoundingClientRect(),
+                                  ),
                                 })
                               }
                             >
@@ -640,7 +606,7 @@ export function CommentList({
             {words ? (
               <button
                 type="button"
-                aria-label={m.courseworkCommentShow()}
+                aria-label={m.courseworkCommentShow({ passage: words })}
                 onClick={() => onShow(comment.id)}
                 className="line-clamp-2 border-s-2 border-amber-400 ps-2 text-start text-[13px] leading-[18px] text-muted-foreground hover:text-foreground"
               >

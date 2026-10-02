@@ -1,4 +1,5 @@
 import type { ContentDocument } from "@faridalms/domain/content";
+import type { ContentMark } from "@faridalms/editor/view";
 
 import { ContentRenderer } from "@faridalms/editor/view";
 
@@ -11,10 +12,14 @@ export function ContentView({
   document,
   fileUrl,
   className,
+  marks,
+  activeMark,
 }: {
   document: ContentDocument;
   fileUrl?: (fileId: string) => string;
   className?: string;
+  marks?: ContentMark[];
+  activeMark?: string | null;
 }) {
   return (
     <ContentRenderer
@@ -32,6 +37,8 @@ export function ContentView({
       fileUrl={fileUrl}
       locale={getLocale()}
       className={className}
+      marks={marks}
+      activeMark={activeMark}
     />
   );
 }

@@ -1943,7 +1943,7 @@
   "courseworkCommentRemoved": "حُذف التعليق",
   "courseworkCommentEdited": "معدّل",
   "courseworkCommentMissing": "لم يعد هذا المقطع ظاهرًا في العمل.",
-  "courseworkCommentShow": "أظهر المقطع في العمل",
+  "courseworkCommentShow": "{passage}: أظهره في العمل",
   "courseworkTeacherComments": "تعليقات على عملك",
   "courseworkCommentBank": "بنك التعليقات",
   "courseworkCommentBankSearch": "ابحث في بنك تعليقاتك",

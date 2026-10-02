@@ -1915,7 +1915,7 @@
   "courseworkCommentRemoved": "Comment removed",
   "courseworkCommentEdited": "edited",
   "courseworkCommentMissing": "This passage is no longer shown in the work.",
-  "courseworkCommentShow": "Show the passage in the work",
+  "courseworkCommentShow": "{passage}: show it in the work",
   "courseworkTeacherComments": "Comments on your work",
   "courseworkCommentBank": "Comment bank",
   "courseworkCommentBankSearch": "Search your comment bank",

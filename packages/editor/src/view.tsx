@@ -14,7 +14,7 @@ import {
 import { embedPage, embedProviderNames } from "@faridalms/domain/embed";
 import { isSafeContentUrl } from "@faridalms/domain/rich-text";
 import { ExternalLink } from "lucide-react";
-import { cloneElement, createElement, isValidElement } from "react";
+import { cloneElement, createElement, Fragment, isValidElement } from "react";
 
 import type { AiUseViewStrings } from "./ai-use-view";
 import type { FileFacts } from "./files";
@@ -37,10 +37,115 @@ export interface ViewStrings extends AiUseViewStrings {
   embedOpen: (provider: string) => string;
 }
 
+/** A passage drawn marked in the reader, as a comment points at it. */
+export interface ContentMark {
+  id: string;
+  start: { block: string; offset: number };
+  end: { block: string; offset: number };
+  /** A passage being commented on, marked but pointing at no comment yet. */
+  draft?: boolean;
+}
+
+/**
+ * Marks as places in reading order: a block's index among the blocks and a
+ * count of its own characters. Offsets fill in as the text is drawn.
+ */
+interface Marking {
+  marks: {
+    id: string;
+    draft: boolean;
+    from: [number, number];
+    to: [number, number];
+  }[];
+  order: Map<string, number>;
+  offsets: Map<string, number>;
+  active: string | null;
+}
+
 interface Context {
   strings: ViewStrings;
   fileUrl?: (fileId: string) => string;
   locale: string;
+  marking?: Marking;
+}
+
+function markingOf(
+  document: ContentDocument,
+  marks: ContentMark[],
+  active: string | null,
+): Marking {
+  const order = new Map<string, number>();
+  const visit = (node: ContentNode) => {
+    const id = node.$?.id;
+    if (id && !order.has(id)) order.set(id, order.size);
+    node.children?.forEach(visit);
+  };
+  visit(document.root);
+  return {
+    marks: marks.flatMap((mark) => {
+      const from = order.get(mark.start.block);
+      const to = order.get(mark.end.block);
+      return from === undefined || to === undefined
+        ? []
+        : [
+            {
+              id: mark.id,
+              draft: mark.draft ?? false,
+              from: [from, mark.start.offset] as [number, number],
+              to: [to, mark.end.offset] as [number, number],
+            },
+          ];
+    }),
+    order,
+    offsets: new Map(),
+    active,
+  };
+}
+
+/**
+ * A text node's words cut where marks begin and end, each piece with the
+ * marks covering it. The node's place in its block is counted here, in the
+ * order the reader draws text, as anchors count it on the page.
+ */
+function markedPieces(
+  text: string,
+  marking: Marking | undefined,
+  block: string | undefined,
+): { text: string; ids: string[]; draft: boolean }[] {
+  if (!marking || !block || !marking.marks.length)
+    return [{ text, ids: [], draft: false }];
+  const start = marking.offsets.get(block) ?? 0;
+  marking.offsets.set(block, start + text.length);
+  const index = marking.order.get(block);
+  if (index === undefined) return [{ text, ids: [], draft: false }];
+  const spans = marking.marks.flatMap((mark) => {
+    if (mark.from[0] > index || mark.to[0] < index) return [];
+    const from = mark.from[0] === index ? Math.max(0, mark.from[1] - start) : 0;
+    const to =
+      mark.to[0] === index
+        ? Math.min(text.length, mark.to[1] - start)
+        : text.length;
+    return from < to ? [{ mark, from, to }] : [];
+  });
+  if (!spans.length) return [{ text, ids: [], draft: false }];
+  const cuts = [
+    ...new Set([
+      0,
+      text.length,
+      ...spans.flatMap((span) => [span.from, span.to]),
+    ]),
+  ].toSorted((a, b) => a - b);
+  return cuts.slice(0, -1).map((cut, at) => {
+    const end = cuts[at + 1] ?? text.length;
+    const covering = spans.filter((span) => span.from <= cut && end <= span.to);
+    return {
+      text: text.slice(cut, end),
+      ids: covering
+        .filter((span) => !span.mark.draft)
+        .map((span) => span.mark.id),
+      draft: covering.some((span) => span.mark.draft),
+    };
+  });
 }
 
 function textStyle(serialized = ""): CSSProperties {
@@ -73,9 +178,8 @@ function highlightClass(type: string | null | undefined): string | undefined {
   return typeof value === "string" ? value : undefined;
 }
 
-function renderText(node: ContentNode, key: string): ReactNode {
-  const format = typeof node.format === "number" ? node.format : 0;
-  let text: ReactNode = node.text;
+function formatted(words: string, format: number): ReactNode {
+  let text: ReactNode = words;
   if (format & 16) text = <code className="fe-code-inline">{text}</code>;
   if (format & 1) text = <strong className="fe-bold">{text}</strong>;
   if (format & 2) text = <em className="fe-italic">{text}</em>;
@@ -83,6 +187,43 @@ function renderText(node: ContentNode, key: string): ReactNode {
   if (format & 8) text = <u className="fe-underline">{text}</u>;
   if (format & 32) text = <sub className="fe-sub">{text}</sub>;
   if (format & 64) text = <sup className="fe-sup">{text}</sup>;
+  return text;
+}
+
+function renderText(
+  node: ContentNode,
+  key: string,
+  context: Context,
+  block: string | undefined,
+): ReactNode {
+  const format = typeof node.format === "number" ? node.format : 0;
+  const active = context.marking?.active ?? null;
+  // Commented passages are marks of their own, each pointing at the
+  // comments on it, so assistive technology finds them as readers do.
+  const text = markedPieces(node.text ?? "", context.marking, block).map(
+    (piece, index) =>
+      piece.ids.length || piece.draft ? (
+        <mark
+          key={index}
+          className="fe-mark"
+          data-comments={piece.ids.join(" ") || undefined}
+          data-draft={piece.draft ? "" : undefined}
+          data-depth={piece.ids.length > 1 ? 2 : 1}
+          data-active={
+            piece.draft || (active !== null && piece.ids.includes(active))
+              ? ""
+              : undefined
+          }
+          aria-details={
+            piece.ids.map((id) => `comment-${id}`).join(" ") || undefined
+          }
+        >
+          {formatted(piece.text, format)}
+        </mark>
+      ) : (
+        <Fragment key={index}>{formatted(piece.text, format)}</Fragment>
+      ),
+  );
   // Marks the document's own words, which comments count characters in;
   // labels the reader adds around them read differently per language.
   return (
@@ -105,8 +246,13 @@ function renderText(node: ContentNode, key: string): ReactNode {
  * A node as the reader draws it, carrying its block id when it has one, so
  * a comment can point into the block it was made on.
  */
-function render(node: ContentNode, key: string, context: Context): ReactNode {
-  const drawn = draw(node, key, context);
+function render(
+  node: ContentNode,
+  key: string,
+  context: Context,
+  block?: string,
+): ReactNode {
+  const drawn = draw(node, key, context, node.$?.id ?? block);
   const id = node.$?.id;
   return id && isValidElement(drawn) && typeof drawn.type === "string"
     ? cloneElement(drawn as ReactElement<Record<string, unknown>>, {
@@ -115,15 +261,20 @@ function render(node: ContentNode, key: string, context: Context): ReactNode {
     : drawn;
 }
 
-function draw(node: ContentNode, key: string, context: Context): ReactNode {
+function draw(
+  node: ContentNode,
+  key: string,
+  context: Context,
+  block: string | undefined,
+): ReactNode {
   if (
     node.type === "text" ||
     node.type === "code-highlight" ||
     node.type === "tab"
   )
-    return renderText(node, key);
+    return renderText(node, key, context, block);
   const children = node.children?.map((child, index) =>
-    render(child, `${key}.${index}`, context),
+    render(child, `${key}.${index}`, context, block),
   );
   const style: CSSProperties = {
     ...textStyle(node.style),
@@ -535,19 +686,27 @@ export function ContentRenderer({
   fileUrl,
   locale = "en",
   className,
+  marks,
+  activeMark = null,
 }: {
   document: ContentDocument;
   strings: ViewStrings;
   fileUrl?: (fileId: string) => string;
   locale?: string;
   className?: string;
+  /** Passages to draw marked, as comments on handed-in work point at them. */
+  marks?: ContentMark[];
+  activeMark?: string | null;
 }) {
+  const marking = marks?.length
+    ? markingOf(document, marks, activeMark)
+    : undefined;
   return (
     <div
       className={className ? `fe ${className}` : "fe"}
       dir={textDirection(contentPlainText(document)) ?? undefined}
     >
-      {render(document.root, "root", { strings, fileUrl, locale })}
+      {render(document.root, "root", { strings, fileUrl, locale, marking })}
     </div>
   );
 }

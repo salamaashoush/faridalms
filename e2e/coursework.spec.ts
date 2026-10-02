@@ -116,7 +116,7 @@ test("a teacher assigns work, a student hands it in, and the returned grade reac
   await page.getByRole("button", { name: "Grade", exact: true }).click();
   // The grade sheet lists the comments with the passages they mark.
   await expect(
-    page.getByRole("button", { name: "Show the passage in the work" }),
+    page.getByRole("button", { name: /^visited my grandparents: show/ }),
   ).toHaveText("visited my grandparents");
   await page.locator("#grade-score").fill("8");
   await page.locator("#grade-feedback").fill("A warm, well organised letter.");
@@ -142,8 +142,14 @@ test("a teacher assigns work, a student hands it in, and the returned grade reac
     comments.getByText("Tell me one thing you did with them."),
   ).toBeVisible();
   await expect(
-    comments.getByRole("button", { name: "Show the passage in the work" }),
+    comments.getByRole("button", { name: /^visited my grandparents: show/ }),
   ).toHaveText("visited my grandparents");
+  // The passage is a mark in the work that points at its comment.
+  await expect(
+    student.locator("mark[aria-details]", {
+      hasText: "visited my grandparents",
+    }),
+  ).toHaveCount(1);
   await studentContext.close();
 });
 

@@ -663,16 +663,26 @@
   transform: rotate(90deg);
 }
 
-/* Teachers' comments on handed-in work, drawn over the reader's text. */
-::highlight(fe-comment) {
+/* Teachers' comments on handed-in work: passages marked in the reader. */
+.fe mark.fe-mark {
   background-color: rgb(253 230 138 / 0.6);
+  color: inherit;
+  cursor: pointer;
 }
-::highlight(fe-comment-active) {
-  background-color: rgb(251 191 36 / 0.55);
+.fe mark.fe-mark[data-depth="2"] {
+  background-color: rgb(252 211 77 / 0.75);
 }
-.dark ::highlight(fe-comment) {
+.fe mark.fe-mark[data-active] {
+  background-color: rgb(251 191 36 / 0.8);
+  box-shadow: 0 2px 0 rgb(217 119 6);
+}
+.dark .fe mark.fe-mark {
   background-color: rgb(217 119 6 / 0.35);
 }
-.dark ::highlight(fe-comment-active) {
-  background-color: rgb(245 158 11 / 0.55);
+.dark .fe mark.fe-mark[data-depth="2"] {
+  background-color: rgb(217 119 6 / 0.55);
+}
+.dark .fe mark.fe-mark[data-active] {
+  background-color: rgb(245 158 11 / 0.6);
+  box-shadow: 0 2px 0 rgb(251 191 36);
 }
