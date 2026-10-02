@@ -72,3 +72,10 @@ header:has([data-slot="page-actions"] > :not([data-keeps-global-tools]))
     display: none !important;
   }
 }
+
+/* The word the voice is saying in a young lesson: a marker's yellow, apart
+   from every colour the lesson uses for right, wrong or chosen. */
+::highlight(read-along) {
+  background-color: oklch(0.9 0.16 95);
+  color: oklch(0.2 0 0);
+}

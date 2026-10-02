@@ -620,6 +620,7 @@ export const duplicateModule = writeProcedure
         review: lesson.review,
         vowelMarks: lesson.vowelMarks,
         young: lesson.young,
+        readAlong: lesson.readAlong,
       });
       const stored = await documentOf(context.tx, context.tenantId, {
         type: "lesson",
@@ -707,6 +708,7 @@ export const saveLesson = writeProcedure
       review: input.review,
       vowelMarks: input.vowelMarks,
       young: input.young,
+      readAlong: input.readAlong,
     };
     let lessonId = input.id;
     let version: number;

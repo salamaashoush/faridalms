@@ -14,16 +14,35 @@ export const YoungContext = createContext(false);
 // One sound at a time, through one element, which iPad Safari lets play
 // again once a tap has started it.
 let player: HTMLAudioElement | null = null;
+// What reads next once the current sound ends, for a screen read in order.
+let queue: { text: string; narration: string | null }[] = [];
+let afterSound: (() => void) | null = null;
+// The utterance being said; one cancelled reports its end late, after the
+// next has begun, and must not move the reading on.
+let speaking: SpeechSynthesisUtterance | null = null;
 
 export function stopSounds() {
+  queue = [];
+  afterSound = null;
+  speaking = null;
   player?.pause();
   if ("speechSynthesis" in window) window.speechSynthesis.cancel();
+  tellWord(null);
 }
+
+const soundEnded = () => {
+  const next = afterSound;
+  afterSound = null;
+  next?.();
+};
 
 /** Plays a teacher's recording, stopping whatever was playing. */
 export function playRecording(fileId: string) {
   stopSounds();
-  player ??= new Audio();
+  if (!player) {
+    player = new Audio();
+    player.addEventListener("ended", soundEnded);
+  }
   player.src = `/files/${fileId}`;
   // A refused play (no tap yet, or the file is gone) leaves the page silent.
   void player.play().catch(() => undefined);
@@ -52,11 +71,50 @@ const voiceLanguages = () =>
         ),
       ].join(",");
 
+/** The word the browser's voice is saying: where it sits in the text read. */
+export interface SpokenWord {
+  text: string;
+  start: number;
+  length: number;
+}
+
+const wordListeners = new Set<(word: SpokenWord | null) => void>();
+
+/** Hears each word as the browser's voice reaches it, and null when it stops. */
+export function onSpokenWord(listener: (word: SpokenWord | null) => void) {
+  wordListeners.add(listener);
+  return () => {
+    wordListeners.delete(listener);
+  };
+}
+
+const tellWord = (word: SpokenWord | null) =>
+  wordListeners.forEach((listener) => listener(word));
+
 function speak(text: string) {
   stopSounds();
   const utterance = new SpeechSynthesisUtterance(text);
   utterance.lang = languageOf(text);
   utterance.rate = 0.9;
+  // Safari, which most school tablets run, names each word as it is said;
+  // Chrome's network voices name none, and then nothing is lit.
+  utterance.addEventListener("boundary", (event) => {
+    if (event.name !== "word" || speaking !== utterance) return;
+    const length =
+      event.charLength ||
+      (/^\S+/.exec(text.slice(event.charIndex))?.[0].length ?? 0);
+    if (length > 0) tellWord({ text, start: event.charIndex, length });
+  });
+  utterance.addEventListener("end", () => {
+    if (speaking !== utterance) return;
+    speaking = null;
+    tellWord(null);
+    soundEnded();
+  });
+  utterance.addEventListener("error", () => {
+    if (speaking === utterance) tellWord(null);
+  });
+  speaking = utterance;
   window.speechSynthesis.speak(utterance);
 }
 
@@ -82,6 +140,31 @@ export function sayAloud(text: string, narration: string | null): boolean {
   if (!speakable(text, voiceLanguages())) return false;
   speak(text);
   return true;
+}
+
+function readNext() {
+  const item = queue.shift();
+  if (!item) return;
+  const rest = queue;
+  const played = sayAloud(item.text, item.narration);
+  // Starting a sound stops the last and clears what was waiting; the rest
+  // of this screen goes back in line behind it.
+  queue = rest;
+  if (played) afterSound = readNext;
+  else readNext();
+}
+
+/**
+ * Reads a screen's words one after another, as a page of a book is read:
+ * each recording where there is one, else the browser's voice where it is
+ * safe. Anything else played stops it.
+ */
+export function sayInOrder(
+  items: { text: string; narration: string | null }[],
+) {
+  stopSounds();
+  queue = [...items];
+  readNext();
 }
 
 /**

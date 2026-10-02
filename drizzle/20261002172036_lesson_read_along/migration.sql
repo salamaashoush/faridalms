@@ -1,0 +1,1 @@
+ALTER TABLE "core"."lessons" ADD COLUMN "read_along" boolean DEFAULT true NOT NULL;

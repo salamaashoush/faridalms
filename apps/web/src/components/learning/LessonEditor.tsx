@@ -56,6 +56,7 @@ interface Draft {
   review: boolean;
   vowelMarks: VowelMarks;
   young: boolean;
+  readAlong: boolean;
   content: ContentDocument;
 }
 
@@ -101,6 +102,7 @@ export function LessonEditor({
       (earlyYears &&
         module.classes.length > 0 &&
         module.classes.every((row) => row.young)),
+    readAlong: existing?.readAlong ?? true,
     content: existing?.content ?? emptyContent(),
   }));
   const [draft, setDraft] = useState(start);
@@ -165,6 +167,7 @@ export function LessonEditor({
           review: value.review,
           vowelMarks: value.vowelMarks,
           young: value.young,
+          readAlong: value.readAlong,
           content: shared ? content.current : value.content,
           publish,
         },
@@ -394,7 +397,15 @@ export function LessonEditor({
                 />
               ) : null}
               {earlyYears && draft.young ? (
-                <YoungAdviceList blocks={lesson.blocks} />
+                <>
+                  <CheckboxRow
+                    label={m.lrnReadAlong()}
+                    hint={m.lrnReadAlongHint()}
+                    checked={draft.readAlong}
+                    onChange={(readAlong) => set("readAlong", readAlong)}
+                  />
+                  <YoungAdviceList blocks={lesson.blocks} />
+                </>
               ) : null}
               <CheckboxRow
                 label={m.lrnReview()}

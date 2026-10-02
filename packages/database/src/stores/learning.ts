@@ -275,6 +275,7 @@ export interface LessonRow {
   review: boolean;
   vowelMarks: VowelMarks;
   young: boolean;
+  readAlong: boolean;
 }
 
 type LessonRecord = {
@@ -288,6 +289,7 @@ type LessonRecord = {
   review: boolean;
   vowel_marks: VowelMarks;
   young: boolean;
+  read_along: boolean;
 };
 
 function lessonOf(row: LessonRecord): LessonRow {
@@ -302,10 +304,11 @@ function lessonOf(row: LessonRecord): LessonRow {
     review: row.review,
     vowelMarks: row.vowel_marks,
     young: row.young,
+    readAlong: row.read_along,
   };
 }
 
-const lessonColumns = sql`l.id, l.version, l.module_id, l.position, l.title, l.completion, l.pass_score, l.review, l.vowel_marks, l.young`;
+const lessonColumns = sql`l.id, l.version, l.module_id, l.position, l.title, l.completion, l.pass_score, l.review, l.vowel_marks, l.young, l.read_along`;
 
 export async function lessonsOf(
   tx: Tx,
@@ -337,6 +340,7 @@ export interface LessonFields {
   review: boolean;
   vowelMarks: VowelMarks;
   young: boolean;
+  readAlong: boolean;
 }
 
 export async function insertLesson(
@@ -345,12 +349,12 @@ export async function insertLesson(
 ): Promise<{ id: string; version: number }> {
   const [row] = await tx.execute<{ id: string; version: number }>(sql`
     insert into core.lessons (tenant_id, module_id, position, title, completion, pass_score, review,
-      vowel_marks, young)
+      vowel_marks, young, read_along)
     values (${input.tenantId}::uuid, ${input.moduleId}::uuid,
       coalesce((select max(position) + 1 from core.lessons where tenant_id = ${input.tenantId}::uuid
         and module_id = ${input.moduleId}::uuid and status = 'active'), 0),
       ${input.title}, ${input.completion}, ${input.passScore}, ${input.review},
-      ${input.vowelMarks}, ${input.young})
+      ${input.vowelMarks}, ${input.young}, ${input.readAlong})
     returning id, version`);
   if (!row) throw new Error("lesson not written");
   return row;
@@ -367,7 +371,8 @@ export async function updateLesson(
   const [row] = await tx.execute<{ version: number }>(sql`
     update core.lessons
     set title = ${input.title}, completion = ${input.completion}, pass_score = ${input.passScore},
-      review = ${input.review}, vowel_marks = ${input.vowelMarks}, young = ${input.young}
+      review = ${input.review}, vowel_marks = ${input.vowelMarks}, young = ${input.young},
+      read_along = ${input.readAlong}
     where tenant_id = ${input.tenantId}::uuid and id = ${input.id}::uuid
       and version = ${input.expectedVersion} and status = 'active'
     returning version`);

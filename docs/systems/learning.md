@@ -85,6 +85,12 @@ From [../research/early-years.md](../research/early-years.md).
   starts a screen with the words after it, pictures are copied into the
   school, and the book's own credits stay as its last screen. StoryWeaver
   gives its books only to signed-in readers, so the teacher downloads them.
+- Each young screen reads itself as it opens: every passage in order, by
+  the teacher's recording or the browser's voice, then the question.
+  Pictures are not read; their descriptions are for screen readers. Where
+  the browser names each word as it speaks (Safari does, Chrome's network
+  voices do not), the word lights in a marker's yellow; a lesson setting
+  turns this off.
 - Children see no points or scores. Soft notes and a word of praise naming
   what they did answer each try, and the end of the lesson says so once.
 - A young child's home is up to six big cards, a lesson already begun first,

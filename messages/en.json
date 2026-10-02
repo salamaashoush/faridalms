@@ -3085,6 +3085,8 @@
   "lrnShowVowelMarks": "Show vowel marks",
   "lrnYoung": "For young children",
   "lrnYoungHint": "Plays one screen at a time and reads it aloud, with big answers to tap or drag and no points.",
+  "lrnReadAlong": "Light up words as they are read",
+  "lrnReadAlongHint": "Each word is marked while the browser's voice reads it, so children follow the print.",
   "lrnYoungAdviceTitle": "Suggestions for young children",
   "lrnYoungAdviceClear": "Sized and voiced for young children.",
   "lrnYoungTooManyQuestions": "{count} questions: young children do best with {limit} or fewer in one lesson.",

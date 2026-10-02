@@ -61,7 +61,7 @@ export function YoungPart({ part }: { part: StudentPart }) {
             part.picture ? "text-2xl leading-9" : "text-4xl leading-tight",
           )}
         >
-          <span dir="auto" className="young-words">
+          <span dir="auto" className="young-words" data-read-along>
             {part.text}
           </span>
         </span>

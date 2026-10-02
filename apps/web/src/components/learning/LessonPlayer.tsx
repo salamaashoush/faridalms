@@ -513,6 +513,7 @@ export function LessonPlayer({ lessonId }: { lessonId: string }) {
           blocks={shown.blocks}
           checks={shown.checks}
           driver={driver}
+          readAlong={data.readAlong}
           position={data.position}
           onReach={reach}
           onClose={() =>
@@ -779,6 +780,7 @@ export function LessonPreview({ lessonId }: { lessonId: string }) {
           blocks={blocks}
           checks={checks}
           driver={driver}
+          readAlong={data.readAlong}
           onClose={edit}
           badge={m.lrnPreview()}
           retry={{

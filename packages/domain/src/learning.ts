@@ -1390,6 +1390,8 @@ export const saveLessonSchema = v.pipe(
     vowelMarks: v.optional(v.picklist(VOWEL_MARKS), "shown"),
     /** Set out for young children: read aloud on a tap, larger answers. */
     young: v.optional(v.boolean(), false),
+    /** A young lesson lights each word as the voice reads it. */
+    readAlong: v.optional(v.boolean(), true),
     /** Put the saved lesson in front of students at once, when its module is open. */
     publish: v.optional(v.boolean(), false),
   }),

@@ -27,8 +27,9 @@ import type { CheckDriver, CheckStudentBlock } from "../Checks";
 import { CheckBlockView, isCheckBlock, isSettled } from "../Checks";
 import { Media } from "../LessonMedia";
 import { PictureAnswer } from "../PictureAnswer";
-import { ReadAloud, sayAloud, stopSounds } from "../ReadAloud";
+import { ReadAloud, sayAloud, sayInOrder, stopSounds } from "../ReadAloud";
 import { Burst } from "./motion";
+import { useReadAlong } from "./readAlong";
 import { playSound, setSoundsOn, soundsOn } from "./sounds";
 import { FoundContext, YoungChoice } from "./YoungChoice";
 import { YoungCounting } from "./YoungCounting";
@@ -46,17 +47,39 @@ type Content = Extract<StudentBlock, { type: "content" }>;
 const nodeText = (block: Content, node: ContentNode) =>
   contentPlainText({ root: { ...block.content.root, children: [node] } });
 
-/** The first thing on a screen with a recording, or failing that, its question. */
-function openingVoice(step: StudentBlock[]) {
+// Pictures, players and files show; their descriptions are for screen
+// readers, and a child hears only the words of the page.
+const SHOWN_ONLY = new Set(["image", "media", "file", "diagram", "scene"]);
+
+/**
+ * What a screen reads as it opens, in order: each passage of words, by its
+ * recording or the browser's voice, then the question's prompt, as a page
+ * of a picture book is read before its question is asked.
+ */
+function openingVoices(step: StudentBlock[]) {
+  const voices: { text: string; narration: string | null }[] = [];
   for (const block of step) {
     if (block.type === "content")
-      for (const node of block.content.root.children ?? [])
-        if (node.$?.narration)
-          return { text: nodeText(block, node), narration: node.$.narration };
-    if (isCheckBlock(block))
-      return { text: block.prompt, narration: block.narration ?? null };
+      for (const node of block.content.root.children ?? []) {
+        if (SHOWN_ONLY.has(node.type) && !node.$?.narration) continue;
+        const text = nodeText(block, node);
+        if (text.trim() || node.$?.narration)
+          voices.push({ text, narration: node.$?.narration ?? null });
+      }
+    if (isCheckBlock(block)) {
+      voices.push({ text: block.prompt, narration: block.narration ?? null });
+      break;
+    }
   }
-  return null;
+  return voices;
+}
+
+/** The question a screen asks, said again to a child who has not started. */
+function questionVoice(step: StudentBlock[]) {
+  const question = step.find(isCheckBlock);
+  return question
+    ? { text: question.prompt, narration: question.narration ?? null }
+    : null;
 }
 
 function YoungContent({ block }: { block: Content }) {
@@ -66,6 +89,7 @@ function YoungContent({ block }: { block: Content }) {
       fileUrl={fileUrl}
       className="fe-young"
       renderBlock={(node, drawn) => {
+        if (SHOWN_ONLY.has(node.type) && !node.$?.narration) return drawn;
         const text = nodeText(block, node);
         return (
           <div
@@ -79,7 +103,9 @@ function YoungContent({ block }: { block: Content }) {
                 size="card"
               />
             </span>
-            <div className="min-w-0 flex-1">{drawn}</div>
+            <div className="min-w-0 flex-1" data-read-along>
+              {drawn}
+            </div>
           </div>
         );
       }}
@@ -96,7 +122,7 @@ function Prompt({ block }: { block: CheckStudentBlock }) {
     >
       <ReadAloud text={block.prompt} narration={block.narration} size="large" />
       <h2 className="text-center text-3xl leading-tight font-bold text-balance sm:text-4xl">
-        <span dir="auto" className="young-words">
+        <span dir="auto" className="young-words" data-read-along>
           {block.prompt}
         </span>
       </h2>
@@ -213,6 +239,7 @@ export function YoungLesson({
   retry,
   next,
   badge,
+  readAlong = true,
 }: {
   title: string;
   blocks: StudentBlock[];
@@ -227,6 +254,8 @@ export function YoungLesson({
   next?: { label: string; onNext: () => void } | null;
   /** Shown beside the progress, as a teacher's preview is labelled. */
   badge?: string;
+  /** Lights each word as the browser's voice reads it. */
+  readAlong?: boolean;
 }) {
   const steps = useMemo(() => lessonSteps(blocks), [blocks]);
   const hydrated = useHydrated();
@@ -234,6 +263,7 @@ export function YoungLesson({
   const [sounds, setSounds] = useState(soundsOn);
   const page = useRef<HTMLDivElement>(null);
   const stage = useRef<HTMLDialogElement>(null);
+  useReadAlong(stage, readAlong);
   const finished = useRef(false);
   // No screen has opened yet, so nothing is a holdover from one.
   const opened = useRef(Number.NEGATIVE_INFINITY);
@@ -261,8 +291,7 @@ export function YoungLesson({
     page.current?.scrollTo({ top: 0 });
     page.current?.focus({ preventScroll: true });
     onReach?.(id.split(":")[0] ?? id);
-    const opening = openingVoice(step);
-    if (opening) sayAloud(opening.text, opening.narration);
+    sayInOrder(openingVoices(step));
   });
   useEffect(() => {
     if (stepId) onOpen(stepId);
@@ -271,8 +300,8 @@ export function YoungLesson({
   // A child who has not touched anything for a while hears the screen once more.
   const promptAgain = useEffectEvent(() => {
     if (done) return;
-    const opening = openingVoice(step);
-    if (opening) sayAloud(opening.text, opening.narration);
+    const asked = questionVoice(step);
+    if (asked) sayAloud(asked.text, asked.narration);
   });
   useEffect(() => {
     const dialog = stage.current;
@@ -327,6 +356,15 @@ export function YoungLesson({
           )
         : 0;
 
+  const foundContext = useMemo(
+    () => ({
+      found,
+      find: (blockId: string) =>
+        setFound((current) => new Set([...current, blockId])),
+    }),
+    [found],
+  );
+
   const forward = () =>
     setAt((current) =>
       typeof current !== "number"
@@ -341,13 +379,7 @@ export function YoungLesson({
     );
 
   return (
-    <FoundContext.Provider
-      value={{
-        found,
-        find: (blockId) =>
-          setFound((current) => new Set([...current, blockId])),
-      }}
-    >
+    <FoundContext.Provider value={foundContext}>
       <dialog
         ref={stage}
         open

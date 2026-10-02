@@ -156,6 +156,8 @@ export const lessons = core.table.withRLS(
     review: boolean("review").notNull().default(false),
     /** Set out for young children: text read aloud on a tap, larger answers. */
     young: boolean("young").notNull().default(false),
+    /** A young lesson lights each word as the voice reads it. */
+    readAlong: boolean("read_along").notNull().default(true),
     /** Whether students read vowel marks, or choose for themselves. */
     vowelMarks: text("vowel_marks")
       .$type<"shown" | "hidden" | "choice">()
