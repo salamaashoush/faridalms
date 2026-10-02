@@ -3,7 +3,8 @@ import type { ContentDocument, ContentNode } from "@faridalms/domain/content";
 import { plainContent } from "@faridalms/domain/content-conversion";
 import { describe, expect, test } from "bun:test";
 
-import { login, raw, rejection, sessionFor, signedIn } from "./harness";
+import { sweepTenantFiles } from "../src/files/sweep";
+import { login, raw, rejection, seeded, sessionFor, signedIn } from "./harness";
 
 const teacherSession = () => sessionFor("northwind", login("teacher", 0, 1));
 type Session = Awaited<ReturnType<typeof teacherSession>>;
@@ -288,6 +289,24 @@ describe("assessed coursework", () => {
       after?.students.find((row) => row.studentId === other.studentId)
         ?.declaration,
     ).toMatchObject({ kind: "paper", aiUsed: null, scan: { name: scan.name } });
+    // The scan is the declaration's own record, never media a document
+    // dropped, so the trash sweep a month on keeps it.
+    const { cell, files, tenants } = seeded();
+    await sweepTenantFiles(
+      cell,
+      files,
+      tenants[0]?.tenantId ?? "",
+      new Date(Date.now() + 31 * 24 * 60 * 60 * 1000),
+    );
+    expect(
+      (
+        await raw(
+          "northwind",
+          teacher.token,
+          `/v1/files/${scan.fileId}/content?download`,
+        )
+      ).status,
+    ).toBe(200);
     for (const studentId of [me.id, other.studentId])
       await teacher.api.exams.authenticate({
         attemptId: attemptOf(studentId),

@@ -274,8 +274,8 @@ export async function retireUnlinkedFiles(
 }
 
 /**
- * Pictures and files no document has held for the whole trash window are
- * retired. A document's saved versions keep their links while they are
+ * Pictures and files a document dropped and no document has held for the
+ * whole trash window are retired. A document's saved versions keep their links while they are
  * shown, so only media nothing reads any more goes. A class's or module's
  * file area is a library kept until a teacher deletes from it. Keys come back only when
  * no active row still points at the same object.
@@ -296,6 +296,11 @@ export async function retireTrashedMedia(
           and f.status = 'active' and f.state = 'ready' and f.linked_at is not null
           and f.host_type is distinct from 'class' and f.host_type is distinct from 'module'
           and f.created_at < ${before}::timestamptz
+          -- Only what a document once held and has dropped: a file kept by
+          -- a record of its own, as a declaration keeps its scan, stays.
+          and exists (
+            select 1 from core.document_files l
+            where l.tenant_id = f.tenant_id and l.file_id = f.id)
           and not exists (
             select 1 from core.document_files l
             where l.tenant_id = f.tenant_id and l.file_id = f.id
