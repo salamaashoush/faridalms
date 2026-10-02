@@ -42,6 +42,7 @@ import { formatList, formatNumber } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
 import { ReadAloud, YoungContext } from "./ReadAloud";
+import { YoungMatching, YoungOrdering, YoungSorting } from "./young/YoungPlace";
 
 /** A part's picture over its words; with no words, its description names it. */
 function PartView({
@@ -1382,6 +1383,17 @@ function WrittenCheck({
   );
 }
 
+/** Whether a question's cards are placed by tapping them into place, as children do. */
+const placesCards = (block: CheckStudentBlock, young: boolean) => {
+  const parts =
+    block.type === "matching"
+      ? [...block.prompts, ...block.choices]
+      : block.type === "sorting" || block.type === "ordering"
+        ? block.items
+        : null;
+  return parts !== null && (young || parts.some((part) => part.picture));
+};
+
 export function CheckBlockView({
   block,
   view,
@@ -1391,6 +1403,25 @@ export function CheckBlockView({
   view: CheckView | undefined;
   driver: CheckDriver;
 }) {
+  const young = useContext(YoungContext);
+  const mode = useContext(CheckModeContext);
+  const legend = useId();
+  // A quiz keeps answers unmarked until hand-in, which placing cannot do.
+  if (mode === "practice" && placesCards(block, young)) {
+    const board =
+      block.type === "matching" ? (
+        <YoungMatching block={block} view={view} driver={driver} />
+      ) : block.type === "sorting" ? (
+        <YoungSorting block={block} view={view} driver={driver} />
+      ) : block.type === "ordering" ? (
+        <YoungOrdering block={block} view={view} driver={driver} />
+      ) : null;
+    return (
+      <CheckCard block={block} legendId={legend} status={null} actions={null}>
+        {board}
+      </CheckCard>
+    );
+  }
   if (block.type === "choice")
     return <ChoiceCheck block={block} view={view} driver={driver} />;
   if (block.type === "gaps")

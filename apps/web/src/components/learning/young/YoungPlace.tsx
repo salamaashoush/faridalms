@@ -1,0 +1,709 @@
+import type {
+  CheckView,
+  LessonResponse,
+  StudentBlock,
+  StudentPart,
+} from "@faridalms/domain/learning";
+import type { ReactNode } from "react";
+
+import { Button } from "@faridalms/ui/button";
+import { cn } from "@faridalms/ui/cn";
+import { useMutation } from "@tanstack/react-query";
+import { Check, Eye, Undo2 } from "lucide-react";
+import { useEffect, useEffectEvent, useRef, useState } from "react";
+import { toast } from "sonner";
+
+import * as m from "~/i18n/messages";
+import { formatNumber } from "~/utils/datetime";
+import { getMessageFromError } from "~/utils/error";
+
+import type { CheckDriver } from "../Checks";
+
+import { ReadAloud } from "../ReadAloud";
+import { hop, shake } from "./motion";
+import { playSound } from "./sounds";
+import { YoungOutcome, YoungPart } from "./YoungChoice";
+
+type Matching = Extract<StudentBlock, { type: "matching" }>;
+type Sorting = Extract<StudentBlock, { type: "sorting" }>;
+type Ordering = Extract<StudentBlock, { type: "ordering" }>;
+
+/** Where each card sits, by card id: the id of its place, or none while in the pile. */
+type Placement = Record<string, string>;
+
+const BANK = "bank";
+const partName = (part: StudentPart) => part.text || part.picture?.alt || "";
+
+/**
+ * A child placing cards, by tapping a card and then its place, or by
+ * dragging it there (WCAG 2.5.7 asks for the first; young children manage
+ * both, NN/g found). Once every card has a place the answer is checked: the
+ * right ones stay, shining, and the rest come back to the pile to try again.
+ */
+function usePlacing({
+  block,
+  view,
+  driver,
+  pieces,
+  answerOf,
+  complete,
+  responseOf,
+  solution,
+  placementOf,
+  capacity,
+}: {
+  block: { id: string };
+  view: CheckView | undefined;
+  driver: CheckDriver;
+  pieces: StudentPart[];
+  /** The part a try marked for this card: the card itself, or its place. */
+  answerOf: (pieceId: string, spotId: string) => string;
+  complete: (placement: Placement) => boolean;
+  responseOf: (placement: Placement) => LessonResponse;
+  /** Where everything belongs, once the answer is out. */
+  solution: () => Placement;
+  /** Where a try put everything, read back from its answer. */
+  placementOf: (response: LessonResponse) => Placement;
+  /** How many cards a place takes, when it takes only so many. */
+  capacity: (spotId: string) => number;
+}) {
+  const [placement, setPlacement] = useState<Placement>({});
+  const [held, setHeld] = useState<string | null>(null);
+  const [said, setSaid] = useState("");
+  const [seenTries, setSeenTries] = useState(view?.tries ?? 0);
+  const cards = useRef(new Map<string, HTMLElement>());
+  // What the latest try sent, which its marks are read against.
+  const [sent, setSent] = useState<Placement>({});
+  const respond = useMutation({
+    mutationFn: (response: LessonResponse) =>
+      driver.respond(block.id, response),
+    onError: (error) => toast.error(getMessageFromError(error)),
+  });
+  const reveal = useMutation({
+    mutationFn: () => driver.reveal(block.id),
+    onError: (error) => toast.error(getMessageFromError(error)),
+  });
+  const settled = Boolean(view && (view.correct || view.revealed));
+
+  // A new mark keeps the cards it found right and sends the others back.
+  const tries = view?.tries ?? 0;
+  if (tries !== seenTries) {
+    setSeenTries(tries);
+    if (view && !view.correct && !view.revealed)
+      setPlacement(
+        Object.fromEntries(
+          Object.entries(sent).filter(
+            ([pieceId, spotId]) =>
+              view.parts[answerOf(pieceId, spotId)] === true,
+          ),
+        ),
+      );
+  }
+
+  // Only a new try is answered with sound and movement.
+  const answered = useEffectEvent(() => {
+    if (view?.correct) {
+      playSound("right");
+      for (const element of cards.current.values()) hop(element);
+    } else if (!view?.revealed) {
+      playSound("wrong");
+      for (const [pieceId, spotId] of Object.entries(sent))
+        if (view?.parts[answerOf(pieceId, spotId)] === false)
+          shake(cards.current.get(pieceId));
+    }
+  });
+  useEffect(() => {
+    if (tries > 0) answered();
+  }, [tries]);
+
+  // A settled question shows how it ended, even after the screen was left.
+  const shown =
+    view?.revealed && !view.correct
+      ? solution()
+      : view?.correct && view.response
+        ? placementOf(view.response)
+        : placement;
+  const markOf = (pieceId: string): "right" | null => {
+    const spotId = shown[pieceId];
+    if (!spotId || !view) return null;
+    if (settled) return "right";
+    return view.parts[answerOf(pieceId, spotId)] === true &&
+      sent[pieceId] === spotId
+      ? "right"
+      : null;
+  };
+  const locked = (pieceId: string) =>
+    settled || respond.isPending || markOf(pieceId) === "right";
+
+  const put = (pieceId: string, spotId: string) => {
+    const next = { ...placement };
+    if (spotId === BANK) delete next[pieceId];
+    else {
+      const there = Object.keys(next).filter((id) => next[id] === spotId);
+      // A place that is full gives its card back to the pile.
+      if (there.length >= capacity(spotId) && there[0] && there[0] !== pieceId)
+        delete next[there[0]];
+      next[pieceId] = spotId;
+    }
+    setPlacement(next);
+    setHeld(null);
+    const piece = pieces.find((part) => part.id === pieceId);
+    setSaid(piece ? m.lrnYoungPlaced({ item: partName(piece) }) : "");
+    if (spotId !== BANK && complete(next)) {
+      setSent(next);
+      respond.mutate(responseOf(next));
+    }
+  };
+
+  const tapPiece = (pieceId: string) => {
+    if (locked(pieceId)) return;
+    const spotId = placement[pieceId];
+    // Tapping a placed card while holding another puts the held one there.
+    if (held && held !== pieceId && spotId) return put(held, spotId);
+    if (held === pieceId) {
+      setHeld(null);
+      setSaid("");
+      return;
+    }
+    setHeld(pieceId);
+    const piece = pieces.find((part) => part.id === pieceId);
+    setSaid(piece ? m.lrnYoungPicked({ item: partName(piece) }) : "");
+  };
+
+  const tapSpot = (spotId: string) => {
+    if (held) put(held, spotId);
+  };
+
+  return {
+    placement: shown,
+    held,
+    said,
+    settled,
+    pending: respond.isPending,
+    cards,
+    markOf,
+    locked,
+    put,
+    tapPiece,
+    tapSpot,
+    canShow: !settled && tries >= 2,
+    show: () => reveal.mutate(),
+    showing: reveal.isPending,
+  };
+}
+
+type Placing = ReturnType<typeof usePlacing>;
+
+/** The place under a point, as a dragged card is let go over it. */
+const spotAt = (x: number, y: number) =>
+  document.elementFromPoint(x, y)?.closest<HTMLElement>("[data-spot]")?.dataset
+    .spot ?? null;
+
+/**
+ * A card a child can pick up: by a tap, or by dragging it to a place. The
+ * drag follows the finger as a copy and lands on whatever place it is let go
+ * over; a short press is a tap.
+ */
+function Piece({
+  part,
+  placing,
+  small = false,
+}: {
+  part: StudentPart;
+  placing: Placing;
+  small?: boolean;
+}) {
+  const own = useRef<HTMLButtonElement | null>(null);
+  const drag = useRef<{
+    x: number;
+    y: number;
+    ghost: HTMLElement | null;
+    dx: number;
+    dy: number;
+  } | null>(null);
+  const dragged = useRef(false);
+  const held = placing.held === part.id;
+  const mark = placing.markOf(part.id);
+  const locked = placing.locked(part.id);
+
+  const end = () => {
+    drag.current?.ghost?.remove();
+    drag.current = null;
+    for (const spot of document.querySelectorAll("[data-over]"))
+      spot.removeAttribute("data-over");
+  };
+  return (
+    <span className="relative inline-flex">
+      <button
+        ref={(element) => {
+          own.current = element;
+          if (element) placing.cards.current.set(part.id, element);
+          else placing.cards.current.delete(part.id);
+        }}
+        type="button"
+        aria-pressed={held}
+        aria-disabled={locked || undefined}
+        onContextMenu={(event) => event.preventDefault()}
+        onPointerDown={(event) => {
+          if (locked || event.button !== 0) return;
+          const box = event.currentTarget.getBoundingClientRect();
+          drag.current = {
+            x: event.clientX,
+            y: event.clientY,
+            ghost: null,
+            dx: event.clientX - box.left,
+            dy: event.clientY - box.top,
+          };
+          dragged.current = false;
+          event.currentTarget.setPointerCapture(event.pointerId);
+        }}
+        onPointerMove={(event) => {
+          const now = drag.current;
+          if (!now) return;
+          if (!now.ghost) {
+            if (Math.hypot(event.clientX - now.x, event.clientY - now.y) < 8)
+              return;
+            const source = event.currentTarget;
+            const box = source.getBoundingClientRect();
+            const ghost = source.cloneNode(true) as HTMLElement;
+            Object.assign(ghost.style, {
+              position: "fixed",
+              left: "0",
+              top: "0",
+              width: `${box.width}px`,
+              height: `${box.height}px`,
+              pointerEvents: "none",
+              zIndex: "60",
+              opacity: "0.9",
+            });
+            ghost.removeAttribute("id");
+            (source.closest("dialog") ?? document.body).append(ghost);
+            now.ghost = ghost;
+            dragged.current = true;
+          }
+          now.ghost.style.transform = `translate(${event.clientX - now.dx}px, ${event.clientY - now.dy}px) scale(1.05)`;
+          for (const spot of document.querySelectorAll("[data-over]"))
+            spot.removeAttribute("data-over");
+          const over = spotAt(event.clientX, event.clientY);
+          if (over)
+            document
+              .querySelector(`[data-spot="${CSS.escape(over)}"]`)
+              ?.setAttribute("data-over", "");
+        }}
+        onPointerUp={(event) => {
+          const now = drag.current;
+          if (now?.ghost) {
+            const over = spotAt(event.clientX, event.clientY);
+            end();
+            if (over) placing.put(part.id, over);
+            return;
+          }
+          end();
+        }}
+        onPointerCancel={end}
+        onClick={() => {
+          // A drag that ended is not also a tap.
+          if (dragged.current) {
+            dragged.current = false;
+            return;
+          }
+          placing.tapPiece(part.id);
+        }}
+        className={cn(
+          "flex touch-none items-center justify-center rounded-2xl border-2 bg-card p-3 shadow-sm transition-[transform,box-shadow,border-color] outline-none select-none [-webkit-touch-callout:none] focus-visible:ring-4 focus-visible:ring-ring/50",
+          small ? "min-h-16 min-w-20" : "min-h-19 min-w-28",
+          part.picture && (small ? "w-28" : "w-36 sm:w-40"),
+          part.narration && "pt-11",
+          held &&
+            "-translate-y-1 border-primary shadow-lg ring-4 ring-primary/30 motion-reduce:translate-y-0",
+          mark === "right" && "border-success bg-success/10",
+          !locked && !held && "hover:border-primary/50",
+          placing.pending && "opacity-70",
+        )}
+      >
+        <YoungPart part={part} />
+      </button>
+      {part.narration ? (
+        <ReadAloud
+          text={partName(part)}
+          narration={part.narration}
+          size="small"
+          className="absolute start-1.5 top-1.5"
+        />
+      ) : null}
+      {mark === "right" ? (
+        <span
+          aria-hidden
+          className="pointer-events-none absolute -end-2 -top-2 grid size-8 place-items-center rounded-full bg-success text-white shadow"
+        >
+          <Check className="size-4" />
+        </span>
+      ) : null}
+    </span>
+  );
+}
+
+/** An empty place a held card can be put in. */
+function Spot({
+  id,
+  label,
+  placing,
+  className,
+  children,
+}: {
+  id: string;
+  label: string;
+  placing: Placing;
+  className?: string;
+  children?: ReactNode;
+}) {
+  return (
+    <button
+      type="button"
+      data-spot={id}
+      aria-label={label}
+      onClick={() => placing.tapSpot(id)}
+      className={cn(
+        "grid place-items-center rounded-2xl border-2 border-dashed text-muted-foreground transition-colors outline-none focus-visible:ring-4 focus-visible:ring-ring/50 data-over:border-primary data-over:bg-primary/10",
+        placing.held
+          ? "border-primary/60 bg-primary/5 motion-safe:animate-pulse"
+          : "border-muted-foreground/30",
+        className,
+      )}
+    >
+      {children}
+    </button>
+  );
+}
+
+/** The cards still to place, and a way to put a picked-up card back among them. */
+function Pile({
+  pieces,
+  placing,
+  small,
+}: {
+  pieces: StudentPart[];
+  placing: Placing;
+  small?: boolean;
+}) {
+  const left = pieces.filter((piece) => !placing.placement[piece.id]);
+  const back = placing.held && placing.placement[placing.held];
+  if (left.length === 0 && !back) return null;
+  return (
+    <div
+      data-spot={BANK}
+      className="flex min-h-24 flex-wrap items-center justify-center gap-3 rounded-3xl bg-muted/50 p-4"
+    >
+      {left.map((piece) => (
+        <Piece key={piece.id} part={piece} placing={placing} small={small} />
+      ))}
+      {back ? (
+        <Button
+          type="button"
+          variant="outline"
+          className="h-14 rounded-full px-5 text-base"
+          onClick={() => placing.tapSpot(BANK)}
+        >
+          <Undo2 aria-hidden className="size-5" />
+          {m.lrnYoungPutBack()}
+        </Button>
+      ) : null}
+    </div>
+  );
+}
+
+/** What follows every placing board: what was said, help once stuck, and the outcome. */
+function Footer({
+  placing,
+  view,
+}: {
+  placing: Placing;
+  view: CheckView | undefined;
+}) {
+  return (
+    <>
+      <p aria-live="polite" className="sr-only">
+        {placing.said}
+      </p>
+      {placing.canShow ? (
+        <div className="flex justify-center">
+          <Button
+            type="button"
+            variant="outline"
+            className="h-14 rounded-full px-6 text-lg"
+            disabled={placing.showing}
+            onClick={placing.show}
+          >
+            <Eye aria-hidden className="size-5" />
+            {m.lrnYoungShowMe()}
+          </Button>
+        </div>
+      ) : null}
+      <output aria-live="polite">
+        <YoungOutcome view={view} />
+      </output>
+    </>
+  );
+}
+
+/** Matching as children do it: each card is taken to the one it goes with. */
+export function YoungMatching({
+  block,
+  view,
+  driver,
+}: {
+  block: Matching;
+  view: CheckView | undefined;
+  driver: CheckDriver;
+}) {
+  const placing = usePlacing({
+    block,
+    view,
+    driver,
+    pieces: block.choices,
+    // A pair is marked by its prompt, which is the place a card goes to.
+    answerOf: (_choiceId, promptId) => promptId,
+    complete: (placement) =>
+      block.prompts.every((prompt) =>
+        Object.values(placement).includes(prompt.id),
+      ),
+    responseOf: (placement) => ({
+      type: "matching",
+      pairs: Object.fromEntries(
+        Object.entries(placement).map(([choiceId, promptId]) => [
+          promptId,
+          choiceId,
+        ]),
+      ),
+    }),
+    solution: () =>
+      Object.fromEntries(
+        block.prompts.flatMap((prompt) => {
+          const name = view?.partKey?.[prompt.id];
+          const choice = block.choices.find(
+            (option) => partName(option) === name,
+          );
+          return choice ? [[choice.id, prompt.id]] : [];
+        }),
+      ),
+    placementOf: (response) =>
+      response.type === "matching"
+        ? Object.fromEntries(
+            Object.entries(response.pairs).map(([promptId, choiceId]) => [
+              choiceId,
+              promptId,
+            ]),
+          )
+        : {},
+    capacity: () => 1,
+  });
+  const placedAt = (promptId: string) =>
+    block.choices.find((choice) => placing.placement[choice.id] === promptId);
+  return (
+    <div className="grid gap-6">
+      <ul className="grid gap-4">
+        {block.prompts.map((prompt) => {
+          const placed = placedAt(prompt.id);
+          return (
+            <li
+              key={prompt.id}
+              className="grid grid-cols-2 items-center gap-3 sm:gap-6"
+            >
+              <span className="relative flex min-h-19 items-center justify-center rounded-2xl bg-muted/50 p-3">
+                <YoungPart part={prompt} />
+                {prompt.narration ? (
+                  <ReadAloud
+                    text={partName(prompt)}
+                    narration={prompt.narration}
+                    size="small"
+                    className="absolute start-1.5 top-1.5"
+                  />
+                ) : null}
+              </span>
+              {placed ? (
+                <span data-spot={prompt.id} className="flex justify-center">
+                  <Piece part={placed} placing={placing} />
+                </span>
+              ) : (
+                <Spot
+                  id={prompt.id}
+                  label={m.lrnYoungPutWith({ item: partName(prompt) })}
+                  placing={placing}
+                  className="min-h-19 self-stretch"
+                />
+              )}
+            </li>
+          );
+        })}
+      </ul>
+      <Pile pieces={block.choices} placing={placing} />
+      <Footer placing={placing} view={view} />
+    </div>
+  );
+}
+
+/** Sorting as children do it: each card is put in its group's box. */
+export function YoungSorting({
+  block,
+  view,
+  driver,
+}: {
+  block: Sorting;
+  view: CheckView | undefined;
+  driver: CheckDriver;
+}) {
+  const placing = usePlacing({
+    block,
+    view,
+    driver,
+    pieces: block.items,
+    answerOf: (itemId) => itemId,
+    complete: (placement) =>
+      block.items.every((item) => placement[item.id] !== undefined),
+    responseOf: (placement) => ({ type: "sorting", groups: placement }),
+    solution: () =>
+      Object.fromEntries(
+        block.items.flatMap((item) => {
+          const name = view?.partKey?.[item.id];
+          const group = block.groups.find((one) => one.name === name);
+          return group ? [[item.id, group.id]] : [];
+        }),
+      ),
+    placementOf: (response) =>
+      response.type === "sorting" ? response.groups : {},
+    capacity: () => Number.POSITIVE_INFINITY,
+  });
+  return (
+    <div className="grid gap-6">
+      <Pile pieces={block.items} placing={placing} small />
+      <div
+        className={cn(
+          "grid gap-4",
+          block.groups.length === 3 ? "sm:grid-cols-3" : "sm:grid-cols-2",
+          block.groups.length > 1 && "grid-cols-2",
+        )}
+      >
+        {block.groups.map((group) => {
+          const inside = block.items.filter(
+            (item) => placing.placement[item.id] === group.id,
+          );
+          return (
+            <section
+              key={group.id}
+              data-spot={group.id}
+              aria-label={group.name}
+              className="grid content-start gap-3 rounded-3xl border-2 bg-card p-3"
+            >
+              <h3 className="flex items-center justify-center gap-2 text-xl leading-8 font-bold">
+                {group.narration ? (
+                  <ReadAloud
+                    text={group.name}
+                    narration={group.narration}
+                    size="small"
+                  />
+                ) : null}
+                <span dir="auto">{group.name}</span>
+              </h3>
+              {inside.length ? (
+                <div className="flex flex-wrap justify-center gap-2">
+                  {inside.map((item) => (
+                    <Piece key={item.id} part={item} placing={placing} small />
+                  ))}
+                </div>
+              ) : null}
+              {placing.settled ? null : (
+                <Spot
+                  id={group.id}
+                  label={m.lrnYoungPutIn({ group: group.name })}
+                  placing={placing}
+                  className="min-h-19"
+                />
+              )}
+            </section>
+          );
+        })}
+      </div>
+      <Footer placing={placing} view={view} />
+    </div>
+  );
+}
+
+/** Ordering as children do it: cards go one by one into numbered places. */
+export function YoungOrdering({
+  block,
+  view,
+  driver,
+}: {
+  block: Ordering;
+  view: CheckView | undefined;
+  driver: CheckDriver;
+}) {
+  const slots = block.items.map((_, index) => `slot-${index}`);
+  const placing = usePlacing({
+    block,
+    view,
+    driver,
+    pieces: block.items,
+    answerOf: (itemId) => itemId,
+    complete: (placement) =>
+      slots.every((slot) => Object.values(placement).includes(slot)),
+    responseOf: (placement) => ({
+      type: "ordering",
+      order: slots.map(
+        (slot) =>
+          Object.keys(placement).find((itemId) => placement[itemId] === slot) ??
+          "",
+      ),
+    }),
+    solution: () =>
+      Object.fromEntries(
+        block.items.map((item) => [
+          item.id,
+          `slot-${Number(view?.partKey?.[item.id] ?? 1) - 1}`,
+        ]),
+      ),
+    placementOf: (response) =>
+      response.type === "ordering"
+        ? Object.fromEntries(
+            response.order.map((itemId, index) => [itemId, `slot-${index}`]),
+          )
+        : {},
+    capacity: () => 1,
+  });
+  return (
+    <div className="grid gap-6">
+      <ol className="flex flex-wrap items-start justify-center gap-3">
+        {slots.map((slot, index) => {
+          const placed = block.items.find(
+            (item) => placing.placement[item.id] === slot,
+          );
+          const number = formatNumber(index + 1);
+          return (
+            <li key={slot} className="grid justify-items-center gap-2">
+              <span
+                aria-hidden
+                className="grid size-9 place-items-center rounded-full bg-muted text-lg font-bold tabular-nums"
+              >
+                {number}
+              </span>
+              {placed ? (
+                <span data-spot={slot}>
+                  <Piece part={placed} placing={placing} />
+                </span>
+              ) : (
+                <Spot
+                  id={slot}
+                  label={m.lrnYoungPlace({ number })}
+                  placing={placing}
+                  className="min-h-19 w-36 sm:w-40"
+                />
+              )}
+            </li>
+          );
+        })}
+      </ol>
+      <Pile pieces={block.items} placing={placing} />
+      <Footer placing={placing} view={view} />
+    </div>
+  );
+}

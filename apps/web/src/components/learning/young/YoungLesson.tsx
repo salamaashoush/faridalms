@@ -21,7 +21,7 @@ import { ContentView } from "~/components/content/ContentView";
 import * as m from "~/i18n/messages";
 import { formatNumber } from "~/utils/datetime";
 
-import type { CheckDriver } from "../Checks";
+import type { CheckDriver, CheckStudentBlock } from "../Checks";
 
 import { CheckBlockView, isCheckBlock, isSettled } from "../Checks";
 import { Media } from "../LessonMedia";
@@ -29,6 +29,7 @@ import { ReadAloud, sayAloud, stopSounds } from "../ReadAloud";
 import { Burst } from "./motion";
 import { playSound, setSoundsOn, soundsOn } from "./sounds";
 import { YoungChoice } from "./YoungChoice";
+import { YoungMatching, YoungOrdering, YoungSorting } from "./YoungPlace";
 
 const fileUrl = (fileId: string) => `/files/${fileId}`;
 
@@ -74,6 +75,24 @@ function YoungContent({ block }: { block: Content }) {
   );
 }
 
+/** A question's words, big, with the speaker that reads them. */
+function Prompt({ block }: { block: CheckStudentBlock }) {
+  return (
+    <div
+      dir={textDirection(block.prompt) ?? undefined}
+      className="flex items-center justify-center gap-3"
+    >
+      <ReadAloud text={block.prompt} narration={block.narration} />
+      <h2
+        dir="auto"
+        className="text-center text-2xl leading-9 font-bold text-balance sm:text-3xl"
+      >
+        {block.prompt}
+      </h2>
+    </div>
+  );
+}
+
 function StepBlock({
   block,
   view,
@@ -85,24 +104,29 @@ function StepBlock({
 }) {
   if (block.type === "content") return <YoungContent block={block} />;
   if (block.type === "media") return <Media block={block} />;
-  if (block.type === "choice")
-    return (
-      <section className="grid gap-6">
-        <div
-          dir={textDirection(block.prompt) ?? undefined}
-          className="flex items-center justify-center gap-3"
-        >
-          <ReadAloud text={block.prompt} narration={block.narration} />
-          <h2 dir="auto" className="text-2xl leading-9 font-bold sm:text-3xl">
-            {block.prompt}
-          </h2>
-        </div>
-        <YoungChoice block={block} view={view} driver={driver} />
-      </section>
-    );
-  if (isCheckBlock(block))
+  if (!isCheckBlock(block)) return null;
+  const answer =
+    block.type === "choice" ? (
+      <YoungChoice block={block} view={view} driver={driver} />
+    ) : block.type === "matching" ? (
+      <YoungMatching block={block} view={view} driver={driver} />
+    ) : block.type === "sorting" ? (
+      <YoungSorting block={block} view={view} driver={driver} />
+    ) : block.type === "ordering" ? (
+      <YoungOrdering block={block} view={view} driver={driver} />
+    ) : null;
+  if (!answer)
     return <CheckBlockView block={block} view={view} driver={driver} />;
-  return null;
+  // A question is laid out in its own language's direction, whatever the page's.
+  return (
+    <section
+      dir={textDirection(block.prompt) ?? undefined}
+      className="grid gap-6"
+    >
+      <Prompt block={block} />
+      {answer}
+    </section>
+  );
 }
 
 /** How far through the lesson a child is, as a track of screens, without numbers. */
