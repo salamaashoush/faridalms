@@ -1,30 +1,21 @@
 import type { ContentDocument } from "@faridalms/domain/content";
-import type { NewsLocale } from "@faridalms/domain/news";
+import type { ContentLocale } from "@faridalms/domain/translations";
 
-import { documentWritten, otherNewsLocale } from "@faridalms/domain/news";
+import { documentWritten, otherLocale } from "@faridalms/domain/translations";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@faridalms/ui/tabs";
 
 import { ContentView } from "~/components/content/ContentView";
 import * as m from "~/i18n/messages";
 
-export const LOCALE_LABEL: Record<NewsLocale, () => string> = {
-  en: m.newsLangEn,
-  ar: m.newsLangAr,
-};
-
-/** A language's name within a sentence of the interface language. */
-export const LOCALE_NAME: Record<NewsLocale, () => string> = {
-  en: m.newsNameEn,
-  ar: m.newsNameAr,
-};
+import { LOCALE_LABEL, LOCALE_NAME } from "./languages";
 
 const fileUrl = (fileId: string) => `/files/${fileId}`;
 
 /**
- * A post in one language. Until the translation is written the original
+ * A document in one language. Until the translation is written the original
  * shows in its place, saying so, rather than the reader meeting a blank page.
  */
-function PostIn({
+function WrittenIn({
   body,
   translation,
   primary,
@@ -32,8 +23,8 @@ function PostIn({
 }: {
   body: ContentDocument;
   translation: ContentDocument | null;
-  primary: NewsLocale;
-  locale: NewsLocale;
+  primary: ContentLocale;
+  locale: ContentLocale;
 }) {
   const translated = locale !== primary && documentWritten(translation);
   const shown = translated && translation ? translation : body;
@@ -42,7 +33,7 @@ function PostIn({
     <div className="grid gap-4">
       {locale !== primary && !translated ? (
         <p className="text-[13px] leading-[18px] text-muted-foreground">
-          {m.newsNotTranslated({
+          {m.translationNotWritten({
             language: LOCALE_NAME[locale](),
             original: LOCALE_NAME[primary](),
           })}
@@ -55,8 +46,8 @@ function PostIn({
   );
 }
 
-/** A post to read, with a switch between its languages when it has two. */
-export function NewsView({
+/** A document to read, with a switch between its languages when it has two. */
+export function TranslatedView({
   body,
   translation,
   primary,
@@ -65,27 +56,27 @@ export function NewsView({
 }: {
   body: ContentDocument;
   translation: ContentDocument | null;
-  primary: NewsLocale;
-  locale: NewsLocale;
-  onLocaleChange: (locale: NewsLocale) => void;
+  primary: ContentLocale;
+  locale: ContentLocale;
+  onLocaleChange: (locale: ContentLocale) => void;
 }) {
   if (!translation)
     return (
-      <PostIn
+      <WrittenIn
         body={body}
         translation={null}
         primary={primary}
         locale={primary}
       />
     );
-  const locales = [primary, otherNewsLocale(primary)];
+  const locales = [primary, otherLocale(primary)];
   return (
     <Tabs
       value={locale}
-      onValueChange={(value: NewsLocale) => onLocaleChange(value)}
+      onValueChange={(value: ContentLocale) => onLocaleChange(value)}
       className="grid gap-5"
     >
-      <TabsList aria-label={m.newsLanguage()}>
+      <TabsList aria-label={m.contentLanguage()}>
         {locales.map((value) => (
           <TabsTrigger key={value} value={value} lang={value}>
             {LOCALE_LABEL[value]()}
@@ -94,7 +85,7 @@ export function NewsView({
       </TabsList>
       {locales.map((value) => (
         <TabsContent key={value} value={value}>
-          <PostIn
+          <WrittenIn
             body={body}
             translation={translation}
             primary={primary}

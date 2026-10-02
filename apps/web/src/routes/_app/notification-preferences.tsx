@@ -234,8 +234,8 @@ function PreferencesPage() {
             width="name"
             value={draft.locale}
             options={[
-              { value: "en", label: m.newsLangEn() },
-              { value: "ar", label: m.newsLangAr() },
+              { value: "en", label: m.languageOwnEn() },
+              { value: "ar", label: m.languageOwnAr() },
             ]}
             onChange={(locale) =>
               setDraft((current) => ({ ...current, locale }))

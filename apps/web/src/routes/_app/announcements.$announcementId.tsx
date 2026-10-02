@@ -6,7 +6,7 @@ import {
   useSuspenseQuery,
 } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { Archive, CircleCheck, Pencil, Send } from "lucide-react";
+import { Archive, CircleCheck, Copy, Pencil, Send } from "lucide-react";
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
@@ -19,7 +19,7 @@ import {
   URGENCY_TONE,
 } from "~/components/announcements/format";
 import { BreadcrumbCurrent } from "~/components/app/WorkspaceBreadcrumb";
-import { ContentView } from "~/components/content/ContentView";
+import { TranslatedView } from "~/components/content/TranslatedView";
 import { formatInstant } from "~/components/coursework/format";
 import { DataTable } from "~/components/system/DataTable";
 import {
@@ -40,6 +40,7 @@ import { getLocale } from "~/i18n/runtime";
 import { announcementQuery } from "~/queries/announcements";
 import {
   archiveAnnouncement,
+  duplicateAnnouncement,
   markAnnouncementSeen,
   publishAnnouncement,
 } from "~/server/announcements";
@@ -221,6 +222,25 @@ function AnnouncementPage() {
     }
   };
   const [reporting, setReporting] = useState(false);
+  const viewer = getLocale() === "ar" ? "ar" : "en";
+  const [locale, setLocale] = useState<"en" | "ar">(
+    data.translation && viewer !== data.primaryLocale
+      ? viewer
+      : data.primaryLocale,
+  );
+  const copy = async () => {
+    try {
+      const created = await duplicateAnnouncement({ data: { id: data.id } });
+      await refresh();
+      toast.success(m.annDuplicated());
+      void navigate({
+        to: "/admin/announcement-editor",
+        search: { id: created.id },
+      });
+    } catch (error) {
+      toast.error(getMessageFromError(error));
+    }
+  };
   const width = useReaderWidth();
   const reached = data.report?.length ?? 0;
   const readCount = (data.report ?? []).filter((row) => row.readAt).length;
@@ -275,7 +295,7 @@ function AnnouncementPage() {
     >
       <RecordHeader
         variant="document"
-        title={data.title}
+        title={(locale === "ar" ? data.titleAr : data.titleEn) || data.title}
         facts={facts}
         tools={<ReaderWidthToggle wide={width.wide} onToggle={width.toggle} />}
         status={
@@ -300,8 +320,13 @@ function AnnouncementPage() {
             : undefined
         }
         menu={
-          data.canManage && data.state !== "archived"
+          data.canManage
             ? [
+                {
+                  label: m.annDuplicate(),
+                  icon: Copy,
+                  onSelect: () => void copy(),
+                },
                 ...(data.state === "published"
                   ? [
                       {
@@ -315,12 +340,19 @@ function AnnouncementPage() {
                       },
                     ]
                   : []),
-                {
-                  label: m.annArchive(),
-                  icon: Archive,
-                  onSelect: () =>
-                    void run(() => archive.mutateAsync(), m.annArchived()),
-                },
+                ...(data.state === "archived"
+                  ? []
+                  : [
+                      {
+                        label: m.annArchive(),
+                        icon: Archive,
+                        onSelect: () =>
+                          void run(
+                            () => archive.mutateAsync(),
+                            m.annArchived(),
+                          ),
+                      },
+                    ]),
               ]
             : []
         }
@@ -333,9 +365,12 @@ function AnnouncementPage() {
         </p>
       ) : null}
       {data.body ? (
-        <ContentView
-          document={data.body}
-          fileUrl={(fileId) => `/files/${fileId}`}
+        <TranslatedView
+          body={data.body}
+          translation={data.translation}
+          primary={data.primaryLocale}
+          locale={data.translation ? locale : data.primaryLocale}
+          onLocaleChange={setLocale}
         />
       ) : null}
       {data.requiresAck && !data.canManage ? (

@@ -3,9 +3,9 @@ import {
   newsListSchema,
   newsRefSchema,
   publishNewsSchema,
-  reviewNewsSchema,
   saveNewsSchema,
 } from "@faridalms/domain/news";
+import { reviewTranslationSchema } from "@faridalms/domain/translations";
 import { createServerFn } from "@tanstack/react-start";
 
 import { backend, record } from "./backend";
@@ -40,7 +40,7 @@ export const publishNews = createServerFn({ method: "POST" })
   .handler(({ data }) => backend().news.publish(data));
 
 export const reviewNewsTranslation = createServerFn({ method: "POST" })
-  .validator(checked(reviewNewsSchema))
+  .validator(checked(reviewTranslationSchema))
   .handler(({ data }) => backend().news.review(data));
 
 export const unpublishNews = createServerFn({ method: "POST" })

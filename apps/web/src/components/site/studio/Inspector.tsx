@@ -19,6 +19,7 @@ import { Input } from "@faridalms/ui/input";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@faridalms/ui/tabs";
 import { AlignCenter, AlignLeft, CircleAlert, X } from "lucide-react";
 
+import { LOCALE_NAME } from "~/components/content/languages";
 import { CheckboxRow } from "~/components/people/fields";
 import * as m from "~/i18n/messages";
 import { formatNumber } from "~/utils/datetime";
@@ -27,7 +28,6 @@ import type { RenderContext } from "../render/parts";
 import type { Languages } from "./draft";
 import type { FieldContext } from "./fields";
 
-import { LOCALE_NAME } from "../format";
 import { SiteSection } from "../render/sections";
 import { Viewport } from "./Canvas";
 import { PanelGroup, Segmented, StudioField } from "./controls";

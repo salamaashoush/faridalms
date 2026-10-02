@@ -1,5 +1,3 @@
-import type { SiteLocale } from "@faridalms/domain/website";
-
 import type { Tone } from "~/components/system/status";
 
 import * as m from "~/i18n/messages";
@@ -18,9 +16,4 @@ export const STATE_TONE: Record<ShownState, Tone> = {
   scheduled: "info",
   published: "success",
   archived: "neutral",
-};
-
-export const LOCALE_NAME: Record<SiteLocale, () => string> = {
-  en: m.siteLocaleEn,
-  ar: m.siteLocaleAr,
 };

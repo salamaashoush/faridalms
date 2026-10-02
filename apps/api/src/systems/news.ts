@@ -1,6 +1,6 @@
 import type { PostRow } from "@faridalms/database/stores/news";
 import type { ContentDocument } from "@faridalms/domain/content";
-import type { NewsLocale } from "@faridalms/domain/news";
+import type { ContentLocale } from "@faridalms/domain/translations";
 import type { SiteLocale } from "@faridalms/domain/website";
 
 import {
@@ -27,9 +27,7 @@ import {
   postById,
   postRecipientOf,
   postReport,
-  reviewTranslation,
   setPostState,
-  translationReview,
   updatePost,
 } from "@faridalms/database/stores/news";
 import { readSubject } from "@faridalms/database/stores/notifications";
@@ -39,18 +37,24 @@ import {
   withdrawPost,
   writePublishedPost,
 } from "@faridalms/database/stores/site";
+import {
+  reviewTranslation,
+  translationReview,
+} from "@faridalms/database/stores/translations";
 import { contentFileIds, contentPlainText } from "@faridalms/domain/content";
 import { emptyContent } from "@faridalms/domain/content-conversion";
 import {
-  documentWritten,
   manageNewsSchema,
   newsListSchema,
   newsRefSchema,
-  otherNewsLocale,
   publishNewsSchema,
-  reviewNewsSchema,
   saveNewsSchema,
 } from "@faridalms/domain/news";
+import {
+  documentWritten,
+  otherLocale,
+  reviewTranslationSchema,
+} from "@faridalms/domain/translations";
 import { postIssues } from "@faridalms/domain/website";
 import { ORPCError } from "@orpc/server";
 import * as v from "valibot";
@@ -140,7 +144,7 @@ async function siteLanguages(context: UnitContext) {
   return {
     primaryLocale: primary,
     bilingual,
-    locales: bilingual ? [primary, otherNewsLocale(primary)] : [primary],
+    locales: bilingual ? [primary, otherLocale(primary)] : [primary],
   };
 }
 
@@ -177,7 +181,7 @@ async function edition(context: UnitContext, postId: string) {
   };
 }
 
-const primaryOf = (row: PostRow): NewsLocale => row.primaryLocale ?? "en";
+const primaryOf = (row: PostRow): ContentLocale => row.primaryLocale ?? "en";
 
 /** A post out later than now reads as scheduled. */
 const shownState = (row: PostRow, now: Date) =>
@@ -191,10 +195,10 @@ const shownState = (row: PostRow, now: Date) =>
 const summaryOf = (en: string, ar: string, words: ContentDocument | null) =>
   (en || ar || (words ? contentPlainText(words) : "")).slice(0, 160);
 
-const titleIn = (row: PostRow, locale: NewsLocale) => {
-  const pick = (which: NewsLocale) =>
+const titleIn = (row: PostRow, locale: ContentLocale) => {
+  const pick = (which: ContentLocale) =>
     which === "ar" ? row.titleAr : row.titleEn;
-  return pick(locale) || pick(primaryOf(row)) || pick(otherNewsLocale(locale));
+  return pick(locale) || pick(primaryOf(row)) || pick(otherLocale(locale));
 };
 
 const postMedia = (body: ContentDocument, coverFileId: string | null) => [
@@ -208,9 +212,9 @@ function issuesOf(
   translation: ContentDocument | null,
 ) {
   const primary = primaryOf(row);
-  const found: Record<NewsLocale, string[]> = { en: [], ar: [] };
+  const found: Record<ContentLocale, string[]> = { en: [], ar: [] };
   if (row.visibility !== "public") return found;
-  for (const locale of [primary, otherNewsLocale(primary)]) {
+  for (const locale of [primary, otherLocale(primary)]) {
     const written = locale === primary ? body : translation;
     if (!written || !documentWritten(written)) continue;
     found[locale] = postIssues({
@@ -281,7 +285,11 @@ export const editor = readProcedure
           id: row.id,
         }),
         drafts(context, row.id),
-        translationReview(context.tx, context.tenantId, row.id),
+        translationReview(context.tx, {
+          tenantId: context.tenantId,
+          host: "site_post",
+          id: row.id,
+        }),
         edition(context, row.id),
       ]);
     const body = bodyOf(original?.content ?? null) ?? emptyContent();
@@ -321,7 +329,11 @@ export const record = readProcedure
           })
         : Promise.resolve(null),
       manages
-        ? translationReview(context.tx, context.tenantId, row.id)
+        ? translationReview(context.tx, {
+            tenantId: context.tenantId,
+            host: "site_post",
+            id: row.id,
+          })
         : Promise.resolve(null),
     ]);
     let shown = published;
@@ -439,7 +451,7 @@ export const save = writeProcedure
         orgId: context.schoolId,
         host: host(postId),
         originalId: original.id,
-        locale: otherNewsLocale(input.primaryLocale),
+        locale: otherLocale(input.primaryLocale),
         kind: "rich_text",
         ...(await placeMedia(
           context,
@@ -462,6 +474,7 @@ export const save = writeProcedure
       contentPlainText(input.translation) !== (before?.plainText ?? "")
     ) {
       const cleared = await reviewTranslation(context.tx, {
+        host: "site_post",
         tenantId: context.tenantId,
         id: postId,
         userId: context.actor.userId,
@@ -478,11 +491,11 @@ export const save = writeProcedure
     return {
       id: postId,
       version,
-      translationReview: await translationReview(
-        context.tx,
-        context.tenantId,
-        postId,
-      ),
+      translationReview: await translationReview(context.tx, {
+        tenantId: context.tenantId,
+        host: "site_post",
+        id: postId,
+      }),
     };
   });
 
@@ -654,7 +667,7 @@ export const publish = writeProcedure
  * reads, or takes the check back. Only a written translation can be checked.
  */
 export const review = writeProcedure
-  .input(reviewNewsSchema)
+  .input(reviewTranslationSchema)
   .handler(async ({ input, context }) => {
     const row = await managed(context, input.id);
     if (row.version !== input.expectedVersion) throw conflict();
@@ -665,6 +678,7 @@ export const review = writeProcedure
     )
       throw new ORPCError("CONFLICT", { message: "news.nothing_to_check" });
     const version = await reviewTranslation(context.tx, {
+      host: "site_post",
       tenantId: context.tenantId,
       id: row.id,
       userId: context.actor.userId,
@@ -679,7 +693,11 @@ export const review = writeProcedure
     });
     return {
       version: version ?? row.version,
-      review: await translationReview(context.tx, context.tenantId, row.id),
+      review: await translationReview(context.tx, {
+        tenantId: context.tenantId,
+        host: "site_post",
+        id: row.id,
+      }),
     };
   });
 
@@ -739,7 +757,11 @@ export const duplicate = writeProcedure
         id: row.id,
       }),
       drafts(context, row.id),
-      translationReview(context.tx, context.tenantId, row.id),
+      translationReview(context.tx, {
+        tenantId: context.tenantId,
+        host: "site_post",
+        id: row.id,
+      }),
     ]);
     const created = await insertPost(context.tx, {
       tenantId: context.tenantId,
@@ -782,7 +804,7 @@ export const duplicate = writeProcedure
           orgId: context.schoolId,
           host: host(created.id),
           originalId: copy.id,
-          locale: otherNewsLocale(original.locale ?? primaryOf(row)),
+          locale: otherLocale(original.locale ?? primaryOf(row)),
           kind: "rich_text",
           content: translation.content,
           plainText: translation.plainText,
@@ -791,6 +813,7 @@ export const duplicate = writeProcedure
         });
         if (checked?.current) {
           const version = await reviewTranslation(context.tx, {
+            host: "site_post",
             tenantId: context.tenantId,
             id: created.id,
             userId: context.actor.userId,

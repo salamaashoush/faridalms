@@ -215,8 +215,11 @@ audited.
   body, attachments, event and RSVP, require acknowledgement with a due date,
   comments off, on or private replies, pin until, expiry. Urgency: normal
   (respects preferences), time-sensitive (skips the digest), emergency (admins,
-  bypasses quiet hours). Preview (phone, email, both languages), Schedule,
-  Post. Edits are silent unless the author chooses Send update.
+  bypasses quiet hours). Written in one language or both, each with its own
+  title, the translation checked against the original as for news; readers
+  open their own language first and the notice carries the opening words.
+  Preview, Schedule, Post, Duplicate. Edits are silent unless the author
+  chooses Send update.
 - Delivery report: per recipient channel status, viewed, acknowledged,
   language; remind those who have not acknowledged; export.
 

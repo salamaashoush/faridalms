@@ -1,9 +1,15 @@
 import type { AudienceInput, Urgency } from "@faridalms/domain/announcements";
 import type { ContentDocument } from "@faridalms/domain/content";
+import type { ContentLocale } from "@faridalms/domain/translations";
 
 import { URGENCIES } from "@faridalms/domain/announcements";
 import { contentPlainText } from "@faridalms/domain/content";
 import { emptyContent } from "@faridalms/domain/content-conversion";
+import {
+  CONTENT_LOCALES,
+  otherLocale,
+  translationState,
+} from "@faridalms/domain/translations";
 import { Button } from "@faridalms/ui/button";
 import {
   Dialog,
@@ -14,6 +20,7 @@ import {
   DialogTitle,
 } from "@faridalms/ui/dialog";
 import { Input } from "@faridalms/ui/input";
+import { Tabs, TabsList, TabsTrigger } from "@faridalms/ui/tabs";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { Archive, CalendarClock, Send } from "lucide-react";
 import { useCallback, useRef, useState } from "react";
@@ -22,6 +29,9 @@ import { toast } from "sonner";
 import type { announcementEditorQuery } from "~/queries/announcements";
 
 import { ContentEditor } from "~/components/content/ContentEditor";
+import { ContentView } from "~/components/content/ContentView";
+import { LOCALE_LABEL, LOCALE_NAME } from "~/components/content/languages";
+import { TranslationNote } from "~/components/content/TranslationNote";
 import { useDocumentMedia } from "~/components/coursework/useDocumentMedia";
 import { CheckboxRow } from "~/components/people/fields";
 import {
@@ -31,12 +41,15 @@ import {
   DocumentTitle,
 } from "~/components/system/DocumentPage";
 import { FormField, SelectField, TextField } from "~/components/system/field";
+import { SheetPanel } from "~/components/system/SheetPanel";
 import { useAutosave } from "~/hooks/useAutosave";
 import * as m from "~/i18n/messages";
+import { getLocale } from "~/i18n/runtime";
 import { announcementOptionsQuery } from "~/queries/announcements";
 import {
   archiveAnnouncement,
   publishAnnouncement,
+  reviewAnnouncementTranslation,
   saveAnnouncement,
 } from "~/server/announcements";
 import { getMessageFromError } from "~/utils/error";
@@ -47,10 +60,15 @@ import { STATE_LABEL, STATE_TONE, URGENCY_LABEL } from "./format";
 type Existing = Awaited<
   ReturnType<NonNullable<ReturnType<typeof announcementEditorQuery>["queryFn"]>>
 >;
+type Review = Existing["translationReview"];
 
 interface Draft {
-  title: string;
+  primaryLocale: ContentLocale;
+  bilingual: boolean;
+  titleEn: string;
+  titleAr: string;
   body: ContentDocument;
+  translation: ContentDocument;
   audiences: AudienceInput[];
   urgency: Urgency;
   pinnedUntil: string;
@@ -61,9 +79,16 @@ interface Draft {
 
 function draftOf(existing: Existing | null): Draft {
   return {
-    title: existing?.title ?? "",
+    primaryLocale:
+      existing?.primaryLocale ?? (getLocale() === "ar" ? "ar" : "en"),
+    bilingual: existing ? existing.translation !== null : false,
+    titleEn: existing?.titleEn ?? "",
+    titleAr: existing?.titleAr ?? "",
     body:
       (existing?.body as unknown as ContentDocument | null) ?? emptyContent(),
+    translation:
+      (existing?.translation as unknown as ContentDocument | null) ??
+      emptyContent(),
     audiences: existing?.audiences.length
       ? existing.audiences.map((row) => ({
           scope: row.scope,
@@ -121,7 +146,21 @@ export function AnnouncementEditor({
   );
   const [asking, setAsking] = useState(false);
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const [review, setReview] = useState<Review>(
+    existing?.translationReview ?? null,
+  );
+  const [reviewing, setReviewing] = useState(false);
+  const [comparing, setComparing] = useState(false);
+  const [writing, setWriting] = useState<ContentLocale>(
+    () => existing?.primaryLocale ?? (getLocale() === "ar" ? "ar" : "en"),
+  );
   const live = state === "published";
+  const other = otherLocale(draft.primaryLocale);
+  const translating = draft.bilingual && writing === other;
+  const shown: ContentLocale = translating ? other : draft.primaryLocale;
+  const titleKey = shown === "ar" ? "titleAr" : "titleEn";
+  const primaryTitle =
+    draft.primaryLocale === "ar" ? draft.titleAr : draft.titleEn;
 
   const persist = useCallback(
     async (value: Draft) => {
@@ -130,8 +169,11 @@ export function AnnouncementEditor({
         data: {
           id: id.current,
           expectedVersion: version.current,
-          title: value.title.trim(),
+          primaryLocale: value.primaryLocale,
+          titleEn: value.titleEn.trim(),
+          titleAr: value.titleAr.trim(),
           body: value.body,
+          translation: value.bilingual ? value.translation : null,
           audiences: value.audiences,
           urgency: value.urgency,
           pinnedUntil: value.pinnedUntil,
@@ -144,6 +186,7 @@ export function AnnouncementEditor({
       id.current = saved.id;
       version.current = saved.version;
       setStored(true);
+      setReview(saved.translationReview);
       await queryClient.invalidateQueries({ queryKey: ["announcements"] });
       if (created) onCreated(saved.id);
     },
@@ -154,7 +197,7 @@ export function AnnouncementEditor({
   const autosave = useAutosave({
     value: draft,
     save: persist,
-    enabled: !live && state !== "archived" && draft.title.trim() !== "",
+    enabled: !live && state !== "archived" && primaryTitle.trim() !== "",
   });
 
   const change = useCallback((patch: Partial<Draft>) => {
@@ -165,10 +208,41 @@ export function AnnouncementEditor({
     (body: ContentDocument) => change({ body }),
     [change],
   );
+  const changeTranslation = useCallback(
+    (translation: ContentDocument) => change({ translation }),
+    [change],
+  );
+
+  const translation = draft.bilingual
+    ? translationState({
+        translation: draft.translation,
+        reviewed: review !== null,
+        current: review?.current ?? false,
+      })
+    : null;
+
+  // The check is taken against the original as stored, so what is on screen
+  // is saved first.
+  const markReviewed = async (reviewed: boolean) => {
+    setReviewing(true);
+    try {
+      await persist(draft);
+      autosave.markSaved(draft);
+      const out = await reviewAnnouncementTranslation({
+        data: { id: id.current, expectedVersion: version.current, reviewed },
+      });
+      version.current = out.version;
+      setReview(out.review);
+    } catch (error) {
+      toast.error(getMessageFromError(error));
+    } finally {
+      setReviewing(false);
+    }
+  };
 
   const problems = () => {
     const found: string[] = [];
-    if (!draft.title.trim()) found.push(m.annTitleNeeded());
+    if (!primaryTitle.trim()) found.push(m.annTitleNeeded());
     if (!contentPlainText(draft.body).trim()) found.push(m.annBodyNeeded());
     const audience = audienceIssue(draft.audiences);
     if (audience) {
@@ -259,7 +333,7 @@ export function AnnouncementEditor({
     <>
       <DocumentPage
         heading={existing ? m.annEditTitle() : m.annNewTitle()}
-        print={{ title: draft.title, content: draft.body }}
+        print={{ title: primaryTitle, content: draft.body }}
         onBack={async () => {
           if (await autosave.flush()) onClose(id.current || undefined);
         }}
@@ -315,7 +389,7 @@ export function AnnouncementEditor({
                   onSelect: () => void archive(),
                   confirm: {
                     title: m.annArchiveTitle({
-                      title: draft.title.trim() || m.annUntitled(),
+                      title: primaryTitle.trim() || m.annUntitled(),
                     }),
                     body: m.annArchiveBody(),
                     label: m.annArchive(),
@@ -339,22 +413,51 @@ export function AnnouncementEditor({
                 </ul>
               </div>
             ) : null}
-            <DocumentTitle
-              id="announcement-title"
-              label={m.docTitle()}
-              placeholder={m.annUntitled()}
-              maxLength={200}
-              value={draft.title}
-              onChange={(title) => change({ title })}
-              onEnter={() =>
-                document.getElementById("announcement-body")?.focus()
-              }
-            />
+            {draft.bilingual ? (
+              <Tabs
+                value={writing}
+                onValueChange={(value: ContentLocale) => setWriting(value)}
+              >
+                <TabsList aria-label={m.contentLanguage()}>
+                  <TabsTrigger
+                    value={draft.primaryLocale}
+                    lang={draft.primaryLocale}
+                  >
+                    {LOCALE_LABEL[draft.primaryLocale]()}
+                  </TabsTrigger>
+                  <TabsTrigger value={other} lang={other}>
+                    {LOCALE_LABEL[other]()}
+                  </TabsTrigger>
+                </TabsList>
+              </Tabs>
+            ) : null}
+            <div lang={shown} dir={shown === "ar" ? "rtl" : "ltr"}>
+              <DocumentTitle
+                id="announcement-title"
+                label={m.docTitle()}
+                placeholder={m.annUntitled()}
+                maxLength={200}
+                value={draft[titleKey]}
+                onChange={(title) => change({ [titleKey]: title })}
+                onEnter={() =>
+                  document
+                    .getElementById(
+                      translating
+                        ? "announcement-translation"
+                        : "announcement-body",
+                    )
+                    ?.focus()
+                }
+              />
+            </div>
           </div>
         }
         summary={[
           audienceSummary(draft.audiences, options),
           URGENCY_LABEL[draft.urgency](),
+          draft.bilingual
+            ? m.contentBothLanguages()
+            : LOCALE_LABEL[draft.primaryLocale](),
         ]}
         details={{ open: detailsOpen, onOpenChange: setDetailsOpen }}
         aside={
@@ -370,6 +473,63 @@ export function AnnouncementEditor({
                 error={null}
               />
             </DetailsSection>
+            <DetailsSection title={m.contentSectionLanguages()}>
+              <SelectField
+                id="announcement-language"
+                label={m.contentPrimaryLanguage()}
+                hint={m.contentPrimaryLanguageHint()}
+                value={draft.primaryLocale}
+                options={CONTENT_LOCALES.map((locale) => ({
+                  value: locale,
+                  label: LOCALE_LABEL[locale](),
+                }))}
+                onChange={(primaryLocale) => {
+                  change({ primaryLocale });
+                  setWriting(primaryLocale);
+                }}
+              />
+              <CheckboxRow
+                label={m.contentBilingual({ language: LOCALE_NAME[other]() })}
+                hint={m.contentBilingualHint({
+                  language: LOCALE_NAME[draft.primaryLocale](),
+                })}
+                checked={draft.bilingual}
+                onChange={(bilingual) => {
+                  change({ bilingual });
+                  if (!bilingual) setWriting(draft.primaryLocale);
+                }}
+              />
+            </DetailsSection>
+            {draft.bilingual && translation ? (
+              <DetailsSection title={m.translationTitle()}>
+                <TranslationNote
+                  state={translation}
+                  review={review}
+                  language={LOCALE_NAME[other]()}
+                />
+                <CheckboxRow
+                  label={m.translationReviewedCheck()}
+                  hint={m.translationReviewedHint({
+                    language: LOCALE_NAME[draft.primaryLocale](),
+                  })}
+                  checked={translation === "reviewed"}
+                  onChange={(checked) => {
+                    if (!reviewing) void markReviewed(checked);
+                  }}
+                />
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  className="justify-self-start max-md:h-10"
+                  onClick={() => setComparing(true)}
+                >
+                  {m.translationShowOriginal({
+                    language: LOCALE_NAME[draft.primaryLocale](),
+                  })}
+                </Button>
+              </DetailsSection>
+            ) : null}
             <DetailsSection title={m.annSectionDelivery()}>
               <SelectField
                 id="announcement-urgency"
@@ -440,18 +600,38 @@ export function AnnouncementEditor({
           </DetailsPanel>
         }
       >
-        <ContentEditor
-          key={editorKey}
-          id="announcement-body"
-          label={m.annBody()}
-          variant="document"
-          value={draft.body}
-          onChange={changeBody}
-          onValidityChange={setValid}
-          onUploadingChange={setUploading}
-          media={media}
-        />
+        <div lang={shown} className="min-w-0">
+          <ContentEditor
+            key={`${editorKey}-${shown}`}
+            id={translating ? "announcement-translation" : "announcement-body"}
+            label={
+              translating
+                ? `${m.translationTitle()} (${LOCALE_LABEL[shown]()})`
+                : m.annBody()
+            }
+            variant="document"
+            value={translating ? draft.translation : draft.body}
+            onChange={translating ? changeTranslation : changeBody}
+            onValidityChange={setValid}
+            onUploadingChange={setUploading}
+            media={media}
+          />
+        </div>
       </DocumentPage>
+      <SheetPanel
+        open={comparing}
+        onOpenChange={setComparing}
+        title={m.translationOriginalTitle({
+          language: LOCALE_NAME[draft.primaryLocale](),
+        })}
+      >
+        <div lang={draft.primaryLocale}>
+          <ContentView
+            document={draft.body}
+            fileUrl={(fileId) => `/files/${fileId}`}
+          />
+        </div>
+      </SheetPanel>
       <Dialog open={asking} onOpenChange={setAsking}>
         <DialogContent>
           <DialogHeader>

@@ -10,12 +10,12 @@ import {
 } from "@faridalms/ui/select";
 import { Textarea } from "@faridalms/ui/textarea";
 
+import { LOCALE_NAME } from "~/components/content/languages";
 import { CheckboxRow } from "~/components/people/fields";
 import * as m from "~/i18n/messages";
 
 import type { Languages, PageDraft } from "./draft";
 
-import { LOCALE_NAME } from "../format";
 import { History } from "../History";
 import { PanelGroup, StudioField } from "./controls";
 

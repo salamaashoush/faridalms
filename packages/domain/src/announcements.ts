@@ -1,6 +1,7 @@
 import * as v from "valibot";
 
 import { contentDocumentSchema } from "./content";
+import { CONTENT_LOCALES } from "./translations";
 
 export const ANNOUNCEMENT_STATES = [
   "draft",
@@ -65,8 +66,11 @@ export const saveAnnouncementSchema = v.pipe(
   v.object({
     id: optionalId,
     expectedVersion: v.pipe(v.number(), v.integer(), v.minValue(0)),
-    title: v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(200)),
+    primaryLocale: v.picklist(CONTENT_LOCALES),
+    titleEn: v.pipe(v.string(), v.trim(), v.maxLength(200)),
+    titleAr: v.pipe(v.string(), v.trim(), v.maxLength(200)),
     body: contentDocumentSchema,
+    translation: v.nullable(contentDocumentSchema),
     audiences: v.pipe(v.array(audienceSchema), v.minLength(1), v.maxLength(20)),
     urgency: v.picklist(URGENCIES),
     pinnedUntil: optionalDate,
@@ -80,6 +84,14 @@ export const saveAnnouncementSchema = v.pipe(
       "announcements.ack_due_without_ack",
     ),
     ["ackDueOn"],
+  ),
+  v.forward(
+    v.check(
+      (input) =>
+        (input.primaryLocale === "ar" ? input.titleAr : input.titleEn) !== "",
+      "announcements.title",
+    ),
+    ["titleEn"],
   ),
 );
 export type SaveAnnouncement = v.InferOutput<typeof saveAnnouncementSchema>;

@@ -48,13 +48,13 @@ import {
   X,
 } from "lucide-react";
 
+import { LOCALE_NAME } from "~/components/content/languages";
 import { CheckboxRow } from "~/components/people/fields";
 import * as m from "~/i18n/messages";
 import { formatNumber } from "~/utils/datetime";
 
 import type { Languages } from "./draft";
 
-import { LOCALE_NAME } from "../format";
 import { Disclosure, PanelGroup, Segmented, StudioField } from "./controls";
 import { FilePick, useUpload } from "./fields";
 import {

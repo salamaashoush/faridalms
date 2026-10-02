@@ -14,10 +14,9 @@ type Line = (params: NoticeParams) => string;
 const LINES: Record<"en" | "ar", Record<NotificationKind, Line>> = {
   en: {
     announcement: (p) =>
-      p.updated
-        ? `Updated: ${p.title ?? ""}`
-        : `Announcement: ${p.title ?? ""}`,
-    urgent: (p) => `Urgent: ${p.title ?? ""}`,
+      `${p.updated ? "Updated" : "Announcement"}: ${p.title ?? ""}${p.preview ? `. ${p.preview}` : ""}`,
+    urgent: (p) =>
+      `Urgent: ${p.title ?? ""}${p.preview ? `. ${p.preview}` : ""}`,
     news: (p) => `News: ${p.title ?? ""}${p.preview ? `. ${p.preview}` : ""}`,
     message: (p) =>
       `New message from ${p.actorName ?? "the school"}${p.preview ? `: ${p.preview}` : ""}`,
@@ -38,8 +37,9 @@ const LINES: Record<"en" | "ar", Record<NotificationKind, Line>> = {
   },
   ar: {
     announcement: (p) =>
-      p.updated ? `تحديث: ${p.title ?? ""}` : `إعلان: ${p.title ?? ""}`,
-    urgent: (p) => `عاجل: ${p.title ?? ""}`,
+      `${p.updated ? "تحديث" : "إعلان"}: ${p.titleAr || p.title || ""}${p.preview ? `. ${p.preview}` : ""}`,
+    urgent: (p) =>
+      `عاجل: ${p.titleAr || p.title || ""}${p.preview ? `. ${p.preview}` : ""}`,
     news: (p) =>
       `خبر جديد: ${p.titleAr || p.title || ""}${p.preview ? `. ${p.preview}` : ""}`,
     message: (p) =>

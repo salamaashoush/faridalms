@@ -50,7 +50,8 @@ export const announcements = core.table.withRLS(
   {
     ...tenantColumns(),
     orgId: uuid("org_id").notNull(),
-    title: text("title").notNull(),
+    titleEn: text("title_en").notNull().default(""),
+    titleAr: text("title_ar").notNull().default(""),
     urgency: text("urgency").$type<Urgency>().notNull().default("normal"),
     state: text("state").$type<AnnouncementState>().notNull().default("draft"),
     publishAt: instant("publish_at"),
@@ -61,6 +62,13 @@ export const announcements = core.table.withRLS(
     authorUserId: uuid("author_user_id").notNull(),
     /** The last time an edit was sent to recipients again rather than made quietly. */
     updateSentAt: instant("update_sent_at"),
+    /**
+     * Who checked the translation against the original, when, and a digest
+     * of the original's words then, which tells whether it has changed since.
+     */
+    translationReviewedAt: instant("translation_reviewed_at"),
+    translationReviewedByUserId: uuid("translation_reviewed_by_user_id"),
+    translationSourceDigest: text("translation_source_digest"),
     ...entityColumns(),
   },
   (t): PgTableExtraConfigValue[] => [
@@ -72,7 +80,21 @@ export const announcements = core.table.withRLS(
       [t.tenantId, t.authorUserId],
       [users.tenantId, users.id],
     ),
-    ck("announcements", "title", sql`char_length(title) between 1 and 200`),
+    fk(
+      "announcements",
+      [t.tenantId, t.translationReviewedByUserId],
+      [users.tenantId, users.id],
+    ),
+    ck(
+      "announcements",
+      "title",
+      sql`char_length(title_en) <= 200 and char_length(title_ar) <= 200 and (title_en <> '' or title_ar <> '')`,
+    ),
+    ck(
+      "announcements",
+      "translation_review",
+      sql`(translation_reviewed_at is null) = (translation_reviewed_by_user_id is null) and (translation_reviewed_at is null) = (translation_source_digest is null)`,
+    ),
     ck(
       "announcements",
       "urgency",

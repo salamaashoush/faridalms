@@ -36,12 +36,7 @@ import {
   setModuleClasses,
   setModuleState,
 } from "./stores/learning";
-import {
-  addPostRecipients,
-  insertPost,
-  reviewTranslation,
-  setPostState,
-} from "./stores/news";
+import { addPostRecipients, insertPost, setPostState } from "./stores/news";
 import { insertDeliveries, insertNotifications } from "./stores/notifications";
 import { setOrgFeature } from "./stores/school";
 import {
@@ -53,6 +48,7 @@ import {
   writePublishedPage,
   writePublishedPost,
 } from "./stores/site";
+import { reviewTranslation } from "./stores/translations";
 import {
   academicSessions,
   academicWeeks,
@@ -1377,7 +1373,7 @@ async function seedAnnouncements(tx: Tx, tenantId: string, schoolId: string) {
       tenantId,
       id,
       orgId: schoolId,
-      title: plan.title,
+      titleEn: plan.title,
       urgency: plan.urgency,
       state: plan.publishAt ? "published" : "draft",
       publishAt: plan.publishAt,
@@ -1397,6 +1393,7 @@ async function seedAnnouncements(tx: Tx, tenantId: string, schoolId: string) {
       hostId: id,
       orgId: schoolId,
       kind: "rich_text",
+      locale: "en",
       schemaVersion: 1,
       content: plainContent(plan.body) as unknown as Record<string, unknown>,
       plainText: plan.body,
@@ -1696,7 +1693,7 @@ async function seedNotifications(tx: Tx, tenantId: string, schoolId: string) {
     title: string;
     user_id: string;
   }>(sql`
-    select a.id, a.title, r.user_id from core.announcements a
+    select a.id, a.title_en as title, r.user_id from core.announcements a
     join core.announcement_recipients r on r.tenant_id = a.tenant_id and r.announcement_id = a.id
     where a.tenant_id = ${tenantId}::uuid and a.org_id = ${schoolId}::uuid
       and a.requires_ack and a.state = 'published'`);
@@ -2645,6 +2642,7 @@ async function seedSite(tx: Tx, tenantId: string, schoolId: string) {
       await snapshotPublish(tx, { tenantId, documentId: other.id, userId });
       await reviewTranslation(tx, {
         tenantId,
+        host: "site_post",
         id: created.id,
         userId,
         reviewed: true,

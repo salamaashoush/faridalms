@@ -67,6 +67,7 @@ import type { siteOverviewQuery, sitePageQuery } from "~/queries/site";
 
 import { ButtonLink } from "~/components/app/ButtonLink";
 import { UnsavedChangesGuard } from "~/components/app/UnsavedChangesGuard";
+import { LOCALE_NAME } from "~/components/content/languages";
 import { useDocumentMedia } from "~/components/coursework/useDocumentMedia";
 import { StatusBadge } from "~/components/system/status";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
@@ -86,7 +87,7 @@ import type { Device } from "./Canvas";
 import type { Languages, PageDraft, StudioDraft } from "./draft";
 import type { Inserted } from "./Gallery";
 
-import { LOCALE_NAME, STATE_LABEL, STATE_TONE } from "../format";
+import { STATE_LABEL, STATE_TONE } from "../format";
 import { Canvas } from "./Canvas";
 import { Segmented } from "./controls";
 import {

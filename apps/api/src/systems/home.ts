@@ -549,6 +549,16 @@ async function studentDay(context: UnitContext, studentId: string) {
   };
 }
 
+/** A row's title in the reader's language, the other when it has none. */
+function localTitle(
+  context: UnitContext,
+  row: { titleEn: string; titleAr: string },
+) {
+  return localeOf(context) === "ar"
+    ? row.titleAr || row.titleEn
+    : row.titleEn || row.titleAr;
+}
+
 /**
  * A family's home: for each child today's presence, the lesson now and
  * next, up to three things that need them, and what is due this week; then
@@ -681,7 +691,7 @@ export const family = readProcedure
         .slice(0, 3)
         .map((row) => ({
           id: row.id,
-          title: row.title,
+          title: localTitle(context, row),
           summary: row.summary,
           urgency: row.urgency,
           readAt: row.readAt,
@@ -771,7 +781,7 @@ export const student = readProcedure.handler(async ({ context }) => {
       : null,
     announcements: feed.slice(0, 3).map((row) => ({
       id: row.id,
-      title: row.title,
+      title: localTitle(context, row),
       summary: row.summary,
       urgency: row.urgency,
       readAt: row.readAt,
@@ -934,7 +944,7 @@ export const admin = readProcedure.handler(async ({ context }) => {
         .slice(0, 3)
         .map((row) => ({
           id: row.id,
-          title: row.title,
+          title: localTitle(context, row),
           recipients: row.recipients,
           read: row.read,
           kind: "announcement" as const,
@@ -953,10 +963,7 @@ export const admin = readProcedure.handler(async ({ context }) => {
         .slice(0, 2)
         .map((row) => ({
           id: row.id,
-          title:
-            localeOf(context) === "ar"
-              ? row.titleAr || row.titleEn
-              : row.titleEn || row.titleAr,
+          title: localTitle(context, row),
           recipients: row.recipients,
           read: row.read,
           kind: "news" as const,

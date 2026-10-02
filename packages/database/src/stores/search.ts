@@ -254,7 +254,9 @@ export async function announcementsAmong(
 ) {
   return found(
     await tx.execute<Raw>(sql`
-      select a.id, 'announcement' as type, a.title, ${snippetOf(sql`d.plain_text`, input.q)} as snippet,
+      select a.id, 'announcement' as type,
+        ${input.ar ? sql`coalesce(nullif(a.title_ar, ''), a.title_en)` : sql`coalesce(nullif(a.title_en, ''), a.title_ar)`} as title,
+        ${snippetOf(sql`d.plain_text`, input.q)} as snippet,
         null as context, ${isoOf(sql`coalesce(a.publish_at, a.date_last_modified)`)} as "when",
         case when a.state in ('draft', 'scheduled', 'archived') then a.state end as flag, null as roles
       from core.announcements a

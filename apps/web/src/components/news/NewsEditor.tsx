@@ -1,24 +1,20 @@
 import type { AudienceInput } from "@faridalms/domain/announcements";
 import type { ContentDocument } from "@faridalms/domain/content";
-import type {
-  NewsLocale,
-  NewsVisibility,
-  TranslationState,
-} from "@faridalms/domain/news";
+import type { NewsVisibility } from "@faridalms/domain/news";
+import type { ContentLocale } from "@faridalms/domain/translations";
 
 import {
   emptyContent,
   headedContent,
 } from "@faridalms/domain/content-conversion";
 import {
+  CONTENT_LOCALES,
   documentWritten,
-  NEWS_LOCALES,
-  otherNewsLocale,
+  otherLocale,
   translationState,
-} from "@faridalms/domain/news";
+} from "@faridalms/domain/translations";
 import { postIssues } from "@faridalms/domain/website";
 import { Button } from "@faridalms/ui/button";
-import { cn } from "@faridalms/ui/cn";
 import { Input } from "@faridalms/ui/input";
 import { Tabs, TabsList, TabsTrigger } from "@faridalms/ui/tabs";
 import { Textarea } from "@faridalms/ui/textarea";
@@ -36,7 +32,9 @@ import {
 } from "~/components/announcements/AudienceList";
 import { ContentEditor } from "~/components/content/ContentEditor";
 import { ContentView } from "~/components/content/ContentView";
-import { formatInstant } from "~/components/coursework/format";
+import { LOCALE_LABEL, LOCALE_NAME } from "~/components/content/languages";
+import { TranslatedView } from "~/components/content/TranslatedView";
+import { TranslationNote } from "~/components/content/TranslationNote";
 import { useDocumentMedia } from "~/components/coursework/useDocumentMedia";
 import { CheckboxRow } from "~/components/people/fields";
 import { PictureField } from "~/components/site/PictureField";
@@ -50,7 +48,7 @@ import {
 import { FormField, SelectField, TextField } from "~/components/system/field";
 import { SheetPanel } from "~/components/system/SheetPanel";
 import { useAutosave } from "~/hooks/useAutosave";
-import { inLocale, useCurrentUser } from "~/hooks/useCurrentUser";
+import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { getLocale } from "~/i18n/runtime";
 import { newsOptionsQuery } from "~/queries/news";
@@ -62,8 +60,6 @@ import {
 } from "~/server/news";
 import { getMessageFromError } from "~/utils/error";
 
-import { LOCALE_LABEL, LOCALE_NAME, NewsView } from "./NewsView";
-
 type Existing = Awaited<
   ReturnType<NonNullable<ReturnType<typeof newsEditorQuery>["queryFn"]>>
 >;
@@ -71,7 +67,7 @@ type Review = Existing["translationReview"];
 
 interface Draft {
   visibility: NewsVisibility;
-  primaryLocale: NewsLocale;
+  primaryLocale: ContentLocale;
   bilingual: boolean;
   titleEn: string;
   titleAr: string;
@@ -99,7 +95,7 @@ const TEMPLATE_LABEL: Record<Template, () => string> = {
 /** Starter headings, in the post's language rather than the writer's. */
 const TEMPLATE_HEADINGS: Record<
   Template,
-  ((inputs: object, options: { locale: NewsLocale }) => string)[]
+  ((inputs: object, options: { locale: ContentLocale }) => string)[]
 > = {
   weekly: [m.newsStarterPrincipal, m.newsStarterWeek, m.newsStarterDates],
   monthly: [
@@ -142,7 +138,7 @@ function slugOf(title: string) {
   return slug || `news-${Date.now().toString(36)}`;
 }
 
-const pick = <T,>(locale: NewsLocale, en: T, ar: T) =>
+const pick = <T,>(locale: ContentLocale, en: T, ar: T) =>
   locale === "ar" ? ar : en;
 
 function draftOf(existing: Existing | null): Draft {
@@ -171,43 +167,6 @@ function draftOf(existing: Existing | null): Draft {
     body: existing?.body ?? emptyContent(),
     translation: existing?.translation ?? emptyContent(),
   };
-}
-
-function TranslationNote({
-  state,
-  review,
-  language,
-}: {
-  state: TranslationState;
-  review: Review;
-  language: string;
-}) {
-  const user = useCurrentUser();
-  const text =
-    state === "missing"
-      ? m.newsTranslationMissing({ language })
-      : state === "unreviewed"
-        ? m.newsTranslationUnreviewed()
-        : state === "stale"
-          ? m.newsTranslationStale()
-          : review
-            ? m.newsTranslationReviewed({
-                name: inLocale(review.byEn, review.byAr),
-                date: formatInstant(review.at, user.school.timeZone),
-              })
-            : "";
-  return (
-    <p
-      className={cn(
-        "text-[13px] leading-[18px]",
-        state === "reviewed"
-          ? "text-muted-foreground"
-          : "text-warning-foreground dark:text-warning",
-      )}
-    >
-      {text}
-    </p>
-  );
 }
 
 /**
@@ -241,7 +200,7 @@ export function NewsEditor({
     existing?.translationReview ?? null,
   );
   const [changed, setChanged] = useState(existing?.changedSince ?? false);
-  const [writing, setWriting] = useState<NewsLocale>(
+  const [writing, setWriting] = useState<ContentLocale>(
     () => existing?.primaryLocale ?? (getLocale() === "ar" ? "ar" : "en"),
   );
   const [sendAt, setSendAt] = useState("");
@@ -255,12 +214,12 @@ export function NewsEditor({
   >(null);
   const [previewing, setPreviewing] = useState(false);
   const [comparing, setComparing] = useState(false);
-  const [previewLocale, setPreviewLocale] = useState<NewsLocale>(
+  const [previewLocale, setPreviewLocale] = useState<ContentLocale>(
     draft.primaryLocale,
   );
   const [detailsOpen, setDetailsOpen] = useState(false);
   const live = state === "published";
-  const other = otherNewsLocale(draft.primaryLocale);
+  const other = otherLocale(draft.primaryLocale);
   const isPublic = draft.visibility === "public";
   const telling = draft.audiences.length > 0;
 
@@ -467,12 +426,12 @@ export function NewsEditor({
   const untouched =
     !stored && !documentWritten(draft.body) && writing === draft.primaryLocale;
   const translating = draft.bilingual && writing === other;
-  const shown: NewsLocale = translating ? other : draft.primaryLocale;
+  const shown: ContentLocale = translating ? other : draft.primaryLocale;
   const titleKey = shown === "ar" ? "titleAr" : "titleEn";
   const excerptKey = shown === "ar" ? "excerptAr" : "excerptEn";
   const altKey = shown === "ar" ? "coverAltAr" : "coverAltEn";
 
-  const editorFor = (locale: NewsLocale) => (
+  const editorFor = (locale: ContentLocale) => (
     <div lang={locale} className="min-w-0">
       <ContentEditor
         key={`${editorKey}-${locale}`}
@@ -480,7 +439,7 @@ export function NewsEditor({
         label={
           locale === draft.primaryLocale
             ? LOCALE_LABEL[locale]()
-            : `${m.newsTranslation()} (${LOCALE_LABEL[locale]()})`
+            : `${m.translationTitle()} (${LOCALE_LABEL[locale]()})`
         }
         variant="document"
         value={locale === draft.primaryLocale ? draft.body : draft.translation}
@@ -559,7 +518,7 @@ export function NewsEditor({
             ? audienceSummary(draft.audiences, options)
             : m.newsAudienceNone(),
           draft.bilingual
-            ? m.newsBothLanguages()
+            ? m.contentBothLanguages()
             : LOCALE_LABEL[draft.primaryLocale](),
         ]}
         details={{ open: detailsOpen, onOpenChange: setDetailsOpen }}
@@ -580,9 +539,9 @@ export function NewsEditor({
             {draft.bilingual ? (
               <Tabs
                 value={writing}
-                onValueChange={(value: NewsLocale) => setWriting(value)}
+                onValueChange={(value: ContentLocale) => setWriting(value)}
               >
-                <TabsList aria-label={m.newsLanguage()}>
+                <TabsList aria-label={m.contentLanguage()}>
                   <TabsTrigger
                     value={draft.primaryLocale}
                     lang={draft.primaryLocale}
@@ -659,13 +618,13 @@ export function NewsEditor({
                 />
               ) : null}
             </DetailsSection>
-            <DetailsSection title={m.newsSectionLanguages()}>
+            <DetailsSection title={m.contentSectionLanguages()}>
               <SelectField
                 id="news-language"
-                label={m.newsPrimaryLanguage()}
-                hint={m.newsPrimaryLanguageHint()}
+                label={m.contentPrimaryLanguage()}
+                hint={m.contentPrimaryLanguageHint()}
                 value={draft.primaryLocale}
-                options={NEWS_LOCALES.map((locale) => ({
+                options={CONTENT_LOCALES.map((locale) => ({
                   value: locale,
                   label: LOCALE_LABEL[locale](),
                 }))}
@@ -675,8 +634,8 @@ export function NewsEditor({
                 }}
               />
               <CheckboxRow
-                label={m.newsBilingual({ language: LOCALE_NAME[other]() })}
-                hint={m.newsBilingualHint({
+                label={m.contentBilingual({ language: LOCALE_NAME[other]() })}
+                hint={m.contentBilingualHint({
                   language: LOCALE_NAME[draft.primaryLocale](),
                 })}
                 checked={draft.bilingual}
@@ -687,15 +646,15 @@ export function NewsEditor({
               />
             </DetailsSection>
             {draft.bilingual && translation ? (
-              <DetailsSection title={m.newsTranslation()}>
+              <DetailsSection title={m.translationTitle()}>
                 <TranslationNote
                   state={translation}
                   review={review}
                   language={LOCALE_NAME[other]()}
                 />
                 <CheckboxRow
-                  label={m.newsReviewed()}
-                  hint={m.newsReviewedHint({
+                  label={m.translationReviewedCheck()}
+                  hint={m.translationReviewedHint({
                     language: LOCALE_NAME[draft.primaryLocale](),
                   })}
                   checked={translation === "reviewed"}
@@ -710,7 +669,7 @@ export function NewsEditor({
                   className="justify-self-start max-md:h-10"
                   onClick={() => setComparing(true)}
                 >
-                  {m.newsShowOriginal({
+                  {m.translationShowOriginal({
                     language: LOCALE_NAME[draft.primaryLocale](),
                   })}
                 </Button>
@@ -852,7 +811,7 @@ export function NewsEditor({
       <SheetPanel
         open={comparing}
         onOpenChange={setComparing}
-        title={m.newsOriginalTitle({
+        title={m.translationOriginalTitle({
           language: LOCALE_NAME[draft.primaryLocale](),
         })}
       >
@@ -876,7 +835,7 @@ export function NewsEditor({
             primaryTitle ||
             m.newsUntitled()}
         </h2>
-        <NewsView
+        <TranslatedView
           body={draft.body}
           translation={draft.bilingual ? draft.translation : null}
           primary={draft.primaryLocale}

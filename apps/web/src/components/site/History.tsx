@@ -5,6 +5,7 @@ import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { RotateCcw } from "lucide-react";
 import { toast } from "sonner";
 
+import { LOCALE_NAME } from "~/components/content/languages";
 import { formatInstant } from "~/components/coursework/format";
 import { RecordList } from "~/components/system/RecordPage";
 import { inLocale, useCurrentUser } from "~/hooks/useCurrentUser";
@@ -13,8 +14,6 @@ import { restoreSitePage } from "~/server/site";
 import { getMessageFromError } from "~/utils/error";
 
 import type { Languages } from "./studio/draft";
-
-import { LOCALE_NAME } from "./format";
 
 interface Version {
   documentVersion: number;

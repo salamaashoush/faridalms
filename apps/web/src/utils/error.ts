@@ -137,6 +137,10 @@ export function getMessageFromError(error: unknown): string {
         return m.annErrArchived();
       case "announcements.already_out":
         return m.annErrAlreadyOut();
+      case "announcements.title":
+        return m.annTitleNeeded();
+      case "announcements.nothing_to_check":
+        return m.translationErrNothingToCheck();
       case "announcements.nobody":
         return m.annErrNobody();
       case "announcements.no_ack":
@@ -152,7 +156,7 @@ export function getMessageFromError(error: unknown): string {
       case "news.empty":
         return m.newsBodyNeeded();
       case "news.nothing_to_check":
-        return m.newsErrNothingToCheck();
+        return m.translationErrNothingToCheck();
       case "news.title":
         return m.newsTitleNeeded();
       case "news.audience":

@@ -17,6 +17,7 @@ import { toast } from "sonner";
 
 import type { siteOverviewQuery } from "~/queries/site";
 
+import { LOCALE_NAME } from "~/components/content/languages";
 import { CheckboxRow } from "~/components/people/fields";
 import { SelectField, TextField } from "~/components/system/field";
 import {
@@ -26,8 +27,6 @@ import {
 import * as m from "~/i18n/messages";
 import { saveSiteSettings } from "~/server/site";
 import { getMessageFromError } from "~/utils/error";
-
-import { LOCALE_NAME } from "./format";
 
 type Settings = Awaited<
   ReturnType<NonNullable<(typeof siteOverviewQuery)["queryFn"]>>

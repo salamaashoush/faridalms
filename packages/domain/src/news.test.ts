@@ -6,7 +6,7 @@ import {
   headedContent,
   plainContent,
 } from "./content-conversion";
-import { documentWritten, translationState } from "./news";
+import { documentWritten, translationState } from "./translations";
 
 describe("translation state", () => {
   const written = plainContent("مرحبًا بعودتكم.");

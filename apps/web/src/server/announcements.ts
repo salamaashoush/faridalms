@@ -6,6 +6,7 @@ import {
   saveAnnouncementSchema,
   seenSchema,
 } from "@faridalms/domain/announcements";
+import { reviewTranslationSchema } from "@faridalms/domain/translations";
 import { createServerFn } from "@tanstack/react-start";
 
 import { backend, record } from "./backend";
@@ -46,3 +47,11 @@ export const archiveAnnouncement = createServerFn({ method: "POST" })
 export const markAnnouncementSeen = createServerFn({ method: "POST" })
   .validator(checked(seenSchema))
   .handler(({ data }) => backend().announcements.seen(data));
+
+export const reviewAnnouncementTranslation = createServerFn({ method: "POST" })
+  .validator(checked(reviewTranslationSchema))
+  .handler(({ data }) => backend().announcements.review(data));
+
+export const duplicateAnnouncement = createServerFn({ method: "POST" })
+  .validator(byId)
+  .handler(({ data }) => backend().announcements.duplicate(data));

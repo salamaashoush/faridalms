@@ -12,8 +12,11 @@ const mother = () =>
 const draft = (title: string, audiences: AudienceInput[]) => ({
   id: "",
   expectedVersion: 0,
-  title,
+  primaryLocale: "en" as const,
+  titleEn: title,
+  titleAr: "",
   body: plainContent(`${title} in full.`),
+  translation: null,
   audiences,
   urgency: "normal" as const,
   pinnedUntil: "",
@@ -137,5 +140,63 @@ describe("writing announcements", () => {
         ),
       ),
     ).toMatchObject({ code: "FORBIDDEN" });
+  });
+});
+
+describe("announcements in two languages", () => {
+  test("a family reads the Arabic, the notice carries its words, and a duplicate keeps both", async () => {
+    const office = await principal();
+    const saved = await office.announcements.save({
+      ...draft("Early closing on Thursday", [
+        { scope: "families", classId: "", gradeId: "" },
+      ]),
+      titleAr: "انصراف مبكر يوم الخميس",
+      body: plainContent("School closes at noon on Thursday."),
+      translation: plainContent("تنتهي الدراسة ظهر يوم الخميس."),
+    });
+    const checked = await office.announcements.review({
+      id: saved.id,
+      expectedVersion: saved.version,
+      reviewed: true,
+    });
+    expect(checked.review?.current).toBe(true);
+    await office.announcements.publish({
+      id: saved.id,
+      expectedVersion: checked.version,
+    });
+
+    const family = await mother();
+    const read = await family.announcements.record({ id: saved.id });
+    expect(read.titleAr).toBe("انصراف مبكر يوم الخميس");
+    expect(read.primaryLocale).toBe("en");
+    expect(read.translation?.root.children?.[0]?.children?.[0]?.text).toBe(
+      "تنتهي الدراسة ظهر يوم الخميس.",
+    );
+    const me = await family.identity.currentUser();
+    const notice = (await family.notifications.list({ tab: "all" })).rows.find(
+      (row) => row.subjectId === saved.id,
+    );
+    expect(notice?.params.titleAr).toBe("انصراف مبكر يوم الخميس");
+    expect(notice?.params.preview).toBe("School closes at noon on Thursday.");
+    expect(me.id).toBeTruthy();
+
+    const copy = await office.announcements.duplicate({ id: saved.id });
+    const opened = await office.announcements.editor({ id: copy.id });
+    expect(opened.state).toBe("draft");
+    expect(opened.titleAr).toBe("انصراف مبكر يوم الخميس");
+    expect(opened.translationReview?.current).toBe(true);
+  });
+
+  test("an Arabic-only announcement needs its Arabic title", async () => {
+    const office = await principal();
+    expect(
+      await rejection(
+        office.announcements.save({
+          ...draft("", [{ scope: "families", classId: "", gradeId: "" }]),
+          primaryLocale: "ar",
+          titleEn: "Only English",
+        }),
+      ),
+    ).toMatchObject({ code: "BAD_REQUEST" });
   });
 });

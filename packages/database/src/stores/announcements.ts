@@ -11,7 +11,10 @@ export interface AnnouncementRow {
   id: string;
   version: number;
   orgId: string;
-  title: string;
+  titleEn: string;
+  titleAr: string;
+  /** The language the announcement was first written in. */
+  primaryLocale: "ar" | "en" | null;
   urgency: Urgency;
   state: AnnouncementState;
   publishAt: string | null;
@@ -25,7 +28,11 @@ export interface AnnouncementRow {
   updateSentAt: string | null;
 }
 
-const columns = sql`a.id, a.version, a.org_id, a.title, a.urgency, a.state,
+const columns = sql`a.id, a.version, a.org_id, a.title_en, a.title_ar,
+  (select d.locale from core.documents d where d.tenant_id = a.tenant_id
+    and d.host_type = 'announcement' and d.host_id = a.id and d.status = 'active'
+    and d.translation_of_id is null order by d.date_last_modified desc limit 1) as primary_locale,
+  a.urgency, a.state,
   ${isoOf(sql`a.publish_at`)} as publish_at, to_char(a.pinned_until, 'YYYY-MM-DD') as pinned_until,
   to_char(a.expires_on, 'YYYY-MM-DD') as expires_on, a.requires_ack,
   to_char(a.ack_due_on, 'YYYY-MM-DD') as ack_due_on, a.author_user_id,
@@ -36,7 +43,9 @@ type AnnouncementRecord = {
   id: string;
   version: number;
   org_id: string;
-  title: string;
+  title_en: string;
+  title_ar: string;
+  primary_locale: "ar" | "en" | null;
   urgency: Urgency;
   state: AnnouncementState;
   publish_at: string | null;
@@ -55,7 +64,9 @@ function rowOf(row: AnnouncementRecord): AnnouncementRow {
     id: row.id,
     version: row.version,
     orgId: row.org_id,
-    title: row.title,
+    titleEn: row.title_en,
+    titleAr: row.title_ar,
+    primaryLocale: row.primary_locale,
     urgency: row.urgency,
     state: row.state,
     publishAt: row.publish_at,
@@ -83,7 +94,8 @@ export async function announcementById(
 }
 
 export interface AnnouncementFields {
-  title: string;
+  titleEn: string;
+  titleAr: string;
   urgency: Urgency;
   pinnedUntil: string | null;
   expiresOn: string | null;
@@ -101,8 +113,10 @@ export async function insertAnnouncement(
 ): Promise<{ id: string; version: number }> {
   const [row] = await tx.execute<{ id: string; version: number }>(sql`
     insert into core.announcements
-      (tenant_id, org_id, title, urgency, pinned_until, expires_on, requires_ack, ack_due_on, author_user_id)
-    values (${input.tenantId}::uuid, ${input.schoolId}::uuid, ${input.title}, ${input.urgency},
+      (tenant_id, org_id, title_en, title_ar, urgency, pinned_until, expires_on, requires_ack,
+       ack_due_on, author_user_id)
+    values (${input.tenantId}::uuid, ${input.schoolId}::uuid, ${input.titleEn}, ${input.titleAr},
+            ${input.urgency},
             ${input.pinnedUntil}::date, ${input.expiresOn}::date, ${input.requiresAck},
             ${input.ackDueOn}::date, ${input.authorId}::uuid)
     returning id, version`);
@@ -120,7 +134,8 @@ export async function updateAnnouncement(
 ): Promise<number | null> {
   const [row] = await tx.execute<{ version: number }>(sql`
     update core.announcements
-    set title = ${input.title}, urgency = ${input.urgency}, pinned_until = ${input.pinnedUntil}::date,
+    set title_en = ${input.titleEn}, title_ar = ${input.titleAr}, urgency = ${input.urgency},
+        pinned_until = ${input.pinnedUntil}::date,
         expires_on = ${input.expiresOn}::date, requires_ack = ${input.requiresAck},
         ack_due_on = ${input.ackDueOn}::date
     where tenant_id = ${input.tenantId}::uuid and id = ${input.id}::uuid
@@ -217,7 +232,7 @@ export async function feedOf(
       and (case when ${input.tab === "past"}
                 then a.expires_on < ${input.today}::date
                 else a.expires_on is null or a.expires_on >= ${input.today}::date end)
-      and (${q}::text is null or a.title ilike ${q} or d.plain_text ilike ${q})
+      and (${q}::text is null or (a.title_en ilike ${q} or a.title_ar ilike ${q}) or d.plain_text ilike ${q})
     order by (${input.tab === "current"} and coalesce(a.pinned_until >= ${input.today}::date, false)) desc,
              a.publish_at desc, a.id
     limit 200`);
@@ -270,7 +285,7 @@ export async function managedAnnouncements(
         input.states.map((state) => sql`${state}`),
         sql`, `,
       )}]::text[]`})
-      and (${q}::text is null or a.title ilike ${q})
+      and (${q}::text is null or (a.title_en ilike ${q} or a.title_ar ilike ${q}))
     order by coalesce(a.publish_at, a.date_last_modified) desc, a.id
     limit 200`);
   return rows.map((row) => ({

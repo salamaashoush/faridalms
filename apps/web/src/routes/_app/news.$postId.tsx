@@ -1,6 +1,6 @@
-import type { NewsLocale } from "@faridalms/domain/news";
+import type { ContentLocale } from "@faridalms/domain/translations";
 
-import { otherNewsLocale } from "@faridalms/domain/news";
+import { otherLocale } from "@faridalms/domain/translations";
 import { Button } from "@faridalms/ui/button";
 import { cn } from "@faridalms/ui/cn";
 import {
@@ -18,8 +18,8 @@ import type { HeaderFact } from "~/components/system/RecordPage";
 
 import { audienceLabel } from "~/components/announcements/format";
 import { BreadcrumbCurrent } from "~/components/app/WorkspaceBreadcrumb";
+import { TranslatedView } from "~/components/content/TranslatedView";
 import { formatInstant } from "~/components/coursework/format";
-import { NewsView } from "~/components/news/NewsView";
 import { DataTable } from "~/components/system/DataTable";
 import {
   ReaderWidthToggle,
@@ -173,9 +173,9 @@ function NewsPostPage() {
   const navigate = useNavigate();
   const queryClient = useQueryClient();
   const data = useSuspenseQuery(newsPostQuery(postId)).data;
-  const viewer: NewsLocale = getLocale() === "ar" ? "ar" : "en";
-  const [locale, setLocale] = useState<NewsLocale>(
-    data.translation && viewer === otherNewsLocale(data.primaryLocale)
+  const viewer: ContentLocale = getLocale() === "ar" ? "ar" : "en";
+  const [locale, setLocale] = useState<ContentLocale>(
+    data.translation && viewer === otherLocale(data.primaryLocale)
       ? viewer
       : data.primaryLocale,
   );
@@ -286,7 +286,7 @@ function NewsPostPage() {
     >
       <RecordHeader
         variant="document"
-        title={titleOf(data)}
+        title={(locale === "ar" ? data.titleAr : data.titleEn) || titleOf(data)}
         facts={facts}
         tools={<ReaderWidthToggle wide={width.wide} onToggle={width.toggle} />}
         status={
@@ -358,7 +358,7 @@ function NewsPostPage() {
           {m.newsChangesWaiting()}
         </Notice>
       ) : null}
-      <NewsView
+      <TranslatedView
         body={data.body}
         translation={data.translation}
         primary={data.primaryLocale}
