@@ -60,10 +60,10 @@ export function $narrationTarget(node: LexicalNode): NarrationTarget | null {
   const group = node.getParent();
   if (node instanceof QuestionSideNode && group instanceof QuestionGroupNode)
     return { kind: "group", groupId: group.getOptionId() };
-  const address = $partAddress(node);
-  if (address) return { kind: "part", address };
   const id = $getState(node, blockIdState);
-  return id ? { kind: "block", id } : null;
+  if (id) return { kind: "block", id };
+  const address = $partAddress(node);
+  return address ? { kind: "part", address } : null;
 }
 
 export function $findNarrated(target: NarrationTarget): LexicalNode | null {

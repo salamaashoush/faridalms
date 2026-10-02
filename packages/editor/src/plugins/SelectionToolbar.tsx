@@ -159,6 +159,9 @@ const TRIES = [null, 1, 2, 3, 5] as const;
 const WORD_LIMITS = [null, 50, 100, 150, 200, 300, 500] as const;
 // Writing, or speaking for up to so many seconds (RECORD_SECONDS in the domain).
 const ANSWER_BY = [null, 15, 45, 90, 180] as const;
+// Counting goes to twenty (MAX_COUNT); a glimpse lasts FLASH_SECONDS.
+const COUNTS = Array.from({ length: 20 }, (_, index) => index + 1);
+const FLASH = [null, 2, 3, 5] as const;
 
 /** A selected file: what the bar opens, shares or shows. */
 interface FileBarFacts {
@@ -266,7 +269,8 @@ export function SelectionToolbarPlugin() {
     media,
     lockQuestions,
     narration: narrates,
-    spokenAnswers,
+    lessonActivities,
+    locale,
   } = useEditorEnvironment();
   const [mode, setMode] = useState<Mode>("hidden");
   const [reference, setReference] = useState<ReferenceElement | null>(null);
@@ -386,6 +390,8 @@ export function SelectionToolbarPlugin() {
       }
       if (!$isQuestionNode(node)) return null;
       voiced ??= node;
+      // A counting question's picture is of what is counted, on the question.
+      if (!part && node.getSettings().kind === "counting") part = node;
       return {
         key: node.getKey(),
         settings: node.getSettings(),
@@ -801,6 +807,18 @@ export function SelectionToolbarPlugin() {
         : strings.questionTriesCount(value);
     const wordsText = (value: number | null) =>
       value === null ? strings.questionNoLimit : strings.questionWords(value);
+    const formatCount = (value: number) =>
+      new Intl.NumberFormat(locale).format(value);
+    const layoutText = (value: "scatter" | "line" | "frame") =>
+      value === "line"
+        ? strings.questionCountLine
+        : value === "frame"
+          ? strings.questionCountFrame
+          : strings.questionCountScatter;
+    const flashText = (value: number | null) =>
+      value === null
+        ? strings.questionFlashOff
+        : strings.questionFlashSeconds(value);
     const answerByText = (value: number | null) =>
       value === null
         ? strings.questionByWriting
@@ -827,7 +845,7 @@ export function SelectionToolbarPlugin() {
           />
           {settings.kind === "written" ? (
             <>
-              {spokenAnswers ? (
+              {lessonActivities ? (
                 <BarMenu
                   label={strings.questionAnswerBy}
                   current={answerByText(settings.recordSeconds)}
@@ -879,6 +897,58 @@ export function SelectionToolbarPlugin() {
               onOpenChange={trackMenu}
               finalFocus={textFocus(editor)}
             />
+          ) : null}
+          {settings.kind === "counting" ? (
+            <>
+              <BarMenu
+                label={strings.questionCount}
+                current={formatCount(settings.count)}
+                values={COUNTS}
+                text={formatCount}
+                onPick={(count) => change({ count })}
+                onOpenChange={trackMenu}
+                finalFocus={textFocus(editor)}
+              />
+              <BarMenu
+                label={strings.questionCountMode}
+                current={
+                  settings.countMode === "make"
+                    ? strings.questionCountMake
+                    : strings.questionCountAsk
+                }
+                values={["count", "make"] as const}
+                text={(value) =>
+                  value === "make"
+                    ? strings.questionCountMake
+                    : strings.questionCountAsk
+                }
+                onPick={(countMode) => change({ countMode })}
+                onOpenChange={trackMenu}
+                finalFocus={textFocus(editor)}
+              />
+              {settings.countMode === "count" ? (
+                <>
+                  <BarMenu
+                    label={strings.questionCountLayout}
+                    current={layoutText(settings.countLayout)}
+                    values={["scatter", "line", "frame"] as const}
+                    text={layoutText}
+                    onPick={(countLayout) => change({ countLayout })}
+                    onOpenChange={trackMenu}
+                    finalFocus={textFocus(editor)}
+                  />
+                  <BarMenu
+                    label={strings.questionFlash}
+                    current={flashText(settings.flashSeconds)}
+                    values={FLASH}
+                    text={flashText}
+                    onPick={(flashSeconds) => change({ flashSeconds })}
+                    onOpenChange={trackMenu}
+                    finalFocus={textFocus(editor)}
+                  />
+                </>
+              ) : null}
+            </>
           ) : null}
           {settings.kind === "number" ? (
             <button

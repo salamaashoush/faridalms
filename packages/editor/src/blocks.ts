@@ -43,6 +43,7 @@ import {
 import {
   ArrowDownUp,
   ArrowLeftRight,
+  Dices,
   Brackets,
   ChevronRight,
   CircleCheck,
@@ -125,6 +126,7 @@ export type BlockType =
   | "orderingQuestion"
   | "matchingQuestion"
   | "sortingQuestion"
+  | "countingQuestion"
   | "gapsQuestion"
   | "trueFalseQuestion"
   | "gate"
@@ -143,6 +145,7 @@ const QUESTION_KIND: Partial<Record<BlockType, QuestionKind>> = {
   matchingQuestion: "matching",
   sortingQuestion: "sorting",
   gapsQuestion: "gaps",
+  countingQuestion: "counting",
 };
 
 export interface BlockDefinition {
@@ -162,6 +165,8 @@ export interface BlockDefinition {
   starter?: boolean;
   /** Offered only in a student's own work. */
   aiUse?: boolean;
+  /** Offered only in a lesson, which young children play. */
+  activity?: boolean;
 }
 
 /** Which kinds of block a document may hold. */
@@ -171,6 +176,7 @@ export interface BlockScope {
   gates: boolean;
   starter: boolean;
   aiUse: boolean;
+  activities: boolean;
 }
 
 export function blockScope(environment: {
@@ -179,6 +185,7 @@ export function blockScope(environment: {
   gates?: boolean;
   starter?: boolean;
   aiUse?: boolean;
+  lessonActivities?: boolean;
 }): BlockScope {
   const questions = Boolean(environment.questions);
   return {
@@ -187,6 +194,7 @@ export function blockScope(environment: {
     gates: environment.gates ?? questions,
     starter: Boolean(environment.starter),
     aiUse: Boolean(environment.aiUse),
+    activities: Boolean(environment.lessonActivities),
   };
 }
 
@@ -195,7 +203,8 @@ export const offered = (block: BlockDefinition, scope: BlockScope) =>
   (scope.questions || !block.question) &&
   (scope.gates || block.type !== "gate") &&
   (scope.starter || !block.starter) &&
-  (scope.aiUse || !block.aiUse);
+  (scope.aiUse || !block.aiUse) &&
+  (scope.activities || !block.activity);
 
 export const blockDefinitions: BlockDefinition[] = [
   {
@@ -509,6 +518,16 @@ export const blockDefinitions: BlockDefinition[] = [
     hint: (s) => s.questionSortingHint,
     keywords: ["question", "sort", "group", "categorise", "سؤال", "تصنيف"],
     question: true,
+  },
+  {
+    type: "countingQuestion",
+    group: "questions",
+    icon: Dices,
+    label: (s) => s.questionCounting,
+    hint: (s) => s.questionCountingHint,
+    keywords: ["count", "counting", "how many", "ten frame", "عد", "كم"],
+    question: true,
+    activity: true,
   },
   {
     type: "gate",

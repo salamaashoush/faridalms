@@ -109,6 +109,8 @@ export interface QuestionLabels {
   kinds: Record<QuestionKind, string>;
   /** A written question answered by speaking instead. */
   spoken?: string;
+  /** A counting question by its number and what the child does. */
+  count?: (count: number, make: boolean) => string;
   points: (points: number) => string;
   answerIs: string;
   prompt: string;
@@ -175,6 +177,12 @@ export interface QuestionSettings {
   wordLimit: number | null;
   /** Answered by speaking for up to this many seconds, rather than writing. */
   recordSeconds: number | null;
+  /** A counting question: how many, what the child does, how they are set out. */
+  count: number;
+  countMode: "count" | "make";
+  countLayout: "scatter" | "line" | "frame";
+  /** Seconds the things to count stay in view; none keeps them there. */
+  flashSeconds: number | null;
   hint: string;
   explanation: string;
   numberMode: "exact" | "range";
@@ -199,6 +207,10 @@ export function defaultSettings(kind: QuestionKind): QuestionSettings {
     tehMarbuta: true,
     wordLimit: null,
     recordSeconds: null,
+    count: 5,
+    countMode: "count",
+    countLayout: "scatter",
+    flashSeconds: null,
     hint: "",
     explanation: "",
     numberMode: "exact",
@@ -236,7 +248,9 @@ function label(editor: LexicalEditor, settings: QuestionSettings): string {
   const kind =
     settings.kind === "written" && settings.recordSeconds !== null
       ? (text.spoken ?? text.kinds.written)
-      : text.kinds[settings.kind];
+      : settings.kind === "counting" && text.count
+        ? text.count(settings.count, settings.countMode === "make")
+        : text.kinds[settings.kind];
   return `${kind} · ${text.points(settings.points)}`;
 }
 
@@ -257,7 +271,11 @@ export class QuestionNode extends ElementNode {
   }
 
   $config() {
-    return this.config("question", { extends: ElementNode });
+    // A counting question carries the picture of what is counted.
+    return this.config("question", {
+      extends: ElementNode,
+      stateConfigs: pictureStates,
+    });
   }
 
   static clone(node: QuestionNode): QuestionNode {
@@ -283,6 +301,10 @@ export class QuestionNode extends ElementNode {
       tehMarbuta: json.tehMarbuta ?? base.tehMarbuta,
       wordLimit: json.wordLimit ?? null,
       recordSeconds: json.recordSeconds ?? null,
+      count: json.count ?? base.count,
+      countMode: json.countMode ?? base.countMode,
+      countLayout: json.countLayout ?? base.countLayout,
+      flashSeconds: json.flashSeconds ?? null,
       hint: json.hint ?? "",
       explanation: json.explanation ?? "",
       numberMode: json.numberMode ?? base.numberMode,
@@ -297,7 +319,24 @@ export class QuestionNode extends ElementNode {
   }
 
   exportJSON(): SerializedQuestionNode {
-    return { ...super.exportJSON(), ...this.getLatest().__settings };
+    // Settings a question does not use stay out, so documents saved before
+    // a setting existed read the same as they did.
+    const {
+      recordSeconds,
+      count,
+      countMode,
+      countLayout,
+      flashSeconds,
+      ...settings
+    } = this.getLatest().__settings;
+    return {
+      ...super.exportJSON(),
+      ...settings,
+      ...(recordSeconds === null ? {} : { recordSeconds }),
+      ...(settings.kind === "counting"
+        ? { count, countMode, countLayout, flashSeconds }
+        : {}),
+    };
   }
 
   exportDOM(): DOMExportOutput {
@@ -315,7 +354,12 @@ export class QuestionNode extends ElementNode {
     if (locked.has(editor)) lockElement(dom, true);
     if (this.__settings.kind === "number")
       dom.dataset.answer = `${labels.get(editor)?.answerIs ?? ""} ${numberAnswer(this.__settings)}`;
+    if (this.__settings.kind === "counting") drawPicture(this, dom, editor);
     return dom;
+  }
+
+  getDOMSlot(dom: HTMLElement): ElementDOMSlot {
+    return pictureSlot(dom, super.getDOMSlot(dom));
   }
 
   updateDOM(previous: this, dom: HTMLElement): boolean {
@@ -325,6 +369,9 @@ export class QuestionNode extends ElementNode {
       previous.__settings.kind !== settings.kind ||
       previous.__settings.points !== settings.points ||
       previous.__settings.recordSeconds !== settings.recordSeconds ||
+      previous.__settings.count !== settings.count ||
+      previous.__settings.countMode !== settings.countMode ||
+      !samePicture(previous, this) ||
       numberAnswer(previous.__settings) !== numberAnswer(settings)
     )
       return true;
@@ -1156,11 +1203,14 @@ export function $holdsPicture(node: LexicalNode): boolean {
  */
 export type PartAddress =
   | { kind: "id"; id: string }
-  | { kind: "side"; pairId: string; index: number };
+  | { kind: "side"; pairId: string; index: number }
+  | { kind: "question"; questionId: string };
 
 export function $partAddress(node: LexicalNode): PartAddress | null {
   if (node instanceof QuestionOptionNode || node instanceof QuestionAnswerNode)
     return { kind: "id", id: node.getOptionId() };
+  if (node instanceof QuestionNode)
+    return { kind: "question", questionId: node.getSettings().questionId };
   const pair = node.getParent();
   if (node instanceof QuestionSideNode && pair instanceof QuestionPairNode)
     return {
@@ -1187,6 +1237,12 @@ export function $findPart(address: PartAddress): LexicalNode | null {
       node.getOptionId() === address.pairId
     )
       return node.getChildAtIndex(address.index);
+    if (
+      address.kind === "question" &&
+      node instanceof QuestionNode &&
+      node.getSettings().questionId === address.questionId
+    )
+      return node;
     if ($isElementNode(node)) pending.push(...node.getChildren());
   }
   return null;

@@ -43,6 +43,7 @@ import { getMessageFromError } from "~/utils/error";
 
 import { ReadAloud, YoungContext } from "./ReadAloud";
 import { SpokenRecorder, SpokenStatus } from "./SpokenAnswer";
+import { YoungCounting } from "./young/YoungCounting";
 import { YoungMatching, YoungOrdering, YoungSorting } from "./young/YoungPlace";
 
 /** A part's picture over its words; with no words, its description names it. */
@@ -147,6 +148,7 @@ export type CheckStudentBlock =
   | Of<"matching">
   | Of<"ordering">
   | Of<"sorting">
+  | Of<"counting">
   | Of<"written">;
 
 const CHECK_TYPES = new Set<StudentBlock["type"]>([
@@ -157,6 +159,7 @@ const CHECK_TYPES = new Set<StudentBlock["type"]>([
   "matching",
   "ordering",
   "sorting",
+  "counting",
   "written",
 ]);
 
@@ -1442,6 +1445,12 @@ export function CheckBlockView({
   const young = useContext(YoungContext);
   const mode = useContext(CheckModeContext);
   const legend = useId();
+  if (block.type === "counting")
+    return (
+      <CheckCard block={block} legendId={legend} status={null} actions={null}>
+        <YoungCounting block={block} view={view} driver={driver} />
+      </CheckCard>
+    );
   // A quiz keeps answers unmarked until hand-in, which placing cannot do.
   if (mode === "practice" && placesCards(block, young)) {
     const board =

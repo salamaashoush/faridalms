@@ -227,6 +227,24 @@ export function editorStrings(): EditorStrings {
     questionTehMarbuta: m.editorQuestionTehMarbuta(),
     questionWordLimit: m.editorQuestionWordLimit(),
     questionSpoken: m.editorQuestionSpoken(),
+    questionCounting: m.editorQuestionCounting(),
+    questionCountingHint: m.editorQuestionCountingHint(),
+    questionCountLabel: (count, make) =>
+      make
+        ? m.editorQuestionCountMakeLabel({ count: formatNumber(count) })
+        : m.editorQuestionCountAskLabel({ count: formatNumber(count) }),
+    questionCount: m.editorQuestionCount(),
+    questionCountMode: m.editorQuestionCountMode(),
+    questionCountAsk: m.editorQuestionCountAsk(),
+    questionCountMake: m.editorQuestionCountMake(),
+    questionCountLayout: m.editorQuestionCountLayout(),
+    questionCountScatter: m.editorQuestionCountScatter(),
+    questionCountLine: m.editorQuestionCountLine(),
+    questionCountFrame: m.editorQuestionCountFrame(),
+    questionFlash: m.editorQuestionFlash(),
+    questionFlashOff: m.editorQuestionFlashOff(),
+    questionFlashSeconds: (seconds) =>
+      m.editorQuestionFlashSeconds({ seconds: formatNumber(seconds) }),
     questionAnswerBy: m.editorQuestionAnswerBy(),
     questionByWriting: m.editorQuestionByWriting(),
     questionBySpeaking: (seconds) =>

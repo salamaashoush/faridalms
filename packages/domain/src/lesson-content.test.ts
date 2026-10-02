@@ -10,7 +10,7 @@ import {
   sameContent,
 } from "./content";
 import { plainContent } from "./content-conversion";
-import { lessonDocumentSchema } from "./learning";
+import { lessonDocumentSchema, markResponse } from "./learning";
 import {
   briefWithQuiz,
   contentOfLesson,
@@ -471,5 +471,58 @@ describe("narration recorded by the teacher", () => {
     };
     expect(sameContent(document, renamed)).toBe(true);
     expect(sameContent(document, revoiced)).toBe(false);
+  });
+});
+
+describe("counting", () => {
+  const base = { points: 1, hint: "", explanation: "", tries: null };
+  const counting: LessonDocument = {
+    version: 2,
+    blocks: [
+      {
+        ...base,
+        id: partId(30),
+        type: "counting",
+        prompt: "How many cats?",
+        picture: { fileId: voice(1), alt: "A cat" },
+        count: 7,
+        mode: "count",
+        layout: "frame",
+        flashSeconds: 3,
+      },
+      {
+        ...base,
+        id: partId(31),
+        type: "counting",
+        prompt: "Put 6 counters in the frames.",
+        picture: null,
+        count: 6,
+        mode: "make",
+        layout: "scatter",
+        flashSeconds: null,
+      },
+    ],
+  };
+
+  it("keeps what is counted, how many and how through the document", () => {
+    const document = contentOfLesson(counting);
+    if (!document) throw new Error("lesson could not become a document");
+    expect(v.safeParse(contentDocumentSchema, document).success).toBe(true);
+    const back = lessonOfContent(document);
+    expect(v.safeParse(lessonDocumentSchema, back).success).toBe(true);
+    expect(checks(back.blocks)).toEqual(checks(counting.blocks));
+  });
+
+  it("marks a count right only when it is the number shown", () => {
+    const [shown] = counting.blocks;
+    if (shown?.type !== "counting") throw new Error("counting expected");
+    expect(markResponse(shown, { type: "counting", value: 7 })).toMatchObject({
+      correct: true,
+      fraction: 1,
+    });
+    expect(markResponse(shown, { type: "counting", value: 6 })).toMatchObject({
+      correct: false,
+      fraction: 0,
+    });
   });
 });

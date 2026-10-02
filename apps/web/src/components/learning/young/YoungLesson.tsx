@@ -29,6 +29,7 @@ import { ReadAloud, sayAloud, stopSounds } from "../ReadAloud";
 import { Burst } from "./motion";
 import { playSound, setSoundsOn, soundsOn } from "./sounds";
 import { FoundContext, YoungChoice } from "./YoungChoice";
+import { YoungCounting } from "./YoungCounting";
 import { YoungMatching, YoungOrdering, YoungSorting } from "./YoungPlace";
 import { YoungSpoken } from "./YoungSpoken";
 
@@ -118,6 +119,8 @@ function StepBlock({
       <YoungSorting block={block} view={view} driver={driver} />
     ) : block.type === "ordering" ? (
       <YoungOrdering block={block} view={view} driver={driver} />
+    ) : block.type === "counting" ? (
+      <YoungCounting block={block} view={view} driver={driver} />
     ) : block.type === "written" && block.recordSeconds ? (
       <YoungSpoken block={block} view={view} driver={driver} />
     ) : null;

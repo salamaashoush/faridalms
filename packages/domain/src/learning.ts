@@ -45,6 +45,16 @@ export const MAX_MODULE_CLASSES = 20;
  */
 export const RECORD_SECONDS = [15, 45, 90, 180] as const;
 export type RecordSeconds = (typeof RECORD_SECONDS)[number];
+/** Counting goes to twenty, as the Kindergarten standard does (K.CC.B.5). */
+export const MAX_COUNT = 20;
+/**
+ * How the things to count are set out: scattered, in a row, or in ten
+ * frames, which the EEF names as a representation to connect to number.
+ */
+export const COUNT_LAYOUTS = ["scatter", "line", "frame"] as const;
+export type CountLayout = (typeof COUNT_LAYOUTS)[number];
+/** Seconds the things to count stay in view before hiding, for seeing a number at a glance. */
+export const FLASH_SECONDS = [2, 3, 5] as const;
 /** Taken off a check's credit for each try after the first, as Moodle's interactive mode does. */
 export const TRY_PENALTY = 1 / 3;
 
@@ -323,6 +333,23 @@ export const lessonBlockSchema = v.variant("type", [
   ),
   v.object({
     ...checkFields,
+    type: v.literal("counting"),
+    /** What is counted, drawn again for each one; without it, round counters. */
+    picture,
+    count: v.pipe(
+      v.number(),
+      v.integer(),
+      v.minValue(1),
+      v.maxValue(MAX_COUNT),
+    ),
+    /** Say how many are shown, or put that many into ten frames. */
+    mode: v.picklist(["count", "make"]),
+    layout: v.picklist(COUNT_LAYOUTS),
+    /** Shown for this many seconds, then hidden; none keeps them in view. */
+    flashSeconds: v.nullable(v.picklist(FLASH_SECONDS)),
+  }),
+  v.object({
+    ...checkFields,
     type: v.literal("written"),
     /** Null for no limit. */
     wordLimit: v.nullable(
@@ -342,6 +369,7 @@ export type MatchingBlock = Extract<LessonBlock, { type: "matching" }>;
 export type OrderingBlock = Extract<LessonBlock, { type: "ordering" }>;
 export type SortingBlock = Extract<LessonBlock, { type: "sorting" }>;
 export type WrittenBlock = Extract<LessonBlock, { type: "written" }>;
+export type CountingBlock = Extract<LessonBlock, { type: "counting" }>;
 /** A question the server marks the moment it is answered. */
 export type AutoBlock =
   | ChoiceBlock
@@ -350,7 +378,8 @@ export type AutoBlock =
   | NumberBlock
   | MatchingBlock
   | OrderingBlock
-  | SortingBlock;
+  | SortingBlock
+  | CountingBlock;
 export type CheckBlock = AutoBlock | WrittenBlock;
 
 const AUTO_TYPES = new Set<LessonBlockType>([
@@ -361,6 +390,7 @@ const AUTO_TYPES = new Set<LessonBlockType>([
   "matching",
   "ordering",
   "sorting",
+  "counting",
 ]);
 
 export const isAuto = (block: LessonBlock): block is AutoBlock =>
@@ -577,6 +607,10 @@ export const responseSchema = v.variant("type", [
     order: v.pipe(v.array(id), v.minLength(2), v.maxLength(MAX_ORDER_ITEMS)),
   }),
   v.object({ type: v.literal("sorting"), groups: v.record(id, id) }),
+  v.object({
+    type: v.literal("counting"),
+    value: v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(100)),
+  }),
   v.pipe(
     v.object({
       type: v.literal("written"),
@@ -734,6 +768,11 @@ export function markResponse(
         parts,
       };
     }
+    case "counting": {
+      if (response.type !== "counting") return none;
+      const correct = response.value === block.count;
+      return { ...none, fraction: correct ? 1 : 0, correct };
+    }
     case "sorting": {
       if (response.type !== "sorting") return none;
       return share(
@@ -865,7 +904,8 @@ export type StudentBlock =
   | Omit<OrderingBlock, "explanation" | "hint">
   | (Omit<SortingBlock, "explanation" | "hint" | "items"> & {
       items: StudentPart[];
-    });
+    })
+  | Omit<CountingBlock, "explanation" | "hint">;
 
 function shuffled<T>(items: T[], seed: string): T[] {
   let state = 0;
@@ -1016,7 +1056,8 @@ export function studentBlocks(
           ),
         };
       }
-      case "written": {
+      case "written":
+      case "counting": {
         const { explanation: _why, hint: _hint, ...rest } = block;
         return rest;
       }
@@ -1052,6 +1093,8 @@ export function answerKey(block: AutoBlock): string[] {
       );
     case "ordering":
       return block.items.map(partName);
+    case "counting":
+      return [String(block.count)];
     case "sorting":
       return block.items.map(
         (item) =>

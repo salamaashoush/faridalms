@@ -50,8 +50,11 @@ export interface EditorEnvironment {
   aiUse?: boolean;
   /** Blocks and question parts may carry a recording that reads them aloud. */
   narration?: boolean;
-  /** A written question may be answered by speaking instead. */
-  spokenAnswers?: boolean;
+  /**
+   * Activities only a lesson offers: written questions answered by speaking,
+   * and counting.
+   */
+  lessonActivities?: boolean;
 }
 
 const Context = createContext<EditorEnvironment | null>(null);

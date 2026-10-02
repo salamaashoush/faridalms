@@ -60,6 +60,7 @@ export const questionKinds = [
   "matching",
   "sorting",
   "gaps",
+  "counting",
 ] as const;
 export type QuestionKind = (typeof questionKinds)[number];
 export const calloutTones = [
@@ -154,6 +155,10 @@ export interface ContentNode {
   tehMarbuta?: boolean;
   wordLimit?: number | null;
   recordSeconds?: number | null;
+  count?: number;
+  countMode?: "count" | "make";
+  countLayout?: "scatter" | "line" | "frame";
+  flashSeconds?: number | null;
   hint?: string;
   explanation?: string;
   numberMode?: "exact" | "range";
@@ -300,6 +305,10 @@ const nodeSchema: v.GenericSchema<ContentNode> = v.lazy(() =>
       tehMarbuta: v.optional(v.boolean()),
       wordLimit: v.optional(v.nullable(integer(10, 5000))),
       recordSeconds: v.optional(v.nullable(integer(5, 180))),
+      count: v.optional(integer(1, 20)),
+      countMode: v.optional(v.picklist(["count", "make"])),
+      countLayout: v.optional(v.picklist(["scatter", "line", "frame"])),
+      flashSeconds: v.optional(v.nullable(integer(1, 10))),
       hint: v.optional(v.pipe(v.string(), v.maxLength(500))),
       explanation: v.optional(v.pipe(v.string(), v.maxLength(1000))),
       numberMode: v.optional(v.picklist(["exact", "range"])),

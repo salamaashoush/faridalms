@@ -602,6 +602,7 @@ describe("questions in a document", () => {
         matching: "",
         sorting: "",
         gaps: "",
+        counting: "",
       },
       points: () => "",
       answerIs: "",

@@ -4,7 +4,7 @@ import type { LessonBlock, LessonDocument, RecordSeconds } from "./learning";
 
 import { sameContent } from "./content";
 import { gapsSource, parseGaps } from "./gaps";
-import { RECORD_SECONDS } from "./learning";
+import { FLASH_SECONDS, RECORD_SECONDS } from "./learning";
 
 /**
  * A lesson is written as one document whose questions are blocks in the
@@ -78,6 +78,10 @@ function segmentsOf(passages: readonly ContentNode[]): GapSegment[] {
 const spokenFor = (seconds: number | null | undefined): RecordSeconds | null =>
   RECORD_SECONDS.find((allowed) => allowed === seconds) ?? null;
 
+/** A glimpse the lesson allows, or none to keep things in view. */
+const flashFor = (seconds: number | null | undefined) =>
+  FLASH_SECONDS.find((allowed) => allowed === seconds) ?? null;
+
 /** A part's picture, when it has one. */
 function pictureOf(node: ContentNode | undefined) {
   return node?.fileId ? { fileId: node.fileId, alt: node.alt ?? "" } : null;
@@ -148,13 +152,25 @@ function questionBlock(node: ContentNode): LessonBlock | null {
         closeEnough: node.closeEnough ?? false,
         tehMarbuta: node.tehMarbuta ?? true,
       };
-    case "written":
+    case "counting":
+      return {
+        ...check,
+        type: "counting",
+        picture: pictureOf(node),
+        count: node.count ?? 5,
+        mode: node.countMode ?? "count",
+        layout: node.countLayout ?? "scatter",
+        flashSeconds: flashFor(node.flashSeconds),
+      };
+    case "written": {
+      const spoken = spokenFor(node.recordSeconds);
       return {
         ...check,
         type: "written",
         wordLimit: node.wordLimit ?? null,
-        recordSeconds: spokenFor(node.recordSeconds),
+        ...(spoken === null ? {} : { recordSeconds: spoken }),
       };
+    }
     case "number":
       return {
         ...check,
@@ -428,7 +444,8 @@ export function questionNode(block: LessonBlock): ContentNode | null {
     block.type !== "ordering" &&
     block.type !== "matching" &&
     block.type !== "sorting" &&
-    block.type !== "gaps"
+    block.type !== "gaps" &&
+    block.type !== "counting"
   )
     return null;
   const base: ContentNode = {
@@ -568,10 +585,19 @@ export function questionNode(block: LessonBlock): ContentNode | null {
         })),
       ],
     };
+  if (block.type === "counting")
+    return {
+      ...base,
+      ...pictureFields(block.picture),
+      count: block.count,
+      countMode: block.mode,
+      countLayout: block.layout,
+      flashSeconds: block.flashSeconds,
+    };
   return {
     ...base,
     wordLimit: block.wordLimit,
-    recordSeconds: block.recordSeconds ?? null,
+    ...(block.recordSeconds ? { recordSeconds: block.recordSeconds } : {}),
   };
 }
 
