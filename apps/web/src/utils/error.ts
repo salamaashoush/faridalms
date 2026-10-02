@@ -177,6 +177,8 @@ export function getMessageFromError(error: unknown): string {
         return m.attReasonInvalid();
       case "attendance.range":
         return m.attRangeInvalid();
+      case "attendance.correction_reason":
+        return m.attCorrectionNeeded();
       case "attendance.lateness":
         return m.attRuleClosesAfterLate();
       case "attendance.pickup_who":

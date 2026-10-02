@@ -142,7 +142,7 @@ describe("taking a register", () => {
       reopened.marks.find((mark) => mark.studentId === late.id),
     ).toMatchObject({ meaning: "late", minutes: 12 });
 
-    await teacher.attendance.save({
+    const corrected = {
       classId: opened.class.id,
       date,
       periodId: register.period.id,
@@ -152,11 +152,31 @@ describe("taking a register", () => {
         meaning:
           entry.id === me.id ? ("absent" as const) : ("present" as const),
       })),
+    };
+    expect(await rejection(teacher.attendance.save(corrected))).toMatchObject({
+      code: "BAD_REQUEST",
+      message: "attendance.correction_reason",
+    });
+    await teacher.attendance.save({
+      ...corrected,
+      correction: "The hall clock was ten minutes fast.",
     });
     const history = await office.people.studentHistory({ id: late.id });
     expect(
       history.some((entry) => entry.action === "attendance.mark_change"),
     ).toBe(true);
+    const amended = await teacher.attendance.register({
+      classId: opened.class.id,
+      date,
+      periodId: register.period.id,
+    });
+    expect(
+      amended.history.find((entry) => entry.studentId === late.id),
+    ).toMatchObject({
+      from: "late",
+      to: "present",
+      reason: "The hall clock was ten minutes fast.",
+    });
   });
 
   test("a teacher reaches only their classes, school days, the roster and their window", async () => {

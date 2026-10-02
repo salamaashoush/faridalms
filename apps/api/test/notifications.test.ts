@@ -237,6 +237,7 @@ describe("absence notices", () => {
       periodId: homeroom.period.id,
       expectedVersion: absent.version,
       marks: marks("present"),
+      correction: "The family rang: she was in the library.",
     });
     expect(await notices()).toHaveLength(0);
   });

@@ -14,7 +14,7 @@ import type { CellTransaction } from "../context";
 import type { RegisterState } from "../tables/attendance";
 import type { ClassType } from "../tables/teaching";
 
-import { uuidArray } from "./sql";
+import { isoOf, uuidArray } from "./sql";
 
 type Tx = CellTransaction;
 
@@ -1239,4 +1239,52 @@ export async function setStudentMark(
         ${input.actorId}::uuid, ${input.studentId}::uuid, ${input.categoryId}::uuid,
         ${input.meaning}, ${input.minutes}, ${input.reasonId}::uuid, ${input.note})`);
   await touchRegister(tx, input.tenantId, input.registerId);
+}
+
+export interface MarkCorrection {
+  studentId: string;
+  at: string;
+  byNameEn: string | null;
+  byNameAr: string | null;
+  from: AttendanceMeaning | null;
+  to: AttendanceMeaning | null;
+  reason: string | null;
+}
+
+/** How a register's marks changed after they were first taken, newest first. */
+export async function markHistory(
+  tx: Tx,
+  input: { tenantId: string; registerId: string },
+): Promise<MarkCorrection[]> {
+  const rows = await tx.execute<{
+    subject_user_id: string;
+    at: string;
+    by_en: string | null;
+    by_ar: string | null;
+    from_meaning: AttendanceMeaning | null;
+    to_meaning: AttendanceMeaning | null;
+    reason: string | null;
+  }>(sql`
+    select l.subject_user_id, ${isoOf(sql`l.occurred_at`)} as at,
+           u.full_name_en as by_en, u.full_name_ar as by_ar,
+           p.before ->> 'meaning' as from_meaning, p.after ->> 'meaning' as to_meaning,
+           l.details ->> 'reason' as reason
+    from audit.log l
+    left join core.users u on u.tenant_id = l.tenant_id and u.id = l.actor_user_id
+    left join audit.payloads p on p.tenant_id = l.tenant_id and p.event_id = l.id
+      and p.occurred_at = l.occurred_at
+    where l.tenant_id = ${input.tenantId}::uuid and l.object_type = 'attendance_register'
+      and l.object_id = ${input.registerId}::uuid and l.action = 'attendance.mark_change'
+      and (p.before ->> 'meaning') is distinct from (p.after ->> 'meaning')
+    order by l.occurred_at desc
+    limit 300`);
+  return rows.map((row) => ({
+    studentId: row.subject_user_id,
+    at: row.at,
+    byNameEn: row.by_en,
+    byNameAr: row.by_ar,
+    from: row.from_meaning,
+    to: row.to_meaning,
+    reason: row.reason,
+  }));
 }

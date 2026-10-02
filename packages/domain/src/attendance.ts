@@ -134,6 +134,8 @@ export const saveRegisterSchema = v.pipe(
     periodId: id,
     expectedVersion: v.pipe(v.number(), v.integer(), v.minValue(0)),
     marks: v.pipe(v.array(registerMarkSchema), v.maxLength(300)),
+    /** Why a submitted register's marks change, kept with each change. */
+    correction: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(300)), ""),
   }),
   v.check(
     (input) =>

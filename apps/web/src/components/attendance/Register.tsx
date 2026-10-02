@@ -31,13 +31,13 @@ import { PersonAvatar } from "~/components/admin/PersonAvatar";
 import { UnsavedChangesGuard } from "~/components/app/UnsavedChangesGuard";
 import { classTitle } from "~/components/classes/format";
 import { displayName } from "~/components/people/format";
-import { SelectField } from "~/components/system/field";
+import { SelectField, TextField } from "~/components/system/field";
 import { RecordHeader } from "~/components/system/RecordPage";
 import { inLocale, useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { registerQuery } from "~/queries/attendance";
 import { saveRegister } from "~/server/attendance";
-import { formatNumber } from "~/utils/datetime";
+import { formatDateTime, formatNumber } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
 import { CheckInScreen } from "./CheckInScreen";
@@ -205,6 +205,7 @@ function StudentRow({
   earlier,
   report,
   movements,
+  history,
   via,
   reasons,
   lateNow,
@@ -219,6 +220,8 @@ function StudentRow({
   report: Data["reports"][number] | undefined;
   /** When reception signed the child in or out that day. */
   movements: Data["movements"];
+  /** Changes to the child's mark since the register was first taken. */
+  history: Data["history"];
   /** How late someone arriving now is, on today's register. */
   lateNow: () => number | null;
   closesMinutes: number;
@@ -274,6 +277,25 @@ function StudentRow({
                 {movement.direction === "in"
                   ? m.attSignedIn({ time: movement.at })
                   : m.attSignedOut({ time: movement.at })}
+              </span>
+            ))}
+            {history.slice(0, 3).map((change) => (
+              <span
+                key={change.at}
+                className="text-[13px] leading-[18px] text-muted-foreground"
+              >
+                {m.attChanged({
+                  from: change.from ? MEANING_LABEL[change.from]() : "–",
+                  to: change.to ? MEANING_LABEL[change.to]() : "–",
+                  name: inLocale(change.byNameEn, change.byNameAr),
+                  when: formatDateTime(change.at),
+                })}
+                {change.reason ? (
+                  <>
+                    {" · "}
+                    <bdi>{change.reason}</bdi>
+                  </>
+                ) : null}
               </span>
             ))}
             {earlier.length ? (
@@ -447,6 +469,16 @@ function RegisterForm({ data }: { data: Data }) {
   const queryClient = useQueryClient();
   const [initial] = useState(() => draftsOf(data));
   const [drafts, setDrafts] = useState(() => withReports(initial, data));
+  const [correction, setCorrection] = useState("");
+  const [asked, setAsked] = useState(false);
+  // Changing a mark on a submitted register is a correction, which keeps
+  // its reason; giving a mark its reason is not.
+  const correcting =
+    data.register?.state === "submitted" &&
+    data.students.some((student) => {
+      const was = initial[student.id]?.meaning;
+      return Boolean(was) && drafts[student.id]?.meaning !== was;
+    });
   const editable = data.access.editable;
   const save = useMutation({
     mutationFn: () =>
@@ -472,6 +504,7 @@ function RegisterForm({ data }: { data: Data }) {
               },
             ];
           }),
+          correction: correcting ? correction.trim() : "",
         },
       }),
     meta: { inlineError: true },
@@ -513,6 +546,11 @@ function RegisterForm({ data }: { data: Data }) {
       onSubmit={(event) => {
         event.preventDefault();
         if (invalid) return;
+        if (correcting && !correction.trim()) {
+          setAsked(true);
+          document.getElementById("register-correction")?.focus();
+          return;
+        }
         void save.mutateAsync().then(
           async (result) => {
             toast.success(
@@ -558,6 +596,9 @@ function RegisterForm({ data }: { data: Data }) {
               movements={data.movements.filter(
                 (row) => row.studentId === student.id,
               )}
+              history={data.history.filter(
+                (row) => row.studentId === student.id,
+              )}
               via={
                 data.marks.find((mark) => mark.studentId === student.id)?.via ??
                 null
@@ -571,6 +612,20 @@ function RegisterForm({ data }: { data: Data }) {
           ))}
         </ul>
       </section>
+      {editable && correcting ? (
+        <TextField
+          id="register-correction"
+          label={m.attCorrection()}
+          hint={m.attCorrectionHint()}
+          width="name"
+          maxLength={300}
+          value={correction}
+          onChange={(event) => setCorrection(event.target.value)}
+          errors={
+            asked && !correction.trim() ? [m.attCorrectionNeeded()] : undefined
+          }
+        />
+      ) : null}
       {editable ? (
         <div className="sticky bottom-0 z-10 flex flex-wrap items-center gap-x-4 gap-y-2 border-t bg-background py-4 max-md:bottom-[calc(3.5rem+env(safe-area-inset-bottom))]">
           <Button

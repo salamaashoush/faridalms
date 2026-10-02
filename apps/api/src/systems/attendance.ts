@@ -23,6 +23,7 @@ import {
   dayBoard,
   excuseMarks,
   isSchoolDay,
+  markHistory,
   marksOf,
   otherMarksOn,
   periodsOn,
@@ -411,7 +412,7 @@ export const register = readProcedure
         excludeRegisterId: existing?.id ?? null,
       }),
     ]);
-    const [reports, movements] = await Promise.all([
+    const [reports, movements, history] = await Promise.all([
       reportsOn(context.tx, {
         tenantId: context.tenantId,
         schoolId: context.schoolId,
@@ -424,6 +425,12 @@ export const register = readProcedure
         day: input.date,
         studentIds: roster,
       }),
+      existing
+        ? markHistory(context.tx, {
+            tenantId: context.tenantId,
+            registerId: existing.id,
+          })
+        : Promise.resolve([]),
     ]);
     const onRoster = new Set(roster);
     return {
@@ -489,6 +496,7 @@ export const register = readProcedure
         reasonId: row.reasonId,
         accepted: row.decision === "accepted",
       })),
+      history,
       movements: movements.map((row) => ({
         studentId: row.studentId,
         direction: row.direction,
@@ -828,6 +836,12 @@ export const save = writeProcedure
       roster,
       new Set(input.marks.map((mark) => mark.studentId)),
     );
+    const before = await registerFor(context.tx, {
+      tenantId: context.tenantId,
+      classId: classRow.id,
+      day: input.date,
+      periodId: input.periodId,
+    });
     try {
       const saved = await writeRegister(context.tx, {
         tenantId: context.tenantId,
@@ -858,6 +872,21 @@ export const save = writeProcedure
           marked: input.marks.length,
         },
       });
+      const corrected = saved.changes.filter(
+        (change) =>
+          change.before !== null &&
+          change.before.meaning !== change.after?.meaning,
+      );
+      // England's registers keep why a mark changed once a register is
+      // submitted; a reason added to a mark is not a correction.
+      if (
+        before?.state === "submitted" &&
+        corrected.length > 0 &&
+        !input.correction
+      )
+        throw new ORPCError("BAD_REQUEST", {
+          message: "attendance.correction_reason",
+        });
       await Promise.all(
         saved.changes
           .filter((entry) => entry.before)
@@ -868,6 +897,9 @@ export const save = writeProcedure
               objectId: saved.id,
               subjectUserId: change.studentId,
               studentUserId: change.studentId,
+              details: input.correction
+                ? { reason: input.correction }
+                : undefined,
               change: {
                 table: "core.attendance_events",
                 before: change.before,
