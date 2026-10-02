@@ -979,7 +979,8 @@ export function CommentList({
   mine?: boolean;
   passages: Record<string, string>;
   active: string | null;
-  onShow: (id: string) => void;
+  /** Scrolls to the passage; none for comments on work no longer shown. */
+  onShow?: (id: string) => void;
 }) {
   return (
     <ul className="grid gap-3">
@@ -995,7 +996,11 @@ export function CommentList({
                 "border-amber-400 bg-amber-50/60 dark:bg-amber-400/10",
             )}
           >
-            {words ? (
+            {words && !onShow ? (
+              <p className="line-clamp-2 border-s-2 border-amber-400 ps-2 text-[13px] leading-[18px] text-muted-foreground">
+                <bdi>{words}</bdi>
+              </p>
+            ) : words && onShow ? (
               <button
                 type="button"
                 aria-label={m.courseworkCommentShow({ passage: words })}

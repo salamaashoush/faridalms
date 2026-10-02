@@ -9,6 +9,7 @@ import {
   starterOf,
   withBlockIds,
   withoutStarter,
+  wordsAt,
 } from "./content";
 import { plainContent } from "./content-conversion";
 
@@ -28,6 +29,25 @@ describe("block ids for comments", () => {
     const [first] = work.root.children ?? [];
     if (first) first.$ = { id: "editor01" };
     expect(withBlockIds(work).root.children?.[0]?.$?.id).toBe("editor01");
+  });
+});
+
+describe("the words a comment points at", () => {
+  it("reads across blocks by their own text, as the reader draws it", () => {
+    const work = withBlockIds(
+      plainContent("Dear Salama,\nI hope you are well."),
+    );
+    const [first, second] = work.root.children ?? [];
+    const start = { block: first?.$?.id ?? "", offset: 5 };
+    expect(
+      wordsAt(work, { start, end: { block: start.block, offset: 11 } }),
+    ).toBe("Salama");
+    expect(
+      wordsAt(work, { start, end: { block: second?.$?.id ?? "", offset: 6 } }),
+    ).toBe("Salama,I hope");
+    expect(
+      wordsAt(work, { start: { block: "missing1", offset: 0 }, end: start }),
+    ).toBe("");
   });
 });
 

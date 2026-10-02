@@ -1,6 +1,6 @@
 import type { Rubric } from "@faridalms/domain/coursework";
 
-import { contentPlainText } from "@faridalms/domain/content";
+import { contentPlainText, wordsAt } from "@faridalms/domain/content";
 import { Button } from "@faridalms/ui/button";
 import { cn } from "@faridalms/ui/cn";
 import {
@@ -351,6 +351,19 @@ function GradeSheet({
         ]
       : [];
   });
+  // Comments on earlier attempts, with the words they marked there, so a
+  // grader checks what a revision fixed.
+  const earlier = data.attempts.slice(0, -1).flatMap((previous) =>
+    previous.comments.map((comment) => ({
+      ...comment,
+      on: previous.content,
+    })),
+  );
+  const earlierWords = Object.fromEntries(
+    earlier.flatMap((comment) =>
+      comment.on ? [[comment.id, wordsAt(comment.on, comment.anchor)]] : [],
+    ),
+  );
   const side = getTextDirection(getLocale()) === "rtl" ? "left" : "right";
   // Beside the work on a wide screen, so the teacher reads while grading;
   // over it on a narrower one.
@@ -447,6 +460,21 @@ function GradeSheet({
                     if (!beside) onOpenChange(false);
                   }}
                 />
+              ) : null}
+              {earlier.length ? (
+                <details className="group grid gap-3">
+                  <summary className="cursor-pointer text-sm leading-5 font-medium text-muted-foreground hover:text-foreground">
+                    {m.courseworkEarlierComments({ count: earlier.length })}
+                  </summary>
+                  <div className="mt-3 grid gap-3">
+                    <CommentList
+                      comments={earlier}
+                      criteria={data.assignment.rubric?.criteria}
+                      passages={earlierWords}
+                      active={null}
+                    />
+                  </div>
+                </details>
               ) : null}
             </section>
           ) : null}

@@ -1935,6 +1935,19 @@
   "courseworkComment": "تعليق",
   "courseworkComments": "التعليقات",
   "courseworkCommentsHint": "حدد مقطعًا في العمل لتعلق عليه. يقرأ الطالب التعليقات عند إعادة العمل.",
+  "courseworkEarlierComments": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "تعليق واحد على محاولات سابقة",
+        "countPlural=two": "تعليقان على محاولات سابقة",
+        "countPlural=few": "{count} تعليقات على محاولات سابقة",
+        "countPlural=many": "{count} تعليقًا على محاولات سابقة",
+        "countPlural=*": "{count} تعليق على محاولات سابقة"
+      }
+    }
+  ],
   "courseworkCommentParagraph": "علّق على فقرة",
   "courseworkCommentParagraphHint": "اختر فقرة بدل تحديد كلماتها.",
   "courseworkChooseParagraph": "اختر فقرة",

@@ -645,6 +645,54 @@ export function withBlockIds(document: ContentDocument): ContentDocument {
   return { root: place(document.root, []) };
 }
 
+/**
+ * The words a comment's anchor points at, read from the document as the
+ * reader draws it: each text node counts in its nearest block, in reading
+ * order, and parts the reader leaves out (accepted answers) count nowhere.
+ */
+export function wordsAt(
+  document: ContentDocument,
+  anchor: {
+    start: { block: string; offset: number };
+    end: { block: string; offset: number };
+  },
+): string {
+  const order = new Map<string, number>();
+  const texts: { block: string; text: string }[] = [];
+  const walk = (node: ContentNode, block: string | undefined) => {
+    if (node.type === "question-answer" || node.type === "gate") return;
+    const own = node.$?.id ?? block;
+    if (node.$?.id && !order.has(node.$.id)) order.set(node.$.id, order.size);
+    if (
+      (node.type === "text" ||
+        node.type === "code-highlight" ||
+        node.type === "tab") &&
+      own
+    )
+      texts.push({ block: own, text: node.text ?? "" });
+    node.children?.forEach((child) => walk(child, own));
+  };
+  walk(document.root, undefined);
+  const from = order.get(anchor.start.block);
+  const to = order.get(anchor.end.block);
+  if (from === undefined || to === undefined) return "";
+  const offsets = new Map<string, number>();
+  let words = "";
+  for (const { block, text } of texts) {
+    const index = order.get(block) ?? -1;
+    const start = offsets.get(block) ?? 0;
+    offsets.set(block, start + text.length);
+    if (index < from || index > to) continue;
+    const begin = index === from ? Math.max(0, anchor.start.offset - start) : 0;
+    const end =
+      index === to
+        ? Math.min(text.length, anchor.end.offset - start)
+        : text.length;
+    if (begin < end) words += text.slice(begin, end);
+  }
+  return words.replace(/\s+/g, " ").trim();
+}
+
 export function contentFileIds(document: ContentDocument): string[] {
   const ids = new Set<string>();
   const pending = [document.root];
