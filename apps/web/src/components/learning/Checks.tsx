@@ -351,7 +351,8 @@ function CheckCard({
           >
             {block.prompt}
           </p>
-          {block.points > 0 ? (
+          {/* Young children see no points, only whether they found it. */}
+          {block.points > 0 && !young ? (
             <span className="mt-0.5 shrink-0 text-[13px] leading-[18px] text-muted-foreground tabular-nums">
               <bdi>{m.lrnPoints({ count: block.points })}</bdi>
             </span>

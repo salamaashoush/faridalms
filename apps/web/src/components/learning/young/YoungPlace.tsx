@@ -19,10 +19,10 @@ import { getMessageFromError } from "~/utils/error";
 
 import type { CheckDriver } from "../Checks";
 
-import { ReadAloud } from "../ReadAloud";
+import { ReadAloud, sayAloud } from "../ReadAloud";
 import { hop, shake } from "./motion";
 import { playSound } from "./sounds";
-import { YoungOutcome, YoungPart } from "./YoungChoice";
+import { outcomeWords, YoungOutcome, YoungPart } from "./YoungChoice";
 
 type Matching = Extract<StudentBlock, { type: "matching" }>;
 type Sorting = Extract<StudentBlock, { type: "sorting" }>;
@@ -51,6 +51,7 @@ function usePlacing({
   solution,
   placementOf,
   capacity,
+  praise,
 }: {
   block: { id: string };
   view: CheckView | undefined;
@@ -66,6 +67,8 @@ function usePlacing({
   placementOf: (response: LessonResponse) => Placement;
   /** How many cards a place takes, when it takes only so many. */
   capacity: (spotId: string) => number;
+  /** What a child is told who gets it all right, naming what they did. */
+  praise: string;
 }) {
   const [placement, setPlacement] = useState<Placement>({});
   const [held, setHeld] = useState<string | null>(null);
@@ -111,6 +114,7 @@ function usePlacing({
         if (view?.parts[answerOf(pieceId, spotId)] === false)
           shake(cards.current.get(pieceId));
     }
+    if (view) sayAloud(outcomeWords(view, praise, false), null);
   });
   useEffect(() => {
     if (tries > 0) answered();
@@ -165,6 +169,7 @@ function usePlacing({
       setSaid("");
       return;
     }
+    playSound("tap");
     setHeld(pieceId);
     const piece = pieces.find((part) => part.id === pieceId);
     setSaid(piece ? m.lrnYoungPicked({ item: partName(piece) }) : "");
@@ -189,6 +194,7 @@ function usePlacing({
     canShow: !settled && tries >= 2,
     show: () => reveal.mutate(),
     showing: reveal.isPending,
+    praise,
   };
 }
 
@@ -245,7 +251,8 @@ function Piece({
         aria-disabled={locked || undefined}
         onContextMenu={(event) => event.preventDefault()}
         onPointerDown={(event) => {
-          if (locked || event.button !== 0) return;
+          // One finger moves a card; a second one resting on the screen does not.
+          if (locked || event.button !== 0 || !event.isPrimary) return;
           const box = event.currentTarget.getBoundingClientRect();
           drag.current = {
             x: event.clientX,
@@ -311,9 +318,9 @@ function Piece({
         }}
         className={cn(
           "flex touch-none items-center justify-center rounded-2xl border-2 bg-card p-3 shadow-sm transition-[transform,box-shadow,border-color] outline-none select-none [-webkit-touch-callout:none] focus-visible:ring-4 focus-visible:ring-ring/50",
-          small ? "min-h-16 min-w-20" : "min-h-19 min-w-28",
+          small ? "min-h-20 min-w-24" : "min-h-26 min-w-32",
           part.picture && (small ? "w-28" : "w-36 sm:w-40"),
-          part.narration && "pt-11",
+          part.narration && "pt-16",
           held &&
             "-translate-y-1 border-primary shadow-lg ring-4 ring-primary/30 motion-reduce:translate-y-0",
           mark === "right" && "border-success bg-success/10",
@@ -327,8 +334,8 @@ function Piece({
         <ReadAloud
           text={partName(part)}
           narration={part.narration}
-          size="small"
-          className="absolute start-1.5 top-1.5"
+          size="card"
+          className="absolute start-1 top-1"
         />
       ) : null}
       {mark === "right" ? (
@@ -366,7 +373,7 @@ function Spot({
       className={cn(
         "grid place-items-center rounded-2xl border-2 border-dashed text-muted-foreground transition-colors outline-none focus-visible:ring-4 focus-visible:ring-ring/50 data-over:border-primary data-over:bg-primary/10",
         placing.held
-          ? "border-primary/60 bg-primary/5 motion-safe:animate-pulse"
+          ? "border-primary bg-primary/10"
           : "border-muted-foreground/30",
         className,
       )}
@@ -440,7 +447,7 @@ function Footer({
         </div>
       ) : null}
       <output aria-live="polite">
-        <YoungOutcome view={view} />
+        <YoungOutcome view={view} praise={placing.praise} />
       </output>
     </>
   );
@@ -496,6 +503,7 @@ export function YoungMatching({
           )
         : {},
     capacity: () => 1,
+    praise: m.lrnYoungMatched(),
   });
   const placedAt = (promptId: string) =>
     block.choices.find((choice) => placing.placement[choice.id] === promptId);
@@ -509,14 +517,19 @@ export function YoungMatching({
               key={prompt.id}
               className="grid grid-cols-2 items-center gap-3 sm:gap-6"
             >
-              <span className="relative flex min-h-19 items-center justify-center rounded-2xl bg-muted/50 p-3">
+              <span
+                className={cn(
+                  "relative flex min-h-26 items-center justify-center rounded-2xl bg-muted/50 p-3",
+                  prompt.narration && "pt-16",
+                )}
+              >
                 <YoungPart part={prompt} />
                 {prompt.narration ? (
                   <ReadAloud
                     text={partName(prompt)}
                     narration={prompt.narration}
-                    size="small"
-                    className="absolute start-1.5 top-1.5"
+                    size="card"
+                    className="absolute start-1 top-1"
                   />
                 ) : null}
               </span>
@@ -529,7 +542,7 @@ export function YoungMatching({
                   id={prompt.id}
                   label={m.lrnYoungPutWith({ item: partName(prompt) })}
                   placing={placing}
-                  className="min-h-19 self-stretch"
+                  className="min-h-26 self-stretch"
                 />
               )}
             </li>
@@ -572,6 +585,7 @@ export function YoungSorting({
     placementOf: (response) =>
       response.type === "sorting" ? response.groups : {},
     capacity: () => Number.POSITIVE_INFINITY,
+    praise: m.lrnYoungSorted(),
   });
   return (
     <div className="grid gap-6">
@@ -616,7 +630,7 @@ export function YoungSorting({
                   id={group.id}
                   label={m.lrnYoungPutIn({ group: group.name })}
                   placing={placing}
-                  className="min-h-19"
+                  className="min-h-26"
                 />
               )}
             </section>
@@ -669,6 +683,7 @@ export function YoungOrdering({
           )
         : {},
     capacity: () => 1,
+    praise: m.lrnYoungOrdered(),
   });
   return (
     <div className="grid gap-6">
@@ -695,7 +710,7 @@ export function YoungOrdering({
                   id={slot}
                   label={m.lrnYoungPlace({ number })}
                   placing={placing}
-                  className="min-h-19 w-36 sm:w-40"
+                  className="min-h-26 w-36 sm:w-40"
                 />
               )}
             </li>

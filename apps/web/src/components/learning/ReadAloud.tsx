@@ -112,7 +112,7 @@ export function ReadAloud({
   narration?: string | null;
   /** Whether the browser's voice may stand in for a missing recording. */
   voice?: boolean;
-  size?: "default" | "small";
+  size?: "small" | "default" | "card" | "large";
   className?: string;
 }) {
   const voices = useSyncExternalStore(
@@ -129,7 +129,12 @@ export function ReadAloud({
       size="icon"
       className={cn(
         "shrink-0 rounded-full",
-        size === "small" ? "size-10" : "size-11",
+        {
+          small: "size-10",
+          default: "size-11",
+          card: "size-14 [&_svg]:size-6",
+          large: "size-16 [&_svg]:size-7",
+        }[size],
         className,
       )}
       aria-label={m.lrnReadAloud()}

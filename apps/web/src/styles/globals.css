@@ -46,3 +46,11 @@ header:has([data-slot="page-actions"] > :not([data-keeps-global-tools]))
   [data-slot="global-tools"] {
   display: none;
 }
+
+/* Words a young child reads: Arabic set larger and looser than Latin at the
+   same size, so its dots and vowel marks can be read (a naskh face needs
+   about 1.3 times the size and a line height near 1.9). */
+.young-words:dir(rtl) {
+  font-size: 1.3em;
+  line-height: 1.9;
+}

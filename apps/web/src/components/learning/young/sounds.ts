@@ -43,16 +43,18 @@ function note(
 }
 
 /**
- * A short sound for what just happened: two rising notes for a right
- * answer, two soft falling ones for "not yet", and a little run at the end.
+ * A short sound for what just happened: a soft tick for a tap, two rising
+ * notes for a right answer, two soft falling ones for "not yet", and a
+ * little run at the end.
  */
-export function playSound(kind: "right" | "wrong" | "done") {
+export function playSound(kind: "tap" | "right" | "wrong" | "done") {
   if (!soundsOn() || typeof AudioContext === "undefined") return;
   context ??= new AudioContext();
   // Started by the child's tap, which is what lets a page make sound.
   if (context.state === "suspended") void context.resume();
   const audio = context;
-  if (kind === "right") {
+  if (kind === "tap") note(audio, 1200, 0, 0.05, "sine", 0.05);
+  else if (kind === "right") {
     note(audio, 1046.5, 0, 0.18, "sine", 0.18);
     note(audio, 1318.5, 0.1, 0.28, "sine", 0.18);
   } else if (kind === "wrong") {
