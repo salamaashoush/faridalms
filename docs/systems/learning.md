@@ -70,6 +70,12 @@ From [../research/early-years.md](../research/early-years.md).
   find. A find is judged under the child's finger, with a little slack, so
   only a tap on nothing or the last find counts as a try; after two misses
   "Show me" rings what is left.
+- Adding a picture to an option, item or question opens a search of open
+  pictures: ARASAAC's pictograms, with vowelled Arabic words, and OpenMoji's
+  emoji. A picked picture is copied into the school as the teacher's own
+  upload, with its words as the description, and the credit both sources ask
+  for sits under the results. `bun scripts/picture-library.ts` rebuilds the
+  index; ARASAAC's violent and sexual pictograms are left out.
 - Children see no points or scores. Soft notes and a word of praise naming
   what they did answer each try, and the end of the lesson says so once.
 - A young child's home is up to six big cards, a lesson already begun first,

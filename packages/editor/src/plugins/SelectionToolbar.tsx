@@ -131,6 +131,7 @@ import {
   shortcutLabel,
 } from "../ui";
 import { NarrationPanel, OPEN_NARRATION_COMMAND } from "./narration";
+import { PictureLibrary, pictureFile } from "./picture-library";
 import { RegionPad } from "./regions";
 import { TracePad } from "./trace";
 
@@ -146,7 +147,8 @@ type Mode =
   | "question-number"
   | "narration"
   | "trace"
-  | "regions";
+  | "regions"
+  | "picture";
 
 /** The question the caret is in: what the bar shows and changes. */
 interface QuestionBarFacts {
@@ -300,6 +302,7 @@ export function SelectionToolbarPlugin() {
   const [invalid, setInvalid] = useState(false);
   const saved = useRef<BaseSelection | null>(null);
   const [partProblem, setPartProblem] = useState<string | null>(null);
+  const picturePart = useRef<NodeKey | null>(null);
   const [narrating, setNarrating] = useState<{
     target: NarrationTarget;
     fileId: string | null;
@@ -309,7 +312,12 @@ export function SelectionToolbarPlugin() {
    * made on the spot rather than drawn in the bar, since the bar closes while
    * the system's file dialog has focus.
    */
-  const choosePartPicture = (partKey: NodeKey) => {
+  /** Stores a picture and puts it on a part, found again by its address. */
+  const placePartPicture = async (
+    partKey: NodeKey,
+    file: File,
+    alt: string,
+  ) => {
     if (!media) return;
     const address = editor.getEditorState().read(() => {
       const node = $getNodeByKey(partKey);
@@ -317,16 +325,20 @@ export function SelectionToolbarPlugin() {
     });
     if (!address) return;
     const slot = editor.getRootElement()?.id;
+    const uploaded = await media.upload(file, "image");
+    updateFromOutside(editorInSlot(slot) ?? editor, () => {
+      const part = $findPart(address);
+      if (part) $setPartPicture(part, { fileId: uploaded.fileId, alt });
+    });
+  };
+  const choosePartPicture = (partKey: NodeKey) => {
+    if (!media) return;
     const input = document.createElement("input");
     input.type = "file";
     input.accept = media.accept.image.join(",");
     const place = async (file: File) => {
       try {
-        const uploaded = await media.upload(file, "image");
-        updateFromOutside(editorInSlot(slot) ?? editor, () => {
-          const part = $findPart(address);
-          if (part) $setPartPicture(part, { fileId: uploaded.fileId, alt: "" });
-        });
+        await placePartPicture(partKey, file, "");
       } catch {
         setPartProblem(strings.uploadFailed);
       }
@@ -448,7 +460,8 @@ export function SelectionToolbarPlugin() {
       modeRef.current === "question-number" ||
       modeRef.current === "narration" ||
       modeRef.current === "trace" ||
-      modeRef.current === "regions"
+      modeRef.current === "regions" ||
+      modeRef.current === "picture"
     )
       return;
     const root = editor.getRootElement();
@@ -597,7 +610,8 @@ export function SelectionToolbarPlugin() {
       mode === "question-number" ||
       mode === "narration" ||
       mode === "trace" ||
-      mode === "regions"
+      mode === "regions" ||
+      mode === "picture"
     )
       return undefined;
     const onFocus = () => {
@@ -610,7 +624,8 @@ export function SelectionToolbarPlugin() {
         modeRef.current === "question-number" ||
         modeRef.current === "narration" ||
         modeRef.current === "trace" ||
-        modeRef.current === "regions"
+        modeRef.current === "regions" ||
+        modeRef.current === "picture"
       )
         return;
       const active = document.activeElement;
@@ -1137,7 +1152,14 @@ export function SelectionToolbarPlugin() {
                 label={strings.questionPicture}
                 onClick={() => {
                   setPartProblem(null);
-                  if (question.part) choosePartPicture(question.part.key);
+                  if (!question.part) return;
+                  if (media.pictures) {
+                    picturePart.current = question.part.key;
+                    saved.current = editor
+                      .getEditorState()
+                      .read(() => $getSelection()?.clone() ?? null);
+                    show("picture");
+                  } else choosePartPicture(question.part.key);
                 }}
               >
                 <ImagePlus aria-hidden />
@@ -1165,6 +1187,42 @@ export function SelectionToolbarPlugin() {
           >
             <Trash2 aria-hidden />
           </ToolButton>
+        </div>
+      </Floating>
+    );
+  }
+
+  if (mode === "picture" && media) {
+    const close = () => {
+      show("question");
+      focusText(editor);
+    };
+    const partKey = picturePart.current;
+    return (
+      <Floating
+        reference={reference}
+        placement="bottom-start"
+        boundary={boundary}
+        className="w-[26rem] max-w-[calc(100vw-1rem)] p-3"
+        keepInView
+      >
+        <div ref={toolbar}>
+          <PictureLibrary
+            onClose={close}
+            onUpload={() => {
+              close();
+              if (partKey) choosePartPicture(partKey);
+            }}
+            onPick={async (picture) => {
+              if (!partKey) return;
+              await placePartPicture(
+                partKey,
+                await pictureFile(picture),
+                picture.label,
+              );
+              close();
+            }}
+          />
         </div>
       </Floating>
     );

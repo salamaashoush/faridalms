@@ -173,6 +173,9 @@ export interface EditorStrings {
   questionTrueFalse: string;
   questionTrueFalseHint: string;
   questionWhy: string;
+  pictureSearch: string;
+  pictureNone: string;
+  pictureUpload: string;
   questionWhyHint: string;
   questionWhyPrompt: string;
   questionTrue: string;

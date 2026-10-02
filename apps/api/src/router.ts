@@ -15,6 +15,7 @@ import * as gradingSystem from "./systems/grading";
 import * as homeSystem from "./systems/home";
 import * as identity from "./systems/identity";
 import * as learningSystem from "./systems/learning";
+import * as librarySystem from "./systems/library";
 import * as messagesSystem from "./systems/messages";
 import * as newslettersSystem from "./systems/newsletters";
 import * as notificationsSystem from "./systems/notifications";
@@ -55,6 +56,7 @@ export const router = {
   calendar: calendarSystem,
   notifications: notificationsSystem,
   learning: learningSystem,
+  library: librarySystem,
   site: siteSystem,
   home: homeSystem,
   search: searchSystem,

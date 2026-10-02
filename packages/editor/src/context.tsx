@@ -23,6 +23,15 @@ export interface UploadOptions {
   onProgress?: (progress: number) => void;
 }
 
+/** An open picture a teacher may copy into the school. */
+export interface LibraryPicture {
+  source: string;
+  id: string;
+  label: string;
+  thumb: string;
+  full: string;
+}
+
 export interface EditorMedia {
   /** Stores a file; a refusal rejects with the server's code as the message. */
   upload: (
@@ -32,6 +41,11 @@ export interface EditorMedia {
   ) => Promise<UploadedFile>;
   url: (fileId: string) => string;
   accept: Record<"image" | "file" | "media" | "captions", string[]>;
+  /** Open pictures found by what they show, with the credit their makers ask for. */
+  pictures?: {
+    search: (query: string) => Promise<LibraryPicture[]>;
+    credits: string;
+  };
 }
 
 export interface EditorEnvironment {

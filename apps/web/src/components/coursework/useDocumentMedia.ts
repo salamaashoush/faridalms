@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { fileSizeLabel } from "~/components/system/FileList";
 import * as m from "~/i18n/messages";
 import { initiateUpload } from "~/server/files";
+import { searchPictures } from "~/server/library";
 import { formatNumber } from "~/utils/datetime";
 
 const NEARLY_FULL: Record<
@@ -89,6 +90,7 @@ function send(
  */
 export function useDocumentMedia(destination?: UploadDestination): EditorMedia {
   const initiate = useServerFn(initiateUpload);
+  const search = useServerFn(searchPictures);
   const type = destination?.type;
   const id = destination?.id;
   return useMemo(
@@ -107,6 +109,11 @@ export function useDocumentMedia(destination?: UploadDestination): EditorMedia {
         captions: ["text/vtt"],
       },
       url: (fileId: string) => `/files/${fileId}`,
+      pictures: {
+        search: async (query: string) =>
+          (await search({ data: { q: query } })).pictures,
+        credits: m.pictureCredits(),
+      },
       upload: async (file: File, _kind, options = {}) => {
         let initiated: Awaited<ReturnType<typeof initiate>>;
         try {
@@ -143,6 +150,6 @@ export function useDocumentMedia(destination?: UploadDestination): EditorMedia {
         };
       },
     }),
-    [initiate, type, id],
+    [initiate, search, type, id],
   );
 }

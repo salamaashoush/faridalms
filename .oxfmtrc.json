@@ -30,6 +30,7 @@
     "playwright-report/**",
     "drizzle/**",
     "drizzle-directory/**",
-    "bun.lock"
+    "bun.lock",
+    "apps/api/src/library/pictures.json"
   ]
 }
