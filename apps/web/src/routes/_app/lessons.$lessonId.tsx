@@ -26,10 +26,13 @@ export const Route = createFileRoute("/_app/lessons/$lessonId")({
     trail: <LessonTrail />,
     section: ["/teach/modules", "/me/modules"],
   },
-  loader: async ({ context, params }) => {
-    if (learns(context.auth.workspace))
-      await context.queryClient.ensureQueryData(lessonQuery(params.lessonId));
-    else
+  loader: async ({ context, params, preload }) => {
+    if (learns(context.auth.workspace)) {
+      // Opening a lesson starts it and may finish it, so a link merely
+      // pointed at must not open it ahead of the click.
+      if (!preload)
+        await context.queryClient.ensureQueryData(lessonQuery(params.lessonId));
+    } else
       await context.queryClient.ensureQueryData(
         lessonEditorQuery(params.lessonId),
       );
