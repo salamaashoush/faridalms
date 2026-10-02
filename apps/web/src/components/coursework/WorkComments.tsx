@@ -1,5 +1,9 @@
 import type { ContentDocument } from "@faridalms/domain/content";
-import type { CommentAnchor, CommentKind } from "@faridalms/domain/coursework";
+import type {
+  CommentAnchor,
+  CommentKind,
+  CommentState,
+} from "@faridalms/domain/coursework";
 import type { RefObject } from "react";
 
 import { Popover } from "@base-ui/react/popover";
@@ -25,8 +29,10 @@ import { useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { commentBankQuery } from "~/queries/coursework";
 import {
+  answerComment,
   commentOnWork,
   removeWorkComment,
+  replyToComment,
   saveToCommentBank,
 } from "~/server/coursework";
 import { getMessageFromError } from "~/utils/error";
@@ -45,8 +51,19 @@ export interface WorkComment {
   body: string;
   kind: CommentKind | null;
   criterionId: string | null;
+  studentState: CommentState | null;
+  replies: Reply[];
   createdAt: string;
   editedAt: string | null;
+}
+
+interface Reply {
+  id: string;
+  authorId: string;
+  authorNameEn: string | null;
+  authorNameAr: string | null;
+  body: string;
+  createdAt: string;
 }
 
 export interface Criterion {
@@ -142,6 +159,156 @@ function CommentMeta({ comment }: { comment: WorkComment }) {
         .filter(Boolean)
         .join(" · ")}
     </span>
+  );
+}
+
+const STATE_TONE: Record<CommentState, string> = {
+  fixed: "text-emerald-700 dark:text-emerald-300",
+  unclear: "text-amber-700 dark:text-amber-300",
+};
+
+/**
+ * What the student answered and the replies since. The student reads their
+ * answer in their own words, or not at all where its button shows it.
+ */
+function ThreadSummary({
+  comment,
+  reader = "grader",
+}: {
+  comment: WorkComment;
+  reader?: "grader" | "student" | "answering";
+}) {
+  const user = useCurrentUser();
+  const state = reader === "answering" ? null : comment.studentState;
+  if (!state && !comment.replies.length) return null;
+  return (
+    <div className="grid gap-1.5 border-s-2 ps-2.5">
+      {state ? (
+        <p
+          className={cn(
+            "text-[13px] leading-[18px] font-medium",
+            STATE_TONE[state],
+          )}
+        >
+          {reader === "student"
+            ? state === "fixed"
+              ? m.courseworkStateFixedMine()
+              : m.courseworkStateUnclearMine()
+            : state === "fixed"
+              ? m.courseworkStateFixed()
+              : m.courseworkStateUnclear()}
+        </p>
+      ) : null}
+      {comment.replies.map((reply) => (
+        <div key={reply.id} className="grid gap-0.5">
+          <p
+            dir="auto"
+            className="text-[13px] leading-[18px] whitespace-pre-wrap"
+          >
+            {reply.body}
+          </p>
+          <span className="text-xs text-muted-foreground">
+            {[
+              displayName({
+                fullNameEn: reply.authorNameEn,
+                fullNameAr: reply.authorNameAr,
+              }),
+              formatInstant(reply.createdAt, user.school.timeZone),
+            ].join(" · ")}
+          </span>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/**
+ * The student's side of a comment: saying it is fixed or not understood,
+ * and replying. A grader replies here too.
+ */
+function Respond({
+  comment,
+  answering,
+}: {
+  comment: WorkComment;
+  answering: boolean;
+}) {
+  const queryClient = useQueryClient();
+  const [reply, setReply] = useState("");
+  const settle = () =>
+    queryClient.invalidateQueries({ queryKey: ["coursework"] });
+  const answer = useMutation({
+    mutationFn: (state: CommentState | "") =>
+      answerComment({ data: { commentId: comment.id, state } }),
+    onSuccess: settle,
+    onError: (failure) => toast.error(getMessageFromError(failure)),
+  });
+  const send = useMutation({
+    mutationFn: () =>
+      replyToComment({ data: { commentId: comment.id, body: reply } }),
+    onSuccess: async () => {
+      setReply("");
+      await settle();
+    },
+    onError: (failure) => toast.error(getMessageFromError(failure)),
+  });
+  return (
+    <div className="grid gap-2">
+      {answering ? (
+        <div className="flex flex-wrap gap-1">
+          {(["fixed", "unclear"] as const).map((state) => (
+            <Button
+              key={state}
+              type="button"
+              size="sm"
+              variant={comment.studentState === state ? "secondary" : "outline"}
+              aria-pressed={comment.studentState === state}
+              disabled={answer.isPending}
+              onClick={() =>
+                answer.mutate(comment.studentState === state ? "" : state)
+              }
+              className="max-md:h-10"
+            >
+              {state === "fixed"
+                ? m.courseworkCommentFixed()
+                : m.courseworkCommentUnclear()}
+            </Button>
+          ))}
+        </div>
+      ) : null}
+      <form
+        className="flex items-end gap-1"
+        onSubmit={(event) => {
+          event.preventDefault();
+          if (reply.trim() && !send.isPending) send.mutate();
+        }}
+      >
+        <Textarea
+          aria-label={m.courseworkReply()}
+          dir="auto"
+          rows={1}
+          maxLength={2000}
+          placeholder={m.courseworkReplyPlaceholder()}
+          className="field-sizing-content max-h-32 min-h-9 resize-none py-1.5 text-sm"
+          value={reply}
+          onChange={(event) => setReply(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
+              event.preventDefault();
+              if (reply.trim() && !send.isPending) send.mutate();
+            }
+          }}
+        />
+        <Button
+          type="submit"
+          size="sm"
+          disabled={!reply.trim() || send.isPending}
+          className="max-md:h-10"
+        >
+          {m.courseworkReplySend()}
+        </Button>
+      </form>
+    </div>
   );
 }
 
@@ -400,12 +567,15 @@ export function CommentedWork({
   active,
   reveal,
   attemptId,
+  answering = false,
   criteria,
   onOpen,
   onPassages,
 }: {
   document: ContentDocument;
   comments: WorkComment[];
+  /** The work is the viewer's own and returned, so its comments take answers. */
+  answering?: boolean;
   criteria?: Criterion[];
   active: string | null;
   /** Scrolls to the active comment and opens it each time it changes. */
@@ -739,6 +909,13 @@ export function CommentedWork({
                           </span>
                         ) : null}
                       </div>
+                      <ThreadSummary
+                        comment={comment}
+                        reader={answering ? "answering" : "grader"}
+                      />
+                      {attemptId || answering ? (
+                        <Respond comment={comment} answering={answering} />
+                      ) : null}
                     </li>
                   ))}
                 </ul>
@@ -758,9 +935,12 @@ export function CommentList({
   passages,
   active,
   onShow,
+  mine = false,
 }: {
   comments: WorkComment[];
   criteria?: Criterion[];
+  /** The comments are on the viewer's own work. */
+  mine?: boolean;
   passages: Record<string, string>;
   active: string | null;
   onShow: (id: string) => void;
@@ -798,6 +978,10 @@ export function CommentList({
               {comment.body}
             </p>
             <CommentMeta comment={comment} />
+            <ThreadSummary
+              comment={comment}
+              reader={mine ? "student" : "grader"}
+            />
           </li>
         );
       })}

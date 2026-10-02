@@ -921,8 +921,19 @@ export interface CommentRow {
   body: string;
   kind: "fix" | "think" | "next" | null;
   criterionId: string | null;
+  studentState: "fixed" | "unclear" | null;
+  replies: ReplyRow[];
   createdAt: string;
   editedAt: string | null;
+}
+
+export interface ReplyRow {
+  id: string;
+  authorId: string;
+  authorNameEn: string | null;
+  authorNameAr: string | null;
+  body: string;
+  createdAt: string;
 }
 
 /** The comments on an attempt, in the order they were made. */
@@ -942,17 +953,38 @@ export async function commentsOf(
     body: string;
     kind: "fix" | "think" | "next" | null;
     criterion_id: string | null;
+    student_state: "fixed" | "unclear" | null;
     created_at: string;
     edited_at: string | null;
   }>(sql`
     select c.id, c.version, c.attempt_id, c.author_user_id, u.full_name_en, u.full_name_ar,
-      c.anchor, c.body, c.kind, c.criterion_id, ${isoOf(sql`c.created_at`)} as created_at,
+      c.anchor, c.body, c.kind, c.criterion_id, a.state as student_state,
+      ${isoOf(sql`c.created_at`)} as created_at,
       case when c.version > 1 then ${isoOf(sql`c.date_last_modified`)} end as edited_at
     from core.work_comments c
     join core.users u on u.tenant_id = c.tenant_id and u.id = c.author_user_id
+    left join core.work_comment_answers a on a.tenant_id = c.tenant_id
+      and a.comment_id = c.id and a.status = 'active'
     where c.tenant_id = ${tenantId}::uuid and c.attempt_id = ${attemptId}::uuid
       and c.status = 'active'
     order by c.created_at, c.id`);
+  const replies = await tx.execute<{
+    id: string;
+    comment_id: string;
+    author_user_id: string;
+    full_name_en: string | null;
+    full_name_ar: string | null;
+    body: string;
+    created_at: string;
+  }>(sql`
+    select r.id, r.comment_id, r.author_user_id, u.full_name_en, u.full_name_ar, r.body,
+      ${isoOf(sql`r.created_at`)} as created_at
+    from core.work_comment_replies r
+    join core.work_comments c on c.tenant_id = r.tenant_id and c.id = r.comment_id
+    join core.users u on u.tenant_id = r.tenant_id and u.id = r.author_user_id
+    where r.tenant_id = ${tenantId}::uuid and c.attempt_id = ${attemptId}::uuid
+      and r.status = 'active'
+    order by r.created_at, r.id`);
   return rows.map((row) => ({
     id: row.id,
     version: row.version,
@@ -964,6 +996,17 @@ export async function commentsOf(
     body: row.body,
     kind: row.kind,
     criterionId: row.criterion_id,
+    studentState: row.student_state,
+    replies: replies
+      .filter((reply) => reply.comment_id === row.id)
+      .map((reply) => ({
+        id: reply.id,
+        authorId: reply.author_user_id,
+        authorNameEn: reply.full_name_en,
+        authorNameAr: reply.full_name_ar,
+        body: reply.body,
+        createdAt: reply.created_at,
+      })),
     createdAt: row.created_at,
     editedAt: row.edited_at,
   }));
@@ -1030,6 +1073,44 @@ export async function updateComment(
       and version = ${input.expectedVersion} and status = 'active'
     returning id, version`);
   return row ?? null;
+}
+
+/** The student's answer to a comment, or none to take it back. */
+export async function setCommentState(
+  tx: Tx,
+  input: {
+    tenantId: string;
+    id: string;
+    studentId: string;
+    state: "fixed" | "unclear" | null;
+  },
+): Promise<void> {
+  if (input.state === null) {
+    await tx.execute(sql`
+      update core.work_comment_answers set status = 'tobedeleted'
+      where tenant_id = ${input.tenantId}::uuid and comment_id = ${input.id}::uuid
+        and status = 'active'`);
+    return;
+  }
+  await tx.execute(sql`
+    insert into core.work_comment_answers (tenant_id, comment_id, student_user_id, state)
+    values (${input.tenantId}::uuid, ${input.id}::uuid, ${input.studentId}::uuid,
+      ${input.state})
+    on conflict (tenant_id, comment_id) where status = 'active'
+    do update set state = excluded.state`);
+}
+
+export async function insertReply(
+  tx: Tx,
+  input: { tenantId: string; commentId: string; userId: string; body: string },
+): Promise<{ id: string }> {
+  const [row] = await tx.execute<{ id: string }>(sql`
+    insert into core.work_comment_replies (tenant_id, comment_id, author_user_id, body)
+    values (${input.tenantId}::uuid, ${input.commentId}::uuid, ${input.userId}::uuid,
+      ${input.body})
+    returning id`);
+  if (!row) throw new Error("reply was not saved");
+  return row;
 }
 
 export async function removeComment(

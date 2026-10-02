@@ -363,6 +363,14 @@ describe("handing in and returning work", () => {
       ),
     ).toMatchObject({ message: "conflict.version" });
 
+    expect(
+      await rejection(
+        student.api.coursework.answerComment({
+          commentId: made.id,
+          state: "unclear",
+        }),
+      ),
+    ).toMatchObject({ code: "NOT_FOUND" });
     await teacher.api.coursework.assess({
       attemptId: attempt.id,
       score: 8,
@@ -372,6 +380,30 @@ describe("handing in and returning work", () => {
       assignmentId: saved.id,
       action: "return",
       studentIds: [me.id],
+    });
+    // Returned, the student answers the comment and the teacher replies.
+    await student.api.coursework.answerComment({
+      commentId: made.id,
+      state: "unclear",
+    });
+    await student.api.coursework.replyToComment({
+      commentId: made.id,
+      body: "Which part is warm?",
+    });
+    await teacher.api.coursework.replyToComment({
+      commentId: made.id,
+      body: "The first line, where you greet her.",
+    });
+    const answered = await teacher.api.coursework.grading({
+      assignmentId: saved.id,
+      studentId: me.id,
+    });
+    expect(answered.attempts[0]?.comments[0]).toMatchObject({
+      studentState: "unclear",
+      replies: [
+        { body: "Which part is warm?" },
+        { body: "The first line, where you greet her." },
+      ],
     });
     const returned = await student.api.coursework.work({ id: saved.id });
     expect(returned.attempts[0]?.assessment?.rubricComments).toEqual({

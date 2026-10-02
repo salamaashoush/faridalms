@@ -35,6 +35,8 @@ import {
   programmes,
   familyShares,
   workComments,
+  workCommentReplies,
+  workCommentAnswers,
   bankComments,
   submissionAttempts,
   documentTranslations,
@@ -492,6 +494,24 @@ export async function completeFixture(
       end: { block: "fixture1", offset: 4 },
     },
     body: "Say more here.",
+  });
+  const [comment] = await tx
+    .select({ id: workComments.id })
+    .from(workComments)
+    .where(eq(workComments.tenantId, tenantId))
+    .limit(1);
+  if (!comment) throw new Error("work comment fixture missing");
+  await tx.insert(workCommentReplies).values({
+    tenantId,
+    commentId: comment.id,
+    authorUserId: userId,
+    body: "I see what you mean.",
+  });
+  await tx.insert(workCommentAnswers).values({
+    tenantId,
+    commentId: comment.id,
+    studentUserId: attempt.studentUserId,
+    state: "fixed",
   });
   await tx.insert(bankComments).values({
     tenantId,

@@ -408,6 +408,26 @@ export const saveBankCommentSchema = v.object({
 });
 export type SaveBankCommentInput = v.InferOutput<typeof saveBankCommentSchema>;
 
+export const COMMENT_STATES = ["fixed", "unclear"] as const;
+export type CommentState = (typeof COMMENT_STATES)[number];
+
+/** The student's answer to a comment: fixed, not understood, or neither. */
+export const answerCommentSchema = v.object({
+  commentId: id,
+  state: v.picklist(["", ...COMMENT_STATES]),
+});
+
+/** A reply under a comment, from the student or a grader. */
+export const replyToCommentSchema = v.object({
+  commentId: id,
+  body: v.pipe(
+    v.string(),
+    v.trim(),
+    v.minLength(1),
+    v.maxLength(MAX_COMMENT_LENGTH),
+  ),
+});
+
 /** A voice note the grader recorded on an attempt, uploaded as media first. */
 export const feedbackRecordingSchema = v.object({ attemptId: id, fileId: id });
 

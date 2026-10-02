@@ -1963,6 +1963,15 @@
   "courseworkKindNext": "الخطوة التالية",
   "courseworkCommentCriterion": "معيار التقييم",
   "courseworkCommentNoCriterion": "بلا معيار",
+  "courseworkCommentFixed": "صحّحته",
+  "courseworkCommentUnclear": "لم أفهم",
+  "courseworkStateFixed": "صحّحه الطالب",
+  "courseworkStateUnclear": "لم يفهمه الطالب بعد",
+  "courseworkStateFixedMine": "قلت إنك صحّحته",
+  "courseworkStateUnclearMine": "قلت إنك لم تفهم",
+  "courseworkReply": "رد",
+  "courseworkReplyPlaceholder": "اكتب ردًا",
+  "courseworkReplySend": "إرسال",
   "courseworkCommentCount": [
     {
       "declarations": ["input count", "local countPlural = count: plural"],

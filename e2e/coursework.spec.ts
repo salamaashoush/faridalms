@@ -150,6 +150,21 @@ test("a teacher assigns work, a student hands it in, and the returned grade reac
       hasText: "visited my grandparents",
     }),
   ).toHaveCount(1);
+  // The student answers the comment where it stands.
+  await comments
+    .getByRole("button", { name: /^visited my grandparents: show/ })
+    .click();
+  await student.getByRole("button", { name: "I don't understand" }).click();
+  await expect(
+    student.getByRole("button", { name: "I don't understand" }),
+  ).toHaveAttribute("aria-pressed", "true");
+  await student
+    .getByRole("textbox", { name: "Reply" })
+    .fill("Should I say what we cooked?");
+  await student.getByRole("button", { name: "Send", exact: true }).click();
+  await expect(
+    comments.getByText("Should I say what we cooked?"),
+  ).toBeVisible();
   await studentContext.close();
 });
 

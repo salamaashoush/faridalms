@@ -145,6 +145,7 @@ function AttemptItem({ data, attempt }: { data: Data; attempt: Attempt }) {
           <CommentedWork
             document={attempt.content}
             comments={attempt.comments}
+            answering
             criteria={data.assignment.rubric?.criteria}
             active={active}
             reveal={reveal}
@@ -171,6 +172,7 @@ function AttemptItem({ data, attempt }: { data: Data; attempt: Attempt }) {
             {m.courseworkTeacherComments()}
           </h4>
           <CommentList
+            mine
             comments={attempt.comments}
             criteria={data.assignment.rubric?.criteria}
             passages={passages}

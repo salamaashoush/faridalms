@@ -37,6 +37,7 @@ import {
   insertAttempt,
   insertBankComment,
   insertComment,
+  insertReply,
   isRecipient,
   learnerAssignments,
   namesOf,
@@ -50,6 +51,7 @@ import {
   saveRubric,
   selectionOf,
   setAssignmentState,
+  setCommentState,
   setRecipientDue,
   setRecipients,
   studentWork,
@@ -101,6 +103,7 @@ import {
 } from "@faridalms/domain/content";
 import {
   GRACE_MS,
+  answerCommentSchema,
   assessSchema,
   assignmentIssue,
   assignmentPhase,
@@ -114,6 +117,7 @@ import {
   markQuizAnswerSchema,
   publishIssues,
   removeCommentSchema,
+  replyToCommentSchema,
   publishSchema,
   rubricTotal,
   saveAssignmentSchema,
@@ -1299,6 +1303,70 @@ export const comment = writeProcedure
     if (!saved)
       throw new ORPCError("CONFLICT", { message: "conflict.version" });
     return saved;
+  });
+
+/** Whether the viewer grades the work an attempt belongs to. */
+async function gradesAttempt(context: UnitContext, attemptId: string) {
+  if (!can(context, "submissions:grade")) return false;
+  try {
+    await commentableAttempt(context, attemptId);
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+/** A comment its student may answer: on their own work, once returned. */
+async function answerableComment(context: UnitContext, commentId: string) {
+  requireCapability(context, "own-work:read");
+  const found = await commentById(context.tx, context.tenantId, commentId);
+  const attempt = found
+    ? await attemptById(context.tx, context.tenantId, found.attemptId)
+    : null;
+  const assessment = found
+    ? await assessmentOf(context.tx, context.tenantId, found.attemptId)
+    : null;
+  if (
+    !found ||
+    attempt?.studentId !== context.actor.userId ||
+    !assessment?.releasedAt
+  )
+    throw new ORPCError("NOT_FOUND");
+  return found;
+}
+
+/** The student marks a comment fixed or not understood, or takes that back. */
+export const answerComment = writeProcedure
+  .input(answerCommentSchema)
+  .handler(async ({ input, context }) => {
+    const found = await answerableComment(context, input.commentId);
+    await setCommentState(context.tx, {
+      tenantId: context.tenantId,
+      id: found.id,
+      studentId: context.actor.userId,
+      state: input.state || null,
+    });
+    return { state: input.state || null };
+  });
+
+/** A reply under a comment, from the work's student once returned or its grader. */
+export const replyToComment = writeProcedure
+  .input(replyToCommentSchema)
+  .handler(async ({ input, context }) => {
+    const found = await commentById(
+      context.tx,
+      context.tenantId,
+      input.commentId,
+    );
+    if (!found) throw new ORPCError("NOT_FOUND");
+    if (!(await gradesAttempt(context, found.attemptId)))
+      await answerableComment(context, found.id);
+    return insertReply(context.tx, {
+      tenantId: context.tenantId,
+      commentId: found.id,
+      userId: context.actor.userId,
+      body: input.body,
+    });
   });
 
 /** Takes back a comment; only the grader who wrote it may. */

@@ -1935,6 +1935,15 @@
   "courseworkKindNext": "Next step",
   "courseworkCommentCriterion": "Rubric criterion",
   "courseworkCommentNoCriterion": "No criterion",
+  "courseworkCommentFixed": "I fixed this",
+  "courseworkCommentUnclear": "I don't understand",
+  "courseworkStateFixed": "The student fixed this",
+  "courseworkStateUnclear": "The student doesn't understand yet",
+  "courseworkStateFixedMine": "You marked this fixed",
+  "courseworkStateUnclearMine": "You said you don't understand",
+  "courseworkReply": "Reply",
+  "courseworkReplyPlaceholder": "Write a reply",
+  "courseworkReplySend": "Send",
   "courseworkCommentCount": [
     {
       "declarations": ["input count", "local countPlural = count: plural"],

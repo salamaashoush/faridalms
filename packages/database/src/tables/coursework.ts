@@ -592,6 +592,75 @@ export const workComments = core.table.withRLS(
   ],
 );
 
+/**
+ * The student's answer to a comment: fixed, or not understood. Kept apart
+ * from the comment so answering never clashes with the grader editing it.
+ */
+export const workCommentAnswers = core.table.withRLS(
+  "work_comment_answers",
+  {
+    ...tenantColumns(),
+    commentId: uuid("comment_id").notNull(),
+    studentUserId: uuid("student_user_id").notNull(),
+    state: text("state").$type<"fixed" | "unclear">().notNull(),
+    ...entityColumns(),
+  },
+  (t): PgTableExtraConfigValue[] => [
+    pk("work_comment_answers", t.tenantId, t.id),
+    ...baseConstraints("work_comment_answers", t, tenants),
+    fk(
+      "work_comment_answers",
+      [t.tenantId, t.commentId],
+      [workComments.tenantId, workComments.id],
+    ),
+    fk(
+      "work_comment_answers",
+      [t.tenantId, t.studentUserId],
+      [users.tenantId, users.id],
+    ),
+    ck("work_comment_answers", "state", sql`state in ('fixed', 'unclear')`),
+    uniqueIndex("work_comment_answers_key")
+      .on(t.tenantId, t.commentId)
+      .where(sql`status = 'active'`),
+    ...entityProfile(),
+  ],
+);
+
+/** A reply in the conversation under a comment, from the student or a grader. */
+export const workCommentReplies = core.table.withRLS(
+  "work_comment_replies",
+  {
+    ...tenantColumns(),
+    commentId: uuid("comment_id").notNull(),
+    authorUserId: uuid("author_user_id").notNull(),
+    body: text("body").notNull(),
+    ...entityColumns(),
+  },
+  (t): PgTableExtraConfigValue[] => [
+    pk("work_comment_replies", t.tenantId, t.id),
+    ...baseConstraints("work_comment_replies", t, tenants),
+    fk(
+      "work_comment_replies",
+      [t.tenantId, t.commentId],
+      [workComments.tenantId, workComments.id],
+    ),
+    fk(
+      "work_comment_replies",
+      [t.tenantId, t.authorUserId],
+      [users.tenantId, users.id],
+    ),
+    ck(
+      "work_comment_replies",
+      "body",
+      sql`char_length(body) between 1 and 2000`,
+    ),
+    index("work_comment_replies_comment_idx")
+      .on(t.tenantId, t.commentId)
+      .where(sql`status = 'active'`),
+    ...entityProfile(),
+  ],
+);
+
 export type QuizAnswerState = "draft" | "marked" | "needs_marking";
 
 /**
