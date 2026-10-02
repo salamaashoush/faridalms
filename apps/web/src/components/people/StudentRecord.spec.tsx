@@ -32,6 +32,7 @@ vi.mock("~/server/students", () => ({
   endRelationship: vi.fn(),
   getPersonRecord: vi.fn(),
   getPersonHistory: vi.fn(),
+  changePhoto: vi.fn(),
 }));
 
 vi.mock("~/server/households", () => ({
