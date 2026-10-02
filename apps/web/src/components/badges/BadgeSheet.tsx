@@ -1,9 +1,11 @@
 import { Button } from "@faridalms/ui/button";
-import { Camera, Printer, TriangleAlert } from "lucide-react";
+import { Camera, Nfc, Printer, TriangleAlert } from "lucide-react";
 import { useEffect, useEffectEvent, useRef } from "react";
 import { createPortal } from "react-dom";
+import { toast } from "sonner";
 
 import { initialsOf } from "~/components/app/UserMenu";
+import { nfcAvailable, writeBadgeCard } from "~/components/attendance/nfc";
 import * as m from "~/i18n/messages";
 
 import { QrCode } from "./QrCode";
@@ -60,6 +62,8 @@ export function BadgeSheet({
   }, []);
 
   const origin = window.location.origin;
+  // A badge can go on a card only now, while its secret is shown.
+  const cards = nfcAvailable();
   return createPortal(
     <dialog
       ref={sheet}
@@ -106,8 +110,35 @@ export function BadgeSheet({
             return (
               <li
                 key={badge.studentId}
-                className="flex h-[54mm] w-[85.6mm] break-inside-avoid items-center gap-[3mm] rounded-[3mm] border border-dashed border-neutral-400 bg-white p-[3mm] text-neutral-950"
+                className="relative flex h-[54mm] w-[85.6mm] break-inside-avoid items-center gap-[3mm] rounded-[3mm] border border-dashed border-neutral-400 bg-white p-[3mm] text-neutral-950"
               >
+                {cards ? (
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    className="absolute end-[2mm] top-[2mm] print:hidden"
+                    onClick={() => {
+                      const writing = toast.loading(
+                        m.badgesCardWriting({ name: badge.name }),
+                      );
+                      writeBadgeCard(url).then(
+                        () =>
+                          toast.success(
+                            m.badgesCardWritten({ name: badge.name }),
+                            { id: writing },
+                          ),
+                        () =>
+                          toast.error(m.badgesCardWriteFailed(), {
+                            id: writing,
+                          }),
+                      );
+                    }}
+                  >
+                    <Nfc aria-hidden />
+                    {m.badgesCardWrite()}
+                  </Button>
+                ) : null}
                 <QrCode value={url} className="size-[42mm] shrink-0" />
                 <div className="grid h-full min-w-0 flex-1 content-between">
                   <span

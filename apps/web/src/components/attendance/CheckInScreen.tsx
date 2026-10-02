@@ -23,6 +23,8 @@ import { formatNumber } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
 import { BadgeCamera } from "./BadgeCamera";
+import { CardReader } from "./CardReader";
+import { nfcAvailable } from "./nfc";
 
 /** How long a child has to say a tap was not them. */
 const UNDO_MS = 6000;
@@ -89,13 +91,13 @@ export function CheckInScreen({
     onError: (error) => toast.error(getMessageFromError(error)),
   });
   const badge = useMutation({
-    mutationFn: (secret: string) =>
+    mutationFn: ({ secret, via }: { secret: string; via: "qr" | "nfc" }) =>
       checkIn({
         data: {
           classId,
           date,
           periodId: data.period.id,
-          via: "qr",
+          via,
           badge: secret,
         },
       }),
@@ -135,6 +137,8 @@ export function CheckInScreen({
     };
   }, []);
 
+  // Only Chrome on Android reads cards; elsewhere the other ways remain.
+  const cards = data.checkIn.nfc && nfcAvailable();
   const here = new Set(
     data.marks
       .filter((mark) => mark.meaning === "present" || mark.meaning === "late")
@@ -180,9 +184,18 @@ export function CheckInScreen({
         </Button>
       </header>
       <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto px-6 pb-8 md:flex-row md:items-start">
-        {data.checkIn.qr ? (
-          <div className="md:sticky md:top-0">
-            <BadgeCamera onBadge={(secret) => badge.mutate(secret)} />
+        {data.checkIn.qr || cards ? (
+          <div className="grid gap-4 md:sticky md:top-0">
+            {data.checkIn.qr ? (
+              <BadgeCamera
+                onBadge={(secret) => badge.mutate({ secret, via: "qr" })}
+              />
+            ) : null}
+            {cards ? (
+              <CardReader
+                onBadge={(secret) => badge.mutate({ secret, via: "nfc" })}
+              />
+            ) : null}
           </div>
         ) : null}
         <ul className="grid flex-1 auto-rows-max grid-cols-[repeat(auto-fill,minmax(10rem,1fr))] gap-4">
