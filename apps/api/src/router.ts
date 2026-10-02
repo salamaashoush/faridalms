@@ -12,6 +12,7 @@ import * as coverSystem from "./systems/cover";
 import * as documentsSystem from "./systems/documents";
 import * as examsSystem from "./systems/exams";
 import * as filesSystem from "./systems/files";
+import * as followUpSystem from "./systems/follow-up";
 import * as gradebookSystem from "./systems/gradebook";
 import * as gradingSystem from "./systems/grading";
 import * as homeSystem from "./systems/home";
@@ -51,6 +52,7 @@ export const router = {
   privacy: privacySystem,
   attendance: attendanceSystem,
   absenceReports: absenceReportsSystem,
+  followUp: followUpSystem,
   rollover: rolloverSystem,
   timetable: timetableSystem,
   cover: coverSystem,

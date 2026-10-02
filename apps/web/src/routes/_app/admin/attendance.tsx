@@ -8,6 +8,7 @@ import * as v from "valibot";
 
 import { Absences } from "~/components/attendance/Absences";
 import { Board } from "~/components/attendance/Board";
+import { FollowUp } from "~/components/attendance/FollowUp";
 import { Report } from "~/components/attendance/Report";
 import { ReportInbox } from "~/components/attendance/ReportInbox";
 import { PageHeader } from "~/components/system/IndexPage";
@@ -17,10 +18,17 @@ import {
   absenceReportInboxQuery,
   absencesQuery,
   attendanceBoardQuery,
+  followUpQuery,
   attendanceReportQuery,
 } from "~/queries/attendance";
 
-const TABS = ["registers", "absences", "reported", "reports"] as const;
+const TABS = [
+  "registers",
+  "follow",
+  "absences",
+  "reported",
+  "reports",
+] as const;
 type Tab = (typeof TABS)[number];
 
 const searchSchema = v.object({
@@ -55,6 +63,8 @@ export const Route = createFileRoute("/_app/admin/attendance")({
       await queryClient.ensureQueryData(attendanceBoardQuery(deps.date));
     else if (deps.tab === "absences")
       await queryClient.ensureQueryData(absencesQuery(absencesOf(deps)));
+    else if (deps.tab === "follow")
+      await queryClient.ensureQueryData(followUpQuery(deps.date));
     else if (deps.tab === "reported")
       await queryClient.ensureQueryData(
         absenceReportInboxQuery(deps.inbox === "waiting"),
@@ -75,6 +85,7 @@ function reportOf(search: Search) {
 
 const TAB_LABEL: Record<Tab, () => string> = {
   registers: m.attTabRegisters,
+  follow: m.fupTab,
   absences: m.attTabAbsences,
   reported: m.repInbox,
   reports: m.attTabReports,
@@ -114,6 +125,8 @@ function AdminAttendancePage() {
             states={search.states}
             onChange={(change) => patch(change)}
           />
+        ) : search.tab === "follow" ? (
+          <FollowUp date={search.date} onDate={(date) => patch({ date })} />
         ) : search.tab === "absences" ? (
           <Absences query={absencesOf(search)} onChange={patch} />
         ) : search.tab === "reported" ? (

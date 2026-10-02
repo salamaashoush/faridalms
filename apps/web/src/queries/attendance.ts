@@ -10,6 +10,7 @@ import {
   getAttendanceReport,
   getAttendanceSettings,
   getClassAttendance,
+  getFollowUp,
   getMyAbsenceReports,
   getRegister,
   getStudentAttendance,
@@ -75,4 +76,10 @@ export const absenceReportInboxQuery = (open = true) =>
   queryOptions({
     queryKey: ["attendance", "reports", "inbox", open],
     queryFn: () => getAbsenceReportInbox({ data: { open } }),
+  });
+
+export const followUpQuery = (date = "") =>
+  queryOptions({
+    queryKey: ["attendance", "follow-up", date],
+    queryFn: () => getFollowUp({ data: { date } }),
   });

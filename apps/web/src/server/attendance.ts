@@ -4,6 +4,8 @@ import {
   attendanceSettingsSchema,
   decideReportSchema,
   familyReportsSchema,
+  followUpQuerySchema,
+  logContactSchema,
   reportInboxSchema,
   withdrawReportSchema,
   dayQuerySchema,
@@ -100,3 +102,11 @@ export const getAbsenceReportInbox = createServerFn({ method: "GET" })
 export const decideAbsenceReport = createServerFn({ method: "POST" })
   .validator(checked(decideReportSchema))
   .handler(({ data }) => backend().absenceReports.decide(data));
+
+export const getFollowUp = createServerFn({ method: "GET" })
+  .validator(checked(followUpQuerySchema))
+  .handler(({ data }) => backend().followUp.day(data));
+
+export const logAttendanceContact = createServerFn({ method: "POST" })
+  .validator(checked(logContactSchema))
+  .handler(({ data }) => backend().followUp.logContact(data));

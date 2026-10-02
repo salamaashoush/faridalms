@@ -33,6 +33,18 @@ export type RegisterState = "not_started" | "in_progress" | "submitted";
 export const ABSENCE_REPORT_KINDS = ["absent", "late", "early"] as const;
 export type AbsenceReportKind = (typeof ABSENCE_REPORT_KINDS)[number];
 
+/** What came of trying to reach a family about an absence. */
+export const CONTACT_OUTCOMES = [
+  "reached",
+  "no_answer",
+  "left_message",
+  "messaged",
+] as const;
+export type ContactOutcome = (typeof CONTACT_OUTCOMES)[number];
+
+/** School days an unexplained absence may wait for its reason (DfE: 5). */
+export const REASON_DUE_DAYS = 5;
+
 export type AbsenceReportStatus =
   | "pending"
   | "accepted"
@@ -216,6 +228,18 @@ export const decideReportSchema = v.object({
   note: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(500)), ""),
 });
 export type DecideReport = v.InferOutput<typeof decideReportSchema>;
+
+export const followUpQuerySchema = v.object({
+  date: v.optional(v.union([v.literal(""), isoDate]), ""),
+});
+
+export const logContactSchema = v.object({
+  studentId: id,
+  date: isoDate,
+  outcome: v.picklist(CONTACT_OUTCOMES),
+  note: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(500)), ""),
+});
+export type LogContact = v.InferOutput<typeof logContactSchema>;
 
 export const attendanceSettingsSchema = v.pipe(
   v.object({
