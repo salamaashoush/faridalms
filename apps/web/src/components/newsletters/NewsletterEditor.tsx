@@ -400,6 +400,7 @@ export function NewsletterEditor({
     <>
       <DocumentPage
         heading={existing ? m.nlEditTitle() : m.nlNewTitle()}
+        print={{ title: draft.title, content: draft.body }}
         onBack={async () => {
           if (await autosave.flush()) onClose(id.current || undefined);
         }}

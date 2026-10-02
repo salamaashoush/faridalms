@@ -41,6 +41,7 @@ import {
 } from "~/components/system/DocumentPage";
 import { SelectField, TextField } from "~/components/system/field";
 import { useAutosave } from "~/hooks/useAutosave";
+import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { getLocale } from "~/i18n/runtime";
 import { calendarEventQuery, calendarOptionsQuery } from "~/queries/calendar";
@@ -307,6 +308,10 @@ export function EventEditor({
     <>
       <DocumentPage
         heading={existing ? m.calEditTitle() : m.calNewTitle()}
+        print={{
+          title: inLocale(draft.titleEn, draft.titleAr),
+          content: draft.description,
+        }}
         onBack={async () => {
           if (await autosave.flush()) onClose(id.current || undefined);
         }}

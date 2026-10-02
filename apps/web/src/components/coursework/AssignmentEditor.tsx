@@ -691,6 +691,12 @@ export function AssignmentEditor({
               }
             : undefined
         }
+        print={{
+          title: draft.title.trim() || m.courseworkUntitled(),
+          content: draft.brief,
+          answers: true,
+          link: storedId ? `/assignments/${storedId}` : undefined,
+        }}
         templates={{
           kind: "assignment",
           empty: !contentPlainText(draft.brief).trim(),

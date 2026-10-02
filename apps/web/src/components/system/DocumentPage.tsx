@@ -20,6 +20,7 @@ import {
   History,
   LayoutTemplate,
   LoaderCircle,
+  Printer,
   SlidersHorizontal,
   TriangleAlert,
 } from "lucide-react";
@@ -32,6 +33,7 @@ import {
   SaveTemplateDialog,
   TemplatePicker,
 } from "~/components/content/Templates";
+import { PrintSheet } from "~/components/print/PrintSheet";
 import { useMedia } from "~/hooks/useMedia";
 import * as m from "~/i18n/messages";
 import { getLocale, getTextDirection } from "~/i18n/runtime";
@@ -116,6 +118,7 @@ export function DocumentPage({
   menu = NO_ACTIONS,
   history,
   templates,
+  print,
   title,
   aside,
   summary = [],
@@ -150,6 +153,13 @@ export function DocumentPage({
     hostId: string;
     onRestore: (content: ContentDocument) => void;
   };
+  /** The document as it prints, from the menu; answers only for its teachers. */
+  print?: {
+    title: string;
+    content: ContentDocument;
+    answers?: boolean;
+    link?: string;
+  };
   /** Templates of this kind: offered on an empty document, and kept from the menu. */
   templates?: {
     kind: TemplateKind;
@@ -172,6 +182,7 @@ export function DocumentPage({
 }) {
   const [ownOpen, setOwnOpen] = useState(false);
   const [historyOpen, setHistoryOpen] = useState(false);
+  const [printing, setPrinting] = useState(false);
   const [keeping, setKeeping] = useState(false);
   const actions: ActionItem[] = [
     ...(history
@@ -180,6 +191,15 @@ export function DocumentPage({
             label: m.docHistory(),
             icon: History,
             onSelect: () => setHistoryOpen(true),
+          },
+        ]
+      : []),
+    ...(print
+      ? [
+          {
+            label: m.printAction(),
+            icon: Printer,
+            onSelect: () => setPrinting(true),
           },
         ]
       : []),
@@ -390,6 +410,15 @@ export function DocumentPage({
           kind={templates.kind}
           content={templates.content}
           suggestedTitle={templates.title}
+        />
+      ) : null}
+      {print && printing ? (
+        <PrintSheet
+          title={print.title}
+          content={print.content}
+          answers={print.answers}
+          link={print.link}
+          onClose={() => setPrinting(false)}
         />
       ) : null}
       {history ? (

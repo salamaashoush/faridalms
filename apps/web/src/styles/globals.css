@@ -73,6 +73,27 @@ header:has([data-slot="page-actions"] > :not([data-keeps-global-tools]))
   }
 }
 
+/* A document on paper: black on white whatever the app's theme, its text
+   at the size chosen for the print, and no question, picture or table row
+   cut by a page's end. */
+.paper {
+  --foreground: #000;
+  --muted-foreground: #555;
+  --muted: #f1f1f1;
+  --background: #fff;
+  --border: #bbb;
+  color-scheme: light;
+}
+.paper .fe {
+  font-size: 1em;
+}
+.paper .paper-question,
+.paper figure,
+.paper img,
+.paper tr {
+  break-inside: avoid;
+}
+
 /* The word the voice is saying in a young lesson: a marker's yellow, apart
    from every colour the lesson uses for right, wrong or chosen. */
 ::highlight(read-along) {

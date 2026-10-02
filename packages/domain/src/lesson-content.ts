@@ -117,7 +117,8 @@ function pictureFields(
   return picture ? { fileId: picture.fileId, alt: picture.alt } : {};
 }
 
-function questionBlock(node: ContentNode): LessonBlock | null {
+/** The question a question node asks, with its key, as the player marks it. */
+export function questionBlock(node: ContentNode): LessonBlock | null {
   const [prompt, ...parts] = node.children ?? [];
   if (!node.questionId || !node.kind) return null;
   const check = {

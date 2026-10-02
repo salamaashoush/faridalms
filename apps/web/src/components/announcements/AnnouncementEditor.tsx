@@ -259,6 +259,7 @@ export function AnnouncementEditor({
     <>
       <DocumentPage
         heading={existing ? m.annEditTitle() : m.annNewTitle()}
+        print={{ title: draft.title, content: draft.body }}
         onBack={async () => {
           if (await autosave.flush()) onClose(id.current || undefined);
         }}

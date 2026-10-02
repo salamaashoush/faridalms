@@ -282,6 +282,12 @@ export function LessonEditor({
               }
             : undefined
         }
+        print={{
+          title: draft.title.trim() || m.lrnUntitled(),
+          content: draft.content,
+          answers: true,
+          link: storedId ? `/lessons/${storedId}` : undefined,
+        }}
         templates={{
           kind: "lesson",
           empty: !written,
