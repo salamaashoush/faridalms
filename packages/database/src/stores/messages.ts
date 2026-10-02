@@ -180,6 +180,20 @@ export async function messagingGuardians(
   return rows.map((row) => row.user_id);
 }
 
+/** The adults told about a child's absence: those the link says receive notices. */
+export async function noticeGuardians(
+  tx: Tx,
+  input: { tenantId: string; studentId: string; on: string },
+): Promise<string[]> {
+  const rows = await tx.execute<{ user_id: string }>(sql`
+    select distinct l.related_user_id as user_id from core.user_relationships l
+    where l.tenant_id = ${input.tenantId}::uuid and l.student_user_id = ${input.studentId}::uuid
+      and l.status = 'active' and l.receives_notifications and l.valid_during @> ${input.on}::date
+      and not coalesce(l.communication_isolated, false)
+    order by 1`);
+  return rows.map((row) => row.user_id);
+}
+
 export interface ThreadSummary {
   id: string;
   kind: ThreadKind;

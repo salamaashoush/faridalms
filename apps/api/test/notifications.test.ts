@@ -241,4 +241,82 @@ describe("absence notices", () => {
     });
     expect(await notices()).toHaveLength(0);
   });
+
+  test("an absence reaches a guardian who receives notices without the family app", async () => {
+    const office = await principal();
+    const student = await sessionFor("northwind", login("student"));
+    const me = await student.api.identity.currentUser();
+    const father = (await office.people.student({ id: me.id })).guardians?.find(
+      (row) => row.relationMeaning === "father",
+    );
+    if (!father || father.portalAccess)
+      throw new Error("the seeded father uses the family app");
+    await office.people.saveRelationship({
+      studentId: me.id,
+      relationshipId: father.relationshipId,
+      expectedVersion: father.version,
+      flags: {
+        relationId: father.relationId,
+        legalGuardian: father.legalGuardian,
+        portalAccess: false,
+        receivesNotifications: true,
+        primaryContact: father.primaryContact,
+        emergencyContact: father.emergencyContact,
+        residence: father.residence,
+        pickup: father.pickup,
+      },
+    });
+    const probe = await office.attendance.day({});
+    // Two school days before the latest, clear of the other absence tests.
+    let date = probe.today;
+    for (let back = 0; back < 3; back += 1) {
+      if (back > 0) date = addDays(date, -1);
+      while (offDay(date)) date = addDays(date, -1);
+    }
+    const { rows } = await office.attendance.board({ date });
+    const registers = await Promise.all(
+      rows
+        .filter((row) => row.classType === "homeroom")
+        .map((row) =>
+          office.attendance.register({
+            classId: row.classId,
+            date,
+            periodId: row.periodId,
+          }),
+        ),
+    );
+    const homeroom = registers.find((register) =>
+      register.students.some((row) => row.id === me.id),
+    );
+    if (!homeroom) throw new Error("the seeded student has no homeroom");
+    const marks = (meaning: "absent" | "present") =>
+      homeroom.students.map((row) => ({
+        studentId: row.id,
+        meaning: row.id === me.id ? meaning : ("present" as const),
+      }));
+    const absent = await office.attendance.save({
+      classId: homeroom.class.id,
+      date,
+      periodId: homeroom.period.id,
+      expectedVersion: homeroom.register?.version ?? 0,
+      marks: marks("absent"),
+    });
+    const texts = await office.notifications.deliveries({
+      channel: "sms",
+      q: father.fullNameEn ?? "",
+    });
+    expect(
+      texts.rows.some(
+        (row) => row.userId === father.userId && row.kind === "absence",
+      ),
+    ).toBe(true);
+    await office.attendance.save({
+      classId: homeroom.class.id,
+      date,
+      periodId: homeroom.period.id,
+      expectedVersion: absent.version,
+      marks: marks("present"),
+      correction: "Marked absent by mistake.",
+    });
+  });
 });

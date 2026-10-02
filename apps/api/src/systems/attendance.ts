@@ -47,7 +47,7 @@ import { namesOf } from "@faridalms/database/stores/coursework";
 import { changesOn, coveredPeriods } from "@faridalms/database/stores/cover";
 import { movementsOn } from "@faridalms/database/stores/front-desk";
 import { schoolProfile } from "@faridalms/database/stores/identity";
-import { messagingGuardians } from "@faridalms/database/stores/messages";
+import { noticeGuardians } from "@faridalms/database/stores/messages";
 import { noticed, withdraw } from "@faridalms/database/stores/notifications";
 import { facesOf, isVisibleStudent } from "@faridalms/database/stores/students";
 import { meetingsOn } from "@faridalms/database/stores/timetable";
@@ -758,7 +758,7 @@ async function noticeAbsences(
       })
     )
       continue;
-    const guardians = await messagingGuardians(context.tx, {
+    const guardians = await noticeGuardians(context.tx, {
       tenantId: context.tenantId,
       studentId: student.id,
       on: takenOn,
