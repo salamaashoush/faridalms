@@ -54,6 +54,12 @@ export const attendanceSettings = core.table.withRLS(
     checkInQr: boolean("check_in_qr").notNull().default(false),
     /** Children may mark themselves in by tapping a card holding their badge. */
     checkInNfc: boolean("check_in_nfc").notNull().default(false),
+    /** Minutes after a period starts before an arrival counts as late. */
+    lateAfterMinutes: smallint("late_after_minutes").notNull().default(5),
+    /** Minutes after a period starts when its register closes. */
+    registerClosesMinutes: smallint("register_closes_minutes")
+      .notNull()
+      .default(30),
     ...entityColumns(),
   },
   (t): PgTableExtraConfigValue[] => [
@@ -74,6 +80,13 @@ export const attendanceSettings = core.table.withRLS(
       "attendance_settings",
       "chronic_percent",
       sql`chronic_percent between 1 and 50`,
+    ),
+    ck(
+      "attendance_settings",
+      "lateness",
+      sql`late_after_minutes between 0 and 60
+        and register_closes_minutes between 5 and 240
+        and late_after_minutes < register_closes_minutes`,
     ),
     uniqueIndex("attendance_settings_org_key")
       .on(t.tenantId, t.orgId)

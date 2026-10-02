@@ -5,6 +5,7 @@ import type {
 
 import {
   ATTENDANCE_MEANINGS,
+  minutesLate,
   TIMED_MEANINGS,
 } from "@faridalms/domain/attendance";
 import { Button } from "@faridalms/ui/button";
@@ -191,6 +192,8 @@ function StudentRow({
   report,
   via,
   reasons,
+  lateNow,
+  closesMinutes,
   disabled,
   onChange,
 }: {
@@ -199,6 +202,9 @@ function StudentRow({
   earlier: Data["earlier"];
   /** What the family told the school about this day. */
   report: Data["reports"][number] | undefined;
+  /** How late someone arriving now is, on today's register. */
+  lateNow: () => number | null;
+  closesMinutes: number;
   /** How the child marked themselves in, while that mark stands. */
   via: CheckInWay | null;
   reasons: Data["reasons"];
@@ -267,7 +273,10 @@ function StudentRow({
               onChange({
                 ...draft,
                 meaning,
-                minutes: TIMED_MEANINGS.includes(meaning) ? draft.minutes : "",
+                minutes: TIMED_MEANINGS.includes(meaning)
+                  ? draft.minutes ||
+                    (meaning === "late" ? String(lateNow() ?? "") : "")
+                  : "",
               })
             }
           />
@@ -313,6 +322,11 @@ function StudentRow({
               className="text-[13px] leading-[18px] text-destructive"
             >
               {issue}
+            </span>
+          ) : draft.meaning === "late" &&
+            Number(draft.minutes) > closesMinutes ? (
+            <span className="text-[13px] leading-[18px] text-warning-foreground dark:text-warning">
+              {m.attAfterClose()}
             </span>
           ) : null}
         </div>
@@ -402,6 +416,7 @@ function Summary({ drafts }: { drafts: Drafts }) {
 
 function RegisterForm({ data }: { data: Data }) {
   const hydrated = useHydrated();
+  const user = useCurrentUser();
   const queryClient = useQueryClient();
   const [initial] = useState(() => draftsOf(data));
   const [drafts, setDrafts] = useState(() => withReports(initial, data));
@@ -453,6 +468,17 @@ function RegisterForm({ data }: { data: Data }) {
     });
   const earlierOf = (studentId: string) =>
     data.earlier.filter((mark) => mark.studentId === studentId);
+  const lateNow = () => {
+    const start = data.period.startTime;
+    if (data.date !== data.today || !start) return null;
+    const clock = new Intl.DateTimeFormat("en-GB", {
+      hour: "2-digit",
+      minute: "2-digit",
+      hourCycle: "h23",
+      timeZone: user.school.timeZone,
+    }).format(new Date());
+    return minutesLate(start, clock, data.lateness.afterMinutes);
+  };
   return (
     <form
       noValidate
@@ -507,6 +533,8 @@ function RegisterForm({ data }: { data: Data }) {
                 null
               }
               reasons={data.reasons}
+              lateNow={lateNow}
+              closesMinutes={data.lateness.closesMinutes}
               disabled={!editable || !hydrated || save.isPending}
               onChange={(next) => set(student.id, next)}
             />

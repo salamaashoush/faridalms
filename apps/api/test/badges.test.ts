@@ -261,6 +261,7 @@ describe("badges at the class screen", () => {
     expect(await api.attendance.checkIn(held)).toEqual({
       studentId: child.userId,
       added: true,
+      late: null,
     });
     expect(
       await rejection(

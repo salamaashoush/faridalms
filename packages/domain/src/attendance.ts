@@ -50,6 +50,13 @@ export interface AttendanceSettings {
   checkInTouch: boolean;
   checkInQr: boolean;
   checkInNfc: boolean;
+  /** Minutes after a period starts before an arrival counts as late. */
+  lateAfterMinutes: number;
+  /**
+   * Minutes after a period starts when its register closes. England's
+   * guidance holds it to 30 at most; a later arrival is late after close.
+   */
+  registerClosesMinutes: number;
 }
 
 export const DEFAULT_ATTENDANCE_SETTINGS: AttendanceSettings = {
@@ -59,7 +66,27 @@ export const DEFAULT_ATTENDANCE_SETTINGS: AttendanceSettings = {
   checkInTouch: false,
   checkInQr: false,
   checkInNfc: false,
+  lateAfterMinutes: 5,
+  registerClosesMinutes: 30,
 };
+
+const minutesOf = (clock: string) => {
+  const [hours, minutes] = clock.split(":").map(Number);
+  return (hours ?? 0) * 60 + (minutes ?? 0);
+};
+
+/**
+ * How late an arrival at `clock` is for a period starting at `start`, or
+ * null while it is within the school's grace.
+ */
+export function minutesLate(
+  start: string,
+  clock: string,
+  graceMinutes: number,
+): number | null {
+  const late = minutesOf(clock) - minutesOf(start);
+  return late > graceMinutes ? late : null;
+}
 
 const id = v.pipe(v.string(), v.uuid());
 const isoDate = v.pipe(v.string(), v.isoDate());
@@ -190,30 +217,44 @@ export const decideReportSchema = v.object({
 });
 export type DecideReport = v.InferOutput<typeof decideReportSchema>;
 
-export const attendanceSettingsSchema = v.object({
-  expectedVersion: v.pipe(v.number(), v.integer(), v.minValue(0)),
-  teacherEditDays: v.pipe(
-    v.number(),
-    v.integer(),
-    v.minValue(0),
-    v.maxValue(60),
+export const attendanceSettingsSchema = v.pipe(
+  v.object({
+    expectedVersion: v.pipe(v.number(), v.integer(), v.minValue(0)),
+    teacherEditDays: v.pipe(
+      v.number(),
+      v.integer(),
+      v.minValue(0),
+      v.maxValue(60),
+    ),
+    noticeDelayMinutes: v.pipe(
+      v.number(),
+      v.integer(),
+      v.minValue(0),
+      v.maxValue(1440),
+    ),
+    chronicPercent: v.pipe(
+      v.number(),
+      v.integer(),
+      v.minValue(1),
+      v.maxValue(50),
+    ),
+    checkInTouch: v.optional(v.boolean(), false),
+    checkInQr: v.optional(v.boolean(), false),
+    checkInNfc: v.optional(v.boolean(), false),
+    lateAfterMinutes: v.optional(
+      v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(60)),
+      DEFAULT_ATTENDANCE_SETTINGS.lateAfterMinutes,
+    ),
+    registerClosesMinutes: v.optional(
+      v.pipe(v.number(), v.integer(), v.minValue(5), v.maxValue(240)),
+      DEFAULT_ATTENDANCE_SETTINGS.registerClosesMinutes,
+    ),
+  }),
+  v.check(
+    (input) => input.lateAfterMinutes < input.registerClosesMinutes,
+    "attendance.lateness",
   ),
-  noticeDelayMinutes: v.pipe(
-    v.number(),
-    v.integer(),
-    v.minValue(0),
-    v.maxValue(1440),
-  ),
-  chronicPercent: v.pipe(
-    v.number(),
-    v.integer(),
-    v.minValue(1),
-    v.maxValue(50),
-  ),
-  checkInTouch: v.optional(v.boolean(), false),
-  checkInQr: v.optional(v.boolean(), false),
-  checkInNfc: v.optional(v.boolean(), false),
-});
+);
 
 /** Whether a teacher may still change a register taken on `date`. */
 export function teacherMayEdit(

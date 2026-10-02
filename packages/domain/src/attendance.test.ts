@@ -6,6 +6,7 @@ import {
   emptyCounts,
   isChronic,
   isUnexplained,
+  minutesLate,
   registerMarkSchema,
   registerState,
   saveRegisterSchema,
@@ -132,5 +133,17 @@ describe("absence reports", () => {
         to: report.from,
       }),
     ).toBe(false);
+  });
+});
+
+describe("lateness", () => {
+  it("counts minutes after the start once past the grace", () => {
+    expect(minutesLate("08:00", "08:05", 5)).toBeNull();
+    expect(minutesLate("08:00", "08:06", 5)).toBe(6);
+    expect(minutesLate("08:00", "09:10", 5)).toBe(70);
+  });
+
+  it("never counts an arrival before the start", () => {
+    expect(minutesLate("08:00", "07:40", 0)).toBeNull();
   });
 });

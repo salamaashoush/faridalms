@@ -17,12 +17,16 @@ interface Draft {
   teacherEditDays: string;
   noticeDelayMinutes: string;
   chronicPercent: string;
+  lateAfterMinutes: string;
+  registerClosesMinutes: string;
 }
 
 const LIMITS: Record<keyof Draft, [number, number]> = {
   teacherEditDays: [0, 60],
   noticeDelayMinutes: [0, 1440],
   chronicPercent: [1, 50],
+  lateAfterMinutes: [0, 60],
+  registerClosesMinutes: [5, 240],
 };
 
 function issueOf(key: keyof Draft, value: string): string | null {
@@ -44,6 +48,8 @@ export function AttendanceRules() {
     teacherEditDays: String(settings.teacherEditDays),
     noticeDelayMinutes: String(settings.noticeDelayMinutes),
     chronicPercent: String(settings.chronicPercent),
+    lateAfterMinutes: String(settings.lateAfterMinutes),
+    registerClosesMinutes: String(settings.registerClosesMinutes),
   }));
   const [draft, setDraft] = useState(initial);
   const [ways, setWays] = useState(() => ({
@@ -62,6 +68,8 @@ export function AttendanceRules() {
           teacherEditDays: Number(draft.teacherEditDays),
           noticeDelayMinutes: Number(draft.noticeDelayMinutes),
           chronicPercent: Number(draft.chronicPercent),
+          lateAfterMinutes: Number(draft.lateAfterMinutes),
+          registerClosesMinutes: Number(draft.registerClosesMinutes),
           ...ways,
         },
       }),
@@ -71,6 +79,12 @@ export function AttendanceRules() {
     teacherEditDays: issueOf("teacherEditDays", draft.teacherEditDays),
     noticeDelayMinutes: issueOf("noticeDelayMinutes", draft.noticeDelayMinutes),
     chronicPercent: issueOf("chronicPercent", draft.chronicPercent),
+    lateAfterMinutes: issueOf("lateAfterMinutes", draft.lateAfterMinutes),
+    registerClosesMinutes:
+      issueOf("registerClosesMinutes", draft.registerClosesMinutes) ??
+      (Number(draft.registerClosesMinutes) <= Number(draft.lateAfterMinutes)
+        ? m.attRuleClosesAfterLate()
+        : null),
   };
   const dirty =
     JSON.stringify(draft) !== JSON.stringify(initial) ||
@@ -136,6 +150,26 @@ export function AttendanceRules() {
         value={draft.chronicPercent}
         onChange={(event) => set("chronicPercent", event.target.value)}
         errors={errorsOf("chronicPercent")}
+      />
+      <TextField
+        id="attendance-late-after"
+        label={m.attRuleLateAfter()}
+        hint={m.attRuleLateAfterHint()}
+        inputMode="numeric"
+        width="score"
+        value={draft.lateAfterMinutes}
+        onChange={(event) => set("lateAfterMinutes", event.target.value)}
+        errors={errorsOf("lateAfterMinutes")}
+      />
+      <TextField
+        id="attendance-closes"
+        label={m.attRuleCloses()}
+        hint={m.attRuleClosesHint()}
+        inputMode="numeric"
+        width="score"
+        value={draft.registerClosesMinutes}
+        onChange={(event) => set("registerClosesMinutes", event.target.value)}
+        errors={errorsOf("registerClosesMinutes")}
       />
       <fieldset className="grid gap-3">
         <legend className="mb-1 text-sm leading-5 font-medium">

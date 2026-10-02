@@ -42,9 +42,11 @@ export async function settingsOf(
     check_in_touch: boolean;
     check_in_qr: boolean;
     check_in_nfc: boolean;
+    late_after_minutes: number;
+    register_closes_minutes: number;
   }>(sql`
     select version, teacher_edit_days, notice_delay_minutes, chronic_percent,
-      check_in_touch, check_in_qr, check_in_nfc
+      check_in_touch, check_in_qr, check_in_nfc, late_after_minutes, register_closes_minutes
     from core.attendance_settings
     where tenant_id = ${tenantId}::uuid and org_id = ${schoolId}::uuid and status = 'active'`);
   if (!row) return { version: 0, ...DEFAULT_ATTENDANCE_SETTINGS };
@@ -56,6 +58,8 @@ export async function settingsOf(
     checkInTouch: row.check_in_touch,
     checkInQr: row.check_in_qr,
     checkInNfc: row.check_in_nfc,
+    lateAfterMinutes: row.late_after_minutes,
+    registerClosesMinutes: row.register_closes_minutes,
   };
 }
 
@@ -72,10 +76,11 @@ export async function saveSettings(
     const rows = await tx.execute<{ version: number }>(sql`
       insert into core.attendance_settings
         (tenant_id, org_id, teacher_edit_days, notice_delay_minutes, chronic_percent,
-         check_in_touch, check_in_qr, check_in_nfc)
+         check_in_touch, check_in_qr, check_in_nfc, late_after_minutes, register_closes_minutes)
       values (${input.tenantId}::uuid, ${input.schoolId}::uuid, ${input.teacherEditDays},
               ${input.noticeDelayMinutes}, ${input.chronicPercent},
-              ${input.checkInTouch}, ${input.checkInQr}, ${input.checkInNfc})
+              ${input.checkInTouch}, ${input.checkInQr}, ${input.checkInNfc},
+              ${input.lateAfterMinutes}, ${input.registerClosesMinutes})
       on conflict do nothing
       returning version`);
     if (!rows[0]) throw new AttendanceConflict("attendance.stale");
@@ -88,7 +93,9 @@ export async function saveSettings(
         chronic_percent = ${input.chronicPercent},
         check_in_touch = ${input.checkInTouch},
         check_in_qr = ${input.checkInQr},
-        check_in_nfc = ${input.checkInNfc}
+        check_in_nfc = ${input.checkInNfc},
+        late_after_minutes = ${input.lateAfterMinutes},
+        register_closes_minutes = ${input.registerClosesMinutes}
     where tenant_id = ${input.tenantId}::uuid and org_id = ${input.schoolId}::uuid
       and status = 'active' and version = ${input.expectedVersion}
     returning version`);
@@ -1069,6 +1076,9 @@ export async function checkInMark(
     day: string;
     studentId: string;
     categoryId: string;
+    meaning: "present" | "late";
+    /** How late, for a late arrival. */
+    minutes: number | null;
     via: CheckInWay;
     actorId: string;
   },
@@ -1090,10 +1100,10 @@ export async function checkInMark(
   const added = await tx.execute<{ id: string }>(sql`
     insert into core.attendance_events
       (tenant_id, taken_on, register_id, recorded_by_user_id, student_user_id,
-       category_descriptor_id, category_meaning, metadata)
+       category_descriptor_id, category_meaning, minutes, metadata)
     select ${input.tenantId}::uuid, ${input.day}::date, ${registerId}::uuid,
            ${input.actorId}::uuid, ${input.studentId}::uuid, ${input.categoryId}::uuid,
-           'present', jsonb_build_object('via', ${input.via}::text)
+           ${input.meaning}, ${input.minutes}, jsonb_build_object('via', ${input.via}::text)
     where not exists (
       select 1 from core.attendance_events
       where tenant_id = ${input.tenantId}::uuid and taken_on = ${input.day}::date
@@ -1121,7 +1131,7 @@ export async function undoCheckIn(
     where tenant_id = ${input.tenantId}::uuid and taken_on = ${input.day}::date
       and register_id = ${input.registerId}::uuid
       and student_user_id = ${input.studentId}::uuid and status = 'active'
-      and category_meaning = 'present' and metadata ? 'via'
+      and category_meaning in ('present', 'late') and metadata ? 'via'
     returning id`);
   if (undone.length > 0)
     await touchRegister(tx, input.tenantId, input.registerId);

@@ -414,6 +414,7 @@ describe("classroom check-in", () => {
     expect(await teacher.attendance.checkIn(tap)).toEqual({
       studentId: me.id,
       added: true,
+      late: null,
     });
     expect((await teacher.attendance.checkIn(tap)).added).toBe(false);
     expect(await rejection(stranger.attendance.checkIn(tap))).toMatchObject({

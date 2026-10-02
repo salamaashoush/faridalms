@@ -44,6 +44,7 @@ import {
 } from "@faridalms/database/stores/classes";
 import { namesOf } from "@faridalms/database/stores/coursework";
 import { changesOn, coveredPeriods } from "@faridalms/database/stores/cover";
+import { schoolProfile } from "@faridalms/database/stores/identity";
 import { messagingGuardians } from "@faridalms/database/stores/messages";
 import { noticed, withdraw } from "@faridalms/database/stores/notifications";
 import { facesOf, isVisibleStudent } from "@faridalms/database/stores/students";
@@ -63,6 +64,7 @@ import {
   emptyCounts,
   excuseSchema,
   isChronic,
+  minutesLate,
   registerQuerySchema,
   registerState,
   remindSchema,
@@ -169,6 +171,17 @@ function periodView(period: PeriodRow) {
     endTime: period.endTime,
     official: period.official,
   };
+}
+
+/** The time of day on the school's clock, as `HH:MM`. */
+async function schoolClock(context: UnitContext): Promise<string> {
+  const profile = await schoolProfile(context.tx, context.schoolId);
+  return new Intl.DateTimeFormat("en-GB", {
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+    timeZone: profile?.timeZone ?? "UTC",
+  }).format(context.now);
 }
 
 /** The register's year, or not found; a date outside it is refused. */
@@ -455,6 +468,10 @@ export const register = readProcedure
         qr: settings.checkInQr,
         nfc: settings.checkInNfc,
       },
+      lateness: {
+        afterMinutes: settings.lateAfterMinutes,
+        closesMinutes: settings.registerClosesMinutes,
+      },
       earlier,
       reports: reports.map((row) => ({
         studentId: row.studentId,
@@ -540,9 +557,25 @@ export const checkIn = writeProcedure
     // A badge from another class reads as no badge at all.
     if (!studentId || !roster.includes(studentId))
       throw new ORPCError("NOT_FOUND", { message: "attendance.not_roster" });
-    const codes = await attendanceCodes(context.tx, context.tenantId);
-    const present = codes.categories.find((row) => row.meaning === "present");
-    if (!present) throw new Error("No attendance category means present");
+    const [codes, clock, periods] = await Promise.all([
+      attendanceCodes(context.tx, context.tenantId),
+      schoolClock(context),
+      periodsOn(context.tx, {
+        tenantId: context.tenantId,
+        schoolId: context.schoolId,
+        yearId: year.id,
+        day: input.date,
+      }),
+    ]);
+    const start = periods.find((row) => row.id === input.periodId)?.startTime;
+    // Only today's arrivals have a time; a check-in on another day is on time.
+    const late =
+      input.date === context.today && start
+        ? minutesLate(start, clock, settings.lateAfterMinutes)
+        : null;
+    const meaning = late === null ? "present" : "late";
+    const category = codes.categories.find((row) => row.meaning === meaning);
+    if (!category) throw new Error(`No attendance category means ${meaning}`);
     const result = await checkInMark(context.tx, {
       tenantId: context.tenantId,
       schoolId: context.schoolId,
@@ -552,7 +585,9 @@ export const checkIn = writeProcedure
       periodId: input.periodId,
       day: input.date,
       studentId,
-      categoryId: present.id,
+      categoryId: category.id,
+      meaning,
+      minutes: late,
       via: input.via,
       actorId: context.actor.userId,
     });
@@ -563,9 +598,9 @@ export const checkIn = writeProcedure
         objectId: result.registerId,
         subjectUserId: studentId,
         studentUserId: studentId,
-        details: { via: input.via, date: input.date },
+        details: { via: input.via, date: input.date, late },
       });
-    return { studentId, added: result.added };
+    return { studentId, added: result.added, late };
   });
 
 /** Takes back a check-in made by mistake, unless the teacher changed it since. */
@@ -1072,6 +1107,8 @@ export const saveSettings = writeProcedure
           checkInTouch: input.checkInTouch,
           checkInQr: input.checkInQr,
           checkInNfc: input.checkInNfc,
+          lateAfterMinutes: input.lateAfterMinutes,
+          registerClosesMinutes: input.registerClosesMinutes,
         },
       });
       return { version };
