@@ -22,6 +22,8 @@ import { checkInToRegister, undoCheckInToRegister } from "~/server/attendance";
 import { formatNumber } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
+import { BadgeCamera } from "./BadgeCamera";
+
 /** How long a child has to say a tap was not them. */
 const UNDO_MS = 6000;
 
@@ -67,6 +69,11 @@ export function CheckInScreen({
     queryClient.invalidateQueries({
       queryKey: registerQuery(classId, date, periodId).queryKey,
     });
+  const arrived = async (result: { studentId: string }) => {
+    playSound("right");
+    setGreeted({ id: result.studentId, at: Date.now() });
+    await refresh();
+  };
   const tap = useMutation({
     mutationFn: (studentId: string) =>
       checkIn({
@@ -78,12 +85,25 @@ export function CheckInScreen({
           studentId,
         },
       }),
-    onSuccess: async (result) => {
-      playSound("right");
-      setGreeted({ id: result.studentId, at: Date.now() });
-      await refresh();
-    },
+    onSuccess: arrived,
     onError: (error) => toast.error(getMessageFromError(error)),
+  });
+  const badge = useMutation({
+    mutationFn: (secret: string) =>
+      checkIn({
+        data: {
+          classId,
+          date,
+          periodId: data.period.id,
+          via: "qr",
+          badge: secret,
+        },
+      }),
+    onSuccess: arrived,
+    onError: () => {
+      playSound("wrong");
+      toast.error(m.attBadgeNotHere());
+    },
   });
   const takeBack = useMutation({
     mutationFn: (studentId: string) =>
@@ -138,7 +158,7 @@ export function CheckInScreen({
             {classTitle(data.class)}
           </h1>
           <p className="text-lg leading-7 text-muted-foreground">
-            {m.attCheckInTap()}
+            {data.checkIn.touch ? m.attCheckInTap() : m.attCameraHold()}
           </p>
         </div>
         <p
@@ -159,61 +179,68 @@ export function CheckInScreen({
           {m.attCheckInDone()}
         </Button>
       </header>
-      <ul className="grid flex-1 auto-rows-max grid-cols-[repeat(auto-fill,minmax(10rem,1fr))] gap-4 overflow-y-auto px-6 pb-8">
-        {tiles.map((student) => {
-          const done = here.has(student.id);
-          const first = firstOf(student);
-          return (
-            <li key={student.id}>
-              <button
-                type="button"
-                aria-pressed={done}
-                disabled={tap.isPending}
-                onClick={() => {
-                  if (done) return;
-                  tap.mutate(student.id);
-                }}
-                className={cn(
-                  "relative flex w-full touch-manipulation flex-col items-center gap-3 rounded-3xl border-4 bg-card p-4 transition-colors outline-none select-none focus-visible:ring-4 focus-visible:ring-ring/50",
-                  done
-                    ? "border-success bg-success/10"
-                    : "border-transparent hover:border-primary/40 active:scale-[0.98] motion-reduce:active:scale-100",
-                )}
-              >
-                {student.photoFileId ? (
-                  <img
-                    src={`/files/${student.photoFileId}`}
-                    alt=""
-                    draggable={false}
-                    className="size-28 rounded-full object-cover"
-                  />
-                ) : (
-                  <span
-                    aria-hidden
-                    className="grid size-28 place-items-center rounded-full bg-primary/15 text-4xl font-bold text-primary"
-                  >
-                    {initialsOf(first)}
-                  </span>
-                )}
-                <span
-                  dir="auto"
-                  className="max-w-full truncate text-2xl leading-8 font-semibold"
+      <div className="flex min-h-0 flex-1 flex-col gap-6 overflow-y-auto px-6 pb-8 md:flex-row md:items-start">
+        {data.checkIn.qr ? (
+          <div className="md:sticky md:top-0">
+            <BadgeCamera onBadge={(secret) => badge.mutate(secret)} />
+          </div>
+        ) : null}
+        <ul className="grid flex-1 auto-rows-max grid-cols-[repeat(auto-fill,minmax(10rem,1fr))] gap-4">
+          {tiles.map((student) => {
+            const done = here.has(student.id);
+            const first = firstOf(student);
+            return (
+              <li key={student.id}>
+                <button
+                  type="button"
+                  aria-pressed={done}
+                  disabled={tap.isPending || !data.checkIn.touch}
+                  onClick={() => {
+                    if (done) return;
+                    tap.mutate(student.id);
+                  }}
+                  className={cn(
+                    "relative flex w-full touch-manipulation flex-col items-center gap-3 rounded-3xl border-4 bg-card p-4 transition-colors outline-none select-none focus-visible:ring-4 focus-visible:ring-ring/50",
+                    done
+                      ? "border-success bg-success/10"
+                      : "border-transparent hover:border-primary/40 active:scale-[0.98] motion-reduce:active:scale-100",
+                  )}
                 >
-                  {first}
-                </span>
-                {done ? (
+                  {student.photoFileId ? (
+                    <img
+                      src={`/files/${student.photoFileId}`}
+                      alt=""
+                      draggable={false}
+                      className="size-28 rounded-full object-cover"
+                    />
+                  ) : (
+                    <span
+                      aria-hidden
+                      className="grid size-28 place-items-center rounded-full bg-primary/15 text-4xl font-bold text-primary"
+                    >
+                      {initialsOf(first)}
+                    </span>
+                  )}
                   <span
-                    aria-hidden
-                    className="absolute end-2 top-2 grid size-10 place-items-center rounded-full bg-success text-white"
+                    dir="auto"
+                    className="max-w-full truncate text-2xl leading-8 font-semibold"
                   >
-                    <Check className="size-6" />
+                    {first}
                   </span>
-                ) : null}
-              </button>
-            </li>
-          );
-        })}
-      </ul>
+                  {done ? (
+                    <span
+                      aria-hidden
+                      className="absolute end-2 top-2 grid size-10 place-items-center rounded-full bg-success text-white"
+                    >
+                      <Check className="size-6" />
+                    </span>
+                  ) : null}
+                </button>
+              </li>
+            );
+          })}
+        </ul>
+      </div>
       {greetedStudent ? (
         <output className="pointer-events-none fixed inset-x-0 bottom-8 flex justify-center px-4">
           <div className="pointer-events-auto flex items-center gap-4 rounded-full border bg-card py-3 ps-3 pe-4 shadow-lg">

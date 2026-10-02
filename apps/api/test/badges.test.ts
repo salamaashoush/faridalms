@@ -212,3 +212,65 @@ describe("handing a device to a young child", () => {
     ).toMatchObject({ code: "FORBIDDEN" });
   });
 });
+
+describe("badges at the class screen", () => {
+  test("a badge held to the camera checks its child in, and a stranger's badge does nothing", async () => {
+    const { api, classId } = await youngTeacher();
+    const school = seeded().tenants[0]?.schools.find(
+      (row) => row.slug === YOUNG,
+    );
+    const head = seeded()
+      .tenants[0]?.logins.filter(
+        (row) => row.role === "principal" && row.schoolId === school?.id,
+      )
+      .at(0)?.loginName;
+    if (!head) throw new Error("the young school has no principal");
+    const office = await signedIn(YOUNG, head);
+
+    const listed = await api.badges.classBadges({ classId });
+    const child = listed.students[0];
+    if (!child) throw new Error("an empty young homeroom");
+    const secret = await badgeFor(api, classId, child.userId);
+
+    let date = (await office.attendance.day({})).today;
+    // The young school keeps a Friday and Saturday weekend.
+    while ([5, 6].includes(new Date(`${date}T00:00:00Z`).getUTCDay()))
+      date = new Date(Date.parse(`${date}T00:00:00Z`) - 86_400_000)
+        .toISOString()
+        .slice(0, 10);
+    const register = await api.attendance.register({ classId, date });
+    const held = {
+      classId,
+      date,
+      periodId: register.period.id,
+      via: "qr" as const,
+      badge: secret,
+    };
+
+    expect(await rejection(api.attendance.checkIn(held))).toMatchObject({
+      code: "FORBIDDEN",
+    });
+    const rules = await office.attendance.settings();
+    const { version: _version, ...kept } = rules;
+    const opened = await office.attendance.saveSettings({
+      ...kept,
+      expectedVersion: rules.version,
+      checkInQr: true,
+    });
+
+    expect(await api.attendance.checkIn(held)).toEqual({
+      studentId: child.userId,
+      added: true,
+    });
+    expect(
+      await rejection(
+        api.attendance.checkIn({ ...held, badge: "A".repeat(43) }),
+      ),
+    ).toMatchObject({ code: "NOT_FOUND" });
+
+    await office.attendance.saveSettings({
+      ...kept,
+      expectedVersion: opened.version,
+    });
+  });
+});
