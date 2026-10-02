@@ -282,7 +282,9 @@ export function YoungChoice({
                 }}
                 onContextMenu={(event) => event.preventDefault()}
                 className={cn(
-                  "flex min-h-26 w-full touch-manipulation items-center justify-center rounded-3xl border-2 bg-card p-4 shadow-sm transition-[opacity,border-color,background-color] outline-none select-none [-webkit-touch-callout:none] focus-visible:ring-4 focus-visible:ring-ring/50",
+                  // The card answers taps that land in half the gap around
+                  // it, since a young finger lands millimetres off its aim.
+                  "relative flex min-h-26 w-full touch-manipulation items-center justify-center rounded-3xl border-2 bg-card p-4 shadow-sm transition-[opacity,border-color,background-color] outline-none select-none [-webkit-touch-callout:none] before:absolute before:-inset-4 before:rounded-3xl before:content-[''] focus-visible:ring-4 focus-visible:ring-ring/50",
                   pictured && "min-h-44",
                   option.narration && "pt-16",
                   !settled &&

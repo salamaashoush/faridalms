@@ -317,7 +317,7 @@ function Piece({
           placing.tapPiece(part.id);
         }}
         className={cn(
-          "flex touch-none items-center justify-center rounded-2xl border-2 bg-card p-3 shadow-sm transition-[transform,box-shadow,border-color] outline-none select-none [-webkit-touch-callout:none] focus-visible:ring-4 focus-visible:ring-ring/50",
+          "relative flex touch-none items-center justify-center rounded-2xl border-2 bg-card p-3 shadow-sm transition-[transform,box-shadow,border-color] outline-none select-none [-webkit-touch-callout:none] before:absolute before:-inset-1.5 before:content-[''] focus-visible:ring-4 focus-visible:ring-ring/50",
           small ? "min-h-20 min-w-24" : "min-h-26 min-w-32",
           part.picture && (small ? "w-28" : "w-36 sm:w-40"),
           part.narration && "pt-16",
@@ -371,7 +371,7 @@ function Spot({
       aria-label={label}
       onClick={() => placing.tapSpot(id)}
       className={cn(
-        "grid place-items-center rounded-2xl border-2 border-dashed text-muted-foreground transition-colors outline-none focus-visible:ring-4 focus-visible:ring-ring/50 data-over:border-primary data-over:bg-primary/10",
+        "relative grid place-items-center rounded-2xl border-2 border-dashed text-muted-foreground transition-colors outline-none before:absolute before:-inset-1.5 before:content-[''] focus-visible:ring-4 focus-visible:ring-ring/50 data-over:border-primary data-over:bg-primary/10",
         placing.held
           ? "border-primary bg-primary/10"
           : "border-muted-foreground/30",
