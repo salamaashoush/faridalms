@@ -93,7 +93,8 @@ test("a young child plays a lesson one screen at a time, by tapping", async ({
   await putOne.click();
   await stage.getByRole("button", { name: "Check" }).click();
   await expect(stage.locator("output")).toContainText("You made 3!");
-  await next.click();
+  // The last screen hands the work in with a check rather than an arrow.
+  await stage.getByRole("button", { name: "I'm done" }).click();
   await expect(stage.getByText("You did it!")).toBeVisible();
   await context.close();
 });

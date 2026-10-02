@@ -9,6 +9,7 @@ import { useHydrated } from "@tanstack/react-router";
 import {
   ArrowLeft,
   ArrowRight,
+  Check,
   Play,
   RotateCcw,
   Star,
@@ -348,6 +349,7 @@ export function YoungLesson({
     onFinish?.();
   }, [at, onFinish]);
 
+  const last = at === steps.length - 1;
   const questions = step.filter(isCheckBlock);
   // A choice whose answer was shown waits for the child to tap it.
   const done = questions.every((block) => {
@@ -564,18 +566,25 @@ export function YoungLesson({
             >
               <ArrowLeft aria-hidden className="size-8 rtl:-scale-x-100" />
             </Button>
+            {/* The last screen hands the work in with a big green check,
+                as Seesaw's students do, rather than one more arrow. */}
             <Button
               type="button"
               size="icon"
               className={cn(
                 "size-26 rounded-full shadow-md lg:pointer-events-auto",
+                last && "bg-success text-white hover:bg-success/90",
                 done && "motion-safe:animate-[pulse_1.6s_ease-in-out_2]",
               )}
-              aria-label={m.lrnYoungNextStep()}
+              aria-label={last ? m.lrnYoungImDone() : m.lrnYoungNextStep()}
               disabled={!done}
               onClick={forward}
             >
-              <ArrowRight aria-hidden className="size-10 rtl:-scale-x-100" />
+              {last ? (
+                <Check aria-hidden className="size-12" strokeWidth={3} />
+              ) : (
+                <ArrowRight aria-hidden className="size-10 rtl:-scale-x-100" />
+              )}
             </Button>
           </nav>
         ) : null}
