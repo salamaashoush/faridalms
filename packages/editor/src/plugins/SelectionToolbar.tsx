@@ -58,6 +58,7 @@ import {
   Trash2,
   Underline,
   Unlink,
+  UsersRound,
   Grid2x2,
   ScanSearch,
   Signature,
@@ -686,6 +687,7 @@ export function SelectionToolbarPlugin() {
   const boundary = editor.getRootElement()?.parentElement ?? null;
 
   if (mode === "block" && layout) {
+    const { pictureId } = layout;
     const sizes: Record<ImageSize, string> = {
       small: strings.sizeSmall,
       medium: strings.sizeMedium,
@@ -736,10 +738,10 @@ export function SelectionToolbarPlugin() {
               {separator}
             </>
           ) : null}
-          {layout.pictureId && media ? (
+          {pictureId && media ? (
             <>
               <a
-                href={`${media.url(layout.pictureId)}?download`}
+                href={`${media.url(pictureId)}?download`}
                 download
                 aria-label={strings.downloadFile}
                 className="inline-flex size-8 items-center justify-center rounded-md text-foreground/80 hover:bg-accent hover:text-foreground [&_svg]:size-4"
@@ -747,10 +749,21 @@ export function SelectionToolbarPlugin() {
                 <Download aria-hidden />
               </a>
               <CopyLinkButton
-                url={media.url(layout.pictureId)}
+                url={media.url(pictureId)}
                 strings={strings}
                 className="inline-flex size-8 items-center justify-center rounded-md text-foreground/80 hover:bg-accent hover:text-foreground [&_svg]:size-4 [&>span]:sr-only"
               />
+              {media.people ? (
+                <button
+                  type="button"
+                  onMouseDown={(event) => event.preventDefault()}
+                  onClick={() => media.people?.(pictureId)}
+                  className="inline-flex h-8 items-center gap-1.5 rounded-md px-2 text-sm font-medium text-foreground/80 hover:bg-accent hover:text-foreground [&_svg]:size-4"
+                >
+                  <UsersRound aria-hidden />
+                  {strings.picturePeople}
+                </button>
+              ) : null}
               {separator}
             </>
           ) : null}

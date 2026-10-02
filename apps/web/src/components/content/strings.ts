@@ -165,6 +165,7 @@ export function editorStrings(): EditorStrings {
     sizeLarge: m.editorSizeLarge(),
     sizeFull: m.editorSizeFull(),
     downloadFile: m.editorDownloadFile(),
+    picturePeople: m.editorPicturePeople(),
     groupQuestions: m.editorGroupQuestions(),
     questionChoice: m.editorQuestionChoice(),
     questionChoiceHint: m.editorQuestionChoiceHint(),

@@ -3,7 +3,6 @@ import type { ContentDocument } from "@faridalms/domain/content";
 import type { NewsVisibility } from "@faridalms/domain/news";
 import type { ContentLocale } from "@faridalms/domain/translations";
 
-import { contentFileIds } from "@faridalms/domain/content";
 import {
   emptyContent,
   headedContent,
@@ -21,7 +20,7 @@ import { Tabs, TabsList, TabsTrigger } from "@faridalms/ui/tabs";
 import { Textarea } from "@faridalms/ui/textarea";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { Archive, CalendarClock, Send } from "lucide-react";
-import { useCallback, useRef, useState } from "react";
+import { useCallback, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import type { newsEditorQuery } from "~/queries/news";
@@ -37,9 +36,8 @@ import { LOCALE_LABEL, LOCALE_NAME } from "~/components/content/languages";
 import { TranslatedView } from "~/components/content/TranslatedView";
 import { TranslationNote } from "~/components/content/TranslationNote";
 import { useDocumentMedia } from "~/components/coursework/useDocumentMedia";
-import { PicturedPeople } from "~/components/files/PicturedPeople";
+import { usePicturePeople } from "~/components/files/PicturedPeople";
 import { CheckboxRow } from "~/components/people/fields";
-import { PictureField } from "~/components/site/PictureField";
 import { ISSUE_LABEL } from "~/components/site/studio/labels";
 import {
   DetailsPanel,
@@ -77,9 +75,6 @@ interface Draft {
   excerptAr: string;
   slug: string;
   categoryId: string;
-  coverFileId: string;
-  coverAltEn: string;
-  coverAltAr: string;
   pinned: boolean;
   audiences: AudienceInput[];
   body: ContentDocument;
@@ -155,9 +150,6 @@ function draftOf(existing: Existing | null): Draft {
     excerptAr: existing?.excerptAr ?? "",
     slug: existing?.slug ?? "",
     categoryId: existing?.categoryId ?? "",
-    coverFileId: existing?.coverFileId ?? "",
-    coverAltEn: existing?.coverAltEn ?? "",
-    coverAltAr: existing?.coverAltAr ?? "",
     pinned: existing?.pinned ?? false,
     audiences: existing
       ? existing.audiences.map((row) => ({
@@ -188,7 +180,7 @@ export function NewsEditor({
 }) {
   const options = useSuspenseQuery(newsOptionsQuery).data;
   const queryClient = useQueryClient();
-  const media = useDocumentMedia();
+  const documentMedia = useDocumentMedia();
   const id = useRef(existing?.id ?? "");
   const version = useRef(existing?.version ?? 0);
   const slugTouched = useRef(Boolean(existing));
@@ -223,13 +215,11 @@ export function NewsEditor({
   const live = state === "published";
   const other = otherLocale(draft.primaryLocale);
   const isPublic = draft.visibility === "public";
-  const pictureIds = [
-    ...new Set([
-      ...contentFileIds(draft.body),
-      ...(draft.bilingual ? contentFileIds(draft.translation) : []),
-      ...(draft.coverFileId ? [draft.coverFileId] : []),
-    ]),
-  ];
+  const pictured = usePicturePeople(isPublic ? "website" : "news");
+  const media = useMemo(
+    () => ({ ...documentMedia, people: pictured.open }),
+    [documentMedia, pictured.open],
+  );
   const telling = draft.audiences.length > 0;
 
   const persist = useCallback(
@@ -250,9 +240,6 @@ export function NewsEditor({
           excerptAr: value.excerptAr.trim(),
           slug: value.slug || fallbackSlug.current,
           categoryId: value.categoryId,
-          coverFileId: value.coverFileId,
-          coverAltEn: value.coverAltEn.trim(),
-          coverAltAr: value.coverAltAr.trim(),
           pinned: value.pinned,
           audiences: value.audiences,
           body: value.body,
@@ -322,12 +309,9 @@ export function NewsEditor({
             documentWritten(draft.translation),
         )
         .flatMap((locale) =>
-          postIssues({
-            coverFileId: draft.coverFileId || null,
-            coverAlt: pick(locale, draft.coverAltEn, draft.coverAltAr),
-            body:
-              locale === draft.primaryLocale ? draft.body : draft.translation,
-          }).map((code) =>
+          postIssues(
+            locale === draft.primaryLocale ? draft.body : draft.translation,
+          ).map((code) =>
             m.siteIssueIn({
               issue: ISSUE_LABEL[code](),
               language: LOCALE_NAME[locale](),
@@ -438,7 +422,6 @@ export function NewsEditor({
   const shown: ContentLocale = translating ? other : draft.primaryLocale;
   const titleKey = shown === "ar" ? "titleAr" : "titleEn";
   const excerptKey = shown === "ar" ? "excerptAr" : "excerptEn";
-  const altKey = shown === "ar" ? "coverAltAr" : "coverAltEn";
 
   const editorFor = (locale: ContentLocale) => (
     <div lang={locale} className="min-w-0">
@@ -705,30 +688,6 @@ export function NewsEditor({
                 )}
               </FormField>
             </DetailsSection>
-            <DetailsSection title={m.newsPicture()}>
-              <PictureField
-                fileId={draft.coverFileId || null}
-                label={m.newsPicture()}
-                onChange={(fileId) => change({ coverFileId: fileId ?? "" })}
-              />
-              {draft.coverFileId ? (
-                <TextField
-                  id="news-picture-alt"
-                  label={`${m.newsPictureAlt()} (${LOCALE_LABEL[shown]()})`}
-                  lang={shown}
-                  dir={shown === "ar" ? "rtl" : "ltr"}
-                  maxLength={300}
-                  value={draft[altKey]}
-                  onChange={(event) => change({ [altKey]: event.target.value })}
-                />
-              ) : null}
-            </DetailsSection>
-            <DetailsSection title={m.picturedTitle()} hint={m.picturedHint()}>
-              <PicturedPeople
-                fileIds={pictureIds}
-                channel={isPublic ? "website" : "news"}
-              />
-            </DetailsSection>
             {isPublic ? (
               <DetailsSection title={m.newsWebsite()}>
                 <SelectField
@@ -823,6 +782,7 @@ export function NewsEditor({
           {editorFor(shown)}
         </div>
       </DocumentPage>
+      {pictured.sheet}
       <SheetPanel
         open={comparing}
         onOpenChange={setComparing}

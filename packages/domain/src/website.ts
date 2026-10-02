@@ -173,14 +173,8 @@ export function pageIssues(sections: PageSection[]): SiteIssue[] {
   );
 }
 
-export function postIssues(post: {
-  coverFileId: string | null;
-  coverAlt: string;
-  body: ContentDocument;
-}): SiteIssueCode[] {
-  const found = new Set(bodyIssues(post.body));
-  if (post.coverFileId && !post.coverAlt.trim()) found.add("alt");
-  return [...found];
+export function postIssues(body: ContentDocument): SiteIssueCode[] {
+  return [...new Set(bodyIssues(body))];
 }
 
 /**

@@ -144,6 +144,7 @@ export interface EditorStrings {
   sizeLarge: string;
   sizeFull: string;
   downloadFile: string;
+  picturePeople: string;
   groupQuestions: string;
   questionChoice: string;
   questionChoiceHint: string;

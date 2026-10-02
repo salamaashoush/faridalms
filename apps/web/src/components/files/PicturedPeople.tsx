@@ -1,7 +1,7 @@
-import { Button } from "@faridalms/ui/button";
+import type { ReactNode } from "react";
+
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { UserRoundPlus } from "lucide-react";
-import { useState } from "react";
+import { useCallback, useState } from "react";
 import { toast } from "sonner";
 
 import { displayName } from "~/components/people/format";
@@ -17,26 +17,44 @@ import { getMessageFromError } from "~/utils/error";
 type Data = Awaited<
   ReturnType<NonNullable<ReturnType<typeof picturedQuery>["queryFn"]>>
 >;
-type Picture = Data["files"][number];
-type Person = Picture["people"][number];
+type Person = Data["files"][number]["people"][number];
 
 /** Where the pictures are going: the public website, or news inside the school. */
 export type PictureChannel = "website" | "news";
 
-const allowed = (person: Person, channel: PictureChannel) =>
-  person[channel] === "granted";
+function Answer({
+  person,
+  channel,
+}: {
+  person: Person;
+  channel: PictureChannel;
+}) {
+  const answer = person[channel];
+  return (
+    <StatusText tone={answer === "granted" ? "success" : "warning"}>
+      {(answer === "granted"
+        ? m.picturedMayAppear
+        : answer === "refused"
+          ? m.picturedRefused
+          : m.picturedUnanswered)({ name: displayName(person) })}
+    </StatusText>
+  );
+}
 
-function TagSheet({
-  picture,
+function PeopleSheet({
+  fileId,
+  channel,
   open,
   onClose,
 }: {
-  picture: Picture;
+  fileId: string;
+  channel: PictureChannel;
   open: boolean;
   onClose: () => void;
 }) {
   const queryClient = useQueryClient();
-  const [picked, setPicked] = useState(picture.people.map((row) => row.id));
+  const picture = useQuery(picturedQuery([fileId])).data?.files[0] ?? null;
+  const [picked, setPicked] = useState<string[] | null>(null);
   const [search, setSearch] = useState("");
   const needle = search.trim();
   const hits =
@@ -54,16 +72,14 @@ function TagSheet({
       }),
       enabled: needle.length >= 2,
     }).data?.rows ?? [];
+  const tagged = picture?.people ?? [];
+  const chosen = picked ?? tagged.map((row) => row.id);
   const known = new Map<string, string>([
-    ...picture.people.map((row): [string, string] => [
-      row.id,
-      displayName(row),
-    ]),
+    ...tagged.map((row): [string, string] => [row.id, displayName(row)]),
     ...hits.map((row): [string, string] => [row.id, displayName(row)]),
   ]);
   const mutation = useMutation({
-    mutationFn: () =>
-      tagPictured({ data: { id: picture.id, studentIds: picked } }),
+    mutationFn: () => tagPictured({ data: { id: fileId, studentIds: chosen } }),
     meta: { inlineError: true },
   });
   return (
@@ -87,112 +103,66 @@ function TagSheet({
       }}
     >
       <img
-        src={`/files/${picture.id}`}
-        alt={picture.name}
+        src={`/files/${fileId}`}
+        alt={picture?.name ?? ""}
         className="max-h-64 w-full rounded-md border object-contain"
       />
+      <p className="text-sm leading-5 text-muted-foreground">
+        {m.picturedHint()}
+      </p>
       <ComboboxField
         label={m.picturedStudents()}
         hint={m.picturedStudentsHint()}
         multiple
         clearable
         options={[...known].map(([value, label]) => ({ value, label }))}
-        value={picked}
+        value={chosen}
         onChange={setPicked}
         search={search}
         onSearchChange={setSearch}
       />
+      {tagged.length > 0 ? (
+        <ul className="grid gap-1 text-[13px] leading-[18px]">
+          {tagged.map((person) => (
+            <li key={person.id}>
+              <Answer person={person} channel={channel} />
+            </li>
+          ))}
+        </ul>
+      ) : null}
     </SheetForm>
   );
 }
 
 /**
- * The students each picture in a document shows, and whether each may be
- * shown where it is going. Publishing refuses a picture of a student whose
- * family has not agreed, so the person writing sees it here first.
+ * Naming who a picture shows, offered on the picture itself: a document's
+ * editor passes `open` as its media's `people`, and the sheet shows each
+ * named student's family answer for where the document is going.
  */
-export function PicturedPeople({
-  fileIds,
-  channel,
-}: {
-  fileIds: readonly string[];
-  channel: PictureChannel;
-}) {
-  const pictures = useQuery(picturedQuery(fileIds)).data?.files ?? [];
-  const [sheet, setSheet] = useState<{
-    picture: Picture | null;
+export function usePicturePeople(channel: PictureChannel): {
+  open: (fileId: string) => void;
+  sheet: ReactNode;
+} {
+  const [state, setState] = useState<{
+    fileId: string | null;
     open: boolean;
     key: number;
-  }>({ picture: null, open: false, key: 0 });
-  if (pictures.length === 0)
-    return (
-      <p className="text-[13px] leading-[18px] text-muted-foreground">
-        {m.picturedNone()}
-      </p>
-    );
-  return (
-    <>
-      <ul className="grid gap-3">
-        {pictures.map((picture) => (
-          <li key={picture.id} className="flex items-start gap-3">
-            <img
-              src={`/files/${picture.id}`}
-              alt={picture.name}
-              className="h-12 w-16 shrink-0 rounded-md border object-cover"
-            />
-            <div className="grid min-w-0 flex-1 gap-1">
-              {picture.people.length === 0 ? (
-                <span className="text-[13px] leading-[18px] text-muted-foreground">
-                  {m.picturedNobody()}
-                </span>
-              ) : (
-                <ul className="grid gap-0.5 text-[13px] leading-[18px]">
-                  {picture.people.map((person) => (
-                    <li key={person.id}>
-                      <StatusText
-                        tone={allowed(person, channel) ? "success" : "warning"}
-                      >
-                        {(person[channel] === "granted"
-                          ? m.picturedMayAppear
-                          : person[channel] === "refused"
-                            ? m.picturedRefused
-                            : m.picturedUnanswered)({
-                          name: displayName(person),
-                        })}
-                      </StatusText>
-                    </li>
-                  ))}
-                </ul>
-              )}
-              <Button
-                type="button"
-                variant="ghost"
-                size="sm"
-                className="justify-self-start max-md:h-10"
-                aria-label={m.picturedTagFor({ name: picture.name })}
-                onClick={() =>
-                  setSheet((current) => ({
-                    picture,
-                    open: true,
-                    key: current.key + 1,
-                  }))
-                }
-              >
-                <UserRoundPlus aria-hidden />
-                {m.picturedTag()}
-              </Button>
-            </div>
-          </li>
-        ))}
-      </ul>
-      {sheet.picture ? (
-        <TagSheet
-          key={sheet.key}
-          picture={sheet.picture}
-          open={sheet.open}
-          onClose={() => setSheet((current) => ({ ...current, open: false }))}
-        />
-      ) : null}
-    </>
+  }>({ fileId: null, open: false, key: 0 });
+  const open = useCallback(
+    (fileId: string) =>
+      setState((current) => ({ fileId, open: true, key: current.key + 1 })),
+    [],
   );
+  return {
+    open,
+    sheet: state.fileId ? (
+      <PeopleSheet
+        key={state.key}
+        fileId={state.fileId}
+        channel={channel}
+        open={state.open}
+        onClose={() => setState((current) => ({ ...current, open: false }))}
+      />
+    ) : null,
+  };
 }

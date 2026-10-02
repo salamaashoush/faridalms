@@ -48,9 +48,6 @@ export const saveNewsSchema = v.pipe(
     excerptAr: words(300),
     slug: siteSlugSchema,
     categoryId: optionalId,
-    coverFileId: optionalId,
-    coverAltEn: words(300),
-    coverAltAr: words(300),
     pinned: v.boolean(),
     /** Who is told when it goes out; a school post needs someone. */
     audiences: v.pipe(v.array(audienceSchema), v.maxLength(20)),

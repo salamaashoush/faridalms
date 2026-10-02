@@ -52,6 +52,7 @@ import {
   ImagePlus,
   Plus,
   Trash2,
+  UsersRound,
   X,
 } from "lucide-react";
 import { useRef, useState } from "react";
@@ -373,6 +374,20 @@ function ImageControl({
                 )
               }
             />
+            {value.fileId && context.media.people ? (
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="max-md:h-10"
+                onClick={() => {
+                  if (value.fileId) context.media.people?.(value.fileId);
+                }}
+              >
+                <UsersRound aria-hidden />
+                {m.editorPicturePeople()}
+              </Button>
+            ) : null}
             {value.fileId ? (
               <Button
                 type="button"

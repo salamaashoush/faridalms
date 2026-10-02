@@ -42,7 +42,11 @@ import {
   reviewTranslation,
   translationReview,
 } from "@faridalms/database/stores/translations";
-import { contentFileIds, contentPlainText } from "@faridalms/domain/content";
+import {
+  contentFileIds,
+  contentPlainText,
+  firstPicture,
+} from "@faridalms/domain/content";
 import { emptyContent } from "@faridalms/domain/content-conversion";
 import {
   manageNewsSchema,
@@ -202,10 +206,6 @@ const titleIn = (row: PostRow, locale: ContentLocale) => {
   return pick(locale) || pick(primaryOf(row)) || pick(otherLocale(locale));
 };
 
-const postMedia = (body: ContentDocument, coverFileId: string | null) => [
-  ...new Set([...contentFileIds(body), ...(coverFileId ? [coverFileId] : [])]),
-];
-
 /** What stops a public post going on the website, per language it is written in. */
 function issuesOf(
   row: PostRow,
@@ -218,11 +218,7 @@ function issuesOf(
   for (const locale of [primary, otherLocale(primary)]) {
     const written = locale === primary ? body : translation;
     if (!written || !documentWritten(written)) continue;
-    found[locale] = postIssues({
-      coverFileId: row.coverFileId,
-      coverAlt: locale === "ar" ? row.coverAltAr : row.coverAltEn,
-      body: written,
-    });
+    found[locale] = postIssues(written);
   }
   return found;
 }
@@ -382,9 +378,6 @@ export const save = writeProcedure
       titleAr: input.titleAr,
       excerptEn: input.excerptEn,
       excerptAr: input.excerptAr,
-      coverFileId: input.coverFileId || null,
-      coverAltEn: input.coverAltEn,
-      coverAltAr: input.coverAltAr,
       pinned: input.pinned,
       visibility: input.visibility,
     };
@@ -433,7 +426,7 @@ export const save = writeProcedure
       context,
       host(postId),
       input.body,
-      postMedia(input.body, fields.coverFileId),
+      contentFileIds(input.body),
     );
     const original = await saveDocument(context.tx, {
       tenantId: context.tenantId,
@@ -515,8 +508,8 @@ async function putOnWebsite(
     { tenantId: context.tenantId, hostType: "site_post", hostId: row.id },
     [
       ...new Set([
-        ...postMedia(body, row.coverFileId),
-        ...(translation ? postMedia(translation, null) : []),
+        ...contentFileIds(body),
+        ...(translation ? contentFileIds(translation) : []),
       ]),
     ],
   );
@@ -528,6 +521,8 @@ async function putOnWebsite(
     const own = locale === primary ? body : translation;
     const words = (en: string, ar: string) =>
       (locale === "ar" ? ar : en) || (primary === "ar" ? ar : en);
+    // The card and the link preview show the post's first picture.
+    const picture = firstPicture(own ?? body);
     await writePublishedPost(context.tx, {
       tenantId: context.tenantId,
       orgId: context.schoolId,
@@ -535,8 +530,8 @@ async function putOnWebsite(
       locale,
       title: titleIn(row, locale),
       excerpt: words(row.excerptEn, row.excerptAr),
-      coverKey: row.coverFileId ? (media[row.coverFileId] ?? null) : null,
-      coverAlt: words(row.coverAltEn, row.coverAltAr),
+      coverKey: picture ? (media[picture.fileId] ?? null) : null,
+      coverAlt: picture?.alt ?? "",
       content: {
         body: own ?? body,
         locale: own ? locale : primary,
@@ -589,8 +584,8 @@ export const publish = writeProcedure
         tenantId: context.tenantId,
         fileIds: [
           ...new Set([
-            ...postMedia(body, row.coverFileId),
-            ...(other ? postMedia(other, null) : []),
+            ...contentFileIds(body),
+            ...(other ? contentFileIds(other) : []),
           ]),
         ],
         meaning: "photo_internal",
@@ -791,9 +786,6 @@ export const duplicate = writeProcedure
       titleAr: row.titleAr,
       excerptEn: row.excerptEn,
       excerptAr: row.excerptAr,
-      coverFileId: row.coverFileId,
-      coverAltEn: row.coverAltEn,
-      coverAltAr: row.coverAltAr,
       pinned: false,
       visibility: row.visibility,
     });
@@ -812,7 +804,7 @@ export const duplicate = writeProcedure
         locale: original.locale ?? primaryOf(row),
         content: original.content,
         plainText: original.plainText,
-        mediaIds: postMedia(body, row.coverFileId),
+        mediaIds: contentFileIds(body),
         userId: context.actor.userId,
       });
       const other = bodyOf(translation?.content ?? null);

@@ -69,6 +69,7 @@ import { ButtonLink } from "~/components/app/ButtonLink";
 import { UnsavedChangesGuard } from "~/components/app/UnsavedChangesGuard";
 import { LOCALE_NAME } from "~/components/content/languages";
 import { useDocumentMedia } from "~/components/coursework/useDocumentMedia";
+import { usePicturePeople } from "~/components/files/PicturedPeople";
 import { StatusBadge } from "~/components/system/status";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
@@ -200,7 +201,12 @@ export function SiteStudio({
   const user = useCurrentUser();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const media = useDocumentMedia();
+  const documentMedia = useDocumentMedia();
+  const pictured = usePicturePeople("website");
+  const media = useMemo(
+    () => ({ ...documentMedia, people: pictured.open }),
+    [documentMedia, pictured.open],
+  );
   const wide = useWide();
   const settings = overview.settings;
   const languages: Languages = {
@@ -1305,6 +1311,7 @@ export function SiteStudio({
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      {pictured.sheet}
     </div>
   );
 }

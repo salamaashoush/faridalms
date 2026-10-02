@@ -769,6 +769,22 @@ export function wordsAt(
   return words.replace(/\s+/g, " ").trim();
 }
 
+/**
+ * A document's first picture, in reading order: what a card or a link
+ * preview shows for it, with the words its author gave the picture.
+ */
+export function firstPicture(
+  document: ContentDocument,
+): { fileId: string; alt: string } | null {
+  const pending = [document.root];
+  for (let node = pending.shift(); node; node = pending.shift()) {
+    if (node.type === "image" && node.fileId)
+      return { fileId: node.fileId, alt: node.alt ?? "" };
+    if (node.children) pending.unshift(...node.children);
+  }
+  return null;
+}
+
 export function contentFileIds(document: ContentDocument): string[] {
   const ids = new Set<string>();
   const pending = [document.root];

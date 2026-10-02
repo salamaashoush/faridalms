@@ -46,6 +46,12 @@ export interface EditorMedia {
     search: (query: string) => Promise<LibraryPicture[]>;
     credits: string;
   };
+  /**
+   * Who a picture shows, where it matters who appears: the host names the
+   * students and checks their families agreed. The bar offers it on a
+   * selected picture.
+   */
+  people?: (fileId: string) => void;
 }
 
 export interface EditorEnvironment {

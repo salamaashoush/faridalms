@@ -2474,8 +2474,9 @@ create index file_subjects_user_idx on core.file_subjects (tenant_id, user_id) w
   public object. Only `site_media`, `logo` and `document_media` files are
   publishable (the purpose pin).
 - **Subjects.** `file_subjects` records which students a picture shows; whoever
-  writes news or website pages names them beside the document, which also
-  shows each family's answer. Publishing checks that every tagged subject has
+  writes news or website pages names them from the picture itself (the
+  editor's floating bar through `EditorMedia.people`, or a website section's
+  picture control), which also shows each family's answer. Publishing checks that every tagged subject has
   a `granted` consent covering the school's today for the publication's
   purpose meaning (`photo_website` for the website, `photo_internal` for
   school news) in `core.current_consents`, and refuses otherwise; a website

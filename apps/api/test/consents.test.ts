@@ -1,3 +1,5 @@
+import type { ContentDocument } from "@faridalms/domain/content";
+
 import {
   headedContent,
   plainContent,
@@ -311,9 +313,29 @@ async function answerFor(family: Family, code: string, agreed: boolean) {
   return child.studentId;
 }
 
+function withPicture(body: ContentDocument, fileId: string): ContentDocument {
+  return {
+    root: {
+      ...body.root,
+      children: [
+        {
+          type: "image",
+          version: 1,
+          fileId,
+          alt: "Children on the field",
+          caption: "",
+          size: "full",
+        },
+        ...(body.root.children ?? []),
+      ],
+    },
+  };
+}
+
+/** A post opening with a picture, as a document holds one. */
 const post = (
   title: string,
-  coverFileId: string,
+  pictureId: string,
   visibility: "public" | "school",
 ) => ({
   id: "",
@@ -326,15 +348,12 @@ const post = (
   excerptAr: "",
   slug: `${title.toLowerCase().replaceAll(/[^a-z0-9]+/g, "-")}-${crypto.randomUUID().slice(0, 6)}`,
   categoryId: "",
-  coverFileId,
-  coverAltEn: "Children on the field",
-  coverAltAr: "",
   pinned: false,
   audiences:
     visibility === "school"
       ? [{ scope: "families" as const, classId: "", gradeId: "" }]
       : [],
-  body: plainContent(`${title} was a great day.`),
+  body: withPicture(plainContent(`${title} was a great day.`), pictureId),
   translation: null,
 });
 
@@ -365,6 +384,8 @@ describe("pictures of students", () => {
       slug: draft.slug,
     });
     expect(read.title).toBe("Sports day");
+    expect(read.coverKey).not.toBeNull();
+    expect(read.coverAlt).toBe("Children on the field");
 
     await answerFor(family, "photo_school_website", false);
     const history = await office.people.studentHistory({ id: studentId });
