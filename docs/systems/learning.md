@@ -124,6 +124,12 @@ From [../research/early-years.md](../research/early-years.md).
   Lessons of a draft module are shown when the module opens.
 - A preview marks answers in the browser and saves nothing, and starts over
   on request.
+- An empty lesson's "Start from a template" menu offers teaching patterns
+  filled with a worked sample in the teacher's language: a worked example
+  whose steps open one at a time behind Continue, then one step to finish
+  and a problem alone, then a question on which step to check; and an
+  unmarked prediction with one try, then what happens and why, then an
+  explanation in the student's words.
 - The module's Answers tab lists each written question with its class's
   answers, unmarked first. A question with points takes a mark and feedback;
   one without takes feedback alone. The student sees both, and the answer

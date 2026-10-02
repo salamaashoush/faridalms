@@ -159,6 +159,8 @@ export function DocumentPage({
     onApply: (content: ContentDocument) => void;
     /** Offers the ready-made young activities, storing their pictures through this. */
     starters?: EditorMedia;
+    /** Offers the built-in teaching patterns for a lesson. */
+    patterns?: boolean;
   };
   title: ReactNode;
   aside?: ReactNode;
@@ -318,6 +320,7 @@ export function DocumentPage({
               kind={templates.kind}
               onApply={templates.onApply}
               starters={templates.starters}
+              patterns={templates.patterns}
             />
           ) : null}
         </div>

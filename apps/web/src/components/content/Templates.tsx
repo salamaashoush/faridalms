@@ -26,6 +26,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   BookOpen,
   ChevronDown,
+  GraduationCap,
   LayoutTemplate,
   LoaderCircle,
   Sparkles,
@@ -33,9 +34,11 @@ import {
 import { useState } from "react";
 import { toast } from "sonner";
 
+import type { Pattern } from "~/components/learning/patterns";
 import type { Starter } from "~/components/learning/starters";
 
 import { BookError, importPictureBook } from "~/components/learning/bookImport";
+import { PATTERNS } from "~/components/learning/patterns";
 import { altIn, sayIn, STARTERS } from "~/components/learning/starters";
 import { TextField } from "~/components/system/field";
 import { inLocale } from "~/hooks/useCurrentUser";
@@ -69,11 +72,14 @@ export function TemplatePicker({
   kind,
   onApply,
   starters,
+  patterns = false,
 }: {
   kind: TemplateKind;
   onApply: (content: ContentDocument) => void;
   /** Ready-made young activities, whose pictures are stored through this. */
   starters?: EditorMedia;
+  /** Offers the built-in teaching patterns for a lesson. */
+  patterns?: boolean;
 }) {
   const queryClient = useQueryClient();
   const rows = useQuery(templatesQuery(kind)).data ?? [];
@@ -115,6 +121,19 @@ export function TemplatePicker({
           if (!picture) throw new Error("file.failed");
           return picture;
         }),
+      });
+      if (!content) throw new Error("content.invalid");
+      return content;
+    },
+    onSuccess: (content) => onApply(content),
+    onError: (error) => toast.error(getMessageFromError(error)),
+  });
+  const pattern = useMutation({
+    mutationFn: async (chosen: Pattern) => {
+      const say = sayIn(getLocale() === "ar" ? "ar" : "en");
+      const content = contentOfLesson({
+        version: 2,
+        blocks: chosen.blocks(say),
       });
       if (!content) throw new Error("content.invalid");
       return content;
@@ -167,9 +186,10 @@ export function TemplatePicker({
     document.body.append(input);
     input.click();
   };
-  if (rows.length === 0 && !starters) return null;
+  if (rows.length === 0 && !starters && !patterns) return null;
   const mine = rows.filter((row) => row.mine);
-  const busy = apply.isPending || start.isPending || book.isPending;
+  const busy =
+    apply.isPending || start.isPending || book.isPending || pattern.isPending;
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
@@ -192,6 +212,29 @@ export function TemplatePicker({
         <ChevronDown aria-hidden />
       </DropdownMenuTrigger>
       <DropdownMenuContent className="w-72">
+        {patterns ? (
+          <>
+            <DropdownMenuGroup>
+              <DropdownMenuLabel>{m.patternGroup()}</DropdownMenuLabel>
+              {PATTERNS.map((entry) => (
+                <DropdownMenuItem
+                  key={entry.key}
+                  onClick={() => pattern.mutate(entry)}
+                  className="items-start"
+                >
+                  <GraduationCap aria-hidden className="mt-0.5" />
+                  <span className="grid gap-0.5">
+                    <span>{entry.title()}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {entry.hint()}
+                    </span>
+                  </span>
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuGroup>
+            {starters || rows.length > 0 ? <DropdownMenuSeparator /> : null}
+          </>
+        ) : null}
         {starters ? (
           <>
             <DropdownMenuGroup>

@@ -293,6 +293,7 @@ export function LessonEditor({
             setReplace((current) => ({ to, at: (current?.at ?? 0) + 1 }));
           },
           starters: earlyYears && draft.young ? media : undefined,
+          patterns: !(earlyYears && draft.young),
         }}
         history={
           storedId
