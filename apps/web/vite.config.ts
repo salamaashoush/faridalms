@@ -40,10 +40,15 @@ function devCatalogue(): Plugin {
       server.watcher.add(messages);
       server.watcher.on("change", (file) => {
         if (!resolve(file).startsWith(messages)) return;
-        // A catalogue saved half-written fails until the next save.
-        compileDevCatalogue().catch((error: unknown) =>
-          server.config.logger.error(String(error)),
-        );
+        // Vite keeps the catalogue it compiled until told it changed. A
+        // catalogue saved half-written fails until the next save.
+        compileDevCatalogue()
+          .then(() => {
+            for (const environment of Object.values(server.environments))
+              environment.moduleGraph.invalidateAll();
+            server.ws.send({ type: "full-reload" });
+          })
+          .catch((error: unknown) => server.config.logger.error(String(error)));
       });
     },
   };
