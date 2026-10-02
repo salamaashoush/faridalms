@@ -9,6 +9,7 @@ import {
   removeCommentSchema,
   replyToCommentSchema,
   restoreCommentSchema,
+  showGradeSchema,
   saveAssignmentSchema,
   saveBankCommentSchema,
   saveCommentSchema,
@@ -114,6 +115,10 @@ export const addFeedbackRecording = createServerFn({ method: "POST" })
 export const removeFeedbackRecording = createServerFn({ method: "POST" })
   .validator(checked(feedbackRecordingSchema))
   .handler(({ data }) => backend().coursework.removeFeedbackRecording(data));
+
+export const showHeldGrade = createServerFn({ method: "POST" })
+  .validator(checked(showGradeSchema))
+  .handler(({ data }) => backend().coursework.showGrade(data));
 
 export const restoreWorkComment = createServerFn({ method: "POST" })
   .validator(checked(restoreCommentSchema))

@@ -55,7 +55,7 @@ import * as m from "~/i18n/messages";
 import { getLocale, getTextDirection } from "~/i18n/runtime";
 import { gradingQuery } from "~/queries/coursework";
 import { workStandingQuery } from "~/queries/exams";
-import { actOnWork, assessAttempt } from "~/server/coursework";
+import { actOnWork, assessAttempt, showHeldGrade } from "~/server/coursework";
 import { formatNumber } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
@@ -294,6 +294,13 @@ function GradeSheet({
         },
       }),
   });
+  const show = useMutation({
+    mutationFn: () => showHeldGrade({ data: { attemptId: attempt?.id ?? "" } }),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: ["coursework"] }),
+    onError: (failure) => toast.error(getMessageFromError(failure)),
+  });
+  const held = Boolean(saved?.commentsReleasedAt && !saved.releasedAt);
   const points = data.assignment.points;
   const pending = assess.isPending || act.isPending;
   const check = () => {
@@ -419,6 +426,20 @@ function GradeSheet({
               studentId={data.student.studentId}
             />
           )}
+          {held ? (
+            <div className="flex flex-wrap items-center justify-between gap-2 rounded-lg bg-muted/50 px-3 py-2">
+              <p className="text-sm leading-5">{m.courseworkGradeHeld()}</p>
+              <Button
+                type="button"
+                size="sm"
+                variant="outline"
+                disabled={show.isPending}
+                onClick={() => show.mutate()}
+              >
+                {m.courseworkShowGradeNow()}
+              </Button>
+            </div>
+          ) : null}
           {attempt && !data.quiz ? (
             <section aria-labelledby="grade-comments" className="grid gap-3">
               <div className="grid gap-0.5">
@@ -804,7 +825,9 @@ export function Grading({
                       ),
                   assessed.releasedAt
                     ? m.courseworkStateReturned()
-                    : m.courseworkDraftGrade(),
+                    : assessed.commentsReleasedAt
+                      ? m.courseworkGradeHeld()
+                      : m.courseworkDraftGrade(),
                 ]
                   .filter(Boolean)
                   .join(" · ")}

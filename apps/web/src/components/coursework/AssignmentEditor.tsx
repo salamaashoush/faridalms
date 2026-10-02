@@ -88,6 +88,7 @@ interface Draft {
   latePolicy: LatePolicy;
   deduction: string;
   resubmission: boolean;
+  gradeAfterAnswers: boolean;
   quiz: QuizDraft;
 }
 
@@ -211,6 +212,7 @@ function initialDraft(
       latePolicy: "accept",
       deduction: "10",
       resubmission: false,
+      gradeAfterAnswers: false,
       quiz: newQuiz(),
     };
   return {
@@ -234,6 +236,7 @@ function initialDraft(
     latePolicy: existing.latePolicy,
     deduction: String(existing.lateDeductionPercent ?? 10),
     resubmission: existing.resubmission,
+    gradeAfterAnswers: existing.gradeAfterAnswers,
     quiz: existing.quiz
       ? {
           attempts:
@@ -438,6 +441,7 @@ export function AssignmentEditor({
           Math.max(1, Math.round(Number(value.maxFiles)) || 1),
         ),
         resubmission: value.resubmission,
+        gradeAfterAnswers: !quiz && value.gradeAfterAnswers,
         points: quiz ? null : value.graded ? Number(value.points) : null,
         rubric: !quiz && value.graded ? value.rubric : null,
         gradingPeriodId: value.gradingPeriodId,
@@ -1052,6 +1056,14 @@ export function AssignmentEditor({
                   label={m.courseworkResubmission()}
                   checked={draft.resubmission}
                   onChange={(next) => set("resubmission", next)}
+                />
+              )}
+              {isQuiz ? null : (
+                <CheckboxRow
+                  label={m.courseworkGradeAfterAnswers()}
+                  hint={m.courseworkGradeAfterAnswersHint()}
+                  checked={draft.gradeAfterAnswers}
+                  onChange={(next) => set("gradeAfterAnswers", next)}
                 />
               )}
             </DetailsSection>

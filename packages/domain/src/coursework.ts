@@ -130,6 +130,8 @@ export const saveAssignmentSchema = v.object({
   rubric: v.nullable(rubricSchema),
   gradingPeriodId: v.optional(v.union([v.literal(""), id]), ""),
   categoryId: v.optional(v.union([v.literal(""), id]), ""),
+  /** Returned work shows its grade only once the student answers every comment. */
+  gradeAfterAnswers: v.optional(v.boolean(), false),
   quiz: v.optional(v.nullable(quizSchema), null),
 });
 export type SaveAssignmentInput = v.InferInput<typeof saveAssignmentSchema>;
@@ -432,6 +434,8 @@ export const replyToCommentSchema = v.object({
 export const feedbackRecordingSchema = v.object({ attemptId: id, fileId: id });
 
 export const restoreCommentSchema = v.object({ id });
+
+export const showGradeSchema = v.object({ attemptId: id });
 
 export const removeCommentSchema = v.object({
   id,

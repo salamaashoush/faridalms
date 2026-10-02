@@ -1,0 +1,2 @@
+ALTER TABLE "core"."assessments" ADD COLUMN "comments_released_at" timestamp with time zone;--> statement-breakpoint
+ALTER TABLE "core"."assignments" ADD COLUMN "grade_after_answers" boolean DEFAULT false NOT NULL;

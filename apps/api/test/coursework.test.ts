@@ -442,6 +442,149 @@ describe("handing in and returning work", () => {
     ).toMatchObject({ id: made.id, studentState: "unclear" });
   });
 
+  test("a held grade waits until the student answers every comment", async () => {
+    const teacher = await arabicTeacher();
+    const student = await sessionFor("northwind", login("student"));
+    const me = await student.api.identity.currentUser();
+    const target = await classOfStudent(teacher.api, me.id);
+    const saved = await teacher.api.coursework.save(
+      draft(target.id, "Comments first", { gradeAfterAnswers: true }),
+    );
+    await teacher.api.coursework.publish({
+      id: saved.id,
+      expectedVersion: saved.version,
+    });
+    const drafted = await student.api.coursework.saveDraft({
+      assignmentId: saved.id,
+      expectedVersion: 0,
+      content: plainContent("Plants need light. They also need water."),
+    });
+    await student.api.coursework.handIn({
+      assignmentId: saved.id,
+      expectedVersion: drafted.version,
+    });
+    const grading = await teacher.api.coursework.grading({
+      assignmentId: saved.id,
+      studentId: me.id,
+    });
+    const attempt = grading.attempts[0];
+    if (!attempt) throw new Error("attempt missing");
+    const anchor = {
+      start: { block: "plants01", offset: 0 },
+      end: { block: "plants01", offset: 6 },
+    };
+    const [first, second] = [
+      await teacher.api.coursework.comment({
+        attemptId: attempt.id,
+        expectedVersion: 0,
+        anchor,
+        body: "Which kind of light?",
+        kind: "think",
+      }),
+      await teacher.api.coursework.comment({
+        attemptId: attempt.id,
+        expectedVersion: 0,
+        anchor,
+        body: "Add one more need.",
+        kind: "next",
+      }),
+    ];
+    await teacher.api.coursework.assess({ attemptId: attempt.id, score: 7 });
+    await teacher.api.coursework.act({
+      assignmentId: saved.id,
+      action: "return",
+      studentIds: [me.id],
+    });
+
+    const held = await student.api.coursework.work({ id: saved.id });
+    expect(held.state).toBe("returned");
+    expect(held.attempts[0]?.comments).toHaveLength(2);
+    expect(held.attempts[0]?.assessment).toMatchObject({
+      gradeHeld: true,
+      score: null,
+      effectiveScore: null,
+    });
+    expect(
+      (await student.api.coursework.mine()).rows.find(
+        (row) => row.assignmentId === saved.id,
+      ),
+    ).toMatchObject({ state: "returned", effectiveScore: null });
+    const queued = (
+      await teacher.api.coursework.grading({
+        assignmentId: saved.id,
+        studentId: me.id,
+      })
+    ).queue.find((row) => row.studentId === me.id);
+    expect(queued).toMatchObject({ needsGrading: false, held: true });
+
+    await student.api.coursework.answerComment({
+      commentId: first.id,
+      state: "fixed",
+    });
+    expect(
+      (await student.api.coursework.work({ id: saved.id })).attempts[0]
+        ?.assessment?.gradeHeld,
+    ).toBe(true);
+    await student.api.coursework.answerComment({
+      commentId: second.id,
+      state: "unclear",
+    });
+    expect(
+      (await student.api.coursework.work({ id: saved.id })).attempts[0]
+        ?.assessment,
+    ).toMatchObject({ gradeHeld: false, score: 7 });
+  });
+
+  test("a teacher may show a held grade before the comments are answered", async () => {
+    const teacher = await arabicTeacher();
+    const student = await sessionFor("northwind", login("student"));
+    const me = await student.api.identity.currentUser();
+    const target = await classOfStudent(teacher.api, me.id);
+    const saved = await teacher.api.coursework.save(
+      draft(target.id, "Shown early", { gradeAfterAnswers: true }),
+    );
+    await teacher.api.coursework.publish({
+      id: saved.id,
+      expectedVersion: saved.version,
+    });
+    const drafted = await student.api.coursework.saveDraft({
+      assignmentId: saved.id,
+      expectedVersion: 0,
+      content: plainContent("A short answer."),
+    });
+    await student.api.coursework.handIn({
+      assignmentId: saved.id,
+      expectedVersion: drafted.version,
+    });
+    const attempt = (
+      await teacher.api.coursework.grading({
+        assignmentId: saved.id,
+        studentId: me.id,
+      })
+    ).attempts[0];
+    if (!attempt) throw new Error("attempt missing");
+    await teacher.api.coursework.comment({
+      attemptId: attempt.id,
+      expectedVersion: 0,
+      anchor: {
+        start: { block: "short001", offset: 0 },
+        end: { block: "short001", offset: 5 },
+      },
+      body: "Say more.",
+    });
+    await teacher.api.coursework.assess({ attemptId: attempt.id, score: 5 });
+    await teacher.api.coursework.act({
+      assignmentId: saved.id,
+      action: "return",
+      studentIds: [me.id],
+    });
+    await teacher.api.coursework.showGrade({ attemptId: attempt.id });
+    expect(
+      (await student.api.coursework.work({ id: saved.id })).attempts[0]
+        ?.assessment,
+    ).toMatchObject({ gradeHeld: false, score: 5 });
+  });
+
   test("voice feedback is heard by the student only once the work is returned", async () => {
     const teacher = await arabicTeacher();
     const student = await sessionFor("northwind", login("student"));

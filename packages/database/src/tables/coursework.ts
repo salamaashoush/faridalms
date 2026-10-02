@@ -153,6 +153,8 @@ export const assignments = core.table.withRLS(
     quizKeep: text("quiz_keep").$type<QuizKeep>(),
     quizReveal: text("quiz_reveal").$type<QuizReveal>(),
     quizShuffle: boolean("quiz_shuffle").notNull().default(false),
+    /** Returned work shows its grade only once every comment is answered. */
+    gradeAfterAnswers: boolean("grade_after_answers").notNull().default(false),
     publishedAt: instant("published_at"),
     archivedAt: instant("archived_at"),
     ...entityColumns(),
@@ -448,6 +450,8 @@ export const assessments = core.table.withRLS(
       .notNull()
       .default(sql`statement_timestamp()`),
     releasedAt: instant("released_at"),
+    /** Returned with the grade held: the student reads the comments first. */
+    commentsReleasedAt: instant("comments_released_at"),
     ...entityColumns(),
   },
   (t): PgTableExtraConfigValue[] => [

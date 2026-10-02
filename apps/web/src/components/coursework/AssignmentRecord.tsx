@@ -174,6 +174,11 @@ function StateCell({ row }: { row: WorkRow }) {
           })}
         </span>
       ) : null}
+      {row.held ? (
+        <span className="text-[13px] leading-[18px] text-muted-foreground">
+          {m.courseworkGradeHeld()}
+        </span>
+      ) : null}
       {row.awaiting > 0 ? (
         <span className="text-[13px] leading-[18px] font-medium text-amber-700 dark:text-amber-300">
           {m.courseworkAwaitingReply()}

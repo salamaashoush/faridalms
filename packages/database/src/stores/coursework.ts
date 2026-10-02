@@ -46,6 +46,7 @@ export interface AssignmentRow {
   quizKeep: QuizKeep | null;
   quizReveal: QuizReveal | null;
   quizShuffle: boolean;
+  gradeAfterAnswers: boolean;
   publishedAt: string | null;
 }
 
@@ -76,6 +77,7 @@ type AssignmentRecord = {
   quiz_keep: QuizKeep | null;
   quiz_reveal: QuizReveal | null;
   quiz_shuffle: boolean;
+  grade_after_answers: boolean;
   published_at: string | null;
 };
 
@@ -86,6 +88,7 @@ const assignmentColumns = sql`a.id, a.version, a.org_id, a.class_id, a.class_typ
   to_char(a.closes_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as closes_at,
   a.late_policy, a.late_deduction_percent, a.submission_format, a.max_files, a.resubmission,
   a.points::text as points, a.rubric, a.quiz_attempts, a.quiz_keep, a.quiz_reveal, a.quiz_shuffle,
+  a.grade_after_answers,
   to_char(a.published_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as published_at`;
 
 function assignmentOf(row: AssignmentRecord): AssignmentRow {
@@ -116,6 +119,7 @@ function assignmentOf(row: AssignmentRecord): AssignmentRow {
     quizKeep: row.quiz_keep,
     quizReveal: row.quiz_reveal,
     quizShuffle: row.quiz_shuffle,
+    gradeAfterAnswers: row.grade_after_answers,
     publishedAt: row.published_at,
   };
 }
@@ -150,6 +154,7 @@ export interface AssignmentFields {
   quizKeep: QuizKeep | null;
   quizReveal: QuizReveal | null;
   quizShuffle: boolean;
+  gradeAfterAnswers: boolean;
 }
 
 export async function insertAssignment(
@@ -165,7 +170,7 @@ export async function insertAssignment(
     insert into core.assignments (tenant_id, org_id, class_id, class_type, school_year_id,
       grading_period_id, author_user_id, title, audience, available_from, due_at, closes_at,
       late_policy, late_deduction_percent, submission_format, max_files, resubmission, points, rubric,
-      quiz_attempts, quiz_keep, quiz_reveal, quiz_shuffle, category_id)
+      quiz_attempts, quiz_keep, quiz_reveal, quiz_shuffle, category_id, grade_after_answers)
     values (${input.tenantId}::uuid, ${input.orgId}::uuid, ${input.classRow.id}::uuid,
       ${input.classRow.classType}, ${input.classRow.schoolYearId}::uuid,
       ${input.gradingPeriodId}::uuid, ${input.authorUserId}::uuid, ${input.title},
@@ -173,7 +178,7 @@ export async function insertAssignment(
       ${input.closesAt}::timestamptz, ${input.latePolicy}, ${input.lateDeductionPercent},
       ${input.submissionFormat}, ${input.maxFiles}, ${input.resubmission}, ${input.points},
       ${input.rubric}::jsonb, ${input.quizAttempts}, ${input.quizKeep}, ${input.quizReveal},
-      ${input.quizShuffle}, ${input.categoryId}::uuid)
+      ${input.quizShuffle}, ${input.categoryId}::uuid, ${input.gradeAfterAnswers})
     returning id, version`);
   if (!row) throw new Error("assignment was not created");
   return row;
@@ -202,7 +207,8 @@ export async function updateAssignment(
         rubric = ${input.rubric}::jsonb, grading_period_id = ${input.gradingPeriodId}::uuid,
         category_id = ${input.categoryId}::uuid,
         quiz_attempts = ${input.quizAttempts}, quiz_keep = ${input.quizKeep},
-        quiz_reveal = ${input.quizReveal}, quiz_shuffle = ${input.quizShuffle}
+        quiz_reveal = ${input.quizReveal}, quiz_shuffle = ${input.quizShuffle},
+        grade_after_answers = ${input.gradeAfterAnswers}
     where tenant_id = ${input.tenantId}::uuid and id = ${input.id}::uuid
       and version = ${input.expectedVersion} and status = 'active' and state <> 'archived'
     returning version`);
@@ -315,7 +321,7 @@ export async function teacherAssignments(
       count(l.attempt_id) filter (where not coalesce(l.excused, false) and not exists (
         select 1 from core.assessments x
         where x.tenant_id = w.tenant_id and x.attempt_id = l.attempt_id and x.status = 'active'
-          and x.released_at is not null))::int as to_grade,
+          and (x.released_at is not null or x.comments_released_at is not null)))::int as to_grade,
       count(l.student_user_id) filter (where l.attempt_id is null and not coalesce(l.excused, false)
         and l.due_at is not null
         and l.due_at + ${filter.graceMs} * interval '1 millisecond' < ${now}::timestamptz)::int as missing
@@ -511,6 +517,8 @@ export interface WorkRow {
   gradeScaleVersionId: string | null;
   /** Comments the student answered that wait for a grader's reply. */
   awaiting: number;
+  /** Returned with its grade held until the student answers the comments. */
+  held: boolean;
 }
 
 /**
@@ -544,6 +552,7 @@ export async function studentWork(
     shared: boolean;
     grade_scale_version_id: string | null;
     awaiting: number;
+    held: boolean;
   }>(sql`
     select r.student_user_id as student_id, u.full_name_en, u.full_name_ar,
       to_char(coalesce(r.due_at, a.due_at) at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as due_at,
@@ -559,6 +568,7 @@ export async function studentWork(
       to_char(t.submitted_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as submitted_at,
       x.id as assessment_id, x.score::text as score, x.effective_score::text as effective_score,
       x.released_at is not null as released, x.grade_scale_version_id,
+      x.comments_released_at is not null and x.released_at is null as held,
       exists (select 1 from core.family_shares h where h.tenant_id = r.tenant_id
         and h.attempt_id = t.id and h.status = 'active') as shared,
       -- Comments the student answered that no grader has replied to since:
@@ -616,6 +626,7 @@ export async function studentWork(
     shared: row.shared,
     gradeScaleVersionId: row.grade_scale_version_id,
     awaiting: row.awaiting,
+    held: row.held,
   }));
 }
 
@@ -832,6 +843,7 @@ export interface AssessmentRow {
   /** Null when a quiz marked itself. */
   gradedByUserId: string | null;
   releasedAt: string | null;
+  commentsReleasedAt: string | null;
   gradedAt: string;
   gradeScaleVersionId: string | null;
 }
@@ -852,6 +864,7 @@ export async function assessmentOf(
     private_note: string | null;
     graded_by_user_id: string | null;
     released_at: string | null;
+    comments_released_at: string | null;
     graded_at: string;
     grade_scale_version_id: string | null;
   }>(sql`
@@ -859,6 +872,8 @@ export async function assessmentOf(
       rubric_scores, rubric_comments, feedback, private_note, graded_by_user_id,
       grade_scale_version_id,
       to_char(released_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as released_at,
+      to_char(comments_released_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"')
+        as comments_released_at,
       to_char(graded_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as graded_at
     from core.assessments
     where tenant_id = ${tenantId}::uuid and attempt_id = ${attemptId}::uuid and status = 'active'`);
@@ -875,6 +890,7 @@ export async function assessmentOf(
         privateNote: row.private_note,
         gradedByUserId: row.graded_by_user_id,
         releasedAt: row.released_at,
+        commentsReleasedAt: row.comments_released_at,
         gradedAt: row.graded_at,
         gradeScaleVersionId: row.grade_scale_version_id,
       }
@@ -1270,6 +1286,34 @@ export async function removeBankComment(
   return rows.length > 0;
 }
 
+/** Returns the work with its grade held: the comments go out, the grade waits. */
+export async function releaseComments(
+  tx: Tx,
+  tenantId: string,
+  attemptIds: readonly string[],
+): Promise<void> {
+  if (attemptIds.length === 0) return;
+  await tx.execute(sql`
+    update core.assessments set comments_released_at = statement_timestamp()
+    where tenant_id = ${tenantId}::uuid and attempt_id = any(${uuidArray(attemptIds)})
+      and status = 'active' and released_at is null and comments_released_at is null`);
+}
+
+/** How many of an attempt's comments the student has not yet answered. */
+export async function unansweredComments(
+  tx: Tx,
+  tenantId: string,
+  attemptId: string,
+): Promise<number> {
+  const [row] = await tx.execute<{ count: number }>(sql`
+    select count(*)::int as count from core.work_comments c
+    where c.tenant_id = ${tenantId}::uuid and c.attempt_id = ${attemptId}::uuid
+      and c.status = 'active'
+      and not exists (select 1 from core.work_comment_answers a
+        where a.tenant_id = c.tenant_id and a.comment_id = c.id and a.status = 'active')`);
+  return row?.count ?? 0;
+}
+
 /** Releases the assessments of the given attempts, returning the work. */
 export async function releaseAssessments(
   tx: Tx,
@@ -1308,6 +1352,8 @@ export interface LearnerRow {
   releasedAt: string | null;
   effectiveScore: number | null;
   gradeScaleVersionId: string | null;
+  /** Returned with its grade held until the student answers the comments. */
+  held: boolean;
 }
 
 /** The published work a student was given in a year, with their standing on each. */
@@ -1335,6 +1381,7 @@ export async function learnerAssignments(
     is_late: boolean | null;
     submitted_at: string | null;
     released_at: string | null;
+    held: boolean | null;
     effective_score: string | null;
     grade_scale_version_id: string | null;
   }>(sql`
@@ -1352,6 +1399,7 @@ export async function learnerAssignments(
       t.id as attempt_id, t.is_late,
       to_char(t.submitted_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as submitted_at,
       to_char(x.released_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as released_at,
+      x.comments_released_at is not null and x.released_at is null as held,
       case when x.released_at is not null then x.effective_score::text end as effective_score,
       case when x.released_at is not null then x.grade_scale_version_id end as grade_scale_version_id
     from core.assignment_recipients r
@@ -1389,6 +1437,7 @@ export async function learnerAssignments(
     submittedAt: row.submitted_at,
     released: row.released_at !== null,
     releasedAt: row.released_at,
+    held: row.held ?? false,
     effectiveScore:
       row.effective_score === null ? null : Number(row.effective_score),
     gradeScaleVersionId: row.grade_scale_version_id,

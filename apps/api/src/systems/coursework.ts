@@ -42,6 +42,7 @@ import {
   learnerAssignments,
   namesOf,
   releaseAssessments,
+  releaseComments,
   removeBankComment,
   removeComment,
   removeGroup,
@@ -58,6 +59,7 @@ import {
   studentWork,
   teacherAssignments,
   touchSubmission,
+  unansweredComments,
   updateAssignment,
   updateBankComment,
   updateComment,
@@ -131,6 +133,7 @@ import {
   saveGroupSchema,
   saveQuizAnswerSchema,
   saveRubricSchema,
+  showGradeSchema,
   studentWorkActionSchema,
   quizIssue,
   quizPoints,
@@ -380,9 +383,12 @@ registerHostReader("attempt_feedback", async (context, attemptId) => {
     (await teachesClass(context.tx, scopeOf(context), owner.classId))
   )
     return true;
-  return Boolean(
-    (await assessmentOf(context.tx, context.tenantId, attemptId))?.releasedAt,
+  const assessment = await assessmentOf(
+    context.tx,
+    context.tenantId,
+    attemptId,
   );
+  return Boolean(assessment?.releasedAt ?? assessment?.commentsReleasedAt);
 });
 
 /** The classes the viewer may set work for this year, with the choices the editor offers. */
@@ -552,6 +558,8 @@ function fieldsOf(input: SaveAssignment) {
     quizKeep: input.quiz?.keep ?? null,
     quizReveal: input.quiz?.reveal ?? null,
     quizShuffle: input.quiz?.shuffle ?? false,
+    // A quiz marks itself, so it has no comments to answer first.
+    gradeAfterAnswers: !input.quiz && input.gradeAfterAnswers,
   };
 }
 
@@ -839,7 +847,7 @@ export const record = readProcedure
             needsRevision: row.needsRevision,
             hasDraft: row.hasDraft,
             latestAttempt: row.attemptId ? { isLate: row.isLate } : null,
-            released: row.released,
+            released: row.released || row.held,
           },
           context.now,
         ),
@@ -871,7 +879,8 @@ async function handInFor(
   )
     return false;
   if (row.excused) return false;
-  if (row.attemptId && !row.released && !row.needsRevision) return false;
+  if (row.attemptId && !row.released && !row.held && !row.needsRevision)
+    return false;
   const tx = context.tx;
   const submission = await ensureSubmission(tx, {
     tenantId: context.tenantId,
@@ -994,7 +1003,13 @@ export const act = writeProcedure
               userId: context.actor.userId,
               today: context.today,
             });
-          await releaseAssessments(tx, context.tenantId, [row.attemptId]);
+          // Held grades wait for the student to answer every comment first.
+          if (
+            assignment.gradeAfterAnswers &&
+            (await unansweredComments(tx, context.tenantId, row.attemptId)) > 0
+          )
+            await releaseComments(tx, context.tenantId, [row.attemptId]);
+          else await releaseAssessments(tx, context.tenantId, [row.attemptId]);
           await touchSubmission(tx, {
             tenantId: context.tenantId,
             id: row.submissionId,
@@ -1085,18 +1100,23 @@ async function attemptsView(
       const content = stored ? withBlockIds(stored) : null;
       // Files handed in beside the answer, before answers held them.
       const inAnswer = new Set(content ? contentFileIds(content) : []);
+      const returned = Boolean(
+        assessment?.releasedAt ?? assessment?.commentsReleasedAt,
+      );
       const shown =
-        assessment && (includeDrafts || assessment.releasedAt)
-          ? assessment
-          : null;
+        assessment && (includeDrafts || returned) ? assessment : null;
+      // Returned with the grade held, the student reads everything but it.
+      const held = Boolean(
+        assessment?.commentsReleasedAt && !assessment.releasedAt,
+      );
       return {
         ...attempt,
         content,
         files: files.filter((file) => !inAnswer.has(file.id)),
-        recordings: includeDrafts || assessment?.releasedAt ? recordings : [],
+        recordings: includeDrafts || returned ? recordings : [],
         // A student reads the comments with the rest of the returned work.
         comments:
-          includeDrafts || assessment?.releasedAt
+          includeDrafts || returned
             ? comments.map((comment) => ({
                 ...comment,
                 anchor: comment.anchor as unknown as CommentAnchor,
@@ -1106,6 +1126,10 @@ async function attemptsView(
           ? {
               ...shown,
               privateNote: includeDrafts ? shown.privateNote : null,
+              ...(held && !includeDrafts
+                ? { score: null, effectiveScore: null, rubricScores: null }
+                : {}),
+              gradeHeld: held,
             }
           : null,
       };
@@ -1198,8 +1222,12 @@ export const grading = readProcedure
         fullNameEn: item.fullNameEn,
         fullNameAr: item.fullNameAr,
         needsGrading:
-          item.attemptId !== null && !item.released && !item.excused,
-        released: item.released,
+          item.attemptId !== null &&
+          !item.released &&
+          !item.held &&
+          !item.excused,
+        released: item.released || item.held,
+        held: item.held,
         handedIn: item.attemptId !== null,
         excused: item.excused,
         awaiting: item.awaiting,
@@ -1332,11 +1360,33 @@ async function answerableComment(context: UnitContext, commentId: string) {
   if (
     !found ||
     attempt?.studentId !== context.actor.userId ||
-    !assessment?.releasedAt
+    !(assessment?.releasedAt ?? assessment?.commentsReleasedAt)
   )
     throw new ORPCError("NOT_FOUND");
   return found;
 }
+
+/** A held grade goes out once every comment on its attempt is answered. */
+async function releaseIfAnswered(context: UnitContext, attemptId: string) {
+  const assessment = await assessmentOf(
+    context.tx,
+    context.tenantId,
+    attemptId,
+  );
+  if (!assessment?.commentsReleasedAt || assessment.releasedAt) return;
+  if ((await unansweredComments(context.tx, context.tenantId, attemptId)) > 0)
+    return;
+  await releaseAssessments(context.tx, context.tenantId, [attemptId]);
+}
+
+/** Shows a held grade at once, without waiting for the student's answers. */
+export const showGrade = writeProcedure
+  .input(showGradeSchema)
+  .handler(async ({ input, context }) => {
+    const attempt = await commentableAttempt(context, input.attemptId);
+    await releaseAssessments(context.tx, context.tenantId, [attempt.id]);
+    return { shown: true };
+  });
 
 /** The student marks a comment fixed or not understood, or takes that back. */
 export const answerComment = writeProcedure
@@ -1349,6 +1399,7 @@ export const answerComment = writeProcedure
       studentId: context.actor.userId,
       state: input.state || null,
     });
+    if (input.state) await releaseIfAnswered(context, found.attemptId);
     return { state: input.state || null };
   });
 
@@ -1390,6 +1441,8 @@ export const uncomment = writeProcedure
     });
     if (!removed)
       throw new ORPCError("CONFLICT", { message: "conflict.version" });
+    // The comment taken away may have been the last one left to answer.
+    await releaseIfAnswered(context, existing.attemptId);
     return { removed };
   });
 
@@ -1611,7 +1664,7 @@ export const work = readProcedure
           needsRevision: row.needsRevision,
           hasDraft: row.hasDraft,
           latestAttempt: row.attemptId ? { isLate: row.isLate } : null,
-          released: row.released,
+          released: row.released || row.held,
         },
         context.now,
       ),
@@ -1625,7 +1678,7 @@ export const work = readProcedure
             resubmission: assignment.resubmission || row.needsRevision,
           },
           row.attempts,
-          row.released || row.needsRevision,
+          row.released || row.held || row.needsRevision,
           context.now,
         ),
       canUndo:
@@ -1808,7 +1861,7 @@ export const handIn = writeProcedure
           resubmission: assignment.resubmission || row.needsRevision,
         },
         row.attempts,
-        row.released || row.needsRevision,
+        row.released || row.held || row.needsRevision,
         context.now,
       )
     )
@@ -2048,6 +2101,7 @@ export const undoHandIn = writeProcedure
 function learnerView(
   rows: Awaited<ReturnType<typeof learnerAssignments>>,
   now: Date,
+  ownWork: boolean,
 ) {
   return rows
     .filter(
@@ -2064,7 +2118,9 @@ function learnerView(
           needsRevision: row.needsRevision,
           hasDraft: row.hasDraft,
           latestAttempt: row.attemptId ? { isLate: row.isLate } : null,
-          released: row.released,
+          // Work returned with its grade held is back with its student, while
+          // the family hears of it once the grade is shown.
+          released: row.released || (ownWork && row.held),
         },
         now,
       ),
@@ -2075,12 +2131,13 @@ function learnerView(
 async function learnerRows(
   context: UnitContext,
   rows: Awaited<ReturnType<typeof learnerAssignments>>,
+  ownWork = false,
 ) {
   const grade = await gradeReader(
     context,
     rows.map((row) => row.gradeScaleVersionId),
   );
-  return learnerView(rows, context.now).map((row) => ({
+  return learnerView(rows, context.now, ownWork).map((row) => ({
     ...row,
     grade: grade(row.gradeScaleVersionId, row.effectiveScore, row.points),
   }));
@@ -2097,7 +2154,7 @@ export const mine = readProcedure.handler(async ({ context }) => {
     yearId: year.id,
   });
   return {
-    rows: await learnerRows(context, rows),
+    rows: await learnerRows(context, rows, true),
     now: context.now.toISOString(),
   };
 });

@@ -186,6 +186,11 @@ function AttemptItem({ data, attempt }: { data: Data; attempt: Attempt }) {
       ) : null}
       {assessment ? (
         <div className="grid gap-2 rounded-lg bg-muted/50 p-3">
+          {assessment.gradeHeld ? (
+            <p className="text-sm leading-5 font-medium">
+              {m.courseworkGradeHeldStudent()}
+            </p>
+          ) : null}
           {assessment.effectiveScore !== null || assessment.score !== null ? (
             <p className="text-sm leading-5 font-medium tabular-nums">
               {resultText(
