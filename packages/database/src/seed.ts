@@ -4,6 +4,7 @@ import {
   plainContent,
 } from "@faridalms/domain/content-conversion";
 import { CATALOGUE } from "@faridalms/domain/descriptors/catalogue";
+import { normaliseIdentifier } from "@faridalms/domain/identifiers";
 import { addDays, teachingWeeks } from "@faridalms/domain/school";
 import {
   buildTemplate,
@@ -20,7 +21,7 @@ import type { Audience } from "./stores/audiences";
 import type { ProvisionedTenant, TenantSpec } from "./tenants";
 
 import { withPurpose } from "./context";
-import { encryptField } from "./crypto";
+import { encryptField, lookupHmac } from "./crypto";
 import { newUserHandle } from "./stores/accounts";
 import { addRecipients } from "./stores/announcements";
 import { audienceUsers, setAudiences } from "./stores/audiences";
@@ -1168,6 +1169,7 @@ async function seedSchool(
       }
       if (index === 1 && grade === plan.grades[1]) {
         await seedHealth(tx, tenantId, student.id, context);
+        await seedIdentity(tx, tenantId, student.id, context);
         const religions = await descriptorIds(tx, tenantId, "religion");
         await withPurpose(tx, "demographics", (inner) =>
           inner.insert(demographics).values({
@@ -2409,6 +2411,87 @@ async function seedHealth(
     .update(users)
     .set({ medicalAlert: true })
     .where(and(eq(users.tenantId, tenantId), eq(users.id, studentId)));
+}
+
+async function dataKey(
+  tx: Tx,
+  tenantId: string,
+  purpose: "identifiers" | "identifier_lookup",
+  context: { kek: KeyEncryptionKey; cell: string },
+) {
+  const [key] = await tx
+    .select()
+    .from(tenantKeys)
+    .where(
+      and(eq(tenantKeys.tenantId, tenantId), eq(tenantKeys.purpose, purpose)),
+    );
+  if (!key) throw new Error(`tenant has no ${purpose} key`);
+  return {
+    version: key.keyVersion,
+    key: await context.kek.unwrap(new Uint8Array(key.wrappedDek), {
+      cell: context.cell,
+      tenantId,
+      purpose,
+      keyVersion: key.keyVersion,
+    }),
+  };
+}
+
+/**
+ * An Egyptian national ID agreeing with the student's birth date, and a
+ * passport running out soon, so the office sees both kinds of document and
+ * the warning a passport near its end raises.
+ */
+async function seedIdentity(
+  tx: Tx,
+  tenantId: string,
+  studentId: string,
+  context: { kek: KeyEncryptionKey; cell: string },
+) {
+  const [student] = await tx
+    .select({ birthDate: users.birthDate })
+    .from(users)
+    .where(and(eq(users.tenantId, tenantId), eq(users.id, studentId)));
+  if (!student?.birthDate) return;
+  const [identifiers, lookup] = await Promise.all([
+    dataKey(tx, tenantId, "identifiers", context),
+    dataKey(tx, tenantId, "identifier_lookup", context),
+  ]);
+  const systems = await descriptorIds(tx, tenantId, "external_id_system");
+  const [year, month, day] = student.birthDate.split("-");
+  const serial = String(
+    Number.parseInt(studentId.replaceAll("-", "").slice(-6), 16) % 10_000,
+  ).padStart(4, "0");
+  const nationalId = `${year?.startsWith("20") ? "3" : "2"}${year?.slice(2)}${month}${day}01${serial}5`;
+  const passport = `A${studentId.replaceAll("-", "").slice(-8).toUpperCase()}`;
+  for (const [system, number, last4, until] of [
+    ["national_id", nationalId, null, null],
+    ["passport", passport, passport.slice(-4), "2026-11-21"],
+  ] as const) {
+    const id = Bun.randomUUIDv7();
+    const ciphertext = await encryptField(identifiers.key, number, {
+      tenantId,
+      table: "core.external_ids",
+      column: "identifier_ciphertext",
+      rowId: id,
+      keyVersion: identifiers.version,
+    });
+    await tx.insert(externalIds).values({
+      tenantId,
+      id,
+      userId: studentId,
+      systemDescriptorId: need(systems, system),
+      systemMeaning: system,
+      identifierCiphertext: Buffer.from(ciphertext),
+      identifierHmac: Buffer.from(
+        await lookupHmac(lookup.key, normaliseIdentifier(number)),
+      ),
+      identifierLast4: last4,
+      keyVersion: identifiers.version,
+      issuingCountryCode: "EG",
+      validDuring: until ? `[2022-01-10,${until})` : "[2024-09-01,)",
+    });
+  }
 }
 
 export const SEED_TENANTS: {

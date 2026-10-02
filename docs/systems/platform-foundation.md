@@ -1803,8 +1803,9 @@ by the person it belongs to: `edfi_uri` holds the
 `StudentIdentificationSystemDescriptor` URI, and staff and contact exports
 take `StaffIdentificationSystemDescriptor` and
 `ContactIdentificationSystemDescriptor` from the last column by meaning.
-Meanings `national_id` and `passport` are sensitive: their values are stored
-sealed (section 6.7).
+Meanings `national_id`, `passport`, `residence_permit` and
+`birth_certificate` are identity documents: their values are stored sealed
+(section 6.7).
 
 | code              | en                                | ar                              | meaning           | OneRoster type  | Ed-Fi student  | Ed-Fi staff and contact |
 | ----------------- | --------------------------------- | ------------------------------- | ----------------- | --------------- | -------------- | ----------------------- |
@@ -2752,7 +2753,8 @@ create index external_ids_delta_idx on core.external_ids (tenant_id, date_last_m
 - An identifier is unique per system and assigning org among active rows. It
   is never reassigned to another person; a reissued number is a new row and
   the old one is end-dated.
-- **Sensitive systems** (meanings `national_id`, `passport`) must be sealed,
+- **Sensitive systems** (meanings `national_id`, `passport`,
+  `residence_permit`, `birth_certificate`) must be sealed,
   which the meaning-pinned foreign key lets a check enforce:
   `identifier_ciphertext` (AES-256-GCM under the tenant's `identifiers` key,
   format and AAD as in section 6.6) and `identifier_hmac` (HMAC-SHA-256 of the
@@ -2767,6 +2769,15 @@ create index external_ids_delta_idx on core.external_ids (tenant_id, date_last_m
   national id is shown masked from the decrypted value on an audited read.
 - A student number that can open records on its own is not directory
   information (FERPA §99.3, [R3] section 5); badges never encode it.
+- **Documents on the record.** A document row also keeps
+  `issuing_country_code`, and `valid_during` runs from issue to the day after
+  expiry, so a renewed passport is a new row beside the old one. The record's
+  Details tab lists them masked to anyone with `people:manage` or
+  `identifiers:read`; showing one in full needs `identifiers:read` and is
+  audited. The student list finds a student by an exact document number
+  through the HMAC, and the office's home lists documents running out within
+  60 days. An Egyptian national id is checked for form and its birth date
+  compared with the record's.
 
 - **There are no households.** A family is the set of guardian links
   (section 6.8): where a child lives is `residence` on each link, so a child

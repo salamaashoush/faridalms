@@ -16,6 +16,7 @@ import * as frontDeskSystem from "./systems/front-desk";
 import * as gradebookSystem from "./systems/gradebook";
 import * as gradingSystem from "./systems/grading";
 import * as homeSystem from "./systems/home";
+import * as identifiersSystem from "./systems/identifiers";
 import * as identity from "./systems/identity";
 import * as learningSystem from "./systems/learning";
 import * as librarySystem from "./systems/library";
@@ -34,6 +35,7 @@ import * as timetableSystem from "./systems/timetable";
 import * as yearsSystem from "./systems/years";
 
 export const router = {
+  identifiers: identifiersSystem,
   identity,
   people: peopleSystem,
   badges: badgesSystem,

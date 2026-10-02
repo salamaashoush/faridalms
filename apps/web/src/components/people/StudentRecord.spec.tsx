@@ -111,6 +111,7 @@ const RECORD: StudentData = {
   access: {
     manage: true,
     consents: false,
+    identifiers: false,
     contacts: true,
     health: false,
     demographics: false,

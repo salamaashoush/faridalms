@@ -26,6 +26,7 @@ import {
 } from "@faridalms/database/stores/coursework";
 import { changesOn } from "@faridalms/database/stores/cover";
 import { eventsBetween } from "@faridalms/database/stores/events";
+import { expiringDocuments } from "@faridalms/database/stores/identifiers";
 import { schoolProfile } from "@faridalms/database/stores/identity";
 import { studentModules } from "@faridalms/database/stores/learning";
 import { threadsOf, unreadThreads } from "@faridalms/database/stores/messages";
@@ -47,6 +48,10 @@ import {
 } from "@faridalms/database/stores/years";
 import { ATTENDANCE_MEANINGS, summarise } from "@faridalms/domain/attendance";
 import { GRACE_MS, learnerState } from "@faridalms/domain/coursework";
+import {
+  EXPIRY_WARNING_DAYS,
+  SEALED_MEANINGS,
+} from "@faridalms/domain/identifiers";
 import { addDays } from "@faridalms/domain/school";
 import { isoWeekday } from "@faridalms/domain/timetable";
 import { ORPCError } from "@orpc/server";
@@ -891,6 +896,7 @@ export const admin = readProcedure.handler(async ({ context }) => {
           working: true,
           q: "",
           phone: null,
+          documentHolders: [],
           gradeIds: [],
           statuses: [],
           missingGuardian: true,
@@ -993,6 +999,17 @@ export const admin = readProcedure.handler(async ({ context }) => {
       };
     }
   }
+  const documents = can(context, "people:manage")
+    ? (
+        await expiringDocuments(context.tx, {
+          tenantId: context.tenantId,
+          schoolId: context.schoolId,
+          today: context.today,
+          until: addDays(context.today, EXPIRY_WARNING_DAYS),
+          meanings: SEALED_MEANINGS,
+        })
+      ).slice(0, 5)
+    : [];
   return {
     today: context.today,
     registers,
@@ -1000,6 +1017,7 @@ export const admin = readProcedure.handler(async ({ context }) => {
     guardians,
     homerooms,
     failed,
+    documents,
     attendance,
     events,
     communications: [...announcements, ...news],

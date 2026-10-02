@@ -1,6 +1,11 @@
 import { queryOptions } from "@tanstack/react-query";
 
-import { getCustody, getDemographics, getHealth } from "~/server/records";
+import {
+  getCustody,
+  getDemographics,
+  getHealth,
+  getIdentifiers,
+} from "~/server/records";
 
 export const healthQuery = (studentId: string) =>
   queryOptions({
@@ -18,4 +23,10 @@ export const custodyQuery = (studentId: string) =>
   queryOptions({
     queryKey: ["people", "student", studentId, "custody"],
     queryFn: () => getCustody({ data: { studentId } }),
+  });
+
+export const identifiersQuery = (studentId: string) =>
+  queryOptions({
+    queryKey: ["people", "student", studentId, "identifiers"],
+    queryFn: () => getIdentifiers({ data: { studentId } }),
   });

@@ -66,6 +66,8 @@ export interface DirectoryFilter {
   working: boolean;
   q: string;
   phone: string | null;
+  /** Students whose identity document number the search matched exactly. */
+  documentHolders: string[];
   gradeIds: string[];
   statuses: StudentStatus[];
   missingGuardian: boolean;
@@ -110,7 +112,7 @@ export async function studentDirectory(
         ? sql`array_position(${uuidArray(filter.gradeOrder)}, p.grade_level_descriptor_id) ${direction} nulls last, ${nameKey}, u.id`
         : sql`${nameKey} ${direction}, u.id`;
   const q = filter.q.trim();
-  const search =
+  const words =
     q === ""
       ? sql`true`
       : filter.phone
@@ -120,6 +122,10 @@ export async function studentDirectory(
                   and c.status = 'active' and c.kind = 'phone' and c.normalized = ${filter.phone})`
         : sql`(upper(u.reference) = upper(${q})
                or u.id in (select result_id from app.search(${q}, array['user'], ${uuidArray([scope.schoolId])})))`;
+  const search =
+    filter.documentHolders.length > 0
+      ? sql`(${words} or u.id = any(${uuidArray(filter.documentHolders)}))`
+      : words;
   const rows = await tx.execute<{
     id: string;
     full_name_en: string | null;

@@ -2,6 +2,7 @@ import type { Descriptor } from "@faridalms/database/stores/descriptors";
 import type { Scope } from "@faridalms/database/stores/students";
 import type { StudentStatus } from "@faridalms/domain/people";
 
+import { lookupHmac } from "@faridalms/database/crypto";
 import { rolesForSchool } from "@faridalms/database/stores/access";
 import {
   createPasswordAccount,
@@ -18,6 +19,7 @@ import {
 } from "@faridalms/database/stores/descriptors";
 import { filesByIds, linkFiles } from "@faridalms/database/stores/files";
 import { historyOf } from "@faridalms/database/stores/history";
+import { studentsByIdentifier } from "@faridalms/database/stores/identifiers";
 import { schoolProfile } from "@faridalms/database/stores/identity";
 import {
   childrenOf,
@@ -67,6 +69,7 @@ import {
   schoolYears,
   workingYear,
 } from "@faridalms/database/stores/years";
+import { normaliseIdentifier } from "@faridalms/domain/identifiers";
 import {
   addressLine,
   endRelationshipSchema,
@@ -239,6 +242,25 @@ export const students = readProcedure
     const phone = /^[+0-9 ()-]{7,}$/.test(input.q)
       ? toE164(input.q, await countryOf(context))
       : null;
+    const number = normaliseIdentifier(input.q);
+    const documentHolders =
+      /^[A-Z0-9]{5,64}$/.test(number) &&
+      (can(context, "people:manage") || can(context, "identifiers:read"))
+        ? await studentsByIdentifier(context.tx, {
+            tenantId: context.tenantId,
+            plain: number,
+            hmac: await lookupHmac(
+              (
+                await context.keys.active(
+                  context.tx,
+                  context.tenantId,
+                  "identifier_lookup",
+                )
+              ).key,
+              number,
+            ),
+          })
+        : [];
     const { rows, total } = await studentDirectory(
       context.tx,
       scopeOf(context),
@@ -247,6 +269,7 @@ export const students = readProcedure
         working: year.id === working?.id,
         q: input.q,
         phone,
+        documentHolders,
         gradeIds: input.grade,
         statuses: input.status,
         missingGuardian: input.missing.includes("guardian"),
@@ -339,6 +362,8 @@ export const student = readProcedure
         manage: can(context, "people:manage"),
         consents:
           can(context, "people:manage") || can(context, "privacy:manage"),
+        identifiers:
+          can(context, "people:manage") || can(context, "identifiers:read"),
         contacts: guardians !== null,
         health: can(context, "health:read"),
         demographics: can(context, "demographics:read"),

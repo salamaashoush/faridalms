@@ -178,6 +178,11 @@ is a separate, explicit step; the old year becomes read-only.
   it; a refused photo consent shows as a No photos alert. A new version asks
   again while the earlier answer stays in force; in Egypt an answer given
   for a child under 15 is due again at 15.
+- **Identity documents:** national ID, passport, residence permit, birth
+  certificate and exam board numbers on the Details tab, document numbers
+  masked until someone allowed asks to see them. A renewed passport is added
+  beside the old one; the office's home lists documents running out within
+  60 days, and the student list finds a student by an exact number.
 - **Photos of students:** news and website pages list their pictures with
   the students named in each and whether each family agreed to that place.
   Publishing refuses a picture of a student without a yes, and a family's

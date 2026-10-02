@@ -277,6 +277,8 @@ export const externalIds = core.table.withRLS(
     ),
     keyVersion: integer("key_version"),
     assigningOrgId: uuid("assigning_org_id"),
+    /** The country that issued a passport, residence permit or ID card. */
+    issuingCountryCode: text("issuing_country_code"),
     validDuring: daterange("valid_during").notNull(),
     ...entityColumns(),
   },
@@ -337,7 +339,12 @@ export const externalIds = core.table.withRLS(
     ck(
       "external_ids",
       "sensitive",
-      sql`system_meaning not in ('national_id', 'passport') or identifier_ciphertext is not null`,
+      sql`system_meaning not in ('national_id', 'passport', 'residence_permit', 'birth_certificate') or identifier_ciphertext is not null`,
+    ),
+    ck(
+      "external_ids",
+      "issuing_country_code",
+      sql`issuing_country_code ~ '^[A-Z]{2}$'`,
     ),
     ck(
       "external_ids",

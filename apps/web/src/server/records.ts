@@ -1,4 +1,8 @@
 import {
+  identifierRefSchema,
+  saveIdentifierSchema,
+} from "@faridalms/domain/identifiers";
+import {
   removeHealthRecordSchema,
   saveCustodySchema,
   saveDemographicsSchema,
@@ -39,3 +43,19 @@ export const getCustody = createServerFn({ method: "GET" })
 export const saveCustody = createServerFn({ method: "POST" })
   .validator(checked(saveCustodySchema))
   .handler(({ data }) => backend().records.saveCustody(data));
+
+export const getIdentifiers = createServerFn({ method: "GET" })
+  .validator(checked(student))
+  .handler(({ data }) => record(backend().identifiers.list(data)));
+
+export const revealIdentifier = createServerFn({ method: "POST" })
+  .validator(checked(v.object({ id: v.pipe(v.string(), v.uuid()) })))
+  .handler(({ data }) => backend().identifiers.reveal(data));
+
+export const saveIdentifier = createServerFn({ method: "POST" })
+  .validator(checked(saveIdentifierSchema))
+  .handler(({ data }) => backend().identifiers.save(data));
+
+export const removeIdentifier = createServerFn({ method: "POST" })
+  .validator(checked(identifierRefSchema))
+  .handler(({ data }) => backend().identifiers.remove(data));

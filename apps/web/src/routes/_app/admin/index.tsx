@@ -18,9 +18,11 @@ import {
   HomeList,
   itemLink,
 } from "~/components/home/parts";
+import { displayName } from "~/components/people/format";
 import { EmptyState, PageHeader } from "~/components/system/IndexPage";
 import { Fact, Facts, RecordColumns } from "~/components/system/RecordPage";
 import { StatusText } from "~/components/system/status";
+import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { adminHomeQuery } from "~/queries/home";
 import { remindTeachers } from "~/server/attendance";
@@ -260,6 +262,31 @@ function AdminToday() {
               </StatusText>
             }
           />
+        </HomeList>
+      </HomeCard>
+    ) : null,
+    data.documents.length > 0 ? (
+      <HomeCard key="documents" title={m.homeDocumentsExpiring()}>
+        <HomeList>
+          {data.documents.map((row) => (
+            <HomeItem
+              key={`${row.studentId}-${row.meaning}`}
+              title={
+                <Link
+                  to="/students/$studentId"
+                  params={{ studentId: row.studentId }}
+                  search={{ tab: "details" }}
+                  className={itemLink}
+                >
+                  <bdi>{displayName(row)}</bdi>
+                </Link>
+              }
+              facts={[
+                inLocale(row.labelEn, row.labelAr),
+                m.identityExpires({ date: formatDate(row.expiresOn) }),
+              ]}
+            />
+          ))}
         </HomeList>
       </HomeCard>
     ) : null,

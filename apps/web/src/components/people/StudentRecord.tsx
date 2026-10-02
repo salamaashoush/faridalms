@@ -64,6 +64,7 @@ import {
   STATUS_LABEL,
   STATUS_TONE,
 } from "./format";
+import { IdentitySection } from "./IdentitySection";
 import { PhotoDialog } from "./PhotoDialog";
 import { Deferred, Email, HistorySection, Phone } from "./record-parts";
 import {
@@ -570,6 +571,11 @@ export function StudentRecord({
                 data={data}
                 onEdit={access.manage ? open({ kind: "personal" }) : undefined}
               />
+              {access.identifiers ? (
+                <Deferred>
+                  <IdentitySection studentId={studentId} />
+                </Deferred>
+              ) : null}
               {access.demographics ? (
                 <Deferred>
                   <DemographicsSection studentId={studentId} />

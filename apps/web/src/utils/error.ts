@@ -157,6 +157,14 @@ export function getMessageFromError(error: unknown): string {
         return m.newsBodyNeeded();
       case "news.nothing_to_check":
         return m.translationErrNothingToCheck();
+      case "external_id.taken":
+        return m.identifiersErrTaken();
+      case "identifiers.egypt":
+        return m.identifiersErrEgypt();
+      case "identifiers.dates":
+        return m.identifiersErrDates();
+      case "identifiers.number":
+        return m.validationRequired();
       case "consents.draft_open":
         return m.consentErrDraftOpen();
       case "consents.published":
