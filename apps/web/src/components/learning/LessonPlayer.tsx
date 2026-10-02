@@ -514,6 +514,7 @@ export function LessonPlayer({ lessonId }: { lessonId: string }) {
           checks={shown.checks}
           driver={driver}
           readAlong={data.readAlong}
+          classSounds={data.sounds}
           position={data.position}
           onReach={reach}
           onClose={() =>

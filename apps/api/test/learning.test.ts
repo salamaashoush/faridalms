@@ -508,6 +508,33 @@ describe("teaching a module", () => {
     ).toMatchObject({ code: "NOT_FOUND" });
   });
 
+  test("a teacher turns a class's lesson sounds off, and its students play quietly", async () => {
+    const { keeper } = await teachers();
+    const { rows } = await keeper.learning.modules({});
+    const module = rows.find((row) => row.title === TITLE);
+    const target = module?.classes[0];
+    if (!module || !target) throw new Error("no module");
+    const pupil = await student();
+    const { lessons } = await pupil.learning.play({ id: module.id });
+    const lesson = lessons.find((row) => row.state !== "locked");
+    if (!lesson) throw new Error("no open lesson");
+
+    expect(await keeper.learning.classSounds({ classId: target.id })).toEqual({
+      on: true,
+    });
+    expect((await pupil.learning.playLesson({ id: lesson.id })).sounds).toBe(
+      true,
+    );
+    await keeper.learning.setClassSounds({ classId: target.id, on: false });
+    expect((await pupil.learning.playLesson({ id: lesson.id })).sounds).toBe(
+      false,
+    );
+    await keeper.learning.setClassSounds({ classId: target.id, on: true });
+    expect(
+      await rejection(pupil.learning.classSounds({ classId: target.id })),
+    ).toMatchObject({ code: "FORBIDDEN" });
+  });
+
   test("a module opens only with a lesson that says something, and copies as a draft", async () => {
     const { keeper } = await teachers();
     const { classes } = await keeper.learning.options();

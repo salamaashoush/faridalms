@@ -787,3 +787,46 @@ export async function publishedLessons(
           and v.redacted_at is null)`);
   return new Set(rows.map((row) => row.host_id));
 }
+
+/** Whether a class's lessons tick and chime as its children answer. */
+export async function lessonSoundsOf(
+  tx: Tx,
+  tenantId: string,
+  classId: string,
+): Promise<boolean | null> {
+  const [row] = await tx.execute<{ lesson_sounds: boolean }>(sql`
+    select lesson_sounds from core.classes
+    where tenant_id = ${tenantId}::uuid and id = ${classId}::uuid and status = 'active'`);
+  return row ? row.lesson_sounds : null;
+}
+
+export async function setLessonSounds(
+  tx: Tx,
+  input: { tenantId: string; classId: string; on: boolean },
+) {
+  await tx.execute(sql`
+    update core.classes set lesson_sounds = ${input.on}
+    where tenant_id = ${input.tenantId}::uuid and id = ${input.classId}::uuid and status = 'active'`);
+}
+
+/**
+ * Whether a student plays a module's lessons without sound effects: one of
+ * the module's classes they sit in has them off. A subject class follows
+ * its homeroom's roster, as everywhere else.
+ */
+export async function quietLessons(
+  tx: Tx,
+  input: { tenantId: string; moduleId: string; studentId: string; on: string },
+): Promise<boolean> {
+  const [row] = await tx.execute<{ quiet: boolean }>(sql`
+    select exists (
+      select 1 from core.module_classes x
+      join core.classes c on c.tenant_id = x.tenant_id and c.id = x.class_id and c.status = 'active'
+      join core.enrollments e on e.tenant_id = c.tenant_id
+        and e.class_id = coalesce(c.homeroom_class_id, c.id)
+        and e.user_id = ${input.studentId}::uuid and e.role = 'student' and e.status = 'active'
+        and e.valid_during @> ${input.on}::date
+      where x.tenant_id = ${input.tenantId}::uuid and x.module_id = ${input.moduleId}::uuid
+        and x.status = 'active' and not c.lesson_sounds) as quiet`);
+  return row?.quiet ?? false;
+}

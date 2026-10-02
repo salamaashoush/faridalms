@@ -1,0 +1,1 @@
+ALTER TABLE "core"."classes" ADD COLUMN "lesson_sounds" boolean DEFAULT true NOT NULL;

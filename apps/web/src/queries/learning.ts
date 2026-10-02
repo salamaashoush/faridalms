@@ -8,6 +8,7 @@ import {
   getModuleProgress,
   getModuleRecord,
   getMyModules,
+  getClassSounds,
   getNextLessons,
   getTeachingModules,
   getWrittenAnswers,
@@ -82,4 +83,10 @@ export const lessonQuery = (id: string) =>
     queryKey: ["learning", "play", id],
     queryFn: () => openLesson({ data: { id } }),
     staleTime: Number.POSITIVE_INFINITY,
+  });
+
+export const classSoundsQuery = (classId: string) =>
+  queryOptions({
+    queryKey: ["learning", "class-sounds", classId],
+    queryFn: () => getClassSounds({ data: { classId } }),
   });

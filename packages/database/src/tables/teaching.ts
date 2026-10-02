@@ -122,6 +122,11 @@ export const classes = core.table.withRLS(
     programmeId: uuid("programme_id"),
     /** Empty to grade on the programme's scale. */
     gradeScaleId: uuid("grade_scale_id"),
+    /**
+     * Ticks and chimes as children answer in lessons; a teacher turns them
+     * off for a room full of tablets. Recorded and read words still play.
+     */
+    lessonSounds: boolean("lesson_sounds").notNull().default(true),
     ...entityColumns(),
   },
   (t): PgTableExtraConfigValue[] => [

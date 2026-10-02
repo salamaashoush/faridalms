@@ -1,4 +1,5 @@
 import {
+  classSoundsSchema,
   duplicateModuleSchema,
   markSchema,
   moduleRefSchema,
@@ -8,6 +9,7 @@ import {
   progressQuerySchema,
   publishModuleSchema,
   respondSchema,
+  setClassSoundsSchema,
   revealSchema,
   saveLessonSchema,
   saveModuleSchema,
@@ -138,3 +140,11 @@ export const completeLesson = createServerFn({ method: "POST" })
 export const saveReadingPosition = createServerFn({ method: "POST" })
   .validator(checked(positionSchema))
   .handler(({ data }) => backend().learning.position(data));
+
+export const getClassSounds = createServerFn({ method: "GET" })
+  .validator(checked(classSoundsSchema))
+  .handler(({ data }) => backend().learning.classSounds(data));
+
+export const changeClassSounds = createServerFn({ method: "POST" })
+  .validator(checked(setClassSoundsSchema))
+  .handler(({ data }) => backend().learning.setClassSounds(data));

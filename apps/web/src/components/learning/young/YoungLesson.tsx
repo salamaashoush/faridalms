@@ -30,7 +30,7 @@ import { PictureAnswer } from "../PictureAnswer";
 import { ReadAloud, sayAloud, sayInOrder, stopSounds } from "../ReadAloud";
 import { Burst } from "./motion";
 import { useReadAlong } from "./readAlong";
-import { playSound, setSoundsOn, soundsOn } from "./sounds";
+import { playSound, setClassSounds, setSoundsOn, soundsOn } from "./sounds";
 import { FoundContext, YoungChoice } from "./YoungChoice";
 import { YoungCounting } from "./YoungCounting";
 import { YoungHotspot } from "./YoungHotspot";
@@ -240,6 +240,7 @@ export function YoungLesson({
   next,
   badge,
   readAlong = true,
+  classSounds = true,
 }: {
   title: string;
   blocks: StudentBlock[];
@@ -256,6 +257,8 @@ export function YoungLesson({
   badge?: string;
   /** Lights each word as the browser's voice reads it. */
   readAlong?: boolean;
+  /** Whether the child's class lets lessons tick and chime at all. */
+  classSounds?: boolean;
 }) {
   const steps = useMemo(() => lessonSteps(blocks), [blocks]);
   const hydrated = useHydrated();
@@ -264,6 +267,10 @@ export function YoungLesson({
   const page = useRef<HTMLDivElement>(null);
   const stage = useRef<HTMLDialogElement>(null);
   useReadAlong(stage, readAlong);
+  useEffect(() => {
+    setClassSounds(classSounds);
+    return () => setClassSounds(true);
+  }, [classSounds]);
   const finished = useRef(false);
   // No screen has opened yet, so nothing is a holdover from one.
   const opened = useRef(Number.NEGATIVE_INFINITY);
@@ -414,24 +421,26 @@ export function YoungLesson({
               {badge}
             </span>
           ) : null}
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className={round}
-            aria-pressed={!sounds}
-            aria-label={sounds ? m.lrnYoungSoundsOff() : m.lrnYoungSoundsOn()}
-            onClick={() => {
-              setSoundsOn(!sounds);
-              setSounds(!sounds);
-            }}
-          >
-            {sounds ? (
-              <Volume2 aria-hidden className="size-6" />
-            ) : (
-              <VolumeX aria-hidden className="size-6" />
-            )}
-          </Button>
+          {classSounds ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon"
+              className={round}
+              aria-pressed={!sounds}
+              aria-label={sounds ? m.lrnYoungSoundsOff() : m.lrnYoungSoundsOn()}
+              onClick={() => {
+                setSoundsOn(!sounds);
+                setSounds(!sounds);
+              }}
+            >
+              {sounds ? (
+                <Volume2 aria-hidden className="size-6" />
+              ) : (
+                <VolumeX aria-hidden className="size-6" />
+              )}
+            </Button>
+          ) : null}
         </header>
 
         <div

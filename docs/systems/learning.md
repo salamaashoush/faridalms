@@ -91,6 +91,9 @@ From [../research/early-years.md](../research/early-years.md).
   the browser names each word as it speaks (Safari does, Chrome's network
   voices do not), the word lights in a marker's yellow; a lesson setting
   turns this off.
+- A teacher of a young class turns its lesson sound effects off on the
+  class page, for a room full of tablets; read and recorded words still
+  play, and the child's own sound button goes.
 - Children see no points or scores. Soft notes and a word of praise naming
   what they did answer each try, and the end of the lesson says so once.
 - A young child's home is up to six big cards, a lesson already begun first,

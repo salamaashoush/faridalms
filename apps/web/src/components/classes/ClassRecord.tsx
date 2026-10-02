@@ -3,8 +3,14 @@ import type { ReactNode } from "react";
 import { YOUNG_STUDENT_GRADES } from "@faridalms/domain/descriptors/catalogue";
 import { Button } from "@faridalms/ui/button";
 import { cn } from "@faridalms/ui/cn";
-import { useSuspenseQuery } from "@tanstack/react-query";
+import {
+  useMutation,
+  useQuery,
+  useQueryClient,
+  useSuspenseQuery,
+} from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
+import { useServerFn } from "@tanstack/react-start";
 import { ArrowRightLeft, Pencil, Plus, QrCode, UserMinus } from "lucide-react";
 import { useState } from "react";
 
@@ -30,7 +36,10 @@ import { ClassWeek } from "~/components/timetable/Weeks";
 import { inLocale, useCapability } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { classOptionsQuery, classRecordQuery } from "~/queries/classes";
+import { classSoundsQuery } from "~/queries/learning";
+import { changeClassSounds } from "~/server/learning";
 
+import { CheckboxRow } from "../people/fields";
 import { displayName, labelOf } from "../people/format";
 import { AddStudentSheet, MoveClassSheet, WithdrawSheet } from "./Enrolment";
 import { classTitle, subjectName } from "./format";
@@ -167,6 +176,33 @@ function SubjectsSection({ data }: { data: ClassData }) {
           })}
         </RecordList>
       )}
+    </RecordSection>
+  );
+}
+
+/**
+ * Whether lessons tick and chime as this class's children answer. A room of
+ * tablets is loud; words still play, since children who cannot read need
+ * them.
+ */
+function LessonSoundsSection({ classId }: { classId: string }) {
+  const queryClient = useQueryClient();
+  const sounds = useQuery(classSoundsQuery(classId));
+  const change = useServerFn(changeClassSounds);
+  const save = useMutation({
+    mutationFn: (on: boolean) => change({ data: { classId, on } }),
+    onSuccess: (result) =>
+      queryClient.setQueryData(classSoundsQuery(classId).queryKey, result),
+  });
+  if (!sounds.data) return null;
+  return (
+    <RecordSection title={m.classesLessons()}>
+      <CheckboxRow
+        label={m.classesLessonSounds()}
+        hint={m.classesLessonSoundsHint()}
+        checked={save.isPending ? save.variables : sounds.data.on}
+        onChange={(on) => save.mutate(on)}
+      />
     </RecordSection>
   );
 }
@@ -366,6 +402,9 @@ export function ClassRecord({
   const keepsClasses = useCapability("classes:manage");
   const teaches = useCapability("assignments:author");
   const keepsGrading = keepsExams || keepsClasses;
+  const youngClass = (
+    YOUNG_STUDENT_GRADES as readonly (string | null | undefined)[]
+  ).includes(options.grades.find((row) => row.id === data.gradeId)?.meaning);
   const title = classTitle(data);
   const grade = labelOf(
     options.grades.find((row) => row.id === data.gradeId) ?? null,
@@ -436,6 +475,9 @@ export function ClassRecord({
         aside={
           <>
             <TeachersSection data={data} />
+            {youngClass && (teaches || keepsClasses) && data.access.staff ? (
+              <LessonSoundsSection classId={data.id} />
+            ) : null}
             {keepsGrading || teaches ? (
               <ClassGradingSection
                 classId={data.id}

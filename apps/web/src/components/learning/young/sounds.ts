@@ -5,6 +5,13 @@ const KEY = "farida:lesson-sounds";
 
 let context: AudioContext | null = null;
 
+// A class whose teacher turned lesson sounds off stays quiet on every device.
+let classAllows = true;
+
+export function setClassSounds(on: boolean) {
+  classAllows = on;
+}
+
 export function soundsOn(): boolean {
   try {
     return localStorage.getItem(KEY) !== "off";
@@ -48,7 +55,8 @@ function note(
  * little run at the end.
  */
 export function playSound(kind: "tap" | "right" | "wrong" | "done") {
-  if (!soundsOn() || typeof AudioContext === "undefined") return;
+  if (!classAllows || !soundsOn() || typeof AudioContext === "undefined")
+    return;
   context ??= new AudioContext();
   // Started by the child's tap, which is what lets a page make sound.
   if (context.state === "suspended") void context.resume();

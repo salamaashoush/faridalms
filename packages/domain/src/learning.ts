@@ -1766,3 +1766,6 @@ export function responseIssue(
   }
   return null;
 }
+
+export const classSoundsSchema = v.object({ classId: id });
+export const setClassSoundsSchema = v.object({ classId: id, on: v.boolean() });

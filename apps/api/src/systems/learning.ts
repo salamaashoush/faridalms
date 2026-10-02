@@ -22,6 +22,7 @@ import {
   insertResponse,
   insertModule,
   lessonById,
+  lessonSoundsOf,
   lessonsOf,
   moduleById,
   moduleFinished,
@@ -29,9 +30,11 @@ import {
   orderLessons,
   progressIn,
   publishedLessons,
+  quietLessons,
   recordProgress,
   responsesOf,
   removeLesson as tombstoneLesson,
+  setLessonSounds,
   setModuleClasses,
   setModuleState,
   studentModules,
@@ -62,7 +65,9 @@ import {
   positionSchema,
   progressQuerySchema,
   publishModuleSchema,
+  classSoundsSchema,
   respondSchema,
+  setClassSoundsSchema,
   reviewBlocks,
   responseIssue,
   revealSchema,
@@ -968,6 +973,13 @@ export const nextLessons = readProcedure.handler(async ({ context }) => {
   };
 });
 
+/** A teacher of the class, or someone who keeps the school's classes. */
+async function soundKeeper(context: UnitContext, classId: string) {
+  requireCapability(context, "learning:author", "classes:manage");
+  if (!(await teachesClass(context.tx, scopeOf(context), classId)))
+    throw new ORPCError("NOT_FOUND");
+}
+
 /** A module's lessons as a student meets them: done, open or locked, the unpublished left out. */
 export const play = readProcedure
   .input(
@@ -1158,7 +1170,44 @@ export const playLesson = writeProcedure
           : null,
       index,
       total: states.length,
+      sounds: !(await quietLessons(context.tx, {
+        tenantId: context.tenantId,
+        moduleId: owner.id,
+        studentId: played.studentId,
+        on: context.today,
+      })),
     };
+  });
+
+/** Whether a class's lessons tick and chime, for a teacher of the class. */
+export const classSounds = readProcedure
+  .input(classSoundsSchema)
+  .handler(async ({ input, context }) => {
+    await soundKeeper(context, input.classId);
+    return {
+      on:
+        (await lessonSoundsOf(context.tx, context.tenantId, input.classId)) ??
+        true,
+    };
+  });
+
+/** Turns a class's lesson sound effects on or off; words still play. */
+export const setClassSounds = writeProcedure
+  .input(setClassSoundsSchema)
+  .handler(async ({ input, context }) => {
+    await soundKeeper(context, input.classId);
+    await setLessonSounds(context.tx, {
+      tenantId: context.tenantId,
+      classId: input.classId,
+      on: input.on,
+    });
+    await audit(context, {
+      action: "class.lesson_sounds",
+      objectType: "class",
+      objectId: input.classId,
+      details: { on: input.on },
+    });
+    return { on: input.on };
   });
 
 /**
