@@ -149,6 +149,9 @@ export interface QuestionLabels {
   spoken?: string;
   /** A counting question by its number and what the child does. */
   count?: (count: number, make: boolean) => string;
+  /** A word builder's lines: the word's tiles, then extra ones. */
+  wordTiles?: string;
+  extraTiles?: string;
   points: (points: number) => string;
   answerIs: string;
   prompt: string;
@@ -404,7 +407,11 @@ export class QuestionNode extends ElementNode {
     if (locked.has(editor)) lockElement(dom, true);
     if (this.__settings.kind === "number")
       dom.dataset.answer = `${labels.get(editor)?.answerIs ?? ""} ${numberAnswer(this.__settings)}`;
-    if (this.__settings.kind === "counting") drawPicture(this, dom, editor);
+    if (
+      this.__settings.kind === "counting" ||
+      this.__settings.kind === "spelling"
+    )
+      drawPicture(this, dom, editor);
     if (this.__settings.kind === "tracing")
       drawTrace(this.__settings.trace, dom);
     return dom;
@@ -699,10 +706,17 @@ export class QuestionAnswerNode extends ElementNode {
     const dom = $getDocument().createElement("div");
     const text = labels.get(editor);
     const question = this.getParent();
-    const extra =
-      $isQuestionNode(question) && question.getSettings().kind === "matching";
+    const kind = $isQuestionNode(question) ? question.getSettings().kind : null;
+    const extra = kind === "matching";
     dom.dataset.questionAnswer = extra ? "extra" : "";
-    dom.dataset.emptyLabel = (extra ? text?.extra : text?.answer) ?? "";
+    dom.dataset.emptyLabel =
+      (kind === "spelling"
+        ? this.getPreviousSibling() instanceof QuestionAnswerNode
+          ? text?.extraTiles
+          : text?.wordTiles
+        : extra
+          ? text?.extra
+          : text?.answer) ?? "";
     const name = theme(config, "questionAnswer");
     if (name) addClassNamesToElement(dom, name);
     drawPicture(this, dom, editor);
@@ -1139,6 +1153,8 @@ export function $createQuestionNode(kind: QuestionKind): QuestionNode {
   if (kind === "sorting")
     question.append($createQuestionGroup(), $createQuestionGroup());
   if (kind === "gaps") question.append(new QuestionPassageNode());
+  if (kind === "spelling")
+    question.append(new QuestionAnswerNode(), new QuestionAnswerNode());
   return question;
 }
 
@@ -1174,7 +1190,7 @@ export function $repairQuestion(question: QuestionNode) {
     const fits =
       ((kind === "choice" || kind === "ordering") &&
         $isQuestionOptionNode(child)) ||
-      ((kind === "text" || kind === "matching") &&
+      ((kind === "text" || kind === "matching" || kind === "spelling") &&
         $isQuestionAnswerNode(child)) ||
       (kind === "matching" && $isQuestionPairNode(child)) ||
       (kind === "sorting" && $isQuestionGroupNode(child)) ||

@@ -395,7 +395,12 @@ export function SelectionToolbarPlugin() {
       if (!$isQuestionNode(node)) return null;
       voiced ??= node;
       // A counting question's picture is of what is counted, on the question.
-      if (!part && node.getSettings().kind === "counting") part = node;
+      if (
+        !part &&
+        (node.getSettings().kind === "counting" ||
+          node.getSettings().kind === "spelling")
+      )
+        part = node;
       return {
         key: node.getKey(),
         settings: node.getSettings(),

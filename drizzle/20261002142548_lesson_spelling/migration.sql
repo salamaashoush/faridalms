@@ -1,0 +1,1 @@
+ALTER TABLE "core"."lesson_responses" DROP CONSTRAINT "lesson_responses_kind_check", ADD CONSTRAINT "lesson_responses_kind_check" CHECK (kind in ('choice', 'text', 'gaps', 'number', 'matching', 'ordering', 'sorting', 'counting', 'tracing', 'spelling', 'written'));

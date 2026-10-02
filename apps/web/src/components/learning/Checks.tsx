@@ -46,6 +46,7 @@ import { SpokenRecorder, SpokenStatus } from "./SpokenAnswer";
 import { YoungCounting } from "./young/YoungCounting";
 import { YoungMemory } from "./young/YoungMemory";
 import { YoungMatching, YoungOrdering, YoungSorting } from "./young/YoungPlace";
+import { YoungSpelling } from "./young/YoungSpelling";
 import { YoungTracing } from "./young/YoungTracing";
 
 /** A part's picture over its words; with no words, its description names it. */
@@ -152,6 +153,7 @@ export type CheckStudentBlock =
   | Of<"sorting">
   | Of<"counting">
   | Of<"tracing">
+  | Of<"spelling">
   | Of<"written">;
 
 const CHECK_TYPES = new Set<StudentBlock["type"]>([
@@ -164,6 +166,7 @@ const CHECK_TYPES = new Set<StudentBlock["type"]>([
   "sorting",
   "counting",
   "tracing",
+  "spelling",
   "written",
 ]);
 
@@ -1459,6 +1462,12 @@ export function CheckBlockView({
     return (
       <CheckCard block={block} legendId={legend} status={null} actions={null}>
         <YoungMemory block={block} view={view} driver={driver} />
+      </CheckCard>
+    );
+  if (block.type === "spelling")
+    return (
+      <CheckCard block={block} legendId={legend} status={null} actions={null}>
+        <YoungSpelling block={block} view={view} driver={driver} />
       </CheckCard>
     );
   if (block.type === "tracing")

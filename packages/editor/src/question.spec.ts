@@ -604,6 +604,7 @@ describe("questions in a document", () => {
         gaps: "",
         counting: "",
         tracing: "",
+        spelling: "",
       },
       points: () => "",
       answerIs: "",

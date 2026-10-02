@@ -32,6 +32,7 @@ import { FoundContext, YoungChoice } from "./YoungChoice";
 import { YoungCounting } from "./YoungCounting";
 import { YoungMemory } from "./YoungMemory";
 import { YoungMatching, YoungOrdering, YoungSorting } from "./YoungPlace";
+import { YoungSpelling } from "./YoungSpelling";
 import { YoungSpoken } from "./YoungSpoken";
 import { YoungTracing } from "./YoungTracing";
 
@@ -127,6 +128,8 @@ function StepBlock({
       <YoungCounting block={block} view={view} driver={driver} />
     ) : block.type === "tracing" ? (
       <YoungTracing block={block} view={view} driver={driver} />
+    ) : block.type === "spelling" ? (
+      <YoungSpelling block={block} view={view} driver={driver} />
     ) : block.type === "written" && block.recordSeconds ? (
       <YoungSpoken block={block} view={view} driver={driver} />
     ) : null;

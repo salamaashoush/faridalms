@@ -56,6 +56,9 @@ export const COUNT_LAYOUTS = ["scatter", "line", "frame"] as const;
 export type CountLayout = (typeof COUNT_LAYOUTS)[number];
 /** Seconds the things to count stay in view before hiding, for seeing a number at a glance. */
 export const FLASH_SECONDS = [2, 3, 5] as const;
+/** A word built from up to twelve tiles, with up to six that do not belong. */
+export const MAX_TILES = 12;
+export const MAX_EXTRA_TILES = 6;
 /** Taken off a check's credit for each try after the first, as Moodle's interactive mode does. */
 export const TRY_PENALTY = 1 / 3;
 
@@ -336,6 +339,23 @@ export const lessonBlockSchema = v.variant("type", [
   ),
   v.object({
     ...checkFields,
+    type: v.literal("spelling"),
+    /** What the word names, for children who cannot read it yet. */
+    picture,
+    /**
+     * The word as the tiles that build it, in order: a sound's letters
+     * together ("sh", "ee"), so a tile is what a child hears.
+     */
+    tiles: v.pipe(
+      v.array(requiredText(8)),
+      v.minLength(1, "learning.tiles_needed"),
+      v.maxLength(MAX_TILES),
+    ),
+    /** Tiles that belong to no place, so the last one is still a choice. */
+    extras: v.pipe(v.array(requiredText(8)), v.maxLength(MAX_EXTRA_TILES)),
+  }),
+  v.object({
+    ...checkFields,
     type: v.literal("tracing"),
     /** The teacher's own writing of it, stroke by stroke, in order. */
     strokes: v.pipe(
@@ -390,6 +410,7 @@ export type SortingBlock = Extract<LessonBlock, { type: "sorting" }>;
 export type WrittenBlock = Extract<LessonBlock, { type: "written" }>;
 export type CountingBlock = Extract<LessonBlock, { type: "counting" }>;
 export type TracingBlock = Extract<LessonBlock, { type: "tracing" }>;
+export type SpellingBlock = Extract<LessonBlock, { type: "spelling" }>;
 /** A question the server marks the moment it is answered. */
 export type AutoBlock =
   | ChoiceBlock
@@ -400,7 +421,8 @@ export type AutoBlock =
   | OrderingBlock
   | SortingBlock
   | CountingBlock
-  | TracingBlock;
+  | TracingBlock
+  | SpellingBlock;
 export type CheckBlock = AutoBlock | WrittenBlock;
 
 const AUTO_TYPES = new Set<LessonBlockType>([
@@ -413,6 +435,7 @@ const AUTO_TYPES = new Set<LessonBlockType>([
   "sorting",
   "counting",
   "tracing",
+  "spelling",
 ]);
 
 export const isAuto = (block: LessonBlock): block is AutoBlock =>
@@ -634,6 +657,10 @@ export const responseSchema = v.variant("type", [
     value: v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(100)),
   }),
   v.object({
+    type: v.literal("spelling"),
+    tiles: v.pipe(v.array(text(8)), v.maxLength(MAX_TILES)),
+  }),
+  v.object({
     type: v.literal("tracing"),
     strokes: v.pipe(
       v.array(
@@ -802,6 +829,20 @@ export function markResponse(
         parts,
       };
     }
+    case "spelling": {
+      if (response.type !== "spelling") return none;
+      const results = Object.fromEntries(
+        block.tiles.map((tile, index) => [
+          `slot-${index + 1}`,
+          response.tiles[index] === tile,
+        ]),
+      );
+      const marked = share(results);
+      // A tile too many is a wrong word, even with every place right.
+      return response.tiles.length === block.tiles.length
+        ? marked
+        : { ...marked, correct: false };
+    }
     case "tracing": {
       if (response.type !== "tracing") return none;
       return share(traceResults(block.strokes, response.strokes));
@@ -944,7 +985,13 @@ export type StudentBlock =
       items: StudentPart[];
     })
   | Omit<CountingBlock, "explanation" | "hint">
-  | Omit<TracingBlock, "explanation" | "hint">;
+  | Omit<TracingBlock, "explanation" | "hint">
+  | (Omit<SpellingBlock, "explanation" | "hint" | "tiles" | "extras"> & {
+      /** Every tile, the word's and the extra ones, in one shuffled pile. */
+      pile: { id: string; text: string }[];
+      /** How many places the word takes. */
+      places: number;
+    });
 
 function shuffled<T>(items: T[], seed: string): T[] {
   let state = 0;
@@ -1095,6 +1142,26 @@ export function studentBlocks(
           ),
         };
       }
+      case "spelling": {
+        const {
+          tiles,
+          extras,
+          explanation: _why,
+          hint: _hint,
+          ...rest
+        } = block;
+        return {
+          ...rest,
+          places: tiles.length,
+          pile: shuffled(
+            [...tiles, ...extras].map((letters, index) => ({
+              id: `tile-${index}`,
+              text: letters,
+            })),
+            `${seed}:${block.id}`,
+          ),
+        };
+      }
       case "written":
       case "counting":
       case "tracing": {
@@ -1137,6 +1204,8 @@ export function answerKey(block: AutoBlock): string[] {
       return [String(block.count)];
     case "tracing":
       return [block.prompt];
+    case "spelling":
+      return [block.tiles.join("")];
     case "sorting":
       return block.items.map(
         (item) =>
@@ -1149,6 +1218,10 @@ export function answerKey(block: AutoBlock): string[] {
 /** The right answer for each blank, pair or item, shown beside it once settled. */
 export function partKey(block: AutoBlock): Record<string, string> {
   switch (block.type) {
+    case "spelling":
+      return Object.fromEntries(
+        block.tiles.map((tile, index) => [`slot-${index + 1}`, tile]),
+      );
     case "gaps":
       return Object.fromEntries(
         block.segments.flatMap((segment) =>

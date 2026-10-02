@@ -154,6 +154,21 @@ function questionBlock(node: ContentNode): LessonBlock | null {
       };
     case "tracing":
       return { ...check, type: "tracing", strokes: node.trace ?? [] };
+    case "spelling": {
+      // The first answer line is the word's tiles; any after it, extras.
+      const [word, ...extra] = parts.filter(
+        (part) => part.type === "question-answer",
+      );
+      const tilesOf = (line: ContentNode | undefined) =>
+        textOf(line).split(/\s+/).filter(Boolean);
+      return {
+        ...check,
+        type: "spelling",
+        picture: pictureOf(node),
+        tiles: tilesOf(word),
+        extras: extra.flatMap(tilesOf),
+      };
+    }
     case "counting":
       return {
         ...check,
@@ -449,7 +464,8 @@ export function questionNode(block: LessonBlock): ContentNode | null {
     block.type !== "sorting" &&
     block.type !== "gaps" &&
     block.type !== "counting" &&
-    block.type !== "tracing"
+    block.type !== "tracing" &&
+    block.type !== "spelling"
   )
     return null;
   const base: ContentNode = {
@@ -591,6 +607,18 @@ export function questionNode(block: LessonBlock): ContentNode | null {
       ],
     };
   if (block.type === "tracing") return { ...base, trace: block.strokes };
+  if (block.type === "spelling")
+    return {
+      ...base,
+      ...pictureFields(block.picture),
+      children: [
+        ...(base.children ?? []),
+        inlineOf("question-answer", block.tiles.join(" ")),
+        ...(block.extras.length
+          ? [inlineOf("question-answer", block.extras.join(" "))]
+          : []),
+      ],
+    };
   if (block.type === "counting")
     return {
       ...base,

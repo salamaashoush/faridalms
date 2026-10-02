@@ -10,7 +10,7 @@ import {
   sameContent,
 } from "./content";
 import { plainContent } from "./content-conversion";
-import { lessonDocumentSchema, markResponse } from "./learning";
+import { lessonDocumentSchema, markResponse, studentBlocks } from "./learning";
 import {
   briefWithQuiz,
   contentOfLesson,
@@ -554,5 +554,61 @@ describe("memory pairs", () => {
     expect(checks(lessonOfContent(document).blocks)).toEqual(
       checks(pairs.blocks),
     );
+  });
+});
+
+describe("word builder", () => {
+  const ship: LessonDocument = {
+    version: 2,
+    blocks: [
+      {
+        id: partId(50),
+        type: "spelling",
+        prompt: "Build the word ship.",
+        points: 1,
+        hint: "",
+        explanation: "",
+        tries: null,
+        picture: null,
+        tiles: ["sh", "i", "p"],
+        extras: ["a", "t"],
+      },
+    ],
+  };
+
+  it("keeps the word's tiles and the extra ones through the document", () => {
+    const document = contentOfLesson(ship);
+    if (!document) throw new Error("lesson could not become a document");
+    expect(checks(lessonOfContent(document).blocks)).toEqual(
+      checks(ship.blocks),
+    );
+  });
+
+  it("marks each place, and a word only right when every tile is", () => {
+    const [block] = ship.blocks;
+    if (block?.type !== "spelling") throw new Error("spelling expected");
+    expect(
+      markResponse(block, { type: "spelling", tiles: ["sh", "i", "p"] }),
+    ).toMatchObject({ correct: true, fraction: 1 });
+    expect(
+      markResponse(block, { type: "spelling", tiles: ["sh", "a", "p"] }),
+    ).toMatchObject({
+      correct: false,
+      parts: { "slot-1": true, "slot-2": false, "slot-3": true },
+    });
+  });
+
+  it("hands a student a shuffled pile, never the word's order", () => {
+    const [shown] = studentBlocks(ship, "student:1");
+    if (shown?.type !== "spelling") throw new Error("spelling expected");
+    expect(shown).not.toHaveProperty("tiles");
+    expect(shown.places).toBe(3);
+    expect(shown.pile.map((tile) => tile.text).toSorted()).toEqual([
+      "a",
+      "i",
+      "p",
+      "sh",
+      "t",
+    ]);
   });
 });

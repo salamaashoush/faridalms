@@ -62,6 +62,7 @@ export const questionKinds = [
   "gaps",
   "counting",
   "tracing",
+  "spelling",
 ] as const;
 export type QuestionKind = (typeof questionKinds)[number];
 export const calloutTones = [

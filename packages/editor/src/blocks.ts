@@ -43,6 +43,7 @@ import {
 import {
   ArrowDownUp,
   ArrowLeftRight,
+  Blocks,
   Dices,
   Signature,
   Brackets,
@@ -129,6 +130,7 @@ export type BlockType =
   | "sortingQuestion"
   | "countingQuestion"
   | "tracingQuestion"
+  | "spellingQuestion"
   | "gapsQuestion"
   | "trueFalseQuestion"
   | "gate"
@@ -149,6 +151,7 @@ const QUESTION_KIND: Partial<Record<BlockType, QuestionKind>> = {
   gapsQuestion: "gaps",
   countingQuestion: "counting",
   tracingQuestion: "tracing",
+  spellingQuestion: "spelling",
 };
 
 export interface BlockDefinition {
@@ -546,6 +549,25 @@ export const blockDefinitions: BlockDefinition[] = [
       "handwriting",
       "تتبع",
       "كتابة",
+    ],
+    question: true,
+    activity: true,
+  },
+  {
+    type: "spellingQuestion",
+    group: "questions",
+    icon: Blocks,
+    label: (s) => s.questionSpelling,
+    hint: (s) => s.questionSpellingHint,
+    keywords: [
+      "word",
+      "tiles",
+      "spell",
+      "phonics",
+      "build",
+      "كلمة",
+      "تهجئة",
+      "حروف",
     ],
     question: true,
     activity: true,
