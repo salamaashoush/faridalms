@@ -39,12 +39,19 @@ async function leaver(
   await cell.withWorker(
     { tenantId, requestId: crypto.randomUUID(), actor: { kind: "system" } },
     "write",
-    (tx) =>
-      tx.execute(sql`
+    async (tx) => {
+      await tx.execute(sql`
         update core.student_school_years
         set school_year_id = ${pastYearId}::uuid, calendar_id = null,
             valid_during = daterange('2019-09-01', '2020-07-01')
-        where tenant_id = ${tenantId}::uuid and student_user_id = ${created.id}::uuid`),
+        where tenant_id = ${tenantId}::uuid and student_user_id = ${created.id}::uuid`);
+      // A leaver's student role ended with their last year; left open, they
+      // would still count among the working year's students.
+      await tx.execute(sql`
+        update core.user_roles set valid_during = daterange('2019-09-01', '2020-07-01')
+        where tenant_id = ${tenantId}::uuid and user_id = ${created.id}::uuid
+          and role = 'student'`);
+    },
   );
   return created.id;
 }
