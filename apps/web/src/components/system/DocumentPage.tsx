@@ -1,5 +1,6 @@
 import type { ContentDocument } from "@faridalms/domain/content";
 import type { TemplateKind } from "@faridalms/domain/templates";
+import type { EditorMedia } from "@faridalms/editor";
 import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
 
@@ -156,6 +157,8 @@ export function DocumentPage({
     content: ContentDocument;
     title: string;
     onApply: (content: ContentDocument) => void;
+    /** Offers the ready-made young activities, storing their pictures through this. */
+    starters?: EditorMedia;
   };
   title: ReactNode;
   aside?: ReactNode;
@@ -311,7 +314,11 @@ export function DocumentPage({
         <div className="grid max-w-[720px] min-w-0 gap-3 [grid-area:title]">
           {title}
           {templates?.empty ? (
-            <TemplatePicker kind={templates.kind} onApply={templates.onApply} />
+            <TemplatePicker
+              kind={templates.kind}
+              onApply={templates.onApply}
+              starters={templates.starters}
+            />
           ) : null}
         </div>
         {aside ? (

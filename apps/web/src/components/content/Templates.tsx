@@ -1,6 +1,10 @@
 import type { ContentDocument } from "@faridalms/domain/content";
 import type { TemplateKind } from "@faridalms/domain/templates";
+import type { EditorMedia } from "@faridalms/editor";
 
+import { contentOfLesson } from "@faridalms/domain/lesson-content";
+import { libraryPictureUrls } from "@faridalms/domain/library";
+import { pictureFile } from "@faridalms/editor/picture-library";
 import { Button } from "@faridalms/ui/button";
 import {
   Dialog,
@@ -19,13 +23,22 @@ import {
   DropdownMenuTrigger,
 } from "@faridalms/ui/dropdown-menu";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { ChevronDown, LayoutTemplate, LoaderCircle } from "lucide-react";
+import {
+  ChevronDown,
+  LayoutTemplate,
+  LoaderCircle,
+  Sparkles,
+} from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
+import type { Starter } from "~/components/learning/starters";
+
+import { altIn, sayIn, STARTERS } from "~/components/learning/starters";
 import { TextField } from "~/components/system/field";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
+import { getLocale } from "~/i18n/runtime";
 import {
   listTemplates,
   openTemplate,
@@ -46,9 +59,12 @@ const templatesQuery = (kind: TemplateKind) => ({
 export function TemplatePicker({
   kind,
   onApply,
+  starters,
 }: {
   kind: TemplateKind;
   onApply: (content: ContentDocument) => void;
+  /** Ready-made young activities, whose pictures are stored through this. */
+  starters?: EditorMedia;
 }) {
   const queryClient = useQueryClient();
   const rows = useQuery(templatesQuery(kind)).data ?? [];
@@ -65,8 +81,41 @@ export function TemplatePicker({
     },
     onError: (error) => toast.error(getMessageFromError(error)),
   });
-  if (rows.length === 0) return null;
+  const start = useMutation({
+    mutationFn: async (starter: Starter) => {
+      if (!starters) throw new Error("file.failed");
+      const locale = getLocale() === "ar" ? "ar" : "en";
+      // Each picture is copied into the school, as one picked by hand is.
+      const pictures = await Promise.all(
+        starter.pictures.map(async (picture) => {
+          const alt = altIn(locale, picture);
+          const file = await pictureFile({
+            source: picture.source,
+            id: picture.id,
+            label: alt,
+            ...libraryPictureUrls(picture.source, picture.id),
+          });
+          const stored = await starters.upload(file, "image");
+          return { fileId: stored.fileId, alt };
+        }),
+      );
+      const content = contentOfLesson({
+        version: 2,
+        blocks: starter.blocks(sayIn(locale), (index) => {
+          const picture = pictures[index];
+          if (!picture) throw new Error("file.failed");
+          return picture;
+        }),
+      });
+      if (!content) throw new Error("content.invalid");
+      return content;
+    },
+    onSuccess: (content) => onApply(content),
+    onError: (error) => toast.error(getMessageFromError(error)),
+  });
+  if (rows.length === 0 && !starters) return null;
   const mine = rows.filter((row) => row.mine);
+  const busy = apply.isPending || start.isPending;
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
@@ -76,11 +125,11 @@ export function TemplatePicker({
             variant="outline"
             size="sm"
             className="w-fit max-md:h-10"
-            disabled={apply.isPending}
+            disabled={busy}
           />
         }
       >
-        {apply.isPending ? (
+        {busy ? (
           <LoaderCircle className="animate-spin" aria-hidden />
         ) : (
           <LayoutTemplate aria-hidden />
@@ -89,6 +138,23 @@ export function TemplatePicker({
         <ChevronDown aria-hidden />
       </DropdownMenuTrigger>
       <DropdownMenuContent className="w-72">
+        {starters ? (
+          <>
+            <DropdownMenuGroup>
+              <DropdownMenuLabel>{m.starterGroup()}</DropdownMenuLabel>
+              {STARTERS.map((starter) => (
+                <DropdownMenuItem
+                  key={starter.key}
+                  onClick={() => start.mutate(starter)}
+                >
+                  <Sparkles aria-hidden />
+                  <span className="truncate">{starter.title()}</span>
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuGroup>
+            {rows.length > 0 ? <DropdownMenuSeparator /> : null}
+          </>
+        ) : null}
         <DropdownMenuGroup>
           {rows.map((row) => (
             <DropdownMenuItem

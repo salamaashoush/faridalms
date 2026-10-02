@@ -1,8 +1,9 @@
+import type { PictureSource } from "@faridalms/domain/library";
+
 import { foldAnswer } from "@faridalms/domain/answers";
+import { libraryPictureUrls } from "@faridalms/domain/library";
 
 import index from "./pictures.json" with { type: "json" };
-
-export type PictureSource = "arasaac" | "openmoji";
 
 export interface LibraryPicture {
   source: PictureSource;
@@ -78,16 +79,6 @@ function score(entry: Entry, query: string, terms: readonly string[]): number {
   return best;
 }
 
-function urls(source: PictureSource, id: string) {
-  if (source === "arasaac")
-    return {
-      thumb: `https://static.arasaac.org/pictograms/${id}/${id}_300.png`,
-      full: `https://static.arasaac.org/pictograms/${id}/${id}_500.png`,
-    };
-  const svg = `https://cdn.jsdelivr.net/npm/openmoji@${index.openmojiVersion}/color/svg/${id}.svg`;
-  return { thumb: svg, full: svg };
-}
-
 /**
  * Pictures whose words meet the query, best first. ARASAAC's pictograms come
  * before OpenMoji's emoji at the same score: drawn for children learning to
@@ -115,6 +106,6 @@ export function searchPictures(
       id: entry.id,
       label:
         (locale === "ar" ? (entry.ar[0] ?? entry.en[0]) : entry.en[0]) ?? "",
-      ...urls(entry.source, entry.id),
+      ...libraryPictureUrls(entry.source, entry.id),
     }));
 }

@@ -289,6 +289,7 @@ export function LessonEditor({
             setDraft((current) => ({ ...current, content: to }));
             setReplace((current) => ({ to, at: (current?.at ?? 0) + 1 }));
           },
+          starters: earlyYears && draft.young ? media : undefined,
         }}
         history={
           storedId

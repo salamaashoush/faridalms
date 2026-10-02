@@ -9,9 +9,9 @@
  * Pictograms ARASAAC flags as violent or sexual are left out, as are skin
  * tone repeats and flags, which add bulk and nothing a lesson needs.
  */
+import { OPENMOJI_VERSION } from "@faridalms/domain/library";
 import { writeFile } from "node:fs/promises";
 
-const OPENMOJI_VERSION = "15.1.0";
 const OUT = new URL("../apps/api/src/library/pictures.json", import.meta.url);
 
 interface Pictogram {
@@ -85,10 +85,7 @@ const openmoji = emoji
   ])
   .toSorted((a, b) => String(a[0]).localeCompare(String(b[0])));
 
-await writeFile(
-  OUT,
-  `${JSON.stringify({ openmojiVersion: OPENMOJI_VERSION, arasaac, openmoji })}\n`,
-);
+await writeFile(OUT, `${JSON.stringify({ arasaac, openmoji })}\n`);
 console.log(
   `Picture library: ${arasaac.length} pictograms, ${openmoji.length} emoji.`,
 );

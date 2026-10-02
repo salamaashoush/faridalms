@@ -93,5 +93,5 @@ Each shapes a rule here.
 
 ## 4. Next, in order
 
-1. The starter library: an open picture set in the picture picker, activity
-   templates, and StoryWeaver books as narrated read-along lessons.
+1. StoryWeaver books as narrated read-along lessons, the last part of the
+   starter library after the open pictures and the ready-made activities.

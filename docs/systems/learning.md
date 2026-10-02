@@ -76,6 +76,10 @@ From [../research/early-years.md](../research/early-years.md).
   upload, with its words as the description, and the credit both sources ask
   for sits under the results. `bun scripts/picture-library.ts` rebuilds the
   index; ARASAAC's violent and sexual pictograms are left out.
+- A young lesson's "Start from a template" menu offers ready-made
+  activities, one of each kind (picture choice, counting, memory pairs,
+  sorting, tracing, word builder, drawing), worded in the teacher's language
+  with Arabic vowelled; their pictures are copied in from the library.
 - Children see no points or scores. Soft notes and a word of praise naming
   what they did answer each try, and the end of the lesson says so once.
 - A young child's home is up to six big cards, a lesson already begun first,
