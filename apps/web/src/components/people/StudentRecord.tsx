@@ -2,7 +2,7 @@ import type { ReactNode } from "react";
 
 import { Button } from "@faridalms/ui/button";
 import { cn } from "@faridalms/ui/cn";
-import { useSuspenseQuery } from "@tanstack/react-query";
+import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import {
   Copy,
@@ -60,6 +60,7 @@ import {
   STATUS_TONE,
 } from "./format";
 import { HomesSection } from "./Households";
+import { PhotoDialog } from "./PhotoDialog";
 import { Deferred, Email, HistorySection, Phone } from "./record-parts";
 import {
   CustodySection,
@@ -384,6 +385,8 @@ export function StudentRecord({
   onTab: (tab: StudentTab) => void;
 }) {
   const data = useSuspenseQuery(studentRecordQuery(studentId)).data;
+  const queryClient = useQueryClient();
+  const [photoOpen, setPhotoOpen] = useState(false);
   const labels = useLabels();
   const endLink = useEndLink(studentId);
   const navigate = useNavigate();
@@ -617,6 +620,8 @@ export function StudentRecord({
       <RecordHeader
         title={name}
         initials={initialsOf(name)}
+        photoUrl={data.photoFileId ? `/files/${data.photoFileId}` : null}
+        onPhoto={access.manage ? () => setPhotoOpen(true) : undefined}
         facts={facts}
         status={{
           label: STATUS_LABEL[data.status](),
@@ -646,6 +651,18 @@ export function StudentRecord({
       >
         {body}
       </RecordTabs>
+      {access.manage ? (
+        <PhotoDialog
+          personId={studentId}
+          name={name}
+          photoUrl={data.photoFileId ? `/files/${data.photoFileId}` : null}
+          open={photoOpen}
+          onOpenChange={setPhotoOpen}
+          onSaved={() =>
+            void queryClient.invalidateQueries({ queryKey: ["people"] })
+          }
+        />
+      ) : null}
       {access.manage ? (
         <StudentSheets
           key={sheet.key}

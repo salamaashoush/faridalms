@@ -173,3 +173,17 @@ export async function replaceContact(
     values (${input.tenantId}::uuid, ${input.userId}::uuid, ${input.kind}, ${input.label}, ${input.value},
       ${input.normalized}, ${input.kind === "phone" ? true : null}, 'manual')`);
 }
+
+/** Puts a photo on a person, or takes it away; gives the one it replaced. */
+export async function setPhoto(
+  tx: Tx,
+  input: { tenantId: string; userId: string; fileId: string | null },
+): Promise<string | null> {
+  const [row] = await tx.execute<{ before: string | null }>(sql`
+    update core.users u set photo_file_id = ${input.fileId}::uuid
+    from (select photo_file_id as before from core.users
+      where tenant_id = ${input.tenantId}::uuid and id = ${input.userId}::uuid) old
+    where u.tenant_id = ${input.tenantId}::uuid and u.id = ${input.userId}::uuid
+    returning old.before`);
+  return row?.before ?? null;
+}

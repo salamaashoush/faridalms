@@ -5,7 +5,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@faridalms/ui/avatar";
 import { Button } from "@faridalms/ui/button";
 import { cn } from "@faridalms/ui/cn";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@faridalms/ui/tabs";
-import { Pencil } from "lucide-react";
+import { Camera, Pencil } from "lucide-react";
 import { useEffect, useId, useRef, useState } from "react";
 
 import { Value } from "~/components/app/primitives";
@@ -56,7 +56,10 @@ export function RecordHeader({
   menu = NO_ACTIONS,
   tools,
   variant = "record",
+  onPhoto,
 }: {
+  /** Opens the photo to change it, for someone who may. */
+  onPhoto?: () => void;
   /** A document's title reads at the size it was written in. */
   variant?: "record" | "document";
   /** Small view controls before the menu, such as a document's width. */
@@ -91,12 +94,32 @@ export function RecordHeader({
       ) : null}
       <div className="flex min-w-0 flex-1 basis-80 items-start gap-4">
         {initials !== undefined || photoUrl ? (
-          <Avatar className="size-14 shrink-0 max-sm:size-12">
-            {photoUrl ? <AvatarImage src={photoUrl} alt="" /> : null}
-            <AvatarFallback className="bg-primary/10 text-lg font-semibold text-primary">
-              {initials}
-            </AvatarFallback>
-          </Avatar>
+          onPhoto ? (
+            // The photo itself is where it is changed, as on most profiles.
+            <button
+              type="button"
+              aria-label={m.photoChange()}
+              onClick={onPhoto}
+              className="group relative shrink-0 rounded-full outline-none focus-visible:ring-4 focus-visible:ring-ring/50"
+            >
+              <Avatar className="size-14 max-sm:size-12">
+                {photoUrl ? <AvatarImage src={photoUrl} alt="" /> : null}
+                <AvatarFallback className="bg-primary/10 text-lg font-semibold text-primary">
+                  {initials}
+                </AvatarFallback>
+              </Avatar>
+              <span className="absolute -end-0.5 -bottom-0.5 grid size-6 place-items-center rounded-full border-2 border-background bg-muted text-muted-foreground group-hover:bg-primary group-hover:text-primary-foreground">
+                <Camera aria-hidden className="size-3.5" />
+              </span>
+            </button>
+          ) : (
+            <Avatar className="size-14 shrink-0 max-sm:size-12">
+              {photoUrl ? <AvatarImage src={photoUrl} alt="" /> : null}
+              <AvatarFallback className="bg-primary/10 text-lg font-semibold text-primary">
+                {initials}
+              </AvatarFallback>
+            </Avatar>
+          )
         ) : null}
         <div className="grid min-w-0 gap-1">
           <div className="flex min-h-8 flex-wrap items-center gap-x-3 gap-y-1">

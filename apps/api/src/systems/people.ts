@@ -15,6 +15,7 @@ import {
   descriptorId,
   descriptorsFor,
 } from "@faridalms/database/stores/descriptors";
+import { filesByIds, linkFiles } from "@faridalms/database/stores/files";
 import { historyOf } from "@faridalms/database/stores/history";
 import {
   addHouseholdMember,
@@ -33,6 +34,7 @@ import {
   isVisiblePerson,
   replaceContact,
   rolesAt,
+  setPhoto as storePhoto,
 } from "@faridalms/database/stores/persons";
 import {
   schoolRoleIds,
@@ -84,6 +86,7 @@ import {
   saveSignInSchema,
   saveStaffSchema,
   saveStudentSchema,
+  setPhotoSchema,
   staffDirectorySchema,
   studentDirectorySchema,
   studentMatchesSchema,
@@ -104,6 +107,7 @@ import {
   requireCapability,
   writeProcedure,
 } from "../core/procedure";
+import { registerHostReader } from "../files/authorize";
 
 const id = v.pipe(v.string(), v.uuid());
 const STAFF_ROLE_SET: ReadonlySet<string> = new Set(STAFF_ROLES);
@@ -117,6 +121,68 @@ function scopeOf(context: UnitContext): Scope {
     schoolWide: can(context, "people:manage"),
   };
 }
+
+// A person's photo is seen by whoever may see the person.
+registerHostReader(
+  "person",
+  async (context, personId) =>
+    personId === context.actor.userId ||
+    isVisiblePerson(context.tx, scopeOf(context), personId),
+);
+
+const PHOTO_TYPES = new Set(["image/jpeg", "image/png", "image/webp"]);
+
+/**
+ * Puts a photo on a person or takes it away. Grown-ups keep their own; a
+ * student's is kept by staff who manage people, as the school's record of
+ * who the child is.
+ */
+export const setPhoto = writeProcedure
+  .input(setPhotoSchema)
+  .handler(async ({ input, context }) => {
+    const own =
+      input.personId === context.actor.userId &&
+      context.actor.workspace !== "me";
+    if (!own) {
+      requireCapability(context, "people:manage", "staff:manage");
+      if (
+        !(await isVisiblePerson(context.tx, scopeOf(context), input.personId))
+      )
+        throw new ORPCError("NOT_FOUND");
+    }
+    if (input.fileId) {
+      const [file] = await filesByIds(context.tx, context.tenantId, [
+        input.fileId,
+      ]);
+      if (
+        !file ||
+        file.purpose !== "avatar" ||
+        !PHOTO_TYPES.has(file.mediaType)
+      )
+        throw new ORPCError("BAD_REQUEST", { message: "validation.file_type" });
+      const linked = await linkFiles(context.tx, {
+        tenantId: context.tenantId,
+        userId: context.actor.userId,
+        ids: [input.fileId],
+        purpose: "avatar",
+        host: { type: "person", id: input.personId },
+      });
+      if (linked.length !== 1)
+        throw new ORPCError("CONFLICT", { message: "files.not_linkable" });
+    }
+    await storePhoto(context.tx, {
+      tenantId: context.tenantId,
+      userId: input.personId,
+      fileId: input.fileId,
+    });
+    await audit(context, {
+      action: input.fileId ? "person.photo_set" : "person.photo_removed",
+      objectType: "user",
+      objectId: input.personId,
+      subjectUserId: input.personId,
+    });
+    return { photoFileId: input.fileId };
+  });
 
 async function countryOf(context: UnitContext) {
   return (
@@ -737,6 +803,7 @@ export const person = readProcedure
       familyNameEn: record.familyNameEn,
       fullNameEn: record.fullNameEn,
       preferredGivenName: record.preferredGivenName,
+      photoFileId: record.photoFileId,
       birthDate: personal ? record.birthDate : null,
       roles: roles.map((role) => ({
         ...role,
@@ -756,6 +823,7 @@ export const person = readProcedure
         staff: staffMember && can(context, "staff:manage"),
         roles: staffMember && can(context, "access:manage"),
         history: manage || can(context, "audit:read"),
+        photo: self || manage || (staffMember && can(context, "staff:manage")),
       },
     };
   });

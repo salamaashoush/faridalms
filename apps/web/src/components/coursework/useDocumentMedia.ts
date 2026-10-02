@@ -47,7 +47,7 @@ const IMAGE = ["image/png", "image/jpeg", "image/gif", "image/webp"];
  * upload progress; a refusal rejects with the server's code, such as
  * `file.infected`, so the editor can say why.
  */
-function send(
+export function sendFile(
   url: string,
   file: File,
   mediaType: string,
@@ -134,7 +134,7 @@ export function useDocumentMedia(destination?: UploadDestination): EditorMedia {
             { cause: error },
           );
         }
-        await send(
+        await sendFile(
           `/files/${initiated.id}`,
           file,
           initiated.mediaType,

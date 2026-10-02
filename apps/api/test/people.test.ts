@@ -1,6 +1,6 @@
 import { describe, expect, test } from "bun:test";
 
-import { client, login, rejection, signedIn } from "./harness";
+import { client, login, raw, rejection, sessionFor, signedIn } from "./harness";
 
 const names = (en: string, ar: string) => ({
   en: { given: en.split(" ")[0], family: en.split(" ").slice(1).join(" ") },
@@ -532,5 +532,74 @@ describe("households", () => {
     expect(await rejection(parent.people.households({}))).toMatchObject({
       code: "FORBIDDEN",
     });
+  });
+});
+
+describe("photos", () => {
+  // The smallest whole JPEG: one grey pixel.
+  const jpeg = Uint8Array.from(
+    atob(
+      "/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAP//////////////////////////////////////////////////////////////////////////////////////wgALCAABAAEBAREA/8QAFBABAAAAAAAAAAAAAAAAAAAAAP/aAAgBAQABPxA=",
+    ),
+    (char) => char.charCodeAt(0),
+  );
+  const photo = async (session: Awaited<ReturnType<typeof sessionFor>>) => {
+    const file = await session.api.files.initiate({
+      purpose: "avatar",
+      name: "photo.jpg",
+      mediaType: "image/jpeg",
+      sizeBytes: jpeg.byteLength,
+    });
+    const sent = await raw(
+      "northwind",
+      session.token,
+      `/v1/files/${file.id}/content`,
+      {
+        method: "PUT",
+        body: jpeg,
+      },
+    );
+    expect(sent.status).toBe(200);
+    return file.id;
+  };
+
+  test("grown-ups keep their own photo, and staff who manage people keep students'", async () => {
+    const teacher = await sessionFor("northwind", login("teacher"));
+    const principal = await sessionFor("northwind", login("principal"));
+    const student = await sessionFor("northwind", login("student"));
+    const me = await teacher.api.identity.currentUser();
+
+    const mine = await photo(teacher);
+    await teacher.api.people.setPhoto({ personId: me.id, fileId: mine });
+    expect((await teacher.api.identity.currentUser()).photoFileId).toBe(mine);
+    const seen = await raw(
+      "northwind",
+      principal.token,
+      `/v1/files/${mine}/content`,
+    );
+    expect(seen.status).toBe(200);
+
+    const pupil = await student.api.identity.currentUser();
+    const theirs = await photo(student);
+    expect(
+      await rejection(
+        student.api.people.setPhoto({ personId: pupil.id, fileId: theirs }),
+      ),
+    ).toMatchObject({ code: "FORBIDDEN" });
+    expect(
+      await rejection(
+        teacher.api.people.setPhoto({ personId: pupil.id, fileId: mine }),
+      ),
+    ).toMatchObject({ code: "FORBIDDEN" });
+
+    const kept = await photo(principal);
+    await principal.api.people.setPhoto({ personId: pupil.id, fileId: kept });
+    expect(
+      (await principal.api.people.student({ id: pupil.id })).photoFileId,
+    ).toBe(kept);
+    await principal.api.people.setPhoto({ personId: pupil.id, fileId: null });
+    expect(
+      (await principal.api.people.student({ id: pupil.id })).photoFileId,
+    ).toBeNull();
   });
 });

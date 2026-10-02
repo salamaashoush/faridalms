@@ -1,9 +1,10 @@
 import type { ReactNode } from "react";
 
 import { cn } from "@faridalms/ui/cn";
-import { useSuspenseQuery } from "@tanstack/react-query";
+import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import { Pencil } from "lucide-react";
+import { useState } from "react";
 
 import type { HeaderFact, RecordTab } from "~/components/system/RecordPage";
 
@@ -25,6 +26,7 @@ import { formatList } from "~/utils/datetime";
 
 import { AccessSection } from "./AccessSection";
 import { displayName, labelOf, otherName, roleLabel } from "./format";
+import { PhotoDialog } from "./PhotoDialog";
 import { Deferred, Email, HistorySection, Phone } from "./record-parts";
 import { SignInSection } from "./SignInSection";
 
@@ -191,6 +193,8 @@ export function PersonRecord({
   onTab: (tab: PersonTab) => void;
 }) {
   const data = useSuspenseQuery(personRecordQuery(userId)).data;
+  const queryClient = useQueryClient();
+  const [photoOpen, setPhotoOpen] = useState(false);
   const navigate = useNavigate();
   const name = displayName(data);
   const available = personTabsFor(data.access);
@@ -284,6 +288,8 @@ export function PersonRecord({
       <RecordHeader
         title={name}
         initials={initialsOf(name)}
+        photoUrl={data.photoFileId ? `/files/${data.photoFileId}` : null}
+        onPhoto={data.access.photo ? () => setPhotoOpen(true) : undefined}
         facts={facts}
         action={
           data.access.staff
@@ -311,6 +317,21 @@ export function PersonRecord({
       ) : (
         body
       )}
+      {data.access.photo ? (
+        <PhotoDialog
+          personId={userId}
+          name={name}
+          photoUrl={data.photoFileId ? `/files/${data.photoFileId}` : null}
+          open={photoOpen}
+          onOpenChange={setPhotoOpen}
+          onSaved={() => {
+            void queryClient.invalidateQueries({ queryKey: ["people"] });
+            // One's own photo also shows in the menu.
+            if (data.access.self)
+              void queryClient.invalidateQueries({ queryKey: ["user"] });
+          }}
+        />
+      ) : null}
     </div>
   );
 }

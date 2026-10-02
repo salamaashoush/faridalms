@@ -40,7 +40,8 @@ import {
 } from "../core/procedure";
 import { canReadFile, mayKeepArea, mayWorkOn } from "../files/authorize";
 
-const UPLOADERS: Record<FilePurpose, Capability[]> = {
+/** Who may upload for each purpose; none, anyone signed in, its use checked where it is put. */
+const UPLOADERS: Record<FilePurpose, Capability[] | null> = {
   attachment: ["assignments:author", "messages:send"],
   submission: ["own-work:submit"],
   // Students write their answers as documents with files in them.
@@ -55,6 +56,7 @@ const UPLOADERS: Record<FilePurpose, Capability[]> = {
     "newsletters:manage",
   ],
   site_media: ["site:manage"],
+  avatar: null,
 };
 
 /**
@@ -65,7 +67,8 @@ const UPLOADERS: Record<FilePurpose, Capability[]> = {
 export const initiate = writeProcedure
   .input(initiateUploadSchema)
   .handler(async ({ input, context }) => {
-    requireCapability(context, ...UPLOADERS[input.purpose]);
+    const uploaders = UPLOADERS[input.purpose];
+    if (uploaders) requireCapability(context, ...uploaders);
     if (input.sizeBytes > context.maxUploadBytes)
       throw new ORPCError("BAD_REQUEST", { message: "file.too_large" });
     const warning = await roomFor(context, input);

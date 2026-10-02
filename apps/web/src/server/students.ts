@@ -5,6 +5,7 @@ import {
   saveRelationshipSchema,
   saveSignInSchema,
   saveStudentSchema,
+  setPhotoSchema,
   studentDirectorySchema,
   studentMatchesSchema,
 } from "@faridalms/domain/people";
@@ -67,3 +68,7 @@ export const saveSignIn = createServerFn({ method: "POST" })
 export const setSignInState = createServerFn({ method: "POST" })
   .validator(checked(accountStateSchema))
   .handler(({ data }) => backend().people.setSignInState(data));
+
+export const changePhoto = createServerFn({ method: "POST" })
+  .validator(checked(setPhotoSchema))
+  .handler(({ data }) => backend().people.setPhoto(data));

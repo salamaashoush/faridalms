@@ -16,7 +16,7 @@ export function useCurrentUser() {
     ...user,
     name: user.preferredName ?? inLocale(user.nameEn, user.nameAr),
     email: user.loginName ?? "",
-    avatarUrl: null as string | null,
+    avatarUrl: user.photoFileId ? `/files/${user.photoFileId}` : null,
     school: {
       ...user.school,
       name: inLocale(user.school.nameEn, user.school.nameAr),

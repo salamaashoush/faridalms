@@ -383,3 +383,9 @@ export function studentStatus(
   // A year that ended without an exit is a student who continues.
   return "enrolled";
 }
+
+/** A person's photo, or none to take it away. */
+export const setPhotoSchema = v.object({
+  personId: id,
+  fileId: v.nullable(id),
+});
