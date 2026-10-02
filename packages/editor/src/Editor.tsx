@@ -41,6 +41,7 @@ import { DiagramPlugin } from "./plugins/diagram";
 import { DirectionPlugin } from "./plugins/Direction";
 import { EmbedPlugin } from "./plugins/embed";
 import { MediaPlugin } from "./plugins/media";
+import { NarrationMarksPlugin } from "./plugins/narration";
 import { PastePlugin } from "./plugins/paste";
 import { PlaceholderPlugin } from "./plugins/Placeholder";
 import { QuestionGuardPlugin } from "./plugins/questions";
@@ -96,6 +97,8 @@ export interface EditorProps {
   starter?: boolean;
   /** A student's work may acknowledge using an AI tool. */
   aiUse?: boolean;
+  /** Blocks and question parts may carry a recording that reads them aloud. */
+  narration?: boolean;
   /** Told once a live document has arrived from its room and is drawn. */
   onSynced?: () => void;
 }
@@ -111,6 +114,7 @@ export default function Editor({
   lockQuestions = false,
   starter = false,
   aiUse = false,
+  narration = false,
   onSynced,
   ...props
 }: EditorProps) {
@@ -144,8 +148,19 @@ export default function Editor({
       lockQuestions,
       starter,
       aiUse,
+      narration,
     }),
-    [strings, media, locale, questions, gates, lockQuestions, starter, aiUse],
+    [
+      strings,
+      media,
+      locale,
+      questions,
+      gates,
+      lockQuestions,
+      starter,
+      aiUse,
+      narration,
+    ],
   );
   const [synced, setSynced] = useState(false);
   const factory = collaboration?.providerFactory;
@@ -339,6 +354,7 @@ function Surface({
       <PlaceholderPlugin empty={placeholder ?? strings.emptyPlaceholder} />
       <SlashMenuPlugin />
       <SelectionToolbarPlugin />
+      <NarrationMarksPlugin />
       <MediaPlugin onBusyChange={onUploadingChange} />
       <EmbedPlugin />
       <PastePlugin />

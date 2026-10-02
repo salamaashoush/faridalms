@@ -2,7 +2,10 @@ import type { ContentDocument } from "@faridalms/domain/content";
 import type { LessonDocument } from "@faridalms/domain/learning";
 import type { ElementNode, LexicalEditor } from "lexical";
 
-import { contentDocumentSchema } from "@faridalms/domain/content";
+import {
+  contentDocumentSchema,
+  contentFileIds,
+} from "@faridalms/domain/content";
 import {
   contentOfLesson,
   lessonOfContent,
@@ -35,6 +38,7 @@ import {
   QuestionOptionNode,
   setQuestionLabels,
 } from "./nodes";
+import { $setNarration } from "./nodes/narration";
 
 function json(target: LexicalEditor): ContentDocument {
   return target.getEditorState().toJSON() as unknown as ContentDocument;
@@ -61,6 +65,8 @@ function withQuestion(
   );
   return target;
 }
+
+const voice = (n: number) => `0190a1b2-0000-7000-8000-00000000030${n}`;
 
 function write(node: ElementNode | null | undefined, text: string) {
   node?.append($createTextNode(text));
@@ -681,6 +687,51 @@ describe("questions in a document", () => {
           answer: "Kitten",
         },
       ],
+    });
+    const again = buildContentEditor();
+    again.setEditorState(again.parseEditorState(JSON.stringify(document)));
+    expect(json(again)).toEqual(document);
+  });
+
+  it("keeps a recording on a question, its parts and a plain block through the document", () => {
+    const target = withQuestion("sortingQuestion");
+    target.update(
+      () => {
+        const question = $getRoot().getChildren().find($isQuestionNode);
+        if (!question) throw new Error("no question");
+        const [prompt, group] = question.getChildren();
+        if ($isQuestionPromptNode(prompt))
+          prompt.append($createTextNode("Which ones fly?"));
+        $setNarration(question, voice(1));
+        if (!$isQuestionGroupNode(group)) throw new Error("no group");
+        const [name, item] = group.getChildren<ElementNode>();
+        write(name, "Flies");
+        if (name) $setNarration(name, voice(2));
+        write(item, "Bird");
+        if (item) $setNarration(item, voice(3));
+        const intro = $createParagraphNode().append($createTextNode("Listen."));
+        $setNarration(intro, voice(4));
+        question.insertBefore(intro);
+      },
+      { discrete: true },
+    );
+    const document = json(target);
+    expect(v.safeParse(contentDocumentSchema, document).success).toBe(true);
+    expect(contentFileIds(document).toSorted()).toEqual(
+      [1, 2, 3, 4].map(voice),
+    );
+    const sorting = lessonOfContent(document).blocks.find(
+      (block) => block.type === "sorting",
+    );
+    if (sorting?.type !== "sorting") throw new Error("sorting expected");
+    expect(sorting.narration).toBe(voice(1));
+    expect(sorting.groups[0]).toMatchObject({
+      name: "Flies",
+      narration: voice(2),
+    });
+    expect(sorting.items[0]).toMatchObject({
+      text: "Bird",
+      narration: voice(3),
     });
     const again = buildContentEditor();
     again.setEditorState(again.parseEditorState(JSON.stringify(document)));

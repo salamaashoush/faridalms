@@ -78,6 +78,14 @@ function pictureOf(node: ContentNode | undefined) {
   return node?.fileId ? { fileId: node.fileId, alt: node.alt ?? "" } : null;
 }
 
+/** A block's or part's recording, as the field a check keeps it in. */
+const voiceOf = (node: ContentNode | undefined) =>
+  node?.$?.narration ? { narration: node.$.narration } : {};
+
+/** A recording as the editor's state on the node that reads it. */
+const voiced = (narration: string | null | undefined) =>
+  narration ? { $: { narration } } : {};
+
 /** Whether a part says anything: words, or a picture. */
 const written = (node: ContentNode | undefined) =>
   Boolean(textOf(node).trim() || node?.fileId);
@@ -95,6 +103,7 @@ function questionBlock(node: ContentNode): LessonBlock | null {
   const check = {
     id: node.questionId,
     prompt: textOf(prompt).trim(),
+    ...voiceOf(node),
     points: node.points ?? 1,
     hint: node.hint ?? "",
     explanation: node.explanation ?? "",
@@ -112,6 +121,7 @@ function questionBlock(node: ContentNode): LessonBlock | null {
           id: option.optionId ?? "",
           text: textOf(option).trim(),
           ...(option.fileId ? { picture: pictureOf(option) } : {}),
+          ...voiceOf(option),
           feedback: option.feedback ?? "",
         })),
         correctOptionIds: options
@@ -156,6 +166,7 @@ function questionBlock(node: ContentNode): LessonBlock | null {
             id: item.optionId ?? "",
             text: textOf(item).trim(),
             ...(item.fileId ? { picture: pictureOf(item) } : {}),
+            ...voiceOf(item),
           })),
         scoring: node.scoring ?? "all",
       };
@@ -175,8 +186,14 @@ function questionBlock(node: ContentNode): LessonBlock | null {
               id: pair.optionId ?? "",
               prompt: textOf(asked).trim(),
               ...(asked?.fileId ? { promptPicture: pictureOf(asked) } : {}),
+              ...(asked?.$?.narration
+                ? { promptNarration: asked.$.narration }
+                : {}),
               answer: textOf(matched).trim(),
               ...(matched?.fileId ? { answerPicture: pictureOf(matched) } : {}),
+              ...(matched?.$?.narration
+                ? { answerNarration: matched.$.narration }
+                : {}),
             };
           }),
         distractors: parts
@@ -185,6 +202,7 @@ function questionBlock(node: ContentNode): LessonBlock | null {
             id: extra.optionId ?? "",
             text: textOf(extra).trim(),
             ...(extra.fileId ? { picture: pictureOf(extra) } : {}),
+            ...voiceOf(extra),
           })),
       };
     case "gaps":
@@ -206,6 +224,7 @@ function questionBlock(node: ContentNode): LessonBlock | null {
         groups: groups.map((group) => ({
           id: group.optionId ?? "",
           name: textOf(group.children?.[0]).trim(),
+          ...voiceOf(group.children?.[0]),
         })),
         items: groups.flatMap((group) =>
           (group.children ?? [])
@@ -214,6 +233,7 @@ function questionBlock(node: ContentNode): LessonBlock | null {
               id: item.optionId ?? "",
               text: textOf(item).trim(),
               ...(item.fileId ? { picture: pictureOf(item) } : {}),
+              ...voiceOf(item),
               groupId: group.optionId ?? "",
             })),
         ),
@@ -413,6 +433,7 @@ export function questionNode(block: LessonBlock): ContentNode | null {
     tries: block.tries,
     hint: block.hint,
     explanation: block.explanation,
+    ...voiced(block.narration),
     children: [inlineOf("question-prompt", block.prompt)],
   };
   if (block.type === "choice")
@@ -425,6 +446,7 @@ export function questionNode(block: LessonBlock): ContentNode | null {
         ...block.options.map((option) => ({
           ...inlineOf("question-option", option.text),
           ...pictureFields(option.picture),
+          ...voiced(option.narration),
           optionId: option.id,
           correct: block.correctOptionIds.includes(option.id),
           feedback: option.feedback,
@@ -469,6 +491,7 @@ export function questionNode(block: LessonBlock): ContentNode | null {
         ...block.items.map((item) => ({
           ...inlineOf("question-option", item.text),
           ...pictureFields(item.picture),
+          ...voiced(item.narration),
           optionId: item.id,
         })),
       ],
@@ -489,16 +512,19 @@ export function questionNode(block: LessonBlock): ContentNode | null {
             {
               ...inlineOf("question-side", pair.prompt),
               ...pictureFields(pair.promptPicture),
+              ...voiced(pair.promptNarration),
             },
             {
               ...inlineOf("question-side", pair.answer),
               ...pictureFields(pair.answerPicture),
+              ...voiced(pair.answerNarration),
             },
           ],
         })),
         ...block.distractors.map((extra) => ({
           ...inlineOf("question-answer", extra.text),
           ...pictureFields(extra.picture),
+          ...voiced(extra.narration),
           optionId: extra.id,
         })),
       ],
@@ -516,12 +542,16 @@ export function questionNode(block: LessonBlock): ContentNode | null {
           direction: null,
           optionId: group.id,
           children: [
-            inlineOf("question-side", group.name),
+            {
+              ...inlineOf("question-side", group.name),
+              ...voiced(group.narration),
+            },
             ...block.items
               .filter((item) => item.groupId === group.id)
               .map((item) => ({
                 ...inlineOf("question-option", item.text),
                 ...pictureFields(item.picture),
+                ...voiced(item.narration),
                 optionId: item.id,
               })),
           ],

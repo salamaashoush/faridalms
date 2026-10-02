@@ -1,3 +1,5 @@
+import type { RecorderStrings } from "./recorder";
+
 export interface EditorStrings {
   placeholder: string;
   emptyPlaceholder: string;
@@ -212,6 +214,15 @@ export interface EditorStrings {
   questionPictureRemove: string;
   questionDelete: string;
   questionDone: string;
+  narration: string;
+  narrationHint: string;
+  narrationAgain: string;
+  narrationUpload: string;
+  narrationRemove: string;
+  narrationSaving: string;
+  narrationTooLong: string;
+  narrationClose: string;
+  recorder: RecorderStrings & { keep: string };
   questionTriesCount: (count: number) => string;
   questionWords: (count: number) => string;
   openFile: string;

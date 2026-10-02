@@ -19,6 +19,8 @@ export interface RecorderStrings {
 function soundFormat(): { mimeType: string; extension: string } | null {
   if (typeof MediaRecorder === "undefined") return null;
   const formats = [
+    // AAC in MP4 plays on every iPad; WebM plays there only from iPadOS 17.4.
+    { mimeType: "audio/mp4;codecs=mp4a.40.2", extension: "m4a" },
     { mimeType: "audio/webm;codecs=opus", extension: "webm" },
     { mimeType: "audio/webm", extension: "webm" },
     // Safari records only into MP4.

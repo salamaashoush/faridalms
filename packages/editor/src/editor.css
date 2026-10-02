@@ -689,3 +689,23 @@
   background-color: rgb(245 158 11 / 0.6);
   box-shadow: 0 2px 0 rgb(251 191 36);
 }
+
+/* A block or part the teacher recorded, marked with a speaker at its end. */
+.fe [data-narrated],
+.fe .fe-question-option[data-narrated][data-correct="true"] {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%238a8a85' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M11 4.702a.705.705 0 0 0-1.203-.498L6.413 7.587A1.4 1.4 0 0 1 5.416 8H3a1 1 0 0 0-1 1v6a1 1 0 0 0 1 1h2.416a1.4 1.4 0 0 1 .997.413l3.383 3.384A.705.705 0 0 0 11 19.298z'/%3E%3Cpath d='M16 9a5 5 0 0 1 0 6'/%3E%3Cpath d='M19.364 18.364a9 9 0 0 0 0-12.728'/%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-size: 1rem;
+  background-position: right 0.375rem top 0.3rem;
+  padding-inline-end: 1.75rem;
+}
+.fe [data-narrated]:dir(rtl) {
+  background-position: left 0.375rem top 0.3rem;
+}
+.fe .fe-question[data-narrated] {
+  background-position: right 0.75rem top 0.5rem;
+  padding-inline-end: 1rem;
+}
+.fe .fe-question[data-narrated]:dir(rtl) {
+  background-position: left 0.75rem top 0.5rem;
+}

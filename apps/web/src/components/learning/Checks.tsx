@@ -85,6 +85,37 @@ function PartView({
 const partLabel = (part: StudentPart) => part.text || part.picture?.alt || "";
 
 /**
+ * A part with its speaker beside it. The speaker is a button of its own, so
+ * it sits over a choosable card rather than inside it, and playing a part
+ * never chooses it.
+ */
+function Voiced({
+  part,
+  card,
+  children,
+}: {
+  part: StudentPart;
+  card: boolean;
+  children: ReactNode;
+}) {
+  if (!part.narration) return children;
+  return (
+    <div className="relative">
+      {children}
+      <ReadAloud
+        text={partLabel(part)}
+        narration={part.narration}
+        size="small"
+        className={cn(
+          "absolute end-2",
+          card ? "top-2" : "top-1/2 -translate-y-1/2",
+        )}
+      />
+    </div>
+  );
+}
+
+/**
  * How questions behave: practice marks each answer at once, a quiz keeps
  * answers until the whole quiz is handed in, and review shows a handed-in
  * attempt read-only with whatever its marks reveal.
@@ -304,7 +335,11 @@ function CheckCard({
           dir={young ? (textDirection(block.prompt) ?? undefined) : undefined}
           className="flex items-start justify-between gap-3"
         >
-          {young ? <ReadAloud text={spokenOf(block)} /> : null}
+          <ReadAloud
+            text={spokenOf(block)}
+            narration={block.narration}
+            voice={young}
+          />
           <p
             id={legendId}
             dir="auto"
@@ -566,35 +601,40 @@ function ChoiceCheck({
             {m.lrnChooseAll()}
           </p>
           {block.options.map((option) => (
-            <CheckboxPrimitive.Root
-              key={option.id}
-              disabled={locked}
-              checked={selected.includes(option.id)}
-              onCheckedChange={(checked) =>
-                setSelected((current) =>
-                  checked
-                    ? [...current, option.id]
-                    : current.filter((item) => item !== option.id),
-                )
-              }
-              className={cn(optionRow, markRow(editing, markOf(option.id)))}
-              onContextMenu={
-                young ? (event) => event.preventDefault() : undefined
-              }
-            >
-              <span
-                aria-hidden
-                className="grid size-4 shrink-0 place-items-center rounded-[4px] border border-input group-data-checked:border-primary group-data-checked:bg-primary group-data-checked:text-primary-foreground"
+            <Voiced key={option.id} part={option} card={pictured}>
+              <CheckboxPrimitive.Root
+                disabled={locked}
+                checked={selected.includes(option.id)}
+                onCheckedChange={(checked) =>
+                  setSelected((current) =>
+                    checked
+                      ? [...current, option.id]
+                      : current.filter((item) => item !== option.id),
+                  )
+                }
+                className={cn(
+                  optionRow,
+                  markRow(editing, markOf(option.id)),
+                  option.narration && !pictured && "pe-14",
+                )}
+                onContextMenu={
+                  young ? (event) => event.preventDefault() : undefined
+                }
               >
-                <CheckboxPrimitive.Indicator>
-                  <Check className="size-3.5" />
-                </CheckboxPrimitive.Indicator>
-              </span>
-              <span className="min-w-0 flex-1">
-                <PartView part={option} size={pictured ? "card" : "small"} />
-              </span>
-              <MarkIcon mark={markOf(option.id)} />
-            </CheckboxPrimitive.Root>
+                <span
+                  aria-hidden
+                  className="grid size-4 shrink-0 place-items-center rounded-[4px] border border-input group-data-checked:border-primary group-data-checked:bg-primary group-data-checked:text-primary-foreground"
+                >
+                  <CheckboxPrimitive.Indicator>
+                    <Check className="size-3.5" />
+                  </CheckboxPrimitive.Indicator>
+                </span>
+                <span className="min-w-0 flex-1">
+                  <PartView part={option} size={pictured ? "card" : "small"} />
+                </span>
+                <MarkIcon mark={markOf(option.id)} />
+              </CheckboxPrimitive.Root>
+            </Voiced>
           ))}
         </div>
       ) : (
@@ -609,25 +649,30 @@ function ChoiceCheck({
           )}
         >
           {block.options.map((option) => (
-            <Radio.Root
-              key={option.id}
-              value={option.id}
-              className={cn(optionRow, markRow(editing, markOf(option.id)))}
-              onContextMenu={
-                young ? (event) => event.preventDefault() : undefined
-              }
-            >
-              <span
-                aria-hidden
-                className="grid size-4 shrink-0 place-items-center rounded-full border border-input group-data-checked:border-primary group-data-checked:bg-primary"
+            <Voiced key={option.id} part={option} card={pictured}>
+              <Radio.Root
+                value={option.id}
+                className={cn(
+                  optionRow,
+                  markRow(editing, markOf(option.id)),
+                  option.narration && !pictured && "pe-14",
+                )}
+                onContextMenu={
+                  young ? (event) => event.preventDefault() : undefined
+                }
               >
-                <Radio.Indicator className="size-2 rounded-full bg-primary-foreground" />
-              </span>
-              <span className="min-w-0 flex-1">
-                <PartView part={option} size={pictured ? "card" : "small"} />
-              </span>
-              <MarkIcon mark={markOf(option.id)} />
-            </Radio.Root>
+                <span
+                  aria-hidden
+                  className="grid size-4 shrink-0 place-items-center rounded-full border border-input group-data-checked:border-primary group-data-checked:bg-primary"
+                >
+                  <Radio.Indicator className="size-2 rounded-full bg-primary-foreground" />
+                </span>
+                <span className="min-w-0 flex-1">
+                  <PartView part={option} size={pictured ? "card" : "small"} />
+                </span>
+                <MarkIcon mark={markOf(option.id)} />
+              </Radio.Root>
+            </Voiced>
           ))}
         </RadioGroup>
       )}
@@ -909,8 +954,19 @@ function MatchingCheck({
               key={prompt.id}
               className="grid gap-2 rounded-lg border px-4 py-3 sm:grid-cols-2 sm:items-center"
             >
-              <span id={label} className="text-sm leading-5 font-medium">
-                <PartView part={prompt} />
+              <span className="flex items-center gap-2">
+                <span
+                  id={label}
+                  className="min-w-0 flex-1 text-sm leading-5 font-medium"
+                >
+                  <PartView part={prompt} />
+                </span>
+                <ReadAloud
+                  text={partLabel(prompt)}
+                  narration={prompt.narration}
+                  voice={false}
+                  size="small"
+                />
               </span>
               <span className="flex min-w-0 items-center gap-2">
                 <Select
@@ -1045,6 +1101,12 @@ function OrderingCheck({
                 <span className="min-w-0 flex-1 text-sm leading-5">
                   <PartView part={partOf(itemId)} />
                 </span>
+                <ReadAloud
+                  text={text}
+                  narration={partOf(itemId).narration}
+                  voice={false}
+                  size="small"
+                />
                 <MarkIcon mark={mark} />
                 {locked ? null : (
                   <span className="flex shrink-0">
@@ -1145,8 +1207,16 @@ function SortingCheck({
                 markBorder(mark),
               )}
             >
-              <span id={label} className="text-sm leading-5 font-medium">
-                <PartView part={item} />
+              <span className="flex items-center gap-2">
+                <span id={label} className="text-sm leading-5 font-medium">
+                  <PartView part={item} />
+                </span>
+                <ReadAloud
+                  text={partLabel(item)}
+                  narration={item.narration}
+                  voice={false}
+                  size="small"
+                />
               </span>
               <span className="flex flex-wrap items-center gap-2">
                 <RadioGroup

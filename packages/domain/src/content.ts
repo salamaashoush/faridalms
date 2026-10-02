@@ -167,7 +167,8 @@ export interface ContentNode {
   aiPrompt?: string;
   aiUse?: string;
   aiEvidence?: AiEvidence[];
-  $?: { id?: string };
+  /** The editor's own facts about a block: its id, and a recording that reads it aloud. */
+  $?: { id?: string; narration?: string };
 }
 
 /** A screenshot or file a student keeps as evidence of using an AI tool. */
@@ -328,6 +329,7 @@ const nodeSchema: v.GenericSchema<ContentNode> = v.lazy(() =>
       $: v.optional(
         v.object({
           id: v.optional(v.pipe(v.string(), v.regex(/^[\da-z]{8,36}$/))),
+          narration: v.optional(v.pipe(v.string(), v.uuid())),
         }),
       ),
     }),
@@ -697,7 +699,12 @@ export function contentFileIds(document: ContentDocument): string[] {
   const ids = new Set<string>();
   const pending = [document.root];
   for (let node = pending.pop(); node; node = pending.pop()) {
-    for (const id of [node.fileId, node.captionsFileId, node.sceneFileId])
+    for (const id of [
+      node.fileId,
+      node.captionsFileId,
+      node.sceneFileId,
+      node.$?.narration,
+    ])
       if (id) ids.add(id);
     for (const evidence of node.aiEvidence ?? []) ids.add(evidence.fileId);
     if (node.children) pending.push(...node.children);
@@ -710,8 +717,14 @@ function comparable(value: unknown): unknown {
   if (!value || typeof value !== "object") return value;
   return Object.fromEntries(
     Object.entries(value)
-      // Block ids and directions are the editor's bookkeeping, not words.
-      .filter(([key]) => key !== "direction" && key !== "$")
+      // Block ids and directions are the editor's bookkeeping, not words; a
+      // block's narration is part of what it says.
+      .flatMap(([key, item]): [string, unknown][] => {
+        if (key === "direction") return [];
+        if (key !== "$") return [[key, item]];
+        const { id: _id, ...kept } = (item ?? {}) as Record<string, unknown>;
+        return Object.keys(kept).length > 0 ? [[key, kept]] : [];
+      })
       .toSorted(([a], [b]) => (a < b ? -1 : a > b ? 1 : 0))
       .map(([key, item]) => [key, comparable(item)]),
   );

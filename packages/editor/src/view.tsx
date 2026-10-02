@@ -225,7 +225,7 @@ function renderText(
       ),
   );
   // Marks the document's own words, which comments count characters in;
-  // labels the reader adds around them read differently per language.
+  // labels the reader adds renderBlock them read differently per language.
   return (
     <span
       key={key}
@@ -688,6 +688,7 @@ export function ContentRenderer({
   className,
   marks,
   activeMark = null,
+  renderBlock,
 }: {
   document: ContentDocument;
   strings: ViewStrings;
@@ -697,16 +698,25 @@ export function ContentRenderer({
   /** Passages to draw marked, as comments on handed-in work point at them. */
   marks?: ContentMark[];
   activeMark?: string | null;
+  /** Draws something renderBlock each top-level block, such as a speaker that reads it. */
+  renderBlock?: (node: ContentNode, drawn: ReactNode) => ReactNode;
 }) {
   const marking = marks?.length
     ? markingOf(document, marks, activeMark)
     : undefined;
+  const context = { strings, fileUrl, locale, marking };
   return (
     <div
       className={className ? `fe ${className}` : "fe"}
       dir={textDirection(contentPlainText(document)) ?? undefined}
     >
-      {render(document.root, "root", { strings, fileUrl, locale, marking })}
+      {renderBlock
+        ? document.root.children?.map((child, index) => (
+            <Fragment key={`root.${index}`}>
+              {renderBlock(child, render(child, `root.${index}`, context))}
+            </Fragment>
+          ))
+        : render(document.root, "root", context)}
     </div>
   );
 }

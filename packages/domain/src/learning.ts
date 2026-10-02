@@ -57,10 +57,14 @@ export function needsCaptions(mediaType: string): boolean {
 export const needsTranscript = (mediaType: string) =>
   mediaType.startsWith("audio/");
 
+/** A teacher's recording of a question or part, played to children who cannot read yet. */
+const narration = v.optional(v.nullable(id));
+
 /** What every question shares: how it is asked, what it is worth, and how it helps. */
 const checkFields = {
   id,
   prompt: requiredText(1000),
+  narration,
   /** 0 counts for nothing; a practice question still gives feedback. */
   points: v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(100)),
   hint: text(500),
@@ -115,6 +119,7 @@ export const choiceOptionSchema = named(
     id,
     text: text(300),
     picture,
+    narration,
     /** Shown to a student who picks this option. */
     feedback: text(300),
   }),
@@ -247,8 +252,10 @@ export const lessonBlockSchema = v.variant("type", [
             id,
             prompt: text(300),
             promptPicture: picture,
+            promptNarration: narration,
             answer: text(300),
             answerPicture: picture,
+            answerNarration: narration,
           }),
           v.check(
             (pair) =>
@@ -265,7 +272,7 @@ export const lessonBlockSchema = v.variant("type", [
     ),
     /** Answers that match no prompt, so the last pair is still a choice. */
     distractors: v.pipe(
-      v.array(named(v.object({ id, text: text(300), picture }))),
+      v.array(named(v.object({ id, text: text(300), picture, narration }))),
       v.maxLength(MAX_DISTRACTORS),
     ),
   }),
@@ -274,7 +281,7 @@ export const lessonBlockSchema = v.variant("type", [
     type: v.literal("ordering"),
     /** In their right order; students see them shuffled. */
     items: v.pipe(
-      v.array(named(v.object({ id, text: text(300), picture }))),
+      v.array(named(v.object({ id, text: text(300), picture, narration }))),
       v.minLength(2),
       v.maxLength(MAX_ORDER_ITEMS),
     ),
@@ -286,12 +293,16 @@ export const lessonBlockSchema = v.variant("type", [
       ...checkFields,
       type: v.literal("sorting"),
       groups: v.pipe(
-        v.array(v.object({ id, name: requiredText(100) })),
+        v.array(v.object({ id, name: requiredText(100), narration })),
         v.minLength(2),
         v.maxLength(MAX_SORT_GROUPS),
       ),
       items: v.pipe(
-        v.array(named(v.object({ id, text: text(300), picture, groupId: id }))),
+        v.array(
+          named(
+            v.object({ id, text: text(300), picture, narration, groupId: id }),
+          ),
+        ),
         v.minLength(2),
         v.maxLength(MAX_SORT_ITEMS),
       ),
@@ -800,6 +811,7 @@ export interface StudentPart {
   id: string;
   text: string;
   picture?: Picture | null;
+  narration?: string | null;
 }
 
 export type StudentBlock =
@@ -818,7 +830,10 @@ export type StudentBlock =
         | { type: "gap"; id: string; options: string[] }
       )[];
     })
-  | Pick<NumberBlock, "id" | "type" | "prompt" | "points" | "tries">
+  | Pick<
+      NumberBlock,
+      "id" | "type" | "prompt" | "narration" | "points" | "tries"
+    >
   | (Omit<MatchingBlock, "distractors" | "explanation" | "hint" | "pairs"> & {
       prompts: StudentPart[];
       choices: StudentPart[];
@@ -862,10 +877,16 @@ export function studentBlocks(
           ...rest
         } = block;
         const options = block.options.map(
-          ({ id: optionId, text: label, picture: shown }) => ({
+          ({
+            id: optionId,
+            text: label,
+            picture: shown,
+            narration: voice,
+          }) => ({
             id: optionId,
             text: label,
             picture: shown ?? null,
+            narration: voice ?? null,
           }),
         );
         return {
@@ -904,6 +925,7 @@ export function studentBlocks(
           id: block.id,
           type: block.type,
           prompt: block.prompt,
+          narration: block.narration ?? null,
           points: block.points,
           tries: block.tries,
         };
@@ -922,11 +944,13 @@ export function studentBlocks(
             id: pair.id,
             text: pair.answer,
             picture: pair.answerPicture ?? null,
+            narration: pair.answerNarration ?? null,
           })),
           ...distractors.map((extra) => ({
             id: extra.id,
             text: extra.text,
             picture: extra.picture ?? null,
+            narration: extra.narration ?? null,
           })),
         ].filter((choice) => {
           const same = `${choice.text}\n${choice.picture?.fileId ?? ""}`;
@@ -940,6 +964,7 @@ export function studentBlocks(
             id: pair.id,
             text: pair.prompt,
             picture: pair.promptPicture ?? null,
+            narration: pair.promptNarration ?? null,
           })),
           choices: shuffled(choices, `${seed}:${block.id}`),
         };
@@ -961,6 +986,7 @@ export function studentBlocks(
               id: item.id,
               text: item.text,
               picture: item.picture ?? null,
+              narration: item.narration ?? null,
             })),
             `${seed}:${block.id}`,
           ),

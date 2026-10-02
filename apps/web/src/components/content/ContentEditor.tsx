@@ -36,6 +36,7 @@ export function ContentEditor({
   lockQuestions,
   starter,
   aiUse,
+  narration,
   pending = false,
 }: {
   id: string;
@@ -57,6 +58,7 @@ export function ContentEditor({
   lockQuestions?: boolean;
   starter?: boolean;
   aiUse?: boolean;
+  narration?: boolean;
   /** Whether the document may be live is still being asked. */
   pending?: boolean;
 }) {
@@ -114,6 +116,7 @@ export function ContentEditor({
           lockQuestions={lockQuestions}
           starter={starter}
           aiUse={aiUse}
+          narration={narration}
           onSynced={
             collaboration ? () => setJoined(collaboration.id) : undefined
           }

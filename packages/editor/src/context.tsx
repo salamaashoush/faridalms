@@ -48,6 +48,8 @@ export interface EditorEnvironment {
   starter?: boolean;
   /** A student's work may acknowledge using an AI tool. */
   aiUse?: boolean;
+  /** Blocks and question parts may carry a recording that reads them aloud. */
+  narration?: boolean;
 }
 
 const Context = createContext<EditorEnvironment | null>(null);

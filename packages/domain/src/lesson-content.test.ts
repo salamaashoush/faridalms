@@ -3,7 +3,12 @@ import { describe, expect, it } from "vitest";
 
 import type { LessonDocument } from "./learning";
 
-import { contentDocumentSchema, contentPlainText } from "./content";
+import {
+  contentDocumentSchema,
+  contentFileIds,
+  contentPlainText,
+  sameContent,
+} from "./content";
 import { plainContent } from "./content-conversion";
 import { lessonDocumentSchema } from "./learning";
 import {
@@ -368,5 +373,103 @@ describe("pictures on a question's parts", () => {
       ],
     };
     expect(v.safeParse(lessonDocumentSchema, unnamed).success).toBe(false);
+  });
+});
+
+const voice = (n: number) =>
+  `0190a1b2-0000-7000-8000-0000000002${String(n).padStart(2, "0")}`;
+
+describe("narration recorded by the teacher", () => {
+  const base = { points: 1, hint: "", explanation: "", tries: null };
+  const narrated: LessonDocument = {
+    version: 2,
+    blocks: [
+      {
+        ...base,
+        id: partId(10),
+        type: "choice",
+        prompt: "Which one starts with m?",
+        narration: voice(1),
+        options: [
+          { id: partId(11), text: "moon", narration: voice(2), feedback: "" },
+          { id: partId(12), text: "sun", feedback: "" },
+        ],
+        correctOptionIds: [partId(11)],
+        multiple: false,
+        shuffle: false,
+      },
+      {
+        ...base,
+        id: partId(13),
+        type: "matching",
+        prompt: "Match the sounds.",
+        pairs: [
+          {
+            id: partId(14),
+            prompt: "m",
+            promptNarration: voice(3),
+            answer: "moon",
+            answerNarration: voice(4),
+          },
+          { id: partId(15), prompt: "s", answer: "sun" },
+        ],
+        distractors: [{ id: partId(16), text: "cat", narration: voice(5) }],
+      },
+      {
+        ...base,
+        id: partId(17),
+        type: "sorting",
+        prompt: "Sort them.",
+        groups: [
+          { id: partId(18), name: "Flies", narration: voice(6) },
+          { id: partId(19), name: "Swims" },
+        ],
+        items: [
+          {
+            id: partId(20),
+            text: "bird",
+            narration: voice(7),
+            groupId: partId(18),
+          },
+          { id: partId(21), text: "fish", groupId: partId(19) },
+        ],
+      },
+    ],
+  };
+
+  it("keeps every recording on its question and part through the document", () => {
+    const document = contentOfLesson(narrated);
+    if (!document) throw new Error("lesson could not become a document");
+    expect(v.safeParse(contentDocumentSchema, document).success).toBe(true);
+    const back = lessonOfContent(document);
+    expect(v.safeParse(lessonDocumentSchema, back).success).toBe(true);
+    expect(checks(back.blocks)).toEqual(checks(narrated.blocks));
+    expect(contentFileIds(document).toSorted()).toEqual(
+      [1, 2, 3, 4, 5, 6, 7].map(voice),
+    );
+  });
+
+  it("counts a new recording as a change, and a new block id as none", () => {
+    const document = contentOfLesson(narrated);
+    if (!document) throw new Error("lesson could not become a document");
+    const [question, ...rest] = document.root.children ?? [];
+    if (!question) throw new Error("question expected");
+    const renamed = {
+      root: {
+        ...document.root,
+        children: [
+          { ...question, $: { ...question.$, id: "abcdefgh" } },
+          ...rest,
+        ],
+      },
+    };
+    const revoiced = {
+      root: {
+        ...document.root,
+        children: [{ ...question, $: { narration: voice(9) } }, ...rest],
+      },
+    };
+    expect(sameContent(document, renamed)).toBe(true);
+    expect(sameContent(document, revoiced)).toBe(false);
   });
 });

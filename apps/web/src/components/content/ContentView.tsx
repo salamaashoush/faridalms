@@ -1,5 +1,6 @@
-import type { ContentDocument } from "@faridalms/domain/content";
+import type { ContentDocument, ContentNode } from "@faridalms/domain/content";
 import type { ContentMark } from "@faridalms/editor/view";
+import type { ReactNode } from "react";
 
 import { ContentRenderer } from "@faridalms/editor/view";
 
@@ -14,12 +15,14 @@ export function ContentView({
   className,
   marks,
   activeMark,
+  renderBlock,
 }: {
   document: ContentDocument;
   fileUrl?: (fileId: string) => string;
   className?: string;
   marks?: ContentMark[];
   activeMark?: string | null;
+  renderBlock?: (node: ContentNode, drawn: ReactNode) => ReactNode;
 }) {
   return (
     <ContentRenderer
@@ -39,6 +42,7 @@ export function ContentView({
       className={className}
       marks={marks}
       activeMark={activeMark}
+      renderBlock={renderBlock}
     />
   );
 }

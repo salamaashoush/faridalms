@@ -1115,6 +1115,15 @@
   "editorQuestionFeedback": "تعليق على هذا الخيار",
   "editorQuestionDelete": "حذف السؤال",
   "editorQuestionDone": "تم",
+  "editorNarration": "التسجيل الصوتي",
+  "editorNarrationHint": "سجّل صوتك وأنت تقرأ هذا الجزء، حتى ثلاث دقائق. يضغط الأطفال على السمّاعة ليسمعوه.",
+  "editorNarrationAgain": "سجّل من جديد",
+  "editorNarrationUpload": "ارفع تسجيلًا",
+  "editorNarrationRemove": "احذف",
+  "editorNarrationSaving": "جارٍ حفظ التسجيل…",
+  "editorNarrationTooLong": "هذا التسجيل أطول من ثلاث دقائق. سجّل تسجيلًا أقصر أو ارفعه.",
+  "editorNarrationClose": "إغلاق",
+  "editorNarrationKeep": "استخدم هذا التسجيل",
   "editorQuestionTriesCount": [
     {
       "declarations": ["input count", "local countPlural = count: plural"],

@@ -27,6 +27,7 @@ import {
   Plus,
   Repeat2,
   Trash2,
+  Volume2,
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
@@ -50,8 +51,10 @@ import {
   $createColumnNode,
   columnCount,
 } from "../nodes";
+import { $narrationOf } from "../nodes/narration";
 import { textFocus, updateFromOutside } from "../outside";
 import { Tip, cx, menuItemClass, menuPopupClass, shortcutLabel } from "../ui";
+import { OPEN_NARRATION_COMMAND } from "./narration";
 
 const DRAG_TYPE = "application/x-farida-block";
 const HANDLE_WIDTH = 44;
@@ -69,7 +72,12 @@ interface BlockFacts {
   layout: ColumnLayout | null;
   first: boolean;
   last: boolean;
+  /** Whether it may be read aloud, and whether it is. */
+  narration: "none" | "empty" | "recorded";
 }
+
+// Blocks with nothing to read aloud.
+const SILENT = new Set(["gate", "horizontalrule", "starter", "columns"]);
 
 function isModifier(event: KeyboardEvent) {
   return event.metaKey || event.ctrlKey;
@@ -147,7 +155,7 @@ function $setLayout(block: LexicalNode, layout: ColumnLayout) {
 export function BlockHandlePlugin({ anchor }: { anchor: HTMLElement | null }) {
   const [editor] = useLexicalComposerContext();
   const editable = useLexicalEditable();
-  const { strings } = useEditorEnvironment();
+  const { strings, media, narration } = useEditorEnvironment();
   const [hovered, setHovered] = useState<Hovered | null>(null);
   const [menu, setMenu] = useState(false);
   const [facts, setFacts] = useState<BlockFacts | null>(null);
@@ -262,13 +270,19 @@ export function BlockHandlePlugin({ anchor }: { anchor: HTMLElement | null }) {
           layout: $isColumnsNode(block) ? block.getLayout() : null,
           first: !block.getPreviousSibling(),
           last: !block.getNextSibling(),
-        };
+          narration:
+            !narration || !media || SILENT.has(block.getType())
+              ? "none"
+              : $narrationOf(block)
+                ? "recorded"
+                : "empty",
+        } satisfies BlockFacts;
       });
       if (!next) return;
       setFacts(next);
       setMenu(true);
     },
-    [editor],
+    [editor, narration, media],
   );
 
   useEffect(
@@ -570,6 +584,27 @@ export function BlockHandlePlugin({ anchor }: { anchor: HTMLElement | null }) {
                       </Menu.Positioner>
                     </Menu.Portal>
                   </Menu.SubmenuRoot>
+                ) : null}
+                {facts && facts.narration !== "none" ? (
+                  <Menu.Item
+                    className={menuItemClass}
+                    onClick={() => {
+                      const key = hovered?.key;
+                      setMenu(false);
+                      if (key)
+                        // After the menu hands focus back to the text, which
+                        // would otherwise close the panel as it opens.
+                        requestAnimationFrame(() =>
+                          editor.dispatchCommand(OPEN_NARRATION_COMMAND, key),
+                        );
+                    }}
+                  >
+                    <Volume2 aria-hidden />
+                    <span className="flex-1">{strings.narration}</span>
+                    {facts.narration === "recorded" ? (
+                      <span className="size-1.5 rounded-full bg-primary" />
+                    ) : null}
+                  </Menu.Item>
                 ) : null}
                 <Menu.Item
                   className={menuItemClass}

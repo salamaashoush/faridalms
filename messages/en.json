@@ -1103,6 +1103,15 @@
   "editorQuestionFeedback": "Feedback for this option",
   "editorQuestionDelete": "Delete question",
   "editorQuestionDone": "Done",
+  "editorNarration": "Narration",
+  "editorNarrationHint": "Record yourself reading this aloud, up to 3 minutes. Children tap the speaker to hear it.",
+  "editorNarrationAgain": "Record again",
+  "editorNarrationUpload": "Upload a recording",
+  "editorNarrationRemove": "Remove",
+  "editorNarrationSaving": "Saving the recording…",
+  "editorNarrationTooLong": "This recording is longer than 3 minutes. Record or upload a shorter one.",
+  "editorNarrationClose": "Close",
+  "editorNarrationKeep": "Use this recording",
   "editorQuestionTriesCount": [
     {
       "declarations": ["input count", "local countPlural = count: plural"],

@@ -289,18 +289,42 @@ function LessonBody({
             />
           );
         } else if (block.type === "content")
-          body = young ? (
-            <div
-              dir={textDirection(contentPlainText(block.content)) ?? undefined}
-              className="flex items-start gap-3"
-            >
-              <ReadAloud text={contentPlainText(block.content)} />
-              <div className="min-w-0 flex-1">
-                <ContentView document={block.content} fileUrl={fileUrl} />
-              </div>
-            </div>
-          ) : (
-            <ContentView document={block.content} fileUrl={fileUrl} />
+          body = (
+            <ContentView
+              document={block.content}
+              fileUrl={fileUrl}
+              renderBlock={(node, drawn) => {
+                const narration = node.$?.narration ?? null;
+                if (!young && !narration) return drawn;
+                const text = contentPlainText({
+                  root: { ...block.content.root, children: [node] },
+                });
+                // For young children every block keeps a speaker's room at
+                // its start, so their text lines up whether one shows or not.
+                return young ? (
+                  <div
+                    dir={textDirection(text) ?? undefined}
+                    className="flex items-start gap-3"
+                  >
+                    <span className="flex w-11 shrink-0 justify-center">
+                      <ReadAloud text={text} narration={narration} />
+                    </span>
+                    <div className="min-w-0 flex-1">{drawn}</div>
+                  </div>
+                ) : (
+                  <div className="flex items-start gap-3">
+                    <div className="min-w-0 flex-1">{drawn}</div>
+                    <ReadAloud
+                      text={text}
+                      narration={narration}
+                      voice={false}
+                      size="small"
+                      className="mt-1"
+                    />
+                  </div>
+                );
+              }}
+            />
           );
         else if (block.type === "media") body = <Media block={block} />;
         else if (isCheckBlock(block))

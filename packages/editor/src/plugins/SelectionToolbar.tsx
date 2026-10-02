@@ -56,11 +56,13 @@ import {
   Trash2,
   Underline,
   Unlink,
+  Volume2,
 } from "lucide-react";
 import { useEffect, useEffectEvent, useRef, useState } from "react";
 
 import type { BlockType } from "../blocks";
 import type { MarkFormat } from "../formatting";
+import type { NarrationTarget } from "../nodes/narration";
 import type {
   PartPicture,
   QuestionSettings,
@@ -90,6 +92,13 @@ import {
 } from "../formatting";
 import { $isFileNode, $isImageNode, OPEN_FILE_COMMAND } from "../nodes/media";
 import {
+  $findNarrated,
+  $holdsNarration,
+  $narrationOf,
+  $narrationTarget,
+  $setNarration,
+} from "../nodes/narration";
+import {
   $findPart,
   $holdsPicture,
   $isQuestionNode,
@@ -117,6 +126,7 @@ import {
   selectionReference,
   shortcutLabel,
 } from "../ui";
+import { NarrationPanel, OPEN_NARRATION_COMMAND } from "./narration";
 
 type Mode =
   | "hidden"
@@ -127,7 +137,8 @@ type Mode =
   | "file"
   | "question"
   | "question-text"
-  | "question-number";
+  | "question-number"
+  | "narration";
 
 /** The question the caret is in: what the bar shows and changes. */
 interface QuestionBarFacts {
@@ -137,6 +148,8 @@ interface QuestionBarFacts {
   option: { key: NodeKey; feedback: string } | null;
   /** The part the caret is in, when it may show a picture. */
   part: { key: NodeKey; picture: PartPicture | null } | null;
+  /** What a recording made from here reads: the part the caret is in, else the question. */
+  narration: { key: NodeKey; fileId: string | null };
 }
 
 type QuestionText = "hint" | "explanation" | "feedback" | "alt";
@@ -246,7 +259,12 @@ const empty: Facts = {
 export function SelectionToolbarPlugin() {
   const [editor] = useLexicalComposerContext();
   const editable = useLexicalEditable();
-  const { strings, media, lockQuestions } = useEditorEnvironment();
+  const {
+    strings,
+    media,
+    lockQuestions,
+    narration: narrates,
+  } = useEditorEnvironment();
   const [mode, setMode] = useState<Mode>("hidden");
   const [reference, setReference] = useState<ReferenceElement | null>(null);
   const [facts, setFacts] = useState<Facts>(empty);
@@ -267,6 +285,10 @@ export function SelectionToolbarPlugin() {
   const [invalid, setInvalid] = useState(false);
   const saved = useRef<BaseSelection | null>(null);
   const [partProblem, setPartProblem] = useState<string | null>(null);
+  const [narrating, setNarrating] = useState<{
+    target: NarrationTarget;
+    fileId: string | null;
+  } | null>(null);
   /**
    * Chooses a picture for the question part the caret is in. The chooser is
    * made on the spot rather than drawn in the bar, since the bar closes while
@@ -352,12 +374,15 @@ export function SelectionToolbarPlugin() {
       let node: LexicalNode | null = selection.anchor.getNode();
       let option: QuestionOptionNode | null = null;
       let part: LexicalNode | null = null;
+      let voiced: LexicalNode | null = null;
       while (node && !$isQuestionNode(node)) {
         if ($isQuestionOptionNode(node)) option = node;
         if (!part && $holdsPicture(node)) part = node;
+        if (!voiced && $holdsNarration(node)) voiced = node;
         node = node.getParent();
       }
       if (!$isQuestionNode(node)) return null;
+      voiced ??= node;
       return {
         key: node.getKey(),
         settings: node.getSettings(),
@@ -365,6 +390,7 @@ export function SelectionToolbarPlugin() {
           ? { key: option.getKey(), feedback: option.getFeedback() }
           : null,
         part: part ? { key: part.getKey(), picture: $partPicture(part) } : null,
+        narration: { key: voiced.getKey(), fileId: $narrationOf(voiced) },
       };
     });
 
@@ -396,7 +422,8 @@ export function SelectionToolbarPlugin() {
     if (
       modeRef.current === "link-edit" ||
       modeRef.current === "question-text" ||
-      modeRef.current === "question-number"
+      modeRef.current === "question-number" ||
+      modeRef.current === "narration"
     )
       return;
     const root = editor.getRootElement();
@@ -451,7 +478,25 @@ export function SelectionToolbarPlugin() {
     show("link-edit");
   };
 
+  /** Opens the narration panel at a block or part, from the block menu or the question bar. */
+  const openNarration = (key: NodeKey) => {
+    const found = editor.getEditorState().read(() => {
+      const node = $getNodeByKey(key);
+      const target = node ? $narrationTarget(node) : null;
+      return node && target ? { target, fileId: $narrationOf(node) } : null;
+    });
+    const element = editor.getElementByKey(key);
+    if (!found || !element) return;
+    saved.current = editor
+      .getEditorState()
+      .read(() => $getSelection()?.clone() ?? null);
+    setNarrating(found);
+    setReference(element);
+    show("narration");
+  };
+
   const onRefresh = useEffectEvent(refresh);
+  const onOpenNarration = useEffectEvent(openNarration);
   const onOpenLink = useEffectEvent(openLinkEditor);
   const onEscape = useEffectEvent(() => {
     if (modeRef.current === "hidden") return false;
@@ -508,6 +553,14 @@ export function SelectionToolbarPlugin() {
         () => onEscape(),
         COMMAND_PRIORITY_LOW,
       ),
+      editor.registerCommand(
+        OPEN_NARRATION_COMMAND,
+        (key) => {
+          onOpenNarration(key);
+          return true;
+        },
+        COMMAND_PRIORITY_LOW,
+      ),
     );
   }, [editor, editable]);
 
@@ -516,7 +569,8 @@ export function SelectionToolbarPlugin() {
       mode === "hidden" ||
       mode === "link-edit" ||
       mode === "question-text" ||
-      mode === "question-number"
+      mode === "question-number" ||
+      mode === "narration"
     )
       return undefined;
     const onFocus = () => {
@@ -526,7 +580,8 @@ export function SelectionToolbarPlugin() {
       if (
         modeRef.current === "link-edit" ||
         modeRef.current === "question-text" ||
-        modeRef.current === "question-number"
+        modeRef.current === "question-number" ||
+        modeRef.current === "narration"
       )
         return;
       const active = document.activeElement;
@@ -887,6 +942,15 @@ export function SelectionToolbarPlugin() {
               <MessageSquare aria-hidden />
             </ToolButton>
           ) : null}
+          {narrates && media ? (
+            <ToolButton
+              label={strings.narration}
+              active={Boolean(question.narration.fileId)}
+              onClick={() => openNarration(question.narration.key)}
+            >
+              <Volume2 aria-hidden />
+            </ToolButton>
+          ) : null}
           {question.part && media ? (
             question.part.picture ? (
               <>
@@ -944,6 +1008,39 @@ export function SelectionToolbarPlugin() {
           >
             <Trash2 aria-hidden />
           </ToolButton>
+        </div>
+      </Floating>
+    );
+  }
+
+  if (mode === "narration" && narrating) {
+    const close = () => {
+      show("hidden");
+      setNarrating(null);
+      focusText(editor);
+    };
+    const slot = editor.getRootElement()?.id;
+    return (
+      <Floating
+        reference={reference}
+        placement="bottom-start"
+        boundary={boundary}
+        className="w-80 max-w-[calc(100vw-1rem)] p-3"
+      >
+        <div ref={toolbar}>
+          <NarrationPanel
+            fileId={narrating.fileId}
+            onChange={(fileId) => {
+              const { target } = narrating;
+              setNarrating({ target, fileId });
+              // The upload may finish after a first save restarted the editor.
+              updateFromOutside(editorInSlot(slot) ?? editor, () => {
+                const node = $findNarrated(target);
+                if (node) $setNarration(node, fileId);
+              });
+            }}
+            onClose={close}
+          />
         </div>
       </Floating>
     );

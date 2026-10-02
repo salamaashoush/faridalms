@@ -406,6 +406,7 @@ export function LessonEditor({
           onUploadingChange={setUploading}
           media={media}
           questions
+          narration
           collaboration={shared ? live.collaboration : undefined}
           pending={live.state === "loading"}
           replace={replace}
