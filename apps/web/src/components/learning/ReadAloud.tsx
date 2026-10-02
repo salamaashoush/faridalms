@@ -1,3 +1,4 @@
+import { voiceCanRead } from "@faridalms/domain/arabic";
 import { textDirection } from "@faridalms/domain/content";
 import { Button } from "@faridalms/ui/button";
 import { cn } from "@faridalms/ui/cn";
@@ -26,19 +27,6 @@ export function playRecording(fileId: string) {
   player.src = `/files/${fileId}`;
   // A refused play (no tap yet, or the file is gone) leaves the page silent.
   void player.play().catch(() => undefined);
-}
-
-const ARABIC_LETTERS = /[ء-ي]/g;
-const VOWEL_MARKS = /[ً-ْ]/g;
-
-/**
- * Whether a browser voice may read a text to a child. Arabic written without
- * its short vowels leaves the voice guessing them, and it misreads about one
- * word in ten, so only vowelled Arabic is read without a recording.
- */
-function readable(text: string) {
-  const letters = text.match(ARABIC_LETTERS)?.length ?? 0;
-  return letters === 0 || (text.match(VOWEL_MARKS)?.length ?? 0) * 2 >= letters;
 }
 
 const languageOf = (text: string) =>
@@ -76,7 +64,7 @@ function speak(text: string) {
 function speakable(text: string, voices: string) {
   return (
     text.trim() !== "" &&
-    readable(text) &&
+    voiceCanRead(text) &&
     voices.split(",").includes(languageOf(text))
   );
 }

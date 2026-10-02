@@ -59,3 +59,16 @@ export function allWithoutVowelMarks<T>(value: T): T {
     ) as T;
   return value;
 }
+
+const ARABIC_LETTERS = new RegExp(`[${span(0x0621, 0x064a)}]`, "gu");
+const HARAKAT = new RegExp(`[${span(0x064b, 0x0652)}]`, "gu");
+
+/**
+ * Whether a browser voice may read a text to a child. Arabic written without
+ * its short vowels leaves the voice guessing them, and it misreads about one
+ * word in ten, so only vowelled Arabic is read without a recording.
+ */
+export function voiceCanRead(text: string): boolean {
+  const letters = text.match(ARABIC_LETTERS)?.length ?? 0;
+  return letters === 0 || (text.match(HARAKAT)?.length ?? 0) * 2 >= letters;
+}

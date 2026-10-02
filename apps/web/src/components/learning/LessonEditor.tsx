@@ -37,6 +37,7 @@ import { getMessageFromError } from "~/utils/error";
 
 import { COMPLETION_LABEL } from "./format";
 import { blockIssue } from "./issues";
+import { YoungAdviceList } from "./YoungAdvice";
 
 const VOWEL_MARKS_LABEL: Record<VowelMarks, () => string> = {
   shown: m.lrnVowelMarksShown,
@@ -390,6 +391,9 @@ export function LessonEditor({
                   checked={draft.young}
                   onChange={(young) => set("young", young)}
                 />
+              ) : null}
+              {earlyYears && draft.young ? (
+                <YoungAdviceList blocks={lesson.blocks} />
               ) : null}
               <CheckboxRow
                 label={m.lrnReview()}
