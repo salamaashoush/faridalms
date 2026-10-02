@@ -244,6 +244,21 @@ export async function yearCalendar(
     select target_days from core.calendars
     where tenant_id = ${tenantId}::uuid and school_year_id = ${yearId}::uuid
       and kind = 'school' and status = 'active'`);
+  return {
+    targetDays: calendar?.target_days ?? null,
+    days: await calendarDays(tx, { tenantId, yearId }),
+  };
+}
+
+/** What the school calendar marks each day as, the whole year or `[from, to]`. */
+export async function calendarDays(
+  tx: CellTransaction,
+  input: { tenantId: string; yearId: string; from?: string; to?: string },
+): Promise<CalendarDay[]> {
+  const range =
+    input.from && input.to
+      ? sql`and d.day_on between ${input.from}::date and ${input.to}::date`
+      : sql``;
   const rows = await tx.execute<{
     day: string;
     meaning: string;
@@ -257,18 +272,16 @@ export async function yearCalendar(
     join core.calendars c on c.tenant_id = d.tenant_id and c.id = d.calendar_id
       and c.kind = 'school' and c.status = 'active'
     join core.descriptors e on e.tenant_id = d.tenant_id and e.id = d.event_descriptor_id
-    where d.tenant_id = ${tenantId}::uuid and d.school_year_id = ${yearId}::uuid and d.status = 'active'
+    where d.tenant_id = ${input.tenantId}::uuid and d.school_year_id = ${input.yearId}::uuid
+      and d.status = 'active' ${range}
     order by d.day_on`);
-  return {
-    targetDays: calendar?.target_days ?? null,
-    days: rows.map((row) => ({
-      day: row.day,
-      meaning: row.meaning,
-      noteEn: row.note_en,
-      noteAr: row.note_ar,
-      provisional: row.provisional,
-    })),
-  };
+  return rows.map((row) => ({
+    day: row.day,
+    meaning: row.meaning,
+    noteEn: row.note_en,
+    noteAr: row.note_ar,
+    provisional: row.provisional,
+  }));
 }
 
 /**

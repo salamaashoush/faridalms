@@ -2,11 +2,12 @@ import type { ReactNode } from "react";
 
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { CalendarRange, CalendarX2 } from "lucide-react";
+import { useState, useTransition } from "react";
 
 import { ButtonLink } from "~/components/app/ButtonLink";
 import { classTitle } from "~/components/classes/format";
 import { EmptyState } from "~/components/system/IndexPage";
-import { inLocale, useCurrentUser } from "~/hooks/useCurrentUser";
+import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import {
   classWeekQuery,
@@ -17,7 +18,7 @@ import {
 
 import type { GridPeriod } from "./WeekGrid";
 
-import { FreeCell, MeetingCard, WeekGrid } from "./WeekGrid";
+import { FreeCell, MeetingCard, WeekGrid, WeekStep } from "./WeekGrid";
 
 type Week = NonNullable<
   Awaited<
@@ -88,14 +89,17 @@ export function Week({
   caption,
   lines,
   cell,
+  pending,
+  onWeek,
 }: {
   week: Week | null;
   caption: string;
   lines: (meeting: Meeting) => (string | null)[];
   cell?: CardCell;
+  pending?: boolean;
+  onWeek?: (on: string) => void;
 }) {
-  const user = useCurrentUser();
-  if (!week || week.meetings.length === 0)
+  if (!week)
     return (
       <EmptyState
         icon={CalendarX2}
@@ -104,24 +108,58 @@ export function Week({
       />
     );
   return (
-    <WeekGrid
-      caption={caption}
-      days={week.days}
-      periods={week.periods}
-      meetings={week.meetings}
-      today={todayOf(user.today)}
-      cell={weekCell(lines, cell)}
-    />
+    <div className="grid gap-4">
+      {onWeek ? (
+        <WeekStep
+          dates={week.dates}
+          today={week.today}
+          year={week.year}
+          pending={pending}
+          onWeek={onWeek}
+        />
+      ) : null}
+      {week.meetings.length === 0 ? (
+        <EmptyState
+          icon={CalendarX2}
+          title={m.ttNoLessons()}
+          description={m.ttNoLessonsBody()}
+        />
+      ) : (
+        <WeekGrid
+          caption={caption}
+          days={week.days}
+          dates={week.dates}
+          periods={week.periods}
+          meetings={week.meetings}
+          today={week.dates.find((day) => day.date === week.today)?.day}
+          cell={weekCell(lines, cell)}
+        />
+      )}
+    </div>
   );
 }
 
+/** The week a view shows, stepped without hiding the one on screen. */
+function useWeekOn(start = "") {
+  const [on, setOn] = useState(start);
+  const [pending, startTransition] = useTransition();
+  return {
+    on,
+    pending,
+    onWeek: (next: string) => startTransition(() => setOn(next)),
+  };
+}
+
 export function StudentWeek({ studentId = "" }: { studentId?: string }) {
-  const { week } = useSuspenseQuery(studentWeekQuery(studentId)).data;
+  const { on, pending, onWeek } = useWeekOn();
+  const { week } = useSuspenseQuery(studentWeekQuery(studentId, on)).data;
   return (
     <Week
       week={week}
       caption={m.ttStudentCaption()}
       lines={(meeting) => [teacherLabel(meeting), roomLabel(meeting)]}
+      pending={pending}
+      onWeek={onWeek}
     />
   );
 }
@@ -137,29 +175,39 @@ export function RoomWeek({ roomId, on }: { roomId: string; on: string }) {
   );
 }
 
+/**
+ * A teacher's week. Planners pick its date themselves; a teacher steps
+ * through their own weeks here.
+ */
 export function TeacherWeek({
   teacherId = "",
-  on = "",
+  on,
   cell,
 }: {
   teacherId?: string;
   on?: string;
   cell?: CardCell;
 }) {
-  const { week } = useSuspenseQuery(teacherWeekQuery(teacherId, on)).data;
+  const stepped = useWeekOn();
+  const { week } = useSuspenseQuery(
+    teacherWeekQuery(teacherId, on ?? stepped.on),
+  ).data;
   return (
     <Week
       week={week}
       caption={m.ttTeacherCaption()}
       lines={(meeting) => [roomLabel(meeting)]}
       cell={cell}
+      pending={stepped.pending}
+      onWeek={on === undefined ? stepped.onWeek : undefined}
     />
   );
 }
 
 /** A class's week on its record, with the way into planning it. */
 export function ClassWeek({ classId }: { classId: string }) {
-  const data = useSuspenseQuery(classWeekQuery(classId)).data;
+  const { on, pending, onWeek } = useWeekOn();
+  const data = useSuspenseQuery(classWeekQuery(classId, on)).data;
   return (
     <div className="grid gap-4">
       {data.canPlan ? (
@@ -179,6 +227,8 @@ export function ClassWeek({ classId }: { classId: string }) {
         week={data.week}
         caption={m.ttClassCaption()}
         lines={(meeting) => [teacherLabel(meeting), roomLabel(meeting)]}
+        pending={pending}
+        onWeek={onWeek}
       />
     </div>
   );

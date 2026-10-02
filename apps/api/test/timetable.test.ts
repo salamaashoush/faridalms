@@ -151,4 +151,26 @@ describe("reading weeks", () => {
     const child = await parent.timetable.studentWeek({ studentId: me.id });
     expect(child.week?.meetings.length).toBe(own.week?.meetings.length);
   });
+
+  test("a week carries its dates and the days the school is shut", async () => {
+    const student = await sessionFor("northwind", login("student"));
+    const { week } = await student.api.timetable.studentWeek({
+      on: "2026-10-07",
+    });
+    expect(week?.dates.map((row) => row.date)).toEqual([
+      "2026-10-04",
+      "2026-10-05",
+      "2026-10-06",
+      "2026-10-07",
+      "2026-10-08",
+    ]);
+    const holiday = week?.dates.find((row) => row.date === "2026-10-06");
+    expect(holiday).toMatchObject({ closed: true, noteEn: "Armed Forces Day" });
+    expect(
+      week?.dates.filter((row) => row.closed).map((row) => row.date),
+    ).toEqual(["2026-10-06"]);
+    const sunday = week?.meetings.filter((row) => row.weekday === SUNDAY);
+    expect(sunday?.length).toBeGreaterThan(0);
+    expect(sunday?.every((row) => row.on === "2026-10-04")).toBe(true);
+  });
 });

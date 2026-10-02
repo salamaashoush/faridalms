@@ -3,7 +3,7 @@ import { createFileRoute, Link } from "@tanstack/react-router";
 import type { CardCell } from "~/components/timetable/Weeks";
 
 import { PageHeader } from "~/components/system/IndexPage";
-import { TeacherWeek, todayOf } from "~/components/timetable/Weeks";
+import { TeacherWeek } from "~/components/timetable/Weeks";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { teacherWeekQuery } from "~/queries/timetable";
@@ -16,9 +16,9 @@ export const Route = createFileRoute("/_app/teach/timetable")({
 });
 
 /** Today's lessons open their register; other days only show. */
-function registerCell(today: number, date: string): CardCell {
-  return function renderCell({ meeting, day, period, card }) {
-    if (day !== today) return card;
+function registerCell(date: string): CardCell {
+  return function renderCell({ meeting, period, card }) {
+    if (meeting.on !== date) return card;
     return (
       <Link
         to="/registers/$classId"
@@ -38,7 +38,7 @@ function TeacherTimetablePage() {
   return (
     <>
       <PageHeader title={m.ttTitle()} description={m.ttTeacherHint()} />
-      <TeacherWeek cell={registerCell(todayOf(user.today), user.today)} />
+      <TeacherWeek cell={registerCell(user.today)} />
     </>
   );
 }

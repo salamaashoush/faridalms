@@ -22,15 +22,18 @@ import {
   yearTeachers,
 } from "@faridalms/database/stores/timetable";
 import {
+  calendarDays,
   dayIn,
   holdYear,
   schoolWeek,
   schoolYears,
   workingYear,
 } from "@faridalms/database/stores/years";
+import { SCHOOL_DAY_MEANINGS } from "@faridalms/domain/calendar";
 import { addDays } from "@faridalms/domain/school";
 import {
   clashCheckSchema,
+  classWeekSchema,
   clearSchema,
   gridQuerySchema,
   placeSchema,
@@ -38,6 +41,7 @@ import {
   schoolDays,
   studentWeekSchema,
   teacherWeekSchema,
+  weekDates,
 } from "@faridalms/domain/timetable";
 import { ORPCError } from "@orpc/server";
 import * as v from "valibot";
@@ -51,8 +55,6 @@ import {
   requireCapability,
   writeProcedure,
 } from "../core/procedure";
-
-const id = v.pipe(v.string(), v.uuid());
 
 function scopeOf(context: UnitContext): Scope {
   return {
@@ -81,26 +83,52 @@ async function yearById(context: UnitContext, yearId: string) {
   return years.find((row) => row.id === yearId) ?? null;
 }
 
-/** The periods and days a week is drawn with, on the day it is read. */
+/**
+ * The periods and days a week is drawn with, on the day it is read, and the
+ * date of each day with what the school calendar marks it as.
+ */
 async function frame(context: UnitContext, year: SchoolYear, on: string) {
-  const [periods, week] = await Promise.all([
+  const week = await schoolWeek(context.tx, context.tenantId, context.schoolId);
+  const days = schoolDays(week.weekStart, week.weekendDays);
+  const dated = weekDates(on, week.weekStart, days);
+  const [periods, marked] = await Promise.all([
     periodsOn(context.tx, {
       tenantId: context.tenantId,
       schoolId: context.schoolId,
       yearId: year.id,
       day: on,
     }),
-    schoolWeek(context.tx, context.tenantId, context.schoolId),
+    calendarDays(context.tx, {
+      tenantId: context.tenantId,
+      yearId: year.id,
+      from: dated[0]?.date ?? on,
+      to: dated.at(-1)?.date ?? on,
+    }),
   ]);
   return {
     on,
+    today: context.today,
     year: {
       id: year.id,
       startsOn: year.startsOn,
       lastDay: addDays(year.endsBefore, -1),
       closed: year.lifecycle === "closed",
     },
-    days: schoolDays(week.weekStart, week.weekendDays),
+    days,
+    dates: dated.map(({ day, date }) => {
+      const mark = marked.find((row) => row.day === date);
+      const outside = date < year.startsOn || date >= year.endsBefore;
+      return {
+        day,
+        date,
+        meaning: outside ? "outside_year" : (mark?.meaning ?? null),
+        closed:
+          outside ||
+          (mark !== undefined && !SCHOOL_DAY_MEANINGS.includes(mark.meaning)),
+        noteEn: mark?.noteEn ?? null,
+        noteAr: mark?.noteAr ?? null,
+      };
+    }),
     periods: periods
       .filter((period) => period.kind === "lesson")
       .map((period) => ({
@@ -135,6 +163,7 @@ function meetingView(row: MeetingRow) {
     roomNameEn: row.roomNameEn,
     roomNameAr: row.roomNameAr,
     from: row.from,
+    on: row.on,
     clashAccepted: row.clashAccepted,
     clashing: row.clashing,
   };
@@ -428,14 +457,13 @@ export const teacherWeek = readProcedure
     const year = await currentYear(context);
     if (!year) return { week: null };
     const on = dayIn(year, input.on || context.today);
-    const [shape, meetings] = await Promise.all([
-      frame(context, year, on),
-      meetingsOn(context.tx, {
-        tenantId: context.tenantId,
-        on,
-        filter: { teacherId },
-      }),
-    ]);
+    const shape = await frame(context, year, on);
+    const meetings = await meetingsOn(context.tx, {
+      tenantId: context.tenantId,
+      on,
+      days: shape.dates.map((row) => row.date),
+      filter: { teacherId },
+    });
     return { week: { ...shape, meetings: meetings.map(meetingView) } };
   });
 
@@ -446,14 +474,13 @@ export const roomWeek = readProcedure
     const year = await currentYear(context);
     if (!year) return { week: null };
     const on = dayIn(year, input.on || context.today);
-    const [shape, meetings] = await Promise.all([
-      frame(context, year, on),
-      meetingsOn(context.tx, {
-        tenantId: context.tenantId,
-        on,
-        filter: { roomId: input.roomId },
-      }),
-    ]);
+    const shape = await frame(context, year, on);
+    const meetings = await meetingsOn(context.tx, {
+      tenantId: context.tenantId,
+      on,
+      days: shape.dates.map((row) => row.date),
+      filter: { roomId: input.roomId },
+    });
     return { week: { ...shape, meetings: meetings.map(meetingView) } };
   });
 
@@ -470,49 +497,49 @@ export const studentWeek = readProcedure
       throw new ORPCError("NOT_FOUND");
     const year = await currentYear(context);
     if (!year) return { week: null };
-    const on = dayIn(year, context.today);
-    const groups = await studentGroups(context.tx, {
-      tenantId: context.tenantId,
-      studentId,
-      on,
-    });
-    const [shape, meetings] = await Promise.all([
+    const on = dayIn(year, input.on || context.today);
+    const [shape, groups] = await Promise.all([
       frame(context, year, on),
-      meetingsOn(context.tx, {
+      studentGroups(context.tx, {
         tenantId: context.tenantId,
+        studentId,
         on,
-        filter: groups,
       }),
     ]);
+    const meetings = await meetingsOn(context.tx, {
+      tenantId: context.tenantId,
+      on,
+      days: shape.dates.map((row) => row.date),
+      filter: groups,
+    });
     return { week: { ...shape, meetings: meetings.map(meetingView) } };
   });
 
 /** A class's week for its record: a homeroom's lessons, or one class's. */
 export const classWeek = readProcedure
-  .input(v.object({ classId: id }))
+  .input(classWeekSchema)
   .handler(async ({ input, context }) => {
     requireCapability(context, "timetable:read");
     const row = await classById(context.tx, context, input.classId);
     if (!row) throw new ORPCError("NOT_FOUND");
     const year = await yearById(context, row.schoolYearId);
     if (!year) throw new ORPCError("NOT_FOUND");
-    const on = dayIn(year, context.today);
+    const on = dayIn(year, input.on || context.today);
     if (
       !(await teachesClass(context.tx, scopeOf(context), row.id)) &&
       !(await reachesClass(context.tx, scopeOf(context), row.id, on))
     )
       throw new ORPCError("NOT_FOUND");
-    const [shape, meetings] = await Promise.all([
-      frame(context, year, on),
-      meetingsOn(context.tx, {
-        tenantId: context.tenantId,
-        on,
-        filter:
-          row.classType === "homeroom"
-            ? { groupIds: [row.id] }
-            : { groupIds: [], classIds: [row.id] },
-      }),
-    ]);
+    const shape = await frame(context, year, on);
+    const meetings = await meetingsOn(context.tx, {
+      tenantId: context.tenantId,
+      on,
+      days: shape.dates.map((day) => day.date),
+      filter:
+        row.classType === "homeroom"
+          ? { groupIds: [row.id] }
+          : { groupIds: [], classIds: [row.id] },
+    });
     return {
       week: { ...shape, meetings: meetings.map(meetingView) },
       canPlan: can(context, "timetable:manage") && year.lifecycle !== "closed",

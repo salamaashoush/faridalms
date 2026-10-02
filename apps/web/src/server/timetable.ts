@@ -1,5 +1,6 @@
 import {
   clashCheckSchema,
+  classWeekSchema,
   clearSchema,
   gridQuerySchema,
   placeSchema,
@@ -11,7 +12,7 @@ import {
 import { createServerFn } from "@tanstack/react-start";
 
 import { backend, record } from "./backend";
-import { byId, checked } from "./input";
+import { checked } from "./input";
 
 export const getTimetableOptions = createServerFn({ method: "GET" }).handler(
   () => backend().timetable.options(),
@@ -50,7 +51,5 @@ export const getStudentWeek = createServerFn({ method: "GET" })
   .handler(({ data }) => record(backend().timetable.studentWeek(data)));
 
 export const getClassWeek = createServerFn({ method: "GET" })
-  .validator(byId)
-  .handler(({ data }) =>
-    record(backend().timetable.classWeek({ classId: data.id })),
-  );
+  .validator(checked(classWeekSchema))
+  .handler(({ data }) => record(backend().timetable.classWeek(data)));

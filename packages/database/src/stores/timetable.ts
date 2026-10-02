@@ -5,7 +5,7 @@ import { sql } from "drizzle-orm";
 import type { CellTransaction } from "../context";
 import type { ClassType } from "../tables/teaching";
 
-import { uuidArray } from "./sql";
+import { textArray, uuidArray } from "./sql";
 
 type Tx = CellTransaction;
 
@@ -129,6 +129,8 @@ export interface MeetingRow {
   roomNameEn: string | null;
   roomNameAr: string | null;
   from: string;
+  /** The date the meeting was read on. */
+  on: string;
   clashAccepted: boolean;
   /** Another meeting shares this teacher or room at the same time. */
   clashing: boolean;
@@ -150,11 +152,23 @@ function filterOf(filter: MeetingFilter): SQL {
     or m.class_id = any(${uuidArray(filter.classIds ?? [])}))`;
 }
 
-/** The meetings in force on a day, for a grid, a teacher, a room or a student. */
+/**
+ * The meetings for a grid, a teacher, a room or a student: those in force on
+ * `on`, or with `days`, each in force on the date of its weekday that week.
+ */
 export async function meetingsOn(
   tx: Tx,
-  input: { tenantId: string; on: string; filter: MeetingFilter },
+  input: {
+    tenantId: string;
+    on: string;
+    filter: MeetingFilter;
+    days?: readonly string[];
+  },
 ): Promise<MeetingRow[]> {
+  const day = input.days
+    ? sql`join unnest(${textArray(input.days)}::date[]) as w(d)
+        on m.valid_during @> w.d and extract(isodow from w.d) = m.weekday`
+    : sql`join (select ${input.on}::date as d) w on m.valid_during @> w.d`;
   const rows = await tx.execute<{
     id: string;
     class_id: string;
@@ -176,6 +190,7 @@ export async function meetingsOn(
     room_en: string | null;
     room_ar: string | null;
     from_day: string;
+    day_on: string;
     clash_accepted: boolean;
     clashing: boolean;
   }>(sql`
@@ -184,20 +199,22 @@ export async function meetingsOn(
            g.title_en as group_title_en, g.title_ar as group_title_ar, m.weekday, m.class_period_id,
            m.teacher_user_id, u.full_name_en as teacher_en, u.full_name_ar as teacher_ar,
            m.location_id, l.code as room_code, l.name_en as room_en, l.name_ar as room_ar,
-           to_char(lower(m.valid_during), 'YYYY-MM-DD') as from_day, m.clash_accepted,
+           to_char(lower(m.valid_during), 'YYYY-MM-DD') as from_day,
+           to_char(w.d, 'YYYY-MM-DD') as day_on, m.clash_accepted,
            exists (select 1 from core.class_meetings o
              where o.tenant_id = m.tenant_id and o.id <> m.id and o.status = 'active'
                and o.weekday = m.weekday and o.class_period_id = m.class_period_id
-               and o.valid_during @> ${input.on}::date
+               and o.valid_during @> w.d
                and ((m.teacher_user_id is not null and o.teacher_user_id = m.teacher_user_id)
                     or (m.location_id is not null and o.location_id = m.location_id))) as clashing
     from core.class_meetings m
+    ${day}
     join core.classes c on c.tenant_id = m.tenant_id and c.id = m.class_id
     join core.classes g on g.tenant_id = m.tenant_id and g.id = m.group_class_id
     left join core.users u on u.tenant_id = m.tenant_id and u.id = m.teacher_user_id
     left join core.locations l on l.tenant_id = m.tenant_id and l.id = m.location_id
     where m.tenant_id = ${input.tenantId}::uuid and m.status = 'active'
-      and m.valid_during @> ${input.on}::date and ${filterOf(input.filter)}
+      and ${filterOf(input.filter)}
     order by m.weekday, m.class_period_id, g.code, c.code`);
   return rows.map((row) => ({
     id: row.id,
@@ -220,6 +237,7 @@ export async function meetingsOn(
     roomNameEn: row.room_en,
     roomNameAr: row.room_ar,
     from: row.from_day,
+    on: row.day_on,
     clashAccepted: row.clash_accepted,
     clashing: row.clashing,
   }));

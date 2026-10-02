@@ -97,7 +97,7 @@ const OTHER = {
   tint: "bg-orange-500/20 text-orange-900 dark:text-orange-100",
 };
 
-const meaningOf = (meaning: string) => MEANING[meaning] ?? OTHER;
+export const meaningOf = (meaning: string) => MEANING[meaning] ?? OTHER;
 
 const longDate = (iso: string) =>
   new Intl.DateTimeFormat(getLocale(), {

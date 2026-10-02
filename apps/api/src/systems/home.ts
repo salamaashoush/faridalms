@@ -279,6 +279,7 @@ export const teacher = readProcedure.handler(async ({ context }) => {
       roomNameEn: null,
       roomNameAr: null,
       from: context.today,
+      on: context.today,
       clashAccepted: false,
       clashing: false,
     }));

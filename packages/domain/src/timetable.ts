@@ -1,5 +1,7 @@
 import * as v from "valibot";
 
+import { addDays } from "./school";
+
 /** ISO weekdays, 1 for Monday to 7 for Sunday, as `core.orgs` stores them. */
 export type IsoWeekday = 1 | 2 | 3 | 4 | 5 | 6 | 7;
 
@@ -19,6 +21,19 @@ export function schoolDays(
     if (!weekendDays.includes(day)) days.push(day);
   }
   return days;
+}
+
+/** The date of each school day in the week holding `on`, in week order. */
+export function weekDates(
+  on: string,
+  weekStart: number,
+  days: readonly IsoWeekday[],
+): { day: IsoWeekday; date: string }[] {
+  const start = addDays(on, -((isoWeekday(on) - weekStart + 7) % 7));
+  return days.map((day) => ({
+    day,
+    date: addDays(start, (day - weekStart + 7) % 7),
+  }));
 }
 
 /**
@@ -53,7 +68,15 @@ export const roomWeekSchema = v.object({
   on: v.optional(v.union([v.literal(""), isoDate]), ""),
 });
 
-export const studentWeekSchema = v.object({ studentId: optionalId });
+export const studentWeekSchema = v.object({
+  studentId: optionalId,
+  on: v.optional(v.union([v.literal(""), isoDate]), ""),
+});
+
+export const classWeekSchema = v.object({
+  classId: id,
+  on: v.optional(v.union([v.literal(""), isoDate]), ""),
+});
 
 const cell = {
   /** The class whose grid is edited: a homeroom, or a class of its own. */

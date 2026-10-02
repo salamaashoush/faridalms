@@ -39,14 +39,14 @@ export const roomWeekQuery = (roomId: string, on = "") =>
     queryFn: () => getRoomWeek({ data: { roomId, on } }),
   });
 
-export const studentWeekQuery = (studentId = "") =>
+export const studentWeekQuery = (studentId = "", on = "") =>
   queryOptions({
-    queryKey: ["timetable", "student", studentId],
-    queryFn: () => getStudentWeek({ data: { studentId } }),
+    queryKey: ["timetable", "student", studentId, on],
+    queryFn: () => getStudentWeek({ data: { studentId, on } }),
   });
 
-export const classWeekQuery = (classId: string) =>
+export const classWeekQuery = (classId: string, on = "") =>
   queryOptions({
-    queryKey: ["timetable", "class", classId],
-    queryFn: () => getClassWeek({ data: { id: classId } }),
+    queryKey: ["timetable", "class", classId, on],
+    queryFn: () => getClassWeek({ data: { classId, on } }),
   });
