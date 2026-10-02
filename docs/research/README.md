@@ -15,6 +15,11 @@ with new evidence recorded here.
   graded quizzes, with authoring, accessibility, Arabic answer folding and
   the data they need (Rise, H5P, Canvas, Moodle, QTI 3, Seesaw, Edpuzzle,
   Khan Academy).
+- [early-years.md](early-years.md): how Farida teaches children of three to
+  seven, with [early-years-ux.md](early-years-ux.md) (touch, audio, feedback,
+  type, sign-in; Sesame Workshop, NN/g, Vatavu, Hourcade, Khan Kids, Seesaw)
+  and [early-years-activities.md](early-years-activities.md) (activities
+  ranked by use across EYFS, PYP, Cambridge EY and Common Core K-2).
 - [communication.md](communication.md): messaging, announcements, newsletters,
   calendar, notifications (ParentSquare, Remind, ClassDojo, Seesaw, Bloomz,
   Brightwheel, Mailchimp, Smore).

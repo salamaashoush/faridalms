@@ -43,6 +43,28 @@ What modules and lessons do, built from
   finished attempt's score stays.
 - A student who comes back is offered the place where they stopped reading.
 
+## Young children
+
+From [../research/early-years.md](../research/early-years.md).
+
+- A teacher records or uploads narration, up to three minutes, on any block
+  and on each question, option, item, side of a pair and group name. A
+  speaker plays it beside the block or on the card.
+- A lesson marked for young children, at a school with the early-years
+  module on, plays full screen behind a big start button, one question to a
+  screen with the words above it; a divider or continue gate starts a new
+  screen. Each screen reads itself as it opens and again after 7 seconds
+  untouched. Without a recording the browser's voice reads, except Arabic
+  written without its vowels.
+- A tap on a card answers. A missed card greys out; the second miss says the
+  hint; the third lights the answer for the child to tap. Matching, sorting
+  and ordering are done by tapping a card and then its place, or dragging it;
+  once every card has a place, right cards stay and the others come back, and
+  "Show me" lays out the answer after two tries. Questions with pictures on
+  their parts work this way for older students as well.
+- Children see no points or scores. Soft notes and a word of praise naming
+  what they did answer each try, and the end of the lesson says so once.
+
 ## Teachers
 
 - Students play the version a teacher last showed them. Saving a lesson in an
@@ -76,7 +98,7 @@ What modules and lessons do, built from
 
 ## Next
 
-Templates for common lesson shapes, checks before showing a lesson, a
-captions editor for video, narration on each part, image alt text and a
-decorative flag, a practice set with a mode for the youngest students, time
+Voice, drawing and photo answers, counting and tracing activities, a word
+builder, memory pairs and the young student's home (see
+[../research/early-years.md](../research/early-years.md) section 4), time
 limits on quizzes with extra time per student, and a question bank.
