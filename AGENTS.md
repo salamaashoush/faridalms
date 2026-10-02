@@ -116,11 +116,14 @@ cookie and reloads, so the next document is _server-rendered_ in the new locale.
 Read [docs/architecture.md](docs/architecture.md) before changing API contracts,
 authorisation, school isolation or database ownership.
 
-- `apps/api/src/modules/` owns business operations. Protected procedures resolve
-  sessions and the school database before entering a handler.
-- `apps/api/src/authorization.ts` owns capability and record ownership checks.
-  A role permission alone does not authorise a submitted student or class ID.
-- Every repository in `packages/database/src/repositories/` receives its database
+- `apps/api/src/systems/` owns business operations. The procedures in
+  `apps/api/src/core/procedure.ts` resolve the session, the school and a unit of
+  work before entering a handler.
+- Capabilities are checked with `requireCapability` and `can` from
+  `apps/api/src/core/procedure.ts`; which records a viewer reaches is decided by
+  the stores' reach rules (`app.visible_students`, `teachesClass`). A capability
+  alone does not authorise a submitted student or class ID.
+- Every store in `packages/database/src/stores/` receives its transaction
   explicitly. Never introduce a process-global current school or current user.
 - `apps/web/src/server/` contains HTTP bridges and cookie handling only. Web
   runtime code never imports database implementations.

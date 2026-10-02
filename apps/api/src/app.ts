@@ -4,14 +4,12 @@ import { onError, ORPCError } from "@orpc/server";
 import { RPCHandler } from "@orpc/server/fetch";
 import { experimental_ValibotToJsonSchemaConverter as ValibotToJsonSchemaConverter } from "@orpc/valibot";
 
-import type { ApiContext } from "./context";
 import type { ApiDependencies, RequestContext } from "./core/context";
 
 import { handleCalendarFeed } from "./calendar/feed";
 import { handleWorkExport } from "./files/exports";
 import { handlePublicFileRequest } from "./files/public";
 import { handleFileRequest } from "./files/routes";
-import { legacyUnavailable } from "./legacy";
 import { router } from "./router";
 
 /**
@@ -37,12 +35,12 @@ function logUnexpected(error: unknown, context: RequestContext) {
 }
 
 export function createApp(dependencies: ApiDependencies) {
-  const rpc = new RPCHandler<RequestContext & ApiContext>(router, {
+  const rpc = new RPCHandler<RequestContext>(router, {
     interceptors: [
       onError((error, options) => logUnexpected(error, options.context)),
     ],
   });
-  const api = new OpenAPIHandler<RequestContext & ApiContext>(router, {
+  const api = new OpenAPIHandler<RequestContext>(router, {
     interceptors: [
       onError((error, options) => logUnexpected(error, options.context)),
     ],
@@ -73,10 +71,8 @@ export function createApp(dependencies: ApiDependencies) {
       } else if (url.pathname === "/openapi.json")
         response = Response.json(await specification);
       else {
-        const context: RequestContext & ApiContext = {
+        const context: RequestContext = {
           ...dependencies,
-          control: legacyUnavailable,
-          pools: legacyUnavailable,
           headers: request.headers,
           requestId,
         };

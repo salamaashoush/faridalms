@@ -1,5 +1,3 @@
-import * as administration from "./modules/administration";
-import * as students from "./modules/students";
 import * as absenceReportsSystem from "./systems/absence-reports";
 import * as accessSystem from "./systems/access";
 import * as announcementsSystem from "./systems/announcements";
@@ -68,7 +66,5 @@ export const router = {
   site: siteSystem,
   home: homeSystem,
   search: searchSystem,
-  ...students,
-  ...administration,
 };
 export type AppRouter = typeof router;
