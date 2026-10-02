@@ -1465,6 +1465,7 @@ export const questions = readProcedure
       asked.push({
         id: item.id,
         title: item.title,
+        young: item.young,
         questions: checks.map((block) => ({
           id: block.id,
           kind: block.type,

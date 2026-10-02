@@ -94,7 +94,12 @@ export function LessonEditor({
     passScore: existing?.passScore ? String(existing.passScore) : "",
     review: existing?.review ?? false,
     vowelMarks: existing?.vowelMarks ?? "shown",
-    young: existing?.young ?? false,
+    // A lesson for the youngest classes starts in young mode.
+    young:
+      existing?.young ??
+      (earlyYears &&
+        module.classes.length > 0 &&
+        module.classes.every((row) => row.young)),
     content: existing?.content ?? emptyContent(),
   }));
   const [draft, setDraft] = useState(start);

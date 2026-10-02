@@ -1,7 +1,12 @@
 import type { CheckStanding } from "@faridalms/domain/learning";
 
 import { useQuery } from "@tanstack/react-query";
-import { CircleCheck, ListChecks } from "lucide-react";
+import {
+  CircleCheck,
+  CircleDashed,
+  HandHelping,
+  ListChecks,
+} from "lucide-react";
 
 import type { Tone } from "~/components/system/status";
 
@@ -15,7 +20,8 @@ import { formatList, formatNumber } from "~/utils/datetime";
 type Data = Awaited<
   ReturnType<NonNullable<ReturnType<typeof classQuestionsQuery>["queryFn"]>>
 >;
-type Question = Data["lessons"][number]["questions"][number];
+type Lesson = Data["lessons"][number];
+type Question = Lesson["questions"][number];
 
 const STANDINGS: readonly CheckStanding[] = [
   "first",
@@ -133,6 +139,125 @@ function QuestionCard({
   );
 }
 
+type YoungStanding = "first" | "helped" | "notYet";
+
+// The help ladder's three outcomes: right at once, right once a hint or the
+// shown answer helped, and not there yet, which a young child is never told.
+const YOUNG_OF: Record<CheckStanding, YoungStanding> = {
+  first: "first",
+  later: "helped",
+  shown: "helped",
+  trying: "notYet",
+  unseen: "notYet",
+};
+
+const YOUNG_MARK: Record<
+  YoungStanding,
+  { icon: typeof CircleCheck; label: () => string; className: string }
+> = {
+  first: {
+    icon: CircleCheck,
+    label: m.lrnYoungFirstTry,
+    className: "text-success",
+  },
+  helped: {
+    icon: HandHelping,
+    label: m.lrnYoungWithHelp,
+    className: "text-info",
+  },
+  notYet: {
+    icon: CircleDashed,
+    label: m.lrnYoungNotYet,
+    className: "text-muted-foreground",
+  },
+};
+
+/**
+ * A young lesson read child by child: each question shows whether the child
+ * got it on the first try, with help, or not yet. Screen practice informs
+ * what the teacher sees in class; it is no judgement of development.
+ */
+function YoungGrid({
+  lesson,
+  names,
+}: {
+  lesson: Lesson;
+  names: Map<string, string>;
+}) {
+  return (
+    <div className="grid gap-3">
+      <ul className="flex flex-wrap gap-x-5 gap-y-2 text-[13px] leading-[18px] text-muted-foreground">
+        {(["first", "helped", "notYet"] as const).map((standing) => {
+          const mark = YOUNG_MARK[standing];
+          return (
+            <li key={standing} className="flex items-center gap-1.5">
+              <mark.icon aria-hidden className={`size-4 ${mark.className}`} />
+              {mark.label()}
+            </li>
+          );
+        })}
+      </ul>
+      <div className="w-fit max-w-full overflow-x-auto rounded-lg border">
+        <table className="min-w-max text-sm">
+          <caption className="sr-only">
+            {m.lrnYoungGridCaption({ lesson: lesson.title })}
+          </caption>
+          <thead className="border-b bg-muted/40 text-[13px] text-muted-foreground">
+            <tr>
+              <th
+                scope="col"
+                className="sticky start-0 bg-muted/40 px-3 py-2 text-start font-medium"
+              >
+                {m.courseworkStudent()}
+              </th>
+              {lesson.questions.map((question, index) => (
+                <th
+                  key={question.id}
+                  scope="col"
+                  title={question.prompt}
+                  className="min-w-12 px-3 py-2 text-center font-medium tabular-nums"
+                >
+                  <span aria-hidden>{formatNumber(index + 1)}</span>
+                  <span className="sr-only">{question.prompt}</span>
+                </th>
+              ))}
+            </tr>
+          </thead>
+          <tbody className="divide-y">
+            {[...names].map(([id, name]) => (
+              <tr key={id}>
+                <th
+                  scope="row"
+                  className="sticky start-0 bg-background px-3 py-2 text-start font-medium"
+                >
+                  <bdi>{name}</bdi>
+                </th>
+                {lesson.questions.map((question) => {
+                  const standing = question.standings[id];
+                  const mark =
+                    YOUNG_MARK[standing ? YOUNG_OF[standing] : "notYet"];
+                  return (
+                    <td key={question.id} className="px-3 py-2 text-center">
+                      <mark.icon
+                        aria-hidden
+                        className={`inline size-5 ${mark.className}`}
+                      />
+                      <span className="sr-only">{mark.label()}</span>
+                    </td>
+                  );
+                })}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+      <p className="text-[13px] leading-[18px] text-muted-foreground">
+        {m.lrnYoungGridNote()}
+      </p>
+    </div>
+  );
+}
+
 /**
  * How a class did on each question, from every student's first attempt:
  * where each stands, and for a choice who first picked which option, so a
@@ -171,9 +296,17 @@ export function ClassQuestions({
           >
             <bdi>{lesson.title}</bdi>
           </h2>
-          {lesson.questions.map((question) => (
-            <QuestionCard key={question.id} question={question} names={names} />
-          ))}
+          {lesson.young ? (
+            <YoungGrid lesson={lesson} names={names} />
+          ) : (
+            lesson.questions.map((question) => (
+              <QuestionCard
+                key={question.id}
+                question={question}
+                names={names}
+              />
+            ))
+          )}
         </section>
       ))}
     </div>

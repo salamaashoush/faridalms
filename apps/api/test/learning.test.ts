@@ -824,6 +824,16 @@ describe("asking missed questions again", () => {
       .flatMap((lesson) => lesson.questions)
       .filter((question) => me.id in question.standings);
     const first = asked.find((question) => question.id === missedOne.id);
+    // Older students' lessons and classes are not young, so the teacher
+    // reads the question cards rather than the young grid.
+    expect(views.flatMap((view) => view.lessons).some((row) => row.young)).toBe(
+      false,
+    );
+    expect(
+      (await keeper.learning.record({ id: saved.id })).classes.some(
+        (row) => row.young,
+      ),
+    ).toBe(false);
     expect(first?.standings[me.id]).toBe("later");
     expect(first?.firstChoices[me.id]).toEqual([wrong]);
     expect(
