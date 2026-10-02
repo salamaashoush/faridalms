@@ -1,5 +1,6 @@
 import * as administration from "./modules/administration";
 import * as students from "./modules/students";
+import * as absenceReportsSystem from "./systems/absence-reports";
 import * as accessSystem from "./systems/access";
 import * as announcementsSystem from "./systems/announcements";
 import * as attendanceSystem from "./systems/attendance";
@@ -49,6 +50,7 @@ export const router = {
   grading: gradingSystem,
   privacy: privacySystem,
   attendance: attendanceSystem,
+  absenceReports: absenceReportsSystem,
   rollover: rolloverSystem,
   timetable: timetableSystem,
   cover: coverSystem,

@@ -9,16 +9,18 @@ import * as v from "valibot";
 import { Absences } from "~/components/attendance/Absences";
 import { Board } from "~/components/attendance/Board";
 import { Report } from "~/components/attendance/Report";
+import { ReportInbox } from "~/components/attendance/ReportInbox";
 import { PageHeader } from "~/components/system/IndexPage";
 import { RecordTabs } from "~/components/system/RecordPage";
 import * as m from "~/i18n/messages";
 import {
+  absenceReportInboxQuery,
   absencesQuery,
   attendanceBoardQuery,
   attendanceReportQuery,
 } from "~/queries/attendance";
 
-const TABS = ["registers", "absences", "reports"] as const;
+const TABS = ["registers", "absences", "reported", "reports"] as const;
 type Tab = (typeof TABS)[number];
 
 const searchSchema = v.object({
@@ -34,6 +36,10 @@ const searchSchema = v.object({
   ...absencesQuerySchema.entries,
   periodId: reportQuerySchema.entries.periodId,
   by: reportQuerySchema.entries.by,
+  inbox: v.fallback(
+    v.optional(v.picklist(["waiting", "all"]), "waiting"),
+    "waiting",
+  ),
 });
 type Search = v.InferOutput<typeof searchSchema>;
 
@@ -49,6 +55,10 @@ export const Route = createFileRoute("/_app/admin/attendance")({
       await queryClient.ensureQueryData(attendanceBoardQuery(deps.date));
     else if (deps.tab === "absences")
       await queryClient.ensureQueryData(absencesQuery(absencesOf(deps)));
+    else if (deps.tab === "reported")
+      await queryClient.ensureQueryData(
+        absenceReportInboxQuery(deps.inbox === "waiting"),
+      );
     else
       await queryClient.ensureQueryData(attendanceReportQuery(reportOf(deps)));
   },
@@ -66,6 +76,7 @@ function reportOf(search: Search) {
 const TAB_LABEL: Record<Tab, () => string> = {
   registers: m.attTabRegisters,
   absences: m.attTabAbsences,
+  reported: m.repInbox,
   reports: m.attTabReports,
 };
 
@@ -105,6 +116,11 @@ function AdminAttendancePage() {
           />
         ) : search.tab === "absences" ? (
           <Absences query={absencesOf(search)} onChange={patch} />
+        ) : search.tab === "reported" ? (
+          <ReportInbox
+            view={search.inbox}
+            onView={(inbox) => patch({ inbox })}
+          />
         ) : (
           <Report query={reportOf(search)} onChange={patch} />
         )}

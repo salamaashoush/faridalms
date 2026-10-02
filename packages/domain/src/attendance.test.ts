@@ -2,6 +2,7 @@ import * as v from "valibot";
 import { describe, expect, it } from "vitest";
 
 import {
+  absenceReportSchema,
   emptyCounts,
   isChronic,
   isUnexplained,
@@ -93,5 +94,43 @@ describe("summaries", () => {
     const summary = summarise(emptyCounts());
     expect(summary.rate).toBeNull();
     expect(isChronic(summary, 10)).toBe(false);
+  });
+});
+
+describe("absence reports", () => {
+  const report = {
+    studentId: "01a0e2ff-cf61-7440-862a-a2f67c1c0d11",
+    reasonId: "01a0e2ff-cf61-7440-862a-a2f67c1c0d12",
+    from: "2026-10-05",
+    to: "2026-10-07",
+  };
+
+  it("takes days away without a time", () => {
+    expect(v.is(absenceReportSchema, { ...report, kind: "absent" })).toBe(true);
+    expect(
+      v.is(absenceReportSchema, { ...report, kind: "absent", at: "10:00" }),
+    ).toBe(false);
+  });
+
+  it("takes a late arrival or early leave on one day, with its time", () => {
+    const day = { ...report, to: report.from };
+    expect(
+      v.is(absenceReportSchema, { ...day, kind: "late", at: "10:30" }),
+    ).toBe(true);
+    expect(v.is(absenceReportSchema, { ...day, kind: "early" })).toBe(false);
+    expect(
+      v.is(absenceReportSchema, { ...report, kind: "early", at: "12:00" }),
+    ).toBe(false);
+  });
+
+  it("refuses days that end before they start", () => {
+    expect(
+      v.is(absenceReportSchema, {
+        ...report,
+        kind: "absent",
+        from: report.to,
+        to: report.from,
+      }),
+    ).toBe(false);
   });
 });

@@ -57,6 +57,8 @@ const UPLOADERS: Record<FilePurpose, Capability[] | null> = {
   ],
   site_media: ["site:manage"],
   avatar: null,
+  // A family's note for an absence; it is of use only once a report holds it.
+  evidence: null,
 };
 
 /**

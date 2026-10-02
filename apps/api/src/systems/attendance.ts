@@ -9,6 +9,10 @@ import type { SchoolYear } from "@faridalms/database/stores/years";
 import type { AttendanceMeaning } from "@faridalms/domain/attendance";
 
 import {
+  marksToExplain,
+  reportsOn,
+} from "@faridalms/database/stores/absence-reports";
+import {
   absentUnexplainedOn,
   absencesBetween,
   AttendanceConflict,
@@ -393,6 +397,12 @@ export const register = readProcedure
         excludeRegisterId: existing?.id ?? null,
       }),
     ]);
+    const reports = await reportsOn(context.tx, {
+      tenantId: context.tenantId,
+      schoolId: context.schoolId,
+      studentIds: roster,
+      day: input.date,
+    });
     const onRoster = new Set(roster);
     return {
       class: {
@@ -446,6 +456,13 @@ export const register = readProcedure
         nfc: settings.checkInNfc,
       },
       earlier,
+      reports: reports.map((row) => ({
+        studentId: row.studentId,
+        kind: row.kind,
+        at: row.at,
+        reasonId: row.reasonId,
+        accepted: row.decision === "accepted",
+      })),
       ...codesView(codes),
       access,
     };
@@ -582,6 +599,52 @@ export const undoCheckIn = writeProcedure
     return { undone };
   });
 
+/**
+ * Gives a register's unexplained marks the reasons families reported and
+ * the office accepted. Returns every student whose family reported the day,
+ * accepted or not yet decided, whom the absence notice then spares.
+ */
+async function applyReports(
+  context: UnitContext,
+  studentIds: readonly string[],
+  takenOn: string,
+): Promise<Set<string>> {
+  const reports = await reportsOn(context.tx, {
+    tenantId: context.tenantId,
+    schoolId: context.schoolId,
+    studentIds,
+    day: takenOn,
+  });
+  const accepted = reports.filter((row) => row.decision === "accepted");
+  if (accepted.length > 0) {
+    const codes = await attendanceCodes(context.tx, context.tenantId);
+    const excused = codes.categories.find((row) => row.meaning === "excused");
+    if (!excused) throw new Error("No attendance category means excused");
+    for (const report of accepted) {
+      const marks = await marksToExplain(context.tx, {
+        tenantId: context.tenantId,
+        schoolId: context.schoolId,
+        studentId: report.studentId,
+        from: takenOn,
+        to: takenOn,
+        kind: report.kind,
+        unexplained: true,
+      });
+      if (marks.length > 0)
+        await excuseMarks(context.tx, {
+          tenantId: context.tenantId,
+          schoolId: context.schoolId,
+          marks,
+          reasonId: report.reasonId,
+          note: "",
+          excusedCategoryId: excused.id,
+          actorId: context.actor.userId,
+        });
+    }
+  }
+  return new Set(reports.map((row) => row.studentId));
+}
+
 const missing = (mark: MarkChange["after"]) =>
   mark !== null && mark.meaning === "absent" && !mark.reasonId;
 
@@ -595,6 +658,7 @@ async function noticeAbsences(
   classRow: ClassRow,
   takenOn: string,
   changes: readonly MarkChange[],
+  reported: ReadonlySet<string>,
 ) {
   for (const change of changes)
     if (
@@ -613,7 +677,12 @@ async function noticeAbsences(
         key: { param: "date", value: takenOn },
       });
   const fresh = changes
-    .filter((change) => missing(change.after) && !missing(change.before))
+    .filter(
+      (change) =>
+        missing(change.after) &&
+        !missing(change.before) &&
+        !reported.has(change.studentId),
+    )
     .map((change) => change.studentId);
   if (fresh.length === 0) return;
   const [settings, names] = await Promise.all([
@@ -757,7 +826,14 @@ export const save = writeProcedure
             }),
           ),
       );
-      await noticeAbsences(context, classRow, input.date, saved.changes);
+      const reported = await applyReports(context, roster, input.date);
+      await noticeAbsences(
+        context,
+        classRow,
+        input.date,
+        saved.changes,
+        reported,
+      );
       return { version: saved.version, state };
     } catch (error) {
       if (error instanceof AttendanceConflict)

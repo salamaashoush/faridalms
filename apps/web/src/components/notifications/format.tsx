@@ -67,6 +67,15 @@ export function noticeText(notice: Notice): { title: string; body: string } {
         body: params.preview ?? "",
       };
     case "absence":
+      if (params.report)
+        return {
+          title: (params.report === "accepted"
+            ? m.ntfReportAccepted
+            : m.ntfReportDeclined)({
+            name: both(params.studentName, params.studentNameAr),
+          }),
+          body: date ? formatDate(date) : "",
+        };
       return {
         title: m.ntfAbsence({
           name: both(params.studentName, params.studentNameAr),

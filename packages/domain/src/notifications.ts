@@ -35,6 +35,8 @@ export interface NoticeParams {
   date?: string;
   /** A lesson someone covers, or with `cancelled`, no longer covers. */
   cover?: boolean;
+  /** The office's answer to an absence a family reported. */
+  report?: "accepted" | "declined";
   periodName?: string;
   periodNameAr?: string;
 }

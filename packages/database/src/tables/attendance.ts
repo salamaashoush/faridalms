@@ -1,3 +1,7 @@
+import type {
+  AbsenceReportKind,
+  AbsenceReportStatus,
+} from "@faridalms/domain/attendance";
 import type { PgTableExtraConfigValue } from "drizzle-orm/pg-core";
 
 import { sql } from "drizzle-orm";
@@ -7,13 +11,14 @@ import {
   index,
   smallint,
   text,
+  time,
   uniqueIndex,
   uuid,
 } from "drizzle-orm/pg-core";
 
 import type { ClassType } from "./teaching";
 
-import { classPeriods } from "./calendar";
+import { academicSessions, classPeriods } from "./calendar";
 import {
   baseConstraints,
   ck,
@@ -24,9 +29,12 @@ import {
   fk,
   instant,
   pk,
+  range,
   tenantColumns,
   uq,
 } from "./conventions";
+import { descriptors } from "./descriptors";
+import { files } from "./files";
 import { users } from "./people";
 import { classes } from "./teaching";
 import { orgs, tenants } from "./tenancy";
@@ -150,6 +158,110 @@ export const attendanceRegisters = core.table.withRLS(
     index("attendance_registers_day_idx")
       .on(t.tenantId, t.orgId, t.takenOn)
       .where(sql`status = 'active'`),
+    ...entityProfile(),
+  ],
+);
+
+/**
+ * What a family tells the school ahead of a register: a child will be away,
+ * arrive late or leave early, for a reason. Leave asked for in advance is
+ * the same report with later days. The office accepts or declines it; an
+ * accepted report gives the marks on its days their reason.
+ */
+export const absenceReports = core.table.withRLS(
+  "absence_reports",
+  {
+    ...tenantColumns(),
+    orgId: uuid("org_id").notNull(),
+    schoolYearId: uuid("school_year_id").notNull(),
+    schoolYearType: text("school_year_type").notNull().default("school_year"),
+    studentUserId: uuid("student_user_id").notNull(),
+    reportedByUserId: uuid("reported_by_user_id").notNull(),
+    kind: text("kind").$type<AbsenceReportKind>().notNull(),
+    span: daterange("span").notNull(),
+    /** When a child arrives or leaves, for a late arrival or early leave. */
+    at: time("at"),
+    reasonDescriptorId: uuid("reason_descriptor_id").notNull(),
+    reasonNs: text("reason_ns")
+      .notNull()
+      .generatedAlwaysAs(sql`'attendance_reason'`),
+    note: text("note"),
+    /** A doctor's note or letter the family attached. */
+    fileId: uuid("file_id"),
+    decision: text("decision")
+      .$type<AbsenceReportStatus>()
+      .notNull()
+      .default("pending"),
+    decidedByUserId: uuid("decided_by_user_id"),
+    decidedAt: instant("decided_at"),
+    decisionNote: text("decision_note"),
+    ...entityColumns(),
+  },
+  (t): PgTableExtraConfigValue[] => [
+    pk("absence_reports", t.tenantId, t.id),
+    ...baseConstraints("absence_reports", t, tenants),
+    fk(
+      "absence_reports",
+      [t.tenantId, t.schoolYearId, t.schoolYearType, t.schoolYearId, t.orgId],
+      [
+        academicSessions.tenantId,
+        academicSessions.id,
+        academicSessions.type,
+        academicSessions.schoolYearId,
+        academicSessions.orgId,
+      ],
+    ),
+    fk(
+      "absence_reports",
+      [t.tenantId, t.studentUserId],
+      [users.tenantId, users.id],
+    ),
+    fk(
+      "absence_reports",
+      [t.tenantId, t.reportedByUserId],
+      [users.tenantId, users.id],
+    ),
+    fk(
+      "absence_reports",
+      [t.tenantId, t.decidedByUserId],
+      [users.tenantId, users.id],
+    ),
+    fk(
+      "absence_reports",
+      [t.tenantId, t.reasonDescriptorId, t.reasonNs],
+      [descriptors.tenantId, descriptors.id, descriptors.namespace],
+    ),
+    fk("absence_reports", [t.tenantId, t.fileId], [files.tenantId, files.id]),
+    ck(
+      "absence_reports",
+      "school_year_type",
+      sql`school_year_type = 'school_year'`,
+    ),
+    ck("absence_reports", "span", range.bounded("span")),
+    ck(
+      "absence_reports",
+      "kind",
+      sql`kind in ('absent', 'late', 'early') and (kind = 'absent') = (at is null)
+        and (kind = 'absent' or upper(span) - lower(span) = 1)`,
+    ),
+    ck(
+      "absence_reports",
+      "decision",
+      sql`decision in ('pending', 'accepted', 'declined', 'withdrawn')
+        and (decision in ('pending', 'withdrawn')) = (decided_at is null)`,
+    ),
+    ck("absence_reports", "note", sql`char_length(note) between 1 and 1000`),
+    ck(
+      "absence_reports",
+      "decision_note",
+      sql`char_length(decision_note) between 1 and 500`,
+    ),
+    index("absence_reports_student_idx")
+      .on(t.tenantId, t.studentUserId)
+      .where(sql`status = 'active'`),
+    index("absence_reports_open_idx")
+      .on(t.tenantId, t.orgId)
+      .where(sql`status = 'active' and decision = 'pending'`),
     ...entityProfile(),
   ],
 );

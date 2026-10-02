@@ -177,6 +177,12 @@ export function getMessageFromError(error: unknown): string {
         return m.attReasonInvalid();
       case "attendance.range":
         return m.attRangeInvalid();
+      case "attendance.report_late":
+        return m.repTooLate();
+      case "attendance.report_time":
+        return m.repNeedsTime();
+      case "attendance.report_decided":
+        return m.repAlreadyDecided();
       case "enrollment.scheduled_conflict":
         return m.enrollmentScheduledConflict();
       case "timetable.busy":

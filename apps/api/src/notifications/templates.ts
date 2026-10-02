@@ -22,7 +22,9 @@ const LINES: Record<"en" | "ar", Record<NotificationKind, Line>> = {
     message: (p) =>
       `New message from ${p.actorName ?? "the school"}${p.preview ? `: ${p.preview}` : ""}`,
     absence: (p) =>
-      `${p.studentName ?? "Your child"} was marked absent on ${p.date ?? "today"}${p.className ? ` (${p.className})` : ""}.`,
+      p.report
+        ? `The school ${p.report === "accepted" ? "accepted" : "declined"} your report for ${p.studentName ?? "your child"} from ${p.date ?? "today"}.`
+        : `${p.studentName ?? "Your child"} was marked absent on ${p.date ?? "today"}${p.className ? ` (${p.className})` : ""}.`,
     event: (p) =>
       p.cancelled
         ? `Cancelled: ${p.title ?? ""}${p.date ? ` on ${p.date}` : ""}`
@@ -42,7 +44,9 @@ const LINES: Record<"en" | "ar", Record<NotificationKind, Line>> = {
     message: (p) =>
       `رسالة جديدة من ${p.actorName ?? "المدرسة"}${p.preview ? `: ${p.preview}` : ""}`,
     absence: (p) =>
-      `سُجّل غياب ${p.studentName ?? "طفلك"} يوم ${p.date ?? "اليوم"}${p.className ? ` (${p.className})` : ""}.`,
+      p.report
+        ? `${p.report === "accepted" ? "قبلت" : "رفضت"} المدرسة بلاغك عن ${p.studentName ?? "طفلك"} بدءًا من ${p.date ?? "اليوم"}.`
+        : `سُجّل غياب ${p.studentName ?? "طفلك"} يوم ${p.date ?? "اليوم"}${p.className ? ` (${p.className})` : ""}.`,
     event: (p) =>
       p.cancelled
         ? `أُلغيت: ${p.title ?? ""}${p.date ? ` يوم ${p.date}` : ""}`

@@ -701,8 +701,8 @@ export async function absencesBetween(
 }
 
 /**
- * Gives absences and late arrivals a reason; an absence becomes excused.
- * Returns what each mark was, for the audit.
+ * Gives absences, late arrivals and early leaves a reason; an absence
+ * becomes excused. Returns what each mark was, for the audit.
  */
 export async function excuseMarks(
   tx: Tx,
@@ -744,12 +744,15 @@ export async function excuseMarks(
                                  )}]`}) as m(id, taken_on)) m
         on m.id = e.id and m.taken_on = e.taken_on
       where e.tenant_id = ${input.tenantId}::uuid and g.org_id = ${input.schoolId}::uuid
-        and e.status = 'active' and e.category_meaning in ('absent', 'late', 'excused')
+        and e.status = 'active'
+        and e.category_meaning in ('absent', 'late', 'excused', 'left_early')
       for update of e
     )
     update core.attendance_events e
-    set category_meaning = case when t.before = 'late' then 'late' else 'excused' end,
-        category_descriptor_id = case when t.before = 'late' then e.category_descriptor_id
+    set category_meaning = case when t.before in ('late', 'left_early') then t.before
+                                else 'excused' end,
+        category_descriptor_id = case when t.before in ('late', 'left_early')
+                                      then e.category_descriptor_id
                                       else ${input.excusedCategoryId}::uuid end,
         reason_descriptor_id = ${input.reasonId}::uuid,
         note = coalesce(nullif(${input.note}, ''), e.note),

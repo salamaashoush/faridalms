@@ -29,6 +29,16 @@ export const TIMED_MEANINGS: readonly AttendanceMeaning[] = [
 
 export type RegisterState = "not_started" | "in_progress" | "submitted";
 
+/** What a family reports: a child away, arriving late, or leaving early. */
+export const ABSENCE_REPORT_KINDS = ["absent", "late", "early"] as const;
+export type AbsenceReportKind = (typeof ABSENCE_REPORT_KINDS)[number];
+
+export type AbsenceReportStatus =
+  | "pending"
+  | "accepted"
+  | "declined"
+  | "withdrawn";
+
 export interface AttendanceSettings {
   /** How many days back a teacher may still change a register. */
   teacherEditDays: number;
@@ -130,6 +140,55 @@ export const excuseSchema = v.object({
   note,
 });
 export type Excuse = v.InferOutput<typeof excuseSchema>;
+
+/** How far back a family may still report a day, as a note sent after it. */
+export const REPORT_DAYS_BACK = 14;
+
+const optionalId = v.optional(v.union([v.literal(""), id]), "");
+
+/**
+ * A family's report: the days a child is away, or the day and time they
+ * arrive late or leave early, with a reason the school's codes name.
+ */
+export const absenceReportSchema = v.pipe(
+  v.object({
+    studentId: id,
+    kind: v.picklist(ABSENCE_REPORT_KINDS),
+    from: isoDate,
+    to: isoDate,
+    at: v.optional(
+      v.union([v.literal(""), v.pipe(v.string(), v.isoTime())]),
+      "",
+    ),
+    reasonId: id,
+    note: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(1000)), ""),
+    fileId: optionalId,
+  }),
+  v.check((input) => input.from <= input.to, "attendance.range"),
+  v.check(
+    (input) =>
+      input.kind === "absent"
+        ? input.at === ""
+        : input.at !== "" && input.from === input.to,
+    "attendance.report_time",
+  ),
+);
+export type AbsenceReportInput = v.InferOutput<typeof absenceReportSchema>;
+
+export const familyReportsSchema = v.object({ studentId: optionalId });
+
+export const withdrawReportSchema = v.object({ id });
+
+export const reportInboxSchema = v.object({
+  open: v.optional(v.boolean(), true),
+});
+
+export const decideReportSchema = v.object({
+  id,
+  decision: v.picklist(["accepted", "declined"]),
+  note: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(500)), ""),
+});
+export type DecideReport = v.InferOutput<typeof decideReportSchema>;
 
 export const attendanceSettingsSchema = v.object({
   expectedVersion: v.pipe(v.number(), v.integer(), v.minValue(0)),

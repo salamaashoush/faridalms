@@ -5,6 +5,7 @@ import * as v from "valibot";
 
 import type { Facet } from "~/components/system/IndexPage";
 
+import { FamilyReports } from "~/components/attendance/FamilyReports";
 import { StudentAttendance } from "~/components/attendance/StudentAttendance";
 import { displayName } from "~/components/people/format";
 import {
@@ -14,7 +15,10 @@ import {
 } from "~/components/system/IndexPage";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
-import { studentAttendanceQuery } from "~/queries/attendance";
+import {
+  myAbsenceReportsQuery,
+  studentAttendanceQuery,
+} from "~/queries/attendance";
 import { personRecordQuery } from "~/queries/students";
 import { currentUserQuery } from "~/queries/user";
 
@@ -30,7 +34,10 @@ export const Route = createFileRoute("/_app/family/attendance")({
     );
     const child = deps.studentId ?? me.children[0]?.studentId;
     if (child)
-      await context.queryClient.ensureQueryData(studentAttendanceQuery(child));
+      await Promise.all([
+        context.queryClient.ensureQueryData(studentAttendanceQuery(child)),
+        context.queryClient.ensureQueryData(myAbsenceReportsQuery(child)),
+      ]);
   },
   component: FamilyAttendancePage,
 });
@@ -61,6 +68,15 @@ function FamilyAttendancePage() {
       {current ? (
         <div className="grid gap-6">
           {children.length > 1 ? <IndexToolbar facets={[childFacet]} /> : null}
+          <FamilyReports
+            studentId={current}
+            name={displayName(
+              children.find((child) => child.studentId === current) ?? {
+                fullNameEn: null,
+                fullNameAr: null,
+              },
+            )}
+          />
           <StudentAttendance studentId={current} />
         </div>
       ) : (

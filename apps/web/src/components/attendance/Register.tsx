@@ -92,6 +92,22 @@ function draftsOf(data: Data): Drafts {
   return drafts;
 }
 
+/**
+ * Blank rows for children whose family reported them away start marked
+ * absent with that reason, for the teacher to confirm or change.
+ */
+function withReports(drafts: Drafts, data: Data): Drafts {
+  const next = { ...drafts };
+  for (const report of data.reports)
+    if (report.kind === "absent" && !next[report.studentId]?.meaning)
+      next[report.studentId] = {
+        ...BLANK,
+        meaning: "absent",
+        reasonId: report.reasonId,
+      };
+  return next;
+}
+
 function minutesIssue(draft: Draft): string | null {
   if (!draft.meaning || !TIMED_MEANINGS.includes(draft.meaning)) return null;
   if (draft.minutes === "") return null;
@@ -159,10 +175,20 @@ function MarkChoice({
   );
 }
 
+const REPORTED: Record<
+  Data["reports"][number]["kind"],
+  (input: { time: string; reason: string }) => string
+> = {
+  absent: ({ reason }) => m.attReportedAway({ reason }),
+  late: m.attReportedLate,
+  early: m.attReportedEarly,
+};
+
 function StudentRow({
   student,
   draft,
   earlier,
+  report,
   via,
   reasons,
   disabled,
@@ -171,6 +197,8 @@ function StudentRow({
   student: Student;
   draft: Draft;
   earlier: Data["earlier"];
+  /** What the family told the school about this day. */
+  report: Data["reports"][number] | undefined;
   /** How the child marked themselves in, while that mark stands. */
   via: CheckInWay | null;
   reasons: Data["reasons"];
@@ -199,6 +227,20 @@ function StudentRow({
             {via && draft.meaning === "present" ? (
               <span className="text-[13px] leading-[18px] text-success">
                 {CHECKED_IN[via]()}
+              </span>
+            ) : null}
+            {report ? (
+              <span className="text-[13px] leading-[18px] text-info">
+                {REPORTED[report.kind]({
+                  time: report.at ?? "",
+                  reason: labelOf(
+                    reasons.find((row) => row.id === report.reasonId) ?? {
+                      labelEn: null,
+                      labelAr: null,
+                    },
+                  ),
+                })}
+                {report.accepted ? ` · ${m.repAccepted()}` : null}
               </span>
             ) : null}
             {earlier.length ? (
@@ -362,7 +404,7 @@ function RegisterForm({ data }: { data: Data }) {
   const hydrated = useHydrated();
   const queryClient = useQueryClient();
   const [initial] = useState(() => draftsOf(data));
-  const [drafts, setDrafts] = useState(initial);
+  const [drafts, setDrafts] = useState(() => withReports(initial, data));
   const editable = data.access.editable;
   const save = useMutation({
     mutationFn: () =>
@@ -459,6 +501,7 @@ function RegisterForm({ data }: { data: Data }) {
               student={student}
               draft={drafts[student.id] ?? BLANK}
               earlier={earlierOf(student.id)}
+              report={data.reports.find((row) => row.studentId === student.id)}
               via={
                 data.marks.find((mark) => mark.studentId === student.id)?.via ??
                 null

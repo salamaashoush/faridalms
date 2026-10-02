@@ -1,6 +1,11 @@
 import {
+  absenceReportSchema,
   absencesQuerySchema,
   attendanceSettingsSchema,
+  decideReportSchema,
+  familyReportsSchema,
+  reportInboxSchema,
+  withdrawReportSchema,
   dayQuerySchema,
   excuseSchema,
   registerQuerySchema,
@@ -75,3 +80,23 @@ export const checkInToRegister = createServerFn({ method: "POST" })
 export const undoCheckInToRegister = createServerFn({ method: "POST" })
   .validator(checked(undoCheckInSchema))
   .handler(({ data }) => backend().attendance.undoCheckIn(data));
+
+export const getMyAbsenceReports = createServerFn({ method: "GET" })
+  .validator(checked(familyReportsSchema))
+  .handler(({ data }) => backend().absenceReports.mine(data));
+
+export const reportAbsence = createServerFn({ method: "POST" })
+  .validator(checked(absenceReportSchema))
+  .handler(({ data }) => backend().absenceReports.report(data));
+
+export const withdrawAbsenceReport = createServerFn({ method: "POST" })
+  .validator(checked(withdrawReportSchema))
+  .handler(({ data }) => backend().absenceReports.withdraw(data));
+
+export const getAbsenceReportInbox = createServerFn({ method: "GET" })
+  .validator(checked(reportInboxSchema))
+  .handler(({ data }) => backend().absenceReports.inbox(data));
+
+export const decideAbsenceReport = createServerFn({ method: "POST" })
+  .validator(checked(decideReportSchema))
+  .handler(({ data }) => backend().absenceReports.decide(data));

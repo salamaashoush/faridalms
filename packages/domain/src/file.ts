@@ -2,7 +2,7 @@ import * as v from "valibot";
 
 /**
  * What a person may upload a file for; the purposes the cell's files table
- * pins. Health reports, evidence and imports have flows of their own.
+ * pins. Health reports and imports have flows of their own.
  */
 export const FILE_PURPOSES = [
   "attachment",
@@ -10,6 +10,7 @@ export const FILE_PURPOSES = [
   "document_media",
   "site_media",
   "avatar",
+  "evidence",
 ] as const;
 export const MESSAGE_ATTACHMENT_LIMIT = 5;
 export const MESSAGE_ATTACHMENT_BYTES = 10 * 1024 * 1024;

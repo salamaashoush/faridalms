@@ -3,12 +3,14 @@ import type { AbsencesQuery, ReportQuery } from "@faridalms/domain/attendance";
 import { queryOptions } from "@tanstack/react-query";
 
 import {
+  getAbsenceReportInbox,
   getAbsences,
   getAttendanceBoard,
   getAttendanceDay,
   getAttendanceReport,
   getAttendanceSettings,
   getClassAttendance,
+  getMyAbsenceReports,
   getRegister,
   getStudentAttendance,
 } from "~/server/attendance";
@@ -61,4 +63,16 @@ export const classAttendanceQuery = (classId: string) =>
   queryOptions({
     queryKey: ["attendance", "class", classId],
     queryFn: () => getClassAttendance({ data: { id: classId } }),
+  });
+
+export const myAbsenceReportsQuery = (studentId = "") =>
+  queryOptions({
+    queryKey: ["attendance", "reports", "mine", studentId],
+    queryFn: () => getMyAbsenceReports({ data: { studentId } }),
+  });
+
+export const absenceReportInboxQuery = (open = true) =>
+  queryOptions({
+    queryKey: ["attendance", "reports", "inbox", open],
+    queryFn: () => getAbsenceReportInbox({ data: { open } }),
   });
