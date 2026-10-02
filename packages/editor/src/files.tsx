@@ -20,7 +20,7 @@ import {
   Presentation,
   X,
 } from "lucide-react";
-import { useCallback, useState } from "react";
+import { useCallback, useState, useSyncExternalStore } from "react";
 
 import type { EditorStrings } from "./strings";
 
@@ -260,6 +260,16 @@ export function FileViewer({
   );
 }
 
+const noChange = () => () => {};
+// Older Safari has no flag, and shows pages.
+const pdfViewer = () =>
+  "pdfViewerEnabled" in navigator ? navigator.pdfViewerEnabled : true;
+const assumeViewer = () => true;
+
+/** Whether this browser shows a PDF's pages itself; the server assumes so. */
+const usePdfViewer = () =>
+  useSyncExternalStore(noChange, pdfViewer, assumeViewer);
+
 /**
  * A file as it reads in a document: its kind, name, type and size on one
  * row, and its pages below when the author chose to show them. Readers open
@@ -293,6 +303,17 @@ export function FileCard({
   const Icon = ICON[family];
   const meta = fileMeta(file, locale);
   const label = `${file.name} (${meta})`;
+  const viewer = usePdfViewer();
+  const [unread, setUnread] = useState(false);
+  // An <object> that cannot show its file draws its fallback at the full
+  // height of the pages, so a failed load or a browser without a viewer
+  // gets a line of words instead.
+  const watch = useCallback((element: HTMLObjectElement | null) => {
+    if (!element) return undefined;
+    const failed = () => setUnread(true);
+    element.addEventListener("error", failed);
+    return () => element.removeEventListener("error", failed);
+  }, []);
   const pages = display === "preview" && family === "pdf" && url;
   const row = (
     <>
@@ -345,8 +366,9 @@ export function FileCard({
           </a>
         ) : null}
       </div>
-      {pages ? (
+      {pages && viewer && !unread ? (
         <object
+          ref={watch}
           data={url}
           type="application/pdf"
           aria-label={file.name}
@@ -356,6 +378,10 @@ export function FileCard({
             {strings.noPreview}
           </p>
         </object>
+      ) : pages ? (
+        <p className="border-t px-3 py-2 text-sm text-muted-foreground">
+          {strings.noPreview}
+        </p>
       ) : null}
       {captionField ??
         (caption ? (
