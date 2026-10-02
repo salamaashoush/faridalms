@@ -74,6 +74,7 @@ export const CONFLICTS: Record<string, string> = {
   identity_provider_orgs_key: "identity_provider_org.exists",
   login_identities_subject_key: "login_identity.subject_taken",
   login_identities_login_name_key: "login_identity.login_name_taken",
+  login_identities_badge_key: "login_identity.badge_taken",
   passkeys_tenant_id_credential_id_key: "passkey.exists",
   sessions_tenant_id_token_hash_key: "session.exists",
   access_roles_builtin_key: "access_role.builtin_exists",
