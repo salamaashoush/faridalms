@@ -1753,12 +1753,13 @@ async function seedLearning(
   schoolId: string,
   yearId: string,
 ) {
-  await setOrgFeature(tx, {
-    tenantId,
-    orgId: schoolId,
-    feature: "elearning",
-    enabled: true,
-  });
+  for (const feature of ["elearning", "early_years"] as const)
+    await setOrgFeature(tx, {
+      tenantId,
+      orgId: schoolId,
+      feature,
+      enabled: true,
+    });
   const [homeroom] = await tx.execute<{ id: string; teacher_id: string }>(sql`
     select c.id, e.user_id as teacher_id from core.classes c
     join core.enrollments e on e.tenant_id = c.tenant_id and e.class_id = c.id

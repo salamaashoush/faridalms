@@ -34,6 +34,7 @@ export default defineConfig({
     "notifications.spec.ts",
     "collaboration.spec.ts",
     "learning.spec.ts",
+    "young.spec.ts",
     "site.spec.ts",
     "home.spec.ts",
     "search.spec.ts",

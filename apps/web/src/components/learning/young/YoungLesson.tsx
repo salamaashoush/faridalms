@@ -5,6 +5,7 @@ import { contentPlainText, textDirection } from "@faridalms/domain/content";
 import { lessonSteps } from "@faridalms/domain/lesson-steps";
 import { Button } from "@faridalms/ui/button";
 import { cn } from "@faridalms/ui/cn";
+import { useHydrated } from "@tanstack/react-router";
 import {
   ArrowLeft,
   ArrowRight,
@@ -216,12 +217,14 @@ export function YoungLesson({
   badge?: string;
 }) {
   const steps = useMemo(() => lessonSteps(blocks), [blocks]);
+  const hydrated = useHydrated();
   const [at, setAt] = useState<number | "start" | "end">("start");
   const [sounds, setSounds] = useState(soundsOn);
   const page = useRef<HTMLDivElement>(null);
   const stage = useRef<HTMLDialogElement>(null);
   const finished = useRef(false);
-  const opened = useRef(0);
+  // No screen has opened yet, so nothing is a holdover from one.
+  const opened = useRef(Number.NEGATIVE_INFINITY);
   const [found, setFound] = useState<ReadonlySet<string>>(new Set());
   const [leaving, setLeaving] = useState(false);
   const leaveTimer = useRef<ReturnType<typeof setTimeout> | undefined>(
@@ -410,6 +413,8 @@ export function YoungLesson({
                 type="button"
                 className="size-28 rounded-full shadow-lg"
                 aria-label={m.lrnYoungStart()}
+                // A tap before the page comes alive would do nothing at all.
+                disabled={!hydrated}
                 onClick={() => setAt(steps.length > 0 ? resumeAt : "end")}
               >
                 <Play
