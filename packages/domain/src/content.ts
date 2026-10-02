@@ -217,6 +217,16 @@ export const spokenWords = (text: string) =>
 
 const integer = (min: number, max: number) =>
   v.pipe(v.number(), v.integer(), v.minValue(min), v.maxValue(max));
+/** When each word starts in a recording, in milliseconds, never going back. */
+export const narrationWordsSchema = v.pipe(
+  v.array(integer(0, NARRATION_MS)),
+  v.maxLength(NARRATED_WORDS),
+  v.check((times) =>
+    times.every(
+      (time, index) => index === 0 || time >= (times[index - 1] ?? 0),
+    ),
+  ),
+);
 const color = v.pipe(
   v.string(),
   v.regex(/^(#[\da-fA-F]{3,8}|transparent|black|white|red|blue|green|yellow)$/),
@@ -393,18 +403,7 @@ const nodeSchema: v.GenericSchema<ContentNode> = v.lazy(() =>
         v.object({
           id: v.optional(v.pipe(v.string(), v.regex(/^[\da-z]{8,36}$/))),
           narration: v.optional(v.pipe(v.string(), v.uuid())),
-          words: v.optional(
-            v.pipe(
-              v.array(integer(0, NARRATION_MS)),
-              v.maxLength(NARRATED_WORDS),
-              v.check((times) =>
-                times.every(
-                  (time, index) =>
-                    index === 0 || time >= (times[index - 1] ?? 0),
-                ),
-              ),
-            ),
-          ),
+          words: v.optional(narrationWordsSchema),
         }),
       ),
     }),

@@ -3,7 +3,11 @@ import * as v from "valibot";
 import type { ContentDocument, ContentNode } from "./content";
 
 import { matchAnswer, parseNumber } from "./answers";
-import { contentDocumentSchema, contentPlainText } from "./content";
+import {
+  contentDocumentSchema,
+  contentPlainText,
+  narrationWordsSchema,
+} from "./content";
 import { emptyContent } from "./content-conversion";
 import {
   contentOfLesson,
@@ -99,6 +103,8 @@ const checkFields = {
   id,
   prompt: requiredText(1000),
   narration,
+  /** When each word of the prompt starts in its recording. */
+  narrationWords: v.optional(v.nullable(narrationWordsSchema)),
   /** 0 counts for nothing; a practice question still gives feedback. */
   points: v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(100)),
   hint: text(500),
@@ -1051,7 +1057,13 @@ export type StudentBlock =
     })
   | Pick<
       NumberBlock,
-      "id" | "type" | "prompt" | "narration" | "points" | "tries"
+      | "id"
+      | "type"
+      | "prompt"
+      | "narration"
+      | "narrationWords"
+      | "points"
+      | "tries"
     >
   | (Omit<MatchingBlock, "distractors" | "explanation" | "hint" | "pairs"> & {
       prompts: StudentPart[];
@@ -1154,6 +1166,7 @@ export function studentBlocks(
           type: block.type,
           prompt: block.prompt,
           narration: block.narration ?? null,
+          narrationWords: block.narrationWords ?? null,
           points: block.points,
           tries: block.tries,
         };

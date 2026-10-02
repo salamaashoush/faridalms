@@ -91,9 +91,20 @@ function pictureOf(node: ContentNode | undefined) {
 const voiceOf = (node: ContentNode | undefined) =>
   node?.$?.narration ? { narration: node.$.narration } : {};
 
+/** A question's recording with when each word of its prompt starts in it. */
+const promptVoiceOf = (node: ContentNode) => ({
+  ...voiceOf(node),
+  ...(node.$?.narration && node.$.words?.length
+    ? { narrationWords: node.$.words }
+    : {}),
+});
+
 /** A recording as the editor's state on the node that reads it. */
-const voiced = (narration: string | null | undefined) =>
-  narration ? { $: { narration } } : {};
+const voiced = (
+  narration: string | null | undefined,
+  words?: number[] | null,
+) =>
+  narration ? { $: { narration, ...(words?.length ? { words } : {}) } } : {};
 
 /** Whether a part says anything: words, or a picture. */
 const written = (node: ContentNode | undefined) =>
@@ -112,7 +123,7 @@ function questionBlock(node: ContentNode): LessonBlock | null {
   const check = {
     id: node.questionId,
     prompt: textOf(prompt).trim(),
-    ...voiceOf(node),
+    ...promptVoiceOf(node),
     points: node.points ?? 1,
     hint: node.hint ?? "",
     explanation: node.explanation ?? "",
@@ -493,7 +504,7 @@ export function questionNode(block: LessonBlock): ContentNode | null {
     tries: block.tries,
     hint: block.hint,
     explanation: block.explanation,
-    ...voiced(block.narration),
+    ...voiced(block.narration, block.narrationWords),
     children: [inlineOf("question-prompt", block.prompt)],
   };
   if (block.type === "choice")

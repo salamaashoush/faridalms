@@ -528,17 +528,17 @@ export function SelectionToolbarPlugin() {
       const node = $getNodeByKey(key);
       const target = node ? $narrationTarget(node) : null;
       if (!node || !target) return null;
-      // Only a passage of the page lights its words; a question's do not.
-      const passage =
-        $isElementNode(node) &&
-        node.getParent() === $getRoot() &&
-        !$isQuestionNode(node);
+      // A passage of the page lights its words, and a question its prompt's;
+      // a question's parts are too short to time.
+      const text = $isQuestionNode(node)
+        ? (node.getFirstChild()?.getTextContent() ?? "")
+        : $isElementNode(node) && node.getParent() === $getRoot()
+          ? node.getTextContent()
+          : null;
       return {
         target,
         fileId: $narrationOf(node),
-        words: passage
-          ? { text: node.getTextContent(), times: $narrationWordsOf(node) }
-          : null,
+        words: text === null ? null : { text, times: $narrationWordsOf(node) },
       };
     });
     const element = editor.getElementByKey(key);

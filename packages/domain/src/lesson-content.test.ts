@@ -395,6 +395,7 @@ describe("narration recorded by the teacher", () => {
         type: "choice",
         prompt: "Which one starts with m?",
         narration: voice(1),
+        narrationWords: [0, 400, 800, 1100, 1500],
         options: [
           { id: partId(11), text: "moon", narration: voice(2), feedback: "" },
           { id: partId(12), text: "sun", feedback: "" },
@@ -449,6 +450,9 @@ describe("narration recorded by the teacher", () => {
     const back = lessonOfContent(document);
     expect(v.safeParse(lessonDocumentSchema, back).success).toBe(true);
     expect(checks(back.blocks)).toEqual(checks(narrated.blocks));
+    expect(document.root.children?.[0]?.$?.words).toEqual([
+      0, 400, 800, 1100, 1500,
+    ]);
     expect(contentFileIds(document).toSorted()).toEqual(
       [1, 2, 3, 4, 5, 6, 7].map(voice),
     );

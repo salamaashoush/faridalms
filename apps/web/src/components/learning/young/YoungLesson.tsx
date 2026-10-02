@@ -52,6 +52,12 @@ const nodeText = (block: Content, node: ContentNode) =>
 // readers, and a child hears only the words of the page.
 const SHOWN_ONLY = new Set(["image", "media", "file", "diagram", "scene"]);
 
+const promptVoice = (block: CheckStudentBlock): Voice => ({
+  text: block.prompt,
+  narration: block.narration ?? null,
+  words: block.narrationWords ?? null,
+});
+
 /**
  * What a screen reads as it opens, in order: each passage of words, by its
  * recording or the browser's voice, then the question's prompt, as a page
@@ -72,7 +78,7 @@ function openingVoices(step: StudentBlock[]) {
           });
       }
     if (isCheckBlock(block)) {
-      voices.push({ text: block.prompt, narration: block.narration ?? null });
+      voices.push(promptVoice(block));
       break;
     }
   }
@@ -82,9 +88,7 @@ function openingVoices(step: StudentBlock[]) {
 /** The question a screen asks, said again to a child who has not started. */
 function questionVoice(step: StudentBlock[]) {
   const question = step.find(isCheckBlock);
-  return question
-    ? { text: question.prompt, narration: question.narration ?? null }
-    : null;
+  return question ? promptVoice(question) : null;
 }
 
 function YoungContent({ block }: { block: Content }) {
@@ -126,7 +130,12 @@ function Prompt({ block }: { block: CheckStudentBlock }) {
       dir={textDirection(block.prompt) ?? undefined}
       className="flex items-center justify-center gap-3"
     >
-      <ReadAloud text={block.prompt} narration={block.narration} size="large" />
+      <ReadAloud
+        text={block.prompt}
+        narration={block.narration}
+        words={block.narrationWords}
+        size="large"
+      />
       <h2 className="text-center text-3xl leading-tight font-bold text-balance sm:text-4xl">
         <span dir="auto" className="young-words" data-read-along>
           {block.prompt}
@@ -314,7 +323,7 @@ export function YoungLesson({
   const promptAgain = useEffectEvent(() => {
     if (done) return;
     const asked = questionVoice(step);
-    if (asked) sayAloud(asked.text, asked.narration);
+    if (asked) sayAloud(asked.text, asked.narration, asked.words);
   });
   useEffect(() => {
     const dialog = stage.current;

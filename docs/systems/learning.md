@@ -97,9 +97,9 @@ From [../research/early-years.md](../research/early-years.md).
   the browser names each word as it speaks (Safari does, Chrome's network
   voices do not), the word lights in a marker's yellow; a lesson setting
   turns this off.
-- A teacher's recording lights its words too once they are timed: in the
-  narration panel the recording plays, slower if asked, and the teacher taps
-  as each word begins. Timing needs no speech engine, so it works for Arabic
+- A teacher's recording of a passage or a question's prompt lights its
+  words too once they are timed: in the narration panel the recording plays,
+  slower if asked, and the teacher taps as each word begins. Timing needs no speech engine, so it works for Arabic
   as for English. Words edited after timing light nothing until timed again.
 - A teacher of a young class turns its lesson sound effects off on the
   class page, for a room full of tablets; read and recorded words still
