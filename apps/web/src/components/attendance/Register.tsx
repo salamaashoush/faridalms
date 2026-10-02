@@ -30,6 +30,7 @@ import { toast } from "sonner";
 import { PersonAvatar } from "~/components/admin/PersonAvatar";
 import { UnsavedChangesGuard } from "~/components/app/UnsavedChangesGuard";
 import { classTitle } from "~/components/classes/format";
+import { formatInstant } from "~/components/coursework/format";
 import { displayName } from "~/components/people/format";
 import { SelectField, TextField } from "~/components/system/field";
 import { RecordHeader } from "~/components/system/RecordPage";
@@ -37,7 +38,7 @@ import { inLocale, useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { registerQuery } from "~/queries/attendance";
 import { saveRegister } from "~/server/attendance";
-import { formatDateTime, formatNumber } from "~/utils/datetime";
+import { formatNumber } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
 import { CheckInScreen } from "./CheckInScreen";
@@ -232,6 +233,7 @@ function StudentRow({
   onChange: (next: Draft) => void;
 }) {
   const id = useId();
+  const timeZone = useCurrentUser().school.timeZone;
   const [open, setOpen] = useState(Boolean(draft.note || draft.reasonId));
   const timed =
     draft.meaning !== null && TIMED_MEANINGS.includes(draft.meaning);
@@ -288,7 +290,7 @@ function StudentRow({
                   from: change.from ? MEANING_LABEL[change.from]() : "–",
                   to: change.to ? MEANING_LABEL[change.to]() : "–",
                   name: inLocale(change.byNameEn, change.byNameAr),
-                  when: formatDateTime(change.at),
+                  when: formatInstant(change.at, timeZone),
                 })}
                 {change.reason ? (
                   <>
