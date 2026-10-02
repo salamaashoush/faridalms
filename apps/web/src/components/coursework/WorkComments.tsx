@@ -51,11 +51,13 @@ interface Spot {
 }
 
 /** What opens at a passage: its comment, or a comment being written. */
-type Inline = (
-  | { kind: "comment"; id: string }
-  | { kind: "new"; passage: Passage }
-  | { kind: "edit"; comment: WorkComment }
-) & { spot: Spot };
+type Inline =
+  /** Every comment on the place clicked, as passages may overlap. */
+  (
+    | { kind: "comment"; ids: string[] }
+    | { kind: "new"; passage: Passage }
+    | { kind: "edit"; comment: WorkComment }
+  ) & { spot: Spot };
 
 const spotOf = (element: Element, range: Range): Spot => ({
   getBoundingClientRect: () => range.getBoundingClientRect(),
@@ -364,7 +366,11 @@ export function CommentedWork({
       block: "center",
       behavior: "smooth",
     });
-    setInline({ kind: "comment", id: active, spot: spotOf(element, range) });
+    setInline({
+      kind: "comment",
+      ids: [active],
+      spot: spotOf(element, range),
+    });
   }, [reveal, active]);
 
   useEffect(() => {
@@ -405,27 +411,59 @@ export function CommentedWork({
       if (!(document.getSelection()?.isCollapsed ?? true)) return;
       const caret = caretAt(event.clientX, event.clientY);
       if (!caret) return;
-      const hit = resolved.current.find(([, range]) =>
+      const hits = resolved.current.filter(([, range]) =>
         range.isPointInRange(...caret),
       );
-      if (!hit) return;
-      handlers.current.onOpen(hit[0]);
-      setInline({ kind: "comment", id: hit[0], spot: spotOf(element, hit[1]) });
+      const [first] = hits;
+      if (!first) return;
+      handlers.current.onOpen(first[0]);
+      setInline({
+        kind: "comment",
+        ids: hits.map(([id]) => id),
+        spot: spotOf(element, first[1]),
+      });
+    };
+    // Ctrl or Cmd with Alt and M comments on the selection, as in Google Docs.
+    const shortcut = (event: KeyboardEvent) => {
+      if (
+        !handlers.current.attemptId ||
+        !(event.ctrlKey || event.metaKey) ||
+        !event.altKey ||
+        event.code !== "KeyM"
+      )
+        return;
+      const selection = document.getSelection();
+      if (!selection || selection.isCollapsed) return;
+      const range = selection.getRangeAt(0);
+      if (!element.contains(range.commonAncestorContainer)) return;
+      const anchor = anchorOf(element, range);
+      const placed = anchor ? rangeOf(element, anchor) : null;
+      if (!anchor || !placed) return;
+      event.preventDefault();
+      setInline({
+        kind: "new",
+        passage: { anchor, words: wordsIn(element, range) },
+        spot: spotOf(element, placed),
+      });
+      setOffer(null);
+      selection.removeAllRanges();
     };
     element.addEventListener("pointerup", offerFor);
     element.addEventListener("keyup", offerFor);
     element.addEventListener("click", openAt);
+    document.addEventListener("keydown", shortcut);
     return () => {
       element.removeEventListener("pointerup", offerFor);
       element.removeEventListener("keyup", offerFor);
       element.removeEventListener("click", openAt);
+      document.removeEventListener("keydown", shortcut);
     };
   }, []);
 
-  const shownId = inline?.kind === "comment" ? inline.id : null;
-  const shown = shownId
-    ? comments.find((comment) => comment.id === shownId)
-    : undefined;
+  const shown =
+    inline?.kind === "comment"
+      ? comments.filter((comment) => inline.ids.includes(comment.id))
+      : [];
   const remove = useMutation({
     mutationFn: (comment: WorkComment) =>
       removeWorkComment({
@@ -518,48 +556,52 @@ export function CommentedWork({
                     if (id) onOpen(id);
                   }}
                 />
-              ) : shown ? (
-                <div className="grid gap-2">
-                  <p
-                    dir="auto"
-                    className="text-sm leading-5 whitespace-pre-wrap"
-                  >
-                    {shown.body}
-                  </p>
-                  <div className="flex items-center justify-between gap-2">
-                    <CommentMeta comment={shown} />
-                    {attemptId && shown.authorId === user.id ? (
-                      <span className="flex shrink-0 gap-1">
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon-sm"
-                          aria-label={m.courseworkCommentEdit()}
-                          onClick={() =>
-                            inline &&
-                            setInline({
-                              kind: "edit",
-                              comment: shown,
-                              spot: inline.spot,
-                            })
-                          }
-                        >
-                          <Pencil aria-hidden />
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="icon-sm"
-                          aria-label={m.courseworkCommentRemove()}
-                          disabled={remove.isPending}
-                          onClick={() => remove.mutate(shown)}
-                        >
-                          <Trash2 aria-hidden />
-                        </Button>
-                      </span>
-                    ) : null}
-                  </div>
-                </div>
+              ) : shown.length ? (
+                <ul className="grid gap-3 divide-y">
+                  {shown.map((comment) => (
+                    <li key={comment.id} className="grid gap-2 pb-3 last:pb-0">
+                      <p
+                        dir="auto"
+                        className="text-sm leading-5 whitespace-pre-wrap"
+                      >
+                        {comment.body}
+                      </p>
+                      <div className="flex items-center justify-between gap-2">
+                        <CommentMeta comment={comment} />
+                        {attemptId && comment.authorId === user.id ? (
+                          <span className="flex shrink-0 gap-1">
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon-sm"
+                              aria-label={m.courseworkCommentEdit()}
+                              onClick={() =>
+                                inline &&
+                                setInline({
+                                  kind: "edit",
+                                  comment,
+                                  spot: inline.spot,
+                                })
+                              }
+                            >
+                              <Pencil aria-hidden />
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon-sm"
+                              aria-label={m.courseworkCommentRemove()}
+                              disabled={remove.isPending}
+                              onClick={() => remove.mutate(comment)}
+                            >
+                              <Trash2 aria-hidden />
+                            </Button>
+                          </span>
+                        ) : null}
+                      </div>
+                    </li>
+                  ))}
+                </ul>
               ) : null}
             </Popover.Popup>
           </Popover.Positioner>
