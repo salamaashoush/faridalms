@@ -82,19 +82,18 @@ Each shapes a rule here.
 
 - Narration (76dbc5f), the screen-by-screen player (cb85a9d), tap-to-place
   boards (0b44e72), and the sizes, guards and help ladder above (2ca1682).
+- Voice answers (6264efa), counting (dad0e28), tracing (9e18422), memory
+  pairs (6438ed6), the word builder (d770b64), drawing and photo answers
+  (d395bea).
+- The young home (9bc5acd), QR sign-in badges (55a2885, a48de02), a
+  guardian's hand-over at home (9738a3e), the teacher's first try, with help
+  or not yet grid (6719cde), and the editor's advice for young lessons
+  (d8ec4a9).
 
 ## 4. Next, in order
 
-1. Voice answers: a child records instead of writing, and the teacher
-   listens and judges; also an optional "tell me why" after any question.
-2. Counting: tap each object to count it, and "give me N" onto a ten frame.
-3. Tracing letters and numbers, checked for start point and direction.
-4. Memory pairs as a presentation of matching; a timed reveal of a picture
-   for subitising.
-5. A word builder from grapheme tiles with distractors, joining Arabic
-   letters as they are placed.
-6. Drawing and photo answers; find-on-a-picture.
-7. The young student's home of big task cards, and the teacher's view of
-   each item as first try, with help, or not yet.
-8. Editor checks for young lessons: no more than four options or eight
-   items, and no Arabic without vowels or a recording.
+1. Find-on-a-picture: the teacher marks places on a picture and the child
+   taps each one.
+2. An optional "tell me why" recording after any question.
+3. The starter library: an open picture set in the picture picker, activity
+   templates, and StoryWeaver books as narrated read-along lessons.
