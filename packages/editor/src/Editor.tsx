@@ -271,6 +271,7 @@ function Surface({
       passage: strings.questionPassage,
       statementTrue: strings.questionTrue,
       statementFalse: strings.questionFalse,
+      whyPrompt: strings.questionWhyPrompt,
     }),
   );
   const [anchor, setAnchor] = useState<HTMLDivElement | null>(null);

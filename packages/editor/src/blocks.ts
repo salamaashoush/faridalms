@@ -44,6 +44,7 @@ import {
   ArrowDownUp,
   ArrowLeftRight,
   Blocks,
+  MicVocal,
   ScanSearch,
   Dices,
   Signature,
@@ -87,6 +88,7 @@ import {
   $createColumnNode,
   $createQuestionNode,
   $createTrueFalseQuestion,
+  $createWhyQuestion,
   $createColumnsNode,
   $createToggleContentNode,
   $createToggleNode,
@@ -135,6 +137,7 @@ export type BlockType =
   | "hotspotQuestion"
   | "gapsQuestion"
   | "trueFalseQuestion"
+  | "whyQuestion"
   | "gate"
   | "studentCopy"
   | "aiUse";
@@ -144,6 +147,7 @@ export type BlockGroup = "text" | "lists" | "media" | "layout" | "questions";
 const QUESTION_KIND: Partial<Record<BlockType, QuestionKind>> = {
   choiceQuestion: "choice",
   trueFalseQuestion: "choice",
+  whyQuestion: "written",
   typedQuestion: "text",
   writtenQuestion: "written",
   numberQuestion: "number",
@@ -595,6 +599,25 @@ export const blockDefinitions: BlockDefinition[] = [
     activity: true,
   },
   {
+    type: "whyQuestion",
+    group: "questions",
+    icon: MicVocal,
+    label: (s) => s.questionWhy,
+    hint: (s) => s.questionWhyHint,
+    keywords: [
+      "why",
+      "explain",
+      "tell",
+      "voice",
+      "reason",
+      "لماذا",
+      "اشرح",
+      "صوت",
+    ],
+    question: true,
+    activity: true,
+  },
+  {
     type: "gate",
     group: "questions",
     icon: ListEnd,
@@ -789,6 +812,7 @@ function $selectInside(node: LexicalNode) {
 
 function $createStructure(type: BlockType): LexicalNode | null {
   if (type === "trueFalseQuestion") return $createTrueFalseQuestion();
+  if (type === "whyQuestion") return $createWhyQuestion();
   const kind = QUESTION_KIND[type];
   if (kind) return $createQuestionNode(kind);
   if (type === "divider") return $createHorizontalRuleNode();

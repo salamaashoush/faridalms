@@ -184,6 +184,8 @@ export interface QuestionLabels {
   passage: string;
   statementTrue: string;
   statementFalse: string;
+  /** What a "tell me why" question asks, before the teacher words it. */
+  whyPrompt?: string;
 }
 
 const labels = new WeakMap<LexicalEditor, QuestionLabels>();
@@ -1192,6 +1194,24 @@ export function $createQuestionNode(kind: QuestionKind): QuestionNode {
   if (kind === "gaps") question.append(new QuestionPassageNode());
   if (kind === "spelling")
     question.append(new QuestionAnswerNode(), new QuestionAnswerNode());
+  return question;
+}
+
+/**
+ * A child says why they answered the question before as they did: a spoken
+ * answer for the teacher to hear, worth no points, as Seesaw's young
+ * activities end with "tap the mic and tell me".
+ */
+export function $createWhyQuestion(): QuestionNode {
+  const text = labels.get($getEditor());
+  const question = new QuestionNode({
+    ...defaultSettings("written"),
+    points: 0,
+    recordSeconds: 45,
+  });
+  question.append(
+    new QuestionPromptNode().append($createTextNode(text?.whyPrompt ?? "")),
+  );
   return question;
 }
 

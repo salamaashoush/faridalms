@@ -172,6 +172,9 @@ export interface EditorStrings {
   studentCopyHint: string;
   questionTrueFalse: string;
   questionTrueFalseHint: string;
+  questionWhy: string;
+  questionWhyHint: string;
+  questionWhyPrompt: string;
   questionTrue: string;
   questionFalse: string;
   gate: string;
