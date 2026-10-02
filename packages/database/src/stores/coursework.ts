@@ -805,6 +805,7 @@ export interface AssessmentRow {
   score: number | null;
   effectiveScore: number | null;
   rubricScores: Record<string, string> | null;
+  rubricComments: Record<string, string> | null;
   feedback: string | null;
   privateNote: string | null;
   /** Null when a quiz marked itself. */
@@ -825,6 +826,7 @@ export async function assessmentOf(
     score: string | null;
     effective_score: string | null;
     rubric_scores: Record<string, string> | null;
+    rubric_comments: Record<string, string> | null;
     feedback: string | null;
     private_note: string | null;
     graded_by_user_id: string | null;
@@ -833,7 +835,8 @@ export async function assessmentOf(
     grade_scale_version_id: string | null;
   }>(sql`
     select id, version, score::text as score, effective_score::text as effective_score,
-      rubric_scores, feedback, private_note, graded_by_user_id, grade_scale_version_id,
+      rubric_scores, rubric_comments, feedback, private_note, graded_by_user_id,
+      grade_scale_version_id,
       to_char(released_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as released_at,
       to_char(graded_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as graded_at
     from core.assessments
@@ -846,6 +849,7 @@ export async function assessmentOf(
         effectiveScore:
           row.effective_score === null ? null : Number(row.effective_score),
         rubricScores: row.rubric_scores,
+        rubricComments: row.rubric_comments,
         feedback: row.feedback,
         privateNote: row.private_note,
         gradedByUserId: row.graded_by_user_id,
@@ -867,6 +871,7 @@ export async function saveAssessment(
     score: number | null;
     effectiveScore: number | null;
     rubricScores: Record<string, string> | null;
+    rubricComments: Record<string, string> | null;
     feedback: string | null;
     privateNote: string | null;
     /** Null when a quiz marked itself. */
@@ -879,11 +884,11 @@ export async function saveAssessment(
   // changes, so a school changing its scale leaves earlier grades as given.
   const [row] = await tx.execute<{ id: string; version: number }>(sql`
     insert into core.assessments (tenant_id, attempt_id, submission_id, student_user_id, score,
-      effective_score, rubric_scores, feedback, private_note, graded_by_user_id,
-      grade_scale_version_id)
+      effective_score, rubric_scores, rubric_comments, feedback, private_note,
+      graded_by_user_id, grade_scale_version_id)
     values (${input.tenantId}::uuid, ${input.attemptId}::uuid, ${input.submissionId}::uuid,
       ${input.studentId}::uuid, ${input.score}, ${input.effectiveScore}, ${input.rubricScores}::jsonb,
-      ${input.feedback}, ${input.privateNote}, ${input.userId}::uuid,
+      ${input.rubricComments}::jsonb, ${input.feedback}, ${input.privateNote}, ${input.userId}::uuid,
       case when ${input.score}::numeric is null then null else (
         select app.scale_version_of(a.class_id, ${input.today}::date)
         from core.submissions s
@@ -891,7 +896,8 @@ export async function saveAssessment(
         where s.tenant_id = ${input.tenantId}::uuid and s.id = ${input.submissionId}::uuid) end)
     on conflict (tenant_id, attempt_id) where status = 'active' do update
       set score = excluded.score, effective_score = excluded.effective_score,
-          rubric_scores = excluded.rubric_scores, feedback = excluded.feedback,
+          rubric_scores = excluded.rubric_scores,
+          rubric_comments = excluded.rubric_comments, feedback = excluded.feedback,
           private_note = excluded.private_note, graded_by_user_id = excluded.graded_by_user_id,
           grade_scale_version_id = case
             when core.assessments.score is not distinct from excluded.score

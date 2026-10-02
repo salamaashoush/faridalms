@@ -960,6 +960,7 @@ export const act = writeProcedure
               score: null,
               effectiveScore: null,
               rubricScores: null,
+              rubricComments: null,
               feedback: null,
               privateNote: null,
               userId: context.actor.userId,
@@ -1174,6 +1175,12 @@ export const grading = readProcedure
     };
   });
 
+/** The criteria the grader wrote something on, or null for none. */
+function keptComments(comments: Record<string, string> | null) {
+  const kept = Object.entries(comments ?? {}).filter(([, text]) => text);
+  return kept.length ? Object.fromEntries(kept) : null;
+}
+
 /** Saves the grader's judgement of an attempt as a draft; returning releases it. */
 export const assess = writeProcedure
   .input(assessSchema)
@@ -1198,6 +1205,7 @@ export const assess = writeProcedure
       score: input.score,
       effectiveScore: effectiveScore(input.score, attempt.isLate, assignment),
       rubricScores: input.rubricScores,
+      rubricComments: keptComments(input.rubricComments),
       feedback: input.feedback || null,
       privateNote: input.privateNote || null,
       userId: context.actor.userId,

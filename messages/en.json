@@ -1925,6 +1925,8 @@
   "courseworkBankEmpty": "Nothing kept yet. Tick “Keep in my comment bank” when you write a comment.",
   "courseworkBankKeep": "Keep in my comment bank",
   "courseworkBankShare": "Share with teachers at the school",
+  "courseworkRubricComment": "Comment on {criterion}",
+  "courseworkRubricAddComment": "Add a comment",
   "errorCourseworkCommentAuthor": "Only the teacher who wrote a comment can change it.",
   "courseworkFormat": "Students hand in",
   "courseworkFormatBoth": "Written work or files",

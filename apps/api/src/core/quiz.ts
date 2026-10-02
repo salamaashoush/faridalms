@@ -236,6 +236,7 @@ export async function rescoreQuiz(
     score: kept,
     effectiveScore: effectiveScore(kept, latest.isLate, input.assignment),
     rubricScores: null,
+    rubricComments: previous?.rubricComments ?? null,
     feedback: previous?.feedback ?? null,
     privateNote: previous?.privateNote ?? null,
     userId: input.graderId ?? previous?.gradedByUserId ?? null,

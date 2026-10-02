@@ -333,6 +333,15 @@ export const assessSchema = v.object({
     v.nullable(v.record(v.string(), v.pipe(v.string(), v.maxLength(40)))),
     null,
   ),
+  rubricComments: v.optional(
+    v.nullable(
+      v.record(
+        v.pipe(v.string(), v.maxLength(40)),
+        v.pipe(v.string(), v.trim(), v.maxLength(1000)),
+      ),
+    ),
+    null,
+  ),
   feedback: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(10000)), ""),
   privateNote: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(2000)), ""),
 });

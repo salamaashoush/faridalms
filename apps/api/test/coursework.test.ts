@@ -334,12 +334,20 @@ describe("handing in and returning work", () => {
       ),
     ).toMatchObject({ message: "conflict.version" });
 
+    await teacher.api.coursework.assess({
+      attemptId: attempt.id,
+      score: 8,
+      rubricComments: { opening: "A warm, clear opening.", ending: "" },
+    });
     await teacher.api.coursework.act({
       assignmentId: saved.id,
       action: "return",
       studentIds: [me.id],
     });
     const returned = await student.api.coursework.work({ id: saved.id });
+    expect(returned.attempts[0]?.assessment?.rubricComments).toEqual({
+      opening: "A warm, clear opening.",
+    });
     expect(returned.attempts[0]?.comments).toMatchObject([
       { id: made.id, body: "A warm opening; keep it." },
     ]);

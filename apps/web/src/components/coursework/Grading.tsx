@@ -36,6 +36,7 @@ import {
   ChevronRight,
   LoaderCircle,
   PenLine,
+  Plus,
   Send,
   X,
 } from "lucide-react";
@@ -380,6 +381,12 @@ function GradeSheet({
   const [levels, setLevels] = useState<Record<string, string>>(
     saved?.rubricScores ?? {},
   );
+  const [rubricNotes, setRubricNotes] = useState<Record<string, string>>(
+    saved?.rubricComments ?? {},
+  );
+  const [noting, setNoting] = useState(
+    () => new Set(Object.keys(saved?.rubricComments ?? {})),
+  );
   const [feedback, setFeedback] = useState(saved?.feedback ?? "");
   const [feedbackBank, setFeedbackBank] = useState(false);
   const [note, setNote] = useState(saved?.privateNote ?? "");
@@ -400,6 +407,7 @@ function GradeSheet({
           attemptId: attempt?.id ?? "",
           score: score === "" ? null : Number(score),
           rubricScores: rubric ? levels : null,
+          rubricComments: rubric ? rubricNotes : null,
           feedback,
           privateNote: note,
         },
@@ -574,29 +582,76 @@ function GradeSheet({
           ) : null}
           {rubric
             ? rubric.criteria.map((criterion) => (
-                <SelectField
-                  key={criterion.id}
-                  id={`level-${criterion.id}`}
-                  label={criterion.title}
-                  value={levels[criterion.id] ?? "none"}
-                  options={[
-                    { value: "none", label: m.commonNotRecorded() },
-                    ...criterion.levels.map((level) => ({
-                      value: level.id,
-                      label: m.courseworkRubricLevel({
-                        level: level.title,
-                        points: formatNumber(level.points),
-                      }),
-                    })),
-                  ]}
-                  onChange={(value) => {
-                    const nextLevels = { ...levels };
-                    if (value === "none") delete nextLevels[criterion.id];
-                    else nextLevels[criterion.id] = value;
-                    setLevels(nextLevels);
-                    setScore(String(levelTotal(rubric, nextLevels)));
-                  }}
-                />
+                <div key={criterion.id} className="grid gap-2">
+                  <SelectField
+                    id={`level-${criterion.id}`}
+                    label={criterion.title}
+                    value={levels[criterion.id] ?? "none"}
+                    options={[
+                      { value: "none", label: m.commonNotRecorded() },
+                      ...criterion.levels.map((level) => ({
+                        value: level.id,
+                        label: m.courseworkRubricLevel({
+                          level: level.title,
+                          points: formatNumber(level.points),
+                        }),
+                      })),
+                    ]}
+                    onChange={(value) => {
+                      const nextLevels = { ...levels };
+                      if (value === "none") delete nextLevels[criterion.id];
+                      else nextLevels[criterion.id] = value;
+                      setLevels(nextLevels);
+                      setScore(String(levelTotal(rubric, nextLevels)));
+                    }}
+                  />
+                  {noting.has(criterion.id) ? (
+                    <FormField
+                      id={`level-note-${criterion.id}`}
+                      label={m.courseworkRubricComment({
+                        criterion: criterion.title,
+                      })}
+                      optional
+                    >
+                      {(control) => (
+                        <Textarea
+                          {...control}
+                          dir="auto"
+                          rows={2}
+                          maxLength={1000}
+                          value={rubricNotes[criterion.id] ?? ""}
+                          onChange={(event) =>
+                            setRubricNotes({
+                              ...rubricNotes,
+                              [criterion.id]: event.target.value,
+                            })
+                          }
+                        />
+                      )}
+                    </FormField>
+                  ) : (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      className="-ms-2 justify-self-start max-md:h-10"
+                      aria-label={m.courseworkRubricComment({
+                        criterion: criterion.title,
+                      })}
+                      onClick={() => {
+                        setNoting(new Set([...noting, criterion.id]));
+                        requestAnimationFrame(() =>
+                          document
+                            .getElementById(`level-note-${criterion.id}`)
+                            ?.focus(),
+                        );
+                      }}
+                    >
+                      <Plus aria-hidden />
+                      {m.courseworkRubricAddComment()}
+                    </Button>
+                  )}
+                </div>
               ))
             : null}
           <TextField

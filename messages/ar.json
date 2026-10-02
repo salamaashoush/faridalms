@@ -1953,6 +1953,8 @@
   "courseworkBankEmpty": "لا شيء محفوظ بعد. اختر «احفظ في بنك تعليقاتي» عند كتابة تعليق.",
   "courseworkBankKeep": "احفظ في بنك تعليقاتي",
   "courseworkBankShare": "شاركه مع معلمي المدرسة",
+  "courseworkRubricComment": "تعليق على {criterion}",
+  "courseworkRubricAddComment": "أضف تعليقًا",
   "errorCourseworkCommentAuthor": "لا يغيّر التعليق إلا المعلم الذي كتبه.",
   "courseworkFormat": "يسلّم الطلاب",
   "courseworkFormatBoth": "كتابة أو ملفات",

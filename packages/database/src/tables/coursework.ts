@@ -436,6 +436,8 @@ export const assessments = core.table.withRLS(
       mode: "number",
     }),
     rubricScores: jsonb("rubric_scores").$type<Record<string, unknown>>(),
+    /** What the grader wrote on each criterion, by criterion id. */
+    rubricComments: jsonb("rubric_comments").$type<Record<string, unknown>>(),
     /** The scale bands in force when the score was given; empty without a scale. */
     gradeScaleVersionId: uuid("grade_scale_version_id"),
     feedback: text("feedback"),
@@ -485,6 +487,11 @@ export const assessments = core.table.withRLS(
       "assessments",
       "rubric_scores",
       sql`rubric_scores is null or jsonb_typeof(rubric_scores) = 'object'`,
+    ),
+    ck(
+      "assessments",
+      "rubric_comments",
+      sql`rubric_comments is null or jsonb_typeof(rubric_comments) = 'object'`,
     ),
     ck(
       "assessments",

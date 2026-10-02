@@ -1,0 +1,2 @@
+ALTER TABLE "core"."assessments" ADD COLUMN "rubric_comments" jsonb;--> statement-breakpoint
+ALTER TABLE "core"."assessments" ADD CONSTRAINT "assessments_rubric_comments_check" CHECK (rubric_comments is null or jsonb_typeof(rubric_comments) = 'object');

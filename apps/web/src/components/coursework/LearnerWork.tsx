@@ -61,9 +61,11 @@ type Attempt = Data["attempts"][number];
 function RubricResult({
   data,
   scores,
+  comments,
 }: {
   data: Data;
   scores: Record<string, string> | null;
+  comments: Record<string, string> | null;
 }) {
   const rubric = data.assignment.rubric;
   if (!rubric || !scores) return null;
@@ -74,19 +76,26 @@ function RubricResult({
           (row) => row.id === scores[criterion.id],
         );
         return (
-          <li
-            key={criterion.id}
-            className="flex flex-wrap justify-between gap-x-4"
-          >
-            <span dir="auto">{criterion.title}</span>
-            <span className="text-muted-foreground" dir="auto">
-              {level
-                ? m.courseworkRubricLevel({
-                    level: level.title,
-                    points: formatNumber(level.points),
-                  })
-                : m.commonNotRecorded()}
-            </span>
+          <li key={criterion.id} className="grid gap-0.5">
+            <div className="flex flex-wrap justify-between gap-x-4">
+              <span dir="auto">{criterion.title}</span>
+              <span className="text-muted-foreground" dir="auto">
+                {level
+                  ? m.courseworkRubricLevel({
+                      level: level.title,
+                      points: formatNumber(level.points),
+                    })
+                  : m.commonNotRecorded()}
+              </span>
+            </div>
+            {comments?.[criterion.id] ? (
+              <p
+                dir="auto"
+                className="whitespace-pre-wrap text-muted-foreground"
+              >
+                {comments[criterion.id]}
+              </p>
+            ) : null}
           </li>
         );
       })}
@@ -173,7 +182,11 @@ function AttemptItem({ data, attempt }: { data: Data; attempt: Attempt }) {
               )}
             </p>
           ) : null}
-          <RubricResult data={data} scores={assessment.rubricScores} />
+          <RubricResult
+            data={data}
+            scores={assessment.rubricScores}
+            comments={assessment.rubricComments}
+          />
           {assessment.feedback ? (
             <p dir="auto" className="text-sm leading-5 whitespace-pre-wrap">
               {assessment.feedback}
