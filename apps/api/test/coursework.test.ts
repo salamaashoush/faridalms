@@ -390,10 +390,19 @@ describe("handing in and returning work", () => {
       commentId: made.id,
       body: "Which part is warm?",
     });
+    const waiting = async () =>
+      (
+        await teacher.api.coursework.grading({
+          assignmentId: saved.id,
+          studentId: me.id,
+        })
+      ).queue.find((row) => row.studentId === me.id)?.awaiting;
+    expect(await waiting()).toBe(1);
     await teacher.api.coursework.replyToComment({
       commentId: made.id,
       body: "The first line, where you greet her.",
     });
+    expect(await waiting()).toBe(0);
     const answered = await teacher.api.coursework.grading({
       assignmentId: saved.id,
       studentId: me.id,

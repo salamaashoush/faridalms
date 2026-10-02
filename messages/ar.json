@@ -4747,6 +4747,8 @@
   "courseworkGradeStudent": "تقييم {name}",
   "courseworkEditGrade": "تعديل التقييم",
   "courseworkGradeAction": "تقييم",
+  "courseworkQueueAnswered": "بانتظار ردك · {count}",
+  "courseworkAwaitingReply": "بانتظار ردك",
   "courseworkQueueToGrade": "للتقييم · {count}",
   "courseworkQueueReturned": "أُعيد · {count}",
   "courseworkQueueNotIn": "لم يُسلَّم · {count}",

@@ -4587,6 +4587,8 @@
   "courseworkGradeStudent": "Grade {name}",
   "courseworkEditGrade": "Edit grade",
   "courseworkGradeAction": "Grade",
+  "courseworkQueueAnswered": "Waiting for your reply · {count}",
+  "courseworkAwaitingReply": "Waiting for your reply",
   "courseworkQueueToGrade": "To grade · {count}",
   "courseworkQueueReturned": "Returned · {count}",
   "courseworkQueueNotIn": "Not handed in · {count}",

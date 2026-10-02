@@ -81,11 +81,18 @@ function levelTotal(rubric: Rubric, scores: Record<string, string>) {
 }
 
 type QueueRow = Data["queue"][number];
-type Standing = "to_grade" | "returned" | "not_in" | "excused";
+type Standing = "answered" | "to_grade" | "returned" | "not_in" | "excused";
 
-const STANDINGS: Standing[] = ["to_grade", "returned", "not_in", "excused"];
+const STANDINGS: Standing[] = [
+  "answered",
+  "to_grade",
+  "returned",
+  "not_in",
+  "excused",
+];
 
 const STANDING_LABEL: Record<Standing, (count: { count: string }) => string> = {
+  answered: m.courseworkQueueAnswered,
   to_grade: m.courseworkQueueToGrade,
   returned: m.courseworkQueueReturned,
   not_in: m.courseworkQueueNotIn,
@@ -93,6 +100,8 @@ const STANDING_LABEL: Record<Standing, (count: { count: string }) => string> = {
 };
 
 function standingOf(row: QueueRow): Standing {
+  // A student waiting on a reply comes first, whatever else is due.
+  if (row.awaiting > 0) return "answered";
   if (row.excused) return "excused";
   if (row.needsGrading) return "to_grade";
   if (row.handedIn) return "returned";

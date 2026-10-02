@@ -509,6 +509,8 @@ export interface WorkRow {
   /** The latest attempt is shared with the student's family. */
   shared: boolean;
   gradeScaleVersionId: string | null;
+  /** Comments the student answered that wait for a grader's reply. */
+  awaiting: number;
 }
 
 /**
@@ -541,6 +543,7 @@ export async function studentWork(
     released: boolean | null;
     shared: boolean;
     grade_scale_version_id: string | null;
+    awaiting: number;
   }>(sql`
     select r.student_user_id as student_id, u.full_name_en, u.full_name_ar,
       to_char(coalesce(r.due_at, a.due_at) at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as due_at,
@@ -557,7 +560,24 @@ export async function studentWork(
       x.id as assessment_id, x.score::text as score, x.effective_score::text as effective_score,
       x.released_at is not null as released, x.grade_scale_version_id,
       exists (select 1 from core.family_shares h where h.tenant_id = r.tenant_id
-        and h.attempt_id = t.id and h.status = 'active') as shared
+        and h.attempt_id = t.id and h.status = 'active') as shared,
+      -- Comments the student answered that no grader has replied to since:
+      -- marked not understood, or with the student's reply last.
+      (select count(*)::int from core.work_comments c
+        where c.tenant_id = r.tenant_id and c.attempt_id = t.id and c.status = 'active'
+          and (
+            exists (select 1 from core.work_comment_answers a
+              where a.tenant_id = c.tenant_id and a.comment_id = c.id
+                and a.status = 'active' and a.state = 'unclear'
+                and not exists (select 1 from core.work_comment_replies g
+                  where g.tenant_id = c.tenant_id and g.comment_id = c.id
+                    and g.status = 'active' and g.author_user_id <> r.student_user_id
+                    and g.created_at > a.date_last_modified))
+            or (select x.author_user_id from core.work_comment_replies x
+                where x.tenant_id = c.tenant_id and x.comment_id = c.id
+                  and x.status = 'active'
+                order by x.created_at desc, x.id desc limit 1) = r.student_user_id)
+      ) as awaiting
     from core.assignment_recipients r
     join core.assignments a on a.tenant_id = r.tenant_id and a.id = r.assignment_id
     join core.users u on u.tenant_id = r.tenant_id and u.id = r.student_user_id
@@ -595,6 +615,7 @@ export async function studentWork(
     released: row.released ?? false,
     shared: row.shared,
     gradeScaleVersionId: row.grade_scale_version_id,
+    awaiting: row.awaiting,
   }));
 }
 
