@@ -247,6 +247,23 @@ describe("calendar links", () => {
     expect((await fetchFeed(again.token)).status).toBe(200);
     expect((await fetchFeed("x".repeat(43))).status).toBe(404);
   });
+
+  test("a student's link carries their lessons as timed entries", async () => {
+    const student = await sessionFor("northwind", login("student"));
+    const made = await student.api.calendar.resetFeed();
+    const response = await seeded().handler(
+      new Request(`http://api.test/feeds/${made.school}/${made.token}.ics`),
+    );
+    // Long lines fold at 75 octets; unfolded, each entry reads whole.
+    const body = (await response.text()).replaceAll("\r\n ", "");
+    const { week } = await student.api.timetable.studentWeek({});
+    const lesson = week?.meetings[0];
+    if (!lesson) throw new Error("the seeded student has no lessons");
+    expect(body).toContain(`UID:lesson-${lesson.classId}-`);
+    expect(body).toMatch(
+      /BEGIN:VEVENT\r\nUID:lesson-[^\r]+\r\nDTSTAMP:\d{8}T\d{6}Z\r\nSEQUENCE:\d+\r\nDTSTART:\d{8}T\d{6}Z/,
+    );
+  });
 });
 
 describe("a second calendar", () => {

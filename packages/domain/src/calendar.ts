@@ -174,6 +174,8 @@ interface IcsEvent {
   description: string;
   cancelled: boolean;
   version: number;
+  /** Where the entry opens in the app, when not the calendar's event page. */
+  url?: string;
 }
 
 const icsText = (value: string) =>
@@ -241,7 +243,11 @@ function vevent(event: IcsEvent, input: IcsOptions): string[] {
     `SUMMARY:${icsText(title)}`,
     ...(event.location ? [`LOCATION:${icsText(event.location)}`] : []),
     ...(event.description ? [`DESCRIPTION:${icsText(event.description)}`] : []),
-    ...(input.urlOf ? [`URL:${input.urlOf(event.id)}`] : []),
+    ...(event.url
+      ? [`URL:${event.url}`]
+      : input.urlOf
+        ? [`URL:${input.urlOf(event.id)}`]
+        : []),
     `STATUS:${event.cancelled ? "CANCELLED" : "CONFIRMED"}`,
     "END:VEVENT",
   ];

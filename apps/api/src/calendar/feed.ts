@@ -11,6 +11,7 @@ import { addDays } from "@faridalms/domain/school";
 import type { RequestContext } from "../core/context";
 
 import { dateIn } from "../core/procedure";
+import { feedLessons } from "./lessons";
 
 const FEED = /^\/feeds\/([a-z0-9-]{1,60})\/([A-Za-z0-9_-]{43})\.ics$/;
 
@@ -34,7 +35,7 @@ export function newFeedToken() {
 
 /**
  * A person's calendar as an iCalendar file, for the calendar apps that poll
- * a private link without any session. The school is named in the address and
+ * a private link without any session: events, closures and their lessons. The school is named in the address and
  * the secret stands for the person; what they see is worked out now, from
  * their reach today, so a link outlives nothing it should not.
  */
@@ -79,7 +80,8 @@ export async function handleCalendarFeed(
         userId: owner.userId,
         on: today,
       });
-      const [events, days] = await Promise.all([
+      const origin = `https://${school.appHost}`;
+      const [events, days, lessons] = await Promise.all([
         eventsBetween(tx, {
           ...range,
           viewerId: owner.userId,
@@ -87,24 +89,34 @@ export async function handleCalendarFeed(
           drafts: false,
         }),
         specialDays(tx, range),
+        feedLessons(tx, {
+          tenantId: school.tenantId,
+          schoolId: school.schoolId,
+          userId: owner.userId,
+          today,
+          locale: owner.locale,
+          origin,
+        }),
       ]);
       const ar = owner.locale === "ar";
       const pick = (en: string | null, other: string | null) =>
         (ar ? (other ?? en) : (en ?? other)) ?? "";
       const words = LABEL[owner.locale];
       const name = pick(profile?.nameEn ?? null, profile?.nameAr ?? null);
-      const origin = `https://${school.appHost}`;
       return calendarIcs({
         name: ar ? `${words.calendar} ${name}` : `${name} ${words.calendar}`,
         timeZone,
         stamp: new Date(),
         cancelledLabel: words.cancelled,
         urlOf: (id) => `${origin}/calendar/${id}`,
-        events: events.map((event) => ({
-          ...event,
-          title: pick(event.titleEn, event.titleAr),
-          description: "",
-        })),
+        events: [
+          ...events.map((event) => ({
+            ...event,
+            title: pick(event.titleEn, event.titleAr),
+            description: "",
+          })),
+          ...lessons,
+        ],
         days: days.map((day) => {
           const kind = pick(day.labelEn, day.labelAr);
           const note = pick(day.noteEn, day.noteAr);

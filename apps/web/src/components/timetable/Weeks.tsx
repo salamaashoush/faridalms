@@ -1,13 +1,16 @@
 import type { ReactNode } from "react";
 
+import { Button } from "@faridalms/ui/button";
 import { useSuspenseQuery } from "@tanstack/react-query";
-import { CalendarRange, CalendarX2 } from "lucide-react";
-import { useState, useTransition } from "react";
+import { CalendarRange, CalendarX2, Printer } from "lucide-react";
+import { useEffect, useState, useTransition } from "react";
+import { createPortal } from "react-dom";
 
 import { ButtonLink } from "~/components/app/ButtonLink";
+import { Subscribe } from "~/components/calendar/Subscribe";
 import { classTitle } from "~/components/classes/format";
 import { EmptyState } from "~/components/system/IndexPage";
-import { inLocale } from "~/hooks/useCurrentUser";
+import { inLocale, useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import {
   classWeekQuery,
@@ -15,8 +18,9 @@ import {
   studentWeekQuery,
   teacherWeekQuery,
 } from "~/queries/timetable";
+import { formatDate } from "~/utils/datetime";
 
-import type { GridPeriod } from "./WeekGrid";
+import type { GridDate, GridPeriod } from "./WeekGrid";
 
 import { FreeCell, MeetingCard, WeekGrid, WeekStep } from "./WeekGrid";
 
@@ -135,6 +139,7 @@ export function Week({
   lines,
   cell,
   own = false,
+  subscribe = false,
   pending,
   onWeek,
 }: {
@@ -144,6 +149,8 @@ export function Week({
   cell?: CardCell;
   /** A teacher's own week, where covers name who covers whom. */
   own?: boolean;
+  /** The reader's own week, which their calendar link carries. */
+  subscribe?: boolean;
   pending?: boolean;
   onWeek?: (on: string) => void;
 }) {
@@ -155,17 +162,40 @@ export function Week({
         description={m.ttNoLessonsBody()}
       />
     );
+  const grid = (
+    <WeekGrid
+      caption={caption}
+      days={week.days}
+      dates={week.dates}
+      periods={week.periods}
+      meetings={week.meetings}
+      today={week.dates.find((day) => day.date === week.today)?.day}
+      cell={weekCell(lines, cell, own)}
+    />
+  );
   return (
     <div className="grid gap-4">
-      {onWeek ? (
-        <WeekStep
-          dates={week.dates}
-          today={week.today}
-          year={week.year}
-          pending={pending}
-          onWeek={onWeek}
-        />
-      ) : null}
+      <div className="flex flex-wrap items-center justify-between gap-2">
+        {onWeek ? (
+          <WeekStep
+            dates={week.dates}
+            today={week.today}
+            year={week.year}
+            pending={pending}
+            onWeek={onWeek}
+          />
+        ) : (
+          <span />
+        )}
+        <div className="flex items-center gap-2">
+          {subscribe ? <Subscribe /> : null}
+          {week.meetings.length > 0 ? (
+            <PrintWeek title={caption} dates={week.dates}>
+              {grid}
+            </PrintWeek>
+          ) : null}
+        </div>
+      </div>
       {week.meetings.length === 0 ? (
         <EmptyState
           icon={CalendarX2}
@@ -173,17 +203,69 @@ export function Week({
           description={m.ttNoLessonsBody()}
         />
       ) : (
-        <WeekGrid
-          caption={caption}
-          days={week.days}
-          dates={week.dates}
-          periods={week.periods}
-          meetings={week.meetings}
-          today={week.dates.find((day) => day.date === week.today)?.day}
-          cell={weekCell(lines, cell, own)}
-        />
+        grid
       )}
     </div>
+  );
+}
+
+/**
+ * Prints the week on its own on a landscape page, black on white whatever
+ * the app's theme. The sheet exists only while the browser prints.
+ */
+function PrintWeek({
+  title,
+  dates,
+  children,
+}: {
+  title: string;
+  dates: readonly GridDate[];
+  children: ReactNode;
+}) {
+  const user = useCurrentUser();
+  const [printing, setPrinting] = useState(false);
+  useEffect(() => {
+    if (!printing) return undefined;
+    const done = () => setPrinting(false);
+    window.addEventListener("afterprint", done);
+    window.print();
+    return () => window.removeEventListener("afterprint", done);
+  }, [printing]);
+  const first = dates[0]?.date;
+  const last = dates.at(-1)?.date;
+  return (
+    <>
+      <Button
+        type="button"
+        variant="outline"
+        className="max-md:h-10"
+        onClick={() => setPrinting(true)}
+      >
+        <Printer aria-hidden />
+        {m.ttPrint()}
+      </Button>
+      {printing
+        ? createPortal(
+            <div
+              data-print-sheet
+              className="paper hidden bg-background text-foreground print:block"
+            >
+              <style>{"@page { size: A4 landscape; margin: 10mm; }"}</style>
+              <header className="mb-3 flex items-baseline justify-between gap-4">
+                <h1 className="text-lg font-semibold">{title}</h1>
+                <p className="text-sm">
+                  {user.school.name}
+                  {first && last
+                    ? ` · ${formatDate(first)} – ${formatDate(last)}`
+                    : null}
+                </p>
+              </header>
+              {children}
+            </div>,
+            document.body,
+          )
+        : null}
+    </>
   );
 }
 
@@ -206,6 +288,7 @@ export function StudentWeek({ studentId = "" }: { studentId?: string }) {
       week={week}
       caption={m.ttStudentCaption()}
       lines={(meeting) => [teacherLabel(meeting), roomLabel(meeting)]}
+      subscribe={studentId === ""}
       pending={pending}
       onWeek={onWeek}
     />
@@ -247,6 +330,7 @@ export function TeacherWeek({
       lines={(meeting) => [roomLabel(meeting)]}
       cell={cell}
       own
+      subscribe={on === undefined && teacherId === ""}
       pending={stepped.pending}
       onWeek={on === undefined ? stepped.onWeek : undefined}
     />
