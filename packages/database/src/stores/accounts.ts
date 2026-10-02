@@ -55,6 +55,44 @@ export async function signInOf(
     : null;
 }
 
+/**
+ * The student's account, opened when they have none, since a young child's
+ * first sign-in is often a badge or a guardian's hand-over rather than a
+ * password. A disabled account gives null, so neither can reopen it. The row
+ * stays locked to the transaction, so two sign-ins prepared at once queue.
+ */
+export async function ensureAccount(
+  tx: Tx,
+  input: { tenantId: string; userId: string },
+): Promise<{ accountId: string; created: boolean } | null> {
+  const [existing] = await tx
+    .select({ id: accounts.id, state: accounts.state })
+    .from(accounts)
+    .where(
+      and(
+        eq(accounts.tenantId, input.tenantId),
+        eq(accounts.userId, input.userId),
+        eq(accounts.status, "active"),
+      ),
+    )
+    .for("update");
+  if (existing)
+    return existing.state === "active"
+      ? { accountId: existing.id, created: false }
+      : null;
+  const [created] = await tx
+    .insert(accounts)
+    .values({
+      tenantId: input.tenantId,
+      userId: input.userId,
+      state: "active",
+      webauthnUserHandle: newUserHandle(input.tenantId),
+    })
+    .returning({ id: accounts.id });
+  if (!created) throw new Error("account was not created");
+  return { accountId: created.id, created: true };
+}
+
 /** Opens an account with a password an administrator set. */
 export async function createPasswordAccount(
   tx: Tx,

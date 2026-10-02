@@ -1,12 +1,11 @@
-import { YOUNG_STUDENT_GRADES } from "@faridalms/domain/descriptors/catalogue";
 import { and, eq, gt, inArray, isNull, sql } from "drizzle-orm";
 
 import type { CellTransaction } from "../context";
 
 import { accounts, loginIdentities, sessions } from "../tables/accounts";
 import { users } from "../tables/people";
-import { newUserHandle } from "./accounts";
-import { isoOf, textArray, uuidArray } from "./sql";
+import { ensureAccount } from "./accounts";
+import { isoOf, uuidArray } from "./sql";
 
 type Tx = CellTransaction;
 
@@ -106,11 +105,7 @@ export async function voidBadges(
   return voided.length;
 }
 
-/**
- * Gives a student a new badge in place of any they had. A student with no
- * account gets one, since a badge is often the first way a young child signs
- * in; a disabled account gets nothing, so a badge cannot reopen it.
- */
+/** Gives a student a new badge in place of any they had. */
 export async function issueBadge(
   tx: Tx,
   input: {
@@ -121,42 +116,17 @@ export async function issueBadge(
     linkedByUserId: string;
   },
 ): Promise<{ accountId: string; created: boolean } | null> {
-  const [existing] = await tx
-    .select({ id: accounts.id, state: accounts.state })
-    .from(accounts)
-    .where(
-      and(
-        eq(accounts.tenantId, input.tenantId),
-        eq(accounts.userId, input.userId),
-        eq(accounts.status, "active"),
-      ),
-    )
-    // Two prints for one child at once would otherwise each void the old
-    // badge and both insert, leaving two that work.
-    .for("update");
-  if (existing && existing.state !== "active") return null;
-  let accountId = existing?.id;
-  if (!accountId) {
-    const [created] = await tx
-      .insert(accounts)
-      .values({
-        tenantId: input.tenantId,
-        userId: input.userId,
-        state: "active",
-        webauthnUserHandle: newUserHandle(input.tenantId),
-      })
-      .returning({ id: accounts.id });
-    if (!created) throw new Error("account was not created");
-    accountId = created.id;
-  } else
+  const account = await ensureAccount(tx, input);
+  if (!account) return null;
+  if (!account.created)
     await voidBadges(tx, {
       tenantId: input.tenantId,
-      accountIds: [accountId],
+      accountIds: [account.accountId],
       reason: "lost",
     });
   await tx.insert(loginIdentities).values({
     tenantId: input.tenantId,
-    accountId,
+    accountId: account.accountId,
     kind: "badge",
     secretHash: input.secretHash,
     secretSetAt: new Date(),
@@ -164,7 +134,7 @@ export async function issueBadge(
     linkMethod: "admin",
     linkedByUserId: input.linkedByUserId,
   });
-  return { accountId, created: !existing };
+  return account;
 }
 
 export interface BadgeState {
@@ -208,26 +178,4 @@ export async function badgesOf(
       },
     ]),
   );
-}
-
-/** Which of the students are in a young grade at the school on the day. */
-export async function youngStudents(
-  tx: Tx,
-  input: {
-    tenantId: string;
-    orgId: string;
-    userIds: readonly string[];
-    today: string;
-  },
-): Promise<Set<string>> {
-  if (input.userIds.length === 0) return new Set();
-  const rows = await tx.execute<{ user_id: string }>(sql`
-    select distinct s.student_user_id as user_id
-    from core.student_school_years s
-    join core.descriptors d on d.tenant_id = s.tenant_id and d.id = s.grade_level_descriptor_id
-    where s.tenant_id = ${input.tenantId}::uuid and s.org_id = ${input.orgId}::uuid
-      and s.student_user_id = any(${uuidArray(input.userIds)})
-      and s.status = 'active' and s.valid_during @> ${input.today}::date
-      and d.system_meaning = any(${textArray(YOUNG_STUDENT_GRADES)})`);
-  return new Set(rows.map((row) => row.user_id));
 }

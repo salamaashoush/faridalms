@@ -41,12 +41,25 @@ export function currentSchool(): string | null {
   return chosen && SLUG.test(chosen) ? chosen : null;
 }
 
-export function backend(school: string | null = currentSchool()) {
+/**
+ * While a guardian has handed the device to a young child, the guardian's
+ * own session waits here, out of the child's reach, for the way back.
+ */
+export function guardianCookie(school: string) {
+  return `${isSecureRequest() ? "__Host-" : ""}g-${school}`;
+}
+
+export function backend(
+  school: string | null = currentSchool(),
+  token: string | undefined = school
+    ? getCookie(sessionCookie(school))
+    : undefined,
+) {
   return createApiClient({
     url: `${env.BACKEND_URL}/rpc`,
     school: school ?? undefined,
     locale: getLocale(),
-    token: school ? getCookie(sessionCookie(school)) : undefined,
+    token,
     forwardedFor: getRequestHeader("x-forwarded-for"),
   });
 }

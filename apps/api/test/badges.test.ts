@@ -1,6 +1,13 @@
 import { describe, expect, test } from "bun:test";
 
-import { client, login, rejection, seeded, signedIn } from "./harness";
+import {
+  client,
+  login,
+  rejection,
+  seeded,
+  sessionFor,
+  signedIn,
+} from "./harness";
 
 const YOUNG = "northwind-east";
 
@@ -148,5 +155,60 @@ describe("sign-in badges", () => {
       code: "BAD_REQUEST",
       message: "auth.invalid_credentials",
     });
+  });
+});
+
+/** A parent whose child is in the young school, signed in there. */
+async function youngParent() {
+  const school = seeded().tenants[0]?.schools.find((row) => row.slug === YOUNG);
+  const name = seeded()
+    .tenants[0]?.logins.filter(
+      (row) => row.role === "parent" && row.schoolId === school?.id,
+    )
+    .at(0)?.loginName;
+  if (!name) throw new Error("the seed lacks a parent at the young school");
+  const { api, token } = await sessionFor(YOUNG, name);
+  const child = (await api.home.family({})).children.find((row) => row.young);
+  if (!child) throw new Error("the parent has no young child");
+  return { api, token, child };
+}
+
+describe("handing a device to a young child", () => {
+  test("a parent hands over to their young child and keeps their own session", async () => {
+    const { api, child } = await youngParent();
+    const session = await api.identity.childSession({
+      studentId: child.studentId,
+    });
+    expect(session.workspace).toBe("me");
+    expect(new Date(session.guardianExpiresAt).getTime()).toBeGreaterThan(
+      Date.now(),
+    );
+    const me = await client(YOUNG, session.token).identity.currentUser();
+    expect(me).toMatchObject({ id: child.studentId, profile: "young_student" });
+    expect((await api.identity.currentUser()).workspace).toBe("family");
+  });
+
+  test("only a young child of the family's own is handed a device", async () => {
+    const { api } = await youngParent();
+    const older = await signedIn("northwind", login("parent"));
+    const olderChild = (await older.home.family({})).children[0];
+    if (!olderChild) throw new Error("the seeded parent has no child");
+    expect(olderChild.young).toBe(false);
+    expect(
+      await rejection(
+        older.identity.childSession({ studentId: olderChild.studentId }),
+      ),
+    ).toMatchObject({ code: "BAD_REQUEST", message: "account.not_young" });
+    expect(
+      await rejection(
+        api.identity.childSession({ studentId: olderChild.studentId }),
+      ),
+    ).toMatchObject({ code: "NOT_FOUND" });
+    const { api: teacher } = await youngTeacher();
+    expect(
+      await rejection(
+        teacher.identity.childSession({ studentId: olderChild.studentId }),
+      ),
+    ).toMatchObject({ code: "FORBIDDEN" });
   });
 });

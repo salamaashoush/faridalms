@@ -36,3 +36,5 @@ export const issueBadgesSchema = v.object({
 });
 
 export const stopBadgeSchema = v.object({ classId: id, studentId: id });
+
+export const childSessionSchema = v.object({ studentId: id });

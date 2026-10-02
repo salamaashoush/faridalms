@@ -254,7 +254,7 @@ export interface NewSession {
   ipPrefix: string | null;
   userAgentSummary: string | null;
   /** How the person proved who they are; a password unless named. */
-  method?: "pwd" | "badge";
+  method?: "pwd" | "badge" | "guardian";
   /** A badge signs in on a device several children share. */
   clientKind?: ClientKind;
 }
@@ -364,6 +364,17 @@ export async function touchSession(
     .update(sessions)
     .set({ lastSeenAt: new Date(now), idleExpiresAt: idle })
     .where(eq(sessions.id, session.id));
+}
+
+export async function sessionExpiresAt(
+  tx: Tx,
+  sessionId: string,
+): Promise<Date | null> {
+  const [row] = await tx
+    .select({ absoluteExpiresAt: sessions.absoluteExpiresAt })
+    .from(sessions)
+    .where(eq(sessions.id, sessionId));
+  return row?.absoluteExpiresAt ?? null;
 }
 
 export async function revokeSession(

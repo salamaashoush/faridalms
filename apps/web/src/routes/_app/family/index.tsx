@@ -1,13 +1,20 @@
 import type { LinkProps } from "@tanstack/react-router";
 
+import { Button } from "@faridalms/ui/button";
 import { cn } from "@faridalms/ui/cn";
-import { useSuspenseQuery } from "@tanstack/react-query";
+import {
+  useMutation,
+  useQueryClient,
+  useSuspenseQuery,
+} from "@tanstack/react-query";
 import {
   createFileRoute,
   Link,
   stripSearchParams,
+  useRouter,
 } from "@tanstack/react-router";
-import { House } from "lucide-react";
+import { useServerFn } from "@tanstack/react-start";
+import { House, LoaderCircle, Smile } from "lucide-react";
 import * as v from "valibot";
 
 import type { Tone } from "~/components/system/status";
@@ -27,6 +34,7 @@ import { StatusText } from "~/components/system/status";
 import { inLocale, useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { familyHomeQuery } from "~/queries/home";
+import { startChildMode } from "~/server/auth";
 import { formatDate } from "~/utils/datetime";
 
 export const Route = createFileRoute("/_app/family/")({
@@ -91,6 +99,46 @@ const lesson = (slot: Child["now"], label: string) =>
   slot
     ? `${label}: ${classTitle({ code: slot.classCode, titleEn: slot.classTitleEn, titleAr: slot.classTitleAr })}`
     : null;
+
+/**
+ * Hands this device to a young child for their lessons. The child sees only
+ * their own home; a grown-up's answer brings the family account back.
+ */
+function HandOver({ child }: { child: Child }) {
+  const router = useRouter();
+  const queryClient = useQueryClient();
+  const start = useServerFn(startChildMode);
+  const name = displayName(child);
+  const handOver = useMutation({
+    mutationFn: () => start({ data: { studentId: child.studentId } }),
+    onSuccess: async () => {
+      queryClient.clear();
+      await router.invalidate();
+      await router.navigate({ to: "/" });
+    },
+  });
+  return (
+    <div className="grid gap-2 border-t pt-4">
+      <Button
+        type="button"
+        variant="outline"
+        className="justify-self-start max-md:h-10"
+        disabled={handOver.isPending}
+        onClick={() => handOver.mutate()}
+      >
+        {handOver.isPending ? (
+          <LoaderCircle aria-hidden className="animate-spin" />
+        ) : (
+          <Smile aria-hidden />
+        )}
+        <bdi>{m.familyHandOver({ name })}</bdi>
+      </Button>
+      <p className="text-[13px] leading-[18px] text-muted-foreground">
+        {m.familyHandOverHint({ name })}
+      </p>
+    </div>
+  );
+}
 
 function ChildCard({
   child,
@@ -182,6 +230,7 @@ function ChildCard({
         {!presence && child.attention.length === 0 && child.due.length === 0 ? (
           <p className="text-sm text-muted-foreground">{m.homeChildClear()}</p>
         ) : null}
+        {child.young ? <HandOver child={child} /> : null}
       </div>
     </HomeCard>
   );

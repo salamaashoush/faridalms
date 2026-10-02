@@ -1,5 +1,6 @@
 import type { StudentStatus } from "@faridalms/domain/people";
 
+import { YOUNG_STUDENT_GRADES } from "@faridalms/domain/descriptors/catalogue";
 import { familyRoleFor } from "@faridalms/domain/family-roles";
 import { fullName } from "@faridalms/domain/people";
 import { and, eq, sql } from "drizzle-orm";
@@ -995,4 +996,26 @@ export async function accountOf(
         lastSignInAt: row.last_authenticated_at,
       }
     : null;
+}
+
+/** Which of the students are in a young grade at the school on the day. */
+export async function youngStudents(
+  tx: Tx,
+  input: {
+    tenantId: string;
+    orgId: string;
+    userIds: readonly string[];
+    today: string;
+  },
+): Promise<Set<string>> {
+  if (input.userIds.length === 0) return new Set();
+  const rows = await tx.execute<{ user_id: string }>(sql`
+    select distinct s.student_user_id as user_id
+    from core.student_school_years s
+    join core.descriptors d on d.tenant_id = s.tenant_id and d.id = s.grade_level_descriptor_id
+    where s.tenant_id = ${input.tenantId}::uuid and s.org_id = ${input.orgId}::uuid
+      and s.student_user_id = any(${uuidArray(input.userIds)})
+      and s.status = 'active' and s.valid_during @> ${input.today}::date
+      and d.system_meaning = any(${textArray(YOUNG_STUDENT_GRADES)})`);
+  return new Set(rows.map((row) => row.user_id));
 }

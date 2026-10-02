@@ -33,7 +33,10 @@ import {
 } from "@faridalms/database/stores/newsletters";
 import { deliveryLog } from "@faridalms/database/stores/notifications";
 import { childrenOf } from "@faridalms/database/stores/persons";
-import { studentDirectory } from "@faridalms/database/stores/students";
+import {
+  studentDirectory,
+  youngStudents,
+} from "@faridalms/database/stores/students";
 import {
   meetingsOn,
   studentGroups,
@@ -515,6 +518,12 @@ export const family = readProcedure
         q: "",
       }),
     ]);
+    const young = await youngStudents(context.tx, {
+      tenantId: context.tenantId,
+      orgId: context.schoolId,
+      userIds: chosen.map((link) => link.studentId),
+      today: context.today,
+    });
     const children = [];
     for (const link of chosen) {
       const day = await studentDay(context, link.studentId);
@@ -556,6 +565,7 @@ export const family = readProcedure
         studentId: link.studentId,
         fullNameEn: link.fullNameEn,
         fullNameAr: link.fullNameAr,
+        young: young.has(link.studentId),
         presence: day.presence,
         now: day.slots.find((slot) => slot.when === "now") ?? null,
         next: day.slots.find((slot) => slot.when === "next") ?? null,

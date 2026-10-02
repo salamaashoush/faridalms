@@ -2,6 +2,7 @@ import type { Workspace } from "@faridalms/domain/workspace";
 
 import { writeAudit } from "@faridalms/database/audit";
 import { bindActor } from "@faridalms/database/context";
+import { ensureAccount } from "@faridalms/database/stores/accounts";
 import {
   findBadge,
   slideBadge,
@@ -18,10 +19,14 @@ import {
   recordSignIn,
   revokeSession,
   schoolProfile,
+  sessionExpiresAt,
   viewer,
 } from "@faridalms/database/stores/identity";
+import { childrenOf } from "@faridalms/database/stores/persons";
+import { youngStudents } from "@faridalms/database/stores/students";
 import {
   badgeSignInSchema,
+  childSessionSchema,
   signInSchema,
   switchContextSchema,
 } from "@faridalms/domain/identity-schema";
@@ -30,12 +35,14 @@ import { ORPCError } from "@orpc/server";
 import { randomBytes } from "node:crypto";
 import * as v from "valibot";
 
+import { scopeOf } from "../core/coursework-access";
 import { featuresOf } from "../core/features";
 import {
   audit,
   dateIn,
   publicProcedure,
   readProcedure,
+  requireCapability,
   schoolProcedure,
   writeProcedure,
 } from "../core/procedure";
@@ -437,6 +444,82 @@ export const switchContext = writeProcedure
       token,
       expiresAt: session.absoluteExpiresAt,
       workspace: WORKSPACE_OF[access.profile],
+    };
+  });
+
+/**
+ * A guardian hands their device to a young child: a session as the child,
+ * for the lessons and home made for them, while the guardian's own session
+ * stays open for the way back. It lives as a shared-device session, so a
+ * tablet put down and forgotten closes it within the half hour.
+ */
+export const childSession = writeProcedure
+  .input(childSessionSchema)
+  .handler(async ({ input, context }) => {
+    if (context.actor.context !== "family") throw new ORPCError("FORBIDDEN");
+    requireCapability(context, "children:read");
+    const links = await childrenOf(
+      context.tx,
+      scopeOf(context),
+      context.actor.userId,
+    );
+    if (!links.some((link) => link.studentId === input.studentId))
+      throw new ORPCError("NOT_FOUND");
+    const young = await youngStudents(context.tx, {
+      tenantId: context.tenantId,
+      orgId: context.schoolId,
+      userIds: [input.studentId],
+      today: context.today,
+    });
+    const access = await effectiveAccess(context.tx, {
+      tenantId: context.tenantId,
+      userId: input.studentId,
+      orgId: context.schoolId,
+      today: context.today,
+      context: "student",
+    });
+    if (
+      !young.has(input.studentId) ||
+      !access.contexts.includes("student") ||
+      access.profile !== "young_student"
+    )
+      throw new ORPCError("BAD_REQUEST", { message: "account.not_young" });
+    const account = await ensureAccount(context.tx, {
+      tenantId: context.tenantId,
+      userId: input.studentId,
+    });
+    if (!account)
+      throw new ORPCError("CONFLICT", { message: "account.disabled" });
+    const { token, tokenHash } = issueToken(context.tenantId);
+    const session = await createSession(context.tx, {
+      tenantId: context.tenantId,
+      accountId: account.accountId,
+      tokenHash,
+      loginIdentityId: null,
+      context: "student",
+      activeOrgId: context.schoolId,
+      idleMinutes: SHARED_LIFETIME.idle,
+      absoluteMinutes: SHARED_LIFETIME.absolute,
+      ipPrefix: ipPrefix(context.headers),
+      userAgentSummary: userAgentSummary(context.headers),
+      method: "guardian",
+      clientKind: "shared_device",
+    });
+    await audit(context, {
+      action: "session.child_start",
+      objectType: "account",
+      objectId: account.accountId,
+      subjectUserId: input.studentId,
+      studentUserId: input.studentId,
+      details: { childSessionId: session.id },
+    });
+    return {
+      token,
+      expiresAt: session.absoluteExpiresAt,
+      workspace: WORKSPACE_OF[access.profile],
+      guardianExpiresAt:
+        (await sessionExpiresAt(context.tx, context.actor.sessionId)) ??
+        session.absoluteExpiresAt,
     };
   });
 

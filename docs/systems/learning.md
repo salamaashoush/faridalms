@@ -71,6 +71,9 @@ From [../research/early-years.md](../research/early-years.md).
   teacher prints them from the class's Students tab, credit-card size and
   eight to a page, and replaces or stops one that went missing; a new scan
   on a shared tablet signs the last child out.
+- At home a guardian hands their own device to a young child from the family
+  home. The child sees only their home and lessons; going back to the family
+  account asks a multiplication a grown-up answers at a glance.
 
 ## Teachers
 

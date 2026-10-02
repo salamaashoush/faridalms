@@ -2,13 +2,13 @@ import {
   badgesOf,
   issueBadge,
   voidBadges,
-  youngStudents,
 } from "@faridalms/database/stores/badges";
 import {
   classById,
   classRoster,
   teachesClass,
 } from "@faridalms/database/stores/classes";
+import { youngStudents } from "@faridalms/database/stores/students";
 import {
   classBadgesSchema,
   issueBadgesSchema,

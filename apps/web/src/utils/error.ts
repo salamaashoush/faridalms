@@ -547,6 +547,10 @@ export function getMessageFromError(error: unknown): string {
         return m.authInvalidCredentials();
       case "badges.not_young":
         return m.badgesNotYoung();
+      case "account.not_young":
+        return m.accountNotYoung();
+      case "account.disabled":
+        return m.accountDisabled();
       case "grading.score_exceeds_max":
         return m.gradingScoreExceedsMax();
       case "assignment.due_in_past":

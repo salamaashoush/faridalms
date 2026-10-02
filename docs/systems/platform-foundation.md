@@ -3420,7 +3420,11 @@ create index login_identities_account_idx on core.login_identities (tenant_id, a
   `amr = {badge}`, 30 minutes idle and 8 hours at most; on a device that held
   another session for the school, that session is signed out. A child who
   has left the young grades has the badge voided as `aged_out` at its next
-  use. Voiding a badge revokes the sessions it opened.
+  use. Voiding a badge revokes the sessions it opened. A guardian handing
+  their device to a young child of theirs opens the same kind of session with
+  `amr = {guardian}` and no login identity; the web keeps the guardian's token
+  in a separate httpOnly cookie for the way back, and signs it out if the
+  child's session ends unattended.
 
 ```sql
 create table core.passkeys (

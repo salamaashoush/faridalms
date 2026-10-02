@@ -38,7 +38,12 @@ import {
   useSidebar,
 } from "@faridalms/ui/sidebar";
 import { useQueryClient } from "@tanstack/react-query";
-import { Link, useRouter, useRouterState } from "@tanstack/react-router";
+import {
+  Link,
+  useRouteContext,
+  useRouter,
+  useRouterState,
+} from "@tanstack/react-router";
 import {
   Check,
   ChevronsUpDown,
@@ -57,6 +62,7 @@ import { useCallback } from "react";
 
 import type { NavItem } from "~/components/app/navigation";
 
+import { GrownUpGate } from "~/components/app/GrownUpGate";
 import { MOBILE_TABS, NAVIGATION } from "~/components/app/navigation";
 import { NotificationBell } from "~/components/app/NotificationBell";
 import { initialsOf, WORKSPACE_LABEL } from "~/components/app/UserMenu";
@@ -239,6 +245,10 @@ function AccountMenu() {
 
 function SidebarBody() {
   const user = useCurrentUser();
+  const childMode = useRouteContext({
+    from: "__root__",
+    select: (context) => context.auth.childMode,
+  });
   const { setOpenMobile } = useSidebar();
   const sections = useVisibleNavigation();
   const isActive = useIsActive();
@@ -312,7 +322,7 @@ function SidebarBody() {
       <SidebarFooter className="p-2">
         <SidebarMenu>
           <SidebarMenuItem>
-            <AccountMenu />
+            {childMode ? <GrownUpGate /> : <AccountMenu />}
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarFooter>

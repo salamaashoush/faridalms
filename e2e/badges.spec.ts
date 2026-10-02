@@ -40,3 +40,35 @@ test("a badge that does not work says so, and leaves no secret in the address", 
   await page.getByRole("link", { name: "Sign in with a password" }).click();
   await expect(page).toHaveURL(/\/sign-in$/);
 });
+
+test("a parent hands the device to a young child and a grown-up's answer brings them back", async ({
+  page,
+}) => {
+  await signInWith(
+    page,
+    "parent1020@northwind.example.com",
+    PASSWORD,
+    "/family",
+    "northwind-east",
+  );
+  await untilHydrated(page);
+  await page.getByRole("button", { name: /^Hand over to / }).click();
+  await expect(page).toHaveURL(/\/me$/);
+  await expect(page.getByRole("heading", { level: 1 })).toHaveText(/^Hello, /);
+  await expect(page.getByRole("button", { name: "Account" })).toHaveCount(0);
+
+  await page.getByRole("button", { name: "Grown-ups" }).click();
+  const gate = page.getByRole("dialog", {
+    name: "Back to the grown-up's account",
+  });
+  await gate.getByRole("textbox").fill("1");
+  await gate.getByRole("button", { name: "Continue" }).click();
+  await expect(gate.getByRole("alert")).toBeVisible();
+  const [a, b] = (await gate.locator("label").innerText())
+    .split("×")
+    .map((side) => Number(side.trim()));
+  await gate.getByRole("textbox").fill(String((a ?? 0) * (b ?? 0)));
+  await gate.getByRole("button", { name: "Continue" }).click();
+  await expect(page).toHaveURL(/\/family$/);
+  await expect(page.getByRole("button", { name: "Account" })).toBeVisible();
+});
