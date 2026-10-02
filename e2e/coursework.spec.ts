@@ -112,10 +112,12 @@ test("a teacher assigns work, a student hands it in, and the returned grade reac
     .getByRole("textbox", { name: "Comment" })
     .fill("Tell me one thing you did with them.");
   await page.getByRole("button", { name: "Save comment" }).click();
+  await expect(page.getByRole("textbox", { name: "Comment" })).toBeHidden();
+  await page.getByRole("button", { name: "Grade", exact: true }).click();
+  // The grade sheet lists the comments with the passages they mark.
   await expect(
     page.getByRole("button", { name: "Show the passage in the work" }),
   ).toHaveText("visited my grandparents");
-  await page.getByRole("button", { name: "Grade", exact: true }).click();
   await page.locator("#grade-score").fill("8");
   await page.locator("#grade-feedback").fill("A warm, well organised letter.");
   await page.getByRole("button", { name: "Return and next" }).click();

@@ -40,7 +40,7 @@ import {
   Send,
   X,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import { CourseworkStanding } from "~/components/exams/Authentication";
@@ -54,20 +54,11 @@ import * as m from "~/i18n/messages";
 import { getLocale, getTextDirection } from "~/i18n/runtime";
 import { gradingQuery } from "~/queries/coursework";
 import { workStandingQuery } from "~/queries/exams";
-import {
-  actOnWork,
-  assessAttempt,
-  commentOnWork,
-  removeWorkComment,
-  saveToCommentBank,
-} from "~/server/coursework";
+import { actOnWork, assessAttempt } from "~/server/coursework";
 import { formatNumber } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
-import type { Passage, WorkComment } from "./WorkComments";
-
 import { resultText } from "../grading/format";
-import { CheckboxRow } from "../people/fields";
 import { displayName } from "../people/format";
 import { CommentBankPicker } from "./CommentBank";
 import { formatInstant } from "./format";
@@ -216,135 +207,6 @@ function StudentSwitcher({
   );
 }
 
-interface Composing {
-  passage: Passage;
-  /** The grader's own comment being changed; none for a new one. */
-  comment?: WorkComment;
-}
-
-/** Writes a comment on the passage the grader chose, or changes one. */
-function CommentComposer({
-  attemptId,
-  composing,
-  onDone,
-}: {
-  attemptId: string;
-  composing: Composing;
-  onDone: (id: string | null) => void;
-}) {
-  const queryClient = useQueryClient();
-  const [body, setBody] = useState(composing.comment?.body ?? "");
-  const [bankOpen, setBankOpen] = useState(false);
-  const [keep, setKeep] = useState(false);
-  const [share, setShare] = useState(false);
-  const field = useRef<HTMLTextAreaElement>(null);
-  // Opened by choosing a passage, so writing about it follows at once.
-  useEffect(() => field.current?.focus(), []);
-  const save = useMutation({
-    mutationFn: async () => {
-      const saved = await commentOnWork({
-        data: {
-          id: composing.comment?.id ?? "",
-          attemptId,
-          expectedVersion: composing.comment?.version ?? 0,
-          anchor: composing.passage.anchor,
-          body,
-        },
-      });
-      if (keep)
-        await saveToCommentBank({
-          data: { id: "", expectedVersion: 0, body, shared: share },
-        });
-      return saved;
-    },
-    onSuccess: async (saved) => {
-      await queryClient.invalidateQueries({ queryKey: ["coursework"] });
-      onDone(saved.id);
-    },
-    onError: (failure) => toast.error(getMessageFromError(failure)),
-  });
-  return (
-    <form
-      className="grid gap-2 rounded-lg border p-3"
-      onSubmit={(event) => {
-        event.preventDefault();
-        if (body.trim()) save.mutate();
-      }}
-    >
-      <p className="line-clamp-3 border-s-2 border-amber-400 ps-2 text-[13px] leading-[18px] text-muted-foreground">
-        <span className="sr-only">{m.courseworkCommentPassage()}: </span>
-        <bdi>{composing.passage.words}</bdi>
-      </p>
-      <Textarea
-        aria-label={m.courseworkComment()}
-        dir="auto"
-        rows={3}
-        ref={field}
-        maxLength={2000}
-        placeholder={m.courseworkCommentPlaceholder()}
-        value={body}
-        onChange={(event) => {
-          // "#" in an empty comment opens the bank, as in Classroom.
-          if (event.target.value === "#") {
-            setBankOpen(true);
-            return;
-          }
-          setBody(event.target.value);
-        }}
-        onKeyDown={(event) => {
-          if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
-            event.preventDefault();
-            if (body.trim()) save.mutate();
-          }
-        }}
-      />
-      <CheckboxRow
-        label={m.courseworkBankKeep()}
-        checked={keep}
-        onChange={setKeep}
-      />
-      {keep ? (
-        <CheckboxRow
-          label={m.courseworkBankShare()}
-          checked={share}
-          onChange={setShare}
-        />
-      ) : null}
-      <div className="flex flex-wrap gap-2">
-        <Button
-          type="submit"
-          size="sm"
-          disabled={save.isPending || !body.trim()}
-        >
-          {save.isPending ? (
-            <LoaderCircle className="animate-spin" aria-hidden />
-          ) : null}
-          {m.courseworkCommentSave()}
-        </Button>
-        <Button
-          type="button"
-          size="sm"
-          variant="ghost"
-          disabled={save.isPending}
-          onClick={() => onDone(null)}
-        >
-          {m.commonCancel()}
-        </Button>
-        <CommentBankPicker
-          open={bankOpen}
-          onOpenChange={setBankOpen}
-          onPick={(picked) => {
-            setBody((current) =>
-              current.trim() ? `${current.trimEnd()} ${picked}` : picked,
-            );
-            field.current?.focus();
-          }}
-        />
-      </div>
-    </form>
-  );
-}
-
 /**
  * The grade for the attempt on screen, in a sheet from the end side: for
  * assessed coursework the declaration and the teacher's word first, then the
@@ -364,10 +226,7 @@ function GradeSheet({
   comments: {
     passages: Record<string, string>;
     active: string | null;
-    composing: Composing | null;
-    onCompose: (composing: Composing | null) => void;
     onShow: (id: string) => void;
-    onSaved: (id: string) => void;
   };
 }) {
   const attempt = data.attempts.at(-1);
@@ -464,17 +323,6 @@ function GradeSheet({
       toast.error(getMessageFromError(failure));
     }
   };
-  const remove = useMutation({
-    mutationFn: (comment: WorkComment) =>
-      removeWorkComment({
-        data: { id: comment.id, expectedVersion: comment.version },
-      }),
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["coursework"] });
-      toast.success(m.courseworkCommentRemoved());
-    },
-    onError: (failure) => toast.error(getMessageFromError(failure)),
-  });
   const side = getTextDirection(getLocale()) === "rtl" ? "left" : "right";
   // Beside the work on a wide screen, so the teacher reads while grading;
   // over it on a narrower one.
@@ -543,20 +391,6 @@ function GradeSheet({
                   {m.courseworkCommentsHint()}
                 </p>
               </div>
-              {comments.composing ? (
-                <CommentComposer
-                  key={
-                    comments.composing.comment?.id ??
-                    JSON.stringify(comments.composing.passage.anchor)
-                  }
-                  attemptId={attempt.id}
-                  composing={comments.composing}
-                  onDone={(id) => {
-                    comments.onCompose(null);
-                    if (id) comments.onSaved(id);
-                  }}
-                />
-              ) : null}
               {attempt.comments.length ? (
                 <CommentList
                   comments={attempt.comments}
@@ -566,16 +400,6 @@ function GradeSheet({
                     comments.onShow(id);
                     if (!beside) onOpenChange(false);
                   }}
-                  onEdit={(comment) =>
-                    comments.onCompose({
-                      comment,
-                      passage: {
-                        anchor: comment.anchor,
-                        words: comments.passages[comment.id] ?? "",
-                      },
-                    })
-                  }
-                  onRemove={(comment) => remove.mutate(comment)}
                 />
               ) : null}
             </section>
@@ -778,14 +602,12 @@ export function Grading({
   const [active, setActive] = useState<string | null>(null);
   const [reveal, setReveal] = useState(0);
   const [passages, setPassages] = useState<Record<string, string>>({});
-  const [composing, setComposing] = useState<Composing | null>(null);
   // The grade sheet stays open from one student to the next; a comment
   // being written or shown belongs to the student it was on.
   const [commentsOf, setCommentsOf] = useState(studentId);
   if (commentsOf !== studentId) {
     setCommentsOf(studentId);
     setActive(null);
-    setComposing(null);
     setPassages({});
   }
   const index = data.queue.findIndex((row) => row.studentId === studentId);
@@ -924,15 +746,9 @@ export function Grading({
                   comments={attempt.comments}
                   active={active}
                   reveal={reveal}
+                  attemptId={attempt.id}
                   onPassages={setPassages}
-                  onOpen={(id) => {
-                    setActive(id);
-                    setGrading(true);
-                  }}
-                  onComment={(passage) => {
-                    setComposing({ passage });
-                    setGrading(true);
-                  }}
+                  onOpen={setActive}
                 />
               ) : null}
               <FileList files={attempt.files} />
@@ -956,13 +772,10 @@ export function Grading({
           comments={{
             passages,
             active,
-            composing,
-            onCompose: setComposing,
             onShow: (id) => {
               setActive(id);
               setReveal((count) => count + 1);
             },
-            onSaved: setActive,
           }}
         />
       ) : null}

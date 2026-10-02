@@ -20,10 +20,13 @@ export function CommentBankPicker({
   open,
   onOpenChange,
   onPick,
+  compact = false,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onPick: (body: string) => void;
+  /** An icon alone, for the tight row under a comment. */
+  compact?: boolean;
 }) {
   const [search, setSearch] = useState("");
   const queryClient = useQueryClient();
@@ -53,14 +56,16 @@ export function CommentBankPicker({
         render={
           <Button
             type="button"
-            size="sm"
+            size={compact ? "icon-sm" : "sm"}
             variant="ghost"
-            className="max-md:h-10"
+            className={compact ? "max-md:size-10" : "max-md:h-10"}
           />
         }
+        aria-label={compact ? m.courseworkCommentBank() : undefined}
+        title={compact ? m.courseworkCommentBank() : undefined}
       >
         <Library aria-hidden />
-        {m.courseworkCommentBank()}
+        {compact ? null : m.courseworkCommentBank()}
       </Popover.Trigger>
       <Popover.Portal>
         <Popover.Positioner sideOffset={6} align="start" className="z-50">

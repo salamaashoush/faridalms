@@ -133,12 +133,7 @@ function AttemptItem({ data, attempt }: { data: Data; attempt: Attempt }) {
             active={active}
             reveal={reveal}
             onPassages={setPassages}
-            onOpen={(id) => {
-              setActive(id);
-              document
-                .getElementById(`comment-${id}`)
-                ?.scrollIntoView({ block: "nearest", behavior: "smooth" });
-            }}
+            onOpen={setActive}
           />
         ) : (
           <ContentView

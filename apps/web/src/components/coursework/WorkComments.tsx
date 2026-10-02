@@ -1,17 +1,30 @@
 import type { ContentDocument } from "@faridalms/domain/content";
 import type { CommentAnchor } from "@faridalms/domain/coursework";
+import type { RefObject } from "react";
 
+import { Popover } from "@base-ui/react/popover";
 import { anchorOf, rangeOf, wordsIn } from "@faridalms/editor/anchors";
 import { Button } from "@faridalms/ui/button";
+import { Checkbox } from "@faridalms/ui/checkbox";
 import { cn } from "@faridalms/ui/cn";
-import { MessageSquarePlus, Pencil, Trash2 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { Textarea } from "@faridalms/ui/textarea";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
+import { LoaderCircle, MessageSquarePlus, Pencil, Trash2 } from "lucide-react";
+import { useEffect, useId, useRef, useState } from "react";
+import { toast } from "sonner";
 
 import { ContentView } from "~/components/content/ContentView";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
+import {
+  commentOnWork,
+  removeWorkComment,
+  saveToCommentBank,
+} from "~/server/coursework";
+import { getMessageFromError } from "~/utils/error";
 
 import { displayName } from "../people/format";
+import { CommentBankPicker } from "./CommentBank";
 import { formatInstant } from "./format";
 
 export interface WorkComment {
@@ -30,6 +43,24 @@ export interface Passage {
   anchor: CommentAnchor;
   words: string;
 }
+
+/** Where an inline box stands: the passage's own box on screen. */
+interface Spot {
+  getBoundingClientRect: () => DOMRect;
+  contextElement: Element;
+}
+
+/** What opens at a passage: its comment, or a comment being written. */
+type Inline = (
+  | { kind: "comment"; id: string }
+  | { kind: "new"; passage: Passage }
+  | { kind: "edit"; comment: WorkComment }
+) & { spot: Spot };
+
+const spotOf = (element: Element, range: Range): Spot => ({
+  getBoundingClientRect: () => range.getBoundingClientRect(),
+  contextElement: element,
+});
 
 // Every commented work on the page paints into the same two highlights, so
 // each keeps its ranges here and the highlights are rebuilt from all of them.
@@ -59,38 +90,232 @@ function caretAt(x: number, y: number): [Node, number] | null {
   return range ? [range.startContainer, range.startOffset] : null;
 }
 
+function CommentMeta({ comment }: { comment: WorkComment }) {
+  const user = useCurrentUser();
+  return (
+    <span className="text-[13px] leading-[18px] text-muted-foreground">
+      {[
+        displayName({
+          fullNameEn: comment.authorNameEn,
+          fullNameAr: comment.authorNameAr,
+        }),
+        formatInstant(comment.createdAt, user.school.timeZone),
+        comment.editedAt ? m.courseworkCommentEdited() : null,
+      ]
+        .filter(Boolean)
+        .join(" · ")}
+    </span>
+  );
+}
+
+function SmallCheck({
+  label,
+  checked,
+  onChange,
+}: {
+  label: string;
+  checked: boolean;
+  onChange: (checked: boolean) => void;
+}) {
+  const id = useId();
+  return (
+    <div className="flex items-center gap-2">
+      <Checkbox
+        id={id}
+        checked={checked}
+        onCheckedChange={(next) => onChange(next)}
+      />
+      <label
+        htmlFor={id}
+        className="text-[13px] leading-[18px] text-muted-foreground"
+      >
+        {label}
+      </label>
+    </div>
+  );
+}
+
+/** Writes a comment on a passage, or changes the grader's own. */
+function Composer({
+  attemptId,
+  passage,
+  comment,
+  field,
+  onDirty,
+  onDone,
+}: {
+  attemptId: string;
+  passage: Passage;
+  comment?: WorkComment;
+  field: RefObject<HTMLTextAreaElement | null>;
+  onDirty: (dirty: boolean) => void;
+  onDone: (id: string | null) => void;
+}) {
+  const queryClient = useQueryClient();
+  const [body, setBody] = useState(comment?.body ?? "");
+  const [bank, setBank] = useState(false);
+  const [keep, setKeep] = useState(false);
+  const [share, setShare] = useState(false);
+  const write = (next: string) => {
+    setBody(next);
+    onDirty(next.trim() !== (comment?.body ?? ""));
+  };
+  const save = useMutation({
+    mutationFn: async () => {
+      const saved = await commentOnWork({
+        data: {
+          id: comment?.id ?? "",
+          attemptId,
+          expectedVersion: comment?.version ?? 0,
+          anchor: passage.anchor,
+          body,
+        },
+      });
+      if (keep)
+        await saveToCommentBank({
+          data: { id: "", expectedVersion: 0, body, shared: share },
+        });
+      return saved;
+    },
+    onSuccess: async (saved) => {
+      await queryClient.invalidateQueries({ queryKey: ["coursework"] });
+      onDirty(false);
+      onDone(saved.id);
+    },
+    onError: (failure) => toast.error(getMessageFromError(failure)),
+  });
+  const submit = () => {
+    if (body.trim() && !save.isPending) save.mutate();
+  };
+  return (
+    <form
+      className="grid gap-2"
+      onSubmit={(event) => {
+        event.preventDefault();
+        submit();
+      }}
+    >
+      <Textarea
+        ref={field}
+        aria-label={m.courseworkComment()}
+        dir="auto"
+        rows={3}
+        maxLength={2000}
+        placeholder={m.courseworkCommentPlaceholder()}
+        className="field-sizing-content max-h-60 min-h-20 resize-none"
+        value={body}
+        onChange={(event) => {
+          // "#" in an empty comment opens the bank, as in Classroom.
+          if (event.target.value === "#") {
+            setBank(true);
+            return;
+          }
+          write(event.target.value);
+        }}
+        onKeyDown={(event) => {
+          if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
+            event.preventDefault();
+            submit();
+          }
+        }}
+      />
+      {comment ? null : (
+        <SmallCheck
+          label={m.courseworkBankKeep()}
+          checked={keep}
+          onChange={setKeep}
+        />
+      )}
+      {keep ? (
+        <SmallCheck
+          label={m.courseworkBankShare()}
+          checked={share}
+          onChange={setShare}
+        />
+      ) : null}
+      <div className="flex items-center gap-1">
+        <CommentBankPicker
+          compact
+          open={bank}
+          onOpenChange={setBank}
+          onPick={(picked) => {
+            write(body.trim() ? `${body.trimEnd()} ${picked}` : picked);
+            field.current?.focus();
+          }}
+        />
+        <span className="flex-1" />
+        <Button
+          type="button"
+          size="sm"
+          variant="ghost"
+          disabled={save.isPending}
+          onClick={() => {
+            onDirty(false);
+            onDone(null);
+          }}
+        >
+          {m.commonCancel()}
+        </Button>
+        <Button
+          type="submit"
+          size="sm"
+          disabled={save.isPending || !body.trim()}
+        >
+          {save.isPending ? (
+            <LoaderCircle className="animate-spin" aria-hidden />
+          ) : null}
+          {m.courseworkCommentSave()}
+        </Button>
+      </div>
+    </form>
+  );
+}
+
 /**
  * Handed-in work with its comments marked on the passages they were made
- * on. A click on a marked passage opens its comment; a grader who selects a
- * passage is offered a comment on it.
+ * on. A marked passage opens its comment where it stands; a grader who
+ * selects a passage writes a comment on it there.
  */
 export function CommentedWork({
   document: work,
   comments,
   active,
   reveal,
+  attemptId,
   onOpen,
   onPassages,
-  onComment,
 }: {
   document: ContentDocument;
   comments: WorkComment[];
   active: string | null;
-  /** Scrolls the active comment's passage into view each time it changes. */
+  /** Scrolls to the active comment and opens it each time it changes. */
   reveal?: number;
-  onOpen: (id: string) => void;
+  /** The attempt a grader comments on; readers only read. */
+  attemptId?: string;
+  onOpen: (id: string | null) => void;
   /** Told the words each comment points at, as the work reads them. */
   onPassages?: (passages: Record<string, string>) => void;
-  onComment?: (passage: Passage) => void;
 }) {
+  const user = useCurrentUser();
+  const queryClient = useQueryClient();
   const root = useRef<HTMLDivElement>(null);
+  const field = useRef<HTMLTextAreaElement>(null);
   const resolved = useRef<[string, Range][]>([]);
   const tell = useRef(onPassages);
   const told = useRef("");
+  const dirty = useRef(false);
   const [offer, setOffer] = useState<
     (Passage & { top: number; left: number }) | null
   >(null);
-  const handlers = useRef({ onOpen, onComment });
+  const [inline, setInline] = useState<Inline | null>(null);
+  const handlers = useRef({ onOpen, attemptId });
+
+  const draft =
+    inline?.kind === "new"
+      ? inline.passage.anchor
+      : inline?.kind === "edit"
+        ? inline.comment.anchor
+        : null;
 
   useEffect(() => {
     const element = root.current;
@@ -100,11 +325,15 @@ export function CommentedWork({
       const range = rangeOf(element, comment.anchor);
       return range ? [[comment.id, range]] : [];
     });
+    const pending = draft ? rangeOf(element, draft) : null;
     painted.set(key, {
       all: resolved.current.map(([, range]) => range),
-      active: resolved.current
-        .filter(([id]) => id === active)
-        .map(([, range]) => range),
+      active: [
+        ...resolved.current
+          .filter(([id]) => id === active)
+          .map(([, range]) => range),
+        ...(pending ? [pending] : []),
+      ],
     });
     paint();
     const passages = Object.fromEntries(
@@ -119,30 +348,33 @@ export function CommentedWork({
       painted.delete(key);
       paint();
     };
-  }, [comments, active]);
+  }, [comments, active, draft]);
 
   useEffect(() => {
     tell.current = onPassages;
-    handlers.current = { onOpen, onComment };
+    handlers.current = { onOpen, attemptId };
   });
 
   useEffect(() => {
-    if (!reveal) return;
+    if (!reveal || !active) return;
     const range = resolved.current.find(([id]) => id === active)?.[1];
-    range?.startContainer.parentElement?.scrollIntoView({
+    const element = root.current;
+    if (!range || !element) return;
+    range.startContainer.parentElement?.scrollIntoView({
       block: "center",
       behavior: "smooth",
     });
+    setInline({ kind: "comment", id: active, spot: spotOf(element, range) });
   }, [reveal, active]);
 
   useEffect(() => {
-    if (!onComment) return undefined;
+    if (!attemptId) return undefined;
     const onChange = () => {
       if (document.getSelection()?.isCollapsed ?? true) setOffer(null);
     };
     document.addEventListener("selectionchange", onChange);
     return () => document.removeEventListener("selectionchange", onChange);
-  }, [onComment]);
+  }, [attemptId]);
 
   // The work is read, not operated: these follow what the reader selects
   // and clicks in it, and the comment list is the way in from a keyboard.
@@ -151,7 +383,7 @@ export function CommentedWork({
     if (!element) return undefined;
     const offerFor = () => {
       const selection = document.getSelection();
-      if (!handlers.current.onComment || !selection || selection.isCollapsed)
+      if (!handlers.current.attemptId || !selection || selection.isCollapsed)
         return;
       const range = selection.getRangeAt(0);
       if (!element.contains(range.commonAncestorContainer)) return;
@@ -176,7 +408,9 @@ export function CommentedWork({
       const hit = resolved.current.find(([, range]) =>
         range.isPointInRange(...caret),
       );
-      if (hit) handlers.current.onOpen(hit[0]);
+      if (!hit) return;
+      handlers.current.onOpen(hit[0]);
+      setInline({ kind: "comment", id: hit[0], spot: spotOf(element, hit[1]) });
     };
     element.addEventListener("pointerup", offerFor);
     element.addEventListener("keyup", offerFor);
@@ -188,10 +422,33 @@ export function CommentedWork({
     };
   }, []);
 
+  const shownId = inline?.kind === "comment" ? inline.id : null;
+  const shown = shownId
+    ? comments.find((comment) => comment.id === shownId)
+    : undefined;
+  const remove = useMutation({
+    mutationFn: (comment: WorkComment) =>
+      removeWorkComment({
+        data: { id: comment.id, expectedVersion: comment.version },
+      }),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["coursework"] });
+      setInline(null);
+      onOpen(null);
+      toast.success(m.courseworkCommentRemoved());
+    },
+    onError: (failure) => toast.error(getMessageFromError(failure)),
+  });
+
+  const close = () => {
+    dirty.current = false;
+    setInline(null);
+  };
+
   return (
     <div ref={root} className="relative">
       <ContentView document={work} fileUrl={(id) => `/files/${id}`} />
-      {offer ? (
+      {offer && attemptId ? (
         <Button
           type="button"
           size="sm"
@@ -200,7 +457,14 @@ export function CommentedWork({
           // Keeps the selection while the button takes the click.
           onPointerDown={(event) => event.preventDefault()}
           onClick={() => {
-            onComment?.({ anchor: offer.anchor, words: offer.words });
+            const element = root.current;
+            const range = element ? rangeOf(element, offer.anchor) : null;
+            if (element && range)
+              setInline({
+                kind: "new",
+                passage: { anchor: offer.anchor, words: offer.words },
+                spot: spotOf(element, range),
+              });
             setOffer(null);
             document.getSelection()?.removeAllRanges();
           }}
@@ -209,6 +473,98 @@ export function CommentedWork({
           {m.courseworkComment()}
         </Button>
       ) : null}
+      <Popover.Root
+        open={inline !== null}
+        onOpenChange={(next, details) => {
+          if (next) return;
+          // A comment half written stays open when the reader clicks away.
+          if (details.reason === "outside-press" && dirty.current) return;
+          close();
+        }}
+      >
+        <Popover.Portal>
+          <Popover.Positioner
+            anchor={inline?.spot}
+            side="bottom"
+            align="start"
+            sideOffset={6}
+            collisionPadding={16}
+            className="z-40"
+          >
+            <Popover.Popup
+              initialFocus={inline?.kind === "comment" ? true : field}
+              className="w-80 max-w-[calc(100vw-2rem)] rounded-lg border bg-popover p-3 text-popover-foreground shadow-lg outline-none"
+            >
+              {inline && inline.kind !== "comment" && attemptId ? (
+                <Composer
+                  key={
+                    inline.kind === "edit"
+                      ? inline.comment.id
+                      : JSON.stringify(inline.passage.anchor)
+                  }
+                  attemptId={attemptId}
+                  passage={
+                    inline.kind === "new"
+                      ? inline.passage
+                      : { anchor: inline.comment.anchor, words: "" }
+                  }
+                  comment={inline.kind === "edit" ? inline.comment : undefined}
+                  field={field}
+                  onDirty={(next) => {
+                    dirty.current = next;
+                  }}
+                  onDone={(id) => {
+                    close();
+                    if (id) onOpen(id);
+                  }}
+                />
+              ) : shown ? (
+                <div className="grid gap-2">
+                  <p
+                    dir="auto"
+                    className="text-sm leading-5 whitespace-pre-wrap"
+                  >
+                    {shown.body}
+                  </p>
+                  <div className="flex items-center justify-between gap-2">
+                    <CommentMeta comment={shown} />
+                    {attemptId && shown.authorId === user.id ? (
+                      <span className="flex shrink-0 gap-1">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon-sm"
+                          aria-label={m.courseworkCommentEdit()}
+                          onClick={() =>
+                            inline &&
+                            setInline({
+                              kind: "edit",
+                              comment: shown,
+                              spot: inline.spot,
+                            })
+                          }
+                        >
+                          <Pencil aria-hidden />
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon-sm"
+                          aria-label={m.courseworkCommentRemove()}
+                          disabled={remove.isPending}
+                          onClick={() => remove.mutate(shown)}
+                        >
+                          <Trash2 aria-hidden />
+                        </Button>
+                      </span>
+                    ) : null}
+                  </div>
+                </div>
+              ) : null}
+            </Popover.Popup>
+          </Popover.Positioner>
+        </Popover.Portal>
+      </Popover.Root>
     </div>
   );
 }
@@ -219,23 +575,16 @@ export function CommentList({
   passages,
   active,
   onShow,
-  onEdit,
-  onRemove,
 }: {
   comments: WorkComment[];
   passages: Record<string, string>;
   active: string | null;
   onShow: (id: string) => void;
-  /** Offered on the viewer's own comments only. */
-  onEdit?: (comment: WorkComment) => void;
-  onRemove?: (comment: WorkComment) => void;
 }) {
-  const user = useCurrentUser();
   return (
     <ul className="grid gap-3">
       {comments.map((comment) => {
         const words = passages[comment.id];
-        const own = comment.authorId === user.id;
         return (
           <li
             key={comment.id}
@@ -263,46 +612,7 @@ export function CommentList({
             <p dir="auto" className="text-sm leading-5 whitespace-pre-wrap">
               {comment.body}
             </p>
-            <div className="flex items-center justify-between gap-2">
-              <span className="text-[13px] leading-[18px] text-muted-foreground">
-                {[
-                  displayName({
-                    fullNameEn: comment.authorNameEn,
-                    fullNameAr: comment.authorNameAr,
-                  }),
-                  formatInstant(comment.createdAt, user.school.timeZone),
-                  comment.editedAt ? m.courseworkCommentEdited() : null,
-                ]
-                  .filter(Boolean)
-                  .join(" · ")}
-              </span>
-              {own && (onEdit || onRemove) ? (
-                <span className="flex shrink-0 gap-1">
-                  {onEdit ? (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon-sm"
-                      aria-label={m.courseworkCommentEdit()}
-                      onClick={() => onEdit(comment)}
-                    >
-                      <Pencil aria-hidden />
-                    </Button>
-                  ) : null}
-                  {onRemove ? (
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon-sm"
-                      aria-label={m.courseworkCommentRemove()}
-                      onClick={() => onRemove(comment)}
-                    >
-                      <Trash2 aria-hidden />
-                    </Button>
-                  ) : null}
-                </span>
-              ) : null}
-            </div>
+            <CommentMeta comment={comment} />
           </li>
         );
       })}
