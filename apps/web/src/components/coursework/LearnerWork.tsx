@@ -63,13 +63,18 @@ function RubricResult({
   data,
   scores,
   comments,
+  remarks,
 }: {
   data: Data;
   scores: Record<string, string> | null;
   comments: Record<string, string> | null;
+  /** The comments on passages linked to each criterion. */
+  remarks: { criterionId: string | null }[];
 }) {
   const rubric = data.assignment.rubric;
   if (!rubric || !scores) return null;
+  const linked = (id: string) =>
+    remarks.filter((remark) => remark.criterionId === id).length;
   return (
     <ul className="grid gap-1 text-sm leading-5">
       {rubric.criteria.map((criterion) => {
@@ -81,12 +86,21 @@ function RubricResult({
             <div className="flex flex-wrap justify-between gap-x-4">
               <span dir="auto">{criterion.title}</span>
               <span className="text-muted-foreground" dir="auto">
-                {level
-                  ? m.courseworkRubricLevel({
-                      level: level.title,
-                      points: formatNumber(level.points),
-                    })
-                  : m.commonNotRecorded()}
+                {[
+                  level
+                    ? m.courseworkRubricLevel({
+                        level: level.title,
+                        points: formatNumber(level.points),
+                      })
+                    : m.commonNotRecorded(),
+                  linked(criterion.id)
+                    ? m.courseworkCommentCount({
+                        count: linked(criterion.id),
+                      })
+                    : null,
+                ]
+                  .filter(Boolean)
+                  .join(" · ")}
               </span>
             </div>
             {comments?.[criterion.id] ? (
@@ -131,6 +145,7 @@ function AttemptItem({ data, attempt }: { data: Data; attempt: Attempt }) {
           <CommentedWork
             document={attempt.content}
             comments={attempt.comments}
+            criteria={data.assignment.rubric?.criteria}
             active={active}
             reveal={reveal}
             onPassages={setPassages}
@@ -157,6 +172,7 @@ function AttemptItem({ data, attempt }: { data: Data; attempt: Attempt }) {
           </h4>
           <CommentList
             comments={attempt.comments}
+            criteria={data.assignment.rubric?.criteria}
             passages={passages}
             active={active}
             onShow={(id) => {
@@ -182,6 +198,7 @@ function AttemptItem({ data, attempt }: { data: Data; attempt: Attempt }) {
             data={data}
             scores={assessment.rubricScores}
             comments={assessment.rubricComments}
+            remarks={attempt.comments}
           />
           {assessment.feedback ? (
             <p dir="auto" className="text-sm leading-5 whitespace-pre-wrap">

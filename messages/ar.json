@@ -1957,6 +1957,26 @@
   "courseworkBankMore": "اكتب للبحث في الباقي",
   "courseworkBankCreate": "احفظ «{text}» في بنكي",
   "courseworkBankKept": "حُفظ في بنك تعليقاتك",
+  "courseworkCommentKind": "ما المطلوب من الطالب",
+  "courseworkKindFix": "صحّح هذا",
+  "courseworkKindThink": "فكّر مجددًا",
+  "courseworkKindNext": "الخطوة التالية",
+  "courseworkCommentCriterion": "معيار التقييم",
+  "courseworkCommentNoCriterion": "بلا معيار",
+  "courseworkCommentCount": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=zero": "لا تعليقات",
+        "countPlural=one": "تعليق واحد",
+        "countPlural=two": "تعليقان",
+        "countPlural=few": "{count} تعليقات",
+        "countPlural=many": "{count} تعليقًا",
+        "countPlural=*": "{count} تعليق"
+      }
+    }
+  ],
   "courseworkRubricComment": "تعليق على {criterion}",
   "courseworkRubricAddComment": "أضف تعليقًا",
   "courseworkVoiceFeedback": "ملاحظات صوتية",

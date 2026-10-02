@@ -665,6 +665,9 @@
 
 /* Teachers' comments on handed-in work: passages marked in the reader. */
 .fe mark.fe-mark {
+  /* Neighbouring pieces of one passage overlap by a hair, so no seam shows. */
+  margin-inline: -0.5px;
+  padding-inline: 0.5px;
   background-color: rgb(253 230 138 / 0.6);
   color: inherit;
   cursor: pointer;

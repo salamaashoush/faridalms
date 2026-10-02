@@ -1276,6 +1276,8 @@ export const comment = writeProcedure
           bank && (bank.shared || bank.ownerId === context.actor.userId)
             ? bank.id
             : null,
+        kind: input.kind || null,
+        criterionId: input.criterionId || null,
       });
     }
     const existing = await commentById(context.tx, context.tenantId, input.id);
@@ -1291,6 +1293,8 @@ export const comment = writeProcedure
       expectedVersion: input.expectedVersion,
       anchor: input.anchor,
       body: input.body,
+      kind: input.kind || null,
+      criterionId: input.criterionId || null,
     });
     if (!saved)
       throw new ORPCError("CONFLICT", { message: "conflict.version" });

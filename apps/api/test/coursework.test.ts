@@ -280,6 +280,8 @@ describe("handing in and returning work", () => {
       expectedVersion: 0,
       anchor,
       body: "A warm opening.",
+      kind: "think",
+      criterionId: "opening",
     });
 
     // A comment picked from the bank counts as a use of it.
@@ -307,7 +309,14 @@ describe("handing in and returning work", () => {
       studentId: me.id,
     });
     expect(shown.attempts[0]?.comments).toMatchObject([
-      { id: made.id, anchor, body: "A warm opening.", editedAt: null },
+      {
+        id: made.id,
+        anchor,
+        body: "A warm opening.",
+        kind: "think",
+        criterionId: "opening",
+        editedAt: null,
+      },
     ]);
     expect(
       (await student.api.coursework.work({ id: saved.id })).attempts[0]

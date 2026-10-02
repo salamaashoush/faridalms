@@ -1929,6 +1929,22 @@
   "courseworkBankMore": "Type to search the rest",
   "courseworkBankCreate": "Keep “{text}” in my bank",
   "courseworkBankKept": "Kept in your comment bank",
+  "courseworkCommentKind": "What the student should do",
+  "courseworkKindFix": "Fix this",
+  "courseworkKindThink": "Think again",
+  "courseworkKindNext": "Next step",
+  "courseworkCommentCriterion": "Rubric criterion",
+  "courseworkCommentNoCriterion": "No criterion",
+  "courseworkCommentCount": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "{count} comment",
+        "countPlural=*": "{count} comments"
+      }
+    }
+  ],
   "courseworkRubricComment": "Comment on {criterion}",
   "courseworkRubricAddComment": "Add a comment",
   "courseworkVoiceFeedback": "Voice feedback",

@@ -395,6 +395,7 @@ function GradeSheet({
               {attempt.comments.length ? (
                 <CommentList
                   comments={attempt.comments}
+                  criteria={data.assignment.rubric?.criteria}
                   passages={comments.passages}
                   active={comments.active}
                   onShow={(id) => {
@@ -752,6 +753,7 @@ export function Grading({
                   active={active}
                   reveal={reveal}
                   attemptId={attempt.id}
+                  criteria={data.assignment.rubric?.criteria}
                   onPassages={setPassages}
                   onOpen={setActive}
                 />

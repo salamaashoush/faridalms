@@ -1,8 +1,9 @@
 import type { ContentDocument } from "@faridalms/domain/content";
-import type { CommentAnchor } from "@faridalms/domain/coursework";
+import type { CommentAnchor, CommentKind } from "@faridalms/domain/coursework";
 import type { RefObject } from "react";
 
 import { Popover } from "@base-ui/react/popover";
+import { COMMENT_KINDS } from "@faridalms/domain/coursework";
 import { anchorOf, rangeOf, wordsIn } from "@faridalms/editor/anchors";
 import { Button } from "@faridalms/ui/button";
 import { Checkbox } from "@faridalms/ui/checkbox";
@@ -42,8 +43,58 @@ export interface WorkComment {
   authorNameAr: string | null;
   anchor: CommentAnchor;
   body: string;
+  kind: CommentKind | null;
+  criterionId: string | null;
   createdAt: string;
   editedAt: string | null;
+}
+
+export interface Criterion {
+  id: string;
+  title: string;
+}
+
+const KIND_LABEL: Record<CommentKind, () => string> = {
+  fix: m.courseworkKindFix,
+  think: m.courseworkKindThink,
+  next: m.courseworkKindNext,
+};
+
+const KIND_TONE: Record<CommentKind, string> = {
+  fix: "bg-red-500/10 text-red-700 dark:text-red-300",
+  think: "bg-sky-500/10 text-sky-700 dark:text-sky-300",
+  next: "bg-emerald-500/10 text-emerald-700 dark:text-emerald-300",
+};
+
+/** What a comment asks of the student and the criterion it is about. */
+function CommentTags({
+  comment,
+  criteria,
+}: {
+  comment: WorkComment;
+  criteria?: Criterion[];
+}) {
+  const criterion = criteria?.find((row) => row.id === comment.criterionId);
+  if (!comment.kind && !criterion) return null;
+  return (
+    <div className="flex flex-wrap items-center gap-1.5">
+      {comment.kind ? (
+        <span
+          className={cn(
+            "rounded px-1.5 py-0.5 text-xs leading-4 font-medium",
+            KIND_TONE[comment.kind],
+          )}
+        >
+          {KIND_LABEL[comment.kind]()}
+        </span>
+      ) : null}
+      {criterion ? (
+        <span className="rounded bg-muted px-1.5 py-0.5 text-xs leading-4 text-muted-foreground">
+          <bdi>{criterion.title}</bdi>
+        </span>
+      ) : null}
+    </div>
+  );
 }
 
 export interface Passage {
@@ -126,6 +177,7 @@ function Composer({
   attemptId,
   passage,
   comment,
+  criteria,
   field,
   onDirty,
   onDone,
@@ -133,12 +185,15 @@ function Composer({
   attemptId: string;
   passage: Passage;
   comment?: WorkComment;
+  criteria?: Criterion[];
   field: RefObject<HTMLTextAreaElement | null>;
   onDirty: (dirty: boolean) => void;
   onDone: (id: string | null) => void;
 }) {
   const queryClient = useQueryClient();
   const [body, setBody] = useState(comment?.body ?? "");
+  const [kind, setKind] = useState<CommentKind | "">(comment?.kind ?? "");
+  const [criterionId, setCriterionId] = useState(comment?.criterionId ?? "");
   const [bank, setBank] = useState(false);
   const [keep, setKeep] = useState(false);
   const [share, setShare] = useState(false);
@@ -175,6 +230,8 @@ function Composer({
           anchor: passage.anchor,
           body,
           bankId,
+          kind,
+          criterionId,
         },
       });
       if (keep && !bankId)
@@ -243,6 +300,42 @@ function Composer({
           ))}
         </div>
       ) : null}
+      <div className="flex flex-wrap items-center gap-1.5">
+        <fieldset className="flex flex-wrap gap-1">
+          <legend className="sr-only">{m.courseworkCommentKind()}</legend>
+          {COMMENT_KINDS.map((option) => (
+            <button
+              key={option}
+              type="button"
+              aria-pressed={kind === option}
+              onClick={() => setKind(kind === option ? "" : option)}
+              className={cn(
+                "rounded px-1.5 py-0.5 text-xs leading-4 font-medium outline-none focus-visible:ring-2 focus-visible:ring-ring/50 max-md:py-1.5",
+                kind === option
+                  ? KIND_TONE[option]
+                  : "text-muted-foreground hover:bg-muted",
+              )}
+            >
+              {KIND_LABEL[option]()}
+            </button>
+          ))}
+        </fieldset>
+        {criteria?.length ? (
+          <select
+            aria-label={m.courseworkCommentCriterion()}
+            value={criterionId}
+            onChange={(event) => setCriterionId(event.target.value)}
+            className="h-7 max-w-40 rounded-md border bg-background px-1.5 text-xs text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+          >
+            <option value="">{m.courseworkCommentNoCriterion()}</option>
+            {criteria.map((row) => (
+              <option key={row.id} value={row.id}>
+                {row.title}
+              </option>
+            ))}
+          </select>
+        ) : null}
+      </div>
       {comment || bankId ? null : (
         <SmallCheck
           label={m.courseworkBankKeep()}
@@ -307,11 +400,13 @@ export function CommentedWork({
   active,
   reveal,
   attemptId,
+  criteria,
   onOpen,
   onPassages,
 }: {
   document: ContentDocument;
   comments: WorkComment[];
+  criteria?: Criterion[];
   active: string | null;
   /** Scrolls to the active comment and opens it each time it changes. */
   reveal?: number;
@@ -571,6 +666,7 @@ export function CommentedWork({
                       : { anchor: inline.comment.anchor, words: "" }
                   }
                   comment={inline.kind === "edit" ? inline.comment : undefined}
+                  criteria={criteria}
                   field={field}
                   onDirty={(next) => {
                     dirty.current = next;
@@ -584,6 +680,7 @@ export function CommentedWork({
                 <ul className="grid gap-3 divide-y">
                   {shown.map((comment) => (
                     <li key={comment.id} className="grid gap-2 pb-3 last:pb-0">
+                      <CommentTags comment={comment} criteria={criteria} />
                       <p
                         dir="auto"
                         className="text-sm leading-5 whitespace-pre-wrap"
@@ -657,11 +754,13 @@ export function CommentedWork({
 /** The comments on one attempt, each under the passage it was made on. */
 export function CommentList({
   comments,
+  criteria,
   passages,
   active,
   onShow,
 }: {
   comments: WorkComment[];
+  criteria?: Criterion[];
   passages: Record<string, string>;
   active: string | null;
   onShow: (id: string) => void;
@@ -694,6 +793,7 @@ export function CommentList({
                 {m.courseworkCommentMissing()}
               </p>
             )}
+            <CommentTags comment={comment} criteria={criteria} />
             <p dir="auto" className="text-sm leading-5 whitespace-pre-wrap">
               {comment.body}
             </p>

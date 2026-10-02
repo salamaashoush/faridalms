@@ -553,6 +553,10 @@ export const workComments = core.table.withRLS(
     body: text("body").notNull(),
     /** The bank comment it started from, which ranks the bank by use. */
     bankCommentId: uuid("bank_comment_id"),
+    /** What the student should do with it: fix, think again, or take a next step. */
+    kind: text("kind").$type<"fix" | "think" | "next">(),
+    /** The rubric criterion it is about, by the criterion's id. */
+    criterionId: text("criterion_id"),
     ...entityColumns(),
   },
   (t): PgTableExtraConfigValue[] => [
@@ -575,6 +579,12 @@ export const workComments = core.table.withRLS(
     ),
     ck("work_comments", "anchor", sql`jsonb_typeof(anchor) = 'object'`),
     ck("work_comments", "body", sql`char_length(body) between 1 and 2000`),
+    ck("work_comments", "kind", sql`kind in ('fix', 'think', 'next')`),
+    ck(
+      "work_comments",
+      "criterion_id",
+      sql`char_length(criterion_id) between 1 and 40`,
+    ),
     index("work_comments_attempt_idx")
       .on(t.tenantId, t.attemptId)
       .where(sql`status = 'active'`),

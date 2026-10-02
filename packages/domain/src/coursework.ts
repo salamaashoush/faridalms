@@ -364,6 +364,13 @@ export type CommentAnchor = v.InferOutput<typeof commentAnchorSchema>;
 
 export const MAX_COMMENT_LENGTH = 2000;
 
+/**
+ * What a comment asks of the student, so they know how to act on it: a
+ * mistake to find and fix, a question to think again about, or a next step.
+ */
+export const COMMENT_KINDS = ["fix", "think", "next"] as const;
+export type CommentKind = (typeof COMMENT_KINDS)[number];
+
 /** A teacher's comment on a passage of one attempt; a new one has no id. */
 export const saveCommentSchema = v.object({
   id: v.optional(v.union([v.literal(""), id]), ""),
@@ -378,6 +385,11 @@ export const saveCommentSchema = v.object({
   ),
   /** The bank comment it was picked from, if any. */
   bankId: v.optional(v.union([v.literal(""), id]), ""),
+  kind: v.optional(v.picklist(["", ...COMMENT_KINDS]), ""),
+  criterionId: v.optional(
+    v.pipe(v.string(), v.regex(/^([a-z0-9_-]{1,40})?$/)),
+    "",
+  ),
 });
 export type SaveCommentInput = v.InferOutput<typeof saveCommentSchema>;
 

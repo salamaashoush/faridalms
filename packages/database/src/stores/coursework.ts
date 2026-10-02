@@ -919,6 +919,8 @@ export interface CommentRow {
   authorNameAr: string | null;
   anchor: Record<string, unknown>;
   body: string;
+  kind: "fix" | "think" | "next" | null;
+  criterionId: string | null;
   createdAt: string;
   editedAt: string | null;
 }
@@ -938,11 +940,13 @@ export async function commentsOf(
     full_name_ar: string | null;
     anchor: Record<string, unknown>;
     body: string;
+    kind: "fix" | "think" | "next" | null;
+    criterion_id: string | null;
     created_at: string;
     edited_at: string | null;
   }>(sql`
     select c.id, c.version, c.attempt_id, c.author_user_id, u.full_name_en, u.full_name_ar,
-      c.anchor, c.body, ${isoOf(sql`c.created_at`)} as created_at,
+      c.anchor, c.body, c.kind, c.criterion_id, ${isoOf(sql`c.created_at`)} as created_at,
       case when c.version > 1 then ${isoOf(sql`c.date_last_modified`)} end as edited_at
     from core.work_comments c
     join core.users u on u.tenant_id = c.tenant_id and u.id = c.author_user_id
@@ -958,6 +962,8 @@ export async function commentsOf(
     authorNameAr: row.full_name_ar,
     anchor: row.anchor,
     body: row.body,
+    kind: row.kind,
+    criterionId: row.criterion_id,
     createdAt: row.created_at,
     editedAt: row.edited_at,
   }));
@@ -989,13 +995,16 @@ export async function insertComment(
     anchor: Record<string, unknown>;
     body: string;
     bankCommentId: string | null;
+    kind: string | null;
+    criterionId: string | null;
   },
 ): Promise<{ id: string; version: number }> {
   const [row] = await tx.execute<{ id: string; version: number }>(sql`
     insert into core.work_comments (tenant_id, attempt_id, author_user_id, anchor, body,
-      bank_comment_id)
+      bank_comment_id, kind, criterion_id)
     values (${input.tenantId}::uuid, ${input.attemptId}::uuid, ${input.userId}::uuid,
-      ${input.anchor}::jsonb, ${input.body}, ${input.bankCommentId}::uuid)
+      ${input.anchor}::jsonb, ${input.body}, ${input.bankCommentId}::uuid, ${input.kind},
+      ${input.criterionId})
     returning id, version`);
   if (!row) throw new Error("comment was not saved");
   return row;
@@ -1010,10 +1019,13 @@ export async function updateComment(
     expectedVersion: number;
     anchor: Record<string, unknown>;
     body: string;
+    kind: string | null;
+    criterionId: string | null;
   },
 ): Promise<{ id: string; version: number } | null> {
   const [row] = await tx.execute<{ id: string; version: number }>(sql`
-    update core.work_comments set anchor = ${input.anchor}::jsonb, body = ${input.body}
+    update core.work_comments set anchor = ${input.anchor}::jsonb, body = ${input.body},
+      kind = ${input.kind}, criterion_id = ${input.criterionId}
     where tenant_id = ${input.tenantId}::uuid and id = ${input.id}::uuid
       and version = ${input.expectedVersion} and status = 'active'
     returning id, version`);
