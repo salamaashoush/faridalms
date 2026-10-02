@@ -422,6 +422,15 @@ describe("handing in and returning work", () => {
       (await student.api.coursework.work({ id: saved.id })).attempts[0]
         ?.comments,
     ).toEqual([]);
+    // Undo brings it back with its answer and replies.
+    expect(
+      await rejection(other.coursework.restoreWorkComment({ id: made.id })),
+    ).toMatchObject({ code: "NOT_FOUND" });
+    await teacher.api.coursework.restoreWorkComment({ id: made.id });
+    expect(
+      (await student.api.coursework.work({ id: saved.id })).attempts[0]
+        ?.comments[0],
+    ).toMatchObject({ id: made.id, studentState: "unclear" });
   });
 
   test("voice feedback is heard by the student only once the work is returned", async () => {

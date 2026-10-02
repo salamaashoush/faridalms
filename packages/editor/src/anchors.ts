@@ -147,3 +147,12 @@ export function wordsIn(root: Element, range: Range): string {
     .replace(/\s+/g, " ")
     .trim();
 }
+
+/** All of a block's own text, for a comment on the block as a whole. */
+export function blockAnchor(root: Element, block: string): Anchor | null {
+  const element = root.querySelector(`[data-block-id="${CSS.escape(block)}"]`);
+  if (!element) return null;
+  const range = root.ownerDocument.createRange();
+  range.selectNodeContents(element);
+  return anchorOf(root, range);
+}

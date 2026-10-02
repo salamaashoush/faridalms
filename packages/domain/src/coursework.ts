@@ -431,6 +431,8 @@ export const replyToCommentSchema = v.object({
 /** A voice note the grader recorded on an attempt, uploaded as media first. */
 export const feedbackRecordingSchema = v.object({ attemptId: id, fileId: id });
 
+export const restoreCommentSchema = v.object({ id });
+
 export const removeCommentSchema = v.object({
   id,
   expectedVersion: v.pipe(v.number(), v.integer(), v.minValue(1)),

@@ -1075,6 +1075,19 @@ export async function updateComment(
   return row ?? null;
 }
 
+/** Brings back a comment its writer just removed; false when there is none. */
+export async function restoreComment(
+  tx: Tx,
+  input: { tenantId: string; id: string; userId: string },
+): Promise<{ attemptId: string } | null> {
+  const [row] = await tx.execute<{ attempt_id: string }>(sql`
+    update core.work_comments set status = 'active'
+    where tenant_id = ${input.tenantId}::uuid and id = ${input.id}::uuid
+      and author_user_id = ${input.userId}::uuid and status = 'tobedeleted'
+    returning attempt_id`);
+  return row ? { attemptId: row.attempt_id } : null;
+}
+
 /** The student's answer to a comment, or none to take it back. */
 export async function setCommentState(
   tx: Tx,

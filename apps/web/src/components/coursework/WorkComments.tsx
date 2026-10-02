@@ -8,7 +8,12 @@ import type { RefObject } from "react";
 
 import { Popover } from "@base-ui/react/popover";
 import { COMMENT_KINDS } from "@faridalms/domain/coursework";
-import { anchorOf, rangeOf, wordsIn } from "@faridalms/editor/anchors";
+import {
+  anchorOf,
+  blockAnchor,
+  rangeOf,
+  wordsIn,
+} from "@faridalms/editor/anchors";
 import { Button } from "@faridalms/ui/button";
 import { Checkbox } from "@faridalms/ui/checkbox";
 import { cn } from "@faridalms/ui/cn";
@@ -33,6 +38,7 @@ import {
   commentOnWork,
   removeWorkComment,
   replyToComment,
+  restoreWorkComment,
   saveToCommentBank,
 } from "~/server/coursework";
 import { getMessageFromError } from "~/utils/error";
@@ -569,11 +575,14 @@ export function CommentedWork({
   attemptId,
   answering = false,
   criteria,
+  commentOn,
   onOpen,
   onPassages,
 }: {
   document: ContentDocument;
   comments: WorkComment[];
+  /** A block to start a comment on, chosen without selecting its words. */
+  commentOn?: { block: string; at: number };
   /** The work is the viewer's own and returned, so its comments take answers. */
   answering?: boolean;
   criteria?: Criterion[];
@@ -640,6 +649,20 @@ export function CommentedWork({
       spot: spotAt(element, markOf(active), mark.getBoundingClientRect()),
     });
   }, [reveal, active]);
+
+  useEffect(() => {
+    const element = root.current;
+    if (!commentOn || !element) return;
+    const anchor = blockAnchor(element, commentOn.block);
+    const range = anchor ? rangeOf(element, anchor) : null;
+    if (!anchor || !range) return;
+    range.startContainer.parentElement?.scrollIntoView({ block: "center" });
+    setInline({
+      kind: "new",
+      passage: { anchor, words: wordsIn(element, range) },
+      spot: spotAt(element, DRAFT, range.getBoundingClientRect()),
+    });
+  }, [commentOn]);
 
   useEffect(() => {
     if (!attemptId) return undefined;
@@ -753,11 +776,24 @@ export function CommentedWork({
       removeWorkComment({
         data: { id: comment.id, expectedVersion: comment.version },
       }),
-    onSuccess: async () => {
+    onSuccess: async (_removed, comment) => {
       await queryClient.invalidateQueries({ queryKey: ["coursework"] });
       setInline(null);
       onOpen(null);
-      toast.success(m.courseworkCommentRemoved());
+      // Taken back at once, with a way back, as Turnitin does.
+      toast.success(m.courseworkCommentRemoved(), {
+        action: {
+          label: m.courseworkUndo(),
+          onClick: () =>
+            void restoreWorkComment({ data: { id: comment.id } })
+              .then(() =>
+                queryClient.invalidateQueries({ queryKey: ["coursework"] }),
+              )
+              .catch((failure: unknown) =>
+                toast.error(getMessageFromError(failure)),
+              ),
+        },
+      });
     },
     onError: (failure) => toast.error(getMessageFromError(failure)),
   });

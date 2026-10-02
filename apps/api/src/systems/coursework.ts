@@ -45,6 +45,7 @@ import {
   removeBankComment,
   removeComment,
   removeGroup,
+  restoreComment,
   rubricsOf,
   saveAssessment,
   saveGroup,
@@ -118,6 +119,7 @@ import {
   publishIssues,
   removeCommentSchema,
   replyToCommentSchema,
+  restoreCommentSchema,
   publishSchema,
   rubricTotal,
   saveAssignmentSchema,
@@ -1388,6 +1390,22 @@ export const uncomment = writeProcedure
     if (!removed)
       throw new ORPCError("CONFLICT", { message: "conflict.version" });
     return { removed };
+  });
+
+/** Undoes removing a comment, for its writer. */
+export const restoreWorkComment = writeProcedure
+  .input(restoreCommentSchema)
+  .handler(async ({ input, context }) => {
+    requireCapability(context, "submissions:grade");
+    const restored = await restoreComment(context.tx, {
+      tenantId: context.tenantId,
+      id: input.id,
+      userId: context.actor.userId,
+    });
+    if (!restored) throw new ORPCError("NOT_FOUND");
+    // Still only on work the grader teaches, in a year still open.
+    await commentableAttempt(context, restored.attemptId);
+    return { restored: true };
   });
 
 /** Adds a voice note the grader recorded, already uploaded, to an attempt's feedback. */

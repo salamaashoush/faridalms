@@ -1,5 +1,6 @@
 import type { Rubric } from "@faridalms/domain/coursework";
 
+import { contentPlainText } from "@faridalms/domain/content";
 import { Button } from "@faridalms/ui/button";
 import { cn } from "@faridalms/ui/cn";
 import {
@@ -228,6 +229,7 @@ function GradeSheet({
     passages: Record<string, string>;
     active: string | null;
     onShow: (id: string) => void;
+    onCommentOn: (block: string) => void;
   };
 }) {
   const attempt = data.attempts.at(-1);
@@ -324,6 +326,22 @@ function GradeSheet({
       toast.error(getMessageFromError(failure));
     }
   };
+  // The work's blocks by their opening words, to comment on one without
+  // selecting it, from a keyboard or a phone.
+  const paragraphs = (attempt?.content?.root.children ?? []).flatMap((node) => {
+    const words = contentPlainText({
+      root: { type: "root", version: 1, children: [node] },
+    }).trim();
+    const block = node.$?.id;
+    return block && words
+      ? [
+          {
+            value: block,
+            label: words.length > 60 ? `${words.slice(0, 60)}…` : words,
+          },
+        ]
+      : [];
+  });
   const side = getTextDirection(getLocale()) === "rtl" ? "left" : "right";
   // Beside the work on a wide screen, so the teacher reads while grading;
   // over it on a narrower one.
@@ -392,6 +410,23 @@ function GradeSheet({
                   {m.courseworkCommentsHint()}
                 </p>
               </div>
+              {paragraphs.length ? (
+                <SelectField
+                  id="comment-paragraph"
+                  label={m.courseworkCommentParagraph()}
+                  hint={m.courseworkCommentParagraphHint()}
+                  value=""
+                  options={[
+                    { value: "", label: m.courseworkChooseParagraph() },
+                    ...paragraphs,
+                  ]}
+                  onChange={(block) => {
+                    if (!block) return;
+                    comments.onCommentOn(block);
+                    if (!beside) onOpenChange(false);
+                  }}
+                />
+              ) : null}
               {attempt.comments.length ? (
                 <CommentList
                   comments={attempt.comments}
@@ -608,6 +643,7 @@ export function Grading({
   const [active, setActive] = useState<string | null>(null);
   const [reveal, setReveal] = useState(0);
   const [passages, setPassages] = useState<Record<string, string>>({});
+  const [commentOn, setCommentOn] = useState<{ block: string; at: number }>();
   // The grade sheet stays open from one student to the next; a comment
   // being written or shown belongs to the student it was on.
   const [commentsOf, setCommentsOf] = useState(studentId);
@@ -615,6 +651,7 @@ export function Grading({
     setCommentsOf(studentId);
     setActive(null);
     setPassages({});
+    setCommentOn(undefined);
   }
   const index = data.queue.findIndex((row) => row.studentId === studentId);
   const goTo = (target: string) =>
@@ -754,6 +791,7 @@ export function Grading({
                   reveal={reveal}
                   attemptId={attempt.id}
                   criteria={data.assignment.rubric?.criteria}
+                  commentOn={commentOn}
                   onPassages={setPassages}
                   onOpen={setActive}
                 />
@@ -783,6 +821,7 @@ export function Grading({
               setActive(id);
               setReveal((count) => count + 1);
             },
+            onCommentOn: (block) => setCommentOn({ block, at: Date.now() }),
           }}
         />
       ) : null}
