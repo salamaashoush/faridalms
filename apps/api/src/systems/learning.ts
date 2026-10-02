@@ -24,6 +24,7 @@ import {
   lessonById,
   lessonSoundsOf,
   lessonsOf,
+  liveActivity,
   moduleById,
   moduleFinished,
   modulesForClasses,
@@ -80,6 +81,7 @@ import {
   upgradeLesson,
 } from "@faridalms/domain/learning";
 import { isContentDocument } from "@faridalms/domain/lesson-content";
+import { LIVE_WINDOW_MS, liveStates } from "@faridalms/domain/live";
 import {
   PRACTICE_LEAST,
   practiceCheckSchema,
@@ -857,6 +859,60 @@ export const progress = readProcedure
         score: cell.score,
         attempts: cell.attempts,
       })),
+    };
+  });
+
+/**
+ * Where each student of a class is in the module right now, for the
+ * teacher in the room: one state apiece, from the last twenty minutes.
+ */
+export const live = readProcedure
+  .input(progressQuerySchema)
+  .handler(async ({ input, context }) => {
+    const row = await editable(context, input.moduleId);
+    const classes = await classesOfModule(context.tx, context.tenantId, row.id);
+    if (!classes.some((item) => item.id === input.classId))
+      throw new ORPCError("NOT_FOUND");
+    const now = Date.now();
+    const [lessons, roster] = await Promise.all([
+      lessonsOf(context.tx, context.tenantId, row.id),
+      rosterOf(context.tx, context.tenantId, input.classId, context.today),
+    ]);
+    const [students, activity] = await Promise.all([
+      namesOf(context.tx, context.tenantId, roster),
+      liveActivity(context.tx, {
+        tenantId: context.tenantId,
+        lessonIds: lessons.map((item) => item.id),
+        studentIds: roster,
+        since: new Date(now - LIVE_WINDOW_MS).toISOString(),
+      }),
+    ]);
+    const rows = liveStates({ studentIds: roster, ...activity, now });
+    const open = [
+      ...new Set(
+        rows.flatMap((item) =>
+          item.state !== "away" && item.lessonId ? [item.lessonId] : [],
+        ),
+      ),
+    ];
+    const published = await Promise.all(
+      open.map((lessonId) => publishedLesson(context, lessonId)),
+    );
+    const questions = new Map(
+      open.map((lessonId, index) => {
+        const content = published[index]?.content;
+        return [lessonId, content ? autoBlocks(content).length : 0];
+      }),
+    );
+    return {
+      now: new Date(now).toISOString(),
+      lessons: lessons.map((item) => ({
+        id: item.id,
+        title: item.title,
+        questions: questions.get(item.id) ?? 0,
+      })),
+      students,
+      rows,
     };
   });
 

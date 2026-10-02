@@ -1,3 +1,5 @@
+import type { LiveProgress, LiveTry } from "@faridalms/domain/live";
+
 import { YOUNG_STUDENT_GRADES } from "@faridalms/domain/descriptors/catalogue";
 import { sql } from "drizzle-orm";
 
@@ -829,4 +831,81 @@ export async function quietLessons(
       where x.tenant_id = ${input.tenantId}::uuid and x.module_id = ${input.moduleId}::uuid
         and x.status = 'active' and not c.lesson_sounds) as quiet`);
   return row?.quiet ?? false;
+}
+
+export interface LiveActivity {
+  progress: LiveProgress[];
+  tries: LiveTry[];
+}
+
+/**
+ * What students did in some lessons since a moment: the progress they
+ * touched and each try they made, a teacher's marks left out.
+ */
+export async function liveActivity(
+  tx: Tx,
+  input: {
+    tenantId: string;
+    lessonIds: readonly string[];
+    studentIds: readonly string[];
+    since: string;
+  },
+): Promise<LiveActivity> {
+  if (input.lessonIds.length === 0 || input.studentIds.length === 0)
+    return { progress: [], tries: [] };
+  const progress = await tx.execute<{
+    lesson_id: string;
+    student_user_id: string;
+    attempts: number;
+    completed_at: string | null;
+    touched_at: string;
+  }>(sql`
+    select lesson_id, student_user_id, attempts,
+      ${isoOf(sql`completed_at`)} as completed_at, ${isoOf(sql`date_last_modified`)} as touched_at
+    from core.lesson_progress
+    where tenant_id = ${input.tenantId}::uuid and status = 'active'
+      and lesson_id = any(${uuidArray(input.lessonIds)})
+      and student_user_id = any(${uuidArray(input.studentIds)})
+      and date_last_modified >= ${input.since}::timestamptz`);
+  const tries = await tx.execute<{
+    lesson_id: string;
+    student_user_id: string;
+    block_id: string;
+    attempt: number;
+    state: ResponseState;
+    fraction: string | number | null;
+    created_at: string;
+  }>(sql`
+    select lesson_id, student_user_id, block_id, attempt, state, fraction,
+      ${isoOf(sql`created_at`)} as created_at
+    from core.lesson_responses
+    where tenant_id = ${input.tenantId}::uuid and marked_by_user_id is null
+      and lesson_id = any(${uuidArray(input.lessonIds)})
+      and student_user_id = any(${uuidArray(input.studentIds)})
+      and created_at >= ${input.since}::timestamptz
+    order by created_at, try, id`);
+  return {
+    progress: progress.map((row) => ({
+      studentId: row.student_user_id,
+      lessonId: row.lesson_id,
+      attempts: row.attempts,
+      completedAt: row.completed_at,
+      touchedAt: row.touched_at,
+    })),
+    tries: tries.map((row) => ({
+      studentId: row.student_user_id,
+      lessonId: row.lesson_id,
+      blockId: row.block_id,
+      attempt: row.attempt,
+      at: row.created_at,
+      outcome:
+        row.state === "revealed"
+          ? "shown"
+          : row.state === "needs_marking"
+            ? "sent"
+            : Number(row.fraction) === 1
+              ? "right"
+              : "wrong",
+    })),
+  };
 }

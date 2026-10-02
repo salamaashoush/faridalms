@@ -68,10 +68,12 @@ import {
   STATE_LABEL,
   STATE_TONE,
 } from "./format";
+import { ClassLive } from "./Live";
 import { ClassQuestions } from "./Questions";
 
 export const MODULE_TABS = [
   "lessons",
+  "live",
   "progress",
   "questions",
   "answers",
@@ -540,6 +542,7 @@ export function ModuleRecord({
       value: "lessons",
       label: `${m.lrnLessons()} ${formatNumber(data.lessons.length)}`,
     },
+    { value: "live", label: m.liveTab() },
     { value: "progress", label: m.lrnProgress() },
     { value: "questions", label: m.lrnQuestionsTab() },
     { value: "answers", label: m.lrnAnswersTab() },
@@ -652,11 +655,13 @@ export function ModuleRecord({
             classId={classId}
             onClass={onClass}
             view={
-              tab === "progress"
-                ? Matrix
-                : tab === "questions"
-                  ? ClassQuestions
-                  : Answers
+              tab === "live"
+                ? ClassLive
+                : tab === "progress"
+                  ? Matrix
+                  : tab === "questions"
+                    ? ClassQuestions
+                    : Answers
             }
           />
         )}

@@ -3196,6 +3196,73 @@
   "lrnYoungHint": "يعرض شاشة واحدة في كل مرة ويقرؤها بصوت عالٍ، مع إجابات كبيرة للّمس أو السحب ومن دون نقاط.",
   "lrnReadAlong": "إضاءة الكلمات أثناء قراءتها",
   "lrnReadAlongHint": "تُميَّز كل كلمة وهي تُقرأ، بصوت المتصفح أو بتسجيل وقّتَّ كلماته، فيتابع الأطفال الكلمات المكتوبة.",
+  "liveTab": "الآن",
+  "liveHelp": "يحتاج مساعدة",
+  "liveGuessing": "يخمّن",
+  "liveStopped": "توقّف",
+  "liveFound": "وجدها",
+  "liveWorking": "يعمل",
+  "liveFinished": "أنهى",
+  "liveAway": "ليس في درس",
+  "liveAwayHint": "لا نشاط منهم في دروس هذه الوحدة خلال آخر 20 دقيقة.",
+  "liveNeedsYou": "يحتاجونك",
+  "liveGoingWell": "يتقدّمون",
+  "liveHelpMisses": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "أخطأ في سؤال واحد مرة واحدة",
+        "countPlural=two": "أخطأ في سؤال واحد مرتين",
+        "countPlural=few": "أخطأ في سؤال واحد {count} مرات",
+        "countPlural=*": "أخطأ في سؤال واحد {count} مرة"
+      }
+    }
+  ],
+  "liveHelpShown": "عُرضت عليه إجابة سؤال",
+  "liveGuessingTries": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "محاولة خاطئة واحدة في سؤال واحد خلال ثوانٍ",
+        "countPlural=two": "محاولتان خاطئتان في سؤال واحد خلال ثوانٍ",
+        "countPlural=few": "{count} محاولات خاطئة في سؤال واحد خلال ثوانٍ",
+        "countPlural=*": "{count} محاولة خاطئة في سؤال واحد خلال ثوانٍ"
+      }
+    }
+  ],
+  "liveStoppedFor": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "لا نشاط منذ دقيقة",
+        "countPlural=two": "لا نشاط منذ دقيقتين",
+        "countPlural=few": "لا نشاط منذ {count} دقائق",
+        "countPlural=*": "لا نشاط منذ {count} دقيقة"
+      }
+    }
+  ],
+  "liveFoundAfter": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "أجاب صحيحًا بعد خطأ واحد",
+        "countPlural=two": "أجاب صحيحًا بعد خطأين",
+        "countPlural=few": "أجاب صحيحًا بعد {count} أخطاء",
+        "countPlural=*": "أجاب صحيحًا بعد {count} خطأ"
+      }
+    }
+  ],
+  "liveTried": "الأسئلة التي حاولها: {count} من {total}",
+  "liveReading": "يقرأ",
+  "liveSummary": "{needing} من {total} في درس يحتاجونك.",
+  "liveCalm": "لا أحد في درس يحتاجك الآن.",
+  "liveUpdates": "تتحدّث هذه الصفحة كل 10 ثوانٍ، ولا يراها إلا المعلمون.",
+  "liveEmptyTitle": "لا أحد في درس الآن",
+  "liveEmptyBody": "حين يفتح طلاب هذا الفصل دروس الوحدة، ترى هنا من يحتاج مساعدة ومن يتقدّم ومن أنهى، كل 10 ثوانٍ.",
   "lrnPracticeTitle": "مراجعة منوّعة",
   "lrnPracticeYoungTitle": "وقت التدريب",
   "lrnPracticeOf": "مراجعة منوّعة: {module}",

@@ -3109,6 +3109,65 @@
   "lrnYoungHint": "Plays one screen at a time and reads it aloud, with big answers to tap or drag and no points.",
   "lrnReadAlong": "Light up words as they are read",
   "lrnReadAlongHint": "Each word is marked as it is read, by the browser's voice or by a recording whose words you timed, so children follow the print.",
+  "liveTab": "Right now",
+  "liveHelp": "Needs help",
+  "liveGuessing": "Guessing",
+  "liveStopped": "Stopped",
+  "liveFound": "Got it",
+  "liveWorking": "Working",
+  "liveFinished": "Finished",
+  "liveAway": "Not in a lesson",
+  "liveAwayHint": "Nothing from them in this module's lessons in the last 20 minutes.",
+  "liveNeedsYou": "Needs you",
+  "liveGoingWell": "Getting on",
+  "liveHelpMisses": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "Missed one question once",
+        "countPlural=*": "Missed one question {count} times"
+      }
+    }
+  ],
+  "liveHelpShown": "Was shown the answer to a question",
+  "liveGuessingTries": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "{count} wrong try on one question within seconds",
+        "countPlural=*": "{count} wrong tries on one question within seconds"
+      }
+    }
+  ],
+  "liveStoppedFor": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "Nothing for {count} minute",
+        "countPlural=*": "Nothing for {count} minutes"
+      }
+    }
+  ],
+  "liveFoundAfter": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "Right after one miss",
+        "countPlural=*": "Right after {count} misses"
+      }
+    }
+  ],
+  "liveTried": "Tried {count} of {total} questions",
+  "liveReading": "Reading",
+  "liveSummary": "{needing} of {total} in a lesson need you.",
+  "liveCalm": "Nobody in a lesson needs you right now.",
+  "liveUpdates": "This page updates every 10 seconds, and only teachers see it.",
+  "liveEmptyTitle": "Nobody is in a lesson right now",
+  "liveEmptyBody": "When students in this class open the module's lessons, you see here who needs help, who is getting on and who has finished, every 10 seconds.",
   "lrnPracticeTitle": "Mixed review",
   "lrnPracticeYoungTitle": "Practise time",
   "lrnPracticeOf": "Mixed review: {module}",

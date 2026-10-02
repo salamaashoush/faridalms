@@ -5,6 +5,7 @@ import {
   getLearningOptions,
   getLessonEditor,
   getModuleOutline,
+  getModuleLive,
   getModuleProgress,
   getModuleRecord,
   getMyModules,
@@ -45,6 +46,15 @@ export const moduleProgressQuery = (moduleId: string, classId: string) =>
     queryKey: ["learning", "progress", moduleId, classId],
     queryFn: () => getModuleProgress({ data: { moduleId, classId } }),
     placeholderData: (previous) => previous,
+  });
+
+/** Asked again every ten seconds while the page is in view, for a teacher in the room. */
+export const moduleLiveQuery = (moduleId: string, classId: string) =>
+  queryOptions({
+    queryKey: ["learning", "live", moduleId, classId],
+    queryFn: () => getModuleLive({ data: { moduleId, classId } }),
+    placeholderData: (previous) => previous,
+    refetchInterval: 10_000,
   });
 
 export const classQuestionsQuery = (moduleId: string, classId: string) =>

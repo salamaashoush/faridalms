@@ -1328,3 +1328,104 @@ describe("mixed review", () => {
     ).toMatchObject({ code: "NOT_FOUND" });
   });
 });
+
+describe("right now", () => {
+  test("a teacher sees a student guessing, then finding the answer", async () => {
+    const { keeper } = await teachers();
+    const { rows } = await keeper.learning.modules({});
+    const source = rows.find((row) => row.title === TITLE);
+    if (!source) throw new Error("no module");
+    const saved = await keeper.learning.saveModule({
+      id: "",
+      expectedVersion: 0,
+      title: "Shapes now",
+      summary: "",
+      classIds: source.classes.map((item) => item.id),
+      prerequisiteId: "",
+      sequential: false,
+    });
+    const options = ["Circle", "Square", "Triangle", "Star"].map((text) => ({
+      id: id(),
+      text,
+      feedback: "",
+    }));
+    const block = {
+      id: id(),
+      type: "choice" as const,
+      prompt: "Which has three sides?",
+      points: 1,
+      hint: "",
+      explanation: "",
+      tries: null,
+      options,
+      correctOptionIds: [options[2]?.id ?? ""],
+      multiple: false,
+      shuffle: false,
+    };
+    await keeper.learning.saveLesson({
+      id: "",
+      moduleId: saved.id,
+      expectedVersion: 0,
+      title: "Sides",
+      completion: "quiz",
+      passScore: null,
+      // A second question keeps the lesson open after the first is right.
+      content: written([
+        block,
+        { ...block, id: id(), prompt: "Which is round?" },
+      ]),
+      publish: false,
+    });
+    await keeper.learning.publishModule({
+      id: saved.id,
+      expectedVersion: saved.version,
+    });
+
+    const pupil = await student();
+    const outline = await pupil.learning.play({ id: saved.id });
+    const lessonId = outline.lessons[0]?.id ?? "";
+    await pupil.learning.playLesson({ id: lessonId });
+    const answer = (index: number) =>
+      pupil.learning.respond({
+        lessonId,
+        blockId: block.id,
+        response: { type: "choice", optionIds: [options[index]?.id ?? ""] },
+      });
+    for (const index of [0, 1, 3]) await answer(index);
+
+    const watched = async () => {
+      for (const item of source.classes) {
+        const seen = await keeper.learning.live({
+          moduleId: saved.id,
+          classId: item.id,
+        });
+        const row = seen.rows.find((each) => each.state !== "away");
+        if (row) return { row, lessons: seen.lessons };
+      }
+      throw new Error("nobody in a lesson");
+    };
+    const guessing = await watched();
+    expect(guessing.row).toMatchObject({
+      state: "guessing",
+      lessonId,
+      misses: 3,
+      answered: 1,
+    });
+    expect(guessing.lessons).toContainEqual({
+      id: lessonId,
+      title: "Sides",
+      questions: 2,
+    });
+
+    await answer(2);
+    expect((await watched()).row).toMatchObject({ state: "found", misses: 3 });
+    expect(
+      await rejection(
+        pupil.learning.live({
+          moduleId: saved.id,
+          classId: source.classes[0]?.id ?? "",
+        }),
+      ),
+    ).toMatchObject({ code: "NOT_FOUND" });
+  });
+});

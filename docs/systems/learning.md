@@ -124,6 +124,12 @@ From [../research/early-years.md](../research/early-years.md).
   Lessons of a draft module are shown when the module opens.
 - A preview marks answers in the browser and saves nothing, and starts over
   on request.
+- A module's Right now tab shows a teacher where each student of a class is,
+  from the last 20 minutes and asked again every 10 seconds: who needs help
+  (three misses on one question, or the answer shown), who is guessing
+  (three wrong tries within ten seconds), who has stopped for two minutes,
+  who got a question right after missing it, who is working or finished,
+  and who is not in a lesson. Students never see it.
 - An empty lesson's "Start from a template" menu offers teaching patterns
   filled with a worked sample in the teacher's language: a worked example
   whose steps open one at a time behind Continue, then one step to finish

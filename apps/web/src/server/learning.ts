@@ -81,6 +81,10 @@ export const getModuleProgress = createServerFn({ method: "GET" })
   .validator(checked(progressQuerySchema))
   .handler(({ data }) => record(backend().learning.progress(data)));
 
+export const getModuleLive = createServerFn({ method: "GET" })
+  .validator(checked(progressQuerySchema))
+  .handler(({ data }) => record(backend().learning.live(data)));
+
 export const overrideLesson = createServerFn({ method: "POST" })
   .validator(checked(overrideSchema))
   .handler(({ data }) => backend().learning.override(data));
