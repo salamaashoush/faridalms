@@ -363,6 +363,76 @@ describe("handing in and returning work", () => {
     ).toEqual([]);
   });
 
+  test("voice feedback is heard by the student only once the work is returned", async () => {
+    const teacher = await arabicTeacher();
+    const student = await sessionFor("northwind", login("student"));
+    const me = await student.api.identity.currentUser();
+    const target = await classOfStudent(teacher.api, me.id);
+    const saved = await teacher.api.coursework.save(
+      draft(target.id, "Spoken reflection"),
+    );
+    await teacher.api.coursework.publish({
+      id: saved.id,
+      expectedVersion: saved.version,
+    });
+    const drafted = await student.api.coursework.saveDraft({
+      assignmentId: saved.id,
+      expectedVersion: 0,
+      content: plainContent("I learned to plan before writing."),
+    });
+    await student.api.coursework.handIn({
+      assignmentId: saved.id,
+      expectedVersion: drafted.version,
+    });
+    const grading = await teacher.api.coursework.grading({
+      assignmentId: saved.id,
+      studentId: me.id,
+    });
+    const attempt = grading.attempts[0];
+    if (!attempt) throw new Error("attempt missing");
+    const voice = await upload(teacher, "document_media", "voice-note.txt");
+    await teacher.api.coursework.addFeedbackRecording({
+      attemptId: attempt.id,
+      fileId: voice,
+    });
+    expect(
+      (
+        await teacher.api.coursework.grading({
+          assignmentId: saved.id,
+          studentId: me.id,
+        })
+      ).attempts[0]?.recordings.map((file) => file.id),
+    ).toEqual([voice]);
+    const hear = (token: string) =>
+      raw("northwind", token, `/v1/files/${voice}/content?download`);
+    expect((await hear(student.token)).status).toBe(404);
+    expect(
+      (await student.api.coursework.work({ id: saved.id })).attempts[0]
+        ?.recordings,
+    ).toEqual([]);
+
+    await teacher.api.coursework.act({
+      assignmentId: saved.id,
+      action: "return",
+      studentIds: [me.id],
+    });
+    expect((await hear(student.token)).status).toBe(200);
+    expect(
+      (
+        await student.api.coursework.work({ id: saved.id })
+      ).attempts[0]?.recordings.map((file) => file.id),
+    ).toEqual([voice]);
+
+    await teacher.api.coursework.removeFeedbackRecording({
+      attemptId: attempt.id,
+      fileId: voice,
+    });
+    expect(
+      (await student.api.coursework.work({ id: saved.id })).attempts[0]
+        ?.recordings,
+    ).toEqual([]);
+  });
+
   test("a comment bank keeps a teacher's comments, and colleagues pick only the shared ones", async () => {
     const teacher = await arabicTeacher();
     const colleague = await englishTeacher();

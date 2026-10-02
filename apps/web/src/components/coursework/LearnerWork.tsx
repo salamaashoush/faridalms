@@ -51,6 +51,7 @@ import { resultText } from "../grading/format";
 import { formatInstant, STATE_LABEL, STATE_TONE } from "./format";
 import { QuizWork } from "./QuizWork";
 import { useDocumentMedia } from "./useDocumentMedia";
+import { Recordings } from "./VoiceFeedback";
 import { CommentedWork, CommentList } from "./WorkComments";
 
 type Data = Awaited<
@@ -186,6 +187,9 @@ function AttemptItem({ data, attempt }: { data: Data; attempt: Attempt }) {
             <p dir="auto" className="text-sm leading-5 whitespace-pre-wrap">
               {assessment.feedback}
             </p>
+          ) : null}
+          {attempt.recordings.length ? (
+            <Recordings recordings={attempt.recordings} />
           ) : null}
         </div>
       ) : null}

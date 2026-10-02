@@ -11,6 +11,8 @@
     ".": "./src/index.ts",
     "./view": "./src/view.tsx",
     "./anchors": "./src/anchors.ts",
+    "./recorder": "./src/recorder.tsx",
+    "./media-view": "./src/media-view.tsx",
     "./files": "./src/files.tsx",
     "./file-facts": "./src/file-facts.tsx",
     "./nodes": "./src/nodes/index.ts",

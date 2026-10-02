@@ -71,7 +71,12 @@ import {
   authenticationsOf,
   insertDeclaration,
 } from "@faridalms/database/stores/exams";
-import { filesOfHost, rehostFiles } from "@faridalms/database/stores/files";
+import {
+  adoptFiles,
+  filesOfHost,
+  rehostFiles,
+  unlinkFiles,
+} from "@faridalms/database/stores/files";
 import { classCategories } from "@faridalms/database/stores/grading";
 import {
   markQuizAnswer as storeQuizMark,
@@ -116,6 +121,7 @@ import {
   saveCommentSchema,
   saveDraftSchema,
   extendSchema,
+  feedbackRecordingSchema,
   saveGroupSchema,
   saveQuizAnswerSchema,
   saveRubricSchema,
@@ -356,6 +362,22 @@ registerHostReader("submission", (context, hostId) =>
 registerHostReader("submission_attempt", (context, hostId) =>
   readable(context, { type: "submission_attempt", id: hostId }),
 );
+// A grader's voice feedback on an attempt: its graders hear it at once,
+// whoever reads the attempt hears it once the work is returned.
+registerHostReader("attempt_feedback", async (context, attemptId) => {
+  const host = { type: "submission_attempt", id: attemptId };
+  if (!(await readable(context, host))) return false;
+  const owner = await courseworkHost(context.tx, context.tenantId, host);
+  if (
+    owner &&
+    can(context, "submissions:grade") &&
+    (await teachesClass(context.tx, scopeOf(context), owner.classId))
+  )
+    return true;
+  return Boolean(
+    (await assessmentOf(context.tx, context.tenantId, attemptId))?.releasedAt,
+  );
+});
 
 /** The classes the viewer may set work for this year, with the choices the editor offers. */
 export const options = readProcedure.handler(async ({ context }) => {
@@ -1040,15 +1062,17 @@ async function attemptsView(
   const attempts = await attemptsOf(context.tx, context.tenantId, submissionId);
   const views = await Promise.all(
     attempts.map(async (attempt) => {
-      const [document, files, assessment, comments] = await Promise.all([
-        documentOf(context.tx, context.tenantId, {
-          type: "submission_attempt",
-          id: attempt.id,
-        }),
-        filesView(context, { type: "submission_attempt", id: attempt.id }),
-        assessmentOf(context.tx, context.tenantId, attempt.id),
-        commentsOf(context.tx, context.tenantId, attempt.id),
-      ]);
+      const [document, files, assessment, comments, recordings] =
+        await Promise.all([
+          documentOf(context.tx, context.tenantId, {
+            type: "submission_attempt",
+            id: attempt.id,
+          }),
+          filesView(context, { type: "submission_attempt", id: attempt.id }),
+          assessmentOf(context.tx, context.tenantId, attempt.id),
+          commentsOf(context.tx, context.tenantId, attempt.id),
+          filesView(context, { type: "attempt_feedback", id: attempt.id }),
+        ]);
       // Comments point at blocks, so work saved without block ids gets
       // them from where each block stands; handed-in work never changes.
       const stored = (document?.content ?? null) as ContentDocument | null;
@@ -1063,6 +1087,7 @@ async function attemptsView(
         ...attempt,
         content,
         files: files.filter((file) => !inAnswer.has(file.id)),
+        recordings: includeDrafts || assessment?.releasedAt ? recordings : [],
         // A student reads the comments with the rest of the returned work.
         comments:
           includeDrafts || assessment?.releasedAt
@@ -1278,6 +1303,40 @@ export const uncomment = writeProcedure
     if (!removed)
       throw new ORPCError("CONFLICT", { message: "conflict.version" });
     return { removed };
+  });
+
+/** Adds a voice note the grader recorded, already uploaded, to an attempt's feedback. */
+export const addFeedbackRecording = writeProcedure
+  .input(feedbackRecordingSchema)
+  .handler(async ({ input, context }) => {
+    const attempt = await commentableAttempt(context, input.attemptId);
+    const [adopted] = await adoptFiles(context.tx, {
+      tenantId: context.tenantId,
+      userId: context.actor.userId,
+      host: { type: "attempt_feedback", id: attempt.id },
+      ids: [input.fileId],
+    });
+    if (!adopted) throw new ORPCError("NOT_FOUND");
+    return { id: adopted };
+  });
+
+/** Takes a voice note off an attempt's feedback. */
+export const removeFeedbackRecording = writeProcedure
+  .input(feedbackRecordingSchema)
+  .handler(async ({ input, context }) => {
+    const attempt = await commentableAttempt(context, input.attemptId);
+    const host = { type: "attempt_feedback", id: attempt.id };
+    const kept = await filesOfHost(context.tx, context.tenantId, host);
+    if (!kept.some((file) => file.id === input.fileId))
+      throw new ORPCError("NOT_FOUND");
+    await unlinkFiles(context.tx, {
+      tenantId: context.tenantId,
+      host,
+      keep: kept
+        .filter((file) => file.id !== input.fileId)
+        .map((file) => file.id),
+    });
+    return { removed: true };
   });
 
 /** The grader's comment bank: their own comments and those shared at the school. */

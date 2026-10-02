@@ -78,7 +78,8 @@ const ACCEPTED_TYPES: Record<string, readonly string[]> = {
   m4a: ["audio/mp4", "audio/x-m4a"],
   wav: ["audio/wav", "audio/x-wav"],
   mp4: ["video/mp4"],
-  webm: ["video/webm"],
+  // Chrome and Firefox record voice notes into WebM.
+  webm: ["video/webm", "audio/webm"],
   vtt: ["text/vtt"],
   excalidraw: ["application/json"],
   zip: ["application/zip", "application/x-zip-compressed"],

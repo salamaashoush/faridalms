@@ -63,6 +63,7 @@ import { displayName } from "../people/format";
 import { CommentBankPicker } from "./CommentBank";
 import { formatInstant } from "./format";
 import { QuizAttempts } from "./QuizWork";
+import { VoiceFeedback } from "./VoiceFeedback";
 import { CommentedWork, CommentList } from "./WorkComments";
 
 type Data = Awaited<
@@ -524,6 +525,12 @@ function GradeSheet({
               </div>
             )}
           </FormField>
+          {attempt && !data.quiz ? (
+            <VoiceFeedback
+              attemptId={attempt.id}
+              recordings={attempt.recordings}
+            />
+          ) : null}
           <FormField
             id="grade-note"
             label={m.courseworkPrivateNote()}

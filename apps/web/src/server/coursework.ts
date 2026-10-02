@@ -1,6 +1,7 @@
 import {
   assessSchema,
   extendSchema,
+  feedbackRecordingSchema,
   handInSchema,
   markQuizAnswerSchema,
   publishSchema,
@@ -102,6 +103,14 @@ export const commentOnWork = createServerFn({ method: "POST" })
 export const removeWorkComment = createServerFn({ method: "POST" })
   .validator(checked(removeCommentSchema))
   .handler(({ data }) => backend().coursework.uncomment(data));
+
+export const addFeedbackRecording = createServerFn({ method: "POST" })
+  .validator(checked(feedbackRecordingSchema))
+  .handler(({ data }) => backend().coursework.addFeedbackRecording(data));
+
+export const removeFeedbackRecording = createServerFn({ method: "POST" })
+  .validator(checked(feedbackRecordingSchema))
+  .handler(({ data }) => backend().coursework.removeFeedbackRecording(data));
 
 export const getCommentBank = createServerFn({ method: "GET" }).handler(() =>
   backend().coursework.commentBank(),
