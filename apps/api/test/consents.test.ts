@@ -4,7 +4,7 @@ import {
 } from "@faridalms/domain/content-conversion";
 import { describe, expect, test } from "bun:test";
 
-import { login, rejection, signedIn } from "./harness";
+import { client, login, raw, rejection, sessionFor, signedIn } from "./harness";
 
 const principal = () => signedIn("northwind", login("principal"));
 const mother = () =>
@@ -275,5 +275,127 @@ describe("answering for a child", () => {
       });
     const after = await family.notifications.list({ tab: "action" });
     expect(after.rows.some((row) => row.subjectId === draft.id)).toBe(false);
+  });
+});
+
+/** A picture the office uploads for news: a PNG signature is all the check reads. */
+async function picture() {
+  const office = await sessionFor("northwind", login("principal"));
+  const png = new Blob([
+    new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0]),
+  ]);
+  const file = await office.api.files.initiate({
+    purpose: "document_media",
+    name: "sports-day.png",
+    mediaType: "image/png",
+    sizeBytes: png.size,
+  });
+  await raw("northwind", office.token, `/v1/files/${file.id}/content`, {
+    method: "PUT",
+    body: png,
+  });
+  return file.id;
+}
+
+async function answerFor(family: Family, code: string, agreed: boolean) {
+  const { data, child } = await firstChild(family);
+  const office = await principal();
+  const purposeId = (await purpose(office, code)).id;
+  const form = data.forms.find((row) => row.purposeId === purposeId);
+  if (!form) throw new Error(`no published ${code} form`);
+  await family.consents.answer({
+    studentId: child.studentId,
+    noticeId: form.id,
+    agreed,
+  });
+  return child.studentId;
+}
+
+const post = (
+  title: string,
+  coverFileId: string,
+  visibility: "public" | "school",
+) => ({
+  id: "",
+  expectedVersion: 0,
+  visibility,
+  primaryLocale: "en" as const,
+  titleEn: title,
+  titleAr: "",
+  excerptEn: "",
+  excerptAr: "",
+  slug: `${title.toLowerCase().replaceAll(/[^a-z0-9]+/g, "-")}-${crypto.randomUUID().slice(0, 6)}`,
+  categoryId: "",
+  coverFileId,
+  coverAltEn: "Children on the field",
+  coverAltAr: "",
+  pinned: false,
+  audiences:
+    visibility === "school"
+      ? [{ scope: "families" as const, classId: "", gradeId: "" }]
+      : [],
+  body: plainContent(`${title} was a great day.`),
+  translation: null,
+});
+
+describe("pictures of students", () => {
+  test("a website post waits for every pictured student's family, and a later no takes the picture down", async () => {
+    const family = await mother();
+    const studentId = await answerFor(family, "photo_school_website", false);
+    const office = await principal();
+    const fileId = await picture();
+    const draft = post("Sports day", fileId, "public");
+    const saved = await office.news.save(draft);
+    await office.files.tagPictured({ id: fileId, studentIds: [studentId] });
+    const { files } = await office.files.pictured({ ids: [fileId] });
+    expect(files[0]?.people.map((row) => [row.id, row.website])).toEqual([
+      [studentId, "refused"],
+    ]);
+    expect(
+      await rejection(
+        office.news.publish({ id: saved.id, expectedVersion: saved.version }),
+      ),
+    ).toMatchObject({ code: "CONFLICT", message: "site.consent" });
+
+    await answerFor(family, "photo_school_website", true);
+    await office.news.publish({ id: saved.id, expectedVersion: saved.version });
+    const read = await client("northwind").site.publicSitePost({
+      school: "northwind",
+      locale: "en",
+      slug: draft.slug,
+    });
+    expect(read.title).toBe("Sports day");
+
+    await answerFor(family, "photo_school_website", false);
+    const history = await office.people.studentHistory({ id: studentId });
+    expect(history.map((entry) => entry.action)).toContain("file.unpublish");
+  });
+
+  test("school news checks the answer for photos in school news", async () => {
+    const family = await mother();
+    const studentId = await answerFor(family, "photo_school_news", false);
+    const office = await principal();
+    const fileId = await picture();
+    const saved = await office.news.save(
+      post("Class assembly", fileId, "school"),
+    );
+    await office.files.tagPictured({ id: fileId, studentIds: [studentId] });
+    expect(
+      await rejection(
+        office.news.publish({ id: saved.id, expectedVersion: saved.version }),
+      ),
+    ).toMatchObject({ code: "CONFLICT", message: "news.consent" });
+    await answerFor(family, "photo_school_news", true);
+    await office.news.publish({ id: saved.id, expectedVersion: saved.version });
+  });
+
+  test("only those who publish pictures name who is in them", async () => {
+    const fileId = await picture();
+    const teacher = await signedIn("northwind", login("teacher"));
+    expect(
+      await rejection(
+        teacher.files.tagPictured({ id: fileId, studentIds: [] }),
+      ),
+    ).toMatchObject({ code: "FORBIDDEN" });
   });
 });

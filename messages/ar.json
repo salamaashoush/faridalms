@@ -5251,5 +5251,19 @@
   "consentErrWordsOnly": "نموذج الموافقة نص فقط. احذف الصور والملفات.",
   "consentErrNotGuardian": "لا يجيب إلا ولي أمر شرعي أكّده المكتب وله كامل الصلاحيات.",
   "consentErrSuperseded": "نشرت المدرسة نسخة أحدث من هذا النموذج. اقرأها وأجب مجددًا.",
-  "consentErrFuture": "لا يمكن أن يكون تاريخ الإجابة في المستقبل."
+  "consentErrFuture": "لا يمكن أن يكون تاريخ الإجابة في المستقبل.",
+  "newsErrConsent": "أحد الظاهرين في صورة لم يوافق على الظهور في أخبار المدرسة.",
+  "picturedTitle": "الظاهرون في الصور",
+  "picturedHint": "حدّد الطلاب الظاهرين في كل صورة. لا تُنشر صورة طالب لم توافق أسرته.",
+  "picturedNone": "لا توجد صور بعد.",
+  "picturedNobody": "لم يُحدَّد أحد بعد.",
+  "picturedMayAppear": "{name}: يمكن أن يظهر",
+  "picturedRefused": "{name}: رفضت الأسرة",
+  "picturedUnanswered": "{name}: لم تُجب الأسرة",
+  "picturedTag": "من في الصورة",
+  "picturedTagFor": "من في {name}",
+  "picturedTagTitle": "من في هذه الصورة",
+  "picturedStudents": "الطلاب",
+  "picturedStudentsHint": "ابحث بالاسم. تحدد إجابة كل أسرة أين يمكن نشر الصورة.",
+  "picturedSaved": "حُفظ من في الصورة."
 }

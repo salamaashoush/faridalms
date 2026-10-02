@@ -914,13 +914,13 @@ export const CATALOGUE: readonly SeedNamespace[] = [
         code: "photo_school_website",
         en: "Photos on the school website",
         ar: "نشر الصور على موقع المدرسة",
-        meaning: "photo_public",
+        meaning: "photo_website",
       },
       {
         code: "photo_social_media",
         en: "Photos on the school's social media",
         ar: "نشر الصور على حسابات المدرسة في وسائل التواصل",
-        meaning: "photo_public",
+        meaning: "photo_social",
       },
       {
         code: "photo_school_news",

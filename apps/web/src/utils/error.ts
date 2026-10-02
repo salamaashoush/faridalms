@@ -173,6 +173,8 @@ export function getMessageFromError(error: unknown): string {
         return m.consentErrFuture();
       case "consents.scan":
         return m.consentScanNeeded();
+      case "news.consent":
+        return m.newsErrConsent();
       case "news.title":
         return m.newsTitleNeeded();
       case "news.audience":

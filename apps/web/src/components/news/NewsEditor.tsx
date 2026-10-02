@@ -3,6 +3,7 @@ import type { ContentDocument } from "@faridalms/domain/content";
 import type { NewsVisibility } from "@faridalms/domain/news";
 import type { ContentLocale } from "@faridalms/domain/translations";
 
+import { contentFileIds } from "@faridalms/domain/content";
 import {
   emptyContent,
   headedContent,
@@ -36,6 +37,7 @@ import { LOCALE_LABEL, LOCALE_NAME } from "~/components/content/languages";
 import { TranslatedView } from "~/components/content/TranslatedView";
 import { TranslationNote } from "~/components/content/TranslationNote";
 import { useDocumentMedia } from "~/components/coursework/useDocumentMedia";
+import { PicturedPeople } from "~/components/files/PicturedPeople";
 import { CheckboxRow } from "~/components/people/fields";
 import { PictureField } from "~/components/site/PictureField";
 import { ISSUE_LABEL } from "~/components/site/studio/labels";
@@ -221,6 +223,13 @@ export function NewsEditor({
   const live = state === "published";
   const other = otherLocale(draft.primaryLocale);
   const isPublic = draft.visibility === "public";
+  const pictureIds = [
+    ...new Set([
+      ...contentFileIds(draft.body),
+      ...(draft.bilingual ? contentFileIds(draft.translation) : []),
+      ...(draft.coverFileId ? [draft.coverFileId] : []),
+    ]),
+  ];
   const telling = draft.audiences.length > 0;
 
   const persist = useCallback(
@@ -713,6 +722,12 @@ export function NewsEditor({
                   onChange={(event) => change({ [altKey]: event.target.value })}
                 />
               ) : null}
+            </DetailsSection>
+            <DetailsSection title={m.picturedTitle()} hint={m.picturedHint()}>
+              <PicturedPeople
+                fileIds={pictureIds}
+                channel={isPublic ? "website" : "news"}
+              />
             </DetailsSection>
             {isPublic ? (
               <DetailsSection title={m.newsWebsite()}>

@@ -30,6 +30,7 @@ import { filesByIds, linkFiles } from "@faridalms/database/stores/files";
 import { schoolProfile } from "@faridalms/database/stores/identity";
 import { markActed } from "@faridalms/database/stores/notifications";
 import { childrenOf } from "@faridalms/database/stores/persons";
+import { endPublicationsShowing } from "@faridalms/database/stores/site";
 import { isVisibleStudent, person } from "@faridalms/database/stores/students";
 import {
   reviewTranslation,
@@ -542,12 +543,40 @@ async function settleRequest(
     });
 }
 
+/**
+ * A family that no longer agrees to the website gets their child's pictures
+ * taken off it at once; the objects go once the answer is stored.
+ */
+async function takeDownPhotos(context: UnitContext, studentId: string) {
+  const ended = await endPublicationsShowing(context.tx, {
+    tenantId: context.tenantId,
+    userId: studentId,
+  });
+  if (ended.length === 0) return;
+  context.afterCommit(async () => {
+    await Promise.all(
+      ended.map((row) => context.publicMedia.remove(row.publicKey)),
+    );
+  });
+  await audit(context, {
+    action: "file.unpublish",
+    objectType: "user",
+    objectId: studentId,
+    subjectUserId: studentId,
+    studentUserId: studentId,
+    details: {
+      reason: "consent",
+      hosts: ended.map((row) => `${row.hostType}:${row.hostId}`),
+    },
+  });
+}
+
 /** Writes an answer into the register for one student and purpose. */
 async function writeAnswer(
   context: UnitContext,
   input: {
     studentId: string;
-    purposeId: string;
+    purpose: Descriptor;
     formId: string;
     agreed: boolean;
     givenById: string;
@@ -568,12 +597,12 @@ async function writeAnswer(
   ]);
   if (!subject) throw new ORPCError("NOT_FOUND");
   const was =
-    current.find((row) => row.purposeId === input.purposeId)?.decision ?? null;
+    current.find((row) => row.purposeId === input.purpose.id)?.decision ?? null;
   const decision = decisionFor(input.agreed, was);
   const answerId = await insertAnswer(context.tx, {
     tenantId: context.tenantId,
     studentId: input.studentId,
-    purposeId: input.purposeId,
+    purposeId: input.purpose.id,
     decision,
     noticeId: input.formId,
     givenById: input.givenById,
@@ -608,11 +637,13 @@ async function writeAnswer(
     subjectUserId: input.studentId,
     studentUserId: input.studentId,
     details: {
-      purposeId: input.purposeId,
+      purposeId: input.purpose.id,
       decision,
       method: input.method,
     },
   });
+  if (decision !== "granted" && input.purpose.meaning === "photo_website")
+    await takeDownPhotos(context, input.studentId);
   await settleRequest(context, input.givenById, input.formId);
   return { id: answerId, decision };
 }
@@ -653,7 +684,7 @@ export const record = writeProcedure
     }
     return writeAnswer(context, {
       studentId: input.studentId,
-      purposeId: input.purposeId,
+      purpose: entry.purpose,
       formId: entry.notice.id,
       agreed: input.agreed,
       givenById: answerer.userId,
@@ -733,7 +764,7 @@ export const answer = writeProcedure
       throw new ORPCError("CONFLICT", { message: "consents.superseded" });
     return writeAnswer(context, {
       studentId: input.studentId,
-      purposeId: entry.purpose.id,
+      purpose: entry.purpose,
       formId: entry.notice.id,
       agreed: input.agreed,
       givenById: context.actor.userId,

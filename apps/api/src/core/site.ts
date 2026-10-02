@@ -67,6 +67,8 @@ export async function publishMedia(
   const unconsented = await subjectsWithoutConsent(tx, {
     tenantId: host.tenantId,
     fileIds,
+    meaning: "photo_website",
+    on: context.today,
   });
   if (unconsented.length > 0)
     throw new ORPCError("CONFLICT", { message: "site.consent" });

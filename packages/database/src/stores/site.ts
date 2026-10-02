@@ -597,12 +597,19 @@ export async function publishableFiles(
 }
 
 /**
- * The people shown in these files who have not given consent for their
- * picture on the public website, which stops a publication.
+ * The people shown in these files whose families have not agreed to their
+ * picture being shown in this way: the website, or school news. Anything
+ * but a current yes counts, so a photo waits until a family has answered.
  */
 export async function subjectsWithoutConsent(
   tx: Tx,
-  input: { tenantId: string; fileIds: readonly string[] },
+  input: {
+    tenantId: string;
+    fileIds: readonly string[];
+    meaning: "photo_website" | "photo_internal";
+    /** Today at the school, which an answer must cover. */
+    on: string;
+  },
 ): Promise<string[]> {
   if (input.fileIds.length === 0) return [];
   const rows = await tx.execute<{ user_id: string }>(sql`
@@ -613,9 +620,36 @@ export async function subjectsWithoutConsent(
         select 1 from core.current_consents c
         join core.descriptors d on d.tenant_id = c.tenant_id and d.id = c.purpose_descriptor_id
         where c.tenant_id = s.tenant_id and c.subject_user_id = s.user_id
-          and d.system_meaning = 'photo_public' and c.decision = 'granted'
-          and c.valid_during @> current_date)`);
+          and d.system_meaning = ${input.meaning} and c.decision = 'granted'
+          and c.valid_during @> ${input.on}::date)`);
   return rows.map((row) => row.user_id);
+}
+
+/**
+ * Takes down every public copy of a photo showing this person, wherever it
+ * was published; the keys come back so the objects go.
+ */
+export async function endPublicationsShowing(
+  tx: Tx,
+  input: { tenantId: string; userId: string },
+): Promise<{ publicKey: string; hostType: string; hostId: string }[]> {
+  const rows = await tx.execute<{
+    public_key: string;
+    host_type: string;
+    host_id: string;
+  }>(sql`
+    update core.file_publications p set unpublished_at = statement_timestamp()
+    where p.tenant_id = ${input.tenantId}::uuid and p.status = 'active' and p.unpublished_at is null
+      and exists (
+        select 1 from core.file_subjects s
+        where s.tenant_id = p.tenant_id and s.file_id = p.file_id
+          and s.user_id = ${input.userId}::uuid and s.status = 'active')
+    returning p.public_key, p.host_type, p.host_id`);
+  return rows.map((row) => ({
+    publicKey: row.public_key,
+    hostType: row.host_type,
+    hostId: row.host_id,
+  }));
 }
 
 export interface PublicPage {

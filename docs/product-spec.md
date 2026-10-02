@@ -178,6 +178,10 @@ is a separate, explicit step; the old year becomes read-only.
   it; a refused photo consent shows as a No photos alert. A new version asks
   again while the earlier answer stays in force; in Egypt an answer given
   for a child under 15 is due again at 15.
+- **Photos of students:** news and website pages list their pictures with
+  the students named in each and whether each family agreed to that place.
+  Publishing refuses a picture of a student without a yes, and a family's
+  later no to the website takes their child's pictures off it at once.
 - **Staff:** roles, classes taught, homeroom, timetable, effective access,
   sign-in activity, history.
 - **Adding a student:** names, date of birth and class; a matching name and

@@ -18,13 +18,18 @@ import {
   renameAreaFile,
   replaceFileBytes,
   schoolStorage,
+  setSubjects,
+  subjectsOf,
   trashAreaFile,
 } from "@faridalms/database/stores/files";
+import { isVisibleStudent } from "@faridalms/database/stores/students";
 import {
   fileAreaSchema,
   fileFamily,
   initiateUploadSchema,
+  picturedSchema,
   safeFilename,
+  tagPicturedSchema,
 } from "@faridalms/domain/file";
 import { limitsOf, WARN_SHARE } from "@faridalms/domain/plans";
 import { ORPCError } from "@orpc/server";
@@ -34,6 +39,7 @@ import type { UnitContext } from "../core/context";
 
 import {
   audit,
+  can,
   readProcedure,
   requireCapability,
   writeProcedure,
@@ -378,4 +384,88 @@ export const replaceInArea = writeProcedure
       },
     });
     return { ok: true };
+  });
+
+/** Those who put pictures of students in front of others: news and the website. */
+const PHOTO_EDITORS: Capability[] = ["news:manage", "site:manage"];
+
+async function readablePictures(context: UnitContext, ids: readonly string[]) {
+  const found = await filesByIds(context.tx, context.tenantId, ids);
+  const readable = await Promise.all(
+    found.map(async (file) =>
+      file.state === "ready" &&
+      file.mediaType.startsWith("image/") &&
+      (await canReadFile(context, file))
+        ? file
+        : null,
+    ),
+  );
+  return readable.filter((file) => file !== null);
+}
+
+/**
+ * The students each picture shows, and whether their families agreed to
+ * their picture on the website and in school news, so whoever publishes
+ * sees who may not appear before trying.
+ */
+export const pictured = readProcedure
+  .input(picturedSchema)
+  .handler(async ({ input, context }) => {
+    requireCapability(context, ...PHOTO_EDITORS);
+    const files = await readablePictures(context, input.ids);
+    const people = await subjectsOf(context.tx, {
+      tenantId: context.tenantId,
+      fileIds: files.map((file) => file.id),
+      on: context.today,
+    });
+    return {
+      files: files.map((file) => ({
+        id: file.id,
+        name: file.name,
+        people: people
+          .filter((row) => row.fileId === file.id)
+          .map((row) => ({
+            id: row.userId,
+            fullNameEn: row.fullNameEn,
+            fullNameAr: row.fullNameAr,
+            website: row.website,
+            news: row.news,
+          })),
+      })),
+    };
+  });
+
+/** Records which students a picture shows; publishing then checks their families agreed. */
+export const tagPictured = writeProcedure
+  .input(tagPicturedSchema)
+  .handler(async ({ input, context }) => {
+    requireCapability(context, ...PHOTO_EDITORS);
+    requireCapability(context, "people:read");
+    const [file] = await readablePictures(context, [input.id]);
+    if (!file) throw new ORPCError("NOT_FOUND");
+    const scope = {
+      tenantId: context.tenantId,
+      schoolId: context.schoolId,
+      today: context.today,
+      viewerId: context.actor.userId,
+      schoolWide: can(context, "people:manage"),
+    };
+    const students = [...new Set(input.studentIds)];
+    const visible = await Promise.all(
+      students.map((id) => isVisibleStudent(context.tx, scope, id)),
+    );
+    if (visible.includes(false)) throw new ORPCError("NOT_FOUND");
+    await setSubjects(context.tx, {
+      tenantId: context.tenantId,
+      fileId: file.id,
+      userIds: students,
+      taggedBy: context.actor.userId,
+    });
+    await audit(context, {
+      action: "file.tag",
+      objectType: "file",
+      objectId: file.id,
+      details: { students: students.length },
+    });
+    return { id: file.id };
   });

@@ -335,6 +335,18 @@ export function contentDisposition(
 /** A class's or module's file area: what its teachers keep for its documents. */
 export const FILE_AREAS = ["class", "module"] as const;
 export type FileArea = (typeof FILE_AREAS)[number];
+const fileId = v.pipe(v.string(), v.uuid());
+
+export const picturedSchema = v.object({
+  ids: v.pipe(v.array(fileId), v.minLength(1), v.maxLength(100)),
+});
+
+/** The students a picture shows, replacing whoever it showed before. */
+export const tagPicturedSchema = v.object({
+  id: fileId,
+  studentIds: v.pipe(v.array(fileId), v.maxLength(60)),
+});
+
 export const fileAreaSchema = v.object({
   type: v.picklist(FILE_AREAS),
   id: v.pipe(v.string(), v.uuid()),

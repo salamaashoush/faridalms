@@ -1,4 +1,9 @@
-import { fileAreaSchema, initiateUploadSchema } from "@faridalms/domain/file";
+import {
+  fileAreaSchema,
+  initiateUploadSchema,
+  picturedSchema,
+  tagPicturedSchema,
+} from "@faridalms/domain/file";
 import { createServerFn } from "@tanstack/react-start";
 import * as v from "valibot";
 
@@ -60,3 +65,11 @@ export const replaceInArea = createServerFn({ method: "POST" })
     checked(v.object({ ...areaFile, sourceId: v.pipe(v.string(), v.uuid()) })),
   )
   .handler(({ data }) => backend().files.replaceInArea(data));
+
+export const getPictured = createServerFn({ method: "POST" })
+  .validator(checked(picturedSchema))
+  .handler(({ data }) => backend().files.pictured(data));
+
+export const tagPictured = createServerFn({ method: "POST" })
+  .validator(checked(tagPicturedSchema))
+  .handler(({ data }) => backend().files.tagPictured(data));

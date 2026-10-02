@@ -5057,5 +5057,19 @@
   "consentErrWordsOnly": "A consent form holds words only. Remove the pictures and files.",
   "consentErrNotGuardian": "Only a legal guardian the office has confirmed, with full rights, can answer.",
   "consentErrSuperseded": "The school has published a newer version of this form. Read it and answer again.",
-  "consentErrFuture": "The date given cannot be in the future."
+  "consentErrFuture": "The date given cannot be in the future.",
+  "newsErrConsent": "Someone in a picture has not agreed to appear in school news.",
+  "picturedTitle": "People in the pictures",
+  "picturedHint": "Name the students each picture shows. A picture of a student whose family has not agreed cannot be published.",
+  "picturedNone": "No pictures yet.",
+  "picturedNobody": "Nobody named yet.",
+  "picturedMayAppear": "{name}: may appear",
+  "picturedRefused": "{name}: family said no",
+  "picturedUnanswered": "{name}: family has not answered",
+  "picturedTag": "Who is in it",
+  "picturedTagFor": "Who is in {name}",
+  "picturedTagTitle": "Who is in this picture",
+  "picturedStudents": "Students",
+  "picturedStudentsHint": "Search by name. Each family's answer decides where the picture may go.",
+  "picturedSaved": "Saved who is in the picture."
 }

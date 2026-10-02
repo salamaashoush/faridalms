@@ -34,6 +34,7 @@ import { readSubject } from "@faridalms/database/stores/notifications";
 import {
   siteCategories,
   siteSettings,
+  subjectsWithoutConsent,
   withdrawPost,
   writePublishedPost,
 } from "@faridalms/database/stores/site";
@@ -581,6 +582,23 @@ export const publish = writeProcedure
     const issues = issuesOf(row, body, other);
     if (issues.en.length + issues.ar.length > 0)
       throw new ORPCError("CONFLICT", { message: "site.issues" });
+    // The website copy is checked again as its pictures go public; a post for
+    // the school is checked here against consent to photos in school news.
+    if (row.visibility === "school") {
+      const unconsented = await subjectsWithoutConsent(context.tx, {
+        tenantId: context.tenantId,
+        fileIds: [
+          ...new Set([
+            ...postMedia(body, row.coverFileId),
+            ...(other ? postMedia(other, null) : []),
+          ]),
+        ],
+        meaning: "photo_internal",
+        on: context.today,
+      });
+      if (unconsented.length > 0)
+        throw new ORPCError("CONFLICT", { message: "news.consent" });
+    }
     const audiences = await audiencesOf(context.tx, context.tenantId, {
       kind: "site_post",
       id: row.id,

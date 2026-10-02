@@ -1894,8 +1894,8 @@ code `tool_<registration id>`.
 
 | code                              | en                                        | ar                                            | meaning               |
 | --------------------------------- | ----------------------------------------- | --------------------------------------------- | --------------------- |
-| photo_school_website              | Photos on the school website              | نشر الصور على موقع المدرسة                    | photo_public          |
-| photo_social_media                | Photos on the school's social media       | نشر الصور على حسابات المدرسة في وسائل التواصل | photo_public          |
+| photo_school_website              | Photos on the school website              | نشر الصور على موقع المدرسة                    | photo_website         |
+| photo_social_media                | Photos on the school's social media       | نشر الصور على حسابات المدرسة في وسائل التواصل | photo_social          |
 | photo_school_news                 | Photos in school news                     | الصور في أخبار المدرسة                        | photo_internal        |
 | share_contact_with_class_families | Share contact details with class families | مشاركة بيانات التواصل مع أسر الفصل            | directory_sharing     |
 | administer_medicine               | Give medicine at school                   | إعطاء الدواء في المدرسة                       | administer_medicine   |
@@ -2472,12 +2472,14 @@ create index file_subjects_user_idx on core.file_subjects (tenant_id, user_id) w
   withdrawal for a person the file shows sets `unpublished_at` and deletes the
   public object. Only `site_media`, `logo` and `document_media` files are
   publishable (the purpose pin).
-- **Subjects.** `file_subjects` records which people a photo or video shows.
-  Publishing checks that every tagged subject has a current `granted` consent
-  for the publication's purpose meaning (`photo_public` for the website,
-  `photo_internal` for newsletters) in `core.current_consents`, and refuses
-  otherwise; withdrawing that consent unpublishes their files. Erasure finds a
-  child's photos here.
+- **Subjects.** `file_subjects` records which students a picture shows; whoever
+  writes news or website pages names them beside the document, which also
+  shows each family's answer. Publishing checks that every tagged subject has
+  a `granted` consent covering the school's today for the publication's
+  purpose meaning (`photo_website` for the website, `photo_internal` for
+  school news) in `core.current_consents`, and refuses otherwise; a website
+  answer that turns to no unpublishes every public copy of their pictures at
+  once. Erasure finds a child's photos here.
 - `purpose` is fixed vocabulary; a system that needs a new purpose adds it to
   the check in a migration.
 
@@ -4056,8 +4058,8 @@ authority; records of requests and disclosures ([R3] finding 6).
   under 15; `refresh_due_on` is when it must be asked again (the child turns
   15, reaches majority, or the scope ends).
 - **FERPA directory-information opt-outs** are consent rows too: decision
-  `refused` for a purpose whose meaning is `directory_sharing` or
-  `photo_public`. They survive the student leaving (§99.37(b)) because nothing
+  `refused` for a purpose whose meaning is `directory_sharing`,
+  `photo_website` or `photo_social`. They survive the student leaving (§99.37(b)) because nothing
   deletes them.
 - Withdrawal queues jobs that stop the processing, unpublish the person's
   photos (section 6.5) and ask recipients to delete the data (Saudi

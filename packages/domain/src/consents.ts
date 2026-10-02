@@ -18,8 +18,13 @@ export type ConsentMethod =
   | "verbal_recorded"
   | "import";
 
-/** Purposes whose answer decides whether a student's picture may be shown. */
-export const PHOTO_MEANINGS = ["photo_public", "photo_internal"] as const;
+/** Purposes whose answer decides whether a student's picture may be shown, and where. */
+export const PHOTO_MEANINGS = [
+  "photo_website",
+  "photo_social",
+  "photo_internal",
+] as const;
+export type PhotoMeaning = (typeof PHOTO_MEANINGS)[number];
 
 const id = v.pipe(v.string(), v.uuid());
 const optionalId = v.optional(v.union([v.literal(""), id]), "");

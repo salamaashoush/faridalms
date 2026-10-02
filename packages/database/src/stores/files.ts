@@ -707,3 +707,80 @@ export function personStorage(tx: Tx, tenantId: string, userId: string) {
         or f.host_type in ('submission', 'submission_attempt', 'message'))`),
   );
 }
+
+/** The family's answer in force for a subject's photos shown one way, or null before any. */
+const photoAnswer = (meaning: string, on: string) => sql`(
+  select case when c.decision = 'granted' and c.valid_during @> ${on}::date then 'granted'
+    else 'refused' end
+  from core.current_consents c
+  join core.descriptors d on d.tenant_id = c.tenant_id and d.id = c.purpose_descriptor_id
+  where c.tenant_id = s.tenant_id and c.subject_user_id = s.user_id
+    and d.system_meaning = ${meaning}
+  order by c.created_at desc limit 1)`;
+
+/** A person a photo shows, and whether their family agreed to each way of showing it. */
+export interface FileSubject {
+  fileId: string;
+  userId: string;
+  fullNameEn: string | null;
+  fullNameAr: string | null;
+  website: "granted" | "refused" | null;
+  news: "granted" | "refused" | null;
+}
+
+export async function subjectsOf(
+  tx: Tx,
+  input: { tenantId: string; fileIds: readonly string[]; on: string },
+): Promise<FileSubject[]> {
+  if (input.fileIds.length === 0) return [];
+  const rows = await tx.execute<{
+    file_id: string;
+    user_id: string;
+    full_name_en: string | null;
+    full_name_ar: string | null;
+    website: "granted" | "refused" | null;
+    news: "granted" | "refused" | null;
+  }>(sql`
+    select s.file_id, s.user_id, u.full_name_en, u.full_name_ar,
+      ${photoAnswer("photo_website", input.on)} as website,
+      ${photoAnswer("photo_internal", input.on)} as news
+    from core.file_subjects s
+    join core.users u on u.tenant_id = s.tenant_id and u.id = s.user_id
+    where s.tenant_id = ${input.tenantId}::uuid and s.file_id = any(${uuidArray(input.fileIds)})
+      and s.status = 'active'
+    order by u.full_name_en, u.full_name_ar`);
+  return rows.map((row) => ({
+    fileId: row.file_id,
+    userId: row.user_id,
+    fullNameEn: row.full_name_en,
+    fullNameAr: row.full_name_ar,
+    website: row.website,
+    news: row.news,
+  }));
+}
+
+/** Records exactly these people as the ones a photo shows. */
+export async function setSubjects(
+  tx: Tx,
+  input: {
+    tenantId: string;
+    fileId: string;
+    userIds: readonly string[];
+    taggedBy: string;
+  },
+): Promise<void> {
+  await tx.execute(sql`
+    update core.file_subjects set status = 'tobedeleted'
+    where tenant_id = ${input.tenantId}::uuid and file_id = ${input.fileId}::uuid
+      and status = 'active' and not (user_id = any(${uuidArray(input.userIds)}))`);
+  if (input.userIds.length === 0) return;
+  await tx.execute(sql`
+    insert into core.file_subjects (tenant_id, file_id, user_id, tagged_by_user_id)
+    select ${input.tenantId}::uuid, ${input.fileId}::uuid, u.id, ${input.taggedBy}::uuid
+    from core.users u
+    where u.tenant_id = ${input.tenantId}::uuid and u.id = any(${uuidArray(input.userIds)})
+      and not exists (
+        select 1 from core.file_subjects s
+        where s.tenant_id = u.tenant_id and s.file_id = ${input.fileId}::uuid
+          and s.user_id = u.id and s.status = 'active')`);
+}

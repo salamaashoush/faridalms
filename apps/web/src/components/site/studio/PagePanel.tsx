@@ -1,5 +1,6 @@
 import type { SiteLocale } from "@faridalms/domain/site-sections";
 
+import { sectionFileIds } from "@faridalms/domain/site-sections";
 import { Input } from "@faridalms/ui/input";
 import {
   Select,
@@ -11,6 +12,7 @@ import {
 import { Textarea } from "@faridalms/ui/textarea";
 
 import { LOCALE_NAME } from "~/components/content/languages";
+import { PicturedPeople } from "~/components/files/PicturedPeople";
 import { CheckboxRow } from "~/components/people/fields";
 import * as m from "~/i18n/messages";
 
@@ -177,6 +179,17 @@ export function PagePanel({
             />
           </StudioField>
         ))}
+      </PanelGroup>
+      <PanelGroup title={m.picturedTitle()} hint={m.picturedHint()}>
+        <PicturedPeople
+          fileIds={[
+            ...new Set([
+              ...draft.sections.flatMap(sectionFileIds),
+              ...Object.values(draft.translated).flatMap(sectionFileIds),
+            ]),
+          ]}
+          channel="website"
+        />
       </PanelGroup>
       {pageId && history.length ? (
         <PanelGroup title={m.siteHistory()} hint={m.siteHistoryHint()}>
