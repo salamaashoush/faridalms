@@ -79,6 +79,10 @@ export const overrideLesson = createServerFn({ method: "POST" })
   .validator(checked(overrideSchema))
   .handler(({ data }) => backend().learning.override(data));
 
+export const getNextLessons = createServerFn({ method: "GET" }).handler(() =>
+  backend().learning.nextLessons(),
+);
+
 export const getMyModules = createServerFn({ method: "GET" })
   .validator(checked(v.object({ studentId: optionalId })))
   .handler(({ data }) => backend().learning.mine(data));

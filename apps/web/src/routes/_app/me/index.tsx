@@ -16,19 +16,37 @@ import {
   itemLink,
   Lessons,
 } from "~/components/home/parts";
+import { YoungHome } from "~/components/home/YoungHome";
 import { EmptyState, PageHeader } from "~/components/system/IndexPage";
 import { RecordColumns } from "~/components/system/RecordPage";
 import { StatusText } from "~/components/system/status";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { studentHomeQuery } from "~/queries/home";
+import { nextLessonsQuery } from "~/queries/learning";
+import { currentUserQuery } from "~/queries/user";
 import { formatDate, formatNumber } from "~/utils/datetime";
 
 export const Route = createFileRoute("/_app/me/")({
-  loader: ({ context }) =>
-    context.queryClient.ensureQueryData(studentHomeQuery),
-  component: StudentHome,
+  loader: async ({ context }) => {
+    const user = await context.queryClient.ensureQueryData(currentUserQuery);
+    await Promise.all([
+      context.queryClient.ensureQueryData(studentHomeQuery),
+      user.profile === "young_student"
+        ? context.queryClient.ensureQueryData(nextLessonsQuery)
+        : null,
+    ]);
+  },
+  component: Home,
 });
+
+function Home() {
+  return useCurrentUser().profile === "young_student" ? (
+    <YoungHome />
+  ) : (
+    <StudentHome />
+  );
+}
 
 /**
  * A student's home: work due soon with anything missing first, today's

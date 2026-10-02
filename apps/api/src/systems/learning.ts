@@ -907,6 +907,65 @@ export const mine = readProcedure
     };
   });
 
+/**
+ * What a young child does next: the next open lesson of each of their
+ * modules, a lesson already begun first, so their home shows a few big
+ * cards rather than a list of modules.
+ */
+export const nextLessons = readProcedure.handler(async ({ context }) => {
+  const { studentId } = await learner(context, "");
+  if (!(await isOn(context))) return { lessons: [] };
+  const rows = await studentModules(context.tx, {
+    tenantId: context.tenantId,
+    schoolId: context.schoolId,
+    studentId,
+    classIds: await classesOfStudent(context, studentId),
+  });
+  const finished = new Set(
+    rows
+      .filter((row) => row.lessons > 0 && row.completed === row.lessons)
+      .map((row) => row.id),
+  );
+  const open = rows.filter(
+    (row) =>
+      !finished.has(row.id) &&
+      (row.prerequisiteId === null || finished.has(row.prerequisiteId)),
+  );
+  const lessons = await Promise.all(
+    open.map((row) => studentLessons(context, row.id)),
+  );
+  const cells = await progressIn(context.tx, {
+    tenantId: context.tenantId,
+    lessonIds: lessons.flat().map((item) => item.id),
+    studentIds: [studentId],
+  });
+  const done = new Set(
+    cells.filter((cell) => cell.completedAt).map((cell) => cell.lessonId),
+  );
+  const begun = new Set(cells.map((cell) => cell.lessonId));
+  const found = open.flatMap((row, index) => {
+    const next = outline(row, lessons[index] ?? [], done, false).find(
+      (item) => item.state === "open",
+    );
+    return next
+      ? [
+          {
+            lessonId: next.id,
+            title: next.title,
+            moduleId: row.id,
+            moduleTitle: row.title,
+            begun: begun.has(next.id),
+          },
+        ]
+      : [];
+  });
+  return {
+    lessons: found
+      .toSorted((a, b) => Number(b.begun) - Number(a.begun))
+      .slice(0, 6),
+  };
+});
+
 /** A module's lessons as a student meets them: done, open or locked, the unpublished left out. */
 export const play = readProcedure
   .input(

@@ -88,7 +88,8 @@ function useVisibleNavigation() {
       items: section.items.filter(
         (item) =>
           (!item.capability || user.capabilities.includes(item.capability)) &&
-          (!item.feature || user.features[item.feature]),
+          (!item.feature || user.features[item.feature]) &&
+          (user.profile !== "young_student" || item.young),
       ),
     }))
     .filter((section) => section.items.length > 0);

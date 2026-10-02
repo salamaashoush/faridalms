@@ -260,6 +260,26 @@ describe("learning a module", () => {
     expect(finished?.completed).toBe(finished?.lessons);
   });
 
+  test("a student's next lessons hold the open lesson of each module, begun first", async () => {
+    const api = await student();
+    const { module, outline } = await lessonsOf(api);
+    const open = outline.lessons.find((lesson) => lesson.state === "open");
+    const { lessons } = await api.learning.nextLessons({});
+    expect(lessons.find((lesson) => lesson.moduleId === module.id)).toEqual(
+      open
+        ? expect.objectContaining({
+            lessonId: open.id,
+            title: open.title,
+            moduleTitle: TITLE,
+          })
+        : undefined,
+    );
+    const fresh = lessons.findIndex((lesson) => !lesson.begun);
+    expect(
+      fresh < 0 || lessons.slice(fresh).every((lesson) => !lesson.begun),
+    ).toBe(true);
+  });
+
   test("a family reads their child's progress", async () => {
     const family = await mother();
     const me = await (await student()).identity.currentUser();

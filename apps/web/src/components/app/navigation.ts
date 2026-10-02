@@ -40,6 +40,8 @@ export interface NavItem {
   feature?: Feature;
   /** Match the route exactly, for section index pages. */
   exact?: boolean;
+  /** Kept for young children, whose home holds everything they open. */
+  young?: boolean;
 }
 
 export interface NavSection {
@@ -189,7 +191,13 @@ export const NAVIGATION: Record<Workspace, NavSection[]> = {
   me: [
     {
       items: [
-        { to: "/me", label: m.navHome, icon: House, exact: true },
+        {
+          to: "/me",
+          label: m.navHome,
+          icon: House,
+          exact: true,
+          young: true,
+        },
         { to: "/me/assignments", label: m.navToDo, icon: ListTodo },
         { to: "/me/grades", label: m.navGrades, icon: BookOpen },
         { to: "/me/attendance", label: m.navAttendance, icon: UserCheck },
