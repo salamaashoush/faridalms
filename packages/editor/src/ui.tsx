@@ -28,6 +28,7 @@ export function Floating({
   id,
   container,
   boundary,
+  keepInView = false,
 }: {
   reference: ReferenceElement | null;
   placement?: Placement;
@@ -40,6 +41,11 @@ export function Floating({
   container?: HTMLElement | null;
   /** Keeps it within this element, such as the editor's text, not just the window. */
   boundary?: Element | null;
+  /**
+   * A tall panel slides up or down to stay on screen, covering the text it
+   * belongs to rather than running off the top or bottom of the window.
+   */
+  keepInView?: boolean;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const attach = useCallback(
@@ -72,14 +78,18 @@ export function Floating({
           inline(),
           offset(8),
           flip({ padding: 8, ...(boundary ? { boundary } : {}) }),
-          shift({ padding: 8, ...(boundary ? { boundary } : {}) }),
+          shift({
+            padding: 8,
+            crossAxis: keepInView,
+            ...(boundary ? { boundary } : {}),
+          }),
         ],
       }).then(({ x, y }) => {
         floating.style.transform = `translate(${Math.round(x)}px, ${Math.round(y)}px)`;
         floating.style.visibility = "visible";
       });
     });
-  }, [reference, placement, boundary]);
+  }, [reference, placement, boundary, keepInView]);
   if (!reference) return null;
   return createPortal(
     <div

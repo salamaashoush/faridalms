@@ -66,6 +66,10 @@ From [../research/early-years.md](../research/early-years.md).
   with eight colours, two pens, an eraser and undo, or with a photo, which is
   shrunk and re-encoded so it carries no location. The teacher sees and marks
   each in the Answers tab.
+- A find-on-a-picture question has the teacher drag a box over each thing to
+  find. A find is judged under the child's finger, with a little slack, so
+  only a tap on nothing or the last find counts as a try; after two misses
+  "Show me" rings what is left.
 - Children see no points or scores. Soft notes and a word of praise naming
   what they did answer each try, and the end of the lesson says so once.
 - A young child's home is up to six big cards, a lesson already begun first,

@@ -86,6 +86,9 @@ export function blockIssue(block: LessonBlock): string | null {
       return block.items.filter((item) => partName(item)).length < 2
         ? m.lrnItemsNeeded()
         : null;
+    case "hotspot":
+      if (!block.picture) return m.lrnHotspotPicture();
+      return block.regions.length === 0 ? m.lrnHotspotPlaces() : null;
     case "media":
       if (needsCaptions(block.mediaType) && !block.captionsFileId)
         return m.lrnErrCaptions();

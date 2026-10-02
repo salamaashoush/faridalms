@@ -44,6 +44,7 @@ import {
   ArrowDownUp,
   ArrowLeftRight,
   Blocks,
+  ScanSearch,
   Dices,
   Signature,
   Brackets,
@@ -131,6 +132,7 @@ export type BlockType =
   | "countingQuestion"
   | "tracingQuestion"
   | "spellingQuestion"
+  | "hotspotQuestion"
   | "gapsQuestion"
   | "trueFalseQuestion"
   | "gate"
@@ -152,6 +154,7 @@ const QUESTION_KIND: Partial<Record<BlockType, QuestionKind>> = {
   countingQuestion: "counting",
   tracingQuestion: "tracing",
   spellingQuestion: "spelling",
+  hotspotQuestion: "hotspot",
 };
 
 export interface BlockDefinition {
@@ -568,6 +571,25 @@ export const blockDefinitions: BlockDefinition[] = [
       "كلمة",
       "تهجئة",
       "حروف",
+    ],
+    question: true,
+    activity: true,
+  },
+  {
+    type: "hotspotQuestion",
+    group: "questions",
+    icon: ScanSearch,
+    label: (s) => s.questionHotspot,
+    hint: (s) => s.questionHotspotHint,
+    keywords: [
+      "find",
+      "picture",
+      "hotspot",
+      "tap",
+      "spot",
+      "ابحث",
+      "صورة",
+      "أين",
     ],
     question: true,
     activity: true,

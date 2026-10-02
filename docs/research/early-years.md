@@ -84,7 +84,7 @@ Each shapes a rule here.
   boards (0b44e72), and the sizes, guards and help ladder above (2ca1682).
 - Voice answers (6264efa), counting (dad0e28), tracing (9e18422), memory
   pairs (6438ed6), the word builder (d770b64), drawing and photo answers
-  (d395bea).
+  (d395bea), find-on-a-picture.
 - The young home (9bc5acd), QR sign-in badges (55a2885, a48de02), a
   guardian's hand-over at home (9738a3e), the teacher's first try, with help
   or not yet grid (6719cde), and the editor's advice for young lessons
@@ -92,8 +92,6 @@ Each shapes a rule here.
 
 ## 4. Next, in order
 
-1. Find-on-a-picture: the teacher marks places on a picture and the child
-   taps each one.
-2. An optional "tell me why" recording after any question.
-3. The starter library: an open picture set in the picture picker, activity
+1. An optional "tell me why" recording after any question.
+2. The starter library: an open picture set in the picture picker, activity
    templates, and StoryWeaver books as narrated read-along lessons.

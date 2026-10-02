@@ -605,6 +605,78 @@ describe("drawn and photographed answers", () => {
   });
 });
 
+describe("find on a picture", () => {
+  const find: LessonDocument = {
+    version: 2,
+    blocks: [
+      {
+        id: partId(60),
+        type: "hotspot",
+        prompt: "Find the two ducks.",
+        points: 1,
+        hint: "",
+        explanation: "",
+        tries: null,
+        picture: { fileId: partId(61), alt: "A pond" },
+        regions: [
+          [0.1, 0.2, 0.2, 0.2],
+          [0.6, 0.5, 0.2, 0.3],
+        ],
+      },
+    ],
+  };
+  const [block] = find.blocks;
+  if (block?.type !== "hotspot") throw new Error("a hotspot question");
+
+  it("keeps the picture and its places through the document", () => {
+    const document = contentOfLesson(find);
+    if (!document) throw new Error("lesson could not become a document");
+    expect(checks(lessonOfContent(document).blocks)).toEqual(
+      checks(find.blocks),
+    );
+  });
+
+  it("finds a place from a tap on it or just beside it", () => {
+    expect(
+      markResponse(block, {
+        type: "hotspot",
+        taps: [
+          [0.15, 0.25],
+          [0.82, 0.79],
+        ],
+      }),
+    ).toMatchObject({ correct: true, fraction: 1 });
+    expect(
+      markResponse(block, { type: "hotspot", taps: [[0.2, 0.3]] }),
+    ).toMatchObject({
+      correct: false,
+      parts: { "region-1": true, "region-2": false },
+    });
+  });
+
+  it("counts a tap on nothing as a miss even when every place is found", () => {
+    expect(
+      markResponse(block, {
+        type: "hotspot",
+        taps: [
+          [0.15, 0.25],
+          [0.7, 0.6],
+          [0.45, 0.05],
+        ],
+      }),
+    ).toMatchObject({ correct: false });
+  });
+
+  it("is not ready without a picture and a place to find", () => {
+    expect(
+      v.safeParse(lessonDocumentSchema, {
+        version: 2,
+        blocks: [{ ...block, regions: [] }],
+      }).success,
+    ).toBe(false);
+  });
+});
+
 describe("word builder", () => {
   const ship: LessonDocument = {
     version: 2,

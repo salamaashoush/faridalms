@@ -210,6 +210,12 @@ export interface EditorStrings {
   questionTracing: string;
   questionMemory: string;
   questionSpelling: string;
+  questionHotspot: string;
+  questionHotspotHint: string;
+  questionMarkPlaces: string;
+  questionMarkPlacesHint: string;
+  questionPlacesMarked: (count: number) => string;
+  questionPlaceUndo: string;
   questionSpellingHint: string;
   questionWordTiles: string;
   questionExtraTiles: string;

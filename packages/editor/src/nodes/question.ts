@@ -137,6 +137,22 @@ function drawTrace(trace: readonly number[][], dom: HTMLElement) {
   dom.prepend(holder);
 }
 
+/** Outlines the places to find over a find-on-a-picture question's picture. */
+function drawRegions(regions: readonly number[][], dom: HTMLElement) {
+  const holder = dom.querySelector<HTMLElement>(":scope > [data-part-picture]");
+  if (!holder) return;
+  const document = $getDocument();
+  regions.forEach(([left = 0, top = 0, width = 0, height = 0], index) => {
+    const box = document.createElement("span");
+    box.dataset.region = String(index + 1);
+    box.style.left = `${left * 100}%`;
+    box.style.top = `${top * 100}%`;
+    box.style.width = `${width * 100}%`;
+    box.style.height = `${height * 100}%`;
+    holder.append(box);
+  });
+}
+
 function pictureSlot(dom: HTMLElement, slot: ElementDOMSlot): ElementDOMSlot {
   const picture = dom.querySelector(":scope > [data-part-picture]");
   return picture ? slot.withAfter(picture) : slot;
@@ -230,6 +246,8 @@ export interface QuestionSettings {
   flashSeconds: number | null;
   /** A tracing question's model, the teacher's strokes across a unit square. */
   trace: number[][];
+  /** A find-on-a-picture question's places: left, top, width, height. */
+  regions: number[][];
   /** A matching question played as memory pairs. */
   memory: boolean;
   hint: string;
@@ -262,6 +280,7 @@ export function defaultSettings(kind: QuestionKind): QuestionSettings {
     countLayout: "scatter",
     flashSeconds: null,
     trace: [],
+    regions: [],
     memory: false,
     hint: "",
     explanation: "",
@@ -361,6 +380,7 @@ export class QuestionNode extends ElementNode {
       countLayout: json.countLayout ?? base.countLayout,
       flashSeconds: json.flashSeconds ?? null,
       trace: json.trace ?? [],
+      regions: json.regions ?? [],
       memory: json.memory ?? false,
       hint: json.hint ?? "",
       explanation: json.explanation ?? "",
@@ -386,6 +406,7 @@ export class QuestionNode extends ElementNode {
       countLayout,
       flashSeconds,
       trace,
+      regions,
       memory,
       ...settings
     } = this.getLatest().__settings;
@@ -398,6 +419,7 @@ export class QuestionNode extends ElementNode {
         ? { count, countMode, countLayout, flashSeconds }
         : {}),
       ...(settings.kind === "tracing" ? { trace } : {}),
+      ...(settings.kind === "hotspot" ? { regions } : {}),
       ...(settings.kind === "matching" && memory ? { memory } : {}),
     };
   }
@@ -419,9 +441,12 @@ export class QuestionNode extends ElementNode {
       dom.dataset.answer = `${labels.get(editor)?.answerIs ?? ""} ${numberAnswer(this.__settings)}`;
     if (
       this.__settings.kind === "counting" ||
-      this.__settings.kind === "spelling"
+      this.__settings.kind === "spelling" ||
+      this.__settings.kind === "hotspot"
     )
       drawPicture(this, dom, editor);
+    if (this.__settings.kind === "hotspot")
+      drawRegions(this.__settings.regions, dom);
     if (this.__settings.kind === "tracing")
       drawTrace(this.__settings.trace, dom);
     return dom;
@@ -442,6 +467,7 @@ export class QuestionNode extends ElementNode {
       previous.__settings.count !== settings.count ||
       previous.__settings.countMode !== settings.countMode ||
       previous.__settings.trace !== settings.trace ||
+      previous.__settings.regions !== settings.regions ||
       !samePicture(previous, this) ||
       numberAnswer(previous.__settings) !== numberAnswer(settings)
     )

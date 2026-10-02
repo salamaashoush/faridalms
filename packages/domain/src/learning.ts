@@ -66,6 +66,13 @@ export const FLASH_SECONDS = [2, 3, 5] as const;
 /** A word built from up to twelve tiles, with up to six that do not belong. */
 export const MAX_TILES = 12;
 export const MAX_EXTRA_TILES = 6;
+/** Things to find in one picture. */
+export const MAX_HOTSPOTS = 8;
+/**
+ * How far past a marked place a tap still finds it, across the picture: a
+ * young finger lands several millimetres off what it aims at.
+ */
+export const HOTSPOT_SLACK = 0.03;
 /** Taken off a check's credit for each try after the first, as Moodle's interactive mode does. */
 export const TRY_PENALTY = 1 / 3;
 
@@ -122,6 +129,8 @@ const matching = {
 export const pictureSchema = v.object({ fileId: id, alt: text(300) });
 export type Picture = v.InferOutput<typeof pictureSchema>;
 const picture = v.optional(v.nullable(pictureSchema));
+/** A position or size across a picture, from its start edge to its end. */
+const unit = v.pipe(v.number(), v.minValue(0), v.maxValue(1));
 
 interface Named {
   text: string;
@@ -344,6 +353,23 @@ export const lessonBlockSchema = v.variant("type", [
       "learning.sort_group",
     ),
   ),
+  v.pipe(
+    v.object({
+      ...checkFields,
+      type: v.literal("hotspot"),
+      /** The picture children search; required before the question is shown. */
+      picture,
+      /** Each place to find: left, top, width and height across the picture. */
+      regions: v.pipe(
+        v.array(v.tuple([unit, unit, unit, unit])),
+        v.maxLength(MAX_HOTSPOTS),
+      ),
+    }),
+    v.check(
+      (block) => Boolean(block.picture) && block.regions.length > 0,
+      "learning.hotspot_needed",
+    ),
+  ),
   v.object({
     ...checkFields,
     type: v.literal("spelling"),
@@ -420,6 +446,7 @@ export type WrittenBlock = Extract<LessonBlock, { type: "written" }>;
 export type CountingBlock = Extract<LessonBlock, { type: "counting" }>;
 export type TracingBlock = Extract<LessonBlock, { type: "tracing" }>;
 export type SpellingBlock = Extract<LessonBlock, { type: "spelling" }>;
+export type HotspotBlock = Extract<LessonBlock, { type: "hotspot" }>;
 /** A question the server marks the moment it is answered. */
 export type AutoBlock =
   | ChoiceBlock
@@ -431,7 +458,8 @@ export type AutoBlock =
   | SortingBlock
   | CountingBlock
   | TracingBlock
-  | SpellingBlock;
+  | SpellingBlock
+  | HotspotBlock;
 export type CheckBlock = AutoBlock | WrittenBlock;
 
 const AUTO_TYPES = new Set<LessonBlockType>([
@@ -445,6 +473,7 @@ const AUTO_TYPES = new Set<LessonBlockType>([
   "counting",
   "tracing",
   "spelling",
+  "hotspot",
 ]);
 
 export const isAuto = (block: LessonBlock): block is AutoBlock =>
@@ -666,6 +695,11 @@ export const responseSchema = v.variant("type", [
     value: v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(100)),
   }),
   v.object({
+    type: v.literal("hotspot"),
+    /** Where the child tapped, across the picture: every find, and a miss last. */
+    taps: v.pipe(v.array(v.tuple([unit, unit])), v.maxLength(MAX_HOTSPOTS + 1)),
+  }),
+  v.object({
     type: v.literal("spelling"),
     tiles: v.pipe(v.array(text(8)), v.maxLength(MAX_TILES)),
   }),
@@ -723,6 +757,19 @@ const round = (value: number) => Math.round(value * 10000) / 10000;
  * question gives credit per right choice and takes it back per wrong one,
  * never below nothing, as Canvas does.
  */
+/** Whether a tap lands on a marked place, or near enough for a small finger. */
+export function regionHit(
+  [left, top, width, height]: readonly [number, number, number, number],
+  [x, y]: readonly [number, number],
+): boolean {
+  return (
+    x >= left - HOTSPOT_SLACK &&
+    x <= left + width + HOTSPOT_SLACK &&
+    y >= top - HOTSPOT_SLACK &&
+    y <= top + height + HOTSPOT_SLACK
+  );
+}
+
 export function markResponse(
   block: AutoBlock,
   response: LessonResponse,
@@ -842,6 +889,22 @@ export function markResponse(
         correct: exact,
         parts,
       };
+    }
+    case "hotspot": {
+      if (response.type !== "hotspot") return none;
+      const results = Object.fromEntries(
+        block.regions.map((region, index) => [
+          `region-${index + 1}`,
+          response.taps.some((tap) => regionHit(region, tap)),
+        ]),
+      );
+      const marked = share(results);
+      // A tap that finds nothing is a miss, even once every place is found.
+      return response.taps.every((tap) =>
+        block.regions.some((region) => regionHit(region, tap)),
+      )
+        ? marked
+        : { ...marked, correct: false };
     }
     case "spelling": {
       if (response.type !== "spelling") return none;
@@ -1000,6 +1063,7 @@ export type StudentBlock =
     })
   | Omit<CountingBlock, "explanation" | "hint">
   | Omit<TracingBlock, "explanation" | "hint">
+  | Omit<HotspotBlock, "explanation" | "hint">
   | (Omit<SpellingBlock, "explanation" | "hint" | "tiles" | "extras"> & {
       /** Every tile, the word's and the extra ones, in one shuffled pile. */
       pile: { id: string; text: string }[];
@@ -1176,9 +1240,13 @@ export function studentBlocks(
           ),
         };
       }
+      // A hotspot's places travel with it, as a tracing's model does, so a
+      // find is judged under the finger and only a miss or the last find
+      // counts as a try.
       case "written":
       case "counting":
-      case "tracing": {
+      case "tracing":
+      case "hotspot": {
         const { explanation: _why, hint: _hint, ...rest } = block;
         return rest;
       }
@@ -1220,6 +1288,8 @@ export function answerKey(block: AutoBlock): string[] {
       return [block.prompt];
     case "spelling":
       return [block.tiles.join("")];
+    case "hotspot":
+      return [block.picture?.alt || block.prompt];
     case "sorting":
       return block.items.map(
         (item) =>

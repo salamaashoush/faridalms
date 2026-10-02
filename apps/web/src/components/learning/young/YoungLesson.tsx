@@ -32,6 +32,7 @@ import { Burst } from "./motion";
 import { playSound, setSoundsOn, soundsOn } from "./sounds";
 import { FoundContext, YoungChoice } from "./YoungChoice";
 import { YoungCounting } from "./YoungCounting";
+import { YoungHotspot } from "./YoungHotspot";
 import { YoungMemory } from "./YoungMemory";
 import { YoungMatching, YoungOrdering, YoungSorting } from "./YoungPlace";
 import { YoungSpelling } from "./YoungSpelling";
@@ -132,6 +133,8 @@ function StepBlock({
       <YoungTracing block={block} view={view} driver={driver} />
     ) : block.type === "spelling" ? (
       <YoungSpelling block={block} view={view} driver={driver} />
+    ) : block.type === "hotspot" ? (
+      <YoungHotspot block={block} view={view} driver={driver} />
     ) : block.type === "written" && block.recordSeconds ? (
       <YoungSpoken block={block} view={view} driver={driver} />
     ) : block.type === "written" && block.answerWith ? (

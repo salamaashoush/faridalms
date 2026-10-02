@@ -154,6 +154,16 @@ function questionBlock(node: ContentNode): LessonBlock | null {
       };
     case "tracing":
       return { ...check, type: "tracing", strokes: node.trace ?? [] };
+    case "hotspot":
+      return {
+        ...check,
+        type: "hotspot",
+        picture: pictureOf(node),
+        regions: (node.regions ?? []).map(
+          ([left = 0, top = 0, width = 0, height = 0]) =>
+            [left, top, width, height] as [number, number, number, number],
+        ),
+      };
     case "spelling": {
       // The first answer line is the word's tiles; any after it, extras.
       const [word, ...extra] = parts.filter(
@@ -467,7 +477,8 @@ export function questionNode(block: LessonBlock): ContentNode | null {
     block.type !== "gaps" &&
     block.type !== "counting" &&
     block.type !== "tracing" &&
-    block.type !== "spelling"
+    block.type !== "spelling" &&
+    block.type !== "hotspot"
   )
     return null;
   const base: ContentNode = {
@@ -609,6 +620,12 @@ export function questionNode(block: LessonBlock): ContentNode | null {
       ],
     };
   if (block.type === "tracing") return { ...base, trace: block.strokes };
+  if (block.type === "hotspot")
+    return {
+      ...base,
+      ...pictureFields(block.picture),
+      regions: block.regions.map((region) => [...region]),
+    };
   if (block.type === "spelling")
     return {
       ...base,

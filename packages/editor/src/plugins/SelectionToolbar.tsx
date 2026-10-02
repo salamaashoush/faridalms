@@ -57,6 +57,7 @@ import {
   Underline,
   Unlink,
   Grid2x2,
+  ScanSearch,
   Signature,
   Volume2,
 } from "lucide-react";
@@ -71,6 +72,7 @@ import type {
   QuestionOptionNode,
 } from "../nodes/question";
 import type { EditorColor } from "../strings";
+import type { Region } from "./regions";
 
 import {
   $anchorFor,
@@ -129,6 +131,7 @@ import {
   shortcutLabel,
 } from "../ui";
 import { NarrationPanel, OPEN_NARRATION_COMMAND } from "./narration";
+import { RegionPad } from "./regions";
 import { TracePad } from "./trace";
 
 type Mode =
@@ -142,7 +145,8 @@ type Mode =
   | "question-text"
   | "question-number"
   | "narration"
-  | "trace";
+  | "trace"
+  | "regions";
 
 /** The question the caret is in: what the bar shows and changes. */
 interface QuestionBarFacts {
@@ -398,7 +402,8 @@ export function SelectionToolbarPlugin() {
       if (
         !part &&
         (node.getSettings().kind === "counting" ||
-          node.getSettings().kind === "spelling")
+          node.getSettings().kind === "spelling" ||
+          node.getSettings().kind === "hotspot")
       )
         part = node;
       return {
@@ -442,7 +447,8 @@ export function SelectionToolbarPlugin() {
       modeRef.current === "question-text" ||
       modeRef.current === "question-number" ||
       modeRef.current === "narration" ||
-      modeRef.current === "trace"
+      modeRef.current === "trace" ||
+      modeRef.current === "regions"
     )
       return;
     const root = editor.getRootElement();
@@ -590,7 +596,8 @@ export function SelectionToolbarPlugin() {
       mode === "question-text" ||
       mode === "question-number" ||
       mode === "narration" ||
-      mode === "trace"
+      mode === "trace" ||
+      mode === "regions"
     )
       return undefined;
     const onFocus = () => {
@@ -602,7 +609,8 @@ export function SelectionToolbarPlugin() {
         modeRef.current === "question-text" ||
         modeRef.current === "question-number" ||
         modeRef.current === "narration" ||
-        modeRef.current === "trace"
+        modeRef.current === "trace" ||
+        modeRef.current === "regions"
       )
         return;
       const active = document.activeElement;
@@ -979,6 +987,20 @@ export function SelectionToolbarPlugin() {
           {settings.kind === "matching" && lessonActivities
             ? toggle("memory", strings.questionMemory, <Grid2x2 aria-hidden />)
             : null}
+          {settings.kind === "hotspot" && question.part?.picture && media ? (
+            <ToolButton
+              label={strings.questionMarkPlaces}
+              active={settings.regions.length > 0}
+              onClick={() => {
+                saved.current = editor
+                  .getEditorState()
+                  .read(() => $getSelection()?.clone() ?? null);
+                show("regions");
+              }}
+            >
+              <ScanSearch aria-hidden />
+            </ToolButton>
+          ) : null}
           {settings.kind === "tracing" ? (
             <ToolButton
               label={strings.questionDrawTrace}
@@ -1148,6 +1170,45 @@ export function SelectionToolbarPlugin() {
     );
   }
 
+  if (mode === "regions" && question?.part?.picture && media) {
+    const close = () => {
+      show("question");
+      focusText(editor);
+    };
+    return (
+      <Floating
+        reference={reference}
+        placement="bottom-start"
+        boundary={boundary}
+        className="w-[28rem] max-w-[calc(100vw-1rem)] p-3"
+        keepInView
+      >
+        <div ref={toolbar}>
+          <RegionPad
+            src={media.url(question.part.picture.fileId)}
+            alt={question.part.picture.alt}
+            regions={question.settings.regions.map(
+              ([left = 0, top = 0, width = 0, height = 0]): Region => [
+                left,
+                top,
+                width,
+                height,
+              ],
+            )}
+            onClose={close}
+            onDone={(regions) => {
+              withSelection(() => {
+                const node = $getNodeByKey(question.key);
+                if ($isQuestionNode(node)) node.setSettings({ regions });
+              });
+              close();
+            }}
+          />
+        </div>
+      </Floating>
+    );
+  }
+
   if (mode === "trace" && question) {
     const close = () => {
       show("question");
@@ -1159,6 +1220,7 @@ export function SelectionToolbarPlugin() {
         placement="bottom-start"
         boundary={boundary}
         className="w-80 max-w-[calc(100vw-1rem)] p-3"
+        keepInView
       >
         <div ref={toolbar}>
           <TracePad

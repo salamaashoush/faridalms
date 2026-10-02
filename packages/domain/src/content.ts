@@ -63,6 +63,7 @@ export const questionKinds = [
   "counting",
   "tracing",
   "spelling",
+  "hotspot",
 ] as const;
 export type QuestionKind = (typeof questionKinds)[number];
 export const calloutTones = [
@@ -159,6 +160,8 @@ export interface ContentNode {
   recordSeconds?: number | null;
   /** A written question answered with a drawing or a photo. */
   answerWith?: "drawing" | "photo" | null;
+  /** A find-on-a-picture question's places: left, top, width, height. */
+  regions?: number[][];
   count?: number;
   countMode?: "count" | "make";
   countLayout?: "scatter" | "line" | "frame";
@@ -314,6 +317,17 @@ const nodeSchema: v.GenericSchema<ContentNode> = v.lazy(() =>
       wordLimit: v.optional(v.nullable(integer(10, 5000))),
       recordSeconds: v.optional(v.nullable(integer(5, 180))),
       answerWith: v.optional(v.nullable(v.picklist(["drawing", "photo"]))),
+      regions: v.optional(
+        v.pipe(
+          v.array(
+            v.pipe(
+              v.array(v.pipe(v.number(), v.minValue(0), v.maxValue(1))),
+              v.length(4),
+            ),
+          ),
+          v.maxLength(8),
+        ),
+      ),
       count: v.optional(integer(1, 20)),
       countMode: v.optional(v.picklist(["count", "make"])),
       countLayout: v.optional(v.picklist(["scatter", "line", "frame"])),

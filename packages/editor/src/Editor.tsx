@@ -247,6 +247,7 @@ function Surface({
         counting: strings.questionCounting,
         tracing: strings.questionTracing,
         spelling: strings.questionSpelling,
+        hotspot: strings.questionHotspot,
       },
       spoken: strings.questionSpoken,
       pictured: {
