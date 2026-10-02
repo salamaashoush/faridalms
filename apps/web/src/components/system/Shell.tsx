@@ -265,12 +265,14 @@ function SidebarBody() {
             </span>
           </span>
         </Link>
-        <div className="flex items-center gap-1">
-          <div className="min-w-0 flex-1">
-            <WorkspaceSearch variant="sidebar" />
+        {user.profile === "young_student" ? null : (
+          <div className="flex items-center gap-1">
+            <div className="min-w-0 flex-1">
+              <WorkspaceSearch variant="sidebar" />
+            </div>
+            <NotificationBell className="size-8" />
           </div>
-          <NotificationBell className="size-8" />
-        </div>
+        )}
       </SidebarHeader>
       <SidebarContent className="gap-0 px-1">
         <nav aria-label={m.navPrimary()}>
@@ -406,6 +408,7 @@ export function Shell({
   children: ReactNode;
   sidebarOpen?: boolean;
 }) {
+  const young = useCurrentUser().profile === "young_student";
   const immersive = useRouterState({
     select: (state) => state.matches.at(-1)?.staticData.immersive ?? false,
   });
@@ -441,13 +444,17 @@ export function Shell({
               <WorkspaceBreadcrumb />
             </div>
             <PageActionsSlot />
-            <div
-              data-slot="global-tools"
-              className="flex items-center md:hidden"
-            >
-              <WorkspaceSearch variant="bar" />
-              <NotificationBell className="size-8 max-md:size-10" />
-            </div>
+            {/* A child who cannot read yet has nothing to search for and
+                no notices to read; their home holds all they open. */}
+            {young ? null : (
+              <div
+                data-slot="global-tools"
+                className="flex items-center md:hidden"
+              >
+                <WorkspaceSearch variant="bar" />
+                <NotificationBell className="size-8 max-md:size-10" />
+              </div>
+            )}
           </header>
           <div className="flex flex-1 flex-col px-4 py-6 pb-24 sm:px-6 md:pb-10">
             {children}
