@@ -181,11 +181,13 @@ function questionBlock(node: ContentNode): LessonBlock | null {
       };
     case "written": {
       const spoken = spokenFor(node.recordSeconds);
+      const pictured = spoken === null ? (node.answerWith ?? null) : null;
       return {
         ...check,
         type: "written",
         wordLimit: node.wordLimit ?? null,
         ...(spoken === null ? {} : { recordSeconds: spoken }),
+        ...(pictured === null ? {} : { answerWith: pictured }),
       };
     }
     case "number":
@@ -632,6 +634,7 @@ export function questionNode(block: LessonBlock): ContentNode | null {
     ...base,
     wordLimit: block.wordLimit,
     ...(block.recordSeconds ? { recordSeconds: block.recordSeconds } : {}),
+    ...(block.answerWith ? { answerWith: block.answerWith } : {}),
   };
 }
 

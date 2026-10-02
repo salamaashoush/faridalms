@@ -157,6 +157,8 @@ export interface ContentNode {
   tehMarbuta?: boolean;
   wordLimit?: number | null;
   recordSeconds?: number | null;
+  /** A written question answered with a drawing or a photo. */
+  answerWith?: "drawing" | "photo" | null;
   count?: number;
   countMode?: "count" | "make";
   countLayout?: "scatter" | "line" | "frame";
@@ -311,6 +313,7 @@ const nodeSchema: v.GenericSchema<ContentNode> = v.lazy(() =>
       tehMarbuta: v.optional(v.boolean()),
       wordLimit: v.optional(v.nullable(integer(10, 5000))),
       recordSeconds: v.optional(v.nullable(integer(5, 180))),
+      answerWith: v.optional(v.nullable(v.picklist(["drawing", "photo"]))),
       count: v.optional(integer(1, 20)),
       countMode: v.optional(v.picklist(["count", "make"])),
       countLayout: v.optional(v.picklist(["scatter", "line", "frame"])),

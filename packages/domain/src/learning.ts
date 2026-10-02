@@ -46,6 +46,13 @@ export const MAX_MODULE_CLASSES = 20;
  */
 export const RECORD_SECONDS = [15, 45, 90, 180] as const;
 export type RecordSeconds = (typeof RECORD_SECONDS)[number];
+/**
+ * Answers made as a picture: drawn with a finger on the screen, or a photo
+ * of something made on paper or with blocks, as Seesaw's young learners
+ * answer. Each comes back to the teacher to look at and mark.
+ */
+export const PICTURE_ANSWERS = ["drawing", "photo"] as const;
+export type PictureAnswer = (typeof PICTURE_ANSWERS)[number];
 /** Counting goes to twenty, as the Kindergarten standard does (K.CC.B.5). */
 export const MAX_COUNT = 20;
 /**
@@ -396,6 +403,8 @@ export const lessonBlockSchema = v.variant("type", [
     ),
     /** Answered by speaking, up to this many seconds, rather than writing. */
     recordSeconds: v.optional(v.nullable(v.picklist(RECORD_SECONDS))),
+    /** Answered with a drawing or a photo rather than words. */
+    answerWith: v.optional(v.nullable(v.picklist(PICTURE_ANSWERS))),
   }),
 ]);
 export type LessonBlock = v.InferOutput<typeof lessonBlockSchema>;
@@ -683,9 +692,14 @@ export const responseSchema = v.variant("type", [
           seconds: v.pipe(v.number(), v.minValue(0), v.maxValue(200)),
         }),
       ),
+      /** A drawn or photographed answer, as the student's own picture. */
+      picture: v.optional(v.object({ fileId: id })),
     }),
     v.check(
-      (answer) => answer.text !== "" || answer.recording !== undefined,
+      (answer) =>
+        answer.text !== "" ||
+        answer.recording !== undefined ||
+        answer.picture !== undefined,
       "learning.response",
     ),
   ),
@@ -1663,8 +1677,12 @@ export function responseIssue(
     return "learning.option";
   if (block.type === "written" && response.type === "written") {
     const spoken = (block.recordSeconds ?? null) !== null;
-    // A spoken answer is a recording within its length; a written one, words.
+    const pictured = (block.answerWith ?? null) !== null;
+    // A spoken answer is a recording within its length, a drawn or
+    // photographed one a picture, and a written one words.
     if (spoken !== (response.recording !== undefined))
+      return "learning.response";
+    if (pictured !== (response.picture !== undefined))
       return "learning.response";
     if (
       response.recording &&

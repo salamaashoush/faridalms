@@ -1,3 +1,4 @@
+import { StoredImage } from "@faridalms/editor/files";
 import { MediaPlayer } from "@faridalms/editor/media-view";
 import { Button } from "@faridalms/ui/button";
 import { Input } from "@faridalms/ui/input";
@@ -167,6 +168,20 @@ function AnswerCard({
           locale={getLocale()}
           captionsLabel={m.editorCaptions()}
         />
+      ) : answer.picture ? (
+        <a
+          href={`/files/${answer.picture.fileId}`}
+          target="_blank"
+          rel="noreferrer"
+          className="justify-self-start rounded-lg outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+        >
+          <StoredImage
+            src={`/files/${answer.picture.fileId}`}
+            alt={m.lrnPictureAnswerOf({ name })}
+            removed={m.fileRemoved()}
+            className="max-h-72 w-auto max-w-full rounded-lg border bg-white object-contain"
+          />
+        </a>
       ) : (
         <p dir="auto" className="text-sm leading-6 whitespace-pre-wrap">
           {answer.text}

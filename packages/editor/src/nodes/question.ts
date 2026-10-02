@@ -147,6 +147,8 @@ export interface QuestionLabels {
   kinds: Record<QuestionKind, string>;
   /** A written question answered by speaking instead. */
   spoken?: string;
+  /** "Drawing" and "Photo", for written questions answered with a picture. */
+  pictured?: Record<"drawing" | "photo", string>;
   /** A counting question by its number and what the child does. */
   count?: (count: number, make: boolean) => string;
   /** A word builder's lines: the word's tiles, then extra ones. */
@@ -218,6 +220,8 @@ export interface QuestionSettings {
   wordLimit: number | null;
   /** Answered by speaking for up to this many seconds, rather than writing. */
   recordSeconds: number | null;
+  /** Answered with a drawing or a photo, rather than writing. */
+  answerWith: "drawing" | "photo" | null;
   /** A counting question: how many, what the child does, how they are set out. */
   count: number;
   countMode: "count" | "make";
@@ -252,6 +256,7 @@ export function defaultSettings(kind: QuestionKind): QuestionSettings {
     tehMarbuta: true,
     wordLimit: null,
     recordSeconds: null,
+    answerWith: null,
     count: 5,
     countMode: "count",
     countLayout: "scatter",
@@ -295,9 +300,11 @@ function label(editor: LexicalEditor, settings: QuestionSettings): string {
   const kind =
     settings.kind === "written" && settings.recordSeconds !== null
       ? (text.spoken ?? text.kinds.written)
-      : settings.kind === "counting" && text.count
-        ? text.count(settings.count, settings.countMode === "make")
-        : text.kinds[settings.kind];
+      : settings.kind === "written" && settings.answerWith
+        ? (text.pictured?.[settings.answerWith] ?? text.kinds.written)
+        : settings.kind === "counting" && text.count
+          ? text.count(settings.count, settings.countMode === "make")
+          : text.kinds[settings.kind];
   return `${kind} · ${text.points(settings.points)}`;
 }
 
@@ -348,6 +355,7 @@ export class QuestionNode extends ElementNode {
       tehMarbuta: json.tehMarbuta ?? base.tehMarbuta,
       wordLimit: json.wordLimit ?? null,
       recordSeconds: json.recordSeconds ?? null,
+      answerWith: json.answerWith ?? null,
       count: json.count ?? base.count,
       countMode: json.countMode ?? base.countMode,
       countLayout: json.countLayout ?? base.countLayout,
@@ -372,6 +380,7 @@ export class QuestionNode extends ElementNode {
     // a setting existed read the same as they did.
     const {
       recordSeconds,
+      answerWith,
       count,
       countMode,
       countLayout,
@@ -384,6 +393,7 @@ export class QuestionNode extends ElementNode {
       ...super.exportJSON(),
       ...settings,
       ...(recordSeconds === null ? {} : { recordSeconds }),
+      ...(answerWith === null ? {} : { answerWith }),
       ...(settings.kind === "counting"
         ? { count, countMode, countLayout, flashSeconds }
         : {}),
@@ -428,6 +438,7 @@ export class QuestionNode extends ElementNode {
       previous.__settings.kind !== settings.kind ||
       previous.__settings.points !== settings.points ||
       previous.__settings.recordSeconds !== settings.recordSeconds ||
+      previous.__settings.answerWith !== settings.answerWith ||
       previous.__settings.count !== settings.count ||
       previous.__settings.countMode !== settings.countMode ||
       previous.__settings.trace !== settings.trace ||

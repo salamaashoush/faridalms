@@ -39,8 +39,8 @@ export function useSpokenAnswer(block: Written, driver: CheckDriver) {
   const [heard, setHeard] = useState<string | null>(null);
   const send = useMutation({
     mutationFn: async ({ file, seconds }: { file: File; seconds: number }) => {
-      const kept = driver.keepRecording
-        ? await driver.keepRecording(file)
+      const kept = driver.keepFile
+        ? await driver.keepFile(file)
         : {
             fileId: (await media.upload(file, "media")).fileId,
             url: null,

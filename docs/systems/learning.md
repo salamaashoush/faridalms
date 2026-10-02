@@ -62,6 +62,10 @@ From [../research/early-years.md](../research/early-years.md).
   once every card has a place, right cards stay and the others come back, and
   "Show me" lays out the answer after two tries. Questions with pictures on
   their parts work this way for older students as well.
+- A written question can be answered by speaking, by drawing on the screen
+  with eight colours, two pens, an eraser and undo, or with a photo, which is
+  shrunk and re-encoded so it carries no location. The teacher sees and marks
+  each in the Answers tab.
 - Children see no points or scores. Soft notes and a word of praise naming
   what they did answer each try, and the end of the lesson says so once.
 - A young child's home is up to six big cards, a lesson already begun first,

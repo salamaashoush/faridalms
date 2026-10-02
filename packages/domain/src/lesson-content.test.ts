@@ -10,7 +10,12 @@ import {
   sameContent,
 } from "./content";
 import { plainContent } from "./content-conversion";
-import { lessonDocumentSchema, markResponse, studentBlocks } from "./learning";
+import {
+  lessonDocumentSchema,
+  markResponse,
+  responseIssue,
+  studentBlocks,
+} from "./learning";
 import {
   briefWithQuiz,
   contentOfLesson,
@@ -554,6 +559,49 @@ describe("memory pairs", () => {
     expect(checks(lessonOfContent(document).blocks)).toEqual(
       checks(pairs.blocks),
     );
+  });
+});
+
+describe("drawn and photographed answers", () => {
+  const pictured: LessonDocument = {
+    version: 2,
+    blocks: (["drawing", "photo"] as const).map((answerWith, index) => ({
+      id: partId(50 + index),
+      type: "written",
+      prompt: "Show me your house.",
+      points: 0,
+      hint: "",
+      explanation: "",
+      tries: null,
+      wordLimit: null,
+      answerWith,
+    })),
+  };
+
+  it("keeps how a question is answered through the document", () => {
+    const document = contentOfLesson(pictured);
+    if (!document) throw new Error("lesson could not become a document");
+    expect(checks(lessonOfContent(document).blocks)).toEqual(
+      checks(pictured.blocks),
+    );
+  });
+
+  it("takes a picture for a drawn answer and refuses words alone", () => {
+    const [drawn] = pictured.blocks;
+    if (drawn?.type !== "written") throw new Error("a written question");
+    const picture = { fileId: partId(59) };
+    expect(
+      responseIssue(drawn, { type: "written", text: "", picture }),
+    ).toBeNull();
+    expect(responseIssue(drawn, { type: "written", text: "My house" })).toBe(
+      "learning.response",
+    );
+    expect(
+      responseIssue(
+        { ...drawn, answerWith: null },
+        { type: "written", text: "", picture },
+      ),
+    ).toBe("learning.response");
   });
 });
 

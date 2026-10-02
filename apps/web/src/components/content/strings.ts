@@ -227,6 +227,8 @@ export function editorStrings(): EditorStrings {
     questionTehMarbuta: m.editorQuestionTehMarbuta(),
     questionWordLimit: m.editorQuestionWordLimit(),
     questionSpoken: m.editorQuestionSpoken(),
+    questionDrawing: m.editorQuestionDrawing(),
+    questionPhoto: m.editorQuestionPhoto(),
     questionCounting: m.editorQuestionCounting(),
     questionTracing: m.editorQuestionTracing(),
     questionMemory: m.editorQuestionMemory(),
@@ -264,6 +266,8 @@ export function editorStrings(): EditorStrings {
             minutes: formatNumber(seconds / 60),
           })
         : m.editorQuestionBySpeaking({ seconds: formatNumber(seconds) }),
+    questionByDrawing: m.editorQuestionByDrawing(),
+    questionByPhoto: m.editorQuestionByPhoto(),
     questionNoLimit: m.editorQuestionNoLimit(),
     questionHint: m.editorQuestionHint(),
     questionExplanation: m.editorQuestionExplanation(),

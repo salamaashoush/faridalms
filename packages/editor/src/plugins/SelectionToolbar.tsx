@@ -162,7 +162,7 @@ const POINTS = [0, 1, 2, 3, 4, 5, 6, 8, 10];
 const TRIES = [null, 1, 2, 3, 5] as const;
 const WORD_LIMITS = [null, 50, 100, 150, 200, 300, 500] as const;
 // Writing, or speaking for up to so many seconds (RECORD_SECONDS in the domain).
-const ANSWER_BY = [null, 15, 45, 90, 180] as const;
+const ANSWER_BY = [null, 15, 45, 90, 180, "drawing", "photo"] as const;
 // Counting goes to twenty (MAX_COUNT); a glimpse lasts FLASH_SECONDS.
 const COUNTS = Array.from({ length: 20 }, (_, index) => index + 1);
 const FLASH = [null, 2, 3, 5] as const;
@@ -832,10 +832,14 @@ export function SelectionToolbarPlugin() {
       value === null
         ? strings.questionFlashOff
         : strings.questionFlashSeconds(value);
-    const answerByText = (value: number | null) =>
+    const answerByText = (value: number | "drawing" | "photo" | null) =>
       value === null
         ? strings.questionByWriting
-        : strings.questionBySpeaking(value);
+        : value === "drawing"
+          ? strings.questionByDrawing
+          : value === "photo"
+            ? strings.questionByPhoto
+            : strings.questionBySpeaking(value);
     return (
       <Floating
         reference={reference}
@@ -861,15 +865,24 @@ export function SelectionToolbarPlugin() {
               {lessonActivities ? (
                 <BarMenu
                   label={strings.questionAnswerBy}
-                  current={answerByText(settings.recordSeconds)}
+                  current={answerByText(
+                    settings.answerWith ?? settings.recordSeconds,
+                  )}
                   values={ANSWER_BY}
                   text={answerByText}
-                  onPick={(recordSeconds) => change({ recordSeconds })}
+                  onPick={(value) =>
+                    change(
+                      typeof value === "string"
+                        ? { answerWith: value, recordSeconds: null }
+                        : { answerWith: null, recordSeconds: value },
+                    )
+                  }
                   onOpenChange={trackMenu}
                   finalFocus={textFocus(editor)}
                 />
               ) : null}
-              {settings.recordSeconds === null ? (
+              {settings.recordSeconds === null &&
+              settings.answerWith === null ? (
                 <BarMenu
                   label={strings.questionWordLimit}
                   current={wordsText(settings.wordLimit)}

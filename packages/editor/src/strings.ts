@@ -234,6 +234,10 @@ export interface EditorStrings {
   questionAnswerBy: string;
   questionByWriting: string;
   questionBySpeaking: (seconds: number) => string;
+  questionByDrawing: string;
+  questionByPhoto: string;
+  questionDrawing: string;
+  questionPhoto: string;
   questionNoLimit: string;
   questionHint: string;
   questionExplanation: string;

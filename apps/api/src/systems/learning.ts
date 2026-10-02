@@ -1180,18 +1180,22 @@ export const respond = writeProcedure
     if (block.type === "written" ? state?.marked : settled(block, state))
       throw new ORPCError("CONFLICT", { message: "learning.settled" });
     const marked = isAuto(block) ? markResponse(block, input.response) : null;
-    const recording =
-      input.response.type === "written" ? input.response.recording : undefined;
-    if (recording) {
-      // The recording must be the student's own upload, kept with the lesson.
+    const answerFiles =
+      input.response.type === "written"
+        ? [input.response.recording?.fileId, input.response.picture?.fileId]
+        : [];
+    const kept = answerFiles.filter((fileId) => fileId !== undefined);
+    if (kept.length > 0) {
+      // A recording or picture must be the student's own upload, kept with
+      // the lesson.
       const linked = await linkFiles(context.tx, {
         tenantId: context.tenantId,
         userId: context.actor.userId,
-        ids: [recording.fileId],
+        ids: kept,
         purpose: "document_media",
         host: { type: "lesson_answer", id: played.row.id },
       });
-      if (linked.length !== 1)
+      if (linked.length !== kept.length)
         throw new ORPCError("CONFLICT", { message: "files.not_linkable" });
     }
     await insertResponse(context.tx, {

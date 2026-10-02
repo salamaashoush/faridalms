@@ -26,6 +26,7 @@ import type { CheckDriver, CheckStudentBlock } from "../Checks";
 
 import { CheckBlockView, isCheckBlock, isSettled } from "../Checks";
 import { Media } from "../LessonMedia";
+import { PictureAnswer } from "../PictureAnswer";
 import { ReadAloud, sayAloud, stopSounds } from "../ReadAloud";
 import { Burst } from "./motion";
 import { playSound, setSoundsOn, soundsOn } from "./sounds";
@@ -133,6 +134,14 @@ function StepBlock({
       <YoungSpelling block={block} view={view} driver={driver} />
     ) : block.type === "written" && block.recordSeconds ? (
       <YoungSpoken block={block} view={view} driver={driver} />
+    ) : block.type === "written" && block.answerWith ? (
+      <PictureAnswer
+        block={block}
+        view={view}
+        driver={driver}
+        young
+        locked={view?.marked ?? false}
+      />
     ) : null;
   if (!answer)
     return <CheckBlockView block={block} view={view} driver={driver} />;

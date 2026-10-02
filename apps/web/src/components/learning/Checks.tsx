@@ -41,6 +41,7 @@ import * as m from "~/i18n/messages";
 import { formatList, formatNumber } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
+import { PictureAnswer } from "./PictureAnswer";
 import { ReadAloud, YoungContext } from "./ReadAloud";
 import { SpokenRecorder, SpokenStatus } from "./SpokenAnswer";
 import { YoungCounting } from "./young/YoungCounting";
@@ -136,10 +137,10 @@ export interface CheckDriver {
   respond: (blockId: string, response: LessonResponse) => Promise<unknown>;
   reveal: (blockId: string) => Promise<unknown>;
   /**
-   * Keeps a spoken answer's recording somewhere it can be answered with and
-   * played from; without it the recording is uploaded.
+   * Keeps an answer's recording or picture somewhere it can be answered with
+   * and played or shown from; without it the file is uploaded.
    */
-  keepRecording?: (file: File) => Promise<{ fileId: string; url: string }>;
+  keepFile?: (file: File) => Promise<{ fileId: string; url: string }>;
 }
 
 type Of<T extends StudentBlock["type"]> = Extract<StudentBlock, { type: T }>;
@@ -1299,6 +1300,36 @@ function SpokenCheck({
   );
 }
 
+/** A question answered with a drawing or a photo, looked at by the teacher. */
+function PictureCheck({
+  block,
+  view,
+  driver,
+}: {
+  block: Of<"written">;
+  view: CheckView | undefined;
+  driver: CheckDriver;
+}) {
+  const mode = useContext(CheckModeContext);
+  const young = useContext(YoungContext);
+  return (
+    <CheckCard
+      block={block}
+      legendId={useId()}
+      status={<SpokenStatus block={block} view={view} />}
+      actions={null}
+    >
+      <PictureAnswer
+        block={block}
+        view={view}
+        driver={driver}
+        young={young}
+        locked={(view?.marked ?? false) || mode === "review"}
+      />
+    </CheckCard>
+  );
+}
+
 function WrittenCheck({
   block,
   view,
@@ -1498,6 +1529,8 @@ export function CheckBlockView({
     return <GapsCheck block={block} view={view} driver={driver} />;
   if (block.type === "written" && block.recordSeconds)
     return <SpokenCheck block={block} view={view} driver={driver} />;
+  if (block.type === "written" && block.answerWith)
+    return <PictureCheck block={block} view={view} driver={driver} />;
   if (block.type === "written")
     return <WrittenCheck block={block} view={view} driver={driver} />;
   if (block.type === "matching")

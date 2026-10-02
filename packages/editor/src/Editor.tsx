@@ -249,6 +249,10 @@ function Surface({
         spelling: strings.questionSpelling,
       },
       spoken: strings.questionSpoken,
+      pictured: {
+        drawing: strings.questionDrawing,
+        photo: strings.questionPhoto,
+      },
       count: strings.questionCountLabel,
       wordTiles: strings.questionWordTiles,
       extraTiles: strings.questionExtraTiles,

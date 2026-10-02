@@ -1070,3 +1070,103 @@ describe("spoken answers", () => {
     expect((await raw("northwind", stranger.token, path)).status).toBe(404);
   });
 });
+
+describe("drawn answers", () => {
+  test("a child answers with a drawing, which the teacher sees beside their name", async () => {
+    const tenant = seeded().tenants[0];
+    const school = tenant?.schools.find((row) => row.slug === "northwind");
+    let keeper: Awaited<ReturnType<typeof sessionFor>> | null = null;
+    for (const row of tenant?.logins ?? []) {
+      if (row.role !== "teacher" || row.schoolId !== school?.id) continue;
+      const session = await sessionFor("northwind", row.loginName);
+      const { rows } = await session.api.learning.modules({});
+      if (rows.some((item) => item.title === TITLE)) keeper ??= session;
+    }
+    if (!keeper) throw new Error("a teacher of the module needed");
+    const { rows } = await keeper.api.learning.modules({});
+    const source = rows.find((row) => row.title === TITLE);
+    if (!source) throw new Error("no module");
+    const saved = await keeper.api.learning.saveModule({
+      id: "",
+      expectedVersion: 0,
+      title: "My home",
+      summary: "",
+      classIds: source.classes.map((item) => item.id),
+      prerequisiteId: "",
+      sequential: false,
+    });
+    const question = id();
+    const lesson = await keeper.api.learning.saveLesson({
+      id: "",
+      moduleId: saved.id,
+      expectedVersion: 0,
+      title: "Draw it",
+      completion: "view",
+      passScore: null,
+      content: written([
+        {
+          id: question,
+          type: "written",
+          prompt: "Draw your home.",
+          points: 0,
+          hint: "",
+          explanation: "",
+          tries: null,
+          wordLimit: null,
+          answerWith: "drawing",
+        },
+      ]),
+      publish: false,
+    });
+    await keeper.api.learning.publishModule({
+      id: saved.id,
+      expectedVersion: saved.version,
+    });
+
+    // A PNG's signature, which is all the upload check reads.
+    const png = new Blob([
+      new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0]),
+    ]);
+    const pupil = await sessionFor("northwind", login("student"));
+    const file = await pupil.api.files.initiate({
+      purpose: "document_media",
+      name: "drawing.png",
+      mediaType: "image/png",
+      sizeBytes: png.size,
+    });
+    await raw("northwind", pupil.token, `/v1/files/${file.id}/content`, {
+      method: "PUT",
+      body: png,
+    });
+    const answer = (picture: boolean) =>
+      pupil.api.learning.respond({
+        lessonId: lesson.id,
+        blockId: question,
+        response: {
+          type: "written",
+          text: picture ? "" : "A house",
+          ...(picture ? { picture: { fileId: file.id } } : {}),
+        },
+      });
+    expect(await rejection(answer(false))).toMatchObject({
+      code: "BAD_REQUEST",
+      message: "learning.response",
+    });
+    await answer(true);
+
+    const me = await pupil.api.identity.currentUser();
+    const listed = [];
+    for (const item of source.classes) {
+      const data = await keeper.api.learning.answers({
+        moduleId: saved.id,
+        classId: item.id,
+      });
+      listed.push(...data.answers.filter((row) => row.studentId === me.id));
+    }
+    expect(listed).toMatchObject([
+      { picture: { fileId: file.id }, recording: null, marked: false },
+    ]);
+    const path = `/v1/files/${file.id}/content`;
+    expect((await raw("northwind", keeper.token, path)).status).toBe(200);
+  });
+});
