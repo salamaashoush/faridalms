@@ -11,6 +11,7 @@
 # Paraglide output: compiled from messages/*.json by postinstall and the Vite plugin.
 # (routeTree.gen.ts stays committed -- CI type-checks before anything builds it.)
 /apps/web/src/i18n
+/apps/web/src/i18n-dev
 
 # build output
 .output
