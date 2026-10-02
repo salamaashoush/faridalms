@@ -16,6 +16,7 @@ import {
 } from "~/components/app/WorkspaceBreadcrumb";
 import { LessonEditor } from "~/components/learning/LessonEditor";
 import * as m from "~/i18n/messages";
+import { collaborationQuery } from "~/queries/documents";
 import { lessonEditorQuery, moduleRecordQuery } from "~/queries/learning";
 import { currentUserQuery } from "~/queries/user";
 
@@ -34,6 +35,11 @@ export const Route = createFileRoute("/_app/teach/lesson-editor")({
       context.queryClient.ensureQueryData(moduleRecordQuery(deps.moduleId)),
       deps.id
         ? context.queryClient.ensureQueryData(lessonEditorQuery(deps.id))
+        : null,
+      deps.id
+        ? context.queryClient.prefetchQuery(
+            collaborationQuery({ hostType: "lesson", hostId: deps.id }),
+          )
         : null,
     ]);
   },

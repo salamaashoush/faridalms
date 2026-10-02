@@ -20,6 +20,7 @@ import {
   assignmentEditorQuery,
   courseworkOptionsQuery,
 } from "~/queries/coursework";
+import { collaborationQuery } from "~/queries/documents";
 import { currentUserQuery } from "~/queries/user";
 
 export const Route = createFileRoute("/_app/teach/assignment-editor")({
@@ -37,6 +38,11 @@ export const Route = createFileRoute("/_app/teach/assignment-editor")({
       context.queryClient.ensureQueryData(courseworkOptionsQuery),
       deps.id
         ? context.queryClient.ensureQueryData(assignmentEditorQuery(deps.id))
+        : null,
+      deps.id
+        ? context.queryClient.prefetchQuery(
+            collaborationQuery({ hostType: "assignment", hostId: deps.id }),
+          )
         : null,
     ]);
   },

@@ -9,7 +9,10 @@ import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 import { Doc } from "yjs";
 
+import type { DocumentHost } from "~/queries/documents";
+
 import { useCurrentUser } from "~/hooks/useCurrentUser";
+import { collaborationQuery } from "~/queries/documents";
 import { collaborate } from "~/server/documents";
 
 const COLORS = [
@@ -73,24 +76,21 @@ export type Collaboration =
       access: "read" | "write";
     };
 
+/** Tickets last two minutes; one younger than this still opens the room. */
+const FRESH_MS = 60_000;
+
 /**
- * Joins a record's document live when the host allows it. Each connection
- * asks for a fresh ticket, since tickets are good only for a couple of
- * minutes and a dropped socket reconnects later.
+ * Joins a record's document live when the host allows it. The first
+ * connection uses the ticket the page came with while it is fresh; later
+ * ones ask for a new one, since a dropped socket reconnects much later.
  */
-export function useCollaboration(
-  host: { hostType: string; hostId: string } | null,
-): Collaboration {
+export function useCollaboration(host: DocumentHost | null): Collaboration {
   const user = useCurrentUser();
-  const ticket = useQuery({
-    queryKey: ["collaborate", host?.hostType, host?.hostId],
-    queryFn: () => (host ? collaborate({ data: host }) : null),
-    enabled: host !== null,
-    staleTime: Number.POSITIVE_INFINITY,
-    retry: false,
-  });
+  const ticket = useQuery(collaborationQuery(host));
   const room = ticket.data?.room;
   const url = ticket.data?.url;
+  const token = ticket.data?.token;
+  const fetchedAt = ticket.dataUpdatedAt;
   const hostType = host?.hostType;
   const hostId = host?.hostId;
   const collaboration = useMemo<EditorCollaboration | null>(() => {
@@ -103,18 +103,24 @@ export function useCollaboration(
       providerFactory: (id, docs) => {
         const doc = new Doc();
         docs.set(id, doc);
+        let first = Date.now() - fetchedAt < FRESH_MS ? token : undefined;
         return forLexical(
           new HocuspocusProvider({
             url,
             name: id,
             document: doc,
-            token: async () =>
-              (await collaborate({ data: target }))?.token ?? "",
+            token: async () => {
+              const fresh = first;
+              first = undefined;
+              return (
+                fresh ?? (await collaborate({ data: target }))?.token ?? ""
+              );
+            },
           }),
         );
       },
     };
-  }, [hostType, hostId, room, url, user.name, user.id]);
+  }, [hostType, hostId, room, url, token, fetchedAt, user.name, user.id]);
   if (!host) return { state: "alone" };
   if (ticket.isPending) return { state: "loading" };
   if (!collaboration || !ticket.data) return { state: "alone" };
