@@ -26,6 +26,8 @@ import {
   assignmentById,
   attemptById,
   attemptsOf,
+  bankCommentById,
+  bankCommentsOf,
   commentById,
   commentsOf,
   courseworkHost,
@@ -33,11 +35,13 @@ import {
   groupsOf,
   insertAssignment,
   insertAttempt,
+  insertBankComment,
   insertComment,
   isRecipient,
   learnerAssignments,
   namesOf,
   releaseAssessments,
+  removeBankComment,
   removeComment,
   removeGroup,
   rubricsOf,
@@ -52,6 +56,7 @@ import {
   teacherAssignments,
   touchSubmission,
   updateAssignment,
+  updateBankComment,
   updateComment,
   withdrawAttempt,
 } from "@faridalms/database/stores/coursework";
@@ -107,6 +112,7 @@ import {
   publishSchema,
   rubricTotal,
   saveAssignmentSchema,
+  saveBankCommentSchema,
   saveCommentSchema,
   saveDraftSchema,
   extendSchema,
@@ -1257,6 +1263,80 @@ export const uncomment = writeProcedure
         message: "coursework.comment_author",
       });
     const removed = await removeComment(context.tx, {
+      tenantId: context.tenantId,
+      id: existing.id,
+      expectedVersion: input.expectedVersion,
+    });
+    if (!removed)
+      throw new ORPCError("CONFLICT", { message: "conflict.version" });
+    return { removed };
+  });
+
+/** The grader's comment bank: their own comments and those shared at the school. */
+export const commentBank = readProcedure.handler(async ({ context }) => {
+  requireCapability(context, "submissions:grade");
+  const rows = await bankCommentsOf(context.tx, {
+    tenantId: context.tenantId,
+    orgId: context.schoolId,
+    userId: context.actor.userId,
+  });
+  return rows.map((row) => ({
+    ...row,
+    mine: row.ownerId === context.actor.userId,
+  }));
+});
+
+/** Keeps a comment in the grader's bank, or changes one of their own. */
+export const saveBankComment = writeProcedure
+  .input(saveBankCommentSchema)
+  .handler(async ({ input, context }) => {
+    requireCapability(context, "submissions:grade");
+    if (!input.id)
+      return insertBankComment(context.tx, {
+        tenantId: context.tenantId,
+        orgId: context.schoolId,
+        userId: context.actor.userId,
+        body: input.body,
+        shared: input.shared,
+      });
+    const existing = await bankCommentById(context.tx, {
+      tenantId: context.tenantId,
+      orgId: context.schoolId,
+      id: input.id,
+    });
+    if (!existing) throw new ORPCError("NOT_FOUND");
+    if (existing.ownerId !== context.actor.userId)
+      throw new ORPCError("FORBIDDEN", {
+        message: "coursework.comment_author",
+      });
+    const saved = await updateBankComment(context.tx, {
+      tenantId: context.tenantId,
+      id: existing.id,
+      expectedVersion: input.expectedVersion,
+      body: input.body,
+      shared: input.shared,
+    });
+    if (!saved)
+      throw new ORPCError("CONFLICT", { message: "conflict.version" });
+    return saved;
+  });
+
+/** Takes a comment out of the bank; only its owner may. */
+export const removeFromBank = writeProcedure
+  .input(removeCommentSchema)
+  .handler(async ({ input, context }) => {
+    requireCapability(context, "submissions:grade");
+    const existing = await bankCommentById(context.tx, {
+      tenantId: context.tenantId,
+      orgId: context.schoolId,
+      id: input.id,
+    });
+    if (!existing) throw new ORPCError("NOT_FOUND");
+    if (existing.ownerId !== context.actor.userId)
+      throw new ORPCError("FORBIDDEN", {
+        message: "coursework.comment_author",
+      });
+    const removed = await removeBankComment(context.tx, {
       tenantId: context.tenantId,
       id: existing.id,
       expectedVersion: input.expectedVersion,

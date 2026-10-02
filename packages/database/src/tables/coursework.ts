@@ -541,6 +541,33 @@ export const workComments = core.table.withRLS(
   ],
 );
 
+/** A comment a grader keeps to use again, theirs alone or shared with every grader at the school. */
+export const bankComments = core.table.withRLS(
+  "bank_comments",
+  {
+    ...tenantColumns(),
+    orgId: uuid("org_id").notNull(),
+    ownerUserId: uuid("owner_user_id").notNull(),
+    body: text("body").notNull(),
+    shared: boolean("shared").notNull().default(false),
+    ...entityColumns(),
+  },
+  (t): PgTableExtraConfigValue[] => [
+    pk("bank_comments", t.tenantId, t.id),
+    ...baseConstraints("bank_comments", t, tenants),
+    fk(
+      "bank_comments",
+      [t.tenantId, t.ownerUserId],
+      [users.tenantId, users.id],
+    ),
+    ck("bank_comments", "body", sql`char_length(body) between 1 and 2000`),
+    index("bank_comments_org_idx")
+      .on(t.tenantId, t.orgId)
+      .where(sql`status = 'active'`),
+    ...entityProfile(),
+  ],
+);
+
 export type QuizAnswerState = "draft" | "marked" | "needs_marking";
 
 /**

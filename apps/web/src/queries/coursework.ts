@@ -11,6 +11,7 @@ import {
   getClassGroups,
   getCoursework,
   getCourseworkOptions,
+  getCommentBank,
   getGrading,
   getMyCoursework,
   getMyWork,
@@ -38,6 +39,11 @@ export const assignmentRecordQuery = (id: string) =>
     queryKey: ["coursework", "record", id],
     queryFn: () => getAssignmentRecord({ data: { id } }),
   });
+
+export const commentBankQuery = queryOptions({
+  queryKey: ["coursework", "comment-bank"],
+  queryFn: () => getCommentBank(),
+});
 
 export const gradingQuery = (assignmentId: string, studentId: string) =>
   queryOptions({

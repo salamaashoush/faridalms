@@ -6,6 +6,7 @@ import {
   publishSchema,
   removeCommentSchema,
   saveAssignmentSchema,
+  saveBankCommentSchema,
   saveCommentSchema,
   saveDraftSchema,
   saveGroupSchema,
@@ -101,6 +102,18 @@ export const commentOnWork = createServerFn({ method: "POST" })
 export const removeWorkComment = createServerFn({ method: "POST" })
   .validator(checked(removeCommentSchema))
   .handler(({ data }) => backend().coursework.uncomment(data));
+
+export const getCommentBank = createServerFn({ method: "GET" }).handler(() =>
+  backend().coursework.commentBank(),
+);
+
+export const saveToCommentBank = createServerFn({ method: "POST" })
+  .validator(checked(saveBankCommentSchema))
+  .handler(({ data }) => backend().coursework.saveBankComment(data));
+
+export const removeFromCommentBank = createServerFn({ method: "POST" })
+  .validator(checked(removeCommentSchema))
+  .handler(({ data }) => backend().coursework.removeFromBank(data));
 
 export const saveMyDraft = createServerFn({ method: "POST" })
   .validator(checked(saveDraftSchema))

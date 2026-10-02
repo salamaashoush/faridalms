@@ -58,6 +58,7 @@ import {
   assessAttempt,
   commentOnWork,
   removeWorkComment,
+  saveToCommentBank,
 } from "~/server/coursework";
 import { formatNumber } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
@@ -65,7 +66,9 @@ import { getMessageFromError } from "~/utils/error";
 import type { Passage, WorkComment } from "./WorkComments";
 
 import { resultText } from "../grading/format";
+import { CheckboxRow } from "../people/fields";
 import { displayName } from "../people/format";
+import { CommentBankPicker } from "./CommentBank";
 import { formatInstant } from "./format";
 import { QuizAttempts } from "./QuizWork";
 import { CommentedWork, CommentList } from "./WorkComments";
@@ -230,12 +233,15 @@ function CommentComposer({
 }) {
   const queryClient = useQueryClient();
   const [body, setBody] = useState(composing.comment?.body ?? "");
+  const [bankOpen, setBankOpen] = useState(false);
+  const [keep, setKeep] = useState(false);
+  const [share, setShare] = useState(false);
   const field = useRef<HTMLTextAreaElement>(null);
   // Opened by choosing a passage, so writing about it follows at once.
   useEffect(() => field.current?.focus(), []);
   const save = useMutation({
-    mutationFn: () =>
-      commentOnWork({
+    mutationFn: async () => {
+      const saved = await commentOnWork({
         data: {
           id: composing.comment?.id ?? "",
           attemptId,
@@ -243,7 +249,13 @@ function CommentComposer({
           anchor: composing.passage.anchor,
           body,
         },
-      }),
+      });
+      if (keep)
+        await saveToCommentBank({
+          data: { id: "", expectedVersion: 0, body, shared: share },
+        });
+      return saved;
+    },
     onSuccess: async (saved) => {
       await queryClient.invalidateQueries({ queryKey: ["coursework"] });
       onDone(saved.id);
@@ -270,7 +282,14 @@ function CommentComposer({
         maxLength={2000}
         placeholder={m.courseworkCommentPlaceholder()}
         value={body}
-        onChange={(event) => setBody(event.target.value)}
+        onChange={(event) => {
+          // "#" in an empty comment opens the bank, as in Classroom.
+          if (event.target.value === "#") {
+            setBankOpen(true);
+            return;
+          }
+          setBody(event.target.value);
+        }}
         onKeyDown={(event) => {
           if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
             event.preventDefault();
@@ -278,6 +297,18 @@ function CommentComposer({
           }
         }}
       />
+      <CheckboxRow
+        label={m.courseworkBankKeep()}
+        checked={keep}
+        onChange={setKeep}
+      />
+      {keep ? (
+        <CheckboxRow
+          label={m.courseworkBankShare()}
+          checked={share}
+          onChange={setShare}
+        />
+      ) : null}
       <div className="flex flex-wrap gap-2">
         <Button
           type="submit"
@@ -298,6 +329,16 @@ function CommentComposer({
         >
           {m.commonCancel()}
         </Button>
+        <CommentBankPicker
+          open={bankOpen}
+          onOpenChange={setBankOpen}
+          onPick={(picked) => {
+            setBody((current) =>
+              current.trim() ? `${current.trimEnd()} ${picked}` : picked,
+            );
+            field.current?.focus();
+          }}
+        />
       </div>
     </form>
   );
@@ -340,6 +381,7 @@ function GradeSheet({
     saved?.rubricScores ?? {},
   );
   const [feedback, setFeedback] = useState(saved?.feedback ?? "");
+  const [feedbackBank, setFeedbackBank] = useState(false);
   const [note, setNote] = useState(saved?.privateNote ?? "");
   const [error, setError] = useState<string | null>(null);
   const queryClient = useQueryClient();
@@ -580,14 +622,27 @@ function GradeSheet({
             hint={m.courseworkFeedbackHint()}
           >
             {(control) => (
-              <Textarea
-                {...control}
-                dir="auto"
-                rows={6}
-                maxLength={10000}
-                value={feedback}
-                onChange={(event) => setFeedback(event.target.value)}
-              />
+              <div className="grid justify-items-start gap-1">
+                <Textarea
+                  {...control}
+                  dir="auto"
+                  rows={6}
+                  maxLength={10000}
+                  value={feedback}
+                  onChange={(event) => setFeedback(event.target.value)}
+                />
+                <CommentBankPicker
+                  open={feedbackBank}
+                  onOpenChange={setFeedbackBank}
+                  onPick={(picked) =>
+                    setFeedback((current) =>
+                      current.trim()
+                        ? `${current.trimEnd()}\n${picked}`
+                        : picked,
+                    )
+                  }
+                />
+              </div>
             )}
           </FormField>
           <FormField

@@ -355,6 +355,54 @@ describe("handing in and returning work", () => {
     ).toEqual([]);
   });
 
+  test("a comment bank keeps a teacher's comments, and colleagues pick only the shared ones", async () => {
+    const teacher = await arabicTeacher();
+    const colleague = await englishTeacher();
+    const mine = await teacher.api.coursework.saveBankComment({
+      expectedVersion: 0,
+      body: "Read the question twice before you answer.",
+      shared: false,
+    });
+    const shared = await teacher.api.coursework.saveBankComment({
+      expectedVersion: 0,
+      body: "Show your working, not only the answer.",
+      shared: true,
+    });
+    const own = await teacher.api.coursework.commentBank();
+    expect(own.find((row) => row.id === mine.id)).toMatchObject({
+      mine: true,
+      shared: false,
+    });
+    const theirs = await colleague.coursework.commentBank();
+    expect(theirs.some((row) => row.id === mine.id)).toBe(false);
+    expect(theirs.find((row) => row.id === shared.id)).toMatchObject({
+      mine: false,
+      body: "Show your working, not only the answer.",
+    });
+    expect(
+      await rejection(
+        colleague.coursework.removeFromBank({
+          id: shared.id,
+          expectedVersion: shared.version,
+        }),
+      ),
+    ).toMatchObject({ message: "coursework.comment_author" });
+    const student = await signedIn("northwind", login("student"));
+    expect(await rejection(student.coursework.commentBank())).toMatchObject({
+      code: "FORBIDDEN",
+    });
+
+    await teacher.api.coursework.removeFromBank({
+      id: mine.id,
+      expectedVersion: mine.version,
+    });
+    expect(
+      (await teacher.api.coursework.commentBank()).some(
+        (row) => row.id === mine.id,
+      ),
+    ).toBe(false);
+  });
+
   test("each student starts from their own copy of the worksheet in the brief", async () => {
     const teacher = await arabicTeacher();
     const student = await sessionFor("northwind", login("student"));

@@ -370,6 +370,21 @@ export const saveCommentSchema = v.object({
 });
 export type SaveCommentInput = v.InferOutput<typeof saveCommentSchema>;
 
+/** A comment kept in a grader's bank; a new one has no id. */
+export const saveBankCommentSchema = v.object({
+  id: v.optional(v.union([v.literal(""), id]), ""),
+  expectedVersion: v.pipe(v.number(), v.integer(), v.minValue(0)),
+  body: v.pipe(
+    v.string(),
+    v.trim(),
+    v.minLength(1),
+    v.maxLength(MAX_COMMENT_LENGTH),
+  ),
+  /** Every grader at the school may use it, not only its owner. */
+  shared: v.boolean(),
+});
+export type SaveBankCommentInput = v.InferOutput<typeof saveBankCommentSchema>;
+
 export const removeCommentSchema = v.object({
   id,
   expectedVersion: v.pipe(v.number(), v.integer(), v.minValue(1)),

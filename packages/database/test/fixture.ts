@@ -35,6 +35,7 @@ import {
   programmes,
   familyShares,
   workComments,
+  bankComments,
   submissionAttempts,
   documentTranslations,
   documents,
@@ -491,6 +492,13 @@ export async function completeFixture(
       end: { block: "fixture1", offset: 4 },
     },
     body: "Say more here.",
+  });
+  await tx.insert(bankComments).values({
+    tenantId,
+    orgId: schoolId,
+    ownerUserId: userId,
+    body: "Check your spelling.",
+    shared: true,
   });
   await tx.insert(documentTemplates).values({
     tenantId,

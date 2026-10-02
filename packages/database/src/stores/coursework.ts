@@ -1024,6 +1024,108 @@ export async function removeComment(
   return rows.length > 0;
 }
 
+export interface BankCommentRow {
+  id: string;
+  version: number;
+  ownerId: string;
+  body: string;
+  shared: boolean;
+}
+
+/** A grader's own comments, latest first, then those shared at the school. */
+export async function bankCommentsOf(
+  tx: Tx,
+  input: { tenantId: string; orgId: string; userId: string },
+): Promise<BankCommentRow[]> {
+  const rows = await tx.execute<{
+    id: string;
+    version: number;
+    owner_user_id: string;
+    body: string;
+    shared: boolean;
+  }>(sql`
+    select id, version, owner_user_id, body, shared from core.bank_comments
+    where tenant_id = ${input.tenantId}::uuid and org_id = ${input.orgId}::uuid
+      and status = 'active'
+      and (owner_user_id = ${input.userId}::uuid or shared)
+    order by owner_user_id = ${input.userId}::uuid desc, date_last_modified desc
+    limit 500`);
+  return rows.map((row) => ({
+    id: row.id,
+    version: row.version,
+    ownerId: row.owner_user_id,
+    body: row.body,
+    shared: row.shared,
+  }));
+}
+
+export async function bankCommentById(
+  tx: Tx,
+  input: { tenantId: string; orgId: string; id: string },
+): Promise<{ id: string; ownerId: string; shared: boolean } | null> {
+  const [row] = await tx.execute<{
+    id: string;
+    owner_user_id: string;
+    shared: boolean;
+  }>(sql`
+    select id, owner_user_id, shared from core.bank_comments
+    where tenant_id = ${input.tenantId}::uuid and org_id = ${input.orgId}::uuid
+      and id = ${input.id}::uuid and status = 'active'`);
+  return row
+    ? { id: row.id, ownerId: row.owner_user_id, shared: row.shared }
+    : null;
+}
+
+export async function insertBankComment(
+  tx: Tx,
+  input: {
+    tenantId: string;
+    orgId: string;
+    userId: string;
+    body: string;
+    shared: boolean;
+  },
+): Promise<{ id: string; version: number }> {
+  const [row] = await tx.execute<{ id: string; version: number }>(sql`
+    insert into core.bank_comments (tenant_id, org_id, owner_user_id, body, shared)
+    values (${input.tenantId}::uuid, ${input.orgId}::uuid, ${input.userId}::uuid,
+      ${input.body}, ${input.shared})
+    returning id, version`);
+  if (!row) throw new Error("bank comment was not saved");
+  return row;
+}
+
+/** Null when someone changed or removed the comment since it was read. */
+export async function updateBankComment(
+  tx: Tx,
+  input: {
+    tenantId: string;
+    id: string;
+    expectedVersion: number;
+    body: string;
+    shared: boolean;
+  },
+): Promise<{ id: string; version: number } | null> {
+  const [row] = await tx.execute<{ id: string; version: number }>(sql`
+    update core.bank_comments set body = ${input.body}, shared = ${input.shared}
+    where tenant_id = ${input.tenantId}::uuid and id = ${input.id}::uuid
+      and version = ${input.expectedVersion} and status = 'active'
+    returning id, version`);
+  return row ?? null;
+}
+
+export async function removeBankComment(
+  tx: Tx,
+  input: { tenantId: string; id: string; expectedVersion: number },
+): Promise<boolean> {
+  const rows = await tx.execute<{ id: string }>(sql`
+    update core.bank_comments set status = 'tobedeleted'
+    where tenant_id = ${input.tenantId}::uuid and id = ${input.id}::uuid
+      and version = ${input.expectedVersion} and status = 'active'
+    returning id`);
+  return rows.length > 0;
+}
+
 /** Releases the assessments of the given attempts, returning the work. */
 export async function releaseAssessments(
   tx: Tx,
