@@ -3413,7 +3413,9 @@ create index login_identities_account_idx on core.login_identities (tenant_id, a
   (`login_identities_badge_key`). A teacher holding `badges:issue` prints
   badges for the young students of a class they teach; printing replaces any
   badge the child had (void reason `lost`), stopping one is `admin`, and the
-  secret leaves the API once, in the print response. The QR holds
+  secret leaves the API once, in the print response. A badge never slides
+  past the end of the school year it was printed in (`metadata.until`), so
+  badges are renewed each year. The QR holds
   `/badge?school=<slug>#<secret>`: the fragment never reaches a server or a
   referrer, and the page drops it from the address before signing in. A
   badge opens a `student` session with `client_kind = 'shared_device'` and

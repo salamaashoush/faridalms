@@ -94,9 +94,6 @@ export const LIFETIME = {
  */
 export const SHARED_LIFETIME = { idle: 30, absolute: 8 * 60 } as const;
 
-/** A badge stays valid this long after it was last used. */
-export const BADGE_DAYS = 180;
-
 /** A badge secret is 256 random bits; only its SHA-256 is stored. */
 export function issueBadgeSecret(): { secret: string; secretHash: string } {
   const secret = randomBytes(32).toString("base64url");

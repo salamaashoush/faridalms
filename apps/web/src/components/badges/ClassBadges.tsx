@@ -1,3 +1,4 @@
+import { BADGE_DAYS } from "@faridalms/domain/badges";
 import {
   useMutation,
   useQueryClient,
@@ -25,8 +26,6 @@ import { getMessageFromError } from "~/utils/error";
 import type { PrintedBadge } from "./BadgeSheet";
 
 import { BadgeSheet } from "./BadgeSheet";
-
-const BADGE_DAYS = 180;
 
 type Data = Awaited<
   ReturnType<NonNullable<ReturnType<typeof classBadgesQuery>["queryFn"]>>

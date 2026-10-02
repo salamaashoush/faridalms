@@ -9,6 +9,8 @@ import {
   teachesClass,
 } from "@faridalms/database/stores/classes";
 import { youngStudents } from "@faridalms/database/stores/students";
+import { schoolYears } from "@faridalms/database/stores/years";
+import { BADGE_DAYS, badgeYearEnd } from "@faridalms/domain/badges";
 import {
   classBadgesSchema,
   issueBadgesSchema,
@@ -25,7 +27,7 @@ import {
   requireCapability,
   writeProcedure,
 } from "../core/procedure";
-import { BADGE_DAYS, issueBadgeSecret } from "../core/session";
+import { issueBadgeSecret } from "../core/session";
 
 /**
  * A class whose sign-in badges the teacher looks after: one they teach, or
@@ -107,6 +109,11 @@ export const issueBadges = writeProcedure
     if (wanted.some((studentId) => !young.has(studentId)))
       throw new ORPCError("BAD_REQUEST", { message: "badges.not_young" });
     const expiresAt = new Date(context.now.getTime() + BADGE_DAYS * 86_400_000);
+    const until = badgeYearEnd(
+      await schoolYears(context.tx, context.tenantId, context.schoolId),
+      context.today,
+      expiresAt,
+    );
     const issued = await Promise.all(
       wanted.map(async (studentId) => {
         const { secret, secretHash } = issueBadgeSecret();
@@ -115,6 +122,7 @@ export const issueBadges = writeProcedure
           userId: studentId,
           secretHash,
           expiresAt,
+          until,
           linkedByUserId: context.actor.userId,
         });
         if (account)

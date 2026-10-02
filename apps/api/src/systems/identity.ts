@@ -24,6 +24,7 @@ import {
 } from "@faridalms/database/stores/identity";
 import { childrenOf } from "@faridalms/database/stores/persons";
 import { youngStudents } from "@faridalms/database/stores/students";
+import { BADGE_DAYS } from "@faridalms/domain/badges";
 import {
   badgeSignInSchema,
   childSessionSchema,
@@ -48,7 +49,6 @@ import {
 } from "../core/procedure";
 import {
   attemptKey,
-  BADGE_DAYS,
   badgeHash,
   ipPrefix,
   issueToken,

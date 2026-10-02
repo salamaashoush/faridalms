@@ -56,11 +56,18 @@ export async function findBadge(
   return row ?? null;
 }
 
-/** A badge that is used stays valid for another full term from now. */
+/**
+ * A badge that is used stays valid for another stretch from now, but never
+ * past the end of the school year it was printed in: badges are renewed
+ * each year, so a lost one stops on its own by the summer.
+ */
 export async function slideBadge(tx: Tx, identityId: string, expiresAt: Date) {
   await tx
     .update(loginIdentities)
-    .set({ expiresAt })
+    .set({
+      expiresAt: sql`least(${expiresAt.toISOString()}::timestamptz,
+        coalesce((${loginIdentities.metadata}->>'until')::timestamptz, 'infinity'))`,
+    })
     .where(eq(loginIdentities.id, identityId));
 }
 
@@ -113,6 +120,8 @@ export async function issueBadge(
     userId: string;
     secretHash: string;
     expiresAt: Date;
+    /** The end of the school year, past which the badge never slides. */
+    until: Date;
     linkedByUserId: string;
   },
 ): Promise<{ accountId: string; created: boolean } | null> {
@@ -130,7 +139,8 @@ export async function issueBadge(
     kind: "badge",
     secretHash: input.secretHash,
     secretSetAt: new Date(),
-    expiresAt: input.expiresAt,
+    expiresAt: input.expiresAt < input.until ? input.expiresAt : input.until,
+    metadata: { until: input.until.toISOString() },
     linkMethod: "admin",
     linkedByUserId: input.linkedByUserId,
   });
