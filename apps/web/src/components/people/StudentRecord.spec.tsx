@@ -33,15 +33,8 @@ vi.mock("~/server/students", () => ({
   getPersonRecord: vi.fn(),
   getPersonHistory: vi.fn(),
   changePhoto: vi.fn(),
-}));
-
-vi.mock("~/server/households", () => ({
-  getHouseholds: vi.fn(),
-  getHousehold: vi.fn(),
-  getHouseholdsOf: vi.fn(() => Promise.resolve([])),
-  saveHousehold: vi.fn(),
-  addToHousehold: vi.fn(),
-  endHouseholdMembership: vi.fn(),
+  getSiblings: vi.fn(() => Promise.resolve([])),
+  saveContacts: vi.fn(),
   searchPeople: vi.fn(),
 }));
 
@@ -67,7 +60,7 @@ function guardian(
     primaryContact: true,
     emergencyContact: false,
     contactPriority: 1,
-    livesWith: true,
+    residence: "primary",
     pickup: "allowed",
     educationalRights: "full",
     communicationIsolated: false,

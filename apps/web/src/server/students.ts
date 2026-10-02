@@ -2,6 +2,8 @@ import {
   accountStateSchema,
   endRelationshipSchema,
   guardianLookupSchema,
+  personSearchSchema,
+  saveContactsSchema,
   saveRelationshipSchema,
   saveSignInSchema,
   saveStudentSchema,
@@ -72,3 +74,15 @@ export const setSignInState = createServerFn({ method: "POST" })
 export const changePhoto = createServerFn({ method: "POST" })
   .validator(checked(setPhotoSchema))
   .handler(({ data }) => backend().people.setPhoto(data));
+
+export const getSiblings = createServerFn({ method: "GET" })
+  .validator(byId)
+  .handler(({ data }) => record(backend().people.siblings(data)));
+
+export const saveContacts = createServerFn({ method: "POST" })
+  .validator(checked(saveContactsSchema))
+  .handler(({ data }) => backend().people.saveContacts(data));
+
+export const searchPeople = createServerFn({ method: "GET" })
+  .validator(checked(personSearchSchema))
+  .handler(({ data }) => backend().people.searchPeople(data));

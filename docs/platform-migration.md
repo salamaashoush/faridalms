@@ -42,7 +42,8 @@ Entities, grouped:
   aide; primary; begin; end), `groups` and members.
 - People: `users` (within the tenant; optional account), `user_roles` (org,
   role, primary, begin, end), `user_relationships` (guardian, legal guardian,
-  lives with, emergency, pick-up, portal access, receives notifications,
+  home (main, second or none), emergency, pick-up, portal access, receives
+  notifications,
   priority), `external_ids`, `demographics`, and a separate encrypted `health`
   schema.
 - Coursework and grades: `assignments` (each owns a `line_item`),

@@ -101,7 +101,7 @@ describe("students", () => {
             receivesNotifications: true,
             primaryContact: true,
             emergencyContact: true,
-            livesWith: true,
+            residence: "primary",
             pickup: "allowed",
           },
         },
@@ -473,65 +473,149 @@ describe("sign-in", () => {
   });
 });
 
-describe("households", () => {
-  test("the Families list shows each household with its adults and children", async () => {
+describe("families", () => {
+  test("a parent linked to two students makes them brothers and sisters", async () => {
     const api = await signedIn("northwind", login("principal"));
-    const list = await api.people.households({});
-    expect(list.total).toBeGreaterThan(0);
-    const family = list.rows[0];
-    if (!family) throw new Error("seed household");
-    expect(family.members.some((member) => member.kind === "adult")).toBe(true);
-    expect(family.members.some((member) => member.kind === "child")).toBe(true);
-    const student = family.members.find((member) => member.kind === "child");
-    if (!student) throw new Error("seed child");
-    const ofStudent = await api.people.householdsOfPerson({
-      userId: student.userId,
+    const options = await api.people.options();
+    const mother = options.relations.find((row) => row.code === "mother");
+    if (!mother) throw new Error("options");
+    const first = (await api.people.students({ q: "GA1010" })).rows[0];
+    const second = (await api.people.students({ q: "GA1011" })).rows[0];
+    if (!first || !second) throw new Error("seed students");
+    expect(
+      (await api.people.siblings({ id: first.id })).map((row) => row.userId),
+    ).not.toContain(second.id);
+    const parent = (await api.people.student({ id: first.id })).guardians?.[0];
+    if (!parent) throw new Error("seed guardian");
+    await api.people.saveRelationship({
+      studentId: second.id,
+      existingUserId: parent.userId,
+      flags: {
+        relationId: mother.id,
+        legalGuardian: true,
+        portalAccess: true,
+        receivesNotifications: true,
+        primaryContact: false,
+        emergencyContact: true,
+        residence: "primary",
+        pickup: "allowed",
+      },
     });
-    expect(ofStudent.map((row) => row.id)).toContain(family.id);
+    expect(
+      (await api.people.siblings({ id: first.id })).map((row) => row.userId),
+    ).toContain(second.id);
+    expect(
+      (await api.people.siblings({ id: second.id })).map((row) => row.userId),
+    ).toContain(first.id);
   });
 
-  test("a child joins a second household as a secondary home, then leaves it", async () => {
+  test("a second home is the residence on the guardian link", async () => {
     const api = await signedIn("northwind", login("principal"));
+    const options = await api.people.options();
+    const father = options.relations.find((row) => row.code === "father");
+    if (!father) throw new Error("options");
     const list = await api.people.students({ q: "GA1006" });
     const studentId = list.rows[0]?.id ?? "";
-    const created = await api.people.saveHousehold({
-      nameEn: "Father's home",
-      nameAr: "منزل الأب",
+    await api.people.saveRelationship({
+      studentId,
+      person: {
+        names: names("Karim Second", "كريم ثان"),
+        phone: "0100 555 0606",
+      },
+      flags: {
+        relationId: father.id,
+        legalGuardian: true,
+        portalAccess: false,
+        receivesNotifications: true,
+        primaryContact: false,
+        emergencyContact: false,
+        residence: "secondary",
+        pickup: "allowed",
+      },
     });
-    await api.people.addToHousehold({
-      householdId: created.id,
-      userId: studentId,
-      kind: "child",
-      residence: "secondary",
-    });
-    const homes = await api.people.householdsOfPerson({ userId: studentId });
-    expect(homes.find((row) => row.id === created.id)?.residence).toBe(
-      "secondary",
-    );
-    const household = await api.people.household({ id: created.id });
-    const member = household.members.find((row) => row.userId === studentId);
-    if (!member) throw new Error("member missing");
-    await api.people.endHouseholdMembership({
-      householdId: created.id,
-      memberId: member.id,
-      expectedVersion: member.version,
-    });
+    const record = await api.people.student({ id: studentId });
     expect(
-      (await api.people.householdsOfPerson({ userId: studentId })).map(
-        (row) => row.id,
-      ),
-    ).not.toContain(created.id);
+      record.guardians?.find((row) => row.fullNameEn === "Karim Second")
+        ?.residence,
+    ).toBe("secondary");
   });
 
-  test("a teacher cannot change households and a parent cannot list them", async () => {
+  test("an adult's phone, email and home address are kept and replaced", async () => {
+    const api = await signedIn("northwind", login("principal"));
+    const studentId =
+      (await api.people.students({ q: "GA1007" })).rows[0]?.id ?? "";
+    const adultId =
+      (await api.people.student({ id: studentId })).guardians?.[0]?.userId ??
+      "";
+    await api.people.saveContacts({
+      userId: adultId,
+      phone: "0100 555 0707",
+      email: "Salama@Example.com",
+      address: {
+        lines: ["12 Nile Street", "Floor 3"],
+        city: "Zamalek",
+        region: "Cairo",
+        postalCode: "11211",
+        country: "EG",
+      },
+    });
+    const person = await api.people.person({ id: adultId });
+    const postal = person.contacts?.find((row) => row.kind === "postal");
+    expect(postal?.value).toBe(
+      "12 Nile Street, Floor 3, Zamalek, Cairo, 11211",
+    );
+    expect(postal?.postal).toEqual({
+      lines: ["12 Nile Street", "Floor 3"],
+      city: "Zamalek",
+      region: "Cairo",
+      postal_code: "11211",
+      country: "EG",
+    });
+    expect(
+      person.contacts?.find((row) => row.kind === "email")?.normalized,
+    ).toBe("salama@example.com");
+    expect(
+      person.contacts?.find((row) => row.kind === "phone")?.normalized,
+    ).toBe("+201005550707");
+    expect(person.access.contacts).toBe(true);
+    await api.people.saveContacts({
+      userId: adultId,
+      phone: "0100 555 0707",
+      email: "",
+      address: { lines: [], city: "", region: "", postalCode: "", country: "" },
+    });
+    const cleared = await api.people.person({ id: adultId });
+    expect(cleared.contacts?.map((row) => row.kind)).toEqual(["phone"]);
+  });
+
+  test("a teacher cannot change contacts and a parent cannot read siblings", async () => {
+    const principal = await signedIn("northwind", login("principal"));
+    const studentId =
+      (await principal.people.students({ q: "GA1008" })).rows[0]?.id ?? "";
+    const adultId =
+      (await principal.people.student({ id: studentId })).guardians?.[0]
+        ?.userId ?? "";
     const teacher = await signedIn("northwind", login("teacher"));
     expect(
-      await rejection(teacher.people.saveHousehold({ nameEn: "Nope" })),
+      await rejection(
+        teacher.people.saveContacts({
+          userId: adultId,
+          phone: "",
+          email: "",
+          address: {
+            lines: [],
+            city: "",
+            region: "",
+            postalCode: "",
+            country: "",
+          },
+        }),
+      ),
     ).toMatchObject({ code: "FORBIDDEN" });
     const parent = await signedIn("northwind", login("parent"));
-    expect(await rejection(parent.people.households({}))).toMatchObject({
-      code: "FORBIDDEN",
-    });
+    expect(
+      await rejection(parent.people.siblings({ id: studentId })),
+    ).toMatchObject({ code: "FORBIDDEN" });
   });
 });
 

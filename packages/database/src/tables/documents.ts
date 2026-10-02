@@ -699,9 +699,7 @@ export const erasureItems = core.table.withRLS(
   {
     tenantId: uuid("tenant_id").notNull(),
     approvalId: uuid("approval_id").notNull(),
-    objectType: text("object_type")
-      .$type<"file" | "document" | "household">()
-      .notNull(),
+    objectType: text("object_type").$type<"file" | "document">().notNull(),
     objectId: uuid("object_id").notNull(),
     createdAt: instant("created_at")
       .notNull()
@@ -718,7 +716,7 @@ export const erasureItems = core.table.withRLS(
     ck(
       "erasure_items",
       "object_type",
-      sql`object_type in ('file', 'document', 'household')`,
+      sql`object_type in ('file', 'document')`,
     ),
     index("erasure_items_object_idx").on(t.tenantId, t.objectType, t.objectId),
     ...ledgerProfile(),

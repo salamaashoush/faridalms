@@ -1,6 +1,18 @@
 export type FamilyRole = "parent" | "guardian" | "relative";
 
 /**
+ * Relations that make children brothers and sisters. A grandparent or aunt
+ * linked to children of two homes would otherwise make cousins siblings.
+ */
+export const PARENTAL_MEANINGS = [
+  "mother",
+  "father",
+  "step_parent",
+  "guardian",
+  "unspecified",
+] as const;
+
+/**
  * The natural role a relationship gives the related person at the student's
  * schools, or null when it gives none. A relationship makes someone a member
  * only while it grants portal access or legal guardianship; a contact number

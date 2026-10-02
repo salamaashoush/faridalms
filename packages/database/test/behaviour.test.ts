@@ -787,7 +787,7 @@ describe("other runtime roles", () => {
     const insert = (role: "cell_io" | "app") =>
       probe<{ version: number; created_at: string }>(role, a.tenantId, [
         {
-          text: `insert into core.households (tenant_id, name_en, version, created_at, date_last_modified)
+          text: `insert into core.users (tenant_id, full_name_en, version, created_at, date_last_modified)
                  values ($1, 'Imported', 7, '2020-01-01', '2020-01-02') returning version, created_at::date::text as created_at`,
           params: [a.tenantId],
         },

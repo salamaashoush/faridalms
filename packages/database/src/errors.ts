@@ -29,7 +29,6 @@ export const CONFLICTS: Record<string, string> = {
   users_username_key: "user.username_taken",
   external_ids_identifier_key: "external_id.taken",
   external_ids_hmac_key: "external_id.taken",
-  household_members_excl: "household_member.overlapping",
   contact_points_user_value_key: "contact_point.exists",
   student_school_years_excl: "placement.overlapping",
   courses_code_key: "course.code_taken",

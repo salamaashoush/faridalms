@@ -560,8 +560,8 @@ const BLOCK_ERROR: Record<Block["kind"], string> = {
 /**
  * Approves erasing a person who has left: on the school's retention rules
  * once their review date has passed, to fulfil their open erasure request,
- * or on a regulator's order. Nothing blocking may stand, and the documents,
- * files and households the erasure will take are listed with the approval.
+ * or on a regulator's order. Nothing blocking may stand, and the documents
+ * and files the erasure will take are listed with the approval.
  */
 export const approveErasure = writeProcedure
   .input(approveErasureSchema)
@@ -615,7 +615,6 @@ export const approveErasure = writeProcedure
     const listed = {
       documents: plan.documents.length,
       files: plan.files.length,
-      households: plan.households.length,
     };
     await audit(context, {
       action: "privacy_erasure.approve",

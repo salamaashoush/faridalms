@@ -33,7 +33,7 @@ in `decisions.md`; a choice below changes only with new evidence.
     periods.
   - Locations (rooms and buildings).
   - Files, file publications, file subjects and tenant keys.
-  - Users, demographics, external ids, contact points, households.
+  - Users, demographics, external ids, contact points.
   - Student school years, user roles, user relationships and relationship
     restrictions.
   - Accounts, identity providers, login identities, passkeys, sessions,
@@ -960,18 +960,18 @@ Notes on the functions:
 - **Erasure** is not deletion. When a person's data must be erased (Egypt Law
   151/2020 Art. 4(7), Saudi PDPL Art. 18, UAE Art. 5(7) [R3]), a person with
   the erasure capability records an approval in `core.erasure_approvals`,
-  listing the files, documents and households it covers beyond the person's
-  own rows (section 6.13). Only then, and only while no legal hold names the
+  listing the files and documents it covers beyond the person's own rows
+  (section 6.13). Only then, and only while no legal hold names the
   person, can `retention`:
   - tombstone the person's rows (roles, placements, relationships, account)
     and null the personal columns of `users` and `demographics` (setting
     `users.erased_at`), clearing their `metadata`;
-  - delete the person's external ids, contact points, household memberships,
+  - delete the person's external ids, contact points,
     relationship restrictions, login identities, passkeys, devices, sessions,
     idempotency keys, file subjects, preferences, saved views, activity
     events, health records and audit payloads;
-  - delete the listed files (then their objects) and households, and redact
-    the listed documents, their versions and translations.
+  - delete the listed files (then their objects), and redact the listed
+    documents, their versions and translations.
 
   Ids and `date_last_modified` stay, so delta readers learn of the deletion
   ([R3] section 7); `core.demographics` keeps its tombstone, so the
@@ -1358,11 +1358,8 @@ preferred_locale, primary_org_id, erased_at`.
 home_languages`.
 - `core.external_ids`: entity, integration read; erase and delete, person
   `user_id`.
-- `core.households`: entity; erase and delete with
-  `<who> = app.erasure_listed(tenant_id, 'household', id)`.
-- `core.household_members`: entity; erase and delete, person `user_id`.
-- `core.contact_points`: entity, integration read; erase and delete with
-  `<who> = app.erasure_approved(tenant_id, user_id) or app.erasure_listed(tenant_id, 'household', household_id)`.
+- `core.contact_points`: entity, integration read; erase and delete, person
+  `user_id`.
 - `core.student_school_years`: entity, integration read; erase, person
   `student_user_id`.
 - `core.user_roles`: entity, integration read; erase, person `user_id`.
@@ -1459,8 +1456,7 @@ scope includes it, and inserts audit rows.
 
 `DELETE` allowlist, which the CI check enforces: `retention` on
 `core.sessions`, `core.auth_attempts`, `core.idempotency_keys`,
-`core.external_ids`, `core.contact_points`, `core.households`,
-`core.household_members`, `core.relationship_restrictions`,
+`core.external_ids`, `core.contact_points`, `core.relationship_restrictions`,
 `core.login_identities`, `core.passkeys`, `core.devices`, `core.files`,
 `core.file_subjects`, `core.user_preferences`, `core.saved_views`,
 `core.activity_events`, `health.records` and `audit.payloads`. Nobody else,
@@ -2770,61 +2766,20 @@ create index external_ids_delta_idx on core.external_ids (tenant_id, date_last_m
 - A student number that can open records on its own is not directory
   information (FERPA §99.3, [R3] section 5); badges never encode it.
 
-```sql
-create table core.households (
-  tenant_id uuid not null,
-  id uuid not null default uuidv7(),
-  name_en text check (char_length(name_en) between 1 and 120),
-  name_ar text check (char_length(name_ar) between 1 and 120),
-  primary_language text check (primary_language ~ '^[a-z]{2,3}$'),
-  status text not null default 'active' check (status in ('active', 'tobedeleted')),
-  date_last_modified timestamptz not null default statement_timestamp(),
-  version integer not null default 1 check (version > 0),
-  metadata jsonb not null default '{}'
-    check (jsonb_typeof(metadata) = 'object' and octet_length(metadata::text) <= 16384),
-  created_at timestamptz not null default statement_timestamp(),
-  primary key (tenant_id, id),
-  foreign key (tenant_id) references core.tenants (tenant_id)
-);
-
-create table core.household_members (
-  tenant_id uuid not null,
-  id uuid not null default uuidv7(),
-  household_id uuid not null,
-  user_id uuid not null,
-  member_kind text not null check (member_kind in ('adult', 'child')),
-  residence text not null default 'primary' check (residence in ('primary', 'secondary')),
-  valid_during daterange not null,
-  status text not null default 'active' check (status in ('active', 'tobedeleted')),
-  date_last_modified timestamptz not null default statement_timestamp(),
-  version integer not null default 1 check (version > 0),
-  metadata jsonb not null default '{}'
-    check (jsonb_typeof(metadata) = 'object' and octet_length(metadata::text) <= 16384),
-  created_at timestamptz not null default statement_timestamp(),
-  primary key (tenant_id, id),
-  foreign key (tenant_id) references core.tenants (tenant_id),
-  foreign key (tenant_id, household_id) references core.households (tenant_id, id),
-  foreign key (tenant_id, user_id) references core.users (tenant_id, id),
-  constraint household_members_valid_during_check check (
-    not isempty(valid_during) and not lower_inf(valid_during) and lower_inc(valid_during) and not upper_inc(valid_during)),
-  constraint household_members_excl exclude using gist
-    (tenant_id with =, household_id with =, user_id with =, valid_during with &&) where (status = 'active')
-);
-create index household_members_user_idx on core.household_members (tenant_id, user_id) where status = 'active';
-```
-
-- Households are separate from relationships, as Veracross keeps them, which
-  is what makes separated parents work: a child is a member of two households
-  (`residence` primary and secondary) while each parent's authority lives on
-  the relationship (administration research; [R3] section 7). The product's
-  Families page lists households.
+- **There are no households.** A family is the set of guardian links
+  (section 6.8): where a child lives is `residence` on each link, so a child
+  of separated parents has a main home on one parent's link and a second home
+  on the other's, while each parent's authority stays on their own link.
+  Siblings are students who share a parent's link. A grouping kept beside the
+  links would have to be maintained by hand and would drift from them; Ed-Fi
+  has no household entity either ([R1] section 3.1). Fees, when they come,
+  hang on the paying adult's link.
 
 ```sql
 create table core.contact_points (
   tenant_id uuid not null,
   id uuid not null default uuidv7(),
-  user_id uuid,
-  household_id uuid,
+  user_id uuid not null,
   kind text not null check (kind in ('email', 'phone', 'postal')),
   label text not null default 'other' check (label in ('mobile', 'home', 'work', 'personal', 'emergency', 'other')),
   value text not null check (char_length(value) between 1 and 500),
@@ -2851,8 +2806,6 @@ create table core.contact_points (
   primary key (tenant_id, id),
   foreign key (tenant_id) references core.tenants (tenant_id),
   foreign key (tenant_id, user_id) references core.users (tenant_id, id),
-  foreign key (tenant_id, household_id) references core.households (tenant_id, id),
-  constraint contact_points_owner_check check (num_nonnulls(user_id, household_id) = 1),
   constraint contact_points_phone_check check (
     kind <> 'phone' or normalized is null or normalized ~ '^\+[1-9][0-9]{6,14}$'),
   constraint contact_points_email_check check (
@@ -2866,7 +2819,7 @@ create index contact_points_lookup_idx on core.contact_points (tenant_id, kind, 
   where status = 'active' and normalized is not null;
 create index contact_points_user_idx on core.contact_points (tenant_id, user_id) where status = 'active';
 create unique index contact_points_user_value_key on core.contact_points (tenant_id, user_id, kind, normalized)
-  where status = 'active' and user_id is not null and normalized is not null;
+  where status = 'active' and normalized is not null;
 create index contact_points_delta_idx on core.contact_points (tenant_id, date_last_modified);
 ```
 
@@ -2881,8 +2834,9 @@ create index contact_points_delta_idx on core.contact_points (tenant_id, date_la
   never a partial match. Two guardians may share a number, so the index is
   not unique across users. A match known only at another school of the group
   shows the minimal card of section 3.6.
-- A contact point belongs to a person or, when the school holds a number it
-  cannot attribute, to a household. A person's contact points are visible to
+- A contact point belongs to a person; a home address is the adult's postal
+  contact point, and a child's homes are the addresses of the adults whose
+  link says the child lives with them. A person's contact points are visible to
   every school where the person holds a current role; a guardian whose
   relationship is `communication_isolated` (section 6.8) has their contact
   points hidden from the other guardians of that child.
@@ -3089,7 +3043,7 @@ create table core.user_relationships (
   primary_contact boolean not null default false,
   emergency_contact boolean not null default false,
   contact_priority smallint check (contact_priority between 1 and 99),
-  lives_with boolean,
+  residence text check (residence in ('primary', 'secondary', 'none')),
   pickup text check (pickup in ('allowed', 'not_allowed', 'ask_office')),
   valid_during daterange not null,
   access_basis text not null default 'parental_authority'
@@ -3156,7 +3110,8 @@ thin (no type, no flags, no dates), so the fields come from Ed-Fi
 item 2; [R3] section 7):
 
 - Ed-Fi fields: `relation` (Relation), `primary_contact`
-  (PrimaryContactStatus), `lives_with` (LivesWith), `emergency_contact`
+  (PrimaryContactStatus), `residence` (LivesWith, widened to main or second
+  home), `emergency_contact`
   (EmergencyContactStatus), `contact_priority` (ContactPriority),
   `legal_guardian` (LegalGuardian), and `contact_restrictions`
   (ContactRestrictions, "e.g., the student may not be picked up by the
@@ -3187,7 +3142,7 @@ item 2; [R3] section 7):
   job ends portal access on those rows when the student comes of age in the
   tenant's jurisdiction, unless the student consents (a new row with basis
   `student_consent`).
-- **Null is "not recorded"** for `legal_guardian`, `lives_with` and `pickup`.
+- **Null is "not recorded"** for `legal_guardian`, `residence` and `pickup`.
   Imported relationships leave them null and carry
   `verification_method = 'import_unverified'`, which puts them in the
   registrar's review queue.
@@ -4122,7 +4077,7 @@ create index erasure_approvals_subject_idx on core.erasure_approvals (tenant_id,
 create table core.erasure_items (
   tenant_id uuid not null,
   approval_id uuid not null,
-  object_type text not null check (object_type in ('file', 'document', 'household')),
+  object_type text not null check (object_type in ('file', 'document')),
   object_id uuid not null,
   created_at timestamptz not null default statement_timestamp(),
   primary key (tenant_id, approval_id, object_type, object_id),
@@ -4182,7 +4137,7 @@ grant execute on function app.erasure_approved(uuid, uuid), app.erasure_listed(u
 
 - **An erasure approval** is a ledger row a person with the erasure
   capability writes after the privacy spec's review; `erasure_items` lists
-  the files, documents and households it covers beyond the person's own rows,
+  the files and documents it covers beyond the person's own rows,
   so the approver sees and signs off exactly what will go. The privacy spec
   decides whether a second approver is required.
 - **A legal hold** names a person whose data must not be erased; while one is
@@ -5270,8 +5225,8 @@ t as (
 ),
 delete_allowed(name, role) as (values
   ('core.sessions', 'retention'), ('core.auth_attempts', 'retention'), ('core.idempotency_keys', 'retention'),
-  ('core.external_ids', 'retention'), ('core.contact_points', 'retention'), ('core.households', 'retention'),
-  ('core.household_members', 'retention'), ('core.relationship_restrictions', 'retention'),
+  ('core.external_ids', 'retention'), ('core.contact_points', 'retention'),
+  ('core.relationship_restrictions', 'retention'),
   ('core.login_identities', 'retention'), ('core.passkeys', 'retention'), ('core.devices', 'retention'),
   ('core.files', 'retention'), ('core.file_subjects', 'retention'), ('core.user_preferences', 'retention'),
   ('core.saved_views', 'retention'), ('core.activity_events', 'retention'), ('health.records', 'retention'),
@@ -5604,7 +5559,7 @@ target_table, target_id, kind)`, where `kind` is `kept`, `merged_into` or
    transactions with the tenant context set, so every policy `WITH CHECK`, key
    and constraint applies. Order: tenant and orgs, descriptors, sessions and
    calendars, locations, files, users, accounts and identities, placements and
-   roles, relationships, contact points and households, health, consent,
+   roles, relationships, contact points, health, consent,
    access roles, audit history, then the other systems. `cell_io` supplies
    legacy `created_at` values, and a document's version when it brings
    history (section 10.3). A school joining a live group lands with
@@ -5824,34 +5779,28 @@ General rules:
     `metadata.legacy.primary_inferred = true`.
   - `portal_access` and `receives_notifications` are true (they had access and
     were notified).
-  - `legal_guardian`, `lives_with` and `pickup` are null (not recorded).
+  - `legal_guardian`, `residence` and `pickup` are null (not recorded).
   - `valid_during = [created_at::date, )`.
 - **Family roles** are computed once relationships and placements are in, by
   the same function the relationship service uses (section 6.8), so imported
   rows and later derivations never disagree.
-- **Households** are built per student: the student and their guardians. Two
-  students share a household only when their sets of guardians are identical
-  and not empty. A student with no guardian still gets a household when they
-  have any `student_contacts` data. Larger connected groups (a grandparent
-  linked to cousins, separated parents with new partners) are reported for
-  review and never merged automatically, because telling families apart is what
-  households are for. A household is named after any guardian's family name,
-  else the student's; members are valid from the earliest guardianship of the
-  household, or the student's `created_at`.
 - **`student_contacts`**:
   - `father_mobile`, `mother_mobile` and `contact_mobile` are normalised and
     matched against the mobile contact points of every guardian of the
     student, whatever the relation. A match adds the number to that guardian
     (`label = 'mobile'`) unless it is already there. An unmatched father or
-    mother number becomes a household contact point with
-    `metadata.legacy.role` set to `father` or `mother`; an unmatched
-    `contact_mobile` becomes a household contact point (`label = 'other'`).
+    mother number goes to the guardian whose relation is (or was inferred as)
+    father or mother, with `metadata.legacy.role`; when the student has no
+    such guardian it is a new related person with no account, that relation,
+    portal access and notifications false and `import_unverified`. An
+    unmatched `contact_mobile` goes to the student's primary contact
+    (`label = 'other'`), and is reported when the student has no guardian.
   - `email` is attached to the guardian who has it as their login email,
-    otherwise to the household.
+    otherwise to the student's primary contact, otherwise reported.
   - `father_address` and `mother_address` become postal contact points of the
-    guardian whose relation is (or was inferred as) father or mother, otherwise
-    of the household with `metadata.legacy.role`; the free text in `value`,
-    `postal` as `{"lines": [value]}`.
+    guardian whose relation is (or was inferred as) father or mother,
+    otherwise of the primary contact with `metadata.legacy.role`; the free
+    text in `value`, `postal` as `{"lines": [value]}`.
 - **`emergency_contacts`**:
   - The free-text `relation` is normalised (trimmed, case-folded, the Arabic
     definite article removed, letters folded as `app.normalize_name` does) and
@@ -5869,8 +5818,9 @@ General rules:
     relation text go to the relationship's `metadata.legacy`. When two
     guardians share the number, the one whose normalised name matches wins;
     otherwise the row is reported.
-  - Otherwise the rows of one household that share a normalised mobile and a
-    normalised name are one person: the earliest row's id is kept and the rest
+  - Otherwise the rows of brothers and sisters (students who share a
+    guardian) that share a normalised mobile and a normalised name are one
+    person: the earliest row's id is kept and the rest
     recorded as `merged_into`. That person is a new user with no account, the
     name by script (`name_parts_source = 'import_split'`, parts left for
     review), a phone contact point labelled `emergency`, and a relationship to
@@ -6019,7 +5969,7 @@ Before the flip, all of these must pass:
   and a placement for every legacy year in which they had an enrolment (or the
   fallback placement).
 - **Contacts**: every non-empty legacy phone and address appears in exactly one
-  contact point, of a person or a household.
+  contact point of a person, or in the review report.
 - **Health**: every non-empty legacy medical field and report name decrypts to
   its legacy text.
 - **Access**: every imported user's effective capabilities at the school equal

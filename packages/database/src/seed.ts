@@ -79,8 +79,6 @@ import {
   enrollments,
   externalIds,
   healthRecords,
-  householdMembers,
-  households,
   locations,
   loginIdentities,
   messages,
@@ -918,7 +916,6 @@ async function seedSchool(
         mother: Person;
         father: Person;
         family: Name;
-        household: string;
       };
     };
   },
@@ -1080,7 +1077,6 @@ async function seedSchool(
       const mother =
         shared?.mother ?? person(pick(MOTHERS), pick(FAMILIES), "female");
       const father = shared?.father ?? person(pick(BOYS), family, "male");
-      let household = shared?.household ?? "";
       if (!shared) {
         await insertPerson(tx, tenantId, mother);
         await insertPerson(tx, tenantId, father);
@@ -1100,23 +1096,6 @@ async function seedSchool(
             smsCapable: true,
             source: "manual",
           });
-        household = Bun.randomUUIDv7();
-        await tx.insert(households).values({
-          tenantId,
-          id: household,
-          nameEn: `${family[0]} family`,
-          nameAr: `عائلة ${family[1]}`,
-          primaryLanguage: "ar",
-        });
-        await tx.insert(householdMembers).values(
-          [mother, father].map((adult) => ({
-            tenantId,
-            householdId: household,
-            userId: adult.id,
-            memberKind: "adult" as const,
-            validDuring: "[2024-09-01,)",
-          })),
-        );
         const motherLogin = `parent${reference}@${context.domain}`;
         await giveAccount(
           tx,
@@ -1135,15 +1114,8 @@ async function seedSchool(
           grade === plan.grades[0] &&
           !context.shared.siblingsOf
         )
-          context.shared.siblingsOf = { mother, father, family, household };
+          context.shared.siblingsOf = { mother, father, family };
       }
-      await tx.insert(householdMembers).values({
-        tenantId,
-        householdId: household,
-        userId: student.id,
-        memberKind: "child",
-        validDuring: "[2024-09-01,)",
-      });
       for (const [parent, relation, portal] of [
         [mother, "mother", true],
         [father, "father", index % 3 !== 0],
@@ -1160,7 +1132,7 @@ async function seedSchool(
           primaryContact: relation === "mother",
           emergencyContact: true,
           contactPriority: relation === "mother" ? 1 : 2,
-          livesWith: true,
+          residence: "primary",
           pickup: "allowed",
           validDuring: "[2024-09-01,)",
           verificationMethod: "staff_attested",

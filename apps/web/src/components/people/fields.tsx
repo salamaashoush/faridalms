@@ -165,7 +165,7 @@ export const PARENT_FLAGS: Omit<FlagsDraft, "relationId"> = {
   receivesNotifications: true,
   primaryContact: false,
   emergencyContact: true,
-  livesWith: true,
+  residence: "primary",
   pickup: "allowed",
 };
 
@@ -245,6 +245,7 @@ export function RelationshipFields({
         />
         <CheckboxRow
           label={m.guardianReceivesNotifications()}
+          hint={m.guardianReceivesNotificationsHint()}
           checked={value.receivesNotifications}
           onChange={(next) => set("receivesNotifications", next)}
         />
@@ -264,12 +265,30 @@ export function RelationshipFields({
           checked={value.legalGuardian === true}
           onChange={(next) => set("legalGuardian", next)}
         />
-        <CheckboxRow
-          label={m.guardianLivesWith()}
-          checked={value.livesWith === true}
-          onChange={(next) => set("livesWith", next)}
-        />
       </fieldset>
+      <SelectField
+        id={`${idPrefix}-residence`}
+        label={m.guardianResidence()}
+        hint={m.guardianResidenceHint()}
+        value={value.residence ?? "unknown"}
+        options={[
+          { value: "primary", label: m.guardianResidencePrimary() },
+          { value: "secondary", label: m.guardianResidenceSecondary() },
+          { value: "none", label: m.guardianResidenceNone() },
+          { value: "unknown", label: m.commonNotRecorded() },
+        ]}
+        onChange={(residence) =>
+          set(
+            "residence",
+            residence === "primary" ||
+              residence === "secondary" ||
+              residence === "none"
+              ? residence
+              : null,
+          )
+        }
+        width="name"
+      />
       <SelectField
         id={`${idPrefix}-pickup`}
         label={m.guardianPickup()}

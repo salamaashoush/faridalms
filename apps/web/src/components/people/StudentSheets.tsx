@@ -273,7 +273,7 @@ function flagsOf(guardian: Guardian): FlagsDraft {
     receivesNotifications: guardian.receivesNotifications,
     primaryContact: guardian.primaryContact,
     emergencyContact: guardian.emergencyContact,
-    livesWith: guardian.livesWith,
+    residence: guardian.residence,
     pickup: guardian.pickup,
   };
 }

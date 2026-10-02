@@ -9,7 +9,7 @@ import { SheetForm } from "~/components/system/SheetForm";
 import * as m from "~/i18n/messages";
 import { classDirectoryQuery } from "~/queries/classes";
 import { enrolStudent, withdrawStudent } from "~/server/classes";
-import { searchPeople } from "~/server/households";
+import { searchPeople } from "~/server/students";
 import { getMessageFromError } from "~/utils/error";
 
 import { displayName, lastDay } from "../people/format";

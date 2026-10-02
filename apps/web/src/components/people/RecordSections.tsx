@@ -349,7 +349,10 @@ type Demographics = Awaited<
   ReturnType<NonNullable<ReturnType<typeof demographicsQuery>["queryFn"]>>
 >;
 
-function matching(search: string, list: { value: string; label: string }[]) {
+export function matching(
+  search: string,
+  list: { value: string; label: string }[],
+) {
   const needle = search.trim().toLocaleLowerCase();
   return list.filter((option) =>
     option.label.toLocaleLowerCase().includes(needle),

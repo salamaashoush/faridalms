@@ -25,6 +25,7 @@ import { personHistoryQuery, personRecordQuery } from "~/queries/students";
 import { formatList } from "~/utils/datetime";
 
 import { AccessSection } from "./AccessSection";
+import { ContactsSheet } from "./ContactsSheet";
 import { displayName, labelOf, otherName, roleLabel } from "./format";
 import { PhotoDialog } from "./PhotoDialog";
 import { Deferred, Email, HistorySection, Phone } from "./record-parts";
@@ -102,13 +103,24 @@ function RolesSection({ data }: { data: PersonData }) {
   );
 }
 
+const CONTACT_LABEL = {
+  phone: m.familyMobile,
+  email: m.adminEmail,
+  postal: m.addressTitle,
+} as const;
+
 function ContactsSection({
   contacts,
+  onEdit,
 }: {
   contacts: NonNullable<PersonData["contacts"]>;
+  onEdit?: () => void;
 }) {
   return (
-    <RecordSection title={m.personContactDetails()}>
+    <RecordSection
+      title={m.personContactDetails()}
+      edit={onEdit ? { label: m.contactsEdit(), onClick: onEdit } : undefined}
+    >
       {contacts.length === 0 ? (
         <RecordEmpty>{m.personNoContacts()}</RecordEmpty>
       ) : (
@@ -116,13 +128,15 @@ function ContactsSection({
           {contacts.map((contact) => (
             <li key={contact.id} className="grid gap-0.5 py-3">
               <span className="text-[13px] leading-[18px] text-muted-foreground">
-                {contact.kind === "phone" ? m.familyMobile() : m.adminEmail()}
+                {CONTACT_LABEL[contact.kind]()}
               </span>
               <span className="text-sm leading-5">
                 {contact.kind === "phone" ? (
                   <Phone value={contact.normalized ?? contact.value} />
-                ) : (
+                ) : contact.kind === "email" ? (
                   <Email value={contact.value} />
+                ) : (
+                  <bdi>{contact.value}</bdi>
                 )}
               </span>
             </li>
@@ -195,6 +209,7 @@ export function PersonRecord({
   const data = useSuspenseQuery(personRecordQuery(userId)).data;
   const queryClient = useQueryClient();
   const [photoOpen, setPhotoOpen] = useState(false);
+  const [editing, setEditing] = useState({ open: false, key: 0 });
   const navigate = useNavigate();
   const name = displayName(data);
   const available = personTabsFor(data.access);
@@ -233,7 +248,18 @@ export function PersonRecord({
           }
           aside={
             data.contacts ? (
-              <ContactsSection contacts={data.contacts} />
+              <ContactsSection
+                contacts={data.contacts}
+                onEdit={
+                  data.access.contacts
+                    ? () =>
+                        setEditing((current) => ({
+                          open: true,
+                          key: current.key + 1,
+                        }))
+                    : undefined
+                }
+              />
             ) : undefined
           }
         />
@@ -317,6 +343,16 @@ export function PersonRecord({
       ) : (
         body
       )}
+      {data.access.contacts && data.contacts ? (
+        <ContactsSheet
+          key={editing.key}
+          userId={userId}
+          name={name}
+          contacts={data.contacts}
+          open={editing.open}
+          onClose={() => setEditing((current) => ({ ...current, open: false }))}
+        />
+      ) : null}
       {data.access.photo ? (
         <PhotoDialog
           personId={userId}

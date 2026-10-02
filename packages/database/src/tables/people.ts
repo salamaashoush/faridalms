@@ -25,7 +25,6 @@ import {
   entityProfile,
   erase,
   eraseAndDelete,
-  erasureListed,
   erasureOf,
   fk,
   instant,
@@ -355,80 +354,13 @@ export const externalIds = core.table.withRLS(
   ],
 );
 
-export const households = core.table.withRLS(
-  "households",
-  {
-    ...tenantColumns(),
-    nameEn: text("name_en"),
-    nameAr: text("name_ar"),
-    primaryLanguage: text("primary_language"),
-    ...entityColumns(),
-  },
-  (t): PgTableExtraConfigValue[] => [
-    pk("households", t.tenantId, t.id),
-    ...baseConstraints("households", t, tenants),
-    ck("households", "name_en", sql`char_length(name_en) between 1 and 120`),
-    ck("households", "name_ar", sql`char_length(name_ar) between 1 and 120`),
-    ck(
-      "households",
-      "primary_language",
-      sql`primary_language ~ '^[a-z]{2,3}$'`,
-    ),
-    ...entityProfile(),
-    ...eraseAndDelete(erasureListed("household", "id")),
-  ],
-);
-
-export const householdMembers = core.table.withRLS(
-  "household_members",
-  {
-    ...tenantColumns(),
-    householdId: uuid("household_id").notNull(),
-    userId: uuid("user_id").notNull(),
-    memberKind: text("member_kind").$type<"adult" | "child">().notNull(),
-    residence: text("residence")
-      .$type<"primary" | "secondary">()
-      .notNull()
-      .default("primary"),
-    validDuring: daterange("valid_during").notNull(),
-    ...entityColumns(),
-  },
-  (t): PgTableExtraConfigValue[] => [
-    pk("household_members", t.tenantId, t.id),
-    ...baseConstraints("household_members", t, tenants),
-    fk(
-      "household_members",
-      [t.tenantId, t.householdId],
-      [households.tenantId, households.id],
-    ),
-    fk("household_members", [t.tenantId, t.userId], [users.tenantId, users.id]),
-    ck(
-      "household_members",
-      "member_kind",
-      sql`member_kind in ('adult', 'child')`,
-    ),
-    ck(
-      "household_members",
-      "residence",
-      sql`residence in ('primary', 'secondary')`,
-    ),
-    ck("household_members", "valid_during", range.started("valid_during")),
-    index("household_members_user_idx")
-      .on(t.tenantId, t.userId)
-      .where(sql`status = 'active'`),
-    ...entityProfile(),
-    ...eraseAndDelete(erasureOf("user_id")),
-  ],
-);
-
 export type ContactPurpose = "notify" | "security" | "recovery" | "login";
 
 export const contactPoints = core.table.withRLS(
   "contact_points",
   {
     ...tenantColumns(),
-    userId: uuid("user_id"),
-    householdId: uuid("household_id"),
+    userId: uuid("user_id").notNull(),
     kind: text("kind").$type<"email" | "phone" | "postal">().notNull(),
     label: text("label")
       .$type<"mobile" | "home" | "work" | "personal" | "emergency" | "other">()
@@ -468,11 +400,6 @@ export const contactPoints = core.table.withRLS(
     fk("contact_points", [t.tenantId, t.userId], [users.tenantId, users.id]),
     fk(
       "contact_points",
-      [t.tenantId, t.householdId],
-      [households.tenantId, households.id],
-    ),
-    fk(
-      "contact_points",
       [t.tenantId, t.importRunId],
       [importRuns.tenantId, importRuns.id],
     ),
@@ -505,7 +432,6 @@ export const contactPoints = core.table.withRLS(
       "source",
       sql`source in ('manual', 'import', 'self_service', 'sis', 'sso')`,
     ),
-    ck("contact_points", "owner", sql`num_nonnulls(user_id, household_id) = 1`),
     ck(
       "contact_points",
       "phone",
@@ -534,13 +460,9 @@ export const contactPoints = core.table.withRLS(
       .where(sql`status = 'active'`),
     uniqueIndex("contact_points_user_value_key")
       .on(t.tenantId, t.userId, t.kind, t.normalized)
-      .where(
-        sql`status = 'active' and user_id is not null and normalized is not null`,
-      ),
+      .where(sql`status = 'active' and normalized is not null`),
     index("contact_points_delta_idx").on(t.tenantId, t.dateLastModified),
     ...entityProfile({ integration: true }),
-    ...eraseAndDelete(
-      sql`app.erasure_approved(tenant_id, user_id) or app.erasure_listed(tenant_id, 'household', household_id)`,
-    ),
+    ...eraseAndDelete(erasureOf("user_id")),
   ],
 );

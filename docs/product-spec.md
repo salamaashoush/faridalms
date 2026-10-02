@@ -161,8 +161,13 @@ is a separate, explicit step; the old year becomes read-only.
   (guardians with call and message, today's timetable, term attendance, recent
   notifications), Details, Family, Enrolment history, Attendance, Coursework and
   results, Account, History. Sections edit in side sheets.
-- **Families:** households, and on each guardian–student link: primary
-  contact, receives notifications, may pick up, portal access, lives with.
+- **Families:** the guardian–student links are the family; there is no
+  separate household. Each link carries primary contact, receives notices
+  (absence alerts, with or without the family app), may pick up, portal
+  access, and home (main home, second home, does not live with them).
+  Siblings are students who share a parent's link. An adult's phone, email
+  and home address are edited from the student's Family tab or the adult's
+  record.
 - **Staff:** roles, classes taught, homeroom, timetable, effective access,
   sign-in activity, history.
 - **Adding a student:** names, date of birth and class; a matching name and

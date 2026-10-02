@@ -5,6 +5,7 @@ import { cn } from "@faridalms/ui/cn";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import {
+  Contact,
   Copy,
   HeartPulse,
   Pencil,
@@ -44,6 +45,7 @@ import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import {
   peopleOptionsQuery,
+  siblingsQuery,
   studentHistoryQuery,
   studentRecordQuery,
 } from "~/queries/students";
@@ -51,6 +53,7 @@ import {
 import type { StudentSheet } from "./StudentSheets";
 
 import { StudentClasses } from "../classes/StudentClasses";
+import { ContactsSheet } from "./ContactsSheet";
 import {
   displayName,
   labelOf,
@@ -59,7 +62,6 @@ import {
   STATUS_LABEL,
   STATUS_TONE,
 } from "./format";
-import { HomesSection } from "./Households";
 import { PhotoDialog } from "./PhotoDialog";
 import { Deferred, Email, HistorySection, Phone } from "./record-parts";
 import {
@@ -227,7 +229,14 @@ function GuardianItem({
   const labels = useLabels();
   const phone = guardian.contacts.find((contact) => contact.kind === "phone");
   const email = guardian.contacts.find((contact) => contact.kind === "email");
+  const address = guardian.contacts.find(
+    (contact) => contact.kind === "postal",
+  );
   const flags: string[] = [];
+  if (guardian.residence === "primary")
+    flags.push(m.guardianResidencePrimary());
+  if (guardian.residence === "secondary")
+    flags.push(m.guardianResidenceSecondary());
   if (guardian.primaryContact) flags.push(m.recordPrimaryContact());
   if (guardian.legalGuardian) flags.push(m.guardianLegal());
   if (guardian.portalAccess) flags.push(m.guardianPortalAccess());
@@ -263,6 +272,12 @@ function GuardianItem({
           </span>
           {email ? <Email value={email.value} /> : null}
         </p>
+        {address ? (
+          <p className="text-[13px] leading-[18px]">
+            <span className="sr-only">{m.addressTitle()}: </span>
+            <bdi>{address.value}</bdi>
+          </p>
+        ) : null}
       </div>
       {actions}
     </li>
@@ -306,6 +321,43 @@ function GuardiansSection({
               guardian={guardian}
               actions={itemActions?.(guardian)}
             />
+          ))}
+        </RecordList>
+      )}
+    </RecordSection>
+  );
+}
+
+/** Students who share a parent or guardian with this one. */
+function SiblingsSection({ studentId }: { studentId: string }) {
+  const siblings = useSuspenseQuery(siblingsQuery(studentId)).data;
+  return (
+    <RecordSection title={m.siblingsTitle()} description={m.siblingsHint()}>
+      {siblings.length === 0 ? (
+        <RecordEmpty>{m.siblingsNone()}</RecordEmpty>
+      ) : (
+        <RecordList>
+          {siblings.map((sibling) => (
+            <li key={sibling.userId} className="flex items-center gap-3 py-3">
+              <span
+                aria-hidden
+                className="flex size-8 shrink-0 items-center justify-center rounded-full bg-muted text-xs font-medium"
+              >
+                {initialsOf(displayName(sibling))}
+              </span>
+              <Link
+                to="/students/$studentId"
+                params={{ studentId: sibling.userId }}
+                search={{}}
+                dir="auto"
+                className={cn(
+                  "text-sm leading-5 font-medium hover:text-primary hover:underline",
+                  phoneLink,
+                )}
+              >
+                {displayName(sibling)}
+              </Link>
+            </li>
           ))}
         </RecordList>
       )}
@@ -387,6 +439,11 @@ export function StudentRecord({
   const data = useSuspenseQuery(studentRecordQuery(studentId)).data;
   const queryClient = useQueryClient();
   const [photoOpen, setPhotoOpen] = useState(false);
+  const [contacts, setContacts] = useState<{
+    guardian: Guardian | null;
+    open: boolean;
+    key: number;
+  }>({ guardian: null, open: false, key: 0 });
   const labels = useLabels();
   const endLink = useEndLink(studentId);
   const navigate = useNavigate();
@@ -469,6 +526,13 @@ export function StudentRecord({
         <GuardianMenu
           guardian={guardian}
           onEdit={open({ kind: "guardian", guardian })}
+          onContacts={() =>
+            setContacts((current) => ({
+              guardian,
+              open: true,
+              key: current.key + 1,
+            }))
+          }
           onEnd={() => endLink(guardian, name)}
         />
       )
@@ -526,7 +590,7 @@ export function StudentRecord({
                 </Deferred>
               ) : null}
               <Deferred>
-                <HomesSection userId={studentId} />
+                <SiblingsSection studentId={studentId} />
               </Deferred>
             </>
           }
@@ -663,6 +727,18 @@ export function StudentRecord({
           }
         />
       ) : null}
+      {access.manage && contacts.guardian ? (
+        <ContactsSheet
+          key={contacts.key}
+          userId={contacts.guardian.userId}
+          name={displayName(contacts.guardian)}
+          contacts={contacts.guardian.contacts}
+          open={contacts.open}
+          onClose={() =>
+            setContacts((current) => ({ ...current, open: false }))
+          }
+        />
+      ) : null}
       {access.manage ? (
         <StudentSheets
           key={sheet.key}
@@ -679,10 +755,12 @@ export function StudentRecord({
 function GuardianMenu({
   guardian,
   onEdit,
+  onContacts,
   onEnd,
 }: {
   guardian: Guardian;
   onEdit: () => void;
+  onContacts: () => void;
   onEnd: () => Promise<void>;
 }) {
   const name = displayName(guardian);
@@ -691,6 +769,7 @@ function GuardianMenu({
       label={m.guardianActions({ name })}
       actions={[
         { label: m.guardianEditLink(), icon: Pencil, onSelect: onEdit },
+        { label: m.contactsEdit(), icon: Contact, onSelect: onContacts },
         {
           label: m.guardianEndLink(),
           destructive: true,

@@ -14,15 +14,14 @@ type Tx = CellTransaction;
 export interface ErasurePlan {
   documents: string[];
   files: string[];
-  households: string[];
 }
 
 /**
- * The documents, files and households erasing a person takes with them: the
- * drafts and handed-in copies of their work, the files those hold and their
- * photo, and a household left with no one else in it. A file another record
- * still needs (published, kept as consent evidence, about someone else, or
- * placed in a document that is not being erased) stays.
+ * The documents and files erasing a person takes with them: the drafts and
+ * handed-in copies of their work, the files those hold and their photo. A
+ * file another record still needs (published, kept as consent evidence,
+ * about someone else, or placed in a document that is not being erased)
+ * stays.
  */
 export async function erasurePlan(
   tx: Tx,
@@ -56,16 +55,9 @@ export async function erasurePlan(
       and not exists (select 1 from core.orgs o where o.tenant_id = f.tenant_id and o.logo_file_id = f.id)
       and not exists (select 1 from core.users u where u.tenant_id = f.tenant_id and u.photo_file_id = f.id
                         and u.id <> ${s}::uuid)`);
-  const households = await tx.execute<{ id: string }>(sql`
-    select m.household_id as id from core.household_members m
-    where m.tenant_id = ${t}::uuid and m.user_id = ${s}::uuid and m.status = 'active'
-      and not exists (select 1 from core.household_members o
-                      where o.tenant_id = m.tenant_id and o.household_id = m.household_id
-                        and o.user_id <> ${s}::uuid and o.status = 'active')`);
   return {
     documents: documentIds,
     files: files.map((row) => row.id),
-    households: [...new Set(households.map((row) => row.id))],
   };
 }
 
@@ -101,10 +93,6 @@ export async function approveErasure(
       objectType: "file" as const,
       objectId,
     })),
-    ...input.plan.households.map((objectId) => ({
-      objectType: "household" as const,
-      objectId,
-    })),
   ];
   if (items.length)
     await tx.insert(erasureItems).values(
@@ -128,7 +116,7 @@ export interface ErasureResult {
  * Erases an approved person, as the `retention` role, in one transaction:
  * rows that must stay for the school's records are tombstoned with their
  * personal columns nulled; everything that is only about the person, and
- * every listed document, file and household, is redacted or deleted. Row
+ * every listed document and file, is redacted or deleted. Row
  * level security admits each statement only while the approval stands and no
  * legal hold names the person, so a hold placed meanwhile stops it.
  */
@@ -148,7 +136,7 @@ export async function eraseSubject(
   const accounts = sql`(select id from core.accounts where tenant_id = ${t}::uuid and user_id = ${s}::uuid)`;
   const relationships = sql`(select id from core.user_relationships where tenant_id = ${t}::uuid
     and (student_user_id = ${s}::uuid or related_user_id = ${s}::uuid))`;
-  const listed = (type: "document" | "file" | "household") =>
+  const listed = (type: "document" | "file") =>
     sql`(select i.object_id from core.erasure_items i
           join core.erasure_approvals a on a.tenant_id = i.tenant_id and a.id = i.approval_id
           where i.tenant_id = ${t}::uuid and a.subject_user_id = ${s}::uuid and i.object_type = ${type})`;
@@ -208,7 +196,6 @@ export async function eraseSubject(
   for (const table of [
     "external_ids",
     "contact_points",
-    "household_members",
     "user_preferences",
     "calendar_feeds",
     "file_subjects",
@@ -285,17 +272,6 @@ export async function eraseSubject(
   const keys = await tx.execute<{ storage_key: string }>(sql`
     select storage_key from core.files where tenant_id = ${t}::uuid and id in ${listed("file")}`);
   await remove("files", sql`core.files`, sql`id in ${listed("file")}`);
-
-  await remove(
-    "household_contact_points",
-    sql`core.contact_points`,
-    sql`household_id in ${listed("household")}`,
-  );
-  await remove(
-    "households",
-    sql`core.households`,
-    sql`id in ${listed("household")}`,
-  );
 
   await run(
     "audit_payloads",

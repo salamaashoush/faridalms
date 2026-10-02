@@ -6,6 +6,7 @@ import { fullName } from "@faridalms/domain/people";
 import { and, eq, sql } from "drizzle-orm";
 
 import type { CellTransaction } from "../context";
+import type { PostalAddress } from "../tables/tenancy";
 
 import {
   contactPoints,
@@ -337,6 +338,7 @@ export interface ContactPoint {
   label: string;
   value: string;
   normalized: string | null;
+  postal: PostalAddress | null;
   verified: boolean;
 }
 
@@ -354,7 +356,7 @@ export interface Guardian {
   primaryContact: boolean;
   emergencyContact: boolean;
   contactPriority: number | null;
-  livesWith: boolean | null;
+  residence: "primary" | "secondary" | "none" | null;
   pickup: "allowed" | "not_allowed" | "ask_office" | null;
   educationalRights: "full" | "restricted" | "none";
   communicationIsolated: boolean;
@@ -382,7 +384,7 @@ export async function guardiansOf(
     primary_contact: boolean;
     emergency_contact: boolean;
     contact_priority: number | null;
-    lives_with: boolean | null;
+    residence: Guardian["residence"];
     pickup: Guardian["pickup"];
     educational_rights: Guardian["educationalRights"];
     communication_isolated: boolean;
@@ -391,7 +393,7 @@ export async function guardiansOf(
   }>(sql`
     select r.id, r.version, r.related_user_id, u.full_name_en, u.full_name_ar, r.relation_descriptor_id,
            r.relation_meaning, r.legal_guardian, r.portal_access, r.receives_notifications, r.primary_contact,
-           r.emergency_contact, r.contact_priority, r.lives_with, r.pickup, r.educational_rights,
+           r.emergency_contact, r.contact_priority, r.residence, r.pickup, r.educational_rights,
            r.communication_isolated, r.valid_during::text as valid_during,
            exists (select 1 from core.accounts a where a.tenant_id = u.tenant_id and a.user_id = u.id
                    and a.status = 'active' and a.state <> 'disabled') as has_account
@@ -409,9 +411,10 @@ export async function guardiansOf(
         label: string;
         value: string;
         normalized: string | null;
+        postal: PostalAddress | null;
         verified_at: string | null;
       }>(sql`
-        select id, user_id, kind, label, value, normalized, verified_at::text as verified_at
+        select id, user_id, kind, label, value, normalized, postal, verified_at::text as verified_at
         from core.contact_points
         where tenant_id = ${scope.tenantId}::uuid and user_id = any(${uuidArray(people)}) and status = 'active'
         order by priority nulls last, created_at`)
@@ -430,7 +433,7 @@ export async function guardiansOf(
     primaryContact: row.primary_contact,
     emergencyContact: row.emergency_contact,
     contactPriority: row.contact_priority,
-    livesWith: row.lives_with,
+    residence: row.residence,
     pickup: row.pickup,
     educationalRights: row.educational_rights,
     communicationIsolated: row.communication_isolated,
@@ -444,6 +447,7 @@ export async function guardiansOf(
         label: contact.label,
         value: contact.value,
         normalized: contact.normalized,
+        postal: contact.postal,
         verified: contact.verified_at !== null,
       })),
   }));
@@ -828,7 +832,7 @@ export async function insertRelationship(
       receivesNotifications: boolean;
       primaryContact: boolean;
       emergencyContact: boolean;
-      livesWith: boolean | null;
+      residence: "primary" | "secondary" | "none" | null;
       pickup: "allowed" | "not_allowed" | "ask_office" | null;
     };
     from: string;
@@ -868,7 +872,7 @@ export async function updateRelationship(
       receivesNotifications: boolean;
       primaryContact: boolean;
       emergencyContact: boolean;
-      livesWith: boolean | null;
+      residence: "primary" | "secondary" | "none" | null;
       pickup: "allowed" | "not_allowed" | "ask_office" | null;
     };
   },

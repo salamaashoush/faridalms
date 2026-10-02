@@ -25,8 +25,8 @@ import { SheetForm } from "~/components/system/SheetForm";
 import { StatusText } from "~/components/system/status";
 import { UserText } from "~/components/system/UserText";
 import * as m from "~/i18n/messages";
-import { searchPeople } from "~/server/households";
 import { closeRequest, extendRequest, saveRequest } from "~/server/privacy";
+import { searchPeople } from "~/server/students";
 import { formatDate, formatRelativeDays } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 

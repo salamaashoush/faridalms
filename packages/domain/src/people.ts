@@ -75,14 +75,8 @@ export type StudentDirectoryQuery = v.InferOutput<
   typeof studentDirectorySchema
 >;
 
-export const RELATIONSHIP_FLAGS = [
-  "legalGuardian",
-  "portalAccess",
-  "receivesNotifications",
-  "primaryContact",
-  "emergencyContact",
-  "livesWith",
-] as const;
+export const RESIDENCES = ["primary", "secondary", "none"] as const;
+export type Residence = (typeof RESIDENCES)[number];
 
 export const relationshipFlagsSchema = v.object({
   relationId: id,
@@ -91,7 +85,7 @@ export const relationshipFlagsSchema = v.object({
   receivesNotifications: v.boolean(),
   primaryContact: v.boolean(),
   emergencyContact: v.boolean(),
-  livesWith: v.nullable(v.boolean()),
+  residence: v.nullable(v.picklist(RESIDENCES)),
   pickup: v.nullable(v.picklist(["allowed", "not_allowed", "ask_office"])),
 });
 export type RelationshipFlags = v.InferOutput<typeof relationshipFlagsSchema>;
@@ -237,6 +231,39 @@ export const saveDemographicsSchema = v.object({
   ),
 });
 
+export const postalAddressSchema = v.object({
+  lines: v.pipe(
+    v.array(v.pipe(v.string(), v.trim(), v.maxLength(120))),
+    v.maxLength(3),
+  ),
+  city: optionalText(80),
+  region: optionalText(80),
+  postalCode: optionalText(20),
+  country: v.optional(v.union([v.literal(""), countryCode]), ""),
+});
+export type PostalAddressInput = v.InferOutput<typeof postalAddressSchema>;
+
+/** One line for lists and search, in the order an envelope reads. */
+export function addressLine(address: {
+  lines: readonly string[];
+  city: string | null;
+  region: string | null;
+  postalCode: string | null;
+}) {
+  return [...address.lines, address.city, address.region, address.postalCode]
+    .map((part) => part?.trim())
+    .filter((part): part is string => !!part)
+    .join(", ");
+}
+
+export const saveContactsSchema = v.object({
+  userId: id,
+  phone: v.optional(phone, ""),
+  email: v.optional(v.union([v.literal(""), v.pipe(email, v.email())]), ""),
+  address: postalAddressSchema,
+});
+export type SaveContactsInput = v.InferInput<typeof saveContactsSchema>;
+
 export const saveCustodySchema = v.object({
   studentId: id,
   relationshipId: id,
@@ -245,40 +272,6 @@ export const saveCustodySchema = v.object({
   educationalRights: v.picklist(["full", "restricted", "none"]),
   communicationIsolated: v.boolean(),
   pickup: v.nullable(v.picklist(["allowed", "not_allowed", "ask_office"])),
-});
-
-export const householdsQuerySchema = v.object({
-  q: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(100)), ""),
-  page: v.optional(
-    v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(10000)),
-    1,
-  ),
-  pageSize: v.optional(v.picklist([25, 50]), 25),
-});
-export type HouseholdsQuery = v.InferOutput<typeof householdsQuerySchema>;
-
-export const saveHouseholdSchema = v.object({
-  id: v.optional(id),
-  expectedVersion: v.optional(version),
-  nameEn: optionalText(120),
-  nameAr: optionalText(120),
-  primaryLanguage: v.optional(
-    v.union([v.literal(""), v.pipe(v.string(), v.regex(/^[a-z]{2,3}$/))]),
-    "",
-  ),
-});
-
-export const addHouseholdMemberSchema = v.object({
-  householdId: id,
-  userId: id,
-  kind: v.picklist(["adult", "child"]),
-  residence: v.optional(v.picklist(["primary", "secondary"]), "primary"),
-});
-
-export const endHouseholdMemberSchema = v.object({
-  householdId: id,
-  memberId: id,
-  expectedVersion: version,
 });
 
 export const personSearchSchema = v.object({

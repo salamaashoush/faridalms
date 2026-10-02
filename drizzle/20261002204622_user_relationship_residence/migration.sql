@@ -1,0 +1,2 @@
+ALTER TABLE "core"."user_relationships" ADD COLUMN "residence" text;--> statement-breakpoint
+ALTER TABLE "core"."user_relationships" ADD CONSTRAINT "user_relationships_residence_check" CHECK (residence in ('primary', 'secondary', 'none'));

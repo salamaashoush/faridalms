@@ -6,6 +6,7 @@ import {
   getPeopleOptions,
   getPersonHistory,
   getPersonRecord,
+  getSiblings,
   getStudentHistory,
   getStudentRecord,
   getStudents,
@@ -45,4 +46,10 @@ export const personHistoryQuery = (id: string) =>
   queryOptions({
     queryKey: ["people", "person", id, "history"],
     queryFn: () => getPersonHistory({ data: { id } }),
+  });
+
+export const siblingsQuery = (id: string) =>
+  queryOptions({
+    queryKey: ["people", "siblings", id],
+    queryFn: () => getSiblings({ data: { id } }),
   });

@@ -36,7 +36,6 @@ import { Route as AppAdminAnnouncementEditorRouteImport } from './routes/_app/ad
 import { Route as AppAdminAttendanceRouteImport } from './routes/_app/admin/attendance'
 import { Route as AppAdminClassEditorRouteImport } from './routes/_app/admin/class-editor'
 import { Route as AppAdminClassesRouteImport } from './routes/_app/admin/classes'
-import { Route as AppAdminFamiliesRouteImport } from './routes/_app/admin/families'
 import { Route as AppAdminMessagesRouteImport } from './routes/_app/admin/messages'
 import { Route as AppAdminNewsletterEditorRouteImport } from './routes/_app/admin/newsletter-editor'
 import { Route as AppAdminNotificationAuditRouteImport } from './routes/_app/admin/notification-audit'
@@ -55,7 +54,6 @@ import { Route as AppBadgesClassIdRouteImport } from './routes/_app/badges.$clas
 import { Route as AppCalendarIndexRouteImport } from './routes/_app/calendar.index'
 import { Route as AppCalendarEventIdRouteImport } from './routes/_app/calendar.$eventId'
 import { Route as AppClassesClassIdRouteImport } from './routes/_app/classes.$classId'
-import { Route as AppFamiliesHouseholdIdRouteImport } from './routes/_app/families.$householdId'
 import { Route as AppFamilyIndexRouteImport } from './routes/_app/family/index'
 import { Route as AppFamilyAssignmentsRouteImport } from './routes/_app/family/assignments'
 import { Route as AppFamilyAttendanceRouteImport } from './routes/_app/family/attendance'
@@ -237,11 +235,6 @@ const AppAdminClassesRoute = AppAdminClassesRouteImport.update({
   path: '/classes',
   getParentRoute: () => AppAdminRoute,
 } as any)
-const AppAdminFamiliesRoute = AppAdminFamiliesRouteImport.update({
-  id: '/families',
-  path: '/families',
-  getParentRoute: () => AppAdminRoute,
-} as any)
 const AppAdminMessagesRoute = AppAdminMessagesRouteImport.update({
   id: '/messages',
   path: '/messages',
@@ -334,11 +327,6 @@ const AppCalendarEventIdRoute = AppCalendarEventIdRouteImport.update({
 const AppClassesClassIdRoute = AppClassesClassIdRouteImport.update({
   id: '/classes/$classId',
   path: '/classes/$classId',
-  getParentRoute: () => AppRoute,
-} as any)
-const AppFamiliesHouseholdIdRoute = AppFamiliesHouseholdIdRouteImport.update({
-  id: '/families/$householdId',
-  path: '/families/$householdId',
   getParentRoute: () => AppRoute,
 } as any)
 const AppFamilyIndexRoute = AppFamilyIndexRouteImport.update({
@@ -591,7 +579,6 @@ export interface FileRoutesByFullPath {
   '/admin/attendance': typeof AppAdminAttendanceRoute
   '/admin/class-editor': typeof AppAdminClassEditorRoute
   '/admin/classes': typeof AppAdminClassesRoute
-  '/admin/families': typeof AppAdminFamiliesRoute
   '/admin/messages': typeof AppAdminMessagesRoute
   '/admin/newsletter-editor': typeof AppAdminNewsletterEditorRoute
   '/admin/notification-audit': typeof AppAdminNotificationAuditRoute
@@ -608,7 +595,6 @@ export interface FileRoutesByFullPath {
   '/badges/$classId': typeof AppBadgesClassIdRoute
   '/calendar/$eventId': typeof AppCalendarEventIdRoute
   '/classes/$classId': typeof AppClassesClassIdRoute
-  '/families/$householdId': typeof AppFamiliesHouseholdIdRoute
   '/family/assignments': typeof AppFamilyAssignmentsRoute
   '/family/attendance': typeof AppFamilyAttendanceRoute
   '/family/children': typeof AppFamilyChildrenRoute
@@ -677,7 +663,6 @@ export interface FileRoutesByTo {
   '/admin/attendance': typeof AppAdminAttendanceRoute
   '/admin/class-editor': typeof AppAdminClassEditorRoute
   '/admin/classes': typeof AppAdminClassesRoute
-  '/admin/families': typeof AppAdminFamiliesRoute
   '/admin/messages': typeof AppAdminMessagesRoute
   '/admin/newsletter-editor': typeof AppAdminNewsletterEditorRoute
   '/admin/notification-audit': typeof AppAdminNotificationAuditRoute
@@ -694,7 +679,6 @@ export interface FileRoutesByTo {
   '/badges/$classId': typeof AppBadgesClassIdRoute
   '/calendar/$eventId': typeof AppCalendarEventIdRoute
   '/classes/$classId': typeof AppClassesClassIdRoute
-  '/families/$householdId': typeof AppFamiliesHouseholdIdRoute
   '/family/assignments': typeof AppFamilyAssignmentsRoute
   '/family/attendance': typeof AppFamilyAttendanceRoute
   '/family/children': typeof AppFamilyChildrenRoute
@@ -771,7 +755,6 @@ export interface FileRoutesById {
   '/_app/admin/attendance': typeof AppAdminAttendanceRoute
   '/_app/admin/class-editor': typeof AppAdminClassEditorRoute
   '/_app/admin/classes': typeof AppAdminClassesRoute
-  '/_app/admin/families': typeof AppAdminFamiliesRoute
   '/_app/admin/messages': typeof AppAdminMessagesRoute
   '/_app/admin/newsletter-editor': typeof AppAdminNewsletterEditorRoute
   '/_app/admin/notification-audit': typeof AppAdminNotificationAuditRoute
@@ -788,7 +771,6 @@ export interface FileRoutesById {
   '/_app/badges/$classId': typeof AppBadgesClassIdRoute
   '/_app/calendar/$eventId': typeof AppCalendarEventIdRoute
   '/_app/classes/$classId': typeof AppClassesClassIdRoute
-  '/_app/families/$householdId': typeof AppFamiliesHouseholdIdRoute
   '/_app/family/assignments': typeof AppFamilyAssignmentsRoute
   '/_app/family/attendance': typeof AppFamilyAttendanceRoute
   '/_app/family/children': typeof AppFamilyChildrenRoute
@@ -864,7 +846,6 @@ export interface FileRouteTypes {
     | '/admin/attendance'
     | '/admin/class-editor'
     | '/admin/classes'
-    | '/admin/families'
     | '/admin/messages'
     | '/admin/newsletter-editor'
     | '/admin/notification-audit'
@@ -881,7 +862,6 @@ export interface FileRouteTypes {
     | '/badges/$classId'
     | '/calendar/$eventId'
     | '/classes/$classId'
-    | '/families/$householdId'
     | '/family/assignments'
     | '/family/attendance'
     | '/family/children'
@@ -950,7 +930,6 @@ export interface FileRouteTypes {
     | '/admin/attendance'
     | '/admin/class-editor'
     | '/admin/classes'
-    | '/admin/families'
     | '/admin/messages'
     | '/admin/newsletter-editor'
     | '/admin/notification-audit'
@@ -967,7 +946,6 @@ export interface FileRouteTypes {
     | '/badges/$classId'
     | '/calendar/$eventId'
     | '/classes/$classId'
-    | '/families/$householdId'
     | '/family/assignments'
     | '/family/attendance'
     | '/family/children'
@@ -1043,7 +1021,6 @@ export interface FileRouteTypes {
     | '/_app/admin/attendance'
     | '/_app/admin/class-editor'
     | '/_app/admin/classes'
-    | '/_app/admin/families'
     | '/_app/admin/messages'
     | '/_app/admin/newsletter-editor'
     | '/_app/admin/notification-audit'
@@ -1060,7 +1037,6 @@ export interface FileRouteTypes {
     | '/_app/badges/$classId'
     | '/_app/calendar/$eventId'
     | '/_app/classes/$classId'
-    | '/_app/families/$householdId'
     | '/_app/family/assignments'
     | '/_app/family/attendance'
     | '/_app/family/children'
@@ -1315,13 +1291,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAdminClassesRouteImport
       parentRoute: typeof AppAdminRoute
     }
-    '/_app/admin/families': {
-      id: '/_app/admin/families'
-      path: '/families'
-      fullPath: '/admin/families'
-      preLoaderRoute: typeof AppAdminFamiliesRouteImport
-      parentRoute: typeof AppAdminRoute
-    }
     '/_app/admin/messages': {
       id: '/_app/admin/messages'
       path: '/messages'
@@ -1446,13 +1415,6 @@ declare module '@tanstack/react-router' {
       path: '/classes/$classId'
       fullPath: '/classes/$classId'
       preLoaderRoute: typeof AppClassesClassIdRouteImport
-      parentRoute: typeof AppRoute
-    }
-    '/_app/families/$householdId': {
-      id: '/_app/families/$householdId'
-      path: '/families/$householdId'
-      fullPath: '/families/$householdId'
-      preLoaderRoute: typeof AppFamiliesHouseholdIdRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/family/': {
@@ -1773,7 +1735,6 @@ interface AppAdminRouteChildren {
   AppAdminAttendanceRoute: typeof AppAdminAttendanceRoute
   AppAdminClassEditorRoute: typeof AppAdminClassEditorRoute
   AppAdminClassesRoute: typeof AppAdminClassesRoute
-  AppAdminFamiliesRoute: typeof AppAdminFamiliesRoute
   AppAdminMessagesRoute: typeof AppAdminMessagesRoute
   AppAdminNewsletterEditorRoute: typeof AppAdminNewsletterEditorRoute
   AppAdminNotificationAuditRoute: typeof AppAdminNotificationAuditRoute
@@ -1795,7 +1756,6 @@ const AppAdminRouteChildren: AppAdminRouteChildren = {
   AppAdminAttendanceRoute: AppAdminAttendanceRoute,
   AppAdminClassEditorRoute: AppAdminClassEditorRoute,
   AppAdminClassesRoute: AppAdminClassesRoute,
-  AppAdminFamiliesRoute: AppAdminFamiliesRoute,
   AppAdminMessagesRoute: AppAdminMessagesRoute,
   AppAdminNewsletterEditorRoute: AppAdminNewsletterEditorRoute,
   AppAdminNotificationAuditRoute: AppAdminNotificationAuditRoute,
@@ -1914,7 +1874,6 @@ interface AppRouteChildren {
   AppBadgesClassIdRoute: typeof AppBadgesClassIdRoute
   AppCalendarEventIdRoute: typeof AppCalendarEventIdRoute
   AppClassesClassIdRoute: typeof AppClassesClassIdRoute
-  AppFamiliesHouseholdIdRoute: typeof AppFamiliesHouseholdIdRoute
   AppLessonsLessonIdRoute: typeof AppLessonsLessonIdRoute
   AppModulesModuleIdRoute: typeof AppModulesModuleIdRoute
   AppNewslettersNewsletterIdRoute: typeof AppNewslettersNewsletterIdRoute
@@ -1946,7 +1905,6 @@ const AppRouteChildren: AppRouteChildren = {
   AppBadgesClassIdRoute: AppBadgesClassIdRoute,
   AppCalendarEventIdRoute: AppCalendarEventIdRoute,
   AppClassesClassIdRoute: AppClassesClassIdRoute,
-  AppFamiliesHouseholdIdRoute: AppFamiliesHouseholdIdRoute,
   AppLessonsLessonIdRoute: AppLessonsLessonIdRoute,
   AppModulesModuleIdRoute: AppModulesModuleIdRoute,
   AppNewslettersNewsletterIdRoute: AppNewslettersNewsletterIdRoute,

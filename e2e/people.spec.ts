@@ -312,36 +312,55 @@ test("a health alert and a pickup restriction show on the student's header", asy
   await expect(page.getByText("Custody note", { exact: true })).toBeVisible();
 });
 
-test("an administrator makes a family and adds a student as a second home", async ({
+test("an administrator keeps a guardian's address on the student's family tab", async ({
   page,
 }) => {
   const unique = crypto.randomUUID().slice(0, 8);
   await signIn(page, "admin");
-  await page.goto("/admin/families");
+  await page.goto("/admin/students");
   await untilHydrated(page);
-  await page.getByRole("button", { name: "Add family" }).click();
-  const sheet = page.getByRole("dialog", { name: "Add family" });
-  await sheet
-    .getByRole("textbox", { name: "Family name in English" })
-    .fill(`Home ${unique}`);
-  await sheet.getByRole("button", { name: "Save" }).click();
-  await expect(page).toHaveURL(/\/families\/[a-f0-9-]+/);
-  await expect(
-    page.getByRole("heading", { level: 1, name: `Home ${unique}` }),
-  ).toBeVisible();
-
-  await page.getByRole("button", { name: "Add member" }).first().click();
-  const add = page.getByRole("dialog", { name: "Add member" });
-  await add.getByRole("combobox", { name: /^Person/ }).click();
-  await page.getByPlaceholder(/Search Person/).fill("Tarek");
+  await page.getByRole("link", { name: "Add student", exact: true }).click();
+  const personal = page.getByRole("region", { name: "Personal details" });
+  await fillNames(personal, ["يوسف", "نبيل"], ["Youssef", `Nabil ${unique}`]);
+  await personal
+    .getByRole("textbox", { name: "Student reference" })
+    .fill(`N-${unique}`);
+  await page.getByRole("button", { name: "Add guardian", exact: true }).click();
+  const guardian = page.getByRole("group", { name: "Guardian 1" });
+  await guardian
+    .getByRole("textbox", { name: "Mobile" })
+    .fill(`012${String(Math.floor(Math.random() * 1e8)).padStart(8, "0")}`);
+  await fillNames(guardian, ["هالة", "نبيل"], ["Hala", `Nabil ${unique}`]);
+  await page.getByRole("button", { name: "Save", exact: true }).click();
+  await expect(page).toHaveURL(/\/admin\/students/);
+  await page.getByRole("searchbox").fill(`N-${unique}`);
   await page
-    .getByRole("option", { name: /Tarek .* Student/ })
-    .first()
+    .getByRole("table")
+    .getByRole("link", { name: `Youssef Nabil ${unique}` })
     .click();
-  await add.getByRole("combobox", { name: /^Home/ }).click();
-  await page.getByRole("option", { name: "Second home" }).click();
-  await add.getByRole("button", { name: "Save" }).click();
-  await expect(add).toHaveCount(0);
-  const children = page.getByRole("region", { name: "Children" });
-  await expect(children.getByText(/Second home/)).toBeVisible();
+
+  await page.getByRole("tab", { name: "Family", exact: true }).click();
+  await page
+    .getByRole("button", { name: `Actions for Hala Nabil ${unique}` })
+    .click();
+  await page.getByRole("menuitem", { name: "Edit contact details" }).click();
+  const contacts = page.getByRole("dialog", {
+    name: `Contact details for Hala Nabil ${unique}`,
+  });
+  await contacts
+    .getByRole("textbox", { name: "Street and building" })
+    .fill("12 Nile Street");
+  await contacts
+    .getByRole("textbox", { name: "City or district" })
+    .fill("Zamalek");
+  await contacts.getByRole("button", { name: "Save" }).click();
+  await expect(contacts).toHaveCount(0);
+  const guardians = page.getByRole("region", { name: "Guardians" });
+  await expect(guardians.getByText("12 Nile Street, Zamalek")).toBeVisible();
+  await expect(guardians.getByText(/Main home/)).toBeVisible();
+  await expect(
+    page
+      .getByRole("region", { name: "Brothers and sisters" })
+      .getByText("No brothers or sisters at the school."),
+  ).toBeVisible();
 });

@@ -23,8 +23,8 @@ import { StatusText } from "~/components/system/status";
 import { UserText } from "~/components/system/UserText";
 import { inLocale, useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
-import { searchPeople } from "~/server/households";
 import { placeHold, releaseHold, saveRetention } from "~/server/privacy";
+import { searchPeople } from "~/server/students";
 import { formatDate, formatNumber } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 

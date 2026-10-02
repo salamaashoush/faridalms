@@ -63,7 +63,7 @@ sections 4.7 and 6.13), whose tables (`erasure_approvals`, `erasure_items`,
 - What a run destroys: the person's name, birth date, photo, demographics,
   contact points, external ids, sign-in (accounts tombstoned; identities,
   passkeys, devices, sessions deleted), preferences, saved views, calendar
-  feeds, health records, custody restrictions, household memberships, audit
+  feeds, health records, custody restrictions, audit
   payloads and activity events; the drafts and handed-in copies of their
   work redacted with every version; the files only that work held.
 - Not yet covered: quiz answers, lesson responses and messages they wrote

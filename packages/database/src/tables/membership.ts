@@ -245,7 +245,7 @@ export const userRelationships = core.table.withRLS(
     primaryContact: boolean("primary_contact").notNull().default(false),
     emergencyContact: boolean("emergency_contact").notNull().default(false),
     contactPriority: smallint("contact_priority"),
-    livesWith: boolean("lives_with"),
+    residence: text("residence").$type<"primary" | "secondary" | "none">(),
     pickup: text("pickup").$type<"allowed" | "not_allowed" | "ask_office">(),
     validDuring: daterange("valid_during").notNull(),
     accessBasis: text("access_basis")
@@ -314,6 +314,11 @@ export const userRelationships = core.table.withRLS(
       "user_relationships",
       "contact_priority",
       sql`contact_priority between 1 and 99`,
+    ),
+    ck(
+      "user_relationships",
+      "residence",
+      sql`residence in ('primary', 'secondary', 'none')`,
     ),
     ck(
       "user_relationships",

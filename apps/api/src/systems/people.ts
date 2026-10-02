@@ -17,24 +17,17 @@ import {
 } from "@faridalms/database/stores/descriptors";
 import { filesByIds, linkFiles } from "@faridalms/database/stores/files";
 import { historyOf } from "@faridalms/database/stores/history";
-import {
-  addHouseholdMember,
-  endHouseholdMember,
-  householdById,
-  householdsForSchool,
-  householdsOf,
-  insertHousehold,
-  searchReached,
-  updateHousehold,
-} from "@faridalms/database/stores/households";
 import { schoolProfile } from "@faridalms/database/stores/identity";
 import {
   childrenOf,
   contactsOf,
   isVisiblePerson,
+  replaceAddress,
   replaceContact,
   rolesAt,
+  searchReached,
   setPhoto as storePhoto,
+  siblingsOf,
 } from "@faridalms/database/stores/persons";
 import {
   schoolRoleIds,
@@ -74,14 +67,12 @@ import {
   workingYear,
 } from "@faridalms/database/stores/years";
 import {
+  addressLine,
   endRelationshipSchema,
   guardianLookupSchema,
   accountStateSchema,
-  addHouseholdMemberSchema,
-  endHouseholdMemberSchema,
-  householdsQuerySchema,
   personSearchSchema,
-  saveHouseholdSchema,
+  saveContactsSchema,
   saveRelationshipSchema,
   saveSignInSchema,
   saveStaffSchema,
@@ -824,6 +815,11 @@ export const person = readProcedure
         roles: staffMember && can(context, "access:manage"),
         history: manage || can(context, "audit:read"),
         photo: self || manage || (staffMember && can(context, "staff:manage")),
+        contacts:
+          !self &&
+          !staffMember &&
+          !roles.some((role) => role.role === "student") &&
+          (manage || can(context, "guardians:manage")),
       },
     };
   });
@@ -1166,155 +1162,109 @@ export const setSignInState = writeProcedure
     return { state: input.state };
   });
 
-export const households = readProcedure
-  .input(householdsQuerySchema)
-  .handler(async ({ input, context }) => {
-    requireCapability(context, "people:read", "people:manage");
-    const { rows, total } = await householdsForSchool(
-      context.tx,
-      scopeOf(context),
-      {
-        q: input.q,
-        page: input.page,
-        pageSize: input.pageSize,
-        locale: localeOf(context),
-      },
-    );
-    return {
-      rows,
-      total,
-      page: input.page,
-      pages: Math.max(1, Math.ceil(total / input.pageSize)),
-      manage: can(context, "people:manage") || can(context, "guardians:manage"),
-    };
-  });
+const CONTACT_LABELS = [
+  "mobile",
+  "home",
+  "work",
+  "personal",
+  "emergency",
+  "other",
+] as const;
+type ContactLabel = (typeof CONTACT_LABELS)[number];
 
-export const household = readProcedure
+/** Children who share a parent with this student. */
+export const siblings = readProcedure
   .input(v.object({ id }))
   .handler(async ({ input, context }) => {
     requireCapability(context, "people:read", "people:manage");
-    const row = await householdById(context.tx, scopeOf(context), input.id);
-    if (!row) throw new ORPCError("NOT_FOUND");
-    return {
-      ...row,
-      manage: can(context, "people:manage") || can(context, "guardians:manage"),
-    };
+    await requireStudent(context, input.id);
+    return siblingsOf(context.tx, scopeOf(context), input.id);
   });
 
-/** The households a student or person lives in, for their record. */
-export const householdsOfPerson = readProcedure
-  .input(v.object({ userId: id }))
-  .handler(async ({ input, context }) => {
-    requireCapability(context, "people:read", "people:manage");
-    const scope = scopeOf(context);
-    const reached =
-      (await isVisibleStudent(context.tx, scope, input.userId)) ||
-      (await isVisiblePerson(context.tx, scope, input.userId));
-    if (!reached) throw new ORPCError("NOT_FOUND");
-    return householdsOf(
-      context.tx,
-      context.tenantId,
-      input.userId,
-      context.today,
-    );
-  });
-
-export const saveHousehold = writeProcedure
-  .input(saveHouseholdSchema)
+/**
+ * A guardian's or other adult's phone, email and home address. Staff keep
+ * theirs through the staff editor, which needs the staff capability.
+ */
+export const saveContacts = writeProcedure
+  .input(saveContactsSchema)
   .handler(async ({ input, context }) => {
     requireCapability(context, "people:manage", "guardians:manage");
-    if (!input.nameEn && !input.nameAr)
+    const scope = scopeOf(context);
+    if (!(await isVisiblePerson(context.tx, scope, input.userId)))
+      throw new ORPCError("NOT_FOUND");
+    const roles = await rolesAt(context.tx, scope, input.userId);
+    if (
+      roles.some((role) => role.role === "student") ||
+      (roles.some((role) => STAFF_ROLE_SET.has(role.role)) &&
+        !can(context, "staff:manage"))
+    )
+      throw new ORPCError("FORBIDDEN");
+    const phone = input.phone
+      ? toE164(input.phone, await countryOf(context))
+      : null;
+    if (input.phone && !phone)
       throw new ORPCError("BAD_REQUEST", {
-        message: "validation.name_required",
+        message: "contact_point.phone_invalid",
       });
-    const fields = {
-      nameEn: input.nameEn,
-      nameAr: input.nameAr,
-      primaryLanguage: input.primaryLanguage || null,
+    const before = await contactsOf(context.tx, context.tenantId, input.userId);
+    // The sheet shows a person's first phone and email, so a save replaces
+    // those rows under whatever label they were recorded with.
+    const labelOf = (kind: "phone" | "email", fallback: ContactLabel) => {
+      const label = before.find((row) => row.kind === kind)?.label;
+      return CONTACT_LABELS.find((known) => known === label) ?? fallback;
     };
-    if (!input.id) {
-      const created = await insertHousehold(context.tx, {
-        tenantId: context.tenantId,
-        ...fields,
-      });
-      await audit(context, {
-        action: "household.create",
-        objectType: "household",
-        objectId: created.id,
-        change: { table: "core.households", before: null, after: fields },
-      });
-      return created;
-    }
-    if (!(await householdById(context.tx, scopeOf(context), input.id)))
-      throw new ORPCError("NOT_FOUND");
-    const saved = await updateHousehold(context.tx, {
+    await replaceContact(context.tx, {
       tenantId: context.tenantId,
-      id: input.id,
-      expectedVersion: input.expectedVersion ?? 0,
-      ...fields,
-    });
-    if (!saved)
-      throw new ORPCError("CONFLICT", { message: "conflict.version" });
-    await audit(context, {
-      action: "household.update",
-      objectType: "household",
-      objectId: input.id,
-      details: { changed: ["name_en", "name_ar", "primary_language"] },
-    });
-    return saved;
-  });
-
-export const addToHousehold = writeProcedure
-  .input(addHouseholdMemberSchema)
-  .handler(async ({ input, context }) => {
-    requireCapability(context, "people:manage", "guardians:manage");
-    const scope = scopeOf(context);
-    if (!(await householdById(context.tx, scope, input.householdId)))
-      throw new ORPCError("NOT_FOUND");
-    const reached =
-      (await isVisibleStudent(context.tx, scope, input.userId)) ||
-      (await isVisiblePerson(context.tx, scope, input.userId));
-    if (!reached) throw new ORPCError("NOT_FOUND");
-    const memberId = await addHouseholdMember(context.tx, {
-      tenantId: context.tenantId,
-      householdId: input.householdId,
       userId: input.userId,
-      kind: input.kind,
-      residence: input.residence,
-      from: context.today,
+      kind: "phone",
+      label: labelOf("phone", "mobile"),
+      value: input.phone,
+      normalized: phone,
     });
-    await audit(context, {
-      action: "household.member_add",
-      objectType: "household",
-      objectId: input.householdId,
-      subjectUserId: input.userId,
-      details: { kind: input.kind, residence: input.residence },
-    });
-    return { id: memberId };
-  });
-
-export const endHouseholdMembership = writeProcedure
-  .input(endHouseholdMemberSchema)
-  .handler(async ({ input, context }) => {
-    requireCapability(context, "people:manage", "guardians:manage");
-    if (!(await householdById(context.tx, scopeOf(context), input.householdId)))
-      throw new ORPCError("NOT_FOUND");
-    const userId = await endHouseholdMember(context.tx, {
+    await replaceContact(context.tx, {
       tenantId: context.tenantId,
-      householdId: input.householdId,
-      id: input.memberId,
-      expectedVersion: input.expectedVersion,
-      today: context.today,
+      userId: input.userId,
+      kind: "email",
+      label: labelOf("email", "personal"),
+      value: input.email,
+      normalized: input.email || null,
     });
-    if (!userId)
-      throw new ORPCError("CONFLICT", { message: "conflict.version" });
+    const { address } = input;
+    const line = addressLine(address);
+    await replaceAddress(context.tx, {
+      tenantId: context.tenantId,
+      userId: input.userId,
+      value: line,
+      postal: line
+        ? {
+            lines: address.lines.filter((part) => part !== ""),
+            ...(address.city ? { city: address.city } : {}),
+            ...(address.region ? { region: address.region } : {}),
+            ...(address.postalCode ? { postal_code: address.postalCode } : {}),
+            ...(address.country ? { country: address.country } : {}),
+          }
+        : null,
+    });
     await audit(context, {
-      action: "household.member_end",
-      objectType: "household",
-      objectId: input.householdId,
-      subjectUserId: userId,
+      action: "contacts.update",
+      objectType: "user",
+      objectId: input.userId,
+      subjectUserId: input.userId,
+      change: {
+        table: "core.contact_points",
+        before: {
+          phone: before.find((row) => row.kind === "phone")?.value ?? null,
+          email: before.find((row) => row.kind === "email")?.value ?? null,
+          address: before.find((row) => row.kind === "postal")?.value ?? null,
+        },
+        after: {
+          phone: input.phone || null,
+          email: input.email || null,
+          address: line || null,
+        },
+      },
     });
-    return { ended: true };
+    return { saved: true };
   });
 
 export const searchPeople = readProcedure

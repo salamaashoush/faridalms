@@ -319,14 +319,10 @@ export function eraseAndDelete(who: SQL) {
 export const erasureOf = (column: string) =>
   sql`app.erasure_approved(tenant_id, ${sql.identifier(column)})`;
 
-export const erasureListed = (
-  type: "file" | "document" | "household",
-  column: string,
-) => {
+export const erasureListed = (type: "file" | "document", column: string) => {
   const kind = {
     file: sql`'file'`,
     document: sql`'document'`,
-    household: sql`'household'`,
   }[type];
   return sql`app.erasure_listed(tenant_id, ${kind}, ${sql.identifier(column)})`;
 };
