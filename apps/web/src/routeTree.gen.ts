@@ -76,6 +76,7 @@ import { Route as AppModulesModuleIdRouteImport } from './routes/_app/modules/$m
 import { Route as AppNewslettersIndexRouteImport } from './routes/_app/newsletters.index'
 import { Route as AppNewslettersNewsletterIdRouteImport } from './routes/_app/newsletters.$newsletterId'
 import { Route as AppPeopleUserIdRouteImport } from './routes/_app/people.$userId'
+import { Route as AppPracticeModuleIdRouteImport } from './routes/_app/practice.$moduleId'
 import { Route as AppRegistersClassIdRouteImport } from './routes/_app/registers.$classId'
 import { Route as AppStudentsStudentIdRouteImport } from './routes/_app/students.$studentId'
 import { Route as AppTeachIndexRouteImport } from './routes/_app/teach/index'
@@ -441,6 +442,11 @@ const AppPeopleUserIdRoute = AppPeopleUserIdRouteImport.update({
   path: '/people/$userId',
   getParentRoute: () => AppRoute,
 } as any)
+const AppPracticeModuleIdRoute = AppPracticeModuleIdRouteImport.update({
+  id: '/practice/$moduleId',
+  path: '/practice/$moduleId',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppRegistersClassIdRoute = AppRegistersClassIdRouteImport.update({
   id: '/registers/$classId',
   path: '/registers/$classId',
@@ -620,6 +626,7 @@ export interface FileRoutesByFullPath {
   '/modules/$moduleId': typeof AppModulesModuleIdRoute
   '/newsletters/$newsletterId': typeof AppNewslettersNewsletterIdRoute
   '/people/$userId': typeof AppPeopleUserIdRoute
+  '/practice/$moduleId': typeof AppPracticeModuleIdRoute
   '/registers/$classId': typeof AppRegistersClassIdRoute
   '/students/$studentId': typeof AppStudentsStudentIdRoute
   '/teach/assignment-editor': typeof AppTeachAssignmentEditorRoute
@@ -705,6 +712,7 @@ export interface FileRoutesByTo {
   '/modules/$moduleId': typeof AppModulesModuleIdRoute
   '/newsletters/$newsletterId': typeof AppNewslettersNewsletterIdRoute
   '/people/$userId': typeof AppPeopleUserIdRoute
+  '/practice/$moduleId': typeof AppPracticeModuleIdRoute
   '/registers/$classId': typeof AppRegistersClassIdRoute
   '/students/$studentId': typeof AppStudentsStudentIdRoute
   '/teach/assignment-editor': typeof AppTeachAssignmentEditorRoute
@@ -798,6 +806,7 @@ export interface FileRoutesById {
   '/_app/modules/$moduleId': typeof AppModulesModuleIdRoute
   '/_app/newsletters/$newsletterId': typeof AppNewslettersNewsletterIdRoute
   '/_app/people/$userId': typeof AppPeopleUserIdRoute
+  '/_app/practice/$moduleId': typeof AppPracticeModuleIdRoute
   '/_app/registers/$classId': typeof AppRegistersClassIdRoute
   '/_app/students/$studentId': typeof AppStudentsStudentIdRoute
   '/_app/teach/assignment-editor': typeof AppTeachAssignmentEditorRoute
@@ -890,6 +899,7 @@ export interface FileRouteTypes {
     | '/modules/$moduleId'
     | '/newsletters/$newsletterId'
     | '/people/$userId'
+    | '/practice/$moduleId'
     | '/registers/$classId'
     | '/students/$studentId'
     | '/teach/assignment-editor'
@@ -975,6 +985,7 @@ export interface FileRouteTypes {
     | '/modules/$moduleId'
     | '/newsletters/$newsletterId'
     | '/people/$userId'
+    | '/practice/$moduleId'
     | '/registers/$classId'
     | '/students/$studentId'
     | '/teach/assignment-editor'
@@ -1067,6 +1078,7 @@ export interface FileRouteTypes {
     | '/_app/modules/$moduleId'
     | '/_app/newsletters/$newsletterId'
     | '/_app/people/$userId'
+    | '/_app/practice/$moduleId'
     | '/_app/registers/$classId'
     | '/_app/students/$studentId'
     | '/_app/teach/assignment-editor'
@@ -1583,6 +1595,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppPeopleUserIdRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/practice/$moduleId': {
+      id: '/_app/practice/$moduleId'
+      path: '/practice/$moduleId'
+      fullPath: '/practice/$moduleId'
+      preLoaderRoute: typeof AppPracticeModuleIdRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/registers/$classId': {
       id: '/_app/registers/$classId'
       path: '/registers/$classId'
@@ -1900,6 +1919,7 @@ interface AppRouteChildren {
   AppModulesModuleIdRoute: typeof AppModulesModuleIdRoute
   AppNewslettersNewsletterIdRoute: typeof AppNewslettersNewsletterIdRoute
   AppPeopleUserIdRoute: typeof AppPeopleUserIdRoute
+  AppPracticeModuleIdRoute: typeof AppPracticeModuleIdRoute
   AppRegistersClassIdRoute: typeof AppRegistersClassIdRoute
   AppStudentsStudentIdRoute: typeof AppStudentsStudentIdRoute
   AppYearsYearIdRoute: typeof AppYearsYearIdRoute
@@ -1931,6 +1951,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppModulesModuleIdRoute: AppModulesModuleIdRoute,
   AppNewslettersNewsletterIdRoute: AppNewslettersNewsletterIdRoute,
   AppPeopleUserIdRoute: AppPeopleUserIdRoute,
+  AppPracticeModuleIdRoute: AppPracticeModuleIdRoute,
   AppRegistersClassIdRoute: AppRegistersClassIdRoute,
   AppStudentsStudentIdRoute: AppStudentsStudentIdRoute,
   AppYearsYearIdRoute: AppYearsYearIdRoute,

@@ -10,6 +10,7 @@ import {
   getMyModules,
   getClassSounds,
   getNextLessons,
+  getPracticeSet,
   getTeachingModules,
   getWrittenAnswers,
   openLesson,
@@ -89,4 +90,12 @@ export const classSoundsQuery = (classId: string) =>
   queryOptions({
     queryKey: ["learning", "class-sounds", classId],
     queryFn: () => getClassSounds({ data: { classId } }),
+  });
+
+export const practiceSetQuery = (moduleId: string, round: number) =>
+  queryOptions({
+    queryKey: ["learning", "practice", moduleId, round],
+    queryFn: () => getPracticeSet({ data: { moduleId, round } }),
+    // A review stays the same while it is worked through.
+    staleTime: Number.POSITIVE_INFINITY,
   });

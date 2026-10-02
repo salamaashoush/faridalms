@@ -1071,7 +1071,7 @@ export type StudentBlock =
       places: number;
     });
 
-function shuffled<T>(items: T[], seed: string): T[] {
+export function shuffled<T>(items: T[], seed: string): T[] {
   let state = 0;
   for (const char of seed)
     state = (Math.imul(state, 31) + char.charCodeAt(0)) | 0;

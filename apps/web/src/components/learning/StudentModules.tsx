@@ -2,10 +2,11 @@ import { cn } from "@faridalms/ui/cn";
 import { Progress } from "@faridalms/ui/progress";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { CircleCheck, Lock, Play } from "lucide-react";
+import { CircleCheck, Lock, Play, Shuffle } from "lucide-react";
 
 import type { HeaderFact } from "~/components/system/RecordPage";
 
+import { ButtonLink } from "~/components/app/ButtonLink";
 import {
   phoneLink,
   RecordColumns,
@@ -242,13 +243,31 @@ export function ModuleOutline({
           </RecordSection>
         }
         aside={
-          data.summary ? (
-            <RecordSection title={m.lrnAbout()}>
-              <p dir="auto" className="text-sm leading-6">
-                {data.summary}
-              </p>
-            </RecordSection>
-          ) : undefined
+          <>
+            {data.own && done >= 2 ? (
+              <RecordSection
+                title={m.lrnPracticeTitle()}
+                description={m.lrnPracticeEntryHint()}
+              >
+                <ButtonLink
+                  to="/practice/$moduleId"
+                  params={{ moduleId }}
+                  variant="outline"
+                  className="w-fit max-md:h-10"
+                >
+                  <Shuffle aria-hidden />
+                  {m.lrnPracticeStart()}
+                </ButtonLink>
+              </RecordSection>
+            ) : null}
+            {data.summary ? (
+              <RecordSection title={m.lrnAbout()}>
+                <p dir="auto" className="text-sm leading-6">
+                  {data.summary}
+                </p>
+              </RecordSection>
+            ) : null}
+          </>
         }
       />
     </div>

@@ -53,6 +53,7 @@ import {
   describeCheck,
   describeReview,
   duplicateModuleSchema,
+  autoBlocks,
   isAuto,
   lessonContentOf,
   lessonIssue,
@@ -79,6 +80,13 @@ import {
   upgradeLesson,
 } from "@faridalms/domain/learning";
 import { isContentDocument } from "@faridalms/domain/lesson-content";
+import {
+  PRACTICE_LEAST,
+  practiceCheckSchema,
+  practiceItems,
+  practiceSetSchema,
+  practiceView,
+} from "@faridalms/domain/practice";
 import { ORPCError } from "@orpc/server";
 import * as v from "valibot";
 
@@ -979,6 +987,124 @@ async function soundKeeper(context: UnitContext, classId: string) {
   if (!(await teachesClass(context.tx, scopeOf(context), classId)))
     throw new ORPCError("NOT_FOUND");
 }
+
+/** The lessons of a module a student has finished, for mixed review. */
+async function finishedLessons(context: UnitContext, moduleId: string) {
+  requireCapability(context, "learning:read");
+  const studentId = context.actor.userId;
+  const { row, locked } = await openModule(context, moduleId, studentId);
+  if (locked) throw new ORPCError("NOT_FOUND");
+  const lessons = await studentLessons(context, row.id);
+  const cells = await progressIn(context.tx, {
+    tenantId: context.tenantId,
+    lessonIds: lessons.map((item) => item.id),
+    studentIds: [studentId],
+  });
+  const done = new Set(
+    cells.filter((cell) => cell.completedAt).map((cell) => cell.lessonId),
+  );
+  return {
+    row,
+    studentId,
+    lessons: lessons.filter((item) => done.has(item.id)),
+  };
+}
+
+/**
+ * A mixed review of a module: questions from the lessons a student has
+ * finished, the ones missed the first time first, lessons taking turns.
+ * Only finished lessons give questions, so asking for an answer here never
+ * hands over one a student has still to meet in a lesson.
+ */
+export const practiceSet = readProcedure
+  .input(practiceSetSchema)
+  .handler(async ({ input, context }) => {
+    const { row, studentId, lessons } = await finishedLessons(
+      context,
+      input.moduleId,
+    );
+    const [published, firsts, quiet] = await Promise.all([
+      Promise.all(lessons.map((item) => publishedLesson(context, item.id))),
+      firstAttempts(context.tx, {
+        tenantId: context.tenantId,
+        lessonIds: lessons.map((item) => item.id),
+        studentIds: [studentId],
+      }),
+      quietLessons(context.tx, {
+        tenantId: context.tenantId,
+        moduleId: row.id,
+        studentId,
+        on: context.today,
+      }),
+    ]);
+    const sources = lessons.flatMap((item, index) => {
+      const content = published[index]?.content;
+      return content
+        ? [
+            {
+              lessonId: item.id,
+              document: content,
+              rows: firsts.filter((response) => response.lessonId === item.id),
+            },
+          ]
+        : [];
+    });
+    const seed = `${studentId}:${context.today}:${input.round}`;
+    const items = practiceItems(sources, seed);
+    const lessonOf = new Map(lessons.map((item) => [item.id, item]));
+    return {
+      module: { id: row.id, title: row.title },
+      young: lessons.length > 0 && lessons.every((item) => item.young),
+      readAlong: lessons.every((item) => item.readAlong),
+      sounds: !quiet,
+      enough: items.length >= PRACTICE_LEAST,
+      items: items.flatMap((item) => {
+        const from = lessonOf.get(item.lessonId);
+        const [block] = studentBlocks(
+          { version: 2, blocks: [item.block] },
+          `${seed}:${item.block.id}`,
+        );
+        return from && block
+          ? [
+              {
+                lessonId: item.lessonId,
+                lessonTitle: from.title,
+                vowelMarks: from.vowelMarks,
+                missed: item.missed,
+                block,
+              },
+            ]
+          : [];
+      }),
+    };
+  });
+
+/** Marks one try at a mixed review question, keeping nothing. */
+export const practiceCheck = readProcedure
+  .input(practiceCheckSchema)
+  .handler(async ({ input, context }) => {
+    const asked = await lessonById(
+      context.tx,
+      context.tenantId,
+      input.lessonId,
+    );
+    if (!asked) throw new ORPCError("NOT_FOUND");
+    const { lessons } = await finishedLessons(context, asked.moduleId);
+    if (!lessons.some((item) => item.id === asked.id))
+      throw new ORPCError("NOT_FOUND");
+    const content = (await publishedLesson(context, asked.id))?.content;
+    const block = content
+      ? autoBlocks(content).find((item) => item.id === input.blockId)
+      : undefined;
+    if (!block) throw new ORPCError("NOT_FOUND");
+    if (input.answer.kind === "reveal")
+      return practiceView(block, input.before, { reveal: true });
+    const issue = responseIssue(block, input.answer.response);
+    if (issue) throw new ORPCError("BAD_REQUEST", { message: issue });
+    return practiceView(block, input.before, {
+      response: input.answer.response,
+    });
+  });
 
 /** A module's lessons as a student meets them: done, open or locked, the unpublished left out. */
 export const play = readProcedure

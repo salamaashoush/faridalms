@@ -14,6 +14,10 @@ import {
   saveLessonSchema,
   saveModuleSchema,
 } from "@faridalms/domain/learning";
+import {
+  practiceCheckSchema,
+  practiceSetSchema,
+} from "@faridalms/domain/practice";
 import { createServerFn } from "@tanstack/react-start";
 import * as v from "valibot";
 
@@ -148,3 +152,11 @@ export const getClassSounds = createServerFn({ method: "GET" })
 export const changeClassSounds = createServerFn({ method: "POST" })
   .validator(checked(setClassSoundsSchema))
   .handler(({ data }) => backend().learning.setClassSounds(data));
+
+export const getPracticeSet = createServerFn({ method: "GET" })
+  .validator(checked(practiceSetSchema))
+  .handler(({ data }) => backend().learning.practiceSet(data));
+
+export const checkPractice = createServerFn({ method: "POST" })
+  .validator(checked(practiceCheckSchema))
+  .handler(({ data }) => backend().learning.practiceCheck(data));

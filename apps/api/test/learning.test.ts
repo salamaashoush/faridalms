@@ -1197,3 +1197,134 @@ describe("drawn answers", () => {
     expect((await raw("northwind", keeper.token, path)).status).toBe(200);
   });
 });
+
+describe("mixed review", () => {
+  test("a student reviews finished lessons, missed questions first, marked without changing scores", async () => {
+    const { keeper } = await teachers();
+    const { rows } = await keeper.learning.modules({});
+    const source = rows.find((row) => row.title === TITLE);
+    if (!source) throw new Error("no module");
+    const saved = await keeper.learning.saveModule({
+      id: "",
+      expectedVersion: 0,
+      title: "Colours review",
+      summary: "",
+      classIds: source.classes.map((item) => item.id),
+      prerequisiteId: "",
+      sequential: false,
+    });
+    const ask = (prompt: string) => {
+      const right = id();
+      return {
+        right,
+        wrong: id(),
+        block: {
+          id: id(),
+          type: "choice" as const,
+          prompt,
+          points: 1,
+          hint: "",
+          explanation: `About ${prompt}`,
+          tries: 1,
+          options: [] as { id: string; text: string; feedback: string }[],
+          correctOptionIds: [right],
+          multiple: false,
+          shuffle: false,
+        },
+      };
+    };
+    const lessonOf = (title: string, prompts: string[]) => {
+      const asked = prompts.map(ask).map((item) => ({
+        ...item,
+        block: {
+          ...item.block,
+          options: [
+            { id: item.right, text: "Yes", feedback: "" },
+            { id: item.wrong, text: "No", feedback: "" },
+          ],
+        },
+      }));
+      return { title, asked };
+    };
+    const lessons = [
+      lessonOf("Red", ["Is a tomato red?", "Is a cherry red?"]),
+      lessonOf("Blue", ["Is the sky blue?", "Is the sea blue?"]),
+      lessonOf("Green", ["Is grass green?"]),
+    ];
+    for (const lesson of lessons)
+      await keeper.learning.saveLesson({
+        id: "",
+        moduleId: saved.id,
+        expectedVersion: 0,
+        title: lesson.title,
+        // Opening a "view" lesson finishes it; the last waits for answers.
+        completion: lesson.title === "Green" ? "quiz" : "view",
+        passScore: null,
+        content: written(lesson.asked.map((item) => item.block)),
+        publish: false,
+      });
+    await keeper.learning.publishModule({
+      id: saved.id,
+      expectedVersion: saved.version,
+    });
+
+    const pupil = await student();
+    const outline = await pupil.learning.play({ id: saved.id });
+    const missed = lessons[0]?.asked[0];
+    if (!missed) throw new Error("no question");
+    // The first two lessons are finished, one question missed; the third
+    // is only opened.
+    for (const [index, lesson] of lessons.slice(0, 2).entries()) {
+      const lessonId = outline.lessons[index]?.id ?? "";
+      await pupil.learning.playLesson({ id: lessonId });
+      for (const item of lesson.asked)
+        await pupil.learning.respond({
+          lessonId,
+          blockId: item.block.id,
+          response: {
+            type: "choice",
+            optionIds: [item === missed ? item.wrong : item.right],
+          },
+        });
+    }
+    const third = outline.lessons[2]?.id ?? "";
+    await pupil.learning.playLesson({ id: third });
+
+    const set = await pupil.learning.practiceSet({ moduleId: saved.id });
+    expect(set).toMatchObject({ enough: true, young: false, sounds: true });
+    expect(set.items).toHaveLength(4);
+    expect(set.items[0]).toMatchObject({
+      missed: true,
+      block: { id: missed.block.id },
+    });
+    expect(JSON.stringify(set.items)).not.toContain("correctOptionIds");
+    const firstLesson = outline.lessons[0]?.id ?? "";
+    const right = await pupil.learning.practiceCheck({
+      lessonId: firstLesson,
+      blockId: missed.block.id,
+      before: 0,
+      answer: {
+        kind: "response",
+        response: { type: "choice", optionIds: [missed.right] },
+      },
+    });
+    expect(right).toMatchObject({
+      correct: true,
+      explanation: "About Is a tomato red?",
+    });
+    const before = await pupil.learning.playLesson({ id: firstLesson });
+    expect(before.checks[missed.block.id]?.correct).toBe(false);
+
+    const unfinished = lessons[2]?.asked[0];
+    expect(
+      await rejection(
+        pupil.learning.practiceCheck({
+          lessonId: third,
+          blockId: unfinished?.block.id ?? "",
+          before: 0,
+          answer: { kind: "reveal" },
+        }),
+      ),
+    ).toMatchObject({ code: "NOT_FOUND" });
+  });
+});

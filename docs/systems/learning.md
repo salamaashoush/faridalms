@@ -42,6 +42,12 @@ What modules and lessons do, built from
   points. A student may start again once every question is settled; the best
   finished attempt's score stays.
 - A student who comes back is offered the place where they stopped reading.
+- Once two lessons of a module are done, its page offers a mixed review:
+  up to eight questions from the finished lessons, the ones missed the first
+  time first, lessons taking turns. Each try is marked and kept nowhere, so a
+  review never changes a score, and only finished lessons give questions, so
+  showing an answer gives nothing away. Each new review draws a fresh set; a
+  module of young lessons plays it on the young stage.
 
 ## Young children
 
