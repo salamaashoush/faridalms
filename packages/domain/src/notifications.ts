@@ -11,6 +11,7 @@ export const NOTIFICATION_KINDS = [
   "absence",
   "event",
   "reminder",
+  "consent",
 ] as const;
 export type NotificationKind = (typeof NOTIFICATION_KINDS)[number];
 
@@ -49,6 +50,7 @@ export const CHOOSABLE_KINDS = [
   "absence",
   "event",
   "reminder",
+  "consent",
 ] as const;
 export type ChoosableKind = (typeof CHOOSABLE_KINDS)[number];
 
@@ -90,6 +92,7 @@ export const DEFAULT_PREFERENCES: Preferences = {
     absence: "instant",
     event: "digest",
     reminder: "instant",
+    consent: "digest",
   },
   sms: {
     announcement: "off",
@@ -98,6 +101,7 @@ export const DEFAULT_PREFERENCES: Preferences = {
     absence: "instant",
     event: "off",
     reminder: "off",
+    consent: "off",
   },
   quietFrom: "21:00",
   quietTo: "07:00",
@@ -105,9 +109,27 @@ export const DEFAULT_PREFERENCES: Preferences = {
   digestAt: "18:00",
 };
 
-/** A stored value read back, whatever an older release wrote. */
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+
+/**
+ * A stored value read back, whatever an older release wrote. A kind added
+ * since takes its default rather than costing the person every other choice.
+ */
 export function preferencesOf(value: unknown): Preferences {
-  const parsed = v.safeParse(preferencesSchema, value);
+  const stored = isRecord(value) ? value : {};
+  const parsed = v.safeParse(preferencesSchema, {
+    ...DEFAULT_PREFERENCES,
+    ...stored,
+    email: {
+      ...DEFAULT_PREFERENCES.email,
+      ...(isRecord(stored.email) ? stored.email : {}),
+    },
+    sms: {
+      ...DEFAULT_PREFERENCES.sms,
+      ...(isRecord(stored.sms) ? stored.sms : {}),
+    },
+  });
   return parsed.success ? parsed.output : DEFAULT_PREFERENCES;
 }
 

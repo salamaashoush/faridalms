@@ -13,6 +13,7 @@ import {
   Megaphone,
   MessageSquare,
   Newspaper,
+  ShieldCheck,
   Siren,
   UserX,
 } from "lucide-react";
@@ -40,6 +41,7 @@ export const KIND_ICON: Record<NotificationKind, LucideIcon> = {
   absence: UserX,
   event: CalendarDays,
   reminder: ClipboardCheck,
+  consent: ShieldCheck,
 };
 
 /** What a notice says, in the reader's language, from what its producer recorded. */
@@ -114,6 +116,13 @@ export function noticeText(notice: Notice): { title: string; body: string } {
           name: both(params.className, params.classNameAr),
         }),
         body: date ? formatDate(date) : "",
+      };
+    case "consent":
+      return {
+        title: m.ntfConsent(),
+        body: [title, both(params.studentName, params.studentNameAr)]
+          .filter(Boolean)
+          .join(" · "),
       };
   }
   return { title: "", body: "" };
@@ -194,6 +203,12 @@ export function NoticeLink({
           params={{ classId: id }}
           search={{ date: notice.params.date ?? "" }}
         >
+          {children}
+        </Link>
+      );
+    case "consent":
+      return (
+        <Link {...rest} to="/family/consents">
           {children}
         </Link>
       );

@@ -4030,6 +4030,15 @@ The laws agree on a common core: consent per purpose with its time, method
 and the notice shown; withdrawal as easy as consent; verified guardian
 authority; records of requests and disclosures ([R3] finding 6).
 
+- **A consent form is a version.** Each `consent_text` row is one numbered
+  version of a school's form for a purpose, hosting its words as an editor
+  document (`host_type = 'privacy_notice'`) in the language it was written
+  in, with its translation as the document's translation and the same
+  translation check as news and announcements. A school has at most one
+  draft per purpose; publishing sets `published_at`, freezes both documents
+  and asks the guardians, and later edits open a new draft that
+  `supersedes_id` the published one. `locale` is the language written first;
+  `notice_id` points at the version, whichever language was read.
 - **Append-only.** A change of mind is a new row; the current state is the
   latest row per subject and purpose (`core.current_consents`). Proof of
   consent is kept even after erasure of other data, because keeping it is a

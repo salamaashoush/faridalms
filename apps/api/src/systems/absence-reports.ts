@@ -1,4 +1,5 @@
 import type { AbsenceReport } from "@faridalms/database/stores/absence-reports";
+import type { ChildLink } from "@faridalms/database/stores/persons";
 
 import {
   decideReport,
@@ -41,23 +42,27 @@ import {
 } from "../core/procedure";
 import { registerHostReader } from "../files/authorize";
 
-/** The children a family member may report for; none for anyone else. */
-async function familyChildren(context: UnitContext): Promise<string[]> {
+/** The links of a family member to the children they follow; none for anyone else. */
+async function familyLinks(context: UnitContext): Promise<ChildLink[]> {
   if (context.actor.context !== "family" || !can(context, "children:read"))
     return [];
-  const links = await childrenOf(
-    context.tx,
-    scopeOf(context),
-    context.actor.userId,
-  );
-  return links.map((link) => link.studentId);
+  return childrenOf(context.tx, scopeOf(context), context.actor.userId);
 }
+
+const followed = (links: readonly ChildLink[]) =>
+  links.map((link) => link.studentId);
+
+/** Reporting an absence is a decision for the child, which restricted rights do not reach. */
+const deciding = (links: readonly ChildLink[]) =>
+  links
+    .filter((link) => link.educationalRights === "full")
+    .map((link) => link.studentId);
 
 /** Who may see a report: its family, and the office. */
 async function mayRead(context: UnitContext, report: AbsenceReport) {
   if (report.reporterId === context.actor.userId) return true;
   if (can(context, "attendance:manage")) return true;
-  return (await familyChildren(context)).includes(report.studentId);
+  return followed(await familyLinks(context)).includes(report.studentId);
 }
 
 // A note a family sent with a report is read by whoever may read the report.
@@ -113,7 +118,8 @@ export const mine = readProcedure
   .input(familyReportsSchema)
   .handler(async ({ input, context }) => {
     requireCapability(context, "children:read");
-    const children = await familyChildren(context);
+    const links = await familyLinks(context);
+    const children = followed(links);
     const studentIds = input.studentId
       ? children.filter((id) => id === input.studentId)
       : children;
@@ -132,6 +138,7 @@ export const mine = readProcedure
       earliest: addDays(context.today, -REPORT_DAYS_BACK),
       reasons,
       reports: reports.map(reportView),
+      mayReport: studentIds.some((id) => deciding(links).includes(id)),
     };
   });
 
@@ -149,8 +156,13 @@ export const report = writeProcedure
         !(await isVisibleStudent(context.tx, scopeOf(context), input.studentId))
       )
         throw new ORPCError("NOT_FOUND");
-    } else if (!(await familyChildren(context)).includes(input.studentId))
-      throw new ORPCError("NOT_FOUND");
+    } else {
+      const links = await familyLinks(context);
+      if (!followed(links).includes(input.studentId))
+        throw new ORPCError("NOT_FOUND");
+      if (!deciding(links).includes(input.studentId))
+        throw new ORPCError("FORBIDDEN");
+    }
     if (input.from < addDays(context.today, -REPORT_DAYS_BACK))
       throw new ORPCError("BAD_REQUEST", { message: "attendance.report_late" });
     const years = await schoolYears(

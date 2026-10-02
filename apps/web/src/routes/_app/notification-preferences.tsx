@@ -47,6 +47,7 @@ const KIND_LABEL: Record<ChoosableKind, () => string> = {
   absence: m.ntfKindAbsence,
   event: m.ntfKindEvent,
   reminder: m.ntfKindReminder,
+  consent: m.ntfKindConsent,
 };
 
 const EMAIL_LABEL: Record<EmailMode, () => string> = {
@@ -60,11 +61,14 @@ const SMS_LABEL: Record<SmsMode, () => string> = {
   off: m.ntfModeOff,
 };
 
-/** Absences reach families and register reminders reach staff; nobody else gets them. */
+/**
+ * Absences and consent requests reach families and register reminders reach
+ * staff; nobody else gets them.
+ */
 function kindsFor(workspace: Workspace): readonly ChoosableKind[] {
   return CHOOSABLE_KINDS.filter(
     (kind) =>
-      (kind !== "absence" || workspace === "family") &&
+      ((kind !== "absence" && kind !== "consent") || workspace === "family") &&
       (kind !== "reminder" || workspace === "teach" || workspace === "admin"),
   );
 }

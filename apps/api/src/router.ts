@@ -5,6 +5,7 @@ import * as attendanceSystem from "./systems/attendance";
 import * as badgesSystem from "./systems/badges";
 import * as calendarSystem from "./systems/calendar";
 import * as classesSystem from "./systems/classes";
+import * as consentsSystem from "./systems/consents";
 import * as courseworkSystem from "./systems/coursework";
 import * as coverSystem from "./systems/cover";
 import * as documentsSystem from "./systems/documents";
@@ -40,6 +41,7 @@ export const router = {
   school: schoolSystem,
   records: recordsSystem,
   classes: classesSystem,
+  consents: consentsSystem,
   years: yearsSystem,
   files: filesSystem,
   documents: documentsSystem,

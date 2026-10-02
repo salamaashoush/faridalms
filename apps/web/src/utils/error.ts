@@ -157,6 +157,22 @@ export function getMessageFromError(error: unknown): string {
         return m.newsBodyNeeded();
       case "news.nothing_to_check":
         return m.translationErrNothingToCheck();
+      case "consents.draft_open":
+        return m.consentErrDraftOpen();
+      case "consents.published":
+        return m.consentErrPublished();
+      case "consents.empty":
+        return m.consentErrEmpty();
+      case "consents.words_only":
+        return m.consentErrWordsOnly();
+      case "consents.not_guardian":
+        return m.consentErrNotGuardian();
+      case "consents.superseded":
+        return m.consentErrSuperseded();
+      case "consents.future":
+        return m.consentErrFuture();
+      case "consents.scan":
+        return m.consentScanNeeded();
       case "news.title":
         return m.newsTitleNeeded();
       case "news.audience":

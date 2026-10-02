@@ -122,4 +122,15 @@ describe("stored preferences", () => {
     expect(preferencesOf({ email: "yes" })).toEqual(DEFAULT_PREFERENCES);
     expect(preferencesOf(DEFAULT_PREFERENCES)).toEqual(DEFAULT_PREFERENCES);
   });
+
+  it("keep a person's choices when a kind is added after they chose", () => {
+    const { consent: _email, ...email } = {
+      ...DEFAULT_PREFERENCES.email,
+      news: "off" as const,
+    };
+    const { consent: _sms, ...sms } = DEFAULT_PREFERENCES.sms;
+    const read = preferencesOf({ ...DEFAULT_PREFERENCES, email, sms });
+    expect(read.email.news).toBe("off");
+    expect(read.email.consent).toBe(DEFAULT_PREFERENCES.email.consent);
+  });
 });

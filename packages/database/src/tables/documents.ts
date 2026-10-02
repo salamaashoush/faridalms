@@ -453,6 +453,13 @@ export const privacyNotices = core.table.withRLS(
     documentId: uuid("document_id").notNull(),
     publishedAt: instant("published_at"),
     supersedesId: uuid("supersedes_id"),
+    /**
+     * Who checked the translation against the original, when, and a digest
+     * of the original's words then, which tells whether it has changed since.
+     */
+    translationReviewedAt: instant("translation_reviewed_at"),
+    translationReviewedByUserId: uuid("translation_reviewed_by_user_id"),
+    translationSourceDigest: text("translation_source_digest"),
     ...entityColumns(),
   },
   (t): PgTableExtraConfigValue[] => [
@@ -470,6 +477,11 @@ export const privacyNotices = core.table.withRLS(
       [documents.tenantId, documents.id],
     ),
     fk("privacy_notices", [t.tenantId, t.supersedesId], [t.tenantId, t.id]),
+    fk(
+      "privacy_notices",
+      [t.tenantId, t.translationReviewedByUserId],
+      [users.tenantId, users.id],
+    ),
     ck(
       "privacy_notices",
       "kind",
@@ -486,6 +498,17 @@ export const privacyNotices = core.table.withRLS(
       "purpose",
       sql`(kind = 'consent_text') = (purpose_descriptor_id is not null)`,
     ),
+    ck(
+      "privacy_notices",
+      "translation_review",
+      sql`(translation_reviewed_at is null) = (translation_reviewed_by_user_id is null) and (translation_reviewed_at is null) = (translation_source_digest is null)`,
+    ),
+    uniqueIndex("privacy_notices_draft_key")
+      .on(t.tenantId, t.orgId, t.kind, t.purposeDescriptorId)
+      .where(sql`status = 'active' and published_at is null`),
+    uniqueIndex("privacy_notices_version_key")
+      .on(t.tenantId, t.orgId, t.kind, t.purposeDescriptorId, t.versionLabel)
+      .where(sql`status = 'active'`),
     ...entityProfile(),
   ],
 );

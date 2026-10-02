@@ -107,8 +107,10 @@ const RECORD: StudentData = {
   account: null,
   workingYearId: null,
   today: "2026-09-27",
+  noPhotos: false,
   access: {
     manage: true,
+    consents: false,
     contacts: true,
     health: false,
     demographics: false,

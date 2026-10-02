@@ -174,6 +174,7 @@ export const NAVIGATION: Record<Workspace, NavSection[]> = {
           icon: Layers,
           feature: "elearning",
         },
+        { to: "/family/consents", label: m.navConsents, icon: ShieldCheck },
       ],
     },
     {

@@ -179,15 +179,17 @@ export function FamilyReports({
       title={m.repTitle()}
       description={m.repHint()}
       action={
-        <Button
-          type="button"
-          variant="outline"
-          className="max-md:h-10"
-          onClick={() => setAdding(true)}
-        >
-          <CalendarPlus aria-hidden />
-          {m.repAdd()}
-        </Button>
+        data.mayReport ? (
+          <Button
+            type="button"
+            variant="outline"
+            className="max-md:h-10"
+            onClick={() => setAdding(true)}
+          >
+            <CalendarPlus aria-hidden />
+            {m.repAdd()}
+          </Button>
+        ) : undefined
       }
     >
       {data.reports.length === 0 ? (

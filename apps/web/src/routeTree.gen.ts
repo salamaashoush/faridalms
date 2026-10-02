@@ -14,6 +14,7 @@ import { Route as AppRouteImport } from './routes/_app'
 import { Route as AuthRouteImport } from './routes/_auth'
 import { Route as BadgeRouteImport } from './routes/badge'
 import { Route as AppAdminRouteImport } from './routes/_app/admin'
+import { Route as AppConsentFormEditorRouteImport } from './routes/_app/consent-form-editor'
 import { Route as AppEventEditorRouteImport } from './routes/_app/event-editor'
 import { Route as AppExamsRouteImport } from './routes/_app/exams'
 import { Route as AppFamilyRouteImport } from './routes/_app/family'
@@ -57,6 +58,7 @@ import { Route as AppFamilyIndexRouteImport } from './routes/_app/family/index'
 import { Route as AppFamilyAssignmentsRouteImport } from './routes/_app/family/assignments'
 import { Route as AppFamilyAttendanceRouteImport } from './routes/_app/family/attendance'
 import { Route as AppFamilyChildrenRouteImport } from './routes/_app/family/children'
+import { Route as AppFamilyConsentsRouteImport } from './routes/_app/family/consents'
 import { Route as AppFamilyGradesRouteImport } from './routes/_app/family/grades'
 import { Route as AppFamilyMessagesRouteImport } from './routes/_app/family/messages'
 import { Route as AppFamilyModulesRouteImport } from './routes/_app/family/modules'
@@ -119,6 +121,11 @@ const BadgeRoute = BadgeRouteImport.update({
 const AppAdminRoute = AppAdminRouteImport.update({
   id: '/admin',
   path: '/admin',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppConsentFormEditorRoute = AppConsentFormEditorRouteImport.update({
+  id: '/consent-form-editor',
+  path: '/consent-form-editor',
   getParentRoute: () => AppRoute,
 } as any)
 const AppEventEditorRoute = AppEventEditorRouteImport.update({
@@ -342,6 +349,11 @@ const AppFamilyChildrenRoute = AppFamilyChildrenRouteImport.update({
   path: '/children',
   getParentRoute: () => AppFamilyRoute,
 } as any)
+const AppFamilyConsentsRoute = AppFamilyConsentsRouteImport.update({
+  id: '/consents',
+  path: '/consents',
+  getParentRoute: () => AppFamilyRoute,
+} as any)
 const AppFamilyGradesRoute = AppFamilyGradesRouteImport.update({
   id: '/grades',
   path: '/grades',
@@ -550,6 +562,7 @@ export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/badge': typeof BadgeRoute
   '/admin': typeof AppAdminRouteWithChildren
+  '/consent-form-editor': typeof AppConsentFormEditorRoute
   '/event-editor': typeof AppEventEditorRoute
   '/exams': typeof AppExamsRoute
   '/family': typeof AppFamilyRouteWithChildren
@@ -589,6 +602,7 @@ export interface FileRoutesByFullPath {
   '/family/assignments': typeof AppFamilyAssignmentsRoute
   '/family/attendance': typeof AppFamilyAttendanceRoute
   '/family/children': typeof AppFamilyChildrenRoute
+  '/family/consents': typeof AppFamilyConsentsRoute
   '/family/grades': typeof AppFamilyGradesRoute
   '/family/messages': typeof AppFamilyMessagesRoute
   '/family/modules': typeof AppFamilyModulesRoute
@@ -637,6 +651,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/badge': typeof BadgeRoute
+  '/consent-form-editor': typeof AppConsentFormEditorRoute
   '/event-editor': typeof AppEventEditorRoute
   '/exams': typeof AppExamsRoute
   '/news-editor': typeof AppNewsEditorRoute
@@ -672,6 +687,7 @@ export interface FileRoutesByTo {
   '/family/assignments': typeof AppFamilyAssignmentsRoute
   '/family/attendance': typeof AppFamilyAttendanceRoute
   '/family/children': typeof AppFamilyChildrenRoute
+  '/family/consents': typeof AppFamilyConsentsRoute
   '/family/grades': typeof AppFamilyGradesRoute
   '/family/messages': typeof AppFamilyMessagesRoute
   '/family/modules': typeof AppFamilyModulesRoute
@@ -724,6 +740,7 @@ export interface FileRoutesById {
   '/_auth': typeof AuthRouteWithChildren
   '/badge': typeof BadgeRoute
   '/_app/admin': typeof AppAdminRouteWithChildren
+  '/_app/consent-form-editor': typeof AppConsentFormEditorRoute
   '/_app/event-editor': typeof AppEventEditorRoute
   '/_app/exams': typeof AppExamsRoute
   '/_app/family': typeof AppFamilyRouteWithChildren
@@ -763,6 +780,7 @@ export interface FileRoutesById {
   '/_app/family/assignments': typeof AppFamilyAssignmentsRoute
   '/_app/family/attendance': typeof AppFamilyAttendanceRoute
   '/_app/family/children': typeof AppFamilyChildrenRoute
+  '/_app/family/consents': typeof AppFamilyConsentsRoute
   '/_app/family/grades': typeof AppFamilyGradesRoute
   '/_app/family/messages': typeof AppFamilyMessagesRoute
   '/_app/family/modules': typeof AppFamilyModulesRoute
@@ -814,6 +832,7 @@ export interface FileRouteTypes {
     | '/'
     | '/badge'
     | '/admin'
+    | '/consent-form-editor'
     | '/event-editor'
     | '/exams'
     | '/family'
@@ -853,6 +872,7 @@ export interface FileRouteTypes {
     | '/family/assignments'
     | '/family/attendance'
     | '/family/children'
+    | '/family/consents'
     | '/family/grades'
     | '/family/messages'
     | '/family/modules'
@@ -901,6 +921,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/badge'
+    | '/consent-form-editor'
     | '/event-editor'
     | '/exams'
     | '/news-editor'
@@ -936,6 +957,7 @@ export interface FileRouteTypes {
     | '/family/assignments'
     | '/family/attendance'
     | '/family/children'
+    | '/family/consents'
     | '/family/grades'
     | '/family/messages'
     | '/family/modules'
@@ -987,6 +1009,7 @@ export interface FileRouteTypes {
     | '/_auth'
     | '/badge'
     | '/_app/admin'
+    | '/_app/consent-form-editor'
     | '/_app/event-editor'
     | '/_app/exams'
     | '/_app/family'
@@ -1026,6 +1049,7 @@ export interface FileRouteTypes {
     | '/_app/family/assignments'
     | '/_app/family/attendance'
     | '/_app/family/children'
+    | '/_app/family/consents'
     | '/_app/family/grades'
     | '/_app/family/messages'
     | '/_app/family/modules'
@@ -1121,6 +1145,13 @@ declare module '@tanstack/react-router' {
       path: '/admin'
       fullPath: '/admin'
       preLoaderRoute: typeof AppAdminRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/consent-form-editor': {
+      id: '/_app/consent-form-editor'
+      path: '/consent-form-editor'
+      fullPath: '/consent-form-editor'
+      preLoaderRoute: typeof AppConsentFormEditorRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/event-editor': {
@@ -1422,6 +1453,13 @@ declare module '@tanstack/react-router' {
       path: '/children'
       fullPath: '/family/children'
       preLoaderRoute: typeof AppFamilyChildrenRouteImport
+      parentRoute: typeof AppFamilyRoute
+    }
+    '/_app/family/consents': {
+      id: '/_app/family/consents'
+      path: '/consents'
+      fullPath: '/family/consents'
+      preLoaderRoute: typeof AppFamilyConsentsRouteImport
       parentRoute: typeof AppFamilyRoute
     }
     '/_app/family/grades': {
@@ -1753,6 +1791,7 @@ interface AppFamilyRouteChildren {
   AppFamilyAssignmentsRoute: typeof AppFamilyAssignmentsRoute
   AppFamilyAttendanceRoute: typeof AppFamilyAttendanceRoute
   AppFamilyChildrenRoute: typeof AppFamilyChildrenRoute
+  AppFamilyConsentsRoute: typeof AppFamilyConsentsRoute
   AppFamilyGradesRoute: typeof AppFamilyGradesRoute
   AppFamilyMessagesRoute: typeof AppFamilyMessagesRoute
   AppFamilyModulesRoute: typeof AppFamilyModulesRoute
@@ -1764,6 +1803,7 @@ const AppFamilyRouteChildren: AppFamilyRouteChildren = {
   AppFamilyAssignmentsRoute: AppFamilyAssignmentsRoute,
   AppFamilyAttendanceRoute: AppFamilyAttendanceRoute,
   AppFamilyChildrenRoute: AppFamilyChildrenRoute,
+  AppFamilyConsentsRoute: AppFamilyConsentsRoute,
   AppFamilyGradesRoute: AppFamilyGradesRoute,
   AppFamilyMessagesRoute: AppFamilyMessagesRoute,
   AppFamilyModulesRoute: AppFamilyModulesRoute,
@@ -1833,6 +1873,7 @@ const AppTeachRouteWithChildren = AppTeachRoute._addFileChildren(
 
 interface AppRouteChildren {
   AppAdminRoute: typeof AppAdminRouteWithChildren
+  AppConsentFormEditorRoute: typeof AppConsentFormEditorRoute
   AppEventEditorRoute: typeof AppEventEditorRoute
   AppExamsRoute: typeof AppExamsRoute
   AppFamilyRoute: typeof AppFamilyRouteWithChildren
@@ -1865,6 +1906,7 @@ interface AppRouteChildren {
 
 const AppRouteChildren: AppRouteChildren = {
   AppAdminRoute: AppAdminRouteWithChildren,
+  AppConsentFormEditorRoute: AppConsentFormEditorRoute,
   AppEventEditorRoute: AppEventEditorRoute,
   AppExamsRoute: AppExamsRoute,
   AppFamilyRoute: AppFamilyRouteWithChildren,

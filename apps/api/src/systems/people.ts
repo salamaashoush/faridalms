@@ -11,6 +11,7 @@ import {
   updatePasswordSignIn,
 } from "@faridalms/database/stores/accounts";
 import { homeroomsOn } from "@faridalms/database/stores/classes";
+import { photoRefusals } from "@faridalms/database/stores/consents";
 import {
   descriptorId,
   descriptorsFor,
@@ -308,7 +309,13 @@ export const student = readProcedure
     const current = history.find(
       (row) => row.from <= context.today && context.today < row.to,
     );
-    const account = await accountOf(context.tx, context.tenantId, input.id);
+    const [account, refusals] = await Promise.all([
+      accountOf(context.tx, context.tenantId, input.id),
+      photoRefusals(context.tx, {
+        tenantId: context.tenantId,
+        studentIds: [input.id],
+      }),
+    ]);
     const status: StudentStatus = studentStatus(
       history.map((row) => ({
         validFrom: row.from,
@@ -327,8 +334,11 @@ export const student = readProcedure
       account,
       workingYearId: workingYear(years, context.today)?.id ?? null,
       today: context.today,
+      noPhotos: refusals.has(input.id),
       access: {
         manage: can(context, "people:manage"),
+        consents:
+          can(context, "people:manage") || can(context, "privacy:manage"),
         contacts: guardians !== null,
         health: can(context, "health:read"),
         demographics: can(context, "demographics:read"),
@@ -667,6 +677,7 @@ export const saveRelationship = writeProcedure
       relationId,
       relationMeaning: meaning,
       flags,
+      editorId: context.actor.userId,
     });
     if (!updated)
       throw new ORPCError("CONFLICT", { message: "conflict.version" });

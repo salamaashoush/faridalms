@@ -57,6 +57,8 @@ export const CONFLICTS: Record<string, string> = {
   thread_members_key: "thread_member.exists",
   announcement_recipients_key: "announcement_recipient.exists",
   site_post_recipients_key: "site_post_recipient.exists",
+  privacy_notices_draft_key: "consents.draft_open",
+  privacy_notices_version_key: "consents.draft_open",
   module_classes_key: "module_class.exists",
   lesson_progress_key: "lesson_progress.exists",
   site_settings_org_key: "site.stale",

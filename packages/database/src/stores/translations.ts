@@ -10,6 +10,7 @@ type Tx = CellTransaction;
 const HOSTS = {
   site_post: "site_posts",
   announcement: "announcements",
+  privacy_notice: "privacy_notices",
 } as const;
 export type TranslatedHost = keyof typeof HOSTS;
 

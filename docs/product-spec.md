@@ -39,7 +39,7 @@ and notifications sit in the sidebar header.
 - **Student:** Home · Classes · To do · Calendar · Messages · Grades.
 - **Young student (K–2):** Home only: a grid of big task cards with audio
   labels and a Continue button, no messages and no grade numbers.
-- **Admin:** Today · Students · Families · Staff · Classes · Attendance ·
+- **Admin:** Today · Students · Staff · Classes · Attendance ·
   Timetable · School year · Communication · Website · Settings.
 
 ## Home pages
@@ -167,6 +167,17 @@ is a separate, explicit step; the old year becomes read-only.
   Siblings are students who share a parent's link. An adult's phone, email
   and home address are edited from the student's Family tab or the adult's
   record.
+- **Consents:** Data protection keeps one consent form per purpose (photos
+  on the website, in school news, giving medicine, and the school's own),
+  written as a document in one or both languages. Publishing freezes it as a
+  numbered version and asks every confirmed legal guardian with full rights
+  in the family app's Permissions page; the office records answers given on
+  a signed paper form (with its scan) or in person. Ticking Legal guardian on
+  a link is the office's confirmation. The Family tab shows the answer in
+  force per purpose with who gave it, how and when, and the answers before
+  it; a refused photo consent shows as a No photos alert. A new version asks
+  again while the earlier answer stays in force; in Egypt an answer given
+  for a child under 15 is due again at 15.
 - **Staff:** roles, classes taught, homeroom, timetable, effective access,
   sign-in activity, history.
 - **Adding a student:** names, date of birth and class; a matching name and

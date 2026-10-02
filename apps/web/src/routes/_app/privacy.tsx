@@ -10,6 +10,7 @@ import type { HoldRow, ReviewRow } from "~/components/privacy/DataProtection";
 import type { RequestRow } from "~/components/privacy/Requests";
 import type { HeaderAction } from "~/components/system/IndexPage";
 
+import { ConsentForms } from "~/components/consents/ConsentForms";
 import { displayName } from "~/components/people/format";
 import {
   BreachesTable,
@@ -35,10 +36,18 @@ import {
 import { PageHeader } from "~/components/system/IndexPage";
 import { RecordTabs } from "~/components/system/RecordPage";
 import * as m from "~/i18n/messages";
+import { consentFormsQuery } from "~/queries/consents";
 import { privacyOverviewQuery } from "~/queries/privacy";
 import { currentUserQuery } from "~/queries/user";
 
-const TABS = ["review", "requests", "breaches", "holds", "retention"] as const;
+const TABS = [
+  "review",
+  "requests",
+  "consents",
+  "breaches",
+  "holds",
+  "retention",
+] as const;
 type Tab = (typeof TABS)[number];
 
 const searchSchema = v.object({
@@ -52,7 +61,10 @@ export const Route = createFileRoute("/_app/privacy")({
     const user = await context.queryClient.ensureQueryData(currentUserQuery);
     if (!user.capabilities.includes("privacy:manage"))
       throw redirect({ to: WORKSPACE_HOME[user.workspace] });
-    await context.queryClient.ensureQueryData(privacyOverviewQuery);
+    await Promise.all([
+      context.queryClient.ensureQueryData(privacyOverviewQuery),
+      context.queryClient.ensureQueryData(consentFormsQuery),
+    ]);
   },
   component: PrivacyPage,
 });
@@ -115,6 +127,7 @@ function PrivacyPage() {
         tabs={[
           { value: "review", label: m.privacyReviewTab() },
           { value: "requests", label: m.privacyRequestsTab() },
+          { value: "consents", label: m.privacyConsentsTab() },
           { value: "breaches", label: m.privacyBreachesTab() },
           { value: "holds", label: m.privacyHoldsTab() },
           { value: "retention", label: m.privacyRetentionTab() },
@@ -139,6 +152,8 @@ function PrivacyPage() {
             onExtend={(request) => show({ kind: "extend", request })}
             onClose={(request) => show({ kind: "close", request })}
           />
+        ) : tab === "consents" ? (
+          <ConsentForms />
         ) : tab === "breaches" ? (
           <BreachesTable
             overview={overview}

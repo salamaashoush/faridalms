@@ -5,6 +5,7 @@ import { cn } from "@faridalms/ui/cn";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import {
+  CameraOff,
   Contact,
   Copy,
   HeartPulse,
@@ -26,6 +27,7 @@ import type {
 import { Value } from "~/components/app/primitives";
 import { initialsOf } from "~/components/app/UserMenu";
 import { StudentAttendance } from "~/components/attendance/StudentAttendance";
+import { StudentConsents } from "~/components/consents/StudentConsents";
 import { StudentCoursework } from "~/components/coursework/StudentCoursework";
 import { ageOn, formatDate } from "~/components/family/format";
 import { ActionMenu } from "~/components/system/ActionMenu";
@@ -499,6 +501,12 @@ export function StudentRecord({
       tone: "warning",
       icon: ShieldAlert,
     });
+  if (data.noPhotos)
+    alerts.push({
+      label: m.studentNoPhotos(),
+      tone: "warning",
+      icon: CameraOff,
+    });
   if (access.contacts && (data.guardians ?? []).length === 0)
     alerts.push({
       label: m.studentAlertNoGuardian(),
@@ -587,6 +595,11 @@ export function StudentRecord({
               {access.custody ? (
                 <Deferred>
                   <CustodySection studentId={studentId} />
+                </Deferred>
+              ) : null}
+              {access.consents ? (
+                <Deferred>
+                  <StudentConsents studentId={studentId} />
                 </Deferred>
               ) : null}
               <Deferred>

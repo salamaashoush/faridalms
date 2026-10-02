@@ -24,6 +24,7 @@ import { encryptField } from "./crypto";
 import { newUserHandle } from "./stores/accounts";
 import { addRecipients } from "./stores/announcements";
 import { audienceUsers, setAudiences } from "./stores/audiences";
+import { insertAnswer, insertForm, publishForm } from "./stores/consents";
 import {
   saveDocument,
   saveTranslation,
@@ -1229,6 +1230,12 @@ async function seedSchool(
   await seedMessages(tx, tenantId, schoolId, yearId);
   await seedAnnouncements(tx, tenantId, schoolId);
   await seedSchoolNews(tx, tenantId, schoolId);
+  await seedConsents(
+    tx,
+    tenantId,
+    schoolId,
+    pupils.get(plan.grades[1] ?? "") ?? [],
+  );
   await seedEvents(tx, tenantId, schoolId, yearId);
   await seedNotifications(tx, tenantId, schoolId);
   await seedLearning(tx, tenantId, schoolId, yearId);
@@ -1539,6 +1546,151 @@ async function seedSchoolNews(tx: Tx, tenantId: string, schoolId: string) {
         { tenantId, schoolId, on: "2026-09-27" },
         [audience],
       ),
+    });
+  }
+}
+
+/**
+ * Photo consent forms published in both languages and a medicine form still
+ * in draft. Two families in the second grade have answered the website
+ * form: one agreed in the app, the other told the office no.
+ */
+async function seedConsents(
+  tx: Tx,
+  tenantId: string,
+  schoolId: string,
+  students: readonly string[],
+) {
+  const [principal] = await tx.execute<{ user_id: string }>(sql`
+    select r.user_id from core.user_roles r
+    where r.tenant_id = ${tenantId}::uuid and r.org_id = ${schoolId}::uuid
+      and r.role in ('principal', 'site_administrator') and r.status = 'active'
+    order by r.role, r.user_id limit 1`);
+  if (!principal) return;
+  const purposes = await descriptorIds(tx, tenantId, "consent_purpose");
+  const forms = [
+    {
+      code: "photo_school_website",
+      publish: true,
+      english: headedContent([
+        part(
+          "What we are asking",
+          "May we show photos of your child at school events on the school website?",
+        ),
+        part(
+          "Which information",
+          "Photos only, never with your child's full name.",
+        ),
+        part(
+          "Changing your mind",
+          "You can change your answer at any time and we take the photos down.",
+        ),
+      ]),
+      arabic: headedContent([
+        part(
+          "ما نطلبه",
+          "هل نعرض صور طفلك في فعاليات المدرسة على موقع المدرسة؟",
+        ),
+        part("البيانات المعنية", "الصور فقط، ولا يُذكر اسم طفلك كاملًا."),
+        part("تغيير رأيك", "يمكنك تغيير إجابتك في أي وقت وسنزيل الصور."),
+      ]),
+    },
+    {
+      code: "photo_school_news",
+      publish: true,
+      english: headedContent([
+        part(
+          "What we are asking",
+          "May photos of your child appear in news shared with families of the school?",
+        ),
+      ]),
+      arabic: headedContent([
+        part(
+          "ما نطلبه",
+          "هل تظهر صور طفلك في الأخبار التي تُرسل إلى أسر المدرسة؟",
+        ),
+      ]),
+    },
+    {
+      code: "administer_medicine",
+      publish: false,
+      english: headedContent([
+        part(
+          "What we are asking",
+          "May the school nurse give your child the medicine you send in?",
+        ),
+      ]),
+      arabic: null,
+    },
+  ];
+  const noticeOf = new Map<string, string>();
+  for (const form of forms) {
+    const id = crypto.randomUUID();
+    const host = { type: "privacy_notice", id };
+    const original = await saveDocument(tx, {
+      tenantId,
+      orgId: schoolId,
+      host,
+      kind: "rich_text",
+      locale: "en",
+      content: form.english as unknown as Record<string, unknown>,
+      plainText: contentPlainText(form.english),
+      mediaIds: [],
+      userId: principal.user_id,
+    });
+    if (form.arabic)
+      await saveTranslation(tx, {
+        tenantId,
+        orgId: schoolId,
+        host,
+        originalId: original.id,
+        locale: "ar",
+        kind: "rich_text",
+        content: form.arabic as unknown as Record<string, unknown>,
+        plainText: contentPlainText(form.arabic),
+        mediaIds: [],
+        userId: principal.user_id,
+      });
+    const version = await insertForm(tx, {
+      tenantId,
+      schoolId,
+      id,
+      purposeId: need(purposes, form.code),
+      locale: "en",
+      versionLabel: "1",
+      documentId: original.id,
+      supersedesId: null,
+    });
+    if (form.publish) {
+      await publishForm(tx, { tenantId, id, expectedVersion: version });
+      noticeOf.set(form.code, id);
+    }
+  }
+  const website = noticeOf.get("photo_school_website");
+  if (!website) return;
+  for (const [index, studentId] of students.slice(1, 3).entries()) {
+    const [mother] = await tx.execute<{ id: string; related_user_id: string }>(
+      sql`select r.id, r.related_user_id from core.user_relationships r
+        where r.tenant_id = ${tenantId}::uuid and r.student_user_id = ${studentId}::uuid
+          and r.relation_meaning = 'mother' and r.status = 'active'`,
+    );
+    if (!mother) continue;
+    const agreed = index === 0;
+    await insertAnswer(tx, {
+      tenantId,
+      studentId,
+      purposeId: need(purposes, "photo_school_website"),
+      decision: agreed ? "granted" : "refused",
+      noticeId: website,
+      givenById: mother.related_user_id,
+      relationshipId: mother.id,
+      method: agreed ? "electronic" : "verbal_recorded",
+      evidenceFileId: null,
+      recordedById: agreed ? mother.related_user_id : principal.user_id,
+      givenOn: "2026-09-20",
+      ageAtDecision: null,
+      refreshDueOn: null,
+      note: agreed ? null : "Told the office at pickup.",
     });
   }
 }

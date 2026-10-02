@@ -170,10 +170,7 @@ export function plainContent(text: string): ContentDocument {
   };
 }
 
-/**
- * A document of headed parts: each heading a level-two heading followed by
- * its text, as newsletters were written before they became one document.
- */
+/** A document of headed parts: each heading a level-two heading followed by its text. */
 export function headedContent(
   parts: { heading: string; body: ContentDocument }[],
 ): ContentDocument {

@@ -105,6 +105,10 @@ export interface ChildLink {
   fullNameAr: string | null;
   relationId: string;
   portalAccess: boolean;
+  /** Full rights decide for the child; restricted ones only follow. */
+  educationalRights: "full" | "restricted" | "none";
+  /** A legal guardian the office has confirmed, who may consent for the child. */
+  consents: boolean;
   visible: boolean;
 }
 
@@ -121,9 +125,13 @@ export async function childrenOf(
     full_name_ar: string | null;
     relation_descriptor_id: string;
     portal_access: boolean;
+    educational_rights: "full" | "restricted" | "none";
+    consents: boolean;
     visible: boolean;
   }>(sql`
     select r.id, r.student_user_id, u.full_name_en, u.full_name_ar, r.relation_descriptor_id, r.portal_access,
+           r.educational_rights,
+           coalesce(r.legal_guardian, false) and r.verified_at is not null and r.educational_rights = 'full' as consents,
            r.student_user_id in (select student_user_id from app.visible_students(${scope.viewerId}::uuid,
              ${scope.schoolId}::uuid, ${scope.today}::date, ${scope.schoolWide})) as visible
     from core.user_relationships r
@@ -140,6 +148,8 @@ export async function childrenOf(
       fullNameAr: row.full_name_ar,
       relationId: row.relation_descriptor_id,
       portalAccess: row.portal_access,
+      educationalRights: row.educational_rights,
+      consents: row.consents,
       visible: row.visible,
     }));
 }

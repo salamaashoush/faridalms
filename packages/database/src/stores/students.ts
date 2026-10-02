@@ -875,14 +875,24 @@ export async function updateRelationship(
       residence: "primary" | "secondary" | "none" | null;
       pickup: "allowed" | "not_allowed" | "ask_office" | null;
     };
+    editorId: string;
   },
 ) {
+  // Ticking legal guardian is the office confirming it, which is what lets
+  // the adult consent for the child; an unchanged tick keeps its confirmation.
+  const confirms =
+    input.flags.legalGuardian === true
+      ? sql`(legal_guardian is not true or verified_at is null)`
+      : sql`false`;
   const [row] = await tx
     .update(userRelationships)
     .set({
       relationDescriptorId: input.relationId,
       relationMeaning: input.relationMeaning,
       ...input.flags,
+      verificationMethod: sql`case when ${confirms} then 'staff_attested' else verification_method end`,
+      verifiedAt: sql`case when ${confirms} then statement_timestamp() else verified_at end`,
+      verifiedByUserId: sql`case when ${confirms} then ${input.editorId}::uuid else verified_by_user_id end`,
     })
     .where(
       and(
