@@ -142,7 +142,11 @@ function NotificationsPage() {
                               <span className="sr-only"> {m.annUnread()}</span>
                             ) : null}
                           </span>
-                          <span className="shrink-0 text-xs leading-4 text-muted-foreground">
+                          {/* "A minute ago" can turn over between the server's render and the browser's. */}
+                          <span
+                            suppressHydrationWarning
+                            className="shrink-0 text-xs leading-4 text-muted-foreground"
+                          >
                             {formatAgo(row.createdAt)}
                           </span>
                         </span>
