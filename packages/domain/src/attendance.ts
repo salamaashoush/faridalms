@@ -36,12 +36,19 @@ export interface AttendanceSettings {
   noticeDelayMinutes: number;
   /** The share of sessions missed at which a student counts as chronically absent. */
   chronicPercent: number;
+  /** Ways children may mark themselves in, for the teacher to confirm. */
+  checkInTouch: boolean;
+  checkInQr: boolean;
+  checkInNfc: boolean;
 }
 
 export const DEFAULT_ATTENDANCE_SETTINGS: AttendanceSettings = {
   teacherEditDays: 14,
   noticeDelayMinutes: 60,
   chronicPercent: 10,
+  checkInTouch: false,
+  checkInQr: false,
+  checkInNfc: false,
 };
 
 const id = v.pipe(v.string(), v.uuid());
@@ -144,6 +151,9 @@ export const attendanceSettingsSchema = v.object({
     v.minValue(1),
     v.maxValue(50),
   ),
+  checkInTouch: v.optional(v.boolean(), false),
+  checkInQr: v.optional(v.boolean(), false),
+  checkInNfc: v.optional(v.boolean(), false),
 });
 
 /** Whether a teacher may still change a register taken on `date`. */
@@ -212,4 +222,34 @@ export function isChronic(
 export const remindSchema = v.object({
   date: isoDate,
   classIds: v.pipe(v.array(id), v.minLength(1), v.maxLength(100)),
+});
+
+/** How a child marks themselves in: on the class screen, by badge QR or by card. */
+export const CHECK_IN_WAYS = ["touch", "qr", "nfc"] as const;
+export type CheckInWay = (typeof CHECK_IN_WAYS)[number];
+
+/** A child marking themselves in: by tapping their name, or by their badge's secret. */
+export const checkInSchema = v.pipe(
+  v.object({
+    classId: id,
+    date: isoDate,
+    periodId: id,
+    via: v.picklist(CHECK_IN_WAYS),
+    studentId: v.optional(id),
+    badge: v.optional(v.pipe(v.string(), v.minLength(16), v.maxLength(200))),
+  }),
+  v.check(
+    (input) =>
+      input.via === "touch"
+        ? input.studentId !== undefined
+        : input.badge !== undefined,
+    "attendance.check_in_who",
+  ),
+);
+
+export const undoCheckInSchema = v.object({
+  classId: id,
+  date: isoDate,
+  periodId: id,
+  studentId: id,
 });

@@ -1,4 +1,7 @@
-import type { AttendanceMeaning } from "@faridalms/domain/attendance";
+import type {
+  AttendanceMeaning,
+  CheckInWay,
+} from "@faridalms/domain/attendance";
 
 import {
   ATTENDANCE_MEANINGS,
@@ -13,10 +16,17 @@ import {
   useSuspenseQuery,
 } from "@tanstack/react-query";
 import { useHydrated } from "@tanstack/react-router";
-import { CircleAlert, ListChecks, NotebookPen, Save } from "lucide-react";
+import {
+  CircleAlert,
+  ListChecks,
+  MonitorSmartphone,
+  NotebookPen,
+  Save,
+} from "lucide-react";
 import { useId, useState } from "react";
 import { toast } from "sonner";
 
+import { PersonAvatar } from "~/components/admin/PersonAvatar";
 import { UnsavedChangesGuard } from "~/components/app/UnsavedChangesGuard";
 import { classTitle } from "~/components/classes/format";
 import { displayName } from "~/components/people/format";
@@ -29,6 +39,7 @@ import { saveRegister } from "~/server/attendance";
 import { formatNumber } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
+import { CheckInScreen } from "./CheckInScreen";
 import { DayNav } from "./DayNav";
 import {
   formatDay,
@@ -90,6 +101,12 @@ function minutesIssue(draft: Draft): string | null {
     : m.attMinutesInvalid();
 }
 
+const CHECKED_IN: Record<CheckInWay, () => string> = {
+  touch: m.attCheckedInTouch,
+  qr: m.attCheckedInQr,
+  nfc: m.attCheckedInNfc,
+};
+
 const ACCESS_NOTE = {
   closed: m.attClosedYear,
   future: m.attFutureDay,
@@ -146,6 +163,7 @@ function StudentRow({
   student,
   draft,
   earlier,
+  via,
   reasons,
   disabled,
   onChange,
@@ -153,6 +171,8 @@ function StudentRow({
   student: Student;
   draft: Draft;
   earlier: Data["earlier"];
+  /** How the child marked themselves in, while that mark stands. */
+  via: CheckInWay | null;
   reasons: Data["reasons"];
   disabled: boolean;
   onChange: (next: Draft) => void;
@@ -167,20 +187,33 @@ function StudentRow({
   return (
     <li className="grid gap-2 py-3">
       <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2">
-        <div className="grid min-w-0 flex-1 basis-40 gap-0.5">
-          <bdi className="text-sm leading-5 font-medium">{name}</bdi>
-          {earlier.length ? (
-            <span className="text-[13px] leading-[18px] text-muted-foreground">
-              {earlier
-                .map((mark) =>
-                  m.attEarlierMark({
-                    mark: MEANING_LABEL[mark.meaning](),
-                    period: inLocale(mark.periodNameEn, mark.periodNameAr),
-                  }),
-                )
-                .join(" · ")}
-            </span>
-          ) : null}
+        <div className="flex min-w-0 flex-1 basis-40 items-center gap-3">
+          <PersonAvatar
+            name={name}
+            photoUrl={
+              student.photoFileId ? `/files/${student.photoFileId}` : null
+            }
+          />
+          <div className="grid min-w-0 gap-0.5">
+            <bdi className="text-sm leading-5 font-medium">{name}</bdi>
+            {via && draft.meaning === "present" ? (
+              <span className="text-[13px] leading-[18px] text-success">
+                {CHECKED_IN[via]()}
+              </span>
+            ) : null}
+            {earlier.length ? (
+              <span className="text-[13px] leading-[18px] text-muted-foreground">
+                {earlier
+                  .map((mark) =>
+                    m.attEarlierMark({
+                      mark: MEANING_LABEL[mark.meaning](),
+                      period: inLocale(mark.periodNameEn, mark.periodNameAr),
+                    }),
+                  )
+                  .join(" · ")}
+              </span>
+            ) : null}
+          </div>
         </div>
         <div className="flex items-center gap-1">
           <MarkChoice
@@ -426,6 +459,10 @@ function RegisterForm({ data }: { data: Data }) {
               student={student}
               draft={drafts[student.id] ?? BLANK}
               earlier={earlierOf(student.id)}
+              via={
+                data.marks.find((mark) => mark.studentId === student.id)?.via ??
+                null
+              }
               reasons={data.reasons}
               disabled={!editable || !hydrated || save.isPending}
               onChange={(next) => set(student.id, next)}
@@ -476,6 +513,7 @@ export function Register({
 }) {
   const data = useSuspenseQuery(registerQuery(classId, date, periodId)).data;
   const user = useCurrentUser();
+  const [checking, setChecking] = useState(false);
   const state = data.register?.state ?? "not_started";
   const facts = [
     { label: m.attDate(), value: formatDay(data.date) },
@@ -505,7 +543,26 @@ export function Register({
         title={classTitle(data.class)}
         facts={facts}
         status={{ label: STATE_LABEL[state](), tone: STATE_TONE[state] }}
+        action={
+          data.access.editable &&
+          data.students.length > 0 &&
+          (data.checkIn.touch || data.checkIn.qr || data.checkIn.nfc)
+            ? {
+                label: m.attCheckInOpen(),
+                icon: MonitorSmartphone,
+                onClick: () => setChecking(true),
+              }
+            : undefined
+        }
       />
+      {checking ? (
+        <CheckInScreen
+          classId={classId}
+          date={data.date}
+          periodId={data.period.id}
+          onClose={() => setChecking(false)}
+        />
+      ) : null}
       <div className="flex flex-wrap items-end justify-between gap-3">
         <DayNav
           id="register-date"

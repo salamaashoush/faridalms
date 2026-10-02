@@ -2,6 +2,7 @@ import type { PgTableExtraConfigValue } from "drizzle-orm/pg-core";
 
 import { sql } from "drizzle-orm";
 import {
+  boolean,
   date,
   index,
   smallint,
@@ -39,6 +40,12 @@ export const attendanceSettings = core.table.withRLS(
     teacherEditDays: smallint("teacher_edit_days").notNull(),
     noticeDelayMinutes: smallint("notice_delay_minutes").notNull(),
     chronicPercent: smallint("chronic_percent").notNull(),
+    /** Children may mark themselves in on the classroom's touch screen. */
+    checkInTouch: boolean("check_in_touch").notNull().default(false),
+    /** Children may mark themselves in by holding their badge to a camera. */
+    checkInQr: boolean("check_in_qr").notNull().default(false),
+    /** Children may mark themselves in by tapping a card holding their badge. */
+    checkInNfc: boolean("check_in_nfc").notNull().default(false),
     ...entityColumns(),
   },
   (t): PgTableExtraConfigValue[] => [

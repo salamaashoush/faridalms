@@ -14,6 +14,7 @@ import {
   AttendanceConflict,
   attendanceCodes,
   attendanceReport,
+  checkInMark,
   classAttendance,
   dayBoard,
   excuseMarks,
@@ -25,8 +26,10 @@ import {
   saveSettings as writeSettings,
   settingsOf,
   studentAttendance,
+  undoCheckIn as undoCheckInMark,
   writeRegister,
 } from "@faridalms/database/stores/attendance";
+import { findBadge } from "@faridalms/database/stores/badges";
 import {
   classById,
   classesTaughtBy,
@@ -38,7 +41,7 @@ import {
 import { namesOf } from "@faridalms/database/stores/coursework";
 import { messagingGuardians } from "@faridalms/database/stores/messages";
 import { noticed, withdraw } from "@faridalms/database/stores/notifications";
-import { isVisibleStudent } from "@faridalms/database/stores/students";
+import { facesOf, isVisibleStudent } from "@faridalms/database/stores/students";
 import { meetingsOn } from "@faridalms/database/stores/timetable";
 import {
   dayIn,
@@ -50,6 +53,7 @@ import {
 import {
   absencesQuerySchema,
   attendanceSettingsSchema,
+  checkInSchema,
   dayQuerySchema,
   emptyCounts,
   excuseSchema,
@@ -61,6 +65,7 @@ import {
   saveRegisterSchema,
   summarise,
   teacherMayEdit,
+  undoCheckInSchema,
 } from "@faridalms/domain/attendance";
 import { addDays } from "@faridalms/domain/school";
 import { isoWeekday } from "@faridalms/domain/timetable";
@@ -77,6 +82,7 @@ import {
   requireCapability,
   writeProcedure,
 } from "../core/procedure";
+import { badgeHash } from "../core/session";
 
 const id = v.pipe(v.string(), v.uuid());
 
@@ -298,7 +304,7 @@ export const register = readProcedure
         ) ?? defaultPeriod(periods, classRow.classType));
     if (!period)
       throw new ORPCError("BAD_REQUEST", { message: "attendance.no_period" });
-    const [roster, existing, codes, access] = await Promise.all([
+    const [roster, existing, codes, access, settings] = await Promise.all([
       rosterOf(context.tx, context.tenantId, classRow.id, input.date),
       registerFor(context.tx, {
         tenantId: context.tenantId,
@@ -308,9 +314,10 @@ export const register = readProcedure
       }),
       attendanceCodes(context.tx, context.tenantId),
       editability(context, year, input.date),
+      settingsOf(context.tx, context.tenantId, context.schoolId),
     ]);
     const [students, marks, earlier] = await Promise.all([
-      namesOf(context.tx, context.tenantId, roster),
+      facesOf(context.tx, context.tenantId, roster),
       existing
         ? marksOf(context.tx, {
             tenantId: context.tenantId,
@@ -349,23 +356,166 @@ export const register = readProcedure
             updatedAt: existing.updatedAt,
           }
         : null,
-      students: students.map((row) => ({
-        id: row.id,
-        fullNameEn: row.fullNameEn,
-        fullNameAr: row.fullNameAr,
-      })),
+      students: students
+        .map((row) => ({
+          id: row.id,
+          fullNameEn: row.fullNameEn,
+          fullNameAr: row.fullNameAr,
+          firstEn: row.firstEn,
+          firstAr: row.firstAr,
+          photoFileId: row.photoFileId,
+        }))
+        .toSorted((a, b) =>
+          (a.fullNameEn ?? a.fullNameAr ?? "").localeCompare(
+            b.fullNameEn ?? b.fullNameAr ?? "",
+          ),
+        ),
       marks: marks.map((mark) => ({
         studentId: mark.studentId,
         meaning: mark.meaning,
         reasonId: mark.reasonId,
         minutes: mark.minutes,
         note: mark.note,
+        via: mark.via,
         onRoster: onRoster.has(mark.studentId),
       })),
+      checkIn: {
+        touch: settings.checkInTouch,
+        qr: settings.checkInQr,
+        nfc: settings.checkInNfc,
+      },
       earlier,
       ...codesView(codes),
       access,
     };
+  });
+
+/**
+ * A class's register for a child who marks themselves in, on the class
+ * screen run under the teacher's session: the class must be theirs, the
+ * school must allow this way in, and the day must still be open to them.
+ */
+async function checkInRegister(
+  context: UnitContext,
+  input: { classId: string; date: string; periodId: string },
+) {
+  requireCapability(context, "attendance:record", "attendance:manage");
+  const classRow = await classById(context.tx, context, input.classId);
+  if (
+    !classRow ||
+    !(await teachesClass(context.tx, teachingScope(context), classRow.id))
+  )
+    throw new ORPCError("NOT_FOUND");
+  const year = await yearOfClass(context, classRow.schoolYearId, input.date);
+  const access = await editability(context, year, input.date);
+  if (!access.editable)
+    throw new ORPCError("CONFLICT", { message: `attendance.${access.reason}` });
+  const periods = await periodsOn(context.tx, {
+    tenantId: context.tenantId,
+    schoolId: context.schoolId,
+    yearId: year.id,
+    day: input.date,
+  });
+  if (!periods.some((period) => period.id === input.periodId))
+    throw new ORPCError("BAD_REQUEST", { message: "attendance.no_period" });
+  const roster = await rosterOf(
+    context.tx,
+    context.tenantId,
+    classRow.id,
+    input.date,
+  );
+  return { classRow, year, roster };
+}
+
+/**
+ * A child marks themselves in: present, noting how, and nothing else in the
+ * register changes. The teacher marks the rest and saves, which confirms it.
+ */
+export const checkIn = writeProcedure
+  .input(checkInSchema)
+  .handler(async ({ input, context }) => {
+    const settings = await settingsOf(
+      context.tx,
+      context.tenantId,
+      context.schoolId,
+    );
+    const allowed = {
+      touch: settings.checkInTouch,
+      qr: settings.checkInQr,
+      nfc: settings.checkInNfc,
+    }[input.via];
+    if (!allowed)
+      throw new ORPCError("FORBIDDEN", { message: "attendance.check_in_off" });
+    const { classRow, year, roster } = await checkInRegister(context, input);
+    const holder = input.badge
+      ? await findBadge(context.tx, badgeHash(input.badge))
+      : null;
+    const studentId =
+      input.via === "touch"
+        ? input.studentId
+        : holder?.accountState === "active"
+          ? holder.userId
+          : undefined;
+    // A badge from another class reads as no badge at all.
+    if (!studentId || !roster.includes(studentId))
+      throw new ORPCError("NOT_FOUND", { message: "attendance.not_roster" });
+    const codes = await attendanceCodes(context.tx, context.tenantId);
+    const present = codes.categories.find((row) => row.meaning === "present");
+    if (!present) throw new Error("No attendance category means present");
+    const result = await checkInMark(context.tx, {
+      tenantId: context.tenantId,
+      schoolId: context.schoolId,
+      classId: classRow.id,
+      classType: classRow.classType,
+      yearId: year.id,
+      periodId: input.periodId,
+      day: input.date,
+      studentId,
+      categoryId: present.id,
+      via: input.via,
+      actorId: context.actor.userId,
+    });
+    if (result.added)
+      await audit(context, {
+        action: "attendance.check_in",
+        objectType: "attendance_register",
+        objectId: result.registerId,
+        subjectUserId: studentId,
+        studentUserId: studentId,
+        details: { via: input.via, date: input.date },
+      });
+    return { studentId, added: result.added };
+  });
+
+/** Takes back a check-in made by mistake, unless the teacher changed it since. */
+export const undoCheckIn = writeProcedure
+  .input(undoCheckInSchema)
+  .handler(async ({ input, context }) => {
+    const { classRow } = await checkInRegister(context, input);
+    const taken = await registerFor(context.tx, {
+      tenantId: context.tenantId,
+      classId: classRow.id,
+      day: input.date,
+      periodId: input.periodId,
+    });
+    const undone = taken
+      ? await undoCheckInMark(context.tx, {
+          tenantId: context.tenantId,
+          registerId: taken.id,
+          day: input.date,
+          studentId: input.studentId,
+          actorId: context.actor.userId,
+        })
+      : false;
+    if (undone && taken)
+      await audit(context, {
+        action: "attendance.check_in_undo",
+        objectType: "attendance_register",
+        objectId: taken.id,
+        subjectUserId: input.studentId,
+        studentUserId: input.studentId,
+      });
+    return { undone };
   });
 
 const missing = (mark: MarkChange["after"]) =>
@@ -776,6 +926,9 @@ export const saveSettings = writeProcedure
           teacherEditDays: input.teacherEditDays,
           noticeDelayMinutes: input.noticeDelayMinutes,
           chronicPercent: input.chronicPercent,
+          checkInTouch: input.checkInTouch,
+          checkInQr: input.checkInQr,
+          checkInNfc: input.checkInNfc,
         },
       });
       return { version };

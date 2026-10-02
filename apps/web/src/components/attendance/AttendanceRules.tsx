@@ -5,6 +5,7 @@ import {
 } from "@tanstack/react-query";
 import { useState } from "react";
 
+import { CheckboxRow } from "~/components/people/fields";
 import { TextField } from "~/components/system/field";
 import { SettingsSection } from "~/components/system/SettingsSection";
 import * as m from "~/i18n/messages";
@@ -45,6 +46,12 @@ export function AttendanceRules() {
     chronicPercent: String(settings.chronicPercent),
   }));
   const [draft, setDraft] = useState(initial);
+  const [ways, setWays] = useState(() => ({
+    checkInTouch: settings.checkInTouch,
+    checkInQr: settings.checkInQr,
+    checkInNfc: settings.checkInNfc,
+  }));
+  const [savedWays, setSavedWays] = useState(ways);
   const [shown, setShown] = useState(false);
   const [saved, setSaved] = useState(false);
   const save = useMutation({
@@ -55,6 +62,7 @@ export function AttendanceRules() {
           teacherEditDays: Number(draft.teacherEditDays),
           noticeDelayMinutes: Number(draft.noticeDelayMinutes),
           chronicPercent: Number(draft.chronicPercent),
+          ...ways,
         },
       }),
     meta: { inlineError: true },
@@ -64,7 +72,13 @@ export function AttendanceRules() {
     noticeDelayMinutes: issueOf("noticeDelayMinutes", draft.noticeDelayMinutes),
     chronicPercent: issueOf("chronicPercent", draft.chronicPercent),
   };
-  const dirty = JSON.stringify(draft) !== JSON.stringify(initial);
+  const dirty =
+    JSON.stringify(draft) !== JSON.stringify(initial) ||
+    JSON.stringify(ways) !== JSON.stringify(savedWays);
+  const turn = (key: keyof typeof ways, on: boolean) => {
+    setSaved(false);
+    setWays((current) => ({ ...current, [key]: on }));
+  };
   const set = (key: keyof Draft, value: string) => {
     setSaved(false);
     setDraft((current) => ({ ...current, [key]: value.trim() }));
@@ -82,6 +96,7 @@ export function AttendanceRules() {
           async () => {
             await queryClient.invalidateQueries({ queryKey: ["attendance"] });
             setInitial(draft);
+            setSavedWays(ways);
             setSaved(true);
           },
           () => undefined,
@@ -122,6 +137,32 @@ export function AttendanceRules() {
         onChange={(event) => set("chronicPercent", event.target.value)}
         errors={errorsOf("chronicPercent")}
       />
+      <fieldset className="grid gap-3">
+        <legend className="mb-1 text-sm leading-5 font-medium">
+          {m.attCheckInTitle()}
+        </legend>
+        <p className="text-[13px] leading-[18px] text-muted-foreground">
+          {m.attCheckInHint()}
+        </p>
+        <CheckboxRow
+          label={m.attCheckInTouch()}
+          hint={m.attCheckInTouchHint()}
+          checked={ways.checkInTouch}
+          onChange={(on) => turn("checkInTouch", on)}
+        />
+        <CheckboxRow
+          label={m.attCheckInQr()}
+          hint={m.attCheckInQrHint()}
+          checked={ways.checkInQr}
+          onChange={(on) => turn("checkInQr", on)}
+        />
+        <CheckboxRow
+          label={m.attCheckInNfc()}
+          hint={m.attCheckInNfcHint()}
+          checked={ways.checkInNfc}
+          onChange={(on) => turn("checkInNfc", on)}
+        />
+      </fieldset>
     </SettingsSection>
   );
 }

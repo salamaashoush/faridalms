@@ -1,6 +1,7 @@
 import type {
   AttendanceMeaning,
   AttendanceSettings,
+  CheckInWay,
   RegisterMark,
 } from "@faridalms/domain/attendance";
 import type { SQL } from "drizzle-orm";
@@ -38,8 +39,12 @@ export async function settingsOf(
     teacher_edit_days: number;
     notice_delay_minutes: number;
     chronic_percent: number;
+    check_in_touch: boolean;
+    check_in_qr: boolean;
+    check_in_nfc: boolean;
   }>(sql`
-    select version, teacher_edit_days, notice_delay_minutes, chronic_percent
+    select version, teacher_edit_days, notice_delay_minutes, chronic_percent,
+      check_in_touch, check_in_qr, check_in_nfc
     from core.attendance_settings
     where tenant_id = ${tenantId}::uuid and org_id = ${schoolId}::uuid and status = 'active'`);
   if (!row) return { version: 0, ...DEFAULT_ATTENDANCE_SETTINGS };
@@ -48,6 +53,9 @@ export async function settingsOf(
     teacherEditDays: row.teacher_edit_days,
     noticeDelayMinutes: row.notice_delay_minutes,
     chronicPercent: row.chronic_percent,
+    checkInTouch: row.check_in_touch,
+    checkInQr: row.check_in_qr,
+    checkInNfc: row.check_in_nfc,
   };
 }
 
@@ -63,9 +71,11 @@ export async function saveSettings(
   if (input.expectedVersion === 0) {
     const rows = await tx.execute<{ version: number }>(sql`
       insert into core.attendance_settings
-        (tenant_id, org_id, teacher_edit_days, notice_delay_minutes, chronic_percent)
+        (tenant_id, org_id, teacher_edit_days, notice_delay_minutes, chronic_percent,
+         check_in_touch, check_in_qr, check_in_nfc)
       values (${input.tenantId}::uuid, ${input.schoolId}::uuid, ${input.teacherEditDays},
-              ${input.noticeDelayMinutes}, ${input.chronicPercent})
+              ${input.noticeDelayMinutes}, ${input.chronicPercent},
+              ${input.checkInTouch}, ${input.checkInQr}, ${input.checkInNfc})
       on conflict do nothing
       returning version`);
     if (!rows[0]) throw new AttendanceConflict("attendance.stale");
@@ -75,7 +85,10 @@ export async function saveSettings(
     update core.attendance_settings
     set teacher_edit_days = ${input.teacherEditDays},
         notice_delay_minutes = ${input.noticeDelayMinutes},
-        chronic_percent = ${input.chronicPercent}
+        chronic_percent = ${input.chronicPercent},
+        check_in_touch = ${input.checkInTouch},
+        check_in_qr = ${input.checkInQr},
+        check_in_nfc = ${input.checkInNfc}
     where tenant_id = ${input.tenantId}::uuid and org_id = ${input.schoolId}::uuid
       and status = 'active' and version = ${input.expectedVersion}
     returning version`);
@@ -245,6 +258,8 @@ export interface MarkRow {
   reasonId: string | null;
   minutes: number | null;
   note: string | null;
+  /** How a child marked themselves in, while the mark is still theirs. */
+  via: CheckInWay | null;
 }
 
 export async function marksOf(
@@ -259,9 +274,10 @@ export async function marksOf(
     reason_descriptor_id: string | null;
     minutes: number | null;
     note: string | null;
+    via: CheckInWay | null;
   }>(sql`
     select id, student_user_id, category_meaning, category_descriptor_id, reason_descriptor_id,
-           minutes, note
+           minutes, note, metadata->>'via' as via
     from core.attendance_events
     where tenant_id = ${input.tenantId}::uuid and taken_on = ${input.day}::date
       and register_id = ${input.registerId}::uuid and status = 'active'`);
@@ -273,6 +289,7 @@ export async function marksOf(
     reasonId: row.reason_descriptor_id,
     minutes: row.minutes,
     note: row.note,
+    via: row.via,
   }));
 }
 
@@ -1025,4 +1042,87 @@ export async function absentUnexplainedOn(
         and taken_on = ${input.day}::date and status = 'active'
         and category_meaning = 'absent' and reason_descriptor_id is null) as absent`);
   return row?.absent ?? false;
+}
+
+/**
+ * Marks a child present who marked themselves in, leaving every other mark
+ * and the register's state as they were, since the teacher confirms the
+ * register. A child already marked keeps that mark. The register's version
+ * moves on, so a teacher's open copy reloads rather than overwrites it.
+ */
+export async function checkInMark(
+  tx: Tx,
+  input: {
+    tenantId: string;
+    schoolId: string;
+    classId: string;
+    classType: ClassType;
+    yearId: string;
+    periodId: string;
+    day: string;
+    studentId: string;
+    categoryId: string;
+    via: CheckInWay;
+    actorId: string;
+  },
+): Promise<{ registerId: string; added: boolean }> {
+  let registerId = (await registerFor(tx, input))?.id;
+  if (!registerId) {
+    const [made] = await tx.execute<{ id: string }>(sql`
+      insert into core.attendance_registers
+        (tenant_id, org_id, class_id, class_type, school_year_id, class_period_id, taken_on,
+         state, recorded_by_user_id)
+      values (${input.tenantId}::uuid, ${input.schoolId}::uuid, ${input.classId}::uuid,
+              ${input.classType}, ${input.yearId}::uuid, ${input.periodId}::uuid,
+              ${input.day}::date, 'in_progress', ${input.actorId}::uuid)
+      on conflict do nothing
+      returning id`);
+    registerId = made?.id ?? (await registerFor(tx, input))?.id;
+  }
+  if (!registerId) throw new AttendanceConflict("attendance.stale");
+  const added = await tx.execute<{ id: string }>(sql`
+    insert into core.attendance_events
+      (tenant_id, taken_on, register_id, recorded_by_user_id, student_user_id,
+       category_descriptor_id, category_meaning, metadata)
+    select ${input.tenantId}::uuid, ${input.day}::date, ${registerId}::uuid,
+           ${input.actorId}::uuid, ${input.studentId}::uuid, ${input.categoryId}::uuid,
+           'present', jsonb_build_object('via', ${input.via}::text)
+    where not exists (
+      select 1 from core.attendance_events
+      where tenant_id = ${input.tenantId}::uuid and taken_on = ${input.day}::date
+        and register_id = ${registerId}::uuid and student_user_id = ${input.studentId}::uuid
+        and status = 'active')
+    returning id`);
+  if (added.length > 0) await touchRegister(tx, input.tenantId, registerId);
+  return { registerId, added: added.length > 0 };
+}
+
+/** Takes back a child's own check-in, if the teacher has not changed it. */
+export async function undoCheckIn(
+  tx: Tx,
+  input: {
+    tenantId: string;
+    registerId: string;
+    day: string;
+    studentId: string;
+    actorId: string;
+  },
+): Promise<boolean> {
+  const undone = await tx.execute<{ id: string }>(sql`
+    update core.attendance_events set status = 'tobedeleted',
+           recorded_by_user_id = ${input.actorId}::uuid
+    where tenant_id = ${input.tenantId}::uuid and taken_on = ${input.day}::date
+      and register_id = ${input.registerId}::uuid
+      and student_user_id = ${input.studentId}::uuid and status = 'active'
+      and category_meaning = 'present' and metadata ? 'via'
+    returning id`);
+  if (undone.length > 0)
+    await touchRegister(tx, input.tenantId, input.registerId);
+  return undone.length > 0;
+}
+
+async function touchRegister(tx: Tx, tenantId: string, registerId: string) {
+  await tx.execute(sql`
+    update core.attendance_registers set version = version + 1
+    where tenant_id = ${tenantId}::uuid and id = ${registerId}::uuid`);
 }

@@ -375,3 +375,90 @@ describe("following up absences", () => {
     });
   });
 });
+
+describe("classroom check-in", () => {
+  test("a child taps in on the class screen, and only the teacher's save completes the register", async () => {
+    const office = await principal();
+    const student = await sessionFor("northwind", login("student"));
+    const me = await student.api.identity.currentUser();
+    const date = schoolDay((await office.attendance.day({})).today);
+    const opened = await homeroomOf(office, me.id, date);
+    const { keeper: teacher, stranger } = await teachersOf(opened.class.id);
+    const first = await teacher.attendance.register({
+      classId: opened.class.id,
+      date,
+    });
+    // A period nobody has taken yet, so the register starts empty.
+    const period =
+      first.periods.find((row) => row.id !== first.period.id) ?? first.period;
+    const tap = {
+      classId: opened.class.id,
+      date,
+      periodId: period.id,
+      via: "touch" as const,
+      studentId: me.id,
+    };
+
+    expect(await rejection(teacher.attendance.checkIn(tap))).toMatchObject({
+      code: "FORBIDDEN",
+      message: "attendance.check_in_off",
+    });
+    const rules = await office.attendance.settings();
+    const { version: _version, ...kept } = rules;
+    const turnedOn = await office.attendance.saveSettings({
+      ...kept,
+      expectedVersion: rules.version,
+      checkInTouch: true,
+    });
+
+    expect(await teacher.attendance.checkIn(tap)).toEqual({
+      studentId: me.id,
+      added: true,
+    });
+    expect((await teacher.attendance.checkIn(tap)).added).toBe(false);
+    expect(await rejection(stranger.attendance.checkIn(tap))).toMatchObject({
+      code: "NOT_FOUND",
+    });
+    const seen = await teacher.attendance.register({
+      classId: opened.class.id,
+      date,
+      periodId: period.id,
+    });
+    expect(seen.checkIn).toEqual({ touch: true, qr: false, nfc: false });
+    expect(seen.register?.state).toBe("in_progress");
+    expect(seen.marks).toContainEqual(
+      expect.objectContaining({
+        studentId: me.id,
+        meaning: "present",
+        via: "touch",
+      }),
+    );
+
+    const { studentId: _who, via: _how, ...where } = tap;
+    expect(
+      await teacher.attendance.undoCheckIn({ ...where, studentId: me.id }),
+    ).toEqual({ undone: true });
+    await teacher.attendance.checkIn(tap);
+    const again = await teacher.attendance.register({
+      classId: opened.class.id,
+      date,
+      periodId: period.id,
+    });
+    const confirmed = await teacher.attendance.save({
+      classId: opened.class.id,
+      date,
+      periodId: period.id,
+      expectedVersion: again.register?.version ?? 0,
+      marks: again.students.map((row) => ({
+        studentId: row.id,
+        meaning: row.id === me.id ? ("present" as const) : ("absent" as const),
+      })),
+    });
+    expect(confirmed.state).toBe("submitted");
+
+    await office.attendance.saveSettings({
+      ...kept,
+      expectedVersion: turnedOn.version,
+    });
+  });
+});

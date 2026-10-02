@@ -1019,3 +1019,43 @@ export async function youngStudents(
       and d.system_meaning = any(${textArray(YOUNG_STUDENT_GRADES)})`);
   return new Set(rows.map((row) => row.user_id));
 }
+
+export interface Face {
+  id: string;
+  /** The name a child goes by, else their first name, in each script. */
+  firstEn: string | null;
+  firstAr: string | null;
+  fullNameEn: string | null;
+  fullNameAr: string | null;
+  photoFileId: string | null;
+}
+
+/** Children as a class screen shows them: a first name and a photo. */
+export async function facesOf(
+  tx: Tx,
+  tenantId: string,
+  ids: readonly string[],
+): Promise<Face[]> {
+  if (ids.length === 0) return [];
+  const rows = await tx.execute<{
+    id: string;
+    first_en: string | null;
+    first_ar: string | null;
+    full_name_en: string | null;
+    full_name_ar: string | null;
+    photo_file_id: string | null;
+  }>(sql`
+    select id, coalesce(preferred_given_name, given_name_en) as first_en,
+      coalesce(preferred_given_name, given_name_ar) as first_ar,
+      full_name_en, full_name_ar, photo_file_id
+    from core.users
+    where tenant_id = ${tenantId}::uuid and id = any(${uuidArray(ids)})`);
+  return rows.map((row) => ({
+    id: row.id,
+    firstEn: row.first_en,
+    firstAr: row.first_ar,
+    fullNameEn: row.full_name_en,
+    fullNameAr: row.full_name_ar,
+    photoFileId: row.photo_file_id,
+  }));
+}
