@@ -338,6 +338,43 @@ export const assessSchema = v.object({
 });
 export type AssessInput = v.InferOutput<typeof assessSchema>;
 
+/**
+ * One end of a comment's passage in handed-in work: the block it falls in
+ * and how many characters of the block's own text come before it. Handed-in
+ * work never changes, so the place stays true.
+ */
+const anchorPoint = v.object({
+  block: v.pipe(v.string(), v.regex(/^[\da-z]{8,36}$/)),
+  offset: v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(100000)),
+});
+export const commentAnchorSchema = v.object({
+  start: anchorPoint,
+  end: anchorPoint,
+});
+export type CommentAnchor = v.InferOutput<typeof commentAnchorSchema>;
+
+export const MAX_COMMENT_LENGTH = 2000;
+
+/** A teacher's comment on a passage of one attempt; a new one has no id. */
+export const saveCommentSchema = v.object({
+  id: v.optional(v.union([v.literal(""), id]), ""),
+  attemptId: id,
+  expectedVersion: v.pipe(v.number(), v.integer(), v.minValue(0)),
+  anchor: commentAnchorSchema,
+  body: v.pipe(
+    v.string(),
+    v.trim(),
+    v.minLength(1),
+    v.maxLength(MAX_COMMENT_LENGTH),
+  ),
+});
+export type SaveCommentInput = v.InferOutput<typeof saveCommentSchema>;
+
+export const removeCommentSchema = v.object({
+  id,
+  expectedVersion: v.pipe(v.number(), v.integer(), v.minValue(1)),
+});
+
 export const STUDENT_WORK_ACTIONS = [
   "return",
   "revise",

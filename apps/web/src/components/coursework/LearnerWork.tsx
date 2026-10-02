@@ -51,6 +51,7 @@ import { resultText } from "../grading/format";
 import { formatInstant, STATE_LABEL, STATE_TONE } from "./format";
 import { QuizWork } from "./QuizWork";
 import { useDocumentMedia } from "./useDocumentMedia";
+import { CommentedWork, CommentList } from "./WorkComments";
 
 type Data = Awaited<
   ReturnType<NonNullable<ReturnType<typeof myWorkQuery>["queryFn"]>>
@@ -96,6 +97,9 @@ function RubricResult({
 function AttemptItem({ data, attempt }: { data: Data; attempt: Attempt }) {
   const user = useCurrentUser();
   const assessment = attempt.assessment;
+  const [active, setActive] = useState<string | null>(null);
+  const [reveal, setReveal] = useState(0);
+  const [passages, setPassages] = useState<Record<string, string>>({});
   return (
     <li className="grid gap-3 py-4">
       <div className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1">
@@ -113,12 +117,50 @@ function AttemptItem({ data, attempt }: { data: Data; attempt: Attempt }) {
         </span>
       </div>
       {attempt.content && contentPlainText(attempt.content).trim() ? (
-        <ContentView
-          document={attempt.content}
-          fileUrl={(id) => `/files/${id}`}
-        />
+        attempt.comments.length ? (
+          <CommentedWork
+            document={attempt.content}
+            comments={attempt.comments}
+            active={active}
+            reveal={reveal}
+            onPassages={setPassages}
+            onOpen={(id) => {
+              setActive(id);
+              document
+                .getElementById(`comment-${id}`)
+                ?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+            }}
+          />
+        ) : (
+          <ContentView
+            document={attempt.content}
+            fileUrl={(id) => `/files/${id}`}
+          />
+        )
       ) : null}
       <FileList files={attempt.files} />
+      {attempt.comments.length ? (
+        <section
+          aria-labelledby={`comments-${attempt.id}`}
+          className="grid gap-3"
+        >
+          <h4
+            id={`comments-${attempt.id}`}
+            className="text-sm leading-5 font-semibold"
+          >
+            {m.courseworkTeacherComments()}
+          </h4>
+          <CommentList
+            comments={attempt.comments}
+            passages={passages}
+            active={active}
+            onShow={(id) => {
+              setActive(id);
+              setReveal((count) => count + 1);
+            }}
+          />
+        </section>
+      ) : null}
       {assessment ? (
         <div className="grid gap-2 rounded-lg bg-muted/50 p-3">
           {assessment.effectiveScore !== null || assessment.score !== null ? (

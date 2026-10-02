@@ -34,6 +34,7 @@ import {
   programmeGradeLevels,
   programmes,
   familyShares,
+  workComments,
   submissionAttempts,
   documentTranslations,
   documents,
@@ -480,6 +481,16 @@ export async function completeFixture(
     attemptId: attempt.id,
     studentUserId: attempt.studentUserId,
     sharedByUserId: userId,
+  });
+  await tx.insert(workComments).values({
+    tenantId,
+    attemptId: attempt.id,
+    authorUserId: userId,
+    anchor: {
+      start: { block: "fixture1", offset: 0 },
+      end: { block: "fixture1", offset: 4 },
+    },
+    body: "Say more here.",
   });
   await tx.insert(documentTemplates).values({
     tenantId,

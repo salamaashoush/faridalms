@@ -904,6 +904,126 @@ export async function saveAssessment(
   return row;
 }
 
+export interface CommentRow {
+  id: string;
+  version: number;
+  attemptId: string;
+  authorId: string;
+  authorNameEn: string | null;
+  authorNameAr: string | null;
+  anchor: Record<string, unknown>;
+  body: string;
+  createdAt: string;
+  editedAt: string | null;
+}
+
+/** The comments on an attempt, in the order they were made. */
+export async function commentsOf(
+  tx: Tx,
+  tenantId: string,
+  attemptId: string,
+): Promise<CommentRow[]> {
+  const rows = await tx.execute<{
+    id: string;
+    version: number;
+    attempt_id: string;
+    author_user_id: string;
+    full_name_en: string | null;
+    full_name_ar: string | null;
+    anchor: Record<string, unknown>;
+    body: string;
+    created_at: string;
+    edited_at: string | null;
+  }>(sql`
+    select c.id, c.version, c.attempt_id, c.author_user_id, u.full_name_en, u.full_name_ar,
+      c.anchor, c.body, ${isoOf(sql`c.created_at`)} as created_at,
+      case when c.version > 1 then ${isoOf(sql`c.date_last_modified`)} end as edited_at
+    from core.work_comments c
+    join core.users u on u.tenant_id = c.tenant_id and u.id = c.author_user_id
+    where c.tenant_id = ${tenantId}::uuid and c.attempt_id = ${attemptId}::uuid
+      and c.status = 'active'
+    order by c.created_at, c.id`);
+  return rows.map((row) => ({
+    id: row.id,
+    version: row.version,
+    attemptId: row.attempt_id,
+    authorId: row.author_user_id,
+    authorNameEn: row.full_name_en,
+    authorNameAr: row.full_name_ar,
+    anchor: row.anchor,
+    body: row.body,
+    createdAt: row.created_at,
+    editedAt: row.edited_at,
+  }));
+}
+
+export async function commentById(
+  tx: Tx,
+  tenantId: string,
+  id: string,
+): Promise<{ id: string; attemptId: string; authorId: string } | null> {
+  const [row] = await tx.execute<{
+    id: string;
+    attempt_id: string;
+    author_user_id: string;
+  }>(sql`
+    select id, attempt_id, author_user_id from core.work_comments
+    where tenant_id = ${tenantId}::uuid and id = ${id}::uuid and status = 'active'`);
+  return row
+    ? { id: row.id, attemptId: row.attempt_id, authorId: row.author_user_id }
+    : null;
+}
+
+export async function insertComment(
+  tx: Tx,
+  input: {
+    tenantId: string;
+    attemptId: string;
+    userId: string;
+    anchor: Record<string, unknown>;
+    body: string;
+  },
+): Promise<{ id: string; version: number }> {
+  const [row] = await tx.execute<{ id: string; version: number }>(sql`
+    insert into core.work_comments (tenant_id, attempt_id, author_user_id, anchor, body)
+    values (${input.tenantId}::uuid, ${input.attemptId}::uuid, ${input.userId}::uuid,
+      ${input.anchor}::jsonb, ${input.body})
+    returning id, version`);
+  if (!row) throw new Error("comment was not saved");
+  return row;
+}
+
+/** Null when someone changed or removed the comment since it was read. */
+export async function updateComment(
+  tx: Tx,
+  input: {
+    tenantId: string;
+    id: string;
+    expectedVersion: number;
+    anchor: Record<string, unknown>;
+    body: string;
+  },
+): Promise<{ id: string; version: number } | null> {
+  const [row] = await tx.execute<{ id: string; version: number }>(sql`
+    update core.work_comments set anchor = ${input.anchor}::jsonb, body = ${input.body}
+    where tenant_id = ${input.tenantId}::uuid and id = ${input.id}::uuid
+      and version = ${input.expectedVersion} and status = 'active'
+    returning id, version`);
+  return row ?? null;
+}
+
+export async function removeComment(
+  tx: Tx,
+  input: { tenantId: string; id: string; expectedVersion: number },
+): Promise<boolean> {
+  const rows = await tx.execute<{ id: string }>(sql`
+    update core.work_comments set status = 'tobedeleted'
+    where tenant_id = ${input.tenantId}::uuid and id = ${input.id}::uuid
+      and version = ${input.expectedVersion} and status = 'active'
+    returning id`);
+  return rows.length > 0;
+}
+
 /** Releases the assessments of the given attempts, returning the work. */
 export async function releaseAssessments(
   tx: Tx,

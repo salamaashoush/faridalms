@@ -39,10 +39,9 @@ import {
   Send,
   X,
 } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
-import { ContentView } from "~/components/content/ContentView";
 import { CourseworkStanding } from "~/components/exams/Authentication";
 import { FormField, SelectField, TextField } from "~/components/system/field";
 import { FileList } from "~/components/system/FileList";
@@ -54,14 +53,22 @@ import * as m from "~/i18n/messages";
 import { getLocale, getTextDirection } from "~/i18n/runtime";
 import { gradingQuery } from "~/queries/coursework";
 import { workStandingQuery } from "~/queries/exams";
-import { actOnWork, assessAttempt } from "~/server/coursework";
+import {
+  actOnWork,
+  assessAttempt,
+  commentOnWork,
+  removeWorkComment,
+} from "~/server/coursework";
 import { formatNumber } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
+
+import type { Passage, WorkComment } from "./WorkComments";
 
 import { resultText } from "../grading/format";
 import { displayName } from "../people/format";
 import { formatInstant } from "./format";
 import { QuizAttempts } from "./QuizWork";
+import { CommentedWork, CommentList } from "./WorkComments";
 
 type Data = Awaited<
   ReturnType<NonNullable<ReturnType<typeof gradingQuery>["queryFn"]>>
@@ -205,6 +212,97 @@ function StudentSwitcher({
   );
 }
 
+interface Composing {
+  passage: Passage;
+  /** The grader's own comment being changed; none for a new one. */
+  comment?: WorkComment;
+}
+
+/** Writes a comment on the passage the grader chose, or changes one. */
+function CommentComposer({
+  attemptId,
+  composing,
+  onDone,
+}: {
+  attemptId: string;
+  composing: Composing;
+  onDone: (id: string | null) => void;
+}) {
+  const queryClient = useQueryClient();
+  const [body, setBody] = useState(composing.comment?.body ?? "");
+  const field = useRef<HTMLTextAreaElement>(null);
+  // Opened by choosing a passage, so writing about it follows at once.
+  useEffect(() => field.current?.focus(), []);
+  const save = useMutation({
+    mutationFn: () =>
+      commentOnWork({
+        data: {
+          id: composing.comment?.id ?? "",
+          attemptId,
+          expectedVersion: composing.comment?.version ?? 0,
+          anchor: composing.passage.anchor,
+          body,
+        },
+      }),
+    onSuccess: async (saved) => {
+      await queryClient.invalidateQueries({ queryKey: ["coursework"] });
+      onDone(saved.id);
+    },
+    onError: (failure) => toast.error(getMessageFromError(failure)),
+  });
+  return (
+    <form
+      className="grid gap-2 rounded-lg border p-3"
+      onSubmit={(event) => {
+        event.preventDefault();
+        if (body.trim()) save.mutate();
+      }}
+    >
+      <p className="line-clamp-3 border-s-2 border-amber-400 ps-2 text-[13px] leading-[18px] text-muted-foreground">
+        <span className="sr-only">{m.courseworkCommentPassage()}: </span>
+        <bdi>{composing.passage.words}</bdi>
+      </p>
+      <Textarea
+        aria-label={m.courseworkComment()}
+        dir="auto"
+        rows={3}
+        ref={field}
+        maxLength={2000}
+        placeholder={m.courseworkCommentPlaceholder()}
+        value={body}
+        onChange={(event) => setBody(event.target.value)}
+        onKeyDown={(event) => {
+          if (event.key === "Enter" && (event.metaKey || event.ctrlKey)) {
+            event.preventDefault();
+            if (body.trim()) save.mutate();
+          }
+        }}
+      />
+      <div className="flex flex-wrap gap-2">
+        <Button
+          type="submit"
+          size="sm"
+          disabled={save.isPending || !body.trim()}
+        >
+          {save.isPending ? (
+            <LoaderCircle className="animate-spin" aria-hidden />
+          ) : null}
+          {m.courseworkCommentSave()}
+        </Button>
+        <Button
+          type="button"
+          size="sm"
+          variant="ghost"
+          disabled={save.isPending}
+          onClick={() => onDone(null)}
+        >
+          {m.commonCancel()}
+        </Button>
+      </div>
+    </form>
+  );
+}
+
 /**
  * The grade for the attempt on screen, in a sheet from the end side: for
  * assessed coursework the declaration and the teacher's word first, then the
@@ -215,11 +313,20 @@ function GradeSheet({
   open,
   onOpenChange,
   onDone,
+  comments,
 }: {
   data: Data;
   open: boolean;
   onOpenChange: (open: boolean) => void;
   onDone: () => void;
+  comments: {
+    passages: Record<string, string>;
+    active: string | null;
+    composing: Composing | null;
+    onCompose: (composing: Composing | null) => void;
+    onShow: (id: string) => void;
+    onSaved: (id: string) => void;
+  };
 }) {
   const attempt = data.attempts.at(-1);
   const rubric = data.assignment.rubric;
@@ -307,10 +414,27 @@ function GradeSheet({
       toast.error(getMessageFromError(failure));
     }
   };
+  const remove = useMutation({
+    mutationFn: (comment: WorkComment) =>
+      removeWorkComment({
+        data: { id: comment.id, expectedVersion: comment.version },
+      }),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["coursework"] });
+      toast.success(m.courseworkCommentRemoved());
+    },
+    onError: (failure) => toast.error(getMessageFromError(failure)),
+  });
   const side = getTextDirection(getLocale()) === "rtl" ? "left" : "right";
   // Beside the work on a wide screen, so the teacher reads while grading;
   // over it on a narrower one.
   const beside = useMedia("(min-width: 64rem)");
+  useEffect(() => {
+    if (!open || !comments.active) return;
+    document
+      .getElementById(`comment-${comments.active}`)
+      ?.scrollIntoView({ block: "nearest" });
+  }, [open, comments.active]);
   return (
     <Sheet
       modal={!beside}
@@ -356,6 +480,56 @@ function GradeSheet({
               studentId={data.student.studentId}
             />
           )}
+          {attempt && !data.quiz ? (
+            <section aria-labelledby="grade-comments" className="grid gap-3">
+              <div className="grid gap-0.5">
+                <h3
+                  id="grade-comments"
+                  className="text-sm leading-5 font-semibold"
+                >
+                  {m.courseworkComments()}
+                </h3>
+                <p className="text-[13px] leading-[18px] text-muted-foreground">
+                  {m.courseworkCommentsHint()}
+                </p>
+              </div>
+              {comments.composing ? (
+                <CommentComposer
+                  key={
+                    comments.composing.comment?.id ??
+                    JSON.stringify(comments.composing.passage.anchor)
+                  }
+                  attemptId={attempt.id}
+                  composing={comments.composing}
+                  onDone={(id) => {
+                    comments.onCompose(null);
+                    if (id) comments.onSaved(id);
+                  }}
+                />
+              ) : null}
+              {attempt.comments.length ? (
+                <CommentList
+                  comments={attempt.comments}
+                  passages={comments.passages}
+                  active={comments.active}
+                  onShow={(id) => {
+                    comments.onShow(id);
+                    if (!beside) onOpenChange(false);
+                  }}
+                  onEdit={(comment) =>
+                    comments.onCompose({
+                      comment,
+                      passage: {
+                        anchor: comment.anchor,
+                        words: comments.passages[comment.id] ?? "",
+                      },
+                    })
+                  }
+                  onRemove={(comment) => remove.mutate(comment)}
+                />
+              ) : null}
+            </section>
+          ) : null}
           {rubric
             ? rubric.criteria.map((criterion) => (
                 <SelectField
@@ -491,6 +665,19 @@ export function Grading({
   const user = useCurrentUser();
   const navigate = useNavigate();
   const [grading, setGrading] = useState(false);
+  const [active, setActive] = useState<string | null>(null);
+  const [reveal, setReveal] = useState(0);
+  const [passages, setPassages] = useState<Record<string, string>>({});
+  const [composing, setComposing] = useState<Composing | null>(null);
+  // The grade sheet stays open from one student to the next; a comment
+  // being written or shown belongs to the student it was on.
+  const [commentsOf, setCommentsOf] = useState(studentId);
+  if (commentsOf !== studentId) {
+    setCommentsOf(studentId);
+    setActive(null);
+    setComposing(null);
+    setPassages({});
+  }
   const index = data.queue.findIndex((row) => row.studentId === studentId);
   const goTo = (target: string) =>
     void navigate({
@@ -622,9 +809,20 @@ export function Grading({
           ) : attempt ? (
             <div className="grid gap-4">
               {attempt.content ? (
-                <ContentView
+                <CommentedWork
                   document={attempt.content}
-                  fileUrl={(id) => `/files/${id}`}
+                  comments={attempt.comments}
+                  active={active}
+                  reveal={reveal}
+                  onPassages={setPassages}
+                  onOpen={(id) => {
+                    setActive(id);
+                    setGrading(true);
+                  }}
+                  onComment={(passage) => {
+                    setComposing({ passage });
+                    setGrading(true);
+                  }}
                 />
               ) : null}
               <FileList files={attempt.files} />
@@ -644,6 +842,17 @@ export function Grading({
           onDone={() => {
             setGrading(false);
             nextToGrade();
+          }}
+          comments={{
+            passages,
+            active,
+            composing,
+            onCompose: setComposing,
+            onShow: (id) => {
+              setActive(id);
+              setReveal((count) => count + 1);
+            },
+            onSaved: setActive,
           }}
         />
       ) : null}

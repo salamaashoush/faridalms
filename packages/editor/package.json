@@ -10,6 +10,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./view": "./src/view.tsx",
+    "./anchors": "./src/anchors.ts",
     "./files": "./src/files.tsx",
     "./file-facts": "./src/file-facts.tsx",
     "./nodes": "./src/nodes/index.ts",

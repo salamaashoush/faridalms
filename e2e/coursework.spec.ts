@@ -89,6 +89,32 @@ test("a teacher assigns work, a student hands it in, and the returned grade reac
   await expect(row.getByText("Handed in", { exact: true })).toBeVisible();
   await row.getByRole("button", { name: "Grade", exact: true }).click();
   await expect(page).toHaveURL(/\/teach\/grading/);
+  await untilHydrated(page);
+  // A passage selected in the work is offered a comment.
+  await page.locator("article").evaluate((article, words) => {
+    const walker = document.createTreeWalker(article, NodeFilter.SHOW_TEXT);
+    for (let node = walker.nextNode(); node; node = walker.nextNode()) {
+      const at = node.textContent?.indexOf(words) ?? -1;
+      if (at < 0) continue;
+      const range = document.createRange();
+      range.setStart(node, at);
+      range.setEnd(node, at + words.length);
+      getSelection()?.removeAllRanges();
+      getSelection()?.addRange(range);
+      node.parentElement?.dispatchEvent(
+        new PointerEvent("pointerup", { bubbles: true }),
+      );
+      return;
+    }
+  }, "visited my grandparents");
+  await page.getByRole("button", { name: "Comment", exact: true }).click();
+  await page
+    .getByRole("textbox", { name: "Comment" })
+    .fill("Tell me one thing you did with them.");
+  await page.getByRole("button", { name: "Save comment" }).click();
+  await expect(
+    page.getByRole("button", { name: "Show the passage in the work" }),
+  ).toHaveText("visited my grandparents");
   await page.getByRole("button", { name: "Grade", exact: true }).click();
   await page.locator("#grade-score").fill("8");
   await page.locator("#grade-feedback").fill("A warm, well organised letter.");
@@ -107,6 +133,15 @@ test("a teacher assigns work, a student hands it in, and the returned grade reac
     student.getByText("A warm, well organised letter."),
   ).toBeVisible();
   await expect(student.getByText("8 / 10")).toBeVisible();
+  const comments = student.getByRole("region", {
+    name: "Comments on your work",
+  });
+  await expect(
+    comments.getByText("Tell me one thing you did with them."),
+  ).toBeVisible();
+  await expect(
+    comments.getByRole("button", { name: "Show the passage in the work" }),
+  ).toHaveText("visited my grandparents");
   await studentContext.close();
 });
 

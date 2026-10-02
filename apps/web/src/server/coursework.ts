@@ -4,7 +4,9 @@ import {
   handInSchema,
   markQuizAnswerSchema,
   publishSchema,
+  removeCommentSchema,
   saveAssignmentSchema,
+  saveCommentSchema,
   saveDraftSchema,
   saveGroupSchema,
   saveQuizAnswerSchema,
@@ -91,6 +93,14 @@ export const extendDueDates = createServerFn({ method: "POST" })
 export const assessAttempt = createServerFn({ method: "POST" })
   .validator(checked(assessSchema))
   .handler(({ data }) => backend().coursework.assess(data));
+
+export const commentOnWork = createServerFn({ method: "POST" })
+  .validator(checked(saveCommentSchema))
+  .handler(({ data }) => backend().coursework.comment(data));
+
+export const removeWorkComment = createServerFn({ method: "POST" })
+  .validator(checked(removeCommentSchema))
+  .handler(({ data }) => backend().coursework.uncomment(data));
 
 export const saveMyDraft = createServerFn({ method: "POST" })
   .validator(checked(saveDraftSchema))

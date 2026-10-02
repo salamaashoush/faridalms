@@ -662,3 +662,17 @@
 .fe details.fe-toggle[open] > .fe-toggle-title::before {
   transform: rotate(90deg);
 }
+
+/* Teachers' comments on handed-in work, drawn over the reader's text. */
+::highlight(fe-comment) {
+  background-color: rgb(253 230 138 / 0.6);
+}
+::highlight(fe-comment-active) {
+  background-color: rgb(251 191 36 / 0.55);
+}
+.dark ::highlight(fe-comment) {
+  background-color: rgb(217 119 6 / 0.35);
+}
+.dark ::highlight(fe-comment-active) {
+  background-color: rgb(245 158 11 / 0.55);
+}

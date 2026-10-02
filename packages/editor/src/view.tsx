@@ -1,5 +1,10 @@
 import type { ContentDocument, ContentNode } from "@faridalms/domain/content";
-import type { ComponentProps, CSSProperties, ReactNode } from "react";
+import type {
+  ComponentProps,
+  CSSProperties,
+  ReactElement,
+  ReactNode,
+} from "react";
 
 import {
   contentPlainText,
@@ -9,7 +14,7 @@ import {
 import { embedPage, embedProviderNames } from "@faridalms/domain/embed";
 import { isSafeContentUrl } from "@faridalms/domain/rich-text";
 import { ExternalLink } from "lucide-react";
-import { createElement } from "react";
+import { cloneElement, createElement, isValidElement } from "react";
 
 import type { AiUseViewStrings } from "./ai-use-view";
 import type { FileFacts } from "./files";
@@ -78,9 +83,12 @@ function renderText(node: ContentNode, key: string): ReactNode {
   if (format & 8) text = <u className="fe-underline">{text}</u>;
   if (format & 32) text = <sub className="fe-sub">{text}</sub>;
   if (format & 64) text = <sup className="fe-sup">{text}</sup>;
+  // Marks the document's own words, which comments count characters in;
+  // labels the reader adds around them read differently per language.
   return (
     <span
       key={key}
+      data-fe-text=""
       style={textStyle(node.style)}
       className={
         node.type === "code-highlight"
@@ -93,7 +101,21 @@ function renderText(node: ContentNode, key: string): ReactNode {
   );
 }
 
+/**
+ * A node as the reader draws it, carrying its block id when it has one, so
+ * a comment can point into the block it was made on.
+ */
 function render(node: ContentNode, key: string, context: Context): ReactNode {
+  const drawn = draw(node, key, context);
+  const id = node.$?.id;
+  return id && isValidElement(drawn) && typeof drawn.type === "string"
+    ? cloneElement(drawn as ReactElement<Record<string, unknown>>, {
+        "data-block-id": id,
+      })
+    : drawn;
+}
+
+function draw(node: ContentNode, key: string, context: Context): ReactNode {
   if (
     node.type === "text" ||
     node.type === "code-highlight" ||

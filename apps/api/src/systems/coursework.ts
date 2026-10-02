@@ -4,6 +4,7 @@ import type {
 } from "@faridalms/database/stores/coursework";
 import type { ContentDocument } from "@faridalms/domain/content";
 import type {
+  CommentAnchor,
   Rubric,
   SaveAssignment,
   TeacherTab,
@@ -25,15 +26,19 @@ import {
   assignmentById,
   attemptById,
   attemptsOf,
+  commentById,
+  commentsOf,
   courseworkHost,
   ensureSubmission,
   groupsOf,
   insertAssignment,
   insertAttempt,
+  insertComment,
   isRecipient,
   learnerAssignments,
   namesOf,
   releaseAssessments,
+  removeComment,
   removeGroup,
   rubricsOf,
   saveAssessment,
@@ -47,6 +52,7 @@ import {
   teacherAssignments,
   touchSubmission,
   updateAssignment,
+  updateComment,
   withdrawAttempt,
 } from "@faridalms/database/stores/coursework";
 import {
@@ -80,6 +86,7 @@ import {
   contentFileIds,
   contentPlainText,
   starterOf,
+  withBlockIds,
   withoutStarter,
 } from "@faridalms/domain/content";
 import {
@@ -96,9 +103,11 @@ import {
   learnerState,
   markQuizAnswerSchema,
   publishIssues,
+  removeCommentSchema,
   publishSchema,
   rubricTotal,
   saveAssignmentSchema,
+  saveCommentSchema,
   saveDraftSchema,
   extendSchema,
   saveGroupSchema,
@@ -1024,15 +1033,19 @@ async function attemptsView(
   const attempts = await attemptsOf(context.tx, context.tenantId, submissionId);
   const views = await Promise.all(
     attempts.map(async (attempt) => {
-      const [document, files, assessment] = await Promise.all([
+      const [document, files, assessment, comments] = await Promise.all([
         documentOf(context.tx, context.tenantId, {
           type: "submission_attempt",
           id: attempt.id,
         }),
         filesView(context, { type: "submission_attempt", id: attempt.id }),
         assessmentOf(context.tx, context.tenantId, attempt.id),
+        commentsOf(context.tx, context.tenantId, attempt.id),
       ]);
-      const content = (document?.content ?? null) as ContentDocument | null;
+      // Comments point at blocks, so work saved without block ids gets
+      // them from where each block stands; handed-in work never changes.
+      const stored = (document?.content ?? null) as ContentDocument | null;
+      const content = stored ? withBlockIds(stored) : null;
       // Files handed in beside the answer, before answers held them.
       const inAnswer = new Set(content ? contentFileIds(content) : []);
       const shown =
@@ -1043,6 +1056,14 @@ async function attemptsView(
         ...attempt,
         content,
         files: files.filter((file) => !inAnswer.has(file.id)),
+        // A student reads the comments with the rest of the returned work.
+        comments:
+          includeDrafts || assessment?.releasedAt
+            ? comments.map((comment) => ({
+                ...comment,
+                anchor: comment.anchor as unknown as CommentAnchor,
+              }))
+            : [],
         assessment: shown
           ? {
               ...shown,
@@ -1177,6 +1198,72 @@ export const assess = writeProcedure
       today: context.today,
     });
     return saved;
+  });
+
+/**
+ * The attempt a grader may comment on: one handed in to an assignment they
+ * teach, in a year still open.
+ */
+async function commentableAttempt(context: UnitContext, attemptId: string) {
+  requireCapability(context, "submissions:grade");
+  const attempt = await attemptById(context.tx, context.tenantId, attemptId);
+  if (!attempt) throw new ORPCError("NOT_FOUND");
+  const assignment = await taughtAssignment(context, attempt.assignmentId);
+  await requireOpenYear(context, assignment.schoolYearId);
+  return { ...attempt, id: attemptId };
+}
+
+/** Comments on a passage of handed-in work, or changes the grader's own. */
+export const comment = writeProcedure
+  .input(saveCommentSchema)
+  .handler(async ({ input, context }) => {
+    const attempt = await commentableAttempt(context, input.attemptId);
+    if (!input.id)
+      return insertComment(context.tx, {
+        tenantId: context.tenantId,
+        attemptId: attempt.id,
+        userId: context.actor.userId,
+        anchor: input.anchor,
+        body: input.body,
+      });
+    const existing = await commentById(context.tx, context.tenantId, input.id);
+    if (!existing || existing.attemptId !== attempt.id)
+      throw new ORPCError("NOT_FOUND");
+    if (existing.authorId !== context.actor.userId)
+      throw new ORPCError("FORBIDDEN", {
+        message: "coursework.comment_author",
+      });
+    const saved = await updateComment(context.tx, {
+      tenantId: context.tenantId,
+      id: existing.id,
+      expectedVersion: input.expectedVersion,
+      anchor: input.anchor,
+      body: input.body,
+    });
+    if (!saved)
+      throw new ORPCError("CONFLICT", { message: "conflict.version" });
+    return saved;
+  });
+
+/** Takes back a comment; only the grader who wrote it may. */
+export const uncomment = writeProcedure
+  .input(removeCommentSchema)
+  .handler(async ({ input, context }) => {
+    const existing = await commentById(context.tx, context.tenantId, input.id);
+    if (!existing) throw new ORPCError("NOT_FOUND");
+    await commentableAttempt(context, existing.attemptId);
+    if (existing.authorId !== context.actor.userId)
+      throw new ORPCError("FORBIDDEN", {
+        message: "coursework.comment_author",
+      });
+    const removed = await removeComment(context.tx, {
+      tenantId: context.tenantId,
+      id: existing.id,
+      expectedVersion: input.expectedVersion,
+    });
+    if (!removed)
+      throw new ORPCError("CONFLICT", { message: "conflict.version" });
+    return { removed };
   });
 
 /** What the student works in: the brief, their draft, their attempts and returned grades. */

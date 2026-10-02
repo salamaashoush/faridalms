@@ -7,9 +7,29 @@ import {
   contentDocumentSchema,
   sameContent,
   starterOf,
+  withBlockIds,
   withoutStarter,
 } from "./content";
 import { plainContent } from "./content-conversion";
+
+describe("block ids for comments", () => {
+  it("gives each block without one an id from its place, the same every time", () => {
+    const work = plainContent("First line.\nSecond line.");
+    const placed = withBlockIds(work);
+    const ids = (placed.root.children ?? []).map((node) => node.$?.id);
+    expect(ids).toEqual(["p0zzzzzz", "p1zzzzzz"]);
+    expect(withBlockIds(work)).toEqual(placed);
+    expect(v.safeParse(contentDocumentSchema, placed).success).toBe(true);
+    expect(placed.root.children?.[0]?.children?.[0]?.$).toBeUndefined();
+  });
+
+  it("keeps the ids the editor gave", () => {
+    const work = plainContent("Kept.");
+    const [first] = work.root.children ?? [];
+    if (first) first.$ = { id: "editor01" };
+    expect(withBlockIds(work).root.children?.[0]?.$?.id).toBe("editor01");
+  });
+});
 
 describe("same content", () => {
   it("ignores key order and the direction the editor works out", () => {

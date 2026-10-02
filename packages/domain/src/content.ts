@@ -615,6 +615,36 @@ export function textDirection(text: string): "ltr" | "rtl" | null {
   }
   return null;
 }
+const unplaced = new Set([
+  "root",
+  "text",
+  "code-highlight",
+  "tab",
+  "linebreak",
+  "link",
+  "autolink",
+]);
+
+/**
+ * The document with an id on every block, so a comment can point into it.
+ * A block without one takes an id from where it stands, which stays true
+ * only for a document that never changes, such as handed-in work.
+ */
+export function withBlockIds(document: ContentDocument): ContentDocument {
+  const place = (node: ContentNode, path: number[]): ContentNode => {
+    const children = node.children?.map((child, index) =>
+      place(child, [...path, index]),
+    );
+    const id = `p${path.join("x")}`.padEnd(8, "z");
+    const placed =
+      unplaced.has(node.type) || node.$?.id || id.length > 36
+        ? node
+        : { ...node, $: { ...node.$, id } };
+    return children ? { ...placed, children } : placed;
+  };
+  return { root: place(document.root, []) };
+}
+
 export function contentFileIds(document: ContentDocument): string[] {
   const ids = new Set<string>();
   const pending = [document.root];

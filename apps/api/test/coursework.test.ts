@@ -244,6 +244,117 @@ describe("handing in and returning work", () => {
     ).toMatchObject({ state: "returned", effectiveScore: 9 });
   });
 
+  test("comments on a passage stay with the teacher until the work is returned, and only their writer changes them", async () => {
+    const teacher = await arabicTeacher();
+    const student = await sessionFor("northwind", login("student"));
+    const me = await student.api.identity.currentUser();
+    const target = await classOfStudent(teacher.api, me.id);
+    const saved = await teacher.api.coursework.save(
+      draft(target.id, "Letter to a friend"),
+    );
+    await teacher.api.coursework.publish({
+      id: saved.id,
+      expectedVersion: saved.version,
+    });
+    const drafted = await student.api.coursework.saveDraft({
+      assignmentId: saved.id,
+      expectedVersion: 0,
+      content: plainContent("Dear Salama, I hope you are well."),
+    });
+    await student.api.coursework.handIn({
+      assignmentId: saved.id,
+      expectedVersion: drafted.version,
+    });
+    const grading = await teacher.api.coursework.grading({
+      assignmentId: saved.id,
+      studentId: me.id,
+    });
+    const attempt = grading.attempts[0];
+    if (!attempt) throw new Error("attempt missing");
+    const anchor = {
+      start: { block: "letter01", offset: 0 },
+      end: { block: "letter01", offset: 11 },
+    };
+    const made = await teacher.api.coursework.comment({
+      attemptId: attempt.id,
+      expectedVersion: 0,
+      anchor,
+      body: "A warm opening.",
+    });
+
+    const shown = await teacher.api.coursework.grading({
+      assignmentId: saved.id,
+      studentId: me.id,
+    });
+    expect(shown.attempts[0]?.comments).toMatchObject([
+      { id: made.id, anchor, body: "A warm opening.", editedAt: null },
+    ]);
+    expect(
+      (await student.api.coursework.work({ id: saved.id })).attempts[0]
+        ?.comments,
+    ).toEqual([]);
+    expect(
+      await rejection(
+        student.api.coursework.comment({
+          attemptId: attempt.id,
+          expectedVersion: 0,
+          anchor,
+          body: "Mine.",
+        }),
+      ),
+    ).toMatchObject({ code: "FORBIDDEN" });
+    const other = await englishTeacher();
+    expect(
+      await rejection(
+        other.coursework.comment({
+          attemptId: attempt.id,
+          expectedVersion: 0,
+          anchor,
+          body: "Not my class.",
+        }),
+      ),
+    ).toMatchObject({ code: "NOT_FOUND" });
+
+    const edited = await teacher.api.coursework.comment({
+      id: made.id,
+      attemptId: attempt.id,
+      expectedVersion: made.version,
+      anchor,
+      body: "A warm opening; keep it.",
+    });
+    expect(
+      await rejection(
+        teacher.api.coursework.comment({
+          id: made.id,
+          attemptId: attempt.id,
+          expectedVersion: made.version,
+          anchor,
+          body: "Stale.",
+        }),
+      ),
+    ).toMatchObject({ message: "conflict.version" });
+
+    await teacher.api.coursework.act({
+      assignmentId: saved.id,
+      action: "return",
+      studentIds: [me.id],
+    });
+    const returned = await student.api.coursework.work({ id: saved.id });
+    expect(returned.attempts[0]?.comments).toMatchObject([
+      { id: made.id, body: "A warm opening; keep it." },
+    ]);
+    expect(returned.attempts[0]?.comments[0]?.editedAt).not.toBeNull();
+
+    await teacher.api.coursework.uncomment({
+      id: made.id,
+      expectedVersion: edited.version,
+    });
+    expect(
+      (await student.api.coursework.work({ id: saved.id })).attempts[0]
+        ?.comments,
+    ).toEqual([]);
+  });
+
   test("each student starts from their own copy of the worksheet in the brief", async () => {
     const teacher = await arabicTeacher();
     const student = await sessionFor("northwind", login("student"));
