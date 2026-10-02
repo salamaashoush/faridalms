@@ -115,7 +115,22 @@ export async function effectiveAccess(
       for (const cap of nearest?.capabilities ?? []) granted.add(cap);
     }
   }
-  const contexts = contextsFor(roles);
+  let contexts = contextsFor(roles);
+  // A legal guardian holds a family role without portal access; only a
+  // portal link opens the family workspace.
+  if (contexts.includes("family")) {
+    const portal = await tx.execute<{ found: boolean }>(sql`
+      select exists (
+        select 1 from core.user_relationships r
+        join core.user_roles s on s.tenant_id = r.tenant_id and s.user_id = r.student_user_id
+          and s.role = 'student' and s.status = 'active' and s.org_id in ${path}
+          and s.valid_during @> ${input.today}::date
+        where r.tenant_id = ${input.tenantId}::uuid and r.related_user_id = ${input.userId}::uuid
+          and r.status = 'active' and r.portal_access and r.valid_during @> ${input.today}::date
+      ) as found`);
+    if (!portal[0]?.found)
+      contexts = contexts.filter((context) => context !== "family");
+  }
   let profile: Profile;
   if (input.context === "staff")
     profile =

@@ -4,6 +4,67 @@ import { describe, expect, test } from "bun:test";
 import { client, login, rejection, seeded, signedIn } from "./harness";
 
 describe("sign-in", () => {
+  test("a legal guardian reaches the family workspace only with portal access", async () => {
+    const password = "correct horse battery staple";
+    const api = await signedIn("northwind", login("principal"));
+    const options = await api.people.options();
+    const father = options.relations.find((row) => row.code === "father");
+    if (!father) throw new Error("options");
+    const studentId =
+      (await api.people.students({ q: "GA1012" })).rows[0]?.id ?? "";
+    const flags = {
+      relationId: father.id,
+      legalGuardian: true,
+      portalAccess: false,
+      receivesNotifications: true,
+      primaryContact: false,
+      emergencyContact: false,
+      residence: "secondary" as const,
+      pickup: "allowed" as const,
+    };
+    await api.people.saveRelationship({
+      studentId,
+      person: {
+        names: {
+          en: { given: "Karim", family: "Adel" },
+          ar: { given: "كريم", family: "عادل" },
+        },
+        phone: "0100 555 0808",
+      },
+      flags,
+    });
+    const link = (await api.people.student({ id: studentId })).guardians?.find(
+      (guardian) => guardian.fullNameEn === "Karim Adel",
+    );
+    if (!link) throw new Error("link missing");
+    await api.people.saveSignIn({
+      userId: link.userId,
+      loginName: "karim.adel@example.com",
+      password,
+    });
+    expect(
+      await rejection(
+        client("northwind").identity.signIn({
+          loginName: "karim.adel@example.com",
+          password,
+        }),
+      ),
+    ).toMatchObject({ message: "auth.invalid_credentials" });
+    await api.people.saveRelationship({
+      studentId,
+      relationshipId: link.relationshipId,
+      expectedVersion: link.version,
+      flags: { ...flags, portalAccess: true },
+    });
+    const session = await client("northwind").identity.signIn({
+      loginName: "karim.adel@example.com",
+      password,
+    });
+    expect(
+      (await client("northwind", session.token).identity.currentUser()).id,
+    ).toBe(link.userId);
+  });
+
   test("a principal signs in to their school and lands in the admin workspace", async () => {
     const principal = login("principal");
     const api = client("northwind");
