@@ -16,7 +16,7 @@ export interface RecorderStrings {
 }
 
 /** The first container this browser records sound into, with the file name it takes. */
-function soundFormat(): { mimeType: string; extension: string } | null {
+export function soundFormat(): { mimeType: string; extension: string } | null {
   if (typeof MediaRecorder === "undefined") return null;
   const formats = [
     // AAC in MP4 plays on every iPad; WebM plays there only from iPadOS 17.4.
@@ -51,12 +51,17 @@ export function VoiceRecorder({
   strings: RecorderStrings & { keep: string };
   locale: string;
   maxSeconds?: number;
-  onKeep: (file: File) => void;
+  /** Given the recording and how many seconds it runs. */
+  onKeep: (file: File, seconds: number) => void;
 }) {
   const [state, setState] = useState<"idle" | "recording" | "recorded">("idle");
   const [seconds, setSeconds] = useState(0);
   const [refused, setRefused] = useState(false);
-  const [take, setTake] = useState<{ file: File; url: string } | null>(null);
+  const [take, setTake] = useState<{
+    file: File;
+    url: string;
+    seconds: number;
+  } | null>(null);
   const recorder = useRef<MediaRecorder | null>(null);
   const timer = useRef<ReturnType<typeof setInterval> | undefined>(undefined);
   const format = soundFormat();
@@ -90,6 +95,7 @@ export function VoiceRecorder({
       return;
     }
     const chunks: Blob[] = [];
+    const began = Date.now();
     const next = new MediaRecorder(stream, { mimeType: format.mimeType });
     next.addEventListener("dataavailable", (event) => {
       if (event.data.size) chunks.push(event.data);
@@ -103,14 +109,17 @@ export function VoiceRecorder({
         `voice-${new Date().toISOString().slice(0, 19).replaceAll(":", "-")}.${format.extension}`,
         { type },
       );
-      setTake({ file, url: URL.createObjectURL(file) });
+      setTake({
+        file,
+        url: URL.createObjectURL(file),
+        seconds: (Date.now() - began) / 1000,
+      });
       setState("recorded");
     });
     recorder.current = next;
     next.start(1000);
     setSeconds(0);
     setState("recording");
-    const began = Date.now();
     timer.current = setInterval(() => {
       const passed = (Date.now() - began) / 1000;
       setSeconds(passed);
@@ -135,7 +144,7 @@ export function VoiceRecorder({
               type="button"
               className={`${button} bg-primary text-primary-foreground hover:bg-primary/90`}
               onClick={() => {
-                onKeep(take.file);
+                onKeep(take.file, take.seconds);
                 setTake(null);
                 setState("idle");
               }}

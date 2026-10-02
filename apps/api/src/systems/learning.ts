@@ -14,6 +14,7 @@ import {
   saveDocument,
   snapshotPublish,
 } from "@faridalms/database/stores/documents";
+import { linkFiles } from "@faridalms/database/stores/files";
 import {
   classesOfModule,
   firstAttempts,
@@ -327,6 +328,18 @@ async function hostReadable(context: UnitContext, lessonId: string) {
 }
 
 registerHostReader("lesson", hostReadable);
+
+// A student's spoken answers in a lesson: whoever teaches the lesson's module
+// hears them, as they read its written answers; the student hears their own.
+registerHostReader("lesson_answer", async (context, lessonId) => {
+  if (!(await isOn(context))) return false;
+  const lesson = await lessonById(context.tx, context.tenantId, lessonId);
+  if (!lesson) return false;
+  const row = await moduleById(context.tx, context.tenantId, lesson.moduleId);
+  return Boolean(
+    row && row.orgId === context.schoolId && (await mayEdit(context, row)),
+  );
+});
 
 async function editsModule(context: UnitContext, moduleId: string) {
   if (!(await isOn(context))) return false;
@@ -1108,6 +1121,20 @@ export const respond = writeProcedure
     if (block.type === "written" ? state?.marked : settled(block, state))
       throw new ORPCError("CONFLICT", { message: "learning.settled" });
     const marked = isAuto(block) ? markResponse(block, input.response) : null;
+    const recording =
+      input.response.type === "written" ? input.response.recording : undefined;
+    if (recording) {
+      // The recording must be the student's own upload, kept with the lesson.
+      const linked = await linkFiles(context.tx, {
+        tenantId: context.tenantId,
+        userId: context.actor.userId,
+        ids: [recording.fileId],
+        purpose: "document_media",
+        host: { type: "lesson_answer", id: played.row.id },
+      });
+      if (linked.length !== 1)
+        throw new ORPCError("CONFLICT", { message: "files.not_linkable" });
+    }
     await insertResponse(context.tx, {
       tenantId: context.tenantId,
       lessonId: played.row.id,

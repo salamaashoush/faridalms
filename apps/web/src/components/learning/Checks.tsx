@@ -42,6 +42,7 @@ import { formatList, formatNumber } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
 import { ReadAloud, YoungContext } from "./ReadAloud";
+import { SpokenRecorder, SpokenStatus } from "./SpokenAnswer";
 import { YoungMatching, YoungOrdering, YoungSorting } from "./young/YoungPlace";
 
 /** A part's picture over its words; with no words, its description names it. */
@@ -130,6 +131,11 @@ export const ReviewerContext = createContext<"student" | "teacher">("student");
 export interface CheckDriver {
   respond: (blockId: string, response: LessonResponse) => Promise<unknown>;
   reveal: (blockId: string) => Promise<unknown>;
+  /**
+   * Keeps a spoken answer's recording somewhere it can be answered with and
+   * played from; without it the recording is uploaded.
+   */
+  keepRecording?: (file: File) => Promise<{ fileId: string; url: string }>;
 }
 
 type Of<T extends StudentBlock["type"]> = Extract<StudentBlock, { type: T }>;
@@ -1254,6 +1260,35 @@ function SortingCheck({
   );
 }
 
+/** A question answered by speaking: the student records, listens and sends. */
+function SpokenCheck({
+  block,
+  view,
+  driver,
+}: {
+  block: Of<"written">;
+  view: CheckView | undefined;
+  driver: CheckDriver;
+}) {
+  const mode = useContext(CheckModeContext);
+  const locked = (view?.marked ?? false) || mode === "review";
+  return (
+    <CheckCard
+      block={block}
+      legendId={useId()}
+      status={<SpokenStatus block={block} view={view} />}
+      actions={null}
+    >
+      <SpokenRecorder
+        block={block}
+        view={view}
+        driver={driver}
+        locked={locked}
+      />
+    </CheckCard>
+  );
+}
+
 function WrittenCheck({
   block,
   view,
@@ -1427,6 +1462,8 @@ export function CheckBlockView({
     return <ChoiceCheck block={block} view={view} driver={driver} />;
   if (block.type === "gaps")
     return <GapsCheck block={block} view={view} driver={driver} />;
+  if (block.type === "written" && block.recordSeconds)
+    return <SpokenCheck block={block} view={view} driver={driver} />;
   if (block.type === "written")
     return <WrittenCheck block={block} view={view} driver={driver} />;
   if (block.type === "matching")

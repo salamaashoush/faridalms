@@ -1,3 +1,4 @@
+import { MediaPlayer } from "@faridalms/editor/media-view";
 import { Button } from "@faridalms/ui/button";
 import { Input } from "@faridalms/ui/input";
 import { Textarea } from "@faridalms/ui/textarea";
@@ -11,6 +12,7 @@ import { FormField } from "~/components/system/field";
 import { EmptyState } from "~/components/system/IndexPage";
 import { StatusBadge } from "~/components/system/status";
 import * as m from "~/i18n/messages";
+import { getLocale } from "~/i18n/runtime";
 import { writtenAnswersQuery } from "~/queries/learning";
 import { markAnswer } from "~/server/learning";
 import { formatDateTime, formatNumber } from "~/utils/datetime";
@@ -157,9 +159,19 @@ function AnswerCard({
           <StatusBadge tone="warning">{m.lrnToMark()}</StatusBadge>
         ) : null}
       </header>
-      <p dir="auto" className="text-sm leading-6 whitespace-pre-wrap">
-        {answer.text}
-      </p>
+      {answer.recording ? (
+        <MediaPlayer
+          src={`/files/${answer.recording.fileId}`}
+          captions={undefined}
+          video={false}
+          locale={getLocale()}
+          captionsLabel={m.editorCaptions()}
+        />
+      ) : (
+        <p dir="auto" className="text-sm leading-6 whitespace-pre-wrap">
+          {answer.text}
+        </p>
+      )}
       {answer.marked && !editing ? (
         <div className="grid gap-2 border-t pt-3">
           {answer.feedback ? (

@@ -407,6 +407,7 @@ export function LessonEditor({
           media={media}
           questions
           narration
+          spokenAnswers
           collaboration={shared ? live.collaboration : undefined}
           pending={live.state === "loading"}
           replace={replace}

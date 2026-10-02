@@ -153,6 +153,7 @@ export interface ContentNode {
   closeEnough?: boolean;
   tehMarbuta?: boolean;
   wordLimit?: number | null;
+  recordSeconds?: number | null;
   hint?: string;
   explanation?: string;
   numberMode?: "exact" | "range";
@@ -298,6 +299,7 @@ const nodeSchema: v.GenericSchema<ContentNode> = v.lazy(() =>
       closeEnough: v.optional(v.boolean()),
       tehMarbuta: v.optional(v.boolean()),
       wordLimit: v.optional(v.nullable(integer(10, 5000))),
+      recordSeconds: v.optional(v.nullable(integer(5, 180))),
       hint: v.optional(v.pipe(v.string(), v.maxLength(500))),
       explanation: v.optional(v.pipe(v.string(), v.maxLength(1000))),
       numberMode: v.optional(v.picklist(["exact", "range"])),

@@ -226,6 +226,15 @@ export function editorStrings(): EditorStrings {
     questionCloseEnough: m.editorQuestionCloseEnough(),
     questionTehMarbuta: m.editorQuestionTehMarbuta(),
     questionWordLimit: m.editorQuestionWordLimit(),
+    questionSpoken: m.editorQuestionSpoken(),
+    questionAnswerBy: m.editorQuestionAnswerBy(),
+    questionByWriting: m.editorQuestionByWriting(),
+    questionBySpeaking: (seconds) =>
+      seconds % 60 === 0
+        ? m.editorQuestionBySpeakingMinutes({
+            minutes: formatNumber(seconds / 60),
+          })
+        : m.editorQuestionBySpeaking({ seconds: formatNumber(seconds) }),
     questionNoLimit: m.editorQuestionNoLimit(),
     questionHint: m.editorQuestionHint(),
     questionExplanation: m.editorQuestionExplanation(),

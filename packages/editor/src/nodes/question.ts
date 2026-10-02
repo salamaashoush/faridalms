@@ -107,6 +107,8 @@ function pictureSlot(dom: HTMLElement, slot: ElementDOMSlot): ElementDOMSlot {
 /** What a question's chrome says, set by the editor for its language. */
 export interface QuestionLabels {
   kinds: Record<QuestionKind, string>;
+  /** A written question answered by speaking instead. */
+  spoken?: string;
   points: (points: number) => string;
   answerIs: string;
   prompt: string;
@@ -171,6 +173,8 @@ export interface QuestionSettings {
   closeEnough: boolean;
   tehMarbuta: boolean;
   wordLimit: number | null;
+  /** Answered by speaking for up to this many seconds, rather than writing. */
+  recordSeconds: number | null;
   hint: string;
   explanation: string;
   numberMode: "exact" | "range";
@@ -194,6 +198,7 @@ export function defaultSettings(kind: QuestionKind): QuestionSettings {
     closeEnough: false,
     tehMarbuta: true,
     wordLimit: null,
+    recordSeconds: null,
     hint: "",
     explanation: "",
     numberMode: "exact",
@@ -228,7 +233,11 @@ export function numberAnswer(settings: QuestionSettings): string {
 function label(editor: LexicalEditor, settings: QuestionSettings): string {
   const text = labels.get(editor);
   if (!text) return "";
-  return `${text.kinds[settings.kind]} · ${text.points(settings.points)}`;
+  const kind =
+    settings.kind === "written" && settings.recordSeconds !== null
+      ? (text.spoken ?? text.kinds.written)
+      : text.kinds[settings.kind];
+  return `${kind} · ${text.points(settings.points)}`;
 }
 
 /**
@@ -273,6 +282,7 @@ export class QuestionNode extends ElementNode {
       closeEnough: json.closeEnough ?? base.closeEnough,
       tehMarbuta: json.tehMarbuta ?? base.tehMarbuta,
       wordLimit: json.wordLimit ?? null,
+      recordSeconds: json.recordSeconds ?? null,
       hint: json.hint ?? "",
       explanation: json.explanation ?? "",
       numberMode: json.numberMode ?? base.numberMode,
@@ -314,6 +324,7 @@ export class QuestionNode extends ElementNode {
     if (
       previous.__settings.kind !== settings.kind ||
       previous.__settings.points !== settings.points ||
+      previous.__settings.recordSeconds !== settings.recordSeconds ||
       numberAnswer(previous.__settings) !== numberAnswer(settings)
     )
       return true;

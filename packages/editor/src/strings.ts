@@ -205,6 +205,10 @@ export interface EditorStrings {
   questionCloseEnough: string;
   questionTehMarbuta: string;
   questionWordLimit: string;
+  questionSpoken: string;
+  questionAnswerBy: string;
+  questionByWriting: string;
+  questionBySpeaking: (seconds: number) => string;
   questionNoLimit: string;
   questionHint: string;
   questionExplanation: string;

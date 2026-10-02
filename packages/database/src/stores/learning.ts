@@ -680,6 +680,8 @@ export interface WrittenAnswer {
   attempt: number;
   try: number;
   text: string;
+  /** A spoken answer's recording, and how long it runs. */
+  recording: { fileId: string; seconds: number } | null;
   sentAt: string;
   /** The teacher's latest mark on this answer, if any. */
   fraction: number | null;
@@ -707,6 +709,7 @@ export async function writtenAnswers(
     attempt: number;
     try: number;
     text: string;
+    recording: { fileId: string; seconds: number } | null;
     sent_at: string;
     fraction: string | number | null;
     feedback: string | null;
@@ -720,6 +723,7 @@ export async function writtenAnswers(
     ), latest as (
       select distinct on (r.lesson_id, r.student_user_id, r.block_id)
         r.lesson_id, r.student_user_id, r.block_id, r.attempt, r.try, r.response->>'text' as text,
+        r.response->'recording' as recording,
         ${isoOf(sql`r.created_at`)} as sent_at
       from core.lesson_responses r
       join current c on c.lesson_id = r.lesson_id and c.student_user_id = r.student_user_id
@@ -744,6 +748,7 @@ export async function writtenAnswers(
     attempt: row.attempt,
     try: row.try,
     text: row.text,
+    recording: row.recording ?? null,
     sentAt: row.sent_at,
     fraction: row.fraction === null ? null : Number(row.fraction),
     feedback: row.feedback,

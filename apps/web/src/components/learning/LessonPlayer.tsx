@@ -743,6 +743,12 @@ export function LessonPreview({ lessonId }: { lessonId: string }) {
       });
       return Promise.resolve();
     },
+    // A preview keeps a spoken answer in the page; nothing is uploaded.
+    keepRecording: (file) =>
+      Promise.resolve({
+        fileId: crypto.randomUUID(),
+        url: URL.createObjectURL(file),
+      }),
     reveal: (blockId) => {
       setRows((current) => [
         ...current,

@@ -30,6 +30,7 @@ import { Burst } from "./motion";
 import { playSound, setSoundsOn, soundsOn } from "./sounds";
 import { FoundContext, YoungChoice } from "./YoungChoice";
 import { YoungMatching, YoungOrdering, YoungSorting } from "./YoungPlace";
+import { YoungSpoken } from "./YoungSpoken";
 
 const fileUrl = (fileId: string) => `/files/${fileId}`;
 
@@ -117,6 +118,8 @@ function StepBlock({
       <YoungSorting block={block} view={view} driver={driver} />
     ) : block.type === "ordering" ? (
       <YoungOrdering block={block} view={view} driver={driver} />
+    ) : block.type === "written" && block.recordSeconds ? (
+      <YoungSpoken block={block} view={view} driver={driver} />
     ) : null;
   if (!answer)
     return <CheckBlockView block={block} view={view} driver={driver} />;

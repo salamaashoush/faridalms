@@ -39,6 +39,12 @@ export const MAX_ORDER_ITEMS = 10;
 export const MAX_SORT_GROUPS = 4;
 export const MAX_SORT_ITEMS = 20;
 export const MAX_MODULE_CLASSES = 20;
+/**
+ * How long a spoken answer may run, as Seesaw lets a teacher cap a child's
+ * recording at 15, 45 or 90 seconds; three minutes for older students.
+ */
+export const RECORD_SECONDS = [15, 45, 90, 180] as const;
+export type RecordSeconds = (typeof RECORD_SECONDS)[number];
 /** Taken off a check's credit for each try after the first, as Moodle's interactive mode does. */
 export const TRY_PENALTY = 1 / 3;
 
@@ -322,6 +328,8 @@ export const lessonBlockSchema = v.variant("type", [
     wordLimit: v.nullable(
       v.pipe(v.number(), v.integer(), v.minValue(10), v.maxValue(5000)),
     ),
+    /** Answered by speaking, up to this many seconds, rather than writing. */
+    recordSeconds: v.optional(v.nullable(v.picklist(RECORD_SECONDS))),
   }),
 ]);
 export type LessonBlock = v.InferOutput<typeof lessonBlockSchema>;
@@ -569,7 +577,23 @@ export const responseSchema = v.variant("type", [
     order: v.pipe(v.array(id), v.minLength(2), v.maxLength(MAX_ORDER_ITEMS)),
   }),
   v.object({ type: v.literal("sorting"), groups: v.record(id, id) }),
-  v.object({ type: v.literal("written"), text: requiredText(20000) }),
+  v.pipe(
+    v.object({
+      type: v.literal("written"),
+      text: text(20000),
+      /** A spoken answer: the student's recording and how long it runs. */
+      recording: v.optional(
+        v.object({
+          fileId: id,
+          seconds: v.pipe(v.number(), v.minValue(0), v.maxValue(200)),
+        }),
+      ),
+    }),
+    v.check(
+      (answer) => answer.text !== "" || answer.recording !== undefined,
+      "learning.response",
+    ),
+  ),
 ]);
 export type LessonResponse = v.InferOutput<typeof responseSchema>;
 
@@ -1479,12 +1503,18 @@ export function responseIssue(
     )
   )
     return "learning.option";
-  if (
-    block.type === "written" &&
-    response.type === "written" &&
-    block.wordLimit !== null &&
-    wordsIn(response.text) > block.wordLimit
-  )
-    return "learning.word_limit";
+  if (block.type === "written" && response.type === "written") {
+    const spoken = (block.recordSeconds ?? null) !== null;
+    // A spoken answer is a recording within its length; a written one, words.
+    if (spoken !== (response.recording !== undefined))
+      return "learning.response";
+    if (
+      response.recording &&
+      response.recording.seconds > (block.recordSeconds ?? 0) + 1
+    )
+      return "learning.response";
+    if (block.wordLimit !== null && wordsIn(response.text) > block.wordLimit)
+      return "learning.word_limit";
+  }
   return null;
 }

@@ -37,6 +37,7 @@ export function ContentEditor({
   starter,
   aiUse,
   narration,
+  spokenAnswers,
   pending = false,
 }: {
   id: string;
@@ -59,6 +60,7 @@ export function ContentEditor({
   starter?: boolean;
   aiUse?: boolean;
   narration?: boolean;
+  spokenAnswers?: boolean;
   /** Whether the document may be live is still being asked. */
   pending?: boolean;
 }) {
@@ -117,6 +119,7 @@ export function ContentEditor({
           starter={starter}
           aiUse={aiUse}
           narration={narration}
+          spokenAnswers={spokenAnswers}
           onSynced={
             collaboration ? () => setJoined(collaboration.id) : undefined
           }

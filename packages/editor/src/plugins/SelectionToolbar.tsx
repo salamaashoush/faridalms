@@ -157,6 +157,8 @@ type QuestionText = "hint" | "explanation" | "feedback" | "alt";
 const POINTS = [0, 1, 2, 3, 4, 5, 6, 8, 10];
 const TRIES = [null, 1, 2, 3, 5] as const;
 const WORD_LIMITS = [null, 50, 100, 150, 200, 300, 500] as const;
+// Writing, or speaking for up to so many seconds (RECORD_SECONDS in the domain).
+const ANSWER_BY = [null, 15, 45, 90, 180] as const;
 
 /** A selected file: what the bar opens, shares or shows. */
 interface FileBarFacts {
@@ -264,6 +266,7 @@ export function SelectionToolbarPlugin() {
     media,
     lockQuestions,
     narration: narrates,
+    spokenAnswers,
   } = useEditorEnvironment();
   const [mode, setMode] = useState<Mode>("hidden");
   const [reference, setReference] = useState<ReferenceElement | null>(null);
@@ -798,6 +801,10 @@ export function SelectionToolbarPlugin() {
         : strings.questionTriesCount(value);
     const wordsText = (value: number | null) =>
       value === null ? strings.questionNoLimit : strings.questionWords(value);
+    const answerByText = (value: number | null) =>
+      value === null
+        ? strings.questionByWriting
+        : strings.questionBySpeaking(value);
     return (
       <Floating
         reference={reference}
@@ -819,15 +826,30 @@ export function SelectionToolbarPlugin() {
             finalFocus={textFocus(editor)}
           />
           {settings.kind === "written" ? (
-            <BarMenu
-              label={strings.questionWordLimit}
-              current={wordsText(settings.wordLimit)}
-              values={WORD_LIMITS}
-              text={wordsText}
-              onPick={(wordLimit) => change({ wordLimit })}
-              onOpenChange={trackMenu}
-              finalFocus={textFocus(editor)}
-            />
+            <>
+              {spokenAnswers ? (
+                <BarMenu
+                  label={strings.questionAnswerBy}
+                  current={answerByText(settings.recordSeconds)}
+                  values={ANSWER_BY}
+                  text={answerByText}
+                  onPick={(recordSeconds) => change({ recordSeconds })}
+                  onOpenChange={trackMenu}
+                  finalFocus={textFocus(editor)}
+                />
+              ) : null}
+              {settings.recordSeconds === null ? (
+                <BarMenu
+                  label={strings.questionWordLimit}
+                  current={wordsText(settings.wordLimit)}
+                  values={WORD_LIMITS}
+                  text={wordsText}
+                  onPick={(wordLimit) => change({ wordLimit })}
+                  onOpenChange={trackMenu}
+                  finalFocus={textFocus(editor)}
+                />
+              ) : null}
+            </>
           ) : (
             <BarMenu
               label={strings.questionTries}

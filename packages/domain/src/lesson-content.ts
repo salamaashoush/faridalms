@@ -1,9 +1,10 @@
 import type { ContentDocument, ContentNode } from "./content";
 import type { GapSegment } from "./gaps";
-import type { LessonBlock, LessonDocument } from "./learning";
+import type { LessonBlock, LessonDocument, RecordSeconds } from "./learning";
 
 import { sameContent } from "./content";
 import { gapsSource, parseGaps } from "./gaps";
+import { RECORD_SECONDS } from "./learning";
 
 /**
  * A lesson is written as one document whose questions are blocks in the
@@ -72,6 +73,10 @@ function segmentsOf(passages: readonly ContentNode[]): GapSegment[] {
   });
   return segments;
 }
+
+/** A recording length the lesson allows, or none for a written answer. */
+const spokenFor = (seconds: number | null | undefined): RecordSeconds | null =>
+  RECORD_SECONDS.find((allowed) => allowed === seconds) ?? null;
 
 /** A part's picture, when it has one. */
 function pictureOf(node: ContentNode | undefined) {
@@ -144,7 +149,12 @@ function questionBlock(node: ContentNode): LessonBlock | null {
         tehMarbuta: node.tehMarbuta ?? true,
       };
     case "written":
-      return { ...check, type: "written", wordLimit: node.wordLimit ?? null };
+      return {
+        ...check,
+        type: "written",
+        wordLimit: node.wordLimit ?? null,
+        recordSeconds: spokenFor(node.recordSeconds),
+      };
     case "number":
       return {
         ...check,
@@ -558,7 +568,11 @@ export function questionNode(block: LessonBlock): ContentNode | null {
         })),
       ],
     };
-  return { ...base, wordLimit: block.wordLimit };
+  return {
+    ...base,
+    wordLimit: block.wordLimit,
+    recordSeconds: block.recordSeconds ?? null,
+  };
 }
 
 /** A media block as the image, player or file card a document shows it as. */

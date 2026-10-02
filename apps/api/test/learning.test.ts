@@ -929,3 +929,114 @@ describe("templates", () => {
     ).toBe(false);
   });
 });
+
+describe("spoken answers", () => {
+  test("a child answers by recording, which only the module's teachers hear", async () => {
+    const tenant = seeded().tenants[0];
+    const school = tenant?.schools.find((row) => row.slug === "northwind");
+    let keeper: Awaited<ReturnType<typeof sessionFor>> | null = null;
+    let stranger: Awaited<ReturnType<typeof sessionFor>> | null = null;
+    for (const row of tenant?.logins ?? []) {
+      if (row.role !== "teacher" || row.schoolId !== school?.id) continue;
+      const session = await sessionFor("northwind", row.loginName);
+      const { rows } = await session.api.learning.modules({});
+      if (rows.some((item) => item.title === TITLE)) keeper ??= session;
+      else stranger ??= session;
+    }
+    if (!keeper || !stranger) throw new Error("two teachers needed");
+    const { rows } = await keeper.api.learning.modules({});
+    const source = rows.find((row) => row.title === TITLE);
+    if (!source) throw new Error("no module");
+    const saved = await keeper.api.learning.saveModule({
+      id: "",
+      expectedVersion: 0,
+      title: "Animal sounds",
+      summary: "",
+      classIds: source.classes.map((item) => item.id),
+      prerequisiteId: "",
+      sequential: false,
+    });
+    const question = id();
+    const lesson = await keeper.api.learning.saveLesson({
+      id: "",
+      moduleId: saved.id,
+      expectedVersion: 0,
+      title: "Say it",
+      completion: "view",
+      passScore: null,
+      content: written([
+        {
+          id: question,
+          type: "written",
+          prompt: "Make the sound a cat makes.",
+          points: 0,
+          hint: "",
+          explanation: "",
+          tries: null,
+          wordLimit: null,
+          recordSeconds: 45,
+        },
+      ]),
+      publish: false,
+    });
+    await keeper.api.learning.publishModule({
+      id: saved.id,
+      expectedVersion: saved.version,
+    });
+
+    // A WebM file's first bytes, which is all the upload check reads.
+    const sound = new Blob([new Uint8Array([0x1a, 0x45, 0xdf, 0xa3, 1, 2, 3])]);
+    const upload = async (session: typeof keeper) => {
+      const file = await session.api.files.initiate({
+        purpose: "document_media",
+        name: "answer.webm",
+        mediaType: "audio/webm",
+        sizeBytes: sound.size,
+      });
+      await raw("northwind", session.token, `/v1/files/${file.id}/content`, {
+        method: "PUT",
+        body: sound,
+      });
+      return file.id;
+    };
+    const pupil = await sessionFor("northwind", login("student"));
+    const answer = (fileId?: string) =>
+      pupil.api.learning.respond({
+        lessonId: lesson.id,
+        blockId: question,
+        response: {
+          type: "written",
+          text: fileId ? "" : "Meow",
+          ...(fileId ? { recording: { fileId, seconds: 3 } } : {}),
+        },
+      });
+    expect(await rejection(answer())).toMatchObject({
+      code: "BAD_REQUEST",
+      message: "learning.response",
+    });
+    const theirs = await upload(keeper);
+    expect(await rejection(answer(theirs))).toMatchObject({
+      code: "CONFLICT",
+      message: "files.not_linkable",
+    });
+    const mine = await upload(pupil);
+    await answer(mine);
+
+    const me = await pupil.api.identity.currentUser();
+    const listed = [];
+    for (const item of source.classes) {
+      const data = await keeper.api.learning.answers({
+        moduleId: saved.id,
+        classId: item.id,
+      });
+      listed.push(...data.answers.filter((row) => row.studentId === me.id));
+    }
+    expect(listed).toMatchObject([
+      { recording: { fileId: mine, seconds: 3 }, marked: false },
+    ]);
+    const path = `/v1/files/${mine}/content`;
+    expect((await raw("northwind", keeper.token, path)).status).toBe(200);
+    expect((await raw("northwind", pupil.token, path)).status).toBe(200);
+    expect((await raw("northwind", stranger.token, path)).status).toBe(404);
+  });
+});

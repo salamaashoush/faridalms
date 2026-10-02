@@ -99,6 +99,8 @@ export interface EditorProps {
   aiUse?: boolean;
   /** Blocks and question parts may carry a recording that reads them aloud. */
   narration?: boolean;
+  /** A written question may be answered by speaking instead. */
+  spokenAnswers?: boolean;
   /** Told once a live document has arrived from its room and is drawn. */
   onSynced?: () => void;
 }
@@ -115,6 +117,7 @@ export default function Editor({
   starter = false,
   aiUse = false,
   narration = false,
+  spokenAnswers = false,
   onSynced,
   ...props
 }: EditorProps) {
@@ -149,6 +152,7 @@ export default function Editor({
       starter,
       aiUse,
       narration,
+      spokenAnswers,
     }),
     [
       strings,
@@ -160,6 +164,7 @@ export default function Editor({
       starter,
       aiUse,
       narration,
+      spokenAnswers,
     ],
   );
   const [synced, setSynced] = useState(false);
@@ -240,6 +245,7 @@ function Surface({
         sorting: strings.questionSorting,
         gaps: strings.questionGaps,
       },
+      spoken: strings.questionSpoken,
       points: strings.questionPoints,
       answerIs: strings.questionAnswerIs,
       prompt: strings.questionPrompt,
