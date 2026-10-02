@@ -267,9 +267,10 @@ describe("absence notices", () => {
       },
     });
     const probe = await office.attendance.day({});
-    // Two school days before the latest, clear of the other absence tests.
+    // The fifth school day back: the register, notice, report and follow-up
+    // suites take the four after it.
     let date = probe.today;
-    for (let back = 0; back < 3; back += 1) {
+    for (let back = 0; back < 5; back += 1) {
       if (back > 0) date = addDays(date, -1);
       while (offDay(date)) date = addDays(date, -1);
     }
