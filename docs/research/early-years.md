@@ -85,7 +85,8 @@ Each shapes a rule here.
 - Voice answers (6264efa), counting (dad0e28), tracing (9e18422), memory
   pairs (6438ed6), the word builder (d770b64), drawing and photo answers
   (d395bea), find-on-a-picture, and "tell me why" as a spoken question
-  ready to place after any other.
+  ready to place after any other; open pictures in the picture picker,
+  ready-made activities, and picture books imported from EPUB files.
 - The young home (9bc5acd), QR sign-in badges (55a2885, a48de02), a
   guardian's hand-over at home (9738a3e), the teacher's first try, with help
   or not yet grid (6719cde), and the editor's advice for young lessons
@@ -93,5 +94,5 @@ Each shapes a rule here.
 
 ## 4. Next, in order
 
-1. StoryWeaver books as narrated read-along lessons, the last part of the
-   starter library after the open pictures and the ready-made activities.
+1. Recorded narration that follows the words as they are read, once the
+   teacher's voice is in place on read-along books.

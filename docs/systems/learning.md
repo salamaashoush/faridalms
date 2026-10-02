@@ -80,6 +80,11 @@ From [../research/early-years.md](../research/early-years.md).
   activities, one of each kind (picture choice, counting, memory pairs,
   sorting, tracing, word builder, drawing), worded in the teacher's language
   with Arabic vowelled; their pictures are copied in from the library.
+- The same menu turns a picture book in an EPUB file (a StoryWeaver, Book
+  Dash or African Storybook download) into a read-along lesson: each picture
+  starts a screen with the words after it, pictures are copied into the
+  school, and the book's own credits stay as its last screen. StoryWeaver
+  gives its books only to signed-in readers, so the teacher downloads them.
 - Children see no points or scores. Soft notes and a word of praise naming
   what they did answer each try, and the end of the lesson says so once.
 - A young child's home is up to six big cards, a lesson already begun first,

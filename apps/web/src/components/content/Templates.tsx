@@ -24,6 +24,7 @@ import {
 } from "@faridalms/ui/dropdown-menu";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  BookOpen,
   ChevronDown,
   LayoutTemplate,
   LoaderCircle,
@@ -34,6 +35,7 @@ import { toast } from "sonner";
 
 import type { Starter } from "~/components/learning/starters";
 
+import { BookError, importPictureBook } from "~/components/learning/bookImport";
 import { altIn, sayIn, STARTERS } from "~/components/learning/starters";
 import { TextField } from "~/components/system/field";
 import { inLocale } from "~/hooks/useCurrentUser";
@@ -45,7 +47,14 @@ import {
   removeTemplate,
   saveTemplate,
 } from "~/server/templates";
+import { formatNumber } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
+
+const BOOK_ERROR: Record<string, () => string> = {
+  "book.unreadable": m.starterBookUnreadable,
+  "book.empty": m.starterBookEmpty,
+  "book.too_long": m.starterBookTooLong,
+};
 
 const templatesQuery = (kind: TemplateKind) => ({
   queryKey: ["templates", kind],
@@ -113,9 +122,54 @@ export function TemplatePicker({
     onSuccess: (content) => onApply(content),
     onError: (error) => toast.error(getMessageFromError(error)),
   });
+  const book = useMutation({
+    mutationFn: async (file: File) => {
+      if (!starters) throw new Error("file.failed");
+      const progress = toast.loading(m.starterBookReading());
+      try {
+        const imported = await importPictureBook(
+          file,
+          async (picture) => (await starters.upload(picture, "image")).fileId,
+          (done, total) =>
+            toast.loading(
+              m.starterBookProgress({
+                done: formatNumber(done),
+                total: formatNumber(total),
+              }),
+              { id: progress },
+            ),
+        );
+        return imported.content;
+      } finally {
+        toast.dismiss(progress);
+      }
+    },
+    onSuccess: (content) => onApply(content),
+    onError: (error) =>
+      toast.error(
+        error instanceof BookError
+          ? (BOOK_ERROR[error.message] ?? m.starterBookUnreadable)()
+          : getMessageFromError(error),
+      ),
+  });
+  const chooseBook = () => {
+    const input = document.createElement("input");
+    input.type = "file";
+    input.accept = ".epub,application/epub+zip";
+    // Attached while open: Safari on iOS opens no chooser for a detached input.
+    input.hidden = true;
+    input.addEventListener("change", () => {
+      const [file] = input.files ?? [];
+      input.remove();
+      if (file) book.mutate(file);
+    });
+    input.addEventListener("cancel", () => input.remove());
+    document.body.append(input);
+    input.click();
+  };
   if (rows.length === 0 && !starters) return null;
   const mine = rows.filter((row) => row.mine);
-  const busy = apply.isPending || start.isPending;
+  const busy = apply.isPending || start.isPending || book.isPending;
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
@@ -151,6 +205,15 @@ export function TemplatePicker({
                   <span className="truncate">{starter.title()}</span>
                 </DropdownMenuItem>
               ))}
+              <DropdownMenuItem onClick={chooseBook} className="items-start">
+                <BookOpen aria-hidden className="mt-0.5" />
+                <span className="grid gap-0.5">
+                  <span>{m.starterBook()}</span>
+                  <span className="text-xs text-muted-foreground">
+                    {m.starterBookHint()}
+                  </span>
+                </span>
+              </DropdownMenuItem>
             </DropdownMenuGroup>
             {rows.length > 0 ? <DropdownMenuSeparator /> : null}
           </>

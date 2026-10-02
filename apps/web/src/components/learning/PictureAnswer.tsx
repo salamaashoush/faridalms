@@ -20,6 +20,7 @@ import { toast } from "sonner";
 import { useDocumentMedia } from "~/components/coursework/useDocumentMedia";
 import * as m from "~/i18n/messages";
 import { getMessageFromError } from "~/utils/error";
+import { shrunkImage } from "~/utils/images";
 
 import type { CheckDriver } from "./Checks";
 
@@ -310,36 +311,6 @@ function DrawingPad({
   );
 }
 
-/**
- * A photo as a smaller JPEG: what a phone camera takes is many megabytes,
- * and drawing it again leaves behind the place and time it carried.
- */
-async function shrunk(file: File): Promise<File> {
-  const url = URL.createObjectURL(file);
-  try {
-    const image = new Image();
-    image.src = url;
-    await image.decode();
-    const scale = Math.min(
-      1,
-      PHOTO_SIDE / Math.max(image.naturalWidth, image.naturalHeight),
-    );
-    const canvas = document.createElement("canvas");
-    canvas.width = Math.round(image.naturalWidth * scale);
-    canvas.height = Math.round(image.naturalHeight * scale);
-    canvas
-      .getContext("2d")
-      ?.drawImage(image, 0, 0, canvas.width, canvas.height);
-    const blob = await new Promise<Blob | null>((resolve) =>
-      canvas.toBlob(resolve, "image/jpeg", 0.85),
-    );
-    if (!blob) throw new Error("file.failed");
-    return new File([blob], "photo.jpg", { type: "image/jpeg" });
-  } finally {
-    URL.revokeObjectURL(url);
-  }
-}
-
 /** A photo taken with the device's camera, or chosen where there is none. */
 function PhotoPicker({
   young,
@@ -374,7 +345,7 @@ function PhotoPicker({
           event.target.value = "";
           if (!file) return;
           try {
-            const photo = await shrunk(file);
+            const photo = await shrunkImage(file, "photo.jpg", PHOTO_SIDE);
             setTaken({ file: photo, url: URL.createObjectURL(photo) });
           } catch {
             toast.error(m.photoFailed());

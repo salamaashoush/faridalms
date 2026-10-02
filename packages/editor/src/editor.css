@@ -729,6 +729,15 @@
   font-size: 1.3em;
   line-height: 1.9;
 }
+/* A picture on a young child's screen leaves room for the words that go
+   with it, as a picture book's page does. */
+.fe.fe-young figure img {
+  max-height: 50dvh;
+  width: auto;
+  max-width: 100%;
+  margin-inline: auto;
+  object-fit: contain;
+}
 
 /* A find-on-a-picture question shows its picture larger, with the places
    to find outlined over it. Places are measured from the picture's own
