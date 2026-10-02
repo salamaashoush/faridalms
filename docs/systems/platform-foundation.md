@@ -58,7 +58,7 @@ in `decisions.md`; a choice below changes only with new evidence.
 - Gradebook and coursework: assignments, submissions, attempts, rubrics,
   categories, line items, score scales, results, period grades.
 - Attendance: attendance events, attendance taken, registers.
-- Communication: threads, messages, announcements, newsletters, calendar
+- Communication: threads, messages, announcements, news posts, calendar
   events, notifications, delivery ledger, preferences, the office inbox.
 - Learning: modules, lessons, lesson progress, assessment items.
 - Website: pages, posts, post categories and revisions, site settings, the
@@ -1896,7 +1896,7 @@ code `tool_<registration id>`.
 | --------------------------------- | ----------------------------------------- | --------------------------------------------- | --------------------- |
 | photo_school_website              | Photos on the school website              | نشر الصور على موقع المدرسة                    | photo_public          |
 | photo_social_media                | Photos on the school's social media       | نشر الصور على حسابات المدرسة في وسائل التواصل | photo_public          |
-| photo_newsletter                  | Photos in newsletters                     | الصور في النشرات الإخبارية                    | photo_internal        |
+| photo_school_news                 | Photos in school news                     | الصور في أخبار المدرسة                        | photo_internal        |
 | share_contact_with_class_families | Share contact details with class families | مشاركة بيانات التواصل مع أسر الفصل            | directory_sharing     |
 | administer_medicine               | Give medicine at school                   | إعطاء الدواء في المدرسة                       | administer_medicine   |
 | voice_recording                   | Voice recordings in lessons               | التسجيلات الصوتية في الدروس                   | voice_recording       |
@@ -3736,7 +3736,7 @@ create table core.documents (
   host_type text not null check (host_type ~ '^[a-z][a-z0-9_]{1,62}$'),
   host_id uuid not null,
   org_id uuid,
-  kind text not null check (kind in ('rich_text', 'newsletter', 'page', 'lesson', 'transcript')),
+  kind text not null check (kind in ('rich_text', 'page', 'lesson', 'transcript')),
   schema_version smallint not null check (schema_version > 0),
   locale text check (locale in ('ar', 'en')),
   translation_of_id uuid,

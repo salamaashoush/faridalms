@@ -1,33 +1,30 @@
 import type { ContentDocument } from "@faridalms/domain/content";
-import type { NewsletterLocale } from "@faridalms/domain/newsletters";
+import type { NewsLocale } from "@faridalms/domain/news";
 
-import { documentWritten } from "@faridalms/domain/newsletters";
+import { documentWritten, otherNewsLocale } from "@faridalms/domain/news";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@faridalms/ui/tabs";
 
 import { ContentView } from "~/components/content/ContentView";
 import * as m from "~/i18n/messages";
 
-export const LOCALE_LABEL: Record<NewsletterLocale, () => string> = {
-  en: m.nlLangEn,
-  ar: m.nlLangAr,
+export const LOCALE_LABEL: Record<NewsLocale, () => string> = {
+  en: m.newsLangEn,
+  ar: m.newsLangAr,
 };
 
 /** A language's name within a sentence of the interface language. */
-export const LOCALE_NAME: Record<NewsletterLocale, () => string> = {
-  en: m.nlNameEn,
-  ar: m.nlNameAr,
+export const LOCALE_NAME: Record<NewsLocale, () => string> = {
+  en: m.newsNameEn,
+  ar: m.newsNameAr,
 };
-
-export const otherLocale = (locale: NewsletterLocale): NewsletterLocale =>
-  locale === "en" ? "ar" : "en";
 
 const fileUrl = (fileId: string) => `/files/${fileId}`;
 
 /**
- * An edition in one language. Until the translation is written the original
+ * A post in one language. Until the translation is written the original
  * shows in its place, saying so, rather than the reader meeting a blank page.
  */
-function EditionIn({
+function PostIn({
   body,
   translation,
   primary,
@@ -35,8 +32,8 @@ function EditionIn({
 }: {
   body: ContentDocument;
   translation: ContentDocument | null;
-  primary: NewsletterLocale;
-  locale: NewsletterLocale;
+  primary: NewsLocale;
+  locale: NewsLocale;
 }) {
   const translated = locale !== primary && documentWritten(translation);
   const shown = translated && translation ? translation : body;
@@ -45,7 +42,7 @@ function EditionIn({
     <div className="grid gap-4">
       {locale !== primary && !translated ? (
         <p className="text-[13px] leading-[18px] text-muted-foreground">
-          {m.nlNotTranslated({
+          {m.newsNotTranslated({
             language: LOCALE_NAME[locale](),
             original: LOCALE_NAME[primary](),
           })}
@@ -58,8 +55,8 @@ function EditionIn({
   );
 }
 
-/** An edition to read, with a switch between its languages when it has two. */
-export function NewsletterView({
+/** A post to read, with a switch between its languages when it has two. */
+export function NewsView({
   body,
   translation,
   primary,
@@ -68,27 +65,27 @@ export function NewsletterView({
 }: {
   body: ContentDocument;
   translation: ContentDocument | null;
-  primary: NewsletterLocale;
-  locale: NewsletterLocale;
-  onLocaleChange: (locale: NewsletterLocale) => void;
+  primary: NewsLocale;
+  locale: NewsLocale;
+  onLocaleChange: (locale: NewsLocale) => void;
 }) {
   if (!translation)
     return (
-      <EditionIn
+      <PostIn
         body={body}
         translation={null}
         primary={primary}
         locale={primary}
       />
     );
-  const locales = [primary, otherLocale(primary)];
+  const locales = [primary, otherNewsLocale(primary)];
   return (
     <Tabs
       value={locale}
-      onValueChange={(value: NewsletterLocale) => onLocaleChange(value)}
+      onValueChange={(value: NewsLocale) => onLocaleChange(value)}
       className="grid gap-5"
     >
-      <TabsList aria-label={m.nlLanguage()}>
+      <TabsList aria-label={m.newsLanguage()}>
         {locales.map((value) => (
           <TabsTrigger key={value} value={value} lang={value}>
             {LOCALE_LABEL[value]()}
@@ -97,7 +94,7 @@ export function NewsletterView({
       </TabsList>
       {locales.map((value) => (
         <TabsContent key={value} value={value}>
-          <EditionIn
+          <PostIn
             body={body}
             translation={translation}
             primary={primary}

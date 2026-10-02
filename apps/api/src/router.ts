@@ -21,7 +21,7 @@ import * as identity from "./systems/identity";
 import * as learningSystem from "./systems/learning";
 import * as librarySystem from "./systems/library";
 import * as messagesSystem from "./systems/messages";
-import * as newslettersSystem from "./systems/newsletters";
+import * as newsSystem from "./systems/news";
 import * as notificationsSystem from "./systems/notifications";
 import * as peopleSystem from "./systems/people";
 import * as privacySystem from "./systems/privacy";
@@ -60,7 +60,7 @@ export const router = {
   cover: coverSystem,
   messages: messagesSystem,
   announcements: announcementsSystem,
-  newsletters: newslettersSystem,
+  news: newsSystem,
   calendar: calendarSystem,
   notifications: notificationsSystem,
   learning: learningSystem,

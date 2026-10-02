@@ -15,7 +15,8 @@ import {
   uuid,
 } from "drizzle-orm/pg-core";
 
-import { announcements } from "./announcements";
+import type { AudienceScope } from "./announcements";
+
 import {
   baseConstraints,
   ck,
@@ -28,11 +29,14 @@ import {
   roles,
   tenantColumns,
 } from "./conventions";
+import { descriptors } from "./descriptors";
 import { files } from "./files";
 import { users } from "./people";
+import { classes } from "./teaching";
 import { orgs, tenants } from "./tenancy";
 
 export type SiteLocale = "en" | "ar";
+export type PostVisibility = "public" | "school";
 export type SiteState = "draft" | "published" | "archived";
 export type BannerTone = "info" | "warning" | "danger";
 export type { SocialLink };
@@ -242,10 +246,21 @@ export const sitePosts = core.table.withRLS(
     coverAltAr: text("cover_alt_ar").notNull().default(""),
     pinned: boolean("pinned").notNull().default(false),
     state: text("state").$type<SiteState>().notNull().default("draft"),
+    /** Public posts are on the website too; school posts reach only their audience. */
+    visibility: text("visibility")
+      .$type<PostVisibility>()
+      .notNull()
+      .default("public"),
     publishedAt: instant("published_at"),
     revisedAt: instant("revised_at"),
-    announcementId: uuid("announcement_id"),
     authorUserId: uuid("author_user_id").notNull(),
+    /**
+     * Who checked the translation against the original, when, and a digest
+     * of the original's words then, which tells whether it has changed since.
+     */
+    translationReviewedAt: instant("translation_reviewed_at"),
+    translationReviewedByUserId: uuid("translation_reviewed_by_user_id"),
+    translationSourceDigest: text("translation_source_digest"),
     ...entityColumns(),
   },
   (t): PgTableExtraConfigValue[] => [
@@ -258,12 +273,18 @@ export const sitePosts = core.table.withRLS(
       [siteCategories.tenantId, siteCategories.id],
     ),
     fk("site_posts", [t.tenantId, t.coverFileId], [files.tenantId, files.id]),
+    fk("site_posts", [t.tenantId, t.authorUserId], [users.tenantId, users.id]),
     fk(
       "site_posts",
-      [t.tenantId, t.announcementId],
-      [announcements.tenantId, announcements.id],
+      [t.tenantId, t.translationReviewedByUserId],
+      [users.tenantId, users.id],
     ),
-    fk("site_posts", [t.tenantId, t.authorUserId], [users.tenantId, users.id]),
+    ck("site_posts", "visibility", sql`visibility in ('public', 'school')`),
+    ck(
+      "site_posts",
+      "translation_review",
+      sql`(translation_reviewed_at is null) = (translation_reviewed_by_user_id is null) and (translation_reviewed_at is null) = (translation_source_digest is null)`,
+    ),
     ck(
       "site_posts",
       "slug",
@@ -362,6 +383,87 @@ export const sitePublishedPages = core.table.withRLS(
 );
 
 /** A post as visitors read it in one language, written when it is published. */
+/** Who a post is told to, resolved to people when it is published. */
+export const sitePostAudiences = core.table.withRLS(
+  "site_post_audiences",
+  {
+    ...tenantColumns(),
+    postId: uuid("post_id").notNull(),
+    scope: text("scope").$type<AudienceScope>().notNull(),
+    classId: uuid("class_id"),
+    gradeDescriptorId: uuid("grade_descriptor_id"),
+    gradeNs: text("grade_ns").notNull().default("grade_level"),
+    ...entityColumns(),
+  },
+  (t): PgTableExtraConfigValue[] => [
+    pk("site_post_audiences", t.tenantId, t.id),
+    ...baseConstraints("site_post_audiences", t, tenants),
+    fk(
+      "site_post_audiences",
+      [t.tenantId, t.postId],
+      [sitePosts.tenantId, sitePosts.id],
+    ),
+    fk(
+      "site_post_audiences",
+      [t.tenantId, t.classId],
+      [classes.tenantId, classes.id],
+    ),
+    fk(
+      "site_post_audiences",
+      [t.tenantId, t.gradeDescriptorId, t.gradeNs],
+      [descriptors.tenantId, descriptors.id, descriptors.namespace],
+    ),
+    ck(
+      "site_post_audiences",
+      "scope",
+      sql`scope in ('school', 'staff', 'families', 'students', 'class', 'grade')`,
+    ),
+    ck("site_post_audiences", "grade_ns", sql`grade_ns = 'grade_level'`),
+    ck(
+      "site_post_audiences",
+      "target",
+      sql`(scope = 'class') = (class_id is not null) and (scope = 'grade') = (grade_descriptor_id is not null)`,
+    ),
+    index("site_post_audiences_post_idx")
+      .on(t.tenantId, t.postId)
+      .where(sql`status = 'active'`),
+    ...entityProfile(),
+  ],
+);
+
+/** The people a post reached when published, and when each opened it. */
+export const sitePostRecipients = core.table.withRLS(
+  "site_post_recipients",
+  {
+    ...tenantColumns(),
+    postId: uuid("post_id").notNull(),
+    userId: uuid("user_id").notNull(),
+    readAt: instant("read_at"),
+    ...entityColumns(),
+  },
+  (t): PgTableExtraConfigValue[] => [
+    pk("site_post_recipients", t.tenantId, t.id),
+    ...baseConstraints("site_post_recipients", t, tenants),
+    fk(
+      "site_post_recipients",
+      [t.tenantId, t.postId],
+      [sitePosts.tenantId, sitePosts.id],
+    ),
+    fk(
+      "site_post_recipients",
+      [t.tenantId, t.userId],
+      [users.tenantId, users.id],
+    ),
+    uniqueIndex("site_post_recipients_key")
+      .on(t.tenantId, t.postId, t.userId)
+      .where(sql`status = 'active'`),
+    index("site_post_recipients_user_idx")
+      .on(t.tenantId, t.userId)
+      .where(sql`status = 'active'`),
+    ...entityProfile(),
+  ],
+);
+
 export const sitePublishedPosts = core.table.withRLS(
   "site_published_posts",
   {

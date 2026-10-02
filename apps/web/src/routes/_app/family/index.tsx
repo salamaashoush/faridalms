@@ -238,7 +238,7 @@ function ChildCard({
 
 /**
  * A family's home: each child's day and anything that needs the family,
- * then pinned news and the latest newsletter. The chosen child stays in the
+ * then pinned announcements and the latest school news. The chosen child stays in the
  * address.
  */
 function FamilyHome() {
@@ -308,27 +308,37 @@ function FamilyHome() {
         </HomeList>
       </HomeCard>
     ) : null,
-    data.newsletter ? (
+    data.news ? (
       <HomeCard
-        key="newsletter"
-        title={m.homeLatestNewsletter()}
+        key="news"
+        title={m.homeLatestNews()}
         action={{
-          label: m.homeOpenNewsletters(),
-          link: { to: "/newsletters", search: {} },
+          label: m.homeOpenNews(),
+          link: { to: "/news", search: {} },
         }}
       >
         <HomeList>
           <HomeItem
             title={
               <Link
-                to="/newsletters/$newsletterId"
-                params={{ newsletterId: data.newsletter.id }}
+                to="/news/$postId"
+                params={{ postId: data.news.id }}
                 className={itemLink}
               >
-                <bdi>{data.newsletter.title}</bdi>
+                <bdi>
+                  {inLocale(
+                    data.news.titleEn || null,
+                    data.news.titleAr || null,
+                  )}
+                </bdi>
               </Link>
             }
-            summary={data.newsletter.summary}
+            summary={
+              inLocale(
+                data.news.excerptEn || null,
+                data.news.excerptAr || null,
+              ) || data.news.summary
+            }
           />
         </HomeList>
       </HomeCard>

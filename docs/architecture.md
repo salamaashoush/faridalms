@@ -156,13 +156,13 @@ Messages, delivery rows and attachment links commit in one transaction.
 
 Notifications follow a transactional outbox. Publishing an assignment,
 releasing an assessment, sending a message or reply, publishing an
-announcement and publishing a newsletter edition each write a
+announcement and publishing a news post each write a
 `notification_events` row, one `notifications` row per recipient and one
 `notification_deliveries` row per channel inside the same school-database
 transaction as the change itself. Recipients are resolved from relationships:
 the learners an assignment reaches and their guardians, the student and
 guardians of a released result, the addressees of a message, and the roles an
-announcement or newsletter names. In-app delivery is the row's existence;
+announcement or news post names. In-app delivery is the row's existence;
 email and SMS rows start pending and a worker in the API process claims them
 per school with row locks, renders the recipient's chosen language from
 server-side templates, calls the configured provider adapter and records the

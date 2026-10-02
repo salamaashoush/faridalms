@@ -143,16 +143,20 @@ export function getMessageFromError(error: unknown): string {
         return m.annErrNoAck();
       case "announcements.audience_target":
         return m.annAudienceTarget();
-      case "newsletters.archived":
-        return m.nlErrArchived();
-      case "newsletters.already_out":
-        return m.nlErrAlreadyOut();
-      case "newsletters.nobody":
+      case "news.archived":
+        return m.newsErrArchived();
+      case "news.already_out":
+        return m.newsErrAlreadyOut();
+      case "news.nobody":
         return m.annErrNobody();
-      case "newsletters.empty":
-        return m.nlBodyNeeded();
-      case "newsletters.nothing_to_check":
-        return m.nlErrNothingToCheck();
+      case "news.empty":
+        return m.newsBodyNeeded();
+      case "news.nothing_to_check":
+        return m.newsErrNothingToCheck();
+      case "news.title":
+        return m.newsTitleNeeded();
+      case "news.audience":
+        return m.newsErrAudience();
       case "messages.no_guardians":
         return m.msgNoGuardians();
       case "messages.recipient":

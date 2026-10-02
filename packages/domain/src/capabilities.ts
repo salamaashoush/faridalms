@@ -28,7 +28,7 @@ export const CAPABILITIES = [
   "calendar:manage",
   "calendar:author",
   "announcements:manage",
-  "newsletters:manage",
+  "news:manage",
   "site:manage",
   "reports:read",
   "roster:read",

@@ -53,9 +53,9 @@ const UPLOADERS: Record<FilePurpose, Capability[] | null> = {
     "calendar:author",
     "calendar:manage",
     "announcements:manage",
-    "newsletters:manage",
+    "news:manage",
   ],
-  site_media: ["site:manage"],
+  site_media: ["site:manage", "news:manage"],
   avatar: null,
   // A family's note for an absence; it is of use only once a report holds it.
   evidence: null,

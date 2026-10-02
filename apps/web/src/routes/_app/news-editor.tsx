@@ -3,22 +3,19 @@ import { createFileRoute } from "@tanstack/react-router";
 import { useState } from "react";
 import * as v from "valibot";
 
-import { NewsletterEditor } from "~/components/newsletters/NewsletterEditor";
+import { NewsEditor } from "~/components/news/NewsEditor";
 import * as m from "~/i18n/messages";
-import {
-  newsletterEditorQuery,
-  newsletterOptionsQuery,
-} from "~/queries/newsletters";
+import { newsEditorQuery, newsOptionsQuery } from "~/queries/news";
 
-export const Route = createFileRoute("/_app/admin/newsletter-editor")({
-  staticData: { breadcrumb: m.nlEditorBreadcrumb, section: "/newsletters" },
+export const Route = createFileRoute("/_app/news-editor")({
+  staticData: { breadcrumb: m.newsEditorBreadcrumb, section: "/news" },
   validateSearch: v.object({ id: v.optional(v.pipe(v.string(), v.uuid())) }),
   loaderDeps: ({ search }) => search,
   loader: async ({ context, deps }) => {
     await Promise.all([
-      context.queryClient.ensureQueryData(newsletterOptionsQuery),
+      context.queryClient.ensureQueryData(newsOptionsQuery),
       ...(deps.id
-        ? [context.queryClient.ensureQueryData(newsletterEditorQuery(deps.id))]
+        ? [context.queryClient.ensureQueryData(newsEditorQuery(deps.id))]
         : []),
     ]);
   },
@@ -34,9 +31,9 @@ function Existing({
   onClose: (id?: string) => void;
   onCreated: (id: string) => void;
 }) {
-  const existing = useSuspenseQuery(newsletterEditorQuery(id)).data;
+  const existing = useSuspenseQuery(newsEditorQuery(id)).data;
   return (
-    <NewsletterEditor
+    <NewsEditor
       key={existing.id}
       existing={existing}
       onClose={onClose}
@@ -50,13 +47,10 @@ function EditorPage() {
   const navigate = Route.useNavigate();
   const close = (saved?: string) =>
     void (saved
-      ? navigate({
-          to: "/newsletters/$newsletterId",
-          params: { newsletterId: saved },
-        })
-      : navigate({ to: "/newsletters", search: {} }));
-  // The first autosave gives a new edition its address, so a reload reopens
-  // it; the editor already open stays mounted with what is being typed.
+      ? navigate({ to: "/news/$postId", params: { postId: saved } })
+      : navigate({ to: "/news", search: {} }));
+  // The first autosave gives a new post its address, so a reload reopens it;
+  // the editor already open stays mounted with what is being typed.
   const [started, setStarted] = useState<string | null>(null);
   const created = (saved: string) => {
     setStarted(saved);
@@ -65,6 +59,6 @@ function EditorPage() {
   return id && id !== started ? (
     <Existing id={id} onClose={close} onCreated={created} />
   ) : (
-    <NewsletterEditor existing={null} onClose={close} onCreated={created} />
+    <NewsEditor existing={null} onClose={close} onCreated={created} />
   );
 }

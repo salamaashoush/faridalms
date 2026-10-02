@@ -94,7 +94,7 @@ describe("delivery time", () => {
     ).toBe("2026-10-04T04:00:00.000Z");
     expect(
       deliveryTime({
-        kind: "newsletter",
+        kind: "news",
         channel: "sms",
         preferences: DEFAULT_PREFERENCES,
         school: cairo,

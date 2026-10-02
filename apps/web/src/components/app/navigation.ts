@@ -86,7 +86,7 @@ export const NAVIGATION: Record<Workspace, NavSection[]> = {
       items: [
         { to: "/admin/messages", label: m.navMessages, icon: Inbox },
         { to: "/announcements", label: m.navAnnouncements, icon: Megaphone },
-        { to: "/newsletters", label: m.navNewsletters, icon: Newspaper },
+        { to: "/news", label: m.navNews, icon: Newspaper },
         { to: "/calendar", label: m.navCalendar, icon: CalendarDays },
       ],
     },
@@ -149,7 +149,7 @@ export const NAVIGATION: Record<Workspace, NavSection[]> = {
       items: [
         { to: "/teach/messages", label: m.navMessages, icon: Inbox },
         { to: "/announcements", label: m.navAnnouncements, icon: Megaphone },
-        { to: "/newsletters", label: m.navNewsletters, icon: Newspaper },
+        { to: "/news", label: m.navNews, icon: Newspaper },
         { to: "/calendar", label: m.navCalendar, icon: CalendarDays },
       ],
     },
@@ -181,7 +181,7 @@ export const NAVIGATION: Record<Workspace, NavSection[]> = {
       items: [
         { to: "/family/messages", label: m.navMessages, icon: Inbox },
         { to: "/announcements", label: m.navAnnouncements, icon: Megaphone },
-        { to: "/newsletters", label: m.navNewsletters, icon: Newspaper },
+        { to: "/news", label: m.navNews, icon: Newspaper },
         { to: "/calendar", label: m.navCalendar, icon: CalendarDays },
       ],
     },
@@ -214,7 +214,7 @@ export const NAVIGATION: Record<Workspace, NavSection[]> = {
       items: [
         { to: "/me/messages", label: m.navMessages, icon: Inbox },
         { to: "/announcements", label: m.navAnnouncements, icon: Megaphone },
-        { to: "/newsletters", label: m.navNewsletters, icon: Newspaper },
+        { to: "/news", label: m.navNews, icon: Newspaper },
         { to: "/calendar", label: m.navCalendar, icon: CalendarDays },
       ],
     },

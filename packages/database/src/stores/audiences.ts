@@ -17,13 +17,13 @@ export interface Audience {
 
 /** What an audience list belongs to; each kind keeps its own audience table. */
 export interface AudienceOwner {
-  kind: "announcement" | "newsletter" | "calendar_event";
+  kind: "announcement" | "site_post" | "calendar_event";
   id: string;
 }
 
 const OWNERS = {
   announcement: { table: "announcement_audiences", column: "announcement_id" },
-  newsletter: { table: "newsletter_audiences", column: "newsletter_id" },
+  site_post: { table: "site_post_audiences", column: "post_id" },
   calendar_event: { table: "calendar_event_audiences", column: "event_id" },
 } as const;
 

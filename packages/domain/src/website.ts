@@ -8,7 +8,6 @@ import type {
   SiteLocale,
 } from "./site-sections";
 
-import { contentDocumentSchema, contentPlainText } from "./content";
 import { isSafeContentUrl } from "./rich-text";
 import {
   bodyIssues,
@@ -81,13 +80,6 @@ export const pageContentSchema = v.pipe(
   ),
 );
 export type PageContent = v.InferOutput<typeof pageContentSchema>;
-
-/** A post's body in one language; a translation says whether someone checked it. */
-export const postContentSchema = v.object({
-  body: contentDocumentSchema,
-  reviewed: v.optional(v.boolean(), false),
-});
-export type PostContent = v.InferOutput<typeof postContentSchema>;
 
 export function pagePlainText(content: PageContent): string {
   return [content.description, ...content.sections.flatMap(sectionWords)]
@@ -190,9 +182,6 @@ export function postIssues(post: {
   if (post.coverFileId && !post.coverAlt.trim()) found.add("alt");
   return [...found];
 }
-
-export const postWords = (content: PostContent) =>
-  contentPlainText(content.body);
 
 /**
  * What a visitor sends from a form section. `website` is a field people
@@ -306,46 +295,6 @@ export const saveCategorySchema = v.object({
   nameEn: v.pipe(v.string(), v.trim(), v.maxLength(100)),
   nameAr: v.pipe(v.string(), v.trim(), v.maxLength(100)),
 });
-
-export const savePostSchema = v.object({
-  id: optionalId,
-  expectedVersion: version(0),
-  categoryId: optionalId,
-  slug: siteSlugSchema,
-  ...titles,
-  excerptEn: v.pipe(v.string(), v.trim(), v.maxLength(300)),
-  excerptAr: v.pipe(v.string(), v.trim(), v.maxLength(300)),
-  coverFileId: optionalId,
-  coverAltEn: v.pipe(v.string(), v.trim(), v.maxLength(300)),
-  coverAltAr: v.pipe(v.string(), v.trim(), v.maxLength(300)),
-  pinned: v.boolean(),
-  content: postContentSchema,
-  translation: v.nullable(postContentSchema),
-});
-export type SavePost = v.InferOutput<typeof savePostSchema>;
-
-export const publishPostSchema = v.object({
-  ...publishSchema.entries,
-  /** Also tell the whole school, as an announcement linking to the post. */
-  announce: v.optional(v.boolean(), false),
-});
-
-export const POST_TABS = [
-  "published",
-  "scheduled",
-  "drafts",
-  "archived",
-] as const;
-export type PostTab = (typeof POST_TABS)[number];
-
-export const postsQuerySchema = v.object({
-  tab: v.fallback(v.optional(v.picklist(POST_TABS), "published"), "published"),
-  q: v.fallback(
-    v.optional(v.pipe(v.string(), v.trim(), v.maxLength(100)), ""),
-    "",
-  ),
-});
-export type PostsQuery = v.InferOutput<typeof postsQuerySchema>;
 
 const school = v.pipe(
   v.string(),

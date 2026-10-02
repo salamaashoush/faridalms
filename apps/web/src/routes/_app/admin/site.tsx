@@ -1,4 +1,3 @@
-import { POST_TABS } from "@faridalms/domain/website";
 import { WORKSPACE_HOME } from "@faridalms/domain/workspace";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import {
@@ -12,29 +11,19 @@ import * as v from "valibot";
 import { SiteCategories } from "~/components/site/SiteCategories";
 import { SiteEnquiries } from "~/components/site/SiteEnquiries";
 import { SitePages } from "~/components/site/SitePages";
-import { SitePosts } from "~/components/site/SitePosts";
 import { SiteSettings } from "~/components/site/SiteSettings";
 import { PageHeader } from "~/components/system/IndexPage";
 import { RecordTabs } from "~/components/system/RecordPage";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
-import {
-  siteEnquiriesQuery,
-  siteOverviewQuery,
-  sitePostsQuery,
-} from "~/queries/site";
+import { siteEnquiriesQuery, siteOverviewQuery } from "~/queries/site";
 import { currentUserQuery } from "~/queries/user";
 import siteCss from "~/styles/site.css?url";
 
-const TABS = ["pages", "posts", "enquiries", "categories", "settings"] as const;
+const TABS = ["pages", "enquiries", "categories", "settings"] as const;
 
 const searchSchema = v.object({
   tab: v.fallback(v.optional(v.picklist(TABS), "pages"), "pages"),
-  posts: v.fallback(
-    v.optional(v.picklist(POST_TABS), "published"),
-    "published",
-  ),
-  q: v.fallback(v.optional(v.pipe(v.string(), v.maxLength(100)), ""), ""),
   handled: v.fallback(v.optional(v.boolean(), false), false),
 });
 type Search = v.InferOutput<typeof searchSchema>;
@@ -50,11 +39,6 @@ export const Route = createFileRoute("/_app/admin/site")({
       throw redirect({ to: WORKSPACE_HOME[user.workspace] });
     await Promise.all([
       context.queryClient.ensureQueryData(siteOverviewQuery),
-      deps.tab === "posts"
-        ? context.queryClient.ensureQueryData(
-            sitePostsQuery({ tab: deps.posts, q: deps.q }),
-          )
-        : null,
       deps.tab === "enquiries"
         ? context.queryClient.ensureQueryData(siteEnquiriesQuery(deps.handled))
         : null,
@@ -66,7 +50,6 @@ export const Route = createFileRoute("/_app/admin/site")({
 
 const TAB_LABEL: Record<(typeof TABS)[number], () => string> = {
   pages: m.siteTabPages,
-  posts: m.siteTabPosts,
   enquiries: m.siteTabEnquiries,
   categories: m.siteTabCategories,
   settings: m.siteTabSettings,
@@ -106,16 +89,6 @@ function WebsitePage() {
       >
         {search.tab === "pages" ? (
           <SitePages overview={overview} />
-        ) : search.tab === "posts" ? (
-          <SitePosts
-            search={{ tab: search.posts, q: search.q }}
-            onSearch={(change) =>
-              patch({
-                ...(change.tab ? { posts: change.tab } : {}),
-                ...(change.q === undefined ? {} : { q: change.q }),
-              })
-            }
-          />
         ) : search.tab === "enquiries" ? (
           <SiteEnquiries
             handled={search.handled}

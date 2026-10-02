@@ -2,7 +2,7 @@
 
 The LMS and CMS need one content system. Its editor, document validation,
 static renderer and media authorization form the common boundary; each host
-supplies the record context and available actions, including publication rules. A newsletter layout, an assignment brief,
+supplies the record context and available actions, including publication rules. A news post, an assignment brief,
 a message and a school blog article must not each implement their own rich-text
 engine. Lexical is the editor framework selected for this shared surface.
 
@@ -19,16 +19,16 @@ Assignment briefs, learner responses, assessment feedback, new messages and
 replies now save the shared document; the assignment record, attempt history
 and conversation view render it through the static renderer. Plain-text and
 Markdown messages written by older clients keep their format and renderers.
-Announcements, calendar events and newsletters are written as one document
-each; a newsletter keeps one document per language, the translation checked
-as a whole against the original, and publishes into immutable editions read
+Announcements, calendar events and news posts are written as one document
+each; a news post keeps one document per language, the translation checked
+as a whole against the original, and publishes into immutable versions read
 on their own page.
 
 `apps/web/src/components/content/ContentEditor.tsx` uses Lexical's extension API
 with stable initialization. `ContentToolbar.tsx` supplies the shared controls.
 `ContentView.tsx` renders stored content without loading the editing runtime.
 The renderer does not execute raw HTML or arbitrary CSS from stored records.
-Existing newsletter text blocks convert through `content-conversion.ts` when
+Older rich-text blocks convert through `content-conversion.ts` when
 edited; the original representation remains readable. New rich content blocks
 save the shared document. Other authoring surfaces are not connected yet.
 
@@ -47,7 +47,7 @@ Official references: [Lexical](https://lexical.dev/),
   records and their API clients. Blog authoring follows the LMS integrations.
 - Provide contextual editor controls without changing the document format:
   recipient and notification choices for messages, audience and publication for
-  newsletters, deadlines and assessment settings for assignments.
+  news, deadlines and assessment settings for assignments.
 - Build school-scoped private assets, upload lifecycle, downloads, image sizing,
   captions, alternative text, file attachments and authorized media rendering.
   Embed providers need explicit allowlists and privacy controls.

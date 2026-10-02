@@ -9,7 +9,7 @@ export const SEARCH_KINDS = [
   "assignments",
   "learning",
   "announcements",
-  "newsletters",
+  "news",
   "events",
   "messages",
 ] as const;
@@ -40,7 +40,7 @@ const KIND_CAPABILITIES: Record<SearchKind, readonly Capability[]> = {
   assignments: ["assignments:author", "own-work:read", "children:read"],
   learning: ["learning:author", "learning:read", "children:read"],
   announcements: [],
-  newsletters: [],
+  news: [],
   events: ["calendar:read"],
   messages: ["messages:read"],
 };
@@ -64,7 +64,7 @@ export type SearchTarget =
   | "module"
   | "lesson"
   | "announcement"
-  | "newsletter"
+  | "news"
   | "event"
   | "thread";
 

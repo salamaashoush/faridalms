@@ -923,9 +923,9 @@ export const CATALOGUE: readonly SeedNamespace[] = [
         meaning: "photo_public",
       },
       {
-        code: "photo_newsletter",
-        en: "Photos in newsletters",
-        ar: "الصور في النشرات الإخبارية",
+        code: "photo_school_news",
+        en: "Photos in school news",
+        ar: "الصور في أخبار المدرسة",
         meaning: "photo_internal",
       },
       {

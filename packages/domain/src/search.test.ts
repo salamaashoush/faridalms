@@ -22,7 +22,7 @@ describe("searchableKinds", () => {
       "assignments",
       "learning",
       "announcements",
-      "newsletters",
+      "news",
       "events",
       "messages",
     ]);
@@ -37,12 +37,12 @@ describe("searchableKinds", () => {
       "classes",
       "assignments",
       "announcements",
-      "newsletters",
+      "news",
     ]);
   });
 
   it("leaves only the school's news to someone with no capability", () => {
-    expect(searchableKinds([])).toEqual(["announcements", "newsletters"]);
+    expect(searchableKinds([])).toEqual(["announcements", "news"]);
   });
 });
 

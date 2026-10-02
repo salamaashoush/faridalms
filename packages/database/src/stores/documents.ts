@@ -10,6 +10,7 @@ type Tx = CellTransaction;
 export interface HostedDocument {
   id: string;
   version: number;
+  locale: "ar" | "en" | null;
   content: Record<string, unknown>;
   plainText: string;
   frozenAt: string | null;
@@ -28,11 +29,12 @@ export async function documentOf(
   const [row] = await tx.execute<{
     id: string;
     version: number;
+    locale: "ar" | "en" | null;
     content: Record<string, unknown>;
     plain_text: string;
     frozen_at: string | null;
   }>(sql`
-    select id, version, content, plain_text, frozen_at::text as frozen_at from core.documents
+    select id, version, locale, content, plain_text, frozen_at::text as frozen_at from core.documents
     where tenant_id = ${tenantId}::uuid and host_type = ${host.type} and host_id = ${host.id}::uuid
       and status = 'active' and translation_of_id is null
     order by created_at desc limit 1`);
@@ -40,6 +42,7 @@ export async function documentOf(
     ? {
         id: row.id,
         version: row.version,
+        locale: row.locale,
         content: row.content,
         plainText: row.plain_text,
         frozenAt: row.frozen_at,
@@ -175,6 +178,7 @@ export async function freezeCopy(
 type TranslationRecord = {
   id: string;
   version: number;
+  locale: "ar" | "en" | null;
   content: Record<string, unknown>;
   plain_text: string;
   frozen_at: string | null;
@@ -186,7 +190,7 @@ export async function translationOf(
   originalId: string,
 ): Promise<HostedDocument | null> {
   const [row] = await tx.execute<TranslationRecord>(sql`
-    select id, version, content, plain_text, frozen_at::text as frozen_at from core.documents
+    select id, version, locale, content, plain_text, frozen_at::text as frozen_at from core.documents
     where tenant_id = ${tenantId}::uuid and translation_of_id = ${originalId}::uuid
       and status = 'active'
     order by created_at desc limit 1`);
@@ -194,6 +198,7 @@ export async function translationOf(
     ? {
         id: row.id,
         version: row.version,
+        locale: row.locale,
         content: row.content,
         plainText: row.plain_text,
         frozenAt: row.frozen_at,

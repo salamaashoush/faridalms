@@ -9,7 +9,7 @@ import { formatInstant } from "~/components/coursework/format";
 import { RecordList } from "~/components/system/RecordPage";
 import { inLocale, useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
-import { restoreSitePage, restoreSitePost } from "~/server/site";
+import { restoreSitePage } from "~/server/site";
 import { getMessageFromError } from "~/utils/error";
 
 import type { Languages } from "./studio/draft";
@@ -38,12 +38,10 @@ const REASON: Record<Version["reason"], () => string> = {
  * visitors see it only once it is published again.
  */
 export function History({
-  kind,
   id,
   rows,
   languages,
 }: {
-  kind: "page" | "post";
   id: string;
   rows: Version[];
   languages: Languages;
@@ -57,9 +55,7 @@ export function History({
         locale: row.locale,
         documentVersion: row.documentVersion,
       };
-      return kind === "page"
-        ? restoreSitePage({ data })
-        : restoreSitePost({ data });
+      return restoreSitePage({ data });
     },
     onSuccess: async () => {
       await queryClient.invalidateQueries({ queryKey: ["site"] });

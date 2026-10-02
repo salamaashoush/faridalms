@@ -1,7 +1,7 @@
-import type { PageRow, PostRow } from "@faridalms/database/stores/site";
+import type { PageRow } from "@faridalms/database/stores/site";
+import type { ContentDocument } from "@faridalms/domain/content";
 import type {
   PageContent,
-  PostContent,
   SiteIssue,
   SiteLocale,
 } from "@faridalms/domain/website";
@@ -20,11 +20,9 @@ import { publicEvents } from "@faridalms/database/stores/events";
 import {
   insertEnquiry,
   insertPage,
-  insertPost,
   markRevised,
   pageById,
   placePage,
-  postById,
   publicCategories,
   publicMenu,
   publicationsOf,
@@ -40,21 +38,15 @@ import {
   schoolToday,
   setEnquiryHandled,
   setPageState,
-  setPostState,
   siteCategories,
   siteEnquiries,
   sitePages,
-  sitePosts,
   siteSettings,
   syncPublishedPlaces,
   updatePage,
-  updatePost,
   withdrawPage,
-  withdrawPost,
   writePublishedPage,
-  writePublishedPost,
 } from "@faridalms/database/stores/site";
-import { contentFileIds, contentPlainText } from "@faridalms/domain/content";
 import {
   buildTemplate,
   STARTERS,
@@ -80,19 +72,14 @@ import {
   pageIssues,
   pagePlainText,
   pageSectionSchema,
-  postContentSchema,
-  postIssues,
-  postsQuerySchema,
   publicPageSchema,
   publicPostSchema,
   publicPostsSchema,
   publicSiteSchema,
-  publishPostSchema,
   publishSchema,
   restoreSchema,
   saveCategorySchema,
   savePageSchema,
-  savePostSchema,
   saveSettingsSchema,
   SITE_POSTS_PAGE_SIZE,
   siteRefSchema,
@@ -175,15 +162,7 @@ async function pageOfSchool(context: UnitContext, pageId: string) {
   return row;
 }
 
-async function postOfSchool(context: UnitContext, postId: string) {
-  requireCapability(context, "site:manage");
-  const row = await postById(context.tx, context.tenantId, postId);
-  if (!row || row.orgId !== context.schoolId) throw new ORPCError("NOT_FOUND");
-  return row;
-}
-
 const pageHost = (pageId: string) => ({ type: "site_page", id: pageId });
-const postHost = (postId: string) => ({ type: "site_post", id: postId });
 
 function parsed<T>(
   schema: v.GenericSchema<unknown, T>,
@@ -212,30 +191,6 @@ async function pageDocuments(context: UnitContext, pageId: string) {
     content: parsed(pageContentSchema, original?.content, EMPTY_PAGE),
     translation: translation
       ? parsed(pageContentSchema, translation.content, EMPTY_PAGE)
-      : null,
-  };
-}
-
-async function postDocuments(context: UnitContext, postId: string) {
-  const original = await documentOf(
-    context.tx,
-    context.tenantId,
-    postHost(postId),
-  );
-  const translation = original
-    ? await translationOf(context.tx, context.tenantId, original.id)
-    : null;
-  const empty: PostContent = {
-    body: { root: { type: "root", version: 1, children: [] } },
-    reviewed: false,
-  };
-  return {
-    originalId: original?.id ?? null,
-    translationId: translation?.id ?? null,
-    revision: `${original?.version ?? 0}.${translation?.version ?? 0}`,
-    content: parsed(postContentSchema, original?.content, empty),
-    translation: translation
-      ? parsed(postContentSchema, translation.content, empty)
       : null,
   };
 }
@@ -278,12 +233,9 @@ const shownState = (
     : (row.state as "draft" | "published" | "archived");
 
 const PREVIEW_POSTS = 6;
-// Pages and posts are written by whoever manages the site, so each of them
-// opens the pictures and files the others put in.
+// Pages are written by whoever manages the site, so each of them opens the
+// pictures and files the others put in.
 registerHostReader("site_page", (context) =>
-  Promise.resolve(can(context, "site:manage")),
-);
-registerHostReader("site_post", (context) =>
   Promise.resolve(can(context, "site:manage")),
 );
 
@@ -832,374 +784,6 @@ export const removeSiteCategory = writeProcedure
     return { removed: true };
   });
 
-export const posts = readProcedure
-  .input(postsQuerySchema)
-  .handler(async ({ input, context }) => {
-    requireCapability(context, "site:manage");
-    return sitePosts(context.tx, {
-      tenantId: context.tenantId,
-      orgId: context.schoolId,
-      ...input,
-    });
-  });
-
-function postIssuesByLocale(
-  row: PostRow,
-  content: PostContent,
-  translation: PostContent | null,
-  settings: { primaryLocale: SiteLocale; bilingual: boolean },
-) {
-  const found: Record<SiteLocale, string[]> = { en: [], ar: [] };
-  for (const locale of localesOf(settings)) {
-    const translated = locale !== settings.primaryLocale;
-    if (translated && !translation) continue;
-    found[locale] = postIssues({
-      coverFileId: row.coverFileId,
-      coverAlt: locale === "ar" ? row.coverAltAr : row.coverAltEn,
-      body: (translated && translation ? translation : content).body,
-    });
-  }
-  return found;
-}
-
-export const post = readProcedure
-  .input(v.object({ id }))
-  .handler(async ({ input, context }) => {
-    const row = await postOfSchool(context, input.id);
-    const [settings, documents, categories] = await Promise.all([
-      settingsFor(context),
-      postDocuments(context, row.id),
-      siteCategories(context.tx, context.tenantId, context.schoolId),
-    ]);
-    return {
-      ...row,
-      shown: shownState(row, context.now),
-      settings: {
-        primaryLocale: settings.primaryLocale,
-        bilingual: settings.bilingual,
-      },
-      revision: documents.revision,
-      content: documents.content,
-      translation: documents.translation,
-      issues: postIssuesByLocale(
-        row,
-        documents.content,
-        documents.translation,
-        settings,
-      ),
-      history: await history(context, documents, settings.primaryLocale),
-      categories: categories.map((category) => ({
-        id: category.id,
-        nameEn: category.nameEn,
-        nameAr: category.nameAr,
-      })),
-    };
-  });
-
-export const postOptions = readProcedure.handler(async ({ context }) => {
-  requireCapability(context, "site:manage");
-  const [settings, categories] = await Promise.all([
-    settingsFor(context),
-    siteCategories(context.tx, context.tenantId, context.schoolId),
-  ]);
-  return {
-    settings: {
-      primaryLocale: settings.primaryLocale,
-      bilingual: settings.bilingual,
-    },
-    categories: categories.map((category) => ({
-      id: category.id,
-      nameEn: category.nameEn,
-      nameAr: category.nameAr,
-    })),
-  };
-});
-
-const postMedia = (content: PostContent, coverFileId: string | null) => [
-  ...new Set([
-    ...contentFileIds(content.body),
-    ...(coverFileId ? [coverFileId] : []),
-  ]),
-];
-
-export const savePost = writeProcedure
-  .input(savePostSchema)
-  .handler(async ({ input, context }) => {
-    requireCapability(context, "site:manage");
-    const settings = await settingsFor(context);
-    const primaryTitle =
-      settings.primaryLocale === "ar" ? input.titleAr : input.titleEn;
-    if (!primaryTitle)
-      throw new ORPCError("BAD_REQUEST", { message: "site.title" });
-    const fields = {
-      categoryId: input.categoryId || null,
-      slug: input.slug,
-      titleEn: input.titleEn,
-      titleAr: input.titleAr,
-      excerptEn: input.excerptEn,
-      excerptAr: input.excerptAr,
-      coverFileId: input.coverFileId || null,
-      coverAltEn: input.coverAltEn,
-      coverAltAr: input.coverAltAr,
-      pinned: input.pinned,
-    };
-    let postId = input.id;
-    let version: number;
-    if (input.id) {
-      const row = await postOfSchool(context, input.id);
-      const next = await updatePost(context.tx, {
-        tenantId: context.tenantId,
-        id: row.id,
-        expectedVersion: input.expectedVersion,
-        ...fields,
-      });
-      if (next === null) throw conflict();
-      version = next;
-    } else {
-      const created = await insertPost(context.tx, {
-        tenantId: context.tenantId,
-        orgId: context.schoolId,
-        authorId: context.actor.userId,
-        ...fields,
-      });
-      postId = created.id;
-      version = created.version;
-    }
-    const host = postHost(postId);
-    const original = await saveDocument(context.tx, {
-      tenantId: context.tenantId,
-      orgId: context.schoolId,
-      host,
-      kind: "rich_text",
-      locale: settings.primaryLocale,
-      ...(await placeMedia(
-        context,
-        host,
-        input.content,
-        postMedia(input.content, fields.coverFileId),
-      )),
-      plainText: contentPlainText(input.content.body),
-      userId: context.actor.userId,
-    });
-    if (settings.bilingual && input.translation)
-      await saveTranslation(context.tx, {
-        tenantId: context.tenantId,
-        orgId: context.schoolId,
-        host,
-        originalId: original.id,
-        locale: otherLocale(settings.primaryLocale),
-        kind: "rich_text",
-        ...(await placeMedia(
-          context,
-          host,
-          input.translation,
-          postMedia(input.translation, null),
-        )),
-        plainText: contentPlainText(input.translation.body),
-        userId: context.actor.userId,
-      });
-    else
-      await dropTranslation(context.tx, {
-        tenantId: context.tenantId,
-        originalId: original.id,
-      });
-    await audit(context, {
-      action: input.id ? "site.post_update" : "site.post_create",
-      objectType: "site_post",
-      objectId: postId,
-      details: { slug: input.slug },
-    });
-    return { id: postId, version };
-  });
-
-export const publishPost = writeProcedure
-  .input(publishPostSchema)
-  .handler(async ({ input, context }) => {
-    const row = await postOfSchool(context, input.id);
-    const settings = await settingsFor(context);
-    const documents = await postDocuments(context, row.id);
-    if (
-      !documents.originalId ||
-      !contentPlainText(documents.content.body).trim()
-    )
-      throw new ORPCError("CONFLICT", { message: "site.empty" });
-    const issues = postIssuesByLocale(
-      row,
-      documents.content,
-      documents.translation,
-      settings,
-    );
-    if (issues.en.length + issues.ar.length > 0)
-      throw new ORPCError("CONFLICT", { message: "site.issues" });
-    const translation = settings.bilingual ? documents.translation : null;
-    const media = await publishMedia(
-      context,
-      { tenantId: context.tenantId, hostType: "site_post", hostId: row.id },
-      [
-        ...new Set([
-          ...postMedia(documents.content, row.coverFileId),
-          ...(translation ? postMedia(translation, null) : []),
-        ]),
-      ],
-    );
-    await snapshotPublish(context.tx, {
-      tenantId: context.tenantId,
-      documentId: documents.originalId,
-      userId: context.actor.userId,
-    });
-    if (translation && documents.translationId)
-      await snapshotPublish(context.tx, {
-        tenantId: context.tenantId,
-        documentId: documents.translationId,
-        userId: context.actor.userId,
-      });
-    const publishedAt = input.publishAt || context.now.toISOString();
-    const version = await setPostState(context.tx, {
-      tenantId: context.tenantId,
-      id: row.id,
-      expectedVersion: input.expectedVersion,
-      state: "published",
-      publishedAt,
-    });
-    if (version === null) throw conflict();
-    await withdrawPost(context.tx, {
-      tenantId: context.tenantId,
-      postId: row.id,
-    });
-    const primary = settings.primaryLocale;
-    for (const locale of localesOf(settings)) {
-      const translated = locale !== primary && translation !== null;
-      const words = (en: string, ar: string) => {
-        const pick = (which: SiteLocale) => (which === "ar" ? ar : en);
-        return pick(locale) || pick(primary);
-      };
-      await writePublishedPost(context.tx, {
-        tenantId: context.tenantId,
-        orgId: context.schoolId,
-        post: row,
-        locale,
-        title: titleIn(row, locale, primary),
-        excerpt: words(row.excerptEn, row.excerptAr),
-        coverKey: row.coverFileId ? (media[row.coverFileId] ?? null) : null,
-        coverAlt: words(row.coverAltEn, row.coverAltAr),
-        content: {
-          body: translated ? translation.body : documents.content.body,
-          locale: translated ? locale : primary,
-        },
-        media,
-        visibleFrom: publishedAt,
-      });
-    }
-    await audit(context, {
-      action: "site.post_publish",
-      objectType: "site_post",
-      objectId: row.id,
-      details: { publishedAt },
-    });
-    return { version };
-  });
-
-async function takeDown(
-  context: UnitContext,
-  row: PostRow,
-  expectedVersion: number,
-  state: "draft" | "archived",
-) {
-  const version = await setPostState(context.tx, {
-    tenantId: context.tenantId,
-    id: row.id,
-    expectedVersion,
-    state,
-    publishedAt: null,
-  });
-  if (version === null) throw conflict();
-  await withdrawPost(context.tx, {
-    tenantId: context.tenantId,
-    postId: row.id,
-  });
-  await withdrawMedia(context, {
-    tenantId: context.tenantId,
-    hostType: "site_post",
-    hostId: row.id,
-  });
-  await audit(context, {
-    action: state === "archived" ? "site.post_archive" : "site.post_unpublish",
-    objectType: "site_post",
-    objectId: row.id,
-  });
-  return { version };
-}
-
-export const unpublishPost = writeProcedure
-  .input(siteRefSchema)
-  .handler(async ({ input, context }) =>
-    takeDown(
-      context,
-      await postOfSchool(context, input.id),
-      input.expectedVersion,
-      "draft",
-    ),
-  );
-
-export const archivePost = writeProcedure
-  .input(siteRefSchema)
-  .handler(async ({ input, context }) =>
-    takeDown(
-      context,
-      await postOfSchool(context, input.id),
-      input.expectedVersion,
-      "archived",
-    ),
-  );
-
-export const restorePost = writeProcedure
-  .input(restoreSchema)
-  .handler(async ({ input, context }) => {
-    const row = await postOfSchool(context, input.id);
-    const settings = await settingsFor(context);
-    const documents = await postDocuments(context, row.id);
-    const primary = input.locale === settings.primaryLocale;
-    const documentId = primary ? documents.originalId : documents.translationId;
-    if (!documentId || !documents.originalId) throw new ORPCError("NOT_FOUND");
-    const restored = await contentToRestore(context.tx, {
-      tenantId: context.tenantId,
-      documentId,
-      documentVersion: input.documentVersion,
-      userId: context.actor.userId,
-    });
-    const content = v.safeParse(postContentSchema, restored);
-    if (!content.success) throw new ORPCError("NOT_FOUND");
-    const host = postHost(row.id);
-    const common = {
-      tenantId: context.tenantId,
-      orgId: context.schoolId,
-      host,
-      kind: "rich_text" as const,
-      content: content.output,
-      plainText: contentPlainText(content.output.body),
-      userId: context.actor.userId,
-    };
-    if (primary)
-      await saveDocument(context.tx, {
-        ...common,
-        locale: settings.primaryLocale,
-        mediaIds: postMedia(content.output, row.coverFileId),
-      });
-    else
-      await saveTranslation(context.tx, {
-        ...common,
-        originalId: documents.originalId,
-        locale: input.locale,
-        mediaIds: postMedia(content.output, null),
-      });
-    await markRevised(context.tx, {
-      tenantId: context.tenantId,
-      kind: "post",
-      id: row.id,
-    });
-    return { restored: true };
-  });
-
 /**
  * Starts a site from a starter: its theme and frame, and each of its pages
  * as a draft with placeholder words in both languages. Pages whose address
@@ -1525,7 +1109,7 @@ export const publicSitePost = publicProcedure
         return {
           ...visible,
           locale,
-          body: content.body as PostContent["body"],
+          body: content.body as ContentDocument,
           bodyLocale: (content.locale ?? locale) as SiteLocale,
         };
       },

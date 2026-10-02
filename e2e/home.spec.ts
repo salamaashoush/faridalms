@@ -17,16 +17,14 @@ test("a teacher's day lists their classes and opens one", async ({ page }) => {
   await expect(page).toHaveURL(/\/classes\/[a-f0-9-]+/);
 });
 
-test("a family's home shows their child and the latest newsletter", async ({
+test("a family's home shows their child and the latest school news", async ({
   page,
 }) => {
   await signInWith(page, "parent1007@northwind.example.com", PASSWORD, "/family");
   await expect(
     page.getByRole("region", { name: "Yasmin Sabry" }),
   ).toBeVisible();
-  await expect(
-    page.getByRole("region", { name: "Latest newsletter" }),
-  ).toBeVisible();
+  await expect(page.getByRole("region", { name: "Latest news" })).toBeVisible();
 });
 
 test("the office sees how attendance is going", async ({ page }) => {

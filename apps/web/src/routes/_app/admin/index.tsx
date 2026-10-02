@@ -189,8 +189,8 @@ function AdminToday() {
                   </Link>
                 ) : (
                   <Link
-                    to="/newsletters/$newsletterId"
-                    params={{ newsletterId: row.id }}
+                    to="/news/$postId"
+                    params={{ postId: row.id }}
                     className={itemLink}
                   >
                     <bdi>{row.title}</bdi>
@@ -200,7 +200,7 @@ function AdminToday() {
               facts={[
                 row.kind === "announcement"
                   ? m.navAnnouncements()
-                  : m.navNewsletters(),
+                  : m.navNews(),
               ]}
               status={
                 <span className="text-[13px] text-muted-foreground tabular-nums">

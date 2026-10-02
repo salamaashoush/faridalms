@@ -7,25 +7,25 @@ import {
   untilHydrated,
 } from "./fixtures/sign-in";
 
-// Each browser sends its own edition, so parallel projects never read each
+// Each browser sends its own post, so parallel projects never read each
 // other's.
-test("the office sends an edition in two languages and a family reads it in Arabic", async ({
+test("the office sends school news in two languages and a family reads it in Arabic", async ({
   browser,
   page,
   browserName,
 }) => {
   const title = `Book week (${browserName} ${crypto.randomUUID().slice(0, 6)})`;
   await signIn(page, "admin");
-  await page.goto("/admin/newsletter-editor");
+  await page.goto("/news-editor");
   await untilHydrated(page);
   await page.getByRole("textbox", { name: "Title" }).fill(title);
-  await page.locator("#newsletter-body").click();
+  await page.locator("#news-body").click();
   await page.keyboard.type("## Every class visits the library");
   await page.keyboard.press("Enter");
   await page.keyboard.type("Bring a book to swap on Thursday.");
   await page.getByRole("checkbox", { name: "Also write it in Arabic" }).click();
   await page.getByRole("tab", { name: "العربية" }).click();
-  await page.locator("#newsletter-translation").click();
+  await page.locator("#news-translation").click();
   await page.keyboard.type("## ");
   await page.keyboard.insertText("أسبوع الكتاب");
   await page.keyboard.press("Enter");
@@ -37,16 +37,16 @@ test("the office sends an edition in two languages and a family reads it in Arab
     page.getByText(/^Checked against the original by/),
   ).toBeVisible();
   await page.getByRole("button", { name: "Send now" }).click();
-  await expect(page).toHaveURL(/\/newsletters\/[a-f0-9-]+/);
+  await expect(page).toHaveURL(/\/news\/[a-f0-9-]+/);
   await expect(
     page.getByRole("heading", { level: 1, name: title }),
   ).toBeVisible();
-  const editionUrl = page.url();
+  const postUrl = page.url();
 
   const familyContext = await browser.newContext();
   const family = await familyContext.newPage();
   await signInWith(family, "parent1007@northwind.example.com", PASSWORD, "/family");
-  await family.goto("/newsletters");
+  await family.goto("/news");
   await untilHydrated(family);
   await family.getByRole("link", { name: title }).click();
   await untilHydrated(family);
@@ -62,14 +62,14 @@ test("the office sends an edition in two languages and a family reads it in Arab
   // Opening it marks it read in the background; the list stops calling it
   // unread once that has landed.
   await expect(async () => {
-    await family.goto("/newsletters");
+    await family.goto("/news");
     await expect(
       family.getByRole("link", { name: title, exact: true }),
     ).toBeVisible({ timeout: 2000 });
   }).toPass();
   await familyContext.close();
 
-  await page.goto(editionUrl);
+  await page.goto(postUrl);
   await untilHydrated(page);
   await page.getByRole("button", { name: /of \d+ read/ }).click();
   await expect(

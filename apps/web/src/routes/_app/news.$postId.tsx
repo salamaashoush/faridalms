@@ -1,5 +1,6 @@
-import type { NewsletterLocale } from "@faridalms/domain/newsletters";
+import type { NewsLocale } from "@faridalms/domain/news";
 
+import { otherNewsLocale } from "@faridalms/domain/news";
 import { Button } from "@faridalms/ui/button";
 import { cn } from "@faridalms/ui/cn";
 import {
@@ -18,10 +19,7 @@ import type { HeaderFact } from "~/components/system/RecordPage";
 import { audienceLabel } from "~/components/announcements/format";
 import { BreadcrumbCurrent } from "~/components/app/WorkspaceBreadcrumb";
 import { formatInstant } from "~/components/coursework/format";
-import {
-  NewsletterView,
-  otherLocale,
-} from "~/components/newsletters/NewsletterView";
+import { NewsView } from "~/components/news/NewsView";
 import { DataTable } from "~/components/system/DataTable";
 import {
   ReaderWidthToggle,
@@ -38,32 +36,35 @@ import { StatusText } from "~/components/system/status";
 import { inLocale, useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { getLocale } from "~/i18n/runtime";
-import { newsletterQuery } from "~/queries/newsletters";
+import { newsPostQuery } from "~/queries/news";
 import {
-  archiveNewsletter,
-  duplicateNewsletter,
-  markNewsletterSeen,
-  publishNewsletter,
-} from "~/server/newsletters";
+  archiveNews,
+  duplicateNews,
+  markNewsSeen,
+  publishNews,
+} from "~/server/news";
 import { formatNumber } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
-export const Route = createFileRoute("/_app/newsletters/$newsletterId")({
-  staticData: { trail: <NewsletterTrail />, section: "/newsletters" },
+export const Route = createFileRoute("/_app/news/$postId")({
+  staticData: { trail: <NewsTrail />, section: "/news" },
   loader: ({ context, params }) =>
-    context.queryClient.ensureQueryData(newsletterQuery(params.newsletterId)),
-  component: NewsletterPage,
+    context.queryClient.ensureQueryData(newsPostQuery(params.postId)),
+  component: NewsPostPage,
 });
 
 type Data = Awaited<
-  ReturnType<NonNullable<ReturnType<typeof newsletterQuery>["queryFn"]>>
+  ReturnType<NonNullable<ReturnType<typeof newsPostQuery>["queryFn"]>>
 >;
 type ReportRow = NonNullable<Data["report"]>[number] & { id: string };
 
-function NewsletterTrail() {
-  const { newsletterId } = Route.useParams();
-  const data = useSuspenseQuery(newsletterQuery(newsletterId)).data;
-  return <BreadcrumbCurrent>{data.title}</BreadcrumbCurrent>;
+const titleOf = (data: { titleEn: string; titleAr: string }) =>
+  inLocale(data.titleEn || null, data.titleAr || null);
+
+function NewsTrail() {
+  const { postId } = Route.useParams();
+  const data = useSuspenseQuery(newsPostQuery(postId)).data;
+  return <BreadcrumbCurrent>{titleOf(data)}</BreadcrumbCurrent>;
 }
 
 function Read({ row, timeZone }: { row: ReportRow; timeZone: string }) {
@@ -123,7 +124,7 @@ function Report({
       open={open}
       onOpenChange={onOpenChange}
       title={m.annReport()}
-      description={m.nlReportHint()}
+      description={m.newsReportHint()}
     >
       <Facts short>
         <Fact label={m.annReached()}>{formatNumber(rows.length)}</Fact>
@@ -135,7 +136,7 @@ function Report({
         columns={reportColumns(user.school.timeZone)}
         rowLabel={(row) => inLocale(row.fullNameEn, row.fullNameAr)}
         card={reportCard(user.school.timeZone)}
-        empty={{ title: m.nlNotSent() }}
+        empty={{ title: m.newsNotSent() }}
       />
     </SheetPanel>
   );
@@ -166,24 +167,24 @@ function Notice({
   );
 }
 
-function NewsletterPage() {
-  const { newsletterId } = Route.useParams();
+function NewsPostPage() {
+  const { postId } = Route.useParams();
   const user = useCurrentUser();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
-  const data = useSuspenseQuery(newsletterQuery(newsletterId)).data;
-  const viewer: NewsletterLocale = getLocale() === "ar" ? "ar" : "en";
-  const [locale, setLocale] = useState<NewsletterLocale>(
-    data.translation && viewer === otherLocale(data.primaryLocale)
+  const data = useSuspenseQuery(newsPostQuery(postId)).data;
+  const viewer: NewsLocale = getLocale() === "ar" ? "ar" : "en";
+  const [locale, setLocale] = useState<NewsLocale>(
+    data.translation && viewer === otherNewsLocale(data.primaryLocale)
       ? viewer
       : data.primaryLocale,
   );
+  const scheduled = data.shown === "scheduled";
   const [reporting, setReporting] = useState(false);
   const width = useReaderWidth();
-  const refresh = () =>
-    queryClient.invalidateQueries({ queryKey: ["newsletters"] });
+  const refresh = () => queryClient.invalidateQueries({ queryKey: ["news"] });
   const { mutate: markSeen } = useMutation({
-    mutationFn: () => markNewsletterSeen({ data: { id: newsletterId } }),
+    mutationFn: () => markNewsSeen({ data: { id: postId } }),
     onSuccess: refresh,
   });
   const unread = !data.canManage && data.readAt === null;
@@ -192,18 +193,18 @@ function NewsletterPage() {
   }, [unread, markSeen]);
   const republish = useMutation({
     mutationFn: () =>
-      publishNewsletter({
+      publishNews({
         data: { id: data.id, expectedVersion: data.version },
       }),
   });
   const archive = useMutation({
     mutationFn: () =>
-      archiveNewsletter({
+      archiveNews({
         data: { id: data.id, expectedVersion: data.version },
       }),
   });
   const duplicate = useMutation({
-    mutationFn: () => duplicateNewsletter({ data: { id: data.id } }),
+    mutationFn: () => duplicateNews({ data: { id: data.id } }),
   });
   const run = async (action: () => Promise<unknown>, done: string) => {
     try {
@@ -218,11 +219,8 @@ function NewsletterPage() {
     try {
       const created = await duplicate.mutateAsync();
       await refresh();
-      toast.success(m.nlDuplicated());
-      void navigate({
-        to: "/admin/newsletter-editor",
-        search: { id: created.id },
-      });
+      toast.success(m.newsDuplicated());
+      void navigate({ to: "/news-editor", search: { id: created.id } });
     } catch (error) {
       toast.error(getMessageFromError(error));
     }
@@ -232,15 +230,18 @@ function NewsletterPage() {
       label: m.annAuthor(),
       value: inLocale(data.authorNameEn, data.authorNameAr),
     },
-    ...(data.publishAt
+    ...(data.publishedAt
       ? [
           {
-            label: data.state === "scheduled" ? m.nlGoesOut() : m.annSent(),
-            value: formatInstant(data.publishAt, user.school.timeZone),
+            label: scheduled ? m.newsGoesOut() : m.annSent(),
+            value: formatInstant(data.publishedAt, user.school.timeZone),
           },
         ]
       : []),
-    ...(data.canManage
+    ...(data.visibility === "public"
+      ? [{ label: m.newsWhere(), value: m.newsWherePublic() }]
+      : []),
+    ...(data.canManage && data.audiences.length > 0
       ? [
           {
             label: m.annAudience(),
@@ -285,16 +286,16 @@ function NewsletterPage() {
     >
       <RecordHeader
         variant="document"
-        title={data.title}
+        title={titleOf(data)}
         facts={facts}
         tools={<ReaderWidthToggle wide={width.wide} onToggle={width.toggle} />}
         status={
           data.state === "draft"
-            ? { label: m.nlStateDraft(), tone: "neutral" }
-            : data.state === "scheduled"
-              ? { label: m.nlStateScheduled(), tone: "info" }
+            ? { label: m.newsStateDraft(), tone: "neutral" }
+            : scheduled
+              ? { label: m.newsStateScheduled(), tone: "info" }
               : data.state === "archived"
-                ? { label: m.nlStateArchived(), tone: "neutral" }
+                ? { label: m.newsStateArchived(), tone: "neutral" }
                 : undefined
         }
         action={
@@ -304,7 +305,7 @@ function NewsletterPage() {
                 icon: Pencil,
                 onClick: () =>
                   void navigate({
-                    to: "/admin/newsletter-editor",
+                    to: "/news-editor",
                     search: { id: data.id },
                   }),
               }
@@ -314,7 +315,7 @@ function NewsletterPage() {
           data.canManage
             ? [
                 {
-                  label: m.nlDuplicate(),
+                  label: m.newsDuplicate(),
                   icon: Copy,
                   onSelect: () => void copy(),
                 },
@@ -324,7 +325,10 @@ function NewsletterPage() {
                         label: m.annArchive(),
                         icon: Archive,
                         onSelect: () =>
-                          void run(() => archive.mutateAsync(), m.nlArchived()),
+                          void run(
+                            () => archive.mutateAsync(),
+                            m.newsArchived(),
+                          ),
                       },
                     ]
                   : []),
@@ -332,29 +336,29 @@ function NewsletterPage() {
             : []
         }
       />
-      {data.revisedAt ? (
+      {data.updatedAt ? (
         <p className="text-[13px] leading-[18px] text-muted-foreground">
           {m.annUpdatedOn({
-            date: formatInstant(data.revisedAt, user.school.timeZone),
+            date: formatInstant(data.updatedAt, user.school.timeZone),
           })}
         </p>
       ) : null}
       {data.canManage && data.preview ? (
-        <Notice>{m.nlPreviewNotice()}</Notice>
+        <Notice>{m.newsPreviewNotice()}</Notice>
       ) : null}
       {editable && data.changedSince && data.state === "published" ? (
         <Notice
           action={{
-            label: m.nlPublishChanges(),
+            label: m.newsPublishChanges(),
             pending: republish.isPending,
             onClick: () =>
-              void run(() => republish.mutateAsync(), m.nlChangesPublished()),
+              void run(() => republish.mutateAsync(), m.newsChangesPublished()),
           }}
         >
-          {m.nlChangesWaiting()}
+          {m.newsChangesWaiting()}
         </Notice>
       ) : null}
-      <NewsletterView
+      <NewsView
         body={data.body}
         translation={data.translation}
         primary={data.primaryLocale}

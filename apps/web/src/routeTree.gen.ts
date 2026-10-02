@@ -18,6 +18,7 @@ import { Route as AppEventEditorRouteImport } from './routes/_app/event-editor'
 import { Route as AppExamsRouteImport } from './routes/_app/exams'
 import { Route as AppFamilyRouteImport } from './routes/_app/family'
 import { Route as AppMeRouteImport } from './routes/_app/me'
+import { Route as AppNewsEditorRouteImport } from './routes/_app/news-editor'
 import { Route as AppNotificationPreferencesRouteImport } from './routes/_app/notification-preferences'
 import { Route as AppNotificationsRouteImport } from './routes/_app/notifications'
 import { Route as AppPrivacyRouteImport } from './routes/_app/privacy'
@@ -37,13 +38,11 @@ import { Route as AppAdminAttendanceRouteImport } from './routes/_app/admin/atte
 import { Route as AppAdminClassEditorRouteImport } from './routes/_app/admin/class-editor'
 import { Route as AppAdminClassesRouteImport } from './routes/_app/admin/classes'
 import { Route as AppAdminMessagesRouteImport } from './routes/_app/admin/messages'
-import { Route as AppAdminNewsletterEditorRouteImport } from './routes/_app/admin/newsletter-editor'
 import { Route as AppAdminNotificationAuditRouteImport } from './routes/_app/admin/notification-audit'
 import { Route as AppAdminRolloverRouteImport } from './routes/_app/admin/rollover'
 import { Route as AppAdminSettingsRouteImport } from './routes/_app/admin/settings'
 import { Route as AppAdminSiteRouteImport } from './routes/_app/admin/site'
 import { Route as AppAdminSitePageEditorRouteImport } from './routes/_app/admin/site-page-editor'
-import { Route as AppAdminSitePostEditorRouteImport } from './routes/_app/admin/site-post-editor'
 import { Route as AppAdminStaffRouteImport } from './routes/_app/admin/staff'
 import { Route as AppAdminStudentsRouteImport } from './routes/_app/admin/students'
 import { Route as AppAdminTimetableRouteImport } from './routes/_app/admin/timetable'
@@ -71,8 +70,8 @@ import { Route as AppMeMessagesRouteImport } from './routes/_app/me/messages'
 import { Route as AppMeModulesRouteImport } from './routes/_app/me/modules'
 import { Route as AppMeTimetableRouteImport } from './routes/_app/me/timetable'
 import { Route as AppModulesModuleIdRouteImport } from './routes/_app/modules/$moduleId'
-import { Route as AppNewslettersIndexRouteImport } from './routes/_app/newsletters.index'
-import { Route as AppNewslettersNewsletterIdRouteImport } from './routes/_app/newsletters.$newsletterId'
+import { Route as AppNewsIndexRouteImport } from './routes/_app/news.index'
+import { Route as AppNewsPostIdRouteImport } from './routes/_app/news.$postId'
 import { Route as AppPeopleUserIdRouteImport } from './routes/_app/people.$userId'
 import { Route as AppPracticeModuleIdRouteImport } from './routes/_app/practice.$moduleId'
 import { Route as AppRegistersClassIdRouteImport } from './routes/_app/registers.$classId'
@@ -140,6 +139,11 @@ const AppFamilyRoute = AppFamilyRouteImport.update({
 const AppMeRoute = AppMeRouteImport.update({
   id: '/me',
   path: '/me',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppNewsEditorRoute = AppNewsEditorRouteImport.update({
+  id: '/news-editor',
+  path: '/news-editor',
   getParentRoute: () => AppRoute,
 } as any)
 const AppNotificationPreferencesRoute =
@@ -240,12 +244,6 @@ const AppAdminMessagesRoute = AppAdminMessagesRouteImport.update({
   path: '/messages',
   getParentRoute: () => AppAdminRoute,
 } as any)
-const AppAdminNewsletterEditorRoute =
-  AppAdminNewsletterEditorRouteImport.update({
-    id: '/newsletter-editor',
-    path: '/newsletter-editor',
-    getParentRoute: () => AppAdminRoute,
-  } as any)
 const AppAdminNotificationAuditRoute =
   AppAdminNotificationAuditRouteImport.update({
     id: '/notification-audit',
@@ -270,11 +268,6 @@ const AppAdminSiteRoute = AppAdminSiteRouteImport.update({
 const AppAdminSitePageEditorRoute = AppAdminSitePageEditorRouteImport.update({
   id: '/site-page-editor',
   path: '/site-page-editor',
-  getParentRoute: () => AppAdminRoute,
-} as any)
-const AppAdminSitePostEditorRoute = AppAdminSitePostEditorRouteImport.update({
-  id: '/site-post-editor',
-  path: '/site-post-editor',
   getParentRoute: () => AppAdminRoute,
 } as any)
 const AppAdminStaffRoute = AppAdminStaffRouteImport.update({
@@ -414,17 +407,16 @@ const AppModulesModuleIdRoute = AppModulesModuleIdRouteImport.update({
   path: '/modules/$moduleId',
   getParentRoute: () => AppRoute,
 } as any)
-const AppNewslettersIndexRoute = AppNewslettersIndexRouteImport.update({
-  id: '/newsletters/',
-  path: '/newsletters/',
+const AppNewsIndexRoute = AppNewsIndexRouteImport.update({
+  id: '/news/',
+  path: '/news/',
   getParentRoute: () => AppRoute,
 } as any)
-const AppNewslettersNewsletterIdRoute =
-  AppNewslettersNewsletterIdRouteImport.update({
-    id: '/newsletters/$newsletterId',
-    path: '/newsletters/$newsletterId',
-    getParentRoute: () => AppRoute,
-  } as any)
+const AppNewsPostIdRoute = AppNewsPostIdRouteImport.update({
+  id: '/news/$postId',
+  path: '/news/$postId',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppPeopleUserIdRoute = AppPeopleUserIdRouteImport.update({
   id: '/people/$userId',
   path: '/people/$userId',
@@ -562,6 +554,7 @@ export interface FileRoutesByFullPath {
   '/exams': typeof AppExamsRoute
   '/family': typeof AppFamilyRouteWithChildren
   '/me': typeof AppMeRouteWithChildren
+  '/news-editor': typeof AppNewsEditorRoute
   '/notification-preferences': typeof AppNotificationPreferencesRoute
   '/notifications': typeof AppNotificationsRoute
   '/privacy': typeof AppPrivacyRoute
@@ -580,13 +573,11 @@ export interface FileRoutesByFullPath {
   '/admin/class-editor': typeof AppAdminClassEditorRoute
   '/admin/classes': typeof AppAdminClassesRoute
   '/admin/messages': typeof AppAdminMessagesRoute
-  '/admin/newsletter-editor': typeof AppAdminNewsletterEditorRoute
   '/admin/notification-audit': typeof AppAdminNotificationAuditRoute
   '/admin/rollover': typeof AppAdminRolloverRoute
   '/admin/settings': typeof AppAdminSettingsRoute
   '/admin/site': typeof AppAdminSiteRoute
   '/admin/site-page-editor': typeof AppAdminSitePageEditorRoute
-  '/admin/site-post-editor': typeof AppAdminSitePostEditorRoute
   '/admin/staff': typeof AppAdminStaffRoute
   '/admin/students': typeof AppAdminStudentsRoute
   '/admin/timetable': typeof AppAdminTimetableRoute
@@ -610,7 +601,7 @@ export interface FileRoutesByFullPath {
   '/me/modules': typeof AppMeModulesRoute
   '/me/timetable': typeof AppMeTimetableRoute
   '/modules/$moduleId': typeof AppModulesModuleIdRoute
-  '/newsletters/$newsletterId': typeof AppNewslettersNewsletterIdRoute
+  '/news/$postId': typeof AppNewsPostIdRoute
   '/people/$userId': typeof AppPeopleUserIdRoute
   '/practice/$moduleId': typeof AppPracticeModuleIdRoute
   '/registers/$classId': typeof AppRegistersClassIdRoute
@@ -635,7 +626,7 @@ export interface FileRoutesByFullPath {
   '/calendar/': typeof AppCalendarIndexRoute
   '/family/': typeof AppFamilyIndexRoute
   '/me/': typeof AppMeIndexRoute
-  '/newsletters/': typeof AppNewslettersIndexRoute
+  '/news/': typeof AppNewsIndexRoute
   '/teach/': typeof AppTeachIndexRoute
   '/site/$school/': typeof SiteSchoolIndexRoute
   '/public-media/p/$token/$name': typeof PublicMediaPTokenNameRoute
@@ -648,6 +639,7 @@ export interface FileRoutesByTo {
   '/badge': typeof BadgeRoute
   '/event-editor': typeof AppEventEditorRoute
   '/exams': typeof AppExamsRoute
+  '/news-editor': typeof AppNewsEditorRoute
   '/notification-preferences': typeof AppNotificationPreferencesRoute
   '/notifications': typeof AppNotificationsRoute
   '/privacy': typeof AppPrivacyRoute
@@ -664,13 +656,11 @@ export interface FileRoutesByTo {
   '/admin/class-editor': typeof AppAdminClassEditorRoute
   '/admin/classes': typeof AppAdminClassesRoute
   '/admin/messages': typeof AppAdminMessagesRoute
-  '/admin/newsletter-editor': typeof AppAdminNewsletterEditorRoute
   '/admin/notification-audit': typeof AppAdminNotificationAuditRoute
   '/admin/rollover': typeof AppAdminRolloverRoute
   '/admin/settings': typeof AppAdminSettingsRoute
   '/admin/site': typeof AppAdminSiteRoute
   '/admin/site-page-editor': typeof AppAdminSitePageEditorRoute
-  '/admin/site-post-editor': typeof AppAdminSitePostEditorRoute
   '/admin/staff': typeof AppAdminStaffRoute
   '/admin/students': typeof AppAdminStudentsRoute
   '/admin/timetable': typeof AppAdminTimetableRoute
@@ -694,7 +684,7 @@ export interface FileRoutesByTo {
   '/me/modules': typeof AppMeModulesRoute
   '/me/timetable': typeof AppMeTimetableRoute
   '/modules/$moduleId': typeof AppModulesModuleIdRoute
-  '/newsletters/$newsletterId': typeof AppNewslettersNewsletterIdRoute
+  '/news/$postId': typeof AppNewsPostIdRoute
   '/people/$userId': typeof AppPeopleUserIdRoute
   '/practice/$moduleId': typeof AppPracticeModuleIdRoute
   '/registers/$classId': typeof AppRegistersClassIdRoute
@@ -719,7 +709,7 @@ export interface FileRoutesByTo {
   '/calendar': typeof AppCalendarIndexRoute
   '/family': typeof AppFamilyIndexRoute
   '/me': typeof AppMeIndexRoute
-  '/newsletters': typeof AppNewslettersIndexRoute
+  '/news': typeof AppNewsIndexRoute
   '/teach': typeof AppTeachIndexRoute
   '/site/$school': typeof SiteSchoolIndexRoute
   '/public-media/p/$token/$name': typeof PublicMediaPTokenNameRoute
@@ -738,6 +728,7 @@ export interface FileRoutesById {
   '/_app/exams': typeof AppExamsRoute
   '/_app/family': typeof AppFamilyRouteWithChildren
   '/_app/me': typeof AppMeRouteWithChildren
+  '/_app/news-editor': typeof AppNewsEditorRoute
   '/_app/notification-preferences': typeof AppNotificationPreferencesRoute
   '/_app/notifications': typeof AppNotificationsRoute
   '/_app/privacy': typeof AppPrivacyRoute
@@ -756,13 +747,11 @@ export interface FileRoutesById {
   '/_app/admin/class-editor': typeof AppAdminClassEditorRoute
   '/_app/admin/classes': typeof AppAdminClassesRoute
   '/_app/admin/messages': typeof AppAdminMessagesRoute
-  '/_app/admin/newsletter-editor': typeof AppAdminNewsletterEditorRoute
   '/_app/admin/notification-audit': typeof AppAdminNotificationAuditRoute
   '/_app/admin/rollover': typeof AppAdminRolloverRoute
   '/_app/admin/settings': typeof AppAdminSettingsRoute
   '/_app/admin/site': typeof AppAdminSiteRoute
   '/_app/admin/site-page-editor': typeof AppAdminSitePageEditorRoute
-  '/_app/admin/site-post-editor': typeof AppAdminSitePostEditorRoute
   '/_app/admin/staff': typeof AppAdminStaffRoute
   '/_app/admin/students': typeof AppAdminStudentsRoute
   '/_app/admin/timetable': typeof AppAdminTimetableRoute
@@ -786,7 +775,7 @@ export interface FileRoutesById {
   '/_app/me/modules': typeof AppMeModulesRoute
   '/_app/me/timetable': typeof AppMeTimetableRoute
   '/_app/modules/$moduleId': typeof AppModulesModuleIdRoute
-  '/_app/newsletters/$newsletterId': typeof AppNewslettersNewsletterIdRoute
+  '/_app/news/$postId': typeof AppNewsPostIdRoute
   '/_app/people/$userId': typeof AppPeopleUserIdRoute
   '/_app/practice/$moduleId': typeof AppPracticeModuleIdRoute
   '/_app/registers/$classId': typeof AppRegistersClassIdRoute
@@ -811,7 +800,7 @@ export interface FileRoutesById {
   '/_app/calendar/': typeof AppCalendarIndexRoute
   '/_app/family/': typeof AppFamilyIndexRoute
   '/_app/me/': typeof AppMeIndexRoute
-  '/_app/newsletters/': typeof AppNewslettersIndexRoute
+  '/_app/news/': typeof AppNewsIndexRoute
   '/_app/teach/': typeof AppTeachIndexRoute
   '/site/$school/': typeof SiteSchoolIndexRoute
   '/public-media/p/$token/$name': typeof PublicMediaPTokenNameRoute
@@ -829,6 +818,7 @@ export interface FileRouteTypes {
     | '/exams'
     | '/family'
     | '/me'
+    | '/news-editor'
     | '/notification-preferences'
     | '/notifications'
     | '/privacy'
@@ -847,13 +837,11 @@ export interface FileRouteTypes {
     | '/admin/class-editor'
     | '/admin/classes'
     | '/admin/messages'
-    | '/admin/newsletter-editor'
     | '/admin/notification-audit'
     | '/admin/rollover'
     | '/admin/settings'
     | '/admin/site'
     | '/admin/site-page-editor'
-    | '/admin/site-post-editor'
     | '/admin/staff'
     | '/admin/students'
     | '/admin/timetable'
@@ -877,7 +865,7 @@ export interface FileRouteTypes {
     | '/me/modules'
     | '/me/timetable'
     | '/modules/$moduleId'
-    | '/newsletters/$newsletterId'
+    | '/news/$postId'
     | '/people/$userId'
     | '/practice/$moduleId'
     | '/registers/$classId'
@@ -902,7 +890,7 @@ export interface FileRouteTypes {
     | '/calendar/'
     | '/family/'
     | '/me/'
-    | '/newsletters/'
+    | '/news/'
     | '/teach/'
     | '/site/$school/'
     | '/public-media/p/$token/$name'
@@ -915,6 +903,7 @@ export interface FileRouteTypes {
     | '/badge'
     | '/event-editor'
     | '/exams'
+    | '/news-editor'
     | '/notification-preferences'
     | '/notifications'
     | '/privacy'
@@ -931,13 +920,11 @@ export interface FileRouteTypes {
     | '/admin/class-editor'
     | '/admin/classes'
     | '/admin/messages'
-    | '/admin/newsletter-editor'
     | '/admin/notification-audit'
     | '/admin/rollover'
     | '/admin/settings'
     | '/admin/site'
     | '/admin/site-page-editor'
-    | '/admin/site-post-editor'
     | '/admin/staff'
     | '/admin/students'
     | '/admin/timetable'
@@ -961,7 +948,7 @@ export interface FileRouteTypes {
     | '/me/modules'
     | '/me/timetable'
     | '/modules/$moduleId'
-    | '/newsletters/$newsletterId'
+    | '/news/$postId'
     | '/people/$userId'
     | '/practice/$moduleId'
     | '/registers/$classId'
@@ -986,7 +973,7 @@ export interface FileRouteTypes {
     | '/calendar'
     | '/family'
     | '/me'
-    | '/newsletters'
+    | '/news'
     | '/teach'
     | '/site/$school'
     | '/public-media/p/$token/$name'
@@ -1004,6 +991,7 @@ export interface FileRouteTypes {
     | '/_app/exams'
     | '/_app/family'
     | '/_app/me'
+    | '/_app/news-editor'
     | '/_app/notification-preferences'
     | '/_app/notifications'
     | '/_app/privacy'
@@ -1022,13 +1010,11 @@ export interface FileRouteTypes {
     | '/_app/admin/class-editor'
     | '/_app/admin/classes'
     | '/_app/admin/messages'
-    | '/_app/admin/newsletter-editor'
     | '/_app/admin/notification-audit'
     | '/_app/admin/rollover'
     | '/_app/admin/settings'
     | '/_app/admin/site'
     | '/_app/admin/site-page-editor'
-    | '/_app/admin/site-post-editor'
     | '/_app/admin/staff'
     | '/_app/admin/students'
     | '/_app/admin/timetable'
@@ -1052,7 +1038,7 @@ export interface FileRouteTypes {
     | '/_app/me/modules'
     | '/_app/me/timetable'
     | '/_app/modules/$moduleId'
-    | '/_app/newsletters/$newsletterId'
+    | '/_app/news/$postId'
     | '/_app/people/$userId'
     | '/_app/practice/$moduleId'
     | '/_app/registers/$classId'
@@ -1077,7 +1063,7 @@ export interface FileRouteTypes {
     | '/_app/calendar/'
     | '/_app/family/'
     | '/_app/me/'
-    | '/_app/newsletters/'
+    | '/_app/news/'
     | '/_app/teach/'
     | '/site/$school/'
     | '/public-media/p/$token/$name'
@@ -1163,6 +1149,13 @@ declare module '@tanstack/react-router' {
       path: '/me'
       fullPath: '/me'
       preLoaderRoute: typeof AppMeRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/news-editor': {
+      id: '/_app/news-editor'
+      path: '/news-editor'
+      fullPath: '/news-editor'
+      preLoaderRoute: typeof AppNewsEditorRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/notification-preferences': {
@@ -1298,13 +1291,6 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppAdminMessagesRouteImport
       parentRoute: typeof AppAdminRoute
     }
-    '/_app/admin/newsletter-editor': {
-      id: '/_app/admin/newsletter-editor'
-      path: '/newsletter-editor'
-      fullPath: '/admin/newsletter-editor'
-      preLoaderRoute: typeof AppAdminNewsletterEditorRouteImport
-      parentRoute: typeof AppAdminRoute
-    }
     '/_app/admin/notification-audit': {
       id: '/_app/admin/notification-audit'
       path: '/notification-audit'
@@ -1338,13 +1324,6 @@ declare module '@tanstack/react-router' {
       path: '/site-page-editor'
       fullPath: '/admin/site-page-editor'
       preLoaderRoute: typeof AppAdminSitePageEditorRouteImport
-      parentRoute: typeof AppAdminRoute
-    }
-    '/_app/admin/site-post-editor': {
-      id: '/_app/admin/site-post-editor'
-      path: '/site-post-editor'
-      fullPath: '/admin/site-post-editor'
-      preLoaderRoute: typeof AppAdminSitePostEditorRouteImport
       parentRoute: typeof AppAdminRoute
     }
     '/_app/admin/staff': {
@@ -1536,18 +1515,18 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppModulesModuleIdRouteImport
       parentRoute: typeof AppRoute
     }
-    '/_app/newsletters/': {
-      id: '/_app/newsletters/'
-      path: '/newsletters'
-      fullPath: '/newsletters/'
-      preLoaderRoute: typeof AppNewslettersIndexRouteImport
+    '/_app/news/': {
+      id: '/_app/news/'
+      path: '/news'
+      fullPath: '/news/'
+      preLoaderRoute: typeof AppNewsIndexRouteImport
       parentRoute: typeof AppRoute
     }
-    '/_app/newsletters/$newsletterId': {
-      id: '/_app/newsletters/$newsletterId'
-      path: '/newsletters/$newsletterId'
-      fullPath: '/newsletters/$newsletterId'
-      preLoaderRoute: typeof AppNewslettersNewsletterIdRouteImport
+    '/_app/news/$postId': {
+      id: '/_app/news/$postId'
+      path: '/news/$postId'
+      fullPath: '/news/$postId'
+      preLoaderRoute: typeof AppNewsPostIdRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/people/$userId': {
@@ -1736,13 +1715,11 @@ interface AppAdminRouteChildren {
   AppAdminClassEditorRoute: typeof AppAdminClassEditorRoute
   AppAdminClassesRoute: typeof AppAdminClassesRoute
   AppAdminMessagesRoute: typeof AppAdminMessagesRoute
-  AppAdminNewsletterEditorRoute: typeof AppAdminNewsletterEditorRoute
   AppAdminNotificationAuditRoute: typeof AppAdminNotificationAuditRoute
   AppAdminRolloverRoute: typeof AppAdminRolloverRoute
   AppAdminSettingsRoute: typeof AppAdminSettingsRoute
   AppAdminSiteRoute: typeof AppAdminSiteRoute
   AppAdminSitePageEditorRoute: typeof AppAdminSitePageEditorRoute
-  AppAdminSitePostEditorRoute: typeof AppAdminSitePostEditorRoute
   AppAdminStaffRoute: typeof AppAdminStaffRoute
   AppAdminStudentsRoute: typeof AppAdminStudentsRoute
   AppAdminTimetableRoute: typeof AppAdminTimetableRoute
@@ -1757,13 +1734,11 @@ const AppAdminRouteChildren: AppAdminRouteChildren = {
   AppAdminClassEditorRoute: AppAdminClassEditorRoute,
   AppAdminClassesRoute: AppAdminClassesRoute,
   AppAdminMessagesRoute: AppAdminMessagesRoute,
-  AppAdminNewsletterEditorRoute: AppAdminNewsletterEditorRoute,
   AppAdminNotificationAuditRoute: AppAdminNotificationAuditRoute,
   AppAdminRolloverRoute: AppAdminRolloverRoute,
   AppAdminSettingsRoute: AppAdminSettingsRoute,
   AppAdminSiteRoute: AppAdminSiteRoute,
   AppAdminSitePageEditorRoute: AppAdminSitePageEditorRoute,
-  AppAdminSitePostEditorRoute: AppAdminSitePostEditorRoute,
   AppAdminStaffRoute: AppAdminStaffRoute,
   AppAdminStudentsRoute: AppAdminStudentsRoute,
   AppAdminTimetableRoute: AppAdminTimetableRoute,
@@ -1862,6 +1837,7 @@ interface AppRouteChildren {
   AppExamsRoute: typeof AppExamsRoute
   AppFamilyRoute: typeof AppFamilyRouteWithChildren
   AppMeRoute: typeof AppMeRouteWithChildren
+  AppNewsEditorRoute: typeof AppNewsEditorRoute
   AppNotificationPreferencesRoute: typeof AppNotificationPreferencesRoute
   AppNotificationsRoute: typeof AppNotificationsRoute
   AppPrivacyRoute: typeof AppPrivacyRoute
@@ -1876,7 +1852,7 @@ interface AppRouteChildren {
   AppClassesClassIdRoute: typeof AppClassesClassIdRoute
   AppLessonsLessonIdRoute: typeof AppLessonsLessonIdRoute
   AppModulesModuleIdRoute: typeof AppModulesModuleIdRoute
-  AppNewslettersNewsletterIdRoute: typeof AppNewslettersNewsletterIdRoute
+  AppNewsPostIdRoute: typeof AppNewsPostIdRoute
   AppPeopleUserIdRoute: typeof AppPeopleUserIdRoute
   AppPracticeModuleIdRoute: typeof AppPracticeModuleIdRoute
   AppRegistersClassIdRoute: typeof AppRegistersClassIdRoute
@@ -1884,7 +1860,7 @@ interface AppRouteChildren {
   AppYearsYearIdRoute: typeof AppYearsYearIdRoute
   AppAnnouncementsIndexRoute: typeof AppAnnouncementsIndexRoute
   AppCalendarIndexRoute: typeof AppCalendarIndexRoute
-  AppNewslettersIndexRoute: typeof AppNewslettersIndexRoute
+  AppNewsIndexRoute: typeof AppNewsIndexRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
@@ -1893,6 +1869,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppExamsRoute: AppExamsRoute,
   AppFamilyRoute: AppFamilyRouteWithChildren,
   AppMeRoute: AppMeRouteWithChildren,
+  AppNewsEditorRoute: AppNewsEditorRoute,
   AppNotificationPreferencesRoute: AppNotificationPreferencesRoute,
   AppNotificationsRoute: AppNotificationsRoute,
   AppPrivacyRoute: AppPrivacyRoute,
@@ -1907,7 +1884,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppClassesClassIdRoute: AppClassesClassIdRoute,
   AppLessonsLessonIdRoute: AppLessonsLessonIdRoute,
   AppModulesModuleIdRoute: AppModulesModuleIdRoute,
-  AppNewslettersNewsletterIdRoute: AppNewslettersNewsletterIdRoute,
+  AppNewsPostIdRoute: AppNewsPostIdRoute,
   AppPeopleUserIdRoute: AppPeopleUserIdRoute,
   AppPracticeModuleIdRoute: AppPracticeModuleIdRoute,
   AppRegistersClassIdRoute: AppRegistersClassIdRoute,
@@ -1915,7 +1892,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppYearsYearIdRoute: AppYearsYearIdRoute,
   AppAnnouncementsIndexRoute: AppAnnouncementsIndexRoute,
   AppCalendarIndexRoute: AppCalendarIndexRoute,
-  AppNewslettersIndexRoute: AppNewslettersIndexRoute,
+  AppNewsIndexRoute: AppNewsIndexRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)

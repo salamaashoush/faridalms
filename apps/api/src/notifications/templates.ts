@@ -18,7 +18,7 @@ const LINES: Record<"en" | "ar", Record<NotificationKind, Line>> = {
         ? `Updated: ${p.title ?? ""}`
         : `Announcement: ${p.title ?? ""}`,
     urgent: (p) => `Urgent: ${p.title ?? ""}`,
-    newsletter: (p) => `New newsletter: ${p.title ?? ""}`,
+    news: (p) => `News: ${p.title ?? ""}${p.preview ? `. ${p.preview}` : ""}`,
     message: (p) =>
       `New message from ${p.actorName ?? "the school"}${p.preview ? `: ${p.preview}` : ""}`,
     absence: (p) =>
@@ -40,7 +40,8 @@ const LINES: Record<"en" | "ar", Record<NotificationKind, Line>> = {
     announcement: (p) =>
       p.updated ? `تحديث: ${p.title ?? ""}` : `إعلان: ${p.title ?? ""}`,
     urgent: (p) => `عاجل: ${p.title ?? ""}`,
-    newsletter: (p) => `نشرة جديدة: ${p.title ?? ""}`,
+    news: (p) =>
+      `خبر جديد: ${p.titleAr || p.title || ""}${p.preview ? `. ${p.preview}` : ""}`,
     message: (p) =>
       `رسالة جديدة من ${p.actorName ?? "المدرسة"}${p.preview ? `: ${p.preview}` : ""}`,
     absence: (p) =>

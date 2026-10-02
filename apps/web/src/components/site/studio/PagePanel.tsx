@@ -180,12 +180,7 @@ export function PagePanel({
       </PanelGroup>
       {pageId && history.length ? (
         <PanelGroup title={m.siteHistory()} hint={m.siteHistoryHint()}>
-          <History
-            kind="page"
-            id={pageId}
-            rows={history}
-            languages={languages}
-          />
+          <History id={pageId} rows={history} languages={languages} />
         </PanelGroup>
       ) : null}
     </div>

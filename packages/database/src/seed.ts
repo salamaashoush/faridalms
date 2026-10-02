@@ -36,17 +36,20 @@ import {
   setModuleClasses,
   setModuleState,
 } from "./stores/learning";
-import { addNewsletterRecipients } from "./stores/newsletters";
+import {
+  addPostRecipients,
+  insertPost,
+  reviewTranslation,
+  setPostState,
+} from "./stores/news";
 import { insertDeliveries, insertNotifications } from "./stores/notifications";
 import { setOrgFeature } from "./stores/school";
 import {
   insertEnquiry,
   insertPage,
-  insertPost,
   saveCategory,
   saveSiteSettings,
   setPageState,
-  setPostState,
   writePublishedPage,
   writePublishedPost,
 } from "./stores/site";
@@ -83,7 +86,6 @@ import {
   loginIdentities,
   messages,
   messageThreads,
-  newsletters,
   orgs,
   periodGrades,
   rubrics,
@@ -1230,7 +1232,7 @@ async function seedSchool(
   await seedAttendance(tx, tenantId, schoolId, yearId);
   await seedMessages(tx, tenantId, schoolId, yearId);
   await seedAnnouncements(tx, tenantId, schoolId);
-  await seedNewsletters(tx, tenantId, schoolId);
+  await seedSchoolNews(tx, tenantId, schoolId);
   await seedEvents(tx, tenantId, schoolId, yearId);
   await seedNotifications(tx, tenantId, schoolId);
   await seedLearning(tx, tenantId, schoolId, yearId);
@@ -1416,10 +1418,11 @@ const part = (heading: string, body: string) => ({
 });
 
 /**
- * September's edition sent to the school in both languages, the Arabic not
- * yet checked against the English, and October's still a draft.
+ * September's news sent to the school in both languages, the Arabic not yet
+ * checked against the English, and October's still a draft. Both are for
+ * the school only, never the website.
  */
-async function seedNewsletters(tx: Tx, tenantId: string, schoolId: string) {
+async function seedSchoolNews(tx: Tx, tenantId: string, schoolId: string) {
   const [principal] = await tx.execute<{ user_id: string }>(sql`
     select r.user_id from core.user_roles r
     where r.tenant_id = ${tenantId}::uuid and r.org_id = ${schoolId}::uuid
@@ -1428,6 +1431,7 @@ async function seedNewsletters(tx: Tx, tenantId: string, schoolId: string) {
   if (!principal) return;
   const plans = [
     {
+      slug: "september-newsletter",
       title: "September newsletter",
       publishAt: new Date("2026-09-18T07:00:00Z"),
       english: headedContent([
@@ -1457,6 +1461,7 @@ async function seedNewsletters(tx: Tx, tenantId: string, schoolId: string) {
       ]),
     },
     {
+      slug: "october-newsletter",
       title: "October newsletter",
       publishAt: null,
       english: headedContent([
@@ -1467,29 +1472,33 @@ async function seedNewsletters(tx: Tx, tenantId: string, schoolId: string) {
   ];
   const audience: Audience = { scope: "school", classId: null, gradeId: null };
   for (const plan of plans) {
-    const id = Bun.randomUUIDv7();
-    await tx.insert(newsletters).values({
+    const created = await insertPost(tx, {
       tenantId,
-      id,
       orgId: schoolId,
-      title: plan.title,
-      primaryLocale: "en",
-      bilingual: plan.arabic !== null,
-      state: plan.publishAt ? "published" : "draft",
-      publishAt: plan.publishAt,
-      authorUserId: principal.user_id,
+      authorId: principal.user_id,
+      categoryId: null,
+      slug: plan.slug,
+      titleEn: plan.title,
+      titleAr: "",
+      excerptEn: "",
+      excerptAr: "",
+      coverFileId: null,
+      coverAltEn: "",
+      coverAltAr: "",
+      pinned: false,
+      visibility: "school",
     });
     await setAudiences(tx, {
       tenantId,
-      owner: { kind: "newsletter", id },
+      owner: { kind: "site_post", id: created.id },
       audiences: [audience],
     });
-    const host = { type: "newsletter", id };
+    const host = { type: "site_post", id: created.id };
     const original = await saveDocument(tx, {
       tenantId,
       orgId: schoolId,
       host,
-      kind: "newsletter",
+      kind: "rich_text",
       locale: "en",
       content: plan.english as unknown as Record<string, unknown>,
       plainText: contentPlainText(plan.english),
@@ -1503,7 +1512,7 @@ async function seedNewsletters(tx: Tx, tenantId: string, schoolId: string) {
           host,
           originalId: original.id,
           locale: "ar",
-          kind: "newsletter",
+          kind: "rich_text",
           content: plan.arabic as unknown as Record<string, unknown>,
           plainText: contentPlainText(plan.arabic),
           mediaIds: [],
@@ -1511,6 +1520,13 @@ async function seedNewsletters(tx: Tx, tenantId: string, schoolId: string) {
         })
       : null;
     if (!plan.publishAt) continue;
+    await setPostState(tx, {
+      tenantId,
+      id: created.id,
+      expectedVersion: created.version,
+      state: "published",
+      publishedAt: plan.publishAt.toISOString(),
+    });
     for (const document of [original, translation])
       if (document)
         await snapshotPublish(tx, {
@@ -1518,9 +1534,9 @@ async function seedNewsletters(tx: Tx, tenantId: string, schoolId: string) {
           documentId: document.id,
           userId: principal.user_id,
         });
-    await addNewsletterRecipients(tx, {
+    await addPostRecipients(tx, {
       tenantId,
-      newsletterId: id,
+      postId: created.id,
       userIds: await audienceUsers(
         tx,
         { tenantId, schoolId, on: "2026-09-27" },
@@ -2586,23 +2602,22 @@ async function seedSite(tx: Tx, tenantId: string, schoolId: string) {
       coverAltEn: "",
       coverAltAr: "",
       pinned: plan.pinned,
+      visibility: "public",
     });
     const host = { type: "site_post", id: created.id };
-    const english = { body: plainContent(plan.bodyEn), reviewed: false };
+    const english = plainContent(plan.bodyEn);
     const original = await saveDocument(tx, {
       tenantId,
       orgId: schoolId,
       host,
       kind: "rich_text",
       locale: "en",
-      content: english,
+      content: english as unknown as Record<string, unknown>,
       plainText: plan.bodyEn,
       mediaIds: [],
       userId,
     });
-    const arabic = plan.bodyAr
-      ? { body: plainContent(plan.bodyAr), reviewed: true }
-      : null;
+    const arabic = plan.bodyAr ? plainContent(plan.bodyAr) : null;
     const other = arabic
       ? await saveTranslation(tx, {
           tenantId,
@@ -2611,7 +2626,7 @@ async function seedSite(tx: Tx, tenantId: string, schoolId: string) {
           originalId: original.id,
           locale: "ar",
           kind: "rich_text",
-          content: arabic,
+          content: arabic as unknown as Record<string, unknown>,
           plainText: plan.bodyAr,
           mediaIds: [],
           userId,
@@ -2626,8 +2641,15 @@ async function seedSite(tx: Tx, tenantId: string, schoolId: string) {
       publishedAt,
     });
     await snapshotPublish(tx, { tenantId, documentId: original.id, userId });
-    if (other)
+    if (other) {
       await snapshotPublish(tx, { tenantId, documentId: other.id, userId });
+      await reviewTranslation(tx, {
+        tenantId,
+        id: created.id,
+        userId,
+        reviewed: true,
+      });
+    }
     const post = {
       id: created.id,
       version: created.version + 1,
@@ -2643,9 +2665,10 @@ async function seedSite(tx: Tx, tenantId: string, schoolId: string) {
       coverAltAr: "",
       pinned: plan.pinned,
       state: "published" as const,
+      visibility: "public" as const,
+      primaryLocale: "en" as const,
       publishedAt,
       revisedAt: null,
-      announcementId: null,
       authorNameEn: null,
       authorNameAr: null,
     };
@@ -2662,7 +2685,7 @@ async function seedSite(tx: Tx, tenantId: string, schoolId: string) {
         coverKey: null,
         coverAlt: "",
         content: {
-          body: translated ? arabic.body : english.body,
+          body: translated ? arabic : english,
           locale: translated ? "ar" : "en",
         },
         media: {},

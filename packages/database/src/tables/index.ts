@@ -14,7 +14,6 @@ export * from "./grading";
 export * from "./learning";
 export * from "./membership";
 export * from "./messaging";
-export * from "./newsletters";
 export * from "./people";
 export * from "./privacy";
 export * from "./records";

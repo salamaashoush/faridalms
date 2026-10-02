@@ -29,7 +29,7 @@ export default defineConfig({
     "timetable.spec.ts",
     "messages.spec.ts",
     "announcements.spec.ts",
-    "newsletters.spec.ts",
+    "news.spec.ts",
     "calendar.spec.ts",
     "notifications.spec.ts",
     "collaboration.spec.ts",

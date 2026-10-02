@@ -35,7 +35,7 @@ const both = (en?: string, ar?: string) => inLocale(en || null, ar || null);
 export const KIND_ICON: Record<NotificationKind, LucideIcon> = {
   announcement: Megaphone,
   urgent: Siren,
-  newsletter: Newspaper,
+  news: Newspaper,
   message: MessageSquare,
   absence: UserX,
   event: CalendarDays,
@@ -55,8 +55,8 @@ export function noticeText(notice: Notice): { title: string; body: string } {
       };
     case "urgent":
       return { title: m.ntfUrgent(), body: title };
-    case "newsletter":
-      return { title: m.ntfNewsletter(), body: title };
+    case "news":
+      return { title: m.ntfNews(), body: title };
     case "message":
       return {
         title: m.ntfMessage({
@@ -152,13 +152,9 @@ export function NoticeLink({
           {children}
         </Link>
       );
-    case "newsletter":
+    case "news":
       return (
-        <Link
-          {...rest}
-          to="/newsletters/$newsletterId"
-          params={{ newsletterId: id }}
-        >
+        <Link {...rest} to="/news/$postId" params={{ postId: id }}>
           {children}
         </Link>
       );

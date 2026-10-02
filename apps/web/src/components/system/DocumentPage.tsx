@@ -101,7 +101,7 @@ function SaveIndicator({
 
 /**
  * The frame for anything written in the editor and then published:
- * announcements, newsletters, coursework, lessons, posts. Drafts save
+ * announcements, news, coursework, lessons. Drafts save
  * themselves; once published, edits wait for Update because families see
  * them at once.
  */

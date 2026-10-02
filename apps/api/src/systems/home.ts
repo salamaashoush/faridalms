@@ -29,10 +29,7 @@ import { eventsBetween } from "@faridalms/database/stores/events";
 import { schoolProfile } from "@faridalms/database/stores/identity";
 import { studentModules } from "@faridalms/database/stores/learning";
 import { threadsOf, unreadThreads } from "@faridalms/database/stores/messages";
-import {
-  editionsFor,
-  managedNewsletters,
-} from "@faridalms/database/stores/newsletters";
+import { managedPosts, newsFor } from "@faridalms/database/stores/news";
 import { deliveryLog } from "@faridalms/database/stores/notifications";
 import { childrenOf } from "@faridalms/database/stores/persons";
 import {
@@ -57,7 +54,12 @@ import * as v from "valibot";
 
 import type { UnitContext } from "../core/context";
 
-import { can, readProcedure, requireCapability } from "../core/procedure";
+import {
+  can,
+  localeOf,
+  readProcedure,
+  requireCapability,
+} from "../core/procedure";
 
 const scopeOf = (context: UnitContext) => ({
   tenantId: context.tenantId,
@@ -550,7 +552,7 @@ async function studentDay(context: UnitContext, studentId: string) {
 /**
  * A family's home: for each child today's presence, the lesson now and
  * next, up to three things that need them, and what is due this week; then
- * pinned announcements and the latest newsletter.
+ * pinned announcements and the latest school news.
  */
 export const family = readProcedure
   .input(
@@ -574,7 +576,7 @@ export const family = readProcedure
     const chosen = input.studentId
       ? links.filter((link) => link.studentId === input.studentId)
       : links;
-    const [threads, unread, feed, editions] = await Promise.all([
+    const [threads, unread, feed, news] = await Promise.all([
       threadsOf(context.tx, {
         tenantId: context.tenantId,
         schoolId: context.schoolId,
@@ -596,11 +598,12 @@ export const family = readProcedure
         tab: "current",
         q: "",
       }),
-      editionsFor(context.tx, {
+      newsFor(context.tx, {
         tenantId: context.tenantId,
         schoolId: context.schoolId,
         viewerId: context.actor.userId,
         q: "",
+        limit: 1,
       }),
     ]);
     const young = await youngStudents(context.tx, {
@@ -683,12 +686,15 @@ export const family = readProcedure
           urgency: row.urgency,
           readAt: row.readAt,
         })),
-      newsletter: editions[0]
+      news: news[0]
         ? {
-            id: editions[0].id,
-            title: editions[0].title,
-            summary: editions[0].summary,
-            readAt: editions[0].readAt,
+            id: news[0].id,
+            titleEn: news[0].titleEn,
+            titleAr: news[0].titleAr,
+            excerptEn: news[0].excerptEn,
+            excerptAr: news[0].excerptAr,
+            summary: news[0].summary,
+            readAt: news[0].readAt,
           }
         : null,
     };
@@ -934,22 +940,26 @@ export const admin = readProcedure.handler(async ({ context }) => {
           kind: "announcement" as const,
         }))
     : [];
-  const newsletters = can(context, "newsletters:manage")
+  const news = can(context, "news:manage")
     ? (
-        await managedNewsletters(context.tx, {
+        await managedPosts(context.tx, {
           tenantId: context.tenantId,
-          schoolId: context.schoolId,
-          states: ["published"],
+          orgId: context.schoolId,
+          tab: "published",
           q: "",
         })
-      )
+      ).rows
+        .filter((row) => row.recipients > 0)
         .slice(0, 2)
         .map((row) => ({
           id: row.id,
-          title: row.title,
+          title:
+            localeOf(context) === "ar"
+              ? row.titleAr || row.titleEn
+              : row.titleEn || row.titleAr,
           recipients: row.recipients,
           read: row.read,
-          kind: "newsletter" as const,
+          kind: "news" as const,
         }))
     : [];
   let checklist: {
@@ -985,7 +995,7 @@ export const admin = readProcedure.handler(async ({ context }) => {
     failed,
     attendance,
     events,
-    communications: [...announcements, ...newsletters],
+    communications: [...announcements, ...news],
     checklist,
   };
 });

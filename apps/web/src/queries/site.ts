@@ -1,4 +1,4 @@
-import type { PostsQuery, SiteLocale } from "@faridalms/domain/website";
+import type { SiteLocale } from "@faridalms/domain/website";
 
 import { queryOptions } from "@tanstack/react-query";
 
@@ -9,10 +9,7 @@ import {
   getPublicSite,
   getSiteOverview,
   getSitePage,
-  getSitePost,
-  getSitePostOptions,
   getSiteEnquiries,
-  getSitePosts,
 } from "~/server/site";
 
 export const siteOverviewQuery = queryOptions({
@@ -24,24 +21,6 @@ export const sitePageQuery = (id: string) =>
   queryOptions({
     queryKey: ["site", "page", id],
     queryFn: () => getSitePage({ data: { id } }),
-  });
-
-export const sitePostsQuery = (search: PostsQuery) =>
-  queryOptions({
-    queryKey: ["site", "posts", search],
-    queryFn: () => getSitePosts({ data: search }),
-    placeholderData: (previous) => previous,
-  });
-
-export const sitePostOptionsQuery = queryOptions({
-  queryKey: ["site", "post-options"],
-  queryFn: () => getSitePostOptions(),
-});
-
-export const sitePostQuery = (id: string) =>
-  queryOptions({
-    queryKey: ["site", "post", id],
-    queryFn: () => getSitePost({ data: { id } }),
   });
 
 export const siteEnquiriesQuery = (handled: boolean) =>

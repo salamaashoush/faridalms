@@ -6,7 +6,7 @@ import { isoWeekday } from "./timetable";
 export const NOTIFICATION_KINDS = [
   "announcement",
   "urgent",
-  "newsletter",
+  "news",
   "message",
   "absence",
   "event",
@@ -44,7 +44,7 @@ export interface NoticeParams {
 /** Urgent notices reach everyone on every channel, so nobody can turn them off. */
 export const CHOOSABLE_KINDS = [
   "announcement",
-  "newsletter",
+  "news",
   "message",
   "absence",
   "event",
@@ -85,7 +85,7 @@ export type Preferences = v.InferOutput<typeof preferencesSchema>;
 export const DEFAULT_PREFERENCES: Preferences = {
   email: {
     announcement: "digest",
-    newsletter: "digest",
+    news: "digest",
     message: "instant",
     absence: "instant",
     event: "digest",
@@ -93,7 +93,7 @@ export const DEFAULT_PREFERENCES: Preferences = {
   },
   sms: {
     announcement: "off",
-    newsletter: "off",
+    news: "off",
     message: "off",
     absence: "instant",
     event: "off",

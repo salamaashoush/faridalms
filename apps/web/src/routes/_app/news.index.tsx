@@ -1,6 +1,6 @@
-import type { ManageNewslettersQuery } from "@faridalms/domain/newsletters";
+import type { ManageNewsQuery } from "@faridalms/domain/news";
 
-import { MANAGE_TABS } from "@faridalms/domain/announcements";
+import { NEWS_TABS } from "@faridalms/domain/news";
 import { cn } from "@faridalms/ui/cn";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import {
@@ -23,111 +23,113 @@ import {
 import { RecordTabs } from "~/components/system/RecordPage";
 import { inLocale, useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
-import {
-  managedNewslettersQuery,
-  newslettersQuery,
-} from "~/queries/newsletters";
+import { managedNewsQuery, newsQuery } from "~/queries/news";
 import { currentUserQuery } from "~/queries/user";
 import { formatNumber } from "~/utils/datetime";
 
-const TABS = ["editions", ...MANAGE_TABS] as const;
+const TABS = ["latest", ...NEWS_TABS] as const;
 type Tab = (typeof TABS)[number];
 
 const searchSchema = v.object({
-  tab: v.fallback(v.optional(v.picklist(TABS), "editions"), "editions"),
+  tab: v.fallback(v.optional(v.picklist(TABS), "latest"), "latest"),
   q: v.optional(v.pipe(v.string(), v.maxLength(100)), ""),
 });
 const DEFAULT_SEARCH = v.parse(searchSchema, {});
 
-const isManage = (tab: Tab): tab is ManageNewslettersQuery["tab"] =>
-  (MANAGE_TABS as readonly string[]).includes(tab);
+const isManage = (tab: Tab): tab is ManageNewsQuery["tab"] =>
+  (NEWS_TABS as readonly string[]).includes(tab);
 
-export const Route = createFileRoute("/_app/newsletters/")({
-  staticData: { breadcrumb: m.nlTitle },
+export const Route = createFileRoute("/_app/news/")({
+  staticData: { breadcrumb: m.newsTitle },
   validateSearch: searchSchema,
   search: { middlewares: [stripSearchParams(DEFAULT_SEARCH)] },
   loaderDeps: ({ search }) => search,
   loader: async ({ context, deps }) => {
     const { queryClient } = context;
     const user = await queryClient.ensureQueryData(currentUserQuery);
-    if (isManage(deps.tab) && user.capabilities.includes("newsletters:manage"))
+    if (isManage(deps.tab) && user.capabilities.includes("news:manage"))
       await queryClient.ensureQueryData(
-        managedNewslettersQuery({ tab: deps.tab, q: deps.q }),
+        managedNewsQuery({ tab: deps.tab, q: deps.q }),
       );
-    else await queryClient.ensureQueryData(newslettersQuery(deps.q));
+    else await queryClient.ensureQueryData(newsQuery(deps.q));
   },
-  component: NewslettersPage,
+  component: NewsPage,
 });
 
 const TAB_LABEL: Record<Tab, () => string> = {
-  editions: m.nlTabEditions,
+  latest: m.newsTabLatest,
   drafts: m.annTabDrafts,
   scheduled: m.annTabScheduled,
   published: m.annTabSent,
   archived: m.annTabArchived,
 };
 
-type EditionRow = Awaited<
-  ReturnType<NonNullable<ReturnType<typeof newslettersQuery>["queryFn"]>>
+type NewsRow = Awaited<
+  ReturnType<NonNullable<ReturnType<typeof newsQuery>["queryFn"]>>
 >["rows"][number];
 type ManagedRow = Awaited<
-  ReturnType<NonNullable<ReturnType<typeof managedNewslettersQuery>["queryFn"]>>
+  ReturnType<NonNullable<ReturnType<typeof managedNewsQuery>["queryFn"]>>
 >["rows"][number];
 
-function EditionItem({ row, timeZone }: { row: EditionRow; timeZone: string }) {
-  const unread = row.readAt === null;
+const titleOf = (row: { titleEn: string; titleAr: string }) =>
+  inLocale(row.titleEn || null, row.titleAr || null);
+
+function NewsItem({ row, timeZone }: { row: NewsRow; timeZone: string }) {
+  const unread = row.recipient && row.readAt === null;
+  const summary =
+    inLocale(row.excerptEn || null, row.excerptAr || null) || row.summary;
   return (
     <li className="grid gap-1.5 py-4">
       <Link
-        to="/newsletters/$newsletterId"
-        params={{ newsletterId: row.id }}
+        to="/news/$postId"
+        params={{ postId: row.id }}
         className={cn(
           "min-w-0 text-base leading-6 hover:text-primary hover:underline",
           unread ? "font-semibold" : "font-medium",
         )}
       >
-        <bdi>{row.title}</bdi>
+        <bdi>{titleOf(row)}</bdi>
         {unread ? <span className="sr-only"> {m.annUnread()}</span> : null}
       </Link>
       <p className="text-[13px] leading-[18px] text-muted-foreground">
         {[
-          row.publishAt ? formatInstant(row.publishAt, timeZone) : null,
+          row.publishedAt ? formatInstant(row.publishedAt, timeZone) : null,
           inLocale(row.authorNameEn, row.authorNameAr),
-          row.bilingual ? m.nlBothLanguages() : null,
+          row.visibility === "public" ? m.newsWebsite() : null,
         ]
           .filter(Boolean)
           .join(" · ")}
       </p>
-      {row.summary ? (
+      {summary ? (
         <p
           dir="auto"
           className="line-clamp-2 text-sm leading-5 text-foreground/90"
         >
-          {row.summary.replaceAll(/\s*\n+\s*/g, " · ")}
+          {summary.replaceAll(/\s*\n+\s*/g, " · ")}
         </p>
       ) : null}
     </li>
   );
 }
 
-function Editions({ q }: { q: string }) {
+function Latest({ q }: { q: string }) {
   const user = useCurrentUser();
-  const { rows } = useSuspenseQuery(newslettersQuery(q)).data;
+  const { rows } = useSuspenseQuery(newsQuery(q)).data;
   if (rows.length === 0)
     return (
       <EmptyState
         icon={Newspaper}
-        title={q ? m.nlNoMatch() : m.nlNothing()}
-        description={m.nlNothingBody()}
+        title={q ? m.newsNoMatch() : m.newsNothing()}
+        description={m.newsNothingBody()}
       />
     );
   return (
     <ul
       className="divide-y rounded-lg border bg-card px-5"
-      aria-label={m.nlTitle()}
+      aria-label={m.newsTitle()}
     >
       {rows.map((row) => (
-        <EditionItem key={row.id} row={row} timeZone={user.school.timeZone} />
+        <NewsItem key={row.id} row={row} timeZone={user.school.timeZone} />
       ))}
     </ul>
   );
@@ -135,12 +137,12 @@ function Editions({ q }: { q: string }) {
 
 function ManagedTitle({ row }: { row: ManagedRow }) {
   return row.state === "draft" ? (
-    <RowLink to="/admin/newsletter-editor" search={{ id: row.id }}>
-      {row.title}
+    <RowLink to="/news-editor" search={{ id: row.id }}>
+      {titleOf(row)}
     </RowLink>
   ) : (
-    <RowLink to="/newsletters/$newsletterId" params={{ newsletterId: row.id }}>
-      {row.title}
+    <RowLink to="/news/$postId" params={{ postId: row.id }}>
+      {titleOf(row)}
     </RowLink>
   );
 }
@@ -164,15 +166,16 @@ function managedColumns(timeZone: string): Column<ManagedRow>[] {
       cell: (row) => <ManagedTitle row={row} />,
     },
     {
-      id: "languages",
-      header: m.nlColLanguages(),
-      cell: (row) => (row.bilingual ? m.nlBothLanguages() : m.nlOneLanguage()),
+      id: "where",
+      header: m.newsColWhere(),
+      cell: (row) =>
+        row.visibility === "public" ? m.newsWherePublic() : m.newsSchoolOnly(),
     },
     {
       id: "when",
       header: m.annColWhen(),
       cell: (row) =>
-        row.publishAt ? formatInstant(row.publishAt, timeZone) : "–",
+        row.publishedAt ? formatInstant(row.publishedAt, timeZone) : "–",
     },
     { id: "reach", header: m.annColReach(), cell: (row) => reach(row) },
   ];
@@ -183,37 +186,31 @@ const managedCard = {
   fact: (row: ManagedRow) => reach(row),
 };
 
-function Managed({
-  tab,
-  q,
-}: {
-  tab: ManageNewslettersQuery["tab"];
-  q: string;
-}) {
+function Managed({ tab, q }: { tab: ManageNewsQuery["tab"]; q: string }) {
   const user = useCurrentUser();
-  const { rows } = useSuspenseQuery(managedNewslettersQuery({ tab, q })).data;
+  const { rows } = useSuspenseQuery(managedNewsQuery({ tab, q })).data;
   return (
     <DataTable
-      caption={m.nlManagedCaption()}
+      caption={m.newsManagedCaption()}
       rows={rows}
       columns={managedColumns(user.school.timeZone)}
-      rowLabel={(row) => row.title}
+      rowLabel={(row) => titleOf(row)}
       card={managedCard}
       empty={{
         icon: CircleCheck,
-        title: m.nlManagedEmpty(),
-        description: m.nlManagedEmptyBody(),
+        title: m.newsManagedEmpty(),
+        description: m.newsManagedEmptyBody(),
       }}
     />
   );
 }
 
-function NewslettersPage() {
+function NewsPage() {
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
   const user = useCurrentUser();
-  const manages = user.capabilities.includes("newsletters:manage");
-  const tab = manages ? search.tab : "editions";
+  const manages = user.capabilities.includes("news:manage");
+  const tab = manages ? search.tab : "latest";
   const body = (
     <div className="grid gap-4">
       <IndexToolbar
@@ -221,35 +218,35 @@ function NewslettersPage() {
           value: search.q,
           onChange: (q) =>
             void navigate({ search: (previous) => ({ ...previous, q }) }),
-          label: m.nlSearch(),
-          placeholder: m.nlSearchPlaceholder(),
+          label: m.newsSearch(),
+          placeholder: m.newsSearchPlaceholder(),
         }}
       />
       {isManage(tab) ? (
         <Managed tab={tab} q={search.q} />
       ) : (
-        <Editions q={search.q} />
+        <Latest q={search.q} />
       )}
     </div>
   );
   return (
     <>
       <PageHeader
-        title={m.nlTitle()}
-        description={m.nlHint()}
+        title={m.newsTitle()}
+        description={m.newsHint()}
         action={
           manages
             ? {
-                label: m.nlNew(),
+                label: m.newsNew(),
                 icon: Plus,
-                link: { to: "/admin/newsletter-editor", search: {} },
+                link: { to: "/news-editor", search: {} },
               }
             : undefined
         }
       />
       {manages ? (
         <RecordTabs
-          label={m.nlTitle()}
+          label={m.newsTitle()}
           tabs={TABS.map((value) => ({ value, label: TAB_LABEL[value]() }))}
           value={search.tab}
           onChange={(next) => void navigate({ search: { tab: next } })}

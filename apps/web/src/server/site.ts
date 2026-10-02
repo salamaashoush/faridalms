@@ -4,17 +4,14 @@ import {
   enquirySchema,
   markEnquirySchema,
   movePageSchema,
-  postsQuerySchema,
   publicPageSchema,
   publicPostSchema,
   publicPostsSchema,
   publicSiteSchema,
-  publishPostSchema,
   publishSchema,
   restoreSchema,
   saveCategorySchema,
   savePageSchema,
-  savePostSchema,
   saveSettingsSchema,
   siteRefSchema,
 } from "@faridalms/domain/website";
@@ -71,38 +68,6 @@ export const saveSiteCategory = createServerFn({ method: "POST" })
 export const removeSiteCategory = createServerFn({ method: "POST" })
   .validator(byId)
   .handler(({ data }) => backend().site.removeSiteCategory(data));
-
-export const getSitePosts = createServerFn({ method: "GET" })
-  .validator(checked(postsQuerySchema))
-  .handler(({ data }) => backend().site.posts(data));
-
-export const getSitePostOptions = createServerFn({ method: "GET" }).handler(
-  () => backend().site.postOptions(),
-);
-
-export const getSitePost = createServerFn({ method: "GET" })
-  .validator(byId)
-  .handler(({ data }) => record(backend().site.post(data)));
-
-export const saveSitePost = createServerFn({ method: "POST" })
-  .validator(checked(savePostSchema))
-  .handler(({ data }) => backend().site.savePost(data));
-
-export const publishSitePost = createServerFn({ method: "POST" })
-  .validator(checked(publishPostSchema))
-  .handler(({ data }) => backend().site.publishPost(data));
-
-export const unpublishSitePost = createServerFn({ method: "POST" })
-  .validator(checked(siteRefSchema))
-  .handler(({ data }) => backend().site.unpublishPost(data));
-
-export const archiveSitePost = createServerFn({ method: "POST" })
-  .validator(checked(siteRefSchema))
-  .handler(({ data }) => backend().site.archivePost(data));
-
-export const restoreSitePost = createServerFn({ method: "POST" })
-  .validator(checked(restoreSchema))
-  .handler(({ data }) => backend().site.restorePost(data));
 
 export const submitSiteEnquiry = createServerFn({ method: "POST" })
   .validator(checked(enquirySchema))

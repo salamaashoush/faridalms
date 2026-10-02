@@ -36,7 +36,7 @@ export const SEARCH_KIND_LABEL: Record<SearchKind, () => string> = {
   assignments: m.searchKindAssignments,
   learning: m.searchKindLearning,
   announcements: m.searchKindAnnouncements,
-  newsletters: m.searchKindNewsletters,
+  news: m.searchKindNews,
   events: m.searchKindEvents,
   messages: m.searchKindMessages,
 };
@@ -48,7 +48,7 @@ export const SEARCH_KIND_ICON: Record<SearchKind, LucideIcon> = {
   assignments: ClipboardList,
   learning: BookOpen,
   announcements: Megaphone,
-  newsletters: Newspaper,
+  news: Newspaper,
   events: CalendarDays,
   messages: Inbox,
 };
@@ -251,13 +251,9 @@ export function HitLink({
           {...shared}
         />
       );
-    case "newsletter":
+    case "news":
       return (
-        <Link
-          to="/newsletters/$newsletterId"
-          params={{ newsletterId: hit.id }}
-          {...shared}
-        />
+        <Link to="/news/$postId" params={{ postId: hit.id }} {...shared} />
       );
     case "event":
       return (

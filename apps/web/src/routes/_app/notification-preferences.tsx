@@ -42,7 +42,7 @@ export const Route = createFileRoute("/_app/notification-preferences")({
 
 const KIND_LABEL: Record<ChoosableKind, () => string> = {
   announcement: m.ntfKindAnnouncement,
-  newsletter: m.ntfKindNewsletter,
+  news: m.ntfKindNews,
   message: m.ntfKindMessage,
   absence: m.ntfKindAbsence,
   event: m.ntfKindEvent,
@@ -234,8 +234,8 @@ function PreferencesPage() {
             width="name"
             value={draft.locale}
             options={[
-              { value: "en", label: m.nlLangEn() },
-              { value: "ar", label: m.nlLangAr() },
+              { value: "en", label: m.newsLangEn() },
+              { value: "ar", label: m.newsLangAr() },
             ]}
             onChange={(locale) =>
               setDraft((current) => ({ ...current, locale }))

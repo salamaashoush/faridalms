@@ -8,7 +8,7 @@ import type { Scope } from "./students";
 
 import { reaches } from "./audiences";
 import { taughtClasses } from "./classes";
-import { publishedText } from "./newsletters";
+import { publishedPostText } from "./news";
 import { isoOf, textArray, uuidArray } from "./sql";
 
 type Tx = CellTransaction;
@@ -270,30 +270,34 @@ export async function announcementsAmong(
 }
 
 /**
- * Newsletters among `ids`, as `announcementsAmong`. Readers are matched
- * against the edition as published, never a draft of its next revision.
+ * School news among `ids`: every post for those who manage news, otherwise
+ * posts out that are public or reached the viewer. Readers are matched
+ * against the post as published, never a draft of its next revision.
  */
-export async function newslettersAmong(
+export async function newsAmong(
   tx: Tx,
   input: Among & { viewerId: string; manage: boolean },
 ) {
   const text = input.manage
-    ? sql`(select d.plain_text from core.documents d where d.tenant_id = n.tenant_id
-        and d.host_type = 'newsletter' and d.host_id = n.id and d.status = 'active'
+    ? sql`(select d.plain_text from core.documents d where d.tenant_id = p.tenant_id
+        and d.host_type = 'site_post' and d.host_id = p.id and d.status = 'active'
         and d.translation_of_id is null)`
-    : publishedText;
+    : publishedPostText;
   return found(
     await tx.execute<Raw>(sql`
-      select n.id, 'newsletter' as type, n.title, ${snippetOf(text, input.q)} as snippet, null as context,
-        ${isoOf(sql`coalesce(n.publish_at, n.date_last_modified)`)} as "when",
-        case when n.state in ('draft', 'scheduled', 'archived') then n.state end as flag, null as roles
-      from core.newsletters n
-      where n.tenant_id = ${input.tenantId}::uuid and n.org_id = ${input.schoolId}::uuid
-        and n.id = any(${uuidArray(input.ids)}) and n.status = 'active'
-        and (${input.manage} or (n.state in ('scheduled', 'published') and n.publish_at <= statement_timestamp()
-          and exists (select 1 from core.newsletter_recipients r
-            where r.tenant_id = n.tenant_id and r.newsletter_id = n.id
-              and r.user_id = ${input.viewerId}::uuid and r.status = 'active')))`),
+      select p.id, 'site_post' as type,
+        ${input.ar ? sql`coalesce(nullif(p.title_ar, ''), p.title_en)` : sql`coalesce(nullif(p.title_en, ''), p.title_ar)`} as title,
+        ${snippetOf(text, input.q)} as snippet, null as context,
+        ${isoOf(sql`coalesce(p.published_at, p.date_last_modified)`)} as "when",
+        case when p.state <> 'published' then p.state
+             when p.published_at > statement_timestamp() then 'scheduled' end as flag, null as roles
+      from core.site_posts p
+      where p.tenant_id = ${input.tenantId}::uuid and p.org_id = ${input.schoolId}::uuid
+        and p.id = any(${uuidArray(input.ids)}) and p.status = 'active'
+        and (${input.manage} or (p.state = 'published' and p.published_at <= statement_timestamp()
+          and (p.visibility = 'public' or exists (select 1 from core.site_post_recipients r
+            where r.tenant_id = p.tenant_id and r.post_id = p.id
+              and r.user_id = ${input.viewerId}::uuid and r.status = 'active'))))`),
   );
 }
 

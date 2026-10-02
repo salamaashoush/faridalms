@@ -97,12 +97,7 @@ export const healthRecords = health.table.withRLS(
   ],
 );
 
-export type DocumentKind =
-  | "rich_text"
-  | "newsletter"
-  | "page"
-  | "lesson"
-  | "transcript";
+export type DocumentKind = "rich_text" | "page" | "lesson" | "transcript";
 
 export const documents = core.table.withRLS(
   "documents",
@@ -138,7 +133,7 @@ export const documents = core.table.withRLS(
     ck(
       "documents",
       "kind",
-      sql`kind in ('rich_text', 'newsletter', 'page', 'lesson', 'transcript')`,
+      sql`kind in ('rich_text', 'page', 'lesson', 'transcript')`,
     ),
     ck("documents", "schema_version", sql`schema_version > 0`),
     ck("documents", "locale", sql`locale in ('ar', 'en')`),

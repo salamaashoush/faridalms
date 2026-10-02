@@ -33,8 +33,7 @@ and notifications sit in the sidebar header.
 - **Teacher:** Today · Classes · To review · Coursework · Modules · Calendar ·
   Messages. Attendance opens from a timetable period; timetable lives in Today
   and Calendar.
-- **Family:** Home · Calendar · Messages · News (announcements and
-  newsletters) · Child. A child chip in the header switches between children
+- **Family:** Home · Calendar · Messages · News · Announcements · Child. A child chip in the header switches between children
   (avatar, name, colour); Home defaults to all children and the chosen child is
   kept in the URL.
 - **Student:** Home · Classes · To do · Calendar · Messages · Grades.
@@ -51,7 +50,7 @@ and notifications sit in the sidebar header.
 - **Family Home:** per child, today's presence and now/next period; needs
   attention (missing work, new result, absence, unread teacher message, at most
   3, one action each); due this week. Then up to 3 pinned announcements and the
-  latest newsletter. No averages as headlines, no infinite feed.
+  latest school news. No averages as headlines, no infinite feed.
 - **Student Home:** due soon (7 days, at most 5, missing flagged); today's
   timetable; continue lesson; class announcements; classes.
 - **Admin Today:** needs action (registers not taken with Remind all,
@@ -221,17 +220,21 @@ audited.
 - Delivery report: per recipient channel status, viewed, acknowledged,
   language; remind those who have not acknowledged; export.
 
-## Newsletters
+## News
 
-Built in the shared editor from sections (heading, text, image, image with
-text, button, file, divider, embedded event or announcement, two columns that
-stack on phones). Templates and Duplicate last edition. Each section has an
-English and Arabic version with a reviewed flag. Preview on phone, desktop and
-email in both directions; test send; link check. Publishing creates a web
-edition in the archive and notifies the audience; email carries the whole
-edition in one column. Readers get one column, a language switch, a table of
-contents for long issues and printing; the archive is searchable by audience
-and year.
+One kind of story: a post, written as one document in the shared editor, in
+one language or both, with a translation someone checks against the original
+(the check lapses when the original changes). A post is either for the
+website and the school, or for the school only; school-only news never
+reaches the website. A post has a summary, a picture, an audience that is told
+when it goes out (required for school-only news, optional for website news),
+and on the website a category, an address and pinning. A weekly or monthly
+newsletter is a post started from a newsletter template. Publishing fixes who
+it reached and notifies them once with the summary; edits stay private until
+published again, and readers see when a post was updated. Duplicate, archive,
+schedule, version history and a read report per post. Readers get one column
+and a language switch; News lists everything public and everything that
+reached them, searchable.
 
 ## Calendar
 
@@ -246,7 +249,7 @@ add silently. Every person and every child has an iCal subscription link.
 - Bell with Needs action and All tabs, grouped by day and type, each item with
   a child chip and a link; Mark all read. Covers everything, new posts
   included.
-- Preferences: a matrix of Messages, Announcements, Newsletters, Calendar
+- Preferences: a matrix of Messages, Announcements, News, Calendar
   reminders and Academics against in-app, email and SMS, each Instant, Digest
   or Off; emergency and time-sensitive are locked on. Digest daily or weekly at
   a chosen time, skipped when empty. Quiet hours and weekend mute, with a note

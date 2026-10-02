@@ -18,7 +18,7 @@ import {
   classesAmong,
   eventsAmong,
   learningAmong,
-  newslettersAmong,
+  newsAmong,
   peopleAmong,
   studentsAmong,
   threadsAmong,
@@ -45,7 +45,7 @@ const TYPES: Record<SearchKind, readonly string[]> = {
   assignments: ["assignment"],
   learning: ["learning_module", "lesson"],
   announcements: ["announcement"],
-  newsletters: ["newsletter"],
+  news: ["site_post"],
   events: ["calendar_event"],
   messages: ["message_thread"],
 };
@@ -56,7 +56,7 @@ const TARGET: Record<string, SearchTarget> = {
   learning_module: "module",
   lesson: "lesson",
   announcement: "announcement",
-  newsletter: "newsletter",
+  site_post: "news",
   calendar_event: "event",
   message_thread: "thread",
 };
@@ -163,10 +163,9 @@ async function resolverOf(
       return (ids) =>
         announcementsAmong(context.tx, { ...base, ids, viewerId, manage });
     }
-    case "newsletters": {
-      const manage = can(context, "newsletters:manage");
-      return (ids) =>
-        newslettersAmong(context.tx, { ...base, ids, viewerId, manage });
+    case "news": {
+      const manage = can(context, "news:manage");
+      return (ids) => newsAmong(context.tx, { ...base, ids, viewerId, manage });
     }
     case "events": {
       const reach = await calendarReach(context);

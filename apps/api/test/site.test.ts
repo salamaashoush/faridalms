@@ -259,45 +259,6 @@ describe("publishing a page", () => {
   });
 });
 
-describe("publishing a post", () => {
-  test("a post without its translation reads in the original language, marked as such", async () => {
-    const { api } = await principal();
-    const { categories } = await api.site.postOptions();
-    const saved = await api.site.savePost({
-      id: "",
-      expectedVersion: 0,
-      categoryId: categories[0]?.id ?? "",
-      slug: "book-week",
-      titleEn: "Book week",
-      titleAr: "",
-      excerptEn: "Dress as your favourite character.",
-      excerptAr: "",
-      coverFileId: "",
-      coverAltEn: "",
-      coverAltAr: "",
-      pinned: false,
-      content: {
-        body: plainContent("Book week starts on Sunday."),
-        reviewed: false,
-      },
-      translation: null,
-    });
-    await api.site.publishPost({
-      id: saved.id,
-      expectedVersion: saved.version,
-    });
-    const read = await visitor().publicSitePost({
-      school: "northwind",
-      locale: "ar",
-      slug: "book-week",
-    });
-    expect(read.title).toBe("Book week");
-    expect(read.bodyLocale).toBe("en");
-    const { rows } = await api.site.posts({ tab: "published", q: "book" });
-    expect(rows.map((row) => row.slug)).toEqual(["book-week"]);
-  });
-});
-
 /** Every page but the one a starter recreates, as it stood. */
 const untouched = (
   rows: { id: string; slug: string; state: string; version: number }[],
