@@ -241,6 +241,41 @@ export const logContactSchema = v.object({
 });
 export type LogContact = v.InferOutput<typeof logContactSchema>;
 
+const clockTime = v.pipe(v.string(), v.isoTime());
+
+export const frontDeskQuerySchema = v.object({
+  date: v.optional(v.union([v.literal(""), isoDate]), ""),
+});
+
+export const findStudentSchema = v.object({
+  q: v.pipe(v.string(), v.trim(), v.minLength(2), v.maxLength(100)),
+});
+
+export const pickupQuerySchema = v.object({ studentId: id });
+
+/** A child signed in late at reception, at a time on today's clock. */
+export const signInSchema = v.object({
+  studentId: id,
+  at: clockTime,
+  reasonId: optionalId,
+  note: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(500)), ""),
+});
+export type SignIn = v.InferOutput<typeof signInSchema>;
+
+/** A child signed out early, and who collected them. */
+export const signOutSchema = v.object({
+  studentId: id,
+  at: clockTime,
+  reasonId: optionalId,
+  collectedById: optionalId,
+  collectedByName: v.optional(
+    v.pipe(v.string(), v.trim(), v.maxLength(120)),
+    "",
+  ),
+  note: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(500)), ""),
+});
+export type SignOut = v.InferOutput<typeof signOutSchema>;
+
 export const attendanceSettingsSchema = v.pipe(
   v.object({
     expectedVersion: v.pipe(v.number(), v.integer(), v.minValue(0)),

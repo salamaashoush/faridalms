@@ -106,6 +106,20 @@ function withReports(drafts: Drafts, data: Data): Drafts {
         meaning: "absent",
         reasonId: report.reasonId,
       };
+  // A child signed out before this period started is away for it.
+  const start = data.period.startTime;
+  for (const movement of data.movements)
+    if (
+      movement.direction === "out" &&
+      start &&
+      movement.at <= start &&
+      !next[movement.studentId]?.meaning
+    )
+      next[movement.studentId] = {
+        ...BLANK,
+        meaning: "absent",
+        reasonId: movement.reasonId ?? "",
+      };
   return next;
 }
 
@@ -190,6 +204,7 @@ function StudentRow({
   draft,
   earlier,
   report,
+  movements,
   via,
   reasons,
   lateNow,
@@ -202,6 +217,8 @@ function StudentRow({
   earlier: Data["earlier"];
   /** What the family told the school about this day. */
   report: Data["reports"][number] | undefined;
+  /** When reception signed the child in or out that day. */
+  movements: Data["movements"];
   /** How late someone arriving now is, on today's register. */
   lateNow: () => number | null;
   closesMinutes: number;
@@ -249,6 +266,16 @@ function StudentRow({
                 {report.accepted ? ` · ${m.repAccepted()}` : null}
               </span>
             ) : null}
+            {movements.map((movement) => (
+              <span
+                key={`${movement.direction}-${movement.at}`}
+                className="text-[13px] leading-[18px] text-info"
+              >
+                {movement.direction === "in"
+                  ? m.attSignedIn({ time: movement.at })
+                  : m.attSignedOut({ time: movement.at })}
+              </span>
+            ))}
             {earlier.length ? (
               <span className="text-[13px] leading-[18px] text-muted-foreground">
                 {earlier
@@ -528,6 +555,9 @@ function RegisterForm({ data }: { data: Data }) {
               draft={drafts[student.id] ?? BLANK}
               earlier={earlierOf(student.id)}
               report={data.reports.find((row) => row.studentId === student.id)}
+              movements={data.movements.filter(
+                (row) => row.studentId === student.id,
+              )}
               via={
                 data.marks.find((mark) => mark.studentId === student.id)?.via ??
                 null

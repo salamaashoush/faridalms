@@ -9,6 +9,7 @@ import * as v from "valibot";
 import { Absences } from "~/components/attendance/Absences";
 import { Board } from "~/components/attendance/Board";
 import { FollowUp } from "~/components/attendance/FollowUp";
+import { FrontDesk } from "~/components/attendance/FrontDesk";
 import { Report } from "~/components/attendance/Report";
 import { ReportInbox } from "~/components/attendance/ReportInbox";
 import { PageHeader } from "~/components/system/IndexPage";
@@ -19,11 +20,13 @@ import {
   absencesQuery,
   attendanceBoardQuery,
   followUpQuery,
+  frontDeskQuery,
   attendanceReportQuery,
 } from "~/queries/attendance";
 
 const TABS = [
   "registers",
+  "desk",
   "follow",
   "absences",
   "reported",
@@ -63,6 +66,8 @@ export const Route = createFileRoute("/_app/admin/attendance")({
       await queryClient.ensureQueryData(attendanceBoardQuery(deps.date));
     else if (deps.tab === "absences")
       await queryClient.ensureQueryData(absencesQuery(absencesOf(deps)));
+    else if (deps.tab === "desk")
+      await queryClient.ensureQueryData(frontDeskQuery(deps.date));
     else if (deps.tab === "follow")
       await queryClient.ensureQueryData(followUpQuery(deps.date));
     else if (deps.tab === "reported")
@@ -85,6 +90,7 @@ function reportOf(search: Search) {
 
 const TAB_LABEL: Record<Tab, () => string> = {
   registers: m.attTabRegisters,
+  desk: m.deskTab,
   follow: m.fupTab,
   absences: m.attTabAbsences,
   reported: m.repInbox,
@@ -125,6 +131,8 @@ function AdminAttendancePage() {
             states={search.states}
             onChange={(change) => patch(change)}
           />
+        ) : search.tab === "desk" ? (
+          <FrontDesk date={search.date} onDate={(date) => patch({ date })} />
         ) : search.tab === "follow" ? (
           <FollowUp date={search.date} onDate={(date) => patch({ date })} />
         ) : search.tab === "absences" ? (

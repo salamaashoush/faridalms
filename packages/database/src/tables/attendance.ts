@@ -322,3 +322,72 @@ export const attendanceContacts = core.table.withRLS(
     ...entityProfile(),
   ],
 );
+
+/**
+ * A child arriving late or leaving early through reception: when, why,
+ * and for a departure, who collected them. The day's registers take the
+ * mark; this keeps the front desk's record, which safeguarding needs.
+ */
+export const studentMovements = core.table.withRLS(
+  "student_movements",
+  {
+    ...tenantColumns(),
+    orgId: uuid("org_id").notNull(),
+    studentUserId: uuid("student_user_id").notNull(),
+    dayOn: date("day_on", { mode: "string" }).notNull(),
+    direction: text("direction").$type<"in" | "out">().notNull(),
+    at: time("at").notNull(),
+    reasonDescriptorId: uuid("reason_descriptor_id"),
+    reasonNs: text("reason_ns")
+      .notNull()
+      .generatedAlwaysAs(sql`'attendance_reason'`),
+    /** A contact on the child's record who collected them. */
+    collectedByUserId: uuid("collected_by_user_id"),
+    /** Anyone else who collected them, as they gave their name. */
+    collectedByName: text("collected_by_name"),
+    note: text("note"),
+    recordedByUserId: uuid("recorded_by_user_id").notNull(),
+    ...entityColumns(),
+  },
+  (t): PgTableExtraConfigValue[] => [
+    pk("student_movements", t.tenantId, t.id),
+    ...baseConstraints("student_movements", t, tenants),
+    fk("student_movements", [t.tenantId, t.orgId], [orgs.tenantId, orgs.id]),
+    fk(
+      "student_movements",
+      [t.tenantId, t.studentUserId],
+      [users.tenantId, users.id],
+    ),
+    fk(
+      "student_movements",
+      [t.tenantId, t.reasonDescriptorId, t.reasonNs],
+      [descriptors.tenantId, descriptors.id, descriptors.namespace],
+    ),
+    fk(
+      "student_movements",
+      [t.tenantId, t.collectedByUserId],
+      [users.tenantId, users.id],
+    ),
+    fk(
+      "student_movements",
+      [t.tenantId, t.recordedByUserId],
+      [users.tenantId, users.id],
+    ),
+    ck(
+      "student_movements",
+      "direction",
+      sql`direction in ('in', 'out')
+        and (direction = 'out' or (collected_by_user_id is null and collected_by_name is null))`,
+    ),
+    ck(
+      "student_movements",
+      "collected_by_name",
+      sql`char_length(collected_by_name) between 1 and 120`,
+    ),
+    ck("student_movements", "note", sql`char_length(note) between 1 and 500`),
+    index("student_movements_day_idx")
+      .on(t.tenantId, t.orgId, t.dayOn)
+      .where(sql`status = 'active'`),
+    ...entityProfile(),
+  ],
+);

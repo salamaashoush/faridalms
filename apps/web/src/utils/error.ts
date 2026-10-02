@@ -179,6 +179,10 @@ export function getMessageFromError(error: unknown): string {
         return m.attRangeInvalid();
       case "attendance.lateness":
         return m.attRuleClosesAfterLate();
+      case "attendance.pickup_who":
+        return m.deskChooseCollector();
+      case "attendance.pickup_not_allowed":
+        return m.deskMustNotCollect();
       case "attendance.report_late":
         return m.repTooLate();
       case "attendance.report_time":

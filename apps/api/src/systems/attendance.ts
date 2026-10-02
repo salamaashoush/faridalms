@@ -44,6 +44,7 @@ import {
 } from "@faridalms/database/stores/classes";
 import { namesOf } from "@faridalms/database/stores/coursework";
 import { changesOn, coveredPeriods } from "@faridalms/database/stores/cover";
+import { movementsOn } from "@faridalms/database/stores/front-desk";
 import { schoolProfile } from "@faridalms/database/stores/identity";
 import { messagingGuardians } from "@faridalms/database/stores/messages";
 import { noticed, withdraw } from "@faridalms/database/stores/notifications";
@@ -410,12 +411,20 @@ export const register = readProcedure
         excludeRegisterId: existing?.id ?? null,
       }),
     ]);
-    const reports = await reportsOn(context.tx, {
-      tenantId: context.tenantId,
-      schoolId: context.schoolId,
-      studentIds: roster,
-      day: input.date,
-    });
+    const [reports, movements] = await Promise.all([
+      reportsOn(context.tx, {
+        tenantId: context.tenantId,
+        schoolId: context.schoolId,
+        studentIds: roster,
+        day: input.date,
+      }),
+      movementsOn(context.tx, {
+        tenantId: context.tenantId,
+        schoolId: context.schoolId,
+        day: input.date,
+        studentIds: roster,
+      }),
+    ]);
     const onRoster = new Set(roster);
     return {
       class: {
@@ -479,6 +488,12 @@ export const register = readProcedure
         at: row.at,
         reasonId: row.reasonId,
         accepted: row.decision === "accepted",
+      })),
+      movements: movements.map((row) => ({
+        studentId: row.studentId,
+        direction: row.direction,
+        at: row.at,
+        reasonId: row.reasonId,
       })),
       ...codesView(codes),
       access,

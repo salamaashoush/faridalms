@@ -1143,3 +1143,100 @@ async function touchRegister(tx: Tx, tenantId: string, registerId: string) {
     update core.attendance_registers set version = version + 1
     where tenant_id = ${tenantId}::uuid and id = ${registerId}::uuid`);
 }
+
+export interface StudentRegister {
+  registerId: string;
+  classId: string;
+  periodId: string;
+  startTime: string | null;
+  endTime: string | null;
+  official: boolean;
+  markId: string | null;
+  meaning: AttendanceMeaning | null;
+}
+
+/** The registers taken on a day that a student is on, with their mark in each. */
+export async function studentRegistersOn(
+  tx: Tx,
+  input: { tenantId: string; schoolId: string; studentId: string; day: string },
+): Promise<StudentRegister[]> {
+  const rows = await tx.execute<{
+    register_id: string;
+    class_id: string;
+    class_period_id: string;
+    start_time: string | null;
+    end_time: string | null;
+    official_attendance: boolean;
+    mark_id: string | null;
+    category_meaning: AttendanceMeaning | null;
+  }>(sql`
+    select g.id as register_id, g.class_id, g.class_period_id,
+           to_char(p.start_time, 'HH24:MI') as start_time,
+           to_char(p.end_time, 'HH24:MI') as end_time, p.official_attendance,
+           e.id as mark_id, e.category_meaning
+    from core.attendance_registers g
+    join core.classes c on c.tenant_id = g.tenant_id and c.id = g.class_id
+    join core.class_periods p on p.tenant_id = g.tenant_id and p.id = g.class_period_id
+    left join core.attendance_events e on e.tenant_id = g.tenant_id and e.taken_on = g.taken_on
+      and e.register_id = g.id and e.student_user_id = ${input.studentId}::uuid
+      and e.status = 'active'
+    where g.tenant_id = ${input.tenantId}::uuid and g.org_id = ${input.schoolId}::uuid
+      and g.taken_on = ${input.day}::date and g.status = 'active'
+      and exists (select 1 from core.enrollments n
+        where n.tenant_id = g.tenant_id and n.user_id = ${input.studentId}::uuid
+          and n.role = 'student' and n.status = 'active' and n.valid_during @> ${input.day}::date
+          and n.class_id = coalesce(c.homeroom_class_id, c.id))
+    order by p.sequence`);
+  return rows.map((row) => ({
+    registerId: row.register_id,
+    classId: row.class_id,
+    periodId: row.class_period_id,
+    startTime: row.start_time,
+    endTime: row.end_time,
+    official: row.official_attendance,
+    markId: row.mark_id,
+    meaning: row.category_meaning,
+  }));
+}
+
+/**
+ * Sets one student's mark in a register, as reception does when a child
+ * arrives late or leaves early, and moves the register's version on so a
+ * teacher's open copy sees the change.
+ */
+export async function setStudentMark(
+  tx: Tx,
+  input: {
+    tenantId: string;
+    registerId: string;
+    day: string;
+    studentId: string;
+    markId: string | null;
+    categoryId: string;
+    meaning: AttendanceMeaning;
+    minutes: number | null;
+    reasonId: string | null;
+    note: string | null;
+    actorId: string;
+  },
+): Promise<void> {
+  if (input.markId)
+    await tx.execute(sql`
+      update core.attendance_events
+      set category_descriptor_id = ${input.categoryId}::uuid,
+          category_meaning = ${input.meaning}, minutes = ${input.minutes},
+          reason_descriptor_id = coalesce(${input.reasonId}::uuid, reason_descriptor_id),
+          note = coalesce(${input.note}, note),
+          recorded_by_user_id = ${input.actorId}::uuid
+      where tenant_id = ${input.tenantId}::uuid and taken_on = ${input.day}::date
+        and id = ${input.markId}::uuid`);
+  else
+    await tx.execute(sql`
+      insert into core.attendance_events
+        (tenant_id, taken_on, register_id, recorded_by_user_id, student_user_id,
+         category_descriptor_id, category_meaning, minutes, reason_descriptor_id, note)
+      values (${input.tenantId}::uuid, ${input.day}::date, ${input.registerId}::uuid,
+        ${input.actorId}::uuid, ${input.studentId}::uuid, ${input.categoryId}::uuid,
+        ${input.meaning}, ${input.minutes}, ${input.reasonId}::uuid, ${input.note})`);
+  await touchRegister(tx, input.tenantId, input.registerId);
+}

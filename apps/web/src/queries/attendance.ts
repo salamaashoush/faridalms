@@ -11,6 +11,7 @@ import {
   getAttendanceSettings,
   getClassAttendance,
   getFollowUp,
+  getFrontDesk,
   getMyAbsenceReports,
   getRegister,
   getStudentAttendance,
@@ -82,4 +83,10 @@ export const followUpQuery = (date = "") =>
   queryOptions({
     queryKey: ["attendance", "follow-up", date],
     queryFn: () => getFollowUp({ data: { date } }),
+  });
+
+export const frontDeskQuery = (date = "") =>
+  queryOptions({
+    queryKey: ["attendance", "front-desk", date],
+    queryFn: () => getFrontDesk({ data: { date } }),
   });

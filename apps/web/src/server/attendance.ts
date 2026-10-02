@@ -4,7 +4,12 @@ import {
   attendanceSettingsSchema,
   decideReportSchema,
   familyReportsSchema,
+  findStudentSchema,
   followUpQuerySchema,
+  frontDeskQuerySchema,
+  pickupQuerySchema,
+  signInSchema,
+  signOutSchema,
   logContactSchema,
   reportInboxSchema,
   withdrawReportSchema,
@@ -110,3 +115,23 @@ export const getFollowUp = createServerFn({ method: "GET" })
 export const logAttendanceContact = createServerFn({ method: "POST" })
   .validator(checked(logContactSchema))
   .handler(({ data }) => backend().followUp.logContact(data));
+
+export const getFrontDesk = createServerFn({ method: "GET" })
+  .validator(checked(frontDeskQuerySchema))
+  .handler(({ data }) => backend().frontDesk.day(data));
+
+export const findDeskStudents = createServerFn({ method: "GET" })
+  .validator(checked(findStudentSchema))
+  .handler(({ data }) => backend().frontDesk.find(data));
+
+export const getPickupContacts = createServerFn({ method: "GET" })
+  .validator(checked(pickupQuerySchema))
+  .handler(({ data }) => backend().frontDesk.pickup(data));
+
+export const signStudentIn = createServerFn({ method: "POST" })
+  .validator(checked(signInSchema))
+  .handler(({ data }) => backend().frontDesk.signIn(data));
+
+export const signStudentOut = createServerFn({ method: "POST" })
+  .validator(checked(signOutSchema))
+  .handler(({ data }) => backend().frontDesk.signOut(data));
