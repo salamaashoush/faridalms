@@ -3,6 +3,7 @@ import * as students from "./modules/students";
 import * as accessSystem from "./systems/access";
 import * as announcementsSystem from "./systems/announcements";
 import * as attendanceSystem from "./systems/attendance";
+import * as badgesSystem from "./systems/badges";
 import * as calendarSystem from "./systems/calendar";
 import * as classesSystem from "./systems/classes";
 import * as courseworkSystem from "./systems/coursework";
@@ -31,6 +32,7 @@ import * as yearsSystem from "./systems/years";
 export const router = {
   identity,
   people: peopleSystem,
+  badges: badgesSystem,
   access: accessSystem,
   school: schoolSystem,
   records: recordsSystem,

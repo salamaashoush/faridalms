@@ -35,6 +35,7 @@ export default defineConfig({
     "collaboration.spec.ts",
     "learning.spec.ts",
     "young.spec.ts",
+    "badges.spec.ts",
     "site.spec.ts",
     "home.spec.ts",
     "search.spec.ts",

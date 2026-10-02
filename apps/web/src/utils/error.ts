@@ -545,6 +545,8 @@ export function getMessageFromError(error: unknown): string {
         return m.assignmentNoStudentRecord();
       case "auth.invalid_credentials":
         return m.authInvalidCredentials();
+      case "badges.not_young":
+        return m.badgesNotYoung();
       case "grading.score_exceeds_max":
         return m.gradingScoreExceedsMax();
       case "assignment.due_in_past":

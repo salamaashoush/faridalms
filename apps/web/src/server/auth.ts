@@ -8,7 +8,7 @@ import {
 } from "@tanstack/react-start/server";
 import * as v from "valibot";
 
-import { loginSchema } from "~/schema/auth";
+import { badgeLoginSchema, loginSchema } from "~/schema/auth";
 
 import {
   backend,
@@ -73,6 +73,41 @@ export const login = createServerFn({ method: "POST" })
       isAuthenticated: true,
       workspace: session.workspace,
       school,
+    };
+  });
+
+/**
+ * Sign-in with a scanned badge. On a device the class shares, the last
+ * child's session is ended once the new one opens, so a scan never leaves
+ * two children signed in on the same tablet.
+ */
+export const badgeLogin = createServerFn({ method: "POST" })
+  .validator((input: v.InferInput<typeof badgeLoginSchema>) =>
+    v.parse(badgeLoginSchema, input),
+  )
+  .handler(async ({ data }): Promise<AuthState> => {
+    const api = backend(data.school);
+    const session = await api.identity.badgeSignIn({ secret: data.secret });
+    if (getCookie(sessionCookie(data.school))) {
+      try {
+        await api.identity.signOut();
+      } catch (error) {
+        if (!isUnauthorized(error)) throw error;
+      }
+    }
+    const options = {
+      httpOnly: true,
+      sameSite: "lax" as const,
+      path: "/",
+      expires: session.expiresAt,
+      secure: isSecureRequest(),
+    };
+    setCookie(sessionCookie(data.school), session.token, options);
+    setCookie(SCHOOL_COOKIE, data.school, options);
+    return {
+      isAuthenticated: true,
+      workspace: session.workspace,
+      school: data.school,
     };
   });
 

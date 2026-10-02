@@ -55,6 +55,7 @@ export const CAPABILITY_LABEL: Record<Capability, () => string> = {
   "learning:author": m.capLearningAuthor,
   "learning:read": m.capLearningRead,
   "exams:manage": m.capExamsManage,
+  "badges:issue": m.capBadgesIssue,
 };
 
 type Area = "school" | "records" | "teaching" | "everyone";
@@ -107,6 +108,7 @@ const AREA_OF: Record<Capability, Area> = {
   "learning:author": "teaching",
   "learning:read": "everyone",
   "exams:manage": "school",
+  "badges:issue": "teaching",
 };
 
 const AREA_LABEL: Record<Area, () => string> = {

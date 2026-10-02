@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as AuthRouteImport } from './routes/_auth'
+import { Route as BadgeRouteImport } from './routes/badge'
 import { Route as AppAdminRouteImport } from './routes/_app/admin'
 import { Route as AppEventEditorRouteImport } from './routes/_app/event-editor'
 import { Route as AppExamsRouteImport } from './routes/_app/exams'
@@ -50,6 +51,7 @@ import { Route as AppAdminTimetableRouteImport } from './routes/_app/admin/timet
 import { Route as AppAnnouncementsIndexRouteImport } from './routes/_app/announcements.index'
 import { Route as AppAnnouncementsAnnouncementIdRouteImport } from './routes/_app/announcements.$announcementId'
 import { Route as AppAssignmentsAssignmentIdRouteImport } from './routes/_app/assignments/$assignmentId'
+import { Route as AppBadgesClassIdRouteImport } from './routes/_app/badges.$classId'
 import { Route as AppCalendarIndexRouteImport } from './routes/_app/calendar.index'
 import { Route as AppCalendarEventIdRouteImport } from './routes/_app/calendar.$eventId'
 import { Route as AppClassesClassIdRouteImport } from './routes/_app/classes.$classId'
@@ -109,6 +111,11 @@ const AppRoute = AppRouteImport.update({
 } as any)
 const AuthRoute = AuthRouteImport.update({
   id: '/_auth',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const BadgeRoute = BadgeRouteImport.update({
+  id: '/badge',
+  path: '/badge',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AppAdminRoute = AppAdminRouteImport.update({
@@ -308,6 +315,11 @@ const AppAssignmentsAssignmentIdRoute =
     path: '/assignments/$assignmentId',
     getParentRoute: () => AppRoute,
   } as any)
+const AppBadgesClassIdRoute = AppBadgesClassIdRouteImport.update({
+  id: '/badges/$classId',
+  path: '/badges/$classId',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppCalendarIndexRoute = AppCalendarIndexRouteImport.update({
   id: '/calendar/',
   path: '/calendar/',
@@ -550,6 +562,7 @@ const SiteSchoolPagesSlugRoute = SiteSchoolPagesSlugRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
+  '/badge': typeof BadgeRoute
   '/admin': typeof AppAdminRouteWithChildren
   '/event-editor': typeof AppEventEditorRoute
   '/exams': typeof AppExamsRoute
@@ -586,6 +599,7 @@ export interface FileRoutesByFullPath {
   '/admin/timetable': typeof AppAdminTimetableRoute
   '/announcements/$announcementId': typeof AppAnnouncementsAnnouncementIdRoute
   '/assignments/$assignmentId': typeof AppAssignmentsAssignmentIdRoute
+  '/badges/$classId': typeof AppBadgesClassIdRoute
   '/calendar/$eventId': typeof AppCalendarEventIdRoute
   '/classes/$classId': typeof AppClassesClassIdRoute
   '/families/$householdId': typeof AppFamiliesHouseholdIdRoute
@@ -638,6 +652,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
+  '/badge': typeof BadgeRoute
   '/event-editor': typeof AppEventEditorRoute
   '/exams': typeof AppExamsRoute
   '/notification-preferences': typeof AppNotificationPreferencesRoute
@@ -669,6 +684,7 @@ export interface FileRoutesByTo {
   '/admin/timetable': typeof AppAdminTimetableRoute
   '/announcements/$announcementId': typeof AppAnnouncementsAnnouncementIdRoute
   '/assignments/$assignmentId': typeof AppAssignmentsAssignmentIdRoute
+  '/badges/$classId': typeof AppBadgesClassIdRoute
   '/calendar/$eventId': typeof AppCalendarEventIdRoute
   '/classes/$classId': typeof AppClassesClassIdRoute
   '/families/$householdId': typeof AppFamiliesHouseholdIdRoute
@@ -724,6 +740,7 @@ export interface FileRoutesById {
   '/': typeof IndexRoute
   '/_app': typeof AppRouteWithChildren
   '/_auth': typeof AuthRouteWithChildren
+  '/badge': typeof BadgeRoute
   '/_app/admin': typeof AppAdminRouteWithChildren
   '/_app/event-editor': typeof AppEventEditorRoute
   '/_app/exams': typeof AppExamsRoute
@@ -760,6 +777,7 @@ export interface FileRoutesById {
   '/_app/admin/timetable': typeof AppAdminTimetableRoute
   '/_app/announcements/$announcementId': typeof AppAnnouncementsAnnouncementIdRoute
   '/_app/assignments/$assignmentId': typeof AppAssignmentsAssignmentIdRoute
+  '/_app/badges/$classId': typeof AppBadgesClassIdRoute
   '/_app/calendar/$eventId': typeof AppCalendarEventIdRoute
   '/_app/classes/$classId': typeof AppClassesClassIdRoute
   '/_app/families/$householdId': typeof AppFamiliesHouseholdIdRoute
@@ -814,6 +832,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/badge'
     | '/admin'
     | '/event-editor'
     | '/exams'
@@ -850,6 +869,7 @@ export interface FileRouteTypes {
     | '/admin/timetable'
     | '/announcements/$announcementId'
     | '/assignments/$assignmentId'
+    | '/badges/$classId'
     | '/calendar/$eventId'
     | '/classes/$classId'
     | '/families/$householdId'
@@ -902,6 +922,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/'
+    | '/badge'
     | '/event-editor'
     | '/exams'
     | '/notification-preferences'
@@ -933,6 +954,7 @@ export interface FileRouteTypes {
     | '/admin/timetable'
     | '/announcements/$announcementId'
     | '/assignments/$assignmentId'
+    | '/badges/$classId'
     | '/calendar/$eventId'
     | '/classes/$classId'
     | '/families/$householdId'
@@ -987,6 +1009,7 @@ export interface FileRouteTypes {
     | '/'
     | '/_app'
     | '/_auth'
+    | '/badge'
     | '/_app/admin'
     | '/_app/event-editor'
     | '/_app/exams'
@@ -1023,6 +1046,7 @@ export interface FileRouteTypes {
     | '/_app/admin/timetable'
     | '/_app/announcements/$announcementId'
     | '/_app/assignments/$assignmentId'
+    | '/_app/badges/$classId'
     | '/_app/calendar/$eventId'
     | '/_app/classes/$classId'
     | '/_app/families/$householdId'
@@ -1078,6 +1102,7 @@ export interface RootRouteChildren {
   IndexRoute: typeof IndexRoute
   AppRoute: typeof AppRouteWithChildren
   AuthRoute: typeof AuthRouteWithChildren
+  BadgeRoute: typeof BadgeRoute
   ApiHealthRoute: typeof ApiHealthRoute
   FilesFileIdRoute: typeof FilesFileIdRoute
   SiteSchoolRoute: typeof SiteSchoolRouteWithChildren
@@ -1108,6 +1133,13 @@ declare module '@tanstack/react-router' {
       path: ''
       fullPath: '/'
       preLoaderRoute: typeof AuthRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/badge': {
+      id: '/badge'
+      path: '/badge'
+      fullPath: '/badge'
+      preLoaderRoute: typeof BadgeRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_app/admin': {
@@ -1374,6 +1406,13 @@ declare module '@tanstack/react-router' {
       path: '/assignments/$assignmentId'
       fullPath: '/assignments/$assignmentId'
       preLoaderRoute: typeof AppAssignmentsAssignmentIdRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/badges/$classId': {
+      id: '/_app/badges/$classId'
+      path: '/badges/$classId'
+      fullPath: '/badges/$classId'
+      preLoaderRoute: typeof AppBadgesClassIdRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/calendar/': {
@@ -1853,6 +1892,7 @@ interface AppRouteChildren {
   AppTeachRoute: typeof AppTeachRouteWithChildren
   AppAnnouncementsAnnouncementIdRoute: typeof AppAnnouncementsAnnouncementIdRoute
   AppAssignmentsAssignmentIdRoute: typeof AppAssignmentsAssignmentIdRoute
+  AppBadgesClassIdRoute: typeof AppBadgesClassIdRoute
   AppCalendarEventIdRoute: typeof AppCalendarEventIdRoute
   AppClassesClassIdRoute: typeof AppClassesClassIdRoute
   AppFamiliesHouseholdIdRoute: typeof AppFamiliesHouseholdIdRoute
@@ -1883,6 +1923,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppTeachRoute: AppTeachRouteWithChildren,
   AppAnnouncementsAnnouncementIdRoute: AppAnnouncementsAnnouncementIdRoute,
   AppAssignmentsAssignmentIdRoute: AppAssignmentsAssignmentIdRoute,
+  AppBadgesClassIdRoute: AppBadgesClassIdRoute,
   AppCalendarEventIdRoute: AppCalendarEventIdRoute,
   AppClassesClassIdRoute: AppClassesClassIdRoute,
   AppFamiliesHouseholdIdRoute: AppFamiliesHouseholdIdRoute,
@@ -1932,6 +1973,7 @@ const rootRouteChildren: RootRouteChildren = {
   IndexRoute: IndexRoute,
   AppRoute: AppRouteWithChildren,
   AuthRoute: AuthRouteWithChildren,
+  BadgeRoute: BadgeRoute,
   ApiHealthRoute: ApiHealthRoute,
   FilesFileIdRoute: FilesFileIdRoute,
   SiteSchoolRoute: SiteSchoolRouteWithChildren,

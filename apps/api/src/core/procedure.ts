@@ -16,7 +16,7 @@ import { ORPCError, os } from "@orpc/server";
 
 import type { RequestContext, SchoolContext, UnitContext } from "./context";
 
-import { bearer, LIFETIME, parseToken } from "./session";
+import { bearer, LIFETIME, parseToken, SHARED_LIFETIME } from "./session";
 
 /** The school slug the web backend forwards, taken from the host or the school cookie. */
 export const SCHOOL_HEADER = "x-farida-school";
@@ -137,7 +137,13 @@ export async function openUnit<T>(
         },
       });
       if (lifecycle === "active")
-        await touchSession(tx, session, LIFETIME[session.context].idle);
+        await touchSession(
+          tx,
+          session,
+          session.clientKind === "shared_device"
+            ? SHARED_LIFETIME.idle
+            : LIFETIME[session.context].idle,
+        );
       const schoolId = context.school.schoolId;
       const now = new Date();
       const today = dateIn(await schoolZone(tx, schoolId), now);

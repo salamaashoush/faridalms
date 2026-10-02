@@ -3408,7 +3408,19 @@ create index login_identities_account_idx on core.login_identities (tenant_id, a
   may check a password against it as proof that the person controls both.
 - `badge` rows are the young-student sign-in badges: a random secret of at
   least 112 bits encoded in a QR code, never the student number, with a sliding
-  180-day expiry ([R3] section 5). Their flows belong to the identity spec.
+  180-day expiry ([R3] section 5). The secret is 256 bits and the row keeps its
+  SHA-256 in hex, unique among badges that work
+  (`login_identities_badge_key`). A teacher holding `badges:issue` prints
+  badges for the young students of a class they teach; printing replaces any
+  badge the child had (void reason `lost`), stopping one is `admin`, and the
+  secret leaves the API once, in the print response. The QR holds
+  `/badge?school=<slug>#<secret>`: the fragment never reaches a server or a
+  referrer, and the page drops it from the address before signing in. A
+  badge opens a `student` session with `client_kind = 'shared_device'` and
+  `amr = {badge}`, 30 minutes idle and 8 hours at most; on a device that held
+  another session for the school, that session is signed out. A child who
+  has left the young grades has the badge voided as `aged_out` at its next
+  use. Voiding a badge revokes the sessions it opened.
 
 ```sql
 create table core.passkeys (

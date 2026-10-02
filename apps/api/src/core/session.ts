@@ -86,3 +86,23 @@ export const LIFETIME = {
   family: { idle: 14 * 24 * 60, absolute: 30 * 24 * 60 },
   student: { idle: 12 * 60, absolute: 7 * 24 * 60 },
 } as const;
+
+/**
+ * A badge signs a child in on a device the class shares, so the session ends
+ * soon after they put it down and never outlasts the school day; the next
+ * child would otherwise open the last one's work.
+ */
+export const SHARED_LIFETIME = { idle: 30, absolute: 8 * 60 } as const;
+
+/** A badge stays valid this long after it was last used. */
+export const BADGE_DAYS = 180;
+
+/** A badge secret is 256 random bits; only its SHA-256 is stored. */
+export function issueBadgeSecret(): { secret: string; secretHash: string } {
+  const secret = randomBytes(32).toString("base64url");
+  return { secret, secretHash: badgeHash(secret) };
+}
+
+export function badgeHash(secret: string): string {
+  return createHash("sha256").update(secret).digest("hex");
+}

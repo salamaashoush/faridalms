@@ -64,3 +64,11 @@ header:has([data-slot="page-actions"] > :not([data-keeps-global-tools]))
     stroke-dashoffset: 0;
   }
 }
+
+/* A sheet made for paper, such as sign-in badges, prints alone: the app it
+   covers on screen is left out rather than printed beneath it. */
+@media print {
+  body:has(> [data-print-sheet]) > :not([data-print-sheet]) {
+    display: none !important;
+  }
+}

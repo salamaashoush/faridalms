@@ -1,14 +1,16 @@
 import type { ReactNode } from "react";
 
+import { YOUNG_STUDENT_GRADES } from "@faridalms/domain/descriptors/catalogue";
 import { Button } from "@faridalms/ui/button";
 import { cn } from "@faridalms/ui/cn";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
-import { ArrowRightLeft, Pencil, Plus, UserMinus } from "lucide-react";
+import { ArrowRightLeft, Pencil, Plus, QrCode, UserMinus } from "lucide-react";
 import { useState } from "react";
 
 import type { HeaderFact, RecordTab } from "~/components/system/RecordPage";
 
+import { ButtonLink } from "~/components/app/ButtonLink";
 import { initialsOf } from "~/components/app/UserMenu";
 import { ClassAttendance } from "~/components/attendance/ClassAttendance";
 import { formatDate } from "~/components/family/format";
@@ -175,8 +177,17 @@ type Sheet =
   | { kind: "withdraw"; student: Student };
 
 function StudentsSection({ data }: { data: ClassData }) {
+  const options = useSuspenseQuery(classOptionsQuery).data;
   const ownRoster = data.classType === "homeroom" || !data.homeroomClassId;
   const canEnrol = data.access.enrol && ownRoster;
+  const meaning = options.grades.find(
+    (row) => row.id === data.gradeId,
+  )?.meaning;
+  const badges =
+    useCapability("badges:issue") &&
+    (YOUNG_STUDENT_GRADES as readonly (string | null | undefined)[]).includes(
+      meaning,
+    );
   const [sheet, setSheet] = useState<{
     sheet: Sheet;
     open: boolean;
@@ -248,16 +259,31 @@ function StudentsSection({ data }: { data: ClassData }) {
               })
         }
         action={
-          canEnrol ? (
-            <Button
-              type="button"
-              variant="ghost"
-              className="max-md:h-10"
-              onClick={() => open({ kind: "add" })}
-            >
-              <Plus aria-hidden />
-              {m.enrolmentAdd()}
-            </Button>
+          canEnrol || badges ? (
+            <div className="flex flex-wrap gap-1">
+              {badges ? (
+                <ButtonLink
+                  to="/badges/$classId"
+                  params={{ classId: data.id }}
+                  variant="ghost"
+                  className="max-md:h-10"
+                >
+                  <QrCode aria-hidden />
+                  {m.badgesTitle()}
+                </ButtonLink>
+              ) : null}
+              {canEnrol ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="max-md:h-10"
+                  onClick={() => open({ kind: "add" })}
+                >
+                  <Plus aria-hidden />
+                  {m.enrolmentAdd()}
+                </Button>
+              ) : null}
+            </div>
           ) : undefined
         }
       >

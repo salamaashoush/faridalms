@@ -50,6 +50,7 @@ export const CAPABILITIES = [
   "learning:author",
   "learning:read",
   "exams:manage",
+  "badges:issue",
 ] as const;
 export type Capability = (typeof CAPABILITIES)[number];
 
@@ -83,6 +84,7 @@ const TEACHING: readonly Capability[] = [
   "learning:author",
   "learning:read",
   "calendar:author",
+  "badges:issue",
 ];
 
 const ADMINISTRATION: readonly Capability[] = CAPABILITIES.filter(

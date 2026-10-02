@@ -13,6 +13,7 @@ import {
 import { and, eq, gt, inArray, isNull, sql } from "drizzle-orm";
 
 import type { CellTransaction } from "../context";
+import type { ClientKind } from "../tables/accounts";
 
 import {
   accounts,
@@ -216,6 +217,19 @@ export async function countAttempt(
   return rows[0]?.count ?? 1;
 }
 
+/** The attempts counted against a key in its open window, counting none. */
+export async function attemptsSoFar(
+  tx: Tx,
+  tenantId: string,
+  keyHash: Buffer,
+): Promise<number> {
+  const rows = await tx.execute<{ count: number }>(sql`
+    select count from core.auth_attempts
+    where tenant_id = ${tenantId}::uuid and key_hash = ${keyHash}::bytea
+      and window_ends_at >= statement_timestamp()`);
+  return rows[0]?.count ?? 0;
+}
+
 export async function clearAttempts(tx: Tx, tenantId: string, keyHash: Buffer) {
   await tx
     .update(authAttempts)
@@ -239,6 +253,10 @@ export interface NewSession {
   absoluteMinutes: number;
   ipPrefix: string | null;
   userAgentSummary: string | null;
+  /** How the person proved who they are; a password unless named. */
+  method?: "pwd" | "badge";
+  /** A badge signs in on a device several children share. */
+  clientKind?: ClientKind;
 }
 
 export async function createSession(tx: Tx, input: NewSession) {
@@ -256,11 +274,11 @@ export async function createSession(tx: Tx, input: NewSession) {
         now.getTime() + input.absoluteMinutes * 60_000,
       ),
       aal: 1,
-      amr: ["pwd"],
+      amr: [input.method ?? "pwd"],
       loginIdentityId: input.loginIdentityId,
       context: input.context,
       activeOrgId: input.activeOrgId,
-      clientKind: "web",
+      clientKind: input.clientKind ?? "web",
       ipPrefix: input.ipPrefix,
       userAgentSummary: input.userAgentSummary,
     })
@@ -277,6 +295,7 @@ export interface ActiveSession {
   accountId: string;
   userId: string;
   context: SessionContext;
+  clientKind: ClientKind;
   activeOrgId: string | null;
   lastSeenAt: Date;
   idleExpiresAt: Date;
@@ -296,6 +315,7 @@ export async function findSession(
       accountId: sessions.accountId,
       userId: accounts.userId,
       context: sessions.context,
+      clientKind: sessions.clientKind,
       activeOrgId: sessions.activeOrgId,
       lastSeenAt: sessions.lastSeenAt,
       idleExpiresAt: sessions.idleExpiresAt,

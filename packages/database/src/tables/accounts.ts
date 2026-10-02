@@ -360,6 +360,9 @@ export const loginIdentities = core.table.withRLS(
       .where(
         sql`status = 'active' and kind = 'password' and voided_at is null`,
       ),
+    uniqueIndex("login_identities_badge_key")
+      .on(t.tenantId, t.secretHash)
+      .where(sql`status = 'active' and kind = 'badge' and voided_at is null`),
     index("login_identities_account_idx")
       .on(t.tenantId, t.accountId)
       .where(sql`status = 'active'`),

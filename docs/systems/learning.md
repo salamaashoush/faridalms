@@ -64,6 +64,13 @@ From [../research/early-years.md](../research/early-years.md).
   their parts work this way for older students as well.
 - Children see no points or scores. Soft notes and a word of praise naming
   what they did answer each try, and the end of the lesson says so once.
+- A young child's home is up to six big cards, a lesson already begun first,
+  each with a speaker that reads its name; the sidebar keeps Home alone, with
+  no search or notifications.
+- A child signs in by showing a printed badge to the device's camera. The
+  teacher prints them from the class's Students tab, credit-card size and
+  eight to a page, and replaces or stops one that went missing; a new scan
+  on a shared tablet signs the last child out.
 
 ## Teachers
 
