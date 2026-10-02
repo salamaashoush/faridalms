@@ -99,6 +99,44 @@ function drawPicture(
   dom.prepend(holder);
 }
 
+/**
+ * Draws a tracing question's model where its picture would go: each stroke
+ * as a line with a dot where it starts, numbered in the order it is written.
+ */
+function drawTrace(trace: readonly number[][], dom: HTMLElement) {
+  if (trace.length === 0) return;
+  const document = $getDocument();
+  const holder = document.createElement("span");
+  holder.dataset.partPicture = "";
+  holder.dataset.trace = "";
+  holder.contentEditable = "false";
+  const svg = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+  svg.setAttribute("viewBox", "0 0 1 1");
+  svg.setAttribute("aria-hidden", "true");
+  trace.forEach((stroke, index) => {
+    const line = document.createElementNS(
+      "http://www.w3.org/2000/svg",
+      "polyline",
+    );
+    const points: string[] = [];
+    for (let at = 0; at + 1 < stroke.length; at += 2)
+      points.push(`${stroke[at]},${stroke[at + 1]}`);
+    line.setAttribute("points", points.join(" "));
+    svg.append(line);
+    const start = document.createElementNS(
+      "http://www.w3.org/2000/svg",
+      "circle",
+    );
+    start.setAttribute("cx", String(stroke[0] ?? 0));
+    start.setAttribute("cy", String(stroke[1] ?? 0));
+    start.setAttribute("r", "0.035");
+    start.dataset.stroke = String(index + 1);
+    svg.append(start);
+  });
+  holder.append(svg);
+  dom.prepend(holder);
+}
+
 function pictureSlot(dom: HTMLElement, slot: ElementDOMSlot): ElementDOMSlot {
   const picture = dom.querySelector(":scope > [data-part-picture]");
   return picture ? slot.withAfter(picture) : slot;
@@ -183,6 +221,8 @@ export interface QuestionSettings {
   countLayout: "scatter" | "line" | "frame";
   /** Seconds the things to count stay in view; none keeps them there. */
   flashSeconds: number | null;
+  /** A tracing question's model, the teacher's strokes across a unit square. */
+  trace: number[][];
   hint: string;
   explanation: string;
   numberMode: "exact" | "range";
@@ -211,6 +251,7 @@ export function defaultSettings(kind: QuestionKind): QuestionSettings {
     countMode: "count",
     countLayout: "scatter",
     flashSeconds: null,
+    trace: [],
     hint: "",
     explanation: "",
     numberMode: "exact",
@@ -305,6 +346,7 @@ export class QuestionNode extends ElementNode {
       countMode: json.countMode ?? base.countMode,
       countLayout: json.countLayout ?? base.countLayout,
       flashSeconds: json.flashSeconds ?? null,
+      trace: json.trace ?? [],
       hint: json.hint ?? "",
       explanation: json.explanation ?? "",
       numberMode: json.numberMode ?? base.numberMode,
@@ -327,6 +369,7 @@ export class QuestionNode extends ElementNode {
       countMode,
       countLayout,
       flashSeconds,
+      trace,
       ...settings
     } = this.getLatest().__settings;
     return {
@@ -336,6 +379,7 @@ export class QuestionNode extends ElementNode {
       ...(settings.kind === "counting"
         ? { count, countMode, countLayout, flashSeconds }
         : {}),
+      ...(settings.kind === "tracing" ? { trace } : {}),
     };
   }
 
@@ -355,6 +399,8 @@ export class QuestionNode extends ElementNode {
     if (this.__settings.kind === "number")
       dom.dataset.answer = `${labels.get(editor)?.answerIs ?? ""} ${numberAnswer(this.__settings)}`;
     if (this.__settings.kind === "counting") drawPicture(this, dom, editor);
+    if (this.__settings.kind === "tracing")
+      drawTrace(this.__settings.trace, dom);
     return dom;
   }
 
@@ -371,6 +417,7 @@ export class QuestionNode extends ElementNode {
       previous.__settings.recordSeconds !== settings.recordSeconds ||
       previous.__settings.count !== settings.count ||
       previous.__settings.countMode !== settings.countMode ||
+      previous.__settings.trace !== settings.trace ||
       !samePicture(previous, this) ||
       numberAnswer(previous.__settings) !== numberAnswer(settings)
     )

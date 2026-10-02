@@ -54,3 +54,13 @@ header:has([data-slot="page-actions"] > :not([data-keeps-global-tools]))
   font-size: 1.3em;
   line-height: 1.9;
 }
+
+/* A tracing stroke written out for a child to watch. */
+@keyframes trace-draw {
+  from {
+    stroke-dashoffset: 1;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}

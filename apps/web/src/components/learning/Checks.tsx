@@ -45,6 +45,7 @@ import { ReadAloud, YoungContext } from "./ReadAloud";
 import { SpokenRecorder, SpokenStatus } from "./SpokenAnswer";
 import { YoungCounting } from "./young/YoungCounting";
 import { YoungMatching, YoungOrdering, YoungSorting } from "./young/YoungPlace";
+import { YoungTracing } from "./young/YoungTracing";
 
 /** A part's picture over its words; with no words, its description names it. */
 function PartView({
@@ -149,6 +150,7 @@ export type CheckStudentBlock =
   | Of<"ordering">
   | Of<"sorting">
   | Of<"counting">
+  | Of<"tracing">
   | Of<"written">;
 
 const CHECK_TYPES = new Set<StudentBlock["type"]>([
@@ -160,6 +162,7 @@ const CHECK_TYPES = new Set<StudentBlock["type"]>([
   "ordering",
   "sorting",
   "counting",
+  "tracing",
   "written",
 ]);
 
@@ -1449,6 +1452,12 @@ export function CheckBlockView({
     return (
       <CheckCard block={block} legendId={legend} status={null} actions={null}>
         <YoungCounting block={block} view={view} driver={driver} />
+      </CheckCard>
+    );
+  if (block.type === "tracing")
+    return (
+      <CheckCard block={block} legendId={legend} status={null} actions={null}>
+        <YoungTracing block={block} view={view} driver={driver} />
       </CheckCard>
     );
   // A quiz keeps answers unmarked until hand-in, which placing cannot do.

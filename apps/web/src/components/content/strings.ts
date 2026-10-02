@@ -228,6 +228,12 @@ export function editorStrings(): EditorStrings {
     questionWordLimit: m.editorQuestionWordLimit(),
     questionSpoken: m.editorQuestionSpoken(),
     questionCounting: m.editorQuestionCounting(),
+    questionTracing: m.editorQuestionTracing(),
+    questionTracingHint: m.editorQuestionTracingHint(),
+    questionDrawTrace: m.editorQuestionDrawTrace(),
+    questionDrawTraceHint: m.editorQuestionDrawTraceHint(),
+    questionTraceUndo: m.editorQuestionTraceUndo(),
+    questionTraceClear: m.editorQuestionTraceClear(),
     questionCountingHint: m.editorQuestionCountingHint(),
     questionCountLabel: (count, make) =>
       make

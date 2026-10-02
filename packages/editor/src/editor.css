@@ -729,3 +729,23 @@
   font-size: 1.3em;
   line-height: 1.9;
 }
+
+/* A tracing question's model in the editor: the teacher's strokes, each
+   with a dot where it starts. */
+.fe [data-trace] svg {
+  display: block;
+  width: 8rem;
+  height: 8rem;
+  border-radius: 0.5rem;
+  background: var(--fe-subtle);
+}
+.fe [data-trace] polyline {
+  fill: none;
+  stroke: var(--foreground);
+  stroke-width: 0.045;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+}
+.fe [data-trace] circle {
+  fill: var(--fe-success);
+}

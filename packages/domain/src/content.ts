@@ -61,6 +61,7 @@ export const questionKinds = [
   "sorting",
   "gaps",
   "counting",
+  "tracing",
 ] as const;
 export type QuestionKind = (typeof questionKinds)[number];
 export const calloutTones = [
@@ -159,6 +160,8 @@ export interface ContentNode {
   countMode?: "count" | "make";
   countLayout?: "scatter" | "line" | "frame";
   flashSeconds?: number | null;
+  /** A tracing question's model: strokes of x, y points across a unit square. */
+  trace?: number[][];
   hint?: string;
   explanation?: string;
   numberMode?: "exact" | "range";
@@ -309,6 +312,17 @@ const nodeSchema: v.GenericSchema<ContentNode> = v.lazy(() =>
       countMode: v.optional(v.picklist(["count", "make"])),
       countLayout: v.optional(v.picklist(["scatter", "line", "frame"])),
       flashSeconds: v.optional(v.nullable(integer(1, 10))),
+      trace: v.optional(
+        v.pipe(
+          v.array(
+            v.pipe(
+              v.array(v.pipe(v.number(), v.minValue(0), v.maxValue(1))),
+              v.maxLength(400),
+            ),
+          ),
+          v.maxLength(8),
+        ),
+      ),
       hint: v.optional(v.pipe(v.string(), v.maxLength(500))),
       explanation: v.optional(v.pipe(v.string(), v.maxLength(1000))),
       numberMode: v.optional(v.picklist(["exact", "range"])),

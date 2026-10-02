@@ -207,6 +207,12 @@ export interface EditorStrings {
   questionWordLimit: string;
   questionSpoken: string;
   questionCounting: string;
+  questionTracing: string;
+  questionTracingHint: string;
+  questionDrawTrace: string;
+  questionDrawTraceHint: string;
+  questionTraceUndo: string;
+  questionTraceClear: string;
   questionCountingHint: string;
   questionCountLabel: (count: number, make: boolean) => string;
   questionCount: string;

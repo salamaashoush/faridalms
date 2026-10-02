@@ -152,6 +152,8 @@ function questionBlock(node: ContentNode): LessonBlock | null {
         closeEnough: node.closeEnough ?? false,
         tehMarbuta: node.tehMarbuta ?? true,
       };
+    case "tracing":
+      return { ...check, type: "tracing", strokes: node.trace ?? [] };
     case "counting":
       return {
         ...check,
@@ -445,7 +447,8 @@ export function questionNode(block: LessonBlock): ContentNode | null {
     block.type !== "matching" &&
     block.type !== "sorting" &&
     block.type !== "gaps" &&
-    block.type !== "counting"
+    block.type !== "counting" &&
+    block.type !== "tracing"
   )
     return null;
   const base: ContentNode = {
@@ -585,6 +588,7 @@ export function questionNode(block: LessonBlock): ContentNode | null {
         })),
       ],
     };
+  if (block.type === "tracing") return { ...base, trace: block.strokes };
   if (block.type === "counting")
     return {
       ...base,

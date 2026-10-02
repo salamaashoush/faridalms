@@ -10,6 +10,7 @@ import {
   isContentDocument,
   lessonOfContent,
 } from "./lesson-content";
+import { MAX_STROKE_POINTS, MAX_STROKES, traceResults } from "./tracing";
 
 export { gapsSource, parseGaps } from "./gaps";
 
@@ -333,6 +334,22 @@ export const lessonBlockSchema = v.variant("type", [
   ),
   v.object({
     ...checkFields,
+    type: v.literal("tracing"),
+    /** The teacher's own writing of it, stroke by stroke, in order. */
+    strokes: v.pipe(
+      v.array(
+        v.pipe(
+          v.array(v.pipe(v.number(), v.minValue(0), v.maxValue(1))),
+          v.minLength(2),
+          v.maxLength(MAX_STROKE_POINTS * 2),
+        ),
+      ),
+      v.minLength(1, "learning.trace_needed"),
+      v.maxLength(MAX_STROKES),
+    ),
+  }),
+  v.object({
+    ...checkFields,
     type: v.literal("counting"),
     /** What is counted, drawn again for each one; without it, round counters. */
     picture,
@@ -370,6 +387,7 @@ export type OrderingBlock = Extract<LessonBlock, { type: "ordering" }>;
 export type SortingBlock = Extract<LessonBlock, { type: "sorting" }>;
 export type WrittenBlock = Extract<LessonBlock, { type: "written" }>;
 export type CountingBlock = Extract<LessonBlock, { type: "counting" }>;
+export type TracingBlock = Extract<LessonBlock, { type: "tracing" }>;
 /** A question the server marks the moment it is answered. */
 export type AutoBlock =
   | ChoiceBlock
@@ -379,7 +397,8 @@ export type AutoBlock =
   | MatchingBlock
   | OrderingBlock
   | SortingBlock
-  | CountingBlock;
+  | CountingBlock
+  | TracingBlock;
 export type CheckBlock = AutoBlock | WrittenBlock;
 
 const AUTO_TYPES = new Set<LessonBlockType>([
@@ -391,6 +410,7 @@ const AUTO_TYPES = new Set<LessonBlockType>([
   "ordering",
   "sorting",
   "counting",
+  "tracing",
 ]);
 
 export const isAuto = (block: LessonBlock): block is AutoBlock =>
@@ -611,6 +631,18 @@ export const responseSchema = v.variant("type", [
     type: v.literal("counting"),
     value: v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(100)),
   }),
+  v.object({
+    type: v.literal("tracing"),
+    strokes: v.pipe(
+      v.array(
+        v.pipe(
+          v.array(v.pipe(v.number(), v.minValue(-1), v.maxValue(2))),
+          v.maxLength(MAX_STROKE_POINTS * 2),
+        ),
+      ),
+      v.maxLength(MAX_STROKES * 2),
+    ),
+  }),
   v.pipe(
     v.object({
       type: v.literal("written"),
@@ -768,6 +800,10 @@ export function markResponse(
         parts,
       };
     }
+    case "tracing": {
+      if (response.type !== "tracing") return none;
+      return share(traceResults(block.strokes, response.strokes));
+    }
     case "counting": {
       if (response.type !== "counting") return none;
       const correct = response.value === block.count;
@@ -905,7 +941,8 @@ export type StudentBlock =
   | (Omit<SortingBlock, "explanation" | "hint" | "items"> & {
       items: StudentPart[];
     })
-  | Omit<CountingBlock, "explanation" | "hint">;
+  | Omit<CountingBlock, "explanation" | "hint">
+  | Omit<TracingBlock, "explanation" | "hint">;
 
 function shuffled<T>(items: T[], seed: string): T[] {
   let state = 0;
@@ -1057,7 +1094,8 @@ export function studentBlocks(
         };
       }
       case "written":
-      case "counting": {
+      case "counting":
+      case "tracing": {
         const { explanation: _why, hint: _hint, ...rest } = block;
         return rest;
       }
@@ -1095,6 +1133,8 @@ export function answerKey(block: AutoBlock): string[] {
       return block.items.map(partName);
     case "counting":
       return [String(block.count)];
+    case "tracing":
+      return [block.prompt];
     case "sorting":
       return block.items.map(
         (item) =>

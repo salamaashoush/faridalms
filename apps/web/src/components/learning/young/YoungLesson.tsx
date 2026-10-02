@@ -32,6 +32,7 @@ import { FoundContext, YoungChoice } from "./YoungChoice";
 import { YoungCounting } from "./YoungCounting";
 import { YoungMatching, YoungOrdering, YoungSorting } from "./YoungPlace";
 import { YoungSpoken } from "./YoungSpoken";
+import { YoungTracing } from "./YoungTracing";
 
 const fileUrl = (fileId: string) => `/files/${fileId}`;
 
@@ -121,6 +122,8 @@ function StepBlock({
       <YoungOrdering block={block} view={view} driver={driver} />
     ) : block.type === "counting" ? (
       <YoungCounting block={block} view={view} driver={driver} />
+    ) : block.type === "tracing" ? (
+      <YoungTracing block={block} view={view} driver={driver} />
     ) : block.type === "written" && block.recordSeconds ? (
       <YoungSpoken block={block} view={view} driver={driver} />
     ) : null;

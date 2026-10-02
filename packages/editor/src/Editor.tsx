@@ -245,6 +245,7 @@ function Surface({
         sorting: strings.questionSorting,
         gaps: strings.questionGaps,
         counting: strings.questionCounting,
+        tracing: strings.questionTracing,
       },
       spoken: strings.questionSpoken,
       count: strings.questionCountLabel,

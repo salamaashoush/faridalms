@@ -56,6 +56,7 @@ import {
   Trash2,
   Underline,
   Unlink,
+  Signature,
   Volume2,
 } from "lucide-react";
 import { useEffect, useEffectEvent, useRef, useState } from "react";
@@ -127,6 +128,7 @@ import {
   shortcutLabel,
 } from "../ui";
 import { NarrationPanel, OPEN_NARRATION_COMMAND } from "./narration";
+import { TracePad } from "./trace";
 
 type Mode =
   | "hidden"
@@ -138,7 +140,8 @@ type Mode =
   | "question"
   | "question-text"
   | "question-number"
-  | "narration";
+  | "narration"
+  | "trace";
 
 /** The question the caret is in: what the bar shows and changes. */
 interface QuestionBarFacts {
@@ -432,7 +435,8 @@ export function SelectionToolbarPlugin() {
       modeRef.current === "link-edit" ||
       modeRef.current === "question-text" ||
       modeRef.current === "question-number" ||
-      modeRef.current === "narration"
+      modeRef.current === "narration" ||
+      modeRef.current === "trace"
     )
       return;
     const root = editor.getRootElement();
@@ -579,7 +583,8 @@ export function SelectionToolbarPlugin() {
       mode === "link-edit" ||
       mode === "question-text" ||
       mode === "question-number" ||
-      mode === "narration"
+      mode === "narration" ||
+      mode === "trace"
     )
       return undefined;
     const onFocus = () => {
@@ -590,7 +595,8 @@ export function SelectionToolbarPlugin() {
         modeRef.current === "link-edit" ||
         modeRef.current === "question-text" ||
         modeRef.current === "question-number" ||
-        modeRef.current === "narration"
+        modeRef.current === "narration" ||
+        modeRef.current === "trace"
       )
         return;
       const active = document.activeElement;
@@ -950,6 +956,20 @@ export function SelectionToolbarPlugin() {
               ) : null}
             </>
           ) : null}
+          {settings.kind === "tracing" ? (
+            <ToolButton
+              label={strings.questionDrawTrace}
+              active={settings.trace.length > 0}
+              onClick={() => {
+                saved.current = editor
+                  .getEditorState()
+                  .read(() => $getSelection()?.clone() ?? null);
+                show("trace");
+              }}
+            >
+              <Signature aria-hidden />
+            </ToolButton>
+          ) : null}
           {settings.kind === "number" ? (
             <button
               type="button"
@@ -1100,6 +1120,35 @@ export function SelectionToolbarPlugin() {
           >
             <Trash2 aria-hidden />
           </ToolButton>
+        </div>
+      </Floating>
+    );
+  }
+
+  if (mode === "trace" && question) {
+    const close = () => {
+      show("question");
+      focusText(editor);
+    };
+    return (
+      <Floating
+        reference={reference}
+        placement="bottom-start"
+        boundary={boundary}
+        className="w-80 max-w-[calc(100vw-1rem)] p-3"
+      >
+        <div ref={toolbar}>
+          <TracePad
+            strokes={question.settings.trace}
+            onClose={close}
+            onDone={(trace) => {
+              withSelection(() => {
+                const node = $getNodeByKey(question.key);
+                if ($isQuestionNode(node)) node.setSettings({ trace });
+              });
+              close();
+            }}
+          />
         </div>
       </Floating>
     );

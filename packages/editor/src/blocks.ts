@@ -44,6 +44,7 @@ import {
   ArrowDownUp,
   ArrowLeftRight,
   Dices,
+  Signature,
   Brackets,
   ChevronRight,
   CircleCheck,
@@ -127,6 +128,7 @@ export type BlockType =
   | "matchingQuestion"
   | "sortingQuestion"
   | "countingQuestion"
+  | "tracingQuestion"
   | "gapsQuestion"
   | "trueFalseQuestion"
   | "gate"
@@ -146,6 +148,7 @@ const QUESTION_KIND: Partial<Record<BlockType, QuestionKind>> = {
   sortingQuestion: "sorting",
   gapsQuestion: "gaps",
   countingQuestion: "counting",
+  tracingQuestion: "tracing",
 };
 
 export interface BlockDefinition {
@@ -526,6 +529,24 @@ export const blockDefinitions: BlockDefinition[] = [
     label: (s) => s.questionCounting,
     hint: (s) => s.questionCountingHint,
     keywords: ["count", "counting", "how many", "ten frame", "عد", "كم"],
+    question: true,
+    activity: true,
+  },
+  {
+    type: "tracingQuestion",
+    group: "questions",
+    icon: Signature,
+    label: (s) => s.questionTracing,
+    hint: (s) => s.questionTracingHint,
+    keywords: [
+      "trace",
+      "tracing",
+      "write",
+      "letter",
+      "handwriting",
+      "تتبع",
+      "كتابة",
+    ],
     question: true,
     activity: true,
   },
