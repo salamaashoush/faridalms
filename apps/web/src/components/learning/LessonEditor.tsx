@@ -396,23 +396,20 @@ export function LessonEditor({
           </DetailsPanel>
         }
       >
-        {live.state === "loading" ? (
-          <div aria-busy="true" className="min-h-48 animate-pulse" />
-        ) : (
-          <ContentEditor
-            id="lesson-body"
-            label={m.lrnSectionBlocks()}
-            variant="document"
-            value={draft.content}
-            onChange={changeContent}
-            onValidityChange={setValid}
-            onUploadingChange={setUploading}
-            media={media}
-            questions
-            collaboration={shared ? live.collaboration : undefined}
-            replace={replace}
-          />
-        )}
+        <ContentEditor
+          id="lesson-body"
+          label={m.lrnSectionBlocks()}
+          variant="document"
+          value={draft.content}
+          onChange={changeContent}
+          onValidityChange={setValid}
+          onUploadingChange={setUploading}
+          media={media}
+          questions
+          collaboration={shared ? live.collaboration : undefined}
+          pending={live.state === "loading"}
+          replace={replace}
+        />
       </DocumentPage>
       <UnsavedChangesGuard
         isDirty={() => !storable && autosave.dirty}

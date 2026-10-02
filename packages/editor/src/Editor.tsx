@@ -96,6 +96,8 @@ export interface EditorProps {
   starter?: boolean;
   /** A student's work may acknowledge using an AI tool. */
   aiUse?: boolean;
+  /** Told once a live document has arrived from its room and is drawn. */
+  onSynced?: () => void;
 }
 
 export default function Editor({
@@ -109,6 +111,7 @@ export default function Editor({
   lockQuestions = false,
   starter = false,
   aiUse = false,
+  onSynced,
   ...props
 }: EditorProps) {
   // Live editing keeps its own undo history in the shared document, so the
@@ -144,13 +147,27 @@ export default function Editor({
     }),
     [strings, media, locale, questions, gates, lockQuestions, starter, aiUse],
   );
+  const [synced, setSynced] = useState(false);
+  const factory = collaboration?.providerFactory;
+  const providerFactory = useMemo(
+    () =>
+      factory &&
+      ((id: string, docs: Map<string, Doc>) => {
+        const provider = factory(id, docs);
+        provider.on("sync", (isSynced: boolean) => {
+          if (isSynced) setSynced(true);
+        });
+        return provider;
+      }),
+    [factory],
+  );
   const composer = (
     <LexicalExtensionComposer extension={extension} contentEditable={null}>
-      <Surface {...props} />
-      {collaboration ? (
+      <Surface {...props} synced={synced} onSynced={onSynced} />
+      {collaboration && providerFactory ? (
         <CollaborationPlugin
           id={collaboration.id}
-          providerFactory={collaboration.providerFactory}
+          providerFactory={providerFactory}
           shouldBootstrap={false}
           username={collaboration.username}
           cursorColor={collaboration.color}
@@ -182,7 +199,11 @@ function Surface({
   describedBy,
   replace,
   onUploadingChange,
-}: Omit<EditorProps, "value" | "media" | "locale" | "strings">) {
+  synced,
+  onSynced,
+}: Omit<EditorProps, "value" | "media" | "locale" | "strings"> & {
+  synced: boolean;
+}) {
   const [editor] = useLexicalComposerContext();
   const { strings, media } = useEditorEnvironment();
   // Question parts draw their pictures as they are first created, as labels
@@ -241,6 +262,13 @@ function Surface({
   }, [editor, initialFocus]);
 
   useEffect(() => holdSlot(id, editor), [id, editor]);
+
+  // The room's state lands as an update of its own; a frame later it is drawn.
+  useEffect(() => {
+    if (!synced || !onSynced) return undefined;
+    const frame = requestAnimationFrame(onSynced);
+    return () => cancelAnimationFrame(frame);
+  }, [synced, onSynced]);
 
   useEffect(
     () => registerMarkdownShortcuts(editor, markdownTransformers),

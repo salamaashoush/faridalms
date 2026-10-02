@@ -1115,26 +1115,23 @@ export function AssignmentEditor({
         }
       >
         <div className="grid grid-cols-[minmax(0,1fr)] gap-10">
-          {live.state === "loading" ? (
-            <div aria-busy="true" className="min-h-48 animate-pulse" />
-          ) : (
-            <ContentEditor
-              id="work-brief"
-              label={m.courseworkBrief()}
-              variant="document"
-              value={draft.brief}
-              onChange={changeBrief}
-              onValidityChange={setValid}
-              onUploadingChange={setUploading}
-              media={media}
-              questions={isQuiz}
-              gates={false}
-              lockQuestions={started}
-              starter={!isQuiz}
-              collaboration={shared ? live.collaboration : undefined}
-              replace={replace}
-            />
-          )}
+          <ContentEditor
+            id="work-brief"
+            label={m.courseworkBrief()}
+            variant="document"
+            value={draft.brief}
+            onChange={changeBrief}
+            onValidityChange={setValid}
+            onUploadingChange={setUploading}
+            media={media}
+            questions={isQuiz}
+            gates={false}
+            lockQuestions={started}
+            starter={!isQuiz}
+            collaboration={shared ? live.collaboration : undefined}
+            pending={live.state === "loading"}
+            replace={replace}
+          />
         </div>
       </DocumentPage>
       <UnsavedChangesGuard

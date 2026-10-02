@@ -4,7 +4,7 @@ import type { EditorCollaboration, EditorMedia } from "@faridalms/editor";
 import { contentPlainText } from "@faridalms/domain/content";
 import { editorFrame } from "@faridalms/editor/view";
 import { useHydrated } from "@tanstack/react-router";
-import { lazy, Suspense, useMemo } from "react";
+import { lazy, Suspense, useMemo, useState } from "react";
 
 import { ContentView } from "./ContentView";
 import { editorStrings } from "./strings";
@@ -36,6 +36,7 @@ export function ContentEditor({
   lockQuestions,
   starter,
   aiUse,
+  pending = false,
 }: {
   id: string;
   label: string;
@@ -56,6 +57,8 @@ export function ContentEditor({
   lockQuestions?: boolean;
   starter?: boolean;
   aiUse?: boolean;
+  /** Whether the document may be live is still being asked. */
+  pending?: boolean;
 }) {
   const strings = useMemo(() => editorStrings(), []);
   const hydrated = useHydrated();
@@ -81,31 +84,41 @@ export function ContentEditor({
       )}
     </div>
   );
-  if (!hydrated) return placeholderBox;
+  // A live editor starts empty and fills from its room, so the stored text
+  // stays in its place until the room's copy is drawn.
+  const [joined, setJoined] = useState<string | null>(null);
+  const waiting = collaboration !== undefined && joined !== collaboration.id;
+  if (!hydrated || pending) return placeholderBox;
   return (
     <Suspense fallback={placeholderBox}>
-      <Editor
-        id={id}
-        label={label}
-        value={value}
-        onChange={onChange}
-        onValidityChange={onValidityChange}
-        disabled={disabled}
-        variant={variant}
-        toolbar={toolbar}
-        media={media}
-        placeholder={placeholder}
-        initialFocus={initialFocus}
-        strings={strings}
-        collaboration={collaboration}
-        replace={replace}
-        onUploadingChange={onUploadingChange}
-        questions={questions}
-        gates={gates}
-        lockQuestions={lockQuestions}
-        starter={starter}
-        aiUse={aiUse}
-      />
+      {waiting ? placeholderBox : null}
+      <div className={waiting ? "hidden" : "contents"}>
+        <Editor
+          id={id}
+          label={label}
+          value={value}
+          onChange={onChange}
+          onValidityChange={onValidityChange}
+          disabled={disabled}
+          variant={variant}
+          toolbar={toolbar}
+          media={media}
+          placeholder={placeholder}
+          initialFocus={initialFocus}
+          strings={strings}
+          collaboration={collaboration}
+          replace={replace}
+          onUploadingChange={onUploadingChange}
+          questions={questions}
+          gates={gates}
+          lockQuestions={lockQuestions}
+          starter={starter}
+          aiUse={aiUse}
+          onSynced={
+            collaboration ? () => setJoined(collaboration.id) : undefined
+          }
+        />
+      </div>
     </Suspense>
   );
 }
