@@ -11,14 +11,14 @@ import { isSafeContentUrl } from "@faridalms/domain/rich-text";
 import { ExternalLink } from "lucide-react";
 import { createElement } from "react";
 
+import type { AiUseViewStrings } from "./ai-use-view";
 import type { FileFacts } from "./files";
-import type { AiUseViewStrings } from "./nodes/ai-use";
 
+import { AiUseView } from "./ai-use-view";
 import { useFileFacts } from "./file-facts";
 import { FileCard, PictureView, StoredImage } from "./files";
 import { blockAlignClass, diagramImageClass, imageSizeClass } from "./format";
 import { EmbedFrame, MediaPlayer, MediaTranscript } from "./media-view";
-import { AiUseView } from "./nodes/ai-use";
 import { editorTheme } from "./theme";
 
 export { editorFrame } from "./frame";
