@@ -165,6 +165,35 @@ scrollable region with a caption. Nothing in the old portal was responsive.
 
 ---
 
+## One document model, no special fields
+
+Every piece of content a person writes (news, announcements, assignments,
+lessons, consent forms, pages) is one editor document (`packages/editor`,
+`ContentDocument`). This is the rule the whole product is built on; a reviewer
+rejects anything that works around it.
+
+- **Content is a block, never a field beside the editor.** Pictures, files,
+  video, embeds, questions and attachments are editor blocks. Do not add a
+  cover picture, an attachments list, a "pictures" panel or any other media
+  control to a details panel, a side sheet or a form next to the document.
+- **What belongs to a piece of content is set on its block**, from the
+  editor's one floating bar (`plugins/SelectionToolbar.tsx`): alt text,
+  caption, size, who a photo shows. A host app adds such an action through
+  `EditorMedia` in `packages/editor/src/context.tsx`, never with its own panel.
+- **Anything another surface needs from a document is derived from it.** A
+  website card's picture is the post's first picture, and a reader's file
+  list is its file blocks. Computing it is fine; asking the author to enter
+  it again is not.
+- **No surface is special.** Before adding a control for one kind of document
+  (news, a page, a lesson), ask whether every document needs it. If it does,
+  it is an editor capability; if it does not, it is a setting of that
+  document, and settings are never content.
+- The details panel holds settings only: audience, dates, language,
+  visibility, address. If you are about to put a picture, a file or a person
+  there, stop.
+
+---
+
 ## Routes
 
 Routes live under `apps/web/src/routes/_app/<prefix>/`, and the prefix is the role:
