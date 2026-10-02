@@ -709,3 +709,19 @@
 .fe .fe-question[data-narrated]:dir(rtl) {
   background-position: left 0.75rem top 0.5rem;
 }
+
+/* Text set out for young children: a size and spacing early readers can
+   follow, with headings kept above it. */
+.fe.fe-young {
+  font-size: 1.375rem;
+  line-height: 1.6;
+}
+.fe.fe-young .fe-h1 {
+  font-size: 2.25rem;
+}
+.fe.fe-young .fe-h2 {
+  font-size: 1.875rem;
+}
+.fe.fe-young .fe-h3 {
+  font-size: 1.625rem;
+}

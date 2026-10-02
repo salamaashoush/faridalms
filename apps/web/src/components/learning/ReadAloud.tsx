@@ -14,7 +14,7 @@ export const YoungContext = createContext(false);
 // again once a tap has started it.
 let player: HTMLAudioElement | null = null;
 
-function stopSounds() {
+export function stopSounds() {
   player?.pause();
   if ("speechSynthesis" in window) window.speechSynthesis.cancel();
 }
@@ -72,6 +72,30 @@ function speak(text: string) {
   window.speechSynthesis.speak(utterance);
 }
 
+/** Whether the browser's own voice may read this text, as `ReadAloud` decides. */
+function speakable(text: string, voices: string) {
+  return (
+    text.trim() !== "" &&
+    readable(text) &&
+    voices.split(",").includes(languageOf(text))
+  );
+}
+
+/**
+ * Reads something aloud without a tap on its speaker, as a screen opens:
+ * the recording if there is one, else the browser's voice where it is safe.
+ * Says whether anything played.
+ */
+export function sayAloud(text: string, narration: string | null): boolean {
+  if (narration) {
+    playRecording(narration);
+    return true;
+  }
+  if (!speakable(text, voiceLanguages())) return false;
+  speak(text);
+  return true;
+}
+
 /**
  * A speaker that reads what sits beside it: the teacher's recording when
  * there is one, else, where `voice` allows, the browser's own voice for a
@@ -96,12 +120,7 @@ export function ReadAloud({
     voiceLanguages,
     () => "",
   );
-  const spoken =
-    !narration &&
-    voice &&
-    text.trim() !== "" &&
-    readable(text) &&
-    voices.split(",").includes(languageOf(text));
+  const spoken = !narration && voice && speakable(text, voices);
   if (!narration && !spoken) return null;
   return (
     <Button

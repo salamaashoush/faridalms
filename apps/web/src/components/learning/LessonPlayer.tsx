@@ -1,7 +1,6 @@
 import type {
   VowelMarks,
   CheckView,
-  LessonBlock,
   LessonCompletion,
   LessonResponse,
   StoredTry,
@@ -19,7 +18,6 @@ import {
   studentBlocks,
   upgradeLesson,
 } from "@faridalms/domain/learning";
-import { StoredImage } from "@faridalms/editor/files";
 import { Button } from "@faridalms/ui/button";
 import { Progress } from "@faridalms/ui/progress";
 import {
@@ -44,6 +42,7 @@ import { toast } from "sonner";
 
 import { ButtonLink } from "~/components/app/ButtonLink";
 import { ContentView } from "~/components/content/ContentView";
+import { Media } from "~/components/learning/LessonMedia";
 import { ReadAloud, YoungContext } from "~/components/learning/ReadAloud";
 import { RecordHeader } from "~/components/system/RecordPage";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
@@ -63,6 +62,7 @@ import { getMessageFromError } from "~/utils/error";
 import type { CheckDriver } from "./Checks";
 
 import { CheckBlockView, isCheckBlock, isSettled } from "./Checks";
+import { YoungLesson } from "./young/YoungLesson";
 
 type Played = Awaited<
   ReturnType<NonNullable<ReturnType<typeof lessonQuery>["queryFn"]>>
@@ -82,78 +82,6 @@ const ruleText = (completion: LessonCompletion, passScore: number | null) =>
   completion === "score"
     ? m.lrnRuleScore({ score: formatNumber(passScore ?? 100) })
     : RULE_HINT[completion]?.();
-
-function Media({ block }: { block: Extract<LessonBlock, { type: "media" }> }) {
-  const src = fileUrl(block.fileId);
-  const captions = block.captionsFileId ? fileUrl(block.captionsFileId) : null;
-  return (
-    <figure className="grid gap-2">
-      {block.mediaType.startsWith("video/") ? (
-        <video
-          controls
-          preload="metadata"
-          crossOrigin="anonymous"
-          className="w-full rounded-lg"
-        >
-          <source src={src} type={block.mediaType} />
-          <track
-            kind="captions"
-            src={captions ?? undefined}
-            srcLang={block.captionsLang}
-            default={Boolean(captions)}
-          />
-        </video>
-      ) : block.mediaType.startsWith("audio/") ? (
-        <audio
-          controls
-          preload="metadata"
-          crossOrigin="anonymous"
-          className="w-full"
-        >
-          <source src={src} type={block.mediaType} />
-          <track
-            kind="captions"
-            src={captions ?? undefined}
-            srcLang={block.captionsLang}
-            default={Boolean(captions)}
-          />
-        </audio>
-      ) : block.mediaType.startsWith("image/") ? (
-        <StoredImage
-          src={src}
-          alt={block.caption}
-          removed={m.fileRemoved()}
-          className="rounded-lg"
-        />
-      ) : (
-        <a
-          href={src}
-          className="text-sm font-medium text-primary underline-offset-4 hover:underline"
-        >
-          <bdi>{block.name}</bdi>
-        </a>
-      )}
-      {block.caption ? (
-        <figcaption
-          dir="auto"
-          className="text-[13px] leading-[18px] text-muted-foreground"
-        >
-          {block.caption}
-        </figcaption>
-      ) : null}
-      {block.transcript ? (
-        <details className="rounded-lg border px-4 py-2 text-sm leading-6">
-          <summary className="cursor-pointer py-1 font-medium">
-            {m.lrnTranscript()}
-          </summary>
-          <p dir="auto" className="pt-2 pb-1 whitespace-pre-wrap">
-            {block.transcript}
-          </p>
-        </details>
-      ) : null}
-    </figure>
-  );
-}
 
 function Gate({
   open,
@@ -477,6 +405,7 @@ export function LessonPlayer({ lessonId }: { lessonId: string }) {
   const data = useSuspenseQuery(query).data;
   const earlyYears = useCurrentUser().features.early_years;
   const queryClient = useQueryClient();
+  const navigate = useNavigate();
   const refresh = () =>
     queryClient.invalidateQueries({ queryKey: ["learning"] });
   const apply = async (
@@ -575,6 +504,48 @@ export function LessonPlayer({ lessonId }: { lessonId: string }) {
     number: formatNumber(data.index + 1),
     total: formatNumber(data.total),
   });
+  if (data.young && earlyYears)
+    return (
+      <YoungContext.Provider value>
+        <YoungLesson
+          key={data.attempt}
+          title={data.title}
+          blocks={shown.blocks}
+          checks={shown.checks}
+          driver={driver}
+          position={data.position}
+          onReach={reach}
+          onClose={() =>
+            void navigate({
+              to: "/modules/$moduleId",
+              params: { moduleId: data.module.id },
+            })
+          }
+          onFinish={
+            data.completion === "mark" && !data.completedAt
+              ? () => complete.mutate()
+              : undefined
+          }
+          retry={
+            canRetry
+              ? { pending: retry.isPending, onRetry: () => retry.mutate() }
+              : null
+          }
+          next={
+            data.next
+              ? {
+                  label: m.lrnNext(),
+                  onNext: () =>
+                    void navigate({
+                      to: "/lessons/$lessonId",
+                      params: { lessonId: data.next ?? "" },
+                    }),
+                }
+              : null
+          }
+        />
+      </YoungContext.Provider>
+    );
   return (
     <article className="mx-auto grid w-full max-w-3xl gap-6">
       <Progress
@@ -787,6 +758,32 @@ export function LessonPreview({ lessonId }: { lessonId: string }) {
       return Promise.resolve();
     },
   };
+  const edit = () =>
+    void navigate({
+      to: "/teach/lesson-editor",
+      search: { id: data.id, moduleId: data.moduleId },
+    });
+  if (data.young && earlyYears)
+    return (
+      <YoungContext.Provider value>
+        <YoungLesson
+          key={round}
+          title={data.title}
+          blocks={blocks}
+          checks={checks}
+          driver={driver}
+          onClose={edit}
+          badge={m.lrnPreview()}
+          retry={{
+            pending: false,
+            onRetry: () => {
+              setRows([]);
+              setRound((current) => current + 1);
+            },
+          }}
+        />
+      </YoungContext.Provider>
+    );
   return (
     <article className="mx-auto grid w-full max-w-3xl gap-6">
       <RecordHeader
@@ -802,11 +799,7 @@ export function LessonPreview({ lessonId }: { lessonId: string }) {
         action={{
           label: m.lrnEditLesson(),
           icon: Pencil,
-          onClick: () =>
-            void navigate({
-              to: "/teach/lesson-editor",
-              search: { id: data.id, moduleId: data.moduleId },
-            }),
+          onClick: edit,
         }}
         menu={[
           {
