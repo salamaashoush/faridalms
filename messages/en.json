@@ -4175,6 +4175,7 @@
   "lrnGateProgressBoth": "{count} of {total} done",
   "lrnVideoQuestionAhead": "A question comes up at {time} in the video.",
   "lrnVideoContinue": "Continue the video",
+  "lrnVideoRewatch": "Watch again from {time}",
   "lrnNewAttempt": "Fresh start. Your best score stays.",
   "lrnAttempt": "Attempt",
   "lrnAttemptIs": "Attempt {number}",

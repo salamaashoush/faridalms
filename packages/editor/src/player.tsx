@@ -92,6 +92,11 @@ export interface VideoMark {
   done: boolean;
 }
 
+export interface VideoControl {
+  play: () => void;
+  playFrom: (seconds: number) => void;
+}
+
 export interface MediaWatch {
   startAt: number;
   report: (watch: WatchReport) => void;
@@ -99,8 +104,8 @@ export interface MediaWatch {
   stops?: readonly VideoMark[] | undefined;
   /** The video stopped for the question at this second. */
   onQuestion?: ((at: number) => void) | undefined;
-  /** Hands the page a way to play the video on once a question is answered. */
-  bind?: ((control: { play: () => void }) => void) | undefined;
+  /** Hands the page the video's play: on past an answered question, or again from earlier. */
+  bind?: ((control: VideoControl) => void) | undefined;
 }
 
 /** How often a playing recording reports, so a closed tab loses little. */
@@ -151,10 +156,13 @@ function Watching({
     };
     const open = () =>
       (latest.current.watch.stops ?? []).filter((stop) => !stop.done);
+    // The seek a stop makes lands on the stop itself, and is not a student's.
+    let settling = false;
     const stopAt = (at: number) => {
       last = at;
       close();
       media.pause();
+      settling = true;
       latest.current.seek(at);
       latest.current.watch.onQuestion?.(at);
     };
@@ -201,7 +209,17 @@ function Watching({
     };
     const onSeeking = () => close();
     const onSeeked = () => {
+      if (settling) {
+        settling = false;
+        last = media.currentTime;
+        return;
+      }
       if (held()) return;
+      const first = open()[0];
+      if (first && Math.abs(media.currentTime - first.at) <= STOP_SLACK) {
+        stopAt(first.at);
+        return;
+      }
       last = media.currentTime;
       if (!media.paused) from = last;
     };
@@ -239,7 +257,13 @@ function Watching({
       if (document.visibilityState === "hidden") flush();
     };
 
-    latest.current.watch.bind?.({ play: () => void media.play() });
+    latest.current.watch.bind?.({
+      play: () => void media.play(),
+      playFrom: (seconds) => {
+        latest.current.seek(seconds);
+        void media.play();
+      },
+    });
     if (Number.isFinite(media.duration) && media.duration > 0) resume();
     media.addEventListener("loadedmetadata", resume);
     media.addEventListener("timeupdate", onTime);

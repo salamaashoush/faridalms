@@ -7,7 +7,7 @@ import type {
   StudentBlock,
   Watched,
 } from "@faridalms/domain/learning";
-import type { MediaWatch } from "@faridalms/editor/player";
+import type { MediaWatch, VideoControl } from "@faridalms/editor/player";
 
 import { allWithoutVowelMarks } from "@faridalms/domain/arabic";
 import { contentPlainText, textDirection } from "@faridalms/domain/content";
@@ -180,7 +180,7 @@ function LessonBody({
     return found;
   }, [stops]);
   const [stopped, setStopped] = useState<ReadonlySet<string>>(new Set());
-  const players = useRef(new Map<string, { play: () => void }>());
+  const players = useRef(new Map<string, VideoControl>());
   const answered = (blockId: string) => {
     const block = blocks.find((item) => item.id === blockId);
     return Boolean(
@@ -215,6 +215,12 @@ function LessonBody({
       bind: (control) => players.current.set(fileId, control),
     };
   };
+  /** Where the part of a video a stop asks about begins: the stop before it, or the start. */
+  const segmentStart = (fileId: string, at: number) =>
+    (stops.get(fileId) ?? [])
+      .map((stop) => stop.at)
+      .filter((time) => time < at)
+      .at(-1) ?? 0;
   const settledAbove = (index: number) => {
     const above = blocks.slice(0, index);
     const questions = above.filter(isCheckBlock);
@@ -351,7 +357,9 @@ function LessonBody({
           body = <Media block={block} watch={watching} />;
         else if (isCheckBlock(block)) {
           const stop = stopOf.get(block.id);
-          const settledHere = isSettled(block, checks[block.id]);
+          const view = checks[block.id];
+          const settledHere = isSettled(block, view);
+          const missed = Boolean(view && view.tries > 0 && !settledHere);
           body =
             stop && !settledHere && !stopped.has(block.id) ? (
               <p className="flex items-center gap-2 rounded-lg border border-dashed px-4 py-3 text-sm leading-5 text-muted-foreground">
@@ -376,6 +384,24 @@ function LessonBody({
                   >
                     <Play aria-hidden />
                     {m.lrnVideoContinue()}
+                  </Button>
+                ) : null}
+                {/* After a wrong try, the part of the video the question asks about plays again. */}
+                {stop && missed && stopped.has(block.id) ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="justify-self-start max-md:h-10"
+                    onClick={() =>
+                      players.current
+                        .get(stop.fileId)
+                        ?.playFrom(segmentStart(stop.fileId, stop.at))
+                    }
+                  >
+                    <RotateCcw aria-hidden />
+                    {m.lrnVideoRewatch({
+                      time: mediaClock(segmentStart(stop.fileId, stop.at)),
+                    })}
                   </Button>
                 ) : null}
               </div>

@@ -32,8 +32,9 @@ with the gate it can break.
    question "at 0:42" from the video block, and it stays a question block
    in the document; the video stops there, opens it below, and plays on
    past it only once answered; marks show on the timeline and the paper
-   says when it is asked. Rewatch-from, an optional skip setting and the
-   young children's pause remain.
+   says when it is asked. After a wrong try the student can watch the part
+   since the stop before again, and the video holds at the question once
+   more. An optional skip setting and the young children's pause remain.
 5. **Teacher insight.** Drop-off, rewind peaks and each answer with its time,
    per class and per student.
 6. **Pipeline**, decided 2026-10-03: our own media service, in Rust.
