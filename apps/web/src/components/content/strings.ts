@@ -392,6 +392,7 @@ export function editorStrings(): EditorStrings {
     codeLanguage: m.editorCodeLanguage(),
     plainText: m.editorPlainText(),
     codeStudents: m.editorCodeStudents(),
+    mediaNoSkipping: m.editorMediaNoSkipping(),
     codeRead: m.editorCodeRead(),
     codeRun: m.editorCodeRun(),
     codePredict: m.editorCodePredict(),

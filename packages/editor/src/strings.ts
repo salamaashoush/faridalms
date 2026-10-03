@@ -370,6 +370,8 @@ export interface EditorStrings {
   plainText: string;
   /** What students do with a code block: read it, run it, or predict and run. */
   codeStudents: string;
+  /** A recording students may seek in only as far as they have played. */
+  mediaNoSkipping: string;
   codeRead: string;
   codeRun: string;
   codePredict: string;

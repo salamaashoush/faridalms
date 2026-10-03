@@ -1932,9 +1932,11 @@ describe("watching recordings", () => {
       durationSeconds: 100,
       positionSeconds: 40,
     });
+    // Played without a gap only to forty, which is as far as a recording
+    // that holds students to what they have watched lets them seek.
     expect(first).toMatchObject({
       completed: false,
-      watched: { watchedSeconds: 45, durationSeconds: 100 },
+      watched: { watchedSeconds: 45, durationSeconds: 100, reachedSeconds: 40 },
     });
     const resumed = await pupil.learning.playLesson({ id: lesson.id });
     expect(resumed.watches[recording]).toMatchObject({
@@ -1957,7 +1959,7 @@ describe("watching recordings", () => {
     });
     expect(second).toMatchObject({
       completed: true,
-      watched: { watchedSeconds: 100 },
+      watched: { watchedSeconds: 100, reachedSeconds: 100 },
     });
     const finished = await pupil.learning.playLesson({ id: lesson.id });
     expect(finished.completedAt).not.toBeNull();

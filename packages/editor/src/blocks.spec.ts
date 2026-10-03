@@ -30,6 +30,7 @@ import {
   $isToggleNode,
   $setCodeRun,
   blockIdState,
+  MediaNode,
 } from "./nodes";
 
 function editor(): LexicalEditor {
@@ -193,6 +194,27 @@ describe("block operations", () => {
     };
     expect(saved("predict")).toBe("predict");
     expect(saved(null)).toBeUndefined();
+  });
+
+  it("keeps a recording students may not skip ahead in", () => {
+    const target = editor();
+    target.update(
+      () => {
+        const recording = new MediaNode(
+          "0190a1b2-0000-7000-8000-0000000000a1",
+          "video/mp4",
+        ).setNoSkipping(true);
+        $getRoot().clear().append(recording);
+      },
+      { discrete: true },
+    );
+    const saved = v.safeParse(
+      contentDocumentSchema,
+      target.getEditorState().toJSON(),
+    );
+    expect(saved.success && saved.output.root.children?.[0]?.noSkipping).toBe(
+      true,
+    );
   });
 
   it("moves blocks up and down among their siblings", () => {

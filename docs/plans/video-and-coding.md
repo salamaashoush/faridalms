@@ -34,7 +34,10 @@ with the gate it can break.
    past it only once answered; marks show on the timeline and the paper
    says when it is asked. After a wrong try the student can watch the part
    since the stop before again, and the video holds at the question once
-   more. An optional skip setting and the young children's pause remain.
+   more. A teacher can also turn on "No skipping ahead" for a recording:
+   students may go back over it freely but seek on only as far as they have
+   played without a gap, which the server works out from what they watched.
+   The young children's pause remains.
 5. **Teacher insight.** Drop-off, rewind peaks and each answer with its time,
    per class and per student. Done: a module's Videos tab shows, for each
    recording, how many of the class watched each moment, where it stops for

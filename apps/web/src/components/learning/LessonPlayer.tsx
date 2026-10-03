@@ -438,7 +438,7 @@ function LessonBody({
  */
 function useWatching(
   lessonId: string,
-  watches: Record<string, { positionSeconds: number }>,
+  watches: Record<string, { positionSeconds: number; reachedSeconds: number }>,
   onWatched: (
     watched: Awaited<ReturnType<typeof saveWatch>>["watched"],
   ) => void,
@@ -447,6 +447,8 @@ function useWatching(
   const finished = useRef(false);
   return (fileId: string): MediaWatch => ({
     startAt: watches[fileId]?.positionSeconds ?? 0,
+    reachedAt: watches[fileId]?.reachedSeconds ?? 0,
+    onHeldBack: () => toast(m.lrnNoSkipping(), { id: `skip-${fileId}` }),
     report: (report) => {
       // A lost report only means those seconds count when played again.
       void saveWatch({ data: { lessonId, fileId, ...report } })

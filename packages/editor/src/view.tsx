@@ -83,6 +83,12 @@ export interface RunnableProps {
   locked: boolean;
 }
 
+/** How a recording's playing is followed, held to what was played if the teacher asks. */
+function watchOf(node: ContentNode, context: Context): MediaWatch | undefined {
+  const watch = node.fileId ? context.watch?.(node.fileId) : undefined;
+  return watch && node.noSkipping ? { ...watch, noSkipping: true } : watch;
+}
+
 function sourceOf(node: ContentNode): string {
   if (node.type === "linebreak") return "\n";
   if (node.type === "tab") return "\t";
@@ -622,7 +628,7 @@ function draw(
             captionsLang={node.captionsLang}
             locale={context.locale}
             captionsLabel={context.strings.captions}
-            watch={node.fileId ? context.watch?.(node.fileId) : undefined}
+            watch={watchOf(node, context)}
             strings={context.strings}
           />
           {node.caption ? (

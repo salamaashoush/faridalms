@@ -27,6 +27,8 @@ import { $getDocument, $getNodeByKey, createCommand } from "lexical";
 import {
   Captions,
   ExternalLink,
+  FastForward,
+  Lock,
   MessageCircleQuestion,
   ScrollText,
 } from "lucide-react";
@@ -97,6 +99,7 @@ function MediaBlock({
   captionsFileId,
   captionsLang,
   transcript,
+  noSkipping,
   caption,
   size,
 }: {
@@ -107,6 +110,7 @@ function MediaBlock({
   captionsFileId: string;
   captionsLang: string;
   transcript: string;
+  noSkipping: boolean;
   caption: string;
   size: ImageSize;
 }) {
@@ -219,6 +223,23 @@ function MediaBlock({
                   {strings.transcriptAdd}
                 </button>
               )}
+              {questions ? (
+                <button
+                  type="button"
+                  aria-pressed={noSkipping}
+                  onClick={() =>
+                    update((node) => node.setNoSkipping(!noSkipping))
+                  }
+                  className={mediaAction}
+                >
+                  {noSkipping ? (
+                    <Lock className="size-3.5" aria-hidden />
+                  ) : (
+                    <FastForward className="size-3.5" aria-hidden />
+                  )}
+                  {strings.mediaNoSkipping}
+                </button>
+              ) : null}
               {video && questions ? (
                 <button type="button" onClick={askHere} className={mediaAction}>
                   <MessageCircleQuestion className="size-3.5" aria-hidden />
@@ -282,7 +303,7 @@ function MediaBlock({
 }
 
 const mediaAction =
-  "inline-flex h-8 items-center gap-1.5 rounded-md border px-2.5 font-medium text-foreground outline-none hover:bg-accent focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-50 max-md:h-10";
+  "inline-flex h-8 items-center gap-1.5 rounded-md border px-2.5 font-medium text-foreground outline-none hover:bg-accent focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-50 aria-pressed:border-primary/40 aria-pressed:bg-primary/10 max-md:h-10";
 
 function EmbedBlock({
   nodeKey,
@@ -402,6 +423,8 @@ export type SerializedMediaNode = Spread<
     transcript?: string;
     caption: string;
     size?: ImageSize;
+    /** Students may seek only as far as they have watched. */
+    noSkipping?: boolean;
   },
   SerializedDecoratorBlockNode
 >;
@@ -412,6 +435,7 @@ export class MediaNode extends DecoratorBlockNode {
   __captionsFileId: string;
   __captionsLang = "";
   __transcript = "";
+  __noSkipping = false;
   __caption: string;
   __size: ImageSize;
 
@@ -448,6 +472,7 @@ export class MediaNode extends DecoratorBlockNode {
     );
     copy.__captionsLang = node.__captionsLang;
     copy.__transcript = node.__transcript;
+    copy.__noSkipping = node.__noSkipping;
     return copy;
   }
 
@@ -462,6 +487,7 @@ export class MediaNode extends DecoratorBlockNode {
     node.__captionsFileId = json.captionsFileId ?? "";
     node.__captionsLang = json.captionsLang ?? "";
     node.__transcript = json.transcript ?? "";
+    node.__noSkipping = json.noSkipping ?? false;
     node.__caption = json.caption;
     node.__size = json.size ?? "full";
     return node;
@@ -480,6 +506,7 @@ export class MediaNode extends DecoratorBlockNode {
       ...(node.__transcript ? { transcript: node.__transcript } : {}),
       caption: node.__caption,
       size: node.__size,
+      ...(node.__noSkipping ? { noSkipping: true } : {}),
     };
   }
 
@@ -517,6 +544,12 @@ export class MediaNode extends DecoratorBlockNode {
     return writable;
   }
 
+  setNoSkipping(noSkipping: boolean): this {
+    const writable = this.getWritable();
+    writable.__noSkipping = noSkipping;
+    return writable;
+  }
+
   getSize(): ImageSize {
     return this.getLatest().__size;
   }
@@ -537,6 +570,7 @@ export class MediaNode extends DecoratorBlockNode {
         captionsFileId={this.__captionsFileId}
         captionsLang={this.__captionsLang}
         transcript={this.__transcript}
+        noSkipping={this.__noSkipping}
         caption={this.__caption}
         size={this.__size}
       />

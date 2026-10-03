@@ -106,6 +106,11 @@ export interface MediaWatch {
   onQuestion?: ((at: number) => void) | undefined;
   /** Hands the page the video's play: on past an answered question, or again from earlier. */
   bind?: ((control: VideoControl) => void) | undefined;
+  /** Seeking stops at the furthest point played, which starts here. */
+  noSkipping?: boolean | undefined;
+  reachedAt?: number | undefined;
+  /** A seek past what was played was taken back to it. */
+  onHeldBack?: (() => void) | undefined;
 }
 
 /** How often a playing recording reports, so a closed tab loses little. */
@@ -116,6 +121,8 @@ const MAX_STEP_SECONDS = 3;
 const STOP_SLACK = 0.25;
 /** Picking up this close to either end would only confuse. */
 const RESUME_MARGIN_SECONDS = 5;
+/** A seek this little past the furthest point played is let be. */
+const SKIP_SLACK = 1;
 
 /**
  * Video.js narrows a media's abilities but not its events; anything that can
@@ -148,6 +155,7 @@ function Watching({
     let from: number | null = null;
     let last = media.currentTime;
     let resumed = false;
+    let reached = latest.current.watch.reachedAt ?? 0;
 
     const close = () => {
       if (from !== null && last > from)
@@ -172,6 +180,18 @@ function Watching({
       const first = open()[0];
       if (!first || media.currentTime <= first.at + slack) return false;
       stopAt(first.at);
+      return true;
+    };
+    // A recording that must be watched in order may be gone back over
+    // freely, but sought on only as far as the student has played.
+    const ahead = () => {
+      const following = latest.current.watch;
+      if (!following.noSkipping || media.currentTime <= reached + SKIP_SLACK)
+        return false;
+      settling = true;
+      last = reached;
+      latest.current.seek(reached);
+      following.onHeldBack?.();
       return true;
     };
     const flush = () => {
@@ -203,7 +223,7 @@ function Watching({
       else if (now < last || now - last > MAX_STEP_SECONDS) {
         close();
         from = now;
-      }
+      } else if (last <= reached + SKIP_SLACK) reached = Math.max(reached, now);
       if (held()) return;
       last = now;
     };
@@ -214,7 +234,7 @@ function Watching({
         last = media.currentTime;
         return;
       }
-      if (held()) return;
+      if (ahead() || held()) return;
       const first = open()[0];
       if (first && Math.abs(media.currentTime - first.at) <= STOP_SLACK) {
         stopAt(first.at);
@@ -241,7 +261,10 @@ function Watching({
       if (resumed) return;
       resumed = true;
       const first = open()[0];
-      const saved = latest.current.watch.startAt;
+      const { noSkipping } = latest.current.watch;
+      const saved = noSkipping
+        ? Math.min(latest.current.watch.startAt, reached)
+        : latest.current.watch.startAt;
       // Picking up never goes past a question still waiting for an answer.
       const at = first && first.at < saved ? first.at : saved;
       if (

@@ -511,6 +511,8 @@ export interface WatchRow {
   watchedSeconds: number;
   durationSeconds: number;
   positionSeconds: number;
+  /** How far the student has played without a gap from the start. */
+  reachedSeconds: number;
 }
 
 type WatchRecord = {
@@ -518,17 +520,20 @@ type WatchRecord = {
   watched_seconds: number;
   duration_seconds: number;
   position_seconds: number;
+  reached_seconds: number;
 };
 
 const watchColumns = sql`file_id,
   coalesce((select sum(upper(r) - lower(r)) from unnest(watched) r), 0)::int as watched_seconds,
-  duration_seconds, position_seconds`;
+  duration_seconds, position_seconds,
+  coalesce((select upper(r) from unnest(watched) r where lower(r) = 0), 0)::int as reached_seconds`;
 
 const watchOf = (row: WatchRecord): WatchRow => ({
   fileId: row.file_id,
   watchedSeconds: row.watched_seconds,
   durationSeconds: row.duration_seconds,
   positionSeconds: row.position_seconds,
+  reachedSeconds: row.reached_seconds,
 });
 
 /**
