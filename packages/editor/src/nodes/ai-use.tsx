@@ -24,7 +24,7 @@ import type { AiUseFields } from "../ai-use-view";
 import { AiUseView } from "../ai-use-view";
 import { useEditorEnvironment } from "../context";
 import { FileCard } from "../files";
-import { useSelectOnClick } from "./select";
+import { ownKeys, useSelectOnClick } from "./select";
 
 const field =
   "w-full rounded-md border bg-background px-2.5 py-1.5 text-sm text-foreground outline-none focus-visible:border-ring";
@@ -45,11 +45,15 @@ function AiUseBlock({
   const [uploading, setUploading] = useState(0);
   const [failed, setFailed] = useState(false);
   const url = (fileId: string) => media?.url(fileId);
+  // Its fields show the node's values, so each change is made at once.
   const update = (change: (node: AiUseNode) => void) =>
-    editor.update(() => {
-      const node = $getNodeByKey(nodeKey);
-      if ($isAiUseNode(node)) change(node);
-    });
+    editor.update(
+      () => {
+        const node = $getNodeByKey(nodeKey);
+        if ($isAiUseNode(node)) change(node);
+      },
+      { discrete: true },
+    );
   if (!editable)
     return (
       <AiUseView fields={fields} strings={strings} locale={locale} url={url} />
@@ -86,6 +90,7 @@ function AiUseBlock({
   };
   return (
     <section
+      ref={ownKeys}
       aria-labelledby={`${id}-title`}
       className={`fe-ai-use @container my-4 grid gap-3 rounded-lg border bg-muted/30 p-4 ${selected ? "outline-2 outline-offset-2 outline-ring" : ""}`}
     >

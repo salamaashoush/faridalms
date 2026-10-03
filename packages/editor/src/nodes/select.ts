@@ -43,3 +43,16 @@ export function useSelectOnClick(nodeKey: NodeKey) {
   );
   return selected;
 }
+
+/**
+ * Keeps the keys pressed in a block's own player and fields to them. The
+ * editor listens on its whole text and takes select-all, undo and the
+ * arrows for its own selection, even from a field inside a block.
+ */
+export function ownKeys(element: HTMLElement | null) {
+  if (!element) return undefined;
+  element.addEventListener("keydown", keepKey);
+  return () => element.removeEventListener("keydown", keepKey);
+}
+
+const keepKey = (event: KeyboardEvent) => event.stopPropagation();

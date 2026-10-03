@@ -28,7 +28,7 @@ import { useEditorEnvironment } from "../context";
 import { useFileFacts } from "../file-facts";
 import { FileCard, FileViewer, StoredImage } from "../files";
 import { blockAlignClass, imageSizeClass } from "../format";
-import { useSelectOnClick } from "./select";
+import { ownKeys, useSelectOnClick } from "./select";
 
 // The outline goes round the block's own box, which may be narrower than
 // the column, not round the full-width row that holds it.
@@ -67,10 +67,13 @@ function useNodeUpdate<T extends LexicalNode>(
 ) {
   const [editor] = useLexicalComposerContext();
   return (change: (node: T) => void) =>
-    editor.update(() => {
-      const node = $getNodeByKey(nodeKey);
-      if (guard(node)) change(node);
-    });
+    editor.update(
+      () => {
+        const node = $getNodeByKey(nodeKey);
+        if (guard(node)) change(node);
+      },
+      { discrete: true },
+    );
 }
 
 function ImageBlock({
@@ -100,7 +103,10 @@ function ImageBlock({
       format={format}
       nodeKey={nodeKey}
     >
-      <figure className={`${imageSizeClass[size]} ${blockAlignClass(format)}`}>
+      <figure
+        ref={ownKeys}
+        className={`${imageSizeClass[size]} ${blockAlignClass(format)}`}
+      >
         <StoredImage
           src={media?.url(fileId)}
           alt={decorative ? "" : alt}
@@ -215,7 +221,7 @@ function FileBlock({
       format={format}
       nodeKey={nodeKey}
     >
-      <div onDoubleClick={() => setViewing(true)}>
+      <div ref={ownKeys} onDoubleClick={() => setViewing(true)}>
         <FileCard
           file={file}
           url={url}
