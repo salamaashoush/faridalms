@@ -42,6 +42,7 @@ import {
 } from "lexical";
 import {
   ArrowDownUp,
+  CodeXml,
   ArrowLeftRight,
   Blocks,
   MicVocal,
@@ -132,6 +133,7 @@ export type BlockType =
   | "writtenQuestion"
   | "numberQuestion"
   | "orderingQuestion"
+  | "parsonsQuestion"
   | "matchingQuestion"
   | "sortingQuestion"
   | "countingQuestion"
@@ -157,6 +159,7 @@ const QUESTION_KIND: Partial<Record<BlockType, QuestionKind>> = {
   writtenQuestion: "written",
   numberQuestion: "number",
   orderingQuestion: "ordering",
+  parsonsQuestion: "parsons",
   matchingQuestion: "matching",
   sortingQuestion: "sorting",
   gapsQuestion: "gaps",
@@ -523,6 +526,25 @@ export const blockDefinitions: BlockDefinition[] = [
     label: (s) => s.questionOrdering,
     hint: (s) => s.questionOrderingHint,
     keywords: ["question", "order", "sequence", "sort", "سؤال", "ترتيب"],
+    question: true,
+  },
+  {
+    type: "parsonsQuestion",
+    group: "questions",
+    icon: CodeXml,
+    label: (s) => s.questionParsons,
+    hint: (s) => s.questionParsonsHint,
+    keywords: [
+      "question",
+      "code",
+      "parsons",
+      "program",
+      "python",
+      "lines",
+      "سؤال",
+      "برمجة",
+      "شيفرة",
+    ],
     question: true,
   },
   {

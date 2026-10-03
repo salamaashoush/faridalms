@@ -35,6 +35,7 @@ import {
   KEY_ARROW_LEFT_COMMAND,
   KEY_ARROW_RIGHT_COMMAND,
   KEY_ARROW_UP_COMMAND,
+  KEY_TAB_COMMAND,
   ParagraphNode,
   RootNode,
   TextNode,
@@ -74,6 +75,8 @@ import {
   $isQuestionPassageNode,
   $repairGap,
   $repairHolder,
+  $indentCodeLine,
+  $newCodeLine,
   $repairQuestion,
   $typeGap,
   $unwrapStrayPart,
@@ -496,9 +499,15 @@ export const BlocksExtension = defineExtension({
         INSERT_PARAGRAPH_COMMAND,
         () =>
           $enterInHolder() ||
+          $newCodeLine() ||
           $enterInQuestion() ||
           $enterFromToggleTitle() ||
           $exitEmptyTrailingParagraph(),
+        COMMAND_PRIORITY_LOW,
+      ),
+      editor.registerCommand(
+        KEY_TAB_COMMAND,
+        (event) => $indentCodeLine(event),
         COMMAND_PRIORITY_LOW,
       ),
       editor.registerCommand(

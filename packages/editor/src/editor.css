@@ -546,6 +546,56 @@
   text-align: center;
   content: counter(order);
 }
+/* A code puzzle's lines: the program as written, spaces and all, with no
+   ligatures, so == stays two characters a beginner can count. Its circle
+   marks a line that belongs nowhere in the program. */
+.fe .fe-question[data-kind="parsons"] > .fe-question-option {
+  white-space: pre-wrap;
+  direction: ltr;
+  text-align: left;
+}
+.fe .fe-question[data-kind="parsons"] > .fe-question-option > * {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.875rem;
+  font-variant-ligatures: none;
+}
+.fe .fe-question[data-kind="parsons"] > .fe-question-option::before {
+  border-style: dashed;
+}
+.fe
+  .fe-question[data-kind="parsons"]
+  > .fe-question-option:has(> br:only-child)::after {
+  content: attr(data-line-label);
+}
+.fe
+  .fe-question[data-kind="parsons"]
+  > .fe-question-option[data-correct="true"] {
+  background: color-mix(in oklab, var(--fe-warning) 10%, transparent);
+  text-decoration: line-through;
+  text-decoration-color: color-mix(
+    in oklab,
+    var(--foreground) 40%,
+    transparent
+  );
+}
+.fe
+  .fe-question[data-kind="parsons"]
+  > .fe-question-option[data-correct="true"]::before {
+  border-style: solid;
+  border-color: var(--fe-warning);
+  background-color: var(--fe-warning);
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='white' stroke-width='3.5' stroke-linecap='round'%3E%3Cpath d='M18 6 6 18M6 6l12 12'/%3E%3C/svg%3E");
+}
+.fe
+  .fe-question[data-kind="parsons"]
+  > .fe-question-option[data-correct="true"]:not(:has(> br:only-child))::after {
+  /* Inline-block, or the line's strike-through runs through the label too. */
+  display: inline-block;
+  margin-inline-start: 0.75rem;
+  color: var(--fe-muted);
+  font-size: 0.75rem;
+  content: attr(data-distractor-label);
+}
 .fe .fe-question-passage {
   position: relative;
   margin-block: 0.25rem;

@@ -254,6 +254,7 @@ function Surface({
         spelling: strings.questionSpelling,
         hotspot: strings.questionHotspot,
         scratch: strings.questionScratch,
+        parsons: strings.questionParsons,
       },
       spoken: strings.questionSpoken,
       pictured: {
@@ -264,6 +265,8 @@ function Surface({
       wordTiles: strings.questionWordTiles,
       starter: strings.questionStarterSet,
       videoAt: strings.questionVideoAt,
+      codeLine: strings.questionCodeLine,
+      distractor: strings.questionDistractor,
       extraTiles: strings.questionExtraTiles,
       points: strings.questionPoints,
       answerIs: strings.questionAnswerIs,

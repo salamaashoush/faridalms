@@ -26,6 +26,7 @@ import { buildContentEditor } from "./headless";
 import {
   $createCalloutNode,
   $createQuestionNode,
+  $indentCodeLine,
   $isQuestionGapNode,
   $isQuestionGroupNode,
   $isQuestionNode,
@@ -51,7 +52,8 @@ function withQuestion(
     | "orderingQuestion"
     | "matchingQuestion"
     | "sortingQuestion"
-    | "gapsQuestion",
+    | "gapsQuestion"
+    | "parsonsQuestion",
 ) {
   const target = buildContentEditor();
   target.update(
@@ -222,6 +224,44 @@ describe("questions in a document", () => {
       return Boolean(key && first && key === first.getKey());
     });
     expect(inOption).toBe(true);
+  });
+
+  it("indents a code puzzle's lines with Tab and keeps the indent on Enter", () => {
+    const target = withQuestion("parsonsQuestion");
+    const step = (change: () => void) =>
+      target.update(change, { discrete: true });
+    step(() => {
+      const question = $getRoot().getChildren().find($isQuestionNode);
+      const [prompt, first] = question?.getChildren() ?? [];
+      if ($isQuestionPromptNode(prompt)) write(prompt, "Count to three.");
+      if ($isQuestionOptionNode(first)) {
+        write(first, "for n in range(3):");
+        first.selectEnd();
+      }
+    });
+    step(() => target.dispatchCommand(INSERT_PARAGRAPH_COMMAND, undefined));
+    step(() => $indentCodeLine(null));
+    step(() => $getSelection()?.insertText("if n:"));
+    step(() => target.dispatchCommand(INSERT_PARAGRAPH_COMMAND, undefined));
+    step(() => $getSelection()?.insertText("print(n)"));
+    const lines = target.read("latest", () =>
+      $getRoot()
+        .getChildren()
+        .find($isQuestionNode)
+        ?.getChildren()
+        .filter($isQuestionOptionNode)
+        .map((line) => line.getTextContent()),
+    );
+    expect(lines?.slice(0, 3)).toEqual([
+      "for n in range(3):",
+      "    if n:",
+      "    print(n)",
+    ]);
+    const block = lessonOfContent(json(target)).blocks.find(
+      (each) => each.type === "parsons",
+    );
+    if (block?.type !== "parsons") throw new Error("parsons expected");
+    expect(block.lines.map((line) => line.indent)).toEqual([0, 1, 1]);
   });
 
   it("keeps an ordering question's items and a number question's key", () => {
@@ -607,6 +647,7 @@ describe("questions in a document", () => {
         spelling: "",
         hotspot: "",
         scratch: "",
+        parsons: "",
       },
       points: () => "",
       answerIs: "",

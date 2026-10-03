@@ -165,6 +165,44 @@ describe("an answer key", () => {
   });
 });
 
+const puzzle: LessonBlock = {
+  ...base,
+  id: "q5",
+  type: "parsons",
+  prompt: "Say hello twice.",
+  language: "python",
+  lines: [
+    { id: "l1", code: "for n in range(2):", indent: 0 },
+    { id: "l2", code: 'print("hello")', indent: 1 },
+  ],
+  distractors: [{ id: "l3", code: "print hello" }],
+};
+
+const lineOf = (markup: string, code: string) =>
+  markup.split("<li").find((chunk) => chunk.includes(code)) ?? "";
+
+describe("a code puzzle on paper", () => {
+  it("numbers the program's lines on a teacher's copy and dashes the rest", () => {
+    const key = paper(puzzle, true);
+    expect(lineOf(key, "for n in range(2):")).toContain(">1<");
+    expect(lineOf(key, "print(&quot;hello&quot;)")).toContain(">2<");
+    expect(lineOf(key, "print hello")).toContain(">–<");
+    expect(paper(puzzle, false)).not.toMatch(/>[12–]</);
+  });
+
+  it("prints a student's lines without saying which belong", () => {
+    const [student] = studentBlocks({ version: 2, blocks: [puzzle] }, "s");
+    if (!student) throw new Error("no block");
+    const block = paperBlock(student);
+    if (block.type !== "parsons") throw new Error("not parsons");
+    expect(block.distractors).toEqual([]);
+    expect(block.lines.map((line) => line.code).toSorted()).toEqual(
+      ['print("hello")', "for n in range(2):", "print hello"].toSorted(),
+    );
+    expect(block.lines.every((line) => line.indent === 0)).toBe(true);
+  });
+});
+
 describe("a student's copy of a lesson", () => {
   it("prints from what the student received, with no key to give away", () => {
     const [student] = studentBlocks(

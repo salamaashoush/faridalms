@@ -66,6 +66,7 @@ export const questionKinds = [
   "spelling",
   "hotspot",
   "scratch",
+  "parsons",
 ] as const;
 export type QuestionKind = (typeof questionKinds)[number];
 export const calloutTones = [
@@ -162,6 +163,8 @@ export interface ContentNode {
   recordSeconds?: number | null;
   /** A question asked when the video above it reaches this second. */
   videoAt?: number | null;
+  /** A code puzzle's language, which decides whether indentation counts. */
+  codeLanguage?: "python" | "javascript" | "html" | "text";
   /** A written question answered with a drawing or a photo. */
   answerWith?: "drawing" | "photo" | null;
   /** A find-on-a-picture question's places: left, top, width, height. */
@@ -351,6 +354,9 @@ const nodeSchema: v.GenericSchema<ContentNode> = v.lazy(() =>
       wordLimit: v.optional(v.nullable(integer(10, 5000))),
       recordSeconds: v.optional(v.nullable(integer(5, 180))),
       videoAt: v.optional(v.nullable(integer(0, 21600))),
+      codeLanguage: v.optional(
+        v.picklist(["python", "javascript", "html", "text"]),
+      ),
       answerWith: v.optional(v.nullable(v.picklist(["drawing", "photo"]))),
       regions: v.optional(
         v.pipe(

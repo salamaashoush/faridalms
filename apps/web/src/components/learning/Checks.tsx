@@ -11,6 +11,7 @@ import { Radio } from "@base-ui/react/radio";
 import { parseNumber } from "@faridalms/domain/answers";
 import { joinedAroundGaps } from "@faridalms/domain/arabic";
 import { textDirection } from "@faridalms/domain/content";
+import { MAX_INDENT } from "@faridalms/domain/learning";
 import { StoredImage } from "@faridalms/editor/files";
 import { Button } from "@faridalms/ui/button";
 import { cn } from "@faridalms/ui/cn";
@@ -32,9 +33,14 @@ import {
   CircleCheck,
   CircleX,
   Eye,
+  IndentDecrease,
+  IndentIncrease,
   Lightbulb,
+  Plus,
+  X,
 } from "lucide-react";
 import { createContext, useContext, useId, useRef, useState } from "react";
+import { flushSync } from "react-dom";
 import { toast } from "sonner";
 
 import { CodingAnswer } from "~/components/coding/CodingAnswer";
@@ -153,6 +159,7 @@ export type CheckStudentBlock =
   | Of<"number">
   | Of<"matching">
   | Of<"ordering">
+  | Of<"parsons">
   | Of<"sorting">
   | Of<"counting">
   | Of<"tracing">
@@ -168,6 +175,7 @@ const CHECK_TYPES = new Set<StudentBlock["type"]>([
   "number",
   "matching",
   "ordering",
+  "parsons",
   "sorting",
   "counting",
   "tracing",
@@ -252,7 +260,15 @@ function Verdict({ view }: { view: CheckView }) {
 }
 
 /** What a student learns from a try: right or not, what they chose meant, a hint, and once settled the answer and why. */
-function Outcome({ view, keyText }: { view: CheckView; keyText?: string }) {
+function Outcome({
+  view,
+  keyText,
+  keyCode,
+}: {
+  view: CheckView;
+  keyText?: string;
+  keyCode?: string[];
+}) {
   return (
     <>
       <Verdict view={view} />
@@ -279,6 +295,17 @@ function Outcome({ view, keyText }: { view: CheckView; keyText?: string }) {
           <bdi>{keyText}</bdi>
         </p>
       ) : null}
+      {keyCode && !view.correct ? (
+        <div className="grid gap-1.5 text-sm leading-6">
+          <p className="font-medium">{m.lrnCorrectAnswer()}</p>
+          <pre
+            dir="ltr"
+            className="overflow-x-auto rounded-md bg-muted/60 px-3 py-2 font-mono text-[13px] leading-5 [font-variant-ligatures:none]"
+          >
+            <code>{keyCode.join("\n")}</code>
+          </pre>
+        </div>
+      ) : null}
       {view.explanation ? (
         <p dir="auto" className="text-sm leading-6 text-muted-foreground">
           {view.explanation}
@@ -293,15 +320,17 @@ function CheckStatus({
   view,
   editing,
   keyText,
+  keyCode,
 }: {
   view: CheckView | undefined;
   editing: boolean;
   keyText?: string;
+  keyCode?: string[];
 }) {
   const mode = useContext(CheckModeContext);
   if (mode === "review")
     return view && (view.tries > 0 || view.revealed) ? (
-      <Outcome view={view} keyText={keyText} />
+      <Outcome view={view} keyText={keyText} keyCode={keyCode} />
     ) : (
       <p className="text-sm leading-5 text-muted-foreground">
         {m.quizNotAnswered()}
@@ -315,7 +344,7 @@ function CheckStatus({
         {m.quizAnswerKept()}
       </p>
     );
-  return <Outcome view={view} keyText={keyText} />;
+  return <Outcome view={view} keyText={keyText} keyCode={keyCode} />;
 }
 
 /** What a question says, read aloud to a young child: its prompt, then its choices. */
@@ -1175,6 +1204,302 @@ function OrderingCheck({
   );
 }
 
+const poolRow =
+  "flex min-h-10 w-full cursor-pointer items-center gap-3 rounded-lg border border-dashed px-3 py-2 text-start outline-none transition-colors hover:bg-muted/50 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-default disabled:opacity-60 disabled:hover:bg-transparent max-md:min-h-11";
+
+const codeText =
+  "min-w-0 flex-1 font-mono text-[13px] leading-5 whitespace-pre-wrap [font-variant-ligatures:none] [overflow-wrap:anywhere]";
+
+function ParsonsCheck({
+  block,
+  view,
+  driver,
+}: {
+  block: Of<"parsons">;
+  view: CheckView | undefined;
+  driver: CheckDriver;
+}) {
+  const legend = useId();
+  const programId = useId();
+  const poolId = useId();
+  const root = useRef<HTMLDivElement>(null);
+  const { editing, setEditing, respond, reveal } = useCheck(
+    block.id,
+    view,
+    driver,
+  );
+  const [program, setProgram] = useState<{ id: string; indent: number }[]>(
+    view?.response?.type === "parsons" ? view.response.lines : [],
+  );
+  const [said, setSaid] = useState("");
+  const settled = isSettled(block, view);
+  const locked = !editing || settled;
+  const indents = block.language === "python";
+  const codeOf = (lineId: string) =>
+    block.lines.find((line) => line.id === lineId)?.code ?? "";
+  const pool = block.lines.filter(
+    (line) => !program.some((placed) => placed.id === line.id),
+  );
+  // A line's buttons go when it moves between the lists, so focus follows
+  // to the line that took its place rather than falling to the page.
+  const change = (
+    next: typeof program,
+    message: string,
+    focus: { list: "program" | "pool"; index: number },
+  ) => {
+    flushSync(() => setProgram(next));
+    setSaid(message);
+    const targets = [
+      ...(root.current?.querySelectorAll<HTMLElement>(
+        `[data-parsons="${focus.list}"]`,
+      ) ?? []),
+    ];
+    (
+      targets[Math.min(focus.index, targets.length - 1)] ??
+      root.current?.querySelector<HTMLElement>("[data-parsons]")
+    )?.focus();
+  };
+  const add = (lineId: string, index: number) => {
+    if (locked) return;
+    change(
+      [...program, { id: lineId, indent: 0 }],
+      m.lrnLineAdded({
+        line: codeOf(lineId),
+        position: formatNumber(program.length + 1),
+      }),
+      { list: "pool", index },
+    );
+  };
+  const remove = (index: number) => {
+    const line = program[index];
+    if (locked || !line) return;
+    change(
+      program.toSpliced(index, 1),
+      m.lrnLineRemoved({ line: codeOf(line.id) }),
+      { list: "program", index },
+    );
+  };
+  const move = (index: number, by: -1 | 1) => {
+    const target = index + by;
+    const line = program[index];
+    if (locked || !line || target < 0 || target >= program.length) return;
+    setProgram(program.toSpliced(index, 1).toSpliced(target, 0, line));
+    setSaid(
+      m.lrnMovedTo({
+        item: codeOf(line.id),
+        position: formatNumber(target + 1),
+        total: formatNumber(program.length),
+      }),
+    );
+  };
+  const indent = (index: number, by: -1 | 1) => {
+    const line = program[index];
+    if (locked || !line) return;
+    const level = Math.min(MAX_INDENT, Math.max(0, line.indent + by));
+    if (level === line.indent) return;
+    setProgram(program.with(index, { ...line, indent: level }));
+    setSaid(
+      m.lrnLineIndented({
+        line: codeOf(line.id),
+        level: formatNumber(level),
+      }),
+    );
+  };
+  return (
+    <CheckCard
+      block={block}
+      legendId={legend}
+      onSubmit={() => {
+        if (program.length > 0)
+          respond.mutate({ type: "parsons", lines: program });
+      }}
+      status={
+        <CheckStatus
+          view={view}
+          editing={editing}
+          keyCode={view?.key ?? undefined}
+        />
+      }
+      actions={
+        <Retry
+          view={view}
+          editing={editing}
+          settled={settled}
+          canCheck={program.length > 0}
+          pending={respond.isPending || reveal.isPending}
+          onTryAgain={() => setEditing(true)}
+          onReveal={() => reveal.mutate()}
+        />
+      }
+    >
+      <div ref={root} className="grid gap-4">
+        <p className="text-[13px] leading-[18px] text-muted-foreground">
+          {indents ? m.lrnParsonsHintIndent() : m.lrnParsonsHint()}
+        </p>
+        <div className="grid gap-2">
+          <p
+            id={programId}
+            className="text-[13px] leading-[18px] font-medium text-muted-foreground"
+          >
+            {m.lrnYourProgram()}
+          </p>
+          {program.length === 0 ? (
+            <p className="rounded-lg border border-dashed px-4 py-3 text-sm leading-5 text-muted-foreground">
+              {m.lrnProgramEmpty()}
+            </p>
+          ) : (
+            <ol aria-labelledby={programId} dir="ltr" className="grid gap-1.5">
+              {program.map((line, index) => {
+                const mark = partMark(view, editing, line.id);
+                const code = codeOf(line.id);
+                return (
+                  <li
+                    key={line.id}
+                    className={cn(
+                      "flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border bg-background py-1 ps-3 pe-1",
+                      markBorder(mark),
+                    )}
+                  >
+                    <span className="flex min-h-8 min-w-48 flex-1 items-center gap-2">
+                      <span className="w-5 shrink-0 text-[13px] leading-5 text-muted-foreground tabular-nums">
+                        {formatNumber(index + 1)}
+                      </span>
+                      {indents
+                        ? Array.from({ length: line.indent }, (_, level) => (
+                            <span
+                              key={level}
+                              aria-hidden
+                              className="w-4 shrink-0 self-stretch border-s border-dashed border-muted-foreground/40"
+                            />
+                          ))
+                        : null}
+                      <code className={codeText}>{code}</code>
+                      {indents && line.indent > 0 ? (
+                        <span className="sr-only">
+                          {m.lrnIndentLevel({
+                            level: formatNumber(line.indent),
+                          })}
+                        </span>
+                      ) : null}
+                      <MarkIcon mark={mark} />
+                    </span>
+                    {locked ? null : (
+                      <span className="ms-auto flex shrink-0">
+                        {/* aria-disabled rather than disabled, so focus stays on the
+                            button when its line reaches either end. */}
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon-sm"
+                          className="aria-disabled:opacity-40 max-md:size-10"
+                          aria-label={m.lrnMoveItemUp({ item: code })}
+                          aria-disabled={index === 0 || undefined}
+                          onClick={() => move(index, -1)}
+                        >
+                          <ArrowUp aria-hidden />
+                        </Button>
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon-sm"
+                          className="aria-disabled:opacity-40 max-md:size-10"
+                          aria-label={m.lrnMoveItemDown({ item: code })}
+                          aria-disabled={
+                            index === program.length - 1 || undefined
+                          }
+                          onClick={() => move(index, 1)}
+                        >
+                          <ArrowDown aria-hidden />
+                        </Button>
+                        {indents ? (
+                          <>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon-sm"
+                              className="aria-disabled:opacity-40 max-md:size-10"
+                              aria-label={m.lrnOutdentLine({ line: code })}
+                              aria-disabled={line.indent === 0 || undefined}
+                              onClick={() => indent(index, -1)}
+                            >
+                              <IndentDecrease aria-hidden />
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="icon-sm"
+                              className="aria-disabled:opacity-40 max-md:size-10"
+                              aria-label={m.lrnIndentLine({ line: code })}
+                              aria-disabled={
+                                line.indent === MAX_INDENT || undefined
+                              }
+                              onClick={() => indent(index, 1)}
+                            >
+                              <IndentIncrease aria-hidden />
+                            </Button>
+                          </>
+                        ) : null}
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon-sm"
+                          className="max-md:size-10"
+                          data-parsons="program"
+                          aria-label={m.lrnRemoveLine({ line: code })}
+                          onClick={() => remove(index)}
+                        >
+                          <X aria-hidden />
+                        </Button>
+                      </span>
+                    )}
+                  </li>
+                );
+              })}
+            </ol>
+          )}
+        </div>
+        <div className="grid gap-2">
+          <p
+            id={poolId}
+            className="text-[13px] leading-[18px] font-medium text-muted-foreground"
+          >
+            {m.lrnLinesToUse()}
+          </p>
+          {pool.length === 0 ? (
+            <p className="text-sm leading-5 text-muted-foreground">
+              {m.lrnPoolEmpty()}
+            </p>
+          ) : (
+            <ul aria-labelledby={poolId} dir="ltr" className="grid gap-1.5">
+              {pool.map((line, index) => (
+                <li key={line.id}>
+                  <button
+                    type="button"
+                    className={poolRow}
+                    data-parsons="pool"
+                    disabled={locked}
+                    aria-label={m.lrnAddLine({ line: line.code })}
+                    onClick={() => add(line.id, index)}
+                  >
+                    <Plus
+                      aria-hidden
+                      className="size-4 shrink-0 text-muted-foreground"
+                    />
+                    <code className={codeText}>{line.code}</code>
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+        <p aria-live="polite" className="sr-only">
+          {said}
+        </p>
+      </div>
+    </CheckCard>
+  );
+}
+
 const groupChip =
   "min-h-8 cursor-pointer rounded-full border px-3 py-1 text-[13px] leading-5 outline-none transition-colors hover:bg-muted/50 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 data-checked:border-primary data-checked:bg-primary data-checked:text-primary-foreground data-disabled:cursor-default data-disabled:hover:bg-transparent data-disabled:data-checked:hover:bg-primary max-md:min-h-10";
 
@@ -1580,6 +1905,8 @@ export function CheckBlockView({
     return <MatchingCheck block={block} view={view} driver={driver} />;
   if (block.type === "ordering")
     return <OrderingCheck block={block} view={view} driver={driver} />;
+  if (block.type === "parsons")
+    return <ParsonsCheck block={block} view={view} driver={driver} />;
   if (block.type === "sorting")
     return <SortingCheck block={block} view={view} driver={driver} />;
   return <TypedCheck block={block} view={view} driver={driver} />;

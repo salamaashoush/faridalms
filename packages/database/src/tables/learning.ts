@@ -388,7 +388,7 @@ export const lessonResponses = core.table.withRLS(
     ck(
       "lesson_responses",
       "kind",
-      sql`kind in ('choice', 'text', 'gaps', 'number', 'matching', 'ordering', 'sorting', 'counting', 'tracing', 'spelling', 'hotspot', 'written', 'scratch')`,
+      sql`kind in ('choice', 'text', 'gaps', 'number', 'matching', 'ordering', 'sorting', 'counting', 'tracing', 'spelling', 'hotspot', 'written', 'scratch', 'parsons')`,
     ),
     ck(
       "lesson_responses",

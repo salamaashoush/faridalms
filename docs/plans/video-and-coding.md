@@ -64,7 +64,13 @@ off keeps the work and shows a placeholder.
    a Pyodide worker, JavaScript in a sandboxed worker), optionally locked
    behind a prediction question: PRIMM's predict and run.
 2. **Parsons problems** as a question kind: shuffled lines, indentation,
-   distractors, marked and printable.
+   distractors, marked and printable. Done: a teacher types the program as
+   lines of a code puzzle (Tab indents, Enter keeps the indent, the circle
+   marks a line that belongs nowhere) and picks its language; students build
+   it from the shuffled lines with buttons to add, move, indent and take
+   out, and Python alone is marked on indentation. Alike lines count either
+   way round, the answer shows as the indented program, and on paper the
+   student numbers the lines.
 3. **Code exercises.** Starter code, visible and hidden tests run in the
    worker, hints in order, friendly errors in Arabic and English, every run
    kept for the teacher's replay.

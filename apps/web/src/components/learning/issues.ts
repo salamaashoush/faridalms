@@ -80,6 +80,8 @@ export function blockIssue(block: LessonBlock): string | null {
       return block.items.filter((item) => partName(item)).length < 2
         ? m.lrnItemsNeeded()
         : null;
+    case "parsons":
+      return block.lines.length < 2 ? m.lrnLinesNeeded() : null;
     case "sorting":
       if (block.groups.some((group) => !group.name.trim()))
         return m.lrnGroupNameNeeded();

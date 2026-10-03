@@ -385,6 +385,24 @@ export function PaperQuestion({
         </ul>
       );
       break;
+    case "parsons":
+      // A teacher's copy numbers the program's lines and dashes the ones left out.
+      body = (
+        <ul dir="ltr" className="grid gap-1.5">
+          {shuffled(
+            [...block.lines, ...block.distractors],
+            `paper:${block.id}`,
+          ).map((line) => (
+            <li key={line.id} className="flex items-center gap-2">
+              <Box answer={answers ? (parts[line.id] ?? "–") : null} />
+              <code className="font-mono whitespace-pre-wrap [font-variant-ligatures:none]">
+                {line.code}
+              </code>
+            </li>
+          ))}
+        </ul>
+      );
+      break;
     case "sorting": {
       // The editor keeps an empty group at the end to write the next one in.
       const groups = block.groups.filter((group) => group.name.trim());

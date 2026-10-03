@@ -4,7 +4,7 @@ import type { LessonBlock, LessonDocument, RecordSeconds } from "./learning";
 
 import { sameContent } from "./content";
 import { gapsSource, parseGaps } from "./gaps";
-import { FLASH_SECONDS, RECORD_SECONDS } from "./learning";
+import { FLASH_SECONDS, MAX_INDENT, RECORD_SECONDS } from "./learning";
 
 /**
  * A lesson is written as one document whose questions are blocks in the
@@ -17,6 +17,12 @@ import { FLASH_SECONDS, RECORD_SECONDS } from "./learning";
 /** Whether a stored lesson is a document, rather than a list of blocks. */
 export function isContentDocument(value: unknown): value is ContentDocument {
   return typeof value === "object" && value !== null && "root" in value;
+}
+
+/** How far a line of code is indented, with a tab as four spaces. */
+function leadingWidth(text: string): number {
+  const lead = /^[\t ]*/.exec(text)?.[0] ?? "";
+  return lead.replaceAll("\t", "    ").length;
 }
 
 function textOf(node: ContentNode | undefined): string {
@@ -244,6 +250,37 @@ export function questionBlock(node: ContentNode): LessonBlock | null {
           })),
         scoring: node.scoring ?? "all",
       };
+    case "parsons": {
+      // A line marked on its circle is one that belongs nowhere in the program.
+      const lines = parts.filter(
+        (part) => part.type === "question-option" && textOf(part).trim(),
+      );
+      const widths = lines
+        .filter((line) => !line.correct)
+        .map((line) => leadingWidth(textOf(line)));
+      const unit = Math.min(...widths.filter((width) => width > 0), 4);
+      return {
+        ...check,
+        type: "parsons",
+        language: node.codeLanguage ?? "python",
+        lines: lines
+          .filter((line) => !line.correct)
+          .map((line) => ({
+            id: line.optionId ?? "",
+            code: textOf(line).trim(),
+            indent: Math.min(
+              MAX_INDENT,
+              Math.round(leadingWidth(textOf(line)) / unit),
+            ),
+          })),
+        distractors: lines
+          .filter((line) => line.correct)
+          .map((line) => ({
+            id: line.optionId ?? "",
+            code: textOf(line).trim(),
+          })),
+      };
+    }
     case "matching":
       return {
         ...check,
@@ -498,7 +535,8 @@ export function questionNode(block: LessonBlock): ContentNode | null {
     block.type !== "tracing" &&
     block.type !== "spelling" &&
     block.type !== "hotspot" &&
-    block.type !== "scratch"
+    block.type !== "scratch" &&
+    block.type !== "parsons"
   )
     return null;
   const base: ContentNode = {
@@ -574,6 +612,26 @@ export function questionNode(block: LessonBlock): ContentNode | null {
           ...pictureFields(item.picture),
           ...voiced(item.narration),
           optionId: item.id,
+        })),
+      ],
+    };
+  if (block.type === "parsons")
+    return {
+      ...base,
+      codeLanguage: block.language,
+      children: [
+        ...(base.children ?? []),
+        ...block.lines.map((line) => ({
+          ...inlineOf(
+            "question-option",
+            `${"    ".repeat(line.indent)}${line.code}`,
+          ),
+          optionId: line.id,
+        })),
+        ...block.distractors.map((line) => ({
+          ...inlineOf("question-option", line.code),
+          optionId: line.id,
+          correct: true,
         })),
       ],
     };

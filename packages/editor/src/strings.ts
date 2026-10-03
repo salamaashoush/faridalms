@@ -195,6 +195,12 @@ export interface EditorStrings {
   questionNumberHint: string;
   questionOrdering: string;
   questionOrderingHint: string;
+  questionParsons: string;
+  questionParsonsHint: string;
+  questionCodeLine: string;
+  questionDistractor: string;
+  questionLanguage: string;
+  questionLanguages: Record<"python" | "javascript" | "html" | "text", string>;
   questionAnswerIs: string;
   questionSetAnswer: string;
   questionExact: string;

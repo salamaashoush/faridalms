@@ -47,6 +47,17 @@ export const MAX_GAPS = 20;
 export const MAX_PAIRS = 8;
 export const MAX_DISTRACTORS = 4;
 export const MAX_ORDER_ITEMS = 10;
+/** Languages a code puzzle's lines are written in; only Python marks indentation. */
+export const PARSONS_LANGUAGES = [
+  "python",
+  "javascript",
+  "html",
+  "text",
+] as const;
+export type ParsonsLanguage = (typeof PARSONS_LANGUAGES)[number];
+export const MAX_PARSONS_LINES = 20;
+export const MAX_PARSONS_DISTRACTORS = 6;
+export const MAX_INDENT = 6;
 export const MAX_SORT_GROUPS = 4;
 export const MAX_SORT_ITEMS = 20;
 export const MAX_MODULE_CLASSES = 20;
@@ -344,6 +355,34 @@ export const lessonBlockSchema = v.variant("type", [
     /** Credit for the whole order only, or for each neighbouring pair in order. */
     scoring: v.picklist(["all", "neighbours"]),
   }),
+  v.object({
+    ...checkFields,
+    type: v.literal("parsons"),
+    /** The program's language; only Python marks how far a line is indented. */
+    language: v.picklist(PARSONS_LANGUAGES),
+    /** The program in order, each line with how far it is indented. */
+    lines: v.pipe(
+      v.array(
+        v.object({
+          id,
+          code: requiredText(200),
+          indent: v.pipe(
+            v.number(),
+            v.integer(),
+            v.minValue(0),
+            v.maxValue(MAX_INDENT),
+          ),
+        }),
+      ),
+      v.minLength(2),
+      v.maxLength(MAX_PARSONS_LINES),
+    ),
+    /** Lines that belong nowhere in it, for students to leave out. */
+    distractors: v.pipe(
+      v.array(v.object({ id, code: requiredText(200) })),
+      v.maxLength(MAX_PARSONS_DISTRACTORS),
+    ),
+  }),
   v.pipe(
     v.object({
       ...checkFields,
@@ -465,6 +504,7 @@ export type GapsBlock = Extract<LessonBlock, { type: "gaps" }>;
 export type NumberBlock = Extract<LessonBlock, { type: "number" }>;
 export type MatchingBlock = Extract<LessonBlock, { type: "matching" }>;
 export type OrderingBlock = Extract<LessonBlock, { type: "ordering" }>;
+export type ParsonsBlock = Extract<LessonBlock, { type: "parsons" }>;
 export type SortingBlock = Extract<LessonBlock, { type: "sorting" }>;
 export type WrittenBlock = Extract<LessonBlock, { type: "written" }>;
 export type CountingBlock = Extract<LessonBlock, { type: "counting" }>;
@@ -480,6 +520,7 @@ export type AutoBlock =
   | NumberBlock
   | MatchingBlock
   | OrderingBlock
+  | ParsonsBlock
   | SortingBlock
   | CountingBlock
   | TracingBlock
@@ -496,6 +537,7 @@ const AUTO_TYPES = new Set<LessonBlockType>([
   "number",
   "matching",
   "ordering",
+  "parsons",
   "sorting",
   "counting",
   "tracing",
@@ -772,6 +814,10 @@ export function lessonPlainText(document: LessonDocument): string {
           return [block.prompt, ...block.items.map((item) => item.text)].join(
             "\n",
           );
+        case "parsons":
+          return [block.prompt, ...block.lines.map((line) => line.code)].join(
+            "\n",
+          );
         case "sorting":
           return [
             block.prompt,
@@ -827,6 +873,24 @@ export const responseSchema = v.variant("type", [
   v.object({
     type: v.literal("ordering"),
     order: v.pipe(v.array(id), v.minLength(2), v.maxLength(MAX_ORDER_ITEMS)),
+  }),
+  v.object({
+    type: v.literal("parsons"),
+    /** The lines the student put in the program, in order, with their indents. */
+    lines: v.pipe(
+      v.array(
+        v.object({
+          id,
+          indent: v.pipe(
+            v.number(),
+            v.integer(),
+            v.minValue(0),
+            v.maxValue(MAX_INDENT),
+          ),
+        }),
+      ),
+      v.maxLength(MAX_PARSONS_LINES + MAX_PARSONS_DISTRACTORS),
+    ),
   }),
   v.object({ type: v.literal("sorting"), groups: v.record(id, id) }),
   v.object({
@@ -1047,6 +1111,39 @@ export function markResponse(
         parts,
       };
     }
+    case "parsons": {
+      if (response.type !== "parsons") return none;
+      const codeOf = new Map(
+        [...block.lines, ...block.distractors].map((line) => [
+          line.id,
+          line.code.trim(),
+        ]),
+      );
+      const given = response.lines;
+      if (
+        given.some((line) => !codeOf.has(line.id)) ||
+        new Set(given.map((line) => line.id)).size !== given.length
+      )
+        return none;
+      // Lines are compared by their words, so two alike (a closing brace)
+      // may go either way round.
+      const right = (index: number) => {
+        const line = given[index];
+        const wanted = block.lines[index];
+        return Boolean(
+          line &&
+          wanted &&
+          codeOf.get(line.id) === wanted.code.trim() &&
+          (block.language !== "python" || line.indent === wanted.indent),
+        );
+      };
+      const parts = Object.fromEntries(
+        given.map((line, index) => [line.id, right(index)]),
+      );
+      const correct =
+        given.length === block.lines.length && given.every((_, i) => right(i));
+      return { ...none, fraction: correct ? 1 : 0, correct, parts };
+    }
     case "hotspot": {
       if (response.type !== "hotspot") return none;
       const results = Object.fromEntries(
@@ -1219,12 +1316,17 @@ export type StudentBlock =
       | "narrationWords"
       | "points"
       | "tries"
+      | "videoAt"
     >
   | (Omit<MatchingBlock, "distractors" | "explanation" | "hint" | "pairs"> & {
       prompts: StudentPart[];
       choices: StudentPart[];
     })
   | Omit<OrderingBlock, "explanation" | "hint">
+  | (Omit<ParsonsBlock, "explanation" | "hint" | "lines" | "distractors"> & {
+      /** The program's lines and the ones that belong nowhere, shuffled together. */
+      lines: { id: string; code: string }[];
+    })
   | (Omit<SortingBlock, "explanation" | "hint" | "items"> & {
       items: StudentPart[];
     })
@@ -1324,6 +1426,9 @@ export function studentBlocks(
           narrationWords: block.narrationWords ?? null,
           points: block.points,
           tries: block.tries,
+          ...(typeof block.videoAt === "number"
+            ? { videoAt: block.videoAt }
+            : {}),
         };
       case "matching": {
         const {
@@ -1372,6 +1477,24 @@ export function studentBlocks(
         if (items.every((item, index) => item.id === block.items[index]?.id))
           items = [...items.slice(1), ...items.slice(0, 1)];
         return { ...rest, items };
+      }
+      case "parsons": {
+        const {
+          explanation: _why,
+          hint: _hint,
+          lines,
+          distractors,
+          ...rest
+        } = block;
+        const all = [...lines, ...distractors].map((line) => ({
+          id: line.id,
+          code: line.code.trim(),
+        }));
+        let shown = shuffled(all, `${seed}:${block.id}`);
+        // A shuffle that lands on the program would hand it over; turn it once.
+        if (shown.every((line, index) => line.id === all[index]?.id))
+          shown = [...shown.slice(1), ...shown.slice(0, 1)];
+        return { ...rest, lines: shown };
       }
       case "sorting": {
         const { explanation: _why, hint: _hint, items, ...rest } = block;
@@ -1451,6 +1574,10 @@ export function answerKey(block: AutoBlock): string[] {
       );
     case "ordering":
       return block.items.map(partName);
+    case "parsons":
+      return block.lines.map(
+        (line) => `${"    ".repeat(line.indent)}${line.code.trim()}`,
+      );
     case "counting":
       return [String(block.count)];
     case "tracing":
@@ -1493,6 +1620,10 @@ export function partKey(block: AutoBlock): Record<string, string> {
     case "ordering":
       return Object.fromEntries(
         block.items.map((item, index) => [item.id, String(index + 1)]),
+      );
+    case "parsons":
+      return Object.fromEntries(
+        block.lines.map((line, index) => [line.id, String(index + 1)]),
       );
     case "sorting":
       return Object.fromEntries(

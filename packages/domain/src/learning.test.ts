@@ -8,11 +8,13 @@ import type {
   MatchingBlock,
   NumberBlock,
   OrderingBlock,
+  ParsonsBlock,
   SortingBlock,
   TextBlock,
 } from "./learning";
 
 import {
+  answerKey,
   checkStates,
   completionMet,
   creditOf,
@@ -309,6 +311,122 @@ describe("writing blanks", () => {
     );
     expect(after.slice(0, 2)).toEqual(ids);
     expect(after[2]).not.toBe(ids[1]);
+  });
+});
+
+const placed = (block: ParsonsBlock, indents = true) =>
+  block.lines.map((line) => ({
+    id: line.id,
+    indent: indents ? line.indent : 0,
+  }));
+
+describe("code puzzles", () => {
+  const python: ParsonsBlock = {
+    ...common,
+    id: uuid(20),
+    type: "parsons",
+    prompt: "Greet someone by name, or everyone.",
+    language: "python",
+    lines: [
+      { id: uuid(201), code: "def greet(name):", indent: 0 },
+      { id: uuid(202), code: "if name:", indent: 1 },
+      { id: uuid(203), code: 'print("Hello", name)', indent: 2 },
+      { id: uuid(204), code: "else:", indent: 1 },
+      { id: uuid(205), code: 'print("Hello")', indent: 2 },
+    ],
+    distractors: [{ id: uuid(206), code: 'print("Hello" name)' }],
+  };
+  const javascript: ParsonsBlock = {
+    ...common,
+    id: uuid(21),
+    type: "parsons",
+    prompt: "Double a positive number.",
+    language: "javascript",
+    lines: [
+      { id: uuid(211), code: "function twice(x) {", indent: 0 },
+      { id: uuid(212), code: "if (x > 0) {", indent: 1 },
+      { id: uuid(213), code: "return x * 2;", indent: 2 },
+      { id: uuid(214), code: "}", indent: 1 },
+      { id: uuid(215), code: "return 0;", indent: 1 },
+      { id: uuid(216), code: "}", indent: 0 },
+    ],
+    distractors: [],
+  };
+  it("marks a Python program by its order and how far each line is indented", () => {
+    expect(
+      markResponse(python, { type: "parsons", lines: placed(python) }),
+    ).toMatchObject({ fraction: 1, correct: true });
+    const flat = markResponse(python, {
+      type: "parsons",
+      lines: placed(python, false),
+    });
+    expect(flat).toMatchObject({ fraction: 0, correct: false });
+    expect(flat.parts).toMatchObject({
+      [uuid(201)]: true,
+      [uuid(202)]: false,
+    });
+  });
+
+  it("fails a program that uses a line that belongs nowhere or leaves one out", () => {
+    const lines = placed(python);
+    expect(
+      markResponse(python, {
+        type: "parsons",
+        lines: lines.with(2, { id: uuid(206), indent: 2 }),
+      }),
+    ).toMatchObject({ correct: false, parts: { [uuid(206)]: false } });
+    expect(
+      markResponse(python, { type: "parsons", lines: lines.slice(0, 4) }),
+    ).toMatchObject({ fraction: 0, correct: false });
+    expect(
+      markResponse(python, {
+        type: "parsons",
+        lines: [...lines, lines[0] ?? { id: uuid(201), indent: 0 }],
+      }).fraction,
+    ).toBe(0);
+  });
+
+  it("takes alike lines either way round and ignores indentation outside Python", () => {
+    const lines = placed(javascript, false);
+    const swapped = lines
+      .with(3, { id: uuid(216), indent: 0 })
+      .with(5, { id: uuid(214), indent: 0 });
+    expect(
+      markResponse(javascript, { type: "parsons", lines: swapped }),
+    ).toMatchObject({ fraction: 1, correct: true });
+  });
+
+  it("shows every line shuffled together, never in order and never indented", () => {
+    for (const seed of ["a", "b", "c", "d", "e", "f"]) {
+      const [shown] = studentBlocks({ version: 2, blocks: [python] }, seed);
+      if (shown?.type !== "parsons") throw new Error("parsons expected");
+      expect(shown.lines.map((line) => line.id)).not.toEqual(
+        [...python.lines, ...python.distractors].map((line) => line.id),
+      );
+      expect(shown.lines.map((line) => line.id).toSorted()).toEqual(
+        [...python.lines, ...python.distractors]
+          .map((line) => line.id)
+          .toSorted(),
+      );
+      expect(JSON.stringify(shown)).not.toMatch(/indent|distractors/);
+    }
+  });
+
+  it("gives the program as its answer, indented, and each line's place", () => {
+    expect(answerKey(python)).toEqual([
+      "def greet(name):",
+      "    if name:",
+      '        print("Hello", name)',
+      "    else:",
+      '        print("Hello")',
+    ]);
+    expect(partKey(python)).toEqual({
+      [uuid(201)]: "1",
+      [uuid(202)]: "2",
+      [uuid(203)]: "3",
+      [uuid(204)]: "4",
+      [uuid(205)]: "5",
+    });
   });
 });
 

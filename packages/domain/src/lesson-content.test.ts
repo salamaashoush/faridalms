@@ -738,6 +738,50 @@ describe("word builder", () => {
   });
 });
 
+describe("code puzzles", () => {
+  const puzzle: LessonDocument = {
+    version: 2,
+    blocks: [
+      {
+        id: partId(60),
+        type: "parsons",
+        prompt: "Count to three.",
+        points: 1,
+        hint: "",
+        explanation: "",
+        tries: null,
+        language: "python",
+        lines: [
+          { id: partId(61), code: "for n in range(3):", indent: 0 },
+          { id: partId(62), code: "if n > 0:", indent: 1 },
+          { id: partId(63), code: "print(n)", indent: 2 },
+        ],
+        distractors: [{ id: partId(64), code: "print n" }],
+      },
+    ],
+  };
+
+  it("keeps its lines, their indents and the ones that belong nowhere", () => {
+    const document = contentOfLesson(puzzle);
+    if (!document) throw new Error("lesson could not become a document");
+    expect(v.safeParse(contentDocumentSchema, document).success).toBe(true);
+    expect(checks(lessonOfContent(document).blocks)).toEqual(
+      checks(puzzle.blocks),
+    );
+  });
+
+  it("reads indentation in whatever width the teacher typed it", () => {
+    const document = contentOfLesson(puzzle);
+    if (!document) throw new Error("lesson could not become a document");
+    const twoSpaced = JSON.parse(
+      JSON.stringify(document).replaceAll("    ", "  "),
+    ) as typeof document;
+    const [block] = checks(lessonOfContent(twoSpaced).blocks);
+    if (block?.type !== "parsons") throw new Error("parsons expected");
+    expect(block.lines.map((line) => line.indent)).toEqual([0, 1, 2]);
+  });
+});
+
 const asked = (
   id: string,
   videoAt?: number,

@@ -309,7 +309,7 @@ describe("learning a module", () => {
   });
 });
 
-describe("matching, ordering and sorting", () => {
+describe("matching, ordering, sorting and code puzzles", () => {
   test("a student answers each kind in a new module and finishes with full marks", async () => {
     const { keeper } = await teachers();
     const { rows } = await keeper.learning.modules({});
@@ -346,6 +346,10 @@ describe("matching, ordering and sorting", () => {
       { id: id(), text: "Earth", groupId: groups[0]?.id ?? "" },
       { id: id(), text: "Jupiter", groupId: groups[1]?.id ?? "" },
     ];
+    const program = [
+      { id: id(), code: "for planet in planets:", indent: 0 },
+      { id: id(), code: "print(planet)", indent: 1 },
+    ];
     const blocks = [
       {
         ...common,
@@ -370,6 +374,15 @@ describe("matching, ordering and sorting", () => {
         prompt: "Sort the planets.",
         groups,
         items: sorted,
+      },
+      {
+        ...common,
+        id: id(),
+        type: "parsons" as const,
+        prompt: "Print every planet.",
+        language: "python" as const,
+        lines: program,
+        distractors: [{ id: id(), code: "print planet" }],
       },
     ];
     await keeper.learning.saveLesson({
@@ -396,8 +409,9 @@ describe("matching, ordering and sorting", () => {
       items.map((item) => item.id),
     );
     expect(JSON.stringify(opened.blocks)).not.toContain("groupId");
-    const [matching, , sorting] = blocks;
-    if (!matching || !sorting) throw new Error("blocks");
+    expect(JSON.stringify(opened.blocks)).not.toContain("indent");
+    const [matching, , sorting, puzzle] = blocks;
+    if (!matching || !sorting || !puzzle) throw new Error("blocks");
     await pupil.learning.respond({
       lessonId,
       blockId: matching.id,
@@ -411,7 +425,7 @@ describe("matching, ordering and sorting", () => {
       blockId: ordering.id,
       response: { type: "ordering", order: items.map((item) => item.id) },
     });
-    const done = await pupil.learning.respond({
+    await pupil.learning.respond({
       lessonId,
       blockId: sorting.id,
       response: {
@@ -419,6 +433,17 @@ describe("matching, ordering and sorting", () => {
         groups: Object.fromEntries(
           sorted.map((item) => [item.id, item.groupId]),
         ),
+      },
+    });
+    const done = await pupil.learning.respond({
+      lessonId,
+      blockId: puzzle.id,
+      response: {
+        type: "parsons",
+        lines: program.map(({ id: lineId, indent }) => ({
+          id: lineId,
+          indent,
+        })),
       },
     });
     expect(done).toMatchObject({ completed: true, score: 100 });

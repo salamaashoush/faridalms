@@ -175,6 +175,9 @@ export interface QuestionLabels {
   starter?: string;
   /** A question asked at a time in the video above it. */
   videoAt?: (time: string) => string;
+  /** A code puzzle's empty line, and a line marked as belonging nowhere. */
+  codeLine?: string;
+  distractor?: string;
   extraTiles?: string;
   points: (points: number) => string;
   answerIs: string;
@@ -262,6 +265,8 @@ export interface QuestionSettings {
   projectFileId: string | null;
   /** Asked when the video above reaches this second; none asks it in the reading. */
   videoAt: number | null;
+  /** A code puzzle's language; only Python marks how far a line is indented. */
+  codeLanguage: "python" | "javascript" | "html" | "text";
   hint: string;
   explanation: string;
   numberMode: "exact" | "range";
@@ -296,6 +301,7 @@ export function defaultSettings(kind: QuestionKind): QuestionSettings {
     memory: false,
     projectFileId: null,
     videoAt: null,
+    codeLanguage: "python",
     hint: "",
     explanation: "",
     numberMode: "exact",
@@ -406,6 +412,7 @@ export class QuestionNode extends ElementNode {
       memory: json.memory ?? false,
       projectFileId: json.projectFileId ?? null,
       videoAt: json.videoAt ?? null,
+      codeLanguage: json.codeLanguage ?? base.codeLanguage,
       hint: json.hint ?? "",
       explanation: json.explanation ?? "",
       numberMode: json.numberMode ?? base.numberMode,
@@ -434,6 +441,7 @@ export class QuestionNode extends ElementNode {
       memory,
       projectFileId,
       videoAt,
+      codeLanguage,
       ...settings
     } = this.getLatest().__settings;
     return {
@@ -451,6 +459,7 @@ export class QuestionNode extends ElementNode {
         ? { projectFileId }
         : {}),
       ...(videoAt === null ? {} : { videoAt }),
+      ...(settings.kind === "parsons" ? { codeLanguage } : {}),
     };
   }
 
@@ -643,6 +652,8 @@ export class QuestionOptionNode extends ElementNode {
     dom.dataset.questionOption = "";
     dom.dataset.correct = String(this.__correct);
     dom.dataset.emptyLabel = labels.get(editor)?.option ?? "";
+    dom.dataset.lineLabel = labels.get(editor)?.codeLine ?? "";
+    dom.dataset.distractorLabel = labels.get(editor)?.distractor ?? "";
     dom.setAttribute("aria-checked", String(this.__correct));
     const name = theme(config, "questionOption");
     if (name) addClassNamesToElement(dom, name);
@@ -658,11 +669,11 @@ export class QuestionOptionNode extends ElementNode {
       editor.update(() => {
         const option = this.getLatest();
         const question = option.getParent();
-        if (
-          $isQuestionNode(question) &&
-          question.getSettings().kind === "choice"
-        )
-          $toggleCorrect(option);
+        if (!$isQuestionNode(question)) return;
+        const kind = question.getSettings().kind;
+        if (kind === "choice") $toggleCorrect(option);
+        // A code puzzle's circle marks a line that belongs nowhere in the program.
+        if (kind === "parsons") option.setCorrect(!option.isCorrect());
       });
     });
     return dom;
@@ -1216,6 +1227,12 @@ export function $createQuestionNode(kind: QuestionKind): QuestionNode {
       new QuestionOptionNode(),
       new QuestionOptionNode(),
     );
+  if (kind === "parsons")
+    question.append(
+      new QuestionOptionNode(),
+      new QuestionOptionNode(),
+      new QuestionOptionNode(),
+    );
   if (kind === "text") question.append(new QuestionAnswerNode());
   if (kind === "matching")
     question.append($createQuestionPair(), $createQuestionPair());
@@ -1275,7 +1292,7 @@ export function $repairQuestion(question: QuestionNode) {
   const kind = question.getSettings().kind;
   for (const child of question.getChildren().slice(1)) {
     const fits =
-      ((kind === "choice" || kind === "ordering") &&
+      ((kind === "choice" || kind === "ordering" || kind === "parsons") &&
         $isQuestionOptionNode(child)) ||
       ((kind === "text" || kind === "matching" || kind === "spelling") &&
         $isQuestionAnswerNode(child)) ||
@@ -1402,4 +1419,87 @@ export function $findPart(address: PartAddress): LexicalNode | null {
     if ($isElementNode(node)) pending.push(...node.getChildren());
   }
   return null;
+}
+
+/**
+ * Enter in a line of a code puzzle starts the next line as far indented as
+ * the text before the caret, as in a code editor. A line of only spaces is
+ * emptied instead, so Enter on it can still leave the puzzle.
+ */
+export function $newCodeLine(): boolean {
+  const selection = $getSelection();
+  if (!$isRangeSelection(selection) || !selection.isCollapsed()) return false;
+  const anchor = selection.anchor.getNode();
+  const line = $isQuestionOptionNode(anchor)
+    ? anchor
+    : anchor.getParents().find($isQuestionOptionNode);
+  const question = line?.getParent();
+  if (
+    !line ||
+    !$isQuestionNode(question) ||
+    question.getSettings().kind !== "parsons"
+  )
+    return false;
+  if (!line.getTextContent().trim()) {
+    line.clear();
+    line.selectStart();
+    return false;
+  }
+  const before = anchor.is(line.getFirstDescendant())
+    ? anchor.getTextContent().slice(0, selection.anchor.offset)
+    : line.getTextContent();
+  const lead = /^[\t ]*/.exec(before)?.[0] ?? "";
+  const next = selection.insertParagraph();
+  if (!next || !lead) return true;
+  const indent = $createTextNode(lead);
+  const first = next.getFirstChild();
+  if (first) first.insertBefore(indent);
+  else next.append(indent);
+  indent.select(lead.length, lead.length);
+  return true;
+}
+
+/** How far Tab moves a line of a code puzzle: one level of indentation. */
+const INDENT = "    ";
+
+/**
+ * Tab and Shift+Tab indent and outdent the line of a code puzzle the caret
+ * is in, as in a code editor; anywhere else Tab keeps its usual meaning.
+ */
+export function $indentCodeLine(event: KeyboardEvent | null): boolean {
+  const selection = $getSelection();
+  if (!$isRangeSelection(selection)) return false;
+  const anchor = selection.anchor.getNode();
+  const line = $isQuestionOptionNode(anchor)
+    ? anchor
+    : anchor.getParents().find($isQuestionOptionNode);
+  const question = line?.getParent();
+  if (
+    !line ||
+    !$isQuestionNode(question) ||
+    question.getSettings().kind !== "parsons"
+  )
+    return false;
+  event?.preventDefault();
+  const first = line.getFirstDescendant();
+  const text = $isTextNode(first) ? first : null;
+  const caret = selection.anchor.offset;
+  if (event?.shiftKey) {
+    const lead = /^ {1,4}/.exec(text?.getTextContent() ?? "")?.[0].length ?? 0;
+    if (!text || lead === 0) return true;
+    text.spliceText(0, lead, "", false);
+    if (selection.anchor.key === text.getKey())
+      text.select(Math.max(0, caret - lead), Math.max(0, caret - lead));
+    return true;
+  }
+  if (!text) {
+    const added = $createTextNode(INDENT);
+    line.append(added);
+    added.select(INDENT.length, INDENT.length);
+    return true;
+  }
+  text.spliceText(0, 0, INDENT, false);
+  if (selection.anchor.key === text.getKey())
+    text.select(caret + INDENT.length, caret + INDENT.length);
+  return true;
 }

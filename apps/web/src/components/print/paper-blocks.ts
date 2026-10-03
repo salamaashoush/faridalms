@@ -95,6 +95,14 @@ export function paperBlock(block: StudentBlock): LessonBlock {
         tiles: block.pile.slice(0, block.places).map((tile) => tile.text),
         extras: block.pile.slice(block.places).map((tile) => tile.text),
       };
+    case "parsons":
+      // A student's lines come shuffled together; which belong is not theirs to know.
+      return {
+        ...block,
+        ...blank,
+        lines: block.lines.map((line) => ({ ...line, indent: 0 })),
+        distractors: [],
+      };
     case "written":
     case "scratch":
     case "ordering":
