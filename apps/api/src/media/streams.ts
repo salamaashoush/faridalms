@@ -16,13 +16,14 @@ import type { RequestContext, SchoolContext } from "../core/context";
 
 import { openUnit, schoolOf } from "../core/procedure";
 import { canReadFile } from "../files/authorize";
+import { claimCaptions, reportCaptions } from "./captions";
 
 /**
  * A worker holds a video this long between reports. An encode reports every
  * few seconds, so a lease runs out only once its worker is gone, and the
  * video is then taken again.
  */
-const LEASE_MS = 10 * 60 * 1000;
+export const LEASE_MS = 10 * 60 * 1000;
 /** A player keeps a stream's link through a long lesson. */
 export const STREAM_LINK_SECONDS = 4 * 60 * 60;
 
@@ -68,10 +69,10 @@ const manifestSchema = v.object({
 });
 
 const JOB_PATH =
-  /^\/v1\/media\/jobs\/([0-9a-f-]{36})\.([0-9a-f-]{36})\/(progress|done|failed)$/;
+  /^\/v1\/media\/(jobs|captions)\/([0-9a-f-]{36})\.([0-9a-f-]{36})\/(progress|done|failed)$/;
 const STREAM_PATH = /^\/v1\/files\/([0-9a-f-]{36})\/stream$/;
 
-function problem(status: number, code: string, requestId: string) {
+export function problem(status: number, code: string, requestId: string) {
   return Response.json({ code, requestId }, { status });
 }
 
@@ -84,7 +85,7 @@ function fromWorker(request: Request, context: RequestContext): boolean {
 }
 
 /** Only the worker may move a file's streams along, as it alone settles uploads. */
-const asWorker = <T>(
+export const asWorker = <T>(
   context: RequestContext,
   tenantId: string,
   run: (tx: CellTransaction) => Promise<T>,
@@ -95,8 +96,15 @@ const asWorker = <T>(
     run,
   );
 
-/** The oldest waiting video in any school of the cell, leased to the asking worker. */
-async function claim(context: RequestContext): Promise<Response> {
+/**
+ * The oldest waiting video in any school of the cell, leased to the asking
+ * worker; with none, a recording whose captions are to be drafted, when the
+ * worker has a speech model.
+ */
+async function claim(
+  request: Request,
+  context: RequestContext,
+): Promise<Response> {
   const now = new Date();
   const until = new Date(now.getTime() + LEASE_MS);
   for (const tenantId of await context.directory.tenantsOfCell(
@@ -108,11 +116,20 @@ async function claim(context: RequestContext): Promise<Response> {
     if (job)
       return Response.json({
         id: `${tenantId}.${job.fileId}`,
+        kind: "streams",
         sourceKey: job.storageKey,
         outputPrefix: streamFolder(tenantId, job.fileId),
       });
   }
-  return new Response(null, { status: 204 });
+  const asked = v.safeParse(
+    v.object({ captions: v.optional(v.boolean(), false) }),
+    await request.json().catch(() => ({})),
+  );
+  const captions =
+    asked.success && asked.output.captions && context.mediaCaptions
+      ? await claimCaptions(context)
+      : null;
+  return captions ?? new Response(null, { status: 204 });
 }
 
 async function report(
@@ -254,15 +271,12 @@ export async function handleMediaRequest(
     return problem(405, "METHOD_NOT_ALLOWED", context.requestId);
   if (!fromWorker(request, context))
     return problem(401, "UNAUTHORIZED", context.requestId);
-  if (url.pathname === "/v1/media/claim") return claim(context);
+  if (url.pathname === "/v1/media/claim") return claim(request, context);
   const job = JOB_PATH.exec(url.pathname);
-  if (!job?.[1] || !job[2] || !job[3])
+  if (!job?.[1] || !job[2] || !job[3] || !job[4])
     return problem(404, "NOT_FOUND", context.requestId);
-  return report(
-    request,
-    context,
-    job[1],
-    job[2],
-    job[3] as "progress" | "done" | "failed",
-  );
+  const kind = job[4] as "progress" | "done" | "failed";
+  return job[1] === "captions"
+    ? reportCaptions(request, context, job[2], job[3], kind)
+    : report(request, context, job[2], job[3], kind);
 }

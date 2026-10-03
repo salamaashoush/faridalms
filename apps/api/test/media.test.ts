@@ -2,7 +2,14 @@ import { describe, expect, test } from "bun:test";
 import { createDecipheriv } from "node:crypto";
 
 import { mediaWorkerToken, streamLinkKey } from "../src/media/streams";
-import { login, MEDIA_ORIGIN, raw, seeded, sessionFor } from "./harness";
+import {
+  login,
+  MEDIA_ORIGIN,
+  raw,
+  rejection,
+  seeded,
+  sessionFor,
+} from "./harness";
 
 /** An MP4's signature, which is all the upload check reads. */
 const mp4 = () =>
@@ -166,5 +173,67 @@ describe("video streams", () => {
       `/v1/files/${fileId}/stream`,
     );
     expect(await shown.json()).toEqual({ state: "failed", master: null });
+  });
+});
+
+/** Claims caption drafts until the given recording's comes up, failing any other test's. */
+async function claimDraft(fileId: string) {
+  for (let tries = 0; tries < 20; tries += 1) {
+    const response = await call("/v1/media/claim", { captions: true });
+    if (response.status === 204) return null;
+    const job = (await response.json()) as {
+      id: string;
+      kind: "streams" | "captions";
+      language?: string;
+    };
+    if (job.kind === "captions" && job.id.endsWith(`.${fileId}`)) return job;
+    await call(
+      `/v1/media/${job.kind === "captions" ? "captions" : "jobs"}/${job.id}/failed`,
+      { error: "not this test's" },
+    );
+  }
+  return null;
+}
+
+describe("captions drafted from speech", () => {
+  test("a teacher asks for a recording's captions, which the media service drafts", async () => {
+    const teacher = await sessionFor("northwind", login("teacher"));
+    const fileId = await uploadVideo(teacher, "talk.mp4");
+    expect(await teacher.api.files.captionDraft({ fileId })).toEqual({
+      available: true,
+      draft: null,
+    });
+    await teacher.api.files.draftCaptions({ fileId, language: "en" });
+    expect(await teacher.api.files.captionDraft({ fileId })).toMatchObject({
+      draft: { state: "queued", language: "en" },
+    });
+
+    const job = await claimDraft(fileId);
+    if (!job) throw new Error("the draft was never offered");
+    expect(job.language).toBe("en");
+    expect(
+      (await call(`/v1/media/captions/${job.id}/progress`, { progress: 0.5 }))
+        .status,
+    ).toBe(204);
+    expect(await teacher.api.files.captionDraft({ fileId })).toMatchObject({
+      draft: { state: "working", progress: 0.5 },
+    });
+    expect(
+      (await call(`/v1/media/captions/${job.id}/done`, { vtt: "not captions" }))
+        .status,
+    ).toBe(400);
+    const vtt = "WEBVTT\n\n00:00:00.000 --> 00:00:02.000\nHello, class.\n";
+    expect(
+      (await call(`/v1/media/captions/${job.id}/done`, { vtt })).status,
+    ).toBe(204);
+    expect(await teacher.api.files.captionDraft({ fileId })).toMatchObject({
+      draft: { state: "ready", vtt },
+    });
+
+    // A student may neither ask for captions nor read a draft.
+    const pupil = await sessionFor("northwind", login("student"));
+    expect(
+      await rejection(pupil.api.files.captionDraft({ fileId })),
+    ).toMatchObject({ code: "FORBIDDEN" });
   });
 });

@@ -9,13 +9,35 @@ use serde_json::json;
 
 use crate::plan::Manifest;
 
-/// A video to encode: where its upload is, and where its streams go.
+/// What a job asks for: a video's streams, or a recording's captions drafted.
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub enum Kind {
+  Streams,
+  Captions,
+}
+
+/// A recording to work on: where its upload is, and for streams where they go.
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Job {
   pub id: String,
+  pub kind: Kind,
   pub source_key: String,
   pub output_prefix: String,
+  /// The language a recording's captions are drafted in.
+  #[serde(default)]
+  pub language: Option<String>,
+}
+
+impl Job {
+  fn path(&self, report: &str) -> String {
+    let folder = match self.kind {
+      Kind::Streams => "jobs",
+      Kind::Captions => "captions",
+    };
+    format!("/v1/media/{folder}/{}/{report}", self.id)
+  }
 }
 
 #[derive(Clone)]
@@ -45,9 +67,9 @@ impl Api {
       .with_context(|| format!("the API did not answer {path}"))
   }
 
-  /// The next job waiting, or none.
-  pub async fn claim(&self) -> Result<Option<Job>> {
-    let response = self.post("/v1/media/claim", &json!({})).await?;
+  /// The next job waiting, or none; captions only when this service can draft them.
+  pub async fn claim(&self, captions: bool) -> Result<Option<Job>> {
+    let response = self.post("/v1/media/claim", &json!({ "captions": captions })).await?;
     match response.status() {
       StatusCode::NO_CONTENT => Ok(None),
       StatusCode::OK => Ok(Some(response.json().await?)),
@@ -57,31 +79,29 @@ impl Api {
 
   pub async fn progress(&self, job: &Job, progress: f64) -> Result<()> {
     self
-      .post(
-        &format!("/v1/media/jobs/{}/progress", job.id),
-        &json!({ "progress": progress }),
-      )
+      .post(&job.path("progress"), &json!({ "progress": progress }))
       .await?;
     Ok(())
   }
 
   pub async fn done(&self, job: &Job, manifest: &Manifest) -> Result<()> {
-    let response = self
-      .post(
-        &format!("/v1/media/jobs/{}/done", job.id),
-        &json!({ "manifest": manifest }),
-      )
-      .await?;
+    let response = self.post(&job.path("done"), &json!({ "manifest": manifest })).await?;
     if !response.status().is_success() {
       bail!("the API refused a finished job: {}", response.status());
     }
     Ok(())
   }
 
+  pub async fn drafted(&self, job: &Job, vtt: &str) -> Result<()> {
+    let response = self.post(&job.path("done"), &json!({ "vtt": vtt })).await?;
+    if !response.status().is_success() {
+      bail!("the API refused drafted captions: {}", response.status());
+    }
+    Ok(())
+  }
+
   pub async fn failed(&self, job: &Job, error: &str) -> Result<()> {
-    self
-      .post(&format!("/v1/media/jobs/{}/failed", job.id), &json!({ "error": error }))
-      .await?;
+    self.post(&job.path("failed"), &json!({ "error": error })).await?;
     Ok(())
   }
 }

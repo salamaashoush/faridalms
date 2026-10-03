@@ -503,6 +503,8 @@ export function getMessageFromError(error: unknown): string {
         return m.lrnHotspotNeeded();
       case "learning.no_python":
         return m.lrnErrNoPython();
+      case "files.no_captions":
+        return m.fileErrNoCaptions();
       case "learning.locked":
         return m.lrnErrLocked();
       case "learning.not_done":

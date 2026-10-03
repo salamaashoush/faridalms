@@ -52,6 +52,21 @@ export interface EditorMedia {
    * selected picture.
    */
   people?: (fileId: string) => void;
+  /** Captions drafted from what a recording says, where the school's media service can. */
+  captions?: {
+    draft: (fileId: string, language: "ar" | "en") => Promise<void>;
+    status: (fileId: string) => Promise<CaptionDraftStatus>;
+  };
+}
+
+/** Whether captions can be drafted, and how a recording's draft is getting on. */
+export interface CaptionDraftStatus {
+  available: boolean;
+  draft: {
+    state: "queued" | "working" | "ready" | "failed";
+    progress: number | null;
+    vtt: string | null;
+  } | null;
 }
 
 /**

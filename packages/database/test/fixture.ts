@@ -43,6 +43,7 @@ import {
   workCommentReplies,
   workCommentAnswers,
   bankComments,
+  captionDrafts,
   submissionAttempts,
   documentTranslations,
   documents,
@@ -455,6 +456,12 @@ export async function completeFixture(
     response: { type: "choice", optionIds: [] },
     fraction: 0,
     state: "answered",
+  });
+  await tx.insert(captionDrafts).values({
+    tenantId,
+    fileId: importFile,
+    language: "en",
+    requestedByUserId: userId,
   });
   await tx.insert(lessonCode).values({
     tenantId,

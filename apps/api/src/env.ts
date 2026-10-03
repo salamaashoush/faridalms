@@ -40,6 +40,9 @@ export const env = v.parse(
       // The media service as browsers reach it; set, uploaded video is
       // encoded to adaptive streams, and unset it plays as uploaded.
       MEDIA_ORIGIN: v.optional(v.pipe(v.string(), v.url())),
+      // Set where the media service has a speech model, so teachers may ask
+      // it to draft a recording's captions.
+      MEDIA_CAPTIONS: v.optional(v.picklist(["on", "off"]), "off"),
       FILE_STORAGE: v.optional(v.picklist(["disk", "s3"]), "disk"),
       FILE_STORAGE_DIR: v.optional(
         v.pipe(v.string(), v.minLength(1)),

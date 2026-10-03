@@ -358,6 +358,12 @@ export interface EditorStrings {
   captionsMissing: string;
   captionsClose: string;
   captionsHint: string;
+  captionsDraft: string;
+  captionsDrafting: (percent: number) => string;
+  captionsDraftWaiting: string;
+  captionsDraftFailed: string;
+  captionsDraftNote: string;
+  captionsUseDraft: string;
   captionsAddLine: string;
   captionsLanguage: string;
   captionsEmpty: string;

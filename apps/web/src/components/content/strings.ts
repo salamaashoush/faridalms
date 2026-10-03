@@ -451,6 +451,13 @@ export function editorStrings(): EditorStrings {
     captionsMissing: m.editorCaptionsMissing(),
     captionsClose: m.editorCaptionsClose(),
     captionsHint: m.editorCaptionsHint(),
+    captionsDraft: m.editorCaptionsDraft(),
+    captionsDrafting: (percent) =>
+      m.editorCaptionsDrafting({ percent: `${formatNumber(percent)}%` }),
+    captionsDraftWaiting: m.editorCaptionsDraftWaiting(),
+    captionsDraftFailed: m.editorCaptionsDraftFailed(),
+    captionsDraftNote: m.editorCaptionsDraftNote(),
+    captionsUseDraft: m.editorCaptionsUseDraft(),
     captionsAddLine: m.editorCaptionsAddLine(),
     captionsLanguage: m.editorCaptionsLanguage(),
     captionsEmpty: m.editorCaptionsEmpty(),

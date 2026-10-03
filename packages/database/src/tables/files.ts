@@ -418,3 +418,60 @@ export const locations = core.table.withRLS(
     ...entityProfile(),
   ],
 );
+
+export type CaptionDraftState = "queued" | "working" | "ready" | "failed";
+
+/**
+ * Captions drafted from what a recording says, by the media service's speech
+ * recognition, for a teacher to correct and keep in the captions editor.
+ * A recording has one draft; asking again starts it over.
+ */
+export const captionDrafts = core.table.withRLS(
+  "caption_drafts",
+  {
+    ...tenantColumns(),
+    fileId: uuid("file_id").notNull(),
+    language: text("language").$type<"ar" | "en">().notNull(),
+    state: text("state").$type<CaptionDraftState>().notNull().default("queued"),
+    attempts: integer("attempts").notNull().default(0),
+    leasedUntil: instant("leased_until"),
+    progress: real("progress"),
+    error: text("error"),
+    vtt: text("vtt"),
+    requestedByUserId: uuid("requested_by_user_id").notNull(),
+    ...entityColumns(),
+  },
+  (t): PgTableExtraConfigValue[] => [
+    pk("caption_drafts", t.tenantId, t.id),
+    ...baseConstraints("caption_drafts", t, tenants),
+    fk("caption_drafts", [t.tenantId, t.fileId], [files.tenantId, files.id]),
+    fk(
+      "caption_drafts",
+      [t.tenantId, t.requestedByUserId],
+      [users.tenantId, users.id],
+    ),
+    ck("caption_drafts", "language", sql`language in ('ar', 'en')`),
+    ck(
+      "caption_drafts",
+      "state",
+      sql`state in ('queued', 'working', 'ready', 'failed')`,
+    ),
+    ck("caption_drafts", "attempts", sql`attempts between 0 and 10`),
+    ck("caption_drafts", "progress", sql`progress between 0 and 1`),
+    ck("caption_drafts", "error", sql`char_length(error) <= 2000`),
+    ck("caption_drafts", "vtt", sql`char_length(vtt) <= 524288`),
+    ck(
+      "caption_drafts",
+      "lease",
+      sql`(state = 'working') = (leased_until is not null)`,
+    ),
+    ck("caption_drafts", "ready", sql`(state = 'ready') = (vtt is not null)`),
+    uniqueIndex("caption_drafts_key")
+      .on(t.tenantId, t.fileId)
+      .where(sql`status = 'active'`),
+    index("caption_drafts_queue_idx")
+      .on(t.tenantId, t.createdAt)
+      .where(sql`status = 'active' and state in ('queued', 'working')`),
+    ...entityProfile(),
+  ],
+);

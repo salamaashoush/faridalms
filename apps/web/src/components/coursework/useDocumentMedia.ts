@@ -8,7 +8,7 @@ import { toast } from "sonner";
 
 import { fileSizeLabel } from "~/components/system/FileList";
 import * as m from "~/i18n/messages";
-import { initiateUpload } from "~/server/files";
+import { draftCaptions, getCaptionDraft, initiateUpload } from "~/server/files";
 import { searchPictures } from "~/server/library";
 import { formatNumber } from "~/utils/datetime";
 
@@ -91,6 +91,8 @@ export function sendFile(
 export function useDocumentMedia(destination?: UploadDestination): EditorMedia {
   const initiate = useServerFn(initiateUpload);
   const search = useServerFn(searchPictures);
+  const askDraft = useServerFn(draftCaptions);
+  const draftOf = useServerFn(getCaptionDraft);
   const type = destination?.type;
   const id = destination?.id;
   return useMemo(
@@ -109,6 +111,12 @@ export function useDocumentMedia(destination?: UploadDestination): EditorMedia {
         captions: ["text/vtt"],
       },
       url: (fileId: string) => `/files/${fileId}`,
+      captions: {
+        draft: async (fileId: string, language: "ar" | "en") => {
+          await askDraft({ data: { fileId, language } });
+        },
+        status: (fileId: string) => draftOf({ data: { fileId } }),
+      },
       pictures: {
         search: async (query: string) =>
           (await search({ data: { q: query } })).pictures,
@@ -150,6 +158,6 @@ export function useDocumentMedia(destination?: UploadDestination): EditorMedia {
         };
       },
     }),
-    [initiate, search, type, id],
+    [initiate, search, askDraft, draftOf, type, id],
   );
 }

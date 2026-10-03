@@ -301,6 +301,7 @@ function MediaBlock({
               <CaptionsEditor
                 open={captioning}
                 onOpenChange={setCaptioning}
+                fileId={fileId}
                 src={media?.url(fileId)}
                 video={video}
                 captionsSrc={

@@ -127,6 +127,7 @@ export async function setUp() {
     filesOrigin: FILES_ORIGIN,
     linkKey: linkKey(cellSecret),
     mediaOrigin: MEDIA_ORIGIN,
+    mediaCaptions: true,
     streamLinkKey: streamLinkKey(cellSecret),
     maxUploadBytes: 1024 * 1024,
     channels: { email: true, sms: false },

@@ -966,3 +966,140 @@ export async function streamOf(
       }
     : null;
 }
+
+/** How many times a recording's captions are drafted before the draft is given up. */
+export const CAPTION_ATTEMPTS = 2;
+
+/** Captions drafted from a recording, as its teacher waits for them. */
+export interface CaptionDraft {
+  language: "ar" | "en";
+  state: "queued" | "working" | "ready" | "failed";
+  progress: number | null;
+  vtt: string | null;
+}
+
+/** Asks for a recording's captions to be drafted, starting over any draft before. */
+export async function requestCaptionDraft(
+  tx: Tx,
+  input: {
+    tenantId: string;
+    fileId: string;
+    language: "ar" | "en";
+    userId: string;
+  },
+): Promise<void> {
+  await tx.execute(sql`
+    insert into core.caption_drafts (tenant_id, file_id, language, requested_by_user_id)
+    values (${input.tenantId}::uuid, ${input.fileId}::uuid, ${input.language}, ${input.userId}::uuid)
+    on conflict (tenant_id, file_id) where status = 'active' do update set
+      language = excluded.language, requested_by_user_id = excluded.requested_by_user_id,
+      state = 'queued', attempts = 0, leased_until = null, progress = null,
+      error = null, vtt = null`);
+}
+
+export async function captionDraftOf(
+  tx: Tx,
+  tenantId: string,
+  fileId: string,
+): Promise<CaptionDraft | null> {
+  const [row] = await tx.execute<{
+    language: CaptionDraft["language"];
+    state: CaptionDraft["state"];
+    progress: number | null;
+    vtt: string | null;
+  }>(sql`
+    select language, state, progress, vtt from core.caption_drafts
+    where tenant_id = ${tenantId}::uuid and file_id = ${fileId}::uuid and status = 'active'`);
+  return row ?? null;
+}
+
+/** A recording whose captions the media service is to draft. */
+export interface CaptionJob {
+  fileId: string;
+  storageKey: string;
+  language: "ar" | "en";
+}
+
+/**
+ * The oldest draft waiting, leased to the caller until `until`; one whose
+ * lease ran out, its worker gone, is taken again.
+ */
+export async function claimCaptionDraft(
+  tx: Tx,
+  input: { tenantId: string; now: Date; until: Date },
+): Promise<CaptionJob | null> {
+  const [row] = await tx.execute<{
+    file_id: string;
+    storage_key: string;
+    language: CaptionJob["language"];
+  }>(sql`
+    with next as (
+      select d.id from core.caption_drafts d
+      join core.files f on f.tenant_id = d.tenant_id and f.id = d.file_id
+        and f.status = 'active' and f.state = 'ready'
+      where d.tenant_id = ${input.tenantId}::uuid and d.status = 'active'
+        and d.attempts < ${CAPTION_ATTEMPTS}
+        and (d.state = 'queued'
+          or (d.state = 'working' and d.leased_until < ${input.now.toISOString()}::timestamptz))
+      order by d.created_at
+      limit 1
+      for update of d skip locked
+    )
+    update core.caption_drafts d
+    set state = 'working', attempts = d.attempts + 1, progress = 0,
+        leased_until = ${input.until.toISOString()}::timestamptz
+    from next, core.files f
+    where d.tenant_id = ${input.tenantId}::uuid and d.id = next.id
+      and f.tenant_id = d.tenant_id and f.id = d.file_id
+    returning d.file_id, f.storage_key, d.language`);
+  return row
+    ? {
+        fileId: row.file_id,
+        storageKey: row.storage_key,
+        language: row.language,
+      }
+    : null;
+}
+
+/** How far a draft has got, which also keeps its lease. */
+export async function captionDraftProgress(
+  tx: Tx,
+  input: { tenantId: string; fileId: string; progress: number; until: Date },
+): Promise<boolean> {
+  const rows = await tx.execute<{ id: string }>(sql`
+    update core.caption_drafts
+    set progress = ${Math.min(1, Math.max(0, input.progress))},
+        leased_until = ${input.until.toISOString()}::timestamptz
+    where tenant_id = ${input.tenantId}::uuid and file_id = ${input.fileId}::uuid
+      and status = 'active' and state = 'working'
+    returning id`);
+  return rows.length > 0;
+}
+
+export async function captionDraftReady(
+  tx: Tx,
+  input: { tenantId: string; fileId: string; vtt: string },
+): Promise<boolean> {
+  const rows = await tx.execute<{ id: string }>(sql`
+    update core.caption_drafts
+    set state = 'ready', progress = 1, leased_until = null, error = null, vtt = ${input.vtt}
+    where tenant_id = ${input.tenantId}::uuid and file_id = ${input.fileId}::uuid
+      and status = 'active' and state = 'working'
+    returning id`);
+  return rows.length > 0;
+}
+
+/** A draft failed: tried again later, or given up after its last attempt. */
+export async function captionDraftFailed(
+  tx: Tx,
+  input: { tenantId: string; fileId: string; error: string },
+): Promise<boolean> {
+  const rows = await tx.execute<{ id: string }>(sql`
+    update core.caption_drafts
+    set state = case when attempts >= ${CAPTION_ATTEMPTS} then 'failed' else 'queued' end,
+        leased_until = null, progress = null, error = left(${input.error}, 2000)
+    where tenant_id = ${input.tenantId}::uuid and file_id = ${input.fileId}::uuid
+      and status = 'active' and state = 'working'
+    returning id`);
+  return rows.length > 0;
+}

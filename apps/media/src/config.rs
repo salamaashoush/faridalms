@@ -9,6 +9,7 @@ use anyhow::{Context, Result, bail};
 use base64::Engine;
 use base64::engine::general_purpose::STANDARD;
 
+use crate::captions::Speech;
 use crate::plan::Encoder;
 use crate::transcode::Tools;
 
@@ -37,6 +38,8 @@ pub struct Config {
   /// Encodes at once; each takes several cores.
   pub jobs: usize,
   pub tools: Tools,
+  /// Speech recognition for drafting captions; none drafts none.
+  pub speech: Option<Speech>,
   /// Where sources and encodes wait while they are worked on.
   pub work_dir: PathBuf,
 }
@@ -91,6 +94,16 @@ impl Config {
         ffmpeg: var("MEDIA_FFMPEG").unwrap_or_else(|| "ffmpeg".into()).into(),
         ffprobe: var("MEDIA_FFPROBE").unwrap_or_else(|| "ffprobe".into()).into(),
         encoder,
+      },
+      speech: match var("MEDIA_WHISPER_MODEL") {
+        None => None,
+        Some(model) => Some(Speech {
+          whisper: var("MEDIA_WHISPER").unwrap_or_else(|| "whisper-cli".into()).into(),
+          model: model.into(),
+          threads: var("MEDIA_WHISPER_THREADS")
+            .map_or(Ok(4), |value| value.parse())
+            .context("MEDIA_WHISPER_THREADS must be a number")?,
+        }),
       },
       work_dir: var("MEDIA_WORK_DIR").map_or_else(env::temp_dir, PathBuf::from),
     })

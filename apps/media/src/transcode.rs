@@ -116,7 +116,7 @@ async fn probe(tools: &Tools, source: &Path) -> Result<plan::Probe, TranscodeErr
   Ok(plan::probe(&output.stdout)?)
 }
 
-async fn run(program: &Path, tool: &'static str, args: &[String]) -> Result<(), TranscodeError> {
+pub(crate) async fn run(program: &Path, tool: &'static str, args: &[String]) -> Result<(), TranscodeError> {
   let output = Command::new(program)
     .args(args)
     .stdin(Stdio::null())

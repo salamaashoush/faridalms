@@ -168,6 +168,18 @@ plays as uploaded until its streams are made, then streams. An encode that
 stops reporting loses its lease after ten minutes and is taken again; a video
 is tried three times before it is left playing as uploaded.
 
+The service also drafts captions from speech, for a teacher to correct in
+the captions editor, when it has a speech model. Build `whisper-cli` from
+whisper.cpp (`cmake -B build && cmake --build build --target whisper-cli`)
+and download a multilingual ggml model with the script in its `models/`
+folder. Give the service `MEDIA_WHISPER_MODEL` (the model file),
+`MEDIA_WHISPER` (the binary, default `whisper-cli` on its path) and
+`MEDIA_WHISPER_THREADS` (default 4), and set `MEDIA_CAPTIONS=on` on the API;
+unset, editors offer no drafts. `ggml-base` is fine for English trials;
+Arabic needs `ggml-small` or larger to be worth correcting. Encodes come
+first: a worker drafts captions only when no video is waiting, a draft that
+stops reporting is taken again after ten minutes, and one is tried twice.
+
 ## Coding studio
 
 Coding questions open the block-coding studio, the Scratch editor with a

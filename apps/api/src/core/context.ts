@@ -29,6 +29,8 @@ export interface ApiDependencies {
   linkKey: Buffer;
   /** Where players reach the media service's streams; none leaves video as uploaded. */
   mediaOrigin: string | null;
+  /** Whether the media service drafts captions from speech. */
+  mediaCaptions: boolean;
   streamLinkKey: Buffer;
   maxUploadBytes: number;
   /** Which outside channels have a gateway; the rest are logged as skipped. */

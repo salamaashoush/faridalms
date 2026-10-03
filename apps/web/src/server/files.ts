@@ -56,6 +56,21 @@ export const getFileFacts = createServerFn({ method: "POST" })
   )
   .handler(({ data }) => backend().files.facts(data));
 
+export const draftCaptions = createServerFn({ method: "POST" })
+  .validator(
+    checked(
+      v.object({
+        fileId: v.pipe(v.string(), v.uuid()),
+        language: v.picklist(["ar", "en"]),
+      }),
+    ),
+  )
+  .handler(({ data }) => backend().files.draftCaptions(data));
+
+export const getCaptionDraft = createServerFn({ method: "POST" })
+  .validator(checked(v.object({ fileId: v.pipe(v.string(), v.uuid()) })))
+  .handler(({ data }) => backend().files.captionDraft(data));
+
 export const getFileVersions = createServerFn({ method: "GET" })
   .validator(checked(v.object(areaFile)))
   .handler(({ data }) => backend().files.versions(data));

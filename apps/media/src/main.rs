@@ -3,6 +3,7 @@
 //! encoded and who may watch; this service does the heavy lifting.
 
 mod api;
+mod captions;
 mod config;
 mod plan;
 mod seal;

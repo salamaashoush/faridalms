@@ -80,6 +80,8 @@ const server = Bun.serve({
     filesOrigin,
     linkKey: linkKey(cellSecret),
     mediaOrigin: env.MEDIA_ORIGIN?.replace(/\/$/, "") ?? null,
+    mediaCaptions:
+      env.MEDIA_ORIGIN !== undefined && env.MEDIA_CAPTIONS === "on",
     streamLinkKey: streamLinkKey(cellSecret),
     scanner: createScanner(env.CLAMD_ADDRESS),
     runners: {

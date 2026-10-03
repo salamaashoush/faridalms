@@ -9,6 +9,7 @@ import type {
 import {
   adoptFiles,
   areaFiles,
+  captionDraftOf,
   areaStorage,
   fileById,
   filesByIds,
@@ -17,6 +18,7 @@ import {
   personStorage,
   renameAreaFile,
   replaceFileBytes,
+  requestCaptionDraft,
   schoolStorage,
   setSubjects,
   subjectsOf,
@@ -311,6 +313,71 @@ async function areaFile(
     throw new ORPCError("NOT_FOUND");
   return file;
 }
+
+/** Those who put recordings in what they write, and so caption them. */
+const CAPTIONERS: Capability[] = [
+  "learning:author",
+  "assignments:author",
+  "announcements:manage",
+  "news:manage",
+  "site:manage",
+];
+
+const captionedSchema = v.object({ fileId: v.pipe(v.string(), v.uuid()) });
+
+/** A recording its asker may caption: theirs to read, and sound or video. */
+async function captionable(context: UnitContext, fileId: string) {
+  if (!CAPTIONERS.some((capability) => can(context, capability)))
+    throw new ORPCError("FORBIDDEN");
+  const file = await fileById(context.tx, context.tenantId, fileId);
+  const family = file ? fileFamily(file.name, file.mediaType) : null;
+  if (
+    !file ||
+    file.state !== "ready" ||
+    (family !== "video" && family !== "audio") ||
+    !(await canReadFile(context, file))
+  )
+    throw new ORPCError("NOT_FOUND");
+  return file;
+}
+
+/**
+ * Asks the media service to draft a recording's captions from what it says,
+ * for the teacher to correct before keeping them. Asking again starts over.
+ */
+export const draftCaptions = writeProcedure
+  .input(
+    v.object({
+      ...captionedSchema.entries,
+      language: v.picklist(["ar", "en"]),
+    }),
+  )
+  .handler(async ({ input, context }) => {
+    if (!context.mediaCaptions)
+      throw new ORPCError("SERVICE_UNAVAILABLE", {
+        message: "files.no_captions",
+      });
+    const file = await captionable(context, input.fileId);
+    await requestCaptionDraft(context.tx, {
+      tenantId: context.tenantId,
+      fileId: file.id,
+      language: input.language,
+      userId: context.actor.userId,
+    });
+    return { state: "queued" as const };
+  });
+
+/** Whether captions can be drafted here, and how a recording's draft is getting on. */
+export const captionDraft = readProcedure
+  .input(captionedSchema)
+  .handler(async ({ input, context }) => {
+    if (!context.mediaCaptions) return { available: false, draft: null };
+    const file = await captionable(context, input.fileId);
+    return {
+      available: true,
+      draft: await captionDraftOf(context.tx, context.tenantId, file.id),
+    };
+  });
 
 /** A file's previous versions, while the trash keeps them. */
 export const versions = readProcedure

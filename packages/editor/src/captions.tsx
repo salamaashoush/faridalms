@@ -7,11 +7,23 @@ import {
   parseVtt,
   vttOf,
 } from "@faridalms/domain/captions";
-import { Plus, Trash2, Upload, X } from "lucide-react";
+import {
+  AudioLines,
+  LoaderCircle,
+  Plus,
+  Trash2,
+  Upload,
+  X,
+} from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
+
+import type { CaptionDraftStatus } from "./context";
 
 import { useEditorEnvironment } from "./context";
 import { MediaPlayer } from "./media-view";
+
+/** How often a draft under way is asked after. */
+const DRAFT_POLL_MS = 3000;
 
 /** Languages captions are most often written in; any school may add its own. */
 const LANGUAGES = [
@@ -60,6 +72,8 @@ export function CaptionsEditor({
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
+  /** The recording, whose captions can be drafted from what it says. */
+  fileId: string;
   src: string | undefined;
   video: boolean;
   captionsSrc: string | undefined;
@@ -80,6 +94,7 @@ export function CaptionsEditor({
 
 /** The sheet's contents, made afresh each time it opens. */
 function CaptionsSheet({
+  fileId,
   src,
   video,
   captionsSrc,
@@ -87,6 +102,7 @@ function CaptionsSheet({
   onSave,
   onDone,
 }: {
+  fileId: string;
   src: string | undefined;
   video: boolean;
   captionsSrc: string | undefined;
@@ -94,7 +110,7 @@ function CaptionsSheet({
   onSave: (file: File, language: string) => Promise<void>;
   onDone: () => void;
 }) {
-  const { strings, locale } = useEditorEnvironment();
+  const { strings, locale, media } = useEditorEnvironment();
   const player = useRef<HTMLVideoElement & HTMLAudioElement>(null);
   const counter = useRef(0);
   const [lines, setLines] = useState<Line[]>([]);
@@ -118,6 +134,61 @@ function CaptionsSheet({
       .catch(() => take([]))
       .finally(() => setLoading(false));
   }, [captionsSrc, take]);
+
+  // A draft from speech: asked for here, followed until it is made, and
+  // taken into the lines once it is, for the teacher to check.
+  const drafting = media?.captions;
+  const [draft, setDraft] = useState<CaptionDraftStatus | null>(null);
+  const [asked, setAsked] = useState(false);
+  const [drafted, setDrafted] = useState(false);
+  useEffect(() => {
+    if (!drafting) return undefined;
+    let gone = false;
+    void drafting
+      .status(fileId)
+      .then((found) => {
+        if (!gone) setDraft(found);
+      })
+      .catch(() => undefined);
+    return () => {
+      gone = true;
+    };
+  }, [drafting, fileId]);
+  const waiting =
+    draft?.draft?.state === "queued" || draft?.draft?.state === "working";
+  useEffect(() => {
+    if (!drafting || !waiting) return undefined;
+    const timer = setInterval(() => {
+      void drafting
+        .status(fileId)
+        .then((found) => {
+          setDraft(found);
+          if (asked && found.draft?.state === "ready" && found.draft.vtt) {
+            take(parseVtt(found.draft.vtt));
+            setDrafted(true);
+            setAsked(false);
+          }
+        })
+        .catch(() => undefined);
+    }, DRAFT_POLL_MS);
+    return () => clearInterval(timer);
+  }, [drafting, waiting, fileId, asked, take]);
+  const speech = lang === "ar" || lang === "en" ? lang : null;
+  const askDraft = async () => {
+    if (!drafting || !speech) return;
+    setProblem(null);
+    try {
+      await drafting.draft(fileId, speech);
+      setAsked(true);
+      setDraft({
+        available: true,
+        draft: { state: "queued", progress: null, vtt: null },
+      });
+    } catch {
+      setProblem(strings.captionsDraftFailed);
+    }
+  };
+  const ready = draft?.draft?.state === "ready" ? draft.draft.vtt : null;
 
   const names = new Intl.DisplayNames([locale], { type: "language" });
   const choices = LANGUAGES.includes(lang as (typeof LANGUAGES)[number])
@@ -205,6 +276,54 @@ function CaptionsSheet({
         <Dialog.Description className="text-xs text-muted-foreground">
           {strings.captionsHint}
         </Dialog.Description>
+        {draft?.available && speech ? (
+          <div className="flex flex-wrap items-center gap-2 text-sm">
+            {waiting ? (
+              <output className="inline-flex items-center gap-2 text-muted-foreground">
+                <LoaderCircle aria-hidden className="size-4 animate-spin" />
+                {draft.draft?.state === "working" &&
+                draft.draft.progress !== null
+                  ? strings.captionsDrafting(
+                      Math.round(draft.draft.progress * 100),
+                    )
+                  : strings.captionsDraftWaiting}
+              </output>
+            ) : (
+              <>
+                <button
+                  type="button"
+                  onClick={() => void askDraft()}
+                  className={`${action} border`}
+                >
+                  <AudioLines aria-hidden />
+                  {strings.captionsDraft}
+                </button>
+                {ready && !drafted && lines.length === 0 && !loading ? (
+                  <button
+                    type="button"
+                    onClick={() => {
+                      take(parseVtt(ready));
+                      setDrafted(true);
+                    }}
+                    className={action}
+                  >
+                    {strings.captionsUseDraft}
+                  </button>
+                ) : null}
+                {draft.draft?.state === "failed" ? (
+                  <p className="text-xs text-destructive">
+                    {strings.captionsDraftFailed}
+                  </p>
+                ) : null}
+              </>
+            )}
+          </div>
+        ) : null}
+        {drafted ? (
+          <p className="rounded-md bg-warning/10 px-3 py-2 text-xs leading-5 text-warning-foreground dark:text-warning">
+            {strings.captionsDraftNote}
+          </p>
+        ) : null}
         <div className="flex flex-wrap items-center gap-2">
           <button
             type="button"

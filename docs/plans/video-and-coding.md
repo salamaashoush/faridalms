@@ -63,7 +63,10 @@ with the gate it can break.
    adds one at the moment the video is paused on; students see the timeline
    split at each chapter, the chapter's name over the time as they seek, the
    chapter playing beside the clock, and a list of chapters to play from.
-   Whisper captions remain.
+   Done next: the captions editor drafts captions from what a recording
+   says, in Arabic or English, with whisper.cpp on the media service; the
+   draft arrives as lines the teacher checks and fixes before saving, and a
+   note asks them to read every line against the recording.
 8. **Teacher studio and student replies.** Record camera, screen and voice in
    the browser, trim, publish; the same recorder gives students a video or
    audio answer kind. Done first: "Record a video" in the editor's insert
