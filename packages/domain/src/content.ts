@@ -160,6 +160,8 @@ export interface ContentNode {
   tehMarbuta?: boolean;
   wordLimit?: number | null;
   recordSeconds?: number | null;
+  /** A question asked when the video above it reaches this second. */
+  videoAt?: number | null;
   /** A written question answered with a drawing or a photo. */
   answerWith?: "drawing" | "photo" | null;
   /** A find-on-a-picture question's places: left, top, width, height. */
@@ -348,6 +350,7 @@ const nodeSchema: v.GenericSchema<ContentNode> = v.lazy(() =>
       tehMarbuta: v.optional(v.boolean()),
       wordLimit: v.optional(v.nullable(integer(10, 5000))),
       recordSeconds: v.optional(v.nullable(integer(5, 180))),
+      videoAt: v.optional(v.nullable(integer(0, 21600))),
       answerWith: v.optional(v.nullable(v.picklist(["drawing", "photo"]))),
       regions: v.optional(
         v.pipe(

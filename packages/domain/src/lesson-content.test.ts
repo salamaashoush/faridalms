@@ -15,6 +15,7 @@ import {
   markResponse,
   responseIssue,
   studentBlocks,
+  videoStops,
 } from "./learning";
 import {
   briefWithQuiz,
@@ -734,5 +735,78 @@ describe("word builder", () => {
       "sh",
       "t",
     ]);
+  });
+});
+
+const asked = (
+  id: string,
+  videoAt?: number,
+): LessonDocument["blocks"][number] => ({
+  id,
+  type: "choice",
+  prompt: "What happened?",
+  points: 1,
+  hint: "",
+  explanation: "",
+  tries: null,
+  ...(videoAt === undefined ? {} : { videoAt }),
+  options: [
+    { id: crypto.randomUUID(), text: "This", feedback: "" },
+    { id: crypto.randomUUID(), text: "That", feedback: "" },
+  ],
+  correctOptionIds: [],
+  multiple: false,
+  shuffle: false,
+});
+
+describe("questions in a video", () => {
+  const video = "5f1e2d3c-4b5a-4968-8778-695a4b3c2d1e";
+  const later = "3b4c5d6e-7f80-4192-a3b4-c5d6e7f8091a";
+  const sooner = "4c5d6e7f-8091-4a2b-b4c5-d6e7f8091a2b";
+  const reading = "6e7f8091-a2b3-4c4d-95e6-f708192a3b4c";
+  const withVideo: LessonDocument = {
+    version: 2,
+    blocks: [
+      {
+        id: crypto.randomUUID(),
+        type: "media",
+        fileId: video,
+        name: "lesson.mp4",
+        mediaType: "video/mp4",
+        sizeBytes: 1000,
+        caption: "",
+        captionsFileId: "7f8091a2-b3c4-4d5e-a6f7-8192a3b4c5d6",
+        captionsLang: "en",
+        transcript: "",
+      },
+      asked(later, 90),
+      asked(sooner, 30),
+      asked(reading),
+    ],
+  };
+
+  it("belong to the video above them, in the order it plays", () => {
+    expect(videoStops(withVideo.blocks).get(video)).toEqual([
+      { at: 30, blockId: sooner },
+      { at: 90, blockId: later },
+    ]);
+  });
+
+  it("keep their time through the document and reach the student", () => {
+    const document = contentOfLesson(withVideo);
+    if (!document) throw new Error("no document");
+    const back = lessonOfContent(document);
+    expect(
+      videoStops(back.blocks)
+        .get(video)
+        ?.map((stop) => stop.at),
+    ).toEqual([30, 90]);
+    const shown = studentBlocks(back, "seed");
+    expect(shown.find((block) => block.id === sooner)).toMatchObject({
+      videoAt: 30,
+    });
+    expect(shown.find((block) => block.id === reading)).not.toHaveProperty(
+      "videoAt",
+    );
   });
 });

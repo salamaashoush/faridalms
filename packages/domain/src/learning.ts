@@ -119,6 +119,12 @@ const checkFields = {
   tries: v.nullable(
     v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(10)),
   ),
+  /** Asked when the video above reaches this second, rather than in the reading. */
+  videoAt: v.optional(
+    v.nullable(
+      v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(21600)),
+    ),
+  ),
 };
 
 const accepted = v.pipe(
@@ -562,6 +568,46 @@ export function mediaFiles(
 
 export const lessonMedia = (document: LessonDocument) =>
   mediaFiles(document.blocks);
+
+/** A question a video stops for: the second, and the question's block. */
+export interface VideoStop {
+  at: number;
+  blockId: string;
+}
+
+/**
+ * The questions each video stops for, by file, in time order: questions
+ * stamped with a time belong to the nearest video above them.
+ */
+export function videoStops(
+  blocks: readonly (
+    | { type: "content"; content: ContentDocument }
+    | { type: "media"; fileId: string }
+    | { type: string; id?: string; videoAt?: number | null }
+  )[],
+): Map<string, VideoStop[]> {
+  const stops = new Map<string, VideoStop[]>();
+  let video: string | null = null;
+  for (const block of blocks) {
+    const files = mediaFiles([block]);
+    if (files.length > 0) {
+      video = files.at(-1) ?? null;
+      continue;
+    }
+    if (
+      video &&
+      "videoAt" in block &&
+      typeof block.videoAt === "number" &&
+      block.id
+    )
+      stops.set(video, [
+        ...(stops.get(video) ?? []),
+        { at: block.videoAt, blockId: block.id },
+      ]);
+  }
+  for (const list of stops.values()) list.sort((a, b) => a.at - b.at);
+  return stops;
+}
 
 /** How much of one recording a student has played, in whole seconds. */
 export interface Watched {

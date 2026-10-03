@@ -37,6 +37,7 @@ import {
   Bold,
   CaseSensitive,
   ChevronDown,
+  Clock,
   Code,
   Download,
   ExternalLink,
@@ -89,6 +90,7 @@ import {
 } from "../blocks";
 import { useEditorEnvironment } from "../context";
 import { CopyLinkButton } from "../files";
+import { mediaClock } from "../format";
 import {
   $activeFormats,
   $applyColor,
@@ -917,6 +919,22 @@ export function SelectionToolbarPlugin() {
             onOpenChange={trackMenu}
             finalFocus={textFocus(editor)}
           />
+          {settings.videoAt === null ? null : (
+            <>
+              <span className="inline-flex h-8 items-center gap-1.5 px-1.5 text-sm whitespace-nowrap text-muted-foreground [&_svg]:size-4">
+                <Clock aria-hidden />
+                <bdi className="tabular-nums">
+                  {strings.questionVideoAt(mediaClock(settings.videoAt))}
+                </bdi>
+              </span>
+              <ToolButton
+                label={strings.questionVideoAtClear}
+                onClick={() => change({ videoAt: null })}
+              >
+                <X aria-hidden />
+              </ToolButton>
+            </>
+          )}
           {settings.kind === "written" ? (
             <>
               {lessonActivities ? (

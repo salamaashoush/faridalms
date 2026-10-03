@@ -8,6 +8,7 @@ import {
   shuffled,
 } from "@faridalms/domain/learning";
 import { StoredImage } from "@faridalms/editor/files";
+import { mediaClock } from "@faridalms/editor/format";
 import { cn } from "@faridalms/ui/cn";
 
 import * as m from "~/i18n/messages";
@@ -566,6 +567,14 @@ export function PaperQuestion({
         <span>{number}.</span>
         <span>{block.prompt}</span>
       </p>
+      {typeof block.videoAt === "number" ? (
+        <p className="text-[0.8em] text-neutral-600">
+          {m.printVideoAt(
+            { time: mediaClock(block.videoAt) },
+            { locale: rtl ? "ar" : "en" },
+          )}
+        </p>
+      ) : null}
       {body}
       {answers && "explanation" in block && block.explanation ? (
         <p className="text-[0.85em] text-neutral-600" dir="auto">

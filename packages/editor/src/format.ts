@@ -15,6 +15,17 @@ export function formatBytes(bytes: number, locale: string): string {
   }).format(value);
 }
 
+/** A time in a recording as players show it: 0:42, 12:05, 1:02:09. */
+export function mediaClock(seconds: number): string {
+  const whole = Math.max(0, Math.floor(seconds));
+  const minutes = Math.floor(whole / 60);
+  const hours = Math.floor(minutes / 60);
+  const ss = String(whole % 60).padStart(2, "0");
+  return hours > 0
+    ? `${hours}:${String(minutes % 60).padStart(2, "0")}:${ss}`
+    : `${minutes}:${ss}`;
+}
+
 export function createBlockId(): string {
   const bytes = new Uint8Array(8);
   crypto.getRandomValues(bytes);

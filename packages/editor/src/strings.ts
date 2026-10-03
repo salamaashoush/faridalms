@@ -229,6 +229,10 @@ export interface EditorStrings {
   questionStarterEdit: string;
   questionStarterRemove: string;
   questionStarterSet: string;
+  /** "in the video at 0:42", on a question asked as the video plays. */
+  questionVideoAt: (time: string) => string;
+  questionAskAt: (time: string) => string;
+  questionVideoAtClear: string;
   questionMarkPlaces: string;
   questionMarkPlacesHint: string;
   questionPlacesMarked: (count: number) => string;

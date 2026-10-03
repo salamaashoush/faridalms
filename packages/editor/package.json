@@ -14,6 +14,7 @@
     "./recorder": "./src/recorder.tsx",
     "./media-view": "./src/media-view.tsx",
     "./player": "./src/player.tsx",
+    "./format": "./src/format.ts",
     "./files": "./src/files.tsx",
     "./picture-library": "./src/plugins/picture-library.tsx",
     "./file-facts": "./src/file-facts.tsx",

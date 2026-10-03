@@ -255,6 +255,9 @@ export function editorStrings(): EditorStrings {
     questionStarterEdit: m.editorQuestionStarterEdit(),
     questionStarterRemove: m.editorQuestionStarterRemove(),
     questionStarterSet: m.editorQuestionStarterSet(),
+    questionVideoAt: (time) => m.editorQuestionVideoAt({ time }),
+    questionAskAt: (time) => m.editorQuestionAskAt({ time }),
+    questionVideoAtClear: m.editorQuestionVideoAtClear(),
     questionMarkPlaces: m.editorQuestionMarkPlaces(),
     questionMarkPlacesHint: m.editorQuestionMarkPlacesHint(),
     questionPlacesMarked: (count) =>

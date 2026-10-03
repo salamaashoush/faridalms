@@ -20,9 +20,11 @@ import {
   mediaFiles,
   studentBlocks,
   upgradeLesson,
+  videoStops,
   watchedEnough,
 } from "@faridalms/domain/learning";
 import { isContentDocument } from "@faridalms/domain/lesson-content";
+import { mediaClock } from "@faridalms/editor/format";
 import { Button } from "@faridalms/ui/button";
 import { Progress } from "@faridalms/ui/progress";
 import {
@@ -36,9 +38,11 @@ import {
   ArrowLeft,
   ArrowRight,
   CircleCheck,
+  Clock,
   Eye,
   Lock,
   Pencil,
+  Play,
   RotateCcw,
 } from "lucide-react";
 import { useContext, useEffect, useMemo, useRef, useState } from "react";
@@ -168,6 +172,49 @@ function LessonBody({
   watches?: Record<string, Watched>;
 }) {
   const young = useContext(YoungContext);
+  const stops = useMemo(() => videoStops(blocks), [blocks]);
+  const stopOf = useMemo(() => {
+    const found = new Map<string, { fileId: string; at: number }>();
+    for (const [fileId, list] of stops)
+      for (const stop of list) found.set(stop.blockId, { fileId, at: stop.at });
+    return found;
+  }, [stops]);
+  const [stopped, setStopped] = useState<ReadonlySet<string>>(new Set());
+  const players = useRef(new Map<string, { play: () => void }>());
+  const answered = (blockId: string) => {
+    const block = blocks.find((item) => item.id === blockId);
+    return Boolean(
+      block && isCheckBlock(block) && isSettled(block, checks[block.id]),
+    );
+  };
+  // A video's questions come in as it plays: each opens when the video
+  // stops for it, and the video plays on once it is answered.
+  const watching = (fileId: string): MediaWatch | undefined => {
+    const base = watch?.(fileId);
+    const list = stops.get(fileId);
+    if (!base || !list) return base;
+    return {
+      ...base,
+      stops: list.map((stop) => ({
+        at: stop.at,
+        done: answered(stop.blockId),
+      })),
+      onQuestion: (at) => {
+        const asked = list.filter((stop) => stop.at === at);
+        flushSync(() =>
+          setStopped(
+            (current) =>
+              new Set([...current, ...asked.map((stop) => stop.blockId)]),
+          ),
+        );
+        const first = asked.find((stop) => !answered(stop.blockId)) ?? asked[0];
+        if (!first) return;
+        const target = document.getElementById(`block-${first.blockId}`);
+        target?.scrollIntoView({ block: "nearest", behavior: "smooth" });
+      },
+      bind: (control) => players.current.set(fileId, control),
+    };
+  };
   const settledAbove = (index: number) => {
     const above = blocks.slice(0, index);
     const questions = above.filter(isCheckBlock);
@@ -266,7 +313,7 @@ function LessonBody({
             <ContentView
               document={block.content}
               fileUrl={fileUrl}
-              watch={watch}
+              watch={watching}
               renderBlock={(node, drawn) => {
                 const narration = node.$?.narration ?? null;
                 if (!young && !narration) return drawn;
@@ -301,15 +348,39 @@ function LessonBody({
             />
           );
         else if (block.type === "media")
-          body = <Media block={block} watch={watch} />;
-        else if (isCheckBlock(block))
-          body = (
-            <CheckBlockView
-              block={block}
-              view={checks[block.id]}
-              driver={driver}
-            />
-          );
+          body = <Media block={block} watch={watching} />;
+        else if (isCheckBlock(block)) {
+          const stop = stopOf.get(block.id);
+          const settledHere = isSettled(block, checks[block.id]);
+          body =
+            stop && !settledHere && !stopped.has(block.id) ? (
+              <p className="flex items-center gap-2 rounded-lg border border-dashed px-4 py-3 text-sm leading-5 text-muted-foreground">
+                <Clock aria-hidden className="size-4 shrink-0" />
+                {m.lrnVideoQuestionAhead({
+                  time: mediaClock(stop.at),
+                })}
+              </p>
+            ) : (
+              <div className="grid gap-3">
+                <CheckBlockView
+                  block={block}
+                  view={checks[block.id]}
+                  driver={driver}
+                />
+                {stop && settledHere && stopped.has(block.id) ? (
+                  <Button
+                    type="button"
+                    variant="outline"
+                    className="justify-self-start max-md:h-10"
+                    onClick={() => players.current.get(stop.fileId)?.play()}
+                  >
+                    <Play aria-hidden />
+                    {m.lrnVideoContinue()}
+                  </Button>
+                ) : null}
+              </div>
+            );
+        }
         return (
           <section
             key={block.id}

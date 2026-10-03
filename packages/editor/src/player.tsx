@@ -68,6 +68,7 @@ import {
   useState,
 } from "react";
 
+import { mediaClock } from "./format";
 import { cx } from "./ui";
 
 /** hls.js is large, so it loads only for a video that has streams. */
@@ -85,15 +86,29 @@ export interface WatchReport {
 }
 
 /** A recording whose watching counts: where to pick up, and where to report. */
+/** A time a video stops at for a question, and whether it is answered. */
+export interface VideoMark {
+  at: number;
+  done: boolean;
+}
+
 export interface MediaWatch {
   startAt: number;
   report: (watch: WatchReport) => void;
+  /** Questions the video stops for; it plays past one only once answered. */
+  stops?: readonly VideoMark[] | undefined;
+  /** The video stopped for the question at this second. */
+  onQuestion?: ((at: number) => void) | undefined;
+  /** Hands the page a way to play the video on once a question is answered. */
+  bind?: ((control: { play: () => void }) => void) | undefined;
 }
 
 /** How often a playing recording reports, so a closed tab loses little. */
 const REPORT_MS = 15_000;
 /** A jump in time bigger than playback could make is a seek, not watching. */
 const MAX_STEP_SECONDS = 3;
+/** A seek to a stop lands a frame or so past it; this much past still counts as there. */
+const STOP_SLACK = 0.25;
 /** Picking up this close to either end would only confuse. */
 const RESUME_MARGIN_SECONDS = 5;
 
@@ -134,6 +149,23 @@ function Watching({
         stretches.push([Math.floor(from), Math.ceil(last)]);
       from = null;
     };
+    const open = () =>
+      (latest.current.watch.stops ?? []).filter((stop) => !stop.done);
+    const stopAt = (at: number) => {
+      last = at;
+      close();
+      media.pause();
+      latest.current.seek(at);
+      latest.current.watch.onQuestion?.(at);
+    };
+    // Playing or seeking may go back to watch again, but never on past a
+    // question not yet answered; the video returns to it and waits.
+    const held = (slack = STOP_SLACK) => {
+      const first = open()[0];
+      if (!first || media.currentTime <= first.at + slack) return false;
+      stopAt(first.at);
+      return true;
+    };
     const flush = () => {
       const playing = from !== null;
       close();
@@ -164,37 +196,50 @@ function Watching({
         close();
         from = now;
       }
+      if (held()) return;
       last = now;
     };
     const onSeeking = () => close();
     const onSeeked = () => {
+      if (held()) return;
       last = media.currentTime;
       if (!media.paused) from = last;
     };
     const onPlay = () => {
+      const first = open()[0];
+      if (first && Math.abs(media.currentTime - first.at) < STOP_SLACK * 2) {
+        stopAt(first.at);
+        return;
+      }
       last = media.currentTime;
       from = last;
     };
     const onStop = () => {
       last = media.currentTime;
+      if (media.ended && held(0)) return;
       flush();
     };
     const resume = () => {
       if (resumed) return;
       resumed = true;
-      const at = latest.current.watch.startAt;
+      const first = open()[0];
+      const saved = latest.current.watch.startAt;
+      // Picking up never goes past a question still waiting for an answer.
+      const at = first && first.at < saved ? first.at : saved;
       if (
         at > RESUME_MARGIN_SECONDS &&
         at < media.duration - RESUME_MARGIN_SECONDS
       ) {
         latest.current.seek(at);
         last = at;
+        if (at === first?.at) latest.current.watch.onQuestion?.(at);
       }
     };
     const onHide = () => {
       if (document.visibilityState === "hidden") flush();
     };
 
+    latest.current.watch.bind?.({ play: () => void media.play() });
     if (Number.isFinite(media.duration) && media.duration > 0) resume();
     media.addEventListener("loadedmetadata", resume);
     media.addEventListener("timeupdate", onTime);
@@ -223,6 +268,23 @@ function Watching({
   return null;
 }
 
+/** Where a video stops for questions, on its timeline; answered ones in the accent. */
+function Marks({ marks }: { marks: readonly VideoMark[] }) {
+  const duration = usePlayer((state) => state.duration);
+  if (!duration) return null;
+  return marks.map((mark) => (
+    <span
+      key={mark.at}
+      aria-hidden
+      className={cx(
+        "pointer-events-none absolute top-1/2 z-10 size-2 -translate-x-1/2 -translate-y-1/2 rounded-full ring-2 ring-black/50",
+        mark.done ? "bg-primary" : "bg-foreground",
+      )}
+      style={{ left: `${Math.min(100, (mark.at / duration) * 100)}%` }}
+    />
+  ));
+}
+
 function VideoWatching({ watch }: { watch: MediaWatch }) {
   const player = usePlayer();
   return <Watching watch={watch} seek={(seconds) => player.seek(seconds)} />;
@@ -247,16 +309,6 @@ export interface TranscriptStrings {
 
 /** Leave the transcript where a student scrolled it for this long before following again. */
 const HOLD_SCROLL_MS = 4000;
-
-const clock = (seconds: number) => {
-  const whole = Math.floor(seconds);
-  const minutes = Math.floor(whole / 60);
-  const hours = Math.floor(minutes / 60);
-  const ss = String(whole % 60).padStart(2, "0");
-  return hours > 0
-    ? `${hours}:${String(minutes % 60).padStart(2, "0")}:${ss}`
-    : `${minutes}:${ss}`;
-};
 
 const searchable = (text: string) =>
   withoutVowelMarks(text).toLocaleLowerCase();
@@ -373,7 +425,7 @@ function Transcript({
                       dir="ltr"
                       className="w-10 shrink-0 text-[13px] text-muted-foreground tabular-nums"
                     >
-                      {clock(cue.start)}
+                      {mediaClock(cue.start)}
                     </span>
                     <span dir="auto">{cue.text}</span>
                   </button>
@@ -739,6 +791,7 @@ export function VideoSurface({
                   <TimeSlider.Buffer className="absolute inset-y-0 left-0 w-(--media-slider-buffer) bg-foreground/25" />
                   <TimeSlider.Fill className={sliderFill} />
                 </TimeSlider.Track>
+                {watch?.stops?.length ? <Marks marks={watch.stops} /> : null}
                 <TimeSlider.Thumb className={sliderThumb} />
                 <TimeSlider.Preview className="bottom-full mb-2 flex flex-col items-center gap-1 opacity-0 transition-opacity duration-150 group-data-pointing/slider:opacity-100">
                   <Preview track={thumbnails} />

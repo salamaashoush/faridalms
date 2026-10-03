@@ -24,14 +24,25 @@ import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext
 import { DecoratorBlockNode } from "@lexical/react/LexicalDecoratorBlockNode";
 import { useLexicalEditable } from "@lexical/react/useLexicalEditable";
 import { $getDocument, $getNodeByKey, createCommand } from "lexical";
-import { Captions, ExternalLink, ScrollText } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import {
+  Captions,
+  ExternalLink,
+  MessageCircleQuestion,
+  ScrollText,
+} from "lucide-react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { CaptionsEditor } from "../captions";
 import { useEditorEnvironment } from "../context";
 import { StoredImage } from "../files";
-import { blockAlignClass, diagramImageClass, imageSizeClass } from "../format";
+import {
+  blockAlignClass,
+  diagramImageClass,
+  imageSizeClass,
+  mediaClock,
+} from "../format";
 import { EmbedFrame, MediaPlayer, MediaTranscript } from "../media-view";
+import { $createQuestionNode, $isQuestionNode } from "./question";
 import { useSelectOnClick } from "./select";
 
 // The outline goes round the block's own box, which may be narrower than
@@ -99,9 +110,48 @@ function MediaBlock({
   caption: string;
   size: ImageSize;
 }) {
-  const { strings, media, locale } = useEditorEnvironment();
+  const { strings, media, locale, questions } = useEditorEnvironment();
+  const [editor] = useLexicalComposerContext();
   const [writing, setWriting] = useState(false);
   const transcriptInput = useRef<HTMLTextAreaElement>(null);
+  const playing = useRef<HTMLVideoElement | null>(null);
+  const [second, setSecond] = useState(0);
+  const following = useCallback(
+    (element: (HTMLVideoElement & HTMLAudioElement) | null) => {
+      playing.current = element;
+      if (!element) return undefined;
+      const tick = () => setSecond(Math.floor(element.currentTime));
+      element.addEventListener("timeupdate", tick);
+      element.addEventListener("seeked", tick);
+      return () => {
+        element.removeEventListener("timeupdate", tick);
+        element.removeEventListener("seeked", tick);
+      };
+    },
+    [],
+  );
+  // A question the video stops for goes after the video and any it asks
+  // earlier, so the document reads in the order the video plays.
+  const askHere = () => {
+    const at = Math.floor(playing.current?.currentTime ?? second);
+    playing.current?.pause();
+    editor.update(() => {
+      const node = $getNodeByKey(nodeKey);
+      let after = node?.getTopLevelElement() ?? node;
+      if (!after) return;
+      for (
+        let next = after.getNextSibling();
+        $isQuestionNode(next) &&
+        (next.getSettings().videoAt ?? Number.POSITIVE_INFINITY) <= at;
+        next = next.getNextSibling()
+      )
+        after = next;
+      const question = $createQuestionNode("choice");
+      question.setSettings({ videoAt: at });
+      after.insertAfter(question);
+      question.getFirstChild()?.selectStart();
+    });
+  };
   useEffect(() => {
     if (writing) transcriptInput.current?.focus();
   }, [writing]);
@@ -127,6 +177,7 @@ function MediaBlock({
           locale={locale}
           strings={strings}
           captionsLabel={strings.captions}
+          element={following}
         />
         {editable ? (
           <>
@@ -153,7 +204,7 @@ function MediaBlock({
                 type="button"
                 disabled={!media}
                 onClick={() => setCaptioning(true)}
-                className="inline-flex h-7 items-center gap-1.5 rounded-md border px-2 font-medium text-foreground hover:bg-accent disabled:opacity-50"
+                className={mediaAction}
               >
                 <Captions className="size-3.5" aria-hidden />
                 {captionsFileId ? strings.captionsReplace : strings.captionsAdd}
@@ -162,12 +213,18 @@ function MediaBlock({
                 <button
                   type="button"
                   onClick={() => setWriting(true)}
-                  className="inline-flex h-7 items-center gap-1.5 rounded-md border px-2 font-medium text-foreground hover:bg-accent"
+                  className={mediaAction}
                 >
                   <ScrollText className="size-3.5" aria-hidden />
                   {strings.transcriptAdd}
                 </button>
               )}
+              {video && questions ? (
+                <button type="button" onClick={askHere} className={mediaAction}>
+                  <MessageCircleQuestion className="size-3.5" aria-hidden />
+                  {strings.questionAskAt(mediaClock(second))}
+                </button>
+              ) : null}
               <CaptionsEditor
                 open={captioning}
                 onOpenChange={setCaptioning}
@@ -223,6 +280,9 @@ function MediaBlock({
     </BlockWithAlignableContents>
   );
 }
+
+const mediaAction =
+  "inline-flex h-8 items-center gap-1.5 rounded-md border px-2.5 font-medium text-foreground outline-none hover:bg-accent focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-50 max-md:h-10";
 
 function EmbedBlock({
   nodeKey,

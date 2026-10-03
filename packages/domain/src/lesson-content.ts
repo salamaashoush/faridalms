@@ -129,6 +129,7 @@ export function questionBlock(node: ContentNode): LessonBlock | null {
     hint: node.hint ?? "",
     explanation: node.explanation ?? "",
     tries: node.tries ?? null,
+    ...(typeof node.videoAt === "number" ? { videoAt: node.videoAt } : {}),
   };
   switch (node.kind) {
     case "choice": {
@@ -512,6 +513,7 @@ export function questionNode(block: LessonBlock): ContentNode | null {
     tries: block.tries,
     hint: block.hint,
     explanation: block.explanation,
+    ...(typeof block.videoAt === "number" ? { videoAt: block.videoAt } : {}),
     ...voiced(block.narration, block.narrationWords),
     children: [inlineOf("question-prompt", block.prompt)],
   };

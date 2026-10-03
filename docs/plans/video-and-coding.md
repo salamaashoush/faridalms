@@ -28,7 +28,12 @@ with the gate it can break.
 4. **Questions on the timeline.** Question blocks placed at a time inside the
    video block; the video pauses and the question opens beside it; rewatch
    from the segment on a wrong answer; skip prevention as a setting; for
-   young children, tap, say or draw at a pause.
+   young children, tap, say or draw at a pause. Done: a teacher asks any
+   question "at 0:42" from the video block, and it stays a question block
+   in the document; the video stops there, opens it below, and plays on
+   past it only once answered; marks show on the timeline and the paper
+   says when it is asked. Rewatch-from, an optional skip setting and the
+   young children's pause remain.
 5. **Teacher insight.** Drop-off, rewind peaks and each answer with its time,
    per class and per student.
 6. **Pipeline**, decided 2026-10-03: our own media service, in Rust.

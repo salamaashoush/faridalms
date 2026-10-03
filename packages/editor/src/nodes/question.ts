@@ -30,6 +30,8 @@ import {
   ElementNode,
 } from "lexical";
 
+import { mediaClock } from "../format";
+
 /**
  * A picture on an option, an item or a side of a pair, kept as the flat
  * `fileId` and `alt` its document stores. Its words may be left out; the
@@ -171,6 +173,8 @@ export interface QuestionLabels {
   wordTiles?: string;
   /** A coding question that starts from the teacher's own project. */
   starter?: string;
+  /** A question asked at a time in the video above it. */
+  videoAt?: (time: string) => string;
   extraTiles?: string;
   points: (points: number) => string;
   answerIs: string;
@@ -256,6 +260,8 @@ export interface QuestionSettings {
   memory: boolean;
   /** A coding question's starter project; none starts from the studio's own. */
   projectFileId: string | null;
+  /** Asked when the video above reaches this second; none asks it in the reading. */
+  videoAt: number | null;
   hint: string;
   explanation: string;
   numberMode: "exact" | "range";
@@ -289,6 +295,7 @@ export function defaultSettings(kind: QuestionKind): QuestionSettings {
     regions: [],
     memory: false,
     projectFileId: null,
+    videoAt: null,
     hint: "",
     explanation: "",
     numberMode: "exact",
@@ -335,7 +342,11 @@ function label(editor: LexicalEditor, settings: QuestionSettings): string {
     settings.kind === "scratch" && settings.projectFileId && text.starter
       ? ` · ${text.starter}`
       : "";
-  return `${kind}${starts} · ${text.points(settings.points)}`;
+  const asked =
+    settings.videoAt !== null && text.videoAt
+      ? ` · ${text.videoAt(mediaClock(settings.videoAt))}`
+      : "";
+  return `${kind}${starts}${asked} · ${text.points(settings.points)}`;
 }
 
 /**
@@ -394,6 +405,7 @@ export class QuestionNode extends ElementNode {
       regions: json.regions ?? [],
       memory: json.memory ?? false,
       projectFileId: json.projectFileId ?? null,
+      videoAt: json.videoAt ?? null,
       hint: json.hint ?? "",
       explanation: json.explanation ?? "",
       numberMode: json.numberMode ?? base.numberMode,
@@ -421,6 +433,7 @@ export class QuestionNode extends ElementNode {
       regions,
       memory,
       projectFileId,
+      videoAt,
       ...settings
     } = this.getLatest().__settings;
     return {
@@ -437,6 +450,7 @@ export class QuestionNode extends ElementNode {
       ...(settings.kind === "scratch" && projectFileId
         ? { projectFileId }
         : {}),
+      ...(videoAt === null ? {} : { videoAt }),
     };
   }
 
@@ -480,6 +494,7 @@ export class QuestionNode extends ElementNode {
       previous.__settings.points !== settings.points ||
       previous.__settings.recordSeconds !== settings.recordSeconds ||
       previous.__settings.answerWith !== settings.answerWith ||
+      previous.__settings.videoAt !== settings.videoAt ||
       previous.__settings.count !== settings.count ||
       previous.__settings.countMode !== settings.countMode ||
       previous.__settings.trace !== settings.trace ||
