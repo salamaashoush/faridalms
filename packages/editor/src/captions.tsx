@@ -11,6 +11,7 @@ import { Plus, Trash2, Upload, X } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import { useEditorEnvironment } from "./context";
+import { MediaPlayer } from "./media-view";
 
 /** Languages captions are most often written in; any school may add its own. */
 const LANGUAGES = [
@@ -68,7 +69,7 @@ export function CaptionsEditor({
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
-        <Dialog.Backdrop className="fixed inset-0 z-50 bg-black/40" />
+        <Dialog.Backdrop className="fixed inset-0 z-50 bg-black/10 transition-opacity duration-150 data-ending-style:opacity-0 data-starting-style:opacity-0 supports-backdrop-filter:backdrop-blur-xs" />
         <Dialog.Popup className="fixed inset-y-0 end-0 z-50 flex w-full flex-col bg-background shadow-2xl outline-none sm:max-w-[520px] sm:border-s">
           <CaptionsSheet {...sheet} onDone={() => onOpenChange(false)} />
         </Dialog.Popup>
@@ -192,41 +193,15 @@ function CaptionsSheet({
         </Dialog.Close>
       </div>
       <div className="grid gap-3 border-b p-4">
-        {video ? (
-          <video
-            ref={player}
-            src={src}
-            controls
-            preload="metadata"
-            crossOrigin="anonymous"
-            className="aspect-video w-full rounded-lg bg-black"
-          >
-            <track
-              kind="captions"
-              src={captionsSrc}
-              srcLang={lang}
-              label={strings.captions}
-              default={Boolean(captionsSrc)}
-            />
-          </video>
-        ) : (
-          <audio
-            ref={player}
-            src={src}
-            controls
-            preload="metadata"
-            crossOrigin="anonymous"
-            className="w-full"
-          >
-            <track
-              kind="captions"
-              src={captionsSrc}
-              srcLang={lang}
-              label={strings.captions}
-              default={Boolean(captionsSrc)}
-            />
-          </audio>
-        )}
+        <MediaPlayer
+          src={src}
+          captions={captionsSrc}
+          captionsLang={lang}
+          video={video}
+          locale={locale}
+          captionsLabel={strings.captions}
+          element={player}
+        />
         <Dialog.Description className="text-xs text-muted-foreground">
           {strings.captionsHint}
         </Dialog.Description>

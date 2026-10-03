@@ -17,7 +17,8 @@ this document first.
   only where grouping needs them.
 - **State in words.** Colour never carries meaning alone (Primer, Carbon).
 - **Both directions.** Every layout mirrors for Arabic. Numbers inside a value
-  never reverse; back and forward chevrons do (Apple HIG, Material).
+  never reverse; back and forward chevrons do (Apple HIG, Material). Media
+  playback controls are the one exception (see Media and activities).
 
 ## Tokens
 
@@ -254,6 +255,42 @@ danger. Labels are one or two words, sentence case, past tense for outcomes
 - Destructive actions confirm in a dialog that names the thing being removed.
   The red button appears only on that final confirmation (GOV.UK).
 
+## Media and activities
+
+Video, sound, embeds and coding projects are blocks in a document; their
+controls are ours, built from Video.js parts (`packages/editor/src/player.tsx`),
+never the browser's own.
+
+- **Video is a dark surface in both themes** (YouTube, Vimeo, Apple TV): the
+  player carries the `dark` class, so its chrome uses the same semantic tokens
+  resolved dark and reads on any picture. 8px radius, no border.
+- Controls sit on a bottom scrim: the timeline on its own row, then play,
+  volume and time at the start, and captions, speed, picture-in-picture and
+  fullscreen at the end. Buttons are 32px with 20px icons (icons on moving
+  pictures need the extra size), 40px on phones, where picture-in-picture
+  and the volume slider drop out because the device owns them.
+- The played part of the timeline is the accent; buffered is a light tint.
+  The thumb appears on hover, drag and focus; hovering shows the frame and
+  the time above the pointer.
+- **Playback controls and the timeline stay left to right in Arabic**
+  (Material bidirectionality, Apple HIG): time runs one way in every script.
+  Labels, tooltips and menus follow the page.
+- Tooltips and menus are the app's: `bg-foreground` tooltips with the
+  keyboard shortcut, `bg-popover` menus with 32px rows and a check on the
+  chosen item. They stay inside the player so they survive fullscreen.
+- Captions are on by default when a video has them, and rise above the
+  controls while those show.
+- Keyboard: Space or K plays, J and L skip 10s, arrows skip 5s and change
+  volume, M mutes, C captions, F fullscreen, 0–9 jump through the video.
+- Sound is one 48px row in the page's own theme (56px on phones): play,
+  time, timeline, length, speed, volume.
+- **Starting a picture** (a video before it plays, an embed before it
+  loads, a coding project before it runs) uses one round 56px `StartMark` in
+  `bg-foreground`, not the accent, since several can share a page.
+- Content keeps its own colours: a Scratch stage is white in either theme.
+  Everything around it (frames, placeholders, loading) uses `bg-muted` and
+  `text-muted-foreground`.
+
 ## Motion
 
 150–200ms ease-out for popovers, menus and sheets. Nothing animates on page
@@ -274,4 +311,6 @@ load. `prefers-reduced-motion` removes movement.
 - NN/g: required fields, web form design, cancel vs close, efficiency vs
   expectations (nngroup.com/articles)
 - Notion help (writing and editing basics, publishing), Linear docs (documents)
-- Apple HIG right-to-left; Material bidirectionality
+- Apple HIG right-to-left; Material bidirectionality (media controls are not
+  mirrored)
+- Video.js 10 skins and accessibility guide (videojs.org/docs)

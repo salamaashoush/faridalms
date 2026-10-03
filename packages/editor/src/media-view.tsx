@@ -1,4 +1,5 @@
 import type { EmbedProvider } from "@faridalms/domain/embed";
+import type { Ref } from "react";
 
 import {
   embedAspect,
@@ -6,45 +7,44 @@ import {
   embedSource,
 } from "@faridalms/domain/embed";
 import { Play } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useState } from "react";
+
+import type { PlayerCaptions } from "./player";
+
+import { AudioBar, PlayerFrame, StartMark, VideoSurface } from "./player";
 
 export function MediaPlayer({
   src,
   captions,
+  captionsLang,
   video,
   locale,
   captionsLabel,
+  element,
 }: {
   src: string | undefined;
   captions: string | undefined;
+  /** The captions' language, when it is not the page's. */
+  captionsLang?: string | undefined;
   video: boolean;
+  /** The page's language, which the player's labels follow. */
   locale: string;
   captionsLabel: string;
+  element?: Ref<HTMLVideoElement & HTMLAudioElement>;
 }) {
   if (!src) return null;
+  const track = captions
+    ? { src: captions, lang: captionsLang || locale, label: captionsLabel }
+    : null;
   return video ? (
     <StreamingVideo
       src={src}
-      captions={captions}
+      captions={track}
       locale={locale}
-      captionsLabel={captionsLabel}
+      element={element}
     />
   ) : (
-    <audio
-      controls
-      preload="metadata"
-      crossOrigin="anonymous"
-      src={src}
-      className="block w-full"
-    >
-      <track
-        kind="captions"
-        src={captions}
-        srcLang={locale}
-        label={captionsLabel}
-        default={Boolean(captions)}
-      />
-    </audio>
+    <AudioBar src={src} captions={track} locale={locale} element={element} />
   );
 }
 
@@ -54,26 +54,25 @@ const UPLOAD = /^\/files\/[0-9a-f-]{36}$/;
 interface Stream {
   master: string;
   poster: string;
+  thumbnails: string | null;
 }
 
 /**
  * A video that plays its adaptive streams once the media service has made
  * them, and the upload as it is until then. Which one is settled before
- * anything plays, so a playing video never switches. Safari plays the
- * streams itself; other browsers through hls.js, loaded only then.
+ * anything plays, so a playing video never switches.
  */
 function StreamingVideo({
   src,
   captions,
   locale,
-  captionsLabel,
+  element,
 }: {
   src: string;
-  captions: string | undefined;
+  captions: PlayerCaptions | null;
   locale: string;
-  captionsLabel: string;
+  element?: Ref<HTMLVideoElement>;
 }) {
-  const element = useRef<HTMLVideoElement>(null);
   const [source, setSource] = useState<
     { stream: Stream } | { upload: string } | null
   >(UPLOAD.test(src) ? null : { upload: src });
@@ -83,14 +82,28 @@ function StreamingVideo({
     if (UPLOAD.test(src))
       fetch(`${src}/stream`)
         .then((response) => (response.ok ? response.json() : null))
-        .then((found: { master?: string | null; poster?: string } | null) => {
-          if (cancelled) return;
-          setSource(
-            found?.master && found.poster
-              ? { stream: { master: found.master, poster: found.poster } }
-              : { upload: src },
-          );
-        })
+        .then(
+          (
+            found: {
+              master?: string | null;
+              poster?: string;
+              thumbnails?: string;
+            } | null,
+          ) => {
+            if (cancelled) return;
+            setSource(
+              found?.master && found.poster
+                ? {
+                    stream: {
+                      master: found.master,
+                      poster: found.poster,
+                      thumbnails: found.thumbnails ?? null,
+                    },
+                  }
+                : { upload: src },
+            );
+          },
+        )
         .catch(() => {
           if (!cancelled) setSource({ upload: src });
         });
@@ -99,51 +112,18 @@ function StreamingVideo({
     };
   }, [src]);
 
-  useEffect(() => {
-    const video = element.current;
-    let player: { destroy: () => void } | null = null;
-    let gone = false;
-    const master = source && "stream" in source ? source.stream.master : null;
-    if (video && master) {
-      if (video.canPlayType("application/vnd.apple.mpegurl"))
-        video.src = master;
-      else
-        void import("hls.js").then(({ default: Hls }) => {
-          if (gone) return;
-          if (!Hls.isSupported()) {
-            video.src = src;
-            return;
-          }
-          const hls = new Hls({ capLevelToPlayerSize: true });
-          hls.loadSource(master);
-          hls.attachMedia(video);
-          player = hls;
-        });
-    }
-    return () => {
-      gone = true;
-      player?.destroy();
-    };
-  }, [source, src]);
-
+  if (!source) return <PlayerFrame />;
+  const stream = "stream" in source ? source.stream : null;
   return (
-    <video
-      ref={element}
-      controls
-      preload="metadata"
-      crossOrigin="anonymous"
-      src={source && "upload" in source ? source.upload : undefined}
-      poster={source && "stream" in source ? source.stream.poster : undefined}
-      className="block aspect-video w-full rounded-lg bg-black"
-    >
-      <track
-        kind="captions"
-        src={captions}
-        srcLang={locale}
-        label={captionsLabel}
-        default={Boolean(captions)}
-      />
-    </video>
+    <VideoSurface
+      src={"upload" in source ? source.upload : null}
+      stream={stream?.master ?? null}
+      poster={stream?.poster ?? null}
+      thumbnails={stream?.thumbnails ?? null}
+      captions={captions}
+      locale={locale}
+      element={element}
+    />
   );
 }
 
@@ -201,13 +181,13 @@ export function EmbedFrame({
         <button
           type="button"
           onClick={() => setLoaded(true)}
-          className="absolute inset-0 flex flex-col items-center justify-center gap-3 p-4 text-center hover:bg-muted/60 focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:outline-none"
+          className="group absolute inset-0 flex cursor-pointer flex-col items-center justify-center gap-3 rounded-lg p-4 text-center outline-none hover:bg-muted/60 focus-visible:ring-3 focus-visible:ring-ring/50"
         >
-          <span className="flex size-12 items-center justify-center rounded-full bg-foreground text-background shadow-md">
-            <Play className="size-5 translate-x-px" aria-hidden />
-          </span>
+          <StartMark>
+            <Play className="translate-x-px fill-current" aria-hidden />
+          </StartMark>
           <span className="text-sm font-medium">{loadLabel}</span>
-          <span className="max-w-sm text-xs text-muted-foreground">
+          <span className="max-w-sm text-[13px] leading-[18px] text-muted-foreground">
             {privacy}
           </span>
         </button>

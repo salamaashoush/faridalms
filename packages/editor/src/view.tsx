@@ -585,7 +585,8 @@ function draw(
                 : undefined
             }
             video={(node.mime ?? "").startsWith("video/")}
-            locale={node.captionsLang ?? context.locale}
+            captionsLang={node.captionsLang}
+            locale={context.locale}
             captionsLabel={context.strings.captions}
           />
           {node.caption ? (

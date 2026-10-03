@@ -123,7 +123,8 @@ function MediaBlock({
           src={media?.url(fileId)}
           captions={captionsFileId ? media?.url(captionsFileId) : undefined}
           video={video}
-          locale={captionsLang || locale}
+          captionsLang={captionsLang}
+          locale={locale}
           captionsLabel={strings.captions}
         />
         {editable ? (
