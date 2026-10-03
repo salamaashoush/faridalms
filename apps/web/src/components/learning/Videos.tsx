@@ -7,7 +7,7 @@ import { displayName } from "~/components/people/format";
 import { EmptyState } from "~/components/system/IndexPage";
 import * as m from "~/i18n/messages";
 import { classVideosQuery } from "~/queries/learning";
-import { formatNumber } from "~/utils/datetime";
+import { formatList, formatNumber } from "~/utils/datetime";
 
 type Data = Awaited<
   ReturnType<NonNullable<ReturnType<typeof classVideosQuery>["queryFn"]>>
@@ -16,6 +16,38 @@ type Recording = Data["recordings"][number];
 
 const WIDTH = 600;
 const HEIGHT = 120;
+/** The moments a recording was most often gone back to, at most this many. */
+const PEAKS = 3;
+
+/**
+ * Where most of the class went back to watch again, as the times those
+ * stretches start: the stretches near the curve's highest, most first, each
+ * named once.
+ */
+function peaksOf(again: readonly number[], duration: number): number[] {
+  const top = Math.max(0, ...again);
+  if (top === 0) return [];
+  const floor = Math.max(1, Math.ceil(top * 0.6));
+  const runs: { start: number; best: number }[] = [];
+  let open: { start: number; best: number } | null = null;
+  for (const [index, count] of again.entries()) {
+    if (count < floor) {
+      open = null;
+      continue;
+    }
+    if (open) open.best = Math.max(open.best, count);
+    else {
+      open = { start: index, best: count };
+      runs.push(open);
+    }
+  }
+  const times = runs
+    .toSorted((a, b) => b.best - a.best || a.start - b.start)
+    .slice(0, PEAKS)
+    .map((run) => Math.floor((run.start / again.length) * duration))
+    .toSorted((a, b) => a - b);
+  return [...new Set(times)];
+}
 
 /**
  * How many of the class had watched each moment, as an area: where it
@@ -31,18 +63,36 @@ function Retention({
   total: number;
   label: string;
 }) {
-  const { curve, stops, durationSeconds } = recording;
+  const { curve, again, stops, durationSeconds } = recording;
   if (!durationSeconds || curve.length === 0 || total === 0) return null;
   const x = (index: number) => ((index + 0.5) / curve.length) * WIDTH;
   const y = (count: number) => HEIGHT - (count / total) * HEIGHT;
-  const line = curve
-    .map((count, index) => `${index === 0 ? "M" : "L"}${x(index)},${y(count)}`)
-    .join(" ");
+  const path = (counts: readonly number[]) =>
+    counts
+      .map(
+        (count, index) => `${index === 0 ? "M" : "L"}${x(index)},${y(count)}`,
+      )
+      .join(" ");
+  const line = path(curve);
   const area = `${line} L${x(curve.length - 1)},${HEIGHT} L${x(0)},${HEIGHT} Z`;
+  const replays = again.some((count) => count > 0);
+  const peaks = replays ? peaksOf(again, durationSeconds) : [];
   return (
     <figure className="grid gap-1.5" dir="ltr">
-      <div className="flex justify-between text-[13px] leading-[18px] text-muted-foreground tabular-nums">
+      <div className="flex flex-wrap justify-between gap-x-4 gap-y-1 text-[13px] leading-[18px] text-muted-foreground tabular-nums">
         <span>{m.lrnWholeClass({ count: formatNumber(total) })}</span>
+        <span className="flex flex-wrap gap-x-3">
+          <span className="inline-flex items-center gap-1.5">
+            <span aria-hidden className="h-0.5 w-3 rounded bg-primary" />
+            {m.lrnWatchedLine()}
+          </span>
+          {replays ? (
+            <span className="inline-flex items-center gap-1.5">
+              <span aria-hidden className="h-0.5 w-3 rounded bg-warning" />
+              {m.lrnWatchedAgainLine()}
+            </span>
+          ) : null}
+        </span>
       </div>
       <p className="sr-only">{label}</p>
       <svg
@@ -76,6 +126,16 @@ function Retention({
           className="stroke-current"
           vectorEffect="non-scaling-stroke"
         />
+        {replays ? (
+          <path
+            d={path(again)}
+            fill="none"
+            strokeWidth={2}
+            strokeDasharray="5 3"
+            className="stroke-warning"
+            vectorEffect="non-scaling-stroke"
+          />
+        ) : null}
         {stops.map((at) => (
           <rect
             key={at}
@@ -91,6 +151,13 @@ function Retention({
         <span>0:00</span>
         <span>{mediaClock(durationSeconds)}</span>
       </div>
+      {peaks.length > 0 ? (
+        <p className="text-sm leading-5">
+          {m.lrnWatchedAgainAt({
+            times: formatList(peaks.map((at) => mediaClock(at))),
+          })}
+        </p>
+      ) : null}
     </figure>
   );
 }

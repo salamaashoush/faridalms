@@ -1978,6 +1978,12 @@ describe("watching recordings", () => {
     expect(story).toMatchObject({ name: "story.mp3", durationSeconds: 100 });
     expect(Object.values(story?.watched ?? {})).toContain(100);
     expect(Math.min(...(story?.curve ?? [0]))).toBeGreaterThanOrEqual(1);
+    // Twenty to thirty was played twice in the first report, the start and
+    // the end again in the second; the middle never.
+    const again = story?.again ?? [];
+    const at = (moment: number) =>
+      again[Math.floor((moment / 100) * again.length)] ?? -1;
+    expect([at(5), at(25), at(60), at(97)]).toEqual([1, 1, 0, 1]);
 
     // Only a recording in the lesson can be reported.
     expect(

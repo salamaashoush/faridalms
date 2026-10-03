@@ -536,9 +536,38 @@ const watchOf = (row: WatchRecord): WatchRow => ({
   reachedSeconds: row.reached_seconds,
 });
 
+/** The parts of these stretches that one of the stretches before it covers. */
+export function replayedWithin(
+  ranges: readonly (readonly [number, number])[],
+): [number, number][] {
+  const seen: [number, number][] = [];
+  const again: [number, number][] = [];
+  for (const [start, end] of ranges) {
+    for (const [from, to] of seen) {
+      const low = Math.max(start, from);
+      const high = Math.min(end, to);
+      if (low < high) again.push([low, high]);
+    }
+    seen.push([start, end]);
+  }
+  return again;
+}
+
+const multirange = (ranges: readonly (readonly [number, number])[]) =>
+  ranges.length === 0
+    ? sql`'{}'::int4multirange`
+    : sql`int4multirange(${sql.join(
+        ranges.map(
+          ([start, end]) => sql`int4range(${start}::int, ${end}::int)`,
+        ),
+        sql`, `,
+      )})`;
+
 /**
  * Adds stretches a student played of a recording in a lesson to what they
- * played before, kept within its length, and moves their place in it.
+ * played before, kept within its length, and moves their place in it. A
+ * stretch played before, in this report or an earlier one, counts as
+ * played again.
  */
 export async function recordWatch(
   tx: Tx,
@@ -552,25 +581,22 @@ export async function recordWatch(
     positionSeconds: number;
   },
 ): Promise<WatchRow> {
-  const played =
-    input.ranges.length === 0
-      ? sql`'{}'::int4multirange`
-      : sql`int4multirange(${sql.join(
-          input.ranges.map(
-            ([start, end]) => sql`int4range(${start}::int, ${end}::int)`,
-          ),
-          sql`, `,
-        )})`;
+  const played = multirange(input.ranges);
+  const length = sql`int4multirange(int4range(0, ${input.durationSeconds}::int))`;
   const [row] = await tx.execute<WatchRecord>(sql`
     insert into core.lesson_watches
-      (tenant_id, lesson_id, student_user_id, file_id, watched, duration_seconds, position_seconds)
+      (tenant_id, lesson_id, student_user_id, file_id, watched, replayed, duration_seconds, position_seconds)
     values (${input.tenantId}::uuid, ${input.lessonId}::uuid, ${input.studentId}::uuid,
       ${input.fileId}::uuid,
-      ${played} * int4multirange(int4range(0, ${input.durationSeconds}::int)),
+      ${played} * ${length},
+      ${multirange(replayedWithin(input.ranges))} * ${length},
       ${input.durationSeconds}::int,
       least(${input.positionSeconds}::int, ${input.durationSeconds}::int))
     on conflict (tenant_id, lesson_id, student_user_id, file_id)
       where status = 'active' do update set
+      replayed = (core.lesson_watches.replayed + excluded.replayed
+        + (core.lesson_watches.watched * excluded.watched))
+        * int4multirange(int4range(0, excluded.duration_seconds)),
       watched = (core.lesson_watches.watched + excluded.watched)
         * int4multirange(int4range(0, excluded.duration_seconds)),
       duration_seconds = excluded.duration_seconds,
@@ -607,6 +633,7 @@ export async function watchRowsIn(
     studentId: string;
     fileId: string;
     ranges: [number, number][];
+    replayed: [number, number][];
     durationSeconds: number;
   }[]
 > {
@@ -616,11 +643,14 @@ export async function watchRowsIn(
     student_user_id: string;
     file_id: string;
     ranges: [number, number][];
+    replayed: [number, number][];
     duration_seconds: number;
   }>(sql`
     select lesson_id, student_user_id, file_id, duration_seconds,
       coalesce((select jsonb_agg(jsonb_build_array(lower(r), upper(r)) order by lower(r))
-        from unnest(watched) r), '[]'::jsonb) as ranges
+        from unnest(watched) r), '[]'::jsonb) as ranges,
+      coalesce((select jsonb_agg(jsonb_build_array(lower(r), upper(r)) order by lower(r))
+        from unnest(replayed) r), '[]'::jsonb) as replayed
     from core.lesson_watches
     where tenant_id = ${input.tenantId}::uuid and status = 'active'
       and lesson_id = any(${uuidArray(input.lessonIds)})
@@ -630,6 +660,7 @@ export async function watchRowsIn(
     studentId: row.student_user_id,
     fileId: row.file_id,
     ranges: row.ranges,
+    replayed: row.replayed,
     durationSeconds: row.duration_seconds,
   }));
 }

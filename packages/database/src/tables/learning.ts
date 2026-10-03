@@ -289,6 +289,10 @@ export const lessonWatches = core.table.withRLS(
     watched: int4multirange("watched")
       .notNull()
       .default(sql`'{}'::int4multirange`),
+    // The seconds a student played more than once: where they went back.
+    replayed: int4multirange("replayed")
+      .notNull()
+      .default(sql`'{}'::int4multirange`),
     durationSeconds: integer("duration_seconds").notNull(),
     positionSeconds: integer("position_seconds").notNull().default(0),
     ...entityColumns(),

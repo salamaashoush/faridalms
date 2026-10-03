@@ -932,15 +932,23 @@ export const videos = readProcedure
           0,
           ...rows.map((watch) => watch.durationSeconds),
         );
-        const curve =
+        // How many of the class played each moment, and how many went
+        // back to play it again: the second peaks where they were lost.
+        const across = (
+          stretches: (watch: (typeof rows)[number]) => [number, number][],
+        ) =>
           duration === 0
             ? []
             : Array.from({ length: CURVE_POINTS }, (_, point) => {
                 const at = ((point + 0.5) / CURVE_POINTS) * duration;
                 return rows.filter((watch) =>
-                  watch.ranges.some(([start, end]) => start <= at && at < end),
+                  stretches(watch).some(
+                    ([start, end]) => start <= at && at < end,
+                  ),
                 ).length;
               });
+        const curve = across((watch) => watch.ranges);
+        const again = across((watch) => watch.replayed);
         return {
           lessonId: item.id,
           lessonTitle: item.title,
@@ -950,6 +958,7 @@ export const videos = readProcedure
           durationSeconds: duration || null,
           stops: (stops.get(recording.fileId) ?? []).map((stop) => stop.at),
           curve,
+          again,
           watched: Object.fromEntries(
             rows.map((watch) => [
               watch.studentId,
