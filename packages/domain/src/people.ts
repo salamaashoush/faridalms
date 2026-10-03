@@ -319,6 +319,8 @@ export const saveSchoolSchema = v.object({
   phone: optionalText(40),
   email: optionalText(254),
   websiteUrl: optionalText(2048),
+  /** The school's own logo, printed on its paper: empty for none, left out to keep it. */
+  logoFileId: v.optional(v.union([v.literal(""), id])),
 });
 
 export const saveAccessRoleSchema = v.object({

@@ -11,6 +11,8 @@ import {
   Users,
 } from "lucide-react";
 
+import type { Locale } from "~/i18n/runtime";
+
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { getLocale } from "~/i18n/runtime";
@@ -85,9 +87,13 @@ const instant = (date: string, time: string | null) =>
  * When an event happens: its days and, if timed, its hours, in full or
  * short. The locale lays out the range, so Arabic reads it in its own order.
  */
-export function whenLabel(event: Timed, style: "long" | "short" = "long") {
+export function whenLabel(
+  event: Timed,
+  style: "long" | "short" = "long",
+  locale: Locale = getLocale(),
+) {
   const timed = event.startTime !== null && event.endTime !== null;
-  return new Intl.DateTimeFormat(getLocale(), {
+  return new Intl.DateTimeFormat(locale, {
     weekday: style,
     day: "numeric",
     month: style,

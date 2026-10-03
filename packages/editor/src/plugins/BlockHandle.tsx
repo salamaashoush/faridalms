@@ -77,7 +77,13 @@ interface BlockFacts {
 }
 
 // Blocks with nothing to read aloud.
-const SILENT = new Set(["gate", "horizontalrule", "starter", "columns"]);
+const SILENT = new Set([
+  "gate",
+  "horizontalrule",
+  "pagebreak",
+  "starter",
+  "columns",
+]);
 
 function isModifier(event: KeyboardEvent) {
   return event.metaKey || event.ctrlKey;

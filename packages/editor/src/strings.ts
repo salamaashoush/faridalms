@@ -181,6 +181,8 @@ export interface EditorStrings {
   questionWhyPrompt: string;
   questionTrue: string;
   questionFalse: string;
+  pageBreak: string;
+  pageBreakHint: string;
   gate: string;
   gateHint: string;
   transcript: string;

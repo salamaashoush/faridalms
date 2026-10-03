@@ -310,6 +310,23 @@ export function EventEditor({
         heading={existing ? m.calEditTitle() : m.calNewTitle()}
         print={{
           title: inLocale(draft.titleEn, draft.titleAr),
+          facts: (locale) => [
+            ...(draft.startsOn && draft.endsOn
+              ? [
+                  whenLabel(
+                    {
+                      startsOn: draft.startsOn,
+                      endsOn: draft.endsOn,
+                      startTime: draft.allDay ? null : draft.startTime || null,
+                      endTime: draft.allDay ? null : draft.endTime || null,
+                    },
+                    "long",
+                    locale,
+                  ),
+                ]
+              : []),
+            ...(draft.location.trim() ? [draft.location.trim()] : []),
+          ],
           content: draft.description,
         }}
         onBack={async () => {

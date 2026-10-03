@@ -489,6 +489,7 @@ export async function schoolProfile(tx: Tx, orgId: string) {
       weekendDays: orgs.weekendDays,
       secondaryCalendar: orgs.secondaryCalendar,
       countryCode: orgs.countryCode,
+      logoFileId: orgs.logoFileId,
     })
     .from(orgs)
     .where(and(eq(orgs.id, orgId), eq(orgs.type, "school")));

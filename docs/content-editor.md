@@ -24,6 +24,16 @@ each; a news post keeps one document per language, the translation checked
 as a whole against the original, and publishes into immutable versions read
 on their own page.
 
+Every document prints. A page that shows a document, to its writer or its
+reader, offers Print through `components/print/usePrint.tsx`, which opens the
+print preview: the pages exactly as they will print, laid out by the browser
+page by page, beside their settings. Questions take their paper form, a page
+break block (`pagebreak`, top level only, a dashed line in the editor and
+nothing in the reader) turns the page, and teachers may add the answers in
+place or as a key at the end. Lessons print for students from the blocks they
+received, so no answer reaches their paper. How pages break is in
+[the printing plan](plans/printing.md).
+
 `apps/web/src/components/content/ContentEditor.tsx` uses Lexical's extension API
 with stable initialization. `ContentToolbar.tsx` supplies the shared controls.
 `ContentView.tsx` renders stored content without loading the editing runtime.

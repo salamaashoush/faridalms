@@ -463,7 +463,10 @@ export function NewsEditor({
     <>
       <DocumentPage
         heading={existing ? m.newsEditTitle() : m.newsNewTitle()}
-        print={{ title: primaryTitle, content: draft.body }}
+        print={{
+          title: draft[titleKey].trim() || primaryTitle,
+          content: translating ? draft.translation : draft.body,
+        }}
         onBack={async () => {
           if (await autosave.flush()) onClose(id.current || undefined);
         }}

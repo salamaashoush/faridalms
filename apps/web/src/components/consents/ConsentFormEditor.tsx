@@ -286,7 +286,10 @@ export function ConsentFormEditor({
               ]
             : []
         }
-        print={{ title: purpose, content: draft.body }}
+        print={{
+          title: purpose,
+          content: translating ? draft.translation : draft.body,
+        }}
         title={
           <div className="grid gap-3">
             <h2 className="text-[30px] leading-[38px] font-semibold tracking-tight">

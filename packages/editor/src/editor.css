@@ -268,6 +268,11 @@
   outline-offset: 4px;
 }
 
+/* A page break turns the page on paper; a screen reads straight on. */
+.fe .fe-page-break {
+  display: none;
+}
+
 .fe .fe-table-wrap {
   margin-block: 0.75rem;
   max-width: 100%;
@@ -289,7 +294,18 @@
   background: var(--fe-subtle);
   font-weight: 600;
 }
-.fe .fe-table-striped tr:nth-child(even) > .fe-cell:not(.fe-cell-header) {
+/* A header row read back sits in its own thead, so the body rows count
+   from one there and the stripes keep the editor's rhythm. */
+.fe
+  .fe-table-striped:not(:has(thead))
+  tr:nth-child(even)
+  > .fe-cell:not(.fe-cell-header),
+.fe
+  .fe-table-striped
+  thead
+  ~ tbody
+  tr:nth-child(odd)
+  > .fe-cell:not(.fe-cell-header) {
   background: color-mix(in oklab, var(--fe-subtle) 70%, transparent);
 }
 .fe .fe-cell > .fe-p {

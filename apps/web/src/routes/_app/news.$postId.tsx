@@ -18,8 +18,9 @@ import type { HeaderFact } from "~/components/system/RecordPage";
 
 import { audienceLabel } from "~/components/announcements/format";
 import { BreadcrumbCurrent } from "~/components/app/WorkspaceBreadcrumb";
-import { TranslatedView } from "~/components/content/TranslatedView";
+import { shownIn, TranslatedView } from "~/components/content/TranslatedView";
 import { formatInstant } from "~/components/coursework/format";
+import { usePrint } from "~/components/print/usePrint";
 import { DataTable } from "~/components/system/DataTable";
 import {
   ReaderWidthToggle,
@@ -182,6 +183,18 @@ function NewsPostPage() {
   const scheduled = data.shown === "scheduled";
   const [reporting, setReporting] = useState(false);
   const width = useReaderWidth();
+  const title =
+    (locale === "ar" ? data.titleAr : data.titleEn) || titleOf(data);
+  const printing = usePrint({
+    title,
+    content: shownIn({
+      body: data.body,
+      translation: data.translation,
+      primary: data.primaryLocale,
+      locale,
+    }),
+    link: `/news/${data.id}`,
+  });
   const refresh = () => queryClient.invalidateQueries({ queryKey: ["news"] });
   const { mutate: markSeen } = useMutation({
     mutationFn: () => markNewsSeen({ data: { id: postId } }),
@@ -286,7 +299,7 @@ function NewsPostPage() {
     >
       <RecordHeader
         variant="document"
-        title={(locale === "ar" ? data.titleAr : data.titleEn) || titleOf(data)}
+        title={title}
         facts={facts}
         tools={<ReaderWidthToggle wide={width.wide} onToggle={width.toggle} />}
         status={
@@ -311,8 +324,9 @@ function NewsPostPage() {
               }
             : undefined
         }
-        menu={
-          data.canManage
+        menu={[
+          ...(printing.action ? [printing.action] : []),
+          ...(data.canManage
             ? [
                 {
                   label: m.newsDuplicate(),
@@ -333,8 +347,8 @@ function NewsPostPage() {
                     ]
                   : []),
               ]
-            : []
-        }
+            : []),
+        ]}
       />
       {data.updatedAt ? (
         <p className="text-[13px] leading-[18px] text-muted-foreground">
@@ -368,6 +382,7 @@ function NewsPostPage() {
       {data.canManage && !data.preview ? (
         <Report data={data} open={reporting} onOpenChange={setReporting} />
       ) : null}
+      {printing.sheet}
     </div>
   );
 }

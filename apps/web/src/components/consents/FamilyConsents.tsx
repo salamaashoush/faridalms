@@ -6,13 +6,14 @@ import {
   useQueryClient,
   useSuspenseQuery,
 } from "@tanstack/react-query";
-import { ShieldCheck } from "lucide-react";
+import { Printer, ShieldCheck } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
-import { TranslatedView } from "~/components/content/TranslatedView";
+import { shownIn, TranslatedView } from "~/components/content/TranslatedView";
 import { formatDate } from "~/components/family/format";
 import { displayName } from "~/components/people/format";
+import { usePrint } from "~/components/print/usePrint";
 import { EmptyState } from "~/components/system/IndexPage";
 import { RecordList, RecordSection } from "~/components/system/RecordPage";
 import { StatusText } from "~/components/system/status";
@@ -142,9 +143,38 @@ function FormCard({ form, family }: { form: Form; family: Child[] }) {
   const [locale, setLocale] = useState<ContentLocale>(() =>
     getLocale() === "ar" ? "ar" : "en",
   );
+  const title = inLocale(form.labelEn, form.labelAr);
+  // A family may print a form to read it through, or to sign and hand in.
+  const printing = usePrint(
+    form.body
+      ? {
+          title,
+          content: shownIn({
+            body: form.body,
+            translation: form.translation,
+            primary: form.primaryLocale,
+            locale,
+          }),
+        }
+      : null,
+  );
   return (
     <RecordSection
-      title={inLocale(form.labelEn, form.labelAr)}
+      title={title}
+      action={
+        printing.action ? (
+          <Button
+            type="button"
+            variant="ghost"
+            size="sm"
+            className="max-md:h-10"
+            onClick={() => void printing.action?.onSelect()}
+          >
+            <Printer aria-hidden />
+            {m.printTitle()}
+          </Button>
+        ) : undefined
+      }
       description={
         form.publishedAt
           ? m.consentFormFrom({
@@ -176,6 +206,7 @@ function FormCard({ form, family }: { form: Form; family: Child[] }) {
           ))}
         </RecordList>
       </div>
+      {printing.sheet}
     </RecordSection>
   );
 }

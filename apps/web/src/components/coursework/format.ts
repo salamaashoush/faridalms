@@ -4,6 +4,7 @@ import type {
 } from "@faridalms/domain/coursework";
 
 import type { Tone } from "~/components/system/status";
+import type { Locale } from "~/i18n/runtime";
 
 import * as m from "~/i18n/messages";
 import { getLocale } from "~/i18n/runtime";
@@ -52,8 +53,12 @@ export const PHASE_TONE: Record<AssignmentPhase, Tone> = {
 };
 
 /** An instant on the school's clock, the way due times are read. */
-export function formatInstant(iso: string, timeZone: string): string {
-  return new Intl.DateTimeFormat(getLocale(), {
+export function formatInstant(
+  iso: string,
+  timeZone: string,
+  locale: Locale = getLocale(),
+): string {
+  return new Intl.DateTimeFormat(locale, {
     weekday: "short",
     day: "numeric",
     month: "short",

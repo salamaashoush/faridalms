@@ -1,4 +1,8 @@
-import { schoolStorage } from "@faridalms/database/stores/files";
+import {
+  filesByIds,
+  linkFiles,
+  schoolStorage,
+} from "@faridalms/database/stores/files";
 import { schoolFeatures } from "@faridalms/database/stores/identity";
 import {
   schoolSettings,
@@ -15,6 +19,12 @@ import {
   requireCapability,
   writeProcedure,
 } from "../core/procedure";
+import { registerHostReader } from "../files/authorize";
+
+// The school's logo prints on its paper, so whoever belongs to it may see it.
+registerHostReader("org", (context, hostId) =>
+  Promise.resolve(hostId === context.schoolId),
+);
 
 export const profile = readProcedure.handler(async ({ context }) => {
   requireCapability(context, "school:manage");
@@ -46,10 +56,31 @@ export const saveProfile = writeProcedure
       context.tenantId,
       context.schoolId,
     );
+    const logoFileId =
+      input.logoFileId === undefined
+        ? (before?.logoFileId ?? null)
+        : input.logoFileId || null;
+    if (logoFileId && logoFileId !== before?.logoFileId) {
+      const [file] = await filesByIds(context.tx, context.tenantId, [
+        logoFileId,
+      ]);
+      if (!file?.mediaType.startsWith("image/"))
+        throw new ORPCError("BAD_REQUEST", { message: "validation.file_type" });
+      const linked = await linkFiles(context.tx, {
+        tenantId: context.tenantId,
+        userId: context.actor.userId,
+        ids: [logoFileId],
+        purpose: file.purpose,
+        host: { type: "org", id: context.schoolId },
+      });
+      if (linked.length !== 1)
+        throw new ORPCError("CONFLICT", { message: "files.not_linkable" });
+    }
     const saved = await updateSchool(context.tx, {
       tenantId: context.tenantId,
       schoolId: context.schoolId,
       ...input,
+      logoFileId,
       weekendDays: [...input.weekendDays].toSorted((a, b) => a - b),
       secondaryCalendar: input.secondaryCalendar || null,
     });

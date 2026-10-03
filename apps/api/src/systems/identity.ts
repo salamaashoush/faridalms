@@ -392,6 +392,7 @@ export const currentUser = readProcedure.handler(async ({ context }) => {
       weekStart: school.weekStart,
       weekendDays: school.weekendDays,
       secondaryCalendar: school.secondaryCalendar,
+      logoFileId: school.logoFileId,
     },
     today: context.today,
   };

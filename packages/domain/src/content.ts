@@ -23,6 +23,7 @@ const nodeTypes = [
   "tablerow",
   "tablecell",
   "horizontalrule",
+  "pagebreak",
   "callout",
   "toggle",
   "toggle-title",
@@ -422,6 +423,7 @@ const blocks = new Set<string>([
   "code",
   "table",
   "horizontalrule",
+  "pagebreak",
   "callout",
   "toggle",
   "columns",
@@ -435,9 +437,15 @@ const blocks = new Set<string>([
   "starter",
   "ai-use",
 ]);
-// Columns, questions, gates and each student's copy stand only at the top
-// of a document.
-const ROOT_ONLY = new Set(["columns", "question", "gate", "starter"]);
+// Columns, questions, gates, page breaks and each student's copy stand only
+// at the top of a document.
+const ROOT_ONLY = new Set([
+  "columns",
+  "question",
+  "gate",
+  "pagebreak",
+  "starter",
+]);
 const nestedBlocks = new Set(
   [...blocks].filter((type) => !ROOT_ONLY.has(type)),
 );
@@ -449,7 +457,11 @@ function validNode(node: ContentNode): boolean {
       !node.children &&
       typeof node.format === "number"
     );
-  if (["linebreak", "horizontalrule", "gate", "ai-use"].includes(node.type))
+  if (
+    ["linebreak", "horizontalrule", "pagebreak", "gate", "ai-use"].includes(
+      node.type,
+    )
+  )
     return !node.children && node.text === undefined;
   if (node.type === "image")
     return !node.children && node.text === undefined && Boolean(node.fileId);

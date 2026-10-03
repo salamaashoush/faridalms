@@ -2,6 +2,7 @@ import type { ReactNode } from "react";
 
 import { eventIcs } from "@faridalms/domain/calendar";
 import { contentFileIds, contentPlainText } from "@faridalms/domain/content";
+import { emptyContent } from "@faridalms/domain/content-conversion";
 import { Button } from "@faridalms/ui/button";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
@@ -20,6 +21,7 @@ import type { ActionItem } from "~/components/system/ActionMenu";
 
 import { audienceLabel } from "~/components/announcements/format";
 import { ContentView } from "~/components/content/ContentView";
+import { usePrint } from "~/components/print/usePrint";
 import { ActionMenu } from "~/components/system/ActionMenu";
 import { SheetPanel } from "~/components/system/SheetPanel";
 import { StatusBadge } from "~/components/system/status";
@@ -178,6 +180,15 @@ function useEventActions(data: Data, onClose: () => void) {
 function EventFooter({ data, onClose }: { data: Data; onClose: () => void }) {
   const navigate = useNavigate();
   const { publish, addToCalendar, menu } = useEventActions(data, onClose);
+  const printing = usePrint({
+    title: eventTitle(data),
+    facts: (locale) =>
+      [whenLabel(data, "long", locale), data.location].filter(
+        (fact) => fact !== null,
+      ),
+    content: data.description ?? emptyContent(),
+    link: `/calendar/${data.id}`,
+  });
   const draft = data.state === "draft";
   const add = (
     <Button
@@ -190,7 +201,16 @@ function EventFooter({ data, onClose }: { data: Data; onClose: () => void }) {
       {addToCalendar.label}
     </Button>
   );
-  if (!data.canEdit) return add;
+  if (!data.canEdit)
+    return (
+      <>
+        {add}
+        {printing.action ? (
+          <ActionMenu label={m.docMoreActions()} actions={[printing.action]} />
+        ) : null}
+        {printing.sheet}
+      </>
+    );
   return (
     <>
       {draft ? (
@@ -215,7 +235,11 @@ function EventFooter({ data, onClose }: { data: Data; onClose: () => void }) {
         {m.annEdit()}
       </Button>
       {draft ? null : add}
-      <ActionMenu label={m.docMoreActions()} actions={menu} />
+      <ActionMenu
+        label={m.docMoreActions()}
+        actions={[...(printing.action ? [printing.action] : []), ...menu]}
+      />
+      {printing.sheet}
     </>
   );
 }

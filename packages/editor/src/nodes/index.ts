@@ -8,6 +8,7 @@ import { $isCalloutNode, CalloutNode } from "./callout";
 import { $isColumnNode, ColumnNode, ColumnsNode } from "./columns";
 import { GateNode } from "./gate";
 import { FileNode, ImageNode } from "./media";
+import { PageBreakNode } from "./page-break";
 import {
   QuestionAnswerNode,
   QuestionGapNode,
@@ -33,6 +34,7 @@ export * from "./callout";
 export * from "./columns";
 export * from "./gate";
 export * from "./media";
+export * from "./page-break";
 export * from "./question";
 export * from "./rich";
 export * from "./starter";
@@ -60,6 +62,7 @@ export const blockNodes = [
   QuestionPassageNode,
   QuestionGapNode,
   GateNode,
+  PageBreakNode,
   StarterNode,
   AiUseNode,
 ];

@@ -18,6 +18,7 @@ import {
   studentBlocks,
   upgradeLesson,
 } from "@faridalms/domain/learning";
+import { isContentDocument } from "@faridalms/domain/lesson-content";
 import { Button } from "@faridalms/ui/button";
 import { Progress } from "@faridalms/ui/progress";
 import {
@@ -44,6 +45,8 @@ import { ButtonLink } from "~/components/app/ButtonLink";
 import { ContentView } from "~/components/content/ContentView";
 import { Media } from "~/components/learning/LessonMedia";
 import { ReadAloud, YoungContext } from "~/components/learning/ReadAloud";
+import { paperBlock } from "~/components/print/paper-blocks";
+import { usePrint } from "~/components/print/usePrint";
 import { RecordHeader } from "~/components/system/RecordPage";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
@@ -493,6 +496,12 @@ export function LessonPlayer({ lessonId }: { lessonId: string }) {
       }),
     [vowels, data.blocks, data.checks, data.review],
   );
+  // A lesson prints as its student has it: no answers ever reached them.
+  const printing = usePrint({
+    title: data.title,
+    lesson: shown.blocks.map(paperBlock),
+    link: `/lessons/${lessonId}`,
+  });
   const checks = data.blocks.filter(isCheckBlock);
   const auto = checks.filter((block) => block.type !== "written");
   const allSettled = auto.every((block) =>
@@ -562,6 +571,7 @@ export function LessonPlayer({ lessonId }: { lessonId: string }) {
       </Progress>
       <RecordHeader
         title={data.title}
+        menu={printing.action ? [printing.action] : []}
         status={
           data.completedAt
             ? { label: m.lrnLessonDone(), tone: "success" }
@@ -666,6 +676,7 @@ export function LessonPlayer({ lessonId }: { lessonId: string }) {
         </div>
       ) : null}
       <Footer data={data} />
+      {printing.sheet}
     </article>
   );
 }
@@ -772,6 +783,16 @@ export function LessonPreview({ lessonId }: { lessonId: string }) {
       to: "/teach/lesson-editor",
       search: { id: data.id, moduleId: data.moduleId },
     });
+  const printing = usePrint(
+    isContentDocument(data.content)
+      ? {
+          title: data.title,
+          content: data.content,
+          answers: true,
+          link: `/lessons/${data.id}`,
+        }
+      : null,
+  );
   if (data.young && earlyYears)
     return (
       <YoungContext.Provider value>
@@ -812,6 +833,7 @@ export function LessonPreview({ lessonId }: { lessonId: string }) {
           onClick: edit,
         }}
         menu={[
+          ...(printing.action ? [printing.action] : []),
           {
             label: m.lrnStartOver(),
             icon: RotateCcw,
@@ -831,6 +853,7 @@ export function LessonPreview({ lessonId }: { lessonId: string }) {
           driver={driver}
         />
       </YoungContext.Provider>
+      {printing.sheet}
     </article>
   );
 }

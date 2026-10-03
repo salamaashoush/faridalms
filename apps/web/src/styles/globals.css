@@ -73,25 +73,162 @@ header:has([data-slot="page-actions"] > :not([data-keeps-global-tools]))
   }
 }
 
-/* A document on paper: black on white whatever the app's theme, its text
-   at the size chosen for the print, and no question, picture or table row
-   cut by a page's end. */
+/* A document on paper: black on white whatever the app's theme, with its
+   tinted callouts and table cells printed as they show. */
 .paper {
   --foreground: #000;
   --muted-foreground: #555;
   --muted: #f1f1f1;
   --background: #fff;
   --border: #bbb;
+  color: #000;
   color-scheme: light;
+  print-color-adjust: exact;
 }
 .paper .fe {
   font-size: 1em;
 }
+
+/* A copy's pages. Where the browser can, the copy is laid out as columns
+   one page high that wrap onto new rows, on screen and on paper alike, so
+   the preview breaks exactly where the paper will. The page margins are the
+   flow's padding, repeated on every page, and the paper's own margin is
+   zero, which also leaves the browser no room to print its date and
+   address over the document. The frames behind the flow are the sheets. */
+.paper-flow {
+  position: relative;
+  box-sizing: border-box;
+  width: var(--page-width);
+  padding: var(--page-margin);
+  font-size: var(--paper-text);
+}
+.paper-frame {
+  position: absolute;
+  inset-inline: 0;
+  top: calc(var(--page) * (var(--page-height) + var(--page-gap)));
+  height: var(--page-height);
+  background: #fff;
+  box-shadow:
+    0 0 0 1px rgb(0 0 0 / 0.06),
+    0 1px 4px rgb(0 0 0 / 0.16);
+}
+.paper-foot {
+  position: absolute;
+  inset-inline: var(--page-margin);
+  bottom: calc(var(--page-margin) / 2);
+  display: flex;
+  justify-content: space-between;
+  gap: 2em;
+  transform: translateY(50%);
+  font-size: 8.5pt;
+  line-height: 1.2;
+  color: #555;
+}
+@supports (column-wrap: wrap) {
+  .paper-flow {
+    column-count: 1;
+    column-gap: 0;
+    column-height: calc(var(--page-height) - 2 * var(--page-margin));
+    column-wrap: wrap;
+    column-fill: auto;
+    row-gap: calc(2 * var(--page-margin) + var(--page-gap));
+    box-decoration-break: clone;
+  }
+  .paper .fe .fe-page-break {
+    break-before: column;
+  }
+  /* Chrome repeats a table's head on each new page but not in each new
+     column, so here the head prints once, kept with the rows below it, and
+     the paper matches its preview row for row. */
+  .paper thead {
+    display: table-row-group;
+  }
+  .paper thead tr {
+    break-after: avoid;
+  }
+  @media print {
+    .paper-flow {
+      row-gap: 0;
+    }
+    /* Chrome lays each printed page out a whole number of pixels high, so
+       the footers step by the same amount and stay at each page's foot. */
+    .paper-frame {
+      top: calc(var(--page) * round(up, var(--page-height), 1px));
+      background: none;
+      box-shadow: none;
+    }
+  }
+}
+@supports not (column-wrap: wrap) {
+  .paper-flow {
+    min-height: var(--page-height);
+    background: #fff;
+  }
+  .paper .fe .fe-page-break {
+    break-before: page;
+  }
+  @media screen {
+    .paper .fe .fe-page-break {
+      margin-block: 1.5em;
+      border-top: 1px dashed var(--border);
+    }
+  }
+  @media print {
+    .paper-flow {
+      width: auto;
+      min-height: 0;
+      padding: 0;
+    }
+  }
+}
+.paper-copy + .paper-copy {
+  break-before: page;
+}
+
+/* Where a page may end. Never inside a question, picture, table row,
+   callout, quote or code; never straight after a heading; and never leaving
+   one line of a paragraph alone at the foot or the head of a page. A box
+   that scrolls on screen cannot be split across pages, so on paper a long
+   table or code block flows instead, and a picture is never taller than a
+   page. */
+.paper .fe .fe-page-break {
+  display: block;
+}
+.paper .paper-header,
 .paper .paper-question,
 .paper figure,
 .paper img,
-.paper tr {
+.paper tr,
+.paper .fe-callout,
+.paper .fe-quote,
+.paper .fe-code-block,
+.paper .fe-columns,
+.paper .fe-starter {
   break-inside: avoid;
+}
+.paper h1,
+.paper h2,
+.paper h3,
+.paper h4,
+.paper .fe-toggle-title {
+  break-inside: avoid;
+  break-after: avoid;
+}
+.paper p,
+.paper li {
+  orphans: 3;
+  widows: 3;
+}
+.paper .fe .fe-table-wrap,
+.paper .fe .fe-code-block {
+  overflow: visible;
+}
+.paper .fe .fe-code-block {
+  white-space: pre-wrap;
+}
+.paper .fe img {
+  max-height: calc(var(--page-height) - 2 * var(--page-margin) - 4em);
+  object-fit: contain;
 }
 
 /* The word the voice is saying in a young lesson: a marker's yellow, apart

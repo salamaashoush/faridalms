@@ -2,6 +2,7 @@ import type { ContentDocument } from "@faridalms/domain/content";
 
 import { contentPlainText } from "@faridalms/domain/content";
 import { emptyContent } from "@faridalms/domain/content-conversion";
+import { documentWritten } from "@faridalms/domain/translations";
 import { Button } from "@faridalms/ui/button";
 import { cn } from "@faridalms/ui/cn";
 import {
@@ -15,6 +16,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 
 import type { HeaderFact } from "~/components/system/RecordPage";
+import type { Locale } from "~/i18n/runtime";
 
 import { ContentEditor } from "~/components/content/ContentEditor";
 import { ContentView } from "~/components/content/ContentView";
@@ -25,6 +27,7 @@ import {
   NO_DECLARATION,
 } from "~/components/exams/Declaration";
 import { isolatedLine, sessionName } from "~/components/exams/names";
+import { usePrint } from "~/components/print/usePrint";
 import { FormField } from "~/components/system/field";
 import { FileList } from "~/components/system/FileList";
 import {
@@ -481,6 +484,36 @@ export function LearnerWork({ assignmentId }: { assignmentId: string }) {
       label: m.courseworkExamFact(),
       value: isolatedLine([sessionName(standing.session), standing.component]),
     });
+  const dueAt = data.assignment.dueAt;
+  const due = (locale: Locale) =>
+    dueAt
+      ? [
+          m.courseworkDueOn(
+            { date: formatInstant(dueAt, user.school.timeZone, locale) },
+            { locale },
+          ),
+        ]
+      : [];
+  const briefPrint = usePrint(
+    data.brief
+      ? {
+          title: data.assignment.title,
+          facts: due,
+          content: data.brief,
+          link: `/assignments/${data.assignment.id}`,
+        }
+      : null,
+  );
+  const workPrint = usePrint(
+    data.submission.content && documentWritten(data.submission.content)
+      ? {
+          label: m.printMyWork(),
+          title: data.assignment.title,
+          facts: due,
+          content: data.submission.content,
+        }
+      : null,
+  );
   return (
     <div
       className={cn(
@@ -497,6 +530,9 @@ export function LearnerWork({ assignmentId }: { assignmentId: string }) {
           label: STATE_LABEL[data.state](),
           tone: STATE_TONE[data.state],
         }}
+        menu={[briefPrint.action, workPrint.action].filter(
+          (action) => action !== null,
+        )}
       />
       {data.brief ? (
         <ContentView document={data.brief} fileUrl={(id) => `/files/${id}`} />
@@ -521,6 +557,8 @@ export function LearnerWork({ assignmentId }: { assignmentId: string }) {
           </RecordList>
         </RecordSection>
       ) : null}
+      {briefPrint.sheet}
+      {workPrint.sheet}
     </div>
   );
 }

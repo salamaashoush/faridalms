@@ -1,13 +1,18 @@
+import type { Locale } from "~/i18n/runtime";
+
 import { inLocale } from "~/hooks/useCurrentUser";
 
 import { labelOf } from "../people/format";
 
-export function classTitle(row: {
-  titleEn: string | null;
-  titleAr: string | null;
-  code: string;
-}) {
-  return inLocale(row.titleEn, row.titleAr) || row.code;
+export function classTitle(
+  row: {
+    titleEn: string | null;
+    titleAr: string | null;
+    code: string;
+  },
+  locale?: Locale,
+) {
+  return inLocale(row.titleEn, row.titleAr, locale) || row.code;
 }
 
 export function subjectName(

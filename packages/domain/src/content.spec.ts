@@ -334,6 +334,33 @@ describe("block content", () => {
   });
 });
 
+describe("page breaks", () => {
+  it("stand between the blocks of a document, never inside one", () => {
+    const pageBreak = { type: "pagebreak", version: 1 } as ContentNode;
+    expect(
+      v.safeParse(
+        contentDocumentSchema,
+        documentOf(paragraph("Part one"), pageBreak, paragraph("Part two")),
+      ).success,
+    ).toBe(true);
+    expect(
+      v.safeParse(
+        contentDocumentSchema,
+        documentOf({
+          type: "callout",
+          version: 1,
+          format: "",
+          tone: "info",
+          children: [paragraph("Inside"), pageBreak],
+        }),
+      ).success,
+    ).toBe(false);
+    expect(
+      contentPlainText(documentOf(paragraph("A"), pageBreak, paragraph("B"))),
+    ).not.toContain("pagebreak");
+  });
+});
+
 describe("text direction", () => {
   it("reads the first letter, not digits or punctuation", () => {
     expect(textDirection("12. قراءة الفصل")).toBe("rtl");

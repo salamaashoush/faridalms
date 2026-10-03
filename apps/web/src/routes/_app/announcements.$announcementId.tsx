@@ -19,8 +19,9 @@ import {
   URGENCY_TONE,
 } from "~/components/announcements/format";
 import { BreadcrumbCurrent } from "~/components/app/WorkspaceBreadcrumb";
-import { TranslatedView } from "~/components/content/TranslatedView";
+import { shownIn, TranslatedView } from "~/components/content/TranslatedView";
 import { formatInstant } from "~/components/coursework/format";
+import { usePrint } from "~/components/print/usePrint";
 import { DataTable } from "~/components/system/DataTable";
 import {
   ReaderWidthToggle,
@@ -242,6 +243,21 @@ function AnnouncementPage() {
     }
   };
   const width = useReaderWidth();
+  const title = (locale === "ar" ? data.titleAr : data.titleEn) || data.title;
+  const printing = usePrint(
+    data.body
+      ? {
+          title,
+          content: shownIn({
+            body: data.body,
+            translation: data.translation,
+            primary: data.primaryLocale,
+            locale: data.translation ? locale : data.primaryLocale,
+          }),
+          link: `/announcements/${data.id}`,
+        }
+      : null,
+  );
   const reached = data.report?.length ?? 0;
   const readCount = (data.report ?? []).filter((row) => row.readAt).length;
   const facts: HeaderFact[] = [
@@ -295,7 +311,7 @@ function AnnouncementPage() {
     >
       <RecordHeader
         variant="document"
-        title={(locale === "ar" ? data.titleAr : data.titleEn) || data.title}
+        title={title}
         facts={facts}
         tools={<ReaderWidthToggle wide={width.wide} onToggle={width.toggle} />}
         status={
@@ -319,8 +335,9 @@ function AnnouncementPage() {
               }
             : undefined
         }
-        menu={
-          data.canManage
+        menu={[
+          ...(printing.action ? [printing.action] : []),
+          ...(data.canManage
             ? [
                 {
                   label: m.annDuplicate(),
@@ -354,8 +371,8 @@ function AnnouncementPage() {
                       },
                     ]),
               ]
-            : []
-        }
+            : []),
+        ]}
       />
       {data.updateSentAt ? (
         <p className="text-[13px] leading-[18px] text-muted-foreground">
@@ -406,6 +423,7 @@ function AnnouncementPage() {
       {data.canManage ? (
         <Report data={data} open={reporting} onOpenChange={setReporting} />
       ) : null}
+      {printing.sheet}
     </div>
   );
 }

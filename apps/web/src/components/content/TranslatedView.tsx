@@ -11,6 +11,20 @@ import { LOCALE_LABEL, LOCALE_NAME } from "./languages";
 
 const fileUrl = (fileId: string) => `/files/${fileId}`;
 
+/** The words a reader sees in a language: its translation once written, else the original. */
+export function shownIn(input: {
+  body: ContentDocument;
+  translation: ContentDocument | null;
+  primary: ContentLocale;
+  locale: ContentLocale;
+}): ContentDocument {
+  return input.locale !== input.primary &&
+    input.translation &&
+    documentWritten(input.translation)
+    ? input.translation
+    : input.body;
+}
+
 /**
  * A document in one language. Until the translation is written the original
  * shows in its place, saying so, rather than the reader meeting a blank page.

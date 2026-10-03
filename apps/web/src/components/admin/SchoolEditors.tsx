@@ -6,6 +6,7 @@ import {
 import { useMemo, useState } from "react";
 
 import { CheckboxRow } from "~/components/people/fields";
+import { PictureField } from "~/components/site/PictureField";
 import { ComboboxField } from "~/components/system/ComboboxField";
 import { SelectField, TextField } from "~/components/system/field";
 import {
@@ -81,6 +82,7 @@ interface ProfileDraft {
   phone: string;
   email: string;
   websiteUrl: string;
+  logoFileId: string;
 }
 
 function draftOf(profile: Profile): ProfileDraft {
@@ -96,6 +98,7 @@ function draftOf(profile: Profile): ProfileDraft {
     phone: profile.phone ?? "",
     email: profile.email ?? "",
     websiteUrl: profile.websiteUrl ?? "",
+    logoFileId: profile.logoFileId ?? "",
   };
 }
 
@@ -286,6 +289,19 @@ export function SchoolProfileSection() {
           value={draft.websiteUrl}
           onChange={(event) => set("websiteUrl", event.target.value)}
         />
+        <fieldset className="grid gap-1.5">
+          <legend className="mb-1.5 text-sm leading-5 font-medium">
+            {m.settingsSchoolLogo()}
+          </legend>
+          <p className="text-[13px] leading-[18px] text-muted-foreground">
+            {m.settingsSchoolLogoHint()}
+          </p>
+          <PictureField
+            fileId={draft.logoFileId || null}
+            label={m.settingsSchoolLogo()}
+            onChange={(fileId) => set("logoFileId", fileId ?? "")}
+          />
+        </fieldset>
       </SettingsGroup>
     </SettingsSection>
   );

@@ -202,6 +202,8 @@ export function editorStrings(): EditorStrings {
     questionWhyPrompt: m.editorQuestionWhyPrompt(),
     questionTrue: m.lrnTrue(),
     questionFalse: m.lrnFalse(),
+    pageBreak: m.editorPageBreak(),
+    pageBreakHint: m.editorPageBreakHint(),
     gate: m.editorGate(),
     gateHint: m.editorGateHint(),
     transcript: m.editorTranscript(),

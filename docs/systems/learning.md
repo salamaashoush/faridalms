@@ -124,8 +124,9 @@ From [../research/early-years.md](../research/early-years.md).
   Lessons of a draft module are shown when the module opens.
 - A preview marks answers in the browser and saves nothing, and starts over
   on request.
-- A lesson, like every document, prints from its menu: each question takes
-  a paper form, and a teacher may print a copy with the answers in place.
+- A lesson, like every document, prints from its menu, the student's player
+  as well as the editor: each question takes a paper form, and a teacher may
+  print the answers in place or as a key at the end.
   [docs/plans/printing.md](../plans/printing.md) has the design.
 - A module's Right now tab shows a teacher where each student of a class is,
   from the last 20 minutes and asked again every 10 seconds: who needs help

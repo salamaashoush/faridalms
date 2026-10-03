@@ -39,6 +39,7 @@ import {
   courseworkStep,
 } from "~/components/exams/Authentication";
 import { resultText } from "~/components/grading/format";
+import { usePrint } from "~/components/print/usePrint";
 import { DataTable } from "~/components/system/DataTable";
 import { TextField } from "~/components/system/field";
 import {
@@ -623,6 +624,33 @@ export function AssignmentRecord({
     ),
   });
   const handedIn = data.work.filter((row) => row.attemptId).length;
+  const printing = usePrint(
+    data.brief
+      ? {
+          title: data.title,
+          facts: (locale) =>
+            [
+              data.class ? classTitle(data.class, locale) : null,
+              data.dueAt
+                ? m.courseworkDueOn(
+                    {
+                      date: formatInstant(
+                        data.dueAt,
+                        user.school.timeZone,
+                        locale,
+                      ),
+                    },
+                    { locale },
+                  )
+                : null,
+            ].filter((fact) => fact !== null),
+          content: data.brief,
+          answers: data.access.author || data.access.grade,
+          link: `/assignments/${data.id}`,
+          copies: data.work.map((row) => displayName(row)),
+        }
+      : null,
+  );
   const tabs: RecordTab<RecordTabValue>[] = RECORD_TABS.map((value) => ({
     value,
     label:
@@ -662,8 +690,9 @@ export function AssignmentRecord({
               }
             : undefined
         }
-        menu={
-          data.access.author
+        menu={[
+          ...(printing.action ? [printing.action] : []),
+          ...(data.access.author
             ? [
                 ...(data.state === "draft"
                   ? [
@@ -712,8 +741,8 @@ export function AssignmentRecord({
                     ]
                   : []),
               ]
-            : []
-        }
+            : []),
+        ]}
       />
       <RecordTabs
         label={m.courseworkRecordSections()}
@@ -728,6 +757,7 @@ export function AssignmentRecord({
         open={settingsOpen}
         onOpenChange={setSettingsOpen}
       />
+      {printing.sheet}
     </div>
   );
 }

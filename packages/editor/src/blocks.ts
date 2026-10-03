@@ -73,6 +73,7 @@ import {
   Paperclip,
   Pilcrow,
   Quote,
+  ScissorsLineDashed,
   Shapes,
   Sparkles,
   Table,
@@ -100,6 +101,7 @@ import {
   $nearestBlock,
   $isStarterNode,
   GateNode,
+  PageBreakNode,
   StarterNode,
 } from "./nodes";
 
@@ -139,6 +141,7 @@ export type BlockType =
   | "trueFalseQuestion"
   | "whyQuestion"
   | "gate"
+  | "pageBreak"
   | "studentCopy"
   | "aiUse";
 
@@ -450,6 +453,14 @@ export const blockDefinitions: BlockDefinition[] = [
     hint: (s) => s.dividerHint,
     keywords: ["divider", "line", "hr", "separator", "فاصل", "خط"],
     shortcut: "---",
+  },
+  {
+    type: "pageBreak",
+    group: "layout",
+    icon: ScissorsLineDashed,
+    label: (s) => s.pageBreak,
+    hint: (s) => s.pageBreakHint,
+    keywords: ["page", "break", "print", "paper", "صفحة", "طباعة", "فاصل صفحة"],
   },
   {
     type: "choiceQuestion",
@@ -817,6 +828,7 @@ function $createStructure(type: BlockType): LexicalNode | null {
   if (kind) return $createQuestionNode(kind);
   if (type === "divider") return $createHorizontalRuleNode();
   if (type === "gate") return new GateNode();
+  if (type === "pageBreak") return new PageBreakNode();
   if (type === "aiUse") return $createAiUseNode();
   if (type === "studentCopy")
     return new StarterNode().append($createParagraphNode());
@@ -861,6 +873,7 @@ function $allows(container: LexicalNode | null, type: BlockType): boolean {
     type === "columns2" ||
     type === "columns3" ||
     type === "gate" ||
+    type === "pageBreak" ||
     type === "studentCopy" ||
     QUESTION_KIND[type]
   )

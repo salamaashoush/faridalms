@@ -641,9 +641,8 @@
   "printLandscape": "Landscape",
   "printTextSize": "Text size",
   "printPoints": "{size} pt",
-  "printNameLines": "Name, class and date lines",
-  "printSchoolName": "School name",
-  "printAnswers": "Teacher's copy with answers",
+  "printNameLines": "Name, class and date",
+  "printSchoolName": "School name and logo",
   "printAnswersCopy": "Teacher's copy: answers in grey",
   "printNow": "Print",
   "printClose": "Close",
@@ -5097,5 +5096,58 @@
   "newsPicture": "Picture",
   "newsPictureAlt": "Describe the picture",
   "siteChoosePicture": "Choose {label}",
-  "siteReplacePicture": "Replace {label}"
+  "siteReplacePicture": "Replace {label}",
+  "editorPageBreak": "Page break",
+  "editorPageBreakHint": "Start a new page when printed",
+  "settingsSchoolLogo": "Logo",
+  "settingsSchoolLogoHint": "Printed at the top of the school's paper.",
+  "printAnswersLabel": "Answers",
+  "printAnswersNone": "Student copy",
+  "printAnswersInPlace": "Teacher's copy",
+  "printAnswersKey": "Answer key at the end",
+  "printKeyTitle": "Answer key: {title}",
+  "printKeyTeacher": "Marked by the teacher",
+  "printCopies": "A copy for each student",
+  "printMyWork": "Print my work",
+  "printPaperSize": "Paper size",
+  "printTextSizeHint": "14 pt suits most readers. Choose 16 pt or more for young or low-vision readers.",
+  "printOnPage": "On the page",
+  "printNoLogo": "The school has no logo yet. An administrator adds one in Settings.",
+  "printNameLinesHint": "Boxes for students to write their name, class and the date.",
+  "printCopiesTitle": "Copies",
+  "printCopiesHint": [
+    {
+      "declarations": [
+        "input count",
+        "input value",
+        "local countPlural = count: plural"
+      ],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "{value} copy with the student's name filled in.",
+        "countPlural=*": "{value} copies, each with a student's name filled in and starting on a new page."
+      }
+    }
+  ],
+  "printNowCopies": [
+    {
+      "declarations": [
+        "input count",
+        "input value",
+        "local countPlural = count: plural"
+      ],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "Print {value} copy",
+        "countPlural=*": "Print {value} copies"
+      }
+    }
+  ],
+  "printAnswersNoneHint": "No answers on the paper.",
+  "printAnswersInPlaceHint": "Each answer in grey beside its question.",
+  "printAnswersKeyHint": "The questions as students get them, then the answers on a page of their own.",
+  "printSettings": "Print settings",
+  "printPageOf": "Page {page} of {pages}",
+  "printDrawHere": "Draw your answer here",
+  "printPictureHere": "Draw or stick a picture here"
 }

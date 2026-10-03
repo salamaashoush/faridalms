@@ -131,6 +131,83 @@ const pointsOf = (stroke: number[]) => {
   return points.join(" ");
 };
 
+/** The letters a matching question's answers carry on paper, by pair. */
+function matchingLetters(
+  block: Extract<LessonBlock, { type: "matching" }>,
+  rtl: boolean,
+) {
+  const choices = shuffled(
+    [
+      ...block.pairs.map((pair) => ({ id: pair.id })),
+      ...block.distractors.map((distractor) => ({ id: distractor.id })),
+    ],
+    `paper:${block.id}`,
+  );
+  return (pairId: string) =>
+    letterOf(
+      choices.findIndex((choice) => choice.id === pairId),
+      rtl,
+    );
+}
+
+/**
+ * A question's answer as one line of an answer key, in the letters and
+ * numbers its paper form shows. Null where only a teacher can judge, such
+ * as writing or tracing.
+ */
+export function keyOf(block: LessonBlock, rtl: boolean): string | null {
+  const list = (items: string[]) =>
+    new Intl.ListFormat(rtl ? "ar" : "en", { type: "unit" }).format(items);
+  switch (block.type) {
+    case "choice":
+      return list(
+        block.options.flatMap((option, index) =>
+          block.correctOptionIds.includes(option.id)
+            ? [letterOf(index, rtl)]
+            : [],
+        ),
+      );
+    case "text":
+      return block.answers[0] ?? null;
+    case "number":
+      return block.mode === "range"
+        ? `${block.min} – ${block.max}`
+        : String(block.value);
+    case "gaps":
+      return list(
+        block.segments.flatMap((segment) =>
+          segment.type === "gap" ? [segment.answers[0] ?? ""] : [],
+        ),
+      );
+    case "matching": {
+      const letterFor = matchingLetters(block, rtl);
+      return list(
+        block.pairs.map((pair, index) => `${index + 1} ${letterFor(pair.id)}`),
+      );
+    }
+    case "ordering":
+      return list(block.items.map((item) => partName(item)));
+    case "sorting":
+      return block.groups
+        .filter((group) => group.name.trim())
+        .map(
+          (group) =>
+            `${group.name}: ${list(
+              block.items
+                .filter((item) => item.groupId === group.id)
+                .map((item) => partName(item)),
+            )}`,
+        )
+        .join(" · ");
+    case "counting":
+      return String(block.count);
+    case "spelling":
+      return block.tiles.join("");
+    default:
+      return null;
+  }
+}
+
 /**
  * A question as it is answered on paper, from the same question the player
  * marks. A teacher's copy shows each answer in its place, in grey, so the
@@ -204,7 +281,13 @@ export function PaperQuestion({
     case "written":
       body =
         block.answerWith === "drawing" || block.answerWith === "photo" ? (
-          <div className="h-[7cm] rounded-[4px] border border-neutral-500" />
+          <div className="h-[9cm] rounded-[4px] border border-neutral-500 p-[0.6em]">
+            <p className="text-[0.75em] text-neutral-500">
+              {(block.answerWith === "drawing"
+                ? m.printDrawHere
+                : m.printPictureHere)({}, { locale: rtl ? "ar" : "en" })}
+            </p>
+          </div>
         ) : (
           <Lines
             count={block.recordSeconds ? 4 : writingLines(block.wordLimit)}
@@ -254,11 +337,7 @@ export function PaperQuestion({
         ],
         `paper:${block.id}`,
       );
-      const letterFor = (pairId: string) =>
-        letterOf(
-          choices.findIndex((choice) => choice.id === pairId),
-          rtl,
-        );
+      const letterFor = matchingLetters(block, rtl);
       body = (
         <div className="grid grid-cols-2 gap-x-8 gap-y-1.5">
           <ol className="grid content-start gap-1.5">
@@ -369,7 +448,7 @@ export function PaperQuestion({
               )}
             </div>
             <p className="flex items-center gap-2">
-              {m.printHowMany()}
+              {m.printHowMany({}, { locale: rtl ? "ar" : "en" })}
               <Box answer={answers ? String(block.count) : null} />
             </p>
           </div>

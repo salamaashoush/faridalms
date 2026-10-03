@@ -2,12 +2,18 @@ import type { Capability } from "@faridalms/domain/capabilities";
 
 import { useSuspenseQuery } from "@tanstack/react-query";
 
+import type { Locale } from "~/i18n/runtime";
+
 import { getLocale } from "~/i18n/runtime";
 import { currentUserQuery } from "~/queries/user";
 
 /** A bilingual pair in the reader's language, falling back to the other. */
-export function inLocale(en: string | null, ar: string | null): string {
-  return (getLocale() === "ar" ? (ar ?? en) : (en ?? ar)) ?? "";
+export function inLocale(
+  en: string | null,
+  ar: string | null,
+  locale: Locale = getLocale(),
+): string {
+  return (locale === "ar" ? (ar ?? en) : (en ?? ar)) ?? "";
 }
 
 export function useCurrentUser() {

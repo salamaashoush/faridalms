@@ -317,6 +317,8 @@ function draw(
       return <br key={key} />;
     case "horizontalrule":
       return <hr key={key} className="fe-hr" />;
+    case "pagebreak":
+      return <div key={key} aria-hidden className="fe-page-break" />;
     case "list": {
       if (node.listType === "number")
         return (
@@ -375,7 +377,16 @@ function draw(
       ) : (
         <span key={key}>{children}</span>
       );
-    case "table":
+    case "table": {
+      // A first row of header cells is the table's head: a screen reader
+      // names each cell by it, and a browser printing page by page repeats
+      // it at the top of each page the table runs onto.
+      const first = node.children?.[0]?.children ?? [];
+      const head =
+        first.length > 0 &&
+        first.every((cell) => ((cell.headerState ?? 0) & 1) === 1)
+          ? children?.[0]
+          : null;
       return (
         <div key={key} className="fe-table-wrap">
           <table
@@ -392,10 +403,12 @@ function draw(
                   ),
                 )
               : null}
-            <tbody>{children}</tbody>
+            {head ? <thead>{head}</thead> : null}
+            <tbody>{head ? children?.slice(1) : children}</tbody>
           </table>
         </div>
       );
+    }
     case "tablerow":
       return (
         <tr key={key} {...props}>

@@ -333,7 +333,10 @@ export function AnnouncementEditor({
     <>
       <DocumentPage
         heading={existing ? m.annEditTitle() : m.annNewTitle()}
-        print={{ title: primaryTitle, content: draft.body }}
+        print={{
+          title: draft[titleKey].trim() || primaryTitle,
+          content: translating ? draft.translation : draft.body,
+        }}
         onBack={async () => {
           if (await autosave.flush()) onClose(id.current || undefined);
         }}

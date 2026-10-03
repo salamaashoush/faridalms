@@ -27,6 +27,7 @@ export async function schoolSettings(
       phone: orgs.phone,
       email: orgs.email,
       websiteUrl: orgs.websiteUrl,
+      logoFileId: orgs.logoFileId,
     })
     .from(orgs)
     .where(
@@ -56,6 +57,7 @@ export async function updateSchool(
     phone: string | null;
     email: string | null;
     websiteUrl: string | null;
+    logoFileId: string | null;
   },
 ) {
   const { tenantId, schoolId, expectedVersion, ...fields } = input;

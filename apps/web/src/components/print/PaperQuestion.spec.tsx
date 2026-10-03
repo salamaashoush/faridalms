@@ -1,9 +1,11 @@
 import type { LessonBlock } from "@faridalms/domain/learning";
 
+import { studentBlocks } from "@faridalms/domain/learning";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
-import { letterOf, PaperQuestion, writingLines } from "./PaperQuestion";
+import { paperBlock } from "./paper-blocks";
+import { keyOf, letterOf, PaperQuestion, writingLines } from "./PaperQuestion";
 
 const base = { points: 1, hint: "", explanation: "", tries: null };
 const fileUrl = (fileId: string) => `/files/${fileId}`;
@@ -53,6 +55,22 @@ describe("a question on paper", () => {
     expect(writingLines(5000)).toBe(20);
   });
 
+  it("leaves a drawing answer a framed space, named in the paper's language", () => {
+    const drawing: LessonBlock = {
+      ...base,
+      id: "q9",
+      type: "written",
+      prompt: "Draw the story's setting.",
+      wordLimit: null,
+      answerWith: "drawing",
+    };
+    expect(paper(drawing, false)).toContain("Draw your answer here");
+    expect(paper(drawing, false, true)).toContain("ارسم إجابتك هنا");
+    expect(paper({ ...drawing, answerWith: "photo" }, false)).toContain(
+      "Draw or stick a picture here",
+    );
+  });
+
   it("keeps the author's order and never shows the key on a student's copy", () => {
     const html = paper(choice, false);
     expect(html).toContain("3.");
@@ -94,5 +112,80 @@ describe("a question on paper", () => {
       ordering.split("<li").find((chunk) => chunk.includes(text)) ?? "";
     expect(item("Wake up")).toContain(">1<");
     expect(item("Eat")).toContain(">2<");
+  });
+});
+
+const matching: LessonBlock = {
+  ...base,
+  id: "q4",
+  type: "matching",
+  prompt: "Match each animal to its home.",
+  pairs: [
+    { id: "p1", prompt: "Bee", answer: "Hive" },
+    { id: "p2", prompt: "Bird", answer: "Nest" },
+  ],
+  distractors: [{ id: "d1", text: "Burrow" }],
+};
+
+describe("an answer key", () => {
+  it("names each answer in the letters and numbers its paper shows", () => {
+    expect(keyOf(choice, false)).toBe("a");
+    const html = paper(matching, true);
+    const key = keyOf(matching, false) ?? "";
+    // The key's letter for each prompt is the one printed beside its answer.
+    for (const [index, answer] of [
+      [1, "Hive"],
+      [2, "Nest"],
+    ] as const) {
+      const letter = /(\d) ([^\s,،]+)/g;
+      const found = [...key.matchAll(letter)].find(
+        (match) => Number(match[1]) === index,
+      )?.[2];
+      expect(html).toContain(`${found})</span>`);
+      const chunk = html
+        .split("<li")
+        .find((part) => part.includes(`>${found})<`));
+      expect(chunk).toContain(answer);
+    }
+  });
+
+  it("leaves to the teacher what only a teacher can judge", () => {
+    expect(
+      keyOf(
+        {
+          ...base,
+          id: "q5",
+          type: "written",
+          prompt: "Describe your weekend.",
+          wordLimit: null,
+        },
+        false,
+      ),
+    ).toBeNull();
+  });
+});
+
+describe("a student's copy of a lesson", () => {
+  it("prints from what the student received, with no key to give away", () => {
+    const [student] = studentBlocks(
+      { version: 2, blocks: [choice, matching] },
+      "student",
+    );
+    if (!student) throw new Error("no block");
+    const block = paperBlock(student);
+    expect(block.type === "choice" && block.correctOptionIds).toEqual([]);
+    expect(paper(block, false)).toContain("Mars");
+  });
+
+  it("rebuilds a matching question's two columns from its prompts and choices", () => {
+    const student = studentBlocks({ version: 2, blocks: [matching] }, "s")[0];
+    if (!student) throw new Error("no block");
+    const block = paperBlock(student);
+    if (block.type !== "matching") throw new Error("not matching");
+    expect(block.pairs.map((pair) => [pair.prompt, pair.answer])).toEqual([
+      ["Bee", "Hive"],
+      ["Bird", "Nest"],
+    ]);
+    expect(block.distractors.map((extra) => extra.text)).toEqual(["Burrow"]);
   });
 });

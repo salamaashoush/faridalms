@@ -654,9 +654,8 @@
   "printLandscape": "عرضي",
   "printTextSize": "حجم النص",
   "printPoints": "{size} نقطة",
-  "printNameLines": "أسطر الاسم والفصل والتاريخ",
-  "printSchoolName": "اسم المدرسة",
-  "printAnswers": "نسخة المعلم بالإجابات",
+  "printNameLines": "الاسم والفصل والتاريخ",
+  "printSchoolName": "اسم المدرسة وشعارها",
   "printAnswersCopy": "نسخة المعلم: الإجابات باللون الرمادي",
   "printNow": "اطبع",
   "printClose": "إغلاق",
@@ -5291,5 +5290,66 @@
   "newsPicture": "الصورة",
   "newsPictureAlt": "صف الصورة",
   "siteChoosePicture": "اختيار {label}",
-  "siteReplacePicture": "استبدال {label}"
+  "siteReplacePicture": "استبدال {label}",
+  "editorPageBreak": "فاصل صفحة",
+  "editorPageBreakHint": "ابدأ صفحة جديدة عند الطباعة",
+  "settingsSchoolLogo": "الشعار",
+  "settingsSchoolLogoHint": "يُطبع أعلى أوراق المدرسة.",
+  "printAnswersLabel": "الإجابات",
+  "printAnswersNone": "نسخة الطالب",
+  "printAnswersInPlace": "نسخة المعلم",
+  "printAnswersKey": "مفتاح الإجابات في النهاية",
+  "printKeyTitle": "مفتاح الإجابات: {title}",
+  "printKeyTeacher": "يصحّحها المعلّم",
+  "printCopies": "نسخة لكل طالب",
+  "printMyWork": "طباعة عملي",
+  "printPaperSize": "مقاس الورق",
+  "printTextSizeHint": "يناسب حجم 14 نقطة معظم القرّاء. اختر 16 نقطة أو أكثر للأطفال الصغار ولضعاف البصر.",
+  "printOnPage": "على الصفحة",
+  "printNoLogo": "ليس للمدرسة شعار بعد. يضيفه المسؤول من الإعدادات.",
+  "printNameLinesHint": "خانات يكتب فيها الطالب اسمه وفصله والتاريخ.",
+  "printCopiesTitle": "النسخ",
+  "printCopiesHint": [
+    {
+      "declarations": [
+        "input count",
+        "input value",
+        "local countPlural = count: plural"
+      ],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=zero": "{value} نسخة، على كل منها اسم طالب وتبدأ كل منها في صفحة جديدة.",
+        "countPlural=one": "نسخة واحدة عليها اسم الطالب.",
+        "countPlural=two": "نسختان، على كل منهما اسم طالب وتبدأ كل منهما في صفحة جديدة.",
+        "countPlural=few": "{value} نسخ، على كل منها اسم طالب وتبدأ كل منها في صفحة جديدة.",
+        "countPlural=many": "{value} نسخة، على كل منها اسم طالب وتبدأ كل منها في صفحة جديدة.",
+        "countPlural=*": "{value} نسخة، على كل منها اسم طالب وتبدأ كل منها في صفحة جديدة."
+      }
+    }
+  ],
+  "printNowCopies": [
+    {
+      "declarations": [
+        "input count",
+        "input value",
+        "local countPlural = count: plural"
+      ],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=zero": "اطبع {value} نسخة",
+        "countPlural=one": "اطبع نسخة واحدة",
+        "countPlural=two": "اطبع نسختين",
+        "countPlural=few": "اطبع {value} نسخ",
+        "countPlural=many": "اطبع {value} نسخة",
+        "countPlural=*": "اطبع {value} نسخة"
+      }
+    }
+  ],
+  "printAnswersNoneHint": "بلا إجابات على الورقة.",
+  "printAnswersInPlaceHint": "كل إجابة باللون الرمادي بجانب سؤالها.",
+  "printAnswersKeyHint": "الأسئلة كما تصل إلى الطلاب، ثم الإجابات في صفحة مستقلة.",
+  "printSettings": "إعدادات الطباعة",
+  "printPageOf": "صفحة {page} من {pages}",
+  "printDrawHere": "ارسم إجابتك هنا",
+  "printPictureHere": "ارسم أو الصق صورة هنا"
 }
