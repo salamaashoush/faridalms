@@ -171,7 +171,7 @@ function AnswerCard({
         <MediaPlayer
           src={`/files/${answer.recording.fileId}`}
           captions={undefined}
-          video={false}
+          video={Boolean(answer.recording.video)}
           locale={getLocale()}
           captionsLabel={m.editorCaptions()}
         />

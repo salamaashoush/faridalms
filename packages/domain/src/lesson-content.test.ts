@@ -626,6 +626,56 @@ describe("drawn and photographed answers", () => {
   });
 });
 
+describe("answers on video", () => {
+  const filmed: LessonDocument = {
+    version: 2,
+    blocks: [
+      {
+        id: partId(56),
+        type: "written",
+        prompt: "Show us how you solved it.",
+        points: 2,
+        hints: [],
+        explanation: "",
+        tries: null,
+        wordLimit: null,
+        recordSeconds: 90,
+        recordVideo: true,
+      },
+    ],
+  };
+
+  it("keeps a question answered on video through the document", () => {
+    const document = contentOfLesson(filmed);
+    if (!document) throw new Error("lesson could not become a document");
+    expect(checks(lessonOfContent(document).blocks)).toEqual(
+      checks(filmed.blocks),
+    );
+  });
+
+  it("takes a video for it and refuses a recording that is only sound", () => {
+    const [asked] = filmed.blocks;
+    if (asked?.type !== "written") throw new Error("a written question");
+    const recording = { fileId: partId(57), seconds: 40 };
+    expect(
+      responseIssue(asked, {
+        type: "written",
+        text: "",
+        recording: { ...recording, video: true },
+      }),
+    ).toBeNull();
+    expect(responseIssue(asked, { type: "written", text: "", recording })).toBe(
+      "learning.response",
+    );
+    expect(
+      responseIssue(
+        { ...asked, recordVideo: false },
+        { type: "written", text: "", recording: { ...recording, video: true } },
+      ),
+    ).toBe("learning.response");
+  });
+});
+
 describe("find on a picture", () => {
   const find: LessonDocument = {
     version: 2,

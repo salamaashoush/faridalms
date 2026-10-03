@@ -235,6 +235,7 @@ export interface EditorStrings {
   questionTehMarbuta: string;
   questionWordLimit: string;
   questionSpoken: string;
+  questionFilmed: string;
   questionCounting: string;
   questionTracing: string;
   questionMemory: string;
@@ -279,6 +280,7 @@ export interface EditorStrings {
   questionAnswerBy: string;
   questionByWriting: string;
   questionBySpeaking: (seconds: number) => string;
+  questionByVideo: (seconds: number) => string;
   questionByDrawing: string;
   questionByPhoto: string;
   questionDrawing: string;

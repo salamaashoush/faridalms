@@ -264,6 +264,7 @@ function Surface({
         program: strings.questionProgram,
       },
       spoken: strings.questionSpoken,
+      filmed: strings.questionFilmed,
       pictured: {
         drawing: strings.questionDrawing,
         photo: strings.questionPhoto,

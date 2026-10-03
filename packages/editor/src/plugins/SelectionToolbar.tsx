@@ -188,7 +188,18 @@ const CODE_LANGUAGES = ["python", "javascript", "html", "text"] as const;
 const PROGRAM_LANGUAGES = ["python", "javascript"] as const;
 const WORD_LIMITS = [null, 50, 100, 150, 200, 300, 500] as const;
 // Writing, or speaking for up to so many seconds (RECORD_SECONDS in the domain).
-const ANSWER_BY = [null, 15, 45, 90, 180, "drawing", "photo"] as const;
+const ANSWER_BY = [
+  null,
+  15,
+  45,
+  90,
+  180,
+  "video-90",
+  "video-180",
+  "drawing",
+  "photo",
+] as const;
+type AnswerBy = (typeof ANSWER_BY)[number];
 // Counting goes to twenty (MAX_COUNT); a glimpse lasts FLASH_SECONDS.
 const COUNTS = Array.from({ length: 20 }, (_, index) => index + 1);
 const FLASH = [null, 2, 3, 5] as const;
@@ -939,14 +950,26 @@ export function SelectionToolbarPlugin() {
       value === null
         ? strings.questionFlashOff
         : strings.questionFlashSeconds(value);
-    const answerByText = (value: number | "drawing" | "photo" | null) =>
+    const answerByText = (value: AnswerBy) =>
       value === null
         ? strings.questionByWriting
         : value === "drawing"
           ? strings.questionByDrawing
           : value === "photo"
             ? strings.questionByPhoto
-            : strings.questionBySpeaking(value);
+            : value === "video-90"
+              ? strings.questionByVideo(90)
+              : value === "video-180"
+                ? strings.questionByVideo(180)
+                : strings.questionBySpeaking(value);
+    const answeredBy: AnswerBy =
+      settings.answerWith ??
+      (settings.recordVideo
+        ? settings.recordSeconds === 180
+          ? "video-180"
+          : "video-90"
+        : (ANSWER_BY.find((value) => value === settings.recordSeconds) ??
+          null));
     return (
       <Floating
         reference={reference}
@@ -988,16 +1011,28 @@ export function SelectionToolbarPlugin() {
               {lessonActivities ? (
                 <BarMenu
                   label={strings.questionAnswerBy}
-                  current={answerByText(
-                    settings.answerWith ?? settings.recordSeconds,
-                  )}
+                  current={answerByText(answeredBy)}
                   values={ANSWER_BY}
                   text={answerByText}
                   onPick={(value) =>
                     change(
-                      typeof value === "string"
-                        ? { answerWith: value, recordSeconds: null }
-                        : { answerWith: null, recordSeconds: value },
+                      value === "video-90" || value === "video-180"
+                        ? {
+                            answerWith: null,
+                            recordSeconds: value === "video-90" ? 90 : 180,
+                            recordVideo: true,
+                          }
+                        : typeof value === "string"
+                          ? {
+                              answerWith: value,
+                              recordSeconds: null,
+                              recordVideo: false,
+                            }
+                          : {
+                              answerWith: null,
+                              recordSeconds: value,
+                              recordVideo: false,
+                            },
                     )
                   }
                   onOpenChange={trackMenu}

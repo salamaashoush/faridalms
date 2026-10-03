@@ -166,6 +166,8 @@ export interface QuestionLabels {
   kinds: Record<QuestionKind, string>;
   /** A written question answered by speaking instead. */
   spoken?: string;
+  /** A written question answered on video. */
+  filmed?: string;
   /** "Drawing" and "Photo", for written questions answered with a picture. */
   pictured?: Record<"drawing" | "photo", string>;
   /** A counting question by its number and what the child does. */
@@ -253,6 +255,8 @@ export interface QuestionSettings {
   wordLimit: number | null;
   /** Answered by speaking for up to this many seconds, rather than writing. */
   recordSeconds: number | null;
+  /** A spoken answer recorded on camera, or of the student's screen. */
+  recordVideo: boolean;
   /** Answered with a drawing or a photo, rather than writing. */
   answerWith: "drawing" | "photo" | null;
   /** A counting question: how many, what the child does, how they are set out. */
@@ -299,6 +303,7 @@ export function defaultSettings(kind: QuestionKind): QuestionSettings {
     tehMarbuta: true,
     wordLimit: null,
     recordSeconds: null,
+    recordVideo: false,
     answerWith: null,
     count: 5,
     countMode: "count",
@@ -350,6 +355,7 @@ function questionSettings(stored: StoredSettings): QuestionSettings {
     tehMarbuta: stored.tehMarbuta ?? base.tehMarbuta,
     wordLimit: stored.wordLimit ?? null,
     recordSeconds: stored.recordSeconds ?? null,
+    recordVideo: stored.recordVideo ?? false,
     answerWith: stored.answerWith ?? null,
     count: stored.count ?? base.count,
     countMode: stored.countMode ?? base.countMode,
@@ -393,7 +399,8 @@ function label(editor: LexicalEditor, settings: QuestionSettings): string {
   if (!text) return "";
   const kind =
     settings.kind === "written" && settings.recordSeconds !== null
-      ? (text.spoken ?? text.kinds.written)
+      ? ((settings.recordVideo ? text.filmed : text.spoken) ??
+        text.kinds.written)
       : settings.kind === "written" && settings.answerWith
         ? (text.pictured?.[settings.answerWith] ?? text.kinds.written)
         : settings.kind === "counting" && text.count
@@ -453,6 +460,7 @@ export class QuestionNode extends ElementNode {
     // a setting existed read the same as they did.
     const {
       recordSeconds,
+      recordVideo,
       answerWith,
       count,
       countMode,
@@ -471,6 +479,7 @@ export class QuestionNode extends ElementNode {
       ...super.exportJSON(),
       ...settings,
       ...(recordSeconds === null ? {} : { recordSeconds }),
+      ...(recordSeconds !== null && recordVideo ? { recordVideo } : {}),
       ...(answerWith === null ? {} : { answerWith }),
       ...(settings.kind === "counting"
         ? { count, countMode, countLayout, flashSeconds }
@@ -528,6 +537,7 @@ export class QuestionNode extends ElementNode {
       before.kind !== settings.kind ||
       before.points !== settings.points ||
       before.recordSeconds !== settings.recordSeconds ||
+      before.recordVideo !== settings.recordVideo ||
       before.answerWith !== settings.answerWith ||
       before.videoAt !== settings.videoAt ||
       before.count !== settings.count ||

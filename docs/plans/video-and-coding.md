@@ -73,8 +73,11 @@ with the gate it can break.
    three, with pause, up to ten minutes. The screen and camera are drawn
    together on a timer kept in a worker, so a teacher working in another
    tab still records smoothly. A take plays back before it is added, and is
-   uploaded and streamed as any other video. Trimming and the students'
-   video answers remain.
+   uploaded and streamed as any other video. Done next: a written question
+   can be answered on video, up to ninety seconds or three minutes; the
+   student records it in the same studio, camera or screen, watches it
+   back and sends it, and the teacher watches and marks it with the class's
+   other answers. Trimming remains.
 
 ## Coding
 

@@ -2,8 +2,10 @@ import type { CheckView, StudentBlock } from "@faridalms/domain/learning";
 
 import { MediaPlayer } from "@faridalms/editor/media-view";
 import { VoiceRecorder } from "@faridalms/editor/recorder";
+import { VideoRecorder } from "@faridalms/editor/video-recorder";
+import { Button } from "@faridalms/ui/button";
 import { useMutation } from "@tanstack/react-query";
-import { Check, CircleCheck, LoaderCircle } from "lucide-react";
+import { Check, CircleCheck, LoaderCircle, Video } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
@@ -29,6 +31,28 @@ export const recorderStrings = () => ({
   captions: m.editorCaptions(),
 });
 
+const videoAnswerStrings = () => ({
+  title: m.lrnRecordVideoTitle(),
+  hint: m.lrnRecordVideoHint(),
+  camera: m.videoRecordCamera(),
+  screen: m.videoRecordScreen(),
+  both: m.videoRecordBoth(),
+  microphone: m.videoRecordMicrophone(),
+  start: m.videoRecordStart(),
+  pause: m.videoRecordPause(),
+  resume: m.videoRecordResume(),
+  stop: m.voiceStop(),
+  again: m.voiceAgain(),
+  keep: m.lrnSendRecording(),
+  close: m.commonClose(),
+  refused: m.videoRecordRefused(),
+  startsIn: (seconds: number) =>
+    m.videoRecordStartsIn({ seconds: formatNumber(seconds) }),
+  elapsed: (recorded: string, most: string) =>
+    m.voiceElapsed({ recorded, most }),
+  captions: m.editorCaptions(),
+});
+
 /**
  * Sends a spoken answer: the recording is stored first, then answered with,
  * so an answer never points at sound that did not arrive. A teacher's
@@ -38,7 +62,15 @@ export function useSpokenAnswer(block: Written, driver: CheckDriver) {
   const media = useDocumentMedia();
   const [heard, setHeard] = useState<string | null>(null);
   const send = useMutation({
-    mutationFn: async ({ file, seconds }: { file: File; seconds: number }) => {
+    mutationFn: async ({
+      file,
+      seconds,
+      video = false,
+    }: {
+      file: File;
+      seconds: number;
+      video?: boolean;
+    }) => {
       const kept = driver.keepFile
         ? await driver.keepFile(file)
         : {
@@ -48,7 +80,11 @@ export function useSpokenAnswer(block: Written, driver: CheckDriver) {
       await driver.respond(block.id, {
         type: "written",
         text: "",
-        recording: { fileId: kept.fileId, seconds },
+        recording: {
+          fileId: kept.fileId,
+          seconds,
+          ...(video ? { video: true } : {}),
+        },
       });
       setHeard(kept.url);
     },
@@ -108,7 +144,7 @@ export function SpokenStatus({
   );
 }
 
-/** A spoken answer for older students: record, listen back, send. */
+/** A spoken answer for older students: record, listen or watch back, send. */
 export function SpokenRecorder({
   block,
   view,
@@ -121,14 +157,16 @@ export function SpokenRecorder({
   locked: boolean;
 }) {
   const { send, heard } = useSpokenAnswer(block, driver);
+  const [filming, setFilming] = useState(false);
   const url = recordingUrl(view, heard);
+  const video = Boolean(block.recordVideo);
   return (
     <div className="grid gap-3">
       {url ? (
         <MediaPlayer
           src={url}
           captions={undefined}
-          video={false}
+          video={video}
           locale={getLocale()}
           captionsLabel={m.editorCaptions()}
         />
@@ -138,6 +176,28 @@ export function SpokenRecorder({
           <LoaderCircle aria-hidden className="size-4 animate-spin" />
           {m.lrnSendingRecording()}
         </p>
+      ) : video ? (
+        <>
+          <Button
+            type="button"
+            variant="outline"
+            className="justify-self-start max-md:h-10"
+            onClick={() => setFilming(true)}
+          >
+            <Video aria-hidden />
+            {url ? m.lrnRecordVideoAgain() : m.lrnRecordVideo()}
+          </Button>
+          <VideoRecorder
+            open={filming}
+            onOpenChange={setFilming}
+            strings={videoAnswerStrings()}
+            locale={getLocale()}
+            maxSeconds={block.recordSeconds ?? 90}
+            onKeep={(file, seconds) =>
+              send.mutate({ file, seconds, video: true })
+            }
+          />
+        </>
       ) : (
         <VoiceRecorder
           strings={recorderStrings()}

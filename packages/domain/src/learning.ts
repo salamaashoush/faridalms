@@ -493,6 +493,8 @@ export const lessonBlockSchema = v.variant("type", [
     ),
     /** Answered by speaking, up to this many seconds, rather than writing. */
     recordSeconds: v.optional(v.nullable(v.picklist(RECORD_SECONDS))),
+    /** The spoken answer is recorded on camera, or with the student's screen. */
+    recordVideo: v.optional(v.boolean()),
     /** Answered with a drawing or a photo rather than words. */
     answerWith: v.optional(v.nullable(v.picklist(PICTURE_ANSWERS))),
   }),
@@ -983,6 +985,8 @@ export const responseSchema = v.variant("type", [
         v.object({
           fileId: id,
           seconds: v.pipe(v.number(), v.minValue(0), v.maxValue(200)),
+          /** Recorded on camera, or of the student's screen. */
+          video: v.optional(v.boolean()),
         }),
       ),
       /** A drawn or photographed answer, as the student's own picture. */
@@ -2286,6 +2290,8 @@ export function responseIssue(
     if (spoken !== (response.recording !== undefined))
       return "learning.response";
     if (pictured !== (response.picture !== undefined))
+      return "learning.response";
+    if (Boolean(block.recordVideo) !== Boolean(response.recording?.video))
       return "learning.response";
     if (
       response.recording &&

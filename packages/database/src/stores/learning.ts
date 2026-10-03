@@ -1040,8 +1040,8 @@ export interface AnswerToMark {
   attempt: number;
   try: number;
   text: string;
-  /** A spoken answer's recording, and how long it runs. */
-  recording: { fileId: string; seconds: number } | null;
+  /** A spoken answer's recording, how long it runs, and whether it is on video. */
+  recording: { fileId: string; seconds: number; video?: boolean } | null;
   /** A drawn or photographed answer. */
   picture: { fileId: string } | null;
   /** A coding answer's project, and its stage when the student saved it. */
@@ -1075,7 +1075,7 @@ export async function answersToMark(
     attempt: number;
     try: number;
     text: string | null;
-    recording: { fileId: string; seconds: number } | null;
+    recording: { fileId: string; seconds: number; video?: boolean } | null;
     picture: { fileId: string } | null;
     project: { fileId: string } | null;
     thumbnail: { fileId: string } | null;

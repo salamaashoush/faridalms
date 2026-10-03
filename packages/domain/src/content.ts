@@ -166,6 +166,8 @@ export interface ContentNode {
   tehMarbuta?: boolean;
   wordLimit?: number | null;
   recordSeconds?: number | null;
+  /** A spoken answer recorded on camera rather than only heard. */
+  recordVideo?: boolean;
   /** A question asked when the video above it reaches this second. */
   videoAt?: number | null;
   /** A code puzzle's language, which decides whether indentation counts. */
@@ -370,6 +372,7 @@ const nodeSchema: v.GenericSchema<ContentNode> = v.lazy(() =>
       tehMarbuta: v.optional(v.boolean()),
       wordLimit: v.optional(v.nullable(integer(10, 5000))),
       recordSeconds: v.optional(v.nullable(integer(5, 180))),
+      recordVideo: v.optional(v.boolean()),
       videoAt: v.optional(v.nullable(integer(0, 21600))),
       codeLanguage: v.optional(
         v.picklist(["python", "javascript", "html", "text"]),

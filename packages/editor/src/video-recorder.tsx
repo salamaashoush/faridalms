@@ -43,7 +43,7 @@ type Source = "camera" | "screen" | "both";
 type Phase = "setup" | "counting" | "recording" | "paused" | "recorded";
 
 /** Lesson videos hold attention for about six minutes; ten is as long as one may run. */
-const MAX_SECONDS = 600;
+const MOST_SECONDS = 600;
 const VIDEO_BITS = 2_500_000;
 const FRAME_RATE = 30;
 const COUNT_FROM = 3;
@@ -198,11 +198,13 @@ function mixed(
 function Studio({
   strings,
   locale,
+  maxSeconds,
   onKeep,
 }: {
   strings: VideoRecorderStrings;
   locale: string;
-  onKeep: (file: File) => void;
+  maxSeconds: number;
+  onKeep: (file: File, seconds: number) => void;
 }) {
   const format = videoFormat();
   // Phones and pages served without a secure origin cannot share a screen.
@@ -216,7 +218,11 @@ function Studio({
   const [count, setCount] = useState(COUNT_FROM);
   const [seconds, setSeconds] = useState(0);
   const [refused, setRefused] = useState(false);
-  const [take, setTake] = useState<{ file: File; url: string } | null>(null);
+  const [take, setTake] = useState<{
+    file: File;
+    url: string;
+    seconds: number;
+  } | null>(null);
   const live = useRef<HTMLVideoElement>(null);
   const session = useRef<Session>({
     tracks: [],
@@ -253,16 +259,20 @@ function Studio({
     });
     let recorded = 0;
     let since = Date.now();
+    let running = true;
     recorder.addEventListener("dataavailable", (event) => {
       if (event.data.size) chunks.push(event.data);
     });
     recorder.addEventListener("pause", () => {
       recorded += (Date.now() - since) / 1000;
+      running = false;
     });
     recorder.addEventListener("resume", () => {
       since = Date.now();
+      running = true;
     });
     recorder.addEventListener("stop", () => {
+      const length = recorded + (running ? (Date.now() - since) / 1000 : 0);
       release(current);
       const type = format.mimeType.split(";")[0] ?? "video/webm";
       const file = new File(
@@ -270,7 +280,11 @@ function Studio({
         `recording-${new Date().toISOString().slice(0, 19).replaceAll(":", "-")}.${format.extension}`,
         { type },
       );
-      setTake({ file, url: URL.createObjectURL(file) });
+      setTake({
+        file,
+        url: URL.createObjectURL(file),
+        seconds: Math.min(length, maxSeconds),
+      });
       setPhase("recorded");
     });
     current.recorder = recorder;
@@ -282,7 +296,7 @@ function Studio({
         recorded +
         (recorder.state === "recording" ? (Date.now() - since) / 1000 : 0);
       setSeconds(passed);
-      if (passed >= MAX_SECONDS && recorder.state !== "inactive")
+      if (passed >= maxSeconds && recorder.state !== "inactive")
         recorder.stop();
     }, 250);
   };
@@ -434,9 +448,9 @@ function Studio({
               />
               <span
                 role="timer"
-                aria-label={strings.elapsed(clock(seconds), clock(MAX_SECONDS))}
+                aria-label={strings.elapsed(clock(seconds), clock(maxSeconds))}
               >
-                {clock(seconds)} / {clock(MAX_SECONDS)}
+                {clock(seconds)} / {clock(maxSeconds)}
               </span>
             </p>
           ) : null}
@@ -540,7 +554,7 @@ function Studio({
           </button>
           <button
             type="button"
-            onClick={() => onKeep(take.file)}
+            onClick={() => onKeep(take.file, take.seconds)}
             className={cx(
               button,
               "bg-primary text-primary-foreground hover:bg-primary/90",
@@ -560,13 +574,16 @@ export function VideoRecorder({
   onOpenChange,
   strings,
   locale,
+  maxSeconds = MOST_SECONDS,
   onKeep,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   strings: VideoRecorderStrings;
   locale: string;
-  onKeep: (file: File) => void;
+  maxSeconds?: number;
+  /** Given the take and how many seconds it runs. */
+  onKeep: (file: File, seconds: number) => void;
 }) {
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
@@ -588,8 +605,9 @@ export function VideoRecorder({
             <Studio
               strings={strings}
               locale={locale}
-              onKeep={(file) => {
-                onKeep(file);
+              maxSeconds={Math.min(maxSeconds, MOST_SECONDS)}
+              onKeep={(file, seconds) => {
+                onKeep(file, seconds);
                 onOpenChange(false);
               }}
             />

@@ -236,6 +236,7 @@ export function questionBlock(node: ContentNode): LessonBlock | null {
         type: "written",
         wordLimit: node.wordLimit ?? null,
         ...(spoken === null ? {} : { recordSeconds: spoken }),
+        ...(spoken !== null && node.recordVideo ? { recordVideo: true } : {}),
         ...(pictured === null ? {} : { answerWith: pictured }),
       };
     }
@@ -815,6 +816,7 @@ export function questionNode(block: LessonBlock): ContentNode | null {
     ...base,
     wordLimit: block.wordLimit,
     ...(block.recordSeconds ? { recordSeconds: block.recordSeconds } : {}),
+    ...(block.recordSeconds && block.recordVideo ? { recordVideo: true } : {}),
     ...(block.answerWith ? { answerWith: block.answerWith } : {}),
   };
 }

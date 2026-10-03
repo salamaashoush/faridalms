@@ -263,6 +263,7 @@ export function editorStrings(): EditorStrings {
     questionTehMarbuta: m.editorQuestionTehMarbuta(),
     questionWordLimit: m.editorQuestionWordLimit(),
     questionSpoken: m.editorQuestionSpoken(),
+    questionFilmed: m.editorQuestionFilmed(),
     questionDrawing: m.editorQuestionDrawing(),
     questionPhoto: m.editorQuestionPhoto(),
     questionCounting: m.editorQuestionCounting(),
@@ -318,6 +319,12 @@ export function editorStrings(): EditorStrings {
             minutes: formatNumber(seconds / 60),
           })
         : m.editorQuestionBySpeaking({ seconds: formatNumber(seconds) }),
+    questionByVideo: (seconds) =>
+      seconds % 60 === 0
+        ? m.editorQuestionByVideoMinutes({
+            minutes: formatNumber(seconds / 60),
+          })
+        : m.editorQuestionByVideo({ seconds: formatNumber(seconds) }),
     questionByDrawing: m.editorQuestionByDrawing(),
     questionByPhoto: m.editorQuestionByPhoto(),
     questionNoLimit: m.editorQuestionNoLimit(),
