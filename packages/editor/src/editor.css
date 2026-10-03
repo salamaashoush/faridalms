@@ -134,10 +134,31 @@
   overflow-x: auto;
   font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
   font-size: 0.875rem;
+  /* == and != stay the characters a beginner types, not one joined glyph. */
+  font-variant-ligatures: none;
   line-height: 1.6;
   white-space: pre;
   direction: ltr;
   text-align: left;
+}
+
+/* A code block students run carries a label saying so, since its
+   controls show only while the caret is in it. */
+.fe .fe-code-block[data-run] {
+  padding-top: 2.5rem;
+}
+.fe .fe-code-block[data-run]::before {
+  position: absolute;
+  top: 0.75rem;
+  left: 1.25rem;
+  border-radius: 9999px;
+  background: color-mix(in oklab, var(--fe-accent) 12%, transparent);
+  padding: 0.125rem 0.625rem;
+  color: var(--fe-accent);
+  font-size: 0.75rem;
+  line-height: 1.25rem;
+  white-space: nowrap;
+  content: attr(data-run-label);
 }
 
 .fe .fe-token-comment {

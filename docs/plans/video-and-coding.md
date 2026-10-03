@@ -62,7 +62,14 @@ off keeps the work and shows a placeholder.
 
 1. **Runnable code with Predict.** A code block a student can run (Python in
    a Pyodide worker, JavaScript in a sandboxed worker), optionally locked
-   behind a prediction question: PRIMM's predict and run.
+   behind a prediction question: PRIMM's predict and run. Done: a teacher
+   sets a Python or JavaScript code block to "Run it" or "Predict, then run
+   it"; students change it in CodeMirror, give the program its input, run it
+   and see what it prints, with the traceback and the failing line marked.
+   A predicting block opens once the question above it has a try, right or
+   not. Programs run in a worker inside an opaque-origin sandboxed frame, as
+   in [../operations.md](../operations.md), and stop after ten seconds or too
+   much output. Turtle drawing and keeping a student's changes remain.
 2. **Parsons problems** as a question kind: shuffled lines, indentation,
    distractors, marked and printable. Done: a teacher types the program as
    lines of a code puzzle (Tab indents, Enter keeps the indent, the circle

@@ -1,6 +1,7 @@
 import type { ContentDocument, ContentNode } from "@faridalms/domain/content";
 import type {
   ComponentProps,
+  ComponentType,
   CSSProperties,
   ReactElement,
   ReactNode,
@@ -69,6 +70,23 @@ interface Context {
   locale: string;
   marking?: Marking;
   watch?: ((fileId: string) => MediaWatch | undefined) | undefined;
+  runnable?: ComponentType<RunnableProps> | undefined;
+  predicted?: boolean | undefined;
+}
+
+/** A code block students can run: its program, and how it reads unrun. */
+export interface RunnableProps {
+  source: string;
+  language: string;
+  drawn: ReactNode;
+  /** Waiting for the question above to be answered with a prediction. */
+  locked: boolean;
+}
+
+function sourceOf(node: ContentNode): string {
+  if (node.type === "linebreak") return "\n";
+  if (node.type === "tab") return "\t";
+  return (node.text ?? "") + (node.children ?? []).map(sourceOf).join("");
 }
 
 function markingOf(
@@ -309,12 +327,26 @@ function draw(
           {children}
         </blockquote>
       );
-    case "code":
-      return (
+    case "code": {
+      const drawn = (
         <pre key={key} className="fe-code-block" data-language={node.language}>
           <code>{children}</code>
         </pre>
       );
+      const run = node.$?.run;
+      const Runnable = context.runnable;
+      return run && Runnable ? (
+        <Runnable
+          key={key}
+          source={sourceOf(node)}
+          language={node.language ?? ""}
+          drawn={drawn}
+          locked={run === "predict" && context.predicted === false}
+        />
+      ) : (
+        drawn
+      );
+    }
     case "linebreak":
       return <br key={key} />;
     case "horizontalrule":
@@ -708,6 +740,8 @@ export function ContentRenderer({
   activeMark = null,
   renderBlock,
   watch,
+  runnable,
+  predicted,
 }: {
   document: ContentDocument;
   strings: ViewStrings;
@@ -721,11 +755,26 @@ export function ContentRenderer({
   activeMark?: string | null;
   /** Draws something renderBlock each top-level block, such as a speaker that reads it. */
   renderBlock?: (node: ContentNode, drawn: ReactNode) => ReactNode;
+  /** Draws code blocks students can run; without it they show as code. */
+  runnable?: ComponentType<RunnableProps>;
+  /**
+   * Whether the question above this part of a lesson is answered, which a
+   * code block waiting for a prediction needs before it runs.
+   */
+  predicted?: boolean;
 }) {
   const marking = marks?.length
     ? markingOf(document, marks, activeMark)
     : undefined;
-  const context = { strings, fileUrl, locale, marking, watch };
+  const context = {
+    strings,
+    fileUrl,
+    locale,
+    marking,
+    watch,
+    runnable,
+    predicted,
+  };
   return (
     <div
       className={className ? `fe ${className}` : "fe"}

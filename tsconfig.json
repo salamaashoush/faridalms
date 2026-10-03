@@ -17,6 +17,9 @@
     "moduleResolution": "Bundler",
     "resolveJsonModule": true,
     "isolatedModules": true,
+    // The code runner's workers are module workers with nothing to import
+    // or export; every file here is a module whether it says so or not.
+    "moduleDetection": "force",
     "jsx": "react-jsx",
     "incremental": true,
     "paths": {

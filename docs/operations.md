@@ -194,6 +194,18 @@ headers. In development, serve the studio on a different site from the web,
 such as `http://localhost:3300` beside `http://127.0.0.1:3100`, since ports
 alone do not separate cookies.
 
+## Running code in lessons
+
+Code blocks a teacher marks to run, in Python or JavaScript, run in the
+student's browser: in a worker inside a frame sandboxed to an opaque origin,
+so a program reaches none of the school's cookies, storage or pages, and is
+stopped after ten seconds or too much output. Python is Pyodide, served by
+the web itself under `/pyodide/{version}/` from the installed package and
+copied into every build. Those files are sent to any origin with a year's
+cache, since the sandboxed frame has no origin of its own; a proxy or CDN in
+front of the web must keep the `access-control-allow-origin: *` header on
+that path, or Python never loads. Nothing runs on the server.
+
 ## Public site
 
 Each school's marketing site is served at `/site/{slug}` by the same web and API

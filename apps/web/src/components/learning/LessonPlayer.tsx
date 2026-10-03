@@ -221,6 +221,13 @@ function LessonBody({
       .map((stop) => stop.at)
       .filter((time) => time < at)
       .at(-1) ?? 0;
+  // Code that waits for a prediction runs once the question above it has a
+  // try, right or not: seeing a wrong guess run is the point of predicting.
+  const predictedAbove = (index: number) => {
+    const question = blocks.slice(0, index).findLast(isCheckBlock);
+    const view = question ? checks[question.id] : undefined;
+    return !question || Boolean(view && (view.tries > 0 || view.revealed));
+  };
   const settledAbove = (index: number) => {
     const above = blocks.slice(0, index);
     const questions = above.filter(isCheckBlock);
@@ -320,6 +327,7 @@ function LessonBody({
               document={block.content}
               fileUrl={fileUrl}
               watch={watching}
+              predicted={predictedAbove(index)}
               renderBlock={(node, drawn) => {
                 const narration = node.$?.narration ?? null;
                 if (!young && !narration) return drawn;

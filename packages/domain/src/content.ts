@@ -198,7 +198,13 @@ export interface ContentNode {
    * aloud, and the moment in that recording each of its words starts, in
    * milliseconds, as the teacher tapped them along.
    */
-  $?: { id?: string; narration?: string; words?: number[] };
+  $?: {
+    id?: string;
+    narration?: string;
+    words?: number[];
+    /** A code block students can run, straight away or once they predict. */
+    run?: "run" | "predict";
+  };
 }
 
 /** A screenshot or file a student keeps as evidence of using an AI tool. */
@@ -418,6 +424,7 @@ const nodeSchema: v.GenericSchema<ContentNode> = v.lazy(() =>
           id: v.optional(v.pipe(v.string(), v.regex(/^[\da-z]{8,36}$/))),
           narration: v.optional(v.pipe(v.string(), v.uuid())),
           words: v.optional(narrationWordsSchema),
+          run: v.optional(v.picklist(["run", "predict"])),
         }),
       ),
     }),

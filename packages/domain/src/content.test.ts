@@ -84,6 +84,30 @@ describe("words timed against a recording", () => {
   });
 });
 
+const code = (run: unknown) => {
+  const work = plainContent("print(1)");
+  const [first] = work.root.children ?? [];
+  if (first) {
+    first.type = "code";
+    first.language = "py";
+    first.$ = { run } as NonNullable<typeof first.$>;
+  }
+  return work;
+};
+
+describe("code students run", () => {
+  it("keeps whether students run a block or predict first, and counts it as a change", () => {
+    const parsed = v.safeParse(contentDocumentSchema, code("predict"));
+    expect(parsed.success && parsed.output.root.children?.[0]?.$?.run).toBe(
+      "predict",
+    );
+    expect(v.safeParse(contentDocumentSchema, code("always")).success).toBe(
+      false,
+    );
+    expect(sameContent(code("run"), code("predict"))).toBe(false);
+  });
+});
+
 describe("same content", () => {
   it("ignores key order and the direction the editor works out", () => {
     const stored = plainContent("Read the poem.");

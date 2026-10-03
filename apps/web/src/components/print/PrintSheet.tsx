@@ -478,6 +478,7 @@ export function PrintSheet({
             fileUrl={fileUrl}
             className="fe-paper"
             renderBlock={block}
+            runs={false}
           />
         ) : item.type === "media" ? (
           <OnlineOnly
@@ -504,6 +505,7 @@ export function PrintSheet({
       fileUrl={fileUrl}
       className="fe-paper"
       renderBlock={block}
+      runs={false}
     />
   );
 

@@ -31,6 +31,7 @@ import {
 
 export * from "./ai-use";
 export * from "./callout";
+export * from "./code-run";
 export * from "./columns";
 export * from "./gate";
 export * from "./media";

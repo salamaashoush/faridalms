@@ -1,7 +1,7 @@
 import type { LexicalEditor, LexicalNode } from "lexical";
 
 import { contentDocumentSchema } from "@faridalms/domain/content";
-import { CodeExtension } from "@lexical/code";
+import { $createCodeNode, CodeExtension } from "@lexical/code";
 import {
   buildEditorFromExtensions,
   HorizontalRuleExtension,
@@ -28,6 +28,7 @@ import {
   $isCalloutNode,
   $isColumnsNode,
   $isToggleNode,
+  $setCodeRun,
   blockIdState,
 } from "./nodes";
 
@@ -169,6 +170,29 @@ describe("block operations", () => {
       target.getEditorState().toJSON(),
     );
     expect(saved.success).toBe(true);
+  });
+
+  it("saves a code block students run, and forgets it when set back to reading", () => {
+    const target = editor();
+    const saved = (run: "run" | "predict" | null) => {
+      target.update(
+        () => {
+          const code = $createCodeNode("py");
+          code.append($createTextNode("print(1)"));
+          $setCodeRun(code, run);
+          $getRoot().clear().append(code);
+        },
+        { discrete: true },
+      );
+      const parsed = v.safeParse(
+        contentDocumentSchema,
+        target.getEditorState().toJSON(),
+      );
+      if (!parsed.success) throw new Error("not valid content");
+      return parsed.output.root.children?.[0]?.$?.run;
+    };
+    expect(saved("predict")).toBe("predict");
+    expect(saved(null)).toBeUndefined();
   });
 
   it("moves blocks up and down among their siblings", () => {

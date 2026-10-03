@@ -363,6 +363,11 @@ export interface EditorStrings {
   checkItem: string;
   codeLanguage: string;
   plainText: string;
+  /** What students do with a code block: read it, run it, or predict and run. */
+  codeStudents: string;
+  codeRead: string;
+  codeRun: string;
+  codePredict: string;
   aiUse: string;
   aiUseHint: string;
   aiUseTool: string;
