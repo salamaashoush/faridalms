@@ -1,3 +1,4 @@
+import { StartMark } from "@faridalms/editor/player";
 import { useQuery } from "@tanstack/react-query";
 import { Flag, LoaderCircle, Puzzle } from "lucide-react";
 import { useState } from "react";
@@ -36,25 +37,23 @@ export function ProjectPlayer({
       disabled={!configured}
       onClick={() => setPlaying(true)}
       aria-label={m.codingRun({ name: label })}
-      className="group relative grid aspect-[4/3] w-full max-w-md place-items-center overflow-hidden rounded-lg border bg-white outline-none focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-default"
+      className="group relative grid aspect-[4/3] w-full max-w-md cursor-pointer place-items-center overflow-hidden rounded-lg border bg-muted outline-none focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-default"
     >
+      {/* Scratch's stage is white, and its picture is transparent wherever nothing is drawn. */}
       {stage ? (
         <img
           src={stage}
           alt=""
-          className="absolute inset-0 size-full object-contain"
+          className="absolute inset-0 size-full bg-white object-contain"
         />
       ) : (
-        <Puzzle className="size-10 text-neutral-300" aria-hidden />
+        <Puzzle className="size-10 text-muted-foreground" aria-hidden />
       )}
       {configured ? (
-        <span className="absolute inset-0 grid place-items-center bg-black/5 transition-colors group-hover:bg-black/15">
-          <span className="grid size-16 place-items-center rounded-full bg-white shadow-md ring-1 ring-black/10">
-            <Flag
-              className="size-8 fill-green-500 text-green-600"
-              aria-hidden
-            />
-          </span>
+        <span className="absolute inset-0 grid place-items-center transition-colors group-hover:bg-foreground/5">
+          <StartMark>
+            <Flag className="fill-current" aria-hidden />
+          </StartMark>
         </span>
       ) : null}
     </button>
@@ -70,7 +69,7 @@ function Playing({ projectUrl, label }: { projectUrl: string; label: string }) {
   });
   return (
     <div
-      className="relative w-full max-w-md overflow-hidden rounded-lg border bg-white"
+      className="relative w-full max-w-md overflow-hidden rounded-lg border bg-muted"
       style={{ aspectRatio: PLAYER_RATIO }}
     >
       {studio.source ? (
@@ -81,9 +80,9 @@ function Playing({ projectUrl, label }: { projectUrl: string; label: string }) {
         />
       ) : null}
       {studio.loaded ? null : (
-        <div className="absolute inset-0 grid place-items-center bg-white">
+        <div className="absolute inset-0 grid place-items-center bg-muted">
           <LoaderCircle
-            className="size-6 animate-spin text-neutral-400"
+            className="size-6 animate-spin text-muted-foreground"
             aria-label={m.studioLoading()}
           />
         </div>
