@@ -50,12 +50,13 @@ import {
 
 import { LOCALE_NAME } from "~/components/content/languages";
 import { CheckboxRow } from "~/components/people/fields";
+import { PanelGroup, Segmented } from "~/components/system/panel";
 import * as m from "~/i18n/messages";
 import { formatNumber } from "~/utils/datetime";
 
 import type { Languages } from "./draft";
 
-import { Disclosure, PanelGroup, Segmented, StudioField } from "./controls";
+import { Disclosure, StudioField } from "./controls";
 import { FilePick, useUpload } from "./fields";
 import {
   BUTTON_LABEL,

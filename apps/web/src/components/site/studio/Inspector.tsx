@@ -21,6 +21,7 @@ import { AlignCenter, AlignLeft, CircleAlert, X } from "lucide-react";
 
 import { LOCALE_NAME } from "~/components/content/languages";
 import { CheckboxRow } from "~/components/people/fields";
+import { PanelGroup, Segmented } from "~/components/system/panel";
 import * as m from "~/i18n/messages";
 import { formatNumber } from "~/utils/datetime";
 
@@ -30,7 +31,7 @@ import type { FieldContext } from "./fields";
 
 import { SiteSection } from "../render/sections";
 import { Viewport } from "./Canvas";
-import { PanelGroup, Segmented, StudioField } from "./controls";
+import { StudioField } from "./controls";
 import { FieldControl, FilePick, FocusPicker, useUpload } from "./fields";
 import {
   ALIGN_LABEL,

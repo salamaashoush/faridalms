@@ -59,11 +59,12 @@ import { useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { ContentEditor } from "~/components/content/ContentEditor";
+import { Segmented } from "~/components/system/panel";
 import * as m from "~/i18n/messages";
 import { formatNumber } from "~/utils/datetime";
 
 import { SiteIcon } from "../render/parts";
-import { Disclosure, Segmented, StudioField } from "./controls";
+import { Disclosure, StudioField } from "./controls";
 import {
   AUDIENCE_LABEL,
   BLOCK_LABEL,

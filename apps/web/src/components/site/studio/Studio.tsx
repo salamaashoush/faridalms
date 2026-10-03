@@ -70,6 +70,7 @@ import { UnsavedChangesGuard } from "~/components/app/UnsavedChangesGuard";
 import { LOCALE_NAME } from "~/components/content/languages";
 import { useDocumentMedia } from "~/components/coursework/useDocumentMedia";
 import { usePicturePeople } from "~/components/files/PicturedPeople";
+import { Segmented } from "~/components/system/panel";
 import { StatusBadge } from "~/components/system/status";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
@@ -90,7 +91,6 @@ import type { Inserted } from "./Gallery";
 
 import { STATE_LABEL, STATE_TONE } from "../format";
 import { Canvas } from "./Canvas";
-import { Segmented } from "./controls";
 import {
   canvasSections,
   contentOf,

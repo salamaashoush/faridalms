@@ -12,12 +12,13 @@ import { Textarea } from "@faridalms/ui/textarea";
 
 import { LOCALE_NAME } from "~/components/content/languages";
 import { CheckboxRow } from "~/components/people/fields";
+import { PanelGroup } from "~/components/system/panel";
 import * as m from "~/i18n/messages";
 
 import type { Languages, PageDraft } from "./draft";
 
 import { History } from "../History";
-import { PanelGroup, StudioField } from "./controls";
+import { StudioField } from "./controls";
 
 type Version = Parameters<typeof History>[0]["rows"][number];
 
