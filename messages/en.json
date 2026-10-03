@@ -4316,6 +4316,7 @@
   "codeWhyModule": "That module is not available here.",
   "codeTests": "Tests",
   "codeTestsHint": "Check answer runs your program once for each test. Only what it prints counts, not the questions it asks with input().",
+  "codeTestsHintJs": "Check answer runs your program once for each test. Only what it writes with console.log counts, not the questions it asks with prompt().",
   "codeTestNumber": "Test {number}",
   "codeHiddenTestNumber": "Hidden test {number}",
   "codeTestGives": "Input",

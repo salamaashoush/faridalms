@@ -1,3 +1,4 @@
+import { consoleSource } from "@faridalms/domain/console";
 import { version as pyodideVersion } from "pyodide/package.json";
 
 import frameSource from "./frame.js?raw";
@@ -176,7 +177,10 @@ function openFrame(): Promise<HTMLIFrameElement> {
         element.contentWindow?.postMessage(
           {
             type: "init",
-            sources: { python: pythonSource, javascript: javascriptSource },
+            sources: {
+              python: pythonSource,
+              javascript: consoleSource + javascriptSource,
+            },
           },
           "*",
         ),

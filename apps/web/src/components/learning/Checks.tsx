@@ -1514,14 +1514,16 @@ function ProgramTest({
   title,
   test,
   result,
+  language,
 }: {
   title: string;
   test: { input: string; expected: string } | null;
   result: ProgramResult | undefined;
+  language: "python" | "javascript";
 }) {
   const mark: Mark = result ? (result.passed ? "right" : "wrong") : null;
   const friendly = result?.error
-    ? friendlyError("python", result.error.split(":")[0] ?? "")
+    ? friendlyError(language, result.error.split(":")[0] ?? "")
     : null;
   const row = (label: string, text: string, tone?: string) => (
     <>
@@ -1666,7 +1668,9 @@ function ProgramCheck({
           ) : null}
         </div>
         <p className="text-[13px] leading-[18px] text-muted-foreground">
-          {m.codeTestsHint()}
+          {block.language === "javascript"
+            ? m.codeTestsHintJs()
+            : m.codeTestsHint()}
         </p>
         <ul className="grid gap-1.5">
           {block.tests.map((test, index) => (
@@ -1675,6 +1679,7 @@ function ProgramCheck({
               title={m.codeTestNumber({ number: formatNumber(index + 1) })}
               test={test}
               result={mode === "quiz" ? undefined : results[test.id]}
+              language={block.language}
             />
           ))}
           {block.hiddenTests.map((testId, index) => (
@@ -1685,6 +1690,7 @@ function ProgramCheck({
               })}
               test={null}
               result={mode === "quiz" ? undefined : results[testId]}
+              language={block.language}
             />
           ))}
         </ul>

@@ -7,9 +7,9 @@ import type {
 import { outputMatches } from "@faridalms/domain/learning";
 import { ORPCError } from "@orpc/server";
 
-import type { PythonRun, PythonRunner } from "./python";
+import type { CodeRun, CodeRunner } from "./run";
 
-/** The line Python ends a traceback with: the error and what it says. */
+/** The last line of an error, as Python or JavaScript states it. */
 function errorLine(stderr: string): string | null {
   const last = stderr.trimEnd().split("\n").at(-1) ?? "";
   return /^[A-Za-z_][\w.]*(Error|Exception|Exit|Interrupt)\b/.test(last)
@@ -19,7 +19,7 @@ function errorLine(stderr: string): string | null {
 
 function resultOf(
   test: ProgramBlock["tests"][number],
-  run: PythonRun,
+  run: CodeRun,
 ): ProgramResult {
   const error = errorLine(run.stderr);
   return {
@@ -41,15 +41,16 @@ function resultOf(
  * it did in each test, run here. Results a student sent are never kept.
  */
 export async function markedProgram(
-  python: PythonRunner | null,
+  runners: { python: CodeRunner | null; javascript: CodeRunner },
   block: ProgramBlock,
   response: Extract<LessonResponse, { type: "program" }>,
 ): Promise<LessonResponse> {
-  if (!python)
+  const runner = runners[block.language];
+  if (!runner)
     throw new ORPCError("SERVICE_UNAVAILABLE", {
       message: "learning.no_python",
     });
-  const runs = await python.run(
+  const runs = await runner.run(
     response.code,
     block.tests.map((test) =>
       test.input === "" || test.input.endsWith("\n")

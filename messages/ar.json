@@ -4486,6 +4486,7 @@
   "codeWhyModule": "هذه الوحدة غير متاحة هنا.",
   "codeTests": "الاختبارات",
   "codeTestsHint": "يشغّل «تحقّق من الإجابة» برنامجك مرة لكل اختبار. يُحتسب ما يطبعه فقط، لا الأسئلة التي يطرحها عبر input.",
+  "codeTestsHintJs": "يشغّل «تحقّق من الإجابة» برنامجك مرة لكل اختبار. يُحتسب ما يكتبه عبر console.log فقط، لا الأسئلة التي يطرحها عبر prompt.",
   "codeTestNumber": "الاختبار {number}",
   "codeHiddenTestNumber": "اختبار مخفي {number}",
   "codeTestGives": "المدخلات",

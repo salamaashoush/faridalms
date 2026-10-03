@@ -221,7 +221,9 @@ socket or process, at most 256 MiB, and five seconds a test. Install
 fetches that Python (`apps/api/scripts/python-wasi.ts`, pinned by version
 and checksum) into `apps/api/vendor/python`, and the image copies it beside
 the API; `PYTHON_DIR` points elsewhere. Without it the API starts, and
-checking a code exercise says it cannot be marked here.
+checking a Python exercise says it cannot be marked here. JavaScript
+exercises run in QuickJS, compiled to WebAssembly and bundled with the API,
+with nothing of the host but what a test gives and prints.
 
 ## Public site
 

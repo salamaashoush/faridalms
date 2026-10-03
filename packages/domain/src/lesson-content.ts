@@ -289,7 +289,7 @@ export function questionBlock(node: ContentNode): LessonBlock | null {
       return {
         ...check,
         type: "program",
-        language: "python",
+        language: node.codeLanguage === "javascript" ? "javascript" : "python",
         starter: starter.join("\n"),
         tests: parts
           .filter(
@@ -678,6 +678,7 @@ export function questionNode(block: LessonBlock): ContentNode | null {
   if (block.type === "program")
     return {
       ...base,
+      codeLanguage: block.language,
       children: [
         ...(base.children ?? []),
         // The starter's lines carry no ids of their own; the program is

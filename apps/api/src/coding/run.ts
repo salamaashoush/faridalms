@@ -1,7 +1,7 @@
 import { existsSync } from "node:fs";
 import { join } from "node:path";
 
-export interface PythonRun {
+export interface CodeRun {
   exit: number;
   stdout: string;
   stderr: string;
@@ -12,8 +12,8 @@ export interface PythonRun {
 }
 
 /** Runs a student's program once for each input it is checked with. */
-export interface PythonRunner {
-  run(code: string, inputs: readonly string[]): Promise<PythonRun[]>;
+export interface CodeRunner {
+  run(code: string, inputs: readonly string[]): Promise<CodeRun[]>;
 }
 
 /** How long one run may take before it is stopped as stuck. */
@@ -23,14 +23,15 @@ const ANSWER_MS = 20_000;
 /** Answers marked at once; more wait their turn. */
 const AT_ONCE = 2;
 
-// The worker sits beside this module in the source, and beside the bundle
-// once built, where it is its own entry point.
-const WORKER = join(
-  import.meta.dir,
-  import.meta.path.endsWith(".ts") ? "python-worker.ts" : "python-worker.js",
-);
+// Each language's worker sits beside this module in the source, and beside
+// the bundle once built, where it is its own entry point.
+const workerFor = (name: "python-worker" | "javascript-worker") =>
+  join(
+    import.meta.dir,
+    `${name}${import.meta.path.endsWith(".ts") ? ".ts" : ".js"}`,
+  );
 
-const stopped = (timedOut: boolean): PythonRun => ({
+const stopped = (timedOut: boolean): CodeRun => ({
   exit: 1,
   stdout: "",
   stderr: "",
@@ -43,19 +44,20 @@ const stopped = (timedOut: boolean): PythonRun => ({
  * too long ends the worker; the runs after it get a fresh one.
  */
 function runFrom(
-  dir: string,
+  worker: string,
+  init: Record<string, unknown>,
   code: string,
   inputs: readonly string[],
   first: number,
   deadline: number,
-): Promise<{ runs: PythonRun[]; stuck: boolean }> {
+): Promise<{ runs: CodeRun[]; stuck: boolean }> {
   return new Promise((resolve) => {
-    const worker = new Worker(WORKER);
-    const runs: PythonRun[] = [];
+    const thread = new Worker(worker);
+    const runs: CodeRun[] = [];
     let timer: ReturnType<typeof setTimeout> | undefined;
     const finish = (stuck: boolean) => {
       clearTimeout(timer);
-      worker.terminate();
+      thread.terminate();
       resolve({ runs, stuck });
     };
     const next = () => {
@@ -71,33 +73,34 @@ function runFrom(
         },
         Math.max(0, Math.min(RUN_MS, deadline - Date.now())),
       );
-      worker.postMessage({ type: "run", code, stdin: inputs[index] }, []);
+      thread.postMessage({ type: "run", code, stdin: inputs[index] }, []);
     };
-    worker.addEventListener("message", (event: MessageEvent) => {
+    thread.addEventListener("message", (event: MessageEvent) => {
       const message = event.data as
         | { type: "ready" }
-        | ({ type: "result" } & Omit<PythonRun, "timedOut">);
+        | ({ type: "result" } & Omit<CodeRun, "timedOut"> & {
+              timedOut?: boolean;
+            });
       if (message.type === "result") {
         clearTimeout(timer);
         const { type: _type, ...run } = message;
-        runs.push({ ...run, timedOut: false });
+        runs.push({ ...run, timedOut: run.timedOut ?? false });
       }
       next();
     });
-    worker.addEventListener("error", () => {
+    thread.addEventListener("error", () => {
       runs.push(stopped(false));
       finish(true);
     });
-    worker.postMessage({ type: "init", dir }, []);
+    thread.postMessage({ ...init, type: "init" }, []);
   });
 }
 
-/**
- * Python for marking, or null when it was not fetched (see
- * `apps/api/scripts/python-wasi.ts`), when code exercises cannot be marked.
- */
-export function createPythonRunner(dir: string): PythonRunner | null {
-  if (!existsSync(join(dir, "python.wasm"))) return null;
+/** Runs programs in one language's worker, a few answers at a time. */
+function createCodeRunner(
+  worker: string,
+  init: Record<string, unknown>,
+): CodeRunner {
   let busy = 0;
   const waiting: (() => void)[] = [];
   return {
@@ -107,13 +110,20 @@ export function createPythonRunner(dir: string): PythonRunner | null {
       busy += 1;
       try {
         const deadline = Date.now() + ANSWER_MS;
-        const runs: PythonRun[] = [];
+        const runs: CodeRun[] = [];
         while (runs.length < inputs.length) {
           if (Date.now() >= deadline) {
             runs.push(stopped(true));
             continue;
           }
-          const part = await runFrom(dir, code, inputs, runs.length, deadline);
+          const part = await runFrom(
+            worker,
+            init,
+            code,
+            inputs,
+            runs.length,
+            deadline,
+          );
           runs.push(...part.runs);
         }
         return runs;
@@ -123,4 +133,18 @@ export function createPythonRunner(dir: string): PythonRunner | null {
       }
     },
   };
+}
+
+/**
+ * Python for marking, or null when it was not fetched (see
+ * `apps/api/scripts/python-wasi.ts`), when Python exercises cannot be marked.
+ */
+export function createPythonRunner(dir: string): CodeRunner | null {
+  if (!existsSync(join(dir, "python.wasm"))) return null;
+  return createCodeRunner(workerFor("python-worker"), { dir });
+}
+
+/** JavaScript for marking, in QuickJS, which comes with the API. */
+export function createJavaScriptRunner(): CodeRunner {
+  return createCodeRunner(workerFor("javascript-worker"), {});
 }

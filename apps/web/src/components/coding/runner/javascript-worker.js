@@ -39,39 +39,12 @@ function write(stream, text) {
     flush();
 }
 
-/**
- * A value as a console shows it: text as it is, everything else in the
- * shape a reader would type it.
- * @param {unknown} value
- * @param {number} depth
- * @returns {string}
- */
-function shown(value, depth = 0) {
-  if (typeof value === "string")
-    return depth === 0 ? value : JSON.stringify(value);
-  if (typeof value === "function")
-    return `[Function ${value.name || "anonymous"}]`;
-  if (typeof value === "bigint") return `${value}n`;
-  if (typeof value === "symbol") return value.toString();
-  if (value === null || typeof value !== "object") return String(value);
-  if (value instanceof Error) return `${value.name}: ${value.message}`;
-  if (depth > 2) return Array.isArray(value) ? "[Array]" : "[Object]";
-  if (Array.isArray(value))
-    return `[ ${value.map((item) => shown(item, depth + 1)).join(", ")} ]`;
-  if (value instanceof Map)
-    return `Map(${value.size}) { ${[...value]
-      .map(
-        ([key, item]) =>
-          `${shown(key, depth + 1)} => ${shown(item, depth + 1)}`,
-      )
-      .join(", ")} }`;
-  if (value instanceof Set)
-    return `Set(${value.size}) { ${[...value].map((item) => shown(item, depth + 1)).join(", ")} }`;
-  const entries = Object.entries(value).map(
-    ([key, item]) => `${key}: ${shown(item, depth + 1)}`,
+// The lesson's own console formatter, sent ahead of this worker, so a
+// program prints the same here as when its tests mark it.
+const { faridaShow: shown } =
+  /** @type {{ faridaShow: (value: unknown, depth?: number) => string }} */ (
+    /** @type {unknown} */ (globalThis)
   );
-  return entries.length ? `{ ${entries.join(", ")} }` : "{}";
-}
 
 /** @param {string} stream */
 const logger =

@@ -6,7 +6,7 @@ import type {
 import type { Capability, Profile } from "@faridalms/domain/capabilities";
 import type { SessionContext, Workspace } from "@faridalms/domain/workspace";
 
-import type { PythonRunner } from "../coding/python";
+import type { CodeRunner } from "../coding/run";
 import type { FileScanner } from "../files/scan";
 import type { FileStore } from "../files/store";
 import type { KeyRing } from "./keys";
@@ -22,8 +22,8 @@ export interface ApiDependencies {
   /** The public-media bucket published files are copied to. */
   publicMedia: FileStore;
   scanner: FileScanner | null;
-  /** Runs code exercises to mark them; none leaves them unmarkable. */
-  python: PythonRunner | null;
+  /** Run code exercises to mark them; no Python leaves its exercises unmarkable. */
+  runners: { python: CodeRunner | null; javascript: CodeRunner };
   /** Where signed links point: the cookieless files host. */
   filesOrigin: string;
   linkKey: Buffer;

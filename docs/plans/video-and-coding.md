@@ -92,8 +92,11 @@ off keeps the work and shows a placeholder.
    transactions, and gives credit per test. A hidden test shows only
    whether it passed and the error's name; a quiz keeps results back until
    it shows its answers. Errors come with a plain explanation in the
-   student's language. JavaScript exercises, hints in order and every run
-   kept remain.
+   student's language. JavaScript exercises work the same way, marked in
+   QuickJS compiled to WebAssembly with 64 MiB, four seconds a test and
+   nothing of the host; one console formatter, shared by the browser and
+   the API, makes a program print alike when run and when checked. Hints in
+   order and every run kept remain.
 4. **Projects and the sandbox domain.** A multi-file HTML, CSS and JavaScript
    or Python (turtle, p5.js) project with live preview on the separate
    domain, autosaved as the student's work, a class gallery with remix, and

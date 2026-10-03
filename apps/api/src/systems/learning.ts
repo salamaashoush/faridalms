@@ -1706,7 +1706,7 @@ async function programAnswer<T>(
       throw new ORPCError("CONFLICT", { message: "learning.settled" });
     return found;
   });
-  const response = await markedProgram(context.python, block, {
+  const response = await markedProgram(context.runners, block, {
     type: "program",
     code: input.code,
   });

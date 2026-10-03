@@ -2351,7 +2351,7 @@ export const saveQuizProgram = schoolProcedure
       if (found?.type !== "program") throw new ORPCError("NOT_FOUND");
       return found;
     });
-    const response = await markedProgram(context.python, block, {
+    const response = await markedProgram(context.runners, block, {
       type: "program",
       code: input.code,
     });

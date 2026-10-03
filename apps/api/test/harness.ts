@@ -27,7 +27,7 @@ import type { FileStore } from "../src/files/store";
 import type { AppRouter } from "../src/router";
 
 import { createApp } from "../src/app";
-import { createPythonRunner } from "../src/coding/python";
+import { createJavaScriptRunner, createPythonRunner } from "../src/coding/run";
 import { createKeyRing } from "../src/core/keys";
 import { LOCALE_HEADER, SCHOOL_HEADER } from "../src/core/procedure";
 import { createFilesHost, linkKey } from "../src/files/links";
@@ -118,7 +118,12 @@ export async function setUp() {
     files,
     publicMedia,
     scanner: null,
-    python: createPythonRunner(join(import.meta.dir, "..", "vendor", "python")),
+    runners: {
+      python: createPythonRunner(
+        join(import.meta.dir, "..", "vendor", "python"),
+      ),
+      javascript: createJavaScriptRunner(),
+    },
     filesOrigin: FILES_ORIGIN,
     linkKey: linkKey(cellSecret),
     mediaOrigin: MEDIA_ORIGIN,

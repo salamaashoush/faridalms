@@ -181,6 +181,8 @@ type QuestionText = "hint" | "explanation" | "feedback" | "alt";
 const POINTS = [0, 1, 2, 3, 4, 5, 6, 8, 10];
 const TRIES = [null, 1, 2, 3, 5] as const;
 const CODE_LANGUAGES = ["python", "javascript", "html", "text"] as const;
+/** Languages a code exercise can be marked in. */
+const PROGRAM_LANGUAGES = ["python", "javascript"] as const;
 const WORD_LIMITS = [null, 50, 100, 150, 200, 300, 500] as const;
 // Writing, or speaking for up to so many seconds (RECORD_SECONDS in the domain).
 const ANSWER_BY = [null, 15, 45, 90, 180, "drawing", "photo"] as const;
@@ -1027,6 +1029,17 @@ export function SelectionToolbarPlugin() {
             ) : null
           ) : (
             <>
+              {settings.kind === "program" ? (
+                <BarMenu
+                  label={strings.questionLanguage}
+                  current={strings.questionLanguages[settings.codeLanguage]}
+                  values={PROGRAM_LANGUAGES}
+                  text={(language) => strings.questionLanguages[language]}
+                  onPick={(codeLanguage) => change({ codeLanguage })}
+                  onOpenChange={trackMenu}
+                  finalFocus={textFocus(editor)}
+                />
+              ) : null}
               {settings.kind === "parsons" ? (
                 <BarMenu
                   label={strings.questionLanguage}

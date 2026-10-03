@@ -804,6 +804,19 @@ describe("code exercises", () => {
     ],
   };
 
+  it("keeps the language it is marked in", () => {
+    const [block] = exercise.blocks;
+    if (block?.type !== "program") throw new Error("program expected");
+    const document = contentOfLesson({
+      version: 2,
+      blocks: [{ ...block, language: "javascript" }],
+    });
+    if (!document) throw new Error("lesson could not become a document");
+    expect(lessonOfContent(document).blocks[0]).toMatchObject({
+      language: "javascript",
+    });
+  });
+
   it("keeps its starter, its tests' lines and which tests are hidden", () => {
     const document = contentOfLesson(exercise);
     if (!document) throw new Error("lesson could not become a document");

@@ -566,6 +566,74 @@ describe("code exercises", () => {
   });
 });
 
+describe("javascript exercises", () => {
+  test("a JavaScript program is marked by running it in a sandbox of its own", async () => {
+    const { keeper } = await teachers();
+    const { rows } = await keeper.learning.modules({});
+    const source = rows.find((row) => row.title === TITLE);
+    if (!source) throw new Error("no module");
+    const saved = await keeper.learning.saveModule({
+      id: "",
+      expectedVersion: 0,
+      title: "Doubling",
+      summary: "",
+      classIds: source.classes.map((item) => item.id),
+      prerequisiteId: "",
+      sequential: false,
+    });
+    const exercise = {
+      id: id(),
+      type: "program" as const,
+      prompt: "Print the number doubled.",
+      points: 1,
+      hint: "",
+      explanation: "",
+      tries: null,
+      language: "javascript" as const,
+      starter: "",
+      tests: [
+        { id: id(), input: "4", expected: "8", hidden: false },
+        { id: id(), input: "-3", expected: "-6", hidden: true },
+      ],
+    };
+    await keeper.learning.saveLesson({
+      id: "",
+      moduleId: saved.id,
+      expectedVersion: 0,
+      title: "Doubling",
+      completion: "quiz",
+      passScore: null,
+      content: written([exercise]),
+      publish: false,
+    });
+    await keeper.learning.publishModule({
+      id: saved.id,
+      expectedVersion: saved.version,
+    });
+    const pupil = await student();
+    const outline = await pupil.learning.play({ id: saved.id });
+    const lessonId = outline.lessons[0]?.id ?? "";
+    const opened = await pupil.learning.playLesson({ id: lessonId });
+    expect(blockOf(opened, "program").language).toBe("javascript");
+    const reaching = await pupil.learning.respondProgram({
+      lessonId,
+      blockId: exercise.id,
+      code: "console.log(typeof fetch, typeof process)",
+    });
+    const kept = reaching.check.response;
+    if (kept?.type !== "program") throw new Error("program expected");
+    expect(kept.results?.[exercise.tests[0]?.id ?? ""]?.output).toBe(
+      "undefined undefined\n",
+    );
+    const done = await pupil.learning.respondProgram({
+      lessonId,
+      blockId: exercise.id,
+      code: "const n = Number(prompt('A number?'));\nconsole.log(n * 2);",
+    });
+    expect(done.check).toMatchObject({ correct: true, fraction: 1 });
+  });
+});
+
 describe("marking written answers", () => {
   test("the teacher reads a class's answers and marks one, which the student then sees", async () => {
     const { keeper, stranger } = await teachers();

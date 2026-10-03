@@ -501,7 +501,7 @@ export const lessonBlockSchema = v.variant("type", [
   v.object({
     ...checkFields,
     type: v.literal("program"),
-    language: v.literal("python"),
+    language: v.picklist(["python", "javascript"]),
     /** The code a student starts from; empty when they write it all. */
     starter: v.pipe(v.string(), v.maxLength(5000)),
     /**

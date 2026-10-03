@@ -465,7 +465,9 @@ export class QuestionNode extends ElementNode {
         ? { projectFileId }
         : {}),
       ...(videoAt === null ? {} : { videoAt }),
-      ...(settings.kind === "parsons" ? { codeLanguage } : {}),
+      ...(settings.kind === "parsons" || settings.kind === "program"
+        ? { codeLanguage }
+        : {}),
     };
   }
 
