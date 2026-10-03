@@ -30,7 +30,10 @@ with the gate it can break.
    Resumable upload, ffmpeg to HLS (360, 540, 720p and audio only), a
    thumbnail sprite and poster, stored through the file store and streamed
    behind sealed links as the files host serves files. It pulls jobs from
-   the API and holds no database role.
+   the API and holds no database role. Done: `apps/media` encodes and
+   serves, the API queues each new video on its file and hands out sealed
+   stream links, and the media player streams with captions; resumable
+   upload, deleting streams with their file, and hosted adapters remain.
 7. **Captions and chapters.** Whisper drafts captions on the worker for the
    teacher to approve in the existing captions editor; chapters edited on the
    timeline and shown on the scrub bar.

@@ -24,6 +24,9 @@ export interface ApiDependencies {
   /** Where signed links point: the cookieless files host. */
   filesOrigin: string;
   linkKey: Buffer;
+  /** Where players reach the media service's streams; none leaves video as uploaded. */
+  mediaOrigin: string | null;
+  streamLinkKey: Buffer;
   maxUploadBytes: number;
   /** Which outside channels have a gateway; the rest are logged as skipped. */
   channels: { email: boolean; sms: boolean };

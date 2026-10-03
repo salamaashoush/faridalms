@@ -94,6 +94,7 @@ import { Route as AppYearsYearIdRouteImport } from './routes/_app/years.$yearId'
 import { Route as ExportsAssignmentsAssignmentIdRouteImport } from './routes/exports/assignments.$assignmentId'
 import { Route as ExportsStudentsStudentIdRouteImport } from './routes/exports/students.$studentId'
 import { Route as FeedsSchoolFileRouteImport } from './routes/feeds/$school/$file'
+import { Route as FilesFileIdStreamRouteImport } from './routes/files/$fileId.stream'
 import { Route as SiteSchoolIndexRouteImport } from './routes/site/$school/index'
 import { Route as PublicMediaPTokenNameRouteImport } from './routes/public-media/p.$token.$name'
 import { Route as SiteSchoolNewsIndexRouteImport } from './routes/site/$school/news/index'
@@ -532,6 +533,11 @@ const FeedsSchoolFileRoute = FeedsSchoolFileRouteImport.update({
   path: '/feeds/$school/$file',
   getParentRoute: () => rootRouteImport,
 } as any)
+const FilesFileIdStreamRoute = FilesFileIdStreamRouteImport.update({
+  id: '/stream',
+  path: '/stream',
+  getParentRoute: () => FilesFileIdRoute,
+} as any)
 const SiteSchoolIndexRoute = SiteSchoolIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -577,7 +583,7 @@ export interface FileRoutesByFullPath {
   '/teach': typeof AppTeachRouteWithChildren
   '/sign-in': typeof AuthSignInRoute
   '/api/health': typeof ApiHealthRoute
-  '/files/$fileId': typeof FilesFileIdRoute
+  '/files/$fileId': typeof FilesFileIdRouteWithChildren
   '/site/$school': typeof SiteSchoolRouteWithChildren
   '/admin/academic-year-editor': typeof AppAdminAcademicYearEditorRoute
   '/admin/academic-years': typeof AppAdminAcademicYearsRoute
@@ -635,6 +641,7 @@ export interface FileRoutesByFullPath {
   '/exports/assignments/$assignmentId': typeof ExportsAssignmentsAssignmentIdRoute
   '/exports/students/$studentId': typeof ExportsStudentsStudentIdRoute
   '/feeds/$school/$file': typeof FeedsSchoolFileRoute
+  '/files/$fileId/stream': typeof FilesFileIdStreamRoute
   '/admin/': typeof AppAdminIndexRoute
   '/announcements/': typeof AppAnnouncementsIndexRoute
   '/calendar/': typeof AppCalendarIndexRoute
@@ -663,7 +670,7 @@ export interface FileRoutesByTo {
   '/student-editor': typeof AppStudentEditorRoute
   '/sign-in': typeof AuthSignInRoute
   '/api/health': typeof ApiHealthRoute
-  '/files/$fileId': typeof FilesFileIdRoute
+  '/files/$fileId': typeof FilesFileIdRouteWithChildren
   '/admin/academic-year-editor': typeof AppAdminAcademicYearEditorRoute
   '/admin/academic-years': typeof AppAdminAcademicYearsRoute
   '/admin/announcement-editor': typeof AppAdminAnnouncementEditorRoute
@@ -720,6 +727,7 @@ export interface FileRoutesByTo {
   '/exports/assignments/$assignmentId': typeof ExportsAssignmentsAssignmentIdRoute
   '/exports/students/$studentId': typeof ExportsStudentsStudentIdRoute
   '/feeds/$school/$file': typeof FeedsSchoolFileRoute
+  '/files/$fileId/stream': typeof FilesFileIdStreamRoute
   '/admin': typeof AppAdminIndexRoute
   '/announcements': typeof AppAnnouncementsIndexRoute
   '/calendar': typeof AppCalendarIndexRoute
@@ -755,7 +763,7 @@ export interface FileRoutesById {
   '/_app/teach': typeof AppTeachRouteWithChildren
   '/_auth/sign-in': typeof AuthSignInRoute
   '/api/health': typeof ApiHealthRoute
-  '/files/$fileId': typeof FilesFileIdRoute
+  '/files/$fileId': typeof FilesFileIdRouteWithChildren
   '/site/$school': typeof SiteSchoolRouteWithChildren
   '/_app/admin/academic-year-editor': typeof AppAdminAcademicYearEditorRoute
   '/_app/admin/academic-years': typeof AppAdminAcademicYearsRoute
@@ -813,6 +821,7 @@ export interface FileRoutesById {
   '/exports/assignments/$assignmentId': typeof ExportsAssignmentsAssignmentIdRoute
   '/exports/students/$studentId': typeof ExportsStudentsStudentIdRoute
   '/feeds/$school/$file': typeof FeedsSchoolFileRoute
+  '/files/$fileId/stream': typeof FilesFileIdStreamRoute
   '/_app/admin/': typeof AppAdminIndexRoute
   '/_app/announcements/': typeof AppAnnouncementsIndexRoute
   '/_app/calendar/': typeof AppCalendarIndexRoute
@@ -905,6 +914,7 @@ export interface FileRouteTypes {
     | '/exports/assignments/$assignmentId'
     | '/exports/students/$studentId'
     | '/feeds/$school/$file'
+    | '/files/$fileId/stream'
     | '/admin/'
     | '/announcements/'
     | '/calendar/'
@@ -990,6 +1000,7 @@ export interface FileRouteTypes {
     | '/exports/assignments/$assignmentId'
     | '/exports/students/$studentId'
     | '/feeds/$school/$file'
+    | '/files/$fileId/stream'
     | '/admin'
     | '/announcements'
     | '/calendar'
@@ -1082,6 +1093,7 @@ export interface FileRouteTypes {
     | '/exports/assignments/$assignmentId'
     | '/exports/students/$studentId'
     | '/feeds/$school/$file'
+    | '/files/$fileId/stream'
     | '/_app/admin/'
     | '/_app/announcements/'
     | '/_app/calendar/'
@@ -1102,7 +1114,7 @@ export interface RootRouteChildren {
   AuthRoute: typeof AuthRouteWithChildren
   BadgeRoute: typeof BadgeRoute
   ApiHealthRoute: typeof ApiHealthRoute
-  FilesFileIdRoute: typeof FilesFileIdRoute
+  FilesFileIdRoute: typeof FilesFileIdRouteWithChildren
   SiteSchoolRoute: typeof SiteSchoolRouteWithChildren
   ExportsAssignmentsAssignmentIdRoute: typeof ExportsAssignmentsAssignmentIdRoute
   ExportsStudentsStudentIdRoute: typeof ExportsStudentsStudentIdRoute
@@ -1707,6 +1719,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof FeedsSchoolFileRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/files/$fileId/stream': {
+      id: '/files/$fileId/stream'
+      path: '/stream'
+      fullPath: '/files/$fileId/stream'
+      preLoaderRoute: typeof FilesFileIdStreamRouteImport
+      parentRoute: typeof FilesFileIdRoute
+    }
     '/site/$school/': {
       id: '/site/$school/'
       path: '/'
@@ -1949,6 +1968,18 @@ const AuthRouteChildren: AuthRouteChildren = {
 
 const AuthRouteWithChildren = AuthRoute._addFileChildren(AuthRouteChildren)
 
+interface FilesFileIdRouteChildren {
+  FilesFileIdStreamRoute: typeof FilesFileIdStreamRoute
+}
+
+const FilesFileIdRouteChildren: FilesFileIdRouteChildren = {
+  FilesFileIdStreamRoute: FilesFileIdStreamRoute,
+}
+
+const FilesFileIdRouteWithChildren = FilesFileIdRoute._addFileChildren(
+  FilesFileIdRouteChildren,
+)
+
 interface SiteSchoolRouteChildren {
   SiteSchoolIndexRoute: typeof SiteSchoolIndexRoute
   SiteSchoolNewsSlugRoute: typeof SiteSchoolNewsSlugRoute
@@ -1973,7 +2004,7 @@ const rootRouteChildren: RootRouteChildren = {
   AuthRoute: AuthRouteWithChildren,
   BadgeRoute: BadgeRoute,
   ApiHealthRoute: ApiHealthRoute,
-  FilesFileIdRoute: FilesFileIdRoute,
+  FilesFileIdRoute: FilesFileIdRouteWithChildren,
   SiteSchoolRoute: SiteSchoolRouteWithChildren,
   ExportsAssignmentsAssignmentIdRoute: ExportsAssignmentsAssignmentIdRoute,
   ExportsStudentsStudentIdRoute: ExportsStudentsStudentIdRoute,

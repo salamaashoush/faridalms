@@ -37,6 +37,9 @@ export const env = v.parse(
       // The files host listens beside the API; FILES_ORIGIN is how browsers reach it.
       FILES_PORT: v.optional(positiveInteger),
       FILES_ORIGIN: v.optional(v.pipe(v.string(), v.url())),
+      // The media service as browsers reach it; set, uploaded video is
+      // encoded to adaptive streams, and unset it plays as uploaded.
+      MEDIA_ORIGIN: v.optional(v.pipe(v.string(), v.url())),
       FILE_STORAGE: v.optional(v.picklist(["disk", "s3"]), "disk"),
       FILE_STORAGE_DIR: v.optional(
         v.pipe(v.string(), v.minLength(1)),

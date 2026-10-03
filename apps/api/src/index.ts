@@ -13,6 +13,7 @@ import { createFilesHost, linkKey } from "./files/links";
 import { createScanner } from "./files/scan";
 import { DiskFileStore, PUBLIC_KEY, S3FileStore } from "./files/store";
 import { startFileUpkeep } from "./files/upkeep";
+import { streamLinkKey } from "./media/streams";
 import { createProvider } from "./notifications/providers";
 import { startDelivery } from "./notifications/scheduler";
 
@@ -77,6 +78,8 @@ const server = Bun.serve({
     ...stores,
     filesOrigin,
     linkKey: linkKey(cellSecret),
+    mediaOrigin: env.MEDIA_ORIGIN?.replace(/\/$/, "") ?? null,
+    streamLinkKey: streamLinkKey(cellSecret),
     scanner: createScanner(env.CLAMD_ADDRESS),
     maxUploadBytes: env.MAX_UPLOAD_BYTES,
     channels: {

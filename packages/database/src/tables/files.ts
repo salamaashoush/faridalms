@@ -8,6 +8,7 @@ import {
   integer,
   jsonb,
   pgPolicy,
+  real,
   text,
   uniqueIndex,
   uuid,
@@ -152,6 +153,18 @@ export const files = core.table.withRLS(
       .$type<Record<string, FileDerivative>>()
       .notNull()
       .default(sql`'{}'`),
+    /**
+     * A video's adaptive streams, made by the media service: queued once the
+     * upload is ready, encoding while a worker holds its lease, then ready as
+     * derivatives, or failed after its last attempt.
+     */
+    streamState: text("stream_state").$type<
+      "queued" | "encoding" | "ready" | "failed"
+    >(),
+    streamAttempts: integer("stream_attempts").notNull().default(0),
+    streamLeasedUntil: instant("stream_leased_until"),
+    streamProgress: real("stream_progress"),
+    streamError: text("stream_error"),
     ...entityColumns(),
   },
   (t): PgTableExtraConfigValue[] => [
@@ -192,6 +205,19 @@ export const files = core.table.withRLS(
     ck("files", "height", sql`height > 0`),
     ck("files", "duration_ms", sql`duration_ms > 0`),
     ck("files", "derivatives", sql`jsonb_typeof(derivatives) = 'object'`),
+    ck(
+      "files",
+      "stream_state",
+      sql`stream_state in ('queued', 'encoding', 'ready', 'failed')`,
+    ),
+    ck("files", "stream_attempts", sql`stream_attempts between 0 and 10`),
+    ck("files", "stream_progress", sql`stream_progress between 0 and 1`),
+    ck("files", "stream_error", sql`char_length(stream_error) <= 2000`),
+    ck(
+      "files",
+      "stream_lease",
+      sql`(stream_state = 'encoding') = (stream_leased_until is not null)`,
+    ),
     ck("files", "host_pair", sql`(host_type is null) = (host_id is null)`),
     ck(
       "files",
@@ -233,6 +259,9 @@ export const files = core.table.withRLS(
     index("files_org_idx")
       .on(t.tenantId, t.orgId)
       .where(sql`status = 'active'`),
+    index("files_stream_queue_idx")
+      .on(t.tenantId, t.readyAt)
+      .where(sql`status = 'active' and stream_state in ('queued', 'encoding')`),
     index("files_trashed_idx")
       .on(t.tenantId, t.trashedAt)
       .where(sql`status = 'active' and trashed_at is not null`),

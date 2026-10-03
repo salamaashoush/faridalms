@@ -31,12 +31,14 @@ import { createKeyRing } from "../src/core/keys";
 import { LOCALE_HEADER, SCHOOL_HEADER } from "../src/core/procedure";
 import { createFilesHost, linkKey } from "../src/files/links";
 import { DiskFileStore, PUBLIC_KEY } from "../src/files/store";
+import { streamLinkKey } from "../src/media/streams";
 
 const adminUrl =
   process.env.DATABASE_ADMIN_URL ??
   "postgres://northwind:northwind@127.0.0.1:5433/postgres";
 const suffix = randomBytes(6).toString("hex");
 export const FILES_ORIGIN = "http://files.test";
+export const MEDIA_ORIGIN = "http://media.test";
 const cellName = `cell_api_${suffix}`;
 const directoryName = `directory_api_${suffix}`;
 const password =
@@ -117,6 +119,8 @@ export async function setUp() {
     scanner: null,
     filesOrigin: FILES_ORIGIN,
     linkKey: linkKey(cellSecret),
+    mediaOrigin: MEDIA_ORIGIN,
+    streamLinkKey: streamLinkKey(cellSecret),
     maxUploadBytes: 1024 * 1024,
     channels: { email: true, sms: false },
   });

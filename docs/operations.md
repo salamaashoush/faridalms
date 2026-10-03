@@ -145,6 +145,29 @@ record: a file lives as long as the message, submission, lesson, page or draft
 that holds it, and leaves 7 days after the last one lets go of it. The windows
 live in `packages/domain/src/file.ts`.
 
+## Video streams
+
+`apps/media` is the media service, in Rust: it turns uploaded video into
+adaptive HLS (every size from 360p up to the source's own, one audio
+rendition, a poster and a thumbnail track) and serves the streams behind
+sealed links. The API keeps every job's state on the file row and decides
+who may watch; the service holds no database login. It asks the API for
+work with a token derived from `CELL_SECRET`, reads uploads from the same
+file store, and writes streams beside them under `t/<school>/v/<file>/`.
+
+Build it with `cargo build --release` in `apps/media`; it needs `ffmpeg` and
+`ffprobe` on its path. Give it the API's `CELL_SECRET` and storage variables
+(`FILE_STORAGE`, `FILE_STORAGE_DIR` or `FILE_BUCKET` and the `S3_*` set),
+`MEDIA_API_URL` (the API as the service reaches it), `MEDIA_PORT` (default
+3104), `MEDIA_JOBS` (encodes at once, default 1, each using several cores)
+and, on a machine with an NVIDIA card, `MEDIA_ENCODER=h264_nvenc`. Serve it on
+the user-content domain, never the application's, and set `MEDIA_ORIGIN` on
+the API to its origin as browsers reach it. With `MEDIA_ORIGIN` unset, video
+plays as uploaded; set, each new video is queued as its upload becomes ready,
+plays as uploaded until its streams are made, then streams. An encode that
+stops reporting loses its lease after ten minutes and is taken again; a video
+is tried three times before it is left playing as uploaded.
+
 ## Coding studio
 
 Coding questions open the block-coding studio, the Scratch editor with a

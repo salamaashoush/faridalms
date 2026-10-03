@@ -1,7 +1,7 @@
 import { sql } from "drizzle-orm";
 
 import type { CellTransaction } from "../context";
-import type { FilePurpose, FileState } from "../tables/files";
+import type { FileDerivative, FilePurpose, FileState } from "../tables/files";
 
 import { isoOf, uuidArray } from "./sql";
 
@@ -194,7 +194,13 @@ export async function settleFile(
     tenantId: string;
     id: string;
     verdict:
-      | { state: "ready"; sha256: string; scanEngine: string | null }
+      | {
+          state: "ready";
+          sha256: string;
+          scanEngine: string | null;
+          /** Whether a video gets adaptive streams, which the media service makes. */
+          stream: boolean;
+        }
       | {
           state: "rejected";
           reason:
@@ -214,7 +220,8 @@ export async function settleFile(
           set state = 'ready', sha256 = decode(${verdict.sha256}, 'hex'),
               storage_key = ${readyKey(input.tenantId, input.id)},
               scanned_at = case when ${verdict.scanEngine}::text is null then null else statement_timestamp() end,
-              scan_engine = ${verdict.scanEngine}, ready_at = statement_timestamp()
+              scan_engine = ${verdict.scanEngine}, ready_at = statement_timestamp(),
+              stream_state = case when ${verdict.stream} and media_type like 'video/%' then 'queued' end
           where tenant_id = ${input.tenantId}::uuid and id = ${input.id}::uuid and state = 'initiated'
           returning id`)
       : await tx.execute<{ id: string }>(sql`
@@ -783,4 +790,129 @@ export async function setSubjects(
         select 1 from core.file_subjects s
         where s.tenant_id = u.tenant_id and s.file_id = ${input.fileId}::uuid
           and s.user_id = u.id and s.status = 'active')`);
+}
+
+/** How many times a video is tried before it is left playing as one file. */
+export const STREAM_ATTEMPTS = 3;
+
+/** A video the media service is to encode. */
+export interface StreamJob {
+  fileId: string;
+  storageKey: string;
+}
+
+/**
+ * The oldest video waiting for streams, leased to the caller until `until`;
+ * one whose lease ran out, its worker gone, is taken again.
+ */
+export async function claimStream(
+  tx: Tx,
+  input: { tenantId: string; now: Date; until: Date },
+): Promise<StreamJob | null> {
+  const [row] = await tx.execute<{ id: string; storage_key: string }>(sql`
+    with next as (
+      select id from core.files
+      where tenant_id = ${input.tenantId}::uuid and status = 'active' and state = 'ready'
+        and stream_attempts < ${STREAM_ATTEMPTS}
+        and (stream_state = 'queued'
+          or (stream_state = 'encoding' and stream_leased_until < ${input.now.toISOString()}::timestamptz))
+      order by ready_at
+      limit 1
+      for update skip locked
+    )
+    update core.files f
+    set stream_state = 'encoding', stream_attempts = f.stream_attempts + 1,
+        stream_leased_until = ${input.until.toISOString()}::timestamptz, stream_progress = 0
+    from next where f.tenant_id = ${input.tenantId}::uuid and f.id = next.id
+    returning f.id, f.storage_key`);
+  return row ? { fileId: row.id, storageKey: row.storage_key } : null;
+}
+
+/** How far an encode has got, which also keeps its lease. */
+export async function streamProgress(
+  tx: Tx,
+  input: { tenantId: string; fileId: string; progress: number; until: Date },
+): Promise<boolean> {
+  const rows = await tx.execute<{ id: string }>(sql`
+    update core.files
+    set stream_progress = ${Math.min(1, Math.max(0, input.progress))},
+        stream_leased_until = ${input.until.toISOString()}::timestamptz
+    where tenant_id = ${input.tenantId}::uuid and id = ${input.fileId}::uuid
+      and stream_state = 'encoding'
+    returning id`);
+  return rows.length > 0;
+}
+
+/** A video's streams are ready: where they are, and the size and length the encode found. */
+export async function streamReady(
+  tx: Tx,
+  input: {
+    tenantId: string;
+    fileId: string;
+    width: number;
+    height: number;
+    durationMs: number;
+    derivatives: Record<string, FileDerivative>;
+  },
+): Promise<boolean> {
+  const rows = await tx.execute<{ id: string }>(sql`
+    update core.files
+    set stream_state = 'ready', stream_progress = 1, stream_leased_until = null, stream_error = null,
+        width = ${input.width}, height = ${input.height}, duration_ms = ${input.durationMs},
+        derivatives = derivatives || ${input.derivatives}::jsonb
+    where tenant_id = ${input.tenantId}::uuid and id = ${input.fileId}::uuid
+      and stream_state = 'encoding'
+    returning id`);
+  return rows.length > 0;
+}
+
+/** An encode failed: tried again later, or left after its last attempt. */
+export async function streamFailed(
+  tx: Tx,
+  input: { tenantId: string; fileId: string; error: string },
+): Promise<boolean> {
+  const rows = await tx.execute<{ id: string }>(sql`
+    update core.files
+    set stream_state = case when stream_attempts >= ${STREAM_ATTEMPTS} then 'failed' else 'queued' end,
+        stream_leased_until = null, stream_progress = null,
+        stream_error = left(${input.error}, 2000)
+    where tenant_id = ${input.tenantId}::uuid and id = ${input.fileId}::uuid
+      and stream_state = 'encoding'
+    returning id`);
+  return rows.length > 0;
+}
+
+/** A video's streams, as a player asks for them. */
+export interface FileStream {
+  state: "queued" | "encoding" | "ready" | "failed" | null;
+  prefix: string | null;
+  width: number | null;
+  height: number | null;
+  durationMs: number | null;
+}
+
+export async function streamOf(
+  tx: Tx,
+  tenantId: string,
+  fileId: string,
+): Promise<FileStream | null> {
+  const [row] = await tx.execute<{
+    stream_state: FileStream["state"];
+    prefix: string | null;
+    width: number | null;
+    height: number | null;
+    duration_ms: number | null;
+  }>(sql`
+    select stream_state, derivatives -> 'hls' ->> 'key' as prefix, width, height, duration_ms
+    from core.files
+    where tenant_id = ${tenantId}::uuid and id = ${fileId}::uuid and status = 'active'`);
+  return row
+    ? {
+        state: row.stream_state,
+        prefix: row.prefix,
+        width: row.width,
+        height: row.height,
+        durationMs: row.duration_ms,
+      }
+    : null;
 }

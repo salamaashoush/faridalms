@@ -10,6 +10,7 @@ import { handleCalendarFeed } from "./calendar/feed";
 import { handleWorkExport } from "./files/exports";
 import { handlePublicFileRequest } from "./files/public";
 import { handleFileRequest } from "./files/routes";
+import { handleMediaRequest } from "./media/streams";
 import { router } from "./router";
 
 /**
@@ -80,6 +81,7 @@ export function createApp(dependencies: ApiDependencies) {
           (await handlePublicFileRequest(request, url, context)) ??
           (await handleCalendarFeed(request, url, context)) ??
           (await handleWorkExport(request, url, context)) ??
+          (await handleMediaRequest(request, url, context)) ??
           (await handleFileRequest(request, url, context));
         if (file) response = file;
         else {

@@ -6,7 +6,7 @@ import {
   embedSource,
 } from "@faridalms/domain/embed";
 import { Play } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 
 export function MediaPlayer({
   src,
@@ -23,21 +23,12 @@ export function MediaPlayer({
 }) {
   if (!src) return null;
   return video ? (
-    <video
-      controls
-      preload="metadata"
-      crossOrigin="anonymous"
+    <StreamingVideo
       src={src}
-      className="block aspect-video w-full rounded-lg bg-black"
-    >
-      <track
-        kind="captions"
-        src={captions}
-        srcLang={locale}
-        label={captionsLabel}
-        default={Boolean(captions)}
-      />
-    </video>
+      captions={captions}
+      locale={locale}
+      captionsLabel={captionsLabel}
+    />
   ) : (
     <audio
       controls
@@ -54,6 +45,105 @@ export function MediaPlayer({
         default={Boolean(captions)}
       />
     </audio>
+  );
+}
+
+/** A school's own upload, which may have adaptive streams beside it. */
+const UPLOAD = /^\/files\/[0-9a-f-]{36}$/;
+
+interface Stream {
+  master: string;
+  poster: string;
+}
+
+/**
+ * A video that plays its adaptive streams once the media service has made
+ * them, and the upload as it is until then. Which one is settled before
+ * anything plays, so a playing video never switches. Safari plays the
+ * streams itself; other browsers through hls.js, loaded only then.
+ */
+function StreamingVideo({
+  src,
+  captions,
+  locale,
+  captionsLabel,
+}: {
+  src: string;
+  captions: string | undefined;
+  locale: string;
+  captionsLabel: string;
+}) {
+  const element = useRef<HTMLVideoElement>(null);
+  const [source, setSource] = useState<
+    { stream: Stream } | { upload: string } | null
+  >(UPLOAD.test(src) ? null : { upload: src });
+
+  useEffect(() => {
+    let cancelled = false;
+    if (UPLOAD.test(src))
+      fetch(`${src}/stream`)
+        .then((response) => (response.ok ? response.json() : null))
+        .then((found: { master?: string | null; poster?: string } | null) => {
+          if (cancelled) return;
+          setSource(
+            found?.master && found.poster
+              ? { stream: { master: found.master, poster: found.poster } }
+              : { upload: src },
+          );
+        })
+        .catch(() => {
+          if (!cancelled) setSource({ upload: src });
+        });
+    return () => {
+      cancelled = true;
+    };
+  }, [src]);
+
+  useEffect(() => {
+    const video = element.current;
+    let player: { destroy: () => void } | null = null;
+    let gone = false;
+    const master = source && "stream" in source ? source.stream.master : null;
+    if (video && master) {
+      if (video.canPlayType("application/vnd.apple.mpegurl"))
+        video.src = master;
+      else
+        void import("hls.js").then(({ default: Hls }) => {
+          if (gone) return;
+          if (!Hls.isSupported()) {
+            video.src = src;
+            return;
+          }
+          const hls = new Hls({ capLevelToPlayerSize: true });
+          hls.loadSource(master);
+          hls.attachMedia(video);
+          player = hls;
+        });
+    }
+    return () => {
+      gone = true;
+      player?.destroy();
+    };
+  }, [source, src]);
+
+  return (
+    <video
+      ref={element}
+      controls
+      preload="metadata"
+      crossOrigin="anonymous"
+      src={source && "upload" in source ? source.upload : undefined}
+      poster={source && "stream" in source ? source.stream.poster : undefined}
+      className="block aspect-video w-full rounded-lg bg-black"
+    >
+      <track
+        kind="captions"
+        src={captions}
+        srcLang={locale}
+        label={captionsLabel}
+        default={Boolean(captions)}
+      />
+    </video>
   );
 }
 
