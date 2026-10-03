@@ -10,7 +10,6 @@ import {
   Scripts,
 } from "@tanstack/react-router";
 import { ThemeProvider } from "next-themes";
-import { lazy, Suspense, useSyncExternalStore } from "react";
 
 import type { AuthState } from "~/server/auth";
 
@@ -23,42 +22,6 @@ import appCss from "~/styles/globals.css?url";
 import { DefaultCatchBoundary } from "../components/DefaultCatchBoundary";
 import { NotFound } from "../components/NotFound";
 import { seo } from "../utils/seo";
-
-// import.meta.env.PROD is statically replaced, so the dynamic import is dropped
-// from the production bundle entirely. Do not use the runtime `env` here: it
-// resolves PROD to its schema default (false) on the server.
-const LazyDevtools = import.meta.env.PROD
-  ? () => null
-  : lazy(() =>
-      import("../components/Devtools").then((res) => ({
-        default: res.Devtools,
-      })),
-    );
-
-// Never changes after hydration, so the subscribe callback has nothing to do.
-const noopSubscribe = () => () => {};
-
-function Devtools() {
-  // The devtools shell is client-only and throws if server-rendered.
-  // useSyncExternalStore returns the server snapshot during SSR and the client
-  // one after hydration, which is the same guard without a render-triggering
-  // setState in an effect.
-  const hydrated = useSyncExternalStore(
-    noopSubscribe,
-    () => true,
-    () => false,
-  );
-
-  if (!hydrated) {
-    return null;
-  }
-
-  return (
-    <Suspense fallback={null}>
-      <LazyDevtools />
-    </Suspense>
-  );
-}
 
 interface AppRouterContext {
   auth: AuthState;
@@ -157,7 +120,6 @@ function RootDocument({ children }: RootDocumentProps) {
             <Toaster position="top-center" />
           </DirectionProvider>
         </ThemeProvider>
-        <Devtools />
         <Scripts />
       </body>
     </html>
