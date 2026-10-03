@@ -322,6 +322,56 @@ export async function retireTrashedMedia(
   return rows.map((row) => row.storage_key);
 }
 
+/**
+ * Retires the projects and stage pictures of coding answers saved over
+ * since: all but a student's last `kept` saves of each question in each
+ * attempt, once older than `savedBefore`. A file a kept save still holds
+ * stays. Keys come back only when no active row still points at the same
+ * object.
+ */
+export async function retireSupersededAnswers(
+  tx: Tx,
+  tenantId: string,
+  input: { kept: number; savedBefore: Date; limit: number },
+): Promise<string[]> {
+  const rows = await tx.execute<{ storage_key: string }>(sql`
+    with ranked as (
+      select r.response, r.created_at,
+        dense_rank() over (
+          partition by r.lesson_id, r.student_user_id, r.block_id, r.attempt
+          order by r.try desc) as recency
+      from core.lesson_responses r
+      where r.tenant_id = ${tenantId}::uuid and r.kind = 'scratch'
+    ),
+    held as (
+      select (response->'project'->>'fileId')::uuid as file_id, recency, created_at from ranked
+      union all
+      select (response->'thumbnail'->>'fileId')::uuid, recency, created_at from ranked
+      where response ? 'thumbnail'
+    ),
+    retired as (
+      update core.files set status = 'tobedeleted'
+      where tenant_id = ${tenantId}::uuid and id in (
+        select f.id from core.files f
+        where f.tenant_id = ${tenantId}::uuid and f.status = 'active'
+          and f.host_type = 'lesson_answer'
+          and f.id in (
+            select file_id from held
+            where recency > ${input.kept}
+              and created_at < ${input.savedBefore.toISOString()}::timestamptz)
+          and f.id not in (
+            select file_id from held
+            where file_id is not null and recency <= ${input.kept})
+        order by f.created_at limit ${input.limit})
+      returning id, storage_key)
+    select distinct r.storage_key from retired r
+    where not exists (
+      select 1 from core.files f
+      where f.tenant_id = ${tenantId}::uuid and f.storage_key = r.storage_key
+        and f.status = 'active' and f.id not in (select id from retired))`);
+  return rows.map((row) => row.storage_key);
+}
+
 /** Moves a host's files onto another host, as handing in moves a draft's files onto its attempt. */
 export async function rehostFiles(
   tx: Tx,

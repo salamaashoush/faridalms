@@ -45,6 +45,13 @@ export const UNLINKED_FILE_MS = 7 * 24 * HOUR;
  * by undo or a version restore, before it is retired: the trash window.
  */
 export const TRASHED_MEDIA_MS = 30 * 24 * HOUR;
+/**
+ * A coding project is saved whole each time, so only a student's last few
+ * saves of each question are kept; older ones go once this long has passed,
+ * so a save that went wrong can still be put right the same day.
+ */
+export const SAVES_KEPT = 3;
+export const SUPERSEDED_SAVE_MS = 24 * HOUR;
 /** How long a rejected upload's record is kept for diagnosis. */
 export const REJECTED_FILE_MS = 30 * 24 * HOUR;
 

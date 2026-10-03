@@ -8,6 +8,7 @@ import {
 import { describe, expect, test } from "bun:test";
 import { sql } from "drizzle-orm";
 
+import { sweepTenantFiles } from "../src/files/sweep";
 import { login, raw, rejection, seeded, sessionFor, signedIn } from "./harness";
 
 const student = () => signedIn("northwind", login("student"));
@@ -1341,6 +1342,37 @@ describe("coding projects", () => {
     ]);
     const projectPath = `/v1/files/${project}/content`;
     expect((await raw("northwind", teacher.token, projectPath)).status).toBe(200);
+
+    // Each save keeps the whole project, so only the last few stay.
+    const saves = [project];
+    for (let save = 0; save < 4; save += 1) {
+      const next = await uploadAs(
+        pupil,
+        `project-${save}.sb3`,
+        "application/x.scratch.sb3",
+        sb3,
+      );
+      await pupil.api.learning.respond({
+        lessonId: lesson.id,
+        blockId: question,
+        response: { type: "scratch", project: { fileId: next } },
+      });
+      saves.push(next);
+    }
+    const { cell, files, tenants } = seeded();
+    const swept = await sweepTenantFiles(
+      cell,
+      files,
+      tenants[0]?.tenantId ?? "",
+      new Date(Date.now() + 2 * 24 * 60 * 60 * 1000),
+    );
+    expect(swept.superseded).toBeGreaterThanOrEqual(3);
+    const served = async (fileId: string) =>
+      (await raw("northwind", teacher.token, `/v1/files/${fileId}/content`)).status;
+    expect(await served(project)).toBe(404);
+    expect(await served(stage)).toBe(404);
+    expect(await served(saves[1] ?? "")).toBe(404);
+    for (const kept of saves.slice(2)) expect(await served(kept)).toBe(200);
 
     expect(
       await keeper.learning.mark({

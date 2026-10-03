@@ -84,8 +84,8 @@ off keeps the work and shows a placeholder.
    its own AGPL repository (`farida-scratch`) and is set up as in
    [../operations.md](../operations.md). The media library is mirrored and
    the studio may reach only its own origin; below 1024px wide it asks for a
-   computer or a tablet held sideways. Next: prune superseded project
-   versions, Text to Speech and Translate on Farida's own services, tutorials
+   computer or a tablet held sideways; the file sweep keeps each student's
+   last three saves of a question. Next: Text to Speech and Translate on Farida's own services, tutorials
    self-hosted on the media service, project checks a teacher can turn on,
    and a class gallery with remix.
 
