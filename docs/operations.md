@@ -183,10 +183,16 @@ Set `STUDIO_URL` on the web to the studio's origin as browsers reach it. Unset,
 editors offer no coding questions and a coding question already in a lesson
 says the studio is not set up. Farida keeps every project: the studio loads
 and saves `.sb3` files through the page around it over `postMessage` and
-talks to no project server. Library sprites, costumes and sounds still load
-from Scratch's own asset service. In development, serve the studio on a
-different site from the web, such as `http://localhost:3300` beside
-`http://127.0.0.1:3100`, since ports alone do not separate cookies.
+talks to no project server. Its library of sprites, backdrops and sounds is
+mirrored into the build (`bun run library` once, then `bun run build`, which
+stops if any of it is missing), and its server sends a Content-Security-Policy
+that lets the studio reach only its own origin, so nothing a child does goes
+to Scratch's servers. That policy also blocks the Text to Speech and Translate
+extensions, which call Scratch's services, and the tutorials, which stream
+from Wistia; a server other than `scripts/serve.ts` must send the same
+headers. In development, serve the studio on a different site from the web,
+such as `http://localhost:3300` beside `http://127.0.0.1:3100`, since ports
+alone do not separate cookies.
 
 ## Public site
 

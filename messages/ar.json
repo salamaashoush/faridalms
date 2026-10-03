@@ -5366,6 +5366,8 @@
   "studioLoadFailed": "تعذّر فتح المشروع.",
   "studioUnavailable": "لم يُعدّ استوديو البرمجة لهذه المدرسة بعد.",
   "studioLoading": "جارٍ فتح الاستوديو",
+  "studioNeedsRoom": "يحتاج الاستوديو إلى شاشة أكبر",
+  "studioNeedsRoomHint": "افتحه على حاسوب، أو أدِر جهازك اللوحي أفقيًا.",
   "studioStarterTitle": "مشروع البداية",
   "codingFromEmpty": "ستبدأ بمشروع فارغ.",
   "codingOpen": "افتح استوديو البرمجة",

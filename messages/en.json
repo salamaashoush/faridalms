@@ -5164,6 +5164,8 @@
   "studioLoadFailed": "The project couldn't be opened.",
   "studioUnavailable": "The coding studio isn't set up for this school yet.",
   "studioLoading": "Opening the studio",
+  "studioNeedsRoom": "The studio needs a bigger screen",
+  "studioNeedsRoomHint": "Open it on a computer, or turn your tablet sideways.",
   "studioStarterTitle": "Starter project",
   "codingFromEmpty": "You'll start with an empty project.",
   "codingOpen": "Open the coding studio",

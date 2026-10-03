@@ -68,8 +68,11 @@ off keeps the work and shows a placeholder.
    studio, whose students build on it and hand in an `.sb3` with their stage,
    and whose teacher opens, runs and marks the project; the studio lives in
    its own AGPL repository (`farida-scratch`) and is set up as in
-   [../operations.md](../operations.md). Next: mirror the media library so
-   no request reaches Scratch's servers, prune superseded project versions,
+   [../operations.md](../operations.md). The media library is mirrored and
+   the studio may reach only its own origin; below 1024px wide it asks for a
+   computer or a tablet held sideways. Next: prune superseded project
+   versions, Text to Speech and Translate on Farida's own services, tutorials
+   self-hosted on the media service, project checks a teacher can turn on,
    and a class gallery with remix.
 
 Video phases 1 to 4 and coding phases 1 to 3 need no new infrastructure;

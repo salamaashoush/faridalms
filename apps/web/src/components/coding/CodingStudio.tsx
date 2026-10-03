@@ -1,10 +1,16 @@
 import { Dialog as DialogPrimitive } from "@base-ui/react/dialog";
 import { Button } from "@faridalms/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@faridalms/ui/tooltip";
-import { LoaderCircle, TriangleAlert, X } from "lucide-react";
+import {
+  LoaderCircle,
+  MonitorSmartphone,
+  TriangleAlert,
+  X,
+} from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
+import { useMedia } from "~/hooks/useMedia";
 import * as m from "~/i18n/messages";
 
 import { StudioFrame } from "./StudioFrame";
@@ -17,6 +23,9 @@ export const PROJECT_TYPE = "application/x.scratch.sb3";
  * closing the studio always saves.
  */
 const AUTOSAVE_MS = 30_000;
+
+/** Narrower than this, the editor's panels scroll sideways under a child's fingers. */
+const STUDIO_FITS = "(min-width: 1024px)";
 
 type SaveState = "idle" | "saving" | "saved" | "failed";
 
@@ -42,6 +51,11 @@ export function CodingStudio({
   onClose: () => void;
 }) {
   const done = useRef<HTMLButtonElement>(null);
+  const wide = useMedia(STUDIO_FITS);
+  // Once the studio is open it stays, so turning a tablet never loses work.
+  const [shown, setShown] = useState(false);
+  if (wide && !shown) setShown(true);
+  const fits = shown || wide;
   const [state, setState] = useState<SaveState>("idle");
   const dirty = useRef(false);
   const timer = useRef(0);
@@ -160,18 +174,31 @@ export function CodingStudio({
             ) : null}
           </header>
           <div className="relative min-h-0 flex-1">
-            {source ? (
+            {!source ? (
+              <p className="p-6 text-sm text-muted-foreground">
+                {m.studioUnavailable()}
+              </p>
+            ) : fits ? (
               <StudioFrame
                 frame={frame}
                 source={source}
                 title={m.studioTitle()}
               />
             ) : (
-              <p className="p-6 text-sm text-muted-foreground">
-                {m.studioUnavailable()}
-              </p>
+              <div className="grid h-full place-content-center justify-items-center gap-2 p-6 text-center">
+                <MonitorSmartphone
+                  className="mb-2 size-8 text-muted-foreground"
+                  aria-hidden
+                />
+                <p className="text-base leading-6 font-semibold">
+                  {m.studioNeedsRoom()}
+                </p>
+                <p className="max-w-xs text-[13px] leading-[18px] text-muted-foreground">
+                  {m.studioNeedsRoomHint()}
+                </p>
+              </div>
             )}
-            {source && !loaded ? (
+            {source && fits && !loaded ? (
               <div className="absolute inset-0 grid place-items-center bg-background">
                 <LoaderCircle
                   className="size-6 animate-spin text-muted-foreground"
