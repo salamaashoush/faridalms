@@ -197,7 +197,6 @@ export interface EditorStrings {
   chaptersSkipped: (count: number) => string;
   transcriptAdd: string;
   transcriptHint: string;
-  transcriptMissing: string;
   questionNumber: string;
   questionNumberHint: string;
   questionOrdering: string;
@@ -351,11 +350,11 @@ export interface EditorStrings {
   mediaHint: string;
   recording: string;
   recordingHint: string;
+  recordingSheet: string;
+  /** The bar's word for a recording that still needs captions. */
+  captionsNeeded: string;
   captions: string;
-  captionsAdd: string;
   captionsReplace: string;
-  captionsAdded: string;
-  captionsMissing: string;
   captionsClose: string;
   captionsHint: string;
   captionsDraft: string;

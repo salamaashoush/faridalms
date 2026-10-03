@@ -24,28 +24,28 @@ import { BlockWithAlignableContents } from "@lexical/react/LexicalBlockWithAlign
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
 import { DecoratorBlockNode } from "@lexical/react/LexicalDecoratorBlockNode";
 import { useLexicalEditable } from "@lexical/react/useLexicalEditable";
-import { $getDocument, $getNodeByKey, createCommand } from "lexical";
+import { mergeRegister } from "@lexical/utils";
 import {
-  Captions,
-  ExternalLink,
-  FastForward,
-  ListOrdered,
-  Lock,
-  MessageCircleQuestion,
-  Plus,
-  ScrollText,
-} from "lucide-react";
-import { useCallback, useEffect, useRef, useState } from "react";
+  $getDocument,
+  $getNodeByKey,
+  COMMAND_PRIORITY_LOW,
+  createCommand,
+} from "lexical";
+import { ExternalLink } from "lucide-react";
+import {
+  useCallback,
+  useEffect,
+  useEffectEvent,
+  useRef,
+  useState,
+} from "react";
 
-import { CaptionsEditor } from "../captions";
+import type { RecordingTab } from "../captions";
+
+import { RecordingSheet } from "../captions";
 import { useEditorEnvironment } from "../context";
 import { StoredImage } from "../files";
-import {
-  blockAlignClass,
-  diagramImageClass,
-  imageSizeClass,
-  mediaClock,
-} from "../format";
+import { blockAlignClass, diagramImageClass, imageSizeClass } from "../format";
 import { EmbedFrame, MediaPlayer, MediaTranscript } from "../media-view";
 import { $createQuestionNode, $isQuestionNode } from "./question";
 import { ownKeys, useSelectOnClick } from "./select";
@@ -100,6 +100,33 @@ function CaptionInput({
   );
 }
 
+/** Where the editor finds each recording block's player, so its bar can ask the time. */
+const players = new WeakMap<LexicalEditor, Map<NodeKey, HTMLMediaElement>>();
+
+/** The player of a recording block in this editor, once it is drawn. */
+export function playerOf(
+  editor: LexicalEditor,
+  key: NodeKey,
+): HTMLMediaElement | null {
+  return players.get(editor)?.get(key) ?? null;
+}
+
+/** Opens a recording's sheet on one of its tabs: captions, chapters or transcript. */
+export const OPEN_RECORDING_COMMAND = createCommand<{
+  key: NodeKey;
+  tab: RecordingTab;
+}>("FARIDA_OPEN_RECORDING");
+
+/** Asks a question at the moment the recording's player stands at. */
+export const ASK_AT_MOMENT_COMMAND = createCommand<NodeKey>(
+  "FARIDA_ASK_AT_MOMENT",
+);
+
+/**
+ * A video or a sound clip in the text. Editing it happens in the editor's
+ * floating bar and in its sheet; the block itself shows only the player and
+ * its caption, as students see it.
+ */
 function MediaBlock({
   nodeKey,
   format,
@@ -109,7 +136,6 @@ function MediaBlock({
   captionsLang,
   transcript,
   chapters,
-  noSkipping,
   caption,
   size,
 }: {
@@ -121,34 +147,26 @@ function MediaBlock({
   captionsLang: string;
   transcript: string;
   chapters: string;
-  noSkipping: boolean;
   caption: string;
   size: ImageSize;
 }) {
-  const { strings, media, locale, questions } = useEditorEnvironment();
+  const { strings, media, locale } = useEditorEnvironment();
   const [editor] = useLexicalComposerContext();
-  const [writing, setWriting] = useState(false);
-  const transcriptInput = useRef<HTMLTextAreaElement>(null);
   const playing = useRef<HTMLVideoElement | null>(null);
-  const [second, setSecond] = useState(0);
   const following = useCallback(
     (element: (HTMLVideoElement & HTMLAudioElement) | null) => {
       playing.current = element;
-      if (!element) return undefined;
-      const tick = () => setSecond(Math.floor(element.currentTime));
-      element.addEventListener("timeupdate", tick);
-      element.addEventListener("seeked", tick);
-      return () => {
-        element.removeEventListener("timeupdate", tick);
-        element.removeEventListener("seeked", tick);
-      };
+      const known = players.get(editor) ?? new Map<NodeKey, HTMLMediaElement>();
+      players.set(editor, known);
+      if (element) known.set(nodeKey, element);
+      else known.delete(nodeKey);
     },
-    [],
+    [editor, nodeKey],
   );
   // A question the video stops for goes after the video and any it asks
   // earlier, so the document reads in the order the video plays.
-  const askHere = () => {
-    const at = Math.floor(playing.current?.currentTime ?? second);
+  const askHere = useEffectEvent(() => {
+    const at = Math.floor(playing.current?.currentTime ?? 0);
     playing.current?.pause();
     editor.update(() => {
       const node = $getNodeByKey(nodeKey);
@@ -166,43 +184,35 @@ function MediaBlock({
       after.insertAfter(question);
       question.getFirstChild()?.selectStart();
     });
-  };
-  useEffect(() => {
-    if (writing) transcriptInput.current?.focus();
-  }, [writing]);
-  const [chaptering, setChaptering] = useState(false);
-  const chaptersInput = useRef<HTMLTextAreaElement>(null);
-  useEffect(() => {
-    if (chaptering) chaptersInput.current?.focus();
-  }, [chaptering]);
-  const chapterList = parseChapters(chapters);
-  const skipped = chapters
-    .split("\n")
-    .filter((line) => line.trim() && parseChapters(line).length === 0).length;
-  // A chapter added from the video goes where its time puts it, with its
-  // name left to write.
-  const addChapter = () => {
-    const at = Math.floor(playing.current?.currentTime ?? second);
-    const lines = chapters ? chapters.split("\n") : [];
-    const later = lines.findIndex(
-      (line) => (parseChapters(line)[0]?.at ?? -1) > at,
-    );
-    const place = later === -1 ? lines.length : later;
-    const line = `${mediaClock(at)} `;
-    const next = [...lines.slice(0, place), line, ...lines.slice(place)];
-    update((node) => node.setChapters(next.join("\n")));
-    const caret =
-      next.slice(0, place).reduce((sum, item) => sum + item.length + 1, 0) +
-      line.length;
-    requestAnimationFrame(() => {
-      chaptersInput.current?.focus();
-      chaptersInput.current?.setSelectionRange(caret, caret);
-    });
-  };
+  });
+  const [sheet, setSheet] = useState<RecordingTab | null>(null);
+  useEffect(
+    () =>
+      mergeRegister(
+        editor.registerCommand(
+          OPEN_RECORDING_COMMAND,
+          (asked) => {
+            if (asked.key !== nodeKey) return false;
+            setSheet(asked.tab);
+            return true;
+          },
+          COMMAND_PRIORITY_LOW,
+        ),
+        editor.registerCommand(
+          ASK_AT_MOMENT_COMMAND,
+          (key) => {
+            if (key !== nodeKey) return false;
+            askHere();
+            return true;
+          },
+          COMMAND_PRIORITY_LOW,
+        ),
+      ),
+    [editor, nodeKey],
+  );
   const editable = useLexicalEditable();
   const update = useNodeUpdate(nodeKey, $isMediaNode);
   useSelectOnClick(nodeKey);
-  const [captioning, setCaptioning] = useState(false);
   const video = mime.startsWith("video/");
   return (
     <BlockWithAlignableContents
@@ -220,167 +230,44 @@ function MediaBlock({
           video={video}
           captionsLang={captionsLang}
           locale={locale}
-          strings={strings}
+          strings={editable ? undefined : strings}
           captionsLabel={strings.captions}
           element={following}
-          chapters={chapterList}
+          chapters={parseChapters(chapters)}
         />
         {editable ? (
           <>
-            <div className="flex flex-wrap items-center justify-between gap-2 text-xs text-muted-foreground">
-              {/* Audio is followed as well through a transcript as through captions. */}
-              {!captionsFileId && !video && transcript ? (
-                <span />
-              ) : (
-                <span
-                  className={
-                    captionsFileId
-                      ? undefined
-                      : "text-warning-foreground dark:text-warning"
-                  }
-                >
-                  {captionsFileId
-                    ? strings.captionsAdded
-                    : video
-                      ? strings.captionsMissing
-                      : strings.transcriptMissing}
-                </span>
-              )}
-              <button
-                type="button"
-                disabled={!media}
-                onClick={() => setCaptioning(true)}
-                className={mediaAction}
-              >
-                <Captions className="size-3.5" aria-hidden />
-                {captionsFileId ? strings.captionsReplace : strings.captionsAdd}
-              </button>
-              {transcript || writing ? null : (
-                <button
-                  type="button"
-                  onClick={() => setWriting(true)}
-                  className={mediaAction}
-                >
-                  <ScrollText className="size-3.5" aria-hidden />
-                  {strings.transcriptAdd}
-                </button>
-              )}
-              {questions ? (
-                <button
-                  type="button"
-                  aria-pressed={noSkipping}
-                  onClick={() =>
-                    update((node) => node.setNoSkipping(!noSkipping))
-                  }
-                  className={mediaAction}
-                >
-                  {noSkipping ? (
-                    <Lock className="size-3.5" aria-hidden />
-                  ) : (
-                    <FastForward className="size-3.5" aria-hidden />
-                  )}
-                  {strings.mediaNoSkipping}
-                </button>
-              ) : null}
-              {video && !chapters && !chaptering ? (
-                <button
-                  type="button"
-                  onClick={() => setChaptering(true)}
-                  className={mediaAction}
-                >
-                  <ListOrdered className="size-3.5" aria-hidden />
-                  {strings.chaptersAdd}
-                </button>
-              ) : null}
-              {video && questions ? (
-                <button type="button" onClick={askHere} className={mediaAction}>
-                  <MessageCircleQuestion className="size-3.5" aria-hidden />
-                  {strings.questionAskAt(mediaClock(second))}
-                </button>
-              ) : null}
-              <CaptionsEditor
-                open={captioning}
-                onOpenChange={setCaptioning}
-                fileId={fileId}
-                src={media?.url(fileId)}
-                video={video}
-                captionsSrc={
-                  captionsFileId ? media?.url(captionsFileId) : undefined
-                }
-                language={captionsLang}
-                onSave={async (file, language) => {
-                  if (!media) return;
-                  const uploaded = await media.upload(file, "captions");
-                  update((node) =>
-                    node.setCaptions(uploaded.fileId).setCaptionsLang(language),
-                  );
-                }}
-              />
-            </div>
-            {video && (chapters || chaptering) ? (
-              <div className="grid gap-1 text-xs text-muted-foreground">
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <label htmlFor={`${nodeKey}-chapters`}>
-                    {strings.chapters}
-                  </label>
-                  <button
-                    type="button"
-                    // Keeps the chapters open while one is added.
-                    onMouseDown={(event) => event.preventDefault()}
-                    onClick={addChapter}
-                    className={mediaAction}
-                  >
-                    <Plus className="size-3.5" aria-hidden />
-                    {strings.chapterAddAt(mediaClock(second))}
-                  </button>
-                </div>
-                <textarea
-                  id={`${nodeKey}-chapters`}
-                  ref={chaptersInput}
-                  dir="auto"
-                  value={chapters}
-                  maxLength={4000}
-                  placeholder={strings.chaptersHint}
-                  aria-describedby={`${nodeKey}-chapters-help`}
-                  onChange={(event) => {
-                    const value = event.target.value;
-                    update((node) => node.setChapters(value));
-                  }}
-                  onBlur={() => setChaptering(false)}
-                  className="field-sizing-content max-h-80 min-h-16 w-full resize-none rounded-md border bg-transparent px-2.5 py-2 text-sm text-foreground outline-none focus-visible:border-ring"
-                />
-                <p id={`${nodeKey}-chapters-help`}>
-                  {skipped > 0 ? (
-                    <span className="text-warning-foreground dark:text-warning">
-                      {strings.chaptersSkipped(skipped)}
-                    </span>
-                  ) : (
-                    strings.chaptersHelp
-                  )}
-                </p>
-              </div>
-            ) : null}
-            {transcript || writing ? (
-              <label className="grid gap-1 text-xs text-muted-foreground">
-                {strings.transcript}
-                <textarea
-                  ref={transcriptInput}
-                  dir="auto"
-                  value={transcript}
-                  maxLength={20000}
-                  placeholder={strings.transcriptHint}
-                  onChange={(event) => {
-                    const value = event.target.value;
-                    update((node) => node.setTranscript(value));
-                  }}
-                  onBlur={() => setWriting(false)}
-                  className="field-sizing-content max-h-80 min-h-16 w-full resize-none rounded-md border bg-transparent px-2.5 py-2 text-sm text-foreground outline-none focus-visible:border-ring"
-                />
-              </label>
-            ) : null}
             <CaptionInput
               value={caption}
               onChange={(value) => update((node) => node.setCaption(value))}
+            />
+            <RecordingSheet
+              open={sheet !== null}
+              onOpenChange={(open) => {
+                if (!open) setSheet(null);
+              }}
+              tab={sheet ?? "captions"}
+              onTabChange={setSheet}
+              fileId={fileId}
+              src={media?.url(fileId)}
+              video={video}
+              captionsSrc={
+                captionsFileId ? media?.url(captionsFileId) : undefined
+              }
+              language={captionsLang}
+              onSave={async (file, language) => {
+                if (!media) return;
+                const uploaded = await media.upload(file, "captions");
+                update((node) =>
+                  node.setCaptions(uploaded.fileId).setCaptionsLang(language),
+                );
+              }}
+              chapters={chapters}
+              onChapters={(text) => update((node) => node.setChapters(text))}
+              transcript={transcript}
+              onTranscript={(text) =>
+                update((node) => node.setTranscript(text))
+              }
             />
           </>
         ) : (
@@ -397,9 +284,6 @@ function MediaBlock({
     </BlockWithAlignableContents>
   );
 }
-
-const mediaAction =
-  "inline-flex h-8 items-center gap-1.5 rounded-md border px-2.5 font-medium text-foreground outline-none hover:bg-accent focus-visible:ring-3 focus-visible:ring-ring/50 disabled:opacity-50 aria-pressed:border-primary/40 aria-pressed:bg-primary/10 max-md:h-10";
 
 function EmbedBlock({
   nodeKey,
@@ -651,6 +535,24 @@ export class MediaNode extends DecoratorBlockNode {
     return writable;
   }
 
+  /** What the editor's bar says about the recording, and offers to change. */
+  getRecording(): {
+    video: boolean;
+    captions: boolean;
+    chapters: boolean;
+    transcript: boolean;
+    noSkipping: boolean;
+  } {
+    const node = this.getLatest();
+    return {
+      video: node.__mime.startsWith("video/"),
+      captions: node.__captionsFileId !== "",
+      chapters: node.__chapters.trim() !== "",
+      transcript: node.__transcript.trim() !== "",
+      noSkipping: node.__noSkipping,
+    };
+  }
+
   setNoSkipping(noSkipping: boolean): this {
     const writable = this.getWritable();
     writable.__noSkipping = noSkipping;
@@ -678,7 +580,6 @@ export class MediaNode extends DecoratorBlockNode {
         captionsLang={this.__captionsLang}
         transcript={this.__transcript}
         chapters={this.__chapters}
-        noSkipping={this.__noSkipping}
         caption={this.__caption}
         size={this.__size}
       />

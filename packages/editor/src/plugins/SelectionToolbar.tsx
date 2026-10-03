@@ -36,6 +36,7 @@ import {
   AlignRight,
   Baseline,
   Bold,
+  Captions,
   CaseSensitive,
   ChevronDown,
   Clock,
@@ -44,12 +45,15 @@ import {
   ExternalLink,
   Eye,
   EyeOff,
+  FastForward,
   ImageOff,
   ImagePlus,
   Italic,
   Lightbulb,
   Link,
   ListChecks,
+  ListOrdered,
+  Lock,
   MessageCircleQuestion,
   MessageSquare,
   Pencil,
@@ -66,6 +70,7 @@ import {
   UsersRound,
   Grid2x2,
   ScanSearch,
+  ScrollText,
   Signature,
   Volume2,
   X,
@@ -129,7 +134,10 @@ import {
   $isDiagramNode,
   $isEmbedNode,
   $isMediaNode,
+  ASK_AT_MOMENT_COMMAND,
   EDIT_DIAGRAM_COMMAND,
+  OPEN_RECORDING_COMMAND,
+  playerOf,
 } from "../nodes/rich";
 import { focusText, textFocus, updateFromOutside } from "../outside";
 import { editorInSlot } from "../slots";
@@ -217,6 +225,14 @@ interface FileBarFacts {
 interface BlockFacts {
   key: NodeKey;
   drawing: boolean;
+  /** A recording's captions, chapters and transcript, which the bar opens. */
+  recording: {
+    video: boolean;
+    captions: boolean;
+    chapters: boolean;
+    transcript: boolean;
+    noSkipping: boolean;
+  } | null;
   /** A picture's file, which the bar downloads or links. */
   pictureId: string | null;
   size: ImageSize;
@@ -313,11 +329,28 @@ export function SelectionToolbarPlugin() {
     narration: narrates,
     lessonActivities,
     locale,
+    questions,
   } = useEditorEnvironment();
   const [mode, setMode] = useState<Mode>("hidden");
   const [reference, setReference] = useState<ReferenceElement | null>(null);
   const [facts, setFacts] = useState<Facts>(empty);
   const [layout, setLayout] = useState<BlockFacts | null>(null);
+  // A selected video's bar offers a question at the moment it is paused on,
+  // so the bar follows its player while it shows.
+  const [, setMoment] = useState(0);
+  const followed =
+    mode === "block" && layout?.recording?.video ? layout.key : null;
+  useEffect(() => {
+    const element = followed ? playerOf(editor, followed) : null;
+    if (!element) return undefined;
+    const tick = () => setMoment(Math.floor(element.currentTime));
+    element.addEventListener("timeupdate", tick);
+    element.addEventListener("seeked", tick);
+    return () => {
+      element.removeEventListener("timeupdate", tick);
+      element.removeEventListener("seeked", tick);
+    };
+  }, [editor, followed]);
   const [fileFacts, setFileFacts] = useState<FileBarFacts | null>(null);
   const [question, setQuestion] = useState<QuestionBarFacts | null>(null);
   const [editing, setEditing] = useState<QuestionText>("explanation");
@@ -429,6 +462,7 @@ export function SelectionToolbarPlugin() {
       return {
         key: node.getKey(),
         drawing: $isDiagramNode(node),
+        recording: $isMediaNode(node) ? node.getRecording() : null,
         pictureId: $isImageNode(node) ? node.getFileId() : null,
         size: node.getSize(),
         format: node.getFormat(),
@@ -815,6 +849,110 @@ export function SelectionToolbarPlugin() {
                   <UsersRound aria-hidden />
                   {strings.picturePeople}
                 </button>
+              ) : null}
+              {separator}
+            </>
+          ) : null}
+          {layout.recording ? (
+            <>
+              <ToolButton
+                label={
+                  layout.recording.captions
+                    ? strings.captionsReplace
+                    : strings.captionsNeeded
+                }
+                active={layout.recording.captions}
+                className="relative"
+                onClick={() =>
+                  editor.dispatchCommand(OPEN_RECORDING_COMMAND, {
+                    key: layout.key,
+                    tab: "captions",
+                  })
+                }
+              >
+                <Captions aria-hidden />
+                {layout.recording.captions ? null : (
+                  <span
+                    aria-hidden
+                    className="absolute end-1 top-1 size-1.5 rounded-full bg-warning"
+                  />
+                )}
+              </ToolButton>
+              {layout.recording.video ? (
+                <ToolButton
+                  label={
+                    layout.recording.chapters
+                      ? strings.chapters
+                      : strings.chaptersAdd
+                  }
+                  active={layout.recording.chapters}
+                  onClick={() =>
+                    editor.dispatchCommand(OPEN_RECORDING_COMMAND, {
+                      key: layout.key,
+                      tab: "chapters",
+                    })
+                  }
+                >
+                  <ListOrdered aria-hidden />
+                </ToolButton>
+              ) : null}
+              <ToolButton
+                label={
+                  layout.recording.transcript
+                    ? strings.transcript
+                    : strings.transcriptAdd
+                }
+                active={layout.recording.transcript}
+                onClick={() =>
+                  editor.dispatchCommand(OPEN_RECORDING_COMMAND, {
+                    key: layout.key,
+                    tab: "transcript",
+                  })
+                }
+              >
+                <ScrollText aria-hidden />
+              </ToolButton>
+              {questions ? (
+                <>
+                  {separator}
+                  <ToolButton
+                    label={strings.mediaNoSkipping}
+                    active={layout.recording.noSkipping}
+                    onClick={() =>
+                      editor.update(() => {
+                        const node = $getNodeByKey(layout.key);
+                        if ($isMediaNode(node))
+                          node.setNoSkipping(!node.getRecording().noSkipping);
+                      })
+                    }
+                  >
+                    {layout.recording.noSkipping ? (
+                      <Lock aria-hidden />
+                    ) : (
+                      <FastForward aria-hidden />
+                    )}
+                  </ToolButton>
+                  {layout.recording.video ? (
+                    <button
+                      type="button"
+                      onMouseDown={(event) => event.preventDefault()}
+                      onClick={() =>
+                        editor.dispatchCommand(
+                          ASK_AT_MOMENT_COMMAND,
+                          layout.key,
+                        )
+                      }
+                      className="inline-flex h-8 items-center gap-1.5 rounded-md px-2 text-sm font-medium text-foreground/80 hover:bg-accent hover:text-foreground [&_svg]:size-4"
+                    >
+                      <MessageCircleQuestion aria-hidden />
+                      {strings.questionAskAt(
+                        mediaClock(
+                          playerOf(editor, layout.key)?.currentTime ?? 0,
+                        ),
+                      )}
+                    </button>
+                  ) : null}
+                </>
               ) : null}
               {separator}
             </>

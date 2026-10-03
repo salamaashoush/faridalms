@@ -5,8 +5,12 @@ import { useLexicalNodeSelection } from "@lexical/react/useLexicalNodeSelection"
 import { CLICK_COMMAND, COMMAND_PRIORITY_LOW } from "lexical";
 import { useEffect } from "react";
 
-/** Controls inside a block that keep their own click: the block stays unselected. */
-const OWN_CLICK = "input, textarea, select, button, a, video, audio";
+/**
+ * Controls inside a block that keep their own click: the block stays
+ * unselected. A video's picture is not one, so clicking it selects the
+ * block and brings up its bar while it plays or pauses.
+ */
+const OWN_CLICK = "input, textarea, select, button, a";
 
 /**
  * Selects a picture, drawing, video or embed when it is clicked anywhere
