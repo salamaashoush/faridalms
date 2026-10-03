@@ -222,6 +222,11 @@ export function editorStrings(): EditorStrings {
     questionParsonsHint: m.editorQuestionParsonsHint(),
     questionCodeLine: m.editorQuestionCodeLine(),
     questionDistractor: m.editorQuestionDistractor(),
+    questionProgram: m.editorQuestionProgram(),
+    questionProgramHint: m.editorQuestionProgramHint(),
+    questionTestInput: m.editorQuestionTestInput(),
+    questionTestOutput: m.editorQuestionTestOutput(),
+    questionHiddenTest: m.editorQuestionHiddenTest(),
     questionLanguage: m.editorQuestionLanguage(),
     questionLanguages: {
       python: "Python",

@@ -670,6 +670,63 @@
   pointer-events: none;
   content: attr(data-empty-label);
 }
+/* A code exercise: its starter code a line at a time, then its tests, each
+   what the program reads beside what it must print. */
+.fe .fe-question[data-kind="program"] > .fe-question-option {
+  margin-block: 0;
+  border-radius: 0;
+  background: var(--fe-subtle);
+  padding-block: 0;
+  padding-inline: 0.75rem;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  direction: ltr;
+  text-align: left;
+}
+.fe .fe-question[data-kind="program"] > .fe-question-option > *,
+.fe .fe-question[data-kind="program"] .fe-question-side > * {
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 0.875rem;
+  font-variant-ligatures: none;
+}
+.fe .fe-question[data-kind="program"] > .fe-question-option::before {
+  content: none;
+}
+.fe
+  .fe-question[data-kind="program"]
+  > .fe-question-option:has(> br:only-child)::after {
+  content: attr(data-line-label);
+}
+.fe .fe-question[data-kind="program"] > .fe-question-pair {
+  margin-block-start: 0.5rem;
+}
+.fe .fe-question[data-kind="program"] > .fe-question-pair::after {
+  content: "→";
+}
+.fe .fe-question[data-kind="program"] .fe-question-side {
+  white-space: pre-wrap;
+  direction: ltr;
+  text-align: left;
+}
+/* A hidden test says so, since students will never see it. */
+.fe .fe-question[data-kind="program"] > .fe-question-pair[data-hidden] {
+  grid-template-rows: auto auto;
+}
+.fe
+  .fe-question[data-kind="program"]
+  > .fe-question-pair[data-hidden]
+  > .fe-question-side {
+  border: 1px dashed color-mix(in oklab, var(--foreground) 25%, transparent);
+  background: none;
+}
+.fe .fe-question[data-kind="program"] > .fe-question-pair[data-hidden]::before {
+  grid-row: 2;
+  grid-column: 1 / -1;
+  color: var(--fe-muted);
+  font-size: 0.75rem;
+  content: attr(data-hidden-label);
+}
+
 .fe .fe-question-group {
   margin-block: 0.5rem;
   border-inline-start: 2px solid

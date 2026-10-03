@@ -403,6 +403,58 @@ export function PaperQuestion({
         </ul>
       );
       break;
+    case "program": {
+      // Paper has no Python: the student writes the program out, from the
+      // starter if there is one, against the examples its tests give. A
+      // teacher's copy shows the hidden tests too, to mark by.
+      const examples = block.tests.filter((test) => answers || !test.hidden);
+      body = (
+        <div className="grid gap-3">
+          {block.starter ? (
+            <pre
+              dir="ltr"
+              className="rounded-[4px] border border-neutral-500 px-2 py-1 font-mono whitespace-pre-wrap [font-variant-ligatures:none]"
+            >
+              {block.starter}
+            </pre>
+          ) : null}
+          {examples.length > 0 ? (
+            <table dir="ltr" className="w-full border-collapse">
+              <thead>
+                <tr>
+                  <th
+                    dir="auto"
+                    className="border border-neutral-500 px-2 py-0.5 text-start font-semibold"
+                  >
+                    {m.codeTestGives()}
+                  </th>
+                  <th
+                    dir="auto"
+                    className="border border-neutral-500 px-2 py-0.5 text-start font-semibold"
+                  >
+                    {m.codeTestExpects()}
+                  </th>
+                </tr>
+              </thead>
+              <tbody>
+                {examples.map((test) => (
+                  <tr key={test.id}>
+                    <td className="border border-neutral-500 px-2 py-0.5 align-top font-mono whitespace-pre-wrap">
+                      {test.input}
+                    </td>
+                    <td className="border border-neutral-500 px-2 py-0.5 align-top font-mono whitespace-pre-wrap">
+                      {test.expected}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : null}
+          <Lines count={Math.max(8, block.starter.split("\n").length + 6)} />
+        </div>
+      );
+      break;
+    }
     case "sorting": {
       // The editor keeps an empty group at the end to write the next one in.
       const groups = block.groups.filter((group) => group.name.trim());

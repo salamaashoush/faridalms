@@ -4,7 +4,12 @@ import type { CheckBlock, LessonDocument } from "./learning";
 
 import { contentDocumentSchema, contentPlainText } from "./content";
 import { declarationSchema } from "./exams";
-import { checkBlocks, lessonDocumentSchema, responseSchema } from "./learning";
+import {
+  checkBlocks,
+  lessonDocumentSchema,
+  MAX_PROGRAM_CHARS,
+  responseSchema,
+} from "./learning";
 
 export const LATE_POLICIES = ["accept", "deduct", "refuse"] as const;
 export type LatePolicy = (typeof LATE_POLICIES)[number];
@@ -586,6 +591,13 @@ export const saveQuizAnswerSchema = v.object({
   assignmentId: id,
   blockId: id,
   response: v.nullable(responseSchema),
+});
+
+/** A student keeps a program for a quiz's code exercise; the server runs it. */
+export const saveQuizProgramSchema = v.object({
+  assignmentId: id,
+  blockId: id,
+  code: v.pipe(v.string(), v.maxLength(MAX_PROGRAM_CHARS)),
 });
 
 export const markQuizAnswerSchema = v.object({

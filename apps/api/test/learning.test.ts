@@ -450,6 +450,122 @@ describe("matching, ordering, sorting and code puzzles", () => {
   });
 });
 
+describe("code exercises", () => {
+  test("a program is marked by running it, with its hidden tests kept from the student", async () => {
+    const { keeper } = await teachers();
+    const { rows } = await keeper.learning.modules({});
+    const source = rows.find((row) => row.title === TITLE);
+    if (!source) throw new Error("no module");
+    const saved = await keeper.learning.saveModule({
+      id: "",
+      expectedVersion: 0,
+      title: "Squares",
+      summary: "",
+      classIds: source.classes.map((item) => item.id),
+      prerequisiteId: "",
+      sequential: false,
+    });
+    const shown = { id: id(), input: "3", expected: "9", hidden: false };
+    const hidden = { id: id(), input: "-4", expected: "16", hidden: true };
+    const exercise = {
+      id: id(),
+      type: "program" as const,
+      prompt: "Print the square of the number you are given.",
+      points: 2,
+      hint: "",
+      explanation: "",
+      tries: null,
+      language: "python" as const,
+      starter: "n = int(input())",
+      tests: [shown, hidden],
+    };
+    await keeper.learning.saveLesson({
+      id: "",
+      moduleId: saved.id,
+      expectedVersion: 0,
+      title: "Squares",
+      completion: "quiz",
+      passScore: null,
+      content: written([exercise]),
+      publish: false,
+    });
+    await keeper.learning.publishModule({
+      id: saved.id,
+      expectedVersion: saved.version,
+    });
+
+    const pupil = await student();
+    const outline = await pupil.learning.play({ id: saved.id });
+    const lessonId = outline.lessons[0]?.id ?? "";
+    const opened = await pupil.learning.playLesson({ id: lessonId });
+    const block = blockOf(opened, "program");
+    expect(block.tests).toEqual([{ id: shown.id, input: "3", expected: "9" }]);
+    expect(block.hiddenTests).toEqual([hidden.id]);
+    expect(JSON.stringify(opened.blocks)).not.toMatch(/"-4"|"16"/);
+
+    // Results come only from running the program, never from the student.
+    expect(
+      await rejection(
+        pupil.learning.respond({
+          lessonId,
+          blockId: exercise.id,
+          response: {
+            type: "program",
+            code: "",
+            results: {
+              [shown.id]: {
+                passed: true,
+                output: null,
+                error: null,
+                stopped: null,
+              },
+            },
+          },
+        }),
+      ),
+    ).toMatchObject({ code: "BAD_REQUEST" });
+
+    const half = await pupil.learning.respondProgram({
+      lessonId,
+      blockId: exercise.id,
+      code: "n = int(input())\nprint(n * abs(n))",
+    });
+    expect(half.check).toMatchObject({ correct: false, fraction: 0.5 });
+    const kept = half.check.response;
+    if (kept?.type !== "program") throw new Error("program expected");
+    expect(kept.results?.[shown.id]).toMatchObject({
+      passed: true,
+      output: "9\n",
+    });
+    expect(kept.results?.[hidden.id]).toEqual({
+      passed: false,
+      output: null,
+      error: null,
+      stopped: null,
+    });
+
+    const broken = await pupil.learning.respondProgram({
+      lessonId,
+      blockId: exercise.id,
+      code: "n = int(input())\nprint(m * m)",
+    });
+    const failed = broken.check.response;
+    if (failed?.type !== "program") throw new Error("program expected");
+    expect(failed.results?.[shown.id]?.error).toBe(
+      "NameError: name 'm' is not defined",
+    );
+    expect(failed.results?.[hidden.id]?.error).toBe("NameError");
+
+    const done = await pupil.learning.respondProgram({
+      lessonId,
+      blockId: exercise.id,
+      code: "n = int(input('A number? '))\nprint(n * n)",
+    });
+    expect(done.check).toMatchObject({ correct: true, fraction: 1 });
+    expect(done.completed).toBe(true);
+  });
+});
+
 describe("marking written answers", () => {
   test("the teacher reads a class's answers and marks one, which the student then sees", async () => {
     const { keeper, stranger } = await teachers();

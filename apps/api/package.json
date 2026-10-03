@@ -8,9 +8,10 @@
   "scripts": {
     "dev": "bun --watch src/index.ts",
     "start": "bun src/index.ts",
-    "build": "bun build src/index.ts --target=bun --outdir=dist"
+    "build": "bun build src/index.ts --target=bun --outdir=dist && bun build src/coding/python-worker.ts --target=bun --outdir=dist"
   },
   "dependencies": {
+    "@bjorn3/browser_wasi_shim": "0.4.2",
     "@faridalms/database": "workspace:*",
     "@faridalms/domain": "workspace:*",
     "@orpc/openapi": "latest",

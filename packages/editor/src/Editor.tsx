@@ -34,7 +34,7 @@ import { EditorEnvironmentProvider, useEditorEnvironment } from "./context";
 import { ShortcutsExtension } from "./extensions";
 import { editorFrame } from "./frame";
 import { contentExtensions } from "./headless";
-import { markdownTransformers } from "./markdown";
+import { markdownShortcuts } from "./markdown";
 import {
   $codeRunOf,
   $setCodeRun,
@@ -261,6 +261,7 @@ function Surface({
         hotspot: strings.questionHotspot,
         scratch: strings.questionScratch,
         parsons: strings.questionParsons,
+        program: strings.questionProgram,
       },
       spoken: strings.questionSpoken,
       pictured: {
@@ -273,6 +274,9 @@ function Surface({
       videoAt: strings.questionVideoAt,
       codeLine: strings.questionCodeLine,
       distractor: strings.questionDistractor,
+      testInput: strings.questionTestInput,
+      testOutput: strings.questionTestOutput,
+      hiddenTest: strings.questionHiddenTest,
       extraTiles: strings.questionExtraTiles,
       points: strings.questionPoints,
       answerIs: strings.questionAnswerIs,
@@ -321,7 +325,7 @@ function Surface({
   }, [synced, onSynced]);
 
   useEffect(
-    () => registerMarkdownShortcuts(editor, markdownTransformers),
+    () => registerMarkdownShortcuts(editor, markdownShortcuts),
     [editor],
   );
 

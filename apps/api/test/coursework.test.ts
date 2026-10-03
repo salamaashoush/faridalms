@@ -1350,6 +1350,75 @@ describe("quizzes", () => {
     ).toMatchObject({ message: "coursework.closed" });
   });
 
+  test("a quiz's code exercise is run when kept and marked at hand-in, its results kept back till then", async () => {
+    const teacher = await arabicTeacher();
+    const student = await sessionFor("northwind", login("student"));
+    const me = await student.api.identity.currentUser();
+    const target = await classOfStudent(teacher.api, me.id);
+    const exercise = {
+      ...common,
+      id: uuid(),
+      type: "program" as const,
+      prompt: "Print the number doubled.",
+      points: 4,
+      language: "python" as const,
+      starter: "",
+      tests: [
+        { id: uuid(), input: "2", expected: "4", hidden: false },
+        { id: uuid(), input: "5", expected: "10", hidden: true },
+      ],
+    };
+    const saved = await teacher.api.coursework.save(
+      draft(target.id, "Code quiz", {
+        submissionFormat: "quiz",
+        points: null,
+        brief: briefWithQuiz(plainContent("Write the program."), {
+          version: 2,
+          blocks: [exercise],
+        }),
+        quiz: {
+          attempts: 1,
+          keep: "highest",
+          reveal: "answers",
+          shuffle: false,
+        },
+      }),
+    );
+    await teacher.api.coursework.publish({
+      id: saved.id,
+      expectedVersion: saved.version,
+    });
+    expect(
+      await rejection(
+        student.api.coursework.saveQuizAnswer({
+          assignmentId: saved.id,
+          blockId: exercise.id,
+          response: { type: "program", code: "print(4)" },
+        }),
+      ),
+    ).toMatchObject({ code: "BAD_REQUEST" });
+    await student.api.coursework.saveQuizProgram({
+      assignmentId: saved.id,
+      blockId: exercise.id,
+      code: "print(4)",
+    });
+    const open = await student.api.coursework.work({ id: saved.id });
+    expect(open.quiz?.drafts[exercise.id]).toEqual({
+      type: "program",
+      code: "print(4)",
+    });
+    await student.api.coursework.handIn({
+      assignmentId: saved.id,
+      expectedVersion: open.submission.version,
+    });
+    const after = await student.api.coursework.work({ id: saved.id });
+    // print(4) passes the test it was written for and fails the hidden one.
+    expect(after.quiz?.results[0]?.score).toBe(2);
+    expect(after.quiz?.results[0]?.checks?.[exercise.id]).toMatchObject({
+      fraction: 0.5,
+    });
+  });
+
   test("a quiz shown only when returned keeps its results back until then", async () => {
     const { teacher, student, me, saved, choice, right } =
       await quizFor("returned");

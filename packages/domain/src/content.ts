@@ -67,6 +67,7 @@ export const questionKinds = [
   "hotspot",
   "scratch",
   "parsons",
+  "program",
 ] as const;
 export type QuestionKind = (typeof questionKinds)[number];
 export const calloutTones = [
@@ -165,6 +166,8 @@ export interface ContentNode {
   videoAt?: number | null;
   /** A code puzzle's language, which decides whether indentation counts. */
   codeLanguage?: "python" | "javascript" | "html" | "text";
+  /** A code exercise's test that is run and counted but never shown. */
+  hidden?: boolean;
   /** A written question answered with a drawing or a photo. */
   answerWith?: "drawing" | "photo" | null;
   /** A find-on-a-picture question's places: left, top, width, height. */
@@ -363,6 +366,7 @@ const nodeSchema: v.GenericSchema<ContentNode> = v.lazy(() =>
       codeLanguage: v.optional(
         v.picklist(["python", "javascript", "html", "text"]),
       ),
+      hidden: v.optional(v.boolean()),
       answerWith: v.optional(v.nullable(v.picklist(["drawing", "photo"]))),
       regions: v.optional(
         v.pipe(

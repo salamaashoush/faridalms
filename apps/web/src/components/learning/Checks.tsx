@@ -1,6 +1,7 @@
 import type {
   CheckView,
   LessonResponse,
+  ProgramResult,
   StudentBlock,
   StudentPart,
 } from "@faridalms/domain/learning";
@@ -36,6 +37,7 @@ import {
   IndentDecrease,
   IndentIncrease,
   Lightbulb,
+  LoaderCircle,
   Plus,
   X,
 } from "lucide-react";
@@ -43,7 +45,9 @@ import { createContext, useContext, useId, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import { toast } from "sonner";
 
+import { CodeRunner } from "~/components/coding/CodeRunner";
 import { CodingAnswer } from "~/components/coding/CodingAnswer";
+import { friendlyError } from "~/components/coding/friendly";
 import * as m from "~/i18n/messages";
 import { formatList, formatNumber } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
@@ -160,6 +164,7 @@ export type CheckStudentBlock =
   | Of<"matching">
   | Of<"ordering">
   | Of<"parsons">
+  | Of<"program">
   | Of<"sorting">
   | Of<"counting">
   | Of<"tracing">
@@ -176,6 +181,7 @@ const CHECK_TYPES = new Set<StudentBlock["type"]>([
   "matching",
   "ordering",
   "parsons",
+  "program",
   "sorting",
   "counting",
   "tracing",
@@ -1500,6 +1506,193 @@ function ParsonsCheck({
   );
 }
 
+const testText =
+  "font-mono text-[13px] leading-5 whitespace-pre-wrap [font-variant-ligatures:none] [overflow-wrap:anywhere]";
+
+/** One test of a code exercise: what it gives, what it expects, how it went. */
+function ProgramTest({
+  title,
+  test,
+  result,
+}: {
+  title: string;
+  test: { input: string; expected: string } | null;
+  result: ProgramResult | undefined;
+}) {
+  const mark: Mark = result ? (result.passed ? "right" : "wrong") : null;
+  const friendly = result?.error
+    ? friendlyError("python", result.error.split(":")[0] ?? "")
+    : null;
+  const row = (label: string, text: string, tone?: string) => (
+    <>
+      <dt dir="auto" className="text-[13px] leading-5 text-muted-foreground">
+        {label}
+      </dt>
+      <dd className={cn(testText, tone)}>
+        <bdi dir="ltr">{text}</bdi>
+      </dd>
+    </>
+  );
+  return (
+    <li
+      className={cn(
+        "grid gap-1.5 rounded-lg border px-3 py-2",
+        markBorder(mark),
+      )}
+    >
+      <div className="flex items-center justify-between gap-2">
+        <span className="text-[13px] leading-[18px] font-medium">{title}</span>
+        <MarkIcon mark={mark} />
+      </div>
+      {test || (result && !result.passed) ? (
+        <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3 gap-y-1">
+          {test?.input ? row(m.codeTestGives(), test.input) : null}
+          {test ? row(m.codeTestExpects(), test.expected) : null}
+          {result && !result.passed && result.output !== null
+            ? row(m.codeTestGot(), result.output || m.codeTestNothing())
+            : null}
+        </dl>
+      ) : null}
+      {result && !result.passed && result.stopped ? (
+        <p dir="auto" className="text-[13px] leading-5 text-destructive">
+          {result.stopped === "time"
+            ? m.codeTestStoppedTime()
+            : m.codeTestStoppedOutput()}
+        </p>
+      ) : result?.error ? (
+        <>
+          <p dir="ltr" className={cn(testText, "text-destructive")}>
+            {result.error}
+          </p>
+          {friendly ? (
+            <p
+              dir="auto"
+              className="text-[13px] leading-5 text-muted-foreground"
+            >
+              {friendly}
+            </p>
+          ) : null}
+        </>
+      ) : null}
+    </li>
+  );
+}
+
+function ProgramCheck({
+  block,
+  view,
+  driver,
+}: {
+  block: Of<"program">;
+  view: CheckView | undefined;
+  driver: CheckDriver;
+}) {
+  const legend = useId();
+  const mode = useContext(CheckModeContext);
+  const { respond, reveal } = useCheck(block.id, view, driver);
+  const last = view?.response?.type === "program" ? view.response : null;
+  const [code, setCode] = useState(last?.code ?? block.starter);
+  const settled = isSettled(block, view);
+  const locked = settled || mode === "review";
+  // Results belong to the code they were run on; once it changes they
+  // would describe a program the student no longer has.
+  const results = last && last.code === code ? (last.results ?? {}) : {};
+  const total = block.tests.length + block.hiddenTests.length;
+  const passed = Object.values(results).filter((result) => result.passed);
+  const canCheck =
+    !locked && code.trim() !== "" && (code !== last?.code || !view?.tries);
+  return (
+    <CheckCard
+      block={block}
+      legendId={legend}
+      onSubmit={() => {
+        if (canCheck) respond.mutate({ type: "program", code });
+      }}
+      status={
+        respond.isPending ? (
+          <p className="inline-flex items-center gap-2 text-sm leading-5 text-muted-foreground">
+            <LoaderCircle aria-hidden className="size-4 animate-spin" />
+            {m.codeChecking()}
+          </p>
+        ) : (
+          <CheckStatus view={view} editing={false} />
+        )
+      }
+      actions={
+        locked ? null : (
+          <>
+            <Button
+              type="submit"
+              className="max-md:h-10"
+              disabled={!canCheck || respond.isPending || reveal.isPending}
+            >
+              {mode === "quiz" ? m.quizKeepAnswer() : m.lrnCheck()}
+            </Button>
+            {mode !== "quiz" && view && view.tries > 0 ? (
+              <Button
+                type="button"
+                variant="ghost"
+                className="max-md:h-10"
+                disabled={respond.isPending || reveal.isPending}
+                onClick={() => reveal.mutate()}
+              >
+                <Eye aria-hidden />
+                {m.lrnShowAnswer()}
+              </Button>
+            ) : null}
+          </>
+        )
+      }
+    >
+      <CodeRunner
+        source={block.starter}
+        initial={code}
+        language={block.language}
+        readOnly={locked}
+        onChange={setCode}
+      />
+      <div className="grid gap-2">
+        <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+          <p className="text-[13px] leading-[18px] font-medium text-muted-foreground">
+            {m.codeTests()}
+          </p>
+          {passed.length > 0 || Object.keys(results).length > 0 ? (
+            <p className="text-[13px] leading-[18px] text-muted-foreground tabular-nums">
+              {m.codeTestsPassed({
+                passed: formatNumber(passed.length),
+                total: formatNumber(total),
+              })}
+            </p>
+          ) : null}
+        </div>
+        <p className="text-[13px] leading-[18px] text-muted-foreground">
+          {m.codeTestsHint()}
+        </p>
+        <ul className="grid gap-1.5">
+          {block.tests.map((test, index) => (
+            <ProgramTest
+              key={test.id}
+              title={m.codeTestNumber({ number: formatNumber(index + 1) })}
+              test={test}
+              result={mode === "quiz" ? undefined : results[test.id]}
+            />
+          ))}
+          {block.hiddenTests.map((testId, index) => (
+            <ProgramTest
+              key={testId}
+              title={m.codeHiddenTestNumber({
+                number: formatNumber(block.tests.length + index + 1),
+              })}
+              test={null}
+              result={mode === "quiz" ? undefined : results[testId]}
+            />
+          ))}
+        </ul>
+      </div>
+    </CheckCard>
+  );
+}
+
 const groupChip =
   "min-h-8 cursor-pointer rounded-full border px-3 py-1 text-[13px] leading-5 outline-none transition-colors hover:bg-muted/50 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 data-checked:border-primary data-checked:bg-primary data-checked:text-primary-foreground data-disabled:cursor-default data-disabled:hover:bg-transparent data-disabled:data-checked:hover:bg-primary max-md:min-h-10";
 
@@ -1907,6 +2100,8 @@ export function CheckBlockView({
     return <OrderingCheck block={block} view={view} driver={driver} />;
   if (block.type === "parsons")
     return <ParsonsCheck block={block} view={view} driver={driver} />;
+  if (block.type === "program")
+    return <ProgramCheck block={block} view={view} driver={driver} />;
   if (block.type === "sorting")
     return <SortingCheck block={block} view={view} driver={driver} />;
   return <TypedCheck block={block} view={view} driver={driver} />;

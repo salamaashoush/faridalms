@@ -13,6 +13,9 @@
 /apps/web/src/i18n
 /apps/web/src/i18n-dev
 
+# fetched by apps/api/scripts/python-wasi.ts on install
+/apps/api/vendor
+
 # build output
 .output
 .nitro

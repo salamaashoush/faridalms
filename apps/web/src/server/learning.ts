@@ -110,13 +110,31 @@ export const openLesson = createServerFn({ method: "POST" })
   .validator(byId)
   .handler(({ data }) => record(backend().learning.playLesson(data)));
 
+// A code exercise is marked by running it, which the API does on its own
+// path; every other answer is marked as it is recorded.
 export const respondToCheck = createServerFn({ method: "POST" })
   .validator(checked(respondSchema))
-  .handler(({ data }) => backend().learning.respond(data));
+  .handler(({ data }) =>
+    data.response.type === "program"
+      ? backend().learning.respondProgram({
+          lessonId: data.lessonId,
+          blockId: data.blockId,
+          code: data.response.code,
+        })
+      : backend().learning.respond(data),
+  );
 
 export const answerReview = createServerFn({ method: "POST" })
   .validator(checked(respondSchema))
-  .handler(({ data }) => backend().learning.reviewAnswer(data));
+  .handler(({ data }) =>
+    data.response.type === "program"
+      ? backend().learning.reviewProgram({
+          lessonId: data.lessonId,
+          blockId: data.blockId,
+          code: data.response.code,
+        })
+      : backend().learning.reviewAnswer(data),
+  );
 
 export const revealCheck = createServerFn({ method: "POST" })
   .validator(checked(revealSchema))

@@ -501,6 +501,8 @@ export function getMessageFromError(error: unknown): string {
         return m.lrnErrLessonIncomplete();
       case "learning.hotspot_needed":
         return m.lrnHotspotNeeded();
+      case "learning.no_python":
+        return m.lrnErrNoPython();
       case "learning.locked":
         return m.lrnErrLocked();
       case "learning.not_done":

@@ -178,6 +178,11 @@ export interface QuestionLabels {
   /** A code puzzle's empty line, and a line marked as belonging nowhere. */
   codeLine?: string;
   distractor?: string;
+  /** A code exercise's test: what the program reads, and what it prints. */
+  testInput?: string;
+  testOutput?: string;
+  /** A test run and counted but never shown to students. */
+  hiddenTest?: string;
   extraTiles?: string;
   points: (points: number) => string;
   answerIs: string;
@@ -282,7 +287,8 @@ export function defaultSettings(kind: QuestionKind): QuestionSettings {
   return {
     kind,
     questionId: crypto.randomUUID(),
-    points: kind === "written" || kind === "scratch" ? 2 : 1,
+    points:
+      kind === "written" || kind === "scratch" || kind === "program" ? 2 : 1,
     tries: null,
     multiple: false,
     shuffle: kind === "choice",
@@ -819,27 +825,59 @@ export type SerializedQuestionHolderNode = Spread<
   SerializedElementNode
 >;
 
-/** Something to match and its match, side by side. */
+export type SerializedQuestionPairNode = Spread<
+  { optionId?: string; hidden?: boolean },
+  SerializedElementNode
+>;
+
+/**
+ * Something to match and its match, side by side; in a code exercise, what
+ * a test gives the program and what it must print.
+ */
 export class QuestionPairNode extends ElementNode {
   __optionId: string;
+  /** A code exercise's test run and counted but never shown to students. */
+  __hidden: boolean;
 
-  constructor(optionId: string = crypto.randomUUID(), key?: NodeKey) {
+  constructor(
+    optionId: string = crypto.randomUUID(),
+    hidden = false,
+    key?: NodeKey,
+  ) {
     super(key);
     this.__optionId = optionId;
+    this.__hidden = hidden;
   }
 
-  updateFromJSON(json: LexicalUpdateJSON<SerializedQuestionHolderNode>): this {
+  updateFromJSON(json: LexicalUpdateJSON<SerializedQuestionPairNode>): this {
     const node = super.updateFromJSON(json).getWritable();
     node.__optionId = json.optionId ?? crypto.randomUUID();
+    node.__hidden = json.hidden ?? false;
     return node;
   }
 
-  exportJSON(): SerializedQuestionHolderNode {
-    return { ...super.exportJSON(), optionId: this.getLatest().__optionId };
+  exportJSON(): SerializedQuestionPairNode {
+    const latest = this.getLatest();
+    return {
+      ...super.exportJSON(),
+      optionId: latest.__optionId,
+      ...(latest.__hidden ? { hidden: true } : {}),
+    };
   }
 
-  updateDOM(): boolean {
+  updateDOM(previous: this, dom: HTMLElement): boolean {
+    if (previous.__hidden !== this.__hidden) markHidden(dom, this.__hidden);
     return false;
+  }
+
+  isHidden(): boolean {
+    return this.getLatest().__hidden;
+  }
+
+  setHidden(hidden: boolean): this {
+    const writable = this.getWritable();
+    writable.__hidden = hidden;
+    return writable;
   }
 
   isShadowRoot(): boolean {
@@ -861,20 +899,27 @@ export class QuestionPairNode extends ElementNode {
   }
 
   static clone(node: QuestionPairNode): QuestionPairNode {
-    return new QuestionPairNode(node.__optionId, node.__key);
+    return new QuestionPairNode(node.__optionId, node.__hidden, node.__key);
   }
 
-  static importJSON(json: SerializedQuestionHolderNode): QuestionPairNode {
+  static importJSON(json: SerializedQuestionPairNode): QuestionPairNode {
     return new QuestionPairNode().updateFromJSON(json);
   }
 
-  createDOM(config: EditorConfig): HTMLElement {
+  createDOM(config: EditorConfig, editor: LexicalEditor): HTMLElement {
     const dom = $getDocument().createElement("div");
     dom.dataset.questionPair = "";
+    dom.dataset.hiddenLabel = labels.get(editor)?.hiddenTest ?? "";
+    markHidden(dom, this.__hidden);
     const name = theme(config, "questionPair");
     if (name) addClassNamesToElement(dom, name);
     return dom;
   }
+}
+
+function markHidden(dom: HTMLElement, hidden: boolean) {
+  if (hidden) dom.dataset.hidden = "";
+  else delete dom.dataset.hidden;
 }
 
 /** A named group in a sorting question, with the items that belong in it. */
@@ -949,12 +994,21 @@ export class QuestionSideNode extends ElementNode {
     const text = labels.get(editor);
     const holder = this.getParent();
     dom.dataset.questionSide = "";
+    const question = holder?.getParent();
+    const test =
+      question instanceof QuestionNode &&
+      question.getSettings().kind === "program";
+    const first = this.getIndexWithinParent() === 0;
     dom.dataset.emptyLabel =
       (holder instanceof QuestionGroupNode
         ? text?.groupName
-        : this.getIndexWithinParent() === 0
-          ? text?.pairPrompt
-          : text?.pairAnswer) ?? "";
+        : test
+          ? first
+            ? text?.testInput
+            : text?.testOutput
+          : first
+            ? text?.pairPrompt
+            : text?.pairAnswer) ?? "";
     const name = theme(config, "questionSide");
     if (name) addClassNamesToElement(dom, name);
     drawPicture(this, dom, editor);
@@ -1233,6 +1287,9 @@ export function $createQuestionNode(kind: QuestionKind): QuestionNode {
       new QuestionOptionNode(),
       new QuestionOptionNode(),
     );
+  // A code exercise: its starter code a line at a time, then a test.
+  if (kind === "program")
+    question.append(new QuestionOptionNode(), $createQuestionPair());
   if (kind === "text") question.append(new QuestionAnswerNode());
   if (kind === "matching")
     question.append($createQuestionPair(), $createQuestionPair());
@@ -1292,8 +1349,12 @@ export function $repairQuestion(question: QuestionNode) {
   const kind = question.getSettings().kind;
   for (const child of question.getChildren().slice(1)) {
     const fits =
-      ((kind === "choice" || kind === "ordering" || kind === "parsons") &&
+      ((kind === "choice" ||
+        kind === "ordering" ||
+        kind === "parsons" ||
+        kind === "program") &&
         $isQuestionOptionNode(child)) ||
+      (kind === "program" && $isQuestionPairNode(child)) ||
       ((kind === "text" || kind === "matching" || kind === "spelling") &&
         $isQuestionAnswerNode(child)) ||
       (kind === "matching" && $isQuestionPairNode(child)) ||
@@ -1421,10 +1482,14 @@ export function $findPart(address: PartAddress): LexicalNode | null {
   return null;
 }
 
+/** Questions whose lines are code: a puzzle's, or an exercise's starter. */
+const codeKinds = new Set<QuestionKind>(["parsons", "program"]);
+
 /**
- * Enter in a line of a code puzzle starts the next line as far indented as
- * the text before the caret, as in a code editor. A line of only spaces is
- * emptied instead, so Enter on it can still leave the puzzle.
+ * Enter in a line of code starts the next line as far indented as the text
+ * before the caret, as in a code editor. A line of only spaces is emptied
+ * instead, so Enter on it can still leave the puzzle, and in an exercise
+ * moves on to its first test.
  */
 export function $newCodeLine(): boolean {
   const selection = $getSelection();
@@ -1437,10 +1502,20 @@ export function $newCodeLine(): boolean {
   if (
     !line ||
     !$isQuestionNode(question) ||
-    question.getSettings().kind !== "parsons"
+    !codeKinds.has(question.getSettings().kind)
   )
     return false;
   if (!line.getTextContent().trim()) {
+    // Only blank lines left before the tests: the starter is written.
+    const after = line.getNextSiblings();
+    const test = after.find($isQuestionPairNode);
+    const rest = after.slice(0, test ? after.indexOf(test) : 0);
+    if (test && rest.every((part) => !part.getTextContent().trim())) {
+      for (const blank of rest) blank.remove();
+      if ($isQuestionOptionNode(line.getPreviousSibling())) line.remove();
+      test.getFirstChild()?.selectStart();
+      return true;
+    }
     line.clear();
     line.selectStart();
     return false;
@@ -1477,7 +1552,7 @@ export function $indentCodeLine(event: KeyboardEvent | null): boolean {
   if (
     !line ||
     !$isQuestionNode(question) ||
-    question.getSettings().kind !== "parsons"
+    !codeKinds.has(question.getSettings().kind)
   )
     return false;
   event?.preventDefault();

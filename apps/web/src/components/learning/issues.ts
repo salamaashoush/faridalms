@@ -82,6 +82,11 @@ export function blockIssue(block: LessonBlock): string | null {
         : null;
     case "parsons":
       return block.lines.length < 2 ? m.lrnLinesNeeded() : null;
+    case "program":
+      if (block.tests.length === 0) return m.lrnTestsNeeded();
+      return block.tests.some((test) => !test.expected.trim())
+        ? m.lrnTestOutputNeeded()
+        : null;
     case "sorting":
       if (block.groups.some((group) => !group.name.trim()))
         return m.lrnGroupNameNeeded();

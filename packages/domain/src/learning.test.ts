@@ -9,6 +9,7 @@ import type {
   NumberBlock,
   OrderingBlock,
   ParsonsBlock,
+  ProgramBlock,
   SortingBlock,
   TextBlock,
 } from "./learning";
@@ -22,6 +23,7 @@ import {
   lessonDocumentSchema,
   lessonScore,
   markResponse,
+  outputMatches,
   parseGaps,
   partKey,
   studentBlocks,
@@ -427,6 +429,69 @@ describe("code puzzles", () => {
       [uuid(204)]: "4",
       [uuid(205)]: "5",
     });
+  });
+});
+
+describe("code exercises", () => {
+  const exercise: ProgramBlock = {
+    ...common,
+    id: uuid(30),
+    type: "program",
+    prompt: "Print the square.",
+    language: "python",
+    starter: "n = int(input())",
+    tests: [
+      { id: uuid(301), input: "3", expected: "9", hidden: false },
+      { id: uuid(302), input: "-4", expected: "16", hidden: true },
+    ],
+  };
+  const ran = (passed: [boolean, boolean]) => ({
+    type: "program" as const,
+    code: "print(9)",
+    results: {
+      [uuid(301)]: {
+        passed: passed[0],
+        output: "9\n",
+        error: null,
+        stopped: null,
+      },
+      [uuid(302)]: {
+        passed: passed[1],
+        output: null,
+        error: null,
+        stopped: null,
+      },
+    },
+  });
+
+  it("credits each test the program passed, and nothing for a program never run", () => {
+    expect(markResponse(exercise, ran([true, false]))).toMatchObject({
+      fraction: 0.5,
+      correct: false,
+      parts: { [uuid(301)]: true, [uuid(302)]: false },
+    });
+    expect(markResponse(exercise, ran([true, true]))).toMatchObject({
+      fraction: 1,
+      correct: true,
+    });
+    expect(
+      markResponse(exercise, { type: "program", code: "print(9)" }).fraction,
+    ).toBe(0);
+  });
+
+  it("shows a student the tests they may see, and of the hidden ones only that they are there", () => {
+    const [shown] = studentBlocks({ version: 2, blocks: [exercise] }, "s");
+    if (shown?.type !== "program") throw new Error("program expected");
+    expect(shown.tests).toEqual([{ id: uuid(301), input: "3", expected: "9" }]);
+    expect(shown.hiddenTests).toEqual([uuid(302)]);
+    expect(JSON.stringify(shown)).not.toMatch(/"-4"|"16"/);
+  });
+
+  it("compares output by its lines, whatever spaces end them or blank lines follow", () => {
+    expect(outputMatches("9", "9\n")).toBe(true);
+    expect(outputMatches("a\nb", "a  \r\nb\n\n")).toBe(true);
+    expect(outputMatches("a\nb", " a\nb")).toBe(false);
+    expect(outputMatches("Yes", "yes")).toBe(false);
   });
 });
 

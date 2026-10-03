@@ -80,7 +80,17 @@ off keeps the work and shows a placeholder.
    student numbers the lines.
 3. **Code exercises.** Starter code, visible and hidden tests run in the
    worker, hints in order, friendly errors in Arabic and English, every run
-   kept for the teacher's replay.
+   kept for the teacher's replay. Done for Python: a teacher writes the
+   starter a line at a time and each test as what the program reads beside
+   what it must print, and can hide a test. Students write and run the
+   program in the browser; Check answer sends it to the API, which runs it
+   once per test in CPython built for WASI, in a worker with no host file,
+   network or process, 256 MiB and five seconds a test, between two short
+   transactions, and gives credit per test. A hidden test shows only
+   whether it passed and the error's name; a quiz keeps results back until
+   it shows its answers. Errors come with a plain explanation in the
+   student's language. JavaScript exercises, hints in order and every run
+   kept remain.
 4. **Projects and the sandbox domain.** A multi-file HTML, CSS and JavaScript
    or Python (turtle, p5.js) project with live preview on the separate
    domain, autosaved as the student's work, a class gallery with remix, and

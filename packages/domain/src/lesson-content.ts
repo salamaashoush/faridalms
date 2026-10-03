@@ -281,6 +281,30 @@ export function questionBlock(node: ContentNode): LessonBlock | null {
           })),
       };
     }
+    case "program": {
+      const starter = parts
+        .filter((part) => part.type === "question-option")
+        .map((line) => textOf(line).trimEnd());
+      while (starter.at(-1) === "") starter.pop();
+      return {
+        ...check,
+        type: "program",
+        language: "python",
+        starter: starter.join("\n"),
+        tests: parts
+          .filter(
+            (part) =>
+              part.type === "question-pair" &&
+              (written(part.children?.[0]) || written(part.children?.[1])),
+          )
+          .map((test) => ({
+            id: test.optionId ?? "",
+            input: textOf(test.children?.[0]),
+            expected: textOf(test.children?.[1]),
+            hidden: test.hidden === true,
+          })),
+      };
+    }
     case "matching":
       return {
         ...check,
@@ -494,6 +518,21 @@ function inlineOf(type: ContentNode["type"], text: string): ContentNode {
   return { ...paragraph, type };
 }
 
+/** A part whose text keeps its line breaks, as a test's input and output do. */
+function linesOf(type: ContentNode["type"], text: string): ContentNode {
+  return {
+    ...inlineOf(type, ""),
+    children: text
+      .split("\n")
+      .flatMap((line, index): ContentNode[] => [
+        ...(index > 0
+          ? [{ type: "linebreak" as const, version: 1 as const }]
+          : []),
+        ...(paragraphOf(line).children ?? []),
+      ]),
+  };
+}
+
 function gapNode(segment: Extract<GapSegment, { type: "gap" }>): ContentNode {
   return {
     ...inlineOf("question-gap", gapsSource([segment]).slice(1, -1)),
@@ -536,7 +575,8 @@ export function questionNode(block: LessonBlock): ContentNode | null {
     block.type !== "spelling" &&
     block.type !== "hotspot" &&
     block.type !== "scratch" &&
-    block.type !== "parsons"
+    block.type !== "parsons" &&
+    block.type !== "program"
   )
     return null;
   const base: ContentNode = {
@@ -632,6 +672,32 @@ export function questionNode(block: LessonBlock): ContentNode | null {
           ...inlineOf("question-option", line.code),
           optionId: line.id,
           correct: true,
+        })),
+      ],
+    };
+  if (block.type === "program")
+    return {
+      ...base,
+      children: [
+        ...(base.children ?? []),
+        // The starter's lines carry no ids of their own; the program is
+        // read back from their text alone.
+        ...(block.starter ? block.starter.split("\n") : [""]).map((line) => ({
+          ...inlineOf("question-option", line),
+          optionId: crypto.randomUUID(),
+        })),
+        ...block.tests.map((test): ContentNode => ({
+          type: "question-pair",
+          version: 1,
+          format: "",
+          indent: 0,
+          direction: null,
+          optionId: test.id,
+          ...(test.hidden ? { hidden: true } : {}),
+          children: [
+            linesOf("question-side", test.input),
+            linesOf("question-side", test.expected),
+          ],
         })),
       ],
     };

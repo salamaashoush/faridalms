@@ -204,7 +204,16 @@ the web itself under `/pyodide/{version}/` from the installed package and
 copied into every build. Those files are sent to any origin with a year's
 cache, since the sandboxed frame has no origin of its own; a proxy or CDN in
 front of the web must keep the `access-control-allow-origin: *` header on
-that path, or Python never loads. Nothing runs on the server.
+that path, or Python never loads.
+
+Code exercises are marked on the API, which runs each student's program in
+CPython compiled for WASI inside a worker thread: the program sees only an
+in-memory copy of the standard library and itself, with no host file,
+socket or process, at most 256 MiB, and five seconds a test. Install
+fetches that Python (`apps/api/scripts/python-wasi.ts`, pinned by version
+and checksum) into `apps/api/vendor/python`, and the image copies it beside
+the API; `PYTHON_DIR` points elsewhere. Without it the API starts, and
+checking a code exercise says it cannot be marked here.
 
 ## Public site
 

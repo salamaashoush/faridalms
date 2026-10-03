@@ -17,7 +17,7 @@ import {
   TEXT_FORMAT_TRANSFORMERS,
   TEXT_MATCH_TRANSFORMERS,
 } from "@lexical/markdown";
-import { $isElementNode } from "lexical";
+import { $isElementNode, $isParagraphNode } from "lexical";
 
 import {
   $isCalloutNode,
@@ -156,3 +156,34 @@ export const markdownTransformers: Transformer[] = [
   ...TEXT_FORMAT_TRANSFORMERS,
   ...TEXT_MATCH_TRANSFORMERS,
 ];
+
+/**
+ * Typing a block shortcut turns a paragraph into a heading, list, quote or
+ * code; a question's parts stay what they are, so a line of Python that
+ * starts with "# " stays a comment.
+ */
+export const markdownShortcuts: Transformer[] = markdownTransformers.map(
+  (transformer): Transformer => {
+    if (transformer.type === "element") {
+      const element: ElementTransformer = {
+        ...transformer,
+        replace: (parent, children, match, isImport) =>
+          $isParagraphNode(parent)
+            ? transformer.replace(parent, children, match, isImport)
+            : false,
+      };
+      return element;
+    }
+    if (transformer.type === "multiline-element") {
+      const multiline: MultilineElementTransformer = {
+        ...transformer,
+        replace: (parent, children, start, end, lines, isImport) =>
+          $isParagraphNode(parent)
+            ? transformer.replace(parent, children, start, end, lines, isImport)
+            : false,
+      };
+      return multiline;
+    }
+    return transformer;
+  },
+);

@@ -12,7 +12,12 @@ import {
   indentUnit,
   syntaxHighlighting,
 } from "@codemirror/language";
-import { EditorState, StateEffect, StateField } from "@codemirror/state";
+import {
+  Compartment,
+  EditorState,
+  StateEffect,
+  StateField,
+} from "@codemirror/state";
 import {
   Decoration,
   drawSelection,
@@ -110,6 +115,18 @@ const errorLine = StateField.define({
   provide: (field) => EditorView.decorations.from(field),
 });
 
+const editing = new Compartment();
+
+const editable = (readOnly: boolean) => [
+  EditorState.readOnly.of(readOnly),
+  EditorView.editable.of(!readOnly),
+];
+
+/** Lets the code be changed, or only read, as once a question is settled. */
+export function setReadOnly(view: EditorView, readOnly: boolean) {
+  view.dispatch({ effects: editing.reconfigure(editable(readOnly)) });
+}
+
 /** Marks the line an error happened on, until the code changes. */
 export function markErrorLine(view: EditorView, line: number | null) {
   view.dispatch({ effects: setErrorLine.of(line) });
@@ -129,6 +146,7 @@ export function createCodeEditor(
     language: RunLanguage;
     label: string;
     describedBy: string;
+    readOnly: boolean;
     onChange: (code: string) => void;
     onRun: () => void;
   },
@@ -148,6 +166,7 @@ export function createCodeEditor(
         syntaxHighlighting(highlighter),
         errorLine,
         theme,
+        editing.of(editable(options.readOnly)),
         keymap.of([
           {
             key: "Mod-Enter",

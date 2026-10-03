@@ -56,6 +56,9 @@ export const PARSONS_LANGUAGES = [
 ] as const;
 export type ParsonsLanguage = (typeof PARSONS_LANGUAGES)[number];
 export const MAX_PARSONS_LINES = 20;
+export const MAX_PROGRAM_TESTS = 12;
+/** The longest program a student hands in, in characters. */
+export const MAX_PROGRAM_CHARS = 20_000;
 export const MAX_PARSONS_DISTRACTORS = 6;
 export const MAX_INDENT = 6;
 export const MAX_SORT_GROUPS = 4;
@@ -495,6 +498,29 @@ export const lessonBlockSchema = v.variant("type", [
     /** The project every student starts from; none starts from the studio's own. */
     starter: v.nullable(v.object({ fileId: id })),
   }),
+  v.object({
+    ...checkFields,
+    type: v.literal("program"),
+    language: v.literal("python"),
+    /** The code a student starts from; empty when they write it all. */
+    starter: v.pipe(v.string(), v.maxLength(5000)),
+    /**
+     * What the program is given to read and must print for each. A hidden
+     * test is run and counted, but the student never sees its input.
+     */
+    tests: v.pipe(
+      v.array(
+        v.object({
+          id,
+          input: v.pipe(v.string(), v.maxLength(2000)),
+          expected: v.pipe(v.string(), v.maxLength(5000)),
+          hidden: v.boolean(),
+        }),
+      ),
+      v.minLength(1),
+      v.maxLength(MAX_PROGRAM_TESTS),
+    ),
+  }),
 ]);
 export type LessonBlock = v.InferOutput<typeof lessonBlockSchema>;
 export type LessonBlockType = LessonBlock["type"];
@@ -512,6 +538,7 @@ export type TracingBlock = Extract<LessonBlock, { type: "tracing" }>;
 export type SpellingBlock = Extract<LessonBlock, { type: "spelling" }>;
 export type HotspotBlock = Extract<LessonBlock, { type: "hotspot" }>;
 export type ScratchBlock = Extract<LessonBlock, { type: "scratch" }>;
+export type ProgramBlock = Extract<LessonBlock, { type: "program" }>;
 /** A question the server marks the moment it is answered. */
 export type AutoBlock =
   | ChoiceBlock
@@ -525,7 +552,8 @@ export type AutoBlock =
   | CountingBlock
   | TracingBlock
   | SpellingBlock
-  | HotspotBlock;
+  | HotspotBlock
+  | ProgramBlock;
 /** A question its teacher marks: words, a recording or picture, or a project. */
 export type MarkedBlock = WrittenBlock | ScratchBlock;
 export type CheckBlock = AutoBlock | MarkedBlock;
@@ -543,6 +571,7 @@ const AUTO_TYPES = new Set<LessonBlockType>([
   "tracing",
   "spelling",
   "hotspot",
+  "program",
 ]);
 
 const MARKED_TYPES = new Set<LessonBlockType>(["written", "scratch"]);
@@ -818,6 +847,8 @@ export function lessonPlainText(document: LessonDocument): string {
           return [block.prompt, ...block.lines.map((line) => line.code)].join(
             "\n",
           );
+        case "program":
+          return [block.prompt, block.starter].filter(Boolean).join("\n");
         case "sorting":
           return [
             block.prompt,
@@ -947,8 +978,51 @@ export const responseSchema = v.variant("type", [
     /** The stage at that save, for the teacher's view of the class. */
     thumbnail: v.optional(v.object({ fileId: id })),
   }),
+  v.object({
+    type: v.literal("program"),
+    code: v.pipe(v.string(), v.maxLength(MAX_PROGRAM_CHARS)),
+    /**
+     * How each test went, which the server adds as it marks: whatever a
+     * student sends here is replaced.
+     */
+    results: v.optional(
+      v.record(
+        id,
+        v.object({
+          passed: v.boolean(),
+          /** What it printed; kept for tests the student can see. */
+          output: v.nullable(v.pipe(v.string(), v.maxLength(4000))),
+          /** The error it stopped with, as Python names it. */
+          error: v.nullable(v.pipe(v.string(), v.maxLength(500))),
+          /** Stopped for taking too long or printing too much. */
+          stopped: v.nullable(v.picklist(["time", "output"])),
+        }),
+      ),
+    ),
+  }),
 ]);
 export type LessonResponse = v.InferOutput<typeof responseSchema>;
+export type ProgramResult = NonNullable<
+  Extract<LessonResponse, { type: "program" }>["results"]
+>[string];
+
+/**
+ * Whether a program printed what a test expects: line by line, ignoring
+ * spaces at the ends of lines and blank lines at the end, which nobody
+ * reading the output can see.
+ */
+export function outputMatches(expected: string, printed: string): boolean {
+  return seenOutput(expected) === seenOutput(printed);
+}
+
+function seenOutput(output: string): string {
+  const kept = output
+    .replaceAll("\r\n", "\n")
+    .split("\n")
+    .map((line) => line.trimEnd());
+  while (kept.at(-1) === "") kept.pop();
+  return kept.join("\n");
+}
 
 /** The files an answer is made of; each must be the student's own upload. */
 export function responseFiles(response: LessonResponse): string[] {
@@ -1144,6 +1218,18 @@ export function markResponse(
         given.length === block.lines.length && given.every((_, i) => right(i));
       return { ...none, fraction: correct ? 1 : 0, correct, parts };
     }
+    case "program": {
+      if (response.type !== "program" || !response.results) return none;
+      const { results } = response;
+      return share(
+        Object.fromEntries(
+          block.tests.map((test) => [
+            test.id,
+            results[test.id]?.passed ?? false,
+          ]),
+        ),
+      );
+    }
     case "hotspot": {
       if (response.type !== "hotspot") return none;
       const results = Object.fromEntries(
@@ -1338,6 +1424,12 @@ export type StudentBlock =
       pile: { id: string; text: string }[];
       /** How many places the word takes. */
       places: number;
+    })
+  | (Omit<ProgramBlock, "explanation" | "hint" | "tests"> & {
+      /** The tests a student can see, with what each gives and expects. */
+      tests: { id: string; input: string; expected: string }[];
+      /** The tests run but never shown, by id. */
+      hiddenTests: string[];
     });
 
 export function shuffled<T>(items: T[], seed: string): T[] {
@@ -1534,6 +1626,22 @@ export function studentBlocks(
       // A hotspot's places travel with it, as a tracing's model does, so a
       // find is judged under the finger and only a miss or the last find
       // counts as a try.
+      case "program": {
+        const { explanation: _why, hint: _hint, tests, ...rest } = block;
+        return {
+          ...rest,
+          tests: tests
+            .filter((test) => !test.hidden)
+            .map(({ id: testId, input, expected }) => ({
+              id: testId,
+              input,
+              expected,
+            })),
+          hiddenTests: tests
+            .filter((test) => test.hidden)
+            .map((test) => test.id),
+        };
+      }
       case "written":
       case "scratch":
       case "counting":
@@ -1714,6 +1822,13 @@ export const respondSchema = v.object({
   lessonId: id,
   blockId: id,
   response: responseSchema,
+});
+
+/** A student checks a code exercise; the server runs it to mark it. */
+export const respondProgramSchema = v.object({
+  lessonId: id,
+  blockId: id,
+  code: v.pipe(v.string(), v.maxLength(MAX_PROGRAM_CHARS)),
 });
 
 /** A student gives up on a question and asks to see its answer. */

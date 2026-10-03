@@ -247,6 +247,23 @@ export async function rescoreQuiz(
   return { scores, kept, pending };
 }
 
+/**
+ * Answers by question as their student sees them: a code exercise without
+ * how its tests went, which only the quiz's revealed answers show.
+ */
+export function ownResponsesOf(
+  answers: readonly QuizAnswer[],
+): Record<string, LessonResponse> {
+  return Object.fromEntries(
+    Object.entries(responsesOf(answers)).map(([blockId, response]) => [
+      blockId,
+      response.type === "program"
+        ? { type: "program", code: response.code }
+        : response,
+    ]),
+  );
+}
+
 /** Answers by question, as the typed responses they were saved as. */
 export function responsesOf(
   answers: readonly QuizAnswer[],

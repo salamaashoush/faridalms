@@ -199,6 +199,11 @@ export interface EditorStrings {
   questionParsonsHint: string;
   questionCodeLine: string;
   questionDistractor: string;
+  questionProgram: string;
+  questionProgramHint: string;
+  questionTestInput: string;
+  questionTestOutput: string;
+  questionHiddenTest: string;
   questionLanguage: string;
   questionLanguages: Record<"python" | "javascript" | "html" | "text", string>;
   questionAnswerIs: string;

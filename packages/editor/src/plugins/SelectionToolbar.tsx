@@ -42,6 +42,7 @@ import {
   Download,
   ExternalLink,
   Eye,
+  EyeOff,
   ImageOff,
   ImagePlus,
   Italic,
@@ -117,6 +118,7 @@ import {
   $holdsPicture,
   $isQuestionNode,
   $isQuestionOptionNode,
+  $isQuestionPairNode,
   $partAddress,
   $partPicture,
   $setPartPicture,
@@ -170,6 +172,8 @@ interface QuestionBarFacts {
   part: { key: NodeKey; picture: PartPicture | null } | null;
   /** What a recording made from here reads: the part the caret is in, else the question. */
   narration: { key: NodeKey; fileId: string | null };
+  /** The code exercise test the caret is in. */
+  test: { key: NodeKey; hidden: boolean } | null;
 }
 
 type QuestionText = "hint" | "explanation" | "feedback" | "alt";
@@ -415,8 +419,10 @@ export function SelectionToolbarPlugin() {
       let option: QuestionOptionNode | null = null;
       let part: LexicalNode | null = null;
       let voiced: LexicalNode | null = null;
+      let pair: LexicalNode | null = null;
       while (node && !$isQuestionNode(node)) {
         if ($isQuestionOptionNode(node)) option = node;
+        if ($isQuestionPairNode(node)) pair = node;
         if (!part && $holdsPicture(node)) part = node;
         if (!voiced && $holdsNarration(node)) voiced = node;
         node = node.getParent();
@@ -431,8 +437,12 @@ export function SelectionToolbarPlugin() {
           node.getSettings().kind === "hotspot")
       )
         part = node;
-      // A code puzzle's lines are code alone, with no picture or feedback.
-      if (node.getSettings().kind === "parsons") {
+      // Lines of code and a program's tests are text alone, with no
+      // picture or feedback of their own.
+      const code =
+        node.getSettings().kind === "parsons" ||
+        node.getSettings().kind === "program";
+      if (code) {
         option = null;
         part = null;
       }
@@ -444,6 +454,10 @@ export function SelectionToolbarPlugin() {
           : null,
         part: part ? { key: part.getKey(), picture: $partPicture(part) } : null,
         narration: { key: voiced.getKey(), fileId: $narrationOf(voiced) },
+        test:
+          code && $isQuestionPairNode(pair)
+            ? { key: pair.getKey(), hidden: pair.isHidden() }
+            : null,
       };
     });
 
@@ -1197,6 +1211,27 @@ export function SelectionToolbarPlugin() {
                 </span>,
               )}
             </>
+          ) : null}
+          {question.test ? (
+            <ToolButton
+              label={strings.questionHiddenTest}
+              active={question.test.hidden}
+              onClick={() =>
+                withSelection(() => {
+                  const pair = question.test
+                    ? $getNodeByKey(question.test.key)
+                    : null;
+                  if ($isQuestionPairNode(pair))
+                    pair.setHidden(!pair.isHidden());
+                })
+              }
+            >
+              {question.test.hidden ? (
+                <EyeOff aria-hidden />
+              ) : (
+                <Eye aria-hidden />
+              )}
+            </ToolButton>
           ) : null}
           <ToolButton
             label={strings.questionHint}

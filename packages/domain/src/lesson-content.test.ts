@@ -782,6 +782,38 @@ describe("code puzzles", () => {
   });
 });
 
+describe("code exercises", () => {
+  const exercise: LessonDocument = {
+    version: 2,
+    blocks: [
+      {
+        id: partId(70),
+        type: "program",
+        prompt: "Add the two numbers.",
+        points: 2,
+        hint: "",
+        explanation: "",
+        tries: null,
+        language: "python",
+        starter: "a = int(input())\nb = int(input())\n    # your code",
+        tests: [
+          { id: partId(71), input: "2\n3", expected: "5", hidden: false },
+          { id: partId(72), input: "-1\n1", expected: "0", hidden: true },
+        ],
+      },
+    ],
+  };
+
+  it("keeps its starter, its tests' lines and which tests are hidden", () => {
+    const document = contentOfLesson(exercise);
+    if (!document) throw new Error("lesson could not become a document");
+    expect(v.safeParse(contentDocumentSchema, document).success).toBe(true);
+    expect(checks(lessonOfContent(document).blocks)).toEqual(
+      checks(exercise.blocks),
+    );
+  });
+});
+
 const asked = (
   id: string,
   videoAt?: number,

@@ -103,6 +103,14 @@ export function paperBlock(block: StudentBlock): LessonBlock {
         lines: block.lines.map((line) => ({ ...line, indent: 0 })),
         distractors: [],
       };
+    case "program": {
+      const { hiddenTests: _hidden, ...rest } = block;
+      return {
+        ...rest,
+        ...blank,
+        tests: block.tests.map((test) => ({ ...test, hidden: false })),
+      };
+    }
     case "written":
     case "scratch":
     case "ordering":

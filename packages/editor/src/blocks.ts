@@ -43,6 +43,7 @@ import {
 import {
   ArrowDownUp,
   CodeXml,
+  SquareTerminal,
   ArrowLeftRight,
   Blocks,
   MicVocal,
@@ -134,6 +135,7 @@ export type BlockType =
   | "numberQuestion"
   | "orderingQuestion"
   | "parsonsQuestion"
+  | "programQuestion"
   | "matchingQuestion"
   | "sortingQuestion"
   | "countingQuestion"
@@ -160,6 +162,7 @@ const QUESTION_KIND: Partial<Record<BlockType, QuestionKind>> = {
   numberQuestion: "number",
   orderingQuestion: "ordering",
   parsonsQuestion: "parsons",
+  programQuestion: "program",
   matchingQuestion: "matching",
   sortingQuestion: "sorting",
   gapsQuestion: "gaps",
@@ -543,7 +546,27 @@ export const blockDefinitions: BlockDefinition[] = [
       "lines",
       "سؤال",
       "برمجة",
-      "شيفرة",
+      "شفرة",
+    ],
+    question: true,
+  },
+  {
+    type: "programQuestion",
+    group: "questions",
+    icon: SquareTerminal,
+    label: (s) => s.questionProgram,
+    hint: (s) => s.questionProgramHint,
+    keywords: [
+      "question",
+      "code",
+      "program",
+      "exercise",
+      "python",
+      "test",
+      "سؤال",
+      "برمجة",
+      "شفرة",
+      "تمرين",
     ],
     question: true,
   },

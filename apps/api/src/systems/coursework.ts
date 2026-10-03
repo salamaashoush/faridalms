@@ -9,7 +9,7 @@ import type {
   SaveAssignment,
   TeacherTab,
 } from "@faridalms/domain/coursework";
-import type { QuizAnswer } from "@faridalms/domain/learning";
+import type { LessonResponse, QuizAnswer } from "@faridalms/domain/learning";
 
 import {
   classById,
@@ -133,6 +133,7 @@ import {
   feedbackRecordingSchema,
   saveGroupSchema,
   saveQuizAnswerSchema,
+  saveQuizProgramSchema,
   saveRubricSchema,
   showGradeSchema,
   studentWorkActionSchema,
@@ -158,6 +159,7 @@ import * as v from "valibot";
 
 import type { UnitContext } from "../core/context";
 
+import { markedProgram } from "../coding/mark";
 import {
   assessedRules,
   attemptMarks,
@@ -174,8 +176,10 @@ import { gradeReader } from "../core/grades";
 import {
   audit,
   can,
+  openUnit,
   readProcedure,
   requireCapability,
+  schoolProcedure,
   writeProcedure,
 } from "../core/procedure";
 import {
@@ -184,6 +188,7 @@ import {
   draftQuiz,
   keepStartedQuestions,
   publishKeptApart,
+  ownResponsesOf,
   publishedQuiz,
   rescoreQuiz,
   responsesOf,
@@ -1738,7 +1743,7 @@ async function learnerQuiz(
             )
           : null,
         pending: answers.some((answer) => answer.state === "needs_marking"),
-        responses: responsesOf(answers),
+        responses: ownResponsesOf(answers),
         checks: show ? quizViews(document, answers, show) : null,
       };
     }),
@@ -1764,7 +1769,7 @@ async function learnerQuiz(
         assignment.quizAttempts,
         context.now,
       ),
-    drafts: responsesOf(byAttempt.get(current) ?? []),
+    drafts: ownResponsesOf(byAttempt.get(current) ?? []),
     results,
   };
 }
@@ -2316,66 +2321,119 @@ export const saveTeacherRubric = writeProcedure
 /** Keeps a student's answer to one quiz question while their attempt is open. */
 export const saveQuizAnswer = writeProcedure
   .input(saveQuizAnswerSchema)
-  .handler(async ({ input, context }) => {
-    const { assignment, dueAt } = await learnerAssignment(
-      context,
-      input.assignmentId,
-    );
-    if (assignment.submissionFormat !== "quiz")
-      throw new ORPCError("BAD_REQUEST", { message: "coursework.not_quiz" });
-    const tx = context.tx;
-    const submission = await ensureSubmission(tx, {
-      tenantId: context.tenantId,
-      assignmentId: assignment.id,
-      studentId: context.actor.userId,
-    });
-    const [row] = await studentWork(tx, {
-      tenantId: context.tenantId,
-      assignmentId: assignment.id,
-      studentId: context.actor.userId,
-    });
-    if (!row) throw new ORPCError("NOT_FOUND");
-    if (
-      row.excused ||
-      !canTakeQuiz(
-        { ...assignment, dueAt },
-        row.attempts,
-        assignment.quizAttempts,
-        context.now,
-      )
-    )
-      throw new ORPCError("CONFLICT", { message: "coursework.closed" });
-    const document = await publishedQuiz(context, assignment.id);
-    const block = document
-      ? checkBlocks(document).find((item) => item.id === input.blockId)
-      : undefined;
-    if (!block) throw new ORPCError("NOT_FOUND");
-    const issue = input.response ? responseIssue(block, input.response) : null;
-    if (issue) throw new ORPCError("BAD_REQUEST", { message: issue });
-    const kept = input.response ? responseFiles(input.response) : [];
-    if (kept.length > 0) {
-      // A recording, picture or project must be the student's own upload,
-      // kept with their submission so their teacher can open it.
-      const linked = await linkFiles(tx, {
-        tenantId: context.tenantId,
-        userId: context.actor.userId,
-        ids: kept,
-        purpose: "document_media",
-        host: { type: "submission", id: submission.id },
-      });
-      if (linked.length !== kept.length)
-        throw new ORPCError("CONFLICT", { message: "files.not_linkable" });
-    }
-    await storeQuizAnswer(tx, {
-      tenantId: context.tenantId,
-      submissionId: submission.id,
-      studentId: context.actor.userId,
-      attempt: row.attempts + 1,
-      blockId: block.id,
-      response: input.response,
-    });
-    return { saved: true };
+  .handler(({ input, context }) => {
+    // A code exercise is marked by running it, which saveQuizProgram does
+    // outside the transaction; here its results would be the student's word.
+    if (input.response?.type === "program")
+      throw new ORPCError("BAD_REQUEST", { message: "learning.response" });
+    return keepQuizAnswer(context, input);
   });
+
+/**
+ * Keeps a student's program for a quiz's code exercise with how it did in
+ * each test, run between two short units of work so a class handing in at
+ * once never holds the school's connections while Python runs. The results
+ * stay out of the student's sight until the quiz shows its answers.
+ */
+export const saveQuizProgram = schoolProcedure
+  .input(saveQuizProgramSchema)
+  .handler(async ({ input, context }) => {
+    const block = await openUnit(context, "read", async (unit) => {
+      const inside = { ...context, ...unit };
+      const { assignment } = await learnerAssignment(
+        inside,
+        input.assignmentId,
+      );
+      const document = await publishedQuiz(inside, assignment.id);
+      const found = document
+        ? checkBlocks(document).find((item) => item.id === input.blockId)
+        : undefined;
+      if (found?.type !== "program") throw new ORPCError("NOT_FOUND");
+      return found;
+    });
+    const response = await markedProgram(context.python, block, {
+      type: "program",
+      code: input.code,
+    });
+    return openUnit(context, "write", (unit) =>
+      keepQuizAnswer(
+        { ...context, ...unit },
+        {
+          assignmentId: input.assignmentId,
+          blockId: input.blockId,
+          response,
+        },
+      ),
+    );
+  });
+
+async function keepQuizAnswer(
+  context: UnitContext,
+  input: {
+    assignmentId: string;
+    blockId: string;
+    response: LessonResponse | null;
+  },
+) {
+  const { assignment, dueAt } = await learnerAssignment(
+    context,
+    input.assignmentId,
+  );
+  if (assignment.submissionFormat !== "quiz")
+    throw new ORPCError("BAD_REQUEST", { message: "coursework.not_quiz" });
+  const tx = context.tx;
+  const submission = await ensureSubmission(tx, {
+    tenantId: context.tenantId,
+    assignmentId: assignment.id,
+    studentId: context.actor.userId,
+  });
+  const [row] = await studentWork(tx, {
+    tenantId: context.tenantId,
+    assignmentId: assignment.id,
+    studentId: context.actor.userId,
+  });
+  if (!row) throw new ORPCError("NOT_FOUND");
+  if (
+    row.excused ||
+    !canTakeQuiz(
+      { ...assignment, dueAt },
+      row.attempts,
+      assignment.quizAttempts,
+      context.now,
+    )
+  )
+    throw new ORPCError("CONFLICT", { message: "coursework.closed" });
+  const document = await publishedQuiz(context, assignment.id);
+  const block = document
+    ? checkBlocks(document).find((item) => item.id === input.blockId)
+    : undefined;
+  if (!block) throw new ORPCError("NOT_FOUND");
+  const issue = input.response ? responseIssue(block, input.response) : null;
+  if (issue) throw new ORPCError("BAD_REQUEST", { message: issue });
+  const kept = input.response ? responseFiles(input.response) : [];
+  if (kept.length > 0) {
+    // A recording, picture or project must be the student's own upload,
+    // kept with their submission so their teacher can open it.
+    const linked = await linkFiles(tx, {
+      tenantId: context.tenantId,
+      userId: context.actor.userId,
+      ids: kept,
+      purpose: "document_media",
+      host: { type: "submission", id: submission.id },
+    });
+    if (linked.length !== kept.length)
+      throw new ORPCError("CONFLICT", { message: "files.not_linkable" });
+  }
+  await storeQuizAnswer(tx, {
+    tenantId: context.tenantId,
+    submissionId: submission.id,
+    studentId: context.actor.userId,
+    attempt: row.attempts + 1,
+    blockId: block.id,
+    response: input.response,
+  });
+  return { saved: true };
+}
 
 /** A teacher marks a quiz answer only they can judge, out of its points; the score that counts follows. */
 export const markQuizAnswer = writeProcedure

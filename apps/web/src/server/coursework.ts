@@ -152,9 +152,19 @@ export const handInWork = createServerFn({ method: "POST" })
   .validator(checked(handInSchema))
   .handler(({ data }) => backend().coursework.handIn(data));
 
+// A code exercise is marked by running it, which the API does on its own
+// path; every other answer is kept as it is.
 export const saveQuizAnswer = createServerFn({ method: "POST" })
   .validator(checked(saveQuizAnswerSchema))
-  .handler(({ data }) => backend().coursework.saveQuizAnswer(data));
+  .handler(({ data }) =>
+    data.response?.type === "program"
+      ? backend().coursework.saveQuizProgram({
+          assignmentId: data.assignmentId,
+          blockId: data.blockId,
+          code: data.response.code,
+        })
+      : backend().coursework.saveQuizAnswer(data),
+  );
 
 export const markQuizAnswer = createServerFn({ method: "POST" })
   .validator(checked(markQuizAnswerSchema))

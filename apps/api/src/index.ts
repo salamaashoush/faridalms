@@ -7,6 +7,7 @@ import {
 import { join } from "node:path";
 
 import { createApp } from "./app";
+import { createPythonRunner } from "./coding/python";
 import { createKeyRing } from "./core/keys";
 import { env } from "./env";
 import { createFilesHost, linkKey } from "./files/links";
@@ -81,6 +82,9 @@ const server = Bun.serve({
     mediaOrigin: env.MEDIA_ORIGIN?.replace(/\/$/, "") ?? null,
     streamLinkKey: streamLinkKey(cellSecret),
     scanner: createScanner(env.CLAMD_ADDRESS),
+    python: createPythonRunner(
+      env.PYTHON_DIR ?? join(process.cwd(), "vendor", "python"),
+    ),
     maxUploadBytes: env.MAX_UPLOAD_BYTES,
     channels: {
       email: Boolean(env.EMAIL_WEBHOOK_URL),

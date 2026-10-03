@@ -203,6 +203,32 @@ describe("a code puzzle on paper", () => {
   });
 });
 
+const exercise: LessonBlock = {
+  ...base,
+  id: "q6",
+  type: "program",
+  prompt: "Print the number doubled.",
+  language: "python",
+  starter: "n = int(input())",
+  tests: [
+    { id: "t1", input: "2", expected: "4", hidden: false },
+    { id: "t2", input: "7", expected: "14", hidden: true },
+  ],
+};
+
+describe("a code exercise on paper", () => {
+  it("gives the starter and the examples to write from, the hidden ones on a teacher's copy only", () => {
+    const student = paper(exercise, false);
+    expect(student).toContain("n = int(input())");
+    expect(student).toContain(">4<");
+    expect(student).not.toContain(">14<");
+    expect(paper(exercise, true)).toContain(">14<");
+    const [shown] = studentBlocks({ version: 2, blocks: [exercise] }, "s");
+    if (!shown) throw new Error("no block");
+    expect(paper(paperBlock(shown), false)).not.toContain(">14<");
+  });
+});
+
 describe("a student's copy of a lesson", () => {
   it("prints from what the student received, with no key to give away", () => {
     const [student] = studentBlocks(

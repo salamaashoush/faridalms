@@ -1,5 +1,9 @@
 import type { ModuleRow, WatchRow } from "@faridalms/database/stores/learning";
-import type { CheckBlock, LessonCompletion } from "@faridalms/domain/learning";
+import type {
+  CheckBlock,
+  LessonCompletion,
+  LessonResponse,
+} from "@faridalms/domain/learning";
 
 import { reachOf } from "@faridalms/database/stores/audiences";
 import {
@@ -74,6 +78,7 @@ import {
   progressQuerySchema,
   publishModuleSchema,
   classSoundsSchema,
+  respondProgramSchema,
   respondSchema,
   setClassSoundsSchema,
   reviewBlocks,
@@ -101,14 +106,17 @@ import {
 import { ORPCError } from "@orpc/server";
 import * as v from "valibot";
 
-import type { UnitContext } from "../core/context";
+import type { SchoolContext, UnitContext } from "../core/context";
 
+import { markedProgram } from "../coding/mark";
 import { featuresOf } from "../core/features";
 import {
   audit,
   can,
+  openUnit,
   readProcedure as anyRead,
   requireCapability,
+  schoolProcedure,
   writeProcedure as anyWrite,
 } from "../core/procedure";
 import {
@@ -1518,58 +1526,70 @@ export const setClassSounds = writeProcedure
  */
 export const respond = writeProcedure
   .input(respondSchema)
-  .handler(async ({ input, context }) => {
-    const played = await playable(context, input.lessonId);
-    const block = checkBlocks(played.content).find(
-      (item) => item.id === input.blockId,
-    );
-    if (!block) throw new ORPCError("NOT_FOUND");
-    const issue = responseIssue(block, input.response);
-    if (issue) throw new ORPCError("BAD_REQUEST", { message: issue });
-    const state = played.checks[block.id];
-    if (isTeacherMarked(block) ? state?.marked : settled(block, state))
-      throw new ORPCError("CONFLICT", { message: "learning.settled" });
-    const marked = isAuto(block) ? markResponse(block, input.response) : null;
-    const kept = responseFiles(input.response);
-    if (kept.length > 0) {
-      // A recording, picture or project must be the student's own upload,
-      // kept with the lesson.
-      const linked = await linkFiles(context.tx, {
-        tenantId: context.tenantId,
-        userId: context.actor.userId,
-        ids: kept,
-        purpose: "document_media",
-        host: { type: "lesson_answer", id: played.row.id },
-      });
-      if (linked.length !== kept.length)
-        throw new ORPCError("CONFLICT", { message: "files.not_linkable" });
-    }
-    await insertResponse(context.tx, {
-      tenantId: context.tenantId,
-      lessonId: played.row.id,
-      documentVersionId: played.versionId,
-      studentId: played.studentId,
-      blockId: block.id,
-      attempt: played.attempt,
-      try: (state?.tries ?? 0) + 1,
-      kind: block.type,
-      response: input.response,
-      fraction: marked ? marked.fraction : null,
-      state: marked
-        ? "answered"
-        : block.points > 0
-          ? "needs_marking"
-          : "answered",
-    });
-    const result = await settle(context, played);
-    const after = { ...played, rows: result.rows, checks: result.checks };
-    return {
-      check: viewOf(block, after),
-      score: result.best,
-      completed: result.completed,
-      review: reviewOf(after),
-    };
+  .handler(({ input, context }) => {
+    // A code exercise is marked by running it, which respondProgram does
+    // outside the transaction; here its results would be the student's word.
+    if (input.response.type === "program")
+      throw new ORPCError("BAD_REQUEST", { message: "learning.response" });
+    return recordResponse(context, input);
   });
+
+async function recordResponse(
+  context: UnitContext,
+  input: { lessonId: string; blockId: string; response: LessonResponse },
+) {
+  const played = await playable(context, input.lessonId);
+  const block = checkBlocks(played.content).find(
+    (item) => item.id === input.blockId,
+  );
+  if (!block) throw new ORPCError("NOT_FOUND");
+  const { response } = input;
+  const issue = responseIssue(block, response);
+  if (issue) throw new ORPCError("BAD_REQUEST", { message: issue });
+  const state = played.checks[block.id];
+  if (isTeacherMarked(block) ? state?.marked : settled(block, state))
+    throw new ORPCError("CONFLICT", { message: "learning.settled" });
+  const marked = isAuto(block) ? markResponse(block, response) : null;
+  const kept = responseFiles(response);
+  if (kept.length > 0) {
+    // A recording, picture or project must be the student's own upload,
+    // kept with the lesson.
+    const linked = await linkFiles(context.tx, {
+      tenantId: context.tenantId,
+      userId: context.actor.userId,
+      ids: kept,
+      purpose: "document_media",
+      host: { type: "lesson_answer", id: played.row.id },
+    });
+    if (linked.length !== kept.length)
+      throw new ORPCError("CONFLICT", { message: "files.not_linkable" });
+  }
+  await insertResponse(context.tx, {
+    tenantId: context.tenantId,
+    lessonId: played.row.id,
+    documentVersionId: played.versionId,
+    studentId: played.studentId,
+    blockId: block.id,
+    attempt: played.attempt,
+    try: (state?.tries ?? 0) + 1,
+    kind: block.type,
+    response,
+    fraction: marked ? marked.fraction : null,
+    state: marked
+      ? "answered"
+      : block.points > 0
+        ? "needs_marking"
+        : "answered",
+  });
+  const result = await settle(context, played);
+  const after = { ...played, rows: result.rows, checks: result.checks };
+  return {
+    check: viewOf(block, after),
+    score: result.best,
+    completed: result.completed,
+    review: reviewOf(after),
+  };
+}
 
 /** A student asks to see a question's answer; it counts for nothing after that. */
 export const reveal = writeProcedure
@@ -1612,40 +1632,108 @@ export const reveal = writeProcedure
  */
 export const reviewAnswer = writeProcedure
   .input(respondSchema)
-  .handler(async ({ input, context }) => {
-    const played = await playable(context, input.lessonId);
-    const block = played.row.review
-      ? reviewBlocks(played.content, played.checks).find(
-          (item) => item.id === input.blockId,
-        )
-      : undefined;
-    if (!block) throw new ORPCError("NOT_FOUND");
-    const issue = responseIssue(block, input.response);
-    if (issue) throw new ORPCError("BAD_REQUEST", { message: issue });
-    if (played.checks[block.id]?.review !== null)
-      throw new ORPCError("CONFLICT", { message: "learning.settled" });
-    const marked = markResponse(block, input.response);
-    await insertResponse(context.tx, {
-      tenantId: context.tenantId,
-      lessonId: played.row.id,
-      documentVersionId: played.versionId,
-      studentId: played.studentId,
-      blockId: block.id,
-      attempt: played.attempt,
-      try: (played.checks[block.id]?.tries ?? 0) + 1,
-      kind: block.type,
-      response: input.response,
-      fraction: marked.fraction,
-      state: "reviewed",
-    });
-    const rows = await responsesOf(context.tx, {
-      tenantId: context.tenantId,
-      lessonId: played.row.id,
-      studentId: played.studentId,
-      attempt: played.attempt,
-    });
-    return { check: describeReview(block, rows) };
+  .handler(({ input, context }) => {
+    if (input.response.type === "program")
+      throw new ORPCError("BAD_REQUEST", { message: "learning.response" });
+    return recordReview(context, input);
   });
+
+async function recordReview(
+  context: UnitContext,
+  input: { lessonId: string; blockId: string; response: LessonResponse },
+) {
+  const played = await playable(context, input.lessonId);
+  const block = played.row.review
+    ? reviewBlocks(played.content, played.checks).find(
+        (item) => item.id === input.blockId,
+      )
+    : undefined;
+  if (!block) throw new ORPCError("NOT_FOUND");
+  const issue = responseIssue(block, input.response);
+  if (issue) throw new ORPCError("BAD_REQUEST", { message: issue });
+  if (played.checks[block.id]?.review !== null)
+    throw new ORPCError("CONFLICT", { message: "learning.settled" });
+  const { response } = input;
+  const marked = markResponse(block, response);
+  await insertResponse(context.tx, {
+    tenantId: context.tenantId,
+    lessonId: played.row.id,
+    documentVersionId: played.versionId,
+    studentId: played.studentId,
+    blockId: block.id,
+    attempt: played.attempt,
+    try: (played.checks[block.id]?.tries ?? 0) + 1,
+    kind: block.type,
+    response,
+    fraction: marked.fraction,
+    state: "reviewed",
+  });
+  const rows = await responsesOf(context.tx, {
+    tenantId: context.tenantId,
+    lessonId: played.row.id,
+    studentId: played.studentId,
+    attempt: played.attempt,
+  });
+  return { check: describeReview(block, rows) };
+}
+
+/**
+ * A code exercise's answer, marked by running it. Its tests run between two
+ * short units of work, never inside one, so a class checking at once never
+ * holds the school's connections while Python runs.
+ */
+async function programAnswer<T>(
+  context: SchoolContext,
+  input: { lessonId: string; blockId: string; code: string },
+  review: boolean,
+  keep: (
+    inside: UnitContext,
+    answer: { lessonId: string; blockId: string; response: LessonResponse },
+  ) => Promise<T>,
+): Promise<T> {
+  const block = await openUnit(context, "read", async (unit) => {
+    const inside = { ...context, ...unit };
+    await switchedOn(inside);
+    const played = await playable(inside, input.lessonId);
+    const found = (
+      review
+        ? reviewBlocks(played.content, played.checks)
+        : checkBlocks(played.content)
+    ).find((item) => item.id === input.blockId);
+    if (found?.type !== "program") throw new ORPCError("NOT_FOUND");
+    const state = played.checks[found.id];
+    if (review ? state?.review !== null : settled(found, state))
+      throw new ORPCError("CONFLICT", { message: "learning.settled" });
+    return found;
+  });
+  const response = await markedProgram(context.python, block, {
+    type: "program",
+    code: input.code,
+  });
+  return openUnit(context, "write", async (unit) => {
+    const inside = { ...context, ...unit };
+    await switchedOn(inside);
+    return keep(inside, {
+      lessonId: input.lessonId,
+      blockId: input.blockId,
+      response,
+    });
+  });
+}
+
+/** A student checks a code exercise. */
+export const respondProgram = schoolProcedure
+  .input(respondProgramSchema)
+  .handler(({ input, context }) =>
+    programAnswer(context, input, false, recordResponse),
+  );
+
+/** A student answers a code exercise asked again at the end. */
+export const reviewProgram = schoolProcedure
+  .input(respondProgramSchema)
+  .handler(({ input, context }) =>
+    programAnswer(context, input, true, recordReview),
+  );
 
 /**
  * Starts the lesson again with fresh questions once every one is settled, so

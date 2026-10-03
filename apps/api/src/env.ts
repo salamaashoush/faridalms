@@ -56,6 +56,9 @@ export const env = v.parse(
       // The directory_sync login, for reporting each school's storage; without it nothing is reported.
       DIRECTORY_SYNC_URL: v.optional(v.pipe(v.string(), v.url())),
       USAGE_REPORT_MS: v.optional(positiveInteger, String(5 * 60 * 1000)),
+      // Python for marking code exercises, as apps/api/scripts/python-wasi.ts
+      // fetches it; by default vendor/python beside the running API.
+      PYTHON_DIR: v.optional(v.pipe(v.string(), v.minLength(1))),
       // host:port of a clamd daemon; uploads are only signature-checked without one.
       CLAMD_ADDRESS: v.optional(v.pipe(v.string(), v.regex(/^[^\s:]+:\d+$/))),
       // Transactional email and SMS gateways that accept a JSON POST.

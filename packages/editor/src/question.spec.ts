@@ -23,6 +23,7 @@ import { describe, expect, it } from "vitest";
 
 import { $duplicateBlock, $insertBlock } from "./blocks";
 import { buildContentEditor } from "./headless";
+import { markdownShortcuts } from "./markdown";
 import {
   $createCalloutNode,
   $createQuestionNode,
@@ -53,7 +54,8 @@ function withQuestion(
     | "matchingQuestion"
     | "sortingQuestion"
     | "gapsQuestion"
-    | "parsonsQuestion",
+    | "parsonsQuestion"
+    | "programQuestion",
 ) {
   const target = buildContentEditor();
   target.update(
@@ -262,6 +264,70 @@ describe("questions in a document", () => {
     );
     if (block?.type !== "parsons") throw new Error("parsons expected");
     expect(block.lines.map((line) => line.indent)).toEqual([0, 1, 1]);
+  });
+
+  it("writes a code exercise's starter, then moves on to its tests, one hidden", () => {
+    const target = withQuestion("programQuestion");
+    const step = (change: () => void) =>
+      target.update(change, { discrete: true });
+    step(() => {
+      const question = $getRoot().getChildren().find($isQuestionNode);
+      const [prompt, line] = question?.getChildren() ?? [];
+      if ($isQuestionPromptNode(prompt)) write(prompt, "Double it.");
+      if ($isQuestionOptionNode(line)) {
+        write(line, "n = int(input())");
+        line.selectEnd();
+      }
+    });
+    step(() => target.dispatchCommand(INSERT_PARAGRAPH_COMMAND, undefined));
+    // A blank line with only the tests after it ends the starter.
+    step(() => target.dispatchCommand(INSERT_PARAGRAPH_COMMAND, undefined));
+    step(() => $getSelection()?.insertText("2"));
+    step(() => target.dispatchCommand(INSERT_PARAGRAPH_COMMAND, undefined));
+    step(() => $getSelection()?.insertText("4"));
+    step(() => {
+      const pair = $getRoot()
+        .getChildren()
+        .find($isQuestionNode)
+        ?.getChildren()
+        .find($isQuestionPairNode);
+      if ($isQuestionPairNode(pair)) pair.setHidden(true);
+    });
+    const block = lessonOfContent(json(target)).blocks.find(
+      (each) => each.type === "program",
+    );
+    if (block?.type !== "program") throw new Error("program expected");
+    expect(block.starter).toBe("n = int(input())");
+    expect(block.tests).toMatchObject([
+      { input: "2", expected: "4", hidden: true },
+    ]);
+    expect(v.safeParse(contentDocumentSchema, json(target)).success).toBe(true);
+  });
+
+  it("leaves a line of code that starts with # as code, not a heading", () => {
+    const heading = markdownShortcuts.find(
+      (transformer) =>
+        transformer.type === "element" && transformer.regExp.test("# "),
+    );
+    if (heading?.type !== "element") throw new Error("no heading shortcut");
+    const target = withQuestion("programQuestion");
+    target.update(
+      () => {
+        const line = $getRoot()
+          .getChildren()
+          .find($isQuestionNode)
+          ?.getChildren()
+          .find($isQuestionOptionNode);
+        if (!line) throw new Error("no line");
+        expect(heading.replace(line, [], ["# ", "#"], false)).toBe(false);
+        const paragraph = $createParagraphNode();
+        $getRoot().append(paragraph);
+        expect(heading.replace(paragraph, [], ["# ", "#"], false)).not.toBe(
+          false,
+        );
+      },
+      { discrete: true },
+    );
   });
 
   it("keeps an ordering question's items and a number question's key", () => {
@@ -648,6 +714,7 @@ describe("questions in a document", () => {
         hotspot: "",
         scratch: "",
         parsons: "",
+        program: "",
       },
       points: () => "",
       answerIs: "",
