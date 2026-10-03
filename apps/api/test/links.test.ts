@@ -157,3 +157,20 @@ describe("downloads", () => {
     ).toBe(405);
   });
 });
+
+describe("the play page", () => {
+  test("holds students' web pages in a sandbox that reaches no network", async () => {
+    const host = seeded().filesHost;
+    const page = await host(new Request(`${FILES_ORIGIN}/play`));
+    expect(page.status).toBe(200);
+    expect(page.headers.get("set-cookie")).toBeNull();
+    const policy = page.headers.get("content-security-policy") ?? "";
+    expect(policy).toContain("connect-src 'none'");
+    expect(policy).toContain("form-action 'none'");
+    const html = await page.text();
+    expect(html).toContain('sandbox="allow-scripts allow-modals allow-forms"');
+    expect(html).not.toContain("allow-same-origin");
+    const script = await host(new Request(`${FILES_ORIGIN}/play/shell.js`));
+    expect(script.headers.get("content-type")).toContain("javascript");
+  });
+});

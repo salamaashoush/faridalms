@@ -94,7 +94,12 @@ off keeps the work and shows a placeholder.
 4. **Projects and the sandbox domain.** A multi-file HTML, CSS and JavaScript
    or Python (turtle, p5.js) project with live preview on the separate
    domain, autosaved as the student's work, a class gallery with remix, and
-   the teacher's live view of the class.
+   the teacher's live view of the class. Done first: an HTML code block set
+   to run is a playground, its page drawn again as the student types, with
+   its console and errors below. The page plays on the files host's domain
+   in a frame with an opaque origin and no network, and every loop in its
+   scripts is checked, so one that never ends stops after three seconds.
+   Multi-file projects, saving, the gallery and the live view remain.
 5. **Blocks puzzles.** Our Blockly puzzle engine and level packs (paths,
    loops, turtle art, events, music) in Arabic and English, an arrow-path
    activity for early years, and unplugged versions through print.

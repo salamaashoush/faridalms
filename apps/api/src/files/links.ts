@@ -3,6 +3,8 @@ import { createCipheriv, createDecipheriv, createHmac } from "node:crypto";
 
 import type { FileStore } from "./store";
 
+import { playResponse } from "./play";
+
 /** What a signed link lets its holder read, and until when. */
 export interface LinkGrant {
   storageKey: string;
@@ -95,9 +97,10 @@ const shared = {
 };
 
 /**
- * The files host: nothing but sealed links, no cookies read or set. It
- * answers on its own port and hostname, so what it serves can never run as
- * the application, and a link is checked by its seal alone.
+ * The files host: sealed links and the page students' web pages play in,
+ * no cookies read or set. It answers on its own port and hostname, so what
+ * it serves can never run as the application, and a link is checked by its
+ * seal alone.
  */
 export function createFilesHost(dependencies: {
   files: FileStore;
@@ -119,6 +122,8 @@ export function createFilesHost(dependencies: {
       });
     if (request.method !== "GET" && request.method !== "HEAD")
       return new Response(null, { status: 405, headers: shared });
+    const play = playResponse(url.pathname);
+    if (play) return play;
     const token = LINK_PATH.exec(url.pathname)?.[1];
     const grant = token ? openLink(dependencies.key, token, now()) : null;
     if (!grant) return new Response(null, { status: 404, headers: shared });

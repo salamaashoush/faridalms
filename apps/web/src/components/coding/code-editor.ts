@@ -4,6 +4,7 @@ import {
   historyKeymap,
   indentWithTab,
 } from "@codemirror/commands";
+import { html } from "@codemirror/lang-html";
 import { javascript } from "@codemirror/lang-javascript";
 import { python } from "@codemirror/lang-python";
 import {
@@ -27,7 +28,7 @@ import {
 } from "@codemirror/view";
 import { tagHighlighter, tags } from "@lezer/highlight";
 
-import type { RunLanguage } from "./runner/runner";
+import type { EditorLanguage } from "./CodeRunner";
 
 // The same classes the lesson's own code blocks are coloured with, so code
 // looks alike whether a student reads it or edits it.
@@ -143,7 +144,7 @@ export function createCodeEditor(
   parent: HTMLElement,
   options: {
     code: string;
-    language: RunLanguage;
+    language: EditorLanguage;
     label: string;
     describedBy: string;
     readOnly: boolean;
@@ -162,7 +163,11 @@ export function createCodeEditor(
         indentOnInput(),
         bracketMatching(),
         indentUnit.of("    "),
-        options.language === "python" ? python() : javascript(),
+        options.language === "python"
+          ? python()
+          : options.language === "html"
+            ? html()
+            : javascript(),
         syntaxHighlighting(highlighter),
         errorLine,
         theme,

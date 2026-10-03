@@ -14,7 +14,7 @@ export function RunnableCode({
   drawn,
   locked,
 }: RunnableProps) {
-  const kind = runLanguage(language);
+  const kind = language === "html" ? "html" : runLanguage(language);
   if (!kind) return drawn;
   // The lesson editor indents code with tabs and the student's editor with
   // four spaces; Python refuses a block that mixes the two.

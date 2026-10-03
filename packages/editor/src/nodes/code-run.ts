@@ -21,9 +21,10 @@ export function $setCodeRun(node: LexicalNode, run: CodeRun | null) {
   $setState(node, codeRunState, run ?? "");
 }
 
-/** Languages a student's browser can run. */
+/** Languages a student's browser can run, or draw as a web page. */
 export const runnableLanguage = (language: string | null | undefined) =>
   language === "python" ||
   language === "py" ||
   language === "javascript" ||
-  language === "js";
+  language === "js" ||
+  language === "html";

@@ -15,11 +15,19 @@ import type { RunEnd, RunLanguage, RunStream } from "./runner/runner";
 
 import { friendlyError } from "./friendly";
 import { RUN_SECONDS, runCode } from "./runner/runner";
+import { WebPreview } from "./WebPreview";
 
-export const LANGUAGE_NAMES: Record<RunLanguage, string> = {
+/** What a code block can be run as: a program, or a web page to look at. */
+export type EditorLanguage = RunLanguage | "html";
+
+export const LANGUAGE_NAMES: Record<EditorLanguage, string> = {
   python: "Python",
   javascript: "JavaScript",
+  html: "HTML",
 };
+
+/** How long typing pauses before a web page is drawn again. */
+const REDRAW_MS = 800;
 
 const READS_INPUT: Record<RunLanguage, RegExp> = {
   python: /\binput\s*\(/,
@@ -72,7 +80,7 @@ export function CodeRunner({
   source: string;
   /** The code to start from, such as the student's last answer. */
   initial?: string;
-  language: RunLanguage;
+  language: EditorLanguage;
   /** How the code reads before the editor loads. */
   drawn?: ReactNode;
   locked?: boolean;
@@ -93,8 +101,14 @@ export function CodeRunner({
   const [phase, setPhase] = useState<"idle" | "loading" | "running">("idle");
   const [end, setEnd] = useState<RunEnd | null>(null);
   const [said, setSaid] = useState("");
+  const [page, setPage] = useState(() => ({ html: initial }));
+  const redraw = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   const run = () => {
+    if (language === "html") {
+      if (!locked) setPage({ html: code });
+      return;
+    }
     if (locked || phase !== "idle") return;
     setOutput([]);
     setEnd(null);
@@ -138,6 +152,10 @@ export function CodeRunner({
   const changed = useEffectEvent((next: string) => {
     setCode(next);
     onChange?.(next);
+    // A web page is drawn again as the student types, once they pause.
+    if (language !== "html" || locked) return;
+    clearTimeout(redraw.current);
+    redraw.current = setTimeout(() => setPage({ html: next }), REDRAW_MS);
   });
   // The editor is made once for its code, from where the student left it;
   // whether it can be changed follows on its own below.
@@ -163,6 +181,7 @@ export function CodeRunner({
       view.current?.destroy();
       view.current = null;
       stopRun.current?.();
+      clearTimeout(redraw.current);
     };
   }, [language, keysId]);
 
@@ -174,10 +193,10 @@ export function CodeRunner({
   const busy = phase !== "idle";
   const note = end ? endNote(end) : null;
   const why =
-    end?.status === "done" && end.error
+    end?.status === "done" && end.error && language !== "html"
       ? friendlyError(language, end.error.name)
       : null;
-  const reads = READS_INPUT[language].test(code);
+  const reads = language !== "html" && READS_INPUT[language].test(code);
   const showOutput = busy || end !== null;
   return (
     <section
@@ -284,6 +303,7 @@ export function CodeRunner({
           </p>
         </div>
       ) : null}
+      {language === "html" && !locked ? <WebPreview page={page} /> : null}
       {showOutput ? (
         <div className="grid gap-1 border-t bg-muted/30 px-3 py-2.5">
           <div
