@@ -1,0 +1,3 @@
+msrv = "1.97.0"
+# Names of products and formats, not code.
+doc-valid-idents = ["YouTube", "WebVTT", ".."]
