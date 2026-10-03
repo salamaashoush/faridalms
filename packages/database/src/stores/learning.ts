@@ -588,6 +588,47 @@ export async function watchesOf(
   return rows.map(watchOf);
 }
 
+/** The stretches each of these students played of each recording in these lessons. */
+export async function watchRowsIn(
+  tx: Tx,
+  input: {
+    tenantId: string;
+    lessonIds: readonly string[];
+    studentIds: readonly string[];
+  },
+): Promise<
+  {
+    lessonId: string;
+    studentId: string;
+    fileId: string;
+    ranges: [number, number][];
+    durationSeconds: number;
+  }[]
+> {
+  if (input.lessonIds.length === 0 || input.studentIds.length === 0) return [];
+  const rows = await tx.execute<{
+    lesson_id: string;
+    student_user_id: string;
+    file_id: string;
+    ranges: [number, number][];
+    duration_seconds: number;
+  }>(sql`
+    select lesson_id, student_user_id, file_id, duration_seconds,
+      coalesce((select jsonb_agg(jsonb_build_array(lower(r), upper(r)) order by lower(r))
+        from unnest(watched) r), '[]'::jsonb) as ranges
+    from core.lesson_watches
+    where tenant_id = ${input.tenantId}::uuid and status = 'active'
+      and lesson_id = any(${uuidArray(input.lessonIds)})
+      and student_user_id = any(${uuidArray(input.studentIds)})`);
+  return rows.map((row) => ({
+    lessonId: row.lesson_id,
+    studentId: row.student_user_id,
+    fileId: row.file_id,
+    ranges: row.ranges,
+    durationSeconds: row.duration_seconds,
+  }));
+}
+
 /** Whether a student has finished every lesson of a module. */
 export async function moduleFinished(
   tx: Tx,

@@ -36,7 +36,10 @@ with the gate it can break.
    since the stop before again, and the video holds at the question once
    more. An optional skip setting and the young children's pause remain.
 5. **Teacher insight.** Drop-off, rewind peaks and each answer with its time,
-   per class and per student.
+   per class and per student. Done: a module's Videos tab shows, for each
+   recording, how many of the class watched each moment, where it stops for
+   questions, and how much each student watched, least first. Rewind peaks
+   need play counts per moment, which watches do not keep yet.
 6. **Pipeline**, decided 2026-10-03: our own media service, in Rust.
    Resumable upload, ffmpeg to HLS (360, 540, 720p and audio only), a
    thumbnail sprite and poster, stored through the file store and streamed

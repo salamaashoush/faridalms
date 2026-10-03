@@ -1725,6 +1725,17 @@ describe("watching recordings", () => {
       positionSeconds: 100,
     });
 
+    // The teacher sees how far the class watched it, moment by moment.
+    const classId = source.classes[0]?.id ?? "";
+    const insight = await keeper.learning.videos({
+      moduleId: saved.id,
+      classId,
+    });
+    const story = insight.recordings.find((row) => row.fileId === recording);
+    expect(story).toMatchObject({ name: "story.mp3", durationSeconds: 100 });
+    expect(Object.values(story?.watched ?? {})).toContain(100);
+    expect(Math.min(...(story?.curve ?? [0]))).toBeGreaterThanOrEqual(1);
+
     // Only a recording in the lesson can be reported.
     expect(
       await rejection(

@@ -14,7 +14,7 @@ import {
   saveDocument,
   snapshotPublish,
 } from "@faridalms/database/stores/documents";
-import { linkFiles } from "@faridalms/database/stores/files";
+import { filesByIds, linkFiles } from "@faridalms/database/stores/files";
 import {
   classesOfModule,
   firstAttempts,
@@ -44,6 +44,7 @@ import {
   updateModule,
   answersToMark,
   watchesOf,
+  watchRowsIn,
 } from "@faridalms/database/stores/learning";
 import { isVisibleStudent } from "@faridalms/database/stores/students";
 import { gridOwners } from "@faridalms/database/stores/timetable";
@@ -62,6 +63,7 @@ import {
   lessonContentOf,
   lessonIssue,
   lessonMedia,
+  lessonRecordings,
   lessonScore,
   markResponse,
   markSchema,
@@ -84,6 +86,7 @@ import {
   standingOf,
   studentBlocks,
   upgradeLesson,
+  videoStops,
   watchSchema,
 } from "@faridalms/domain/learning";
 import { isContentDocument } from "@faridalms/domain/lesson-content";
@@ -866,6 +869,89 @@ export const progress = readProcedure
         attempts: cell.attempts,
       })),
     };
+  });
+
+/** Moments along a recording at which the class's watching is counted. */
+const CURVE_POINTS = 60;
+
+/**
+ * How a class watched each recording in a module's published lessons, as
+ * YouTube's audience retention shows a channel: how many students had
+ * watched each moment, where the video stops for questions, and how much
+ * of it each student has played.
+ */
+export const videos = readProcedure
+  .input(progressQuerySchema)
+  .handler(async ({ input, context }) => {
+    const row = await editable(context, input.moduleId);
+    const classes = await classesOfModule(context.tx, context.tenantId, row.id);
+    if (!classes.some((item) => item.id === input.classId))
+      throw new ORPCError("NOT_FOUND");
+    const [lessons, roster] = await Promise.all([
+      lessonsOf(context.tx, context.tenantId, row.id),
+      rosterOf(context.tx, context.tenantId, input.classId, context.today),
+    ]);
+    const [students, watches, published] = await Promise.all([
+      namesOf(context.tx, context.tenantId, roster),
+      watchRowsIn(context.tx, {
+        tenantId: context.tenantId,
+        lessonIds: lessons.map((item) => item.id),
+        studentIds: roster,
+      }),
+      Promise.all(lessons.map((item) => publishedLesson(context, item.id))),
+    ]);
+    const named = new Map(
+      (
+        await filesByIds(
+          context.tx,
+          context.tenantId,
+          published.flatMap((found) =>
+            found ? lessonMedia(found.content) : [],
+          ),
+        )
+      ).map((file) => [file.id, file.name]),
+    );
+    const recordings = lessons.flatMap((item, index) => {
+      const content = published[index]?.content;
+      if (!content) return [];
+      const stops = videoStops(content.blocks);
+      return lessonRecordings(content).map((recording) => {
+        const rows = watches.filter(
+          (watch) =>
+            watch.lessonId === item.id && watch.fileId === recording.fileId,
+        );
+        const duration = Math.max(
+          0,
+          ...rows.map((watch) => watch.durationSeconds),
+        );
+        const curve =
+          duration === 0
+            ? []
+            : Array.from({ length: CURVE_POINTS }, (_, point) => {
+                const at = ((point + 0.5) / CURVE_POINTS) * duration;
+                return rows.filter((watch) =>
+                  watch.ranges.some(([start, end]) => start <= at && at < end),
+                ).length;
+              });
+        return {
+          lessonId: item.id,
+          lessonTitle: item.title,
+          fileId: recording.fileId,
+          name: recording.name || named.get(recording.fileId) || "",
+          video: recording.video,
+          durationSeconds: duration || null,
+          stops: (stops.get(recording.fileId) ?? []).map((stop) => stop.at),
+          curve,
+          watched: Object.fromEntries(
+            rows.map((watch) => [
+              watch.studentId,
+              watch.ranges.reduce((sum, [start, end]) => sum + end - start, 0),
+            ]),
+          ),
+        };
+      });
+    });
+    return { students, recordings };
   });
 
 /**

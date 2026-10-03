@@ -569,6 +569,39 @@ export function mediaFiles(
 export const lessonMedia = (document: LessonDocument) =>
   mediaFiles(document.blocks);
 
+/** A lesson's videos and recordings with their names, each once, in reading order. */
+export function lessonRecordings(
+  document: LessonDocument,
+): { fileId: string; name: string; video: boolean }[] {
+  const found = document.blocks.flatMap((block) =>
+    block.type === "content"
+      ? mediaOf(block.content.root).flatMap((node) =>
+          node.fileId
+            ? [
+                {
+                  fileId: node.fileId,
+                  name: node.name ?? "",
+                  video: (node.mime ?? "").startsWith("video/"),
+                },
+              ]
+            : [],
+        )
+      : block.type === "media"
+        ? [
+            {
+              fileId: block.fileId,
+              name: block.name,
+              video: block.mediaType.startsWith("video/"),
+            },
+          ]
+        : [],
+  );
+  return found.filter(
+    (item, index) =>
+      found.findIndex((other) => other.fileId === item.fileId) === index,
+  );
+}
+
 /** A question a video stops for: the second, and the question's block. */
 export interface VideoStop {
   at: number;

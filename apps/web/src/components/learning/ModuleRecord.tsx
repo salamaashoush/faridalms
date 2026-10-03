@@ -70,12 +70,14 @@ import {
 } from "./format";
 import { ClassLive } from "./Live";
 import { ClassQuestions } from "./Questions";
+import { ClassVideos } from "./Videos";
 
 export const MODULE_TABS = [
   "lessons",
   "live",
   "progress",
   "questions",
+  "videos",
   "answers",
   "files",
 ] as const;
@@ -545,6 +547,7 @@ export function ModuleRecord({
     { value: "live", label: m.liveTab() },
     { value: "progress", label: m.lrnProgress() },
     { value: "questions", label: m.lrnQuestionsTab() },
+    { value: "videos", label: m.lrnVideosTab() },
     { value: "answers", label: m.lrnAnswersTab() },
     { value: "files", label: m.filesTab() },
   ];
@@ -661,7 +664,9 @@ export function ModuleRecord({
                   ? Matrix
                   : tab === "questions"
                     ? ClassQuestions
-                    : Answers
+                    : tab === "videos"
+                      ? ClassVideos
+                      : Answers
             }
           />
         )}
