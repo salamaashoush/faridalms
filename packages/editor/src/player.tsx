@@ -29,6 +29,7 @@ import {
   Time,
   TimeSlider,
   Tooltip,
+  useContainer,
   useMedia,
   VolumeSlider,
 } from "@videojs/react";
@@ -85,7 +86,6 @@ export interface WatchReport {
   positionSeconds: number;
 }
 
-/** A recording whose watching counts: where to pick up, and where to report. */
 /** A time a video stops at for a question, and whether it is answered. */
 export interface VideoMark {
   at: number;
@@ -97,6 +97,7 @@ export interface VideoControl {
   playFrom: (seconds: number) => void;
 }
 
+/** A recording whose watching counts: where to pick up, and where to report. */
 export interface MediaWatch {
   startAt: number;
   report: (watch: WatchReport) => void;
@@ -144,9 +145,10 @@ function Watching({
   seek: (seconds: number) => void;
 }) {
   const media = useMedia();
-  const latest = useRef({ watch, seek });
+  const container = useContainer();
+  const latest = useRef({ watch, seek, container });
   useEffect(() => {
-    latest.current = { watch, seek };
+    latest.current = { watch, seek, container };
   });
 
   useEffect(() => {
@@ -280,9 +282,19 @@ function Watching({
       if (document.visibilityState === "hidden") flush();
     };
 
+    // Playing on from a question below may start a video scrolled out of sight.
+    const show = () =>
+      latest.current.container?.scrollIntoView({
+        block: "nearest",
+        behavior: "smooth",
+      });
     latest.current.watch.bind?.({
-      play: () => void media.play(),
+      play: () => {
+        show();
+        void media.play();
+      },
       playFrom: (seconds) => {
+        show();
         latest.current.seek(seconds);
         void media.play();
       },

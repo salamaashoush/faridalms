@@ -723,6 +723,7 @@ export function LessonPlayer({ lessonId }: { lessonId: string }) {
           classSounds={data.sounds}
           position={data.position}
           onReach={reach}
+          watch={watch}
           onClose={() =>
             void navigate({
               to: "/modules/$moduleId",

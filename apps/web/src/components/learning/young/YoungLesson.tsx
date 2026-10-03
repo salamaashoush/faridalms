@@ -1,7 +1,9 @@
 import type { ContentNode } from "@faridalms/domain/content";
 import type { CheckView, StudentBlock } from "@faridalms/domain/learning";
+import type { MediaWatch, VideoControl } from "@faridalms/editor/player";
 
 import { contentPlainText, textDirection } from "@faridalms/domain/content";
+import { videoStops } from "@faridalms/domain/learning";
 import { lessonSteps } from "@faridalms/domain/lesson-steps";
 import { Button } from "@faridalms/ui/button";
 import { cn } from "@faridalms/ui/cn";
@@ -92,11 +94,18 @@ function questionVoice(step: StudentBlock[]) {
   return question ? promptVoice(question) : null;
 }
 
-function YoungContent({ block }: { block: Content }) {
+function YoungContent({
+  block,
+  watch,
+}: {
+  block: Content;
+  watch?: ((fileId: string) => MediaWatch | undefined) | undefined;
+}) {
   return (
     <ContentView
       document={block.content}
       fileUrl={fileUrl}
+      watch={watch}
       className="fe-young"
       renderBlock={(node, drawn) => {
         if (SHOWN_ONLY.has(node.type) && !node.$?.narration) return drawn;
@@ -150,13 +159,16 @@ function StepBlock({
   block,
   view,
   driver,
+  watch,
 }: {
   block: StudentBlock;
   view: CheckView | undefined;
   driver: CheckDriver;
+  watch?: ((fileId: string) => MediaWatch | undefined) | undefined;
 }) {
-  if (block.type === "content") return <YoungContent block={block} />;
-  if (block.type === "media") return <Media block={block} />;
+  if (block.type === "content")
+    return <YoungContent block={block} watch={watch} />;
+  if (block.type === "media") return <Media block={block} watch={watch} />;
   if (!isCheckBlock(block)) return null;
   const answer =
     block.type === "choice" ? (
@@ -236,6 +248,8 @@ const round = "size-14 rounded-full";
 const PROMPT_AGAIN_MS = 7000;
 /** Touches this soon after a screen changes are a finger still down from the last one. */
 const HOLDOVER_MS = 400;
+/** After a pause question is answered, the video plays on this long after. */
+const PLAY_ON_MS = 1500;
 
 /**
  * A lesson for young children, one screen at a time over the whole window:
@@ -257,6 +271,7 @@ export function YoungLesson({
   badge,
   readAlong = true,
   classSounds = true,
+  watch,
 }: {
   title: string;
   blocks: StudentBlock[];
@@ -275,6 +290,8 @@ export function YoungLesson({
   readAlong?: boolean;
   /** Whether the child's class lets lessons tick and chime at all. */
   classSounds?: boolean;
+  /** Follows what the child plays of each recording; none in a preview. */
+  watch?: ((fileId: string) => MediaWatch) | undefined;
 }) {
   const steps = useMemo(() => lessonSteps(blocks), [blocks]);
   const hydrated = useHydrated();
@@ -308,6 +325,68 @@ export function YoungLesson({
 
   const step = typeof at === "number" ? (steps[at] ?? []) : [];
   const stepId = step[0]?.id;
+
+  // A video on the screen stops for each question asked at a moment in it:
+  // the question appears below, and once the child has answered, the video
+  // plays on by itself, as a picture book read aloud waits for the child.
+  const stops = videoStops(step);
+  const [stoppedFor, setStoppedFor] = useState<ReadonlySet<string>>(new Set());
+  const players = useRef(new Map<string, VideoControl>());
+  const playedOn = useRef(new Set<string>());
+  const settled = (blockId: string) => {
+    const block = step.find((item) => item.id === blockId);
+    return Boolean(
+      block && isCheckBlock(block) && isSettled(block, checks[block.id]),
+    );
+  };
+  const watching = (fileId: string): MediaWatch | undefined => {
+    const base = watch?.(fileId);
+    const list = stops.get(fileId);
+    if (!list) return base;
+    return {
+      ...(base ?? { startAt: 0, report: () => undefined }),
+      stops: list.map((stop) => ({ at: stop.at, done: settled(stop.blockId) })),
+      onQuestion: (when) => {
+        const now = list.filter((stop) => stop.at === when);
+        setStoppedFor(
+          (current) =>
+            new Set([...current, ...now.map((stop) => stop.blockId)]),
+        );
+        const first = step.find((block) => block.id === now[0]?.blockId);
+        if (!first || !isCheckBlock(first)) return;
+        // Once it shows, the question is brought into sight and read out.
+        requestAnimationFrame(() =>
+          page.current
+            ?.querySelector(`[data-pause="${first.id}"]`)
+            ?.scrollIntoView({ block: "start", behavior: "smooth" }),
+        );
+        const voice = promptVoice(first);
+        sayAloud(voice.text, voice.narration, voice.words);
+      },
+      bind: (control) => players.current.set(fileId, control),
+    };
+  };
+  const answered = step
+    .filter((block) => stoppedFor.has(block.id) && settled(block.id))
+    .map((block) => block.id)
+    .join(" ");
+  const playOn = useEffectEvent(() => {
+    for (const [fileId, list] of stops)
+      for (const stop of list)
+        if (
+          stoppedFor.has(stop.blockId) &&
+          settled(stop.blockId) &&
+          !playedOn.current.has(stop.blockId)
+        ) {
+          playedOn.current.add(stop.blockId);
+          players.current.get(fileId)?.play();
+        }
+  });
+  useEffect(() => {
+    if (!answered) return undefined;
+    const timer = setTimeout(playOn, PLAY_ON_MS);
+    return () => clearTimeout(timer);
+  }, [answered]);
   // Only a new screen reads itself out; answering on it does not.
   const onOpen = useEffectEvent((id: string) => {
     opened.current = performance.now();
@@ -534,14 +613,27 @@ export function YoungLesson({
               key={at}
               className="mx-auto grid w-full max-w-3xl gap-6 px-4 py-4 sm:px-6 sm:py-6"
             >
-              {step.map((block) => (
-                <StepBlock
-                  key={block.id}
-                  block={block}
-                  view={checks[block.id]}
-                  driver={driver}
-                />
-              ))}
+              {step.map((block) => {
+                const pause =
+                  "videoAt" in block && typeof block.videoAt === "number";
+                // A pause question waits out of sight until the video stops for it.
+                if (pause && !stoppedFor.has(block.id) && !settled(block.id))
+                  return null;
+                return (
+                  <div
+                    key={block.id}
+                    data-pause={pause ? block.id : undefined}
+                    className="scroll-mt-4"
+                  >
+                    <StepBlock
+                      block={block}
+                      view={checks[block.id]}
+                      driver={driver}
+                      watch={watching}
+                    />
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>

@@ -25,6 +25,18 @@ describe("a young child's lesson, one screen at a time", () => {
     ]);
   });
 
+  it("keeps the questions a video stops for on the video's screen", () => {
+    const steps = lessonSteps([
+      text("v", "Watch the seed grow."),
+      { id: "t1", type: "choice", videoAt: 8 },
+      { id: "t2", type: "written", videoAt: 20 },
+      question("after"),
+    ]);
+    expect(steps.map((step) => step.map((block) => block.id))).toEqual([
+      ["v", "t1", "t2", "after"],
+    ]);
+  });
+
   it("leaves out text with nothing in it, such as the line after a question", () => {
     const steps = lessonSteps([question("q"), text("blank", "")]);
     expect(steps.map((step) => step.map((block) => block.id))).toEqual([["q"]]);

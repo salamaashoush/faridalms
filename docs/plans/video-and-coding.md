@@ -37,7 +37,10 @@ with the gate it can break.
    more. A teacher can also turn on "No skipping ahead" for a recording:
    students may go back over it freely but seek on only as far as they have
    played without a gap, which the server works out from what they watched.
-   The young children's pause remains.
+   In a lesson for young children the questions asked in a video stay on the
+   video's screen out of sight until it stops for them; the question is
+   brought into view and read aloud, and once the child has answered it the
+   video comes back into view and plays on by itself.
 5. **Teacher insight.** Drop-off, rewind peaks and each answer with its time,
    per class and per student. Done: a module's Videos tab shows, for each
    recording, how many of the class watched each moment, where it stops for

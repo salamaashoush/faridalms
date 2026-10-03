@@ -6,6 +6,8 @@ interface Steppable {
   id: string;
   type: string;
   content?: ContentDocument;
+  /** Asked when the video above reaches this second. */
+  videoAt?: number | null;
 }
 
 /** Whether a block shows anything: an empty line left after a question does not. */
@@ -43,7 +45,9 @@ function pages<B extends Steppable>(block: B): B[] {
 /**
  * A lesson for young children as the screens it is shown on, one at a time:
  * each question closes a screen with the words and pictures above it, and a
- * continue gate or a divider in the text starts a new one.
+ * continue gate or a divider in the text starts a new one. A question asked
+ * at a moment in a video stays on the video's screen, for the video to stop
+ * and ask it there.
  */
 export function lessonSteps<B extends Steppable>(blocks: readonly B[]): B[][] {
   const steps: B[][] = [];
@@ -62,7 +66,8 @@ export function lessonSteps<B extends Steppable>(blocks: readonly B[]): B[][] {
       if (index > 0) close();
       current.push(piece);
     });
-    if (!READING.has(block.type)) close();
+    const timed = typeof block.videoAt === "number";
+    if (!READING.has(block.type) && !timed) close();
   }
   close();
   return steps;
