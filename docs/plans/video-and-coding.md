@@ -79,8 +79,10 @@ off keeps the work and shows a placeholder.
    in [../operations.md](../operations.md), and stop after ten seconds or too
    much output. Done next: Python's turtle, a module of our own that records
    what the turtle draws for the lesson to play back on a canvas at the
-   speed the program sets, within four seconds. Keeping a student's changes
-   remains.
+   speed the program sets, within four seconds. A student's changes to a
+   runnable block are kept as they type and come back with them; when the
+   teacher has changed the block since, a note says so and Reset code gives
+   the teacher's.
 2. **Parsons problems** as a question kind: shuffled lines, indentation,
    distractors, marked and printable. Done: a teacher types the program as
    lines of a code puzzle (Tab indents, Enter keeps the indent, the circle

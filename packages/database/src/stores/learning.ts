@@ -607,6 +607,56 @@ export async function recordWatch(
   return watchOf(row);
 }
 
+/** A student's own version of a runnable code block, and the teacher's code it began from. */
+export interface KeptCode {
+  blockId: string;
+  code: string;
+  basedOn: string;
+}
+
+/** Keeps a student's version of a runnable code block in place of the last. */
+export async function keepCode(
+  tx: Tx,
+  input: {
+    tenantId: string;
+    lessonId: string;
+    studentId: string;
+    blockId: string;
+    code: string;
+    basedOn: string;
+  },
+): Promise<void> {
+  await tx.execute(sql`
+    insert into core.lesson_code (tenant_id, lesson_id, student_user_id, block_id, code, based_on)
+    values (${input.tenantId}::uuid, ${input.lessonId}::uuid, ${input.studentId}::uuid,
+      ${input.blockId}, ${input.code}, ${input.basedOn})
+    on conflict (tenant_id, lesson_id, student_user_id, block_id)
+      where status = 'active' do update set
+      code = excluded.code,
+      based_on = excluded.based_on`);
+}
+
+/** A student's own versions of a lesson's runnable code blocks. */
+export async function codesOf(
+  tx: Tx,
+  input: { tenantId: string; lessonId: string; studentId: string },
+): Promise<KeptCode[]> {
+  const rows = await tx.execute<{
+    block_id: string;
+    code: string;
+    based_on: string;
+  }>(sql`
+    select block_id, code, based_on
+    from core.lesson_code
+    where tenant_id = ${input.tenantId}::uuid and lesson_id = ${input.lessonId}::uuid
+      and student_user_id = ${input.studentId}::uuid and status = 'active'`);
+  return rows.map((row) => ({
+    blockId: row.block_id,
+    code: row.code,
+    basedOn: row.based_on,
+  }));
+}
+
 /** How much of each recording in a lesson a student has played. */
 export async function watchesOf(
   tx: Tx,

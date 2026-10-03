@@ -1,3 +1,4 @@
+import type { ContentDocument, ContentNode } from "@faridalms/domain/content";
 import type { LessonDocument } from "@faridalms/domain/learning";
 
 import { plainContent } from "@faridalms/domain/content-conversion";
@@ -630,6 +631,94 @@ describe("code exercises", () => {
       expect(
         await rejection(outsider.learning.runs({ ...asked, classId })),
       ).toMatchObject({ code: "NOT_FOUND" });
+  });
+});
+
+/** A lesson page with one runnable Python block. */
+function runnablePage(program: string): ContentDocument {
+  const text = plainContent("Run it, then change it.");
+  const code: ContentNode = {
+    type: "code",
+    language: "python",
+    version: 1,
+    $: { id: "loopcode1", run: "run" },
+    children: [
+      { type: "code-highlight", text: program, format: 0, version: 1 },
+    ],
+  };
+  return {
+    root: { ...text.root, children: [...(text.root.children ?? []), code] },
+  };
+}
+
+describe("runnable code", () => {
+  test("a student's changes to a code block come back, saying when the teacher's code changed", async () => {
+    const { keeper } = await teachers();
+    const { rows } = await keeper.learning.modules({});
+    const source = rows.find((row) => row.title === TITLE);
+    if (!source) throw new Error("no module");
+    const saved = await keeper.learning.saveModule({
+      id: "",
+      expectedVersion: 0,
+      title: "Loops",
+      summary: "",
+      classIds: source.classes.map((item) => item.id),
+      prerequisiteId: "",
+      sequential: false,
+    });
+    const lesson = await keeper.learning.saveLesson({
+      id: "",
+      moduleId: saved.id,
+      expectedVersion: 0,
+      title: "Loops",
+      completion: "view",
+      passScore: null,
+      content: runnablePage("for i in range(3): print(i)"),
+      publish: false,
+    });
+    await keeper.learning.publishModule({
+      id: saved.id,
+      expectedVersion: saved.version,
+    });
+
+    const pupil = await student();
+    const lessonId = lesson.id;
+    expect((await pupil.learning.playLesson({ id: lessonId })).codes).toEqual(
+      {},
+    );
+    const mine = "for i in range(5): print(i * i)";
+    await pupil.learning.keepCode({
+      lessonId,
+      blockId: "loopcode1",
+      code: mine,
+    });
+    expect((await pupil.learning.playLesson({ id: lessonId })).codes).toEqual({
+      loopcode1: { code: mine, changed: false },
+    });
+    expect(
+      await rejection(
+        pupil.learning.keepCode({
+          lessonId,
+          blockId: "nosuchblock",
+          code: mine,
+        }),
+      ),
+    ).toMatchObject({ code: "NOT_FOUND" });
+
+    const editing = await keeper.learning.lesson({ id: lessonId });
+    await keeper.learning.saveLesson({
+      id: lessonId,
+      moduleId: saved.id,
+      expectedVersion: editing.version,
+      title: "Loops",
+      completion: "view",
+      passScore: null,
+      content: runnablePage("for i in range(4): print(i)"),
+      publish: true,
+    });
+    expect((await pupil.learning.playLesson({ id: lessonId })).codes).toEqual({
+      loopcode1: { code: mine, changed: true },
+    });
   });
 });
 

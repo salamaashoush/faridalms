@@ -58,6 +58,7 @@ import {
   importRows,
   importRuns,
   legalHolds,
+  lessonCode,
   lessonResponses,
   lessonRuns,
   lessonWatches,
@@ -454,6 +455,14 @@ export async function completeFixture(
     response: { type: "choice", optionIds: [] },
     fraction: 0,
     state: "answered",
+  });
+  await tx.insert(lessonCode).values({
+    tenantId,
+    lessonId: lesson.id,
+    studentUserId: userId,
+    blockId: "abcd1234",
+    code: "print('mine')",
+    basedOn: "0".repeat(64),
   });
   await tx.insert(lessonRuns).values({
     tenantId,

@@ -4,6 +4,7 @@ import type { ContentDocument, ContentNode } from "./content";
 
 import { matchAnswer, parseNumber } from "./answers";
 import {
+  codeSource,
   contentDocumentSchema,
   contentPlainText,
   narrationWordsSchema,
@@ -642,6 +643,19 @@ export function mediaFiles(
 
 export const lessonMedia = (document: LessonDocument) =>
   mediaFiles(document.blocks);
+
+/** The code blocks a lesson lets students run, by block id, with each one's program. */
+export function runnableCode(document: LessonDocument): Map<string, string> {
+  const found = new Map<string, string>();
+  const walk = (node: ContentNode) => {
+    if (node.type === "code" && node.$?.run && node.$.id)
+      found.set(node.$.id, codeSource(node));
+    for (const child of node.children ?? []) walk(child);
+  };
+  for (const block of document.blocks)
+    if (block.type === "content") walk(block.content.root);
+  return found;
+}
 
 /** A lesson's videos and recordings with their names, each once, in reading order. */
 export function lessonRecordings(
@@ -1839,6 +1853,13 @@ export const respondSchema = v.object({
 export const respondProgramSchema = v.object({
   lessonId: id,
   blockId: id,
+  code: v.pipe(v.string(), v.maxLength(MAX_PROGRAM_CHARS)),
+});
+
+/** A student's own version of a runnable code block, kept as they change it. */
+export const keepCodeSchema = v.object({
+  lessonId: id,
+  blockId: v.pipe(v.string(), v.regex(/^[\da-z]{8,36}$/)),
   code: v.pipe(v.string(), v.maxLength(MAX_PROGRAM_CHARS)),
 });
 

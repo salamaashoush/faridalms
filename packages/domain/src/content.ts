@@ -716,6 +716,13 @@ const visit = (node: ContentNode): string => {
           .join(blockSeparated.has(node.type) ? "\n" : ""))
   );
 };
+/** A code block's program as written: its text, line breaks and tabs. */
+export function codeSource(node: ContentNode): string {
+  if (node.type === "linebreak") return "\n";
+  if (node.type === "tab") return "\t";
+  return (node.text ?? "") + (node.children ?? []).map(codeSource).join("");
+}
+
 export function contentPlainText(document: ContentDocument): string {
   return visit(document.root);
 }

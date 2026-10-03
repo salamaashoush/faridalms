@@ -8,6 +8,7 @@ import type {
 } from "react";
 
 import {
+  codeSource,
   contentPlainText,
   textDirection,
   validContentStyle,
@@ -76,6 +77,8 @@ interface Context {
 
 /** A code block students can run: its program, and how it reads unrun. */
 export interface RunnableProps {
+  /** The block's id, which a student's own version of it is kept under. */
+  blockId: string | undefined;
   source: string;
   language: string;
   drawn: ReactNode;
@@ -87,12 +90,6 @@ export interface RunnableProps {
 function watchOf(node: ContentNode, context: Context): MediaWatch | undefined {
   const watch = node.fileId ? context.watch?.(node.fileId) : undefined;
   return watch && node.noSkipping ? { ...watch, noSkipping: true } : watch;
-}
-
-function sourceOf(node: ContentNode): string {
-  if (node.type === "linebreak") return "\n";
-  if (node.type === "tab") return "\t";
-  return (node.text ?? "") + (node.children ?? []).map(sourceOf).join("");
 }
 
 function markingOf(
@@ -344,7 +341,8 @@ function draw(
       return run && Runnable ? (
         <Runnable
           key={key}
-          source={sourceOf(node)}
+          blockId={node.$?.id}
+          source={codeSource(node)}
           language={node.language ?? ""}
           drawn={drawn}
           locked={run === "predict" && context.predicted === false}

@@ -487,3 +487,39 @@ export const lessonRuns = core.table.withRLS(
     ...ledgerProfile(),
   ],
 );
+
+/**
+ * A student's own version of a runnable code block in a lesson, as they
+ * last left it, so their changes are there when they come back. It notes
+ * the teacher's code it began from, so a later edit of the block shows.
+ */
+export const lessonCode = core.table.withRLS(
+  "lesson_code",
+  {
+    ...tenantColumns(),
+    lessonId: uuid("lesson_id").notNull(),
+    studentUserId: uuid("student_user_id").notNull(),
+    blockId: text("block_id").notNull(),
+    code: text("code").notNull(),
+    /** A digest of the teacher's code the student's began from. */
+    basedOn: text("based_on").notNull(),
+    ...entityColumns(),
+  },
+  (t): PgTableExtraConfigValue[] => [
+    pk("lesson_code", t.tenantId, t.id),
+    ...baseConstraints("lesson_code", t, tenants),
+    fk("lesson_code", [t.tenantId, t.lessonId], [lessons.tenantId, lessons.id]),
+    fk(
+      "lesson_code",
+      [t.tenantId, t.studentUserId],
+      [users.tenantId, users.id],
+    ),
+    ck("lesson_code", "block", sql`block_id ~ '^[0-9a-z]{8,36}$'`),
+    ck("lesson_code", "code", sql`char_length(code) <= 20000`),
+    ck("lesson_code", "based_on", sql`based_on ~ '^[0-9a-f]{64}$'`),
+    uniqueIndex("lesson_code_key")
+      .on(t.tenantId, t.lessonId, t.studentUserId, t.blockId)
+      .where(sql`status = 'active'`),
+    ...entityProfile(),
+  ],
+);

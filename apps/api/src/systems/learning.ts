@@ -2,6 +2,7 @@ import type { ModuleRow, WatchRow } from "@faridalms/database/stores/learning";
 import type {
   CheckBlock,
   LessonCompletion,
+  LessonDocument,
   LessonResponse,
 } from "@faridalms/domain/learning";
 
@@ -25,6 +26,7 @@ import {
   insertLesson,
   insertResponse,
   insertModule,
+  keepCode as keepOwnCode,
   lessonById,
   lessonSoundsOf,
   lessonsOf,
@@ -51,6 +53,7 @@ import {
   updateLesson,
   updateModule,
   answersToMark,
+  codesOf,
   watchesOf,
   watchRowsIn,
 } from "@faridalms/database/stores/learning";
@@ -82,6 +85,7 @@ import {
   progressQuerySchema,
   publishModuleSchema,
   classSoundsSchema,
+  keepCodeSchema,
   respondProgramSchema,
   respondSchema,
   setClassSoundsSchema,
@@ -89,6 +93,7 @@ import {
   responseFiles,
   responseIssue,
   revealSchema,
+  runnableCode,
   runSchema,
   runsQuerySchema,
   saveLessonSchema,
@@ -110,6 +115,7 @@ import {
   practiceView,
 } from "@faridalms/domain/practice";
 import { ORPCError } from "@orpc/server";
+import { createHash } from "node:crypto";
 import * as v from "valibot";
 
 import type { SchoolContext, UnitContext } from "../core/context";
@@ -1485,6 +1491,7 @@ export const playLesson = writeProcedure
       score: own?.score ?? null,
       position: own?.position ?? null,
       watches: await watchedIn(context, played),
+      codes: await ownCode(context, played),
       previous: states[index - 1]?.id ?? null,
       next:
         states[index + 1] && states[index + 1]?.state !== "locked"
@@ -1499,6 +1506,59 @@ export const playLesson = writeProcedure
         on: context.today,
       })),
     };
+  });
+
+const digest = (source: string) =>
+  createHash("sha256").update(source).digest("hex");
+
+/**
+ * A student's own versions of a lesson's runnable code blocks, each saying
+ * whether the teacher has changed the block's code since the student began.
+ */
+async function ownCode(
+  context: UnitContext,
+  played: { row: { id: string }; studentId: string; content: LessonDocument },
+) {
+  const sources = runnableCode(played.content);
+  const kept = await codesOf(context.tx, {
+    tenantId: context.tenantId,
+    lessonId: played.row.id,
+    studentId: played.studentId,
+  });
+  return Object.fromEntries(
+    kept.flatMap((item) => {
+      const source = sources.get(item.blockId);
+      return source === undefined
+        ? []
+        : [
+            [
+              item.blockId,
+              { code: item.code, changed: item.basedOn !== digest(source) },
+            ],
+          ];
+    }),
+  );
+}
+
+/**
+ * A student changed a runnable code block, and their version is kept for
+ * when they come back, with the teacher's code it began from.
+ */
+export const keepCode = writeProcedure
+  .input(keepCodeSchema)
+  .handler(async ({ input, context }) => {
+    const played = await playable(context, input.lessonId);
+    const source = runnableCode(played.content).get(input.blockId);
+    if (source === undefined) throw new ORPCError("NOT_FOUND");
+    await keepOwnCode(context.tx, {
+      tenantId: context.tenantId,
+      lessonId: played.row.id,
+      studentId: played.studentId,
+      blockId: input.blockId,
+      code: input.code,
+      basedOn: digest(source),
+    });
+    return { kept: true };
   });
 
 /** Whether a class's lessons tick and chime, for a teacher of the class. */

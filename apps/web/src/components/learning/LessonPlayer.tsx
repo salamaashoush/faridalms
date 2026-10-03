@@ -50,7 +50,10 @@ import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import { toast } from "sonner";
 
+import type { OwnCode } from "~/components/coding/own-code";
+
 import { ButtonLink } from "~/components/app/ButtonLink";
+import { OwnCodeContext } from "~/components/coding/own-code";
 import { ContentView } from "~/components/content/ContentView";
 import { Media } from "~/components/learning/LessonMedia";
 import { ReadAloud, YoungContext } from "~/components/learning/ReadAloud";
@@ -63,6 +66,7 @@ import { lessonEditorQuery, lessonQuery } from "~/queries/learning";
 import {
   completeLesson,
   answerReview,
+  keepOwnCode,
   recordRun,
   respondToCheck,
   retryLesson,
@@ -618,6 +622,17 @@ export function LessonPlayer({ lessonId }: { lessonId: string }) {
       toast.success(m.lrnLessonFinished());
     }
   };
+  const ownCode = useMemo(
+    (): OwnCode => ({
+      codes: data.codes,
+      keep: (blockId, code) =>
+        void keepOwnCode({ data: { lessonId, blockId, code } }).catch(
+          (error: unknown) =>
+            toast.error(getMessageFromError(error), { id: "own-code" }),
+        ),
+    }),
+    [data.codes, lessonId],
+  );
   // A run kept or not changes nothing for the student, so a lost one is let go.
   const keepRun = (blockId: string, run: ProgramRun) =>
     void recordRun({ data: { lessonId, blockId, ...run } }).catch(
@@ -807,16 +822,18 @@ export function LessonPlayer({ lessonId }: { lessonId: string }) {
       />
       {vowels.toggle}
       <YoungContext.Provider value={data.young && earlyYears}>
-        <LessonBody
-          key={data.attempt}
-          blocks={shown.blocks}
-          checks={shown.checks}
-          driver={driver}
-          position={data.position}
-          onReach={reach}
-          watch={watch}
-          watches={data.watches}
-        />
+        <OwnCodeContext.Provider value={ownCode}>
+          <LessonBody
+            key={data.attempt}
+            blocks={shown.blocks}
+            checks={shown.checks}
+            driver={driver}
+            position={data.position}
+            onReach={reach}
+            watch={watch}
+            watches={data.watches}
+          />
+        </OwnCodeContext.Provider>
       </YoungContext.Provider>
       {data.review ? (
         <section

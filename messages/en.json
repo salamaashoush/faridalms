@@ -4333,6 +4333,7 @@
   "codeRun": "Run",
   "codeStop": "Stop",
   "codeReset": "Reset code",
+  "codeKeptChanged": "Your changes are kept. Your teacher has changed this code since; Reset code gives you theirs.",
   "codeOutput": "Output",
   "codeInput": "Input for the program",
   "codeInputHint": "One answer per line, in the order the program asks.",
