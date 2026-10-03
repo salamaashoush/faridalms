@@ -1632,7 +1632,7 @@ export const watch = writeProcedure
     const played = await playable(context, input.lessonId);
     if (!lessonMedia(played.content).includes(input.fileId))
       throw new ORPCError("NOT_FOUND");
-    await recordWatch(context.tx, {
+    const watched = await recordWatch(context.tx, {
       tenantId: context.tenantId,
       lessonId: played.row.id,
       studentId: played.studentId,
@@ -1642,7 +1642,7 @@ export const watch = writeProcedure
       positionSeconds: input.positionSeconds,
     });
     if (played.row.completion !== "watch" || played.own?.completedAt)
-      return { completed: Boolean(played.own?.completedAt) };
+      return { completed: Boolean(played.own?.completedAt), watched };
     const met = completionMet(
       played.row,
       played.content,
@@ -1656,7 +1656,7 @@ export const watch = writeProcedure
         studentId: played.studentId,
         completed: { by: "student" },
       });
-    return { completed: met };
+    return { completed: met, watched };
   });
 
 async function enrolledIn(

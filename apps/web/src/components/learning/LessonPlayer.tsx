@@ -5,6 +5,7 @@ import type {
   LessonResponse,
   StoredTry,
   StudentBlock,
+  Watched,
 } from "@faridalms/domain/learning";
 import type { MediaWatch } from "@faridalms/editor/player";
 
@@ -16,8 +17,10 @@ import {
   describeCheck,
   isAuto,
   markResponse,
+  mediaFiles,
   studentBlocks,
   upgradeLesson,
+  watchedEnough,
 } from "@faridalms/domain/learning";
 import { isContentDocument } from "@faridalms/domain/lesson-content";
 import { Button } from "@faridalms/ui/button";
@@ -89,15 +92,34 @@ const ruleText = (completion: LessonCompletion, passScore: number | null) =>
     ? m.lrnRuleScore({ score: formatNumber(passScore ?? 100) })
     : RULE_HINT[completion]?.();
 
+type GateWaits = "questions" | "media" | "both";
+
+const GATE_LOCKED: Record<GateWaits, () => string> = {
+  questions: m.lrnGateLocked,
+  media: m.lrnGateLockedWatch,
+  both: m.lrnGateLockedBoth,
+};
+
+const GATE_PROGRESS: Record<
+  GateWaits,
+  (inputs: { count: string; total: string }) => string
+> = {
+  questions: m.lrnGateProgress,
+  media: m.lrnGateProgressWatch,
+  both: m.lrnGateProgressBoth,
+};
+
 function Gate({
   open,
   done,
   total,
+  waits,
   onContinue,
 }: {
   open: boolean;
   done: number;
   total: number;
+  waits: GateWaits;
   onContinue: () => void;
 }) {
   if (open)
@@ -112,9 +134,9 @@ function Gate({
   return (
     <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 rounded-lg border border-dashed px-5 py-4 text-sm leading-5 text-muted-foreground">
       <Lock aria-hidden className="size-4" />
-      <span>{m.lrnGateLocked()}</span>
+      <span>{GATE_LOCKED[waits]()}</span>
       <span className="tabular-nums">
-        {m.lrnGateProgress({
+        {GATE_PROGRESS[waits]({
           count: formatNumber(done),
           total: formatNumber(total),
         })}
@@ -125,7 +147,8 @@ function Gate({
 
 /**
  * A lesson's blocks as its student meets them, stopping at each continue gate
- * until the questions above it are settled and the student moves on.
+ * until the questions above it are settled, the recordings above it
+ * watched, and the student moves on.
  */
 function LessonBody({
   blocks,
@@ -134,6 +157,7 @@ function LessonBody({
   position,
   onReach,
   watch,
+  watches = {},
 }: {
   blocks: StudentBlock[];
   checks: Record<string, CheckView>;
@@ -141,13 +165,25 @@ function LessonBody({
   position?: string | null;
   onReach?: (blockId: string) => void;
   watch?: (fileId: string) => MediaWatch | undefined;
+  watches?: Record<string, Watched>;
 }) {
   const young = useContext(YoungContext);
   const settledAbove = (index: number) => {
-    const above = blocks.slice(0, index).filter(isCheckBlock);
+    const above = blocks.slice(0, index);
+    const questions = above.filter(isCheckBlock);
+    const media = mediaFiles(above);
+    const waits: GateWaits =
+      questions.length === 0
+        ? "media"
+        : media.length === 0
+          ? "questions"
+          : "both";
     return {
-      total: above.length,
-      done: above.filter((block) => isSettled(block, checks[block.id])).length,
+      total: questions.length + media.length,
+      done:
+        questions.filter((block) => isSettled(block, checks[block.id])).length +
+        media.filter((file) => watchedEnough(watches[file])).length,
+      waits,
     };
   };
   const reached = position
@@ -205,12 +241,13 @@ function LessonBody({
         let body;
         if (block.type === "gate") {
           if (passed.has(block.id)) return null;
-          const { done, total } = settledAbove(index);
+          const { done, total, waits } = settledAbove(index);
           body = (
             <Gate
               open={done === total}
               done={done}
               total={total}
+              waits={waits}
               onContinue={() => {
                 // The blocks after the gate must exist before focus can move to them.
                 flushSync(() =>
@@ -297,6 +334,9 @@ function LessonBody({
 function useWatching(
   lessonId: string,
   watches: Record<string, { positionSeconds: number }>,
+  onWatched: (
+    watched: Awaited<ReturnType<typeof saveWatch>>["watched"],
+  ) => void,
   onFinished: () => void,
 ) {
   const finished = useRef(false);
@@ -306,6 +346,7 @@ function useWatching(
       // A lost report only means those seconds count when played again.
       void saveWatch({ data: { lessonId, fileId, ...report } })
         .then((result) => {
+          onWatched(result.watched);
           if (result.completed && !finished.current) {
             finished.current = true;
             onFinished();
@@ -518,10 +559,20 @@ export function LessonPlayer({ lessonId }: { lessonId: string }) {
     onError: (error) => toast.error(getMessageFromError(error)),
   });
   const reach = useReadingPosition(lessonId, data.blocks, data.position);
-  const watch = useWatching(lessonId, data.watches, () => {
-    if (data.completedAt) return;
-    void refresh().then(() => toast.success(m.lrnLessonFinished()));
-  });
+  const watch = useWatching(
+    lessonId,
+    data.watches,
+    (watched) =>
+      queryClient.setQueryData(query.queryKey, (old) =>
+        old
+          ? { ...old, watches: { ...old.watches, [watched.fileId]: watched } }
+          : old,
+      ),
+    () => {
+      if (data.completedAt) return;
+      void refresh().then(() => toast.success(m.lrnLessonFinished()));
+    },
+  );
 
   const vowels = useVowelMarks(data.vowelMarks);
   const shown = useMemo(
@@ -647,6 +698,7 @@ export function LessonPlayer({ lessonId }: { lessonId: string }) {
           position={data.position}
           onReach={reach}
           watch={watch}
+          watches={data.watches}
         />
       </YoungContext.Provider>
       {data.review ? (

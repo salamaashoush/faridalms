@@ -20,7 +20,8 @@ with the gate it can break.
    and a continue gate can wait for a video. Done: `lesson_watches` keeps
    each student's played seconds as a multirange with their place, a lesson
    can finish when nine tenths of every recording is played, and the player
-   picks up where the student stopped; the continue gate remains.
+   picks up where the student stopped. A continue gate waits for the
+   recordings above it as it does for the questions.
 3. **Transcript panel** from the captions: follows playback, click to jump,
    search.
 4. **Questions on the timeline.** Question blocks placed at a time inside the

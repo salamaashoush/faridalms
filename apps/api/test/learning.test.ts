@@ -1691,7 +1691,10 @@ describe("watching recordings", () => {
       durationSeconds: 100,
       positionSeconds: 40,
     });
-    expect(first).toEqual({ completed: false });
+    expect(first).toMatchObject({
+      completed: false,
+      watched: { watchedSeconds: 45, durationSeconds: 100 },
+    });
     const resumed = await pupil.learning.playLesson({ id: lesson.id });
     expect(resumed.watches[recording]).toMatchObject({
       watchedSeconds: 45,
@@ -1711,7 +1714,10 @@ describe("watching recordings", () => {
       durationSeconds: 100,
       positionSeconds: 140,
     });
-    expect(second).toEqual({ completed: true });
+    expect(second).toMatchObject({
+      completed: true,
+      watched: { watchedSeconds: 100 },
+    });
     const finished = await pupil.learning.playLesson({ id: lesson.id });
     expect(finished.completedAt).not.toBeNull();
     expect(finished.watches[recording]).toMatchObject({

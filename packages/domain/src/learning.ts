@@ -540,19 +540,28 @@ export function lessonContentOf(value: unknown): ContentDocument {
 const mediaOf = (node: ContentNode): ContentNode[] =>
   node.type === "media" ? [node] : (node.children ?? []).flatMap(mediaOf);
 
-/** The videos and recordings a lesson plays, each once, by file. */
-export function lessonMedia(document: LessonDocument): string[] {
-  const files = document.blocks.flatMap((block) =>
-    block.type === "content"
+/** The videos and recordings these blocks play, each once, by file. */
+export function mediaFiles(
+  blocks: readonly (
+    | { type: "content"; content: ContentDocument }
+    | { type: "media"; fileId: string }
+    | { type: string }
+  )[],
+): string[] {
+  const files = blocks.flatMap((block) =>
+    block.type === "content" && "content" in block
       ? mediaOf(block.content.root).flatMap((node) =>
           node.fileId ? [node.fileId] : [],
         )
-      : block.type === "media"
+      : block.type === "media" && "fileId" in block
         ? [block.fileId]
         : [],
   );
   return [...new Set(files)];
 }
+
+export const lessonMedia = (document: LessonDocument) =>
+  mediaFiles(document.blocks);
 
 /** How much of one recording a student has played, in whole seconds. */
 export interface Watched {
