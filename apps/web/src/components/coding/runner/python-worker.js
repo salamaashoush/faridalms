@@ -81,7 +81,21 @@ function lineOf(lines) {
   return match ? Number(match[1]) : null;
 }
 
-/** @param {{ id: string; code: string; stdin: string[]; indexURL: string }} message */
+// Hands over a turtle's drawing as JSON text, or None when no turtle ran.
+const DRAWING = `import json, sys
+_turtle = sys.modules.get("turtle")
+_drawing = getattr(_turtle, "_drawing", None)
+json.dumps(_drawing()) if _drawing else None`;
+
+/**
+ * @param {{
+ *   id: string;
+ *   code: string;
+ *   stdin: string[];
+ *   indexURL: string;
+ *   modules?: Record<string, string>;
+ * }} message
+ */
 async function run(message) {
   current = message.id;
   booting ??= boot(message.indexURL);
@@ -108,6 +122,13 @@ async function run(message) {
     },
     isatty: false,
   });
+  // Lesson modules, such as turtle, sit where a program's own imports are
+  // looked for first, so they stand in for the standard library's.
+  for (const [name, source] of Object.entries(message.modules ?? {}))
+    pyodide.FS.writeFile(`/home/pyodide/${name}`, source);
+  pyodide.runPython(
+    `import sys\nfor _name in ${JSON.stringify(Object.keys(message.modules ?? {}).map((name) => name.replace(/\.py$/, "")))}:\n    sys.modules.pop(_name, None)`,
+  );
   postMessage({ type: "started", id: message.id });
   const globals = pyodide.globals.get("dict")();
   globals.set("__name__", "__main__");
@@ -116,6 +137,13 @@ async function run(message) {
   const settle = () => {
     pyodide.runPython("import sys\nsys.stdout.flush()\nsys.stderr.flush()");
     flush();
+    const drawing = pyodide.runPython(DRAWING);
+    if (typeof drawing === "string")
+      postMessage({
+        type: "drawing",
+        id: message.id,
+        drawing: JSON.parse(drawing),
+      });
   };
   try {
     pyodide.runPython(message.code, { globals, filename: "main.py" });

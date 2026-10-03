@@ -69,7 +69,10 @@ off keeps the work and shows a placeholder.
    A predicting block opens once the question above it has a try, right or
    not. Programs run in a worker inside an opaque-origin sandboxed frame, as
    in [../operations.md](../operations.md), and stop after ten seconds or too
-   much output. Turtle drawing and keeping a student's changes remain.
+   much output. Done next: Python's turtle, a module of our own that records
+   what the turtle draws for the lesson to play back on a canvas at the
+   speed the program sets, within four seconds. Keeping a student's changes
+   remains.
 2. **Parsons problems** as a question kind: shuffled lines, indentation,
    distractors, marked and printable. Done: a teacher types the program as
    lines of a code puzzle (Tab indents, Enter keeps the indent, the circle

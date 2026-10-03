@@ -3,6 +3,7 @@ import { version as pyodideVersion } from "pyodide/package.json";
 import frameSource from "./frame.js?raw";
 import javascriptSource from "./javascript-worker.js?raw";
 import pythonSource from "./python-worker.js?raw";
+import turtleSource from "./turtle.py?raw";
 
 export type RunLanguage = "python" | "javascript";
 export type RunStream = "out" | "err" | "in";
@@ -15,6 +16,56 @@ export interface RunError {
   line: number | null;
   trace: string;
 }
+
+/** What a turtle drew, as the turtle module recorded it. */
+export interface Drawing {
+  screen: { width: number; height: number; bg: string; title: string };
+  commands: DrawCommand[];
+}
+
+export type DrawCommand =
+  | {
+      op: "turtle";
+      id: number;
+      x: number;
+      y: number;
+      heading: number;
+      visible: boolean;
+      shape: string;
+      speed: number;
+    }
+  | {
+      op: "line";
+      id: number;
+      from: [number, number];
+      to: [number, number];
+      color: string;
+      width: number;
+      speed: number;
+    }
+  | { op: "move"; id: number; to: [number, number]; speed: number }
+  | { op: "turn"; id: number; heading: number; speed: number }
+  | { op: "dot"; at: [number, number]; size: number; color: string }
+  | {
+      op: "stamp";
+      at: [number, number];
+      heading: number;
+      color: string;
+      outline: string;
+      shape: string;
+    }
+  | {
+      op: "text";
+      at: [number, number];
+      text: string;
+      align: string;
+      font: (string | number)[];
+      color: string;
+    }
+  | { op: "fill"; points: [number, number][]; color: string }
+  | { op: "bg"; color: string }
+  | { op: "clear"; id: number }
+  | { op: "instant" };
 
 export type RunEnd =
   | { status: "done"; error: RunError | null }
@@ -38,6 +89,7 @@ export const runLanguage = (language: string | null | undefined) =>
 interface Active {
   id: string;
   onOutput: (stream: RunStream, text: string) => void;
+  onDrawing?: (drawing: Drawing) => void;
   onStarted: () => void;
   finish: (end: RunEnd) => void;
   written: number;
@@ -79,6 +131,7 @@ function onMessage(event: MessageEvent) {
     stream?: RunStream;
     text?: string;
     error?: RunError | null;
+    drawing?: Drawing;
   };
   if (data.type === "ready") {
     markReady?.();
@@ -94,6 +147,8 @@ function onMessage(event: MessageEvent) {
     run.written += data.text.length;
     run.onOutput(data.stream ?? "out", data.text);
     if (run.written > MAX_OUTPUT_CHARS) halt("output");
+  } else if (data.type === "drawing" && data.drawing) {
+    run.onDrawing?.(data.drawing);
   } else if (data.type === "done") {
     end({ status: "done", error: data.error ?? null });
   } else if (data.type === "failed") {
@@ -142,6 +197,7 @@ export function runCode(
   handlers: {
     onOutput: (stream: RunStream, text: string) => void;
     onStarted: () => void;
+    onDrawing?: (drawing: Drawing) => void;
   },
 ): { done: Promise<RunEnd>; stop: () => void } {
   halt("asked");
@@ -163,6 +219,8 @@ export function runCode(
         code: request.code,
         stdin: request.stdin,
         indexURL: `${window.location.origin}/pyodide/${pyodideVersion}/`,
+        modules:
+          request.language === "python" ? { "turtle.py": turtleSource } : {},
       },
       "*",
     );

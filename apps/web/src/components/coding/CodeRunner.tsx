@@ -11,10 +11,11 @@ import * as m from "~/i18n/messages";
 import { formatNumber } from "~/utils/datetime";
 
 import type * as CodeEditor from "./code-editor";
-import type { RunEnd, RunLanguage, RunStream } from "./runner/runner";
+import type { Drawing, RunEnd, RunLanguage, RunStream } from "./runner/runner";
 
 import { friendlyError } from "./friendly";
 import { RUN_SECONDS, runCode } from "./runner/runner";
+import { TurtleCanvas } from "./TurtleCanvas";
 import { WebPreview } from "./WebPreview";
 
 /** What a code block can be run as: a program, or a web page to look at. */
@@ -102,6 +103,7 @@ export function CodeRunner({
   const [end, setEnd] = useState<RunEnd | null>(null);
   const [said, setSaid] = useState("");
   const [page, setPage] = useState(() => ({ html: initial }));
+  const [drawing, setDrawing] = useState<Drawing | null>(null);
   const redraw = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   const run = () => {
@@ -112,6 +114,7 @@ export function CodeRunner({
     if (locked || phase !== "idle") return;
     setOutput([]);
     setEnd(null);
+    setDrawing(null);
     setSaid(language === "python" ? m.codeLoadingPython() : m.codeRunning());
     setPhase("loading");
     if (view.current) tools.current?.markErrorLine(view.current, null);
@@ -125,6 +128,7 @@ export function CodeRunner({
         onStarted: () => setPhase("running"),
         onOutput: (stream, text) =>
           setOutput((pieces) => append(pieces, stream, text)),
+        onDrawing: setDrawing,
       },
     );
     stopRun.current = started.stop;
@@ -304,6 +308,7 @@ export function CodeRunner({
         </div>
       ) : null}
       {language === "html" && !locked ? <WebPreview page={page} /> : null}
+      {drawing ? <TurtleCanvas drawing={drawing} /> : null}
       {showOutput ? (
         <div className="grid gap-1 border-t bg-muted/30 px-3 py-2.5">
           <div
