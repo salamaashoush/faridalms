@@ -54,9 +54,20 @@ export interface EditorMedia {
   people?: (fileId: string) => void;
 }
 
+/**
+ * The coding studio, where a teacher builds a coding question's starter
+ * project. `edit` resolves to the saved project's file, null for none, or
+ * undefined when the teacher closed the studio without saving.
+ */
+export interface EditorStudio {
+  edit: (fileId: string | null) => Promise<string | null | undefined>;
+}
+
 export interface EditorEnvironment {
   strings: EditorStrings;
   media?: EditorMedia;
+  /** Offers coding questions; absent where no studio is set up. */
+  studio?: EditorStudio;
   locale: string;
   /** The document may ask questions, as a lesson or quiz does. */
   questions?: boolean;

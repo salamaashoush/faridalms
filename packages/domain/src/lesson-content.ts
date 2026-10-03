@@ -166,6 +166,12 @@ export function questionBlock(node: ContentNode): LessonBlock | null {
       };
     case "tracing":
       return { ...check, type: "tracing", strokes: node.trace ?? [] };
+    case "scratch":
+      return {
+        ...check,
+        type: "scratch",
+        starter: node.projectFileId ? { fileId: node.projectFileId } : null,
+      };
     case "hotspot":
       return {
         ...check,
@@ -490,7 +496,8 @@ export function questionNode(block: LessonBlock): ContentNode | null {
     block.type !== "counting" &&
     block.type !== "tracing" &&
     block.type !== "spelling" &&
-    block.type !== "hotspot"
+    block.type !== "hotspot" &&
+    block.type !== "scratch"
   )
     return null;
   const base: ContentNode = {
@@ -632,6 +639,10 @@ export function questionNode(block: LessonBlock): ContentNode | null {
       ],
     };
   if (block.type === "tracing") return { ...base, trace: block.strokes };
+  if (block.type === "scratch")
+    return block.starter
+      ? { ...base, projectFileId: block.starter.fileId }
+      : base;
   if (block.type === "hotspot")
     return {
       ...base,

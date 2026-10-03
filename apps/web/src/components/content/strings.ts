@@ -245,6 +245,12 @@ export function editorStrings(): EditorStrings {
     questionSpellingHint: m.editorQuestionSpellingHint(),
     questionHotspot: m.editorQuestionHotspot(),
     questionHotspotHint: m.editorQuestionHotspotHint(),
+    questionScratch: m.editorQuestionScratch(),
+    questionScratchHint: m.editorQuestionScratchHint(),
+    questionStarterBuild: m.editorQuestionStarterBuild(),
+    questionStarterEdit: m.editorQuestionStarterEdit(),
+    questionStarterRemove: m.editorQuestionStarterRemove(),
+    questionStarterSet: m.editorQuestionStarterSet(),
     questionMarkPlaces: m.editorQuestionMarkPlaces(),
     questionMarkPlacesHint: m.editorQuestionMarkPlacesHint(),
     questionPlacesMarked: (count) =>

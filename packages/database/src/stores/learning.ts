@@ -686,7 +686,7 @@ export async function insertResponse(
       ${input.markedBy ?? null}::uuid)`);
 }
 
-export interface WrittenAnswer {
+export interface AnswerToMark {
   lessonId: string;
   studentId: string;
   blockId: string;
@@ -697,6 +697,9 @@ export interface WrittenAnswer {
   recording: { fileId: string; seconds: number } | null;
   /** A drawn or photographed answer. */
   picture: { fileId: string } | null;
+  /** A coding answer's project, and its stage when the student saved it. */
+  project: { fileId: string } | null;
+  thumbnail: { fileId: string } | null;
   sentAt: string;
   /** The teacher's latest mark on this answer, if any. */
   fraction: number | null;
@@ -705,17 +708,18 @@ export interface WrittenAnswer {
 }
 
 /**
- * The latest written answer of each student to each question, in their
- * current attempt, with its mark if it has one.
+ * The latest answer of each student to each question their teacher marks,
+ * written or a coding project, in their current attempt, with its mark if
+ * it has one.
  */
-export async function writtenAnswers(
+export async function answersToMark(
   tx: Tx,
   input: {
     tenantId: string;
     lessonIds: readonly string[];
     studentIds: readonly string[];
   },
-): Promise<WrittenAnswer[]> {
+): Promise<AnswerToMark[]> {
   if (input.lessonIds.length === 0 || input.studentIds.length === 0) return [];
   const rows = await tx.execute<{
     lesson_id: string;
@@ -723,9 +727,11 @@ export async function writtenAnswers(
     block_id: string;
     attempt: number;
     try: number;
-    text: string;
+    text: string | null;
     recording: { fileId: string; seconds: number } | null;
     picture: { fileId: string } | null;
+    project: { fileId: string } | null;
+    thumbnail: { fileId: string } | null;
     sent_at: string;
     fraction: string | number | null;
     feedback: string | null;
@@ -740,11 +746,12 @@ export async function writtenAnswers(
       select distinct on (r.lesson_id, r.student_user_id, r.block_id)
         r.lesson_id, r.student_user_id, r.block_id, r.attempt, r.try, r.response->>'text' as text,
         r.response->'recording' as recording, r.response->'picture' as picture,
+        r.response->'project' as project, r.response->'thumbnail' as thumbnail,
         ${isoOf(sql`r.created_at`)} as sent_at
       from core.lesson_responses r
       join current c on c.lesson_id = r.lesson_id and c.student_user_id = r.student_user_id
         and c.attempts = r.attempt
-      where r.tenant_id = ${input.tenantId}::uuid and r.kind = 'written'
+      where r.tenant_id = ${input.tenantId}::uuid and r.kind in ('written', 'scratch')
         and r.state in ('answered', 'needs_marking')
       order by r.lesson_id, r.student_user_id, r.block_id, r.try desc, r.created_at desc
     )
@@ -763,9 +770,11 @@ export async function writtenAnswers(
     blockId: row.block_id,
     attempt: row.attempt,
     try: row.try,
-    text: row.text,
+    text: row.text ?? "",
     recording: row.recording ?? null,
     picture: row.picture ?? null,
+    project: row.project ?? null,
+    thumbnail: row.thumbnail ?? null,
     sentAt: row.sent_at,
     fraction: row.fraction === null ? null : Number(row.fraction),
     feedback: row.feedback,

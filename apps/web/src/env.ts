@@ -11,6 +11,9 @@ export const env = createEnv({
       // The collaboration server's WebSocket URL as browsers reach it; unset
       // turns live editing off and every editor works alone.
       COLLAB_URL: v.optional(v.pipe(v.string(), v.url())),
+      // The coding studio's origin as browsers reach it, on a registrable
+      // domain of its own; unset leaves coding questions out of every editor.
+      STUDIO_URL: v.optional(v.pipe(v.string(), v.url())),
     },
     shared: {
       // "test" belongs here: vitest sets NODE_ENV=test, and without it every

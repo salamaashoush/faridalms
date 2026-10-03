@@ -172,8 +172,13 @@
     {
       // Embeds are cross-origin players from a fixed allowlist. allow-same-origin
       // keeps each frame in its own origin, never ours, and the YouTube, Vimeo
-      // and Google players need it to keep playback state.
-      "files": ["packages/editor/src/media-view.tsx"],
+      // and Google players need it to keep playback state. The coding studio
+      // is served from a registrable domain of its own, so the same pair keeps
+      // it in that origin, with the storage and workers it needs.
+      "files": [
+        "packages/editor/src/media-view.tsx",
+        "apps/web/src/components/coding/CodingStudio.tsx"
+      ],
       "rules": { "react/iframe-missing-sandbox": "off" }
     },
     {

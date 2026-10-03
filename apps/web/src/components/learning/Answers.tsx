@@ -8,6 +8,7 @@ import { MessageSquareText, Pencil } from "lucide-react";
 import { useId, useState } from "react";
 import { toast } from "sonner";
 
+import { ProjectAnswer } from "~/components/coding/ProjectAnswer";
 import { displayName } from "~/components/people/format";
 import { FormField } from "~/components/system/field";
 import { EmptyState } from "~/components/system/IndexPage";
@@ -160,7 +161,13 @@ function AnswerCard({
           <StatusBadge tone="warning">{m.lrnToMark()}</StatusBadge>
         ) : null}
       </header>
-      {answer.recording ? (
+      {answer.project ? (
+        <ProjectAnswer
+          project={answer.project.fileId}
+          stage={answer.thumbnail?.fileId ?? null}
+          name={name}
+        />
+      ) : answer.recording ? (
         <MediaPlayer
           src={`/files/${answer.recording.fileId}`}
           captions={undefined}
@@ -221,7 +228,7 @@ function AnswerCard({
   );
 }
 
-/** Written answers of one class, question by question, for their teacher to read, mark and answer. */
+/** The answers of one class a teacher marks, words or coding projects, question by question. */
 export function Answers({
   moduleId,
   classId,

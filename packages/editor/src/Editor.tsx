@@ -26,7 +26,7 @@ import {
 import { useEffect, useMemo, useRef, useState } from "react";
 import * as v from "valibot";
 
-import type { EditorMedia } from "./context";
+import type { EditorMedia, EditorStudio } from "./context";
 import type { EditorStrings } from "./strings";
 
 import { $currentBlock } from "./blocks";
@@ -75,6 +75,8 @@ export interface EditorProps {
   toolbar?: boolean;
   disabled?: boolean;
   media?: EditorMedia;
+  /** The coding studio, which coding questions need. */
+  studio?: EditorStudio;
   placeholder?: string;
   initialFocus?: boolean;
   locale?: string;
@@ -108,6 +110,7 @@ export interface EditorProps {
 export default function Editor({
   strings,
   media,
+  studio,
   locale,
   value,
   collaboration,
@@ -141,6 +144,7 @@ export default function Editor({
     () => ({
       strings,
       media,
+      studio,
       locale:
         locale ??
         (typeof document === "undefined"
@@ -157,6 +161,7 @@ export default function Editor({
     [
       strings,
       media,
+      studio,
       locale,
       questions,
       gates,
@@ -248,6 +253,7 @@ function Surface({
         tracing: strings.questionTracing,
         spelling: strings.questionSpelling,
         hotspot: strings.questionHotspot,
+        scratch: strings.questionScratch,
       },
       spoken: strings.questionSpoken,
       pictured: {
@@ -256,6 +262,7 @@ function Surface({
       },
       count: strings.questionCountLabel,
       wordTiles: strings.questionWordTiles,
+      starter: strings.questionStarterSet,
       extraTiles: strings.questionExtraTiles,
       points: strings.questionPoints,
       answerIs: strings.questionAnswerIs,

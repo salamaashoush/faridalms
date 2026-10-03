@@ -37,6 +37,7 @@ import {
 import { createContext, useContext, useId, useRef, useState } from "react";
 import { toast } from "sonner";
 
+import { CodingAnswer } from "~/components/coding/CodingAnswer";
 import * as m from "~/i18n/messages";
 import { formatList, formatNumber } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
@@ -157,7 +158,8 @@ export type CheckStudentBlock =
   | Of<"tracing">
   | Of<"spelling">
   | Of<"hotspot">
-  | Of<"written">;
+  | Of<"written">
+  | Of<"scratch">;
 
 const CHECK_TYPES = new Set<StudentBlock["type"]>([
   "choice",
@@ -172,18 +174,21 @@ const CHECK_TYPES = new Set<StudentBlock["type"]>([
   "spelling",
   "hotspot",
   "written",
+  "scratch",
 ]);
 
 export const isCheckBlock = (block: StudentBlock): block is CheckStudentBlock =>
   CHECK_TYPES.has(block.type);
 
-/** Answered right, answer shown, or for a written answer, sent. */
+/** Answered right, answer shown, or for one its teacher marks, sent. */
 export const isSettled = (
   block: CheckStudentBlock,
   view: CheckView | undefined,
 ) =>
   view !== undefined &&
-  (block.type === "written" ? view.tries > 0 : view.correct || view.revealed);
+  (block.type === "written" || block.type === "scratch"
+    ? view.tries > 0
+    : view.correct || view.revealed);
 
 const countWords = (text: string) => text.split(/\s+/).filter(Boolean).length;
 
@@ -1333,6 +1338,33 @@ function PictureCheck({
   );
 }
 
+function CodingCheck({
+  block,
+  view,
+  driver,
+}: {
+  block: Of<"scratch">;
+  view: CheckView | undefined;
+  driver: CheckDriver;
+}) {
+  const mode = useContext(CheckModeContext);
+  return (
+    <CheckCard
+      block={block}
+      legendId={useId()}
+      status={<SpokenStatus block={block} view={view} />}
+      actions={null}
+    >
+      <CodingAnswer
+        block={block}
+        view={view}
+        driver={driver}
+        locked={(view?.marked ?? false) || mode === "review"}
+      />
+    </CheckCard>
+  );
+}
+
 function WrittenCheck({
   block,
   view,
@@ -1542,6 +1574,8 @@ export function CheckBlockView({
     return <PictureCheck block={block} view={view} driver={driver} />;
   if (block.type === "written")
     return <WrittenCheck block={block} view={view} driver={driver} />;
+  if (block.type === "scratch")
+    return <CodingCheck block={block} view={view} driver={driver} />;
   if (block.type === "matching")
     return <MatchingCheck block={block} view={view} driver={driver} />;
   if (block.type === "ordering")

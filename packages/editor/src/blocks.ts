@@ -72,6 +72,7 @@ import {
   MonitorPlay,
   Paperclip,
   Pilcrow,
+  Puzzle,
   Quote,
   ScissorsLineDashed,
   Shapes,
@@ -137,6 +138,7 @@ export type BlockType =
   | "tracingQuestion"
   | "spellingQuestion"
   | "hotspotQuestion"
+  | "scratchQuestion"
   | "gapsQuestion"
   | "trueFalseQuestion"
   | "whyQuestion"
@@ -162,6 +164,7 @@ const QUESTION_KIND: Partial<Record<BlockType, QuestionKind>> = {
   tracingQuestion: "tracing",
   spellingQuestion: "spelling",
   hotspotQuestion: "hotspot",
+  scratchQuestion: "scratch",
 };
 
 export interface BlockDefinition {
@@ -183,6 +186,8 @@ export interface BlockDefinition {
   aiUse?: boolean;
   /** Offered only in a lesson, which young children play. */
   activity?: boolean;
+  /** Offered only where the coding studio is set up. */
+  studio?: boolean;
 }
 
 /** Which kinds of block a document may hold. */
@@ -193,6 +198,7 @@ export interface BlockScope {
   starter: boolean;
   aiUse: boolean;
   activities: boolean;
+  studio: boolean;
 }
 
 export function blockScope(environment: {
@@ -202,6 +208,7 @@ export function blockScope(environment: {
   starter?: boolean;
   aiUse?: boolean;
   lessonActivities?: boolean;
+  studio?: unknown;
 }): BlockScope {
   const questions = Boolean(environment.questions);
   return {
@@ -211,6 +218,7 @@ export function blockScope(environment: {
     starter: Boolean(environment.starter),
     aiUse: Boolean(environment.aiUse),
     activities: Boolean(environment.lessonActivities),
+    studio: Boolean(environment.studio),
   };
 }
 
@@ -220,7 +228,8 @@ export const offered = (block: BlockDefinition, scope: BlockScope) =>
   (scope.gates || block.type !== "gate") &&
   (scope.starter || !block.starter) &&
   (scope.aiUse || !block.aiUse) &&
-  (scope.activities || !block.activity);
+  (scope.activities || !block.activity) &&
+  (scope.studio || !block.studio);
 
 export const blockDefinitions: BlockDefinition[] = [
   {
@@ -608,6 +617,28 @@ export const blockDefinitions: BlockDefinition[] = [
     ],
     question: true,
     activity: true,
+  },
+  {
+    type: "scratchQuestion",
+    group: "questions",
+    icon: Puzzle,
+    label: (s) => s.questionScratch,
+    hint: (s) => s.questionScratchHint,
+    keywords: [
+      "code",
+      "coding",
+      "scratch",
+      "blocks",
+      "program",
+      "game",
+      "animation",
+      "برمجة",
+      "كود",
+      "سكراتش",
+      "لعبة",
+    ],
+    question: true,
+    studio: true,
   },
   {
     type: "whyQuestion",

@@ -84,6 +84,8 @@ const ACCEPTED_TYPES: Record<string, readonly string[]> = {
   webm: ["video/webm", "audio/webm"],
   vtt: ["text/vtt"],
   excalidraw: ["application/json"],
+  // A project from the coding studio: a zip of the program and its media.
+  sb3: ["application/x.scratch.sb3"],
   zip: ["application/zip", "application/x-zip-compressed"],
 };
 
@@ -115,6 +117,7 @@ const SIGNATURES: Record<string, readonly (readonly [number, number[]])[][]> = {
   odp: [[[0, [0x50, 0x4b, 0x03, 0x04]]]],
   ods: [[[0, [0x50, 0x4b, 0x03, 0x04]]]],
   zip: [[[0, [0x50, 0x4b, 0x03, 0x04]]], [[0, [0x50, 0x4b, 0x05, 0x06]]]],
+  sb3: [[[0, [0x50, 0x4b, 0x03, 0x04]]]],
   mp3: [
     [[0, bytesOf("ID3")]],
     [[0, [0xff, 0xfb]]],
@@ -203,9 +206,10 @@ export function acceptedMediaType(name: string, mediaType: string): boolean {
 
 export const ACCEPTED_EXTENSIONS = Object.keys(ACCEPTED_TYPES);
 
-/** Files a person may put in a document; captions and drawings have blocks of their own. */
+/** Files a person may put in a document; captions, drawings and coding projects have blocks of their own. */
 export const ATTACHABLE_EXTENSIONS = ACCEPTED_EXTENSIONS.filter(
-  (extension) => extension !== "vtt" && extension !== "excalidraw",
+  (extension) =>
+    extension !== "vtt" && extension !== "excalidraw" && extension !== "sb3",
 );
 
 export function attachable(name: string): boolean {

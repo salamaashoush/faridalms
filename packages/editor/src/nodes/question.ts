@@ -169,6 +169,8 @@ export interface QuestionLabels {
   count?: (count: number, make: boolean) => string;
   /** A word builder's lines: the word's tiles, then extra ones. */
   wordTiles?: string;
+  /** A coding question that starts from the teacher's own project. */
+  starter?: string;
   extraTiles?: string;
   points: (points: number) => string;
   answerIs: string;
@@ -252,6 +254,8 @@ export interface QuestionSettings {
   regions: number[][];
   /** A matching question played as memory pairs. */
   memory: boolean;
+  /** A coding question's starter project; none starts from the studio's own. */
+  projectFileId: string | null;
   hint: string;
   explanation: string;
   numberMode: "exact" | "range";
@@ -267,7 +271,7 @@ export function defaultSettings(kind: QuestionKind): QuestionSettings {
   return {
     kind,
     questionId: crypto.randomUUID(),
-    points: kind === "written" ? 2 : 1,
+    points: kind === "written" || kind === "scratch" ? 2 : 1,
     tries: null,
     multiple: false,
     shuffle: kind === "choice",
@@ -284,6 +288,7 @@ export function defaultSettings(kind: QuestionKind): QuestionSettings {
     trace: [],
     regions: [],
     memory: false,
+    projectFileId: null,
     hint: "",
     explanation: "",
     numberMode: "exact",
@@ -326,7 +331,11 @@ function label(editor: LexicalEditor, settings: QuestionSettings): string {
         : settings.kind === "counting" && text.count
           ? text.count(settings.count, settings.countMode === "make")
           : text.kinds[settings.kind];
-  return `${kind} · ${text.points(settings.points)}`;
+  const starts =
+    settings.kind === "scratch" && settings.projectFileId && text.starter
+      ? ` · ${text.starter}`
+      : "";
+  return `${kind}${starts} · ${text.points(settings.points)}`;
 }
 
 /**
@@ -384,6 +393,7 @@ export class QuestionNode extends ElementNode {
       trace: json.trace ?? [],
       regions: json.regions ?? [],
       memory: json.memory ?? false,
+      projectFileId: json.projectFileId ?? null,
       hint: json.hint ?? "",
       explanation: json.explanation ?? "",
       numberMode: json.numberMode ?? base.numberMode,
@@ -410,6 +420,7 @@ export class QuestionNode extends ElementNode {
       trace,
       regions,
       memory,
+      projectFileId,
       ...settings
     } = this.getLatest().__settings;
     return {
@@ -423,6 +434,9 @@ export class QuestionNode extends ElementNode {
       ...(settings.kind === "tracing" ? { trace } : {}),
       ...(settings.kind === "hotspot" ? { regions } : {}),
       ...(settings.kind === "matching" && memory ? { memory } : {}),
+      ...(settings.kind === "scratch" && projectFileId
+        ? { projectFileId }
+        : {}),
     };
   }
 

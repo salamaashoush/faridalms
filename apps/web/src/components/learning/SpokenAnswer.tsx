@@ -72,7 +72,7 @@ export function SpokenStatus({
   block,
   view,
 }: {
-  block: Written;
+  block: Pick<Written, "points">;
   view: CheckView | undefined;
 }) {
   if (!view || view.tries === 0) return null;

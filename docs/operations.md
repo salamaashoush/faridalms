@@ -145,6 +145,26 @@ record: a file lives as long as the message, submission, lesson, page or draft
 that holds it, and leaves 7 days after the last one lets go of it. The windows
 live in `packages/domain/src/file.ts`.
 
+## Coding studio
+
+Coding questions open the block-coding studio, the Scratch editor with a
+small host page, kept in its own repository (`farida-scratch`, AGPL-3.0) and
+served as static files. Build it there and serve `dist/` on a registrable
+domain of its own, never a subdomain of the application's: it runs children's
+projects with real storage, so it must share no cookies, origin or process
+with the school's application. The files host's domain fits, under another
+name. `FRAME_ANCESTORS` on the studio lists the application origins allowed
+to frame it.
+
+Set `STUDIO_URL` on the web to the studio's origin as browsers reach it. Unset,
+editors offer no coding questions and a coding question already in a lesson
+says the studio is not set up. Farida keeps every project: the studio loads
+and saves `.sb3` files through the page around it over `postMessage` and
+talks to no project server. Library sprites, costumes and sounds still load
+from Scratch's own asset service. In development, serve the studio on a
+different site from the web, such as `http://localhost:3300` beside
+`http://127.0.0.1:3100`, since ports alone do not separate cookies.
+
 ## Public site
 
 Each school's marketing site is served at `/site/{slug}` by the same web and API

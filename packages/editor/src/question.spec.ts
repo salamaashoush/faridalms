@@ -606,6 +606,7 @@ describe("questions in a document", () => {
         tracing: "",
         spelling: "",
         hotspot: "",
+        scratch: "",
       },
       points: () => "",
       answerIs: "",

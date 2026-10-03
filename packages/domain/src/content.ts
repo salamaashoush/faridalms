@@ -65,6 +65,7 @@ export const questionKinds = [
   "tracing",
   "spelling",
   "hotspot",
+  "scratch",
 ] as const;
 export type QuestionKind = (typeof questionKinds)[number];
 export const calloutTones = [
@@ -171,6 +172,8 @@ export interface ContentNode {
   memory?: boolean;
   /** A tracing question's model: strokes of x, y points across a unit square. */
   trace?: number[][];
+  /** A Scratch question's starter project, the .sb3 every student begins from. */
+  projectFileId?: string;
   hint?: string;
   explanation?: string;
   numberMode?: "exact" | "range";
@@ -330,6 +333,7 @@ const nodeSchema: v.GenericSchema<ContentNode> = v.lazy(() =>
       provider: v.optional(v.picklist(embedProviders)),
       embedId: v.optional(v.pipe(v.string(), v.maxLength(200))),
       sceneFileId: v.optional(v.pipe(v.string(), v.uuid())),
+      projectFileId: v.optional(v.pipe(v.string(), v.uuid())),
       kind: v.optional(v.picklist(questionKinds)),
       questionId: v.optional(v.pipe(v.string(), v.uuid())),
       optionId: v.optional(v.pipe(v.string(), v.uuid())),
@@ -805,6 +809,7 @@ export function contentFileIds(document: ContentDocument): string[] {
       node.fileId,
       node.captionsFileId,
       node.sceneFileId,
+      node.projectFileId,
       node.$?.narration,
     ])
       if (id) ids.add(id);

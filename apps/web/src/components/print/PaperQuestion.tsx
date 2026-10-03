@@ -294,6 +294,13 @@ export function PaperQuestion({
           />
         );
       break;
+    case "scratch":
+      body = (
+        <p className="rounded-[4px] border border-dashed border-neutral-500 px-[0.8em] py-[0.6em] text-[0.85em] text-neutral-600">
+          {m.printOnComputer({}, { locale: rtl ? "ar" : "en" })}
+        </p>
+      );
+      break;
     case "gaps":
       body = (
         <p className="leading-[2.4]">

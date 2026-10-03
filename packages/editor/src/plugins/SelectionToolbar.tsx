@@ -51,6 +51,7 @@ import {
   MessageSquare,
   Pencil,
   PenLine,
+  Puzzle,
   Shuffle,
   SpellCheck,
   Strikethrough,
@@ -63,6 +64,7 @@ import {
   ScanSearch,
   Signature,
   Volume2,
+  X,
 } from "lucide-react";
 import { useEffect, useEffectEvent, useRef, useState } from "react";
 
@@ -283,6 +285,7 @@ export function SelectionToolbarPlugin() {
   const {
     strings,
     media,
+    studio,
     lockQuestions,
     narration: narrates,
     lessonActivities,
@@ -948,6 +951,42 @@ export function SelectionToolbarPlugin() {
                 />
               ) : null}
             </>
+          ) : settings.kind === "scratch" ? (
+            studio ? (
+              <>
+                <ToolButton
+                  label={
+                    settings.projectFileId
+                      ? strings.questionStarterEdit
+                      : strings.questionStarterBuild
+                  }
+                  active={settings.projectFileId !== null}
+                  onClick={() => {
+                    // The studio covers the page, so the question is found
+                    // again by its key once the teacher is done.
+                    const key = question.key;
+                    void studio.edit(settings.projectFileId).then((next) => {
+                      if (next === undefined) return;
+                      updateFromOutside(editor, () => {
+                        const node = $getNodeByKey(key);
+                        if ($isQuestionNode(node))
+                          node.setSettings({ projectFileId: next });
+                      });
+                    });
+                  }}
+                >
+                  <Puzzle aria-hidden />
+                </ToolButton>
+                {settings.projectFileId ? (
+                  <ToolButton
+                    label={strings.questionStarterRemove}
+                    onClick={() => change({ projectFileId: null })}
+                  >
+                    <X aria-hidden />
+                  </ToolButton>
+                ) : null}
+              </>
+            ) : null
           ) : (
             <BarMenu
               label={strings.questionTries}

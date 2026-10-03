@@ -438,6 +438,12 @@ export const lessonBlockSchema = v.variant("type", [
     /** Answered with a drawing or a photo rather than words. */
     answerWith: v.optional(v.nullable(v.picklist(PICTURE_ANSWERS))),
   }),
+  v.object({
+    ...checkFields,
+    type: v.literal("scratch"),
+    /** The project every student starts from; none starts from the studio's own. */
+    starter: v.nullable(v.object({ fileId: id })),
+  }),
 ]);
 export type LessonBlock = v.InferOutput<typeof lessonBlockSchema>;
 export type LessonBlockType = LessonBlock["type"];
@@ -453,6 +459,7 @@ export type CountingBlock = Extract<LessonBlock, { type: "counting" }>;
 export type TracingBlock = Extract<LessonBlock, { type: "tracing" }>;
 export type SpellingBlock = Extract<LessonBlock, { type: "spelling" }>;
 export type HotspotBlock = Extract<LessonBlock, { type: "hotspot" }>;
+export type ScratchBlock = Extract<LessonBlock, { type: "scratch" }>;
 /** A question the server marks the moment it is answered. */
 export type AutoBlock =
   | ChoiceBlock
@@ -466,7 +473,9 @@ export type AutoBlock =
   | TracingBlock
   | SpellingBlock
   | HotspotBlock;
-export type CheckBlock = AutoBlock | WrittenBlock;
+/** A question its teacher marks: words, a recording or picture, or a project. */
+export type MarkedBlock = WrittenBlock | ScratchBlock;
+export type CheckBlock = AutoBlock | MarkedBlock;
 
 const AUTO_TYPES = new Set<LessonBlockType>([
   "choice",
@@ -482,10 +491,14 @@ const AUTO_TYPES = new Set<LessonBlockType>([
   "hotspot",
 ]);
 
+const MARKED_TYPES = new Set<LessonBlockType>(["written", "scratch"]);
+
 export const isAuto = (block: LessonBlock): block is AutoBlock =>
   AUTO_TYPES.has(block.type);
+export const isTeacherMarked = (block: LessonBlock): block is MarkedBlock =>
+  MARKED_TYPES.has(block.type);
 export const isCheck = (block: LessonBlock): block is CheckBlock =>
-  isAuto(block) || block.type === "written";
+  isAuto(block) || isTeacherMarked(block);
 
 export const lessonDocumentSchema = v.pipe(
   v.object({
@@ -743,8 +756,26 @@ export const responseSchema = v.variant("type", [
       "learning.response",
     ),
   ),
+  v.object({
+    type: v.literal("scratch"),
+    /** The student's project as they last saved it, an .sb3. */
+    project: v.object({ fileId: id }),
+    /** The stage at that save, for the teacher's view of the class. */
+    thumbnail: v.optional(v.object({ fileId: id })),
+  }),
 ]);
 export type LessonResponse = v.InferOutput<typeof responseSchema>;
+
+/** The files an answer is made of; each must be the student's own upload. */
+export function responseFiles(response: LessonResponse): string[] {
+  const ids =
+    response.type === "written"
+      ? [response.recording?.fileId, response.picture?.fileId]
+      : response.type === "scratch"
+        ? [response.project.fileId, response.thumbnail?.fileId]
+        : [];
+  return ids.filter((fileId) => fileId !== undefined);
+}
 
 export interface Marked {
   /** From 0 to 1; partial credit where the question allows it. */
@@ -957,19 +988,17 @@ export interface CheckState {
   correct: boolean;
   /** They asked to see the answer, or ran out of tries. */
   revealed: boolean;
-  /** For a written answer: marked by the teacher, and with what feedback. */
+  /** For an answer its teacher marks: marked, and with what feedback. */
   marked: boolean;
   firstTryCorrect: boolean;
   /** How a question missed at first went when asked again at the end. */
   review: number | null;
 }
 
-/** Whether a question is settled: answered right, revealed, or for a written one, sent. */
+/** Whether a question is settled: answered right, revealed, or for one its teacher marks, sent. */
 export const settled = (block: CheckBlock, state: CheckState | undefined) =>
   state !== undefined &&
-  (block.type === "written"
-    ? state.tries > 0
-    : state.correct || state.revealed);
+  (isTeacherMarked(block) ? state.tries > 0 : state.correct || state.revealed);
 
 /** Credit for a question: its best try, less a share for each extra try, nothing once revealed. */
 export function creditOf(state: CheckState | undefined): number {
@@ -1042,6 +1071,7 @@ export interface StudentPart {
 export type StudentBlock =
   | Exclude<LessonBlock, CheckBlock>
   | Omit<WrittenBlock, "explanation" | "hint">
+  | Omit<ScratchBlock, "explanation" | "hint">
   | (Omit<
       ChoiceBlock,
       "correctOptionIds" | "explanation" | "hint" | "options"
@@ -1257,6 +1287,7 @@ export function studentBlocks(
       // find is judged under the finger and only a miss or the last find
       // counts as a try.
       case "written":
+      case "scratch":
       case "counting":
       case "tracing":
       case "hotspot": {
@@ -1432,7 +1463,7 @@ export const respondSchema = v.object({
 /** A student gives up on a question and asks to see its answer. */
 export const revealSchema = v.object({ lessonId: id, blockId: id });
 
-/** A teacher marks a written answer, with credit out of the question's points. */
+/** A teacher marks an answer only they can judge, with credit out of the question's points. */
 export const markSchema = v.object({
   lessonId: id,
   blockId: id,
@@ -1464,8 +1495,8 @@ export interface ResponseRow {
 
 /**
  * Each question's state in one attempt, from its rows in order. A question
- * with limited tries is revealed once they run out; a written answer takes
- * the fraction of its latest mark.
+ * with limited tries is revealed once they run out; one its teacher marks
+ * takes the fraction of its latest mark.
  */
 export function checkStates(
   document: LessonDocument,
@@ -1481,15 +1512,15 @@ export function checkStates(
     const mark = mine.findLast((row) => row.state === "marked");
     const tries =
       answered.length === 0 ? 0 : Math.max(...answered.map((row) => row.try));
-    const fraction =
-      block.type === "written" ? (mark?.fraction ?? 0) : (last?.fraction ?? 0);
-    const correct = block.type === "written" ? false : fraction === 1;
+    const marking = isTeacherMarked(block);
+    const fraction = marking ? (mark?.fraction ?? 0) : (last?.fraction ?? 0);
+    const correct = marking ? false : fraction === 1;
     states[block.id] = {
       tries,
       fraction,
       correct,
       revealed:
-        block.type !== "written" &&
+        !marking &&
         (mine.some((row) => row.state === "revealed") ||
           (!correct && block.tries !== null && tries >= block.tries)),
       marked: mark !== undefined,
@@ -1587,7 +1618,7 @@ export interface CheckView {
   partKey: Record<string, string> | null;
   explanation: string | null;
   marked: boolean;
-  /** Points a written answer earned, once marked. */
+  /** Points an answer its teacher marks earned, once marked. */
   credit: number | null;
   markFeedback: string | null;
 }
@@ -1624,7 +1655,7 @@ export function describeCheck(
     credit: null,
     markFeedback: null,
   };
-  if (block.type === "written")
+  if (isTeacherMarked(block))
     return {
       ...base,
       credit:
@@ -1648,7 +1679,7 @@ export function describeCheck(
   };
 }
 
-const CHECK_TYPES = new Set<LessonBlockType>([...AUTO_TYPES, "written"]);
+const CHECK_TYPES = new Set<LessonBlockType>([...AUTO_TYPES, ...MARKED_TYPES]);
 
 /**
  * A quiz as its student sees it: a lesson's blocks, with the questions in the
@@ -1705,7 +1736,7 @@ export function quizViews(
       response: answer.response,
       feedback: null,
     };
-    if (block.type !== "written")
+    if (!isTeacherMarked(block))
       return [{ ...base, state: "answered", fraction: answer.fraction ?? 0 }];
     const sent: StoredTry = { ...base, state: "needs_marking", fraction: null };
     return answer.state === "marked"

@@ -221,6 +221,12 @@ export interface EditorStrings {
   questionSpelling: string;
   questionHotspot: string;
   questionHotspotHint: string;
+  questionScratch: string;
+  questionScratchHint: string;
+  questionStarterBuild: string;
+  questionStarterEdit: string;
+  questionStarterRemove: string;
+  questionStarterSet: string;
   questionMarkPlaces: string;
   questionMarkPlacesHint: string;
   questionPlacesMarked: (count: number) => string;

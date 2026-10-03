@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 
 import {
   ACCEPTED_EXTENSIONS,
+  acceptedMediaType,
+  attachable,
   byteRange,
   CONTENT_CHECKED_EXTENSIONS,
   contentBytesNeeded,
@@ -86,6 +88,19 @@ describe("contentMatchesName", () => {
     expect(
       contentMatchesName("drawing.excalidraw", bytes("<script>x</script>")),
     ).toBe(false);
+  });
+
+  it("accepts a coding project only when it is a zip, as the studio saves it", () => {
+    expect(
+      contentMatchesName("project.sb3", bytes(0x50, 0x4b, 0x03, 0x04, 0x14)),
+    ).toBe(true);
+    expect(contentMatchesName("project.sb3", bytes("<script>x</script>"))).toBe(
+      false,
+    );
+    expect(acceptedMediaType("project.sb3", "application/x.scratch.sb3")).toBe(
+      true,
+    );
+    expect(attachable("project.sb3")).toBe(false);
   });
 
   it("never passes bytes that carry no signature", () => {

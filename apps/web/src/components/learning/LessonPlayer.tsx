@@ -503,7 +503,9 @@ export function LessonPlayer({ lessonId }: { lessonId: string }) {
     link: `/lessons/${lessonId}`,
   });
   const checks = data.blocks.filter(isCheckBlock);
-  const auto = checks.filter((block) => block.type !== "written");
+  const auto = checks.filter(
+    (block) => block.type !== "written" && block.type !== "scratch",
+  );
   const allSettled = auto.every((block) =>
     isSettled(block, data.checks[block.id]),
   );

@@ -25,6 +25,26 @@ function written(blocks: LessonDocument["blocks"]) {
   return document;
 }
 
+/** Uploads bytes as a session's own file, ready to answer or build with. */
+async function uploadAs(
+  session: Awaited<ReturnType<typeof sessionFor>>,
+  name: string,
+  mediaType: string,
+  body: Blob,
+) {
+  const file = await session.api.files.initiate({
+    purpose: "document_media",
+    name,
+    mediaType,
+    sizeBytes: body.size,
+  });
+  await raw("northwind", session.token, `/v1/files/${file.id}/content`, {
+    method: "PUT",
+    body,
+  });
+  return file.id;
+}
+
 /** The seeded teachers split into one who teaches the module and one who does not. */
 async function teachers() {
   const tenant = seeded().tenants[0];
@@ -1195,6 +1215,144 @@ describe("drawn answers", () => {
     ]);
     const path = `/v1/files/${file.id}/content`;
     expect((await raw("northwind", keeper.token, path)).status).toBe(200);
+  });
+});
+
+describe("coding projects", () => {
+  test("a student builds on the teacher's starter, and the teacher plays and marks it", async () => {
+    const tenant = seeded().tenants[0];
+    const school = tenant?.schools.find((row) => row.slug === "northwind");
+    let teacher: Awaited<ReturnType<typeof sessionFor>> | null = null;
+    for (const row of tenant?.logins ?? []) {
+      if (row.role !== "teacher" || row.schoolId !== school?.id) continue;
+      const session = await sessionFor("northwind", row.loginName);
+      const { rows } = await session.api.learning.modules({});
+      if (rows.some((item) => item.title === TITLE)) teacher ??= session;
+    }
+    if (!teacher) throw new Error("a teacher of the module needed");
+    const keeper = teacher.api;
+    const { rows } = await keeper.learning.modules({});
+    const source = rows.find((row) => row.title === TITLE);
+    if (!source) throw new Error("no module");
+    const saved = await keeper.learning.saveModule({
+      id: "",
+      expectedVersion: 0,
+      title: "First game",
+      summary: "",
+      classIds: source.classes.map((item) => item.id),
+      prerequisiteId: "",
+      sequential: false,
+    });
+    // A zip's signature and a PNG's, which are all the upload check reads.
+    const sb3 = new Blob([new Uint8Array([0x50, 0x4b, 0x03, 0x04, 0, 0, 0])]);
+    const png = new Blob([
+      new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0]),
+    ]);
+
+    const starter = await uploadAs(
+      teacher,
+      "starter.sb3",
+      "application/x.scratch.sb3",
+      sb3,
+    );
+    const question = id();
+    const lesson = await keeper.learning.saveLesson({
+      id: "",
+      moduleId: saved.id,
+      expectedVersion: 0,
+      title: "Make the cat dance",
+      completion: "view",
+      passScore: null,
+      content: written([
+        {
+          id: question,
+          type: "scratch",
+          prompt: "Make the cat dance when the flag is clicked.",
+          points: 4,
+          hint: "",
+          explanation: "",
+          tries: null,
+          starter: { fileId: starter },
+        },
+      ]),
+      publish: false,
+    });
+    await keeper.learning.publishModule({
+      id: saved.id,
+      expectedVersion: saved.version,
+    });
+
+    const pupil = await sessionFor("northwind", login("student"));
+    const played = await pupil.api.learning.playLesson({ id: lesson.id });
+    expect(played.blocks).toContainEqual(
+      expect.objectContaining({
+        id: question,
+        type: "scratch",
+        starter: { fileId: starter },
+      }),
+    );
+    const starterPath = `/v1/files/${starter}/content`;
+    expect((await raw("northwind", pupil.token, starterPath)).status).toBe(200);
+
+    const project = await uploadAs(
+      pupil,
+      "project.sb3",
+      "application/x.scratch.sb3",
+      sb3,
+    );
+    const stage = await uploadAs(pupil, "stage.png", "image/png", png);
+    expect(
+      await rejection(
+        pupil.api.learning.respond({
+          lessonId: lesson.id,
+          blockId: question,
+          response: { type: "written", text: "I made it dance." },
+        }),
+      ),
+    ).toMatchObject({ code: "BAD_REQUEST", message: "learning.response" });
+    await pupil.api.learning.respond({
+      lessonId: lesson.id,
+      blockId: question,
+      response: {
+        type: "scratch",
+        project: { fileId: project },
+        thumbnail: { fileId: stage },
+      },
+    });
+
+    const me = await pupil.api.identity.currentUser();
+    const listed = [];
+    for (const item of source.classes) {
+      const data = await keeper.learning.answers({
+        moduleId: saved.id,
+        classId: item.id,
+      });
+      expect(data.questions).toContainEqual(
+        expect.objectContaining({ blockId: question, kind: "scratch" }),
+      );
+      listed.push(...data.answers.filter((row) => row.studentId === me.id));
+    }
+    expect(listed).toMatchObject([
+      {
+        project: { fileId: project },
+        thumbnail: { fileId: stage },
+        marked: false,
+      },
+    ]);
+    const projectPath = `/v1/files/${project}/content`;
+    expect((await raw("northwind", teacher.token, projectPath)).status).toBe(200);
+
+    expect(
+      await keeper.learning.mark({
+        lessonId: lesson.id,
+        blockId: question,
+        studentId: me.id,
+        points: 3,
+        feedback: "The cat dances. Try a loop for the steps.",
+      }),
+    ).toEqual({ marked: true });
+    const seen = await pupil.api.learning.playLesson({ id: lesson.id });
+    expect(seen.checks[question]).toMatchObject({ marked: true, credit: 3 });
   });
 });
 

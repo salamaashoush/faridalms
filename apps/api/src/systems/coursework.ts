@@ -79,6 +79,7 @@ import {
 import {
   adoptFiles,
   filesOfHost,
+  linkFiles,
   rehostFiles,
   unlinkFiles,
 } from "@faridalms/database/stores/files";
@@ -143,8 +144,10 @@ import { DECLARATION_STATEMENT } from "@faridalms/domain/exams";
 import {
   checkBlocks,
   isAuto,
+  isTeacherMarked,
   markResponse,
   quizViews,
+  responseFiles,
   responseIssue,
   responseSchema,
   studentQuiz,
@@ -2349,6 +2352,20 @@ export const saveQuizAnswer = writeProcedure
     if (!block) throw new ORPCError("NOT_FOUND");
     const issue = input.response ? responseIssue(block, input.response) : null;
     if (issue) throw new ORPCError("BAD_REQUEST", { message: issue });
+    const kept = input.response ? responseFiles(input.response) : [];
+    if (kept.length > 0) {
+      // A recording, picture or project must be the student's own upload,
+      // kept with their submission so their teacher can open it.
+      const linked = await linkFiles(tx, {
+        tenantId: context.tenantId,
+        userId: context.actor.userId,
+        ids: kept,
+        purpose: "document_media",
+        host: { type: "submission", id: submission.id },
+      });
+      if (linked.length !== kept.length)
+        throw new ORPCError("CONFLICT", { message: "files.not_linkable" });
+    }
     await storeQuizAnswer(tx, {
       tenantId: context.tenantId,
       submissionId: submission.id,
@@ -2360,7 +2377,7 @@ export const saveQuizAnswer = writeProcedure
     return { saved: true };
   });
 
-/** A teacher marks a written quiz answer out of its points; the score that counts follows. */
+/** A teacher marks a quiz answer only they can judge, out of its points; the score that counts follows. */
 export const markQuizAnswer = writeProcedure
   .input(markQuizAnswerSchema)
   .handler(async ({ input, context }) => {
@@ -2377,7 +2394,7 @@ export const markQuizAnswer = writeProcedure
     const block = document
       ? checkBlocks(document).find((item) => item.id === input.blockId)
       : undefined;
-    if (!document || block?.type !== "written")
+    if (!document || !block || !isTeacherMarked(block))
       throw new ORPCError("NOT_FOUND");
     if (input.points > block.points)
       throw new ORPCError("BAD_REQUEST", { message: "learning.points_over" });

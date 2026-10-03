@@ -41,7 +41,7 @@ import {
   studentModules,
   updateLesson,
   updateModule,
-  writtenAnswers,
+  answersToMark,
 } from "@faridalms/database/stores/learning";
 import { isVisibleStudent } from "@faridalms/database/stores/students";
 import { gridOwners } from "@faridalms/database/stores/timetable";
@@ -56,6 +56,7 @@ import {
   duplicateModuleSchema,
   autoBlocks,
   isAuto,
+  isTeacherMarked,
   lessonContentOf,
   lessonIssue,
   lessonScore,
@@ -71,6 +72,7 @@ import {
   respondSchema,
   setClassSoundsSchema,
   reviewBlocks,
+  responseFiles,
   responseIssue,
   revealSchema,
   saveLessonSchema,
@@ -1410,17 +1412,13 @@ export const respond = writeProcedure
     const issue = responseIssue(block, input.response);
     if (issue) throw new ORPCError("BAD_REQUEST", { message: issue });
     const state = played.checks[block.id];
-    if (block.type === "written" ? state?.marked : settled(block, state))
+    if (isTeacherMarked(block) ? state?.marked : settled(block, state))
       throw new ORPCError("CONFLICT", { message: "learning.settled" });
     const marked = isAuto(block) ? markResponse(block, input.response) : null;
-    const answerFiles =
-      input.response.type === "written"
-        ? [input.response.recording?.fileId, input.response.picture?.fileId]
-        : [];
-    const kept = answerFiles.filter((fileId) => fileId !== undefined);
+    const kept = responseFiles(input.response);
     if (kept.length > 0) {
-      // A recording or picture must be the student's own upload, kept with
-      // the lesson.
+      // A recording, picture or project must be the student's own upload,
+      // kept with the lesson.
       const linked = await linkFiles(context.tx, {
         tenantId: context.tenantId,
         userId: context.actor.userId,
@@ -1606,7 +1604,7 @@ async function enrolledIn(
   return false;
 }
 
-/** The written answers of a class in a module, for its teacher to read and mark. */
+/** The answers a teacher marks, words or coding projects, of a class in a module. */
 export const answers = readProcedure
   .input(progressQuerySchema)
   .handler(async ({ input, context }) => {
@@ -1622,6 +1620,7 @@ export const answers = readProcedure
       lessonId: string;
       lessonTitle: string;
       blockId: string;
+      kind: "written" | "scratch";
       prompt: string;
       points: number;
     }[] = [];
@@ -1630,18 +1629,19 @@ export const answers = readProcedure
       for (const block of checkBlocks(
         published?.content ?? { version: 2, blocks: [] },
       ))
-        if (block.type === "written")
+        if (isTeacherMarked(block))
           questions.push({
             lessonId: item.id,
             lessonTitle: item.title,
             blockId: block.id,
+            kind: block.type,
             prompt: block.prompt,
             points: block.points,
           });
     }
     const [students, written] = await Promise.all([
       namesOf(context.tx, context.tenantId, roster),
-      writtenAnswers(context.tx, {
+      answersToMark(context.tx, {
         tenantId: context.tenantId,
         lessonIds: lessons.map((item) => item.id),
         studentIds: roster,
@@ -1757,11 +1757,11 @@ export const mark = writeProcedure
     const block = checkBlocks(
       published?.content ?? { version: 2, blocks: [] },
     ).find((item) => item.id === input.blockId);
-    if (!block || block.type !== "written") throw new ORPCError("NOT_FOUND");
+    if (!block || !isTeacherMarked(block)) throw new ORPCError("NOT_FOUND");
     if (input.points > block.points)
       throw new ORPCError("BAD_REQUEST", { message: "learning.points_over" });
     const answer = (
-      await writtenAnswers(context.tx, {
+      await answersToMark(context.tx, {
         tenantId: context.tenantId,
         lessonIds: [row.id],
         studentIds: [input.studentId],

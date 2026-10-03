@@ -26,9 +26,11 @@ with the gate it can break.
    young children, tap, say or draw at a pause.
 5. **Teacher insight.** Drop-off, rewind peaks and each answer with its time,
    per class and per student.
-6. **Pipeline.** Resumable upload, an ffmpeg job on the worker to HLS (360,
-   540, 720p and audio only), a thumbnail sprite and poster, stored through
-   the file store with signed links.
+6. **Pipeline**, decided 2026-10-03: our own media service, in Rust.
+   Resumable upload, ffmpeg to HLS (360, 540, 720p and audio only), a
+   thumbnail sprite and poster, stored through the file store and streamed
+   behind sealed links as the files host serves files. It pulls jobs from
+   the API and holds no database role.
 7. **Captions and chapters.** Whisper drafts captions on the worker for the
    teacher to approve in the existing captions editor; chapters edited on the
    timeline and shown on the scrub bar.
@@ -58,7 +60,14 @@ off keeps the work and shows a placeholder.
    activity for early years, and unplugged versions through print.
 6. **MakeCode.** Arcade and micro:bit, self-hosted, in controller mode with
    the project saved in Farida and the language set per lesson.
-7. **Scratch**, as the owner decides (research section 5).
+7. **Scratch**, decided 2026-10-03: the real Scratch editor, framed. Done: a
+   coding question kind (`scratch`) whose teacher builds the starter in the
+   studio, whose students build on it and hand in an `.sb3` with their stage,
+   and whose teacher opens, runs and marks the project; the studio lives in
+   its own AGPL repository (`farida-scratch`) and is set up as in
+   [../operations.md](../operations.md). Next: mirror the media library so
+   no request reaches Scratch's servers, prune superseded project versions,
+   and a class gallery with remix.
 
 Video phases 1 to 4 and coding phases 1 to 3 need no new infrastructure;
 video phase 6 needs ffmpeg on the worker, coding phase 4 the sandbox domain.

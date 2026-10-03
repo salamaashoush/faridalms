@@ -96,6 +96,7 @@ export function paperBlock(block: StudentBlock): LessonBlock {
         extras: block.pile.slice(block.places).map((tile) => tile.text),
       };
     case "written":
+    case "scratch":
     case "ordering":
     case "counting":
     case "tracing":

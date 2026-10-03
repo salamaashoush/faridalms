@@ -435,7 +435,9 @@ export function QuizAttempts({
             return (
               <div key={`${attempt.number}-${block.id}`} className="grid gap-2">
                 <CheckBlockView block={block} view={view} driver={NO_ANSWERS} />
-                {block.type === "written" && block.points > 0 && view?.tries ? (
+                {(block.type === "written" || block.type === "scratch") &&
+                block.points > 0 &&
+                view?.tries ? (
                   <MarkForm
                     attemptId={attempt.attemptId}
                     blockId={block.id}
