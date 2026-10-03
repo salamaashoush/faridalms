@@ -291,13 +291,11 @@ export const lessonWatches = core.table.withRLS(
       .default(sql`'{}'::int4multirange`),
     durationSeconds: integer("duration_seconds").notNull(),
     positionSeconds: integer("position_seconds").notNull().default(0),
-    updatedAt: instant("updated_at")
-      .notNull()
-      .default(sql`statement_timestamp()`),
+    ...entityColumns(),
   },
   (t): PgTableExtraConfigValue[] => [
     pk("lesson_watches", t.tenantId, t.id),
-    fk("lesson_watches", [t.tenantId], [tenants.tenantId]),
+    ...baseConstraints("lesson_watches", t, tenants),
     fk(
       "lesson_watches",
       [t.tenantId, t.lessonId],
@@ -320,12 +318,9 @@ export const lessonWatches = core.table.withRLS(
       "watched",
       sql`watched <@ int4multirange(int4range(0, duration_seconds))`,
     ),
-    uniqueIndex("lesson_watches_key").on(
-      t.tenantId,
-      t.lessonId,
-      t.studentUserId,
-      t.fileId,
-    ),
+    uniqueIndex("lesson_watches_key")
+      .on(t.tenantId, t.lessonId, t.studentUserId, t.fileId)
+      .where(sql`status = 'active'`),
     ...entityProfile(),
   ],
 );

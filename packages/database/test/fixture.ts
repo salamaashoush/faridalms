@@ -59,6 +59,7 @@ import {
   importRuns,
   legalHolds,
   lessonResponses,
+  lessonWatches,
   lessons,
   passkeys,
   quizAnswers,
@@ -452,6 +453,15 @@ export async function completeFixture(
     response: { type: "choice", optionIds: [] },
     fraction: 0,
     state: "answered",
+  });
+  await tx.insert(lessonWatches).values({
+    tenantId,
+    lessonId: lesson.id,
+    studentUserId: userId,
+    fileId: importFile,
+    watched: "{[0,10)}",
+    durationSeconds: 60,
+    positionSeconds: 10,
   });
   const [submission] = await tx
     .select({ id: submissions.id, studentUserId: submissions.studentUserId })

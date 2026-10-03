@@ -61,6 +61,7 @@ export const CONFLICTS: Record<string, string> = {
   privacy_notices_version_key: "consents.draft_open",
   module_classes_key: "module_class.exists",
   lesson_progress_key: "lesson_progress.exists",
+  lesson_watches_key: "lesson_watches.exists",
   site_settings_org_key: "site.stale",
   site_pages_slug_key: "site.slug_taken",
   site_pages_home_key: "site.home_exists",

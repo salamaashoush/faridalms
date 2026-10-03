@@ -564,12 +564,12 @@ export async function recordWatch(
       ${played} * int4multirange(int4range(0, ${input.durationSeconds}::int)),
       ${input.durationSeconds}::int,
       least(${input.positionSeconds}::int, ${input.durationSeconds}::int))
-    on conflict (tenant_id, lesson_id, student_user_id, file_id) do update set
+    on conflict (tenant_id, lesson_id, student_user_id, file_id)
+      where status = 'active' do update set
       watched = (core.lesson_watches.watched + excluded.watched)
         * int4multirange(int4range(0, excluded.duration_seconds)),
       duration_seconds = excluded.duration_seconds,
-      position_seconds = excluded.position_seconds,
-      updated_at = statement_timestamp()
+      position_seconds = excluded.position_seconds
     returning ${watchColumns}`);
   if (!row) throw new Error("the watch was not recorded");
   return watchOf(row);
@@ -584,7 +584,7 @@ export async function watchesOf(
     select ${watchColumns}
     from core.lesson_watches
     where tenant_id = ${input.tenantId}::uuid and lesson_id = ${input.lessonId}::uuid
-      and student_user_id = ${input.studentId}::uuid`);
+      and student_user_id = ${input.studentId}::uuid and status = 'active'`);
   return rows.map(watchOf);
 }
 
