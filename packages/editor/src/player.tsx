@@ -120,6 +120,8 @@ function PlayControl() {
   );
 }
 
+// Sliders use physical left: Video.js measures values from the left edge in
+// every direction, and the controls sit in a left-to-right row.
 const sliderRoot =
   "group/slider relative flex cursor-pointer touch-none items-center outline-none select-none";
 const sliderTrack =
