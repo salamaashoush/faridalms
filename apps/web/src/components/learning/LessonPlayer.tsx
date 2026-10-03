@@ -3,6 +3,7 @@ import type {
   CheckView,
   LessonCompletion,
   LessonResponse,
+  ProgramRun,
   StoredTry,
   StudentBlock,
   Watched,
@@ -62,6 +63,7 @@ import { lessonEditorQuery, lessonQuery } from "~/queries/learning";
 import {
   completeLesson,
   answerReview,
+  recordRun,
   respondToCheck,
   retryLesson,
   revealCheck,
@@ -616,6 +618,11 @@ export function LessonPlayer({ lessonId }: { lessonId: string }) {
       toast.success(m.lrnLessonFinished());
     }
   };
+  // A run kept or not changes nothing for the student, so a lost one is let go.
+  const keepRun = (blockId: string, run: ProgramRun) =>
+    void recordRun({ data: { lessonId, blockId, ...run } }).catch(
+      () => undefined,
+    );
   const driver: CheckDriver = {
     respond: async (blockId, response) => {
       const result = await respondToCheck({
@@ -627,6 +634,7 @@ export function LessonPlayer({ lessonId }: { lessonId: string }) {
       const result = await revealCheck({ data: { lessonId, blockId } });
       await apply(blockId, result);
     },
+    ran: keepRun,
   };
   // A question asked again is answered once and leaves the score alone.
   const reviewDriver: CheckDriver = {
@@ -647,6 +655,7 @@ export function LessonPlayer({ lessonId }: { lessonId: string }) {
       );
     },
     reveal: () => Promise.resolve(),
+    ran: keepRun,
   };
   const complete = useMutation({
     mutationFn: () => completeLesson({ data: { lessonId } }),

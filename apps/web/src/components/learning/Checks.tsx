@@ -2,6 +2,7 @@ import type {
   CheckView,
   LessonResponse,
   ProgramResult,
+  ProgramRun,
   StudentBlock,
   StudentPart,
 } from "@faridalms/domain/learning";
@@ -12,7 +13,7 @@ import { Radio } from "@base-ui/react/radio";
 import { parseNumber } from "@faridalms/domain/answers";
 import { joinedAroundGaps } from "@faridalms/domain/arabic";
 import { textDirection } from "@faridalms/domain/content";
-import { MAX_INDENT } from "@faridalms/domain/learning";
+import { MAX_INDENT, MAX_RUN_OUTPUT } from "@faridalms/domain/learning";
 import { StoredImage } from "@faridalms/editor/files";
 import { Button } from "@faridalms/ui/button";
 import { cn } from "@faridalms/ui/cn";
@@ -44,6 +45,8 @@ import {
 import { createContext, useContext, useId, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import { toast } from "sonner";
+
+import type { RunReport } from "~/components/coding/CodeRunner";
 
 import { CodeRunner } from "~/components/coding/CodeRunner";
 import { CodingAnswer } from "~/components/coding/CodingAnswer";
@@ -153,6 +156,8 @@ export interface CheckDriver {
    * and played or shown from; without it the file is uploaded.
    */
   keepFile?: (file: File) => Promise<{ fileId: string; url: string }>;
+  /** Keeps a code exercise's run for the teacher to replay; without it none is kept. */
+  ran?: (blockId: string, run: ProgramRun) => void;
 }
 
 type Of<T extends StudentBlock["type"]> = Extract<StudentBlock, { type: T }>;
@@ -1591,6 +1596,29 @@ function ProgramTest({
   );
 }
 
+/** A run as its teacher replays it; a runner that failed to start says nothing of the student's. */
+function keptRun({ code, input, end, printed }: RunReport): ProgramRun | null {
+  if (end.status === "failed") return null;
+  const error =
+    end.status === "done" && end.error
+      ? (end.error.message || end.error.name).slice(0, 500)
+      : null;
+  return {
+    code,
+    input: input.slice(0, 4000),
+    outcome:
+      end.status === "stopped"
+        ? end.reason === "asked"
+          ? "stopped"
+          : end.reason
+        : error
+          ? "error"
+          : "done",
+    error,
+    output: printed.slice(0, MAX_RUN_OUTPUT),
+  };
+}
+
 function ProgramCheck({
   block,
   view,
@@ -1663,6 +1691,10 @@ function ProgramCheck({
         language={block.language}
         readOnly={locked}
         onChange={setCode}
+        onRan={(report) => {
+          const run = keptRun(report);
+          if (run) driver.ran?.(block.id, run);
+        }}
       />
       <div className="grid gap-2">
         <div className="flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">

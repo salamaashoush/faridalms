@@ -428,3 +428,62 @@ export const lessonResponses = core.table.withRLS(
     ...ledgerProfile(),
   ],
 );
+
+/** How a program a student ran ended: as it should, raising an error, or stopped. */
+export type RunOutcome = "done" | "error" | "timeout" | "output" | "stopped";
+
+/**
+ * Every run of a code exercise a student makes in the browser, never changed,
+ * so their teacher can replay how the program came about. What it printed is
+ * as the browser reported it, kept to show and never to mark: checking an
+ * answer runs it again on the server.
+ */
+export const lessonRuns = core.table.withRLS(
+  "lesson_runs",
+  {
+    ...tenantColumns(),
+    lessonId: uuid("lesson_id").notNull(),
+    studentUserId: uuid("student_user_id").notNull(),
+    blockId: uuid("block_id").notNull(),
+    attempt: smallint("attempt").notNull(),
+    code: text("code").notNull(),
+    input: text("input").notNull().default(""),
+    outcome: text("outcome").$type<RunOutcome>().notNull(),
+    error: text("error"),
+    output: text("output").notNull().default(""),
+    createdAt: instant("created_at")
+      .notNull()
+      .default(sql`statement_timestamp()`),
+  },
+  (t): PgTableExtraConfigValue[] => [
+    pk("lesson_runs", t.tenantId, t.id),
+    fk("lesson_runs", [t.tenantId], [tenants.tenantId]),
+    fk("lesson_runs", [t.tenantId, t.lessonId], [lessons.tenantId, lessons.id]),
+    fk(
+      "lesson_runs",
+      [t.tenantId, t.studentUserId],
+      [users.tenantId, users.id],
+    ),
+    ck("lesson_runs", "attempt", sql`attempt between 1 and 1000`),
+    ck("lesson_runs", "code", sql`char_length(code) <= 20000`),
+    ck("lesson_runs", "input", sql`char_length(input) <= 4000`),
+    ck("lesson_runs", "output", sql`char_length(output) <= 2000`),
+    ck(
+      "lesson_runs",
+      "error",
+      sql`error is null or char_length(error) between 1 and 500`,
+    ),
+    ck(
+      "lesson_runs",
+      "outcome",
+      sql`outcome in ('done', 'error', 'timeout', 'output', 'stopped')`,
+    ),
+    index("lesson_runs_student_idx").on(
+      t.tenantId,
+      t.lessonId,
+      t.studentUserId,
+      t.blockId,
+    ),
+    ...ledgerProfile(),
+  ],
+);

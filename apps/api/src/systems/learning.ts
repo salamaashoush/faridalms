@@ -37,8 +37,12 @@ import {
   publishedLessons,
   quietLessons,
   recordProgress,
+  recordRun,
   recordWatch,
   responsesOf,
+  responsesTo,
+  runCounts,
+  runsOf,
   removeLesson as tombstoneLesson,
   setLessonSounds,
   setModuleClasses,
@@ -85,6 +89,8 @@ import {
   responseFiles,
   responseIssue,
   revealSchema,
+  runSchema,
+  runsQuerySchema,
   saveLessonSchema,
   saveModuleSchema,
   settled,
@@ -1745,6 +1751,33 @@ export const reviewProgram = schoolProcedure
   );
 
 /**
+ * A student ran a code exercise in the browser. The run is kept for their
+ * teacher to replay and marks nothing; checking an answer runs it here.
+ */
+export const run = writeProcedure
+  .input(runSchema)
+  .handler(async ({ input, context }) => {
+    const played = await playable(context, input.lessonId);
+    const block = checkBlocks(played.content).find(
+      (item) => item.id === input.blockId,
+    );
+    if (block?.type !== "program") throw new ORPCError("NOT_FOUND");
+    const kept = await recordRun(context.tx, {
+      tenantId: context.tenantId,
+      lessonId: played.row.id,
+      studentId: played.studentId,
+      blockId: block.id,
+      attempt: played.attempt,
+      code: input.code,
+      input: input.input,
+      outcome: input.outcome,
+      error: input.error,
+      output: input.output,
+    });
+    return { kept };
+  });
+
+/**
  * Starts the lesson again with fresh questions once every one is settled, so
  * an attempt is never left before showing an answer could lower its score.
  * The best score so far stays.
@@ -1925,9 +1958,14 @@ export const questions = readProcedure
       lessonsOf(context.tx, context.tenantId, row.id),
       rosterOf(context.tx, context.tenantId, input.classId, context.today),
     ]);
-    const [students, rows] = await Promise.all([
+    const [students, rows, ran] = await Promise.all([
       namesOf(context.tx, context.tenantId, roster),
       firstAttempts(context.tx, {
+        tenantId: context.tenantId,
+        lessonIds: lessons.map((item) => item.id),
+        studentIds: roster,
+      }),
+      runCounts(context.tx, {
         tenantId: context.tenantId,
         lessonIds: lessons.map((item) => item.id),
         studentIds: roster,
@@ -1989,10 +2027,97 @@ export const questions = readProcedure
               return Array.isArray(chosen) ? [[studentId, chosen]] : [];
             }),
           ) as Record<string, string[]>,
+          runs: Object.fromEntries(
+            ran
+              .filter((count) => count.blockId === block.id)
+              .map((count) => [count.studentId, count.runs]),
+          ),
         })),
       });
     }
     return { students, lessons: asked };
+  });
+
+/** An answer checked, or the answer shown, among a student's runs. */
+type CheckMark =
+  | { kind: "shown"; attempt: number; at: string }
+  | {
+      kind: "checked";
+      attempt: number;
+      at: string;
+      code: string;
+      passed: number;
+      total: number;
+    };
+
+/**
+ * How one student came to their program for a code exercise: each run in the
+ * browser and each answer checked, every attempt, oldest first. Only those
+ * who teach the module see it.
+ */
+export const runs = readProcedure
+  .input(runsQuerySchema)
+  .handler(async ({ input, context }) => {
+    const row = await editable(context, input.moduleId);
+    const classes = await classesOfModule(context.tx, context.tenantId, row.id);
+    if (!classes.some((item) => item.id === input.classId))
+      throw new ORPCError("NOT_FOUND");
+    const [lessons, roster] = await Promise.all([
+      lessonsOf(context.tx, context.tenantId, row.id),
+      rosterOf(context.tx, context.tenantId, input.classId, context.today),
+    ]);
+    if (
+      !lessons.some((item) => item.id === input.lessonId) ||
+      !roster.includes(input.studentId)
+    )
+      throw new ORPCError("NOT_FOUND");
+    const content = (await publishedLesson(context, input.lessonId))?.content;
+    const block = content
+      ? checkBlocks(content).find((item) => item.id === input.blockId)
+      : undefined;
+    if (block?.type !== "program") throw new ORPCError("NOT_FOUND");
+    const where = {
+      tenantId: context.tenantId,
+      lessonId: input.lessonId,
+      studentId: input.studentId,
+      blockId: block.id,
+    };
+    const [ran, tries] = await Promise.all([
+      runsOf(context.tx, where),
+      responsesTo(context.tx, where),
+    ]);
+    return {
+      language: block.language,
+      starter: block.starter,
+      runs: ran,
+      checks: tries.flatMap((item): CheckMark[] => {
+        if (item.state === "revealed")
+          return [
+            {
+              kind: "shown" as const,
+              attempt: item.attempt,
+              at: item.createdAt,
+            },
+          ];
+        if (item.state !== "answered" && item.state !== "reviewed") return [];
+        const answer = item.response as {
+          code?: unknown;
+          results?: Record<string, { passed?: unknown }>;
+        };
+        return [
+          {
+            kind: "checked",
+            attempt: item.attempt,
+            at: item.createdAt,
+            code: typeof answer.code === "string" ? answer.code : "",
+            passed: Object.values(answer.results ?? {}).filter(
+              (result) => result.passed === true,
+            ).length,
+            total: block.tests.length,
+          },
+        ];
+      }),
+    };
   });
 
 /**

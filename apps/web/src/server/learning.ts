@@ -12,6 +12,8 @@ import {
   respondSchema,
   setClassSoundsSchema,
   revealSchema,
+  runSchema,
+  runsQuerySchema,
   saveLessonSchema,
   saveModuleSchema,
 } from "@faridalms/domain/learning";
@@ -135,6 +137,14 @@ export const answerReview = createServerFn({ method: "POST" })
         })
       : backend().learning.reviewAnswer(data),
   );
+
+export const recordRun = createServerFn({ method: "POST" })
+  .validator(checked(runSchema))
+  .handler(({ data }) => backend().learning.run(data));
+
+export const getProgramRuns = createServerFn({ method: "GET" })
+  .validator(checked(runsQuerySchema))
+  .handler(({ data }) => record(backend().learning.runs(data)));
 
 export const revealCheck = createServerFn({ method: "POST" })
   .validator(checked(revealSchema))

@@ -1,15 +1,25 @@
 import type { CheckStanding } from "@faridalms/domain/learning";
 
+import { Button } from "@faridalms/ui/button";
 import { useQuery } from "@tanstack/react-query";
 import {
   CircleCheck,
   CircleDashed,
   HandHelping,
+  History,
   ListChecks,
 } from "lucide-react";
 
 import type { Tone } from "~/components/system/status";
 
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+  DialogTrigger,
+} from "~/components/app/dialog";
+import { ProgramReplay } from "~/components/coding/ProgramReplay";
 import { displayName } from "~/components/people/format";
 import { EmptyState } from "~/components/system/IndexPage";
 import { StatusBadge } from "~/components/system/status";
@@ -47,12 +57,56 @@ const STANDING_TONE: Record<CheckStanding, Tone> = {
   unseen: "neutral",
 };
 
+/** Where a question was asked, for replaying how a student answered it. */
+interface Asked {
+  moduleId: string;
+  classId: string;
+  lessonId: string;
+}
+
+function Replay({
+  asked,
+  blockId,
+  studentId,
+  name,
+}: {
+  asked: Asked;
+  blockId: string;
+  studentId: string;
+  name: string;
+}) {
+  return (
+    <Dialog>
+      <DialogTrigger
+        render={
+          <Button
+            variant="ghost"
+            size="sm"
+            className="max-md:h-10"
+            aria-label={m.lrnReplayLabel({ name })}
+          />
+        }
+      >
+        <History aria-hidden />
+        {m.lrnReplay()}
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-2xl">
+        <DialogTitle>{m.lrnReplayTitle({ name })}</DialogTitle>
+        <DialogDescription>{m.lrnReplayIntro()}</DialogDescription>
+        <ProgramReplay {...asked} blockId={blockId} studentId={studentId} />
+      </DialogContent>
+    </Dialog>
+  );
+}
+
 function QuestionCard({
   question,
   names,
+  asked,
 }: {
   question: Question;
   names: Map<string, string>;
+  asked: Asked;
 }) {
   const students = [...names.keys()];
   const standing = (wanted: CheckStanding) =>
@@ -119,6 +173,46 @@ function QuestionCard({
                 </li>
               );
             })}
+          </ul>
+        </div>
+      ) : question.kind === "program" ? (
+        <div className="grid gap-2">
+          <p className="text-[13px] leading-[18px] text-muted-foreground">
+            {m.lrnReplayWho()}
+          </p>
+          <ul className="divide-y rounded-md border">
+            {students
+              .filter(
+                (id) =>
+                  (question.runs[id] ?? 0) > 0 ||
+                  (question.standings[id] ?? "unseen") !== "unseen",
+              )
+              .map((id) => {
+                const name = names.get(id) ?? "";
+                const where = question.standings[id] ?? "unseen";
+                return (
+                  <li
+                    key={id}
+                    className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-1.5 text-sm leading-5"
+                  >
+                    <bdi className="min-w-0 flex-1 truncate font-medium">
+                      {name}
+                    </bdi>
+                    <StatusBadge tone={STANDING_TONE[where]}>
+                      {STANDING_LABEL[where]()}
+                    </StatusBadge>
+                    <span className="text-[13px] text-muted-foreground tabular-nums">
+                      {m.lrnReplayRuns({ count: question.runs[id] ?? 0 })}
+                    </span>
+                    <Replay
+                      asked={asked}
+                      blockId={question.id}
+                      studentId={id}
+                      name={name}
+                    />
+                  </li>
+                );
+              })}
           </ul>
         </div>
       ) : (
@@ -304,6 +398,7 @@ export function ClassQuestions({
                 key={question.id}
                 question={question}
                 names={names}
+                asked={{ moduleId, classId, lessonId: lesson.id }}
               />
             ))
           )}

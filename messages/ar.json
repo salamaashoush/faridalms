@@ -2943,6 +2943,63 @@
   "lrnYoungGridCaption": "كل طفل في كل سؤال من {lesson}",
   "lrnYoungGridNote": "من المحاولة الأولى لكل طفل. هذا تدريب على الشاشة يُقرأ إلى جانب ما تلاحظه في الفصل، وليس تقييمًا.",
   "lrnFirstChoices": "ما اختاره كل طالب في محاولته الأولى",
+  "lrnReplayWho": "كيف كتبه كل طالب",
+  "lrnReplay": "إعادة العرض",
+  "lrnReplayLabel": "إعادة عرض كيف كتبه {name}",
+  "lrnReplayTitle": "كيف كتبه {name}",
+  "lrnReplayIntro": "كل تشغيل وكل تحقق، الأقدم أولًا. تُعلَّم الأسطر التي تغيّرت منذ الخطوة السابقة.",
+  "lrnReplayRuns": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=zero": "لا تشغيل",
+        "countPlural=one": "تشغيل واحد",
+        "countPlural=two": "تشغيلان",
+        "countPlural=few": "{count} تشغيلات",
+        "countPlural=many": "{count} تشغيلًا",
+        "countPlural=*": "{count} تشغيل"
+      }
+    }
+  ],
+  "lrnReplayErrors": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=zero": "لم ينتهِ أيٌّ منها بخطأ",
+        "countPlural=one": "انتهى واحد منها بخطأ",
+        "countPlural=two": "انتهى اثنان منها بخطأ",
+        "countPlural=few": "انتهى {count} منها بخطأ",
+        "countPlural=many": "انتهى {count} منها بخطأ",
+        "countPlural=*": "انتهى {count} منها بخطأ"
+      }
+    }
+  ],
+  "lrnReplayChecks": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=zero": "لا تحقق",
+        "countPlural=one": "تحقق واحد",
+        "countPlural=two": "تحققان",
+        "countPlural=few": "{count} مرات تحقق",
+        "countPlural=many": "{count} مرة تحقق",
+        "countPlural=*": "{count} مرة تحقق"
+      }
+    }
+  ],
+  "lrnReplayStep": "الخطوة {step} من {total}",
+  "lrnReplayEarlier": "الخطوة السابقة",
+  "lrnReplayLater": "الخطوة التالية",
+  "lrnReplayPlay": "تشغيل العرض",
+  "lrnReplayPause": "إيقاف مؤقت",
+  "lrnReplayRan": "شغّله",
+  "lrnReplayChecked": "تحقّق منه",
+  "lrnReplayShown": "طلب رؤية الإجابة",
+  "lrnReplayChanged": "تغيّر منذ الخطوة السابقة",
+  "lrnReplayNone": "لا تشغيل ولا تحقق بعد.",
   "lrnRightOption": "الخيار الصحيح",
   "lrnNoQuestions": "لا أسئلة بعد",
   "lrnNoQuestionsBody": "تظهر الأسئلة هنا بعد عرض درس يطرحها على هذا الفصل.",

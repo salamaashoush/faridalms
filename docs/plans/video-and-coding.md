@@ -107,7 +107,11 @@ off keeps the work and shows a placeholder.
    question, a code exercise among them, now takes up to five hints in
    order: each wrong try opens the next, a line says when another waits,
    and the last of limited tries shows the answer rather than a hint. Every
-   run kept for the teacher's replay remains.
+   run a student makes in the browser is kept with its input, what it
+   printed and how it ended, a repeat of the last run once only; on the
+   Questions tab a teacher replays one student's runs and checks in order,
+   stepping or playing through them, with the lines each step changed
+   marked.
 4. **Projects and the sandbox domain.** A multi-file HTML, CSS and JavaScript
    or Python (turtle, p5.js) project with live preview on the separate
    domain, autosaved as the student's work, a class gallery with remix, and

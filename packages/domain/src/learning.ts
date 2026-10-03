@@ -1842,6 +1842,47 @@ export const respondProgramSchema = v.object({
   code: v.pipe(v.string(), v.maxLength(MAX_PROGRAM_CHARS)),
 });
 
+/** How a run of a program ended: as it should, raising an error, or stopped. */
+export const RUN_OUTCOMES = [
+  "done",
+  "error",
+  "timeout",
+  "output",
+  "stopped",
+] as const;
+export type RunOutcome = (typeof RUN_OUTCOMES)[number];
+/** As much of what a run printed as its replay shows. */
+export const MAX_RUN_OUTPUT = 2000;
+
+/**
+ * A student ran a code exercise in the browser. The run is kept for their
+ * teacher to replay as the browser reported it, and never marks anything.
+ */
+export const runSchema = v.object({
+  lessonId: id,
+  blockId: id,
+  code: v.pipe(v.string(), v.maxLength(MAX_PROGRAM_CHARS)),
+  input: v.pipe(v.string(), v.maxLength(4000)),
+  outcome: v.picklist(RUN_OUTCOMES),
+  error: v.nullable(v.pipe(v.string(), v.minLength(1), v.maxLength(500))),
+  output: v.pipe(v.string(), v.maxLength(MAX_RUN_OUTPUT)),
+});
+
+/** A run as kept, for the code exercise it belongs to. */
+export type ProgramRun = Omit<
+  v.InferOutput<typeof runSchema>,
+  "lessonId" | "blockId"
+>;
+
+/** A teacher replays how one student of a class came to a code exercise's program. */
+export const runsQuerySchema = v.object({
+  moduleId: id,
+  classId: id,
+  lessonId: id,
+  blockId: id,
+  studentId: id,
+});
+
 /** A student gives up on a question and asks to see its answer. */
 export const revealSchema = v.object({ lessonId: id, blockId: id });
 

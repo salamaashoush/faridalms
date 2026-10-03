@@ -8,6 +8,7 @@ import type {
   LessonCompletion,
   ModuleState,
   ResponseState,
+  RunOutcome,
 } from "../tables/learning";
 
 import { isoOf, textArray, uuidArray } from "./sql";
@@ -843,6 +844,143 @@ export async function insertResponse(
       ${input.studentId}::uuid, ${input.blockId}::uuid, ${input.attempt}, ${input.try}, ${input.kind},
       ${input.response}::jsonb, ${input.fraction}, ${input.state}, ${input.feedback ?? null},
       ${input.markedBy ?? null}::uuid)`);
+}
+
+/** One student's rows for one question, every attempt, in the order given. */
+export async function responsesTo(
+  tx: Tx,
+  input: {
+    tenantId: string;
+    lessonId: string;
+    studentId: string;
+    blockId: string;
+  },
+): Promise<StoredResponse[]> {
+  const rows = await tx.execute<ResponseRecord>(sql`
+    select id, block_id, attempt, try, kind, response, fraction, state, feedback,
+      document_version_id, ${isoOf(sql`created_at`)} as created_at, student_user_id, lesson_id
+    from core.lesson_responses
+    where tenant_id = ${input.tenantId}::uuid and lesson_id = ${input.lessonId}::uuid
+      and student_user_id = ${input.studentId}::uuid and block_id = ${input.blockId}::uuid
+    order by created_at, try, id`);
+  return rows.map(responseOf);
+}
+
+/** A run of a code exercise, as its teacher replays it. */
+export interface StoredRun {
+  attempt: number;
+  code: string;
+  input: string;
+  outcome: RunOutcome;
+  error: string | null;
+  output: string;
+  ranAt: string;
+}
+
+/** Runs kept of one question in one attempt; a student's runs past these go unkept. */
+const RUNS_KEPT = 300;
+
+/**
+ * Keeps a student's run of a code exercise, unless it ended as the last one
+ * kept did with the same code and input, which would only repeat it, or the
+ * student has already run it as often as is kept. Says whether it was kept.
+ */
+export async function recordRun(
+  tx: Tx,
+  input: {
+    tenantId: string;
+    lessonId: string;
+    studentId: string;
+    blockId: string;
+    attempt: number;
+    code: string;
+    input: string;
+    outcome: RunOutcome;
+    error: string | null;
+    output: string;
+  },
+): Promise<boolean> {
+  const mine = sql`tenant_id = ${input.tenantId}::uuid and lesson_id = ${input.lessonId}::uuid
+    and student_user_id = ${input.studentId}::uuid and block_id = ${input.blockId}::uuid
+    and attempt = ${input.attempt}`;
+  const rows = await tx.execute<{ id: string }>(sql`
+    insert into core.lesson_runs (tenant_id, lesson_id, student_user_id, block_id, attempt,
+      code, input, outcome, error, output)
+    select ${input.tenantId}::uuid, ${input.lessonId}::uuid, ${input.studentId}::uuid,
+      ${input.blockId}::uuid, ${input.attempt}, ${input.code}, ${input.input}, ${input.outcome},
+      ${input.error}, ${input.output}
+    where (select count(*) from core.lesson_runs where ${mine}) < ${RUNS_KEPT}
+      and not exists (
+        select 1 from (
+          select code, input, outcome from core.lesson_runs where ${mine}
+          order by created_at desc, id desc limit 1) last
+        where last.code = ${input.code} and last.input = ${input.input}
+          and last.outcome = ${input.outcome})
+    returning id`);
+  return rows.length > 0;
+}
+
+/** How often each student ran each code exercise of some lessons, every attempt. */
+export async function runCounts(
+  tx: Tx,
+  input: {
+    tenantId: string;
+    lessonIds: readonly string[];
+    studentIds: readonly string[];
+  },
+): Promise<{ blockId: string; studentId: string; runs: number }[]> {
+  if (input.lessonIds.length === 0 || input.studentIds.length === 0) return [];
+  const rows = await tx.execute<{
+    block_id: string;
+    student_user_id: string;
+    runs: number;
+  }>(sql`
+    select block_id, student_user_id, count(*)::int as runs
+    from core.lesson_runs
+    where tenant_id = ${input.tenantId}::uuid
+      and lesson_id = any(${uuidArray(input.lessonIds)})
+      and student_user_id = any(${uuidArray(input.studentIds)})
+    group by block_id, student_user_id`);
+  return rows.map((row) => ({
+    blockId: row.block_id,
+    studentId: row.student_user_id,
+    runs: row.runs,
+  }));
+}
+
+/** One student's runs of one question, every attempt, oldest first. */
+export async function runsOf(
+  tx: Tx,
+  input: {
+    tenantId: string;
+    lessonId: string;
+    studentId: string;
+    blockId: string;
+  },
+): Promise<StoredRun[]> {
+  const rows = await tx.execute<{
+    attempt: number;
+    code: string;
+    input: string;
+    outcome: RunOutcome;
+    error: string | null;
+    output: string;
+    ran_at: string;
+  }>(sql`
+    select attempt, code, input, outcome, error, output, ${isoOf(sql`created_at`)} as ran_at
+    from core.lesson_runs
+    where tenant_id = ${input.tenantId}::uuid and lesson_id = ${input.lessonId}::uuid
+      and student_user_id = ${input.studentId}::uuid and block_id = ${input.blockId}::uuid
+    order by created_at, id`);
+  return rows.map((row) => ({
+    attempt: row.attempt,
+    code: row.code,
+    input: row.input,
+    outcome: row.outcome,
+    error: row.error,
+    output: row.output,
+    ranAt: row.ran_at,
+  }));
 }
 
 export interface AnswerToMark {

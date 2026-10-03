@@ -525,6 +525,29 @@ describe("code exercises", () => {
       ),
     ).toMatchObject({ code: "BAD_REQUEST" });
 
+    // Runs in the browser are kept for the teacher, a repeat of the last
+    // one once only.
+    const tried = {
+      lessonId,
+      blockId: exercise.id,
+      code: "n = int(input())\nprint(n)",
+      input: "3",
+      outcome: "done" as const,
+      error: null,
+      output: "3\n",
+    };
+    expect(await pupil.learning.run(tried)).toEqual({ kept: true });
+    expect(await pupil.learning.run(tried)).toEqual({ kept: false });
+    expect(
+      await pupil.learning.run({
+        ...tried,
+        code: "n = int(input())\nprint(m)",
+        outcome: "error",
+        error: "NameError: name 'm' is not defined",
+        output: "",
+      }),
+    ).toEqual({ kept: true });
+
     const half = await pupil.learning.respondProgram({
       lessonId,
       blockId: exercise.id,
@@ -563,6 +586,50 @@ describe("code exercises", () => {
     });
     expect(done.check).toMatchObject({ correct: true, fraction: 1 });
     expect(done.completed).toBe(true);
+
+    // The teacher replays the runs and checks in order, and only they can.
+    const me = await pupil.identity.currentUser();
+    const asked = {
+      moduleId: saved.id,
+      lessonId,
+      blockId: exercise.id,
+      studentId: me.id,
+    };
+    const replays = await Promise.all(
+      source.classes.map((item) =>
+        keeper.learning.runs({ ...asked, classId: item.id }).catch(() => null),
+      ),
+    );
+    const replay = replays.find((item) => item !== null);
+    expect(replay?.runs.map((item) => [item.outcome, item.error])).toEqual([
+      ["done", null],
+      ["error", "NameError: name 'm' is not defined"],
+    ]);
+    expect(
+      replay?.checks.map((item) =>
+        item.kind === "checked" ? [item.passed, item.total] : item.kind,
+      ),
+    ).toEqual([
+      [1, 2],
+      [0, 2],
+      [2, 2],
+    ]);
+    const classId =
+      source.classes[replays.findIndex((item) => item !== null)]?.id ?? "";
+    const view = await keeper.learning.questions({
+      moduleId: saved.id,
+      classId,
+    });
+    expect(
+      view.lessons
+        .flatMap((lesson) => lesson.questions)
+        .find((question) => question.id === exercise.id)?.runs[me.id],
+    ).toBe(2);
+    const { stranger } = await teachers();
+    for (const outsider of [stranger, pupil])
+      expect(
+        await rejection(outsider.learning.runs({ ...asked, classId })),
+      ).toMatchObject({ code: "NOT_FOUND" });
   });
 });
 

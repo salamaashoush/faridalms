@@ -2845,6 +2845,51 @@
   "lrnYoungGridCaption": "Each child on each question of {lesson}",
   "lrnYoungGridNote": "From each child's first attempt. This is practice on a screen, to read beside what you see in class, not an assessment.",
   "lrnFirstChoices": "What each student chose on their first try",
+  "lrnReplayWho": "How each student wrote it",
+  "lrnReplay": "Replay",
+  "lrnReplayLabel": "Replay how {name} wrote it",
+  "lrnReplayTitle": "How {name} wrote it",
+  "lrnReplayIntro": "Each run and check, oldest first. Lines changed since the step before are marked.",
+  "lrnReplayRuns": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "{count} run",
+        "countPlural=*": "{count} runs"
+      }
+    }
+  ],
+  "lrnReplayErrors": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "{count} ended in an error",
+        "countPlural=*": "{count} ended in an error"
+      }
+    }
+  ],
+  "lrnReplayChecks": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "{count} check",
+        "countPlural=*": "{count} checks"
+      }
+    }
+  ],
+  "lrnReplayStep": "Step {step} of {total}",
+  "lrnReplayEarlier": "Earlier step",
+  "lrnReplayLater": "Later step",
+  "lrnReplayPlay": "Play",
+  "lrnReplayPause": "Pause",
+  "lrnReplayRan": "Ran it",
+  "lrnReplayChecked": "Checked it",
+  "lrnReplayShown": "Asked to see the answer",
+  "lrnReplayChanged": "Changed since the step before",
+  "lrnReplayNone": "No runs or checks yet.",
   "lrnRightOption": "Right option",
   "lrnNoQuestions": "No questions yet",
   "lrnNoQuestionsBody": "Questions appear here once a lesson that asks them is shown to this class.",

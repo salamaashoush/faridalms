@@ -18,6 +18,17 @@ import { RUN_SECONDS, runCode } from "./runner/runner";
 import { TurtleCanvas } from "./TurtleCanvas";
 import { WebPreview } from "./WebPreview";
 
+/** A run as it ended: the code and input it had, and what it printed. */
+export interface RunReport {
+  code: string;
+  input: string;
+  end: RunEnd;
+  printed: string;
+}
+
+/** As much of what a run prints as a report carries. */
+const REPORTED_CHARS = 2000;
+
 /** What a code block can be run as: a program, or a web page to look at. */
 export type EditorLanguage = RunLanguage | "html";
 
@@ -75,6 +86,7 @@ export function CodeRunner({
   locked = false,
   readOnly = false,
   onChange,
+  onRan,
   className,
 }: {
   /** The code as given, which Reset puts back. */
@@ -87,6 +99,7 @@ export function CodeRunner({
   locked?: boolean;
   readOnly?: boolean;
   onChange?: (code: string) => void;
+  onRan?: (report: RunReport) => void;
   className?: string;
 }) {
   const keysId = useId();
@@ -118,6 +131,8 @@ export function CodeRunner({
     setSaid(language === "python" ? m.codeLoadingPython() : m.codeRunning());
     setPhase("loading");
     if (view.current) tools.current?.markErrorLine(view.current, null);
+    const given = { code, input };
+    let printed = "";
     const started = runCode(
       {
         language,
@@ -126,8 +141,11 @@ export function CodeRunner({
       },
       {
         onStarted: () => setPhase("running"),
-        onOutput: (stream, text) =>
-          setOutput((pieces) => append(pieces, stream, text)),
+        onOutput: (stream, text) => {
+          if (stream === "out" && printed.length < REPORTED_CHARS)
+            printed = (printed + text).slice(0, REPORTED_CHARS);
+          setOutput((pieces) => append(pieces, stream, text));
+        },
         onDrawing: setDrawing,
       },
     );
@@ -150,6 +168,7 @@ export function CodeRunner({
         tools.current
       )
         tools.current.markErrorLine(view.current, result.error.line);
+      onRan?.({ ...given, end: result, printed });
     });
   };
   const runFromKeys = useEffectEvent(run);
