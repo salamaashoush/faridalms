@@ -145,6 +145,8 @@ export interface ContentNode {
   captionsFileId?: string;
   captionsLang?: string;
   transcript?: string;
+  /** A recording's chapters as its teacher writes them, a time and a name a line. */
+  chapters?: string;
   /** A recording students may seek in only as far as they have played. */
   noSkipping?: boolean;
   provider?: EmbedProvider;
@@ -348,6 +350,7 @@ const nodeSchema: v.GenericSchema<ContentNode> = v.lazy(() =>
         v.pipe(v.string(), v.regex(/^[a-z]{2,3}(?:-[\da-z]{2,8})*$/i)),
       ),
       transcript: v.optional(v.pipe(v.string(), v.maxLength(20000))),
+      chapters: v.optional(v.pipe(v.string(), v.maxLength(4000))),
       noSkipping: v.optional(v.boolean()),
       provider: v.optional(v.picklist(embedProviders)),
       embedId: v.optional(v.pipe(v.string(), v.maxLength(200))),

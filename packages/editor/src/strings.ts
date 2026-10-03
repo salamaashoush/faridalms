@@ -188,6 +188,12 @@ export interface EditorStrings {
   transcript: string;
   transcriptSearch: string;
   transcriptNoMatch: string;
+  chapters: string;
+  chaptersAdd: string;
+  chaptersHelp: string;
+  chaptersHint: string;
+  chapterAddAt: (time: string) => string;
+  chaptersSkipped: (count: number) => string;
   transcriptAdd: string;
   transcriptHint: string;
   transcriptMissing: string;

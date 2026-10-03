@@ -1,10 +1,12 @@
 import type { Cue } from "@faridalms/domain/captions";
+import type { Chapter } from "@faridalms/domain/chapters";
 import type { CommonMedia, Media } from "@videojs/react";
 import type { ReactElement, ReactNode, Ref } from "react";
 
 import "@videojs/react/i18n/locales/ar/register";
 import { withoutVowelMarks } from "@faridalms/domain/arabic";
 import { parseVtt } from "@faridalms/domain/captions";
+import { chaptersVtt } from "@faridalms/domain/chapters";
 import { mapCuesToThumbnails } from "@videojs/core";
 import {
   BufferingIndicator,
@@ -46,6 +48,7 @@ import {
   Captions,
   CaptionsOff,
   ChevronDown,
+  ListOrdered,
   LoaderCircle,
   Maximize,
   Minimize,
@@ -362,6 +365,7 @@ export interface PlayerCaptions {
 
 export interface TranscriptStrings {
   transcript: string;
+  chapters: string;
   transcriptSearch: string;
   transcriptNoMatch: string;
 }
@@ -498,6 +502,100 @@ function Transcript({
   );
 }
 
+const NO_CHAPTERS: readonly Chapter[] = [];
+
+/** The chapter playing at a moment, if any has begun. */
+const chapterAt = (chapters: readonly Chapter[], time: number) =>
+  chapters.findLast((chapter) => chapter.at <= time) ?? null;
+
+/** A recording's chapters as a list a student opens and plays from, the one playing marked. */
+function ChapterList({
+  chapters,
+  label,
+  time,
+  seek,
+}: {
+  chapters: readonly Chapter[];
+  label: string;
+  time: number;
+  seek: (seconds: number) => void;
+}) {
+  const [open, setOpen] = useState(false);
+  const panel = useId();
+  const playing = chapterAt(chapters, time);
+  return (
+    <div className="grid gap-2">
+      <button
+        type="button"
+        aria-expanded={open}
+        aria-controls={panel}
+        onClick={() => setOpen((value) => !value)}
+        className="inline-flex h-8 items-center gap-1.5 justify-self-start rounded-md px-2 text-sm font-medium text-muted-foreground transition-colors outline-none hover:bg-muted hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 max-md:h-10 [&_svg]:size-4"
+      >
+        <ListOrdered aria-hidden />
+        {label}
+        <ChevronDown
+          aria-hidden
+          className={cx("transition-transform", open && "rotate-180")}
+        />
+      </button>
+      {open ? (
+        <ol
+          id={panel}
+          className="overflow-hidden rounded-lg border bg-card p-1 text-card-foreground"
+        >
+          {chapters.map((chapter) => (
+            <li key={chapter.at}>
+              <button
+                type="button"
+                aria-current={chapter === playing || undefined}
+                onClick={() => seek(chapter.at)}
+                className="flex w-full items-baseline gap-3 rounded-md px-2 py-1.5 text-start text-sm leading-5 outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50 aria-current:bg-primary/5 aria-current:font-medium"
+              >
+                <span
+                  dir="ltr"
+                  className="w-10 shrink-0 text-[13px] text-muted-foreground tabular-nums"
+                >
+                  {mediaClock(chapter.at)}
+                </span>
+                <span dir="auto">{chapter.title}</span>
+              </button>
+            </li>
+          ))}
+        </ol>
+      ) : null}
+    </div>
+  );
+}
+
+function VideoChapters(
+  props: Omit<Parameters<typeof ChapterList>[0], "time" | "seek">,
+) {
+  const time = usePlayer((state) => state.currentTime);
+  const player = usePlayer();
+  return (
+    <ChapterList
+      {...props}
+      time={time}
+      seek={(seconds) => player.seek(seconds)}
+    />
+  );
+}
+
+/** The chapter playing, beside the time, so a student knows where they are. */
+function ChapterNow({ chapters }: { chapters: readonly Chapter[] }) {
+  const time = usePlayer((state) => state.currentTime);
+  const playing = chapterAt(chapters, time);
+  return playing ? (
+    <span
+      dir="auto"
+      className="min-w-0 truncate px-1 text-[13px] leading-[18px] font-medium opacity-80 max-sm:hidden"
+    >
+      {playing.title}
+    </span>
+  ) : null;
+}
+
 function VideoTranscript(
   props: Omit<Parameters<typeof Transcript>[0], "time" | "seek">,
 ) {
@@ -595,6 +693,19 @@ const sliderThumb =
   "absolute top-1/2 left-(--media-slider-fill) size-3 -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary opacity-0 shadow-sm outline-none transition-opacity duration-150 group-data-dragging/slider:left-(--media-slider-pointer) group-data-interactive/slider:opacity-100 focus-visible:opacity-100 focus-visible:ring-3 focus-visible:ring-ring/50";
 const sliderFill =
   "absolute inset-y-0 left-0 w-(--media-slider-fill) bg-primary group-data-dragging/slider:w-(--media-slider-pointer)";
+// Each chapter lays the whole track over the timeline and shows only its own
+// stretch of it, with a hair's gap from the next, as Video.js's skins do.
+const chapterClip =
+  "absolute inset-0 flex items-center [clip-path:inset(0_calc(100%-var(--media-slider-chapter-end)+1px)_0_calc(var(--media-slider-chapter-start)+1px))] first:[clip-path:inset(0_calc(100%-var(--media-slider-chapter-end)+1px)_0_0)] last:[clip-path:inset(0_0_0_calc(var(--media-slider-chapter-start)+1px))] only:[clip-path:none]";
+
+function VideoTrack() {
+  return (
+    <TimeSlider.Track className={sliderTrack}>
+      <TimeSlider.Buffer className="absolute inset-y-0 left-0 w-(--media-slider-buffer) bg-foreground/25" />
+      <TimeSlider.Fill className={sliderFill} />
+    </TimeSlider.Track>
+  );
+}
 
 function VolumeControl() {
   return (
@@ -757,6 +868,7 @@ export function VideoSurface({
   element,
   watch,
   strings,
+  chapters = NO_CHAPTERS,
 }: {
   /** The upload as it is, played when there are no streams. */
   src: string | null;
@@ -769,10 +881,18 @@ export function VideoSurface({
   element?: Ref<HTMLVideoElement>;
   watch?: MediaWatch | undefined;
   strings?: TranscriptStrings | undefined;
+  chapters?: readonly Chapter[] | undefined;
 }) {
   const dir = pageDirection(locale);
   const tracks = (
     <>
+      {chapters.length > 0 ? (
+        <track
+          kind="chapters"
+          src={`data:text/vtt;charset=utf-8,${encodeURIComponent(chaptersVtt(chapters))}`}
+          default
+        />
+      ) : null}
       {captions ? (
         <track
           kind="captions"
@@ -846,14 +966,23 @@ export function VideoSurface({
               <TimeSlider.Root
                 className={cx(sliderRoot, "pointer-events-auto h-4 max-md:h-6")}
               >
-                <TimeSlider.Track className={sliderTrack}>
-                  <TimeSlider.Buffer className="absolute inset-y-0 left-0 w-(--media-slider-buffer) bg-foreground/25" />
-                  <TimeSlider.Fill className={sliderFill} />
-                </TimeSlider.Track>
+                {chapters.length > 0 ? (
+                  <TimeSlider.Chapters
+                    className="relative flex h-full w-full items-center"
+                    renderChapter={(props) => (
+                      <div {...props} className={chapterClip}>
+                        <VideoTrack />
+                      </div>
+                    )}
+                  />
+                ) : (
+                  <VideoTrack />
+                )}
                 {watch?.stops?.length ? <Marks marks={watch.stops} /> : null}
                 <TimeSlider.Thumb className={sliderThumb} />
                 <TimeSlider.Preview className="bottom-full mb-2 flex flex-col items-center gap-1 opacity-0 transition-opacity duration-150 group-data-pointing/slider:opacity-100">
                   <Preview track={thumbnails} />
+                  <TimeSlider.ChapterTitle className="max-w-48 truncate rounded-md bg-background/90 px-1.5 py-0.5 text-xs font-medium empty:hidden" />
                   <TimeSlider.Value
                     type="pointer"
                     className="rounded-md bg-background/90 px-1.5 py-0.5 text-xs font-medium tabular-nums"
@@ -865,6 +994,9 @@ export function VideoSurface({
                   <PlayControl />
                   <VolumeControl />
                   <Clock />
+                  {chapters.length > 0 ? (
+                    <ChapterNow chapters={chapters} />
+                  ) : null}
                   <span className="flex-1" />
                   <PlayerTip>
                     <CaptionsButton
@@ -934,6 +1066,9 @@ export function VideoSurface({
           />
           <StatusAnnouncer className={announcer} />
         </Container>
+        {chapters.length > 0 && strings ? (
+          <VideoChapters chapters={chapters} label={strings.chapters} />
+        ) : null}
         {captions && strings ? (
           <VideoTranscript captions={captions} strings={strings} />
         ) : null}

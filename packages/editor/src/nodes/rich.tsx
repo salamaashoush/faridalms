@@ -14,6 +14,7 @@ import type {
 } from "lexical";
 import type { JSX } from "react";
 
+import { parseChapters } from "@faridalms/domain/chapters";
 import {
   embedPage,
   embedProviderNames,
@@ -28,8 +29,10 @@ import {
   Captions,
   ExternalLink,
   FastForward,
+  ListOrdered,
   Lock,
   MessageCircleQuestion,
+  Plus,
   ScrollText,
 } from "lucide-react";
 import { useCallback, useEffect, useRef, useState } from "react";
@@ -45,7 +48,7 @@ import {
 } from "../format";
 import { EmbedFrame, MediaPlayer, MediaTranscript } from "../media-view";
 import { $createQuestionNode, $isQuestionNode } from "./question";
-import { useSelectOnClick } from "./select";
+import { ownKeys, useSelectOnClick } from "./select";
 
 // The outline goes round the block's own box, which may be narrower than
 // the column, not round the full-width row that holds it.
@@ -59,16 +62,21 @@ export const EDIT_DIAGRAM_COMMAND = createCommand<NodeKey | null>(
   "FARIDA_EDIT_DIAGRAM",
 );
 
+// A field in the block shows the node's value, so the change is made at
+// once: a later one would redraw the field behind the caret as it types.
 function useNodeUpdate<T extends LexicalNode>(
   nodeKey: NodeKey,
   guard: (node: LexicalNode | null) => node is T,
 ) {
   const [editor] = useLexicalComposerContext();
   return (change: (node: T) => void) =>
-    editor.update(() => {
-      const node = $getNodeByKey(nodeKey);
-      if (guard(node)) change(node);
-    });
+    editor.update(
+      () => {
+        const node = $getNodeByKey(nodeKey);
+        if (guard(node)) change(node);
+      },
+      { discrete: true },
+    );
 }
 
 function CaptionInput({
@@ -81,6 +89,7 @@ function CaptionInput({
   const { strings } = useEditorEnvironment();
   return (
     <input
+      ref={ownKeys}
       aria-label={strings.imageCaption}
       placeholder={strings.imageCaption}
       value={value}
@@ -99,6 +108,7 @@ function MediaBlock({
   captionsFileId,
   captionsLang,
   transcript,
+  chapters,
   noSkipping,
   caption,
   size,
@@ -110,6 +120,7 @@ function MediaBlock({
   captionsFileId: string;
   captionsLang: string;
   transcript: string;
+  chapters: string;
   noSkipping: boolean;
   caption: string;
   size: ImageSize;
@@ -159,6 +170,35 @@ function MediaBlock({
   useEffect(() => {
     if (writing) transcriptInput.current?.focus();
   }, [writing]);
+  const [chaptering, setChaptering] = useState(false);
+  const chaptersInput = useRef<HTMLTextAreaElement>(null);
+  useEffect(() => {
+    if (chaptering) chaptersInput.current?.focus();
+  }, [chaptering]);
+  const chapterList = parseChapters(chapters);
+  const skipped = chapters
+    .split("\n")
+    .filter((line) => line.trim() && parseChapters(line).length === 0).length;
+  // A chapter added from the video goes where its time puts it, with its
+  // name left to write.
+  const addChapter = () => {
+    const at = Math.floor(playing.current?.currentTime ?? second);
+    const lines = chapters ? chapters.split("\n") : [];
+    const later = lines.findIndex(
+      (line) => (parseChapters(line)[0]?.at ?? -1) > at,
+    );
+    const place = later === -1 ? lines.length : later;
+    const line = `${mediaClock(at)} `;
+    const next = [...lines.slice(0, place), line, ...lines.slice(place)];
+    update((node) => node.setChapters(next.join("\n")));
+    const caret =
+      next.slice(0, place).reduce((sum, item) => sum + item.length + 1, 0) +
+      line.length;
+    requestAnimationFrame(() => {
+      chaptersInput.current?.focus();
+      chaptersInput.current?.setSelectionRange(caret, caret);
+    });
+  };
   const editable = useLexicalEditable();
   const update = useNodeUpdate(nodeKey, $isMediaNode);
   useSelectOnClick(nodeKey);
@@ -171,6 +211,7 @@ function MediaBlock({
       nodeKey={nodeKey}
     >
       <figure
+        ref={ownKeys}
         className={`grid gap-1.5 ${imageSizeClass[size]} ${blockAlignClass(format)}`}
       >
         <MediaPlayer
@@ -182,6 +223,7 @@ function MediaBlock({
           strings={strings}
           captionsLabel={strings.captions}
           element={following}
+          chapters={chapterList}
         />
         {editable ? (
           <>
@@ -240,6 +282,16 @@ function MediaBlock({
                   {strings.mediaNoSkipping}
                 </button>
               ) : null}
+              {video && !chapters && !chaptering ? (
+                <button
+                  type="button"
+                  onClick={() => setChaptering(true)}
+                  className={mediaAction}
+                >
+                  <ListOrdered className="size-3.5" aria-hidden />
+                  {strings.chaptersAdd}
+                </button>
+              ) : null}
               {video && questions ? (
                 <button type="button" onClick={askHere} className={mediaAction}>
                   <MessageCircleQuestion className="size-3.5" aria-hidden />
@@ -264,6 +316,49 @@ function MediaBlock({
                 }}
               />
             </div>
+            {video && (chapters || chaptering) ? (
+              <div className="grid gap-1 text-xs text-muted-foreground">
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <label htmlFor={`${nodeKey}-chapters`}>
+                    {strings.chapters}
+                  </label>
+                  <button
+                    type="button"
+                    // Keeps the chapters open while one is added.
+                    onMouseDown={(event) => event.preventDefault()}
+                    onClick={addChapter}
+                    className={mediaAction}
+                  >
+                    <Plus className="size-3.5" aria-hidden />
+                    {strings.chapterAddAt(mediaClock(second))}
+                  </button>
+                </div>
+                <textarea
+                  id={`${nodeKey}-chapters`}
+                  ref={chaptersInput}
+                  dir="auto"
+                  value={chapters}
+                  maxLength={4000}
+                  placeholder={strings.chaptersHint}
+                  aria-describedby={`${nodeKey}-chapters-help`}
+                  onChange={(event) => {
+                    const value = event.target.value;
+                    update((node) => node.setChapters(value));
+                  }}
+                  onBlur={() => setChaptering(false)}
+                  className="field-sizing-content max-h-80 min-h-16 w-full resize-none rounded-md border bg-transparent px-2.5 py-2 text-sm text-foreground outline-none focus-visible:border-ring"
+                />
+                <p id={`${nodeKey}-chapters-help`}>
+                  {skipped > 0 ? (
+                    <span className="text-warning-foreground dark:text-warning">
+                      {strings.chaptersSkipped(skipped)}
+                    </span>
+                  ) : (
+                    strings.chaptersHelp
+                  )}
+                </p>
+              </div>
+            ) : null}
             {transcript || writing ? (
               <label className="grid gap-1 text-xs text-muted-foreground">
                 {strings.transcript}
@@ -421,6 +516,7 @@ export type SerializedMediaNode = Spread<
     captionsFileId?: string;
     captionsLang?: string;
     transcript?: string;
+    chapters?: string;
     caption: string;
     size?: ImageSize;
     /** Students may seek only as far as they have watched. */
@@ -435,6 +531,7 @@ export class MediaNode extends DecoratorBlockNode {
   __captionsFileId: string;
   __captionsLang = "";
   __transcript = "";
+  __chapters = "";
   __noSkipping = false;
   __caption: string;
   __size: ImageSize;
@@ -472,6 +569,7 @@ export class MediaNode extends DecoratorBlockNode {
     );
     copy.__captionsLang = node.__captionsLang;
     copy.__transcript = node.__transcript;
+    copy.__chapters = node.__chapters;
     copy.__noSkipping = node.__noSkipping;
     return copy;
   }
@@ -487,6 +585,7 @@ export class MediaNode extends DecoratorBlockNode {
     node.__captionsFileId = json.captionsFileId ?? "";
     node.__captionsLang = json.captionsLang ?? "";
     node.__transcript = json.transcript ?? "";
+    node.__chapters = json.chapters ?? "";
     node.__noSkipping = json.noSkipping ?? false;
     node.__caption = json.caption;
     node.__size = json.size ?? "full";
@@ -504,6 +603,7 @@ export class MediaNode extends DecoratorBlockNode {
         : {}),
       ...(node.__captionsLang ? { captionsLang: node.__captionsLang } : {}),
       ...(node.__transcript ? { transcript: node.__transcript } : {}),
+      ...(node.__chapters ? { chapters: node.__chapters } : {}),
       caption: node.__caption,
       size: node.__size,
       ...(node.__noSkipping ? { noSkipping: true } : {}),
@@ -544,6 +644,12 @@ export class MediaNode extends DecoratorBlockNode {
     return writable;
   }
 
+  setChapters(chapters: string): this {
+    const writable = this.getWritable();
+    writable.__chapters = chapters;
+    return writable;
+  }
+
   setNoSkipping(noSkipping: boolean): this {
     const writable = this.getWritable();
     writable.__noSkipping = noSkipping;
@@ -570,6 +676,7 @@ export class MediaNode extends DecoratorBlockNode {
         captionsFileId={this.__captionsFileId}
         captionsLang={this.__captionsLang}
         transcript={this.__transcript}
+        chapters={this.__chapters}
         noSkipping={this.__noSkipping}
         caption={this.__caption}
         size={this.__size}

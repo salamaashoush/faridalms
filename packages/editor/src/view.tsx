@@ -7,6 +7,7 @@ import type {
   ReactNode,
 } from "react";
 
+import { parseChapters } from "@faridalms/domain/chapters";
 import {
   codeSource,
   contentPlainText,
@@ -628,6 +629,7 @@ function draw(
             captionsLabel={context.strings.captions}
             watch={watchOf(node, context)}
             strings={context.strings}
+            chapters={parseChapters(node.chapters ?? "")}
           />
           {node.caption ? (
             <figcaption className="text-center text-sm text-muted-foreground">

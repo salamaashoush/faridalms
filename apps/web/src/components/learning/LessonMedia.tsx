@@ -35,6 +35,7 @@ export function Media({
             transcript: m.lrnTranscript(),
             transcriptSearch: m.editorTranscriptSearch(),
             transcriptNoMatch: m.editorTranscriptNoMatch(),
+            chapters: m.editorChapters(),
           }}
         />
       ) : block.mediaType.startsWith("image/") ? (

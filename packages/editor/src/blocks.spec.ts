@@ -217,6 +217,28 @@ describe("block operations", () => {
     );
   });
 
+  it("keeps a video's chapters as its teacher wrote them", () => {
+    const target = editor();
+    const written = "0:00 Colour bars\n0:08 The moving line";
+    target.update(
+      () => {
+        const recording = new MediaNode(
+          "0190a1b2-0000-7000-8000-0000000000a1",
+          "video/mp4",
+        ).setChapters(written);
+        $getRoot().clear().append(recording);
+      },
+      { discrete: true },
+    );
+    const saved = v.safeParse(
+      contentDocumentSchema,
+      target.getEditorState().toJSON(),
+    );
+    expect(saved.success && saved.output.root.children?.[0]?.chapters).toBe(
+      written,
+    );
+  });
+
   it("moves blocks up and down among their siblings", () => {
     const target = editor();
     target.update(

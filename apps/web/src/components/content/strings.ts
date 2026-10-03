@@ -19,6 +19,7 @@ export function fileStrings(): FileStrings {
     transcript: m.editorTranscript(),
     transcriptSearch: m.editorTranscriptSearch(),
     transcriptNoMatch: m.editorTranscriptNoMatch(),
+    chapters: m.editorChapters(),
   };
 }
 
@@ -211,6 +212,12 @@ export function editorStrings(): EditorStrings {
     transcript: m.editorTranscript(),
     transcriptSearch: m.editorTranscriptSearch(),
     transcriptNoMatch: m.editorTranscriptNoMatch(),
+    chapters: m.editorChapters(),
+    chaptersAdd: m.editorChaptersAdd(),
+    chaptersHelp: m.editorChaptersHelp(),
+    chaptersHint: m.editorChaptersHint(),
+    chapterAddAt: (time) => m.editorChapterAddAt({ time }),
+    chaptersSkipped: (count) => m.editorChaptersSkipped({ count }),
     transcriptAdd: m.editorTranscriptAdd(),
     transcriptHint: m.editorTranscriptHint(),
     transcriptMissing: m.editorTranscriptMissing(),

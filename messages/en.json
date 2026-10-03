@@ -794,6 +794,21 @@
   "editorTranscript": "Transcript",
   "editorTranscriptSearch": "Search the transcript",
   "editorTranscriptNoMatch": "No lines match.",
+  "editorChapters": "Chapters",
+  "editorChaptersAdd": "Add chapters",
+  "editorChaptersHelp": "One a line: a time, then the chapter's name.",
+  "editorChaptersHint": "0:00 Introduction\n1:30 Making a loop",
+  "editorChapterAddAt": "Add a chapter at {time}",
+  "editorChaptersSkipped": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "{count} line is not a chapter yet: start it with a time such as 1:30.",
+        "countPlural=*": "{count} lines are not chapters yet: start each with a time such as 1:30."
+      }
+    }
+  ],
   "editorTranscriptAdd": "Add transcript",
   "editorTranscriptHint": "What is said, for students who cannot hear it",
   "editorTranscriptMissing": "Add a transcript or a captions file so everyone can follow along.",

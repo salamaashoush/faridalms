@@ -811,6 +811,25 @@
   "editorTranscript": "النص المكتوب",
   "editorTranscriptSearch": "ابحث في النص",
   "editorTranscriptNoMatch": "لا أسطر مطابقة.",
+  "editorChapters": "الفصول",
+  "editorChaptersAdd": "إضافة فصول",
+  "editorChaptersHelp": "فصل في كل سطر: الوقت ثم اسم الفصل.",
+  "editorChaptersHint": "0:00 المقدمة\n1:30 كتابة حلقة تكرار",
+  "editorChapterAddAt": "إضافة فصل عند {time}",
+  "editorChaptersSkipped": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=zero": "كل الأسطر فصول.",
+        "countPlural=one": "سطر واحد ليس فصلًا بعد: ابدأه بوقت مثل 1:30.",
+        "countPlural=two": "سطران ليسا فصلين بعد: ابدأ كلًّا منهما بوقت مثل 1:30.",
+        "countPlural=few": "{count} أسطر ليست فصولًا بعد: ابدأ كلًّا منها بوقت مثل 1:30.",
+        "countPlural=many": "{count} سطرًا ليست فصولًا بعد: ابدأ كلًّا منها بوقت مثل 1:30.",
+        "countPlural=*": "{count} سطر ليست فصولًا بعد: ابدأ كلًّا منها بوقت مثل 1:30."
+      }
+    }
+  ],
   "editorTranscriptAdd": "إضافة النص المكتوب",
   "editorTranscriptHint": "ما يُقال، للطلاب الذين لا يستطيعون السماع",
   "editorTranscriptMissing": "أضف النص المكتوب أو ملف ترجمة حتى يتابع الجميع.",

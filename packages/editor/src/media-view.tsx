@@ -1,3 +1,4 @@
+import type { Chapter } from "@faridalms/domain/chapters";
 import type { EmbedProvider } from "@faridalms/domain/embed";
 import type { Ref } from "react";
 
@@ -23,6 +24,7 @@ export function MediaPlayer({
   element,
   watch,
   strings,
+  chapters,
 }: {
   src: string | undefined;
   captions: string | undefined;
@@ -37,6 +39,8 @@ export function MediaPlayer({
   watch?: MediaWatch | undefined;
   /** With captions, a transcript a student can follow, search and jump from. */
   strings?: TranscriptStrings | undefined;
+  /** A video's chapters, on its timeline and in a list to play from. */
+  chapters?: readonly Chapter[] | undefined;
 }) {
   if (!src) return null;
   const track = captions
@@ -50,6 +54,7 @@ export function MediaPlayer({
       element={element}
       watch={watch}
       strings={strings}
+      chapters={chapters}
     />
   ) : (
     <AudioBar
@@ -84,6 +89,7 @@ function StreamingVideo({
   element,
   watch,
   strings,
+  chapters,
 }: {
   src: string;
   captions: PlayerCaptions | null;
@@ -91,6 +97,7 @@ function StreamingVideo({
   element?: Ref<HTMLVideoElement>;
   watch?: MediaWatch | undefined;
   strings?: TranscriptStrings | undefined;
+  chapters?: readonly Chapter[] | undefined;
 }) {
   const [source, setSource] = useState<
     { stream: Stream } | { upload: string } | null
@@ -144,6 +151,7 @@ function StreamingVideo({
       element={element}
       watch={watch}
       strings={strings}
+      chapters={chapters}
     />
   );
 }

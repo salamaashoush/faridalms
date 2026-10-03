@@ -58,7 +58,12 @@ with the gate it can break.
    upload, deleting streams with their file, and hosted adapters remain.
 7. **Captions and chapters.** Whisper drafts captions on the worker for the
    teacher to approve in the existing captions editor; chapters edited on the
-   timeline and shown on the scrub bar.
+   timeline and shown on the scrub bar. Done for chapters: a teacher writes a
+   video's chapters as video sites take them, a time and a name a line, or
+   adds one at the moment the video is paused on; students see the timeline
+   split at each chapter, the chapter's name over the time as they seek, the
+   chapter playing beside the clock, and a list of chapters to play from.
+   Whisper captions remain.
 8. **Teacher studio and student replies.** Record camera, screen and voice in
    the browser, trim, publish; the same recorder gives students a video or
    audio answer kind.
