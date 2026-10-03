@@ -20,6 +20,11 @@ with new evidence recorded here.
   type, sign-in; Sesame Workshop, NN/g, Vatavu, Hourcade, Khan Kids, Seesaw)
   and [early-years-activities.md](early-years-activities.md) (activities
   ranked by use across EYFS, PYP, Cambridge EY and Common Core K-2).
+- [video-and-coding.md](video-and-coding.md): video and coding lessons that
+  engage children: the evidence (Guo, Szpunar, PRIMM, Parsons, blocks to
+  text), the tools checked at source (Video.js 10, hls.js, Whisper, Blockly,
+  Scratch and its licences, MakeCode, CodeMirror, Pyodide) and what Farida
+  builds itself.
 - [communication.md](communication.md): messaging, announcements, newsletters,
   calendar, notifications (ParentSquare, Remind, ClassDojo, Seesaw, Bloomz,
   Brightwheel, Mailchimp, Smore).

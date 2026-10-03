@@ -153,7 +153,8 @@ preview domain.
    gaps and tiles, a harakat setting, an Arabic type scale); module switches.
    Then mixed review, worked examples with fading, predict blocks and unit
    checkpoints.
-5. Video module; coding module; blocks module.
+5. Video module; coding module; blocks module, ordered in
+   [video-and-coding.md](video-and-coding.md).
 
 Each step lands in small commits with the gates the change can break, and
 is checked in the browser in English and Arabic, desktop and phone.
