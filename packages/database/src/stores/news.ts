@@ -17,6 +17,9 @@ export interface PostRow {
   titleAr: string;
   excerptEn: string;
   excerptAr: string;
+  coverFileId: string | null;
+  coverAltEn: string;
+  coverAltAr: string;
   pinned: boolean;
   state: SiteState;
   visibility: PostVisibility;
@@ -38,6 +41,9 @@ type PostRecord = {
   title_ar: string;
   excerpt_en: string;
   excerpt_ar: string;
+  cover_file_id: string | null;
+  cover_alt_en: string;
+  cover_alt_ar: string;
   pinned: boolean;
   state: SiteState;
   visibility: PostVisibility;
@@ -55,7 +61,7 @@ const original = (column: string) =>
     order by d.date_last_modified desc limit 1)`;
 
 const postColumns = sql`p.id, p.version, p.org_id, p.category_id, p.slug, p.title_en, p.title_ar,
-  p.excerpt_en, p.excerpt_ar, p.pinned, p.state,
+  p.excerpt_en, p.excerpt_ar, p.cover_file_id, p.cover_alt_en, p.cover_alt_ar, p.pinned, p.state,
   p.visibility, ${original("locale")} as primary_locale,
   ${isoOf(sql`p.published_at`)} as published_at, ${isoOf(sql`p.revised_at`)} as revised_at,
   u.full_name_en as author_en, u.full_name_ar as author_ar`;
@@ -74,6 +80,9 @@ function postOf(row: PostRecord): PostRow {
     titleAr: row.title_ar,
     excerptEn: row.excerpt_en,
     excerptAr: row.excerpt_ar,
+    coverFileId: row.cover_file_id,
+    coverAltEn: row.cover_alt_en,
+    coverAltAr: row.cover_alt_ar,
     pinned: row.pinned,
     state: row.state,
     visibility: row.visibility,
@@ -166,6 +175,9 @@ export interface PostFields {
   titleAr: string;
   excerptEn: string;
   excerptAr: string;
+  coverFileId: string | null;
+  coverAltEn: string;
+  coverAltAr: string;
   pinned: boolean;
   visibility: PostVisibility;
 }
@@ -176,11 +188,11 @@ export async function insertPost(
 ): Promise<{ id: string; version: number }> {
   const [row] = await tx.execute<{ id: string; version: number }>(sql`
     insert into core.site_posts (tenant_id, org_id, category_id, slug, title_en, title_ar,
-      excerpt_en, excerpt_ar, pinned, visibility,
+      excerpt_en, excerpt_ar, cover_file_id, cover_alt_en, cover_alt_ar, pinned, visibility,
       author_user_id)
     values (${input.tenantId}::uuid, ${input.orgId}::uuid, ${input.categoryId}::uuid,
       ${input.slug}, ${input.titleEn}, ${input.titleAr}, ${input.excerptEn}, ${input.excerptAr},
-      ${input.pinned},
+      ${input.coverFileId}::uuid, ${input.coverAltEn}, ${input.coverAltAr}, ${input.pinned},
       ${input.visibility}, ${input.authorId}::uuid)
     returning id, version`);
   if (!row) throw new Error("post was not inserted");
@@ -196,7 +208,8 @@ export async function updatePost(
     set category_id = ${input.categoryId}::uuid, slug = ${input.slug},
         title_en = ${input.titleEn}, title_ar = ${input.titleAr},
         excerpt_en = ${input.excerptEn}, excerpt_ar = ${input.excerptAr},
-        pinned = ${input.pinned},
+        cover_file_id = ${input.coverFileId}::uuid, cover_alt_en = ${input.coverAltEn},
+        cover_alt_ar = ${input.coverAltAr}, pinned = ${input.pinned},
         visibility = ${input.visibility},
         revised_at = case when state = 'published' then statement_timestamp() else revised_at end
     where tenant_id = ${input.tenantId}::uuid and id = ${input.id}::uuid

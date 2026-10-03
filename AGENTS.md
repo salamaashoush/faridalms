@@ -172,25 +172,28 @@ lessons, consent forms, pages) is one editor document (`packages/editor`,
 `ContentDocument`). This is the rule the whole product is built on; a reviewer
 rejects anything that works around it.
 
-- **Content is a block, never a field beside the editor.** Pictures, files,
-  video, embeds, questions and attachments are editor blocks. Do not add a
-  cover picture, an attachments list, a "pictures" panel or any other media
-  control to a details panel, a side sheet or a form next to the document.
-- **What belongs to a piece of content is set on its block**, from the
-  editor's one floating bar (`plugins/SelectionToolbar.tsx`): alt text,
-  caption, size, who a photo shows. A host app adds such an action through
-  `EditorMedia` in `packages/editor/src/context.tsx`, never with its own panel.
-- **Anything another surface needs from a document is derived from it.** A
-  website card's picture is the post's first picture, and a reader's file
-  list is its file blocks. Computing it is fine; asking the author to enter
-  it again is not.
+- **What is part of the content is a block, never a field beside the
+  editor.** Pictures in the text, files, video, embeds, questions and
+  attachments are editor blocks. Do not mirror them outside the document: no
+  attachments list under the brief, no panel listing the document's
+  pictures, no second place to edit them.
+- **What belongs to a block is set on the block**, from the editor's one
+  floating bar (`plugins/SelectionToolbar.tsx`): alt text, caption, size, who
+  a photo shows. A host app adds such an action through `EditorMedia` in
+  `packages/editor/src/context.tsx`, never with its own panel.
+- **Settings about a document are not content.** A post's cover picture,
+  summary, audience, dates, language, visibility and address describe the
+  document for cards, lists and delivery; they belong in the details panel.
+  A setting that is a picture gets the same picture actions as a block (who
+  it shows) on its own control.
+- **Anything another surface needs from the words is derived from them.** A
+  reader's file list is the document's file blocks; a card without a cover
+  shows the first picture. Computing it is fine; asking the author to enter
+  content again is not.
 - **No surface is special.** Before adding a control for one kind of document
   (news, a page, a lesson), ask whether every document needs it. If it does,
   it is an editor capability; if it does not, it is a setting of that
-  document, and settings are never content.
-- The details panel holds settings only: audience, dates, language,
-  visibility, address. If you are about to put a picture, a file or a person
-  there, stop.
+  document.
 
 ---
 

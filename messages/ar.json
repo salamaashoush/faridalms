@@ -5287,5 +5287,9 @@
   "identifiersErrEgypt": "الرقم القومي المصري من 14 رقمًا ويبدأ بتاريخ الميلاد.",
   "identifiersErrDates": "يجب أن يأتي تاريخ الانتهاء بعد تاريخ الإصدار.",
   "homeDocumentsExpiring": "وثائق توشك على الانتهاء",
-  "editorPicturePeople": "من في الصورة"
+  "editorPicturePeople": "من في الصورة",
+  "newsPicture": "الصورة",
+  "newsPictureAlt": "صف الصورة",
+  "siteChoosePicture": "اختيار {label}",
+  "siteReplacePicture": "استبدال {label}"
 }

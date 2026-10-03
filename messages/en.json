@@ -5093,5 +5093,9 @@
   "identifiersErrEgypt": "An Egyptian national ID number has 14 digits and starts with the birth date.",
   "identifiersErrDates": "The expiry date must come after the issue date.",
   "homeDocumentsExpiring": "Documents running out",
-  "editorPicturePeople": "Who is in it"
+  "editorPicturePeople": "Who is in it",
+  "newsPicture": "Picture",
+  "newsPictureAlt": "Describe the picture",
+  "siteChoosePicture": "Choose {label}",
+  "siteReplacePicture": "Replace {label}"
 }

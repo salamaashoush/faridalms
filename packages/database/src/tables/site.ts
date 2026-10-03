@@ -30,6 +30,7 @@ import {
   tenantColumns,
 } from "./conventions";
 import { descriptors } from "./descriptors";
+import { files } from "./files";
 import { users } from "./people";
 import { classes } from "./teaching";
 import { orgs, tenants } from "./tenancy";
@@ -240,6 +241,9 @@ export const sitePosts = core.table.withRLS(
     titleAr: text("title_ar").notNull().default(""),
     excerptEn: text("excerpt_en").notNull().default(""),
     excerptAr: text("excerpt_ar").notNull().default(""),
+    coverFileId: uuid("cover_file_id"),
+    coverAltEn: text("cover_alt_en").notNull().default(""),
+    coverAltAr: text("cover_alt_ar").notNull().default(""),
     pinned: boolean("pinned").notNull().default(false),
     state: text("state").$type<SiteState>().notNull().default("draft"),
     /** Public posts are on the website too; school posts reach only their audience. */
@@ -268,6 +272,7 @@ export const sitePosts = core.table.withRLS(
       [t.tenantId, t.categoryId],
       [siteCategories.tenantId, siteCategories.id],
     ),
+    fk("site_posts", [t.tenantId, t.coverFileId], [files.tenantId, files.id]),
     fk("site_posts", [t.tenantId, t.authorUserId], [users.tenantId, users.id]),
     fk(
       "site_posts",
@@ -294,6 +299,11 @@ export const sitePosts = core.table.withRLS(
       "site_posts",
       "excerpt",
       sql`char_length(excerpt_en) <= 300 and char_length(excerpt_ar) <= 300`,
+    ),
+    ck(
+      "site_posts",
+      "cover_alt",
+      sql`char_length(cover_alt_en) <= 300 and char_length(cover_alt_ar) <= 300`,
     ),
     ck("site_posts", "state", sql`state in ('draft', 'published', 'archived')`),
     ck(

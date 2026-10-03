@@ -184,8 +184,9 @@ is a separate, explicit step; the old year becomes read-only.
   beside the old one; the office's home lists documents running out within
   60 days, and the student list finds a student by an exact number.
 - **Photos of students:** a picture's own controls (the editor's bar on a
-  picture in any document, the picture control of a website section) name
-  the students in it and show whether each family agreed to that place.
+  picture in any document, a post's cover picture, the picture control of a
+  website section) name the students in it and show whether each family
+  agreed to that place.
   Publishing refuses a picture of a student without a yes, and a family's
   later no to the website takes their child's pictures off it at once.
 - **Staff:** roles, classes taught, homeroom, timetable, effective access,
@@ -250,10 +251,10 @@ One kind of story: a post, written as one document in the shared editor, in
 one language or both, with a translation someone checks against the original
 (the check lapses when the original changes). A post is either for the
 website and the school, or for the school only; school-only news never
-reaches the website. A post has a summary, an audience that is told
+reaches the website. A post has a summary, a cover picture, an audience that is told
 when it goes out (required for school-only news, optional for website news),
-and on the website a category, an address and pinning; its website card
-shows the first picture in the post. A weekly or monthly
+and on the website a category, an address and pinning; without a cover its
+website card shows the first picture in the post. A weekly or monthly
 newsletter is a post started from a newsletter template. Publishing fixes who
 it reached and notifies them once with the summary; edits stay private until
 published again, and readers see when a post was updated. Duplicate, archive,
@@ -308,7 +309,8 @@ are edited side by side with a missing-translation badge. Draft, Published and
 Published with unpublished changes; scheduling; version history with restore;
 phone and desktop preview in both languages; editors submit and admins approve;
 checks before publishing (one H1, alt text, descriptive links). Posts are
-news (see News). A site-wide banner for closures.
+news (see News), with a cover, summary, category, pin and schedule. A
+site-wide banner for closures.
 
 ## Settings
 

@@ -206,6 +206,10 @@ const titleIn = (row: PostRow, locale: ContentLocale) => {
   return pick(locale) || pick(primaryOf(row)) || pick(otherLocale(locale));
 };
 
+const postMedia = (body: ContentDocument, coverFileId: string | null) => [
+  ...new Set([...contentFileIds(body), ...(coverFileId ? [coverFileId] : [])]),
+];
+
 /** What stops a public post going on the website, per language it is written in. */
 function issuesOf(
   row: PostRow,
@@ -218,7 +222,11 @@ function issuesOf(
   for (const locale of [primary, otherLocale(primary)]) {
     const written = locale === primary ? body : translation;
     if (!written || !documentWritten(written)) continue;
-    found[locale] = postIssues(written);
+    found[locale] = postIssues({
+      coverFileId: row.coverFileId,
+      coverAlt: locale === "ar" ? row.coverAltAr : row.coverAltEn,
+      body: written,
+    });
   }
   return found;
 }
@@ -378,6 +386,9 @@ export const save = writeProcedure
       titleAr: input.titleAr,
       excerptEn: input.excerptEn,
       excerptAr: input.excerptAr,
+      coverFileId: input.coverFileId || null,
+      coverAltEn: input.coverAltEn,
+      coverAltAr: input.coverAltAr,
       pinned: input.pinned,
       visibility: input.visibility,
     };
@@ -426,7 +437,7 @@ export const save = writeProcedure
       context,
       host(postId),
       input.body,
-      contentFileIds(input.body),
+      postMedia(input.body, fields.coverFileId),
     );
     const original = await saveDocument(context.tx, {
       tenantId: context.tenantId,
@@ -508,8 +519,8 @@ async function putOnWebsite(
     { tenantId: context.tenantId, hostType: "site_post", hostId: row.id },
     [
       ...new Set([
-        ...contentFileIds(body),
-        ...(translation ? contentFileIds(translation) : []),
+        ...postMedia(body, row.coverFileId),
+        ...(translation ? postMedia(translation, null) : []),
       ]),
     ],
   );
@@ -521,8 +532,13 @@ async function putOnWebsite(
     const own = locale === primary ? body : translation;
     const words = (en: string, ar: string) =>
       (locale === "ar" ? ar : en) || (primary === "ar" ? ar : en);
-    // The card and the link preview show the post's first picture.
-    const picture = firstPicture(own ?? body);
+    // A post without a cover shows its first picture on its card.
+    const picture = row.coverFileId
+      ? {
+          fileId: row.coverFileId,
+          alt: words(row.coverAltEn, row.coverAltAr),
+        }
+      : firstPicture(own ?? body);
     await writePublishedPost(context.tx, {
       tenantId: context.tenantId,
       orgId: context.schoolId,
@@ -584,8 +600,8 @@ export const publish = writeProcedure
         tenantId: context.tenantId,
         fileIds: [
           ...new Set([
-            ...contentFileIds(body),
-            ...(other ? contentFileIds(other) : []),
+            ...postMedia(body, row.coverFileId),
+            ...(other ? postMedia(other, null) : []),
           ]),
         ],
         meaning: "photo_internal",
@@ -786,6 +802,9 @@ export const duplicate = writeProcedure
       titleAr: row.titleAr,
       excerptEn: row.excerptEn,
       excerptAr: row.excerptAr,
+      coverFileId: row.coverFileId,
+      coverAltEn: row.coverAltEn,
+      coverAltAr: row.coverAltAr,
       pinned: false,
       visibility: row.visibility,
     });
@@ -804,7 +823,7 @@ export const duplicate = writeProcedure
         locale: original.locale ?? primaryOf(row),
         content: original.content,
         plainText: original.plainText,
-        mediaIds: contentFileIds(body),
+        mediaIds: postMedia(body, row.coverFileId),
         userId: context.actor.userId,
       });
       const other = bodyOf(translation?.content ?? null);

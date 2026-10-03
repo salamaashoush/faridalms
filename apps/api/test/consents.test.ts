@@ -332,7 +332,7 @@ function withPicture(body: ContentDocument, fileId: string): ContentDocument {
   };
 }
 
-/** A post opening with a picture, as a document holds one. */
+/** A post opening with a picture in its words, and no cover. */
 const post = (
   title: string,
   pictureId: string,
@@ -348,6 +348,9 @@ const post = (
   excerptAr: "",
   slug: `${title.toLowerCase().replaceAll(/[^a-z0-9]+/g, "-")}-${crypto.randomUUID().slice(0, 6)}`,
   categoryId: "",
+  coverFileId: "",
+  coverAltEn: "",
+  coverAltAr: "",
   pinned: false,
   audiences:
     visibility === "school"
