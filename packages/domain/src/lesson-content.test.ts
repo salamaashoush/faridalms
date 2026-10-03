@@ -53,7 +53,7 @@ const lesson: LessonDocument = {
       type: "choice",
       prompt: "Which word is a verb?",
       points: 2,
-      hint: "It is something you do.",
+      hints: ["It is something you do.", "You can do it with your legs."],
       explanation: "Run is an action.",
       tries: 2,
       options: [
@@ -77,7 +77,7 @@ const lesson: LessonDocument = {
       type: "text",
       prompt: "The capital of Egypt?",
       points: 1,
-      hint: "",
+      hints: [],
       explanation: "",
       tries: null,
       answers: ["Cairo", "القاهرة"],
@@ -90,7 +90,7 @@ const lesson: LessonDocument = {
       type: "number",
       prompt: "How many sides has a hexagon?",
       points: 1,
-      hint: "",
+      hints: [],
       explanation: "",
       tries: 3,
       mode: "exact",
@@ -105,7 +105,7 @@ const lesson: LessonDocument = {
       type: "ordering",
       prompt: "Put the stages in order.",
       points: 2,
-      hint: "",
+      hints: [],
       explanation: "",
       tries: null,
       items: [
@@ -120,7 +120,7 @@ const lesson: LessonDocument = {
       type: "matching",
       prompt: "Match each word to its meaning.",
       points: 3,
-      hint: "",
+      hints: [],
       explanation: "",
       tries: null,
       pairs: [
@@ -144,7 +144,7 @@ const lesson: LessonDocument = {
       type: "sorting",
       prompt: "Sort the animals.",
       points: 2,
-      hint: "",
+      hints: [],
       explanation: "",
       tries: null,
       groups: [
@@ -169,7 +169,7 @@ const lesson: LessonDocument = {
       type: "gaps",
       prompt: "Fill in the gaps.",
       points: 2,
-      hint: "",
+      hints: [],
       explanation: "",
       tries: null,
       segments: [
@@ -198,7 +198,7 @@ const lesson: LessonDocument = {
       type: "written",
       prompt: "Why does the poet repeat the last line?",
       points: 4,
-      hint: "",
+      hints: [],
       explanation: "",
       tries: null,
       wordLimit: 150,
@@ -233,6 +233,22 @@ describe("lessons written as one document", () => {
       text?.type === "content" ? contentPlainText(text.content) : "",
     ).toContain("Read the poem first.");
     expect(contentPlainText(document)).toContain("Line two.");
+  });
+
+  it("reads a question saved with one hint as its first hint", () => {
+    const document = contentOfLesson(lesson);
+    if (!document) throw new Error("lesson could not become a document");
+    const saved = structuredClone(document);
+    const question = saved.root.children?.find(
+      (node) => node.type === "question",
+    );
+    if (!question) throw new Error("the lesson has no question");
+    delete question.hints;
+    question.hint = "It is something you do.";
+    const back = lessonOfContent(saved);
+    expect(back.blocks.find((block) => block.type === "choice")).toMatchObject({
+      hints: ["It is something you do."],
+    });
   });
 
   it("gives the text between questions the same id each time", () => {
@@ -302,7 +318,7 @@ const partId = (n: number) =>
 describe("pictures on a question's parts", () => {
   const cat = "0190a1b2-0000-7000-8000-0000000000c1";
   const dog = "0190a1b2-0000-7000-8000-0000000000d1";
-  const base = { points: 1, hint: "", explanation: "", tries: null };
+  const base = { points: 1, hints: [], explanation: "", tries: null };
   const pictured: LessonDocument = {
     version: 2,
     blocks: [
@@ -386,7 +402,7 @@ const voice = (n: number) =>
   `0190a1b2-0000-7000-8000-0000000002${String(n).padStart(2, "0")}`;
 
 describe("narration recorded by the teacher", () => {
-  const base = { points: 1, hint: "", explanation: "", tries: null };
+  const base = { points: 1, hints: [], explanation: "", tries: null };
   const narrated: LessonDocument = {
     version: 2,
     blocks: [
@@ -485,7 +501,7 @@ describe("narration recorded by the teacher", () => {
 });
 
 describe("counting", () => {
-  const base = { points: 1, hint: "", explanation: "", tries: null };
+  const base = { points: 1, hints: [], explanation: "", tries: null };
   const counting: LessonDocument = {
     version: 2,
     blocks: [
@@ -547,7 +563,7 @@ describe("memory pairs", () => {
           type: "matching",
           prompt: "Find the pairs.",
           points: 0,
-          hint: "",
+          hints: [],
           explanation: "",
           tries: null,
           memory: true,
@@ -575,7 +591,7 @@ describe("drawn and photographed answers", () => {
       type: "written",
       prompt: "Show me your house.",
       points: 0,
-      hint: "",
+      hints: [],
       explanation: "",
       tries: null,
       wordLimit: null,
@@ -619,7 +635,7 @@ describe("find on a picture", () => {
         type: "hotspot",
         prompt: "Find the two ducks.",
         points: 1,
-        hint: "",
+        hints: [],
         explanation: "",
         tries: null,
         picture: { fileId: partId(61), alt: "A pond" },
@@ -691,7 +707,7 @@ describe("word builder", () => {
         type: "spelling",
         prompt: "Build the word ship.",
         points: 1,
-        hint: "",
+        hints: [],
         explanation: "",
         tries: null,
         picture: null,
@@ -747,7 +763,7 @@ describe("code puzzles", () => {
         type: "parsons",
         prompt: "Count to three.",
         points: 1,
-        hint: "",
+        hints: [],
         explanation: "",
         tries: null,
         language: "python",
@@ -791,7 +807,7 @@ describe("code exercises", () => {
         type: "program",
         prompt: "Add the two numbers.",
         points: 2,
-        hint: "",
+        hints: [],
         explanation: "",
         tries: null,
         language: "python",
@@ -835,7 +851,7 @@ const asked = (
   type: "choice",
   prompt: "What happened?",
   points: 1,
-  hint: "",
+  hints: [],
   explanation: "",
   tries: null,
   ...(videoAt === undefined ? {} : { videoAt }),

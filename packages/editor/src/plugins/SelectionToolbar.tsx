@@ -11,6 +11,7 @@ import { Menu } from "@base-ui/react/menu";
 import { parseNumber } from "@faridalms/domain/answers";
 import { fileDisplays, imageSizes } from "@faridalms/domain/content";
 import { fileFamily } from "@faridalms/domain/file";
+import { MAX_HINTS } from "@faridalms/domain/learning";
 import { $isCodeNode } from "@lexical/code";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
 import { useLexicalEditable } from "@lexical/react/useLexicalEditable";
@@ -53,6 +54,7 @@ import {
   MessageSquare,
   Pencil,
   PenLine,
+  Plus,
   Puzzle,
   Shuffle,
   SpellCheck,
@@ -156,6 +158,7 @@ type Mode =
   | "file"
   | "question"
   | "question-text"
+  | "question-hints"
   | "question-number"
   | "narration"
   | "trace"
@@ -176,7 +179,7 @@ interface QuestionBarFacts {
   test: { key: NodeKey; hidden: boolean } | null;
 }
 
-type QuestionText = "hint" | "explanation" | "feedback" | "alt";
+type QuestionText = "explanation" | "feedback" | "alt";
 
 const POINTS = [0, 1, 2, 3, 4, 5, 6, 8, 10];
 const TRIES = [null, 1, 2, 3, 5] as const;
@@ -306,8 +309,16 @@ export function SelectionToolbarPlugin() {
   const [layout, setLayout] = useState<BlockFacts | null>(null);
   const [fileFacts, setFileFacts] = useState<FileBarFacts | null>(null);
   const [question, setQuestion] = useState<QuestionBarFacts | null>(null);
-  const [editing, setEditing] = useState<QuestionText>("hint");
+  const [editing, setEditing] = useState<QuestionText>("explanation");
   const [draftText, setDraftText] = useState("");
+  const [hintDrafts, setHintDrafts] = useState<{ id: string; text: string }[]>(
+    [],
+  );
+  const hintFields = useRef(new Map<string, HTMLTextAreaElement>());
+  useEffect(() => {
+    if (mode === "question-hints")
+      [...hintFields.current.values()].at(-1)?.focus();
+  }, [mode]);
   const [numbers, setNumbers] = useState({
     mode: "exact" as "exact" | "range",
     value: "",
@@ -491,6 +502,7 @@ export function SelectionToolbarPlugin() {
     if (
       modeRef.current === "link-edit" ||
       modeRef.current === "question-text" ||
+      modeRef.current === "question-hints" ||
       modeRef.current === "question-number" ||
       modeRef.current === "narration" ||
       modeRef.current === "trace" ||
@@ -653,6 +665,7 @@ export function SelectionToolbarPlugin() {
       mode === "hidden" ||
       mode === "link-edit" ||
       mode === "question-text" ||
+      mode === "question-hints" ||
       mode === "question-number" ||
       mode === "narration" ||
       mode === "trace" ||
@@ -667,6 +680,7 @@ export function SelectionToolbarPlugin() {
       if (
         modeRef.current === "link-edit" ||
         modeRef.current === "question-text" ||
+        modeRef.current === "question-hints" ||
         modeRef.current === "question-number" ||
         modeRef.current === "narration" ||
         modeRef.current === "trace" ||
@@ -894,6 +908,18 @@ export function SelectionToolbarPlugin() {
             : settings[field],
       );
       show("question-text");
+    };
+    const writeHints = () => {
+      saved.current = editor
+        .getEditorState()
+        .read(() => $getSelection()?.clone() ?? null);
+      setHintDrafts(
+        (settings.hints.length > 0 ? settings.hints : [""]).map((text) => ({
+          id: crypto.randomUUID(),
+          text,
+        })),
+      );
+      show("question-hints");
     };
     const triesText = (value: number | null) =>
       value === null
@@ -1248,8 +1274,8 @@ export function SelectionToolbarPlugin() {
           ) : null}
           <ToolButton
             label={strings.questionHint}
-            active={Boolean(settings.hint)}
-            onClick={() => write("hint")}
+            active={settings.hints.length > 0}
+            onClick={writeHints}
           >
             <Lightbulb aria-hidden />
           </ToolButton>
@@ -1504,13 +1530,11 @@ export function SelectionToolbarPlugin() {
 
   if (mode === "question-text" && question) {
     const labels: Record<QuestionText, string> = {
-      hint: strings.questionHint,
       explanation: strings.questionExplanation,
       feedback: strings.questionFeedback,
       alt: strings.questionPictureDescribe,
     };
     const limits: Record<QuestionText, number> = {
-      hint: 500,
       explanation: 1000,
       feedback: 300,
       alt: 300,
@@ -1580,6 +1604,133 @@ export function SelectionToolbarPlugin() {
           >
             {strings.questionDone}
           </button>
+        </form>
+      </Floating>
+    );
+  }
+
+  if (mode === "question-hints" && question) {
+    const done = () => {
+      const hints = hintDrafts
+        .map((hint) => hint.text.trim())
+        .filter((hint) => hint !== "");
+      withSelection(() => {
+        const node = $getNodeByKey(question.key);
+        if ($isQuestionNode(node)) node.setSettings({ hints });
+      });
+      show("question");
+      focusText(editor);
+    };
+    const cancel = () => {
+      show("question");
+      focusText(editor);
+    };
+    const focusHint = (id: string | undefined) =>
+      requestAnimationFrame(() => {
+        if (id) hintFields.current.get(id)?.focus();
+      });
+    const add = () => {
+      const id = crypto.randomUUID();
+      setHintDrafts([...hintDrafts, { id, text: "" }]);
+      focusHint(id);
+    };
+    const remove = (index: number) => {
+      const rest = hintDrafts.filter((_, at) => at !== index);
+      const next =
+        rest.length > 0 ? rest : [{ id: crypto.randomUUID(), text: "" }];
+      setHintDrafts(next);
+      focusHint(next[Math.min(index, next.length - 1)]?.id);
+    };
+    const count = new Intl.NumberFormat(locale);
+    return (
+      <Floating
+        reference={reference}
+        placement="top-start"
+        className="flex w-96 max-w-[calc(100vw-1rem)] flex-col gap-1.5 p-2"
+      >
+        <form
+          className="grid gap-2"
+          onSubmit={(event) => {
+            event.preventDefault();
+            done();
+          }}
+        >
+          <div className="grid gap-0.5">
+            <p className="text-xs font-medium text-muted-foreground">
+              {strings.questionHint}
+            </p>
+            <p className="text-xs leading-4 text-muted-foreground">
+              {strings.questionHintsHelp}
+            </p>
+          </div>
+          <ol className="grid gap-1.5">
+            {hintDrafts.map((hint, index) => (
+              <li key={hint.id} className="flex items-start gap-1">
+                <span
+                  aria-hidden
+                  className="mt-1.5 w-4 shrink-0 text-center text-xs leading-5 font-medium text-muted-foreground tabular-nums"
+                >
+                  {count.format(index + 1)}
+                </span>
+                <textarea
+                  ref={(element) => {
+                    if (element) hintFields.current.set(hint.id, element);
+                    else hintFields.current.delete(hint.id);
+                  }}
+                  aria-label={strings.questionHintNumber(index + 1)}
+                  dir="auto"
+                  rows={2}
+                  maxLength={500}
+                  value={hint.text}
+                  onChange={(event) => {
+                    const text = event.target.value;
+                    setHintDrafts(
+                      hintDrafts.map((item) =>
+                        item.id === hint.id ? { ...item, text } : item,
+                      ),
+                    );
+                  }}
+                  onKeyDown={(event) => {
+                    if (event.key === "Enter" && !event.shiftKey) {
+                      event.preventDefault();
+                      done();
+                    }
+                    if (event.key === "Escape") {
+                      event.preventDefault();
+                      cancel();
+                    }
+                  }}
+                  className="block min-w-0 flex-1 resize-none rounded-md border bg-background px-2 py-1.5 text-sm text-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring/30"
+                />
+                <ToolButton
+                  label={strings.questionHintRemove(index + 1)}
+                  onClick={() => remove(index)}
+                >
+                  <X aria-hidden />
+                </ToolButton>
+              </li>
+            ))}
+          </ol>
+          <div className="flex items-center justify-between gap-2">
+            {hintDrafts.length < MAX_HINTS ? (
+              <button
+                type="button"
+                onClick={add}
+                className="inline-flex h-8 items-center gap-1.5 rounded-md px-2 text-sm font-medium text-foreground/80 hover:bg-accent hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/40 focus-visible:outline-none [&_svg]:size-4"
+              >
+                <Plus aria-hidden />
+                {strings.questionHintAdd}
+              </button>
+            ) : (
+              <span />
+            )}
+            <button
+              type="submit"
+              className="h-8 rounded-md bg-primary px-3 text-sm font-medium text-primary-foreground hover:bg-primary/90"
+            >
+              {strings.questionDone}
+            </button>
+          </div>
         </form>
       </Floating>
     );

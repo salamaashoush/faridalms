@@ -13,6 +13,7 @@ import type {
   Spread,
 } from "lexical";
 
+import { hintsOf } from "@faridalms/domain/lesson-content";
 import { addClassNamesToElement } from "@lexical/utils";
 import {
   $createParagraphNode,
@@ -272,7 +273,8 @@ export interface QuestionSettings {
   videoAt: number | null;
   /** A code puzzle's language; only Python marks how far a line is indented. */
   codeLanguage: "python" | "javascript" | "html" | "text";
-  hint: string;
+  /** Shown in order, one more after each wrong try. */
+  hints: string[];
   explanation: string;
   numberMode: "exact" | "range";
   answerValue: number;
@@ -308,7 +310,7 @@ export function defaultSettings(kind: QuestionKind): QuestionSettings {
     projectFileId: null,
     videoAt: null,
     codeLanguage: "python",
-    hint: "",
+    hints: [],
     explanation: "",
     numberMode: "exact",
     answerValue: 0,
@@ -320,10 +322,57 @@ export function defaultSettings(kind: QuestionKind): QuestionSettings {
   };
 }
 
+/**
+ * Settings as a node may hold them. Shared editing keeps them whole as last
+ * written, so a question written before a setting existed lacks it, and one
+ * written when a question had a single hint keeps it as `hint`.
+ */
+type StoredSettings = Partial<QuestionSettings> & { hint?: string };
+
 export type SerializedQuestionNode = Spread<
-  Partial<QuestionSettings>,
+  StoredSettings,
   SerializedElementNode
 >;
+
+const NO_POINTS: number[][] = [];
+
+function questionSettings(stored: StoredSettings): QuestionSettings {
+  const base = defaultSettings(stored.kind ?? "choice");
+  return {
+    kind: stored.kind ?? base.kind,
+    questionId: stored.questionId ?? base.questionId,
+    points: stored.points ?? base.points,
+    tries: stored.tries ?? null,
+    multiple: stored.multiple ?? base.multiple,
+    shuffle: stored.shuffle ?? base.shuffle,
+    caseSensitive: stored.caseSensitive ?? base.caseSensitive,
+    closeEnough: stored.closeEnough ?? base.closeEnough,
+    tehMarbuta: stored.tehMarbuta ?? base.tehMarbuta,
+    wordLimit: stored.wordLimit ?? null,
+    recordSeconds: stored.recordSeconds ?? null,
+    answerWith: stored.answerWith ?? null,
+    count: stored.count ?? base.count,
+    countMode: stored.countMode ?? base.countMode,
+    countLayout: stored.countLayout ?? base.countLayout,
+    flashSeconds: stored.flashSeconds ?? null,
+    // One empty list for all, so a redraw compares them alike.
+    trace: stored.trace ?? NO_POINTS,
+    regions: stored.regions ?? NO_POINTS,
+    memory: stored.memory ?? false,
+    projectFileId: stored.projectFileId ?? null,
+    videoAt: stored.videoAt ?? null,
+    codeLanguage: stored.codeLanguage ?? base.codeLanguage,
+    hints: hintsOf(stored),
+    explanation: stored.explanation ?? "",
+    numberMode: stored.numberMode ?? base.numberMode,
+    answerValue: stored.answerValue ?? base.answerValue,
+    tolerance: stored.tolerance ?? base.tolerance,
+    percent: stored.percent ?? base.percent,
+    rangeMin: stored.rangeMin ?? base.rangeMin,
+    rangeMax: stored.rangeMax ?? base.rangeMax,
+    scoring: stored.scoring ?? base.scoring,
+  };
+}
 
 function theme(config: EditorConfig, name: string): string | undefined {
   const value: unknown = config.theme[name];
@@ -367,9 +416,9 @@ function label(editor: LexicalEditor, settings: QuestionSettings): string {
  * and its settings ride on the node itself.
  */
 export class QuestionNode extends ElementNode {
-  __settings: QuestionSettings;
+  __settings: StoredSettings;
 
-  constructor(settings?: Partial<QuestionSettings>, key?: NodeKey) {
+  constructor(settings?: StoredSettings, key?: NodeKey) {
     super(key);
     this.__settings = {
       ...defaultSettings(settings?.kind ?? "choice"),
@@ -395,40 +444,7 @@ export class QuestionNode extends ElementNode {
 
   updateFromJSON(json: LexicalUpdateJSON<SerializedQuestionNode>): this {
     const node = super.updateFromJSON(json).getWritable();
-    const base = defaultSettings(json.kind ?? "choice");
-    node.__settings = {
-      kind: json.kind ?? base.kind,
-      questionId: json.questionId ?? base.questionId,
-      points: json.points ?? base.points,
-      tries: json.tries ?? null,
-      multiple: json.multiple ?? base.multiple,
-      shuffle: json.shuffle ?? base.shuffle,
-      caseSensitive: json.caseSensitive ?? base.caseSensitive,
-      closeEnough: json.closeEnough ?? base.closeEnough,
-      tehMarbuta: json.tehMarbuta ?? base.tehMarbuta,
-      wordLimit: json.wordLimit ?? null,
-      recordSeconds: json.recordSeconds ?? null,
-      answerWith: json.answerWith ?? null,
-      count: json.count ?? base.count,
-      countMode: json.countMode ?? base.countMode,
-      countLayout: json.countLayout ?? base.countLayout,
-      flashSeconds: json.flashSeconds ?? null,
-      trace: json.trace ?? [],
-      regions: json.regions ?? [],
-      memory: json.memory ?? false,
-      projectFileId: json.projectFileId ?? null,
-      videoAt: json.videoAt ?? null,
-      codeLanguage: json.codeLanguage ?? base.codeLanguage,
-      hint: json.hint ?? "",
-      explanation: json.explanation ?? "",
-      numberMode: json.numberMode ?? base.numberMode,
-      answerValue: json.answerValue ?? base.answerValue,
-      tolerance: json.tolerance ?? base.tolerance,
-      percent: json.percent ?? base.percent,
-      rangeMin: json.rangeMin ?? base.rangeMin,
-      rangeMax: json.rangeMax ?? base.rangeMax,
-      scoring: json.scoring ?? base.scoring,
-    };
+    node.__settings = questionSettings(json);
     return node;
   }
 
@@ -448,8 +464,9 @@ export class QuestionNode extends ElementNode {
       projectFileId,
       videoAt,
       codeLanguage,
+      hints,
       ...settings
-    } = this.getLatest().__settings;
+    } = questionSettings(this.getLatest().__settings);
     return {
       ...super.exportJSON(),
       ...settings,
@@ -468,6 +485,7 @@ export class QuestionNode extends ElementNode {
       ...(settings.kind === "parsons" || settings.kind === "program"
         ? { codeLanguage }
         : {}),
+      ...(hints.length > 0 ? { hints } : {}),
     };
   }
 
@@ -477,25 +495,24 @@ export class QuestionNode extends ElementNode {
 
   createDOM(config: EditorConfig, editor: LexicalEditor): HTMLElement {
     const dom = $getDocument().createElement("div");
+    const settings = questionSettings(this.__settings);
     const name = theme(config, "question");
     if (name) addClassNamesToElement(dom, name);
     dom.dataset.question = "";
-    dom.dataset.kind = this.__settings.kind;
-    dom.dataset.multiple = String(this.__settings.multiple);
-    dom.dataset.label = label(editor, this.__settings);
+    dom.dataset.kind = settings.kind;
+    dom.dataset.multiple = String(settings.multiple);
+    dom.dataset.label = label(editor, settings);
     if (locked.has(editor)) lockElement(dom, true);
-    if (this.__settings.kind === "number")
-      dom.dataset.answer = `${labels.get(editor)?.answerIs ?? ""} ${numberAnswer(this.__settings)}`;
+    if (settings.kind === "number")
+      dom.dataset.answer = `${labels.get(editor)?.answerIs ?? ""} ${numberAnswer(settings)}`;
     if (
-      this.__settings.kind === "counting" ||
-      this.__settings.kind === "spelling" ||
-      this.__settings.kind === "hotspot"
+      settings.kind === "counting" ||
+      settings.kind === "spelling" ||
+      settings.kind === "hotspot"
     )
       drawPicture(this, dom, editor);
-    if (this.__settings.kind === "hotspot")
-      drawRegions(this.__settings.regions, dom);
-    if (this.__settings.kind === "tracing")
-      drawTrace(this.__settings.trace, dom);
+    if (settings.kind === "hotspot") drawRegions(settings.regions, dom);
+    if (settings.kind === "tracing") drawTrace(settings.trace, dom);
     return dom;
   }
 
@@ -504,23 +521,24 @@ export class QuestionNode extends ElementNode {
   }
 
   updateDOM(previous: this, dom: HTMLElement): boolean {
-    const settings = this.__settings;
+    const settings = questionSettings(this.__settings);
+    const before = questionSettings(previous.__settings);
     // The label carries the kind and points in words, drawn anew.
     if (
-      previous.__settings.kind !== settings.kind ||
-      previous.__settings.points !== settings.points ||
-      previous.__settings.recordSeconds !== settings.recordSeconds ||
-      previous.__settings.answerWith !== settings.answerWith ||
-      previous.__settings.videoAt !== settings.videoAt ||
-      previous.__settings.count !== settings.count ||
-      previous.__settings.countMode !== settings.countMode ||
-      previous.__settings.trace !== settings.trace ||
-      previous.__settings.regions !== settings.regions ||
+      before.kind !== settings.kind ||
+      before.points !== settings.points ||
+      before.recordSeconds !== settings.recordSeconds ||
+      before.answerWith !== settings.answerWith ||
+      before.videoAt !== settings.videoAt ||
+      before.count !== settings.count ||
+      before.countMode !== settings.countMode ||
+      before.trace !== settings.trace ||
+      before.regions !== settings.regions ||
       !samePicture(previous, this) ||
-      numberAnswer(previous.__settings) !== numberAnswer(settings)
+      numberAnswer(before) !== numberAnswer(settings)
     )
       return true;
-    if (previous.__settings.multiple !== settings.multiple)
+    if (before.multiple !== settings.multiple)
       dom.dataset.multiple = String(settings.multiple);
     return false;
   }
@@ -534,12 +552,15 @@ export class QuestionNode extends ElementNode {
   }
 
   getSettings(): QuestionSettings {
-    return this.getLatest().__settings;
+    return questionSettings(this.getLatest().__settings);
   }
 
   setSettings(patch: Partial<QuestionSettings>): this {
     const writable = this.getWritable();
-    writable.__settings = { ...writable.__settings, ...patch };
+    writable.__settings = {
+      ...questionSettings(writable.__settings),
+      ...patch,
+    };
     return writable;
   }
 }

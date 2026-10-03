@@ -184,7 +184,9 @@ export interface ContentNode {
   trace?: number[][];
   /** A Scratch question's starter project, the .sb3 every student begins from. */
   projectFileId?: string;
+  /** Before a question had hints in order, its one hint. */
   hint?: string;
+  hints?: string[];
   explanation?: string;
   numberMode?: "exact" | "range";
   answerValue?: number;
@@ -399,6 +401,9 @@ const nodeSchema: v.GenericSchema<ContentNode> = v.lazy(() =>
         ),
       ),
       hint: v.optional(v.pipe(v.string(), v.maxLength(500))),
+      hints: v.optional(
+        v.pipe(v.array(v.pipe(v.string(), v.maxLength(500))), v.maxLength(5)),
+      ),
       explanation: v.optional(v.pipe(v.string(), v.maxLength(1000))),
       numberMode: v.optional(v.picklist(["exact", "range"])),
       answerValue: v.optional(v.pipe(v.number(), v.finite())),

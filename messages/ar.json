@@ -712,7 +712,11 @@
   "editorQuestionByPhoto": "التقاط صورة",
   "editorQuestionBySpeakingMinutes": "شفهيًا، حتى {minutes} د",
   "editorQuestionNoLimit": "بلا حد",
-  "editorQuestionHint": "تلميح",
+  "editorQuestionHint": "تلميحات",
+  "editorQuestionHintsHelp": "يراها الطالب بالترتيب، تلميحًا بعد كل محاولة خاطئة. ابدأ بإشارة خفيفة واختم بأكبر عون.",
+  "editorQuestionHintNumber": "التلميح {number}",
+  "editorQuestionHintAdd": "إضافة تلميح",
+  "editorQuestionHintRemove": "حذف التلميح {number}",
   "editorQuestionExplanation": "شرح بعد الإجابة",
   "editorQuestionFeedback": "تعليق على هذا الخيار",
   "editorQuestionDelete": "حذف السؤال",
@@ -4313,6 +4317,8 @@
     }
   ],
   "lrnHint": "تلميح:",
+  "lrnHintNumber": "التلميح {number}:",
+  "lrnHintNext": "حاول مرة أخرى ليظهر التلميح التالي.",
   "lrnPoints": [
     {
       "declarations": ["input count", "local countPlural = count: plural"],

@@ -70,6 +70,16 @@ export function YoungPart({ part }: { part: StudentPart }) {
   );
 }
 
+/**
+ * The one hint a young child hears: none at the first miss, then the next in
+ * order with each miss after, as the question is said again, keeping to the
+ * last once they run out.
+ */
+function youngHint(view: CheckView): string | null {
+  if (view.correct || view.tries < 2) return null;
+  return view.hints[view.tries - 2] ?? view.hints.at(-1) ?? null;
+}
+
 /** What a young child is told after a try, as the words said aloud. */
 export function outcomeWords(
   view: CheckView,
@@ -78,9 +88,8 @@ export function outcomeWords(
 ): string {
   if (view.correct) return view.tries > 1 ? m.lrnYoungKeptTrying() : praise;
   if (view.revealed) return taps ? m.lrnYoungTapIt() : m.lrnYoungShown();
-  return view.tries > 1 && view.hint
-    ? `${m.lrnYoungNotYet()} ${view.hint}`
-    : m.lrnYoungNotYet();
+  const hint = youngHint(view);
+  return hint ? `${m.lrnYoungNotYet()} ${hint}` : m.lrnYoungNotYet();
 }
 
 /**
@@ -108,10 +117,10 @@ export function YoungOutcome({
         ? m.lrnYoungTapIt()
         : m.lrnYoungShown()
       : m.lrnYoungNotYet();
-  // The hint comes with the second miss, as the question is said again.
+  const hint = youngHint(view);
   const notes = [
     ...view.feedback,
-    ...(view.hint && !view.correct && view.tries > 1 ? [view.hint] : []),
+    ...(hint ? [hint] : []),
     ...(view.explanation ? [view.explanation] : []),
   ];
   return (

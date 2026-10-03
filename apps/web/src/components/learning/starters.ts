@@ -39,7 +39,7 @@ const ref = (id: string, en: string, ar: string): LibraryRef => ({
 const id = () => crypto.randomUUID();
 const ask = {
   points: 0,
-  hint: "",
+  hints: [],
   explanation: "",
   tries: null,
 };

@@ -138,7 +138,7 @@ describe("learning a module", () => {
       tries: 1,
       correct: false,
       feedback: ["Some stories have dragons, but most do not."],
-      hint: "Think about what makes the characters act.",
+      hints: ["Think about what makes the characters act."],
       key: null,
       explanation: null,
     });
@@ -171,7 +171,7 @@ describe("learning a module", () => {
     expect(slip.check).toMatchObject({
       correct: false,
       triesLeft: 2,
-      hint: "It starts with s.",
+      hints: ["It starts with s."],
     });
     const close = await api.learning.respond({
       lessonId: check.id,
@@ -326,7 +326,7 @@ describe("matching, ordering, sorting and code puzzles", () => {
     });
     const common = {
       points: 1,
-      hint: "",
+      hints: [],
       explanation: "",
       tries: null,
     };
@@ -472,7 +472,7 @@ describe("code exercises", () => {
       type: "program" as const,
       prompt: "Print the square of the number you are given.",
       points: 2,
-      hint: "",
+      hints: [],
       explanation: "",
       tries: null,
       language: "python" as const,
@@ -586,7 +586,7 @@ describe("javascript exercises", () => {
       type: "program" as const,
       prompt: "Print the number doubled.",
       points: 1,
-      hint: "",
+      hints: [],
       explanation: "",
       tries: null,
       language: "javascript" as const,
@@ -885,7 +885,7 @@ describe("lessons written as documents", () => {
           type: "choice",
           prompt: "Which is a noun?",
           points: 1,
-          hint: "",
+          hints: [],
           explanation: "",
           tries: null,
           options: [
@@ -982,7 +982,7 @@ describe("asking missed questions again", () => {
       type: "choice" as const,
       prompt: "Which is a noun?",
       points: 1,
-      hint: "",
+      hints: [],
       explanation: "A thing.",
       tries: null,
       options: [
@@ -1257,7 +1257,7 @@ describe("spoken answers", () => {
           type: "written",
           prompt: "Make the sound a cat makes.",
           points: 0,
-          hint: "",
+          hints: [],
           explanation: "",
           tries: null,
           wordLimit: null,
@@ -1366,7 +1366,7 @@ describe("drawn answers", () => {
           type: "written",
           prompt: "Draw your home.",
           points: 0,
-          hint: "",
+          hints: [],
           explanation: "",
           tries: null,
           wordLimit: null,
@@ -1479,7 +1479,7 @@ describe("coding projects", () => {
           type: "scratch",
           prompt: "Make the cat dance when the flag is clicked.",
           points: 4,
-          hint: "",
+          hints: [],
           explanation: "",
           tries: null,
           starter: { fileId: starter },
@@ -1622,7 +1622,7 @@ describe("mixed review", () => {
           type: "choice" as const,
           prompt,
           points: 1,
-          hint: "",
+          hints: [],
           explanation: `About ${prompt}`,
           tries: 1,
           options: [] as { id: string; text: string; feedback: string }[],
@@ -1753,7 +1753,7 @@ describe("right now", () => {
       type: "choice" as const,
       prompt: "Which has three sides?",
       points: 1,
-      hint: "",
+      hints: [],
       explanation: "",
       tries: null,
       options,

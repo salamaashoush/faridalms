@@ -7,7 +7,7 @@ import { describe, expect, it } from "vitest";
 import { paperBlock } from "./paper-blocks";
 import { keyOf, letterOf, PaperQuestion, writingLines } from "./PaperQuestion";
 
-const base = { points: 1, hint: "", explanation: "", tries: null };
+const base = { points: 1, hints: [], explanation: "", tries: null };
 const fileUrl = (fileId: string) => `/files/${fileId}`;
 const paper = (block: LessonBlock, answers: boolean, rtl = false) =>
   renderToStaticMarkup(

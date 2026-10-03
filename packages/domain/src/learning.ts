@@ -11,6 +11,7 @@ import {
 import { emptyContent } from "./content-conversion";
 import {
   contentOfLesson,
+  hintsOf,
   isContentDocument,
   lessonOfContent,
 } from "./lesson-content";
@@ -47,6 +48,7 @@ export const MAX_GAPS = 20;
 export const MAX_PAIRS = 8;
 export const MAX_DISTRACTORS = 4;
 export const MAX_ORDER_ITEMS = 10;
+export const MAX_HINTS = 5;
 /** Languages a code puzzle's lines are written in; only Python marks indentation. */
 export const PARSONS_LANGUAGES = [
   "python",
@@ -127,7 +129,8 @@ const checkFields = {
   narrationWords: v.optional(v.nullable(narrationWordsSchema)),
   /** 0 counts for nothing; a practice question still gives feedback. */
   points: v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(100)),
-  hint: text(500),
+  /** Shown in order, one more after each wrong try. */
+  hints: v.pipe(v.array(text(500)), v.maxLength(MAX_HINTS)),
   explanation: text(1000),
   /** Tries before the answer is shown; null lets the student keep trying until they ask. */
   tries: v.nullable(
@@ -762,6 +765,13 @@ export function lessonIssue(lesson: {
   return null;
 }
 
+/** A question saved when it had one hint, with its hints in order. */
+function withHints(block: Record<string, unknown>): LessonBlock {
+  if (!("hint" in block)) return block as LessonBlock;
+  const { hint: _hint, ...rest } = block;
+  return Object.assign(rest, { hints: hintsOf(block) }) as LessonBlock;
+}
+
 /**
  * A lesson saved before questions had points, hints and feedback, in today's
  * shape: its quizzes become choice questions and its reflections unmarked
@@ -773,7 +783,8 @@ export function upgradeLesson(value: unknown): LessonDocument {
     version?: number;
     blocks?: Record<string, unknown>[];
   };
-  if (document.version === 2) return document as LessonDocument;
+  if (document.version === 2)
+    return { version: 2, blocks: (document.blocks ?? []).map(withHints) };
   const blocks = (document.blocks ?? []).map((block): LessonBlock => {
     switch (block.type) {
       case "quiz": {
@@ -783,7 +794,7 @@ export function upgradeLesson(value: unknown): LessonDocument {
           type: "choice",
           prompt: (block.question as string | undefined) ?? "",
           points: 1,
-          hint: "",
+          hints: [],
           explanation: (block.explanation as string | undefined) ?? "",
           tries: null,
           options: (
@@ -800,7 +811,7 @@ export function upgradeLesson(value: unknown): LessonDocument {
           type: "written",
           prompt: (block.prompt as string | undefined) ?? "",
           points: 0,
-          hint: "",
+          hints: [],
           explanation: "",
           tries: null,
           wordLimit: null,
@@ -1364,10 +1375,6 @@ export function completionMet(
   return false;
 }
 
-/**
- * A block as its student receives it: keys, hints, explanations and option
- * feedback stay on the server until a try calls for them.
- */
 /** A part as a student sees it: its words, its picture, or both. */
 export interface StudentPart {
   id: string;
@@ -1376,18 +1383,22 @@ export interface StudentPart {
   narration?: string | null;
 }
 
+/**
+ * A block as its student receives it: keys, hints, explanations and option
+ * feedback stay on the server until a try calls for them.
+ */
 export type StudentBlock =
   | Exclude<LessonBlock, CheckBlock>
-  | Omit<WrittenBlock, "explanation" | "hint">
-  | Omit<ScratchBlock, "explanation" | "hint">
+  | Omit<WrittenBlock, "explanation" | "hints">
+  | Omit<ScratchBlock, "explanation" | "hints">
   | (Omit<
       ChoiceBlock,
-      "correctOptionIds" | "explanation" | "hint" | "options"
+      "correctOptionIds" | "explanation" | "hints" | "options"
     > & {
       options: StudentPart[];
     })
-  | Omit<TextBlock, "answers" | "explanation" | "hint">
-  | (Omit<GapsBlock, "explanation" | "hint" | "segments"> & {
+  | Omit<TextBlock, "answers" | "explanation" | "hints">
+  | (Omit<GapsBlock, "explanation" | "hints" | "segments"> & {
       segments: (
         | { type: "text"; text: string }
         | { type: "gap"; id: string; options: string[] }
@@ -1404,28 +1415,28 @@ export type StudentBlock =
       | "tries"
       | "videoAt"
     >
-  | (Omit<MatchingBlock, "distractors" | "explanation" | "hint" | "pairs"> & {
+  | (Omit<MatchingBlock, "distractors" | "explanation" | "hints" | "pairs"> & {
       prompts: StudentPart[];
       choices: StudentPart[];
     })
-  | Omit<OrderingBlock, "explanation" | "hint">
-  | (Omit<ParsonsBlock, "explanation" | "hint" | "lines" | "distractors"> & {
+  | Omit<OrderingBlock, "explanation" | "hints">
+  | (Omit<ParsonsBlock, "explanation" | "hints" | "lines" | "distractors"> & {
       /** The program's lines and the ones that belong nowhere, shuffled together. */
       lines: { id: string; code: string }[];
     })
-  | (Omit<SortingBlock, "explanation" | "hint" | "items"> & {
+  | (Omit<SortingBlock, "explanation" | "hints" | "items"> & {
       items: StudentPart[];
     })
-  | Omit<CountingBlock, "explanation" | "hint">
-  | Omit<TracingBlock, "explanation" | "hint">
-  | Omit<HotspotBlock, "explanation" | "hint">
-  | (Omit<SpellingBlock, "explanation" | "hint" | "tiles" | "extras"> & {
+  | Omit<CountingBlock, "explanation" | "hints">
+  | Omit<TracingBlock, "explanation" | "hints">
+  | Omit<HotspotBlock, "explanation" | "hints">
+  | (Omit<SpellingBlock, "explanation" | "hints" | "tiles" | "extras"> & {
       /** Every tile, the word's and the extra ones, in one shuffled pile. */
       pile: { id: string; text: string }[];
       /** How many places the word takes. */
       places: number;
     })
-  | (Omit<ProgramBlock, "explanation" | "hint" | "tests"> & {
+  | (Omit<ProgramBlock, "explanation" | "hints" | "tests"> & {
       /** The tests a student can see, with what each gives and expects. */
       tests: { id: string; input: string; expected: string }[];
       /** The tests run but never shown, by id. */
@@ -1462,7 +1473,7 @@ export function studentBlocks(
         const {
           correctOptionIds: _key,
           explanation: _why,
-          hint: _hint,
+          hints: _hints,
           ...rest
         } = block;
         const options = block.options.map(
@@ -1489,13 +1500,13 @@ export function studentBlocks(
         const {
           answers: _answers,
           explanation: _why,
-          hint: _hint,
+          hints: _hints,
           ...rest
         } = block;
         return rest;
       }
       case "gaps": {
-        const { explanation: _why, hint: _hint, ...rest } = block;
+        const { explanation: _why, hints: _hints, ...rest } = block;
         return {
           ...rest,
           segments: block.segments.map((segment) =>
@@ -1527,7 +1538,7 @@ export function studentBlocks(
           pairs,
           distractors,
           explanation: _why,
-          hint: _hint,
+          hints: _hints,
           ...rest
         } = block;
         // One choice per distinct answer, so a repeated answer is not a clue.
@@ -1563,7 +1574,7 @@ export function studentBlocks(
         };
       }
       case "ordering": {
-        const { explanation: _why, hint: _hint, ...rest } = block;
+        const { explanation: _why, hints: _hints, ...rest } = block;
         let items = shuffled(block.items, `${seed}:${block.id}`);
         // A shuffle that lands on the answer would hand it over; turn it once.
         if (items.every((item, index) => item.id === block.items[index]?.id))
@@ -1573,7 +1584,7 @@ export function studentBlocks(
       case "parsons": {
         const {
           explanation: _why,
-          hint: _hint,
+          hints: _hints,
           lines,
           distractors,
           ...rest
@@ -1589,7 +1600,7 @@ export function studentBlocks(
         return { ...rest, lines: shown };
       }
       case "sorting": {
-        const { explanation: _why, hint: _hint, items, ...rest } = block;
+        const { explanation: _why, hints: _hints, items, ...rest } = block;
         return {
           ...rest,
           items: shuffled(
@@ -1608,7 +1619,7 @@ export function studentBlocks(
           tiles,
           extras,
           explanation: _why,
-          hint: _hint,
+          hints: _hints,
           ...rest
         } = block;
         return {
@@ -1627,7 +1638,7 @@ export function studentBlocks(
       // find is judged under the finger and only a miss or the last find
       // counts as a try.
       case "program": {
-        const { explanation: _why, hint: _hint, tests, ...rest } = block;
+        const { explanation: _why, hints: _hints, tests, ...rest } = block;
         return {
           ...rest,
           tests: tests
@@ -1647,7 +1658,7 @@ export function studentBlocks(
       case "counting":
       case "tracing":
       case "hotspot": {
-        const { explanation: _why, hint: _hint, ...rest } = block;
+        const { explanation: _why, hints: _hints, ...rest } = block;
         return rest;
       }
       default:
@@ -1986,7 +1997,8 @@ export function describeReview(
     triesLeft: done ? 0 : 1,
     feedback: marked?.feedback ?? [],
     parts: marked?.parts ?? {},
-    hint: null,
+    hints: [],
+    hintsLeft: 0,
     key: done ? answerKey(block) : null,
     partKey: done ? partKey(block) : null,
     explanation: done ? block.explanation : null,
@@ -2012,8 +2024,10 @@ export interface CheckView {
   triesLeft: number | null;
   feedback: string[];
   parts: Record<string, boolean>;
-  /** Offered after a wrong try, before the answer is shown. */
-  hint: string | null;
+  /** Hints so far, one more after each wrong try until the answer is shown. */
+  hints: string[];
+  /** Hints a further wrong try would still open. */
+  hintsLeft: number;
   key: string[] | null;
   partKey: Record<string, string> | null;
   explanation: string | null;
@@ -2047,7 +2061,8 @@ export function describeCheck(
     triesLeft: null,
     feedback: [],
     parts: {},
-    hint: null,
+    hints: [],
+    hintsLeft: 0,
     key: null,
     partKey: null,
     explanation: null,
@@ -2064,6 +2079,14 @@ export function describeCheck(
     };
   const marked = response ? markResponse(block, response) : null;
   const open = settled(block, state);
+  // Every try before the question settles was wrong, so each opens one more.
+  const shownHints =
+    !open && marked && !marked.correct ? block.hints.slice(0, tries) : [];
+  // The last try shows the answer rather than a hint.
+  const reachable =
+    block.tries === null
+      ? block.hints.length
+      : Math.min(block.hints.length, block.tries - 1);
   return {
     ...base,
     correct: state?.correct ?? false,
@@ -2072,7 +2095,9 @@ export function describeCheck(
     triesLeft: block.tries === null ? null : Math.max(0, block.tries - tries),
     feedback: marked?.feedback ?? [],
     parts: marked?.parts ?? {},
-    hint: !open && marked && !marked.correct && block.hint ? block.hint : null,
+    hints: shownHints,
+    hintsLeft:
+      shownHints.length > 0 ? Math.max(0, reachable - shownHints.length) : 0,
     key: open ? answerKey(block) : null,
     partKey: open ? partKey(block) : null,
     explanation: open ? block.explanation : null,
@@ -2170,7 +2195,7 @@ export function quizViews(
               explanation: null,
               feedback: [],
             };
-      return [block.id, { ...shown, hint: null, triesLeft: null }];
+      return [block.id, { ...shown, hints: [], hintsLeft: 0, triesLeft: null }];
     }),
   );
 }

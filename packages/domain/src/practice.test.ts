@@ -6,7 +6,7 @@ import { practiceItems, practiceView } from "./practice";
 
 const base = {
   points: 1,
-  hint: "Think of the sky.",
+  hints: ["Think of the sky."],
   explanation: "Blue.",
   tries: 2,
 };
@@ -90,7 +90,7 @@ describe("practiceView", () => {
     });
     expect(first).toMatchObject({
       correct: false,
-      hint: "Think of the sky.",
+      hints: ["Think of the sky."],
       key: null,
     });
     const second = practiceView(block, 1, {

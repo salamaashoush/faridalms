@@ -6,7 +6,7 @@ import type { LessonBlock, StudentBlock } from "@faridalms/domain/learning";
  * cannot print them: every key is left empty.
  */
 export function paperBlock(block: StudentBlock): LessonBlock {
-  const blank = { hint: "", explanation: "" };
+  const blank = { hints: [], explanation: "" };
   switch (block.type) {
     case "choice":
       return {

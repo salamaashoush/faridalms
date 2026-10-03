@@ -103,8 +103,11 @@ off keeps the work and shows a placeholder.
    student's language. JavaScript exercises work the same way, marked in
    QuickJS compiled to WebAssembly with 64 MiB, four seconds a test and
    nothing of the host; one console formatter, shared by the browser and
-   the API, makes a program print alike when run and when checked. Hints in
-   order and every run kept remain.
+   the API, makes a program print alike when run and when checked. Every
+   question, a code exercise among them, now takes up to five hints in
+   order: each wrong try opens the next, a line says when another waits,
+   and the last of limited tries shows the answer rather than a hint. Every
+   run kept for the teacher's replay remains.
 4. **Projects and the sandbox domain.** A multi-file HTML, CSS and JavaScript
    or Python (turtle, p5.js) project with live preview on the separate
    domain, autosaved as the student's work, a class gallery with remix, and

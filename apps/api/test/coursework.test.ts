@@ -1169,7 +1169,7 @@ describe("coursework on the student record", () => {
 const uuid = () => crypto.randomUUID();
 
 describe("quizzes", () => {
-  const common = { hint: "", explanation: "Because.", tries: null };
+  const common = { hints: [], explanation: "Because.", tries: null };
 
   async function quizFor(reveal: "answers" | "marks" | "returned") {
     const teacher = await arabicTeacher();

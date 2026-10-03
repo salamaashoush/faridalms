@@ -123,6 +123,20 @@ function pictureFields(
   return picture ? { fileId: picture.fileId, alt: picture.alt } : {};
 }
 
+/**
+ * A question's hints in order. Questions written when each had one hint keep
+ * it under `hint`, in saved documents and in the editor's shared state alike.
+ */
+export function hintsOf(question: { hint?: unknown; hints?: unknown }) {
+  if (Array.isArray(question.hints))
+    return question.hints.filter(
+      (hint): hint is string => typeof hint === "string" && hint.trim() !== "",
+    );
+  return typeof question.hint === "string" && question.hint.trim() !== ""
+    ? [question.hint]
+    : [];
+}
+
 /** The question a question node asks, with its key, as the player marks it. */
 export function questionBlock(node: ContentNode): LessonBlock | null {
   const [prompt, ...parts] = node.children ?? [];
@@ -132,7 +146,7 @@ export function questionBlock(node: ContentNode): LessonBlock | null {
     prompt: textOf(prompt).trim(),
     ...promptVoiceOf(node),
     points: node.points ?? 1,
-    hint: node.hint ?? "",
+    hints: hintsOf(node),
     explanation: node.explanation ?? "",
     tries: node.tries ?? null,
     ...(typeof node.videoAt === "number" ? { videoAt: node.videoAt } : {}),
@@ -589,7 +603,7 @@ export function questionNode(block: LessonBlock): ContentNode | null {
     questionId: block.id,
     points: block.points,
     tries: block.tries,
-    hint: block.hint,
+    ...(block.hints.length > 0 ? { hints: block.hints } : {}),
     explanation: block.explanation,
     ...(typeof block.videoAt === "number" ? { videoAt: block.videoAt } : {}),
     ...voiced(block.narration, block.narrationWords),

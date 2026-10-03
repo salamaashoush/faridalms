@@ -4,7 +4,7 @@ import type { LessonBlock } from "./learning";
 
 import { youngAdvice } from "./young-checks";
 
-const base = { points: 1, hint: "", explanation: "", tries: null };
+const base = { points: 1, hints: [], explanation: "", tries: null };
 
 function choice(
   id: string,

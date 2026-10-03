@@ -5,6 +5,7 @@ import type {
   ChoiceBlock,
   GapsBlock,
   LessonDocument,
+  StoredTry,
   MatchingBlock,
   NumberBlock,
   OrderingBlock,
@@ -19,6 +20,7 @@ import {
   checkStates,
   completionMet,
   creditOf,
+  describeCheck,
   gapsSource,
   lessonDocumentSchema,
   lessonScore,
@@ -35,7 +37,7 @@ const uuid = (n: number) =>
 
 const common = {
   points: 1,
-  hint: "Think it over.",
+  hints: ["Think it over."],
   explanation: "Because.",
   tries: null,
 };
@@ -225,7 +227,59 @@ describe("what a student sees", () => {
   });
 });
 
+/** What a student sees of a question after this many wrong tries. */
+function afterMisses(block: TextBlock, misses: number) {
+  const rows: StoredTry[] = Array.from({ length: misses }, (_, index) => ({
+    blockId: block.id,
+    try: index + 1,
+    state: "answered",
+    fraction: 0,
+    response: { type: "text", text: "Giza" },
+    feedback: null,
+  }));
+  const states = checkStates({ version: 2, blocks: [block] }, rows);
+  return describeCheck(block, rows, states[block.id]);
+}
+
+describe("hints in order", () => {
+  const steps = ["It is on the Nile.", "It starts with Q.", "Al-Qahira."];
+  it("opens one more after each wrong try, saying whether another waits", () => {
+    const open = { ...typed, hints: steps };
+    expect(afterMisses(open, 0)).toMatchObject({ hints: [], hintsLeft: 0 });
+    expect(afterMisses(open, 1)).toMatchObject({
+      hints: steps.slice(0, 1),
+      hintsLeft: 2,
+    });
+    expect(afterMisses(open, 3)).toMatchObject({ hints: steps, hintsLeft: 0 });
+    expect(afterMisses(open, 5)).toMatchObject({ hints: steps, hintsLeft: 0 });
+  });
+
+  it("keeps the last of limited tries for the answer, not a hint", () => {
+    const limited = { ...typed, hints: steps, tries: 3 };
+    expect(afterMisses(limited, 2)).toMatchObject({
+      hints: steps.slice(0, 2),
+      hintsLeft: 0,
+    });
+    expect(afterMisses(limited, 3)).toMatchObject({
+      revealed: true,
+      hints: [],
+      hintsLeft: 0,
+    });
+  });
+});
+
 describe("older lessons", () => {
+  it("read a question's one hint as the first of its hints", () => {
+    const { hints: _hints, ...saved } = typed;
+    const upgraded = upgradeLesson({
+      version: 2,
+      blocks: [{ ...saved, hint: "It is on the Nile." }],
+    });
+    expect(v.safeParse(lessonDocumentSchema, upgraded).success).toBe(true);
+    expect(upgraded.blocks[0]).toMatchObject({ hints: ["It is on the Nile."] });
+    expect(upgraded.blocks[0]).not.toHaveProperty("hint");
+  });
+
   it("upgrade their quizzes and reflections to today's questions", () => {
     const upgraded = upgradeLesson({
       version: 1,

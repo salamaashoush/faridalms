@@ -699,7 +699,11 @@
   "editorQuestionByPhoto": "Taking a photo",
   "editorQuestionBySpeakingMinutes": "Speaking, up to {minutes} min",
   "editorQuestionNoLimit": "No limit",
-  "editorQuestionHint": "Hint",
+  "editorQuestionHint": "Hints",
+  "editorQuestionHintsHelp": "Students see them in order, one more after each wrong try. Start with a nudge and end with the most help.",
+  "editorQuestionHintNumber": "Hint {number}",
+  "editorQuestionHintAdd": "Add a hint",
+  "editorQuestionHintRemove": "Remove hint {number}",
   "editorQuestionExplanation": "Explanation after answering",
   "editorQuestionFeedback": "Feedback for this option",
   "editorQuestionDelete": "Delete question",
@@ -4151,6 +4155,8 @@
     }
   ],
   "lrnHint": "Hint:",
+  "lrnHintNumber": "Hint {number}:",
+  "lrnHintNext": "Try again for the next hint.",
   "lrnPoints": [
     {
       "declarations": ["input count", "local countPlural = count: plural"],

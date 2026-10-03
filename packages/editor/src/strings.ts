@@ -278,6 +278,10 @@ export interface EditorStrings {
   questionPhoto: string;
   questionNoLimit: string;
   questionHint: string;
+  questionHintsHelp: string;
+  questionHintNumber: (number: number) => string;
+  questionHintAdd: string;
+  questionHintRemove: (number: number) => string;
   questionExplanation: string;
   questionFeedback: string;
   questionPicture: string;

@@ -265,7 +265,7 @@ function Verdict({ view }: { view: CheckView }) {
   );
 }
 
-/** What a student learns from a try: right or not, what they chose meant, a hint, and once settled the answer and why. */
+/** What a student learns from a try: right or not, what they chose meant, the hints so far, and once settled the answer and why. */
 function Outcome({
   view,
   keyText,
@@ -283,17 +283,28 @@ function Outcome({
           {text}
         </p>
       ))}
-      {view.hint ? (
-        <p className="flex gap-2 rounded-md bg-muted/60 px-3 py-2 text-sm leading-6">
-          <Lightbulb
-            aria-hidden
-            className="mt-1 size-4 shrink-0 text-muted-foreground"
-          />
-          <span>
-            <span className="font-medium">{m.lrnHint()}</span>{" "}
-            <span dir="auto">{view.hint}</span>
-          </span>
-        </p>
+      {view.hints.length > 0 ? (
+        <div className="grid gap-1.5 rounded-md bg-muted/60 px-3 py-2 text-sm leading-6">
+          {view.hints.map((hint, index) => (
+            <p key={hint} className="flex gap-2">
+              <Lightbulb
+                aria-hidden
+                className="mt-1 size-4 shrink-0 text-muted-foreground"
+              />
+              <span>
+                <span className="font-medium">
+                  {view.hints.length + view.hintsLeft > 1
+                    ? m.lrnHintNumber({ number: formatNumber(index + 1) })
+                    : m.lrnHint()}
+                </span>{" "}
+                <span dir="auto">{hint}</span>
+              </span>
+            </p>
+          ))}
+          {view.hintsLeft > 0 ? (
+            <p className="ps-6 text-muted-foreground">{m.lrnHintNext()}</p>
+          ) : null}
+        </div>
       ) : null}
       {keyText && !view.correct ? (
         <p className="text-sm leading-6">
