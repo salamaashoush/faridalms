@@ -98,6 +98,8 @@ export type FileStrings = Pick<
   | "noPreview"
   | "captions"
   | "transcript"
+  | "transcriptSearch"
+  | "transcriptNoMatch"
   | "picture"
   | "fileRemoved"
 >;

@@ -777,6 +777,8 @@
   "editorGate": "Continue",
   "editorGateHint": "Students see what follows once they have answered every question and watched every video above, and chosen to continue.",
   "editorTranscript": "Transcript",
+  "editorTranscriptSearch": "Search the transcript",
+  "editorTranscriptNoMatch": "No lines match.",
   "editorTranscriptAdd": "Add transcript",
   "editorTranscriptHint": "What is said, for students who cannot hear it",
   "editorTranscriptMissing": "Add a transcript or a captions file so everyone can follow along.",

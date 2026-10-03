@@ -17,6 +17,8 @@ export function fileStrings(): FileStrings {
     noPreview: m.fileNoPreview(),
     captions: m.editorCaptions(),
     transcript: m.editorTranscript(),
+    transcriptSearch: m.editorTranscriptSearch(),
+    transcriptNoMatch: m.editorTranscriptNoMatch(),
   };
 }
 
@@ -207,6 +209,8 @@ export function editorStrings(): EditorStrings {
     gate: m.editorGate(),
     gateHint: m.editorGateHint(),
     transcript: m.editorTranscript(),
+    transcriptSearch: m.editorTranscriptSearch(),
+    transcriptNoMatch: m.editorTranscriptNoMatch(),
     transcriptAdd: m.editorTranscriptAdd(),
     transcriptHint: m.editorTranscriptHint(),
     transcriptMissing: m.editorTranscriptMissing(),

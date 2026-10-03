@@ -23,7 +23,8 @@ with the gate it can break.
    picks up where the student stopped. A continue gate waits for the
    recordings above it as it does for the questions.
 3. **Transcript panel** from the captions: follows playback, click to jump,
-   search.
+   search. Done: under every captioned video and recording, folded until
+   opened; it holds still while a student scrolls it.
 4. **Questions on the timeline.** Question blocks placed at a time inside the
    video block; the video pauses and the question opens beside it; rewatch
    from the segment on a wrong answer; skip prevention as a setting; for

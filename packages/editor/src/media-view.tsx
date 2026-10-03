@@ -9,7 +9,7 @@ import {
 import { Play } from "lucide-react";
 import { useEffect, useState } from "react";
 
-import type { MediaWatch, PlayerCaptions } from "./player";
+import type { MediaWatch, PlayerCaptions, TranscriptStrings } from "./player";
 
 import { AudioBar, PlayerFrame, StartMark, VideoSurface } from "./player";
 
@@ -22,6 +22,7 @@ export function MediaPlayer({
   captionsLabel,
   element,
   watch,
+  strings,
 }: {
   src: string | undefined;
   captions: string | undefined;
@@ -34,6 +35,8 @@ export function MediaPlayer({
   element?: Ref<HTMLVideoElement & HTMLAudioElement>;
   /** Counts what a student plays, where watching a lesson's recordings counts. */
   watch?: MediaWatch | undefined;
+  /** With captions, a transcript a student can follow, search and jump from. */
+  strings?: TranscriptStrings | undefined;
 }) {
   if (!src) return null;
   const track = captions
@@ -46,6 +49,7 @@ export function MediaPlayer({
       locale={locale}
       element={element}
       watch={watch}
+      strings={strings}
     />
   ) : (
     <AudioBar
@@ -54,6 +58,7 @@ export function MediaPlayer({
       locale={locale}
       element={element}
       watch={watch}
+      strings={strings}
     />
   );
 }
@@ -78,12 +83,14 @@ function StreamingVideo({
   locale,
   element,
   watch,
+  strings,
 }: {
   src: string;
   captions: PlayerCaptions | null;
   locale: string;
   element?: Ref<HTMLVideoElement>;
   watch?: MediaWatch | undefined;
+  strings?: TranscriptStrings | undefined;
 }) {
   const [source, setSource] = useState<
     { stream: Stream } | { upload: string } | null
@@ -136,6 +143,7 @@ function StreamingVideo({
       locale={locale}
       element={element}
       watch={watch}
+      strings={strings}
     />
   );
 }

@@ -794,6 +794,8 @@
   "editorGate": "متابعة",
   "editorGateHint": "يرى الطالب ما بعده بعد أن يجيب عن كل الأسئلة ويشاهد كل المقاطع السابقة ويختار المتابعة.",
   "editorTranscript": "النص المكتوب",
+  "editorTranscriptSearch": "ابحث في النص",
+  "editorTranscriptNoMatch": "لا أسطر مطابقة.",
   "editorTranscriptAdd": "إضافة النص المكتوب",
   "editorTranscriptHint": "ما يُقال، للطلاب الذين لا يستطيعون السماع",
   "editorTranscriptMissing": "أضف النص المكتوب أو ملف ترجمة حتى يتابع الجميع.",

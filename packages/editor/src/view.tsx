@@ -591,6 +591,7 @@ function draw(
             locale={context.locale}
             captionsLabel={context.strings.captions}
             watch={node.fileId ? context.watch?.(node.fileId) : undefined}
+            strings={context.strings}
           />
           {node.caption ? (
             <figcaption className="text-center text-sm text-muted-foreground">

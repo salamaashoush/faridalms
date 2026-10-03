@@ -31,6 +31,11 @@ export function Media({
           locale={getLocale()}
           captionsLabel={m.editorCaptions()}
           watch={watch?.(block.fileId)}
+          strings={{
+            transcript: m.lrnTranscript(),
+            transcriptSearch: m.editorTranscriptSearch(),
+            transcriptNoMatch: m.editorTranscriptNoMatch(),
+          }}
         />
       ) : block.mediaType.startsWith("image/") ? (
         <StoredImage

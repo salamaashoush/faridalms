@@ -1,7 +1,10 @@
+import type { Cue } from "@faridalms/domain/captions";
 import type { CommonMedia, Media } from "@videojs/react";
 import type { ReactElement, ReactNode, Ref } from "react";
 
 import "@videojs/react/i18n/locales/ar/register";
+import { withoutVowelMarks } from "@faridalms/domain/arabic";
+import { parseVtt } from "@faridalms/domain/captions";
 import { mapCuesToThumbnails } from "@videojs/core";
 import {
   BufferingIndicator,
@@ -41,6 +44,7 @@ import {
   Check,
   Captions,
   CaptionsOff,
+  ChevronDown,
   LoaderCircle,
   Maximize,
   Minimize,
@@ -48,11 +52,21 @@ import {
   PictureInPicture2,
   Play,
   RotateCcw,
+  ScrollText,
+  Search,
   Volume1,
   Volume2,
   VolumeX,
 } from "lucide-react";
-import { lazy, Suspense, useEffect, useMemo, useRef } from "react";
+import {
+  lazy,
+  Suspense,
+  useEffect,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 
 import { cx } from "./ui";
 
@@ -223,6 +237,182 @@ export interface PlayerCaptions {
   src: string;
   lang: string;
   label: string;
+}
+
+export interface TranscriptStrings {
+  transcript: string;
+  transcriptSearch: string;
+  transcriptNoMatch: string;
+}
+
+/** Leave the transcript where a student scrolled it for this long before following again. */
+const HOLD_SCROLL_MS = 4000;
+
+const clock = (seconds: number) => {
+  const whole = Math.floor(seconds);
+  const minutes = Math.floor(whole / 60);
+  const hours = Math.floor(minutes / 60);
+  const ss = String(whole % 60).padStart(2, "0");
+  return hours > 0
+    ? `${hours}:${String(minutes % 60).padStart(2, "0")}:${ss}`
+    : `${minutes}:${ss}`;
+};
+
+const searchable = (text: string) =>
+  withoutVowelMarks(text).toLocaleLowerCase();
+
+/**
+ * What a recording says, from its captions, as an interactive transcript
+ * (Coursera, TED): the line being spoken is marked and kept in view, a line
+ * plays from its start, and a search narrows the lines.
+ */
+function Transcript({
+  captions,
+  strings,
+  time,
+  seek,
+}: {
+  captions: PlayerCaptions;
+  strings: TranscriptStrings;
+  time: number;
+  seek: (seconds: number) => void;
+}) {
+  const [cues, setCues] = useState<Cue[]>([]);
+  const [open, setOpen] = useState(false);
+  const [query, setQuery] = useState("");
+  const list = useRef<HTMLOListElement>(null);
+  const held = useRef(0);
+  const panel = useId();
+
+  useEffect(() => {
+    let gone = false;
+    void fetch(captions.src)
+      .then((response) => (response.ok ? response.text() : ""))
+      .then((text) => {
+        if (!gone) setCues(parseVtt(text));
+      })
+      .catch(() => undefined);
+    return () => {
+      gone = true;
+    };
+  }, [captions.src]);
+
+  const active = cues.findLastIndex((cue) => cue.start <= time);
+  const wanted = searchable(query.trim());
+  const shown = cues
+    .map((cue, index) => ({ cue, index }))
+    .filter(({ cue }) => !wanted || searchable(cue.text).includes(wanted));
+
+  useEffect(() => {
+    const box = list.current;
+    if (!open || !box || wanted || Date.now() - held.current < HOLD_SCROLL_MS)
+      return;
+    const row = box.querySelector<HTMLElement>(`[data-cue="${active}"]`);
+    if (row) box.scrollTop = row.offsetTop - box.clientHeight / 3;
+  }, [active, open, wanted]);
+
+  if (cues.length === 0) return null;
+  const hold = () => {
+    held.current = Date.now();
+  };
+  return (
+    <div className="grid gap-2">
+      <button
+        type="button"
+        aria-expanded={open}
+        aria-controls={panel}
+        onClick={() => setOpen((value) => !value)}
+        className="inline-flex h-8 items-center gap-1.5 justify-self-start rounded-md px-2 text-sm font-medium text-muted-foreground transition-colors outline-none hover:bg-muted hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50 max-md:h-10 [&_svg]:size-4"
+      >
+        <ScrollText aria-hidden />
+        {strings.transcript}
+        <ChevronDown
+          aria-hidden
+          className={cx("transition-transform", open && "rotate-180")}
+        />
+      </button>
+      {open ? (
+        <div
+          id={panel}
+          className="overflow-hidden rounded-lg border bg-card text-card-foreground"
+        >
+          <label className="flex h-10 items-center gap-2 border-b px-3 text-muted-foreground focus-within:text-foreground">
+            <Search aria-hidden className="size-4 shrink-0" />
+            <input
+              type="search"
+              value={query}
+              onChange={(event) => setQuery(event.target.value)}
+              placeholder={strings.transcriptSearch}
+              aria-label={strings.transcriptSearch}
+              className="h-full min-w-0 flex-1 bg-transparent text-sm text-foreground outline-none placeholder:text-muted-foreground"
+            />
+          </label>
+          {shown.length === 0 ? (
+            <p className="px-3 py-4 text-[13px] leading-[18px] text-muted-foreground">
+              {strings.transcriptNoMatch}
+            </p>
+          ) : (
+            <ol
+              ref={list}
+              lang={captions.lang}
+              dir="auto"
+              onWheel={hold}
+              onTouchMove={hold}
+              className="relative max-h-64 overflow-y-auto p-1"
+            >
+              {shown.map(({ cue, index }) => (
+                <li key={index}>
+                  <button
+                    type="button"
+                    data-cue={index}
+                    aria-current={index === active || undefined}
+                    onClick={() => seek(cue.start)}
+                    className="flex w-full items-baseline gap-3 rounded-md px-2 py-1.5 text-start text-sm leading-5 outline-none hover:bg-muted focus-visible:ring-3 focus-visible:ring-ring/50 aria-current:bg-primary/5 aria-current:font-medium"
+                  >
+                    <span
+                      dir="ltr"
+                      className="w-10 shrink-0 text-[13px] text-muted-foreground tabular-nums"
+                    >
+                      {clock(cue.start)}
+                    </span>
+                    <span dir="auto">{cue.text}</span>
+                  </button>
+                </li>
+              ))}
+            </ol>
+          )}
+        </div>
+      ) : null}
+    </div>
+  );
+}
+
+function VideoTranscript(
+  props: Omit<Parameters<typeof Transcript>[0], "time" | "seek">,
+) {
+  const time = usePlayer((state) => state.currentTime);
+  const player = usePlayer();
+  return (
+    <Transcript
+      {...props}
+      time={time}
+      seek={(seconds) => player.seek(seconds)}
+    />
+  );
+}
+
+function AudioTranscript(
+  props: Omit<Parameters<typeof Transcript>[0], "time" | "seek">,
+) {
+  const time = useAudioPlayer((state) => state.currentTime);
+  const player = useAudioPlayer();
+  return (
+    <Transcript
+      {...props}
+      time={time}
+      seek={(seconds) => player.seek(seconds)}
+    />
+  );
 }
 
 /**
@@ -455,6 +645,7 @@ export function VideoSurface({
   locale,
   element,
   watch,
+  strings,
 }: {
   /** The upload as it is, played when there are no streams. */
   src: string | null;
@@ -466,6 +657,7 @@ export function VideoSurface({
   locale: string;
   element?: Ref<HTMLVideoElement>;
   watch?: MediaWatch | undefined;
+  strings?: TranscriptStrings | undefined;
 }) {
   const dir = pageDirection(locale);
   const tracks = (
@@ -630,6 +822,9 @@ export function VideoSurface({
           />
           <StatusAnnouncer className={announcer} />
         </Container>
+        {captions && strings ? (
+          <VideoTranscript captions={captions} strings={strings} />
+        ) : null}
       </VideoPlayer>
     </I18nProvider>
   );
@@ -659,12 +854,14 @@ export function AudioBar({
   locale,
   element,
   watch,
+  strings,
 }: {
   src: string;
   captions: PlayerCaptions | null;
   locale: string;
   element?: Ref<HTMLAudioElement>;
   watch?: MediaWatch | undefined;
+  strings?: TranscriptStrings | undefined;
 }) {
   const dir = pageDirection(locale);
   return (
@@ -722,6 +919,9 @@ export function AudioBar({
           {watch ? <AudioWatching watch={watch} /> : null}
           <StatusAnnouncer className={announcer} />
         </Container>
+        {captions && strings ? (
+          <AudioTranscript captions={captions} strings={strings} />
+        ) : null}
       </AudioPlayer>
     </I18nProvider>
   );

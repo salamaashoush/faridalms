@@ -186,6 +186,8 @@ export interface EditorStrings {
   gate: string;
   gateHint: string;
   transcript: string;
+  transcriptSearch: string;
+  transcriptNoMatch: string;
   transcriptAdd: string;
   transcriptHint: string;
   transcriptMissing: string;

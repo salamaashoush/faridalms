@@ -125,6 +125,7 @@ function MediaBlock({
           video={video}
           captionsLang={captionsLang}
           locale={locale}
+          strings={strings}
           captionsLabel={strings.captions}
         />
         {editable ? (
