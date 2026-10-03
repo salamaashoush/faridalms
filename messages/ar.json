@@ -5367,8 +5367,6 @@
   "studioUnavailable": "لم يُعدّ استوديو البرمجة لهذه المدرسة بعد.",
   "studioLoading": "جارٍ فتح الاستوديو",
   "studioStarterTitle": "مشروع البداية",
-  "codingStageAlt": "منصة مشروعك",
-  "codingFromStarter": "ستبدأ من مشروع معلّمك.",
   "codingFromEmpty": "ستبدأ بمشروع فارغ.",
   "codingOpen": "افتح استوديو البرمجة",
   "codingKeepBuilding": "تابع البناء",
@@ -5377,5 +5375,8 @@
   "editorQuestionStarterSet": "يبدأ من مشروعك",
   "studioNotKept": "لا تُحفظ التغييرات هنا",
   "codingOpenProject": "افتح المشروع",
-  "codingSee": "اعرض مشروعك"
+  "codingSee": "اعرض مشروعك",
+  "codingRun": "شغّل {name}",
+  "codingYours": "مشروعك",
+  "codingStarter": "مشروع معلّمك"
 }

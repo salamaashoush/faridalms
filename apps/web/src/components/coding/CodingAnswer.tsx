@@ -12,6 +12,7 @@ import * as m from "~/i18n/messages";
 import { studioQuery } from "~/queries/studio";
 
 import { CodingStudio, PROJECT_TYPE } from "./CodingStudio";
+import { ProjectPlayer } from "./ProjectPlayer";
 
 type Coding = Extract<StudentBlock, { type: "scratch" }>;
 
@@ -56,16 +57,17 @@ export function CodingAnswer({
 
   return (
     <div className="grid gap-3">
-      {stage ? (
-        <img
-          src={stage}
-          alt={m.codingStageAlt()}
-          className="aspect-[4/3] w-full max-w-md rounded-lg border bg-white object-contain"
+      {project ? (
+        <ProjectPlayer
+          key={project}
+          projectUrl={project}
+          stage={stage}
+          label={stored || mine ? m.codingYours() : m.codingStarter()}
         />
       ) : (
         <p className="flex max-w-md items-center gap-3 rounded-lg border border-dashed px-4 py-3 text-sm text-muted-foreground">
           <Puzzle className="size-5 shrink-0" aria-hidden />
-          {block.starter ? m.codingFromStarter() : m.codingFromEmpty()}
+          {m.codingFromEmpty()}
         </p>
       )}
       {configured ? (

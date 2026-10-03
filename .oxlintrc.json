@@ -177,7 +177,7 @@
       // it in that origin, with the storage and workers it needs.
       "files": [
         "packages/editor/src/media-view.tsx",
-        "apps/web/src/components/coding/CodingStudio.tsx"
+        "apps/web/src/components/coding/StudioFrame.tsx"
       ],
       "rules": { "react/iframe-missing-sandbox": "off" }
     },

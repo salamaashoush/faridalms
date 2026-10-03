@@ -5165,8 +5165,6 @@
   "studioUnavailable": "The coding studio isn't set up for this school yet.",
   "studioLoading": "Opening the studio",
   "studioStarterTitle": "Starter project",
-  "codingStageAlt": "The stage of your project",
-  "codingFromStarter": "You'll start from your teacher's project.",
   "codingFromEmpty": "You'll start with an empty project.",
   "codingOpen": "Open the coding studio",
   "codingKeepBuilding": "Keep building",
@@ -5175,5 +5173,8 @@
   "editorQuestionStarterSet": "starts from your project",
   "studioNotKept": "Changes here aren't kept",
   "codingOpenProject": "Open the project",
-  "codingSee": "See your project"
+  "codingSee": "See your project",
+  "codingRun": "Run {name}",
+  "codingYours": "your project",
+  "codingStarter": "your teacher's project"
 }

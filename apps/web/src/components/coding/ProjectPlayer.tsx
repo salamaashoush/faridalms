@@ -1,0 +1,93 @@
+import { useQuery } from "@tanstack/react-query";
+import { Flag, LoaderCircle, Puzzle } from "lucide-react";
+import { useState } from "react";
+
+import * as m from "~/i18n/messages";
+import { studioQuery } from "~/queries/studio";
+
+import { StudioFrame } from "./StudioFrame";
+import { useStudioFrame } from "./useStudioFrame";
+
+/** The studio's player is its stage under a bar with the flag and stop: 480 by 360 and 44 more. */
+const PLAYER_RATIO = "480 / 404";
+
+/**
+ * A project to run in place, as a project page on the Scratch website runs
+ * one: its stage first, and the player only once someone presses the flag,
+ * so a page of projects loads no studio until one is wanted.
+ */
+export function ProjectPlayer({
+  projectUrl,
+  stage,
+  label,
+}: {
+  projectUrl: string;
+  /** A picture of the stage to show until the project runs. */
+  stage: string | null;
+  label: string;
+}) {
+  const configured = Boolean(useQuery(studioQuery).data);
+  const [playing, setPlaying] = useState(false);
+  if (playing && configured)
+    return <Playing projectUrl={projectUrl} label={label} />;
+  return (
+    <button
+      type="button"
+      disabled={!configured}
+      onClick={() => setPlaying(true)}
+      aria-label={m.codingRun({ name: label })}
+      className="group relative grid aspect-[4/3] w-full max-w-md place-items-center overflow-hidden rounded-lg border bg-white outline-none focus-visible:ring-3 focus-visible:ring-ring/50 disabled:cursor-default"
+    >
+      {stage ? (
+        <img
+          src={stage}
+          alt=""
+          className="absolute inset-0 size-full object-contain"
+        />
+      ) : (
+        <Puzzle className="size-10 text-neutral-300" aria-hidden />
+      )}
+      {configured ? (
+        <span className="absolute inset-0 grid place-items-center bg-black/5 transition-colors group-hover:bg-black/15">
+          <span className="grid size-16 place-items-center rounded-full bg-white shadow-md ring-1 ring-black/10">
+            <Flag
+              className="size-8 fill-green-500 text-green-600"
+              aria-hidden
+            />
+          </span>
+        </span>
+      ) : null}
+    </button>
+  );
+}
+
+function Playing({ projectUrl, label }: { projectUrl: string; label: string }) {
+  const studio = useStudioFrame({
+    projectUrl,
+    mode: "player",
+    // The flag was pressed on our page; the project should not wait for a second press on its own.
+    onLoaded: () => studio.start(),
+  });
+  return (
+    <div
+      className="relative w-full max-w-md overflow-hidden rounded-lg border bg-white"
+      style={{ aspectRatio: PLAYER_RATIO }}
+    >
+      {studio.source ? (
+        <StudioFrame
+          frame={studio.frame}
+          source={studio.source}
+          title={label}
+        />
+      ) : null}
+      {studio.loaded ? null : (
+        <div className="absolute inset-0 grid place-items-center bg-white">
+          <LoaderCircle
+            className="size-6 animate-spin text-neutral-400"
+            aria-label={m.studioLoading()}
+          />
+        </div>
+      )}
+    </div>
+  );
+}

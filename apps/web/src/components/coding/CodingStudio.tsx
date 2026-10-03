@@ -1,14 +1,14 @@
 import { Dialog as DialogPrimitive } from "@base-ui/react/dialog";
 import { Button } from "@faridalms/ui/button";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@faridalms/ui/tooltip";
-import { useQuery } from "@tanstack/react-query";
 import { LoaderCircle, TriangleAlert, X } from "lucide-react";
-import { useEffect, useEffectEvent, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import * as m from "~/i18n/messages";
-import { getLocale } from "~/i18n/runtime";
-import { studioQuery } from "~/queries/studio";
+
+import { StudioFrame } from "./StudioFrame";
+import { useStudioFrame } from "./useStudioFrame";
 
 export const PROJECT_TYPE = "application/x.scratch.sb3";
 /**
@@ -18,24 +18,13 @@ export const PROJECT_TYPE = "application/x.scratch.sb3";
  */
 const AUTOSAVE_MS = 30_000;
 
-type FromStudio =
-  | { type: "ready" | "loaded" | "changed" }
-  | { type: "error"; code: string }
-  | {
-      type: "saved";
-      id: string;
-      project: ArrayBuffer;
-      thumbnail: ArrayBuffer | null;
-    };
-
 type SaveState = "idle" | "saving" | "saved" | "failed";
 
 /**
  * The coding studio over the page: the block-coding editor runs in a frame
- * on its own domain, and this page keeps the project. A project is fetched
- * and handed in once the studio is ready, saved a few seconds after the last
- * change, and always saved before the studio closes, so a child's work is
- * never lost to a closed tab or a stray Escape.
+ * on its own domain, and this page keeps the project. A project is saved
+ * some seconds after the last change, and always before the studio closes,
+ * so a child's work is never lost to a closed tab or a stray Escape.
  */
 export function CodingStudio({
   projectUrl,
@@ -52,42 +41,30 @@ export function CodingStudio({
   onSave?: (project: Blob, thumbnail: Blob | null) => Promise<void>;
   onClose: () => void;
 }) {
-  const origin = useQuery(studioQuery).data?.origin ?? null;
-  const frame = useRef<HTMLIFrameElement>(null);
   const done = useRef<HTMLButtonElement>(null);
-  const [loaded, setLoaded] = useState(false);
   const [state, setState] = useState<SaveState>("idle");
   const dirty = useRef(false);
   const timer = useRef(0);
-  const waiting = useRef(
-    new Map<string, (saved: Extract<FromStudio, { type: "saved" }>) => void>(),
-  );
   const closing = useRef(false);
-
-  const post = (
-    message: Record<string, unknown>,
-    transfer: Transferable[] = [],
-  ) => {
-    if (!origin) return;
-    frame.current?.contentWindow?.postMessage(
-      { source: "farida", ...message },
-      origin,
-      transfer,
-    );
-  };
+  const studio = useStudioFrame({
+    projectUrl,
+    mode,
+    onChanged: () => {
+      if (!onSave) return;
+      dirty.current = true;
+      setState("idle");
+      window.clearTimeout(timer.current);
+      timer.current = window.setTimeout(() => void save(), AUTOSAVE_MS);
+    },
+  });
 
   const save = async (): Promise<boolean> => {
     window.clearTimeout(timer.current);
     if (!onSave || !dirty.current) return true;
     dirty.current = false;
     setState("saving");
-    const id = crypto.randomUUID();
-    const saved = new Promise<Extract<FromStudio, { type: "saved" }>>(
-      (resolve) => waiting.current.set(id, resolve),
-    );
-    post({ type: "save", id });
     try {
-      const result = await saved;
+      const result = await studio.save();
       await onSave(
         new Blob([result.project], { type: PROJECT_TYPE }),
         result.thumbnail
@@ -112,53 +89,6 @@ export function CodingStudio({
     else toast.error(m.studioSaveFailed());
   };
 
-  const receive = useEffectEvent(async (data: FromStudio) => {
-    switch (data.type) {
-      case "ready": {
-        let bytes: ArrayBuffer | null = null;
-        if (projectUrl) {
-          const response = await fetch(projectUrl);
-          if (response.ok) bytes = await response.arrayBuffer();
-          else toast.error(m.studioLoadFailed());
-        }
-        post({ type: "load", project: bytes }, bytes ? [bytes] : []);
-        return;
-      }
-      case "loaded":
-        setLoaded(true);
-        return;
-      case "error":
-        setLoaded(true);
-        toast.error(m.studioLoadFailed());
-        return;
-      case "changed":
-        if (!onSave) return;
-        dirty.current = true;
-        setState("idle");
-        window.clearTimeout(timer.current);
-        timer.current = window.setTimeout(() => void save(), AUTOSAVE_MS);
-        return;
-      case "saved":
-        waiting.current.get(data.id)?.(data);
-        waiting.current.delete(data.id);
-    }
-  });
-
-  useEffect(() => {
-    const listen = (event: MessageEvent) => {
-      if (
-        !origin ||
-        event.origin !== origin ||
-        event.source !== frame.current?.contentWindow ||
-        (event.data as { source?: unknown } | null)?.source !== "farida-scratch"
-      )
-        return;
-      void receive(event.data as FromStudio);
-    };
-    window.addEventListener("message", listen);
-    return () => window.removeEventListener("message", listen);
-  }, [origin]);
-
   useEffect(() => {
     const warn = (event: BeforeUnloadEvent) => {
       if (dirty.current) event.preventDefault();
@@ -170,13 +100,7 @@ export function CodingStudio({
     };
   }, []);
 
-  const source = origin
-    ? `${origin}/?${new URLSearchParams({
-        parent: window.location.origin,
-        mode,
-        locale: getLocale(),
-      })}`
-    : null;
+  const { source, loaded, frame } = studio;
 
   return (
     <DialogPrimitive.Root
@@ -237,15 +161,10 @@ export function CodingStudio({
           </header>
           <div className="relative min-h-0 flex-1">
             {source ? (
-              <iframe
-                ref={frame}
-                src={source}
+              <StudioFrame
+                frame={frame}
+                source={source}
                 title={m.studioTitle()}
-                allow="camera; microphone; fullscreen"
-                // Its own origin, scripts, sounds and dialogs, but never the
-                // page around it.
-                sandbox="allow-scripts allow-same-origin allow-modals allow-popups allow-popups-to-escape-sandbox allow-downloads"
-                className="size-full border-0"
               />
             ) : (
               <p className="p-6 text-sm text-muted-foreground">
