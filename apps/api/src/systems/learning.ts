@@ -1,4 +1,4 @@
-import type { ModuleRow } from "@faridalms/database/stores/learning";
+import type { ModuleRow, WatchRow } from "@faridalms/database/stores/learning";
 import type { CheckBlock, LessonCompletion } from "@faridalms/domain/learning";
 
 import { reachOf } from "@faridalms/database/stores/audiences";
@@ -33,6 +33,7 @@ import {
   publishedLessons,
   quietLessons,
   recordProgress,
+  recordWatch,
   responsesOf,
   removeLesson as tombstoneLesson,
   setLessonSounds,
@@ -42,6 +43,7 @@ import {
   updateLesson,
   updateModule,
   answersToMark,
+  watchesOf,
 } from "@faridalms/database/stores/learning";
 import { isVisibleStudent } from "@faridalms/database/stores/students";
 import { gridOwners } from "@faridalms/database/stores/timetable";
@@ -59,6 +61,7 @@ import {
   isTeacherMarked,
   lessonContentOf,
   lessonIssue,
+  lessonMedia,
   lessonScore,
   markResponse,
   markSchema,
@@ -81,6 +84,7 @@ import {
   standingOf,
   studentBlocks,
   upgradeLesson,
+  watchSchema,
 } from "@faridalms/domain/learning";
 import { isContentDocument } from "@faridalms/domain/lesson-content";
 import { LIVE_WINDOW_MS, liveStates } from "@faridalms/domain/live";
@@ -1250,6 +1254,25 @@ async function playable(context: UnitContext, lessonId: string) {
 
 type Played = Awaited<ReturnType<typeof playable>>;
 
+/** How much of each of a lesson's recordings its student has played. */
+async function watchedIn(
+  context: UnitContext,
+  played: Pick<Played, "row" | "studentId">,
+): Promise<Record<string, WatchRow>> {
+  const rows = await watchesOf(context.tx, {
+    tenantId: context.tenantId,
+    lessonId: played.row.id,
+    studentId: played.studentId,
+  });
+  return Object.fromEntries(rows.map((row) => [row.fileId, row]));
+}
+
+/** What a lesson's rule needs of its recordings: nothing unless it finishes on watching. */
+const watchedFor = (context: UnitContext, played: Played) =>
+  played.row.completion === "watch"
+    ? watchedIn(context, played)
+    : Promise.resolve({});
+
 const viewOf = (block: CheckBlock, played: Pick<Played, "rows" | "checks">) =>
   describeCheck(block, played.rows, played.checks[block.id]);
 
@@ -1293,7 +1316,12 @@ async function settle(context: UnitContext, played: Played) {
     score === null
       ? (played.own?.score ?? null)
       : Math.max(score, played.own?.bestScore ?? 0);
-  const met = completionMet(played.row, played.content, checks);
+  const met = completionMet(
+    played.row,
+    played.content,
+    checks,
+    await watchedFor(context, played),
+  );
   await recordProgress(context.tx, {
     tenantId: context.tenantId,
     lessonId: played.row.id,
@@ -1347,6 +1375,7 @@ export const playLesson = writeProcedure
         : null,
       score: own?.score ?? null,
       position: own?.position ?? null,
+      watches: await watchedIn(context, played),
       previous: states[index - 1]?.id ?? null,
       next:
         states[index + 1] && states[index + 1]?.state !== "locked"
@@ -1562,7 +1591,12 @@ export const complete = writeProcedure
     const played = await playable(context, input.lessonId);
     if (
       played.row.completion !== "mark" &&
-      !completionMet(played.row, played.content, played.checks)
+      !completionMet(
+        played.row,
+        played.content,
+        played.checks,
+        await watchedFor(context, played),
+      )
     )
       throw new ORPCError("CONFLICT", { message: "learning.not_done" });
     await recordProgress(context.tx, {
@@ -1586,6 +1620,43 @@ export const position = writeProcedure
       position: input.blockId,
     });
     return { saved: true };
+  });
+
+/**
+ * Stretches a student played of one of a lesson's recordings, and where they
+ * are in it. A lesson that finishes on watching finishes here.
+ */
+export const watch = writeProcedure
+  .input(watchSchema)
+  .handler(async ({ input, context }) => {
+    const played = await playable(context, input.lessonId);
+    if (!lessonMedia(played.content).includes(input.fileId))
+      throw new ORPCError("NOT_FOUND");
+    await recordWatch(context.tx, {
+      tenantId: context.tenantId,
+      lessonId: played.row.id,
+      studentId: played.studentId,
+      fileId: input.fileId,
+      ranges: input.ranges,
+      durationSeconds: input.durationSeconds,
+      positionSeconds: input.positionSeconds,
+    });
+    if (played.row.completion !== "watch" || played.own?.completedAt)
+      return { completed: Boolean(played.own?.completedAt) };
+    const met = completionMet(
+      played.row,
+      played.content,
+      played.checks,
+      await watchedIn(context, played),
+    );
+    if (met)
+      await recordProgress(context.tx, {
+        tenantId: context.tenantId,
+        lessonId: played.row.id,
+        studentId: played.studentId,
+        completed: { by: "student" },
+      });
+    return { completed: met };
   });
 
 async function enrolledIn(

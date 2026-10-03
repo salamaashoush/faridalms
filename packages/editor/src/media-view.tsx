@@ -9,7 +9,7 @@ import {
 import { Play } from "lucide-react";
 import { useEffect, useState } from "react";
 
-import type { PlayerCaptions } from "./player";
+import type { MediaWatch, PlayerCaptions } from "./player";
 
 import { AudioBar, PlayerFrame, StartMark, VideoSurface } from "./player";
 
@@ -21,6 +21,7 @@ export function MediaPlayer({
   locale,
   captionsLabel,
   element,
+  watch,
 }: {
   src: string | undefined;
   captions: string | undefined;
@@ -31,6 +32,8 @@ export function MediaPlayer({
   locale: string;
   captionsLabel: string;
   element?: Ref<HTMLVideoElement & HTMLAudioElement>;
+  /** Counts what a student plays, where watching a lesson's recordings counts. */
+  watch?: MediaWatch | undefined;
 }) {
   if (!src) return null;
   const track = captions
@@ -42,9 +45,16 @@ export function MediaPlayer({
       captions={track}
       locale={locale}
       element={element}
+      watch={watch}
     />
   ) : (
-    <AudioBar src={src} captions={track} locale={locale} element={element} />
+    <AudioBar
+      src={src}
+      captions={track}
+      locale={locale}
+      element={element}
+      watch={watch}
+    />
   );
 }
 
@@ -67,11 +77,13 @@ function StreamingVideo({
   captions,
   locale,
   element,
+  watch,
 }: {
   src: string;
   captions: PlayerCaptions | null;
   locale: string;
   element?: Ref<HTMLVideoElement>;
+  watch?: MediaWatch | undefined;
 }) {
   const [source, setSource] = useState<
     { stream: Stream } | { upload: string } | null
@@ -123,6 +135,7 @@ function StreamingVideo({
       captions={captions}
       locale={locale}
       element={element}
+      watch={watch}
     />
   );
 }

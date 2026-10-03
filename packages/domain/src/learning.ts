@@ -29,8 +29,14 @@ export const LESSON_COMPLETIONS = [
   "quiz",
   "score",
   "reflection",
+  "watch",
 ] as const;
 export type LessonCompletion = (typeof LESSON_COMPLETIONS)[number];
+/**
+ * The share of a recording a student must play for it to count as watched,
+ * leaving room for credits and a skipped silence.
+ */
+export const WATCHED_SHARE = 0.9;
 export const LESSON_MEDIA_BYTES = 200 * 1024 * 1024;
 export const MAX_LESSON_BLOCKS = 60;
 export const VOWEL_MARKS = ["shown", "hidden", "choice"] as const;
@@ -534,6 +540,30 @@ export function lessonContentOf(value: unknown): ContentDocument {
 const mediaOf = (node: ContentNode): ContentNode[] =>
   node.type === "media" ? [node] : (node.children ?? []).flatMap(mediaOf);
 
+/** The videos and recordings a lesson plays, each once, by file. */
+export function lessonMedia(document: LessonDocument): string[] {
+  const files = document.blocks.flatMap((block) =>
+    block.type === "content"
+      ? mediaOf(block.content.root).flatMap((node) =>
+          node.fileId ? [node.fileId] : [],
+        )
+      : block.type === "media"
+        ? [block.fileId]
+        : [],
+  );
+  return [...new Set(files)];
+}
+
+/** How much of one recording a student has played, in whole seconds. */
+export interface Watched {
+  watchedSeconds: number;
+  durationSeconds: number;
+}
+
+export const watchedEnough = (watched: Watched | undefined) =>
+  watched !== undefined &&
+  watched.watchedSeconds >= watched.durationSeconds * WATCHED_SHARE;
+
 /**
  * What stops a lesson going in front of students, as an error code: no
  * words, a question not finished, or a rule for finishing that the lesson
@@ -568,6 +598,8 @@ export function lessonIssue(lesson: {
     !document.blocks.some((block) => block.type === "written")
   )
     return "learning.needs_reflection";
+  if (lesson.completion === "watch" && lessonMedia(document).length === 0)
+    return "learning.needs_media";
   return null;
 }
 
@@ -1033,6 +1065,7 @@ export function completionMet(
   lesson: { completion: LessonCompletion; passScore: number | null },
   document: LessonDocument,
   states: Record<string, CheckState>,
+  watched: Record<string, Watched> = {},
 ): boolean {
   const auto = autoBlocks(document);
   const written = document.blocks.filter(
@@ -1052,6 +1085,10 @@ export function completionMet(
       );
     case "reflection":
       return written.every((block) => settled(block, states[block.id]));
+    case "watch":
+      return lessonMedia(document).every((file) =>
+        watchedEnough(watched[file]),
+      );
   }
   return false;
 }
@@ -1475,6 +1512,35 @@ export const markSchema = v.object({
 export const positionSchema = v.object({
   lessonId: id,
   blockId: v.pipe(v.string(), v.maxLength(64)),
+});
+
+/** Longer than any lesson recording a school uploads. */
+const MAX_MEDIA_SECONDS = 6 * 60 * 60;
+const second = v.pipe(
+  v.number(),
+  v.integer(),
+  v.minValue(0),
+  v.maxValue(MAX_MEDIA_SECONDS),
+);
+
+/**
+ * Stretches of a recording a student played since their last report, in
+ * whole seconds, with its length and where they are in it.
+ */
+export const watchSchema = v.object({
+  lessonId: id,
+  fileId: id,
+  ranges: v.pipe(
+    v.array(
+      v.pipe(
+        v.tuple([second, second]),
+        v.check(([start, end]) => start < end, "learning.watch_range"),
+      ),
+    ),
+    v.maxLength(200),
+  ),
+  durationSeconds: v.pipe(second, v.minValue(1)),
+  positionSeconds: second,
 });
 
 export const overrideSchema = v.object({

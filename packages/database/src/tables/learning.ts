@@ -4,6 +4,7 @@ import { sql } from "drizzle-orm";
 import {
   boolean,
   index,
+  integer,
   jsonb,
   numeric,
   smallint,
@@ -21,11 +22,13 @@ import {
   entityProfile,
   fk,
   instant,
+  int4multirange,
   ledgerProfile,
   pk,
   tenantColumns,
 } from "./conventions";
 import { documentVersions } from "./documents";
+import { files } from "./files";
 import { users } from "./people";
 import { classes } from "./teaching";
 import { orgs, tenants } from "./tenancy";
@@ -36,7 +39,8 @@ export type LessonCompletion =
   | "mark"
   | "quiz"
   | "score"
-  | "reflection";
+  | "reflection"
+  | "watch";
 
 /**
  * A module of lessons a teacher sets for classes of one school year. It
@@ -183,7 +187,7 @@ export const lessons = core.table.withRLS(
     ck(
       "lessons",
       "completion",
-      sql`completion in ('view', 'mark', 'quiz', 'score', 'reflection')`,
+      sql`completion in ('view', 'mark', 'quiz', 'score', 'reflection', 'watch')`,
     ),
     ck(
       "lessons",
@@ -266,6 +270,62 @@ export const lessonProgress = core.table.withRLS(
     index("lesson_progress_student_idx")
       .on(t.tenantId, t.studentUserId)
       .where(sql`status = 'active'`),
+    ...entityProfile(),
+  ],
+);
+
+/**
+ * How much of each recording in a lesson a student has played: the seconds,
+ * merged across sittings so skipping ahead never counts, and where they
+ * stopped, so it picks up there. One row per student, lesson and file.
+ */
+export const lessonWatches = core.table.withRLS(
+  "lesson_watches",
+  {
+    ...tenantColumns(),
+    lessonId: uuid("lesson_id").notNull(),
+    studentUserId: uuid("student_user_id").notNull(),
+    fileId: uuid("file_id").notNull(),
+    watched: int4multirange("watched")
+      .notNull()
+      .default(sql`'{}'::int4multirange`),
+    durationSeconds: integer("duration_seconds").notNull(),
+    positionSeconds: integer("position_seconds").notNull().default(0),
+    updatedAt: instant("updated_at")
+      .notNull()
+      .default(sql`statement_timestamp()`),
+  },
+  (t): PgTableExtraConfigValue[] => [
+    pk("lesson_watches", t.tenantId, t.id),
+    fk("lesson_watches", [t.tenantId], [tenants.tenantId]),
+    fk(
+      "lesson_watches",
+      [t.tenantId, t.lessonId],
+      [lessons.tenantId, lessons.id],
+    ),
+    fk(
+      "lesson_watches",
+      [t.tenantId, t.studentUserId],
+      [users.tenantId, users.id],
+    ),
+    fk("lesson_watches", [t.tenantId, t.fileId], [files.tenantId, files.id]),
+    ck("lesson_watches", "duration", sql`duration_seconds between 1 and 21600`),
+    ck(
+      "lesson_watches",
+      "position",
+      sql`position_seconds between 0 and duration_seconds`,
+    ),
+    ck(
+      "lesson_watches",
+      "watched",
+      sql`watched <@ int4multirange(int4range(0, duration_seconds))`,
+    ),
+    uniqueIndex("lesson_watches_key").on(
+      t.tenantId,
+      t.lessonId,
+      t.studentUserId,
+      t.fileId,
+    ),
     ...entityProfile(),
   ],
 );

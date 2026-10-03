@@ -1587,3 +1587,149 @@ describe("right now", () => {
     ).toMatchObject({ code: "NOT_FOUND" });
   });
 });
+
+describe("watching recordings", () => {
+  test("a lesson that finishes on watching counts only what was played, and picks up where it stopped", async () => {
+    const tenant = seeded().tenants[0];
+    const school = tenant?.schools.find((row) => row.slug === "northwind");
+    let teacher: Awaited<ReturnType<typeof sessionFor>> | null = null;
+    for (const row of tenant?.logins ?? []) {
+      if (row.role !== "teacher" || row.schoolId !== school?.id) continue;
+      const session = await sessionFor("northwind", row.loginName);
+      const { rows } = await session.api.learning.modules({});
+      if (rows.some((item) => item.title === TITLE)) teacher ??= session;
+    }
+    if (!teacher) throw new Error("a teacher of the module needed");
+    const keeper = teacher.api;
+    const { rows } = await keeper.learning.modules({});
+    const source = rows.find((row) => row.title === TITLE);
+    if (!source) throw new Error("no module");
+    const saved = await keeper.learning.saveModule({
+      id: "",
+      expectedVersion: 0,
+      title: "Listening",
+      summary: "",
+      classIds: source.classes.map((item) => item.id),
+      prerequisiteId: "",
+      sequential: false,
+    });
+    // An MP3's ID3 signature, which is all the upload check reads.
+    const mp3 = new Blob([new Uint8Array([0x49, 0x44, 0x33, 3, 0, 0, 0, 0])]);
+    const recording = await uploadAs(teacher, "story.mp3", "audio/mpeg", mp3);
+
+    const lessonOf = (media: boolean) =>
+      written([
+        {
+          id: id(),
+          type: "content",
+          content: plainContent("Listen to the story, then tell a friend."),
+        },
+        ...(media
+          ? [
+              {
+                id: id(),
+                type: "media" as const,
+                fileId: recording,
+                name: "story.mp3",
+                mediaType: "audio/mpeg",
+                sizeBytes: mp3.size,
+                caption: "",
+                captionsFileId: null,
+                captionsLang: "en" as const,
+                transcript: "Once upon a time.",
+              },
+            ]
+          : []),
+      ]);
+    const draft = await keeper.learning.saveLesson({
+      id: "",
+      moduleId: saved.id,
+      expectedVersion: 0,
+      title: "The story",
+      completion: "watch",
+      passScore: null,
+      content: lessonOf(false),
+      publish: false,
+    });
+    expect(
+      await rejection(
+        keeper.learning.publishModule({
+          id: saved.id,
+          expectedVersion: saved.version,
+        }),
+      ),
+    ).toMatchObject({ message: "learning.needs_media" });
+    const lesson = await keeper.learning.saveLesson({
+      id: draft.id,
+      moduleId: saved.id,
+      expectedVersion: draft.version,
+      title: "The story",
+      completion: "watch",
+      passScore: null,
+      content: lessonOf(true),
+      publish: false,
+    });
+    await keeper.learning.publishModule({
+      id: saved.id,
+      expectedVersion: saved.version,
+    });
+
+    const pupil = await student();
+    const opened = await pupil.learning.playLesson({ id: lesson.id });
+    expect(opened.completedAt).toBeNull();
+    expect(opened.watches).toEqual({});
+
+    // Forty seconds, then a skip to the end: skipped seconds never count.
+    const first = await pupil.learning.watch({
+      lessonId: lesson.id,
+      fileId: recording,
+      ranges: [
+        [0, 30],
+        [20, 40],
+        [95, 100],
+      ],
+      durationSeconds: 100,
+      positionSeconds: 40,
+    });
+    expect(first).toEqual({ completed: false });
+    const resumed = await pupil.learning.playLesson({ id: lesson.id });
+    expect(resumed.watches[recording]).toMatchObject({
+      watchedSeconds: 45,
+      durationSeconds: 100,
+      positionSeconds: 40,
+    });
+
+    // Played again from the start, then on to ninety: past nine tenths, done.
+    const second = await pupil.learning.watch({
+      lessonId: lesson.id,
+      fileId: recording,
+      ranges: [
+        [0, 10],
+        [40, 90],
+        [90, 140],
+      ],
+      durationSeconds: 100,
+      positionSeconds: 140,
+    });
+    expect(second).toEqual({ completed: true });
+    const finished = await pupil.learning.playLesson({ id: lesson.id });
+    expect(finished.completedAt).not.toBeNull();
+    expect(finished.watches[recording]).toMatchObject({
+      watchedSeconds: 100,
+      positionSeconds: 100,
+    });
+
+    // Only a recording in the lesson can be reported.
+    expect(
+      await rejection(
+        pupil.learning.watch({
+          lessonId: lesson.id,
+          fileId: id(),
+          ranges: [[0, 5]],
+          durationSeconds: 10,
+          positionSeconds: 5,
+        }),
+      ),
+    ).toMatchObject({ code: "NOT_FOUND" });
+  });
+});

@@ -1,51 +1,37 @@
 import type { LessonBlock } from "@faridalms/domain/learning";
+import type { MediaWatch } from "@faridalms/editor/player";
 
 import { StoredImage } from "@faridalms/editor/files";
+import { MediaPlayer } from "@faridalms/editor/media-view";
 
 import * as m from "~/i18n/messages";
+import { getLocale } from "~/i18n/runtime";
 
 const fileUrl = (fileId: string) => `/files/${fileId}`;
 
 /** A lesson's picture, sound, video or file, with its caption and transcript. */
 export function Media({
   block,
+  watch,
 }: {
   block: Extract<LessonBlock, { type: "media" }>;
+  watch?: ((fileId: string) => MediaWatch | undefined) | undefined;
 }) {
   const src = fileUrl(block.fileId);
   const captions = block.captionsFileId ? fileUrl(block.captionsFileId) : null;
   return (
     <figure className="grid gap-2">
-      {block.mediaType.startsWith("video/") ? (
-        <video
-          controls
-          preload="metadata"
-          crossOrigin="anonymous"
-          className="w-full rounded-lg"
-        >
-          <source src={src} type={block.mediaType} />
-          <track
-            kind="captions"
-            src={captions ?? undefined}
-            srcLang={block.captionsLang}
-            default={Boolean(captions)}
-          />
-        </video>
-      ) : block.mediaType.startsWith("audio/") ? (
-        <audio
-          controls
-          preload="metadata"
-          crossOrigin="anonymous"
-          className="w-full"
-        >
-          <source src={src} type={block.mediaType} />
-          <track
-            kind="captions"
-            src={captions ?? undefined}
-            srcLang={block.captionsLang}
-            default={Boolean(captions)}
-          />
-        </audio>
+      {block.mediaType.startsWith("video/") ||
+      block.mediaType.startsWith("audio/") ? (
+        <MediaPlayer
+          src={src}
+          captions={captions ?? undefined}
+          captionsLang={block.captionsLang}
+          video={block.mediaType.startsWith("video/")}
+          locale={getLocale()}
+          captionsLabel={m.editorCaptions()}
+          watch={watch?.(block.fileId)}
+        />
       ) : block.mediaType.startsWith("image/") ? (
         <StoredImage
           src={src}

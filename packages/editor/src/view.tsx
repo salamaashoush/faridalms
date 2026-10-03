@@ -18,6 +18,7 @@ import { cloneElement, createElement, Fragment, isValidElement } from "react";
 
 import type { AiUseViewStrings } from "./ai-use-view";
 import type { FileFacts } from "./files";
+import type { MediaWatch } from "./player";
 
 import { AiUseView } from "./ai-use-view";
 import { useFileFacts } from "./file-facts";
@@ -67,6 +68,7 @@ interface Context {
   fileUrl?: (fileId: string) => string;
   locale: string;
   marking?: Marking;
+  watch?: ((fileId: string) => MediaWatch | undefined) | undefined;
 }
 
 function markingOf(
@@ -588,6 +590,7 @@ function draw(
             captionsLang={node.captionsLang}
             locale={context.locale}
             captionsLabel={context.strings.captions}
+            watch={node.fileId ? context.watch?.(node.fileId) : undefined}
           />
           {node.caption ? (
             <figcaption className="text-center text-sm text-muted-foreground">
@@ -703,12 +706,15 @@ export function ContentRenderer({
   marks,
   activeMark = null,
   renderBlock,
+  watch,
 }: {
   document: ContentDocument;
   strings: ViewStrings;
   fileUrl?: (fileId: string) => string;
   locale?: string;
   className?: string;
+  /** Counts what a student plays of each recording, by file. */
+  watch?: ((fileId: string) => MediaWatch | undefined) | undefined;
   /** Passages to draw marked, as comments on handed-in work point at them. */
   marks?: ContentMark[];
   activeMark?: string | null;
@@ -718,7 +724,7 @@ export function ContentRenderer({
   const marking = marks?.length
     ? markingOf(document, marks, activeMark)
     : undefined;
-  const context = { strings, fileUrl, locale, marking };
+  const context = { strings, fileUrl, locale, marking, watch };
   return (
     <div
       className={className ? `fe ${className}` : "fe"}

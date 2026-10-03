@@ -6,6 +6,7 @@ import type {
   StoredTry,
   StudentBlock,
 } from "@faridalms/domain/learning";
+import type { MediaWatch } from "@faridalms/editor/player";
 
 import { allWithoutVowelMarks } from "@faridalms/domain/arabic";
 import { contentPlainText, textDirection } from "@faridalms/domain/content";
@@ -58,6 +59,7 @@ import {
   retryLesson,
   revealCheck,
   saveReadingPosition,
+  saveWatch,
 } from "~/server/learning";
 import { formatNumber } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
@@ -79,6 +81,7 @@ const RULE_HINT: Record<LessonCompletion, (() => string) | null> = {
   quiz: m.lrnRuleQuiz,
   score: null,
   reflection: m.lrnRuleReflection,
+  watch: m.lrnRuleWatch,
 };
 
 const ruleText = (completion: LessonCompletion, passScore: number | null) =>
@@ -130,12 +133,14 @@ function LessonBody({
   driver,
   position,
   onReach,
+  watch,
 }: {
   blocks: StudentBlock[];
   checks: Record<string, CheckView>;
   driver: CheckDriver;
   position?: string | null;
   onReach?: (blockId: string) => void;
+  watch?: (fileId: string) => MediaWatch | undefined;
 }) {
   const young = useContext(YoungContext);
   const settledAbove = (index: number) => {
@@ -224,6 +229,7 @@ function LessonBody({
             <ContentView
               document={block.content}
               fileUrl={fileUrl}
+              watch={watch}
               renderBlock={(node, drawn) => {
                 const narration = node.$?.narration ?? null;
                 if (!young && !narration) return drawn;
@@ -257,7 +263,8 @@ function LessonBody({
               }}
             />
           );
-        else if (block.type === "media") body = <Media block={block} />;
+        else if (block.type === "media")
+          body = <Media block={block} watch={watch} />;
         else if (isCheckBlock(block))
           body = (
             <CheckBlockView
@@ -281,6 +288,32 @@ function LessonBody({
       })}
     </>
   );
+}
+
+/**
+ * Reports what a student plays of each of a lesson's recordings, and where
+ * to pick each up; `onFinished` runs once if that finishes the lesson.
+ */
+function useWatching(
+  lessonId: string,
+  watches: Record<string, { positionSeconds: number }>,
+  onFinished: () => void,
+) {
+  const finished = useRef(false);
+  return (fileId: string): MediaWatch => ({
+    startAt: watches[fileId]?.positionSeconds ?? 0,
+    report: (report) => {
+      // A lost report only means those seconds count when played again.
+      void saveWatch({ data: { lessonId, fileId, ...report } })
+        .then((result) => {
+          if (result.completed && !finished.current) {
+            finished.current = true;
+            onFinished();
+          }
+        })
+        .catch(() => undefined);
+    },
+  });
 }
 
 /** Saves the furthest block a student has scrolled to, a moment after they stop. */
@@ -485,6 +518,10 @@ export function LessonPlayer({ lessonId }: { lessonId: string }) {
     onError: (error) => toast.error(getMessageFromError(error)),
   });
   const reach = useReadingPosition(lessonId, data.blocks, data.position);
+  const watch = useWatching(lessonId, data.watches, () => {
+    if (data.completedAt) return;
+    void refresh().then(() => toast.success(m.lrnLessonFinished()));
+  });
 
   const vowels = useVowelMarks(data.vowelMarks);
   const shown = useMemo(
@@ -609,6 +646,7 @@ export function LessonPlayer({ lessonId }: { lessonId: string }) {
           driver={driver}
           position={data.position}
           onReach={reach}
+          watch={watch}
         />
       </YoungContext.Provider>
       {data.review ? (

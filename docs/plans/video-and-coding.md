@@ -17,7 +17,10 @@ with the gate it can break.
    beside or below it.
 2. **Watch progress.** Played ranges reported by the player and merged on the
    server, so skipped parts never count. A lesson can finish on "watched",
-   and a continue gate can wait for a video.
+   and a continue gate can wait for a video. Done: `lesson_watches` keeps
+   each student's played seconds as a multirange with their place, a lesson
+   can finish when nine tenths of every recording is played, and the player
+   picks up where the student stopped; the continue gate remains.
 3. **Transcript panel** from the captions: follows playback, click to jump,
    search.
 4. **Questions on the timeline.** Question blocks placed at a time inside the

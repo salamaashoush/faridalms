@@ -513,6 +513,8 @@ export function getMessageFromError(error: unknown): string {
         return m.lrnRuleNeedsQuiz();
       case "learning.needs_reflection":
         return m.lrnRuleNeedsReflection();
+      case "learning.needs_media":
+        return m.lrnRuleNeedsMedia();
       case "learning.captions_required":
         return m.lrnErrCaptions();
       case "learning.correct_option":

@@ -39,6 +39,11 @@ export const daterange = customType<{ data: string; driverData: string }>({
   dataType: () => "daterange",
 });
 
+/** Whole numbers as a set of half-open ranges, in Postgres text form. */
+export const int4multirange = customType<{ data: string; driverData: string }>({
+  dataType: () => "int4multirange",
+});
+
 export const tsvector = customType<{ data: string; driverData: string }>({
   dataType: () => "tsvector",
 });

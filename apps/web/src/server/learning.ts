@@ -6,6 +6,7 @@ import {
   moveLessonSchema,
   overrideSchema,
   positionSchema,
+  watchSchema,
   progressQuerySchema,
   publishModuleSchema,
   respondSchema,
@@ -148,6 +149,10 @@ export const completeLesson = createServerFn({ method: "POST" })
 export const saveReadingPosition = createServerFn({ method: "POST" })
   .validator(checked(positionSchema))
   .handler(({ data }) => backend().learning.position(data));
+
+export const saveWatch = createServerFn({ method: "POST" })
+  .validator(checked(watchSchema))
+  .handler(({ data }) => backend().learning.watch(data));
 
 export const getClassSounds = createServerFn({ method: "GET" })
   .validator(checked(classSoundsSchema))

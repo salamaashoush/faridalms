@@ -36,6 +36,7 @@ export const COMPLETION_LABEL: Record<LessonCompletion, () => string> = {
   quiz: m.lrnDoneQuiz,
   score: m.lrnDoneScore,
   reflection: m.lrnDoneReflection,
+  watch: m.lrnDoneWatch,
 };
 
 export const LESSON_STATE_LABEL = {

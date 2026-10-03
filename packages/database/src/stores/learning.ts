@@ -506,6 +506,79 @@ export async function recordProgress(
       and student_user_id = ${input.studentId}::uuid and status = 'active'`);
 }
 
+export interface WatchRow {
+  fileId: string;
+  watchedSeconds: number;
+  durationSeconds: number;
+  positionSeconds: number;
+}
+
+/**
+ * Adds stretches a student played of a recording in a lesson to what they
+ * played before, kept within its length, and moves their place in it.
+ */
+export async function recordWatch(
+  tx: Tx,
+  input: {
+    tenantId: string;
+    lessonId: string;
+    studentId: string;
+    fileId: string;
+    ranges: readonly (readonly [number, number])[];
+    durationSeconds: number;
+    positionSeconds: number;
+  },
+): Promise<void> {
+  const played =
+    input.ranges.length === 0
+      ? sql`'{}'::int4multirange`
+      : sql`int4multirange(${sql.join(
+          input.ranges.map(
+            ([start, end]) => sql`int4range(${start}::int, ${end}::int)`,
+          ),
+          sql`, `,
+        )})`;
+  await tx.execute(sql`
+    insert into core.lesson_watches
+      (tenant_id, lesson_id, student_user_id, file_id, watched, duration_seconds, position_seconds)
+    values (${input.tenantId}::uuid, ${input.lessonId}::uuid, ${input.studentId}::uuid,
+      ${input.fileId}::uuid,
+      ${played} * int4multirange(int4range(0, ${input.durationSeconds}::int)),
+      ${input.durationSeconds}::int,
+      least(${input.positionSeconds}::int, ${input.durationSeconds}::int))
+    on conflict (tenant_id, lesson_id, student_user_id, file_id) do update set
+      watched = (core.lesson_watches.watched + excluded.watched)
+        * int4multirange(int4range(0, excluded.duration_seconds)),
+      duration_seconds = excluded.duration_seconds,
+      position_seconds = excluded.position_seconds,
+      updated_at = statement_timestamp()`);
+}
+
+/** How much of each recording in a lesson a student has played. */
+export async function watchesOf(
+  tx: Tx,
+  input: { tenantId: string; lessonId: string; studentId: string },
+): Promise<WatchRow[]> {
+  const rows = await tx.execute<{
+    file_id: string;
+    watched_seconds: number;
+    duration_seconds: number;
+    position_seconds: number;
+  }>(sql`
+    select file_id,
+      coalesce((select sum(upper(r) - lower(r)) from unnest(watched) r), 0)::int as watched_seconds,
+      duration_seconds, position_seconds
+    from core.lesson_watches
+    where tenant_id = ${input.tenantId}::uuid and lesson_id = ${input.lessonId}::uuid
+      and student_user_id = ${input.studentId}::uuid`);
+  return rows.map((row) => ({
+    fileId: row.file_id,
+    watchedSeconds: row.watched_seconds,
+    durationSeconds: row.duration_seconds,
+    positionSeconds: row.position_seconds,
+  }));
+}
+
 /** Whether a student has finished every lesson of a module. */
 export async function moduleFinished(
   tx: Tx,

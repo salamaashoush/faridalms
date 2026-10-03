@@ -1,3 +1,4 @@
+import type { CommonMedia, Media } from "@videojs/react";
 import type { ReactElement, ReactNode, Ref } from "react";
 
 import "@videojs/react/i18n/locales/ar/register";
@@ -11,6 +12,8 @@ import {
   FullscreenButton,
   Gesture,
   Hotkey,
+  isMediaPauseCapable,
+  isMediaSeekCapable,
   Menu,
   MuteButton,
   PiPButton,
@@ -23,9 +26,14 @@ import {
   Time,
   TimeSlider,
   Tooltip,
+  useMedia,
   VolumeSlider,
 } from "@videojs/react";
-import { Audio, AudioPlayer } from "@videojs/react/audio";
+import {
+  Audio,
+  AudioPlayer,
+  usePlayer as useAudioPlayer,
+} from "@videojs/react/audio";
 import { I18nProvider, useTranslator } from "@videojs/react/i18n";
 import { speedText } from "@videojs/react/i18n/text/menu";
 import { usePlayer, Video, VideoPlayer } from "@videojs/react/video";
@@ -44,7 +52,7 @@ import {
   Volume2,
   VolumeX,
 } from "lucide-react";
-import { lazy, Suspense, useMemo } from "react";
+import { lazy, Suspense, useEffect, useMemo, useRef } from "react";
 
 import { cx } from "./ui";
 
@@ -54,6 +62,162 @@ const HlsJsVideo = lazy(() =>
     default: module.HlsJsVideo,
   })),
 );
+
+/** What a student played of a recording since the last report, in whole seconds. */
+export interface WatchReport {
+  ranges: [number, number][];
+  durationSeconds: number;
+  positionSeconds: number;
+}
+
+/** A recording whose watching counts: where to pick up, and where to report. */
+export interface MediaWatch {
+  startAt: number;
+  report: (watch: WatchReport) => void;
+}
+
+/** How often a playing recording reports, so a closed tab loses little. */
+const REPORT_MS = 15_000;
+/** A jump in time bigger than playback could make is a seek, not watching. */
+const MAX_STEP_SECONDS = 3;
+/** Picking up this close to either end would only confuse. */
+const RESUME_MARGIN_SECONDS = 5;
+
+/**
+ * Video.js narrows a media's abilities but not its events; anything that can
+ * seek and pause sends the media element's own events for them.
+ */
+const watchable = (media: Media | null): media is CommonMedia =>
+  isMediaSeekCapable(media) && isMediaPauseCapable(media);
+
+/**
+ * Collects the stretches a student actually plays, never what they skip,
+ * and reports them with where they are; on load it picks up where they
+ * stopped last time.
+ */
+function Watching({
+  watch,
+  seek,
+}: {
+  watch: MediaWatch;
+  seek: (seconds: number) => void;
+}) {
+  const media = useMedia();
+  const latest = useRef({ watch, seek });
+  useEffect(() => {
+    latest.current = { watch, seek };
+  });
+
+  useEffect(() => {
+    if (!watchable(media)) return undefined;
+    let stretches: [number, number][] = [];
+    let from: number | null = null;
+    let last = media.currentTime;
+    let resumed = false;
+
+    const close = () => {
+      if (from !== null && last > from)
+        stretches.push([Math.floor(from), Math.ceil(last)]);
+      from = null;
+    };
+    const flush = () => {
+      const playing = from !== null;
+      close();
+      const total = Math.ceil(media.duration);
+      if (Number.isFinite(total) && total > 0) {
+        latest.current.watch.report({
+          ranges: stretches
+            .map(([start, end]): [number, number] => [
+              Math.min(start, total),
+              Math.min(end, total),
+            ])
+            .filter(([start, end]) => start < end),
+          durationSeconds: total,
+          positionSeconds: Math.min(Math.floor(media.currentTime), total),
+        });
+        stretches = [];
+      }
+      if (playing) from = media.currentTime;
+    };
+    const onTime = () => {
+      const now = media.currentTime;
+      if (media.paused || media.seeking) {
+        last = now;
+        return;
+      }
+      if (from === null) from = now;
+      else if (now < last || now - last > MAX_STEP_SECONDS) {
+        close();
+        from = now;
+      }
+      last = now;
+    };
+    const onSeeking = () => close();
+    const onSeeked = () => {
+      last = media.currentTime;
+      if (!media.paused) from = last;
+    };
+    const onPlay = () => {
+      last = media.currentTime;
+      from = last;
+    };
+    const onStop = () => {
+      last = media.currentTime;
+      flush();
+    };
+    const resume = () => {
+      if (resumed) return;
+      resumed = true;
+      const at = latest.current.watch.startAt;
+      if (
+        at > RESUME_MARGIN_SECONDS &&
+        at < media.duration - RESUME_MARGIN_SECONDS
+      ) {
+        latest.current.seek(at);
+        last = at;
+      }
+    };
+    const onHide = () => {
+      if (document.visibilityState === "hidden") flush();
+    };
+
+    if (Number.isFinite(media.duration) && media.duration > 0) resume();
+    media.addEventListener("loadedmetadata", resume);
+    media.addEventListener("timeupdate", onTime);
+    media.addEventListener("seeking", onSeeking);
+    media.addEventListener("seeked", onSeeked);
+    media.addEventListener("play", onPlay);
+    media.addEventListener("pause", onStop);
+    media.addEventListener("ended", onStop);
+    document.addEventListener("visibilitychange", onHide);
+    const timer = window.setInterval(() => {
+      if (from !== null) flush();
+    }, REPORT_MS);
+    return () => {
+      window.clearInterval(timer);
+      document.removeEventListener("visibilitychange", onHide);
+      media.removeEventListener("loadedmetadata", resume);
+      media.removeEventListener("timeupdate", onTime);
+      media.removeEventListener("seeking", onSeeking);
+      media.removeEventListener("seeked", onSeeked);
+      media.removeEventListener("play", onPlay);
+      media.removeEventListener("pause", onStop);
+      media.removeEventListener("ended", onStop);
+      if (from !== null || stretches.length > 0) flush();
+    };
+  }, [media]);
+  return null;
+}
+
+function VideoWatching({ watch }: { watch: MediaWatch }) {
+  const player = usePlayer();
+  return <Watching watch={watch} seek={(seconds) => player.seek(seconds)} />;
+}
+
+function AudioWatching({ watch }: { watch: MediaWatch }) {
+  const player = useAudioPlayer();
+  return <Watching watch={watch} seek={(seconds) => player.seek(seconds)} />;
+}
 
 export interface PlayerCaptions {
   src: string;
@@ -290,6 +454,7 @@ export function VideoSurface({
   captions,
   locale,
   element,
+  watch,
 }: {
   /** The upload as it is, played when there are no streams. */
   src: string | null;
@@ -300,6 +465,7 @@ export function VideoSurface({
   captions: PlayerCaptions | null;
   locale: string;
   element?: Ref<HTMLVideoElement>;
+  watch?: MediaWatch | undefined;
 }) {
   const dir = pageDirection(locale);
   const tracks = (
@@ -441,6 +607,7 @@ export function VideoSurface({
           </Controls.Root>
           <PlayerError />
           <PlaybackKeys video />
+          {watch ? <VideoWatching watch={watch} /> : null}
           <Gesture
             type="tap"
             action="togglePaused"
@@ -491,11 +658,13 @@ export function AudioBar({
   captions,
   locale,
   element,
+  watch,
 }: {
   src: string;
   captions: PlayerCaptions | null;
   locale: string;
   element?: Ref<HTMLAudioElement>;
+  watch?: MediaWatch | undefined;
 }) {
   const dir = pageDirection(locale);
   return (
@@ -550,6 +719,7 @@ export function AudioBar({
             <VolumeControl />
           </Tooltip.Provider>
           <PlaybackKeys video={false} />
+          {watch ? <AudioWatching watch={watch} /> : null}
           <StatusAnnouncer className={announcer} />
         </Container>
       </AudioPlayer>

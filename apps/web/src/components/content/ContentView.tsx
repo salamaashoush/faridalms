@@ -1,4 +1,5 @@
 import type { ContentDocument, ContentNode } from "@faridalms/domain/content";
+import type { MediaWatch } from "@faridalms/editor/player";
 import type { ContentMark } from "@faridalms/editor/view";
 import type { ReactNode } from "react";
 
@@ -16,6 +17,7 @@ export function ContentView({
   marks,
   activeMark,
   renderBlock,
+  watch,
 }: {
   document: ContentDocument;
   fileUrl?: (fileId: string) => string;
@@ -23,6 +25,7 @@ export function ContentView({
   marks?: ContentMark[];
   activeMark?: string | null;
   renderBlock?: (node: ContentNode, drawn: ReactNode) => ReactNode;
+  watch?: (fileId: string) => MediaWatch | undefined;
 }) {
   return (
     <ContentRenderer
@@ -43,6 +46,7 @@ export function ContentView({
       marks={marks}
       activeMark={activeMark}
       renderBlock={renderBlock}
+      watch={watch}
     />
   );
 }
