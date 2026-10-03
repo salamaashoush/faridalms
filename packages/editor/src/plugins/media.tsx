@@ -22,11 +22,17 @@ import { useEditorEnvironment } from "../context";
 import { fileMeta } from "../files";
 import { $createFileNode, $createImageNode, $createMediaNode } from "../nodes";
 import { editorInSlot } from "../slots";
+import { VideoRecorder } from "../video-recorder";
 
 export type MediaKind = "image" | "file" | "media";
 
 export const INSERT_MEDIA_COMMAND = createCommand<MediaKind>(
   "FARIDA_INSERT_MEDIA",
+);
+
+/** Opens the studio to record a video, which lands where the caret is. */
+export const RECORD_VIDEO_COMMAND = createCommand<undefined>(
+  "FARIDA_RECORD_VIDEO",
 );
 
 function $insertUploaded(
@@ -114,6 +120,7 @@ export function MediaPlugin({
     slot.current = editor.getRootElement()?.id;
   });
   const [uploads, setUploads] = useState<Upload[]>([]);
+  const [recording, setRecording] = useState(false);
 
   const patch = (id: string, change: Partial<Upload>) =>
     setUploads((current) =>
@@ -208,6 +215,19 @@ export function MediaPlugin({
   useEffect(() => {
     if (!media) return undefined;
     return editor.registerCommand(
+      RECORD_VIDEO_COMMAND,
+      () => {
+        anchor.current = $anchorFor("image")?.getKey() ?? null;
+        setRecording(true);
+        return true;
+      },
+      COMMAND_PRIORITY_LOW,
+    );
+  }, [editor, media]);
+
+  useEffect(() => {
+    if (!media) return undefined;
+    return editor.registerCommand(
       DRAG_DROP_PASTE,
       (files) => {
         anchor.current = $anchorFor("image")?.getKey() ?? null;
@@ -223,6 +243,13 @@ export function MediaPlugin({
     "inline-flex h-8 items-center gap-1.5 rounded-md px-2 text-sm font-medium hover:bg-accent [&_svg]:size-4";
   return (
     <>
+      <VideoRecorder
+        open={recording}
+        onOpenChange={setRecording}
+        strings={strings.videoRecorder}
+        locale={locale}
+        onKeep={(file) => start([file], () => "media")}
+      />
       <input
         ref={input}
         type="file"

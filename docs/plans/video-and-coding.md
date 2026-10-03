@@ -66,7 +66,15 @@ with the gate it can break.
    Whisper captions remain.
 8. **Teacher studio and student replies.** Record camera, screen and voice in
    the browser, trim, publish; the same recorder gives students a video or
-   audio answer kind.
+   audio answer kind. Done first: "Record a video" in the editor's insert
+   menu records the teacher's camera, their screen, or the screen with the
+   camera in a round corner (the corner away from where the page's text
+   starts), with their voice and what the screen plays, after a count of
+   three, with pause, up to ten minutes. The screen and camera are drawn
+   together on a timer kept in a worker, so a teacher working in another
+   tab still records smoothly. A take plays back before it is added, and is
+   uploaded and streamed as any other video. Trimming and the students'
+   video answers remain.
 
 ## Coding
 

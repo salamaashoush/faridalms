@@ -5,11 +5,15 @@ import type { BlockType } from "../blocks";
 import { $insertBlock } from "../blocks";
 import { EDIT_DIAGRAM_COMMAND } from "../nodes";
 import { OPEN_EMBED_COMMAND } from "./embed";
-import { INSERT_MEDIA_COMMAND } from "./media";
+import { INSERT_MEDIA_COMMAND, RECORD_VIDEO_COMMAND } from "./media";
 
 export function $runBlock(editor: LexicalEditor, type: BlockType) {
   if (type === "image" || type === "file" || type === "media") {
     editor.dispatchCommand(INSERT_MEDIA_COMMAND, type);
+    return;
+  }
+  if (type === "recording") {
+    editor.dispatchCommand(RECORD_VIDEO_COMMAND, undefined);
     return;
   }
   if (type === "embed") {

@@ -1,4 +1,5 @@
 import type { RecorderStrings } from "./recorder";
+import type { VideoRecorderStrings } from "./video-recorder";
 
 export interface EditorStrings {
   placeholder: string;
@@ -318,6 +319,7 @@ export interface EditorStrings {
   narrationWordsPreview: string;
   narrationWordsRemove: string;
   recorder: RecorderStrings & { keep: string };
+  videoRecorder: VideoRecorderStrings;
   questionTriesCount: (count: number) => string;
   questionWords: (count: number) => string;
   openFile: string;
@@ -345,6 +347,8 @@ export interface EditorStrings {
   uploadUnchecked: string;
   media: string;
   mediaHint: string;
+  recording: string;
+  recordingHint: string;
   captions: string;
   captionsAdd: string;
   captionsReplace: string;

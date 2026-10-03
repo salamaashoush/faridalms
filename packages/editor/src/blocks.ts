@@ -82,6 +82,7 @@ import {
   Table,
   TextCursorInput,
   ToggleRight,
+  Video,
 } from "lucide-react";
 
 import type { EditorStrings } from "./strings";
@@ -127,6 +128,7 @@ export type BlockType =
   | "image"
   | "file"
   | "media"
+  | "recording"
   | "embed"
   | "diagram"
   | "choiceQuestion"
@@ -388,6 +390,24 @@ export const blockDefinitions: BlockDefinition[] = [
     label: (s) => s.media,
     hint: (s) => s.mediaHint,
     keywords: ["video", "audio", "sound", "recording", "mp4", "فيديو", "صوت"],
+    media: true,
+  },
+  {
+    type: "recording",
+    group: "media",
+    icon: Video,
+    label: (s) => s.recording,
+    hint: (s) => s.recordingHint,
+    keywords: [
+      "record",
+      "camera",
+      "webcam",
+      "screen",
+      "loom",
+      "تسجيل",
+      "كاميرا",
+      "شاشة",
+    ],
     media: true,
   },
   {
