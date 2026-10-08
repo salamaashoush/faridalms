@@ -554,3 +554,69 @@ export async function settleDeliveries(
           due_at = ${input.outcome.retryAt.toISOString()}::timestamptz
       where tenant_id = ${input.tenantId}::uuid and (created_at, id) in (${keys})`);
 }
+
+/**
+ * What the school told these people about one student, newest first: one
+ * row per notice, with who received it and who has read it.
+ */
+export async function noticesAbout(
+  tx: Tx,
+  input: {
+    tenantId: string;
+    orgId: string;
+    studentId: string;
+    userIds: readonly string[];
+    limit: number;
+  },
+): Promise<
+  {
+    kind: NotificationKind;
+    subjectId: string;
+    params: NoticeParams;
+    createdAt: string;
+    recipients: {
+      userId: string;
+      nameEn: string | null;
+      nameAr: string | null;
+      read: boolean;
+    }[];
+  }[]
+> {
+  if (input.userIds.length === 0) return [];
+  const rows = await tx.execute<{
+    kind: NotificationKind;
+    subject_id: string;
+    params: NoticeParams;
+    created_at: string;
+    recipients: {
+      user_id: string;
+      name_en: string | null;
+      name_ar: string | null;
+      read: boolean;
+    }[];
+  }>(sql`
+    select n.kind, n.subject_id, (array_agg(n.params))[1] as params,
+      ${isoOf(sql`min(n.created_at)`)} as created_at,
+      jsonb_agg(jsonb_build_object('user_id', n.user_id, 'name_en', u.full_name_en,
+        'name_ar', u.full_name_ar, 'read', n.read_at is not null)) as recipients
+    from core.notifications n
+    join core.users u on u.tenant_id = n.tenant_id and u.id = n.user_id
+    where n.tenant_id = ${input.tenantId}::uuid and n.org_id = ${input.orgId}::uuid
+      and n.status = 'active' and n.user_id = any(${uuidArray(input.userIds)})
+      and n.params->>'studentId' = ${input.studentId}
+    group by n.kind, n.subject_id, date_trunc('minute', n.created_at)
+    order by min(n.created_at) desc
+    limit ${input.limit}`);
+  return rows.map((row) => ({
+    kind: row.kind,
+    subjectId: row.subject_id,
+    params: row.params,
+    createdAt: row.created_at,
+    recipients: row.recipients.map((recipient) => ({
+      userId: recipient.user_id,
+      nameEn: recipient.name_en,
+      nameAr: recipient.name_ar,
+      read: recipient.read,
+    })),
+  }));
+}

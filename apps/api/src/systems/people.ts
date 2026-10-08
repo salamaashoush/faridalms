@@ -21,6 +21,7 @@ import { filesByIds, linkFiles } from "@faridalms/database/stores/files";
 import { historyOf } from "@faridalms/database/stores/history";
 import { studentsByIdentifier } from "@faridalms/database/stores/identifiers";
 import { schoolProfile } from "@faridalms/database/stores/identity";
+import { noticesAbout } from "@faridalms/database/stores/notifications";
 import {
   childrenOf,
   contactsOf,
@@ -374,6 +375,22 @@ export const student = readProcedure
           can(context, "people:read") && can(context, "assignments:read"),
       },
     };
+  });
+
+/** What the school recently told the student's guardians about them, for the office. */
+export const studentNotices = readProcedure
+  .input(v.object({ id }))
+  .handler(async ({ input, context }) => {
+    requireCapability(context, "people:manage");
+    await requireStudent(context, input.id);
+    const guardians = await guardiansOf(context.tx, scopeOf(context), input.id);
+    return noticesAbout(context.tx, {
+      tenantId: context.tenantId,
+      orgId: context.schoolId,
+      studentId: input.id,
+      userIds: guardians.map((guardian) => guardian.userId),
+      limit: 6,
+    });
   });
 
 export const studentHistory = readProcedure
