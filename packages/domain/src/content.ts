@@ -1,8 +1,10 @@
 import * as v from "valibot";
 
 import type { EmbedProvider } from "./embed";
+import type { ProjectFile } from "./project";
 
 import { embedProviders, isEmbedId } from "./embed";
+import { starterFilesSchema } from "./project";
 import { isSafeContentUrl } from "./rich-text";
 
 const nodeTypes = [
@@ -68,6 +70,7 @@ export const questionKinds = [
   "scratch",
   "parsons",
   "program",
+  "project",
 ] as const;
 export type QuestionKind = (typeof questionKinds)[number];
 export const calloutTones = [
@@ -188,6 +191,8 @@ export interface ContentNode {
   trace?: number[][];
   /** A Scratch question's starter project, the .sb3 every student begins from. */
   projectFileId?: string;
+  /** A project question's starter: the files every student begins from. */
+  projectFiles?: ProjectFile[];
   /** Before a question had hints in order, its one hint. */
   hint?: string;
   hints?: string[];
@@ -358,6 +363,7 @@ const nodeSchema: v.GenericSchema<ContentNode> = v.lazy(() =>
       embedId: v.optional(v.pipe(v.string(), v.maxLength(200))),
       sceneFileId: v.optional(v.pipe(v.string(), v.uuid())),
       projectFileId: v.optional(v.pipe(v.string(), v.uuid())),
+      projectFiles: v.optional(starterFilesSchema),
       kind: v.optional(v.picklist(questionKinds)),
       questionId: v.optional(v.pipe(v.string(), v.uuid())),
       optionId: v.optional(v.pipe(v.string(), v.uuid())),

@@ -2,6 +2,7 @@ import {
   classSoundsSchema,
   duplicateModuleSchema,
   keepCodeSchema,
+  keepProjectSchema,
   markSchema,
   moduleRefSchema,
   moveLessonSchema,
@@ -142,6 +143,10 @@ export const answerReview = createServerFn({ method: "POST" })
 export const keepOwnCode = createServerFn({ method: "POST" })
   .validator(checked(keepCodeSchema))
   .handler(({ data }) => backend().learning.keepCode(data));
+
+export const keepOwnProject = createServerFn({ method: "POST" })
+  .validator(checked(keepProjectSchema))
+  .handler(({ data }) => backend().learning.keepProject(data));
 
 export const recordRun = createServerFn({ method: "POST" })
   .validator(checked(runSchema))

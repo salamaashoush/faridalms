@@ -41,6 +41,7 @@ import {
   ChevronDown,
   Clock,
   Code,
+  CodeXml,
   Download,
   ExternalLink,
   Eye,
@@ -1220,6 +1221,41 @@ export function SelectionToolbarPlugin() {
                   <ToolButton
                     label={strings.questionStarterRemove}
                     onClick={() => change({ projectFileId: null })}
+                  >
+                    <X aria-hidden />
+                  </ToolButton>
+                ) : null}
+              </>
+            ) : null
+          ) : settings.kind === "project" ? (
+            studio ? (
+              <>
+                <ToolButton
+                  label={
+                    settings.projectFiles.length > 0
+                      ? strings.questionStarterEdit
+                      : strings.questionStarterBuild
+                  }
+                  active={settings.projectFiles.length > 0}
+                  onClick={() => {
+                    const key = question.key;
+                    void studio
+                      .editFiles(settings.projectFiles)
+                      .then((projectFiles) => {
+                        updateFromOutside(editor, () => {
+                          const node = $getNodeByKey(key);
+                          if ($isQuestionNode(node))
+                            node.setSettings({ projectFiles });
+                        });
+                      });
+                  }}
+                >
+                  <CodeXml aria-hidden />
+                </ToolButton>
+                {settings.projectFiles.length > 0 ? (
+                  <ToolButton
+                    label={strings.questionStarterRemove}
+                    onClick={() => change({ projectFiles: [] })}
                   >
                     <X aria-hidden />
                   </ToolButton>

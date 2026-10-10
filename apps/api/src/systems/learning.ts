@@ -54,6 +54,8 @@ import {
   updateModule,
   answersToMark,
   codesOf,
+  keepProject as keepOwnProject,
+  projectsOf,
   watchesOf,
   watchRowsIn,
 } from "@faridalms/database/stores/learning";
@@ -86,6 +88,7 @@ import {
   publishModuleSchema,
   classSoundsSchema,
   keepCodeSchema,
+  keepProjectSchema,
   respondProgramSchema,
   respondSchema,
   setClassSoundsSchema,
@@ -1492,6 +1495,7 @@ export const playLesson = writeProcedure
       position: own?.position ?? null,
       watches: await watchedIn(context, played),
       codes: await ownCode(context, played),
+      projects: await ownProjects(context, played),
       previous: states[index - 1]?.id ?? null,
       next:
         states[index + 1] && states[index + 1]?.state !== "locked"
@@ -1557,6 +1561,67 @@ export const keepCode = writeProcedure
       blockId: input.blockId,
       code: input.code,
       basedOn: digest(source),
+    });
+    return { kept: true };
+  });
+
+/** The files each project question of a lesson starts its students from. */
+const projectStarters = (content: LessonDocument) =>
+  new Map(
+    content.blocks.flatMap((block) =>
+      block.type === "project" ? [[block.id, block.files] as const] : [],
+    ),
+  );
+
+/**
+ * A student's own projects in a lesson, each saying whether the teacher
+ * has changed the question's starter since the student began.
+ */
+async function ownProjects(
+  context: UnitContext,
+  played: { row: { id: string }; studentId: string; content: LessonDocument },
+) {
+  const starters = projectStarters(played.content);
+  const kept = await projectsOf(context.tx, {
+    tenantId: context.tenantId,
+    lessonId: played.row.id,
+    studentId: played.studentId,
+  });
+  return Object.fromEntries(
+    kept.flatMap((item) => {
+      const starter = starters.get(item.blockId);
+      return starter === undefined
+        ? []
+        : [
+            [
+              item.blockId,
+              {
+                files: item.files,
+                changed: item.basedOn !== digest(JSON.stringify(starter)),
+              },
+            ],
+          ];
+    }),
+  );
+}
+
+/**
+ * A student changed their project for a question, and it is kept for when
+ * they come back; nothing reaches their teacher until they hand it in.
+ */
+export const keepProject = writeProcedure
+  .input(keepProjectSchema)
+  .handler(async ({ input, context }) => {
+    const played = await playable(context, input.lessonId);
+    const starter = projectStarters(played.content).get(input.blockId);
+    if (starter === undefined) throw new ORPCError("NOT_FOUND");
+    await keepOwnProject(context.tx, {
+      tenantId: context.tenantId,
+      lessonId: played.row.id,
+      studentId: played.studentId,
+      blockId: input.blockId,
+      files: input.files,
+      basedOn: digest(JSON.stringify(starter)),
     });
     return { kept: true };
   });
@@ -1967,7 +2032,7 @@ export const answers = readProcedure
       lessonId: string;
       lessonTitle: string;
       blockId: string;
-      kind: "written" | "scratch";
+      kind: "written" | "scratch" | "project";
       prompt: string;
       points: number;
     }[] = [];

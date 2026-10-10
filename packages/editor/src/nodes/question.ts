@@ -1,4 +1,5 @@
 import type { QuestionKind } from "@faridalms/domain/content";
+import type { ProjectFile } from "@faridalms/domain/project";
 import type {
   DOMExportOutput,
   EditorConfig,
@@ -273,6 +274,8 @@ export interface QuestionSettings {
   memory: boolean;
   /** A coding question's starter project; none starts from the studio's own. */
   projectFileId: string | null;
+  /** A project question's starter files; none starts from an empty page. */
+  projectFiles: ProjectFile[];
   /** Asked when the video above reaches this second; none asks it in the reading. */
   videoAt: number | null;
   /** A code puzzle's language; only Python marks how far a line is indented. */
@@ -294,7 +297,12 @@ export function defaultSettings(kind: QuestionKind): QuestionSettings {
     kind,
     questionId: crypto.randomUUID(),
     points:
-      kind === "written" || kind === "scratch" || kind === "program" ? 2 : 1,
+      kind === "written" ||
+      kind === "scratch" ||
+      kind === "project" ||
+      kind === "program"
+        ? 2
+        : 1,
     tries: null,
     multiple: false,
     shuffle: kind === "choice",
@@ -313,6 +321,7 @@ export function defaultSettings(kind: QuestionKind): QuestionSettings {
     regions: [],
     memory: false,
     projectFileId: null,
+    projectFiles: [],
     videoAt: null,
     codeLanguage: "python",
     hints: [],
@@ -340,6 +349,7 @@ export type SerializedQuestionNode = Spread<
 >;
 
 const NO_POINTS: number[][] = [];
+const NO_FILES: ProjectFile[] = [];
 
 function questionSettings(stored: StoredSettings): QuestionSettings {
   const base = defaultSettings(stored.kind ?? "choice");
@@ -366,6 +376,7 @@ function questionSettings(stored: StoredSettings): QuestionSettings {
     regions: stored.regions ?? NO_POINTS,
     memory: stored.memory ?? false,
     projectFileId: stored.projectFileId ?? null,
+    projectFiles: stored.projectFiles ?? NO_FILES,
     videoAt: stored.videoAt ?? null,
     codeLanguage: stored.codeLanguage ?? base.codeLanguage,
     hints: hintsOf(stored),
@@ -407,7 +418,9 @@ function label(editor: LexicalEditor, settings: QuestionSettings): string {
           ? text.count(settings.count, settings.countMode === "make")
           : text.kinds[settings.kind];
   const starts =
-    settings.kind === "scratch" && settings.projectFileId && text.starter
+    text.starter &&
+    ((settings.kind === "scratch" && settings.projectFileId) ||
+      (settings.kind === "project" && settings.projectFiles.length > 0))
       ? ` · ${text.starter}`
       : "";
   const asked =
@@ -470,6 +483,7 @@ export class QuestionNode extends ElementNode {
       regions,
       memory,
       projectFileId,
+      projectFiles,
       videoAt,
       codeLanguage,
       hints,
@@ -489,6 +503,9 @@ export class QuestionNode extends ElementNode {
       ...(settings.kind === "matching" && memory ? { memory } : {}),
       ...(settings.kind === "scratch" && projectFileId
         ? { projectFileId }
+        : {}),
+      ...(settings.kind === "project" && projectFiles.length > 0
+        ? { projectFiles }
         : {}),
       ...(videoAt === null ? {} : { videoAt }),
       ...(settings.kind === "parsons" || settings.kind === "program"
@@ -544,6 +561,8 @@ export class QuestionNode extends ElementNode {
       before.countMode !== settings.countMode ||
       before.trace !== settings.trace ||
       before.regions !== settings.regions ||
+      before.projectFileId !== settings.projectFileId ||
+      before.projectFiles !== settings.projectFiles ||
       !samePicture(previous, this) ||
       numberAnswer(before) !== numberAnswer(settings)
     )

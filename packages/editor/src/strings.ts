@@ -243,6 +243,8 @@ export interface EditorStrings {
   questionHotspotHint: string;
   questionScratch: string;
   questionScratchHint: string;
+  questionProject: string;
+  questionProjectHint: string;
   questionStarterBuild: string;
   questionStarterEdit: string;
   questionStarterRemove: string;

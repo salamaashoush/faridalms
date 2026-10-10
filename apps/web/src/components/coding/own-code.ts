@@ -1,3 +1,5 @@
+import type { ProjectFile } from "@faridalms/domain/project";
+
 import { createContext } from "react";
 
 /**
@@ -11,3 +13,15 @@ export interface OwnCode {
 }
 
 export const OwnCodeContext = createContext<OwnCode | null>(null);
+
+/**
+ * A student's own projects in a lesson as they last left them, and where a
+ * changed one is kept. Outside a student's lesson there is none, and a
+ * project lasts as long as the page.
+ */
+export interface OwnProjects {
+  projects: Record<string, { files: ProjectFile[]; changed: boolean }>;
+  keep: (blockId: string, files: ProjectFile[]) => Promise<unknown>;
+}
+
+export const OwnProjectsContext = createContext<OwnProjects | null>(null);

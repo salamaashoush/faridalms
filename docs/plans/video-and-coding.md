@@ -150,7 +150,16 @@ off keeps the work and shows a placeholder.
    its console and errors below. The page plays on the files host's domain
    in a frame with an opaque origin and no network, and every loop in its
    scripts is checked, so one that never ends stops after three seconds.
-   Multi-file projects, saving, the gallery and the live view remain.
+   Done next: a web project is a question kind (`project`). A teacher
+   writes the files every student starts from in the studio the students
+   use, or leaves them an empty page; students write HTML, CSS, JavaScript
+   and SVG files beside the page they make, which follows links to the
+   project's other pages and names the file and line of an error. The
+   project is kept as they type (`core.lesson_projects`) and reaches the
+   teacher when handed in, or with the rest of a quiz; the teacher runs,
+   reads and marks it, and on paper the starting files print to read. The
+   gallery with remix and the live view remain, and Python projects and
+   p5.js after them.
 5. **Blocks puzzles.** Our Blockly puzzle engine and level packs (paths,
    loops, turtle art, events, music) in Arabic and English, an arrow-path
    activity for early years, and unplugged versions through print.

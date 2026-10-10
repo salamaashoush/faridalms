@@ -745,6 +745,7 @@ describe("questions in a document", () => {
         spelling: "",
         hotspot: "",
         scratch: "",
+        project: "",
         parsons: "",
         program: "",
       },

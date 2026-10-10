@@ -63,6 +63,7 @@ export const CONFLICTS: Record<string, string> = {
   lesson_progress_key: "lesson_progress.exists",
   lesson_watches_key: "lesson_watches.exists",
   lesson_code_key: "lesson_code.exists",
+  lesson_projects_key: "lesson_projects.exists",
   caption_drafts_key: "caption_draft.exists",
   site_settings_org_key: "site.stale",
   site_pages_slug_key: "site.slug_taken",

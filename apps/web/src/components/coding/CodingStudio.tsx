@@ -27,7 +27,7 @@ const AUTOSAVE_MS = 30_000;
 /** Narrower than this, the editor's panels scroll sideways under a child's fingers. */
 const STUDIO_FITS = "(min-width: 1024px)";
 
-type SaveState = "idle" | "saving" | "saved" | "failed";
+export type SaveState = "idle" | "saving" | "saved" | "failed";
 
 /**
  * The coding studio over the page: the block-coding editor runs in a frame
@@ -213,7 +213,7 @@ export function CodingStudio({
   );
 }
 
-function SaveStatus({ state }: { state: SaveState }) {
+export function SaveStatus({ state }: { state: SaveState }) {
   if (state === "saving")
     return (
       <span className="text-[13px] text-muted-foreground" aria-live="polite">

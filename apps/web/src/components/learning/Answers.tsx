@@ -9,6 +9,7 @@ import { useId, useState } from "react";
 import { toast } from "sonner";
 
 import { ProjectAnswer } from "~/components/coding/ProjectAnswer";
+import { WebProjectView } from "~/components/coding/WebProjectView";
 import { displayName } from "~/components/people/format";
 import { FormField } from "~/components/system/field";
 import { EmptyState } from "~/components/system/IndexPage";
@@ -161,7 +162,9 @@ function AnswerCard({
           <StatusBadge tone="warning">{m.lrnToMark()}</StatusBadge>
         ) : null}
       </header>
-      {answer.project ? (
+      {answer.files ? (
+        <WebProjectView files={answer.files} title={name} />
+      ) : answer.project ? (
         <ProjectAnswer
           project={answer.project.fileId}
           stage={answer.thumbnail?.fileId ?? null}

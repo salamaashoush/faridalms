@@ -50,10 +50,13 @@ import { useContext, useEffect, useMemo, useRef, useState } from "react";
 import { flushSync } from "react-dom";
 import { toast } from "sonner";
 
-import type { OwnCode } from "~/components/coding/own-code";
+import type { OwnCode, OwnProjects } from "~/components/coding/own-code";
 
 import { ButtonLink } from "~/components/app/ButtonLink";
-import { OwnCodeContext } from "~/components/coding/own-code";
+import {
+  OwnCodeContext,
+  OwnProjectsContext,
+} from "~/components/coding/own-code";
 import { ContentView } from "~/components/content/ContentView";
 import { Media } from "~/components/learning/LessonMedia";
 import { ReadAloud, YoungContext } from "~/components/learning/ReadAloud";
@@ -67,6 +70,7 @@ import {
   completeLesson,
   answerReview,
   keepOwnCode,
+  keepOwnProject,
   recordRun,
   respondToCheck,
   retryLesson,
@@ -633,6 +637,30 @@ export function LessonPlayer({ lessonId }: { lessonId: string }) {
     }),
     [data.codes, lessonId],
   );
+  const ownProjects = useMemo(
+    (): OwnProjects => ({
+      projects: data.projects,
+      keep: async (blockId, files) => {
+        await keepOwnProject({ data: { lessonId, blockId, files } });
+        // The card may be drawn afresh before the lesson is read again.
+        queryClient.setQueryData(query.queryKey, (old) =>
+          old
+            ? {
+                ...old,
+                projects: {
+                  ...old.projects,
+                  [blockId]: {
+                    files,
+                    changed: old.projects[blockId]?.changed ?? false,
+                  },
+                },
+              }
+            : old,
+        );
+      },
+    }),
+    [data.projects, lessonId, queryClient, query.queryKey],
+  );
   // A run kept or not changes nothing for the student, so a lost one is let go.
   const keepRun = (blockId: string, run: ProgramRun) =>
     void recordRun({ data: { lessonId, blockId, ...run } }).catch(
@@ -723,7 +751,10 @@ export function LessonPlayer({ lessonId }: { lessonId: string }) {
   });
   const checks = data.blocks.filter(isCheckBlock);
   const auto = checks.filter(
-    (block) => block.type !== "written" && block.type !== "scratch",
+    (block) =>
+      block.type !== "written" &&
+      block.type !== "scratch" &&
+      block.type !== "project",
   );
   const allSettled = auto.every((block) =>
     isSettled(block, data.checks[block.id]),
@@ -823,16 +854,18 @@ export function LessonPlayer({ lessonId }: { lessonId: string }) {
       {vowels.toggle}
       <YoungContext.Provider value={data.young && earlyYears}>
         <OwnCodeContext.Provider value={ownCode}>
-          <LessonBody
-            key={data.attempt}
-            blocks={shown.blocks}
-            checks={shown.checks}
-            driver={driver}
-            position={data.position}
-            onReach={reach}
-            watch={watch}
-            watches={data.watches}
-          />
+          <OwnProjectsContext.Provider value={ownProjects}>
+            <LessonBody
+              key={data.attempt}
+              blocks={shown.blocks}
+              checks={shown.checks}
+              driver={driver}
+              position={data.position}
+              onReach={reach}
+              watch={watch}
+              watches={data.watches}
+            />
+          </OwnProjectsContext.Provider>
         </OwnCodeContext.Provider>
       </YoungContext.Provider>
       {data.review ? (

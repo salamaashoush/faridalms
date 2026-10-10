@@ -1,3 +1,4 @@
+import { cn } from "@faridalms/ui/cn";
 import { useQuery } from "@tanstack/react-query";
 import { useEffect, useEffectEvent, useRef, useState } from "react";
 
@@ -5,14 +6,23 @@ import * as m from "~/i18n/messages";
 import { playQuery } from "~/queries/play";
 import { formatNumber } from "~/utils/datetime";
 
+import type { PageSource } from "./project-page";
+
 import { friendlyError } from "./friendly";
-import { LOOP_SECONDS, LOOP_STOPPED, playablePage } from "./web-page";
+import {
+  ERROR_HIDDEN,
+  LOOP_SECONDS,
+  LOOP_STOPPED,
+  playablePage,
+} from "./web-page";
 
 type Entry = {
   id: number;
   kind: "log" | "info" | "warn" | "error";
   text: string;
   line: number | null;
+  /** The project's file the line is in, for a page made of several. */
+  file: string | null;
 };
 
 /**
@@ -22,13 +32,25 @@ type Entry = {
  */
 export function WebPreview({
   page,
+  onOpen,
+  fill = false,
 }: {
-  /** A new page object plays the page again, even when its code is the same. */
-  page: { html: string };
+  /**
+   * A new page object plays the page again, even when its code is the
+   * same. A page made of several files says which one each of its lines
+   * was written in.
+   */
+  page: { html: string; sourceAt?: (line: number) => PageSource };
+  /** Follows a link the page's reader chose; false when it leads nowhere here. */
+  onOpen?: (href: string) => boolean;
+  /** Takes all the room it is given, rather than a set height. */
+  fill?: boolean;
 }) {
   const play = useQuery(playQuery).data;
   const frame = useRef<HTMLIFrameElement>(null);
-  const [ready, setReady] = useState(false);
+  // Whether the browser hides a page's errors from it, once the play page
+  // has found out; until then no page is shown.
+  const [hides, setHides] = useState<boolean | null>(null);
   // The console belongs to the page it came from; a new page starts it empty.
   const [log, setLog] = useState<{ page: object | null; entries: Entry[] }>({
     page: null,
@@ -36,12 +58,17 @@ export function WebPreview({
   });
   const entries = log.page === page ? log.entries : [];
   const showing = useEffectEvent(() => page);
+  const open = useEffectEvent((href: string) => onOpen?.(href) ?? false);
 
   const show = useEffectEvent((html: string) => {
     // The play page is sandboxed to an opaque origin, which no target
     // origin names; it is reached through its own frame's window.
     frame.current?.contentWindow?.postMessage(
-      { type: "show", html: playablePage(html), title: m.codePage() },
+      {
+        type: "show",
+        html: playablePage(html, hides ?? false),
+        title: m.codePage(),
+      },
       "*",
     );
   });
@@ -55,11 +82,26 @@ export function WebPreview({
         kind?: Entry["kind"];
         text?: string;
         line?: number | null;
+        href?: string;
+        hidden?: boolean;
       };
-      if (data.type === "ready") setReady(true);
-      if (data.type === "console" && typeof data.text === "string") {
-        const text = data.text;
+      if (data.type === "ready") setHides(Boolean(data.hidden));
+      const said =
+        data.type === "open" && typeof data.href === "string"
+          ? open(data.href)
+            ? null
+            : { kind: "info" as const, text: m.codeLinkLeaves(), line: null }
+          : data.type === "console" && typeof data.text === "string"
+            ? {
+                kind: data.kind ?? "log",
+                text: data.text,
+                line: data.line ?? null,
+              }
+            : null;
+      if (said) {
         const now = showing();
+        const source =
+          said.line === null ? null : (now.sourceAt?.(said.line) ?? null);
         setLog((current) => {
           const list = current.page === now ? current.entries : [];
           if (list.length >= 200) return current;
@@ -69,9 +111,10 @@ export function WebPreview({
               ...list,
               {
                 id: (list.at(-1)?.id ?? 0) + 1,
-                kind: data.kind ?? "log",
-                text,
-                line: data.line ?? null,
+                kind: said.kind,
+                text: said.text,
+                line: source?.line ?? said.line,
+                file: source?.file ?? null,
               },
             ],
           };
@@ -83,8 +126,8 @@ export function WebPreview({
   }, []);
 
   useEffect(() => {
-    if (ready) show(page.html);
-  }, [ready, page]);
+    if (hides !== null) show(page.html);
+  }, [hides, page]);
 
   if (!play)
     return (
@@ -96,7 +139,7 @@ export function WebPreview({
       </p>
     );
   return (
-    <div className="grid border-t">
+    <div className={fill ? "flex min-h-0 flex-1 flex-col" : "grid border-t"}>
       <iframe
         ref={frame}
         src={`${play.origin}/play`}
@@ -104,10 +147,10 @@ export function WebPreview({
         // The play page holds the student's page in a frame of its own;
         // both have opaque origins, on another site from the school's.
         sandbox="allow-scripts allow-modals allow-forms"
-        className="h-72 w-full bg-white"
+        className={cn("w-full bg-white", fill ? "min-h-0 flex-1" : "h-72")}
       />
       {entries.length > 0 ? (
-        <div className="grid gap-1 border-t bg-muted/30 px-3 py-2.5">
+        <div className="grid shrink-0 gap-1 border-t bg-muted/30 px-3 py-2.5">
           <p
             dir="auto"
             className="text-[13px] leading-[18px] font-medium text-muted-foreground"
@@ -135,6 +178,12 @@ function ConsoleEntry({ entry }: { entry: Entry }) {
         {m.codeLoopStopped({ seconds: formatNumber(LOOP_SECONDS) })}
       </li>
     );
+  if (entry.text === ERROR_HIDDEN && entry.line === null)
+    return (
+      <li dir="auto" className="font-sans text-destructive">
+        {m.codeErrorHidden()}
+      </li>
+    );
   const name = /^(?:Uncaught )?(\w+Error)\b/.exec(entry.text)?.[1];
   const why =
     entry.kind === "error" && name ? friendlyError("javascript", name) : null;
@@ -151,10 +200,16 @@ function ConsoleEntry({ entry }: { entry: Entry }) {
       <span className="[overflow-wrap:anywhere] whitespace-pre-wrap">
         {entry.line === null
           ? entry.text
-          : m.codeErrorAt({
-              line: formatNumber(entry.line),
-              message: entry.text,
-            })}
+          : entry.file === null
+            ? m.codeErrorAt({
+                line: formatNumber(entry.line),
+                message: entry.text,
+              })
+            : m.codeErrorIn({
+                file: entry.file,
+                line: formatNumber(entry.line),
+                message: entry.text,
+              })}
       </span>
       {why ? (
         <span dir="auto" className="block font-sans text-muted-foreground">

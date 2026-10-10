@@ -1,3 +1,5 @@
+import type { ProjectFile } from "@faridalms/domain/project";
+
 import { createContext, useContext } from "react";
 
 import type { EditorStrings } from "./strings";
@@ -77,12 +79,15 @@ export interface CaptionDraftStatus {
 }
 
 /**
- * The coding studio, where a teacher builds a coding question's starter
- * project. `edit` resolves to the saved project's file, null for none, or
- * undefined when the teacher closed the studio without saving.
+ * The studios a teacher builds a question's starter project in. `edit`
+ * opens the coding studio and resolves to the saved project's file, null
+ * for none, or undefined when the teacher closed the studio without
+ * saving. `editFiles` opens the web studio on a project's files and
+ * resolves to them as the teacher left them.
  */
 export interface EditorStudio {
   edit: (fileId: string | null) => Promise<string | null | undefined>;
+  editFiles: (files: readonly ProjectFile[]) => Promise<ProjectFile[]>;
 }
 
 export interface EditorEnvironment {

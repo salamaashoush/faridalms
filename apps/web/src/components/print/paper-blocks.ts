@@ -162,6 +162,7 @@ export function paperBlock(block: StudentBlock): LessonBlock {
     }
     case "written":
     case "scratch":
+    case "project":
     case "ordering":
     case "counting":
     case "tracing":

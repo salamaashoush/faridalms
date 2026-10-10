@@ -193,6 +193,8 @@ export function questionBlock(node: ContentNode): LessonBlock | null {
         type: "scratch",
         starter: node.projectFileId ? { fileId: node.projectFileId } : null,
       };
+    case "project":
+      return { ...check, type: "project", files: node.projectFiles ?? [] };
     case "hotspot":
       return {
         ...check,
@@ -590,6 +592,7 @@ export function questionNode(block: LessonBlock): ContentNode | null {
     block.type !== "spelling" &&
     block.type !== "hotspot" &&
     block.type !== "scratch" &&
+    block.type !== "project" &&
     block.type !== "parsons" &&
     block.type !== "program"
   )
@@ -784,6 +787,10 @@ export function questionNode(block: LessonBlock): ContentNode | null {
   if (block.type === "scratch")
     return block.starter
       ? { ...base, projectFileId: block.starter.fileId }
+      : base;
+  if (block.type === "project")
+    return block.files.length > 0
+      ? { ...base, projectFiles: block.files }
       : base;
   if (block.type === "hotspot")
     return {

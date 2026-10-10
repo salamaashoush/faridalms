@@ -965,3 +965,44 @@ describe("questions in a video", () => {
     );
   });
 });
+
+describe("web projects", () => {
+  const files = [
+    { name: "index.html", code: '<link rel="stylesheet" href="style.css">' },
+    { name: "style.css", code: "h1 {\n    color: teal;\n}" },
+  ];
+  const project = (starter: typeof files): LessonDocument => ({
+    version: 2,
+    blocks: [
+      {
+        id: partId(80),
+        type: "project",
+        prompt: "Build a page about your favourite animal.",
+        points: 4,
+        hints: [],
+        explanation: "",
+        tries: null,
+        files: starter,
+      },
+    ],
+  });
+
+  it("keeps the files students start from", () => {
+    const document = contentOfLesson(project(files));
+    if (!document) throw new Error("lesson could not become a document");
+    expect(v.safeParse(contentDocumentSchema, document).success).toBe(true);
+    expect(checks(lessonOfContent(document).blocks)).toEqual(
+      checks(project(files).blocks),
+    );
+  });
+
+  it("starts from an empty page when the teacher gave no files", () => {
+    const document = contentOfLesson(project([]));
+    if (!document) throw new Error("lesson could not become a document");
+    expect(JSON.stringify(document)).not.toContain("projectFiles");
+    expect(lessonOfContent(document).blocks[0]).toMatchObject({
+      type: "project",
+      files: [],
+    });
+  });
+});

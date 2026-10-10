@@ -19,17 +19,41 @@ const SHELL = `<!doctype html>
 `;
 
 // Relays a page from the lesson into the frame, and what the page writes
-// to its console back out to the lesson.
-const SCRIPT = `const frame = document.querySelector("iframe");
+// to its console back out to the lesson. Each page gets a frame of its own:
+// a frame given another page adds a step to the tab's history, and a
+// reader pressing Back would walk through every redraw before leaving.
+// Before the lesson is told the page is ready, a frame that fails on
+// purpose finds out whether this browser hides a page's errors from it, as
+// Safari does from a page with no origin; the lesson then has pages note
+// their errors themselves.
+const SCRIPT = `let frame = document.querySelector("iframe");
 addEventListener("message", (event) => {
   if (event.source === parent && event.data && event.data.type === "show") {
-    frame.title = String(event.data.title || "");
-    frame.srcdoc = String(event.data.html || "");
+    const next = document.createElement("iframe");
+    next.setAttribute("sandbox", frame.getAttribute("sandbox"));
+    next.title = String(event.data.title || "");
+    next.srcdoc = String(event.data.html || "");
+    frame.replaceWith(next);
+    frame = next;
   } else if (event.source === frame.contentWindow) {
     parent.postMessage(event.data, "*");
+  } else if (event.source === probe.contentWindow) {
+    ready(Boolean(event.data && event.data.hidden));
   }
 });
-parent.postMessage({ type: "ready" }, "*");
+const probe = document.createElement("iframe");
+probe.setAttribute("sandbox", frame.getAttribute("sandbox"));
+probe.hidden = true;
+probe.srcdoc = "<script>addEventListener('error', (event) => parent.postMessage({ hidden: event.message === 'Script error.' && !event.lineno }, '*')); throw new Error('probe')</" + "script>";
+let told = false;
+const ready = (hidden) => {
+  if (told) return;
+  told = true;
+  probe.remove();
+  parent.postMessage({ type: "ready", hidden }, "*");
+};
+setTimeout(() => ready(false), 1500);
+document.body.append(probe);
 `;
 
 // The policy a student's page inherits from the frame it is put in: its own

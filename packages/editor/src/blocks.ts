@@ -145,6 +145,7 @@ export type BlockType =
   | "spellingQuestion"
   | "hotspotQuestion"
   | "scratchQuestion"
+  | "projectQuestion"
   | "gapsQuestion"
   | "trueFalseQuestion"
   | "whyQuestion"
@@ -173,6 +174,7 @@ const QUESTION_KIND: Partial<Record<BlockType, QuestionKind>> = {
   spellingQuestion: "spelling",
   hotspotQuestion: "hotspot",
   scratchQuestion: "scratch",
+  projectQuestion: "project",
 };
 
 export interface BlockDefinition {
@@ -701,6 +703,32 @@ export const blockDefinitions: BlockDefinition[] = [
       "كود",
       "سكراتش",
       "لعبة",
+    ],
+    question: true,
+    studio: true,
+  },
+  {
+    type: "projectQuestion",
+    group: "questions",
+    icon: CodeXml,
+    label: (s) => s.questionProject,
+    hint: (s) => s.questionProjectHint,
+    keywords: [
+      "code",
+      "coding",
+      "web",
+      "website",
+      "page",
+      "html",
+      "css",
+      "javascript",
+      "project",
+      "برمجة",
+      "شفرة",
+      "ويب",
+      "موقع",
+      "صفحة",
+      "مشروع",
     ],
     question: true,
     studio: true,

@@ -52,6 +52,7 @@ import type { RunReport } from "~/components/coding/CodeRunner";
 import { CodeRunner } from "~/components/coding/CodeRunner";
 import { CodingAnswer } from "~/components/coding/CodingAnswer";
 import { friendlyError } from "~/components/coding/friendly";
+import { WebProjectAnswer } from "~/components/coding/WebProjectAnswer";
 import * as m from "~/i18n/messages";
 import { formatList, formatNumber } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
@@ -178,7 +179,8 @@ export type CheckStudentBlock =
   | Of<"spelling">
   | Of<"hotspot">
   | Of<"written">
-  | Of<"scratch">;
+  | Of<"scratch">
+  | Of<"project">;
 
 const CHECK_TYPES = new Set<StudentBlock["type"]>([
   "choice",
@@ -196,6 +198,7 @@ const CHECK_TYPES = new Set<StudentBlock["type"]>([
   "hotspot",
   "written",
   "scratch",
+  "project",
 ]);
 
 export const isCheckBlock = (block: StudentBlock): block is CheckStudentBlock =>
@@ -207,7 +210,9 @@ export const isSettled = (
   view: CheckView | undefined,
 ) =>
   view !== undefined &&
-  (block.type === "written" || block.type === "scratch"
+  (block.type === "written" ||
+  block.type === "scratch" ||
+  block.type === "project"
     ? view.tries > 0
     : view.correct || view.revealed);
 
@@ -1962,6 +1967,37 @@ function CodingCheck({
   );
 }
 
+function ProjectCheck({
+  block,
+  view,
+  driver,
+}: {
+  block: Of<"project">;
+  view: CheckView | undefined;
+  driver: CheckDriver;
+}) {
+  const mode = useContext(CheckModeContext);
+  return (
+    <CheckCard
+      block={block}
+      legendId={useId()}
+      // A quiz hands every answer in together, so nothing is sent yet.
+      status={
+        mode === "quiz" ? null : <SpokenStatus block={block} view={view} />
+      }
+      actions={null}
+    >
+      <WebProjectAnswer
+        block={block}
+        view={view}
+        driver={driver}
+        mode={mode}
+        locked={(view?.marked ?? false) || mode === "review"}
+      />
+    </CheckCard>
+  );
+}
+
 function WrittenCheck({
   block,
   view,
@@ -2173,6 +2209,8 @@ export function CheckBlockView({
     return <WrittenCheck block={block} view={view} driver={driver} />;
   if (block.type === "scratch")
     return <CodingCheck block={block} view={view} driver={driver} />;
+  if (block.type === "project")
+    return <ProjectCheck block={block} view={view} driver={driver} />;
   if (block.type === "matching")
     return <MatchingCheck block={block} view={view} driver={driver} />;
   if (block.type === "ordering")

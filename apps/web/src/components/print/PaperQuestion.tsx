@@ -310,6 +310,38 @@ export function PaperQuestion({
         </div>
       );
       break;
+    case "project":
+      // Paper runs no page: the files the project starts from are there to
+      // read and plan on, and the code takes the student to the studio.
+      body = (
+        <div className="grid gap-3">
+          <div className="flex items-center gap-[0.8em] rounded-[4px] border border-dashed border-neutral-500 px-[0.8em] py-[0.6em] text-[0.85em] text-neutral-600">
+            {online ? (
+              <QrCode value={online} className="size-[1.8cm] shrink-0" />
+            ) : null}
+            <p>{m.printProjectOnComputer({}, { locale })}</p>
+          </div>
+          {block.files
+            .filter((file) => file.code.trim())
+            .map((file) => (
+              <figure key={file.name} className="grid gap-1">
+                <figcaption
+                  dir="ltr"
+                  className="font-mono text-[0.85em] font-semibold"
+                >
+                  {file.name}
+                </figcaption>
+                <pre
+                  dir="ltr"
+                  className="rounded-[4px] border border-neutral-500 px-2 py-1 font-mono whitespace-pre-wrap [font-variant-ligatures:none]"
+                >
+                  {file.code}
+                </pre>
+              </figure>
+            ))}
+        </div>
+      );
+      break;
     case "gaps":
       body = (
         <p className="leading-[2.4]">

@@ -274,6 +274,8 @@ export function editorStrings(): EditorStrings {
     questionHotspotHint: m.editorQuestionHotspotHint(),
     questionScratch: m.editorQuestionScratch(),
     questionScratchHint: m.editorQuestionScratchHint(),
+    questionProject: m.editorQuestionProject(),
+    questionProjectHint: m.editorQuestionProjectHint(),
     questionStarterBuild: m.editorQuestionStarterBuild(),
     questionStarterEdit: m.editorQuestionStarterEdit(),
     questionStarterRemove: m.editorQuestionStarterRemove(),

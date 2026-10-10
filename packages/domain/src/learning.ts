@@ -16,6 +16,7 @@ import {
   isContentDocument,
   lessonOfContent,
 } from "./lesson-content";
+import { projectFilesSchema, starterFilesSchema } from "./project";
 import { MAX_STROKE_POINTS, MAX_STROKES, traceResults } from "./tracing";
 
 export { gapsSource, parseGaps } from "./gaps";
@@ -506,6 +507,12 @@ export const lessonBlockSchema = v.variant("type", [
   }),
   v.object({
     ...checkFields,
+    type: v.literal("project"),
+    /** The files every student starts from; none starts from an empty page. */
+    files: starterFilesSchema,
+  }),
+  v.object({
+    ...checkFields,
     type: v.literal("program"),
     language: v.picklist(["python", "javascript"]),
     /** The code a student starts from; empty when they write it all. */
@@ -545,6 +552,7 @@ export type SpellingBlock = Extract<LessonBlock, { type: "spelling" }>;
 export type HotspotBlock = Extract<LessonBlock, { type: "hotspot" }>;
 export type ScratchBlock = Extract<LessonBlock, { type: "scratch" }>;
 export type ProgramBlock = Extract<LessonBlock, { type: "program" }>;
+export type ProjectBlock = Extract<LessonBlock, { type: "project" }>;
 /** A question the server marks the moment it is answered. */
 export type AutoBlock =
   | ChoiceBlock
@@ -561,7 +569,7 @@ export type AutoBlock =
   | HotspotBlock
   | ProgramBlock;
 /** A question its teacher marks: words, a recording or picture, or a project. */
-export type MarkedBlock = WrittenBlock | ScratchBlock;
+export type MarkedBlock = WrittenBlock | ScratchBlock | ProjectBlock;
 export type CheckBlock = AutoBlock | MarkedBlock;
 
 const AUTO_TYPES = new Set<LessonBlockType>([
@@ -580,7 +588,11 @@ const AUTO_TYPES = new Set<LessonBlockType>([
   "program",
 ]);
 
-const MARKED_TYPES = new Set<LessonBlockType>(["written", "scratch"]);
+const MARKED_TYPES = new Set<LessonBlockType>([
+  "written",
+  "scratch",
+  "project",
+]);
 
 export const isAuto = (block: LessonBlock): block is AutoBlock =>
   AUTO_TYPES.has(block.type);
@@ -1008,6 +1020,11 @@ export const responseSchema = v.variant("type", [
     thumbnail: v.optional(v.object({ fileId: id })),
   }),
   v.object({
+    type: v.literal("project"),
+    /** The student's files as they handed them in. */
+    files: projectFilesSchema,
+  }),
+  v.object({
     type: v.literal("program"),
     code: v.pipe(v.string(), v.maxLength(MAX_PROGRAM_CHARS)),
     /**
@@ -1409,6 +1426,7 @@ export type StudentBlock =
   | Exclude<LessonBlock, CheckBlock>
   | Omit<WrittenBlock, "explanation" | "hints">
   | Omit<ScratchBlock, "explanation" | "hints">
+  | Omit<ProjectBlock, "explanation" | "hints">
   | (Omit<
       ChoiceBlock,
       "correctOptionIds" | "explanation" | "hints" | "options"
@@ -1673,6 +1691,7 @@ export function studentBlocks(
       }
       case "written":
       case "scratch":
+      case "project":
       case "counting":
       case "tracing":
       case "hotspot": {
@@ -1865,6 +1884,12 @@ export const keepCodeSchema = v.object({
   lessonId: id,
   blockId: v.pipe(v.string(), v.regex(/^[\da-z]{8,36}$/)),
   code: v.pipe(v.string(), v.maxLength(MAX_PROGRAM_CHARS)),
+});
+
+export const keepProjectSchema = v.object({
+  lessonId: id,
+  blockId: id,
+  files: projectFilesSchema,
 });
 
 /** How a run of a program ended: as it should, raising an error, or stopped. */

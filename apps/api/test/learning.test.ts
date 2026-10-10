@@ -1753,6 +1753,168 @@ describe("coding projects", () => {
   });
 });
 
+describe("web projects", () => {
+  test("a student's project is kept as they build, and reaches the teacher when handed in", async () => {
+    const { keeper } = await teachers();
+    const { rows } = await keeper.learning.modules({});
+    const source = rows.find((row) => row.title === TITLE);
+    if (!source) throw new Error("no module");
+    const saved = await keeper.learning.saveModule({
+      id: "",
+      expectedVersion: 0,
+      title: "My first page",
+      summary: "",
+      classIds: source.classes.map((item) => item.id),
+      prerequisiteId: "",
+      sequential: false,
+    });
+    const starter = [
+      { name: "index.html", code: "<h1>My pet</h1>" },
+      { name: "style.css", code: "" },
+    ];
+    const question = id();
+    const asking = (files: typeof starter) =>
+      written([
+        {
+          id: question,
+          type: "project",
+          prompt: "Make a page about a pet.",
+          points: 4,
+          hints: [],
+          explanation: "",
+          tries: null,
+          files,
+        },
+      ]);
+    const lesson = await keeper.learning.saveLesson({
+      id: "",
+      moduleId: saved.id,
+      expectedVersion: 0,
+      title: "A page about a pet",
+      completion: "view",
+      passScore: null,
+      content: asking(starter),
+      publish: false,
+    });
+    await keeper.learning.publishModule({
+      id: saved.id,
+      expectedVersion: saved.version,
+    });
+
+    const pupil = await student();
+    const me = await pupil.identity.currentUser();
+    const lessonId = lesson.id;
+    const played = await pupil.learning.playLesson({ id: lessonId });
+    expect(played.blocks).toContainEqual(
+      expect.objectContaining({
+        id: question,
+        type: "project",
+        files: starter,
+      }),
+    );
+    expect(played.projects).toEqual({});
+
+    const mine = [
+      {
+        name: "index.html",
+        code: '<h1>Biscuit</h1><script src="say.js"></script>',
+      },
+      { name: "style.css", code: "h1 { color: teal; }" },
+      { name: "say.js", code: 'console.log("woof");' },
+    ];
+    await pupil.learning.keepProject({
+      lessonId,
+      blockId: question,
+      files: mine,
+    });
+    const kept = await pupil.learning.playLesson({ id: lessonId });
+    expect(kept.projects).toEqual({
+      [question]: { files: mine, changed: false },
+    });
+    // Keeping is not handing in: nothing is sent, nothing waits for a mark.
+    expect(kept.checks[question]).toMatchObject({ tries: 0, response: null });
+    expect(
+      await rejection(
+        pupil.learning.keepProject({
+          lessonId,
+          blockId: id(),
+          files: mine,
+        }),
+      ),
+    ).toMatchObject({ code: "NOT_FOUND" });
+    // A project with no page to open is no project.
+    expect(
+      await rejection(
+        pupil.learning.keepProject({
+          lessonId,
+          blockId: question,
+          files: [{ name: "style.css", code: "" }],
+        }),
+      ),
+    ).toMatchObject({ code: "BAD_REQUEST" });
+
+    const sent = await pupil.learning.respond({
+      lessonId,
+      blockId: question,
+      response: { type: "project", files: mine },
+    });
+    expect(sent.check).toMatchObject({
+      tries: 1,
+      marked: false,
+      response: { type: "project", files: mine },
+    });
+    const listed = [];
+    for (const item of source.classes) {
+      const data = await keeper.learning.answers({
+        moduleId: saved.id,
+        classId: item.id,
+      });
+      expect(data.questions).toContainEqual(
+        expect.objectContaining({ blockId: question, kind: "project" }),
+      );
+      listed.push(...data.answers.filter((row) => row.studentId === me.id));
+    }
+    expect(listed).toMatchObject([{ files: mine, marked: false }]);
+
+    // The teacher's later edit of the starter shows on the student's copy.
+    const editing = await keeper.learning.lesson({ id: lessonId });
+    await keeper.learning.saveLesson({
+      id: lessonId,
+      moduleId: saved.id,
+      expectedVersion: editing.version,
+      title: "A page about a pet",
+      completion: "view",
+      passScore: null,
+      content: asking([{ name: "index.html", code: "<h1>My pet</h1><p></p>" }]),
+      publish: true,
+    });
+    expect(
+      (await pupil.learning.playLesson({ id: lessonId })).projects[question],
+    ).toEqual({ files: mine, changed: true });
+
+    expect(
+      await keeper.learning.mark({
+        lessonId,
+        blockId: question,
+        studentId: me.id,
+        points: 3,
+        feedback: "Biscuit has a page. Give the heading a picture.",
+      }),
+    ).toEqual({ marked: true });
+    const seen = await pupil.learning.playLesson({ id: lessonId });
+    expect(seen.checks[question]).toMatchObject({ marked: true, credit: 3 });
+    expect(
+      await rejection(
+        pupil.learning.respond({
+          lessonId,
+          blockId: question,
+          response: { type: "project", files: mine },
+        }),
+      ),
+    ).toMatchObject({ code: "CONFLICT", message: "learning.settled" });
+  });
+});
+
 describe("mixed review", () => {
   test("a student reviews finished lessons, missed questions first, marked without changing scores", async () => {
     const { keeper } = await teachers();

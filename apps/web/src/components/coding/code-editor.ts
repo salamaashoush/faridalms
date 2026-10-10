@@ -4,6 +4,7 @@ import {
   historyKeymap,
   indentWithTab,
 } from "@codemirror/commands";
+import { css } from "@codemirror/lang-css";
 import { html } from "@codemirror/lang-html";
 import { javascript } from "@codemirror/lang-javascript";
 import { python } from "@codemirror/lang-python";
@@ -29,6 +30,9 @@ import {
 import { tagHighlighter, tags } from "@lezer/highlight";
 
 import type { EditorLanguage } from "./CodeRunner";
+
+/** What the editor can colour: what runs, and a page's styles. */
+export type CodeLanguage = EditorLanguage | "css";
 
 // The same classes the lesson's own code blocks are coloured with, so code
 // looks alike whether a student reads it or edits it.
@@ -140,58 +144,72 @@ export function replaceCode(view: EditorView, code: string) {
   });
 }
 
+interface CodeOptions {
+  code: string;
+  language: CodeLanguage;
+  label: string;
+  describedBy: string;
+  readOnly: boolean;
+  onChange: (code: string) => void;
+  onRun: () => void;
+}
+
+/**
+ * Code with its own history and place in it, which an editor can be given
+ * in place of what it shows, as when a project turns to another file.
+ */
+export function createCodeState(options: CodeOptions): EditorState {
+  return EditorState.create({
+    doc: options.code,
+    extensions: [
+      lineNumbers(),
+      history(),
+      drawSelection(),
+      indentOnInput(),
+      bracketMatching(),
+      indentUnit.of("    "),
+      options.language === "python"
+        ? python()
+        : options.language === "html"
+          ? html()
+          : options.language === "css"
+            ? css()
+            : javascript(),
+      syntaxHighlighting(highlighter),
+      errorLine,
+      theme,
+      editing.of(editable(options.readOnly)),
+      keymap.of([
+        {
+          key: "Mod-Enter",
+          run: () => {
+            options.onRun();
+            return true;
+          },
+        },
+        ...defaultKeymap,
+        ...historyKeymap,
+        indentWithTab,
+      ]),
+      EditorView.contentAttributes.of({
+        "aria-label": options.label,
+        "aria-describedby": options.describedBy,
+      }),
+      EditorView.updateListener.of((update) => {
+        if (update.docChanged) options.onChange(update.state.doc.toString());
+      }),
+    ],
+  });
+}
+
+/** An editor showing code made with `createCodeState`. */
+export function showCode(parent: HTMLElement, state: EditorState): EditorView {
+  return new EditorView({ parent, state });
+}
+
 export function createCodeEditor(
   parent: HTMLElement,
-  options: {
-    code: string;
-    language: EditorLanguage;
-    label: string;
-    describedBy: string;
-    readOnly: boolean;
-    onChange: (code: string) => void;
-    onRun: () => void;
-  },
+  options: CodeOptions,
 ): EditorView {
-  return new EditorView({
-    parent,
-    state: EditorState.create({
-      doc: options.code,
-      extensions: [
-        lineNumbers(),
-        history(),
-        drawSelection(),
-        indentOnInput(),
-        bracketMatching(),
-        indentUnit.of("    "),
-        options.language === "python"
-          ? python()
-          : options.language === "html"
-            ? html()
-            : javascript(),
-        syntaxHighlighting(highlighter),
-        errorLine,
-        theme,
-        editing.of(editable(options.readOnly)),
-        keymap.of([
-          {
-            key: "Mod-Enter",
-            run: () => {
-              options.onRun();
-              return true;
-            },
-          },
-          ...defaultKeymap,
-          ...historyKeymap,
-          indentWithTab,
-        ]),
-        EditorView.contentAttributes.of({
-          "aria-label": options.label,
-          "aria-describedby": options.describedBy,
-        }),
-        EditorView.updateListener.of((update) => {
-          if (update.docChanged) options.onChange(update.state.doc.toString());
-        }),
-      ],
-    }),
-  });
+  return showCode(parent, createCodeState(options));
 }

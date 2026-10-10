@@ -260,6 +260,7 @@ function Surface({
         spelling: strings.questionSpelling,
         hotspot: strings.questionHotspot,
         scratch: strings.questionScratch,
+        project: strings.questionProject,
         parsons: strings.questionParsons,
         program: strings.questionProgram,
       },

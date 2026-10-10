@@ -657,6 +657,65 @@ export async function codesOf(
   }));
 }
 
+/** A project's files as a student keeps them. */
+export type KeptFiles = { name: string; code: string }[];
+
+/** A student's own project for a question, and the teacher's starter it began from. */
+export interface KeptProject {
+  blockId: string;
+  files: KeptFiles;
+  basedOn: string;
+  keptAt: string;
+}
+
+/**
+ * Keeps a student's project for a question in place of the last. The files
+ * go as text: the driver would send a list as a Postgres array.
+ */
+export async function keepProject(
+  tx: Tx,
+  input: {
+    tenantId: string;
+    lessonId: string;
+    studentId: string;
+    blockId: string;
+    files: KeptFiles;
+    basedOn: string;
+  },
+): Promise<void> {
+  await tx.execute(sql`
+    insert into core.lesson_projects (tenant_id, lesson_id, student_user_id, block_id, files, based_on)
+    values (${input.tenantId}::uuid, ${input.lessonId}::uuid, ${input.studentId}::uuid,
+      ${input.blockId}::uuid, ${JSON.stringify(input.files)}::text::jsonb, ${input.basedOn})
+    on conflict (tenant_id, lesson_id, student_user_id, block_id)
+      where status = 'active' do update set
+      files = excluded.files,
+      based_on = excluded.based_on`);
+}
+
+/** A student's own projects in a lesson, one a question. */
+export async function projectsOf(
+  tx: Tx,
+  input: { tenantId: string; lessonId: string; studentId: string },
+): Promise<KeptProject[]> {
+  const rows = await tx.execute<{
+    block_id: string;
+    files: KeptFiles;
+    based_on: string;
+    kept_at: string;
+  }>(sql`
+    select block_id, files, based_on, ${isoOf(sql`date_last_modified`)} as kept_at
+    from core.lesson_projects
+    where tenant_id = ${input.tenantId}::uuid and lesson_id = ${input.lessonId}::uuid
+      and student_user_id = ${input.studentId}::uuid and status = 'active'`);
+  return rows.map((row) => ({
+    blockId: row.block_id,
+    files: row.files,
+    basedOn: row.based_on,
+    keptAt: row.kept_at,
+  }));
+}
+
 /** How much of each recording in a lesson a student has played. */
 export async function watchesOf(
   tx: Tx,
@@ -1047,6 +1106,8 @@ export interface AnswerToMark {
   /** A coding answer's project, and its stage when the student saved it. */
   project: { fileId: string } | null;
   thumbnail: { fileId: string } | null;
+  /** A project answer's files as the student handed them in. */
+  files: KeptFiles | null;
   sentAt: string;
   /** The teacher's latest mark on this answer, if any. */
   fraction: number | null;
@@ -1056,7 +1117,7 @@ export interface AnswerToMark {
 
 /**
  * The latest answer of each student to each question their teacher marks,
- * written or a coding project, in their current attempt, with its mark if
+ * written or a project, in their current attempt, with its mark if
  * it has one.
  */
 export async function answersToMark(
@@ -1079,6 +1140,7 @@ export async function answersToMark(
     picture: { fileId: string } | null;
     project: { fileId: string } | null;
     thumbnail: { fileId: string } | null;
+    files: KeptFiles | null;
     sent_at: string;
     fraction: string | number | null;
     feedback: string | null;
@@ -1094,11 +1156,12 @@ export async function answersToMark(
         r.lesson_id, r.student_user_id, r.block_id, r.attempt, r.try, r.response->>'text' as text,
         r.response->'recording' as recording, r.response->'picture' as picture,
         r.response->'project' as project, r.response->'thumbnail' as thumbnail,
+        r.response->'files' as files,
         ${isoOf(sql`r.created_at`)} as sent_at
       from core.lesson_responses r
       join current c on c.lesson_id = r.lesson_id and c.student_user_id = r.student_user_id
         and c.attempts = r.attempt
-      where r.tenant_id = ${input.tenantId}::uuid and r.kind in ('written', 'scratch')
+      where r.tenant_id = ${input.tenantId}::uuid and r.kind in ('written', 'scratch', 'project')
         and r.state in ('answered', 'needs_marking')
       order by r.lesson_id, r.student_user_id, r.block_id, r.try desc, r.created_at desc
     )
@@ -1122,6 +1185,7 @@ export async function answersToMark(
     picture: row.picture ?? null,
     project: row.project ?? null,
     thumbnail: row.thumbnail ?? null,
+    files: row.files ?? null,
     sentAt: row.sent_at,
     fraction: row.fraction === null ? null : Number(row.fraction),
     feedback: row.feedback,

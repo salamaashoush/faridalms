@@ -250,13 +250,19 @@ cache, since the sandboxed frame has no origin of its own; a proxy or CDN in
 front of the web must keep the `access-control-allow-origin: *` header on
 that path, or Python never loads.
 
-Web pages a lesson lets students run (an HTML code block set to run) play
-on the files host's own domain: it serves the page they play in at `/play`,
-which holds each page in a frame sandboxed to an opaque origin with a policy
-that lets it reach no network. Set `PLAY_URL` on the web to the files
-host's origin as browsers reach it, the same as `FILES_ORIGIN` on the API;
-unset, such pages show as code. In development that must be another site
-from the web, such as `http://localhost:3103` beside `http://127.0.0.1:3100`.
+Web pages a lesson lets students run (an HTML code block set to run, or
+the files of a web project) play on the files host's own domain: it serves
+the page they play in at `/play`, which holds each page in a frame
+sandboxed to an opaque origin with a policy that lets it reach no network.
+Each page gets a frame of its own, so drawing a page again adds nothing to
+the tab's history. Safari tells a page with no origin nothing of its own
+errors; the play page finds that out when it loads, and the lesson then has
+such pages note their errors themselves, so a student on an iPad still sees
+the line. Set `PLAY_URL` on the web to the files host's origin as browsers
+reach it, the same as `FILES_ORIGIN` on the API; unset, such pages show as
+code and web projects are not offered. In development that must be another
+site from the web, such as `http://localhost:3103` beside
+`http://127.0.0.1:3100`.
 
 Code exercises are marked on the API, which runs each student's program in
 CPython compiled for WASI inside a worker thread: the program sees only an

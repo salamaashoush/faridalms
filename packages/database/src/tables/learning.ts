@@ -392,7 +392,7 @@ export const lessonResponses = core.table.withRLS(
     ck(
       "lesson_responses",
       "kind",
-      sql`kind in ('choice', 'text', 'gaps', 'number', 'matching', 'ordering', 'sorting', 'counting', 'tracing', 'spelling', 'hotspot', 'written', 'scratch', 'parsons', 'program')`,
+      sql`kind in ('choice', 'text', 'gaps', 'number', 'matching', 'ordering', 'sorting', 'counting', 'tracing', 'spelling', 'hotspot', 'written', 'scratch', 'parsons', 'program', 'project')`,
     ),
     ck(
       "lesson_responses",
@@ -518,6 +518,50 @@ export const lessonCode = core.table.withRLS(
     ck("lesson_code", "code", sql`char_length(code) <= 20000`),
     ck("lesson_code", "based_on", sql`based_on ~ '^[0-9a-f]{64}$'`),
     uniqueIndex("lesson_code_key")
+      .on(t.tenantId, t.lessonId, t.studentUserId, t.blockId)
+      .where(sql`status = 'active'`),
+    ...entityProfile(),
+  ],
+);
+
+/**
+ * A student's project for a question in a lesson as they last left it: the
+ * files they are still building, kept as they type. Handing it in copies
+ * them into an answer; this stays theirs to carry on with. It notes the
+ * teacher's starter it began from, so a later edit of the starter shows.
+ */
+export const lessonProjects = core.table.withRLS(
+  "lesson_projects",
+  {
+    ...tenantColumns(),
+    lessonId: uuid("lesson_id").notNull(),
+    studentUserId: uuid("student_user_id").notNull(),
+    blockId: uuid("block_id").notNull(),
+    files: jsonb("files").$type<{ name: string; code: string }[]>().notNull(),
+    /** A digest of the teacher's starter the student's project began from. */
+    basedOn: text("based_on").notNull(),
+    ...entityColumns(),
+  },
+  (t): PgTableExtraConfigValue[] => [
+    pk("lesson_projects", t.tenantId, t.id),
+    ...baseConstraints("lesson_projects", t, tenants),
+    fk(
+      "lesson_projects",
+      [t.tenantId, t.lessonId],
+      [lessons.tenantId, lessons.id],
+    ),
+    fk(
+      "lesson_projects",
+      [t.tenantId, t.studentUserId],
+      [users.tenantId, users.id],
+    ),
+    ck(
+      "lesson_projects",
+      "files",
+      sql`jsonb_typeof(files) = 'array' and octet_length(files::text) <= 65536`,
+    ),
+    ck("lesson_projects", "based_on", sql`based_on ~ '^[0-9a-f]{64}$'`),
+    uniqueIndex("lesson_projects_key")
       .on(t.tenantId, t.lessonId, t.studentUserId, t.blockId)
       .where(sql`status = 'active'`),
     ...entityProfile(),
