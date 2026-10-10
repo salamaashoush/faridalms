@@ -1,4 +1,5 @@
 import { partKey, readyKey } from "@faridalms/database/stores/files";
+import { plainContent } from "@faridalms/domain/content-conversion";
 import { describe, expect, test } from "bun:test";
 import { createDecipheriv } from "node:crypto";
 
@@ -24,6 +25,10 @@ const mp4 = () =>
       0, 0, 0, 0x18, 0x66, 0x74, 0x79, 0x70, 0x69, 0x73, 0x6f, 0x6d, 0, 0,
     ]),
   ]);
+
+/** A WebM's signature: the EBML header a browser's recorder writes first. */
+const webm = () =>
+  new Blob([new Uint8Array([0x1a, 0x45, 0xdf, 0xa3, 0x9f, 0x42, 0x86, 0x81])]);
 
 async function uploadVideo(
   session: Awaited<ReturnType<typeof sessionFor>>,
@@ -66,6 +71,7 @@ async function claimVideo(fileId: string) {
       id: string;
       sourceKey: string;
       outputPrefix: string;
+      trim: { startSeconds: number; endSeconds: number } | null;
     };
     if (job.id.endsWith(`.${fileId}`)) return job;
     await call(`/v1/media/jobs/${job.id}/failed`, { error: "not this test's" });
@@ -242,6 +248,115 @@ async function claimDraft(fileId: string) {
   }
   return null;
 }
+
+describe("a recording its maker cut", () => {
+  test("is cut by the media service, and until then opens for nobody else", async () => {
+    // The seed's second teacher teaches Arabic to every grade.
+    const teacher = await sessionFor("northwind", login("teacher", 0, 1));
+    const student = await sessionFor("northwind", login("student"));
+    const me = await student.api.identity.currentUser();
+    const file = await teacher.api.files.initiate({
+      purpose: "document_media",
+      name: "recording.webm",
+      mediaType: "video/webm",
+      sizeBytes: webm().size,
+      trim: { startMs: 2500, endMs: 61_000 },
+    });
+    expect(
+      (
+        await raw("northwind", teacher.token, `/v1/files/${file.id}/content`, {
+          method: "PUT",
+          body: webm(),
+        })
+      ).status,
+    ).toBe(200);
+
+    // The recording goes out to a class in an assignment's brief.
+    const { classes } = await teacher.api.coursework.options();
+    let classId = "";
+    for (const row of classes.filter(
+      (item) => item.classType === "scheduled",
+    )) {
+      const { roster } = await teacher.api.coursework.groups({
+        classId: row.id,
+      });
+      if (roster.some((pupil) => pupil.id === me.id)) classId = row.id;
+    }
+    const brief = plainContent("Watch the recording.");
+    brief.root.children?.push({
+      type: "media",
+      version: 1,
+      format: "",
+      fileId: file.id,
+      name: "recording.webm",
+      mime: "video/webm",
+      bytes: webm().size,
+    });
+    const saved = await teacher.api.coursework.save({
+      classId,
+      title: "A recording in the brief",
+      brief,
+      audience: "class",
+      latePolicy: "accept",
+      submissionFormat: "both",
+      points: 10,
+      rubric: null,
+    });
+    await teacher.api.coursework.publish({
+      id: saved.id,
+      expectedVersion: saved.version,
+    });
+    const path = `/v1/files/${file.id}/content`;
+    // Its maker sees it; the class does not, while it holds what was cut.
+    expect((await raw("northwind", teacher.token, path)).status).toBe(200);
+    expect((await raw("northwind", student.token, path)).status).toBe(404);
+    expect(
+      (await raw("northwind", student.token, `/v1/files/${file.id}/stream`)).status,
+    ).toBe(404);
+
+    const job = await claimVideo(file.id);
+    if (!job) throw new Error("the recording was never offered");
+    expect(job.trim).toEqual({ startSeconds: 2.5, endSeconds: 61 });
+    // A worker that made streams but no cut has not finished the job.
+    expect(
+      (await call(`/v1/media/jobs/${job.id}/done`, { manifest: MANIFEST }))
+        .status,
+    ).toBe(409);
+    expect(
+      (
+        await call(`/v1/media/jobs/${job.id}/done`, {
+          manifest: MANIFEST,
+          source: { sizeBytes: 4321, sha256: "ab".repeat(32) },
+        })
+      ).status,
+    ).toBe(204);
+
+    // Cut, it opens for the class, as the MP4 the worker put in its place.
+    expect((await raw("northwind", student.token, path)).status).toBe(200);
+    const [facts] = (await teacher.api.files.facts({ ids: [file.id] })).files;
+    expect(facts).toMatchObject({
+      name: "recording.mp4",
+      mediaType: "video/mp4",
+      sizeBytes: 4321,
+    });
+  });
+
+  test("is refused where no media service could cut it", async () => {
+    const teacher = await sessionFor("northwind", login("teacher"));
+    expect(
+      await rejection(
+        teacher.api.files.initiate({
+          purpose: "document_media",
+          name: "notes.pdf",
+          mediaType: "application/pdf",
+          sizeBytes: 100,
+          trim: { startMs: 0, endMs: 5000 },
+        }),
+      ),
+    ).toBeTruthy();
+    expect(await teacher.api.files.abilities()).toEqual({ trim: true });
+  });
+});
 
 describe("a large upload sent in parts", () => {
   test("parts arrive in any order, a lost one is named, and the whole is checked", async () => {

@@ -30,6 +30,11 @@ pub struct Tools {
   pub encoder: Encoder,
 }
 
+/// Cuts `source` down to the seconds from `start` to `end`, written to `to`.
+pub async fn cut(tools: &Tools, source: &Path, to: &Path, start: f64, end: f64) -> Result<(), TranscodeError> {
+  run(&tools.ffmpeg, "ffmpeg", &plan::cut_args(source, to, start, end)).await
+}
+
 /// Turns `source` into streams under `out`, telling `progress` how far the
 /// encode has got, from 0 to 1.
 pub async fn transcode(

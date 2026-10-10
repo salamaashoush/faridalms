@@ -71,6 +71,12 @@ const UPLOADERS: Record<FilePurpose, Capability[] | null> = {
   evidence: null,
 };
 
+/** What this school's files can have done to them, for an editor to offer. */
+export const abilities = readProcedure.handler(({ context }) => ({
+  /** Whether a recording's ends can be cut off before it is kept. */
+  trim: context.mediaOrigin !== null,
+}));
+
 /**
  * Step one of an upload: record who is uploading what, for which purpose, and
  * hand back where to send the bytes. The file only becomes usable once the
@@ -87,6 +93,10 @@ export const initiate = writeProcedure
       uploadLimit(context, { purpose: input.purpose, mediaType })
     )
       throw new ORPCError("BAD_REQUEST", { message: "file.too_large" });
+    // Only the media service can cut a recording; without one, a recording
+    // sent to be cut would stay whole.
+    if (input.trim && context.mediaOrigin === null)
+      throw new ORPCError("BAD_REQUEST", { message: "file.trim_unavailable" });
     const warning = await roomFor(context, input);
     const file = await initiateFile(context.tx, {
       tenantId: context.tenantId,
@@ -96,6 +106,7 @@ export const initiate = writeProcedure
       name: safeFilename(input.name),
       mediaType,
       sizeBytes: input.sizeBytes,
+      trim: input.trim,
     });
     return {
       id: file.id,

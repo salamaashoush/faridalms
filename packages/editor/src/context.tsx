@@ -21,6 +21,8 @@ export interface UploadOptions {
   signal?: AbortSignal;
   /** How much has been sent, from 0 to 1. */
   onProgress?: (progress: number) => void;
+  /** The part of a recording to keep, in milliseconds from its start. */
+  trim?: { startMs: number; endMs: number };
 }
 
 /** An open picture a teacher may copy into the school. */
@@ -52,6 +54,11 @@ export interface EditorMedia {
    * selected picture.
    */
   people?: (fileId: string) => void;
+  /**
+   * Whether a recording's ends can be cut off before it is kept, which
+   * takes the school's media service to do.
+   */
+  canTrim?: () => Promise<boolean>;
   /** Captions drafted from what a recording says, where the school's media service can. */
   captions?: {
     draft: (fileId: string, language: "ar" | "en") => Promise<void>;

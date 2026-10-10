@@ -8,7 +8,12 @@ import { toast } from "sonner";
 
 import { fileSizeLabel } from "~/components/system/FileList";
 import * as m from "~/i18n/messages";
-import { draftCaptions, getCaptionDraft, initiateUpload } from "~/server/files";
+import {
+  draftCaptions,
+  getCaptionDraft,
+  getFileAbilities,
+  initiateUpload,
+} from "~/server/files";
 import { searchPictures } from "~/server/library";
 import { formatNumber } from "~/utils/datetime";
 import { sendFile } from "~/utils/upload";
@@ -54,6 +59,7 @@ export function useDocumentMedia(destination?: UploadDestination): EditorMedia {
   const search = useServerFn(searchPictures);
   const askDraft = useServerFn(draftCaptions);
   const draftOf = useServerFn(getCaptionDraft);
+  const abilities = useServerFn(getFileAbilities);
   const type = destination?.type;
   const id = destination?.id;
   return useMemo(
@@ -72,6 +78,7 @@ export function useDocumentMedia(destination?: UploadDestination): EditorMedia {
         captions: ["text/vtt"],
       },
       url: (fileId: string) => `/files/${fileId}`,
+      canTrim: async () => (await abilities()).trim,
       captions: {
         draft: async (fileId: string, language: "ar" | "en") => {
           await askDraft({ data: { fileId, language } });
@@ -93,6 +100,7 @@ export function useDocumentMedia(destination?: UploadDestination): EditorMedia {
               mediaType: file.type || mediaTypeFor(file.name) || "",
               sizeBytes: file.size,
               destination: type && id ? { type, id } : undefined,
+              trim: options.trim,
             },
           });
         } catch (error) {
@@ -120,6 +128,6 @@ export function useDocumentMedia(destination?: UploadDestination): EditorMedia {
         };
       },
     }),
-    [initiate, search, askDraft, draftOf, type, id],
+    [initiate, search, askDraft, draftOf, abilities, type, id],
   );
 }

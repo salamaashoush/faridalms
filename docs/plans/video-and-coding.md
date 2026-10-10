@@ -86,7 +86,10 @@ with the gate it can break.
    can be answered on video, up to ninety seconds or three minutes; the
    student records it in the same studio, camera or screen, watches it
    back and sends it, and the teacher watches and marks it with the class's
-   other answers. Trimming remains.
+   other answers. Done last: a take's start and end can be cut off before
+   it is kept, by two handles under the take that show the picture where
+   they stand; the media service makes the cut and puts it in the upload's
+   place, and until it has, nobody but the maker can open the recording.
 
 ## Coding
 

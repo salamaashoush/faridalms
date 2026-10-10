@@ -14,6 +14,10 @@ export const initiateUpload = createServerFn({ method: "POST" })
   .validator(checked(initiateUploadSchema))
   .handler(({ data }) => backend().files.initiate(data));
 
+export const getFileAbilities = createServerFn({ method: "GET" }).handler(() =>
+  backend().files.abilities(),
+);
+
 export const getAreaFiles = createServerFn({ method: "GET" })
   .validator(checked(v.object({ area: fileAreaSchema, trashed: v.boolean() })))
   .handler(({ data }) => backend().files.area(data));

@@ -37,7 +37,21 @@ export interface VideoRecorderStrings {
   /** Read out with the time recorded so far and the most allowed. */
   elapsed: (recorded: string, most: string) => string;
   captions: string;
+  /** Says what cutting the ends of a take does; shown where it is offered. */
+  trimHint: string;
+  /** The moment a cut take starts at, and the one it ends at. */
+  startsAt: (time: string) => string;
+  endsAt: (time: string) => string;
 }
+
+/** The part of a take its maker kept, in milliseconds from its start. */
+export interface TakeTrim {
+  startMs: number;
+  endMs: number;
+}
+
+/** The shortest a take may be cut down to, in seconds. */
+const LEAST_KEPT = 1;
 
 type Source = "camera" | "screen" | "both";
 type Phase = "setup" | "counting" | "recording" | "paused" | "recorded";
@@ -199,12 +213,15 @@ function Studio({
   strings,
   locale,
   maxSeconds,
+  trim,
   onKeep,
 }: {
   strings: VideoRecorderStrings;
   locale: string;
   maxSeconds: number;
-  onKeep: (file: File, seconds: number) => void;
+  /** Whether the take's ends can be cut off before it is kept. */
+  trim: boolean;
+  onKeep: (file: File, seconds: number, trim?: TakeTrim) => void;
 }) {
   const format = videoFormat();
   // Phones and pages served without a secure origin cannot share a screen.
@@ -223,6 +240,9 @@ function Studio({
     url: string;
     seconds: number;
   } | null>(null);
+  // The seconds of the take that are kept; none means all of it.
+  const [kept, setKept] = useState<[number, number] | null>(null);
+  const preview = useRef<(HTMLVideoElement & HTMLAudioElement) | null>(null);
   const live = useRef<HTMLVideoElement>(null);
   const session = useRef<Session>({
     tracks: [],
@@ -382,7 +402,13 @@ function Studio({
 
   const again = () => {
     setTake(null);
+    setKept(null);
     setPhase("setup");
+  };
+  // Moving an end shows the picture there, so the cut is made by eye.
+  const cutTo = (from: number, to: number, shown: number) => {
+    setKept([from, to]);
+    if (preview.current) preview.current.currentTime = shown;
   };
 
   if (!format) return null;
@@ -410,6 +436,7 @@ function Studio({
           video
           locale={locale}
           captionsLabel={strings.captions}
+          element={preview}
         />
       ) : (
         <div className="relative isolate grid aspect-video w-full place-items-center overflow-hidden rounded-lg bg-black text-white">
@@ -542,6 +569,53 @@ function Studio({
           </button>
         </div>
       ) : null}
+      {phase === "recorded" && take && trim && take.seconds > LEAST_KEPT ? (
+        <div className="grid gap-3">
+          <p className="text-[13px] leading-[18px] text-muted-foreground">
+            {strings.trimHint}
+          </p>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <label className="grid gap-1 text-sm">
+              {strings.startsAt(clock(kept?.[0] ?? 0))}
+              <input
+                type="range"
+                min={0}
+                max={take.seconds}
+                step={0.1}
+                value={kept?.[0] ?? 0}
+                onChange={(event) => {
+                  const end = kept?.[1] ?? take.seconds;
+                  const start = Math.min(
+                    Number(event.target.value),
+                    end - LEAST_KEPT,
+                  );
+                  cutTo(start, end, start);
+                }}
+                className="w-full accent-primary"
+              />
+            </label>
+            <label className="grid gap-1 text-sm">
+              {strings.endsAt(clock(kept?.[1] ?? take.seconds))}
+              <input
+                type="range"
+                min={0}
+                max={take.seconds}
+                step={0.1}
+                value={kept?.[1] ?? take.seconds}
+                onChange={(event) => {
+                  const start = kept?.[0] ?? 0;
+                  const end = Math.max(
+                    Number(event.target.value),
+                    start + LEAST_KEPT,
+                  );
+                  cutTo(start, end, end);
+                }}
+                className="w-full accent-primary"
+              />
+            </label>
+          </div>
+        </div>
+      ) : null}
       {phase === "recorded" && take ? (
         <div className="flex flex-wrap items-center justify-end gap-2">
           <button
@@ -554,7 +628,17 @@ function Studio({
           </button>
           <button
             type="button"
-            onClick={() => onKeep(take.file, take.seconds)}
+            onClick={() => {
+              const [from, to] = kept ?? [0, take.seconds];
+              // An end left where it was, or as good as, is not a cut.
+              const cut = from > 0.2 || to < take.seconds - 0.2;
+              if (cut)
+                onKeep(take.file, to - from, {
+                  startMs: Math.round(from * 1000),
+                  endMs: Math.round(to * 1000),
+                });
+              else onKeep(take.file, take.seconds);
+            }}
             className={cx(
               button,
               "bg-primary text-primary-foreground hover:bg-primary/90",
@@ -575,6 +659,7 @@ export function VideoRecorder({
   strings,
   locale,
   maxSeconds = MOST_SECONDS,
+  trim = false,
   onKeep,
 }: {
   open: boolean;
@@ -582,8 +667,13 @@ export function VideoRecorder({
   strings: VideoRecorderStrings;
   locale: string;
   maxSeconds?: number;
-  /** Given the take and how many seconds it runs. */
-  onKeep: (file: File, seconds: number) => void;
+  /**
+   * Whether the take's ends can be cut off, which only a school with a
+   * media service to make the cut can offer.
+   */
+  trim?: boolean;
+  /** Given the take, how many seconds it runs, and the part kept of it. */
+  onKeep: (file: File, seconds: number, trim?: TakeTrim) => void;
 }) {
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
@@ -606,8 +696,9 @@ export function VideoRecorder({
               strings={strings}
               locale={locale}
               maxSeconds={Math.min(maxSeconds, MOST_SECONDS)}
-              onKeep={(file, seconds) => {
-                onKeep(file, seconds);
+              trim={trim}
+              onKeep={(file, seconds, cut) => {
+                onKeep(file, seconds, cut);
                 onOpenChange(false);
               }}
             />

@@ -351,6 +351,53 @@ pub fn thumbnail_track(duration: f64) -> String {
 }
 
 /// What the API keeps about a streamed video.
+/// Cuts a recording down to the part its maker kept, as an MP4 every
+/// browser plays. The cut is made on the decoded pictures, not at the
+/// nearest keyframe, so it falls where the maker put it.
+#[must_use]
+pub fn cut_args(source: &Path, to: &Path, start: f64, end: f64) -> Vec<String> {
+  let mut args: Vec<String> = ["-hide_banner", "-nostdin", "-y", "-loglevel", "error", "-i"]
+    .map(String::from)
+    .to_vec();
+  args.push(source.display().to_string());
+  args.extend(
+    [
+      "-ss".to_string(),
+      format!("{:.3}", start.max(0.0)),
+      "-t".to_string(),
+      format!("{:.3}", (end - start).max(0.0)),
+    ]
+    .into_iter()
+    .chain(
+      [
+        "-map",
+        "0:v:0",
+        "-map",
+        "0:a:0?",
+        "-c:v",
+        "libx264",
+        "-preset",
+        "veryfast",
+        "-crf",
+        "20",
+        "-pix_fmt",
+        "yuv420p",
+        "-c:a",
+        "aac",
+        "-b:a",
+        "128k",
+        "-movflags",
+        "+faststart",
+        "-f",
+        "mp4",
+      ]
+      .map(String::from),
+    ),
+  );
+  args.push(to.display().to_string());
+  args
+}
+
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct Manifest {
@@ -367,6 +414,34 @@ pub struct Manifest {
 #[cfg(test)]
 mod tests {
   use super::*;
+
+  #[test]
+  fn a_cut_keeps_the_seconds_between_its_ends() {
+    let args = cut_args(Path::new("in.webm"), Path::new("cut.mp4"), 2.5, 61.0);
+    let at = |flag: &str| {
+      args
+        .iter()
+        .position(|arg| arg == flag)
+        .and_then(|index| args.get(index + 1))
+        .map(String::as_str)
+    };
+    assert_eq!(at("-i"), Some("in.webm"));
+    assert_eq!(at("-ss"), Some("2.500"));
+    assert_eq!(at("-t"), Some("58.500"));
+    // The cut follows the input, so it is made on decoded pictures.
+    assert!(args.iter().position(|arg| arg == "-ss") > args.iter().position(|arg| arg == "-i"));
+    assert_eq!(args.last().map(String::as_str), Some("cut.mp4"));
+    // Ends given the wrong way round cut nothing rather than fail oddly.
+    let backwards = cut_args(Path::new("in"), Path::new("out"), 9.0, 3.0);
+    assert_eq!(
+      backwards
+        .iter()
+        .position(|arg| arg == "-t")
+        .and_then(|index| backwards.get(index + 1))
+        .map(String::as_str),
+      Some("0.000")
+    );
+  }
 
   fn probed(height: u32, audio: bool) -> Probe {
     Probe {

@@ -388,6 +388,9 @@ export function editorStrings(): EditorStrings {
         m.videoRecordStartsIn({ seconds: formatNumber(seconds) }),
       elapsed: (recorded, most) => m.voiceElapsed({ recorded, most }),
       captions: m.editorCaptions(),
+      trimHint: m.videoRecordTrimHint(),
+      startsAt: (time) => m.videoRecordStartsAt({ time }),
+      endsAt: (time) => m.videoRecordEndsAt({ time }),
     },
     recorder: {
       record: m.voiceRecord(),

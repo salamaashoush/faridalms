@@ -19,6 +19,11 @@ export interface StoredFile {
   hostType: string | null;
   hostId: string | null;
   trashedAt: string | null;
+  /**
+   * A recording whose maker cut its ends off, and the cut is still to be
+   * made: until then it holds what was cut away.
+   */
+  uncut: boolean;
 }
 
 type FileRecord = {
@@ -33,10 +38,12 @@ type FileRecord = {
   host_type: string | null;
   host_id: string | null;
   trashed_at: string | null;
+  uncut: boolean;
 };
 
 const columns = sql`id, purpose, name, media_type, size_bytes, state, storage_key,
-  uploaded_by_user_id, host_type, host_id, ${isoOf(sql`trashed_at`)} as trashed_at`;
+  uploaded_by_user_id, host_type, host_id, ${isoOf(sql`trashed_at`)} as trashed_at,
+  (metadata ? 'trim') as uncut`;
 
 function fileOf(row: FileRecord): StoredFile {
   return {
@@ -51,6 +58,7 @@ function fileOf(row: FileRecord): StoredFile {
     hostType: row.host_type,
     hostId: row.host_id,
     trashedAt: row.trashed_at,
+    uncut: row.uncut,
   };
 }
 
@@ -77,18 +85,21 @@ export async function initiateFile(
     name: string;
     mediaType: string;
     sizeBytes: number;
+    /** The part of a recording to keep, cut by the media service. */
+    trim?: { startMs: number; endMs: number } | undefined;
   },
 ): Promise<StoredFile> {
   const [{ id } = { id: null }] = await tx.execute<{ id: string }>(
     sql`select uuidv7() as id`,
   );
   if (!id) throw new Error("no id for the file");
+  const metadata = input.trim ? { trim: input.trim } : {};
   const [row] = await tx.execute<FileRecord>(sql`
     insert into core.files (tenant_id, id, uploaded_by_user_id, org_id, purpose, name,
-      media_type, size_bytes, storage_key)
+      media_type, size_bytes, storage_key, metadata)
     values (${input.tenantId}::uuid, ${id}::uuid, ${input.userId}::uuid, ${input.orgId}::uuid,
       ${input.purpose}, ${input.name}, ${input.mediaType}, ${input.sizeBytes},
-      ${quarantineKey(input.tenantId, id)})
+      ${quarantineKey(input.tenantId, id)}, ${metadata}::jsonb)
     returning ${columns}`);
   if (!row) throw new Error("file was not recorded");
   return fileOf(row);
@@ -850,10 +861,17 @@ export async function setSubjects(
 /** How many times a video is tried before it is left playing as one file. */
 export const STREAM_ATTEMPTS = 3;
 
-/** A video the media service is to encode. */
+/** A video the media service is to encode, cut first when its maker cut it. */
 export interface StreamJob {
   fileId: string;
   storageKey: string;
+  trim: { startMs: number; endMs: number } | null;
+}
+
+/** What a recording's upload became once the media service cut it. */
+export interface CutSource {
+  sizeBytes: number;
+  sha256: string;
 }
 
 /**
@@ -864,7 +882,11 @@ export async function claimStream(
   tx: Tx,
   input: { tenantId: string; now: Date; until: Date },
 ): Promise<StreamJob | null> {
-  const [row] = await tx.execute<{ id: string; storage_key: string }>(sql`
+  const [row] = await tx.execute<{
+    id: string;
+    storage_key: string;
+    trim: StreamJob["trim"];
+  }>(sql`
     with next as (
       select id from core.files
       where tenant_id = ${input.tenantId}::uuid and status = 'active' and state = 'ready'
@@ -879,8 +901,10 @@ export async function claimStream(
     set stream_state = 'encoding', stream_attempts = f.stream_attempts + 1,
         stream_leased_until = ${input.until.toISOString()}::timestamptz, stream_progress = 0
     from next where f.tenant_id = ${input.tenantId}::uuid and f.id = next.id
-    returning f.id, f.storage_key`);
-  return row ? { fileId: row.id, storageKey: row.storage_key } : null;
+    returning f.id, f.storage_key, f.metadata -> 'trim' as trim`);
+  return row
+    ? { fileId: row.id, storageKey: row.storage_key, trim: row.trim }
+    : null;
 }
 
 /** How far an encode has got, which also keeps its lease. */
@@ -908,15 +932,26 @@ export async function streamReady(
     height: number;
     durationMs: number;
     derivatives: Record<string, FileDerivative>;
+    /** The cut that took the upload's place, an MP4 whatever was uploaded. */
+    cut?: CutSource | undefined;
   },
 ): Promise<boolean> {
+  const cut = input.cut ?? null;
   const rows = await tx.execute<{ id: string }>(sql`
     update core.files
     set stream_state = 'ready', stream_progress = 1, stream_leased_until = null, stream_error = null,
         width = ${input.width}, height = ${input.height}, duration_ms = ${input.durationMs},
-        derivatives = derivatives || ${input.derivatives}::jsonb
+        derivatives = derivatives || ${input.derivatives}::jsonb,
+        size_bytes = coalesce(${cut?.sizeBytes ?? null}::bigint, size_bytes),
+        sha256 = coalesce(decode(${cut?.sha256 ?? null}::text, 'hex'), sha256),
+        media_type = case when ${cut !== null} then 'video/mp4' else media_type end,
+        name = case when ${cut !== null}
+          then regexp_replace(name, '\\.[A-Za-z0-9]+$', '') || '.mp4' else name end,
+        metadata = case when ${cut !== null} then metadata - 'trim' else metadata end
     where tenant_id = ${input.tenantId}::uuid and id = ${input.fileId}::uuid
       and stream_state = 'encoding'
+      -- A recording to be cut is ready only once it has been.
+      and (not (metadata ? 'trim') or ${cut !== null})
     returning id`);
   return rows.length > 0;
 }

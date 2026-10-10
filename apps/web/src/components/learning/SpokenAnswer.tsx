@@ -51,6 +51,9 @@ const videoAnswerStrings = () => ({
   elapsed: (recorded: string, most: string) =>
     m.voiceElapsed({ recorded, most }),
   captions: m.editorCaptions(),
+  trimHint: m.videoRecordTrimHint(),
+  startsAt: (time: string) => m.videoRecordStartsAt({ time }),
+  endsAt: (time: string) => m.videoRecordEndsAt({ time }),
 });
 
 /**

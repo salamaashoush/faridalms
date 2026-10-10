@@ -119,6 +119,12 @@ async function claim(
         kind: "streams",
         sourceKey: job.storageKey,
         outputPrefix: streamFolder(tenantId, job.fileId),
+        trim: job.trim
+          ? {
+              startSeconds: job.trim.startMs / 1000,
+              endSeconds: job.trim.endMs / 1000,
+            }
+          : null,
       });
   }
   const asked = v.safeParse(
@@ -166,9 +172,23 @@ async function report(
     );
     return new Response(null, { status: 204 });
   }
-  const input = v.safeParse(v.object({ manifest: manifestSchema }), body);
+  const input = v.safeParse(
+    v.object({
+      manifest: manifestSchema,
+      // What the upload became, when the worker cut the recording.
+      source: v.optional(
+        v.nullable(
+          v.object({
+            sizeBytes: v.pipe(v.number(), v.integer(), v.minValue(1)),
+            sha256: v.pipe(v.string(), v.regex(/^[0-9a-f]{64}$/)),
+          }),
+        ),
+      ),
+    }),
+    body,
+  );
   if (!input.success) return problem(400, "BAD_REQUEST", context.requestId);
-  const { manifest } = input.output;
+  const { manifest, source } = input.output;
   const folder = streamFolder(tenantId, fileId);
   const done = await asWorker(context, tenantId, (tx) =>
     streamReady(tx, {
@@ -177,6 +197,7 @@ async function report(
       width: manifest.width,
       height: manifest.height,
       durationMs: Math.round(manifest.durationSeconds * 1000),
+      cut: source ?? undefined,
       derivatives: {
         hls: {
           key: folder,

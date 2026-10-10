@@ -16,6 +16,7 @@ import { useEffect, useEffectEvent, useRef, useState } from "react";
 
 import type { UploadedFile } from "../context";
 import type { EditorStrings } from "../strings";
+import type { TakeTrim } from "../video-recorder";
 
 import { $anchorFor } from "../blocks";
 import { useEditorEnvironment } from "../context";
@@ -62,6 +63,8 @@ interface Upload {
   progress: number;
   error: string | null;
   controller: AbortController;
+  /** The part of a recording to keep, when its maker cut its ends off. */
+  trim?: TakeTrim | undefined;
 }
 
 /** The reason a refused upload shows, from the server's code or the file itself. */
@@ -126,6 +129,21 @@ export function MediaPlugin({
   });
   const [uploads, setUploads] = useState<Upload[]>([]);
   const [recording, setRecording] = useState(false);
+  // Asked once the studio opens: only a school with a media service cuts.
+  const [trims, setTrims] = useState(false);
+  useEffect(() => {
+    if (!recording || !media?.canTrim) return undefined;
+    let asked = true;
+    media.canTrim().then(
+      (can) => {
+        if (asked) setTrims(can);
+      },
+      () => undefined,
+    );
+    return () => {
+      asked = false;
+    };
+  }, [recording, media]);
 
   const patch = (id: string, change: Partial<Upload>) =>
     setUploads((current) =>
@@ -143,6 +161,7 @@ export function MediaPlugin({
       const uploaded = await media.upload(item.file, item.kind, {
         signal: item.controller.signal,
         onProgress: (progress) => patch(item.id, { progress }),
+        ...(item.trim ? { trim: item.trim } : {}),
       });
       // A new document's editor starts again when it is first saved; the file
       // goes into the editor showing the document by then.
@@ -163,11 +182,16 @@ export function MediaPlugin({
     }
   };
 
-  const start = (files: File[], kindOf: (file: File) => MediaKind) => {
+  const start = (
+    files: File[],
+    kindOf: (file: File) => MediaKind,
+    trim?: TakeTrim,
+  ) => {
     const added = files.map((file) => ({
       id: crypto.randomUUID(),
       file,
       kind: kindOf(file),
+      trim,
       progress: 0,
       error: null,
       controller: new AbortController(),
@@ -253,7 +277,8 @@ export function MediaPlugin({
         onOpenChange={setRecording}
         strings={strings.videoRecorder}
         locale={locale}
-        onKeep={(file) => start([file], () => "media")}
+        trim={trims}
+        onKeep={(file, _seconds, cut) => start([file], () => "media", cut)}
       />
       <input
         ref={input}

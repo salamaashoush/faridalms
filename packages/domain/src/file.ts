@@ -387,6 +387,15 @@ export const fileAreaSchema = v.object({
   id: v.pipe(v.string(), v.uuid()),
 });
 
+/** The shortest a recording may be cut down to. */
+export const MIN_TRIM_MS = 1000;
+/** The part of a recording kept, from and to, in milliseconds from its start. */
+export const trimSchema = v.object({
+  startMs: v.pipe(v.number(), v.integer(), v.minValue(0)),
+  endMs: v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(21_600_000)),
+});
+export type Trim = v.InferOutput<typeof trimSchema>;
+
 export const initiateUploadSchema = v.pipe(
   v.object({
     purpose: v.picklist(FILE_PURPOSES),
@@ -408,6 +417,11 @@ export const initiateUploadSchema = v.pipe(
         id: v.pipe(v.string(), v.uuid()),
       }),
     ),
+    /**
+     * The part of a recording to keep, when its maker cut its ends off. The
+     * rest is cut away before anyone else may open the recording.
+     */
+    trim: v.optional(trimSchema),
   }),
   v.forward(
     v.check(
@@ -422,6 +436,16 @@ export const initiateUploadSchema = v.pipe(
       "file.too_large",
     ),
     ["sizeBytes"],
+  ),
+  v.forward(
+    v.check(
+      (value) =>
+        !value.trim ||
+        (isDocumentVideo(value.purpose, value.mediaType) &&
+          value.trim.endMs - value.trim.startMs >= MIN_TRIM_MS),
+      "file.trim",
+    ),
+    ["trim"],
   ),
 );
 export type InitiateUploadInput = v.InferOutput<typeof initiateUploadSchema>;

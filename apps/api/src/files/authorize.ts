@@ -86,6 +86,10 @@ export async function canReadFile(
   context: UnitContext,
   file: StoredFile,
 ): Promise<boolean> {
+  // A recording still to be cut holds what its maker cut away, so until
+  // the cut is made nobody else opens it, wherever it has been put.
+  if (file.uncut && file.uploadedByUserId !== context.actor.userId)
+    return false;
   if (file.hostType === "file_version" && file.hostId) {
     const [current] = await filesByIds(context.tx, context.tenantId, [
       file.hostId,

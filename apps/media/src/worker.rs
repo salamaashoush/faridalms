@@ -50,7 +50,7 @@ async fn encode(config: &Config, store: &dyn ObjectStore, api: &Api, job: &Job) 
   tracing::info!(job = %job.id, "encoding");
   let outcome = attempt(config, store, api, job).await;
   let report = match &outcome {
-    Ok(manifest) => api.done(job, manifest).await,
+    Ok((manifest, replaced)) => api.done(job, manifest, replaced.as_ref()).await,
     Err(error) => api.failed(job, &format!("{error:#}")).await,
   };
   match (outcome, report) {
@@ -112,13 +112,24 @@ async fn attempt(
   store: &dyn ObjectStore,
   api: &Api,
   job: &Job,
-) -> anyhow::Result<crate::plan::Manifest> {
+) -> anyhow::Result<(crate::plan::Manifest, Option<crate::api::Replaced>)> {
   let work = tempfile::Builder::new()
     .prefix("farida-media-")
     .tempdir_in(&config.work_dir)?;
-  let source = work.path().join("source");
+  let upload = work.path().join("source");
   let out = work.path().join("out");
-  storage::download(store, &job.source_key, &source).await?;
+  storage::download(store, &job.source_key, &upload).await?;
+  // A recording its maker cut is cut first, and the streams made from what
+  // is left; the cut then takes the upload's place, so what was cut away
+  // is kept nowhere.
+  let source = match job.trim {
+    Some(trim) => {
+      let cut = work.path().join("cut.mp4");
+      transcode::cut(&config.tools, &upload, &cut, trim.start_seconds, trim.end_seconds).await?;
+      cut
+    },
+    None => upload,
+  };
 
   let progress_api = api.clone();
   let progress_job = job.clone();
@@ -134,5 +145,9 @@ async fn attempt(
   })
   .await?;
   storage::upload_dir(store, &out, &job.output_prefix).await?;
-  Ok(manifest)
+  let replaced = match job.trim {
+    Some(_) => Some(storage::replace(store, &source, &job.source_key).await?),
+    None => None,
+  };
+  Ok((manifest, replaced))
 }

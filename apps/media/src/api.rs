@@ -17,6 +17,23 @@ pub enum Kind {
   Captions,
 }
 
+/// The part of a recording its maker kept, in seconds from its start.
+#[derive(Debug, Clone, Copy, PartialEq, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Trim {
+  pub start_seconds: f64,
+  pub end_seconds: f64,
+}
+
+/// What a recording weighs and hashes to once it has been cut and put back
+/// in place of its upload, for the API's record of it.
+#[derive(Debug, Clone, PartialEq, Eq, Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Replaced {
+  pub size_bytes: u64,
+  pub sha256: String,
+}
+
 /// A recording to work on: where its upload is, and for streams where they go.
 #[derive(Debug, Clone, Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -28,6 +45,9 @@ pub struct Job {
   /// The language a recording's captions are drafted in.
   #[serde(default)]
   pub language: Option<String>,
+  /// The part to keep, when its maker cut the recording's ends off.
+  #[serde(default)]
+  pub trim: Option<Trim>,
 }
 
 impl Job {
@@ -84,8 +104,11 @@ impl Api {
     Ok(())
   }
 
-  pub async fn done(&self, job: &Job, manifest: &Manifest) -> Result<()> {
-    let response = self.post(&job.path("done"), &json!({ "manifest": manifest })).await?;
+  /// Reports a video's streams, and what its upload became when it was cut.
+  pub async fn done(&self, job: &Job, manifest: &Manifest, replaced: Option<&Replaced>) -> Result<()> {
+    let response = self
+      .post(&job.path("done"), &json!({ "manifest": manifest, "source": replaced }))
+      .await?;
     if !response.status().is_success() {
       bail!("the API refused a finished job: {}", response.status());
     }

@@ -134,6 +134,12 @@ video) may weigh up to 200 MiB whatever `MAX_UPLOAD_BYTES` says, since it
 travels in parts; every other file keeps to `MAX_UPLOAD_BYTES`. clamd's
 `StreamMaxLength` has to allow 200 MiB for such videos to be scanned.
 
+A recording whose maker cut its ends off in the studio is cut by the media
+service before its streams are made. The cut, an H.264 MP4, takes the
+upload's place in the store, so what was cut away is kept nowhere, and until
+the cut is made only its maker can open the recording. A school without a
+media service is not offered the cut.
+
 Every upload is checked before it becomes ready. Binary formats must open with
 their signature and text formats must be UTF-8 without NUL bytes (captions must
 also carry the WebVTT header), so a renamed executable or script is refused with
