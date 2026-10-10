@@ -42,16 +42,15 @@ import * as m from "~/i18n/messages";
 import { formatNumber } from "~/utils/datetime";
 
 import type * as CodeEditor from "./code-editor";
-import type { SaveState } from "./CodingStudio";
 import type { ProgramHandle } from "./ProjectProgram";
 
 import { SaveStatus } from "./CodingStudio";
 import { linkedPage, playedPage } from "./project-page";
 import { ProjectProgram } from "./ProjectProgram";
+import { useKeptFiles } from "./useKeptFiles";
 import { WebPreview } from "./WebPreview";
 
 /** Quiet time after the last change before a project keeps itself. */
-const KEEP_MS = 2000;
 /** How long typing pauses before the page is drawn again. */
 const REDRAW_MS = 800;
 
@@ -76,21 +75,8 @@ const colouredAs = (name: string): CodeEditor.CodeLanguage => {
         : "html";
 };
 
-/**
- * A web project over the page: its files to write on one side, the page
- * they make on the other, drawn again as the student types. The project is
- * kept a moment after the last change and always before the studio closes.
- */
-export function WebProjectStudio({
-  title,
-  files: given,
-  starter,
-  note,
-  onKeep,
-  unkept = false,
-  action,
-  onClose,
-}: {
+/** What every project studio is opened with, whatever the project is made in. */
+export interface StudioProps {
   title: string;
   files: readonly ProjectFile[];
   /** What starting again gives back; none offers no way to. */
@@ -109,7 +95,23 @@ export function WebProjectStudio({
   /** Something more the project can be used for, beside the way out. */
   action?: { label: string; onSelect: () => void } | undefined;
   onClose: (files: ProjectFile[]) => void;
-}) {
+}
+
+/**
+ * A web project over the page: its files to write on one side, the page
+ * they make on the other, drawn again as the student types. The project is
+ * kept a moment after the last change and always before the studio closes.
+ */
+export function WebProjectStudio({
+  title,
+  files: given,
+  starter,
+  note,
+  onKeep,
+  unkept = false,
+  action,
+  onClose,
+}: StudioProps) {
   const keysId = useId();
   const done = useRef<HTMLButtonElement>(null);
   const host = useRef<HTMLDivElement>(null);
@@ -129,14 +131,10 @@ export function WebProjectStudio({
   const [page, setPage] = useState<string | null>(null);
   const [drawn, setDrawn] = useState(() => playedPage(files, null));
   const [pane, setPane] = useState<"code" | "page">("code");
-  const [state, setState] = useState<SaveState>("idle");
+  const { state, changed: keepSoon, keep } = useKeptFiles(onKeep);
   const [naming, setNaming] = useState<{ id: number | null } | null>(null);
   const [removing, setRemoving] = useState<Open | null>(null);
   const [restarting, setRestarting] = useState(false);
-  const dirty = useRef(false);
-  const changes = useRef(0);
-  const fresh = useRef(false);
-  const keepTimer = useRef(0);
   const drawTimer = useRef(0);
   const closing = useRef(false);
   const shownPage = useRef(page);
@@ -148,47 +146,19 @@ export function WebProjectStudio({
   const programs = files.filter((file) => fileKind(file.name) === "py");
   const runner = useRef<ProgramHandle>(null);
 
-  const keep = async (): Promise<boolean> => {
-    window.clearTimeout(keepTimer.current);
-    if (!onKeep || !dirty.current) return true;
-    const kept = plain(latest.current);
-    if (projectBytes(kept) > MAX_PROJECT_BYTES) {
-      setState("failed");
-      return false;
-    }
-    dirty.current = false;
-    const sent = changes.current;
-    const began = fresh.current;
-    setState("saving");
-    try {
-      await onKeep(kept, began);
-      if (changes.current === sent) fresh.current = false;
-      // A change made while this was on its way waits for the next.
-      setState(changes.current === sent ? "saved" : "idle");
-      return true;
-    } catch {
-      dirty.current = true;
-      setState("failed");
-      return false;
-    }
-  };
-
   const draw = (next: readonly Open[], shown: string | null) => {
     window.clearTimeout(drawTimer.current);
     setDrawn(playedPage(next, shown));
   };
 
-  /** Takes a change to the project: kept soon, drawn sooner. */
-  const changed = (next: Open[], redraw: "soon" | "now") => {
+  /**
+   * Takes a change to the project: kept soon, drawn sooner. `began` says
+   * the student started again from what they were given.
+   */
+  const changed = (next: Open[], redraw: "soon" | "now", began = false) => {
     latest.current = next;
     setFiles(next);
-    if (onKeep) {
-      dirty.current = true;
-      changes.current += 1;
-      setState("idle");
-      window.clearTimeout(keepTimer.current);
-      keepTimer.current = window.setTimeout(() => void keep(), KEEP_MS);
-    }
+    keepSoon(plain(next), began);
     window.clearTimeout(drawTimer.current);
     if (redraw === "now") draw(next, shownPage.current);
     else
@@ -263,16 +233,10 @@ export function WebProjectStudio({
     void import("./code-editor").then((loaded) => {
       if (!cancelled && host.current) mount(loaded, host.current);
     });
-    const warn = (event: BeforeUnloadEvent) => {
-      if (dirty.current) event.preventDefault();
-    };
-    window.addEventListener("beforeunload", warn);
     return () => {
       cancelled = true;
       view.current?.destroy();
       view.current = null;
-      window.removeEventListener("beforeunload", warn);
-      window.clearTimeout(keepTimer.current);
       window.clearTimeout(drawTimer.current);
     };
   }, []);
@@ -280,9 +244,9 @@ export function WebProjectStudio({
   const close = async () => {
     if (closing.current) return;
     closing.current = true;
-    const kept = await keep();
+    const safe = await keep();
     closing.current = false;
-    if (kept) onClose(plain(latest.current));
+    if (safe) onClose(plain(latest.current));
     else toast.error(tooLarge ? m.projectTooLarge() : m.studioSaveFailed());
   };
 
@@ -333,8 +297,7 @@ export function WebProjectStudio({
     states.current.clear();
     shownPage.current = null;
     setPage(null);
-    fresh.current = true;
-    changed(next, "now");
+    changed(next, "now", true);
     showing.current = 0;
     turnTo(
       next.find((file) => file.name === entryOf(starter))?.id ??
