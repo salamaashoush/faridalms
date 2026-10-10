@@ -1,6 +1,7 @@
 {
   "name": "@faridalms/collab",
   "private": true,
+  "license": "AGPL-3.0-only",
   "type": "module",
   "exports": {
     ".": "./src/server.ts"

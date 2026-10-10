@@ -68,3 +68,17 @@ The implemented learning workflow supports authored assignments, written
 submissions, feedback and scoring, attendance, timetables, family progress,
 messages, newsletters and school calendars. File-upload storage, billing,
 video delivery and account-invitation delivery are not implemented.
+
+## Licence
+
+Farida LMS is free software under the GNU Affero General Public License,
+version 3 only ([LICENSE](LICENSE)). Copyright (C) 2026 Salama Ashoush.
+
+Whoever runs a changed copy for other people over a network must offer them
+its source (section 13 of the licence). `SOURCE_URL` on the API names where
+that is.
+
+The coding studio is built on the Scratch editor, also under the AGPL.
+Scratch is a trademark of the Scratch Foundation, which does not endorse this
+project. Pictures in the library, fonts and the Scratch media library keep
+their own licences.
