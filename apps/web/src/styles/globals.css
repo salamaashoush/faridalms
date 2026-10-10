@@ -4,6 +4,7 @@
 
 @plugin "@tailwindcss/typography";
 @source "../../../../packages/editor/src";
+@source "../../../../packages/puzzles/src";
 
 .school-sidebar {
   background: #153f3a;

@@ -180,7 +180,32 @@ off keeps the work and shows a placeholder.
    the gallery nor the live view yet.
 5. **Blocks puzzles.** Our Blockly puzzle engine and level packs (paths,
    loops, turtle art, events, music) in Arabic and English, an arrow-path
-   activity for early years, and unplugged versions through print.
+   activity for early years, and unplugged versions through print. Done: a
+   puzzle is a question kind (`puzzle`) built on a package of its own
+   (`packages/puzzles`). A puzzle is a grid of up to eight squares a side
+   with walls, a hero, a star to reach and gems to pick up on the way. A
+   young child answers with a row of arrows, each a step up, down, left or
+   right. Which way the hero faces is hard before about seven, and
+   Code.org's first course steps by the compass for the same reason. An
+   older child builds a program of blocks that go forward and turn, repeat
+   a number of times or until the star, and choose by whether there is a
+   way ahead or to a side. The blocks are Blockly 13's, in the school's
+   language and right to left in Arabic, with its keyboard and screen
+   reader support; its catalogue lacked the Arabic for those, which the
+   package adds. An answer is kept as what its blocks do, not as the
+   editor's own save, so the same small interpreter runs it in the browser,
+   where the board plays it back a block at a time, and at the API, which
+   marks it: no browser's word is taken that the star was reached. Each
+   program run is a try, a wrong one opening the next hint. A teacher makes
+   a puzzle in a designer: paints the grid, picks how it is answered, which
+   blocks it offers and how many a program may have, starts from one of
+   sixteen ready-made puzzles (arrows, paths, loops, choices), and builds
+   their own answer, without which a puzzle cannot be saved. That answer is
+   what students are shown once the question settles and how few blocks
+   they are told it can be done in. A solved program can be read as Python.
+   On paper the board prints with boxes for the arrows or ruled lines for
+   the blocks it names, and a teacher's copy carries the answer. Not done:
+   turtle art, events and music packs, and functions.
 6. **MakeCode.** Arcade and micro:bit, self-hosted, in controller mode with
    the project saved in Farida and the language set per lesson.
 7. **Scratch**, decided 2026-10-03: the real Scratch editor, framed. Done: a

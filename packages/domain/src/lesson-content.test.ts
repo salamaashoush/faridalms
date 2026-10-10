@@ -1,3 +1,4 @@
+import { PACKS } from "@faridalms/puzzles/levels";
 import * as v from "valibot";
 import { describe, expect, it } from "vitest";
 
@@ -1020,6 +1021,35 @@ describe("web projects", () => {
     expect(lessonOfContent(document).blocks[0]).toMatchObject({
       type: "project",
       files: [],
+    });
+  });
+});
+
+describe("puzzles", () => {
+  const level = PACKS[3].levels[0];
+  const puzzle: LessonDocument = {
+    version: 2,
+    blocks: [
+      {
+        id: partId(90),
+        type: "puzzle",
+        prompt: "Follow the path round the corner.",
+        points: 1,
+        hints: ["Look ahead before each step."],
+        explanation: "",
+        tries: null,
+        level,
+      },
+    ],
+  };
+
+  it("keeps the grid, the blocks and the teacher's answer", () => {
+    const document = contentOfLesson(puzzle);
+    if (!document) throw new Error("lesson could not become a document");
+    expect(v.safeParse(contentDocumentSchema, document).success).toBe(true);
+    expect(lessonOfContent(document).blocks[0]).toMatchObject({
+      type: "puzzle",
+      level,
     });
   });
 });

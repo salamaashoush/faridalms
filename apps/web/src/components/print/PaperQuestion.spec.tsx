@@ -1,6 +1,7 @@
 import type { LessonBlock } from "@faridalms/domain/learning";
 
 import { studentBlocks } from "@faridalms/domain/learning";
+import { PACKS } from "@faridalms/puzzles/levels";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
 
@@ -226,6 +227,53 @@ describe("a code exercise on paper", () => {
     const [shown] = studentBlocks({ version: 2, blocks: [exercise] }, "s");
     if (!shown) throw new Error("no block");
     expect(paper(paperBlock(shown), false)).not.toContain(">14<");
+  });
+});
+
+describe("a puzzle on paper", () => {
+  const staircase: LessonBlock = {
+    ...base,
+    id: "q9",
+    type: "puzzle",
+    prompt: "Climb down to the star.",
+    level: PACKS[2].levels[1],
+  };
+  const corner: LessonBlock = {
+    ...staircase,
+    id: "q10",
+    level: PACKS[0].levels[1],
+  };
+
+  it("draws the board, names the blocks to use and rules lines to write them on", () => {
+    const sheet = paper(staircase, false);
+    expect(sheet).toContain("data-puzzle-board");
+    expect(sheet).toContain("Move forward");
+    expect(sheet).toContain("Repeat a number of times");
+    expect(sheet).not.toContain("If there is a path");
+    expect(sheet).toContain("Use at most 6 blocks.");
+    expect(sheet).not.toContain("repeat 3 times");
+  });
+
+  it("writes the teacher's program on a teacher's copy, a block to a line", () => {
+    const sheet = paper(staircase, true);
+    expect(sheet).toContain("repeat 3 times");
+    expect(sheet).toContain("turn right ↻");
+    expect(sheet).toMatch(/padding-inline-start:1\.5em[^>]*>move forward/);
+  });
+
+  it("gives a row of arrows a box for each step, filled in on a teacher's copy", () => {
+    expect(paper(corner, false)).toContain("Draw one arrow in each box");
+    expect(paper(corner, false)).not.toContain("→");
+    expect(paper(corner, true).match(/→|↓/g)).toEqual(["→", "→", "↓", "↓"]);
+    expect(paper(corner, false, true)).toContain("ارسم سهمًا واحدًا");
+  });
+
+  it("prints a student's copy with no program to give away", () => {
+    const [shown] = studentBlocks({ version: 2, blocks: [staircase] }, "s");
+    if (!shown) throw new Error("no block");
+    const block = paperBlock(shown);
+    expect(block.type === "puzzle" && block.level.solution).toEqual([]);
+    expect(paper(block, true)).not.toContain("repeat 3 times");
   });
 });
 

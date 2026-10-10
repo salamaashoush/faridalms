@@ -1,3 +1,6 @@
+import type { Level } from "@faridalms/puzzles/level";
+
+import { levelSchema } from "@faridalms/puzzles/level";
 import * as v from "valibot";
 
 import type { EmbedProvider } from "./embed";
@@ -71,6 +74,7 @@ export const questionKinds = [
   "parsons",
   "program",
   "project",
+  "puzzle",
 ] as const;
 export type QuestionKind = (typeof questionKinds)[number];
 export const calloutTones = [
@@ -197,6 +201,8 @@ export interface ContentNode {
   gallery?: boolean;
   /** A project question made in Python rather than as a web page. */
   projectLanguage?: ProjectLanguage;
+  /** A puzzle question's grid, the blocks it offers and its teacher's answer. */
+  puzzle?: Level;
   /** Before a question had hints in order, its one hint. */
   hint?: string;
   hints?: string[];
@@ -370,6 +376,7 @@ const nodeSchema: v.GenericSchema<ContentNode> = v.lazy(() =>
       projectFiles: v.optional(starterFilesSchema),
       gallery: v.optional(v.boolean()),
       projectLanguage: v.optional(v.picklist(projectLanguages)),
+      puzzle: v.optional(levelSchema),
       kind: v.optional(v.picklist(questionKinds)),
       questionId: v.optional(v.pipe(v.string(), v.uuid())),
       optionId: v.optional(v.pipe(v.string(), v.uuid())),

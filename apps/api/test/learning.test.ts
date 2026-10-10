@@ -6,6 +6,7 @@ import {
   contentOfLesson,
   lessonOfContent,
 } from "@faridalms/domain/lesson-content";
+import { PACKS } from "@faridalms/puzzles/levels";
 import { describe, expect, test } from "bun:test";
 import { sql } from "drizzle-orm";
 
@@ -448,6 +449,116 @@ describe("matching, ordering, sorting and code puzzles", () => {
       },
     });
     expect(done).toMatchObject({ completed: true, score: 100 });
+  });
+});
+
+describe("blocks puzzles", () => {
+  test("a puzzle is marked by running the student's program, and its answer is kept back until it is settled", async () => {
+    const { keeper } = await teachers();
+    const { rows } = await keeper.learning.modules({});
+    const source = rows.find((row) => row.title === TITLE);
+    if (!source) throw new Error("no module");
+    const saved = await keeper.learning.saveModule({
+      id: "",
+      expectedVersion: 0,
+      title: "Stairs",
+      summary: "",
+      classIds: source.classes.map((item) => item.id),
+      prerequisiteId: "",
+      sequential: false,
+    });
+    const staircase = PACKS[2].levels[1];
+    const blockId = id();
+    await keeper.learning.saveLesson({
+      id: "",
+      moduleId: saved.id,
+      expectedVersion: 0,
+      title: "Down the stairs",
+      completion: "quiz",
+      passScore: null,
+      content: written([
+        {
+          id: blockId,
+          type: "puzzle",
+          prompt: "Climb down to the star.",
+          points: 1,
+          hints: ["What do the first four blocks do, again and again?"],
+          explanation: "",
+          tries: null,
+          level: staircase,
+        },
+      ]),
+      publish: false,
+    });
+    await keeper.learning.publishModule({
+      id: saved.id,
+      expectedVersion: saved.version,
+    });
+
+    const pupil = await student();
+    const outline = await pupil.learning.play({ id: saved.id });
+    const lessonId = outline.lessons[0]?.id ?? "";
+    const opened = await pupil.learning.playLesson({ id: lessonId });
+    const shown = blockOf(opened, "puzzle");
+    expect(shown.level).not.toHaveProperty("solution");
+    expect(shown.level.ideal).toBe(6);
+
+    // Reaching the star is all that counts, so a program that says it did
+    // is run again here and found short.
+    const short = await pupil.learning.respond({
+      lessonId,
+      blockId,
+      response: { type: "puzzle", program: [{ op: "forward" }] },
+    });
+    expect(short.check).toMatchObject({
+      correct: false,
+      tries: 1,
+      hints: ["What do the first four blocks do, again and again?"],
+      key: null,
+    });
+    expect(short.check).not.toHaveProperty("keyProgram");
+    // A walk built from a block the puzzle does not offer is no answer.
+    const walked = await pupil.learning.respond({
+      lessonId,
+      blockId,
+      response: {
+        type: "puzzle",
+        program: [
+          "east",
+          "south",
+          "east",
+          "south",
+          "east",
+          "south",
+          "east",
+        ].map((to) => ({ op: "go" as const, to: to as "east" | "south" })),
+      },
+    });
+    expect(walked.check).toMatchObject({ correct: false, tries: 2 });
+    expect(
+      await rejection(
+        pupil.learning.respond({
+          lessonId,
+          blockId,
+          response: {
+            type: "puzzle",
+            program: [{ op: "jump" }],
+          } as never,
+        }),
+      ),
+    ).toMatchObject({ code: "BAD_REQUEST" });
+
+    const done = await pupil.learning.respond({
+      lessonId,
+      blockId,
+      response: { type: "puzzle", program: staircase.solution },
+    });
+    expect(done).toMatchObject({ completed: true });
+    expect(done.check).toMatchObject({
+      correct: true,
+      tries: 3,
+      keyProgram: staircase.solution,
+    });
   });
 });
 

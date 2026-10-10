@@ -250,6 +250,11 @@ export interface EditorStrings {
   questionSketchHint: string;
   questionPython: string;
   questionPythonHint: string;
+  questionPuzzle: string;
+  questionPuzzleHint: string;
+  questionArrows: string;
+  questionArrowsHint: string;
+  questionPuzzleEdit: string;
   questionStarterBuild: string;
   questionStarterEdit: string;
   questionStarterRemove: string;

@@ -6,6 +6,7 @@ import {
   needsTranscript,
   partName,
 } from "@faridalms/domain/learning";
+import { solves } from "@faridalms/puzzles/run";
 
 import * as m from "~/i18n/messages";
 import { formatNumber } from "~/utils/datetime";
@@ -82,6 +83,10 @@ export function blockIssue(block: LessonBlock): string | null {
         : null;
     case "parsons":
       return block.lines.length < 2 ? m.lrnLinesNeeded() : null;
+    case "puzzle":
+      return solves(block.level, block.level.solution)
+        ? null
+        : m.lrnPuzzleUnsolved();
     case "program":
       if (block.tests.length === 0) return m.lrnTestsNeeded();
       return block.tests.some((test) => !test.expected.trim())

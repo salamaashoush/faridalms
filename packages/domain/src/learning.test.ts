@@ -1,3 +1,4 @@
+import { PACKS } from "@faridalms/puzzles/levels";
 import * as v from "valibot";
 import { describe, expect, it } from "vitest";
 
@@ -11,6 +12,7 @@ import type {
   OrderingBlock,
   ParsonsBlock,
   ProgramBlock,
+  PuzzleBlock,
   SortingBlock,
   TextBlock,
 } from "./learning";
@@ -653,5 +655,114 @@ describe("matching, ordering and sorting", () => {
       [uuid(104)]: "Birds",
       [uuid(105)]: "Mammals",
     });
+  });
+});
+
+describe("puzzles", () => {
+  const staircase = PACKS[2].levels[1];
+  const puzzle: PuzzleBlock = {
+    ...common,
+    id: uuid(300),
+    type: "puzzle",
+    prompt: "Climb down the stairs to the star.",
+    level: staircase,
+  };
+
+  it("marks a program by running it on the grid", () => {
+    expect(
+      markResponse(puzzle, { type: "puzzle", program: staircase.solution }),
+    ).toMatchObject({ fraction: 1, correct: true });
+    expect(
+      markResponse(puzzle, {
+        type: "puzzle",
+        program: [{ op: "forward" }, { op: "forward" }],
+      }),
+    ).toMatchObject({ fraction: 0, correct: false });
+  });
+
+  it("gives nothing for a program built from blocks the puzzle does not offer", () => {
+    const steps = Array.from({ length: 7 }, () => [
+      { op: "go" as const, to: "east" as const },
+      { op: "go" as const, to: "south" as const },
+    ]).flat();
+    expect(
+      markResponse(puzzle, { type: "puzzle", program: steps }),
+    ).toMatchObject({ correct: false });
+    // The same walk is right where the puzzle offers those blocks.
+    expect(
+      markResponse(
+        { ...puzzle, level: { ...staircase, blocks: ["go"], limit: null } },
+        {
+          type: "puzzle",
+          program: [
+            { op: "go", to: "east" },
+            { op: "go", to: "south" },
+            { op: "go", to: "east" },
+            { op: "go", to: "south" },
+            { op: "go", to: "east" },
+            { op: "go", to: "south" },
+            { op: "go", to: "east" },
+          ],
+        },
+      ),
+    ).toMatchObject({ correct: true });
+  });
+
+  it("keeps the teacher's program from students, and tells how few blocks it takes", () => {
+    const [shown] = studentBlocks({ version: 2, blocks: [puzzle] }, "seed");
+    if (shown?.type !== "puzzle") throw new Error("puzzle expected");
+    expect(shown.level).not.toHaveProperty("solution");
+    expect(shown.level.ideal).toBe(6);
+    expect(JSON.stringify(shown)).not.toMatch(/solution|hints|explanation/);
+  });
+
+  it("shows the answer as the Python its blocks come to, or as its arrows", () => {
+    expect(answerKey(puzzle)).toEqual([
+      "for count in range(3):",
+      "    forward()",
+      "    turn_right()",
+      "    forward()",
+      "    turn_left()",
+      "forward()",
+    ]);
+    expect(answerKey({ ...puzzle, level: PACKS[0].levels[1] })).toEqual([
+      "→ → ↓ ↓",
+    ]);
+  });
+
+  it("hands over the teacher's program only once the puzzle is settled", () => {
+    const tried = (fraction: number): StoredTry => ({
+      blockId: puzzle.id,
+      state: "answered",
+      try: 1,
+      fraction,
+      response: { type: "puzzle", program: [{ op: "forward" }] },
+      feedback: null,
+    });
+    const view = (fraction: number, block = puzzle) => {
+      const rows = [tried(fraction)];
+      const states = checkStates({ version: 2, blocks: [block] }, rows);
+      return describeCheck(block, rows, states[block.id]);
+    };
+    expect(view(0)).not.toHaveProperty("keyProgram");
+    expect(view(0).key).toBeNull();
+    expect(view(0, { ...puzzle, tries: 1 }).keyProgram).toEqual(
+      staircase.solution,
+    );
+    expect(view(1).keyProgram).toEqual(staircase.solution);
+  });
+
+  it("refuses a lesson whose puzzle has two things on one square", () => {
+    const broken = { ...staircase, gems: [staircase.goal] };
+    expect(
+      v.safeParse(lessonDocumentSchema, {
+        version: 2,
+        blocks: [{ ...puzzle, level: broken }],
+      }).success,
+    ).toBe(false);
+    expect(
+      v.safeParse(lessonDocumentSchema, { version: 2, blocks: [puzzle] })
+        .success,
+    ).toBe(true);
   });
 });

@@ -37,6 +37,7 @@ export default defineConfig({
     "collaboration.spec.ts",
     "learning.spec.ts",
     "projects.spec.ts",
+    "puzzles.spec.ts",
     "print.spec.ts",
     "young.spec.ts",
     "badges.spec.ts",

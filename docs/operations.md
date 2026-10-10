@@ -238,6 +238,19 @@ The studio's Source link names where the source of the running copy is
 published, as the licence asks of whoever runs a changed copy for other
 people: set `SOURCE_URL` on the API.
 
+## Blocks puzzles
+
+Puzzle questions use the Blockly block editor, bundled with the web and
+fetched by a page only when a puzzle on it is first opened. Blockly asks for
+its own pictures and cursors by address rather than importing them, and left
+alone would fetch them from its makers; the web serves them itself under
+`/blockly/media/` from the installed package and copies them into every
+build, so a proxy or CDN in front of the web needs no rule for them. A
+program of blocks is never run as code: it is read back as a list of steps
+and carried out by an interpreter of our own, in the browser and again at
+the API to mark it. Blockly names `jsdom` as a peer, which the install adds;
+nothing here loads it, since the editor only ever runs in a browser.
+
 ## Running code in lessons
 
 Code blocks a teacher marks to run, in Python or JavaScript, run in the

@@ -15,6 +15,8 @@ import { joinedAroundGaps } from "@faridalms/domain/arabic";
 import { textDirection } from "@faridalms/domain/content";
 import { MAX_INDENT, MAX_RUN_OUTPUT } from "@faridalms/domain/learning";
 import { StoredImage } from "@faridalms/editor/files";
+import { Player } from "@faridalms/puzzles/Player";
+import { ProgramView } from "@faridalms/puzzles/ProgramView";
 import { Button } from "@faridalms/ui/button";
 import { cn } from "@faridalms/ui/cn";
 import { Input } from "@faridalms/ui/input";
@@ -43,7 +45,14 @@ import {
   Plus,
   X,
 } from "lucide-react";
-import { createContext, useContext, useId, useRef, useState } from "react";
+import {
+  createContext,
+  useContext,
+  useId,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { flushSync } from "react-dom";
 import { toast } from "sonner";
 
@@ -53,6 +62,7 @@ import { CodeRunner } from "~/components/coding/CodeRunner";
 import { CodingAnswer } from "~/components/coding/CodingAnswer";
 import { friendlyError } from "~/components/coding/friendly";
 import { WebProjectAnswer } from "~/components/coding/WebProjectAnswer";
+import { editorSetting, puzzleStrings } from "~/components/puzzles/strings";
 import * as m from "~/i18n/messages";
 import { formatList, formatNumber } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
@@ -61,6 +71,7 @@ import { PictureAnswer } from "./PictureAnswer";
 import { ReadAloud, YoungContext } from "./ReadAloud";
 import { useReorder } from "./reorder";
 import { SpokenRecorder, SpokenStatus } from "./SpokenAnswer";
+import { playSound } from "./young/sounds";
 import { YoungCounting } from "./young/YoungCounting";
 import { YoungHotspot } from "./young/YoungHotspot";
 import { YoungMemory } from "./young/YoungMemory";
@@ -180,7 +191,8 @@ export type CheckStudentBlock =
   | Of<"hotspot">
   | Of<"written">
   | Of<"scratch">
-  | Of<"project">;
+  | Of<"project">
+  | Of<"puzzle">;
 
 const CHECK_TYPES = new Set<StudentBlock["type"]>([
   "choice",
@@ -199,6 +211,7 @@ const CHECK_TYPES = new Set<StudentBlock["type"]>([
   "written",
   "scratch",
   "project",
+  "puzzle",
 ]);
 
 export const isCheckBlock = (block: StudentBlock): block is CheckStudentBlock =>
@@ -1777,6 +1790,102 @@ function ProgramCheck({
   );
 }
 
+/**
+ * A puzzle: the program a student builds, and the run that shows what it
+ * does. Running a program is answering with it, so each program run is a
+ * try, a wrong one opening the next hint as any wrong answer does. The
+ * server runs the program again to mark it; the board here only shows.
+ */
+function PuzzleCheck({
+  block,
+  view,
+  driver,
+}: {
+  block: Of<"puzzle">;
+  view: CheckView | undefined;
+  driver: CheckDriver;
+}) {
+  const legend = useId();
+  const mode = useContext(CheckModeContext);
+  const young = useContext(YoungContext);
+  const { respond, reveal } = useCheck(block.id, view, driver);
+  const last = view?.response?.type === "puzzle" ? view.response.program : null;
+  const [program, setProgram] = useState(last ?? []);
+  const strings = useMemo(() => puzzleStrings(), []);
+  const setting = useMemo(() => editorSetting(), []);
+  const locked = isSettled(block, view) || mode === "review";
+  const sent = JSON.stringify(program) === JSON.stringify(last);
+  const busy = respond.isPending || reveal.isPending;
+  const answer = view && !view.correct ? view.keyProgram : undefined;
+  return (
+    <CheckCard
+      block={block}
+      legendId={legend}
+      onSubmit={() => {
+        if (!locked && !sent) respond.mutate({ type: "puzzle", program });
+      }}
+      status={
+        <>
+          <CheckStatus view={view} editing={false} />
+          {answer ? (
+            <div className="grid gap-2 text-sm leading-6">
+              <p className="font-medium">{m.lrnCorrectAnswer()}</p>
+              <ProgramView
+                program={answer}
+                style={block.level.style}
+                strings={strings}
+              />
+            </div>
+          ) : null}
+        </>
+      }
+      actions={
+        locked ? null : mode === "quiz" ? (
+          <Button
+            type="submit"
+            className="max-md:h-10"
+            disabled={sent || program.length === 0 || busy}
+          >
+            {m.quizKeepAnswer()}
+          </Button>
+        ) : view && view.tries > 0 ? (
+          <Button
+            type="button"
+            variant="ghost"
+            className="max-md:h-10"
+            disabled={busy}
+            onClick={() => reveal.mutate()}
+          >
+            <Eye aria-hidden />
+            {m.lrnShowAnswer()}
+          </Button>
+        ) : null
+      }
+    >
+      <Player
+        level={block.level}
+        program={program}
+        onChange={locked ? undefined : setProgram}
+        onEnd={
+          locked
+            ? undefined
+            : (end, ran) => {
+                if (young) playSound(end === "solved" ? "right" : "wrong");
+                // The same program run again is the same answer.
+                if (
+                  JSON.stringify(ran) !== JSON.stringify(last) ||
+                  !view?.tries
+                )
+                  respond.mutate({ type: "puzzle", program: ran });
+              }
+        }
+        setting={setting}
+        strings={strings}
+      />
+    </CheckCard>
+  );
+}
+
 const groupChip =
   "min-h-8 cursor-pointer rounded-full border px-3 py-1 text-[13px] leading-5 outline-none transition-colors hover:bg-muted/50 focus-visible:border-ring focus-visible:ring-3 focus-visible:ring-ring/50 data-checked:border-primary data-checked:bg-primary data-checked:text-primary-foreground data-disabled:cursor-default data-disabled:hover:bg-transparent data-disabled:data-checked:hover:bg-primary max-md:min-h-10";
 
@@ -2207,6 +2316,8 @@ export function CheckBlockView({
     return <CodingCheck block={block} view={view} driver={driver} />;
   if (block.type === "project")
     return <ProjectCheck block={block} view={view} driver={driver} />;
+  if (block.type === "puzzle")
+    return <PuzzleCheck block={block} view={view} driver={driver} />;
   if (block.type === "matching")
     return <MatchingCheck block={block} view={view} driver={driver} />;
   if (block.type === "ordering")

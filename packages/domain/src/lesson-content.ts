@@ -1,3 +1,5 @@
+import { firstLevel } from "@faridalms/puzzles/levels";
+
 import type { ContentDocument, ContentNode } from "./content";
 import type { GapSegment } from "./gaps";
 import type { LessonBlock, LessonDocument, RecordSeconds } from "./learning";
@@ -200,6 +202,12 @@ export function questionBlock(node: ContentNode): LessonBlock | null {
         files: node.projectFiles ?? [],
         gallery: node.gallery ?? false,
         language: node.projectLanguage ?? "web",
+      };
+    case "puzzle":
+      return {
+        ...check,
+        type: "puzzle",
+        level: node.puzzle ?? firstLevel("blocks"),
       };
     case "hotspot":
       return {
@@ -599,6 +607,7 @@ export function questionNode(block: LessonBlock): ContentNode | null {
     block.type !== "hotspot" &&
     block.type !== "scratch" &&
     block.type !== "project" &&
+    block.type !== "puzzle" &&
     block.type !== "parsons" &&
     block.type !== "program"
   )
@@ -803,6 +812,7 @@ export function questionNode(block: LessonBlock): ContentNode | null {
         ? { projectLanguage: block.language }
         : {}),
     };
+  if (block.type === "puzzle") return { ...base, puzzle: block.level };
   if (block.type === "hotspot")
     return {
       ...base,

@@ -1,3 +1,10 @@
+import type { StudentLevel } from "@faridalms/puzzles/level";
+import type { Program } from "@faridalms/puzzles/program";
+
+import { levelSchema } from "@faridalms/puzzles/level";
+import { countBlocks, programSchema } from "@faridalms/puzzles/program";
+import { solves } from "@faridalms/puzzles/run";
+import { ARROWS, pythonOf } from "@faridalms/puzzles/text";
 import * as v from "valibot";
 
 import type { ContentDocument, ContentNode } from "./content";
@@ -545,6 +552,12 @@ export const lessonBlockSchema = v.variant("type", [
       v.maxLength(MAX_PROGRAM_TESTS),
     ),
   }),
+  v.object({
+    ...checkFields,
+    type: v.literal("puzzle"),
+    /** The grid, the blocks a program may be built from, and the teacher's answer. */
+    level: levelSchema,
+  }),
 ]);
 export type LessonBlock = v.InferOutput<typeof lessonBlockSchema>;
 export type LessonBlockType = LessonBlock["type"];
@@ -564,6 +577,7 @@ export type HotspotBlock = Extract<LessonBlock, { type: "hotspot" }>;
 export type ScratchBlock = Extract<LessonBlock, { type: "scratch" }>;
 export type ProgramBlock = Extract<LessonBlock, { type: "program" }>;
 export type ProjectBlock = Extract<LessonBlock, { type: "project" }>;
+export type PuzzleBlock = Extract<LessonBlock, { type: "puzzle" }>;
 /** A question the server marks the moment it is answered. */
 export type AutoBlock =
   | ChoiceBlock
@@ -578,7 +592,8 @@ export type AutoBlock =
   | TracingBlock
   | SpellingBlock
   | HotspotBlock
-  | ProgramBlock;
+  | ProgramBlock
+  | PuzzleBlock;
 /** A question its teacher marks: words, a recording or picture, or a project. */
 export type MarkedBlock = WrittenBlock | ScratchBlock | ProjectBlock;
 export type CheckBlock = AutoBlock | MarkedBlock;
@@ -597,6 +612,7 @@ const AUTO_TYPES = new Set<LessonBlockType>([
   "spelling",
   "hotspot",
   "program",
+  "puzzle",
 ]);
 
 const MARKED_TYPES = new Set<LessonBlockType>([
@@ -1041,6 +1057,8 @@ export const responseSchema = v.variant("type", [
      */
     remixOf: v.optional(id),
   }),
+  /** The program the student built, as what its blocks do. */
+  v.object({ type: v.literal("puzzle"), program: programSchema }),
   v.object({
     type: v.literal("program"),
     code: v.pipe(v.string(), v.maxLength(MAX_PROGRAM_CHARS)),
@@ -1303,6 +1321,12 @@ export function markResponse(
         ),
       );
     }
+    case "puzzle": {
+      if (response.type !== "puzzle") return none;
+      // Run here as it ran for the student, so no browser's word is taken.
+      const correct = solves(block.level, response.program);
+      return { ...none, fraction: correct ? 1 : 0, correct };
+    }
     case "hotspot": {
       if (response.type !== "hotspot") return none;
       const results = Object.fromEntries(
@@ -1504,6 +1528,9 @@ export type StudentBlock =
       tests: { id: string; input: string; expected: string }[];
       /** The tests run but never shown, by id. */
       hiddenTests: string[];
+    })
+  | (Omit<PuzzleBlock, "explanation" | "hints" | "level"> & {
+      level: StudentLevel;
     });
 
 export function shuffled<T>(items: T[], seed: string): T[] {
@@ -1716,6 +1743,15 @@ export function studentBlocks(
             .map((test) => test.id),
         };
       }
+      case "puzzle": {
+        const { explanation: _why, hints: _hints, level, ...rest } = block;
+        const { solution, ...given } = level;
+        const puzzle: StudentLevel = {
+          ...given,
+          ideal: solution.length > 0 ? countBlocks(solution) : null,
+        };
+        return { ...rest, level: puzzle };
+      }
       case "written":
       case "scratch":
       case "project":
@@ -1729,6 +1765,21 @@ export function studentBlocks(
         return block;
     }
   });
+}
+
+/**
+ * A puzzle's program in words: a row of arrows as its arrows, a program of
+ * blocks as the Python it comes to.
+ */
+export function puzzleKey(level: {
+  style: StudentLevel["style"];
+  solution: v.InferOutput<typeof programSchema>;
+}): string[] {
+  if (level.style === "blocks") return pythonOf(level.solution);
+  const arrows = level.solution.flatMap((step) =>
+    step.op === "go" ? [ARROWS[step.to]] : [],
+  );
+  return arrows.length > 0 ? [arrows.join(" ")] : [];
 }
 
 /** The answer to show once a question is settled. */
@@ -1774,9 +1825,14 @@ export function answerKey(block: AutoBlock): string[] {
         (item) =>
           `${partName(item)}: ${block.groups.find((group) => group.id === item.groupId)?.name ?? ""}`,
       );
+    case "puzzle":
+      return puzzleKey(block.level);
   }
   return [];
 }
+
+const keyProgram = (block: AutoBlock, open: boolean) =>
+  open && block.type === "puzzle" ? { keyProgram: block.level.solution } : {};
 
 /** The right answer for each blank, pair or item, shown beside it once settled. */
 export function partKey(block: AutoBlock): Record<string, string> {
@@ -2140,6 +2196,7 @@ export function describeReview(
     hintsLeft: 0,
     key: done ? answerKey(block) : null,
     partKey: done ? partKey(block) : null,
+    ...keyProgram(block, done),
     explanation: done ? block.explanation : null,
     marked: false,
     credit: null,
@@ -2169,6 +2226,8 @@ export interface CheckView {
   hintsLeft: number;
   key: string[] | null;
   partKey: Record<string, string> | null;
+  /** A puzzle's answer as the program it is, to read as blocks once settled. */
+  keyProgram?: Program;
   explanation: string | null;
   marked: boolean;
   /** Points an answer its teacher marks earned, once marked. */
@@ -2239,6 +2298,7 @@ export function describeCheck(
       shownHints.length > 0 ? Math.max(0, reachable - shownHints.length) : 0,
     key: open ? answerKey(block) : null,
     partKey: open ? partKey(block) : null,
+    ...keyProgram(block, open),
     explanation: open ? block.explanation : null,
   };
 }

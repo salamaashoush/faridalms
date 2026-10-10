@@ -4,6 +4,7 @@ export type { Provider, ProviderAwareness } from "@lexical/yjs";
 export type {
   EditorEnvironment,
   EditorMedia,
+  EditorPuzzles,
   EditorStudio,
   UploadedFile,
   UploadOptions,

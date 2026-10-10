@@ -969,3 +969,13 @@
 .fe [data-trace] circle {
   fill: var(--fe-success);
 }
+
+/* A puzzle question's board in the editor, at the size its squares are
+   drawn; a wide grid shrinks to the page. */
+.fe [data-puzzle] svg {
+  display: block;
+  width: 100%;
+  height: auto;
+  border-radius: 0.5rem;
+  background: var(--fe-subtle);
+}

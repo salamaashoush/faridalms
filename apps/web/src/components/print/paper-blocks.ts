@@ -160,6 +160,10 @@ export function paperBlock(block: StudentBlock): LessonBlock {
         tests: block.tests.map((test) => ({ ...test, hidden: false })),
       };
     }
+    case "puzzle": {
+      const { ideal: _ideal, ...level } = block.level;
+      return { ...block, ...blank, level: { ...level, solution: [] } };
+    }
     case "written":
     case "scratch":
     case "project":

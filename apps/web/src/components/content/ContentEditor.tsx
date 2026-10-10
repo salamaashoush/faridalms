@@ -7,6 +7,7 @@ import { useHydrated } from "@tanstack/react-router";
 import { lazy, Suspense, useMemo, useState } from "react";
 
 import { useEditorStudio } from "~/components/coding/useEditorStudio";
+import { useEditorPuzzles } from "~/components/puzzles/useEditorPuzzles";
 
 import { ContentView } from "./ContentView";
 import { editorStrings } from "./strings";
@@ -69,6 +70,7 @@ export function ContentEditor({
   const strings = useMemo(() => editorStrings(), []);
   const hydrated = useHydrated();
   const coding = useEditorStudio(questions ? media : undefined);
+  const designing = useEditorPuzzles(Boolean(questions));
   const document = variant === "document";
   // Lexical needs a DOM, so the server draws the document in the editor's own
   // frame and the editor takes that frame over in the browser.
@@ -111,6 +113,7 @@ export function ContentEditor({
           toolbar={toolbar}
           media={media}
           studio={coding.studio}
+          puzzles={designing.puzzles}
           placeholder={placeholder}
           initialFocus={initialFocus}
           strings={strings}
@@ -130,6 +133,7 @@ export function ContentEditor({
         />
       </div>
       {coding.dialog}
+      {designing.dialog}
     </Suspense>
   );
 }

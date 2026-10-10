@@ -248,7 +248,11 @@ function AnswerKey({
           const question = questionBlock(node);
           if (!question) return null;
           const answer = keyOf(question, rtl);
-          if (question.type === "hotspot" || question.type === "parsons")
+          if (
+            question.type === "hotspot" ||
+            question.type === "parsons" ||
+            question.type === "puzzle"
+          )
             return (
               <li key={number}>
                 <PaperQuestion

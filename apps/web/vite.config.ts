@@ -5,9 +5,9 @@ import tailwindcss from "@tailwindcss/vite";
 import { tanstackStart } from "@tanstack/react-start/plugin/vite";
 import viteReact from "@vitejs/plugin-react";
 import { nitro } from "nitro/vite";
-import { createReadStream, readFileSync } from "node:fs";
+import { createReadStream, readdirSync, readFileSync } from "node:fs";
 import { createRequire } from "node:module";
-import { dirname, join, resolve } from "node:path";
+import { dirname, extname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { defineConfig } from "vite";
 
@@ -79,40 +79,74 @@ const pyodideHeaders = {
   "cache-control": "public, max-age=31536000, immutable",
 };
 
+// The block editor's own pictures and cursors, which it asks for by address
+// rather than importing; left alone it would fetch them from its makers.
+const blocklyDir = join(
+  dirname(
+    createRequire(
+      new URL("../../packages/puzzles/package.json", import.meta.url),
+    ).resolve("blockly"),
+  ),
+  "media",
+);
+const blocklyBase = "/blockly/media/";
+const mediaTypes: Record<string, string> = {
+  ".cur": "image/x-icon",
+  ".gif": "image/gif",
+  ".mp3": "audio/mpeg",
+  ".png": "image/png",
+  ".svg": "image/svg+xml",
+};
+const blocklyFiles = Object.fromEntries(
+  readdirSync(blocklyDir).flatMap((file) => {
+    const type = mediaTypes[extname(file)];
+    return type ? [[file, type]] : [];
+  }),
+);
+const blocklyHeaders = { "cache-control": "public, max-age=86400" };
+
 /**
- * Serves Python for the browser from the installed Pyodide, under its
- * version so a new release is a new address, and copies it into the build.
+ * Serves files of an installed package as they are, under one address,
+ * and copies them into the build: Python for the browser under its
+ * version, so a new release is a new address, and the block editor's
+ * media.
  */
-function pyodideAssets(): Plugin {
+function packageAssets(assets: {
+  name: string;
+  dir: string;
+  base: string;
+  files: Record<string, string>;
+  headers: Record<string, string>;
+}): Plugin {
   return {
-    name: "farida:pyodide",
+    name: `farida:${assets.name}`,
     configureServer(server) {
       server.middlewares.use((request, response, next) => {
         const path = request.url?.split("?")[0] ?? "";
-        if (!path.startsWith(pyodideBase)) {
+        if (!path.startsWith(assets.base)) {
           next();
           return;
         }
-        const file = path.slice(pyodideBase.length);
-        const type = pyodideFiles[file];
+        const file = path.slice(assets.base.length);
+        const type = assets.files[file];
         if (!type) {
           response.statusCode = 404;
           response.end();
           return;
         }
         response.setHeader("content-type", type);
-        for (const [name, value] of Object.entries(pyodideHeaders))
+        for (const [name, value] of Object.entries(assets.headers))
           response.setHeader(name, value);
-        createReadStream(join(pyodideDir, file)).pipe(response);
+        createReadStream(join(assets.dir, file)).pipe(response);
       });
     },
     generateBundle() {
       if (this.environment.name !== "client") return;
-      for (const file of Object.keys(pyodideFiles))
+      for (const file of Object.keys(assets.files))
         this.emitFile({
           type: "asset",
-          fileName: `${pyodideBase.slice(1)}${file}`,
-          source: readFileSync(join(pyodideDir, file)),
+          fileName: `${assets.base.slice(1)}${file}`,
+          source: readFileSync(join(assets.dir, file)),
         });
     },
   };
@@ -138,7 +172,20 @@ export default defineConfig(({ command }) => ({
       outdir: "./src/i18n",
     }),
     devCatalogue(),
-    pyodideAssets(),
+    packageAssets({
+      name: "pyodide",
+      dir: pyodideDir,
+      base: pyodideBase,
+      files: pyodideFiles,
+      headers: pyodideHeaders,
+    }),
+    packageAssets({
+      name: "blockly",
+      dir: blocklyDir,
+      base: blocklyBase,
+      files: blocklyFiles,
+      headers: blocklyHeaders,
+    }),
     // tanstackStart must precede viteReact.
     tanstackStart({ srcDirectory: "src" }),
     viteReact(),
@@ -147,7 +194,10 @@ export default defineConfig(({ command }) => ({
       // preflight validates the environment there, so a misconfigured container
       // exits instead of booting and serving 500s.
       plugins: ["./src/server/preflight.ts"],
-      routeRules: { [`${pyodideBase}**`]: { headers: pyodideHeaders } },
+      routeRules: {
+        [`${pyodideBase}**`]: { headers: pyodideHeaders },
+        [`${blocklyBase}**`]: { headers: blocklyHeaders },
+      },
     }),
   ],
 }));

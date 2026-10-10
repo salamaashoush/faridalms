@@ -1,5 +1,6 @@
 import type { QuestionKind } from "@faridalms/domain/content";
 import type { ProjectFile, ProjectLanguage } from "@faridalms/domain/project";
+import type { Level, PuzzleStyle } from "@faridalms/puzzles/level";
 import type {
   DOMExportOutput,
   EditorConfig,
@@ -16,6 +17,8 @@ import type {
 
 import { hintsOf } from "@faridalms/domain/lesson-content";
 import { pythonProject, sketchProject } from "@faridalms/domain/project";
+import { firstLevel } from "@faridalms/puzzles/levels";
+import { HERO, TURNED, centreOf, sceneOf } from "@faridalms/puzzles/scene";
 import { addClassNamesToElement } from "@lexical/utils";
 import {
   $createParagraphNode,
@@ -142,6 +145,45 @@ function drawTrace(trace: readonly number[][], dom: HTMLElement) {
   dom.prepend(holder);
 }
 
+const SVG = "http://www.w3.org/2000/svg";
+
+/** Draws a puzzle question's board above its words, as students will meet it. */
+function drawPuzzle(level: Level | null, dom: HTMLElement) {
+  if (!level) return;
+  const document = $getDocument();
+  const holder = document.createElement("span");
+  holder.dataset.partPicture = "";
+  holder.dataset.puzzle = level.style;
+  holder.contentEditable = "false";
+  const scene = sceneOf(level);
+  const svg = document.createElementNS(SVG, "svg");
+  svg.setAttribute("viewBox", `0 0 ${scene.width} ${scene.height}`);
+  svg.setAttribute("aria-hidden", "true");
+  svg.style.maxWidth = `${scene.width}px`;
+  const draw = (shapes: typeof scene.squares, into: Element) => {
+    for (const shape of shapes) {
+      const element = document.createElementNS(SVG, shape.tag);
+      element.setAttribute("class", shape.className);
+      for (const [name, value] of Object.entries(shape.attrs))
+        element.setAttribute(name, String(value));
+      into.append(element);
+    }
+  };
+  draw(scene.squares, svg);
+  draw(scene.goal, svg);
+  for (const gem of scene.gems) draw(gem.shapes, svg);
+  const hero = document.createElementNS(SVG, "g");
+  const [x, y] = centreOf(level, level.start.cell);
+  hero.setAttribute(
+    "transform",
+    `translate(${x} ${y}) rotate(${TURNED[level.start.heading]})`,
+  );
+  draw([...HERO], hero);
+  svg.append(hero);
+  holder.append(svg);
+  dom.prepend(holder);
+}
+
 /** Outlines the places to find over a find-on-a-picture question's picture. */
 function drawRegions(regions: readonly number[][], dom: HTMLElement) {
   const holder = dom.querySelector<HTMLElement>(":scope > [data-part-picture]");
@@ -180,6 +222,8 @@ export interface QuestionLabels {
   starter?: string;
   /** A project question made in Python rather than as a web page. */
   pythonProject?: string;
+  /** A puzzle answered with a row of arrows rather than with blocks. */
+  arrowsPuzzle?: string;
   /** A question asked at a time in the video above it. */
   videoAt?: (time: string) => string;
   /** A code puzzle's empty line, and a line marked as belonging nowhere. */
@@ -283,6 +327,8 @@ export interface QuestionSettings {
   gallery: boolean;
   /** What a project question is made in: a web page, or a Python program. */
   projectLanguage: ProjectLanguage;
+  /** A puzzle question's grid, the blocks it offers and its teacher's answer. */
+  puzzle: Level | null;
   /** Asked when the video above reaches this second; none asks it in the reading. */
   videoAt: number | null;
   /** A code puzzle's language; only Python marks how far a line is indented. */
@@ -331,6 +377,7 @@ export function defaultSettings(kind: QuestionKind): QuestionSettings {
     projectFiles: [],
     gallery: false,
     projectLanguage: "web",
+    puzzle: kind === "puzzle" ? firstLevel("blocks") : null,
     videoAt: null,
     codeLanguage: "python",
     hints: [],
@@ -388,6 +435,7 @@ function questionSettings(stored: StoredSettings): QuestionSettings {
     projectFiles: stored.projectFiles ?? NO_FILES,
     gallery: stored.gallery ?? false,
     projectLanguage: stored.projectLanguage ?? "web",
+    puzzle: stored.puzzle ?? base.puzzle,
     videoAt: stored.videoAt ?? null,
     codeLanguage: stored.codeLanguage ?? base.codeLanguage,
     hints: hintsOf(stored),
@@ -429,7 +477,9 @@ function label(editor: LexicalEditor, settings: QuestionSettings): string {
           ? text.count(settings.count, settings.countMode === "make")
           : settings.kind === "project" && settings.projectLanguage === "python"
             ? (text.pythonProject ?? text.kinds.project)
-            : text.kinds[settings.kind];
+            : settings.kind === "puzzle" && settings.puzzle?.style === "arrows"
+              ? (text.arrowsPuzzle ?? text.kinds.puzzle)
+              : text.kinds[settings.kind];
   const starts =
     text.starter &&
     ((settings.kind === "scratch" && settings.projectFileId) ||
@@ -499,6 +549,7 @@ export class QuestionNode extends ElementNode {
       projectFiles,
       gallery,
       projectLanguage,
+      puzzle,
       videoAt,
       codeLanguage,
       hints,
@@ -526,6 +577,7 @@ export class QuestionNode extends ElementNode {
       ...(settings.kind === "project" && projectLanguage === "python"
         ? { projectLanguage }
         : {}),
+      ...(settings.kind === "puzzle" && puzzle ? { puzzle } : {}),
       ...(videoAt === null ? {} : { videoAt }),
       ...(settings.kind === "parsons" || settings.kind === "program"
         ? { codeLanguage }
@@ -558,6 +610,7 @@ export class QuestionNode extends ElementNode {
       drawPicture(this, dom, editor);
     if (settings.kind === "hotspot") drawRegions(settings.regions, dom);
     if (settings.kind === "tracing") drawTrace(settings.trace, dom);
+    if (settings.kind === "puzzle") drawPuzzle(settings.puzzle, dom);
     return dom;
   }
 
@@ -582,6 +635,7 @@ export class QuestionNode extends ElementNode {
       before.regions !== settings.regions ||
       before.projectFileId !== settings.projectFileId ||
       before.projectFiles !== settings.projectFiles ||
+      before.puzzle !== settings.puzzle ||
       !samePicture(previous, this) ||
       numberAnswer(before) !== numberAnswer(settings)
     )
@@ -1378,6 +1432,16 @@ export function $createPythonQuestion(): QuestionNode {
     ...defaultSettings("project"),
     projectLanguage: "python",
     projectFiles: pythonProject(),
+  });
+  question.append(new QuestionPromptNode());
+  return question;
+}
+
+/** A puzzle answered with a row of arrows or with blocks, starting as the first of its kind. */
+export function $createPuzzleQuestion(style: PuzzleStyle): QuestionNode {
+  const question = new QuestionNode({
+    ...defaultSettings("puzzle"),
+    puzzle: firstLevel(style),
   });
   question.append(new QuestionPromptNode());
   return question;

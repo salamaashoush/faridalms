@@ -77,12 +77,14 @@ import {
   Pilcrow,
   Puzzle,
   Quote,
+  Route,
   ScissorsLineDashed,
   Shapes,
   Sparkles,
   Table,
   TextCursorInput,
   ToggleRight,
+  ToyBrick,
   Video,
 } from "lucide-react";
 
@@ -94,6 +96,7 @@ import {
   $createColumnNode,
   $createQuestionNode,
   $createTrueFalseQuestion,
+  $createPuzzleQuestion,
   $createPythonQuestion,
   $createSketchQuestion,
   $createWhyQuestion,
@@ -151,6 +154,8 @@ export type BlockType =
   | "projectQuestion"
   | "sketchQuestion"
   | "pythonQuestion"
+  | "puzzleQuestion"
+  | "arrowsQuestion"
   | "gapsQuestion"
   | "trueFalseQuestion"
   | "whyQuestion"
@@ -182,6 +187,8 @@ const QUESTION_KIND: Partial<Record<BlockType, QuestionKind>> = {
   projectQuestion: "project",
   sketchQuestion: "project",
   pythonQuestion: "project",
+  puzzleQuestion: "puzzle",
+  arrowsQuestion: "puzzle",
 };
 
 export interface BlockDefinition {
@@ -205,6 +212,8 @@ export interface BlockDefinition {
   activity?: boolean;
   /** Offered only where the coding studio is set up. */
   studio?: boolean;
+  /** Offered only where a puzzle's grid can be made. */
+  puzzle?: boolean;
 }
 
 /** Which kinds of block a document may hold. */
@@ -216,6 +225,7 @@ export interface BlockScope {
   aiUse: boolean;
   activities: boolean;
   studio: boolean;
+  puzzles: boolean;
 }
 
 export function blockScope(environment: {
@@ -226,6 +236,7 @@ export function blockScope(environment: {
   aiUse?: boolean;
   lessonActivities?: boolean;
   studio?: unknown;
+  puzzles?: unknown;
 }): BlockScope {
   const questions = Boolean(environment.questions);
   return {
@@ -236,6 +247,7 @@ export function blockScope(environment: {
     aiUse: Boolean(environment.aiUse),
     activities: Boolean(environment.lessonActivities),
     studio: Boolean(environment.studio),
+    puzzles: Boolean(environment.puzzles),
   };
 }
 
@@ -246,7 +258,8 @@ export const offered = (block: BlockDefinition, scope: BlockScope) =>
   (scope.starter || !block.starter) &&
   (scope.aiUse || !block.aiUse) &&
   (scope.activities || !block.activity) &&
-  (scope.studio || !block.studio);
+  (scope.studio || !block.studio) &&
+  (scope.puzzles || !block.puzzle);
 
 export const blockDefinitions: BlockDefinition[] = [
   {
@@ -786,6 +799,56 @@ export const blockDefinitions: BlockDefinition[] = [
     studio: true,
   },
   {
+    type: "puzzleQuestion",
+    group: "questions",
+    icon: ToyBrick,
+    label: (s) => s.questionPuzzle,
+    hint: (s) => s.questionPuzzleHint,
+    keywords: [
+      "blocks",
+      "blockly",
+      "puzzle",
+      "maze",
+      "path",
+      "loop",
+      "code",
+      "coding",
+      "program",
+      "كتل",
+      "لغز",
+      "متاهة",
+      "مسار",
+      "تكرار",
+      "برمجة",
+    ],
+    question: true,
+    puzzle: true,
+  },
+  {
+    type: "arrowsQuestion",
+    group: "questions",
+    icon: Route,
+    label: (s) => s.questionArrows,
+    hint: (s) => s.questionArrowsHint,
+    keywords: [
+      "arrows",
+      "path",
+      "robot",
+      "directions",
+      "maze",
+      "early",
+      "coding",
+      "أسهم",
+      "مسار",
+      "روبوت",
+      "اتجاهات",
+      "متاهة",
+      "برمجة",
+    ],
+    question: true,
+    puzzle: true,
+  },
+  {
     type: "whyQuestion",
     group: "questions",
     icon: MicVocal,
@@ -1002,6 +1065,8 @@ function $createStructure(type: BlockType): LexicalNode | null {
   if (type === "whyQuestion") return $createWhyQuestion();
   if (type === "sketchQuestion") return $createSketchQuestion();
   if (type === "pythonQuestion") return $createPythonQuestion();
+  if (type === "puzzleQuestion") return $createPuzzleQuestion("blocks");
+  if (type === "arrowsQuestion") return $createPuzzleQuestion("arrows");
   const kind = QUESTION_KIND[type];
   if (kind) return $createQuestionNode(kind);
   if (type === "divider") return $createHorizontalRuleNode();

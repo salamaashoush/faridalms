@@ -1,4 +1,5 @@
 import type { ProjectFile, ProjectLanguage } from "@faridalms/domain/project";
+import type { Level } from "@faridalms/puzzles/level";
 
 import { createContext, useContext } from "react";
 
@@ -94,11 +95,22 @@ export interface EditorStudio {
   ) => Promise<ProjectFile[]>;
 }
 
+/**
+ * Where a teacher makes a puzzle question's grid. `edit` opens the
+ * designer on the question's puzzle and resolves to it as the teacher
+ * saved it, or to undefined when they closed the designer without saving.
+ */
+export interface EditorPuzzles {
+  edit: (level: Level) => Promise<Level | undefined>;
+}
+
 export interface EditorEnvironment {
   strings: EditorStrings;
   media?: EditorMedia;
   /** Offers coding questions; absent where no studio is set up. */
   studio?: EditorStudio;
+  /** Offers puzzle questions; absent where there is no designer to make one in. */
+  puzzles?: EditorPuzzles;
   locale: string;
   /** The document may ask questions, as a lesson or quiz does. */
   questions?: boolean;

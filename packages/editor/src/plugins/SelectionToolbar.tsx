@@ -327,6 +327,7 @@ export function SelectionToolbarPlugin() {
     strings,
     media,
     studio,
+    puzzles,
     lockQuestions,
     narration: narrates,
     lessonActivities,
@@ -1228,6 +1229,29 @@ export function SelectionToolbarPlugin() {
                   </ToolButton>
                 ) : null}
               </>
+            ) : null
+          ) : settings.kind === "puzzle" ? (
+            puzzles && settings.puzzle ? (
+              <ToolButton
+                label={strings.questionPuzzleEdit}
+                onClick={() => {
+                  const key = question.key;
+                  const puzzle = settings.puzzle;
+                  if (!puzzle) return;
+                  // The designer covers the page, so the question is found
+                  // again by its key once the teacher has saved.
+                  void puzzles.edit(puzzle).then((next) => {
+                    if (!next) return;
+                    updateFromOutside(editor, () => {
+                      const node = $getNodeByKey(key);
+                      if ($isQuestionNode(node))
+                        node.setSettings({ puzzle: next });
+                    });
+                  });
+                }}
+              >
+                <Grid2x2 aria-hidden />
+              </ToolButton>
             ) : null
           ) : settings.kind === "project" ? (
             studio ? (

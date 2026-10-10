@@ -10,6 +10,7 @@ import {
   contentOfLesson,
   lessonOfContent,
 } from "@faridalms/domain/lesson-content";
+import { PACKS } from "@faridalms/puzzles/levels";
 import {
   $createParagraphNode,
   $createTextNode,
@@ -55,7 +56,9 @@ function withQuestion(
     | "sortingQuestion"
     | "gapsQuestion"
     | "parsonsQuestion"
-    | "programQuestion",
+    | "programQuestion"
+    | "puzzleQuestion"
+    | "arrowsQuestion",
 ) {
   const target = buildContentEditor();
   target.update(
@@ -748,6 +751,7 @@ describe("questions in a document", () => {
         project: "",
         parsons: "",
         program: "",
+        puzzle: "",
       },
       points: () => "",
       answerIs: "",
@@ -906,5 +910,39 @@ describe("questions in a document", () => {
         question?.getChildren().filter($isQuestionOptionNode),
       ).toHaveLength(2);
     });
+  });
+
+  it("starts a puzzle as the first of its kind, and keeps the one its teacher makes", () => {
+    for (const [kind, style] of [
+      ["puzzleQuestion", "blocks"],
+      ["arrowsQuestion", "arrows"],
+    ] as const) {
+      const target = withQuestion(kind);
+      const document = json(target);
+      expect(v.safeParse(contentDocumentSchema, document).success).toBe(true);
+      expect(lessonOfContent(document).blocks[0]).toMatchObject({
+        type: "puzzle",
+        level: { style },
+      });
+    }
+    const staircase = PACKS[2].levels[1];
+    const target = withQuestion("puzzleQuestion");
+    target.update(
+      () => {
+        $getRoot()
+          .getChildren()
+          .find($isQuestionNode)
+          ?.setSettings({ puzzle: staircase });
+      },
+      { discrete: true },
+    );
+    const document = json(target);
+    expect(lessonOfContent(document).blocks[0]).toMatchObject({
+      type: "puzzle",
+      level: staircase,
+    });
+    const again = buildContentEditor();
+    again.setEditorState(again.parseEditorState(JSON.stringify(document)));
+    expect(json(again)).toEqual(document);
   });
 });

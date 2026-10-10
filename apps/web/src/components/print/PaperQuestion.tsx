@@ -1,4 +1,5 @@
 import type { LessonBlock, Picture } from "@faridalms/domain/learning";
+import type { Level } from "@faridalms/puzzles/level";
 import type { ReactNode } from "react";
 
 import {
@@ -9,9 +10,15 @@ import {
 } from "@faridalms/domain/learning";
 import { StoredImage } from "@faridalms/editor/files";
 import { mediaClock } from "@faridalms/editor/format";
+import { Board } from "@faridalms/puzzles/Board";
+import { blocksOf } from "@faridalms/puzzles/level";
+import { startFrame } from "@faridalms/puzzles/playback";
+import { countBlocks } from "@faridalms/puzzles/program";
+import { ARROWS, wordsOf } from "@faridalms/puzzles/text";
 import { cn } from "@faridalms/ui/cn";
 
 import { QrCode } from "~/components/badges/QrCode";
+import { blockNames, puzzleStrings } from "~/components/puzzles/strings";
 import * as m from "~/i18n/messages";
 
 const LATIN = "abcdefghijklmnopqrstuvwxyz".split("");
@@ -150,6 +157,91 @@ function matchingLetters(
       choices.findIndex((choice) => choice.id === pairId),
       rtl,
     );
+}
+
+/**
+ * A puzzle on paper: its board, then somewhere to write the program. A row
+ * of arrows is drawn one to a box; a program of blocks is written a block
+ * to a line, from the blocks the puzzle names. A teacher's copy carries
+ * the teacher's own program.
+ */
+function PaperPuzzle({
+  level,
+  answers,
+  locale,
+}: {
+  level: Level;
+  answers: boolean;
+  locale: "ar" | "en";
+}) {
+  const strings = puzzleStrings(locale);
+  const names = blockNames(locale);
+  const at = { locale };
+  const arrows = level.solution.flatMap((step) =>
+    step.op === "go" ? [ARROWS[step.to]] : [],
+  );
+  return (
+    <div className="grid gap-[0.8em]">
+      <Board
+        level={level}
+        frame={startFrame(level)}
+        ms={0}
+        strings={strings}
+        className="mx-0 [print-color-adjust:exact]"
+      />
+      {level.gems.length > 0 ? <p>{m.printPuzzleGems({}, at)}</p> : null}
+      {level.style === "arrows" ? (
+        <>
+          <p>{m.printPuzzleArrows({}, at)}</p>
+          <div className="flex flex-wrap gap-[0.3em]">
+            {range(Math.max(8, arrows.length + 2)).map((box) => (
+              <Box key={box} answer={answers ? arrows[box] : null} />
+            ))}
+          </div>
+        </>
+      ) : (
+        <>
+          <div className="grid gap-[0.3em]">
+            <p>{m.printPuzzleBlocks({}, at)}</p>
+            <ul className="flex flex-wrap gap-[0.4em]">
+              {blocksOf(level).map((name) => (
+                <li
+                  key={name}
+                  className="rounded-[4px] border border-neutral-500 px-[0.5em] py-[0.1em]"
+                >
+                  {names[name]}
+                </li>
+              ))}
+            </ul>
+            {level.limit === null ? null : (
+              <p>
+                {m.printPuzzleLimit(
+                  { limit: new Intl.NumberFormat(locale).format(level.limit) },
+                  at,
+                )}
+              </p>
+            )}
+          </div>
+          <p>{m.printPuzzleProgram({}, at)}</p>
+          {answers ? (
+            <ol className={cn("grid gap-[0.2em]", key)}>
+              {wordsOf(level.solution, strings.blocks).map((line, index) => (
+                <li
+                  // A line is nothing but its words and its place.
+                  key={`${index}:${line.text}`}
+                  style={{ paddingInlineStart: `${line.depth * 1.5}em` }}
+                >
+                  {line.text}
+                </li>
+              ))}
+            </ol>
+          ) : (
+            <Lines count={Math.max(6, countBlocks(level.solution) + 2)} />
+          )}
+        </>
+      )}
+    </div>
+  );
 }
 
 /**
@@ -427,6 +519,11 @@ export function PaperQuestion({
             </li>
           ))}
         </ul>
+      );
+      break;
+    case "puzzle":
+      body = (
+        <PaperPuzzle level={block.level} answers={answers} locale={locale} />
       );
       break;
     case "parsons":
