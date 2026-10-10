@@ -2,12 +2,7 @@ import type { CheckView, StudentBlock } from "@faridalms/domain/learning";
 import type { ProjectFile } from "@faridalms/domain/project";
 import type { ReactNode } from "react";
 
-import {
-  emptyProject,
-  emptyPythonProject,
-  languageOf,
-  sameFiles,
-} from "@faridalms/domain/project";
+import { blankOf, languageOf, sameFiles } from "@faridalms/domain/project";
 import { Button } from "@faridalms/ui/button";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { CodeXml, Info, LoaderCircle, Send } from "lucide-react";
@@ -21,12 +16,13 @@ import { getLocale, getTextDirection } from "~/i18n/runtime";
 import { galleryQuery } from "~/queries/learning";
 import { getMessageFromError } from "~/utils/error";
 
+import { DeviceProgram } from "./DeviceProgram";
 import { OwnProjectsContext } from "./own-code";
 import { linkedPage, playedPage } from "./project-page";
 import { ProjectGallery } from "./ProjectGallery";
 import { ProjectProgram } from "./ProjectProgram";
+import { ProjectStudio } from "./ProjectStudio";
 import { WebPreview } from "./WebPreview";
-import { WebProjectStudio } from "./WebProjectStudio";
 
 type Project = Extract<StudentBlock, { type: "project" }>;
 
@@ -60,9 +56,7 @@ export function WebProjectAnswer({
     const locale = getLocale();
     return block.files.length > 0
       ? block.files
-      : block.language === "python"
-        ? emptyPythonProject()
-        : emptyProject(locale, getTextDirection(locale) === "rtl");
+      : blankOf(block.language, locale, getTextDirection(locale) === "rtl");
   }, [block.files, block.language]);
   const kept = locked ? undefined : own?.projects[block.id];
   const [files, setFiles] = useState<readonly ProjectFile[]>(
@@ -107,7 +101,9 @@ export function WebProjectAnswer({
 
   return (
     <div className="grid gap-3">
-      {languageOf(files) === "python" ? (
+      {languageOf(files) === "microbit" ? (
+        <DeviceProgram files={files} />
+      ) : languageOf(files) === "python" ? (
         <div className="overflow-hidden rounded-lg border">
           <ProjectProgram files={files} />
         </div>
@@ -174,7 +170,7 @@ export function WebProjectAnswer({
         />
       ) : null}
       {open ? (
-        <WebProjectStudio
+        <ProjectStudio
           title={block.prompt}
           files={files}
           starter={locked ? undefined : starter}

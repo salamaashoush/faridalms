@@ -17,7 +17,7 @@ import {
 } from "~/server/learning";
 import { getMessageFromError } from "~/utils/error";
 
-import { WebProjectStudio } from "./WebProjectStudio";
+import { ProjectStudio } from "./ProjectStudio";
 
 const failed = (error: unknown) => toast.error(getMessageFromError(error));
 
@@ -163,7 +163,7 @@ export function ProjectGallery({
         </p>
       )}
       {showing ? (
-        <WebProjectStudio
+        <ProjectStudio
           title={m.galleryBy({ name: maker })}
           files={showing.files}
           unkept

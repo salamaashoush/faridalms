@@ -1,7 +1,23 @@
+import {
+  blankProject,
+  deviceFileKinds,
+  isDeviceProject,
+  programOf,
+} from "@faridalms/makecode/project";
 import * as v from "valibot";
 
-/** A project's file: a page, its styles, a script, a drawing, or a Python file. */
-export const projectFileKinds = ["html", "css", "js", "svg", "py"] as const;
+/**
+ * A project's file: a page, its styles, a script, a drawing, a Python
+ * file, or one of the files a device project is made of.
+ */
+export const projectFileKinds = [
+  "html",
+  "css",
+  "js",
+  "svg",
+  "py",
+  ...deviceFileKinds,
+] as const;
 export type ProjectFileKind = (typeof projectFileKinds)[number];
 
 export const MAX_PROJECT_FILES = 12;
@@ -12,10 +28,15 @@ export const MAX_PROJECT_FILES = 12;
 export const MAX_PROJECT_BYTES = 60_000;
 
 // Plain letters, so a name reads the same typed in a link as in the list.
-const FILE_NAME = /^[A-Za-z0-9][A-Za-z0-9_-]{0,31}\.(html|css|js|svg|py)$/;
+const FILE_NAME = new RegExp(
+  `^[A-Za-z0-9][A-Za-z0-9_-]{0,31}\\.(${projectFileKinds.join("|")})$`,
+);
 
-/** What a project is made in: a web page, or a Python program. */
-export const projectLanguages = ["web", "python"] as const;
+/**
+ * What a project is made in: a web page, a Python program, or a program
+ * for the micro:bit, built in its own editor.
+ */
+export const projectLanguages = ["web", "python", "microbit"] as const;
 export type ProjectLanguage = (typeof projectLanguages)[number];
 
 export const projectFileSchema = v.object({
@@ -67,13 +88,13 @@ export const starterFilesSchema = v.pipe(
 );
 
 /**
- * What a set of files is: a web project when it has a page to open, and
- * otherwise a Python one.
+ * What a set of files is: a web project when it has a page to open, a
+ * device project when it says what device it is for, and otherwise a
+ * Python one.
  */
 export function languageOf(files: readonly ProjectFile[]): ProjectLanguage {
-  return files.some((file) => fileKind(file.name) === "html")
-    ? "web"
-    : "python";
+  if (files.some((file) => fileKind(file.name) === "html")) return "web";
+  return isDeviceProject(files) ? "microbit" : "python";
 }
 
 /** The file a Python project runs: `main.py`, or else its first Python file. */
@@ -86,7 +107,20 @@ export function mainOf(files: readonly ProjectFile[]): ProjectFile | null {
   );
 }
 
-/** A project as a student keeps or hands it in: at least a page to open or a program to run. */
+/**
+ * The file a project is read by where it has no page to draw: a Python
+ * project's main program, or a micro:bit project's program as text.
+ */
+export function programFile(files: readonly ProjectFile[]): ProjectFile | null {
+  const language = languageOf(files);
+  if (language === "python") return mainOf(files);
+  return language === "microbit" ? programOf(files) : null;
+}
+
+/**
+ * A project as a student keeps or hands it in: at least a page to open, a
+ * program to run, or what a device project is.
+ */
 export const projectFilesSchema = v.pipe(
   v.array(projectFileSchema),
   v.minLength(1),
@@ -94,6 +128,7 @@ export const projectFilesSchema = v.pipe(
   v.check((files) => distinct(files), "learning.project_file_taken"),
   v.check(
     (files) =>
+      isDeviceProject(files) ||
       files.some((file) => {
         const kind = fileKind(file.name);
         return kind === "html" || kind === "py";
@@ -226,6 +261,20 @@ export function sketchProject(): ProjectFile[] {
  */
 export function emptyPythonProject(): ProjectFile[] {
   return [{ name: "main.py", code: "" }];
+}
+
+/**
+ * The project a question of a language starts from when its teacher gave
+ * none: an empty page in the lesson's language, one Python file, or the
+ * micro:bit editor's own new project.
+ */
+export function blankOf(
+  language: ProjectLanguage,
+  locale: string,
+  rtl: boolean,
+): ProjectFile[] {
+  if (language === "python") return emptyPythonProject();
+  return language === "microbit" ? blankProject() : emptyProject(locale, rtl);
 }
 
 /**

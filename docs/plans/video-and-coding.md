@@ -207,7 +207,23 @@ off keeps the work and shows a placeholder.
    the blocks it names, and a teacher's copy carries the answer. Not done:
    turtle art, events and music packs, and functions.
 6. **MakeCode.** Arcade and micro:bit, self-hosted, in controller mode with
-   the project saved in Farida and the language set per lesson.
+   the project saved in Farida and the language set per lesson. Done for
+   the micro:bit: a project question can be a micro:bit project, on a
+   package of its own (`packages/makecode`). Students build it in the
+   board's own editor, with blocks, JavaScript or Python and the board
+   that runs them on screen, in Arabic or English after the page. The
+   files host serves the editor from two pinned npm packages, as in
+   [../operations.md](../operations.md), with nothing of it reaching
+   Microsoft. The project is the editor's few text files, so it is kept as
+   the student builds, handed in, marked, shown in the class gallery and
+   read on the live view as any project is; a teacher builds the starter
+   in the same editor, and opens a student's where nothing can be changed.
+   A project opens in the language it was last worked in, which is how a
+   teacher's starter sets it for a class. The compiled program is saved as
+   a `.hex` file to copy onto a board. Not done: locking a question to one
+   language, flashing over USB, and extensions that need Microsoft's
+   compile service. Arcade is blocked: its simulator comes from a private
+   repository and is not published for anyone else to host.
 7. **Scratch**, decided 2026-10-03: the real Scratch editor, framed. Done: a
    coding question kind (`scratch`) whose teacher builds the starter in the
    studio, whose students build on it and hand in an `.sb3` with their stage,

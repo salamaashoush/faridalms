@@ -54,6 +54,7 @@ import {
   Brackets,
   ChevronRight,
   CircleCheck,
+  CircuitBoard,
   Copy,
   Clapperboard,
   Code,
@@ -96,6 +97,7 @@ import {
   $createColumnNode,
   $createQuestionNode,
   $createTrueFalseQuestion,
+  $createMicrobitQuestion,
   $createPuzzleQuestion,
   $createPythonQuestion,
   $createSketchQuestion,
@@ -154,6 +156,7 @@ export type BlockType =
   | "projectQuestion"
   | "sketchQuestion"
   | "pythonQuestion"
+  | "microbitQuestion"
   | "puzzleQuestion"
   | "arrowsQuestion"
   | "gapsQuestion"
@@ -187,6 +190,7 @@ const QUESTION_KIND: Partial<Record<BlockType, QuestionKind>> = {
   projectQuestion: "project",
   sketchQuestion: "project",
   pythonQuestion: "project",
+  microbitQuestion: "project",
   puzzleQuestion: "puzzle",
   arrowsQuestion: "puzzle",
 };
@@ -799,6 +803,31 @@ export const blockDefinitions: BlockDefinition[] = [
     studio: true,
   },
   {
+    type: "microbitQuestion",
+    group: "questions",
+    icon: CircuitBoard,
+    label: (s) => s.questionMicrobit,
+    hint: (s) => s.questionMicrobitHint,
+    keywords: [
+      "microbit",
+      "micro:bit",
+      "makecode",
+      "board",
+      "device",
+      "robot",
+      "electronics",
+      "code",
+      "coding",
+      "مايكروبت",
+      "لوحة",
+      "جهاز",
+      "إلكترونيات",
+      "برمجة",
+    ],
+    question: true,
+    studio: true,
+  },
+  {
     type: "puzzleQuestion",
     group: "questions",
     icon: ToyBrick,
@@ -1065,6 +1094,7 @@ function $createStructure(type: BlockType): LexicalNode | null {
   if (type === "whyQuestion") return $createWhyQuestion();
   if (type === "sketchQuestion") return $createSketchQuestion();
   if (type === "pythonQuestion") return $createPythonQuestion();
+  if (type === "microbitQuestion") return $createMicrobitQuestion();
   if (type === "puzzleQuestion") return $createPuzzleQuestion("blocks");
   if (type === "arrowsQuestion") return $createPuzzleQuestion("arrows");
   const kind = QUESTION_KIND[type];

@@ -281,6 +281,8 @@ export function editorStrings(): EditorStrings {
     questionSketchHint: m.editorQuestionSketchHint(),
     questionPython: m.editorQuestionPython(),
     questionPythonHint: m.editorQuestionPythonHint(),
+    questionMicrobit: m.editorQuestionMicrobit(),
+    questionMicrobitHint: m.editorQuestionMicrobitHint(),
     questionPuzzle: m.editorQuestionPuzzle(),
     questionPuzzleHint: m.editorQuestionPuzzleHint(),
     questionArrows: m.editorQuestionArrows(),

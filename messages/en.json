@@ -5594,5 +5594,14 @@
   "puzzleDesignSolves": "Your program solves the puzzle.",
   "puzzleDesignMissing": "Build a program that solves the puzzle, then save it.",
   "puzzleDesignFails": "Your program does not solve the puzzle as it is now. Run it to see where it goes wrong.",
-  "lrnPuzzleUnsolved": "This puzzle's answer does not solve it. Change the puzzle and build an answer that does."
+  "lrnPuzzleUnsolved": "This puzzle's answer does not solve it. Change the puzzle and build an answer that does.",
+  "deviceStudioTitle": "micro:bit project",
+  "deviceStudioReadOnly": "Open to look at and run, not to change",
+  "deviceEditorTitle": "micro:bit code editor",
+  "deviceEditorLoading": "Getting the micro:bit editor ready…",
+  "deviceEditorMissing": "The micro:bit editor is not set up here. Tell your teacher.",
+  "deviceProgramEmpty": "Nothing is built yet. Open the project to start.",
+  "editorQuestionMicrobit": "micro:bit project",
+  "editorQuestionMicrobitHint": "Students program a micro:bit with blocks, JavaScript or Python and try it on a board on screen; you mark it",
+  "printDeviceOnComputer": "Build this micro:bit program on a computer or tablet."
 }

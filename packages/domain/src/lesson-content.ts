@@ -808,9 +808,7 @@ export function questionNode(block: LessonBlock): ContentNode | null {
       ...base,
       ...(block.files.length > 0 ? { projectFiles: block.files } : {}),
       ...(block.gallery ? { gallery: true } : {}),
-      ...(block.language === "python"
-        ? { projectLanguage: block.language }
-        : {}),
+      ...(block.language === "web" ? {} : { projectLanguage: block.language }),
     };
   if (block.type === "puzzle") return { ...base, puzzle: block.level };
   if (block.type === "hotspot")

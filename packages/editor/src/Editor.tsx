@@ -280,6 +280,7 @@ function Surface({
       wordTiles: strings.questionWordTiles,
       starter: strings.questionStarterSet,
       pythonProject: strings.questionPython,
+      microbitProject: strings.questionMicrobit,
       arrowsPuzzle: strings.questionArrows,
       videoAt: strings.questionVideoAt,
       codeLine: strings.questionCodeLine,

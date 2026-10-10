@@ -2,7 +2,7 @@ import type { ProjectFile, ProjectLanguage } from "@faridalms/domain/project";
 import type { EditorMedia, EditorStudio } from "@faridalms/editor";
 import type { ReactNode } from "react";
 
-import { emptyProject, emptyPythonProject } from "@faridalms/domain/project";
+import { blankOf } from "@faridalms/domain/project";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useRef, useState } from "react";
 
@@ -11,7 +11,7 @@ import { getLocale, getTextDirection } from "~/i18n/runtime";
 import { playQuery } from "~/queries/play";
 
 import { CodingStudio, PROJECT_TYPE } from "./CodingStudio";
-import { WebProjectStudio } from "./WebProjectStudio";
+import { ProjectStudio } from "./ProjectStudio";
 
 /**
  * The studios an editor opens to build a question's starter project: the
@@ -76,14 +76,16 @@ export function useEditorStudio(media: EditorMedia | undefined): {
           />
         ) : null}
         {writing ? (
-          <WebProjectStudio
+          <ProjectStudio
             title={m.studioStarterTitle()}
             files={
               writing.files.length > 0
                 ? writing.files
-                : writing.language === "python"
-                  ? emptyPythonProject()
-                  : emptyProject(locale, getTextDirection(locale) === "rtl")
+                : blankOf(
+                    writing.language,
+                    locale,
+                    getTextDirection(locale) === "rtl",
+                  )
             }
             onClose={(files) => {
               writing.resolve(files);

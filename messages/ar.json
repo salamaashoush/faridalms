@@ -5814,5 +5814,14 @@
   "puzzleDesignSolves": "برنامجك يحل اللغز.",
   "puzzleDesignMissing": "ابنِ برنامجًا يحل اللغز ثم احفظه.",
   "puzzleDesignFails": "برنامجك لا يحل اللغز كما هو الآن. شغّله لترى أين يخطئ.",
-  "lrnPuzzleUnsolved": "إجابة هذا اللغز لا تحله. غيّر اللغز وابنِ إجابة تحله."
+  "lrnPuzzleUnsolved": "إجابة هذا اللغز لا تحله. غيّر اللغز وابنِ إجابة تحله.",
+  "deviceStudioTitle": "مشروع micro:bit",
+  "deviceStudioReadOnly": "مفتوح للمشاهدة والتشغيل، لا للتغيير",
+  "deviceEditorTitle": "محرر برمجة micro:bit",
+  "deviceEditorLoading": "جارٍ تجهيز محرر micro:bit…",
+  "deviceEditorMissing": "محرر micro:bit غير مُعَدّ هنا. أخبر معلمك.",
+  "deviceProgramEmpty": "لم يُبنَ شيء بعد. افتح المشروع لتبدأ.",
+  "editorQuestionMicrobit": "مشروع micro:bit",
+  "editorQuestionMicrobitHint": "يبرمج الطلاب micro:bit بالكتل أو جافاسكربت أو بايثون ويجربونه على لوحة على الشاشة، وأنت تصححه",
+  "printDeviceOnComputer": "ابنِ برنامج micro:bit هذا على حاسوب أو جهاز لوحي."
 }

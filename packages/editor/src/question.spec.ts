@@ -58,7 +58,8 @@ function withQuestion(
     | "parsonsQuestion"
     | "programQuestion"
     | "puzzleQuestion"
-    | "arrowsQuestion",
+    | "arrowsQuestion"
+    | "microbitQuestion",
 ) {
   const target = buildContentEditor();
   target.update(
@@ -910,6 +911,19 @@ describe("questions in a document", () => {
         question?.getChildren().filter($isQuestionOptionNode),
       ).toHaveLength(2);
     });
+  });
+
+  it("starts a micro:bit project with nothing but the board it is for", () => {
+    const document = json(withQuestion("microbitQuestion"));
+    expect(v.safeParse(contentDocumentSchema, document).success).toBe(true);
+    expect(lessonOfContent(document).blocks[0]).toMatchObject({
+      type: "project",
+      language: "microbit",
+      files: [],
+    });
+    const again = buildContentEditor();
+    again.setEditorState(again.parseEditorState(JSON.stringify(document)));
+    expect(json(again)).toEqual(document);
   });
 
   it("starts a puzzle as the first of its kind, and keeps the one its teacher makes", () => {

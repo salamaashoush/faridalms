@@ -8,6 +8,7 @@ import {
   partName,
   shuffled,
 } from "@faridalms/domain/learning";
+import { programFile } from "@faridalms/domain/project";
 import { StoredImage } from "@faridalms/editor/files";
 import { mediaClock } from "@faridalms/editor/format";
 import { Board } from "@faridalms/puzzles/Board";
@@ -402,9 +403,18 @@ export function PaperQuestion({
         </div>
       );
       break;
-    case "project":
+    case "project": {
       // Paper runs no page: the files the project starts from are there to
-      // read and plan on, and the code takes the student to the studio.
+      // read and plan on, and the code takes the student to the studio. A
+      // micro:bit project prints as its program; its other files are the
+      // editor's own, and its blocks as it keeps them are no reading.
+      const program = programFile(block.files);
+      const printed =
+        block.language === "microbit"
+          ? program
+            ? [program]
+            : []
+          : block.files;
       body = (
         <div className="grid gap-3">
           <div className="flex items-center gap-[0.8em] rounded-[4px] border border-dashed border-neutral-500 px-[0.8em] py-[0.6em] text-[0.85em] text-neutral-600">
@@ -412,12 +422,14 @@ export function PaperQuestion({
               <QrCode value={online} className="size-[1.8cm] shrink-0" />
             ) : null}
             <p>
-              {(block.language === "python"
-                ? m.printProgramOnComputer
-                : m.printProjectOnComputer)({}, { locale })}
+              {(block.language === "microbit"
+                ? m.printDeviceOnComputer
+                : block.language === "python"
+                  ? m.printProgramOnComputer
+                  : m.printProjectOnComputer)({}, { locale })}
             </p>
           </div>
-          {block.files
+          {printed
             .filter((file) => file.code.trim())
             .map((file) => (
               <figure key={file.name} className="grid gap-1">
@@ -438,6 +450,7 @@ export function PaperQuestion({
         </div>
       );
       break;
+    }
     case "gaps":
       body = (
         <p className="leading-[2.4]">

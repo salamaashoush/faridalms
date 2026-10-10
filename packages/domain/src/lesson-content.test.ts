@@ -27,6 +27,7 @@ import {
   quizOfBrief,
   sameLesson,
 } from "./lesson-content";
+import { blankOf } from "./project";
 
 const lesson: LessonDocument = {
   version: 2,
@@ -1012,6 +1013,24 @@ describe("web projects", () => {
       gallery: true,
       language: "web" as const,
     });
+  });
+
+  it("keeps a micro:bit project's language, with or without files to start from", () => {
+    const [block] = project([]).blocks;
+    if (block?.type !== "project") throw new Error("project expected");
+    for (const starter of [[], blankOf("microbit", "en", false)]) {
+      const document = contentOfLesson({
+        version: 2,
+        blocks: [{ ...block, files: starter, language: "microbit" }],
+      });
+      if (!document) throw new Error("lesson could not become a document");
+      expect(v.safeParse(contentDocumentSchema, document).success).toBe(true);
+      expect(lessonOfContent(document).blocks[0]).toMatchObject({
+        type: "project",
+        language: "microbit",
+        files: starter,
+      });
+    }
   });
 
   it("starts from an empty page when the teacher gave no files", () => {

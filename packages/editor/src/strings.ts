@@ -250,6 +250,8 @@ export interface EditorStrings {
   questionSketchHint: string;
   questionPython: string;
   questionPythonHint: string;
+  questionMicrobit: string;
+  questionMicrobitHint: string;
   questionPuzzle: string;
   questionPuzzleHint: string;
   questionArrows: string;

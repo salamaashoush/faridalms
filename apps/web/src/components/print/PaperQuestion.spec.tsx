@@ -1,6 +1,7 @@
 import type { LessonBlock } from "@faridalms/domain/learning";
 
 import { studentBlocks } from "@faridalms/domain/learning";
+import { blankProject } from "@faridalms/makecode/project";
 import { PACKS } from "@faridalms/puzzles/levels";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it } from "vitest";
@@ -227,6 +228,32 @@ describe("a code exercise on paper", () => {
     const [shown] = studentBlocks({ version: 2, blocks: [exercise] }, "s");
     if (!shown) throw new Error("no block");
     expect(paper(paperBlock(shown), false)).not.toContain(">14<");
+  });
+});
+
+describe("a micro:bit project on paper", () => {
+  it("prints the program to read, and none of the editor's own files", () => {
+    const device: LessonBlock = {
+      ...base,
+      id: "q11",
+      type: "project",
+      prompt: "Show your lucky number.",
+      gallery: false,
+      language: "microbit",
+      files: blankProject().map((file) =>
+        file.name === "main.ts"
+          ? { ...file, code: "basic.showNumber(7)\n" }
+          : file,
+      ),
+    };
+    const sheet = paper(device, false);
+    expect(sheet).toContain("Build this micro:bit program");
+    expect(sheet).toContain("basic.showNumber(7)");
+    expect(sheet).toContain("main.ts");
+    expect(sheet).not.toContain("pxt.json");
+    expect(sheet).not.toContain("device_forever");
+    // With nothing written yet there is no program to print.
+    expect(paper({ ...device, files: [] }, false)).not.toContain("main.ts");
   });
 });
 

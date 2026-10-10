@@ -2,6 +2,7 @@ import * as v from "valibot";
 import { describe, expect, it } from "vitest";
 
 import {
+  blankOf,
   emptyProject,
   entryOf,
   fileKind,
@@ -124,5 +125,31 @@ describe("project files", () => {
     expect(emptyProject("en", false)[0]?.code).toContain('<html lang="en">');
     expect(sameFiles(files, emptyProject("ar", true))).toBe(true);
     expect(sameFiles(files, emptyProject("en", false))).toBe(false);
+  });
+
+  it("takes a micro:bit project by the file that says what it is", () => {
+    const device = blankOf("microbit", "en", false);
+    expect(device.map((file) => file.name)).toEqual([
+      "pxt.json",
+      "main.blocks",
+      "main.ts",
+      "README.md",
+    ]);
+    expect(languageOf(device)).toBe("microbit");
+    expect(v.safeParse(projectFilesSchema, device).success).toBe(true);
+    // Written in Python it is a micro:bit project still, not a Python one.
+    expect(languageOf([...device, { name: "main.py", code: "" }])).toBe(
+      "microbit",
+    );
+    expect(fileKind("main.blocks")).toBe("blocks");
+    expect(fileKind("_history")).toBeNull();
+  });
+
+  it("starts each language from its own blank project", () => {
+    expect(languageOf(blankOf("web", "ar", true))).toBe("web");
+    expect(blankOf("web", "ar", true)[0]?.code).toContain('dir="rtl"');
+    expect(blankOf("python", "en", false)).toEqual([
+      { name: "main.py", code: "" },
+    ]);
   });
 });

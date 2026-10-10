@@ -1,12 +1,12 @@
 import type { ProjectFile } from "@faridalms/domain/project";
 import type { RefObject } from "react";
 
-import { languageOf, mainOf } from "@faridalms/domain/project";
+import { programFile } from "@faridalms/domain/project";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { playedPage } from "~/components/coding/project-page";
+import { ProjectStudio } from "~/components/coding/ProjectStudio";
 import { WebPreview } from "~/components/coding/WebPreview";
-import { WebProjectStudio } from "~/components/coding/WebProjectStudio";
 import { RecordSection } from "~/components/system/RecordPage";
 import { StatusBadge } from "~/components/system/status";
 import * as m from "~/i18n/messages";
@@ -68,8 +68,7 @@ function ProjectCard({
   );
   const [errors, setErrors] = useState(0);
   const [open, setOpen] = useState(false);
-  const program =
-    languageOf(project.files) === "python" ? mainOf(project.files) : null;
+  const program = programFile(project.files);
   const idle = minutesBetween(project.keptAt, now);
   return (
     <li className="grid gap-2 rounded-lg border bg-card p-3">
@@ -89,7 +88,7 @@ function ProjectCard({
       >
         {program ? (
           // A program is read here, and run once opened: running a class's
-          // programs at once would load Python for each.
+          // programs at once would load Python, or the board's editor, for each.
           <pre
             dir="ltr"
             className="h-full overflow-hidden px-2.5 py-2 font-mono text-[11px] leading-4 text-neutral-800 [font-variant-ligatures:none]"
@@ -119,7 +118,7 @@ function ProjectCard({
         {idle === 0 ? m.liveProjectNow() : m.liveProjectIdle({ count: idle })}
       </p>
       {open ? (
-        <WebProjectStudio
+        <ProjectStudio
           title={name}
           files={project.files}
           unkept

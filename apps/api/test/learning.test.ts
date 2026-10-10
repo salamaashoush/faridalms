@@ -6,6 +6,7 @@ import {
   contentOfLesson,
   lessonOfContent,
 } from "@faridalms/domain/lesson-content";
+import { blankProject } from "@faridalms/makecode/project";
 import { PACKS } from "@faridalms/puzzles/levels";
 import { describe, expect, test } from "bun:test";
 import { sql } from "drizzle-orm";
@@ -2061,6 +2062,88 @@ const projectAsked = (blockId: string, gallery: boolean) => ({
 const onePage = (heading: string) => [
   { name: "index.html", code: `<h1>${heading}</h1>` },
 ];
+
+describe("micro:bit projects", () => {
+  test("a project built in the board's editor is kept and handed in as its files", async () => {
+    const { keeper } = await teachers();
+    const { rows } = await keeper.learning.modules({});
+    const source = rows.find((row) => row.title === TITLE);
+    if (!source) throw new Error("no module");
+    const saved = await keeper.learning.saveModule({
+      id: "",
+      expectedVersion: 0,
+      title: "Boards",
+      summary: "",
+      classIds: source.classes.map((item) => item.id),
+      prerequisiteId: "",
+      sequential: false,
+    });
+    const question = id();
+    const lesson = await keeper.learning.saveLesson({
+      id: "",
+      moduleId: saved.id,
+      expectedVersion: 0,
+      title: "Show a number",
+      completion: "view",
+      passScore: null,
+      content: written([
+        {
+          id: question,
+          type: "project",
+          prompt: "Show your lucky number.",
+          points: 2,
+          hints: [],
+          explanation: "",
+          tries: null,
+          files: [],
+          gallery: false,
+          language: "microbit" as const,
+        },
+      ]),
+      publish: false,
+    });
+    await keeper.learning.publishModule({
+      id: saved.id,
+      expectedVersion: saved.version,
+    });
+
+    const pupil = await student();
+    const lessonId = lesson.id;
+    const played = await pupil.learning.playLesson({ id: lessonId });
+    expect(played.blocks).toContainEqual(
+      expect.objectContaining({ id: question, language: "microbit" }),
+    );
+    const mine = blankProject().map((file) =>
+      file.name === "main.ts"
+        ? { ...file, code: "basic.showNumber(7)\n" }
+        : file,
+    );
+    await pupil.learning.keepProject({
+      lessonId,
+      blockId: question,
+      files: mine,
+    });
+    expect(
+      (await pupil.learning.playLesson({ id: lessonId })).projects,
+    ).toEqual({ [question]: { files: mine, changed: false } });
+    // What the editor keeps for itself is no file of a project.
+    expect(
+      await rejection(
+        pupil.learning.keepProject({
+          lessonId,
+          blockId: question,
+          files: [...mine, { name: "_history", code: "[]" }],
+        }),
+      ),
+    ).toMatchObject({ code: "BAD_REQUEST" });
+    const sent = await pupil.learning.respond({
+      lessonId,
+      blockId: question,
+      response: { type: "project", files: mine },
+    });
+    expect(sent.check).toMatchObject({ tries: 1, marked: false });
+  });
+});
 
 describe("the class gallery", () => {
   test("a student offers a project, classmates see it once the teacher shows it, and one builds on it", async () => {

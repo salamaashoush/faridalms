@@ -238,6 +238,44 @@ The studio's Source link names where the source of the running copy is
 published, as the licence asks of whoever runs a changed copy for other
 people: set `SOURCE_URL` on the API.
 
+## micro:bit editor
+
+A project question can be a micro:bit project, built in the board's own
+editor: Microsoft MakeCode, self-hosted. The files host serves it at
+`/makecode/`, beside the coding studio and under the same rule: another
+site from the school's, no cookies, a Content-Security-Policy that lets it
+reach nothing but the files host, and no service worker. `PLAY_URL` on the
+web turns it on with the rest of the files host.
+
+Install lays the editor out in `apps/api/vendor/makecode`
+(`apps/api/scripts/makecode.ts`), about 160 files and 35 MB, from two npm
+packages pinned by version and checksum: `pxt-core` and `pxt-microbit`.
+Both carry the editor already built, so nothing is compiled. The API image
+carries the result, and `MAKECODE_DIR` names another place for it. The
+script also fetches the editor's Arabic, once, from MakeCode's translation
+service; that is the only time anything of Microsoft's is asked for
+anything. A running editor asks nobody: live translations, extensions from
+GitHub, sharing, sign-in, the reading aid and usage reporting are all
+taken out or switched off, and the page it loads from is ours.
+
+The names and logos of Microsoft and of the Micro:bit Educational
+Foundation are taken out too, as their trademark rules ask of a copy
+neither of them runs. What is left says "micro:bit", which is what the
+board is called, and `/makecode/LICENSE.txt` carries both packages' MIT
+notices and says whose the names are. A proxy or CDN in front of the files
+host must keep the `content-security-policy` header on `/makecode/`.
+
+Farida keeps every project. The editor is told the page around it is its
+host: it asks that page for the project, tells it of every change, and
+hands over a compiled program instead of downloading it, which the page
+then saves as a `.hex` file to copy onto the board. A project is kept as
+its few text files, in `core.lesson_projects` like any other project. The
+simulator runs a student's program on the files host, as the coding studio
+runs a Scratch project. Not there: programs that need an extension written
+in C++, which only Microsoft's compile service builds; flashing a board
+over USB from the browser; and MakeCode Arcade, whose simulator is not
+published for others to host.
+
 ## Blocks puzzles
 
 Puzzle questions use the Blockly block editor, bundled with the web and

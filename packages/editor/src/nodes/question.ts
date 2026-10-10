@@ -222,6 +222,8 @@ export interface QuestionLabels {
   starter?: string;
   /** A project question made in Python rather than as a web page. */
   pythonProject?: string;
+  /** A project question made for the micro:bit, in its own editor. */
+  microbitProject?: string;
   /** A puzzle answered with a row of arrows rather than with blocks. */
   arrowsPuzzle?: string;
   /** A question asked at a time in the video above it. */
@@ -477,9 +479,13 @@ function label(editor: LexicalEditor, settings: QuestionSettings): string {
           ? text.count(settings.count, settings.countMode === "make")
           : settings.kind === "project" && settings.projectLanguage === "python"
             ? (text.pythonProject ?? text.kinds.project)
-            : settings.kind === "puzzle" && settings.puzzle?.style === "arrows"
-              ? (text.arrowsPuzzle ?? text.kinds.puzzle)
-              : text.kinds[settings.kind];
+            : settings.kind === "project" &&
+                settings.projectLanguage === "microbit"
+              ? (text.microbitProject ?? text.kinds.project)
+              : settings.kind === "puzzle" &&
+                  settings.puzzle?.style === "arrows"
+                ? (text.arrowsPuzzle ?? text.kinds.puzzle)
+                : text.kinds[settings.kind];
   const starts =
     text.starter &&
     ((settings.kind === "scratch" && settings.projectFileId) ||
@@ -574,7 +580,7 @@ export class QuestionNode extends ElementNode {
         ? { projectFiles }
         : {}),
       ...(settings.kind === "project" && gallery ? { gallery } : {}),
-      ...(settings.kind === "project" && projectLanguage === "python"
+      ...(settings.kind === "project" && projectLanguage !== "web"
         ? { projectLanguage }
         : {}),
       ...(settings.kind === "puzzle" && puzzle ? { puzzle } : {}),
@@ -1442,6 +1448,16 @@ export function $createPuzzleQuestion(style: PuzzleStyle): QuestionNode {
   const question = new QuestionNode({
     ...defaultSettings("puzzle"),
     puzzle: firstLevel(style),
+  });
+  question.append(new QuestionPromptNode());
+  return question;
+}
+
+/** A project made for the micro:bit, which starts as the board's editor gives a new one. */
+export function $createMicrobitQuestion(): QuestionNode {
+  const question = new QuestionNode({
+    ...defaultSettings("project"),
+    projectLanguage: "microbit",
   });
   question.append(new QuestionPromptNode());
   return question;

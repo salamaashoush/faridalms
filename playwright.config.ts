@@ -38,6 +38,7 @@ export default defineConfig({
     "learning.spec.ts",
     "projects.spec.ts",
     "puzzles.spec.ts",
+    "microbit.spec.ts",
     "print.spec.ts",
     "young.spec.ts",
     "badges.spec.ts",
