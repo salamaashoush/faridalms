@@ -167,7 +167,9 @@ export function RecordHeader({
                 <li
                   key={alert.label}
                   className={cn(
-                    "inline-flex h-6 items-center gap-1.5 rounded-md border border-current/25 px-2 text-xs font-medium whitespace-nowrap",
+                    // A long alert wraps inside the chip: held to one line it
+                    // made the whole page wider than a phone.
+                    "inline-flex min-h-6 max-w-full items-center gap-1.5 rounded-md border border-current/25 px-2 py-[3px] text-xs leading-4 font-medium",
                     toneSurface[alert.tone],
                   )}
                 >
