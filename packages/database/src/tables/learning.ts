@@ -540,6 +540,8 @@ export const lessonProjects = core.table.withRLS(
     files: jsonb("files").$type<{ name: string; code: string }[]>().notNull(),
     /** A digest of the teacher's starter the student's project began from. */
     basedOn: text("based_on").notNull(),
+    /** The classmate whose project in the gallery this one was begun again from. */
+    remixedFromUserId: uuid("remixed_from_user_id"),
     ...entityColumns(),
   },
   (t): PgTableExtraConfigValue[] => [
@@ -555,6 +557,11 @@ export const lessonProjects = core.table.withRLS(
       [t.tenantId, t.studentUserId],
       [users.tenantId, users.id],
     ),
+    fk(
+      "lesson_projects",
+      [t.tenantId, t.remixedFromUserId],
+      [users.tenantId, users.id],
+    ),
     ck(
       "lesson_projects",
       "files",
@@ -562,6 +569,61 @@ export const lessonProjects = core.table.withRLS(
     ),
     ck("lesson_projects", "based_on", sql`based_on ~ '^[0-9a-f]{64}$'`),
     uniqueIndex("lesson_projects_key")
+      .on(t.tenantId, t.lessonId, t.studentUserId, t.blockId)
+      .where(sql`status = 'active'`),
+    ...entityProfile(),
+  ],
+);
+
+export type LessonShareState = "offered" | "shown" | "declined";
+
+/**
+ * A project a student offered to their class's gallery for a question: the
+ * project as they had handed it in when they offered it, and whether their
+ * teacher has shown it to the class. Classmates see only what is shown. A
+ * student who takes theirs back leaves a retired row.
+ */
+export const lessonShares = core.table.withRLS(
+  "lesson_shares",
+  {
+    ...tenantColumns(),
+    lessonId: uuid("lesson_id").notNull(),
+    studentUserId: uuid("student_user_id").notNull(),
+    blockId: uuid("block_id").notNull(),
+    response: jsonb("response").$type<Record<string, unknown>>().notNull(),
+    state: text("state").$type<LessonShareState>().notNull().default("offered"),
+    decidedByUserId: uuid("decided_by_user_id"),
+    ...entityColumns(),
+  },
+  (t): PgTableExtraConfigValue[] => [
+    pk("lesson_shares", t.tenantId, t.id),
+    ...baseConstraints("lesson_shares", t, tenants),
+    fk(
+      "lesson_shares",
+      [t.tenantId, t.lessonId],
+      [lessons.tenantId, lessons.id],
+    ),
+    fk(
+      "lesson_shares",
+      [t.tenantId, t.studentUserId],
+      [users.tenantId, users.id],
+    ),
+    fk(
+      "lesson_shares",
+      [t.tenantId, t.decidedByUserId],
+      [users.tenantId, users.id],
+    ),
+    ck(
+      "lesson_shares",
+      "response",
+      sql`jsonb_typeof(response) = 'object' and octet_length(response::text) <= 65536`,
+    ),
+    ck(
+      "lesson_shares",
+      "state",
+      sql`state in ('offered', 'shown', 'declined') and (state = 'offered') = (decided_by_user_id is null)`,
+    ),
+    uniqueIndex("lesson_shares_key")
       .on(t.tenantId, t.lessonId, t.studentUserId, t.blockId)
       .where(sql`status = 'active'`),
     ...entityProfile(),

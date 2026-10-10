@@ -194,7 +194,12 @@ export function questionBlock(node: ContentNode): LessonBlock | null {
         starter: node.projectFileId ? { fileId: node.projectFileId } : null,
       };
     case "project":
-      return { ...check, type: "project", files: node.projectFiles ?? [] };
+      return {
+        ...check,
+        type: "project",
+        files: node.projectFiles ?? [],
+        gallery: node.gallery ?? false,
+      };
     case "hotspot":
       return {
         ...check,
@@ -789,9 +794,11 @@ export function questionNode(block: LessonBlock): ContentNode | null {
       ? { ...base, projectFileId: block.starter.fileId }
       : base;
   if (block.type === "project")
-    return block.files.length > 0
-      ? { ...base, projectFiles: block.files }
-      : base;
+    return {
+      ...base,
+      ...(block.files.length > 0 ? { projectFiles: block.files } : {}),
+      ...(block.gallery ? { gallery: true } : {}),
+    };
   if (block.type === "hotspot")
     return {
       ...base,

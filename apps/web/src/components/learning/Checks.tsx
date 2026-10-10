@@ -1978,21 +1978,17 @@ function ProjectCheck({
 }) {
   const mode = useContext(CheckModeContext);
   return (
-    <CheckCard
-      block={block}
-      legendId={useId()}
-      // A quiz hands every answer in together, so nothing is sent yet.
-      status={
-        mode === "quiz" ? null : <SpokenStatus block={block} view={view} />
-      }
-      actions={null}
-    >
+    <CheckCard block={block} legendId={useId()} status={null} actions={null}>
       <WebProjectAnswer
         block={block}
         view={view}
         driver={driver}
         mode={mode}
         locked={(view?.marked ?? false) || mode === "review"}
+        // A quiz hands every answer in together, so nothing is sent yet.
+        status={
+          mode === "quiz" ? null : <SpokenStatus block={block} view={view} />
+        }
       />
     </CheckCard>
   );

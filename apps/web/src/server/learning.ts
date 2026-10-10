@@ -1,6 +1,9 @@
 import {
   classSoundsSchema,
   duplicateModuleSchema,
+  decideShareSchema,
+  galleryItemSchema,
+  galleryRefSchema,
   keepCodeSchema,
   keepProjectSchema,
   markSchema,
@@ -147,6 +150,26 @@ export const keepOwnCode = createServerFn({ method: "POST" })
 export const keepOwnProject = createServerFn({ method: "POST" })
   .validator(checked(keepProjectSchema))
   .handler(({ data }) => backend().learning.keepProject(data));
+
+export const getGallery = createServerFn({ method: "GET" })
+  .validator(checked(galleryRefSchema))
+  .handler(({ data }) => record(backend().learning.gallery(data)));
+
+export const offerToGallery = createServerFn({ method: "POST" })
+  .validator(checked(galleryRefSchema))
+  .handler(({ data }) => backend().learning.offerShare(data));
+
+export const takeFromGallery = createServerFn({ method: "POST" })
+  .validator(checked(galleryRefSchema))
+  .handler(({ data }) => backend().learning.withdrawShare(data));
+
+export const remixFromGallery = createServerFn({ method: "POST" })
+  .validator(checked(galleryItemSchema))
+  .handler(({ data }) => backend().learning.remixShare(data));
+
+export const decideGalleryOffer = createServerFn({ method: "POST" })
+  .validator(checked(decideShareSchema))
+  .handler(({ data }) => backend().learning.decideShare(data));
 
 export const recordRun = createServerFn({ method: "POST" })
   .validator(checked(runSchema))

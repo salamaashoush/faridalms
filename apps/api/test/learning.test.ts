@@ -1784,6 +1784,7 @@ describe("web projects", () => {
           explanation: "",
           tries: null,
           files,
+          gallery: false,
         },
       ]);
     const lesson = await keeper.learning.saveLesson({
@@ -1912,6 +1913,214 @@ describe("web projects", () => {
         }),
       ),
     ).toMatchObject({ code: "CONFLICT", message: "learning.settled" });
+  });
+});
+
+/** A project question, with a class gallery or without. */
+const projectAsked = (blockId: string, gallery: boolean) => ({
+  id: blockId,
+  type: "project" as const,
+  prompt: "Make a page.",
+  points: 2,
+  hints: [],
+  explanation: "",
+  tries: null,
+  files: [],
+  gallery,
+});
+
+/** A project of one page. */
+const onePage = (heading: string) => [
+  { name: "index.html", code: `<h1>${heading}</h1>` },
+];
+
+describe("the class gallery", () => {
+  test("a student offers a project, classmates see it once the teacher shows it, and one builds on it", async () => {
+    const { keeper, stranger } = await teachers();
+    const { rows } = await keeper.learning.modules({});
+    const source = rows.find((row) => row.title === TITLE);
+    if (!source) throw new Error("no module");
+    const saved = await keeper.learning.saveModule({
+      id: "",
+      expectedVersion: 0,
+      title: "Pages to share",
+      summary: "",
+      classIds: source.classes.map((item) => item.id),
+      prerequisiteId: "",
+      sequential: false,
+    });
+    const shared = id();
+    const kept = id();
+    const lesson = await keeper.learning.saveLesson({
+      id: "",
+      moduleId: saved.id,
+      expectedVersion: 0,
+      title: "A page to show",
+      completion: "view",
+      passScore: null,
+      content: written([projectAsked(shared, true), projectAsked(kept, false)]),
+      publish: false,
+    });
+    await keeper.learning.publishModule({
+      id: saved.id,
+      expectedVersion: saved.version,
+    });
+    const lessonId = lesson.id;
+    const ref = { lessonId, blockId: shared };
+
+    // The seed's two students who can sign in sit in one class.
+    const first = await student();
+    const me = await first.identity.currentUser();
+    const second = await signedIn("northwind", login("student", 0, 1));
+    const mate = { api: second, id: (await second.identity.currentUser()).id };
+
+    expect(await first.learning.gallery(ref)).toEqual({
+      handedIn: false,
+      mine: null,
+      students: [],
+      projects: [],
+    });
+    // Only what a teacher has been sent can be offered to the class.
+    expect(await rejection(first.learning.offerShare(ref))).toMatchObject({
+      code: "CONFLICT",
+      message: "learning.share_unsent",
+    });
+    await first.learning.respond({
+      ...ref,
+      // Whose project it builds on is not a student's to say.
+      response: { type: "project", files: onePage("Mine"), remixOf: mate.id },
+    });
+    expect(await first.learning.offerShare(ref)).toEqual({ state: "offered" });
+    expect(await first.learning.gallery(ref)).toMatchObject({
+      handedIn: true,
+      mine: { state: "offered", latest: true },
+      projects: [],
+    });
+
+    // A classmate sees nothing before handing in, and nothing not yet shown.
+    expect((await mate.api.learning.gallery(ref)).projects).toEqual([]);
+    await mate.api.learning.respond({
+      ...ref,
+      response: { type: "project", files: onePage("Theirs") },
+    });
+    expect((await mate.api.learning.gallery(ref)).projects).toEqual([]);
+
+    const classId = source.classes[0]?.id ?? "";
+    const offered = await keeper.learning.answers({
+      moduleId: saved.id,
+      classId,
+    });
+    expect(offered.questions).toContainEqual(
+      expect.objectContaining({ blockId: shared, gallery: true }),
+    );
+    expect(offered.questions).toContainEqual(
+      expect.objectContaining({ blockId: kept, gallery: false }),
+    );
+    const decision = { ...ref, studentId: me.id, show: true };
+    expect(
+      await rejection(stranger.learning.decideShare(decision)),
+    ).toMatchObject({ code: "NOT_FOUND" });
+    // A module is not a student's to teach, so to them it is not there.
+    expect(await rejection(first.learning.decideShare(decision))).toMatchObject(
+      { code: "NOT_FOUND" },
+    );
+    expect(await keeper.learning.decideShare(decision)).toEqual({
+      state: "shown",
+    });
+    // Nothing was offered by the classmate, so there is nothing to show.
+    expect(
+      await rejection(
+        keeper.learning.decideShare({ ...decision, studentId: mate.id }),
+      ),
+    ).toMatchObject({ code: "NOT_FOUND" });
+
+    const seen = await mate.api.learning.gallery(ref);
+    expect(seen.projects).toEqual([
+      { studentId: me.id, files: onePage("Mine"), remixOf: null },
+    ]);
+    expect(seen.students.map((person) => person.id)).toEqual([me.id]);
+    expect(await first.learning.gallery(ref)).toMatchObject({
+      mine: { state: "shown", latest: true },
+      projects: [],
+    });
+    // A newer hand-in is not what the class sees until it is offered too.
+    await first.learning.respond({
+      ...ref,
+      response: { type: "project", files: onePage("Mine, improved") },
+    });
+    expect(await first.learning.gallery(ref)).toMatchObject({
+      mine: { state: "shown", latest: false },
+    });
+    expect((await mate.api.learning.gallery(ref)).projects).toEqual([
+      { studentId: me.id, files: onePage("Mine"), remixOf: null },
+    ]);
+    expect(
+      await rejection(first.learning.gallery({ lessonId, blockId: kept })),
+    ).toMatchObject({ code: "NOT_FOUND" });
+
+    // The classmate begins again from the shown project, and says so on hand-in.
+    const item = { ...ref, studentId: me.id };
+    expect(await mate.api.learning.remixShare(item)).toEqual({
+      files: onePage("Mine"),
+    });
+    expect(
+      (await mate.api.learning.playLesson({ id: lessonId })).projects[shared],
+    ).toMatchObject({ files: onePage("Mine") });
+    expect(
+      await rejection(first.learning.remixShare({ ...ref, studentId: me.id })),
+    ).toMatchObject({ code: "NOT_FOUND" });
+    await mate.api.learning.respond({
+      ...ref,
+      response: { type: "project", files: onePage("Mine, with more") },
+    });
+    const answers = async () => {
+      const found = [];
+      for (const row of source.classes) {
+        const data = await keeper.learning.answers({
+          moduleId: saved.id,
+          classId: row.id,
+        });
+        found.push(
+          ...data.answers.filter((answer) => answer.blockId === shared),
+        );
+      }
+      return found;
+    };
+    const marked = await answers();
+    expect(marked.find((answer) => answer.studentId === mate.id)).toMatchObject(
+      { remixOf: me.id, share: null },
+    );
+    expect(marked.find((answer) => answer.studentId === me.id)).toMatchObject({
+      remixOf: null,
+      share: "shown",
+    });
+
+    // Beginning again from the starter builds on nobody's project.
+    await mate.api.learning.keepProject({
+      ...ref,
+      files: onePage("All my own"),
+      fresh: true,
+    });
+    await mate.api.learning.respond({
+      ...ref,
+      response: { type: "project", files: onePage("All my own") },
+    });
+    expect(
+      (await answers()).find((answer) => answer.studentId === mate.id),
+    ).toMatchObject({ remixOf: null });
+
+    // A project offered again waits for the teacher again; taken back, it is gone.
+    await first.learning.offerShare(ref);
+    expect((await mate.api.learning.gallery(ref)).projects).toEqual([]);
+    await keeper.learning.decideShare(decision);
+    expect((await mate.api.learning.gallery(ref)).projects).toHaveLength(1);
+    await keeper.learning.decideShare({ ...decision, show: false });
+    expect((await mate.api.learning.gallery(ref)).projects).toEqual([]);
+    expect(await first.learning.gallery(ref)).toMatchObject({
+      mine: { state: "declined" },
+    });
+    expect(await first.learning.withdrawShare(ref)).toEqual({ state: null });
+    expect(await first.learning.gallery(ref)).toMatchObject({ mine: null });
   });
 });
 

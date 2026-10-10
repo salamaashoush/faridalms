@@ -49,6 +49,7 @@ import {
   FastForward,
   ImageOff,
   ImagePlus,
+  Images,
   Italic,
   Lightbulb,
   Link,
@@ -1027,7 +1028,8 @@ export function SelectionToolbarPlugin() {
         | "caseSensitive"
         | "closeEnough"
         | "tehMarbuta"
-        | "memory",
+        | "memory"
+        | "gallery",
       label: string,
       icon: React.ReactNode,
     ) => (
@@ -1370,6 +1372,9 @@ export function SelectionToolbarPlugin() {
           ) : null}
           {settings.kind === "matching" && lessonActivities
             ? toggle("memory", strings.questionMemory, <Grid2x2 aria-hidden />)
+            : null}
+          {settings.kind === "project" && lessonActivities
+            ? toggle("gallery", strings.questionGallery, <Images aria-hidden />)
             : null}
           {settings.kind === "hotspot" && question.part?.picture && media ? (
             <ToolButton

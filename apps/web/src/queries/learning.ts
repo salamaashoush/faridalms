@@ -3,6 +3,7 @@ import { queryOptions } from "@tanstack/react-query";
 import {
   getClassQuestions,
   getClassVideos,
+  getGallery,
   getProgramRuns,
   getLearningOptions,
   getLessonEditor,
@@ -137,4 +138,10 @@ export const practiceSetQuery = (moduleId: string, round: number) =>
     queryFn: () => getPracticeSet({ data: { moduleId, round } }),
     // A review stays the same while it is worked through.
     staleTime: Number.POSITIVE_INFINITY,
+  });
+
+export const galleryQuery = (lessonId: string, blockId: string) =>
+  queryOptions({
+    queryKey: ["learning", "gallery", lessonId, blockId],
+    queryFn: () => getGallery({ data: { lessonId, blockId } }),
   });

@@ -276,6 +276,8 @@ export interface QuestionSettings {
   projectFileId: string | null;
   /** A project question's starter files; none starts from an empty page. */
   projectFiles: ProjectFile[];
+  /** A project question whose students may show their work to the class. */
+  gallery: boolean;
   /** Asked when the video above reaches this second; none asks it in the reading. */
   videoAt: number | null;
   /** A code puzzle's language; only Python marks how far a line is indented. */
@@ -322,6 +324,7 @@ export function defaultSettings(kind: QuestionKind): QuestionSettings {
     memory: false,
     projectFileId: null,
     projectFiles: [],
+    gallery: false,
     videoAt: null,
     codeLanguage: "python",
     hints: [],
@@ -377,6 +380,7 @@ function questionSettings(stored: StoredSettings): QuestionSettings {
     memory: stored.memory ?? false,
     projectFileId: stored.projectFileId ?? null,
     projectFiles: stored.projectFiles ?? NO_FILES,
+    gallery: stored.gallery ?? false,
     videoAt: stored.videoAt ?? null,
     codeLanguage: stored.codeLanguage ?? base.codeLanguage,
     hints: hintsOf(stored),
@@ -484,6 +488,7 @@ export class QuestionNode extends ElementNode {
       memory,
       projectFileId,
       projectFiles,
+      gallery,
       videoAt,
       codeLanguage,
       hints,
@@ -507,6 +512,7 @@ export class QuestionNode extends ElementNode {
       ...(settings.kind === "project" && projectFiles.length > 0
         ? { projectFiles }
         : {}),
+      ...(settings.kind === "project" && gallery ? { gallery } : {}),
       ...(videoAt === null ? {} : { videoAt }),
       ...(settings.kind === "parsons" || settings.kind === "program"
         ? { codeLanguage }

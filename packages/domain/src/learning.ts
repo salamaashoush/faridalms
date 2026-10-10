@@ -510,6 +510,11 @@ export const lessonBlockSchema = v.variant("type", [
     type: v.literal("project"),
     /** The files every student starts from; none starts from an empty page. */
     files: starterFilesSchema,
+    /**
+     * Students may offer their handed-in project to the class gallery, where
+     * classmates see it once their teacher shows it, and may build on it.
+     */
+    gallery: v.optional(v.boolean(), false),
   }),
   v.object({
     ...checkFields,
@@ -1023,6 +1028,12 @@ export const responseSchema = v.variant("type", [
     type: v.literal("project"),
     /** The student's files as they handed them in. */
     files: projectFilesSchema,
+    /**
+     * The classmate whose project in the gallery this one began from, which
+     * the server adds as it takes the answer: whatever a student sends here
+     * is replaced.
+     */
+    remixOf: v.optional(id),
   }),
   v.object({
     type: v.literal("program"),
@@ -1068,6 +1079,16 @@ function seenOutput(output: string): string {
     .map((line) => line.trimEnd());
   while (kept.at(-1) === "") kept.pop();
   return kept.join("\n");
+}
+
+/**
+ * An answer as a student may send it: nothing in it says whose project it
+ * was built on, which only the server knows.
+ */
+export function ownResponse(response: LessonResponse): LessonResponse {
+  if (response.type !== "project") return response;
+  const { remixOf: _claimed, ...own } = response;
+  return own;
 }
 
 /** The files an answer is made of; each must be the student's own upload. */
@@ -1890,6 +1911,27 @@ export const keepProjectSchema = v.object({
   lessonId: id,
   blockId: id,
   files: projectFilesSchema,
+  /** The student began again from the starter, so it builds on nobody's project. */
+  fresh: v.optional(v.boolean()),
+});
+
+/** How a project offered to the class gallery stands. */
+export const SHARE_STATES = ["offered", "shown", "declined"] as const;
+export type ShareState = (typeof SHARE_STATES)[number];
+
+/** A project question of a lesson, as its gallery is asked for or offered to. */
+export const galleryRefSchema = v.object({ lessonId: id, blockId: id });
+/** A classmate's project in a question's gallery. */
+export const galleryItemSchema = v.object({
+  lessonId: id,
+  blockId: id,
+  studentId: id,
+});
+export const decideShareSchema = v.object({
+  lessonId: id,
+  blockId: id,
+  studentId: id,
+  show: v.boolean(),
 });
 
 /** How a run of a program ended: as it should, raising an error, or stopped. */

@@ -1152,7 +1152,8 @@ async function seedSchool(
             })
             .onConflictDoNothing();
       }
-      if (grade === "grade_8" && index === 0) {
+      // Two classmates can sign in, so what one student shows another can be tried.
+      if (grade === "grade_8" && index < 2) {
         const studentLogin = `student${reference}@${context.domain}`;
         await giveAccount(
           tx,

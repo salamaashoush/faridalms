@@ -148,6 +148,7 @@ import {
   isTeacherMarked,
   markResponse,
   quizViews,
+  ownResponse,
   responseFiles,
   responseIssue,
   responseSchema,
@@ -2430,7 +2431,7 @@ async function keepQuizAnswer(
     studentId: context.actor.userId,
     attempt: row.attempts + 1,
     blockId: block.id,
-    response: input.response,
+    response: input.response ? ownResponse(input.response) : null,
   });
   return { saved: true };
 }

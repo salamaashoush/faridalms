@@ -201,3 +201,129 @@ test("a teacher sets a web project, a student builds it from several files and h
   await page.getByRole("button", { name: "Save mark" }).click();
   await expect(page.getByText("Marked: 2 of 2 points")).toBeVisible();
 });
+
+test("a student shows a project to the class once the teacher agrees, and a classmate builds on it", async ({
+  browser,
+  page,
+}) => {
+  const title = `Shared pages ${crypto.randomUUID().slice(0, 6)}`;
+  await signInWith(page, TEACHER, PASSWORD, "/teach");
+  await page.goto("/teach/module-editor");
+  await untilHydrated(page);
+  await page.getByRole("textbox", { name: "Module title" }).fill(title);
+  await page.getByRole("combobox", { name: "Classes" }).click();
+  await page.getByRole("option", { name: "8A Arabic", exact: true }).click();
+  await page.keyboard.press("Escape");
+  await page.getByRole("button", { name: "Save", exact: true }).click();
+  await expect(page).toHaveURL(/\/modules\/[a-f0-9-]+/);
+  const recordUrl = page.url().split("?")[0] ?? "";
+  await page.getByRole("link", { name: "Add lesson" }).click();
+  await expect(page).toHaveURL(/\/teach\/lesson-editor/);
+  await untilHydrated(page);
+  await page.getByRole("textbox", { name: "Lesson title" }).fill("Our pages");
+  await page.locator("#lesson-body").click();
+  await page.keyboard.type("/web project");
+  await page.getByRole("option", { name: /Web project/ }).click();
+  await page.keyboard.type("Build a page to show the class.");
+  const galleryOn = page.getByRole("button", { name: /^Class gallery/ });
+  await galleryOn.click();
+  await expect(galleryOn).toHaveAttribute("aria-pressed", "true");
+  await expect(page.getByText("Saved", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Back" }).click();
+  await expect(page).toHaveURL(recordUrl);
+  await page.getByRole("button", { name: "More actions" }).click();
+  await page.getByRole("menuitem", { name: "Open to students" }).click();
+  await expect(page.getByText("Module open to students")).toBeVisible();
+
+  /** Signs a student in, opens the lesson, builds a page and hands it in. */
+  const build = async (email: string, heading: string) => {
+    const context = await browser.newContext();
+    const student = await context.newPage();
+    await signInWith(student, email, PASSWORD, ACCOUNTS.student.home);
+    await student.goto("/me/modules");
+    await untilHydrated(student);
+    await student.getByRole("link", { name: title }).click();
+    await student.getByRole("button", { name: "Start", exact: true }).click();
+    await expect(
+      student.getByRole("heading", { level: 1, name: "Our pages" }),
+    ).toBeVisible();
+    // The gallery opens only to those who have handed in a project.
+    await expect(
+      student.getByText(
+        "Hand in your project to see what your classmates made.",
+      ),
+    ).toBeVisible();
+    await student.getByRole("button", { name: "Open the project" }).click();
+    const studio = student.getByRole("dialog", { name: "Web project" });
+    await write(student, studio, page1(heading));
+    await expect(studio.getByText("Saved", { exact: true })).toBeVisible();
+    await studio.getByRole("button", { name: "Done", exact: true }).click();
+    await student
+      .getByRole("button", { name: "Hand in to your teacher" })
+      .click();
+    await expect(
+      student.getByText("Sent. Your teacher will mark it."),
+    ).toBeVisible();
+    return { context, student };
+  };
+
+  const first = await build(ACCOUNTS.student.email, "The red panda");
+  await first.student
+    .getByRole("button", { name: "Show mine to the class" })
+    .click();
+  await expect(
+    first.student.getByText(
+      "Your project is waiting for your teacher to show it.",
+    ),
+  ).toBeVisible();
+
+  // A classmate sees nothing the teacher has not shown.
+  const second = await build("student1008@northwind.example.com", "The otter");
+  await expect(
+    second.student.getByText("No classmate's project is in the gallery yet."),
+  ).toBeVisible();
+
+  await page.goto(`${recordUrl}?tab=answers`);
+  await untilHydrated(page);
+  await expect(page.getByText("Offered to the class gallery")).toBeVisible();
+  await page.getByRole("button", { name: "Show to the class" }).click();
+  await expect(page.getByText("In the class gallery")).toBeVisible();
+
+  await first.student.reload();
+  await untilHydrated(first.student);
+  await expect(
+    first.student.getByText("Your project is in the class gallery."),
+  ).toBeVisible();
+  await first.context.close();
+
+  await second.student.reload();
+  await untilHydrated(second.student);
+  await second.student
+    .getByRole("button", { name: "Yasmin Sabry's project" })
+    .click();
+  const shown = second.student.getByRole("dialog", { name: "Web project" });
+  await expect(
+    played(shown).getByRole("heading", { name: "The red panda" }),
+  ).toBeVisible();
+  await shown.getByRole("button", { name: "Build on this project" }).click();
+  await second.student
+    .getByRole("dialog", { name: "Build on Yasmin Sabry's project?" })
+    .getByRole("button", { name: "Build on this project" })
+    .click();
+  await expect(
+    second.student.getByText("You are now building on Yasmin Sabry's project."),
+  ).toBeVisible();
+  // The classmate's own project is now the one they built on.
+  await expect(
+    played(second.student).getByRole("heading", { name: "The red panda" }),
+  ).toBeVisible();
+  await second.student.getByRole("button", { name: "Hand in again" }).click();
+  await expect(
+    second.student.getByRole("button", { name: "Hand in again" }),
+  ).toBeDisabled();
+  await second.context.close();
+
+  await page.reload();
+  await untilHydrated(page);
+  await expect(page.getByText("Built on Yasmin Sabry's project")).toBeVisible();
+});

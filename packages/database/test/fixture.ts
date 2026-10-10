@@ -61,6 +61,7 @@ import {
   legalHolds,
   lessonCode,
   lessonProjects,
+  lessonShares,
   lessonResponses,
   lessonRuns,
   lessonWatches,
@@ -479,6 +480,16 @@ export async function completeFixture(
     blockId: crypto.randomUUID(),
     files: [{ name: "index.html", code: "<p>mine</p>" }],
     basedOn: "0".repeat(64),
+  });
+  await tx.insert(lessonShares).values({
+    tenantId,
+    lessonId: lesson.id,
+    studentUserId: userId,
+    blockId: crypto.randomUUID(),
+    response: {
+      type: "project",
+      files: [{ name: "index.html", code: "<p>mine</p>" }],
+    },
   });
   await tx.insert(lessonRuns).values({
     tenantId,

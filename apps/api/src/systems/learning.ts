@@ -54,8 +54,12 @@ import {
   updateModule,
   answersToMark,
   codesOf,
+  decideShare as decideOffered,
   keepProject as keepOwnProject,
+  offerShare as offerProject,
   projectsOf,
+  sharesOf,
+  withdrawShare as withdrawProject,
   watchesOf,
   watchRowsIn,
 } from "@faridalms/database/stores/learning";
@@ -88,13 +92,18 @@ import {
   publishModuleSchema,
   classSoundsSchema,
   keepCodeSchema,
+  decideShareSchema,
+  galleryItemSchema,
+  galleryRefSchema,
   keepProjectSchema,
   respondProgramSchema,
   respondSchema,
   setClassSoundsSchema,
   reviewBlocks,
   responseFiles,
+  ownResponse,
   responseIssue,
+  responseSchema,
   revealSchema,
   runnableCode,
   runSchema,
@@ -1622,8 +1631,210 @@ export const keepProject = writeProcedure
       blockId: input.blockId,
       files: input.files,
       basedOn: digest(JSON.stringify(starter)),
+      ...(input.fresh ? { remixedFrom: null } : {}),
     });
     return { kept: true };
+  });
+
+/**
+ * A project as it is taken for an answer: saying whose project in the
+ * gallery it began from, as the student's kept copy knows, and nothing a
+ * student sent to say so.
+ */
+async function credited(
+  context: UnitContext,
+  played: { row: { id: string }; studentId: string },
+  blockId: string,
+  response: LessonResponse,
+): Promise<LessonResponse> {
+  const own = ownResponse(response);
+  if (own.type !== "project") return own;
+  const kept = await projectsOf(context.tx, {
+    tenantId: context.tenantId,
+    lessonId: played.row.id,
+    studentId: played.studentId,
+  });
+  const from = kept.find((item) => item.blockId === blockId)?.remixedFrom;
+  return from ? { ...own, remixOf: from } : own;
+}
+
+/** A lesson's project question whose students may show their work to the class. */
+function galleryBlock(played: Played, blockId: string) {
+  const block = played.content.blocks.find((item) => item.id === blockId);
+  if (block?.type !== "project" || !block.gallery)
+    throw new ORPCError("NOT_FOUND");
+  return block;
+}
+
+/**
+ * The students who share a class of a lesson's module with this one: those
+ * whose projects they may see, and who may see theirs.
+ */
+async function classmatesOf(context: UnitContext, played: Played) {
+  const classes = await classesOfModule(
+    context.tx,
+    context.tenantId,
+    played.owner.id,
+  );
+  const rosters = await Promise.all(
+    classes.map((item) =>
+      rosterOf(context.tx, context.tenantId, item.id, context.today),
+    ),
+  );
+  return [
+    ...new Set(
+      rosters.filter((roster) => roster.includes(played.studentId)).flat(),
+    ),
+  ];
+}
+
+/**
+ * A project question's class gallery for a student: how their own offer
+ * stands, and, once they have handed in a project of their own, the
+ * projects of classmates their teacher has shown. Who built on whose is
+ * said by name.
+ */
+export const gallery = readProcedure
+  .input(galleryRefSchema)
+  .handler(async ({ input, context }) => {
+    const played = await playable(context, input.lessonId);
+    galleryBlock(played, input.blockId);
+    const handedIn = (played.checks[input.blockId]?.tries ?? 0) > 0;
+    const classmates = await classmatesOf(context, played);
+    const shares = await sharesOf(context.tx, {
+      tenantId: context.tenantId,
+      lessonIds: [played.row.id],
+      studentIds: classmates,
+      blockId: input.blockId,
+    });
+    const own = shares.find((share) => share.studentId === played.studentId);
+    const shown = handedIn
+      ? shares.filter(
+          (share) =>
+            share.state === "shown" && share.studentId !== played.studentId,
+        )
+      : [];
+    const parsed = shown.flatMap((share) => {
+      const response = v.safeParse(responseSchema, share.response);
+      return response.success && response.output.type === "project"
+        ? [{ studentId: share.studentId, project: response.output }]
+        : [];
+    });
+    const people = await namesOf(context.tx, context.tenantId, [
+      ...new Set(
+        parsed.flatMap((item) => [
+          item.studentId,
+          ...(item.project.remixOf ? [item.project.remixOf] : []),
+        ]),
+      ),
+    ]);
+    const sent = played.rows.findLast(
+      (row) =>
+        row.blockId === input.blockId &&
+        (row.state === "answered" || row.state === "needs_marking"),
+    );
+    return {
+      handedIn,
+      // An offer made before the last hand-in can be made again with it.
+      mine: own
+        ? {
+            state: own.state,
+            latest:
+              JSON.stringify(own.response) === JSON.stringify(sent?.response),
+          }
+        : null,
+      students: people,
+      projects: parsed.map((item) => ({
+        studentId: item.studentId,
+        files: item.project.files,
+        remixOf: item.project.remixOf ?? null,
+      })),
+    };
+  });
+
+/**
+ * A student offers the project they last handed in to the class gallery.
+ * Classmates see it once their teacher shows it; offering again after a
+ * change waits for the teacher again.
+ */
+export const offerShare = writeProcedure
+  .input(galleryRefSchema)
+  .handler(async ({ input, context }) => {
+    const played = await playable(context, input.lessonId);
+    galleryBlock(played, input.blockId);
+    const sent = played.rows.findLast(
+      (row) =>
+        row.blockId === input.blockId &&
+        (row.state === "answered" || row.state === "needs_marking"),
+    );
+    if (!sent)
+      throw new ORPCError("CONFLICT", { message: "learning.share_unsent" });
+    await offerProject(context.tx, {
+      tenantId: context.tenantId,
+      lessonId: played.row.id,
+      blockId: input.blockId,
+      studentId: played.studentId,
+      response: sent.response,
+    });
+    return { state: "offered" as const };
+  });
+
+/** A student takes their project back out of the class gallery. */
+export const withdrawShare = writeProcedure
+  .input(galleryRefSchema)
+  .handler(async ({ input, context }) => {
+    const played = await playable(context, input.lessonId);
+    galleryBlock(played, input.blockId);
+    await withdrawProject(context.tx, {
+      tenantId: context.tenantId,
+      lessonId: played.row.id,
+      blockId: input.blockId,
+      studentId: played.studentId,
+    });
+    return { state: null };
+  });
+
+/**
+ * A student begins their project again from a classmate's in the gallery.
+ * Their own kept project is replaced, what they handed in stays with their
+ * teacher, and the next hand-in says whose project it began from.
+ */
+export const remixShare = writeProcedure
+  .input(galleryItemSchema)
+  .handler(async ({ input, context }) => {
+    const played = await playable(context, input.lessonId);
+    const block = galleryBlock(played, input.blockId);
+    const state = played.checks[block.id];
+    if (state?.marked)
+      throw new ORPCError("CONFLICT", { message: "learning.settled" });
+    if ((state?.tries ?? 0) === 0 || input.studentId === played.studentId)
+      throw new ORPCError("NOT_FOUND");
+    const classmates = await classmatesOf(context, played);
+    const [share] = classmates.includes(input.studentId)
+      ? await sharesOf(context.tx, {
+          tenantId: context.tenantId,
+          lessonIds: [played.row.id],
+          studentIds: [input.studentId],
+          blockId: block.id,
+        })
+      : [];
+    const response = share ? v.safeParse(responseSchema, share.response) : null;
+    if (
+      share?.state !== "shown" ||
+      !response?.success ||
+      response.output.type !== "project"
+    )
+      throw new ORPCError("NOT_FOUND");
+    await keepOwnProject(context.tx, {
+      tenantId: context.tenantId,
+      lessonId: played.row.id,
+      studentId: played.studentId,
+      blockId: block.id,
+      files: response.output.files,
+      basedOn: digest(JSON.stringify(block.files)),
+      remixedFrom: input.studentId,
+    });
+    return { files: response.output.files };
   });
 
 /** Whether a class's lessons tick and chime, for a teacher of the class. */
@@ -1683,9 +1894,9 @@ async function recordResponse(
     (item) => item.id === input.blockId,
   );
   if (!block) throw new ORPCError("NOT_FOUND");
-  const { response } = input;
-  const issue = responseIssue(block, response);
+  const issue = responseIssue(block, input.response);
   if (issue) throw new ORPCError("BAD_REQUEST", { message: issue });
+  const response = await credited(context, played, block.id, input.response);
   const state = played.checks[block.id];
   if (isTeacherMarked(block) ? state?.marked : settled(block, state))
     throw new ORPCError("CONFLICT", { message: "learning.settled" });
@@ -2035,6 +2246,8 @@ export const answers = readProcedure
       kind: "written" | "scratch" | "project";
       prompt: string;
       points: number;
+      /** Students may offer their answer to the class gallery. */
+      gallery: boolean;
     }[] = [];
     for (const item of lessons) {
       const published = await publishedLesson(context, item.id);
@@ -2049,22 +2262,73 @@ export const answers = readProcedure
             kind: block.type,
             prompt: block.prompt,
             points: block.points,
+            gallery: block.type === "project" && block.gallery,
           });
     }
-    const [students, written] = await Promise.all([
+    const scope = {
+      tenantId: context.tenantId,
+      lessonIds: lessons.map((item) => item.id),
+      studentIds: roster,
+    };
+    const [students, written, shares] = await Promise.all([
       namesOf(context.tx, context.tenantId, roster),
-      answersToMark(context.tx, {
-        tenantId: context.tenantId,
-        lessonIds: lessons.map((item) => item.id),
-        studentIds: roster,
-      }),
+      answersToMark(context.tx, scope),
+      sharesOf(context.tx, scope),
     ]);
     const asked = new Set(questions.map((question) => question.blockId));
+    const offered = new Map(
+      shares.map((share) => [
+        `${share.lessonId}:${share.blockId}:${share.studentId}`,
+        share.state,
+      ]),
+    );
     return {
       students,
       questions,
-      answers: written.filter((answer) => asked.has(answer.blockId)),
+      answers: written
+        .filter((answer) => asked.has(answer.blockId))
+        .map((answer) => ({
+          ...answer,
+          /** How the student's offer to the class gallery stands, if they made one. */
+          share:
+            offered.get(
+              `${answer.lessonId}:${answer.blockId}:${answer.studentId}`,
+            ) ?? null,
+        })),
     };
+  });
+
+/**
+ * A teacher shows a project a student offered to the class gallery, or
+ * keeps it out; taking one down later is the same decision made again.
+ */
+export const decideShare = writeProcedure
+  .input(decideShareSchema)
+  .handler(async ({ input, context }) => {
+    const row = await lessonById(context.tx, context.tenantId, input.lessonId);
+    if (!row) throw new ORPCError("NOT_FOUND");
+    await editable(context, row.moduleId);
+    const state = input.show ? "shown" : "declined";
+    const decided = await decideOffered(context.tx, {
+      tenantId: context.tenantId,
+      lessonId: row.id,
+      blockId: input.blockId,
+      studentId: input.studentId,
+      state,
+      userId: context.actor.userId,
+    });
+    if (!decided) throw new ORPCError("NOT_FOUND");
+    await audit(context, {
+      action: "lesson.share_decided",
+      objectType: "lesson",
+      objectId: row.id,
+      details: {
+        blockId: input.blockId,
+        studentId: input.studentId,
+        state,
+      },
+    });
+    return { state };
   });
 
 /**

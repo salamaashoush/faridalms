@@ -639,9 +639,10 @@ export function LessonPlayer({ lessonId }: { lessonId: string }) {
   );
   const ownProjects = useMemo(
     (): OwnProjects => ({
+      lessonId,
       projects: data.projects,
-      keep: async (blockId, files) => {
-        await keepOwnProject({ data: { lessonId, blockId, files } });
+      keep: async (blockId, files, fresh) => {
+        await keepOwnProject({ data: { lessonId, blockId, files, fresh } });
         // The card may be drawn afresh before the lesson is read again.
         queryClient.setQueryData(query.queryKey, (old) =>
           old

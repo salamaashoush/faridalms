@@ -983,6 +983,7 @@ describe("web projects", () => {
         explanation: "",
         tries: null,
         files: starter,
+        gallery: false,
       },
     ],
   });
@@ -994,6 +995,20 @@ describe("web projects", () => {
     expect(checks(lessonOfContent(document).blocks)).toEqual(
       checks(project(files).blocks),
     );
+  });
+
+  it("keeps whether students may show their projects to the class", () => {
+    const [block] = project(files).blocks;
+    if (block?.type !== "project") throw new Error("project expected");
+    const document = contentOfLesson({
+      version: 2,
+      blocks: [{ ...block, gallery: true }],
+    });
+    if (!document) throw new Error("lesson could not become a document");
+    expect(v.safeParse(contentDocumentSchema, document).success).toBe(true);
+    expect(lessonOfContent(document).blocks[0]).toMatchObject({
+      gallery: true,
+    });
   });
 
   it("starts from an empty page when the teacher gave no files", () => {

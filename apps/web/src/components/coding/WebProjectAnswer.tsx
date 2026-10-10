@@ -1,9 +1,10 @@
 import type { CheckView, StudentBlock } from "@faridalms/domain/learning";
 import type { ProjectFile } from "@faridalms/domain/project";
+import type { ReactNode } from "react";
 
 import { emptyProject, sameFiles } from "@faridalms/domain/project";
 import { Button } from "@faridalms/ui/button";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { CodeXml, Info, LoaderCircle, Send } from "lucide-react";
 import { useContext, useMemo, useState } from "react";
 import { toast } from "sonner";
@@ -12,10 +13,12 @@ import type { CheckDriver, CheckMode } from "~/components/learning/Checks";
 
 import * as m from "~/i18n/messages";
 import { getLocale, getTextDirection } from "~/i18n/runtime";
+import { galleryQuery } from "~/queries/learning";
 import { getMessageFromError } from "~/utils/error";
 
 import { OwnProjectsContext } from "./own-code";
 import { linkedPage, playedPage } from "./project-page";
+import { ProjectGallery } from "./ProjectGallery";
 import { WebPreview } from "./WebPreview";
 import { WebProjectStudio } from "./WebProjectStudio";
 
@@ -34,14 +37,18 @@ export function WebProjectAnswer({
   driver,
   mode,
   locked,
+  status,
 }: {
   block: Project;
   view: CheckView | undefined;
   driver: CheckDriver;
   mode: CheckMode;
   locked: boolean;
+  /** Where the answer stands with the teacher, said under its own buttons. */
+  status: ReactNode;
 }) {
   const own = useContext(OwnProjectsContext);
+  const queryClient = useQueryClient();
   const sent = view?.response?.type === "project" ? view.response.files : null;
   const starter = useMemo(() => {
     const locale = getLocale();
@@ -56,9 +63,21 @@ export function WebProjectAnswer({
   const [page, setPage] = useState<string | null>(null);
   const [open, setOpen] = useState(false);
   const drawn = useMemo(() => playedPage(files, page), [files, page]);
+  // The gallery is a lesson's: a quiz's answers are nobody's to see.
+  const gallery =
+    block.gallery && mode !== "quiz" && own
+      ? { lessonId: own.lessonId, blockId: block.id }
+      : null;
   const handIn = useMutation({
     mutationFn: () =>
       driver.respond(block.id, { type: "project", files: [...files] }),
+    // Handing in opens the gallery, and makes a newer project to offer it.
+    onSuccess: () =>
+      gallery
+        ? queryClient.invalidateQueries({
+            queryKey: galleryQuery(gallery.lessonId, gallery.blockId).queryKey,
+          })
+        : undefined,
     onError: (error) => toast.error(getMessageFromError(error)),
   });
 
@@ -68,7 +87,8 @@ export function WebProjectAnswer({
       ? (next: ProjectFile[]) =>
           driver.respond(block.id, { type: "project", files: next })
       : own
-        ? (next: ProjectFile[]) => own.keep(block.id, next)
+        ? (next: ProjectFile[], fresh: boolean) =>
+            own.keep(block.id, next, fresh)
         : undefined;
   const changed = sent !== null && !sameFiles(sent, files);
   // One button leads: building until there is something to hand in, then
@@ -127,6 +147,18 @@ export function WebProjectAnswer({
           </Button>
         ) : null}
       </div>
+      <output className="grid gap-2 empty:hidden">{status}</output>
+      {gallery ? (
+        <ProjectGallery
+          lessonId={gallery.lessonId}
+          blockId={gallery.blockId}
+          settled={view?.marked ?? false}
+          onRemixed={(next) => {
+            setPage(null);
+            setFiles(next);
+          }}
+        />
+      ) : null}
       {open ? (
         <WebProjectStudio
           title={block.prompt}

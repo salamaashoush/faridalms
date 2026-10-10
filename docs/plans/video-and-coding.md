@@ -157,9 +157,16 @@ off keeps the work and shows a placeholder.
    project's other pages and names the file and line of an error. The
    project is kept as they type (`core.lesson_projects`) and reaches the
    teacher when handed in, or with the rest of a quiz; the teacher runs,
-   reads and marks it, and on paper the starting files print to read. The
-   gallery with remix and the live view remain, and Python projects and
-   p5.js after them.
+   reads and marks it, and on paper the starting files print to read.
+   Done after it: a teacher can give a project question a class gallery.
+   A student offers the project they handed in; classmates see it, by
+   name, once the teacher shows it and once they have handed in their own,
+   and may begin theirs again from it, which their next hand-in says to
+   the teacher. The rules follow what schools already use: sharing is off
+   until a teacher turns it on (Code.org), a teacher sees each piece
+   before the class does (Seesaw), and building on another's work names
+   it (Scratch). The live view remains, and Python projects and p5.js
+   after it; Scratch projects are not in the gallery yet.
 5. **Blocks puzzles.** Our Blockly puzzle engine and level packs (paths,
    loops, turtle art, events, music) in Arabic and English, an arrow-path
    activity for early years, and unplugged versions through print.

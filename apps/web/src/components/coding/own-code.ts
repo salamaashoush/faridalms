@@ -20,8 +20,14 @@ export const OwnCodeContext = createContext<OwnCode | null>(null);
  * project lasts as long as the page.
  */
 export interface OwnProjects {
+  lessonId: string;
   projects: Record<string, { files: ProjectFile[]; changed: boolean }>;
-  keep: (blockId: string, files: ProjectFile[]) => Promise<unknown>;
+  /** Keeps a project; `fresh` when the student began it again from the starter. */
+  keep: (
+    blockId: string,
+    files: ProjectFile[],
+    fresh: boolean,
+  ) => Promise<unknown>;
 }
 
 export const OwnProjectsContext = createContext<OwnProjects | null>(null);

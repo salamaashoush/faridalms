@@ -17,7 +17,7 @@ import { StatusBadge } from "~/components/system/status";
 import * as m from "~/i18n/messages";
 import { getLocale } from "~/i18n/runtime";
 import { writtenAnswersQuery } from "~/queries/learning";
-import { markAnswer } from "~/server/learning";
+import { decideGalleryOffer, markAnswer } from "~/server/learning";
 import { formatDateTime, formatNumber } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
@@ -124,14 +124,80 @@ function MarkForm({
   );
 }
 
+/**
+ * A project a student offered to the class gallery, for their teacher to
+ * show to the class, keep out, or take down again.
+ */
+function GalleryOffer({ answer }: { answer: Answer }) {
+  const queryClient = useQueryClient();
+  const decide = useMutation({
+    mutationFn: (show: boolean) =>
+      decideGalleryOffer({
+        data: {
+          lessonId: answer.lessonId,
+          blockId: answer.blockId,
+          studentId: answer.studentId,
+          show,
+        },
+      }),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: ["learning", "answers"] }),
+    onError: (error) => toast.error(getMessageFromError(error)),
+  });
+  if (!answer.share) return null;
+  const shown = answer.share === "shown";
+  return (
+    <div className="flex flex-wrap items-center gap-2">
+      <StatusBadge
+        tone={
+          shown ? "success" : answer.share === "offered" ? "info" : "neutral"
+        }
+      >
+        {shown
+          ? m.galleryTeacherShown()
+          : answer.share === "offered"
+            ? m.galleryTeacherOffered()
+            : m.galleryTeacherDeclined()}
+      </StatusBadge>
+      {shown ? null : (
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="max-md:h-10"
+          disabled={decide.isPending}
+          onClick={() => decide.mutate(true)}
+        >
+          {m.galleryShow()}
+        </Button>
+      )}
+      {answer.share === "declined" ? null : (
+        <Button
+          type="button"
+          variant="ghost"
+          size="sm"
+          className="max-md:h-10"
+          disabled={decide.isPending}
+          onClick={() => decide.mutate(false)}
+        >
+          {shown ? m.galleryTakeDown() : m.galleryNotNow()}
+        </Button>
+      )}
+    </div>
+  );
+}
+
 function AnswerCard({
   question,
   answer,
   name,
+  remixOf,
 }: {
   question: Question;
   answer: Answer;
   name: string;
+  /** The classmate whose project the answer was built on, where it was. */
+  remixOf: string | null;
 }) {
   const [editing, setEditing] = useState(false);
   const graded = question.points > 0;
@@ -163,7 +229,17 @@ function AnswerCard({
         ) : null}
       </header>
       {answer.files ? (
-        <WebProjectView files={answer.files} title={name} />
+        <div className="grid gap-2">
+          {answer.remixOf ? (
+            <p className="text-[13px] leading-[18px] text-muted-foreground">
+              {remixOf
+                ? m.galleryRemixOf({ name: remixOf })
+                : m.galleryRemixOfSomeone()}
+            </p>
+          ) : null}
+          <WebProjectView files={answer.files} title={name} />
+          {question.gallery ? <GalleryOffer answer={answer} /> : null}
+        </div>
       ) : answer.project ? (
         <ProjectAnswer
           project={answer.project.fileId}
@@ -296,6 +372,9 @@ export function Answers({
                   question={question}
                   answer={answer}
                   name={names.get(answer.studentId) ?? ""}
+                  remixOf={
+                    answer.remixOf ? (names.get(answer.remixOf) ?? null) : null
+                  }
                 />
               ))
             )}

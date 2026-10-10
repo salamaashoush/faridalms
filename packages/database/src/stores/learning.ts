@@ -6,6 +6,7 @@ import { sql } from "drizzle-orm";
 import type { CellTransaction } from "../context";
 import type {
   LessonCompletion,
+  LessonShareState,
   ModuleState,
   ResponseState,
   RunOutcome,
@@ -665,6 +666,8 @@ export interface KeptProject {
   blockId: string;
   files: KeptFiles;
   basedOn: string;
+  /** The classmate whose project in the gallery this one was begun again from. */
+  remixedFrom: string | null;
   keptAt: string;
 }
 
@@ -681,16 +684,26 @@ export async function keepProject(
     blockId: string;
     files: KeptFiles;
     basedOn: string;
+    /**
+     * Whose project this now begins from: a classmate's, nobody's, or, left
+     * out, whoever it began from before.
+     */
+    remixedFrom?: string | null;
   },
 ): Promise<void> {
+  const remixed = input.remixedFrom ?? null;
   await tx.execute(sql`
-    insert into core.lesson_projects (tenant_id, lesson_id, student_user_id, block_id, files, based_on)
+    insert into core.lesson_projects (tenant_id, lesson_id, student_user_id, block_id, files,
+      based_on, remixed_from_user_id)
     values (${input.tenantId}::uuid, ${input.lessonId}::uuid, ${input.studentId}::uuid,
-      ${input.blockId}::uuid, ${JSON.stringify(input.files)}::text::jsonb, ${input.basedOn})
+      ${input.blockId}::uuid, ${JSON.stringify(input.files)}::text::jsonb, ${input.basedOn},
+      ${remixed}::uuid)
     on conflict (tenant_id, lesson_id, student_user_id, block_id)
       where status = 'active' do update set
       files = excluded.files,
-      based_on = excluded.based_on`);
+      based_on = excluded.based_on,
+      remixed_from_user_id = case when ${input.remixedFrom === undefined}::boolean
+        then core.lesson_projects.remixed_from_user_id else excluded.remixed_from_user_id end`);
 }
 
 /** A student's own projects in a lesson, one a question. */
@@ -702,9 +715,11 @@ export async function projectsOf(
     block_id: string;
     files: KeptFiles;
     based_on: string;
+    remixed_from_user_id: string | null;
     kept_at: string;
   }>(sql`
-    select block_id, files, based_on, ${isoOf(sql`date_last_modified`)} as kept_at
+    select block_id, files, based_on, remixed_from_user_id,
+      ${isoOf(sql`date_last_modified`)} as kept_at
     from core.lesson_projects
     where tenant_id = ${input.tenantId}::uuid and lesson_id = ${input.lessonId}::uuid
       and student_user_id = ${input.studentId}::uuid and status = 'active'`);
@@ -712,8 +727,118 @@ export async function projectsOf(
     blockId: row.block_id,
     files: row.files,
     basedOn: row.based_on,
+    remixedFrom: row.remixed_from_user_id,
     keptAt: row.kept_at,
   }));
+}
+
+/** A project offered to a question's class gallery, and how it stands. */
+export interface StoredShare {
+  lessonId: string;
+  blockId: string;
+  studentId: string;
+  response: Record<string, unknown>;
+  state: LessonShareState;
+}
+
+const shareColumns = sql`lesson_id, block_id, student_user_id, response, state`;
+type ShareRecord = {
+  lesson_id: string;
+  block_id: string;
+  student_user_id: string;
+  response: Record<string, unknown>;
+  state: LessonShareState;
+};
+const shareOf = (row: ShareRecord): StoredShare => ({
+  lessonId: row.lesson_id,
+  blockId: row.block_id,
+  studentId: row.student_user_id,
+  response: row.response,
+  state: row.state,
+});
+
+/**
+ * Offers a student's project to a question's gallery, in place of what they
+ * offered before: it waits for the teacher again, whatever stood there.
+ */
+export async function offerShare(
+  tx: Tx,
+  input: {
+    tenantId: string;
+    lessonId: string;
+    blockId: string;
+    studentId: string;
+    response: Record<string, unknown>;
+  },
+): Promise<void> {
+  await tx.execute(sql`
+    insert into core.lesson_shares (tenant_id, lesson_id, student_user_id, block_id, response)
+    values (${input.tenantId}::uuid, ${input.lessonId}::uuid, ${input.studentId}::uuid,
+      ${input.blockId}::uuid, ${input.response}::jsonb)
+    on conflict (tenant_id, lesson_id, student_user_id, block_id)
+      where status = 'active' do update set
+      response = excluded.response, state = 'offered', decided_by_user_id = null`);
+}
+
+/** Takes a student's project out of a question's gallery; false when none was there. */
+export async function withdrawShare(
+  tx: Tx,
+  input: {
+    tenantId: string;
+    lessonId: string;
+    blockId: string;
+    studentId: string;
+  },
+): Promise<boolean> {
+  const rows = await tx.execute<{ id: string }>(sql`
+    update core.lesson_shares set status = 'tobedeleted'
+    where tenant_id = ${input.tenantId}::uuid and lesson_id = ${input.lessonId}::uuid
+      and block_id = ${input.blockId}::uuid and student_user_id = ${input.studentId}::uuid
+      and status = 'active'
+    returning id`);
+  return rows.length > 0;
+}
+
+/** A teacher shows an offered project to the class, or keeps it out; false when none was offered. */
+export async function decideShare(
+  tx: Tx,
+  input: {
+    tenantId: string;
+    lessonId: string;
+    blockId: string;
+    studentId: string;
+    state: "shown" | "declined";
+    userId: string;
+  },
+): Promise<boolean> {
+  const rows = await tx.execute<{ id: string }>(sql`
+    update core.lesson_shares set state = ${input.state}, decided_by_user_id = ${input.userId}::uuid
+    where tenant_id = ${input.tenantId}::uuid and lesson_id = ${input.lessonId}::uuid
+      and block_id = ${input.blockId}::uuid and student_user_id = ${input.studentId}::uuid
+      and status = 'active'
+    returning id`);
+  return rows.length > 0;
+}
+
+/** The projects some students offered to the galleries of some lessons' questions. */
+export async function sharesOf(
+  tx: Tx,
+  input: {
+    tenantId: string;
+    lessonIds: readonly string[];
+    studentIds: readonly string[];
+    blockId?: string;
+  },
+): Promise<StoredShare[]> {
+  if (input.lessonIds.length === 0 || input.studentIds.length === 0) return [];
+  const rows = await tx.execute<ShareRecord>(sql`
+    select ${shareColumns} from core.lesson_shares
+    where tenant_id = ${input.tenantId}::uuid and status = 'active'
+      and lesson_id = any(${uuidArray(input.lessonIds)})
+      and student_user_id = any(${uuidArray(input.studentIds)})
+      ${input.blockId ? sql`and block_id = ${input.blockId}::uuid` : sql``}
+    order by created_at, id`);
+  return rows.map(shareOf);
 }
 
 /** How much of each recording in a lesson a student has played. */
@@ -1108,6 +1233,8 @@ export interface AnswerToMark {
   thumbnail: { fileId: string } | null;
   /** A project answer's files as the student handed them in. */
   files: KeptFiles | null;
+  /** The classmate whose project in the gallery a project answer began from. */
+  remixOf: string | null;
   sentAt: string;
   /** The teacher's latest mark on this answer, if any. */
   fraction: number | null;
@@ -1141,6 +1268,7 @@ export async function answersToMark(
     project: { fileId: string } | null;
     thumbnail: { fileId: string } | null;
     files: KeptFiles | null;
+    remix_of: string | null;
     sent_at: string;
     fraction: string | number | null;
     feedback: string | null;
@@ -1156,7 +1284,7 @@ export async function answersToMark(
         r.lesson_id, r.student_user_id, r.block_id, r.attempt, r.try, r.response->>'text' as text,
         r.response->'recording' as recording, r.response->'picture' as picture,
         r.response->'project' as project, r.response->'thumbnail' as thumbnail,
-        r.response->'files' as files,
+        r.response->'files' as files, r.response->>'remixOf' as remix_of,
         ${isoOf(sql`r.created_at`)} as sent_at
       from core.lesson_responses r
       join current c on c.lesson_id = r.lesson_id and c.student_user_id = r.student_user_id
@@ -1186,6 +1314,7 @@ export async function answersToMark(
     project: row.project ?? null,
     thumbnail: row.thumbnail ?? null,
     files: row.files ?? null,
+    remixOf: row.remix_of,
     sentAt: row.sent_at,
     fraction: row.fraction === null ? null : Number(row.fraction),
     feedback: row.feedback,

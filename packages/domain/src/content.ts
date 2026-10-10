@@ -193,6 +193,8 @@ export interface ContentNode {
   projectFileId?: string;
   /** A project question's starter: the files every student begins from. */
   projectFiles?: ProjectFile[];
+  /** A project question whose students may show their work to the class. */
+  gallery?: boolean;
   /** Before a question had hints in order, its one hint. */
   hint?: string;
   hints?: string[];
@@ -364,6 +366,7 @@ const nodeSchema: v.GenericSchema<ContentNode> = v.lazy(() =>
       sceneFileId: v.optional(v.pipe(v.string(), v.uuid())),
       projectFileId: v.optional(v.pipe(v.string(), v.uuid())),
       projectFiles: v.optional(starterFilesSchema),
+      gallery: v.optional(v.boolean()),
       kind: v.optional(v.picklist(questionKinds)),
       questionId: v.optional(v.pipe(v.string(), v.uuid())),
       optionId: v.optional(v.pipe(v.string(), v.uuid())),

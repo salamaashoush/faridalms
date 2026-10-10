@@ -79,6 +79,7 @@ export function WebProjectStudio({
   note,
   onKeep,
   unkept = false,
+  action,
   onClose,
 }: {
   title: string;
@@ -87,10 +88,17 @@ export function WebProjectStudio({
   starter?: readonly ProjectFile[] | undefined;
   /** Something the student should know before they carry on. */
   note?: string | undefined;
-  /** Keeps the project as it is built; without it, closing hands it over. */
-  onKeep?: ((files: ProjectFile[]) => Promise<unknown>) | undefined;
+  /**
+   * Keeps the project as it is built; without it, closing hands it over.
+   * `fresh` says the student began again from what they were given.
+   */
+  onKeep?:
+    | ((files: ProjectFile[], fresh: boolean) => Promise<unknown>)
+    | undefined;
   /** Nothing changed here lasts, as when a teacher tries a student's project. */
   unkept?: boolean;
+  /** Something more the project can be used for, beside the way out. */
+  action?: { label: string; onSelect: () => void } | undefined;
   onClose: (files: ProjectFile[]) => void;
 }) {
   const keysId = useId();
@@ -118,6 +126,7 @@ export function WebProjectStudio({
   const [restarting, setRestarting] = useState(false);
   const dirty = useRef(false);
   const changes = useRef(0);
+  const fresh = useRef(false);
   const keepTimer = useRef(0);
   const drawTimer = useRef(0);
   const closing = useRef(false);
@@ -136,9 +145,11 @@ export function WebProjectStudio({
     }
     dirty.current = false;
     const sent = changes.current;
+    const began = fresh.current;
     setState("saving");
     try {
-      await onKeep(kept);
+      await onKeep(kept, began);
+      if (changes.current === sent) fresh.current = false;
       // A change made while this was on its way waits for the next.
       setState(changes.current === sent ? "saved" : "idle");
       return true;
@@ -306,6 +317,7 @@ export function WebProjectStudio({
     states.current.clear();
     shownPage.current = null;
     setPage(null);
+    fresh.current = true;
     changed(next, "now");
     showing.current = 0;
     turnTo(
@@ -375,6 +387,16 @@ export function WebProjectStudio({
               >
                 <RotateCcw aria-hidden />
                 <span className="max-md:sr-only">{m.projectRestart()}</span>
+              </Button>
+            ) : null}
+            {action ? (
+              <Button
+                type="button"
+                variant="outline"
+                className="max-md:h-10"
+                onClick={action.onSelect}
+              >
+                {action.label}
               </Button>
             ) : null}
             <Button
