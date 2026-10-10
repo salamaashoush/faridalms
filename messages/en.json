@@ -5410,8 +5410,8 @@
   "projectFiles": "Files",
   "projectAddFile": "New file",
   "projectFileName": "File name",
-  "projectFileHint": "Letters and numbers, ending in .html, .css, .js or .svg.",
-  "projectFileBad": "Use only letters and numbers, and end the name with .html, .css, .js or .svg.",
+  "projectFileHint": "Letters and numbers, ending in .html, .css, .js, .svg or .py.",
+  "projectFileBad": "Use only letters and numbers, and end the name with .html, .css, .js, .svg or .py.",
   "projectFileTaken": "Another file already has this name.",
   "projectFileAdd": "Add file",
   "projectRenameTitle": "Rename {name}",
@@ -5480,5 +5480,10 @@
     }
   ],
   "editorQuestionSketch": "p5.js sketch",
-  "editorQuestionSketchHint": "Students draw and animate with code in p5.js; you mark it"
+  "editorQuestionSketchHint": "Students draw and animate with code in p5.js; you mark it",
+  "editorQuestionPython": "Python project",
+  "editorQuestionPythonHint": "Students write a Python program across several files and run it; you mark it",
+  "projectProgram": "Program",
+  "projectRunHint": "Run the program to see what it prints and draws.",
+  "printProgramOnComputer": "Write this program on a computer or tablet."
 }

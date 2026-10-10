@@ -1,10 +1,10 @@
 import * as v from "valibot";
 
 import type { EmbedProvider } from "./embed";
-import type { ProjectFile } from "./project";
+import type { ProjectFile, ProjectLanguage } from "./project";
 
 import { embedProviders, isEmbedId } from "./embed";
-import { starterFilesSchema } from "./project";
+import { projectLanguages, starterFilesSchema } from "./project";
 import { isSafeContentUrl } from "./rich-text";
 
 const nodeTypes = [
@@ -195,6 +195,8 @@ export interface ContentNode {
   projectFiles?: ProjectFile[];
   /** A project question whose students may show their work to the class. */
   gallery?: boolean;
+  /** A project question made in Python rather than as a web page. */
+  projectLanguage?: ProjectLanguage;
   /** Before a question had hints in order, its one hint. */
   hint?: string;
   hints?: string[];
@@ -367,6 +369,7 @@ const nodeSchema: v.GenericSchema<ContentNode> = v.lazy(() =>
       projectFileId: v.optional(v.pipe(v.string(), v.uuid())),
       projectFiles: v.optional(starterFilesSchema),
       gallery: v.optional(v.boolean()),
+      projectLanguage: v.optional(v.picklist(projectLanguages)),
       kind: v.optional(v.picklist(questionKinds)),
       questionId: v.optional(v.pipe(v.string(), v.uuid())),
       optionId: v.optional(v.pipe(v.string(), v.uuid())),

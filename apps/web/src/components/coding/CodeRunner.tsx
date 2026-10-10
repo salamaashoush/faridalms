@@ -3,31 +3,19 @@ import type { ReactNode } from "react";
 
 import { Button } from "@faridalms/ui/button";
 import { cn } from "@faridalms/ui/cn";
-import { Textarea } from "@faridalms/ui/textarea";
-import { LoaderCircle, Play, RotateCcw, Square } from "lucide-react";
+import { Play, RotateCcw, Square } from "lucide-react";
 import { useEffect, useEffectEvent, useId, useRef, useState } from "react";
 
 import * as m from "~/i18n/messages";
-import { formatNumber } from "~/utils/datetime";
 
 import type * as CodeEditor from "./code-editor";
-import type { Drawing, RunEnd, RunLanguage, RunStream } from "./runner/runner";
+import type { RunReport } from "./ProgramRun";
+import type { RunLanguage } from "./runner/runner";
 
-import { friendlyError } from "./friendly";
-import { RUN_SECONDS, runCode } from "./runner/runner";
-import { TurtleCanvas } from "./TurtleCanvas";
+import { RunOutput, useProgramRun } from "./ProgramRun";
 import { WebPreview } from "./WebPreview";
 
-/** A run as it ended: the code and input it had, and what it printed. */
-export interface RunReport {
-  code: string;
-  input: string;
-  end: RunEnd;
-  printed: string;
-}
-
-/** As much of what a run prints as a report carries. */
-const REPORTED_CHARS = 2000;
+export type { RunReport } from "./ProgramRun";
 
 /** What a code block can be run as: a program, or a web page to look at. */
 export type EditorLanguage = RunLanguage | "html";
@@ -40,39 +28,6 @@ export const LANGUAGE_NAMES: Record<EditorLanguage, string> = {
 
 /** How long typing pauses before a web page is drawn again. */
 const REDRAW_MS = 800;
-
-const READS_INPUT: Record<RunLanguage, RegExp> = {
-  python: /\binput\s*\(/,
-  javascript: /\bprompt\s*\(/,
-};
-
-type Piece = { id: number; stream: RunStream; text: string };
-
-function append(pieces: Piece[], stream: RunStream, text: string): Piece[] {
-  const last = pieces.at(-1);
-  return last?.stream === stream
-    ? [...pieces.slice(0, -1), { ...last, text: last.text + text }]
-    : [...pieces, { id: (last?.id ?? 0) + 1, stream, text }];
-}
-
-/** What the end of a run says to the student, or null when it ended well. */
-function endNote(end: RunEnd): string | null {
-  if (end.status === "failed") return m.codeFailed();
-  if (end.status === "stopped")
-    return end.reason === "timeout"
-      ? m.codeTimedOut({ seconds: formatNumber(RUN_SECONDS) })
-      : end.reason === "output"
-        ? m.codeTooMuch()
-        : m.codeStopped();
-  if (!end.error) return null;
-  if (end.error.name === "EOFError") return m.codeNeedsInput();
-  return end.error.line === null
-    ? end.error.message
-    : m.codeErrorAt({
-        line: formatNumber(end.error.line),
-        message: end.error.message,
-      });
-}
 
 /**
  * Code a student can change and run in the browser, with what it reads and
@@ -103,73 +58,25 @@ export function CodeRunner({
   className?: string;
 }) {
   const keysId = useId();
-  const inputId = useId();
   const host = useRef<HTMLDivElement>(null);
   const view = useRef<EditorView | null>(null);
-  const stopRun = useRef<(() => void) | null>(null);
   const tools = useRef<typeof CodeEditor | null>(null);
   const [code, setCode] = useState(initial);
   const [ready, setReady] = useState(false);
-  const [input, setInput] = useState("");
-  const [output, setOutput] = useState<Piece[]>([]);
-  const [phase, setPhase] = useState<"idle" | "loading" | "running">("idle");
-  const [end, setEnd] = useState<RunEnd | null>(null);
-  const [said, setSaid] = useState("");
   const [page, setPage] = useState(() => ({ html: initial }));
-  const [drawing, setDrawing] = useState<Drawing | null>(null);
   const redraw = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
+  // A page is looked at, not run; its runs are never started.
+  const program = useProgramRun(language === "html" ? "javascript" : language, {
+    onRan,
+    onErrorLine: (line) => {
+      if (view.current) tools.current?.markErrorLine(view.current, line);
+    },
+  });
 
   const run = () => {
-    if (language === "html") {
-      if (!locked) setPage({ html: code });
-      return;
-    }
-    if (locked || phase !== "idle") return;
-    setOutput([]);
-    setEnd(null);
-    setDrawing(null);
-    setSaid(language === "python" ? m.codeLoadingPython() : m.codeRunning());
-    setPhase("loading");
-    if (view.current) tools.current?.markErrorLine(view.current, null);
-    const given = { code, input };
-    let printed = "";
-    const started = runCode(
-      {
-        language,
-        code,
-        stdin: input ? input.replace(/\n$/, "").split("\n") : [],
-      },
-      {
-        onStarted: () => setPhase("running"),
-        onOutput: (stream, text) => {
-          if (stream === "out" && printed.length < REPORTED_CHARS)
-            printed = (printed + text).slice(0, REPORTED_CHARS);
-          setOutput((pieces) => append(pieces, stream, text));
-        },
-        onDrawing: setDrawing,
-      },
-    );
-    stopRun.current = started.stop;
-    void started.done.then((result) => {
-      stopRun.current = null;
-      setPhase("idle");
-      setEnd(result);
-      // Python's traceback points at the place in the line; the note below
-      // only names the line.
-      const trace =
-        result.status === "done" && result.error ? result.error.trace : "";
-      if (trace.includes("\n"))
-        setOutput((pieces) => append(pieces, "err", `${trace}\n`));
-      setSaid(endNote(result) ?? m.codeFinished());
-      if (
-        result.status === "done" &&
-        result.error?.line &&
-        view.current &&
-        tools.current
-      )
-        tools.current.markErrorLine(view.current, result.error.line);
-      onRan?.({ ...given, end: result, printed });
-    });
+    if (locked) return;
+    if (language === "html") setPage({ html: code });
+    else program.run(code);
   };
   const runFromKeys = useEffectEvent(run);
   const changed = useEffectEvent((next: string) => {
@@ -203,7 +110,6 @@ export function CodeRunner({
       cancelled = true;
       view.current?.destroy();
       view.current = null;
-      stopRun.current?.();
       clearTimeout(redraw.current);
     };
   }, [language, keysId]);
@@ -213,14 +119,7 @@ export function CodeRunner({
       tools.current.setReadOnly(view.current, readOnly);
   }, [readOnly]);
 
-  const busy = phase !== "idle";
-  const note = end ? endNote(end) : null;
-  const why =
-    end?.status === "done" && end.error && language !== "html"
-      ? friendlyError(language, end.error.name)
-      : null;
-  const reads = language !== "html" && READS_INPUT[language].test(code);
-  const showOutput = busy || end !== null;
+  const busy = language !== "html" && program.busy;
   return (
     <section
       aria-label={LANGUAGE_NAMES[language]}
@@ -254,7 +153,7 @@ export function CodeRunner({
               variant="outline"
               size="sm"
               className="max-md:h-10"
-              onClick={() => stopRun.current?.()}
+              onClick={program.stop}
             >
               <Square aria-hidden />
               {m.codeStop()}
@@ -298,102 +197,13 @@ export function CodeRunner({
       <p id={keysId} className="sr-only">
         {m.codeKeys()}
       </p>
-      {reads ? (
-        <div className="grid gap-1.5 border-t px-3 py-2.5">
-          <label
-            htmlFor={inputId}
-            dir="auto"
-            className="text-[13px] leading-[18px] font-medium"
-          >
-            {m.codeInput()}
-          </label>
-          <Textarea
-            id={inputId}
-            dir="ltr"
-            rows={2}
-            spellCheck={false}
-            value={input}
-            onChange={(event) => setInput(event.target.value)}
-            className="min-h-0 font-mono text-[13px] leading-5"
-            aria-describedby={`${inputId}-hint`}
-          />
-          <p
-            id={`${inputId}-hint`}
-            dir="auto"
-            className="text-[13px] leading-[18px] text-muted-foreground"
-          >
-            {m.codeInputHint()}
-          </p>
-        </div>
-      ) : null}
-      {language === "html" && !locked ? <WebPreview page={page} /> : null}
-      {drawing ? <TurtleCanvas drawing={drawing} /> : null}
-      {showOutput ? (
-        <div className="grid gap-1 border-t bg-muted/30 px-3 py-2.5">
-          <div
-            dir="auto"
-            className="flex items-center gap-2 text-[13px] leading-[18px] font-medium text-muted-foreground"
-          >
-            {m.codeOutput()}
-            {busy ? (
-              <span className="inline-flex items-center gap-1.5 font-normal">
-                <LoaderCircle aria-hidden className="size-3.5 animate-spin" />
-                {phase === "loading" && language === "python"
-                  ? m.codeLoadingPython()
-                  : m.codeRunning()}
-              </span>
-            ) : null}
-          </div>
-          {output.length > 0 ? (
-            <pre
-              dir="ltr"
-              className="max-h-72 overflow-auto font-mono text-[13px] leading-5 [overflow-wrap:anywhere] whitespace-pre-wrap [font-variant-ligatures:none]"
-            >
-              {output.map((piece) => (
-                <span
-                  key={piece.id}
-                  className={
-                    piece.stream === "err"
-                      ? "text-destructive"
-                      : piece.stream === "in"
-                        ? "font-semibold text-primary"
-                        : undefined
-                  }
-                >
-                  {piece.text}
-                </span>
-              ))}
-            </pre>
-          ) : end && !busy && !note ? (
-            <p
-              dir="auto"
-              className="text-[13px] leading-[18px] text-muted-foreground"
-            >
-              {m.codeNoOutput()}
-            </p>
-          ) : null}
-          {note ? (
-            <p
-              dir="auto"
-              className={
-                end?.status === "done"
-                  ? "text-sm leading-5 font-medium text-destructive"
-                  : "text-sm leading-5 text-muted-foreground"
-              }
-            >
-              {note}
-            </p>
-          ) : null}
-          {why ? (
-            <p dir="auto" className="text-sm leading-5 text-muted-foreground">
-              {why}
-            </p>
-          ) : null}
-        </div>
-      ) : null}
-      <p aria-live="polite" className="sr-only">
-        {said}
-      </p>
+      {language === "html" ? (
+        locked ? null : (
+          <WebPreview page={page} />
+        )
+      ) : (
+        <RunOutput run={program} code={code} />
+      )}
     </section>
   );
 }

@@ -1785,6 +1785,7 @@ describe("web projects", () => {
           tries: null,
           files,
           gallery: false,
+          language: "web" as const,
         },
       ]);
     const lesson = await keeper.learning.saveLesson({
@@ -1942,6 +1943,7 @@ const projectAsked = (blockId: string, gallery: boolean) => ({
   tries: null,
   files: [],
   gallery,
+  language: "web" as const,
 });
 
 /** A project of one page. */

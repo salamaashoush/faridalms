@@ -199,6 +199,7 @@ export function questionBlock(node: ContentNode): LessonBlock | null {
         type: "project",
         files: node.projectFiles ?? [],
         gallery: node.gallery ?? false,
+        language: node.projectLanguage ?? "web",
       };
     case "hotspot":
       return {
@@ -798,6 +799,9 @@ export function questionNode(block: LessonBlock): ContentNode | null {
       ...base,
       ...(block.files.length > 0 ? { projectFiles: block.files } : {}),
       ...(block.gallery ? { gallery: true } : {}),
+      ...(block.language === "python"
+        ? { projectLanguage: block.language }
+        : {}),
     };
   if (block.type === "hotspot")
     return {

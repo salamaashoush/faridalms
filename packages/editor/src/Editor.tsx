@@ -273,6 +273,7 @@ function Surface({
       count: strings.questionCountLabel,
       wordTiles: strings.questionWordTiles,
       starter: strings.questionStarterSet,
+      pythonProject: strings.questionPython,
       videoAt: strings.questionVideoAt,
       codeLine: strings.questionCodeLine,
       distractor: strings.questionDistractor,

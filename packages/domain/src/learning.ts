@@ -16,7 +16,11 @@ import {
   isContentDocument,
   lessonOfContent,
 } from "./lesson-content";
-import { projectFilesSchema, starterFilesSchema } from "./project";
+import {
+  projectFilesSchema,
+  projectLanguages,
+  starterFilesSchema,
+} from "./project";
 import { MAX_STROKE_POINTS, MAX_STROKES, traceResults } from "./tracing";
 
 export { gapsSource, parseGaps } from "./gaps";
@@ -515,6 +519,8 @@ export const lessonBlockSchema = v.variant("type", [
      * classmates see it once their teacher shows it, and may build on it.
      */
     gallery: v.optional(v.boolean(), false),
+    /** What students with no starter begin from: a web page, or a Python program. */
+    language: v.optional(v.picklist(projectLanguages), "web"),
   }),
   v.object({
     ...checkFields,

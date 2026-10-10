@@ -43,6 +43,7 @@ import {
 import {
   ArrowDownUp,
   CodeXml,
+  FileCode,
   SquareTerminal,
   ArrowLeftRight,
   Blocks,
@@ -93,6 +94,7 @@ import {
   $createColumnNode,
   $createQuestionNode,
   $createTrueFalseQuestion,
+  $createPythonQuestion,
   $createSketchQuestion,
   $createWhyQuestion,
   $createColumnsNode,
@@ -148,6 +150,7 @@ export type BlockType =
   | "scratchQuestion"
   | "projectQuestion"
   | "sketchQuestion"
+  | "pythonQuestion"
   | "gapsQuestion"
   | "trueFalseQuestion"
   | "whyQuestion"
@@ -178,6 +181,7 @@ const QUESTION_KIND: Partial<Record<BlockType, QuestionKind>> = {
   scratchQuestion: "scratch",
   projectQuestion: "project",
   sketchQuestion: "project",
+  pythonQuestion: "project",
 };
 
 export interface BlockDefinition {
@@ -760,6 +764,28 @@ export const blockDefinitions: BlockDefinition[] = [
     studio: true,
   },
   {
+    type: "pythonQuestion",
+    group: "questions",
+    icon: FileCode,
+    label: (s) => s.questionPython,
+    hint: (s) => s.questionPythonHint,
+    keywords: [
+      "python",
+      "project",
+      "program",
+      "turtle",
+      "code",
+      "coding",
+      "files",
+      "بايثون",
+      "مشروع",
+      "برنامج",
+      "برمجة",
+    ],
+    question: true,
+    studio: true,
+  },
+  {
     type: "whyQuestion",
     group: "questions",
     icon: MicVocal,
@@ -975,6 +1001,7 @@ function $createStructure(type: BlockType): LexicalNode | null {
   if (type === "trueFalseQuestion") return $createTrueFalseQuestion();
   if (type === "whyQuestion") return $createWhyQuestion();
   if (type === "sketchQuestion") return $createSketchQuestion();
+  if (type === "pythonQuestion") return $createPythonQuestion();
   const kind = QUESTION_KIND[type];
   if (kind) return $createQuestionNode(kind);
   if (type === "divider") return $createHorizontalRuleNode();

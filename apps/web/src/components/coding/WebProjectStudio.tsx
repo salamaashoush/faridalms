@@ -7,6 +7,7 @@ import {
   entryOf,
   fileKind,
   fileNameIssue,
+  languageOf,
   MAX_PROJECT_BYTES,
   MAX_PROJECT_FILES,
   projectBytes,
@@ -42,9 +43,11 @@ import { formatNumber } from "~/utils/datetime";
 
 import type * as CodeEditor from "./code-editor";
 import type { SaveState } from "./CodingStudio";
+import type { ProgramHandle } from "./ProjectProgram";
 
 import { SaveStatus } from "./CodingStudio";
 import { linkedPage, playedPage } from "./project-page";
+import { ProjectProgram } from "./ProjectProgram";
 import { WebPreview } from "./WebPreview";
 
 /** Quiet time after the last change before a project keeps itself. */
@@ -62,9 +65,15 @@ const opened = (files: readonly ProjectFile[]): Open[] =>
 const plain = (files: readonly Open[]): ProjectFile[] =>
   files.map(({ name, code }) => ({ name, code }));
 
-const languageOf = (name: string): CodeEditor.CodeLanguage => {
+const colouredAs = (name: string): CodeEditor.CodeLanguage => {
   const kind = fileKind(name);
-  return kind === "css" ? "css" : kind === "js" ? "javascript" : "html";
+  return kind === "css"
+    ? "css"
+    : kind === "js"
+      ? "javascript"
+      : kind === "py"
+        ? "python"
+        : "html";
 };
 
 /**
@@ -134,6 +143,10 @@ export function WebProjectStudio({
 
   const tooLarge = projectBytes(plain(files)) > MAX_PROJECT_BYTES;
   const pages = files.filter((file) => fileKind(file.name) === "html");
+  // A Python project is run where a web project's page is drawn.
+  const python = languageOf(files) === "python";
+  const programs = files.filter((file) => fileKind(file.name) === "py");
+  const runner = useRef<ProgramHandle>(null);
 
   const keep = async (): Promise<boolean> => {
     window.clearTimeout(keepTimer.current);
@@ -197,7 +210,7 @@ export function WebProjectStudio({
     if (kept || !tools.current) return kept;
     const made = tools.current.createCodeState({
       code: file.code,
-      language: languageOf(file.name),
+      language: colouredAs(file.name),
       label: file.name,
       describedBy: keysId,
       readOnly: false,
@@ -208,7 +221,10 @@ export function WebProjectStudio({
           ),
           "soon",
         ),
-      onRun: () => act.current.draw(latest.current, shownPage.current),
+      onRun: () =>
+        runner.current
+          ? runner.current.run()
+          : act.current.draw(latest.current, shownPage.current),
     });
     states.current.set(file.id, made);
     return made;
@@ -283,7 +299,7 @@ export function WebProjectStudio({
       const next = latest.current.map((item) =>
         item.id === id ? { ...item, name: to } : item,
       );
-      if (before && languageOf(before.name) !== languageOf(to)) {
+      if (before && colouredAs(before.name) !== colouredAs(to)) {
         states.current.delete(id);
         if (showing.current === id) showing.current = 0;
       }
@@ -329,8 +345,11 @@ export function WebProjectStudio({
     setRestarting(false);
   };
 
+  // The last page of a web project, or program of a Python one, stays.
   const onlyPage = (file: Open) =>
-    fileKind(file.name) === "html" && pages.length === 1;
+    python
+      ? fileKind(file.name) === "py" && programs.length === 1
+      : fileKind(file.name) === "html" && pages.length === 1;
 
   return (
     <DialogPrimitive.Root
@@ -437,7 +456,11 @@ export function WebProjectStudio({
                   setPane(item);
                 }}
               >
-                {item === "code" ? m.projectCode() : m.projectPage()}
+                {item === "code"
+                  ? m.projectCode()
+                  : python
+                    ? m.projectProgram()
+                    : m.projectPage()}
               </Button>
             ))}
           </fieldset>
@@ -469,68 +492,76 @@ export function WebProjectStudio({
               </p>
             </section>
             <section
-              aria-label={m.projectPage()}
+              aria-label={python ? m.projectProgram() : m.projectPage()}
               className={cn(
                 "min-h-0 min-w-0 flex-1 flex-col lg:flex",
                 pane === "page" ? "flex" : "hidden",
               )}
             >
-              <div className="flex h-11 shrink-0 [scrollbar-width:none] items-center gap-1 overflow-x-auto border-b px-2">
-                {pages.length > 1 ? (
-                  pages.map((file) => {
-                    const on =
-                      file.name === (page ?? entryOf(plain(files)) ?? "");
-                    return (
-                      <Button
-                        key={file.id}
-                        type="button"
-                        variant={on ? "secondary" : "ghost"}
-                        size="sm"
+              {python ? (
+                <ProjectProgram ref={runner} files={files} fill />
+              ) : (
+                <>
+                  <div className="flex h-11 shrink-0 [scrollbar-width:none] items-center gap-1 overflow-x-auto border-b px-2">
+                    {pages.length > 1 ? (
+                      pages.map((file) => {
+                        const on =
+                          file.name === (page ?? entryOf(plain(files)) ?? "");
+                        return (
+                          <Button
+                            key={file.id}
+                            type="button"
+                            variant={on ? "secondary" : "ghost"}
+                            size="sm"
+                            dir="ltr"
+                            className="shrink-0 font-mono text-[13px] max-md:h-10"
+                            aria-pressed={on}
+                            onClick={() => show(file.name)}
+                          >
+                            {file.name}
+                          </Button>
+                        );
+                      })
+                    ) : (
+                      <span
                         dir="ltr"
-                        className="shrink-0 font-mono text-[13px] max-md:h-10"
-                        aria-pressed={on}
-                        onClick={() => show(file.name)}
+                        className="px-1.5 font-mono text-[13px] text-muted-foreground"
                       >
-                        {file.name}
-                      </Button>
-                    );
-                  })
-                ) : (
-                  <span
-                    dir="ltr"
-                    className="px-1.5 font-mono text-[13px] text-muted-foreground"
-                  >
-                    {pages[0]?.name}
-                  </span>
-                )}
-                <span className="flex-1" />
-                <Tooltip>
-                  <TooltipTrigger
-                    render={
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon-sm"
-                        className="shrink-0 max-md:size-10"
-                        aria-label={m.projectPlayAgain()}
-                        onClick={() => draw(latest.current, shownPage.current)}
-                      />
-                    }
-                  >
-                    <RotateCw aria-hidden />
-                  </TooltipTrigger>
-                  <TooltipContent>{m.projectPlayAgain()}</TooltipContent>
-                </Tooltip>
-              </div>
-              <WebPreview
-                page={drawn}
-                fill
-                onOpen={(href) => {
-                  const next = linkedPage(latest.current, href);
-                  if (next) show(next);
-                  return next !== null;
-                }}
-              />
+                        {pages[0]?.name}
+                      </span>
+                    )}
+                    <span className="flex-1" />
+                    <Tooltip>
+                      <TooltipTrigger
+                        render={
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="icon-sm"
+                            className="shrink-0 max-md:size-10"
+                            aria-label={m.projectPlayAgain()}
+                            onClick={() =>
+                              draw(latest.current, shownPage.current)
+                            }
+                          />
+                        }
+                      >
+                        <RotateCw aria-hidden />
+                      </TooltipTrigger>
+                      <TooltipContent>{m.projectPlayAgain()}</TooltipContent>
+                    </Tooltip>
+                  </div>
+                  <WebPreview
+                    page={drawn}
+                    fill
+                    onOpen={(href) => {
+                      const next = linkedPage(latest.current, href);
+                      if (next) show(next);
+                      return next !== null;
+                    }}
+                  />
+                </>
+              )}
             </section>
           </div>
           {naming ? (

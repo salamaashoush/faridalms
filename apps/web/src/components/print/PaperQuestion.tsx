@@ -319,7 +319,11 @@ export function PaperQuestion({
             {online ? (
               <QrCode value={online} className="size-[1.8cm] shrink-0" />
             ) : null}
-            <p>{m.printProjectOnComputer({}, { locale })}</p>
+            <p>
+              {(block.language === "python"
+                ? m.printProgramOnComputer
+                : m.printProjectOnComputer)({}, { locale })}
+            </p>
           </div>
           {block.files
             .filter((file) => file.code.trim())

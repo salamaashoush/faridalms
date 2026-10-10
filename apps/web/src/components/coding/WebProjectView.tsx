@@ -1,5 +1,6 @@
 import type { ProjectFile } from "@faridalms/domain/project";
 
+import { languageOf } from "@faridalms/domain/project";
 import { Button } from "@faridalms/ui/button";
 import { CodeXml } from "lucide-react";
 import { useMemo, useState } from "react";
@@ -7,6 +8,7 @@ import { useMemo, useState } from "react";
 import * as m from "~/i18n/messages";
 
 import { linkedPage, playedPage } from "./project-page";
+import { ProjectProgram } from "./ProjectProgram";
 import { WebPreview } from "./WebPreview";
 import { WebProjectStudio } from "./WebProjectStudio";
 
@@ -27,17 +29,23 @@ export function WebProjectView({
   const drawn = useMemo(() => playedPage(files, page), [files, page]);
   return (
     <div className="grid gap-2">
-      <div className="flex h-80 flex-col overflow-hidden rounded-lg border">
-        <WebPreview
-          page={drawn}
-          fill
-          onOpen={(href) => {
-            const next = linkedPage(files, href);
-            if (next) setPage(next);
-            return next !== null;
-          }}
-        />
-      </div>
+      {languageOf(files) === "python" ? (
+        <div className="overflow-hidden rounded-lg border">
+          <ProjectProgram files={files} />
+        </div>
+      ) : (
+        <div className="flex h-80 flex-col overflow-hidden rounded-lg border">
+          <WebPreview
+            page={drawn}
+            fill
+            onOpen={(href) => {
+              const next = linkedPage(files, href);
+              if (next) setPage(next);
+              return next !== null;
+            }}
+          />
+        </div>
+      )}
       <Button
         type="button"
         variant="outline"

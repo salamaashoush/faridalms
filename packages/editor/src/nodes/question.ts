@@ -1,5 +1,5 @@
 import type { QuestionKind } from "@faridalms/domain/content";
-import type { ProjectFile } from "@faridalms/domain/project";
+import type { ProjectFile, ProjectLanguage } from "@faridalms/domain/project";
 import type {
   DOMExportOutput,
   EditorConfig,
@@ -15,7 +15,7 @@ import type {
 } from "lexical";
 
 import { hintsOf } from "@faridalms/domain/lesson-content";
-import { sketchProject } from "@faridalms/domain/project";
+import { pythonProject, sketchProject } from "@faridalms/domain/project";
 import { addClassNamesToElement } from "@lexical/utils";
 import {
   $createParagraphNode,
@@ -178,6 +178,8 @@ export interface QuestionLabels {
   wordTiles?: string;
   /** A coding question that starts from the teacher's own project. */
   starter?: string;
+  /** A project question made in Python rather than as a web page. */
+  pythonProject?: string;
   /** A question asked at a time in the video above it. */
   videoAt?: (time: string) => string;
   /** A code puzzle's empty line, and a line marked as belonging nowhere. */
@@ -279,6 +281,8 @@ export interface QuestionSettings {
   projectFiles: ProjectFile[];
   /** A project question whose students may show their work to the class. */
   gallery: boolean;
+  /** What a project question is made in: a web page, or a Python program. */
+  projectLanguage: ProjectLanguage;
   /** Asked when the video above reaches this second; none asks it in the reading. */
   videoAt: number | null;
   /** A code puzzle's language; only Python marks how far a line is indented. */
@@ -326,6 +330,7 @@ export function defaultSettings(kind: QuestionKind): QuestionSettings {
     projectFileId: null,
     projectFiles: [],
     gallery: false,
+    projectLanguage: "web",
     videoAt: null,
     codeLanguage: "python",
     hints: [],
@@ -382,6 +387,7 @@ function questionSettings(stored: StoredSettings): QuestionSettings {
     projectFileId: stored.projectFileId ?? null,
     projectFiles: stored.projectFiles ?? NO_FILES,
     gallery: stored.gallery ?? false,
+    projectLanguage: stored.projectLanguage ?? "web",
     videoAt: stored.videoAt ?? null,
     codeLanguage: stored.codeLanguage ?? base.codeLanguage,
     hints: hintsOf(stored),
@@ -421,7 +427,9 @@ function label(editor: LexicalEditor, settings: QuestionSettings): string {
         ? (text.pictured?.[settings.answerWith] ?? text.kinds.written)
         : settings.kind === "counting" && text.count
           ? text.count(settings.count, settings.countMode === "make")
-          : text.kinds[settings.kind];
+          : settings.kind === "project" && settings.projectLanguage === "python"
+            ? (text.pythonProject ?? text.kinds.project)
+            : text.kinds[settings.kind];
   const starts =
     text.starter &&
     ((settings.kind === "scratch" && settings.projectFileId) ||
@@ -490,6 +498,7 @@ export class QuestionNode extends ElementNode {
       projectFileId,
       projectFiles,
       gallery,
+      projectLanguage,
       videoAt,
       codeLanguage,
       hints,
@@ -514,6 +523,9 @@ export class QuestionNode extends ElementNode {
         ? { projectFiles }
         : {}),
       ...(settings.kind === "project" && gallery ? { gallery } : {}),
+      ...(settings.kind === "project" && projectLanguage === "python"
+        ? { projectLanguage }
+        : {}),
       ...(videoAt === null ? {} : { videoAt }),
       ...(settings.kind === "parsons" || settings.kind === "program"
         ? { codeLanguage }
@@ -1357,6 +1369,17 @@ export function $createQuestionNode(kind: QuestionKind): QuestionNode {
   if (kind === "gaps") question.append(new QuestionPassageNode());
   if (kind === "spelling")
     question.append(new QuestionAnswerNode(), new QuestionAnswerNode());
+  return question;
+}
+
+/** A project made in Python, which starts as a program of two files that already draws. */
+export function $createPythonQuestion(): QuestionNode {
+  const question = new QuestionNode({
+    ...defaultSettings("project"),
+    projectLanguage: "python",
+    projectFiles: pythonProject(),
+  });
+  question.append(new QuestionPromptNode());
   return question;
 }
 

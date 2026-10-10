@@ -2,7 +2,12 @@ import type { CheckView, StudentBlock } from "@faridalms/domain/learning";
 import type { ProjectFile } from "@faridalms/domain/project";
 import type { ReactNode } from "react";
 
-import { emptyProject, sameFiles } from "@faridalms/domain/project";
+import {
+  emptyProject,
+  emptyPythonProject,
+  languageOf,
+  sameFiles,
+} from "@faridalms/domain/project";
 import { Button } from "@faridalms/ui/button";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { CodeXml, Info, LoaderCircle, Send } from "lucide-react";
@@ -19,6 +24,7 @@ import { getMessageFromError } from "~/utils/error";
 import { OwnProjectsContext } from "./own-code";
 import { linkedPage, playedPage } from "./project-page";
 import { ProjectGallery } from "./ProjectGallery";
+import { ProjectProgram } from "./ProjectProgram";
 import { WebPreview } from "./WebPreview";
 import { WebProjectStudio } from "./WebProjectStudio";
 
@@ -54,8 +60,10 @@ export function WebProjectAnswer({
     const locale = getLocale();
     return block.files.length > 0
       ? block.files
-      : emptyProject(locale, getTextDirection(locale) === "rtl");
-  }, [block.files]);
+      : block.language === "python"
+        ? emptyPythonProject()
+        : emptyProject(locale, getTextDirection(locale) === "rtl");
+  }, [block.files, block.language]);
   const kept = locked ? undefined : own?.projects[block.id];
   const [files, setFiles] = useState<readonly ProjectFile[]>(
     () => (locked ? sent : (kept?.files ?? sent)) ?? starter,
@@ -99,17 +107,23 @@ export function WebProjectAnswer({
 
   return (
     <div className="grid gap-3">
-      <div className="flex h-80 flex-col overflow-hidden rounded-lg border">
-        <WebPreview
-          page={drawn}
-          fill
-          onOpen={(href) => {
-            const next = linkedPage(files, href);
-            if (next) setPage(next);
-            return next !== null;
-          }}
-        />
-      </div>
+      {languageOf(files) === "python" ? (
+        <div className="overflow-hidden rounded-lg border">
+          <ProjectProgram files={files} />
+        </div>
+      ) : (
+        <div className="flex h-80 flex-col overflow-hidden rounded-lg border">
+          <WebPreview
+            page={drawn}
+            fill
+            onOpen={(href) => {
+              const next = linkedPage(files, href);
+              if (next) setPage(next);
+              return next !== null;
+            }}
+          />
+        </div>
+      )}
       {changed && mode === "practice" && !locked ? (
         <p className="flex gap-2 text-[13px] leading-[18px] text-muted-foreground">
           <Info aria-hidden className="mt-px size-4 shrink-0" />

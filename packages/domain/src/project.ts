@@ -1,7 +1,7 @@
 import * as v from "valibot";
 
-/** A project's file: a page, its styles, a script, or a drawing. */
-export const projectFileKinds = ["html", "css", "js", "svg"] as const;
+/** A project's file: a page, its styles, a script, a drawing, or a Python file. */
+export const projectFileKinds = ["html", "css", "js", "svg", "py"] as const;
 export type ProjectFileKind = (typeof projectFileKinds)[number];
 
 export const MAX_PROJECT_FILES = 12;
@@ -12,7 +12,11 @@ export const MAX_PROJECT_FILES = 12;
 export const MAX_PROJECT_BYTES = 60_000;
 
 // Plain letters, so a name reads the same typed in a link as in the list.
-const FILE_NAME = /^[A-Za-z0-9][A-Za-z0-9_-]{0,31}\.(html|css|js|svg)$/;
+const FILE_NAME = /^[A-Za-z0-9][A-Za-z0-9_-]{0,31}\.(html|css|js|svg|py)$/;
+
+/** What a project is made in: a web page, or a Python program. */
+export const projectLanguages = ["web", "python"] as const;
+export type ProjectLanguage = (typeof projectLanguages)[number];
 
 export const projectFileSchema = v.object({
   name: v.pipe(v.string(), v.regex(FILE_NAME, "learning.project_file")),
@@ -62,14 +66,38 @@ export const starterFilesSchema = v.pipe(
   ),
 );
 
-/** A project as a student keeps or hands it in: at least a page to open. */
+/**
+ * What a set of files is: a web project when it has a page to open, and
+ * otherwise a Python one.
+ */
+export function languageOf(files: readonly ProjectFile[]): ProjectLanguage {
+  return files.some((file) => fileKind(file.name) === "html")
+    ? "web"
+    : "python";
+}
+
+/** The file a Python project runs: `main.py`, or else its first Python file. */
+export function mainOf(files: readonly ProjectFile[]): ProjectFile | null {
+  const programs = files.filter((file) => fileKind(file.name) === "py");
+  return (
+    programs.find((file) => sameName(file.name, "main.py")) ??
+    programs[0] ??
+    null
+  );
+}
+
+/** A project as a student keeps or hands it in: at least a page to open or a program to run. */
 export const projectFilesSchema = v.pipe(
   v.array(projectFileSchema),
   v.minLength(1),
   v.maxLength(MAX_PROJECT_FILES),
   v.check((files) => distinct(files), "learning.project_file_taken"),
   v.check(
-    (files) => files.some((file) => fileKind(file.name) === "html"),
+    (files) =>
+      files.some((file) => {
+        const kind = fileKind(file.name);
+        return kind === "html" || kind === "py";
+      }),
     "learning.project_page",
   ),
   v.check(
@@ -186,6 +214,45 @@ export function sketchProject(): ProjectFile[] {
         "    background(220);",
         "    circle(mouseX, mouseY, 40);",
         "}",
+        "",
+      ].join("\n"),
+    },
+  ];
+}
+
+/**
+ * The project a Python question starts from when its teacher gave none:
+ * one file to write the program in.
+ */
+export function emptyPythonProject(): ProjectFile[] {
+  return [{ name: "main.py", code: "" }];
+}
+
+/**
+ * The project a Python question is first given: a program that already
+ * draws, with the shape it draws in a file of its own, so a student meets
+ * a project of more than one file. It holds no words.
+ */
+export function pythonProject(): ProjectFile[] {
+  return [
+    {
+      name: "main.py",
+      code: [
+        "import turtle",
+        "from shapes import square",
+        "",
+        "pen = turtle.Turtle()",
+        "square(pen, 100)",
+        "",
+      ].join("\n"),
+    },
+    {
+      name: "shapes.py",
+      code: [
+        "def square(pen, side):",
+        "    for _ in range(4):",
+        "        pen.forward(side)",
+        "        pen.left(90)",
         "",
       ].join("\n"),
     },

@@ -171,8 +171,13 @@ off keeps the work and shows a placeholder.
    and opens any one large with its code to show the room. A project can
    be a p5.js sketch: the slash menu offers one whose starter already
    draws, and a page that asks for `p5.js` is given the copy the files host
-   serves. Python projects remain; Scratch projects are in neither the
-   gallery nor the live view yet.
+   serves. A project can also be a Python program of several files: its
+   `main.py` runs in the browser with the others there to import, with the
+   turtle, input and error lines a runnable block has, and it is kept,
+   handed in, shown in the gallery and read on the live view as a web
+   project is. The live view reads a Python project's code rather than
+   running a class's programs at once. Scratch projects are in neither
+   the gallery nor the live view yet.
 5. **Blocks puzzles.** Our Blockly puzzle engine and level packs (paths,
    loops, turtle art, events, music) in Arabic and English, an arrow-path
    activity for early years, and unplugged versions through print.

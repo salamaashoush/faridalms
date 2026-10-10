@@ -197,7 +197,13 @@ function openFrame(): Promise<HTMLIFrameElement> {
  * program runs at a time: starting another stops the one before.
  */
 export function runCode(
-  request: { language: RunLanguage; code: string; stdin: string[] },
+  request: {
+    language: RunLanguage;
+    code: string;
+    stdin: string[];
+    /** More Python files the program may import, by file name. */
+    modules?: Record<string, string>;
+  },
   handlers: {
     onOutput: (stream: RunStream, text: string) => void;
     onStarted: () => void;
@@ -223,8 +229,11 @@ export function runCode(
         code: request.code,
         stdin: request.stdin,
         indexURL: `${window.location.origin}/pyodide/${pyodideVersion}/`,
+        // Our turtle is the one a program gets, whatever a file is named.
         modules:
-          request.language === "python" ? { "turtle.py": turtleSource } : {},
+          request.language === "python"
+            ? { ...request.modules, "turtle.py": turtleSource }
+            : {},
       },
       "*",
     );

@@ -1242,7 +1242,10 @@ export function SelectionToolbarPlugin() {
                   onClick={() => {
                     const key = question.key;
                     void studio
-                      .editFiles(settings.projectFiles)
+                      .editFiles(
+                        settings.projectFiles,
+                        settings.projectLanguage,
+                      )
                       .then((projectFiles) => {
                         updateFromOutside(editor, () => {
                           const node = $getNodeByKey(key);

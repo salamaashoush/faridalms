@@ -5628,8 +5628,8 @@
   "projectFiles": "الملفات",
   "projectAddFile": "ملف جديد",
   "projectFileName": "اسم الملف",
-  "projectFileHint": "حروف إنجليزية وأرقام، ثم نقطة، ثم html أو css أو js أو svg.",
-  "projectFileBad": "استخدم حروفًا إنجليزية وأرقامًا فقط، ثم نقطة، ثم html أو css أو js أو svg.",
+  "projectFileHint": "حروف إنجليزية وأرقام، ثم نقطة، ثم html أو css أو js أو svg أو py.",
+  "projectFileBad": "استخدم حروفًا إنجليزية وأرقامًا فقط، ثم نقطة، ثم html أو css أو js أو svg أو py.",
   "projectFileTaken": "هذا الاسم لملف آخر.",
   "projectFileAdd": "أضف الملف",
   "projectRenameTitle": "إعادة تسمية {name}",
@@ -5700,5 +5700,10 @@
     }
   ],
   "editorQuestionSketch": "رسم بـ p5.js",
-  "editorQuestionSketchHint": "يرسم الطلاب ويحرّكون بالشفرة في p5.js، وتصحّحه أنت"
+  "editorQuestionSketchHint": "يرسم الطلاب ويحرّكون بالشفرة في p5.js، وتصحّحه أنت",
+  "editorQuestionPython": "مشروع بايثون",
+  "editorQuestionPythonHint": "يكتب الطلاب برنامج بايثون في عدة ملفات ويشغّلونه، وتصحّحه أنت",
+  "projectProgram": "البرنامج",
+  "projectRunHint": "شغّل البرنامج لترى ما يطبعه ويرسمه.",
+  "printProgramOnComputer": "اكتب هذا البرنامج على حاسوب أو جهاز لوحي."
 }

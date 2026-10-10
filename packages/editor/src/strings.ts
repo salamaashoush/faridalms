@@ -248,6 +248,8 @@ export interface EditorStrings {
   questionGallery: string;
   questionSketch: string;
   questionSketchHint: string;
+  questionPython: string;
+  questionPythonHint: string;
   questionStarterBuild: string;
   questionStarterEdit: string;
   questionStarterRemove: string;

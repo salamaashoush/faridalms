@@ -984,6 +984,7 @@ describe("web projects", () => {
         tries: null,
         files: starter,
         gallery: false,
+        language: "web" as const,
       },
     ],
   });
@@ -1008,6 +1009,7 @@ describe("web projects", () => {
     expect(v.safeParse(contentDocumentSchema, document).success).toBe(true);
     expect(lessonOfContent(document).blocks[0]).toMatchObject({
       gallery: true,
+      language: "web" as const,
     });
   });
 

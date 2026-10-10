@@ -279,6 +279,8 @@ export function editorStrings(): EditorStrings {
     questionGallery: m.editorQuestionGallery(),
     questionSketch: m.editorQuestionSketch(),
     questionSketchHint: m.editorQuestionSketchHint(),
+    questionPython: m.editorQuestionPython(),
+    questionPythonHint: m.editorQuestionPythonHint(),
     questionStarterBuild: m.editorQuestionStarterBuild(),
     questionStarterEdit: m.editorQuestionStarterEdit(),
     questionStarterRemove: m.editorQuestionStarterRemove(),

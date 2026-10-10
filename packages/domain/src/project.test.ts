@@ -7,9 +7,12 @@ import {
   fileKind,
   fileNamed,
   fileNameIssue,
+  languageOf,
+  mainOf,
   MAX_PROJECT_BYTES,
   MAX_PROJECT_FILES,
   projectFilesSchema,
+  pythonProject,
   sameFiles,
   sketchProject,
   starterFilesSchema,
@@ -97,6 +100,21 @@ describe("project files", () => {
       html.indexOf('src="sketch.js"'),
     );
     expect(fileNamed(files, "sketch.js")?.code).toContain("function draw()");
+  });
+
+  it("takes a project of Python files, and runs its main one", () => {
+    const files = pythonProject();
+    expect(v.safeParse(projectFilesSchema, files).success).toBe(true);
+    expect(languageOf(files)).toBe("python");
+    expect(mainOf(files)?.name).toBe("main.py");
+    expect(mainOf([{ name: "shapes.py", code: "" }])?.name).toBe("shapes.py");
+    // A page makes it a web project, whatever else it holds.
+    expect(languageOf([...files, page])).toBe("web");
+    expect(fileKind("main.py")).toBe("py");
+    // Styles alone are neither a page to open nor a program to run.
+    expect(
+      v.safeParse(projectFilesSchema, [{ name: "a.css", code: "" }]).success,
+    ).toBe(false);
   });
 
   it("starts an empty project as a page a student can hand in", () => {

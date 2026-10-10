@@ -1,8 +1,8 @@
-import type { ProjectFile } from "@faridalms/domain/project";
+import type { ProjectFile, ProjectLanguage } from "@faridalms/domain/project";
 import type { EditorMedia, EditorStudio } from "@faridalms/editor";
 import type { ReactNode } from "react";
 
-import { emptyProject } from "@faridalms/domain/project";
+import { emptyProject, emptyPythonProject } from "@faridalms/domain/project";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo, useRef, useState } from "react";
 
@@ -31,6 +31,7 @@ export function useEditorStudio(media: EditorMedia | undefined): {
   } | null>(null);
   const [writing, setWriting] = useState<{
     files: readonly ProjectFile[];
+    language: ProjectLanguage;
     resolve: (files: ProjectFile[]) => void;
   } | null>(null);
   const kept = useRef<string | undefined>(undefined);
@@ -43,9 +44,9 @@ export function useEditorStudio(media: EditorMedia | undefined): {
                 kept.current = undefined;
                 setOpen({ fileId, resolve });
               }),
-            editFiles: (files) =>
+            editFiles: (files, language) =>
               new Promise((resolve) => {
-                setWriting({ files, resolve });
+                setWriting({ files, language, resolve });
               }),
           }
         : undefined,
@@ -80,7 +81,9 @@ export function useEditorStudio(media: EditorMedia | undefined): {
             files={
               writing.files.length > 0
                 ? writing.files
-                : emptyProject(locale, getTextDirection(locale) === "rtl")
+                : writing.language === "python"
+                  ? emptyPythonProject()
+                  : emptyProject(locale, getTextDirection(locale) === "rtl")
             }
             onClose={(files) => {
               writing.resolve(files);

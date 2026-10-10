@@ -405,3 +405,83 @@ test("a p5.js sketch draws for its student with the library the school serves", 
   await expect(studio.getByText(/^sketch\.js, line 3: /)).toBeVisible();
   await context.close();
 });
+
+test("a Python project runs across its files in the browser", async ({
+  browser,
+  page,
+}) => {
+  // Python is fetched and started in each browser before the first run.
+  test.slow();
+  const title = `Programs ${crypto.randomUUID().slice(0, 6)}`;
+  await signInWith(page, TEACHER, PASSWORD, "/teach");
+  await page.goto("/teach/module-editor");
+  await untilHydrated(page);
+  await page.getByRole("textbox", { name: "Module title" }).fill(title);
+  await page.getByRole("combobox", { name: "Classes" }).click();
+  await page.getByRole("option", { name: "8A Arabic", exact: true }).click();
+  await page.keyboard.press("Escape");
+  await page.getByRole("button", { name: "Save", exact: true }).click();
+  await expect(page).toHaveURL(/\/modules\/[a-f0-9-]+/);
+  const recordUrl = page.url().split("?")[0] ?? "";
+  await page.getByRole("link", { name: "Add lesson" }).click();
+  await expect(page).toHaveURL(/\/teach\/lesson-editor/);
+  await untilHydrated(page);
+  await page.getByRole("textbox", { name: "Lesson title" }).fill("Shapes");
+  await page.locator("#lesson-body").click();
+  await page.keyboard.type("/python project");
+  await page.getByRole("option", { name: /Python project/ }).click();
+  await page.keyboard.type("Work out the area of a square.");
+  await expect(page.locator("[data-question]")).toHaveAttribute(
+    "data-label",
+    /^Python project · starts from your project/,
+  );
+  await expect(page.getByText("Saved", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Back" }).click();
+  await expect(page).toHaveURL(recordUrl);
+  await page.getByRole("button", { name: "More actions" }).click();
+  await page.getByRole("menuitem", { name: "Open to students" }).click();
+  await expect(page.getByText("Module open to students")).toBeVisible();
+
+  const context = await browser.newContext();
+  const student = await context.newPage();
+  await signInWith(
+    student,
+    ACCOUNTS.student.email,
+    PASSWORD,
+    ACCOUNTS.student.home,
+  );
+  await student.goto("/me/modules");
+  await untilHydrated(student);
+  await student.getByRole("link", { name: title }).click();
+  await student.getByRole("button", { name: "Start", exact: true }).click();
+  await student.getByRole("button", { name: "Open the project" }).click();
+  const studio = student.getByRole("dialog", { name: "Web project" });
+  await expect(studio.getByRole("tab")).toHaveText(["main.py", "shapes.py"]);
+  await write(
+    student,
+    studio,
+    'from shapes import area\n\nprint("area", area(3))\n',
+  );
+  await studio.getByRole("tab", { name: "shapes.py" }).click();
+  await write(student, studio, "def area(side):\n    return side * side\n");
+  // The main file runs, with the project's other file there to import.
+  await studio.getByRole("button", { name: "Run", exact: true }).click();
+  await expect(studio.getByText("area 9")).toBeVisible({ timeout: 120_000 });
+  // A mistake in the program is told with its line.
+  await studio.getByRole("tab", { name: "main.py" }).click();
+  await write(student, studio, "print(1)\nprint(nowhere)\n");
+  await studio.getByRole("button", { name: "Run", exact: true }).click();
+  // The line is said twice: where it is read, and to a screen reader.
+  await expect(studio.getByText(/^Line 2: NameError/).first()).toBeVisible({
+    timeout: 60_000,
+  });
+  await expect(studio.getByText("Saved", { exact: true })).toBeVisible();
+  await studio.getByRole("button", { name: "Done", exact: true }).click();
+  await student
+    .getByRole("button", { name: "Hand in to your teacher" })
+    .click();
+  await expect(
+    student.getByText("Sent. Your teacher will mark it."),
+  ).toBeVisible();
+  await context.close();
+});

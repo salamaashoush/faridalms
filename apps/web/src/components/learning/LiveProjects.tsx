@@ -1,6 +1,7 @@
 import type { ProjectFile } from "@faridalms/domain/project";
 import type { RefObject } from "react";
 
+import { languageOf, mainOf } from "@faridalms/domain/project";
 import { useEffect, useMemo, useRef, useState } from "react";
 
 import { playedPage } from "~/components/coding/project-page";
@@ -67,6 +68,8 @@ function ProjectCard({
   );
   const [errors, setErrors] = useState(0);
   const [open, setOpen] = useState(false);
+  const program =
+    languageOf(project.files) === "python" ? mainOf(project.files) : null;
   const idle = minutesBetween(project.keptAt, now);
   return (
     <li className="grid gap-2 rounded-lg border bg-card p-3">
@@ -84,7 +87,16 @@ function ProjectCard({
         ref={holder}
         className="relative h-44 overflow-hidden rounded-md border bg-white"
       >
-        {seen ? (
+        {program ? (
+          // A program is read here, and run once opened: running a class's
+          // programs at once would load Python for each.
+          <pre
+            dir="ltr"
+            className="h-full overflow-hidden px-2.5 py-2 font-mono text-[11px] leading-4 text-neutral-800 [font-variant-ligatures:none]"
+          >
+            {program.code}
+          </pre>
+        ) : seen ? (
           // Drawn at twice the size and shown at half, so a whole page fits a card.
           <div className="absolute top-0 left-0 flex h-[200%] w-[200%] origin-top-left scale-50 flex-col">
             <WebPreview page={page} fill quiet onErrors={setErrors} />
