@@ -26,6 +26,7 @@
   "devDependencies": {
     "@faridalms/collab": "workspace:*",
     "@faridalms/editor": "workspace:*",
+    "@faridalms/makecode": "workspace:*",
     "@faridalms/puzzles": "workspace:*",
     "@hocuspocus/provider": "^4.7.0",
     "@lexical/yjs": "^0.50.0",

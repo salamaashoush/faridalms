@@ -160,6 +160,15 @@
       "rules": { "no-underscore-dangle": "off" }
     },
     {
+      // The micro:bit editor is framed from the files host, another site
+      // from the page around it, where keeping its origin gives it the
+      // storage and workers it needs and nothing of ours. The rule guards
+      // against a frame of the page's own origin, which could undo its
+      // sandbox; this one cannot reach the page at all.
+      "files": ["packages/makecode/src/Studio.tsx"],
+      "rules": { "react/iframe-missing-sandbox": "off" }
+    },
+    {
       // The Scratch editor seeds a new project's pictures and sounds through
       // its storage's `_store`; the public `store` beside it only warns that
       // it is deprecated and calls the same thing.

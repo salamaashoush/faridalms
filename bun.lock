@@ -66,6 +66,7 @@
       "devDependencies": {
         "@faridalms/collab": "workspace:*",
         "@faridalms/editor": "workspace:*",
+        "@faridalms/makecode": "workspace:*",
         "@faridalms/puzzles": "workspace:*",
         "@hocuspocus/provider": "^4.7.0",
         "@lexical/yjs": "^0.50.0",
@@ -130,6 +131,7 @@
         "@faridalms/api-client": "workspace:*",
         "@faridalms/domain": "workspace:*",
         "@faridalms/editor": "workspace:*",
+        "@faridalms/makecode": "workspace:*",
         "@faridalms/puzzles": "workspace:*",
         "@faridalms/ui": "workspace:*",
         "@fontsource-variable/alexandria": "^5.3.0",
@@ -226,6 +228,7 @@
     "packages/domain": {
       "name": "@faridalms/domain",
       "dependencies": {
+        "@faridalms/makecode": "workspace:*",
         "@faridalms/puzzles": "workspace:*",
         "valibot": "^1.4.2",
       },
@@ -259,6 +262,19 @@
         "prismjs": "^1.30.0",
         "valibot": "^1.5.0",
         "yjs": "^13.6.33",
+      },
+      "peerDependencies": {
+        "react": "^19.3.0",
+        "react-dom": "^19.3.0",
+      },
+    },
+    "packages/makecode": {
+      "name": "@faridalms/makecode",
+      "dependencies": {
+        "@base-ui/react": "^1.8.0",
+        "@faridalms/ui": "workspace:*",
+        "lucide-react": "^1.45.0",
+        "valibot": "^1.5.0",
       },
       "peerDependencies": {
         "react": "^19.3.0",
@@ -509,6 +525,8 @@
     "@faridalms/domain": ["@faridalms/domain@workspace:packages/domain"],
 
     "@faridalms/editor": ["@faridalms/editor@workspace:packages/editor"],
+
+    "@faridalms/makecode": ["@faridalms/makecode@workspace:packages/makecode"],
 
     "@faridalms/ops": ["@faridalms/ops@workspace:apps/ops"],
 
