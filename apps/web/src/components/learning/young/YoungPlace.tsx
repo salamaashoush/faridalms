@@ -20,6 +20,7 @@ import { getMessageFromError } from "~/utils/error";
 import type { CheckDriver } from "../Checks";
 
 import { ReadAloud, sayAloud } from "../ReadAloud";
+import { useCardDrag } from "./drag";
 import { hop, shake } from "./motion";
 import { playSound } from "./sounds";
 import { outcomeWords, YoungOutcome, YoungPart } from "./YoungChoice";
@@ -200,15 +201,9 @@ function usePlacing({
 
 type Placing = ReturnType<typeof usePlacing>;
 
-/** The place under a point, as a dragged card is let go over it. */
-const spotAt = (x: number, y: number) =>
-  document.elementFromPoint(x, y)?.closest<HTMLElement>("[data-spot]")?.dataset
-    .spot ?? null;
-
 /**
- * A card a child can pick up: by a tap, or by dragging it to a place. The
- * drag follows the finger as a copy and lands on whatever place it is let go
- * over; a short press is a tap.
+ * A card a child can pick up: by a tap, or by dragging it to a place; a
+ * short press is a tap.
  */
 function Piece({
   part,
@@ -219,30 +214,19 @@ function Piece({
   placing: Placing;
   small?: boolean;
 }) {
-  const own = useRef<HTMLButtonElement | null>(null);
-  const drag = useRef<{
-    x: number;
-    y: number;
-    ghost: HTMLElement | null;
-    dx: number;
-    dy: number;
-  } | null>(null);
-  const dragged = useRef(false);
   const held = placing.held === part.id;
   const mark = placing.markOf(part.id);
   const locked = placing.locked(part.id);
-
-  const end = () => {
-    drag.current?.ghost?.remove();
-    drag.current = null;
-    for (const spot of document.querySelectorAll("[data-over]"))
-      spot.removeAttribute("data-over");
-  };
+  const drag = useCardDrag({
+    locked,
+    pile: BANK,
+    onDrop: (place) => placing.put(part.id, place),
+    card: () => placing.cards.current.get(part.id),
+  });
   return (
     <span className="relative inline-flex">
       <button
         ref={(element) => {
-          own.current = element;
           if (element) placing.cards.current.set(part.id, element);
           else placing.cards.current.delete(part.id);
         }}
@@ -250,70 +234,10 @@ function Piece({
         aria-pressed={held}
         aria-disabled={locked || undefined}
         onContextMenu={(event) => event.preventDefault()}
-        onPointerDown={(event) => {
-          // One finger moves a card; a second one resting on the screen does not.
-          if (locked || event.button !== 0 || !event.isPrimary) return;
-          const box = event.currentTarget.getBoundingClientRect();
-          drag.current = {
-            x: event.clientX,
-            y: event.clientY,
-            ghost: null,
-            dx: event.clientX - box.left,
-            dy: event.clientY - box.top,
-          };
-          dragged.current = false;
-          event.currentTarget.setPointerCapture(event.pointerId);
-        }}
-        onPointerMove={(event) => {
-          const now = drag.current;
-          if (!now) return;
-          if (!now.ghost) {
-            if (Math.hypot(event.clientX - now.x, event.clientY - now.y) < 8)
-              return;
-            const source = event.currentTarget;
-            const box = source.getBoundingClientRect();
-            const ghost = source.cloneNode(true) as HTMLElement;
-            Object.assign(ghost.style, {
-              position: "fixed",
-              left: "0",
-              top: "0",
-              width: `${box.width}px`,
-              height: `${box.height}px`,
-              pointerEvents: "none",
-              zIndex: "60",
-              opacity: "0.9",
-            });
-            ghost.removeAttribute("id");
-            (source.closest("dialog") ?? document.body).append(ghost);
-            now.ghost = ghost;
-            dragged.current = true;
-          }
-          now.ghost.style.transform = `translate(${event.clientX - now.dx}px, ${event.clientY - now.dy}px) scale(1.05)`;
-          for (const spot of document.querySelectorAll("[data-over]"))
-            spot.removeAttribute("data-over");
-          const over = spotAt(event.clientX, event.clientY);
-          if (over)
-            document
-              .querySelector(`[data-spot="${CSS.escape(over)}"]`)
-              ?.setAttribute("data-over", "");
-        }}
-        onPointerUp={(event) => {
-          const now = drag.current;
-          if (now?.ghost) {
-            const over = spotAt(event.clientX, event.clientY);
-            end();
-            if (over) placing.put(part.id, over);
-            return;
-          }
-          end();
-        }}
-        onPointerCancel={end}
+        {...drag.handlers}
         onClick={() => {
           // A drag that ended is not also a tap.
-          if (dragged.current) {
-            dragged.current = false;
-            return;
-          }
+          if (drag.wasDragged()) return;
           placing.tapPiece(part.id);
         }}
         className={cn(

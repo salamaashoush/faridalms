@@ -35,6 +35,7 @@ import {
   CircleCheck,
   CircleX,
   Eye,
+  GripVertical,
   IndentDecrease,
   IndentIncrease,
   Lightbulb,
@@ -57,6 +58,7 @@ import { getMessageFromError } from "~/utils/error";
 
 import { PictureAnswer } from "./PictureAnswer";
 import { ReadAloud, YoungContext } from "./ReadAloud";
+import { useReorder } from "./reorder";
 import { SpokenRecorder, SpokenStatus } from "./SpokenAnswer";
 import { YoungCounting } from "./young/YoungCounting";
 import { YoungHotspot } from "./young/YoungHotspot";
@@ -1117,8 +1119,7 @@ function OrderingCheck({
   const partOf = (itemId: string): StudentPart =>
     block.items.find((item) => item.id === itemId) ?? { id: itemId, text: "" };
   const textOf = (itemId: string) => partLabel(partOf(itemId));
-  const move = (index: number, by: -1 | 1) => {
-    const target = index + by;
+  const moveTo = (index: number, target: number) => {
     if (locked || target < 0 || target >= order.length) return;
     const next = [...order];
     const [itemId] = next.splice(index, 1);
@@ -1133,6 +1134,8 @@ function OrderingCheck({
       }),
     );
   };
+  const move = (index: number, by: -1 | 1) => moveTo(index, index + by);
+  const reorder = useReorder({ locked, onMove: moveTo });
   return (
     <CheckCard
       block={block}
@@ -1168,11 +1171,25 @@ function OrderingCheck({
             return (
               <li
                 key={itemId}
+                ref={reorder.row(index)}
                 className={cn(
-                  "flex min-h-12 items-center gap-3 rounded-lg border py-1.5 ps-4 pe-1.5",
+                  "flex min-h-12 items-center gap-3 rounded-lg border bg-background py-1.5 pe-1.5 data-dragging:shadow-lg",
+                  locked ? "ps-4" : "ps-1",
                   markBorder(mark),
                 )}
               >
+                {locked ? null : (
+                  // The arrows beside it move the row for those who cannot
+                  // drag, so the handle is left out of the tab order.
+                  <span
+                    aria-hidden
+                    title={m.lrnDragToMove()}
+                    {...reorder.handle(index)}
+                    className="-me-2 flex size-9 shrink-0 cursor-grab touch-none items-center justify-center rounded-md text-muted-foreground select-none hover:bg-muted active:cursor-grabbing max-md:size-11 [&_svg]:size-4"
+                  >
+                    <GripVertical />
+                  </span>
+                )}
                 <span className="w-5 shrink-0 text-sm text-muted-foreground tabular-nums">
                   {formatNumber(index + 1)}
                 </span>
@@ -1301,8 +1318,7 @@ function ParsonsCheck({
       { list: "program", index },
     );
   };
-  const move = (index: number, by: -1 | 1) => {
-    const target = index + by;
+  const moveTo = (index: number, target: number) => {
     const line = program[index];
     if (locked || !line || target < 0 || target >= program.length) return;
     setProgram(program.toSpliced(index, 1).toSpliced(target, 0, line));
@@ -1314,6 +1330,8 @@ function ParsonsCheck({
       }),
     );
   };
+  const move = (index: number, by: -1 | 1) => moveTo(index, index + by);
+  const reorder = useReorder({ locked, onMove: moveTo });
   const indent = (index: number, by: -1 | 1) => {
     const line = program[index];
     if (locked || !line) return;
@@ -1377,12 +1395,24 @@ function ParsonsCheck({
                 return (
                   <li
                     key={line.id}
+                    ref={reorder.row(index)}
                     className={cn(
-                      "flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border bg-background py-1 ps-3 pe-1",
+                      "flex flex-wrap items-center gap-x-2 gap-y-1 rounded-lg border bg-background py-1 pe-1 data-dragging:shadow-lg",
+                      locked ? "ps-3" : "ps-1",
                       markBorder(mark),
                     )}
                   >
                     <span className="flex min-h-8 min-w-48 flex-1 items-center gap-2">
+                      {locked ? null : (
+                        <span
+                          aria-hidden
+                          title={m.lrnDragToMove()}
+                          {...reorder.handle(index)}
+                          className="-me-1 flex size-8 shrink-0 cursor-grab touch-none items-center justify-center rounded-md text-muted-foreground select-none hover:bg-muted active:cursor-grabbing max-md:size-11 [&_svg]:size-4"
+                        >
+                          <GripVertical />
+                        </span>
+                      )}
                       <span className="w-5 shrink-0 text-[13px] leading-5 text-muted-foreground tabular-nums">
                         {formatNumber(index + 1)}
                       </span>

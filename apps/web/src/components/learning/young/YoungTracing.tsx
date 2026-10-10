@@ -51,7 +51,14 @@ export function YoungTracing({
   const [done, setDone] = useState<Stroke[]>(
     view?.response?.type === "tracing" ? view.response.strokes : [],
   );
-  const [ink, setInk] = useState<Point[] | null>(null);
+  // The line under the finger is drawn straight onto the board, a frame at
+  // a time: kept in state, every move of the finger drew the whole board
+  // again and the line fell behind the finger on a slow tablet.
+  const [inking, setInking] = useState(false);
+  const ink = useRef<Point[]>([]);
+  const line = useRef<SVGPolylineElement>(null);
+  const frame = useRef(0);
+  const frameBox = useRef<DOMRect | null>(null);
   const [misses, setMisses] = useState(0);
   const [showing, setShowing] = useState(false);
   const board = useRef<SVGSVGElement>(null);
@@ -68,13 +75,20 @@ export function YoungTracing({
   const current = settled ? block.strokes.length : done.length;
   const next = block.strokes[current];
 
-  const at = (event: React.PointerEvent): Point => {
-    const box = board.current?.getBoundingClientRect();
+  const at = (event: { clientX: number; clientY: number }): Point => {
+    const box = frameBox.current;
     if (!box) return [0, 0];
     return [
       (event.clientX - box.left) / box.width,
       (event.clientY - box.top) / box.height,
     ];
+  };
+  const draw = () => {
+    frame.current = 0;
+    line.current?.setAttribute(
+      "points",
+      ink.current.map(([x, y]) => `${x},${y}`).join(" "),
+    );
   };
 
   const watch = () => {
@@ -83,7 +97,7 @@ export function YoungTracing({
   };
 
   const finish = (drawn: Point[]) => {
-    setInk(null);
+    setInking(false);
     if (!next) return;
     const stroke = tidyStroke(drawn);
     if (!strokeMatches(next, stroke)) {
@@ -115,16 +129,28 @@ export function YoungTracing({
             if (!event.isPrimary || settled || respond.isPending || !next)
               return;
             event.currentTarget.setPointerCapture(event.pointerId);
-            setInk([at(event)]);
+            frameBox.current = event.currentTarget.getBoundingClientRect();
+            ink.current = [at(event)];
+            setInking(true);
+            // The line is on the board by the next frame, and drawn then.
+            frame.current = requestAnimationFrame(draw);
           }}
           onPointerMove={(event) => {
-            if (!ink || !event.isPrimary) return;
-            setInk([...ink, at(event)]);
+            if (!inking || !event.isPrimary) return;
+            // A fast finger reports several places between two frames;
+            // Safari before 18 gives only the last, which then serves.
+            const between =
+              "getCoalescedEvents" in event.nativeEvent
+                ? event.nativeEvent.getCoalescedEvents()
+                : [];
+            for (const each of between.length > 0 ? between : [event])
+              ink.current.push(at(each));
+            if (!frame.current) frame.current = requestAnimationFrame(draw);
           }}
           onPointerUp={() => {
-            if (ink) finish(ink);
+            if (inking) finish(ink.current);
           }}
-          onPointerCancel={() => setInk(null)}
+          onPointerCancel={() => setInking(false)}
         >
           {[0.25, 0.5, 0.75].map((y) => (
             <line
@@ -210,9 +236,10 @@ export function YoungTracing({
               </text>
             </>
           ) : null}
-          {ink ? (
+          {inking ? (
             <polyline
-              points={ink.map(([x, y]) => `${x},${y}`).join(" ")}
+              ref={line}
+              points=""
               fill="none"
               stroke="currentColor"
               strokeWidth={0.05}
