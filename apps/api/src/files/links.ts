@@ -97,15 +97,17 @@ const shared = {
 };
 
 /**
- * The files host: sealed links, the page students' web pages play in and
- * the coding studio, no cookies read or set. It answers on its own port and
- * hostname, so what it serves can never run as the application, and a link
- * is checked by its seal alone.
+ * The files host: sealed links, the page students' web pages play in, the
+ * coding studio and the micro:bit editor, no cookies read or set. It
+ * answers on its own port and hostname, so what it serves can never run as
+ * the application, and a link is checked by its seal alone.
  */
 export function createFilesHost(dependencies: {
   files: FileStore;
   key: Buffer;
   studio?: (request: Request) => Promise<Response | null>;
+  /** The micro:bit editor, where install has fetched one. */
+  makecode?: (request: Request) => Promise<Response | null>;
   /** The host as browsers reach it, which a played page's policy names. */
   origin?: string;
   /** The folder install fetched the libraries a played page may load into. */
@@ -140,6 +142,8 @@ export function createFilesHost(dependencies: {
     if (library) return library;
     const studio = await dependencies.studio?.(request);
     if (studio) return studio;
+    const makecode = await dependencies.makecode?.(request);
+    if (makecode) return makecode;
     const token = LINK_PATH.exec(url.pathname)?.[1];
     const grant = token ? openLink(dependencies.key, token, now()) : null;
     if (!grant) return new Response(null, { status: 404, headers: shared });

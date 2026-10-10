@@ -14,6 +14,7 @@ import {
   openLink,
   sealLink,
 } from "../src/files/links";
+import { createMakeCode } from "../src/files/makecode";
 import { createStudio } from "../src/files/studio";
 import { FILES_ORIGIN, raw, seeded, sessionFor, login } from "./harness";
 
@@ -201,6 +202,83 @@ describe("the play page", () => {
     expect(
       (await host(new Request(`${FILES_ORIGIN}/play/lib/other.js`))).status,
     ).toBe(404);
+  });
+});
+
+describe("the micro:bit editor", () => {
+  async function editorHost() {
+    const vendor = await mkdtemp(join(tmpdir(), "makecode-"));
+    const editor = join(vendor, "editor");
+    await mkdir(join(editor, "hexcache"), { recursive: true });
+    await writeFile(
+      join(editor, "index.html"),
+      "<!doctype html><title>Code editor</title>",
+    );
+    await writeFile(join(editor, "main.js"), "var pxt = {};");
+    await writeFile(join(editor, "hexcache", "abc.hex"), ":00000001FF");
+    await writeFile(join(vendor, "VERSION"), "not the editor's");
+    const host = createFilesHost({
+      files: seeded().files,
+      key,
+      makecode: createMakeCode({ editor }),
+    });
+    return (path: string, headers?: Record<string, string>) =>
+      host(new Request(`${FILES_ORIGIN}${path}`, { headers }));
+  }
+
+  test("reaches only the files host and sets no cookie", async () => {
+    const get = await editorHost();
+    const page = await get("/makecode/?controller=2&lang=ar");
+    expect(page.status).toBe(200);
+    expect(page.headers.get("content-type")).toContain("text/html");
+    expect(page.headers.get("set-cookie")).toBeNull();
+    const policy = page.headers.get("content-security-policy") ?? "";
+    expect(policy).toContain("default-src 'self'");
+    expect(policy).toContain("connect-src 'self' data: blob:");
+    expect(policy).toContain("form-action 'none'");
+    expect(policy).not.toMatch(/https?:/);
+    expect(await page.text()).toContain("Code editor");
+    expect((await get("/makecode/index.html")).status).toBe(200);
+    expect((await get("/makecode/hexcache/abc.hex")).status).toBe(200);
+  });
+
+  test("lets none of its scripts become a service worker", async () => {
+    const get = await editorHost();
+    expect(
+      (await get("/makecode/main.js", { "service-worker": "script" })).status,
+    ).toBe(404);
+    expect((await get("/makecode/main.js")).status).toBe(200);
+  });
+
+  test("asks a browser to check its copy instead of fetching again", async () => {
+    const get = await editorHost();
+    const script = await get("/makecode/main.js");
+    expect(script.headers.get("cache-control")).toBe("no-cache");
+    const etag = script.headers.get("etag") ?? "";
+    expect(etag).not.toBe("");
+    const again = await get("/makecode/main.js", { "if-none-match": etag });
+    expect(again.status).toBe(304);
+    expect(await again.text()).toBe("");
+  });
+
+  test("serves nothing from outside the editor", async () => {
+    const get = await editorHost();
+    for (const path of [
+      "/makecode/..%2FVERSION",
+      "/makecode/%2E%2E/VERSION",
+      "/makecode/hexcache/..%2F..%2FVERSION",
+      "/makecode/hexcache",
+      "/makecode/missing.js",
+      "/makecode/%E0%A4%A",
+      "/main.js",
+    ])
+      expect((await get(path)).status).toBe(404);
+  });
+
+  test("is not there until install has fetched it", async () => {
+    const host = createFilesHost({ files: seeded().files, key });
+    const page = await host(new Request(`${FILES_ORIGIN}/makecode/`));
+    expect(page.status).toBe(404);
   });
 });
 

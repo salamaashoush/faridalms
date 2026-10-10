@@ -30,7 +30,7 @@
     "test:e2e": "bun --env-file-if-exists=.env scripts/test-e2e.ts",
     "test:e2e:ui": "playwright test --ui --config=playwright.config.ts",
     "test:e2e:install": "playwright install --with-deps",
-    "postinstall": "bun scripts/compile-i18n.ts && bun apps/api/scripts/python-wasi.ts && bun apps/api/scripts/scratch.ts && bun apps/api/scripts/p5.ts",
+    "postinstall": "bun scripts/compile-i18n.ts && bun apps/api/scripts/python-wasi.ts && bun apps/api/scripts/scratch.ts && bun apps/api/scripts/p5.ts && bun apps/api/scripts/makecode.ts",
     "prepare": "bun .husky/install.mjs && bun scripts/setup.ts",
     "dev:web": "bun --env-file=.env run --cwd apps/web dev",
     "dev:api": "bun --env-file=.env run apps/api/src/index.ts",

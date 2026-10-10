@@ -12,6 +12,7 @@ import { createJavaScriptRunner, createPythonRunner } from "./coding/run";
 import { createKeyRing } from "./core/keys";
 import { env } from "./env";
 import { createFilesHost, linkKey } from "./files/links";
+import { createMakeCode } from "./files/makecode";
 import { createScanner } from "./files/scan";
 import { DiskFileStore, PUBLIC_KEY, S3FileStore } from "./files/store";
 import { createStudio } from "./files/studio";
@@ -77,6 +78,11 @@ const filesServer = Bun.serve({
         env.SCRATCH_DIR ??
         fileURLToPath(new URL("../vendor/scratch", import.meta.url)),
       sourceUrl: env.SOURCE_URL ?? null,
+    }),
+    makecode: createMakeCode({
+      editor:
+        env.MAKECODE_DIR ??
+        fileURLToPath(new URL("../vendor/makecode/editor", import.meta.url)),
     }),
   }),
 });

@@ -33,6 +33,9 @@
     "**/.nitro",
     "**/dist",
     "apps/web/src/i18n-dev",
+    // What install fetches for the files host to serve: other people's
+    // built code, which is not ours to check.
+    "apps/api/vendor",
     // Checked on its own: both apps register their router with TanStack
     // Router's global types, and one program would merge the two.
     "apps/ops"

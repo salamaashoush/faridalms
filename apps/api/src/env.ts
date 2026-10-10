@@ -66,6 +66,9 @@ export const env = v.parse(
       // apps/api/scripts/scratch.ts fetches them; by default vendor/scratch
       // beside the API's code.
       SCRATCH_DIR: v.optional(v.pipe(v.string(), v.minLength(1))),
+      // The micro:bit editor, as apps/api/scripts/makecode.ts lays it out;
+      // by default vendor/makecode/editor beside the API's code.
+      MAKECODE_DIR: v.optional(v.pipe(v.string(), v.minLength(1))),
       // Where the source of this running copy is published. The coding
       // studio's Source link names it, as the licence asks of whoever runs a
       // changed copy for other people.
