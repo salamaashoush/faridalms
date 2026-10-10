@@ -1,5 +1,5 @@
 import { Mic, RotateCcw, Square, Trash2 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 
 import { MediaPlayer } from "./media-view";
 
@@ -30,6 +30,24 @@ export function soundFormat(): { mimeType: string; extension: string } | null {
     formats.find((format) => MediaRecorder.isTypeSupported(format.mimeType)) ??
     null
   );
+}
+
+let found: ReturnType<typeof soundFormat> | undefined;
+const browserFormat = () => {
+  if (found === undefined) found = soundFormat();
+  return found;
+};
+const never = () => () => undefined;
+
+/**
+ * The format this browser records sound into, for a component to draw by.
+ * A server cannot know it, and a page must first draw what its server drew,
+ * so it reads as none until the page is alive: asked for outright while
+ * drawing, the recorder appeared in the browser where the server had left
+ * a gap, and React threw the whole lesson away to draw it again.
+ */
+export function useSoundFormat() {
+  return useSyncExternalStore(never, browserFormat, () => null);
 }
 
 const clock = (seconds: number) =>
@@ -64,7 +82,7 @@ export function VoiceRecorder({
   } | null>(null);
   const recorder = useRef<MediaRecorder | null>(null);
   const timer = useRef<ReturnType<typeof setInterval> | undefined>(undefined);
-  const format = soundFormat();
+  const format = useSoundFormat();
 
   // Letting go of the page lets go of the microphone too.
   useEffect(() => {

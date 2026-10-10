@@ -1,6 +1,6 @@
 import type { CheckView, StudentBlock } from "@faridalms/domain/learning";
 
-import { soundFormat } from "@faridalms/editor/recorder";
+import { soundFormat, useSoundFormat } from "@faridalms/editor/recorder";
 import { Button } from "@faridalms/ui/button";
 import { cn } from "@faridalms/ui/cn";
 import { Check, Mic, Pause, Play, RotateCcw, Square } from "lucide-react";
@@ -68,6 +68,7 @@ export function YoungSpoken({
   const [state, setState] = useState<"idle" | "recording" | "recorded">("idle");
   const [elapsed, setElapsed] = useState(0);
   const [refused, setRefused] = useState(false);
+  const canRecord = useSoundFormat() !== null;
   const [take, setTake] = useState<{
     file: File;
     url: string;
@@ -151,7 +152,7 @@ export function YoungSpoken({
     void audio.play().catch(() => setPlaying(false));
   };
 
-  if (!soundFormat()) return null;
+  if (!canRecord) return null;
   return (
     <div className="grid justify-items-center gap-6">
       {state === "idle" ? (
