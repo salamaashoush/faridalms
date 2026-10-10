@@ -94,8 +94,10 @@ import { Route as AppYearsYearIdRouteImport } from './routes/_app/years.$yearId'
 import { Route as ExportsAssignmentsAssignmentIdRouteImport } from './routes/exports/assignments.$assignmentId'
 import { Route as ExportsStudentsStudentIdRouteImport } from './routes/exports/students.$studentId'
 import { Route as FeedsSchoolFileRouteImport } from './routes/feeds/$school/$file'
+import { Route as FilesFileIdPartsRouteImport } from './routes/files/$fileId.parts'
 import { Route as FilesFileIdStreamRouteImport } from './routes/files/$fileId.stream'
 import { Route as SiteSchoolIndexRouteImport } from './routes/site/$school/index'
+import { Route as FilesFileIdPartsPartRouteImport } from './routes/files/$fileId.parts.$part'
 import { Route as PublicMediaPTokenNameRouteImport } from './routes/public-media/p.$token.$name'
 import { Route as SiteSchoolNewsIndexRouteImport } from './routes/site/$school/news/index'
 import { Route as SiteSchoolNewsSlugRouteImport } from './routes/site/$school/news/$slug'
@@ -533,6 +535,11 @@ const FeedsSchoolFileRoute = FeedsSchoolFileRouteImport.update({
   path: '/feeds/$school/$file',
   getParentRoute: () => rootRouteImport,
 } as any)
+const FilesFileIdPartsRoute = FilesFileIdPartsRouteImport.update({
+  id: '/parts',
+  path: '/parts',
+  getParentRoute: () => FilesFileIdRoute,
+} as any)
 const FilesFileIdStreamRoute = FilesFileIdStreamRouteImport.update({
   id: '/stream',
   path: '/stream',
@@ -542,6 +549,11 @@ const SiteSchoolIndexRoute = SiteSchoolIndexRouteImport.update({
   id: '/',
   path: '/',
   getParentRoute: () => SiteSchoolRoute,
+} as any)
+const FilesFileIdPartsPartRoute = FilesFileIdPartsPartRouteImport.update({
+  id: '/$part',
+  path: '/$part',
+  getParentRoute: () => FilesFileIdPartsRoute,
 } as any)
 const PublicMediaPTokenNameRoute = PublicMediaPTokenNameRouteImport.update({
   id: '/public-media/p/$token/$name',
@@ -641,6 +653,7 @@ export interface FileRoutesByFullPath {
   '/exports/assignments/$assignmentId': typeof ExportsAssignmentsAssignmentIdRoute
   '/exports/students/$studentId': typeof ExportsStudentsStudentIdRoute
   '/feeds/$school/$file': typeof FeedsSchoolFileRoute
+  '/files/$fileId/parts': typeof FilesFileIdPartsRouteWithChildren
   '/files/$fileId/stream': typeof FilesFileIdStreamRoute
   '/admin/': typeof AppAdminIndexRoute
   '/announcements/': typeof AppAnnouncementsIndexRoute
@@ -650,6 +663,7 @@ export interface FileRoutesByFullPath {
   '/news/': typeof AppNewsIndexRoute
   '/teach/': typeof AppTeachIndexRoute
   '/site/$school/': typeof SiteSchoolIndexRoute
+  '/files/$fileId/parts/$part': typeof FilesFileIdPartsPartRoute
   '/public-media/p/$token/$name': typeof PublicMediaPTokenNameRoute
   '/site/$school/news/$slug': typeof SiteSchoolNewsSlugRoute
   '/site/$school/pages/$slug': typeof SiteSchoolPagesSlugRoute
@@ -727,6 +741,7 @@ export interface FileRoutesByTo {
   '/exports/assignments/$assignmentId': typeof ExportsAssignmentsAssignmentIdRoute
   '/exports/students/$studentId': typeof ExportsStudentsStudentIdRoute
   '/feeds/$school/$file': typeof FeedsSchoolFileRoute
+  '/files/$fileId/parts': typeof FilesFileIdPartsRouteWithChildren
   '/files/$fileId/stream': typeof FilesFileIdStreamRoute
   '/admin': typeof AppAdminIndexRoute
   '/announcements': typeof AppAnnouncementsIndexRoute
@@ -736,6 +751,7 @@ export interface FileRoutesByTo {
   '/news': typeof AppNewsIndexRoute
   '/teach': typeof AppTeachIndexRoute
   '/site/$school': typeof SiteSchoolIndexRoute
+  '/files/$fileId/parts/$part': typeof FilesFileIdPartsPartRoute
   '/public-media/p/$token/$name': typeof PublicMediaPTokenNameRoute
   '/site/$school/news/$slug': typeof SiteSchoolNewsSlugRoute
   '/site/$school/pages/$slug': typeof SiteSchoolPagesSlugRoute
@@ -821,6 +837,7 @@ export interface FileRoutesById {
   '/exports/assignments/$assignmentId': typeof ExportsAssignmentsAssignmentIdRoute
   '/exports/students/$studentId': typeof ExportsStudentsStudentIdRoute
   '/feeds/$school/$file': typeof FeedsSchoolFileRoute
+  '/files/$fileId/parts': typeof FilesFileIdPartsRouteWithChildren
   '/files/$fileId/stream': typeof FilesFileIdStreamRoute
   '/_app/admin/': typeof AppAdminIndexRoute
   '/_app/announcements/': typeof AppAnnouncementsIndexRoute
@@ -830,6 +847,7 @@ export interface FileRoutesById {
   '/_app/news/': typeof AppNewsIndexRoute
   '/_app/teach/': typeof AppTeachIndexRoute
   '/site/$school/': typeof SiteSchoolIndexRoute
+  '/files/$fileId/parts/$part': typeof FilesFileIdPartsPartRoute
   '/public-media/p/$token/$name': typeof PublicMediaPTokenNameRoute
   '/site/$school/news/$slug': typeof SiteSchoolNewsSlugRoute
   '/site/$school/pages/$slug': typeof SiteSchoolPagesSlugRoute
@@ -914,6 +932,7 @@ export interface FileRouteTypes {
     | '/exports/assignments/$assignmentId'
     | '/exports/students/$studentId'
     | '/feeds/$school/$file'
+    | '/files/$fileId/parts'
     | '/files/$fileId/stream'
     | '/admin/'
     | '/announcements/'
@@ -923,6 +942,7 @@ export interface FileRouteTypes {
     | '/news/'
     | '/teach/'
     | '/site/$school/'
+    | '/files/$fileId/parts/$part'
     | '/public-media/p/$token/$name'
     | '/site/$school/news/$slug'
     | '/site/$school/pages/$slug'
@@ -1000,6 +1020,7 @@ export interface FileRouteTypes {
     | '/exports/assignments/$assignmentId'
     | '/exports/students/$studentId'
     | '/feeds/$school/$file'
+    | '/files/$fileId/parts'
     | '/files/$fileId/stream'
     | '/admin'
     | '/announcements'
@@ -1009,6 +1030,7 @@ export interface FileRouteTypes {
     | '/news'
     | '/teach'
     | '/site/$school'
+    | '/files/$fileId/parts/$part'
     | '/public-media/p/$token/$name'
     | '/site/$school/news/$slug'
     | '/site/$school/pages/$slug'
@@ -1093,6 +1115,7 @@ export interface FileRouteTypes {
     | '/exports/assignments/$assignmentId'
     | '/exports/students/$studentId'
     | '/feeds/$school/$file'
+    | '/files/$fileId/parts'
     | '/files/$fileId/stream'
     | '/_app/admin/'
     | '/_app/announcements/'
@@ -1102,6 +1125,7 @@ export interface FileRouteTypes {
     | '/_app/news/'
     | '/_app/teach/'
     | '/site/$school/'
+    | '/files/$fileId/parts/$part'
     | '/public-media/p/$token/$name'
     | '/site/$school/news/$slug'
     | '/site/$school/pages/$slug'
@@ -1719,6 +1743,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof FeedsSchoolFileRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/files/$fileId/parts': {
+      id: '/files/$fileId/parts'
+      path: '/parts'
+      fullPath: '/files/$fileId/parts'
+      preLoaderRoute: typeof FilesFileIdPartsRouteImport
+      parentRoute: typeof FilesFileIdRoute
+    }
     '/files/$fileId/stream': {
       id: '/files/$fileId/stream'
       path: '/stream'
@@ -1732,6 +1763,13 @@ declare module '@tanstack/react-router' {
       fullPath: '/site/$school/'
       preLoaderRoute: typeof SiteSchoolIndexRouteImport
       parentRoute: typeof SiteSchoolRoute
+    }
+    '/files/$fileId/parts/$part': {
+      id: '/files/$fileId/parts/$part'
+      path: '/$part'
+      fullPath: '/files/$fileId/parts/$part'
+      preLoaderRoute: typeof FilesFileIdPartsPartRouteImport
+      parentRoute: typeof FilesFileIdPartsRoute
     }
     '/public-media/p/$token/$name': {
       id: '/public-media/p/$token/$name'
@@ -1968,11 +2006,24 @@ const AuthRouteChildren: AuthRouteChildren = {
 
 const AuthRouteWithChildren = AuthRoute._addFileChildren(AuthRouteChildren)
 
+interface FilesFileIdPartsRouteChildren {
+  FilesFileIdPartsPartRoute: typeof FilesFileIdPartsPartRoute
+}
+
+const FilesFileIdPartsRouteChildren: FilesFileIdPartsRouteChildren = {
+  FilesFileIdPartsPartRoute: FilesFileIdPartsPartRoute,
+}
+
+const FilesFileIdPartsRouteWithChildren =
+  FilesFileIdPartsRoute._addFileChildren(FilesFileIdPartsRouteChildren)
+
 interface FilesFileIdRouteChildren {
+  FilesFileIdPartsRoute: typeof FilesFileIdPartsRouteWithChildren
   FilesFileIdStreamRoute: typeof FilesFileIdStreamRoute
 }
 
 const FilesFileIdRouteChildren: FilesFileIdRouteChildren = {
+  FilesFileIdPartsRoute: FilesFileIdPartsRouteWithChildren,
   FilesFileIdStreamRoute: FilesFileIdStreamRoute,
 }
 

@@ -85,7 +85,10 @@ export async function sweepTenantFiles(
     ...keys.superseded,
   ])
     await store.remove(key);
-  for (const folder of keys.streams) await store.removeStreams(folder);
+  // An upload given up part way leaves its parts behind as well.
+  for (const key of keys.abandoned)
+    await store.removeFolder(key.replace("/q/", "/u/"));
+  for (const folder of keys.streams) await store.removeFolder(folder);
   return {
     abandoned: keys.abandoned.length,
     retired: keys.retired.length,

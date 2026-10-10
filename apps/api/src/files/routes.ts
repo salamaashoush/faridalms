@@ -5,6 +5,8 @@ import { TenantUnavailableError } from "@faridalms/database/context";
 import { studentOf } from "@faridalms/database/stores/coursework";
 import {
   fileById,
+  partKey,
+  partsFolder,
   quarantineKey,
   readyKey,
   settleFile,
@@ -13,6 +15,8 @@ import {
   contentBytesNeeded,
   contentMatchesName,
   previewable,
+  UPLOAD_PART_BYTES,
+  uploadParts,
 } from "@faridalms/domain/file";
 import { ORPCError } from "@orpc/server";
 
@@ -25,6 +29,7 @@ import { ScanUnavailableError } from "./scan";
 import { readPrefix, StoreError } from "./store";
 
 const PATH = /^\/v1\/files\/([0-9a-f-]{36})\/content$/;
+const PARTS = /^\/v1\/files\/([0-9a-f-]{36})\/parts(?:\/(\d{1,4}))?$/;
 
 type Rejection =
   | "too_large"
@@ -62,12 +67,9 @@ async function settle(
   );
 }
 
-async function receive(
-  request: Request,
-  context: SchoolContext,
-  fileId: string,
-): Promise<Response> {
-  const file = await openUnit(context, "read", async (unit) => {
+/** The upload this person began and has not finished, if it is theirs. */
+function pendingFile(context: SchoolContext, fileId: string) {
+  return openUnit(context, "read", async (unit) => {
     const found = await fileById(unit.tx, unit.tenantId, fileId);
     return found &&
       found.state === "initiated" &&
@@ -75,15 +77,67 @@ async function receive(
       ? found
       : null;
   });
-  if (!file) return problem(404, "NOT_FOUND", context.requestId);
-  const declared = Number(request.headers.get("content-length"));
-  if (Number.isFinite(declared) && declared > 0 && declared !== file.sizeBytes)
-    return problem(400, "file.size_mismatch", context.requestId);
-  if (!request.body) return problem(400, "file.empty", context.requestId);
+}
+
+/** A part the assembled upload reached for and did not find. */
+class PartMissing extends Error {
+  constructor(public readonly part: number) {
+    super("part_missing");
+  }
+}
+
+/** An upload's parts, one after another, as the one stream they were cut from. */
+function assembled(
+  context: SchoolContext,
+  fileId: string,
+  parts: number,
+): ReadableStream<Uint8Array> {
+  let next = 0;
+  let reader: ReadableStreamDefaultReader<Uint8Array> | null = null;
+  return new ReadableStream<Uint8Array>({
+    async pull(controller) {
+      for (;;) {
+        if (!reader) {
+          if (next >= parts) {
+            controller.close();
+            return;
+          }
+          const part = await context.files.open(
+            partKey(context.school.tenantId, fileId, next),
+          );
+          if (!part) throw new PartMissing(next);
+          reader = part.getReader();
+          next += 1;
+        }
+        const { done, value } = await reader.read();
+        if (!done) {
+          controller.enqueue(value);
+          return;
+        }
+        reader = null;
+      }
+    },
+    async cancel() {
+      await reader?.cancel();
+    },
+  });
+}
+
+/**
+ * Takes an upload's bytes, whole or assembled from its parts, checks them
+ * against what was declared, and settles the file ready or rejected.
+ */
+async function accept(
+  context: SchoolContext,
+  file: StoredFile,
+  body: ReadableStream<Uint8Array>,
+): Promise<Response> {
+  const fileId = file.id;
   const tenantId = context.school.tenantId;
   const waiting = quarantineKey(tenantId, fileId);
   const refuse = async (status: number, reason: Rejection) => {
     await context.files.remove(waiting);
+    await context.files.removeFolder(partsFolder(tenantId, fileId));
     await settle(context, fileId, { state: "rejected", reason });
     return problem(status, `file.${reason}`, context.requestId);
   };
@@ -91,7 +145,7 @@ async function receive(
   try {
     stored = await context.files.write(
       waiting,
-      request.body,
+      body,
       Math.min(file.sizeBytes, context.maxUploadBytes),
     );
   } catch (error) {
@@ -107,10 +161,10 @@ async function receive(
   if (!contentMatchesName(file.name, head))
     return refuse(422, "content_mismatch");
   if (context.scanner) {
-    const body = await context.files.open(waiting);
-    if (!body) return refuse(400, "size_mismatch");
+    const scanned = await context.files.open(waiting);
+    if (!scanned) return refuse(400, "size_mismatch");
     try {
-      const verdict = await context.scanner.scan(body);
+      const verdict = await context.scanner.scan(scanned);
       if (!verdict.clean) {
         console.warn(
           JSON.stringify({
@@ -134,6 +188,7 @@ async function receive(
     }
   }
   await context.files.move(waiting, readyKey(tenantId, fileId));
+  await context.files.removeFolder(partsFolder(tenantId, fileId));
   const settled = await settle(context, fileId, {
     state: "ready",
     sha256: stored.sha256,
@@ -147,6 +202,87 @@ async function receive(
     mediaType: file.mediaType,
     sizeBytes: file.sizeBytes,
   });
+}
+
+async function receive(
+  request: Request,
+  context: SchoolContext,
+  fileId: string,
+): Promise<Response> {
+  const file = await pendingFile(context, fileId);
+  if (!file) return problem(404, "NOT_FOUND", context.requestId);
+  const declared = Number(request.headers.get("content-length"));
+  if (Number.isFinite(declared) && declared > 0 && declared !== file.sizeBytes)
+    return problem(400, "file.size_mismatch", context.requestId);
+  if (!request.body) return problem(400, "file.empty", context.requestId);
+  return accept(context, file, request.body);
+}
+
+/**
+ * One part of a large upload, kept until the rest arrive. A part sent again
+ * replaces itself, so the sender may repeat any part it is unsure of.
+ */
+async function receivePart(
+  request: Request,
+  context: SchoolContext,
+  fileId: string,
+  part: number,
+): Promise<Response> {
+  const file = await pendingFile(context, fileId);
+  if (!file) return problem(404, "NOT_FOUND", context.requestId);
+  const partBytes = context.uploadPartBytes ?? UPLOAD_PART_BYTES;
+  if (part >= uploadParts(file.sizeBytes, partBytes))
+    return problem(400, "file.size_mismatch", context.requestId);
+  if (!request.body) return problem(400, "file.empty", context.requestId);
+  try {
+    await context.files.write(
+      partKey(context.school.tenantId, fileId, part),
+      request.body,
+      partBytes,
+    );
+  } catch (error) {
+    if (error instanceof StoreError)
+      return problem(413, "file.too_large", context.requestId);
+    throw error;
+  }
+  return new Response(null, { status: 204 });
+}
+
+/**
+ * The last step of an upload sent in parts: they are joined in order and
+ * the whole is checked as an upload sent in one piece is. A part that never
+ * arrived is named, for the sender to send it and ask again.
+ */
+async function finishParts(
+  context: SchoolContext,
+  fileId: string,
+): Promise<Response> {
+  const file = await pendingFile(context, fileId);
+  if (!file) return problem(404, "NOT_FOUND", context.requestId);
+  try {
+    return await accept(
+      context,
+      file,
+      assembled(
+        context,
+        fileId,
+        uploadParts(
+          file.sizeBytes,
+          context.uploadPartBytes ?? UPLOAD_PART_BYTES,
+        ),
+      ),
+    );
+  } catch (error) {
+    if (!(error instanceof PartMissing)) throw error;
+    return Response.json(
+      {
+        code: "file.part_missing",
+        part: error.part,
+        requestId: context.requestId,
+      },
+      { status: 409 },
+    );
+  }
 }
 
 /**
@@ -233,12 +369,20 @@ export async function handleFileRequest(
   url: URL,
   context: RequestContext,
 ): Promise<Response | null> {
-  const match = PATH.exec(url.pathname);
+  const parts = PARTS.exec(url.pathname);
+  const match = parts ?? PATH.exec(url.pathname);
   if (!match?.[1]) return null;
   const school = await schoolOf(context);
   if (!school) return problem(401, "UNAUTHORIZED", context.requestId);
   const scoped: SchoolContext = { ...context, school };
   try {
+    if (parts) {
+      if (request.method === "PUT" && parts[2] !== undefined)
+        return await receivePart(request, scoped, match[1], Number(parts[2]));
+      if (request.method === "POST" && parts[2] === undefined)
+        return await finishParts(scoped, match[1]);
+      return problem(405, "METHOD_NOT_ALLOWED", context.requestId);
+    }
     if (request.method === "PUT")
       return await receive(request, scoped, match[1]);
     if (request.method === "GET" || request.method === "HEAD")

@@ -12,11 +12,11 @@ import { Camera, ImagePlus, LoaderCircle, Trash2 } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
-import { sendFile } from "~/components/coursework/useDocumentMedia";
 import * as m from "~/i18n/messages";
 import { initiateUpload } from "~/server/files";
 import { changePhoto } from "~/server/students";
 import { getMessageFromError } from "~/utils/error";
+import { sendFile } from "~/utils/upload";
 
 /** The square the picture is placed in, on screen. */
 const VIEW = 256;

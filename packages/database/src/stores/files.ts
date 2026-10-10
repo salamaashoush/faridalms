@@ -59,6 +59,11 @@ export const quarantineKey = (tenantId: string, fileId: string) =>
   `t/${tenantId}/q/${fileId}`;
 export const readyKey = (tenantId: string, fileId: string) =>
   `t/${tenantId}/f/${fileId}`;
+/** Where the parts of an upload wait until the last one arrives. */
+export const partsFolder = (tenantId: string, fileId: string) =>
+  `t/${tenantId}/u/${fileId}`;
+export const partKey = (tenantId: string, fileId: string, part: number) =>
+  `${partsFolder(tenantId, fileId)}/${part}`;
 
 /** Records an upload the person is about to send; the key is the server's. */
 export async function initiateFile(

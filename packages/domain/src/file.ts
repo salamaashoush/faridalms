@@ -35,6 +35,15 @@ export const FILE_REJECTIONS = [
 ] as const;
 export type FileRejection = (typeof FILE_REJECTIONS)[number];
 
+/**
+ * A large upload travels in parts this size, so a connection that drops
+ * loses one part and not the whole file.
+ */
+export const UPLOAD_PART_BYTES = 8 * 1024 * 1024;
+/** How many parts a file of this size goes up in. */
+export const uploadParts = (sizeBytes: number, partBytes = UPLOAD_PART_BYTES) =>
+  Math.max(1, Math.ceil(sizeBytes / partBytes));
+
 const HOUR = 60 * 60 * 1000;
 /** How long an upload may stay initiated before it counts as abandoned. */
 export const ABANDONED_UPLOAD_MS = 24 * HOUR;

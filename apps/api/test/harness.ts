@@ -54,6 +54,9 @@ const urlFor = (name: string, role?: string) => {
   return url.toString();
 };
 
+/** The part size tests upload in, small enough for the upload limit here. */
+export const PART_BYTES = 64 * 1024;
+
 interface State {
   tenants: SeededTenant[];
   handler: (request: Request) => Promise<Response>;
@@ -130,6 +133,7 @@ export async function setUp() {
     mediaCaptions: true,
     streamLinkKey: streamLinkKey(cellSecret),
     maxUploadBytes: 1024 * 1024,
+    uploadPartBytes: PART_BYTES,
     channels: { email: true, sms: false },
   });
   state = {

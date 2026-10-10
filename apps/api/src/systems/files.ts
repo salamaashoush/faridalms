@@ -32,6 +32,7 @@ import {
   picturedSchema,
   safeFilename,
   tagPicturedSchema,
+  UPLOAD_PART_BYTES,
 } from "@faridalms/domain/file";
 import { limitsOf, WARN_SHARE } from "@faridalms/domain/plans";
 import { ORPCError } from "@orpc/server";
@@ -96,6 +97,8 @@ export const initiate = writeProcedure
       name: file.name,
       mediaType: file.mediaType,
       sizeBytes: file.sizeBytes,
+      // A file larger than this goes up in parts of this size.
+      partBytes: context.uploadPartBytes ?? UPLOAD_PART_BYTES,
       warning,
     };
   });

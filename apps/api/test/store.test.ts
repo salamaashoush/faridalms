@@ -224,16 +224,16 @@ describe.each(stores)("%s file store", (name, store) => {
     const kept = keyOf("f");
     await store.write(kept, streamOf(new TextEncoder().encode("kept")), 64);
 
-    await store.removeStreams(folder);
+    await store.removeFolder(folder);
     for (const part of parts)
       expect(await held(`${folder}/${part}`)).toBe(false);
     expect(await store.open(kept)).not.toBeNull();
     // Streams already gone are no error, and only a stream folder is taken.
-    await store.removeStreams(folder);
-    expect(store.removeStreams(`t/${tenant}/f`)).rejects.toEqual(
+    await store.removeFolder(folder);
+    expect(store.removeFolder(`t/${tenant}/f`)).rejects.toEqual(
       new StoreError("invalid_key"),
     );
-    expect(store.removeStreams(`t/${tenant}`)).rejects.toEqual(
+    expect(store.removeFolder(`t/${tenant}`)).rejects.toEqual(
       new StoreError("invalid_key"),
     );
   });

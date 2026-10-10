@@ -121,6 +121,14 @@ is unreadable, and an object without its record is unreachable. `MAX_UPLOAD_BYTE
 the server's request body limit. Only the extensions and media types listed in
 `packages/domain/src/file.ts` are accepted; executables and SVG stay out.
 
+A file over 8 MiB leaves the browser in parts of that size, each its own
+request, and the API joins them once the last has arrived; the browser sends
+a part the network dropped again after a wait, so a poor line costs one part
+and not the upload. A proxy in front of the web app therefore has to pass
+bodies of 8 MiB, not of `MAX_UPLOAD_BYTES`. Parts wait under
+`t/<tenant>/u/<file>/` and go when the upload is joined, refused, or given up
+for a day.
+
 Every upload is checked before it becomes ready. Binary formats must open with
 their signature and text formats must be UTF-8 without NUL bytes (captions must
 also carry the WebVTT header), so a renamed executable or script is refused with

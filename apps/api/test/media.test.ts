@@ -1,3 +1,4 @@
+import { partKey, readyKey } from "@faridalms/database/stores/files";
 import { describe, expect, test } from "bun:test";
 import { createDecipheriv } from "node:crypto";
 
@@ -8,6 +9,7 @@ import { mediaWorkerToken, streamLinkKey } from "../src/media/streams";
 import {
   login,
   MEDIA_ORIGIN,
+  PART_BYTES,
   raw,
   rejection,
   seeded,
@@ -177,9 +179,9 @@ describe("video streams", () => {
       open: (key, range) => files.open(key, range),
       move: (from, to) => files.move(from, to),
       remove: (key) => files.remove(key),
-      removeStreams: async (folder) => {
+      removeFolder: async (folder) => {
         removed.push(folder);
-        await files.removeStreams(folder);
+        await files.removeFolder(folder);
       },
     };
     // While the video is kept, so are its streams.
@@ -239,6 +241,107 @@ async function claimDraft(fileId: string) {
   }
   return null;
 }
+
+describe("a large upload sent in parts", () => {
+  test("parts arrive in any order, a lost one is named, and the whole is checked", async () => {
+    const teacher = await sessionFor("northwind", login("teacher"));
+    const bytes = new Uint8Array(PART_BYTES + 4096).map(
+      (_value, index) => index % 251,
+    );
+    bytes.set(new Uint8Array(await mp4().arrayBuffer()));
+    const file = await teacher.api.files.initiate({
+      purpose: "document_media",
+      name: "long-lesson.mp4",
+      mediaType: "video/mp4",
+      sizeBytes: bytes.byteLength,
+    });
+    const send = (
+      path: string,
+      method: string,
+      body?: Uint8Array<ArrayBuffer>,
+    ) =>
+      raw("northwind", teacher.token, `/v1/files/${file.id}/parts${path}`, {
+        method,
+        ...(body ? { body } : {}),
+      });
+    const first = bytes.subarray(0, PART_BYTES);
+    const last = bytes.subarray(PART_BYTES);
+
+    // The tail arrives before the head, and the head is asked for.
+    expect((await send("/1", "PUT", last)).status).toBe(204);
+    const early = await send("", "POST");
+    expect(early.status).toBe(409);
+    expect(await early.json()).toMatchObject({
+      code: "file.part_missing",
+      part: 0,
+    });
+
+    // A part past the file's end, one too big, and one from someone else.
+    expect((await send("/2", "PUT", last)).status).toBe(400);
+    expect(
+      (await send("/0", "PUT", new Uint8Array(PART_BYTES + 1))).status,
+    ).toBe(413);
+    const stranger = await sessionFor("northwind", login("student"));
+    expect(
+      (
+        await raw("northwind", stranger.token, `/v1/files/${file.id}/parts/0`, {
+          method: "PUT",
+          body: first,
+        })
+      ).status,
+    ).toBe(404);
+
+    // Sent twice, a part replaces itself.
+    expect((await send("/0", "PUT", first)).status).toBe(204);
+    expect((await send("/0", "PUT", first)).status).toBe(204);
+    const done = await send("", "POST");
+    expect(done.status).toBe(200);
+    expect(await done.json()).toMatchObject({
+      id: file.id,
+      sizeBytes: bytes.byteLength,
+    });
+    expect(file.partBytes).toBe(PART_BYTES);
+
+    const { files, tenants } = seeded();
+    const tenantId = tenants[0]?.tenantId ?? "";
+    const stored = await files.open(readyKey(tenantId, file.id));
+    const back = new Uint8Array(await new Response(stored).arrayBuffer());
+    expect(new Bun.CryptoHasher("sha256").update(back).digest("hex")).toBe(
+      new Bun.CryptoHasher("sha256").update(bytes).digest("hex"),
+    );
+    expect(await files.open(partKey(tenantId, file.id, 0))).toBeNull();
+    // Once whole, the upload takes no more parts.
+    expect((await send("/0", "PUT", first)).status).toBe(404);
+  });
+
+  test("an upload given up part way leaves no parts behind", async () => {
+    const teacher = await sessionFor("northwind", login("teacher"));
+    const file = await teacher.api.files.initiate({
+      purpose: "document_media",
+      name: "given-up.mp4",
+      mediaType: "video/mp4",
+      sizeBytes: PART_BYTES + 10,
+    });
+    expect(
+      (
+        await raw("northwind", teacher.token, `/v1/files/${file.id}/parts/1`, {
+          method: "PUT",
+          body: new Uint8Array(10),
+        })
+      ).status,
+    ).toBe(204);
+    const { cell, files, tenants } = seeded();
+    const tenantId = tenants[0]?.tenantId ?? "";
+    expect(await files.open(partKey(tenantId, file.id, 1))).not.toBeNull();
+    await sweepTenantFiles(
+      cell,
+      files,
+      tenantId,
+      new Date(Date.now() + 25 * 60 * 60 * 1000),
+    );
+    expect(await files.open(partKey(tenantId, file.id, 1))).toBeNull();
+  });
+});
 
 describe("captions drafted from speech", () => {
   test("a teacher asks for a recording's captions, which the media service drafts", async () => {

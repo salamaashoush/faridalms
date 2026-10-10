@@ -33,6 +33,8 @@ export interface ApiDependencies {
   mediaCaptions: boolean;
   streamLinkKey: Buffer;
   maxUploadBytes: number;
+  /** The size of each part of a large upload; the usual size when unset. */
+  uploadPartBytes?: number;
   /** Which outside channels have a gateway; the rest are logged as skipped. */
   channels: { email: boolean; sms: boolean };
 }
