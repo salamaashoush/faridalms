@@ -178,6 +178,30 @@ describe("the play page", () => {
     const script = await host(new Request(`${FILES_ORIGIN}/play/shell.js`));
     expect(script.headers.get("content-type")).toContain("javascript");
   });
+
+  test("serves the drawing library a page may load, with its licence, to a page of no origin", async () => {
+    const host = seeded().filesHost;
+    const page = await host(new Request(`${FILES_ORIGIN}/play`));
+    // The host is named, for the browser that takes 'self' to mean nothing here.
+    expect(page.headers.get("content-security-policy")).toContain(
+      `script-src 'self' ${FILES_ORIGIN} `,
+    );
+    const library = await host(
+      new Request(`${FILES_ORIGIN}/play/lib/p5.min.js`),
+    );
+    expect(library.status).toBe(200);
+    expect(library.headers.get("content-type")).toContain("javascript");
+    expect(library.headers.get("access-control-allow-origin")).toBe("*");
+    expect(library.headers.get("set-cookie")).toBeNull();
+    expect((await library.text()).startsWith("var p5=")).toBe(true);
+    const licence = await host(
+      new Request(`${FILES_ORIGIN}/play/lib/p5.LICENSE.txt`),
+    );
+    expect(await licence.text()).toContain("GNU LESSER GENERAL PUBLIC LICENSE");
+    expect(
+      (await host(new Request(`${FILES_ORIGIN}/play/lib/other.js`))).status,
+    ).toBe(404);
+  });
 });
 
 describe("the coding studio", () => {

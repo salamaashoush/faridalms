@@ -187,13 +187,26 @@ export function guardedScript(
 
 // Sends what the page writes to its console, and the errors it meets, to
 // the lesson around it, and keeps the loop check. An error the browser
-// will not describe is the one the page last noted, when it noted one. A
+// will not describe is the one the page last noted, when it noted one. An
+// error that arrives as a refused promise has no line of its own in Chrome,
+// so it is read from where the error says it was made. A
 // link is not followed, since the frame has nowhere to go, but told to the
 // lesson, which may have the page it names. One line, so the page's own
 // lines keep their numbers.
-const PRELUDE = `<script>(()=>{const show=(v)=>{if(typeof v==="string")return v;if(v instanceof Error)return v.name+": "+v.message;try{return JSON.stringify(v)??String(v)}catch{return String(v)}};const send=(kind,text,line)=>parent.postMessage({type:"console",kind,text,line:line??null},"*");const lineOf=(v)=>v instanceof Error?(v.line??v.lineNumber??null):null;for(const kind of ["log","info","warn","error","debug"]){const own=console[kind].bind(console);console[kind]=(...values)=>{send(kind==="debug"?"log":kind,values.map(show).join(" "));own(...values)}}let noted=null;window.__faridaErr=(error)=>{noted=error};window.__faridaTry=(run)=>{try{return run()}catch(error){noted=error;throw error}};window.__faridaSay=(text,line)=>send("error",text,line);addEventListener("error",(event)=>{const hidden=event.message==="${ERROR_HIDDEN}"&&!event.lineno;const known=hidden?noted:null;noted=null;if(known)send("error",show(known),lineOf(known));else send("error",String(event.message),event.lineno||null)});addEventListener("unhandledrejection",(event)=>send("error",show(event.reason),lineOf(event.reason)));addEventListener("click",(event)=>{const link=event.target instanceof Element?event.target.closest("a[href]"):null;const href=link?link.getAttribute("href")||"":"#";if(href.startsWith("#"))return;event.preventDefault();parent.postMessage({type:"open",href},"*")});let started=0;window.__faridaLoop=()=>{if(!started){started=Date.now();queueMicrotask(()=>{started=0})}else if(Date.now()-started>${LOOP_SECONDS * 1000}){started=0;throw new Error("${LOOP_STOPPED}")}}})()</script>`;
+const PRELUDE = `<script>(()=>{const show=(v)=>{if(typeof v==="string")return v;if(v instanceof Error)return v.name+": "+v.message;try{return JSON.stringify(v)??String(v)}catch{return String(v)}};const send=(kind,text,line)=>parent.postMessage({type:"console",kind,text,line:line??null},"*");const lineOf=(v)=>{if(!(v instanceof Error))return null;const told=v.line??v.lineNumber;if(told)return told;const at=/about:srcdoc:(\\d+):\\d+/.exec(String(v.stack));return at?Number(at[1]):null};for(const kind of ["log","info","warn","error","debug"]){const own=console[kind].bind(console);console[kind]=(...values)=>{send(kind==="debug"?"log":kind,values.map(show).join(" "));own(...values)}}let noted=null;window.__faridaErr=(error)=>{noted=error};window.__faridaTry=(run)=>{try{return run()}catch(error){noted=error;throw error}};window.__faridaSay=(text,line)=>send("error",text,line);addEventListener("error",(event)=>{const hidden=event.message==="${ERROR_HIDDEN}"&&!event.lineno;const known=hidden?noted:null;noted=null;if(known)send("error",show(known),lineOf(known));else send("error",String(event.message),event.lineno||null)});addEventListener("unhandledrejection",(event)=>send("error",show(event.reason),lineOf(event.reason)));addEventListener("click",(event)=>{const link=event.target instanceof Element?event.target.closest("a[href]"):null;const href=link?link.getAttribute("href")||"":"#";if(href.startsWith("#"))return;event.preventDefault();parent.postMessage({type:"open",href},"*")});let started=0;window.__faridaLoop=()=>{if(!started){started=Date.now();queueMicrotask(()=>{started=0})}else if(Date.now()-started>${LOOP_SECONDS * 1000}){started=0;throw new Error("${LOOP_STOPPED}")}}})()</script>`;
 
 const SCRIPT = /<script(\s[^>]*)?>([\s\S]*?)<\/script\s*>/gi;
+const SOURCE = /\bsrc\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'>]+))/i;
+
+/**
+ * The libraries the files host serves to a played page, by the names a
+ * page may ask for one by. A page reaches no other server, so a library
+ * is loaded from beside the page that plays it.
+ */
+const LIBRARIES: Record<string, string> = {
+  "p5.js": "/play/lib/p5.min.js",
+  "p5.min.js": "/play/lib/p5.min.js",
+};
 
 const newlines = (text: string) => text.split("\n").length - 1;
 
@@ -208,7 +221,17 @@ export function playablePage(html: string, traced = false): string {
     (whole, attributes: string | undefined, code: string, offset: number) => {
       const kind = /\btype\s*=\s*["']?([^"'\s>]+)/i.exec(attributes ?? "")?.[1];
       const module = kind?.toLowerCase() === "module";
-      if (/\bsrc\s*=/i.test(attributes ?? "")) return whole;
+      const source = SOURCE.exec(attributes ?? "");
+      if (source) {
+        const named = (source[1] ?? source[2] ?? source[3] ?? "")
+          .replace(/^\.\//, "")
+          .toLowerCase();
+        const library = LIBRARIES[named];
+        // Read as shared, so the page is still told of an error inside it.
+        return library
+          ? `<script${(attributes ?? "").replace(SOURCE, `src="${library}" crossorigin="anonymous"`)}></script>`
+          : whole;
+      }
       if (kind && !module && !/javascript|ecmascript/i.test(kind)) return whole;
       const open = `<script${attributes ?? ""}>`;
       // The page's line the script's first line is on.

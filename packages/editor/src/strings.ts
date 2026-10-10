@@ -246,6 +246,8 @@ export interface EditorStrings {
   questionProject: string;
   questionProjectHint: string;
   questionGallery: string;
+  questionSketch: string;
+  questionSketchHint: string;
   questionStarterBuild: string;
   questionStarterEdit: string;
   questionStarterRemove: string;

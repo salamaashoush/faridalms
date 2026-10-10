@@ -5698,5 +5698,7 @@
         "countPlural=*": "لا تغيير منذ {count} دقيقة"
       }
     }
-  ]
+  ],
+  "editorQuestionSketch": "رسم بـ p5.js",
+  "editorQuestionSketchHint": "يرسم الطلاب ويحرّكون بالشفرة في p5.js، وتصحّحه أنت"
 }

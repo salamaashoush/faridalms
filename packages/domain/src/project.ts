@@ -148,3 +148,46 @@ export function emptyProject(language: string, rtl: boolean): ProjectFile[] {
     { name: "script.js", code: "" },
   ];
 }
+
+/**
+ * The project a p5.js sketch starts from: a page that loads the library
+ * the files host serves and a sketch that already draws, so a student's
+ * first change shows at once. It holds no words, so it suits any language.
+ */
+export function sketchProject(): ProjectFile[] {
+  return [
+    {
+      name: "index.html",
+      code: [
+        "<!doctype html>",
+        "<html>",
+        "    <head>",
+        '        <meta charset="utf-8">',
+        "        <title></title>",
+        '        <link rel="stylesheet" href="style.css">',
+        "    </head>",
+        "    <body>",
+        '        <script src="p5.js"></script>',
+        '        <script src="sketch.js"></script>',
+        "    </body>",
+        "</html>",
+        "",
+      ].join("\n"),
+    },
+    { name: "style.css", code: "body {\n    margin: 0;\n}\n" },
+    {
+      name: "sketch.js",
+      code: [
+        "function setup() {",
+        "    createCanvas(400, 400);",
+        "}",
+        "",
+        "function draw() {",
+        "    background(220);",
+        "    circle(mouseX, mouseY, 40);",
+        "}",
+        "",
+      ].join("\n"),
+    },
+  ];
+}

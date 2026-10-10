@@ -277,6 +277,8 @@ export function editorStrings(): EditorStrings {
     questionProject: m.editorQuestionProject(),
     questionProjectHint: m.editorQuestionProjectHint(),
     questionGallery: m.editorQuestionGallery(),
+    questionSketch: m.editorQuestionSketch(),
+    questionSketchHint: m.editorQuestionSketchHint(),
     questionStarterBuild: m.editorQuestionStarterBuild(),
     questionStarterEdit: m.editorQuestionStarterEdit(),
     questionStarterRemove: m.editorQuestionStarterRemove(),

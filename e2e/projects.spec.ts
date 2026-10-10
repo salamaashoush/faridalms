@@ -342,3 +342,66 @@ test("a student shows a project to the class once the teacher agrees, and a clas
   await untilHydrated(page);
   await expect(page.getByText("Built on Yasmin Sabry's project")).toBeVisible();
 });
+
+test("a p5.js sketch draws for its student with the library the school serves", async ({
+  browser,
+  page,
+}) => {
+  const title = `Sketches ${crypto.randomUUID().slice(0, 6)}`;
+  await signInWith(page, TEACHER, PASSWORD, "/teach");
+  await page.goto("/teach/module-editor");
+  await untilHydrated(page);
+  await page.getByRole("textbox", { name: "Module title" }).fill(title);
+  await page.getByRole("combobox", { name: "Classes" }).click();
+  await page.getByRole("option", { name: "8A Arabic", exact: true }).click();
+  await page.keyboard.press("Escape");
+  await page.getByRole("button", { name: "Save", exact: true }).click();
+  await expect(page).toHaveURL(/\/modules\/[a-f0-9-]+/);
+  const recordUrl = page.url().split("?")[0] ?? "";
+  await page.getByRole("link", { name: "Add lesson" }).click();
+  await expect(page).toHaveURL(/\/teach\/lesson-editor/);
+  await untilHydrated(page);
+  await page.getByRole("textbox", { name: "Lesson title" }).fill("Circles");
+  await page.locator("#lesson-body").click();
+  await page.keyboard.type("/p5");
+  await page.getByRole("option", { name: /p5\.js sketch/ }).click();
+  await page.keyboard.type("Make the circle follow the mouse.");
+  await expect(page.locator("[data-question]")).toHaveAttribute(
+    "data-label",
+    /starts from your project/,
+  );
+  await expect(page.getByText("Saved", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Back" }).click();
+  await expect(page).toHaveURL(recordUrl);
+  await page.getByRole("button", { name: "More actions" }).click();
+  await page.getByRole("menuitem", { name: "Open to students" }).click();
+  await expect(page.getByText("Module open to students")).toBeVisible();
+
+  const context = await browser.newContext();
+  const student = await context.newPage();
+  await signInWith(
+    student,
+    ACCOUNTS.student.email,
+    PASSWORD,
+    ACCOUNTS.student.home,
+  );
+  await student.goto("/me/modules");
+  await untilHydrated(student);
+  await student.getByRole("link", { name: title }).click();
+  await student.getByRole("button", { name: "Start", exact: true }).click();
+  // The library made the canvas the sketch asks for, at the size it asks.
+  const canvas = played(student).locator("canvas");
+  await expect(canvas).toBeVisible();
+  await expect(canvas).toHaveAttribute("width", /\d+/);
+  // A mistake in the sketch is told with its file and line, library or not.
+  await student.getByRole("button", { name: "Open the project" }).click();
+  const studio = student.getByRole("dialog", { name: "Web project" });
+  await studio.getByRole("tab", { name: "sketch.js" }).click();
+  await write(
+    student,
+    studio,
+    "function setup() {\n    createCanvas(200, 200);\n    nowhere();\n}\n",
+  );
+  await expect(studio.getByText(/^sketch\.js, line 3: /)).toBeVisible();
+  await context.close();
+});

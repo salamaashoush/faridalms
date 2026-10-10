@@ -1,3 +1,5 @@
+import { join } from "node:path";
+
 // The page a student's web page plays in, served by the files host on its
 // own cookieless domain. It holds one frame sandboxed to an opaque origin
 // and puts in it whatever page the lesson around it sends, so a student's
@@ -59,18 +61,21 @@ document.body.append(probe);
 // The policy a student's page inherits from the frame it is put in: its own
 // scripts and styles run, pictures come from itself or the files host, and
 // nothing reaches the network, so a page cannot send a classmate's work or
-// a child's typing anywhere.
-const POLICY = [
-  "default-src 'none'",
-  "script-src 'self' 'unsafe-inline' 'unsafe-eval'",
-  "style-src 'self' 'unsafe-inline'",
-  "img-src 'self' data: blob:",
-  "media-src 'self' data: blob:",
-  "font-src 'self' data:",
-  "connect-src 'none'",
-  "form-action 'none'",
-  "base-uri 'none'",
-].join("; ");
+// a child's typing anywhere. The files host is named as well as meant by
+// 'self': Safari takes 'self' to match nothing for a page with no origin,
+// which would keep a page from the libraries served beside it.
+const policy = (origin: string | null) =>
+  [
+    "default-src 'none'",
+    `script-src 'self'${origin ? ` ${origin}` : ""} 'unsafe-inline' 'unsafe-eval'`,
+    "style-src 'self' 'unsafe-inline'",
+    "img-src 'self' data: blob:",
+    "media-src 'self' data: blob:",
+    "font-src 'self' data:",
+    "connect-src 'none'",
+    "form-action 'none'",
+    "base-uri 'none'",
+  ].join("; ");
 
 const headers = {
   "x-content-type-options": "nosniff",
@@ -78,14 +83,20 @@ const headers = {
   "cache-control": "no-cache",
 };
 
-/** The play page and its script, or null for any other address. */
-export function playResponse(path: string): Response | null {
+/**
+ * The play page and its script, or null for any other address. `origin` is
+ * the files host as browsers reach it.
+ */
+export function playResponse(
+  path: string,
+  origin: string | null = null,
+): Response | null {
   if (path === "/play")
     return new Response(SHELL, {
       headers: {
         ...headers,
         "content-type": "text/html; charset=utf-8",
-        "content-security-policy": POLICY,
+        "content-security-policy": policy(origin),
       },
     });
   if (path === "/play/shell.js")
@@ -93,4 +104,41 @@ export function playResponse(path: string): Response | null {
       headers: { ...headers, "content-type": "text/javascript; charset=utf-8" },
     });
   return null;
+}
+
+/** The libraries a played page may load, each the file install fetched, unchanged. */
+const LIBRARIES: Record<string, { file: string; type: string }> = {
+  "/play/lib/p5.min.js": {
+    file: "p5/p5.min.js",
+    type: "text/javascript; charset=utf-8",
+  },
+  "/play/lib/p5.LICENSE.txt": {
+    file: "p5/LICENSE.txt",
+    type: "text/plain; charset=utf-8",
+  },
+};
+
+/**
+ * A library a played page asks for, from the folder install fetched them
+ * into, or null for any other address. Any page may read it: a played page
+ * has no origin of its own to be allowed by name.
+ */
+export async function libraryResponse(
+  path: string,
+  vendor: string,
+): Promise<Response | null> {
+  const library = LIBRARIES[path];
+  if (!library) return null;
+  const file = Bun.file(join(vendor, library.file));
+  if (!(await file.exists()))
+    return new Response(null, { status: 404, headers });
+  return new Response(file, {
+    headers: {
+      "x-content-type-options": "nosniff",
+      "content-type": library.type,
+      "access-control-allow-origin": "*",
+      "cross-origin-resource-policy": "cross-origin",
+      "cache-control": "public, max-age=86400",
+    },
+  });
 }

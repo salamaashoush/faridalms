@@ -3,7 +3,7 @@ import { createCipheriv, createDecipheriv, createHmac } from "node:crypto";
 
 import type { FileStore } from "./store";
 
-import { playResponse } from "./play";
+import { libraryResponse, playResponse } from "./play";
 
 /** What a signed link lets its holder read, and until when. */
 export interface LinkGrant {
@@ -106,6 +106,10 @@ export function createFilesHost(dependencies: {
   files: FileStore;
   key: Buffer;
   studio?: (request: Request) => Promise<Response | null>;
+  /** The host as browsers reach it, which a played page's policy names. */
+  origin?: string;
+  /** The folder install fetched the libraries a played page may load into. */
+  libraries?: string;
   now?: () => number;
 }) {
   const now = dependencies.now ?? (() => Math.floor(Date.now() / 1000));
@@ -128,8 +132,12 @@ export function createFilesHost(dependencies: {
     // that browser afterwards.
     if (request.headers.has("service-worker"))
       return new Response(null, { status: 404, headers: shared });
-    const play = playResponse(url.pathname);
+    const play = playResponse(url.pathname, dependencies.origin ?? null);
     if (play) return play;
+    const library = dependencies.libraries
+      ? await libraryResponse(url.pathname, dependencies.libraries)
+      : null;
+    if (library) return library;
     const studio = await dependencies.studio?.(request);
     if (studio) return studio;
     const token = LINK_PATH.exec(url.pathname)?.[1];

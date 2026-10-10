@@ -15,6 +15,7 @@ import type {
 } from "lexical";
 
 import { hintsOf } from "@faridalms/domain/lesson-content";
+import { sketchProject } from "@faridalms/domain/project";
 import { addClassNamesToElement } from "@lexical/utils";
 import {
   $createParagraphNode,
@@ -1356,6 +1357,16 @@ export function $createQuestionNode(kind: QuestionKind): QuestionNode {
   if (kind === "gaps") question.append(new QuestionPassageNode());
   if (kind === "spelling")
     question.append(new QuestionAnswerNode(), new QuestionAnswerNode());
+  return question;
+}
+
+/** A web project that starts as a p5.js sketch, already drawing. */
+export function $createSketchQuestion(): QuestionNode {
+  const question = new QuestionNode({
+    ...defaultSettings("project"),
+    projectFiles: sketchProject(),
+  });
+  question.append(new QuestionPromptNode());
   return question;
 }
 

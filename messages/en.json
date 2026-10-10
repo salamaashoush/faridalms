@@ -5478,5 +5478,7 @@
         "countPlural=*": "No change for {count} minutes"
       }
     }
-  ]
+  ],
+  "editorQuestionSketch": "p5.js sketch",
+  "editorQuestionSketchHint": "Students draw and animate with code in p5.js; you mark it"
 }

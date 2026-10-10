@@ -69,6 +69,8 @@ const filesServer = Bun.serve({
   fetch: createFilesHost({
     files: stores.files,
     key: linkKey(cellSecret),
+    origin: filesOrigin,
+    libraries: fileURLToPath(new URL("../vendor", import.meta.url)),
     studio: createStudio({
       page: fileURLToPath(new URL("../studio", import.meta.url)),
       scratch:

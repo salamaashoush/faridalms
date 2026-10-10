@@ -65,6 +65,20 @@ describe("a student's web page", () => {
   });
 });
 
+describe("a page that asks for a library", () => {
+  it("is given the one the files host serves, and no other server's", () => {
+    const page = playablePage(
+      '<script src="./P5.js" defer></script>\n<script src="https://example.com/p5.js"></script>\n<script src="mine.js"></script>',
+    );
+    expect(page).toContain(
+      '<script src="/play/lib/p5.min.js" crossorigin="anonymous" defer></script>',
+    );
+    expect(page).toContain('<script src="https://example.com/p5.js"></script>');
+    expect(page).toContain('<script src="mine.js"></script>');
+    expect(page.split("\n")).toHaveLength(3);
+  });
+});
+
 describe("a page that notes its own errors", () => {
   it("notes an error the script itself runs into, and lets it go on its way", () => {
     const { noted, thrown, traced } = run("const a = 1;\nnope(a);");

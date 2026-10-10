@@ -264,6 +264,16 @@ code and web projects are not offered. In development that must be another
 site from the web, such as `http://localhost:3103` beside
 `http://127.0.0.1:3100`.
 
+A page may load p5.js, the drawing library, by asking for `p5.js`: the
+lesson gives it the copy the files host serves at `/play/lib/p5.min.js`,
+since a played page reaches no other server. Install fetches that file as
+published (`apps/api/scripts/p5.ts`, pinned by version and checksum) into
+`apps/api/vendor/p5`, and the image copies it beside the API. p5.js is
+under the LGPL 2.1; it is served unchanged, with its licence at
+`/play/lib/p5.LICENSE.txt`. The play page's policy names the files host as
+well as `'self'`, because Safari takes `'self'` to match nothing for a page
+with no origin.
+
 Code exercises are marked on the API, which runs each student's program in
 CPython compiled for WASI inside a worker thread: the program sees only an
 in-memory copy of the standard library and itself, with no host file,

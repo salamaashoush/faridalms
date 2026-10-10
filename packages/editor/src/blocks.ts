@@ -93,6 +93,7 @@ import {
   $createColumnNode,
   $createQuestionNode,
   $createTrueFalseQuestion,
+  $createSketchQuestion,
   $createWhyQuestion,
   $createColumnsNode,
   $createToggleContentNode,
@@ -146,6 +147,7 @@ export type BlockType =
   | "hotspotQuestion"
   | "scratchQuestion"
   | "projectQuestion"
+  | "sketchQuestion"
   | "gapsQuestion"
   | "trueFalseQuestion"
   | "whyQuestion"
@@ -175,6 +177,7 @@ const QUESTION_KIND: Partial<Record<BlockType, QuestionKind>> = {
   hotspotQuestion: "hotspot",
   scratchQuestion: "scratch",
   projectQuestion: "project",
+  sketchQuestion: "project",
 };
 
 export interface BlockDefinition {
@@ -734,6 +737,29 @@ export const blockDefinitions: BlockDefinition[] = [
     studio: true,
   },
   {
+    type: "sketchQuestion",
+    group: "questions",
+    icon: Shapes,
+    label: (s) => s.questionSketch,
+    hint: (s) => s.questionSketchHint,
+    keywords: [
+      "p5",
+      "sketch",
+      "draw",
+      "drawing",
+      "art",
+      "animation",
+      "canvas",
+      "code",
+      "رسم",
+      "فن",
+      "حركة",
+      "برمجة",
+    ],
+    question: true,
+    studio: true,
+  },
+  {
     type: "whyQuestion",
     group: "questions",
     icon: MicVocal,
@@ -948,6 +974,7 @@ function $selectInside(node: LexicalNode) {
 function $createStructure(type: BlockType): LexicalNode | null {
   if (type === "trueFalseQuestion") return $createTrueFalseQuestion();
   if (type === "whyQuestion") return $createWhyQuestion();
+  if (type === "sketchQuestion") return $createSketchQuestion();
   const kind = QUESTION_KIND[type];
   if (kind) return $createQuestionNode(kind);
   if (type === "divider") return $createHorizontalRuleNode();

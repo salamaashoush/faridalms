@@ -168,9 +168,11 @@ off keeps the work and shows a placeholder.
    it (Scratch). Done last: a module's Right now tab shows the projects
    being built, each page as its student last left it, marks a page that
    has an error and a student who has changed nothing for five minutes,
-   and opens any one large with its code to show the room. Python projects
-   and p5.js remain; Scratch projects are in neither the gallery nor the
-   live view yet.
+   and opens any one large with its code to show the room. A project can
+   be a p5.js sketch: the slash menu offers one whose starter already
+   draws, and a page that asks for `p5.js` is given the copy the files host
+   serves. Python projects remain; Scratch projects are in neither the
+   gallery nor the live view yet.
 5. **Blocks puzzles.** Our Blockly puzzle engine and level packs (paths,
    loops, turtle art, events, music) in Arabic and English, an arrow-path
    activity for early years, and unplugged versions through print.

@@ -11,6 +11,7 @@ import {
   MAX_PROJECT_FILES,
   projectFilesSchema,
   sameFiles,
+  sketchProject,
   starterFilesSchema,
 } from "./project";
 
@@ -85,6 +86,17 @@ describe("project files", () => {
     expect(v.safeParse(projectFilesSchema, heavy).success).toBe(false);
     const fits = [{ ...page, code: "ب".repeat(MAX_PROJECT_BYTES / 2 - 100) }];
     expect(v.safeParse(projectFilesSchema, fits).success).toBe(true);
+  });
+
+  it("starts a sketch as a project that loads the library before the sketch", () => {
+    const files = sketchProject();
+    expect(v.safeParse(projectFilesSchema, files).success).toBe(true);
+    const html = files[0]?.code ?? "";
+    expect(html.indexOf('src="p5.js"')).toBeGreaterThan(0);
+    expect(html.indexOf('src="p5.js"')).toBeLessThan(
+      html.indexOf('src="sketch.js"'),
+    );
+    expect(fileNamed(files, "sketch.js")?.code).toContain("function draw()");
   });
 
   it("starts an empty project as a page a student can hand in", () => {

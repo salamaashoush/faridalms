@@ -13,6 +13,7 @@ COPY --from=build --chown=bun:bun /app/LICENSE ./LICENSE
 COPY --from=build --chown=bun:bun /app/apps/api/dist ./dist
 COPY --from=build --chown=bun:bun /app/apps/api/vendor/python ./vendor/python
 COPY --from=build --chown=bun:bun /app/apps/api/vendor/scratch ./vendor/scratch
+COPY --from=build --chown=bun:bun /app/apps/api/vendor/p5 ./vendor/p5
 COPY --from=build --chown=bun:bun /app/apps/api/studio ./studio
 USER bun
 EXPOSE 3001 3003

@@ -113,7 +113,12 @@ export async function setUp() {
     PUBLIC_KEY,
   );
   const cellSecret = new Uint8Array(randomBytes(32));
-  const filesHost = createFilesHost({ files, key: linkKey(cellSecret) });
+  const filesHost = createFilesHost({
+    files,
+    key: linkKey(cellSecret),
+    origin: FILES_ORIGIN,
+    libraries: join(import.meta.dir, "..", "vendor"),
+  });
   const handler = createApp({
     cell,
     directory,
