@@ -932,6 +932,32 @@ export async function streamFailed(
   return rows.length > 0;
 }
 
+/**
+ * The stream folders of videos that are gone, however they went: trashed,
+ * superseded, never linked or erased. Each row lets go of its streams here,
+ * so a folder is handed back once.
+ */
+export async function retireStreams(
+  tx: Tx,
+  tenantId: string,
+  limit: number,
+): Promise<string[]> {
+  const rows = await tx.execute<{ folder: string }>(sql`
+    with gone as (
+      select id, derivatives -> 'hls' ->> 'key' as folder from core.files
+      where tenant_id = ${tenantId}::uuid and derivatives ? 'hls'
+        and (status = 'tobedeleted' or state = 'rejected')
+      order by id limit ${limit}
+      for update skip locked
+    )
+    update core.files f
+    set derivatives = f.derivatives - 'hls' - 'poster' - 'thumbnails',
+        stream_state = null, stream_leased_until = null, stream_progress = null
+    from gone where f.tenant_id = ${tenantId}::uuid and f.id = gone.id
+    returning gone.folder`);
+  return rows.map((row) => row.folder);
+}
+
 /** A video's streams, as a player asks for them. */
 export interface FileStream {
   state: "queued" | "encoding" | "ready" | "failed" | null;

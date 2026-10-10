@@ -1,6 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import { createDecipheriv } from "node:crypto";
 
+import type { FileStore } from "../src/files/store";
+
+import { sweepTenantFiles } from "../src/files/sweep";
 import { mediaWorkerToken, streamLinkKey } from "../src/media/streams";
 import {
   login,
@@ -154,6 +157,48 @@ describe("video streams", () => {
     // Someone the upload is not shared with cannot ask for it.
     const stranger = await sessionFor("northwind", login("student"));
     expect((await raw("northwind", stranger.token, streamPath)).status).toBe(404);
+  });
+
+  test("a video that is gone takes its streams with it", async () => {
+    const teacher = await sessionFor("northwind", login("teacher"));
+    const fileId = await uploadVideo(teacher, "never-used.mp4");
+    const job = await claimVideo(fileId);
+    if (!job) throw new Error("the video was never offered");
+    expect(
+      (await call(`/v1/media/jobs/${job.id}/done`, { manifest: MANIFEST }))
+        .status,
+    ).toBe(204);
+
+    const { cell, files, tenants } = seeded();
+    const tenantId = tenants[0]?.tenantId ?? "";
+    const removed: string[] = [];
+    const store: FileStore = {
+      write: (key, body, limit) => files.write(key, body, limit),
+      open: (key, range) => files.open(key, range),
+      move: (from, to) => files.move(from, to),
+      remove: (key) => files.remove(key),
+      removeStreams: async (folder) => {
+        removed.push(folder);
+        await files.removeStreams(folder);
+      },
+    };
+    // While the video is kept, so are its streams.
+    await sweepTenantFiles(cell, store, tenantId, new Date());
+    expect(removed).not.toContain(job.outputPrefix);
+
+    // Nothing ever used it, so the sweep retires it a week on.
+    const later = new Date(Date.now() + 8 * 24 * 60 * 60 * 1000);
+    const swept = await sweepTenantFiles(cell, store, tenantId, later);
+    expect(swept.streams).toBeGreaterThanOrEqual(1);
+    expect(removed).toContain(job.outputPrefix);
+    expect(
+      (await raw("northwind", teacher.token, `/v1/files/${fileId}/stream`)).status,
+    ).toBe(404);
+
+    // The folder is handed back once.
+    removed.length = 0;
+    await sweepTenantFiles(cell, store, tenantId, later);
+    expect(removed).not.toContain(job.outputPrefix);
   });
 
   test("a video that keeps failing is left playing as uploaded", async () => {

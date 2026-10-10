@@ -29,9 +29,13 @@ export interface FileStore {
   ): Promise<ReadableStream<Uint8Array> | null>;
   move(from: string, to: string): Promise<void>;
   remove(key: string): Promise<void>;
+  /** Everything a video's streams hold, which the media service wrote. */
+  removeStreams(folder: string): Promise<void>;
 }
 
 const PRIVATE_KEY = /^t\/[0-9a-f-]{36}\/[qfh]\/[0-9a-f-]{36}$/;
+/** A video's stream folder: its playlists, segments, poster and thumbnails. */
+const STREAM_FOLDER = /^t\/[0-9a-f-]{36}\/v\/[0-9a-f-]{36}$/;
 /** Objects in the public-media bucket, under a published file's public key. */
 export const PUBLIC_KEY = /^p\/[a-z0-9]{26}\/[A-Za-z0-9._-]{1,120}$/;
 
@@ -91,6 +95,11 @@ export class DiskFileStore implements FileStore {
 
   async remove(key: string) {
     await rm(this.path(key), { force: true });
+  }
+
+  async removeStreams(folder: string) {
+    if (!STREAM_FOLDER.test(folder)) throw new StoreError("invalid_key");
+    await rm(join(this.root, folder), { recursive: true, force: true });
   }
 }
 
@@ -155,6 +164,17 @@ export class S3FileStore implements FileStore {
 
   async remove(key: string) {
     await this.object(key).delete();
+  }
+
+  async removeStreams(folder: string) {
+    if (!STREAM_FOLDER.test(folder)) throw new StoreError("invalid_key");
+    // A bucket has no folders: the objects under the prefix go page by page.
+    for (;;) {
+      const page = await this.client.list({ prefix: `${folder}/` });
+      const keys = (page.contents ?? []).map((object) => object.key);
+      if (keys.length === 0) return;
+      await Promise.all(keys.map((key) => this.client.delete(key)));
+    }
   }
 }
 

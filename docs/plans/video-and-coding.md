@@ -54,8 +54,10 @@ with the gate it can break.
    behind sealed links as the files host serves files. It pulls jobs from
    the API and holds no database role. Done: `apps/media` encodes and
    serves, the API queues each new video on its file and hands out sealed
-   stream links, and the media player streams with captions; resumable
-   upload, deleting streams with their file, and hosted adapters remain.
+   stream links, and the media player streams with captions. A video that
+   is gone (trashed, saved over, never used or erased) loses its stream
+   folder on the next sweep of its school's files. Resumable upload and
+   hosted adapters remain.
 7. **Captions and chapters.** Whisper drafts captions on the worker for the
    teacher to approve in the existing captions editor; chapters edited on the
    timeline and shown on the scrub bar. Done for chapters: a teacher writes a

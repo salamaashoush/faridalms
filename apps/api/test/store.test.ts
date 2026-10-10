@@ -1,5 +1,5 @@
 import { afterAll, describe, expect, test } from "bun:test";
-import { rm } from "node:fs/promises";
+import { mkdir, rm, stat, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
@@ -53,6 +53,16 @@ function fakeS3() {
         uploads.delete(uploadId);
         return new Response(null, { status: 204 });
       }
+      if (request.method === "GET" && url.searchParams.has("list-type")) {
+        const prefix = url.searchParams.get("prefix") ?? "";
+        const listed = [...objects.keys()]
+          .filter((each) => each.startsWith(prefix))
+          .map((each) => `<Contents><Key>${each}</Key></Contents>`);
+        return new Response(
+          `<ListBucketResult><IsTruncated>false</IsTruncated>${listed.join("")}</ListBucketResult>`,
+          { headers: { "content-type": "application/xml" } },
+        );
+      }
       const stored = objects.get(key);
       switch (request.method) {
         case "PUT":
@@ -89,7 +99,7 @@ function fakeS3() {
       }
     },
   });
-  return { server, uploads, multipart };
+  return { server, objects, uploads, multipart };
 }
 
 const s3 = fakeS3();
@@ -143,7 +153,7 @@ async function read(store: FileStore, key: string, range?: [number, number]) {
 const sha256 = (bytes: Uint8Array) =>
   new Bun.CryptoHasher("sha256").update(bytes).digest("hex");
 
-describe.each(stores)("%s file store", (_, store) => {
+describe.each(stores)("%s file store", (name, store) => {
   test("keeps what it is given and reads it back whole or in part", async () => {
     const key = keyOf("q");
     const bytes = new TextEncoder().encode("Salama's notes on photosynthesis");
@@ -193,6 +203,39 @@ describe.each(stores)("%s file store", (_, store) => {
 
   test("answers a missing object with nothing", async () => {
     expect(await store.open(keyOf("f"))).toBeNull();
+  });
+
+  test("removes a video's streams, every file of them, and nothing beside", async () => {
+    const folder = `t/${tenant}/v/${crypto.randomUUID()}`;
+    const parts = ["master.m3u8", "poster.jpg", "720p/seg_000.m4s"];
+    const held = async (key: string) =>
+      name === "disk"
+        ? stat(join(diskRoot, key)).then(
+            () => true,
+            () => false,
+          )
+        : s3.objects.has(key);
+    for (const part of parts) {
+      if (name === "disk") {
+        await mkdir(join(diskRoot, folder, "720p"), { recursive: true });
+        await writeFile(join(diskRoot, folder, part), "stream");
+      } else s3.objects.set(`${folder}/${part}`, new Uint8Array([1]));
+    }
+    const kept = keyOf("f");
+    await store.write(kept, streamOf(new TextEncoder().encode("kept")), 64);
+
+    await store.removeStreams(folder);
+    for (const part of parts)
+      expect(await held(`${folder}/${part}`)).toBe(false);
+    expect(await store.open(kept)).not.toBeNull();
+    // Streams already gone are no error, and only a stream folder is taken.
+    await store.removeStreams(folder);
+    expect(store.removeStreams(`t/${tenant}/f`)).rejects.toEqual(
+      new StoreError("invalid_key"),
+    );
+    expect(store.removeStreams(`t/${tenant}`)).rejects.toEqual(
+      new StoreError("invalid_key"),
+    );
   });
 
   test("refuses a key outside the school's prefixes", async () => {
