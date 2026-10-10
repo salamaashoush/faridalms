@@ -11,6 +11,7 @@ import { StoredImage } from "@faridalms/editor/files";
 import { mediaClock } from "@faridalms/editor/format";
 import { cn } from "@faridalms/ui/cn";
 
+import { QrCode } from "~/components/badges/QrCode";
 import * as m from "~/i18n/messages";
 
 const LATIN = "abcdefghijklmnopqrstuvwxyz".split("");
@@ -220,13 +221,17 @@ export function PaperQuestion({
   answers,
   rtl,
   fileUrl,
+  online,
 }: {
   block: LessonBlock;
   number: number;
   answers: boolean;
   rtl: boolean;
   fileUrl: (fileId: string) => string;
+  /** The document's own address, for a question only a screen can answer. */
+  online?: string | undefined;
 }) {
+  const locale = rtl ? "ar" : "en";
   if (
     block.type === "content" ||
     block.type === "gate" ||
@@ -286,7 +291,7 @@ export function PaperQuestion({
             <p className="text-[0.75em] text-neutral-500">
               {(block.answerWith === "drawing"
                 ? m.printDrawHere
-                : m.printPictureHere)({}, { locale: rtl ? "ar" : "en" })}
+                : m.printPictureHere)({}, { locale })}
             </p>
           </div>
         ) : (
@@ -297,9 +302,12 @@ export function PaperQuestion({
       break;
     case "scratch":
       body = (
-        <p className="rounded-[4px] border border-dashed border-neutral-500 px-[0.8em] py-[0.6em] text-[0.85em] text-neutral-600">
-          {m.printOnComputer({}, { locale: rtl ? "ar" : "en" })}
-        </p>
+        <div className="flex items-center gap-[0.8em] rounded-[4px] border border-dashed border-neutral-500 px-[0.8em] py-[0.6em] text-[0.85em] text-neutral-600">
+          {online ? (
+            <QrCode value={online} className="size-[1.8cm] shrink-0" />
+          ) : null}
+          <p>{m.printOnComputer({}, { locale })}</p>
+        </div>
       );
       break;
     case "gaps":
@@ -426,13 +434,13 @@ export function PaperQuestion({
                     dir="auto"
                     className="border border-neutral-500 px-2 py-0.5 text-start font-semibold"
                   >
-                    {m.codeTestGives()}
+                    {m.codeTestGives({}, { locale })}
                   </th>
                   <th
                     dir="auto"
                     className="border border-neutral-500 px-2 py-0.5 text-start font-semibold"
                   >
-                    {m.codeTestExpects()}
+                    {m.codeTestExpects({}, { locale })}
                   </th>
                 </tr>
               </thead>
@@ -526,7 +534,7 @@ export function PaperQuestion({
               )}
             </div>
             <p className="flex items-center gap-2">
-              {m.printHowMany({}, { locale: rtl ? "ar" : "en" })}
+              {m.printHowMany({}, { locale })}
               <Box answer={answers ? String(block.count) : null} />
             </p>
           </div>
@@ -639,10 +647,7 @@ export function PaperQuestion({
       </p>
       {typeof block.videoAt === "number" ? (
         <p className="text-[0.8em] text-neutral-600">
-          {m.printVideoAt(
-            { time: mediaClock(block.videoAt) },
-            { locale: rtl ? "ar" : "en" },
-          )}
+          {m.printVideoAt({ time: mediaClock(block.videoAt) }, { locale })}
         </p>
       ) : null}
       {body}

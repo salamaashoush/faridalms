@@ -1,4 +1,53 @@
+import type { ContentDocument, ContentNode } from "@faridalms/domain/content";
 import type { LessonBlock, StudentBlock } from "@faridalms/domain/learning";
+
+import { contentPlainText } from "@faridalms/domain/content";
+
+/** The document as paper reads it: every toggle open. */
+export function opened(node: ContentNode): ContentNode {
+  return {
+    ...node,
+    ...(node.type === "toggle" ? { open: true } : {}),
+    ...(node.children ? { children: node.children.map(opened) } : {}),
+  };
+}
+
+/** An empty line, or a rule: what divides content and is none itself. */
+function divides(node: ContentNode | undefined): boolean {
+  return (
+    node?.type === "horizontalrule" ||
+    (node?.type === "paragraph" &&
+      !contentPlainText({
+        root: { type: "root", version: 1, children: [node] },
+      }).trim())
+  );
+}
+
+/**
+ * The blocks as they go onto paper. A page break with nothing before it,
+ * another right after it, or nothing after it would print an empty page, so
+ * only breaks between content are kept; the empty lines and rules around a
+ * break or at the end would spill onto a page of their own, so they go too.
+ */
+export function onPaper(content: ContentDocument): ContentDocument {
+  const root = opened(content.root);
+  const children: ContentNode[] = [];
+  let pending = false;
+  for (const node of root.children ?? []) {
+    if (node.type === "pagebreak") {
+      while (divides(children.at(-1))) children.pop();
+      pending = children.length > 0;
+      continue;
+    }
+    if (pending && !divides(node)) {
+      children.push({ type: "pagebreak", version: 1 });
+      pending = false;
+    }
+    if (!pending) children.push(node);
+  }
+  while (divides(children.at(-1))) children.pop();
+  return { root: { ...root, children } };
+}
 
 /**
  * A lesson block as a student received it, filled out to the shape its

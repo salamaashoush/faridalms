@@ -155,6 +155,9 @@ function FormCard({ form, family }: { form: Form; family: Child[] }) {
             primary: form.primaryLocale,
             locale,
           }),
+          slip: family
+            .filter((child) => child.mayAnswer)
+            .map((child) => displayName(child)),
         }
       : null,
   );

@@ -223,6 +223,24 @@ header:has([data-slot="page-actions"] > :not([data-keeps-global-tools]))
 .paper .fe .fe-code-block {
   overflow: visible;
 }
+/* A screen scrolls a table wider than its page. Paper cannot, and a printer
+   that meets anything wider than the sheet shrinks every page to fit it, so
+   on paper a table keeps to its width: its columns take their shares of
+   it, giving way only to a word too long for its share. Whatever still runs
+   over is cut at the sheet. */
+.paper .fe .fe-table:has(col) {
+  table-layout: auto;
+}
+.paper .fe .fe-table col {
+  width: var(--share) !important;
+}
+.paper .fe .fe-cell {
+  min-width: 0;
+  overflow-wrap: break-word;
+}
+.paper-flow {
+  overflow-x: clip;
+}
 .paper .fe .fe-code-block {
   white-space: pre-wrap;
 }

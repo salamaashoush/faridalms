@@ -18,11 +18,10 @@ import {
 } from "@faridalms/ui/sheet";
 import { Tooltip, TooltipContent, TooltipTrigger } from "@faridalms/ui/tooltip";
 import { Printer, SlidersHorizontal, X } from "lucide-react";
-import { useCallback, useId, useMemo, useRef, useState } from "react";
+import { Fragment, useCallback, useId, useMemo, useRef, useState } from "react";
 
 import type { Locale } from "~/i18n/runtime";
 
-import { QrCode } from "~/components/badges/QrCode";
 import { ContentView } from "~/components/content/ContentView";
 import { CheckboxRow } from "~/components/people/fields";
 import { PanelGroup, Segmented } from "~/components/system/panel";
@@ -32,6 +31,10 @@ import * as m from "~/i18n/messages";
 import { getLocale, getTextDirection } from "~/i18n/runtime";
 import { formatNumber } from "~/utils/datetime";
 
+import type { PaperFacts } from "./PaperBlock";
+
+import { onPaper, opened } from "./paper-blocks";
+import { paperForm } from "./PaperBlock";
 import { keyOf, PaperQuestion } from "./PaperQuestion";
 
 const fileUrl = (fileId: string) => `/files/${fileId}`;
@@ -52,85 +55,32 @@ type AnswerMode = "none" | "inline" | "key";
 const EMPTY = emptyContent();
 const NOT_QUESTIONS = new Set(["content", "media", "gate"]);
 
-/** The document as paper reads it: every toggle open. */
-function opened(node: ContentNode): ContentNode {
-  return {
-    ...node,
-    ...(node.type === "toggle" ? { open: true } : {}),
-    ...(node.children ? { children: node.children.map(opened) } : {}),
-  };
-}
-
-function blank(node: ContentNode | undefined): boolean {
-  return (
-    node?.type === "paragraph" &&
-    !contentPlainText({
-      root: { type: "root", version: 1, children: [node] },
-    }).trim()
+/** Whether any recording in these blocks says what it says in words. */
+function transcribed(nodes: readonly ContentNode[] | undefined): boolean {
+  return (nodes ?? []).some(
+    (node) =>
+      (node.type === "media" && Boolean(node.transcript?.trim())) ||
+      transcribed(node.children),
   );
 }
 
-/**
- * The blocks as they go onto paper. A page break with nothing before it,
- * another right after it, or nothing after it would print an empty page, so
- * only breaks between content are kept; the empty lines around a break or
- * at the end would spill onto a page of their own, so they go too.
- */
-function onPaper(content: ContentDocument): ContentDocument {
-  const root = opened(content.root);
-  const children: ContentNode[] = [];
-  let pending = false;
-  for (const node of root.children ?? []) {
-    if (node.type === "pagebreak") {
-      while (blank(children.at(-1))) children.pop();
-      pending = children.length > 0;
-      continue;
-    }
-    if (pending && !blank(node)) {
-      children.push({ type: "pagebreak", version: 1 });
-      pending = false;
-    }
-    if (!pending) children.push(node);
-  }
-  while (blank(children.at(-1))) children.pop();
-  return { root: { ...root, children } };
-}
+const settled = (ms: number) =>
+  new Promise<void>((resolve) => {
+    setTimeout(resolve, ms);
+  });
+
+/** How long printing waits for pictures still on their way. */
+const PICTURES_MS = 8000;
+
+/** Settles once no block on the sheet is still asking for its picture. */
+const allAsked = (sheet: HTMLElement, deadline: number): Promise<void> =>
+  sheet.querySelector("[data-paper-wait]") && Date.now() < deadline
+    ? settled(100).then(() => allAsked(sheet, deadline))
+    : Promise.resolve();
 
 /** Whether this browser can lay pages out itself, so the preview is exact. */
 function canPaginate(): boolean {
   return typeof CSS !== "undefined" && CSS.supports("column-wrap", "wrap");
-}
-
-/**
- * A video or sound cannot play on paper: its caption stays, with a code that
- * opens it, the embed's own page or the document online.
- */
-function OnlineOnly({
-  label,
-  online,
-  locale,
-}: {
-  label: string | undefined;
-  online: string | undefined;
-  locale: Locale;
-}) {
-  return (
-    <div className="paper-question my-2 flex items-center gap-4 rounded-[4px] border border-neutral-400 p-3">
-      {online ? (
-        <QrCode value={online} className="size-[2.5cm] shrink-0" />
-      ) : null}
-      <div className="grid gap-1">
-        <p className="font-semibold" dir="auto">
-          {label}
-        </p>
-        {online ? (
-          <p className="text-[0.85em] text-neutral-600">
-            {m.printScanToWatch({}, { locale })}
-          </p>
-        ) : null}
-      </div>
-    </div>
-  );
 }
 
 /** What a print shows of the person it is for, at the top of the paper. */
@@ -205,6 +155,70 @@ function PaperHeader({
         </div>
       ) : null}
     </header>
+  );
+}
+
+/** A line to write on, under its label. */
+function SlipLine({ label, value }: { label: string; value?: string }) {
+  return (
+    <div className="grid min-h-[1.5cm] content-between gap-[0.2em] border-b border-neutral-500 pb-[0.15em]">
+      <span className="text-[0.75em] leading-tight text-neutral-600">
+        {label}
+      </span>
+      <span className="leading-snug">
+        <bdi>{value}</bdi>
+      </span>
+    </div>
+  );
+}
+
+/**
+ * The part of a form a family fills in and hands back: a consent the school
+ * then records from the paper. One slip for each child named, or one with
+ * the name left to write.
+ */
+function ReplySlip({
+  title,
+  names,
+  locale,
+}: {
+  title: string;
+  names: readonly string[];
+  locale: Locale;
+}) {
+  return (
+    <>
+      {(names.length > 0 ? names : [undefined]).map((name, index) => (
+        <section
+          key={name ?? index}
+          className="paper-question mt-[1.2em] grid gap-[0.7em] border-t-2 border-dashed border-neutral-500 pt-[0.9em]"
+        >
+          <p className="font-semibold">
+            {m.printSlip({}, { locale })}: <bdi>{title}</bdi>
+          </p>
+          <div className="grid grid-cols-[2fr_1fr] gap-x-[1.5em] gap-y-[0.5em]">
+            <SlipLine label={m.printSlipChild({}, { locale })} value={name} />
+            <SlipLine label={m.printClass({}, { locale })} />
+          </div>
+          <p className="flex flex-wrap gap-x-[2.5em] gap-y-[0.4em]">
+            {[m.consentAgree, m.consentDisagree].map((choice) => (
+              <span
+                key={choice({}, { locale })}
+                className="flex items-center gap-[0.5em]"
+              >
+                <span className="size-[1.1em] shrink-0 rounded-[2px] border-[1.5px] border-neutral-700" />
+                {choice({}, { locale })}
+              </span>
+            ))}
+          </p>
+          <div className="grid grid-cols-[2fr_2fr_1fr] gap-x-[1.5em]">
+            <SlipLine label={m.printSlipGuardian({}, { locale })} />
+            <SlipLine label={m.printSlipSignature({}, { locale })} />
+            <SlipLine label={m.printDate({}, { locale })} />
+          </div>
+        </section>
+      ))}
+    </>
   );
 }
 
@@ -352,6 +366,7 @@ export function PrintSheet({
   answers: canAnswer = false,
   link,
   copies = [],
+  slip,
   onClose,
 }: {
   title: string;
@@ -366,6 +381,8 @@ export function PrintSheet({
   link?: string;
   /** The students a teacher may print a named copy for, one each. */
   copies?: readonly string[];
+  /** A form answered on paper: the children it may be answered for. */
+  slip?: readonly string[];
   onClose: () => void;
 }) {
   const user = useCurrentUser();
@@ -382,20 +399,46 @@ export function PrintSheet({
   const [school, setSchool] = useState(true);
   const [answers, setAnswers] = useState<AnswerMode>("none");
   const [named, setNamed] = useState(false);
+  const [transcripts, setTranscripts] = useState(false);
+  const [reply, setReply] = useState(true);
+  const [preparing, setPreparing] = useState(false);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [paged] = useState(canPaginate);
   const [room, setRoom] = useState(0);
   const print = useRef<HTMLButtonElement>(null);
+  const sheets = useRef<HTMLDivElement | null>(null);
   const settingsTitle = useRef<HTMLHeadingElement>(null);
   const answersId = useId();
   const wideScreen = useMedia("(min-width: 64rem)");
   const measure = useCallback((element: HTMLDivElement | null) => {
+    sheets.current = element;
     const observer = new ResizeObserver(([entry]) => {
       if (entry) setRoom(entry.contentRect.width);
     });
     if (element) observer.observe(element);
     return () => observer.disconnect();
   }, []);
+  // A picture that has not arrived prints as an empty box and moves every
+  // page after it once it does, so printing waits for the pages to be whole.
+  const printNow = async () => {
+    const sheet = sheets.current;
+    if (!sheet) return;
+    setPreparing(true);
+    const deadline = Date.now() + PICTURES_MS;
+    await allAsked(sheet, deadline);
+    await Promise.race([
+      Promise.all(
+        [...sheet.querySelectorAll("img")]
+          .filter((image) => !image.complete)
+          .map((image) => image.decode().catch(() => null)),
+      ),
+      settled(Math.max(0, deadline - Date.now())),
+    ]);
+    // The pages are counted again once the last picture has its height.
+    await settled(100);
+    setPreparing(false);
+    window.print();
+  };
 
   // The paper takes the document's direction, then its title's, and only
   // the reader's when neither has words.
@@ -443,7 +486,15 @@ export function PrintSheet({
           .map((item, index) => [item.id, index + 1]),
       )
     : null;
-  const block = (node: ContentNode, drawn: ReactNode) => {
+  const spoken = lesson
+    ? lesson.some((item) =>
+        item.type === "content"
+          ? transcribed(item.content.root.children)
+          : item.type === "media" && Boolean(item.transcript.trim()),
+      )
+    : transcribed(content.root.children);
+  const forms: PaperFacts = { locale, fileUrl, online, transcripts };
+  const replace = (node: ContentNode, drawn: ReactNode) => {
     if (node.type === "gate") return null;
     if (node.type === "question") {
       const question = questionBlock(node);
@@ -454,18 +505,11 @@ export function PrintSheet({
           answers={answers === "inline"}
           rtl={rtl}
           fileUrl={fileUrl}
+          online={online}
         />
       ) : null;
     }
-    if (node.type === "media" || node.type === "embed")
-      return (
-        <OnlineOnly
-          label={node.caption || node.title || node.name || node.provider}
-          online={node.type === "embed" ? node.url : online}
-          locale={locale}
-        />
-      );
-    return drawn;
+    return paperForm(node, drawn, forms);
   };
 
   const body = lesson ? (
@@ -477,16 +521,26 @@ export function PrintSheet({
             document={{ root: opened(item.content.root) }}
             fileUrl={fileUrl}
             className="fe-paper"
-            renderBlock={block}
+            replace={replace}
+            locale={locale}
             runs={false}
           />
         ) : item.type === "media" ? (
-          <OnlineOnly
-            key={item.id}
-            label={item.caption || item.name}
-            online={online}
-            locale={locale}
-          />
+          <Fragment key={item.id}>
+            {paperForm(
+              {
+                type: "media",
+                version: 1,
+                fileId: item.fileId,
+                name: item.name,
+                mime: item.mediaType,
+                caption: item.caption,
+                transcript: item.transcript,
+              },
+              null,
+              forms,
+            )}
+          </Fragment>
         ) : item.type === "gate" ? null : (
           <PaperQuestion
             key={item.id}
@@ -495,6 +549,7 @@ export function PrintSheet({
             answers={false}
             rtl={rtl}
             fileUrl={fileUrl}
+            online={online}
           />
         ),
       )}
@@ -504,7 +559,8 @@ export function PrintSheet({
       document={paperContent}
       fileUrl={fileUrl}
       className="fe-paper"
-      renderBlock={block}
+      replace={replace}
+      locale={locale}
       runs={false}
     />
   );
@@ -595,6 +651,22 @@ export function PrintSheet({
           checked={lines}
           onChange={setLines}
         />
+        {slip ? (
+          <CheckboxRow
+            label={m.printSlip()}
+            hint={m.printSlipHint()}
+            checked={reply}
+            onChange={setReply}
+          />
+        ) : null}
+        {spoken ? (
+          <CheckboxRow
+            label={m.printTranscripts()}
+            hint={m.printTranscriptsHint()}
+            checked={transcripts}
+            onChange={setTranscripts}
+          />
+        ) : null}
       </PanelGroup>
       {copies.length > 0 ? (
         <PanelGroup title={m.printCopiesTitle()}>
@@ -706,7 +778,8 @@ export function PrintSheet({
               ref={print}
               type="button"
               className="max-md:h-10"
-              onClick={() => window.print()}
+              disabled={preparing}
+              onClick={() => void printNow()}
             >
               <Printer aria-hidden />
               {copiesCount > 0
@@ -749,6 +822,9 @@ export function PrintSheet({
                       locale={locale}
                     />
                     {body}
+                    {slip && reply ? (
+                      <ReplySlip title={title} names={slip} locale={locale} />
+                    ) : null}
                   </PaperCopy>
                 ))}
                 {answers === "key" ? (

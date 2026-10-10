@@ -141,6 +141,13 @@
   direction: ltr;
   text-align: left;
 }
+/* A reader's block is a pre around a code element, which would bring a font
+   stack of its own. Two fonts on a line make the line as tall as both need,
+   by an amount that differs between a screen and a printer, so a page of
+   code broke in one place in the print preview and another on paper. */
+.fe .fe-code-block code {
+  font-family: inherit;
+}
 
 /* A code block students run carries a label saying so, since its
    controls show only while the caret is in it. */
@@ -294,10 +301,14 @@
   display: none;
 }
 
+/* The wrap scrolls a table wider than the page. Its own width must not
+   come from the table, or columns set wide push the whole page sideways on
+   a phone instead of scrolling inside it. */
 .fe .fe-table-wrap {
   margin-block: 0.75rem;
   max-width: 100%;
   overflow-x: auto;
+  contain: inline-size;
 }
 .fe .fe-table {
   border-collapse: collapse;

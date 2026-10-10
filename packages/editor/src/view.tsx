@@ -74,7 +74,18 @@ interface Context {
   watch?: ((fileId: string) => MediaWatch | undefined) | undefined;
   runnable?: ComponentType<RunnableProps> | undefined;
   predicted?: boolean | undefined;
+  replace?: Replace | undefined;
 }
+
+/**
+ * Draws a block in the reader's place wherever it sits, inside a column or a
+ * table cell as at the top: paper draws a recording as a code to scan. What
+ * it returns undefined for keeps the reader's own drawing.
+ */
+export type Replace = (
+  node: ContentNode,
+  drawn: ReactNode,
+) => ReactNode | undefined;
 
 /** A code block students can run: its program, and how it reads unrun. */
 export interface RunnableProps {
@@ -192,6 +203,15 @@ function template(layout = "1:1"): string {
     .join(" ");
 }
 
+/**
+ * A column's part of its table's width. A screen scrolls a table wider than
+ * its page; paper cannot, and sets the columns by their shares instead.
+ */
+function shareOf(width: number, widths: readonly number[] = []): string {
+  const whole = widths.reduce((sum, each) => sum + each, 0);
+  return whole > 0 ? `${((width / whole) * 100).toFixed(3)}%` : "auto";
+}
+
 const heading = { h1: "h2", h2: "h3", h3: "h4" } as const;
 const headingClass = { h1: "fe-h1", h2: "fe-h2", h3: "fe-h3" } as const;
 
@@ -266,6 +286,17 @@ function renderText(
   );
 }
 
+/** Blocks without children, which a reader may still draw another way. */
+const LEAF_BLOCKS = new Set<ContentNode["type"]>([
+  "image",
+  "file",
+  "media",
+  "embed",
+  "diagram",
+  "gate",
+  "ai-use",
+]);
+
 /**
  * A node as the reader draws it, carrying its block id when it has one, so
  * a comment can point into the block it was made on.
@@ -277,6 +308,11 @@ function render(
   block?: string,
 ): ReactNode {
   const drawn = draw(node, key, context, node.$?.id ?? block);
+  const replaced =
+    node.children !== undefined || LEAF_BLOCKS.has(node.type)
+      ? context.replace?.(node, drawn)
+      : undefined;
+  if (replaced !== undefined) return <Fragment key={key}>{replaced}</Fragment>;
   const id = node.$?.id;
   return id && isValidElement(drawn) && typeof drawn.type === "string"
     ? cloneElement(drawn as ReactElement<Record<string, unknown>>, {
@@ -438,7 +474,12 @@ function draw(
                   "colgroup",
                   null,
                   ...node.colWidths.map((width) =>
-                    createElement("col", { style: { width } }),
+                    createElement("col", {
+                      style: {
+                        width,
+                        "--share": shareOf(width, node.colWidths),
+                      },
+                    }),
                   ),
                 )
               : null}
@@ -745,6 +786,7 @@ export function ContentRenderer({
   marks,
   activeMark = null,
   renderBlock,
+  replace,
   watch,
   runnable,
   predicted,
@@ -761,6 +803,7 @@ export function ContentRenderer({
   activeMark?: string | null;
   /** Draws something renderBlock each top-level block, such as a speaker that reads it. */
   renderBlock?: (node: ContentNode, drawn: ReactNode) => ReactNode;
+  replace?: Replace;
   /** Draws code blocks students can run; without it they show as code. */
   runnable?: ComponentType<RunnableProps>;
   /**
@@ -780,6 +823,7 @@ export function ContentRenderer({
     watch,
     runnable,
     predicted,
+    replace,
   };
   return (
     <div

@@ -22,7 +22,26 @@ its own worksheet the same way).
   - tracing: the teacher's model, dotted
   - word builder: letter boxes under a tile bank
   - find on a picture: the picture, to circle on
-  - media and embeds: their caption with a QR code to the online copy
+  - a Scratch project: a note to build it on a computer, with a QR code
+- **What cannot print as it reads has a paper form too,** wherever it sits:
+  at the top of the document or inside a column, a callout, a toggle or a
+  student's copy.
+  - a picture or a drawing: itself, at the size it was given, loaded before
+    the pages are counted
+  - a video: its name, a frame of it where there is room, its chapters, and
+    a QR code to the document online
+  - a sound recording: its name and the same code; what recordings say is
+    printed under them when the teacher asks for transcripts
+  - an embed: its provider, its title, a QR code to its own page and that
+    address written out when it is short enough to type
+  - a file: its name, type and size with the code; a picture kept as a file
+    prints as a picture
+  - code a student runs: the code, then lines to write a prediction on
+    where the block waits for one, or a code to scan where it only runs
+  - an AI acknowledgement: every part it holds, open
+  - a link: its address after its words, when short enough to type
+  - a consent form: a reply slip to fill in, sign and hand back, one for
+    each child the family may answer for
 - **A print preview, not a dialog of switches.** Printing opens the pages
   as they will print beside a settings panel, in the frame the site studio
   uses: paper size and orientation, text size (12, 14, 16 or 20 pt; 14 by
@@ -59,6 +78,17 @@ its own worksheet the same way).
   - Chrome repeats a table's header on a new page but not in a new column,
     so in the paged layout the header prints once, kept with its rows, and
     the paper keeps matching its preview.
+  - a rule beside a page break goes with the empty lines there, since it
+    would print on a page of its own.
+- **Nothing is wider than the sheet.** A printer that meets anything wider
+  shrinks every page to fit it. A table with set column widths gives each
+  column its share of the page instead, and what still runs over is cut.
+- **A line is as tall on paper as on screen.** A line set in two fonts is as
+  tall as both need, by an amount that differs between a screen and a
+  printer; a reader's code block did that, and a page of code broke one
+  place in the preview and another on paper. Blocks keep one font a line.
+- **Printing waits for the pictures,** up to eight seconds, since a picture
+  still loading prints as an empty box and moves every page after it.
 - **Print is always light,** since a class-based dark theme prints dark.
 - **Where it prints:** every page that shows a document, writer's or
   reader's: the editors, announcement and news pages, an event, an

@@ -28,6 +28,8 @@ export interface Printable {
   link?: string;
   /** The students a teacher may print a named copy for. */
   copies?: readonly string[];
+  /** A form answered on paper: the children it may be answered for. */
+  slip?: readonly string[];
 }
 
 /**

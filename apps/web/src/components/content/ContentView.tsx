@@ -1,9 +1,11 @@
 import type { ContentDocument, ContentNode } from "@faridalms/domain/content";
 import type { MediaWatch } from "@faridalms/editor/player";
-import type { ContentMark } from "@faridalms/editor/view";
+import type { ContentMark, Replace } from "@faridalms/editor/view";
 import type { ReactNode } from "react";
 
 import { ContentRenderer } from "@faridalms/editor/view";
+
+import type { Locale } from "~/i18n/runtime";
 
 import { RunnableCode } from "~/components/coding/RunnableCode";
 import * as m from "~/i18n/messages";
@@ -18,6 +20,8 @@ export function ContentView({
   marks,
   activeMark,
   renderBlock,
+  replace,
+  locale = getLocale(),
   watch,
   predicted,
   runs = true,
@@ -28,6 +32,9 @@ export function ContentView({
   marks?: ContentMark[];
   activeMark?: string | null;
   renderBlock?: (node: ContentNode, drawn: ReactNode) => ReactNode;
+  replace?: Replace;
+  /** The language of the document's own labels, when not the reader's. */
+  locale?: Locale;
   watch?: (fileId: string) => MediaWatch | undefined;
   /**
    * Whether the question above this part of a lesson is answered, which a
@@ -43,19 +50,20 @@ export function ContentView({
       strings={{
         ...fileStrings(),
         ...aiUseStrings(),
-        checklist: m.editorCheckItem(),
-        studentCopy: m.editorStudentCopy(),
-        diagram: m.editorDiagram(),
+        checklist: m.editorCheckItem({}, { locale }),
+        studentCopy: m.editorStudentCopy({}, { locale }),
+        diagram: m.editorDiagram({}, { locale }),
         embedLoad: (provider) => m.editorEmbedLoad({ provider }),
         embedPrivacy: (provider) => m.editorEmbedPrivacy({ provider }),
         embedOpen: (provider) => m.editorEmbedOpen({ provider }),
       }}
       fileUrl={fileUrl}
-      locale={getLocale()}
+      locale={locale}
       className={className}
       marks={marks}
       activeMark={activeMark}
       renderBlock={renderBlock}
+      replace={replace}
       watch={watch}
       runnable={runs ? RunnableCode : undefined}
       predicted={predicted}
