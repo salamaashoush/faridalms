@@ -209,10 +209,16 @@ function Piece({
   part,
   placing,
   small = false,
+  compact = false,
 }: {
   part: StudentPart;
   placing: Placing;
   small?: boolean;
+  /**
+   * A card put away in a group, drawn smaller than one still to place, or
+   * one in a hand of cards, smaller on a phone alone.
+   */
+  compact?: boolean | "phone";
 }) {
   const held = placing.held === part.id;
   const mark = placing.markOf(part.id);
@@ -242,8 +248,21 @@ function Piece({
         }}
         className={cn(
           "relative flex touch-none items-center justify-center rounded-2xl border-2 bg-card p-3 shadow-sm transition-[transform,box-shadow,border-color] outline-none select-none [-webkit-touch-callout:none] before:absolute before:-inset-1.5 before:content-[''] focus-visible:ring-4 focus-visible:ring-ring/50",
-          small ? "min-h-20 min-w-24" : "min-h-26 min-w-32",
-          part.picture && (small ? "w-28" : "w-36 sm:w-40"),
+          compact === true
+            ? "min-h-14 min-w-20 p-2"
+            : compact === "phone"
+              ? "min-h-14 min-w-20 p-2 sm:min-h-26 sm:min-w-32 sm:p-3"
+              : small
+                ? "min-h-20 min-w-24"
+                : "min-h-26 min-w-32",
+          part.picture &&
+            (compact === true
+              ? "w-24"
+              : compact === "phone"
+                ? "w-24 sm:w-40"
+                : small
+                  ? "w-28"
+                  : "w-36 sm:w-40"),
           part.narration && "pt-16",
           held &&
             "-translate-y-1 border-primary shadow-lg ring-4 ring-primary/30 motion-reduce:translate-y-0",
@@ -252,7 +271,7 @@ function Piece({
           placing.pending && "opacity-70",
         )}
       >
-        <YoungPart part={part} />
+        <YoungPart part={part} compact={compact} />
       </button>
       {part.narration ? (
         <ReadAloud
@@ -312,10 +331,16 @@ function Pile({
   pieces,
   placing,
   small,
+  foot = false,
 }: {
   pieces: StudentPart[];
   placing: Placing;
   small?: boolean;
+  /**
+   * Kept at the foot of the screen, as a hand of cards, while the places
+   * scroll above it: a pile below the places was out of sight on a phone.
+   */
+  foot?: boolean;
 }) {
   const left = pieces.filter((piece) => !placing.placement[piece.id]);
   const back = placing.held && placing.placement[placing.held];
@@ -323,10 +348,23 @@ function Pile({
   return (
     <div
       data-spot={BANK}
-      className="flex min-h-24 flex-wrap items-center justify-center gap-3 rounded-3xl bg-muted/50 p-4"
+      className={cn(
+        "flex min-h-24 flex-wrap items-center justify-center gap-3 rounded-3xl p-4",
+        // The same tint either way, but solid at the foot, where the
+        // places scroll behind it.
+        foot
+          ? "sticky bottom-0 z-10 max-h-[42dvh] overflow-x-hidden overflow-y-auto bg-[color-mix(in_oklab,var(--muted)_50%,var(--background))] shadow-[0_-8px_16px_-8px_rgb(0_0_0/0.25)] sm:max-h-[60dvh]"
+          : "bg-muted/50",
+      )}
     >
       {left.map((piece) => (
-        <Piece key={piece.id} part={piece} placing={placing} small={small} />
+        <Piece
+          key={piece.id}
+          part={piece}
+          placing={placing}
+          small={small}
+          compact={foot ? "phone" : false}
+        />
       ))}
       {back ? (
         <Button
@@ -473,7 +511,7 @@ export function YoungMatching({
           );
         })}
       </ul>
-      <Pile pieces={block.choices} placing={placing} />
+      <Pile pieces={block.choices} placing={placing} foot />
       <Footer placing={placing} view={view} />
     </div>
   );
@@ -514,9 +552,12 @@ export function YoungSorting({
   return (
     <div className="grid gap-6">
       <Pile pieces={block.items} placing={placing} small />
+      {/* The groups stay in reach at the foot of the screen while the cards
+          scroll above them: a card dragged to a group out of sight had to
+          wait at the screen's edge for the screen to scroll. */}
       <div
         className={cn(
-          "grid gap-4",
+          "sticky bottom-0 z-10 grid max-h-[45dvh] gap-4 overflow-x-hidden overflow-y-auto rounded-t-3xl bg-background/95 pt-2 pb-1 backdrop-blur-sm",
           block.groups.length === 3 ? "sm:grid-cols-3" : "sm:grid-cols-2",
           block.groups.length > 1 && "grid-cols-2",
         )}
@@ -545,7 +586,13 @@ export function YoungSorting({
               {inside.length ? (
                 <div className="flex flex-wrap justify-center gap-2">
                   {inside.map((item) => (
-                    <Piece key={item.id} part={item} placing={placing} small />
+                    <Piece
+                      key={item.id}
+                      part={item}
+                      placing={placing}
+                      small
+                      compact
+                    />
                   ))}
                 </div>
               ) : null}
@@ -554,7 +601,7 @@ export function YoungSorting({
                   id={group.id}
                   label={m.lrnYoungPutIn({ group: group.name })}
                   placing={placing}
-                  className="min-h-26"
+                  className={inside.length ? "min-h-14" : "min-h-26"}
                 />
               )}
             </section>
@@ -641,7 +688,7 @@ export function YoungOrdering({
           );
         })}
       </ol>
-      <Pile pieces={block.items} placing={placing} />
+      <Pile pieces={block.items} placing={placing} foot />
       <Footer placing={placing} view={view} />
     </div>
   );

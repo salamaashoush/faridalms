@@ -41,8 +41,19 @@ export const FoundContext = createContext<{
   find: (blockId: string) => void;
 }>({ found: new Set(), find: () => {} });
 
-/** A part as a young child meets it: a big picture, its words beneath. */
-export function YoungPart({ part }: { part: StudentPart }) {
+/**
+ * A part as a young child meets it: a big picture, its words beneath.
+ * Put away in a group it is drawn smaller, to leave the screen to the
+ * cards still to place; in a hand of cards at the foot of a phone's
+ * screen it is smaller there, to leave the screen to the places.
+ */
+export function YoungPart({
+  part,
+  compact = false,
+}: {
+  part: StudentPart;
+  compact?: boolean | "phone";
+}) {
   return (
     <span className="flex w-full flex-col items-center justify-center gap-2 text-center">
       {part.picture ? (
@@ -51,14 +62,29 @@ export function YoungPart({ part }: { part: StudentPart }) {
           alt={part.text ? "" : part.picture.alt}
           removed={m.fileRemoved()}
           draggable={false}
-          className="h-28 w-full rounded-xl object-contain sm:h-36"
+          className={cn(
+            "w-full rounded-xl object-contain",
+            compact === true
+              ? "h-16"
+              : compact === "phone"
+                ? "h-16 sm:h-36"
+                : "h-28 sm:h-36",
+          )}
         />
       ) : null}
       {part.text ? (
         <span
           className={cn(
             "font-semibold",
-            part.picture ? "text-2xl leading-9" : "text-4xl leading-tight",
+            compact === true
+              ? "text-xl leading-7"
+              : compact === "phone"
+                ? part.picture
+                  ? "text-xl leading-7 sm:text-2xl sm:leading-9"
+                  : "text-xl leading-7 sm:text-4xl sm:leading-tight"
+                : part.picture
+                  ? "text-2xl leading-9"
+                  : "text-4xl leading-tight",
           )}
         >
           <span dir="auto" className="young-words" data-read-along>
