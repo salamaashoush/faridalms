@@ -21,6 +21,7 @@
     "@faridalms/api-client": "workspace:*",
     "@faridalms/domain": "workspace:*",
     "@faridalms/editor": "workspace:*",
+    "@faridalms/puzzles": "workspace:*",
     "@faridalms/ui": "workspace:*",
     "@fontsource-variable/alexandria": "^5.3.0",
     "@fontsource-variable/baloo-bhaijaan-2": "^5.3.0",

@@ -1,0 +1,31 @@
+{
+  "name": "@faridalms/puzzles",
+  "private": true,
+  "license": "AGPL-3.0-only",
+  "type": "module",
+  "exports": {
+    "./level": "./src/level.ts",
+    "./program": "./src/program.ts",
+    "./run": "./src/run.ts",
+    "./levels": "./src/levels.ts",
+    "./scene": "./src/scene.ts",
+    "./text": "./src/text.ts",
+    "./strings": "./src/strings.ts",
+    "./Board": "./src/Board.tsx",
+    "./Player": "./src/Player.tsx",
+    "./Designer": "./src/Designer.tsx",
+    "./playback": "./src/playback.ts",
+    "./ProgramView": "./src/ProgramView.tsx"
+  },
+  "dependencies": {
+    "@base-ui/react": "^1.8.0",
+    "@faridalms/ui": "workspace:*",
+    "blockly": "13.3.0",
+    "lucide-react": "^1.45.0",
+    "valibot": "^1.5.0"
+  },
+  "peerDependencies": {
+    "react": "^19.3.0",
+    "react-dom": "^19.3.0"
+  }
+}

@@ -30,6 +30,7 @@
     "@base-ui/react": "^1.8.0",
     "@excalidraw/excalidraw": "^0.18.1",
     "@faridalms/domain": "workspace:*",
+    "@faridalms/puzzles": "workspace:*",
     "@floating-ui/dom": "^1.8.0",
     "@lexical/code": "^0.50.0",
     "@lexical/code-prism": "^0.50.0",
