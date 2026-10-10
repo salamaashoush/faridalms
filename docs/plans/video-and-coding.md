@@ -159,10 +159,10 @@ off keeps the work and shows a placeholder.
 7. **Scratch**, decided 2026-10-03: the real Scratch editor, framed. Done: a
    coding question kind (`scratch`) whose teacher builds the starter in the
    studio, whose students build on it and hand in an `.sb3` with their stage,
-   and whose teacher opens, runs and marks the project; the studio lives in
-   its own AGPL repository (`farida-scratch`) and is set up as in
+   and whose teacher opens, runs and marks the project; the files host
+   serves the studio on its own domain, as in
    [../operations.md](../operations.md). The media library is mirrored and
-   the studio may reach only its own origin; below 1024px wide it asks for a
+   the studio may reach only the files host; below 1024px wide it asks for a
    computer or a tablet held sideways; the file sweep keeps each student's
    last three saves of a question. Next: Text to Speech and Translate on Farida's own services, tutorials
    self-hosted on the media service, project checks a teacher can turn on,

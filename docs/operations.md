@@ -201,29 +201,42 @@ stops reporting is taken again after ten minutes, and one is tried twice.
 
 ## Coding studio
 
-Coding questions open the block-coding studio, the Scratch editor with a
-small host page, kept in its own repository (`farida-scratch`, AGPL-3.0) and
-served as static files. Build it there and serve `dist/` on a registrable
-domain of its own, never a subdomain of the application's: it runs children's
-projects with real storage, so it must share no cookies, origin or process
-with the school's application. The files host's domain fits, under another
-name. `FRAME_ANCESTORS` on the studio lists the application origins allowed
-to frame it.
+Coding questions open the block-coding studio: the Scratch editor with a
+small page of ours (`apps/api/studio`) that lets the lesson around it keep
+the project. The files host serves it at `/studio/`, beside the page
+students' web pages play in, so it has no server, domain or setting of its
+own. `PLAY_URL` on the web, the files host as browsers reach it, is what
+turns it on; unset, editors offer no coding questions and a coding question
+already in a lesson says the studio is not set up.
 
-Set `STUDIO_URL` on the web to the studio's origin as browsers reach it. Unset,
-editors offer no coding questions and a coding question already in a lesson
-says the studio is not set up. Farida keeps every project: the studio loads
-and saves `.sb3` files through the page around it over `postMessage` and
-talks to no project server. Its library of sprites, backdrops and sounds is
-mirrored into the build (`bun run library` once, then `bun run build`, which
-stops if any of it is missing), and its server sends a Content-Security-Policy
-that lets the studio reach only its own origin, so nothing a child does goes
-to Scratch's servers. That policy also blocks the Text to Speech and Translate
-extensions, which call Scratch's services, and the tutorials, which stream
-from Wistia; a server other than `scripts/serve.ts` must send the same
-headers. In development, serve the studio on a different site from the web,
-such as `http://localhost:3300` beside `http://127.0.0.1:3100`, since ports
-alone do not separate cookies.
+Install fetches the editor (`@scratch/scratch-gui`, pinned by version and
+checksum) and mirrors its library of sprites, backdrops and sounds, about
+1,350 files and 60 MB, into `apps/api/vendor/scratch`
+(`apps/api/scripts/scratch.ts`); the API image carries both, and
+`SCRATCH_DIR` names another place for them. The editor's bundle was built to
+sit at the root of its host, so the files host also answers `/chunks/` and
+`/static/` with the editor's files.
+
+The studio runs whatever project it is handed, a classmate's included, which
+is why it lives on the files host: on another site from the school's, with no
+cookies, where it can never run as the application. The lesson frames it
+sandboxed, keeping the files host's origin for the storage and workers the
+editor needs, and takes messages only from that frame at that origin. The
+files host sends it with a Content-Security-Policy that lets it reach only
+the files host, so nothing a child does goes to Scratch's servers, and it
+refuses any script asked for as a service worker, so nothing that runs there
+can sit over the files it serves. That policy also blocks the Text to Speech
+and Translate extensions, which call Scratch's services, and the tutorials,
+which stream from Wistia; a proxy or CDN in front of the files host must keep
+the `content-security-policy` header on `/studio/`. Farida keeps every
+project: the studio loads and saves `.sb3` files through the page around it
+over `postMessage` and talks to no project server. In development the files
+host must be another site from the web, such as `http://localhost:3103`
+beside `http://127.0.0.1:3100`, since ports alone do not separate cookies.
+
+The studio's Source link names where the source of the running copy is
+published, as the licence asks of whoever runs a changed copy for other
+people: set `SOURCE_URL` on the API.
 
 ## Running code in lessons
 

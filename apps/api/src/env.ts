@@ -62,6 +62,14 @@ export const env = v.parse(
       // Python for marking code exercises, as apps/api/scripts/python-wasi.ts
       // fetches it; by default vendor/python beside the running API.
       PYTHON_DIR: v.optional(v.pipe(v.string(), v.minLength(1))),
+      // The Scratch editor and its library for the coding studio, as
+      // apps/api/scripts/scratch.ts fetches them; by default vendor/scratch
+      // beside the API's code.
+      SCRATCH_DIR: v.optional(v.pipe(v.string(), v.minLength(1))),
+      // Where the source of this running copy is published. The coding
+      // studio's Source link names it, as the licence asks of whoever runs a
+      // changed copy for other people.
+      SOURCE_URL: v.optional(v.pipe(v.string(), v.url())),
       // host:port of a clamd daemon; uploads are only signature-checked without one.
       CLAMD_ADDRESS: v.optional(v.pipe(v.string(), v.regex(/^[^\s:]+:\d+$/))),
       // Transactional email and SMS gateways that accept a JSON POST.

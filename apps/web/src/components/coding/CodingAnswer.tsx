@@ -9,7 +9,7 @@ import type { CheckDriver } from "~/components/learning/Checks";
 
 import { useDocumentMedia } from "~/components/coursework/useDocumentMedia";
 import * as m from "~/i18n/messages";
-import { studioQuery } from "~/queries/studio";
+import { playQuery } from "~/queries/play";
 
 import { CodingStudio, PROJECT_TYPE } from "./CodingStudio";
 import { ProjectPlayer } from "./ProjectPlayer";
@@ -34,7 +34,7 @@ export function CodingAnswer({
   locked: boolean;
 }) {
   const media = useDocumentMedia();
-  const configured = Boolean(useQuery(studioQuery).data);
+  const configured = Boolean(useQuery(playQuery).data);
   const [open, setOpen] = useState(false);
   const stored = view?.response?.type === "scratch" ? view.response : null;
   const [mine, setMine] = useState<{

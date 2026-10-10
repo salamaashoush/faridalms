@@ -97,14 +97,15 @@ const shared = {
 };
 
 /**
- * The files host: sealed links and the page students' web pages play in,
- * no cookies read or set. It answers on its own port and hostname, so what
- * it serves can never run as the application, and a link is checked by its
- * seal alone.
+ * The files host: sealed links, the page students' web pages play in and
+ * the coding studio, no cookies read or set. It answers on its own port and
+ * hostname, so what it serves can never run as the application, and a link
+ * is checked by its seal alone.
  */
 export function createFilesHost(dependencies: {
   files: FileStore;
   key: Buffer;
+  studio?: (request: Request) => Promise<Response | null>;
   now?: () => number;
 }) {
   const now = dependencies.now ?? (() => Math.floor(Date.now() / 1000));
@@ -122,8 +123,15 @@ export function createFilesHost(dependencies: {
       });
     if (request.method !== "GET" && request.method !== "HEAD")
       return new Response(null, { status: 405, headers: shared });
+    // A browser names a script it is about to install as a service worker.
+    // None is ever served: one would sit over every file this host sends to
+    // that browser afterwards.
+    if (request.headers.has("service-worker"))
+      return new Response(null, { status: 404, headers: shared });
     const play = playResponse(url.pathname);
     if (play) return play;
+    const studio = await dependencies.studio?.(request);
+    if (studio) return studio;
     const token = LINK_PATH.exec(url.pathname)?.[1];
     const grant = token ? openLink(dependencies.key, token, now()) : null;
     if (!grant) return new Response(null, { status: 404, headers: shared });

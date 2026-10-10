@@ -1,10 +1,10 @@
 import type { RefObject } from "react";
 
 /**
- * The studio's frame. It is served from a registrable domain of its own, so
- * keeping its origin gives it the storage and workers it needs and nothing
- * of ours; it may run scripts, sounds and dialogs, but never navigate the
- * page around it.
+ * The studio's frame. The files host serves it on another site from the
+ * school's, so keeping its origin gives it the storage and workers it needs
+ * and nothing of ours; it may run scripts, sounds and dialogs, but never
+ * navigate the page around it.
  */
 export function StudioFrame({
   frame,

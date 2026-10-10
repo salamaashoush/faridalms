@@ -5,7 +5,7 @@ import { useQuery } from "@tanstack/react-query";
 import { useMemo, useRef, useState } from "react";
 
 import * as m from "~/i18n/messages";
-import { studioQuery } from "~/queries/studio";
+import { playQuery } from "~/queries/play";
 
 import { CodingStudio, PROJECT_TYPE } from "./CodingStudio";
 
@@ -19,7 +19,7 @@ export function useEditorStudio(media: EditorMedia | undefined): {
   studio: EditorStudio | undefined;
   dialog: ReactNode;
 } {
-  const configured = Boolean(useQuery(studioQuery).data);
+  const configured = Boolean(useQuery(playQuery).data);
   const [open, setOpen] = useState<{
     fileId: string | null;
     resolve: (fileId: string | null | undefined) => void;

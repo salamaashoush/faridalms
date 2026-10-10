@@ -1,5 +1,9 @@
 import { describe, expect, test } from "bun:test";
 import { randomBytes } from "node:crypto";
+import { mkdir, mkdtemp, writeFile } from "node:fs/promises";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 
 import {
   createFilesHost,
@@ -10,6 +14,7 @@ import {
   openLink,
   sealLink,
 } from "../src/files/links";
+import { createStudio } from "../src/files/studio";
 import { FILES_ORIGIN, raw, seeded, sessionFor, login } from "./harness";
 
 const key = linkKey(new Uint8Array(randomBytes(32)));
@@ -172,5 +177,108 @@ describe("the play page", () => {
     expect(html).not.toContain("allow-same-origin");
     const script = await host(new Request(`${FILES_ORIGIN}/play/shell.js`));
     expect(script.headers.get("content-type")).toContain("javascript");
+  });
+});
+
+describe("the coding studio", () => {
+  const SPRITE = "0123456789abcdef0123456789abcdef.svg";
+  const CHUNK = "chunks/540.dc378b43d371f4abea35.js";
+
+  async function studioHost() {
+    const scratch = await mkdtemp(join(tmpdir(), "scratch-"));
+    await mkdir(join(scratch, "editor", "chunks"), { recursive: true });
+    await mkdir(join(scratch, "library"));
+    await writeFile(
+      join(scratch, "editor", "scratch-gui-standalone.js"),
+      "window.GUI = {};",
+    );
+    await writeFile(join(scratch, "editor", CHUNK), "");
+    await writeFile(join(scratch, "library", SPRITE), "<svg/>");
+    await writeFile(join(scratch, "secret.txt"), "not the studio's");
+    const host = createFilesHost({
+      files: seeded().files,
+      key,
+      studio: createStudio({
+        page: fileURLToPath(new URL("../studio", import.meta.url)),
+        scratch,
+        sourceUrl: "https://example.com/farida",
+      }),
+    });
+    return (path: string, headers?: Record<string, string>) =>
+      host(new Request(`${FILES_ORIGIN}${path}`, { headers }));
+  }
+
+  test("reaches only the files host and sets no cookie", async () => {
+    const get = await studioHost();
+    const page = await get("/studio/?parent=https%3A%2F%2Fschool.test");
+    expect(page.status).toBe(200);
+    expect(page.headers.get("content-type")).toContain("text/html");
+    expect(page.headers.get("set-cookie")).toBeNull();
+    const policy = page.headers.get("content-security-policy") ?? "";
+    expect(policy).toContain("default-src 'self'");
+    expect(policy).toContain("connect-src 'self' data: blob:");
+    expect(policy).toContain("form-action 'none'");
+    expect(await page.text()).toContain("scratch-gui-standalone.js");
+    const script = await get("/studio/host.js");
+    expect(script.headers.get("content-type")).toContain("javascript");
+    expect(script.headers.get("access-control-allow-origin")).toBeNull();
+  });
+
+  test("lets no script on the host become a service worker", async () => {
+    const get = await studioHost();
+    const asked = { "service-worker": "script" };
+    expect((await get("/studio/host.js", asked)).status).toBe(404);
+    expect((await get(`/${CHUNK}`, asked)).status).toBe(404);
+    expect((await get("/play/shell.js", asked)).status).toBe(404);
+    expect((await get("/studio/host.js")).status).toBe(200);
+  });
+
+  test("keeps what is named by its contents and asks again for the rest", async () => {
+    const get = await studioHost();
+    // The editor asks for its late code at the root of the host too.
+    for (const path of [
+      `/studio/library/${SPRITE}`,
+      `/studio/${CHUNK}`,
+      `/${CHUNK}`,
+    ]) {
+      const kept = await get(path);
+      expect(kept.status).toBe(200);
+      expect(kept.headers.get("cache-control")).toContain("immutable");
+    }
+    const bundle = await get("/studio/scratch-gui-standalone.js");
+    expect(bundle.headers.get("cache-control")).toBe("no-cache");
+    const etag = bundle.headers.get("etag") ?? "";
+    expect(etag).not.toBe("");
+    const again = await get("/studio/scratch-gui-standalone.js", {
+      "if-none-match": etag,
+    });
+    expect(again.status).toBe(304);
+    expect(await again.text()).toBe("");
+  });
+
+  test("serves nothing from outside the studio", async () => {
+    const get = await studioHost();
+    for (const path of [
+      "/studio/..%2Fsecret.txt",
+      "/studio/%2E%2E/secret.txt",
+      "/studio/library/..%2F..%2Fsecret.txt",
+      "/studio/library/not-a-hash.svg",
+      "/studio/chunks",
+      "/studio/missing.js",
+      "/chunks/..%2F..%2Fsecret.txt",
+      "/static/missing.png",
+      "/scratch-gui-standalone.js",
+      "/studio/%E0%A4%A",
+    ])
+      expect((await get(path)).status).toBe(404);
+  });
+
+  test("says where its source is published", async () => {
+    const get = await studioHost();
+    const source = await get("/studio/SOURCE");
+    expect(source.headers.get("content-type")).toContain("text/plain");
+    const text = await source.text();
+    expect(text).toContain("https://www.gnu.org/licenses/agpl-3.0.html");
+    expect(text).toContain("Source: https://example.com/farida");
   });
 });

@@ -11,12 +11,10 @@ export const env = createEnv({
       // The collaboration server's WebSocket URL as browsers reach it; unset
       // turns live editing off and every editor works alone.
       COLLAB_URL: v.optional(v.pipe(v.string(), v.url())),
-      // The coding studio's origin as browsers reach it, on a registrable
-      // domain of its own; unset leaves coding questions out of every editor.
-      STUDIO_URL: v.optional(v.pipe(v.string(), v.url())),
-      // Where students' web pages play, as browsers reach it: the files
-      // host's own domain, never the application's. Unset, web pages in a
-      // lesson show as code.
+      // Where students' web pages play and the coding studio opens, as
+      // browsers reach it: the files host's own domain, never the
+      // application's. Unset, web pages in a lesson show as code and editors
+      // offer no coding questions.
       PLAY_URL: v.optional(v.pipe(v.string(), v.url())),
     },
     shared: {

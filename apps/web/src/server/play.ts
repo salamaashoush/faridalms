@@ -2,7 +2,7 @@ import { createServerFn } from "@tanstack/react-start";
 
 import { env } from "~/env";
 
-/** Where students' web pages play, or null when this cell has nowhere. */
+/** The files host, where students' web pages play and the coding studio opens, or null when this cell has none. */
 export const getPlay = createServerFn({ method: "GET" }).handler(() =>
   env.PLAY_URL ? { origin: new URL(env.PLAY_URL).origin } : null,
 );

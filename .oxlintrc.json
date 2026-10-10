@@ -160,6 +160,13 @@
       "rules": { "no-underscore-dangle": "off" }
     },
     {
+      // The Scratch editor seeds a new project's pictures and sounds through
+      // its storage's `_store`; the public `store` beside it only warns that
+      // it is deprecated and calls the same thing.
+      "files": ["apps/api/studio/host.js"],
+      "rules": { "no-underscore-dangle": "off" }
+    },
+    {
       // The slash menu is a listbox the contenteditable drives through
       // aria-activedescendant, so focus and arrow keys stay in the editor.
       // A native <select> cannot float at the caret without taking focus.

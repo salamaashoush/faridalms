@@ -5,6 +5,7 @@ import {
   openDirectorySync,
 } from "@faridalms/database/directory/client";
 import { join } from "node:path";
+import { fileURLToPath } from "node:url";
 
 import { createApp } from "./app";
 import { createJavaScriptRunner, createPythonRunner } from "./coding/run";
@@ -13,6 +14,7 @@ import { env } from "./env";
 import { createFilesHost, linkKey } from "./files/links";
 import { createScanner } from "./files/scan";
 import { DiskFileStore, PUBLIC_KEY, S3FileStore } from "./files/store";
+import { createStudio } from "./files/studio";
 import { startFileUpkeep } from "./files/upkeep";
 import { streamLinkKey } from "./media/streams";
 import { createProvider } from "./notifications/providers";
@@ -64,7 +66,17 @@ const filesOrigin = (
 ).replace(/\/$/, "");
 const filesServer = Bun.serve({
   port: filesPort,
-  fetch: createFilesHost({ files: stores.files, key: linkKey(cellSecret) }),
+  fetch: createFilesHost({
+    files: stores.files,
+    key: linkKey(cellSecret),
+    studio: createStudio({
+      page: fileURLToPath(new URL("../studio", import.meta.url)),
+      scratch:
+        env.SCRATCH_DIR ??
+        fileURLToPath(new URL("../vendor/scratch", import.meta.url)),
+      sourceUrl: env.SOURCE_URL ?? null,
+    }),
+  }),
 });
 const server = Bun.serve({
   port: env.API_PORT,

@@ -4,7 +4,7 @@ import { Flag, LoaderCircle, Puzzle } from "lucide-react";
 import { useState } from "react";
 
 import * as m from "~/i18n/messages";
-import { studioQuery } from "~/queries/studio";
+import { playQuery } from "~/queries/play";
 
 import { StudioFrame } from "./StudioFrame";
 import { useStudioFrame } from "./useStudioFrame";
@@ -27,7 +27,7 @@ export function ProjectPlayer({
   stage: string | null;
   label: string;
 }) {
-  const configured = Boolean(useQuery(studioQuery).data);
+  const configured = Boolean(useQuery(playQuery).data);
   const [playing, setPlaying] = useState(false);
   if (playing && configured)
     return <Playing projectUrl={projectUrl} label={label} />;

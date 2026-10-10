@@ -24,5 +24,14 @@ runs:
         key: ${{ runner.os }}-bun-${{ hashFiles('**/bun.lock') }}
         restore-keys: ${{ runner.os }}-bun-
 
+    # Install fetches the Scratch editor and mirrors its library, some 1,350
+    # files from Scratch's servers; a run asks for them only when the script
+    # that names them changes.
+    - name: Cache the coding studio
+      uses: actions/cache@v6
+      with:
+        path: apps/api/vendor/scratch
+        key: scratch-${{ hashFiles('apps/api/scripts/scratch.ts') }}
+
     - shell: bash
       run: bun install --frozen-lockfile

@@ -4,7 +4,7 @@ import { toast } from "sonner";
 
 import * as m from "~/i18n/messages";
 import { getLocale } from "~/i18n/runtime";
-import { studioQuery } from "~/queries/studio";
+import { playQuery } from "~/queries/play";
 
 export interface SavedProject {
   project: ArrayBuffer;
@@ -17,9 +17,9 @@ type FromStudio =
   | ({ type: "saved"; id: string } & SavedProject);
 
 /**
- * Talks to the studio in a frame: names its source on the studio's own
+ * Talks to the studio in a frame: names its source on the files host's
  * domain, hands it the project once it is ready, and asks for the project
- * back. Messages are taken only from that frame at the studio's origin.
+ * back. Messages are taken only from that frame at the files host's origin.
  */
 export function useStudioFrame({
   projectUrl,
@@ -33,7 +33,7 @@ export function useStudioFrame({
   onLoaded?: () => void;
   onChanged?: () => void;
 }) {
-  const origin = useQuery(studioQuery).data?.origin ?? null;
+  const origin = useQuery(playQuery).data?.origin ?? null;
   const frame = useRef<HTMLIFrameElement>(null);
   const [loaded, setLoaded] = useState(false);
   const waiting = useRef(new Map<string, (saved: SavedProject) => void>());
@@ -98,7 +98,7 @@ export function useStudioFrame({
     frame,
     loaded,
     source: origin
-      ? `${origin}/?${new URLSearchParams({
+      ? `${origin}/studio/?${new URLSearchParams({
           parent: window.location.origin,
           mode,
           locale: getLocale(),
