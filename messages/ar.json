@@ -5681,5 +5681,22 @@
   "galleryTeacherDeclined": "خارج المعرض",
   "galleryShow": "اعرضه على الصف",
   "galleryNotNow": "ليس الآن",
-  "galleryTakeDown": "أزله من المعرض"
+  "galleryTakeDown": "أزله من المعرض",
+  "liveProjects": "مشاريع قيد البناء",
+  "liveProjectsHint": "كل صفحة كما تركها صاحبها آخر مرة. افتح واحدة لعرضها بحجم كبير مع شفرتها.",
+  "liveProjectOpen": "افتح مشروع {name}",
+  "liveProjectError": "خطأ في الصفحة",
+  "liveProjectNow": "تغيّر الآن",
+  "liveProjectIdle": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "لا تغيير منذ دقيقة",
+        "countPlural=two": "لا تغيير منذ دقيقتين",
+        "countPlural=few": "لا تغيير منذ {count} دقائق",
+        "countPlural=*": "لا تغيير منذ {count} دقيقة"
+      }
+    }
+  ]
 }

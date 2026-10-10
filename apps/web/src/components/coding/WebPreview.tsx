@@ -34,6 +34,8 @@ export function WebPreview({
   page,
   onOpen,
   fill = false,
+  quiet = false,
+  onErrors,
 }: {
   /**
    * A new page object plays the page again, even when its code is the
@@ -45,6 +47,10 @@ export function WebPreview({
   onOpen?: (href: string) => boolean;
   /** Takes all the room it is given, rather than a set height. */
   fill?: boolean;
+  /** Shows the page alone, without what it writes to its console. */
+  quiet?: boolean;
+  /** Told how many errors the page has met since it was last drawn. */
+  onErrors?: (count: number) => void;
 }) {
   const play = useQuery(playQuery).data;
   const frame = useRef<HTMLIFrameElement>(null);
@@ -59,6 +65,9 @@ export function WebPreview({
   const entries = log.page === page ? log.entries : [];
   const showing = useEffectEvent(() => page);
   const open = useEffectEvent((href: string) => onOpen?.(href) ?? false);
+  const errors = entries.filter((entry) => entry.kind === "error").length;
+  const tell = useEffectEvent((count: number) => onErrors?.(count));
+  useEffect(() => tell(errors), [errors]);
 
   const show = useEffectEvent((html: string) => {
     // The play page is sandboxed to an opaque origin, which no target
@@ -149,7 +158,7 @@ export function WebPreview({
         sandbox="allow-scripts allow-modals allow-forms"
         className={cn("w-full bg-white", fill ? "min-h-0 flex-1" : "h-72")}
       />
-      {entries.length > 0 ? (
+      {entries.length > 0 && !quiet ? (
         <div className="grid shrink-0 gap-1 border-t bg-muted/30 px-3 py-2.5">
           <p
             dir="auto"

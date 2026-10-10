@@ -732,6 +732,50 @@ export async function projectsOf(
   }));
 }
 
+/** A student's project as it stood when last kept, for the teacher in the room. */
+export interface LiveProject {
+  lessonId: string;
+  blockId: string;
+  studentId: string;
+  files: KeptFiles;
+  keptAt: string;
+}
+
+/** The projects some students have changed in some lessons since a moment. */
+export async function projectsSince(
+  tx: Tx,
+  input: {
+    tenantId: string;
+    lessonIds: readonly string[];
+    studentIds: readonly string[];
+    since: string;
+  },
+): Promise<LiveProject[]> {
+  if (input.lessonIds.length === 0 || input.studentIds.length === 0) return [];
+  const rows = await tx.execute<{
+    lesson_id: string;
+    block_id: string;
+    student_user_id: string;
+    files: KeptFiles;
+    kept_at: string;
+  }>(sql`
+    select lesson_id, block_id, student_user_id, files,
+      ${isoOf(sql`date_last_modified`)} as kept_at
+    from core.lesson_projects
+    where tenant_id = ${input.tenantId}::uuid and status = 'active'
+      and lesson_id = any(${uuidArray(input.lessonIds)})
+      and student_user_id = any(${uuidArray(input.studentIds)})
+      and date_last_modified >= ${input.since}::timestamptz
+    order by student_user_id, lesson_id, block_id`);
+  return rows.map((row) => ({
+    lessonId: row.lesson_id,
+    blockId: row.block_id,
+    studentId: row.student_user_id,
+    files: row.files,
+    keptAt: row.kept_at,
+  }));
+}
+
 /** A project offered to a question's class gallery, and how it stands. */
 export interface StoredShare {
   lessonId: string;

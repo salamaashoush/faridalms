@@ -13,6 +13,8 @@ import * as m from "~/i18n/messages";
 import { moduleLiveQuery } from "~/queries/learning";
 import { formatList, formatNumber } from "~/utils/datetime";
 
+import { LiveProjects } from "./LiveProjects";
+
 const LABEL: Record<LiveState, () => string> = {
   help: m.liveHelp,
   guessing: m.liveGuessing,
@@ -166,6 +168,18 @@ export function ClassLive({
           </RecordSection>
         );
       })}
+      <LiveProjects
+        projects={data.projects}
+        names={names}
+        here={
+          new Set(
+            data.rows
+              .filter((row) => row.state !== "away" && row.state !== "finished")
+              .map((row) => row.studentId),
+          )
+        }
+        now={data.now}
+      />
       {away.length > 0 ? (
         <RecordSection
           title={`${m.liveAway()} ${formatNumber(away.length)}`}

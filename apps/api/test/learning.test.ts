@@ -1834,6 +1834,21 @@ describe("web projects", () => {
     });
     // Keeping is not handing in: nothing is sent, nothing waits for a mark.
     expect(kept.checks[question]).toMatchObject({ tries: 0, response: null });
+    // The teacher in the room sees the project as it stands, unsent.
+    const walls = await Promise.all(
+      source.classes.map((item) =>
+        keeper.learning.live({ moduleId: saved.id, classId: item.id }),
+      ),
+    );
+    expect(walls.flatMap((wall) => wall.projects)).toEqual([
+      expect.objectContaining({
+        studentId: me.id,
+        lessonId,
+        blockId: question,
+        prompt: "Make a page about a pet.",
+        files: mine,
+      }),
+    ]);
     expect(
       await rejection(
         pupil.learning.keepProject({

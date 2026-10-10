@@ -182,6 +182,21 @@ test("a teacher sets a web project, a student builds it from several files and h
   ).toBeDisabled();
   await studentContext.close();
 
+  // The teacher in the room sees each project as it stands, and opens one large.
+  await page.goto(`${recordUrl}?tab=live`);
+  await untilHydrated(page);
+  await expect(
+    page.getByRole("heading", { name: "Projects being built 1" }),
+  ).toBeVisible();
+  await page
+    .getByRole("button", { name: "Open Yasmin Sabry's project" })
+    .click();
+  const large = page.getByRole("dialog", { name: "Web project" });
+  await expect(
+    played(large).getByRole("heading", { name: "The red panda" }),
+  ).toBeVisible();
+  await large.getByRole("button", { name: "Done", exact: true }).click();
+
   await page.goto(`${recordUrl}?tab=answers`);
   await untilHydrated(page);
   await expect(

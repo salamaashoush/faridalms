@@ -5463,5 +5463,20 @@
   "galleryTeacherDeclined": "Kept out of the gallery",
   "galleryShow": "Show to the class",
   "galleryNotNow": "Not now",
-  "galleryTakeDown": "Take down"
+  "galleryTakeDown": "Take down",
+  "liveProjects": "Projects being built",
+  "liveProjectsHint": "Each page as its student last left it. Open one to show it large, with its code.",
+  "liveProjectOpen": "Open {name}'s project",
+  "liveProjectError": "Error on the page",
+  "liveProjectNow": "Changed just now",
+  "liveProjectIdle": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "No change for {count} minute",
+        "countPlural=*": "No change for {count} minutes"
+      }
+    }
+  ]
 }

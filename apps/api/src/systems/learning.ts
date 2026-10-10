@@ -58,6 +58,7 @@ import {
   keepProject as keepOwnProject,
   offerShare as offerProject,
   projectsOf,
+  projectsSince,
   sharesOf,
   withdrawShare as withdrawProject,
   watchesOf,
@@ -1011,22 +1012,25 @@ export const live = readProcedure
       lessonsOf(context.tx, context.tenantId, row.id),
       rosterOf(context.tx, context.tenantId, input.classId, context.today),
     ]);
-    const [students, activity] = await Promise.all([
+    const recent = {
+      tenantId: context.tenantId,
+      lessonIds: lessons.map((item) => item.id),
+      studentIds: roster,
+      since: new Date(now - LIVE_WINDOW_MS).toISOString(),
+    };
+    const [students, activity, building] = await Promise.all([
       namesOf(context.tx, context.tenantId, roster),
-      liveActivity(context.tx, {
-        tenantId: context.tenantId,
-        lessonIds: lessons.map((item) => item.id),
-        studentIds: roster,
-        since: new Date(now - LIVE_WINDOW_MS).toISOString(),
-      }),
+      liveActivity(context.tx, recent),
+      projectsSince(context.tx, recent),
     ]);
     const rows = liveStates({ studentIds: roster, ...activity, now });
     const open = [
-      ...new Set(
-        rows.flatMap((item) =>
+      ...new Set([
+        ...rows.flatMap((item) =>
           item.state !== "away" && item.lessonId ? [item.lessonId] : [],
         ),
-      ),
+        ...building.map((item) => item.lessonId),
+      ]),
     ];
     const published = await Promise.all(
       open.map((lessonId) => publishedLesson(context, lessonId)),
@@ -1046,6 +1050,17 @@ export const live = readProcedure
       })),
       students,
       rows,
+      // The projects being built, each as its student last left it, with
+      // the question it answers; one a lesson no longer asks is left out.
+      projects: building.flatMap((item) => {
+        const content = published[open.indexOf(item.lessonId)]?.content;
+        const block = content?.blocks.find(
+          (candidate) => candidate.id === item.blockId,
+        );
+        return block?.type === "project"
+          ? [{ ...item, prompt: block.prompt }]
+          : [];
+      }),
     };
   });
 

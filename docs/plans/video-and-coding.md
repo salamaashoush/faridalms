@@ -165,8 +165,12 @@ off keeps the work and shows a placeholder.
    the teacher. The rules follow what schools already use: sharing is off
    until a teacher turns it on (Code.org), a teacher sees each piece
    before the class does (Seesaw), and building on another's work names
-   it (Scratch). The live view remains, and Python projects and p5.js
-   after it; Scratch projects are not in the gallery yet.
+   it (Scratch). Done last: a module's Right now tab shows the projects
+   being built, each page as its student last left it, marks a page that
+   has an error and a student who has changed nothing for five minutes,
+   and opens any one large with its code to show the room. Python projects
+   and p5.js remain; Scratch projects are in neither the gallery nor the
+   live view yet.
 5. **Blocks puzzles.** Our Blockly puzzle engine and level packs (paths,
    loops, turtle art, events, music) in Arabic and English, an arrow-path
    activity for early years, and unplugged versions through print.
