@@ -24,6 +24,21 @@ export interface FileSummary {
 }
 export const FILE_STATES = ["initiated", "ready", "rejected"] as const;
 export const MAX_FILE_BYTES = 25 * 1024 * 1024;
+/**
+ * A video put in a document, as a lesson's recording or a student's answer
+ * on video, may weigh far more than any other file: ten minutes of a
+ * recorded screen is close to this. It goes up in parts, so no one request
+ * carries it. A video attached to a message or handed in as a file keeps to
+ * the limit of every other file.
+ */
+export const MAX_VIDEO_BYTES = 200 * 1024 * 1024;
+/** Whether an upload is a video a document holds, which may be large. */
+export const isDocumentVideo = (purpose: string, mediaType: string) =>
+  purpose === "document_media" &&
+  mediaType.trim().toLowerCase().startsWith("video/");
+/** The most a file of this purpose and media type may weigh. */
+export const maxBytesFor = (purpose: string, mediaType: string) =>
+  isDocumentVideo(purpose, mediaType) ? MAX_VIDEO_BYTES : MAX_FILE_BYTES;
 
 export const FILE_REJECTIONS = [
   "too_large",
@@ -381,7 +396,7 @@ export const initiateUploadSchema = v.pipe(
       v.number(),
       v.integer(),
       v.minValue(1),
-      v.maxValue(MAX_FILE_BYTES),
+      v.maxValue(MAX_VIDEO_BYTES),
     ),
     /**
      * Where the file is going, so the right storage cap is checked: a class's
@@ -400,6 +415,13 @@ export const initiateUploadSchema = v.pipe(
       "validation.file_type",
     ),
     ["name"],
+  ),
+  v.forward(
+    v.check(
+      (value) => value.sizeBytes <= maxBytesFor(value.purpose, value.mediaType),
+      "file.too_large",
+    ),
+    ["sizeBytes"],
   ),
 );
 export type InitiateUploadInput = v.InferOutput<typeof initiateUploadSchema>;

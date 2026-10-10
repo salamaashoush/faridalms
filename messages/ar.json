@@ -866,7 +866,7 @@
   "fileRetryUpload": "إعادة المحاولة",
   "fileRemoveUpload": "إزالة",
   "fileCancelUpload": "إلغاء الرفع",
-  "fileUploadTooLarge": "حجم الملف أكبر من 25 ميغابايت.",
+  "fileUploadTooLarge": "الملف كبير جداً. الحد الأقصى للفيديو 200 ميغابايت، ولأي ملف آخر 25 ميغابايت.",
   "fileUploadWrongType": "لا يمكن إضافة هذا النوع من الملفات.",
   "fileUploadEmpty": "الملف فارغ.",
   "fileUploadInfected": "يحتوي الملف على فيروس.",

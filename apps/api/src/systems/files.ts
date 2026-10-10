@@ -48,6 +48,7 @@ import {
   writeProcedure,
 } from "../core/procedure";
 import { canReadFile, mayKeepArea, mayWorkOn } from "../files/authorize";
+import { uploadLimit } from "../files/limit";
 
 /** Who may upload for each purpose; none, anyone signed in, its use checked where it is put. */
 const UPLOADERS: Record<FilePurpose, Capability[] | null> = {
@@ -80,7 +81,11 @@ export const initiate = writeProcedure
   .handler(async ({ input, context }) => {
     const uploaders = UPLOADERS[input.purpose];
     if (uploaders) requireCapability(context, ...uploaders);
-    if (input.sizeBytes > context.maxUploadBytes)
+    const mediaType = input.mediaType.toLowerCase().split(";")[0]?.trim() ?? "";
+    if (
+      input.sizeBytes >
+      uploadLimit(context, { purpose: input.purpose, mediaType })
+    )
       throw new ORPCError("BAD_REQUEST", { message: "file.too_large" });
     const warning = await roomFor(context, input);
     const file = await initiateFile(context.tx, {
@@ -89,7 +94,7 @@ export const initiate = writeProcedure
       orgId: context.schoolId,
       purpose: input.purpose,
       name: safeFilename(input.name),
-      mediaType: input.mediaType.toLowerCase().split(";")[0]?.trim() ?? "",
+      mediaType,
       sizeBytes: input.sizeBytes,
     });
     return {

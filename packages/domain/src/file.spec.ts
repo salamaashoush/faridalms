@@ -66,4 +66,33 @@ describe("acceptedMediaType", () => {
       }).success,
     ).toBe(false);
   });
+
+  it("lets a video in a document weigh more than other files, up to its own limit", () => {
+    const video = {
+      purpose: "document_media",
+      name: "lesson.mp4",
+      mediaType: "video/mp4",
+    };
+    expect(
+      v.safeParse(initiateUploadSchema, {
+        ...video,
+        sizeBytes: 150 * 1024 * 1024,
+      }).success,
+    ).toBe(true);
+    expect(
+      v.safeParse(initiateUploadSchema, {
+        ...video,
+        sizeBytes: 201 * 1024 * 1024,
+      }).success,
+    ).toBe(false);
+    // A picture in the same document keeps to the limit of every file.
+    expect(
+      v.safeParse(initiateUploadSchema, {
+        purpose: "document_media",
+        name: "map.png",
+        mediaType: "image/png",
+        sizeBytes: 26 * 1024 * 1024,
+      }).success,
+    ).toBe(false);
+  });
 });

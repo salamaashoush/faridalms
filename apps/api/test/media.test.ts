@@ -14,6 +14,7 @@ import {
   rejection,
   seeded,
   sessionFor,
+  VIDEO_BYTES,
 } from "./harness";
 
 /** An MP4's signature, which is all the upload check reads. */
@@ -312,6 +313,61 @@ describe("a large upload sent in parts", () => {
     expect(await files.open(partKey(tenantId, file.id, 0))).toBeNull();
     // Once whole, the upload takes no more parts.
     expect((await send("/0", "PUT", first)).status).toBe(404);
+  });
+
+  test("a video may weigh more than any other file, and no more than a video may", async () => {
+    const teacher = await sessionFor("northwind", login("teacher"));
+    const sizeBytes = VIDEO_BYTES - 1024;
+    const bytes = new Uint8Array(sizeBytes);
+    bytes.set(new Uint8Array(await mp4().arrayBuffer()));
+    const video = await teacher.api.files.initiate({
+      purpose: "document_media",
+      name: "whole-lesson.mp4",
+      mediaType: "video/mp4",
+      sizeBytes,
+    });
+    const parts = Math.ceil(sizeBytes / PART_BYTES);
+    for (let part = 0; part < parts; part += 1) {
+      const sent = await raw(
+        "northwind",
+        teacher.token,
+        `/v1/files/${video.id}/parts/${part}`,
+        {
+          method: "PUT",
+          body: bytes.subarray(part * PART_BYTES, (part + 1) * PART_BYTES),
+        },
+      );
+      expect(sent.status).toBe(204);
+    }
+    const done = await raw(
+      "northwind",
+      teacher.token,
+      `/v1/files/${video.id}/parts`,
+      { method: "POST" },
+    );
+    expect(done.status).toBe(200);
+
+    // The same weight as a document is refused, and so is a video past its limit.
+    expect(
+      await rejection(
+        teacher.api.files.initiate({
+          purpose: "document_media",
+          name: "heavy.pdf",
+          mediaType: "application/pdf",
+          sizeBytes,
+        }),
+      ),
+    ).toMatchObject({ message: "file.too_large" });
+    expect(
+      await rejection(
+        teacher.api.files.initiate({
+          purpose: "document_media",
+          name: "too-long.mp4",
+          mediaType: "video/mp4",
+          sizeBytes: VIDEO_BYTES + 1,
+        }),
+      ),
+    ).toMatchObject({ message: "file.too_large" });
   });
 
   test("an upload given up part way leaves no parts behind", async () => {

@@ -35,6 +35,8 @@ export interface ApiDependencies {
   maxUploadBytes: number;
   /** The size of each part of a large upload; the usual size when unset. */
   uploadPartBytes?: number;
+  /** The most a video may weigh, which goes up in parts; the usual limit when unset. */
+  maxVideoBytes?: number;
   /** Which outside channels have a gateway; the rest are logged as skipped. */
   channels: { email: boolean; sms: boolean };
 }

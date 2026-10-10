@@ -24,6 +24,7 @@ import type { RequestContext, SchoolContext } from "../core/context";
 
 import { openUnit, schoolOf } from "../core/procedure";
 import { canReadFile } from "./authorize";
+import { uploadLimit } from "./limit";
 import { linkSeconds, sealLink } from "./links";
 import { ScanUnavailableError } from "./scan";
 import { readPrefix, StoreError } from "./store";
@@ -146,7 +147,7 @@ async function accept(
     stored = await context.files.write(
       waiting,
       body,
-      Math.min(file.sizeBytes, context.maxUploadBytes),
+      Math.min(file.sizeBytes, uploadLimit(context, file)),
     );
   } catch (error) {
     if (error instanceof StoreError) return refuse(413, "too_large");

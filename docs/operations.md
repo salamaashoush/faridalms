@@ -129,6 +129,11 @@ bodies of 8 MiB, not of `MAX_UPLOAD_BYTES`. Parts wait under
 `t/<tenant>/u/<file>/` and go when the upload is joined, refused, or given up
 for a day.
 
+A video placed in a document (a lesson's recording, a student's answer on
+video) may weigh up to 200 MiB whatever `MAX_UPLOAD_BYTES` says, since it
+travels in parts; every other file keeps to `MAX_UPLOAD_BYTES`. clamd's
+`StreamMaxLength` has to allow 200 MiB for such videos to be scanned.
+
 Every upload is checked before it becomes ready. Binary formats must open with
 their signature and text formats must be UTF-8 without NUL bytes (captions must
 also carry the WebVTT header), so a renamed executable or script is refused with

@@ -59,7 +59,9 @@ with the gate it can break.
    folder on the next sweep of its school's files. A large file goes up in
    parts of 8 MiB that the API joins and then checks as one upload; a part
    the network drops is sent again, after a wait or once the browser is
-   back online. Hosted adapters remain.
+   back online. A video in a document may weigh up to 200 MiB, so a
+   ten-minute recording fits; every upload used to stop at 25 MiB, which
+   refused a recording of much over a minute. Hosted adapters remain.
 7. **Captions and chapters.** Whisper drafts captions on the worker for the
    teacher to approve in the existing captions editor; chapters edited on the
    timeline and shown on the scrub bar. Done for chapters: a teacher writes a

@@ -841,7 +841,7 @@
   "fileRetryUpload": "Retry",
   "fileRemoveUpload": "Remove",
   "fileCancelUpload": "Cancel upload",
-  "fileUploadTooLarge": "The file is larger than 25 MB.",
+  "fileUploadTooLarge": "The file is too large. A video may be up to 200 MB, any other file up to 25 MB.",
   "fileUploadWrongType": "This type of file can't be added.",
   "fileUploadEmpty": "The file is empty.",
   "fileUploadInfected": "The file contains a virus.",

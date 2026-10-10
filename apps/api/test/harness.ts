@@ -56,6 +56,8 @@ const urlFor = (name: string, role?: string) => {
 
 /** The part size tests upload in, small enough for the upload limit here. */
 export const PART_BYTES = 64 * 1024;
+/** The most a video may weigh in tests: twice what any other file may. */
+export const VIDEO_BYTES = 2 * 1024 * 1024;
 
 interface State {
   tenants: SeededTenant[];
@@ -134,6 +136,7 @@ export async function setUp() {
     streamLinkKey: streamLinkKey(cellSecret),
     maxUploadBytes: 1024 * 1024,
     uploadPartBytes: PART_BYTES,
+    maxVideoBytes: VIDEO_BYTES,
     channels: { email: true, sms: false },
   });
   state = {

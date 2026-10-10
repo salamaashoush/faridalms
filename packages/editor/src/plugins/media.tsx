@@ -1,6 +1,6 @@
 import type { LexicalNode, NodeKey } from "lexical";
 
-import { attachable, MAX_FILE_BYTES } from "@faridalms/domain/file";
+import { attachable, maxBytesFor, mediaTypeFor } from "@faridalms/domain/file";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
 import { DRAG_DROP_PASTE } from "@lexical/rich-text";
 import {
@@ -94,7 +94,12 @@ function refusal(code: string, strings: EditorStrings): string {
 
 function precheck(file: File): string | null {
   if (file.size === 0) return "file.empty";
-  if (file.size > MAX_FILE_BYTES) return "file.too_large";
+  // What an editor takes in becomes its document's media.
+  if (
+    file.size >
+    maxBytesFor("document_media", mediaTypeFor(file.name) ?? file.type)
+  )
+    return "file.too_large";
   if (!attachable(file.name)) return "file.wrong_type";
   return null;
 }
