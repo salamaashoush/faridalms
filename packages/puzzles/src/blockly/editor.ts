@@ -421,6 +421,35 @@ export function createEditor(
     options.onChange(program, workspace.getAllBlocks(false).length - 1);
   });
 
+  // The editor offers a block taken from the tray by keyboard at the block
+  // the student last stood on in the program. One who came to the tray
+  // first has stood on none, and the block would be left loose beside a
+  // program that still runs nothing. Standing them on the program's last
+  // block, and back on the tray's, has the editor offer it there.
+  const stand = (event: KeyboardEvent) => {
+    if (event.key !== "Enter" && event.key !== " ") return;
+    const focus = Blockly.getFocusManager();
+    const taken = focus.getFocusedNode();
+    if (!(taken instanceof Blockly.BlockSvg) || !taken.workspace.isFlyout)
+      return;
+    const marked = workspace
+      .getSvgGroup()
+      .querySelector(
+        `.${Blockly.FocusManager.PASSIVE_FOCUS_NODE_CSS_CLASS_NAME}`,
+      );
+    const stood = marked?.id ? workspace.lookUpFocusableNode(marked.id) : null;
+    if (workspace.getNavigator().getSourceBlockFromNode(stood)) return;
+    let last = workspace
+      .getTopBlocks(false)
+      .find((block) => block.type === START);
+    if (!last) return;
+    for (let next = last.getNextBlock(); next; next = next.getNextBlock())
+      last = next;
+    focus.focusNode(last);
+    focus.focusNode(taken);
+  };
+  host.addEventListener("keydown", stand, true);
+
   const resized = new ResizeObserver(() => {
     Blockly.svgResize(workspace);
     settle();
@@ -437,6 +466,7 @@ export function createEditor(
     lock: (locked) => workspace.setIsReadOnly(locked),
     dispose: () => {
       resized.disconnect();
+      host.removeEventListener("keydown", stand, true);
       workspace.dispose();
     },
   };

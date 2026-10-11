@@ -30,6 +30,19 @@ async function shapeOf(block: Locator) {
 }
 
 /**
+ * Keys pressed as fast as a script can press them reach the editor before
+ * it has drawn what the last one did, which no hand can do; it loses its
+ * place then. This waits for it to draw.
+ */
+const drawn = (page: Page) =>
+  page.evaluate(
+    () =>
+      new Promise<void>((done) => {
+        requestAnimationFrame(() => requestAnimationFrame(() => done()));
+      }),
+  );
+
+/**
  * Drags a block by its top corner to where that corner should land. A
  * block snaps to the nearest place it fits, so near enough is enough.
  */
@@ -108,6 +121,48 @@ test("a teacher picks a loop puzzle, and a student solves it with blocks after a
   await student.locator(".blocklyHtmlInput").fill("6");
   await student.keyboard.press("Enter");
   await puzzle.getByRole("button", { name: "Run", exact: true }).click();
+  await expect(puzzle.locator("output")).toContainText("You reached the star!");
+  await expect(
+    student.getByRole("paragraph").filter({ hasText: /^Right$/ }),
+  ).toBeVisible();
+  await studentContext.close();
+});
+
+test("a student builds a program with the keyboard alone, each block joining the end of it", async ({
+  browser,
+  page,
+}) => {
+  const title = `Keys ${crypto.randomUUID().slice(0, 6)}`;
+  const recordUrl = await startLesson(page, title, "Straight on");
+  await page.keyboard.type("/blocks puzzle");
+  await page.getByRole("option", { name: /Blocks puzzle/ }).click();
+  await page.keyboard.type("Walk to the star.");
+  await expect(page.locator("[data-question]")).toHaveAttribute(
+    "data-kind",
+    "puzzle",
+  );
+  await openToStudents(page, recordUrl);
+
+  const studentContext = await browser.newContext();
+  const student = await studentContext.newPage();
+  await openAsStudent(student, title, "Straight on");
+  const puzzle = student.locator('[data-puzzle="blocks"]');
+  await expect(tray(puzzle)).toHaveCount(1);
+  // Tab reaches the tray before the program, so nowhere in the program
+  // has been stood on when the first block is taken.
+  await puzzle.getByRole("button", { name: "Show as Python" }).focus();
+  await student.keyboard.press("Tab");
+  for (const count of [1, 2, 3]) {
+    // Enter takes the block, Enter again leaves it where it is offered.
+    await student.keyboard.press("Enter");
+    await drawn(student);
+    await student.keyboard.press("Enter");
+    await expect(puzzle.getByText(`Blocks: ${count} of 3`)).toBeVisible();
+    await drawn(student);
+    await student.keyboard.press("t");
+    await drawn(student);
+  }
+  await puzzle.getByRole("button", { name: "Run", exact: true }).press("Enter");
   await expect(puzzle.locator("output")).toContainText("You reached the star!");
   await expect(
     student.getByRole("paragraph").filter({ hasText: /^Right$/ }),
