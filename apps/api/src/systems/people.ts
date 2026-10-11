@@ -13,8 +13,13 @@ import {
   takenLoginNames,
   updatePasswordSignIn,
 } from "@faridalms/database/stores/accounts";
+import { lastMarkFrom } from "@faridalms/database/stores/attendance";
 import { badgesOf, issueBadge } from "@faridalms/database/stores/badges";
-import { homeroomsOn } from "@faridalms/database/stores/classes";
+import {
+  endStudentEnrollmentsFrom,
+  homeroomsOn,
+  reopenStudentEnrollments,
+} from "@faridalms/database/stores/classes";
 import { photoRefusals } from "@faridalms/database/stores/consents";
 import {
   descriptorId,
@@ -46,7 +51,9 @@ import {
   accountOf,
   addContact,
   calendarFor,
+  endPlacement,
   endRelationship,
+  endStudentRole,
   ensureStudentRole,
   guardiansOf,
   insertPerson,
@@ -60,13 +67,16 @@ import {
   referenceOf,
   refreshCustodyAlert,
   relationshipOf,
+  reopenPlacement,
   setReference,
   signInSeeds,
   studentDirectory,
+  studentRoleEnd,
   studentMatches,
   syncFamilyRoles,
   updatePerson,
   updateRelationship,
+  voidPlacementsFrom,
   youngStudents,
 } from "@faridalms/database/stores/students";
 import {
@@ -84,10 +94,13 @@ import {
 import { normaliseIdentifier } from "@faridalms/domain/identifiers";
 import {
   addressLine,
+  cancelLeavingSchema,
   endRelationshipSchema,
   guardianLookupSchema,
   accountStateSchema,
+  leaverAccessEnd,
   personSearchSchema,
+  recordLeavingSchema,
   saveContactsSchema,
   saveRelationshipSchema,
   saveSignInSchema,
@@ -100,6 +113,7 @@ import {
   studentStatus,
 } from "@faridalms/domain/people";
 import { toE164 } from "@faridalms/domain/phone";
+import { addDays } from "@faridalms/domain/school";
 import { ORPCError } from "@orpc/server";
 import { randomInt } from "node:crypto";
 import * as v from "valibot";
@@ -215,13 +229,14 @@ export const options = readProcedure.handler(async ({ context }) => {
       namespace,
       today: context.today,
     });
-  const [grades, relations, sexes, positions, religions, years] =
+  const [grades, relations, sexes, positions, religions, exitTypes, years] =
     await Promise.all([
       load("grade_level"),
       load("relation"),
       load("sex"),
       load("staff_position"),
       load("religion"),
+      load("school_exit_type"),
       schoolYears(context.tx, context.tenantId, context.schoolId),
     ]);
   return {
@@ -230,6 +245,7 @@ export const options = readProcedure.handler(async ({ context }) => {
     sexes,
     positions,
     religions,
+    exitTypes,
     years,
     workingYearId: workingYear(years, context.today)?.id ?? null,
   };
@@ -356,12 +372,13 @@ export const student = readProcedure
     const current = history.find(
       (row) => row.from <= context.today && context.today < row.to,
     );
-    const [account, refusals] = await Promise.all([
+    const [account, refusals, accessUntil] = await Promise.all([
       accountOf(context.tx, context.tenantId, input.id),
       photoRefusals(context.tx, {
         tenantId: context.tenantId,
         studentIds: [input.id],
       }),
+      studentRoleEnd(context.tx, scope, input.id),
     ]);
     const status: StudentStatus = studentStatus(
       history.map((row) => ({
@@ -377,6 +394,8 @@ export const student = readProcedure
       status,
       placement: current ?? null,
       placements: history,
+      /** For a leaver, the day they and their family stop reading the record. */
+      accessUntil,
       guardians,
       account,
       workingYearId: workingYear(years, context.today)?.id ?? null,
@@ -1461,6 +1480,145 @@ const CONTACT_LABELS = [
   "other",
 ] as const;
 type ContactLabel = (typeof CONTACT_LABELS)[number];
+
+/**
+ * The school year a student's placement is in, held open for the change:
+ * a closed year's enrolment is its record and is not rewritten.
+ */
+async function openYearOf(context: UnitContext, yearId: string) {
+  const years = await schoolYears(
+    context.tx,
+    context.tenantId,
+    context.schoolId,
+  );
+  const year = years.find((row) => row.id === yearId);
+  if (!year) throw new ORPCError("NOT_FOUND");
+  if ((await holdYear(context.tx, context.tenantId, year.id)) === "closed")
+    throw new ORPCError("CONFLICT", { message: "school_year.closed" });
+  return { years, year };
+}
+
+/**
+ * Records that a student has left the school. Their placement ends after
+ * the last day with the reason and where they went, their classes end with
+ * it, and a placement they were to take up later is dropped. The record
+ * stays the school's for good; the student and their family keep reading it
+ * until the role ends. A register that marks the student after the last day
+ * refuses it, since it says they were still here.
+ */
+export const recordLeaving = writeProcedure
+  .input(recordLeavingSchema)
+  .handler(async ({ input, context }) => {
+    requireCapability(context, "people:manage");
+    const scope = scopeOf(context);
+    if (!(await isVisibleStudent(context.tx, scope, input.studentId)))
+      throw new ORPCError("NOT_FOUND");
+    const placement = (
+      await placements(context.tx, scope, input.studentId)
+    ).find((row) => row.from <= input.lastDay && input.lastDay < row.to);
+    if (!placement)
+      throw new ORPCError("BAD_REQUEST", { message: "leaving.not_enrolled" });
+    const { years, year } = await openYearOf(context, placement.schoolYearId);
+    const reasons = await descriptorsFor(context.tx, {
+      tenantId: context.tenantId,
+      schoolId: context.schoolId,
+      namespace: "school_exit_type",
+      today: context.today,
+    });
+    if (!reasons.some((row) => row.id === input.exitTypeId))
+      throw new ORPCError("NOT_FOUND");
+    const left = addDays(input.lastDay, 1);
+    const marked = await lastMarkFrom(context.tx, {
+      tenantId: context.tenantId,
+      schoolId: context.schoolId,
+      studentId: input.studentId,
+      from: left,
+    });
+    if (marked)
+      throw new ORPCError("CONFLICT", {
+        message: `enrollment.registers_after:${marked}`,
+      });
+    const ended = await endStudentEnrollmentsFrom(context.tx, scope, {
+      studentId: input.studentId,
+      on: left,
+    });
+    const dropped = await voidPlacementsFrom(context.tx, scope, {
+      studentId: input.studentId,
+      from: left,
+    });
+    await endPlacement(context.tx, {
+      tenantId: context.tenantId,
+      placementId: placement.id,
+      on: left,
+      exitTypeId: input.exitTypeId,
+      destination: input.destination,
+    });
+    const accessUntil = leaverAccessEnd({
+      years,
+      year,
+      left,
+      access: input.access,
+    });
+    await endStudentRole(context.tx, scope, {
+      studentId: input.studentId,
+      until: accessUntil,
+    });
+    await audit(context, {
+      action: "student.leave",
+      objectType: "user",
+      objectId: input.studentId,
+      subjectUserId: input.studentId,
+      studentUserId: input.studentId,
+      details: {
+        lastDay: input.lastDay,
+        exitTypeId: input.exitTypeId,
+        accessUntil,
+        ended,
+        dropped,
+      },
+    });
+    return { lastDay: input.lastDay, accessUntil };
+  });
+
+/**
+ * Takes a recorded departure back, for one recorded by mistake or a student
+ * who stays after all: the placement runs to the end of its year again, the
+ * classes that ended with it are given back, and the student's role no
+ * longer ends. A placement dropped for a later year is not made again.
+ */
+export const cancelLeaving = writeProcedure
+  .input(cancelLeavingSchema)
+  .handler(async ({ input, context }) => {
+    requireCapability(context, "people:manage");
+    const scope = scopeOf(context);
+    if (!(await isVisibleStudent(context.tx, scope, input.studentId)))
+      throw new ORPCError("NOT_FOUND");
+    const [latest] = await placements(context.tx, scope, input.studentId);
+    if (!latest?.exitTypeId)
+      throw new ORPCError("BAD_REQUEST", { message: "leaving.none" });
+    const { year } = await openYearOf(context, latest.schoolYearId);
+    await reopenPlacement(context.tx, {
+      tenantId: context.tenantId,
+      placementId: latest.id,
+      endsBefore: year.endsBefore,
+    });
+    const restored = await reopenStudentEnrollments(context.tx, scope, {
+      studentId: input.studentId,
+      yearId: year.id,
+      endedOn: latest.to,
+      endsBefore: year.endsBefore,
+    });
+    await ensureStudentRole(context.tx, scope, input.studentId, latest.from);
+    await audit(context, {
+      action: "student.return",
+      objectType: "user",
+      objectId: input.studentId,
+      subjectUserId: input.studentId,
+      studentUserId: input.studentId,
+      details: { placementId: latest.id, restored },
+    });
+    return { restored: restored.length };
+  });
 
 /** Children who share a parent with this student. */
 export const siblings = readProcedure

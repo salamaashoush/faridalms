@@ -20,7 +20,11 @@ import {
   setNextYearOutcomes,
   studentsAtYearEnd,
 } from "@faridalms/database/stores/rollovers";
-import { calendarFor, place } from "@faridalms/database/stores/students";
+import {
+  calendarFor,
+  endStudentRole,
+  place,
+} from "@faridalms/database/stores/students";
 import { holdYear, schoolYears } from "@faridalms/database/stores/years";
 import {
   applyRolloverSchema,
@@ -464,6 +468,14 @@ export const apply = writeProcedure
       if (exitType && leaving.length > 0)
         await recordExits(tx, context.tenantId, leaving, exitType);
     }
+    // Those who leave or graduate are students of the school, to the app and
+    // to their families, until the new year begins without them.
+    for (const row of plan.students)
+      if (row.outcome === "leave" || row.outcome === "graduate")
+        await endStudentRole(tx, scope, {
+          studentId: row.studentId,
+          until: target.startsOn,
+        });
     await copyClassPeriods(tx, {
       tenantId: context.tenantId,
       schoolId: context.schoolId,

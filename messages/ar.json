@@ -5926,5 +5926,65 @@
         "countPlural=*": "يحصل {value} طفل على بطاقات للطباعة."
       }
     }
+  ],
+  "studentLeave": "تسجيل المغادرة",
+  "leaveLastDay": "آخر يوم",
+  "leaveLastDayHint": "تنتهي فصولهم بعد هذا اليوم.",
+  "leaveReason": "السبب",
+  "leaveDestination": "المدرسة التالية",
+  "leaveDestinationHint": "إلى أين ينتقلون، إن ذكرت الأسرة ذلك.",
+  "leaveAccess": "الدخول بعد المغادرة",
+  "leaveAccessYearEnd": "حتى انتهاء العام الدراسي",
+  "leaveAccessYearEndHint": "يظلون هم وأولياء أمورهم قادرين على الدخول وقراءة التقارير والنتائج حتى {date}.",
+  "leaveAccessLastDay": "ينتهي مع آخر يوم",
+  "leaveAccessLastDayHint": "يُغلق دخولهم، وعرض أولياء أمورهم لهم، في اليوم التالي.",
+  "leaveSummary": "آخر يوم لـ {name} هو {date}. يبقى السجلّ في ملفات المدرسة.",
+  "leaveDone": "سُجّل: آخر يوم لـ {name} هو {date}.",
+  "leaveNotDone": "لم يُسجَّل لـ {names}. {reason}",
+  "leaveUndo": "التراجع عن المغادرة",
+  "leaveUndoTitle": "التراجع عن مغادرة {name}؟",
+  "leaveUndoBody": "يعود مكانه في المدرسة، والفصول التي انتهت معه، حتى نهاية العام.",
+  "leaveUndone": "أُعيد تسجيل {name}.",
+  "leaveSectionTitle": "المغادرة",
+  "leaveAccessUntil": "الدخول حتى",
+  "errorLeavingNotEnrolled": "ليس مسجّلًا في المدرسة في ذلك اليوم.",
+  "errorLeavingNone": "لا توجد مغادرة مسجّلة لهذا الطالب.",
+  "historyStudentLeave": "سُجّلت المغادرة",
+  "historyStudentReturn": "أُلغيت المغادرة",
+  "leaveSummaryMany": [
+    {
+      "declarations": [
+        "input count",
+        "input value",
+        "local countPlural = count: plural"
+      ],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=zero": "آخر يوم لـ {value} طالب هو {date}. تبقى سجلّاتهم في ملفات المدرسة.",
+        "countPlural=one": "آخر يوم لطالب واحد هو {date}. يبقى السجلّ في ملفات المدرسة.",
+        "countPlural=two": "آخر يوم لطالبين هو {date}. يبقى سجلّاهما في ملفات المدرسة.",
+        "countPlural=few": "آخر يوم لـ {value} طلاب هو {date}. تبقى سجلّاتهم في ملفات المدرسة.",
+        "countPlural=many": "آخر يوم لـ {value} طالبًا هو {date}. تبقى سجلّاتهم في ملفات المدرسة.",
+        "countPlural=*": "آخر يوم لـ {value} طالب هو {date}. تبقى سجلّاتهم في ملفات المدرسة."
+      }
+    }
+  ],
+  "leaveDoneMany": [
+    {
+      "declarations": [
+        "input count",
+        "input value",
+        "local countPlural = count: plural"
+      ],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=zero": "سُجّل: آخر يوم لـ {value} طالب هو {date}.",
+        "countPlural=one": "سُجّل: آخر يوم لطالب واحد هو {date}.",
+        "countPlural=two": "سُجّل: آخر يوم لطالبين هو {date}.",
+        "countPlural=few": "سُجّل: آخر يوم لـ {value} طلاب هو {date}.",
+        "countPlural=many": "سُجّل: آخر يوم لـ {value} طالبًا هو {date}.",
+        "countPlural=*": "سُجّل: آخر يوم لـ {value} طالب هو {date}."
+      }
+    }
   ]
 }

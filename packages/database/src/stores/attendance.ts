@@ -1045,6 +1045,27 @@ export async function lastMarkInClass(
   return row?.last ?? null;
 }
 
+/** The last day on or after the date that any register of the school marks the student. */
+export async function lastMarkFrom(
+  tx: Tx,
+  input: {
+    tenantId: string;
+    schoolId: string;
+    studentId: string;
+    from: string;
+  },
+): Promise<string | null> {
+  const [row] = await tx.execute<{ last: string | null }>(sql`
+    select to_char(max(e.taken_on), 'YYYY-MM-DD') as last
+    from core.attendance_events e
+    join core.attendance_registers g on g.tenant_id = e.tenant_id and g.id = e.register_id
+    join core.classes c on c.tenant_id = g.tenant_id and c.id = g.class_id
+    where e.tenant_id = ${input.tenantId}::uuid and e.student_user_id = ${input.studentId}::uuid
+      and c.org_id = ${input.schoolId}::uuid
+      and e.taken_on >= ${input.from}::date and e.status = 'active' and g.status = 'active'`);
+  return row?.last ?? null;
+}
+
 /** Whether any register of the day still has the student absent without a reason. */
 export async function absentUnexplainedOn(
   tx: Tx,

@@ -93,6 +93,7 @@ const RECORD: StudentData = {
   status: "enrolled",
   placement: null,
   placements: [],
+  accessUntil: null,
   guardians: [
     guardian(
       "0b6f6a58-3f7e-4d51-9b1d-6f1f0f7f1a10",
@@ -164,6 +165,7 @@ describe("student guardians", () => {
       sexes: [],
       positions: [],
       religions: [],
+      exitTypes: [],
       years: [],
       workingYearId: null,
     });

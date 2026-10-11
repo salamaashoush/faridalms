@@ -9,6 +9,7 @@ import {
   Copy,
   Download,
   KeyRound,
+  LogOut,
   MessageSquare,
   Pencil,
   Plus,
@@ -39,6 +40,7 @@ import {
   STATUS_LABEL,
   STATUS_TONE,
 } from "~/components/people/format";
+import { LeaveSchool } from "~/components/people/LeaveSchool";
 import { DataTable, RowLink } from "~/components/system/DataTable";
 import {
   EmptyState,
@@ -243,6 +245,9 @@ function StudentsPage() {
   const [moving, setMoving] = useState<{ id: string; name: string }[] | null>(
     null,
   );
+  const [leaving, setLeaving] = useState<{ id: string; name: string }[] | null>(
+    null,
+  );
   const [opening, setOpening] = useState<
     { id: string; name: string; className: string | null }[] | null
   >(null);
@@ -402,6 +407,21 @@ function StudentsPage() {
                 },
               ]
             : []),
+          ...(bounds
+            ? [
+                {
+                  label: m.studentLeave(),
+                  icon: LogOut,
+                  onSelect: (rows: StudentRow[]) =>
+                    setLeaving(
+                      rows.map((row) => ({
+                        id: row.id,
+                        name: displayName(row),
+                      })),
+                    ),
+                },
+              ]
+            : []),
           ...(canManage
             ? [
                 {
@@ -457,6 +477,14 @@ function StudentsPage() {
           year={bounds}
           today={data.today}
           onClose={() => setMoving(null)}
+        />
+      ) : null}
+      {leaving && bounds ? (
+        <LeaveSchool
+          students={leaving}
+          year={bounds}
+          today={data.today}
+          onClose={() => setLeaving(null)}
         />
       ) : null}
       {opening ? (

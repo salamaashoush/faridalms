@@ -217,7 +217,10 @@ export function SelectField<T extends string>({
           <SelectTrigger
             {...control}
             aria-labelledby={`${control.id}-label ${control.id}`}
-            className={cn(widths[width], "min-w-0")}
+            className={cn(
+              widths[width],
+              "min-w-0 max-md:data-[size=default]:h-10",
+            )}
           >
             <SelectValue className="block min-w-0 truncate" />
           </SelectTrigger>

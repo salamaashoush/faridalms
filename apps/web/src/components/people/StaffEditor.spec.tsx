@@ -84,6 +84,7 @@ describe("adding a staff member", () => {
       sexes: [],
       positions: [],
       religions: [],
+      exitTypes: [],
       years: [],
       workingYearId: null,
     });

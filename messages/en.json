@@ -5698,5 +5698,57 @@
         "countPlural=*": "{value} children each get a badge to print."
       }
     }
+  ],
+  "studentLeave": "Record as left",
+  "leaveLastDay": "Last day",
+  "leaveLastDayHint": "Their classes end after this day.",
+  "leaveReason": "Reason",
+  "leaveDestination": "Next school",
+  "leaveDestinationHint": "Where they are going, if the family has said.",
+  "leaveAccess": "Access afterwards",
+  "leaveAccessYearEnd": "Until the school year is over",
+  "leaveAccessYearEndHint": "They and their guardians still sign in and read reports and results until {date}.",
+  "leaveAccessLastDay": "Ends with the last day",
+  "leaveAccessLastDayHint": "Their sign-in, and their guardians' view of them, close the next day.",
+  "leaveSummary": "{name}'s last day is {date}. The record stays in the school's files.",
+  "leaveDone": "Recorded: {name}'s last day is {date}.",
+  "leaveNotDone": "Not recorded for {names}. {reason}",
+  "leaveUndo": "Undo leaving",
+  "leaveUndoTitle": "Undo {name}'s leaving?",
+  "leaveUndoBody": "Their place in the school, and the classes that ended with it, run to the end of the year again.",
+  "leaveUndone": "{name} is enrolled again.",
+  "leaveSectionTitle": "Leaving",
+  "leaveAccessUntil": "Access until",
+  "errorLeavingNotEnrolled": "They are not enrolled at the school on that day.",
+  "errorLeavingNone": "No leaving is recorded for this student.",
+  "historyStudentLeave": "Recorded as left",
+  "historyStudentReturn": "Leaving undone",
+  "leaveSummaryMany": [
+    {
+      "declarations": [
+        "input count",
+        "input value",
+        "local countPlural = count: plural"
+      ],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "1 student has {date} as their last day. The record stays in the school's files.",
+        "countPlural=*": "{value} students have {date} as their last day. Their records stay in the school's files."
+      }
+    }
+  ],
+  "leaveDoneMany": [
+    {
+      "declarations": [
+        "input count",
+        "input value",
+        "local countPlural = count: plural"
+      ],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "Recorded: 1 student's last day is {date}.",
+        "countPlural=*": "Recorded: the last day of {value} students is {date}."
+      }
+    }
   ]
 }

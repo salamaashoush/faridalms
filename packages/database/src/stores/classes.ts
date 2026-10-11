@@ -690,6 +690,55 @@ async function endEnrollmentsOf(
     await endEnrollment(tx, { tenantId, id: row.id, starts: row.starts, on });
 }
 
+/**
+ * Ends every class enrollment a student holds past the date, in whichever
+ * year, and tells which they were. Those that were only to start by then are
+ * dropped.
+ */
+export async function endStudentEnrollmentsFrom(
+  tx: Tx,
+  scope: Pick<Scope, "tenantId" | "schoolId">,
+  input: { studentId: string; on: string },
+): Promise<string[]> {
+  const held = await tx.execute<{ id: string; starts: string }>(sql`
+    select id, lower(valid_during)::text as starts from core.enrollments
+    where tenant_id = ${scope.tenantId}::uuid and org_id = ${scope.schoolId}::uuid
+      and user_id = ${input.studentId}::uuid and role = 'student' and status = 'active'
+      and upper(valid_during) > ${input.on}::date
+    for update`);
+  for (const row of held)
+    await endEnrollment(tx, {
+      tenantId: scope.tenantId,
+      id: row.id,
+      starts: row.starts,
+      on: input.on,
+    });
+  return held.map((row) => row.id);
+}
+
+/**
+ * Gives back the class enrollments of a year that ended on the date, each
+ * to the end of the year, for a student whose departure is taken back.
+ */
+export async function reopenStudentEnrollments(
+  tx: Tx,
+  scope: Pick<Scope, "tenantId" | "schoolId">,
+  input: {
+    studentId: string;
+    yearId: string;
+    endedOn: string;
+    endsBefore: string;
+  },
+): Promise<string[]> {
+  const rows = await tx.execute<{ id: string }>(sql`
+    update core.enrollments set valid_during = daterange(lower(valid_during), ${input.endsBefore}::date)
+    where tenant_id = ${scope.tenantId}::uuid and org_id = ${scope.schoolId}::uuid
+      and user_id = ${input.studentId}::uuid and role = 'student' and status = 'active'
+      and school_year_id = ${input.yearId}::uuid and upper(valid_during) = ${input.endedOn}::date
+    returning id`);
+  return rows.map((row) => row.id);
+}
+
 export interface HomeroomPlacement {
   id: string;
   version: number;

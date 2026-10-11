@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { fullName, studentStatus } from "./people";
+import { fullName, leaverAccessEnd, studentStatus } from "./people";
 import { toE164 } from "./phone";
 
 const year = {
@@ -56,5 +56,35 @@ describe("toE164", () => {
   it("refuses what cannot be a number", () => {
     expect(toE164("call me", "EG")).toBeNull();
     expect(toE164("12", "EG")).toBeNull();
+  });
+});
+
+describe("how long a leaver stays a student to the app", () => {
+  const leaving = {
+    years: [{ startsOn: "2026-09-13" }, { startsOn: "2027-09-12" }],
+    year: { endsBefore: "2027-06-18" },
+    left: "2026-10-11",
+  };
+
+  it("is to the day the next school year begins, summer included", () => {
+    expect(leaverAccessEnd({ ...leaving, access: "year_end" })).toBe(
+      "2027-09-12",
+    );
+  });
+
+  it("is to the end of their year where the school has set up no later one", () => {
+    expect(
+      leaverAccessEnd({
+        ...leaving,
+        years: [{ startsOn: "2026-09-13" }],
+        access: "year_end",
+      }),
+    ).toBe("2027-06-18");
+  });
+
+  it("is no longer than the last day when the office says so", () => {
+    expect(leaverAccessEnd({ ...leaving, access: "last_day" })).toBe(
+      "2026-10-11",
+    );
   });
 });

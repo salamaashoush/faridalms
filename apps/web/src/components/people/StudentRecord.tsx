@@ -10,10 +10,12 @@ import {
   Contact,
   Copy,
   HeartPulse,
+  LogOut,
   MessageSquare,
   Pencil,
   Plus,
   ShieldAlert,
+  Undo2,
   UserX,
 } from "lucide-react";
 import { Suspense, useState } from "react";
@@ -54,6 +56,7 @@ import {
   studentHistoryQuery,
   studentRecordQuery,
 } from "~/queries/students";
+import { cancelLeaving } from "~/server/students";
 
 import type { StudentSheet } from "./StudentSheets";
 
@@ -68,6 +71,7 @@ import {
   STATUS_TONE,
 } from "./format";
 import { IdentitySection } from "./IdentitySection";
+import { LeaveSchool } from "./LeaveSchool";
 import { PhotoDialog } from "./PhotoDialog";
 import { Deferred, Email, HistorySection, Phone } from "./record-parts";
 import {
@@ -151,6 +155,7 @@ function useLabels() {
   return {
     options,
     grade: (id: string | null) => labelIn(options.grades, id),
+    exit: (id: string | null) => labelIn(options.exitTypes, id),
     relation: (id: string) => labelIn(options.relations, id),
     sex: (id: string | null) => labelIn(options.sexes, id),
   };
@@ -224,6 +229,32 @@ function PlacementSection({
         </Fact>
         <Fact label={m.enrollmentStarts()} notApplicable={!placement}>
           {placement ? formatDate(placement.from) : null}
+        </Fact>
+      </Facts>
+    </RecordSection>
+  );
+}
+
+/**
+ * How a student left: their last day, why, where they went, and the day
+ * they and their family stop reading the record.
+ */
+function DepartureSection({ data }: { data: StudentData }) {
+  const labels = useLabels();
+  const [latest] = data.placements;
+  if (!latest?.exitTypeId) return null;
+  return (
+    <RecordSection title={m.leaveSectionTitle()}>
+      <Facts>
+        <Fact label={m.leaveLastDay()}>{formatDate(lastDay(latest.to))}</Fact>
+        <Fact label={m.leaveReason()}>{labels.exit(latest.exitTypeId)}</Fact>
+        <Fact label={m.leaveDestination()}>
+          {latest.destinationSchool ? (
+            <span dir="auto">{latest.destinationSchool}</span>
+          ) : null}
+        </Fact>
+        <Fact label={m.leaveAccessUntil()} notApplicable={!data.accessUntil}>
+          {data.accessUntil ? formatDate(lastDay(data.accessUntil)) : null}
         </Fact>
       </Facts>
     </RecordSection>
@@ -405,7 +436,14 @@ function EnrollmentHistory({ data }: { data: StudentData }) {
                     ) : null}
                   </span>
                   <span className="text-[13px] leading-[18px] text-muted-foreground">
-                    {inLocale(placement.yearTitleEn, placement.yearTitleAr)}
+                    {[
+                      inLocale(placement.yearTitleEn, placement.yearTitleAr),
+                      placement.exitTypeId
+                        ? labels.exit(placement.exitTypeId)
+                        : null,
+                    ]
+                      .filter((part) => part !== null)
+                      .join(" · ")}
                   </span>
                 </div>
                 <dl className="flex flex-wrap gap-x-6 gap-y-1 text-sm leading-5">
@@ -455,6 +493,7 @@ export function StudentRecord({
   const [photoOpen, setPhotoOpen] = useState(false);
   const [writing, setWriting] = useState(false);
   const [moving, setMoving] = useState(false);
+  const [leaving, setLeaving] = useState(false);
   const [contacts, setContacts] = useState<{
     guardian: Guardian | null;
     open: boolean;
@@ -547,6 +586,42 @@ export function StudentRecord({
       icon: MessageSquare,
       onSelect: () => setWriting(true),
     });
+  // A closed year's enrolment is its record, so leaving is recorded and
+  // taken back only in a year that still takes changes.
+  const openYear = (yearId: string | undefined) =>
+    labels.options.years.find(
+      (year) => year.id === yearId && year.lifecycle !== "closed",
+    );
+  const leavingYear = access.manage
+    ? openYear(data.placement?.schoolYearId)
+    : undefined;
+  const [latest] = data.placements;
+  // One who has left has no placement to show, only how they left.
+  const gone = Boolean(latest?.exitTypeId) && !data.placement;
+  if (leavingYear)
+    menu.push({
+      label: m.studentLeave(),
+      icon: LogOut,
+      onSelect: () => setLeaving(true),
+    });
+  if (access.manage && latest?.exitTypeId && openYear(latest.schoolYearId))
+    menu.push({
+      label: m.leaveUndo(),
+      icon: Undo2,
+      confirm: {
+        title: m.leaveUndoTitle({ name }),
+        body: m.leaveUndoBody(),
+        label: m.leaveUndo(),
+      },
+      onSelect: async () => {
+        await cancelLeaving({ data: { studentId } });
+        await Promise.all([
+          queryClient.invalidateQueries({ queryKey: ["people"] }),
+          queryClient.invalidateQueries({ queryKey: ["classes"] }),
+        ]);
+        toast.success(m.leaveUndone({ name }));
+      },
+    });
   if (data.reference)
     menu.push({
       label: m.studentsCopyReference(),
@@ -598,7 +673,8 @@ export function StudentRecord({
                   />
                 </Deferred>
               ) : null}
-              <PlacementSection data={data} />
+              <DepartureSection data={data} />
+              {gone ? null : <PlacementSection data={data} />}
               {access.contacts ? <GuardiansSection data={data} /> : null}
               {access.manage ? (
                 <Deferred>
@@ -681,14 +757,19 @@ export function StudentRecord({
             </>
           }
           aside={
-            <PlacementSection
-              data={data}
-              onEdit={
-                access.manage && data.workingYearId
-                  ? open({ kind: "grade" })
-                  : undefined
-              }
-            />
+            <>
+              <DepartureSection data={data} />
+              {gone ? null : (
+                <PlacementSection
+                  data={data}
+                  onEdit={
+                    access.manage && data.workingYearId
+                      ? open({ kind: "grade" })
+                      : undefined
+                  }
+                />
+              )}
+            </>
           }
         />
       );
@@ -789,6 +870,17 @@ export function StudentRecord({
             student={{ id: studentId, name }}
             today={data.today}
             onClose={() => setMoving(false)}
+          />
+        </Suspense>
+      ) : null}
+      {leaving && leavingYear ? (
+        <Suspense fallback={null}>
+          <LeaveSchool
+            students={[{ id: studentId, name }]}
+            year={leavingYear}
+            from={data.placement?.from}
+            today={data.today}
+            onClose={() => setLeaving(false)}
           />
         </Suspense>
       ) : null}

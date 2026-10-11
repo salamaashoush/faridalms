@@ -115,6 +115,8 @@ const ACTION_LABEL: Record<string, () => string> = {
   "user.create": m.historyUserCreate,
   "user.update": m.historyUserUpdate,
   "placement.change": m.historyPlacementChange,
+  "student.leave": m.historyStudentLeave,
+  "student.return": m.historyStudentReturn,
   "relationship.create": m.historyRelationshipCreate,
   "relationship.update": m.historyRelationshipUpdate,
   "relationship.end": m.historyRelationshipEnd,

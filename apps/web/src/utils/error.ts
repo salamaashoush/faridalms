@@ -124,6 +124,10 @@ export function getMessageFromError(error: unknown): string {
         return m.errorFileNotAttachable();
       case "enrollment.future_placement":
         return m.errorFuturePlacement();
+      case "leaving.not_enrolled":
+        return m.errorLeavingNotEnrolled();
+      case "leaving.none":
+        return m.errorLeavingNone();
       case "enrollment.outside_year":
       case "enrollment.outside_dates":
         return m.errorEnrollmentOutsideYear();

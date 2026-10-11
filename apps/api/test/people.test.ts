@@ -1,3 +1,4 @@
+import { addDays } from "@faridalms/domain/school";
 import { describe, expect, test } from "bun:test";
 
 import {
@@ -651,6 +652,210 @@ describe("sign-in", () => {
     });
     expect(again.badges).toEqual([]);
     expect(again.had.toSorted()).toEqual(children.toSorted());
+  });
+});
+
+describe("leaving the school", () => {
+  const password = "correct horse battery staple";
+
+  /**
+   * A student placed in a class from the start of the year, with a mother
+   * who signs in to follow them.
+   */
+  async function enrolled(reference: string, email: string) {
+    const api = await signedIn("northwind", login("principal"));
+    const options = await api.people.options();
+    const mother = options.relations.find((row) => row.code === "mother");
+    const year = options.years.find((row) => row.id === options.workingYearId);
+    const room = (await api.classes.directory({})).rows.find(
+      (row) => row.classType === "homeroom",
+    );
+    if (!mother || !year || !room) throw new Error("seed");
+    const { id: studentId } = await api.people.saveStudent({
+      names: names("Salama Ashoush", "سلامة عشوش"),
+      reference,
+      guardians: [
+        {
+          person: { names: names("Heba Ashoush", "هبة عشوش"), email },
+          flags: {
+            relationId: mother.id,
+            legalGuardian: true,
+            portalAccess: true,
+            receivesNotifications: true,
+            primaryContact: true,
+            emergencyContact: true,
+            residence: "primary",
+            pickup: "allowed",
+          },
+        },
+      ],
+    });
+    await api.classes.enrol({
+      studentId,
+      classId: room.id,
+      from: year.startsOn,
+    });
+    const guardian = (await api.people.student({ id: studentId }))
+      .guardians?.[0];
+    if (!guardian) throw new Error("the guardian was not linked");
+    await api.people.saveSignIn({
+      userId: guardian.userId,
+      loginName: email,
+      password,
+    });
+    const session = await client("northwind").identity.signIn({
+      loginName: email,
+      password,
+    });
+    const reason = options.exitTypes.find((row) => row.code === "transfer_out");
+    if (!reason) throw new Error("the seed lacks a transfer as a reason");
+    const today = (await api.people.students({})).today;
+    return {
+      api,
+      family: client("northwind", session.token),
+      studentId,
+      year,
+      reasonId: reason.id,
+      today,
+      yesterday: addDays(today, -1),
+    };
+  }
+
+  test("the office records that a student has left, and the family reads their record until the year is over", async () => {
+    const { api, family, studentId, year, reasonId, today, yesterday } =
+      await enrolled("GA9711", "heba.ashoush@northwind.example.com");
+    expect(
+      (await family.home.family({})).children.map((row) => row.studentId),
+    ).toEqual([studentId]);
+
+    const left = await api.people.recordLeaving({
+      studentId,
+      lastDay: yesterday,
+      exitTypeId: reasonId,
+      destination: "Nile Valley School",
+      access: "year_end",
+    });
+    expect(left.lastDay).toBe(yesterday);
+    expect(left.accessUntil >= year.endsBefore).toBe(true);
+
+    const record = await api.people.student({ id: studentId });
+    expect(record.status).toBe("left");
+    expect(record.placement).toBeNull();
+    expect(record.accessUntil).toBe(left.accessUntil);
+    expect(record.placements[0]).toMatchObject({
+      to: today,
+      exitMeaning: "transfer_out",
+      destinationSchool: "Nile Valley School",
+    });
+    const classes = await api.classes.history({ studentId });
+    expect(classes).toHaveLength(1);
+    expect(classes[0]?.to).toBe(today);
+    expect(
+      (await api.people.studentHistory({ id: studentId })).map(
+        (entry) => entry.action,
+      ),
+    ).toContain("student.leave");
+    // The school keeps the record, and the family still follows it.
+    expect(
+      (await api.people.students({ q: "GA9711", status: ["left"] })).rows.map(
+        (row) => row.id,
+      ),
+    ).toEqual([studentId]);
+    expect(
+      (await family.home.family({})).children.map((row) => row.studentId),
+    ).toEqual([studentId]);
+  });
+
+  test("a leaver whose time ends with their last day is no longer the family's to follow, and coming back gives it all back", async () => {
+    const { api, family, studentId, year, reasonId, today, yesterday } =
+      await enrolled("GA9712", "heba.nour@northwind.example.com");
+    const left = await api.people.recordLeaving({
+      studentId,
+      lastDay: yesterday,
+      exitTypeId: reasonId,
+      access: "last_day",
+    });
+    expect(left.accessUntil).toBe(today);
+    // With no child left to follow, the mother's family session stops.
+    expect(await rejection(family.home.family({}))).toMatchObject({
+      code: "UNAUTHORIZED",
+    });
+
+    expect(await api.people.cancelLeaving({ studentId })).toEqual({
+      restored: 1,
+    });
+    const record = await api.people.student({ id: studentId });
+    expect(record.status).toBe("enrolled");
+    expect(record.accessUntil).toBeNull();
+    expect(record.placements[0]).toMatchObject({
+      to: year.endsBefore,
+      exitTypeId: null,
+      destinationSchool: null,
+    });
+    expect((await api.classes.history({ studentId }))[0]?.to).toBe(
+      year.endsBefore,
+    );
+    expect(
+      (await family.home.family({})).children.map((row) => row.studentId),
+    ).toEqual([studentId]);
+    expect(
+      (await api.people.studentHistory({ id: studentId })).map(
+        (entry) => entry.action,
+      ),
+    ).toContain("student.return");
+    expect(
+      await rejection(api.people.cancelLeaving({ studentId })),
+    ).toMatchObject({ code: "BAD_REQUEST", message: "leaving.none" });
+  });
+
+  test("a register that marks the student later, a day they were not enrolled and a teacher are refused", async () => {
+    const api = await signedIn("northwind", login("principal"));
+    const options = await api.people.options();
+    const reason = options.exitTypes.find((row) => row.code === "withdrawn");
+    const year = options.years.find((row) => row.id === options.workingYearId);
+    if (!reason || !year) throw new Error("seed");
+    const student = await signedIn("northwind", login("student"));
+    const me = await student.identity.currentUser();
+    const leaving = {
+      studentId: me.id,
+      exitTypeId: reason.id,
+      access: "year_end" as const,
+    };
+    // The seed's registers mark the student in the days after this one.
+    expect(
+      await rejection(
+        api.people.recordLeaving({ ...leaving, lastDay: "2026-09-14" }),
+      ),
+    ).toMatchObject({
+      code: "CONFLICT",
+      message: expect.stringMatching(
+        /^enrollment\.registers_after:\d{4}-\d{2}-\d{2}$/,
+      ),
+    });
+    expect(
+      await rejection(
+        api.people.recordLeaving({
+          ...leaving,
+          lastDay: addDays(year.startsOn, -1),
+        }),
+      ),
+    ).toMatchObject({ code: "BAD_REQUEST", message: "leaving.not_enrolled" });
+    expect(
+      await rejection(
+        api.people.recordLeaving({
+          ...leaving,
+          lastDay: year.startsOn,
+          exitTypeId: crypto.randomUUID(),
+        }),
+      ),
+    ).toMatchObject({ code: "NOT_FOUND" });
+    const teacher = await signedIn("northwind", login("teacher"));
+    expect(
+      await rejection(
+        teacher.people.recordLeaving({ ...leaving, lastDay: year.startsOn }),
+      ),
+    ).toMatchObject({ code: "FORBIDDEN" });
+    expect((await api.people.student({ id: me.id })).status).toBe("enrolled");
   });
 });
 

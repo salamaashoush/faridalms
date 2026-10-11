@@ -129,6 +129,15 @@ describe("year rollover", () => {
       left.placements.find((row) => row.schoolYearId === source.id)
         ?.exitMeaning,
     ).toBe("graduated");
+    // Those who go stay students of the school until the new year begins
+    // without them; those who stay have no such day.
+    expect(left.accessUntil).toBe("2031-09-07");
+    expect((await api.people.student({ id: leaver.id })).accessUntil).toBe(
+      "2031-09-07",
+    );
+    expect(
+      (await api.people.student({ id: repeater.id })).accessUntil,
+    ).toBeNull();
     const sourceRecord = await api.classes.record({
       id: kept.sourceClassId,
     });

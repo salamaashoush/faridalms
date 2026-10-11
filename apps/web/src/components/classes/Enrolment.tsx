@@ -32,7 +32,7 @@ function useRefresh() {
     ]);
 }
 
-function clamp(day: string, min: string, max: string) {
+export function clamp(day: string, min: string, max: string) {
   if (day < min) return min;
   if (day > max) return max;
   return day;

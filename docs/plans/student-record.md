@@ -119,13 +119,17 @@ Rules that hold for every section:
    made, and what is made shows once, on a sheet to print. A sign-in name is
    the student's own email address, else their school number, else their
    name in Latin letters, so the sign-in page takes a short name as well as
-   an email address. Remaining: a link sent to the guardians' email to set
-   the password, a person changing their own password, and recording that
-   students have left.
+   an email address. Record as left, from the record's menu or for several
+   students in the list, is what other school systems call archiving a
+   student; section 4 says what it does. Remaining: a link sent to the
+   guardians' email to set the password, and a person changing their own
+   password.
 5. **Arrivals and departures.** Previous school and destination on the
    school-year rows, a Documents section for transfer certificates and past
    reports, and rights decisions enforced where families act (absence
-   reports, consents).
+   reports, consents). Done: the destination, recorded with the departure,
+   and the rights decisions. Remaining: the previous school and the
+   Documents section.
 6. **The family's view.** Each child's details as the school holds them,
    with "Ask the school to correct this" sent as a message linked to the
    child.
@@ -142,3 +146,46 @@ Rules that hold for every section:
 10. **Coming of age.** End portal access when a student reaches majority in
     the school's jurisdiction where the link says so, unless the student
     consents.
+
+## 4. A student who leaves
+
+Researched 2026-10-11 against Arbor (unenrolling, leavers, parent portal
+access), district guides to PowerSchool transfers, IRIS Ed:gen and iSAMS
+former-pupil records, England's School Attendance (Pupil Registration)
+Regulations 2024, and ADEK's records policy. What they agree on, and what
+Farida does:
+
+- **A leaver is never deleted or hidden.** The record becomes the school's
+  file on a former student: status Left or Graduated, found through the
+  list's status filter, kept for the retention period (ADEK asks for at
+  least five years after leaving, and graduation records for good). Erasure
+  stays its own process under Data protection.
+- **Leaving is a dated fact with a reason.** The office records the last
+  day, why the student left (the school's exit types, mapped to Ed-Fi's
+  exit and withdraw types) and, where the family has said, the school they
+  go to. England lets a school take a name off the roll only on a stated
+  ground and has it report where the child went, so the reason is required
+  and the destination is asked for.
+- **Classes end after the last day.** Every class enrolment ends then and a
+  placement to be taken up later is dropped. Marks already taken stay. A
+  register that marks the student after the last day refuses the change,
+  since it says the student was still here: the office picks a later day or
+  corrects the register.
+- **The family keeps reading for a while.** Arbor keeps a leaver's parents
+  until the end of the academic year the child last attended; PowerSchool
+  districts cut access on the day. Farida offers both and defaults to the
+  first: the student and their guardians sign in and read reports and
+  results until the next school year begins (or the year's end where no
+  later year is set up), or no longer than the last day. Brothers and
+  sisters still at the school are untouched; a guardian with no child left
+  to follow can no longer open the family workspace.
+- **It can be taken back.** Undo leaving reopens the placement and the
+  classes that ended with it, for a mistake or a student who stays. One who
+  comes back later is placed again as a new entry.
+- **Leavers at the turn of the year** (Leave or Graduate in the rollover)
+  follow the same rule: their role ends the day the new year begins.
+
+Before this, nothing ended a student's role, so a leaver and their guardians
+kept their access for good, and a guardian reached any student who had ever
+had a placement. A guardian, and the student, now reach a student only while
+a placement or the student role has not ended.

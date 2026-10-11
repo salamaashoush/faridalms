@@ -1,9 +1,11 @@
 import { createSignInsSchema } from "@faridalms/domain/first-sign-in";
 import {
   accountStateSchema,
+  cancelLeavingSchema,
   endRelationshipSchema,
   guardianLookupSchema,
   personSearchSchema,
+  recordLeavingSchema,
   saveContactsSchema,
   saveRelationshipSchema,
   saveSignInSchema,
@@ -71,6 +73,14 @@ export const getPersonHistory = createServerFn({ method: "GET" })
 export const saveSignIn = createServerFn({ method: "POST" })
   .validator(checked(saveSignInSchema))
   .handler(({ data }) => backend().people.saveSignIn(data));
+
+export const recordLeaving = createServerFn({ method: "POST" })
+  .validator(checked(recordLeavingSchema))
+  .handler(({ data }) => backend().people.recordLeaving(data));
+
+export const cancelLeaving = createServerFn({ method: "POST" })
+  .validator(checked(cancelLeavingSchema))
+  .handler(({ data }) => backend().people.cancelLeaving(data));
 
 export const getSignInsPlan = createServerFn({ method: "GET" })
   .validator(checked(createSignInsSchema))

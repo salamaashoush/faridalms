@@ -130,6 +130,46 @@ export const saveStudentSchema = v.object({
 });
 export type SaveStudentInput = v.InferInput<typeof saveStudentSchema>;
 
+/**
+ * How long a student who has left stays a student to the app: to the end of
+ * the school year, so the family still reads the last reports, or no longer
+ * than the last day.
+ */
+export const LEAVER_ACCESS = ["year_end", "last_day"] as const;
+export type LeaverAccess = (typeof LEAVER_ACCESS)[number];
+
+export const recordLeavingSchema = v.object({
+  studentId: id,
+  lastDay: isoDate,
+  exitTypeId: id,
+  destination: optionalText(160),
+  access: v.picklist(LEAVER_ACCESS),
+});
+export type RecordLeavingInput = v.InferInput<typeof recordLeavingSchema>;
+
+export const cancelLeavingSchema = v.object({ studentId: id });
+
+/**
+ * The day a leaver's sign-in, and their family's view of them, close. The
+ * school year they left in is theirs to the day the next one begins, since
+ * results and reports come out after lessons end; a school with no later
+ * year set up gives the year's own end.
+ */
+export function leaverAccessEnd(input: {
+  years: readonly { startsOn: string }[];
+  year: { endsBefore: string };
+  /** The day after the student's last. */
+  left: string;
+  access: LeaverAccess;
+}): string {
+  if (input.access === "last_day") return input.left;
+  const next = input.years
+    .map((row) => row.startsOn)
+    .filter((starts) => starts >= input.year.endsBefore)
+    .toSorted()[0];
+  return next ?? input.year.endsBefore;
+}
+
 export const studentMatchesSchema = v.object({
   names: personNamesSchema,
   birthDate: isoDate,

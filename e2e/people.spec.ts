@@ -288,6 +288,67 @@ test("the office opens sign-ins for the students it picks, and a student signs i
   await theirs.close();
 });
 
+// Each browser records a student of its own as having left and takes it
+// back, so none finds a student another browser has changed.
+const LEAVER = {
+  chromium: { name: "Ali Fathy", reference: "GA1005" },
+  firefox: { name: "Nour Sabry", reference: "GA1003" },
+  webkit: { name: "Karim Saleh", reference: "GA1016" },
+} as const;
+
+test("the office records that a student has left, reads how on their record, and takes it back", async ({
+  page,
+  browserName,
+}) => {
+  const student = LEAVER[browserName];
+  await signIn(page, "admin");
+  await page.goto(`/admin/students?q=${student.reference}`);
+  await untilHydrated(page);
+  await page.getByRole("link", { name: student.name }).first().click();
+  await expect(page).toHaveURL(/\/students\/[a-f0-9-]+/);
+  await page.getByRole("button", { name: "More actions" }).click();
+  await page.getByRole("menuitem", { name: "Record as left" }).click();
+  const sheet = page.getByRole("dialog", { name: "Record as left" });
+  // Why they left is asked for before anything is recorded.
+  await sheet.getByRole("button", { name: "Record as left" }).click();
+  await expect(
+    sheet.getByText("Choose an option from the list."),
+  ).toBeVisible();
+  await sheet.getByRole("combobox", { name: "Reason" }).click();
+  await page
+    .getByRole("option", { name: "Transferred to another school" })
+    .click();
+  await sheet
+    .getByRole("textbox", { name: "Next school" })
+    .fill("Nile Valley School");
+  await expect(
+    sheet.getByRole("radio", { name: "Until the school year is over" }),
+  ).toBeChecked();
+  await expect(sheet.getByText(`${student.name}'s last day is`)).toBeVisible();
+  await sheet.getByRole("button", { name: "Record as left" }).click();
+  await expect(
+    page.getByText(`Recorded: ${student.name}'s last day is`),
+  ).toBeVisible();
+  await expect(sheet).toBeHidden();
+
+  await page.getByRole("tab", { name: "Enrollment", exact: true }).click();
+  const leaving = page.getByRole("region", { name: "Leaving" });
+  await expect(leaving).toContainText("Transferred to another school");
+  await expect(leaving).toContainText("Nile Valley School");
+  await expect(leaving).toContainText("Access until");
+
+  await page.getByRole("button", { name: "More actions" }).click();
+  await page.getByRole("menuitem", { name: "Undo leaving" }).click();
+  await page
+    .getByRole("dialog", { name: `Undo ${student.name}'s leaving?` })
+    .getByRole("button", { name: "Undo leaving" })
+    .click();
+  await expect(
+    page.getByText(`${student.name} is enrolled again.`),
+  ).toBeVisible();
+  await expect(leaving).toBeHidden();
+});
+
 test("a parent opens their own record but not the school's student list", async ({
   page,
 }) => {

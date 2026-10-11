@@ -284,6 +284,7 @@ export interface Placement {
   entryTypeId: string | null;
   exitTypeId: string | null;
   exitMeaning: string | null;
+  destinationSchool: string | null;
 }
 
 export async function placements(
@@ -302,10 +303,11 @@ export async function placements(
     entry_id: string | null;
     exit_id: string | null;
     exit_meaning: string | null;
+    destination_school: string | null;
   }>(sql`
     select s.id, s.version, s.school_year_id, y.title_en, y.title_ar, s.valid_during::text as valid_during,
            s.grade_level_descriptor_id as grade_id, s.entry_type_descriptor_id as entry_id,
-           s.exit_type_descriptor_id as exit_id, x.system_meaning as exit_meaning
+           s.exit_type_descriptor_id as exit_id, x.system_meaning as exit_meaning, s.destination_school
     from core.student_school_years s
     join core.academic_sessions y on y.tenant_id = s.tenant_id and y.id = s.school_year_id
     left join core.descriptors x on x.tenant_id = s.tenant_id and x.id = s.exit_type_descriptor_id
@@ -326,8 +328,95 @@ export async function placements(
       entryTypeId: row.entry_id,
       exitTypeId: row.exit_id,
       exitMeaning: row.exit_meaning,
+      destinationSchool: row.destination_school,
     };
   });
+}
+
+/**
+ * Ends a placement in a departure: its last day, why the student left and
+ * where they went. A placement that ends there anyway keeps its dates.
+ */
+export async function endPlacement(
+  tx: Tx,
+  input: {
+    tenantId: string;
+    placementId: string;
+    /** The day after the student's last. */
+    on: string;
+    exitTypeId: string;
+    destination: string | null;
+  },
+) {
+  await tx.execute(sql`
+    update core.student_school_years
+    set valid_during = daterange(lower(valid_during), least(upper(valid_during), ${input.on}::date)),
+        exit_type_descriptor_id = ${input.exitTypeId}::uuid, destination_school = ${input.destination}
+    where tenant_id = ${input.tenantId}::uuid and id = ${input.placementId}::uuid`);
+}
+
+/** Takes a departure back: the placement runs to the end of its year again. */
+export async function reopenPlacement(
+  tx: Tx,
+  input: { tenantId: string; placementId: string; endsBefore: string },
+) {
+  await tx.execute(sql`
+    update core.student_school_years
+    set valid_during = daterange(lower(valid_during), ${input.endsBefore}::date),
+        exit_type_descriptor_id = null, destination_school = null
+    where tenant_id = ${input.tenantId}::uuid and id = ${input.placementId}::uuid`);
+}
+
+/** Drops the placements a student was to start on or after the date. */
+export async function voidPlacementsFrom(
+  tx: Tx,
+  scope: Pick<Scope, "tenantId" | "schoolId">,
+  input: { studentId: string; from: string },
+): Promise<string[]> {
+  const rows = await tx.execute<{ id: string }>(sql`
+    update core.student_school_years set status = 'tobedeleted'
+    where tenant_id = ${scope.tenantId}::uuid and org_id = ${scope.schoolId}::uuid
+      and student_user_id = ${input.studentId}::uuid and status = 'active'
+      and lower(valid_during) >= ${input.from}::date
+    returning id`);
+  return rows.map((row) => row.id);
+}
+
+/**
+ * The day a student's role at the school ends, for one who has left; null
+ * while the role runs on, and for someone who never held one.
+ */
+export async function studentRoleEnd(
+  tx: Tx,
+  scope: Pick<Scope, "tenantId" | "schoolId">,
+  studentId: string,
+): Promise<string | null> {
+  const [row] = await tx.execute<{ ends: string | null }>(sql`
+    select upper(valid_during)::text as ends from core.user_roles
+    where tenant_id = ${scope.tenantId}::uuid and org_id = ${scope.schoolId}::uuid
+      and user_id = ${studentId}::uuid and role = 'student' and status = 'active'
+    order by upper_inf(valid_during) desc, upper(valid_during) desc limit 1`);
+  return row?.ends ?? null;
+}
+
+/**
+ * Ends a student's role at the school on the date, which is when their
+ * sign-in as a student and their family's view of them close. A role that
+ * was only to start by then never does.
+ */
+export async function endStudentRole(
+  tx: Tx,
+  scope: Pick<Scope, "tenantId" | "schoolId">,
+  input: { studentId: string; until: string },
+) {
+  const held = sql`tenant_id = ${scope.tenantId}::uuid and org_id = ${scope.schoolId}::uuid
+    and user_id = ${input.studentId}::uuid and role = 'student' and status = 'active'`;
+  await tx.execute(sql`
+    update core.user_roles set status = 'tobedeleted'
+    where ${held} and lower(valid_during) >= ${input.until}::date`);
+  await tx.execute(sql`
+    update core.user_roles set valid_during = daterange(lower(valid_during), ${input.until}::date)
+    where ${held} and (upper_inf(valid_during) or upper(valid_during) > ${input.until}::date)`);
 }
 
 export interface StudentPerson {
@@ -784,11 +873,21 @@ export async function ensureStudentRole(
   studentId: string,
   from: string,
 ) {
-  const rows = await tx.execute<{ id: string }>(sql`
-    select id from core.user_roles
+  const rows = await tx.execute<{ id: string; ends: boolean }>(sql`
+    select id, not upper_inf(valid_during) as ends from core.user_roles
     where tenant_id = ${scope.tenantId}::uuid and user_id = ${studentId}::uuid and org_id = ${scope.schoolId}::uuid
-      and role = 'student' and status = 'active' and (upper_inf(valid_during) or upper(valid_during) > ${from}::date)`);
-  if (rows.length > 0) return;
+      and role = 'student' and status = 'active' and (upper_inf(valid_during) or upper(valid_during) > ${from}::date)
+    order by lower(valid_during) desc`);
+  const [held] = rows;
+  if (held) {
+    // A leaver's role ends with the time they keep; one who is placed again
+    // is a student of the school for as long as any other.
+    if (held.ends)
+      await tx.execute(sql`
+        update core.user_roles set valid_during = daterange(lower(valid_during), null)
+        where tenant_id = ${scope.tenantId}::uuid and id = ${held.id}::uuid`);
+    return;
+  }
   await tx.insert(userRoles).values({
     tenantId: scope.tenantId,
     userId: studentId,
