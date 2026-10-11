@@ -172,7 +172,7 @@ test("the office writes to a student's guardians from the student's record", asy
   await expect(page.getByText(note).first()).toBeVisible();
 });
 
-test("the office writes to the families of the students it picks in the list, each in its own conversation", async ({
+test("the office moves the students it picks in the list and writes to their families, each in its own conversation", async ({
   page,
 }) => {
   await signIn(page, "admin");
@@ -182,6 +182,17 @@ test("the office writes to the families of the students it picks in the list, ea
   const pick = page
     .getByRole("table")
     .getByRole("checkbox", { name: /^Select .*Zaki/ });
+  await pick.nth(0).check();
+  await pick.nth(1).check();
+  // Moved together to the class they are in, which leaves them where they
+  // are for every other spec and still goes through each student's move.
+  await page.getByRole("button", { name: "Move class", exact: true }).click();
+  const move = page.getByRole("dialog", { name: "Move 2 students to a class" });
+  await move.getByRole("combobox", { name: "New class" }).click();
+  await page.getByRole("option", { name: "8A", exact: true }).click();
+  await move.getByRole("button", { name: "Move class", exact: true }).click();
+  await expect(page.getByText(/^2 students are in 8A from /)).toBeVisible();
+  await expect(move).toBeHidden();
   await pick.nth(0).check();
   await pick.nth(1).check();
   await page.getByRole("button", { name: "Message guardians" }).click();

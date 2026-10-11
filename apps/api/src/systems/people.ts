@@ -232,7 +232,15 @@ export const students = readProcedure
     );
     const working = workingYear(years, context.today);
     const year = years.find((row) => row.id === input.year) ?? working;
-    if (!year) return { year: null, rows: [], total: 0, page: 1, pages: 1 };
+    if (!year)
+      return {
+        year: null,
+        today: context.today,
+        rows: [],
+        total: 0,
+        page: 1,
+        pages: 1,
+      };
     const grades = await descriptorsFor(context.tx, {
       tenantId: context.tenantId,
       schoolId: context.schoolId,
@@ -297,6 +305,7 @@ export const students = readProcedure
         titleAr: year.titleAr,
         lifecycle: year.lifecycle,
       },
+      today: context.today,
       rows: rows.map((row) => {
         const grade = row.gradeId ? byId.get(row.gradeId) : undefined;
         return {

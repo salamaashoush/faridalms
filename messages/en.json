@@ -5649,5 +5649,8 @@
   "msgToGuardiansOfMany": "To the guardians of the {count} students picked",
   "msgToGuardiansEach": "Each family gets it in a conversation of its own, about its child.",
   "msgSentToFamilies": "Sent to the guardians of {count} students.",
-  "msgNoGuardiansFor": "Not sent for {names}: none of their guardians uses the portal."
+  "msgNoGuardiansFor": "Not sent for {names}: none of their guardians uses the portal.",
+  "studentsMoveTitle": "Move {count} students to a class",
+  "studentsMoved": "{count} students are in {class} from {date}.",
+  "studentsNotMoved": "Not moved: {names}. {reason}"
 }

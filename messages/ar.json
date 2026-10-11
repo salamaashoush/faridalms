@@ -5869,5 +5869,8 @@
   "msgToGuardiansOfMany": "إلى أولياء أمور الطلاب المحددين وعددهم {count}",
   "msgToGuardiansEach": "تصل كل أسرة في محادثة خاصة بها عن ابنها.",
   "msgSentToFamilies": "أُرسلت إلى أولياء أمور {count} من الطلاب.",
-  "msgNoGuardiansFor": "لم تُرسل بخصوص {names}: لا يستخدم أي من أولياء أمورهم البوابة."
+  "msgNoGuardiansFor": "لم تُرسل بخصوص {names}: لا يستخدم أي من أولياء أمورهم البوابة.",
+  "studentsMoveTitle": "نقل {count} من الطلاب إلى فصل",
+  "studentsMoved": "صار {count} من الطلاب في {class} من {date}.",
+  "studentsNotMoved": "لم يُنقل: {names}. {reason}"
 }

@@ -4,6 +4,7 @@ import { studentDirectorySchema } from "@faridalms/domain/people";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, stripSearchParams } from "@tanstack/react-router";
 import {
+  ArrowRightLeft,
   CalendarX,
   Copy,
   Download,
@@ -26,6 +27,7 @@ import type {
 import { PersonAvatar } from "~/components/admin/PersonAvatar";
 import { ButtonLink } from "~/components/app/ButtonLink";
 import { Value } from "~/components/app/primitives";
+import { MoveManySheet } from "~/components/classes/Enrolment";
 import { NewMessage } from "~/components/messages/NewMessage";
 import {
   displayName,
@@ -236,8 +238,15 @@ function StudentsPage() {
   const [writing, setWriting] = useState<{ id: string; name: string }[] | null>(
     null,
   );
+  const [moving, setMoving] = useState<{ id: string; name: string }[] | null>(
+    null,
+  );
   const data = useSuspenseQuery(studentsQuery(search)).data;
   const options = useSuspenseQuery(peopleOptionsQuery).data;
+  // The year the list shows, where it still takes moves and this viewer makes them.
+  const listed = options.years.find((year) => year.id === data.year?.id);
+  const bounds =
+    canManage && listed && listed.lifecycle !== "closed" ? listed : null;
   const patch = (change: Partial<StudentDirectoryQuery>) => {
     void navigate({ search: (previous) => ({ ...previous, ...change }) });
   };
@@ -358,6 +367,21 @@ function StudentsPage() {
         }}
         rowActions={rowActions}
         batchActions={[
+          ...(bounds
+            ? [
+                {
+                  label: m.enrolmentMove(),
+                  icon: ArrowRightLeft,
+                  onSelect: (rows: StudentRow[]) =>
+                    setMoving(
+                      rows.map((row) => ({
+                        id: row.id,
+                        name: displayName(row),
+                      })),
+                    ),
+                },
+              ]
+            : []),
           ...(canMessage
             ? [
                 {
@@ -404,6 +428,14 @@ function StudentsPage() {
           ) : undefined,
         }}
       />
+      {moving && bounds ? (
+        <MoveManySheet
+          students={moving}
+          year={bounds}
+          today={data.today}
+          onClose={() => setMoving(null)}
+        />
+      ) : null}
       {writing ? (
         <NewMessage
           canStartFamily

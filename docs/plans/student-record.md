@@ -110,8 +110,10 @@ Rules that hold for every section:
    Move class opens the sheet the Enrollment tab opens. Done for the
    list: Message guardians writes to the families of the students picked,
    each in a conversation of its own, and names any student none of whose
-   guardians uses the portal. Move class, Create accounts and Archive for
-   several students remain.
+   guardians uses the portal; Move class moves them to one homeroom from a
+   date, each as moving one does, and names with the reason any student the
+   move is refused for. Create accounts and Archive for several students
+   remain.
 5. **Arrivals and departures.** Previous school and destination on the
    school-year rows, a Documents section for transfer certificates and past
    reports, and rights decisions enforced where families act (absence

@@ -7,9 +7,11 @@ import { ComboboxField } from "~/components/system/ComboboxField";
 import { SelectField, TextField } from "~/components/system/field";
 import { SheetForm } from "~/components/system/SheetForm";
 import * as m from "~/i18n/messages";
+import { getLocale } from "~/i18n/runtime";
 import { classDirectoryQuery } from "~/queries/classes";
 import { enrolStudent, withdrawStudent } from "~/server/classes";
 import { searchPeople } from "~/server/students";
+import { formatNumber } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
 import { displayName, lastDay } from "../people/format";
@@ -151,6 +153,140 @@ export function MoveClassSheet({
           })}
         </output>
       ) : null}
+    </SheetForm>
+  );
+}
+
+/**
+ * Does one thing for each in turn, in the order given, and goes on past a
+ * failure: what came through and what did not, with why, are both told.
+ */
+export async function eachInTurn<T>(
+  items: readonly T[],
+  act: (item: T) => Promise<unknown>,
+): Promise<{ done: T[]; failed: { item: T; error: unknown }[] }> {
+  const [item, ...rest] = items;
+  if (item === undefined) return { done: [], failed: [] };
+  const outcome = await act(item).then(
+    () => null,
+    (error: unknown) => ({ error }),
+  );
+  const after = await eachInTurn(rest, act);
+  return outcome
+    ? { done: after.done, failed: [{ item, ...outcome }, ...after.failed] }
+    : { done: [item, ...after.done], failed: after.failed };
+}
+
+/**
+ * Moves the students picked in a list to one homeroom from a date, each as
+ * moving one does. A student the move is refused for stays where they are
+ * and is named with the reason, and the rest are moved.
+ */
+export function MoveManySheet({
+  students,
+  year,
+  today,
+  onClose,
+}: {
+  students: readonly { id: string; name: string }[];
+  year: YearBounds;
+  today: string;
+  onClose: () => void;
+}) {
+  const refresh = useRefresh();
+  const classes = useQuery(
+    classDirectoryQuery({ year: year.id, q: "", grade: [] }),
+  );
+  const min = year.startsOn;
+  const max = lastDay(year.endsBefore);
+  const [classId, setClassId] = useState("");
+  const [from, setFrom] = useState(clamp(today, min, max));
+  const [errors, setErrors] = useState<{ classId?: string; from?: string }>({});
+  const choices = classes.data?.rows ?? [];
+  const target = choices.find((row) => row.id === classId);
+  const mutation = useMutation({
+    mutationFn: () =>
+      eachInTurn(students, (student) =>
+        enrolStudent({ data: { studentId: student.id, classId, from } }),
+      ),
+  });
+  return (
+    <SheetForm
+      open
+      onOpenChange={(next) => (next ? undefined : onClose())}
+      title={m.studentsMoveTitle({ count: formatNumber(students.length) })}
+      submitLabel={m.enrolmentMove()}
+      pending={mutation.isPending}
+      error={null}
+      onSubmit={async () => {
+        const found: typeof errors = {};
+        if (!classId) found.classId = m.validationSelection();
+        if (!from || from < min || from > max)
+          found.from = m.enrolmentDateRange({
+            from: formatDate(min),
+            to: formatDate(max),
+          });
+        setErrors(found);
+        if (Object.keys(found).length > 0) return;
+        const { done, failed } = await mutation.mutateAsync();
+        await refresh();
+        if (done.length > 0)
+          toast.success(
+            m.studentsMoved({
+              count: formatNumber(done.length),
+              class: target ? classTitle(target) : "",
+              date: formatDate(from),
+            }),
+          );
+        // Those refused for the same reason are named together.
+        const reasons = Map.groupBy(failed, (refusal) =>
+          getMessageFromError(refusal.error),
+        );
+        for (const [reason, refused] of reasons)
+          toast.warning(
+            m.studentsNotMoved({
+              names: new Intl.ListFormat(getLocale(), {
+                type: "conjunction",
+              }).format(refused.map((refusal) => refusal.item.name)),
+              reason,
+            }),
+          );
+        onClose();
+      }}
+    >
+      <SelectField
+        id="move-many-class"
+        label={m.enrolmentTargetClass()}
+        value={classId}
+        options={choices.map((row) => ({
+          value: row.id,
+          label: classTitle(row),
+        }))}
+        onChange={(value) => {
+          setErrors((currentErrors) => ({
+            ...currentErrors,
+            classId: undefined,
+          }));
+          setClassId(value);
+        }}
+        errors={errors.classId ? [errors.classId] : undefined}
+        width="name"
+      />
+      <TextField
+        id="move-many-from"
+        label={m.enrolmentFrom()}
+        hint={m.enrolmentFromHint()}
+        type="date"
+        width="date"
+        min={min}
+        max={max}
+        value={from}
+        onChange={(event) => {
+          setErrors((currentErrors) => ({ ...currentErrors, from: undefined }));
+          setFrom(event.target.value);
+        }}
+        errors={errors.from ? [errors.from] : undefined}
+      />
     </SheetForm>
   );
 }
