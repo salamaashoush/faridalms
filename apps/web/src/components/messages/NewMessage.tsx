@@ -35,13 +35,19 @@ function recipientLabel(row: Recipient) {
   });
 }
 
-/** Starts a conversation, or continues the open one with the same people. */
+/**
+ * Starts a conversation, or continues the open one with the same people.
+ * Opened about a student, as from their record, it is to that student's
+ * guardians and nobody else is to be picked.
+ */
 export function NewMessage({
   canStartFamily,
+  about,
   onClose,
   onStarted,
 }: {
   canStartFamily: boolean;
+  about?: { id: string; name: string };
   onClose: () => void;
   onStarted: (threadId: string) => void;
 }) {
@@ -50,7 +56,7 @@ export function NewMessage({
     canStartFamily ? "family" : "direct",
   );
   const [search, setSearch] = useState("");
-  const [picked, setPicked] = useState<string[]>([]);
+  const [picked, setPicked] = useState<string[]>(about ? [about.id] : []);
   const [labels, setLabels] = useState<ReadonlyMap<string, string>>(
     () => new Map(),
   );
@@ -118,7 +124,17 @@ export function NewMessage({
         );
       }}
     >
-      {canStartFamily ? (
+      {about ? (
+        <p className="grid gap-1 text-sm leading-5">
+          <span className="font-medium">
+            {m.msgToGuardiansOf({ name: about.name })}
+          </span>
+          <span className="text-[13px] leading-[18px] text-muted-foreground">
+            {m.msgFamilyHint()}
+          </span>
+        </p>
+      ) : null}
+      {canStartFamily && !about ? (
         <SelectField
           id="new-message-kind"
           label={m.msgTo()}
@@ -135,34 +151,36 @@ export function NewMessage({
           width="name"
         />
       ) : null}
-      <ComboboxField
-        label={
-          kind === "family"
-            ? m.msgFamilyOfStudent()
-            : kind === "group"
-              ? m.msgPeople()
-              : m.msgPerson()
-        }
-        hint={kind === "family" ? m.msgFamilyHint() : undefined}
-        multiple={kind === "group"}
-        options={options}
-        value={picked}
-        onChange={(next) => {
-          setLabels(
-            (current) =>
-              new Map([
-                ...current,
-                ...options.map(
-                  (option) => [option.value, option.label] as const,
-                ),
-              ]),
-          );
-          setPicked(kind === "group" ? next : next.slice(-1));
-        }}
-        search={search}
-        onSearchChange={setSearch}
-        errors={shown && issues.who ? [issues.who] : undefined}
-      />
+      {about ? null : (
+        <ComboboxField
+          label={
+            kind === "family"
+              ? m.msgFamilyOfStudent()
+              : kind === "group"
+                ? m.msgPeople()
+                : m.msgPerson()
+          }
+          hint={kind === "family" ? m.msgFamilyHint() : undefined}
+          multiple={kind === "group"}
+          options={options}
+          value={picked}
+          onChange={(next) => {
+            setLabels(
+              (current) =>
+                new Map([
+                  ...current,
+                  ...options.map(
+                    (option) => [option.value, option.label] as const,
+                  ),
+                ]),
+            );
+            setPicked(kind === "group" ? next : next.slice(-1));
+          }}
+          search={search}
+          onSearchChange={setSearch}
+          errors={shown && issues.who ? [issues.who] : undefined}
+        />
+      )}
       {kind === "group" ? (
         <TextField
           id="new-message-subject"

@@ -5643,5 +5643,7 @@
   "studentNoticesHint": "The latest notices the school sent this student's guardians, and who has read them.",
   "studentNoticesNone": "Nothing has been sent to this student's guardians yet.",
   "studentNoticeReadBy": "Read by {names}",
-  "studentNoticeUnreadBy": "Not yet read by {names}"
+  "studentNoticeUnreadBy": "Not yet read by {names}",
+  "studentMessageGuardians": "Message guardians",
+  "msgToGuardiansOf": "To the guardians of {name}"
 }

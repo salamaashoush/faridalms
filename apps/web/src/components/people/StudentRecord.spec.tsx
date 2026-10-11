@@ -120,6 +120,7 @@ const RECORD: StudentData = {
     history: false,
     attendance: false,
     timetable: false,
+    message: false,
     coursework: false,
   },
 };

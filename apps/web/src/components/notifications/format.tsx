@@ -128,7 +128,8 @@ export function noticeText(notice: Notice): { title: string; body: string } {
   return { title: "", body: "" };
 }
 
-const MESSAGES = {
+/** Where each workspace reads its messages. */
+export const MESSAGES = {
   admin: "/admin/messages",
   teach: "/teach/messages",
   family: "/family/messages",

@@ -1,11 +1,13 @@
 import { createFileRoute, redirect } from "@tanstack/react-router";
 import * as v from "valibot";
 
+import { MESSAGES } from "~/components/notifications/format";
 import {
   STUDENT_TABS,
   StudentRecord,
   studentTabsFor,
 } from "~/components/people/StudentRecord";
+import { useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import {
   peopleOptionsQuery,
@@ -51,10 +53,14 @@ function StudentPage() {
   const { studentId } = Route.useParams();
   const { tab } = Route.useSearch();
   const navigate = Route.useNavigate();
+  const { workspace } = useCurrentUser();
   return (
     <StudentRecord
       studentId={studentId}
       tab={tab}
+      onConversation={(thread) =>
+        void navigate({ to: MESSAGES[workspace], search: { thread } })
+      }
       onTab={(nextTab) => {
         void navigate({
           search: (previous) => ({ ...previous, tab: nextTab }),

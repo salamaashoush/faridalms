@@ -105,7 +105,9 @@ Rules that hold for every section:
    today with the day's changes, the year's attendance so far with the way
    to every mark, and the latest notices sent to their guardians with who
    has read each. Each shows only to a viewer who may read it elsewhere.
-   The header and bulk actions remain.
+   Done for the header: Message guardians opens a new message to the
+   student's guardians, with nobody to pick, and lands in the conversation.
+   Move class and the bulk actions remain.
 5. **Arrivals and departures.** Previous school and destination on the
    school-year rows, a Documents section for transfer certificates and past
    reports, and rights decisions enforced where families act (absence

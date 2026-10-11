@@ -136,6 +136,33 @@ test("a student's record opens on their day, their year of attendance and what t
   ).toHaveAttribute("aria-selected", "true");
 });
 
+test("the office writes to a student's guardians from the student's record", async ({
+  page,
+}) => {
+  await signIn(page, "admin");
+  // A student whose family's conversations no other spec reads.
+  await page.goto("/admin/students?q=GA1008");
+  await untilHydrated(page);
+  await page
+    .getByRole("link", { name: /Tarek Farouk/ })
+    .first()
+    .click();
+  await expect(page).toHaveURL(/\/students\/[a-f0-9-]+/);
+  await page.getByRole("button", { name: "More actions" }).click();
+  await page.getByRole("menuitem", { name: "Message guardians" }).click();
+  const sheet = page.getByRole("dialog", { name: "New message" });
+  // Nobody is picked: the conversation is with this student's guardians.
+  await expect(
+    sheet.getByText("To the guardians of Tarek Farouk"),
+  ).toBeVisible();
+  await expect(sheet.getByRole("combobox")).toHaveCount(0);
+  const note = `Sports day kit, ${crypto.randomUUID().slice(0, 6)}`;
+  await sheet.getByRole("textbox", { name: "Message" }).fill(note);
+  await sheet.getByRole("button", { name: "Send", exact: true }).click();
+  await expect(page).toHaveURL(/\/admin\/messages\?.*thread=[a-f0-9-]+/);
+  await expect(page.getByText(note).first()).toBeVisible();
+});
+
 test("a parent opens their own record but not the school's student list", async ({
   page,
 }) => {

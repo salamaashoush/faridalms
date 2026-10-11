@@ -372,6 +372,7 @@ export const student = readProcedure
         history: can(context, "people:manage") || can(context, "audit:read"),
         attendance: can(context, "attendance:read"),
         timetable: can(context, "timetable:read"),
+        message: can(context, "messages:send"),
         coursework:
           can(context, "people:read") && can(context, "assignments:read"),
       },

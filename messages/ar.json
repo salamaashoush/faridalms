@@ -5863,5 +5863,7 @@
   "studentNoticesHint": "أحدث الإشعارات التي أرسلتها المدرسة إلى أولياء أمر هذا الطالب، ومن قرأها.",
   "studentNoticesNone": "لم يُرسل شيء إلى أولياء أمر هذا الطالب بعد.",
   "studentNoticeReadBy": "قرأه {names}",
-  "studentNoticeUnreadBy": "لم يقرأه بعد {names}"
+  "studentNoticeUnreadBy": "لم يقرأه بعد {names}",
+  "studentMessageGuardians": "راسل أولياء الأمور",
+  "msgToGuardiansOf": "إلى أولياء أمر {name}"
 }

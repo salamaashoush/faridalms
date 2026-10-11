@@ -9,6 +9,7 @@ import {
   Contact,
   Copy,
   HeartPulse,
+  MessageSquare,
   Pencil,
   Plus,
   ShieldAlert,
@@ -30,6 +31,7 @@ import { StudentAttendance } from "~/components/attendance/StudentAttendance";
 import { StudentConsents } from "~/components/consents/StudentConsents";
 import { StudentCoursework } from "~/components/coursework/StudentCoursework";
 import { ageOn, formatDate } from "~/components/family/format";
+import { NewMessage } from "~/components/messages/NewMessage";
 import { ActionMenu } from "~/components/system/ActionMenu";
 import {
   Fact,
@@ -439,14 +441,18 @@ export function StudentRecord({
   studentId,
   tab,
   onTab,
+  onConversation,
 }: {
   studentId: string;
   tab: StudentTab;
   onTab: (tab: StudentTab) => void;
+  /** Opens a conversation begun from here with the student's guardians. */
+  onConversation?: (threadId: string) => void;
 }) {
   const data = useSuspenseQuery(studentRecordQuery(studentId)).data;
   const queryClient = useQueryClient();
   const [photoOpen, setPhotoOpen] = useState(false);
+  const [writing, setWriting] = useState(false);
   const [contacts, setContacts] = useState<{
     guardian: Guardian | null;
     open: boolean;
@@ -521,6 +527,12 @@ export function StudentRecord({
     });
 
   const menu: ActionItem[] = [];
+  if (access.message && onConversation)
+    menu.push({
+      label: m.studentMessageGuardians(),
+      icon: MessageSquare,
+      onSelect: () => setWriting(true),
+    });
   if (data.reference)
     menu.push({
       label: m.studentsCopyReference(),
@@ -757,6 +769,14 @@ export function StudentRecord({
       >
         {body}
       </RecordTabs>
+      {writing && onConversation ? (
+        <NewMessage
+          canStartFamily
+          about={{ id: studentId, name }}
+          onClose={() => setWriting(false)}
+          onStarted={onConversation}
+        />
+      ) : null}
       {access.manage ? (
         <PhotoDialog
           personId={studentId}
