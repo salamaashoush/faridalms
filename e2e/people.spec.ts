@@ -148,6 +148,15 @@ test("the office writes to a student's guardians from the student's record", asy
     .first()
     .click();
   await expect(page).toHaveURL(/\/students\/[a-f0-9-]+/);
+  // Moving class is asked for here too, and opens the sheet the classes do.
+  await page.getByRole("button", { name: "More actions" }).click();
+  await page.getByRole("menuitem", { name: "Move class" }).click();
+  const move = page.getByRole("dialog", {
+    name: "Move Tarek Farouk to another class",
+  });
+  await expect(move).toBeVisible();
+  await move.getByRole("button", { name: "Cancel" }).click();
+  await expect(move).toBeHidden();
   await page.getByRole("button", { name: "More actions" }).click();
   await page.getByRole("menuitem", { name: "Message guardians" }).click();
   const sheet = page.getByRole("dialog", { name: "New message" });

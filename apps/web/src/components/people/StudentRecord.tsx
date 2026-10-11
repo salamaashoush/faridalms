@@ -5,6 +5,7 @@ import { cn } from "@faridalms/ui/cn";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { Link, useNavigate } from "@tanstack/react-router";
 import {
+  ArrowRightLeft,
   CameraOff,
   Contact,
   Copy,
@@ -15,7 +16,7 @@ import {
   ShieldAlert,
   UserX,
 } from "lucide-react";
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { toast } from "sonner";
 
 import type { ActionItem } from "~/components/system/ActionMenu";
@@ -56,7 +57,7 @@ import {
 
 import type { StudentSheet } from "./StudentSheets";
 
-import { StudentClasses } from "../classes/StudentClasses";
+import { MoveStudent, StudentClasses } from "../classes/StudentClasses";
 import { ContactsSheet } from "./ContactsSheet";
 import {
   displayName,
@@ -453,6 +454,7 @@ export function StudentRecord({
   const queryClient = useQueryClient();
   const [photoOpen, setPhotoOpen] = useState(false);
   const [writing, setWriting] = useState(false);
+  const [moving, setMoving] = useState(false);
   const [contacts, setContacts] = useState<{
     guardian: Guardian | null;
     open: boolean;
@@ -527,6 +529,18 @@ export function StudentRecord({
     });
 
   const menu: ActionItem[] = [];
+  // A year that is closed takes no moves, so none is offered.
+  const movable =
+    access.manage &&
+    labels.options.years.some(
+      (year) => year.id === data.workingYearId && year.lifecycle !== "closed",
+    );
+  if (movable)
+    menu.push({
+      label: m.enrolmentMove(),
+      icon: ArrowRightLeft,
+      onSelect: () => setMoving(true),
+    });
   if (access.message && onConversation)
     menu.push({
       label: m.studentMessageGuardians(),
@@ -769,6 +783,15 @@ export function StudentRecord({
       >
         {body}
       </RecordTabs>
+      {moving ? (
+        <Suspense fallback={null}>
+          <MoveStudent
+            student={{ id: studentId, name }}
+            today={data.today}
+            onClose={() => setMoving(false)}
+          />
+        </Suspense>
+      ) : null}
       {writing && onConversation ? (
         <NewMessage
           canStartFamily

@@ -24,6 +24,54 @@ import { classTitle } from "./format";
 
 type Sheet = "move" | "withdraw" | null;
 
+/**
+ * Where a student sits today: their homeroom, and the school year a move
+ * would be made in, which is that class's or else the year being worked
+ * in. A closed year takes no moves.
+ */
+function useSeat(studentId: string, today: string) {
+  const episodes = useSuspenseQuery(enrollmentHistoryQuery(studentId)).data;
+  const options = useSuspenseQuery(peopleOptionsQuery).data;
+  const current = episodes.find(
+    (row) =>
+      row.classType === "homeroom" && row.from <= today && today < row.to,
+  );
+  const year = options.years.find(
+    (row) => row.id === (current?.schoolYearId ?? options.workingYearId),
+  );
+  return { episodes, current, year, closed: year?.lifecycle === "closed" };
+}
+
+/**
+ * Moves a student to another class from anywhere on their record: the
+ * sheet their classes open, with what it needs read here. Nothing opens
+ * where the year takes no moves.
+ */
+export function MoveStudent({
+  student,
+  today,
+  onClose,
+}: {
+  student: { id: string; name: string };
+  today: string;
+  onClose: () => void;
+}) {
+  const { current, year, closed } = useSeat(student.id, today);
+  if (!year || closed) return null;
+  return (
+    <MoveClassSheet
+      student={student}
+      current={
+        current ? { classId: current.classId, from: current.from } : null
+      }
+      year={year}
+      today={today}
+      open
+      onClose={onClose}
+    />
+  );
+}
+
 export function StudentClasses({
   student,
   today,
@@ -33,20 +81,11 @@ export function StudentClasses({
   today: string;
   manage: boolean;
 }) {
-  const episodes = useSuspenseQuery(enrollmentHistoryQuery(student.id)).data;
-  const options = useSuspenseQuery(peopleOptionsQuery).data;
+  const { episodes, current, year, closed } = useSeat(student.id, today);
   const [sheet, setSheet] = useState<{ which: Sheet; key: number }>({
     which: null,
     key: 0,
   });
-  const current = episodes.find(
-    (row) =>
-      row.classType === "homeroom" && row.from <= today && today < row.to,
-  );
-  const year = options.years.find(
-    (row) => row.id === (current?.schoolYearId ?? options.workingYearId),
-  );
-  const closed = year?.lifecycle === "closed";
   const open = (which: Sheet) =>
     setSheet((state) => ({ which, key: state.key + 1 }));
   const close = () => setSheet((state) => ({ ...state, which: null }));

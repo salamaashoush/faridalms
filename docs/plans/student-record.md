@@ -106,8 +106,9 @@ Rules that hold for every section:
    to every mark, and the latest notices sent to their guardians with who
    has read each. Each shows only to a viewer who may read it elsewhere.
    Done for the header: Message guardians opens a new message to the
-   student's guardians, with nobody to pick, and lands in the conversation.
-   Move class and the bulk actions remain.
+   student's guardians, with nobody to pick, and lands in the conversation;
+   Move class opens the sheet the Enrollment tab opens. The bulk actions
+   on the list remain.
 5. **Arrivals and departures.** Previous school and destination on the
    school-year rows, a Documents section for transfer certificates and past
    reports, and rights decisions enforced where families act (absence
