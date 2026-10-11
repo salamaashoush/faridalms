@@ -176,8 +176,10 @@ off keeps the work and shows a placeholder.
    turtle, input and error lines a runnable block has, and it is kept,
    handed in, shown in the gallery and read on the live view as a web
    project is. The live view reads a Python project's code rather than
-   running a class's programs at once. Scratch projects are in neither
-   the gallery nor the live view yet.
+   running a class's programs at once. A teacher deciding on a project a
+   student offered is shown that project where the student has handed in
+   a newer one since, because the gallery holds what was offered and the
+   class would see that.
 5. **Blocks puzzles.** Our Blockly puzzle engine and level packs (paths,
    loops, turtle art, events, music) in Arabic and English, an arrow-path
    activity for early years, and unplugged versions through print. Done: a
@@ -232,9 +234,21 @@ off keeps the work and shows a placeholder.
    [../operations.md](../operations.md). The media library is mirrored and
    the studio may reach only the files host; below 1024px wide it asks for a
    computer or a tablet held sideways; the file sweep keeps each student's
-   last three saves of a question. Next: Text to Speech and Translate on Farida's own services, tutorials
-   self-hosted on the media service, project checks a teacher can turn on,
-   and a class gallery with remix.
+   last three saves of a question. Done next: a coding question can have a
+   class gallery, as a project of files can. A student offers the project
+   as they last saved it; once their teacher shows it, classmates who have
+   saved a project of their own may open it, look inside, and build on it,
+   which opens it in their own studio and saves it as theirs. Each save
+   from then on names the classmate, and the server keeps the name only
+   while that classmate's project is in the gallery or the save before
+   said the same. A project in the gallery is a file, so it opens to those
+   classmates alone and is kept from the sweep while it is offered or
+   shown. The Right now tab shows each coding project's stage as last
+   saved, to open and run for the room. A change made in the studio is
+   told to the page at once, so one made a moment before Done is saved.
+   Next: Text to Speech and Translate on Farida's own services, tutorials
+   self-hosted on the media service, and project checks a teacher can
+   turn on.
 
 Video phases 1 to 4 and coding phases 1 to 3 need no new infrastructure;
 video phase 6 needs ffmpeg on the worker, coding phase 4 the sandbox domain.

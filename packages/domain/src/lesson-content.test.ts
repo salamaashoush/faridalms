@@ -1015,6 +1015,35 @@ describe("web projects", () => {
     });
   });
 
+  it("keeps a class gallery on a coding project, with or without a starter", () => {
+    const starter = "6a7b8c9d-0e1f-4a2b-8c3d-4e5f6a7b8c9d";
+    for (const from of [null, { fileId: starter }]) {
+      const document = contentOfLesson({
+        version: 2,
+        blocks: [
+          {
+            id: partId(81),
+            type: "scratch",
+            prompt: "Make a game.",
+            points: 2,
+            hints: [],
+            explanation: "",
+            tries: null,
+            starter: from,
+            gallery: true,
+          },
+        ],
+      });
+      if (!document) throw new Error("lesson could not become a document");
+      expect(v.safeParse(contentDocumentSchema, document).success).toBe(true);
+      expect(lessonOfContent(document).blocks[0]).toMatchObject({
+        type: "scratch",
+        starter: from,
+        gallery: true,
+      });
+    }
+  });
+
   it("keeps a micro:bit project's language, with or without files to start from", () => {
     const [block] = project([]).blocks;
     if (block?.type !== "project") throw new Error("project expected");

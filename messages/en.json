@@ -5603,5 +5603,10 @@
   "deviceProgramEmpty": "Nothing is built yet. Open the project to start.",
   "editorQuestionMicrobit": "micro:bit project",
   "editorQuestionMicrobitHint": "Students program a micro:bit with blocks, JavaScript or Python and try it on a board on screen; you mark it",
-  "printDeviceOnComputer": "Build this micro:bit program on a computer or tablet."
+  "printDeviceOnComputer": "Build this micro:bit program on a computer or tablet.",
+  "galleryAfterSave": "Save a project of your own to see what your classmates made.",
+  "galleryBuildBody": "Their project opens in the studio and is saved as yours, in place of the one you are building. Your teacher sees whose project yours began from.",
+  "galleryTeacherEarlier": "The student offered the project as it was before the one above. The class would see that one.",
+  "galleryTeacherSeeOffered": "See what was offered",
+  "galleryTeacherOfferedBy": "What {name} offered"
 }

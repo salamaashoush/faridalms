@@ -776,6 +776,77 @@ export async function projectsSince(
   }));
 }
 
+/** A coding project a student saved in a lesson, as it last stood. */
+export interface LiveStudio {
+  lessonId: string;
+  blockId: string;
+  studentId: string;
+  projectFileId: string;
+  thumbnailFileId: string | null;
+  savedAt: string;
+}
+
+/** The coding projects some students have saved in some lessons since a moment, each as last saved. */
+export async function studiosSince(
+  tx: Tx,
+  input: {
+    tenantId: string;
+    lessonIds: readonly string[];
+    studentIds: readonly string[];
+    since: string;
+  },
+): Promise<LiveStudio[]> {
+  if (input.lessonIds.length === 0 || input.studentIds.length === 0) return [];
+  const rows = await tx.execute<{
+    lesson_id: string;
+    block_id: string;
+    student_user_id: string;
+    project: string;
+    thumbnail: string | null;
+    saved_at: string;
+  }>(sql`
+    select distinct on (student_user_id, lesson_id, block_id)
+      lesson_id, block_id, student_user_id,
+      response->'project'->>'fileId' as project,
+      response->'thumbnail'->>'fileId' as thumbnail,
+      ${isoOf(sql`created_at`)} as saved_at
+    from core.lesson_responses
+    where tenant_id = ${input.tenantId}::uuid and kind = 'scratch'
+      and lesson_id = any(${uuidArray(input.lessonIds)})
+      and student_user_id = any(${uuidArray(input.studentIds)})
+      and created_at >= ${input.since}::timestamptz
+    order by student_user_id, lesson_id, block_id, created_at desc, try desc`);
+  return rows.map((row) => ({
+    lessonId: row.lesson_id,
+    blockId: row.block_id,
+    studentId: row.student_user_id,
+    projectFileId: row.project,
+    thumbnailFileId: row.thumbnail,
+    savedAt: row.saved_at,
+  }));
+}
+
+/**
+ * The question and student whose project in a lesson's class gallery, shown
+ * by their teacher, is made of a file; null when no shown project is.
+ */
+export async function shownWith(
+  tx: Tx,
+  input: { tenantId: string; lessonId: string; fileId: string },
+): Promise<{ blockId: string; studentId: string } | null> {
+  const [row] = await tx.execute<{
+    block_id: string;
+    student_user_id: string;
+  }>(sql`
+    select block_id, student_user_id from core.lesson_shares
+    where tenant_id = ${input.tenantId}::uuid and status = 'active'
+      and lesson_id = ${input.lessonId}::uuid and state = 'shown'
+      and ${input.fileId} in (
+        response->'project'->>'fileId', response->'thumbnail'->>'fileId')
+    limit 1`);
+  return row ? { blockId: row.block_id, studentId: row.student_user_id } : null;
+}
+
 /** A project offered to a question's class gallery, and how it stands. */
 export interface StoredShare {
   lessonId: string;

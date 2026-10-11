@@ -8,7 +8,9 @@ import { MessageSquareText, Pencil } from "lucide-react";
 import { useId, useState } from "react";
 import { toast } from "sonner";
 
+import { CodingStudio } from "~/components/coding/CodingStudio";
 import { ProjectAnswer } from "~/components/coding/ProjectAnswer";
+import { ProjectStudio } from "~/components/coding/ProjectStudio";
 import { WebProjectView } from "~/components/coding/WebProjectView";
 import { displayName } from "~/components/people/format";
 import { FormField } from "~/components/system/field";
@@ -126,9 +128,12 @@ function MarkForm({
 
 /**
  * A project a student offered to the class gallery, for their teacher to
- * show to the class, keep out, or take down again.
+ * show to the class, keep out, or take down again. A student who has sent
+ * a newer project since offered the one before it, which is what the class
+ * would see: that one opens from here, so nothing is shown unseen.
  */
-function GalleryOffer({ answer }: { answer: Answer }) {
+function GalleryOffer({ answer, name }: { answer: Answer; name: string }) {
+  const [looking, setLooking] = useState(false);
   const queryClient = useQueryClient();
   const decide = useMutation({
     mutationFn: (show: boolean) =>
@@ -146,8 +151,38 @@ function GalleryOffer({ answer }: { answer: Answer }) {
   });
   if (!answer.share) return null;
   const shown = answer.share === "shown";
+  const earlier = answer.share === "declined" ? null : answer.offered;
   return (
     <div className="flex flex-wrap items-center gap-2">
+      {earlier ? (
+        <p className="flex basis-full flex-wrap items-center gap-x-3 gap-y-1 text-[13px] leading-[18px] text-muted-foreground">
+          {m.galleryTeacherEarlier()}
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="max-md:h-10"
+            onClick={() => setLooking(true)}
+          >
+            {m.galleryTeacherSeeOffered()}
+          </Button>
+        </p>
+      ) : null}
+      {looking && earlier?.files ? (
+        <ProjectStudio
+          title={m.galleryTeacherOfferedBy({ name })}
+          files={earlier.files}
+          unkept
+          onClose={() => setLooking(false)}
+        />
+      ) : looking && earlier?.project ? (
+        <CodingStudio
+          projectUrl={`/files/${earlier.project.fileId}`}
+          mode="editor"
+          title={m.galleryTeacherOfferedBy({ name })}
+          onClose={() => setLooking(false)}
+        />
+      ) : null}
       <StatusBadge
         tone={
           shown ? "success" : answer.share === "offered" ? "info" : "neutral"
@@ -238,14 +273,28 @@ function AnswerCard({
             </p>
           ) : null}
           <WebProjectView files={answer.files} title={name} />
-          {question.gallery ? <GalleryOffer answer={answer} /> : null}
+          {question.gallery ? (
+            <GalleryOffer answer={answer} name={name} />
+          ) : null}
         </div>
       ) : answer.project ? (
-        <ProjectAnswer
-          project={answer.project.fileId}
-          stage={answer.thumbnail?.fileId ?? null}
-          name={name}
-        />
+        <div className="grid gap-2">
+          {answer.remixOf ? (
+            <p className="text-[13px] leading-[18px] text-muted-foreground">
+              {remixOf
+                ? m.galleryRemixOf({ name: remixOf })
+                : m.galleryRemixOfSomeone()}
+            </p>
+          ) : null}
+          <ProjectAnswer
+            project={answer.project.fileId}
+            stage={answer.thumbnail?.fileId ?? null}
+            name={name}
+          />
+          {question.gallery ? (
+            <GalleryOffer answer={answer} name={name} />
+          ) : null}
+        </div>
       ) : answer.recording ? (
         <MediaPlayer
           src={`/files/${answer.recording.fileId}`}

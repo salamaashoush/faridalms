@@ -515,6 +515,8 @@ export const lessonBlockSchema = v.variant("type", [
     type: v.literal("scratch"),
     /** The project every student starts from; none starts from the studio's own. */
     starter: v.nullable(v.object({ fileId: id })),
+    /** Students may offer their project to the class gallery, as with a project of files. */
+    gallery: v.optional(v.boolean(), false),
   }),
   v.object({
     ...checkFields,
@@ -1045,6 +1047,13 @@ export const responseSchema = v.variant("type", [
     project: v.object({ fileId: id }),
     /** The stage at that save, for the teacher's view of the class. */
     thumbnail: v.optional(v.object({ fileId: id })),
+    /**
+     * The classmate whose project in the gallery this one began from. A
+     * student's studio says so as it saves, and the server keeps it only
+     * where that classmate's project is in the gallery or the student's
+     * last save already said the same.
+     */
+    remixOf: v.optional(id),
   }),
   v.object({
     type: v.literal("project"),
@@ -1106,11 +1115,12 @@ function seenOutput(output: string): string {
 }
 
 /**
- * An answer as a student may send it: nothing in it says whose project it
- * was built on, which only the server knows.
+ * An answer with nothing in it saying whose project it was built on, which
+ * a student's word alone never settles.
  */
 export function ownResponse(response: LessonResponse): LessonResponse {
-  if (response.type !== "project") return response;
+  if (response.type !== "project" && response.type !== "scratch")
+    return response;
   const { remixOf: _claimed, ...own } = response;
   return own;
 }

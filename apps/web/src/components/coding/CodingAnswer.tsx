@@ -1,17 +1,22 @@
 import type { CheckView, StudentBlock } from "@faridalms/domain/learning";
+import type { ReactNode } from "react";
 
 import { Button } from "@faridalms/ui/button";
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Puzzle } from "lucide-react";
-import { useState } from "react";
+import { useContext, useState } from "react";
+import { toast } from "sonner";
 
-import type { CheckDriver } from "~/components/learning/Checks";
+import type { CheckDriver, CheckMode } from "~/components/learning/Checks";
 
 import { useDocumentMedia } from "~/components/coursework/useDocumentMedia";
 import * as m from "~/i18n/messages";
+import { galleryQuery } from "~/queries/learning";
 import { playQuery } from "~/queries/play";
 
 import { CodingStudio, PROJECT_TYPE } from "./CodingStudio";
+import { OwnProjectsContext } from "./own-code";
+import { ProjectGallery } from "./ProjectGallery";
 import { ProjectPlayer } from "./ProjectPlayer";
 
 type Coding = Extract<StudentBlock, { type: "scratch" }>;
@@ -20,20 +25,29 @@ type Coding = Extract<StudentBlock, { type: "scratch" }>;
  * A coding question as its student meets it: their project's stage as they
  * last left it, and the studio to build it in. Every save goes to the
  * teacher as the answer; once marked, the project still opens to run and
- * read, but nothing changed there is kept.
+ * read, but nothing changed there is kept. Where the question has a class
+ * gallery, a classmate's project opens in the studio to build on, and each
+ * save from then on says whose it began from.
  */
 export function CodingAnswer({
   block,
   view,
   driver,
+  mode,
   locked,
+  status,
 }: {
   block: Coding;
   view: CheckView | undefined;
   driver: CheckDriver;
+  mode: CheckMode;
   locked: boolean;
+  /** Where the answer stands with the teacher, said above the class gallery. */
+  status: ReactNode;
 }) {
   const media = useDocumentMedia();
+  const own = useContext(OwnProjectsContext);
+  const queryClient = useQueryClient();
   const configured = Boolean(useQuery(playQuery).data);
   const [open, setOpen] = useState(false);
   const stored = view?.response?.type === "scratch" ? view.response : null;
@@ -41,6 +55,18 @@ export function CodingAnswer({
     project: string;
     stage: string | null;
   } | null>(null);
+  // The classmate's project being begun from, until its first save is kept.
+  const [beginning, setBeginning] = useState<{
+    studentId: string;
+    name: string;
+    projectUrl: string;
+  } | null>(null);
+  const [builtOn, setBuiltOn] = useState(stored?.remixOf);
+  // The gallery is a lesson's: a quiz's answers are nobody's to see.
+  const gallery =
+    block.gallery && mode !== "quiz" && own
+      ? { lessonId: own.lessonId, blockId: block.id }
+      : null;
   const project =
     mine?.project ??
     (stored ? `/files/${stored.project.fileId}` : null) ??
@@ -87,11 +113,24 @@ export function CodingAnswer({
       ) : (
         <p className="text-sm text-muted-foreground">{m.studioUnavailable()}</p>
       )}
+      <output className="grid gap-2 empty:hidden">{status}</output>
+      {gallery ? (
+        <ProjectGallery
+          lessonId={gallery.lessonId}
+          blockId={gallery.blockId}
+          settled={locked}
+          onBuild={(from) => {
+            setBeginning(from);
+            setOpen(true);
+          }}
+        />
+      ) : null}
       {open ? (
         <CodingStudio
-          projectUrl={project}
+          projectUrl={beginning?.projectUrl ?? project}
           mode="editor"
           title={block.prompt}
+          begun={beginning !== null}
           onSave={
             locked
               ? undefined
@@ -108,15 +147,29 @@ export function CodingAnswer({
                         }),
                       )
                     : null;
+                  const from = beginning?.studentId ?? builtOn;
                   await driver.respond(block.id, {
                     type: "scratch",
                     project: { fileId: kept.fileId },
                     ...(shot ? { thumbnail: { fileId: shot.fileId } } : {}),
+                    ...(from ? { remixOf: from } : {}),
                   });
                   setMine({ project: kept.url, stage: shot?.url ?? null });
+                  setBuiltOn(from);
+                  if (beginning && from !== builtOn)
+                    toast.success(m.galleryRemixed({ name: beginning.name }));
+                  // A save is a newer project to offer, and the first opens the gallery.
+                  if (gallery)
+                    void queryClient.invalidateQueries({
+                      queryKey: galleryQuery(gallery.lessonId, gallery.blockId)
+                        .queryKey,
+                    });
                 }
           }
-          onClose={() => setOpen(false)}
+          onClose={() => {
+            setOpen(false);
+            setBeginning(null);
+          }}
         />
       ) : null}
     </div>

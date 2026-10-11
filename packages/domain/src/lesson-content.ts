@@ -194,6 +194,7 @@ export function questionBlock(node: ContentNode): LessonBlock | null {
         ...check,
         type: "scratch",
         starter: node.projectFileId ? { fileId: node.projectFileId } : null,
+        gallery: node.gallery ?? false,
       };
     case "project":
       return {
@@ -800,9 +801,11 @@ export function questionNode(block: LessonBlock): ContentNode | null {
     };
   if (block.type === "tracing") return { ...base, trace: block.strokes };
   if (block.type === "scratch")
-    return block.starter
-      ? { ...base, projectFileId: block.starter.fileId }
-      : base;
+    return {
+      ...base,
+      ...(block.starter ? { projectFileId: block.starter.fileId } : {}),
+      ...(block.gallery ? { gallery: true } : {}),
+    };
   if (block.type === "project")
     return {
       ...base,

@@ -19,6 +19,8 @@ import type { UnitContext } from "../core/context";
 export type HostReader = (
   context: UnitContext,
   hostId: string,
+  /** The file asked for, where one is: some records open only some of theirs. */
+  file?: StoredFile,
 ) => Promise<boolean>;
 
 const readers = new Map<string, HostReader>();
@@ -107,7 +109,7 @@ export async function canReadFile(
   if (file.uploadedByUserId === context.actor.userId) return true;
   if (!file.hostType || !file.hostId) return false;
   const reader = readers.get(file.hostType);
-  if (reader && (await reader(context, file.hostId))) return true;
+  if (reader && (await reader(context, file.hostId, file))) return true;
   if (!areaTypes.has(file.hostType)) return false;
   for (const host of await documentHostsOfFile(
     context.tx,

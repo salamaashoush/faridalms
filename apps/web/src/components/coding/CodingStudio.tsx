@@ -40,6 +40,8 @@ export function CodingStudio({
   mode,
   title,
   onSave,
+  begun = false,
+  action,
   onClose,
 }: {
   /** Where the project to open is read from; none opens the studio's starter. */
@@ -48,6 +50,13 @@ export function CodingStudio({
   title: string;
   /** Keeps a saved project; the editor saves through it, a player never does. */
   onSave?: (project: Blob, thumbnail: Blob | null) => Promise<void>;
+  /**
+   * The project opened is somebody else's, begun as this student's own: it
+   * is saved as theirs once it has loaded, before they change anything.
+   */
+  begun?: boolean;
+  /** Something to do with a project only looked at, beside its way out. */
+  action?: { label: string; onSelect: () => void };
   onClose: () => void;
 }) {
   const done = useRef<HTMLButtonElement>(null);
@@ -63,6 +72,11 @@ export function CodingStudio({
   const studio = useStudioFrame({
     projectUrl,
     mode,
+    onLoaded: () => {
+      if (!begun || !onSave) return;
+      dirty.current = true;
+      void save();
+    },
     onChanged: () => {
       if (!onSave) return;
       dirty.current = true;
@@ -160,6 +174,16 @@ export function CodingStudio({
               <span className="text-[13px] text-muted-foreground max-sm:sr-only">
                 {m.studioNotKept()}
               </span>
+            ) : null}
+            {action ? (
+              <Button
+                type="button"
+                variant="outline"
+                className="max-md:h-10"
+                onClick={action.onSelect}
+              >
+                {action.label}
+              </Button>
             ) : null}
             {onSave ? (
               <Button

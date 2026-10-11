@@ -2,8 +2,10 @@ import type { ProjectFile } from "@faridalms/domain/project";
 import type { RefObject } from "react";
 
 import { programFile } from "@faridalms/domain/project";
+import { Puzzle } from "lucide-react";
 import { useEffect, useMemo, useRef, useState } from "react";
 
+import { CodingStudio } from "~/components/coding/CodingStudio";
 import { playedPage } from "~/components/coding/project-page";
 import { ProjectStudio } from "~/components/coding/ProjectStudio";
 import { WebPreview } from "~/components/coding/WebPreview";
@@ -22,6 +24,17 @@ export interface LiveProject {
   prompt: string;
   files: ProjectFile[];
   keptAt: string;
+}
+
+/** A coding project as its student last saved it. */
+export interface LiveStudio {
+  lessonId: string;
+  blockId: string;
+  studentId: string;
+  prompt: string;
+  projectFileId: string;
+  thumbnailFileId: string | null;
+  savedAt: string;
 }
 
 const minutesBetween = (from: string, to: string) =>
@@ -130,41 +143,125 @@ function ProjectCard({
 }
 
 /**
- * The projects a class is building, each page as its student last left it:
- * who has an error on the page, who has changed nothing for a while, and
- * any one to open large, with its code, to show the room.
+ * A coding project on the teacher's view of the class: its stage as the
+ * student last saved it, since a studio saves after a pause in the work
+ * and not as each block moves. Opened, it is the project itself, to run
+ * and read with the room; nothing changed there is kept.
+ */
+function StudioCard({
+  studio,
+  name,
+  now,
+  here,
+}: {
+  studio: LiveStudio;
+  name: string;
+  now: string;
+  here: boolean;
+}) {
+  const [open, setOpen] = useState(false);
+  const idle = minutesBetween(studio.savedAt, now);
+  return (
+    <li className="grid gap-2 rounded-lg border bg-card p-3">
+      <div className="flex min-w-0 items-center justify-between gap-2">
+        <span className="truncate text-sm leading-5 font-medium">{name}</span>
+        {here && idle >= IDLE_MINUTES ? (
+          <StatusBadge tone="warning">
+            {m.liveProjectIdle({ count: idle })}
+          </StatusBadge>
+        ) : null}
+      </div>
+      <div className="relative grid h-44 place-items-center overflow-hidden rounded-md border bg-white">
+        {studio.thumbnailFileId ? (
+          <img
+            src={`/files/${studio.thumbnailFileId}`}
+            alt=""
+            className="size-full object-contain"
+          />
+        ) : (
+          <Puzzle aria-hidden className="size-8 text-muted-foreground" />
+        )}
+        <button
+          type="button"
+          aria-label={m.liveProjectOpen({ name })}
+          className="absolute inset-0 rounded-md outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+          onClick={() => setOpen(true)}
+        />
+      </div>
+      <p
+        dir="auto"
+        className="truncate text-[13px] leading-[18px] text-muted-foreground"
+      >
+        {studio.prompt}
+      </p>
+      <p className="text-[13px] leading-[18px] text-muted-foreground">
+        {idle === 0 ? m.liveProjectNow() : m.liveProjectIdle({ count: idle })}
+      </p>
+      {open ? (
+        <CodingStudio
+          projectUrl={`/files/${studio.projectFileId}`}
+          mode="editor"
+          title={name}
+          onClose={() => setOpen(false)}
+        />
+      ) : null}
+    </li>
+  );
+}
+
+/**
+ * The projects a class is building, each as its student last left it: who
+ * has an error on the page, who has changed nothing for a while, and any
+ * one to open large, with its code, to show the room.
  */
 export function LiveProjects({
   projects,
+  studios,
   names,
   here,
   now,
 }: {
   projects: readonly LiveProject[];
+  studios: readonly LiveStudio[];
   names: ReadonlyMap<string, string>;
   /** The students still in a lesson. */
   here: ReadonlySet<string>;
   now: string;
 }) {
-  if (projects.length === 0) return null;
-  const ordered = projects.toSorted((a, b) =>
-    (names.get(a.studentId) ?? "").localeCompare(names.get(b.studentId) ?? ""),
+  if (projects.length + studios.length === 0) return null;
+  const nameOf = (item: { studentId: string }) =>
+    names.get(item.studentId) ?? "";
+  const ordered = [
+    ...projects.map((project) => ({ project, studio: null })),
+    ...studios.map((studio) => ({ project: null, studio })),
+  ].toSorted((a, b) =>
+    nameOf(a.project ?? a.studio).localeCompare(nameOf(b.project ?? b.studio)),
   );
   return (
     <RecordSection
-      title={`${m.liveProjects()} ${formatNumber(projects.length)}`}
+      title={`${m.liveProjects()} ${formatNumber(ordered.length)}`}
       description={m.liveProjectsHint()}
     >
       <ul className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-        {ordered.map((project) => (
-          <ProjectCard
-            key={`${project.studentId}:${project.lessonId}:${project.blockId}`}
-            project={project}
-            name={names.get(project.studentId) ?? ""}
-            now={now}
-            here={here.has(project.studentId)}
-          />
-        ))}
+        {ordered.map(({ project, studio }) =>
+          project ? (
+            <ProjectCard
+              key={`${project.studentId}:${project.lessonId}:${project.blockId}`}
+              project={project}
+              name={nameOf(project)}
+              now={now}
+              here={here.has(project.studentId)}
+            />
+          ) : (
+            <StudioCard
+              key={`${studio.studentId}:${studio.lessonId}:${studio.blockId}`}
+              studio={studio}
+              name={nameOf(studio)}
+              now={now}
+              here={here.has(studio.studentId)}
+            />
+          ),
+        )}
       </ul>
     </RecordSection>
   );

@@ -579,7 +579,10 @@ export class QuestionNode extends ElementNode {
       ...(settings.kind === "project" && projectFiles.length > 0
         ? { projectFiles }
         : {}),
-      ...(settings.kind === "project" && gallery ? { gallery } : {}),
+      ...((settings.kind === "project" || settings.kind === "scratch") &&
+      gallery
+        ? { gallery }
+        : {}),
       ...(settings.kind === "project" && projectLanguage !== "web"
         ? { projectLanguage }
         : {}),

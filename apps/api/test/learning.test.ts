@@ -49,24 +49,35 @@ async function uploadAs(
   return file.id;
 }
 
+type Session = Awaited<ReturnType<typeof sessionFor>>;
+
 /** The seeded teachers split into one who teaches the module and one who does not. */
-async function teachers() {
+async function teacherSessions() {
   const tenant = seeded().tenants[0];
   const school = tenant?.schools.find((row) => row.slug === "northwind");
   const names = (tenant?.logins ?? [])
     .filter((row) => row.role === "teacher" && row.schoolId === school?.id)
     .map((row) => row.loginName);
-  let keeper: Api | null = null;
-  let stranger: Api | null = null;
+  let keeper: Session | null = null;
+  let stranger: Session | null = null;
   for (const name of names) {
-    const api = await signedIn("northwind", name);
-    const { rows } = await api.learning.modules({});
-    if (rows.some((row) => row.title === TITLE)) keeper ??= api;
-    else stranger ??= api;
+    const session = await sessionFor("northwind", name);
+    const { rows } = await session.api.learning.modules({});
+    if (rows.some((row) => row.title === TITLE)) keeper ??= session;
+    else stranger ??= session;
   }
   if (!keeper || !stranger)
     throw new Error("the seed lacks a teacher of the module and one without");
   return { keeper, stranger };
+}
+
+/** How the files host answers a session asking for a file. */
+const opens = async (session: Session, fileId: string) =>
+  (await raw("northwind", session.token, `/v1/files/${fileId}/content`)).status;
+
+async function teachers() {
+  const { keeper, stranger } = await teacherSessions();
+  return { keeper: keeper.api, stranger: stranger.api };
 }
 
 type Played = Awaited<ReturnType<Api["learning"]["playLesson"]>>;
@@ -1751,6 +1762,7 @@ describe("coding projects", () => {
           explanation: "",
           tries: null,
           starter: { fileId: starter },
+          gallery: false,
         },
       ]),
       publish: false,
@@ -2227,6 +2239,12 @@ describe("the class gallery", () => {
     expect(offered.questions).toContainEqual(
       expect.objectContaining({ blockId: kept, gallery: false }),
     );
+    // What was offered is the answer the teacher is looking at.
+    expect(
+      offered.answers.find(
+        (answer) => answer.studentId === me.id && answer.blockId === shared,
+      ),
+    ).toMatchObject({ share: "offered", offered: null });
     const decision = { ...ref, studentId: me.id, show: true };
     expect(
       await rejection(stranger.learning.decideShare(decision)),
@@ -2247,7 +2265,7 @@ describe("the class gallery", () => {
 
     const seen = await mate.api.learning.gallery(ref);
     expect(seen.projects).toEqual([
-      { studentId: me.id, files: onePage("Mine"), remixOf: null },
+      { studentId: me.id, files: onePage("Mine"), studio: null, remixOf: null },
     ]);
     expect(seen.students.map((person) => person.id)).toEqual([me.id]);
     expect(await first.learning.gallery(ref)).toMatchObject({
@@ -2263,8 +2281,22 @@ describe("the class gallery", () => {
       mine: { state: "shown", latest: false },
     });
     expect((await mate.api.learning.gallery(ref)).projects).toEqual([
-      { studentId: me.id, files: onePage("Mine"), remixOf: null },
+      { studentId: me.id, files: onePage("Mine"), studio: null, remixOf: null },
     ]);
+    // The teacher is looking at the newer one, and is shown what the class sees.
+    const apart = await keeper.learning.answers({
+      moduleId: saved.id,
+      classId,
+    });
+    expect(
+      apart.answers.find(
+        (answer) => answer.studentId === me.id && answer.blockId === shared,
+      ),
+    ).toMatchObject({
+      files: onePage("Mine, improved"),
+      share: "shown",
+      offered: { files: onePage("Mine") },
+    });
     expect(
       await rejection(first.learning.gallery({ lessonId, blockId: kept })),
     ).toMatchObject({ code: "NOT_FOUND" });
@@ -2332,6 +2364,168 @@ describe("the class gallery", () => {
     });
     expect(await first.learning.withdrawShare(ref)).toEqual({ state: null });
     expect(await first.learning.gallery(ref)).toMatchObject({ mine: null });
+  });
+
+  test("a coding project shown to the class opens to classmates who saved their own, and a save says whose it built on", async () => {
+    const { keeper, stranger } = await teacherSessions();
+    const { rows } = await keeper.api.learning.modules({});
+    const source = rows.find((row) => row.title === TITLE);
+    if (!source) throw new Error("no module");
+    const saved = await keeper.api.learning.saveModule({
+      id: "",
+      expectedVersion: 0,
+      title: "Games to share",
+      summary: "",
+      classIds: source.classes.map((item) => item.id),
+      prerequisiteId: "",
+      sequential: false,
+    });
+    const question = id();
+    const lesson = await keeper.api.learning.saveLesson({
+      id: "",
+      moduleId: saved.id,
+      expectedVersion: 0,
+      title: "A game to show",
+      completion: "view",
+      passScore: null,
+      content: written([
+        {
+          id: question,
+          type: "scratch",
+          prompt: "Make a game.",
+          points: 2,
+          hints: [],
+          explanation: "",
+          tries: null,
+          starter: null,
+          gallery: true,
+        },
+      ]),
+      publish: false,
+    });
+    await keeper.api.learning.publishModule({
+      id: saved.id,
+      expectedVersion: saved.version,
+    });
+    const ref = { lessonId: lesson.id, blockId: question };
+    const classId = source.classes[0]?.id ?? "";
+
+    const first = await sessionFor("northwind", login("student"));
+    const second = await sessionFor("northwind", login("student", 0, 1));
+    const me = await first.api.identity.currentUser();
+    const mate = await second.api.identity.currentUser();
+    // A zip's signature and a PNG's, which are all the upload check reads.
+    const sb3 = new Blob([new Uint8Array([0x50, 0x4b, 0x03, 0x04, 0, 0, 0])]);
+    const png = new Blob([
+      new Uint8Array([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a, 0, 0]),
+    ]);
+    const save = async (session: Session, remixOf?: string) => {
+      const project = await uploadAs(
+        session,
+        "project.sb3",
+        "application/x.scratch.sb3",
+        sb3,
+      );
+      await session.api.learning.respond({
+        ...ref,
+        response: {
+          type: "scratch",
+          project: { fileId: project },
+          ...(remixOf ? { remixOf } : {}),
+        },
+      });
+      return project;
+    };
+    const creditOf = async (studentId: string) =>
+      (
+        await keeper.api.learning.answers({ moduleId: saved.id, classId })
+      ).answers.find((answer) => answer.studentId === studentId)?.remixOf;
+
+    const mine = await uploadAs(
+      first,
+      "project.sb3",
+      "application/x.scratch.sb3",
+      sb3,
+    );
+    const stage = await uploadAs(first, "stage.png", "image/png", png);
+    await first.api.learning.respond({
+      ...ref,
+      response: {
+        type: "scratch",
+        project: { fileId: mine },
+        thumbnail: { fileId: stage },
+      },
+    });
+    expect(await first.api.learning.offerShare(ref)).toEqual({
+      state: "offered",
+    });
+
+    // A project the teacher has not shown is nobody's to build on or open.
+    await save(second, me.id);
+    expect(await creditOf(mate.id)).toBeNull();
+    expect(await opens(second, mine)).toBe(404);
+    expect((await second.api.learning.gallery(ref)).projects).toEqual([]);
+
+    await keeper.api.learning.decideShare({
+      ...ref,
+      studentId: me.id,
+      show: true,
+    });
+    expect((await second.api.learning.gallery(ref)).projects).toEqual([
+      {
+        studentId: me.id,
+        files: [],
+        studio: { projectFileId: mine, thumbnailFileId: stage },
+        remixOf: null,
+      },
+    ]);
+    expect(await opens(second, mine)).toBe(200);
+    expect(await opens(second, stage)).toBe(200);
+    // It opens to the class it was shown to, and to no teacher of another.
+    expect(await opens(stranger, mine)).toBe(404);
+
+    // Built on in the studio, the save says whose it began from.
+    await save(second, me.id);
+    expect(await creditOf(mate.id)).toBe(me.id);
+    expect(await creditOf(me.id)).toBeNull();
+    // Nobody builds on their own.
+    await save(first, me.id);
+    expect(await creditOf(me.id)).toBeNull();
+
+    // What the gallery holds stays, however many saves come after it.
+    for (let more = 0; more < 4; more += 1) await save(first);
+    const { cell, files, tenants } = seeded();
+    const later = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000);
+    const tenantId = tenants[0]?.tenantId ?? "";
+    await sweepTenantFiles(cell, files, tenantId, later);
+    expect(await opens(second, mine)).toBe(200);
+    expect(await opens(second, stage)).toBe(200);
+
+    const now = await keeper.api.learning.live({ moduleId: saved.id, classId });
+    expect(new Set(now.studios.map((item) => item.studentId))).toEqual(
+      new Set([me.id, mate.id]),
+    );
+    expect(now.studios.map((item) => item.prompt)).toEqual([
+      "Make a game.",
+      "Make a game.",
+    ]);
+    expect(
+      now.studios.find((item) => item.studentId === me.id)?.projectFileId,
+    ).not.toBe(mine);
+
+    // Taken back, it is closed to the class and swept with the other saves.
+    expect(await first.api.learning.withdrawShare(ref)).toEqual({
+      state: null,
+    });
+    expect(await opens(second, mine)).toBe(404);
+    // The credit stands while each save repeats it, and cannot be made anew.
+    await save(second, me.id);
+    expect(await creditOf(mate.id)).toBe(me.id);
+    await save(second);
+    await save(second, me.id);
+    expect(await creditOf(mate.id)).toBeNull();
+    await sweepTenantFiles(cell, files, tenantId, later);
+    expect(await opens(keeper, mine)).toBe(404);
   });
 });
 

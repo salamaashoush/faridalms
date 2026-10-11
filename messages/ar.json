@@ -5823,5 +5823,10 @@
   "deviceProgramEmpty": "لم يُبنَ شيء بعد. افتح المشروع لتبدأ.",
   "editorQuestionMicrobit": "مشروع micro:bit",
   "editorQuestionMicrobitHint": "يبرمج الطلاب micro:bit بالكتل أو جافاسكربت أو بايثون ويجربونه على لوحة على الشاشة، وأنت تصححه",
-  "printDeviceOnComputer": "ابنِ برنامج micro:bit هذا على حاسوب أو جهاز لوحي."
+  "printDeviceOnComputer": "ابنِ برنامج micro:bit هذا على حاسوب أو جهاز لوحي.",
+  "galleryAfterSave": "احفظ مشروعًا من صنعك لترى ما صنعه زملاؤك.",
+  "galleryBuildBody": "يُفتح مشروعه في الاستوديو ويُحفظ مشروعًا لك، بدل المشروع الذي تبنيه. ويرى معلمك المشروع الذي بدأ منه مشروعك.",
+  "galleryTeacherEarlier": "عرض الطالب المشروع كما كان قبل المشروع الظاهر أعلاه، وهو ما سيراه الصف.",
+  "galleryTeacherSeeOffered": "شاهد ما عُرض",
+  "galleryTeacherOfferedBy": "ما عرضه {name}"
 }

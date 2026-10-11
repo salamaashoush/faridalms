@@ -28,6 +28,7 @@ import {
   lessonScore,
   markResponse,
   outputMatches,
+  ownResponse,
   parseGaps,
   partKey,
   studentBlocks,
@@ -655,6 +656,32 @@ describe("matching, ordering and sorting", () => {
       [uuid(104)]: "Birds",
       [uuid(105)]: "Mammals",
     });
+  });
+});
+
+describe("whose project an answer was built on", () => {
+  const classmate = "6a7b8c9d-0e1f-4a2b-8c3d-4e5f6a7b8c9d";
+  const file = { fileId: "7b8c9d0e-1f2a-4b3c-9d4e-5f6a7b8c9d0e" };
+
+  it("is nothing a student's answer says for itself", () => {
+    expect(
+      ownResponse({
+        type: "project",
+        files: [{ name: "index.html", code: "<h1>Mine</h1>" }],
+        remixOf: classmate,
+      }),
+    ).toEqual({
+      type: "project",
+      files: [{ name: "index.html", code: "<h1>Mine</h1>" }],
+    });
+    expect(
+      ownResponse({ type: "scratch", project: file, remixOf: classmate }),
+    ).toEqual({ type: "scratch", project: file });
+  });
+
+  it("leaves every other answer as it was sent", () => {
+    const written = { type: "written" as const, text: "My answer." };
+    expect(ownResponse(written)).toBe(written);
   });
 });
 

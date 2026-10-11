@@ -17,6 +17,7 @@ import {
 } from "~/server/learning";
 import { getMessageFromError } from "~/utils/error";
 
+import { CodingStudio } from "./CodingStudio";
 import { ProjectStudio } from "./ProjectStudio";
 
 const failed = (error: unknown) => toast.error(getMessageFromError(error));
@@ -25,19 +26,28 @@ const failed = (error: unknown) => toast.error(getMessageFromError(error));
  * A project question's class gallery, under a student's own project: where
  * their offer to show it stands, and the classmates' projects their
  * teacher has shown, each to open, try, and build on. It opens once the
- * student has handed in a project of their own.
+ * student has handed in a project of their own. A project of files is
+ * begun again here, the server putting the classmate's in place of the
+ * student's own; a coding project is handed to `onBuild`, whose studio
+ * opens it and saves it as the student's.
  */
 export function ProjectGallery({
   lessonId,
   blockId,
   settled,
   onRemixed,
+  onBuild,
 }: {
   lessonId: string;
   blockId: string;
   /** The student's project is marked, so it can no longer begin again. */
   settled: boolean;
-  onRemixed: (files: ProjectFile[]) => void;
+  onRemixed?: (files: ProjectFile[]) => void;
+  onBuild?: (from: {
+    studentId: string;
+    name: string;
+    projectUrl: string;
+  }) => void;
 }) {
   const queryClient = useQueryClient();
   const query = galleryQuery(lessonId, blockId);
@@ -70,6 +80,10 @@ export function ProjectGallery({
   const maker = showing ? (names.get(showing.studentId) ?? "") : "";
   const busy = offer.isPending || takeBack.isPending;
   const state = data.mine?.state ?? null;
+  const build = {
+    label: m.galleryRemix(),
+    onSelect: () => setConfirming(true),
+  };
   return (
     <section className="grid gap-3 border-t pt-4">
       <h4 className="flex items-center gap-2 text-sm leading-5 font-semibold">
@@ -132,10 +146,19 @@ export function ProjectGallery({
                       className="flex min-h-12 w-full items-center gap-3 rounded-lg border bg-background px-3 py-2 text-start outline-none hover:bg-muted/50 focus-visible:ring-3 focus-visible:ring-ring/50"
                       onClick={() => setOpened(item.studentId)}
                     >
-                      <AppWindow
-                        aria-hidden
-                        className="size-5 shrink-0 text-muted-foreground"
-                      />
+                      {item.studio?.thumbnailFileId ? (
+                        // A coding project's stage is white where nothing is drawn.
+                        <img
+                          src={`/files/${item.studio.thumbnailFileId}`}
+                          alt=""
+                          className="h-9 w-12 shrink-0 rounded border bg-white object-contain"
+                        />
+                      ) : (
+                        <AppWindow
+                          aria-hidden
+                          className="size-5 shrink-0 text-muted-foreground"
+                        />
+                      )}
                       <span className="grid min-w-0">
                         <span className="truncate text-sm leading-5 font-medium">
                           {m.galleryBy({
@@ -159,38 +182,49 @@ export function ProjectGallery({
         </>
       ) : (
         <p className="text-[13px] leading-[18px] text-muted-foreground">
-          {m.galleryAfterHandIn()}
+          {onBuild ? m.galleryAfterSave() : m.galleryAfterHandIn()}
         </p>
       )}
-      {showing ? (
+      {showing?.studio ? (
+        <CodingStudio
+          projectUrl={`/files/${showing.studio.projectFileId}`}
+          mode="editor"
+          title={m.galleryBy({ name: maker })}
+          action={settled ? undefined : build}
+          onClose={() => setOpened(null)}
+        />
+      ) : showing ? (
         <ProjectStudio
           title={m.galleryBy({ name: maker })}
           files={showing.files}
           unkept
-          action={
-            settled
-              ? undefined
-              : {
-                  label: m.galleryRemix(),
-                  onSelect: () => setConfirming(true),
-                }
-          }
+          action={settled ? undefined : build}
           onClose={() => setOpened(null)}
         />
       ) : null}
       <ConfirmDialog
         open={confirming && showing !== undefined}
         title={m.galleryRemixTitle({ name: maker })}
-        body={m.galleryRemixBody()}
+        body={showing?.studio ? m.galleryBuildBody() : m.galleryRemixBody()}
         confirmLabel={m.galleryRemix()}
         pending={remix.isPending}
         onConfirm={() => {
           if (!showing) return;
+          if (showing.studio) {
+            setConfirming(false);
+            setOpened(null);
+            onBuild?.({
+              studentId: showing.studentId,
+              name: maker,
+              projectUrl: `/files/${showing.studio.projectFileId}`,
+            });
+            return;
+          }
           remix.mutate(showing.studentId, {
             onSuccess: ({ files }) => {
               setConfirming(false);
               setOpened(null);
-              onRemixed(files);
+              onRemixed?.(files);
               toast.success(m.galleryRemixed({ name: maker }));
               // The lesson's own copy of the kept project is now behind.
               void queryClient.invalidateQueries({ queryKey: ["learning"] });

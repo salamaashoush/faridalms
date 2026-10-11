@@ -170,6 +170,7 @@ export function ClassLive({
       })}
       <LiveProjects
         projects={data.projects}
+        studios={data.studios}
         names={names}
         here={
           new Set(

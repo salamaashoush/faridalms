@@ -2060,17 +2060,14 @@ function CodingCheck({
 }) {
   const mode = useContext(CheckModeContext);
   return (
-    <CheckCard
-      block={block}
-      legendId={useId()}
-      status={<SpokenStatus block={block} view={view} />}
-      actions={null}
-    >
+    <CheckCard block={block} legendId={useId()} status={null} actions={null}>
       <CodingAnswer
         block={block}
         view={view}
         driver={driver}
+        mode={mode}
         locked={(view?.marked ?? false) || mode === "review"}
+        status={<SpokenStatus block={block} view={view} />}
       />
     </CheckCard>
   );

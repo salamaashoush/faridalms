@@ -342,8 +342,9 @@ export async function retireTrashedMedia(
  * Retires the projects and stage pictures of coding answers saved over
  * since: all but a student's last `kept` saves of each question in each
  * attempt, once older than `savedBefore`. A file a kept save still holds
- * stays. Keys come back only when no active row still points at the same
- * object.
+ * stays, and so does one offered to or shown in a class gallery, which
+ * holds a save as it stood however many came after. Keys come back only
+ * when no active row still points at the same object.
  */
 export async function retireSupersededAnswers(
   tx: Tx,
@@ -378,6 +379,13 @@ export async function retireSupersededAnswers(
           and f.id not in (
             select file_id from held
             where file_id is not null and recency <= ${input.kept})
+          and not exists (
+            select 1 from core.lesson_shares s
+            where s.tenant_id = f.tenant_id and s.status = 'active'
+              and s.state <> 'declined'
+              and f.id::text in (
+                s.response->'project'->>'fileId',
+                s.response->'thumbnail'->>'fileId'))
         order by f.created_at limit ${input.limit})
       returning id, storage_key)
     select distinct r.storage_key from retired r

@@ -1400,7 +1400,8 @@ export function SelectionToolbarPlugin() {
           {settings.kind === "matching" && lessonActivities
             ? toggle("memory", strings.questionMemory, <Grid2x2 aria-hidden />)
             : null}
-          {settings.kind === "project" && lessonActivities
+          {(settings.kind === "project" || settings.kind === "scratch") &&
+          lessonActivities
             ? toggle("gallery", strings.questionGallery, <Images aria-hidden />)
             : null}
           {settings.kind === "hotspot" && question.part?.picture && media ? (
