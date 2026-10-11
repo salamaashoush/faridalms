@@ -10,6 +10,7 @@ import { blankProject } from "@faridalms/makecode/project";
 import { PACKS } from "@faridalms/puzzles/levels";
 import { describe, expect, test } from "bun:test";
 import { sql } from "drizzle-orm";
+import { strToU8, zipSync } from "fflate";
 
 import { sweepTenantFiles } from "../src/files/sweep";
 import { login, raw, rejection, seeded, sessionFor, signedIn } from "./harness";
@@ -1763,6 +1764,7 @@ describe("coding projects", () => {
           tries: null,
           starter: { fileId: starter },
           gallery: false,
+          checks: [],
         },
       ]),
       publish: false,
@@ -1874,6 +1876,158 @@ describe("coding projects", () => {
     ).toEqual({ marked: true });
     const seen = await pupil.api.learning.playLesson({ id: lesson.id });
     expect(seen.checks[question]).toMatchObject({ marked: true, credit: 3 });
+  });
+});
+
+/** A saved project whose one sprite runs these blocks from the flag. */
+const savedProject = (blocks: Record<string, unknown>) =>
+  new Blob([
+    zipSync({
+      "project.json": strToU8(
+        JSON.stringify({
+          targets: [
+            { isStage: true, name: "Stage", blocks: {} },
+            { isStage: false, name: "Sprite1", blocks },
+          ],
+        }),
+      ),
+    }),
+  ]);
+const flag = {
+  opcode: "event_whenflagclicked",
+  next: "loop",
+  inputs: {},
+  fields: {},
+  topLevel: true,
+};
+const forever = {
+  opcode: "control_forever",
+  next: null,
+  inputs: { SUBSTACK: [2, "step"] },
+  fields: {},
+  topLevel: false,
+};
+const step = {
+  opcode: "motion_movesteps",
+  next: null,
+  inputs: {},
+  fields: {},
+  topLevel: false,
+};
+
+describe("what a coding project should do", () => {
+  test("each save is read for what the teacher asked for, whatever the student says of it", async () => {
+    const { keeper } = await teacherSessions();
+    const { rows } = await keeper.api.learning.modules({});
+    const source = rows.find((row) => row.title === TITLE);
+    if (!source) throw new Error("no module");
+    const saved = await keeper.api.learning.saveModule({
+      id: "",
+      expectedVersion: 0,
+      title: "A walking cat",
+      summary: "",
+      classIds: source.classes.map((item) => item.id),
+      prerequisiteId: "",
+      sequential: false,
+    });
+    const question = id();
+    const lesson = await keeper.api.learning.saveLesson({
+      id: "",
+      moduleId: saved.id,
+      expectedVersion: 0,
+      title: "Make the cat walk",
+      completion: "view",
+      passScore: null,
+      content: written([
+        {
+          id: question,
+          type: "scratch",
+          prompt: "Make the cat walk for ever.",
+          points: 2,
+          hints: [],
+          explanation: "",
+          tries: null,
+          starter: null,
+          gallery: false,
+          checks: ["flag", "loop", "sound"],
+        },
+      ]),
+      publish: false,
+    });
+    await keeper.api.learning.publishModule({
+      id: saved.id,
+      expectedVersion: saved.version,
+    });
+    const ref = { lessonId: lesson.id, blockId: question };
+    const classId = source.classes[0]?.id ?? "";
+
+    const pupil = await sessionFor("northwind", login("student"));
+    const me = await pupil.api.identity.currentUser();
+    const played = await pupil.api.learning.playLesson({ id: lesson.id });
+    expect(played.blocks).toContainEqual(
+      expect.objectContaining({
+        id: question,
+        checks: ["flag", "loop", "sound"],
+      }),
+    );
+    const save = async (file: Blob, claim?: ("flag" | "loop" | "sound")[]) => {
+      const project = await uploadAs(
+        pupil,
+        "project.sb3",
+        "application/x.scratch.sb3",
+        file,
+      );
+      await pupil.api.learning.respond({
+        ...ref,
+        response: {
+          type: "scratch",
+          project: { fileId: project },
+          ...(claim ? { has: claim } : {}),
+        },
+      });
+      const seen = await pupil.api.learning.playLesson({ id: lesson.id });
+      const answers = await keeper.api.learning.answers({
+        moduleId: saved.id,
+        classId,
+      });
+      return {
+        mine: seen.checks[question]?.response,
+        theirs: answers.answers.find((answer) => answer.studentId === me.id),
+      };
+    };
+
+    // The flag alone starts nothing that repeats.
+    const first = await save(
+      savedProject({ start: { ...flag, next: "step" }, step }),
+    );
+    expect(first.mine).toMatchObject({ type: "scratch", has: ["flag"] });
+    expect(first.theirs).toMatchObject({ has: ["flag"] });
+
+    // A loop with something in it counts; a claim to more does not.
+    const second = await save(
+      savedProject({ start: flag, loop: forever, step }),
+      ["flag", "loop", "sound"],
+    );
+    expect(second.mine).toMatchObject({ has: ["flag", "loop"] });
+    expect(second.theirs).toMatchObject({ has: ["flag", "loop"] });
+
+    // A file that is no project has none of it.
+    const third = await save(
+      new Blob([new Uint8Array([0x50, 0x4b, 0x03, 0x04, 0, 0, 0])]),
+      ["flag"],
+    );
+    expect(third.mine).toMatchObject({ has: [] });
+
+    const asked = await keeper.api.learning.answers({
+      moduleId: saved.id,
+      classId,
+    });
+    expect(asked.questions).toContainEqual(
+      expect.objectContaining({
+        blockId: question,
+        checks: ["flag", "loop", "sound"],
+      }),
+    );
   });
 });
 
@@ -2399,6 +2553,7 @@ describe("the class gallery", () => {
           tries: null,
           starter: null,
           gallery: true,
+          checks: [],
         },
       ]),
       publish: false,

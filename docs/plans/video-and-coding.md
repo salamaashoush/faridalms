@@ -246,9 +246,20 @@ off keeps the work and shows a placeholder.
    shown. The Right now tab shows each coding project's stage as last
    saved, to open and run for the room. A change made in the studio is
    told to the page at once, so one made a moment before Done is saved.
-   Next: Text to Speech and Translate on Farida's own services, tutorials
-   self-hosted on the media service, and project checks a teacher can
-   turn on.
+   Done after it: a teacher says what a finished project does, picked
+   from ten things a project can be read for: it starts with the flag,
+   repeats, chooses, keeps a number in a variable, sends a message that is
+   heard, has two sprites, answers a key or a click, plays a sound, uses a
+   block of the student's making, makes clones. The server reads each
+   saved project for them, counting only blocks that run, and the student
+   and the teacher see which are there; the list prints with boxes to
+   tick. They give no points. Dr. Scratch scores projects this way, and
+   its scores differ by the kind of project and from what a teacher judges
+   of the same work, so here they are a list to work to and to mark
+   beside. Next: notes on common mistakes in a project (a message nothing
+   hears, a check for a key made once outside a loop), Text to Speech and
+   Translate on Farida's own services, and tutorials self-hosted on the
+   media service.
 
 Video phases 1 to 4 and coding phases 1 to 3 need no new infrastructure;
 video phase 6 needs ffmpeg on the worker, coding phase 4 the sandbox domain.

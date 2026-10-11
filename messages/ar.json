@@ -5828,5 +5828,21 @@
   "galleryBuildBody": "يُفتح مشروعه في الاستوديو ويُحفظ مشروعًا لك، بدل المشروع الذي تبنيه. ويرى معلمك المشروع الذي بدأ منه مشروعك.",
   "galleryTeacherEarlier": "عرض الطالب المشروع كما كان قبل المشروع الظاهر أعلاه، وهو ما سيراه الصف.",
   "galleryTeacherSeeOffered": "شاهد ما عُرض",
-  "galleryTeacherOfferedBy": "ما عرضه {name}"
+  "galleryTeacherOfferedBy": "ما عرضه {name}",
+  "scratchChecksTitle": "ما يفعله المشروع المكتمل",
+  "editorQuestionChecksCount": "فحوص المشروع: {count}",
+  "scratchHasFlag": "يبدأ بالعلم الأخضر",
+  "scratchHasLoop": "يكرّر شيئًا بلبنة تكرار",
+  "scratchHasChoice": "يختار بلبنة «إذا»",
+  "scratchHasVariable": "يحفظ عددًا في متغير",
+  "scratchHasMessage": "يبثّ رسالة يستقبلها مقطع برمجي",
+  "scratchHasSprites": "فيه كائنان أو أكثر",
+  "scratchHasInput": "يستجيب لمفتاح أو لنقرة",
+  "scratchHasSound": "يشغّل صوتًا",
+  "scratchHasCustom": "يستخدم لبنة من «لبناتي»",
+  "scratchHasClones": "ينشئ نُسخًا ويعطيها عملًا",
+  "scratchChecksCount": "{met} من {total} حتى الآن",
+  "scratchChecksUnread": "يُعلَّم كل بند حين يفعله مشروع محفوظ.",
+  "scratchCheckMet": "تم",
+  "scratchCheckUnmet": "ليس بعد"
 }

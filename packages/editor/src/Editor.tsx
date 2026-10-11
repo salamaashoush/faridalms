@@ -279,6 +279,7 @@ function Surface({
       count: strings.questionCountLabel,
       wordTiles: strings.questionWordTiles,
       starter: strings.questionStarterSet,
+      checks: strings.questionChecksCount,
       pythonProject: strings.questionPython,
       microbitProject: strings.questionMicrobit,
       arrowsPuzzle: strings.questionArrows,

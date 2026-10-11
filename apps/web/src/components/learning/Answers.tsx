@@ -10,6 +10,7 @@ import { toast } from "sonner";
 
 import { CodingStudio } from "~/components/coding/CodingStudio";
 import { ProjectAnswer } from "~/components/coding/ProjectAnswer";
+import { ProjectChecks } from "~/components/coding/ProjectChecks";
 import { ProjectStudio } from "~/components/coding/ProjectStudio";
 import { WebProjectView } from "~/components/coding/WebProjectView";
 import { displayName } from "~/components/people/format";
@@ -291,6 +292,7 @@ function AnswerCard({
             stage={answer.thumbnail?.fileId ?? null}
             name={name}
           />
+          <ProjectChecks asked={question.checks} has={answer.has} />
           {question.gallery ? (
             <GalleryOffer answer={answer} name={name} />
           ) : null}

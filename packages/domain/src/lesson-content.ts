@@ -195,6 +195,7 @@ export function questionBlock(node: ContentNode): LessonBlock | null {
         type: "scratch",
         starter: node.projectFileId ? { fileId: node.projectFileId } : null,
         gallery: node.gallery ?? false,
+        checks: node.projectChecks ?? [],
       };
     case "project":
       return {
@@ -805,6 +806,7 @@ export function questionNode(block: LessonBlock): ContentNode | null {
       ...base,
       ...(block.starter ? { projectFileId: block.starter.fileId } : {}),
       ...(block.gallery ? { gallery: true } : {}),
+      ...(block.checks.length > 0 ? { projectChecks: block.checks } : {}),
     };
   if (block.type === "project")
     return {

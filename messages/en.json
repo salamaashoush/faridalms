@@ -5608,5 +5608,21 @@
   "galleryBuildBody": "Their project opens in the studio and is saved as yours, in place of the one you are building. Your teacher sees whose project yours began from.",
   "galleryTeacherEarlier": "The student offered the project as it was before the one above. The class would see that one.",
   "galleryTeacherSeeOffered": "See what was offered",
-  "galleryTeacherOfferedBy": "What {name} offered"
+  "galleryTeacherOfferedBy": "What {name} offered",
+  "scratchChecksTitle": "What a finished project does",
+  "editorQuestionChecksCount": "project checks: {count}",
+  "scratchHasFlag": "Starts with the green flag",
+  "scratchHasLoop": "Repeats something with a loop",
+  "scratchHasChoice": "Chooses with an if block",
+  "scratchHasVariable": "Keeps a number in a variable",
+  "scratchHasMessage": "Sends a message that a script hears",
+  "scratchHasSprites": "Has two sprites or more",
+  "scratchHasInput": "Answers a key or a click",
+  "scratchHasSound": "Plays a sound",
+  "scratchHasCustom": "Uses a block made in My Blocks",
+  "scratchHasClones": "Makes clones and gives them something to do",
+  "scratchChecksCount": "{met} of {total} so far",
+  "scratchChecksUnread": "Each is ticked when a saved project does it.",
+  "scratchCheckMet": "Done",
+  "scratchCheckUnmet": "Not yet"
 }

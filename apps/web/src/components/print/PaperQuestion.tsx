@@ -19,6 +19,7 @@ import { ARROWS, wordsOf } from "@faridalms/puzzles/text";
 import { cn } from "@faridalms/ui/cn";
 
 import { QrCode } from "~/components/badges/QrCode";
+import { featureNames } from "~/components/coding/scratch-checks";
 import { blockNames, puzzleStrings } from "~/components/puzzles/strings";
 import * as m from "~/i18n/messages";
 
@@ -394,12 +395,34 @@ export function PaperQuestion({
         );
       break;
     case "scratch":
+      // Paper runs no project; what the project should do is there to plan
+      // by and to tick off, and the code takes the student to the studio.
       body = (
-        <div className="flex items-center gap-[0.8em] rounded-[4px] border border-dashed border-neutral-500 px-[0.8em] py-[0.6em] text-[0.85em] text-neutral-600">
-          {online ? (
-            <QrCode value={online} className="size-[1.8cm] shrink-0" />
+        <div className="grid gap-[0.6em]">
+          {block.checks.length > 0 ? (
+            <div className="grid gap-[0.3em]">
+              <p className="font-semibold">
+                {m.scratchChecksTitle({}, { locale })}
+              </p>
+              <ul className="grid gap-[0.25em]">
+                {block.checks.map((feature) => (
+                  <li key={feature} className="flex items-start gap-[0.6em]">
+                    <span
+                      aria-hidden
+                      className="mt-[0.2em] size-[0.9em] shrink-0 rounded-[2px] border border-neutral-700"
+                    />
+                    {featureNames(locale)[feature]}
+                  </li>
+                ))}
+              </ul>
+            </div>
           ) : null}
-          <p>{m.printOnComputer({}, { locale })}</p>
+          <div className="flex items-center gap-[0.8em] rounded-[4px] border border-dashed border-neutral-500 px-[0.8em] py-[0.6em] text-[0.85em] text-neutral-600">
+            {online ? (
+              <QrCode value={online} className="size-[1.8cm] shrink-0" />
+            ) : null}
+            <p>{m.printOnComputer({}, { locale })}</p>
+          </div>
         </div>
       );
       break;

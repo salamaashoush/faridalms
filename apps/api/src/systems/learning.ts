@@ -5,6 +5,7 @@ import type {
   LessonDocument,
   LessonResponse,
 } from "@faridalms/domain/learning";
+import type { ScratchFeature } from "@faridalms/domain/scratch-project";
 
 import { reachOf } from "@faridalms/database/stores/audiences";
 import {
@@ -130,6 +131,7 @@ import {
   practiceView,
 } from "@faridalms/domain/practice";
 import { sameFiles } from "@faridalms/domain/project";
+import { scratchFeaturesOf } from "@faridalms/domain/scratch-project";
 import { ORPCError } from "@orpc/server";
 import { createHash } from "node:crypto";
 import * as v from "valibot";
@@ -137,6 +139,7 @@ import * as v from "valibot";
 import type { SchoolContext, UnitContext } from "../core/context";
 
 import { markedProgram } from "../coding/mark";
+import { projectCode } from "../coding/scratch-file";
 import { featuresOf } from "../core/features";
 import {
   audit,
@@ -1757,6 +1760,32 @@ async function credited(
 }
 
 /**
+ * A coding answer saying what its project has, where its question asks
+ * for anything: read here from the saved file, which is the student's own
+ * upload or is refused as the answer is kept.
+ */
+async function withFeatures(
+  context: UnitContext,
+  block: { type: string; checks?: readonly string[] },
+  response: LessonResponse,
+): Promise<LessonResponse> {
+  if (
+    response.type !== "scratch" ||
+    block.type !== "scratch" ||
+    !block.checks?.length
+  )
+    return response;
+  const [file] = await filesByIds(context.tx, context.tenantId, [
+    response.project.fileId,
+  ]);
+  if (file?.uploadedByUserId !== context.actor.userId) return response;
+  return {
+    ...response,
+    has: scratchFeaturesOf(await projectCode(context.files, file)),
+  };
+}
+
+/**
  * Whether a file is a classmate's coding project in a class gallery this
  * student may look in: shown by their teacher, for a question the lesson
  * still asks with a gallery, once the student has saved a project of
@@ -2008,7 +2037,11 @@ async function recordResponse(
   if (!block) throw new ORPCError("NOT_FOUND");
   const issue = responseIssue(block, input.response);
   if (issue) throw new ORPCError("BAD_REQUEST", { message: issue });
-  const response = await credited(context, played, block, input.response);
+  const response = await withFeatures(
+    context,
+    block,
+    await credited(context, played, block, input.response),
+  );
   const state = played.checks[block.id];
   if (isTeacherMarked(block) ? state?.marked : settled(block, state))
     throw new ORPCError("CONFLICT", { message: "learning.settled" });
@@ -2386,6 +2419,7 @@ export const answers = readProcedure
       points: number;
       /** Students may offer their answer to the class gallery. */
       gallery: boolean;
+      checks: ScratchFeature[];
     }[] = [];
     for (const item of lessons) {
       const published = await publishedLesson(context, item.id);
@@ -2403,6 +2437,8 @@ export const answers = readProcedure
             gallery:
               (block.type === "project" || block.type === "scratch") &&
               block.gallery,
+            /** What a coding question asks every project to have. */
+            checks: block.type === "scratch" ? block.checks : [],
           });
     }
     const scope = {

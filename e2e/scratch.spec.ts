@@ -2,7 +2,7 @@ import type { Locator } from "@playwright/test";
 
 import { expect, test } from "@playwright/test";
 
-import { openToStudents, startLesson } from "./fixtures/lessons";
+import { openAsStudent, openToStudents, startLesson } from "./fixtures/lessons";
 import {
   ACCOUNTS,
   PASSWORD,
@@ -116,4 +116,66 @@ test("a student shows a coding project to the class once the teacher agrees, and
   await page.reload();
   await untilHydrated(page);
   await expect(page.getByText("Built on Yasmin Sabry's project")).toBeVisible();
+});
+
+test("a teacher says what a finished project does, and each save ticks what the project has", async ({
+  browser,
+  page,
+}) => {
+  const title = `Checked games ${crypto.randomUUID().slice(0, 6)}`;
+  const recordUrl = await startLesson(page, title, "Two sprites");
+  await page.keyboard.type("/coding project");
+  await page.getByRole("option", { name: /Coding project/ }).click();
+  await page.keyboard.type("Make two sprites meet.");
+  await page
+    .getByRole("button", { name: "What a finished project does" })
+    .click();
+  await page
+    .getByRole("menuitemcheckbox", { name: "Starts with the green flag" })
+    .click();
+  await page
+    .getByRole("menuitemcheckbox", { name: "Has two sprites or more" })
+    .click();
+  await page.keyboard.press("Escape");
+  await expect(page.locator("[data-question]")).toHaveAttribute(
+    "data-label",
+    /project checks: 2/,
+  );
+  await openToStudents(page, recordUrl);
+
+  const studentContext = await browser.newContext();
+  const student = await studentContext.newPage();
+  await openAsStudent(student, title, "Two sprites");
+  const list = student.getByRole("list").filter({
+    hasText: "Starts with the green flag",
+  });
+  await expect(list.getByRole("listitem")).toHaveText([
+    "Starts with the green flag",
+    "Has two sprites or more",
+  ]);
+  await expect(
+    student.getByText("Each is ticked when a saved project does it."),
+  ).toBeVisible();
+
+  await student.getByRole("button", { name: "Open the coding studio" }).click();
+  const studio = student.getByRole("dialog", { name: "Coding studio" });
+  const editor = studio.frameLocator('iframe[title="Coding studio"]');
+  await expect(spriteIn(studio)).toHaveValue("Sprite1", { timeout: 90_000 });
+  // A second sprite from the library, which the studio serves itself.
+  await editor.getByRole("button", { name: "Choose a Sprite" }).first().click();
+  await editor.getByRole("button", { name: "Abby", exact: true }).click();
+  await expect(spriteIn(studio)).toHaveValue("Abby");
+  await studio.getByRole("button", { name: "Done", exact: true }).click();
+  await expect(studio).toBeHidden({ timeout: 30_000 });
+  // Two sprites, and no script yet for the flag to start.
+  await expect(student.getByText("1 of 2 so far")).toBeVisible();
+  await expect(list.getByRole("listitem")).toHaveText([
+    "Starts with the green flagNot yet",
+    "Has two sprites or moreDone",
+  ]);
+  await studentContext.close();
+
+  await page.goto(`${recordUrl}?tab=answers`);
+  await untilHydrated(page);
+  await expect(page.getByText("1 of 2 so far")).toBeVisible();
 });

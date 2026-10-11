@@ -1,5 +1,6 @@
 import type { QuestionKind } from "@faridalms/domain/content";
 import type { ProjectFile, ProjectLanguage } from "@faridalms/domain/project";
+import type { ScratchFeature } from "@faridalms/domain/scratch-project";
 import type { Level, PuzzleStyle } from "@faridalms/puzzles/level";
 import type {
   DOMExportOutput,
@@ -220,6 +221,8 @@ export interface QuestionLabels {
   wordTiles?: string;
   /** A coding question that starts from the teacher's own project. */
   starter?: string;
+  /** A coding question that asks its students' projects to have some things. */
+  checks?: (count: number) => string;
   /** A project question made in Python rather than as a web page. */
   pythonProject?: string;
   /** A project question made for the micro:bit, in its own editor. */
@@ -327,6 +330,8 @@ export interface QuestionSettings {
   projectFiles: ProjectFile[];
   /** A project question whose students may show their work to the class. */
   gallery: boolean;
+  /** What a coding question asks every student's project to have. */
+  projectChecks: ScratchFeature[];
   /** What a project question is made in: a web page, or a Python program. */
   projectLanguage: ProjectLanguage;
   /** A puzzle question's grid, the blocks it offers and its teacher's answer. */
@@ -378,6 +383,7 @@ export function defaultSettings(kind: QuestionKind): QuestionSettings {
     projectFileId: null,
     projectFiles: [],
     gallery: false,
+    projectChecks: [],
     projectLanguage: "web",
     puzzle: kind === "puzzle" ? firstLevel("blocks") : null,
     videoAt: null,
@@ -408,6 +414,7 @@ export type SerializedQuestionNode = Spread<
 
 const NO_POINTS: number[][] = [];
 const NO_FILES: ProjectFile[] = [];
+const NO_CHECKS: ScratchFeature[] = [];
 
 function questionSettings(stored: StoredSettings): QuestionSettings {
   const base = defaultSettings(stored.kind ?? "choice");
@@ -436,6 +443,7 @@ function questionSettings(stored: StoredSettings): QuestionSettings {
     projectFileId: stored.projectFileId ?? null,
     projectFiles: stored.projectFiles ?? NO_FILES,
     gallery: stored.gallery ?? false,
+    projectChecks: stored.projectChecks ?? NO_CHECKS,
     projectLanguage: stored.projectLanguage ?? "web",
     puzzle: stored.puzzle ?? base.puzzle,
     videoAt: stored.videoAt ?? null,
@@ -492,11 +500,17 @@ function label(editor: LexicalEditor, settings: QuestionSettings): string {
       (settings.kind === "project" && settings.projectFiles.length > 0))
       ? ` · ${text.starter}`
       : "";
+  const checked =
+    settings.kind === "scratch" &&
+    settings.projectChecks.length > 0 &&
+    text.checks
+      ? ` · ${text.checks(settings.projectChecks.length)}`
+      : "";
   const asked =
     settings.videoAt !== null && text.videoAt
       ? ` · ${text.videoAt(mediaClock(settings.videoAt))}`
       : "";
-  return `${kind}${starts}${asked} · ${text.points(settings.points)}`;
+  return `${kind}${starts}${checked}${asked} · ${text.points(settings.points)}`;
 }
 
 /**
@@ -554,6 +568,7 @@ export class QuestionNode extends ElementNode {
       projectFileId,
       projectFiles,
       gallery,
+      projectChecks,
       projectLanguage,
       puzzle,
       videoAt,
@@ -582,6 +597,9 @@ export class QuestionNode extends ElementNode {
       ...((settings.kind === "project" || settings.kind === "scratch") &&
       gallery
         ? { gallery }
+        : {}),
+      ...(settings.kind === "scratch" && projectChecks.length > 0
+        ? { projectChecks }
         : {}),
       ...(settings.kind === "project" && projectLanguage !== "web"
         ? { projectLanguage }
@@ -651,6 +669,11 @@ export class QuestionNode extends ElementNode {
       return true;
     if (before.multiple !== settings.multiple)
       dom.dataset.multiple = String(settings.multiple);
+    // What a project is asked to do is ticked in a menu that stays open
+    // and hangs from this element, so its count is written on the label
+    // here rather than on an element drawn anew.
+    if (before.projectChecks !== settings.projectChecks)
+      dom.dataset.label = label($getEditor(), settings);
     return false;
   }
 

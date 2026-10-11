@@ -12,6 +12,7 @@ import { parseNumber } from "@faridalms/domain/answers";
 import { fileDisplays, imageSizes } from "@faridalms/domain/content";
 import { fileFamily } from "@faridalms/domain/file";
 import { MAX_HINTS } from "@faridalms/domain/learning";
+import { SCRATCH_FEATURES } from "@faridalms/domain/scratch-project";
 import { $isCodeNode } from "@lexical/code";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
 import { useLexicalEditable } from "@lexical/react/useLexicalEditable";
@@ -29,6 +30,7 @@ import {
   FORMAT_TEXT_COMMAND,
   KEY_DOWN_COMMAND,
   KEY_ESCAPE_COMMAND,
+  SKIP_DOM_SELECTION_TAG,
 } from "lexical";
 import {
   AlignCenter,
@@ -38,6 +40,7 @@ import {
   Bold,
   Captions,
   CaseSensitive,
+  Check,
   ChevronDown,
   Clock,
   Code,
@@ -55,6 +58,7 @@ import {
   Link,
   ListChecks,
   ListOrdered,
+  ListTodo,
   Lock,
   MessageCircleQuestion,
   MessageSquare,
@@ -287,6 +291,81 @@ function BarMenu<T>({
                 ) : null}
               </Menu.Item>
             ))}
+          </Menu.Popup>
+        </Menu.Positioner>
+      </Menu.Portal>
+    </Menu.Root>
+  );
+}
+
+/**
+ * A menu of things to tick, each on or off, which stays open as they are.
+ * The bar stops reading the question while one of its menus is open, so
+ * what is ticked is kept here until the bar hands down the question's own
+ * list again, which it does once the caret is back in the text.
+ */
+function BarChecks<T extends string>({
+  label,
+  values,
+  picked,
+  text,
+  onChange,
+  onOpenChange,
+  finalFocus,
+}: {
+  label: string;
+  values: readonly T[];
+  picked: readonly T[];
+  text: (value: T) => string;
+  onChange: (picked: T[]) => void;
+  onOpenChange: (open: boolean) => void;
+  finalFocus: ReturnType<typeof textFocus>;
+}) {
+  const [ticked, setTicked] = useState<{
+    since: readonly T[];
+    now: readonly T[];
+  } | null>(null);
+  const shown = ticked?.since === picked ? ticked.now : picked;
+  return (
+    <Menu.Root onOpenChange={onOpenChange}>
+      <Menu.Trigger
+        aria-label={label}
+        data-active={shown.length > 0 || undefined}
+        className="inline-flex h-8 items-center gap-1 rounded-md px-2 text-sm font-medium text-foreground/80 hover:bg-accent hover:text-foreground data-active:text-primary"
+      >
+        <ListTodo className="size-4" aria-hidden />
+        {shown.length > 0 ? shown.length : null}
+        <ChevronDown className="size-3.5 opacity-60" aria-hidden />
+      </Menu.Trigger>
+      <Menu.Portal>
+        <Menu.Positioner className="z-50" sideOffset={6} align="start">
+          <Menu.Popup className={menuPopupClass} finalFocus={finalFocus}>
+            <Menu.Group>
+              <Menu.GroupLabel className="px-2 py-1.5 text-[13px] leading-[18px] text-muted-foreground">
+                {label}
+              </Menu.GroupLabel>
+              {values.map((value) => (
+                <Menu.CheckboxItem
+                  key={value}
+                  className={menuItemClass}
+                  closeOnClick={false}
+                  checked={shown.includes(value)}
+                  onCheckedChange={(checked) => {
+                    // Kept in the order the list gives, however they were ticked.
+                    const next = values.filter((item) =>
+                      item === value ? checked : shown.includes(item),
+                    );
+                    setTicked({ since: picked, now: next });
+                    onChange(next);
+                  }}
+                >
+                  <span className="flex-1">{text(value)}</span>
+                  <Menu.CheckboxItemIndicator>
+                    <Check className="size-4 text-primary" aria-hidden />
+                  </Menu.CheckboxItemIndicator>
+                </Menu.CheckboxItem>
+              ))}
+            </Menu.Group>
           </Menu.Popup>
         </Menu.Positioner>
       </Menu.Portal>
@@ -1195,41 +1274,63 @@ export function SelectionToolbarPlugin() {
               ) : null}
             </>
           ) : settings.kind === "scratch" ? (
-            studio ? (
-              <>
-                <ToolButton
-                  label={
-                    settings.projectFileId
-                      ? strings.questionStarterEdit
-                      : strings.questionStarterBuild
-                  }
-                  active={settings.projectFileId !== null}
-                  onClick={() => {
-                    // The studio covers the page, so the question is found
-                    // again by its key once the teacher is done.
-                    const key = question.key;
-                    void studio.edit(settings.projectFileId).then((next) => {
-                      if (next === undefined) return;
-                      updateFromOutside(editor, () => {
-                        const node = $getNodeByKey(key);
-                        if ($isQuestionNode(node))
-                          node.setSettings({ projectFileId: next });
-                      });
-                    });
-                  }}
-                >
-                  <Puzzle aria-hidden />
-                </ToolButton>
-                {settings.projectFileId ? (
+            <>
+              <BarChecks
+                label={strings.questionChecks}
+                values={SCRATCH_FEATURES}
+                picked={settings.projectChecks}
+                text={(feature) => strings.questionCheckNames[feature]}
+                onChange={(projectChecks) =>
+                  // The caret is left where it is: putting it back would
+                  // take the focus from the menu, which stays open.
+                  editor.update(
+                    () => {
+                      const node = $getNodeByKey(question.key);
+                      if ($isQuestionNode(node))
+                        node.setSettings({ projectChecks });
+                    },
+                    { tag: SKIP_DOM_SELECTION_TAG },
+                  )
+                }
+                onOpenChange={trackMenu}
+                finalFocus={textFocus(editor)}
+              />
+              {studio ? (
+                <>
                   <ToolButton
-                    label={strings.questionStarterRemove}
-                    onClick={() => change({ projectFileId: null })}
+                    label={
+                      settings.projectFileId
+                        ? strings.questionStarterEdit
+                        : strings.questionStarterBuild
+                    }
+                    active={settings.projectFileId !== null}
+                    onClick={() => {
+                      // The studio covers the page, so the question is found
+                      // again by its key once the teacher is done.
+                      const key = question.key;
+                      void studio.edit(settings.projectFileId).then((next) => {
+                        if (next === undefined) return;
+                        updateFromOutside(editor, () => {
+                          const node = $getNodeByKey(key);
+                          if ($isQuestionNode(node))
+                            node.setSettings({ projectFileId: next });
+                        });
+                      });
+                    }}
                   >
-                    <X aria-hidden />
+                    <Puzzle aria-hidden />
                   </ToolButton>
-                ) : null}
-              </>
-            ) : null
+                  {settings.projectFileId ? (
+                    <ToolButton
+                      label={strings.questionStarterRemove}
+                      onClick={() => change({ projectFileId: null })}
+                    >
+                      <X aria-hidden />
+                    </ToolButton>
+                  ) : null}
+                </>
+              ) : null}
+            </>
           ) : settings.kind === "puzzle" ? (
             puzzles && settings.puzzle ? (
               <ToolButton

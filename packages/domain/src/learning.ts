@@ -28,6 +28,7 @@ import {
   projectLanguages,
   starterFilesSchema,
 } from "./project";
+import { scratchChecksSchema } from "./scratch-project";
 import { MAX_STROKE_POINTS, MAX_STROKES, traceResults } from "./tracing";
 
 export { gapsSource, parseGaps } from "./gaps";
@@ -517,6 +518,12 @@ export const lessonBlockSchema = v.variant("type", [
     starter: v.nullable(v.object({ fileId: id })),
     /** Students may offer their project to the class gallery, as with a project of files. */
     gallery: v.optional(v.boolean(), false),
+    /**
+     * What every student's project should have. Each save is read for
+     * them, to tell the student and the teacher which are there; they
+     * mark nothing.
+     */
+    checks: v.optional(scratchChecksSchema, []),
   }),
   v.object({
     ...checkFields,
@@ -1054,6 +1061,12 @@ export const responseSchema = v.variant("type", [
      * last save already said the same.
      */
     remixOf: v.optional(id),
+    /**
+     * What the project was found to have, of all a question can ask for,
+     * when the question asks for any. The server reads the project for
+     * it; whatever a student sends here is replaced.
+     */
+    has: v.optional(scratchChecksSchema),
   }),
   v.object({
     type: v.literal("project"),
@@ -1115,12 +1128,15 @@ function seenOutput(output: string): string {
 }
 
 /**
- * An answer with nothing in it saying whose project it was built on, which
- * a student's word alone never settles.
+ * An answer with nothing in it that a student's word alone never settles:
+ * whose project it was built on, and what a coding project has.
  */
 export function ownResponse(response: LessonResponse): LessonResponse {
-  if (response.type !== "project" && response.type !== "scratch")
-    return response;
+  if (response.type === "scratch") {
+    const { remixOf: _claimed, has: _found, ...own } = response;
+    return own;
+  }
+  if (response.type !== "project") return response;
   const { remixOf: _claimed, ...own } = response;
   return own;
 }

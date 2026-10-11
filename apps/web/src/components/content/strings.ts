@@ -1,6 +1,7 @@
 import type { FileStrings } from "@faridalms/editor/files";
 import type { EditorStrings } from "@faridalms/editor/strings";
 
+import { featureNames } from "~/components/coding/scratch-checks";
 import * as m from "~/i18n/messages";
 import { formatNumber } from "~/utils/datetime";
 
@@ -292,6 +293,10 @@ export function editorStrings(): EditorStrings {
     questionStarterEdit: m.editorQuestionStarterEdit(),
     questionStarterRemove: m.editorQuestionStarterRemove(),
     questionStarterSet: m.editorQuestionStarterSet(),
+    questionChecks: m.scratchChecksTitle(),
+    questionChecksCount: (count) =>
+      m.editorQuestionChecksCount({ count: formatNumber(count) }),
+    questionCheckNames: featureNames(),
     questionVideoAt: (time) => m.editorQuestionVideoAt({ time }),
     questionAskAt: (time) => m.editorQuestionAskAt({ time }),
     questionVideoAtClear: m.editorQuestionVideoAtClear(),

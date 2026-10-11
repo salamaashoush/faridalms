@@ -1,3 +1,5 @@
+import type { ScratchFeature } from "@faridalms/domain/scratch-project";
+
 import type { RecorderStrings } from "./recorder";
 import type { VideoRecorderStrings } from "./video-recorder";
 
@@ -261,6 +263,10 @@ export interface EditorStrings {
   questionStarterEdit: string;
   questionStarterRemove: string;
   questionStarterSet: string;
+  /** The menu of what a coding question asks its students' projects to do. */
+  questionChecks: string;
+  questionChecksCount: (count: number) => string;
+  questionCheckNames: Record<ScratchFeature, string>;
   /** "in the video at 0:42", on a question asked as the video plays. */
   questionVideoAt: (time: string) => string;
   questionAskAt: (time: string) => string;

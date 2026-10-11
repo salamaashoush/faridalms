@@ -1015,6 +1015,40 @@ describe("web projects", () => {
     });
   });
 
+  it("keeps what a coding project is asked to do, and refuses one asked twice", () => {
+    const asking = (wanted: ("flag" | "loop")[]): LessonDocument => ({
+      version: 2,
+      blocks: [
+        {
+          id: partId(82),
+          type: "scratch",
+          prompt: "Make the cat walk.",
+          points: 2,
+          hints: [],
+          explanation: "",
+          tries: null,
+          starter: null,
+          gallery: false,
+          checks: wanted,
+        },
+      ],
+    });
+    const document = contentOfLesson(asking(["flag", "loop"]));
+    if (!document) throw new Error("lesson could not become a document");
+    expect(v.safeParse(contentDocumentSchema, document).success).toBe(true);
+    expect(lessonOfContent(document).blocks[0]).toMatchObject({
+      type: "scratch",
+      checks: ["flag", "loop"],
+    });
+    expect(
+      v.safeParse(lessonDocumentSchema, asking(["flag", "flag"])).success,
+    ).toBe(false);
+    // A question that asks for nothing says nothing of it in the document.
+    expect(
+      JSON.stringify(contentOfLesson(asking([]))).includes("projectChecks"),
+    ).toBe(false);
+  });
+
   it("keeps a class gallery on a coding project, with or without a starter", () => {
     const starter = "6a7b8c9d-0e1f-4a2b-8c3d-4e5f6a7b8c9d";
     for (const from of [null, { fileId: starter }]) {
@@ -1031,6 +1065,7 @@ describe("web projects", () => {
             tries: null,
             starter: from,
             gallery: true,
+            checks: [],
           },
         ],
       });

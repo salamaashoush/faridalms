@@ -304,6 +304,33 @@ describe("a puzzle on paper", () => {
   });
 });
 
+describe("a coding project on paper", () => {
+  const game: LessonBlock = {
+    ...base,
+    id: "q7",
+    type: "scratch",
+    prompt: "Make a game.",
+    starter: null,
+    gallery: false,
+    checks: ["flag", "sprites"],
+  };
+
+  it("lists what the project should do, each with a box to tick, in the paper's language", () => {
+    const english = paper(game, false);
+    expect(english).toContain("What a finished project does");
+    expect(english).toContain("Starts with the green flag");
+    expect(english).toContain("Has two sprites or more");
+    expect(english).not.toContain("Plays a sound");
+    expect(paper(game, false, true)).toContain("يبدأ بالعلم الأخضر");
+  });
+
+  it("says only where it is built when nothing is asked of it", () => {
+    expect(paper({ ...game, checks: [] }, false)).not.toContain(
+      "What a finished project does",
+    );
+  });
+});
+
 describe("a student's copy of a lesson", () => {
   it("prints from what the student received, with no key to give away", () => {
     const [student] = studentBlocks(

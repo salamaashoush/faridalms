@@ -16,6 +16,7 @@ import { playQuery } from "~/queries/play";
 
 import { CodingStudio, PROJECT_TYPE } from "./CodingStudio";
 import { OwnProjectsContext } from "./own-code";
+import { ProjectChecks } from "./ProjectChecks";
 import { ProjectGallery } from "./ProjectGallery";
 import { ProjectPlayer } from "./ProjectPlayer";
 
@@ -113,6 +114,7 @@ export function CodingAnswer({
       ) : (
         <p className="text-sm text-muted-foreground">{m.studioUnavailable()}</p>
       )}
+      <ProjectChecks asked={block.checks} has={stored?.has} />
       <output className="grid gap-2 empty:hidden">{status}</output>
       {gallery ? (
         <ProjectGallery

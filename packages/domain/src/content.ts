@@ -5,10 +5,12 @@ import * as v from "valibot";
 
 import type { EmbedProvider } from "./embed";
 import type { ProjectFile, ProjectLanguage } from "./project";
+import type { ScratchFeature } from "./scratch-project";
 
 import { embedProviders, isEmbedId } from "./embed";
 import { projectLanguages, starterFilesSchema } from "./project";
 import { isSafeContentUrl } from "./rich-text";
+import { scratchChecksSchema } from "./scratch-project";
 
 const nodeTypes = [
   "root",
@@ -199,6 +201,8 @@ export interface ContentNode {
   projectFiles?: ProjectFile[];
   /** A project question whose students may show their work to the class. */
   gallery?: boolean;
+  /** What a Scratch question asks every student's project to have. */
+  projectChecks?: ScratchFeature[];
   /** A project question made in Python rather than as a web page. */
   projectLanguage?: ProjectLanguage;
   /** A puzzle question's grid, the blocks it offers and its teacher's answer. */
@@ -375,6 +379,7 @@ const nodeSchema: v.GenericSchema<ContentNode> = v.lazy(() =>
       projectFileId: v.optional(v.pipe(v.string(), v.uuid())),
       projectFiles: v.optional(starterFilesSchema),
       gallery: v.optional(v.boolean()),
+      projectChecks: v.optional(scratchChecksSchema),
       projectLanguage: v.optional(v.picklist(projectLanguages)),
       puzzle: v.optional(levelSchema),
       kind: v.optional(v.picklist(questionKinds)),
