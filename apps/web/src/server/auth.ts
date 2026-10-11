@@ -9,7 +9,12 @@ import {
 } from "@tanstack/react-start/server";
 import * as v from "valibot";
 
-import { badgeLoginSchema, loginSchema } from "~/schema/auth";
+import {
+  acceptInviteLinkSchema,
+  badgeLoginSchema,
+  inviteLinkSchema,
+  loginSchema,
+} from "~/schema/auth";
 
 import {
   backend,
@@ -154,6 +159,26 @@ export const badgeLogin = createServerFn({ method: "POST" })
       childMode: false,
     };
   });
+
+/** Whose password an emailed link chooses, for the page the link opens. */
+export const readInvite = createServerFn({ method: "POST" })
+  .validator((input: v.InferInput<typeof inviteLinkSchema>) =>
+    v.parse(inviteLinkSchema, input),
+  )
+  .handler(({ data }) =>
+    backend(data.school).identity.invite({ secret: data.secret }),
+  );
+
+export const acceptInvite = createServerFn({ method: "POST" })
+  .validator((input: v.InferInput<typeof acceptInviteLinkSchema>) =>
+    v.parse(acceptInviteLinkSchema, input),
+  )
+  .handler(({ data }) =>
+    backend(data.school).identity.acceptInvite({
+      secret: data.secret,
+      password: data.password,
+    }),
+  );
 
 export const logout = createServerFn({ method: "POST" }).handler(
   async (): Promise<AuthState> => {

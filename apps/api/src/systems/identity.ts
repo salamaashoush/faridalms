@@ -1,3 +1,5 @@
+import type { CellTransaction } from "@faridalms/database/context";
+import type { InviteHolder } from "@faridalms/database/stores/invites";
 import type { Workspace } from "@faridalms/domain/workspace";
 
 import { writeAudit } from "@faridalms/database/audit";
@@ -22,9 +24,14 @@ import {
   sessionExpiresAt,
   viewer,
 } from "@faridalms/database/stores/identity";
+import { findInvite, redeemInvite } from "@faridalms/database/stores/invites";
 import { childrenOf } from "@faridalms/database/stores/persons";
 import { youngStudents } from "@faridalms/database/stores/students";
 import { BADGE_DAYS } from "@faridalms/domain/badges";
+import {
+  acceptInviteSchema,
+  inviteSchema,
+} from "@faridalms/domain/first-sign-in";
 import {
   badgeSignInSchema,
   childSessionSchema,
@@ -35,6 +42,8 @@ import { WORKSPACE_OF } from "@faridalms/domain/workspace";
 import { ORPCError } from "@orpc/server";
 import { randomBytes } from "node:crypto";
 import * as v from "valibot";
+
+import type { SchoolContext } from "../core/context";
 
 import { scopeOf } from "../core/coursework-access";
 import { featuresOf } from "../core/features";
@@ -350,6 +359,103 @@ export const badgeSignIn = schoolProcedure
       expiresAt: outcome.expiresAt,
       workspace: outcome.workspace,
     };
+  });
+
+/**
+ * Finds the account a link from an email opens, for someone who is not
+ * signed in. A link that is unknown, used, expired or for an account that
+ * has since been given a password reads the same, and wrong guesses from
+ * one network are counted and stopped as wrong badges are.
+ */
+async function heldInvite(
+  context: SchoolContext,
+  secret: string,
+  redeem?: (
+    tx: CellTransaction,
+    holder: InviteHolder & { loginName: string },
+  ) => Promise<void>,
+) {
+  const { tenantId } = context.school;
+  const outcome = await context.cell.withTenant(
+    { tenantId, requestId: context.requestId, actor: { kind: "user" } },
+    "write",
+    async (tx) => {
+      const network = ipPrefix(context.headers);
+      const networkKey = network
+        ? attemptKey(context.cellSecret, tenantId, `invite:${network}`)
+        : null;
+      if (
+        networkKey &&
+        (await attemptsSoFar(tx, tenantId, networkKey)) >= BADGE_FAILURES
+      )
+        return { ok: false as const, code: "auth.too_many_attempts" as const };
+      const holder = await findInvite(tx, badgeHash(secret));
+      const loginName = holder?.loginName;
+      if (
+        !holder ||
+        !loginName ||
+        holder.hasPassword ||
+        !["invited", "active"].includes(holder.accountState)
+      ) {
+        if (networkKey)
+          await countAttempt(tx, tenantId, networkKey, WINDOW_MINUTES);
+        return { ok: false as const, code: "auth.invalid_invite" as const };
+      }
+      if (redeem) {
+        await redeem(tx, { ...holder, loginName });
+        await writeAudit(tx, tenantId, {
+          action: "account.password_set",
+          objectType: "account",
+          objectId: holder.accountId,
+          orgId: context.school.schoolId,
+          subjectUserId: holder.userId,
+          details: { method: "invite" },
+        });
+      }
+      return {
+        ok: true as const,
+        loginName,
+        name: {
+          en: holder.givenNameEn,
+          ar: holder.preferredGivenName ?? holder.givenNameAr,
+        },
+      };
+    },
+  );
+  if (!outcome.ok)
+    throw new ORPCError(
+      outcome.code === "auth.too_many_attempts"
+        ? "TOO_MANY_REQUESTS"
+        : "BAD_REQUEST",
+      { message: outcome.code },
+    );
+  return { loginName: outcome.loginName, name: outcome.name };
+}
+
+/** Whose password a link chooses, shown before it is chosen. */
+export const invite = schoolProcedure
+  .input(inviteSchema)
+  .handler(({ input, context }) => heldInvite(context, input.secret));
+
+/**
+ * Chooses the password a link was sent for. The account becomes active and
+ * every link sent for it stops, so the email cannot be used a second time.
+ */
+export const acceptInvite = schoolProcedure
+  .input(acceptInviteSchema)
+  .handler(async ({ input, context }) => {
+    const secretHash = await Bun.password.hash(input.password, {
+      algorithm: "argon2id",
+    });
+    return heldInvite(context, input.secret, (tx, holder) =>
+      redeemInvite(tx, {
+        tenantId: context.school.tenantId,
+        identityId: holder.identityId,
+        accountId: holder.accountId,
+        loginName: holder.loginName,
+        secretHash,
+      }),
+    );
   });
 
 export const signOut = writeProcedure.handler(async ({ context }) => {

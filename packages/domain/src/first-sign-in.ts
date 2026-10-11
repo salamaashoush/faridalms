@@ -19,8 +19,25 @@ export const loginNameSchema = v.pipe(
   ),
 );
 
-export const SIGN_IN_WAYS = ["slips", "badges"] as const;
+export const SIGN_IN_WAYS = ["slips", "badges", "email"] as const;
 export type SignInWay = (typeof SIGN_IN_WAYS)[number];
+
+/** A link to choose a password works this long, a weekend with room to spare. */
+export const INVITE_DAYS = 7;
+
+/** An invite carries 256 random bits as base64url, as a badge does. */
+export const INVITE_SECRET = /^[A-Za-z0-9_-]{43}$/;
+
+const inviteSecret = v.pipe(v.string(), v.regex(INVITE_SECRET));
+
+export const inviteSchema = v.object({ secret: inviteSecret });
+
+export const MIN_PASSWORD = 15;
+
+export const acceptInviteSchema = v.object({
+  secret: inviteSecret,
+  password: v.pipe(v.string(), v.minLength(MIN_PASSWORD), v.maxLength(256)),
+});
 
 export const MAX_SIGN_INS = 100;
 
@@ -35,7 +52,13 @@ export const createSignInsSchema = v.object({
 export type CreateSignInsInput = v.InferInput<typeof createSignInsSchema>;
 
 /** Why a student picked for a sign-in was left without one. */
-export const SIGN_IN_REFUSALS = ["no_name", "disabled", "not_young"] as const;
+export const SIGN_IN_REFUSALS = [
+  "no_name",
+  "disabled",
+  "not_young",
+  "no_email",
+  "not_sent",
+] as const;
 export type SignInRefusal = (typeof SIGN_IN_REFUSALS)[number];
 
 const plain = (text: string) =>

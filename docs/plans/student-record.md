@@ -121,9 +121,15 @@ Rules that hold for every section:
    name in Latin letters, so the sign-in page takes a short name as well as
    an email address. Record as left, from the record's menu or for several
    students in the list, is what other school systems call archiving a
-   student; section 4 says what it does. Remaining: a link sent to the
-   guardians' email to set the password, and a person changing their own
-   password.
+   student; section 4 says what it does. The third way of Create sign-ins
+   is a link by email: each guardian who decides for the student, takes the
+   school's notices and has an email address is sent a link that works once,
+   for seven days, to choose the student's password. Only the hash of the
+   link's secret is kept, the account stays "invited" and signs nobody in
+   until the password is chosen, a link sent again replaces the first, and a
+   slip printed for the student stops the links. It needs the server's email
+   gateway (`EMAIL_WEBHOOK_URL`). Remaining: a person changing their own
+   password, and the same link for guardians' and staff's own accounts.
 5. **Arrivals and departures.** Previous school and destination on the
    school-year rows, a Documents section for transfer certificates and past
    reports, and rights decisions enforced where families act (absence

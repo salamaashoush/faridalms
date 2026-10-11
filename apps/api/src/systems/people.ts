@@ -29,7 +29,17 @@ import { filesByIds, linkFiles } from "@faridalms/database/stores/files";
 import { historyOf } from "@faridalms/database/stores/history";
 import { studentsByIdentifier } from "@faridalms/database/stores/identifiers";
 import { schoolProfile } from "@faridalms/database/stores/identity";
-import { noticesAbout } from "@faridalms/database/stores/notifications";
+import {
+  decidingGuardians,
+  issueInvite,
+  reserveLoginName,
+  settleInvites,
+  voidInvite,
+} from "@faridalms/database/stores/invites";
+import {
+  noticesAbout,
+  reachability,
+} from "@faridalms/database/stores/notifications";
 import {
   childrenOf,
   contactsOf,
@@ -89,6 +99,7 @@ import {
   createSignInsSchema,
   firstPassword,
   freeLoginName,
+  INVITE_DAYS,
   loginNameChoices,
 } from "@faridalms/domain/first-sign-in";
 import { normaliseIdentifier } from "@faridalms/domain/identifiers";
@@ -132,6 +143,7 @@ import {
 } from "../core/procedure";
 import { issueBadgeSecret } from "../core/session";
 import { registerHostReader } from "../files/authorize";
+import { inviteMessage } from "../notifications/templates";
 
 const id = v.pipe(v.string(), v.uuid());
 const STAFF_ROLE_SET: ReadonlySet<string> = new Set(STAFF_ROLES);
@@ -1220,6 +1232,11 @@ export const saveSignIn = writeProcedure
         message: "validation.new_password",
       });
     if (secretHash)
+      await settleInvites(context.tx, {
+        tenantId: context.tenantId,
+        accountId: current.accountId,
+      });
+    if (secretHash)
       await revokeAccountSessions(
         context.tx,
         context.tenantId,
@@ -1238,8 +1255,11 @@ export const saveSignIn = writeProcedure
 type SignInSeed = Awaited<ReturnType<typeof signInSeeds>>[number];
 type Refused = { studentId: string; reason: SignInRefusal };
 
+// An account opened by a link that nobody has used yet is not turned off.
 const turnedOff = (seed: SignInSeed) =>
-  seed.accountState !== null && seed.accountState !== "active";
+  seed.accountState !== null &&
+  seed.accountState !== "active" &&
+  seed.accountState !== "invited";
 
 /**
  * Who of the students picked gets a slip, under which sign-in name, and who
@@ -1249,19 +1269,23 @@ async function slipsPlan(context: UnitContext, seeds: readonly SignInSeed[]) {
   const refused: Refused[] = [];
   const nameable: { seed: SignInSeed; choices: string[] }[] = [];
   for (const seed of seeds.filter((row) => !row.loginName)) {
-    const choices = loginNameChoices(seed);
+    // A name kept for the student by a link sent earlier stays theirs.
+    const choices = seed.reservedName
+      ? [seed.reservedName]
+      : loginNameChoices(seed);
     if (turnedOff(seed))
       refused.push({ studentId: seed.userId, reason: "disabled" });
     else if (choices.length === 0)
       refused.push({ studentId: seed.userId, reason: "no_name" });
     else nameable.push({ seed, choices });
   }
+  const fresh = nameable.filter((row) => !row.seed.reservedName);
   const taken = await takenLoginNames(context.tx, context.tenantId, {
-    names: nameable.flatMap((row) => row.choices),
-    numbered: nameable.flatMap((row) => row.choices.at(-1) ?? []),
+    names: fresh.flatMap((row) => row.choices),
+    numbered: fresh.flatMap((row) => row.choices.at(-1) ?? []),
   });
   const ready = nameable.flatMap(({ seed, choices }) => {
-    const loginName = freeLoginName(choices, taken);
+    const loginName = seed.reservedName ?? freeLoginName(choices, taken);
     if (!loginName) {
       refused.push({ studentId: seed.userId, reason: "no_name" });
       return [];
@@ -1315,6 +1339,58 @@ async function badgesPlan(context: UnitContext, seeds: readonly SignInSeed[]) {
   };
 }
 
+/**
+ * Who of the students picked can have a link sent: those slips would name,
+ * who have a guardian that decides for them, takes the school's notices and
+ * has an email address the school may write to.
+ */
+async function emailPlan(context: UnitContext, seeds: readonly SignInSeed[]) {
+  if (!context.mail)
+    throw new ORPCError("CONFLICT", { message: "sign_in.no_email" });
+  const plan = await slipsPlan(context, seeds);
+  const guardians = await decidingGuardians(context.tx, {
+    tenantId: context.tenantId,
+    studentIds: plan.ready.map((row) => row.seed.userId),
+    today: context.today,
+  });
+  const reached = new Map(
+    (
+      await reachability(context.tx, {
+        tenantId: context.tenantId,
+        userIds: [...new Set(guardians.map((row) => row.guardianId))],
+      })
+    ).map((row) => [row.userId, row]),
+  );
+  const ready = plan.ready.map((row) => ({
+    ...row,
+    recipients: guardians.flatMap((link) => {
+      const guardian = reached.get(link.guardianId);
+      return link.studentId === row.seed.userId && guardian?.email
+        ? [
+            {
+              guardianId: link.guardianId,
+              address: guardian.email,
+              locale: guardian.locale,
+            },
+          ]
+        : [];
+    }),
+  }));
+  return {
+    ready: ready.filter((row) => row.recipients.length > 0),
+    had: plan.had,
+    refused: [
+      ...plan.refused,
+      ...ready
+        .filter((row) => row.recipients.length === 0)
+        .map((row) => ({
+          studentId: row.seed.userId,
+          reason: "no_email" as const,
+        })),
+    ],
+  };
+}
+
 async function pickedSeeds(context: UnitContext, studentIds: string[]) {
   requireCapability(context, "people:manage");
   const wanted = [...new Set(studentIds)];
@@ -1334,7 +1410,9 @@ export const signInsPlan = readProcedure
     const plan =
       input.way === "badges"
         ? await badgesPlan(context, seeds)
-        : await slipsPlan(context, seeds);
+        : input.way === "email"
+          ? await emailPlan(context, seeds)
+          : await slipsPlan(context, seeds);
     return {
       ready: plan.ready.map((row) => row.seed.userId),
       had: plan.had,
@@ -1365,8 +1443,9 @@ async function openSlips(context: UnitContext, seeds: readonly SignInSeed[]) {
         secretHash,
         linkedByUserId: context.actor.userId,
       }));
-    // A child who signs in with a badge already holds an account.
-    if (seed.accountId)
+    // A child who signs in with a badge, or whose guardians were sent a
+    // link, already holds an account.
+    if (seed.accountId) {
       await updatePasswordSignIn(context.tx, {
         tenantId: context.tenantId,
         userId: seed.userId,
@@ -1376,6 +1455,11 @@ async function openSlips(context: UnitContext, seeds: readonly SignInSeed[]) {
         secretHash,
         linkedByUserId: context.actor.userId,
       });
+      await settleInvites(context.tx, {
+        tenantId: context.tenantId,
+        accountId,
+      });
+    }
     await audit(context, {
       action: seed.accountId ? "account.password_set" : "account.create",
       objectType: "account",
@@ -1391,6 +1475,7 @@ async function openSlips(context: UnitContext, seeds: readonly SignInSeed[]) {
       password,
     })),
     badges: [],
+    invited: [],
     had: plan.had,
     refused: plan.refused,
   };
@@ -1428,7 +1513,90 @@ async function openBadges(context: UnitContext, seeds: readonly SignInSeed[]) {
     });
     badges.push({ studentId, secret });
   }
-  return { slips: [], badges, had: plan.had, refused };
+  return { slips: [], badges, invited: [], had: plan.had, refused };
+}
+
+/**
+ * A link for each student's guardians to choose the student's password.
+ * The account is opened without one and keeps its sign-in name; the secret
+ * in each link is sent as it is made and only its hash is kept. A link that
+ * the gateway would not take is stopped, so none is left that nobody holds:
+ * this is why the email goes before the unit commits, its outcome being
+ * part of what is stored, and a link whose unit failed opens nothing.
+ */
+async function openLinks(context: UnitContext, seeds: readonly SignInSeed[]) {
+  const plan = await emailPlan(context, seeds);
+  const mail = context.mail;
+  if (!mail) throw new ORPCError("CONFLICT", { message: "sign_in.no_email" });
+  const expiresAt = new Date(context.now.getTime() + INVITE_DAYS * 86_400_000);
+  const refused = [...plan.refused];
+  const invited: string[] = [];
+  for (const { seed, loginName, recipients } of plan.ready) {
+    const delivered = await Promise.all(
+      recipients.map(async (recipient) => {
+        const { secret, secretHash } = issueBadgeSecret();
+        const invite = await issueInvite(context.tx, {
+          tenantId: context.tenantId,
+          userId: seed.userId,
+          secretHash,
+          expiresAt,
+          sentToUserId: recipient.guardianId,
+          linkedByUserId: context.actor.userId,
+        });
+        if (!invite) return null;
+        const arabic = recipient.locale === "ar";
+        const message = inviteMessage({
+          locale: recipient.locale,
+          school:
+            (arabic ? context.school.nameAr : context.school.nameEn) ??
+            context.school.nameEn ??
+            "",
+          student:
+            (arabic ? seed.givenNameAr : seed.givenNameEn) ??
+            seed.givenNameEn ??
+            seed.givenNameAr ??
+            loginName,
+          loginName,
+          link: `https://${context.school.appHost}/welcome?school=${encodeURIComponent(context.school.slug)}#${secret}`,
+          days: INVITE_DAYS,
+        });
+        const sent = await mail
+          .send({ to: recipient.address, ...message })
+          .then(
+            () => true,
+            () => false,
+          );
+        if (!sent)
+          await voidInvite(context.tx, context.tenantId, invite.identityId);
+        return { ...invite, sent };
+      }),
+    );
+    const opened = delivered.filter((row) => row !== null);
+    const [first] = opened;
+    if (!first) {
+      refused.push({ studentId: seed.userId, reason: "disabled" });
+      continue;
+    }
+    await reserveLoginName(context.tx, {
+      tenantId: context.tenantId,
+      userId: seed.userId,
+      loginName,
+    });
+    const reached = opened.filter((row) => row.sent).length;
+    if (reached === 0)
+      refused.push({ studentId: seed.userId, reason: "not_sent" });
+    else invited.push(seed.userId);
+    await audit(context, {
+      action: opened.some((row) => row.created)
+        ? "account.create"
+        : "account.invite",
+      objectType: "account",
+      objectId: first.accountId,
+      subjectUserId: seed.userId,
+      details: { method: "invite", links: reached },
+    });
+  }
+  return { slips: [], badges: [], invited, had: plan.had, refused };
 }
 
 /**
@@ -1442,8 +1610,9 @@ export const createSignIns = writeProcedure
   .input(createSignInsSchema)
   .handler(async ({ input, context }) => {
     const seeds = await pickedSeeds(context, input.studentIds);
-    return input.way === "badges"
-      ? openBadges(context, seeds)
+    if (input.way === "badges") return openBadges(context, seeds);
+    return input.way === "email"
+      ? openLinks(context, seeds)
       : openSlips(context, seeds);
   });
 

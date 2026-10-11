@@ -9,6 +9,7 @@ import type { SessionContext, Workspace } from "@faridalms/domain/workspace";
 import type { CodeRunner } from "../coding/run";
 import type { FileScanner } from "../files/scan";
 import type { FileStore } from "../files/store";
+import type { Provider } from "../notifications/providers";
 import type { KeyRing } from "./keys";
 
 /** Everything a request can reach, built once per process. */
@@ -39,6 +40,11 @@ export interface ApiDependencies {
   maxVideoBytes?: number;
   /** Which outside channels have a gateway; the rest are logged as skipped. */
   channels: { email: boolean; sms: boolean };
+  /**
+   * The email gateway, for the few messages that carry a secret and so are
+   * sent as they are made and never stored; none where email is not set up.
+   */
+  mail: Provider | null;
 }
 
 export interface RequestContext extends ApiDependencies {

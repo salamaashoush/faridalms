@@ -129,3 +129,39 @@ export function render(input: {
     text: `${lines.map((line) => `- ${line}`).join("\n")}\n\n${SIGN_IN[input.locale]}`,
   };
 }
+
+/**
+ * The email that lets a guardian choose their child's password. It carries
+ * the one link that does it, so it is written to be kept to the family and
+ * to say when the link stops working.
+ */
+export function inviteMessage(input: {
+  locale: "en" | "ar";
+  school: string;
+  student: string;
+  loginName: string;
+  link: string;
+  days: number;
+}): Rendered {
+  return input.locale === "ar"
+    ? {
+        subject: `${input.school}: اختر كلمة مرور ${input.student}`,
+        text: [
+          `فتحت المدرسة حساب دخول لـ ${input.student} في تطبيقها.`,
+          `اسم الدخول: ${input.loginName}`,
+          `اختر كلمة المرور من هذا الرابط، وهو يعمل مرة واحدة خلال ${input.days} أيام:`,
+          input.link,
+          "هذا الرابط لأسرتكم فقط، فلا ترسلوه إلى أحد. إن لم تنتظروا هذه الرسالة فأبلغوا مكتب المدرسة.",
+        ].join("\n\n"),
+      }
+    : {
+        subject: `${input.school}: choose ${input.student}'s password`,
+        text: [
+          `The school has opened a sign-in for ${input.student} in its app.`,
+          `Sign-in name: ${input.loginName}`,
+          `Choose the password from this link, which works once, within ${input.days} days:`,
+          input.link,
+          "The link is for your family only, so please do not forward it. If you did not expect this email, tell the school office.",
+        ].join("\n\n"),
+      };
+}

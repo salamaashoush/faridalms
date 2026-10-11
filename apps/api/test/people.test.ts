@@ -575,6 +575,7 @@ describe("sign-in", () => {
     ).toEqual({
       slips: [],
       badges: [],
+      invited: [],
       had: [],
       refused: [{ studentId: unnamed.id, reason: "no_name" }],
     });
@@ -587,6 +588,7 @@ describe("sign-in", () => {
     ).toEqual({
       slips: [],
       badges: [],
+      invited: [],
       had: [],
       refused: [{ studentId: unnamed.id, reason: "not_young" }],
     });
@@ -652,6 +654,192 @@ describe("sign-in", () => {
     });
     expect(again.badges).toEqual([]);
     expect(again.had.toSorted()).toEqual(children.toSorted());
+  });
+});
+
+const motherFlags = async (api: Awaited<ReturnType<typeof signedIn>>) => {
+  const relation = (await api.people.options()).relations.find(
+    (row) => row.code === "mother",
+  );
+  if (!relation) throw new Error("seed");
+  return {
+    relationId: relation.id,
+    legalGuardian: true,
+    portalAccess: true,
+    receivesNotifications: true,
+    primaryContact: true,
+    emergencyContact: true,
+    residence: "primary" as const,
+    pickup: "allowed" as const,
+  };
+};
+
+/** The secret in the link an email to the address carries. */
+const linkTo = (address: string) => {
+  const message = seeded()
+    .mail.sent.filter((row) => row.to === address)
+    .at(-1);
+  const secret = /welcome\?school=northwind#([A-Za-z0-9_-]{43})/.exec(
+    message?.text ?? "",
+  )?.[1];
+  if (!message || !secret) throw new Error(`no link was sent to ${address}`);
+  return { message, secret };
+};
+
+describe("a link to choose a student's password", () => {
+  test("the office sends each guardian a link, one of them chooses the password, and the link then stops", async () => {
+    const api = await signedIn("northwind", login("principal"));
+    const flags = await motherFlags(api);
+    const address = "heba.salama@northwind.example.com";
+    const { id: studentId } = await api.people.saveStudent({
+      names: names("Salama Ashoush", "سلامة عشوش"),
+      reference: "GA9721",
+      guardians: [
+        {
+          person: { names: names("Heba Ashoush", "هبة عشوش"), email: address },
+          flags,
+        },
+      ],
+    });
+    const picked = { studentIds: [studentId], way: "email" as const };
+    expect(await api.people.signInsPlan(picked)).toEqual({
+      ready: [studentId],
+      had: [],
+      refused: [],
+    });
+    expect(await api.people.createSignIns(picked)).toEqual({
+      slips: [],
+      badges: [],
+      invited: [studentId],
+      had: [],
+      refused: [],
+    });
+    // The account is opened, but nobody signs in with it yet.
+    expect((await api.people.student({ id: studentId })).account).toMatchObject(
+      { state: "invited", loginName: "ga9721" },
+    );
+    expect(
+      (await api.people.students({ q: "GA9721" })).rows[0]?.hasAccount,
+    ).toBe(false);
+
+    const { message, secret } = linkTo(address);
+    expect(message.subject).toContain("Salama");
+    expect(message.text).toContain("Sign-in name: ga9721");
+    const open = client("northwind");
+    expect(await open.identity.invite({ secret })).toEqual({
+      loginName: "ga9721",
+      name: { en: "Salama", ar: "سلامة" },
+    });
+    expect(
+      await rejection(
+        open.identity.acceptInvite({ secret, password: "too short" }),
+      ),
+    ).toMatchObject({ code: "BAD_REQUEST" });
+    const password = "four words make it long";
+    expect(
+      (await open.identity.acceptInvite({ secret, password })).loginName,
+    ).toBe("ga9721");
+
+    const session = await open.identity.signIn({
+      loginName: "ga9721",
+      password,
+    });
+    expect(
+      (await client("northwind", session.token).identity.currentUser()).id,
+    ).toBe(studentId);
+    expect((await api.people.student({ id: studentId })).account).toMatchObject(
+      { state: "active", loginName: "ga9721" },
+    );
+    for (const call of [
+      () => open.identity.invite({ secret }),
+      () =>
+        open.identity.acceptInvite({ secret, password: `${password} again` }),
+      () => open.identity.invite({ secret: "x".repeat(43) }),
+    ])
+      expect(await rejection(call())).toMatchObject({
+        code: "BAD_REQUEST",
+        message: "auth.invalid_invite",
+      });
+    expect(
+      (await api.people.studentHistory({ id: studentId })).map(
+        (entry) => entry.action,
+      ),
+    ).toEqual(
+      expect.arrayContaining(["account.create", "account.password_set"]),
+    );
+  });
+
+  test("a student with no guardian to write to is left out, and a link sent again replaces the first", async () => {
+    const api = await signedIn("northwind", login("principal"));
+    const flags = await motherFlags(api);
+    const alone = await api.people.saveStudent({
+      names: names("Salama Nabil", "سلامة نبيل"),
+      reference: "GA9722",
+      guardians: [
+        {
+          person: {
+            names: names("Heba Nabil", "هبة نبيل"),
+            phone: "0100 555 0722",
+          },
+          flags,
+        },
+      ],
+    });
+    const address = "heba.fouad@northwind.example.com";
+    const reached = await api.people.saveStudent({
+      names: names("Salama Fouad", "سلامة فؤاد"),
+      reference: "GA9723",
+      guardians: [
+        {
+          person: { names: names("Heba Fouad", "هبة فؤاد"), email: address },
+          flags,
+        },
+      ],
+    });
+    const picked = {
+      studentIds: [alone.id, reached.id],
+      way: "email" as const,
+    };
+    const first = await api.people.createSignIns(picked);
+    expect(first.invited).toEqual([reached.id]);
+    expect(first.refused).toEqual([
+      { studentId: alone.id, reason: "no_email" },
+    ]);
+    const old = linkTo(address).secret;
+
+    // No password has been chosen, so the office can send the link again.
+    expect((await api.people.createSignIns(picked)).invited).toEqual([
+      reached.id,
+    ]);
+    const fresh = linkTo(address).secret;
+    expect(fresh).not.toBe(old);
+    const open = client("northwind");
+    expect(
+      await rejection(open.identity.invite({ secret: old })),
+    ).toMatchObject({ message: "auth.invalid_invite" });
+    expect((await open.identity.invite({ secret: fresh })).loginName).toBe(
+      "ga9723",
+    );
+
+    // A slip printed for the student after all hands over a password, so
+    // the link in the family's inbox no longer chooses one.
+    const printed = await api.people.createSignIns({
+      studentIds: [reached.id],
+      way: "slips",
+    });
+    const [slip] = printed.slips;
+    if (!slip) throw new Error("no slip was printed");
+    expect(slip.loginName).toBe("ga9723");
+    expect(
+      await rejection(open.identity.invite({ secret: fresh })),
+    ).toMatchObject({ message: "auth.invalid_invite" });
+    const session = await open.identity.signIn({
+      loginName: slip.loginName,
+      password: slip.password,
+    });
+    expect(
+      (await client("northwind", session.token).identity.currentUser()).id,
+    ).toBe(reached.id);
   });
 });
 

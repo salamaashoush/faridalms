@@ -44,6 +44,17 @@ for (const role of Object.keys(ACCOUNTS) as RoleKey[]) {
   });
 }
 
+test("a link to choose a password that the school never sent opens nothing", async ({
+  page,
+}) => {
+  await page.goto(`/welcome?school=northwind#${"x".repeat(43)}`);
+  await expect(page.getByRole("alert")).toHaveText("This link no longer works");
+  // The secret leaves the address bar as soon as the page has read it.
+  await expect(page).toHaveURL(/\/welcome\?school=northwind$/);
+  await page.getByRole("link", { name: "Go to sign-in" }).click();
+  await expect(page).toHaveURL(/\/sign-in/);
+});
+
 test("an authenticated visitor is redirected away from sign-in", async ({
   page,
 }) => {

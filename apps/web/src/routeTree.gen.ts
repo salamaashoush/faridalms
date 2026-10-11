@@ -13,6 +13,7 @@ import { Route as IndexRouteImport } from './routes/index'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as AuthRouteImport } from './routes/_auth'
 import { Route as BadgeRouteImport } from './routes/badge'
+import { Route as WelcomeRouteImport } from './routes/welcome'
 import { Route as AppAdminRouteImport } from './routes/_app/admin'
 import { Route as AppConsentFormEditorRouteImport } from './routes/_app/consent-form-editor'
 import { Route as AppEventEditorRouteImport } from './routes/_app/event-editor'
@@ -119,6 +120,11 @@ const AuthRoute = AuthRouteImport.update({
 const BadgeRoute = BadgeRouteImport.update({
   id: '/badge',
   path: '/badge',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const WelcomeRoute = WelcomeRouteImport.update({
+  id: '/welcome',
+  path: '/welcome',
   getParentRoute: () => rootRouteImport,
 } as any)
 const AppAdminRoute = AppAdminRouteImport.update({
@@ -579,6 +585,7 @@ const SiteSchoolPagesSlugRoute = SiteSchoolPagesSlugRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof IndexRoute
   '/badge': typeof BadgeRoute
+  '/welcome': typeof WelcomeRoute
   '/admin': typeof AppAdminRouteWithChildren
   '/consent-form-editor': typeof AppConsentFormEditorRoute
   '/event-editor': typeof AppEventEditorRoute
@@ -672,6 +679,7 @@ export interface FileRoutesByFullPath {
 export interface FileRoutesByTo {
   '/': typeof IndexRoute
   '/badge': typeof BadgeRoute
+  '/welcome': typeof WelcomeRoute
   '/consent-form-editor': typeof AppConsentFormEditorRoute
   '/event-editor': typeof AppEventEditorRoute
   '/exams': typeof AppExamsRoute
@@ -763,6 +771,7 @@ export interface FileRoutesById {
   '/_app': typeof AppRouteWithChildren
   '/_auth': typeof AuthRouteWithChildren
   '/badge': typeof BadgeRoute
+  '/welcome': typeof WelcomeRoute
   '/_app/admin': typeof AppAdminRouteWithChildren
   '/_app/consent-form-editor': typeof AppConsentFormEditorRoute
   '/_app/event-editor': typeof AppEventEditorRoute
@@ -858,6 +867,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/badge'
+    | '/welcome'
     | '/admin'
     | '/consent-form-editor'
     | '/event-editor'
@@ -951,6 +961,7 @@ export interface FileRouteTypes {
   to:
     | '/'
     | '/badge'
+    | '/welcome'
     | '/consent-form-editor'
     | '/event-editor'
     | '/exams'
@@ -1041,6 +1052,7 @@ export interface FileRouteTypes {
     | '/_app'
     | '/_auth'
     | '/badge'
+    | '/welcome'
     | '/_app/admin'
     | '/_app/consent-form-editor'
     | '/_app/event-editor'
@@ -1137,6 +1149,7 @@ export interface RootRouteChildren {
   AppRoute: typeof AppRouteWithChildren
   AuthRoute: typeof AuthRouteWithChildren
   BadgeRoute: typeof BadgeRoute
+  WelcomeRoute: typeof WelcomeRoute
   ApiHealthRoute: typeof ApiHealthRoute
   FilesFileIdRoute: typeof FilesFileIdRouteWithChildren
   SiteSchoolRoute: typeof SiteSchoolRouteWithChildren
@@ -1174,6 +1187,13 @@ declare module '@tanstack/react-router' {
       path: '/badge'
       fullPath: '/badge'
       preLoaderRoute: typeof BadgeRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/welcome': {
+      id: '/welcome'
+      path: '/welcome'
+      fullPath: '/welcome'
+      preLoaderRoute: typeof WelcomeRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/_app/admin': {
@@ -2054,6 +2074,7 @@ const rootRouteChildren: RootRouteChildren = {
   AppRoute: AppRouteWithChildren,
   AuthRoute: AuthRouteWithChildren,
   BadgeRoute: BadgeRoute,
+  WelcomeRoute: WelcomeRoute,
   ApiHealthRoute: ApiHealthRoute,
   FilesFileIdRoute: FilesFileIdRouteWithChildren,
   SiteSchoolRoute: SiteSchoolRouteWithChildren,

@@ -86,6 +86,10 @@ const filesServer = Bun.serve({
     }),
   }),
 });
+const gateways = {
+  email: createProvider(env.EMAIL_WEBHOOK_URL, env.NOTIFY_WEBHOOK_TOKEN),
+  sms: createProvider(env.SMS_WEBHOOK_URL, env.NOTIFY_WEBHOOK_TOKEN),
+};
 const server = Bun.serve({
   port: env.API_PORT,
   // Uploads stream through the raw file route; everything else stays small.
@@ -115,16 +119,13 @@ const server = Bun.serve({
       email: Boolean(env.EMAIL_WEBHOOK_URL),
       sms: Boolean(env.SMS_WEBHOOK_URL),
     },
+    mail: gateways.email,
   }),
 });
 console.info(
   `Farida LMS API listening on port ${server.port}, files on ${filesServer.port}`,
 );
 
-const gateways = {
-  email: createProvider(env.EMAIL_WEBHOOK_URL, env.NOTIFY_WEBHOOK_TOKEN),
-  sms: createProvider(env.SMS_WEBHOOK_URL, env.NOTIFY_WEBHOOK_TOKEN),
-};
 const stopDelivery =
   env.CELL_WORKER_URL && (gateways.email || gateways.sms)
     ? startDelivery({

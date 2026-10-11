@@ -170,7 +170,7 @@ export async function studentDirectory(
                   and (r.portal_access or r.legal_guardian)) as has_guardian,
              exists (select 1 from core.accounts a
                 where a.tenant_id = u.tenant_id and a.user_id = u.id and a.status = 'active'
-                  and a.state <> 'disabled') as has_account
+                  and a.state = 'active') as has_account
       from members m
       join core.users u on u.tenant_id = ${scope.tenantId}::uuid and u.id = m.student_user_id and u.status = 'active'
       left join placed p on p.student_user_id = u.id
@@ -222,10 +222,13 @@ export interface SignInSeed {
   accountId: string | null;
   accountState: string | null;
   loginName: string | null;
+  /** The name kept for an account whose password nobody has chosen yet. */
+  reservedName: string | null;
   email: string | null;
   reference: string | null;
   givenNameEn: string | null;
   familyNameEn: string | null;
+  givenNameAr: string | null;
 }
 
 /**
@@ -243,12 +246,15 @@ export async function signInSeeds(
     account_id: string | null;
     state: string | null;
     login_name: string | null;
+    username: string | null;
     email: string | null;
     reference: string | null;
     given_name_en: string | null;
     family_name_en: string | null;
+    given_name_ar: string | null;
   }>(sql`
-    select u.id, a.id as account_id, a.state, l.login_name, u.given_name_en, u.family_name_en,
+    select u.id, a.id as account_id, a.state, l.login_name, u.username, u.given_name_en, u.family_name_en,
+           coalesce(u.preferred_given_name, u.given_name_ar) as given_name_ar,
            ${referenceSql(scope)} as reference,
            (select c.normalized from core.contact_points c
             where c.tenant_id = u.tenant_id and c.user_id = u.id and c.kind = 'email' and c.status = 'active'
@@ -265,10 +271,12 @@ export async function signInSeeds(
     accountId: row.account_id,
     accountState: row.state,
     loginName: row.login_name,
+    reservedName: row.login_name ? null : row.username,
     email: row.email,
     reference: row.reference,
     givenNameEn: row.given_name_en,
     familyNameEn: row.family_name_en,
+    givenNameAr: row.given_name_ar,
   }));
 }
 
@@ -1157,9 +1165,12 @@ export async function accountOf(
     last_authenticated_at: string | null;
   }>(sql`
     select a.id, a.state, a.last_authenticated_at::text as last_authenticated_at,
-           (select l.login_name from core.login_identities l where l.tenant_id = a.tenant_id
+           coalesce((select l.login_name from core.login_identities l where l.tenant_id = a.tenant_id
               and l.account_id = a.id and l.kind = 'password' and l.status = 'active' and l.voided_at is null
-              limit 1) as login_name
+              limit 1),
+             -- The name kept for an account whose password nobody has chosen yet.
+             (select u.username from core.users u where u.tenant_id = a.tenant_id and u.id = a.user_id
+                and a.state = 'invited')) as login_name
     from core.accounts a
     where a.tenant_id = ${tenantId}::uuid and a.user_id = ${userId}::uuid and a.status = 'active'`);
   const row = rows[0];

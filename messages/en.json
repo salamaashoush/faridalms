@@ -5750,5 +5750,51 @@
         "countPlural=*": "Recorded: the last day of {value} students is {date}."
       }
     }
+  ],
+  "signInsWayEmail": "Email to guardians",
+  "signInsWayEmailHint": "Each guardian who decides for the student and has an email address gets a link to choose the password. It works once, for {days} days.",
+  "signInsSubmitEmail": "Send links",
+  "signInsRefusedNoEmail": "No link for {names}: no guardian who decides for them has an email address on record. Print slips for them.",
+  "signInsRefusedNotSent": "No link reached the guardians of {names}: the email could not be sent. Try again, or print slips.",
+  "errorSignInNoEmail": "This school's server is not set up to send email, so links cannot be sent.",
+  "welcomeTitle": "Choose a password for {name}",
+  "welcomeBody": "{name} will sign in to the school's app with the sign-in name below and the password you choose here.",
+  "welcomeConfirm": "Type it again",
+  "welcomeSubmit": "Save password",
+  "welcomeSaving": "Saving…",
+  "welcomeDoneTitle": "Password saved",
+  "welcomeDoneBody": "{name} can now sign in with the sign-in name {loginName} and the password you chose.",
+  "welcomeSignIn": "Go to sign-in",
+  "welcomeReading": "Opening your link…",
+  "welcomeInvalidTitle": "This link no longer works",
+  "welcomeInvalidBody": "It may have been used already, been replaced by a newer email, or be more than {days} days old. Ask the school office to send a new one.",
+  "welcomeTooMany": "Too many links did not work from here. Wait a few minutes, then open the link again.",
+  "signInsReadyEmail": [
+    {
+      "declarations": [
+        "input count",
+        "input value",
+        "local countPlural = count: plural"
+      ],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "The guardians of 1 student are sent a link to choose the password.",
+        "countPlural=*": "The guardians of {value} students are each sent a link to choose their child's password."
+      }
+    }
+  ],
+  "signInsEmailed": [
+    {
+      "declarations": [
+        "input count",
+        "input value",
+        "local countPlural = count: plural"
+      ],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "A link is on its way to the guardians of 1 student.",
+        "countPlural=*": "Links are on their way to the guardians of {value} students."
+      }
+    }
   ]
 }

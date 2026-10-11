@@ -5986,5 +5986,59 @@
         "countPlural=*": "سُجّل: آخر يوم لـ {value} طالب هو {date}."
       }
     }
+  ],
+  "signInsWayEmail": "بريد إلكتروني لأولياء الأمور",
+  "signInsWayEmailHint": "يصل كل ولي أمر يقرّر عن الطالب وله بريد إلكتروني رابط لاختيار كلمة المرور. يعمل الرابط مرة واحدة ولمدة {days} أيام.",
+  "signInsSubmitEmail": "إرسال الروابط",
+  "signInsRefusedNoEmail": "لا رابط لـ {names}: لا يوجد ولي أمر يقرّر عنهم وله بريد إلكتروني مسجّل. اطبع لهم قصاصات.",
+  "signInsRefusedNotSent": "لم يصل رابط إلى أولياء أمور {names}: تعذّر إرسال البريد. حاول مرة أخرى أو اطبع قصاصات.",
+  "errorSignInNoEmail": "خادم هذه المدرسة غير مهيأ لإرسال البريد الإلكتروني، فلا يمكن إرسال الروابط.",
+  "welcomeTitle": "اختر كلمة مرور لـ {name}",
+  "welcomeBody": "سيدخل {name} إلى تطبيق المدرسة باسم الدخول أدناه وكلمة المرور التي تختارها هنا.",
+  "welcomeConfirm": "اكتبها مرة أخرى",
+  "welcomeSubmit": "حفظ كلمة المرور",
+  "welcomeSaving": "جارٍ الحفظ…",
+  "welcomeDoneTitle": "حُفظت كلمة المرور",
+  "welcomeDoneBody": "يستطيع {name} الدخول الآن باسم الدخول {loginName} وكلمة المرور التي اخترتها.",
+  "welcomeSignIn": "الذهاب إلى صفحة الدخول",
+  "welcomeReading": "جارٍ فتح الرابط…",
+  "welcomeInvalidTitle": "هذا الرابط لم يعد يعمل",
+  "welcomeInvalidBody": "ربما استُخدم من قبل، أو حلّ محله بريد أحدث، أو مضى عليه أكثر من {days} أيام. اطلب من مكتب المدرسة إرسال رابط جديد.",
+  "welcomeTooMany": "لم تعمل روابط كثيرة من هنا. انتظر بضع دقائق ثم افتح الرابط مرة أخرى.",
+  "signInsReadyEmail": [
+    {
+      "declarations": [
+        "input count",
+        "input value",
+        "local countPlural = count: plural"
+      ],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=zero": "يُرسَل إلى أولياء أمور {value} طالب رابط لاختيار كلمة مرور ابنهم.",
+        "countPlural=one": "يُرسَل إلى أولياء أمر طالب واحد رابط لاختيار كلمة المرور.",
+        "countPlural=two": "يُرسَل إلى أولياء أمر طالبين رابط لاختيار كلمة مرور ابنهم.",
+        "countPlural=few": "يُرسَل إلى أولياء أمور {value} طلاب رابط لاختيار كلمة مرور ابنهم.",
+        "countPlural=many": "يُرسَل إلى أولياء أمور {value} طالبًا رابط لاختيار كلمة مرور ابنهم.",
+        "countPlural=*": "يُرسَل إلى أولياء أمور {value} طالب رابط لاختيار كلمة مرور ابنهم."
+      }
+    }
+  ],
+  "signInsEmailed": [
+    {
+      "declarations": [
+        "input count",
+        "input value",
+        "local countPlural = count: plural"
+      ],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=zero": "الروابط في طريقها إلى أولياء أمور {value} طالب.",
+        "countPlural=one": "الرابط في طريقه إلى أولياء أمر طالب واحد.",
+        "countPlural=two": "الروابط في طريقها إلى أولياء أمر طالبين.",
+        "countPlural=few": "الروابط في طريقها إلى أولياء أمور {value} طلاب.",
+        "countPlural=many": "الروابط في طريقها إلى أولياء أمور {value} طالبًا.",
+        "countPlural=*": "الروابط في طريقها إلى أولياء أمور {value} طالب."
+      }
+    }
   ]
 }

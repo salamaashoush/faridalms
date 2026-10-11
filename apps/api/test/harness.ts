@@ -33,6 +33,7 @@ import { LOCALE_HEADER, SCHOOL_HEADER } from "../src/core/procedure";
 import { createFilesHost, linkKey } from "../src/files/links";
 import { DiskFileStore, PUBLIC_KEY } from "../src/files/store";
 import { streamLinkKey } from "../src/media/streams";
+import { MemoryProvider } from "../src/notifications/providers";
 
 const adminUrl =
   process.env.DATABASE_ADMIN_URL ??
@@ -68,6 +69,8 @@ interface State {
   cellSecret: Uint8Array<ArrayBuffer>;
   collabUrl: string;
   files: FileStore;
+  /** What the app sent by email as it was asked to, such as a sign-in link. */
+  mail: MemoryProvider;
   close: () => Promise<void>;
 }
 let state: State | undefined;
@@ -119,6 +122,7 @@ export async function setUp() {
     origin: FILES_ORIGIN,
     libraries: join(import.meta.dir, "..", "vendor"),
   });
+  const mail = new MemoryProvider();
   const handler = createApp({
     cell,
     directory,
@@ -143,10 +147,12 @@ export async function setUp() {
     uploadPartBytes: PART_BYTES,
     maxVideoBytes: VIDEO_BYTES,
     channels: { email: true, sms: false },
+    mail,
   });
   state = {
     tenants,
     handler,
+    mail,
     filesHost,
     cell,
     directory,

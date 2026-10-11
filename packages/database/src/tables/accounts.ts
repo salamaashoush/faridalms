@@ -223,7 +223,8 @@ export type LoginKind =
   | "saml"
   | "clever"
   | "classlink"
-  | "badge";
+  | "badge"
+  | "invite";
 
 export const loginIdentities = core.table.withRLS(
   "login_identities",
@@ -266,6 +267,7 @@ export const loginIdentities = core.table.withRLS(
       | "compromised"
       | "unused"
       | "merge_pending"
+      | "used"
     >(),
     ...entityColumns(),
   },
@@ -290,7 +292,7 @@ export const loginIdentities = core.table.withRLS(
     ck(
       "login_identities",
       "kind",
-      sql`kind in ('password', 'oidc', 'saml', 'clever', 'classlink', 'badge')`,
+      sql`kind in ('password', 'oidc', 'saml', 'clever', 'classlink', 'badge', 'invite')`,
     ),
     ck(
       "login_identities",
@@ -330,7 +332,7 @@ export const loginIdentities = core.table.withRLS(
     ck(
       "login_identities",
       "void_reason",
-      sql`void_reason in ('lost', 'rollover', 'aged_out', 'admin', 'compromised', 'unused', 'merge_pending')`,
+      sql`void_reason in ('lost', 'rollover', 'aged_out', 'admin', 'compromised', 'unused', 'merge_pending', 'used')`,
     ),
     ck(
       "login_identities",
@@ -345,7 +347,7 @@ export const loginIdentities = core.table.withRLS(
     ck(
       "login_identities",
       "badge",
-      sql`kind <> 'badge' or (secret_hash is not null and expires_at is not null)`,
+      sql`kind not in ('badge', 'invite') or (secret_hash is not null and expires_at is not null)`,
     ),
     ck(
       "login_identities",
@@ -363,6 +365,9 @@ export const loginIdentities = core.table.withRLS(
     uniqueIndex("login_identities_badge_key")
       .on(t.tenantId, t.secretHash)
       .where(sql`status = 'active' and kind = 'badge' and voided_at is null`),
+    uniqueIndex("login_identities_invite_key")
+      .on(t.tenantId, t.secretHash)
+      .where(sql`status = 'active' and kind = 'invite' and voided_at is null`),
     index("login_identities_account_idx")
       .on(t.tenantId, t.accountId)
       .where(sql`status = 'active'`),

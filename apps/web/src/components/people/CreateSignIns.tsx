@@ -1,8 +1,9 @@
 import type { SignInRefusal, SignInWay } from "@faridalms/domain/first-sign-in";
 
-import { SIGN_IN_REFUSALS } from "@faridalms/domain/first-sign-in";
+import { INVITE_DAYS, SIGN_IN_REFUSALS } from "@faridalms/domain/first-sign-in";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
+import { toast } from "sonner";
 
 import { BadgeSheet } from "~/components/badges/BadgeSheet";
 import { ChoiceField } from "~/components/system/field";
@@ -28,6 +29,8 @@ const REFUSED: Record<SignInRefusal, (input: { names: string }) => string> = {
   no_name: m.signInsRefusedNoName,
   disabled: m.signInsRefusedDisabled,
   not_young: m.signInsRefusedNotYoung,
+  no_email: m.signInsRefusedNoEmail,
+  not_sent: m.signInsRefusedNotSent,
 };
 
 /**
@@ -125,7 +128,7 @@ export function CreateSignIns({
       open
       onOpenChange={(next) => (next ? undefined : onClose())}
       title={m.studentsCreateSignIns()}
-      submitLabel={m.signInsSubmit()}
+      submitLabel={way === "email" ? m.signInsSubmitEmail() : m.signInsSubmit()}
       pending={mutation.isPending}
       error={failure ? getMessageFromError(failure) : null}
       onSubmit={async () => {
@@ -137,7 +140,16 @@ export function CreateSignIns({
         await mutation.mutateAsync().then(
           async (result) => {
             await queryClient.invalidateQueries({ queryKey: ["people"] });
-            setOpened(result);
+            // Links are in the post, with nothing here to print.
+            if (way !== "email") return setOpened(result);
+            const sent = result.invited.length;
+            if (sent > 0)
+              toast.success(
+                m.signInsEmailed({ count: sent, value: formatNumber(sent) }),
+              );
+            for (const line of leftOut(students, result).warnings)
+              toast.warning(line);
+            onClose();
           },
           () => undefined,
         );
@@ -160,6 +172,11 @@ export function CreateSignIns({
             label: m.signInsWayBadges(),
             hint: m.signInsWayBadgesHint(),
           },
+          {
+            value: "email",
+            label: m.signInsWayEmail(),
+            hint: m.signInsWayEmailHint({ days: INVITE_DAYS }),
+          },
         ]}
         onChange={(next) => {
           setNothing(false);
@@ -173,7 +190,9 @@ export function CreateSignIns({
             <span>
               {way === "slips"
                 ? m.signInsReadySlips(count)
-                : m.signInsReadyBadges(count)}
+                : way === "badges"
+                  ? m.signInsReadyBadges(count)
+                  : m.signInsReadyEmail(count)}
             </span>
           ) : nothing ? null : (
             <span>{m.signInsNothing()}</span>
