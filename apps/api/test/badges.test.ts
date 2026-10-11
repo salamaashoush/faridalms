@@ -11,6 +11,11 @@ import {
 
 const YOUNG = "northwind-east";
 
+const before = (day: string) =>
+  new Date(Date.parse(`${day}T00:00:00Z`) - 86_400_000)
+    .toISOString()
+    .slice(0, 10);
+
 /** A teacher of the young school, with a homeroom they teach. */
 async function youngTeacher() {
   const school = seeded().tenants[0]?.schools.find((row) => row.slug === YOUNG);
@@ -232,12 +237,12 @@ describe("badges at the class screen", () => {
     if (!child) throw new Error("an empty young homeroom");
     const secret = await badgeFor(api, classId, child.userId);
 
-    let date = (await office.attendance.day({})).today;
-    // The young school keeps a Friday and Saturday weekend.
+    // A school day before today: today's check-in is late or not by the
+    // clock the test runs at, and another day's is always on time. The young
+    // school keeps a Friday and Saturday weekend.
+    let date = before((await office.attendance.day({})).today);
     while ([5, 6].includes(new Date(`${date}T00:00:00Z`).getUTCDay()))
-      date = new Date(Date.parse(`${date}T00:00:00Z`) - 86_400_000)
-        .toISOString()
-        .slice(0, 10);
+      date = before(date);
     const register = await api.attendance.register({ classId, date });
     const held = {
       classId,

@@ -401,7 +401,11 @@ describe("classroom check-in", () => {
     const office = await principal();
     const student = await sessionFor("northwind", login("student"));
     const me = await student.api.identity.currentUser();
-    const date = schoolDay((await office.attendance.day({})).today);
+    // A day before today: today's check-in is late or not by the clock the
+    // test runs at, and another day's is always on time.
+    const date = schoolDay(
+      addDays((await office.attendance.day({})).today, -1),
+    );
     const opened = await homeroomOf(office, me.id, date);
     const { keeper: teacher, stranger } = await teachersOf(opened.class.id);
     const first = await teacher.attendance.register({
