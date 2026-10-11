@@ -1,3 +1,4 @@
+import { createSignInsSchema } from "@faridalms/domain/first-sign-in";
 import {
   accountStateSchema,
   endRelationshipSchema,
@@ -70,6 +71,14 @@ export const getPersonHistory = createServerFn({ method: "GET" })
 export const saveSignIn = createServerFn({ method: "POST" })
   .validator(checked(saveSignInSchema))
   .handler(({ data }) => backend().people.saveSignIn(data));
+
+export const getSignInsPlan = createServerFn({ method: "GET" })
+  .validator(checked(createSignInsSchema))
+  .handler(({ data }) => backend().people.signInsPlan(data));
+
+export const createSignIns = createServerFn({ method: "POST" })
+  .validator(checked(createSignInsSchema))
+  .handler(({ data }) => backend().people.createSignIns(data));
 
 export const setSignInState = createServerFn({ method: "POST" })
   .validator(checked(accountStateSchema))

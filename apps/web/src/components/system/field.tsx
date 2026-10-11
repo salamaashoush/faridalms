@@ -2,6 +2,7 @@ import type { ComponentProps, ReactNode } from "react";
 
 import { cn } from "@faridalms/ui/cn";
 import { Input } from "@faridalms/ui/input";
+import { RadioGroup, RadioGroupItem } from "@faridalms/ui/radio-group";
 import {
   Select,
   SelectContent,
@@ -230,5 +231,83 @@ export function SelectField<T extends string>({
         </Select>
       )}
     </FormField>
+  );
+}
+
+/**
+ * One choice among a few, each with a line saying what choosing it means.
+ * The group is named by its legend as a field is by its label, and an error
+ * sits below it as it does below any control.
+ */
+export function ChoiceField<T extends string>({
+  label,
+  value,
+  options,
+  onChange,
+  errors,
+}: {
+  label: string;
+  value: T;
+  options: readonly { value: T; label: string; hint?: string }[];
+  onChange: (value: T) => void;
+  errors?: Issue[];
+}) {
+  const id = useId();
+  const error = errors?.map(message).find(Boolean) ?? null;
+  return (
+    <fieldset
+      data-slot="form-field"
+      data-invalid={error ? true : undefined}
+      aria-describedby={error ? `${id}-error` : undefined}
+      className="grid min-w-0 content-start gap-2"
+    >
+      <legend className="mb-2 text-sm leading-5 font-medium">{label}</legend>
+      <RadioGroup
+        value={value}
+        onValueChange={(next) => {
+          const match = options.find((option) => option.value === next);
+          if (match) onChange(match.value);
+        }}
+      >
+        {options.map((option) => (
+          <label
+            key={option.value}
+            htmlFor={`${id}-${option.value}`}
+            className="flex items-start gap-3"
+          >
+            <RadioGroupItem
+              id={`${id}-${option.value}`}
+              value={option.value}
+              aria-describedby={
+                option.hint ? `${id}-${option.value}-hint` : undefined
+              }
+              className="mt-0.5"
+            />
+            <span className="grid gap-0.5">
+              <span className="text-sm leading-5 font-medium">
+                {option.label}
+              </span>
+              {option.hint ? (
+                <span
+                  id={`${id}-${option.value}-hint`}
+                  className="text-[13px] leading-[18px] text-muted-foreground"
+                >
+                  {option.hint}
+                </span>
+              ) : null}
+            </span>
+          </label>
+        ))}
+      </RadioGroup>
+      {error ? (
+        <p
+          id={`${id}-error`}
+          className="flex items-start gap-1.5 text-[13px] leading-[18px] text-destructive"
+        >
+          <CircleAlert className="mt-px size-3.5 shrink-0" aria-hidden />
+          {error}
+        </p>
+      ) : null}
+    </fieldset>
   );
 }

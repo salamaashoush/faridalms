@@ -34,7 +34,9 @@ function person(
 
 async function login(page: Page, email: string) {
   await page.goto("/sign-in");
-  await page.getByRole("textbox", { name: "Email", exact: true }).fill(email);
+  await page
+    .getByRole("textbox", { name: "Email or sign-in name" })
+    .fill(email);
   await page
     .getByRole("textbox", { name: "Password", exact: true })
     .fill("northwind1234");

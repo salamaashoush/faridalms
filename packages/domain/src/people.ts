@@ -2,6 +2,7 @@ import * as v from "valibot";
 
 import { CAPABILITIES } from "./capabilities";
 import { FEATURES } from "./features";
+import { loginNameSchema } from "./first-sign-in";
 
 const id = v.pipe(v.string(), v.uuid());
 const version = v.pipe(v.number(), v.integer(), v.minValue(1));
@@ -285,7 +286,7 @@ export const setFeatureSchema = v.object({
 
 export const saveSignInSchema = v.object({
   userId: id,
-  loginName: v.pipe(email, v.email()),
+  loginName: loginNameSchema,
   // Empty keeps the current password; a sign-in being created needs one.
   password: v.union([
     v.literal(""),

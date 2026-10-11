@@ -199,7 +199,7 @@ export function ClassBadges({ classId }: { classId: string }) {
           school={user.school.slug}
           schoolName={inLocale(user.school.nameEn, user.school.nameAr)}
           className={title}
-          disabled={printed.disabled}
+          warnings={printed.disabled ? [m.badgesDisabled()] : []}
           onDone={done}
         />
       ) : null}

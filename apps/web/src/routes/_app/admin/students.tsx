@@ -8,6 +8,7 @@ import {
   CalendarX,
   Copy,
   Download,
+  KeyRound,
   MessageSquare,
   Pencil,
   Plus,
@@ -29,6 +30,7 @@ import { ButtonLink } from "~/components/app/ButtonLink";
 import { Value } from "~/components/app/primitives";
 import { MoveManySheet } from "~/components/classes/Enrolment";
 import { NewMessage } from "~/components/messages/NewMessage";
+import { CreateSignIns } from "~/components/people/CreateSignIns";
 import {
   displayName,
   formatPhone,
@@ -241,6 +243,9 @@ function StudentsPage() {
   const [moving, setMoving] = useState<{ id: string; name: string }[] | null>(
     null,
   );
+  const [opening, setOpening] = useState<
+    { id: string; name: string; className: string | null }[] | null
+  >(null);
   const data = useSuspenseQuery(studentsQuery(search)).data;
   const options = useSuspenseQuery(peopleOptionsQuery).data;
   // The year the list shows, where it still takes moves and this viewer makes them.
@@ -397,6 +402,24 @@ function StudentsPage() {
                 },
               ]
             : []),
+          ...(canManage
+            ? [
+                {
+                  label: m.studentsCreateSignIns(),
+                  icon: KeyRound,
+                  onSelect: (rows: StudentRow[]) =>
+                    setOpening(
+                      rows.map((row) => ({
+                        id: row.id,
+                        name: displayName(row),
+                        className: row.homeroom
+                          ? inLocale(row.homeroom.titleEn, row.homeroom.titleAr)
+                          : null,
+                      })),
+                    ),
+                },
+              ]
+            : []),
           {
             label: m.studentsExport(),
             icon: Download,
@@ -435,6 +458,9 @@ function StudentsPage() {
           today={data.today}
           onClose={() => setMoving(null)}
         />
+      ) : null}
+      {opening ? (
+        <CreateSignIns students={opening} onClose={() => setOpening(null)} />
       ) : null}
       {writing ? (
         <NewMessage

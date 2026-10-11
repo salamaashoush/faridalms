@@ -4,6 +4,7 @@ import type { CellTransaction } from "../context";
 
 import { accounts, loginIdentities, sessions } from "../tables/accounts";
 import { users } from "../tables/people";
+import { textArray } from "./sql";
 
 type Tx = CellTransaction;
 
@@ -91,6 +92,32 @@ export async function ensureAccount(
     .returning({ id: accounts.id });
   if (!created) throw new Error("account was not created");
   return { accountId: created.id, created: true };
+}
+
+/**
+ * Which of these sign-in names are held in the tenant, with every held name
+ * that begins as one of `numbered` does, so the next free number is known.
+ * A person's username follows their sign-in name, so both are looked at.
+ */
+export async function takenLoginNames(
+  tx: Tx,
+  tenantId: string,
+  input: { names: readonly string[]; numbered: readonly string[] },
+): Promise<Set<string>> {
+  if (input.names.length === 0 && input.numbered.length === 0) return new Set();
+  const starts = input.numbered.map(
+    (name) => `${name.replaceAll(/[\\%_]/g, "\\$&")}%`,
+  );
+  const rows = await tx.execute<{ name: string }>(sql`
+    select n.name from (
+      select login_name as name from core.login_identities
+      where tenant_id = ${tenantId}::uuid and kind = 'password' and status = 'active' and voided_at is null
+      union
+      select username from core.users
+      where tenant_id = ${tenantId}::uuid and status = 'active' and username is not null
+    ) n
+    where n.name = any(${textArray(input.names)}) or n.name like any(${textArray(starts)})`);
+  return new Set(rows.map((row) => row.name));
 }
 
 /** Opens an account with a password an administrator set. */

@@ -222,6 +222,72 @@ test("the office moves the students it picks in the list and writes to their fam
   }
 });
 
+// Each browser project runs against the same seeded school, so each opens a
+// sign-in for a student of its own, whom no other spec signs in as.
+const SLIP = {
+  chromium: { name: "Mostafa Hamdy", loginName: "ga1006" },
+  firefox: { name: "Mostafa Kamel", loginName: "ga1018" },
+  webkit: { name: "Karim Nasser", loginName: "ga1001" },
+} as const;
+
+test("the office opens sign-ins for the students it picks, and a student signs in from their printed slip", async ({
+  page,
+  browser,
+  browserName,
+}) => {
+  const student = SLIP[browserName];
+  await signIn(page, "admin");
+  await page.goto("/admin/students?pageSize=50");
+  await untilHydrated(page);
+  const table = page.getByRole("table");
+  await table
+    .getByRole("checkbox", { name: `Select ${student.name}`, exact: true })
+    .check();
+  // One who signs in already, to be left as they are.
+  await table
+    .getByRole("checkbox", { name: "Select Yasmin Sabry", exact: true })
+    .check();
+  await page.getByRole("button", { name: "Create sign-ins" }).click();
+  const sheet = page.getByRole("dialog", { name: "Create sign-ins" });
+  await expect(
+    sheet.getByRole("radio", { name: "Printed slips" }),
+  ).toBeChecked();
+  await expect(
+    sheet.getByText(
+      "1 student gets a slip with a sign-in name and a first password.",
+    ),
+  ).toBeVisible();
+  await expect(
+    sheet.getByText(
+      "Left as they are, since they can already sign in this way: Yasmin Sabry.",
+    ),
+  ).toBeVisible();
+  await sheet.getByRole("button", { name: "Create and print" }).click();
+
+  const paper = page.getByRole("dialog", { name: "Sign-in slips" });
+  const slip = paper.getByRole("listitem").filter({ hasText: student.name });
+  await expect(paper.getByRole("listitem")).toHaveCount(1);
+  await expect(
+    slip.getByText(student.loginName, { exact: true }),
+  ).toBeVisible();
+  const password = await slip
+    .getByText(/^(?:[a-z]{4}-){3}[a-z]{4}$/)
+    .innerText();
+  await paper.getByRole("button", { name: "Done" }).click();
+  await expect(paper).toBeHidden();
+  await expect(
+    table.getByRole("row", { name: new RegExp(student.name) }),
+  ).toContainText("Can sign in");
+
+  const theirs = await browser.newContext();
+  const own = await theirs.newPage();
+  await signInWith(own, student.loginName, password, "/me");
+  await expect(own.getByRole("button", { name: "Account" })).toContainText(
+    student.name.split(" ")[0] ?? "",
+  );
+  await theirs.close();
+});
+
 test("a parent opens their own record but not the school's student list", async ({
   page,
 }) => {

@@ -24,7 +24,6 @@
   "authDemoAccounts": "حسابات تجريبية",
   "authDemoHint": "أي منها، بكلمة المرور {password}.",
   "authSignInBody": "مرحبًا بعودتك! يرجى إدخال تفاصيلك.",
-  "authSignInFormEmail": "البريد الإلكتروني",
   "authSignInFormPassword": "كلمة المرور",
   "authSignInFormSubmit": "تسجيل الدخول",
   "authSignInFormSubmitting": "جارٍ تسجيل الدخول...",
@@ -5872,5 +5871,60 @@
   "msgNoGuardiansFor": "لم تُرسل بخصوص {names}: لا يستخدم أي من أولياء أمورهم البوابة.",
   "studentsMoveTitle": "نقل {count} من الطلاب إلى فصل",
   "studentsMoved": "صار {count} من الطلاب في {class} من {date}.",
-  "studentsNotMoved": "لم يُنقل: {names}. {reason}"
+  "studentsNotMoved": "لم يُنقل: {names}. {reason}",
+  "authSignInFormLogin": "البريد الإلكتروني أو اسم الدخول",
+  "validationLoginName": "أدخل بريدًا إلكترونيًا، أو اسم دخول من حروف لاتينية وأرقام",
+  "studentsCreateSignIns": "إنشاء حسابات دخول",
+  "signInsHint": "الطلاب الذين يستطيعون الدخول بهذه الطريقة بالفعل يبقون كما هم.",
+  "signInsWay": "كيف يحصلون على بيانات الدخول",
+  "signInsWaySlips": "قصاصات مطبوعة",
+  "signInsWaySlipsHint": "اسم دخول وكلمة مرور أولى لكل طالب، في قصاصة ورق تُسلَّم له.",
+  "signInsWayBadges": "بطاقات الدخول",
+  "signInsWayBadgesHint": "للأطفال الصغار: بطاقة يُظهرونها للكاميرا. الطلاب الأكبر سنًّا لا تشملهم.",
+  "signInsSubmit": "إنشاء وطباعة",
+  "signInsNothing": "لا أحد من الطلاب المختارين يحصل على حساب دخول جديد بهذه الطريقة.",
+  "signInsHad": "بقوا كما هم لأنهم يستطيعون الدخول بهذه الطريقة بالفعل: {names}.",
+  "signInsRefusedNoName": "لم يُنشأ حساب دخول لـ {names}: ليس لهم رقم مدرسي أو اسم بحروف لاتينية للدخول به. أنشئ حسابهم من سجلّهم.",
+  "signInsRefusedDisabled": "لم يُنشأ حساب دخول لـ {names}: حسابهم موقوف.",
+  "signInsRefusedNotYoung": "لا بطاقة لـ {names}: البطاقات للأطفال الصغار. اطبع لهم قصاصات.",
+  "slipsTitle": "قصاصات الدخول",
+  "slipsReady": "اطبع هذه القصاصات الآن. لا يمكن عرض كلمات المرور مرة أخرى؛ القصاصة المفقودة تُعوَّض بتعيين كلمة مرور جديدة من سجلّ الطالب.",
+  "slipsWhere": "سجّل الدخول من",
+  "slipsKeep": "احتفظ بهذه القصاصة لنفسك.",
+  "signInsReadySlips": [
+    {
+      "declarations": [
+        "input count",
+        "input value",
+        "local countPlural = count: plural"
+      ],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=zero": "يحصل {value} طالب على قصاصات، في كل منها اسم دخول وكلمة مرور أولى.",
+        "countPlural=one": "يحصل طالب واحد على قصاصة فيها اسم دخول وكلمة مرور أولى.",
+        "countPlural=two": "يحصل طالبان على قصاصتين، في كل منهما اسم دخول وكلمة مرور أولى.",
+        "countPlural=few": "يحصل {value} طلاب على قصاصات، في كل منها اسم دخول وكلمة مرور أولى.",
+        "countPlural=many": "يحصل {value} طالبًا على قصاصات، في كل منها اسم دخول وكلمة مرور أولى.",
+        "countPlural=*": "يحصل {value} طالب على قصاصات، في كل منها اسم دخول وكلمة مرور أولى."
+      }
+    }
+  ],
+  "signInsReadyBadges": [
+    {
+      "declarations": [
+        "input count",
+        "input value",
+        "local countPlural = count: plural"
+      ],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=zero": "يحصل {value} طفل على بطاقات للطباعة.",
+        "countPlural=one": "يحصل طفل واحد على بطاقة للطباعة.",
+        "countPlural=two": "يحصل طفلان على بطاقتين للطباعة.",
+        "countPlural=few": "يحصل {value} أطفال على بطاقات للطباعة.",
+        "countPlural=many": "يحصل {value} طفلًا على بطاقات للطباعة.",
+        "countPlural=*": "يحصل {value} طفل على بطاقات للطباعة."
+      }
+    }
+  ]
 }

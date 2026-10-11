@@ -11,7 +11,7 @@ for (const locale of ["en", "ar"] as const) {
     ]);
     await page.goto("/sign-in");
     await page
-      .getByRole("textbox", { name: "Email", exact: true })
+      .getByRole("textbox", { name: "Email or sign-in name" })
       .fill("parent@example.com");
     await page
       .getByRole("textbox", { name: "Password", exact: true })
@@ -51,7 +51,7 @@ test("the desktop workspace shows the platform and school as separate identities
 }, testInfo) => {
   await page.goto("/sign-in");
   await page
-    .getByRole("textbox", { name: "Email", exact: true })
+    .getByRole("textbox", { name: "Email or sign-in name" })
     .fill("admin@example.com");
   await page
     .getByRole("textbox", { name: "Password", exact: true })

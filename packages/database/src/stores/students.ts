@@ -216,6 +216,62 @@ export async function isVisibleStudent(
   return rows[0]?.ok ?? false;
 }
 
+export interface SignInSeed {
+  userId: string;
+  /** The account the student holds, with the name its password goes by. */
+  accountId: string | null;
+  accountState: string | null;
+  loginName: string | null;
+  email: string | null;
+  reference: string | null;
+  givenNameEn: string | null;
+  familyNameEn: string | null;
+}
+
+/**
+ * What a sign-in for each student starts from: the account they hold, and
+ * what could name a new one. Only students the viewer reaches come back.
+ */
+export async function signInSeeds(
+  tx: Tx,
+  scope: Scope,
+  studentIds: readonly string[],
+): Promise<SignInSeed[]> {
+  if (studentIds.length === 0) return [];
+  const rows = await tx.execute<{
+    id: string;
+    account_id: string | null;
+    state: string | null;
+    login_name: string | null;
+    email: string | null;
+    reference: string | null;
+    given_name_en: string | null;
+    family_name_en: string | null;
+  }>(sql`
+    select u.id, a.id as account_id, a.state, l.login_name, u.given_name_en, u.family_name_en,
+           ${referenceSql(scope)} as reference,
+           (select c.normalized from core.contact_points c
+            where c.tenant_id = u.tenant_id and c.user_id = u.id and c.kind = 'email' and c.status = 'active'
+            order by c.priority nulls last, c.created_at limit 1) as email
+    from core.users u
+    left join core.accounts a on a.tenant_id = u.tenant_id and a.user_id = u.id and a.status = 'active'
+    left join core.login_identities l on l.tenant_id = a.tenant_id and l.account_id = a.id
+      and l.kind = 'password' and l.status = 'active' and l.voided_at is null
+    where u.tenant_id = ${scope.tenantId}::uuid and u.status = 'active'
+      and u.id = any(${uuidArray(studentIds)}) and u.id in ${visible(scope)}
+    order by u.full_name_en, u.full_name_ar, u.id`);
+  return rows.map((row) => ({
+    userId: row.id,
+    accountId: row.account_id,
+    accountState: row.state,
+    loginName: row.login_name,
+    email: row.email,
+    reference: row.reference,
+    givenNameEn: row.given_name_en,
+    familyNameEn: row.family_name_en,
+  }));
+}
+
 export interface Placement {
   id: string;
   version: number;

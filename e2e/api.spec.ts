@@ -250,7 +250,7 @@ test("teachers message linked families and replies stay private", async ({
   });
   await page.goto("/sign-in");
   await page
-    .getByRole("textbox", { name: "Email", exact: true })
+    .getByRole("textbox", { name: "Email or sign-in name" })
     .fill("parent@example.com");
   await page
     .getByRole("textbox", { name: "Password", exact: true })

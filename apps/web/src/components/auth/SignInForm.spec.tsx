@@ -41,22 +41,46 @@ describe("SignForm", () => {
     const submitButton = screen.getByRole("button", { name: /sign in/i });
     await userEvent.click(submitButton);
 
-    expect(await screen.findByText(m.validationEmail())).toBeInTheDocument();
+    expect(
+      await screen.findByText(m.validationLoginName()),
+    ).toBeInTheDocument();
     expect(
       await screen.findByText(m.validationMinLength({ count: 8 })),
     ).toBeInTheDocument();
   });
 
-  it("shows validation error for invalid email", async () => {
+  it("refuses what is neither an email address nor a sign-in name", async () => {
     render(<SignInForm />);
 
-    const emailInput = screen.getByLabelText(/email/i);
-    await userEvent.type(emailInput, "invalid-email");
+    const loginInput = screen.getByLabelText(m.authSignInFormLogin());
+    await userEvent.type(loginInput, "not a name");
 
     const submitButton = screen.getByRole("button", { name: /sign in/i });
     await userEvent.click(submitButton);
 
-    expect(await screen.findByText(m.validationEmail())).toBeInTheDocument();
+    expect(
+      await screen.findByText(m.validationLoginName()),
+    ).toBeInTheDocument();
+  });
+
+  it("takes the short sign-in name printed on a student's slip", async () => {
+    render(<SignInForm />);
+
+    await userEvent.type(
+      screen.getByLabelText(m.authSignInFormLogin()),
+      "ga1008",
+    );
+    await userEvent.type(
+      screen.getByLabelText(/password/i),
+      "kofa-mide-ruto-basu",
+    );
+    await userEvent.click(screen.getByRole("button", { name: /sign in/i }));
+
+    await waitFor(() => {
+      expect(
+        screen.queryByText(m.validationLoginName()),
+      ).not.toBeInTheDocument();
+    });
   });
 
   it("shows validation error for short password", async () => {
@@ -86,7 +110,9 @@ describe("SignForm", () => {
     await userEvent.click(submitButton);
 
     await waitFor(() => {
-      expect(screen.queryByText(m.validationEmail())).not.toBeInTheDocument();
+      expect(
+        screen.queryByText(m.validationLoginName()),
+      ).not.toBeInTheDocument();
       expect(
         screen.queryByText(m.validationMinLength({ count: 8 })),
       ).not.toBeInTheDocument();
@@ -98,7 +124,7 @@ describe("SignForm", () => {
 
     await userEvent.click(screen.getByRole("button", { name: m.roleParent() }));
 
-    expect(screen.getByLabelText(m.authSignInFormEmail())).toHaveValue(
+    expect(screen.getByLabelText(m.authSignInFormLogin())).toHaveValue(
       "parent1001@northwind.example.com",
     );
     // Filling only the email would leave the form looking ready but failing.

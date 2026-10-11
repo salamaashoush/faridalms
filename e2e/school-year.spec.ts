@@ -236,7 +236,7 @@ test("administrators create a school year through a validated page and reopen it
 }) => {
   await page.goto("/sign-in");
   await page
-    .getByRole("textbox", { name: "Email", exact: true })
+    .getByRole("textbox", { name: "Email or sign-in name" })
     .fill("admin@example.com");
   await page
     .getByRole("textbox", { name: "Password", exact: true })

@@ -19,10 +19,19 @@ import { login } from "~/server/auth";
 const DEMO_PASSWORD = "farida-development-password";
 
 const DEMO_ACCOUNTS = [
-  { email: "principal.northwind@northwind.example.com", label: () => m.roleAdmin() },
-  { email: "teacher1.northwind@northwind.example.com", label: () => m.roleTeacher() },
-  { email: "parent1001@northwind.example.com", label: () => m.roleParent() },
-  { email: "student1007@northwind.example.com", label: () => m.roleStudent() },
+  {
+    loginName: "principal.northwind@northwind.example.com",
+    label: () => m.roleAdmin(),
+  },
+  {
+    loginName: "teacher1.northwind@northwind.example.com",
+    label: () => m.roleTeacher(),
+  },
+  { loginName: "parent1001@northwind.example.com", label: () => m.roleParent() },
+  {
+    loginName: "student1007@northwind.example.com",
+    label: () => m.roleStudent(),
+  },
 ];
 
 export function SignInForm() {
@@ -46,7 +55,7 @@ export function SignInForm() {
   });
 
   const form = useForm({
-    defaultValues: { school: "northwind", email: "", password: "" },
+    defaultValues: { school: "northwind", loginName: "", password: "" },
     // valibot implements Standard Schema, so the schema is accepted directly --
     // no @hookform/resolvers-style adapter package.
     validators: { onSubmit: loginSchema },
@@ -83,14 +92,14 @@ export function SignInForm() {
             </Field>
           )}
         </form.Field>
-        <form.Field name="email">
+        <form.Field name="loginName">
           {(field) => {
             const invalid =
               field.state.meta.isTouched && !field.state.meta.isValid;
             return (
               <Field data-invalid={invalid}>
                 <FieldLabel htmlFor={field.name}>
-                  {m.authSignInFormEmail()}
+                  {m.authSignInFormLogin()}
                 </FieldLabel>
                 <Input
                   disabled={!hydrated}
@@ -162,12 +171,12 @@ export function SignInForm() {
           <div className="mt-3 flex flex-wrap gap-2">
             {DEMO_ACCOUNTS.map((account) => (
               <Button
-                key={account.email}
+                key={account.loginName}
                 type="button"
                 variant="outline"
                 size="sm"
                 onClick={() => {
-                  form.setFieldValue("email", account.email);
+                  form.setFieldValue("loginName", account.loginName);
                   form.setFieldValue("password", DEMO_PASSWORD);
                 }}
               >

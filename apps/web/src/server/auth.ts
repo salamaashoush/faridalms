@@ -109,7 +109,7 @@ export const login = createServerFn({ method: "POST" })
   .handler(async ({ data }): Promise<AuthState> => {
     const school = currentSchool() ?? data.school;
     const session = await backend(school).identity.signIn({
-      loginName: data.email,
+      loginName: data.loginName,
       password: data.password,
     });
     await dropGuardian(school);

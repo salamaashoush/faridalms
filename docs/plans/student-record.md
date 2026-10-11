@@ -112,8 +112,16 @@ Rules that hold for every section:
    each in a conversation of its own, and names any student none of whose
    guardians uses the portal; Move class moves them to one homeroom from a
    date, each as moving one does, and names with the reason any student the
-   move is refused for. Create accounts and Archive for several students
-   remain.
+   move is refused for. Create sign-ins opens one for each student picked
+   who has none, in the way the office chooses: a sign-in name and a first
+   password on a printed slip, or a badge for a young child. The office sees
+   who gets one, who has one and who cannot be given one before anything is
+   made, and what is made shows once, on a sheet to print. A sign-in name is
+   the student's own email address, else their school number, else their
+   name in Latin letters, so the sign-in page takes a short name as well as
+   an email address. Remaining: a link sent to the guardians' email to set
+   the password, a person changing their own password, and recording that
+   students have left.
 5. **Arrivals and departures.** Previous school and destination on the
    school-year rows, a Documents section for transfer certificates and past
    reports, and rights decisions enforced where families act (absence

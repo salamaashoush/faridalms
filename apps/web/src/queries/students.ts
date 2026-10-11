@@ -1,3 +1,4 @@
+import type { CreateSignInsInput } from "@faridalms/domain/first-sign-in";
 import type { StudentDirectoryQuery } from "@faridalms/domain/people";
 
 import { queryOptions } from "@tanstack/react-query";
@@ -7,6 +8,7 @@ import {
   getPersonHistory,
   getPersonRecord,
   getSiblings,
+  getSignInsPlan,
   getStudentHistory,
   getStudentNotices,
   getStudentRecord,
@@ -41,6 +43,12 @@ export const studentNoticesQuery = (id: string) =>
   queryOptions({
     queryKey: ["people", "student", id, "notices"],
     queryFn: () => getStudentNotices({ data: { id } }),
+  });
+
+export const signInsPlanQuery = (input: CreateSignInsInput) =>
+  queryOptions({
+    queryKey: ["people", "sign-ins", input],
+    queryFn: () => getSignInsPlan({ data: input }),
   });
 
 export const personRecordQuery = (id: string) =>

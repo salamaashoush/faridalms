@@ -75,6 +75,14 @@ header:has([data-slot="page-actions"] > :not([data-keeps-global-tools]))
   }
 }
 
+/* While such a sheet covers the app, only the sheet scrolls; the page
+   beneath would otherwise keep a second scrollbar beside the sheet's. */
+@media screen {
+  html:has(body > dialog[data-print-sheet]) {
+    overflow: hidden;
+  }
+}
+
 /* A document on paper: black on white whatever the app's theme, with its
    tinted callouts and table cells printed as they show. */
 .paper {

@@ -1,6 +1,14 @@
 import { describe, expect, test } from "bun:test";
 
-import { client, login, raw, rejection, sessionFor, signedIn } from "./harness";
+import {
+  client,
+  login,
+  raw,
+  rejection,
+  seeded,
+  sessionFor,
+  signedIn,
+} from "./harness";
 
 const names = (en: string, ar: string) => ({
   en: { given: en.split(" ")[0], family: en.split(" ").slice(1).join(" ") },
@@ -470,6 +478,179 @@ describe("sign-in", () => {
         }),
       ),
     ).toMatchObject({ code: "FORBIDDEN" });
+  });
+
+  test("the office opens sign-ins for the students it picks, and each signs in from their slip", async () => {
+    const api = await signedIn("northwind", login("principal"));
+    const grade = (await api.people.options()).grades.find(
+      (row) => row.code === "grade_7",
+    );
+    if (!grade) throw new Error("options");
+    const add = async (reference: string) =>
+      (
+        await api.people.saveStudent({
+          names: names("Salama Ashoush", "سلامة عشوش"),
+          reference,
+          gradeId: grade.id,
+        })
+      ).id;
+    const [numbered, named, second] = [
+      await add("GA9201"),
+      await add("GA9202"),
+      await add("GA9203"),
+    ];
+    // Two of the students' numbers are somebody's sign-in name already.
+    for (const [taken, email] of [
+      ["ga9202", "salama.kamal@northwind.example.com"],
+      ["ga9203", "salama.hany@northwind.example.com"],
+    ] as const)
+      await api.people.saveSignIn({
+        userId: (await newStaff(email)).id,
+        loginName: taken,
+        password,
+      });
+    const holder = (await api.people.students({ pageSize: 50 })).rows.find(
+      (row) => row.hasAccount,
+    );
+    if (!numbered || !named || !second || !holder) throw new Error("seed");
+
+    const opened = await api.people.createSignIns({
+      studentIds: [numbered, named, second, holder.id],
+      way: "slips",
+    });
+    expect(opened.had).toEqual([holder.id]);
+    expect(opened.refused).toEqual([]);
+    expect(
+      Object.fromEntries(
+        opened.slips.map((slip) => [slip.studentId, slip.loginName]),
+      ),
+    ).toEqual({
+      [numbered]: "ga9201",
+      [named]: "salama.ashoush",
+      [second]: "salama.ashoush2",
+    });
+    for (const slip of opened.slips) {
+      expect(slip.password).toMatch(/^(?:[a-z]{4}-){3}[a-z]{4}$/);
+      const session = await client("northwind").identity.signIn({
+        loginName: slip.loginName,
+        password: slip.password,
+      });
+      const me = await client("northwind", session.token).identity.currentUser();
+      expect(me.id).toBe(slip.studentId);
+    }
+    expect(
+      (await api.people.studentHistory({ id: numbered })).map(
+        (entry) => entry.action,
+      ),
+    ).toContain("account.create");
+
+    const again = await api.people.createSignIns({
+      studentIds: [numbered, named, second],
+      way: "slips",
+    });
+    expect(again.slips).toEqual([]);
+    expect(again.had.toSorted()).toEqual([numbered, named, second].toSorted());
+  });
+
+  test("a student nothing can name is left out with the reason, and only the office opens sign-ins", async () => {
+    const api = await signedIn("northwind", login("principal"));
+    const grade = (await api.people.options()).grades.find(
+      (row) => row.code === "grade_7",
+    );
+    if (!grade) throw new Error("options");
+    const unnamed = await api.people.saveStudent({
+      names: {
+        en: { given: "", family: "" },
+        ar: { given: "سلامة", family: "عشوش" },
+      },
+      reference: "7",
+      gradeId: grade.id,
+    });
+    expect(
+      await api.people.createSignIns({
+        studentIds: [unnamed.id],
+        way: "slips",
+      }),
+    ).toEqual({
+      slips: [],
+      badges: [],
+      had: [],
+      refused: [{ studentId: unnamed.id, reason: "no_name" }],
+    });
+    // A badge is for a child too young to type a password.
+    expect(
+      await api.people.createSignIns({
+        studentIds: [unnamed.id],
+        way: "badges",
+      }),
+    ).toEqual({
+      slips: [],
+      badges: [],
+      had: [],
+      refused: [{ studentId: unnamed.id, reason: "not_young" }],
+    });
+    expect(
+      await rejection(
+        api.people.createSignIns({
+          studentIds: [unnamed.id, crypto.randomUUID()],
+          way: "slips",
+        }),
+      ),
+    ).toMatchObject({ code: "NOT_FOUND" });
+    const teacher = await signedIn("northwind", login("teacher"));
+    expect(
+      await rejection(
+        teacher.people.createSignIns({
+          studentIds: [unnamed.id],
+          way: "slips",
+        }),
+      ),
+    ).toMatchObject({ code: "FORBIDDEN" });
+  });
+
+  test("the office prints badges for the young children it picks who hold none", async () => {
+    const school = seeded().tenants[0]?.schools.find(
+      (row) => row.slug === "northwind-east",
+    );
+    const principal = seeded().tenants[0]?.logins.find(
+      (row) => row.role === "principal" && row.schoolId === school?.id,
+    )?.loginName;
+    if (!principal) throw new Error("the seed lacks the young school's head");
+    const api = await signedIn("northwind-east", principal);
+    const children = (await api.people.students({ pageSize: 50 })).rows
+      .filter((row) => !row.hasAccount)
+      .slice(0, 2)
+      .map((row) => row.id);
+    expect(children).toHaveLength(2);
+
+    const printed = await api.people.createSignIns({
+      studentIds: children,
+      way: "badges",
+    });
+    expect(printed.refused).toEqual([]);
+    expect(printed.badges.map((badge) => badge.studentId).toSorted()).toEqual(
+      children.toSorted(),
+    );
+    for (const badge of printed.badges) {
+      const session = await client("northwind-east").identity.badgeSignIn({
+        secret: badge.secret,
+      });
+      const me = await client(
+        "northwind-east",
+        session.token,
+      ).identity.currentUser();
+      expect(me).toMatchObject({
+        id: badge.studentId,
+        profile: "young_student",
+      });
+    }
+    // A child whose badge works keeps it: a new one would stop the card in their bag.
+    const again = await api.people.createSignIns({
+      studentIds: children,
+      way: "badges",
+    });
+    expect(again.badges).toEqual([]);
+    expect(again.had.toSorted()).toEqual(children.toSorted());
   });
 });
 

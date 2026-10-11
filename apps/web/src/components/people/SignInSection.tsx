@@ -1,8 +1,10 @@
+import { loginNameSchema } from "@faridalms/domain/first-sign-in";
 import { Button } from "@faridalms/ui/button";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { KeyRound, Power } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
+import * as v from "valibot";
 
 import { ConfirmDialog } from "~/components/system/ConfirmDialog";
 import { TextField } from "~/components/system/field";
@@ -20,7 +22,6 @@ interface Account {
 }
 
 const MIN_PASSWORD = 15;
-const EMAIL = /^[^\s@]+@[^\s@]+$/;
 
 function SignInSheet({
   userId,
@@ -66,7 +67,8 @@ function SignInSheet({
       error={taken ? null : failure}
       onSubmit={async () => {
         const found: typeof errors = {};
-        if (!EMAIL.test(loginName.trim())) found.login = m.validationEmail();
+        if (!v.is(loginNameSchema, loginName))
+          found.login = m.validationLoginName();
         if ((creating || password) && password.length < MIN_PASSWORD)
           found.password = m.validationMinLength({ count: MIN_PASSWORD });
         setErrors(found);
@@ -93,7 +95,7 @@ function SignInSheet({
       <TextField
         id="sign-in-login"
         label={m.accountLoginName()}
-        type="email"
+        inputMode="email"
         dir="ltr"
         width="name"
         autoComplete="off"

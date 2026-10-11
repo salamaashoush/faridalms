@@ -1,5 +1,6 @@
 import type { Descriptor } from "@faridalms/database/stores/descriptors";
 import type { Scope } from "@faridalms/database/stores/students";
+import type { SignInRefusal } from "@faridalms/domain/first-sign-in";
 import type { StudentStatus } from "@faridalms/domain/people";
 
 import { lookupHmac } from "@faridalms/database/crypto";
@@ -9,8 +10,10 @@ import {
   revokeAccountSessions,
   setAccountState,
   signInOf,
+  takenLoginNames,
   updatePasswordSignIn,
 } from "@faridalms/database/stores/accounts";
+import { badgesOf, issueBadge } from "@faridalms/database/stores/badges";
 import { homeroomsOn } from "@faridalms/database/stores/classes";
 import { photoRefusals } from "@faridalms/database/stores/consents";
 import {
@@ -58,11 +61,13 @@ import {
   refreshCustodyAlert,
   relationshipOf,
   setReference,
+  signInSeeds,
   studentDirectory,
   studentMatches,
   syncFamilyRoles,
   updatePerson,
   updateRelationship,
+  youngStudents,
 } from "@faridalms/database/stores/students";
 import {
   dayIn,
@@ -70,6 +75,12 @@ import {
   schoolYears,
   workingYear,
 } from "@faridalms/database/stores/years";
+import {
+  createSignInsSchema,
+  firstPassword,
+  freeLoginName,
+  loginNameChoices,
+} from "@faridalms/domain/first-sign-in";
 import { normaliseIdentifier } from "@faridalms/domain/identifiers";
 import {
   addressLine,
@@ -90,11 +101,13 @@ import {
 } from "@faridalms/domain/people";
 import { toE164 } from "@faridalms/domain/phone";
 import { ORPCError } from "@orpc/server";
+import { randomInt } from "node:crypto";
 import * as v from "valibot";
 
 import type { UnitContext } from "../core/context";
 
 import { guardingAccess, requireGrantable } from "../core/access";
+import { badgeTerm } from "../core/badges";
 import {
   audit,
   can,
@@ -103,6 +116,7 @@ import {
   requireCapability,
   writeProcedure,
 } from "../core/procedure";
+import { issueBadgeSecret } from "../core/session";
 import { registerHostReader } from "../files/authorize";
 
 const id = v.pipe(v.string(), v.uuid());
@@ -1200,6 +1214,218 @@ export const saveSignIn = writeProcedure
       details: { loginNameChanged: current.loginName !== input.loginName },
     });
     return { accountId: current.accountId };
+  });
+
+type SignInSeed = Awaited<ReturnType<typeof signInSeeds>>[number];
+type Refused = { studentId: string; reason: SignInRefusal };
+
+const turnedOff = (seed: SignInSeed) =>
+  seed.accountState !== null && seed.accountState !== "active";
+
+/**
+ * Who of the students picked gets a slip, under which sign-in name, and who
+ * is left out: those who have a password already, and those nothing names.
+ */
+async function slipsPlan(context: UnitContext, seeds: readonly SignInSeed[]) {
+  const refused: Refused[] = [];
+  const nameable: { seed: SignInSeed; choices: string[] }[] = [];
+  for (const seed of seeds.filter((row) => !row.loginName)) {
+    const choices = loginNameChoices(seed);
+    if (turnedOff(seed))
+      refused.push({ studentId: seed.userId, reason: "disabled" });
+    else if (choices.length === 0)
+      refused.push({ studentId: seed.userId, reason: "no_name" });
+    else nameable.push({ seed, choices });
+  }
+  const taken = await takenLoginNames(context.tx, context.tenantId, {
+    names: nameable.flatMap((row) => row.choices),
+    numbered: nameable.flatMap((row) => row.choices.at(-1) ?? []),
+  });
+  const ready = nameable.flatMap(({ seed, choices }) => {
+    const loginName = freeLoginName(choices, taken);
+    if (!loginName) {
+      refused.push({ studentId: seed.userId, reason: "no_name" });
+      return [];
+    }
+    taken.add(loginName);
+    return [{ seed, loginName }];
+  });
+  return {
+    ready,
+    had: seeds.filter((row) => row.loginName).map((row) => row.userId),
+    refused,
+  };
+}
+
+/**
+ * Who of the students picked gets a badge: young children who hold none
+ * that works. A working badge is kept, since a new one would stop the card
+ * in the child's bag.
+ */
+async function badgesPlan(context: UnitContext, seeds: readonly SignInSeed[]) {
+  const ids = seeds.map((row) => row.userId);
+  const [young, held] = await Promise.all([
+    youngStudents(context.tx, {
+      tenantId: context.tenantId,
+      orgId: context.schoolId,
+      userIds: ids,
+      today: context.today,
+    }),
+    badgesOf(context.tx, context.tenantId, ids),
+  ]);
+  const now = context.now.toISOString();
+  const works = (seed: SignInSeed) =>
+    (held.get(seed.userId)?.expiresAt ?? "") > now;
+  const refusal = (seed: SignInSeed): SignInRefusal | null =>
+    young.has(seed.userId)
+      ? turnedOff(seed)
+        ? "disabled"
+        : null
+      : "not_young";
+  return {
+    ready: seeds
+      .filter((seed) => !refusal(seed) && !works(seed))
+      .map((seed) => ({ seed })),
+    had: seeds
+      .filter((seed) => !refusal(seed) && works(seed))
+      .map((seed) => seed.userId),
+    refused: seeds.flatMap((seed) => {
+      const reason = refusal(seed);
+      return reason ? [{ studentId: seed.userId, reason }] : [];
+    }),
+  };
+}
+
+async function pickedSeeds(context: UnitContext, studentIds: string[]) {
+  requireCapability(context, "people:manage");
+  const wanted = [...new Set(studentIds)];
+  const seeds = await signInSeeds(context.tx, scopeOf(context), wanted);
+  if (seeds.length !== wanted.length) throw new ORPCError("NOT_FOUND");
+  return seeds;
+}
+
+/**
+ * What opening sign-ins for the students picked would do, before it is done:
+ * who gets one, who has one already, and who cannot be given one and why.
+ */
+export const signInsPlan = readProcedure
+  .input(createSignInsSchema)
+  .handler(async ({ input, context }) => {
+    const seeds = await pickedSeeds(context, input.studentIds);
+    const plan =
+      input.way === "badges"
+        ? await badgesPlan(context, seeds)
+        : await slipsPlan(context, seeds);
+    return {
+      ready: plan.ready.map((row) => row.seed.userId),
+      had: plan.had,
+      refused: plan.refused,
+    };
+  });
+
+/** A name and a first password for each student who has no password yet. */
+async function openSlips(context: UnitContext, seeds: readonly SignInSeed[]) {
+  const plan = await slipsPlan(context, seeds);
+  const slips = plan.ready.map((row) => ({
+    ...row,
+    password: firstPassword(randomInt),
+  }));
+  const hashes = await Promise.all(
+    slips.map((row) =>
+      Bun.password.hash(row.password, { algorithm: "argon2id" }),
+    ),
+  );
+  for (const [index, { seed, loginName }] of slips.entries()) {
+    const secretHash = hashes[index] ?? "";
+    const accountId =
+      seed.accountId ??
+      (await createPasswordAccount(context.tx, {
+        tenantId: context.tenantId,
+        userId: seed.userId,
+        loginName,
+        secretHash,
+        linkedByUserId: context.actor.userId,
+      }));
+    // A child who signs in with a badge already holds an account.
+    if (seed.accountId)
+      await updatePasswordSignIn(context.tx, {
+        tenantId: context.tenantId,
+        userId: seed.userId,
+        accountId,
+        identityId: null,
+        loginName,
+        secretHash,
+        linkedByUserId: context.actor.userId,
+      });
+    await audit(context, {
+      action: seed.accountId ? "account.password_set" : "account.create",
+      objectType: "account",
+      objectId: accountId,
+      subjectUserId: seed.userId,
+      details: { method: "password", linkMethod: "admin", printed: true },
+    });
+  }
+  return {
+    slips: slips.map(({ seed, loginName, password }) => ({
+      studentId: seed.userId,
+      loginName,
+      password,
+    })),
+    badges: [],
+    had: plan.had,
+    refused: plan.refused,
+  };
+}
+
+/** A badge for each young student who holds none that works. */
+async function openBadges(context: UnitContext, seeds: readonly SignInSeed[]) {
+  const [plan, term] = await Promise.all([
+    badgesPlan(context, seeds),
+    badgeTerm(context),
+  ]);
+  const refused = [...plan.refused];
+  const badges: { studentId: string; secret: string }[] = [];
+  for (const { seed } of plan.ready) {
+    const studentId = seed.userId;
+    const { secret, secretHash } = issueBadgeSecret();
+    const account = await issueBadge(context.tx, {
+      tenantId: context.tenantId,
+      userId: studentId,
+      secretHash,
+      ...term,
+      linkedByUserId: context.actor.userId,
+    });
+    // Turned off between the plan and now.
+    if (!account) {
+      refused.push({ studentId, reason: "disabled" });
+      continue;
+    }
+    await audit(context, {
+      action: account.created ? "account.create" : "account.badge_issue",
+      objectType: "account",
+      objectId: account.accountId,
+      subjectUserId: studentId,
+      details: { method: "badge" },
+    });
+    badges.push({ studentId, secret });
+  }
+  return { slips: [], badges, had: plan.had, refused };
+}
+
+/**
+ * Opens a sign-in for each student picked who has none, in the way the
+ * office chose: a name and a first password to print on a slip, or a badge
+ * for a young child. Passwords and badge secrets leave the API only in this
+ * response, so what is lost before it is printed is made again, never shown
+ * again.
+ */
+export const createSignIns = writeProcedure
+  .input(createSignInsSchema)
+  .handler(async ({ input, context }) => {
+    const seeds = await pickedSeeds(context, input.studentIds);
+    return input.way === "badges"
+      ? openBadges(context, seeds)
+      : openSlips(context, seeds);
   });
 
 export const setSignInState = writeProcedure

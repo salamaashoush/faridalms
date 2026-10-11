@@ -24,7 +24,6 @@
   "authDemoAccounts": "Demo accounts",
   "authDemoHint": "Any of these, with password {password}.",
   "authSignInBody": "Welcome back! Please enter your details.",
-  "authSignInFormEmail": "Email",
   "authSignInFormPassword": "Password",
   "authSignInFormSubmit": "Sign In",
   "authSignInFormSubmitting": "Signing In...",
@@ -5652,5 +5651,52 @@
   "msgNoGuardiansFor": "Not sent for {names}: none of their guardians uses the portal.",
   "studentsMoveTitle": "Move {count} students to a class",
   "studentsMoved": "{count} students are in {class} from {date}.",
-  "studentsNotMoved": "Not moved: {names}. {reason}"
+  "studentsNotMoved": "Not moved: {names}. {reason}",
+  "authSignInFormLogin": "Email or sign-in name",
+  "validationLoginName": "Enter an email address, or a sign-in name of plain letters and digits",
+  "studentsCreateSignIns": "Create sign-ins",
+  "signInsHint": "Students who can already sign in this way are left as they are.",
+  "signInsWay": "How they get their sign-in",
+  "signInsWaySlips": "Printed slips",
+  "signInsWaySlipsHint": "A sign-in name and a first password for each student, on a slip of paper to hand to them.",
+  "signInsWayBadges": "Sign-in badges",
+  "signInsWayBadgesHint": "For young children: a card they show to the camera. Older students are left out.",
+  "signInsSubmit": "Create and print",
+  "signInsNothing": "None of the students picked gets a new sign-in this way.",
+  "signInsHad": "Left as they are, since they can already sign in this way: {names}.",
+  "signInsRefusedNoName": "No sign-in for {names}: they have no school number or name in Latin letters to sign in with. Create theirs from their record.",
+  "signInsRefusedDisabled": "No sign-in for {names}: their account is turned off.",
+  "signInsRefusedNotYoung": "No badge for {names}: badges are for young children. Print slips for them.",
+  "slipsTitle": "Sign-in slips",
+  "slipsReady": "Print these slips now. The passwords cannot be shown again; a lost slip is replaced by setting a new password on the student's record.",
+  "slipsWhere": "Sign in at",
+  "slipsKeep": "Keep this slip to yourself.",
+  "signInsReadySlips": [
+    {
+      "declarations": [
+        "input count",
+        "input value",
+        "local countPlural = count: plural"
+      ],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "1 student gets a slip with a sign-in name and a first password.",
+        "countPlural=*": "{value} students each get a slip with a sign-in name and a first password."
+      }
+    }
+  ],
+  "signInsReadyBadges": [
+    {
+      "declarations": [
+        "input count",
+        "input value",
+        "local countPlural = count: plural"
+      ],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "1 child gets a badge to print.",
+        "countPlural=*": "{value} children each get a badge to print."
+      }
+    }
+  ]
 }

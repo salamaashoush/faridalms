@@ -60,7 +60,7 @@ test("business conflicts carry a code the client turns into the reader's languag
   await expect(page.locator("html")).toHaveAttribute("dir", "rtl");
   await page
     .getByRole("textbox", {
-      name: arabic.authSignInFormEmail ?? "",
+      name: arabic.authSignInFormLogin ?? "",
       exact: true,
     })
     .fill("admin@example.com");
@@ -86,7 +86,7 @@ test("a duplicate email is refused in the reader's language inside the account d
 }) => {
   await page.goto("/sign-in");
   await page
-    .getByRole("textbox", { name: "Email", exact: true })
+    .getByRole("textbox", { name: "Email or sign-in name" })
     .fill("admin@example.com");
   await page
     .getByRole("textbox", { name: "Password", exact: true })

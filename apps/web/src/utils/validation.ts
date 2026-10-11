@@ -40,6 +40,8 @@ export function validationMessage(issue: { message?: string }): string {
       return m.validationNameRequired();
     case "validation.reference":
       return m.validationReference();
+    case "validation.login_name":
+      return m.validationLoginName();
     case "validation.role_required":
       return m.validationRoleRequired();
     case "validation.class_code":

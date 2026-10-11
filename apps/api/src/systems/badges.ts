@@ -9,8 +9,6 @@ import {
   teachesClass,
 } from "@faridalms/database/stores/classes";
 import { youngStudents } from "@faridalms/database/stores/students";
-import { schoolYears } from "@faridalms/database/stores/years";
-import { BADGE_DAYS, badgeYearEnd } from "@faridalms/domain/badges";
 import {
   classBadgesSchema,
   issueBadgesSchema,
@@ -20,6 +18,7 @@ import { ORPCError } from "@orpc/server";
 
 import type { UnitContext } from "../core/context";
 
+import { badgeTerm } from "../core/badges";
 import { scopeOf } from "../core/coursework-access";
 import {
   audit,
@@ -108,12 +107,7 @@ export const issueBadges = writeProcedure
       throw new ORPCError("NOT_FOUND");
     if (wanted.some((studentId) => !young.has(studentId)))
       throw new ORPCError("BAD_REQUEST", { message: "badges.not_young" });
-    const expiresAt = new Date(context.now.getTime() + BADGE_DAYS * 86_400_000);
-    const until = badgeYearEnd(
-      await schoolYears(context.tx, context.tenantId, context.schoolId),
-      context.today,
-      expiresAt,
-    );
+    const { expiresAt, until } = await badgeTerm(context);
     const issued = await Promise.all(
       wanted.map(async (studentId) => {
         const { secret, secretHash } = issueBadgeSecret();

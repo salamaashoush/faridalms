@@ -188,7 +188,7 @@ test("administrators switch the working year in the class directory and keep it 
 
   await page.goto("/sign-in");
   await page
-    .getByRole("textbox", { name: "Email", exact: true })
+    .getByRole("textbox", { name: "Email or sign-in name" })
     .fill("admin@example.com");
   await page
     .getByRole("textbox", { name: "Password", exact: true })

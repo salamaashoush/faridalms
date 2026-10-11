@@ -1,3 +1,4 @@
+import { loginNameSchema } from "@faridalms/domain/first-sign-in";
 import { BADGE_SECRET } from "@faridalms/domain/identity-schema";
 import * as v from "valibot";
 
@@ -14,7 +15,7 @@ import {
 
 export const loginSchema = v.object({
   school: v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(64)),
-  email: emailSchema,
+  loginName: loginNameSchema,
   password: passwordSchema,
 });
 export type LoginSchemaOutput = v.InferOutput<typeof loginSchema>;
