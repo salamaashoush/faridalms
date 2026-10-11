@@ -6,7 +6,14 @@ import { createDecipheriv } from "node:crypto";
 import type { FileStore } from "../src/files/store";
 
 import { sweepTenantFiles } from "../src/files/sweep";
-import { mediaWorkerToken, streamLinkKey } from "../src/media/streams";
+import {
+  inTurn,
+  mediaWorkerToken,
+  sealStream,
+  STREAM_LINK_SECONDS,
+  streamLinkExpiry,
+  streamLinkKey,
+} from "../src/media/streams";
 import {
   login,
   MEDIA_ORIGIN,
@@ -227,6 +234,127 @@ describe("video streams", () => {
       `/v1/files/${fileId}/stream`,
     );
     expect(await shown.json()).toEqual({ state: "failed", master: null });
+  });
+
+  test("a video a worker hands back loses none of its tries", async () => {
+    const teacher = await sessionFor("northwind", login("teacher"));
+    const fileId = await uploadVideo(teacher, "handed-back.mp4");
+    const streamPath = `/v1/files/${fileId}/stream`;
+    // More often than a video may fail: a stopping worker or a broken
+    // machine says nothing about the video.
+    for (let turn = 0; turn < 5; turn += 1) {
+      const job = await claimVideo(fileId);
+      if (!job) throw new Error(`turn ${turn + 1} was never offered`);
+      expect(
+        (await call(`/v1/media/jobs/${job.id}/release`, { reason: "stopping" }))
+          .status,
+      ).toBe(204);
+      expect(
+        await (await raw("northwind", teacher.token, streamPath)).json(),
+      ).toEqual({ state: "queued", master: null });
+      // It is nobody's now, so it cannot be handed back or moved along.
+      expect((await call(`/v1/media/jobs/${job.id}/release`)).status).toBe(409);
+      expect(
+        (await call(`/v1/media/jobs/${job.id}/progress`, { progress: 0.5 }))
+          .status,
+      ).toBe(409);
+    }
+    const job = await claimVideo(fileId);
+    if (!job) throw new Error("the video was never offered again");
+    expect(
+      (
+        await call(`/v1/media/jobs/${job.id}/done`, {
+          manifest: MANIFEST,
+          bytes: -1,
+        })
+      ).status,
+    ).toBe(400);
+    expect(
+      (
+        await call(`/v1/media/jobs/${job.id}/done`, {
+          manifest: MANIFEST,
+          bytes: 48_213_004,
+        })
+      ).status,
+    ).toBe(204);
+    expect(
+      await (await raw("northwind", teacher.token, streamPath)).json(),
+    ).toMatchObject({ state: "ready" });
+  });
+
+  test("a video's link is the same for everyone who asks in one window", async () => {
+    const teacher = await sessionFor("northwind", login("teacher"));
+    const fileId = await uploadVideo(teacher, "shared-link.mp4");
+    const job = await claimVideo(fileId);
+    if (!job) throw new Error("the video was never offered");
+    await call(`/v1/media/jobs/${job.id}/done`, { manifest: MANIFEST });
+    const ask = async () =>
+      (
+        (await (
+          await raw("northwind", teacher.token, `/v1/files/${fileId}/stream`)
+        ).json()) as { master: string }
+      ).master;
+    const first = await ask();
+    expect(await ask()).toBe(first);
+
+    const token = /\/v\/([A-Za-z0-9_-]+)\//.exec(first)?.[1] ?? "";
+    const [, expires] = openStream(token);
+    const left = expires - Date.now() / 1000;
+    expect(expires % STREAM_LINK_SECONDS).toBe(0);
+    // A lesson's length at the least, and never more than two windows.
+    expect(left).toBeGreaterThan(STREAM_LINK_SECONDS - 5);
+    expect(left).toBeLessThanOrEqual(2 * STREAM_LINK_SECONDS);
+  });
+});
+
+const SCHOOL_STREAMS = "t/0b8f6a52-1c7e-4f4e-9a3a-2f6f1d2b9c11/v";
+
+/** The nonce a sealed link leads with. */
+const nonceOf = (link: string) =>
+  Buffer.from(link, "base64url").subarray(0, 12).toString("hex");
+
+describe("sealing a stream's link", () => {
+  const key = streamLinkKey(new Uint8Array(32).fill(7));
+  const one = `${SCHOOL_STREAMS}/5d1e7c2a-8b3f-4a6e-9c1d-7e2f3a4b5c6d`;
+  const other = `${SCHOOL_STREAMS}/6e2f8d3b-9c4a-4b7f-8d2e-8f3a4b5c6d7e`;
+
+  test("a grant seals to one link, and another grant to another", () => {
+    const sealed = sealStream(key, { prefix: one, expires: 2_000_000_000 });
+    // The media service's tests open this same link (apps/media/src/seal.rs).
+    expect(sealed).toBe(
+      "2-IdXsQ-ECTL8JyIPNOkG1TlanTxuwczEuVuvegAJBvWUIXr-RDK7mqA78b06aF-UGBHCzqz9xJnSP0sOOxsTC78neZLokP7UTWuLM3cl73rHg9HXbBTjMYXWbhrhmE_VNqMDFLxmNSnztagTEsNHe9eQLliMgWm",
+    );
+    // No two grants may share a nonce.
+    const later = sealStream(key, { prefix: one, expires: 2_000_014_400 });
+    const elsewhere = sealStream(key, {
+      prefix: other,
+      expires: 2_000_000_000,
+    });
+    expect(new Set([sealed, later, elsewhere].map(nonceOf)).size).toBe(3);
+    // Another cell's key seals the same grant differently.
+    const foreign = streamLinkKey(new Uint8Array(32).fill(8));
+    expect(
+      nonceOf(sealStream(foreign, { prefix: one, expires: 2_000_000_000 })),
+    ).not.toBe(nonceOf(sealed));
+  });
+
+  test("a link runs to the end of the window after the one it was sealed in", () => {
+    const window = STREAM_LINK_SECONDS;
+    expect(streamLinkExpiry(10 * window)).toBe(12 * window);
+    expect(streamLinkExpiry(11 * window - 1)).toBe(12 * window);
+    expect(streamLinkExpiry(11 * window)).toBe(13 * window);
+  });
+});
+
+describe("schools waiting for the media service", () => {
+  test("take turns, starting after the school served last", () => {
+    expect(inTurn(["c", "a", "b"], undefined)).toEqual(["a", "b", "c"]);
+    expect(inTurn(["a", "b", "c"], "a")).toEqual(["b", "c", "a"]);
+    expect(inTurn(["a", "b", "c"], "b")).toEqual(["c", "a", "b"]);
+    expect(inTurn(["a", "b", "c"], "c")).toEqual(["a", "b", "c"]);
+    // The school served last has since left the cell.
+    expect(inTurn(["a", "c"], "b")).toEqual(["c", "a"]);
+    expect(inTurn([], "b")).toEqual([]);
   });
 });
 
@@ -554,5 +682,36 @@ describe("captions drafted from speech", () => {
     expect(
       await rejection(pupil.api.files.captionDraft({ fileId })),
     ).toMatchObject({ code: "FORBIDDEN" });
+  });
+
+  test("a lesson given in French is drafted in French, and a draft handed back is drafted again", async () => {
+    const teacher = await sessionFor("northwind", login("teacher"));
+    const fileId = await uploadVideo(teacher, "lecon.mp4");
+    await teacher.api.files.draftCaptions({ fileId, language: "fr" });
+    // More often than a draft may fail.
+    for (let turn = 0; turn < 4; turn += 1) {
+      const job = await claimDraft(fileId);
+      if (!job) throw new Error(`turn ${turn + 1} was never offered`);
+      expect(job.language).toBe("fr");
+      expect((await call(`/v1/media/captions/${job.id}/release`)).status).toBe(
+        204,
+      );
+      expect(await teacher.api.files.captionDraft({ fileId })).toMatchObject({
+        draft: { state: "queued", language: "fr" },
+      });
+      expect((await call(`/v1/media/captions/${job.id}/release`)).status).toBe(
+        409,
+      );
+    }
+    const job = await claimDraft(fileId);
+    if (!job) throw new Error("the draft was never offered again");
+    const vtt =
+      "WEBVTT\n\n00:00:00.000 --> 00:00:02.000\nBonjour, la classe.\n";
+    expect(
+      (await call(`/v1/media/captions/${job.id}/done`, { vtt })).status,
+    ).toBe(204);
+    expect(await teacher.api.files.captionDraft({ fileId })).toMatchObject({
+      draft: { state: "ready", language: "fr", vtt },
+    });
   });
 });
