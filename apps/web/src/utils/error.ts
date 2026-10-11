@@ -128,6 +128,10 @@ export function getMessageFromError(error: unknown): string {
         return m.errorWrongPassword();
       case "auth.too_many_attempts":
         return m.errorTooManyAttempts();
+      case "privacy.follows_only":
+        return m.errorFollowsOnly();
+      case "privacy.requests_open":
+        return m.errorRequestsOpen();
       case "sign_in.no_email":
         return m.errorSignInNoEmail();
       case "leaving.not_enrolled":

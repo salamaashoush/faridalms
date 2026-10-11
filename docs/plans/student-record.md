@@ -141,7 +141,15 @@ Rules that hold for every section:
    rights decisions. Remaining: the Documents section.
 6. **The family's view.** Each child's details as the school holds them,
    with "Ask the school to correct this" sent as a message linked to the
-   child.
+   child. Done, with one change: Children has a Details page per child
+   (name in both scripts, known-as name, birth date, sex, school number,
+   grade and class, and the guardian's own contact details; never another
+   guardian's), and Ask to correct logs a correction in the register of
+   records requests in place of a message. A request is answered on its
+   law's clock and a message is not: Egypt's six working days and the UK's
+   month come from the school's country, anywhere else it is due thirty
+   days on, and the office may change both. Only a guardian who decides for
+   the child may ask, and at most three of theirs stay open per child.
 7. **Health alerts for teachers.** An action line on alert records, readable
    by the student's teachers through the health purpose and audited, shown
    with the custody and No photos flags on the record, roster, register and

@@ -361,3 +361,24 @@ export const approveErasureSchema = v.pipe(
 export const runErasureSchema = v.object({
   subjectUserId: v.pipe(v.string(), v.uuid()),
 });
+
+/** The most requests a guardian may have open about one child at a time. */
+export const MAX_OPEN_CORRECTIONS = 3;
+
+export const askCorrectionSchema = v.object({
+  studentId: v.pipe(v.string(), v.uuid()),
+  details: note(2000),
+});
+export type AskCorrectionInput = v.InferInput<typeof askCorrectionSchema>;
+
+/**
+ * The law a family's own request is logged under, from where the school is:
+ * Egypt's and the UK's set the school a deadline for a correction. Anywhere
+ * else none is set, and the request is due thirty days on, the office being
+ * free to change both when it reads the request.
+ */
+export function familyRequestLaw(countryCode: string | null): RequestLaw {
+  if (countryCode === "EG") return "egypt";
+  if (countryCode === "GB") return "uk_gdpr";
+  return "other";
+}

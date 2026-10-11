@@ -19,12 +19,14 @@ import { reachOf } from "@faridalms/database/stores/audiences";
 import {
   classesTaughtBy,
   homeroomDirectory,
+  homeroomsOn,
 } from "@faridalms/database/stores/classes";
 import {
   learnerAssignments,
   teacherAssignments,
 } from "@faridalms/database/stores/coursework";
 import { changesOn } from "@faridalms/database/stores/cover";
+import { descriptorsFor } from "@faridalms/database/stores/descriptors";
 import { eventsBetween } from "@faridalms/database/stores/events";
 import { expiringDocuments } from "@faridalms/database/stores/identifiers";
 import { schoolProfile } from "@faridalms/database/stores/identity";
@@ -34,6 +36,9 @@ import { managedPosts, newsFor } from "@faridalms/database/stores/news";
 import { deliveryLog } from "@faridalms/database/stores/notifications";
 import { childrenOf } from "@faridalms/database/stores/persons";
 import {
+  person as readPerson,
+  placements,
+  referenceOf,
   studentDirectory,
   youngStudents,
 } from "@faridalms/database/stores/students";
@@ -569,6 +574,70 @@ function localTitle(
  * next, up to three things that need them, and what is due this week; then
  * pinned announcements and the latest school news.
  */
+/** The label of one of a list's choices, in both languages. */
+function labelIn(
+  list: readonly {
+    id: string;
+    labelEn: string | null;
+    labelAr: string | null;
+  }[],
+  id: string | null | undefined,
+) {
+  const found = list.find((row) => row.id === id);
+  return found ? { labelEn: found.labelEn, labelAr: found.labelAr } : null;
+}
+
+/**
+ * What the school holds about one child, for a guardian to read and check:
+ * who they are, their number, grade and class. It says whether this guardian
+ * decides for the child, since only one who does may ask for a correction.
+ */
+export const child = readProcedure
+  .input(v.object({ studentId: v.pipe(v.string(), v.uuid()) }))
+  .handler(async ({ input, context }) => {
+    requireCapability(context, "children:read");
+    const scope = { ...scopeOf(context), schoolWide: false };
+    const link = (
+      await childrenOf(context.tx, scope, context.actor.userId)
+    ).find((row) => row.visible && row.studentId === input.studentId);
+    if (!link) throw new ORPCError("NOT_FOUND");
+    const [record, reference, held, homerooms, grades, sexes] =
+      await Promise.all([
+        readPerson(context.tx, input.studentId),
+        referenceOf(context.tx, scope, input.studentId),
+        placements(context.tx, scope, input.studentId),
+        homeroomsOn(context.tx, scope, [input.studentId], context.today),
+        descriptorsFor(context.tx, {
+          tenantId: context.tenantId,
+          schoolId: context.schoolId,
+          namespace: "grade_level",
+          today: context.today,
+        }),
+        descriptorsFor(context.tx, {
+          tenantId: context.tenantId,
+          schoolId: context.schoolId,
+          namespace: "sex",
+          today: context.today,
+        }),
+      ]);
+    if (!record) throw new ORPCError("NOT_FOUND");
+    const current = held.find(
+      (row) => row.from <= context.today && context.today < row.to,
+    );
+    return {
+      studentId: input.studentId,
+      fullNameEn: record.fullNameEn,
+      fullNameAr: record.fullNameAr,
+      preferredGivenName: record.preferredGivenName,
+      birthDate: record.birthDate,
+      sex: labelIn(sexes, record.sexId),
+      reference: reference?.identifier ?? null,
+      grade: labelIn(grades, current?.gradeId),
+      homeroom: homerooms.get(input.studentId) ?? null,
+      decides: link.educationalRights === "full",
+    };
+  });
+
 export const family = readProcedure
   .input(
     v.object({

@@ -28,7 +28,7 @@ import { AccessSection } from "./AccessSection";
 import { ContactsSheet } from "./ContactsSheet";
 import { displayName, labelOf, otherName, roleLabel } from "./format";
 import { PhotoDialog } from "./PhotoDialog";
-import { Deferred, Email, HistorySection, Phone } from "./record-parts";
+import { ContactList, Deferred, HistorySection } from "./record-parts";
 import { SignInSection } from "./SignInSection";
 
 export const PERSON_TABS = [
@@ -103,12 +103,6 @@ function RolesSection({ data }: { data: PersonData }) {
   );
 }
 
-const CONTACT_LABEL = {
-  phone: m.familyMobile,
-  email: m.adminEmail,
-  postal: m.addressTitle,
-} as const;
-
 function ContactsSection({
   contacts,
   onEdit,
@@ -121,28 +115,7 @@ function ContactsSection({
       title={m.personContactDetails()}
       edit={onEdit ? { label: m.contactsEdit(), onClick: onEdit } : undefined}
     >
-      {contacts.length === 0 ? (
-        <RecordEmpty>{m.personNoContacts()}</RecordEmpty>
-      ) : (
-        <RecordList>
-          {contacts.map((contact) => (
-            <li key={contact.id} className="grid gap-0.5 py-3">
-              <span className="text-[13px] leading-[18px] text-muted-foreground">
-                {CONTACT_LABEL[contact.kind]()}
-              </span>
-              <span className="text-sm leading-5">
-                {contact.kind === "phone" ? (
-                  <Phone value={contact.normalized ?? contact.value} />
-                ) : contact.kind === "email" ? (
-                  <Email value={contact.value} />
-                ) : (
-                  <bdi>{contact.value}</bdi>
-                )}
-              </span>
-            </li>
-          ))}
-        </RecordList>
-      )}
+      <ContactList contacts={contacts} />
     </RecordSection>
   );
 }

@@ -6051,5 +6051,22 @@
   "arrivalJoinedAs": "طريقة الالتحاق",
   "arrivalPreviousSchool": "المدرسة السابقة",
   "arrivalPreviousSchoolHint": "المدرسة التي جاء منها، كما في أوراقه.",
-  "arrivalEdit": "تعديل بيانات الالتحاق"
+  "arrivalEdit": "تعديل بيانات الالتحاق",
+  "familyDetails": "البيانات",
+  "familyDetailsTitle": "بيانات {name}",
+  "familyDetailsHint": "ما تحتفظ به المدرسة عن {name}. إن وجدت خطأً فاطلب من المكتب تصحيحه.",
+  "familyDetailsFollows": "ما تحتفظ به المدرسة عن {name}.",
+  "familyDetailsIdentity": "الاسم والميلاد",
+  "familyDetailsKnownAs": "يُعرف باسم",
+  "familyDetailsSchool": "في المدرسة",
+  "familyDetailsYours": "بيانات الاتصال بك",
+  "familyDetailsYoursHint": "كيف تتواصل معك المدرسة.",
+  "correctionAsk": "طلب تصحيح",
+  "correctionTitle": "اطلب من المدرسة تصحيح بيانات {name}",
+  "correctionDetails": "ما الذي يجب تغييره",
+  "correctionDetailsHint": "اذكر الخطأ وما يجب أن يكون. يراجع مكتب المدرسة سجلاته ويرد عليك.",
+  "correctionSend": "إرسال الطلب",
+  "correctionSent": "أُرسل إلى مكتب المدرسة، وعليه الرد حتى {date}.",
+  "errorFollowsOnly": "لا يطلب التغييرات إلا ولي أمر يقرّر عن الطالب.",
+  "errorRequestsOpen": "ما زالت المدرسة ترد على طلباتك السابقة بشأن هذا الطالب."
 }

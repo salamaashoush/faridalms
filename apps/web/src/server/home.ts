@@ -21,6 +21,10 @@ export const getFamilyHome = createServerFn({ method: "GET" })
   )
   .handler(({ data }) => backend().home.family(data));
 
+export const getChildDetails = createServerFn({ method: "GET" })
+  .validator(checked(v.object({ studentId: v.pipe(v.string(), v.uuid()) })))
+  .handler(({ data }) => backend().home.child(data));
+
 export const getStudentHome = createServerFn({ method: "GET" }).handler(() =>
   backend().home.student(),
 );

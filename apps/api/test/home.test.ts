@@ -57,4 +57,68 @@ describe("home pages", () => {
     expect(home.attendance).not.toBeNull();
     expect(home.communications.length).toBeGreaterThan(0);
   });
+
+  test("a guardian reads what the school holds about their child and asks the office to correct it", async () => {
+    const family = await signedIn("northwind", login("parent"));
+    const [first] = (await family.home.family({})).choices;
+    if (!first) throw new Error("the seeded parent has no child");
+    const held = await family.home.child({ studentId: first.studentId });
+    expect(held).toMatchObject({ studentId: first.studentId, decides: true });
+    expect(held.fullNameEn).toBeTruthy();
+    expect(held.reference).toMatch(/^GA/);
+    expect(held.grade?.labelEn).toBeTruthy();
+    expect(
+      await rejection(family.home.child({ studentId: crypto.randomUUID() })),
+    ).toMatchObject({ code: "NOT_FOUND" });
+
+    const asked = await family.privacy.askCorrection({
+      studentId: first.studentId,
+      details: "The date of birth should be 2 March 2014.",
+    });
+    expect(asked.dueOn >= (await family.home.family({})).today).toBe(true);
+    // It is in the office's register, on the clock the school's law sets.
+    const office = await signedIn("northwind", login("principal"));
+    const logged = (await office.privacy.overview()).requests.find(
+      (row) => row.id === asked.id,
+    );
+    expect(logged).toMatchObject({
+      subjectUserId: first.studentId,
+      kind: "correction",
+      relation: "parent",
+      law: "egypt",
+      dueOn: asked.dueOn,
+      details: "The date of birth should be 2 March 2014.",
+    });
+
+    expect(
+      await rejection(
+        family.privacy.askCorrection({
+          studentId: crypto.randomUUID(),
+          details: "Somebody else's child.",
+        }),
+      ),
+    ).toMatchObject({ code: "NOT_FOUND" });
+    for (const details of ["Second.", "Third."])
+      await family.privacy.askCorrection({
+        studentId: first.studentId,
+        details,
+      });
+    expect(
+      await rejection(
+        family.privacy.askCorrection({
+          studentId: first.studentId,
+          details: "A fourth while three are open.",
+        }),
+      ),
+    ).toMatchObject({ code: "CONFLICT", message: "privacy.requests_open" });
+    const teacher = await signedIn("northwind", login("teacher"));
+    expect(
+      await rejection(
+        teacher.privacy.askCorrection({
+          studentId: first.studentId,
+          details: "Not a guardian.",
+        }),
+      ),
+    ).toMatchObject({ code: "FORBIDDEN" });
+  });
 });

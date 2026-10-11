@@ -1,5 +1,6 @@
 import {
   approveErasureSchema,
+  askCorrectionSchema,
   breachNoticesSchema,
   closeBreachSchema,
   closeRequestSchema,
@@ -31,6 +32,10 @@ export const placeHold = createServerFn({ method: "POST" })
 export const releaseHold = createServerFn({ method: "POST" })
   .validator(checked(releaseHoldSchema))
   .handler(({ data }) => backend().privacy.releaseHold(data));
+
+export const askCorrection = createServerFn({ method: "POST" })
+  .validator(checked(askCorrectionSchema))
+  .handler(({ data }) => backend().privacy.askCorrection(data));
 
 export const saveRequest = createServerFn({ method: "POST" })
   .validator(checked(saveRequestSchema))

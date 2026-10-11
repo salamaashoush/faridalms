@@ -7,7 +7,8 @@ import {
   eraseSubject,
   erasuresOf,
 } from "@faridalms/database/stores/erasure";
-import { schoolProfile } from "@faridalms/database/stores/identity";
+import { schoolProfile, viewer } from "@faridalms/database/stores/identity";
+import { childrenOf } from "@faridalms/database/stores/persons";
 import {
   breachById,
   breachesOf,
@@ -22,6 +23,7 @@ import {
   leaversOf,
   placeHold as placeHoldOf,
   insertRequest,
+  openRequestsBy,
   releaseHold as releaseHoldOf,
   requestById,
   requestsOf,
@@ -36,12 +38,15 @@ import { SCHOOL_DAY_MEANINGS } from "@faridalms/domain/calendar";
 import { emptyContent } from "@faridalms/domain/content-conversion";
 import {
   approveErasureSchema,
+  askCorrectionSchema,
   breachNoticesSchema,
   closeBreachSchema,
   closeRequestSchema,
   extendedDueOn,
   extendRequestSchema,
+  familyRequestLaw,
   hasClock,
+  MAX_OPEN_CORRECTIONS,
   peopleDueOn,
   peopleMustBeTold,
   placeHoldSchema,
@@ -388,6 +393,76 @@ export const saveRequest = writeProcedure
       },
     });
     return { id, dueOn: fields.dueOn };
+  });
+
+/**
+ * A guardian asks the school to correct what it holds about their child.
+ * The request goes into the same register the office logs requests in, with
+ * the deadline the school's law sets, so it is answered on that clock and
+ * not lost in a message. Only a guardian who decides for the child may ask;
+ * one who only follows them sees the record and leaves changes to the other.
+ */
+export const askCorrection = writeProcedure
+  .input(askCorrectionSchema)
+  .handler(async ({ input, context }) => {
+    requireCapability(context, "children:read");
+    const link = (
+      await childrenOf(
+        context.tx,
+        {
+          tenantId: context.tenantId,
+          schoolId: context.schoolId,
+          today: context.today,
+          viewerId: context.actor.userId,
+          schoolWide: false,
+        },
+        context.actor.userId,
+      )
+    ).find((row) => row.studentId === input.studentId);
+    if (!link) throw new ORPCError("NOT_FOUND");
+    if (link.educationalRights !== "full")
+      throw new ORPCError("FORBIDDEN", { message: "privacy.follows_only" });
+    const scope = scopeOf(context);
+    const open = await openRequestsBy(context.tx, {
+      ...scope,
+      subjectUserId: input.studentId,
+      loggedByUserId: context.actor.userId,
+    });
+    if (open >= MAX_OPEN_CORRECTIONS)
+      throw new ORPCError("CONFLICT", { message: "privacy.requests_open" });
+    const [me, school] = await Promise.all([
+      viewer(context.tx, context.actor.userId),
+      schoolProfile(context.tx, context.schoolId),
+    ]);
+    const law = familyRequestLaw(school?.countryCode ?? null);
+    const dueOn =
+      requestDueOn(
+        law,
+        "correction",
+        context.today,
+        await dayKinds(context, context.today),
+      ) ?? plusDays(context.today, 30);
+    const id = await insertRequest(context.tx, {
+      ...scope,
+      subjectUserId: input.studentId,
+      requestedBy: (me?.fullNameEn ?? me?.fullNameAr ?? "").slice(0, 120),
+      relation: "parent",
+      kind: "correction",
+      law,
+      receivedOn: context.today,
+      clockFrom: context.today,
+      dueOn,
+      details: input.details,
+      loggedByUserId: context.actor.userId,
+    });
+    await audit(context, {
+      action: "privacy_request.log",
+      objectType: "records_request",
+      objectId: id,
+      subjectUserId: input.studentId,
+      details: { kind: "correction", law, dueOn, by: "guardian" },
+    });
+    return { id, dueOn };
   });
 
 /** Gives a complex UK request the two further months the law allows. */

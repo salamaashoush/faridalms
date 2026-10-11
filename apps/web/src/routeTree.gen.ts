@@ -60,6 +60,7 @@ import { Route as AppFamilyAssignmentsRouteImport } from './routes/_app/family/a
 import { Route as AppFamilyAttendanceRouteImport } from './routes/_app/family/attendance'
 import { Route as AppFamilyChildrenRouteImport } from './routes/_app/family/children'
 import { Route as AppFamilyConsentsRouteImport } from './routes/_app/family/consents'
+import { Route as AppFamilyDetailsRouteImport } from './routes/_app/family/details'
 import { Route as AppFamilyGradesRouteImport } from './routes/_app/family/grades'
 import { Route as AppFamilyMessagesRouteImport } from './routes/_app/family/messages'
 import { Route as AppFamilyModulesRouteImport } from './routes/_app/family/modules'
@@ -363,6 +364,11 @@ const AppFamilyConsentsRoute = AppFamilyConsentsRouteImport.update({
   path: '/consents',
   getParentRoute: () => AppFamilyRoute,
 } as any)
+const AppFamilyDetailsRoute = AppFamilyDetailsRouteImport.update({
+  id: '/details',
+  path: '/details',
+  getParentRoute: () => AppFamilyRoute,
+} as any)
 const AppFamilyGradesRoute = AppFamilyGradesRouteImport.update({
   id: '/grades',
   path: '/grades',
@@ -628,6 +634,7 @@ export interface FileRoutesByFullPath {
   '/family/attendance': typeof AppFamilyAttendanceRoute
   '/family/children': typeof AppFamilyChildrenRoute
   '/family/consents': typeof AppFamilyConsentsRoute
+  '/family/details': typeof AppFamilyDetailsRoute
   '/family/grades': typeof AppFamilyGradesRoute
   '/family/messages': typeof AppFamilyMessagesRoute
   '/family/modules': typeof AppFamilyModulesRoute
@@ -717,6 +724,7 @@ export interface FileRoutesByTo {
   '/family/attendance': typeof AppFamilyAttendanceRoute
   '/family/children': typeof AppFamilyChildrenRoute
   '/family/consents': typeof AppFamilyConsentsRoute
+  '/family/details': typeof AppFamilyDetailsRoute
   '/family/grades': typeof AppFamilyGradesRoute
   '/family/messages': typeof AppFamilyMessagesRoute
   '/family/modules': typeof AppFamilyModulesRoute
@@ -814,6 +822,7 @@ export interface FileRoutesById {
   '/_app/family/attendance': typeof AppFamilyAttendanceRoute
   '/_app/family/children': typeof AppFamilyChildrenRoute
   '/_app/family/consents': typeof AppFamilyConsentsRoute
+  '/_app/family/details': typeof AppFamilyDetailsRoute
   '/_app/family/grades': typeof AppFamilyGradesRoute
   '/_app/family/messages': typeof AppFamilyMessagesRoute
   '/_app/family/modules': typeof AppFamilyModulesRoute
@@ -910,6 +919,7 @@ export interface FileRouteTypes {
     | '/family/attendance'
     | '/family/children'
     | '/family/consents'
+    | '/family/details'
     | '/family/grades'
     | '/family/messages'
     | '/family/modules'
@@ -999,6 +1009,7 @@ export interface FileRouteTypes {
     | '/family/attendance'
     | '/family/children'
     | '/family/consents'
+    | '/family/details'
     | '/family/grades'
     | '/family/messages'
     | '/family/modules'
@@ -1095,6 +1106,7 @@ export interface FileRouteTypes {
     | '/_app/family/attendance'
     | '/_app/family/children'
     | '/_app/family/consents'
+    | '/_app/family/details'
     | '/_app/family/grades'
     | '/_app/family/messages'
     | '/_app/family/modules'
@@ -1518,6 +1530,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppFamilyConsentsRouteImport
       parentRoute: typeof AppFamilyRoute
     }
+    '/_app/family/details': {
+      id: '/_app/family/details'
+      path: '/details'
+      fullPath: '/family/details'
+      preLoaderRoute: typeof AppFamilyDetailsRouteImport
+      parentRoute: typeof AppFamilyRoute
+    }
     '/_app/family/grades': {
       id: '/_app/family/grades'
       path: '/grades'
@@ -1869,6 +1888,7 @@ interface AppFamilyRouteChildren {
   AppFamilyAttendanceRoute: typeof AppFamilyAttendanceRoute
   AppFamilyChildrenRoute: typeof AppFamilyChildrenRoute
   AppFamilyConsentsRoute: typeof AppFamilyConsentsRoute
+  AppFamilyDetailsRoute: typeof AppFamilyDetailsRoute
   AppFamilyGradesRoute: typeof AppFamilyGradesRoute
   AppFamilyMessagesRoute: typeof AppFamilyMessagesRoute
   AppFamilyModulesRoute: typeof AppFamilyModulesRoute
@@ -1881,6 +1901,7 @@ const AppFamilyRouteChildren: AppFamilyRouteChildren = {
   AppFamilyAttendanceRoute: AppFamilyAttendanceRoute,
   AppFamilyChildrenRoute: AppFamilyChildrenRoute,
   AppFamilyConsentsRoute: AppFamilyConsentsRoute,
+  AppFamilyDetailsRoute: AppFamilyDetailsRoute,
   AppFamilyGradesRoute: AppFamilyGradesRoute,
   AppFamilyMessagesRoute: AppFamilyMessagesRoute,
   AppFamilyModulesRoute: AppFamilyModulesRoute,

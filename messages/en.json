@@ -5807,5 +5807,22 @@
   "arrivalJoinedAs": "Joined as",
   "arrivalPreviousSchool": "Previous school",
   "arrivalPreviousSchoolHint": "The school they came from, as their papers say.",
-  "arrivalEdit": "Edit joining"
+  "arrivalEdit": "Edit joining",
+  "familyDetails": "Details",
+  "familyDetailsTitle": "{name}'s details",
+  "familyDetailsHint": "What the school holds about {name}. If something is wrong, ask the office to correct it.",
+  "familyDetailsFollows": "What the school holds about {name}.",
+  "familyDetailsIdentity": "Name and birth",
+  "familyDetailsKnownAs": "Known as",
+  "familyDetailsSchool": "At school",
+  "familyDetailsYours": "Your contact details",
+  "familyDetailsYoursHint": "How the school reaches you.",
+  "correctionAsk": "Ask to correct",
+  "correctionTitle": "Ask the school to correct {name}'s details",
+  "correctionDetails": "What should change",
+  "correctionDetailsHint": "Say what is wrong and what it should be. The school office checks its records and replies.",
+  "correctionSend": "Send request",
+  "correctionSent": "Sent to the school office, which must answer by {date}.",
+  "errorFollowsOnly": "Only a guardian who decides for the student can ask for changes.",
+  "errorRequestsOpen": "The school is still answering your earlier requests about this student."
 }

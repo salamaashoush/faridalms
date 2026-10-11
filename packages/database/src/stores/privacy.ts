@@ -423,6 +423,27 @@ export async function insertRequest(
   return row.id;
 }
 
+/** How many requests one person has logged about another that are still open. */
+export async function openRequestsBy(
+  tx: Tx,
+  input: OrgScope & { subjectUserId: string; loggedByUserId: string },
+): Promise<number> {
+  const [row] = await tx
+    .select({ open: sql<number>`count(*)::int` })
+    .from(recordsRequests)
+    .where(
+      and(
+        eq(recordsRequests.tenantId, input.tenantId),
+        eq(recordsRequests.orgId, input.orgId),
+        eq(recordsRequests.subjectUserId, input.subjectUserId),
+        eq(recordsRequests.loggedByUserId, input.loggedByUserId),
+        eq(recordsRequests.status, "active"),
+        isNull(recordsRequests.closedAt),
+      ),
+    );
+  return row?.open ?? 0;
+}
+
 /**
  * Changes an open request; null when it is closed or not the school's. An
  * extension stays only while the deadline it extends is unchanged.
