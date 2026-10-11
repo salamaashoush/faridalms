@@ -269,10 +269,18 @@ if (player) {
 }
 
 void settled().then(() => {
+  // The page saves a while after it last heard of a change, and on closing
+  // only if it heard of one. So the first of a run of changes is told at
+  // once, or a studio closed straight after it would keep nothing, and the
+  // run is told again once it pauses, which is when the wait should start.
   vm().on("PROJECT_CHANGED", () => {
     if (loading || player) return;
+    if (!quiet) post({ type: "changed" });
     window.clearTimeout(quiet);
-    quiet = window.setTimeout(() => post({ type: "changed" }), CHANGE_QUIET_MS);
+    quiet = window.setTimeout(() => {
+      quiet = 0;
+      post({ type: "changed" });
+    }, CHANGE_QUIET_MS);
   });
   post({ type: "ready" });
 });
