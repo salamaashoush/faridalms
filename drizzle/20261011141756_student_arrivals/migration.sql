@@ -1,0 +1,2 @@
+ALTER TABLE "core"."student_school_years" ADD COLUMN "previous_school" text;--> statement-breakpoint
+ALTER TABLE "core"."student_school_years" ADD CONSTRAINT "student_school_years_previous_school_check" CHECK (char_length(previous_school) between 1 and 160);

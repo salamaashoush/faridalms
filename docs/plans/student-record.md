@@ -135,9 +135,10 @@ Rules that hold for every section:
 5. **Arrivals and departures.** Previous school and destination on the
    school-year rows, a Documents section for transfer certificates and past
    reports, and rights decisions enforced where families act (absence
-   reports, consents). Done: the destination, recorded with the departure,
-   and the rights decisions. Remaining: the previous school and the
-   Documents section.
+   reports, consents). Done: the destination, recorded with the departure;
+   how a student joined and the school they came from, kept on their first
+   placement and edited from the Enrollment tab's Joining section; and the
+   rights decisions. Remaining: the Documents section.
 6. **The family's view.** Each child's details as the school holds them,
    with "Ask the school to correct this" sent as a message linked to the
    child.

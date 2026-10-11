@@ -149,6 +149,14 @@ export type RecordLeavingInput = v.InferInput<typeof recordLeavingSchema>;
 
 export const cancelLeavingSchema = v.object({ studentId: id });
 
+export const saveArrivalSchema = v.object({
+  studentId: id,
+  placementId: id,
+  entryTypeId: v.union([v.literal(""), id]),
+  previousSchool: optionalText(160),
+});
+export type SaveArrivalInput = v.InferInput<typeof saveArrivalSchema>;
+
 /**
  * The day a leaver's sign-in, and their family's view of them, close. The
  * school year they left in is theirs to the day the next one begins, since

@@ -76,6 +76,7 @@ const OPTIONS = {
   sexes: [],
   positions: [],
   religions: [],
+  entryTypes: [],
   exitTypes: [],
   years: [],
   workingYearId: null,

@@ -52,6 +52,8 @@ export const studentSchoolYears = core.table.withRLS(
       .notNull()
       .generatedAlwaysAs(sql`'school_exit_type'`),
     nextYearOutcome: text("next_year_outcome").$type<NextYearOutcome>(),
+    /** The school a student came from, as their papers or family say. */
+    previousSchool: text("previous_school"),
     /** Where a student who left went on to, as the family told the office. */
     destinationSchool: text("destination_school"),
     source: text("source")
@@ -120,6 +122,11 @@ export const studentSchoolYears = core.table.withRLS(
       sql`source in ('manual', 'import', 'sis', 'oneroster', 'rollover')`,
     ),
     ck("student_school_years", "valid_during", range.bounded("valid_during")),
+    ck(
+      "student_school_years",
+      "previous_school",
+      sql`char_length(previous_school) between 1 and 160`,
+    ),
     ck(
       "student_school_years",
       "destination_school",

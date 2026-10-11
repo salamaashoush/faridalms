@@ -165,6 +165,7 @@ describe("student guardians", () => {
       sexes: [],
       positions: [],
       religions: [],
+      entryTypes: [],
       exitTypes: [],
       years: [],
       workingYearId: null,

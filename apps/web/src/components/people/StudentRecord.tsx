@@ -155,6 +155,7 @@ function useLabels() {
   return {
     options,
     grade: (id: string | null) => labelIn(options.grades, id),
+    entry: (id: string | null) => labelIn(options.entryTypes, id),
     exit: (id: string | null) => labelIn(options.exitTypes, id),
     relation: (id: string) => labelIn(options.relations, id),
     sex: (id: string | null) => labelIn(options.sexes, id),
@@ -229,6 +230,40 @@ function PlacementSection({
         </Fact>
         <Fact label={m.enrollmentStarts()} notApplicable={!placement}>
           {placement ? formatDate(placement.from) : null}
+        </Fact>
+      </Facts>
+    </RecordSection>
+  );
+}
+
+/**
+ * How a student came to the school, from their first placement here: the
+ * day, as what kind of entrant, and the school they came from.
+ */
+function ArrivalSection({
+  data,
+  onEdit,
+}: {
+  data: StudentData;
+  onEdit?: () => void;
+}) {
+  const labels = useLabels();
+  const first = data.placements.at(-1);
+  if (!first) return null;
+  return (
+    <RecordSection
+      title={m.arrivalTitle()}
+      edit={onEdit ? { label: m.arrivalEdit(), onClick: onEdit } : undefined}
+    >
+      <Facts>
+        <Fact label={m.arrivalJoinedOn()}>{formatDate(first.from)}</Fact>
+        <Fact label={m.arrivalJoinedAs()}>
+          {labels.entry(first.entryTypeId)}
+        </Fact>
+        <Fact label={m.arrivalPreviousSchool()}>
+          {first.previousSchool ? (
+            <span dir="auto">{first.previousSchool}</span>
+          ) : null}
         </Fact>
       </Facts>
     </RecordSection>
@@ -769,6 +804,15 @@ export function StudentRecord({
                   }
                 />
               )}
+              <ArrivalSection
+                data={data}
+                onEdit={
+                  access.manage &&
+                  openYear(data.placements.at(-1)?.schoolYearId)
+                    ? open({ kind: "arrival" })
+                    : undefined
+                }
+              />
             </>
           }
         />

@@ -190,6 +190,80 @@ describe("students", () => {
       code: "UNAUTHORIZED",
     });
   });
+
+  test("how a student joined, and the school they came from, are kept on their first placement", async () => {
+    const api = await signedIn("northwind", login("principal"));
+    const options = await api.people.options();
+    const grade = options.grades.find((row) => row.code === "grade_7");
+    const transfer = options.entryTypes.find(
+      (row) => row.code === "transfer_in",
+    );
+    if (!grade || !transfer) throw new Error("options");
+    const { id: studentId } = await api.people.saveStudent({
+      names: names("Salama Ashoush", "سلامة عشوش"),
+      reference: "GA9731",
+      gradeId: grade.id,
+    });
+    const placement = (await api.people.student({ id: studentId }))
+      .placements[0];
+    if (!placement) throw new Error("the student was not placed");
+    expect(placement).toMatchObject({
+      entryTypeId: null,
+      previousSchool: null,
+    });
+
+    const arrival = { studentId, placementId: placement.id };
+    await api.people.saveArrival({
+      ...arrival,
+      entryTypeId: transfer.id,
+      previousSchool: "  Nile Valley School ",
+    });
+    expect(
+      (await api.people.student({ id: studentId })).placements[0],
+    ).toMatchObject({
+      entryTypeId: transfer.id,
+      previousSchool: "Nile Valley School",
+    });
+    // Cleared again, both read as not recorded.
+    await api.people.saveArrival({
+      ...arrival,
+      entryTypeId: "",
+      previousSchool: "",
+    });
+    expect(
+      (await api.people.student({ id: studentId })).placements[0],
+    ).toMatchObject({ entryTypeId: null, previousSchool: null });
+
+    expect(
+      await rejection(
+        api.people.saveArrival({
+          ...arrival,
+          placementId: crypto.randomUUID(),
+          entryTypeId: transfer.id,
+          previousSchool: "",
+        }),
+      ),
+    ).toMatchObject({ code: "NOT_FOUND" });
+    expect(
+      await rejection(
+        api.people.saveArrival({
+          ...arrival,
+          entryTypeId: crypto.randomUUID(),
+          previousSchool: "",
+        }),
+      ),
+    ).toMatchObject({ code: "NOT_FOUND" });
+    const teacher = await signedIn("northwind", login("teacher"));
+    expect(
+      await rejection(
+        teacher.people.saveArrival({
+          ...arrival,
+          entryTypeId: "",
+          previousSchool: "",
+        }),
+      ),
+    ).toMatchObject({ code: "FORBIDDEN" });
+  });
 });
 
 describe("person records", () => {

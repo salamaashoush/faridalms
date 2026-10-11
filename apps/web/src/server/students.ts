@@ -6,6 +6,7 @@ import {
   guardianLookupSchema,
   personSearchSchema,
   recordLeavingSchema,
+  saveArrivalSchema,
   saveContactsSchema,
   saveRelationshipSchema,
   saveSignInSchema,
@@ -77,6 +78,10 @@ export const saveSignIn = createServerFn({ method: "POST" })
 export const recordLeaving = createServerFn({ method: "POST" })
   .validator(checked(recordLeavingSchema))
   .handler(({ data }) => backend().people.recordLeaving(data));
+
+export const saveArrival = createServerFn({ method: "POST" })
+  .validator(checked(saveArrivalSchema))
+  .handler(({ data }) => backend().people.saveArrival(data));
 
 export const cancelLeaving = createServerFn({ method: "POST" })
   .validator(checked(cancelLeavingSchema))

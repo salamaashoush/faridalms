@@ -292,6 +292,7 @@ export interface Placement {
   entryTypeId: string | null;
   exitTypeId: string | null;
   exitMeaning: string | null;
+  previousSchool: string | null;
   destinationSchool: string | null;
 }
 
@@ -311,11 +312,13 @@ export async function placements(
     entry_id: string | null;
     exit_id: string | null;
     exit_meaning: string | null;
+    previous_school: string | null;
     destination_school: string | null;
   }>(sql`
     select s.id, s.version, s.school_year_id, y.title_en, y.title_ar, s.valid_during::text as valid_during,
            s.grade_level_descriptor_id as grade_id, s.entry_type_descriptor_id as entry_id,
-           s.exit_type_descriptor_id as exit_id, x.system_meaning as exit_meaning, s.destination_school
+           s.exit_type_descriptor_id as exit_id, x.system_meaning as exit_meaning, s.previous_school,
+           s.destination_school
     from core.student_school_years s
     join core.academic_sessions y on y.tenant_id = s.tenant_id and y.id = s.school_year_id
     left join core.descriptors x on x.tenant_id = s.tenant_id and x.id = s.exit_type_descriptor_id
@@ -336,9 +339,34 @@ export async function placements(
       entryTypeId: row.entry_id,
       exitTypeId: row.exit_id,
       exitMeaning: row.exit_meaning,
+      previousSchool: row.previous_school,
       destinationSchool: row.destination_school,
     };
   });
+}
+
+/** Records how a student came to a placement, and from which school. */
+export async function saveArrival(
+  tx: Tx,
+  input: {
+    tenantId: string;
+    placementId: string;
+    entryTypeId: string | null;
+    previousSchool: string | null;
+  },
+) {
+  await tx
+    .update(studentSchoolYears)
+    .set({
+      entryTypeDescriptorId: input.entryTypeId,
+      previousSchool: input.previousSchool,
+    })
+    .where(
+      and(
+        eq(studentSchoolYears.tenantId, input.tenantId),
+        eq(studentSchoolYears.id, input.placementId),
+      ),
+    );
 }
 
 /**

@@ -288,6 +288,35 @@ test("the office opens sign-ins for the students it picks, and a student signs i
   await theirs.close();
 });
 
+test("the office records how a student joined and the school they came from", async ({
+  page,
+}) => {
+  await signIn(page, "admin");
+  await page.goto("/admin/students?q=GA1008");
+  await untilHydrated(page);
+  await page
+    .getByRole("link", { name: /Tarek Farouk/ })
+    .first()
+    .click();
+  await page.getByRole("tab", { name: "Enrollment", exact: true }).click();
+  const joining = page.getByRole("region", { name: "Joining" });
+  await joining.getByRole("button", { name: "Edit joining" }).click();
+  const sheet = page.getByRole("dialog", { name: "Edit joining" });
+  await sheet.getByRole("combobox", { name: "Joined as" }).click();
+  await page
+    .getByRole("option", { name: "Transfer from another school" })
+    .click();
+  // Every browser writes the same facts to the one student, so each reads
+  // them back whichever saved last.
+  await sheet
+    .getByRole("textbox", { name: "Previous school" })
+    .fill("Nile Valley School");
+  await sheet.getByRole("button", { name: "Save", exact: true }).click();
+  await expect(sheet).toBeHidden();
+  await expect(joining).toContainText("Transfer from another school");
+  await expect(joining).toContainText("Nile Valley School");
+});
+
 // Each browser records a student of its own as having left and takes it
 // back, so none finds a student another browser has changed.
 const LEAVER = {

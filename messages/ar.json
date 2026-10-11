@@ -6045,5 +6045,11 @@
   "passwordCurrent": "كلمة المرور الحالية",
   "passwordChanged": "تم تغيير كلمة المرور. سُجّل خروج أجهزتك الأخرى.",
   "errorWrongPassword": "هذه ليست كلمة مرورك الحالية.",
-  "errorTooManyAttempts": "محاولات كثيرة. انتظر بضع دقائق ثم حاول مرة أخرى."
+  "errorTooManyAttempts": "محاولات كثيرة. انتظر بضع دقائق ثم حاول مرة أخرى.",
+  "arrivalTitle": "الالتحاق بالمدرسة",
+  "arrivalJoinedOn": "تاريخ الالتحاق",
+  "arrivalJoinedAs": "طريقة الالتحاق",
+  "arrivalPreviousSchool": "المدرسة السابقة",
+  "arrivalPreviousSchoolHint": "المدرسة التي جاء منها، كما في أوراقه.",
+  "arrivalEdit": "تعديل بيانات الالتحاق"
 }

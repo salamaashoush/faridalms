@@ -78,6 +78,7 @@ import {
   refreshCustodyAlert,
   relationshipOf,
   reopenPlacement,
+  saveArrival as storeArrival,
   setReference,
   signInSeeds,
   studentDirectory,
@@ -112,6 +113,7 @@ import {
   leaverAccessEnd,
   personSearchSchema,
   recordLeavingSchema,
+  saveArrivalSchema,
   saveContactsSchema,
   saveRelationshipSchema,
   saveSignInSchema,
@@ -241,22 +243,32 @@ export const options = readProcedure.handler(async ({ context }) => {
       namespace,
       today: context.today,
     });
-  const [grades, relations, sexes, positions, religions, exitTypes, years] =
-    await Promise.all([
-      load("grade_level"),
-      load("relation"),
-      load("sex"),
-      load("staff_position"),
-      load("religion"),
-      load("school_exit_type"),
-      schoolYears(context.tx, context.tenantId, context.schoolId),
-    ]);
+  const [
+    grades,
+    relations,
+    sexes,
+    positions,
+    religions,
+    entryTypes,
+    exitTypes,
+    years,
+  ] = await Promise.all([
+    load("grade_level"),
+    load("relation"),
+    load("sex"),
+    load("staff_position"),
+    load("religion"),
+    load("school_entry_type"),
+    load("school_exit_type"),
+    schoolYears(context.tx, context.tenantId, context.schoolId),
+  ]);
   return {
     grades,
     relations,
     sexes,
     positions,
     religions,
+    entryTypes,
     exitTypes,
     years,
     workingYearId: workingYear(years, context.today)?.id ?? null,
@@ -1666,6 +1678,53 @@ async function openYearOf(context: UnitContext, yearId: string) {
     throw new ORPCError("CONFLICT", { message: "school_year.closed" });
   return { years, year };
 }
+
+/**
+ * Records how a student came to a placement: as a new entrant, a transfer
+ * and the like, and the school they came from, which a school that takes a
+ * transfer is asked to keep with the papers that prove it.
+ */
+export const saveArrival = writeProcedure
+  .input(saveArrivalSchema)
+  .handler(async ({ input, context }) => {
+    requireCapability(context, "people:manage");
+    const scope = scopeOf(context);
+    if (!(await isVisibleStudent(context.tx, scope, input.studentId)))
+      throw new ORPCError("NOT_FOUND");
+    const placement = (
+      await placements(context.tx, scope, input.studentId)
+    ).find((row) => row.id === input.placementId);
+    if (!placement) throw new ORPCError("NOT_FOUND");
+    await openYearOf(context, placement.schoolYearId);
+    const entryTypeId = input.entryTypeId || null;
+    if (
+      entryTypeId &&
+      !(
+        await descriptorsFor(context.tx, {
+          tenantId: context.tenantId,
+          schoolId: context.schoolId,
+          namespace: "school_entry_type",
+          today: context.today,
+        })
+      ).some((row) => row.id === entryTypeId)
+    )
+      throw new ORPCError("NOT_FOUND");
+    await storeArrival(context.tx, {
+      tenantId: context.tenantId,
+      placementId: placement.id,
+      entryTypeId,
+      previousSchool: input.previousSchool,
+    });
+    await audit(context, {
+      action: "placement.change",
+      objectType: "user",
+      objectId: input.studentId,
+      subjectUserId: input.studentId,
+      studentUserId: input.studentId,
+      details: { placementId: placement.id, entryTypeId },
+    });
+    return { saved: true };
+  });
 
 /**
  * Records that a student has left the school. Their placement ends after
