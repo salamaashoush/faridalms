@@ -170,7 +170,10 @@ export function synced(
  * The editor's address on the files host: told the page around it is its
  * host, which is what has it ask for its project and hand over what it
  * compiles, in the lesson's language, and kept from change where a
- * project is only looked at.
+ * project is only looked at. The editor moves to `#editor` once its
+ * project is open, and a frame that moves adds a step to the history of
+ * the page around it, which that page's way back then lands on. Starting
+ * there leaves it nowhere to move to.
  */
 export function editorUrl(
   origin: string,
@@ -181,5 +184,5 @@ export function editorUrl(
     lang: options.language,
   });
   if (options.readOnly) query.set("readonly", "1");
-  return `${origin}/makecode/index.html?${query}`;
+  return `${origin}/makecode/index.html?${query}#editor`;
 }

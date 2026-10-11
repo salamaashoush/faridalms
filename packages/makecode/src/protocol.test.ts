@@ -143,10 +143,12 @@ describe("what the editor is told", () => {
         readOnly: false,
       }),
     ).toBe(
-      "https://files.school.test/makecode/index.html?controller=2&lang=ar",
+      "https://files.school.test/makecode/index.html?controller=2&lang=ar#editor",
     );
     expect(
       editorUrl("http://localhost:3103", { language: "en", readOnly: true }),
-    ).toContain("readonly=1");
+    ).toBe(
+      "http://localhost:3103/makecode/index.html?controller=2&lang=en&readonly=1#editor",
+    );
   });
 });
