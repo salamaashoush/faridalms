@@ -65,8 +65,14 @@ sections 4.7 and 6.13), whose tables (`erasure_approvals`, `erasure_items`,
   passkeys, devices, sessions deleted), preferences, saved views, calendar
   feeds, health records, custody restrictions, audit
   payloads and activity events; the drafts and handed-in copies of their
-  work redacted with every version; the files only that work held.
-- Not yet covered: quiz answers, lesson responses and messages they wrote
-  stay attached to the anonymised person, because `retention` holds no
-  grant on those tables; health and custody files are not listed. Each
-  needs a grant and a policy reviewed against the catalogue check.
+  work redacted with every version; the files only that work held. In
+  lessons and quizzes: every answer emptied, with what the teacher wrote
+  back, and its mark left as the figure it is; the recordings, pictures and
+  coding projects answers were made of; the runs of their programs, their
+  own versions of a lesson's code, the projects they were building and
+  what they offered to a class gallery. What they watched of a recording
+  and which lessons they finished stay, as attendance does.
+- Not yet covered: messages they wrote stay attached to the anonymised
+  person, since a conversation is also the other person's record; health
+  and custody files are not listed. Each needs a grant and a policy
+  reviewed against the catalogue check.

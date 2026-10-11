@@ -20,6 +20,10 @@ const DELETE_ALLOWED = new Set([
   "core.user_preferences",
   "core.saved_views",
   "core.activity_events",
+  "core.lesson_runs",
+  "core.lesson_code",
+  "core.lesson_projects",
+  "core.lesson_shares",
   "health.records",
   "audit.payloads",
 ]);

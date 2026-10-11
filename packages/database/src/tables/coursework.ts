@@ -22,6 +22,8 @@ import {
   core,
   entityColumns,
   entityProfile,
+  erase,
+  erasureOf,
   fk,
   instant,
   pk,
@@ -726,6 +728,8 @@ export const quizAnswers = core.table.withRLS(
       .on(t.tenantId, t.submissionId, t.attempt, t.blockId)
       .where(sql`status = 'active'`),
     ...entityProfile(),
+    // An erased student's answers are emptied and stay for their marks.
+    ...erase(erasureOf("student_user_id")),
   ],
 );
 

@@ -542,7 +542,7 @@ describe("erasure", () => {
 });
 
 describe("erasing a student's work", () => {
-  test("redacts their documents and removes the files only their work held, in one rolled-back unit", async () => {
+  test("redacts their documents and lesson answers and removes what was only theirs, in one rolled-back unit", async () => {
     const { a } = harness();
     const t = a.tenantId;
     const client = new SQL(urlFor(null));
@@ -574,12 +574,47 @@ describe("erasing a student's work", () => {
           insert into core.document_files (tenant_id, document_id, file_id, file_purpose)
           values (${t}::uuid, ${work.document}::uuid, ${fileId}::uuid, 'document_media')`);
 
+        // What the student answered, ran, kept and offered in a lesson, and
+        // the recording one answer was made of.
+        const [lesson] = await tx.execute<{ id: string }>(sql`
+          select id from core.lessons where tenant_id = ${t}::uuid and status = 'active' limit 1`);
+        if (!lesson) throw new Error("the seed has no lesson");
+        const spoken = crypto.randomUUID();
+        const block = crypto.randomUUID();
+        const digest = "0".repeat(64);
+        await tx.execute(sql`
+          insert into core.files (tenant_id, id, purpose, name, media_type, size_bytes, storage_key,
+                                  host_type, host_id, uploaded_by_user_id)
+          values (${t}::uuid, ${spoken}::uuid, 'document_media', 'answer.webm', 'audio/webm', 10,
+                  ${`t/${t}/erasure-spoken`}, 'lesson_answer', ${lesson.id}::uuid,
+                  ${work.student}::uuid)`);
+        await tx.execute(sql`
+          insert into core.lesson_responses (tenant_id, lesson_id, student_user_id, block_id, try, kind,
+                                             response, fraction, state, feedback, marked_by_user_id)
+          values (${t}::uuid, ${lesson.id}::uuid, ${work.student}::uuid, ${block}::uuid, 1, 'written',
+                  ${JSON.stringify({ type: "written", text: "My family lives by the river." })}::text::jsonb,
+                  0.5, 'marked', 'Say more about the river.', ${work.student}::uuid)`);
+        await tx.execute(sql`
+          insert into core.lesson_runs (tenant_id, lesson_id, student_user_id, block_id, attempt, code, outcome)
+          values (${t}::uuid, ${lesson.id}::uuid, ${work.student}::uuid, ${block}::uuid, 1,
+                  'print("my name")', 'done')`);
+        await tx.execute(sql`
+          insert into core.lesson_code (tenant_id, lesson_id, student_user_id, block_id, code, based_on)
+          values (${t}::uuid, ${lesson.id}::uuid, ${work.student}::uuid, 'a1b2c3d4', 'print("me")', ${digest})`);
+        await tx.execute(sql`
+          insert into core.lesson_projects (tenant_id, lesson_id, student_user_id, block_id, files, based_on)
+          values (${t}::uuid, ${lesson.id}::uuid, ${work.student}::uuid, ${block}::uuid, '[]', ${digest})`);
+        await tx.execute(sql`
+          insert into core.lesson_shares (tenant_id, lesson_id, student_user_id, block_id, response)
+          values (${t}::uuid, ${lesson.id}::uuid, ${work.student}::uuid, ${block}::uuid, '{}')`);
+
         const plan = await erasurePlan(tx, {
           tenantId: t,
           subjectUserId: work.student,
         });
         expect(plan.documents).toContain(work.document);
         expect(plan.files).toContain(fileId);
+        expect(plan.files).toContain(spoken);
         await approveErasure(tx, {
           tenantId: t,
           subjectUserId: work.student,
@@ -625,6 +660,54 @@ describe("erasing a student's work", () => {
           files: 0,
           links: 0,
           name: null,
+        });
+
+        expect(result.storageKeys).toContain(`t/${t}/erasure-spoken`);
+        expect(result.counts.lesson_responses).toBeGreaterThanOrEqual(1);
+        const [answered] = await tx.execute<{
+          response: Record<string, unknown>;
+          feedback: string | null;
+          fraction: string;
+          redacted: boolean;
+        }>(sql`
+          select response, feedback, fraction, redacted_at is not null as redacted
+          from core.lesson_responses
+          where tenant_id = ${t}::uuid and student_user_id = ${work.student}::uuid and block_id = ${block}::uuid`);
+        // The answer and what was said of it are gone; its mark stays.
+        expect(answered).toMatchObject({
+          response: {},
+          feedback: null,
+          redacted: true,
+        });
+        expect(Number(answered?.fraction)).toBe(0.5);
+        const [left] = await tx.execute<{
+          runs: number;
+          code: number;
+          projects: number;
+          shares: number;
+          unread: number;
+          quizzes: number;
+        }>(sql`
+          select (select count(*)::int from core.lesson_runs where tenant_id = ${t}::uuid
+                   and student_user_id = ${work.student}::uuid) as runs,
+                 (select count(*)::int from core.lesson_code where tenant_id = ${t}::uuid
+                   and student_user_id = ${work.student}::uuid) as code,
+                 (select count(*)::int from core.lesson_projects where tenant_id = ${t}::uuid
+                   and student_user_id = ${work.student}::uuid) as projects,
+                 (select count(*)::int from core.lesson_shares where tenant_id = ${t}::uuid
+                   and student_user_id = ${work.student}::uuid) as shares,
+                 (select count(*)::int from core.lesson_responses where tenant_id = ${t}::uuid
+                   and student_user_id = ${work.student}::uuid and redacted_at is null) as unread,
+                 (select count(*)::int from core.quiz_answers where tenant_id = ${t}::uuid
+                   and student_user_id = ${work.student}::uuid
+                   and (status = 'active' or response <> '{}' or feedback is not null)) as quizzes`);
+        expect(left).toEqual({
+          runs: 0,
+          code: 0,
+          projects: 0,
+          shares: 0,
+          unread: 0,
+          quizzes: 0,
         });
         checked = true;
         throw rollback;

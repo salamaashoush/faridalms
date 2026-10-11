@@ -18,10 +18,10 @@ export interface ErasurePlan {
 
 /**
  * The documents and files erasing a person takes with them: the drafts and
- * handed-in copies of their work, the files those hold and their photo. A
- * file another record still needs (published, kept as consent evidence,
- * about someone else, or placed in a document that is not being erased)
- * stays.
+ * handed-in copies of their work, the files those hold, what they recorded,
+ * drew or built to answer a lesson, and their photo. A file another record
+ * still needs (published, kept as consent evidence, about someone else, or
+ * placed in a document that is not being erased) stays.
  */
 export async function erasurePlan(
   tx: Tx,
@@ -44,7 +44,8 @@ export async function erasurePlan(
         or (f.host_type = 'submission' and f.host_id in (
               select id from core.submissions where tenant_id = ${t}::uuid and student_user_id = ${s}::uuid))
         or (f.host_type = 'submission_attempt' and f.host_id in (
-              select id from core.submission_attempts where tenant_id = ${t}::uuid and student_user_id = ${s}::uuid)))
+              select id from core.submission_attempts where tenant_id = ${t}::uuid and student_user_id = ${s}::uuid))
+        or (f.host_type = 'lesson_answer' and f.uploaded_by_user_id = ${s}::uuid))
       and f.purpose not in ('health_report', 'evidence', 'legal_document')
       and not exists (select 1 from core.file_publications p where p.tenant_id = f.tenant_id and p.file_id = f.id)
       and not exists (select 1 from core.consent_records c where c.tenant_id = f.tenant_id and c.evidence_file_id = f.id)
@@ -268,6 +269,39 @@ export async function eraseSubject(
           preferred_locale = null, primary_org_id = null, erased_at = statement_timestamp()
         where tenant_id = ${t}::uuid and id = ${s}::uuid returning 1`,
   );
+
+  // What the student answered, said and built in lessons and quizzes. The
+  // answers stay as rows for the marks a class's figures are counted from,
+  // emptied of the answer and of what the teacher wrote back; the rest is
+  // only about the student.
+  await run(
+    "lesson_responses",
+    sql`update core.lesson_responses set response = '{}', feedback = null,
+          redacted_at = statement_timestamp()
+        where tenant_id = ${t}::uuid and student_user_id = ${s}::uuid and redacted_at is null
+        returning 1`,
+  );
+  await run(
+    "quiz_answers",
+    sql`update core.quiz_answers set status = 'tobedeleted', metadata = '{}', response = '{}',
+          feedback = null
+        where tenant_id = ${t}::uuid and student_user_id = ${s}::uuid returning 1`,
+  );
+  await run(
+    "lesson_runs",
+    sql`delete from core.lesson_runs where tenant_id = ${t}::uuid and student_user_id = ${s}::uuid
+        returning 1`,
+  );
+  for (const table of [
+    "lesson_code",
+    "lesson_projects",
+    "lesson_shares",
+  ] as const)
+    await remove(
+      table,
+      sql`core.${sql.identifier(table)}`,
+      sql`student_user_id = ${s}::uuid`,
+    );
 
   const keys = await tx.execute<{ storage_key: string }>(sql`
     select storage_key from core.files where tenant_id = ${t}::uuid and id in ${listed("file")}`);

@@ -21,11 +21,14 @@ delete_allowed(name, role) as (values
   ('core.login_identities', 'retention'), ('core.passkeys', 'retention'), ('core.devices', 'retention'),
   ('core.files', 'retention'), ('core.file_subjects', 'retention'), ('core.user_preferences', 'retention'),
   ('core.saved_views', 'retention'), ('core.activity_events', 'retention'), ('health.records', 'retention'),
-  ('audit.payloads', 'retention'), ('core.calendar_feeds', 'retention'), ('core.document_files', 'retention')),
+  ('audit.payloads', 'retention'), ('core.calendar_feeds', 'retention'), ('core.document_files', 'retention'),
+  ('core.lesson_runs', 'retention'), ('core.lesson_code', 'retention'), ('core.lesson_projects', 'retention'),
+  ('core.lesson_shares', 'retention')),
 unversioned_update_allowed(name, role) as (values
   ('core.sessions', 'app'), ('core.sessions', 'worker'), ('core.auth_attempts', 'app'), ('core.auth_attempts', 'worker'),
   ('core.idempotency_keys', 'app'), ('core.idempotency_keys', 'worker'), ('core.tenant_keys', 'worker'),
-  ('core.tenant_keys', 'retention'), ('core.document_versions', 'retention')),
+  ('core.tenant_keys', 'retention'), ('core.document_versions', 'retention'),
+  ('core.lesson_responses', 'retention')),
 column_granted(name, role) as (values
   ('core.tenants', 'app'), ('core.orgs', 'app'), ('core.descriptors', 'app'), ('core.files', 'app'),
   ('core.accounts', 'app'), ('core.passkeys', 'app'), ('core.access_roles', 'app'),

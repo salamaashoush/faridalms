@@ -20,11 +20,15 @@ import {
   core,
   entityColumns,
   entityProfile,
+  eraseAndDelete,
+  eraseLedger,
+  erasureOf,
   fk,
   instant,
   int4multirange,
   ledgerProfile,
   pk,
+  redact,
   tenantColumns,
 } from "./conventions";
 import { documentVersions } from "./documents";
@@ -363,6 +367,11 @@ export const lessonResponses = core.table.withRLS(
     createdAt: instant("created_at")
       .notNull()
       .default(sql`statement_timestamp()`),
+    /**
+     * When an erasure emptied the row of the answer and what was said of
+     * it. Its kind, try and mark stay, as the class's figures need them.
+     */
+    redactedAt: instant("redacted_at"),
   },
   (t): PgTableExtraConfigValue[] => [
     pk("lesson_responses", t.tenantId, t.id),
@@ -419,6 +428,11 @@ export const lessonResponses = core.table.withRLS(
       "feedback",
       sql`feedback is null or char_length(feedback) between 1 and 2000`,
     ),
+    ck(
+      "lesson_responses",
+      "redacted",
+      sql`redacted_at is null or (response = '{}' and feedback is null)`,
+    ),
     index("lesson_responses_student_idx").on(
       t.tenantId,
       t.lessonId,
@@ -426,6 +440,7 @@ export const lessonResponses = core.table.withRLS(
       t.attempt,
     ),
     ...ledgerProfile(),
+    ...redact(erasureOf("student_user_id")),
   ],
 );
 
@@ -485,6 +500,7 @@ export const lessonRuns = core.table.withRLS(
       t.blockId,
     ),
     ...ledgerProfile(),
+    ...eraseLedger(erasureOf("student_user_id")),
   ],
 );
 
@@ -521,6 +537,7 @@ export const lessonCode = core.table.withRLS(
       .on(t.tenantId, t.lessonId, t.studentUserId, t.blockId)
       .where(sql`status = 'active'`),
     ...entityProfile(),
+    ...eraseAndDelete(erasureOf("student_user_id")),
   ],
 );
 
@@ -572,6 +589,7 @@ export const lessonProjects = core.table.withRLS(
       .on(t.tenantId, t.lessonId, t.studentUserId, t.blockId)
       .where(sql`status = 'active'`),
     ...entityProfile(),
+    ...eraseAndDelete(erasureOf("student_user_id")),
   ],
 );
 
@@ -627,5 +645,6 @@ export const lessonShares = core.table.withRLS(
       .on(t.tenantId, t.lessonId, t.studentUserId, t.blockId)
       .where(sql`status = 'active'`),
     ...entityProfile(),
+    ...eraseAndDelete(erasureOf("student_user_id")),
   ],
 );

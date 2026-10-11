@@ -321,6 +321,33 @@ export function eraseAndDelete(who: SQL) {
   ];
 }
 
+/**
+ * Erase by emptying: a ledger row that stays for what the school counts
+ * from it, with whatever the person wrote in it gone. The table says with
+ * a check what a row with `redacted_at` set no longer holds.
+ */
+export function redact(who: SQL) {
+  return [
+    pgPolicy("p_erase_update", {
+      for: "update",
+      to: roles.retention,
+      using: who,
+      withCheck: sql`redacted_at is not null`,
+    }),
+  ];
+}
+
+/** Erase by removing: a ledger row that is only about the person. */
+export function eraseLedger(who: SQL) {
+  return [
+    pgPolicy("p_erase_delete", {
+      for: "delete",
+      to: roles.retention,
+      using: who,
+    }),
+  ];
+}
+
 export const erasureOf = (column: string) =>
   sql`app.erasure_approved(tenant_id, ${sql.identifier(column)})`;
 
