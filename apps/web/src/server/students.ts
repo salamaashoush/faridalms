@@ -33,6 +33,10 @@ export const getStudentHistory = createServerFn({ method: "GET" })
   .validator(byId)
   .handler(({ data }) => record(backend().people.studentHistory(data)));
 
+export const getStudentNotices = createServerFn({ method: "GET" })
+  .validator(byId)
+  .handler(({ data }) => record(backend().people.studentNotices(data)));
+
 export const getStudentMatches = createServerFn({ method: "GET" })
   .validator(checked(studentMatchesSchema))
   .handler(({ data }) => backend().people.matches(data));

@@ -5634,5 +5634,14 @@
   "scratchNoteUnheard": "“{message}” is sent, but no script waits for it.",
   "scratchNoteUnsent": "A script waits for “{message}”, but nothing sends it.",
   "scratchNoteOnce": "A key, the mouse or a touch is checked once, straight after the flag. Inside a “forever” it would go on being checked.",
-  "scratchNoteForever": "A “forever” sits inside another loop, so the outer loop never goes round again."
+  "scratchNoteForever": "A “forever” sits inside another loop, so the outer loop never goes round again.",
+  "studentTodayTitle": "Today",
+  "studentTodayHint": "The student's lessons as the timetable has them today.",
+  "studentTodayNone": "No lessons today.",
+  "studentAttendanceOpen": "All marks",
+  "studentNoticesTitle": "Told to guardians",
+  "studentNoticesHint": "The latest notices the school sent this student's guardians, and who has read them.",
+  "studentNoticesNone": "Nothing has been sent to this student's guardians yet.",
+  "studentNoticeReadBy": "Read by {names}",
+  "studentNoticeUnreadBy": "Not yet read by {names}"
 }

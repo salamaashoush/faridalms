@@ -371,6 +371,7 @@ export const student = readProcedure
         custody: can(context, "custody:read"),
         history: can(context, "people:manage") || can(context, "audit:read"),
         attendance: can(context, "attendance:read"),
+        timetable: can(context, "timetable:read"),
         coursework:
           can(context, "people:read") && can(context, "assignments:read"),
       },

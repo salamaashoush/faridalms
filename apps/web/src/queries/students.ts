@@ -8,6 +8,7 @@ import {
   getPersonRecord,
   getSiblings,
   getStudentHistory,
+  getStudentNotices,
   getStudentRecord,
   getStudents,
 } from "~/server/students";
@@ -34,6 +35,12 @@ export const studentHistoryQuery = (id: string) =>
   queryOptions({
     queryKey: ["people", "student", id, "history"],
     queryFn: () => getStudentHistory({ data: { id } }),
+  });
+
+export const studentNoticesQuery = (id: string) =>
+  queryOptions({
+    queryKey: ["people", "student", id, "notices"],
+    queryFn: () => getStudentNotices({ data: { id } }),
   });
 
 export const personRecordQuery = (id: string) =>

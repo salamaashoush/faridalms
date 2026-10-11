@@ -73,6 +73,11 @@ import {
   HealthSection,
 } from "./RecordSections";
 import { SignInSection } from "./SignInSection";
+import {
+  StudentAttendanceSummary,
+  StudentNotices,
+  StudentToday,
+} from "./StudentOverview";
 import { StudentSheets, useEndLink } from "./StudentSheets";
 
 export const STUDENT_TABS = [
@@ -554,8 +559,26 @@ export function StudentRecord({
         <RecordColumns
           main={
             <>
+              {access.timetable ? (
+                <Deferred>
+                  <StudentToday studentId={studentId} today={data.today} />
+                </Deferred>
+              ) : null}
+              {access.attendance ? (
+                <Deferred>
+                  <StudentAttendanceSummary
+                    studentId={studentId}
+                    onOpen={() => onTab("attendance")}
+                  />
+                </Deferred>
+              ) : null}
               <PlacementSection data={data} />
               {access.contacts ? <GuardiansSection data={data} /> : null}
+              {access.manage ? (
+                <Deferred>
+                  <StudentNotices studentId={studentId} />
+                </Deferred>
+              ) : null}
             </>
           }
           aside={<PersonalSection data={data} />}

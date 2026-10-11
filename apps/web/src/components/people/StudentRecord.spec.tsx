@@ -24,6 +24,7 @@ vi.mock("~/server/students", () => ({
   getPeopleOptions: vi.fn(),
   getStudentRecord: vi.fn(),
   getStudentHistory: vi.fn(),
+  getStudentNotices: vi.fn(() => Promise.resolve([])),
   getStudents: vi.fn(),
   getStudentMatches: vi.fn(),
   findGuardians: vi.fn(),
@@ -118,6 +119,7 @@ const RECORD: StudentData = {
     custody: false,
     history: false,
     attendance: false,
+    timetable: false,
     coursework: false,
   },
 };

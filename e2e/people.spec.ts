@@ -108,6 +108,34 @@ test("record tabs follow the reading direction in Arabic", async ({
   ).toBeFocused();
 });
 
+test("a student's record opens on their day, their year of attendance and what their guardians were told", async ({
+  page,
+}) => {
+  await signIn(page, "admin");
+  await page.goto("/admin/students");
+  await untilHydrated(page);
+  await page.getByRole("table").getByRole("link").first().click();
+  await expect(page).toHaveURL(/\/students\/[a-f0-9-]+/);
+  // The day's lessons, or that it has none: a weekend's record says so.
+  const today = page.getByRole("region", { name: "Today", exact: true });
+  await expect(
+    today
+      .getByRole("listitem")
+      .or(today.getByText("No lessons today."))
+      .first(),
+  ).toBeVisible();
+  await expect(
+    page.getByRole("region", { name: "Told to guardians" }),
+  ).toBeVisible();
+  await page
+    .getByRole("region", { name: "Attendance", exact: true })
+    .getByRole("button", { name: "All marks" })
+    .click();
+  await expect(
+    page.getByRole("tab", { name: "Attendance", exact: true }),
+  ).toHaveAttribute("aria-selected", "true");
+});
+
 test("a parent opens their own record but not the school's student list", async ({
   page,
 }) => {

@@ -5854,5 +5854,14 @@
   "scratchNoteUnheard": "تُبثّ الرسالة «{message}» ولا ينتظرها أي مقطع برمجي.",
   "scratchNoteUnsent": "ينتظر مقطع برمجي الرسالة «{message}» ولا شيء يبثّها.",
   "scratchNoteOnce": "يُفحص مفتاح أو الفأرة أو تلامس مرة واحدة بعد العلم مباشرة. داخل «كرِّر باستمرار» يستمر الفحص.",
-  "scratchNoteForever": "توجد «كرِّر باستمرار» داخل حلقة أخرى، فلا تدور الحلقة الخارجية مرة ثانية."
+  "scratchNoteForever": "توجد «كرِّر باستمرار» داخل حلقة أخرى، فلا تدور الحلقة الخارجية مرة ثانية.",
+  "studentTodayTitle": "اليوم",
+  "studentTodayHint": "حصص الطالب كما في الجدول اليوم.",
+  "studentTodayNone": "لا حصص اليوم.",
+  "studentAttendanceOpen": "كل العلامات",
+  "studentNoticesTitle": "ما أُبلغ به أولياء الأمور",
+  "studentNoticesHint": "أحدث الإشعارات التي أرسلتها المدرسة إلى أولياء أمر هذا الطالب، ومن قرأها.",
+  "studentNoticesNone": "لم يُرسل شيء إلى أولياء أمر هذا الطالب بعد.",
+  "studentNoticeReadBy": "قرأه {names}",
+  "studentNoticeUnreadBy": "لم يقرأه بعد {names}"
 }
