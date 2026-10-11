@@ -172,6 +172,45 @@ test("the office writes to a student's guardians from the student's record", asy
   await expect(page.getByText(note).first()).toBeVisible();
 });
 
+test("the office writes to the families of the students it picks in the list, each in its own conversation", async ({
+  page,
+}) => {
+  await signIn(page, "admin");
+  // Two students whose families' conversations no other spec reads.
+  await page.goto("/admin/students?q=Zaki");
+  await untilHydrated(page);
+  const pick = page
+    .getByRole("table")
+    .getByRole("checkbox", { name: /^Select .*Zaki/ });
+  await pick.nth(0).check();
+  await pick.nth(1).check();
+  await page.getByRole("button", { name: "Message guardians" }).click();
+  const sheet = page.getByRole("dialog", { name: "New message" });
+  await expect(
+    sheet.getByText("To the guardians of the 2 students picked"),
+  ).toBeVisible();
+  const note = `Trip on Thursday, ${crypto.randomUUID().slice(0, 6)}`;
+  await sheet.getByRole("textbox", { name: "Message" }).fill(note);
+  await sheet.getByRole("button", { name: "Send", exact: true }).click();
+  await expect(
+    page.getByText("Sent to the guardians of 2 students."),
+  ).toBeVisible();
+  await expect(sheet).toBeHidden();
+  // Each family has it in a conversation about its own child. Other
+  // browsers write to the same two, so each is opened and read through.
+  await page.goto("/admin/messages");
+  await untilHydrated(page);
+  const families = page
+    .getByRole("list", { name: "Conversations" })
+    .getByRole("button", { name: /Zaki/ });
+  for (const family of [families.nth(0), families.nth(1)]) {
+    await family.click();
+    await expect(page.getByRole("list", { name: "Messages" })).toContainText(
+      note,
+    );
+  }
+});
+
 test("a parent opens their own record but not the school's student list", async ({
   page,
 }) => {

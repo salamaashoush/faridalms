@@ -5645,5 +5645,9 @@
   "studentNoticeReadBy": "Read by {names}",
   "studentNoticeUnreadBy": "Not yet read by {names}",
   "studentMessageGuardians": "Message guardians",
-  "msgToGuardiansOf": "To the guardians of {name}"
+  "msgToGuardiansOf": "To the guardians of {name}",
+  "msgToGuardiansOfMany": "To the guardians of the {count} students picked",
+  "msgToGuardiansEach": "Each family gets it in a conversation of its own, about its child.",
+  "msgSentToFamilies": "Sent to the guardians of {count} students.",
+  "msgNoGuardiansFor": "Not sent for {names}: none of their guardians uses the portal."
 }

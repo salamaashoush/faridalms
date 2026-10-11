@@ -795,9 +795,11 @@ export function StudentRecord({
       {writing && onConversation ? (
         <NewMessage
           canStartFamily
-          about={{ id: studentId, name }}
+          about={[{ id: studentId, name }]}
           onClose={() => setWriting(false)}
-          onStarted={onConversation}
+          onStarted={(thread) => {
+            if (thread) onConversation(thread);
+          }}
         />
       ) : null}
       {access.manage ? (

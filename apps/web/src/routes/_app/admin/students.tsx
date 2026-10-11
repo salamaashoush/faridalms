@@ -7,10 +7,12 @@ import {
   CalendarX,
   Copy,
   Download,
+  MessageSquare,
   Pencil,
   Plus,
   UsersRound,
 } from "lucide-react";
+import { useState } from "react";
 import { toast } from "sonner";
 import * as v from "valibot";
 
@@ -24,6 +26,7 @@ import type {
 import { PersonAvatar } from "~/components/admin/PersonAvatar";
 import { ButtonLink } from "~/components/app/ButtonLink";
 import { Value } from "~/components/app/primitives";
+import { NewMessage } from "~/components/messages/NewMessage";
 import {
   displayName,
   formatPhone,
@@ -229,6 +232,10 @@ function StudentsPage() {
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
   const canManage = useCapability("people:manage");
+  const canMessage = useCapability("messages:send");
+  const [writing, setWriting] = useState<{ id: string; name: string }[] | null>(
+    null,
+  );
   const data = useSuspenseQuery(studentsQuery(search)).data;
   const options = useSuspenseQuery(peopleOptionsQuery).data;
   const patch = (change: Partial<StudentDirectoryQuery>) => {
@@ -351,6 +358,21 @@ function StudentsPage() {
         }}
         rowActions={rowActions}
         batchActions={[
+          ...(canMessage
+            ? [
+                {
+                  label: m.studentMessageGuardians(),
+                  icon: MessageSquare,
+                  onSelect: (rows: StudentRow[]) =>
+                    setWriting(
+                      rows.map((row) => ({
+                        id: row.id,
+                        name: displayName(row),
+                      })),
+                    ),
+                },
+              ]
+            : []),
           {
             label: m.studentsExport(),
             icon: Download,
@@ -382,6 +404,18 @@ function StudentsPage() {
           ) : undefined,
         }}
       />
+      {writing ? (
+        <NewMessage
+          canStartFamily
+          about={writing}
+          onClose={() => setWriting(null)}
+          onStarted={(thread) => {
+            setWriting(null);
+            if (thread)
+              void navigate({ to: "/admin/messages", search: { thread } });
+          }}
+        />
+      ) : null}
     </>
   );
 }

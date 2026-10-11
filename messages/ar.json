@@ -5865,5 +5865,9 @@
   "studentNoticeReadBy": "قرأه {names}",
   "studentNoticeUnreadBy": "لم يقرأه بعد {names}",
   "studentMessageGuardians": "راسل أولياء الأمور",
-  "msgToGuardiansOf": "إلى أولياء أمر {name}"
+  "msgToGuardiansOf": "إلى أولياء أمر {name}",
+  "msgToGuardiansOfMany": "إلى أولياء أمور الطلاب المحددين وعددهم {count}",
+  "msgToGuardiansEach": "تصل كل أسرة في محادثة خاصة بها عن ابنها.",
+  "msgSentToFamilies": "أُرسلت إلى أولياء أمور {count} من الطلاب.",
+  "msgNoGuardiansFor": "لم تُرسل بخصوص {names}: لا يستخدم أي من أولياء أمورهم البوابة."
 }

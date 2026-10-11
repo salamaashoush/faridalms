@@ -262,7 +262,7 @@ export function MessagesPage({
           canStartFamily={inbox.canStartFamily}
           onClose={() => onSearch({ compose: false }, true)}
           onStarted={(threadId) =>
-            onSearch({ compose: false, thread: threadId }, true)
+            onSearch({ compose: false, thread: threadId ?? "" }, true)
           }
         />
       ) : null}

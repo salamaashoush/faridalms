@@ -107,8 +107,11 @@ Rules that hold for every section:
    has read each. Each shows only to a viewer who may read it elsewhere.
    Done for the header: Message guardians opens a new message to the
    student's guardians, with nobody to pick, and lands in the conversation;
-   Move class opens the sheet the Enrollment tab opens. The bulk actions
-   on the list remain.
+   Move class opens the sheet the Enrollment tab opens. Done for the
+   list: Message guardians writes to the families of the students picked,
+   each in a conversation of its own, and names any student none of whose
+   guardians uses the portal. Move class, Create accounts and Archive for
+   several students remain.
 5. **Arrivals and departures.** Previous school and destination on the
    school-year rows, a Documents section for transfer certificates and past
    reports, and rights decisions enforced where families act (absence

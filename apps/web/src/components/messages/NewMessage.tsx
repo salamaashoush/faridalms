@@ -8,6 +8,7 @@ import {
 import { Textarea } from "@faridalms/ui/textarea";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useState } from "react";
+import { toast } from "sonner";
 
 import { ComboboxField } from "~/components/system/ComboboxField";
 import { FormField, SelectField, TextField } from "~/components/system/field";
@@ -17,6 +18,7 @@ import * as m from "~/i18n/messages";
 import { getLocale } from "~/i18n/runtime";
 import { messageRecipientsQuery } from "~/queries/messages";
 import { startThread } from "~/server/messages";
+import { formatList, formatNumber } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
 import { nameOf } from "./format";
@@ -36,9 +38,38 @@ function recipientLabel(row: Recipient) {
 }
 
 /**
+ * Writes to each student's family in turn, in the order given. A student
+ * none of whose guardians uses the portal is passed over and named; any
+ * other failure stops there.
+ */
+async function toEachFamily(
+  students: readonly { id: string; name: string }[],
+  send: (studentId: string) => Promise<{ threadId: string }>,
+): Promise<{ threadId: string | null; missed: string[] }> {
+  const [student, ...rest] = students;
+  if (!student) return { threadId: null, missed: [] };
+  let threadId: string | null = null;
+  const missed: string[] = [];
+  try {
+    threadId = (await send(student.id)).threadId;
+  } catch (error) {
+    if (!(error instanceof Error) || error.message !== "messages.no_guardians")
+      throw error;
+    missed.push(student.name);
+  }
+  const after = await toEachFamily(rest, send);
+  return {
+    threadId: threadId ?? after.threadId,
+    missed: [...missed, ...after.missed],
+  };
+}
+
+/**
  * Starts a conversation, or continues the open one with the same people.
- * Opened about a student, as from their record, it is to that student's
- * guardians and nobody else is to be picked.
+ * Opened about students, as from a record or the students picked in a
+ * list, it is to their guardians and nobody else is to be picked: each
+ * family in a conversation of its own, about its child. A student none of
+ * whose guardians uses the portal is named as not reached.
  */
 export function NewMessage({
   canStartFamily,
@@ -47,16 +78,20 @@ export function NewMessage({
   onStarted,
 }: {
   canStartFamily: boolean;
-  about?: { id: string; name: string };
+  about?: readonly { id: string; name: string }[];
   onClose: () => void;
-  onStarted: (threadId: string) => void;
+  /** The conversation to open; none where several were written to. */
+  onStarted: (threadId: string | null) => void;
 }) {
   const queryClient = useQueryClient();
   const [kind, setKind] = useState<ThreadKind>(
     canStartFamily ? "family" : "direct",
   );
   const [search, setSearch] = useState("");
-  const [picked, setPicked] = useState<string[]>(about ? [about.id] : []);
+  const [picked, setPicked] = useState<string[]>(
+    about?.[0] ? [about[0].id] : [],
+  );
+  const several = about !== undefined && about.length > 1;
   const [labels, setLabels] = useState<ReadonlyMap<string, string>>(
     () => new Map(),
   );
@@ -78,8 +113,22 @@ export function NewMessage({
       .map((row) => ({ value: row.userId, label: recipientLabel(row) })),
   ];
   const start = useMutation({
-    mutationFn: () =>
-      startThread({
+    mutationFn: async () => {
+      if (about && several)
+        return toEachFamily(about, (studentId) =>
+          startThread({
+            data: {
+              kind: "family",
+              recipientIds: [],
+              studentId,
+              subject: "",
+              body: body.trim(),
+              // A file belongs to one conversation, so several get none.
+              fileIds: [],
+            },
+          }),
+        );
+      const started = await startThread({
         data: {
           kind,
           recipientIds: kind === "family" ? [] : picked,
@@ -88,7 +137,9 @@ export function NewMessage({
           body: body.trim(),
           fileIds: files.map((file) => file.id),
         },
-      }),
+      });
+      return { threadId: started.threadId, missed: [] as string[] };
+    },
     meta: { inlineError: true },
   });
   const who =
@@ -118,7 +169,18 @@ export function NewMessage({
         await start.mutateAsync().then(
           async (result) => {
             await queryClient.invalidateQueries({ queryKey: ["messages"] });
-            onStarted(result.threadId);
+            if (!about || !several) return onStarted(result.threadId);
+            if (result.missed.length > 0)
+              toast.warning(
+                m.msgNoGuardiansFor({ names: formatList(result.missed) }),
+              );
+            const reached = about.length - result.missed.length;
+            if (reached > 0)
+              toast.success(
+                m.msgSentToFamilies({ count: formatNumber(reached) }),
+              );
+            // Several conversations were written to; none is the one to open.
+            return onStarted(null);
           },
           () => undefined,
         );
@@ -127,10 +189,12 @@ export function NewMessage({
       {about ? (
         <p className="grid gap-1 text-sm leading-5">
           <span className="font-medium">
-            {m.msgToGuardiansOf({ name: about.name })}
+            {several
+              ? m.msgToGuardiansOfMany({ count: formatNumber(about.length) })
+              : m.msgToGuardiansOf({ name: about[0]?.name ?? "" })}
           </span>
           <span className="text-[13px] leading-[18px] text-muted-foreground">
-            {m.msgFamilyHint()}
+            {several ? m.msgToGuardiansEach() : m.msgFamilyHint()}
           </span>
         </p>
       ) : null}
@@ -208,16 +272,18 @@ export function NewMessage({
           />
         )}
       </FormField>
-      <FileField
-        id="new-message-files"
-        label={m.msgAttachments()}
-        optional
-        purpose="attachment"
-        value={files}
-        onChange={(update) => setFiles(update)}
-        maxFiles={MESSAGE_ATTACHMENT_LIMIT}
-        maxBytes={MESSAGE_ATTACHMENT_BYTES}
-      />
+      {several ? null : (
+        <FileField
+          id="new-message-files"
+          label={m.msgAttachments()}
+          optional
+          purpose="attachment"
+          value={files}
+          onChange={(update) => setFiles(update)}
+          maxFiles={MESSAGE_ATTACHMENT_LIMIT}
+          maxBytes={MESSAGE_ATTACHMENT_BYTES}
+        />
+      )}
     </SheetForm>
   );
 }
