@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 
 import type { RoleKey } from "./fixtures/sign-in";
 
-import { ACCOUNTS, signIn } from "./fixtures/sign-in";
+import { ACCOUNTS, signIn, untilHydrated } from "./fixtures/sign-in";
 
 test("unauthenticated visitors are redirected to sign-in", async ({ page }) => {
   await page.goto("/");
@@ -53,6 +53,26 @@ test("a link to choose a password that the school never sent opens nothing", asy
   await expect(page).toHaveURL(/\/welcome\?school=northwind$/);
   await page.getByRole("link", { name: "Go to sign-in" }).click();
   await expect(page).toHaveURL(/\/sign-in/);
+});
+
+test("a person's password is not changed without the one they have", async ({
+  page,
+}) => {
+  await signIn(page, "teacher");
+  await untilHydrated(page);
+  await page.getByRole("button", { name: "Account", exact: true }).click();
+  await page.getByRole("menuitem", { name: "Change password" }).click();
+  const sheet = page.getByRole("dialog", { name: "Change password" });
+  await sheet.getByLabel("Current password").fill("not the password");
+  await sheet.getByLabel("New password").fill("a new phrase to sign in with");
+  await sheet.getByLabel("Type it again").fill("a new phrase to sign in wiht");
+  await sheet.getByRole("button", { name: "Save", exact: true }).click();
+  await expect(sheet.getByText("Passwords do not match")).toBeVisible();
+  await sheet.getByLabel("Type it again").fill("a new phrase to sign in with");
+  await sheet.getByRole("button", { name: "Save", exact: true }).click();
+  await expect(
+    sheet.getByText("That is not your current password."),
+  ).toBeVisible();
 });
 
 test("an authenticated visitor is redirected away from sign-in", async ({

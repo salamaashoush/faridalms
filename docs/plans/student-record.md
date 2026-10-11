@@ -128,8 +128,10 @@ Rules that hold for every section:
    link's secret is kept, the account stays "invited" and signs nobody in
    until the password is chosen, a link sent again replaces the first, and a
    slip printed for the student stops the links. It needs the server's email
-   gateway (`EMAIL_WEBHOOK_URL`). Remaining: a person changing their own
-   password, and the same link for guardians' and staff's own accounts.
+   gateway (`EMAIL_WEBHOOK_URL`). Anyone who signs in with a password
+   changes it from the account menu, with the one they have; their other
+   devices are signed out. Remaining: the same link for guardians' and
+   staff's own accounts.
 5. **Arrivals and departures.** Previous school and destination on the
    school-year rows, a Documents section for transfer certificates and past
    reports, and rights decisions enforced where families act (absence

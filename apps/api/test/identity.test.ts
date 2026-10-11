@@ -156,3 +156,99 @@ describe("sign-in", () => {
     });
   });
 });
+
+describe("a person's own password", () => {
+  test("is changed with the old one, which signs their other devices out and keeps this one in", async () => {
+    const office = await signedIn("northwind", login("principal"));
+    const loginName = "salama.own@northwind.example.com";
+    const old = "correct horse battery staple";
+    const { id } = await office.people.saveStaff({
+      names: {
+        en: { given: "Salama", family: "Ashoush" },
+        ar: { given: "سلامة", family: "عشوش" },
+      },
+      email: loginName,
+      roles: ["teacher"],
+    });
+    await office.people.saveSignIn({ userId: id, loginName, password: old });
+    const signIn = async (password: string) =>
+      client(
+        "northwind",
+        (await client("northwind").identity.signIn({ loginName, password })).token,
+      );
+    const here = await signIn(old);
+    const elsewhere = await signIn(old);
+
+    expect(
+      await rejection(
+        here.identity.changePassword({
+          current: "not the password",
+          password: "a new phrase to sign in with",
+        }),
+      ),
+    ).toMatchObject({ code: "BAD_REQUEST", message: "auth.wrong_password" });
+    expect(
+      await rejection(
+        here.identity.changePassword({ current: old, password: "too short" }),
+      ),
+    ).toMatchObject({ code: "BAD_REQUEST" });
+    expect((await elsewhere.identity.currentUser()).id).toBe(id);
+
+    const fresh = "a new phrase to sign in with";
+    expect(
+      await here.identity.changePassword({ current: old, password: fresh }),
+    ).toEqual({ changed: true });
+    expect((await here.identity.currentUser()).id).toBe(id);
+    expect(await rejection(elsewhere.identity.currentUser())).toMatchObject({
+      code: "UNAUTHORIZED",
+    });
+    expect(
+      await rejection(
+        client("northwind").identity.signIn({ loginName, password: old }),
+      ),
+    ).toMatchObject({ message: "auth.invalid_credentials" });
+    expect((await (await signIn(fresh)).identity.currentUser()).id).toBe(id);
+  });
+
+  test("stops being asked for after too many wrong tries", async () => {
+    const office = await signedIn("northwind", login("principal"));
+    const loginName = "salama.tries@northwind.example.com";
+    const password = "correct horse battery staple";
+    const { id } = await office.people.saveStaff({
+      names: {
+        en: { given: "Salama", family: "Nabil" },
+        ar: { given: "سلامة", family: "نبيل" },
+      },
+      email: loginName,
+      roles: ["teacher"],
+    });
+    await office.people.saveSignIn({ userId: id, loginName, password });
+    const session = await client("northwind").identity.signIn({
+      loginName,
+      password,
+    });
+    const api = client("northwind", session.token);
+    const wrong = () =>
+      rejection(
+        api.identity.changePassword({
+          current: "not the password",
+          password: "a new phrase to sign in with",
+        }),
+      );
+    const tries: unknown[] = [];
+    for (let attempt = 0; attempt < 10; attempt += 1) tries.push(await wrong());
+    expect(tries.at(-1)).toMatchObject({ message: "auth.wrong_password" });
+    // The right password is refused as well until the window passes.
+    expect(
+      await rejection(
+        api.identity.changePassword({
+          current: password,
+          password: "a new phrase to sign in with",
+        }),
+      ),
+    ).toMatchObject({
+      code: "TOO_MANY_REQUESTS",
+      message: "auth.too_many_attempts",
+    });
+  });
+});

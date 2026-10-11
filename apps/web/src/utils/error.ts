@@ -124,6 +124,10 @@ export function getMessageFromError(error: unknown): string {
         return m.errorFileNotAttachable();
       case "enrollment.future_placement":
         return m.errorFuturePlacement();
+      case "auth.wrong_password":
+        return m.errorWrongPassword();
+      case "auth.too_many_attempts":
+        return m.errorTooManyAttempts();
       case "sign_in.no_email":
         return m.errorSignInNoEmail();
       case "leaving.not_enrolled":

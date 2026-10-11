@@ -49,6 +49,7 @@ import {
   ChevronsUpDown,
   Ellipsis,
   GraduationCap,
+  KeyRound,
   Languages,
   LogOut,
   Monitor,
@@ -58,7 +59,7 @@ import {
   UserRound,
 } from "lucide-react";
 import { useTheme } from "next-themes";
-import { useCallback } from "react";
+import { useCallback, useState } from "react";
 
 import type { NavItem } from "~/components/app/navigation";
 
@@ -68,6 +69,7 @@ import { NotificationBell } from "~/components/app/NotificationBell";
 import { initialsOf, WORKSPACE_LABEL } from "~/components/app/UserMenu";
 import { WorkspaceBreadcrumb } from "~/components/app/WorkspaceBreadcrumb";
 import { WorkspaceSearch } from "~/components/app/WorkspaceSearch";
+import { ChangePassword } from "~/components/auth/ChangePassword";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import {
@@ -121,6 +123,7 @@ function AccountMenu() {
   const router = useRouter();
   const queryClient = useQueryClient();
   const { theme, setTheme } = useTheme();
+  const [changingPassword, setChangingPassword] = useState(false);
   const signOut = useCallback(async () => {
     await logout();
     // The cache outlives the session cookie: without this the signed-out tab
@@ -136,110 +139,130 @@ function AccountMenu() {
     { value: "system", label: m.shellThemeSystem(), icon: Monitor },
   ];
   return (
-    <DropdownMenu>
-      <DropdownMenuTrigger
-        render={
-          <SidebarMenuButton
-            size="lg"
-            aria-label={m.shellAccount()}
-            className="h-11 gap-2.5 px-2 data-popup-open:bg-sidebar-accent"
-          />
-        }
-      >
-        <Avatar className="size-7 rounded-md">
-          {user.avatarUrl ? <AvatarImage src={user.avatarUrl} alt="" /> : null}
-          <AvatarFallback className="rounded-md bg-primary/12 text-[11px] font-semibold text-primary">
-            {initialsOf(user.name)}
-          </AvatarFallback>
-        </Avatar>
-        <span className="grid min-w-0 flex-1 text-start leading-tight">
-          <span dir="auto" className="truncate text-start text-sm font-medium">
-            {user.name}
-          </span>
-          <span className="truncate text-xs text-muted-foreground">
-            {WORKSPACE_LABEL[user.workspace]()}
-          </span>
-        </span>
-        <ChevronsUpDown className="size-4 text-muted-foreground" aria-hidden />
-      </DropdownMenuTrigger>
-      <DropdownMenuContent side="top" align="start" className="w-64">
-        <DropdownMenuGroup>
-          <DropdownMenuLabel className="grid gap-0.5 py-2">
+    <>
+      {changingPassword ? (
+        <ChangePassword onClose={() => setChangingPassword(false)} />
+      ) : null}
+      <DropdownMenu>
+        <DropdownMenuTrigger
+          render={
+            <SidebarMenuButton
+              size="lg"
+              aria-label={m.shellAccount()}
+              className="h-11 gap-2.5 px-2 data-popup-open:bg-sidebar-accent"
+            />
+          }
+        >
+          <Avatar className="size-7 rounded-md">
+            {user.avatarUrl ? (
+              <AvatarImage src={user.avatarUrl} alt="" />
+            ) : null}
+            <AvatarFallback className="rounded-md bg-primary/12 text-[11px] font-semibold text-primary">
+              {initialsOf(user.name)}
+            </AvatarFallback>
+          </Avatar>
+          <span className="grid min-w-0 flex-1 text-start leading-tight">
             <span
               dir="auto"
-              className="truncate text-start text-sm font-medium text-foreground"
+              className="truncate text-start text-sm font-medium"
             >
               {user.name}
             </span>
-            <span className="truncate text-xs font-normal text-muted-foreground">
-              {user.email}
+            <span className="truncate text-xs text-muted-foreground">
+              {WORKSPACE_LABEL[user.workspace]()}
             </span>
-          </DropdownMenuLabel>
-        </DropdownMenuGroup>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem
-          render={<Link to="/people/$userId" params={{ userId: user.id }} />}
-        >
-          <UserRound aria-hidden />
-          {m.shellProfile()}
-        </DropdownMenuItem>
-        <DropdownMenuItem render={<Link to="/notification-preferences" />}>
-          <Settings2 aria-hidden />
-          {m.shellPreferences()}
-        </DropdownMenuItem>
-        <DropdownMenuSeparator />
-        <DropdownMenuSub>
-          <DropdownMenuSubTrigger>
-            <Languages aria-hidden />
-            {m.shellLanguage()}
-            <span className="ms-auto text-xs text-muted-foreground">
-              {LOCALE_NAME[current]}
-            </span>
-          </DropdownMenuSubTrigger>
-          <DropdownMenuSubContent className="w-44">
-            {locales.map((locale) => (
-              <DropdownMenuItem
-                key={locale}
-                lang={locale}
-                // setLocale writes the cookie and reloads, so the next document
-                // is rendered by the server in the new language.
-                onClick={() => void setLocale(locale)}
+          </span>
+          <ChevronsUpDown
+            className="size-4 text-muted-foreground"
+            aria-hidden
+          />
+        </DropdownMenuTrigger>
+        <DropdownMenuContent side="top" align="start" className="w-64">
+          <DropdownMenuGroup>
+            <DropdownMenuLabel className="grid gap-0.5 py-2">
+              <span
+                dir="auto"
+                className="truncate text-start text-sm font-medium text-foreground"
               >
-                {LOCALE_NAME[locale]}
-                {locale === current ? (
-                  <Check className="ms-auto" aria-hidden />
-                ) : null}
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuSubContent>
-        </DropdownMenuSub>
-        <DropdownMenuSub>
-          <DropdownMenuSubTrigger>
-            <Sun aria-hidden />
-            {m.shellTheme()}
-          </DropdownMenuSubTrigger>
-          <DropdownMenuSubContent className="w-44">
-            {themes.map((item) => (
-              <DropdownMenuItem
-                key={item.value}
-                onClick={() => setTheme(item.value)}
-              >
-                <item.icon aria-hidden />
-                {item.label}
-                {theme === item.value ? (
-                  <Check className="ms-auto" aria-hidden />
-                ) : null}
-              </DropdownMenuItem>
-            ))}
-          </DropdownMenuSubContent>
-        </DropdownMenuSub>
-        <DropdownMenuSeparator />
-        <DropdownMenuItem onClick={() => void signOut()}>
-          <LogOut aria-hidden />
-          {m.shellSignOut()}
-        </DropdownMenuItem>
-      </DropdownMenuContent>
-    </DropdownMenu>
+                {user.name}
+              </span>
+              <span className="truncate text-xs font-normal text-muted-foreground">
+                {user.email}
+              </span>
+            </DropdownMenuLabel>
+          </DropdownMenuGroup>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            render={<Link to="/people/$userId" params={{ userId: user.id }} />}
+          >
+            <UserRound aria-hidden />
+            {m.shellProfile()}
+          </DropdownMenuItem>
+          <DropdownMenuItem render={<Link to="/notification-preferences" />}>
+            <Settings2 aria-hidden />
+            {m.shellPreferences()}
+          </DropdownMenuItem>
+          {/* Only someone who signs in with a password has one to change. */}
+          {user.email ? (
+            <DropdownMenuItem onClick={() => setChangingPassword(true)}>
+              <KeyRound aria-hidden />
+              {m.passwordChange()}
+            </DropdownMenuItem>
+          ) : null}
+          <DropdownMenuSeparator />
+          <DropdownMenuSub>
+            <DropdownMenuSubTrigger>
+              <Languages aria-hidden />
+              {m.shellLanguage()}
+              <span className="ms-auto text-xs text-muted-foreground">
+                {LOCALE_NAME[current]}
+              </span>
+            </DropdownMenuSubTrigger>
+            <DropdownMenuSubContent className="w-44">
+              {locales.map((locale) => (
+                <DropdownMenuItem
+                  key={locale}
+                  lang={locale}
+                  // setLocale writes the cookie and reloads, so the next document
+                  // is rendered by the server in the new language.
+                  onClick={() => void setLocale(locale)}
+                >
+                  {LOCALE_NAME[locale]}
+                  {locale === current ? (
+                    <Check className="ms-auto" aria-hidden />
+                  ) : null}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuSubContent>
+          </DropdownMenuSub>
+          <DropdownMenuSub>
+            <DropdownMenuSubTrigger>
+              <Sun aria-hidden />
+              {m.shellTheme()}
+            </DropdownMenuSubTrigger>
+            <DropdownMenuSubContent className="w-44">
+              {themes.map((item) => (
+                <DropdownMenuItem
+                  key={item.value}
+                  onClick={() => setTheme(item.value)}
+                >
+                  <item.icon aria-hidden />
+                  {item.label}
+                  {theme === item.value ? (
+                    <Check className="ms-auto" aria-hidden />
+                  ) : null}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuSubContent>
+          </DropdownMenuSub>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem onClick={() => void signOut()}>
+            <LogOut aria-hidden />
+            {m.shellSignOut()}
+          </DropdownMenuItem>
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </>
   );
 }
 

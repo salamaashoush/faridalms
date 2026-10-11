@@ -1,5 +1,7 @@
+import type { ChangePasswordInput } from "@faridalms/domain/first-sign-in";
 import type { Workspace } from "@faridalms/domain/workspace";
 
+import { changePasswordSchema } from "@faridalms/domain/first-sign-in";
 import { childSessionSchema } from "@faridalms/domain/identity-schema";
 import { createIsomorphicFn, createServerFn } from "@tanstack/react-start";
 import {
@@ -179,6 +181,12 @@ export const acceptInvite = createServerFn({ method: "POST" })
       password: data.password,
     }),
   );
+
+export const changeOwnPassword = createServerFn({ method: "POST" })
+  .validator((input: ChangePasswordInput) =>
+    v.parse(changePasswordSchema, input),
+  )
+  .handler(({ data }) => backend().identity.changePassword(data));
 
 export const logout = createServerFn({ method: "POST" }).handler(
   async (): Promise<AuthState> => {

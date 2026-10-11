@@ -4,7 +4,12 @@ import type { Workspace } from "@faridalms/domain/workspace";
 
 import { writeAudit } from "@faridalms/database/audit";
 import { bindActor } from "@faridalms/database/context";
-import { ensureAccount } from "@faridalms/database/stores/accounts";
+import {
+  ensureAccount,
+  revokeOtherSessions,
+  signInOf,
+  updatePasswordSignIn,
+} from "@faridalms/database/stores/accounts";
 import {
   findBadge,
   slideBadge,
@@ -30,6 +35,7 @@ import { youngStudents } from "@faridalms/database/stores/students";
 import { BADGE_DAYS } from "@faridalms/domain/badges";
 import {
   acceptInviteSchema,
+  changePasswordSchema,
   inviteSchema,
 } from "@faridalms/domain/first-sign-in";
 import {
@@ -456,6 +462,75 @@ export const acceptInvite = schoolProcedure
         secretHash,
       }),
     );
+  });
+
+/**
+ * A person changes their own password. They prove who they are with the
+ * one they have, since a session left open on a shared screen must not be
+ * enough to take the account; wrong tries are counted as wrong sign-ins
+ * are. Every other device is signed out, and this one stays in.
+ */
+export const changePassword = writeProcedure
+  .input(changePasswordSchema)
+  .handler(async ({ input, context }) => {
+    const held = await signInOf(
+      context.tx,
+      context.tenantId,
+      context.actor.userId,
+    );
+    const identity = held?.loginName
+      ? await findPasswordIdentity(context.tx, held.loginName)
+      : null;
+    if (!held?.identityId || !held.loginName || !identity)
+      throw new ORPCError("NOT_FOUND", { message: "account.no_password" });
+    const tries = attemptKey(
+      context.cellSecret,
+      context.tenantId,
+      `password:${held.accountId}`,
+    );
+    if ((await attemptsSoFar(context.tx, context.tenantId, tries)) >= PER_NAME)
+      throw new ORPCError("TOO_MANY_REQUESTS", {
+        message: "auth.too_many_attempts",
+      });
+    if (
+      !(await Bun.password.verify(input.current, identity.secretHash ?? ""))
+    ) {
+      // The count has to outlive the refusal, which rolls this unit back.
+      await context.cell.withTenant(
+        {
+          tenantId: context.tenantId,
+          requestId: context.requestId,
+          actor: { kind: "user" },
+        },
+        "write",
+        (tx) => countAttempt(tx, context.tenantId, tries, WINDOW_MINUTES),
+      );
+      throw new ORPCError("BAD_REQUEST", { message: "auth.wrong_password" });
+    }
+    await updatePasswordSignIn(context.tx, {
+      tenantId: context.tenantId,
+      userId: context.actor.userId,
+      accountId: held.accountId,
+      identityId: held.identityId,
+      loginName: held.loginName,
+      secretHash: await Bun.password.hash(input.password, {
+        algorithm: "argon2id",
+      }),
+      linkedByUserId: context.actor.userId,
+    });
+    await revokeOtherSessions(context.tx, {
+      tenantId: context.tenantId,
+      accountId: held.accountId,
+      keepSessionId: context.actor.sessionId,
+    });
+    await audit(context, {
+      action: "account.password_set",
+      objectType: "account",
+      objectId: held.accountId,
+      subjectUserId: context.actor.userId,
+      details: { method: "self" },
+    });
+    return { changed: true };
   });
 
 export const signOut = writeProcedure.handler(async ({ context }) => {

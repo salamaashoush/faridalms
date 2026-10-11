@@ -34,9 +34,21 @@ export const inviteSchema = v.object({ secret: inviteSecret });
 
 export const MIN_PASSWORD = 15;
 
+const newPassword = v.pipe(
+  v.string(),
+  v.minLength(MIN_PASSWORD),
+  v.maxLength(256),
+);
+
+export const changePasswordSchema = v.object({
+  current: v.pipe(v.string(), v.minLength(1), v.maxLength(256)),
+  password: newPassword,
+});
+export type ChangePasswordInput = v.InferInput<typeof changePasswordSchema>;
+
 export const acceptInviteSchema = v.object({
   secret: inviteSecret,
-  password: v.pipe(v.string(), v.minLength(MIN_PASSWORD), v.maxLength(256)),
+  password: newPassword,
 });
 
 export const MAX_SIGN_INS = 100;

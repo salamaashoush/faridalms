@@ -1,4 +1,4 @@
-import { and, eq, isNull, sql } from "drizzle-orm";
+import { and, eq, isNull, ne, sql } from "drizzle-orm";
 
 import type { CellTransaction } from "../context";
 
@@ -242,6 +242,28 @@ export async function setAccountState(
     );
   if (input.state === "disabled")
     await revokeAccountSessions(tx, input.tenantId, input.accountId);
+}
+
+/**
+ * Ends every session of an account but the one in hand, for a person who
+ * changes their own password: the other devices are signed out, this one
+ * stays in.
+ */
+export async function revokeOtherSessions(
+  tx: Tx,
+  input: { tenantId: string; accountId: string; keepSessionId: string },
+) {
+  await tx
+    .update(sessions)
+    .set({ revokedAt: new Date(), revokedReason: "credential_change" })
+    .where(
+      and(
+        eq(sessions.tenantId, input.tenantId),
+        eq(sessions.accountId, input.accountId),
+        ne(sessions.id, input.keepSessionId),
+        isNull(sessions.revokedAt),
+      ),
+    );
 }
 
 export async function revokeAccountSessions(

@@ -5796,5 +5796,10 @@
         "countPlural=*": "Links are on their way to the guardians of {value} students."
       }
     }
-  ]
+  ],
+  "passwordChange": "Change password",
+  "passwordCurrent": "Current password",
+  "passwordChanged": "Password changed. Your other devices are signed out.",
+  "errorWrongPassword": "That is not your current password.",
+  "errorTooManyAttempts": "Too many tries. Wait a few minutes, then try again."
 }
