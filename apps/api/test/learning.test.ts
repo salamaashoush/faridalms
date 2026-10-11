@@ -6,7 +6,7 @@ import {
   contentOfLesson,
   lessonOfContent,
 } from "@faridalms/domain/lesson-content";
-import { blankProject } from "@faridalms/makecode/project";
+import { blankProject, locked, lockOf } from "@faridalms/makecode/project";
 import { PACKS } from "@faridalms/puzzles/levels";
 import { describe, expect, test } from "bun:test";
 import { sql } from "drizzle-orm";
@@ -2308,6 +2308,73 @@ describe("micro:bit projects", () => {
       response: { type: "project", files: mine },
     });
     expect(sent.check).toMatchObject({ tries: 1, marked: false });
+  });
+
+  test("a project whose starter is held to Python stays in Python, whatever files are sent", async () => {
+    const { keeper } = await teachers();
+    const { rows } = await keeper.learning.modules({});
+    const source = rows.find((row) => row.title === TITLE);
+    if (!source) throw new Error("no module");
+    const saved = await keeper.learning.saveModule({
+      id: "",
+      expectedVersion: 0,
+      title: "Boards in Python",
+      summary: "",
+      classIds: source.classes.map((item) => item.id),
+      prerequisiteId: "",
+      sequential: false,
+    });
+    const question = id();
+    const lesson = await keeper.learning.saveLesson({
+      id: "",
+      moduleId: saved.id,
+      expectedVersion: 0,
+      title: "Show a number in Python",
+      completion: "view",
+      passScore: null,
+      content: written([
+        {
+          id: question,
+          type: "project",
+          prompt: "Show your lucky number.",
+          points: 2,
+          hints: [],
+          explanation: "",
+          tries: null,
+          files: locked(blankProject(), "python-only"),
+          gallery: false,
+          language: "microbit" as const,
+        },
+      ]),
+      publish: false,
+    });
+    await keeper.learning.publishModule({
+      id: saved.id,
+      expectedVersion: saved.version,
+    });
+
+    const pupil = await student();
+    const ref = { lessonId: lesson.id, blockId: question };
+    // A project free to move between languages, with blocks, as another editor would send it.
+    await pupil.learning.keepProject({ ...ref, files: blankProject() });
+    const kept = (await pupil.learning.playLesson({ id: lesson.id })).projects[
+      question
+    ]?.files;
+    expect(kept?.map((file) => file.name)).toEqual([
+      "pxt.json",
+      "main.ts",
+      "main.py",
+      "README.md",
+    ]);
+    expect(lockOf(kept ?? [])).toBe("python-only");
+    const sent = await pupil.learning.respond({
+      ...ref,
+      response: { type: "project", files: blankProject() },
+    });
+    const answer = sent.check.response;
+    expect(
+      answer?.type === "project" && answer.files.map((file) => file.name),
+    ).toEqual(["pxt.json", "main.ts", "main.py", "README.md"]);
   });
 });
 

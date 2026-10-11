@@ -5,6 +5,8 @@ import {
   editorOf,
   filesOf,
   isDeviceProject,
+  locked,
+  lockOf,
   programOf,
   textOf,
 } from "./project";
@@ -75,5 +77,76 @@ describe("the editor a project opens in", () => {
     );
     expect(programOf(withConfig("{}"))?.name).toBe("main.ts");
     expect(programOf([{ name: "pxt.json", code: "{}" }])).toBeNull();
+  });
+});
+
+const names = (files: { name: string }[]) => files.map((file) => file.name);
+/** What a project says of itself, which its first file holds. */
+const config = (files: { name: string; code: string }[]) =>
+  JSON.parse(files[0]?.code ?? "{}") as Record<string, unknown>;
+
+describe("a project held to one language", () => {
+  it("is free to move between them until it is held", () => {
+    expect(lockOf(blankProject())).toBeNull();
+    expect(lockOf([{ name: "index.html", code: "" }])).toBeNull();
+  });
+
+  it("keeps its blocks and opens in them when held to blocks", () => {
+    const held = locked(blankProject(), "blocks-only");
+    expect(lockOf(held)).toBe("blocks-only");
+    expect(editorOf(held)).toBe("blocksprj");
+    expect(names(held)).toEqual(names(blankProject()));
+    expect(config(held)).toMatchObject({
+      name: "Untitled",
+      dependencies: { core: "*", radio: "*", microphone: "*" },
+      files: ["main.blocks", "main.ts", "README.md"],
+    });
+  });
+
+  it("loses its blocks when held to JavaScript, as the editor's own such project has none", () => {
+    const held = locked(blankProject(), "javascript-only");
+    expect(lockOf(held)).toBe("javascript-only");
+    expect(editorOf(held)).toBe("tsprj");
+    expect(names(held)).toEqual(["pxt.json", "main.ts", "README.md"]);
+    expect(config(held).files).toEqual(["main.ts", "README.md"]);
+  });
+
+  it("gains a Python file, empty until the editor fills it, when held to Python", () => {
+    const held = locked(blankProject(), "python-only");
+    expect(editorOf(held)).toBe("pyprj");
+    expect(names(held)).toEqual([
+      "pxt.json",
+      "main.ts",
+      "main.py",
+      "README.md",
+    ]);
+    expect(config(held).files).toEqual(["main.ts", "README.md", "main.py"]);
+    expect(programOf(held)?.name).toBe("main.py");
+  });
+
+  it("is freed without taking back the files it lost", () => {
+    const freed = locked(locked(blankProject(), "javascript-only"), null);
+    expect(lockOf(freed)).toBeNull();
+    expect(config(freed)).not.toHaveProperty("languageRestriction");
+    expect(names(freed)).toEqual(["pxt.json", "main.ts", "README.md"]);
+  });
+
+  it("puts blocks back, empty for the editor to draw from the program, when held to them again", () => {
+    const held = locked(
+      locked(blankProject(), "javascript-only"),
+      "blocks-only",
+    );
+    expect(names(held)).toEqual([
+      "pxt.json",
+      "main.blocks",
+      "main.ts",
+      "README.md",
+    ]);
+    expect(held.find((file) => file.name === "main.blocks")?.code).toBe("");
+  });
+
+  it("leaves files that are no device project as they were", () => {
+    const page = [{ name: "index.html", code: "<h1>Hi</h1>" }];
+    expect(locked(page, "python-only")).toEqual(page);
   });
 });

@@ -5624,5 +5624,10 @@
   "scratchChecksCount": "{met} of {total} so far",
   "scratchChecksUnread": "Each is ticked when a saved project does it.",
   "scratchCheckMet": "Done",
-  "scratchCheckUnmet": "Not yet"
+  "scratchCheckUnmet": "Not yet",
+  "editorQuestionEditors": "What students build with",
+  "editorQuestionEditorsAll": "Blocks, JavaScript or Python",
+  "editorQuestionEditorsBlocks": "Blocks only",
+  "editorQuestionEditorsJavaScript": "JavaScript only",
+  "editorQuestionEditorsPython": "Python only"
 }

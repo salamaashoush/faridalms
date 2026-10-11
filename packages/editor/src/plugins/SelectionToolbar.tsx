@@ -12,6 +12,13 @@ import { parseNumber } from "@faridalms/domain/answers";
 import { fileDisplays, imageSizes } from "@faridalms/domain/content";
 import { fileFamily } from "@faridalms/domain/file";
 import { MAX_HINTS } from "@faridalms/domain/learning";
+import {
+  blankOf,
+  locked,
+  lockOf,
+  PROJECT_LOCKS,
+  sameFiles,
+} from "@faridalms/domain/project";
 import { SCRATCH_FEATURES } from "@faridalms/domain/scratch-project";
 import { $isCodeNode } from "@lexical/code";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
@@ -297,6 +304,8 @@ function BarMenu<T>({
     </Menu.Root>
   );
 }
+
+const EDITOR_LOCKS = ["all", ...PROJECT_LOCKS] as const;
 
 /**
  * A menu of things to tick, each on or off, which stays open as they are.
@@ -1357,6 +1366,35 @@ export function SelectionToolbarPlugin() {
           ) : settings.kind === "project" ? (
             studio ? (
               <>
+                {settings.projectLanguage === "microbit" ? (
+                  <BarMenu
+                    label={strings.questionEditors}
+                    current={
+                      strings.questionEditorNames[
+                        lockOf(settings.projectFiles) ?? "all"
+                      ]
+                    }
+                    values={EDITOR_LOCKS}
+                    text={(lock) => strings.questionEditorNames[lock]}
+                    onPick={(lock) => {
+                      // The hold is the project's own, so it is written into
+                      // the files students start from: the blank project's
+                      // where the teacher has built none.
+                      const blank = blankOf("microbit", "en", false);
+                      const held = locked(
+                        settings.projectFiles.length > 0
+                          ? settings.projectFiles
+                          : blank,
+                        lock === "all" ? null : lock,
+                      );
+                      change({
+                        projectFiles: sameFiles(held, blank) ? [] : held,
+                      });
+                    }}
+                    onOpenChange={trackMenu}
+                    finalFocus={textFocus(editor)}
+                  />
+                ) : null}
                 <ToolButton
                   label={
                     settings.projectFiles.length > 0

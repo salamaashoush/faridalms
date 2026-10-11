@@ -130,7 +130,7 @@ import {
   practiceSetSchema,
   practiceView,
 } from "@faridalms/domain/practice";
-import { sameFiles } from "@faridalms/domain/project";
+import { heldAs, sameFiles } from "@faridalms/domain/project";
 import { scratchFeaturesOf } from "@faridalms/domain/scratch-project";
 import { ORPCError } from "@orpc/server";
 import { createHash } from "node:crypto";
@@ -1664,7 +1664,7 @@ export const keepProject = writeProcedure
       lessonId: played.row.id,
       studentId: played.studentId,
       blockId: input.blockId,
-      files: input.files,
+      files: heldAs(starter, input.files),
       basedOn: digest(JSON.stringify(starter)),
       ...(input.fresh ? { remixedFrom: null } : {}),
     });
@@ -2037,11 +2037,15 @@ async function recordResponse(
   if (!block) throw new ORPCError("NOT_FOUND");
   const issue = responseIssue(block, input.response);
   if (issue) throw new ORPCError("BAD_REQUEST", { message: issue });
-  const response = await withFeatures(
+  const answered = await withFeatures(
     context,
     block,
     await credited(context, played, block, input.response),
   );
+  const response =
+    answered.type === "project" && block.type === "project"
+      ? { ...answered, files: heldAs(block.files, answered.files) }
+      : answered;
   const state = played.checks[block.id];
   if (isTeacherMarked(block) ? state?.marked : settled(block, state))
     throw new ORPCError("CONFLICT", { message: "learning.settled" });

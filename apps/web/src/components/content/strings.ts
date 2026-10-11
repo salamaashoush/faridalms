@@ -293,6 +293,13 @@ export function editorStrings(): EditorStrings {
     questionStarterEdit: m.editorQuestionStarterEdit(),
     questionStarterRemove: m.editorQuestionStarterRemove(),
     questionStarterSet: m.editorQuestionStarterSet(),
+    questionEditors: m.editorQuestionEditors(),
+    questionEditorNames: {
+      all: m.editorQuestionEditorsAll(),
+      "blocks-only": m.editorQuestionEditorsBlocks(),
+      "javascript-only": m.editorQuestionEditorsJavaScript(),
+      "python-only": m.editorQuestionEditorsPython(),
+    },
     questionChecks: m.scratchChecksTitle(),
     questionChecksCount: (count) =>
       m.editorQuestionChecksCount({ count: formatNumber(count) }),

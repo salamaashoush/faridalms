@@ -5844,5 +5844,10 @@
   "scratchChecksCount": "{met} من {total} حتى الآن",
   "scratchChecksUnread": "يُعلَّم كل بند حين يفعله مشروع محفوظ.",
   "scratchCheckMet": "تم",
-  "scratchCheckUnmet": "ليس بعد"
+  "scratchCheckUnmet": "ليس بعد",
+  "editorQuestionEditors": "ما يبني به الطلاب",
+  "editorQuestionEditorsAll": "اللبنات أو جافاسكربت أو بايثون",
+  "editorQuestionEditorsBlocks": "اللبنات فقط",
+  "editorQuestionEditorsJavaScript": "جافاسكربت فقط",
+  "editorQuestionEditorsPython": "بايثون فقط"
 }

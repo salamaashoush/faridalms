@@ -199,3 +199,45 @@ test("a class starts from the teacher's micro:bit project, and a student builds 
   await expect(second.student.getByText("basic.showNumber(1)")).toBeVisible();
   await second.context.close();
 });
+
+test("a teacher holds a micro:bit question to Python, and its students are given no other language", async ({
+  browser,
+  page,
+}) => {
+  const title = `Boards in Python ${crypto.randomUUID().slice(0, 6)}`;
+  const recordUrl = await startLesson(page, title, "In Python");
+  await page.keyboard.type("/microbit");
+  await page.getByRole("option", { name: /micro:bit project/ }).click();
+  await page.keyboard.type("Show a number, in Python.");
+  await page.getByRole("button", { name: "What students build with" }).click();
+  await page.getByRole("menuitem", { name: "Python only" }).click();
+  await expect(page.locator("[data-question]")).toHaveAttribute(
+    "data-label",
+    /^micro:bit project · Python only/,
+  );
+  await openToStudents(page, recordUrl);
+
+  const studentContext = await browser.newContext();
+  const student = await studentContext.newPage();
+  await openAsStudent(student, title, "In Python");
+  await student.getByRole("button", { name: "Open the project" }).click();
+  const studio = student.getByRole("dialog", { name: "micro:bit project" });
+  const editor = editorIn(studio);
+  // The editor's own header names the one language, with nothing to switch to.
+  await expect(editor.locator("#mainmenu")).toContainText("Python", {
+    timeout: 90_000,
+  });
+  await expect(editor.locator("#mainmenu")).not.toContainText("Blocks");
+  await expect(editor.locator("#mainmenu")).not.toContainText("JavaScript");
+  await editor.locator(".monaco-editor .view-lines").click();
+  await student.keyboard.press("ControlOrMeta+a");
+  await student.keyboard.type("basic.show_number(3)");
+  await expect(studio.getByText("Saved", { exact: true })).toBeVisible({
+    timeout: 30_000,
+  });
+  await studio.getByRole("button", { name: "Done", exact: true }).click();
+  await expect(studio).toBeHidden();
+  // The program read back is the Python the student wrote.
+  await expect(student.getByText("basic.show_number(3)")).toBeVisible();
+  await studentContext.close();
+});

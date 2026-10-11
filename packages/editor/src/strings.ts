@@ -1,3 +1,4 @@
+import type { ProjectLock } from "@faridalms/domain/project";
 import type { ScratchFeature } from "@faridalms/domain/scratch-project";
 
 import type { RecorderStrings } from "./recorder";
@@ -263,6 +264,9 @@ export interface EditorStrings {
   questionStarterEdit: string;
   questionStarterRemove: string;
   questionStarterSet: string;
+  /** The one language a micro:bit question holds its students to, or all three. */
+  questionEditors: string;
+  questionEditorNames: Record<ProjectLock | "all", string>;
   /** The menu of what a coding question asks its students' projects to do. */
   questionChecks: string;
   questionChecksCount: (count: number) => string;

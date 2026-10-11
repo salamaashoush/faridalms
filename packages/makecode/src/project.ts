@@ -58,6 +58,8 @@ export type ProjectEditor = (typeof PROJECT_EDITORS)[number];
 interface Config {
   name?: unknown;
   preferredEditor?: unknown;
+  languageRestriction?: unknown;
+  files?: unknown;
 }
 
 function configOf(files: readonly CodeFile[]): Config {
@@ -79,6 +81,83 @@ function configOf(files: readonly CodeFile[]): Config {
 export function editorOf(files: readonly CodeFile[]): ProjectEditor {
   const preferred = configOf(files).preferredEditor;
   return PROJECT_EDITORS.find((editor) => editor === preferred) ?? "blocksprj";
+}
+
+/**
+ * The one language a project can be held to, as the editor names the
+ * hold. The editor reads it from the project itself and then offers no
+ * way into the other two, so a teacher's starter holds a whole class.
+ */
+export const PROJECT_LOCKS = [
+  "blocks-only",
+  "javascript-only",
+  "python-only",
+] as const;
+export type ProjectLock = (typeof PROJECT_LOCKS)[number];
+
+const OPENS_IN: Record<ProjectLock, ProjectEditor> = {
+  "blocks-only": "blocksprj",
+  "javascript-only": "tsprj",
+  "python-only": "pyprj",
+};
+/** The files a hold leaves a project without, as the editor's own new project is. */
+const LEFT_OUT: Record<ProjectLock, RegExp | null> = {
+  "blocks-only": null,
+  "javascript-only": /\.(?:py|blocks)$/,
+  "python-only": /\.blocks$/,
+};
+/** The file a hold needs there, empty until the editor fills it from the program. */
+const NEEDED: Record<ProjectLock, string | null> = {
+  "blocks-only": "main.blocks",
+  "javascript-only": null,
+  "python-only": "main.py",
+};
+
+/** The language a project is held to; null for one free to move between them. */
+export function lockOf(files: readonly CodeFile[]): ProjectLock | null {
+  const held = configOf(files).languageRestriction;
+  return PROJECT_LOCKS.find((lock) => lock === held) ?? null;
+}
+
+/**
+ * A project held to one language, or freed with null: what the project
+ * says of itself is changed, the files of the languages it leaves go, and
+ * it opens in the one it keeps. Files that are no device project come
+ * back as they were.
+ */
+export function locked(
+  files: readonly CodeFile[],
+  lock: ProjectLock | null,
+): CodeFile[] {
+  if (!isDeviceProject(files)) return [...files];
+  const { languageRestriction: _held, ...config } = configOf(files);
+  const out = lock ? LEFT_OUT[lock] : null;
+  const needed = lock ? NEEDED[lock] : null;
+  const kept = files.filter(
+    (file) => file.name !== CONFIG && !out?.test(file.name),
+  );
+  if (needed && !kept.some((file) => file.name === needed))
+    kept.push({ name: needed, code: "" });
+  const listed = (
+    Array.isArray(config.files)
+      ? config.files.filter((name) => typeof name === "string")
+      : []
+  ).filter((name) => !out?.test(name));
+  if (needed && !listed.includes(needed)) listed.push(needed);
+  return filesOf({
+    ...textOf(kept),
+    [CONFIG]: JSON.stringify(
+      {
+        ...config,
+        files: listed,
+        ...(lock
+          ? { preferredEditor: OPENS_IN[lock], languageRestriction: lock }
+          : {}),
+      },
+      null,
+      4,
+    ),
+  });
 }
 
 /**

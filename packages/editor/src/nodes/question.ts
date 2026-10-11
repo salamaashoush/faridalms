@@ -1,5 +1,9 @@
 import type { QuestionKind } from "@faridalms/domain/content";
-import type { ProjectFile, ProjectLanguage } from "@faridalms/domain/project";
+import type {
+  ProjectFile,
+  ProjectLanguage,
+  ProjectLock,
+} from "@faridalms/domain/project";
 import type { ScratchFeature } from "@faridalms/domain/scratch-project";
 import type { Level, PuzzleStyle } from "@faridalms/puzzles/level";
 import type {
@@ -17,7 +21,14 @@ import type {
 } from "lexical";
 
 import { hintsOf } from "@faridalms/domain/lesson-content";
-import { pythonProject, sketchProject } from "@faridalms/domain/project";
+import {
+  blankOf,
+  locked as heldTo,
+  lockOf,
+  pythonProject,
+  sameFiles,
+  sketchProject,
+} from "@faridalms/domain/project";
 import { firstLevel } from "@faridalms/puzzles/levels";
 import { HERO, TURNED, centreOf, sceneOf } from "@faridalms/puzzles/scene";
 import { addClassNamesToElement } from "@lexical/utils";
@@ -223,6 +234,8 @@ export interface QuestionLabels {
   starter?: string;
   /** A coding question that asks its students' projects to have some things. */
   checks?: (count: number) => string;
+  /** A micro:bit question held to one language. */
+  editors?: Record<ProjectLock, string>;
   /** A project question made in Python rather than as a web page. */
   pythonProject?: string;
   /** A project question made for the micro:bit, in its own editor. */
@@ -494,12 +507,27 @@ function label(editor: LexicalEditor, settings: QuestionSettings): string {
                   settings.puzzle?.style === "arrows"
                 ? (text.arrowsPuzzle ?? text.kinds.puzzle)
                 : text.kinds[settings.kind];
+  const lock =
+    settings.kind === "project" && settings.projectLanguage === "microbit"
+      ? lockOf(settings.projectFiles)
+      : null;
+  // A project held to one language and otherwise blank is nobody's build.
+  const built =
+    settings.kind === "project" &&
+    settings.projectFiles.length > 0 &&
+    !(
+      lock &&
+      sameFiles(
+        settings.projectFiles,
+        heldTo(blankOf("microbit", "en", false), lock),
+      )
+    );
   const starts =
     text.starter &&
-    ((settings.kind === "scratch" && settings.projectFileId) ||
-      (settings.kind === "project" && settings.projectFiles.length > 0))
+    ((settings.kind === "scratch" && settings.projectFileId) || built)
       ? ` · ${text.starter}`
       : "";
+  const held = lock && text.editors ? ` · ${text.editors[lock]}` : "";
   const checked =
     settings.kind === "scratch" &&
     settings.projectChecks.length > 0 &&
@@ -510,7 +538,7 @@ function label(editor: LexicalEditor, settings: QuestionSettings): string {
     settings.videoAt !== null && text.videoAt
       ? ` · ${text.videoAt(mediaClock(settings.videoAt))}`
       : "";
-  return `${kind}${starts}${checked}${asked} · ${text.points(settings.points)}`;
+  return `${kind}${starts}${held}${checked}${asked} · ${text.points(settings.points)}`;
 }
 
 /**

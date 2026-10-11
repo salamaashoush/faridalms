@@ -2,9 +2,14 @@ import {
   blankProject,
   deviceFileKinds,
   isDeviceProject,
+  locked,
+  lockOf,
   programOf,
 } from "@faridalms/makecode/project";
 import * as v from "valibot";
+
+export { locked, lockOf, PROJECT_LOCKS } from "@faridalms/makecode/project";
+export type { ProjectLock } from "@faridalms/makecode/project";
 
 /**
  * A project's file: a page, its styles, a script, a drawing, a Python
@@ -275,6 +280,19 @@ export function blankOf(
 ): ProjectFile[] {
   if (language === "python") return emptyPythonProject();
   return language === "microbit" ? blankProject() : emptyProject(locale, rtl);
+}
+
+/**
+ * A student's files held to the one language their teacher's starter is
+ * held to, where it is held to one. The editor keeps a student to it; this
+ * is for files that reach the server some other way.
+ */
+export function heldAs(
+  starter: readonly ProjectFile[],
+  files: ProjectFile[],
+): ProjectFile[] {
+  const lock = lockOf(starter);
+  return lock ? locked(files, lock) : files;
 }
 
 /**

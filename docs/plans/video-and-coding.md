@@ -222,9 +222,12 @@ off keeps the work and shows a placeholder.
    in the same editor, and opens a student's where nothing can be changed.
    A project opens in the language it was last worked in, which is how a
    teacher's starter sets it for a class. The compiled program is saved as
-   a `.hex` file to copy onto a board. Not done: locking a question to one
-   language, flashing over USB, and extensions that need Microsoft's
-   compile service. Arcade is blocked: its simulator comes from a private
+   a `.hex` file to copy onto a board. A teacher can hold a question to
+   blocks, JavaScript or Python alone: the hold is written into the
+   project students start from, which is where the editor reads it, and it
+   then offers no way into the other two. The server holds whatever files
+   reach it for such a question the same way. Not done: flashing over USB,
+   and extensions that need Microsoft's compile service. Arcade is blocked: its simulator comes from a private
    repository and is not published for anyone else to host.
 7. **Scratch**, decided 2026-10-03: the real Scratch editor, framed. Done: a
    coding question kind (`scratch`) whose teacher builds the starter in the
