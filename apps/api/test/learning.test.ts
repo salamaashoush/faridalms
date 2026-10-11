@@ -2008,8 +2008,25 @@ describe("what a coding project should do", () => {
       savedProject({ start: flag, loop: forever, step }),
       ["flag", "loop", "sound"],
     );
-    expect(second.mine).toMatchObject({ has: ["flag", "loop"] });
+    expect(second.mine).toMatchObject({ has: ["flag", "loop"], notes: [] });
     expect(second.theirs).toMatchObject({ has: ["flag", "loop"] });
+
+    // A message sent that nothing hears is worth a second look, said to both.
+    const telling = await save(
+      savedProject({
+        start: { ...flag, next: "send" },
+        send: {
+          opcode: "event_broadcast",
+          next: null,
+          inputs: { BROADCAST_INPUT: [1, [11, "go", "message-1"]] },
+          fields: {},
+          topLevel: false,
+        },
+      }),
+    );
+    const unheard = [{ kind: "unheard", message: "go" }];
+    expect(telling.mine).toMatchObject({ has: ["flag"], notes: unheard });
+    expect(telling.theirs).toMatchObject({ notes: unheard });
 
     // A file that is no project has none of it.
     const third = await save(

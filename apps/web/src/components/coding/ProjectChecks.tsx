@@ -1,6 +1,6 @@
 import type { ScratchFeature } from "@faridalms/domain/scratch-project";
 
-import { Circle, CircleCheck } from "lucide-react";
+import { Circle, CircleCheck, Lightbulb } from "lucide-react";
 
 import * as m from "~/i18n/messages";
 import { formatNumber } from "~/utils/datetime";
@@ -66,6 +66,53 @@ export function ProjectChecks({
             })
           : m.scratchChecksUnread()}
       </p>
+    </section>
+  );
+}
+
+/** What a note says, or nothing for a kind this page does not know. */
+function noteText(note: { kind: string; message?: string }): string | null {
+  const message = note.message ?? "";
+  if (note.kind === "unheard") return m.scratchNoteUnheard({ message });
+  if (note.kind === "unsent") return m.scratchNoteUnsent({ message });
+  if (note.kind === "once") return m.scratchNoteOnce();
+  return note.kind === "forever" ? m.scratchNoteForever() : null;
+}
+
+/**
+ * What the server noted in a saved project as worth a second look: the
+ * mistakes beginners make most, put as what the project does, for the
+ * student to weigh and the teacher to ask about. They mark nothing.
+ */
+export function ProjectNotes({
+  notes,
+}: {
+  notes: readonly { kind: string; message?: string }[] | null | undefined;
+}) {
+  const said = (notes ?? []).flatMap((note) => {
+    const text = noteText(note);
+    return text ? [{ key: `${note.kind}:${note.message ?? ""}`, text }] : [];
+  });
+  if (said.length === 0) return null;
+  return (
+    <section className="grid gap-1.5">
+      <h4 className="text-sm leading-5 font-semibold">
+        {m.scratchNotesTitle()}
+      </h4>
+      <ul className="grid gap-1">
+        {said.map((note) => (
+          <li
+            key={note.key}
+            className="flex items-start gap-2 text-sm leading-5"
+          >
+            <Lightbulb
+              aria-hidden
+              className="mt-0.5 size-4 shrink-0 text-muted-foreground"
+            />
+            <span dir="auto">{note.text}</span>
+          </li>
+        ))}
+      </ul>
     </section>
   );
 }

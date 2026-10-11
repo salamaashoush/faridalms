@@ -259,10 +259,13 @@ off keeps the work and shows a placeholder.
    tick. They give no points. Dr. Scratch scores projects this way, and
    its scores differ by the kind of project and from what a teacher judges
    of the same work, so here they are a list to work to and to mark
-   beside. Next: notes on common mistakes in a project (a message nothing
-   hears, a check for a key made once outside a loop), Text to Speech and
-   Translate on Farida's own services, and tutorials self-hosted on the
-   media service.
+   beside. The same reading notes what is worth a second look, for the
+   student and the teacher alike: a message sent that no script hears or
+   heard that nothing sends, a key or a touch checked once straight after
+   the flag, and a "forever" inside another loop. These are the mistakes
+   beginners make most (LitterBox's bug patterns), put as what the project
+   does. Next: Text to Speech and Translate on Farida's own services, and
+   tutorials self-hosted on the media service.
 
 Video phases 1 to 4 and coding phases 1 to 3 need no new infrastructure;
 video phase 6 needs ffmpeg on the worker, coding phase 4 the sandbox domain.

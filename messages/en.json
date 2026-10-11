@@ -5629,5 +5629,10 @@
   "editorQuestionEditorsAll": "Blocks, JavaScript or Python",
   "editorQuestionEditorsBlocks": "Blocks only",
   "editorQuestionEditorsJavaScript": "JavaScript only",
-  "editorQuestionEditorsPython": "Python only"
+  "editorQuestionEditorsPython": "Python only",
+  "scratchNotesTitle": "Worth a second look",
+  "scratchNoteUnheard": "“{message}” is sent, but no script waits for it.",
+  "scratchNoteUnsent": "A script waits for “{message}”, but nothing sends it.",
+  "scratchNoteOnce": "A key, the mouse or a touch is checked once, straight after the flag. Inside a “forever” it would go on being checked.",
+  "scratchNoteForever": "A “forever” sits inside another loop, so the outer loop never goes round again."
 }

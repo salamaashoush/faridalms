@@ -5849,5 +5849,10 @@
   "editorQuestionEditorsAll": "اللبنات أو جافاسكربت أو بايثون",
   "editorQuestionEditorsBlocks": "اللبنات فقط",
   "editorQuestionEditorsJavaScript": "جافاسكربت فقط",
-  "editorQuestionEditorsPython": "بايثون فقط"
+  "editorQuestionEditorsPython": "بايثون فقط",
+  "scratchNotesTitle": "يستحق نظرة ثانية",
+  "scratchNoteUnheard": "تُبثّ الرسالة «{message}» ولا ينتظرها أي مقطع برمجي.",
+  "scratchNoteUnsent": "ينتظر مقطع برمجي الرسالة «{message}» ولا شيء يبثّها.",
+  "scratchNoteOnce": "يُفحص مفتاح أو الفأرة أو تلامس مرة واحدة بعد العلم مباشرة. داخل «كرِّر باستمرار» يستمر الفحص.",
+  "scratchNoteForever": "توجد «كرِّر باستمرار» داخل حلقة أخرى، فلا تدور الحلقة الخارجية مرة ثانية."
 }

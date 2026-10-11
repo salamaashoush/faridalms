@@ -119,52 +119,155 @@ function sent(block: Block, blocks: Map<string, Block>): string | true {
 }
 
 /**
- * What a coding project has, read from its `project.json`. The file comes
- * from a student's browser, so nothing in it is taken to be as Scratch
- * would have written it: whatever is not, is passed over.
+ * Something in a project worth a second look: a mistake beginners make
+ * often enough to be worth naming, found from the blocks alone. Each is a
+ * question to the student, not a fault, since a project can mean what it
+ * says.
  */
-export function scratchFeaturesOf(project: unknown): ScratchFeature[] {
+export type ScratchNote =
+  /** A message is sent that no script hears, or heard that nothing sends. */
+  | { kind: "unheard" | "unsent"; message: string }
+  /** A key, the mouse or a touch is checked once, straight after the flag. */
+  | { kind: "once" }
+  /** A "forever" sits inside another loop, which then never goes round again. */
+  | { kind: "forever" };
+
+export const MAX_SCRATCH_NOTES = 8;
+const MAX_MESSAGE_NAME = 60;
+
+export const scratchNotesSchema = v.pipe(
+  v.array(
+    v.variant("kind", [
+      v.object({
+        kind: v.picklist(["unheard", "unsent"]),
+        message: v.pipe(v.string(), v.maxLength(MAX_MESSAGE_NAME)),
+      }),
+      v.object({ kind: v.literal("once") }),
+      v.object({ kind: v.literal("forever") }),
+    ]),
+  ),
+  v.maxLength(MAX_SCRATCH_NOTES),
+);
+
+/** What is true at one moment, so that asking once is asking too early. */
+const MOMENTS = new Set([
+  "sensing_keypressed",
+  "sensing_mousedown",
+  "sensing_touchingobject",
+  "sensing_touchingcolor",
+  "sensing_coloristouchingcolor",
+]);
+
+/** Whether a block, or any block dropped into it, is one of these. */
+function holds(
+  blocks: Map<string, Block>,
+  from: readonly string[],
+  opcodes: ReadonlySet<string>,
+): boolean {
+  const seen = new Set<string>();
+  const waiting = [...from];
+  for (let id = waiting.pop(); id !== undefined; id = waiting.pop()) {
+    const block = blocks.get(id);
+    if (!block || seen.has(id) || seen.size >= 200) continue;
+    seen.add(id);
+    if (opcodes.has(block.opcode)) return true;
+    for (const input of Object.values(block.inputs))
+      waiting.push(...heldBy(input));
+  }
+  return false;
+}
+
+/** What a project's running blocks come to, gathered in one pass over them. */
+interface Reading {
+  sprites: number;
+  /** The blocks that run, and the blocks that start the scripts they are in. */
+  ran: Set<string>;
+  started: Set<string>;
+  sends: Set<string | true>;
+  receives: Set<string>;
+  /** A check made once after the flag; a forever inside another loop. */
+  once: boolean;
+  forever: boolean;
+}
+
+/**
+ * Reads a project's `project.json`. The file comes from a student's
+ * browser, so nothing in it is taken to be as Scratch would have written
+ * it: whatever is not, is passed over.
+ */
+function read(project: unknown): Reading {
   const targets =
     isRecord(project) && Array.isArray(project.targets)
       ? project.targets.filter(isRecord)
       : [];
-  const ran = new Set<string>();
-  const started = new Set<string>();
-  const sends = new Set<string | true>();
-  const receives = new Set<string>();
-  let read = 0;
+  const reading: Reading = {
+    sprites: targets.filter((target) => target.isStage !== true).length,
+    ran: new Set(),
+    started: new Set(),
+    sends: new Set(),
+    receives: new Set(),
+    once: false,
+    forever: false,
+  };
+  let count = 0;
 
   for (const target of targets) {
     const blocks = blocksOf(target);
     const seen = new Set<string>();
-    const waiting: string[] = [];
+    // Each block with what is around it: whether a loop holds it, and
+    // whether the flag started its script.
+    const waiting: { id: string; looped: boolean; flagged: boolean }[] = [];
     for (const block of blocks.values()) {
       if (!block.topLevel || !block.next || !startsScript(block.opcode))
         continue;
-      started.add(block.opcode);
+      reading.started.add(block.opcode);
       const message =
         block.opcode === "event_whenbroadcastreceived"
           ? named(block.fields.BROADCAST_OPTION)
           : null;
-      if (message !== null) receives.add(message);
-      waiting.push(block.next);
+      if (message !== null) reading.receives.add(message);
+      waiting.push({
+        id: block.next,
+        looped: false,
+        flagged: block.opcode === "event_whenflagclicked",
+      });
     }
-    for (let id = waiting.pop(); id !== undefined; id = waiting.pop()) {
-      const block = blocks.get(id);
-      if (!block || seen.has(id) || read >= MAX_BLOCKS) continue;
-      seen.add(id);
-      read += 1;
-      if (LOOPS.has(block.opcode) || CHOICES.has(block.opcode)) {
+    for (let at = waiting.pop(); at !== undefined; at = waiting.pop()) {
+      const block = blocks.get(at.id);
+      if (!block || seen.has(at.id) || count >= MAX_BLOCKS) continue;
+      seen.add(at.id);
+      count += 1;
+      const loop = LOOPS.has(block.opcode);
+      const choice = CHOICES.has(block.opcode);
+      if (loop || choice) {
         // One with nothing inside repeats or chooses nothing.
-        if (holdsStack(block)) ran.add(block.opcode);
-      } else ran.add(block.opcode);
-      if (SENDS.has(block.opcode)) sends.add(sent(block, blocks));
-      if (block.next) waiting.push(block.next);
-      for (const input of Object.values(block.inputs))
-        waiting.push(...heldBy(input));
+        if (holdsStack(block)) reading.ran.add(block.opcode);
+      } else reading.ran.add(block.opcode);
+      if (block.opcode === "control_forever" && at.looped)
+        reading.forever = true;
+      if (
+        choice &&
+        at.flagged &&
+        !at.looped &&
+        holds(blocks, heldBy(block.inputs.CONDITION), MOMENTS)
+      )
+        reading.once = true;
+      if (SENDS.has(block.opcode)) reading.sends.add(sent(block, blocks));
+      if (block.next) waiting.push({ ...at, id: block.next });
+      for (const [name, input] of Object.entries(block.inputs))
+        for (const id of heldBy(input))
+          waiting.push({
+            ...at,
+            id,
+            looped: at.looped || (loop && name.startsWith("SUBSTACK")),
+          });
     }
   }
+  return reading;
+}
 
+function featuresIn(reading: Reading): ScratchFeature[] {
+  const { ran, started, sends, receives } = reading;
   const has: Record<ScratchFeature, boolean> = {
     flag: started.has("event_whenflagclicked"),
     loop: any(LOOPS, ran),
@@ -174,7 +277,7 @@ export function scratchFeaturesOf(project: unknown): ScratchFeature[] {
     message: [...sends].some((message) =>
       message === true ? receives.size > 0 : receives.has(message),
     ),
-    sprites: targets.filter((target) => target.isStage !== true).length >= 2,
+    sprites: reading.sprites >= 2,
     input: any(ANSWERS, started) || any(SENSES, ran),
     sound:
       any(SOUNDS, ran) ||
@@ -185,4 +288,38 @@ export function scratchFeaturesOf(project: unknown): ScratchFeature[] {
       ran.has("control_create_clone_of"),
   };
   return SCRATCH_FEATURES.filter((feature) => has[feature]);
+}
+
+function notesIn(reading: Reading): ScratchNote[] {
+  const { sends, receives } = reading;
+  const notes: ScratchNote[] = [
+    ...[...sends]
+      .filter((message) => message !== true)
+      .filter((message) => !receives.has(message))
+      .map((message) => ({ kind: "unheard" as const, message })),
+    // A block that picks its message as it runs may send any of them.
+    ...(sends.has(true)
+      ? []
+      : [...receives]
+          .filter((message) => !sends.has(message))
+          .map((message) => ({ kind: "unsent" as const, message }))),
+    ...(reading.once ? [{ kind: "once" as const }] : []),
+    ...(reading.forever ? [{ kind: "forever" as const }] : []),
+  ];
+  return notes
+    .slice(0, MAX_SCRATCH_NOTES)
+    .map((note) =>
+      "message" in note
+        ? { ...note, message: note.message.slice(0, MAX_MESSAGE_NAME) }
+        : note,
+    );
+}
+
+/** What a coding project has, and what in it is worth a second look. */
+export function scratchReadingOf(project: unknown): {
+  has: ScratchFeature[];
+  notes: ScratchNote[];
+} {
+  const reading = read(project);
+  return { has: featuresIn(reading), notes: notesIn(reading) };
 }

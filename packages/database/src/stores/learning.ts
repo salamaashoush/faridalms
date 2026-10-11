@@ -1352,6 +1352,8 @@ export interface AnswerToMark {
   remixOf: string | null;
   /** What a coding answer's project was found to have; null where it was not read. */
   has: string[] | null;
+  /** What in the project is worth a second look, as the server noted it. */
+  notes: { kind: string; message?: string }[] | null;
   sentAt: string;
   /** The teacher's latest mark on this answer, if any. */
   fraction: number | null;
@@ -1387,6 +1389,7 @@ export async function answersToMark(
     files: KeptFiles | null;
     remix_of: string | null;
     has: string[] | null;
+    notes: { kind: string; message?: string }[] | null;
     sent_at: string;
     fraction: string | number | null;
     feedback: string | null;
@@ -1403,7 +1406,7 @@ export async function answersToMark(
         r.response->'recording' as recording, r.response->'picture' as picture,
         r.response->'project' as project, r.response->'thumbnail' as thumbnail,
         r.response->'files' as files, r.response->>'remixOf' as remix_of,
-        r.response->'has' as has,
+        r.response->'has' as has, r.response->'notes' as notes,
         ${isoOf(sql`r.created_at`)} as sent_at
       from core.lesson_responses r
       join current c on c.lesson_id = r.lesson_id and c.student_user_id = r.student_user_id
@@ -1435,6 +1438,7 @@ export async function answersToMark(
     files: row.files ?? null,
     remixOf: row.remix_of,
     has: row.has ?? null,
+    notes: row.notes ?? null,
     sentAt: row.sent_at,
     fraction: row.fraction === null ? null : Number(row.fraction),
     feedback: row.feedback,

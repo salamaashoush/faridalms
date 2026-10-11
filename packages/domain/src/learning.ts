@@ -28,7 +28,7 @@ import {
   projectLanguages,
   starterFilesSchema,
 } from "./project";
-import { scratchChecksSchema } from "./scratch-project";
+import { scratchChecksSchema, scratchNotesSchema } from "./scratch-project";
 import { MAX_STROKE_POINTS, MAX_STROKES, traceResults } from "./tracing";
 
 export { gapsSource, parseGaps } from "./gaps";
@@ -1063,10 +1063,11 @@ export const responseSchema = v.variant("type", [
     remixOf: v.optional(id),
     /**
      * What the project was found to have, of all a question can ask for,
-     * when the question asks for any. The server reads the project for
-     * it; whatever a student sends here is replaced.
+     * and what in it is worth a second look. The server reads the saved
+     * project for both; whatever a student sends here is replaced.
      */
     has: v.optional(scratchChecksSchema),
+    notes: v.optional(scratchNotesSchema),
   }),
   v.object({
     type: v.literal("project"),
@@ -1133,7 +1134,7 @@ function seenOutput(output: string): string {
  */
 export function ownResponse(response: LessonResponse): LessonResponse {
   if (response.type === "scratch") {
-    const { remixOf: _claimed, has: _found, ...own } = response;
+    const { remixOf: _claimed, has: _found, notes: _seen, ...own } = response;
     return own;
   }
   if (response.type !== "project") return response;

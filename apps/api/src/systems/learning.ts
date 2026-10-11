@@ -131,7 +131,7 @@ import {
   practiceView,
 } from "@faridalms/domain/practice";
 import { heldAs, sameFiles } from "@faridalms/domain/project";
-import { scratchFeaturesOf } from "@faridalms/domain/scratch-project";
+import { scratchReadingOf } from "@faridalms/domain/scratch-project";
 import { ORPCError } from "@orpc/server";
 import { createHash } from "node:crypto";
 import * as v from "valibot";
@@ -1760,28 +1760,23 @@ async function credited(
 }
 
 /**
- * A coding answer saying what its project has, where its question asks
- * for anything: read here from the saved file, which is the student's own
+ * A coding answer saying what its project has and what in it is worth a
+ * second look: read here from the saved file, which is the student's own
  * upload or is refused as the answer is kept.
  */
 async function withFeatures(
   context: UnitContext,
-  block: { type: string; checks?: readonly string[] },
+  block: { type: string },
   response: LessonResponse,
 ): Promise<LessonResponse> {
-  if (
-    response.type !== "scratch" ||
-    block.type !== "scratch" ||
-    !block.checks?.length
-  )
-    return response;
+  if (response.type !== "scratch" || block.type !== "scratch") return response;
   const [file] = await filesByIds(context.tx, context.tenantId, [
     response.project.fileId,
   ]);
   if (file?.uploadedByUserId !== context.actor.userId) return response;
   return {
     ...response,
-    has: scratchFeaturesOf(await projectCode(context.files, file)),
+    ...scratchReadingOf(await projectCode(context.files, file)),
   };
 }
 

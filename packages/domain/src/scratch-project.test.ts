@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 
-import { scratchFeaturesOf } from "./scratch-project";
+import { scratchReadingOf } from "./scratch-project";
+
+const scratchFeaturesOf = (code: unknown) => scratchReadingOf(code).has;
 
 type Inputs = Record<string, unknown>;
 
@@ -227,5 +229,128 @@ describe("what a coding project has", () => {
         ),
       ),
     ).toEqual(["flag"]);
+  });
+});
+
+describe("what in a coding project is worth a second look", () => {
+  const notes = (...sprites: unknown[]) =>
+    scratchReadingOf(project(...sprites)).notes;
+  const send = (message: string) =>
+    block("event_broadcast", null, {
+      BROADCAST_INPUT: [1, [11, message, "id"]],
+    });
+  const hear = (message: string, next: string) =>
+    hat("event_whenbroadcastreceived", next, {
+      BROADCAST_OPTION: [message, "id"],
+    });
+
+  it("is nothing in a project whose messages are heard and whose checks are looped", () => {
+    expect(
+      notes(
+        sprite({
+          start: hat("event_whenflagclicked", "loop"),
+          loop: block("control_forever", null, { SUBSTACK: inside("choice") }),
+          choice: block("control_if", "send", {
+            CONDITION: [2, "key"],
+            SUBSTACK: inside("say"),
+          }),
+          key: block("sensing_keypressed"),
+          say: block("looks_say"),
+          send: send("go"),
+          heard: hear("go", "say2"),
+          say2: block("looks_say"),
+        }),
+      ),
+    ).toEqual([]);
+  });
+
+  it("names a message nobody hears, and one nobody sends", () => {
+    expect(
+      notes(
+        sprite({
+          start: hat("event_whenflagclicked", "send"),
+          send: send("start game"),
+          heard: hear("game over", "say"),
+          say: block("looks_say"),
+        }),
+      ),
+    ).toEqual([
+      { kind: "unheard", message: "start game" },
+      { kind: "unsent", message: "game over" },
+    ]);
+  });
+
+  it("takes a message picked as the project runs to be any of them", () => {
+    expect(
+      notes(
+        sprite({
+          start: hat("event_whenflagclicked", "send"),
+          send: block("event_broadcast", null, {
+            BROADCAST_INPUT: [3, "which", [11, "go", "id"]],
+          }),
+          which: block("data_variable"),
+          heard: hear("game over", "say"),
+          say: block("looks_say"),
+        }),
+      ),
+    ).toEqual([]);
+  });
+
+  it("notes a key checked once after the flag, but not one checked on its own event", () => {
+    const check = {
+      choice: block("control_if", null, {
+        CONDITION: [2, "both"],
+        SUBSTACK: inside("say"),
+      }),
+      both: block("operator_and", null, { OPERAND1: [2, "key"] }),
+      key: block("sensing_keypressed"),
+      say: block("looks_say"),
+    };
+    expect(
+      notes(
+        sprite({ start: hat("event_whenflagclicked", "choice"), ...check }),
+      ),
+    ).toEqual([{ kind: "once" }]);
+    expect(
+      notes(sprite({ start: hat("event_whenkeypressed", "choice"), ...check })),
+    ).toEqual([]);
+  });
+
+  it("notes a forever inside another loop, and none that follows a loop", () => {
+    const say = block("looks_say");
+    expect(
+      notes(
+        sprite({
+          start: hat("event_whenflagclicked", "outer"),
+          outer: block("control_repeat", null, { SUBSTACK: inside("inner") }),
+          inner: block("control_forever", null, { SUBSTACK: inside("say") }),
+          say,
+        }),
+      ),
+    ).toEqual([{ kind: "forever" }]);
+    expect(
+      notes(
+        sprite({
+          start: hat("event_whenflagclicked", "outer"),
+          outer: block("control_repeat", "inner", { SUBSTACK: inside("say") }),
+          inner: block("control_forever", null, { SUBSTACK: inside("say2") }),
+          say,
+          say2: say,
+        }),
+      ),
+    ).toEqual([]);
+  });
+
+  it("reads what a project has in the same pass", () => {
+    expect(
+      scratchReadingOf(
+        project(
+          sprite({
+            start: hat("event_whenflagclicked", "send"),
+            send: send("go"),
+          }),
+        ),
+      ),
+    ).toEqual({ has: ["flag"], notes: [{ kind: "unheard", message: "go" }] });
   });
 });
