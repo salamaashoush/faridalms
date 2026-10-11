@@ -1,3 +1,5 @@
+import type { SpeechLanguage } from "@faridalms/domain/file";
+
 import { sql } from "drizzle-orm";
 
 import type { CellTransaction } from "../context";
@@ -981,6 +983,25 @@ export async function streamFailed(
 }
 
 /**
+ * A worker hands an encode back unspent: it is stopping, or its machine and
+ * not the video is at fault. The attempt it took does not count, so a
+ * broken machine cannot use up the tries a video has.
+ */
+export async function streamReleased(
+  tx: Tx,
+  input: { tenantId: string; fileId: string },
+): Promise<boolean> {
+  const rows = await tx.execute<{ id: string }>(sql`
+    update core.files
+    set stream_state = 'queued', stream_attempts = greatest(stream_attempts - 1, 0),
+        stream_leased_until = null, stream_progress = null
+    where tenant_id = ${input.tenantId}::uuid and id = ${input.fileId}::uuid
+      and stream_state = 'encoding'
+    returning id`);
+  return rows.length > 0;
+}
+
+/**
  * The stream folders of videos that are gone, however they went: trashed,
  * superseded, never linked or erased. Each row lets go of its streams here,
  * so a folder is handed back once.
@@ -1046,7 +1067,7 @@ export const CAPTION_ATTEMPTS = 2;
 
 /** Captions drafted from a recording, as its teacher waits for them. */
 export interface CaptionDraft {
-  language: "ar" | "en";
+  language: SpeechLanguage;
   state: "queued" | "working" | "ready" | "failed";
   progress: number | null;
   vtt: string | null;
@@ -1058,7 +1079,7 @@ export async function requestCaptionDraft(
   input: {
     tenantId: string;
     fileId: string;
-    language: "ar" | "en";
+    language: SpeechLanguage;
     userId: string;
   },
 ): Promise<void> {
@@ -1091,7 +1112,7 @@ export async function captionDraftOf(
 export interface CaptionJob {
   fileId: string;
   storageKey: string;
-  language: "ar" | "en";
+  language: SpeechLanguage;
 }
 
 /**
@@ -1172,6 +1193,21 @@ export async function captionDraftFailed(
     update core.caption_drafts
     set state = case when attempts >= ${CAPTION_ATTEMPTS} then 'failed' else 'queued' end,
         leased_until = null, progress = null, error = left(${input.error}, 2000)
+    where tenant_id = ${input.tenantId}::uuid and file_id = ${input.fileId}::uuid
+      and status = 'active' and state = 'working'
+    returning id`);
+  return rows.length > 0;
+}
+
+/** A worker hands a draft back unspent, as `streamReleased` hands back an encode. */
+export async function captionDraftReleased(
+  tx: Tx,
+  input: { tenantId: string; fileId: string },
+): Promise<boolean> {
+  const rows = await tx.execute<{ id: string }>(sql`
+    update core.caption_drafts
+    set state = 'queued', attempts = greatest(attempts - 1, 0),
+        leased_until = null, progress = null
     where tenant_id = ${input.tenantId}::uuid and file_id = ${input.fileId}::uuid
       and status = 'active' and state = 'working'
     returning id`);

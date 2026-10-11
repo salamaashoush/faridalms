@@ -2,6 +2,7 @@ import {
   fileAreaSchema,
   initiateUploadSchema,
   picturedSchema,
+  SPEECH_LANGUAGES,
   tagPicturedSchema,
 } from "@faridalms/domain/file";
 import { createServerFn } from "@tanstack/react-start";
@@ -65,7 +66,7 @@ export const draftCaptions = createServerFn({ method: "POST" })
     checked(
       v.object({
         fileId: v.pipe(v.string(), v.uuid()),
-        language: v.picklist(["ar", "en"]),
+        language: v.picklist(SPEECH_LANGUAGES),
       }),
     ),
   )

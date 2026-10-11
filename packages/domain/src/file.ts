@@ -387,6 +387,26 @@ export const fileAreaSchema = v.object({
   id: v.pipe(v.string(), v.uuid()),
 });
 
+/**
+ * The languages a recording's captions can be drafted in from what it says:
+ * the ones the captions editor offers, all of which the speech model hears.
+ */
+export const SPEECH_LANGUAGES = [
+  "ar",
+  "de",
+  "en",
+  "es",
+  "fr",
+  "hi",
+  "it",
+  "pt",
+  "ru",
+  "tr",
+  "ur",
+  "zh",
+] as const;
+export type SpeechLanguage = (typeof SPEECH_LANGUAGES)[number];
+
 /** The shortest a recording may be cut down to. */
 export const MIN_TRIM_MS = 1000;
 /** The part of a recording kept, from and to, in milliseconds from its start. */

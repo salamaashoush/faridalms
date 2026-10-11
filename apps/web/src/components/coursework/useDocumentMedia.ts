@@ -1,4 +1,8 @@
-import type { StorageScope, UploadDestination } from "@faridalms/domain/file";
+import type {
+  SpeechLanguage,
+  StorageScope,
+  UploadDestination,
+} from "@faridalms/domain/file";
 import type { EditorMedia } from "@faridalms/editor";
 
 import { ATTACHABLE_EXTENSIONS, mediaTypeFor } from "@faridalms/domain/file";
@@ -80,7 +84,7 @@ export function useDocumentMedia(destination?: UploadDestination): EditorMedia {
       url: (fileId: string) => `/files/${fileId}`,
       canTrim: async () => (await abilities()).trim,
       captions: {
-        draft: async (fileId: string, language: "ar" | "en") => {
+        draft: async (fileId: string, language: SpeechLanguage) => {
           await askDraft({ data: { fileId, language } });
         },
         status: (fileId: string) => draftOf({ data: { fileId } }),

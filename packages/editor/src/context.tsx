@@ -1,3 +1,4 @@
+import type { SpeechLanguage } from "@faridalms/domain/file";
 import type { ProjectFile, ProjectLanguage } from "@faridalms/domain/project";
 import type { Level } from "@faridalms/puzzles/level";
 
@@ -64,7 +65,7 @@ export interface EditorMedia {
   canTrim?: () => Promise<boolean>;
   /** Captions drafted from what a recording says, where the school's media service can. */
   captions?: {
-    draft: (fileId: string, language: "ar" | "en") => Promise<void>;
+    draft: (fileId: string, language: SpeechLanguage) => Promise<void>;
     status: (fileId: string) => Promise<CaptionDraftStatus>;
   };
 }

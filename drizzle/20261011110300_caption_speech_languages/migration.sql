@@ -1,0 +1,1 @@
+ALTER TABLE "core"."caption_drafts" DROP CONSTRAINT "caption_drafts_language_check", ADD CONSTRAINT "caption_drafts_language_check" CHECK (language in ('ar', 'de', 'en', 'es', 'fr', 'hi', 'it', 'pt', 'ru', 'tr', 'ur', 'zh'));

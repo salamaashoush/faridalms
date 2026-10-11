@@ -31,6 +31,7 @@ import {
   initiateUploadSchema,
   picturedSchema,
   safeFilename,
+  SPEECH_LANGUAGES,
   tagPicturedSchema,
   UPLOAD_PART_BYTES,
 } from "@faridalms/domain/file";
@@ -368,7 +369,7 @@ export const draftCaptions = writeProcedure
   .input(
     v.object({
       ...captionedSchema.entries,
-      language: v.picklist(["ar", "en"]),
+      language: v.picklist(SPEECH_LANGUAGES),
     }),
   )
   .handler(async ({ input, context }) => {

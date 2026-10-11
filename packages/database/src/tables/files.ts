@@ -1,3 +1,4 @@
+import type { SpeechLanguage } from "@faridalms/domain/file";
 import type { PgTableExtraConfigValue } from "drizzle-orm/pg-core";
 
 import { sql } from "drizzle-orm";
@@ -431,7 +432,7 @@ export const captionDrafts = core.table.withRLS(
   {
     ...tenantColumns(),
     fileId: uuid("file_id").notNull(),
-    language: text("language").$type<"ar" | "en">().notNull(),
+    language: text("language").$type<SpeechLanguage>().notNull(),
     state: text("state").$type<CaptionDraftState>().notNull().default("queued"),
     attempts: integer("attempts").notNull().default(0),
     leasedUntil: instant("leased_until"),
@@ -450,7 +451,11 @@ export const captionDrafts = core.table.withRLS(
       [t.tenantId, t.requestedByUserId],
       [users.tenantId, users.id],
     ),
-    ck("caption_drafts", "language", sql`language in ('ar', 'en')`),
+    ck(
+      "caption_drafts",
+      "language",
+      sql`language in ('ar', 'de', 'en', 'es', 'fr', 'hi', 'it', 'pt', 'ru', 'tr', 'ur', 'zh')`,
+    ),
     ck(
       "caption_drafts",
       "state",

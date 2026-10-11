@@ -10,6 +10,7 @@ import {
   vttOf,
 } from "@faridalms/domain/captions";
 import { MAX_CHAPTER_TEXT, parseChapters } from "@faridalms/domain/chapters";
+import { SPEECH_LANGUAGES } from "@faridalms/domain/file";
 import {
   AudioLines,
   LoaderCircle,
@@ -459,7 +460,7 @@ function CaptionsPanel({
     }, DRAFT_POLL_MS);
     return () => clearInterval(timer);
   }, [drafting, waiting, fileId, asked, take]);
-  const speech = lang === "ar" || lang === "en" ? lang : null;
+  const speech = SPEECH_LANGUAGES.find((language) => language === lang) ?? null;
   const askDraft = async () => {
     if (!drafting || !speech) return;
     setProblem(null);
