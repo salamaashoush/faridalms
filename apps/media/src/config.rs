@@ -42,6 +42,9 @@ pub struct Config {
   pub speech: Option<Speech>,
   /// Where sources and encodes wait while they are worked on.
   pub work_dir: PathBuf,
+  /// Where the service's counts are served, for the machine's own monitor
+  /// and never on the address browsers reach; none serves none.
+  pub metrics: Option<String>,
 }
 
 fn var(name: &str) -> Option<String> {
@@ -94,18 +97,28 @@ impl Config {
         ffmpeg: var("MEDIA_FFMPEG").unwrap_or_else(|| "ffmpeg".into()).into(),
         ffprobe: var("MEDIA_FFPROBE").unwrap_or_else(|| "ffprobe".into()).into(),
         encoder,
+        tone_map: false,
       },
       speech: match var("MEDIA_WHISPER_MODEL") {
         None => None,
         Some(model) => Some(Speech {
           whisper: var("MEDIA_WHISPER").unwrap_or_else(|| "whisper-cli".into()).into(),
           model: model.into(),
+          vad_model: var("MEDIA_WHISPER_VAD_MODEL").map(PathBuf::from),
           threads: var("MEDIA_WHISPER_THREADS")
             .map_or(Ok(4), |value| value.parse())
             .context("MEDIA_WHISPER_THREADS must be a number")?,
         }),
       },
       work_dir: var("MEDIA_WORK_DIR").map_or_else(env::temp_dir, PathBuf::from),
+      metrics: match var("MEDIA_METRICS_PORT") {
+        None => None,
+        Some(port) => Some(format!(
+          "{}:{}",
+          var("MEDIA_METRICS_HOST").unwrap_or_else(|| "127.0.0.1".into()),
+          port.parse::<u16>().context("MEDIA_METRICS_PORT must be a port")?
+        )),
+      },
     })
   }
 }

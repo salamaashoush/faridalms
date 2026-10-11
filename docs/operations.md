@@ -174,7 +174,8 @@ who may watch; the service holds no database login. It asks the API for
 work with a token derived from `CELL_SECRET`, reads uploads from the same
 file store, and writes streams beside them under `t/<school>/v/<file>/`.
 
-Build it with `cargo build --release` in `apps/media`; it needs `ffmpeg` and
+Build it with `cargo build --release` in `apps/media`, or take the `media`
+target of the Dockerfile, which carries ffmpeg. It needs `ffmpeg` and
 `ffprobe` on its path. Give it the API's `CELL_SECRET` and storage variables
 (`FILE_STORAGE`, `FILE_STORAGE_DIR` or `FILE_BUCKET` and the `S3_*` set),
 `MEDIA_API_URL` (the API as the service reaches it), `MEDIA_PORT` (default
@@ -183,9 +184,69 @@ and, on a machine with an NVIDIA card, `MEDIA_ENCODER=h264_nvenc`. Serve it on
 the user-content domain, never the application's, and set `MEDIA_ORIGIN` on
 the API to its origin as browsers reach it. With `MEDIA_ORIGIN` unset, video
 plays as uploaded; set, each new video is queued as its upload becomes ready,
-plays as uploaded until its streams are made, then streams. An encode that
-stops reporting loses its lease after ten minutes and is taken again; a video
-is tried three times before it is left playing as uploaded.
+plays as uploaded until its streams are made, then streams.
+
+A service that encodes proves it can as it starts: it runs `ffprobe`, encodes
+a few black pictures with the encoder it was given and, when it drafts
+captions, runs `whisper-cli` and looks for its models. One that cannot
+refuses to start and says which tool failed, where it would otherwise fail
+every video it was handed. An ffmpeg without the `zscale` and `tonemap`
+filters starts with a warning: HDR video from a phone then looks washed out.
+
+What an encode does to a video:
+
+- Every size is encoded to a constant quality and never above its rate on
+  the ladder (360p 0.8, 540p 1.6, 720p 2.8, 1080p 5 Mbit/s). A teacher
+  talking to a camera takes about half the ladder's rate for the same
+  measured quality; a busy picture takes all of it.
+- More than thirty pictures a second become thirty, and a browser's
+  recording, which has no steady rate, is given one.
+- An HDR picture (HLG or PQ) is brought down to the colours every screen
+  shows.
+- The sound is turned up or down to one loudness, -16 LUFS, by no more than
+  20 dB; peaks that would clip are held under -1.5 dB. Silence is left alone.
+- The poster and the thumbnails are taken from the streams just made.
+
+While a job is worked on the API hears of it every five seconds, whatever
+the work is doing, and keeps it leased to that worker for ten minutes from
+the last time it heard. A job ends one of four ways:
+
+- done, and the streams play;
+- failed, because the file could not be got through: tried three times
+  (captions twice), then left playing as uploaded;
+- handed back unspent, because the service was stopping or its machine was
+  at fault (a tool that will not start, a disk or a store that cannot be
+  written): the try does not count, and the worker waits before asking for
+  more, from five seconds up to a minute while its machine keeps failing;
+- dropped, because the API took it away: the video was trashed, or its
+  lease ran out and another worker has it.
+
+On `SIGTERM` the service stops asking for work, hands back what it was
+doing, and exits within ten seconds; give its container at least that long.
+A worker with nothing to do asks less often, down to once in thirty
+seconds, since each ask costs the API a look at every school of the cell;
+the first video after a quiet spell therefore starts within thirty seconds.
+Schools take turns: a school that queues a hundred videos does not keep the
+others waiting.
+
+A video's link is the same for everyone who asks within a window of four
+hours and opens until the end of the next window, so for four to eight
+hours. A browser keeps what it fetched for as long as that link opens
+(`Cache-Control: private, max-age=<seconds left>, immutable`), and finds it
+again when a student comes back to the lesson. To let a CDN in front of the
+service share segments between students, have it cache by the whole path
+and treat an answer as shareable for the `max-age` it carries: the link is
+all that authorises a request, and no cookie is read.
+
+Set `MEDIA_METRICS_PORT` to serve counts in Prometheus's text format at
+`/metrics` on a listener of their own (`MEDIA_METRICS_HOST`, default
+`127.0.0.1`), never on the address browsers reach: jobs by kind and by how
+they ended, seconds spent on them, jobs running, bytes written to the
+store, and answers and bytes sent to players.
+
+What a video's streams weigh is kept on its file row
+(`derivatives.hls.size`). It is not counted against a school's storage:
+whether streams count is a decision still to be made.
 
 The service also drafts captions from speech, for a teacher to correct in
 the captions editor, when it has a speech model. Build `whisper-cli` from
@@ -194,10 +255,21 @@ and download a multilingual ggml model with the script in its `models/`
 folder. Give the service `MEDIA_WHISPER_MODEL` (the model file),
 `MEDIA_WHISPER` (the binary, default `whisper-cli` on its path) and
 `MEDIA_WHISPER_THREADS` (default 4), and set `MEDIA_CAPTIONS=on` on the API;
-unset, editors offer no drafts. `ggml-base` is fine for English trials;
-Arabic needs `ggml-small` or larger to be worth correcting. Encodes come
-first: a worker drafts captions only when no video is waiting, a draft that
-stops reporting is taken again after ten minutes, and one is tried twice.
+unset, editors offer no drafts. Drafts are offered in the twelve languages
+the captions editor lists (Arabic, Chinese, English, French, German, Hindi,
+Italian, Portuguese, Russian, Spanish, Turkish, Urdu), so the model must be
+a multilingual one. `ggml-base` is fine for English trials; Arabic needs
+`ggml-small` or larger to be worth correcting. Encodes come first: a worker
+drafts captions only when no video is waiting.
+
+Give it `MEDIA_WHISPER_VAD_MODEL` as well, the Silero model from
+whisper.cpp's `models/download-vad-model.sh`. Without it Whisper hears
+words in music and in silence: forty seconds of music before a sentence
+came back as a `[MUSIC]` cue and a sentence starting twelve seconds early,
+and the silence after it as `[BLANK_AUDIO]` cues. With it only the
+sentence came back, timed to the second. Its cost is that two sentences
+either side of a long pause can come back as one cue that spans the pause,
+which the teacher splits.
 
 ## Coding studio
 

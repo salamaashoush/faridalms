@@ -15,7 +15,25 @@ use crate::transcode::{TranscodeError, run};
 pub struct Speech {
   pub whisper: PathBuf,
   pub model: PathBuf,
+  /// The model that tells speech from silence. Whisper writes words over
+  /// a long pause or a stretch of music unless it is kept from hearing them.
+  pub vad_model: Option<PathBuf>,
   pub threads: usize,
+}
+
+/// Proves speech recognition is there to run and its models to read, as
+/// the service starts.
+pub async fn check(speech: &Speech) -> Result<(), TranscodeError> {
+  run(&speech.whisper, "whisper", &["--help".to_string()]).await?;
+  for model in std::iter::once(&speech.model).chain(&speech.vad_model) {
+    tokio::fs::metadata(model)
+      .await
+      .map_err(|source| TranscodeError::Start {
+        tool: "whisper",
+        source: std::io::Error::new(source.kind(), format!("{}: {source}", model.display())),
+      })?;
+  }
+  Ok(())
 }
 
 /// A caption line runs no longer than this many characters, broken between
@@ -23,9 +41,12 @@ pub struct Speech {
 const LINE_CHARS: &str = "64";
 
 /// Whether `language` is one the API asks for, so nothing else reaches the
-/// command line.
+/// command line: the languages the captions editor offers.
 fn spoken(language: &str) -> bool {
-  matches!(language, "ar" | "en")
+  matches!(
+    language,
+    "ar" | "de" | "en" | "es" | "fr" | "hi" | "it" | "pt" | "ru" | "tr" | "ur" | "zh"
+  )
 }
 
 /// Drafts captions for `source` in `language`, working in `work`, telling
@@ -52,7 +73,11 @@ pub async fn draft(
   run(ffmpeg, "ffmpeg", &extract).await?;
 
   let base = work.join("captions");
-  let mut child = Command::new(&speech.whisper)
+  let mut whisper = Command::new(&speech.whisper);
+  if let Some(vad_model) = &speech.vad_model {
+    whisper.arg("--vad").arg("--vad-model").arg(vad_model);
+  }
+  let mut child = whisper
     .arg("--model")
     .arg(&speech.model)
     .arg("--file")
@@ -124,6 +149,8 @@ mod tests {
   fn drafts_only_in_the_languages_asked_for() {
     assert!(spoken("ar"));
     assert!(spoken("en"));
+    assert!(spoken("fr"));
     assert!(!spoken("-ml"));
+    assert!(!spoken("auto"));
   }
 }

@@ -61,8 +61,9 @@ pub fn open(key: &[u8; 32], token: &str, now: u64) -> Option<Grant> {
   (expires >= now).then_some(Grant { prefix, expires })
 }
 
-/// Seals a grant with the given nonce. The API seals with a fresh random
-/// nonce; this exists to check the two agree.
+/// Seals a grant with the given nonce. The API takes its nonce from the
+/// grant, so that one grant always seals to one link; this exists to check
+/// the two agree on everything else.
 #[cfg(test)]
 #[must_use]
 pub fn seal_with(key: &[u8; 32], grant: &Grant, nonce: [u8; NONCE]) -> String {
@@ -120,6 +121,16 @@ mod tests {
     assert_eq!(open(&key, API_SEALED, 0), Some(grant()));
     assert_eq!(seal_with(&key, &grant(), [1; 12]), API_SEALED);
   }
+
+  /// As the API seals the same grant today, its nonce taken from the
+  /// grant: the link the API's own test pins, so neither side can change
+  /// how a link is made without the other's test failing.
+  #[test]
+  fn opens_the_link_the_api_gives_everyone_in_a_window() {
+    assert_eq!(open(&playback_key(&SECRET), API_SEALS, 0), Some(grant()));
+  }
+
+  const API_SEALS: &str = "2-IdXsQ-ECTL8JyIPNOkG1TlanTxuwczEuVuvegAJBvWUIXr-RDK7mqA78b06aF-UGBHCzqz9xJnSP0sOOxsTC78neZLokP7UTWuLM3cl73rHg9HXbBTjMYXWbhrhmE_VNqMDFLxmNSnztagTEsNHe9eQLliMgWm";
 
   const API_SEALED: &str = "AQEBAQEBAQEBAQEBoYyEAA6s1wT49KcV5Zv4vHnUomNiSnKGL7-H6_vc59ZrulqtJJslsGM7ivMauU4nKlF3j1HV29hr46bfLKmS7A17mJ20_9Oa7ZeGRsHywSFOBkJWGkOze66Y1yEhKrd1Ksy6PsnYSl9c2NvU";
 }

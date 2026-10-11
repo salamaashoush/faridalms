@@ -8,7 +8,7 @@ use std::process::Stdio;
 use tokio::io::{AsyncBufReadExt, AsyncReadExt, BufReader};
 use tokio::process::Command;
 
-use crate::plan::{self, Encoder, Manifest};
+use crate::plan::{self, Encode, Encoder, Manifest, ProbeError};
 
 #[derive(Debug, thiserror::Error)]
 pub enum TranscodeError {
@@ -17,17 +17,78 @@ pub enum TranscodeError {
   #[error("{tool} failed: {stderr}")]
   Failed { tool: &'static str, stderr: String },
   #[error(transparent)]
-  Probe(#[from] plan::ProbeError),
+  Probe(#[from] ProbeError),
   #[error("the output could not be written: {0}")]
   Write(#[from] std::io::Error),
 }
 
-/// Where the tools are, and which encoder to drive.
+impl TranscodeError {
+  /// Whether the machine is at fault and not the file: a tool that is not
+  /// there or a disk that cannot be written fails every video alike, so
+  /// none should be given up on for it.
+  #[must_use]
+  pub fn is_the_machines(&self) -> bool {
+    match self {
+      Self::Start { .. } | Self::Write(_) => true,
+      Self::Failed { stderr, .. } => stderr.contains("No space left on device"),
+      Self::Probe(_) => false,
+    }
+  }
+}
+
+/// Where the tools are, which encoder to drive, and what this ffmpeg can do.
 #[derive(Debug, Clone)]
 pub struct Tools {
   pub ffmpeg: PathBuf,
   pub ffprobe: PathBuf,
   pub encoder: Encoder,
+  /// Whether this ffmpeg has the filters that bring an HDR picture down.
+  pub tone_map: bool,
+}
+
+/// Proves the tools are there and that the encoder encodes, by encoding a
+/// few black pictures, and learns what this ffmpeg can do. A machine set
+/// up wrongly then says so as it starts, where it would otherwise fail
+/// every video it was handed.
+pub async fn check(tools: &mut Tools) -> Result<(), TranscodeError> {
+  run(&tools.ffprobe, "ffprobe", &["-version".to_string()]).await?;
+  let encoder = match tools.encoder {
+    Encoder::Cpu => "libx264",
+    Encoder::Nvidia => "h264_nvenc",
+  };
+  let trial = [
+    "-hide_banner",
+    "-nostdin",
+    "-loglevel",
+    "error",
+    "-f",
+    "lavfi",
+    "-i",
+    "color=c=black:s=256x144:r=30:d=0.2",
+    "-f",
+    "lavfi",
+    "-i",
+    "anullsrc=r=48000:cl=stereo:d=0.2",
+    "-c:v",
+    encoder,
+    "-c:a",
+    "aac",
+    "-f",
+    "null",
+    "-",
+  ]
+  .map(String::from);
+  run(&tools.ffmpeg, "ffmpeg", &trial).await?;
+  let filters = Command::new(&tools.ffmpeg)
+    .args(["-hide_banner", "-filters"])
+    .stdin(Stdio::null())
+    .output()
+    .await
+    .map_err(|source| TranscodeError::Start { tool: "ffmpeg", source })?;
+  let filters = String::from_utf8_lossy(&filters.stdout);
+  let has = |name: &str| filters.lines().any(|line| line.split_whitespace().nth(1) == Some(name));
+  tools.tone_map = has("zscale") && has("tonemap");
+  Ok(())
 }
 
 /// Cuts `source` down to the seconds from `start` to `end`, written to `to`.
@@ -46,8 +107,21 @@ pub async fn transcode(
   let probed = probe(tools, source).await?;
   let renditions = plan::ladder(&probed);
   tokio::fs::create_dir_all(out.join("thumbs")).await?;
+  let gain = if probed.has_audio {
+    loudness(tools, source).await
+  } else {
+    None
+  };
 
-  let args = plan::hls_args(source, out, &probed, &renditions, tools.encoder);
+  let args = plan::hls_args(&Encode {
+    source,
+    out,
+    probe: &probed,
+    renditions: &renditions,
+    encoder: tools.encoder,
+    tone_map: tools.tone_map,
+    gain,
+  });
   let mut child = Command::new(&tools.ffmpeg)
     .args(&args)
     .stdin(Stdio::null())
@@ -80,8 +154,17 @@ pub async fn transcode(
     });
   }
 
-  run(&tools.ffmpeg, "ffmpeg", &plan::poster_args(source, out, &probed)).await?;
-  run(&tools.ffmpeg, "ffmpeg", &plan::thumbnail_args(source, out)).await?;
+  // The ladder runs from the smallest size to the largest.
+  if let (Some(smallest), Some(largest)) = (renditions.first(), renditions.last()) {
+    let stream = |rendition: &plan::Rendition| out.join(&rendition.name).join("index.m3u8");
+    run(
+      &tools.ffmpeg,
+      "ffmpeg",
+      &plan::poster_args(&stream(largest), out, &probed),
+    )
+    .await?;
+    run(&tools.ffmpeg, "ffmpeg", &plan::thumbnail_args(&stream(smallest), out)).await?;
+  }
   tokio::fs::write(
     out.join("thumbs").join("thumbs.vtt"),
     plan::thumbnail_track(probed.duration),
@@ -101,11 +184,12 @@ pub async fn transcode(
   })
 }
 
-async fn probe(tools: &Tools, source: &Path) -> Result<plan::Probe, TranscodeError> {
+async fn ffprobe(tools: &Tools, source: &Path, args: &[&str]) -> Result<Vec<u8>, TranscodeError> {
   let output = Command::new(&tools.ffprobe)
-    .args(["-v", "error", "-print_format", "json", "-show_streams", "-show_format"])
+    .args(args)
     .arg(source)
     .stdin(Stdio::null())
+    .kill_on_drop(true)
     .output()
     .await
     .map_err(|source| TranscodeError::Start {
@@ -118,13 +202,62 @@ async fn probe(tools: &Tools, source: &Path) -> Result<plan::Probe, TranscodeErr
       stderr: String::from_utf8_lossy(&output.stderr).into_owned(),
     });
   }
-  Ok(plan::probe(&output.stdout)?)
+  Ok(output.stdout)
+}
+
+async fn probe(tools: &Tools, source: &Path) -> Result<plan::Probe, TranscodeError> {
+  let json = ffprobe(
+    tools,
+    source,
+    &["-v", "error", "-print_format", "json", "-show_streams", "-show_format"],
+  )
+  .await?;
+  match plan::probe(&json, None) {
+    // A recording made in a browser states no length: MediaRecorder writes
+    // the file as it goes and never returns to say how long it came to.
+    Err(ProbeError::NoDuration) => {
+      let packets = ffprobe(
+        tools,
+        source,
+        &[
+          "-v",
+          "error",
+          "-select_streams",
+          "v:0",
+          "-show_entries",
+          "packet=pts_time,duration_time",
+          "-of",
+          "csv=p=0",
+        ],
+      )
+      .await?;
+      Ok(plan::probe(
+        &json,
+        plan::packets_end(&String::from_utf8_lossy(&packets)),
+      )?)
+    },
+    probed => Ok(probed?),
+  }
+}
+
+/// What to turn the sound by. A source whose loudness cannot be measured
+/// plays as it is.
+async fn loudness(tools: &Tools, source: &Path) -> Option<plan::Gain> {
+  let output = Command::new(&tools.ffmpeg)
+    .args(plan::loudness_args(source))
+    .stdin(Stdio::null())
+    .kill_on_drop(true)
+    .output()
+    .await
+    .ok()?;
+  plan::gain(&String::from_utf8_lossy(&output.stderr))
 }
 
 pub(crate) async fn run(program: &Path, tool: &'static str, args: &[String]) -> Result<(), TranscodeError> {
   let output = Command::new(program)
     .args(args)
     .stdin(Stdio::null())
+    .kill_on_drop(true)
     .output()
     .await
     .map_err(|source| TranscodeError::Start { tool, source })?;
@@ -197,11 +330,13 @@ mod tests {
     let dir = tempfile::tempdir()?;
     let source = clip(dir.path()).await;
     let out = dir.path().join("out");
-    let tools = Tools {
+    let mut tools = Tools {
       ffmpeg: "ffmpeg".into(),
       ffprobe: "ffprobe".into(),
       encoder: Encoder::Cpu,
+      tone_map: false,
     };
+    check(&mut tools).await?;
     let mut reported = Vec::new();
     let manifest = transcode(&tools, &source, &out, |progress| reported.push(progress)).await?;
 

@@ -61,7 +61,18 @@ with the gate it can break.
    the network drops is sent again, after a wait or once the browser is
    back online. A video in a document may weigh up to 200 MiB, so a
    ten-minute recording fits; every upload used to stop at 25 MiB, which
-   refused a recording of much over a minute. Hosted adapters remain.
+   refused a recording of much over a minute. Done after that: a
+   recording made in Firefox, which states no length, is encoded (it used
+   to fail three times and stay unstreamed); each size is encoded to a
+   constant quality under its rate; HDR video from a phone is brought down
+   to ordinary colours; every video plays at one loudness; NVENC cuts
+   segments where it is told to; a worker proves its tools as it starts,
+   keeps its lease through every step, hands a job back when it stops or
+   its machine fails, and is counted at `/metrics`; a video's link stays
+   the same for a four-hour window so browsers keep what they fetched;
+   schools take turns in the queue; the service has a container image and
+   runs its tests in CI. Hosted adapters remain, and so does the decision
+   whether streams count against a school's storage.
 7. **Captions and chapters.** Whisper drafts captions on the worker for the
    teacher to approve in the existing captions editor; chapters edited on the
    timeline and shown on the scrub bar. Done for chapters: a teacher writes a
@@ -72,7 +83,10 @@ with the gate it can break.
    Done next: the captions editor drafts captions from what a recording
    says, in Arabic or English, with whisper.cpp on the media service; the
    draft arrives as lines the teacher checks and fixes before saving, and a
-   note asks them to read every line against the recording.
+   note asks them to read every line against the recording. Drafts are now
+   offered in all twelve languages the captions editor lists, and a
+   voice-detection model keeps Whisper from writing words over music and
+   silence.
 8. **Teacher studio and student replies.** Record camera, screen and voice in
    the browser, trim, publish; the same recorder gives students a video or
    audio answer kind. Done first: "Record a video" in the editor's insert
