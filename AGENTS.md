@@ -32,6 +32,11 @@ bun run test         # vitest
 bun run test:e2e     # playwright, builds and serves the production bundle
 ```
 
+`apps/media` is Rust and outside `bun run ready`. After changing it, run
+`cargo fmt --check`, `cargo clippy --all-targets -- -D warnings` and
+`cargo test` there; the tests encode a clip, so they need `ffmpeg` on the
+path. CI's `media` job runs the same three.
+
 **Bun 1.4.2 is pinned** in packageManager, Dockerfile and `.github/setup/action.yml`.
 Keep all three aligned; Bun 1.3 cannot read this lockfile version.
 

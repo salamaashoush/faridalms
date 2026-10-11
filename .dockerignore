@@ -13,6 +13,7 @@ dist
 !.env.example
 
 # Test and tooling output
+target
 coverage
 test-results
 playwright-report
