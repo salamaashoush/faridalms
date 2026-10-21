@@ -79,6 +79,7 @@ interface BlockFacts {
 // Blocks with nothing to read aloud.
 const SILENT = new Set([
   "gate",
+  "draw",
   "horizontalrule",
   "pagebreak",
   "starter",

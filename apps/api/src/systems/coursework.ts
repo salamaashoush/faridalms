@@ -10,8 +10,13 @@ import type {
   SaveAssignment,
   TeacherTab,
 } from "@faridalms/domain/coursework";
-import type { LessonResponse, QuizAnswer } from "@faridalms/domain/learning";
+import type {
+  LessonDocument,
+  LessonResponse,
+  QuizAnswer,
+} from "@faridalms/domain/learning";
 
+import { bankTagCounts } from "@faridalms/database/stores/bank";
 import {
   classById,
   classesTaughtBy,
@@ -161,6 +166,7 @@ import { ORPCError } from "@orpc/server";
 import * as v from "valibot";
 
 import type { UnitContext } from "../core/context";
+import type { AttemptQuizzes } from "../core/quiz";
 
 import { markedProgram } from "../coding/mark";
 import {
@@ -187,9 +193,13 @@ import {
 } from "../core/procedure";
 import {
   answersByAttempt,
+  attemptQuizzes,
   briefForEditing,
   draftQuiz,
+  drawAttempt,
+  drawsOf,
   keepStartedQuestions,
+  markedQuestions,
   publishKeptApart,
   ownResponsesOf,
   publishedQuiz,
@@ -613,6 +623,7 @@ export const save = writeProcedure
     let assignmentId: string;
     let version: number;
     let published = false;
+    let author = context.actor.userId;
     if (input.id) {
       const existing = await taughtAssignment(context, input.id);
       // A draft saves itself as it is written, so its class may still change;
@@ -641,6 +652,7 @@ export const save = writeProcedure
       assignmentId = existing.id;
       version = saved.version;
       published = existing.state === "published";
+      author = existing.authorUserId;
     } else {
       const created = await insertAssignment(tx, {
         tenantId: context.tenantId,
@@ -654,10 +666,12 @@ export const save = writeProcedure
     }
     const host = { type: "assignment", id: assignmentId };
     if (input.quiz && published) {
-      const unfinished = quizIssue(quizOfBrief(input.brief));
+      const quiz = quizOfBrief(input.brief);
+      const unfinished = quizIssue(quiz);
       if (unfinished)
         throw new ORPCError("BAD_REQUEST", { message: unfinished });
       await keepStartedQuestions(context, { assignmentId, brief: input.brief });
+      await requireDrawable(context, quiz, author);
     }
     const document = await saveDocument(tx, {
       tenantId: context.tenantId,
@@ -704,6 +718,30 @@ export const save = writeProcedure
     return { id: assignmentId, version };
   });
 
+/**
+ * Every draw in a quiz finds as many questions in the bank as it asks for:
+ * the school's and its author's own with its tag, never one question twice.
+ */
+async function requireDrawable(
+  context: UnitContext,
+  quiz: LessonDocument,
+  authorUserId: string,
+) {
+  const wanted = new Map<string, number>();
+  for (const draw of drawsOf(quiz))
+    wanted.set(draw.tag, (wanted.get(draw.tag) ?? 0) + draw.count);
+  if (wanted.size === 0) return;
+  const counts = await bankTagCounts(context.tx, {
+    tenantId: context.tenantId,
+    orgId: context.schoolId,
+    authorUserId,
+    tags: [...wanted.keys()],
+  });
+  for (const [tag, count] of wanted)
+    if ((counts.find((row) => row.tag === tag)?.questions ?? 0) < count)
+      throw new ORPCError("BAD_REQUEST", { message: "coursework.draw_short" });
+}
+
 /** Assigns a draft: its recipients are recorded and it appears for them from its start. */
 export const publish = writeProcedure
   .input(publishSchema)
@@ -738,6 +776,7 @@ export const publish = writeProcedure
       quiz,
     });
     if (issues[0]) throw new ORPCError("BAD_REQUEST", { message: issues[0] });
+    if (quiz) await requireDrawable(context, quiz, assignment.authorUserId);
     if (brief)
       await snapshotPublish(tx, {
         tenantId: context.tenantId,
@@ -1173,26 +1212,28 @@ async function graderQuiz(
 ) {
   const document = await publishedQuiz(context, assignmentId);
   if (!document) return null;
-  const [byAttempt, attempts] = await Promise.all([
+  const [byAttempt, attempts, quizzes] = await Promise.all([
     answersByAttempt(context, submissionId),
     attemptsOf(context.tx, context.tenantId, submissionId),
+    attemptQuizzes(context, document, submissionId),
   ]);
   return {
-    blocks: studentQuiz(document, "grading", false),
     total: quizPoints(document),
     attempts: attempts.map((attempt) => {
       const answers = byAttempt.get(attempt.number) ?? [];
+      const asked = quizzes.of(attempt.number);
       return {
         attemptId: attempt.id,
         number: attempt.number,
+        blocks: studentQuiz(asked, "grading", false),
         score: attemptScore(
-          document,
+          asked,
           Object.fromEntries(
             answers.map((answer) => [answer.blockId, answer.fraction]),
           ),
         ),
         responses: responsesOf(answers),
-        checks: quizViews(document, answers, "answers"),
+        checks: quizViews(asked, answers, "answers"),
       };
     }),
   };
@@ -1713,16 +1754,21 @@ async function learnerQuiz(
   const { assignment, row } = input;
   const document = await publishedQuiz(context, assignment.id);
   if (!document) return null;
-  const [byAttempt, attempts] = row.submissionId
-    ? await Promise.all([
-        answersByAttempt(context, row.submissionId),
-        attemptsOf(context.tx, context.tenantId, row.submissionId),
-      ])
-    : [new Map<number, QuizAnswer[]>(), []];
+  const [byAttempt, attempts, quizzes] = await Promise.all([
+    row.submissionId
+      ? answersByAttempt(context, row.submissionId)
+      : new Map<number, QuizAnswer[]>(),
+    row.submissionId
+      ? attemptsOf(context.tx, context.tenantId, row.submissionId)
+      : [],
+    attemptQuizzes(context, document, row.submissionId),
+  ]);
   const current = row.attempts + 1;
+  const seed = (attempt: number) => `${context.actor.userId}:${attempt}`;
   const results = await Promise.all(
     attempts.map(async (attempt) => {
       const answers = byAttempt.get(attempt.number) ?? [];
+      const asked = quizzes.of(attempt.number);
       const assessment = await assessmentOf(
         context.tx,
         context.tenantId,
@@ -1737,9 +1783,14 @@ async function learnerQuiz(
         number: attempt.number,
         submittedAt: attempt.submittedAt,
         isLate: attempt.isLate,
+        blocks: studentQuiz(
+          asked,
+          seed(attempt.number),
+          assignment.quizShuffle,
+        ),
         score: show
           ? attemptScore(
-              document,
+              asked,
               Object.fromEntries(
                 answers.map((answer) => [answer.blockId, answer.fraction]),
               ),
@@ -1747,14 +1798,23 @@ async function learnerQuiz(
           : null,
         pending: answers.some((answer) => answer.state === "needs_marking"),
         responses: ownResponsesOf(answers),
-        checks: show ? quizViews(document, answers, show) : null,
+        checks: show ? quizViews(asked, answers, show) : null,
       };
     }),
   );
+  const open =
+    can(context, "own-work:submit") &&
+    !row.excused &&
+    canTakeQuiz(
+      { ...assignment, dueAt: input.dueAt },
+      row.attempts,
+      assignment.quizAttempts,
+      context.now,
+    );
   return {
     blocks: studentQuiz(
-      document,
-      `${context.actor.userId}:${current}`,
+      quizzes.of(current),
+      seed(current),
       assignment.quizShuffle,
     ),
     total: quizPoints(document),
@@ -1763,15 +1823,9 @@ async function learnerQuiz(
     attemptsUsed: row.attempts,
     keep: assignment.quizKeep,
     reveal: assignment.quizReveal,
-    open:
-      can(context, "own-work:submit") &&
-      !row.excused &&
-      canTakeQuiz(
-        { ...assignment, dueAt: input.dueAt },
-        row.attempts,
-        assignment.quizAttempts,
-        context.now,
-      ),
+    open,
+    /** The attempt's questions are still to be drawn, which opening it does. */
+    undrawn: open && quizzes.undrawn(current),
     drafts: ownResponsesOf(byAttempt.get(current) ?? []),
     results,
   };
@@ -1990,6 +2044,7 @@ async function handInQuiz(
   const document = await publishedQuiz(context, assignment.id);
   if (!document) throw new ORPCError("NOT_FOUND");
   const number = row.attempts + 1;
+  const quizzes = await attemptQuizzes(context, document, submission.id);
   const answers = await quizAnswersOf(tx, {
     tenantId: context.tenantId,
     submissionId: submission.id,
@@ -2007,7 +2062,7 @@ async function handInQuiz(
     isLate: isLate(input.dueAt, context.now),
     userId: context.actor.userId,
   });
-  const blocks = checkBlocks(document);
+  const blocks = checkBlocks(quizzes.of(number));
   await markQuizAttempt(tx, {
     tenantId: context.tenantId,
     submissionId: submission.id,
@@ -2037,7 +2092,7 @@ async function handInQuiz(
   });
   const scored = await rescoreQuiz(context, {
     assignment,
-    document,
+    quizzes,
     submissionId: submission.id,
     studentId: context.actor.userId,
     graderId: null,
@@ -2347,9 +2402,22 @@ export const saveQuizProgram = schoolProcedure
         inside,
         input.assignmentId,
       );
-      const document = await publishedQuiz(inside, assignment.id);
-      const found = document
-        ? checkBlocks(document).find((item) => item.id === input.blockId)
+      const [document, [row]] = await Promise.all([
+        publishedQuiz(inside, assignment.id),
+        studentWork(inside.tx, {
+          tenantId: inside.tenantId,
+          assignmentId: assignment.id,
+          studentId: inside.actor.userId,
+        }),
+      ]);
+      const quizzes =
+        document && row
+          ? await attemptQuizzes(inside, document, row.submissionId)
+          : null;
+      const found = quizzes
+        ? checkBlocks(quizzes.of((row?.attempts ?? 0) + 1)).find(
+            (item) => item.id === input.blockId,
+          )
         : undefined;
       if (found?.type !== "program") throw new ORPCError("NOT_FOUND");
       return found;
@@ -2370,18 +2438,12 @@ export const saveQuizProgram = schoolProcedure
     );
   });
 
-async function keepQuizAnswer(
-  context: UnitContext,
-  input: {
-    assignmentId: string;
-    blockId: string;
-    response: LessonResponse | null;
-  },
-) {
-  const { assignment, dueAt } = await learnerAssignment(
-    context,
-    input.assignmentId,
-  );
+/**
+ * The attempt a student is on, open for answers, with its questions drawn
+ * from the bank if they were not yet: the quiz as that attempt asks it.
+ */
+async function openAttempt(context: UnitContext, assignmentId: string) {
+  const { assignment, dueAt } = await learnerAssignment(context, assignmentId);
   if (assignment.submissionFormat !== "quiz")
     throw new ORPCError("BAD_REQUEST", { message: "coursework.not_quiz" });
   const tx = context.tx;
@@ -2407,9 +2469,41 @@ async function keepQuizAnswer(
   )
     throw new ORPCError("CONFLICT", { message: "coursework.closed" });
   const document = await publishedQuiz(context, assignment.id);
-  const block = document
-    ? checkBlocks(document).find((item) => item.id === input.blockId)
-    : undefined;
+  if (!document) throw new ORPCError("NOT_FOUND");
+  const attempt = row.attempts + 1;
+  await drawAttempt(context, {
+    assignment,
+    document,
+    submissionId: submission.id,
+    studentId: context.actor.userId,
+    attempt,
+  });
+  const quizzes = await attemptQuizzes(context, document, submission.id);
+  return { submission, attempt, quiz: quizzes.of(attempt) };
+}
+
+/** Draws the questions of the attempt a student opens, once, from the bank. */
+export const startQuiz = writeProcedure
+  .input(v.object({ assignmentId: id }))
+  .handler(async ({ input, context }) => {
+    const { attempt } = await openAttempt(context, input.assignmentId);
+    return { attempt };
+  });
+
+async function keepQuizAnswer(
+  context: UnitContext,
+  input: {
+    assignmentId: string;
+    blockId: string;
+    response: LessonResponse | null;
+  },
+) {
+  const tx = context.tx;
+  const { submission, attempt, quiz } = await openAttempt(
+    context,
+    input.assignmentId,
+  );
+  const block = checkBlocks(quiz).find((item) => item.id === input.blockId);
   if (!block) throw new ORPCError("NOT_FOUND");
   const issue = input.response ? responseIssue(block, input.response) : null;
   if (issue) throw new ORPCError("BAD_REQUEST", { message: issue });
@@ -2431,7 +2525,7 @@ async function keepQuizAnswer(
     tenantId: context.tenantId,
     submissionId: submission.id,
     studentId: context.actor.userId,
-    attempt: row.attempts + 1,
+    attempt,
     blockId: block.id,
     response: input.response ? ownResponse(input.response) : null,
   });
@@ -2467,16 +2561,22 @@ export const markQuizAnswer = writeProcedure
       assignment.submissionFormat === "quiz"
         ? await publishedQuiz(context, assignment.id)
         : null;
-    const block = document
-      ? checkBlocks(document).find((item) => item.id === input.blockId)
-      : undefined;
-    if (!document || !block || !isTeacherMarked(block))
-      throw new ORPCError("NOT_FOUND");
-    if (input.points > block.points)
-      throw new ORPCError("BAD_REQUEST", { message: "learning.points_over" });
+    if (!document) throw new ORPCError("NOT_FOUND");
+    // A drawn question is asked only of the attempts that drew it.
+    const quizzes = new Map<string, AttemptQuizzes>();
     const scored = new Map<string, string>();
     for (const attempt of attempts) {
       if (!attempt) continue;
+      const asked =
+        quizzes.get(attempt.submissionId) ??
+        (await attemptQuizzes(context, document, attempt.submissionId));
+      quizzes.set(attempt.submissionId, asked);
+      const block = checkBlocks(asked.of(attempt.number)).find(
+        (item) => item.id === input.blockId,
+      );
+      if (!block || !isTeacherMarked(block)) throw new ORPCError("NOT_FOUND");
+      if (input.points > block.points)
+        throw new ORPCError("BAD_REQUEST", { message: "learning.points_over" });
       const marked = await storeQuizMark(tx, {
         tenantId: context.tenantId,
         submissionId: attempt.submissionId,
@@ -2502,7 +2602,9 @@ export const markQuizAnswer = writeProcedure
     for (const [submissionId, studentId] of scored)
       await rescoreQuiz(context, {
         assignment,
-        document,
+        quizzes:
+          quizzes.get(submissionId) ??
+          (await attemptQuizzes(context, document, submissionId)),
         submissionId,
         studentId,
         graderId: context.actor.userId,
@@ -2525,7 +2627,7 @@ export const quizAnswers = readProcedure
         ? await publishedQuiz(context, assignment.id)
         : null;
     const questions = document
-      ? checkBlocks(document).filter(isTeacherMarked)
+      ? await markedQuestions(context, assignment.id, document)
       : [];
     const [roster, answers] = await Promise.all([
       studentWork(context.tx, {

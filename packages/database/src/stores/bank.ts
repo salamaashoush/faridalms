@@ -2,7 +2,7 @@ import { sql } from "drizzle-orm";
 
 import type { CellTransaction } from "../context";
 
-import { isoOf, textArray } from "./sql";
+import { isoOf, textArray, uuidArray } from "./sql";
 
 type Tx = CellTransaction;
 
@@ -111,6 +111,65 @@ export async function bankTagsOf(
     order by tag
     limit 200`);
   return rows.map((row) => row.tag);
+}
+
+/** Who may draw from a bank: the school's questions and one teacher's own. */
+const drawable = (input: {
+  tenantId: string;
+  orgId: string;
+  authorUserId: string;
+}) => sql`q.tenant_id = ${input.tenantId}::uuid and q.org_id = ${input.orgId}::uuid
+  and q.status = 'active'
+  and (q.scope = 'school' or q.owner_user_id = ${input.authorUserId}::uuid)`;
+
+/**
+ * How many questions of each tag a quiz by this teacher may draw from, of
+ * every tag or only those given.
+ */
+export async function bankTagCounts(
+  tx: Tx,
+  input: {
+    tenantId: string;
+    orgId: string;
+    authorUserId: string;
+    tags?: readonly string[];
+  },
+): Promise<{ tag: string; questions: number }[]> {
+  const rows = await tx.execute<{ tag: string; questions: number }>(sql`
+    select tag, count(*)::int as questions
+    from core.bank_questions q, unnest(q.tags) as tag
+    where ${drawable(input)}
+      ${input.tags ? sql`and tag = any(${textArray(input.tags)})` : sql``}
+    group by tag
+    order by tag
+    limit 200`);
+  return rows;
+}
+
+/**
+ * Up to `count` questions carrying a tag, picked at random from those a
+ * quiz by this teacher may draw, each with the document that holds it.
+ */
+export async function drawFromBank(
+  tx: Tx,
+  input: {
+    tenantId: string;
+    orgId: string;
+    authorUserId: string;
+    tag: string;
+    count: number;
+    exclude: readonly string[];
+  },
+): Promise<{ id: string; content: Record<string, unknown> }[]> {
+  return tx.execute<{ id: string; content: Record<string, unknown> }>(sql`
+    select q.id, d.content
+    from core.bank_questions q
+    join core.documents d on d.tenant_id = q.tenant_id
+      and d.host_type = 'bank_question' and d.host_id = q.id and d.status = 'active'
+    where ${drawable(input)} and ${input.tag} = any(q.tags)
+      and not (q.id = any(${uuidArray(input.exclude)}))
+    order by random()
+    limit ${input.count}`);
 }
 
 export async function bankQuestionById(

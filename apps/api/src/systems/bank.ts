@@ -3,12 +3,15 @@ import type { ContentDocument } from "@faridalms/domain/content";
 import {
   bankQuestionById,
   bankQuestionsOf,
+  bankTagCounts,
   bankTagsOf,
   insertBankQuestion,
   removeBankQuestion,
   updateBankQuestion,
 } from "@faridalms/database/stores/bank";
+import { teachesClass } from "@faridalms/database/stores/classes";
 import { documentOf, saveDocument } from "@faridalms/database/stores/documents";
+import { questionAskedOf } from "@faridalms/database/stores/quizzes";
 import {
   bankQuerySchema,
   bankQuestionOf,
@@ -20,6 +23,7 @@ import { ORPCError } from "@orpc/server";
 
 import type { UnitContext } from "../core/context";
 
+import { scopeOf } from "../core/coursework-access";
 import { audit, can, readProcedure, writeProcedure } from "../core/procedure";
 import { placeMedia, registerHostReader } from "../files/authorize";
 
@@ -42,9 +46,30 @@ async function usable(context: UnitContext, id: string) {
     : null;
 }
 
-// Whoever may ask a question may open the pictures and recordings in it.
-registerHostReader("bank_question", async (context, id) =>
-  Boolean(await usable(context, id)),
+/** Whether a quiz asked the viewer the question, or one in a class they teach. */
+async function askedOrTaught(context: UnitContext, id: string) {
+  const asked = await questionAskedOf(context.tx, {
+    tenantId: context.tenantId,
+    bankQuestionId: id,
+    orgId: context.schoolId,
+  });
+  if (asked.some((row) => row.studentId === context.actor.userId)) return true;
+  if (!can(context, "submissions:grade")) return false;
+  const classes = [...new Set(asked.map((row) => row.classId))];
+  const taught = await Promise.all(
+    classes.map((classId) =>
+      teachesClass(context.tx, scopeOf(context), classId),
+    ),
+  );
+  return taught.some(Boolean);
+}
+
+// Whoever may ask a question may open the pictures and recordings in it, as
+// may a student a quiz drew it for and the teachers who mark that quiz.
+registerHostReader(
+  "bank_question",
+  async (context, id) =>
+    Boolean(await usable(context, id)) || askedOrTaught(context, id),
 );
 
 /** The questions the viewer may ask, with every tag among them. */
@@ -77,6 +102,16 @@ export const list = readProcedure
       })),
     };
   });
+
+/** Every tag the viewer's quizzes may draw by, with how many questions carry it. */
+export const tags = readProcedure.handler(async ({ context }) => {
+  requireAuthor(context);
+  return bankTagCounts(context.tx, {
+    tenantId: context.tenantId,
+    orgId: context.schoolId,
+    authorUserId: context.actor.userId,
+  });
+});
 
 /** A kept question's document, to ask it in another. */
 export const open = readProcedure

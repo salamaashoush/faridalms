@@ -8,8 +8,8 @@ import { Button } from "@faridalms/ui/button";
 import { Input } from "@faridalms/ui/input";
 import { Textarea } from "@faridalms/ui/textarea";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { CheckCircle2 } from "lucide-react";
-import { useState } from "react";
+import { CheckCircle2, LoaderCircle } from "lucide-react";
+import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
 import type { CheckDriver } from "~/components/learning/Checks";
@@ -30,6 +30,7 @@ import {
   handInWork,
   markQuizAnswer,
   saveQuizAnswer,
+  startQuiz,
 } from "~/server/coursework";
 import { formatNumber } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
@@ -140,7 +141,7 @@ function Results({ quiz }: { quiz: LearnerQuiz }) {
               <CheckModeContext.Provider value="review">
                 <QuizBlocks
                   key={result.number}
-                  blocks={quiz.blocks}
+                  blocks={result.blocks}
                   views={result.checks}
                   driver={NO_ANSWERS}
                 />
@@ -175,6 +176,18 @@ export function QuizWork({ data }: { data: Work }) {
       }),
     meta: { inlineError: true },
   });
+  // An attempt that draws from the question bank draws as it opens.
+  const draw = useMutation({
+    mutationFn: () => startQuiz({ data: { assignmentId: data.assignment.id } }),
+    onSuccess: () =>
+      queryClient.invalidateQueries({ queryKey: query.queryKey }),
+    meta: { inlineError: true },
+  });
+  const undrawn = quiz?.undrawn ?? false;
+  const { mutate: drawQuestions } = draw;
+  useEffect(() => {
+    if (undrawn) drawQuestions();
+  }, [undrawn, drawQuestions]);
   if (!quiz) return null;
   const driver: CheckDriver = {
     respond: async (blockId, response) => {
@@ -207,7 +220,23 @@ export function QuizWork({ data }: { data: Work }) {
   return (
     <>
       {quiz.results.length > 0 ? <Results quiz={quiz} /> : null}
-      {quiz.open ? (
+      {quiz.open && quiz.undrawn ? (
+        <RecordSection
+          variant="page"
+          title={m.quizAttemptTitle({ number: formatNumber(quiz.attempt) })}
+        >
+          {draw.error ? (
+            <p role="alert" className="text-sm leading-5 text-destructive">
+              {getMessageFromError(draw.error)}
+            </p>
+          ) : (
+            <output className="flex items-center gap-2 text-sm leading-5 text-muted-foreground">
+              <LoaderCircle aria-hidden className="size-4 animate-spin" />
+              {m.quizDrawing()}
+            </output>
+          )}
+        </RecordSection>
+      ) : quiz.open ? (
         <RecordSection
           variant="page"
           title={m.quizAttemptTitle({ number: formatNumber(quiz.attempt) })}
@@ -372,11 +401,12 @@ function MarkForm({
 }
 
 interface GraderQuiz {
-  blocks: StudentBlock[];
   total: number;
   attempts: {
     attemptId: string;
     number: number;
+    /** The questions the attempt asked, its draws from the bank among them. */
+    blocks: StudentBlock[];
     score: number;
     checks: Record<string, CheckView>;
   }[];
@@ -422,7 +452,7 @@ export function QuizAttempts({
       ) : null}
       <CheckModeContext.Provider value="review">
         <ReviewerContext.Provider value="teacher">
-          {quiz.blocks.map((block) => {
+          {attempt.blocks.map((block) => {
             if (block.type === "content")
               return (
                 <ContentView

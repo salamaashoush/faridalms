@@ -170,6 +170,10 @@ export const saveQuizAnswer = createServerFn({ method: "POST" })
       : backend().coursework.saveQuizAnswer(data),
   );
 
+export const startQuiz = createServerFn({ method: "POST" })
+  .validator(checked(v.object({ assignmentId: uuid })))
+  .handler(({ data }) => backend().coursework.startQuiz(data));
+
 export const markQuizAnswer = createServerFn({ method: "POST" })
   .validator(checked(markQuizAnswerSchema))
   .handler(({ data }) => backend().coursework.markQuizAnswer(data));

@@ -137,6 +137,7 @@ import {
   textColors,
 } from "../formatting";
 import { MathInput } from "../math-input";
+import { $isDrawNode, useBankTags } from "../nodes/draw";
 import { $insertMath, $isMathNode } from "../nodes/math";
 import { $isFileNode, $isImageNode, OPEN_FILE_COMMAND } from "../nodes/media";
 import {
@@ -190,6 +191,7 @@ import { TracePad } from "./trace";
 type Mode =
   | "hidden"
   | "math"
+  | "draw"
   | "format"
   | "link-edit"
   | "link-view"
@@ -212,6 +214,14 @@ interface MathFacts {
   rtl: boolean;
 }
 
+/** A chosen draw from the bank: what it draws by, how many, and their worth. */
+interface DrawFacts {
+  key: NodeKey;
+  tag: string;
+  count: number;
+  points: number;
+}
+
 /** The question the caret is in: what the bar shows and changes. */
 interface QuestionBarFacts {
   key: NodeKey;
@@ -231,6 +241,7 @@ interface QuestionBarFacts {
 type QuestionText = "explanation" | "feedback" | "alt";
 
 const POINTS = [0, 1, 2, 3, 4, 5, 6, 8, 10];
+const DRAW_COUNTS = [1, 2, 3, 4, 5, 6, 8, 10, 12, 15, 20];
 const TRIES = [null, 1, 2, 3, 5] as const;
 const CODE_LANGUAGES = ["python", "javascript", "html", "text"] as const;
 /** Languages a code exercise can be marked in. */
@@ -455,6 +466,8 @@ export function SelectionToolbarPlugin() {
   } = useEditorEnvironment();
   const [mode, setMode] = useState<Mode>("hidden");
   const [math, setMath] = useState<MathFacts | null>(null);
+  const [drawing, setDrawing] = useState<DrawFacts | null>(null);
+  const tags = useBankTags(mode === "draw" ? bank : undefined);
   const [reference, setReference] = useState<ReferenceElement | null>(null);
   const [facts, setFacts] = useState<Facts>(empty);
   const [layout, setLayout] = useState<BlockFacts | null>(null);
@@ -589,6 +602,16 @@ export function SelectionToolbarPlugin() {
       };
     });
 
+  const readDraw = () =>
+    editor.getEditorState().read((): DrawFacts | null => {
+      const selection = $getSelection();
+      if (!$isNodeSelection(selection)) return null;
+      const nodes = selection.getNodes();
+      const node = nodes.length === 1 ? nodes[0] : null;
+      if (!$isDrawNode(node)) return null;
+      return { key: node.getKey(), ...node.getSettings() };
+    });
+
   const readBlock = () =>
     editor.getEditorState().read((): Omit<BlockFacts, "rtl"> | null => {
       const selection = $getSelection();
@@ -704,6 +727,12 @@ export function SelectionToolbarPlugin() {
       setReference(editor.getElementByKey(formula.key));
       return show("math");
     }
+    const draw = focused && !lockQuestions ? readDraw() : null;
+    if (draw) {
+      setDrawing(draw);
+      setReference(editor.getElementByKey(draw.key));
+      return show("draw");
+    }
     const file = focused ? readFile() : null;
     if (file) {
       setFileFacts(file);
@@ -804,12 +833,18 @@ export function SelectionToolbarPlugin() {
       pointer.current = false;
       requestAnimationFrame(() => onRefresh());
     };
+    // A menu hands focus back to the text once it has shut. A chosen block
+    // keeps its selection through that, which no selection change reports,
+    // so its bar comes back when the text has focus again.
+    const focused = () => requestAnimationFrame(() => onRefresh());
     document.addEventListener("pointerup", up);
     return mergeRegister(
       () => document.removeEventListener("pointerup", up),
       editor.registerRootListener((next, previous) => {
         previous?.removeEventListener("pointerdown", down);
+        previous?.removeEventListener("focus", focused);
         next?.addEventListener("pointerdown", down);
+        next?.addEventListener("focus", focused);
       }),
       editor.registerUpdateListener(() => onRefresh()),
       editor.registerCommand(
@@ -2448,6 +2483,65 @@ export function SelectionToolbarPlugin() {
             {strings.questionDone}
           </button>
         </form>
+      </Floating>
+    );
+  }
+
+  if (mode === "draw" && drawing) {
+    const change = (settings: Partial<Omit<DrawFacts, "key">>) =>
+      withSelection(() => {
+        const node = $getNodeByKey(drawing.key);
+        if ($isDrawNode(node)) node.setSettings(settings);
+      });
+    const counted = new Map(
+      (tags ?? []).map((item) => [item.tag, item.questions]),
+    );
+    return (
+      <Floating
+        reference={reference}
+        placement="top"
+        boundary={boundary}
+        className="flex flex-wrap items-center gap-0.5 p-1"
+        keepFocus
+        role="toolbar"
+        label={strings.drawOptions}
+      >
+        <div ref={toolbar} className="contents">
+          {tags && tags.length === 0 ? (
+            <span className="inline-flex h-8 items-center px-2 text-sm text-muted-foreground">
+              {strings.drawNoTags}
+            </span>
+          ) : (
+            <BarMenu
+              label={strings.drawTag}
+              current={drawing.tag || strings.drawTagNone}
+              values={[...counted.keys()]}
+              text={(tag) => `${tag} · ${counted.get(tag) ?? 0}`}
+              onPick={(tag) => change({ tag })}
+              onOpenChange={trackMenu}
+              finalFocus={textFocus(editor)}
+            />
+          )}
+          {separator}
+          <BarMenu
+            label={strings.drawCountLabel}
+            current={strings.drawCount(drawing.count)}
+            values={DRAW_COUNTS}
+            text={(count) => strings.drawCount(count)}
+            onPick={(count) => change({ count })}
+            onOpenChange={trackMenu}
+            finalFocus={textFocus(editor)}
+          />
+          <BarMenu
+            label={strings.drawPointsLabel}
+            current={strings.drawPointsEach(drawing.points)}
+            values={POINTS}
+            text={(points) => strings.drawPointsEach(points)}
+            onPick={(points) => change({ points })}
+            onOpenChange={trackMenu}
+            finalFocus={textFocus(editor)}
+          />
+        </div>
       </Floating>
     );
   }

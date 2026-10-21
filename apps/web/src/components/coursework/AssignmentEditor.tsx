@@ -158,6 +158,8 @@ const FIELD_ERRORS: Partial<Record<string, Field>> = {
   "coursework.quiz_incomplete": "quiz",
   "coursework.quiz_started": "quiz",
   "coursework.quiz_gate": "quiz",
+  "coursework.draw_tag": "quiz",
+  "coursework.draw_short": "quiz",
 };
 
 /** Values that stop a draft saving, and so are flagged as they are typed. */
@@ -294,9 +296,14 @@ function issuesOf(draft: Draft, started: boolean) {
   // A quiz's questions are written in its brief, so a half-written one
   // still saves; each must be whole before students meet it.
   if (quiz && !started) {
-    const asked = quizOfBrief(draft.brief).blocks.filter(isCheck);
-    const issue = asked.map(blockIssue).find(Boolean);
-    if (asked.length === 0) publishing.quiz = m.quizQuestionsNeeded();
+    const { blocks } = quizOfBrief(draft.brief);
+    const asked = blocks.filter(isCheck);
+    const draws = blocks.filter((block) => block.type === "draw");
+    const issue = draws.some((draw) => !draw.tag)
+      ? m.errDrawTag()
+      : asked.map(blockIssue).find(Boolean);
+    if (asked.length === 0 && draws.length === 0)
+      publishing.quiz = m.quizQuestionsNeeded();
     else if (issue) publishing.quiz = issue;
   }
   return { blocking, publishing };
@@ -1148,6 +1155,7 @@ export function AssignmentEditor({
             media={media}
             questions={isQuiz}
             gates={false}
+            draws={isQuiz}
             lockQuestions={started}
             starter={!isQuiz}
             collaboration={shared ? live.collaboration : undefined}

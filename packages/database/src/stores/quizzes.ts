@@ -3,7 +3,7 @@ import { sql } from "drizzle-orm";
 import type { CellTransaction } from "../context";
 import type { QuizAnswerState } from "../tables/coursework";
 
-import { isoOf, uuidArray } from "./sql";
+import { isoOf, textArray, uuidArray } from "./sql";
 
 type Tx = CellTransaction;
 
@@ -200,6 +200,126 @@ export async function quizStarted(
     select exists (select 1 from core.quiz_answers q
       join core.submissions s on s.tenant_id = q.tenant_id and s.id = q.submission_id
       where q.tenant_id = ${tenantId}::uuid and s.assignment_id = ${assignmentId}::uuid
-        and q.status = 'active') as started`);
+        and q.status = 'active')
+    or exists (select 1 from core.quiz_draws d
+      join core.submissions s on s.tenant_id = d.tenant_id and s.id = d.submission_id
+      where d.tenant_id = ${tenantId}::uuid and s.assignment_id = ${assignmentId}::uuid
+        and d.status = 'active') as started`);
   return row?.started ?? false;
+}
+
+export interface QuizDrawRow {
+  attempt: number;
+  drawId: string;
+  bankQuestionId: string;
+  question: Record<string, unknown>;
+}
+
+type DrawRecord = {
+  attempt: number;
+  draw_id: string;
+  bank_question_id: string;
+  question: Record<string, unknown>;
+};
+
+const drawOf = (row: DrawRecord): QuizDrawRow => ({
+  attempt: row.attempt,
+  drawId: row.draw_id,
+  bankQuestionId: row.bank_question_id,
+  question: row.question,
+});
+
+/** The questions drawn for a submission's attempts, each draw's in the order drawn. */
+export async function quizDrawsOf(
+  tx: Tx,
+  input: { tenantId: string; submissionId: string },
+): Promise<QuizDrawRow[]> {
+  const rows = await tx.execute<DrawRecord>(sql`
+    select attempt, draw_id, bank_question_id, question
+    from core.quiz_draws
+    where tenant_id = ${input.tenantId}::uuid and submission_id = ${input.submissionId}::uuid
+      and status = 'active'
+    order by attempt, draw_id, position`);
+  return rows.map(drawOf);
+}
+
+/**
+ * Every question any student of an assignment drew of the given kinds,
+ * each once, for marking question by question.
+ */
+export async function drawnQuestionsOf(
+  tx: Tx,
+  input: { tenantId: string; assignmentId: string; kinds: readonly string[] },
+): Promise<QuizDrawRow[]> {
+  if (input.kinds.length === 0) return [];
+  const rows = await tx.execute<DrawRecord>(sql`
+    select distinct on (d.draw_id, d.bank_question_id)
+      d.attempt, d.draw_id, d.bank_question_id, d.question
+    from core.quiz_draws d
+    join core.submissions s on s.tenant_id = d.tenant_id and s.id = d.submission_id
+    where d.tenant_id = ${input.tenantId}::uuid and s.assignment_id = ${input.assignmentId}::uuid
+      and d.status = 'active' and s.status = 'active'
+      and d.question->>'kind' = any(${textArray(input.kinds)})
+    order by d.draw_id, d.bank_question_id, d.created_at`);
+  return rows.map(drawOf);
+}
+
+export interface DrawnQuestion {
+  drawId: string;
+  position: number;
+  bankQuestionId: string;
+  question: Record<string, unknown>;
+}
+
+/**
+ * Keeps what an attempt drew. Should two openings of the attempt draw at
+ * once, the first to be kept stands and the other keeps nothing.
+ */
+export async function storeQuizDraws(
+  tx: Tx,
+  input: {
+    tenantId: string;
+    submissionId: string;
+    studentId: string;
+    attempt: number;
+    drawn: readonly DrawnQuestion[];
+  },
+): Promise<void> {
+  if (input.drawn.length === 0) return;
+  await tx.execute(sql`
+    insert into core.quiz_draws (tenant_id, submission_id, student_user_id, attempt,
+      draw_id, position, bank_question_id, question)
+    values ${sql.join(
+      input.drawn.map(
+        (row) => sql`(${input.tenantId}::uuid, ${input.submissionId}::uuid,
+          ${input.studentId}::uuid, ${input.attempt}, ${row.drawId}::uuid, ${row.position},
+          ${row.bankQuestionId}::uuid, ${row.question}::jsonb)`,
+      ),
+      sql`, `,
+    )}
+    on conflict (tenant_id, submission_id, attempt, draw_id, position)
+      where status = 'active' do nothing`);
+}
+
+/**
+ * Whom a kept question was asked of by a school's quizzes, and in which
+ * classes, each pair once.
+ */
+export async function questionAskedOf(
+  tx: Tx,
+  input: { tenantId: string; bankQuestionId: string; orgId: string },
+): Promise<{ studentId: string; classId: string }[]> {
+  const rows = await tx.execute<{ student_id: string; class_id: string }>(sql`
+    select distinct d.student_user_id as student_id, a.class_id
+    from core.quiz_draws d
+    join core.submissions s on s.tenant_id = d.tenant_id and s.id = d.submission_id
+    join core.assignments a on a.tenant_id = s.tenant_id and a.id = s.assignment_id
+    where d.tenant_id = ${input.tenantId}::uuid
+      and d.bank_question_id = ${input.bankQuestionId}::uuid
+      and d.status = 'active' and a.org_id = ${input.orgId}::uuid
+    limit 500`);
+  return rows.map((row) => ({
+    studentId: row.student_id,
+    classId: row.class_id,
+  }));
 }

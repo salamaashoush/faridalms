@@ -87,6 +87,7 @@ const nodeTypes = [
   "starter",
   "ai-use",
   "math",
+  "draw",
 ] as const;
 /**
  * The questions a document can ask, each marked by the server from the
@@ -201,6 +202,8 @@ export interface ContentNode {
   sceneFileId?: string;
   kind?: QuestionKind;
   questionId?: string;
+  /** The tag a quiz draws its questions from the bank by. */
+  bankTag?: string;
   optionId?: string;
   correct?: boolean;
   feedback?: string;
@@ -427,6 +430,7 @@ const nodeSchema: v.GenericSchema<ContentNode> = v.lazy(() =>
       puzzle: v.optional(levelSchema),
       kind: v.optional(v.picklist(questionKinds)),
       questionId: v.optional(v.pipe(v.string(), v.uuid())),
+      bankTag: v.optional(v.pipe(v.string(), v.maxLength(40))),
       optionId: v.optional(v.pipe(v.string(), v.uuid())),
       correct: v.optional(v.boolean()),
       feedback: v.optional(v.pipe(v.string(), v.maxLength(300))),
@@ -548,15 +552,17 @@ const blocks = new Set<string>([
   "embed",
   "diagram",
   "question",
+  "draw",
   "gate",
   "starter",
   "ai-use",
 ]);
-// Columns, questions, gates, page breaks and each student's copy stand only
-// at the top of a document.
+// Columns, questions, draws, gates, page breaks and each student's copy
+// stand only at the top of a document.
 const ROOT_ONLY = new Set([
   "columns",
   "question",
+  "draw",
   "gate",
   "pagebreak",
   "starter",
@@ -580,6 +586,15 @@ function validNode(node: ContentNode): boolean {
     return !node.children && node.text === undefined;
   if (node.type === "image")
     return !node.children && node.text === undefined && Boolean(node.fileId);
+  if (node.type === "draw")
+    return (
+      !node.children &&
+      node.text === undefined &&
+      Boolean(node.questionId) &&
+      typeof node.bankTag === "string" &&
+      typeof node.count === "number" &&
+      typeof node.points === "number"
+    );
   if (node.type === "math")
     return (
       !node.children &&

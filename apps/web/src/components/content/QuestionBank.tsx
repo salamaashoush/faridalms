@@ -34,6 +34,7 @@ import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { getLocale, getTextDirection } from "~/i18n/runtime";
 import {
+  bankTags,
   listBank,
   openBankQuestion,
   removeBankQuestion,
@@ -482,6 +483,7 @@ export function useEditorBank(questions: boolean): {
   bank: EditorBank | undefined;
   dialog: ReactNode;
 } {
+  const queryClient = useQueryClient();
   const [keeping, setKeeping] = useState<ContentDocument | null>(null);
   const [choosing, setChoosing] = useState<
     ((content: ContentDocument | null) => void) | null
@@ -495,9 +497,15 @@ export function useEditorBank(questions: boolean): {
               new Promise((resolve) => {
                 setChoosing(() => resolve);
               }),
+            tags: () =>
+              queryClient.fetchQuery({
+                queryKey: ["bank", "tags"],
+                queryFn: () => bankTags(),
+                staleTime: 30_000,
+              }),
           }
         : undefined,
-    [questions],
+    [questions, queryClient],
   );
   return {
     bank,

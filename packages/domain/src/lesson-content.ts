@@ -2,11 +2,17 @@ import { firstLevel } from "@faridalms/puzzles/levels";
 
 import type { ContentDocument, ContentNode } from "./content";
 import type { GapSegment } from "./gaps";
-import type { LessonBlock, LessonDocument, RecordSeconds } from "./learning";
+import type {
+  CheckBlock,
+  DrawBlock,
+  LessonBlock,
+  LessonDocument,
+  RecordSeconds,
+} from "./learning";
 
 import { mathRuns, mathText, sameContent } from "./content";
 import { gapsSource, parseGaps } from "./gaps";
-import { FLASH_SECONDS, MAX_INDENT, RECORD_SECONDS } from "./learning";
+import { FLASH_SECONDS, isCheck, MAX_INDENT, RECORD_SECONDS } from "./learning";
 
 /**
  * A lesson is written as one document whose questions are blocks in the
@@ -463,6 +469,18 @@ export function lessonOfContent(document: ContentDocument): LessonDocument {
       });
       continue;
     }
+    if (child.type === "draw") {
+      flush();
+      if (child.questionId)
+        blocks.push({
+          id: child.questionId,
+          type: "draw",
+          tag: child.bankTag?.trim() ?? "",
+          count: child.count ?? 1,
+          points: child.points ?? 1,
+        });
+      continue;
+    }
     if (child.type !== "question") {
       run.push(child);
       continue;
@@ -476,13 +494,33 @@ export function lessonOfContent(document: ContentDocument): LessonDocument {
 }
 
 const opensQuiz = (node: ContentNode) =>
-  node.type === "question" || node.type === "gate";
+  node.type === "question" || node.type === "draw" || node.type === "gate";
 
-/** Whether a document asks questions of its own. */
+/** Whether a document asks questions of its own, or draws them from the bank. */
 export function holdsQuestions(document: ContentDocument): boolean {
   return (document.root.children ?? []).some(
-    (node) => node.type === "question",
+    (node) => node.type === "question" || node.type === "draw",
   );
+}
+
+/**
+ * A question drawn from the bank as one attempt asks it, worth what its draw
+ * gives each. Its id comes from the draw and the kept question, so every
+ * student who drew it answers the same question, marked together.
+ */
+export function drawnQuestion(
+  draw: DrawBlock,
+  bankQuestionId: string,
+  node: ContentNode,
+): CheckBlock | null {
+  const block = questionBlock(node);
+  if (!block || !isCheck(block)) return null;
+  const { videoAt: _videoAt, ...asked } = block;
+  return {
+    ...asked,
+    id: runId(`draw:${draw.id}:${bankQuestionId}`),
+    points: draw.points,
+  };
 }
 
 /**
@@ -963,6 +1001,17 @@ export function contentOfLesson(
     }
     if (block.type === "gate") {
       children.push({ type: "gate", version: 1 });
+      continue;
+    }
+    if (block.type === "draw") {
+      children.push({
+        type: "draw",
+        version: 1,
+        questionId: block.id,
+        bankTag: block.tag,
+        count: block.count,
+        points: block.points,
+      });
       continue;
     }
     const node = questionNode(block);

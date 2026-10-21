@@ -560,6 +560,52 @@
   "editorBankInsert": "From the question bank",
   "editorBankInsertHint": "A question you or your school kept, to ask again",
   "editorBankKeep": "Keep in the question bank",
+  "editorDrawInsert": "Draw from the bank",
+  "editorDrawInsertHint": "Questions picked at random by tag for each student",
+  "editorDrawTitle": "Drawn from the question bank",
+  "editorDrawSummary": [
+    {
+      "declarations": [
+        "input count",
+        "input tag",
+        "local countPlural = count: plural"
+      ],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "{count} question tagged “{tag}”",
+        "countPlural=*": "{count} questions tagged “{tag}”"
+      }
+    }
+  ],
+  "editorDrawPointsEach": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "{count} point each",
+        "countPlural=*": "{count} points each"
+      }
+    }
+  ],
+  "editorDrawCount": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "{count} question",
+        "countPlural=*": "{count} questions"
+      }
+    }
+  ],
+  "editorDrawNoTag": "Choose the tag to draw by in the bar",
+  "editorDrawHint": "Each student gets their own questions, kept for the whole attempt.",
+  "editorDrawShort": "The bank holds {count} with this tag, fewer than this draw asks for.",
+  "editorDrawTag": "Tag to draw by",
+  "editorDrawTagNone": "Choose a tag",
+  "editorDrawNoTags": "No tagged questions in the bank yet",
+  "editorDrawOptions": "Draw options",
+  "editorDrawCountLabel": "Questions to draw",
+  "editorDrawPointsLabel": "Points for each question",
   "editorQuestionWritten": "Written answer",
   "editorQuestionWrittenHint": "Students write freely; you mark it",
   "editorQuestionPrompt": "Write the question",
@@ -3126,7 +3172,6 @@
   "lrnYoungShowMe": "Show me",
   "lrnYoungPutWith": "Put with {item}",
   "lrnYoungPutIn": "Put in {group}",
-  "lrnYoungPlace": "Place {number}",
   "lrnYoungTapIt": "Here it is. Let's tap it!",
   "lrnYoungFound": "You found {item}!",
   "lrnYoungMatched": "You matched them all!",
@@ -4533,6 +4578,7 @@
   "quizPendingMarks": "Your teacher still has written answers to mark, so this score may rise.",
   "quizResultsLater": "Your teacher will return the results.",
   "quizAttemptTitle": "Attempt {number}",
+  "quizDrawing": "Getting your questions ready…",
   "quizAttemptsHintUnlimited": "Answer the questions, then hand the quiz in. You can take it again after.",
   "quizAttemptsHint": [
     {
@@ -4559,6 +4605,8 @@
   "quizHandInBody": "Every question is answered. Handing in marks them all.",
   "quizClosed": "This quiz is closed.",
   "errQuizGate": "A quiz has no continue gates; students see every question at once.",
+  "errDrawTag": "Choose the tag each draw takes its questions from.",
+  "errDrawShort": "The question bank has fewer questions with a draw's tag than it asks for. Keep more with that tag, or draw fewer.",
   "errQuizRubric": "A quiz is marked by its questions, so it takes no rubric.",
   "errFormatFixed": "Work already assigned cannot become a quiz, and a quiz cannot become other work.",
   "errNotQuiz": "This work is not a quiz.",

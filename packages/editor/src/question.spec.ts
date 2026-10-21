@@ -33,6 +33,7 @@ import {
   $createCalloutNode,
   $createQuestionNode,
   $indentCodeLine,
+  $isDrawNode,
   $isQuestionGapNode,
   $isQuestionGroupNode,
   $isQuestionNode,
@@ -756,6 +757,32 @@ describe("questions in a document", () => {
     expect(
       lessonOfContent(document).blocks.map((block) => block.type),
     ).toContain("gate");
+  });
+
+  it("draws from the bank by a tag, and a copied draw draws apart", () => {
+    const target = buildContentEditor();
+    target.update(
+      () => {
+        const paragraph = $createParagraphNode();
+        $getRoot().clear().append(paragraph);
+        paragraph.select();
+        const draw = $insertBlock("bankDraw");
+        if (!$isDrawNode(draw)) throw new Error("no draw was inserted");
+        draw.setSettings({ tag: "equations", count: 2, points: 3 });
+        $duplicateBlock(draw);
+      },
+      { discrete: true },
+    );
+    const document = json(target);
+    expect(v.safeParse(contentDocumentSchema, document).success).toBe(true);
+    const draws = lessonOfContent(document).blocks.filter(
+      (block) => block.type === "draw",
+    );
+    expect(draws).toMatchObject([
+      { tag: "equations", count: 2, points: 3 },
+      { tag: "equations", count: 2, points: 3 },
+    ]);
+    expect(draws[0]?.id).not.toBe(draws[1]?.id);
   });
 
   it("fills the empty option below before adding another", () => {

@@ -44,6 +44,10 @@ export interface ViewStrings extends AiUseViewStrings {
   embedLoad: (provider: string) => string;
   embedPrivacy: (provider: string) => string;
   embedOpen: (provider: string) => string;
+  drawTitle: string;
+  drawSummary: (count: number, tag: string) => string;
+  drawPointsEach: (points: number) => string;
+  drawNoTag: string;
 }
 
 /** A passage drawn marked in the reader, as a comment points at it. */
@@ -300,6 +304,7 @@ const LEAF_BLOCKS = new Set<ContentNode["type"]>([
   "embed",
   "diagram",
   "gate",
+  "draw",
   "ai-use",
 ]);
 
@@ -604,6 +609,18 @@ function draw(
       );
     case "gate":
       return null;
+    // Outside a student's attempt a draw says what it asks, not what it drew.
+    case "draw":
+      return (
+        <div key={key} className="fe-draw" dir="auto">
+          <p className="fe-draw-title">{context.strings.drawTitle}</p>
+          <p>
+            {node.bankTag
+              ? `${context.strings.drawSummary(node.count ?? 1, node.bankTag)} · ${context.strings.drawPointsEach(node.points ?? 1)}`
+              : context.strings.drawNoTag}
+          </p>
+        </div>
+      );
     case "ai-use":
       return (
         <AiUseView

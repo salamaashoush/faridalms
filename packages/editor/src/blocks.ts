@@ -84,6 +84,7 @@ import {
   Route,
   ScissorsLineDashed,
   Shapes,
+  Shuffle,
   Sparkles,
   Table,
   TextCursorInput,
@@ -112,12 +113,15 @@ import {
   $createToggleTitleNode,
   $isCalloutNode,
   $isColumnsNode,
+  $isDrawNode,
   $isMathNode,
   $isQuestionNode,
   $isToggleNode,
   $nearestBlock,
+  $selectDraw,
   $selectMath,
   $isStarterNode,
+  DrawNode,
   GateNode,
   PageBreakNode,
   StarterNode,
@@ -174,7 +178,8 @@ export type BlockType =
   | "pageBreak"
   | "studentCopy"
   | "aiUse"
-  | "bankQuestion";
+  | "bankQuestion"
+  | "bankDraw";
 
 export type BlockGroup = "text" | "lists" | "media" | "layout" | "questions";
 
@@ -230,6 +235,8 @@ export interface BlockDefinition {
   puzzle?: boolean;
   /** Offered only where questions are kept in a bank. */
   bank?: boolean;
+  /** Offered only in a quiz drawing from the bank. */
+  draw?: boolean;
 }
 
 /** Which kinds of block a document may hold. */
@@ -243,6 +250,7 @@ export interface BlockScope {
   studio: boolean;
   puzzles: boolean;
   bank: boolean;
+  draws: boolean;
 }
 
 export function blockScope(environment: {
@@ -255,6 +263,7 @@ export function blockScope(environment: {
   studio?: unknown;
   puzzles?: unknown;
   bank?: unknown;
+  draws?: boolean;
 }): BlockScope {
   const questions = Boolean(environment.questions);
   return {
@@ -267,6 +276,7 @@ export function blockScope(environment: {
     studio: Boolean(environment.studio),
     puzzles: Boolean(environment.puzzles),
     bank: questions && Boolean(environment.bank),
+    draws: questions && Boolean(environment.bank) && Boolean(environment.draws),
   };
 }
 
@@ -279,7 +289,8 @@ export const offered = (block: BlockDefinition, scope: BlockScope) =>
   (scope.activities || !block.activity) &&
   (scope.studio || !block.studio) &&
   (scope.puzzles || !block.puzzle) &&
-  (scope.bank || !block.bank);
+  (scope.bank || !block.bank) &&
+  (scope.draws || !block.draw);
 
 export const blockDefinitions: BlockDefinition[] = [
   {
@@ -593,6 +604,17 @@ export const blockDefinitions: BlockDefinition[] = [
     keywords: ["bank", "kept", "saved", "reuse", "library", "بنك", "محفوظ"],
     question: true,
     bank: true,
+  },
+  {
+    type: "bankDraw",
+    group: "questions",
+    icon: Shuffle,
+    label: (s) => s.drawInsert,
+    hint: (s) => s.drawInsertHint,
+    keywords: ["draw", "random", "pool", "bank", "سحب", "عشوائي", "بنك"],
+    question: true,
+    bank: true,
+    draw: true,
   },
   {
     type: "mathQuestion",
@@ -1137,6 +1159,10 @@ function $selectInside(node: LexicalNode) {
     node.getFirstChild()?.selectStart();
     return;
   }
+  if ($isDrawNode(node)) {
+    $selectDraw(node);
+    return;
+  }
   if ($isToggleNode(node)) {
     node.getFirstChild()?.selectEnd();
     return;
@@ -1168,6 +1194,7 @@ function $createStructure(type: BlockType): LexicalNode | null {
   if (kind) return $createQuestionNode(kind);
   if (type === "divider") return $createHorizontalRuleNode();
   if (type === "gate") return new GateNode();
+  if (type === "bankDraw") return new DrawNode();
   if (type === "pageBreak") return new PageBreakNode();
   if (type === "aiUse") return $createAiUseNode();
   if (type === "equation")
@@ -1215,6 +1242,7 @@ function $allows(container: LexicalNode | null, type: BlockType): boolean {
     type === "columns2" ||
     type === "columns3" ||
     type === "gate" ||
+    type === "bankDraw" ||
     type === "pageBreak" ||
     type === "studentCopy" ||
     QUESTION_KIND[type]

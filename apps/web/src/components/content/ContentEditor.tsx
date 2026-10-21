@@ -37,6 +37,7 @@ export function ContentEditor({
   onUploadingChange,
   questions,
   gates,
+  draws,
   lockQuestions,
   starter,
   aiUse,
@@ -60,6 +61,7 @@ export function ContentEditor({
   onUploadingChange?: (uploading: boolean) => void;
   questions?: boolean;
   gates?: boolean;
+  draws?: boolean;
   lockQuestions?: boolean;
   starter?: boolean;
   aiUse?: boolean;
@@ -125,6 +127,7 @@ export function ContentEditor({
           onUploadingChange={onUploadingChange}
           questions={questions}
           gates={gates}
+          draws={draws}
           lockQuestions={lockQuestions}
           starter={starter}
           aiUse={aiUse}

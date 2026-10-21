@@ -69,6 +69,7 @@ import {
   lessons,
   passkeys,
   quizAnswers,
+  quizDraws,
   submissions,
   privacyNotices,
   relationshipRestrictions,
@@ -524,6 +525,16 @@ export async function completeFixture(
     attempt: 1,
     blockId: id(),
     response: { type: "text", text: "Cairo" },
+  });
+  await tx.insert(quizDraws).values({
+    tenantId,
+    submissionId: submission.id,
+    studentUserId: submission.studentUserId,
+    attempt: 1,
+    drawId: id(),
+    position: 0,
+    bankQuestionId: id(),
+    question: { type: "question", version: 1, kind: "written" },
   });
   await tx.insert(savedViews).values({
     tenantId,

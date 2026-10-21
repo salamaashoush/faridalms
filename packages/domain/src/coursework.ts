@@ -8,6 +8,7 @@ import { contentIssues } from "./content-checks";
 import { declarationSchema } from "./exams";
 import {
   checkBlocks,
+  isCheck,
   lessonDocumentSchema,
   MAX_MARKED_TOGETHER,
   MAX_PROGRAM_CHARS,
@@ -157,6 +158,8 @@ export type AssignmentIssue =
   | "coursework.quiz_incomplete"
   | "coursework.quiz_gate"
   | "coursework.quiz_rubric"
+  | "coursework.draw_tag"
+  | "coursework.draw_short"
   | `content.${ContentIssue}`;
 
 const instantOf = (value: string) => (value ? Date.parse(value) : null);
@@ -187,6 +190,8 @@ export function assignmentIssue(input: SaveAssignment): AssignmentIssue | null {
 /** What stops a quiz's questions going out: none to mark, or one unfinished. */
 export function quizIssue(quiz: LessonDocument): AssignmentIssue | null {
   if (quizPoints(quiz) === 0) return "coursework.quiz_questions";
+  if (quiz.blocks.some((block) => block.type === "draw" && !block.tag))
+    return "coursework.draw_tag";
   if (!v.safeParse(lessonDocumentSchema, quiz).success)
     return "coursework.quiz_incomplete";
   return null;
@@ -536,8 +541,34 @@ export const savePeriodGradesSchema = v.object({
 export const releasePeriodSchema = v.object({ classId: id, periodId: id });
 
 /** What a quiz is worth: the points of all its questions. */
+/** What a quiz is worth: its questions, and each draw's questions at its points. */
 export function quizPoints(document: LessonDocument): number {
-  return checkBlocks(document).reduce((sum, block) => sum + block.points, 0);
+  return document.blocks.reduce(
+    (sum, block) =>
+      block.type === "draw"
+        ? sum + block.count * block.points
+        : isCheck(block)
+          ? sum + block.points
+          : sum,
+    0,
+  );
+}
+
+/**
+ * A quiz as one attempt asks it: each draw stands for the questions drawn
+ * for that attempt, in the order they were drawn.
+ */
+export function attemptQuiz(
+  document: LessonDocument,
+  drawn: ReadonlyMap<string, readonly CheckBlock[]>,
+): LessonDocument {
+  if (!document.blocks.some((block) => block.type === "draw")) return document;
+  return {
+    version: 2,
+    blocks: document.blocks.flatMap((block) =>
+      block.type === "draw" ? [...(drawn.get(block.id) ?? [])] : [block],
+    ),
+  };
 }
 
 const hundredths = (value: number) => Math.round(value * 100) / 100;

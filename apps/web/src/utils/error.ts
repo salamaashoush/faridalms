@@ -79,6 +79,10 @@ export function getMessageFromError(error: unknown): string {
         return m.courseworkErrQuizIncomplete();
       case "coursework.quiz_gate":
         return m.errQuizGate();
+      case "coursework.draw_tag":
+        return m.errDrawTag();
+      case "coursework.draw_short":
+        return m.errDrawShort();
       case "coursework.quiz_rubric":
         return m.errQuizRubric();
       case "coursework.quiz_started":

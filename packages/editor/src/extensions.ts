@@ -57,6 +57,7 @@ import {
   $isCalloutNode,
   $isColumnNode,
   $isColumnsNode,
+  $isDrawNode,
   $isToggleContentNode,
   $isToggleNode,
   $isToggleTitleNode,
@@ -133,7 +134,11 @@ function $assignBlockIds(container: ElementNode, seen: Set<string>) {
 }
 
 const questionIdOf = (node: LexicalNode) =>
-  $isQuestionNode(node) ? node.getSettings().questionId : null;
+  $isQuestionNode(node)
+    ? node.getSettings().questionId
+    : $isDrawNode(node)
+      ? node.getDrawId()
+      : null;
 const hasOptionId = (node: LexicalNode) =>
   $isQuestionOptionNode(node) ||
   $isQuestionAnswerNode(node) ||
@@ -160,10 +165,11 @@ function $uniqueAnswerIds(root: ElementNode, previous: EditorState) {
       return node ? read(node) === id : false;
     });
   const byId = new Map<string, LexicalNode[]>();
+  const add = (id: string, node: LexicalNode) =>
+    byId.set(id, [...(byId.get(id) ?? []), node]);
   for (const child of root.getChildren()) {
+    if ($isDrawNode(child)) add(child.getDrawId(), child);
     if (!$isQuestionNode(child)) continue;
-    const add = (id: string, node: LexicalNode) =>
-      byId.set(id, [...(byId.get(id) ?? []), node]);
     add(child.getSettings().questionId, child);
     for (const part of child.getChildren()) {
       const id = optionIdOf(part);
@@ -182,12 +188,15 @@ function $uniqueAnswerIds(root: ElementNode, previous: EditorState) {
         existed(
           node.getKey(),
           id,
-          $isQuestionNode(node) ? questionIdOf : optionIdOf,
+          $isQuestionNode(node) || $isDrawNode(node)
+            ? questionIdOf
+            : optionIdOf,
         ),
       ) ?? nodes[0];
     for (const node of nodes) {
       if (node === keeper) continue;
-      if ($isQuestionNode(node))
+      if ($isDrawNode(node)) node.setDrawId(crypto.randomUUID());
+      else if ($isQuestionNode(node))
         node.setSettings({ questionId: crypto.randomUUID() });
       else if (hasOptionId(node)) node.setOptionId(crypto.randomUUID());
     }

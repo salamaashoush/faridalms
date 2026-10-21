@@ -1,7 +1,10 @@
 import type { LessonResponse } from "@faridalms/domain/learning";
 
 import { plainContent } from "@faridalms/domain/content-conversion";
-import { briefWithQuiz } from "@faridalms/domain/lesson-content";
+import {
+  briefWithQuiz,
+  contentOfLesson,
+} from "@faridalms/domain/lesson-content";
 import { describe, expect, test } from "bun:test";
 import { sql } from "drizzle-orm";
 import { strFromU8, unzipSync } from "fflate";
@@ -1437,6 +1440,181 @@ describe("quizzes", () => {
     expect(after.quiz?.results[0]?.checks?.[exercise.id]).toMatchObject({
       fraction: 0.5,
     });
+  });
+
+  test("a quiz draws its questions from the bank for each attempt and marks what it drew", async () => {
+    const teacher = await arabicTeacher();
+    const student = await sessionFor("northwind", login("student"));
+    const me = await student.api.identity.currentUser();
+    const target = await classOfStudent(teacher.api, me.id);
+    const tag = `drawn ${uuid().slice(0, 8)}`;
+    const map = await upload(teacher, "document_media", "map.txt");
+    const keep = async (
+      prompt: string,
+      scope: "mine" | "school",
+      picture: boolean,
+    ) => {
+      const yes = uuid();
+      const content = contentOfLesson({
+        version: 2,
+        blocks: [
+          {
+            ...common,
+            id: uuid(),
+            type: "choice",
+            prompt,
+            points: 1,
+            options: [
+              {
+                id: yes,
+                text: "Yes",
+                feedback: "",
+                ...(picture ? { picture: { fileId: map, alt: "A map" } } : {}),
+              },
+              { id: uuid(), text: "No", feedback: "" },
+            ],
+            correctOptionIds: [yes],
+            multiple: false,
+            shuffle: false,
+          },
+        ],
+      });
+      if (!content) throw new Error("question could not become a document");
+      return teacher.api.bank.save({
+        id: "",
+        expectedVersion: 0,
+        scope,
+        tags: [tag],
+        content,
+      });
+    };
+    await keep("Is two even?", "mine", true);
+    await keep("Is four even?", "school", false);
+    expect(await teacher.api.bank.tags()).toContainEqual({
+      tag,
+      questions: 2,
+    });
+    const typed = {
+      ...common,
+      id: uuid(),
+      type: "text" as const,
+      prompt: "The capital of Egypt?",
+      points: 2,
+      answers: ["القاهرة"],
+      caseSensitive: false,
+      closeEnough: false,
+      tehMarbuta: true,
+    };
+    const draw = { id: uuid(), type: "draw" as const, tag, points: 3 };
+    const quiz = (count: number, extra: object) =>
+      draft(target.id, "Drawn quiz", {
+        submissionFormat: "quiz",
+        points: null,
+        brief: briefWithQuiz(plainContent("Answer every question."), {
+          version: 2,
+          blocks: [typed, { ...draw, count }],
+        }),
+        quiz: {
+          attempts: 2,
+          keep: "highest",
+          reveal: "answers",
+          shuffle: false,
+        },
+        ...extra,
+      });
+    const saved = await teacher.api.coursework.save(quiz(3, {}));
+    expect(
+      await rejection(
+        teacher.api.coursework.publish({
+          id: saved.id,
+          expectedVersion: saved.version,
+        }),
+      ),
+    ).toMatchObject({ code: "BAD_REQUEST", message: "coursework.draw_short" });
+    const fewer = await teacher.api.coursework.save(
+      quiz(2, { id: saved.id, expectedVersion: saved.version }),
+    );
+    await teacher.api.coursework.publish({
+      id: saved.id,
+      expectedVersion: fewer.version,
+    });
+    const editor = await teacher.api.coursework.editor({ id: saved.id });
+    expect(editor.points).toBe(2 + 2 * 3);
+
+    // Nothing is drawn, nor its pictures open, until the attempt opens.
+    const picture = (token: string) =>
+      raw("northwind", token, `/v1/files/${map}/content`);
+    expect((await picture(student.token)).status).toBe(404);
+    const unopened = await student.api.coursework.work({ id: saved.id });
+    expect(unopened.quiz).toMatchObject({ undrawn: true, total: 8 });
+    expect(unopened.quiz?.blocks.map((block) => block.id)).toEqual([typed.id]);
+    await student.api.coursework.startQuiz({ assignmentId: saved.id });
+    await student.api.coursework.startQuiz({ assignmentId: saved.id });
+    const open = await student.api.coursework.work({ id: saved.id });
+    expect(open.quiz?.undrawn).toBe(false);
+    const drawn = (open.quiz?.blocks ?? []).flatMap((block) =>
+      block.type === "choice" ? [block] : [],
+    );
+    expect(drawn.map((block) => block.points)).toEqual([3, 3]);
+    expect(new Set(drawn.map((block) => block.id)).size).toBe(2);
+    expect(JSON.stringify(open.quiz?.blocks)).not.toContain("correctOptionIds");
+    expect((await picture(student.token)).status).toBe(200);
+    const outsider = await sessionFor("northwind", login("teacher", 0, 2));
+    expect((await picture(outsider.token)).status).toBe(404);
+    expect(
+      (await teacher.api.coursework.editor({ id: saved.id })).quiz?.started,
+    ).toBe(true);
+    expect(
+      await rejection(
+        teacher.api.coursework.save(
+          quiz(1, { id: saved.id, expectedVersion: editor.version }),
+        ),
+      ),
+    ).toMatchObject({ code: "CONFLICT", message: "coursework.quiz_started" });
+
+    for (const block of drawn)
+      await student.api.coursework.saveQuizAnswer({
+        assignmentId: saved.id,
+        blockId: block.id,
+        response: {
+          type: "choice",
+          optionIds: block.options
+            .filter((option) => option.text === "Yes")
+            .map((option) => option.id),
+        },
+      });
+    await student.api.coursework.saveQuizAnswer({
+      assignmentId: saved.id,
+      blockId: typed.id,
+      response: { type: "text", text: "القاهرة" },
+    });
+    await student.api.coursework.handIn({
+      assignmentId: saved.id,
+      expectedVersion: open.submission.version,
+    });
+    const after = await student.api.coursework.work({ id: saved.id });
+    const asked = open.quiz?.blocks.map((block) => block.id);
+    expect(after.quiz?.results[0]).toMatchObject({ score: 8 });
+    expect(after.quiz?.results[0]?.blocks.map((block) => block.id)).toEqual(
+      asked,
+    );
+    expect(after.quiz?.undrawn).toBe(true);
+    const grading = await teacher.api.coursework.grading({
+      assignmentId: saved.id,
+      studentId: me.id,
+    });
+    expect(grading.quiz?.attempts[0]).toMatchObject({ score: 8 });
+    expect(grading.quiz?.attempts[0]?.blocks.map((block) => block.id)).toEqual(
+      asked,
+    );
+
+    // The next attempt draws again; the same question keeps its id.
+    await student.api.coursework.startQuiz({ assignmentId: saved.id });
+    const again = await student.api.coursework.work({ id: saved.id });
+    expect(again.quiz?.attempt).toBe(2);
+    expect(again.quiz?.blocks.map((block) => block.id).toSorted()).toEqual(
+      asked?.toSorted(),
+    );
   });
 
   test("a quiz shown only when returned keeps its results back until then", async () => {

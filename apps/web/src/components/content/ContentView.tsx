@@ -56,6 +56,12 @@ export function ContentView({
         embedLoad: (provider) => m.editorEmbedLoad({ provider }),
         embedPrivacy: (provider) => m.editorEmbedPrivacy({ provider }),
         embedOpen: (provider) => m.editorEmbedOpen({ provider }),
+        drawTitle: m.editorDrawTitle({}, { locale }),
+        drawSummary: (count, tag) =>
+          m.editorDrawSummary({ count, tag }, { locale }),
+        drawPointsEach: (points) =>
+          m.editorDrawPointsEach({ count: points }, { locale }),
+        drawNoTag: m.editorDrawNoTag({}, { locale }),
       }}
       fileUrl={fileUrl}
       locale={locale}

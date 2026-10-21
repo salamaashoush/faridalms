@@ -6,6 +6,7 @@ import { $isRootNode, createState } from "lexical";
 import { AiUseNode } from "./ai-use";
 import { $isCalloutNode, CalloutNode } from "./callout";
 import { $isColumnNode, ColumnNode, ColumnsNode } from "./columns";
+import { DrawNode } from "./draw";
 import { GateNode } from "./gate";
 import { MathNode } from "./math";
 import { FileNode, ImageNode } from "./media";
@@ -34,6 +35,7 @@ export * from "./ai-use";
 export * from "./callout";
 export * from "./code-run";
 export * from "./columns";
+export * from "./draw";
 export * from "./gate";
 export * from "./math";
 export * from "./media";
@@ -65,6 +67,7 @@ export const blockNodes = [
   QuestionPassageNode,
   QuestionGapNode,
   GateNode,
+  DrawNode,
   PageBreakNode,
   StarterNode,
   AiUseNode,

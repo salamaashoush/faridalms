@@ -478,6 +478,18 @@
   margin-block-end: 0.5rem;
   font-weight: 600;
 }
+.fe .fe-draw {
+  margin-block: 0.75rem;
+  border: 1px dashed color-mix(in oklab, var(--foreground) 20%, transparent);
+  border-radius: 0.5rem;
+  padding: 0.75rem 1rem;
+}
+.fe .fe-draw-title {
+  color: var(--fe-muted);
+  font-size: 0.75rem;
+  font-weight: 600;
+  line-height: 1rem;
+}
 .fe .fe-question-prompt:has(> br:only-child)::before,
 .fe .fe-question-option:has(> br:only-child)::after,
 .fe .fe-question-answer:has(> br:only-child)::after {

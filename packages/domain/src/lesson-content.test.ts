@@ -11,8 +11,11 @@ import {
   sameContent,
 } from "./content";
 import { plainContent } from "./content-conversion";
+import { attemptQuiz, quizIssue, quizPoints } from "./coursework";
 import {
+  isCheck,
   lessonDocumentSchema,
+  lessonIssue,
   markResponse,
   responseIssue,
   studentBlocks,
@@ -21,6 +24,7 @@ import {
 import {
   briefWithQuiz,
   contentOfLesson,
+  drawnQuestion,
   holdsQuestions,
   lessonOfContent,
   quizIntro,
@@ -1160,5 +1164,78 @@ describe("puzzles", () => {
       type: "puzzle",
       level,
     });
+  });
+});
+
+describe("questions drawn from the bank", () => {
+  const draw = {
+    id: partId(91),
+    type: "draw" as const,
+    tag: "equations",
+    count: 2,
+    points: 3,
+  };
+  const fixed = lesson.blocks.find(isCheck);
+  if (!fixed) throw new Error("lesson asks nothing");
+  const kept = contentOfLesson({ version: 2, blocks: [fixed] })?.root
+    .children?.[0];
+  if (!kept) throw new Error("question could not become a node");
+  const quiz: LessonDocument = { version: 2, blocks: [fixed, draw] };
+
+  it("keeps a draw's tag, count and points through the brief", () => {
+    const brief = briefWithQuiz(plainContent("Answer every question."), quiz);
+    expect(v.safeParse(contentDocumentSchema, brief).success).toBe(true);
+    expect(quizOfBrief(brief).blocks).toEqual(quiz.blocks);
+    expect(contentPlainText(quizIntro(brief))).toBe("Answer every question.");
+    const drawOnly = briefWithQuiz(plainContent("Intro"), {
+      version: 2,
+      blocks: [draw],
+    });
+    expect(holdsQuestions(drawOnly)).toBe(true);
+  });
+
+  it("is worth its count at its points, whichever questions are drawn", () => {
+    expect(quizPoints(quiz)).toBe(fixed.points + 2 * 3);
+    expect(quizIssue({ version: 2, blocks: [{ ...draw, tag: "" }] })).toBe(
+      "coursework.draw_tag",
+    );
+    expect(quizIssue(quiz)).toBeNull();
+  });
+
+  it("asks a drawn question by an id of the draw and the kept question", () => {
+    const bankId = partId(92);
+    const drawn = drawnQuestion(draw, bankId, kept);
+    expect(drawn).toMatchObject({ type: fixed.type, points: 3 });
+    expect(drawn?.id).not.toBe(fixed.id);
+    expect(drawnQuestion(draw, bankId, kept)?.id).toBe(drawn?.id);
+    expect(drawnQuestion(draw, partId(93), kept)?.id).not.toBe(drawn?.id);
+    expect(
+      drawnQuestion({ ...draw, id: partId(94) }, bankId, kept)?.id,
+    ).not.toBe(drawn?.id);
+  });
+
+  it("stands for the questions an attempt drew, and for none before", () => {
+    const first = drawnQuestion(draw, partId(92), kept);
+    const second = drawnQuestion(draw, partId(93), kept);
+    if (!first || !second) throw new Error("nothing was drawn");
+    const attempt = attemptQuiz(quiz, new Map([[draw.id, [first, second]]]));
+    expect(attempt.blocks.map((block) => block.id)).toEqual([
+      fixed.id,
+      first.id,
+      second.id,
+    ]);
+    expect(quizPoints(attempt)).toBe(quizPoints(quiz));
+    expect(attemptQuiz(quiz, new Map()).blocks).toEqual([fixed]);
+  });
+
+  it("is refused in a lesson, which no attempt draws for", () => {
+    const content = contentOfLesson({
+      version: 2,
+      blocks: [...lesson.blocks, draw],
+    });
+    if (!content) throw new Error("lesson could not become a document");
+    expect(lessonIssue({ completion: "view", content })).toBe(
+      "learning.lesson_incomplete",
+    );
   });
 });

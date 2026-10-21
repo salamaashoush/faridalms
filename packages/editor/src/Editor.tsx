@@ -109,6 +109,8 @@ export interface EditorProps {
   questions?: boolean;
   /** The document may stop at continue gates; a lesson may, a quiz may not. */
   gates?: boolean;
+  /** Each attempt at the quiz may draw questions from the bank. */
+  draws?: boolean;
   /** Questions students have started answering, kept from change. */
   lockQuestions?: boolean;
   /** A brief may set part of itself aside as each student's copy. */
@@ -134,6 +136,7 @@ export default function Editor({
   collaboration,
   questions = false,
   gates = questions,
+  draws = false,
   lockQuestions = false,
   starter = false,
   aiUse = false,
@@ -172,6 +175,7 @@ export default function Editor({
           : document.documentElement.lang || "en"),
       questions,
       gates,
+      draws,
       lockQuestions,
       starter,
       aiUse,
@@ -187,6 +191,7 @@ export default function Editor({
       locale,
       questions,
       gates,
+      draws,
       lockQuestions,
       starter,
       aiUse,

@@ -171,8 +171,14 @@ From [../research/early-years.md](../research/early-years.md).
 - The score that counts goes onto the latest attempt's assessment, so the
   gradebook reads a quiz like any other work. A quiz that marks itself
   completely is returned at once unless the teacher keeps results back.
-- Once a student has started, the questions stay as they are; the settings
-  can still change.
+- A quiz may draw some of its questions from the question bank: so many
+  with a tag, each worth the same, from the school's bank and its author's
+  own. Each attempt draws as it opens and keeps what it drew, so it is
+  marked, shown and graded against those questions. A question drawn by
+  several students keeps one id among them, so it is marked together.
+  Assigning refuses a draw the bank cannot fill.
+- Once a student has started, or drawn, the questions and draws stay as
+  they are; the settings can still change.
 
 ## Next
 

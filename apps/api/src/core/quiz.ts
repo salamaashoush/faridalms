@@ -1,11 +1,19 @@
 import type { AssignmentRow } from "@faridalms/database/stores/coursework";
-import type { ContentDocument } from "@faridalms/domain/content";
 import type {
+  DrawnQuestion,
+  QuizDrawRow,
+} from "@faridalms/database/stores/quizzes";
+import type { ContentDocument, ContentNode } from "@faridalms/domain/content";
+import type {
+  CheckBlock,
+  DrawBlock,
   LessonDocument,
+  MarkedBlock,
   LessonResponse,
   QuizAnswer,
 } from "@faridalms/domain/learning";
 
+import { drawFromBank } from "@faridalms/database/stores/bank";
 import {
   assessmentOf,
   attemptsOf,
@@ -17,19 +25,30 @@ import {
   publishedVersion,
   snapshotPublish,
 } from "@faridalms/database/stores/documents";
-import { quizAnswersOf, quizStarted } from "@faridalms/database/stores/quizzes";
 import {
+  drawnQuestionsOf,
+  quizAnswersOf,
+  quizDrawsOf,
+  quizStarted,
+  storeQuizDraws,
+} from "@faridalms/database/stores/quizzes";
+import { bankQuestionOf } from "@faridalms/domain/bank";
+import {
+  attemptQuiz,
   attemptScore,
   effectiveScore,
   keptScore,
 } from "@faridalms/domain/coursework";
 import {
   checkBlocks,
+  isCheck,
+  isTeacherMarked,
   responseSchema,
   upgradeLesson,
 } from "@faridalms/domain/learning";
 import {
   briefWithQuiz,
+  drawnQuestion,
   holdsQuestions,
   quizOfBrief,
 } from "@faridalms/domain/lesson-content";
@@ -138,6 +157,10 @@ function canonical(value: unknown): string {
   return JSON.stringify(value);
 }
 
+/** What a quiz asks: its questions and its draws from the bank. */
+const asked = (document: LessonDocument) =>
+  document.blocks.filter((block) => block.type === "draw" || isCheck(block));
+
 /**
  * Once a student has started a quiz its questions stay as they are, so no
  * answer is ever marked against a question that changed; its other words
@@ -149,11 +172,153 @@ export async function keepStartedQuestions(
 ): Promise<void> {
   const current = await draftQuiz(context, input.assignmentId);
   if (
-    canonical(checkBlocks(current ?? { version: 2, blocks: [] })) !==
-      canonical(checkBlocks(quizOfBrief(input.brief))) &&
+    canonical(asked(current ?? { version: 2, blocks: [] })) !==
+      canonical(asked(quizOfBrief(input.brief))) &&
     (await quizStarted(context.tx, context.tenantId, input.assignmentId))
   )
     throw new ORPCError("CONFLICT", { message: "coursework.quiz_started" });
+}
+
+export const drawsOf = (document: LessonDocument): DrawBlock[] =>
+  document.blocks.filter((block) => block.type === "draw");
+
+/** Drawn questions as each draw asks them, in the order drawn. */
+function drawnBlocks(
+  draws: ReadonlyMap<string, DrawBlock>,
+  rows: readonly QuizDrawRow[],
+): Map<string, CheckBlock[]> {
+  const drawn = new Map<string, CheckBlock[]>();
+  for (const row of rows) {
+    const draw = draws.get(row.drawId);
+    const block = draw
+      ? drawnQuestion(
+          draw,
+          row.bankQuestionId,
+          row.question as unknown as ContentNode,
+        )
+      : null;
+    if (block) drawn.set(row.drawId, [...(drawn.get(row.drawId) ?? []), block]);
+  }
+  return drawn;
+}
+
+/**
+ * The questions of a quiz only its teacher can mark, in the quiz's order,
+ * each draw standing for those of its questions any student drew.
+ */
+export async function markedQuestions(
+  context: UnitContext,
+  assignmentId: string,
+  document: LessonDocument,
+): Promise<MarkedBlock[]> {
+  const draws = new Map(drawsOf(document).map((draw) => [draw.id, draw]));
+  const rows = draws.size
+    ? await drawnQuestionsOf(context.tx, {
+        tenantId: context.tenantId,
+        assignmentId,
+        kinds: ["written", "scratch", "project"],
+      })
+    : [];
+  return checkBlocks(attemptQuiz(document, drawnBlocks(draws, rows))).filter(
+    isTeacherMarked,
+  );
+}
+
+/** A quiz as each attempt of one student's submission asks it. */
+export interface AttemptQuizzes {
+  of: (attempt: number) => LessonDocument;
+  /** Whether the attempt has draws still to make before it is answered. */
+  undrawn: (attempt: number) => boolean;
+}
+
+/**
+ * Reads what each attempt drew from the bank, once for the submission. A
+ * quiz that draws nothing is every attempt's quiz as it stands.
+ */
+export async function attemptQuizzes(
+  context: UnitContext,
+  document: LessonDocument,
+  submissionId: string | null,
+): Promise<AttemptQuizzes> {
+  const draws = new Map(drawsOf(document).map((draw) => [draw.id, draw]));
+  if (draws.size === 0) return { of: () => document, undrawn: () => false };
+  const rows = submissionId
+    ? await quizDrawsOf(context.tx, {
+        tenantId: context.tenantId,
+        submissionId,
+      })
+    : [];
+  const byAttempt = new Map<number, Map<string, CheckBlock[]>>();
+  for (const attempt of new Set(rows.map((row) => row.attempt)))
+    byAttempt.set(
+      attempt,
+      drawnBlocks(
+        draws,
+        rows.filter((row) => row.attempt === attempt),
+      ),
+    );
+  return {
+    of: (attempt) => attemptQuiz(document, byAttempt.get(attempt) ?? new Map()),
+    undrawn: (attempt) => !byAttempt.has(attempt),
+  };
+}
+
+/**
+ * Draws an attempt's questions from the bank as it opens: the school's
+ * questions with each draw's tag and those of the teacher who set the quiz,
+ * never one question twice, kept so the attempt asks them until it is done.
+ */
+export async function drawAttempt(
+  context: UnitContext,
+  input: {
+    assignment: AssignmentRow;
+    document: LessonDocument;
+    submissionId: string;
+    studentId: string;
+    attempt: number;
+  },
+): Promise<void> {
+  const draws = drawsOf(input.document);
+  if (draws.length === 0) return;
+  const kept = await quizDrawsOf(context.tx, {
+    tenantId: context.tenantId,
+    submissionId: input.submissionId,
+  });
+  if (kept.some((row) => row.attempt === input.attempt)) return;
+  const taken: string[] = [];
+  const drawn: DrawnQuestion[] = [];
+  for (const draw of draws) {
+    const picked = await drawFromBank(context.tx, {
+      tenantId: context.tenantId,
+      orgId: input.assignment.orgId,
+      authorUserId: input.assignment.authorUserId,
+      tag: draw.tag,
+      count: draw.count,
+      exclude: taken,
+    });
+    const questions = picked.flatMap((row) => {
+      const question = bankQuestionOf(
+        row.content as unknown as ContentDocument,
+      );
+      return question ? [{ id: row.id, question }] : [];
+    });
+    taken.push(...questions.map((item) => item.id));
+    drawn.push(
+      ...questions.map((item, position) => ({
+        drawId: draw.id,
+        position,
+        bankQuestionId: item.id,
+        question: item.question as unknown as Record<string, unknown>,
+      })),
+    );
+  }
+  await storeQuizDraws(context.tx, {
+    tenantId: context.tenantId,
+    submissionId: input.submissionId,
+    studentId: input.studentId,
+    attempt: input.attempt,
+    drawn,
+  });
 }
 
 /** Freezes questions still kept apart from the brief as the quiz goes out. */
@@ -203,7 +368,7 @@ export async function rescoreQuiz(
   context: UnitContext,
   input: {
     assignment: AssignmentRow;
-    document: LessonDocument;
+    quizzes: AttemptQuizzes;
     submissionId: string;
     studentId: string;
     /** Null keeps who graded it before; a quiz marking itself leaves it empty. */
@@ -219,7 +384,7 @@ export async function rescoreQuiz(
   if (!latest) return { scores: [], kept: null, pending: false };
   const scores = attempts.map((attempt) =>
     attemptScore(
-      input.document,
+      input.quizzes.of(attempt.number),
       fractionsOf(byAttempt.get(attempt.number) ?? []),
     ),
   );

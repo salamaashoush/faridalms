@@ -733,6 +733,49 @@ export const quizAnswers = core.table.withRLS(
   ],
 );
 
+/**
+ * A question drawn from the bank for one quiz attempt, kept as it was asked
+ * so the attempt is marked against it whatever later becomes of the bank.
+ * Each draw in the quiz holds its questions in the order drawn.
+ */
+export const quizDraws = core.table.withRLS(
+  "quiz_draws",
+  {
+    ...tenantColumns(),
+    submissionId: uuid("submission_id").notNull(),
+    studentUserId: uuid("student_user_id").notNull(),
+    attempt: smallint("attempt").notNull(),
+    drawId: uuid("draw_id").notNull(),
+    position: smallint("position").notNull(),
+    bankQuestionId: uuid("bank_question_id").notNull(),
+    question: jsonb("question").$type<Record<string, unknown>>().notNull(),
+    ...entityColumns(),
+  },
+  (t): PgTableExtraConfigValue[] => [
+    pk("quiz_draws", t.tenantId, t.id),
+    ...baseConstraints("quiz_draws", t, tenants),
+    fk(
+      "quiz_draws",
+      [t.tenantId, t.submissionId, t.studentUserId],
+      [submissions.tenantId, submissions.id, submissions.studentUserId],
+    ),
+    ck("quiz_draws", "attempt", sql`attempt between 1 and 100`),
+    ck("quiz_draws", "position", sql`position between 0 and 19`),
+    ck(
+      "quiz_draws",
+      "question",
+      sql`jsonb_typeof(question) = 'object' and octet_length(question::text) <= 262144`,
+    ),
+    uniqueIndex("quiz_draws_key")
+      .on(t.tenantId, t.submissionId, t.attempt, t.drawId, t.position)
+      .where(sql`status = 'active'`),
+    index("quiz_draws_bank_question_idx")
+      .on(t.tenantId, t.bankQuestionId)
+      .where(sql`status = 'active'`),
+    ...entityProfile(),
+  ],
+);
+
 /** A teacher's rubric kept for reuse; attaching one copies it onto the work. */
 export const rubrics = core.table.withRLS(
   "rubrics",

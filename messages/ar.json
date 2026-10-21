@@ -573,6 +573,62 @@
   "editorBankInsert": "من بنك الأسئلة",
   "editorBankInsertHint": "سؤال حفظته أنت أو مدرستك لطرحه مرة أخرى",
   "editorBankKeep": "احفظ في بنك الأسئلة",
+  "editorDrawInsert": "سحب من البنك",
+  "editorDrawInsertHint": "أسئلة تُختار عشوائيًا بوسم لكل طالب",
+  "editorDrawTitle": "مسحوبة من بنك الأسئلة",
+  "editorDrawSummary": [
+    {
+      "declarations": [
+        "input count",
+        "input tag",
+        "local countPlural = count: plural"
+      ],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "سؤال واحد بوسم «{tag}»",
+        "countPlural=two": "سؤالان بوسم «{tag}»",
+        "countPlural=few": "{count} أسئلة بوسم «{tag}»",
+        "countPlural=many": "{count} سؤالًا بوسم «{tag}»",
+        "countPlural=*": "{count} سؤال بوسم «{tag}»"
+      }
+    }
+  ],
+  "editorDrawPointsEach": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=zero": "بلا درجات",
+        "countPlural=one": "درجة واحدة لكل سؤال",
+        "countPlural=two": "درجتان لكل سؤال",
+        "countPlural=few": "{count} درجات لكل سؤال",
+        "countPlural=many": "{count} درجة لكل سؤال",
+        "countPlural=*": "{count} درجة لكل سؤال"
+      }
+    }
+  ],
+  "editorDrawCount": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "سؤال واحد",
+        "countPlural=two": "سؤالان",
+        "countPlural=few": "{count} أسئلة",
+        "countPlural=many": "{count} سؤالًا",
+        "countPlural=*": "{count} سؤال"
+      }
+    }
+  ],
+  "editorDrawNoTag": "اختر من الشريط الوسم الذي يُسحب به",
+  "editorDrawHint": "يحصل كل طالب على أسئلته الخاصة، وتبقى له طوال المحاولة.",
+  "editorDrawShort": "في البنك {count} بهذا الوسم، وهذا أقل مما يطلبه السحب.",
+  "editorDrawTag": "وسم السحب",
+  "editorDrawTagNone": "اختر وسمًا",
+  "editorDrawNoTags": "لا أسئلة موسومة في البنك بعد",
+  "editorDrawOptions": "خيارات السحب",
+  "editorDrawCountLabel": "عدد الأسئلة المسحوبة",
+  "editorDrawPointsLabel": "درجة كل سؤال",
   "editorQuestionWritten": "إجابة مطولة",
   "editorQuestionWrittenHint": "يكتب الطالب بحرية وتصحّحها أنت",
   "editorQuestionPrompt": "اكتب السؤال",
@@ -3199,7 +3255,7 @@
   "lrnHotspotNames": "سمِّ كل مكان في الصورة، ليختاره الطفل الذي يستخدم لوحة المفاتيح أو قارئ الشاشة.",
   "lrnHotspotNeeded": "يحتاج سؤال البحث في الصورة إلى صورته ومكان واحد على الأقل للبحث عنه.",
   "lrnYoungFindHere": "لِنَبْحَثْ فِي الصُّورَةِ",
-  "lrnYoungPlace": "الْمَكَانُ {number}",
+  "lrnYoungPlace": "المكان {number}",
   "lrnYoungFoundAll": "وَجَدْنَاهَا كُلَّهَا!",
   "lrnYoungFoundCount": "وُجد {found} من {total}",
   "drawHere": "ارسم إجابتك في المربع.",
@@ -3248,7 +3304,6 @@
   "lrnYoungShowMe": "أرني",
   "lrnYoungPutWith": "ضع البطاقة مع {item}",
   "lrnYoungPutIn": "ضع البطاقة في {group}",
-  "lrnYoungPlace": "المكان {number}",
   "lrnYoungTapIt": "هَذِهِ هِيَ الْإِجَابَةُ، لِنَنْقُرْ عَلَيْهَا!",
   "lrnYoungFound": "{item}، إِجَابَةٌ صَحِيحَةٌ!",
   "lrnYoungMatched": "طَابَقْنَاهَا كُلَّهَا!",
@@ -4723,6 +4778,7 @@
   "quizPendingMarks": "ما زال لدى معلمك إجابات كتابية ليصحّحها، فقد ترتفع هذه الدرجة.",
   "quizResultsLater": "سيعيد معلمك النتائج.",
   "quizAttemptTitle": "المحاولة {number}",
+  "quizDrawing": "نجهّز أسئلتك…",
   "quizAttemptsHintUnlimited": "أجب عن الأسئلة ثم سلّم الاختبار. يمكنك إعادته بعد ذلك.",
   "quizAttemptsHint": [
     {
@@ -4757,6 +4813,8 @@
   "quizHandInBody": "كل الأسئلة مُجاب عنها. التسليم يصحّحها كلها.",
   "quizClosed": "هذا الاختبار مغلق.",
   "errQuizGate": "لا يحتوي الاختبار على نقاط متابعة؛ يرى الطلاب كل الأسئلة معًا.",
+  "errDrawTag": "اختر الوسم الذي يُسحب منه كل سحب أسئلته.",
+  "errDrawShort": "في بنك الأسئلة أسئلة بوسم السحب أقل مما يطلبه. احفظ أسئلة أكثر بهذا الوسم، أو اسحب عددًا أقل.",
   "errQuizRubric": "يُصحَّح الاختبار بأسئلته، فلا يأخذ سلّم تقدير.",
   "errFormatFixed": "لا يمكن أن يصبح العمل المُسند اختبارًا، ولا أن يصبح الاختبار عملًا آخر.",
   "errNotQuiz": "هذا العمل ليس اختبارًا.",

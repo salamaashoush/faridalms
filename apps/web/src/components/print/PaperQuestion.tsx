@@ -338,6 +338,7 @@ export function PaperQuestion({
   if (
     block.type === "content" ||
     block.type === "gate" ||
+    block.type === "draw" ||
     block.type === "media"
   )
     return null;

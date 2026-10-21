@@ -12,6 +12,10 @@ export const listBank = createServerFn({ method: "GET" })
   .validator(checked(bankQuerySchema))
   .handler(({ data }) => backend().bank.list(data));
 
+export const bankTags = createServerFn({ method: "GET" }).handler(() =>
+  backend().bank.tags(),
+);
+
 export const openBankQuestion = createServerFn({ method: "GET" })
   .validator(checked(bankRefSchema))
   .handler(({ data }) => backend().bank.open(data));

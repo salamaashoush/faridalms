@@ -106,14 +106,21 @@ export interface EditorPuzzles {
   edit: (level: Level) => Promise<Level | undefined>;
 }
 
+/** A tag in the question bank and how many questions a quiz may draw by it. */
+export interface BankTag {
+  tag: string;
+  questions: number;
+}
+
 /**
  * The question bank: `keep` offers a question, as a document holding it, to
  * be kept for asking again; `choose` resolves to a kept one, or null when
- * nothing was chosen.
+ * nothing was chosen; `tags` lists what a quiz may draw by.
  */
 export interface EditorBank {
   keep: (question: ContentDocument) => void;
   choose: () => Promise<ContentDocument | null>;
+  tags: () => Promise<BankTag[]>;
 }
 
 export interface EditorEnvironment {
@@ -130,6 +137,8 @@ export interface EditorEnvironment {
   questions?: boolean;
   /** The document may stop at continue gates. */
   gates?: boolean;
+  /** The document is a quiz, whose attempts may each draw questions from the bank. */
+  draws?: boolean;
   /** Questions are shown but kept from change. */
   lockQuestions?: boolean;
   /** Part of the document may be set aside as each student's copy. */

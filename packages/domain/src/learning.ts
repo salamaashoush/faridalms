@@ -82,6 +82,9 @@ export const MAX_PROGRAM_CHARS = 20_000;
 export const MAX_PARSONS_DISTRACTORS = 6;
 export const MAX_INDENT = 6;
 export const MAX_SORT_GROUPS = 4;
+/** The most questions one draw asks of each attempt. */
+export const MAX_DRAW = 20;
+const MAX_DRAW_TAG = 40;
 export const MAX_SORT_ITEMS = 20;
 export const MAX_MODULE_CLASSES = 20;
 /**
@@ -273,6 +276,15 @@ export const lessonBlockSchema = v.variant("type", [
     type: v.literal("gate"),
     /** What opens the rest of the lesson; only work a student can finish alone. */
     requires: v.picklist(["above"]),
+  }),
+  v.object({
+    id,
+    type: v.literal("draw"),
+    /** Questions in the bank carrying this tag are drawn from. */
+    tag: requiredText(MAX_DRAW_TAG),
+    count: v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(MAX_DRAW)),
+    /** What each drawn question is worth, whatever it was kept with. */
+    points: v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(100)),
   }),
   v.pipe(
     v.object({
@@ -618,6 +630,7 @@ export type ScratchBlock = Extract<LessonBlock, { type: "scratch" }>;
 export type ProgramBlock = Extract<LessonBlock, { type: "program" }>;
 export type ProjectBlock = Extract<LessonBlock, { type: "project" }>;
 export type PuzzleBlock = Extract<LessonBlock, { type: "puzzle" }>;
+export type DrawBlock = Extract<LessonBlock, { type: "draw" }>;
 /** A question the server marks the moment it is answered. */
 export type AutoBlock =
   | ChoiceBlock
@@ -834,6 +847,9 @@ export function lessonIssue(lesson: {
 }): string | null {
   const document = lessonOfContent(lesson.content);
   if (lessonPlainText(document).trim() === "") return "learning.lesson_empty";
+  // Only a quiz draws questions from the bank, one draw for each attempt.
+  if (document.blocks.some((block) => block.type === "draw"))
+    return "learning.lesson_incomplete";
   const uncaptioned = mediaOf(lesson.content.root).some(
     (node) =>
       !node.captionsFileId &&
@@ -943,6 +959,7 @@ export function lessonPlainText(document: LessonDocument): string {
             .filter(Boolean)
             .join("\n");
         case "gate":
+        case "draw":
           return "";
         case "gaps":
           return [block.prompt, gapText(block)].join("\n");
