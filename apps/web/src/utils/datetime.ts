@@ -95,3 +95,33 @@ export function secondaryDate(
     timeZone: "UTC",
   }).format(new Date(`${isoDate.slice(0, 10)}T00:00:00.000Z`));
 }
+
+const inUnit = (value: number, unit: "hour" | "minute") =>
+  new Intl.NumberFormat(getLocale(), {
+    style: "unit",
+    unit,
+    unitDisplay: "long",
+  }).format(value);
+
+/** A length of time in whole minutes, as hours and minutes: "1 hour and 30 minutes". */
+export function formatMinutes(minutes: number): string {
+  const hours = Math.floor(minutes / 60);
+  const rest = minutes % 60;
+  return formatList([
+    ...(hours > 0 ? [inUnit(hours, "hour")] : []),
+    ...(rest > 0 || hours === 0 ? [inUnit(rest, "minute")] : []),
+  ]);
+}
+
+/** Time left on a clock in the locale's digits: "4:05", or "1:04:05" past an hour. */
+export function formatClock(ms: number): string {
+  const total = Math.max(0, Math.ceil(ms / 1000));
+  const two = new Intl.NumberFormat(getLocale(), { minimumIntegerDigits: 2 });
+  const one = new Intl.NumberFormat(getLocale());
+  const hours = Math.floor(total / 3600);
+  const minutes = Math.floor((total % 3600) / 60);
+  const seconds = total % 60;
+  return hours > 0
+    ? `${one.format(hours)}:${two.format(minutes)}:${two.format(seconds)}`
+    : `${one.format(minutes)}:${two.format(seconds)}`;
+}

@@ -8,8 +8,9 @@ import { Button } from "@faridalms/ui/button";
 import { Input } from "@faridalms/ui/input";
 import { Textarea } from "@faridalms/ui/textarea";
 import { useMutation, useQueryClient } from "@tanstack/react-query";
-import { CheckCircle2, LoaderCircle } from "lucide-react";
-import { useEffect, useState } from "react";
+import { useHydrated } from "@tanstack/react-router";
+import { CheckCircle2, LoaderCircle, Timer } from "lucide-react";
+import { useEffect, useEffectEvent, useState } from "react";
 import { toast } from "sonner";
 
 import type { CheckDriver } from "~/components/learning/Checks";
@@ -32,7 +33,7 @@ import {
   saveQuizAnswer,
   startQuiz,
 } from "~/server/coursework";
-import { formatNumber } from "~/utils/datetime";
+import { formatClock, formatMinutes, formatNumber } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
 type Work = Awaited<
@@ -157,6 +158,49 @@ function Results({ quiz }: { quiz: LearnerQuiz }) {
 }
 
 /**
+ * The time left on a timed attempt, said aloud with five minutes and with
+ * one minute to go. At zero it calls `onTimeUp`, once.
+ */
+function QuizClock({
+  endsAt,
+  onTimeUp,
+}: {
+  endsAt: string;
+  onTimeUp: () => void;
+}) {
+  const hydrated = useHydrated();
+  const [now, setNow] = useState(() => Date.now());
+  const timeUp = useEffectEvent(onTimeUp);
+  useEffect(() => {
+    const timer = setInterval(() => setNow(Date.now()), 1000);
+    return () => clearInterval(timer);
+  }, []);
+  const left = Date.parse(endsAt) - now;
+  const over = left <= 0;
+  useEffect(() => {
+    if (over) timeUp();
+  }, [over]);
+  if (!hydrated) return null;
+  const minutes = Math.ceil(left / 60_000);
+  return (
+    <div className="sticky top-2 z-10 flex justify-end">
+      <p
+        className={`inline-flex items-center gap-1.5 rounded-full border bg-background px-3 py-1.5 text-sm font-medium tabular-nums shadow-sm [&_svg]:size-4 ${left < 60_000 ? "border-destructive text-destructive" : ""}`}
+      >
+        <Timer aria-hidden />
+        <span className="sr-only">{m.quizTimeLeft()}</span>
+        <span role="timer">{formatClock(left)}</span>
+      </p>
+      <span className="sr-only" aria-live="polite">
+        {!over && (minutes === 5 || minutes === 1)
+          ? m.quizTimeWarning({ count: minutes })
+          : ""}
+      </span>
+    </div>
+  );
+}
+
+/**
  * A quiz as its student takes it: every answer is kept as it is given, and
  * handing in marks the whole attempt. Earlier attempts show what the quiz
  * lets them see.
@@ -176,18 +220,40 @@ export function QuizWork({ data }: { data: Work }) {
       }),
     meta: { inlineError: true },
   });
-  // An attempt that draws from the question bank draws as it opens.
+  // An attempt begins its clock, and draws from the question bank, as it
+  // opens: a timed one when the student chooses to begin, any other at once.
   const draw = useMutation({
     mutationFn: () => startQuiz({ data: { assignmentId: data.assignment.id } }),
     onSuccess: () =>
       queryClient.invalidateQueries({ queryKey: query.queryKey }),
     meta: { inlineError: true },
   });
-  const undrawn = quiz?.undrawn ?? false;
+  const undrawn = Boolean(quiz?.undrawn && !quiz.timing);
   const { mutate: drawQuestions } = draw;
   useEffect(() => {
     if (undrawn) drawQuestions();
   }, [undrawn, drawQuestions]);
+  // When time runs out the kept answers go in, whether or not anyone is
+  // here; the server hands in any attempt left open.
+  const timeUp = useMutation({
+    mutationFn: () =>
+      handInWork({
+        data: {
+          assignmentId: data.assignment.id,
+          expectedVersion: data.submission.version,
+        },
+      }),
+    onSettled: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["coursework"] });
+      toast.info(m.quizTimeUp());
+    },
+    meta: { inlineError: true },
+  });
+  const ranOut = Boolean(quiz?.open && quiz.timing?.timeUp);
+  const { mutate: handInNow, isIdle: notYet } = timeUp;
+  useEffect(() => {
+    if (ranOut && notYet) handInNow();
+  }, [ranOut, notYet, handInNow]);
   if (!quiz) return null;
   const driver: CheckDriver = {
     respond: async (blockId, response) => {
@@ -220,7 +286,32 @@ export function QuizWork({ data }: { data: Work }) {
   return (
     <>
       {quiz.results.length > 0 ? <Results quiz={quiz} /> : null}
-      {quiz.open && quiz.undrawn ? (
+      {quiz.open && quiz.timing && !quiz.timing.startedAt ? (
+        <RecordSection
+          variant="page"
+          title={m.quizAttemptTitle({ number: formatNumber(quiz.attempt) })}
+        >
+          <div className="grid justify-items-start gap-4">
+            <p className="text-sm leading-5 text-muted-foreground">
+              {m.quizTimedBody({ time: formatMinutes(quiz.timing.minutes) })}
+            </p>
+            {draw.error ? (
+              <p role="alert" className="text-sm leading-5 text-destructive">
+                {getMessageFromError(draw.error)}
+              </p>
+            ) : null}
+            <Button
+              type="button"
+              className="max-md:h-10"
+              disabled={draw.isPending}
+              onClick={() => draw.mutate()}
+            >
+              <Timer aria-hidden />
+              {m.quizBegin()}
+            </Button>
+          </div>
+        </RecordSection>
+      ) : quiz.open && quiz.undrawn ? (
         <RecordSection
           variant="page"
           title={m.quizAttemptTitle({ number: formatNumber(quiz.attempt) })}
@@ -247,6 +338,14 @@ export function QuizWork({ data }: { data: Work }) {
           }
         >
           <div className="grid gap-4">
+            {quiz.timing?.endsAt ? (
+              <QuizClock
+                endsAt={quiz.timing.endsAt}
+                onTimeUp={() => {
+                  if (timeUp.isIdle) timeUp.mutate();
+                }}
+              />
+            ) : null}
             <CheckModeContext.Provider value="quiz">
               <QuizBlocks
                 key={quiz.attempt}

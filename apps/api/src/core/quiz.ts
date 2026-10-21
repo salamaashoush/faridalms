@@ -17,6 +17,7 @@ import { drawFromBank } from "@faridalms/database/stores/bank";
 import {
   assessmentOf,
   attemptsOf,
+  insertAttempt,
   releaseAssessments,
   saveAssessment,
 } from "@faridalms/database/stores/coursework";
@@ -26,7 +27,9 @@ import {
   snapshotPublish,
 } from "@faridalms/database/stores/documents";
 import {
+  closeSitting,
   drawnQuestionsOf,
+  markQuizAttempt,
   quizAnswersOf,
   quizDrawsOf,
   quizStarted,
@@ -41,8 +44,10 @@ import {
 } from "@faridalms/domain/coursework";
 import {
   checkBlocks,
+  isAuto,
   isCheck,
   isTeacherMarked,
+  markResponse,
   responseSchema,
   upgradeLesson,
 } from "@faridalms/domain/learning";
@@ -56,6 +61,9 @@ import { ORPCError } from "@orpc/server";
 import * as v from "valibot";
 
 import type { UnitContext } from "./context";
+
+/** What reading and marking a quiz needs of a unit of work; a worker's pass has it too. */
+export type QuizUnit = Pick<UnitContext, "tx" | "tenantId">;
 
 /**
  * Where a quiz's questions were kept before they were written in its brief.
@@ -73,7 +81,7 @@ const briefHost = (assignmentId: string) => ({
 
 /** The questions kept apart from the brief, as last saved or as last sent. */
 async function keptApart(
-  context: UnitContext,
+  context: QuizUnit,
   assignmentId: string,
   sent: boolean,
 ): Promise<LessonDocument | null> {
@@ -112,7 +120,7 @@ export async function draftQuiz(
 
 /** The questions students answer: those in the brief as last sent to them. */
 export async function publishedQuiz(
-  context: UnitContext,
+  context: QuizUnit,
   assignmentId: string,
 ): Promise<LessonDocument | null> {
   const brief = await documentOf(
@@ -236,7 +244,7 @@ export interface AttemptQuizzes {
  * quiz that draws nothing is every attempt's quiz as it stands.
  */
 export async function attemptQuizzes(
-  context: UnitContext,
+  context: QuizUnit,
   document: LessonDocument,
   submissionId: string | null,
 ): Promise<AttemptQuizzes> {
@@ -341,7 +349,7 @@ export async function publishKeptApart(
 
 /** A submission's answers grouped by attempt. */
 export async function answersByAttempt(
-  context: UnitContext,
+  context: QuizUnit,
   submissionId: string,
 ): Promise<Map<number, QuizAnswer[]>> {
   const rows = await quizAnswersOf(context.tx, {
@@ -365,7 +373,7 @@ const fractionsOf = (answers: readonly QuizAnswer[]) =>
  * at once when the quiz shows results and nothing waits for the teacher.
  */
 export async function rescoreQuiz(
-  context: UnitContext,
+  context: QuizUnit & { today: string },
   input: {
     assignment: AssignmentRow;
     quizzes: AttemptQuizzes;
@@ -410,6 +418,92 @@ export async function rescoreQuiz(
   if (input.release && !pending && input.assignment.quizReveal !== "returned")
     await releaseAssessments(context.tx, context.tenantId, [latest.id]);
   return { scores, kept, pending };
+}
+
+interface QuizMark {
+  blockId: string;
+  fraction: number | null;
+  state: "marked" | "needs_marking";
+}
+
+/**
+ * Hands in an attempt as it stands: each kept answer marked, a written one
+ * left for its teacher, the score that counts written where the gradebook
+ * reads it, and the attempt's clock stopped. Null when the quiz is gone.
+ */
+export async function handInAttempt(
+  unit: QuizUnit & { today: string },
+  input: {
+    assignment: AssignmentRow;
+    submissionId: string;
+    studentId: string;
+    attempt: number;
+    isLate: boolean;
+  },
+): Promise<{ attemptId: string; returned: boolean } | null> {
+  const document = await publishedQuiz(unit, input.assignment.id);
+  if (!document) return null;
+  const [quizzes, answers] = await Promise.all([
+    attemptQuizzes(unit, document, input.submissionId),
+    quizAnswersOf(unit.tx, {
+      tenantId: unit.tenantId,
+      submissionId: input.submissionId,
+      attempt: input.attempt,
+    }),
+  ]);
+  const attemptId = await insertAttempt(unit.tx, {
+    tenantId: unit.tenantId,
+    submissionId: input.submissionId,
+    studentId: input.studentId,
+    number: input.attempt,
+    isLate: input.isLate,
+    userId: input.studentId,
+  });
+  const blocks = checkBlocks(quizzes.of(input.attempt));
+  await markQuizAttempt(unit.tx, {
+    tenantId: unit.tenantId,
+    submissionId: input.submissionId,
+    attempt: input.attempt,
+    marks: answers.flatMap((answer): QuizMark[] => {
+      const block = blocks.find((item) => item.id === answer.blockId);
+      const response = v.safeParse(responseSchema, answer.response);
+      if (!block) return [];
+      if (isAuto(block))
+        return [
+          {
+            blockId: block.id,
+            fraction: response.success
+              ? markResponse(block, response.output).fraction
+              : 0,
+            state: "marked",
+          },
+        ];
+      return [
+        {
+          blockId: block.id,
+          fraction: null,
+          state: block.points > 0 ? "needs_marking" : "marked",
+        },
+      ];
+    }),
+  });
+  const scored = await rescoreQuiz(unit, {
+    assignment: input.assignment,
+    quizzes,
+    submissionId: input.submissionId,
+    studentId: input.studentId,
+    graderId: null,
+    release: true,
+  });
+  await closeSitting(unit.tx, {
+    tenantId: unit.tenantId,
+    submissionId: input.submissionId,
+    attempt: input.attempt,
+  });
+  return {
+    attemptId,
+    returned: !scored.pending && input.assignment.quizReveal !== "returned",
+  };
 }
 
 /**

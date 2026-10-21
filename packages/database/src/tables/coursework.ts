@@ -155,6 +155,8 @@ export const assignments = core.table.withRLS(
     quizKeep: text("quiz_keep").$type<QuizKeep>(),
     quizReveal: text("quiz_reveal").$type<QuizReveal>(),
     quizShuffle: boolean("quiz_shuffle").notNull().default(false),
+    /** Minutes each attempt runs from when it begins; empty for no limit. */
+    quizTimeLimit: smallint("quiz_time_limit"),
     /** Returned work shows its grade only once every comment is answered. */
     gradeAfterAnswers: boolean("grade_after_answers").notNull().default(false),
     publishedAt: instant("published_at"),
@@ -188,6 +190,11 @@ export const assignments = core.table.withRLS(
       sql`state in ('draft', 'published', 'archived')`,
     ),
     ck("assignments", "audience", sql`audience in ('class', 'selected')`),
+    ck(
+      "assignments",
+      "quiz_time_limit",
+      sql`quiz_time_limit is null or quiz_time_limit between 1 and 480`,
+    ),
     ck(
       "assignments",
       "late_policy",
@@ -730,6 +737,51 @@ export const quizAnswers = core.table.withRLS(
     ...entityProfile(),
     // An erased student's answers are emptied and stay for their marks.
     ...erase(erasureOf("student_user_id")),
+  ],
+);
+
+/**
+ * When a timed quiz attempt began and when its time runs out, set once as
+ * the student begins so a later change to the quiz or the student's extra
+ * time never moves a clock already running. It closes when the attempt is
+ * handed in, by the student or by the clock.
+ */
+export const quizSittings = core.table.withRLS(
+  "quiz_sittings",
+  {
+    ...tenantColumns(),
+    submissionId: uuid("submission_id").notNull(),
+    studentUserId: uuid("student_user_id").notNull(),
+    attempt: smallint("attempt").notNull(),
+    startedAt: instant("started_at").notNull(),
+    /** Empty for a student whose arrangements give them all the time they need. */
+    endsAt: instant("ends_at"),
+    closedAt: instant("closed_at"),
+    ...entityColumns(),
+  },
+  (t): PgTableExtraConfigValue[] => [
+    pk("quiz_sittings", t.tenantId, t.id),
+    ...baseConstraints("quiz_sittings", t, tenants),
+    fk(
+      "quiz_sittings",
+      [t.tenantId, t.submissionId, t.studentUserId],
+      [submissions.tenantId, submissions.id, submissions.studentUserId],
+    ),
+    ck("quiz_sittings", "attempt", sql`attempt between 1 and 100`),
+    ck(
+      "quiz_sittings",
+      "ends_at",
+      sql`ends_at is null or ends_at > started_at`,
+    ),
+    uniqueIndex("quiz_sittings_key")
+      .on(t.tenantId, t.submissionId, t.attempt)
+      .where(sql`status = 'active'`),
+    index("quiz_sittings_open_idx")
+      .on(t.tenantId, t.endsAt)
+      .where(
+        sql`status = 'active' and closed_at is null and ends_at is not null`,
+      ),
+    ...entityProfile(),
   ],
 );
 

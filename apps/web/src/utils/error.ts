@@ -83,6 +83,8 @@ export function getMessageFromError(error: unknown): string {
         return m.errDrawTag();
       case "coursework.draw_short":
         return m.errDrawShort();
+      case "coursework.time_up":
+        return m.errTimeUp();
       case "coursework.quiz_rubric":
         return m.errQuizRubric();
       case "coursework.quiz_started":

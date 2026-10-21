@@ -9,6 +9,7 @@ import { describe, expect, test } from "bun:test";
 import { sql } from "drizzle-orm";
 import { strFromU8, unzipSync } from "fflate";
 
+import { handInTimedOut } from "../src/core/quiz-clock";
 import { login, raw, rejection, seeded, sessionFor, signedIn } from "./harness";
 
 // The seed's second teacher teaches Arabic to every grade, the third English.
@@ -1615,6 +1616,123 @@ describe("quizzes", () => {
     expect(again.quiz?.blocks.map((block) => block.id).toSorted()).toEqual(
       asked?.toSorted(),
     );
+  });
+
+  test("a timed quiz shows its questions once begun, stops taking answers when time runs out, and hands itself in", async () => {
+    const teacher = await arabicTeacher();
+    const student = await sessionFor("northwind", login("student"));
+    const me = await student.api.identity.currentUser();
+    const target = await classOfStudent(teacher.api, me.id);
+    const right = uuid();
+    const choice = {
+      ...common,
+      id: uuid(),
+      type: "choice" as const,
+      prompt: "Which is a noun?",
+      points: 2,
+      options: [
+        { id: right, text: "Book", feedback: "" },
+        { id: uuid(), text: "Run", feedback: "" },
+      ],
+      correctOptionIds: [right],
+      multiple: false,
+      shuffle: false,
+    };
+    const saved = await teacher.api.coursework.save(
+      draft(target.id, "Timed quiz", {
+        submissionFormat: "quiz",
+        points: null,
+        brief: briefWithQuiz(plainContent("Answer in time."), {
+          version: 2,
+          blocks: [choice],
+        }),
+        quiz: {
+          attempts: 2,
+          keep: "highest",
+          reveal: "answers",
+          shuffle: false,
+          timeLimit: 10,
+        },
+      }),
+    );
+    await teacher.api.coursework.publish({
+      id: saved.id,
+      expectedVersion: saved.version,
+    });
+    expect(
+      (await teacher.api.coursework.editor({ id: saved.id })).quiz?.timeLimit,
+    ).toBe(10);
+
+    const before = await student.api.coursework.work({ id: saved.id });
+    expect(before.quiz?.timing).toMatchObject({
+      minutes: 10,
+      startedAt: null,
+      endsAt: null,
+    });
+    expect(before.quiz?.blocks).toEqual([]);
+    await student.api.coursework.startQuiz({ assignmentId: saved.id });
+    const begun = await student.api.coursework.work({ id: saved.id });
+    const { startedAt, endsAt } = begun.quiz?.timing ?? {};
+    if (!startedAt || !endsAt) throw new Error("the clock did not begin");
+    expect(Date.parse(endsAt) - Date.parse(startedAt)).toBe(10 * 60_000);
+    expect(begun.quiz?.blocks.map((block) => block.id)).toEqual([choice.id]);
+    // Beginning again keeps the clock it began with.
+    await student.api.coursework.startQuiz({ assignmentId: saved.id });
+    expect(
+      (await student.api.coursework.work({ id: saved.id })).quiz?.timing
+        ?.endsAt,
+    ).toBe(endsAt);
+    const answer = () =>
+      student.api.coursework.saveQuizAnswer({
+        assignmentId: saved.id,
+        blockId: choice.id,
+        response: { type: "choice", optionIds: [right] },
+      });
+    await answer();
+
+    // Eleven minutes on, the attempt takes no more answers and the worker
+    // hands it in as it stood.
+    const { cell, tenants } = seeded();
+    const tenantId = tenants[0]?.tenantId ?? "";
+    const rewind = () =>
+      cell.withWorker(
+        { tenantId, requestId: uuid(), actor: { kind: "system" } },
+        "write",
+        (tx) =>
+          tx.execute(sql`
+            update core.quiz_sittings
+            set started_at = started_at - interval '11 minutes',
+                ends_at = ends_at - interval '11 minutes'
+            where tenant_id = ${tenantId}::uuid and closed_at is null
+              and submission_id in (select id from core.submissions
+                where tenant_id = ${tenantId}::uuid and assignment_id = ${saved.id}::uuid)`),
+      );
+    await rewind();
+    expect(await rejection(answer())).toMatchObject({
+      code: "CONFLICT",
+      message: "coursework.time_up",
+    });
+    expect(
+      (await student.api.coursework.work({ id: saved.id })).quiz?.timing
+        ?.timeUp,
+    ).toBe(true);
+    expect(await handInTimedOut(cell, tenantId, new Date())).toBeGreaterThan(0);
+    const handed = await student.api.coursework.work({ id: saved.id });
+    expect(handed.quiz?.results[0]).toMatchObject({ score: 2 });
+    expect(handed.quiz?.timing).toMatchObject({ startedAt: null });
+    expect(await handInTimedOut(cell, tenantId, new Date())).toBe(0);
+
+    // A student may still hand in an attempt whose time ran out themselves.
+    await student.api.coursework.startQuiz({ assignmentId: saved.id });
+    await rewind();
+    const second = await student.api.coursework.work({ id: saved.id });
+    await student.api.coursework.handIn({
+      assignmentId: saved.id,
+      expectedVersion: second.submission.version,
+    });
+    const done = await student.api.coursework.work({ id: saved.id });
+    expect(done.quiz?.results.map((result) => result.score)).toEqual([2, 0]);
+    expect(done.quiz?.open).toBe(false);
   });
 
   test("a quiz shown only when returned keeps its results back until then", async () => {

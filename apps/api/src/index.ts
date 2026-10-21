@@ -10,6 +10,7 @@ import { fileURLToPath } from "node:url";
 import { createApp } from "./app";
 import { createJavaScriptRunner, createPythonRunner } from "./coding/run";
 import { createKeyRing } from "./core/keys";
+import { startQuizClock } from "./core/quiz-clock";
 import { env } from "./env";
 import { createFilesHost, linkKey } from "./files/links";
 import { createMakeCode } from "./files/makecode";
@@ -153,6 +154,16 @@ const stopUpkeep = env.CELL_WORKER_URL
     })
   : null;
 
+// A timed quiz left open when its time ran out is handed in by the worker.
+const stopQuizClock = env.CELL_WORKER_URL
+  ? startQuizClock({
+      cell,
+      directory,
+      cellId: env.CELL_ID,
+      intervalMs: 30_000,
+    })
+  : null;
+
 let stopping = false;
 async function shutdown() {
   if (stopping) return;
@@ -161,6 +172,7 @@ async function shutdown() {
   await filesServer.stop();
   await stopDelivery?.();
   await stopUpkeep?.();
+  await stopQuizClock?.();
   await directorySync?.close();
   await cell.close();
   await directory.close();

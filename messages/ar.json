@@ -4773,6 +4773,26 @@
   "quizRevealHint": "يرون درجتهم دائمًا ما لم تحجب النتائج حتى تعيدها.",
   "quizShuffle": "اخلط الأسئلة",
   "quizShuffleHint": "يراها كل طالب بترتيبه الخاص. يبقى النص بين الأسئلة في مكانه.",
+  "quizTimeLimit": "المدة المحددة",
+  "quizTimeLimitHint": "تبدأ كل محاولة حين يبدأها الطالب. وعند انتهاء الوقت تُسلَّم الإجابات التي حفظها.",
+  "quizTimeLimitNone": "بلا مدة محددة",
+  "quizTimedBody": "لديك {time} بعد أن تبدأ. يستمر الوقت إن غادرت، وعند انتهائه تُسلَّم الإجابات التي حفظتها.",
+  "quizBegin": "ابدأ المحاولة",
+  "quizTimeLeft": "الوقت المتبقي",
+  "quizTimeWarning": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "بقيت دقيقة واحدة",
+        "countPlural=two": "بقيت دقيقتان",
+        "countPlural=few": "بقيت {count} دقائق",
+        "countPlural=many": "بقيت {count} دقيقة",
+        "countPlural=*": "بقيت {count} دقيقة"
+      }
+    }
+  ],
+  "quizTimeUp": "انتهى الوقت. سُلِّمت الإجابات التي حفظتها.",
   "quizResults": "النتائج",
   "quizScoreOf": "{score} من {total}",
   "quizPendingMarks": "ما زال لدى معلمك إجابات كتابية ليصحّحها، فقد ترتفع هذه الدرجة.",
@@ -4815,6 +4835,7 @@
   "errQuizGate": "لا يحتوي الاختبار على نقاط متابعة؛ يرى الطلاب كل الأسئلة معًا.",
   "errDrawTag": "اختر الوسم الذي يُسحب منه كل سحب أسئلته.",
   "errDrawShort": "في بنك الأسئلة أسئلة بوسم السحب أقل مما يطلبه. احفظ أسئلة أكثر بهذا الوسم، أو اسحب عددًا أقل.",
+  "errTimeUp": "انتهى وقت هذه المحاولة.",
   "errQuizRubric": "يُصحَّح الاختبار بأسئلته، فلا يأخذ سلّم تقدير.",
   "errFormatFixed": "لا يمكن أن يصبح العمل المُسند اختبارًا، ولا أن يصبح الاختبار عملًا آخر.",
   "errNotQuiz": "هذا العمل ليس اختبارًا.",

@@ -125,7 +125,12 @@ Sources: [../research/course-design.md](../research/course-design.md),
    draw the bank cannot fill. Left: printing each student's drawn paper.
 2. **Time limits and access arrangements.** A quiz time limit, extra time
    and other arrangements per student set once (extra time, read aloud,
-   fewer choices, default extension days), as exam boards require.
+   fewer choices, default extension days), as exam boards require. Done:
+   a quiz's time limit. A timed attempt keeps its questions hidden until
+   the student begins it, runs on a clock kept in `core.quiz_sittings`,
+   refuses answers once the clock and thirty seconds of grace have run
+   out, and is handed in as it stood by the page or, if nobody is there,
+   by the API's worker. Left: the per-student arrangements.
 3. **Feedback timing** per check: at once, at the end, or when the teacher
    returns the work.
 4. **Ask for a hint before answering**, not only after a wrong try.

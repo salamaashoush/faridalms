@@ -70,6 +70,7 @@ import {
   passkeys,
   quizAnswers,
   quizDraws,
+  quizSittings,
   submissions,
   privacyNotices,
   relationshipRestrictions,
@@ -525,6 +526,14 @@ export async function completeFixture(
     attempt: 1,
     blockId: id(),
     response: { type: "text", text: "Cairo" },
+  });
+  await tx.insert(quizSittings).values({
+    tenantId,
+    submissionId: submission.id,
+    studentUserId: submission.studentUserId,
+    attempt: 1,
+    startedAt: new Date("2026-09-20T09:00:00Z"),
+    endsAt: new Date("2026-09-20T09:30:00Z"),
   });
   await tx.insert(quizDraws).values({
     tenantId,

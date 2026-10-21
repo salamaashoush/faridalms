@@ -45,6 +45,7 @@ export const CONFLICTS: Record<string, string> = {
   assessments_attempt_key: "assessment.exists",
   quiz_answers_key: "quiz_answer.exists",
   quiz_draws_key: "quiz_draw.exists",
+  quiz_sittings_key: "quiz_sitting.exists",
   period_grades_key: "period_grade.exists",
   year_rollovers_years_key: "rollover.exists",
   attendance_settings_org_key: "attendance.stale",

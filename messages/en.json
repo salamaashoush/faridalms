@@ -4573,6 +4573,23 @@
   "quizRevealHint": "They always see their score unless you keep results until you return them.",
   "quizShuffle": "Shuffle the questions",
   "quizShuffleHint": "Each student meets them in their own order. Text between questions stays in place.",
+  "quizTimeLimit": "Time limit",
+  "quizTimeLimitHint": "Each attempt runs from when the student begins it. When time runs out, the answers they kept are handed in.",
+  "quizTimeLimitNone": "No time limit",
+  "quizTimedBody": "You have {time} once you begin. The clock keeps running if you leave, and when time runs out the answers you kept are handed in.",
+  "quizBegin": "Begin the attempt",
+  "quizTimeLeft": "Time left",
+  "quizTimeWarning": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "{count} minute left",
+        "countPlural=*": "{count} minutes left"
+      }
+    }
+  ],
+  "quizTimeUp": "Time is up. The answers you kept were handed in.",
   "quizResults": "Results",
   "quizScoreOf": "{score} of {total}",
   "quizPendingMarks": "Your teacher still has written answers to mark, so this score may rise.",
@@ -4607,6 +4624,7 @@
   "errQuizGate": "A quiz has no continue gates; students see every question at once.",
   "errDrawTag": "Choose the tag each draw takes its questions from.",
   "errDrawShort": "The question bank has fewer questions with a draw's tag than it asks for. Keep more with that tag, or draw fewer.",
+  "errTimeUp": "Time is up for this attempt.",
   "errQuizRubric": "A quiz is marked by its questions, so it takes no rubric.",
   "errFormatFixed": "Work already assigned cannot become a quiz, and a quiz cannot become other work.",
   "errNotQuiz": "This work is not a quiz.",

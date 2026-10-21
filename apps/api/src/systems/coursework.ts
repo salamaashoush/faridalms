@@ -3,6 +3,7 @@ import type {
   WorkRow,
 } from "@faridalms/database/stores/coursework";
 import type { KeptFiles } from "@faridalms/database/stores/learning";
+import type { SittingRow } from "@faridalms/database/stores/quizzes";
 import type { ContentDocument } from "@faridalms/domain/content";
 import type {
   CommentAnchor,
@@ -92,11 +93,12 @@ import {
 import { classCategories } from "@faridalms/database/stores/grading";
 import {
   markQuizAnswer as storeQuizMark,
-  markQuizAttempt,
   quizAnswersOf,
   quizAnswersToMark,
   quizStarted,
   saveQuizAnswer as storeQuizAnswer,
+  sittingsOf,
+  beginSitting,
 } from "@faridalms/database/stores/quizzes";
 import { isVisibleStudent } from "@faridalms/database/stores/students";
 import {
@@ -121,6 +123,8 @@ import {
   canHandIn,
   attemptScore,
   canTakeQuiz,
+  sittingEnds,
+  timeIsUp,
   effectiveScore,
   handInSchema,
   isLate,
@@ -151,14 +155,11 @@ import {
 import { DECLARATION_STATEMENT } from "@faridalms/domain/exams";
 import {
   checkBlocks,
-  isAuto,
   isTeacherMarked,
-  markResponse,
   quizViews,
   ownResponse,
   responseFiles,
   responseIssue,
-  responseSchema,
   studentQuiz,
 } from "@faridalms/domain/learning";
 import { quizIntro, quizOfBrief } from "@faridalms/domain/lesson-content";
@@ -198,6 +199,7 @@ import {
   draftQuiz,
   drawAttempt,
   drawsOf,
+  handInAttempt,
   keepStartedQuestions,
   markedQuestions,
   publishKeptApart,
@@ -541,6 +543,7 @@ export const editor = readProcedure
               keep: assignment.quizKeep,
               reveal: assignment.quizReveal,
               shuffle: assignment.quizShuffle,
+              timeLimit: assignment.quizTimeLimit,
               started:
                 assignment.state !== "draft" &&
                 (await quizStarted(
@@ -579,6 +582,7 @@ function fieldsOf(input: SaveAssignment) {
     quizKeep: input.quiz?.keep ?? null,
     quizReveal: input.quiz?.reveal ?? null,
     quizShuffle: input.quiz?.shuffle ?? false,
+    quizTimeLimit: input.quiz?.timeLimit ?? null,
     // A quiz marks itself, so it has no comments to answer first.
     gradeAfterAnswers: !input.quiz && input.gradeAfterAnswers,
   };
@@ -1754,7 +1758,7 @@ async function learnerQuiz(
   const { assignment, row } = input;
   const document = await publishedQuiz(context, assignment.id);
   if (!document) return null;
-  const [byAttempt, attempts, quizzes] = await Promise.all([
+  const [byAttempt, attempts, quizzes, sittings] = await Promise.all([
     row.submissionId
       ? answersByAttempt(context, row.submissionId)
       : new Map<number, QuizAnswer[]>(),
@@ -1762,8 +1766,16 @@ async function learnerQuiz(
       ? attemptsOf(context.tx, context.tenantId, row.submissionId)
       : [],
     attemptQuizzes(context, document, row.submissionId),
+    row.submissionId
+      ? sittingsOf(context.tx, {
+          tenantId: context.tenantId,
+          submissionId: row.submissionId,
+        })
+      : new Map<number, SittingRow>(),
   ]);
   const current = row.attempts + 1;
+  const sitting = sittings.get(current) ?? null;
+  const minutes = assignment.quizTimeLimit;
   const seed = (attempt: number) => `${context.actor.userId}:${attempt}`;
   const results = await Promise.all(
     attempts.map(async (attempt) => {
@@ -1812,12 +1824,26 @@ async function learnerQuiz(
       context.now,
     );
   return {
-    blocks: studentQuiz(
-      quizzes.of(current),
-      seed(current),
-      assignment.quizShuffle,
-    ),
+    // A timed attempt's questions stay out of sight until its clock begins.
+    blocks:
+      minutes !== null && !sitting
+        ? []
+        : studentQuiz(
+            quizzes.of(current),
+            seed(current),
+            assignment.quizShuffle,
+          ),
     total: quizPoints(document),
+    /** Minutes an attempt runs, and when the one under way began and runs out. */
+    timing:
+      minutes === null
+        ? null
+        : {
+            minutes,
+            startedAt: sitting?.startedAt.toISOString() ?? null,
+            endsAt: sitting?.endsAt?.toISOString() ?? null,
+            timeUp: sitting ? timeIsUp(sitting.endsAt, context.now) : false,
+          },
     attempt: current,
     attemptsAllowed: assignment.quizAttempts,
     attemptsUsed: row.attempts,
@@ -2014,12 +2040,6 @@ export const handIn = writeProcedure
  * written one waits for the teacher when it carries points, and the score
  * that counts goes to the gradebook.
  */
-interface QuizMark {
-  blockId: string;
-  fraction: number | null;
-  state: "marked" | "needs_marking";
-}
-
 async function handInQuiz(
   context: UnitContext,
   input: {
@@ -2030,80 +2050,49 @@ async function handInQuiz(
   },
 ) {
   const { assignment, submission, row } = input;
-  const tx = context.tx;
+  const number = row.attempts + 1;
+  const sitting = (
+    await sittingsOf(context.tx, {
+      tenantId: context.tenantId,
+      submissionId: submission.id,
+    })
+  ).get(number);
+  // An attempt whose time ran out may still be handed in as it stood, even
+  // once the quiz has closed; any other needs the quiz open.
+  const timedOut = sitting ? timeIsUp(sitting.endsAt, context.now) : false;
   if (
     row.excused ||
-    !canTakeQuiz(
-      { ...assignment, dueAt: input.dueAt },
-      row.attempts,
-      assignment.quizAttempts,
-      context.now,
-    )
+    (!timedOut &&
+      !canTakeQuiz(
+        { ...assignment, dueAt: input.dueAt },
+        row.attempts,
+        assignment.quizAttempts,
+        context.now,
+      ))
   )
     throw new ORPCError("CONFLICT", { message: "coursework.closed" });
-  const document = await publishedQuiz(context, assignment.id);
-  if (!document) throw new ORPCError("NOT_FOUND");
-  const number = row.attempts + 1;
-  const quizzes = await attemptQuizzes(context, document, submission.id);
-  const answers = await quizAnswersOf(tx, {
+  const answers = await quizAnswersOf(context.tx, {
     tenantId: context.tenantId,
     submissionId: submission.id,
     attempt: number,
   });
-  if (answers.length === 0)
+  if (answers.length === 0 && !sitting)
     throw new ORPCError("BAD_REQUEST", {
       message: "coursework.nothing_to_hand_in",
     });
-  const attemptId = await insertAttempt(tx, {
-    tenantId: context.tenantId,
-    submissionId: submission.id,
-    studentId: context.actor.userId,
-    number,
-    isLate: isLate(input.dueAt, context.now),
-    userId: context.actor.userId,
-  });
-  const blocks = checkBlocks(quizzes.of(number));
-  await markQuizAttempt(tx, {
-    tenantId: context.tenantId,
-    submissionId: submission.id,
-    attempt: number,
-    marks: answers.flatMap((answer): QuizMark[] => {
-      const block = blocks.find((item) => item.id === answer.blockId);
-      const response = v.safeParse(responseSchema, answer.response);
-      if (!block) return [];
-      if (isAuto(block))
-        return [
-          {
-            blockId: block.id,
-            fraction: response.success
-              ? markResponse(block, response.output).fraction
-              : 0,
-            state: "marked",
-          },
-        ];
-      return [
-        {
-          blockId: block.id,
-          fraction: null,
-          state: block.points > 0 ? "needs_marking" : "marked",
-        },
-      ];
-    }),
-  });
-  const scored = await rescoreQuiz(context, {
+  const handed = await handInAttempt(context, {
     assignment,
-    quizzes,
     submissionId: submission.id,
     studentId: context.actor.userId,
-    graderId: null,
-    release: true,
+    attempt: number,
+    isLate: isLate(input.dueAt, context.now),
   });
-  const returned = !scored.pending && assignment.quizReveal !== "returned";
-  const saved = await touchSubmission(tx, {
+  if (!handed) throw new ORPCError("NOT_FOUND");
+  const saved = await touchSubmission(context.tx, {
     tenantId: context.tenantId,
     id: submission.id,
     expectedVersion: submission.version,
-    state: returned ? "returned" : "submitted",
+    state: handed.returned ? "returned" : "submitted",
     needsRevision: false,
   });
   await audit(context, {
@@ -2113,7 +2102,10 @@ async function handInQuiz(
     studentUserId: context.actor.userId,
     details: { assignmentId: assignment.id, attempt: number, quiz: true },
   });
-  return { attemptId, version: saved?.version ?? submission.version };
+  return {
+    attemptId: handed.attemptId,
+    version: saved?.version ?? submission.version,
+  };
 }
 
 /** Takes back the latest attempt while nobody has assessed it; its work returns to the draft. */
@@ -2439,8 +2431,9 @@ export const saveQuizProgram = schoolProcedure
   });
 
 /**
- * The attempt a student is on, open for answers, with its questions drawn
- * from the bank if they were not yet: the quiz as that attempt asks it.
+ * The attempt a student is on, open for answers: its clock begun if the
+ * quiz is timed, and refused once that has run out; its questions drawn
+ * from the bank if they were not yet. The quiz as that attempt asks it.
  */
 async function openAttempt(context: UnitContext, assignmentId: string) {
   const { assignment, dueAt } = await learnerAssignment(context, assignmentId);
@@ -2471,6 +2464,18 @@ async function openAttempt(context: UnitContext, assignmentId: string) {
   const document = await publishedQuiz(context, assignment.id);
   if (!document) throw new ORPCError("NOT_FOUND");
   const attempt = row.attempts + 1;
+  if (assignment.quizTimeLimit !== null) {
+    const sitting = await beginSitting(tx, {
+      tenantId: context.tenantId,
+      submissionId: submission.id,
+      studentId: context.actor.userId,
+      attempt,
+      startedAt: context.now,
+      endsAt: sittingEnds(context.now, assignment.quizTimeLimit),
+    });
+    if (timeIsUp(sitting.endsAt, context.now))
+      throw new ORPCError("CONFLICT", { message: "coursework.time_up" });
+  }
   await drawAttempt(context, {
     assignment,
     document,
@@ -2482,7 +2487,7 @@ async function openAttempt(context: UnitContext, assignmentId: string) {
   return { submission, attempt, quiz: quizzes.of(attempt) };
 }
 
-/** Draws the questions of the attempt a student opens, once, from the bank. */
+/** Begins the attempt a student opens: its clock, and its draws from the bank. */
 export const startQuiz = writeProcedure
   .input(v.object({ assignmentId: id }))
   .handler(async ({ input, context }) => {

@@ -177,8 +177,13 @@ From [../research/early-years.md](../research/early-years.md).
   marked, shown and graded against those questions. A question drawn by
   several students keeps one id among them, so it is marked together.
   Assigning refuses a draw the bank cannot fill.
+- A quiz may have a time limit. Its questions stay hidden until the
+  student begins an attempt, whose clock then runs whether or not they
+  stay; answers sent after it ends are refused, and an attempt left open
+  is handed in as it stood by the worker.
 - Once a student has started, or drawn, the questions and draws stay as
-  they are; the settings can still change.
+  they are; the settings can still change, and a clock already running
+  keeps the time it began with.
 
 ## Next
 

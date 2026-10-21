@@ -56,7 +56,7 @@ import {
   publishAssignment,
   saveAssignment,
 } from "~/server/coursework";
-import { formatNumber } from "~/utils/datetime";
+import { formatMinutes, formatNumber } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
 import { classTitle } from "../classes/format";
@@ -98,6 +98,8 @@ interface QuizDraft {
   keep: QuizKeep;
   reveal: QuizReveal;
   shuffle: boolean;
+  /** Minutes, or "none" for no time limit. */
+  timeLimit: string;
 }
 
 const KEEP_LABEL: Record<QuizKeep, () => string> = {
@@ -132,6 +134,10 @@ const FORMAT_LABEL: Record<SubmissionFormat, () => string> = {
 const ATTEMPTS = [
   "unlimited",
   ...Array.from({ length: MAX_QUIZ_ATTEMPTS }, (_, index) => String(index + 1)),
+];
+
+const TIME_LIMITS = [
+  5, 10, 15, 20, 25, 30, 40, 45, 50, 60, 75, 90, 105, 120, 135, 150, 180, 240,
 ];
 
 type Field =
@@ -185,6 +191,7 @@ const newQuiz = (): QuizDraft => ({
   keep: "highest",
   reveal: "answers",
   shuffle: false,
+  timeLimit: "none",
 });
 
 function initialDraft(
@@ -249,6 +256,10 @@ function initialDraft(
           keep: existing.quiz.keep,
           reveal: existing.quiz.reveal,
           shuffle: existing.quiz.shuffle,
+          timeLimit:
+            existing.quiz.timeLimit === null
+              ? "none"
+              : String(existing.quiz.timeLimit),
         }
       : newQuiz(),
   };
@@ -465,6 +476,10 @@ export function AssignmentEditor({
               keep: value.quiz.keep,
               reveal: value.quiz.reveal,
               shuffle: value.quiz.shuffle,
+              timeLimit:
+                value.quiz.timeLimit === "none"
+                  ? null
+                  : Number(value.quiz.timeLimit),
             }
           : null,
       };
@@ -1131,6 +1146,29 @@ export function AssignmentEditor({
                     label: REVEAL_LABEL[value](),
                   }))}
                   onChange={(value) => setQuiz("reveal", value)}
+                />
+                <SelectField
+                  id="quiz-time-limit"
+                  label={m.quizTimeLimit()}
+                  hint={m.quizTimeLimitHint()}
+                  value={draft.quiz.timeLimit}
+                  options={[
+                    { value: "none", label: m.quizTimeLimitNone() },
+                    ...[
+                      ...new Set([
+                        ...TIME_LIMITS,
+                        ...(draft.quiz.timeLimit === "none"
+                          ? []
+                          : [Number(draft.quiz.timeLimit)]),
+                      ]),
+                    ]
+                      .toSorted((a, b) => a - b)
+                      .map((minutes) => ({
+                        value: String(minutes),
+                        label: formatMinutes(minutes),
+                      })),
+                  ]}
+                  onChange={(value) => setQuiz("timeLimit", value)}
                 />
                 <CheckboxRow
                   label={m.quizShuffle()}

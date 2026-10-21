@@ -36,6 +36,13 @@ export type QuizKeep = (typeof QUIZ_KEEPS)[number];
 export const QUIZ_REVEALS = ["answers", "marks", "returned"] as const;
 export type QuizReveal = (typeof QUIZ_REVEALS)[number];
 export const MAX_QUIZ_ATTEMPTS = 10;
+/** The longest a timed quiz may run, in minutes, before any extra time. */
+export const MAX_QUIZ_MINUTES = 480;
+/**
+ * How long after a timed attempt ends an answer sent before it still counts,
+ * for a slow connection; nothing is kept once it has passed.
+ */
+export const QUIZ_GRACE_MS = 30_000;
 export const AUDIENCES = ["class", "selected"] as const;
 export type Audience = (typeof AUDIENCES)[number];
 
@@ -110,6 +117,18 @@ export const quizSchema = v.object({
   reveal: v.picklist(QUIZ_REVEALS),
   /** Each student meets the questions in their own order. */
   shuffle: v.boolean(),
+  /** Minutes an attempt runs from when it begins; null for no limit. */
+  timeLimit: v.optional(
+    v.nullable(
+      v.pipe(
+        v.number(),
+        v.integer(),
+        v.minValue(1),
+        v.maxValue(MAX_QUIZ_MINUTES),
+      ),
+    ),
+    null,
+  ),
 });
 export type QuizSettings = v.InferOutput<typeof quizSchema>;
 
@@ -610,6 +629,20 @@ export function keptScore(
   }
   return null;
 }
+
+/** When an attempt begun at `startedAt` runs out of its minutes, if it ever does. */
+export function sittingEnds(
+  startedAt: Date,
+  minutes: number | null,
+): Date | null {
+  return minutes === null
+    ? null
+    : new Date(startedAt.getTime() + minutes * 60_000);
+}
+
+/** Whether an attempt's time has run out, past the grace a slow connection gets. */
+export const timeIsUp = (endsAt: Date | null, now: Date) =>
+  endsAt !== null && now.getTime() > endsAt.getTime() + QUIZ_GRACE_MS;
 
 /** Whether a student may start or hand in another quiz attempt now. */
 export function canTakeQuiz(

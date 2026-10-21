@@ -323,3 +323,118 @@ export async function questionAskedOf(
     classId: row.class_id,
   }));
 }
+
+export interface SittingRow {
+  startedAt: Date;
+  endsAt: Date | null;
+  closedAt: Date | null;
+}
+
+type SittingRecord = {
+  started_at: Date | string;
+  ends_at: Date | string | null;
+  closed_at: Date | string | null;
+};
+
+const sittingOf = (row: SittingRecord): SittingRow => ({
+  startedAt: new Date(row.started_at),
+  endsAt: row.ends_at === null ? null : new Date(row.ends_at),
+  closedAt: row.closed_at === null ? null : new Date(row.closed_at),
+});
+
+/** When each of a submission's timed attempts began and runs out, by attempt. */
+export async function sittingsOf(
+  tx: Tx,
+  input: { tenantId: string; submissionId: string },
+): Promise<Map<number, SittingRow>> {
+  const rows = await tx.execute<SittingRecord & { attempt: number }>(sql`
+    select attempt, started_at, ends_at, closed_at
+    from core.quiz_sittings
+    where tenant_id = ${input.tenantId}::uuid and submission_id = ${input.submissionId}::uuid
+      and status = 'active'`);
+  return new Map(rows.map((row) => [row.attempt, sittingOf(row)]));
+}
+
+/**
+ * Begins a timed attempt's clock, once: an attempt begun already keeps the
+ * clock it began with.
+ */
+export async function beginSitting(
+  tx: Tx,
+  input: {
+    tenantId: string;
+    submissionId: string;
+    studentId: string;
+    attempt: number;
+    startedAt: Date;
+    endsAt: Date | null;
+  },
+): Promise<SittingRow> {
+  await tx.execute(sql`
+    insert into core.quiz_sittings (tenant_id, submission_id, student_user_id, attempt,
+      started_at, ends_at)
+    values (${input.tenantId}::uuid, ${input.submissionId}::uuid, ${input.studentId}::uuid,
+      ${input.attempt}, ${input.startedAt.toISOString()}::timestamptz,
+      ${input.endsAt?.toISOString() ?? null}::timestamptz)
+    on conflict (tenant_id, submission_id, attempt) where status = 'active' do nothing`);
+  const [row] = await tx.execute<SittingRecord>(sql`
+    select started_at, ends_at, closed_at
+    from core.quiz_sittings
+    where tenant_id = ${input.tenantId}::uuid and submission_id = ${input.submissionId}::uuid
+      and attempt = ${input.attempt} and status = 'active'`);
+  if (!row) throw new Error("sitting was not kept");
+  return sittingOf(row);
+}
+
+/** Stops an attempt's clock as it is handed in. */
+export async function closeSitting(
+  tx: Tx,
+  input: { tenantId: string; submissionId: string; attempt: number },
+): Promise<void> {
+  await tx.execute(sql`
+    update core.quiz_sittings set closed_at = statement_timestamp()
+    where tenant_id = ${input.tenantId}::uuid and submission_id = ${input.submissionId}::uuid
+      and attempt = ${input.attempt} and status = 'active' and closed_at is null`);
+}
+
+export interface ExpiredSitting {
+  assignmentId: string;
+  orgId: string;
+  submissionId: string;
+  studentId: string;
+  attempt: number;
+}
+
+/**
+ * Timed attempts whose time ran out before `before` and that nobody handed
+ * in, oldest first, each locked so two passes never hand one in twice.
+ */
+export async function expiredSittings(
+  tx: Tx,
+  input: { tenantId: string; before: Date; limit: number },
+): Promise<ExpiredSitting[]> {
+  const rows = await tx.execute<{
+    assignment_id: string;
+    org_id: string;
+    submission_id: string;
+    student_user_id: string;
+    attempt: number;
+  }>(sql`
+    select s.assignment_id, a.org_id, q.submission_id, q.student_user_id, q.attempt
+    from core.quiz_sittings q
+    join core.submissions s on s.tenant_id = q.tenant_id and s.id = q.submission_id
+    join core.assignments a on a.tenant_id = s.tenant_id and a.id = s.assignment_id
+    where q.tenant_id = ${input.tenantId}::uuid and q.status = 'active'
+      and q.closed_at is null and q.ends_at is not null
+      and q.ends_at < ${input.before.toISOString()}::timestamptz
+    order by q.ends_at
+    limit ${input.limit}
+    for update of q skip locked`);
+  return rows.map((row) => ({
+    assignmentId: row.assignment_id,
+    orgId: row.org_id,
+    submissionId: row.submission_id,
+    studentId: row.student_user_id,
+    attempt: row.attempt,
+  }));
+}

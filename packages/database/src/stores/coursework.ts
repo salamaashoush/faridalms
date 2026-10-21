@@ -46,6 +46,7 @@ export interface AssignmentRow {
   quizKeep: QuizKeep | null;
   quizReveal: QuizReveal | null;
   quizShuffle: boolean;
+  quizTimeLimit: number | null;
   gradeAfterAnswers: boolean;
   publishedAt: string | null;
 }
@@ -77,6 +78,7 @@ type AssignmentRecord = {
   quiz_keep: QuizKeep | null;
   quiz_reveal: QuizReveal | null;
   quiz_shuffle: boolean;
+  quiz_time_limit: number | null;
   grade_after_answers: boolean;
   published_at: string | null;
 };
@@ -88,7 +90,7 @@ const assignmentColumns = sql`a.id, a.version, a.org_id, a.class_id, a.class_typ
   to_char(a.closes_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as closes_at,
   a.late_policy, a.late_deduction_percent, a.submission_format, a.max_files, a.resubmission,
   a.points::text as points, a.rubric, a.quiz_attempts, a.quiz_keep, a.quiz_reveal, a.quiz_shuffle,
-  a.grade_after_answers,
+  a.quiz_time_limit, a.grade_after_answers,
   to_char(a.published_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as published_at`;
 
 function assignmentOf(row: AssignmentRecord): AssignmentRow {
@@ -119,6 +121,7 @@ function assignmentOf(row: AssignmentRecord): AssignmentRow {
     quizKeep: row.quiz_keep,
     quizReveal: row.quiz_reveal,
     quizShuffle: row.quiz_shuffle,
+    quizTimeLimit: row.quiz_time_limit,
     gradeAfterAnswers: row.grade_after_answers,
     publishedAt: row.published_at,
   };
@@ -154,6 +157,7 @@ export interface AssignmentFields {
   quizKeep: QuizKeep | null;
   quizReveal: QuizReveal | null;
   quizShuffle: boolean;
+  quizTimeLimit: number | null;
   gradeAfterAnswers: boolean;
 }
 
@@ -170,7 +174,8 @@ export async function insertAssignment(
     insert into core.assignments (tenant_id, org_id, class_id, class_type, school_year_id,
       grading_period_id, author_user_id, title, audience, available_from, due_at, closes_at,
       late_policy, late_deduction_percent, submission_format, max_files, resubmission, points, rubric,
-      quiz_attempts, quiz_keep, quiz_reveal, quiz_shuffle, category_id, grade_after_answers)
+      quiz_attempts, quiz_keep, quiz_reveal, quiz_shuffle, quiz_time_limit, category_id,
+      grade_after_answers)
     values (${input.tenantId}::uuid, ${input.orgId}::uuid, ${input.classRow.id}::uuid,
       ${input.classRow.classType}, ${input.classRow.schoolYearId}::uuid,
       ${input.gradingPeriodId}::uuid, ${input.authorUserId}::uuid, ${input.title},
@@ -178,7 +183,8 @@ export async function insertAssignment(
       ${input.closesAt}::timestamptz, ${input.latePolicy}, ${input.lateDeductionPercent},
       ${input.submissionFormat}, ${input.maxFiles}, ${input.resubmission}, ${input.points},
       ${input.rubric}::jsonb, ${input.quizAttempts}, ${input.quizKeep}, ${input.quizReveal},
-      ${input.quizShuffle}, ${input.categoryId}::uuid, ${input.gradeAfterAnswers})
+      ${input.quizShuffle}, ${input.quizTimeLimit}, ${input.categoryId}::uuid,
+      ${input.gradeAfterAnswers})
     returning id, version`);
   if (!row) throw new Error("assignment was not created");
   return row;
@@ -208,6 +214,7 @@ export async function updateAssignment(
         category_id = ${input.categoryId}::uuid,
         quiz_attempts = ${input.quizAttempts}, quiz_keep = ${input.quizKeep},
         quiz_reveal = ${input.quizReveal}, quiz_shuffle = ${input.quizShuffle},
+        quiz_time_limit = ${input.quizTimeLimit},
         grade_after_answers = ${input.gradeAfterAnswers}
     where tenant_id = ${input.tenantId}::uuid and id = ${input.id}::uuid
       and version = ${input.expectedVersion} and status = 'active' and state <> 'archived'
