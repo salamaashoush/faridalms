@@ -156,6 +156,8 @@ export interface EditorStrings {
   questionChoiceHint: string;
   questionTyped: string;
   questionTypedHint: string;
+  questionMath: string;
+  questionMathHint: string;
   questionWritten: string;
   questionWrittenHint: string;
   questionPrompt: string;
@@ -232,6 +234,9 @@ export interface EditorStrings {
   questionOptions: string;
   questionTries: string;
   questionTriesUntilRight: string;
+  questionMathTolerance: string;
+  questionToleranceExact: string;
+  questionToleranceWithin: (amount: string) => string;
   questionSeveral: string;
   questionShuffle: string;
   questionMatchCase: string;

@@ -254,6 +254,7 @@ function Surface({
       kinds: {
         choice: strings.questionChoice,
         text: strings.questionTyped,
+        math: strings.questionMath,
         written: strings.questionWritten,
         number: strings.questionNumber,
         ordering: strings.questionOrdering,

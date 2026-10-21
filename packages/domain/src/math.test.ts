@@ -5,6 +5,7 @@ import type { ContentDocument, ContentNode } from "./content";
 import type { LessonDocument } from "./learning";
 
 import { contentDocumentSchema, contentPlainText, mathRuns } from "./content";
+import { markResponse } from "./learning";
 import { contentOfLesson, lessonOfContent } from "./lesson-content";
 
 const text = (value: string): ContentNode => ({
@@ -101,5 +102,47 @@ describe("mathematics in a document", () => {
       prompt: "Solve \\(2x+3=7\\)",
       options: [{ text: "\\(x=2\\)" }, { text: "\\(x=5\\)" }],
     });
+  });
+});
+
+describe("a question answered with mathematics", () => {
+  const asked: LessonDocument = {
+    version: 2,
+    blocks: [
+      {
+        id: "0190a1b2-0000-7000-8000-000000000201",
+        type: "math",
+        prompt: "Expand \\(2(x+1)\\)",
+        points: 1,
+        hints: [],
+        explanation: "",
+        tries: null,
+        answers: ["2x+2"],
+        tolerance: 0,
+      },
+    ],
+  };
+  const [block] = asked.blocks;
+  if (block?.type !== "math") throw new Error("a maths question");
+
+  it("keeps its accepted answers as formulas through the document", () => {
+    const document = contentOfLesson(asked);
+    if (!document) throw new Error("a document");
+    expect(lessonOfContent(document).blocks[0]).toMatchObject({
+      type: "math",
+      answers: ["2x+2"],
+    });
+  });
+
+  it("marks an answer by what it means, and LaTeX it cannot read as written", () => {
+    const mark = (latex: string) =>
+      markResponse(block, { type: "math", latex }).correct;
+    expect(mark("2+2x")).toBe(true);
+    expect(mark("2\\left(x+1\\right)")).toBe(true);
+    expect(mark("2x+1")).toBe(false);
+    const listed = { ...block, answers: ["x\\le2"] };
+    expect(
+      markResponse(listed, { type: "math", latex: "x \\le 2" }).correct,
+    ).toBe(true);
   });
 });

@@ -14,6 +14,8 @@ import {
   codeSource,
   contentDocumentSchema,
   contentPlainText,
+  MAX_LATEX,
+  mathText,
   narrationWordsSchema,
 } from "./content";
 import { contentIssues } from "./content-checks";
@@ -24,6 +26,7 @@ import {
   isContentDocument,
   lessonOfContent,
 } from "./lesson-content";
+import { sameLatex, sameMath } from "./math-answers";
 import {
   projectFilesSchema,
   projectLanguages,
@@ -301,6 +304,18 @@ export const lessonBlockSchema = v.variant("type", [
     ...matching,
     type: v.literal("text"),
     answers: accepted,
+  }),
+  v.object({
+    ...checkFields,
+    type: v.literal("math"),
+    /** The answers accepted, in LaTeX; one meaning the same as any is right. */
+    answers: v.pipe(
+      v.array(requiredText(MAX_LATEX)),
+      v.minLength(1),
+      v.maxLength(MAX_ACCEPTED_ANSWERS),
+    ),
+    /** How far a number may be from the key, for answers worked to decimals. */
+    tolerance: v.pipe(v.number(), v.minValue(0)),
   }),
   v.pipe(
     v.object({
@@ -587,6 +602,7 @@ export type LessonBlock = v.InferOutput<typeof lessonBlockSchema>;
 export type LessonBlockType = LessonBlock["type"];
 export type ChoiceBlock = Extract<LessonBlock, { type: "choice" }>;
 export type TextBlock = Extract<LessonBlock, { type: "text" }>;
+export type MathBlock = Extract<LessonBlock, { type: "math" }>;
 export type GapsBlock = Extract<LessonBlock, { type: "gaps" }>;
 export type NumberBlock = Extract<LessonBlock, { type: "number" }>;
 export type MatchingBlock = Extract<LessonBlock, { type: "matching" }>;
@@ -606,6 +622,7 @@ export type PuzzleBlock = Extract<LessonBlock, { type: "puzzle" }>;
 export type AutoBlock =
   | ChoiceBlock
   | TextBlock
+  | MathBlock
   | GapsBlock
   | NumberBlock
   | MatchingBlock
@@ -625,6 +642,7 @@ export type CheckBlock = AutoBlock | MarkedBlock;
 const AUTO_TYPES = new Set<LessonBlockType>([
   "choice",
   "text",
+  "math",
   "gaps",
   "number",
   "matching",
@@ -994,6 +1012,7 @@ export const responseSchema = v.variant("type", [
     answers: v.record(id, text(200)),
   }),
   v.object({ type: v.literal("number"), text: requiredText(60) }),
+  v.object({ type: v.literal("math"), latex: requiredText(MAX_LATEX) }),
   v.object({ type: v.literal("matching"), pairs: v.record(id, id) }),
   v.object({
     type: v.literal("ordering"),
@@ -1252,6 +1271,16 @@ export function markResponse(
     case "text": {
       if (response.type !== "text") return none;
       const correct = matchAnswer(response.text, block.answers, block) !== null;
+      return { ...none, fraction: correct ? 1 : 0, correct };
+    }
+    case "math": {
+      if (response.type !== "math") return none;
+      // What cannot be worked out is compared as written.
+      const correct = block.answers.some(
+        (key) =>
+          sameMath(response.latex, key, block.tolerance) ??
+          sameLatex(response.latex, key),
+      );
       return { ...none, fraction: correct ? 1 : 0, correct };
     }
     case "gaps": {
@@ -1543,6 +1572,7 @@ export type StudentBlock =
       options: StudentPart[];
     })
   | Omit<TextBlock, "answers" | "explanation" | "hints">
+  | Omit<MathBlock, "answers" | "explanation" | "hints" | "tolerance">
   | (Omit<GapsBlock, "explanation" | "hints" | "segments"> & {
       segments: (
         | { type: "text"; text: string }
@@ -1649,6 +1679,16 @@ export function studentBlocks(
           answers: _answers,
           explanation: _why,
           hints: _hints,
+          ...rest
+        } = block;
+        return rest;
+      }
+      case "math": {
+        const {
+          answers: _answers,
+          explanation: _why,
+          hints: _hints,
+          tolerance: _tolerance,
           ...rest
         } = block;
         return rest;
@@ -1847,6 +1887,8 @@ export function answerKey(block: AutoBlock): string[] {
       return block.correctOptionIds;
     case "text":
       return block.answers.slice(0, 1);
+    case "math":
+      return block.answers.slice(0, 1).map((latex) => mathText({ latex }));
     case "gaps":
       return block.segments.flatMap((segment) =>
         segment.type === "gap" ? [segment.answers[0] ?? ""] : [],

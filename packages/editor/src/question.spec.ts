@@ -803,6 +803,7 @@ describe("questions in a document", () => {
       kinds: {
         choice: "",
         text: "",
+        math: "",
         written: "",
         number: "",
         ordering: "",

@@ -95,6 +95,7 @@ const nodeTypes = [
 export const questionKinds = [
   "choice",
   "text",
+  "math",
   "written",
   "number",
   "ordering",

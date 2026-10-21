@@ -399,6 +399,14 @@ describe("matching, ordering, sorting and code puzzles", () => {
         lines: program,
         distractors: [{ id: id(), code: "print planet" }],
       },
+      {
+        ...common,
+        id: id(),
+        type: "math" as const,
+        prompt: "Write \\(2(r+1)\\) without brackets.",
+        answers: ["2r+2"],
+        tolerance: 0,
+      },
     ];
     await keeper.learning.saveLesson({
       id: "",
@@ -425,8 +433,17 @@ describe("matching, ordering, sorting and code puzzles", () => {
     );
     expect(JSON.stringify(opened.blocks)).not.toContain("groupId");
     expect(JSON.stringify(opened.blocks)).not.toContain("indent");
-    const [matching, , sorting, puzzle] = blocks;
-    if (!matching || !sorting || !puzzle) throw new Error("blocks");
+    expect(JSON.stringify(opened.blocks)).not.toContain("2r+2");
+    const [matching, , sorting, puzzle, formula] = blocks;
+    if (!matching || !sorting || !puzzle || !formula) throw new Error("blocks");
+    // Any form that means the same is right.
+    expect(
+      await pupil.learning.respond({
+        lessonId,
+        blockId: formula.id,
+        response: { type: "math", latex: "2+2r" },
+      }),
+    ).toMatchObject({ check: { correct: true } });
     await pupil.learning.respond({
       lessonId,
       blockId: matching.id,

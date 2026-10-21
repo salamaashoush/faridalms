@@ -49,6 +49,7 @@ import {
 } from "lexical";
 
 import { mediaClock } from "../format";
+import { $createMathNode } from "./math";
 
 /**
  * A picture on an option, an item or a side of a pair, kept as the flat
@@ -1506,6 +1507,9 @@ export function $createQuestionNode(kind: QuestionKind): QuestionNode {
   if (kind === "program")
     question.append(new QuestionOptionNode(), $createQuestionPair());
   if (kind === "text") question.append(new QuestionAnswerNode());
+  // A formula is the answer, written as one, though LaTeX typed as words reads too.
+  if (kind === "math")
+    question.append(new QuestionAnswerNode().append($createMathNode()));
   if (kind === "matching")
     question.append($createQuestionPair(), $createQuestionPair());
   if (kind === "sorting")
@@ -1611,7 +1615,10 @@ export function $repairQuestion(question: QuestionNode) {
         kind === "program") &&
         $isQuestionOptionNode(child)) ||
       (kind === "program" && $isQuestionPairNode(child)) ||
-      ((kind === "text" || kind === "matching" || kind === "spelling") &&
+      ((kind === "text" ||
+        kind === "math" ||
+        kind === "matching" ||
+        kind === "spelling") &&
         $isQuestionAnswerNode(child)) ||
       (kind === "matching" && $isQuestionPairNode(child)) ||
       (kind === "sorting" && $isQuestionGroupNode(child)) ||

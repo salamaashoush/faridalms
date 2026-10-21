@@ -76,6 +76,8 @@ export function paperBlock(block: StudentBlock): LessonBlock {
         ...blank,
         answers: [],
       };
+    case "math":
+      return { ...block, ...blank, answers: [], tolerance: 0 };
     case "gaps":
       return {
         ...block,

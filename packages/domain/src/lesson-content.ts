@@ -27,6 +27,16 @@ function leadingWidth(text: string): number {
   return lead.replaceAll("\t", "    ").length;
 }
 
+/**
+ * An accepted answer's LaTeX: the formula written on its line, or the line
+ * itself where a teacher typed the LaTeX as words.
+ */
+const latexOf = (text: string) =>
+  mathRuns(text)
+    .map((run) => ("latex" in run ? run.latex : run.text))
+    .join("")
+    .trim();
+
 function textOf(node: ContentNode | undefined): string {
   if (!node) return "";
   if (node.type === "linebreak") return "\n";
@@ -187,6 +197,16 @@ export function questionBlock(node: ContentNode): LessonBlock | null {
         caseSensitive: node.caseSensitive ?? false,
         closeEnough: node.closeEnough ?? false,
         tehMarbuta: node.tehMarbuta ?? true,
+      };
+    case "math":
+      return {
+        ...check,
+        type: "math",
+        answers: parts
+          .filter((part) => part.type === "question-answer")
+          .map((answer) => latexOf(textOf(answer)))
+          .filter(Boolean),
+        tolerance: node.tolerance ?? 0,
       };
     case "tracing":
       return { ...check, type: "tracing", strokes: node.trace ?? [] };
@@ -619,6 +639,7 @@ export function questionNode(block: LessonBlock): ContentNode | null {
   if (
     block.type !== "choice" &&
     block.type !== "text" &&
+    block.type !== "math" &&
     block.type !== "written" &&
     block.type !== "number" &&
     block.type !== "ordering" &&
@@ -678,6 +699,17 @@ export function questionNode(block: LessonBlock): ContentNode | null {
       children: [
         ...(base.children ?? []),
         ...block.answers.map((answer) => inlineOf("question-answer", answer)),
+      ],
+    };
+  if (block.type === "math")
+    return {
+      ...base,
+      tolerance: block.tolerance,
+      children: [
+        ...(base.children ?? []),
+        ...block.answers.map((latex) =>
+          inlineOf("question-answer", mathText({ latex })),
+        ),
       ],
     };
   if (block.type === "gaps")

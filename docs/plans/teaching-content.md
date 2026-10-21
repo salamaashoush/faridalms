@@ -93,7 +93,13 @@ Sources: [../research/course-design.md](../research/course-design.md),
    boards. Still to do: a school-wide default for Arabic notation, Arabic
    notation inside question text, and formulas read aloud as speech.
 2. **Maths answers checked for equivalence**, a question kind that accepts
-   `2(x+1)` for `2x+2`, with tolerance and units for numbers.
+   `2(x+1)` for `2x+2`, with tolerance and units for numbers. Done: the Maths
+   answer question; students write in MathLive's field and the server
+   marks by sampling both expressions (or both sides of an equation) at
+   the same values, as WeBWorK does, with a tolerance for decimals and
+   Arabic letters and digits read. LaTeX it cannot read is compared as
+   written. Left: units, and a form a teacher requires (factorised,
+   simplified).
 3. **Embeds for teaching**: GeoGebra, Desmos, PhET, Wikimedia Commons and
    Microsoft 365 files beside today's YouTube, Vimeo, Loom, Google and Canva. Done:
    GeoGebra activities, Desmos graphs (calculator, geometry, 3D) and PhET

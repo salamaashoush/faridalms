@@ -3,28 +3,42 @@ import { useEffect, useEffectEvent, useRef } from "react";
 
 /**
  * MathLive's field for writing a formula: typed as LaTeX or as it looks,
- * with its own keyboard of symbols on a touch screen. Enter keeps the
- * formula and Escape leaves it, unless the field is in the middle of a
- * LaTeX command, which Escape there cancels.
+ * with its own keyboard of symbols on a touch screen. Enter and Escape go
+ * to the page, except Escape in the middle of a LaTeX command, which the
+ * field cancels itself.
  */
 export default function MathField({
   value,
   locale,
   label,
   onInput,
-  onDone,
+  onEnter,
+  onEscape,
+  readOnly = false,
+  focused = false,
 }: {
   value: string;
   locale: string;
   label: string;
   onInput: (latex: string) => void;
-  onDone: () => void;
+  onEnter: () => void;
+  onEscape?: () => void;
+  readOnly?: boolean;
+  /** Takes focus as it appears, for a formula opened to be written. */
+  focused?: boolean;
 }) {
   const host = useRef<HTMLDivElement>(null);
+  const field = useRef<(HTMLElement & { readOnly: boolean }) | null>(null);
   const input = useEffectEvent(onInput);
-  const done = useEffectEvent(onDone);
-  // The field is made once per formula; what is typed lives in it.
-  const first = useRef(value);
+  const enter = useEffectEvent(onEnter);
+  const escape = useEffectEvent(() => onEscape?.());
+  // The field is made once; what is typed lives in it.
+  const first = useRef({
+    value,
+    readOnly,
+    focused,
+    escapes: onEscape !== undefined,
+  });
 
   useEffect(() => {
     let left = false;
@@ -38,33 +52,40 @@ export default function MathField({
       MathfieldElement.fontsDirectory = null;
       MathfieldElement.soundsDirectory = null;
       MathfieldElement.locale = locale;
-      const field = new MathfieldElement();
-      field.value = first.current;
-      field.smartFence = true;
-      field.mathVirtualKeyboardPolicy = "auto";
-      field.setAttribute("aria-label", label);
-      field.className = "fe-math-field";
-      const typed = () => input(field.value);
+      const made = new MathfieldElement();
+      made.value = first.current.value;
+      made.readOnly = first.current.readOnly;
+      made.smartFence = true;
+      made.mathVirtualKeyboardPolicy = "auto";
+      made.setAttribute("aria-label", label);
+      made.className = "fe-math-field";
+      const typed = () => input(made.value);
       const keys = (event: KeyboardEvent) => {
         if (event.key === "Enter" && !event.shiftKey) {
           event.preventDefault();
           event.stopPropagation();
-          done();
+          enter();
         }
-        if (event.key === "Escape" && field.mode !== "latex") {
+        if (
+          event.key === "Escape" &&
+          made.mode !== "latex" &&
+          first.current.escapes
+        ) {
           event.preventDefault();
           event.stopPropagation();
-          done();
+          escape();
         }
       };
-      field.addEventListener("input", typed);
-      field.addEventListener("keydown", keys, { capture: true });
-      host.current?.append(field);
-      field.focus();
+      made.addEventListener("input", typed);
+      made.addEventListener("keydown", keys, { capture: true });
+      host.current?.append(made);
+      field.current = made;
+      if (first.current.focused) made.focus();
       unmount = () => {
-        field.removeEventListener("input", typed);
-        field.removeEventListener("keydown", keys, { capture: true });
-        field.remove();
+        made.removeEventListener("input", typed);
+        made.removeEventListener("keydown", keys, { capture: true });
+        made.remove();
+        field.current = null;
       };
     });
     return () => {
@@ -72,6 +93,10 @@ export default function MathField({
       unmount();
     };
   }, [locale, label]);
+
+  useEffect(() => {
+    if (field.current) field.current.readOnly = readOnly;
+  }, [readOnly]);
 
   return <div ref={host} className="min-w-0 flex-1" />;
 }

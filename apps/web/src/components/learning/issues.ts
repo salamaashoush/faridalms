@@ -67,6 +67,8 @@ export function blockIssue(block: LessonBlock): string | null {
         return m.lrnGapChoices();
       return null;
     }
+    case "math":
+      return block.answers.length > 0 ? null : m.lrnAnswersNeeded();
     case "number":
       return block.mode === "range" && block.min > block.max
         ? m.lrnRangeOrder()

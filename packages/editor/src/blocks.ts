@@ -59,6 +59,7 @@ import {
   Clapperboard,
   Code,
   Sigma,
+  SquareRadical,
   Columns2,
   Columns3,
   Heading1,
@@ -146,6 +147,7 @@ export type BlockType =
   | "diagram"
   | "choiceQuestion"
   | "typedQuestion"
+  | "mathQuestion"
   | "writtenQuestion"
   | "numberQuestion"
   | "orderingQuestion"
@@ -179,6 +181,7 @@ const QUESTION_KIND: Partial<Record<BlockType, QuestionKind>> = {
   trueFalseQuestion: "choice",
   whyQuestion: "written",
   typedQuestion: "text",
+  mathQuestion: "math",
   writtenQuestion: "written",
   numberQuestion: "number",
   orderingQuestion: "ordering",
@@ -571,6 +574,24 @@ export const blockDefinitions: BlockDefinition[] = [
     label: (s) => s.questionTyped,
     hint: (s) => s.questionTypedHint,
     keywords: ["question", "typed", "answer", "short", "سؤال", "إجابة"],
+    question: true,
+  },
+  {
+    type: "mathQuestion",
+    group: "questions",
+    icon: SquareRadical,
+    label: (s) => s.questionMath,
+    hint: (s) => s.questionMathHint,
+    keywords: [
+      "math",
+      "maths",
+      "formula",
+      "equation",
+      "expression",
+      "رياضيات",
+      "معادلة",
+      "صيغة",
+    ],
     question: true,
   },
   {

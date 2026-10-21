@@ -95,14 +95,7 @@ import {
   ArrowRightLeft,
   X,
 } from "lucide-react";
-import {
-  lazy,
-  Suspense,
-  useEffect,
-  useEffectEvent,
-  useRef,
-  useState,
-} from "react";
+import { useEffect, useEffectEvent, useRef, useState } from "react";
 
 import type { BlockType } from "../blocks";
 import type { MarkFormat } from "../formatting";
@@ -137,6 +130,7 @@ import {
   OPEN_LINK_EDITOR_COMMAND,
   textColors,
 } from "../formatting";
+import { MathInput } from "../math-input";
 import { $insertMath, $isMathNode } from "../nodes/math";
 import { $isFileNode, $isImageNode, OPEN_FILE_COMMAND } from "../nodes/media";
 import {
@@ -212,9 +206,6 @@ interface MathFacts {
   rtl: boolean;
 }
 
-// MathLive joins the page only when a formula is being written.
-const MathField = lazy(() => import("./math-field"));
-
 /** The question the caret is in: what the bar shows and changes. */
 interface QuestionBarFacts {
   key: NodeKey;
@@ -254,6 +245,8 @@ const ANSWER_BY = [
 type AnswerBy = (typeof ANSWER_BY)[number];
 // Counting goes to twenty (MAX_COUNT); a glimpse lasts FLASH_SECONDS.
 const COUNTS = Array.from({ length: 20 }, (_, index) => index + 1);
+// How far a maths answer's numbers may be from the key: exact, or to decimals.
+const MATH_TOLERANCES = [0, 0.001, 0.01, 0.1, 0.5, 1] as const;
 const FLASH = [null, 2, 3, 5] as const;
 
 /** A selected file: what the bar opens, shares or shows. */
@@ -952,16 +945,16 @@ export function SelectionToolbarPlugin() {
         label={strings.mathField}
       >
         <div ref={toolbar} className="contents">
-          <Suspense fallback={<div className="h-10 min-w-0 flex-1" />}>
-            <MathField
-              key={math.key}
-              value={math.latex}
-              locale={locale}
-              label={strings.mathField}
-              onInput={(latex) => change((node) => node.setLatex(latex))}
-              onDone={close}
-            />
-          </Suspense>
+          <MathInput
+            key={math.key}
+            value={math.latex}
+            locale={locale}
+            label={strings.mathField}
+            onInput={(latex) => change((node) => node.setLatex(latex))}
+            onEnter={close}
+            onEscape={close}
+            focused
+          />
           <ToolButton
             label={strings.mathBlock}
             active={math.block}
@@ -1317,6 +1310,12 @@ export function SelectionToolbarPlugin() {
         : value === "frame"
           ? strings.questionCountFrame
           : strings.questionCountScatter;
+    const toleranceText = (value: number) =>
+      value === 0
+        ? strings.questionToleranceExact
+        : strings.questionToleranceWithin(
+            new Intl.NumberFormat(locale).format(value),
+          );
     const flashText = (value: number | null) =>
       value === null
         ? strings.questionFlashOff
@@ -1606,6 +1605,17 @@ export function SelectionToolbarPlugin() {
               />
             </>
           )}
+          {settings.kind === "math" ? (
+            <BarMenu
+              label={strings.questionMathTolerance}
+              current={toleranceText(settings.tolerance)}
+              values={MATH_TOLERANCES}
+              text={toleranceText}
+              onPick={(tolerance) => change({ tolerance })}
+              onOpenChange={trackMenu}
+              finalFocus={textFocus(editor)}
+            />
+          ) : null}
           {settings.kind === "ordering" ? (
             <BarMenu
               label={strings.questionScoring}

@@ -2,6 +2,7 @@ import type { LessonBlock, Picture } from "@faridalms/domain/learning";
 import type { Level } from "@faridalms/puzzles/level";
 import type { ReactNode } from "react";
 
+import { mathText } from "@faridalms/domain/content";
 import {
   isAuto,
   partKey,
@@ -12,7 +13,7 @@ import {
 import { programFile } from "@faridalms/domain/project";
 import { StoredImage } from "@faridalms/editor/files";
 import { mediaClock } from "@faridalms/editor/format";
-import { TextWithMath } from "@faridalms/editor/math";
+import { MathText, TextWithMath } from "@faridalms/editor/math";
 import { Board } from "@faridalms/puzzles/Board";
 import { blocksOf } from "@faridalms/puzzles/level";
 import { startFrame } from "@faridalms/puzzles/playback";
@@ -271,6 +272,8 @@ export function keyOf(block: LessonBlock, rtl: boolean): string | null {
       );
     case "text":
       return block.answers[0] ?? null;
+    case "math":
+      return block.answers[0] ? mathText({ latex: block.answers[0] }) : null;
     case "number":
       return block.mode === "range"
         ? `${block.min} – ${block.max}`
@@ -367,6 +370,18 @@ export function PaperQuestion({
       body = (
         <div className="flex h-[2.1em] items-end border-b border-neutral-400 pb-0.5">
           {answers ? <span className={key}>{block.answers[0]}</span> : null}
+        </div>
+      );
+      break;
+    case "math":
+      // Room to work a formula out, then the answer on the line below.
+      body = (
+        <div className="flex h-[3.2em] items-end border-b border-neutral-400 pb-0.5">
+          {answers && block.answers[0] ? (
+            <span className={key}>
+              <MathText latex={block.answers[0]} />
+            </span>
+          ) : null}
         </div>
       );
       break;

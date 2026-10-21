@@ -16,6 +16,7 @@ import { textDirection } from "@faridalms/domain/content";
 import { MAX_INDENT, MAX_RUN_OUTPUT } from "@faridalms/domain/learning";
 import { StoredImage } from "@faridalms/editor/files";
 import { TextWithMath, textOfMath } from "@faridalms/editor/math";
+import { MathInput } from "@faridalms/editor/math-input";
 import { Player } from "@faridalms/puzzles/Player";
 import { ProgramView } from "@faridalms/puzzles/ProgramView";
 import { Button } from "@faridalms/ui/button";
@@ -65,6 +66,7 @@ import { friendlyError } from "~/components/coding/friendly";
 import { WebProjectAnswer } from "~/components/coding/WebProjectAnswer";
 import { editorSetting, puzzleStrings } from "~/components/puzzles/strings";
 import * as m from "~/i18n/messages";
+import { getLocale } from "~/i18n/runtime";
 import { formatList, formatNumber } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
@@ -180,6 +182,7 @@ type Of<T extends StudentBlock["type"]> = Extract<StudentBlock, { type: T }>;
 export type CheckStudentBlock =
   | Of<"choice">
   | Of<"text">
+  | Of<"math">
   | Of<"gaps">
   | Of<"number">
   | Of<"matching">
@@ -199,6 +202,7 @@ export type CheckStudentBlock =
 const CHECK_TYPES = new Set<StudentBlock["type"]>([
   "choice",
   "text",
+  "math",
   "gaps",
   "number",
   "matching",
@@ -336,7 +340,9 @@ function Outcome({
       {keyText && !view.correct ? (
         <p className="text-sm leading-6">
           <span className="font-medium">{m.lrnCorrectAnswer()}</span>{" "}
-          <bdi>{keyText}</bdi>
+          <bdi>
+            <TextWithMath text={keyText} />
+          </bdi>
         </p>
       ) : null}
       {keyCode && !view.correct ? (
@@ -870,6 +876,77 @@ function TypedCheck({
             {m.lrnNumberNeeded()}
           </p>
         ) : null}
+      </div>
+    </CheckCard>
+  );
+}
+
+/** A formula as the answer, written in MathLive's field and marked by what it means. */
+function MathCheck({
+  block,
+  view,
+  driver,
+}: {
+  block: Of<"math">;
+  view: CheckView | undefined;
+  driver: CheckDriver;
+}) {
+  const legend = useId();
+  const { editing, setEditing, respond, reveal } = useCheck(
+    block.id,
+    view,
+    driver,
+  );
+  const [latex, setLatex] = useState(
+    view?.response?.type === "math" ? view.response.latex : "",
+  );
+  const settled = isSettled(block, view);
+  const canCheck = latex.trim() !== "";
+  const check = () => {
+    if (canCheck) respond.mutate({ type: "math", latex: latex.trim() });
+  };
+  return (
+    <CheckCard
+      block={block}
+      legendId={legend}
+      onSubmit={check}
+      status={
+        <CheckStatus
+          view={view}
+          editing={editing}
+          keyText={view?.key ? formatList(view.key) : undefined}
+        />
+      }
+      actions={
+        <Retry
+          view={view}
+          editing={editing}
+          settled={settled}
+          canCheck={canCheck}
+          pending={respond.isPending || reveal.isPending}
+          onTryAgain={() => setEditing(true)}
+          onReveal={() => reveal.mutate()}
+        />
+      }
+    >
+      <div
+        className={cn(
+          "flex w-full max-w-md",
+          !editing &&
+            view &&
+            (view.correct
+              ? "[&_.fe-math-field]:border-success/60"
+              : "[&_.fe-math-field]:border-destructive/50"),
+        )}
+      >
+        <MathInput
+          value={latex}
+          locale={getLocale()}
+          label={m.lrnYourAnswer()}
+          onInput={setLatex}
+          onEnter={check}
+          readOnly={!editing || settled}
+        />
       </div>
     </CheckCard>
   );
@@ -2327,5 +2404,7 @@ export function CheckBlockView({
     return <ProgramCheck block={block} view={view} driver={driver} />;
   if (block.type === "sorting")
     return <SortingCheck block={block} view={view} driver={driver} />;
+  if (block.type === "math")
+    return <MathCheck block={block} view={view} driver={driver} />;
   return <TypedCheck block={block} view={view} driver={driver} />;
 }
