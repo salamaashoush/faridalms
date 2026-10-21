@@ -8,6 +8,14 @@ until it is done or replaced. Research behind it:
 interactive-modules report kept beside the session notes (summarised in
 section 4).
 
+Status: sections 2 and 3 are built. Lessons and quizzes are one document
+each with question and gate blocks, the slash menu is grouped by family,
+media blocks carry captions, transcripts and alternative text, documents
+keep their history, and lessons and assignments start from templates.
+What is still missing, from feedback timing to templates for every kind of
+document, moved to [teaching-content.md](teaching-content.md), which
+governs the order of work now.
+
 ## 1. Principles
 
 1. **Everything people write is one document.** Announcements, newsletters,
@@ -52,8 +60,7 @@ section 4).
    the details panel; a draft may change class until assigned; work already
    out holds every edit, a brief written together live included, until Update
    or Discard, because students read the brief as last published. A quiz's
-   questions stay in today's question list under the brief until question
-   blocks land (item 5), then move into the document. Next: readers as pages,
+   questions are question blocks in the brief. Next: readers as pages,
    then extend due date per student, hand in for a student, inline comments
    and a comment bank, voice feedback, and a starting document per student
    ([../research/interactive-coursework.md](../research/interactive-coursework.md)

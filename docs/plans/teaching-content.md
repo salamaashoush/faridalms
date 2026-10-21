@@ -74,7 +74,9 @@ Sources: [../research/course-design.md](../research/course-design.md),
    one mark and feedback, which the API stores in one transaction.
 8. **Documents describe the code as it is.** `docs/content-editor.md`,
    `docs/systems/learning.md` and `documents-editor-modules.md` still
-   describe lessons as a list of parts and media as waiting for storage.
+   describe lessons as a list of parts and media as waiting for storage. Done:
+   each now describes the one document, its seventeen question kinds and
+   its publishing checks, and points here for what is left.
 
 ## 2. Maths and science
 

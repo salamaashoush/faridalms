@@ -5,19 +5,26 @@ What modules and lessons do, built from
 
 ## Lessons
 
-- A lesson is a list of parts: text with pictures, video and files, media
-  with a caption and a transcript, a continue gate, and questions. A teacher
-  adds any of them from one menu, at the end or between two parts, and can
-  move, copy or remove each.
-- Questions come in nine kinds. Multiple choice has one or several right
-  options, feedback per option and shuffling; true or false is its short form.
-  A typed answer, blanks in a passage (typed or chosen from a list) and a
-  number (exact give or take, or a range) check what students write.
-  Matching pairs prompts with answers, extra answers included. Ordering gives
-  credit for the whole order or for each neighbouring pair. Sorting puts items
-  into two to four groups. A written answer goes to the teacher.
-- None needs dragging: matches are chosen from a list, items move with arrow
-  buttons, and groups are chosen per item.
+- A lesson is one document in the shared editor. Text, pictures, files,
+  video and audio, embeds, runnable code, continue gates and questions are
+  blocks written in it, inserted from the slash menu or the toolbar and
+  moved, copied or removed with the block handle; a block's settings live in
+  the editor's floating bar.
+- Questions come in seventeen kinds. Multiple choice has one or several
+  right options, feedback per option and shuffling; true or false is its
+  short form. A typed answer, blanks in a passage (typed or chosen from a
+  list) and a number (exact give or take, or a range) check what students
+  write. Matching pairs prompts with answers, extra answers included.
+  Ordering gives credit for the whole order or for each neighbouring pair.
+  Sorting puts items into two to four groups. A written answer goes to the
+  teacher and may be spoken, filmed, drawn or photographed. For young
+  children there are counting, tracing, a word built from tiles and finding
+  things in a picture; for coding, code puzzles, programs marked by their
+  tests, Scratch, web, p5.js, Python and micro:bit projects, and blocks or
+  arrow puzzles.
+- Dragging is offered and never needed: matches are chosen from a list,
+  items move with arrow buttons, groups are chosen per item, and a place in
+  a picture is chosen by its name.
 - Each question has points (none makes it practice), a hint shown after a
   wrong try, an explanation, and a number of tries before the answer shows;
   unlimited tries keep the answer back until the student asks for it. The
@@ -143,7 +150,8 @@ From [../research/early-years.md](../research/early-years.md).
 - The module's Answers tab lists each written question with its class's
   answers, unmarked first. A question with points takes a mark and feedback;
   one without takes feedback alone. The student sees both, and the answer
-  closes once marked.
+  closes once marked. A teacher may choose several waiting answers, or all
+  of them, and give them one mark and feedback together.
 
 ## Graded quizzes
 
@@ -157,7 +165,9 @@ From [../research/early-years.md](../research/early-years.md).
   nothing until the teacher returns it.
 - Students keep each answer as they give it and hand the attempt in whole.
   Every answer is marked then; a written answer with points waits for the
-  teacher, who marks it from the grading page, and the score follows.
+  teacher, who marks it from the grading page or question by question
+  from the quiz's Answers tab, the same board as a module's, and the score
+  follows.
 - The score that counts goes onto the latest attempt's assessment, so the
   gradebook reads a quiz like any other work. A quiz that marks itself
   completely is returned at once unless the teacher keeps results back.
@@ -166,7 +176,5 @@ From [../research/early-years.md](../research/early-years.md).
 
 ## Next
 
-Voice, drawing and photo answers, counting and tracing activities, a word
-builder, memory pairs and the young student's home (see
-[../research/early-years.md](../research/early-years.md) section 4), time
-limits on quizzes with extra time per student, and a question bank.
+What lessons, quizzes and the editor still lack, and the order of work, is
+in [../plans/teaching-content.md](../plans/teaching-content.md).
