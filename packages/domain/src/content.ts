@@ -185,8 +185,11 @@ export interface ContentNode {
   hidden?: boolean;
   /** A written question answered with a drawing or a photo. */
   answerWith?: "drawing" | "photo" | null;
-  /** A find-on-a-picture question's places: left, top, width, height. */
-  regions?: number[][];
+  /**
+   * A find-on-a-picture question's places: each box (left, top, width,
+   * height), its name, and whether it is one to find.
+   */
+  places?: { box: number[]; name: string; correct: boolean }[];
   count?: number;
   countMode?: "count" | "make";
   countLayout?: "scatter" | "line" | "frame";
@@ -403,15 +406,19 @@ const nodeSchema: v.GenericSchema<ContentNode> = v.lazy(() =>
       ),
       hidden: v.optional(v.boolean()),
       answerWith: v.optional(v.nullable(v.picklist(["drawing", "photo"]))),
-      regions: v.optional(
+      places: v.optional(
         v.pipe(
           v.array(
-            v.pipe(
-              v.array(v.pipe(v.number(), v.minValue(0), v.maxValue(1))),
-              v.length(4),
-            ),
+            v.object({
+              box: v.pipe(
+                v.array(v.pipe(v.number(), v.minValue(0), v.maxValue(1))),
+                v.length(4),
+              ),
+              name: v.pipe(v.string(), v.maxLength(60)),
+              correct: v.boolean(),
+            }),
           ),
-          v.maxLength(8),
+          v.maxLength(12),
         ),
       ),
       count: v.optional(integer(1, 20)),

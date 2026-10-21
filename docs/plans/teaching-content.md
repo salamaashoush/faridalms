@@ -36,10 +36,15 @@ Sources: [../research/course-design.md](../research/course-design.md),
    (`nodes/question.ts`), so a keyboard or screen-reader user cannot set
    the key. The question mode of the floating bar gains "Right answer" for
    the option holding the caret, and Parsons "Belongs nowhere" likewise.
+   Done: the bar's Right answer (Doesn't belong in a code puzzle) and
+   Mod+Enter share the click's toggle.
 2. **Hotspot by keyboard.** A key press on the picture finds nothing
    (`young/YoungHotspot.tsx`), and regions are unnamed. Regions take a name
    from the teacher, and the student may pick from the named list as well as
-   tap the picture (course-design, hotspot).
+   tap the picture (course-design, hotspot). Done: a picture's places are
+   named and each is one to find or another place; a keyboard or screen
+   reader chooses among them in reading order, which counts as a tap in the
+   middle of the place, and publishing asks for every name.
 3. **A question asked in a video can be answered without playing it.** It
    shows only a placeholder until the video reaches it (`LessonPlayer.tsx`),
    which shuts out a student who cannot hear or stream the video.

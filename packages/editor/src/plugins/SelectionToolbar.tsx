@@ -102,7 +102,6 @@ import type {
 } from "../nodes/question";
 import type { EditorColor } from "../strings";
 import type { TimedWords } from "./narration";
-import type { Region } from "./regions";
 
 import {
   $anchorFor,
@@ -1554,7 +1553,7 @@ export function SelectionToolbarPlugin() {
           {settings.kind === "hotspot" && question.part?.picture && media ? (
             <ToolButton
               label={strings.questionMarkPlaces}
-              active={settings.regions.length > 0}
+              active={settings.places.length > 0}
               onClick={() => {
                 saved.current = editor
                   .getEditorState()
@@ -1840,19 +1839,12 @@ export function SelectionToolbarPlugin() {
           <RegionPad
             src={media.url(question.part.picture.fileId)}
             alt={question.part.picture.alt}
-            regions={question.settings.regions.map(
-              ([left = 0, top = 0, width = 0, height = 0]): Region => [
-                left,
-                top,
-                width,
-                height,
-              ],
-            )}
+            places={question.settings.places}
             onClose={close}
-            onDone={(regions) => {
+            onDone={(places) => {
               withSelection(() => {
                 const node = $getNodeByKey(question.key);
-                if ($isQuestionNode(node)) node.setSettings({ regions });
+                if ($isQuestionNode(node)) node.setSettings({ places });
               });
               close();
             }}

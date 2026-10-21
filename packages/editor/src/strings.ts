@@ -277,7 +277,11 @@ export interface EditorStrings {
   questionVideoAtClear: string;
   questionMarkPlaces: string;
   questionMarkPlacesHint: string;
-  questionPlacesMarked: (count: number) => string;
+  questionPlacesCount: (find: number, other: number) => string;
+  questionPlaceName: (number: number) => string;
+  questionPlaceNameHint: string;
+  questionPlaceToFind: string;
+  questionPlaceRemove: (number: number) => string;
   questionPlaceUndo: string;
   questionSpellingHint: string;
   questionWordTiles: string;

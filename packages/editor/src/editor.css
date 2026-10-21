@@ -953,6 +953,11 @@
   border-radius: 0.375rem;
   background: color-mix(in oklab, var(--primary) 15%, transparent);
 }
+.fe [data-region][data-other] {
+  border-style: dashed;
+  border-color: var(--fe-muted);
+  background: color-mix(in oklab, var(--fe-muted) 10%, transparent);
+}
 
 /* A tracing question's model in the editor: the teacher's strokes, each
    with a dot where it starts. */

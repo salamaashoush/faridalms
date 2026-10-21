@@ -216,9 +216,16 @@ export function questionBlock(node: ContentNode): LessonBlock | null {
         ...check,
         type: "hotspot",
         picture: pictureOf(node),
-        regions: (node.regions ?? []).map(
-          ([left = 0, top = 0, width = 0, height = 0]) =>
-            [left, top, width, height] as [number, number, number, number],
+        places: (node.places ?? []).map(
+          ({
+            box: [left = 0, top = 0, width = 0, height = 0],
+            name,
+            correct,
+          }) => ({
+            box: [left, top, width, height] as [number, number, number, number],
+            name,
+            correct,
+          }),
         ),
       };
     case "spelling": {
@@ -820,7 +827,11 @@ export function questionNode(block: LessonBlock): ContentNode | null {
     return {
       ...base,
       ...pictureFields(block.picture),
-      regions: block.regions.map((region) => [...region]),
+      places: block.places.map((place) => ({
+        box: [...place.box],
+        name: place.name,
+        correct: place.correct,
+      })),
     };
   if (block.type === "spelling")
     return {

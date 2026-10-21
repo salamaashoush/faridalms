@@ -309,8 +309,17 @@ export function editorStrings(): EditorStrings {
     questionVideoAtClear: m.editorQuestionVideoAtClear(),
     questionMarkPlaces: m.editorQuestionMarkPlaces(),
     questionMarkPlacesHint: m.editorQuestionMarkPlacesHint(),
-    questionPlacesMarked: (count) =>
-      m.editorQuestionPlacesMarked({ count: formatNumber(count) }),
+    questionPlacesCount: (find, other) =>
+      m.editorQuestionPlacesCount({
+        find: formatNumber(find),
+        other: formatNumber(other),
+      }),
+    questionPlaceName: (number) =>
+      m.editorQuestionPlaceName({ number: formatNumber(number) }),
+    questionPlaceNameHint: m.editorQuestionPlaceNameHint(),
+    questionPlaceToFind: m.editorQuestionPlaceToFind(),
+    questionPlaceRemove: (number) =>
+      m.editorQuestionPlaceRemove({ number: formatNumber(number) }),
     questionPlaceUndo: m.editorQuestionPlaceUndo(),
     questionWordTiles: m.editorQuestionWordTiles(),
     questionExtraTiles: m.editorQuestionExtraTiles(),

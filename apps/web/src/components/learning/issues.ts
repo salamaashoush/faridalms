@@ -100,7 +100,11 @@ export function blockIssue(block: LessonBlock): string | null {
         : null;
     case "hotspot":
       if (!block.picture) return m.lrnHotspotPicture();
-      return block.regions.length === 0 ? m.lrnHotspotPlaces() : null;
+      if (!block.places.some((place) => place.correct))
+        return m.lrnHotspotPlaces();
+      return block.places.some((place) => !place.name)
+        ? m.lrnHotspotNames()
+        : null;
     case "media":
       if (needsCaptions(block.mediaType) && !block.captionsFileId)
         return m.lrnErrCaptions();

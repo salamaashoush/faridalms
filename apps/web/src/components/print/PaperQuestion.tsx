@@ -6,6 +6,7 @@ import {
   isAuto,
   partKey,
   partName,
+  placesToFind,
   shuffled,
 } from "@faridalms/domain/learning";
 import { programFile } from "@faridalms/domain/project";
@@ -791,12 +792,14 @@ export function PaperQuestion({
             className="max-h-[9cm] w-auto"
           />
           {answers
-            ? block.regions.map(([left, top, width, height]) => (
+            ? placesToFind(block.places).map(([left, top, width, height]) => (
                 <span
                   key={`${left},${top}`}
                   className="absolute rounded-[4px] border-[3px] border-neutral-500"
                   style={{
-                    insetInlineStart: `${left * 100}%`,
+                    // Places are measured from the picture's left edge in
+                    // either direction, as the picture never mirrors.
+                    left: `${left * 100}%`,
                     top: `${top * 100}%`,
                     width: `${width * 100}%`,
                     height: `${height * 100}%`,

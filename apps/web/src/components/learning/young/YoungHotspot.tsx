@@ -1,6 +1,6 @@
 import type { CheckView, StudentBlock } from "@faridalms/domain/learning";
 
-import { regionHit } from "@faridalms/domain/learning";
+import { placesToFind, regionHit } from "@faridalms/domain/learning";
 import { StoredImage } from "@faridalms/editor/files";
 import { Button } from "@faridalms/ui/button";
 import { cn } from "@faridalms/ui/cn";
@@ -10,6 +10,7 @@ import { useEffect, useEffectEvent, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import * as m from "~/i18n/messages";
+import { getTextDirection } from "~/i18n/runtime";
 import { formatNumber } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
@@ -22,16 +23,35 @@ import { outcomeWords, YoungOutcome } from "./YoungChoice";
 
 type Hotspot = Extract<StudentBlock, { type: "hotspot" }>;
 type Point = [number, number];
-type Region = [number, number, number, number];
+type Place = Hotspot["places"][number];
 
-const regionsOf = (block: Hotspot): Region[] =>
-  block.regions.map(([left, top, width, height]) => [left, top, width, height]);
+const centreOf = ({ box: [left, top, width, height] }: Place): Point => [
+  left + width / 2,
+  top + height / 2,
+];
+
+/**
+ * The places in the order a reader meets them: row by row from the top,
+ * then along the row in the page's direction, so the list never gives away
+ * the order in which the teacher marked the ones to find.
+ */
+function inReadingOrder(places: readonly Place[], rtl: boolean): Place[] {
+  const row = (place: Place) => Math.round(centreOf(place)[1] * 5);
+  return places.toSorted((a, b) => {
+    const rows = row(a) - row(b);
+    if (rows !== 0) return rows;
+    const across = centreOf(a)[0] - centreOf(b)[0];
+    return rtl ? -across : across;
+  });
+}
 
 /**
  * Finding things in a picture. A tap on a place marks it found at once and
  * asks nothing of the server; only a tap on nothing, or the last find, is
  * sent, so a child who finds everything without a miss is right first time.
- * After two misses "Show me" rings what is left.
+ * After two misses "Show me" rings what is left. From a keyboard or screen
+ * reader a child chooses among the named places instead, which counts as a
+ * tap in the middle of the place chosen.
  */
 export function YoungHotspot({
   block,
@@ -42,7 +62,8 @@ export function YoungHotspot({
   view: CheckView | undefined;
   driver: CheckDriver;
 }) {
-  const regions = regionsOf(block);
+  const regions = placesToFind(block.places);
+  const listed = inReadingOrder(block.places, getTextDirection() === "rtl");
   const settled = Boolean(view && (view.correct || view.revealed));
   const [finds, setFinds] = useState<Point[]>(() =>
     view?.response?.type === "hotspot"
@@ -117,12 +138,11 @@ export function YoungHotspot({
         ) : null}
         <button
           type="button"
-          aria-label={m.lrnYoungFindHere()}
+          tabIndex={-1}
+          aria-hidden
           disabled={settled}
-          className="absolute inset-0 size-full cursor-crosshair touch-manipulation outline-none focus-visible:ring-4 focus-visible:ring-ring/50 focus-visible:ring-inset"
+          className="absolute inset-0 size-full cursor-crosshair touch-manipulation outline-none"
           onClick={(event) => {
-            // A key press carries no position, so it finds nothing.
-            if (event.detail === 0) return;
             const box = event.currentTarget.getBoundingClientRect();
             tap([
               Math.min(1, Math.max(0, (event.clientX - box.left) / box.width)),
@@ -130,6 +150,38 @@ export function YoungHotspot({
             ]);
           }}
         />
+        <fieldset
+          aria-label={m.lrnYoungFindHere()}
+          className="m-0 border-0 p-0"
+        >
+          {listed.map((place, index) => {
+            const done = finds.some((point) => regionHit(place.box, point));
+            const [left, top, width, height] = place.box;
+            return (
+              // Pointers pass through to the picture, so these never show
+              // a mouse where the places are; only the keyboard lands here.
+              <button
+                key={place.box.join()}
+                type="button"
+                aria-label={
+                  place.name ||
+                  m.lrnYoungPlace({ number: formatNumber(index + 1) })
+                }
+                aria-disabled={settled || done}
+                className="pointer-events-none absolute rounded-xl outline-none focus-visible:ring-4 focus-visible:ring-ring focus-visible:ring-offset-2"
+                style={{
+                  left: `${left * 100}%`,
+                  top: `${top * 100}%`,
+                  width: `${width * 100}%`,
+                  height: `${height * 100}%`,
+                }}
+                onClick={() => {
+                  if (!settled && !done) tap(centreOf(place));
+                }}
+              />
+            );
+          })}
+        </fieldset>
         {finds.map(([x, y], index) => (
           <span
             key={`find-${index}`}
@@ -162,7 +214,7 @@ export function YoungHotspot({
           ),
         )}
       </div>
-      <p className="sr-only">
+      <p className="sr-only" aria-live="polite">
         {m.lrnYoungFoundCount({
           found: formatNumber(view?.correct ? regions.length : count),
           total: formatNumber(regions.length),

@@ -108,6 +108,9 @@ export const MAX_TILES = 12;
 export const MAX_EXTRA_TILES = 6;
 /** Things to find in one picture. */
 export const MAX_HOTSPOTS = 8;
+/** Places marked on one picture, the ones to find and others beside them. */
+export const MAX_PLACES = 12;
+export const MAX_PLACE_NAME = 60;
 /**
  * How far past a marked place a tap still finds it, across the picture: a
  * young finger lands several millimetres off what it aims at.
@@ -436,16 +439,27 @@ export const lessonBlockSchema = v.variant("type", [
       type: v.literal("hotspot"),
       /** The picture children search; required before the question is shown. */
       picture,
-      /** Each place to find: left, top, width and height across the picture. */
-      regions: v.pipe(
-        v.array(v.tuple([unit, unit, unit, unit])),
-        v.maxLength(MAX_HOTSPOTS),
+      /**
+       * Each marked place: its box across the picture (left, top, width,
+       * height), the name it is listed by for a keyboard or screen reader,
+       * and whether it is one to find. The others are there so that list
+       * is a choice, not the answer.
+       */
+      places: v.pipe(
+        v.array(
+          v.object({
+            box: v.tuple([unit, unit, unit, unit]),
+            name: text(MAX_PLACE_NAME),
+            correct: v.boolean(),
+          }),
+        ),
+        v.maxLength(MAX_PLACES),
       ),
     }),
-    v.check(
-      (block) => Boolean(block.picture) && block.regions.length > 0,
-      "learning.hotspot_needed",
-    ),
+    v.check((block) => {
+      const finds = block.places.filter((place) => place.correct).length;
+      return Boolean(block.picture) && finds > 0 && finds <= MAX_HOTSPOTS;
+    }, "learning.hotspot_needed"),
   ),
   v.object({
     ...checkFields,
@@ -1170,6 +1184,16 @@ const round = (value: number) => Math.round(value * 10000) / 10000;
  * question gives credit per right choice and takes it back per wrong one,
  * never below nothing, as Canvas does.
  */
+/** The boxes of a picture's places that are to be found. */
+export function placesToFind(
+  places: readonly {
+    box: readonly [number, number, number, number];
+    correct: boolean;
+  }[],
+): [number, number, number, number][] {
+  return places.filter((place) => place.correct).map((place) => [...place.box]);
+}
+
 /** Whether a tap lands on a marked place, or near enough for a small finger. */
 export function regionHit(
   [left, top, width, height]: readonly [number, number, number, number],
@@ -1356,16 +1380,18 @@ export function markResponse(
     }
     case "hotspot": {
       if (response.type !== "hotspot") return none;
+      const finds = placesToFind(block.places);
       const results = Object.fromEntries(
-        block.regions.map((region, index) => [
+        finds.map((region, index) => [
           `region-${index + 1}`,
           response.taps.some((tap) => regionHit(region, tap)),
         ]),
       );
       const marked = share(results);
-      // A tap that finds nothing is a miss, even once every place is found.
+      // A tap that finds nothing, or another place, is a miss, even once
+      // every place is found.
       return response.taps.every((tap) =>
-        block.regions.some((region) => regionHit(region, tap)),
+        finds.some((region) => regionHit(region, tap)),
       )
         ? marked
         : { ...marked, correct: false };

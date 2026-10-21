@@ -9,6 +9,7 @@ import {
   inline,
   offset,
   shift,
+  size,
 } from "@floating-ui/dom";
 import { useCallback, useEffect, useRef } from "react";
 import { createPortal } from "react-dom";
@@ -83,6 +84,19 @@ export function Floating({
             crossAxis: keepInView,
             ...(boundary ? { boundary } : {}),
           }),
+          // A panel taller than a phone's window would be cut off where a
+          // fixed element cannot be scrolled to; it scrolls inside instead.
+          ...(keepInView
+            ? [
+                size({
+                  padding: 8,
+                  apply: ({ availableHeight }) => {
+                    floating.style.maxHeight = `${Math.max(0, availableHeight)}px`;
+                    floating.style.overflowY = "auto";
+                  },
+                }),
+              ]
+            : []),
         ],
       }).then(({ x, y }) => {
         floating.style.transform = `translate(${Math.round(x)}px, ${Math.round(y)}px)`;

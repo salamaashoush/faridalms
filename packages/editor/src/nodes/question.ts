@@ -196,14 +196,26 @@ function drawPuzzle(level: Level | null, dom: HTMLElement) {
   dom.prepend(holder);
 }
 
-/** Outlines the places to find over a find-on-a-picture question's picture. */
-function drawRegions(regions: readonly number[][], dom: HTMLElement) {
+/** A marked place on a find-on-a-picture question's picture. */
+export interface PicturePlace {
+  /** Left, top, width and height across the picture. */
+  box: number[];
+  name: string;
+  /** One to find; the others make the list a keyboard picks from a choice. */
+  correct: boolean;
+}
+
+/** Outlines the marked places over a find-on-a-picture question's picture. */
+function drawPlaces(places: readonly PicturePlace[], dom: HTMLElement) {
   const holder = dom.querySelector<HTMLElement>(":scope > [data-part-picture]");
   if (!holder) return;
   const document = $getDocument();
-  regions.forEach(([left = 0, top = 0, width = 0, height = 0], index) => {
+  places.forEach((place, index) => {
+    const [left = 0, top = 0, width = 0, height = 0] = place.box;
     const box = document.createElement("span");
     box.dataset.region = String(index + 1);
+    if (!place.correct) box.dataset.other = "";
+    box.title = place.name;
     box.style.left = `${left * 100}%`;
     box.style.top = `${top * 100}%`;
     box.style.width = `${width * 100}%`;
@@ -333,8 +345,8 @@ export interface QuestionSettings {
   flashSeconds: number | null;
   /** A tracing question's model, the teacher's strokes across a unit square. */
   trace: number[][];
-  /** A find-on-a-picture question's places: left, top, width, height. */
-  regions: number[][];
+  /** A find-on-a-picture question's marked places. */
+  places: PicturePlace[];
   /** A matching question played as memory pairs. */
   memory: boolean;
   /** A coding question's starter project; none starts from the studio's own. */
@@ -391,7 +403,7 @@ export function defaultSettings(kind: QuestionKind): QuestionSettings {
     countLayout: "scatter",
     flashSeconds: null,
     trace: [],
-    regions: [],
+    places: [],
     memory: false,
     projectFileId: null,
     projectFiles: [],
@@ -426,6 +438,7 @@ export type SerializedQuestionNode = Spread<
 >;
 
 const NO_POINTS: number[][] = [];
+const NO_PLACES: PicturePlace[] = [];
 const NO_FILES: ProjectFile[] = [];
 const NO_CHECKS: ScratchFeature[] = [];
 
@@ -451,7 +464,7 @@ function questionSettings(stored: StoredSettings): QuestionSettings {
     flashSeconds: stored.flashSeconds ?? null,
     // One empty list for all, so a redraw compares them alike.
     trace: stored.trace ?? NO_POINTS,
-    regions: stored.regions ?? NO_POINTS,
+    places: stored.places ?? NO_PLACES,
     memory: stored.memory ?? false,
     projectFileId: stored.projectFileId ?? null,
     projectFiles: stored.projectFiles ?? NO_FILES,
@@ -591,7 +604,7 @@ export class QuestionNode extends ElementNode {
       countLayout,
       flashSeconds,
       trace,
-      regions,
+      places,
       memory,
       projectFileId,
       projectFiles,
@@ -614,7 +627,7 @@ export class QuestionNode extends ElementNode {
         ? { count, countMode, countLayout, flashSeconds }
         : {}),
       ...(settings.kind === "tracing" ? { trace } : {}),
-      ...(settings.kind === "hotspot" ? { regions } : {}),
+      ...(settings.kind === "hotspot" ? { places } : {}),
       ...(settings.kind === "matching" && memory ? { memory } : {}),
       ...(settings.kind === "scratch" && projectFileId
         ? { projectFileId }
@@ -663,7 +676,7 @@ export class QuestionNode extends ElementNode {
       settings.kind === "hotspot"
     )
       drawPicture(this, dom, editor);
-    if (settings.kind === "hotspot") drawRegions(settings.regions, dom);
+    if (settings.kind === "hotspot") drawPlaces(settings.places, dom);
     if (settings.kind === "tracing") drawTrace(settings.trace, dom);
     if (settings.kind === "puzzle") drawPuzzle(settings.puzzle, dom);
     return dom;
@@ -687,7 +700,7 @@ export class QuestionNode extends ElementNode {
       before.count !== settings.count ||
       before.countMode !== settings.countMode ||
       before.trace !== settings.trace ||
-      before.regions !== settings.regions ||
+      before.places !== settings.places ||
       before.projectFileId !== settings.projectFileId ||
       before.projectFiles !== settings.projectFiles ||
       before.puzzle !== settings.puzzle ||

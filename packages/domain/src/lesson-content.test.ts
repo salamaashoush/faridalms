@@ -691,9 +691,18 @@ describe("find on a picture", () => {
         explanation: "",
         tries: null,
         picture: { fileId: partId(61), alt: "A pond" },
-        regions: [
-          [0.1, 0.2, 0.2, 0.2],
-          [0.6, 0.5, 0.2, 0.3],
+        places: [
+          {
+            box: [0.1, 0.2, 0.2, 0.2],
+            name: "Duck by the reeds",
+            correct: true,
+          },
+          {
+            box: [0.6, 0.5, 0.2, 0.3],
+            name: "Duck on the water",
+            correct: true,
+          },
+          { box: [0.4, 0.75, 0.15, 0.2], name: "Frog", correct: false },
         ],
       },
     ],
@@ -740,13 +749,30 @@ describe("find on a picture", () => {
     ).toMatchObject({ correct: false });
   });
 
-  it("is not ready without a picture and a place to find", () => {
+  it("counts a tap on another place as a miss", () => {
     expect(
-      v.safeParse(lessonDocumentSchema, {
-        version: 2,
-        blocks: [{ ...block, regions: [] }],
-      }).success,
-    ).toBe(false);
+      markResponse(block, {
+        type: "hotspot",
+        taps: [
+          [0.15, 0.25],
+          [0.45, 0.85],
+        ],
+      }),
+    ).toMatchObject({
+      correct: false,
+      parts: { "region-1": true, "region-2": false },
+    });
+  });
+
+  it("is not ready without a picture and a place to find", () => {
+    const others = block.places.map((place) => ({ ...place, correct: false }));
+    for (const places of [[], others])
+      expect(
+        v.safeParse(lessonDocumentSchema, {
+          version: 2,
+          blocks: [{ ...block, places }],
+        }).success,
+      ).toBe(false);
   });
 });
 
