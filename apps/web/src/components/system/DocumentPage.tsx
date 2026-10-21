@@ -19,11 +19,13 @@ import {
   ChevronDown,
   History,
   LayoutTemplate,
+  Link,
   LoaderCircle,
   SlidersHorizontal,
   TriangleAlert,
 } from "lucide-react";
 import { createContext, useContext, useRef, useState } from "react";
+import { toast } from "sonner";
 
 import type { Printable } from "~/components/print/usePrint";
 import type { SaveState } from "~/hooks/useAutosave";
@@ -116,6 +118,7 @@ export function DocumentPage({
   primary,
   preview,
   menu = NO_ACTIONS,
+  link,
   history,
   templates,
   print,
@@ -147,6 +150,8 @@ export function DocumentPage({
   primary?: PrimaryAction;
   preview?: { label: string; onClick: () => void };
   menu?: ActionItem[];
+  /** Where readers open the document, copied from the menu once it is stored. */
+  link?: string;
   /** The document's earlier versions, offered from the menu, and how to bring one back. */
   history?: {
     hostType: string;
@@ -180,6 +185,21 @@ export function DocumentPage({
   const printing = usePrint(print ?? null);
   const [keeping, setKeeping] = useState(false);
   const actions: ActionItem[] = [
+    ...(link
+      ? [
+          {
+            label: m.fileCopyLink(),
+            icon: Link,
+            onSelect: () =>
+              navigator.clipboard
+                .writeText(new URL(link, window.location.origin).href)
+                .then(
+                  () => toast.success(m.fileLinkCopied()),
+                  () => toast.error(m.docCopyFailed()),
+                ),
+          },
+        ]
+      : []),
     ...(history
       ? [
           {

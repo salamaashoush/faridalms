@@ -862,6 +862,7 @@
   "fileOpen": "فتح",
   "fileCopyLink": "نسخ الرابط",
   "fileLinkCopied": "نُسخ الرابط",
+  "docCopyFailed": "تعذّر نسخ الرابط",
   "fileCloseViewer": "إغلاق",
   "fileNoPreview": "لا يمكن عرض هذا الملف هنا. نزّله لتفتحه.",
   "fileDisplay": "العرض",

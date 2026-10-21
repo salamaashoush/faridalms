@@ -275,6 +275,7 @@ export function LessonEditor({
               }
             : undefined
         }
+        link={storedId ? `/lessons/${storedId}` : undefined}
         preview={
           storedId
             ? {

@@ -685,6 +685,7 @@ export function AssignmentEditor({
                 onClick: () => void assign(),
               }
         }
+        link={storedId ? `/assignments/${storedId}` : undefined}
         preview={
           storedId
             ? {

@@ -371,6 +371,7 @@ export function EventEditor({
                 onClick: () => void publish(),
               }
         }
+        link={storedId ? `/calendar/${storedId}` : undefined}
         preview={
           storedId
             ? {

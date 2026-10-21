@@ -837,6 +837,7 @@
   "fileOpen": "Open",
   "fileCopyLink": "Copy link",
   "fileLinkCopied": "Link copied",
+  "docCopyFailed": "Couldn't copy the link",
   "fileCloseViewer": "Close",
   "fileNoPreview": "This file can't be shown here. Download it to open it.",
   "fileDisplay": "Show as",

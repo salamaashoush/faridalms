@@ -487,6 +487,7 @@ export function NewsEditor({
                 onClick: () => void publish(),
               }
         }
+        link={stored ? `/news/${postId}` : undefined}
         preview={{ label: m.newsPreview(), onClick: () => setPreviewing(true) }}
         history={
           stored

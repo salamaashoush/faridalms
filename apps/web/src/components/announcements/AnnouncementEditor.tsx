@@ -132,7 +132,8 @@ export function AnnouncementEditor({
   const media = useDocumentMedia();
   const id = useRef(existing?.id ?? "");
   const version = useRef(existing?.version ?? 0);
-  const [stored, setStored] = useState(existing !== null);
+  const [storedId, setStoredId] = useState(existing?.id ?? "");
+  const stored = storedId !== "";
   const [state, setState] = useState(existing?.state ?? "draft");
   const [draft, setDraft] = useState<Draft>(() => draftOf(existing));
   const [sent, setSent] = useState<Draft>(draft);
@@ -186,7 +187,7 @@ export function AnnouncementEditor({
       const created = !id.current;
       id.current = saved.id;
       version.current = saved.version;
-      setStored(true);
+      setStoredId(saved.id);
       setReview(saved.translationReview);
       await queryClient.invalidateQueries({ queryKey: ["announcements"] });
       if (created) onCreated(saved.id);
@@ -374,6 +375,7 @@ export function AnnouncementEditor({
                 onClick: () => void send(),
               }
         }
+        link={stored ? `/announcements/${storedId}` : undefined}
         preview={
           stored
             ? {

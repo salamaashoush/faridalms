@@ -64,7 +64,9 @@ Sources: [../research/course-design.md](../research/course-design.md),
    in), so a gate always opens; what the check finds instead is a gate with
    nothing after it.
 6. **Duplicate and Copy link** in a document page's menu, as the design
-   system names them.
+   system names them. Done: Copy link, for every document readers open at
+   an address. Duplicate needs a copy operation per kind and lands with
+   section 5, item 1.
 7. **Mark one quiz question across the class**, as lessons already can,
    with one score and feedback for many answers.
 8. **Documents describe the code as it is.** `docs/content-editor.md`,
@@ -117,7 +119,7 @@ Sources: [../research/course-design.md](../research/course-design.md),
 ## 5. Reuse and course structure
 
 1. **Copy a lesson to another module, and "Use again"** for an assignment
-   from any class or year.
+   from any class or year, offered as Duplicate in every document's menu.
 2. **School library** with copy and edit, and a school's approval before a
    piece is shared there.
 3. **Templates for every kind of document** (newsletter and news as well),
