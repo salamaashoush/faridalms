@@ -94,6 +94,8 @@ export function editorStrings(): EditorStrings {
     underline: m.editorUnderline(),
     strikethrough: m.editorStrikethrough(),
     inlineCode: m.editorInlineCode(),
+    superscript: m.editorSuperscript(),
+    subscript: m.editorSubscript(),
     highlight: m.editorHighlight(),
     textColor: m.editorTextColor(),
     defaultColor: m.editorDefaultColor(),

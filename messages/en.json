@@ -511,6 +511,8 @@
   "editorUnderline": "Underline",
   "editorStrikethrough": "Strikethrough",
   "editorInlineCode": "Inline code",
+  "editorSuperscript": "Superscript",
+  "editorSubscript": "Subscript",
   "editorHighlight": "Highlight",
   "editorTextColor": "Text colour",
   "editorDefaultColor": "Default",

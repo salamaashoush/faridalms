@@ -51,7 +51,8 @@ Sources: [../research/course-design.md](../research/course-design.md),
    Done: the placeholder offers Answer now, which opens the question in
    place and takes focus to it; once answered the video no longer stops.
 4. **Subscript and superscript.** The reader draws them, the editor offers
-   no way to make them. They join the floating bar's marks.
+   no way to make them. They join the floating bar's marks. Done: x² and x₂
+   in the bar, Mod+. and Mod+, as Google Docs and Word take them.
 5. **Publish checks.** Before publishing, the lesson list of issues also
    names pictures with no alternative text (and not marked decorative),
    headings that skip a level, and a continue gate nobody can pass.

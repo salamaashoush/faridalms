@@ -582,6 +582,19 @@ function $shortcut(event: KeyboardEvent): boolean {
     if ($isRangeSelection(selection)) selection.formatText("code");
     return true;
   }
+  // As Google Docs and Word take them: by the key, since an Arabic layout
+  // types another character there, or by the character where no key is told.
+  const script =
+    event.code === "Period" || key === "."
+      ? "superscript"
+      : event.code === "Comma" || key === ","
+        ? "subscript"
+        : null;
+  if (!event.shiftKey && script) {
+    const selection = $getSelection();
+    if ($isRangeSelection(selection)) selection.formatText(script);
+    return true;
+  }
   if (event.shiftKey && key === "s") {
     const selection = $getSelection();
     if ($isRangeSelection(selection)) selection.formatText("strikethrough");

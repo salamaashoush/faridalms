@@ -73,6 +73,8 @@ export interface EditorStrings {
   underline: string;
   strikethrough: string;
   inlineCode: string;
+  superscript: string;
+  subscript: string;
   highlight: string;
   textColor: string;
   defaultColor: string;

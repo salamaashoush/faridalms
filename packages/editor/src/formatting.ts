@@ -52,6 +52,8 @@ export const markFormats = [
   "underline",
   "strikethrough",
   "code",
+  "superscript",
+  "subscript",
 ] as const satisfies readonly TextFormatType[];
 export type MarkFormat = (typeof markFormats)[number];
 

@@ -78,6 +78,8 @@ import {
   Shuffle,
   SpellCheck,
   Strikethrough,
+  Subscript,
+  Superscript,
   TextQuote,
   Trash2,
   Underline,
@@ -2511,6 +2513,18 @@ export function SelectionToolbarPlugin() {
       label: strings.inlineCode,
       icon: Code,
       shortcut: "Mod+E",
+    },
+    {
+      format: "superscript",
+      label: strings.superscript,
+      icon: Superscript,
+      shortcut: "Mod+.",
+    },
+    {
+      format: "subscript",
+      label: strings.subscript,
+      icon: Subscript,
+      shortcut: "Mod+,",
     },
   ];
   const current = blockDefinitions.find((block) => block.type === facts.block);
