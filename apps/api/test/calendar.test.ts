@@ -7,6 +7,8 @@ const principal = () => signedIn("northwind", login("principal"));
 const mother = () =>
   signedIn("northwind", login("student").replace("student", "parent"));
 const october = { from: "2026-09-27", to: "2026-10-31", child: "" };
+// A week ahead, so an event added here is still to come whenever this runs.
+const ahead = new Date(Date.now() + 7 * 86_400_000).toISOString().slice(0, 10);
 
 const event = (title: string) => ({
   id: "",
@@ -14,8 +16,8 @@ const event = (title: string) => ({
   titleEn: title,
   titleAr: "",
   category: "meeting" as const,
-  startsOn: "2026-10-20",
-  endsOn: "2026-10-20",
+  startsOn: ahead,
+  endsOn: ahead,
   allDay: false,
   startTime: "09:00",
   endTime: "10:00",
@@ -106,9 +108,9 @@ describe("keeping the calendar", () => {
     const saved = await office.calendar.save(event("Book fair briefing"));
     const family = await mother();
     const listed = async () =>
-      (await family.calendar.range(october)).events.some(
-        (row) => row.id === saved.id,
-      );
+      (
+        await family.calendar.range({ from: ahead, to: ahead, child: "" })
+      ).events.some((row) => row.id === saved.id);
     expect(await listed()).toBe(false);
     expect(
       await rejection(family.calendar.event({ id: saved.id })),
