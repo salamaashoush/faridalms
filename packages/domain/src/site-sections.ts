@@ -1,6 +1,6 @@
 import * as v from "valibot";
 
-import type { ContentDocument, ContentNode } from "./content";
+import type { ContentDocument } from "./content";
 import type { EmbedProvider } from "./embed";
 
 import {
@@ -8,6 +8,7 @@ import {
   contentFileIds,
   contentPlainText,
 } from "./content";
+import { contentIssues } from "./content-checks";
 import { embedProviders, isEmbedId } from "./embed";
 import { isSiteHref, isVagueLink, MAX_BUTTON_LABEL } from "./site-links";
 import { DIVIDERS, SCHEMES } from "./site-theme";
@@ -1291,6 +1292,7 @@ export function sectionFileIds(section: PageSection): string[] {
 export type SiteIssueCode =
   | "alt"
   | "heading"
+  | "order"
   | "link"
   | "action"
   | "captions"
@@ -1302,20 +1304,7 @@ export interface SiteIssue {
 
 /** What a rich body must not do on a page: compete with its title, hide pictures, say "click here". */
 export function bodyIssues(body: ContentDocument): SiteIssueCode[] {
-  const found = new Set<SiteIssueCode>();
-  const pending: ContentNode[] = [body.root];
-  for (let node = pending.pop(); node; node = pending.pop()) {
-    if (node.type === "heading" && node.tag === "h1") found.add("heading");
-    if (node.type === "image" && !node.alt?.trim()) found.add("alt");
-    if (node.type === "link" || node.type === "autolink") {
-      const label = (node.children ?? [])
-        .map((child) => child.text ?? "")
-        .join("");
-      if (isVagueLink(label)) found.add("link");
-    }
-    if (node.children) pending.push(...node.children);
-  }
-  return [...found];
+  return contentIssues(body);
 }
 
 function scalarIssues(field: ScalarField, value: unknown): SiteIssueCode[] {

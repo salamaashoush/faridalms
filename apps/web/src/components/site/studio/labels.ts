@@ -463,6 +463,7 @@ export const ICON_LABEL: Record<IconId, () => string> = {
 export const ISSUE_LABEL: Record<SiteIssueCode, () => string> = {
   alt: m.siteIssueAlt,
   heading: m.siteIssueHeading,
+  order: m.siteIssueOrder,
   link: m.siteIssueLink,
   action: m.siteIssueAction,
   captions: m.siteIssueCaptions,

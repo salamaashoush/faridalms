@@ -16,6 +16,7 @@ import {
   contentPlainText,
   narrationWordsSchema,
 } from "./content";
+import { contentIssues } from "./content-checks";
 import { emptyContent } from "./content-conversion";
 import {
   contentOfLesson,
@@ -840,7 +841,11 @@ export function lessonIssue(lesson: {
     return "learning.needs_reflection";
   if (lesson.completion === "watch" && lessonMedia(document).length === 0)
     return "learning.needs_media";
-  return null;
+  const last = document.blocks.findLastIndex((block) => block.type !== "gate");
+  if (document.blocks.slice(last + 1).length > 0)
+    return "learning.gate_opens_nothing";
+  const [problem] = contentIssues(lesson.content);
+  return problem ? `content.${problem}` : null;
 }
 
 /** A question saved when it had one hint, with its hints in order. */

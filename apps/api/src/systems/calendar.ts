@@ -36,6 +36,7 @@ import {
   saveEventSchema,
 } from "@faridalms/domain/calendar";
 import { contentFileIds, contentPlainText } from "@faridalms/domain/content";
+import { contentIssues } from "@faridalms/domain/content-checks";
 import { ORPCError } from "@orpc/server";
 import * as v from "valibot";
 
@@ -386,6 +387,15 @@ export const publish = writeProcedure
   .input(publishEventSchema)
   .handler(async ({ input, context }) => {
     const row = await editable(context, input.id);
+    const description = await documentOf(context.tx, context.tenantId, {
+      type: "calendar_event",
+      id: row.id,
+    });
+    const [problem] = description
+      ? contentIssues(description.content as unknown as ContentDocument)
+      : [];
+    if (problem)
+      throw new ORPCError("BAD_REQUEST", { message: `content.${problem}` });
     const version = await publishEvent(context.tx, {
       tenantId: context.tenantId,
       id: row.id,

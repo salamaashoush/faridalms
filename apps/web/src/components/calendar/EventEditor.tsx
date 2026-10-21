@@ -30,6 +30,7 @@ import {
   audienceIssue,
   audienceSummary,
 } from "~/components/announcements/AudienceList";
+import { contentIssueMessages } from "~/components/content/checks";
 import { ContentEditor } from "~/components/content/ContentEditor";
 import { useDocumentMedia } from "~/components/coursework/useDocumentMedia";
 import { CheckboxRow } from "~/components/people/fields";
@@ -200,6 +201,8 @@ export function EventEditor({
   const live = state === "published";
   const issues = issuesOf(draft);
   const ready = !Object.values(issues).some(Boolean);
+  // A draft saves as it is; only what readers would meet waits for these.
+  const contentProblems = contentIssueMessages(draft.description);
   const reached = latest?.reached ?? existing?.reached ?? 0;
   const cancelled = latest?.cancelled ?? existing?.cancelled ?? false;
   const tellChange = tellChoice ?? materialChange(plan(sent), plan(draft));
@@ -252,7 +255,7 @@ export function EventEditor({
   const publish = async () => {
     setShown(true);
     if (inPanel) setDetailsOpen(true);
-    if (!ready) return;
+    if (!ready || contentProblems.length > 0) return;
     setPending("publish");
     try {
       autosave.markSaved(draft);
@@ -283,7 +286,7 @@ export function EventEditor({
     setShown(true);
     if (inPanel) setDetailsOpen(true);
     setAsking(false);
-    if (!ready) return;
+    if (!ready || contentProblems.length > 0) return;
     setPending("update");
     try {
       await persist(draft, tellChange);
@@ -300,7 +303,10 @@ export function EventEditor({
   const titleKey = getLocale() === "ar" ? "titleAr" : "titleEn";
   const otherKey = titleKey === "titleAr" ? "titleEn" : "titleAr";
   const changed = live && JSON.stringify(draft) !== JSON.stringify(sent);
-  const listed = Object.values(issues).filter((issue) => issue !== null);
+  const listed = [
+    ...Object.values(issues).filter((issue) => issue !== null),
+    ...contentProblems,
+  ];
   const errorOf = (issue: string | null) =>
     shown && issue ? [issue] : undefined;
 

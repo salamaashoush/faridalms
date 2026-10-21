@@ -56,6 +56,13 @@ Sources: [../research/course-design.md](../research/course-design.md),
 5. **Publish checks.** Before publishing, the lesson list of issues also
    names pictures with no alternative text (and not marked decorative),
    headings that skip a level, and a continue gate nobody can pass.
+   Done: one check (`content-checks.ts`) names undescribed pictures not
+   marked decorative, a first-level heading, a skipped level and a vague
+   link, and lessons, assignments, news, announcements, events and website
+   bodies refuse to go out with any of them, in the browser and the API.
+   Every check can be settled by its student (answered, revealed or handed
+   in), so a gate always opens; what the check finds instead is a gate with
+   nothing after it.
 6. **Duplicate and Copy link** in a document page's menu, as the design
    system names them.
 7. **Mark one quiz question across the class**, as lessons already can,

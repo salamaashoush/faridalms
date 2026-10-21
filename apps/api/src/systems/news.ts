@@ -210,7 +210,7 @@ const postMedia = (body: ContentDocument, coverFileId: string | null) => [
   ...new Set([...contentFileIds(body), ...(coverFileId ? [coverFileId] : [])]),
 ];
 
-/** What stops a public post going on the website, per language it is written in. */
+/** What stops a post going out, per language it is written in. */
 function issuesOf(
   row: PostRow,
   body: ContentDocument,
@@ -218,7 +218,6 @@ function issuesOf(
 ) {
   const primary = primaryOf(row);
   const found: Record<ContentLocale, string[]> = { en: [], ar: [] };
-  if (row.visibility !== "public") return found;
   for (const locale of [primary, otherLocale(primary)]) {
     const written = locale === primary ? body : translation;
     if (!written || !documentWritten(written)) continue;

@@ -1,8 +1,10 @@
 import * as v from "valibot";
 
+import type { ContentIssue } from "./content-checks";
 import type { CheckBlock, LessonDocument } from "./learning";
 
 import { contentDocumentSchema, contentPlainText } from "./content";
+import { contentIssues } from "./content-checks";
 import { declarationSchema } from "./exams";
 import {
   checkBlocks,
@@ -153,7 +155,8 @@ export type AssignmentIssue =
   | "coursework.quiz_questions"
   | "coursework.quiz_incomplete"
   | "coursework.quiz_gate"
-  | "coursework.quiz_rubric";
+  | "coursework.quiz_rubric"
+  | `content.${ContentIssue}`;
 
 const instantOf = (value: string) => (value ? Date.parse(value) : null);
 
@@ -200,6 +203,7 @@ export function publishIssues(
   if (quiz) issues.push(quiz);
   if (!contentPlainText(input.brief).trim())
     issues.push("coursework.brief_empty");
+  for (const code of contentIssues(input.brief)) issues.push(`content.${code}`);
   if (
     input.audience === "selected" &&
     input.groupIds.length === 0 &&

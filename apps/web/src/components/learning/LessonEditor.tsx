@@ -17,6 +17,7 @@ import { toast } from "sonner";
 import type { lessonEditorQuery } from "~/queries/learning";
 
 import { UnsavedChangesGuard } from "~/components/app/UnsavedChangesGuard";
+import { contentIssueMessages } from "~/components/content/checks";
 import { useCollaboration } from "~/components/content/collaboration";
 import { ContentEditor } from "~/components/content/ContentEditor";
 import { useDocumentMedia } from "~/components/coursework/useDocumentMedia";
@@ -146,6 +147,7 @@ export function LessonEditor({
         titleIssue,
         passIssue,
         ...questionIssues,
+        ...contentIssueMessages(draft.content),
         lessonProblem ? getMessageFromError(new Error(lessonProblem)) : null,
         refused,
       ].filter((issue): issue is string => Boolean(issue)),

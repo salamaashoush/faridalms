@@ -143,6 +143,14 @@ export function getMessageFromError(error: unknown): string {
         return m.errorEnrollmentOutsideYear();
       case "content.invalid":
         return m.contentInvalid();
+      case "content.alt":
+        return m.siteIssueAlt();
+      case "content.heading":
+        return m.siteIssueHeading();
+      case "content.order":
+        return m.siteIssueOrder();
+      case "content.link":
+        return m.siteIssueLink();
       case "message_draft.revision_conflict":
         return m.messageDraftConflict();
       case "message_draft.incomplete":
@@ -533,6 +541,8 @@ export function getMessageFromError(error: unknown): string {
         return m.lrnRuleNeedsReflection();
       case "learning.needs_media":
         return m.lrnRuleNeedsMedia();
+      case "learning.gate_opens_nothing":
+        return m.lrnGateOpensNothing();
       case "learning.captions_required":
         return m.lrnErrCaptions();
       case "learning.correct_option":

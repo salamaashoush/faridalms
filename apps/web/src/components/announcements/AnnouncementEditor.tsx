@@ -28,6 +28,7 @@ import { toast } from "sonner";
 
 import type { announcementEditorQuery } from "~/queries/announcements";
 
+import { contentIssueMessages } from "~/components/content/checks";
 import { ContentEditor } from "~/components/content/ContentEditor";
 import { ContentView } from "~/components/content/ContentView";
 import { LOCALE_LABEL, LOCALE_NAME } from "~/components/content/languages";
@@ -244,6 +245,10 @@ export function AnnouncementEditor({
     const found: string[] = [];
     if (!primaryTitle.trim()) found.push(m.annTitleNeeded());
     if (!contentPlainText(draft.body).trim()) found.push(m.annBodyNeeded());
+    found.push(
+      ...contentIssueMessages(draft.body),
+      ...(draft.bilingual ? contentIssueMessages(draft.translation) : []),
+    );
     const audience = audienceIssue(draft.audiences);
     if (audience) {
       found.push(audience);

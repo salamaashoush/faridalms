@@ -32,6 +32,7 @@ import { toast } from "sonner";
 import type { assignmentEditorQuery } from "~/queries/coursework";
 
 import { UnsavedChangesGuard } from "~/components/app/UnsavedChangesGuard";
+import { contentIssueMessages } from "~/components/content/checks";
 import { useCollaboration } from "~/components/content/collaboration";
 import { ContentEditor } from "~/components/content/ContentEditor";
 import { CourseworkSetting } from "~/components/exams/CourseworkSetting";
@@ -280,8 +281,10 @@ function issuesOf(draft: Draft, started: boolean) {
   )
     blocking.deduction = m.courseworkDeductionRequired();
   const publishing: Partial<Record<Field, string>> = {};
+  const [briefIssue] = contentIssueMessages(draft.brief);
   if (!contentPlainText(draft.brief).trim())
     publishing.brief = m.errorCourseworkBriefEmpty();
+  else if (briefIssue) publishing.brief = briefIssue;
   if (
     draft.audience === "selected" &&
     draft.groupIds.length === 0 &&

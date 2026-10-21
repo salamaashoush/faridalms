@@ -2862,6 +2862,7 @@
   "lrnNotShownYet": "Students do not see this lesson yet",
   "lrnShowStudents": "Show students",
   "lrnIncomplete": "Finish these before students see the lesson:",
+  "lrnGateOpensNothing": "A continue gate with nothing after it opens nothing",
   "lrnUntitled": "Untitled lesson",
   "lrnSectionFinishing": "Finishing",
   "lrnQuestionCount": [
@@ -3181,6 +3182,7 @@
   "siteIssueHeading": "A first-level heading competes with the page title",
   "siteIssueIn": "{issue} ({language})",
   "siteIssueLink": "A link says nothing about where it goes",
+  "siteIssueOrder": "A heading skips a level",
   "siteLanguage": "Language",
   "siteLinkTarget": "Goes to",
   "siteLive": "The website is live",

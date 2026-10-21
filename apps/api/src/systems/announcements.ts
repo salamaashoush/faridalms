@@ -45,6 +45,7 @@ import {
   seenSchema,
 } from "@faridalms/domain/announcements";
 import { contentFileIds, contentPlainText } from "@faridalms/domain/content";
+import { contentIssues } from "@faridalms/domain/content-checks";
 import {
   documentWritten,
   otherLocale,
@@ -404,6 +405,12 @@ export const publish = writeProcedure
     );
     if (users.length === 0)
       throw new ORPCError("CONFLICT", { message: "announcements.nobody" });
+    const written = await words(context, row.id);
+    const [problem] = [written.body, written.translation].flatMap((document) =>
+      document ? contentIssues(document) : [],
+    );
+    if (problem)
+      throw new ORPCError("BAD_REQUEST", { message: `content.${problem}` });
     const version = await setState(context.tx, {
       tenantId: context.tenantId,
       id: row.id,
@@ -430,7 +437,7 @@ export const publish = writeProcedure
       });
     // A scheduled one tells nobody yet; its readers hear when it is out.
     if (!later) {
-      const { body } = await words(context, row.id);
+      const { body } = written;
       await notify(context, users, {
         kind: row.urgency === "urgent" ? "urgent" : "announcement",
         subject: { type: "announcement", id: row.id },

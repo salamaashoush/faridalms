@@ -311,27 +311,26 @@ export function NewsEditor({
       })
     : null;
 
-  const websiteIssues = isPublic
-    ? (draft.bilingual ? [draft.primaryLocale, other] : [draft.primaryLocale])
-        .filter(
-          (locale) =>
-            locale === draft.primaryLocale ||
-            documentWritten(draft.translation),
-        )
-        .flatMap((locale) =>
-          postIssues({
-            coverFileId: draft.coverFileId || null,
-            coverAlt: pick(locale, draft.coverAltEn, draft.coverAltAr),
-            body:
-              locale === draft.primaryLocale ? draft.body : draft.translation,
-          }).map((code) =>
-            m.siteIssueIn({
-              issue: ISSUE_LABEL[code](),
-              language: LOCALE_NAME[locale](),
-            }),
-          ),
-        )
-    : [];
+  // Every post reads as a page under its title, wherever it is shown.
+  const postProblems = (
+    draft.bilingual ? [draft.primaryLocale, other] : [draft.primaryLocale]
+  )
+    .filter(
+      (locale) =>
+        locale === draft.primaryLocale || documentWritten(draft.translation),
+    )
+    .flatMap((locale) =>
+      postIssues({
+        coverFileId: draft.coverFileId || null,
+        coverAlt: pick(locale, draft.coverAltEn, draft.coverAltAr),
+        body: locale === draft.primaryLocale ? draft.body : draft.translation,
+      }).map((code) =>
+        m.siteIssueIn({
+          issue: ISSUE_LABEL[code](),
+          language: LOCALE_NAME[locale](),
+        }),
+      ),
+    );
 
   const applyTemplate = (template: Template) => {
     change({
@@ -356,8 +355,8 @@ export function NewsEditor({
       found.push(audience ?? m.newsErrAudience());
       setDetailsOpen(true);
     }
-    if (websiteIssues.length) {
-      found.push(...websiteIssues);
+    if (postProblems.length) {
+      found.push(...postProblems);
       setDetailsOpen(true);
     }
     return found;
@@ -761,9 +760,9 @@ export function NewsEditor({
                   checked={draft.pinned}
                   onChange={(pinned) => change({ pinned })}
                 />
-                {websiteIssues.length ? (
+                {postProblems.length ? (
                   <ul className="grid gap-1 text-[13px] leading-[18px] text-destructive">
-                    {websiteIssues.map((issue) => (
+                    {postProblems.map((issue) => (
                       <li key={issue}>{issue}</li>
                     ))}
                   </ul>

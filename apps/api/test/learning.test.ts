@@ -1205,6 +1205,50 @@ describe("lessons written as documents", () => {
     });
   });
 
+  test("a lesson that skips a heading level or ends on a gate keeps the edit from students", async () => {
+    const { keeper } = await teachers();
+    const { reading } = await lessonsOf(await student());
+    const editing = await keeper.learning.lesson({ id: reading.id });
+    const story = plainContent("Read the story, then tell a friend.");
+    const [line] = story.root.children ?? [];
+    if (!line) throw new Error("a line of the story");
+    const draft = (content: ContentDocument) => ({
+      id: editing.id,
+      moduleId: editing.moduleId,
+      title: editing.title,
+      completion: editing.completion,
+      passScore: editing.passScore,
+      content,
+    });
+    const cases: [ContentNode[], string][] = [
+      [[{ ...line, type: "heading", tag: "h3" }, line], "content.order"],
+      [[line, { type: "gate", version: 1 }], "learning.gate_opens_nothing"],
+    ];
+    let version = editing.version;
+    for (const [children, message] of cases) {
+      const content = { root: { ...story.root, children } };
+      ({ version } = await keeper.learning.saveLesson({
+        ...draft(content),
+        expectedVersion: version,
+        publish: false,
+      }));
+      expect(
+        await rejection(
+          keeper.learning.saveLesson({
+            ...draft(content),
+            expectedVersion: version,
+            publish: true,
+          }),
+        ),
+      ).toMatchObject({ code: "CONFLICT", message });
+    }
+    await keeper.learning.saveLesson({
+      ...draft(editing.published?.content ?? editing.content),
+      expectedVersion: version,
+      publish: false,
+    });
+  });
+
   test("a teacher brings back a version students were shown", async () => {
     const { keeper } = await teachers();
     const pupil = await student();

@@ -2960,6 +2960,7 @@
   "lrnNotShownYet": "لا يرى الطلاب هذا الدرس بعد",
   "lrnShowStudents": "اعرض للطلاب",
   "lrnIncomplete": "أكمل ما يلي قبل أن يرى الطلاب الدرس:",
+  "lrnGateOpensNothing": "بوابة متابعة لا يليها شيء لا تفتح شيئًا",
   "lrnUntitled": "درس بلا عنوان",
   "lrnSectionFinishing": "إنهاء الدرس",
   "lrnQuestionCount": [
@@ -3307,6 +3308,7 @@
   "siteIssueHeading": "عنوان من المستوى الأول ينافس عنوان الصفحة",
   "siteIssueIn": "{issue} ({language})",
   "siteIssueLink": "رابط لا يوضّح وجهته",
+  "siteIssueOrder": "عنوان يتخطّى مستوى",
   "siteLanguage": "اللغة",
   "siteLinkTarget": "يذهب إلى",
   "siteLive": "الموقع متاح للجميع",
