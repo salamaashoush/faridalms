@@ -4476,6 +4476,7 @@
   "lrnGateProgressWatch": "شوهد {count} من {total}",
   "lrnGateProgressBoth": "اكتمل {count} من {total}",
   "lrnVideoQuestionAhead": "يظهر سؤال عند {time} في المقطع.",
+  "lrnVideoAnswerNow": "أجب الآن",
   "lrnVideoContinue": "تابع المقطع",
   "lrnVideoRewatch": "شاهد مرة أخرى من {time}",
   "lrnVideosTab": "المقاطع",

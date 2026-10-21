@@ -48,6 +48,8 @@ Sources: [../research/course-design.md](../research/course-design.md),
 3. **A question asked in a video can be answered without playing it.** It
    shows only a placeholder until the video reaches it (`LessonPlayer.tsx`),
    which shuts out a student who cannot hear or stream the video.
+   Done: the placeholder offers Answer now, which opens the question in
+   place and takes focus to it; once answered the video no longer stops.
 4. **Subscript and superscript.** The reader draws them, the editor offers
    no way to make them. They join the floating bar's marks.
 5. **Publish checks.** Before publishing, the lesson list of issues also

@@ -190,6 +190,9 @@ function LessonBody({
     return found;
   }, [stops]);
   const [stopped, setStopped] = useState<ReadonlySet<string>>(new Set());
+  // Questions a student opened before the video reached them, as anyone who
+  // cannot hear or stream the video must be able to.
+  const [opened, setOpened] = useState<ReadonlySet<string>>(new Set());
   const players = useRef(new Map<string, VideoControl>());
   const answered = (blockId: string) => {
     const block = blocks.find((item) => item.id === blockId);
@@ -379,13 +382,32 @@ function LessonBody({
           const settledHere = isSettled(block, view);
           const missed = Boolean(view && view.tries > 0 && !settledHere);
           body =
-            stop && !settledHere && !stopped.has(block.id) ? (
-              <p className="flex items-center gap-2 rounded-lg border border-dashed px-4 py-3 text-sm leading-5 text-muted-foreground">
+            stop &&
+            !settledHere &&
+            !stopped.has(block.id) &&
+            !opened.has(block.id) ? (
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-lg border border-dashed px-4 py-2 text-sm leading-5 text-muted-foreground">
                 <Clock aria-hidden className="size-4 shrink-0" />
-                {m.lrnVideoQuestionAhead({
-                  time: mediaClock(stop.at),
-                })}
-              </p>
+                <p className="min-w-0 flex-1">
+                  {m.lrnVideoQuestionAhead({
+                    time: mediaClock(stop.at),
+                  })}
+                </p>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="-me-2 max-md:h-10"
+                  onClick={() => {
+                    flushSync(() =>
+                      setOpened((current) => new Set([...current, block.id])),
+                    );
+                    document.getElementById(`block-${block.id}`)?.focus();
+                  }}
+                >
+                  {m.lrnVideoAnswerNow()}
+                </Button>
+              </div>
             ) : (
               <div className="grid gap-3">
                 <CheckBlockView

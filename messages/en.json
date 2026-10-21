@@ -4290,6 +4290,7 @@
   "lrnGateProgressWatch": "{count} of {total} watched",
   "lrnGateProgressBoth": "{count} of {total} done",
   "lrnVideoQuestionAhead": "A question comes up at {time} in the video.",
+  "lrnVideoAnswerNow": "Answer now",
   "lrnVideoContinue": "Continue the video",
   "lrnVideoRewatch": "Watch again from {time}",
   "lrnVideosTab": "Videos",
