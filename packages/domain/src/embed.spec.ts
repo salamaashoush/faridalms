@@ -9,6 +9,40 @@ import {
 } from "./embed";
 
 describe("embeddable links", () => {
+  it("recognises the simulations and graphs maths and science lessons use", () => {
+    expect(parseEmbedUrl("https://www.geogebra.org/m/RHYH3UQ8")).toEqual({
+      provider: "geogebra",
+      embedId: "RHYH3UQ8",
+    });
+    expect(
+      parseEmbedInput(
+        '<iframe src="https://www.geogebra.org/material/iframe/id/cnZ8Q7ff/width/800/height/600" width="800"></iframe>',
+      ),
+    ).toEqual({ provider: "geogebra", embedId: "cnZ8Q7ff" });
+    const graph = parseEmbedUrl("https://www.desmos.com/calculator/zukjgk9iry");
+    expect(graph).toEqual({
+      provider: "desmos",
+      embedId: "calculator/zukjgk9iry",
+    });
+    expect(graph && embedSource(graph)).toBe(
+      "https://www.desmos.com/calculator/zukjgk9iry?embed",
+    );
+    expect(parseEmbedUrl("https://www.desmos.com/scientific")).toBeNull();
+    for (const address of [
+      "https://phet.colorado.edu/en/simulations/projectile-motion",
+      "https://phet.colorado.edu/sims/html/projectile-motion/latest/projectile-motion_ar.html",
+    ])
+      expect(parseEmbedUrl(address)).toEqual({
+        provider: "phet",
+        embedId: "projectile-motion",
+      });
+    expect(
+      embedSource({ provider: "phet", embedId: "projectile-motion" }),
+    ).toBe(
+      "https://phet.colorado.edu/sims/html/projectile-motion/latest/projectile-motion_all.html",
+    );
+  });
+
   it("recognises the providers teachers paste most", () => {
     expect(
       parseEmbedUrl("https://www.youtube.com/watch?v=dQw4w9WgXcQ&t=42"),

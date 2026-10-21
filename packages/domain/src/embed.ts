@@ -8,6 +8,9 @@ export const embedProviders = [
   "google-sheets",
   "google-forms",
   "canva",
+  "geogebra",
+  "desmos",
+  "phet",
 ] as const;
 export type EmbedProvider = (typeof embedProviders)[number];
 
@@ -28,6 +31,9 @@ const identifiers: Record<EmbedProvider, RegExp> = {
   "google-sheets": googleId,
   "google-forms": /^[\w-]{10,160}$/,
   canva: /^[\w-]{8,24}\/[\w-]{8,48}$/,
+  geogebra: /^[\da-z]{5,16}$/i,
+  desmos: /^(?:calculator|geometry|3d)\/[\da-z]{6,32}$/,
+  phet: /^[a-z\d]+(?:-[a-z\d]+)*$/,
 };
 
 export function isEmbedId(provider: EmbedProvider, embedId: string): boolean {
@@ -85,6 +91,27 @@ export function parseEmbedUrl(input: string): Embed | null {
       "canva",
       parts[1] && parts[2] ? `${parts[1]}/${parts[2]}` : undefined,
     );
+  // A shared GeoGebra activity, or the address its Embed code frames.
+  if (host === "geogebra.org") {
+    if (
+      ["m", "classic", "calculator", "graphing", "geometry", "3d"].includes(
+        parts[0] ?? "",
+      )
+    )
+      return checked("geogebra", parts[1]);
+    if (parts[0] === "material" && parts[1] === "iframe" && parts[2] === "id")
+      return checked("geogebra", parts[3]);
+    return null;
+  }
+  if (host === "desmos.com" && parts[1])
+    return checked("desmos", `${parts[0]}/${parts[1]}`);
+  // A PhET simulation's page, or the simulation itself in any language.
+  if (host === "phet.colorado.edu") {
+    if (parts[1] === "simulations") return checked("phet", parts[2]);
+    if (parts[0] === "sims" && parts[1] === "html")
+      return checked("phet", parts[2]);
+    return null;
+  }
   return null;
 }
 
@@ -117,6 +144,10 @@ const sources: Record<EmbedProvider, (id: string) => string> = {
   "google-forms": (id) =>
     `https://docs.google.com/forms/d/e/${id}/viewform?embedded=true`,
   canva: (id) => `https://www.canva.com/design/${id}/view?embed`,
+  geogebra: (id) => `https://www.geogebra.org/material/iframe/id/${id}`,
+  desmos: (id) => `https://www.desmos.com/${id}?embed`,
+  phet: (id) =>
+    `https://phet.colorado.edu/sims/html/${id}/latest/${id}_all.html`,
 };
 
 const pages: Record<EmbedProvider, (id: string) => string> = {
@@ -129,6 +160,9 @@ const pages: Record<EmbedProvider, (id: string) => string> = {
   "google-sheets": (id) => `https://docs.google.com/spreadsheets/d/${id}/edit`,
   "google-forms": (id) => `https://docs.google.com/forms/d/e/${id}/viewform`,
   canva: (id) => `https://www.canva.com/design/${id}/view`,
+  geogebra: (id) => `https://www.geogebra.org/m/${id}`,
+  desmos: (id) => `https://www.desmos.com/${id}`,
+  phet: (id) => `https://phet.colorado.edu/en/simulations/${id}`,
 };
 
 export function embedSource({ provider, embedId }: Embed): string {
@@ -149,11 +183,17 @@ export const embedProviderNames: Record<EmbedProvider, string> = {
   "google-sheets": "Google Sheets",
   "google-forms": "Google Forms",
   canva: "Canva",
+  geogebra: "GeoGebra",
+  desmos: "Desmos",
+  phet: "PhET",
 };
 
 export function embedAspect(provider: EmbedProvider): string {
   if (provider === "google-docs" || provider === "google-sheets")
     return "4 / 3";
   if (provider === "google-forms") return "3 / 4";
+  // Simulations and graphs are laid out for a classroom screen, not a film.
+  if (provider === "geogebra" || provider === "desmos" || provider === "phet")
+    return "4 / 3";
   return "16 / 9";
 }

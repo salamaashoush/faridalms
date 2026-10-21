@@ -95,7 +95,12 @@ Sources: [../research/course-design.md](../research/course-design.md),
 2. **Maths answers checked for equivalence**, a question kind that accepts
    `2(x+1)` for `2x+2`, with tolerance and units for numbers.
 3. **Embeds for teaching**: GeoGebra, Desmos, PhET, Wikimedia Commons and
-   Microsoft 365 files beside today's YouTube, Vimeo, Loom, Google and Canva.
+   Microsoft 365 files beside today's YouTube, Vimeo, Loom, Google and Canva. Done:
+   GeoGebra activities, Desmos graphs (calculator, geometry, 3D) and PhET
+   simulations, from a share link or embed code, behind the same click to
+   load. Left: Microsoft 365, whose embed addresses carry a tenant's own
+   host and a key, and Wikimedia Commons, whose pictures belong in a
+   picture block with their licence and author kept.
 
 ## 3. Questions and assessment
 
