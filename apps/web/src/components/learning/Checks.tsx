@@ -15,6 +15,7 @@ import { joinedAroundGaps } from "@faridalms/domain/arabic";
 import { textDirection } from "@faridalms/domain/content";
 import { MAX_INDENT, MAX_RUN_OUTPUT } from "@faridalms/domain/learning";
 import { StoredImage } from "@faridalms/editor/files";
+import { TextWithMath, textOfMath } from "@faridalms/editor/math";
 import { Player } from "@faridalms/puzzles/Player";
 import { ProgramView } from "@faridalms/puzzles/ProgramView";
 import { Button } from "@faridalms/ui/button";
@@ -111,14 +112,15 @@ function PartView({
       ) : null}
       {part.text ? (
         <span dir="auto" className="min-w-0">
-          {part.text}
+          <TextWithMath text={part.text} />
         </span>
       ) : null}
     </span>
   );
 }
 
-const partLabel = (part: StudentPart) => part.text || part.picture?.alt || "";
+const partLabel = (part: StudentPart) =>
+  textOfMath(part.text) || part.picture?.alt || "";
 
 /**
  * A part with its speaker beside it. The speaker is a button of its own, so
@@ -445,7 +447,7 @@ function CheckCard({
               young ? "text-xl leading-8" : "text-base leading-6",
             )}
           >
-            {block.prompt}
+            <TextWithMath text={block.prompt} />
           </p>
           {/* Young children see no points, only whether they found it. */}
           {block.points > 0 && !young ? (
@@ -929,7 +931,7 @@ function GapsCheck({
           if (segment.type === "text")
             return (
               <span key={`after-${precedingGap(block.segments, index)}`}>
-                {segment.text}
+                <TextWithMath text={segment.text} />
               </span>
             );
           const number = gaps.indexOf(segment) + 1;

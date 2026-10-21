@@ -58,6 +58,7 @@ import {
   Copy,
   Clapperboard,
   Code,
+  Sigma,
   Columns2,
   Columns3,
   Heading1,
@@ -95,6 +96,7 @@ import {
   $createAiUseNode,
   $createCalloutNode,
   $createColumnNode,
+  $createMathNode,
   $createQuestionNode,
   $createTrueFalseQuestion,
   $createMicrobitQuestion,
@@ -108,9 +110,11 @@ import {
   $createToggleTitleNode,
   $isCalloutNode,
   $isColumnsNode,
+  $isMathNode,
   $isQuestionNode,
   $isToggleNode,
   $nearestBlock,
+  $selectMath,
   $isStarterNode,
   GateNode,
   PageBreakNode,
@@ -127,6 +131,7 @@ export type BlockType =
   | "check"
   | "quote"
   | "code"
+  | "equation"
   | "callout"
   | "toggle"
   | "divider"
@@ -399,6 +404,24 @@ export const blockDefinitions: BlockDefinition[] = [
     keywords: ["code", "snippet", "program", "كود", "برمجة"],
     shortcut: "```",
     convertible: true,
+  },
+  {
+    type: "equation",
+    group: "text",
+    icon: Sigma,
+    label: (s) => s.equation,
+    hint: (s) => s.equationHint,
+    keywords: [
+      "math",
+      "maths",
+      "equation",
+      "formula",
+      "latex",
+      "معادلة",
+      "رياضيات",
+      "صيغة",
+    ],
+    shortcut: "$$",
   },
   {
     type: "image",
@@ -1066,6 +1089,11 @@ export function $turnInto(block: LexicalNode, type: BlockType): LexicalNode {
 }
 
 function $selectInside(node: LexicalNode) {
+  const formula = $isParagraphNode(node) ? node.getFirstChild() : null;
+  if ($isMathNode(formula)) {
+    $selectMath(formula);
+    return;
+  }
   if ($isQuestionNode(node)) {
     node.getFirstChild()?.selectStart();
     return;
@@ -1103,6 +1131,8 @@ function $createStructure(type: BlockType): LexicalNode | null {
   if (type === "gate") return new GateNode();
   if (type === "pageBreak") return new PageBreakNode();
   if (type === "aiUse") return $createAiUseNode();
+  if (type === "equation")
+    return $createParagraphNode().append($createMathNode("", true));
   if (type === "studentCopy")
     return new StarterNode().append($createParagraphNode());
   if (type === "table")

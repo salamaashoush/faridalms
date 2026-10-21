@@ -5,6 +5,7 @@ import type {
 } from "@faridalms/domain/learning";
 
 import { StoredImage } from "@faridalms/editor/files";
+import { TextWithMath } from "@faridalms/editor/math";
 import { Button } from "@faridalms/ui/button";
 import { cn } from "@faridalms/ui/cn";
 import { useMutation } from "@tanstack/react-query";
@@ -88,7 +89,7 @@ export function YoungPart({
           )}
         >
           <span dir="auto" className="young-words" data-read-along>
-            {part.text}
+            <TextWithMath text={part.text} />
           </span>
         </span>
       ) : null}

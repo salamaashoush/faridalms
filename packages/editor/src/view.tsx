@@ -31,6 +31,7 @@ import { AiUseView } from "./ai-use-view";
 import { useFileFacts } from "./file-facts";
 import { FileCard, PictureView, StoredImage } from "./files";
 import { blockAlignClass, diagramImageClass, imageSizeClass } from "./format";
+import { MathText } from "./math";
 import { EmbedFrame, MediaPlayer, MediaTranscript } from "./media-view";
 import { editorTheme } from "./theme";
 
@@ -394,6 +395,15 @@ function draw(
         drawn
       );
     }
+    case "math":
+      return node.latex?.trim() ? (
+        <MathText
+          key={key}
+          latex={node.latex}
+          display={Boolean(node.block)}
+          rtl={node.direction === "rtl"}
+        />
+      ) : null;
     case "linebreak":
       return <br key={key} />;
     case "horizontalrule":

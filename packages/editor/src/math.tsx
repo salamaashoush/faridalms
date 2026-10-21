@@ -1,0 +1,56 @@
+import type { TextRun } from "@faridalms/domain/content";
+
+import { mathRuns } from "@faridalms/domain/content";
+import { lazy, Suspense } from "react";
+
+import { cx } from "./ui";
+
+// Temml joins a page's bundle only where there is mathematics to draw.
+const MathMarkup = lazy(() =>
+  import("./math-view").then((module) => ({ default: module.MathMarkup })),
+);
+
+/** One formula, drawn once its renderer has loaded and shown as LaTeX until then. */
+export function MathText({
+  latex,
+  display = false,
+  rtl = false,
+}: {
+  latex: string;
+  display?: boolean;
+  rtl?: boolean;
+}) {
+  return (
+    <Suspense
+      fallback={
+        <span className={cx("fe-math", display && "fe-math-display")}>
+          {latex}
+        </span>
+      }
+    >
+      <MathMarkup latex={latex} display={display} rtl={rtl} />
+    </Suspense>
+  );
+}
+
+/** Plain text with the \(…\) and \[…\] mathematics written in it drawn as such. */
+export function TextWithMath({ text }: { text: string }) {
+  const runs: TextRun[] = mathRuns(text);
+  if (runs.every((run) => "text" in run)) return text;
+  let at = 0;
+  return runs.map((run) => {
+    const key = `${at}`;
+    at += "latex" in run ? run.latex.length + 4 : run.text.length;
+    return "latex" in run ? (
+      <MathText key={key} latex={run.latex} display={run.block} />
+    ) : (
+      <span key={key}>{run.text}</span>
+    );
+  });
+}
+
+/** The same text for a label or a voice: each formula as the LaTeX it is written in. */
+export const textOfMath = (text: string) =>
+  mathRuns(text)
+    .map((run) => ("latex" in run ? run.latex : run.text))
+    .join("");

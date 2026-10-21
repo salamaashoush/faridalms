@@ -328,6 +328,14 @@ export interface EditorStrings {
   questionPictureRemove: string;
   questionDelete: string;
   questionDone: string;
+  equation: string;
+  equationHint: string;
+  mathInsert: string;
+  mathEmpty: string;
+  mathField: string;
+  mathBlock: string;
+  mathRtl: string;
+  mathRemove: string;
   narration: string;
   narrationHint: string;
   narrationAgain: string;

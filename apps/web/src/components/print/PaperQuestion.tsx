@@ -12,6 +12,7 @@ import {
 import { programFile } from "@faridalms/domain/project";
 import { StoredImage } from "@faridalms/editor/files";
 import { mediaClock } from "@faridalms/editor/format";
+import { TextWithMath } from "@faridalms/editor/math";
 import { Board } from "@faridalms/puzzles/Board";
 import { blocksOf } from "@faridalms/puzzles/level";
 import { startFrame } from "@faridalms/puzzles/playback";
@@ -78,7 +79,11 @@ function Part({
   return (
     <span className="inline-flex flex-col items-start gap-1">
       <Pic picture={part.picture} fileUrl={fileUrl} />
-      {part.text ? <span dir="auto">{part.text}</span> : null}
+      {part.text ? (
+        <span dir="auto">
+          <TextWithMath text={part.text} />
+        </span>
+      ) : null}
     </span>
   );
 }
@@ -480,7 +485,9 @@ export function PaperQuestion({
         <p className="leading-[2.4]">
           {placed(block.segments).map(({ segment, at }) =>
             segment.type === "text" ? (
-              <span key={at}>{segment.text}</span>
+              <span key={at}>
+                <TextWithMath text={segment.text} />
+              </span>
             ) : (
               <span key={segment.id} className="whitespace-nowrap">
                 <span
@@ -668,7 +675,7 @@ export function PaperQuestion({
                       .filter((item) => item.groupId === group.id)
                       .map((item) => (
                         <li key={item.id} className={key}>
-                          {partName(item)}
+                          <TextWithMath text={partName(item)} />
                         </li>
                       ))}
                   </ul>
@@ -815,7 +822,9 @@ export function PaperQuestion({
     <section className="paper-question grid gap-2 py-2">
       <p className="flex gap-1.5 font-semibold" dir="auto">
         <span>{number}.</span>
-        <span>{block.prompt}</span>
+        <span>
+          <TextWithMath text={block.prompt} />
+        </span>
       </p>
       {typeof block.videoAt === "number" ? (
         <p className="text-[0.8em] text-neutral-600">

@@ -7,6 +7,7 @@ import { AiUseNode } from "./ai-use";
 import { $isCalloutNode, CalloutNode } from "./callout";
 import { $isColumnNode, ColumnNode, ColumnsNode } from "./columns";
 import { GateNode } from "./gate";
+import { MathNode } from "./math";
 import { FileNode, ImageNode } from "./media";
 import { PageBreakNode } from "./page-break";
 import {
@@ -34,6 +35,7 @@ export * from "./callout";
 export * from "./code-run";
 export * from "./columns";
 export * from "./gate";
+export * from "./math";
 export * from "./media";
 export * from "./page-break";
 export * from "./question";
@@ -66,6 +68,7 @@ export const blockNodes = [
   PageBreakNode,
   StarterNode,
   AiUseNode,
+  MathNode,
 ];
 
 export const blockIdState = createState("id", {

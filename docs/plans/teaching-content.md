@@ -57,8 +57,9 @@ Sources: [../research/course-design.md](../research/course-design.md),
    names pictures with no alternative text (and not marked decorative),
    headings that skip a level, and a continue gate nobody can pass.
    Done: one check (`content-checks.ts`) names undescribed pictures not
-   marked decorative, a first-level heading, a skipped level and a vague
-   link, and lessons, assignments, news, announcements, events and website
+   marked decorative, a heading level skipped below the largest the
+   document uses (readers number headings from there) and a vague link,
+   and lessons, assignments, news, announcements, events and website
    bodies refuse to go out with any of them, in the browser and the API.
    Every check can be settled by its student (answered, revealed or handed
    in), so a gate always opens; what the check finds instead is a gate with
@@ -83,7 +84,14 @@ Sources: [../research/course-design.md](../research/course-design.md),
 1. **Maths in the text and as a block.** Inline maths and an equation
    block, typed in a maths field, stored as LaTeX, drawn as MathML, with
    Arabic notation direction as a school setting. Printing, paper forms and
-   the reader draw it without the editing field.
+   the reader draw it without the editing field. Done: a `math` node
+   (LaTeX, in the line or on its own, right to left for Arabic notation)
+   written with MathLive from the floating bar, typed as $…$ or $$…$$,
+   Alt+= or the Equation block, and drawn as MathML by Temml in Latin
+   Modern Math, each loaded only where a page needs it. Questions carry
+   formulas in their text as \(…\), drawn in the player, paper and
+   boards. Still to do: a school-wide default for Arabic notation, Arabic
+   notation inside question text, and formulas read aloud as speech.
 2. **Maths answers checked for equivalence**, a question kind that accepts
    `2(x+1)` for `2x+2`, with tolerance and units for numbers.
 3. **Embeds for teaching**: GeoGebra, Desmos, PhET, Wikimedia Commons and

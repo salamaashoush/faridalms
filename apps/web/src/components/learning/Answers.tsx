@@ -1,4 +1,5 @@
 import { StoredImage } from "@faridalms/editor/files";
+import { TextWithMath } from "@faridalms/editor/math";
 import { MediaPlayer } from "@faridalms/editor/media-view";
 import { Button } from "@faridalms/ui/button";
 import { Checkbox } from "@faridalms/ui/checkbox";
@@ -436,7 +437,7 @@ function QuestionAnswers({
             </p>
           ) : null}
           <h3 dir="auto" className="text-base leading-6 font-semibold">
-            {question.prompt}
+            <TextWithMath text={question.prompt} />
           </h3>
           <p className="text-[13px] leading-[18px] text-muted-foreground">
             {[

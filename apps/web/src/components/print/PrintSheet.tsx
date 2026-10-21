@@ -6,6 +6,7 @@ import { Dialog as DialogPrimitive } from "@base-ui/react/dialog";
 import { contentPlainText, textDirection } from "@faridalms/domain/content";
 import { emptyContent } from "@faridalms/domain/content-conversion";
 import { questionBlock } from "@faridalms/domain/lesson-content";
+import { TextWithMath } from "@faridalms/editor/math";
 import { Button } from "@faridalms/ui/button";
 import { cn } from "@faridalms/ui/cn";
 import { RadioGroup, RadioGroupItem } from "@faridalms/ui/radio-group";
@@ -268,7 +269,11 @@ function AnswerKey({
             <li key={number} className="paper-question flex gap-2">
               <span className="font-semibold">{number}.</span>
               <span dir="auto">
-                {answer ?? m.printKeyTeacher({}, { locale })}
+                {answer === null ? (
+                  m.printKeyTeacher({}, { locale })
+                ) : (
+                  <TextWithMath text={answer} />
+                )}
               </span>
             </li>
           );

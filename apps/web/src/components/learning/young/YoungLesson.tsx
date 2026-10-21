@@ -5,6 +5,7 @@ import type { MediaWatch, VideoControl } from "@faridalms/editor/player";
 import { contentPlainText, textDirection } from "@faridalms/domain/content";
 import { videoStops } from "@faridalms/domain/learning";
 import { lessonSteps } from "@faridalms/domain/lesson-steps";
+import { TextWithMath, textOfMath } from "@faridalms/editor/math";
 import { Button } from "@faridalms/ui/button";
 import { cn } from "@faridalms/ui/cn";
 import { useHydrated } from "@tanstack/react-router";
@@ -141,14 +142,14 @@ function Prompt({ block }: { block: CheckStudentBlock }) {
       className="flex items-center justify-center gap-3"
     >
       <ReadAloud
-        text={block.prompt}
+        text={textOfMath(block.prompt)}
         narration={block.narration}
         words={block.narrationWords}
         size="large"
       />
       <h2 className="text-center text-3xl leading-tight font-bold text-balance sm:text-4xl">
         <span dir="auto" className="young-words" data-read-along>
-          {block.prompt}
+          <TextWithMath text={block.prompt} />
         </span>
       </h2>
     </div>

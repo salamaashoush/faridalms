@@ -89,13 +89,24 @@ import {
   ScanSearch,
   ScrollText,
   Signature,
+  Sigma,
   Volume2,
+  WrapText,
+  ArrowRightLeft,
   X,
 } from "lucide-react";
-import { useEffect, useEffectEvent, useRef, useState } from "react";
+import {
+  lazy,
+  Suspense,
+  useEffect,
+  useEffectEvent,
+  useRef,
+  useState,
+} from "react";
 
 import type { BlockType } from "../blocks";
 import type { MarkFormat } from "../formatting";
+import type { MathNode } from "../nodes/math";
 import type { NarrationTarget } from "../nodes/narration";
 import type {
   PartPicture,
@@ -126,6 +137,7 @@ import {
   OPEN_LINK_EDITOR_COMMAND,
   textColors,
 } from "../formatting";
+import { $insertMath, $isMathNode } from "../nodes/math";
 import { $isFileNode, $isImageNode, OPEN_FILE_COMMAND } from "../nodes/media";
 import {
   $findNarrated,
@@ -177,6 +189,7 @@ import { TracePad } from "./trace";
 
 type Mode =
   | "hidden"
+  | "math"
   | "format"
   | "link-edit"
   | "link-view"
@@ -190,6 +203,17 @@ type Mode =
   | "trace"
   | "regions"
   | "picture";
+
+/** A chosen formula: what the bar writes and how it sits. */
+interface MathFacts {
+  key: NodeKey;
+  latex: string;
+  block: boolean;
+  rtl: boolean;
+}
+
+// MathLive joins the page only when a formula is being written.
+const MathField = lazy(() => import("./math-field"));
 
 /** The question the caret is in: what the bar shows and changes. */
 interface QuestionBarFacts {
@@ -430,6 +454,7 @@ export function SelectionToolbarPlugin() {
     questions,
   } = useEditorEnvironment();
   const [mode, setMode] = useState<Mode>("hidden");
+  const [math, setMath] = useState<MathFacts | null>(null);
   const [reference, setReference] = useState<ReferenceElement | null>(null);
   const [facts, setFacts] = useState<Facts>(empty);
   const [layout, setLayout] = useState<BlockFacts | null>(null);
@@ -549,6 +574,21 @@ export function SelectionToolbarPlugin() {
       };
     });
 
+  const readMath = () =>
+    editor.getEditorState().read((): MathFacts | null => {
+      const selection = $getSelection();
+      if (!$isNodeSelection(selection)) return null;
+      const nodes = selection.getNodes();
+      const node = nodes.length === 1 ? nodes[0] : null;
+      if (!$isMathNode(node)) return null;
+      return {
+        key: node.getKey(),
+        latex: node.getLatex(),
+        block: node.isBlock(),
+        rtl: node.isRtl(),
+      };
+    });
+
   const readBlock = () =>
     editor.getEditorState().read((): Omit<BlockFacts, "rtl"> | null => {
       const selection = $getSelection();
@@ -652,11 +692,18 @@ export function SelectionToolbarPlugin() {
       modeRef.current === "narration" ||
       modeRef.current === "trace" ||
       modeRef.current === "regions" ||
-      modeRef.current === "picture"
+      modeRef.current === "picture" ||
+      modeRef.current === "math"
     )
       return;
     const root = editor.getRootElement();
     const focused = root !== null && root.contains(document.activeElement);
+    const formula = focused ? readMath() : null;
+    if (formula) {
+      setMath(formula);
+      setReference(editor.getElementByKey(formula.key));
+      return show("math");
+    }
     const file = focused ? readFile() : null;
     if (file) {
       setFileFacts(file);
@@ -815,7 +862,8 @@ export function SelectionToolbarPlugin() {
       mode === "narration" ||
       mode === "trace" ||
       mode === "regions" ||
-      mode === "picture"
+      mode === "picture" ||
+      mode === "math"
     )
       return undefined;
     const onFocus = () => {
@@ -830,7 +878,8 @@ export function SelectionToolbarPlugin() {
         modeRef.current === "narration" ||
         modeRef.current === "trace" ||
         modeRef.current === "regions" ||
-        modeRef.current === "picture"
+        modeRef.current === "picture" ||
+        modeRef.current === "math"
       )
         return;
       const active = document.activeElement;
@@ -871,6 +920,89 @@ export function SelectionToolbarPlugin() {
 
   // The text area below the fixed toolbar, so the bar never covers that one.
   const boundary = editor.getRootElement()?.parentElement ?? null;
+
+  if (mode === "math" && math) {
+    // Typing in the field writes the formula as it goes; focus stays there.
+    const change = (patch: (node: MathNode) => void) =>
+      editor.update(
+        () => {
+          const node = $getNodeByKey(math.key);
+          if ($isMathNode(node)) patch(node);
+        },
+        { tag: SKIP_DOM_SELECTION_TAG },
+      );
+    const close = () => {
+      show("hidden");
+      updateFromOutside(editor, () => {
+        const node = $getNodeByKey(math.key);
+        if (!$isMathNode(node)) return;
+        node.selectNext(0, 0);
+        // A formula left empty is not kept.
+        if (!node.getLatex().trim()) node.remove();
+      });
+    };
+    return (
+      <Floating
+        reference={reference}
+        placement="bottom-start"
+        boundary={boundary}
+        className="flex w-[34rem] max-w-[calc(100vw-1rem)] items-center gap-1 p-1.5"
+        keepInView
+        role="toolbar"
+        label={strings.mathField}
+      >
+        <div ref={toolbar} className="contents">
+          <Suspense fallback={<div className="h-10 min-w-0 flex-1" />}>
+            <MathField
+              key={math.key}
+              value={math.latex}
+              locale={locale}
+              label={strings.mathField}
+              onInput={(latex) => change((node) => node.setLatex(latex))}
+              onDone={close}
+            />
+          </Suspense>
+          <ToolButton
+            label={strings.mathBlock}
+            active={math.block}
+            onClick={() => {
+              change((node) => node.setBlock(!math.block));
+              setMath({ ...math, block: !math.block });
+            }}
+          >
+            <WrapText aria-hidden />
+          </ToolButton>
+          <ToolButton
+            label={strings.mathRtl}
+            active={math.rtl}
+            onClick={() => {
+              change((node) => node.setRtl(!math.rtl));
+              setMath({ ...math, rtl: !math.rtl });
+            }}
+          >
+            <ArrowRightLeft aria-hidden />
+          </ToolButton>
+          <ToolButton label={strings.questionDone} onClick={close}>
+            <Check aria-hidden />
+          </ToolButton>
+          <ToolButton
+            label={strings.mathRemove}
+            onClick={() => {
+              show("hidden");
+              updateFromOutside(editor, () => {
+                const node = $getNodeByKey(math.key);
+                if (!$isMathNode(node)) return;
+                node.selectNext(0, 0);
+                node.remove();
+              });
+            }}
+          >
+            <Trash2 aria-hidden />
+          </ToolButton>
+        </div>
+      </Floating>
+    );
+  }
 
   if (mode === "block" && layout) {
     const { pictureId } = layout;
@@ -2591,6 +2723,13 @@ export function SelectionToolbarPlugin() {
             <mark.icon aria-hidden />
           </ToolButton>
         ))}
+        <ToolButton
+          label={strings.mathInsert}
+          shortcut={shortcutLabel("Alt+=")}
+          onClick={() => editor.update(() => void $insertMath())}
+        >
+          <Sigma aria-hidden />
+        </ToolButton>
         {separator}
         <ToolButton
           label={strings.link}

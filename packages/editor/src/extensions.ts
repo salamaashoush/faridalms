@@ -73,6 +73,7 @@ import {
   $isQuestionSideNode,
   $isQuestionGapNode,
   $isQuestionPassageNode,
+  $insertMath,
   $markableAtCaret,
   $repairGap,
   $repairHolder,
@@ -555,6 +556,15 @@ function $shortcut(event: KeyboardEvent): boolean {
     const block = $currentBlock(false);
     return block ? $moveBlock(block, event.key === "ArrowUp" ? -1 : 1) : false;
   }
+  // Word's own key for a new formula, by the key or, where no key is told,
+  // by the character.
+  if (
+    event.altKey &&
+    !mod &&
+    !event.shiftKey &&
+    (event.code === "Equal" || event.key === "=")
+  )
+    return $insertMath() !== null;
   if (!mod) return false;
   const turn =
     event.altKey && !event.shiftKey ? headingKeys[event.code] : undefined;

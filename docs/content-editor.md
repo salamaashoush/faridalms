@@ -15,7 +15,8 @@ Lexical's serialized node model. JSON is canonical; HTML is a rendered output.
 Besides text, headings, quotes, lists, checklists, links, code, tables and
 dividers it accepts the editor's blocks: callouts, toggles, columns,
 pictures, files, video and audio, embeds, drawings, questions, continue
-gates, page breaks, a student's starting copy and a declaration of AI use.
+gates, page breaks, a student's starting copy and a declaration of AI use,
+and formulas written in LaTeX within the text.
 `content-checks.ts` names what a document must not carry to its readers
 (an undescribed picture, a first-level heading, a skipped level, a vague
 link), and every publishing path refuses those.

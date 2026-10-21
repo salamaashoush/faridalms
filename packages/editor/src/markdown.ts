@@ -1,6 +1,7 @@
 import type {
   ElementTransformer,
   MultilineElementTransformer,
+  TextMatchTransformer,
   Transformer,
 } from "@lexical/markdown";
 import type { ElementNode, LexicalNode } from "lexical";
@@ -20,7 +21,9 @@ import {
 import { $isElementNode, $isParagraphNode } from "lexical";
 
 import {
+  $createMathNode,
   $isCalloutNode,
+  $isMathNode,
   $isStarterNode,
   $isColumnsNode,
   $isFileNode,
@@ -31,6 +34,7 @@ import {
   ColumnsNode,
   FileNode,
   ImageNode,
+  MathNode,
   ToggleNode,
 } from "./nodes";
 
@@ -134,6 +138,31 @@ const STARTER: ElementTransformer = {
   type: "element",
 };
 
+/**
+ * Mathematics between dollar signs, as Markdown and LaTeX write it: $…$ in a
+ * line and $$…$$ on its own. As in Pandoc, no space may sit inside either
+ * sign, so "$5 and $10" stays two prices.
+ */
+const MATH: TextMatchTransformer = {
+  dependencies: [MathNode],
+  export: (node) =>
+    $isMathNode(node)
+      ? node.isBlock()
+        ? `$$${node.getLatex()}$$`
+        : `$${node.getLatex()}$`
+      : null,
+  importRegExp: /\$\$([^$]+)\$\$|\$([^$\s](?:[^$]*[^$\s])?)\$(?!\d)/,
+  regExp: /\$\$([^$]+)\$\$$|(?<!\$)\$([^$\s](?:[^$]*[^$\s])?)\$$/,
+  replace: (textNode, match) => {
+    const block = match[1] !== undefined;
+    textNode.replace(
+      $createMathNode((match[1] ?? match[2] ?? "").trim(), block),
+    );
+  },
+  trigger: "$",
+  type: "text-match",
+};
+
 const custom: ElementTransformer[] = [
   HORIZONTAL_RULE,
   CALLOUT,
@@ -154,6 +183,7 @@ export const markdownTransformers: Transformer[] = [
   ...ELEMENT_TRANSFORMERS,
   ...MULTILINE_ELEMENT_TRANSFORMERS,
   ...TEXT_FORMAT_TRANSFORMERS,
+  MATH,
   ...TEXT_MATCH_TRANSFORMERS,
 ];
 

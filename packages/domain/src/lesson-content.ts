@@ -4,7 +4,7 @@ import type { ContentDocument, ContentNode } from "./content";
 import type { GapSegment } from "./gaps";
 import type { LessonBlock, LessonDocument, RecordSeconds } from "./learning";
 
-import { sameContent } from "./content";
+import { mathRuns, mathText, sameContent } from "./content";
 import { gapsSource, parseGaps } from "./gaps";
 import { FLASH_SECONDS, MAX_INDENT, RECORD_SECONDS } from "./learning";
 
@@ -30,6 +30,7 @@ function leadingWidth(text: string): number {
 function textOf(node: ContentNode | undefined): string {
   if (!node) return "";
   if (node.type === "linebreak") return "\n";
+  if (node.type === "math") return mathText(node);
   if (typeof node.text === "string") return node.text;
   return (node.children ?? []).map(textOf).join("");
 }
@@ -554,8 +555,22 @@ const paragraphOf = (text: string): ContentNode => ({
 });
 
 function inlineOf(type: ContentNode["type"], text: string): ContentNode {
-  const paragraph = paragraphOf(text);
-  return { ...paragraph, type };
+  return {
+    ...paragraphOf(""),
+    type,
+    children: mathRuns(text).flatMap((run): ContentNode[] =>
+      "latex" in run
+        ? [
+            {
+              type: "math",
+              version: 1,
+              latex: run.latex,
+              ...(run.block ? { block: true } : {}),
+            },
+          ]
+        : (paragraphOf(run.text).children ?? []),
+    ),
+  };
 }
 
 /** A part whose text keeps its line breaks, as a test's input and output do. */

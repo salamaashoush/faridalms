@@ -12,6 +12,38 @@ import { projectLanguages, starterFilesSchema } from "./project";
 import { isSafeContentUrl } from "./rich-text";
 import { scratchChecksSchema } from "./scratch-project";
 
+/** The longest piece of mathematics one node holds, in LaTeX. */
+export const MAX_LATEX = 4000;
+
+/**
+ * Mathematics inside text that is otherwise plain, as a question's prompt
+ * and options carry it: \(…\) within a line and \[…\] on a line of its own,
+ * as LaTeX writes them.
+ */
+export const mathText = (node: Pick<ContentNode, "latex" | "block">) =>
+  node.block ? `\\[${node.latex ?? ""}\\]` : `\\(${node.latex ?? ""}\\)`;
+
+export type TextRun = { text: string } | { latex: string; block: boolean };
+
+const MATH_RUN = /\\\((.+?)\\\)|\\\[(.+?)\\\]/gsu;
+
+/** Plain text and the mathematics written in it, in order. */
+export function mathRuns(text: string): TextRun[] {
+  const runs: TextRun[] = [];
+  let from = 0;
+  for (const match of text.matchAll(MATH_RUN)) {
+    if (match.index > from) runs.push({ text: text.slice(from, match.index) });
+    runs.push(
+      match[1] === undefined
+        ? { latex: match[2] ?? "", block: true }
+        : { latex: match[1], block: false },
+    );
+    from = match.index + match[0].length;
+  }
+  if (from < text.length) runs.push({ text: text.slice(from) });
+  return runs;
+}
+
 const nodeTypes = [
   "root",
   "paragraph",
@@ -54,6 +86,7 @@ const nodeTypes = [
   "gate",
   "starter",
   "ai-use",
+  "math",
 ] as const;
 /**
  * The questions a document can ask, each marked by the server from the
@@ -145,6 +178,10 @@ export interface ContentNode {
   alt?: string;
   /** A picture that only decorates, so screen readers pass it by. */
   decorative?: boolean;
+  /** Mathematics written in LaTeX; `direction` rtl sets it in Arabic notation. */
+  latex?: string;
+  /** Mathematics on a line of its own rather than in the text. */
+  block?: boolean;
   caption?: string;
   size?: ImageSize;
   name?: string;
@@ -363,6 +400,8 @@ const nodeSchema: v.GenericSchema<ContentNode> = v.lazy(() =>
       fileId: v.optional(v.pipe(v.string(), v.uuid())),
       alt: v.optional(v.pipe(v.string(), v.maxLength(500))),
       decorative: v.optional(v.boolean()),
+      latex: v.optional(v.pipe(v.string(), v.maxLength(MAX_LATEX))),
+      block: v.optional(v.boolean()),
       caption: v.optional(v.pipe(v.string(), v.maxLength(1000))),
       size: v.optional(v.picklist(imageSizes)),
       name: v.optional(v.pipe(v.string(), v.minLength(1), v.maxLength(255))),
@@ -481,9 +520,15 @@ const nodeSchema: v.GenericSchema<ContentNode> = v.lazy(() =>
   ),
 );
 const inline = (child: ContentNode) =>
-  ["text", "code-highlight", "tab", "linebreak", "link", "autolink"].includes(
-    child.type,
-  );
+  [
+    "text",
+    "code-highlight",
+    "tab",
+    "linebreak",
+    "link",
+    "autolink",
+    "math",
+  ].includes(child.type);
 const blocks = new Set<string>([
   "paragraph",
   "heading",
@@ -534,6 +579,12 @@ function validNode(node: ContentNode): boolean {
     return !node.children && node.text === undefined;
   if (node.type === "image")
     return !node.children && node.text === undefined && Boolean(node.fileId);
+  if (node.type === "math")
+    return (
+      !node.children &&
+      node.text === undefined &&
+      typeof node.latex === "string"
+    );
   if (node.type === "file")
     return (
       !node.children &&
@@ -741,6 +792,7 @@ const visit = (node: ContentNode): string => {
     return [node.caption, node.transcript].filter(Boolean).join("\n");
   if (node.type === "embed") return node.caption ?? "";
   if (node.type === "file") return node.name ?? "";
+  if (node.type === "math") return mathText(node);
   // Accepted answers are the key; they stay out of text anyone can search.
   if (node.type === "question-answer" || node.type === "question-gap")
     return "";

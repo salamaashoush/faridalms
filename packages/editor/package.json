@@ -11,6 +11,7 @@
   "exports": {
     ".": "./src/index.ts",
     "./view": "./src/view.tsx",
+    "./math": "./src/math.tsx",
     "./anchors": "./src/anchors.ts",
     "./recorder": "./src/recorder.tsx",
     "./video-recorder": "./src/video-recorder.tsx",
@@ -50,7 +51,9 @@
     "@videojs/react": "10.0.1",
     "lexical": "^0.50.0",
     "lucide-react": "^1.45.0",
+    "mathlive": "^0.111.1",
     "prismjs": "^1.30.0",
+    "temml": "^0.14.0",
     "valibot": "^1.5.0",
     "yjs": "^13.6.33"
   },

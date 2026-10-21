@@ -1,5 +1,6 @@
 import type { CheckStanding } from "@faridalms/domain/learning";
 
+import { TextWithMath } from "@faridalms/editor/math";
 import { Button } from "@faridalms/ui/button";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -117,7 +118,7 @@ function QuestionCard({
   return (
     <article className="grid gap-4 rounded-lg border p-4">
       <h3 dir="auto" className="text-sm leading-5 font-medium">
-        {question.prompt}
+        <TextWithMath text={question.prompt} />
       </h3>
       <ul className="flex flex-wrap gap-2">
         {STANDINGS.map((wanted) => {
