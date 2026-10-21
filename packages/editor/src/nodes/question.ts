@@ -857,15 +857,7 @@ export class QuestionOptionNode extends ElementNode {
       const edge = rtl ? rect.right - event.clientX : event.clientX - rect.left;
       if (edge > 30 || !editor.isEditable()) return;
       event.preventDefault();
-      editor.update(() => {
-        const option = this.getLatest();
-        const question = option.getParent();
-        if (!$isQuestionNode(question)) return;
-        const kind = question.getSettings().kind;
-        if (kind === "choice") $toggleCorrect(option);
-        // A code puzzle's circle marks a line that belongs nowhere in the program.
-        if (kind === "parsons") option.setCorrect(!option.isCorrect());
-      });
+      editor.update(() => $toggleMark(this.getLatest()));
     });
     return dom;
   }
@@ -1452,6 +1444,31 @@ export function $toggleCorrect(option: QuestionOptionNode) {
       if ($isQuestionOptionNode(sibling) && sibling.isCorrect())
         sibling.setCorrect(false);
   option.setCorrect(next);
+}
+
+/** The option or line of code the caret is in, when its mark means something. */
+export function $markableAtCaret(): QuestionOptionNode | null {
+  const selection = $getSelection();
+  if (!$isRangeSelection(selection)) return null;
+  let node: LexicalNode | null = selection.anchor.getNode();
+  while (node && !$isQuestionOptionNode(node)) node = node.getParent();
+  if (!node) return null;
+  const question = node.getParent();
+  if (!$isQuestionNode(question)) return null;
+  const kind = question.getSettings().kind;
+  return kind === "choice" || kind === "parsons" ? node : null;
+}
+
+/**
+ * Marks a choice right, or a code puzzle's line as belonging nowhere in the
+ * program; other kinds give the mark no meaning.
+ */
+export function $toggleMark(option: QuestionOptionNode) {
+  const question = option.getParent();
+  if (!$isQuestionNode(question)) return;
+  const kind = question.getSettings().kind;
+  if (kind === "choice") $toggleCorrect(option);
+  if (kind === "parsons") option.setCorrect(!option.isCorrect());
 }
 
 /** A new question of a kind, with its prompt and the parts it starts with. */

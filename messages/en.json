@@ -708,6 +708,7 @@
   "editorQuestionHintRemove": "Remove hint {number}",
   "editorQuestionExplanation": "Explanation after answering",
   "editorQuestionFeedback": "Feedback for this option",
+  "editorQuestionRightAnswer": "Right answer",
   "editorQuestionDelete": "Delete question",
   "editorQuestionDone": "Done",
   "editorNarration": "Narration",

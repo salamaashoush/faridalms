@@ -73,11 +73,13 @@ import {
   $isQuestionSideNode,
   $isQuestionGapNode,
   $isQuestionPassageNode,
+  $markableAtCaret,
   $repairGap,
   $repairHolder,
   $indentCodeLine,
   $newCodeLine,
   $repairQuestion,
+  $toggleMark,
   $typeGap,
   $unwrapStrayPart,
   QuestionAnswerNode,
@@ -565,6 +567,11 @@ function $shortcut(event: KeyboardEvent): boolean {
     return Boolean(block);
   }
   if (event.altKey) return false;
+  if (!event.shiftKey && key === "enter") {
+    const option = $markableAtCaret();
+    if (option) $toggleMark(option);
+    return Boolean(option);
+  }
   if (!event.shiftKey && key === "d") {
     const block = $currentBlock(false);
     if (block) $duplicateBlock(block);

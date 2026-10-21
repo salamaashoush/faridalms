@@ -316,6 +316,7 @@ export interface EditorStrings {
   questionHintRemove: (number: number) => string;
   questionExplanation: string;
   questionFeedback: string;
+  questionRightAnswer: string;
   questionPicture: string;
   questionPictureDescribe: string;
   questionPictureRemove: string;

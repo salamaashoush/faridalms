@@ -49,6 +49,8 @@ import {
   CaseSensitive,
   Check,
   ChevronDown,
+  CircleCheck,
+  CircleX,
   Clock,
   Code,
   CodeXml,
@@ -139,9 +141,11 @@ import {
   $isQuestionNode,
   $isQuestionOptionNode,
   $isQuestionPairNode,
+  $markableAtCaret,
   $partAddress,
   $partPicture,
   $setPartPicture,
+  $toggleMark,
 } from "../nodes/question";
 import {
   $isDiagramNode,
@@ -192,6 +196,8 @@ interface QuestionBarFacts {
   settings: QuestionSettings;
   /** The option the caret is in, whose feedback the bar edits. */
   option: { key: NodeKey; feedback: string } | null;
+  /** The choice or line of code the caret is in, and whether it is marked. */
+  mark: { key: NodeKey; correct: boolean } | null;
   /** The part the caret is in, when it may show a picture. */
   part: { key: NodeKey; picture: PartPicture | null } | null;
   /** What a recording made from here reads: the part the caret is in, else the question. */
@@ -566,6 +572,7 @@ export function SelectionToolbarPlugin() {
       if (!$isRangeSelection(selection)) return null;
       let node: LexicalNode | null = selection.anchor.getNode();
       let option: QuestionOptionNode | null = null;
+      const mark = $markableAtCaret();
       let part: LexicalNode | null = null;
       let voiced: LexicalNode | null = null;
       let pair: LexicalNode | null = null;
@@ -601,6 +608,7 @@ export function SelectionToolbarPlugin() {
         option: option
           ? { key: option.getKey(), feedback: option.getFeedback() }
           : null,
+        mark: mark ? { key: mark.getKey(), correct: mark.isCorrect() } : null,
         part: part ? { key: part.getKey(), picture: $partPicture(part) } : null,
         narration: { key: voiced.getKey(), fileId: $narrationOf(voiced) },
         test:
@@ -1667,6 +1675,31 @@ export function SelectionToolbarPlugin() {
           >
             <MessageCircleQuestion aria-hidden />
           </ToolButton>
+          {question.mark ? (
+            <ToolButton
+              label={
+                settings.kind === "parsons"
+                  ? strings.questionDistractor
+                  : strings.questionRightAnswer
+              }
+              shortcut="Mod+Enter"
+              active={question.mark.correct}
+              onClick={() =>
+                withSelection(() => {
+                  const option = question.mark
+                    ? $getNodeByKey(question.mark.key)
+                    : null;
+                  if ($isQuestionOptionNode(option)) $toggleMark(option);
+                })
+              }
+            >
+              {settings.kind === "parsons" ? (
+                <CircleX aria-hidden />
+              ) : (
+                <CircleCheck aria-hidden />
+              )}
+            </ToolButton>
+          ) : null}
           {question.option ? (
             <ToolButton
               label={strings.questionFeedback}

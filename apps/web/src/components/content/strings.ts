@@ -360,6 +360,7 @@ export function editorStrings(): EditorStrings {
     questionHintRemove: (number) => m.editorQuestionHintRemove({ number }),
     questionExplanation: m.editorQuestionExplanation(),
     questionFeedback: m.editorQuestionFeedback(),
+    questionRightAnswer: m.editorQuestionRightAnswer(),
     questionPicture: m.editorQuestionPicture(),
     questionPictureDescribe: m.editorQuestionPictureDescribe(),
     questionPictureRemove: m.editorQuestionPictureRemove(),

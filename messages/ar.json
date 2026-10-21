@@ -721,6 +721,7 @@
   "editorQuestionHintRemove": "حذف التلميح {number}",
   "editorQuestionExplanation": "شرح بعد الإجابة",
   "editorQuestionFeedback": "تعليق على هذا الخيار",
+  "editorQuestionRightAnswer": "إجابة صحيحة",
   "editorQuestionDelete": "حذف السؤال",
   "editorQuestionDone": "تم",
   "editorNarration": "التسجيل الصوتي",

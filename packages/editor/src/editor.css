@@ -598,6 +598,8 @@
   .fe-question[data-kind="parsons"]
   > .fe-question-option:has(> br:only-child)::after {
   content: attr(data-line-label);
+  /* Code lines run left to right; the hint keeps its own language's order. */
+  unicode-bidi: plaintext;
 }
 .fe
   .fe-question[data-kind="parsons"]
@@ -707,6 +709,8 @@
   .fe-question[data-kind="program"]
   > .fe-question-option:has(> br:only-child)::after {
   content: attr(data-line-label);
+  /* Code lines run left to right; the hint keeps its own language's order. */
+  unicode-bidi: plaintext;
 }
 .fe .fe-question[data-kind="program"] > .fe-question-pair {
   margin-block-start: 0.5rem;

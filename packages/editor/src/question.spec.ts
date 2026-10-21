@@ -11,19 +11,23 @@ import {
   lessonOfContent,
 } from "@faridalms/domain/lesson-content";
 import { PACKS } from "@faridalms/puzzles/levels";
+import { buildEditorFromExtensions } from "@lexical/extension";
 import {
   $createParagraphNode,
   $createTextNode,
   $getRoot,
   $getSelection,
   $isRangeSelection,
+  defineExtension,
   INSERT_PARAGRAPH_COMMAND,
+  KEY_DOWN_COMMAND,
 } from "lexical";
 import * as v from "valibot";
 import { describe, expect, it } from "vitest";
 
 import { $duplicateBlock, $insertBlock } from "./blocks";
-import { buildContentEditor } from "./headless";
+import { ShortcutsExtension } from "./extensions";
+import { buildContentEditor, contentExtensions } from "./headless";
 import { markdownShortcuts } from "./markdown";
 import {
   $createCalloutNode,
@@ -36,6 +40,7 @@ import {
   $isQuestionPairNode,
   $isQuestionPassageNode,
   $isQuestionPromptNode,
+  $markableAtCaret,
   $setPartPicture,
   $toggleCorrect,
   QuestionOptionNode,
@@ -140,6 +145,66 @@ describe("questions in a document", () => {
         .map((option) => option.isCorrect()),
     );
     expect(flags).toEqual([false, true]);
+  });
+
+  it("marks the option the caret is in by Mod+Enter, and a stray code line", () => {
+    const target = buildEditorFromExtensions(
+      defineExtension({
+        name: "test/shortcuts",
+        dependencies: [...contentExtensions, ShortcutsExtension],
+      }),
+    );
+    const step = (change: () => void) =>
+      target.update(change, { discrete: true });
+    const press = () =>
+      step(() => {
+        target.dispatchCommand(
+          KEY_DOWN_COMMAND,
+          new KeyboardEvent("keydown", { key: "Enter", ctrlKey: true }),
+        );
+      });
+    const flags = () =>
+      target.read("latest", () =>
+        $getRoot()
+          .getChildren()
+          .find($isQuestionNode)
+          ?.getChildren()
+          .filter($isQuestionOptionNode)
+          .map((option) => option.isCorrect()),
+      );
+    const caretIn = (index: number) =>
+      step(() => {
+        const question = $getRoot().getChildren().find($isQuestionNode);
+        question?.getChildren()[index]?.selectEnd();
+      });
+
+    step(() => {
+      const paragraph = $createParagraphNode();
+      $getRoot().clear().append(paragraph);
+      paragraph.select();
+      $insertBlock("choiceQuestion");
+    });
+    caretIn(2);
+    press();
+    expect(flags()).toEqual([false, true]);
+    caretIn(1);
+    press();
+    expect(flags()).toEqual([true, false]);
+    caretIn(0);
+    expect(target.read("latest", () => $markableAtCaret())).toBeNull();
+
+    step(() => {
+      const paragraph = $createParagraphNode();
+      $getRoot().clear().append(paragraph);
+      paragraph.select();
+      $insertBlock("parsonsQuestion");
+    });
+    caretIn(1);
+    press();
+    press();
+    caretIn(2);
+    press();
+    expect(flags()?.slice(0, 2)).toEqual([false, true]);
   });
 
   it("gives a duplicate new ids and leaves the original its own", () => {
