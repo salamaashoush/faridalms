@@ -143,6 +143,12 @@ export function getMessageFromError(error: unknown): string {
         return m.errorEnrollmentOutsideYear();
       case "content.invalid":
         return m.contentInvalid();
+      case "bank.prompt_needed":
+        return m.bankErrPrompt();
+      case "bank.not_owner":
+        return m.bankErrOwner();
+      case "bank.one_question":
+        return m.bankErrOne();
       case "content.alt":
         return m.siteIssueAlt();
       case "content.order":

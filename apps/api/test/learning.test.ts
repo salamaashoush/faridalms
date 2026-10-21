@@ -1580,6 +1580,89 @@ describe("templates", () => {
   });
 });
 
+describe("the question bank", () => {
+  test("a teacher keeps questions for themselves or the school, and asks them again", async () => {
+    const { keeper, stranger } = await teachers();
+    const question = (prompt: string) =>
+      written([
+        {
+          id: id(),
+          type: "choice",
+          prompt,
+          points: 1,
+          hints: [],
+          explanation: "",
+          tries: null,
+          options: [
+            { id: id(), text: "Three", feedback: "" },
+            { id: id(), text: "Four", feedback: "" },
+          ],
+          correctOptionIds: [],
+          multiple: false,
+          shuffle: false,
+        },
+      ]);
+    const shared = await keeper.bank.save({
+      id: "",
+      expectedVersion: 0,
+      scope: "school",
+      tags: ["fractions", "Year 7", "fractions"],
+      content: question("How many quarters make three quarters?"),
+    });
+    const own = await keeper.bank.save({
+      id: "",
+      expectedVersion: 0,
+      scope: "mine",
+      tags: [],
+      content: question("A question only its teacher keeps"),
+    });
+    const seen = await stranger.bank.list({ tag: "fractions" });
+    expect(seen.questions.map((row) => row.id)).toEqual([shared.id]);
+    expect(seen.questions[0]).toMatchObject({
+      kind: "choice",
+      title: "How many quarters make three quarters?",
+      tags: ["fractions", "Year 7"],
+      mine: false,
+    });
+    expect(seen.tags).toContain("fractions");
+    expect(
+      (await stranger.bank.list({ search: "only its teacher" })).questions,
+    ).toEqual([]);
+    expect(
+      (await keeper.bank.list({ search: "only its teacher" })).questions.map(
+        (row) => row.id,
+      ),
+    ).toEqual([own.id]);
+    expect(await rejection(stranger.bank.open({ id: own.id }))).toMatchObject({
+      code: "NOT_FOUND",
+    });
+    const opened = await stranger.bank.open({ id: shared.id });
+    expect(JSON.stringify(opened.content)).toContain("three quarters");
+    expect(
+      await rejection(stranger.bank.remove({ id: shared.id })),
+    ).toMatchObject({ code: "FORBIDDEN", message: "bank.not_owner" });
+    expect(
+      await rejection(
+        keeper.bank.save({
+          id: "",
+          expectedVersion: 0,
+          scope: "mine",
+          tags: [],
+          content: plainContent("Not a question at all"),
+        }),
+      ),
+    ).toMatchObject({ code: "BAD_REQUEST" });
+    expect(await rejection((await student()).bank.list({}))).toMatchObject({
+      code: "FORBIDDEN",
+    });
+    await keeper.bank.remove({ id: shared.id });
+    await keeper.bank.remove({ id: own.id });
+    expect((await stranger.bank.list({ tag: "fractions" })).questions).toEqual(
+      [],
+    );
+  });
+});
+
 describe("spoken answers", () => {
   test("a child answers by recording, which only the module's teachers hear", async () => {
     const tenant = seeded().tenants[0];

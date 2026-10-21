@@ -3,6 +3,7 @@ import * as accessSystem from "./systems/access";
 import * as announcementsSystem from "./systems/announcements";
 import * as attendanceSystem from "./systems/attendance";
 import * as badgesSystem from "./systems/badges";
+import * as bankSystem from "./systems/bank";
 import * as calendarSystem from "./systems/calendar";
 import * as classesSystem from "./systems/classes";
 import * as consentsSystem from "./systems/consents";
@@ -48,6 +49,7 @@ export const router = {
   files: filesSystem,
   documents: documentsSystem,
   templates: templatesSystem,
+  bank: bankSystem,
   coursework: courseworkSystem,
   exams: examsSystem,
   gradebook: gradebookSystem,

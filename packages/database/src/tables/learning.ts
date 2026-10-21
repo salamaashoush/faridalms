@@ -648,3 +648,45 @@ export const lessonShares = core.table.withRLS(
     ...eraseAndDelete(erasureOf("student_user_id")),
   ],
 );
+
+/**
+ * A question a teacher keeps to ask again: in their own bank, or the
+ * school's. Its content is a document holding the one question, so its
+ * pictures and recordings belong to it and are copied wherever it is used.
+ * The title is the prompt's words and the kind the question's, kept here so
+ * the bank can be searched without opening each document.
+ */
+export const bankQuestions = core.table.withRLS(
+  "bank_questions",
+  {
+    ...tenantColumns(),
+    orgId: uuid("org_id").notNull(),
+    ownerUserId: uuid("owner_user_id").notNull(),
+    scope: text("scope").$type<"mine" | "school">().notNull(),
+    kind: text("kind").notNull(),
+    title: text("title").notNull(),
+    tags: text("tags")
+      .array()
+      .notNull()
+      .default(sql`'{}'`),
+    ...entityColumns(),
+  },
+  (t): PgTableExtraConfigValue[] => [
+    pk("bank_questions", t.tenantId, t.id),
+    ...baseConstraints("bank_questions", t, tenants),
+    fk("bank_questions", [t.tenantId, t.orgId], [orgs.tenantId, orgs.id]),
+    fk(
+      "bank_questions",
+      [t.tenantId, t.ownerUserId],
+      [users.tenantId, users.id],
+    ),
+    ck("bank_questions", "scope", sql`scope in ('mine', 'school')`),
+    ck("bank_questions", "kind", sql`kind ~ '^[a-z]{2,20}$'`),
+    ck("bank_questions", "title", sql`char_length(title) between 1 and 300`),
+    ck("bank_questions", "tags", sql`cardinality(tags) <= 8`),
+    index("bank_questions_org_idx")
+      .on(t.tenantId, t.orgId, t.scope)
+      .where(sql`status = 'active'`),
+    ...entityProfile(),
+  ],
+);

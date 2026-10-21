@@ -112,7 +112,11 @@ Sources: [../research/course-design.md](../research/course-design.md),
 
 1. **Question bank.** Questions saved with tags to a personal or school
    bank, a quiz drawing N at random from a tag, and each attempt pinned to
-   the version it met.
+   the version it met. Done: a question is kept from its bar, with
+   tags, in the teacher's bank or the school's, its pictures and recordings
+   copied with it, and asked again from the slash menu as a copy with ids
+   of its own; the bank searches by words, tag and whose it is. Left: the
+   random draw for a quiz, with each attempt pinned to what it drew.
 2. **Time limits and access arrangements.** A quiz time limit, extra time
    and other arrangements per student set once (extra time, read aloud,
    fewer choices, default extension days), as exam boards require.

@@ -26,7 +26,12 @@ import {
 import { useEffect, useMemo, useRef, useState } from "react";
 import * as v from "valibot";
 
-import type { EditorMedia, EditorPuzzles, EditorStudio } from "./context";
+import type {
+  EditorBank,
+  EditorMedia,
+  EditorPuzzles,
+  EditorStudio,
+} from "./context";
 import type { EditorStrings } from "./strings";
 
 import { $currentBlock } from "./blocks";
@@ -42,6 +47,7 @@ import {
   setPartPictureUrl,
   setQuestionLabels,
 } from "./nodes";
+import { BankPlugin } from "./plugins/bank";
 import { BlockHandlePlugin } from "./plugins/BlockHandle";
 import { DiagramPlugin } from "./plugins/diagram";
 import { DirectionPlugin } from "./plugins/Direction";
@@ -85,6 +91,8 @@ export interface EditorProps {
   studio?: EditorStudio;
   /** The puzzle designer, which puzzle questions need. */
   puzzles?: EditorPuzzles;
+  /** The question bank, to keep questions and ask kept ones. */
+  bank?: EditorBank;
   placeholder?: string;
   initialFocus?: boolean;
   locale?: string;
@@ -120,6 +128,7 @@ export default function Editor({
   media,
   studio,
   puzzles,
+  bank,
   locale,
   value,
   collaboration,
@@ -155,6 +164,7 @@ export default function Editor({
       media,
       studio,
       puzzles,
+      bank,
       locale:
         locale ??
         (typeof document === "undefined"
@@ -173,6 +183,7 @@ export default function Editor({
       media,
       studio,
       puzzles,
+      bank,
       locale,
       questions,
       gates,
@@ -410,6 +421,7 @@ function Surface({
       <NarrationMarksPlugin />
       <MediaPlugin onBusyChange={onUploadingChange} />
       <EmbedPlugin />
+      <BankPlugin />
       <PastePlugin />
       <QuestionGuardPlugin />
       <DiagramPlugin />

@@ -58,6 +58,7 @@ import {
   Copy,
   Clapperboard,
   Code,
+  Library,
   Sigma,
   SquareRadical,
   Columns2,
@@ -172,7 +173,8 @@ export type BlockType =
   | "gate"
   | "pageBreak"
   | "studentCopy"
-  | "aiUse";
+  | "aiUse"
+  | "bankQuestion";
 
 export type BlockGroup = "text" | "lists" | "media" | "layout" | "questions";
 
@@ -226,6 +228,8 @@ export interface BlockDefinition {
   studio?: boolean;
   /** Offered only where a puzzle's grid can be made. */
   puzzle?: boolean;
+  /** Offered only where questions are kept in a bank. */
+  bank?: boolean;
 }
 
 /** Which kinds of block a document may hold. */
@@ -238,6 +242,7 @@ export interface BlockScope {
   activities: boolean;
   studio: boolean;
   puzzles: boolean;
+  bank: boolean;
 }
 
 export function blockScope(environment: {
@@ -249,6 +254,7 @@ export function blockScope(environment: {
   lessonActivities?: boolean;
   studio?: unknown;
   puzzles?: unknown;
+  bank?: unknown;
 }): BlockScope {
   const questions = Boolean(environment.questions);
   return {
@@ -260,6 +266,7 @@ export function blockScope(environment: {
     activities: Boolean(environment.lessonActivities),
     studio: Boolean(environment.studio),
     puzzles: Boolean(environment.puzzles),
+    bank: questions && Boolean(environment.bank),
   };
 }
 
@@ -271,7 +278,8 @@ export const offered = (block: BlockDefinition, scope: BlockScope) =>
   (scope.aiUse || !block.aiUse) &&
   (scope.activities || !block.activity) &&
   (scope.studio || !block.studio) &&
-  (scope.puzzles || !block.puzzle);
+  (scope.puzzles || !block.puzzle) &&
+  (scope.bank || !block.bank);
 
 export const blockDefinitions: BlockDefinition[] = [
   {
@@ -575,6 +583,16 @@ export const blockDefinitions: BlockDefinition[] = [
     hint: (s) => s.questionTypedHint,
     keywords: ["question", "typed", "answer", "short", "سؤال", "إجابة"],
     question: true,
+  },
+  {
+    type: "bankQuestion",
+    group: "questions",
+    icon: Library,
+    label: (s) => s.bankInsert,
+    hint: (s) => s.bankInsertHint,
+    keywords: ["bank", "kept", "saved", "reuse", "library", "بنك", "محفوظ"],
+    question: true,
+    bank: true,
   },
   {
     type: "mathQuestion",
@@ -1251,17 +1269,18 @@ export function $insertBlock(
   return next;
 }
 
-function serialize(node: LexicalNode): SerializedLexicalNode {
+/** A block as stored, its children within it. */
+export function serialized(node: LexicalNode): SerializedLexicalNode {
   if (!$isElementNode(node)) return node.exportJSON();
   const element: SerializedElementNode = {
     ...node.exportJSON(),
-    children: node.getChildren().map(serialize),
+    children: node.getChildren().map(serialized),
   };
   return element;
 }
 
 export function $duplicateBlock(block: LexicalNode): LexicalNode {
-  const copy = $parseSerializedNode(serialize(block));
+  const copy = $parseSerializedNode(serialized(block));
   block.insertAfter(copy);
   return copy;
 }

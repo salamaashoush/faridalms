@@ -1,4 +1,8 @@
-import type { FileDisplay, ImageSize } from "@faridalms/domain/content";
+import type {
+  ContentNode,
+  FileDisplay,
+  ImageSize,
+} from "@faridalms/domain/content";
 import type { ReferenceElement } from "@floating-ui/dom";
 import type {
   BaseSelection,
@@ -44,6 +48,7 @@ import {
   AlignLeft,
   AlignRight,
   Baseline,
+  BookmarkPlus,
   Bold,
   Captions,
   CaseSensitive,
@@ -115,6 +120,7 @@ import {
   $currentBlock,
   $turnInto,
   blockDefinitions,
+  serialized,
 } from "../blocks";
 import { useEditorEnvironment } from "../context";
 import { CopyLinkButton } from "../files";
@@ -440,6 +446,7 @@ export function SelectionToolbarPlugin() {
     media,
     studio,
     puzzles,
+    bank,
     lockQuestions,
     narration: narrates,
     lessonActivities,
@@ -1910,6 +1917,32 @@ export function SelectionToolbarPlugin() {
             </span>
           ) : null}
           {separator}
+          {bank ? (
+            <ToolButton
+              label={strings.bankKeep}
+              onClick={() => {
+                const kept = editor.getEditorState().read(() => {
+                  const node = $getNodeByKey(question.key);
+                  return $isQuestionNode(node)
+                    ? (serialized(node) as unknown as ContentNode)
+                    : null;
+                });
+                if (kept)
+                  bank.keep({
+                    root: {
+                      type: "root",
+                      version: 1,
+                      direction: null,
+                      format: "",
+                      indent: 0,
+                      children: [kept],
+                    },
+                  });
+              }}
+            >
+              <BookmarkPlus aria-hidden />
+            </ToolButton>
+          ) : null}
           <ToolButton
             label={strings.questionDelete}
             onClick={() => {

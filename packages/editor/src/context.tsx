@@ -1,3 +1,4 @@
+import type { ContentDocument } from "@faridalms/domain/content";
 import type { SpeechLanguage } from "@faridalms/domain/file";
 import type { ProjectFile, ProjectLanguage } from "@faridalms/domain/project";
 import type { Level } from "@faridalms/puzzles/level";
@@ -105,6 +106,16 @@ export interface EditorPuzzles {
   edit: (level: Level) => Promise<Level | undefined>;
 }
 
+/**
+ * The question bank: `keep` offers a question, as a document holding it, to
+ * be kept for asking again; `choose` resolves to a kept one, or null when
+ * nothing was chosen.
+ */
+export interface EditorBank {
+  keep: (question: ContentDocument) => void;
+  choose: () => Promise<ContentDocument | null>;
+}
+
 export interface EditorEnvironment {
   strings: EditorStrings;
   media?: EditorMedia;
@@ -112,6 +123,8 @@ export interface EditorEnvironment {
   studio?: EditorStudio;
   /** Offers puzzle questions; absent where there is no designer to make one in. */
   puzzles?: EditorPuzzles;
+  /** Keeps questions to ask again and asks kept ones; absent where none are kept. */
+  bank?: EditorBank;
   locale: string;
   /** The document may ask questions, as a lesson or quiz does. */
   questions?: boolean;

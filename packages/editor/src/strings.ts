@@ -158,6 +158,9 @@ export interface EditorStrings {
   questionTypedHint: string;
   questionMath: string;
   questionMathHint: string;
+  bankInsert: string;
+  bankInsertHint: string;
+  bankKeep: string;
   questionWritten: string;
   questionWrittenHint: string;
   questionPrompt: string;

@@ -4,6 +4,7 @@ import type { BlockType } from "../blocks";
 
 import { $insertBlock } from "../blocks";
 import { EDIT_DIAGRAM_COMMAND } from "../nodes";
+import { OPEN_BANK_COMMAND } from "./bank";
 import { OPEN_EMBED_COMMAND } from "./embed";
 import { INSERT_MEDIA_COMMAND, RECORD_VIDEO_COMMAND } from "./media";
 
@@ -18,6 +19,10 @@ export function $runBlock(editor: LexicalEditor, type: BlockType) {
   }
   if (type === "embed") {
     editor.dispatchCommand(OPEN_EMBED_COMMAND, undefined);
+    return;
+  }
+  if (type === "bankQuestion") {
+    editor.dispatchCommand(OPEN_BANK_COMMAND, undefined);
     return;
   }
   if (type === "diagram") {

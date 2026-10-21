@@ -22,6 +22,7 @@ import {
   documentFiles,
   documentLinks,
   documentTemplates,
+  bankQuestions,
   attemptAuthentications,
   attemptDeclarations,
   courseworkAssessments,
@@ -588,6 +589,15 @@ export async function completeFixture(
     ownerUserId: userId,
     kind: "lesson",
     title: "Read, check, reflect",
+  });
+  await tx.insert(bankQuestions).values({
+    tenantId,
+    orgId: schoolId,
+    ownerUserId: userId,
+    scope: "school",
+    kind: "choice",
+    title: "Which is a noun?",
+    tags: ["nouns"],
   });
   const [scale] = await tx
     .insert(gradeScales)
