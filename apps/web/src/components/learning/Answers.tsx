@@ -1,10 +1,11 @@
 import { StoredImage } from "@faridalms/editor/files";
 import { MediaPlayer } from "@faridalms/editor/media-view";
 import { Button } from "@faridalms/ui/button";
+import { Checkbox } from "@faridalms/ui/checkbox";
 import { Input } from "@faridalms/ui/input";
 import { Textarea } from "@faridalms/ui/textarea";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { MessageSquareText, Pencil } from "lucide-react";
+import { ListChecks, MessageSquareText, Pencil } from "lucide-react";
 import { useId, useState } from "react";
 import { toast } from "sonner";
 
@@ -27,45 +28,59 @@ import { getMessageFromError } from "~/utils/error";
 type Data = Awaited<
   ReturnType<NonNullable<ReturnType<typeof writtenAnswersQuery>["queryFn"]>>
 >;
-type Question = Data["questions"][number];
-type Answer = Data["answers"][number];
+export type BoardQuestion = Data["questions"][number];
+/** An answer; one to a quiz names the attempt it was handed in with. */
+export type BoardAnswer = Data["answers"][number] & {
+  attemptId?: string;
+  attempt?: number;
+};
+/** Gives answers to one question the same mark: one answer, or several chosen. */
+export type Marker = (
+  question: BoardQuestion,
+  answers: readonly BoardAnswer[],
+  points: number,
+  feedback: string,
+) => Promise<unknown>;
+
+const answerKey = (answer: BoardAnswer) =>
+  answer.attemptId ?? `${answer.studentId}-${answer.try}`;
 
 function MarkForm({
   question,
-  answer,
+  answers,
+  mark,
   onDone,
 }: {
-  question: Question;
-  answer: Answer;
+  question: BoardQuestion;
+  answers: readonly BoardAnswer[];
+  mark: Marker;
   onDone: () => void;
 }) {
   const id = useId();
-  const queryClient = useQueryClient();
   const graded = question.points > 0;
+  // Several chosen start empty: their own marks differ, if they have any.
+  const only = answers.length === 1 ? answers[0] : undefined;
   const [points, setPoints] = useState(
-    answer.fraction === null
+    only?.fraction === null || only?.fraction === undefined
       ? ""
-      : String(Math.round(answer.fraction * question.points * 100) / 100),
+      : String(Math.round(only.fraction * question.points * 100) / 100),
   );
-  const [feedback, setFeedback] = useState(answer.feedback ?? "");
+  const [feedback, setFeedback] = useState(only?.feedback ?? "");
   const value = Number(points);
   const valid = graded
     ? points !== "" && value >= 0 && value <= question.points
     : feedback.trim() !== "";
   const save = useMutation({
     mutationFn: () =>
-      markAnswer({
-        data: {
-          lessonId: question.lessonId,
-          blockId: question.blockId,
-          studentId: answer.studentId,
-          points: graded ? value : 0,
-          feedback: feedback.trim(),
-        },
-      }),
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["learning"] });
-      toast.success(graded ? m.lrnMarkSaved() : m.lrnFeedbackSent());
+      mark(question, answers, graded ? value : 0, feedback.trim()),
+    onSuccess: () => {
+      toast.success(
+        only
+          ? graded
+            ? m.lrnMarkSaved()
+            : m.lrnFeedbackSent()
+          : m.lrnMarksSaved({ count: formatNumber(answers.length) }),
+      );
       onDone();
     },
     onError: (error) => toast.error(getMessageFromError(error)),
@@ -120,7 +135,11 @@ function MarkForm({
           className="max-md:h-10"
           disabled={!valid || save.isPending}
         >
-          {graded ? m.lrnSaveMark() : m.lrnSendFeedback()}
+          {only
+            ? graded
+              ? m.lrnSaveMark()
+              : m.lrnSendFeedback()
+            : m.lrnMarkChosen({ count: formatNumber(answers.length) })}
         </Button>
       </div>
     </form>
@@ -133,7 +152,7 @@ function MarkForm({
  * a newer project since offered the one before it, which is what the class
  * would see: that one opens from here, so nothing is shown unseen.
  */
-function GalleryOffer({ answer, name }: { answer: Answer; name: string }) {
+function GalleryOffer({ answer, name }: { answer: BoardAnswer; name: string }) {
   const [looking, setLooking] = useState(false);
   const queryClient = useQueryClient();
   const decide = useMutation({
@@ -228,25 +247,45 @@ function AnswerCard({
   answer,
   name,
   remixOf,
+  mark,
+  chosen,
+  onChoose,
 }: {
-  question: Question;
-  answer: Answer;
+  question: BoardQuestion;
+  answer: BoardAnswer;
   name: string;
   /** The classmate whose project the answer was built on, where it was. */
   remixOf: string | null;
+  mark: Marker;
+  chosen: boolean;
+  /** Offered while the answer waits, to mark it with others alike. */
+  onChoose?: (chosen: boolean) => void;
 }) {
   const [editing, setEditing] = useState(false);
   const graded = question.points > 0;
   return (
-    <article className="grid gap-3 rounded-lg border bg-card p-4">
+    <article className="grid gap-3 rounded-lg border bg-card p-4 has-[[data-checked]]:border-primary/50">
       <header className="flex flex-wrap items-center justify-between gap-2">
         <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1">
+          {onChoose ? (
+            <Checkbox
+              checked={chosen}
+              onCheckedChange={(checked) => onChoose(checked)}
+              aria-label={m.lrnChooseAnswer({ name })}
+              className="max-md:size-5"
+            />
+          ) : null}
           <h4 className="text-sm leading-5 font-semibold">
             <bdi>{name}</bdi>
           </h4>
           <span className="text-[13px] leading-[18px] text-muted-foreground">
             {formatDateTime(answer.sentAt)}
           </span>
+          {answer.attempt && answer.attempt > 1 ? (
+            <span className="text-[13px] leading-[18px] text-muted-foreground">
+              {m.lrnAttemptIs({ number: formatNumber(answer.attempt) })}
+            </span>
+          ) : null}
         </div>
         {answer.marked ? (
           <StatusBadge tone="success">
@@ -348,14 +387,185 @@ function AnswerCard({
             </Button>
           </div>
         </div>
-      ) : (
+      ) : chosen ? null : (
         <MarkForm
           question={question}
-          answer={answer}
+          answers={[answer]}
+          mark={mark}
           onDone={() => setEditing(false)}
         />
       )}
     </article>
+  );
+}
+
+/** One question's answers, those waiting first, any of which the teacher may choose to mark alike. */
+function QuestionAnswers({
+  question,
+  answers,
+  names,
+  total,
+  mark,
+}: {
+  question: BoardQuestion;
+  answers: readonly BoardAnswer[];
+  names: ReadonlyMap<string, string>;
+  total: number;
+  mark: Marker;
+}) {
+  const [chosen, setChosen] = useState<ReadonlySet<string>>(new Set());
+  const ordered = answers.toSorted(
+    (a, b) => Number(a.marked) - Number(b.marked),
+  );
+  const waiting = ordered.filter((answer) => !answer.marked);
+  const picked = waiting.filter((answer) => chosen.has(answerKey(answer)));
+  const choose = (answer: BoardAnswer, on: boolean) =>
+    setChosen((current) => {
+      const next = new Set(current);
+      if (on) next.add(answerKey(answer));
+      else next.delete(answerKey(answer));
+      return next;
+    });
+  return (
+    <section className="grid gap-3">
+      <header className="flex flex-wrap items-end justify-between gap-x-4 gap-y-2">
+        <div className="grid min-w-0 gap-1">
+          {question.lessonTitle ? (
+            <p className="text-[13px] leading-[18px] text-muted-foreground">
+              <bdi>{question.lessonTitle}</bdi>
+            </p>
+          ) : null}
+          <h3 dir="auto" className="text-base leading-6 font-semibold">
+            {question.prompt}
+          </h3>
+          <p className="text-[13px] leading-[18px] text-muted-foreground">
+            {[
+              question.points > 0
+                ? m.lrnPoints({ count: question.points })
+                : m.lrnPractice(),
+              m.lrnAnswersCount({
+                count: formatNumber(answers.length),
+                total: formatNumber(total),
+              }),
+              ...(question.points > 0 && waiting.length > 0
+                ? [m.lrnWaitingCount({ count: formatNumber(waiting.length) })]
+                : []),
+            ].join(" · ")}
+          </p>
+        </div>
+        {waiting.length > 1 && picked.length < waiting.length ? (
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="max-md:h-10"
+            onClick={() => setChosen(new Set(waiting.map(answerKey)))}
+          >
+            <ListChecks aria-hidden />
+            {m.lrnChooseWaiting()}
+          </Button>
+        ) : null}
+      </header>
+      {picked.length > 0 ? (
+        <fieldset
+          aria-label={m.lrnChosenCount({ count: formatNumber(picked.length) })}
+          className="m-0 grid min-w-0 gap-3 rounded-lg border border-primary/40 bg-primary/5 p-4"
+        >
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <p className="text-sm leading-5 font-medium">
+              {m.lrnChosenCount({ count: formatNumber(picked.length) })}
+            </p>
+            <Button
+              type="button"
+              variant="ghost"
+              size="sm"
+              className="max-md:h-10"
+              onClick={() => setChosen(new Set())}
+            >
+              {m.lrnClearChosen()}
+            </Button>
+          </div>
+          <MarkForm
+            key={picked.map(answerKey).join()}
+            question={question}
+            answers={picked}
+            mark={mark}
+            onDone={() => setChosen(new Set())}
+          />
+        </fieldset>
+      ) : null}
+      {ordered.length === 0 ? (
+        <p className="rounded-lg border border-dashed px-4 py-6 text-center text-sm leading-5 text-muted-foreground">
+          {m.lrnNoAnswersYet()}
+        </p>
+      ) : (
+        ordered.map((answer) => (
+          <AnswerCard
+            key={answerKey(answer)}
+            question={question}
+            answer={answer}
+            name={names.get(answer.studentId) ?? ""}
+            remixOf={
+              answer.remixOf ? (names.get(answer.remixOf) ?? null) : null
+            }
+            mark={mark}
+            chosen={chosen.has(answerKey(answer))}
+            onChoose={
+              answer.marked || waiting.length < 2
+                ? undefined
+                : (on) => choose(answer, on)
+            }
+          />
+        ))
+      )}
+    </section>
+  );
+}
+
+/** Answers a teacher marks question by question, words or coding projects. */
+export function AnswerBoard({
+  students,
+  questions,
+  answers,
+  mark,
+  empty,
+}: {
+  students: readonly {
+    id: string;
+    fullNameEn: string | null;
+    fullNameAr: string | null;
+  }[];
+  questions: readonly BoardQuestion[];
+  answers: readonly BoardAnswer[];
+  mark: Marker;
+  empty: { title: string; description: string };
+}) {
+  const names = new Map(
+    students.map((student) => [student.id, displayName(student)]),
+  );
+  if (questions.length === 0)
+    return (
+      <EmptyState
+        icon={MessageSquareText}
+        title={empty.title}
+        description={empty.description}
+      />
+    );
+  return (
+    <div className="grid gap-8">
+      {questions.map((question) => (
+        <QuestionAnswers
+          key={question.blockId}
+          question={question}
+          answers={answers.filter(
+            (answer) => answer.blockId === question.blockId,
+          )}
+          names={names}
+          total={students.length}
+          mark={mark}
+        />
+      ))}
+    </div>
   );
 }
 
@@ -368,71 +578,26 @@ export function Answers({
   classId: string;
 }) {
   const query = useQuery(writtenAnswersQuery(moduleId, classId));
+  const queryClient = useQueryClient();
   if (!query.data) return <div aria-busy="true" className="min-h-40" />;
-  const data = query.data;
-  const names = new Map(
-    data.students.map((student) => [student.id, displayName(student)]),
-  );
-  if (data.questions.length === 0)
-    return (
-      <EmptyState
-        icon={MessageSquareText}
-        title={m.lrnNoWritten()}
-        description={m.lrnNoWrittenBody()}
-      />
-    );
   return (
-    <div className="grid gap-8">
-      {data.questions.map((question) => {
-        const answers = data.answers
-          .filter((answer) => answer.blockId === question.blockId)
-          // Unmarked answers first, each group oldest first.
-          .toSorted((a, b) => Number(a.marked) - Number(b.marked));
-        const waiting = answers.filter((answer) => !answer.marked).length;
-        return (
-          <section key={question.blockId} className="grid gap-3">
-            <header className="grid gap-1">
-              <p className="text-[13px] leading-[18px] text-muted-foreground">
-                <bdi>{question.lessonTitle}</bdi>
-              </p>
-              <h3 dir="auto" className="text-base leading-6 font-semibold">
-                {question.prompt}
-              </h3>
-              <p className="text-[13px] leading-[18px] text-muted-foreground">
-                {[
-                  question.points > 0
-                    ? m.lrnPoints({ count: question.points })
-                    : m.lrnPractice(),
-                  m.lrnAnswersCount({
-                    count: formatNumber(answers.length),
-                    total: formatNumber(data.students.length),
-                  }),
-                  ...(question.points > 0 && waiting > 0
-                    ? [m.lrnWaitingCount({ count: formatNumber(waiting) })]
-                    : []),
-                ].join(" · ")}
-              </p>
-            </header>
-            {answers.length === 0 ? (
-              <p className="rounded-lg border border-dashed px-4 py-6 text-center text-sm leading-5 text-muted-foreground">
-                {m.lrnNoAnswersYet()}
-              </p>
-            ) : (
-              answers.map((answer) => (
-                <AnswerCard
-                  key={`${answer.studentId}-${answer.try}`}
-                  question={question}
-                  answer={answer}
-                  name={names.get(answer.studentId) ?? ""}
-                  remixOf={
-                    answer.remixOf ? (names.get(answer.remixOf) ?? null) : null
-                  }
-                />
-              ))
-            )}
-          </section>
-        );
-      })}
-    </div>
+    <AnswerBoard
+      students={query.data.students}
+      questions={query.data.questions}
+      answers={query.data.answers}
+      empty={{ title: m.lrnNoWritten(), description: m.lrnNoWrittenBody() }}
+      mark={async (question, answers, points, feedback) => {
+        await markAnswer({
+          data: {
+            lessonId: question.lessonId,
+            blockId: question.blockId,
+            studentIds: answers.map((answer) => answer.studentId),
+            points,
+            feedback,
+          },
+        });
+        await queryClient.invalidateQueries({ queryKey: ["learning"] });
+      }}
+    />
   );
 }

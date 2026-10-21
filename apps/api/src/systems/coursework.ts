@@ -2,6 +2,7 @@ import type {
   AssignmentRow,
   WorkRow,
 } from "@faridalms/database/stores/coursework";
+import type { KeptFiles } from "@faridalms/database/stores/learning";
 import type { ContentDocument } from "@faridalms/domain/content";
 import type {
   CommentAnchor,
@@ -88,6 +89,7 @@ import {
   markQuizAnswer as storeQuizMark,
   markQuizAttempt,
   quizAnswersOf,
+  quizAnswersToMark,
   quizStarted,
   saveQuizAnswer as storeQuizAnswer,
 } from "@faridalms/database/stores/quizzes";
@@ -2436,15 +2438,30 @@ async function keepQuizAnswer(
   return { saved: true };
 }
 
-/** A teacher marks a quiz answer only they can judge, out of its points; the score that counts follows. */
+/**
+ * A teacher marks answers to one quiz question only they can judge, out of
+ * its points, one answer or many alike; each student's score that counts
+ * follows.
+ */
 export const markQuizAnswer = writeProcedure
   .input(markQuizAnswerSchema)
   .handler(async ({ input, context }) => {
     requireCapability(context, "submissions:grade");
     const tx = context.tx;
-    const attempt = await attemptById(tx, context.tenantId, input.attemptId);
-    if (!attempt) throw new ORPCError("NOT_FOUND");
-    const assignment = await taughtAssignment(context, attempt.assignmentId);
+    const attempts = await Promise.all(
+      [...new Set(input.attemptIds)].map((attemptId) =>
+        attemptById(tx, context.tenantId, attemptId),
+      ),
+    );
+    const [first] = attempts;
+    if (
+      !first ||
+      attempts.some(
+        (attempt) => !attempt || attempt.assignmentId !== first.assignmentId,
+      )
+    )
+      throw new ORPCError("NOT_FOUND");
+    const assignment = await taughtAssignment(context, first.assignmentId);
     await requireOpenYear(context, assignment.schoolYearId);
     const document =
       assignment.submissionFormat === "quiz"
@@ -2457,33 +2474,93 @@ export const markQuizAnswer = writeProcedure
       throw new ORPCError("NOT_FOUND");
     if (input.points > block.points)
       throw new ORPCError("BAD_REQUEST", { message: "learning.points_over" });
-    const marked = await storeQuizMark(tx, {
-      tenantId: context.tenantId,
-      submissionId: attempt.submissionId,
-      attempt: attempt.number,
-      blockId: block.id,
-      fraction:
-        block.points === 0
-          ? null
-          : Math.round((input.points / block.points) * 10000) / 10000,
-      feedback: input.feedback || null,
-      userId: context.actor.userId,
-    });
-    if (!marked) throw new ORPCError("NOT_FOUND");
-    await rescoreQuiz(context, {
-      assignment,
-      document,
-      submissionId: attempt.submissionId,
-      studentId: attempt.studentId,
-      graderId: context.actor.userId,
-      release: false,
-    });
-    await audit(context, {
-      action: "submission.mark_answer",
-      objectType: "submission",
-      objectId: attempt.submissionId,
-      studentUserId: attempt.studentId,
-      details: { blockId: block.id, points: input.points },
-    });
-    return { marked: true };
+    const scored = new Map<string, string>();
+    for (const attempt of attempts) {
+      if (!attempt) continue;
+      const marked = await storeQuizMark(tx, {
+        tenantId: context.tenantId,
+        submissionId: attempt.submissionId,
+        attempt: attempt.number,
+        blockId: block.id,
+        fraction:
+          block.points === 0
+            ? null
+            : Math.round((input.points / block.points) * 10000) / 10000,
+        feedback: input.feedback || null,
+        userId: context.actor.userId,
+      });
+      if (!marked) throw new ORPCError("NOT_FOUND");
+      scored.set(attempt.submissionId, attempt.studentId);
+      await audit(context, {
+        action: "submission.mark_answer",
+        objectType: "submission",
+        objectId: attempt.submissionId,
+        studentUserId: attempt.studentId,
+        details: { blockId: block.id, points: input.points },
+      });
+    }
+    for (const [submissionId, studentId] of scored)
+      await rescoreQuiz(context, {
+        assignment,
+        document,
+        submissionId,
+        studentId,
+        graderId: context.actor.userId,
+        release: false,
+      });
+    return { marked: scored.size };
+  });
+
+/**
+ * The class's handed-in answers to each quiz question only a teacher can
+ * judge, for marking question by question rather than student by student.
+ */
+export const quizAnswers = readProcedure
+  .input(v.object({ assignmentId: id }))
+  .handler(async ({ input, context }) => {
+    requireCapability(context, "submissions:grade");
+    const assignment = await taughtAssignment(context, input.assignmentId);
+    const document =
+      assignment.submissionFormat === "quiz"
+        ? await publishedQuiz(context, assignment.id)
+        : null;
+    const questions = document
+      ? checkBlocks(document).filter(isTeacherMarked)
+      : [];
+    const [roster, answers] = await Promise.all([
+      studentWork(context.tx, {
+        tenantId: context.tenantId,
+        assignmentId: assignment.id,
+      }),
+      quizAnswersToMark(context.tx, {
+        tenantId: context.tenantId,
+        assignmentId: assignment.id,
+        blockIds: questions.map((block) => block.id),
+      }),
+    ]);
+    return {
+      students: roster.map((row) => ({
+        id: row.studentId,
+        fullNameEn: row.fullNameEn,
+        fullNameAr: row.fullNameAr,
+      })),
+      questions: questions.map((block) => ({
+        blockId: block.id,
+        kind: block.type,
+        prompt: block.prompt,
+        points: block.points,
+      })),
+      answers: answers.map(({ response, ...answer }) => ({
+        ...answer,
+        text: typeof response.text === "string" ? response.text : "",
+        recording: (response.recording ?? null) as {
+          fileId: string;
+          seconds: number;
+          video?: boolean;
+        } | null,
+        picture: (response.picture ?? null) as { fileId: string } | null,
+        project: (response.project ?? null) as { fileId: string } | null,
+        files: (response.files ?? null) as KeptFiles | null,
+      })),
+    };
   });

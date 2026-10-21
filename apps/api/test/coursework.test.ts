@@ -1308,16 +1308,36 @@ describe("quizzes", () => {
     expect(
       await rejection(
         teacher.api.coursework.markQuizAnswer({
-          attemptId: attempt.attemptId,
+          attemptIds: [attempt.attemptId],
           blockId: written.id,
           points: 5,
         }),
       ),
     ).toMatchObject({ message: "learning.points_over" });
+    const toMark = await teacher.api.coursework.quizAnswers({
+      assignmentId: saved.id,
+    });
+    expect(toMark.questions.map((question) => question.blockId)).toEqual([
+      written.id,
+    ]);
+    expect(
+      toMark.answers.filter((each) => each.blockId === written.id),
+    ).toMatchObject([
+      { attemptId: attempt.attemptId, studentId: me.id, marked: false },
+    ]);
     await teacher.api.coursework.markQuizAnswer({
-      attemptId: attempt.attemptId,
+      attemptIds: [attempt.attemptId],
       blockId: written.id,
       points: 3,
+      feedback: "Name the bakery.",
+    });
+    expect(
+      (
+        await teacher.api.coursework.quizAnswers({ assignmentId: saved.id })
+      ).answers.find((each) => each.attemptId === attempt.attemptId),
+    ).toMatchObject({
+      marked: true,
+      fraction: Math.round((3 / written.points) * 10000) / 10000,
       feedback: "Name the bakery.",
     });
     const marked = await teacher.api.coursework.grading({

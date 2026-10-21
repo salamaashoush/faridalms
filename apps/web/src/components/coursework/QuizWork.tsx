@@ -303,7 +303,7 @@ function MarkForm({
     mutationFn: () =>
       markQuizAnswer({
         data: {
-          attemptId,
+          attemptIds: [attemptId],
           blockId,
           points: Number(value),
           feedback: feedback.trim(),

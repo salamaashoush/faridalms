@@ -267,3 +267,69 @@ test("a quiz is answered question by question, marked at hand-in, and its result
   ).toHaveCount(2);
   await studentContext.close();
 });
+
+test("a teacher marks one quiz question for several students at once", async ({
+  browser,
+  page,
+}) => {
+  const title = `Characters ${crypto.randomUUID().slice(0, 6)}`;
+  const brief = "Answer in a sentence, then hand the quiz in.";
+  await signInWith(page, TEACHER, PASSWORD, "/teach");
+  await page.goto("/teach/assignment-editor");
+  await untilHydrated(page);
+  await page.locator("#work-class").click();
+  await page.getByRole("option", { name: "8A Arabic", exact: true }).click();
+  await page.getByRole("textbox", { name: "Assignment title" }).fill(title);
+  await page.locator("[contenteditable=true]").first().click();
+  await page.keyboard.type(brief);
+  await page.locator("#work-format").click();
+  await page.getByRole("option", { name: "A quiz, marked for them" }).click();
+  await page.getByText(brief).click();
+  await page.keyboard.press("End");
+  await page.keyboard.press("Enter");
+  await page.keyboard.type("/written");
+  await page.keyboard.press("Enter");
+  await page.keyboard.type("Who is your favourite character, and why?");
+  await expect(page.locator("[data-question]")).toHaveCount(1);
+  await page.getByRole("button", { name: "Assign", exact: true }).click();
+  await expect(page).toHaveURL(/\/assignments\/[a-f0-9-]+/);
+  const address = new URL(page.url()).pathname;
+
+  // The seed's student and their classmate in 8A each hand in an answer.
+  for (const email of [
+    ACCOUNTS.student.email,
+    "student1008@northwind.example.com",
+  ]) {
+    const context = await browser.newContext();
+    const student = await context.newPage();
+    await signInWith(student, email, PASSWORD, ACCOUNTS.student.home);
+    await student.goto(address);
+    await untilHydrated(student);
+    await student
+      .getByRole("textbox", { name: "Your answer" })
+      .fill("Charlotte, because she is kind to Wilbur.");
+    await student.getByRole("button", { name: "Keep answer" }).click();
+    await student.getByRole("button", { name: "Hand in quiz" }).click();
+    await student
+      .getByRole("dialog")
+      .getByRole("button", { name: "Hand in quiz" })
+      .click();
+    await expect(
+      student.getByRole("button", { name: /Attempt 1/ }),
+    ).toBeVisible();
+    await context.close();
+  }
+
+  await page.goto(`${address}?tab=answers`);
+  await untilHydrated(page);
+  await expect(page.getByText(/2 to mark/)).toBeVisible();
+  await page.getByRole("button", { name: "Choose all waiting" }).click();
+  const chosen = page.getByRole("group", { name: "2 chosen" });
+  await chosen.getByRole("spinbutton", { name: /Points out of/ }).fill("1");
+  await chosen
+    .getByRole("textbox", { name: "Feedback" })
+    .fill("Say which moment shows her kindness.");
+  await chosen.getByRole("button", { name: "Mark 2 chosen" }).click();
+  await expect(page.getByText(/^Marked: 1 of \d+ points?$/)).toHaveCount(2);
+  await expect(page.getByText(/to mark/)).toHaveCount(0);
+});

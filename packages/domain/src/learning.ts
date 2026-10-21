@@ -2099,10 +2099,17 @@ export const runsQuerySchema = v.object({
 export const revealSchema = v.object({ lessonId: id, blockId: id });
 
 /** A teacher marks an answer only they can judge, with credit out of the question's points. */
+/** Answers to one question a teacher gives the same mark at once. */
+export const MAX_MARKED_TOGETHER = 100;
+
 export const markSchema = v.object({
   lessonId: id,
   blockId: id,
-  studentId: id,
+  studentIds: v.pipe(
+    v.array(id),
+    v.minLength(1),
+    v.maxLength(MAX_MARKED_TOGETHER),
+  ),
   points: v.pipe(v.number(), v.minValue(0), v.maxValue(100)),
   feedback: text(2000),
 });

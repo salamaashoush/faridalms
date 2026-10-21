@@ -68,7 +68,10 @@ Sources: [../research/course-design.md](../research/course-design.md),
    an address. Duplicate needs a copy operation per kind and lands with
    section 5, item 1.
 7. **Mark one quiz question across the class**, as lessons already can,
-   with one score and feedback for many answers.
+   with one score and feedback for many answers. Done: a quiz's Answers tab
+   and a module's share one board, question by question with the waiting
+   answers first; a teacher chooses several (or all waiting) and gives them
+   one mark and feedback, which the API stores in one transaction.
 8. **Documents describe the code as it is.** `docs/content-editor.md`,
    `docs/systems/learning.md` and `documents-editor-modules.md` still
    describe lessons as a list of parts and media as waiting for storage.

@@ -9,6 +9,7 @@ import { declarationSchema } from "./exams";
 import {
   checkBlocks,
   lessonDocumentSchema,
+  MAX_MARKED_TOGETHER,
   MAX_PROGRAM_CHARS,
   responseSchema,
 } from "./learning";
@@ -605,7 +606,11 @@ export const saveQuizProgramSchema = v.object({
 });
 
 export const markQuizAnswerSchema = v.object({
-  attemptId: id,
+  attemptIds: v.pipe(
+    v.array(id),
+    v.minLength(1),
+    v.maxLength(MAX_MARKED_TOGETHER),
+  ),
   blockId: id,
   points: v.pipe(v.number(), v.minValue(0), v.maxValue(100)),
   feedback: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(2000)), ""),

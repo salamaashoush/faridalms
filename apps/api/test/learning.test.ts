@@ -946,14 +946,29 @@ describe("marking written answers", () => {
     const mark = {
       lessonId: question.lessonId,
       blockId: question.blockId,
-      studentId: me.id,
+      studentIds: [me.id],
       feedback: "A lovely choice. Say more about Wilbur's problem.",
     };
     expect(
       await rejection(keeper.learning.mark({ ...mark, points: 5 })),
     ).toMatchObject({ code: "BAD_REQUEST", message: "learning.points_over" });
+    // Marked together, one student without an answer marks nobody.
+    const listed = found.data;
+    const classmate = listed.students.find(
+      (peer) => !listed.answers.some((item) => item.studentId === peer.id),
+    );
+    if (!classmate) throw new Error("a classmate");
+    expect(
+      await rejection(
+        keeper.learning.mark({
+          ...mark,
+          studentIds: [me.id, classmate.id],
+          points: 3,
+        }),
+      ),
+    ).toMatchObject({ code: "NOT_FOUND" });
     expect(await keeper.learning.mark({ ...mark, points: 3 })).toEqual({
-      marked: true,
+      marked: 1,
     });
     expect(
       await rejection(
@@ -1913,11 +1928,11 @@ describe("coding projects", () => {
       await keeper.learning.mark({
         lessonId: lesson.id,
         blockId: question,
-        studentId: me.id,
+        studentIds: [me.id],
         points: 3,
         feedback: "The cat dances. Try a loop for the steps.",
       }),
-    ).toEqual({ marked: true });
+    ).toEqual({ marked: 1 });
     const seen = await pupil.api.learning.playLesson({ id: lesson.id });
     expect(seen.checks[question]).toMatchObject({ marked: true, credit: 3 });
   });
@@ -2252,11 +2267,11 @@ describe("web projects", () => {
       await keeper.learning.mark({
         lessonId,
         blockId: question,
-        studentId: me.id,
+        studentIds: [me.id],
         points: 3,
         feedback: "Biscuit has a page. Give the heading a picture.",
       }),
-    ).toEqual({ marked: true });
+    ).toEqual({ marked: 1 });
     const seen = await pupil.learning.playLesson({ id: lessonId });
     expect(seen.checks[question]).toMatchObject({ marked: true, credit: 3 });
     expect(

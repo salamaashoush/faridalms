@@ -80,8 +80,9 @@ import {
   STATE_LABEL,
   STATE_TONE,
 } from "./format";
+import { QuizAnswers } from "./QuizAnswers";
 
-export const RECORD_TABS = ["brief", "work"] as const;
+export const RECORD_TABS = ["brief", "work", "answers"] as const;
 export type RecordTabValue = (typeof RECORD_TABS)[number];
 
 type Data = Awaited<
@@ -651,15 +652,21 @@ export function AssignmentRecord({
         }
       : null,
   );
-  const tabs: RecordTab<RecordTabValue>[] = RECORD_TABS.map((value) => ({
+  // A quiz's answers only its teacher can judge are marked question by question.
+  const byQuestion = data.submissionFormat === "quiz" && data.access.grade;
+  const tabs: RecordTab<RecordTabValue>[] = RECORD_TABS.filter(
+    (value) => value !== "answers" || byQuestion,
+  ).map((value) => ({
     value,
     label:
       value === "brief"
         ? m.courseworkBrief()
-        : m.courseworkStudentWorkCount({
-            count: formatNumber(handedIn),
-            total: formatNumber(data.work.length),
-          }),
+        : value === "answers"
+          ? m.lrnAnswersTab()
+          : m.courseworkStudentWorkCount({
+              count: formatNumber(handedIn),
+              total: formatNumber(data.work.length),
+            }),
   }));
   return (
     <div
@@ -750,7 +757,13 @@ export function AssignmentRecord({
         value={tab}
         onChange={onTab}
       >
-        {tab === "work" ? <Work data={data} /> : <Brief data={data} />}
+        {tab === "work" ? (
+          <Work data={data} />
+        ) : tab === "answers" && byQuestion ? (
+          <QuizAnswers assignmentId={data.id} />
+        ) : (
+          <Brief data={data} />
+        )}
       </RecordTabs>
       <Settings
         data={data}

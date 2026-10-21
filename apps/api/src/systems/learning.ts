@@ -2355,22 +2355,6 @@ export const watch = writeProcedure
     return { completed: met, watched };
   });
 
-async function enrolledIn(
-  context: UnitContext,
-  moduleId: string,
-  studentId: string,
-) {
-  const classes = await classesOfModule(context.tx, context.tenantId, moduleId);
-  for (const item of classes)
-    if (
-      (
-        await rosterOf(context.tx, context.tenantId, item.id, context.today)
-      ).includes(studentId)
-    )
-      return true;
-  return false;
-}
-
 /** The project an offer to a gallery holds, unless it is the answer it lies beside. */
 function offeredApart(
   held: Record<string, unknown>,
@@ -2702,7 +2686,22 @@ export const mark = writeProcedure
     const row = await lessonById(context.tx, context.tenantId, input.lessonId);
     if (!row) throw new ORPCError("NOT_FOUND");
     const owner = await editable(context, row.moduleId);
-    if (!(await enrolledIn(context, owner.id, input.studentId)))
+    const studentIds = [...new Set(input.studentIds)];
+    const classes = await classesOfModule(
+      context.tx,
+      context.tenantId,
+      owner.id,
+    );
+    const enrolled = new Set<string>();
+    for (const item of classes)
+      for (const studentId of await rosterOf(
+        context.tx,
+        context.tenantId,
+        item.id,
+        context.today,
+      ))
+        enrolled.add(studentId);
+    if (!studentIds.every((studentId) => enrolled.has(studentId)))
       throw new ORPCError("NOT_FOUND");
     const published = await publishedLesson(context, row.id);
     const block = checkBlocks(
@@ -2711,39 +2710,42 @@ export const mark = writeProcedure
     if (!block || !isTeacherMarked(block)) throw new ORPCError("NOT_FOUND");
     if (input.points > block.points)
       throw new ORPCError("BAD_REQUEST", { message: "learning.points_over" });
-    const answer = (
+    const written = (
       await answersToMark(context.tx, {
         tenantId: context.tenantId,
         lessonIds: [row.id],
-        studentIds: [input.studentId],
+        studentIds,
       })
-    ).find((item) => item.blockId === block.id);
-    if (!answer) throw new ORPCError("NOT_FOUND");
-    await insertResponse(context.tx, {
-      tenantId: context.tenantId,
-      lessonId: row.id,
-      documentVersionId: published?.versionId ?? null,
-      studentId: input.studentId,
-      blockId: block.id,
-      attempt: answer.attempt,
-      try: answer.try,
-      kind: "written",
-      response: {},
-      fraction:
-        block.points === 0
-          ? null
-          : Math.round((input.points / block.points) * 10000) / 10000,
-      state: "marked",
-      feedback: input.feedback || null,
-      markedBy: context.actor.userId,
-    });
-    await audit(context, {
-      action: "lesson.mark",
-      objectType: "lesson",
-      objectId: row.id,
-      subjectUserId: input.studentId,
-      studentUserId: input.studentId,
-      details: { blockId: block.id, points: input.points },
-    });
-    return { marked: true };
+    ).filter((item) => item.blockId === block.id);
+    for (const studentId of studentIds) {
+      const answer = written.find((item) => item.studentId === studentId);
+      if (!answer) throw new ORPCError("NOT_FOUND");
+      await insertResponse(context.tx, {
+        tenantId: context.tenantId,
+        lessonId: row.id,
+        documentVersionId: published?.versionId ?? null,
+        studentId,
+        blockId: block.id,
+        attempt: answer.attempt,
+        try: answer.try,
+        kind: "written",
+        response: {},
+        fraction:
+          block.points === 0
+            ? null
+            : Math.round((input.points / block.points) * 10000) / 10000,
+        state: "marked",
+        feedback: input.feedback || null,
+        markedBy: context.actor.userId,
+      });
+      await audit(context, {
+        action: "lesson.mark",
+        objectType: "lesson",
+        objectId: row.id,
+        subjectUserId: studentId,
+        studentUserId: studentId,
+        details: { blockId: block.id, points: input.points },
+      });
+    }
+    return { marked: studentIds.length };
   });

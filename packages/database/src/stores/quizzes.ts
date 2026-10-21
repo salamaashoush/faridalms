@@ -3,7 +3,7 @@ import { sql } from "drizzle-orm";
 import type { CellTransaction } from "../context";
 import type { QuizAnswerState } from "../tables/coursework";
 
-import { isoOf } from "./sql";
+import { isoOf, uuidArray } from "./sql";
 
 type Tx = CellTransaction;
 
@@ -46,6 +46,69 @@ export async function quizAnswersOf(
     state: row.state,
     feedback: row.feedback,
     updatedAt: row.updated_at,
+  }));
+}
+
+export interface QuizAnswerToMark {
+  attemptId: string;
+  attempt: number;
+  submissionId: string;
+  studentId: string;
+  blockId: string;
+  response: Record<string, unknown>;
+  fraction: number | null;
+  feedback: string | null;
+  marked: boolean;
+  sentAt: string;
+}
+
+/**
+ * Every handed-in answer to the given questions of an assignment's quiz,
+ * each attempt's own, for its teacher to mark question by question.
+ */
+export async function quizAnswersToMark(
+  tx: Tx,
+  input: {
+    tenantId: string;
+    assignmentId: string;
+    blockIds: readonly string[];
+  },
+): Promise<QuizAnswerToMark[]> {
+  if (input.blockIds.length === 0) return [];
+  const rows = await tx.execute<{
+    attempt_id: string;
+    attempt: number;
+    submission_id: string;
+    student_id: string;
+    block_id: string;
+    response: Record<string, unknown>;
+    fraction: string | number | null;
+    feedback: string | null;
+    marked: boolean;
+    sent_at: string;
+  }>(sql`
+    select t.id as attempt_id, q.attempt, q.submission_id, q.student_user_id as student_id,
+      q.block_id, q.response, q.fraction, q.feedback, q.state = 'marked' as marked,
+      ${isoOf(sql`t.submitted_at`)} as sent_at
+    from core.quiz_answers q
+    join core.submissions s on s.tenant_id = q.tenant_id and s.id = q.submission_id
+    join core.submission_attempts t on t.tenant_id = q.tenant_id
+      and t.submission_id = q.submission_id and t.number = q.attempt and t.status = 'active'
+    where q.tenant_id = ${input.tenantId}::uuid and s.assignment_id = ${input.assignmentId}::uuid
+      and q.status = 'active' and q.state <> 'draft'
+      and q.block_id = any(${uuidArray(input.blockIds)})
+    order by t.submitted_at, q.attempt`);
+  return rows.map((row) => ({
+    attemptId: row.attempt_id,
+    attempt: row.attempt,
+    submissionId: row.submission_id,
+    studentId: row.student_id,
+    blockId: row.block_id,
+    response: row.response,
+    fraction: row.fraction === null ? null : Number(row.fraction),
+    feedback: row.feedback,
+    marked: row.marked,
+    sentAt: row.sent_at,
   }));
 }
 

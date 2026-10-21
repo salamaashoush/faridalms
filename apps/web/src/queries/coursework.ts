@@ -13,6 +13,7 @@ import {
   getCourseworkOptions,
   getCommentBank,
   getGrading,
+  getQuizAnswers,
   getMyCoursework,
   getMyWork,
 } from "~/server/coursework";
@@ -49,6 +50,12 @@ export const gradingQuery = (assignmentId: string, studentId: string) =>
   queryOptions({
     queryKey: ["coursework", "grading", assignmentId, studentId],
     queryFn: () => getGrading({ data: { assignmentId, studentId } }),
+  });
+
+export const quizAnswersQuery = (assignmentId: string) =>
+  queryOptions({
+    queryKey: ["coursework", "quiz-answers", assignmentId],
+    queryFn: () => getQuizAnswers({ data: { assignmentId } }),
   });
 
 export const myWorkQuery = (id: string) =>

@@ -48,6 +48,10 @@ export const getGrading = createServerFn({ method: "GET" })
   .validator(checked(v.object({ assignmentId: uuid, studentId: uuid })))
   .handler(({ data }) => record(backend().coursework.grading(data)));
 
+export const getQuizAnswers = createServerFn({ method: "GET" })
+  .validator(checked(v.object({ assignmentId: uuid })))
+  .handler(({ data }) => record(backend().coursework.quizAnswers(data)));
+
 export const getMyWork = createServerFn({ method: "GET" })
   .validator(byId)
   .handler(({ data }) => record(backend().coursework.work(data)));
