@@ -45,16 +45,17 @@ describe("checks before a document reaches readers", () => {
     ).toEqual([]);
   });
 
-  it("names a heading that skips a level, counting the title as the first", () => {
-    expect(contentIssues(documentOf(heading("h3", "Roots")))).toEqual([
-      "order",
-    ]);
+  it("names a heading that skips a level below the largest the document uses", () => {
+    expect(contentIssues(documentOf(heading("h3", "Roots")))).toEqual([]);
     expect(
       contentIssues(documentOf(heading("h2", "Plants"), heading("h4", "Tip"))),
     ).toEqual(["order"]);
+    expect(
+      contentIssues(documentOf(heading("h1", "Plants"), heading("h3", "Tip"))),
+    ).toEqual(["order"]);
   });
 
-  it("names a first-level heading, a picture left undescribed and a vague link", () => {
+  it("names a picture left undescribed and a vague link, wherever they sit", () => {
     const link: ContentNode = {
       type: "link",
       version: 1,
@@ -69,6 +70,6 @@ describe("checks before a document reaches readers", () => {
           { type: "paragraph", version: 1, children: [link] },
         ),
       ).toSorted(),
-    ).toEqual(["alt", "heading", "link"]);
+    ).toEqual(["alt", "link"]);
   });
 });

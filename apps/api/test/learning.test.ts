@@ -1236,7 +1236,14 @@ describe("lessons written as documents", () => {
       content,
     });
     const cases: [ContentNode[], string][] = [
-      [[{ ...line, type: "heading", tag: "h3" }, line], "content.order"],
+      [
+        [
+          { ...line, type: "heading", tag: "h1" },
+          { ...line, type: "heading", tag: "h3" },
+          line,
+        ],
+        "content.order",
+      ],
       [[line, { type: "gate", version: 1 }], "learning.gate_opens_nothing"],
     ];
     let version = editing.version;

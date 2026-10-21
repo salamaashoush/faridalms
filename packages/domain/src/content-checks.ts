@@ -4,11 +4,10 @@ import { isVagueLink } from "./site-links";
 
 /**
  * What keeps a document from reading well to everyone: a picture with no
- * description that is not marked decorative, a first-level heading that
- * competes with the title, a heading that skips a level, and a link that
- * says nothing about where it goes.
+ * description that is not marked decorative, a heading that skips a level,
+ * and a link that says nothing about where it goes.
  */
-export type ContentIssue = "alt" | "heading" | "order" | "link";
+export type ContentIssue = "alt" | "order" | "link";
 
 const LEVEL: Partial<Record<NonNullable<ContentNode["tag"]>, number>> = {
   h1: 1,
@@ -19,15 +18,32 @@ const LEVEL: Partial<Record<NonNullable<ContentNode["tag"]>, number>> = {
   h6: 6,
 };
 
+/** A heading's level as its writer chose it, one for the largest. */
+export const headingLevel = (node: ContentNode): number | null =>
+  node.type === "heading" && node.tag ? (LEVEL[node.tag] ?? null) : null;
+
+/**
+ * The largest heading a document uses. Readers number its headings from
+ * there, under the page's title, so a writer may start at any size and
+ * only a level skipped after that breaks the outline.
+ */
+export function topHeadingLevel(document: ContentDocument): number {
+  let top = 6;
+  const pending: ContentNode[] = [document.root];
+  for (let node = pending.pop(); node; node = pending.pop()) {
+    top = Math.min(top, headingLevel(node) ?? 6);
+    if (node.children) pending.push(...node.children);
+  }
+  return top;
+}
+
 export function contentIssues(document: ContentDocument): ContentIssue[] {
   const found = new Set<ContentIssue>();
-  // The title above the document is its first-level heading.
-  let level = 1;
+  let level = topHeadingLevel(document) - 1;
   const walk = (node: ContentNode) => {
-    if (node.type === "heading" && node.tag) {
-      const next = LEVEL[node.tag] ?? level;
-      if (next === 1) found.add("heading");
-      else if (next > level + 1) found.add("order");
+    const next = headingLevel(node);
+    if (next !== null) {
+      if (next > level + 1) found.add("order");
       level = next;
     }
     if (node.type === "image" && !node.decorative && !node.alt?.trim())
@@ -42,4 +58,14 @@ export function contentIssues(document: ContentDocument): ContentIssue[] {
   };
   walk(document.root);
   return [...found];
+}
+
+/** Whether a document has a heading of the first level anywhere in it. */
+export function hasFirstLevelHeading(document: ContentDocument): boolean {
+  const pending: ContentNode[] = [document.root];
+  for (let node = pending.pop(); node; node = pending.pop()) {
+    if (node.type === "heading" && node.tag === "h1") return true;
+    if (node.children) pending.push(...node.children);
+  }
+  return false;
 }

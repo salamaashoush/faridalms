@@ -7,7 +7,6 @@ import * as m from "~/i18n/messages";
 
 const LABEL: Record<ContentIssue, () => string> = {
   alt: m.siteIssueAlt,
-  heading: m.siteIssueHeading,
   order: m.siteIssueOrder,
   link: m.siteIssueLink,
 };

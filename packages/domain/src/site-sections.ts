@@ -8,7 +8,7 @@ import {
   contentFileIds,
   contentPlainText,
 } from "./content";
-import { contentIssues } from "./content-checks";
+import { contentIssues, hasFirstLevelHeading } from "./content-checks";
 import { embedProviders, isEmbedId } from "./embed";
 import { isSiteHref, isVagueLink, MAX_BUTTON_LABEL } from "./site-links";
 import { DIVIDERS, SCHEMES } from "./site-theme";
@@ -1292,7 +1292,6 @@ export function sectionFileIds(section: PageSection): string[] {
 export type SiteIssueCode =
   | "alt"
   | "heading"
-  | "order"
   | "link"
   | "action"
   | "captions"
@@ -1302,9 +1301,16 @@ export interface SiteIssue {
   code: SiteIssueCode;
 }
 
-/** What a rich body must not do on a page: compete with its title, hide pictures, say "click here". */
+/**
+ * What a rich body must not do on a page: hide pictures, say "click here",
+ * or compete with the section's own heading through a first-level one.
+ */
 export function bodyIssues(body: ContentDocument): SiteIssueCode[] {
-  return contentIssues(body);
+  const found = new Set<SiteIssueCode>(
+    contentIssues(body).filter((code) => code !== "order"),
+  );
+  if (hasFirstLevelHeading(body)) found.add("heading");
+  return [...found];
 }
 
 function scalarIssues(field: ScalarField, value: unknown): SiteIssueCode[] {

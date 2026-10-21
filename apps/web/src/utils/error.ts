@@ -145,8 +145,6 @@ export function getMessageFromError(error: unknown): string {
         return m.contentInvalid();
       case "content.alt":
         return m.siteIssueAlt();
-      case "content.heading":
-        return m.siteIssueHeading();
       case "content.order":
         return m.siteIssueOrder();
       case "content.link":

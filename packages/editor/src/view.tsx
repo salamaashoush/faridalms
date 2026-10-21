@@ -14,6 +14,10 @@ import {
   textDirection,
   validContentStyle,
 } from "@faridalms/domain/content";
+import {
+  headingLevel,
+  topHeadingLevel,
+} from "@faridalms/domain/content-checks";
 import { embedPage, embedProviderNames } from "@faridalms/domain/embed";
 import { isSafeContentUrl } from "@faridalms/domain/rich-text";
 import { ExternalLink } from "lucide-react";
@@ -68,6 +72,8 @@ interface Marking {
 
 interface Context {
   strings: ViewStrings;
+  /** The document's largest heading, which reads as the level under the page's title. */
+  top: number;
   fileUrl?: (fileId: string) => string;
   locale: string;
   marking?: Marking;
@@ -212,7 +218,6 @@ function shareOf(width: number, widths: readonly number[] = []): string {
   return whole > 0 ? `${((width / whole) * 100).toFixed(3)}%` : "auto";
 }
 
-const heading = { h1: "h2", h2: "h3", h3: "h4" } as const;
 const headingClass = { h1: "fe-h1", h2: "fe-h2", h3: "fe-h3" } as const;
 
 function highlightClass(type: string | null | undefined): string | undefined {
@@ -354,7 +359,8 @@ function draw(
       );
     case "heading": {
       const tag = node.tag === "h1" || node.tag === "h2" ? node.tag : "h3";
-      const Heading = heading[tag];
+      const level = Math.min(6, (headingLevel(node) ?? 3) - context.top + 2);
+      const Heading = `h${level}` as "h2" | "h3" | "h4" | "h5" | "h6";
       return (
         <Heading key={key} className={headingClass[tag]} {...props}>
           {children}
@@ -817,6 +823,7 @@ export function ContentRenderer({
     : undefined;
   const context = {
     strings,
+    top: topHeadingLevel(document),
     fileUrl,
     locale,
     marking,
