@@ -274,6 +274,11 @@ export interface EditorStrings extends LabelEditorStrings, ChartStrings {
   ltiOpen: string;
   ltiTitle: string;
   ltiChooseTool: string;
+  ltiOptions: string;
+  ltiPick: string;
+  ltiPicking: string;
+  ltiPickBlocked: string;
+  ltiPickCancel: string;
   questionReading: string;
   questionReadingHint: string;
   questionReadingPrompt: string;

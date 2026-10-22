@@ -1,5 +1,6 @@
 import type { ContentDocument, Mention } from "@faridalms/domain/content";
 import type { SpeechLanguage } from "@faridalms/domain/file";
+import type { LtiPick } from "@faridalms/domain/lti";
 import type { ProjectFile, ProjectLanguage } from "@faridalms/domain/project";
 import type { Level } from "@faridalms/puzzles/level";
 import type { ComponentType } from "react";
@@ -167,10 +168,22 @@ export interface EditorMentions {
 }
 
 /** The school's outside tools a document may link to, and where a link opens. */
+/** A pick of a tool's content under way in the tool's own window. */
+export interface LtiPicking {
+  /** What the teacher picked, or nothing when they picked nothing. */
+  picked: Promise<LtiPick | null>;
+  cancel: () => void;
+}
+
 export interface EditorTools {
   list: { id: string; name: string; deepLinking: boolean }[];
   /** Where a link launches from; none until the document is saved. */
   href: (linkId: string) => string | null;
+  /**
+   * Opens a tool's window to pick its content for a link, or gives nothing
+   * when the browser would not open it; absent until the document is saved.
+   */
+  pick?: (toolId: string) => LtiPicking | null;
 }
 
 export interface EditorEnvironment {

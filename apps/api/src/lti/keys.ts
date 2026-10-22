@@ -2,7 +2,13 @@ import type { CellTransaction } from "@faridalms/database/context";
 import type { JWK } from "jose";
 
 import { keepSigningKey, signingKey } from "@faridalms/database/stores/lti";
-import { exportJWK, generateKeyPair, importJWK, SignJWT } from "jose";
+import {
+  createRemoteJWKSet,
+  exportJWK,
+  generateKeyPair,
+  importJWK,
+  SignJWT,
+} from "jose";
 
 import type { LtiSecrets } from "./crypto";
 
@@ -58,4 +64,20 @@ export async function signed(
     .setIssuedAt()
     .setExpirationTime("5m")
     .sign(signer.key);
+}
+
+const toolKeySets = new Map<string, ReturnType<typeof createRemoteJWKSet>>();
+
+/**
+ * A tool's public keys, fetched from the address it registered and kept a
+ * while, so what it signs can be checked; a key it has newly rotated to is
+ * fetched again when first seen.
+ */
+export function toolKeys(jwksUrl: string) {
+  let keys = toolKeySets.get(jwksUrl);
+  if (!keys) {
+    keys = createRemoteJWKSet(new URL(jwksUrl));
+    toolKeySets.set(jwksUrl, keys);
+  }
+  return keys;
 }

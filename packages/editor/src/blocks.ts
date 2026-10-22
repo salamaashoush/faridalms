@@ -126,6 +126,8 @@ import {
   $createPythonQuestion,
   $createSketchQuestion,
   $createLtiNode,
+  $isLtiNode,
+  $selectLti,
   $createReadingQuestion,
   $createWhyQuestion,
   $createColumnsNode,
@@ -1505,6 +1507,10 @@ function $selectInside(node: LexicalNode) {
   }
   if ($isStandardsNode(node)) {
     $selectStandards(node);
+    return;
+  }
+  if ($isLtiNode(node)) {
+    $selectLti(node);
     return;
   }
   if ($isToggleNode(node)) {

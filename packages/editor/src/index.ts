@@ -12,6 +12,7 @@ export type {
   EditorStandards,
   EditorStudio,
   EditorTools,
+  LtiPicking,
   StandardRef,
   UploadedFile,
   UploadOptions,

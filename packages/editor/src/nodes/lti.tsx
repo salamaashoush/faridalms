@@ -1,4 +1,4 @@
-import type { LtiLink } from "@faridalms/domain/lti";
+import type { LtiLink, LtiPick } from "@faridalms/domain/lti";
 import type {
   EditorConfig,
   EditorState,
@@ -12,7 +12,13 @@ import type {
 import type { JSX } from "react";
 
 import { $dfs } from "@lexical/utils";
-import { $getDocument, $getNodeByKey, DecoratorNode } from "lexical";
+import {
+  $createNodeSelection,
+  $getDocument,
+  $getNodeByKey,
+  $setSelection,
+  DecoratorNode,
+} from "lexical";
 import { useEffect } from "react";
 
 import { useEditorEnvironment } from "../context";
@@ -28,8 +34,6 @@ function LtiBlock({ nodeKey, link }: { nodeKey: NodeKey; link: LtiLink }) {
   const selected = useSelectOnClick(nodeKey);
   const update = useNodeUpdate(nodeKey, $isLtiNode);
   const tool = tools?.list.find((row) => row.id === link.toolId);
-  const change = (patch: Partial<LtiLink>) =>
-    update((node) => node.setLink({ ...node.getLink(), ...patch }));
   // A link starts with the school's first tool, which the teacher may change.
   const first = tools?.list[0];
   useEffect(() => {
@@ -51,29 +55,19 @@ function LtiBlock({ nodeKey, link }: { nodeKey: NodeKey; link: LtiLink }) {
         openLabel={strings.ltiOpen}
       >
         {tools ? (
-          <span className="fe-lti-fields">
-            <input
-              aria-label={strings.ltiTitle}
-              placeholder={tool?.name ?? strings.ltiTitle}
-              value={link.title}
-              maxLength={200}
-              dir="auto"
-              onChange={(event) => change({ title: event.target.value })}
-            />
-            {tools.list.length > 1 ? (
-              <select
-                aria-label={strings.ltiChooseTool}
-                value={link.toolId}
-                onChange={(event) => change({ toolId: event.target.value })}
-              >
-                {tools.list.map((row) => (
-                  <option key={row.id} value={row.id}>
-                    {row.name}
-                  </option>
-                ))}
-              </select>
-            ) : null}
-          </span>
+          <input
+            className="fe-lti-input"
+            aria-label={strings.ltiTitle}
+            placeholder={tool?.name ?? strings.ltiTitle}
+            value={link.title}
+            maxLength={200}
+            dir="auto"
+            onChange={(event) =>
+              update((node) =>
+                node.setLink({ ...node.getLink(), title: event.target.value }),
+              )
+            }
+          />
         ) : null}
       </LtiCard>
     </div>
@@ -149,6 +143,34 @@ export class LtiNode extends DecoratorNode<JSX.Element> {
 
 export function $createLtiNode(toolId: string, title: string): LtiNode {
   return new LtiNode({ linkId: crypto.randomUUID(), toolId, title });
+}
+
+/** Chooses a link, so the bar offers its tool and the tool's content. */
+export function $selectLti(node: LtiNode) {
+  const selection = $createNodeSelection();
+  selection.add(node.getKey());
+  $setSelection(selection);
+}
+
+/**
+ * Points a link at what a teacher picked in its tool, or at another tool,
+ * whose content the old tool's address and parameters do not reach.
+ */
+export function $setLtiContent(
+  node: LtiNode,
+  change: { toolId: string } | { picked: LtiPick },
+) {
+  const { linkId, toolId, title } = node.getLink();
+  if ("toolId" in change) {
+    node.setLink({ linkId, toolId: change.toolId, title });
+    return;
+  }
+  node.setLink({
+    linkId,
+    toolId,
+    ...change.picked,
+    title: change.picked.title || title,
+  });
 }
 
 export function $isLtiNode(

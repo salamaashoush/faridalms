@@ -63,6 +63,7 @@ import {
   AlignLeft,
   AlignRight,
   ALargeSmall,
+  AppWindow,
   Asterisk,
   Baseline,
   BookA,
@@ -89,6 +90,7 @@ import {
   ImagePlus,
   Images,
   Italic,
+  Library,
   Lightbulb,
   ListPlus,
   Link,
@@ -171,6 +173,7 @@ import {
 import { MathInput } from "../math-input";
 import { $isDrawNode, useBankTags } from "../nodes/draw";
 import { $insertFootnote, $isFootnoteNode } from "../nodes/footnote";
+import { $isLtiNode, $setLtiContent } from "../nodes/lti";
 import { $insertMath, $isMathNode } from "../nodes/math";
 import { $isFileNode, $isImageNode, OPEN_FILE_COMMAND } from "../nodes/media";
 import {
@@ -237,6 +240,7 @@ type Mode =
   | "link-view"
   | "block"
   | "file"
+  | "lti"
   | "question"
   | "question-text"
   | "question-hints"
@@ -273,6 +277,12 @@ interface TermBarFacts {
   facts: TermFacts;
   /** Just defined, so its panel opens to write what it means. */
   fresh: boolean;
+}
+
+/** A chosen link to an outside tool, and the tool it opens. */
+interface LtiBarFacts {
+  key: NodeKey;
+  toolId: string;
 }
 
 /** A chosen standards block and the standards it names. */
@@ -565,6 +575,7 @@ export function SelectionToolbarPlugin() {
     feedbackTiming,
     locale,
     questions,
+    tools,
   } = useEditorEnvironment();
   const [mode, setMode] = useState<Mode>("hidden");
   const [math, setMath] = useState<MathFacts | null>(null);
@@ -600,6 +611,14 @@ export function SelectionToolbarPlugin() {
   const [versioning, setVersioning] = useState<{
     key: string;
     state: "busy" | "failed";
+  } | null>(null);
+  const [ltiFacts, setLtiFacts] = useState<LtiBarFacts | null>(null);
+  // A pick under way in a tool's window, or one the browser would not
+  // open, is about the link it was for.
+  const [picking, setPicking] = useState<{
+    key: NodeKey;
+    state: "busy" | "blocked";
+    cancel?: () => void;
   } | null>(null);
   const [question, setQuestion] = useState<QuestionBarFacts | null>(null);
   const [editing, setEditing] = useState<QuestionText>("explanation");
@@ -866,6 +885,45 @@ export function SelectionToolbarPlugin() {
       };
     });
 
+  const readLti = () =>
+    editor.getEditorState().read((): LtiBarFacts | null => {
+      const selection = $getSelection();
+      if (!$isNodeSelection(selection)) return null;
+      const nodes = selection.getNodes();
+      const node = nodes.length === 1 ? nodes[0] : null;
+      if (!$isLtiNode(node)) return null;
+      const { toolId } = node.getLink();
+      const tool = tools?.list.find((row) => row.id === toolId);
+      // A single tool with nothing to pick from leaves the bar nothing to offer.
+      if (
+        !tools ||
+        (tools.list.length < 2 && !(tool?.deepLinking && tools.pick))
+      )
+        return null;
+      return { key: node.getKey(), toolId };
+    });
+
+  const startPick = (link: LtiBarFacts) => {
+    const key = link.key;
+    const started = tools?.pick?.(link.toolId) ?? null;
+    if (!started) {
+      setPicking({ key, state: "blocked" });
+      return;
+    }
+    setPicking({ key, state: "busy", cancel: started.cancel });
+    void started.picked.then((picked) => {
+      setPicking((current) =>
+        current?.cancel === started.cancel ? null : current,
+      );
+      if (!picked) return;
+      updateFromOutside(editor, () => {
+        const node = $getNodeByKey(key);
+        if ($isLtiNode(node) && node.getLink().toolId === link.toolId)
+          $setLtiContent(node, { picked });
+      });
+    });
+  };
+
   const modeRef = useRef<Mode>("hidden");
   const show = (next: Mode) => {
     modeRef.current = next;
@@ -920,6 +978,12 @@ export function SelectionToolbarPlugin() {
       setFileFacts(file);
       setReference(editor.getElementByKey(file.key));
       return show("file");
+    }
+    const linked = focused ? readLti() : null;
+    if (linked) {
+      setLtiFacts(linked);
+      setReference(editor.getElementByKey(linked.key));
+      return show("lti");
     }
     const selected = focused ? readBlock() : null;
     if (selected) {
@@ -3194,6 +3258,106 @@ export function SelectionToolbarPlugin() {
             onOpenChange={trackMenu}
             finalFocus={textFocus(editor)}
           />
+        </div>
+      </Floating>
+    );
+  }
+
+  if (mode === "lti" && ltiFacts && tools) {
+    const tool = tools.list.find((row) => row.id === ltiFacts.toolId);
+    const pick = picking?.key === ltiFacts.key ? picking : null;
+    const action =
+      "inline-flex h-8 items-center gap-1.5 rounded-md px-2 text-sm font-medium text-foreground/80 hover:bg-accent hover:text-foreground [&_svg]:size-4";
+    return (
+      <Floating
+        reference={reference}
+        placement="top"
+        boundary={boundary}
+        className="flex items-center gap-0.5 p-1"
+        keepFocus
+        role="toolbar"
+        label={strings.ltiOptions}
+      >
+        <div ref={toolbar} className="contents">
+          {tools.list.length > 1 ? (
+            <Menu.Root onOpenChange={trackMenu}>
+              <Menu.Trigger
+                aria-label={strings.ltiChooseTool}
+                className={action}
+              >
+                <AppWindow aria-hidden />
+                <span className="max-w-48 truncate" dir="auto">
+                  {tool?.name ?? strings.ltiChooseTool}
+                </span>
+                <ChevronDown className="size-3.5 opacity-60" aria-hidden />
+              </Menu.Trigger>
+              <Menu.Portal>
+                <Menu.Positioner className="z-50" sideOffset={6} align="start">
+                  <Menu.Popup
+                    className={menuPopupClass}
+                    finalFocus={textFocus(editor)}
+                  >
+                    {tools.list.map((row) => (
+                      <Menu.Item
+                        key={row.id}
+                        className={menuItemClass}
+                        onClick={() =>
+                          withSelection(() => {
+                            const node = $getNodeByKey(ltiFacts.key);
+                            if (
+                              $isLtiNode(node) &&
+                              node.getLink().toolId !== row.id
+                            )
+                              $setLtiContent(node, { toolId: row.id });
+                          })
+                        }
+                      >
+                        <span className="flex-1" dir="auto">
+                          {row.name}
+                        </span>
+                        {ltiFacts.toolId === row.id ? (
+                          <span className="size-1.5 rounded-full bg-primary" />
+                        ) : null}
+                      </Menu.Item>
+                    ))}
+                  </Menu.Popup>
+                </Menu.Positioner>
+              </Menu.Portal>
+            </Menu.Root>
+          ) : null}
+          {tool?.deepLinking && tools.pick ? (
+            <>
+              {tools.list.length > 1 ? separator : null}
+              {pick?.state === "busy" ? (
+                <>
+                  <output className="px-2 text-sm text-muted-foreground">
+                    {strings.ltiPicking}
+                  </output>
+                  <button
+                    type="button"
+                    onMouseDown={(event) => event.preventDefault()}
+                    onClick={() => pick.cancel?.()}
+                    className={action}
+                  >
+                    <X aria-hidden />
+                    {strings.ltiPickCancel}
+                  </button>
+                </>
+              ) : (
+                <button
+                  type="button"
+                  onMouseDown={(event) => event.preventDefault()}
+                  onClick={() => startPick(ltiFacts)}
+                  className={action}
+                >
+                  <Library aria-hidden />
+                  {pick?.state === "blocked"
+                    ? strings.ltiPickBlocked
+                    : strings.ltiPick}
+                </button>
+              )}
+            </>
+          ) : null}
         </div>
       </Floating>
     );

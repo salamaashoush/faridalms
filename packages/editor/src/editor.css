@@ -2040,23 +2040,11 @@
   line-height: 1.125rem;
   color: var(--fe-muted);
 }
-.fe .fe-lti-fields {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 0.5rem;
-}
-.fe .fe-lti-fields input {
-  flex: 1;
-  min-width: 10rem;
+.fe .fe-lti-input {
+  min-width: 0;
   background: transparent;
   font-weight: 500;
   outline: none;
-}
-.fe .fe-lti-fields select {
-  border-radius: 0.375rem;
-  background: var(--fe-subtle);
-  padding: 0.125rem 0.375rem;
-  font-size: 0.8125rem;
 }
 .fe .fe-lti-open {
   display: inline-flex;

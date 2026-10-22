@@ -33,8 +33,10 @@ import { Route as AuthSignInRouteImport } from './routes/_auth/sign-in'
 import { Route as ApiHealthRouteImport } from './routes/api/health'
 import { Route as FilesFileIdRouteImport } from './routes/files/$fileId'
 import { Route as LtiAuthRouteImport } from './routes/lti/auth'
+import { Route as LtiDeepLinkRouteImport } from './routes/lti/deep-link'
 import { Route as LtiJwksRouteImport } from './routes/lti/jwks'
 import { Route as LtiLaunchRouteImport } from './routes/lti/launch'
+import { Route as LtiPickRouteImport } from './routes/lti/pick'
 import { Route as SiteSchoolRouteImport } from './routes/site/$school'
 import { Route as AppAdminIndexRouteImport } from './routes/_app/admin/index'
 import { Route as AppAdminAcademicYearEditorRouteImport } from './routes/_app/admin/academic-year-editor'
@@ -234,6 +236,11 @@ const LtiAuthRoute = LtiAuthRouteImport.update({
   path: '/lti/auth',
   getParentRoute: () => rootRouteImport,
 } as any)
+const LtiDeepLinkRoute = LtiDeepLinkRouteImport.update({
+  id: '/lti/deep-link',
+  path: '/lti/deep-link',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const LtiJwksRoute = LtiJwksRouteImport.update({
   id: '/lti/jwks',
   path: '/lti/jwks',
@@ -242,6 +249,11 @@ const LtiJwksRoute = LtiJwksRouteImport.update({
 const LtiLaunchRoute = LtiLaunchRouteImport.update({
   id: '/lti/launch',
   path: '/lti/launch',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LtiPickRoute = LtiPickRouteImport.update({
+  id: '/lti/pick',
+  path: '/lti/pick',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SiteSchoolRoute = SiteSchoolRouteImport.update({
@@ -671,8 +683,10 @@ export interface FileRoutesByFullPath {
   '/api/health': typeof ApiHealthRoute
   '/files/$fileId': typeof FilesFileIdRouteWithChildren
   '/lti/auth': typeof LtiAuthRoute
+  '/lti/deep-link': typeof LtiDeepLinkRoute
   '/lti/jwks': typeof LtiJwksRoute
   '/lti/launch': typeof LtiLaunchRoute
+  '/lti/pick': typeof LtiPickRoute
   '/site/$school': typeof SiteSchoolRouteWithChildren
   '/admin/academic-year-editor': typeof AppAdminAcademicYearEditorRoute
   '/admin/academic-years': typeof AppAdminAcademicYearsRoute
@@ -772,8 +786,10 @@ export interface FileRoutesByTo {
   '/api/health': typeof ApiHealthRoute
   '/files/$fileId': typeof FilesFileIdRouteWithChildren
   '/lti/auth': typeof LtiAuthRoute
+  '/lti/deep-link': typeof LtiDeepLinkRoute
   '/lti/jwks': typeof LtiJwksRoute
   '/lti/launch': typeof LtiLaunchRoute
+  '/lti/pick': typeof LtiPickRoute
   '/admin/academic-year-editor': typeof AppAdminAcademicYearEditorRoute
   '/admin/academic-years': typeof AppAdminAcademicYearsRoute
   '/admin/announcement-editor': typeof AppAdminAnnouncementEditorRoute
@@ -879,8 +895,10 @@ export interface FileRoutesById {
   '/api/health': typeof ApiHealthRoute
   '/files/$fileId': typeof FilesFileIdRouteWithChildren
   '/lti/auth': typeof LtiAuthRoute
+  '/lti/deep-link': typeof LtiDeepLinkRoute
   '/lti/jwks': typeof LtiJwksRoute
   '/lti/launch': typeof LtiLaunchRoute
+  '/lti/pick': typeof LtiPickRoute
   '/site/$school': typeof SiteSchoolRouteWithChildren
   '/_app/admin/academic-year-editor': typeof AppAdminAcademicYearEditorRoute
   '/_app/admin/academic-years': typeof AppAdminAcademicYearsRoute
@@ -986,8 +1004,10 @@ export interface FileRouteTypes {
     | '/api/health'
     | '/files/$fileId'
     | '/lti/auth'
+    | '/lti/deep-link'
     | '/lti/jwks'
     | '/lti/launch'
+    | '/lti/pick'
     | '/site/$school'
     | '/admin/academic-year-editor'
     | '/admin/academic-years'
@@ -1087,8 +1107,10 @@ export interface FileRouteTypes {
     | '/api/health'
     | '/files/$fileId'
     | '/lti/auth'
+    | '/lti/deep-link'
     | '/lti/jwks'
     | '/lti/launch'
+    | '/lti/pick'
     | '/admin/academic-year-editor'
     | '/admin/academic-years'
     | '/admin/announcement-editor'
@@ -1193,8 +1215,10 @@ export interface FileRouteTypes {
     | '/api/health'
     | '/files/$fileId'
     | '/lti/auth'
+    | '/lti/deep-link'
     | '/lti/jwks'
     | '/lti/launch'
+    | '/lti/pick'
     | '/site/$school'
     | '/_app/admin/academic-year-editor'
     | '/_app/admin/academic-years'
@@ -1285,8 +1309,10 @@ export interface RootRouteChildren {
   ApiHealthRoute: typeof ApiHealthRoute
   FilesFileIdRoute: typeof FilesFileIdRouteWithChildren
   LtiAuthRoute: typeof LtiAuthRoute
+  LtiDeepLinkRoute: typeof LtiDeepLinkRoute
   LtiJwksRoute: typeof LtiJwksRoute
   LtiLaunchRoute: typeof LtiLaunchRoute
+  LtiPickRoute: typeof LtiPickRoute
   SiteSchoolRoute: typeof SiteSchoolRouteWithChildren
   ExportsAssignmentsAssignmentIdRoute: typeof ExportsAssignmentsAssignmentIdRoute
   ExportsStudentsStudentIdRoute: typeof ExportsStudentsStudentIdRoute
@@ -1464,6 +1490,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof LtiAuthRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/lti/deep-link': {
+      id: '/lti/deep-link'
+      path: '/lti/deep-link'
+      fullPath: '/lti/deep-link'
+      preLoaderRoute: typeof LtiDeepLinkRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/lti/jwks': {
       id: '/lti/jwks'
       path: '/lti/jwks'
@@ -1476,6 +1509,13 @@ declare module '@tanstack/react-router' {
       path: '/lti/launch'
       fullPath: '/lti/launch'
       preLoaderRoute: typeof LtiLaunchRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/lti/pick': {
+      id: '/lti/pick'
+      path: '/lti/pick'
+      fullPath: '/lti/pick'
+      preLoaderRoute: typeof LtiPickRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/site/$school': {
@@ -2306,8 +2346,10 @@ const rootRouteChildren: RootRouteChildren = {
   ApiHealthRoute: ApiHealthRoute,
   FilesFileIdRoute: FilesFileIdRouteWithChildren,
   LtiAuthRoute: LtiAuthRoute,
+  LtiDeepLinkRoute: LtiDeepLinkRoute,
   LtiJwksRoute: LtiJwksRoute,
   LtiLaunchRoute: LtiLaunchRoute,
+  LtiPickRoute: LtiPickRoute,
   SiteSchoolRoute: SiteSchoolRouteWithChildren,
   ExportsAssignmentsAssignmentIdRoute: ExportsAssignmentsAssignmentIdRoute,
   ExportsStudentsStudentIdRoute: ExportsStudentsStudentIdRoute,

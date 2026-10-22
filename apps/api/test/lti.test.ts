@@ -1,7 +1,18 @@
 import { contentOfLesson } from "@faridalms/domain/lesson-content";
-import { LTI_CLAIM, LTI_ROLES } from "@faridalms/domain/lti";
-import { describe, expect, test } from "bun:test";
-import { createLocalJWKSet, jwtVerify } from "jose";
+import {
+  LTI_CLAIM,
+  LTI_DL_CLAIM,
+  LTI_ROLES,
+  LTI_VERSION,
+} from "@faridalms/domain/lti";
+import { describe, expect, spyOn, test } from "bun:test";
+import {
+  createLocalJWKSet,
+  exportJWK,
+  generateKeyPair,
+  jwtVerify,
+  SignJWT,
+} from "jose";
 
 import { login, raw, rejection, seeded, sessionFor, signedIn } from "./harness";
 
@@ -19,6 +30,20 @@ function posted(html: string) {
   );
   return { action: action.replaceAll("&amp;", "&"), fields };
 }
+
+/** A tool's answer to a pick, posted back as it comes from the tool's site. */
+const returned = (jwt: string) =>
+  raw("northwind", "", "/lti/deep-link", {
+    method: "POST",
+    headers: { "content-type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({ JWT: jwt }).toString(),
+  });
+
+/** What the answer's page hands to the editor waiting for it. */
+const handed = (html: string) =>
+  JSON.parse(
+    /c\.postMessage\((.*?)\);c\.close/.exec(html)?.[1] ?? "null",
+  ) as unknown;
 
 /** A lesson in the seeded module with a link to the tool in it. */
 async function lessonWithLink(toolId: string) {
@@ -217,5 +242,157 @@ describe("outside tools by LTI 1.3", () => {
         )
       ).status,
     ).toBe(404);
+  });
+
+  test("a teacher picks a tool's content for a link, which only the tool can hand back", async () => {
+    const office = await signedIn("northwind", login("principal"));
+    const registered = await office.lti.saveTool({
+      name: "Simulation library",
+      loginUrl: `${TOOL}/login`,
+      launchUrl: `${TOOL}/launch`,
+      redirectUrls: [`${TOOL}/launch`],
+      jwksUrl: `${TOOL}/library/jwks`,
+      deepLinkUrl: `${TOOL}/library/pick`,
+      sendNames: false,
+    });
+    const tool = (await office.lti.tools()).tools.find(
+      (row) => row.id === registered.id,
+    );
+    if (!tool) throw new Error("tool not registered");
+    const { keeper, lessonId } = await lessonWithLink(tool.id);
+    const teacher = await keeper.api.identity.currentUser();
+    const pickId = crypto.randomUUID();
+    const start = (token: string) =>
+      raw(
+        "northwind",
+        token,
+        `/lti/pick?${new URLSearchParams({ host: "lesson", id: lessonId, tool: tool.id, pick: pickId })}`,
+      );
+    // Only someone who may change the lesson picks content for it.
+    const pupil = await sessionFor("northwind", login("student"));
+    expect((await start(pupil.token)).status).toBe(404);
+
+    const login1 = posted(await (await start(keeper.token)).text());
+    expect(login1.action).toBe(`${TOOL}/login`);
+    expect(login1.fields.target_link_uri).toBe(`${TOOL}/library/pick`);
+    const answer = posted(
+      await (
+        await raw(
+          "northwind",
+          keeper.token,
+          `/lti/auth?${new URLSearchParams({
+            scope: "openid",
+            response_type: "id_token",
+            response_mode: "form_post",
+            prompt: "none",
+            client_id: tool.clientId,
+            redirect_uri: `${TOOL}/launch`,
+            login_hint: teacher.id,
+            lti_message_hint: login1.fields.lti_message_hint ?? "",
+            nonce: "n-pick",
+            state: "s-pick",
+          })}`,
+        )
+      ).text(),
+    );
+    const keys = await (await raw("northwind", keeper.token, "/lti/jwks")).json();
+    const { payload: request } = await jwtVerify(
+      answer.fields.id_token ?? "",
+      createLocalJWKSet(keys as { keys: [] }),
+      { issuer: "https://localhost/lti", audience: tool.clientId },
+    );
+    expect(request).toMatchObject({
+      sub: teacher.id,
+      [LTI_CLAIM.messageType]: "LtiDeepLinkingRequest",
+      [LTI_CLAIM.targetLinkUri]: `${TOOL}/library/pick`,
+      [LTI_CLAIM.roles]: [...LTI_ROLES.instructor],
+      [LTI_DL_CLAIM.settings]: {
+        deep_link_return_url: "https://localhost/lti/deep-link",
+        accept_types: ["ltiResourceLink"],
+        accept_multiple: false,
+      },
+    });
+    expect(request[LTI_CLAIM.resourceLink]).toBeUndefined();
+    const data = (request[LTI_DL_CLAIM.settings] as { data: string }).data;
+
+    // The tool signs what the teacher picked with a key it publishes.
+    const pair = await generateKeyPair("RS256");
+    const forger = await generateKeyPair("RS256");
+    const published = {
+      keys: [{ ...(await exportJWK(pair.publicKey)), kid: "tool-1" }],
+    };
+    const fetched = spyOn(globalThis, "fetch").mockImplementation(
+      Object.assign(
+        async (input: string | URL | Request) =>
+          (input instanceof Request ? input.url : input.toString()) ===
+          `${TOOL}/library/jwks`
+            ? Response.json(published)
+            : Response.json({}, { status: 404 }),
+        { preconnect: () => undefined },
+      ),
+    );
+    try {
+      const response = (
+        claims: Record<string, unknown>,
+        key: CryptoKey = pair.privateKey,
+      ) =>
+        new SignJWT({
+          nonce: crypto.randomUUID(),
+          [LTI_CLAIM.messageType]: "LtiDeepLinkingResponse",
+          [LTI_CLAIM.version]: LTI_VERSION,
+          [LTI_CLAIM.deploymentId]: tool.deploymentId,
+          [LTI_DL_CLAIM.data]: data,
+          [LTI_DL_CLAIM.contentItems]: [
+            {
+              type: "ltiResourceLink",
+              title: "Rivers in flood",
+              url: `${TOOL}/sims/flood`,
+              custom: { sim: "flood" },
+              lineItem: { scoreMaximum: 10 },
+            },
+          ],
+          ...claims,
+        })
+          .setProtectedHeader({ alg: "RS256", kid: "tool-1" })
+          .setIssuer(tool.clientId)
+          .setAudience("https://localhost/lti")
+          .setIssuedAt()
+          .setExpirationTime("5m")
+          .sign(key);
+
+      // It comes back without the teacher's session, from the tool's site.
+      const jwt = await response({});
+      const back = await returned(jwt);
+      expect(back.status).toBe(200);
+      expect(handed(await back.text())).toEqual({
+        pickId,
+        item: {
+          title: "Rivers in flood",
+          url: `${TOOL}/sims/flood`,
+          custom: { sim: "flood" },
+          lineItem: { label: "Rivers in flood", scoreMaximum: 10 },
+        },
+      });
+      // The same answer is taken once.
+      expect((await returned(jwt)).status).toBe(400);
+      // An answer the tool did not sign, or data this school never gave, is refused.
+      expect(
+        (await returned(await response({}, forger.privateKey))).status,
+      ).toBe(400);
+      expect(
+        (await returned(await response({ [LTI_DL_CLAIM.data]: "forged.data" })))
+          .status,
+      ).toBe(400);
+      // A teacher who picked nothing is let go, and the editor stops waiting.
+      expect(
+        handed(
+          await (
+            await returned(await response({ [LTI_DL_CLAIM.contentItems]: [] }))
+          ).text(),
+        ),
+      ).toEqual({ pickId, item: null });
+    } finally {
+      fetched.mockRestore();
+    }
   });
 });

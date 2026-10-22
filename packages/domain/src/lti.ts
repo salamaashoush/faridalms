@@ -89,6 +89,18 @@ export const LTI_HOSTS = ["lesson", "assignment"] as const;
 export type LtiHost = (typeof LTI_HOSTS)[number];
 
 /**
+ * The grade a tool's content asks to report into, as Deep Linking gives it:
+ * a label, the most it scores, and the tool's own names for it.
+ */
+export const ltiLineItemSchema = v.object({
+  label: v.pipe(v.string(), v.maxLength(200)),
+  scoreMaximum: v.pipe(v.number(), v.minValue(0.01), v.maxValue(100000)),
+  resourceId: v.optional(v.pipe(v.string(), v.maxLength(255))),
+  tag: v.optional(v.pipe(v.string(), v.maxLength(255))),
+});
+export type LtiLineItem = v.InferOutput<typeof ltiLineItemSchema>;
+
+/**
  * A link to an outside tool placed in a document: the tool, the link's own
  * id, which a copied link gets anew as LTI asks, what it is called, and
  * the address and custom parameters a tool's chosen content gave it.
@@ -100,5 +112,63 @@ export const ltiLinkSchema = v.object({
   text: v.optional(v.pipe(v.string(), v.maxLength(1000))),
   url: v.optional(https),
   custom: v.optional(ltiCustomSchema),
+  lineItem: v.optional(ltiLineItemSchema),
 });
 export type LtiLink = v.InferOutput<typeof ltiLinkSchema>;
+
+/** What a tool's chosen content gives a link, once checked. */
+export type LtiPick = Pick<
+  LtiLink,
+  "title" | "text" | "url" | "custom" | "lineItem"
+>;
+
+const contentItemSchema = v.object({
+  type: v.literal("ltiResourceLink"),
+  title: v.optional(v.string(), ""),
+  text: v.optional(v.string()),
+  url: v.optional(https),
+  custom: v.optional(ltiCustomSchema),
+  lineItem: v.optional(
+    v.object({
+      label: v.optional(v.string()),
+      scoreMaximum: v.pipe(v.number(), v.minValue(0.01), v.maxValue(100000)),
+      resourceId: v.optional(v.pipe(v.string(), v.maxLength(255))),
+      tag: v.optional(v.pipe(v.string(), v.maxLength(255))),
+    }),
+  ),
+});
+
+/**
+ * A link's fields from content a tool hands back, an `ltiResourceLink`
+ * content item as Deep Linking gives it: a long title or description is
+ * cut to fit, and a grade with no label is named by the title. Anything
+ * else, or an item that breaks the rules, gives nothing.
+ */
+export function ltiPickOf(item: unknown): LtiPick | null {
+  const parsed = v.safeParse(contentItemSchema, item);
+  if (!parsed.success) return null;
+  const { text, url, custom, lineItem } = parsed.output;
+  const title = parsed.output.title.trim().slice(0, 200);
+  const label = lineItem?.label?.trim() || title;
+  return {
+    title,
+    ...(text?.trim() ? { text: text.trim().slice(0, 1000) } : {}),
+    ...(url ? { url } : {}),
+    ...(custom && Object.keys(custom).length > 0 ? { custom } : {}),
+    ...(lineItem
+      ? { lineItem: { ...lineItem, label: label.slice(0, 200) } }
+      : {}),
+  };
+}
+
+/** The channel an editor waits on for what a teacher picks in a tool's window. */
+export const LTI_PICK_CHANNEL = "farida-lti-pick";
+
+const DL = "https://purl.imsglobal.org/spec/lti-dl/claim";
+export const LTI_DL_CLAIM = {
+  settings: `${DL}/deep_linking_settings`,
+  contentItems: `${DL}/content_items`,
+  data: `${DL}/data`,
+  msg: `${DL}/msg`,
+  errormsg: `${DL}/errormsg`,
+} as const;
