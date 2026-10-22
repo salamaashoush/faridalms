@@ -61,7 +61,7 @@ import {
   lessonResponses,
   lessonReleased,
   releaseLesson,
-  releasedLessons,
+  releasesOf,
   publishedLessons,
   quietLessons,
   recordProgress,
@@ -172,6 +172,7 @@ import {
   runsQuerySchema,
   saveLessonSchema,
   saveModuleSchema,
+  releaseSchema,
   startPacedSchema,
   savePlanSchema,
   settled,
@@ -1899,27 +1900,33 @@ export const paced = readProcedure
     const parts = lessonParts(content.blocks);
     const step = Math.min(session.step, parts.length - 1);
     const open = new Set((parts[step] ?? []).map((block) => block.id));
-    const [classes, students, rows, activity, ran] = await Promise.all([
-      classesOfModule(context.tx, context.tenantId, owner.id),
-      namesOf(context.tx, context.tenantId, roster),
-      responsesSince(context.tx, {
-        tenantId: context.tenantId,
-        lessonId: led.id,
-        studentIds: roster,
-        since: session.startedAt,
-      }),
-      liveActivity(context.tx, {
-        tenantId: context.tenantId,
-        lessonIds: [led.id],
-        studentIds: roster,
-        since: session.startedAt,
-      }),
-      runCounts(context.tx, {
-        tenantId: context.tenantId,
-        lessonIds: [led.id],
-        studentIds: roster,
-      }),
-    ]);
+    const [classes, students, rows, activity, ran, releases] =
+      await Promise.all([
+        classesOfModule(context.tx, context.tenantId, owner.id),
+        namesOf(context.tx, context.tenantId, roster),
+        responsesSince(context.tx, {
+          tenantId: context.tenantId,
+          lessonId: led.id,
+          studentIds: roster,
+          since: session.startedAt,
+        }),
+        liveActivity(context.tx, {
+          tenantId: context.tenantId,
+          lessonIds: [led.id],
+          studentIds: roster,
+          since: session.startedAt,
+        }),
+        runCounts(context.tx, {
+          tenantId: context.tenantId,
+          lessonIds: [led.id],
+          studentIds: roster,
+        }),
+        releasesOf(context.tx, {
+          tenantId: context.tenantId,
+          lessonIds: [led.id],
+          classId: session.classId,
+        }),
+      ]);
     // Each student's latest attempt, should they have started over.
     const latest = new Map<string, number>();
     for (const row of rows)
@@ -1960,6 +1967,7 @@ export const paced = readProcedure
         roster,
         ran,
       ).filter((question) => open.has(question.id)),
+      release: releaseOf(content, releases),
     };
   });
 
@@ -2331,6 +2339,7 @@ async function playable(context: UnitContext, lessonId: string) {
     lessonReleased(context.tx, {
       tenantId: context.tenantId,
       lessonId: row.id,
+      studentId,
       classIds,
     }),
   ]);
@@ -3352,10 +3361,11 @@ export const results = writeProcedure
 
 /**
  * A teacher shows a class how it did on a lesson's questions that wait for
- * them; students who answer later see it at once.
+ * them, students who answer later seeing it at once; or shows one student
+ * ahead of the class, who finished early or needs to go over theirs.
  */
 export const release = writeProcedure
-  .input(v.object({ lessonId: id, classId: id }))
+  .input(releaseSchema)
   .handler(async ({ input, context }) => {
     const row = await lessonById(context.tx, context.tenantId, input.lessonId);
     if (!row) throw new ORPCError("NOT_FOUND");
@@ -3367,17 +3377,28 @@ export const release = writeProcedure
     );
     if (!classes.some((item) => item.id === input.classId))
       throw new ORPCError("NOT_FOUND");
+    if (
+      input.studentId &&
+      !(await audienceOf(context, owner.id, input.classId)).includes(
+        input.studentId,
+      )
+    )
+      throw new ORPCError("NOT_FOUND");
     await releaseLesson(context.tx, {
       tenantId: context.tenantId,
       lessonId: row.id,
       classId: input.classId,
+      studentId: input.studentId,
       userId: context.actor.userId,
     });
     await audit(context, {
       action: "lesson.release",
       objectType: "lesson",
       objectId: row.id,
-      details: { classId: input.classId },
+      details: {
+        classId: input.classId,
+        ...(input.studentId ? { studentId: input.studentId } : {}),
+      },
     });
     return { released: true };
   });
@@ -3801,6 +3822,23 @@ export const decideShare = writeProcedure
   });
 
 /**
+ * Whether some of a lesson's questions wait for the teacher, and if so who
+ * of the class has been shown how they did: all of it, or students shown
+ * on their own.
+ */
+function releaseOf(
+  content: LessonDocument,
+  releases: readonly { studentId: string | null }[],
+) {
+  if (!autoBlocks(content).some((block) => feedbackAtOf(block) === "teacher"))
+    return null;
+  return {
+    released: releases.some((row) => row.studentId === null),
+    students: releases.flatMap((row) => row.studentId ?? []),
+  };
+}
+
+/**
  * How a class did on a lesson's marked questions, from the rows given of
  * one attempt each: where every student stands, and for a choice, who
  * first chose which option.
@@ -3897,7 +3935,7 @@ export const questions = readProcedure
         lessonIds: lessons.map((item) => item.id),
         studentIds: roster,
       }),
-      releasedLessons(context.tx, {
+      releasesOf(context.tx, {
         tenantId: context.tenantId,
         lessonIds: lessons.map((item) => item.id),
         classId: input.classId,
@@ -3920,12 +3958,10 @@ export const questions = readProcedure
         title: item.title,
         young: item.young,
         questions: marked,
-        /** Whether some of its questions wait for the teacher, and whether this class has been shown. */
-        release: autoBlocks(content).some(
-          (block) => feedbackAtOf(block) === "teacher",
-        )
-          ? { released: released.includes(item.id) }
-          : null,
+        release: releaseOf(
+          content,
+          released.filter((entry) => entry.lessonId === item.id),
+        ),
       });
     }
     return { students, lessons: asked };

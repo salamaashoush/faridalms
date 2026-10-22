@@ -5617,6 +5617,22 @@
   "lrnRelease": "اعرضها على الصف",
   "lrnReleaseHint": "بعض أسئلة هذا الدرس تنتظرك. يرى الطلاب نتائجهم، ومن يجيب لاحقًا يراها فورًا.",
   "lrnReleased": "عُرضت على الصف",
+  "lrnReleaseOne": "اعرضها على طالب واحد",
+  "lrnReleaseOneHint": "اعرض على طالب نتيجته قبل الصف: من أنهى مبكرًا، أو من يراجع إجاباته معك.",
+  "lrnReleasedTo": "عُرضت على {student}",
+  "lrnReleasedCount": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "عُرضت على طالب واحد",
+        "countPlural=two": "عُرضت على طالبين",
+        "countPlural=few": "عُرضت على {count} طلاب",
+        "countPlural=many": "عُرضت على {count} طالبًا",
+        "countPlural=*": "عُرضت على {count} طالب"
+      }
+    }
+  ],
   "lrnErrResultsUnanswered": "أجب أولًا عن كل سؤال تظهر نتيجته في النهاية.",
   "lrnErrResultsWaiting": "اطّلع على نتيجتك قبل أن تحاول من جديد.",
   "lrnErrNoResults": "لا سؤال هنا ينتظر نهاية الدرس.",

@@ -26,6 +26,7 @@ import {
   saveLessonSchema,
   saveModuleSchema,
   savePlanSchema,
+  releaseSchema,
   startPacedSchema,
 } from "@faridalms/domain/learning";
 import {
@@ -247,14 +248,7 @@ export const seeResults = createServerFn({ method: "POST" })
   .handler(({ data }) => backend().learning.results(data));
 
 export const releaseLesson = createServerFn({ method: "POST" })
-  .validator(
-    checked(
-      v.object({
-        lessonId: v.pipe(v.string(), v.uuid()),
-        classId: v.pipe(v.string(), v.uuid()),
-      }),
-    ),
-  )
+  .validator(checked(releaseSchema))
   .handler(({ data }) => backend().learning.release(data));
 
 export const retryLesson = createServerFn({ method: "POST" })

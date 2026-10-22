@@ -2039,27 +2039,42 @@ export async function touchProgress(
       and student_user_id = ${input.studentId}::uuid and status = 'active'`);
 }
 
-/** A teacher shows a class how it did on a lesson's questions that wait for them. */
+/**
+ * A teacher shows a class, or one student of it, how they did on a lesson's
+ * questions that wait for them.
+ */
 export async function releaseLesson(
   tx: Tx,
   input: {
     tenantId: string;
     lessonId: string;
     classId: string;
+    studentId?: string;
     userId: string;
   },
 ): Promise<void> {
+  const conflict = input.studentId
+    ? sql`(tenant_id, lesson_id, class_id, student_user_id)
+        where status = 'active' and student_user_id is not null`
+    : sql`(tenant_id, lesson_id, class_id)
+        where status = 'active' and student_user_id is null`;
   await tx.execute(sql`
-    insert into core.lesson_releases (tenant_id, lesson_id, class_id, released_by_user_id)
+    insert into core.lesson_releases
+      (tenant_id, lesson_id, class_id, student_user_id, released_by_user_id)
     values (${input.tenantId}::uuid, ${input.lessonId}::uuid, ${input.classId}::uuid,
-      ${input.userId}::uuid)
-    on conflict (tenant_id, lesson_id, class_id) where status = 'active' do nothing`);
+      ${input.studentId ?? null}::uuid, ${input.userId}::uuid)
+    on conflict ${conflict} do nothing`);
 }
 
-/** Whether any of these classes has been shown how it did in a lesson. */
+/** Whether a student has been shown how they did in a lesson, on their own or with one of these classes. */
 export async function lessonReleased(
   tx: Tx,
-  input: { tenantId: string; lessonId: string; classIds: readonly string[] },
+  input: {
+    tenantId: string;
+    lessonId: string;
+    studentId: string;
+    classIds: readonly string[];
+  },
 ): Promise<boolean> {
   if (input.classIds.length === 0) return false;
   const [row] = await tx.execute<{ released: boolean }>(sql`
@@ -2067,19 +2082,26 @@ export async function lessonReleased(
       select 1 from core.lesson_releases
       where tenant_id = ${input.tenantId}::uuid and lesson_id = ${input.lessonId}::uuid
         and class_id = any(${uuidArray(input.classIds)}) and status = 'active'
+        and (student_user_id is null or student_user_id = ${input.studentId}::uuid)
     ) as released`);
   return row?.released ?? false;
 }
 
-/** The lessons a class has been shown how it did in, of these. */
-export async function releasedLessons(
+/** Who of a class has been shown how they did in these lessons: no student for the whole class. */
+export async function releasesOf(
   tx: Tx,
   input: { tenantId: string; lessonIds: readonly string[]; classId: string },
-): Promise<string[]> {
+): Promise<{ lessonId: string; studentId: string | null }[]> {
   if (input.lessonIds.length === 0) return [];
-  const rows = await tx.execute<{ lesson_id: string }>(sql`
-    select lesson_id from core.lesson_releases
+  const rows = await tx.execute<{
+    lesson_id: string;
+    student_user_id: string | null;
+  }>(sql`
+    select lesson_id, student_user_id from core.lesson_releases
     where tenant_id = ${input.tenantId}::uuid and class_id = ${input.classId}::uuid
       and lesson_id = any(${uuidArray(input.lessonIds)}) and status = 'active'`);
-  return rows.map((row) => row.lesson_id);
+  return rows.map((row) => ({
+    lessonId: row.lesson_id,
+    studentId: row.student_user_id,
+  }));
 }

@@ -2,8 +2,15 @@ import type { CheckStanding } from "@faridalms/domain/learning";
 
 import { TextWithMath } from "@faridalms/editor/math";
 import { Button } from "@faridalms/ui/button";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@faridalms/ui/dropdown-menu";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
+  ChevronDown,
   CircleCheck,
   CircleDashed,
   Eye,
@@ -24,6 +31,7 @@ import {
 } from "~/components/app/dialog";
 import { ProgramReplay } from "~/components/coding/ProgramReplay";
 import { displayName } from "~/components/people/format";
+import { phoneMenuItem } from "~/components/system/ActionMenu";
 import { EmptyState } from "~/components/system/IndexPage";
 import { StatusBadge } from "~/components/system/status";
 import * as m from "~/i18n/messages";
@@ -393,41 +401,97 @@ function YoungGrid({
 
 /**
  * A teacher shows the class how it did on a lesson's questions that wait
- * for them; once shown, it stays shown, as returned work does.
+ * for them, or one student ahead of it; once shown, it stays shown, as
+ * returned work does. Without names, as on a screen the class can see, only
+ * the class can be shown.
  */
-function Release({
+export function Release({
   lessonId,
   classId,
-  released,
+  release,
+  names,
 }: {
   lessonId: string;
   classId: string;
-  released: boolean;
+  release: { released: boolean; students: readonly string[] };
+  names: ReadonlyMap<string, string> | null;
 }) {
   const queryClient = useQueryClient();
   const show = useMutation({
-    mutationFn: () => releaseLesson({ data: { lessonId, classId } }),
-    onSuccess: async () => {
+    mutationFn: (studentId?: string) =>
+      releaseLesson({ data: { lessonId, classId, studentId } }),
+    onSuccess: async (_, studentId) => {
       await queryClient.invalidateQueries({ queryKey: ["learning"] });
-      toast.success(m.lrnReleased());
+      toast.success(
+        studentId
+          ? m.lrnReleasedTo({ student: names?.get(studentId) ?? "" })
+          : m.lrnReleased(),
+      );
     },
     onError: (error) => toast.error(getMessageFromError(error)),
   });
-  if (released)
+  if (release.released)
     return <StatusBadge tone="success">{m.lrnReleased()}</StatusBadge>;
+  const shown = new Set(release.students);
   return (
-    <Button
-      type="button"
-      size="sm"
-      variant="outline"
-      className="max-md:h-10"
-      disabled={show.isPending}
-      title={m.lrnReleaseHint()}
-      onClick={() => show.mutate()}
-    >
-      <Eye aria-hidden />
-      {m.lrnRelease()}
-    </Button>
+    <div className="flex flex-wrap items-center gap-2">
+      {shown.size > 0 ? (
+        <span className="text-[13px] leading-[18px] text-muted-foreground">
+          {m.lrnReleasedCount({ count: shown.size })}
+        </span>
+      ) : null}
+      {names && names.size > 0 ? (
+        <DropdownMenu>
+          <DropdownMenuTrigger
+            render={
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                className="max-md:h-10"
+                disabled={show.isPending}
+                title={m.lrnReleaseOneHint()}
+              />
+            }
+          >
+            {m.lrnReleaseOne()}
+            <ChevronDown aria-hidden />
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end" className="w-auto min-w-44">
+            {[...names].map(([studentId, name]) => (
+              <DropdownMenuItem
+                key={studentId}
+                className={phoneMenuItem}
+                disabled={shown.has(studentId)}
+                onClick={() => show.mutate(studentId)}
+              >
+                <bdi className="min-w-0 flex-1 truncate">{name}</bdi>
+                {shown.has(studentId) ? (
+                  <>
+                    <CircleCheck aria-hidden className="text-success" />
+                    <span className="sr-only">
+                      {m.lrnReleasedTo({ student: name })}
+                    </span>
+                  </>
+                ) : null}
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuContent>
+        </DropdownMenu>
+      ) : null}
+      <Button
+        type="button"
+        size="sm"
+        variant="outline"
+        className="max-md:h-10"
+        disabled={show.isPending}
+        title={m.lrnReleaseHint()}
+        onClick={() => show.mutate(undefined)}
+      >
+        <Eye aria-hidden />
+        {m.lrnRelease()}
+      </Button>
+    </div>
   );
 }
 
@@ -474,7 +538,8 @@ export function ClassQuestions({
               <Release
                 lessonId={lesson.id}
                 classId={classId}
-                released={lesson.release.released}
+                release={lesson.release}
+                names={names}
               />
             ) : null}
           </div>

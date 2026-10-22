@@ -2906,6 +2906,12 @@ export const lessonConditionSchema = v.pipe(
 
 export const startPacedSchema = v.object({ lessonId: id, classId: id });
 
+export const releaseSchema = v.object({
+  lessonId: id,
+  classId: id,
+  studentId: v.optional(id),
+});
+
 export const paceSchema = v.object({
   id,
   step: v.optional(

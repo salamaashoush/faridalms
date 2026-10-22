@@ -49,7 +49,7 @@ import { endPaced, pace, startPaced } from "~/server/learning";
 import { formatNumber } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
-import { QuestionCard, STANDING_LABEL } from "./Questions";
+import { QuestionCard, Release, STANDING_LABEL } from "./Questions";
 
 type Paced = Awaited<
   ReturnType<NonNullable<ReturnType<typeof pacedQuery>["queryFn"]>>
@@ -355,6 +355,16 @@ export function PacedLesson({ pacedId }: { pacedId: string }) {
             </RecordSection>
             <RecordSection title={m.lrnPacedAnswers()}>
               <div className="grid gap-4">
+                {data.release && data.class ? (
+                  <div className="flex justify-end">
+                    <Release
+                      lessonId={data.lesson.id}
+                      classId={data.class.id}
+                      release={data.release}
+                      names={named ? names : null}
+                    />
+                  </div>
+                ) : null}
                 <div className="grid gap-3 sm:grid-cols-2">
                   <CheckboxRow
                     label={m.lrnPacedHideNames()}

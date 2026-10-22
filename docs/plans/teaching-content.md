@@ -205,9 +205,11 @@ Sources: [../research/course-design.md](../research/course-design.md),
    student has seen how this one went. The teacher reads such a question
    by each student's last answer, a wrong one as Not right. Code, young
    children's activities and lessons set out for young children always
-   answer at once, and practice does too.
-   Left: showing a class from the live lesson board, and showing one
-   student rather than a class.
+   answer at once, and practice does too. The live lesson page shows the
+   class too, and either page can show one student ahead of it, one who
+   finished early or is going over their answers with the teacher
+   (`lesson_releases.student_user_id`); with names hidden on the live
+   page, only the class can be shown.
 4. **Ask for a hint before answering**, not only after a wrong try.
    Done: a question in a lesson offers Get a hint while its hints last,
    before an answer, between tries, before a written answer is sent, and

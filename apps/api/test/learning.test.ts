@@ -1761,7 +1761,48 @@ describe("feedback that waits", () => {
     );
     expect(
       classes.flatMap((view) => view.lessons).map((row) => row.release),
-    ).toContainEqual({ released: false });
+    ).toContainEqual({ released: false, students: [] });
+
+    // Shown on their own, a student sees how they did before the class does.
+    const me = await pupil.identity.currentUser();
+    const theirs = source.classes.find((_, index) =>
+      classes[index]?.students.some((row) => row.id === me.id),
+    );
+    if (!theirs) throw new Error("the student is in no class of the module");
+    const teacher = await keeper.identity.currentUser();
+    expect(
+      await rejection(
+        keeper.learning.release({
+          lessonId,
+          classId: theirs.id,
+          studentId: teacher.id,
+        }),
+      ),
+    ).toMatchObject({ code: "NOT_FOUND" });
+    await keeper.learning.release({
+      lessonId,
+      classId: theirs.id,
+      studentId: me.id,
+    });
+    await keeper.learning.release({
+      lessonId,
+      classId: theirs.id,
+      studentId: me.id,
+    });
+    const alone = await pupil.learning.playLesson({ id: lessonId });
+    expect(alone.checks[forTeacher.id]).toMatchObject({
+      key: [right],
+      timing: { at: "teacher", open: true },
+    });
+    const ahead = await keeper.learning.questions({
+      moduleId: saved.id,
+      classId: theirs.id,
+    });
+    expect(ahead.lessons.map((row) => row.release)).toContainEqual({
+      released: false,
+      students: [me.id],
+    });
+
     for (const item of source.classes)
       await keeper.learning.release({ lessonId, classId: item.id });
     expect(
@@ -1772,6 +1813,14 @@ describe("feedback that waits", () => {
         }),
       ),
     ).toMatchObject({ code: "NOT_FOUND" });
+    const all = await keeper.learning.questions({
+      moduleId: saved.id,
+      classId: theirs.id,
+    });
+    expect(all.lessons.map((row) => row.release)).toContainEqual({
+      released: true,
+      students: [me.id],
+    });
     const released = await pupil.learning.playLesson({ id: lessonId });
     expect(released.checks[forTeacher.id]).toMatchObject({
       correct: false,

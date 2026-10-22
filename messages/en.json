@@ -5340,6 +5340,19 @@
   "lrnRelease": "Show the class",
   "lrnReleaseHint": "Some questions in this lesson wait for you. Students see how they did, and those who answer later see it at once.",
   "lrnReleased": "Shown to the class",
+  "lrnReleaseOne": "Show one student",
+  "lrnReleaseOneHint": "Show a student how they did before the class: one who finished early, or one going over their answers with you.",
+  "lrnReleasedTo": "Shown to {student}",
+  "lrnReleasedCount": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "Shown to {count} student",
+        "countPlural=*": "Shown to {count} students"
+      }
+    }
+  ],
   "lrnErrResultsUnanswered": "Answer every question that waits for the end first.",
   "lrnErrResultsWaiting": "See how you did before you try again.",
   "lrnErrNoResults": "No question here waits for the end.",

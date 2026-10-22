@@ -394,6 +394,8 @@ export const lessonReleases = core.table.withRLS(
     ...tenantColumns(),
     lessonId: uuid("lesson_id").notNull(),
     classId: uuid("class_id").notNull(),
+    /** One student of the class shown on their own; empty for the whole class. */
+    studentUserId: uuid("student_user_id"),
     releasedByUserId: uuid("released_by_user_id").notNull(),
     releasedAt: instant("released_at")
       .notNull()
@@ -418,9 +420,17 @@ export const lessonReleases = core.table.withRLS(
       [t.tenantId, t.releasedByUserId],
       [users.tenantId, users.id],
     ),
+    fk(
+      "lesson_releases",
+      [t.tenantId, t.studentUserId],
+      [users.tenantId, users.id],
+    ),
     uniqueIndex("lesson_releases_key")
       .on(t.tenantId, t.lessonId, t.classId)
-      .where(sql`status = 'active'`),
+      .where(sql`status = 'active' and student_user_id is null`),
+    uniqueIndex("lesson_releases_student_key")
+      .on(t.tenantId, t.lessonId, t.classId, t.studentUserId)
+      .where(sql`status = 'active' and student_user_id is not null`),
     ...entityProfile(),
   ],
 );
