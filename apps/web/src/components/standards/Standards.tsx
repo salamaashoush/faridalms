@@ -1,5 +1,6 @@
 import type { CasePackage } from "@faridalms/domain/standards";
 
+import { EYFS_GOALS } from "@faridalms/domain/early-goals";
 import {
   casePackageSchema,
   caseOutline,
@@ -51,6 +52,14 @@ type FrameworkData = Awaited<
 >;
 export type StandardRow = FrameworkData["standards"][number];
 type FrameworkRow = FrameworkData["framework"];
+
+/** Where a framework came from: the EYFS goals, a CASE package, or the school. */
+export const sourceOf = (framework: { caseIdentifier: string | null }) =>
+  framework.caseIdentifier === EYFS_GOALS.identifier
+    ? m.standardsSourceEyfs()
+    : framework.caseIdentifier
+      ? m.standardsSourceCase()
+      : m.standardsSourceOwn();
 
 /** A framework's name and what it is, new or as kept. */
 export function FrameworkSheet({

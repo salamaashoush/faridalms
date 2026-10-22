@@ -99,6 +99,7 @@ import {
 } from "@faridalms/database/stores/learning";
 import { localeOf } from "@faridalms/database/stores/preferences";
 import {
+  judgementsOf,
   recordEvidence,
   standardsByIds,
 } from "@faridalms/database/stores/standards";
@@ -3655,6 +3656,7 @@ export const answers = readProcedure
       /** Students may offer their answer to the class gallery. */
       gallery: boolean;
       checks: ScratchFeature[];
+      standards: string[];
     }[] = [];
     for (const item of lessons) {
       const published = await publishedLesson(context, item.id);
@@ -3674,6 +3676,7 @@ export const answers = readProcedure
               block.gallery,
             /** What a coding question asks every project to have. */
             checks: block.type === "scratch" ? block.checks : [],
+            standards: block.standards ?? [],
           });
     }
     const scope = {
@@ -3687,6 +3690,37 @@ export const answers = readProcedure
       sharesOf(context.tx, scope),
     ]);
     const asked = new Set(questions.map((question) => question.blockId));
+    // A young class's teacher judges its children against the goals its
+    // questions are tagged with, from what they answered.
+    const tagged = [
+      ...new Set(questions.flatMap((question) => question.standards)),
+    ];
+    const judging =
+      tagged.length > 0 &&
+      classes.some((item) => item.id === input.classId && item.young) &&
+      can(context, "submissions:grade") &&
+      (await teachesClass(context.tx, scopeOf(context), input.classId));
+    const goals = judging
+      ? {
+          standards: await standardsByIds(context.tx, {
+            tenantId: context.tenantId,
+            orgId: context.schoolId,
+            ids: tagged,
+          }),
+          judgements: (
+            await judgementsOf(context.tx, {
+              tenantId: context.tenantId,
+              orgId: context.schoolId,
+              studentIds: roster,
+              standardIds: tagged,
+            })
+          ).map((judgement) => ({
+            studentId: judgement.studentId,
+            standardId: judgement.standardId,
+            level: judgement.level,
+          })),
+        }
+      : null;
     const offered = new Map(
       shares.map((share) => [
         `${share.lessonId}:${share.blockId}:${share.studentId}`,
@@ -3696,6 +3730,7 @@ export const answers = readProcedure
     return {
       students,
       questions,
+      goals,
       answers: written
         .filter((answer) => asked.has(answer.blockId))
         .map((answer) => {

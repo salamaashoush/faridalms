@@ -20,6 +20,7 @@ export function QuizAnswers({ assignmentId }: { assignmentId: string }) {
         lessonTitle: "",
         gallery: false,
         checks: [],
+        standards: [],
       }))}
       answers={answers.map((answer) => ({
         ...answer,

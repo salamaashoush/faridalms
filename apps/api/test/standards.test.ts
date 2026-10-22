@@ -1,6 +1,7 @@
+import { contentOfLesson } from "@faridalms/domain/lesson-content";
 import { describe, expect, test } from "bun:test";
 
-import { login, rejection, signedIn } from "./harness";
+import { client, login, rejection, seeded, signedIn } from "./harness";
 
 const principal = () => signedIn("northwind", login("principal"));
 const teacher = () => signedIn("northwind", login("teacher", 0, 1));
@@ -182,5 +183,310 @@ describe("standards", () => {
     });
     expect(after.standards.map((row) => row.code)).toContain("SC.3");
     await office.standards.removeFramework({ id: first.id });
+  });
+});
+
+const YOUNG = "northwind-east";
+
+/** A school's EYFS goals framework, added by its head, and the goals in it. */
+async function earlyGoals(school: string, head: string) {
+  const office = await signedIn(school, head);
+  const added = await office.standards.addEarlyGoals();
+  const { standards } = await office.standards.framework({ id: added.id });
+  const goal = (statement: string) => {
+    const found = standards.find((row) => row.statement === statement);
+    if (!found) throw new Error(`no goal ${statement}`);
+    return found;
+  };
+  return { office, added, standards, goal };
+}
+
+describe("early learning goals", () => {
+  test("a teacher judges each child against a goal, best fit, and takes it back", async () => {
+    const { office, added, standards, goal } = await earlyGoals(
+      "northwind",
+      login("principal"),
+    );
+    // Adding them again brings the school's copy back rather than a second.
+    expect((await office.standards.addEarlyGoals()).id).toBe(added.id);
+    expect(standards.filter((row) => row.parentId === null)).toHaveLength(7);
+    expect(standards.filter((row) => row.parentId !== null)).toHaveLength(17);
+    expect(goal("Speaking").parentId).toBe(
+      goal("Communication and Language").id,
+    );
+
+    const staff = await teacher();
+    const taught = (await staff.classes.mine({})).rows[0];
+    if (!taught) throw new Error("the teacher keeps no class");
+    const shown = await staff.standards.classGoals({
+      classId: taught.id,
+      frameworkId: added.id,
+    });
+    expect(shown).toMatchObject({ frameworkId: added.id, canJudge: true });
+    expect(shown.goals).toHaveLength(24);
+    const child = shown.students[0];
+    if (!child) throw new Error("an empty class");
+    const speaking = goal("Speaking").id;
+    const judge = (level: "emerging" | "expected" | null, note?: string) =>
+      staff.standards.judgeGoal({
+        classId: taught.id,
+        studentId: child.id,
+        standardId: speaking,
+        level,
+        note,
+      });
+    await judge("emerging", "Answers in single words.");
+    // A change of mind keeps the note it was made on.
+    await judge("expected");
+    const judged = await staff.standards.classGoals({
+      classId: taught.id,
+      frameworkId: "",
+    });
+    expect(judged.frameworkId).toBe(added.id);
+    expect(judged.judgements).toEqual([
+      expect.objectContaining({
+        studentId: child.id,
+        standardId: speaking,
+        level: "expected",
+        note: "Answers in single words.",
+        lesson: null,
+        judgedBy: expect.objectContaining({ id: expect.any(String) }),
+      }),
+    ]);
+
+    // The child's record shows the goals they were judged on to staff,
+    // every goal of the framework with them.
+    const record = await office.standards.studentProgress({
+      studentId: child.id,
+    });
+    expect(record.goalFrameworks).toMatchObject([{ id: added.id }]);
+    expect(record.goalFrameworks[0]?.goals).toHaveLength(24);
+    expect(record.judgements).toMatchObject([
+      { standardId: speaking, level: "expected" },
+    ]);
+    // A family reads their child's progress, but not the judgements made of
+    // them.
+    const family = await signedIn("northwind", login("parent"));
+    const own = (await family.home.family({})).children[0]?.studentId ?? "";
+    let theirs = "";
+    for (const row of (await office.classes.directory({})).rows)
+      if (
+        (await office.classes.record({ id: row.id, on: "" })).roster.some(
+          (sitting) => sitting.userId === own,
+        )
+      )
+        theirs = row.id;
+    const theirsJudged = (level: "expected" | null) =>
+      office.standards.judgeGoal({
+        classId: theirs,
+        studentId: own,
+        standardId: speaking,
+        level,
+      });
+    await theirsJudged("expected");
+    expect(
+      (await office.standards.studentProgress({ studentId: own })).judgements,
+    ).toHaveLength(1);
+    expect(
+      (await family.standards.studentProgress({ studentId: own })).judgements,
+    ).toEqual([]);
+    await theirsJudged(null);
+
+    // Only a teacher of the class judges, and only its own children.
+    const other = (await office.classes.directory({})).rows.find(
+      (row) => row.id !== taught.id,
+    );
+    if (!other) throw new Error("the seed has one class");
+    const outsider = (
+      await office.classes.record({ id: other.id, on: "" })
+    ).roster.find(
+      (row) => !shown.students.some((mine) => mine.id === row.userId),
+    );
+    if (!outsider) throw new Error("the classes share every child");
+    expect(
+      await rejection(
+        staff.standards.judgeGoal({
+          classId: taught.id,
+          studentId: outsider.userId,
+          standardId: speaking,
+          level: "expected",
+        }),
+      ),
+    ).toMatchObject({ code: "NOT_FOUND" });
+    const reader = await signedIn("northwind", login("parent"));
+    expect(
+      await rejection(
+        reader.standards.classGoals({ classId: taught.id, frameworkId: "" }),
+      ),
+    ).toMatchObject({ code: "FORBIDDEN" });
+
+    await judge(null);
+    expect(
+      (
+        await staff.standards.classGoals({
+          classId: taught.id,
+          frameworkId: added.id,
+        })
+      ).judgements,
+    ).toEqual([]);
+    // Judged again, a goal starts afresh, without the note taken back.
+    await judge("emerging");
+    expect(
+      (
+        await staff.standards.classGoals({
+          classId: taught.id,
+          frameworkId: added.id,
+        })
+      ).judgements,
+    ).toMatchObject([{ level: "emerging", note: "" }]);
+    await judge(null);
+  });
+
+  test("a young class's teacher judges a goal from a child's answer to a tagged question", async () => {
+    const school = seeded().tenants[0]?.schools.find(
+      (row) => row.slug === YOUNG,
+    );
+    const logins = seeded().tenants[0]?.logins ?? [];
+    const head = logins.find(
+      (row) => row.role === "principal" && row.schoolId === school?.id,
+    )?.loginName;
+    const name = logins.find(
+      (row) => row.role === "teacher" && row.schoolId === school?.id,
+    )?.loginName;
+    if (!head || !name) throw new Error("the seed lacks the young school");
+    const { goal } = await earlyGoals(YOUNG, head);
+    const writing = goal("Writing").id;
+
+    const staff = await signedIn(YOUNG, name);
+    const homeroom = (await staff.classes.mine({})).rows.find(
+      (row) => row.classType === "homeroom",
+    );
+    if (!homeroom) throw new Error("the young teacher keeps no homeroom");
+    const { students } = await staff.badges.classBadges({
+      classId: homeroom.id,
+    });
+    const child = students[0];
+    if (!child) throw new Error("an empty young homeroom");
+    const { badges } = await staff.badges.issueBadges({
+      classId: homeroom.id,
+      studentIds: [child.userId],
+    });
+    const secret = badges[0]?.secret ?? "";
+    const { token } = await client(YOUNG).identity.badgeSignIn({ secret });
+    const pupil = client(YOUNG, token);
+
+    const saved = await staff.learning.saveModule({
+      id: "",
+      expectedVersion: 0,
+      title: `Our names ${crypto.randomUUID().slice(0, 6)}`,
+      summary: "",
+      classIds: [homeroom.id],
+      prerequisiteId: "",
+      sequential: false,
+    });
+    const question = {
+      id: crypto.randomUUID(),
+      type: "written" as const,
+      prompt: "Write your name.",
+      points: 0,
+      hints: [],
+      explanation: "",
+      tries: null,
+      wordLimit: null,
+      standards: [writing],
+    };
+    const content = contentOfLesson({ version: 2, blocks: [question] });
+    if (!content) throw new Error("the lesson could not be written");
+    const lesson = await staff.learning.saveLesson({
+      id: "",
+      moduleId: saved.id,
+      expectedVersion: 0,
+      title: "My name",
+      completion: "view",
+      passScore: null,
+      content,
+      publish: false,
+    });
+    await staff.learning.publishModule({
+      id: saved.id,
+      expectedVersion: saved.version,
+    });
+    await pupil.learning.playLesson({ id: lesson.id });
+    await pupil.learning.respond({
+      lessonId: lesson.id,
+      blockId: question.id,
+      response: { type: "written", text: "Salama" },
+    });
+
+    const board = await staff.learning.answers({
+      moduleId: saved.id,
+      classId: homeroom.id,
+    });
+    expect(board.questions[0]?.standards).toEqual([writing]);
+    expect(board.goals?.standards.map((row) => row.id)).toEqual([writing]);
+    expect(board.goals?.judgements).toEqual([]);
+
+    await staff.standards.judgeGoal({
+      classId: homeroom.id,
+      studentId: child.userId,
+      standardId: writing,
+      level: "emerging",
+      from: { lessonId: lesson.id, blockId: question.id },
+    });
+    expect(
+      (
+        await staff.learning.answers({
+          moduleId: saved.id,
+          classId: homeroom.id,
+        })
+      ).goals?.judgements,
+    ).toEqual([
+      { studentId: child.userId, standardId: writing, level: "emerging" },
+    ]);
+    const tab = await staff.standards.classGoals({
+      classId: homeroom.id,
+      frameworkId: "",
+    });
+    expect(tab.judgements).toMatchObject([
+      {
+        studentId: child.userId,
+        level: "emerging",
+        lesson: { id: lesson.id, title: "My name", blockId: question.id },
+      },
+    ]);
+    // Only an answer in the class's own lessons is what a judgement is from.
+    expect(
+      await rejection(
+        staff.standards.judgeGoal({
+          classId: homeroom.id,
+          studentId: child.userId,
+          standardId: writing,
+          level: "expected",
+          from: { lessonId: crypto.randomUUID(), blockId: question.id },
+        }),
+      ),
+    ).toMatchObject({ code: "NOT_FOUND" });
+    // Judged on the class page, it keeps the answer it was first made from.
+    await staff.standards.judgeGoal({
+      classId: homeroom.id,
+      studentId: child.userId,
+      standardId: writing,
+      level: "expected",
+    });
+    expect(
+      (
+        await staff.standards.classGoals({
+          classId: homeroom.id,
+          frameworkId: "",
+        })
+      ).judgements,
+    ).toMatchObject([{ level: "expected", lesson: { id: lesson.id } }]);
+
+    await staff.standards.judgeGoal({
+      classId: homeroom.id,
+      studentId: child.userId,
+      standardId: writing,
+      level: null,
+    });
   });
 });

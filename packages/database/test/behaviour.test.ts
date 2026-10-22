@@ -645,6 +645,16 @@ describe("erasing a student's work", () => {
           select ${t}::uuid, ${work.student}::uuid, id, 'lesson', ${lesson.id}::uuid, 1,
                  ${block}::uuid, 1, statement_timestamp()
           from standard`);
+        // Where their teacher judged them against that standard.
+        await tx.execute(sql`
+          insert into core.goal_judgements (tenant_id, student_user_id, standard_id, level, note,
+                                            judged_by_user_id, judged_at)
+          select ${t}::uuid, ${work.student}::uuid, s.id, 'emerging', 'Reads with help.',
+                 e.user_id, statement_timestamp()
+          from core.standards s
+          join core.enrollments e on e.tenant_id = s.tenant_id and e.role = 'teacher'
+          where s.tenant_id = ${t}::uuid and s.statement = 'Read aloud.'
+          limit 1`);
         // Named for a module set for only some of a class.
         await tx.execute(sql`
           insert into core.module_audiences (tenant_id, module_id, class_id, student_user_id)
@@ -759,6 +769,7 @@ describe("erasing a student's work", () => {
           sittings: number;
           draws: number;
           evidence: number;
+          judgements: number;
           audiences: number;
         }>(sql`
           select (select count(*)::int from core.lesson_runs where tenant_id = ${t}::uuid
@@ -782,6 +793,8 @@ describe("erasing a student's work", () => {
                    and student_user_id = ${work.student}::uuid) as draws,
                  (select count(*)::int from core.standard_evidence where tenant_id = ${t}::uuid
                    and student_user_id = ${work.student}::uuid) as evidence,
+                 (select count(*)::int from core.goal_judgements where tenant_id = ${t}::uuid
+                   and student_user_id = ${work.student}::uuid) as judgements,
                  (select count(*)::int from core.module_audiences where tenant_id = ${t}::uuid
                    and student_user_id = ${work.student}::uuid) as audiences`);
         expect(left).toEqual({
@@ -795,6 +808,7 @@ describe("erasing a student's work", () => {
           sittings: 0,
           draws: 0,
           evidence: 0,
+          judgements: 0,
           audiences: 0,
         });
         checked = true;

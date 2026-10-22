@@ -77,6 +77,62 @@ export const studentProgressSchema = v.object({
   studentId: v.optional(v.union([v.literal(""), id]), ""),
 });
 
+/**
+ * Where a child stands against an early learning goal in their teacher's
+ * judgement, as the EYFS profile records it: at the level expected by the
+ * year's end, or emerging, not yet there. It is the best fit of all the
+ * teacher knows of the child, never worked out from tasks on a screen.
+ */
+export const GOAL_LEVELS = ["emerging", "expected"] as const;
+export type GoalLevel = (typeof GOAL_LEVELS)[number];
+
+export const MAX_JUDGEMENT_NOTE = 1000;
+
+export const classGoalsSchema = v.object({
+  classId: id,
+  /** Empty for the framework the class was last judged against. */
+  frameworkId: v.optional(v.union([v.literal(""), id]), ""),
+});
+
+export const judgeGoalSchema = v.object({
+  classId: id,
+  studentId: id,
+  standardId: id,
+  /** Nothing takes the judgement back. */
+  level: v.nullable(v.picklist(GOAL_LEVELS)),
+  /** Without one, the note the judgement had stays. */
+  note: v.optional(text(MAX_JUDGEMENT_NOTE)),
+  /** The answer it was judged from, when it was judged from one. */
+  from: v.optional(v.object({ lessonId: id, blockId: id })),
+});
+export type JudgeGoal = v.InferOutput<typeof judgeGoalSchema>;
+
+/**
+ * A framework's statements with nothing beneath them, each under the one
+ * holding it, in the framework's own order: the goals children are judged
+ * against and the areas they sit in, however deep the framework goes.
+ * Siblings come in the order given.
+ */
+export function goalGroups<T extends { id: string; parentId: string | null }>(
+  standards: readonly T[],
+): { area: T | null; goals: T[] }[] {
+  const under = new Map<string | null, T[]>();
+  for (const standard of standards) {
+    const siblings = under.get(standard.parentId);
+    if (siblings) siblings.push(standard);
+    else under.set(standard.parentId, [standard]);
+  }
+  const groups: { area: T | null; goals: T[] }[] = [];
+  const visit = (area: T | null) => {
+    const children = under.get(area?.id ?? null) ?? [];
+    const goals = children.filter((child) => !under.has(child.id));
+    if (goals.length > 0) groups.push({ area, goals });
+    for (const child of children) if (under.has(child.id)) visit(child);
+  };
+  visit(null);
+  return groups;
+}
+
 /** A standard as a picker or a tag shows it. */
 export interface StandardSummary {
   id: string;

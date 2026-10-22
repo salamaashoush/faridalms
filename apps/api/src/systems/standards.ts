@@ -7,6 +7,11 @@ import {
 } from "@faridalms/database/stores/classes";
 import { namesOf } from "@faridalms/database/stores/coursework";
 import {
+  classesOfModule,
+  lessonById,
+} from "@faridalms/database/stores/learning";
+import {
+  clearJudgement,
   evidenceOfStudents,
   frameworkById,
   frameworkOfCase,
@@ -15,6 +20,8 @@ import {
   insertFramework,
   insertStandard,
   isWithin,
+  judgeGoal as recordJudgement,
+  judgementsOf,
   moveStandard,
   removeFramework as dropFramework,
   removeStandard,
@@ -27,11 +34,14 @@ import {
 } from "@faridalms/database/stores/standards";
 import { isVisibleStudent } from "@faridalms/database/stores/students";
 import { dayIn, schoolYears } from "@faridalms/database/stores/years";
+import { EYFS_GOALS } from "@faridalms/domain/early-goals";
 import {
   caseOutline,
+  classGoalsSchema,
   classProgressSchema,
   describeStandardsSchema,
   importCaseSchema,
+  judgeGoalSchema,
   masteryOf,
   moveStandardSchema,
   refSchema,
@@ -306,6 +316,40 @@ export const importCase = writeProcedure
     return { id: target, imported };
   });
 
+/**
+ * Adds the EYFS early learning goals as one of the school's frameworks, or
+ * brings the copy it has back to them.
+ */
+export const addEarlyGoals = writeProcedure.handler(async ({ context }) => {
+  requireCapability(context, "standards:manage");
+  const scope = { tenantId: context.tenantId, orgId: context.schoolId };
+  const target =
+    (await frameworkOfCase(context.tx, {
+      ...scope,
+      caseIdentifier: EYFS_GOALS.identifier,
+    })) ??
+    (
+      await insertFramework(context.tx, {
+        ...scope,
+        title: EYFS_GOALS.title,
+        description: EYFS_GOALS.description,
+        caseIdentifier: EYFS_GOALS.identifier,
+      })
+    ).id;
+  const imported = await importStandards(context.tx, {
+    tenantId: context.tenantId,
+    frameworkId: target,
+    items: EYFS_GOALS.items,
+  });
+  await audit(context, {
+    action: "standards.import",
+    objectType: "standard_framework",
+    objectId: target,
+    details: { caseIdentifier: EYFS_GOALS.identifier, items: imported },
+  });
+  return { id: target };
+});
+
 /** Standards whose code or statement holds the words, for a picker. */
 export const search = readProcedure
   .input(searchStandardsSchema)
@@ -388,6 +432,28 @@ async function described(context: UnitContext, rows: EvidenceRows) {
   );
 }
 
+/** A class the viewer teaches, its year, and its students on the day. */
+async function taughtClass(context: UnitContext, classId: string) {
+  requireCapability(context, "submissions:grade");
+  const classRow = await classById(context.tx, context, classId);
+  if (!classRow || !(await teachesClass(context.tx, scopeOf(context), classId)))
+    throw new ORPCError("NOT_FOUND");
+  const years = await schoolYears(
+    context.tx,
+    context.tenantId,
+    context.schoolId,
+  );
+  const year = years.find((row) => row.id === classRow.schoolYearId);
+  if (!year) throw new ORPCError("NOT_FOUND");
+  const roster = await rosterOf(
+    context.tx,
+    context.tenantId,
+    classId,
+    dayIn(year, context.today),
+  );
+  return { year, roster };
+}
+
 /**
  * A class's standards, as its own lessons and assignments gave evidence on
  * them, and each current student's mastery of each.
@@ -395,33 +461,14 @@ async function described(context: UnitContext, rows: EvidenceRows) {
 export const classProgress = readProcedure
   .input(classProgressSchema)
   .handler(async ({ input, context }) => {
-    requireCapability(context, "submissions:grade");
-    const classRow = await classById(context.tx, context, input.classId);
-    if (
-      !classRow ||
-      !(await teachesClass(context.tx, scopeOf(context), classRow.id))
-    )
-      throw new ORPCError("NOT_FOUND");
-    const years = await schoolYears(
-      context.tx,
-      context.tenantId,
-      context.schoolId,
-    );
-    const year = years.find((row) => row.id === classRow.schoolYearId);
-    if (!year) throw new ORPCError("NOT_FOUND");
-    const roster = await rosterOf(
-      context.tx,
-      context.tenantId,
-      classRow.id,
-      dayIn(year, context.today),
-    );
+    const { roster } = await taughtClass(context, input.classId);
     const [students, evidence] = await Promise.all([
       namesOf(context.tx, context.tenantId, roster),
       evidenceOfStudents(context.tx, {
         tenantId: context.tenantId,
         orgId: context.schoolId,
         studentIds: roster,
-        classId: classRow.id,
+        classId: input.classId,
       }),
     ]);
     return {
@@ -442,14 +489,137 @@ export const studentProgress = readProcedure
       !(await isVisibleStudent(context.tx, scopeOf(context), studentId))
     )
       throw new ORPCError("NOT_FOUND");
-    const evidence = await evidenceOfStudents(context.tx, {
+    const scope = {
       tenantId: context.tenantId,
       orgId: context.schoolId,
       studentIds: [studentId],
-      classId: null,
-    });
+    };
+    const [evidence, judged] = await Promise.all([
+      evidenceOfStudents(context.tx, { ...scope, classId: null }),
+      // Judgements are for the child's teachers to read, not the child or
+      // their family.
+      can(context, "submissions:grade") ? judgementsOf(context.tx, scope) : [],
+    ]);
+    const judgedIn = await Promise.all(
+      [...new Set(judged.map((row) => row.frameworkId))].map(async (id) => ({
+        found: await frameworkById(context.tx, { ...scope, id }),
+        goals: await standardsOf(context.tx, { ...scope, frameworkId: id }),
+      })),
+    );
     return {
       standards: await described(context, evidence),
       mastery: masteries(evidence),
+      goalFrameworks: judgedIn.flatMap(({ found, goals }) =>
+        found ? [{ id: found.id, title: found.title, goals }] : [],
+      ),
+      judgements: await withJudges(context, judged),
     };
+  });
+
+type Judgements = Awaited<ReturnType<typeof judgementsOf>>;
+
+/** Judgements as a teacher reads them, with who made each. */
+async function withJudges(context: UnitContext, judgements: Judgements) {
+  const judges = new Map(
+    (
+      await namesOf(context.tx, context.tenantId, [
+        ...new Set(judgements.map((row) => row.judgedByUserId)),
+      ])
+    ).map((row) => [row.id, row]),
+  );
+  return judgements.map(({ judgedByUserId, frameworkId: _, ...row }) => ({
+    ...row,
+    judgedBy: judges.get(judgedByUserId) ?? null,
+  }));
+}
+
+/**
+ * A class's children against the goals of one of the school's frameworks,
+ * where their teachers judge each: the one asked for, or else the one the
+ * class was last judged against.
+ */
+export const classGoals = readProcedure
+  .input(classGoalsSchema)
+  .handler(async ({ input, context }) => {
+    const { year, roster } = await taughtClass(context, input.classId);
+    const [kept, students, judged] = await Promise.all([
+      frameworksOf(context.tx, {
+        tenantId: context.tenantId,
+        orgId: context.schoolId,
+      }),
+      namesOf(context.tx, context.tenantId, roster),
+      judgementsOf(context.tx, {
+        tenantId: context.tenantId,
+        orgId: context.schoolId,
+        studentIds: roster,
+      }),
+    ]);
+    const choices = kept.filter((row) => row.standards > 0);
+    const wanted = input.frameworkId || judged.at(-1)?.frameworkId;
+    const shown =
+      choices.find((row) => row.id === wanted) ?? choices[0] ?? null;
+    return {
+      frameworks: choices.map((row) => ({ id: row.id, title: row.title })),
+      frameworkId: shown?.id ?? null,
+      goals: shown
+        ? await standardsOf(context.tx, {
+            tenantId: context.tenantId,
+            frameworkId: shown.id,
+          })
+        : [],
+      students,
+      judgements: await withJudges(
+        context,
+        judged.filter((row) => row.frameworkId === shown?.id),
+      ),
+      canJudge: year.lifecycle !== "closed",
+      canAddGoals: can(context, "standards:manage"),
+    };
+  });
+
+/**
+ * A class teacher judges where one of their children stands against a goal,
+ * or takes the judgement back; from an answer, the lesson it was set in.
+ */
+export const judgeGoal = writeProcedure
+  .input(judgeGoalSchema)
+  .handler(async ({ input, context }) => {
+    const { year, roster } = await taughtClass(context, input.classId);
+    if (year.lifecycle === "closed")
+      throw new ORPCError("CONFLICT", { message: "school_year.closed" });
+    if (!roster.includes(input.studentId)) throw new ORPCError("NOT_FOUND");
+    await ownStandard(context, input.standardId);
+    if (input.from) {
+      const lesson = await lessonById(
+        context.tx,
+        context.tenantId,
+        input.from.lessonId,
+      );
+      const classes = lesson
+        ? await classesOfModule(context.tx, context.tenantId, lesson.moduleId)
+        : [];
+      if (!classes.some((row) => row.id === input.classId))
+        throw new ORPCError("NOT_FOUND");
+    }
+    const key = {
+      tenantId: context.tenantId,
+      studentId: input.studentId,
+      standardId: input.standardId,
+    };
+    if (input.level)
+      await recordJudgement(context.tx, {
+        ...key,
+        level: input.level,
+        note: input.note,
+        from: input.from,
+        judgedByUserId: context.actor.userId,
+      });
+    else await clearJudgement(context.tx, key);
+    await audit(context, {
+      action: input.level ? "standards.judge" : "standards.judgement_clear",
+      objectType: "user",
+      objectId: input.studentId,
+      details: { standardId: input.standardId, level: input.level },
+    });
+    return {};
   });

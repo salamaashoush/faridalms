@@ -1,3 +1,5 @@
+import type { GoalLevel } from "@faridalms/domain/standards";
+
 import { StoredImage } from "@faridalms/editor/files";
 import { TextWithMath } from "@faridalms/editor/math";
 import { MediaPlayer } from "@faridalms/editor/media-view";
@@ -16,13 +18,16 @@ import { ProjectChecks, ProjectNotes } from "~/components/coding/ProjectChecks";
 import { ProjectStudio } from "~/components/coding/ProjectStudio";
 import { WebProjectView } from "~/components/coding/WebProjectView";
 import { displayName } from "~/components/people/format";
+import { GOAL_LEVEL, goalName } from "~/components/standards/Goals";
 import { FormField } from "~/components/system/field";
 import { EmptyState } from "~/components/system/IndexPage";
+import { Segmented } from "~/components/system/panel";
 import { StatusBadge } from "~/components/system/status";
 import * as m from "~/i18n/messages";
 import { getLocale } from "~/i18n/runtime";
 import { writtenAnswersQuery } from "~/queries/learning";
 import { decideGalleryOffer, markAnswer } from "~/server/learning";
+import { judgeGoal } from "~/server/standards";
 import { formatDateTime, formatNumber } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
@@ -42,6 +47,99 @@ export type Marker = (
   points: number,
   feedback: string,
 ) => Promise<unknown>;
+
+/**
+ * The goals a young class's teacher judges its children against, from the
+ * answers to questions tagged with them.
+ */
+export interface AnswerGoals {
+  standards: readonly { id: string; code: string; statement: string }[];
+  levelOf: (studentId: string, standardId: string) => GoalLevel | null;
+  judge: (
+    question: BoardQuestion,
+    answer: BoardAnswer,
+    standardId: string,
+    level: GoalLevel | null,
+  ) => Promise<unknown>;
+}
+
+const LEVEL_CHOICES = ["none", "emerging", "expected"] as const;
+type LevelChoice = (typeof LEVEL_CHOICES)[number];
+
+function GoalJudge({
+  goal,
+  level,
+  name,
+  onJudge,
+}: {
+  goal: AnswerGoals["standards"][number];
+  level: GoalLevel | null;
+  name: string;
+  onJudge: (level: GoalLevel | null) => Promise<unknown>;
+}) {
+  const save = useMutation({
+    mutationFn: onJudge,
+    onError: (error) => toast.error(getMessageFromError(error)),
+  });
+  const shown = save.isPending ? save.variables : level;
+  return (
+    <li className="flex flex-wrap items-center justify-between gap-x-4 gap-y-1.5">
+      <span dir="auto" className="min-w-0 flex-1 basis-48 text-sm leading-5">
+        {goalName(goal)}
+      </span>
+      <Segmented<LevelChoice>
+        label={m.goalsLevelOn({ name, goal: goal.statement })}
+        value={shown ?? "none"}
+        options={LEVEL_CHOICES.map((value) => ({
+          value,
+          label:
+            value === "none" ? m.goalsNotJudged() : GOAL_LEVEL[value].label(),
+        }))}
+        onChange={(picked) => save.mutate(picked === "none" ? null : picked)}
+        className="w-full flex-nowrap sm:w-80"
+      />
+    </li>
+  );
+}
+
+/** Where the child stands against the goals the question is tagged with. */
+function AnswerGoalJudgements({
+  question,
+  answer,
+  name,
+  goals,
+}: {
+  question: BoardQuestion;
+  answer: BoardAnswer;
+  name: string;
+  goals: AnswerGoals;
+}) {
+  const tagged = goals.standards.filter((goal) =>
+    question.standards.includes(goal.id),
+  );
+  if (tagged.length === 0) return null;
+  return (
+    <div className="grid gap-2 border-t pt-3">
+      <div className="grid gap-0.5">
+        <p className="text-sm leading-5 font-medium">{m.goalsFromAnswer()}</p>
+        <p className="text-[13px] leading-[18px] text-muted-foreground">
+          {m.goalsFromAnswerHint()}
+        </p>
+      </div>
+      <ul className="grid gap-2">
+        {tagged.map((goal) => (
+          <GoalJudge
+            key={goal.id}
+            goal={goal}
+            level={goals.levelOf(answer.studentId, goal.id)}
+            name={name}
+            onJudge={(level) => goals.judge(question, answer, goal.id, level)}
+          />
+        ))}
+      </ul>
+    </div>
+  );
+}
 
 const answerKey = (answer: BoardAnswer) =>
   answer.attemptId ?? `${answer.studentId}-${answer.try}`;
@@ -249,6 +347,7 @@ function AnswerCard({
   name,
   remixOf,
   mark,
+  goals,
   chosen,
   onChoose,
 }: {
@@ -258,6 +357,7 @@ function AnswerCard({
   /** The classmate whose project the answer was built on, where it was. */
   remixOf: string | null;
   mark: Marker;
+  goals?: AnswerGoals;
   chosen: boolean;
   /** Offered while the answer waits, to mark it with others alike. */
   onChoose?: (chosen: boolean) => void;
@@ -396,6 +496,14 @@ function AnswerCard({
           onDone={() => setEditing(false)}
         />
       )}
+      {goals ? (
+        <AnswerGoalJudgements
+          question={question}
+          answer={answer}
+          name={name}
+          goals={goals}
+        />
+      ) : null}
     </article>
   );
 }
@@ -407,12 +515,14 @@ function QuestionAnswers({
   names,
   total,
   mark,
+  goals,
 }: {
   question: BoardQuestion;
   answers: readonly BoardAnswer[];
   names: ReadonlyMap<string, string>;
   total: number;
   mark: Marker;
+  goals?: AnswerGoals;
 }) {
   const [chosen, setChosen] = useState<ReadonlySet<string>>(new Set());
   const ordered = answers.toSorted(
@@ -510,6 +620,7 @@ function QuestionAnswers({
               answer.remixOf ? (names.get(answer.remixOf) ?? null) : null
             }
             mark={mark}
+            goals={goals}
             chosen={chosen.has(answerKey(answer))}
             onChoose={
               answer.marked || waiting.length < 2
@@ -529,6 +640,7 @@ export function AnswerBoard({
   questions,
   answers,
   mark,
+  goals,
   empty,
 }: {
   students: readonly {
@@ -539,6 +651,7 @@ export function AnswerBoard({
   questions: readonly BoardQuestion[];
   answers: readonly BoardAnswer[];
   mark: Marker;
+  goals?: AnswerGoals;
   empty: { title: string; description: string };
 }) {
   const names = new Map(
@@ -564,6 +677,7 @@ export function AnswerBoard({
           names={names}
           total={students.length}
           mark={mark}
+          goals={goals}
         />
       ))}
     </div>
@@ -581,11 +695,50 @@ export function Answers({
   const query = useQuery(writtenAnswersQuery(moduleId, classId));
   const queryClient = useQueryClient();
   if (!query.data) return <div aria-busy="true" className="min-h-40" />;
+  const judged = query.data.goals
+    ? new Map(
+        query.data.goals.judgements.map((row) => [
+          `${row.studentId}:${row.standardId}`,
+          row.level,
+        ]),
+      )
+    : null;
+  const goals: AnswerGoals | undefined =
+    query.data.goals && judged
+      ? {
+          standards: query.data.goals.standards,
+          levelOf: (studentId, standardId) =>
+            judged.get(`${studentId}:${standardId}`) ?? null,
+          judge: async (question, answer, standardId, level) => {
+            await judgeGoal({
+              data: {
+                classId,
+                studentId: answer.studentId,
+                standardId,
+                level,
+                from: {
+                  lessonId: question.lessonId,
+                  blockId: question.blockId,
+                },
+              },
+            });
+            await Promise.all([
+              queryClient.invalidateQueries({
+                queryKey: writtenAnswersQuery(moduleId, classId).queryKey,
+              }),
+              queryClient.invalidateQueries({
+                queryKey: ["standards", "goals", classId],
+              }),
+            ]);
+          },
+        }
+      : undefined;
   return (
     <AnswerBoard
       students={query.data.students}
       questions={query.data.questions}
       answers={query.data.answers}
+      goals={goals}
       empty={{ title: m.lrnNoWritten(), description: m.lrnNoWrittenBody() }}
       mark={async (question, answers, points, feedback) => {
         await markAnswer({

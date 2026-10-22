@@ -1,3 +1,5 @@
+import type { GoalLevel } from "@faridalms/domain/standards";
+
 import { sql } from "drizzle-orm";
 
 import type { CellTransaction } from "../context";
@@ -557,4 +559,120 @@ export async function evidenceOfStudents(
       }
     order by e.answered_at`);
   return rows.map(evidenceOf);
+}
+
+/** A teacher's judgement of a child against a goal, and the work it came from. */
+export interface JudgementRow {
+  studentId: string;
+  standardId: string;
+  frameworkId: string;
+  level: GoalLevel;
+  note: string;
+  lesson: { id: string; title: string; blockId: string } | null;
+  judgedByUserId: string;
+  judgedAt: string;
+}
+
+type JudgementRecord = {
+  student_user_id: string;
+  standard_id: string;
+  framework_id: string;
+  level: GoalLevel;
+  note: string;
+  lesson_id: string | null;
+  lesson_title: string | null;
+  block_id: string | null;
+  judged_by_user_id: string;
+  judged_at: string;
+};
+
+const judgementOf = (row: JudgementRecord): JudgementRow => ({
+  studentId: row.student_user_id,
+  standardId: row.standard_id,
+  frameworkId: row.framework_id,
+  level: row.level,
+  note: row.note,
+  lesson:
+    row.lesson_id && row.lesson_title !== null && row.block_id
+      ? { id: row.lesson_id, title: row.lesson_title, blockId: row.block_id }
+      : null,
+  judgedByUserId: row.judged_by_user_id,
+  judgedAt: row.judged_at,
+});
+
+/**
+ * The students' current judgements on the school's standards, or on only
+ * the ones named.
+ */
+export async function judgementsOf(
+  tx: Tx,
+  input: {
+    tenantId: string;
+    orgId: string;
+    studentIds: readonly string[];
+    standardIds?: readonly string[];
+  },
+): Promise<JudgementRow[]> {
+  if (input.studentIds.length === 0 || input.standardIds?.length === 0)
+    return [];
+  const rows = await tx.execute<JudgementRecord>(sql`
+    select j.student_user_id, j.standard_id, s.framework_id, j.level, j.note, j.lesson_id,
+      l.title as lesson_title, j.block_id, j.judged_by_user_id,
+      ${isoOf(sql`j.judged_at`)} as judged_at
+    from core.goal_judgements j
+    join core.standards s on s.tenant_id = j.tenant_id and s.id = j.standard_id and s.status = 'active'
+    join core.standard_frameworks f on f.tenant_id = s.tenant_id and f.id = s.framework_id
+      and f.status = 'active' and f.org_id = ${input.orgId}::uuid
+    left join core.lessons l on l.tenant_id = j.tenant_id and l.id = j.lesson_id
+      and l.status = 'active'
+    where j.tenant_id = ${input.tenantId}::uuid and j.status = 'active'
+      and j.student_user_id = any(${uuidArray(input.studentIds)})
+      ${input.standardIds ? sql`and j.standard_id = any(${uuidArray(input.standardIds)})` : sql``}
+    order by j.judged_at`);
+  return rows.map(judgementOf);
+}
+
+/**
+ * Records where a child stands against a goal, replacing what was judged
+ * before. Without a note or the work it came from, a judgement keeps the
+ * ones an earlier judgement had, as a change of mind about a child is still
+ * about what was seen.
+ */
+export async function judgeGoal(
+  tx: Tx,
+  input: {
+    tenantId: string;
+    studentId: string;
+    standardId: string;
+    level: GoalLevel;
+    note?: string;
+    from?: { lessonId: string; blockId: string };
+    judgedByUserId: string;
+  },
+): Promise<void> {
+  const keep = input.from === undefined;
+  const keepNote = input.note === undefined;
+  await tx.execute(sql`
+    insert into core.goal_judgements (tenant_id, student_user_id, standard_id, level, note,
+      lesson_id, block_id, judged_by_user_id, judged_at)
+    values (${input.tenantId}::uuid, ${input.studentId}::uuid, ${input.standardId}::uuid,
+      ${input.level}, ${input.note ?? ""}, ${input.from?.lessonId ?? null}::uuid,
+      ${input.from?.blockId ?? null}::uuid, ${input.judgedByUserId}::uuid, statement_timestamp())
+    on conflict (tenant_id, student_user_id, standard_id) where status = 'active'
+    do update set level = excluded.level,
+      note = ${keepNote ? sql`core.goal_judgements.note` : sql`excluded.note`},
+      lesson_id = ${keep ? sql`core.goal_judgements.lesson_id` : sql`excluded.lesson_id`},
+      block_id = ${keep ? sql`core.goal_judgements.block_id` : sql`excluded.block_id`},
+      judged_by_user_id = excluded.judged_by_user_id, judged_at = excluded.judged_at`);
+}
+
+/** Takes a child's judgement on a goal back, leaving the goal unjudged. */
+export async function clearJudgement(
+  tx: Tx,
+  input: { tenantId: string; studentId: string; standardId: string },
+): Promise<void> {
+  await tx.execute(sql`
+    update core.goal_judgements set status = 'tobedeleted'
+    where tenant_id = ${input.tenantId}::uuid and student_user_id = ${input.studentId}::uuid
+      and standard_id = ${input.standardId}::uuid and status = 'active'`);
 }

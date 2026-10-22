@@ -9,6 +9,7 @@ import { BreadcrumbCurrent } from "~/components/app/WorkspaceBreadcrumb";
 import {
   FrameworkSheet,
   ImportCaseSheet,
+  sourceOf,
   StandardSheet,
   StandardsTree,
 } from "~/components/standards/Standards";
@@ -63,9 +64,7 @@ function FrameworkPage() {
           },
           {
             label: m.standardsSource(),
-            value: framework.caseIdentifier
-              ? m.standardsSourceCase()
-              : m.standardsSourceOwn(),
+            value: sourceOf(framework),
           },
         ]}
         action={

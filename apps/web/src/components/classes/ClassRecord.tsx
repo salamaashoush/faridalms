@@ -22,6 +22,7 @@ import { ClassAttendance } from "~/components/attendance/ClassAttendance";
 import { formatDate } from "~/components/family/format";
 import { AreaFiles } from "~/components/files/AreaFiles";
 import { ClassGradingSection } from "~/components/grading/ClassGrading";
+import { ClassGoals } from "~/components/standards/Goals";
 import { ClassSkills } from "~/components/standards/Progress";
 import { ActionMenu } from "~/components/system/ActionMenu";
 import {
@@ -52,6 +53,7 @@ export const CLASS_TABS = [
   "timetable",
   "attendance",
   "skills",
+  "goals",
   "files",
 ] as const;
 export type ClassTab = (typeof CLASS_TABS)[number];
@@ -62,6 +64,7 @@ const TAB_LABEL: Record<ClassTab, () => string> = {
   timetable: m.ttTitle,
   attendance: m.attendanceTitle,
   skills: m.skillsTab,
+  goals: m.goalsTab,
   files: m.filesTab,
 };
 
@@ -437,6 +440,7 @@ export function ClassRecord({
       (value !== "attendance" || seesAttendance) &&
       (value !== "timetable" || seesTimetable) &&
       (value !== "skills" || grades) &&
+      (value !== "goals" || (grades && youngClass)) &&
       (value !== "files" || data.access.files),
   );
   const active = available.includes(tab) ? tab : "overview";
@@ -454,6 +458,10 @@ export function ClassRecord({
     ) : active === "skills" ? (
       <Deferred>
         <ClassSkills classId={data.id} />
+      </Deferred>
+    ) : active === "goals" ? (
+      <Deferred>
+        <ClassGoals classId={data.id} />
       </Deferred>
     ) : active === "files" ? (
       <AreaFiles area={{ type: "class", id: data.id }} title={title} />

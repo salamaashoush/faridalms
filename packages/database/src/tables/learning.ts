@@ -1,3 +1,4 @@
+import type { GoalLevel } from "@faridalms/domain/standards";
 import type { PgTableExtraConfigValue } from "drizzle-orm/pg-core";
 
 import { sql } from "drizzle-orm";
@@ -1090,6 +1091,66 @@ export const standardEvidence = core.table.withRLS(
       .where(sql`status = 'active'`),
     ...entityProfile(),
     // Mastery is only ever about the student it was worked out for.
+    ...eraseAndDelete(erasureOf("student_user_id")),
+  ],
+);
+
+/**
+ * A teacher's judgement of where a child stands against an early learning
+ * goal, made from what they know of the child, as the EYFS profile asks:
+ * best fit, never worked out from what the child did on a screen. One a
+ * child and goal, the latest; the lesson answer it was made from, when it
+ * was made from one.
+ */
+export const goalJudgements = core.table.withRLS(
+  "goal_judgements",
+  {
+    ...tenantColumns(),
+    studentUserId: uuid("student_user_id").notNull(),
+    standardId: uuid("standard_id").notNull(),
+    level: text("level").$type<GoalLevel>().notNull(),
+    note: text("note").notNull().default(""),
+    lessonId: uuid("lesson_id"),
+    blockId: uuid("block_id"),
+    judgedByUserId: uuid("judged_by_user_id").notNull(),
+    judgedAt: instant("judged_at").notNull(),
+    ...entityColumns(),
+  },
+  (t): PgTableExtraConfigValue[] => [
+    pk("goal_judgements", t.tenantId, t.id),
+    ...baseConstraints("goal_judgements", t, tenants),
+    fk(
+      "goal_judgements",
+      [t.tenantId, t.studentUserId],
+      [users.tenantId, users.id],
+    ),
+    fk(
+      "goal_judgements",
+      [t.tenantId, t.standardId],
+      [standards.tenantId, standards.id],
+    ),
+    fk(
+      "goal_judgements",
+      [t.tenantId, t.lessonId],
+      [lessons.tenantId, lessons.id],
+    ),
+    fk(
+      "goal_judgements",
+      [t.tenantId, t.judgedByUserId],
+      [users.tenantId, users.id],
+    ),
+    ck("goal_judgements", "level", sql`level in ('emerging', 'expected')`),
+    ck("goal_judgements", "note", sql`char_length(note) <= 1000`),
+    ck(
+      "goal_judgements",
+      "work",
+      sql`(lesson_id is null) = (block_id is null)`,
+    ),
+    uniqueIndex("goal_judgements_key")
+      .on(t.tenantId, t.studentUserId, t.standardId)
+      .where(sql`status = 'active'`),
+    ...entityProfile(),
+    // A judgement is only ever about the child it was made of.
     ...eraseAndDelete(erasureOf("student_user_id")),
   ],
 );

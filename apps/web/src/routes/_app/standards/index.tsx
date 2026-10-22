@@ -1,6 +1,7 @@
-import { useSuspenseQuery } from "@tanstack/react-query";
+import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, useNavigate } from "@tanstack/react-router";
-import { FileUp, ListTree, Plus } from "lucide-react";
+import { useServerFn } from "@tanstack/react-start";
+import { FileUp, Flag, ListTree, Plus } from "lucide-react";
 import { useState } from "react";
 
 import type { Column } from "~/components/system/DataTable";
@@ -9,11 +10,13 @@ import type { HeaderAction } from "~/components/system/IndexPage";
 import {
   FrameworkSheet,
   ImportCaseSheet,
+  sourceOf,
 } from "~/components/standards/Standards";
 import { DataTable, RowLink } from "~/components/system/DataTable";
 import { PageHeader } from "~/components/system/IndexPage";
 import * as m from "~/i18n/messages";
 import { frameworksQuery } from "~/queries/standards";
+import { addEarlyGoals } from "~/server/standards";
 import { formatNumber } from "~/utils/datetime";
 
 type Data = Awaited<
@@ -52,8 +55,7 @@ function columns(): Column<FrameworkRow>[] {
     {
       id: "source",
       header: m.standardsSource(),
-      cell: (row) =>
-        row.caseIdentifier ? m.standardsSourceCase() : m.standardsSourceOwn(),
+      cell: (row) => sourceOf(row),
     },
     {
       id: "standards",
@@ -74,6 +76,8 @@ const frameworkCard = {
 function FrameworksPage() {
   const data = useSuspenseQuery(frameworksQuery).data;
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
+  const addGoals = useServerFn(addEarlyGoals);
   const [sheet, setSheet] = useState<"new" | "import" | null>(null);
   const [key, setKey] = useState(0);
   const open = (next: "new" | "import") => {
@@ -107,6 +111,17 @@ function FrameworksPage() {
                   label: m.standardsImportCase(),
                   icon: FileUp,
                   onSelect: () => open("import"),
+                },
+                {
+                  label: m.goalsAddEyfs(),
+                  icon: Flag,
+                  onSelect: async () => {
+                    const added = await addGoals();
+                    await queryClient.invalidateQueries({
+                      queryKey: ["standards"],
+                    });
+                    await go(added.id);
+                  },
                 },
               ]
             : []

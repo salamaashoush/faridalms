@@ -105,3 +105,67 @@ test("a young child plays a lesson one screen at a time, by tapping", async ({
   await expect(stage.getByText("You did it!")).toBeVisible();
   await context.close();
 });
+
+test("a Reception teacher judges each child against an early learning goal", async ({
+  browser,
+  page,
+}, testInfo) => {
+  const school = "northwind-east";
+  // Each browser judges its own goal, so neither reads the other's.
+  const goal = testInfo.project.name === "firefox" ? "Writing" : "Speaking";
+  await signInWith(
+    page,
+    `principal.${school}@northwind.example.com`,
+    PASSWORD,
+    "/admin",
+    school,
+  );
+  await page.goto("/standards");
+  await untilHydrated(page);
+  await page.getByRole("button", { name: "More actions" }).click();
+  await page
+    .getByRole("menuitem", { name: "Add the EYFS early learning goals" })
+    .click();
+  await expect(
+    page.getByRole("heading", { name: "EYFS early learning goals", level: 1 }),
+  ).toBeVisible();
+  await expect(page.getByText("The EYFS statutory framework")).toBeVisible();
+
+  const context = await browser.newContext();
+  const teacher = await context.newPage();
+  await signInWith(
+    teacher,
+    `teacher1.${school}@northwind.example.com`,
+    PASSWORD,
+    "/teach",
+    school,
+  );
+  await teacher
+    .getByRole("region", { name: "Classes" })
+    .getByRole("link")
+    .filter({ hasNotText: "All classes" })
+    .first()
+    .click();
+  await untilHydrated(teacher);
+  await teacher.getByRole("tab", { name: "Goals" }).click();
+  await teacher.getByRole("combobox", { name: /^Goal/ }).click();
+  await teacher.getByRole("option", { name: new RegExp(`^${goal}`) }).click();
+  const section = teacher.getByRole("region", { name: goal });
+  const first = section.getByRole("group", { name: /^Judgement for / }).first();
+  await first.getByRole("button", { name: "Expected" }).click();
+  await expect(section).toContainText(/1 expected, 0 emerging/);
+  await expect(section.getByText(/^Judged/).first()).toBeVisible();
+
+  // The judgement stands when the page is read again.
+  await teacher.reload();
+  await untilHydrated(teacher);
+  await teacher.getByRole("combobox", { name: /^Goal/ }).click();
+  await teacher.getByRole("option", { name: new RegExp(`^${goal}`) }).click();
+  await expect(first.getByRole("button", { name: "Expected" })).toHaveAttribute(
+    "aria-pressed",
+    "true",
+  );
+  await first.getByRole("button", { name: "Not judged" }).click();
+  await expect(section).toContainText(/0 expected, 0 emerging/);
+  await context.close();
+});

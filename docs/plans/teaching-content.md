@@ -581,6 +581,21 @@ Sources: [../research/course-design.md](../research/course-design.md),
    Left: the same type in a teacher's editor while a lesson is young.
 3. **Teacher judgements per early-learning goal** (EYFS and the like),
    recorded from a child's work.
+   Done: a young class has a Goals tab where its teacher takes a
+   framework's goals one at a time and judges each child expected or
+   emerging, as the EYFS profile asks: best fit from all they know of the
+   child, never worked out from screen tasks, with an optional note. A
+   judgement can also be made from an answer: marking a young class's
+   answers to a question tagged with goals offers the same choice under
+   the answer, and the judgement keeps a link to it. The child's record
+   shows every goal of the framework with where they stand, to staff only.
+   A school adds the seventeen EYFS goals under their seven areas in one
+   step from Standards or the empty Goals tab; any other framework works
+   the same way. Judgements are erased with the child.
+   Left: the profile's "exemption applies" code and the end-of-year
+   return; a report of the goals for families; judging from a quiz
+   answer; Development Matters as a ready-made framework for younger
+   children.
 
 ## 9. Coding
 

@@ -27,6 +27,7 @@ import {
   standardFrameworks,
   standardEvidence,
   standards,
+  goalJudgements,
   attemptAuthentications,
   attemptDeclarations,
   courseworkAssessments,
@@ -691,6 +692,15 @@ export async function completeFixture(
     blockId: id(),
     fraction: 0.75,
     answeredAt: new Date("2026-09-20T09:20:00Z"),
+  });
+  await tx.insert(goalJudgements).values({
+    tenantId,
+    studentUserId: submission.studentUserId,
+    standardId: standard.id,
+    level: "expected",
+    note: "Retold the story in order with the pictures.",
+    judgedByUserId: userId,
+    judgedAt: new Date("2026-09-21T10:00:00Z"),
   });
   await tx.insert(bankQuestions).values({
     tenantId,

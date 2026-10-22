@@ -1,6 +1,7 @@
 import { queryOptions } from "@tanstack/react-query";
 
 import {
+  getClassGoals,
   getClassProgress,
   getFramework,
   getFrameworks,
@@ -28,4 +29,10 @@ export const studentProgressQuery = (studentId: string) =>
   queryOptions({
     queryKey: ["standards", "student", studentId],
     queryFn: () => getStudentProgress({ data: { studentId } }),
+  });
+
+export const classGoalsQuery = (classId: string, frameworkId: string) =>
+  queryOptions({
+    queryKey: ["standards", "goals", classId, frameworkId],
+    queryFn: () => getClassGoals({ data: { classId, frameworkId } }),
   });

@@ -14,6 +14,7 @@ import {
 import type { Column } from "~/components/system/DataTable";
 
 import { displayName } from "~/components/people/format";
+import { StudentGoals } from "~/components/standards/Goals";
 import { DataTable, RowLink } from "~/components/system/DataTable";
 import { EmptyState } from "~/components/system/IndexPage";
 import { RecordSection } from "~/components/system/RecordPage";
@@ -307,7 +308,7 @@ export function ClassSkills({ classId }: { classId: string }) {
 /** One student's standards, framework by framework, from every class. */
 export function StudentSkills({ studentId }: { studentId: string }) {
   const data = useSuspenseQuery(studentProgressQuery(studentId)).data;
-  if (data.standards.length === 0)
+  if (data.standards.length === 0 && data.goalFrameworks.length === 0)
     return (
       <EmptyState
         icon={Target}
@@ -325,15 +326,21 @@ export function StudentSkills({ studentId }: { studentId: string }) {
   const secure = data.mastery.filter((row) => row.level === "secure").length;
   return (
     <div className="grid gap-6">
-      <div className="grid gap-2">
-        <p className="text-sm leading-5 font-medium">
-          {m.skillsSecureOf({
-            count: formatNumber(secure),
-            total: formatNumber(data.standards.length),
-          })}
-        </p>
-        <Legend unassessed={false} />
-      </div>
+      <StudentGoals
+        frameworks={data.goalFrameworks}
+        judgements={data.judgements}
+      />
+      {data.standards.length > 0 ? (
+        <div className="grid gap-2">
+          <p className="text-sm leading-5 font-medium">
+            {m.skillsSecureOf({
+              count: formatNumber(secure),
+              total: formatNumber(data.standards.length),
+            })}
+          </p>
+          <Legend unassessed={false} />
+        </div>
+      ) : null}
       {[...frameworks].map(([title, standards]) => (
         <RecordSection key={title} title={title}>
           <ul className="grid divide-y">

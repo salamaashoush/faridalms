@@ -1,7 +1,9 @@
 import {
+  classGoalsSchema,
   classProgressSchema,
   describeStandardsSchema,
   importCaseSchema,
+  judgeGoalSchema,
   moveStandardSchema,
   refSchema,
   saveFrameworkSchema,
@@ -61,3 +63,15 @@ export const getClassProgress = createServerFn({ method: "GET" })
 export const getStudentProgress = createServerFn({ method: "GET" })
   .validator(checked(studentProgressSchema))
   .handler(({ data }) => record(backend().standards.studentProgress(data)));
+
+export const getClassGoals = createServerFn({ method: "GET" })
+  .validator(checked(classGoalsSchema))
+  .handler(({ data }) => record(backend().standards.classGoals(data)));
+
+export const judgeGoal = createServerFn({ method: "POST" })
+  .validator(checked(judgeGoalSchema))
+  .handler(({ data }) => backend().standards.judgeGoal(data));
+
+export const addEarlyGoals = createServerFn({ method: "POST" }).handler(() =>
+  backend().standards.addEarlyGoals(),
+);
