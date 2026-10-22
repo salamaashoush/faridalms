@@ -334,6 +334,90 @@ describe("moving teaching between systems", () => {
     );
   });
 
+  test("a class leaves for Canvas as a Common Cartridge 1.3, its coursework due when it was", async () => {
+    const { session: teacher, classIds } = await teacherOfModule();
+    const classId = classIds[0] ?? "";
+    const due = new Date(Date.now() + 7 * 86_400_000).toISOString();
+    const essay = await teacher.api.coursework.save({
+      classId,
+      title: "River essay for Canvas",
+      brief: plainContent("Argue why the Nile matters."),
+      audience: "class",
+      latePolicy: "accept",
+      submissionFormat: "both",
+      points: 20,
+      rubric: null,
+      dueAt: due,
+    });
+    const talk = await teacher.api.coursework.save({
+      classId,
+      title: "Talk about floods",
+      brief: plainContent("Have you seen a flood?"),
+      audience: "class",
+      latePolicy: "accept",
+      submissionFormat: "discussion",
+      points: null,
+      rubric: null,
+      discussion: { postFirst: false, replies: 1 },
+    });
+    const response = await raw(
+      "northwind",
+      teacher.token,
+      `/v1/classes/${classId}/course.imscc`,
+    );
+    expect(response.status).toBe(200);
+    const files = await unzipped(response);
+    const manifest = String(files["imsmanifest.xml"]);
+    expect(manifest).toContain(
+      'xmlns="http://www.imsglobal.org/xsd/imsccv1p3/imscp_v1p1"',
+    );
+    expect(manifest).toContain("<schemaversion>1.3.0</schemaversion>");
+    // The class's modules come first, its coursework last.
+    expect(manifest).toContain("<title>Reading stories together</title>");
+    expect(manifest).toContain(
+      '<item identifier="coursework"><title>Coursework</title>',
+    );
+    const names = Object.keys(files);
+    const assignment = names.find(
+      (name) =>
+        name.endsWith("/assignment.xml") &&
+        String(files[name]).includes("River essay for Canvas"),
+    );
+    if (!assignment) throw new Error("no assignment descriptor");
+    const xml = String(files[assignment]);
+    expect(xml).toContain('<gradable points_possible="20">true</gradable>');
+    expect(xml).toContain(
+      '<submission_formats><format type="html"/><format type="file"/></submission_formats>',
+    );
+    expect(xml).toContain(`<due_at>${due.slice(0, 19)}</due_at>`);
+    expect(xml).toContain("Argue why the Nile matters.");
+    const folder = assignment.split("/")[0] ?? "";
+    expect(manifest).toContain(
+      `<resource identifier="${folder}" type="assignment_xmlv1p0" href="${assignment}">`,
+    );
+    expect(manifest).toContain(
+      `<cpx:variant identifier="${folder}_fallback_variant" identifierref="${folder}"><cpx:metadata/></cpx:variant>`,
+    );
+    expect(
+      names.some(
+        (name) =>
+          name.endsWith("/topic.xml") &&
+          String(files[name]).includes("Talk about floods"),
+      ),
+    ).toBe(true);
+    // Only a teacher of the class takes it away.
+    const pupil = await sessionFor("northwind", login("student"));
+    expect(
+      (await raw("northwind", pupil.token, `/v1/classes/${classId}/course.imscc`))
+        .status,
+    ).toBe(404);
+    for (const saved of [essay, talk])
+      await teacher.api.coursework.archive({
+        id: saved.id,
+        expectedVersion: saved.version,
+      });
+  });
+
   test("a class's results in a module leave as xAPI statements", async () => {
     const nile = crypto.randomUUID();
     const choiceId = crypto.randomUUID();

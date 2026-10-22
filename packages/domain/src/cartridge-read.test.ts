@@ -1,6 +1,12 @@
 import { describe, expect, it } from "vitest";
 
-import { CC_TYPES, ccManifest, ccToolLink } from "./cartridge";
+import {
+  CC13_TYPES,
+  CC_TYPES,
+  ccAssignment,
+  ccManifest,
+  ccToolLink,
+} from "./cartridge";
 import { cartridgeFile, readCartridge } from "./cartridge-read";
 
 const bytes = (text: string) => new TextEncoder().encode(text);
@@ -303,6 +309,72 @@ describe("a Common Cartridge's course", () => {
     expect(readCartridge(files)?.banks).toEqual([
       { title: "Shared bank", path: "bank1/bank.xml" },
       { title: "Rivers bank", path: "non_cc_assessments/b2.xml.qti" },
+    ]);
+  });
+
+  it("reads back the assignments this school sends Canvas in CC 1.3", () => {
+    const files = new Map([
+      [
+        "imsmanifest.xml",
+        bytes(
+          ccManifest({
+            identifier: "m",
+            title: "8A",
+            version: "1.3",
+            modules: [
+              {
+                identifier: "coursework",
+                title: "Coursework",
+                items: [{ identifier: "i1", title: "Essay", resource: "c1" }],
+              },
+            ],
+            resources: [
+              {
+                identifier: "c1",
+                type: CC13_TYPES.assignment,
+                href: "c1/assignment.xml",
+                files: ["c1/assignment.xml"],
+              },
+              {
+                identifier: "c1_fallback",
+                type: CC13_TYPES.page,
+                files: ["c1/Essay.html"],
+                variantOf: "c1",
+              },
+            ],
+          }),
+        ),
+      ],
+      [
+        "c1/assignment.xml",
+        bytes(
+          ccAssignment({
+            identifier: "c1",
+            title: "River essay",
+            html: "<p>Argue.</p>",
+            points: 20,
+            dueAt: "2026-11-01T21:59:00.000Z",
+            submission: "files",
+          }),
+        ),
+      ],
+      ["c1/Essay.html", bytes("<p>Argue.</p>")],
+    ]);
+    expect(readCartridge(files)?.modules).toEqual([
+      {
+        title: "Coursework",
+        items: [
+          {
+            kind: "assignment",
+            title: "River essay",
+            html: "<p>Argue.</p>",
+            base: "c1/assignment.xml",
+            points: 20,
+            dueAt: "2026-11-01T21:59:00.000Z",
+            submission: "files",
+          },
+        ],
+      },
     ]);
   });
 

@@ -14,6 +14,7 @@ import {
   homeroomEnrollments,
   reachesClass,
   roomsOf,
+  teachesClass,
 } from "@faridalms/database/stores/classes";
 import {
   addSchoolDescriptor,
@@ -234,6 +235,10 @@ export const record = readProcedure
           year.lifecycle !== "closed",
         staff: staffViewer,
         files: await mayKeepArea(context, { type: "class", id: input.id }),
+        /** Takes the class's modules and coursework away as a cartridge. */
+        export:
+          can(context, "assignments:author") &&
+          (await teachesClass(context.tx, scope, input.id)),
       },
     };
   });

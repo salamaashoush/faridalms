@@ -1,17 +1,30 @@
-import type { CcModule, CcResource } from "@faridalms/domain/cartridge";
+import type {
+  CcModule,
+  CcResource,
+  CcSubmission,
+  CcVersion,
+} from "@faridalms/domain/cartridge";
 import type { ContentDocument, ContentNode } from "@faridalms/domain/content";
 import type { XapiStatement } from "@faridalms/domain/xapi";
 
 import { writeAudit } from "@faridalms/database/audit";
 import { TenantUnavailableError } from "@faridalms/database/context";
-import { rosterOf, teachesClass } from "@faridalms/database/stores/classes";
+import {
+  classById,
+  rosterOf,
+  teachesClass,
+} from "@faridalms/database/stores/classes";
 import {
   assignmentById,
+  classAssignments,
   handedInWork,
   namesOf,
   studentWork,
 } from "@faridalms/database/stores/coursework";
-import { documentOf } from "@faridalms/database/stores/documents";
+import {
+  documentOf,
+  publishedVersion,
+} from "@faridalms/database/stores/documents";
 import { filesByIds } from "@faridalms/database/stores/files";
 import {
   classesOfModule,
@@ -19,6 +32,7 @@ import {
   lessonsOf,
   progressIn,
   watchRowsIn,
+  yearUnitsOf,
 } from "@faridalms/database/stores/learning";
 import { toolById } from "@faridalms/database/stores/lti";
 import { isVisibleStudent } from "@faridalms/database/stores/students";
@@ -27,13 +41,16 @@ import {
   canvasItem,
   canvasQtiManifest,
   canvasQuizMeta,
+  ccAssignment,
+  CC13_TYPES,
   CC_FILEBASE,
-  CC_TYPES,
   ccAssessment,
   ccItem,
   ccManifest,
   ccPage,
   ccToolLink,
+  ccTopic,
+  ccTypesOf,
   plainFileName,
 } from "@faridalms/domain/cartridge";
 import { contentFileIds, contentPlainText } from "@faridalms/domain/content";
@@ -43,7 +60,8 @@ import {
   imageSize,
   safeFilename,
 } from "@faridalms/domain/file";
-import { lessonOfContent } from "@faridalms/domain/lesson-content";
+import { lessonContentOf } from "@faridalms/domain/learning";
+import { lessonOfContent, quizOfBrief } from "@faridalms/domain/lesson-content";
 import {
   qtiItem,
   qtiManifest,
@@ -69,12 +87,14 @@ import type {
 import { editableModule } from "../core/learning-access";
 import { nameUuid } from "../core/names";
 import { can, localeOf, openUnit, schoolOf } from "../core/procedure";
+import { publishedQuiz } from "../core/quiz";
 
 const PATH = /^\/v1\/assignments\/([0-9a-f-]{36})\/work\.zip$/;
 const PORTFOLIO = /^\/v1\/students\/([0-9a-f-]{36})\/portfolio\.zip$/;
 const MODULE_QUESTIONS = /^\/v1\/modules\/([0-9a-f-]{36})\/questions\.zip$/;
 const MODULE_STATEMENTS = /^\/v1\/modules\/([0-9a-f-]{36})\/statements\.json$/;
 const MODULE_CARTRIDGE = /^\/v1\/modules\/([0-9a-f-]{36})\/cartridge\.imscc$/;
+const CLASS_CARTRIDGE = /^\/v1\/classes\/([0-9a-f-]{36})\/course\.imscc$/;
 const MODULE_CANVAS_QUIZZES =
   /^\/v1\/modules\/([0-9a-f-]{36})\/canvas-quizzes\.zip$/;
 
@@ -367,7 +387,7 @@ async function moduleQuestions(
       type: "lesson",
       id: lesson.id,
     });
-    const content = document?.content as unknown as ContentDocument | undefined;
+    const content = document ? lessonContentOf(document.content) : undefined;
     if (!content) continue;
     lessons.push({
       title: lesson.title,
@@ -479,7 +499,7 @@ async function moduleCanvasQuizzes(
       type: "lesson",
       id: lesson.id,
     });
-    const content = document?.content as unknown as ContentDocument | undefined;
+    const content = document ? lessonContentOf(document.content) : undefined;
     if (!content) continue;
     const blocks = lessonOfContent(content).blocks.filter(
       (block) => "prompt" in block,
@@ -582,51 +602,76 @@ function plainUnique(name: string, taken: Set<string>, fallback: string) {
   return candidate;
 }
 
-/**
- * A module as a Common Cartridge 1.1, for Moodle, Canvas and the like:
- * each lesson a page, its questions a quiz after it, its links to outside
- * tools, the files they all show, and each lesson kept whole beside them
- * for this app to bring back. Only a teacher who may change the module
- * gets it, and the export is recorded.
- */
-async function moduleCartridge(
+type CartridgeLesson = {
+  title: string;
+  language: string | null;
+  content: ContentDocument;
+};
+
+/** A module's lessons as they are stored, in their order. */
+async function cartridgeLessons(
   unit: UnitContext,
   moduleId: string,
-): Promise<{ title: string; extension: string; entries: Entry[] } | null> {
-  const module = await editableModule(unit, moduleId);
-  const lessons: {
-    title: string;
-    language: string | null;
-    content: ContentDocument;
-  }[] = [];
-  for (const lesson of await lessonsOf(unit.tx, unit.tenantId, module.id)) {
+): Promise<CartridgeLesson[]> {
+  const lessons: CartridgeLesson[] = [];
+  for (const lesson of await lessonsOf(unit.tx, unit.tenantId, moduleId)) {
     const document = await documentOf(unit.tx, unit.tenantId, {
       type: "lesson",
       id: lesson.id,
     });
-    const content = document?.content as unknown as ContentDocument | undefined;
+    const content = document ? lessonContentOf(document.content) : undefined;
     if (content)
       lessons.push({ title: lesson.title, language: lesson.language, content });
   }
-  const entries: Entry[] = [];
+  return lessons;
+}
+
+/**
+ * The package's shared files, each stored once under `web_resources/` with a
+ * plain name every LMS resolves alike.
+ */
+async function sharedFiles(
+  unit: UnitContext,
+  fileIds: readonly string[],
+  entries: Entry[],
+): Promise<Map<string, string>> {
   const shared = new Map<string, string>();
   const taken = new Set<string>();
-  const files = await filesByIds(unit.tx, unit.tenantId, [
-    ...new Set(lessons.flatMap((lesson) => contentFileIds(lesson.content))),
-  ]);
+  const files = await filesByIds(unit.tx, unit.tenantId, [...new Set(fileIds)]);
   for (const file of files.filter((item) => item.state === "ready")) {
     const href = `web_resources/${plainUnique(file.name, taken, "file")}`;
     shared.set(file.id, href);
     entries.push({ path: href, storageKey: file.storageKey });
   }
+  return shared;
+}
+
+/**
+ * A module's lessons as a cartridge holds them: each a page, its questions a
+ * quiz after it in CC's profile, its links to outside tools, and the lesson
+ * kept whole beside them. Names start with `prefix`, so several modules fit
+ * one package.
+ */
+async function lessonResources(
+  unit: UnitContext,
+  input: {
+    lessons: readonly CartridgeLesson[];
+    shared: ReadonlyMap<string, string>;
+    prefix: string;
+    version: CcVersion;
+  },
+) {
+  const { shared, prefix, version } = input;
+  const types = ccTypesOf(version);
   const sharedDependency = shared.size > 0 ? ["web_resources"] : [];
   const questionsWord = localeOf(unit) === "ar" ? "أسئلة" : "questions";
+  const entries: Entry[] = [];
   const items: CcModule["items"] = [];
   const resources: CcResource[] = [];
   const kept: string[] = [];
   let skipped = 0;
-  for (const [index, lesson] of lessons.entries()) {
-    const n = index + 1;
+  for (const [index, lesson] of input.lessons.entries()) {
+    const n = `${prefix}${index + 1}`;
     const keptPath = `farida/lessons/${n}.json`;
     kept.push(keptPath);
     entries.push({
@@ -644,7 +689,7 @@ async function moduleCartridge(
         ),
       }),
     });
-    const page = `l${n}/${plainFileName(lesson.title.replaceAll(".", " "), `lesson-${n}`)}.html`;
+    const page = `${prefix}l${index + 1}/${plainFileName(lesson.title.replaceAll(".", " "), `lesson-${index + 1}`)}.html`;
     entries.push({
       path: page,
       text: ccPage({
@@ -658,22 +703,24 @@ async function moduleCartridge(
         }),
       }),
     });
+    const lessonId = `${prefix}l${index + 1}`;
     resources.push({
-      identifier: `l${n}`,
-      type: CC_TYPES.page,
+      identifier: lessonId,
+      type: types.page,
       href: page,
       files: [page],
       dependencies: sharedDependency,
     });
     items.push({
-      identifier: `item_l${n}`,
+      identifier: `item_${lessonId}`,
       title: lesson.title,
-      resource: `l${n}`,
+      resource: lessonId,
     });
+    const quizId = `${prefix}q${index + 1}`;
     const questions = lessonOfContent(lesson.content).blocks.flatMap(
       (block, at) => {
         const xml = ccItem(block, {
-          ident: `l${n}_q${at + 1}`,
+          ident: `${lessonId}_q${at + 1}`,
           picture: (id) => {
             const href = shared.get(id);
             return href ? `${CC_FILEBASE}../${href}` : null;
@@ -685,18 +732,23 @@ async function moduleCartridge(
     );
     if (questions.length > 0) {
       const title = `${lesson.title}: ${questionsWord}`;
-      const path = `q${n}/assessment.xml`;
+      const path = `${quizId}/assessment.xml`;
       entries.push({
         path,
-        text: ccAssessment({ ident: `q${n}_quiz`, title, items: questions }),
+        text: ccAssessment({
+          ident: `${quizId}_quiz`,
+          title,
+          items: questions,
+          version,
+        }),
       });
       resources.push({
-        identifier: `q${n}`,
-        type: CC_TYPES.quiz,
+        identifier: quizId,
+        type: types.quiz,
         files: [path],
         dependencies: sharedDependency,
       });
-      items.push({ identifier: `item_q${n}`, title, resource: `q${n}` });
+      items.push({ identifier: `item_${quizId}`, title, resource: quizId });
     }
     for (const [at, link] of toolLinks(lesson.content).entries()) {
       const tool = await toolById(unit.tx, {
@@ -705,7 +757,7 @@ async function moduleCartridge(
         id: link.toolId,
       });
       if (!tool) continue;
-      const identifier = `t${n}_${at + 1}`;
+      const identifier = `${prefix}t${index + 1}_${at + 1}`;
       entries.push({
         path: `${identifier}.xml`,
         text: ccToolLink({
@@ -713,11 +765,12 @@ async function moduleCartridge(
           description: link.text ?? "",
           url: link.url ?? tool.launchUrl,
           custom: { ...tool.custom, ...link.custom },
+          version,
         }),
       });
       resources.push({
         identifier,
-        type: CC_TYPES.tool,
+        type: types.tool,
         files: [`${identifier}.xml`],
       });
       items.push({
@@ -727,25 +780,73 @@ async function moduleCartridge(
       });
     }
   }
-  if (shared.size > 0)
-    resources.push({
-      identifier: "web_resources",
-      type: CC_TYPES.page,
-      files: [...shared.values()],
-    });
-  resources.push({
-    identifier: "farida",
-    type: CC_TYPES.kept,
-    files: kept,
-    instructorOnly: true,
+  return { entries, items, resources, kept, skipped };
+}
+
+/** What closes every package: its shared files, and the lessons kept whole for this app. */
+function closingResources(
+  version: CcVersion,
+  shared: ReadonlyMap<string, string>,
+  kept: string[],
+): CcResource[] {
+  const types = ccTypesOf(version);
+  return [
+    ...(shared.size > 0
+      ? [
+          {
+            identifier: "web_resources",
+            type: types.page,
+            files: [...shared.values()],
+          },
+        ]
+      : []),
+    {
+      identifier: "farida",
+      type: types.kept,
+      files: kept,
+      instructorOnly: true,
+    },
+  ];
+}
+
+/**
+ * A module as a Common Cartridge 1.1, for Moodle, Canvas and the like:
+ * each lesson a page, its questions a quiz after it, its links to outside
+ * tools, the files they all show, and each lesson kept whole beside them
+ * for this app to bring back. Only a teacher who may change the module
+ * gets it, and the export is recorded.
+ */
+async function moduleCartridge(
+  unit: UnitContext,
+  moduleId: string,
+): Promise<{ title: string; extension: string; entries: Entry[] } | null> {
+  const module = await editableModule(unit, moduleId);
+  const lessons = await cartridgeLessons(unit, module.id);
+  const entries: Entry[] = [];
+  const shared = await sharedFiles(
+    unit,
+    lessons.flatMap((lesson) => contentFileIds(lesson.content)),
+    entries,
+  );
+  const built = await lessonResources(unit, {
+    lessons,
+    shared,
+    prefix: "",
+    version: "1.1",
   });
+  entries.push(...built.entries);
   entries.unshift({
     path: "imsmanifest.xml",
     text: ccManifest({
       identifier: `farida_${module.id.replaceAll("-", "")}`,
       title: module.title,
-      modules: [{ identifier: "module_1", title: module.title, items }],
-      resources,
+      modules: [
+        { identifier: "module_1", title: module.title, items: built.items },
+      ],
+      resources: [
+        ...built.resources,
+        ...closingResources("1.1", shared, built.kept),
+      ],
     }),
   });
   await writeAudit(unit.tx, unit.tenantId, {
@@ -753,9 +854,249 @@ async function moduleCartridge(
     objectType: "learning_module",
     objectId: module.id,
     orgId: unit.schoolId,
-    details: { lessons: lessons.length, files: shared.size, skipped },
+    details: {
+      lessons: lessons.length,
+      files: shared.size,
+      skipped: built.skipped,
+    },
   });
   return { title: module.title, extension: "imscc", entries };
+}
+
+/** How a brief asks for work, in CC 1.3's and Canvas's terms. */
+const SUBMISSION_OF: Partial<Record<string, CcSubmission>> = {
+  online: "online",
+  files: "files",
+  both: "both",
+  none: "none",
+};
+
+/**
+ * A class as a Common Cartridge 1.3, for Canvas and the LMSs that read the
+ * newer version: each of its modules in the order the class takes them,
+ * as the module export writes one, and a last module of its coursework,
+ * each assignment with its brief, points, how work is handed in and when
+ * it is due, each quiz in CC's profile and each discussion as a topic.
+ * Moodle reads only CC 1.1, so this is not for it. Only a teacher of the
+ * class who sets work gets it, and the export is recorded.
+ */
+async function classCartridge(
+  unit: UnitContext,
+  classId: string,
+): Promise<{ title: string; extension: string; entries: Entry[] } | null> {
+  const scope = {
+    tenantId: unit.tenantId,
+    schoolId: unit.schoolId,
+    today: unit.today,
+    viewerId: unit.actor.userId,
+    schoolWide: can(unit, "classes:manage"),
+  };
+  if (
+    !can(unit, "assignments:author") ||
+    !(await teachesClass(unit.tx, scope, classId))
+  )
+    return null;
+  const taught = await classById(unit.tx, scope, classId);
+  if (!taught) return null;
+  const units = await yearUnitsOf(unit.tx, {
+    tenantId: unit.tenantId,
+    classId,
+  });
+  const modules = [];
+  for (const each of units)
+    modules.push({ ...each, lessons: await cartridgeLessons(unit, each.id) });
+  const assignments = [];
+  for (const assignment of await classAssignments(
+    unit.tx,
+    unit.tenantId,
+    classId,
+  )) {
+    const document = await documentOf(unit.tx, unit.tenantId, {
+      type: "assignment",
+      id: assignment.id,
+    });
+    if (!document) continue;
+    // Work already out reads as it was last set; a draft as it is written.
+    const published =
+      assignment.state === "draft"
+        ? null
+        : await publishedVersion(unit.tx, unit.tenantId, document.id);
+    assignments.push({
+      ...assignment,
+      brief: lessonContentOf((published ?? document).content),
+    });
+  }
+  const entries: Entry[] = [];
+  const shared = await sharedFiles(
+    unit,
+    [
+      ...modules.flatMap((module) =>
+        module.lessons.flatMap((lesson) => contentFileIds(lesson.content)),
+      ),
+      ...assignments.flatMap((assignment) => contentFileIds(assignment.brief)),
+    ],
+    entries,
+  );
+  const types = CC13_TYPES;
+  const ccModules: CcModule[] = [];
+  const resources: CcResource[] = [];
+  const kept: string[] = [];
+  let skipped = 0;
+  for (const [index, module] of modules.entries()) {
+    const built = await lessonResources(unit, {
+      lessons: module.lessons,
+      shared,
+      prefix: `m${index + 1}_`,
+      version: "1.3",
+    });
+    entries.push(...built.entries);
+    resources.push(...built.resources);
+    kept.push(...built.kept);
+    skipped += built.skipped;
+    ccModules.push({
+      identifier: `module_${index + 1}`,
+      title: module.title,
+      items: built.items,
+    });
+  }
+  const sharedDependency = shared.size > 0 ? ["web_resources"] : [];
+  // Files in a descriptor's HTML are named from the descriptor's folder.
+  const fromDescriptor = (id: string) => {
+    const href = shared.get(id);
+    return href ? `${CC_FILEBASE}../${href}` : null;
+  };
+  const coursework: CcModule["items"] = [];
+  for (const [index, assignment] of assignments.entries()) {
+    const n = index + 1;
+    if (assignment.submissionFormat === "quiz") {
+      // A quiz may keep its questions apart from its brief once it is set.
+      const quiz =
+        (assignment.state === "draft"
+          ? null
+          : await publishedQuiz(unit, assignment.id)) ??
+        quizOfBrief(assignment.brief);
+      const items = quiz.blocks.flatMap((block, at) => {
+        const xml = ccItem(block, {
+          ident: `c${n}_q${at + 1}`,
+          picture: fromDescriptor,
+        });
+        if (!xml && "prompt" in block) skipped += 1;
+        return xml ? [xml] : [];
+      });
+      if (items.length === 0) continue;
+      const path = `c${n}/assessment.xml`;
+      entries.push({
+        path,
+        text: ccAssessment({
+          ident: `c${n}_quiz`,
+          title: assignment.title,
+          items,
+          version: "1.3",
+        }),
+      });
+      resources.push({
+        identifier: `c${n}`,
+        type: types.quiz,
+        files: [path],
+        dependencies: sharedDependency,
+      });
+    } else if (assignment.submissionFormat === "discussion") {
+      const path = `c${n}/topic.xml`;
+      entries.push({
+        path,
+        text: ccTopic({
+          title: assignment.title,
+          html: contentHtml(assignment.brief, { fileHref: fromDescriptor }),
+          version: "1.3",
+        }),
+      });
+      resources.push({
+        identifier: `c${n}`,
+        type: types.topic,
+        files: [path],
+        dependencies: sharedDependency,
+      });
+    } else {
+      const path = `c${n}/assignment.xml`;
+      const page = `c${n}/${plainFileName(assignment.title.replaceAll(".", " "), `assignment-${n}`)}.html`;
+      entries.push(
+        {
+          path,
+          text: ccAssignment({
+            identifier: `c${n}`,
+            title: assignment.title,
+            html: contentHtml(assignment.brief, { fileHref: fromDescriptor }),
+            points: assignment.points,
+            dueAt: assignment.dueAt,
+            submission: SUBMISSION_OF[assignment.submissionFormat] ?? "both",
+          }),
+        },
+        {
+          path: page,
+          text: ccPage({
+            title: assignment.title,
+            kept: "",
+            body: contentHtml(assignment.brief, {
+              fileHref: (id) => {
+                const href = shared.get(id);
+                return href ? `../${href}` : null;
+              },
+            }),
+          }),
+        },
+      );
+      resources.push(
+        {
+          identifier: `c${n}`,
+          type: types.assignment,
+          href: path,
+          files: [path],
+          dependencies: sharedDependency,
+        },
+        {
+          identifier: `c${n}_fallback`,
+          type: types.page,
+          files: [page],
+          variantOf: `c${n}`,
+        },
+      );
+    }
+    coursework.push({
+      identifier: `item_c${n}`,
+      title: assignment.title,
+      resource: `c${n}`,
+    });
+  }
+  if (coursework.length > 0)
+    ccModules.push({
+      identifier: "coursework",
+      title: localeOf(unit) === "ar" ? "الواجبات" : "Coursework",
+      items: coursework,
+    });
+  const title = taught.titleEn || taught.titleAr || taught.code;
+  entries.unshift({
+    path: "imsmanifest.xml",
+    text: ccManifest({
+      identifier: `farida_${classId.replaceAll("-", "")}`,
+      title,
+      modules: ccModules,
+      resources: [...resources, ...closingResources("1.3", shared, kept)],
+      version: "1.3",
+    }),
+  });
+  await writeAudit(unit.tx, unit.tenantId, {
+    action: "class.cartridge_exported",
+    objectType: "class",
+    objectId: classId,
+    orgId: unit.schoolId,
+    details: {
+      modules: modules.length,
+      assignments: coursework.length,
+      files: shared.size,
+      skipped,
+    },
+  });
+  return { title, extension: "imscc", entries };
 }
 
 /** The namespace this app's statement ids are made in, so the same record gives the same id. */
@@ -841,7 +1182,7 @@ async function moduleStatements(
       type: "lesson",
       id: lesson.id,
     });
-    const content = document?.content as unknown as ContentDocument | undefined;
+    const content = document ? lessonContentOf(document.content) : undefined;
     const questions = new Map(
       (content ? lessonOfContent(content).blocks : []).flatMap((block) =>
         "prompt" in block ? [[block.id, block] as const] : [],
@@ -949,6 +1290,8 @@ export async function handleWorkExport(
   const cartridge = MODULE_CARTRIDGE.exec(url.pathname)?.[1];
   if (cartridge)
     return exported(context, (unit) => moduleCartridge(unit, cartridge));
+  const course = CLASS_CARTRIDGE.exec(url.pathname)?.[1];
+  if (course) return exported(context, (unit) => classCartridge(unit, course));
   const canvas = MODULE_CANVAS_QUIZZES.exec(url.pathname)?.[1];
   if (canvas)
     return exported(context, (unit) => moduleCanvasQuizzes(unit, canvas));

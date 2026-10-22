@@ -13,11 +13,42 @@ import { partName } from "./learning";
  */
 
 const CC = "http://www.imsglobal.org/xsd/imsccv1p1/imscp_v1p1";
-const LOM_RESOURCE = "http://ltsc.ieee.org/xsd/imsccv1p1/LOM/resource";
-const LOM_MANIFEST = "http://ltsc.ieee.org/xsd/imsccv1p1/LOM/manifest";
 const QTI = "http://www.imsglobal.org/xsd/ims_qtiasiv1p2";
-const PROFILE = "http://www.imsglobal.org/profile/cc/ccv1p1";
 const LTI_XSD = "http://www.imsglobal.org/xsd/lti/ltiv1p0";
+const CANVAS = "http://canvas.instructure.com/xsd/cccv1p0";
+
+/**
+ * CC 1.1 is the version Moodle imports, and checks against its schema;
+ * CC 1.3 adds what Canvas reads beyond it, chiefly assignments.
+ */
+export type CcVersion = "1.1" | "1.3";
+
+/** Each version's names: its namespaces, schema files and role vocabulary. */
+const SPEC = {
+  "1.1": {
+    tag: "v1p1",
+    schemaversion: "1.1.0",
+    roles: "IMSGLC_CC_Rolesv1p1",
+  },
+  "1.3": {
+    tag: "v1p3",
+    schemaversion: "1.3.0",
+    roles: "IMSGLC_CC_Rolesv1p2",
+  },
+} as const;
+
+const namesOf = (version: CcVersion) => {
+  const { tag } = SPEC[version];
+  return {
+    cc: `http://www.imsglobal.org/xsd/imscc${tag}/imscp_v1p1`,
+    lomResource: `http://ltsc.ieee.org/xsd/imscc${tag}/LOM/resource`,
+    lomManifest: `http://ltsc.ieee.org/xsd/imscc${tag}/LOM/manifest`,
+    profile: `http://www.imsglobal.org/profile/cc/cc${tag}`,
+    cpx: `http://www.imsglobal.org/xsd/imscc${tag}/imscp_extensionv1p2`,
+    topic: `http://www.imsglobal.org/xsd/imscc${tag}/imsdt_${tag}`,
+    file: `cc${tag}`,
+  };
+};
 
 /** CC's own reference to a file from inside a descriptor, as Moodle and Canvas resolve it. */
 export const CC_FILEBASE = "$IMS-CC-FILEBASE$";
@@ -28,8 +59,27 @@ export const CC_TYPES = {
   quiz: "imsqti_xmlv1p2/imscc_xmlv1p1/assessment",
   link: "imswl_xmlv1p1",
   tool: "imsbasiclti_xmlv1p0",
+  topic: "imsdt_xmlv1p1",
   kept: "associatedcontent/imscc_xmlv1p1/learning-application-resource",
 } as const;
+
+/**
+ * The resource types of CC 1.3, as its schema lists them, which disagrees
+ * with its own prose on the quiz's.
+ */
+export const CC13_TYPES = {
+  page: "webcontent",
+  quiz: "imsqti_xmlv1p2/imscc_xmlv1p3/assessment",
+  link: "imswl_xmlv1p3",
+  tool: "imsbasiclti_xmlv1p3",
+  topic: "imsdt_xmlv1p3",
+  assignment: "assignment_xmlv1p0",
+  kept: "associatedcontent/imscc_xmlv1p3/learning-application-resource",
+} as const;
+
+/** A version's resource types. */
+export const ccTypesOf = (version: CcVersion) =>
+  version === "1.3" ? CC13_TYPES : CC_TYPES;
 
 const escape = (value: string) =>
   value
@@ -383,9 +433,11 @@ export function ccAssessment(quiz: {
   ident: string;
   title: string;
   items: string[];
+  version?: CcVersion;
 }): string {
+  const { profile, file } = namesOf(quiz.version ?? "1.1");
   return `<?xml version="1.0" encoding="UTF-8"?>
-<questestinterop xmlns="${QTI}" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="${QTI} ${PROFILE}/ccv1p1_qtiasiv1p2p1_v1p0.xsd"><assessment ident="${quiz.ident}" title="${escape(quiz.title)}"><qtimetadata>${field("cc_profile", "cc.exam.v0p1")}${field("qmd_assessmenttype", "Examination")}${field("qmd_scoretype", "Percentage")}${field("qmd_feedbackpermitted", "Yes")}${field("qmd_hintspermitted", "No")}${field("qmd_solutionspermitted", "Yes")}${field("cc_maxattempts", "unlimited")}</qtimetadata><section ident="${quiz.ident}_section">${quiz.items.join("")}</section></assessment></questestinterop>
+<questestinterop xmlns="${QTI}" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="${QTI} ${profile}/${file}_qtiasiv1p2p1_v1p0.xsd"><assessment ident="${quiz.ident}" title="${escape(quiz.title)}"><qtimetadata>${field("cc_profile", "cc.exam.v0p1")}${field("qmd_assessmenttype", "Examination")}${field("qmd_scoretype", "Percentage")}${field("qmd_feedbackpermitted", "Yes")}${field("qmd_hintspermitted", "No")}${field("qmd_solutionspermitted", "Yes")}${field("cc_maxattempts", "unlimited")}</qtimetadata><section ident="${quiz.ident}_section">${quiz.items.join("")}</section></assessment></questestinterop>
 `;
 }
 
@@ -395,10 +447,15 @@ export function ccToolLink(link: {
   description: string;
   url: string;
   custom: Record<string, string>;
+  version?: CcVersion;
 }): string {
+  const root =
+    link.version === "1.3"
+      ? "http://www.imsglobal.org/xsd/imslticc_v1p3"
+      : "http://www.imsglobal.org/xsd/imslticc_v1p0";
   const custom = Object.entries(link.custom);
   return `<?xml version="1.0" encoding="UTF-8"?>
-<cartridge_basiclti_link xmlns="http://www.imsglobal.org/xsd/imslticc_v1p0" xmlns:blti="http://www.imsglobal.org/xsd/imsbasiclti_v1p0" xmlns:lticm="http://www.imsglobal.org/xsd/imslticm_v1p0" xmlns:lticp="http://www.imsglobal.org/xsd/imslticp_v1p0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="http://www.imsglobal.org/xsd/imslticc_v1p0 ${LTI_XSD}/imslticc_v1p0.xsd http://www.imsglobal.org/xsd/imsbasiclti_v1p0 ${LTI_XSD}/imsbasiclti_v1p0p1.xsd http://www.imsglobal.org/xsd/imslticm_v1p0 ${LTI_XSD}/imslticm_v1p0.xsd http://www.imsglobal.org/xsd/imslticp_v1p0 ${LTI_XSD}/imslticp_v1p0.xsd"><blti:title>${escape(link.title)}</blti:title><blti:description>${escape(link.description)}</blti:description>${custom.length ? `<blti:custom>${custom.map(([name, value]) => `<lticm:property name="${escape(name)}">${escape(value)}</lticm:property>`).join("")}</blti:custom>` : ""}<blti:launch_url>${escape(link.url)}</blti:launch_url><blti:secure_launch_url>${escape(link.url)}</blti:secure_launch_url><blti:vendor><lticp:code>farida</lticp:code><lticp:name>Farida</lticp:name></blti:vendor></cartridge_basiclti_link>
+<cartridge_basiclti_link xmlns="${root}" xmlns:blti="http://www.imsglobal.org/xsd/imsbasiclti_v1p0" xmlns:lticm="http://www.imsglobal.org/xsd/imslticm_v1p0" xmlns:lticp="http://www.imsglobal.org/xsd/imslticp_v1p0" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="${root} ${link.version === "1.3" ? "http://www.imsglobal.org/xsd/imslticc_v1p3.xsd" : `${LTI_XSD}/imslticc_v1p0.xsd`} http://www.imsglobal.org/xsd/imsbasiclti_v1p0 ${LTI_XSD}/imsbasiclti_v1p0p1.xsd http://www.imsglobal.org/xsd/imslticm_v1p0 ${LTI_XSD}/imslticm_v1p0.xsd http://www.imsglobal.org/xsd/imslticp_v1p0 ${LTI_XSD}/imslticp_v1p0.xsd"><blti:title>${escape(link.title)}</blti:title><blti:description>${escape(link.description)}</blti:description>${custom.length ? `<blti:custom>${custom.map(([name, value]) => `<lticm:property name="${escape(name)}">${escape(value)}</lticm:property>`).join("")}</blti:custom>` : ""}<blti:launch_url>${escape(link.url)}</blti:launch_url><blti:secure_launch_url>${escape(link.url)}</blti:secure_launch_url><blti:vendor><lticp:code>farida</lticp:code><lticp:name>Farida</lticp:name></blti:vendor></cartridge_basiclti_link>
 `;
 }
 
@@ -416,12 +473,16 @@ export function ccPage(page: {
 
 export interface CcResource {
   identifier: string;
-  type: (typeof CC_TYPES)[keyof typeof CC_TYPES];
+  type:
+    | (typeof CC_TYPES)[keyof typeof CC_TYPES]
+    | (typeof CC13_TYPES)[keyof typeof CC13_TYPES];
   href?: string;
   files: string[];
   dependencies?: string[];
   /** Hidden from students where it lands. */
   instructorOnly?: boolean;
+  /** CC 1.3: what to show where this resource's own type is not read. */
+  variantOf?: string;
 }
 
 /** A module's items under the course's single organization. */
@@ -436,11 +497,22 @@ export function ccManifest(manifest: {
   title: string;
   modules: CcModule[];
   resources: CcResource[];
+  version?: CcVersion;
 }): string {
+  const version = manifest.version ?? "1.1";
+  const names = namesOf(version);
+  const schema = names.file;
   const lang = langOf(manifest.title);
-  const role = `<metadata><lom:lom><lom:educational><lom:intendedEndUserRole><lom:source>IMSGLC_CC_Rolesv1p1</lom:source><lom:value>Instructor</lom:value></lom:intendedEndUserRole></lom:educational></lom:lom></metadata>`;
+  const role = `<metadata><lom:lom><lom:educational><lom:intendedEndUserRole><lom:source>${SPEC[version].roles}</lom:source><lom:value>Instructor</lom:value></lom:intendedEndUserRole></lom:educational></lom:lom></metadata>`;
+  const cpx =
+    version === "1.3"
+      ? {
+          declared: ` xmlns:cpx="${names.cpx}"`,
+          located: ` ${names.cpx} ${names.profile}/${schema}_cpextensionv1p2_v1p0.xsd`,
+        }
+      : { declared: "", located: "" };
   return `<?xml version="1.0" encoding="UTF-8"?>
-<manifest xmlns="${CC}" xmlns:lom="${LOM_RESOURCE}" xmlns:lomimscc="${LOM_MANIFEST}" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" identifier="${manifest.identifier}" xsi:schemaLocation="${CC} ${PROFILE}/ccv1p1_imscp_v1p2_v1p0.xsd ${LOM_RESOURCE} ${PROFILE}/LOM/ccv1p1_lomresource_v1p0.xsd ${LOM_MANIFEST} ${PROFILE}/LOM/ccv1p1_lommanifest_v1p0.xsd"><metadata><schema>IMS Common Cartridge</schema><schemaversion>1.1.0</schemaversion><lomimscc:lom><lomimscc:general><lomimscc:title><lomimscc:string language="${lang}">${escape(manifest.title)}</lomimscc:string></lomimscc:title><lomimscc:language>${lang}</lomimscc:language></lomimscc:general></lomimscc:lom></metadata><organizations><organization identifier="org_1" structure="rooted-hierarchy"><item identifier="LearningModules">${manifest.modules
+<manifest xmlns="${names.cc}" xmlns:lom="${names.lomResource}" xmlns:lomimscc="${names.lomManifest}"${cpx.declared} xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" identifier="${manifest.identifier}" xsi:schemaLocation="${names.cc} ${names.profile}/${schema}_imscp_v1p2_v1p0.xsd ${names.lomResource} ${names.profile}/LOM/${schema}_lomresource_v1p0.xsd ${names.lomManifest} ${names.profile}/LOM/${schema}_lommanifest_v1p0.xsd${cpx.located}"><metadata><schema>IMS Common Cartridge</schema><schemaversion>${SPEC[version].schemaversion}</schemaversion><lomimscc:lom><lomimscc:general><lomimscc:title><lomimscc:string language="${lang}">${escape(manifest.title)}</lomimscc:string></lomimscc:title><lomimscc:language>${lang}</lomimscc:language></lomimscc:general></lomimscc:lom></metadata><organizations><organization identifier="org_1" structure="rooted-hierarchy"><item identifier="LearningModules">${manifest.modules
     .map(
       (module) =>
         `<item identifier="${module.identifier}"><title>${escape(module.title)}</title>${module.items
@@ -459,15 +531,74 @@ export function ccManifest(manifest: {
           .map((file) => `<file href="${escape(file)}"/>`)
           .join("")}${(resource.dependencies ?? [])
           .map((dependency) => `<dependency identifierref="${dependency}"/>`)
-          .join("")}</resource>`,
+          .join("")}${
+          // The schema takes extensions such as a variant after the files.
+          resource.variantOf && version === "1.3"
+            ? `<cpx:variant identifier="${resource.identifier}_variant" identifierref="${resource.variantOf}"><cpx:metadata/></cpx:variant>`
+            : ""
+        }</resource>`,
     )
     .join("")}</resources></manifest>
 `;
 }
 
-// --- Canvas's own QTI 1.2 --------------------------------------------------
+/** How students hand work in, as CC 1.3 and Canvas name the ways. */
+export type CcSubmission = "online" | "files" | "both" | "none";
 
-const CANVAS = "http://canvas.instructure.com/xsd/cccv1p0";
+const CC_FORMATS: Record<CcSubmission, string[]> = {
+  online: ["html"],
+  files: ["file"],
+  both: ["html", "file"],
+  none: [],
+};
+
+const CANVAS_TYPES: Record<CcSubmission, string> = {
+  online: "online_text_entry",
+  files: "online_upload",
+  both: "online_text_entry,online_upload",
+  none: "none",
+};
+
+/**
+ * An assignment as CC 1.3 carries one, with Canvas's own block beside it
+ * for what CC has no place for: when it is due, and how it is graded.
+ */
+export function ccAssignment(assignment: {
+  identifier: string;
+  title: string;
+  html: string;
+  points: number | null;
+  dueAt: string | null;
+  submission: CcSubmission;
+}): string {
+  const due = assignment.dueAt
+    ? `<due_at>${assignment.dueAt.slice(0, 19)}</due_at>`
+    : "";
+  const graded = assignment.points !== null;
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<assignment xmlns="http://www.imsglobal.org/xsd/imscc_extensions/assignment" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" identifier="${assignment.identifier}" xsi:schemaLocation="http://www.imsglobal.org/xsd/imscc_extensions/assignment http://www.imsglobal.org/profile/cc/cc_extensions/cc_extresource_assignmentv1p0_v1p0.xsd"><title>${escape(assignment.title)}</title><text texttype="text/html">${escape(assignment.html)}</text><instructor_text texttype="text/plain"></instructor_text><gradable${graded ? ` points_possible="${assignment.points}"` : ""}>${graded}</gradable><submission_formats>${CC_FORMATS[
+    assignment.submission
+  ]
+    .map((format) => `<format type="${format}"/>`)
+    .join(
+      "",
+    )}</submission_formats><extensions platform="canvas.instructure.com"><assignment xmlns="${CANVAS}" identifier="${assignment.identifier}_canvas"><title>${escape(assignment.title)}</title>${due}${graded ? `<points_possible>${assignment.points}</points_possible>` : ""}<grading_type>${graded ? "points" : "not_graded"}</grading_type><submission_types>${CANVAS_TYPES[assignment.submission]}</submission_types><workflow_state>unpublished</workflow_state></assignment></extensions></assignment>
+`;
+}
+
+/** A discussion's opening post as a CC topic. */
+export function ccTopic(topic: {
+  title: string;
+  html: string;
+  version?: CcVersion;
+}): string {
+  const names = namesOf(topic.version ?? "1.1");
+  return `<?xml version="1.0" encoding="UTF-8"?>
+<topic xmlns="${names.topic}" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:schemaLocation="${names.topic} ${names.profile}/${names.file}_imsdt_${SPEC[topic.version ?? "1.1"].tag}.xsd"><title>${escape(topic.title)}</title><text texttype="text/html">${escape(topic.html)}</text></topic>
+`;
+}
+
+// --- Canvas's own QTI 1.2 --------------------------------------------------
 
 /** The most words a highlight offers as choices before it goes as an essay. */
 const MOST_WORDS = 30;

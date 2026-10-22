@@ -825,9 +825,16 @@ Scratch Text to Speech, Translate and tutorials.
    the converter Canvas runs on import (QTIMigrationTool) and Canvas's own
    question converter over the export, every kind arrived with its type,
    points and right answers.
+   A class exports whole for Canvas as a Common Cartridge 1.3 (its
+   record's menu, for its teachers): its modules in the order the class
+   takes them, then its coursework, each assignment with its brief,
+   points, how work is handed in and, in Canvas's own block, when it is
+   due, quizzes in CC's profile and discussions as topics. Manifest and
+   descriptors validate against 1EdTech's CC 1.3 schemas and Canvas's
+   own; Moodle reads only CC 1.1, which the module export stays.
    Left: trying both directions against real Moodle and Canvas sites,
-   which were not to hand; a CC 1.3 option carrying assignments with
-   their due dates.
+   which were not to hand; questions a quiz draws from the bank, which
+   leave without the quiz in the class export.
 3. **Results shaped for xAPI** (score, duration, completion).
    Done: a module's progress view exports a class's results as Experience
    API 1.0.3 statements, as the owner chose, with no store of our own:

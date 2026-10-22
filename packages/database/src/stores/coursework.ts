@@ -175,6 +175,20 @@ export async function assignmentById(
   return row ? assignmentOf(row) : null;
 }
 
+/** A class's assignments still in use, in the order they fall due, drafts last. */
+export async function classAssignments(
+  tx: Tx,
+  tenantId: string,
+  classId: string,
+): Promise<AssignmentRow[]> {
+  const rows = await tx.execute<AssignmentRecord>(sql`
+    select ${assignmentColumns} from core.assignments a
+    where a.tenant_id = ${tenantId}::uuid and a.class_id = ${classId}::uuid
+      and a.status = 'active' and a.state <> 'archived'
+    order by a.due_at nulls last, a.created_at, a.id`);
+  return rows.map(assignmentOf);
+}
+
 export interface AssignmentFields {
   title: string;
   audience: Audience;

@@ -2175,6 +2175,7 @@
   "classesCoTeacher": "Co-teacher",
   "classesDetails": "Class",
   "classesEdit": "Edit class",
+  "classesExportCanvas": "Export for Canvas (Common Cartridge 1.3)",
   "classesEmptyBody": "Add the year's classes, then place students in them from here or from each student's record.",
   "classesEmptyTitle": "No classes in this year yet",
   "classesHomeroom": "Class",
