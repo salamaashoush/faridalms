@@ -73,6 +73,7 @@ import {
   moduleAudiences,
   moduleClasses,
   pacedLessons,
+  lessonReleases,
   discussionPosts,
   passkeys,
   quizAnswers,
@@ -541,6 +542,12 @@ export async function completeFixture(
     lessonId: lesson.id,
     classId: setFor.classId,
     startedByUserId: userId,
+  });
+  await tx.insert(lessonReleases).values({
+    tenantId,
+    lessonId: lesson.id,
+    classId: setFor.classId,
+    releasedByUserId: userId,
   });
   const [submission] = await tx
     .select({

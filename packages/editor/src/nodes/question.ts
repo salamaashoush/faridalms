@@ -1,4 +1,4 @@
-import type { QuestionKind } from "@faridalms/domain/content";
+import type { FeedbackTime, QuestionKind } from "@faridalms/domain/content";
 import type {
   ProjectFile,
   ProjectLanguage,
@@ -328,6 +328,8 @@ export interface QuestionSettings {
   questionId: string;
   points: number;
   tries: number | null;
+  /** When the student learns how it went. */
+  feedbackAt: FeedbackTime;
   multiple: boolean;
   shuffle: boolean;
   caseSensitive: boolean;
@@ -394,6 +396,7 @@ export function defaultSettings(kind: QuestionKind): QuestionSettings {
         ? 2
         : 1,
     tries: null,
+    feedbackAt: "now",
     multiple: false,
     shuffle: kind === "choice",
     caseSensitive: false,
@@ -456,6 +459,7 @@ function questionSettings(stored: StoredSettings): QuestionSettings {
     questionId: stored.questionId ?? base.questionId,
     points: stored.points ?? base.points,
     tries: stored.tries ?? null,
+    feedbackAt: stored.feedbackAt ?? "now",
     multiple: stored.multiple ?? base.multiple,
     shuffle: stored.shuffle ?? base.shuffle,
     caseSensitive: stored.caseSensitive ?? base.caseSensitive,
@@ -628,11 +632,13 @@ export class QuestionNode extends ElementNode {
       codeLanguage,
       hints,
       standards,
+      feedbackAt,
       ...settings
     } = questionSettings(this.getLatest().__settings);
     return {
       ...super.exportJSON(),
       ...settings,
+      ...(feedbackAt === "now" ? {} : { feedbackAt }),
       ...(recordSeconds === null ? {} : { recordSeconds }),
       ...(recordSeconds !== null && recordVideo ? { recordVideo } : {}),
       ...(answerWith === null ? {} : { answerWith }),

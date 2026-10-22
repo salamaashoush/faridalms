@@ -168,6 +168,9 @@ export function questionBlock(node: ContentNode): LessonBlock | null {
     hints: hintsOf(node),
     explanation: node.explanation ?? "",
     tries: node.tries ?? null,
+    ...(node.feedbackAt && node.feedbackAt !== "now"
+      ? { feedbackAt: node.feedbackAt }
+      : {}),
     ...(typeof node.videoAt === "number" ? { videoAt: node.videoAt } : {}),
     ...(node.standards?.length ? { standards: node.standards } : {}),
   };
@@ -706,6 +709,9 @@ export function questionNode(block: LessonBlock): ContentNode | null {
     questionId: block.id,
     points: block.points,
     tries: block.tries,
+    ...(block.feedbackAt && block.feedbackAt !== "now"
+      ? { feedbackAt: block.feedbackAt }
+      : {}),
     ...(block.hints.length > 0 ? { hints: block.hints } : {}),
     explanation: block.explanation,
     ...(typeof block.videoAt === "number" ? { videoAt: block.videoAt } : {}),

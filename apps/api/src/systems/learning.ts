@@ -8,6 +8,7 @@ import type {
 import type { ContentDocument } from "@faridalms/domain/content";
 import type {
   CheckBlock,
+  FeedbackShown,
   LessonCompletion,
   LessonCondition,
   LessonDocument,
@@ -53,6 +54,9 @@ import {
   modulesForClasses,
   orderLessons,
   progressIn,
+  lessonReleased,
+  releaseLesson,
+  releasedLessons,
   publishedLessons,
   quietLessons,
   recordProgress,
@@ -102,6 +106,9 @@ import {
   completionMet,
   describeCheck,
   describeReview,
+  feedbackAtOf,
+  feedbackOpen,
+  heldChecks,
   copyLessonSchema,
   duplicateModuleSchema,
   autoBlocks,
@@ -384,7 +391,7 @@ async function publishedLesson(context: UnitContext, lessonId: string) {
 /** What stops a lesson as it is stored going in front of students. */
 async function storedLessonIssue(
   context: UnitContext,
-  lesson: { id: string; completion: LessonCompletion },
+  lesson: { id: string; completion: LessonCompletion; young: boolean },
 ) {
   const document = await documentOf(context.tx, context.tenantId, {
     type: "lesson",
@@ -393,6 +400,7 @@ async function storedLessonIssue(
   return lessonIssue({
     completion: lesson.completion,
     content: lessonContentOf(document?.content),
+    young: lesson.young,
   });
 }
 
@@ -1618,7 +1626,11 @@ export const pacing = readProcedure
   .handler(async ({ input, context }) => {
     requireCapability(context, "learning:read");
     return {
-      paced: await pacingOf(context, input.lessonId, context.actor.userId),
+      paced: await pacingOf(
+        context,
+        input.lessonId,
+        await classesOfStudent(context, context.actor.userId),
+      ),
     };
   });
 
@@ -1919,13 +1931,19 @@ async function playable(context: UnitContext, lessonId: string) {
     studentId,
   );
   const lessons = await studentLessons(context, owner.id);
-  const [cells, leading] = await Promise.all([
+  const classIds = await classesOfStudent(context, studentId);
+  const [cells, leading, released] = await Promise.all([
     progressIn(context.tx, {
       tenantId: context.tenantId,
       lessonIds: lessons.map((item) => item.id),
       studentIds: [studentId],
     }),
-    pacingOf(context, row.id, studentId),
+    pacingOf(context, row.id, classIds),
+    lessonReleased(context.tx, {
+      tenantId: context.tenantId,
+      lessonId: row.id,
+      classIds,
+    }),
   ]);
   const states = outline(owner, lessons, cells, locked);
   const state = states.find((item) => item.id === row.id)?.state;
@@ -1938,6 +1956,10 @@ async function playable(context: UnitContext, lessonId: string) {
   if (!published) throw new ORPCError("NOT_FOUND");
   const own = cells.find((cell) => cell.lessonId === row.id) ?? null;
   const attempt = own?.attempts ?? 1;
+  const shown: FeedbackShown = {
+    end: Boolean(own?.resultsAt),
+    teacher: released,
+  };
   const rows = await responsesOf(context.tx, {
     tenantId: context.tenantId,
     lessonId: row.id,
@@ -1956,6 +1978,7 @@ async function playable(context: UnitContext, lessonId: string) {
     content: published.content,
     checks: checkStates(published.content, rows),
     paced: leading,
+    shown,
   };
 }
 
@@ -1963,12 +1986,12 @@ async function playable(context: UnitContext, lessonId: string) {
 async function pacingOf(
   context: UnitContext,
   lessonId: string,
-  studentId: string,
+  classIds: readonly string[],
 ) {
   const row = await runningPaced(context.tx, {
     tenantId: context.tenantId,
     lessonId,
-    classIds: await classesOfStudent(context, studentId),
+    classIds,
   });
   return row && { id: row.id, step: row.step, paused: row.paused };
 }
@@ -2003,8 +2026,19 @@ const watchedFor = (context: UnitContext, played: Played) =>
     ? watchedIn(context, played)
     : Promise.resolve({});
 
-const viewOf = (block: CheckBlock, played: Pick<Played, "rows" | "checks">) =>
-  describeCheck(block, played.rows, played.checks[block.id]);
+const viewOf = (
+  block: CheckBlock,
+  played: Pick<Played, "rows" | "checks" | "shown">,
+) => describeCheck(block, played.rows, played.checks[block.id], played.shown);
+
+/**
+ * The score a student is told: none while any question still keeps how it
+ * went from them, since a changing score would tell them.
+ */
+const toldScore = (
+  played: Pick<Played, "content" | "shown">,
+  score: number | null,
+) => (heldChecks(played.content, played.shown).length > 0 ? null : score);
 
 /**
  * The questions a lesson asks again once every one is settled, for lessons
@@ -2110,7 +2144,7 @@ export const playLesson = writeProcedure
       completedAt: completed
         ? (own?.completedAt ?? context.now.toISOString())
         : null,
-      score: own?.score ?? null,
+      score: toldScore(played, own?.score ?? null),
       position: own?.position ?? null,
       watches: await watchedIn(context, played),
       codes: await ownCode(context, played),
@@ -2660,7 +2694,13 @@ async function recordResponse(
       ? { ...answered, files: heldAs(block.files, answered.files) }
       : answered;
   const state = played.checks[block.id];
-  if (isTeacherMarked(block) ? state?.marked : settled(block, state))
+  // An answer whose feedback waits may change until that feedback comes.
+  const held = feedbackAtOf(block) !== "now";
+  if (
+    isTeacherMarked(block)
+      ? state?.marked
+      : settled(block, state) && (!held || feedbackOpen(block, played.shown))
+  )
     throw new ORPCError("CONFLICT", { message: "learning.settled" });
   const marked = isAuto(block) ? markResponse(block, response) : null;
   const kept = responseFiles(response);
@@ -2684,7 +2724,9 @@ async function recordResponse(
     studentId: played.studentId,
     blockId: block.id,
     attempt: played.attempt,
-    try: (state?.tries ?? 0) + 1,
+    try: held
+      ? played.rows.filter((row) => row.blockId === block.id).length + 1
+      : (state?.tries ?? 0) + 1,
     kind: block.type,
     response,
     fraction: marked ? marked.fraction : null,
@@ -2700,13 +2742,14 @@ async function recordResponse(
     attempt: played.attempt,
     block,
     fraction: marked ? marked.fraction : null,
-    replace: false,
+    // A changed answer whose feedback waited replaces the one before.
+    replace: held,
   });
   const result = await settle(context, played);
   const after = { ...played, rows: result.rows, checks: result.checks };
   return {
     check: viewOf(block, after),
-    score: result.best,
+    score: toldScore(played, result.best),
     completed: result.completed,
     review: reviewOf(after),
   };
@@ -2720,7 +2763,9 @@ export const reveal = writeProcedure
     const block = checkBlocks(played.content).find(
       (item) => item.id === input.blockId,
     );
-    if (!block || !isAuto(block)) throw new ORPCError("NOT_FOUND");
+    // An answer whose feedback waits has none to show yet.
+    if (!block || !isAuto(block) || !feedbackOpen(block, played.shown))
+      throw new ORPCError("NOT_FOUND");
     pacedAllows(played, block.id);
     const state = played.checks[block.id];
     if (!settled(block, state))
@@ -2749,10 +2794,68 @@ export const reveal = writeProcedure
     const after = { ...played, rows: result.rows, checks: result.checks };
     return {
       check: viewOf(block, after),
-      score: result.best,
+      score: toldScore(played, result.best),
       completed: result.completed,
       review: reviewOf(after),
     };
+  });
+
+/**
+ * A student asks how they did on the questions that wait for the end of a
+ * lesson, once they have answered every one; their answers stand from then.
+ */
+export const results = writeProcedure
+  .input(v.object({ lessonId: id }))
+  .handler(async ({ input, context }) => {
+    const played = await playable(context, input.lessonId);
+    const waiting = heldChecks(played.content, played.shown).filter(
+      (block) => feedbackAtOf(block) === "end",
+    );
+    if (waiting.length === 0)
+      throw new ORPCError("CONFLICT", { message: "learning.no_results" });
+    if (waiting.some((block) => !settled(block, played.checks[block.id])))
+      throw new ORPCError("CONFLICT", {
+        message: "learning.results_unanswered",
+      });
+    await recordProgress(context.tx, {
+      tenantId: context.tenantId,
+      lessonId: played.row.id,
+      studentId: played.studentId,
+      results: true,
+    });
+    return { shown: true };
+  });
+
+/**
+ * A teacher shows a class how it did on a lesson's questions that wait for
+ * them; students who answer later see it at once.
+ */
+export const release = writeProcedure
+  .input(v.object({ lessonId: id, classId: id }))
+  .handler(async ({ input, context }) => {
+    const row = await lessonById(context.tx, context.tenantId, input.lessonId);
+    if (!row) throw new ORPCError("NOT_FOUND");
+    const owner = await editable(context, row.moduleId);
+    const classes = await classesOfModule(
+      context.tx,
+      context.tenantId,
+      owner.id,
+    );
+    if (!classes.some((item) => item.id === input.classId))
+      throw new ORPCError("NOT_FOUND");
+    await releaseLesson(context.tx, {
+      tenantId: context.tenantId,
+      lessonId: row.id,
+      classId: input.classId,
+      userId: context.actor.userId,
+    });
+    await audit(context, {
+      action: "lesson.release",
+      objectType: "lesson",
+      objectId: row.id,
+      details: { classId: input.classId },
+    });
+    return { released: true };
   });
 
 /**
@@ -2906,6 +3009,9 @@ export const retry = writeProcedure
       throw new ORPCError("CONFLICT", { message: "learning.nothing_to_retry" });
     if (!auto.every((block) => settled(block, played.checks[block.id])))
       throw new ORPCError("CONFLICT", { message: "learning.not_done" });
+    // Another go starts from knowing how this one went.
+    if (heldChecks(played.content, played.shown).length > 0)
+      throw new ORPCError("CONFLICT", { message: "learning.results_waiting" });
     await recordProgress(context.tx, {
       tenantId: context.tenantId,
       lessonId: played.row.id,
@@ -3159,6 +3265,8 @@ function questionsOf(
       id: block.id,
       kind: block.type,
       prompt: block.prompt,
+      /** Answered in one go, its feedback waiting, so the last answer counts. */
+      once: feedbackAtOf(block) !== "now",
       options:
         block.type === "choice"
           ? block.options.map((option) => ({
@@ -3175,12 +3283,17 @@ function questionsOf(
       ),
       firstChoices: Object.fromEntries(
         roster.flatMap((studentId) => {
-          const first = rows.find(
+          const answered = rows.filter(
             (response) =>
               response.studentId === studentId &&
               response.blockId === block.id &&
-              response.try === 1 &&
               response.state === "answered",
+          );
+          // An answer whose feedback waited counts as last given.
+          const first = (
+            feedbackAtOf(block) === "now"
+              ? answered.find((response) => response.try === 1)
+              : answered.at(-1)
           )?.response;
           const chosen = first?.optionIds;
           return Array.isArray(chosen) ? [[studentId, chosen]] : [];
@@ -3209,7 +3322,7 @@ export const questions = readProcedure
       lessonsOf(context.tx, context.tenantId, row.id),
       audienceOf(context, row.id, input.classId),
     ]);
-    const [students, rows, ran] = await Promise.all([
+    const [students, rows, ran, released] = await Promise.all([
       namesOf(context.tx, context.tenantId, roster),
       firstAttempts(context.tx, {
         tenantId: context.tenantId,
@@ -3220,6 +3333,11 @@ export const questions = readProcedure
         tenantId: context.tenantId,
         lessonIds: lessons.map((item) => item.id),
         studentIds: roster,
+      }),
+      releasedLessons(context.tx, {
+        tenantId: context.tenantId,
+        lessonIds: lessons.map((item) => item.id),
+        classId: input.classId,
       }),
     ]);
     const asked = [];
@@ -3239,6 +3357,12 @@ export const questions = readProcedure
         title: item.title,
         young: item.young,
         questions: marked,
+        /** Whether some of its questions wait for the teacher, and whether this class has been shown. */
+        release: autoBlocks(content).some(
+          (block) => feedbackAtOf(block) === "teacher",
+        )
+          ? { released: released.includes(item.id) }
+          : null,
       });
     }
     return { students, lessons: asked };

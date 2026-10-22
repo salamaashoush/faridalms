@@ -299,6 +299,10 @@ export interface EditorStrings extends LabelEditorStrings, ChartStrings {
   questionOptions: string;
   questionTries: string;
   questionTriesUntilRight: string;
+  questionFeedbackAt: string;
+  questionFeedbackNow: string;
+  questionFeedbackEnd: string;
+  questionFeedbackTeacher: string;
   questionMathTolerance: string;
   questionToleranceExact: string;
   questionToleranceWithin: (amount: string) => string;

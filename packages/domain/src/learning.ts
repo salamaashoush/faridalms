@@ -7,13 +7,14 @@ import { solves } from "@faridalms/puzzles/run";
 import { ARROWS, pythonOf } from "@faridalms/puzzles/text";
 import * as v from "valibot";
 
-import type { ContentDocument, ContentNode } from "./content";
+import type { ContentDocument, ContentNode, FeedbackTime } from "./content";
 
 import { matchAnswer, parseNumber } from "./answers";
 import {
   codeSource,
   contentDocumentSchema,
   contentPlainText,
+  FEEDBACK_TIMES,
   MAX_LATEX,
   mathText,
   narrationWordsSchema,
@@ -158,6 +159,8 @@ const checkFields = {
   /** Shown in order, one more after each wrong try. */
   hints: v.pipe(v.array(text(500)), v.maxLength(MAX_HINTS)),
   explanation: text(1000),
+  /** When the student learns how it went; at once when absent. */
+  feedbackAt: v.optional(v.picklist(FEEDBACK_TIMES)),
   /** Tries before the answer is shown; null lets the student keep trying until they ask. */
   tries: v.nullable(
     v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(10)),
@@ -684,6 +687,50 @@ const MARKED_TYPES = new Set<LessonBlockType>([
 
 export const isAuto = (block: LessonBlock): block is AutoBlock =>
   AUTO_TYPES.has(block.type);
+
+/**
+ * Questions whose feedback can wait: those answered in one go. Code is
+ * learnt by running it and a young child's activity by trying, so both
+ * always answer at once.
+ */
+const DEFERRABLE_TYPES = new Set<LessonBlockType>([
+  "choice",
+  "text",
+  "math",
+  "gaps",
+  "number",
+  "matching",
+  "ordering",
+  "sorting",
+]);
+
+export { FEEDBACK_TIMES, type FeedbackTime };
+
+export function feedbackAtOf(block: LessonBlock): FeedbackTime {
+  if (!DEFERRABLE_TYPES.has(block.type) || !("feedbackAt" in block))
+    return "now";
+  if (block.type === "matching" && block.memory) return "now";
+  return block.feedbackAt ?? "now";
+}
+
+/** Which kinds of waiting feedback a student has been given. */
+export interface FeedbackShown {
+  /** They asked to see how they did, having answered every question that waits for the end. */
+  end: boolean;
+  /** Their teacher has shown their class. */
+  teacher: boolean;
+}
+
+export const ALL_SHOWN: FeedbackShown = { end: true, teacher: true };
+
+export const feedbackOpen = (block: LessonBlock, shown: FeedbackShown) => {
+  const at = feedbackAtOf(block);
+  return at === "now" || shown[at];
+};
+
+/** The questions of a lesson still keeping how they went from its student. */
+export const heldChecks = (document: LessonDocument, shown: FeedbackShown) =>
+  autoBlocks(document).filter((block) => !feedbackOpen(block, shown));
 export const isTeacherMarked = (block: LessonBlock): block is MarkedBlock =>
   MARKED_TYPES.has(block.type);
 export const isCheck = (block: LessonBlock): block is CheckBlock =>
@@ -941,6 +988,7 @@ export function lessonScored(content: ContentDocument): boolean {
 export function lessonIssue(lesson: {
   completion: LessonCompletion;
   content: ContentDocument;
+  young?: boolean;
 }): string | null {
   const document = lessonOfContent(lesson.content);
   if (lessonPlainText(document).trim() === "") return "learning.lesson_empty";
@@ -972,6 +1020,12 @@ export function lessonIssue(lesson: {
     return "learning.needs_reflection";
   if (lesson.completion === "watch" && lessonWatchables(document).length === 0)
     return "learning.needs_media";
+  // A young child learns from each answer as they give it.
+  if (
+    lesson.young &&
+    autoBlocks(document).some((block) => feedbackAtOf(block) !== "now")
+  )
+    return "learning.young_feedback";
   const last = document.blocks.findLastIndex((block) => block.type !== "gate");
   if (document.blocks.slice(last + 1).length > 0)
     return "learning.gate_opens_nothing";
@@ -1592,14 +1646,21 @@ export interface CheckState {
   /** For an answer its teacher marks: marked, and with what feedback. */
   marked: boolean;
   firstTryCorrect: boolean;
+  /** Its feedback waited, so it was answered in one go however often it changed. */
+  once: boolean;
   /** How a question missed at first went when asked again at the end. */
   review: number | null;
 }
 
-/** Whether a question is settled: answered right, revealed, or for one its teacher marks, sent. */
+/**
+ * Whether a question is settled: answered right or revealed, or, for one
+ * its teacher marks or one whose feedback waits, answered.
+ */
 export const settled = (block: CheckBlock, state: CheckState | undefined) =>
   state !== undefined &&
-  (isTeacherMarked(block) ? state.tries > 0 : state.correct || state.revealed);
+  (isTeacherMarked(block) || feedbackAtOf(block) !== "now"
+    ? state.tries > 0
+    : state.correct || state.revealed);
 
 /** Credit for a question: its best try, less a share for each extra try, nothing once revealed. */
 export function creditOf(state: CheckState | undefined): number {
@@ -2508,7 +2569,9 @@ export interface ResponseRow {
 /**
  * Each question's state in one attempt, from its rows in order. A question
  * with limited tries is revealed once they run out; one its teacher marks
- * takes the fraction of its latest mark.
+ * takes the fraction of its latest mark. One whose feedback waits is one
+ * try however often its answer changed, since nothing told the student it
+ * was wrong: its last answer is the one that counts.
  */
 export function checkStates(
   document: LessonDocument,
@@ -2525,20 +2588,22 @@ export function checkStates(
     const tries =
       answered.length === 0 ? 0 : Math.max(...answered.map((row) => row.try));
     const marking = isTeacherMarked(block);
+    const held = feedbackAtOf(block) !== "now";
     const fraction = marking ? (mark?.fraction ?? 0) : (last?.fraction ?? 0);
     const correct = marking ? false : fraction === 1;
     states[block.id] = {
-      tries,
+      tries: held ? Math.min(1, tries) : tries,
       fraction,
       correct,
       revealed:
         !marking &&
         (mine.some((row) => row.state === "revealed") ||
-          (!correct && block.tries !== null && tries >= block.tries)),
+          (!held && !correct && block.tries !== null && tries >= block.tries)),
       marked: mark !== undefined,
-      firstTryCorrect: answered.some(
-        (row) => row.try === 1 && row.fraction === 1,
-      ),
+      firstTryCorrect: held
+        ? correct
+        : answered.some((row) => row.try === 1 && row.fraction === 1),
+      once: held,
       review: mine.find((row) => row.state === "reviewed")?.fraction ?? null,
     };
   }
@@ -2548,13 +2613,21 @@ export function checkStates(
 /**
  * How a student stands on a question, as its teacher reads a class at a
  * glance: right first time, right after trying, shown the answer, still
- * working on it, or not reached.
+ * working on it, answered wrong in the one go it had, or not reached.
  */
-export type CheckStanding = "first" | "later" | "shown" | "trying" | "unseen";
+export type CheckStanding =
+  | "first"
+  | "later"
+  | "shown"
+  | "trying"
+  | "missed"
+  | "unseen";
 
 export function standingOf(state: CheckState | undefined): CheckStanding {
   if (!state || (state.tries === 0 && !state.revealed)) return "unseen";
   if (state.firstTryCorrect) return "first";
+  // Answered in one go, with no tries left to make.
+  if (state.once) return "missed";
   if (state.correct) return "later";
   if (state.revealed) return "shown";
   return "trying";
@@ -2572,7 +2645,10 @@ export function reviewBlocks(
   document: LessonDocument,
   states: Record<string, CheckState>,
 ): AutoBlock[] {
-  const asked = autoBlocks(document);
+  // One whose feedback waited was answered once, with no answer to remember.
+  const asked = autoBlocks(document).filter(
+    (block) => feedbackAtOf(block) === "now",
+  );
   if (!asked.every((block) => settled(block, states[block.id]))) return [];
   return asked.filter((block) => missed(block, states[block.id]));
 }
@@ -2607,6 +2683,7 @@ export function describeReview(
     marked: false,
     credit: null,
     markFeedback: null,
+    timing: null,
   };
 }
 
@@ -2639,13 +2716,17 @@ export interface CheckView {
   /** Points an answer its teacher marks earned, once marked. */
   credit: number | null;
   markFeedback: string | null;
+  /** For a question whose feedback waits: what for, and whether it has come. */
+  timing: { at: "end" | "teacher"; open: boolean } | null;
 }
 
 export function describeCheck(
   block: CheckBlock,
   rows: readonly StoredTry[],
   state: CheckState | undefined,
+  shown: FeedbackShown = ALL_SHOWN,
 ): CheckView {
+  const at = feedbackAtOf(block);
   const mine = rows.filter(
     (row) =>
       row.blockId === block.id &&
@@ -2673,7 +2754,10 @@ export function describeCheck(
     marked: state?.marked ?? false,
     credit: null,
     markFeedback: null,
+    timing: at === "now" ? null : { at, open: shown[at] },
   };
+  // Until it is shown, the student has only the answer they kept.
+  if (base.timing && !base.timing.open) return base;
   if (isTeacherMarked(block))
     return {
       ...base,
@@ -2696,7 +2780,10 @@ export function describeCheck(
     correct: state?.correct ?? false,
     revealed: state?.revealed ?? false,
     fraction: state?.fraction ?? 0,
-    triesLeft: block.tries === null ? null : Math.max(0, block.tries - tries),
+    triesLeft:
+      block.tries === null || base.timing
+        ? null
+        : Math.max(0, block.tries - tries),
     feedback: marked?.feedback ?? [],
     parts: marked?.parts ?? {},
     hints: shownHints,

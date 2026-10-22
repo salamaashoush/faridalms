@@ -42,6 +42,7 @@ import {
   CircleCheck,
   Clock,
   Eye,
+  Hourglass,
   Lock,
   Pencil,
   Play,
@@ -88,6 +89,7 @@ import {
   recordRun,
   respondToCheck,
   retryLesson,
+  seeResults,
   revealCheck,
   saveReadingPosition,
   saveWatch,
@@ -792,6 +794,11 @@ export function LessonPlayer({ lessonId }: { lessonId: string }) {
     },
     onError: (error) => toast.error(getMessageFromError(error)),
   });
+  const results = useMutation({
+    mutationFn: () => seeResults({ data: { lessonId } }),
+    onSuccess: refresh,
+    onError: (error) => toast.error(getMessageFromError(error)),
+  });
   const retry = useMutation({
     mutationFn: () => retryLesson({ data: { lessonId } }),
     onSuccess: async () => {
@@ -843,7 +850,16 @@ export function LessonPlayer({ lessonId }: { lessonId: string }) {
   const allSettled = auto.every((block) =>
     isSettled(block, data.checks[block.id]),
   );
-  const canRetry = auto.length > 0 && allSettled;
+  // Questions still keeping how they went, for the end or the teacher.
+  const held = auto.flatMap((block) => {
+    const view = data.checks[block.id];
+    return view?.timing && !view.timing.open
+      ? [{ at: view.timing.at, answered: view.tries > 0 }]
+      : [];
+  });
+  const forEnd = held.filter((item) => item.at === "end");
+  const endAnswered = forEnd.filter((item) => item.answered).length;
+  const canRetry = auto.length > 0 && allSettled && held.length === 0;
   const hint = ruleText(data.completion, data.passScore);
   const place = m.lrnLessonOf({
     number: formatNumber(data.index + 1),
@@ -992,6 +1008,33 @@ export function LessonPlayer({ lessonId }: { lessonId: string }) {
             />
           ))}
         </section>
+      ) : null}
+      {forEnd.length > 0 ? (
+        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-muted/50 px-5 py-4">
+          <p className="text-sm leading-5 text-muted-foreground">
+            {endAnswered < forEnd.length
+              ? m.lrnResultsProgress({
+                  answered: formatNumber(endAnswered),
+                  total: formatNumber(forEnd.length),
+                })
+              : m.lrnResultsReady()}
+          </p>
+          <Button
+            type="button"
+            className="max-md:h-10"
+            disabled={endAnswered < forEnd.length || results.isPending}
+            onClick={() => results.mutate()}
+          >
+            <Eye aria-hidden />
+            {m.lrnSeeResults()}
+          </Button>
+        </div>
+      ) : null}
+      {held.some((item) => item.at === "teacher") ? (
+        <p className="flex items-start gap-2 rounded-lg bg-muted/50 px-5 py-4 text-sm leading-5 text-muted-foreground">
+          <Hourglass aria-hidden className="mt-0.5 size-4 shrink-0" />
+          {m.lrnResultsTeacher()}
+        </p>
       ) : null}
       {data.completedAt ? (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-success/30 bg-success/5 px-5 py-4">

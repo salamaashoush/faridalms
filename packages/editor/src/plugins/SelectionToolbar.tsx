@@ -1,7 +1,9 @@
 import type {
   ContentNode,
+  FeedbackTime,
   FileDisplay,
   ImageSize,
+  QuestionKind,
   StandardTarget,
 } from "@faridalms/domain/content";
 import type { ReferenceElement } from "@floating-ui/dom";
@@ -14,7 +16,11 @@ import type {
 
 import { Menu } from "@base-ui/react/menu";
 import { parseNumber } from "@faridalms/domain/answers";
-import { fileDisplays, imageSizes } from "@faridalms/domain/content";
+import {
+  FEEDBACK_TIMES,
+  fileDisplays,
+  imageSizes,
+} from "@faridalms/domain/content";
 import { fileFamily } from "@faridalms/domain/file";
 import { MAX_HINTS } from "@faridalms/domain/learning";
 import {
@@ -257,6 +263,17 @@ type QuestionText = "explanation" | "feedback" | "alt";
 const POINTS = [0, 1, 2, 3, 4, 5, 6, 8, 10];
 const DRAW_COUNTS = [1, 2, 3, 4, 5, 6, 8, 10, 12, 15, 20];
 const TRIES = [null, 1, 2, 3, 5] as const;
+/** Questions answered in one go, whose feedback can wait. */
+const DEFERRABLE = new Set<QuestionKind>([
+  "choice",
+  "text",
+  "math",
+  "gaps",
+  "number",
+  "matching",
+  "ordering",
+  "sorting",
+]);
 const CODE_LANGUAGES = ["python", "javascript", "html", "text"] as const;
 /** Languages a code exercise can be marked in. */
 const PROGRAM_LANGUAGES = ["python", "javascript"] as const;
@@ -485,6 +502,7 @@ export function SelectionToolbarPlugin() {
     lockQuestions,
     narration: narrates,
     lessonActivities,
+    feedbackTiming,
     locale,
     questions,
   } = useEditorEnvironment();
@@ -1398,6 +1416,12 @@ export function SelectionToolbarPlugin() {
       value === null
         ? strings.questionTriesUntilRight
         : strings.questionTriesCount(value);
+    const feedbackText = (value: FeedbackTime) =>
+      value === "end"
+        ? strings.questionFeedbackEnd
+        : value === "teacher"
+          ? strings.questionFeedbackTeacher
+          : strings.questionFeedbackNow;
     const wordsText = (value: number | null) =>
       value === null ? strings.questionNoLimit : strings.questionWords(value);
     const formatCount = (value: number) =>
@@ -1692,15 +1716,31 @@ export function SelectionToolbarPlugin() {
                   finalFocus={textFocus(editor)}
                 />
               ) : null}
-              <BarMenu
-                label={strings.questionTries}
-                current={triesText(settings.tries)}
-                values={TRIES}
-                text={triesText}
-                onPick={(tries) => change({ tries })}
-                onOpenChange={trackMenu}
-                finalFocus={textFocus(editor)}
-              />
+              {feedbackTiming &&
+              DEFERRABLE.has(settings.kind) &&
+              !(settings.kind === "matching" && settings.memory) ? (
+                <BarMenu
+                  label={strings.questionFeedbackAt}
+                  current={feedbackText(settings.feedbackAt)}
+                  values={FEEDBACK_TIMES}
+                  text={feedbackText}
+                  onPick={(feedbackAt) => change({ feedbackAt })}
+                  onOpenChange={trackMenu}
+                  finalFocus={textFocus(editor)}
+                />
+              ) : null}
+              {/* An answer whose feedback waits is one go, changed until then. */}
+              {feedbackTiming && settings.feedbackAt !== "now" ? null : (
+                <BarMenu
+                  label={strings.questionTries}
+                  current={triesText(settings.tries)}
+                  values={TRIES}
+                  text={triesText}
+                  onPick={(tries) => change({ tries })}
+                  onOpenChange={trackMenu}
+                  finalFocus={textFocus(editor)}
+                />
+              )}
             </>
           )}
           {settings.kind === "math" ? (

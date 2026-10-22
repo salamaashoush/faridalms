@@ -419,6 +419,7 @@ const BOARD_STANDINGS: readonly CheckStanding[] = [
   "later",
   "shown",
   "trying",
+  "missed",
 ];
 
 function BoardQuestion({

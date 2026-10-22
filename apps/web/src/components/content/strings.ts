@@ -339,6 +339,10 @@ export function editorStrings(): EditorStrings {
     questionOptions: m.editorQuestionOptions(),
     questionTries: m.editorQuestionTries(),
     questionTriesUntilRight: m.editorQuestionTriesUntilRight(),
+    questionFeedbackAt: m.editorQuestionFeedbackAt(),
+    questionFeedbackNow: m.editorQuestionFeedbackNow(),
+    questionFeedbackEnd: m.editorQuestionFeedbackEnd(),
+    questionFeedbackTeacher: m.editorQuestionFeedbackTeacher(),
     questionMathTolerance: m.editorQuestionMathTolerance(),
     questionToleranceExact: m.editorQuestionToleranceExact(),
     questionToleranceWithin: (amount) =>

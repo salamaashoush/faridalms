@@ -220,6 +220,21 @@ export const revealCheck = createServerFn({ method: "POST" })
   .validator(checked(revealSchema))
   .handler(({ data }) => backend().learning.reveal(data));
 
+export const seeResults = createServerFn({ method: "POST" })
+  .validator(checked(v.object({ lessonId: v.pipe(v.string(), v.uuid()) })))
+  .handler(({ data }) => backend().learning.results(data));
+
+export const releaseLesson = createServerFn({ method: "POST" })
+  .validator(
+    checked(
+      v.object({
+        lessonId: v.pipe(v.string(), v.uuid()),
+        classId: v.pipe(v.string(), v.uuid()),
+      }),
+    ),
+  )
+  .handler(({ data }) => backend().learning.release(data));
+
 export const retryLesson = createServerFn({ method: "POST" })
   .validator(checked(v.object({ lessonId: v.pipe(v.string(), v.uuid()) })))
   .handler(({ data }) => backend().learning.retry(data));

@@ -171,6 +171,11 @@ export interface EditorEnvironment {
    * and counting.
    */
   lessonActivities?: boolean;
+  /**
+   * Questions may keep how they went until the end of the lesson, or until
+   * the teacher shows the class, as a lesson for older students may.
+   */
+  feedbackTiming?: boolean;
 }
 
 const Context = createContext<EditorEnvironment | null>(null);

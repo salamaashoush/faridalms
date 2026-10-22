@@ -346,6 +346,48 @@ export const pacedLessons = core.table.withRLS(
 );
 
 /**
+ * A teacher showing a class how it did on the questions of a lesson that
+ * wait for them. It holds for every student of the class in the lesson,
+ * those who answer later included.
+ */
+export const lessonReleases = core.table.withRLS(
+  "lesson_releases",
+  {
+    ...tenantColumns(),
+    lessonId: uuid("lesson_id").notNull(),
+    classId: uuid("class_id").notNull(),
+    releasedByUserId: uuid("released_by_user_id").notNull(),
+    releasedAt: instant("released_at")
+      .notNull()
+      .default(sql`statement_timestamp()`),
+    ...entityColumns(),
+  },
+  (t): PgTableExtraConfigValue[] => [
+    pk("lesson_releases", t.tenantId, t.id),
+    ...baseConstraints("lesson_releases", t, tenants),
+    fk(
+      "lesson_releases",
+      [t.tenantId, t.lessonId],
+      [lessons.tenantId, lessons.id],
+    ),
+    fk(
+      "lesson_releases",
+      [t.tenantId, t.classId],
+      [classes.tenantId, classes.id],
+    ),
+    fk(
+      "lesson_releases",
+      [t.tenantId, t.releasedByUserId],
+      [users.tenantId, users.id],
+    ),
+    uniqueIndex("lesson_releases_key")
+      .on(t.tenantId, t.lessonId, t.classId)
+      .where(sql`status = 'active'`),
+    ...entityProfile(),
+  ],
+);
+
+/**
  * Where a student is in a lesson: their score, where they stopped reading,
  * and whether it is done, by their own work or a teacher's override. Their
  * answers are the rows of `lesson_responses`.
@@ -367,6 +409,8 @@ export const lessonProgress = core.table.withRLS(
     /** The attempt the student is on; a fresh try at the whole lesson starts the next. */
     attempts: smallint("attempts").notNull().default(1),
     position: text("position"),
+    /** When the student asked how they did on the questions that wait for the end, this attempt. */
+    resultsAt: instant("results_at"),
     ...entityColumns(),
   },
   (t): PgTableExtraConfigValue[] => [

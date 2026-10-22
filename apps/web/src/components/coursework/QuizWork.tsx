@@ -64,6 +64,7 @@ function keptView(response: LessonResponse | undefined): CheckView | undefined {
     marked: false,
     credit: null,
     markFeedback: null,
+    timing: null,
   };
 }
 

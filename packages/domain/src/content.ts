@@ -128,6 +128,14 @@ export const questionKinds = [
   "puzzle",
 ] as const;
 export type QuestionKind = (typeof questionKinds)[number];
+/**
+ * When a student learns how a question went: at once, as they answer; at
+ * the end, once they have answered every question that waits for it, as
+ * Moodle's deferred feedback does; or when their teacher shows the class.
+ * Until then an answer is kept and may be changed, as in a quiz.
+ */
+export const FEEDBACK_TIMES = ["now", "end", "teacher"] as const;
+export type FeedbackTime = (typeof FEEDBACK_TIMES)[number];
 export const calloutTones = [
   "neutral",
   "info",
@@ -282,6 +290,8 @@ export interface ContentNode {
   feedback?: string;
   points?: number;
   tries?: number | null;
+  /** When the student learns how a question went; at once when absent. */
+  feedbackAt?: FeedbackTime;
   multiple?: boolean;
   shuffle?: boolean;
   caseSensitive?: boolean;
@@ -593,6 +603,7 @@ const nodeSchema: v.GenericSchema<ContentNode> = v.lazy(() =>
       feedback: v.optional(v.pipe(v.string(), v.maxLength(300))),
       points: v.optional(integer(0, 100)),
       tries: v.optional(v.nullable(integer(1, 10))),
+      feedbackAt: v.optional(v.picklist(FEEDBACK_TIMES)),
       multiple: v.optional(v.boolean()),
       shuffle: v.optional(v.boolean()),
       caseSensitive: v.optional(v.boolean()),

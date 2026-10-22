@@ -1470,6 +1470,142 @@ describe("asking missed questions again", () => {
   });
 });
 
+describe("feedback that waits", () => {
+  test("a question tells how it went at the end, or once the teacher shows the class", async () => {
+    const { keeper } = await teachers();
+    const { rows } = await keeper.learning.modules({});
+    const source = rows.find((row) => row.title === TITLE);
+    if (!source) throw new Error("no module");
+    const saved = await keeper.learning.saveModule({
+      id: "",
+      expectedVersion: 0,
+      title: "Exit ticket",
+      summary: "",
+      classIds: source.classes.map((item) => item.id),
+      prerequisiteId: "",
+      sequential: false,
+    });
+    const right = id();
+    const wrong = id();
+    const asked = (prompt: string, feedbackAt: "end" | "teacher") => ({
+      id: id(),
+      type: "choice" as const,
+      prompt,
+      points: 1,
+      hints: ["Look again."],
+      explanation: "Because.",
+      tries: 2,
+      feedbackAt,
+      options: [
+        { id: right, text: "Tree", feedback: "A thing." },
+        { id: wrong, text: "Run", feedback: "An action." },
+      ],
+      correctOptionIds: [right],
+      multiple: false,
+      shuffle: false,
+    });
+    const atEnd = asked("Which is a noun?", "end");
+    const forTeacher = asked("Which names a thing?", "teacher");
+    const lesson = {
+      id: "",
+      moduleId: saved.id,
+      expectedVersion: 0,
+      title: "Nouns",
+      completion: "quiz" as const,
+      passScore: null,
+      review: false,
+      content: written([atEnd, forTeacher]),
+      publish: false,
+    };
+    await keeper.learning.saveLesson(lesson);
+    await keeper.learning.publishModule({
+      id: saved.id,
+      expectedVersion: saved.version,
+    });
+    // A young child learns from each answer as they give it.
+    expect(
+      await rejection(
+        keeper.learning.saveLesson({ ...lesson, young: true, publish: true }),
+      ),
+    ).toMatchObject({ message: "learning.young_feedback" });
+
+    const pupil = await student();
+    const outline = await pupil.learning.play({ id: saved.id });
+    const lessonId = outline.lessons[0]?.id ?? "";
+    const choose = (blockId: string, optionId: string) =>
+      pupil.learning.respond({
+        lessonId,
+        blockId,
+        response: { type: "choice", optionIds: [optionId] },
+      });
+    expect(await rejection(pupil.learning.results({ lessonId }))).toMatchObject(
+      { message: "learning.results_unanswered" },
+    );
+    const kept = await choose(atEnd.id, wrong);
+    expect(kept.check).toMatchObject({
+      tries: 1,
+      correct: false,
+      feedback: [],
+      hints: [],
+      key: null,
+      explanation: null,
+      timing: { at: "end", open: false },
+    });
+    expect(kept.score).toBeNull();
+    // Nothing said it was wrong, so the change is the same one go.
+    const changed = await choose(atEnd.id, right);
+    expect(changed.check).toMatchObject({ tries: 1, correct: false });
+    expect(
+      await rejection(pupil.learning.reveal({ lessonId, blockId: atEnd.id })),
+    ).toMatchObject({ code: "NOT_FOUND" });
+
+    await pupil.learning.results({ lessonId });
+    const shown = await pupil.learning.playLesson({ id: lessonId });
+    expect(shown.checks[atEnd.id]).toMatchObject({
+      correct: true,
+      key: [right],
+      explanation: "Because.",
+      timing: { at: "end", open: true },
+    });
+    expect(await rejection(choose(atEnd.id, wrong))).toMatchObject({
+      message: "learning.settled",
+    });
+    await choose(forTeacher.id, wrong);
+    expect(shown.score).toBeNull();
+    expect(await rejection(pupil.learning.retry({ lessonId }))).toMatchObject({
+      message: "learning.results_waiting",
+    });
+
+    const classes = await Promise.all(
+      source.classes.map((item) =>
+        keeper.learning.questions({ moduleId: saved.id, classId: item.id }),
+      ),
+    );
+    expect(
+      classes.flatMap((view) => view.lessons).map((row) => row.release),
+    ).toContainEqual({ released: false });
+    for (const item of source.classes)
+      await keeper.learning.release({ lessonId, classId: item.id });
+    expect(
+      await rejection(
+        pupil.learning.release({
+          lessonId,
+          classId: source.classes[0]?.id ?? "",
+        }),
+      ),
+    ).toMatchObject({ code: "NOT_FOUND" });
+    const released = await pupil.learning.playLesson({ id: lessonId });
+    expect(released.checks[forTeacher.id]).toMatchObject({
+      correct: false,
+      feedback: ["An action."],
+      key: [right],
+      timing: { at: "teacher", open: true },
+    });
+    expect(released.score).toBe(50);
+    await pupil.learning.retry({ lessonId });
+  });
+});
+
 describe("a module's file area", () => {
   test("keeps a lesson's pictures for the module, open to its classes once shown", async () => {
     const tenant = seeded().tenants[0];

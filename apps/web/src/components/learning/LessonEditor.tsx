@@ -686,6 +686,7 @@ export function LessonEditor({
           questions
           narration
           lessonActivities
+          feedbackTiming={!draft.young}
           collaboration={shared ? live.collaboration : undefined}
           pending={live.state === "loading"}
           replace={replace}

@@ -583,6 +583,14 @@ export function getMessageFromError(error: unknown): string {
         return m.lrnErrLocked();
       case "learning.not_done":
         return m.lrnErrNotDone();
+      case "learning.results_unanswered":
+        return m.lrnErrResultsUnanswered();
+      case "learning.results_waiting":
+        return m.lrnErrResultsWaiting();
+      case "learning.no_results":
+        return m.lrnErrNoResults();
+      case "learning.young_feedback":
+        return m.lrnErrYoungFeedback();
       case "learning.option":
         return m.lrnErrOption();
       case "learning.pass_score":

@@ -2,14 +2,16 @@ import type { CheckStanding } from "@faridalms/domain/learning";
 
 import { TextWithMath } from "@faridalms/editor/math";
 import { Button } from "@faridalms/ui/button";
-import { useQuery } from "@tanstack/react-query";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   CircleCheck,
   CircleDashed,
+  Eye,
   HandHelping,
   History,
   ListChecks,
 } from "lucide-react";
+import { toast } from "sonner";
 
 import type { Tone } from "~/components/system/status";
 
@@ -26,7 +28,9 @@ import { EmptyState } from "~/components/system/IndexPage";
 import { StatusBadge } from "~/components/system/status";
 import * as m from "~/i18n/messages";
 import { classQuestionsQuery } from "~/queries/learning";
+import { releaseLesson } from "~/server/learning";
 import { formatList, formatNumber } from "~/utils/datetime";
+import { getMessageFromError } from "~/utils/error";
 
 type Data = Awaited<
   ReturnType<NonNullable<ReturnType<typeof classQuestionsQuery>["queryFn"]>>
@@ -39,6 +43,7 @@ const STANDINGS: readonly CheckStanding[] = [
   "later",
   "shown",
   "trying",
+  "missed",
   "unseen",
 ];
 
@@ -47,6 +52,7 @@ export const STANDING_LABEL: Record<CheckStanding, () => string> = {
   later: m.lrnStandingLater,
   shown: m.lrnStandingShown,
   trying: m.lrnStandingTrying,
+  missed: m.lrnStandingMissed,
   unseen: m.lrnStandingUnseen,
 };
 
@@ -55,6 +61,7 @@ const STANDING_TONE: Record<CheckStanding, Tone> = {
   later: "info",
   shown: "warning",
   trying: "accent",
+  missed: "danger",
   unseen: "neutral",
 };
 
@@ -141,7 +148,7 @@ export function QuestionCard({
       {question.options ? (
         <div className="grid gap-3">
           <p className="text-[13px] leading-[18px] text-muted-foreground">
-            {m.lrnFirstChoices()}
+            {question.once ? m.lrnLastChoices() : m.lrnFirstChoices()}
           </p>
           <ul className="grid gap-3">
             {question.options.map((option) => {
@@ -249,6 +256,7 @@ const YOUNG_OF: Record<CheckStanding, YoungStanding> = {
   later: "helped",
   shown: "helped",
   trying: "notYet",
+  missed: "notYet",
   unseen: "notYet",
 };
 
@@ -360,6 +368,46 @@ function YoungGrid({
 }
 
 /**
+ * A teacher shows the class how it did on a lesson's questions that wait
+ * for them; once shown, it stays shown, as returned work does.
+ */
+function Release({
+  lessonId,
+  classId,
+  released,
+}: {
+  lessonId: string;
+  classId: string;
+  released: boolean;
+}) {
+  const queryClient = useQueryClient();
+  const show = useMutation({
+    mutationFn: () => releaseLesson({ data: { lessonId, classId } }),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["learning"] });
+      toast.success(m.lrnReleased());
+    },
+    onError: (error) => toast.error(getMessageFromError(error)),
+  });
+  if (released)
+    return <StatusBadge tone="success">{m.lrnReleased()}</StatusBadge>;
+  return (
+    <Button
+      type="button"
+      size="sm"
+      variant="outline"
+      className="max-md:h-10"
+      disabled={show.isPending}
+      title={m.lrnReleaseHint()}
+      onClick={() => show.mutate()}
+    >
+      <Eye aria-hidden />
+      {m.lrnRelease()}
+    </Button>
+  );
+}
+
+/**
  * How a class did on each question, from every student's first attempt:
  * where each stands, and for a choice who first picked which option, so a
  * common wrong idea shows. Only the teacher sees it.
@@ -391,12 +439,21 @@ export function ClassQuestions({
           aria-labelledby={`questions-${lesson.id}`}
           className="grid gap-3"
         >
-          <h2
-            id={`questions-${lesson.id}`}
-            className="text-base leading-6 font-semibold"
-          >
-            <bdi>{lesson.title}</bdi>
-          </h2>
+          <div className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2">
+            <h2
+              id={`questions-${lesson.id}`}
+              className="text-base leading-6 font-semibold"
+            >
+              <bdi>{lesson.title}</bdi>
+            </h2>
+            {lesson.release ? (
+              <Release
+                lessonId={lesson.id}
+                classId={classId}
+                released={lesson.release.released}
+              />
+            ) : null}
+          </div>
           {lesson.young ? (
             <YoungGrid lesson={lesson} names={names} />
           ) : (

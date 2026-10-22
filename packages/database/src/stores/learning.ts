@@ -590,6 +590,8 @@ export interface ProgressRow {
   bestScore: number | null;
   attempts: number;
   position: string | null;
+  /** When the student asked how they did on the questions that wait for the end. */
+  resultsAt: string | null;
 }
 
 type ProgressRecord = {
@@ -602,6 +604,7 @@ type ProgressRecord = {
   best_score: number | null;
   attempts: number;
   position: string | null;
+  results_at: string | null;
 };
 
 function progressOf(row: ProgressRecord): ProgressRow {
@@ -615,6 +618,7 @@ function progressOf(row: ProgressRecord): ProgressRow {
     bestScore: row.best_score,
     attempts: row.attempts,
     position: row.position,
+    resultsAt: row.results_at,
   };
 }
 
@@ -630,7 +634,8 @@ export async function progressIn(
   if (input.lessonIds.length === 0 || input.studentIds.length === 0) return [];
   const rows = await tx.execute<ProgressRecord>(sql`
     select lesson_id, student_user_id, ${isoOf(sql`started_at`)} as started_at,
-      ${isoOf(sql`completed_at`)} as completed_at, completed_by, score, best_score, attempts, position
+      ${isoOf(sql`completed_at`)} as completed_at, completed_by, score, best_score, attempts, position,
+      ${isoOf(sql`results_at`)} as results_at
     from core.lesson_progress
     where tenant_id = ${input.tenantId}::uuid and status = 'active'
       and lesson_id = any(${uuidArray(input.lessonIds)})
@@ -653,6 +658,8 @@ export async function recordProgress(
     nextAttempt?: boolean;
     position?: string;
     completed?: { by: "student" | "teacher" } | null;
+    /** The student asks how they did on the questions that wait for the end. */
+    results?: true;
   },
 ): Promise<void> {
   await tx.execute(sql`
@@ -662,7 +669,14 @@ export async function recordProgress(
   const sets = [
     ...(input.score === undefined ? [] : [sql`score = ${input.score}`]),
     ...(input.nextAttempt
-      ? [sql`attempts = attempts + 1`, sql`best_score = score`]
+      ? [
+          sql`attempts = attempts + 1`,
+          sql`best_score = score`,
+          sql`results_at = null`,
+        ]
+      : []),
+    ...(input.results
+      ? [sql`results_at = coalesce(results_at, statement_timestamp())`]
       : []),
     ...(input.position === undefined
       ? []
@@ -1935,4 +1949,49 @@ export async function touchProgress(
     update core.lesson_progress set position = position
     where tenant_id = ${input.tenantId}::uuid and lesson_id = ${input.lessonId}::uuid
       and student_user_id = ${input.studentId}::uuid and status = 'active'`);
+}
+
+/** A teacher shows a class how it did on a lesson's questions that wait for them. */
+export async function releaseLesson(
+  tx: Tx,
+  input: {
+    tenantId: string;
+    lessonId: string;
+    classId: string;
+    userId: string;
+  },
+): Promise<void> {
+  await tx.execute(sql`
+    insert into core.lesson_releases (tenant_id, lesson_id, class_id, released_by_user_id)
+    values (${input.tenantId}::uuid, ${input.lessonId}::uuid, ${input.classId}::uuid,
+      ${input.userId}::uuid)
+    on conflict (tenant_id, lesson_id, class_id) where status = 'active' do nothing`);
+}
+
+/** Whether any of these classes has been shown how it did in a lesson. */
+export async function lessonReleased(
+  tx: Tx,
+  input: { tenantId: string; lessonId: string; classIds: readonly string[] },
+): Promise<boolean> {
+  if (input.classIds.length === 0) return false;
+  const [row] = await tx.execute<{ released: boolean }>(sql`
+    select exists (
+      select 1 from core.lesson_releases
+      where tenant_id = ${input.tenantId}::uuid and lesson_id = ${input.lessonId}::uuid
+        and class_id = any(${uuidArray(input.classIds)}) and status = 'active'
+    ) as released`);
+  return row?.released ?? false;
+}
+
+/** The lessons a class has been shown how it did in, of these. */
+export async function releasedLessons(
+  tx: Tx,
+  input: { tenantId: string; lessonIds: readonly string[]; classId: string },
+): Promise<string[]> {
+  if (input.lessonIds.length === 0) return [];
+  const rows = await tx.execute<{ lesson_id: string }>(sql`
+    select lesson_id from core.lesson_releases
+    where tenant_id = ${input.tenantId}::uuid and class_id = ${input.classId}::uuid
+      and lesson_id = any(${uuidArray(input.lessonIds)}) and status = 'active'`);
+  return rows.map((row) => row.lesson_id);
 }

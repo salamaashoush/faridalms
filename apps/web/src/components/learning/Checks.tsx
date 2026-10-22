@@ -224,7 +224,7 @@ const CHECK_TYPES = new Set<StudentBlock["type"]>([
 export const isCheckBlock = (block: StudentBlock): block is CheckStudentBlock =>
   CHECK_TYPES.has(block.type);
 
-/** Answered right, answer shown, or for one its teacher marks, sent. */
+/** Answered right or answer shown, or for one its teacher marks or whose feedback waits, sent. */
 export const isSettled = (
   block: CheckStudentBlock,
   view: CheckView | undefined,
@@ -232,9 +232,14 @@ export const isSettled = (
   view !== undefined &&
   (block.type === "written" ||
   block.type === "scratch" ||
-  block.type === "project"
+  block.type === "project" ||
+  view.timing
     ? view.tries > 0
     : view.correct || view.revealed);
+
+/** Settled for good: an answer whose feedback waits may change until it comes. */
+const answerFinal = (block: CheckStudentBlock, view: CheckView | undefined) =>
+  isSettled(block, view) && !(view?.timing && !view.timing.open);
 
 const countWords = (text: string) => text.split(/\s+/).filter(Boolean).length;
 
@@ -390,9 +395,13 @@ function CheckStatus({
   if (!view || editing || !(view.tries > 0 || view.revealed)) return null;
   if (mode === "quiz")
     return (
-      <p className="inline-flex items-center gap-2 text-sm leading-5 text-muted-foreground">
-        <Check aria-hidden className="size-4" />
-        {m.quizAnswerKept()}
+      <p className="inline-flex items-start gap-2 text-sm leading-5 text-muted-foreground">
+        <Check aria-hidden className="mt-0.5 size-4 shrink-0" />
+        {view.timing?.at === "end"
+          ? m.lrnKeptForEnd()
+          : view.timing?.at === "teacher"
+            ? m.lrnKeptForTeacher()
+            : m.quizAnswerKept()}
       </p>
     );
   return <Outcome view={view} keyText={keyText} keyCode={keyCode} />;
@@ -649,7 +658,7 @@ function ChoiceCheck({
   );
   const mode = useContext(CheckModeContext);
   const young = useContext(YoungContext);
-  const settled = isSettled(block, view);
+  const settled = answerFinal(block, view);
   const markOf = (optionId: string): Mark => {
     if (editing || !view || mode === "quiz") return null;
     if (!view.key && view.correct && selected.includes(optionId))
@@ -809,7 +818,7 @@ function TypedCheck({
       ? view.response.text
       : "",
   );
-  const settled = isSettled(block, view);
+  const settled = answerFinal(block, view);
   const numeric = block.type === "number";
   const notNumber = numeric && text.trim() !== "" && parseNumber(text) === null;
   const canCheck = text.trim() !== "" && !notNumber;
@@ -901,7 +910,7 @@ function MathCheck({
   const [latex, setLatex] = useState(
     view?.response?.type === "math" ? view.response.latex : "",
   );
-  const settled = isSettled(block, view);
+  const settled = answerFinal(block, view);
   const canCheck = latex.trim() !== "";
   const check = () => {
     if (canCheck) respond.mutate({ type: "math", latex: latex.trim() });
@@ -976,7 +985,7 @@ function GapsCheck({
   const [answers, setAnswers] = useState<Record<string, string>>(
     view?.response?.type === "gaps" ? view.response.answers : {},
   );
-  const settled = isSettled(block, view);
+  const settled = answerFinal(block, view);
   const gaps = block.segments.filter((segment) => segment.type === "gap");
   const canCheck = gaps.every((gap) => (answers[gap.id] ?? "").trim() !== "");
   const check = () => {
@@ -1093,7 +1102,7 @@ function MatchingCheck({
   const [pairs, setPairs] = useState<Record<string, string>>(
     view?.response?.type === "matching" ? view.response.pairs : {},
   );
-  const settled = isSettled(block, view);
+  const settled = answerFinal(block, view);
   const canCheck = block.prompts.every((prompt) => pairs[prompt.id]);
   const locked = !editing || settled;
   const items = block.choices.map((choice) => ({
@@ -1212,7 +1221,7 @@ function OrderingCheck({
       : block.items.map((item) => item.id),
   );
   const [moved, setMoved] = useState("");
-  const settled = isSettled(block, view);
+  const settled = answerFinal(block, view);
   const locked = !editing || settled;
   const partOf = (itemId: string): StudentPart =>
     block.items.find((item) => item.id === itemId) ?? { id: itemId, text: "" };
@@ -1369,7 +1378,7 @@ function ParsonsCheck({
     view?.response?.type === "parsons" ? view.response.lines : [],
   );
   const [said, setSaid] = useState("");
-  const settled = isSettled(block, view);
+  const settled = answerFinal(block, view);
   const locked = !editing || settled;
   const indents = block.language === "python";
   const codeOf = (lineId: string) =>
@@ -1761,7 +1770,7 @@ function ProgramCheck({
   const { respond, reveal } = useCheck(block.id, view, driver);
   const last = view?.response?.type === "program" ? view.response : null;
   const [code, setCode] = useState(last?.code ?? block.starter);
-  const settled = isSettled(block, view);
+  const settled = answerFinal(block, view);
   const locked = settled || mode === "review";
   // Results belong to the code they were run on; once it changes they
   // would describe a program the student no longer has.
@@ -1893,7 +1902,7 @@ function PuzzleCheck({
   const [program, setProgram] = useState(last ?? []);
   const strings = useMemo(() => puzzleStrings(), []);
   const setting = useMemo(() => editorSetting(), []);
-  const locked = isSettled(block, view) || mode === "review";
+  const locked = answerFinal(block, view) || mode === "review";
   const sent = JSON.stringify(program) === JSON.stringify(last);
   const busy = respond.isPending || reveal.isPending;
   const answer = view && !view.correct ? view.keyProgram : undefined;
@@ -1987,7 +1996,7 @@ function SortingCheck({
   const [groups, setGroups] = useState<Record<string, string>>(
     view?.response?.type === "sorting" ? view.response.groups : {},
   );
-  const settled = isSettled(block, view);
+  const settled = answerFinal(block, view);
   const canCheck = block.items.every((item) => groups[item.id]);
   const locked = !editing || settled;
   return (
@@ -2333,6 +2342,18 @@ export function CheckBlockView({
   const young = useContext(YoungContext);
   const mode = useContext(CheckModeContext);
   const legend = useId();
+  // A question whose feedback waits is answered as in a quiz, then read as
+  // a returned one; once shown before it was answered, it answers at once.
+  if (
+    view?.timing &&
+    mode === "practice" &&
+    !(view.timing.open && view.tries === 0)
+  )
+    return (
+      <CheckModeContext.Provider value={view.timing.open ? "review" : "quiz"}>
+        <CheckBlockView block={block} view={view} driver={driver} />
+      </CheckModeContext.Provider>
+    );
   if (block.type === "counting")
     return (
       <CheckCard block={block} legendId={legend} status={null} actions={null}>

@@ -149,6 +149,21 @@ Sources: [../research/course-design.md](../research/course-design.md),
    Left: supervised rest breaks that pause the clock.
 3. **Feedback timing** per check: at once, at the end, or when the teacher
    returns the work.
+   Done: a question in a lesson for older students shows how it went at
+   once, at the end, or when the teacher shows the class (`feedbackAt` on
+   the question, chosen in its bar beside its tries). Until then the answer
+   is kept and may be changed, as in a quiz, counting once and without the
+   try penalty; nothing of how it went reaches the student, the lesson's
+   score included. The end comes when the student, having answered every
+   such question, asks to see how they did (`lesson_progress.results_at`);
+   the teacher shows a class from the Questions tab (`lesson_releases`),
+   which holds for those who answer later. Another go waits until the
+   student has seen how this one went. The teacher reads such a question
+   by each student's last answer, a wrong one as Not right. Code, young
+   children's activities and lessons set out for young children always
+   answer at once, and practice does too.
+   Left: showing a class from the live lesson board, and showing one
+   student rather than a class.
 4. **Ask for a hint before answering**, not only after a wrong try.
 5. **A continue gate** that waits for the block directly above it, or for
    nothing, as well as for everything above.

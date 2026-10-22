@@ -44,6 +44,7 @@ export function ContentEditor({
   aiUse,
   narration,
   lessonActivities,
+  feedbackTiming,
   standards = false,
   pending = false,
 }: {
@@ -69,6 +70,8 @@ export function ContentEditor({
   aiUse?: boolean;
   narration?: boolean;
   lessonActivities?: boolean;
+  /** Questions may keep how they went until the end or the teacher's word. */
+  feedbackTiming?: boolean;
   /** Standards blocks may name the school's standards, as a unit plan's do. */
   standards?: boolean;
   /** Whether the document may be live is still being asked. */
@@ -139,6 +142,7 @@ export function ContentEditor({
           aiUse={aiUse}
           narration={narration}
           lessonActivities={lessonActivities}
+          feedbackTiming={feedbackTiming}
           onSynced={
             collaboration ? () => setJoined(collaboration.id) : undefined
           }

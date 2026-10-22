@@ -23,7 +23,9 @@ import {
   completionMet,
   creditOf,
   describeCheck,
+  feedbackAtOf,
   gapsSource,
+  lessonIssue,
   lessonConditionSchema,
   lessonDocumentSchema,
   lessonScore,
@@ -35,9 +37,11 @@ import {
   partKey,
   pathOf,
   prerequisiteMet,
+  settled,
   studentBlocks,
   upgradeLesson,
 } from "./learning";
+import { contentOfLesson } from "./lesson-content";
 
 const uuid = (n: number) =>
   `0192f0a4-7a1c-7b5a-9a2e-${String(n).padStart(12, "0")}`;
@@ -178,6 +182,7 @@ describe("scoring a lesson", () => {
     revealed: false,
     marked: false,
     firstTryCorrect: true,
+    once: false,
     review: null,
   };
 
@@ -272,6 +277,110 @@ describe("hints in order", () => {
       hints: [],
       hintsLeft: 0,
     });
+  });
+});
+
+/** A student's answers to a question, each kept as it came, Cairo right. */
+const kept = (block: TextBlock, answers: string[]): StoredTry[] =>
+  answers.map((text, index) => ({
+    blockId: block.id,
+    try: index + 1,
+    state: "answered",
+    fraction: text === "Cairo" ? 1 : 0,
+    response: { type: "text", text },
+    feedback: null,
+  }));
+/** What the student sees of those answers, given which feedback has come. */
+const waitingView = (
+  block: TextBlock,
+  rows: StoredTry[],
+  shown: { end: boolean; teacher: boolean },
+) =>
+  describeCheck(
+    block,
+    rows,
+    checkStates({ version: 2, blocks: [block] }, rows)[block.id],
+    shown,
+  );
+
+describe("feedback that waits", () => {
+  const atEnd = { ...typed, feedbackAt: "end" as const, tries: 2 };
+
+  it("keeps an answer without saying how it went until it is shown", () => {
+    const rows = kept(atEnd, ["Giza"]);
+    const hidden = waitingView(atEnd, rows, { end: false, teacher: false });
+    expect(hidden).toMatchObject({
+      tries: 1,
+      response: { type: "text", text: "Giza" },
+      correct: false,
+      revealed: false,
+      hints: [],
+      key: null,
+      explanation: null,
+      timing: { at: "end", open: false },
+    });
+    expect(
+      waitingView(atEnd, rows, { end: true, teacher: false }),
+    ).toMatchObject({
+      correct: false,
+      key: ["القاهرة"],
+      explanation: "Because.",
+      timing: { at: "end", open: true },
+    });
+  });
+
+  it("counts the last answer once, however often it changed", () => {
+    const rows = kept(atEnd, ["Giza", "Luxor", "Cairo"]);
+    const state = checkStates({ version: 2, blocks: [atEnd] }, rows)[atEnd.id];
+    expect(state).toMatchObject({
+      tries: 1,
+      correct: true,
+      revealed: false,
+      firstTryCorrect: true,
+    });
+    expect(creditOf(state)).toBe(1);
+  });
+
+  it("is settled once answered, and waits for its teacher when asked to", () => {
+    const forTeacher = { ...typed, feedbackAt: "teacher" as const };
+    const rows = kept(forTeacher, ["Giza"]);
+    const state = checkStates({ version: 2, blocks: [forTeacher] }, rows)[
+      forTeacher.id
+    ];
+    expect(settled(forTeacher, state)).toBe(true);
+    expect(
+      waitingView(forTeacher, rows, { end: true, teacher: false }).timing,
+    ).toEqual({ at: "teacher", open: false });
+  });
+
+  it("answers code and a memory game at once whatever they say", () => {
+    expect(feedbackAtOf({ ...typed, feedbackAt: "end" })).toBe("end");
+    const memory: MatchingBlock = {
+      ...common,
+      id: uuid(8),
+      type: "matching",
+      prompt: "Find the pairs.",
+      pairs: [
+        { id: uuid(81), prompt: "Egypt", answer: "Cairo" },
+        { id: uuid(82), prompt: "Jordan", answer: "Amman" },
+      ],
+      distractors: [],
+      memory: true,
+      feedbackAt: "end",
+    };
+    expect(feedbackAtOf(memory)).toBe("now");
+  });
+
+  it("keeps a young lesson's feedback at once", () => {
+    const content = contentOfLesson({
+      version: 2,
+      blocks: [{ ...typed, feedbackAt: "end" }],
+    });
+    if (!content) throw new Error("the lesson has no content");
+    expect(lessonIssue({ completion: "view", content, young: true })).toBe(
+      "learning.young_feedback",
+    );
+    expect(lessonIssue({ completion: "view", content })).toBeNull();
   });
 });
 

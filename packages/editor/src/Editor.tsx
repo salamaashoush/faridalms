@@ -124,6 +124,8 @@ export interface EditorProps {
   narration?: boolean;
   /** Activities only a lesson offers: spoken answers and counting. */
   lessonActivities?: boolean;
+  /** Questions may keep how they went until the end or the teacher's word. */
+  feedbackTiming?: boolean;
   /** Told once a live document has arrived from its room and is drawn. */
   onSynced?: () => void;
 }
@@ -146,6 +148,7 @@ export default function Editor({
   aiUse = false,
   narration = false,
   lessonActivities = false,
+  feedbackTiming = false,
   onSynced,
   ...props
 }: EditorProps) {
@@ -186,6 +189,7 @@ export default function Editor({
       aiUse,
       narration,
       lessonActivities,
+      feedbackTiming,
     }),
     [
       strings,
@@ -203,6 +207,7 @@ export default function Editor({
       aiUse,
       narration,
       lessonActivities,
+      feedbackTiming,
     ],
   );
   const [synced, setSynced] = useState(false);

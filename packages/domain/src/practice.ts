@@ -118,10 +118,12 @@ export function practiceView(
           feedback: null,
         };
   const rows = [...earlier, last];
+  // Practice answers at once, whenever the lesson it came from waited.
+  const now = { ...block, feedbackAt: "now" as const };
   return describeCheck(
-    block,
+    now,
     rows,
-    checkStates({ version: 2, blocks: [block] }, rows)[block.id],
+    checkStates({ version: 2, blocks: [now] }, rows)[block.id],
   );
 }
 
