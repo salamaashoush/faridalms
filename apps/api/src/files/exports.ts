@@ -1,9 +1,10 @@
 import type { CcModule, CcResource } from "@faridalms/domain/cartridge";
 import type { ContentDocument, ContentNode } from "@faridalms/domain/content";
+import type { XapiStatement } from "@faridalms/domain/xapi";
 
 import { writeAudit } from "@faridalms/database/audit";
 import { TenantUnavailableError } from "@faridalms/database/context";
-import { teachesClass } from "@faridalms/database/stores/classes";
+import { rosterOf, teachesClass } from "@faridalms/database/stores/classes";
 import {
   assignmentById,
   handedInWork,
@@ -12,7 +13,13 @@ import {
 } from "@faridalms/database/stores/coursework";
 import { documentOf } from "@faridalms/database/stores/documents";
 import { filesByIds } from "@faridalms/database/stores/files";
-import { lessonsOf } from "@faridalms/database/stores/learning";
+import {
+  classesOfModule,
+  lessonResponses,
+  lessonsOf,
+  progressIn,
+  watchRowsIn,
+} from "@faridalms/database/stores/learning";
 import { toolById } from "@faridalms/database/stores/lti";
 import { isVisibleStudent } from "@faridalms/database/stores/students";
 import {
@@ -39,8 +46,16 @@ import {
   qtiPictures,
   qtiTest,
 } from "@faridalms/domain/qti";
+import {
+  answerResult,
+  lessonResult,
+  watchResult,
+  xapiActivity,
+  xapiStatement,
+} from "@faridalms/domain/xapi";
 import { ORPCError } from "@orpc/server";
 import { Zip, ZipPassThrough } from "fflate";
+import { createHash } from "node:crypto";
 
 import type {
   RequestContext,
@@ -54,6 +69,7 @@ import { can, localeOf, openUnit, schoolOf } from "../core/procedure";
 const PATH = /^\/v1\/assignments\/([0-9a-f-]{36})\/work\.zip$/;
 const PORTFOLIO = /^\/v1\/students\/([0-9a-f-]{36})\/portfolio\.zip$/;
 const MODULE_QUESTIONS = /^\/v1\/modules\/([0-9a-f-]{36})\/questions\.zip$/;
+const MODULE_STATEMENTS = /^\/v1\/modules\/([0-9a-f-]{36})\/statements\.json$/;
 const MODULE_CARTRIDGE = /^\/v1\/modules\/([0-9a-f-]{36})\/cartridge\.imscc$/;
 
 /** As much of a picture as is read for its size. */
@@ -216,7 +232,11 @@ async function exported(
   context: RequestContext,
   build: (
     unit: UnitContext,
-  ) => Promise<{ title: string; extension?: string; entries: Entry[] } | null>,
+  ) => Promise<
+    | { title: string; extension?: string; entries: Entry[] }
+    | { title: string; statements: XapiStatement[] }
+    | null
+  >,
 ): Promise<Response> {
   const school = await schoolOf(context);
   if (!school) return problem(401, "UNAUTHORIZED", context.requestId);
@@ -234,6 +254,14 @@ async function exported(
     throw error;
   }
   if (!found) return problem(404, "NOT_FOUND", context.requestId);
+  if ("statements" in found)
+    return Response.json(found.statements, {
+      headers: {
+        "content-disposition": contentDisposition(`${found.title}.json`),
+        "cache-control": "private, no-store",
+        "x-content-type-options": "nosniff",
+      },
+    });
   return zipResponse(
     context,
     `${found.title}.${found.extension ?? "zip"}`,
@@ -630,6 +658,184 @@ async function moduleCartridge(
   return { title: module.title, extension: "imscc", entries };
 }
 
+/** The namespace this app's statement ids are made in, so the same record gives the same id. */
+const STATEMENT_NAMESPACE = Buffer.from(
+  "010710a06f1d44adbd941164c94a4add",
+  "hex",
+);
+
+/** A name-based (version 5) UUID, as RFC 4122 makes one. */
+function uuidFor(name: string): string {
+  const hash = createHash("sha1")
+    .update(STATEMENT_NAMESPACE)
+    .update(name)
+    .digest();
+  hash[6] = ((hash[6] ?? 0) & 0x0f) | 0x50;
+  hash[8] = ((hash[8] ?? 0) & 0x3f) | 0x80;
+  const hex = hash.subarray(0, 16).toString("hex");
+  return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
+}
+
+/** Seconds of a video seen, from the stretches watched. */
+const seenSeconds = (ranges: [number, number][]) =>
+  ranges.reduce((sum, [from, to]) => sum + Math.max(0, to - from), 0);
+
+/**
+ * A class's results in a module as xAPI statements, for the school's
+ * learning record store or its own analysis: each student's progress in
+ * each lesson, each answer that has been marked, and each video watched.
+ * Students are named by their id under the school's address, with their
+ * name beside. Only a teacher who may change the module gets it, and the
+ * export is recorded.
+ */
+async function moduleStatements(
+  unit: UnitContext,
+  moduleId: string,
+  classId: string,
+): Promise<{ title: string; statements: XapiStatement[] }> {
+  const module = await editableModule(unit, moduleId);
+  const taught = (
+    await classesOfModule(unit.tx, unit.tenantId, module.id)
+  ).find((row) => row.id === classId);
+  if (!taught) throw new ORPCError("NOT_FOUND");
+  const home = `https://${unit.school.appHost}`;
+  const students = await rosterOf(unit.tx, unit.tenantId, classId, unit.today);
+  const people = new Map(
+    (await namesOf(unit.tx, unit.tenantId, students)).map((row) => [
+      row.id,
+      row.fullNameEn ?? row.fullNameAr ?? undefined,
+    ]),
+  );
+  const actor = (studentId: string) => ({
+    objectType: "Agent" as const,
+    ...(people.get(studentId) ? { name: people.get(studentId) } : {}),
+    account: { homePage: home, name: studentId },
+  });
+  const lessons = await lessonsOf(unit.tx, unit.tenantId, module.id);
+  const lessonIds = lessons.map((lesson) => lesson.id);
+  const [progress, watches] = await Promise.all([
+    progressIn(unit.tx, {
+      tenantId: unit.tenantId,
+      lessonIds,
+      studentIds: students,
+    }),
+    watchRowsIn(unit.tx, {
+      tenantId: unit.tenantId,
+      lessonIds,
+      studentIds: students,
+    }),
+  ]);
+  const moduleActivity = xapiActivity(
+    "module",
+    `${home}/modules/${module.id}`,
+    module.title,
+    null,
+  );
+  const classActivity = xapiActivity(
+    "course",
+    `${home}/classes/${classId}`,
+    taught.titleEn ?? taught.titleAr ?? taught.code,
+    null,
+  );
+  const enrolled = new Set(students);
+  const statements: XapiStatement[] = [];
+  for (const lesson of lessons) {
+    const language = lesson.language;
+    const lessonActivity = xapiActivity(
+      "lesson",
+      `${home}/lessons/${lesson.id}`,
+      lesson.title,
+      language,
+    );
+    const document = await documentOf(unit.tx, unit.tenantId, {
+      type: "lesson",
+      id: lesson.id,
+    });
+    const content = document?.content as unknown as ContentDocument | undefined;
+    const questions = new Map(
+      (content ? lessonOfContent(content).blocks : []).flatMap((block) =>
+        "prompt" in block ? [[block.id, block] as const] : [],
+      ),
+    );
+    const started = new Map<string, string>();
+    for (const row of progress.filter((each) => each.lessonId === lesson.id)) {
+      started.set(row.studentUserId, row.completedAt ?? row.startedAt);
+      statements.push(
+        xapiStatement({
+          id: uuidFor(
+            `progress:${lesson.id}:${row.studentUserId}:${row.attempts}`,
+          ),
+          actor: actor(row.studentUserId),
+          verb: row.completedAt ? "completed" : "attempted",
+          object: lessonActivity,
+          result: lessonResult({ ...row, passScore: lesson.passScore }),
+          language,
+          parent: [moduleActivity],
+          grouping: [classActivity],
+          timestamp: row.completedAt ?? row.startedAt,
+        }),
+      );
+    }
+    for (const row of await lessonResponses(unit.tx, {
+      tenantId: unit.tenantId,
+      lessonId: lesson.id,
+    })) {
+      if (row.fraction === null || !enrolled.has(row.studentId)) continue;
+      const question = questions.get(row.blockId);
+      statements.push(
+        xapiStatement({
+          id: row.id,
+          actor: actor(row.studentId),
+          verb: "answered",
+          object: xapiActivity(
+            "question",
+            `${home}/lessons/${lesson.id}#${row.blockId}`,
+            question?.prompt ?? lesson.title,
+            language,
+            question?.type,
+          ),
+          result: answerResult(row.fraction, question?.points ?? null),
+          language,
+          parent: [lessonActivity],
+          grouping: [moduleActivity, classActivity],
+          timestamp: row.createdAt,
+        }),
+      );
+    }
+    for (const row of watches.filter((each) => each.lessonId === lesson.id)) {
+      statements.push(
+        xapiStatement({
+          id: uuidFor(`watch:${lesson.id}:${row.studentId}:${row.video}`),
+          actor: actor(row.studentId),
+          verb: "experienced",
+          object: xapiActivity(
+            "video",
+            `${home}/lessons/${lesson.id}#video-${encodeURIComponent(row.video)}`,
+            lesson.title,
+            language,
+          ),
+          result: watchResult(seenSeconds(row.ranges), row.durationSeconds),
+          language,
+          parent: [lessonActivity],
+          grouping: [moduleActivity, classActivity],
+          timestamp: started.get(row.studentId) ?? new Date().toISOString(),
+        }),
+      );
+    }
+  }
+  await writeAudit(unit.tx, unit.tenantId, {
+    action: "module.statements_exported",
+    objectType: "learning_module",
+    objectId: module.id,
+    orgId: unit.schoolId,
+    details: { classId, statements: statements.length },
+  });
+  return {
+    title: `${module.title} - ${taught.code} - xAPI`,
+    statements,
+  };
+}
+
 /** The exports this handler answers, by path. */
 export async function handleWorkExport(
   request: Request,
@@ -644,6 +850,12 @@ export async function handleWorkExport(
   const questions = MODULE_QUESTIONS.exec(url.pathname)?.[1];
   if (questions)
     return exported(context, (unit) => moduleQuestions(unit, questions));
+  const statements = MODULE_STATEMENTS.exec(url.pathname)?.[1];
+  const classId = url.searchParams.get("classId") ?? "";
+  if (statements && /^[0-9a-f-]{36}$/.test(classId))
+    return exported(context, (unit) =>
+      moduleStatements(unit, statements, classId),
+    );
   const cartridge = MODULE_CARTRIDGE.exec(url.pathname)?.[1];
   if (cartridge)
     return exported(context, (unit) => moduleCartridge(unit, cartridge));

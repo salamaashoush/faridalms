@@ -631,20 +631,36 @@ function Matrix({ moduleId, classId }: { moduleId: string; classId: string }) {
     });
   return (
     <div className="grid gap-4">
-      <ol className="flex flex-wrap gap-x-6 gap-y-1 text-[13px] leading-[18px] text-muted-foreground">
-        {data.lessons.map((lesson, index) => (
-          <li key={lesson.id} className="min-w-0">
-            {m.lrnLessonNumber({ number: formatNumber(index + 1) })}:{" "}
-            <bdi>{lesson.title}</bdi>
-          </li>
-        ))}
-        {data.tools.map((column, index) => (
-          <li key={column.id} className="min-w-0">
-            {m.ltiToolColumn({ number: formatNumber(index + 1) })}:{" "}
-            <bdi>{column.label}</bdi> · <bdi>{column.toolName}</bdi>
-          </li>
-        ))}
-      </ol>
+      <div className="flex flex-wrap items-start justify-between gap-3">
+        <ol className="flex min-w-0 flex-1 flex-wrap gap-x-6 gap-y-1 text-[13px] leading-[18px] text-muted-foreground">
+          {data.lessons.map((lesson, index) => (
+            <li key={lesson.id} className="min-w-0">
+              {m.lrnLessonNumber({ number: formatNumber(index + 1) })}:{" "}
+              <bdi>{lesson.title}</bdi>
+            </li>
+          ))}
+          {data.tools.map((column, index) => (
+            <li key={column.id} className="min-w-0">
+              {m.ltiToolColumn({ number: formatNumber(index + 1) })}:{" "}
+              <bdi>{column.label}</bdi> · <bdi>{column.toolName}</bdi>
+            </li>
+          ))}
+        </ol>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="max-md:h-10"
+          onClick={() =>
+            window.location.assign(
+              `/exports/modules/${moduleId}?as=statements&classId=${classId}`,
+            )
+          }
+        >
+          <FileDown aria-hidden />
+          {m.lrnExportResults()}
+        </Button>
+      </div>
       <DataTable
         caption={m.lrnProgressCaption({ title: data.module.title })}
         rows={data.students}
