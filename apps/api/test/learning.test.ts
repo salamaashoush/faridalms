@@ -3430,3 +3430,134 @@ describe("watching recordings", () => {
     ).toMatchObject({ code: "NOT_FOUND" });
   });
 });
+
+describe("standards a lesson gives evidence on", () => {
+  test("a lesson's first answer to a tagged question counts, and its teacher's mark joins it", async () => {
+    const office = await signedIn("northwind", login("principal"));
+    const framework = await office.standards.saveFramework({
+      id: "",
+      expectedVersion: 0,
+      title: `Lesson evidence ${id()}`,
+      description: "",
+    });
+    const standard = await office.standards.saveStandard({
+      frameworkId: framework.id,
+      id: "",
+      expectedVersion: 0,
+      parentId: "",
+      code: "LE.1",
+      statement: "Name a story's characters.",
+      itemType: "",
+    });
+    const { keeper } = await teachers();
+    const { rows } = await keeper.learning.modules({});
+    const source = rows.find((row) => row.title === TITLE);
+    if (!source) throw new Error("no module");
+    const saved = await keeper.learning.saveModule({
+      id: "",
+      expectedVersion: 0,
+      title: "Characters",
+      summary: "",
+      classIds: source.classes.map((item) => item.id),
+      prerequisiteId: "",
+      sequential: false,
+    });
+    const right = id();
+    const choice = {
+      id: id(),
+      type: "choice" as const,
+      prompt: "Who is the hero?",
+      points: 1,
+      hints: [],
+      explanation: "",
+      tries: null,
+      options: [
+        { id: right, text: "Wilbur", feedback: "" },
+        { id: id(), text: "The barn", feedback: "" },
+      ],
+      correctOptionIds: [right],
+      multiple: false,
+      shuffle: false,
+      standards: [standard.id],
+    };
+    const essay = {
+      id: id(),
+      type: "written" as const,
+      prompt: "Who helps the hero, and how?",
+      points: 2,
+      hints: [],
+      explanation: "",
+      tries: null,
+      wordLimit: null,
+      standards: [standard.id],
+    };
+    await keeper.learning.saveLesson({
+      id: "",
+      moduleId: saved.id,
+      expectedVersion: 0,
+      title: "Who is who",
+      completion: "view",
+      passScore: null,
+      content: written([choice, essay]),
+      publish: false,
+    });
+    await keeper.learning.publishModule({
+      id: saved.id,
+      expectedVersion: saved.version,
+    });
+
+    const pupil = await student();
+    const me = await pupil.identity.currentUser();
+    const outline = await pupil.learning.play({ id: saved.id });
+    const lessonId = outline.lessons[0]?.id ?? "";
+    await pupil.learning.playLesson({ id: lessonId });
+    const wrong = choice.options[1]?.id ?? "";
+    await pupil.learning.respond({
+      lessonId,
+      blockId: choice.id,
+      response: { type: "choice", optionIds: [wrong] },
+    });
+    // A later try comes after the feedback and hints, so it is not evidence.
+    await pupil.learning.respond({
+      lessonId,
+      blockId: choice.id,
+      response: { type: "choice", optionIds: [right] },
+    });
+    await pupil.learning.respond({
+      lessonId,
+      blockId: essay.id,
+      response: { type: "written", text: "Charlotte, by writing words." },
+    });
+
+    const progress = async () => {
+      for (const item of source.classes) {
+        const shown = await keeper.standards.classProgress({
+          classId: item.id,
+        });
+        const mine = shown.mastery.find(
+          (row) => row.studentId === me.id && row.standardId === standard.id,
+        );
+        if (mine) return mine;
+      }
+      return null;
+    };
+    expect(await progress()).toMatchObject({
+      level: "beginning",
+      score: 0,
+      occasions: 1,
+    });
+    await keeper.learning.mark({
+      lessonId,
+      blockId: essay.id,
+      studentIds: [me.id],
+      points: 2,
+      feedback: "",
+    });
+    expect(await progress()).toMatchObject({
+      level: "developing",
+      score: 0.5,
+      occasions: 1,
+    });
+    await office.standards.removeFramework({ id: framework.id });
+  });
+});

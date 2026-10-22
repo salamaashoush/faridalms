@@ -1,7 +1,7 @@
 import * as v from "valibot";
 import { describe, expect, it } from "vitest";
 
-import { caseOutline, casePackageSchema } from "./standards";
+import { caseOutline, casePackageSchema, masteryOf } from "./standards";
 
 const uuid = (n: number) =>
   `0190a1b2-0000-7000-8000-0000000003${String(n).padStart(2, "0")}`;
@@ -97,5 +97,47 @@ describe("CASE packages", () => {
     );
     expect(looped).toHaveLength(2);
     expect(looped.some((item) => item.parentIdentifier === null)).toBe(true);
+  });
+});
+
+const on = (occasion: string, fraction: number, day: number) => ({
+  occasion,
+  fraction,
+  at: `2026-10-${String(day).padStart(2, "0")}T09:00:00Z`,
+});
+
+describe("mastery", () => {
+  it("is nothing until a tagged question is marked", () => {
+    expect(masteryOf([])).toBeNull();
+  });
+
+  it("needs two occasions to be secure, however well the first went", () => {
+    expect(masteryOf([on("a", 1, 1)])).toMatchObject({
+      level: "developing",
+      score: 1,
+      occasions: 1,
+    });
+    expect(masteryOf([on("a", 1, 1), on("b", 0.9, 3)])).toMatchObject({
+      level: "secure",
+      occasions: 2,
+    });
+  });
+
+  it("averages the questions of one sitting before weighing sittings", () => {
+    const sitting = [on("quiz", 1, 2), on("quiz", 0, 2), on("quiz", 1, 2)];
+    expect(masteryOf(sitting)).toMatchObject({
+      occasions: 1,
+      level: "developing",
+    });
+    expect(masteryOf(sitting)?.score).toBeCloseTo(2 / 3);
+  });
+
+  it("weighs the latest sitting most, in the order they happened", () => {
+    const late = masteryOf([on("b", 1, 9), on("a", 0.2, 1)]);
+    expect(late?.score).toBeCloseTo(0.65 + 0.35 * 0.2);
+    expect(late?.level).toBe("developing");
+    const slipped = masteryOf([on("a", 1, 1), on("b", 1, 2), on("c", 0, 3)]);
+    expect(slipped?.score).toBeCloseTo(0.35);
+    expect(slipped?.level).toBe("beginning");
   });
 });

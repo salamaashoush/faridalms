@@ -1,4 +1,5 @@
 import {
+  classProgressSchema,
   describeStandardsSchema,
   importCaseSchema,
   moveStandardSchema,
@@ -6,6 +7,7 @@ import {
   saveFrameworkSchema,
   saveStandardSchema,
   searchStandardsSchema,
+  studentProgressSchema,
 } from "@faridalms/domain/standards";
 import { createServerFn } from "@tanstack/react-start";
 
@@ -51,3 +53,11 @@ export const searchStandards = createServerFn({ method: "GET" })
 export const describeStandards = createServerFn({ method: "POST" })
   .validator(checked(describeStandardsSchema))
   .handler(({ data }) => backend().standards.describe(data));
+
+export const getClassProgress = createServerFn({ method: "GET" })
+  .validator(checked(classProgressSchema))
+  .handler(({ data }) => record(backend().standards.classProgress(data)));
+
+export const getStudentProgress = createServerFn({ method: "GET" })
+  .validator(checked(studentProgressSchema))
+  .handler(({ data }) => record(backend().standards.studentProgress(data)));

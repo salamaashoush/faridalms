@@ -68,6 +68,7 @@ import {
   watchesOf,
   watchRowsIn,
 } from "@faridalms/database/stores/learning";
+import { recordEvidence } from "@faridalms/database/stores/standards";
 import { isVisibleStudent } from "@faridalms/database/stores/students";
 import { gridOwners } from "@faridalms/database/stores/timetable";
 import { schoolYears, workingYear } from "@faridalms/database/stores/years";
@@ -2032,6 +2033,40 @@ export const respond = writeProcedure
     return recordResponse(context, input);
   });
 
+/**
+ * Keeps what a marked lesson answer shows of the standards its question
+ * carries: the first answer to each question in an attempt, or a teacher's
+ * mark, which a later mark replaces.
+ */
+async function keepEvidence(
+  context: UnitContext,
+  input: {
+    lessonId: string;
+    studentId: string;
+    attempt: number;
+    block: CheckBlock;
+    fraction: number | null;
+    replace: boolean;
+  },
+) {
+  const { standards } = input.block;
+  if (!standards?.length || input.fraction === null) return;
+  await recordEvidence(context.tx, {
+    tenantId: context.tenantId,
+    studentId: input.studentId,
+    sitting: { source: "lesson", lessonId: input.lessonId },
+    marks: [
+      {
+        attempt: input.attempt,
+        blockId: input.block.id,
+        standards,
+        fraction: input.fraction,
+      },
+    ],
+    replace: input.replace,
+  });
+}
+
 async function recordResponse(
   context: UnitContext,
   input: { lessonId: string; blockId: string; response: LessonResponse },
@@ -2087,6 +2122,14 @@ async function recordResponse(
         ? "needs_marking"
         : "answered",
   });
+  await keepEvidence(context, {
+    lessonId: played.row.id,
+    studentId: played.studentId,
+    attempt: played.attempt,
+    block,
+    fraction: marked ? marked.fraction : null,
+    replace: false,
+  });
   const result = await settle(context, played);
   const after = { ...played, rows: result.rows, checks: result.checks };
   return {
@@ -2121,6 +2164,14 @@ export const reveal = writeProcedure
         fraction: 0,
         state: "revealed",
       });
+    await keepEvidence(context, {
+      lessonId: played.row.id,
+      studentId: played.studentId,
+      attempt: played.attempt,
+      block,
+      fraction: 0,
+      replace: false,
+    });
     const result = await settle(context, played);
     const after = { ...played, rows: result.rows, checks: result.checks };
     return {
@@ -2748,6 +2799,17 @@ export const mark = writeProcedure
         state: "marked",
         feedback: input.feedback || null,
         markedBy: context.actor.userId,
+      });
+      await keepEvidence(context, {
+        lessonId: row.id,
+        studentId,
+        attempt: answer.attempt,
+        block,
+        fraction:
+          block.points === 0
+            ? null
+            : Math.round((input.points / block.points) * 10000) / 10000,
+        replace: true,
       });
       await audit(context, {
         action: "lesson.mark",

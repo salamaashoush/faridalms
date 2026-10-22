@@ -34,6 +34,7 @@ import {
   starterFilesSchema,
 } from "./project";
 import { scratchChecksSchema, scratchNotesSchema } from "./scratch-project";
+import { MAX_QUESTION_STANDARDS } from "./standards";
 import { MAX_STROKE_POINTS, MAX_STROKES, traceResults } from "./tracing";
 
 export { gapsSource, parseGaps } from "./gaps";
@@ -166,6 +167,10 @@ const checkFields = {
     v.nullable(
       v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(21600)),
     ),
+  ),
+  /** The school's standards a marked answer gives evidence of. */
+  standards: v.optional(
+    v.pipe(v.array(id), v.maxLength(MAX_QUESTION_STANDARDS)),
   ),
 };
 

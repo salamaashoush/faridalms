@@ -1,0 +1,357 @@
+import type { MasteryLevel } from "@faridalms/domain/standards";
+import type { LucideIcon } from "lucide-react";
+
+import { cn } from "@faridalms/ui/cn";
+import { useSuspenseQuery } from "@tanstack/react-query";
+import {
+  CircleCheck,
+  CircleDashed,
+  Contrast,
+  Minus,
+  Target,
+} from "lucide-react";
+
+import type { Column } from "~/components/system/DataTable";
+
+import { displayName } from "~/components/people/format";
+import { DataTable, RowLink } from "~/components/system/DataTable";
+import { EmptyState } from "~/components/system/IndexPage";
+import { RecordSection } from "~/components/system/RecordPage";
+import * as m from "~/i18n/messages";
+import { classProgressQuery, studentProgressQuery } from "~/queries/standards";
+import { formatNumber } from "~/utils/datetime";
+
+type ClassData = Awaited<
+  ReturnType<NonNullable<ReturnType<typeof classProgressQuery>["queryFn"]>>
+>;
+type Standard = ClassData["standards"][number];
+type Student = ClassData["students"][number];
+type Mastery = ClassData["mastery"][number];
+
+const LEVELS: readonly MasteryLevel[] = ["secure", "developing", "beginning"];
+
+const LEVEL: Record<
+  MasteryLevel,
+  { icon: LucideIcon; tone: string; label: () => string }
+> = {
+  secure: {
+    icon: CircleCheck,
+    tone: "text-success",
+    label: m.skillsSecure,
+  },
+  developing: {
+    icon: Contrast,
+    tone: "text-warning-foreground dark:text-warning",
+    label: m.skillsDeveloping,
+  },
+  beginning: {
+    icon: CircleDashed,
+    tone: "text-destructive",
+    label: m.skillsBeginning,
+  },
+};
+
+const percent = (score: number) =>
+  m.skillsPercent({ value: formatNumber(Math.round(score * 100)) });
+
+/** A level by its shape and colour, so neither alone carries it. */
+function MasteryMark({
+  mastery,
+  labelled = false,
+}: {
+  mastery: Pick<Mastery, "level" | "score"> | undefined;
+  labelled?: boolean;
+}) {
+  if (!mastery)
+    return (
+      <span className="inline-flex items-center gap-1.5 text-muted-foreground">
+        <Minus aria-hidden className="size-4" />
+        <span className={labelled ? "text-sm leading-5" : "sr-only"}>
+          {m.skillsNotYet()}
+        </span>
+      </span>
+    );
+  const level = LEVEL[mastery.level];
+  return (
+    <span className={cn("inline-flex items-center gap-1.5", level.tone)}>
+      <level.icon aria-hidden className="size-4 shrink-0" />
+      <span
+        className={
+          labelled ? "text-sm leading-5 font-medium text-foreground" : "sr-only"
+        }
+      >
+        {level.label()}
+      </span>
+      <span
+        className={
+          labelled
+            ? "text-[13px] leading-[18px] text-muted-foreground tabular-nums"
+            : "sr-only"
+        }
+      >
+        {percent(mastery.score)}
+      </span>
+    </span>
+  );
+}
+
+function Legend({ unassessed = true }: { unassessed?: boolean }) {
+  return (
+    <div className="grid gap-1">
+      <ul className="flex flex-wrap gap-x-5 gap-y-1">
+        {LEVELS.map((level) => {
+          const { icon: Icon, tone, label } = LEVEL[level];
+          return (
+            <li key={level} className="inline-flex items-center gap-1.5">
+              <Icon aria-hidden className={cn("size-4", tone)} />
+              <span className="text-[13px] leading-[18px]">{label()}</span>
+            </li>
+          );
+        })}
+        {unassessed ? (
+          <li className="inline-flex items-center gap-1.5 text-muted-foreground">
+            <Minus aria-hidden className="size-4" />
+            <span className="text-[13px] leading-[18px]">
+              {m.skillsNotYet()}
+            </span>
+          </li>
+        ) : null}
+      </ul>
+      <p className="text-[13px] leading-[18px] text-muted-foreground">
+        {m.skillsHow()}
+      </p>
+    </div>
+  );
+}
+
+function Code({ standard }: { standard: Standard }) {
+  return (
+    <span className="font-mono text-[13px] font-medium">
+      {standard.code || "·"}
+    </span>
+  );
+}
+
+function StandardList({ standards }: { standards: readonly Standard[] }) {
+  return (
+    <ol className="grid gap-x-6 gap-y-1 text-[13px] leading-[18px] text-muted-foreground md:grid-cols-2">
+      {standards.map((standard) => (
+        <li key={standard.id} className="flex min-w-0 gap-2">
+          <Code standard={standard} />
+          <span className="line-clamp-2 min-w-0" dir="auto">
+            {standard.statement}
+          </span>
+        </li>
+      ))}
+    </ol>
+  );
+}
+
+const secureOf = (
+  mastery: ReadonlyMap<string, Mastery>,
+  student: Student,
+  standards: readonly Standard[],
+) => ({
+  count: formatNumber(
+    standards.filter(
+      (standard) =>
+        mastery.get(`${student.id}:${standard.id}`)?.level === "secure",
+    ).length,
+  ),
+  total: formatNumber(standards.length),
+});
+
+function StudentName({ row }: { row: Student }) {
+  return (
+    <RowLink
+      to="/students/$studentId"
+      params={{ studentId: row.id }}
+      search={{ tab: "skills" }}
+    >
+      <bdi className="font-medium">{displayName(row)}</bdi>
+    </RowLink>
+  );
+}
+
+const studentTitle = (row: Student) => <StudentName row={row} />;
+
+function studentColumns(
+  standards: readonly Standard[],
+  mastery: ReadonlyMap<string, Mastery>,
+): Column<Student>[] {
+  return [
+    {
+      id: "student",
+      header: m.lrnStudent(),
+      primary: true,
+      cell: (row) => <StudentName row={row} />,
+    },
+    ...standards.map((standard) => ({
+      id: standard.id,
+      header: standard.code || standard.statement,
+      cell: (row: Student) => (
+        <MasteryMark mastery={mastery.get(`${row.id}:${standard.id}`)} />
+      ),
+    })),
+    {
+      id: "secure",
+      header: m.skillsSecureColumn(),
+      cell: (row) => (
+        <span className="tabular-nums">
+          {m.skillsOf(secureOf(mastery, row, standards))}
+        </span>
+      ),
+    },
+  ];
+}
+
+interface StandardRow extends Standard {
+  counts: Record<MasteryLevel | "none", number>;
+}
+
+function StandardName({ row }: { row: Standard }) {
+  return (
+    <span className="flex min-w-0 gap-2">
+      <Code standard={row} />
+      <span className="line-clamp-2 min-w-0" dir="auto">
+        {row.statement}
+      </span>
+    </span>
+  );
+}
+
+const standardCard = {
+  title: (row: StandardRow) => <StandardName row={row} />,
+  fact: (row: StandardRow) =>
+    m.skillsCounts({
+      secure: formatNumber(row.counts.secure),
+      developing: formatNumber(row.counts.developing),
+      beginning: formatNumber(row.counts.beginning),
+    }),
+};
+
+function standardColumns(): Column<StandardRow>[] {
+  return [
+    {
+      id: "standard",
+      header: m.skillsStandard(),
+      primary: true,
+      cell: (row) => <StandardName row={row} />,
+    },
+    ...[...LEVELS, "none" as const].map((level) => ({
+      id: level,
+      header: level === "none" ? m.skillsNotYet() : LEVEL[level].label(),
+      cell: (row: StandardRow) => (
+        <span className="tabular-nums">{formatNumber(row.counts[level])}</span>
+      ),
+    })),
+  ];
+}
+
+/**
+ * A class's standards as its own lessons and quizzes gave evidence on them:
+ * each student against each standard, then each standard across the class,
+ * where the ones it has yet to secure stand out.
+ */
+export function ClassSkills({ classId }: { classId: string }) {
+  const data = useSuspenseQuery(classProgressQuery(classId)).data;
+  if (data.standards.length === 0)
+    return (
+      <EmptyState
+        icon={Target}
+        title={m.skillsEmptyTitle()}
+        description={m.skillsEmptyBody()}
+      />
+    );
+  const mastery = new Map(
+    data.mastery.map((row) => [`${row.studentId}:${row.standardId}`, row]),
+  );
+  const byStandard: StandardRow[] = data.standards.map((standard) => {
+    const counts = { secure: 0, developing: 0, beginning: 0, none: 0 };
+    for (const student of data.students)
+      counts[mastery.get(`${student.id}:${standard.id}`)?.level ?? "none"] += 1;
+    return { ...standard, counts };
+  });
+  return (
+    <div className="grid gap-6">
+      <div className="grid gap-4">
+        <Legend />
+        <StandardList standards={data.standards} />
+        <DataTable
+          caption={m.skillsByStudent()}
+          rows={data.students}
+          columns={studentColumns(data.standards, mastery)}
+          rowLabel={(row) => displayName(row)}
+          card={{
+            title: studentTitle,
+            fact: (row) =>
+              m.skillsSecureOf(secureOf(mastery, row, data.standards)),
+          }}
+          empty={{ title: m.lrnNoStudents() }}
+        />
+      </div>
+      <RecordSection title={m.skillsByStandard()} variant="page">
+        <DataTable
+          caption={m.skillsByStandard()}
+          rows={byStandard}
+          columns={standardColumns()}
+          rowLabel={(row) => row.code || row.statement}
+          card={standardCard}
+          empty={{ title: m.skillsEmptyTitle() }}
+        />
+      </RecordSection>
+    </div>
+  );
+}
+
+/** One student's standards, framework by framework, from every class. */
+export function StudentSkills({ studentId }: { studentId: string }) {
+  const data = useSuspenseQuery(studentProgressQuery(studentId)).data;
+  if (data.standards.length === 0)
+    return (
+      <EmptyState
+        icon={Target}
+        title={m.skillsEmptyTitle()}
+        description={m.skillsStudentEmptyBody()}
+      />
+    );
+  const mastery = new Map(data.mastery.map((row) => [row.standardId, row]));
+  const frameworks = new Map<string, Standard[]>();
+  for (const standard of data.standards) {
+    const list = frameworks.get(standard.frameworkTitle);
+    if (list) list.push(standard);
+    else frameworks.set(standard.frameworkTitle, [standard]);
+  }
+  const secure = data.mastery.filter((row) => row.level === "secure").length;
+  return (
+    <div className="grid gap-6">
+      <div className="grid gap-2">
+        <p className="text-sm leading-5 font-medium">
+          {m.skillsSecureOf({
+            count: formatNumber(secure),
+            total: formatNumber(data.standards.length),
+          })}
+        </p>
+        <Legend unassessed={false} />
+      </div>
+      {[...frameworks].map(([title, standards]) => (
+        <RecordSection key={title} title={title}>
+          <ul className="grid divide-y">
+            {standards.map((standard) => (
+              <li
+                key={standard.id}
+                className="flex flex-wrap items-start justify-between gap-x-6 gap-y-1 py-2.5 first:pt-0 last:pb-0"
+              >
+                <span className="flex min-w-0 flex-1 basis-64 gap-2 text-sm leading-5">
+                  <Code standard={standard} />
+                  <span dir="auto">{standard.statement}</span>
+                </span>
+                <MasteryMark mastery={mastery.get(standard.id)} labelled />
+              </li>
+            ))}
+          </ul>
+        </RecordSection>
+      ))}
+    </div>
+  );
+}

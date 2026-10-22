@@ -620,6 +620,24 @@ describe("erasing a student's work", () => {
                                        position, bank_question_id, question)
           values (${t}::uuid, ${work.submission}::uuid, ${work.student}::uuid, 9, ${block}::uuid,
                   0, ${block}::uuid, '{"type":"question","version":1}')`);
+        // What their answers showed of a standard their school keeps.
+        await tx.execute(sql`
+          with framework as (
+            insert into core.standard_frameworks (tenant_id, org_id, title)
+            select ${t}::uuid, m.org_id, 'Erasure check'
+            from core.lessons l
+            join core.learning_modules m on m.tenant_id = l.tenant_id and m.id = l.module_id
+            where l.tenant_id = ${t}::uuid and l.id = ${lesson.id}::uuid
+            returning id),
+          standard as (
+            insert into core.standards (tenant_id, framework_id, statement, position)
+            select ${t}::uuid, id, 'Read aloud.', 0 from framework
+            returning id)
+          insert into core.standard_evidence (tenant_id, student_user_id, standard_id, source,
+                                              lesson_id, attempt, block_id, fraction, answered_at)
+          select ${t}::uuid, ${work.student}::uuid, id, 'lesson', ${lesson.id}::uuid, 1,
+                 ${block}::uuid, 1, statement_timestamp()
+          from standard`);
         // The time and the reader their school gave them.
         await tx.execute(sql`
           insert into core.access_arrangements (tenant_id, org_id, student_user_id, extra_time, read_aloud)
@@ -711,6 +729,7 @@ describe("erasing a student's work", () => {
           arrangements: number;
           sittings: number;
           draws: number;
+          evidence: number;
         }>(sql`
           select (select count(*)::int from core.lesson_runs where tenant_id = ${t}::uuid
                    and student_user_id = ${work.student}::uuid) as runs,
@@ -730,7 +749,9 @@ describe("erasing a student's work", () => {
                  (select count(*)::int from core.quiz_sittings where tenant_id = ${t}::uuid
                    and student_user_id = ${work.student}::uuid) as sittings,
                  (select count(*)::int from core.quiz_draws where tenant_id = ${t}::uuid
-                   and student_user_id = ${work.student}::uuid) as draws`);
+                   and student_user_id = ${work.student}::uuid) as draws,
+                 (select count(*)::int from core.standard_evidence where tenant_id = ${t}::uuid
+                   and student_user_id = ${work.student}::uuid) as evidence`);
         expect(left).toEqual({
           runs: 0,
           code: 0,
@@ -741,6 +762,7 @@ describe("erasing a student's work", () => {
           arrangements: 0,
           sittings: 0,
           draws: 0,
+          evidence: 0,
         });
         checked = true;
         throw rollback;

@@ -66,6 +66,13 @@ export const describeStandardsSchema = v.object({
   ids: v.pipe(v.array(id), v.maxLength(200)),
 });
 
+export const classProgressSchema = v.object({ classId: id });
+
+export const studentProgressSchema = v.object({
+  /** Empty for the student asking about themselves. */
+  studentId: v.optional(v.union([v.literal(""), id]), ""),
+});
+
 /** A standard as a picker or a tag shows it. */
 export interface StandardSummary {
   id: string;
@@ -73,6 +80,86 @@ export interface StandardSummary {
   statement: string;
   frameworkId: string;
   frameworkTitle: string;
+}
+
+// --- Mastery ---------------------------------------------------------------
+
+/** How firmly a student holds a standard, as their marked answers show it. */
+export type MasteryLevel = "secure" | "developing" | "beginning";
+
+/**
+ * The latest occasion's weight against everything before it, as in a
+ * decaying average (Canvas's default is 65%): recent work counts most, so
+ * a student who has since learned a standard is not held to their first
+ * tries at it.
+ */
+export const RECENT_WEIGHT = 0.65;
+export const SECURE_AT = 0.8;
+export const DEVELOPING_AT = 0.5;
+/**
+ * Occasions a standard must be shown on before it counts as secure, so one
+ * good lesson is not taken for a skill that lasts.
+ */
+export const SECURE_OCCASIONS = 2;
+
+/** One marked answer to a question tagged with a standard. */
+export interface Evidence {
+  /** The sitting it came from: one lesson attempt, or one quiz attempt. */
+  occasion: string;
+  /** From 0 to 1. */
+  fraction: number;
+  at: string;
+}
+
+export interface Mastery {
+  level: MasteryLevel;
+  /** The decaying average, from 0 to 1. */
+  score: number;
+  occasions: number;
+}
+
+/**
+ * A student's mastery of one standard. Answers in one sitting are averaged
+ * first, so three questions in one quiz are one occasion, not three; the
+ * occasions then make a decaying average in the order they happened.
+ */
+export function masteryOf(evidence: readonly Evidence[]): Mastery | null {
+  const occasions = new Map<
+    string,
+    { total: number; count: number; at: string }
+  >();
+  for (const item of evidence) {
+    const seen = occasions.get(item.occasion);
+    if (seen) {
+      seen.total += item.fraction;
+      seen.count += 1;
+      if (item.at > seen.at) seen.at = item.at;
+    } else
+      occasions.set(item.occasion, {
+        total: item.fraction,
+        count: 1,
+        at: item.at,
+      });
+  }
+  const ordered = [...occasions.values()].toSorted((a, b) =>
+    a.at.localeCompare(b.at),
+  );
+  let score: number | null = null;
+  for (const occasion of ordered) {
+    const fraction = occasion.total / occasion.count;
+    score =
+      score === null
+        ? fraction
+        : RECENT_WEIGHT * fraction + (1 - RECENT_WEIGHT) * score;
+  }
+  if (score === null) return null;
+  const level: MasteryLevel =
+    score >= SECURE_AT && ordered.length >= SECURE_OCCASIONS
+      ? "secure"
+      : score >= DEVELOPING_AT
+        ? "developing"
+        : "beginning";
+  return { level, score, occasions: ordered.length };
 }
 
 // --- CASE ------------------------------------------------------------------

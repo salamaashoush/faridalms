@@ -1903,3 +1903,148 @@ describe("quizzes", () => {
     });
   });
 });
+
+describe("standards a quiz gives evidence on", () => {
+  test("a quiz's marked answers count toward the standards its questions carry, and marking again replaces them", async () => {
+    const office = await signedIn("northwind", login("principal"));
+    const framework = await office.standards.saveFramework({
+      id: "",
+      expectedVersion: 0,
+      title: `Evidence ${uuid()}`,
+      description: "",
+    });
+    const tag = (code: string) =>
+      office.standards.saveStandard({
+        frameworkId: framework.id,
+        id: "",
+        expectedVersion: 0,
+        parentId: "",
+        code,
+        statement: `Standard ${code}.`,
+        itemType: "",
+      });
+    const nouns = await tag("EV.1");
+    const writing = await tag("EV.2");
+
+    const teacher = await arabicTeacher();
+    const student = await sessionFor("northwind", login("student"));
+    const me = await student.api.identity.currentUser();
+    const target = await classOfStudent(teacher.api, me.id);
+    const right = uuid();
+    const common = { hints: [], explanation: "", tries: null };
+    const choice = {
+      ...common,
+      id: uuid(),
+      type: "choice" as const,
+      prompt: "Which is a noun?",
+      points: 1,
+      options: [
+        { id: right, text: "Book", feedback: "" },
+        { id: uuid(), text: "Run", feedback: "" },
+      ],
+      correctOptionIds: [right],
+      multiple: false,
+      shuffle: false,
+      standards: [nouns.id],
+    };
+    const written = {
+      ...common,
+      id: uuid(),
+      type: "written" as const,
+      prompt: "Write a sentence with two nouns.",
+      points: 4,
+      wordLimit: null,
+      // One the school does not have is left out rather than refused.
+      standards: [nouns.id, writing.id, uuid()],
+    };
+    const saved = await teacher.api.coursework.save(
+      draft(target.id, "Nouns quiz", {
+        submissionFormat: "quiz",
+        points: null,
+        brief: briefWithQuiz(plainContent("Answer both."), {
+          version: 2,
+          blocks: [choice, written],
+        }),
+        quiz: {
+          attempts: 1,
+          keep: "highest",
+          reveal: "answers",
+          shuffle: false,
+        },
+      }),
+    );
+    await teacher.api.coursework.publish({
+      id: saved.id,
+      expectedVersion: saved.version,
+    });
+    await student.api.coursework.saveQuizAnswer({
+      assignmentId: saved.id,
+      blockId: choice.id,
+      response: { type: "choice", optionIds: [right] },
+    });
+    await student.api.coursework.saveQuizAnswer({
+      assignmentId: saved.id,
+      blockId: written.id,
+      response: { type: "written", text: "The cat sat on the mat." },
+    });
+    const work = await student.api.coursework.work({ id: saved.id });
+    await student.api.coursework.handIn({
+      assignmentId: saved.id,
+      expectedVersion: work.submission.version,
+    });
+
+    const progress = async () => {
+      const shown = await teacher.api.standards.classProgress({
+        classId: target.id,
+      });
+      return Object.fromEntries(
+        shown.mastery
+          .filter((row) => row.studentId === me.id)
+          .map((row) => [row.standardId, row]),
+      );
+    };
+    // The written answer waits for its teacher, so only the choice counts.
+    expect(await progress()).toEqual({
+      [nouns.id]: {
+        studentId: me.id,
+        standardId: nouns.id,
+        level: "developing",
+        score: 1,
+        occasions: 1,
+      },
+    });
+
+    const grading = await teacher.api.coursework.grading({
+      assignmentId: saved.id,
+      studentId: me.id,
+    });
+    const attempt = grading.quiz?.attempts[0];
+    if (!attempt) throw new Error("no attempt");
+    const mark = (points: number) =>
+      teacher.api.coursework.markQuizAnswer({
+        attemptIds: [attempt.attemptId],
+        blockId: written.id,
+        points,
+      });
+    await mark(2);
+    const marked = await progress();
+    // One sitting: its two answers on nouns make one occasion.
+    expect(marked[nouns.id]).toMatchObject({ score: 0.75, occasions: 1 });
+    expect(marked[writing.id]).toMatchObject({
+      level: "developing",
+      score: 0.5,
+    });
+    await mark(4);
+    expect((await progress())[writing.id]).toMatchObject({ score: 1 });
+
+    const own = await student.api.standards.studentProgress({});
+    expect(own.standards.map((row) => row.code)).toEqual(["EV.1", "EV.2"]);
+    expect(
+      await rejection(
+        student.api.standards.classProgress({ classId: target.id }),
+      ),
+    ).toMatchObject({ code: "FORBIDDEN" });
+    await office.standards.removeFramework({ id: framework.id });
+    expect((await progress())[nouns.id]).toBeUndefined();
+  });
+});

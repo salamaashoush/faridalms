@@ -2,7 +2,7 @@ import { sql } from "drizzle-orm";
 
 import type { CellTransaction } from "../context";
 
-import { uuidArray } from "./sql";
+import { isoOf, uuidArray } from "./sql";
 
 type Tx = CellTransaction;
 
@@ -437,4 +437,126 @@ export async function importStandards(
       and status = 'active' and case_identifier is not null
       and not (id = any(${uuidArray([...ids.values()])}))`);
   return ids.size;
+}
+
+/** What one marked answer shows, for each standard its question carried. */
+export interface EvidenceMark {
+  attempt: number;
+  blockId: string;
+  standards: readonly string[];
+  fraction: number;
+}
+
+/**
+ * Keeps the evidence a sitting's marked answers give, for the standards the
+ * school still has. Marking again replaces it, keeping when the student
+ * answered; otherwise the first answer stands, as a lesson's later tries
+ * come after its feedback and hints.
+ */
+export async function recordEvidence(
+  tx: Tx,
+  input: {
+    tenantId: string;
+    studentId: string;
+    sitting:
+      | { source: "lesson"; lessonId: string }
+      | { source: "quiz"; submissionId: string };
+    marks: readonly EvidenceMark[];
+    replace: boolean;
+  },
+): Promise<void> {
+  const rows = input.marks.flatMap((mark) =>
+    mark.standards.map(
+      (standard) =>
+        sql`(${mark.attempt}::smallint, ${mark.blockId}::uuid, ${standard}::uuid, ${mark.fraction}::numeric)`,
+    ),
+  );
+  if (rows.length === 0) return;
+  const lesson =
+    input.sitting.source === "lesson" ? input.sitting.lessonId : null;
+  const submission =
+    input.sitting.source === "quiz" ? input.sitting.submissionId : null;
+  await tx.execute(sql`
+    insert into core.standard_evidence (tenant_id, student_user_id, standard_id, source, lesson_id,
+      submission_id, attempt, block_id, fraction, answered_at)
+    select ${input.tenantId}::uuid, ${input.studentId}::uuid, s.id, ${input.sitting.source},
+      ${lesson}::uuid, ${submission}::uuid, e.attempt, e.block_id, e.fraction,
+      statement_timestamp()
+    from (values ${sql.join(rows, sql`, `)}) as e(attempt, block_id, standard_id, fraction)
+    join core.standards s on s.tenant_id = ${input.tenantId}::uuid and s.id = e.standard_id
+      and s.status = 'active'
+    on conflict (tenant_id, sitting, student_user_id, attempt, block_id, standard_id)
+      where status = 'active'
+    ${
+      input.replace
+        ? sql`do update set fraction = excluded.fraction
+            where core.standard_evidence.fraction is distinct from excluded.fraction`
+        : sql`do nothing`
+    }`);
+}
+
+/** A piece of evidence as mastery is worked out from it. */
+export interface EvidenceRow {
+  studentId: string;
+  standardId: string;
+  /** The sitting and attempt it came from, which group its answers. */
+  occasion: string;
+  fraction: number;
+  answeredAt: string;
+}
+
+type EvidenceRecord = {
+  student_user_id: string;
+  standard_id: string;
+  occasion: string;
+  fraction: string | number;
+  answered_at: string;
+};
+
+const evidenceOf = (row: EvidenceRecord): EvidenceRow => ({
+  studentId: row.student_user_id,
+  standardId: row.standard_id,
+  occasion: row.occasion,
+  fraction: Number(row.fraction),
+  answeredAt: row.answered_at,
+});
+
+/**
+ * The students' evidence on the school's standards. With a class, only what
+ * the class's own work gave: its modules' lessons and its assignments.
+ */
+export async function evidenceOfStudents(
+  tx: Tx,
+  input: {
+    tenantId: string;
+    orgId: string;
+    studentIds: readonly string[];
+    classId: string | null;
+  },
+): Promise<EvidenceRow[]> {
+  if (input.studentIds.length === 0) return [];
+  const rows = await tx.execute<EvidenceRecord>(sql`
+    select e.student_user_id, e.standard_id, e.sitting::text || ':' || e.attempt as occasion,
+      e.fraction, ${isoOf(sql`e.answered_at`)} as answered_at
+    from core.standard_evidence e
+    join core.standards s on s.tenant_id = e.tenant_id and s.id = e.standard_id and s.status = 'active'
+    join core.standard_frameworks f on f.tenant_id = s.tenant_id and f.id = s.framework_id
+      and f.status = 'active' and f.org_id = ${input.orgId}::uuid
+    where e.tenant_id = ${input.tenantId}::uuid and e.status = 'active'
+      and e.student_user_id = any(${uuidArray(input.studentIds)})
+      ${
+        input.classId
+          ? sql`and (
+            exists (select 1 from core.lessons l
+              join core.module_classes mc on mc.tenant_id = l.tenant_id and mc.module_id = l.module_id
+                and mc.class_id = ${input.classId}::uuid and mc.status = 'active'
+              where l.tenant_id = e.tenant_id and l.id = e.lesson_id)
+            or exists (select 1 from core.submissions sb
+              join core.assignments a on a.tenant_id = sb.tenant_id and a.id = sb.assignment_id
+                and a.class_id = ${input.classId}::uuid
+              where sb.tenant_id = e.tenant_id and sb.id = e.submission_id))`
+          : sql``
+      }
+    order by e.answered_at`);
+  return rows.map(evidenceOf);
 }

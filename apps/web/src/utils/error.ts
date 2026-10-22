@@ -55,6 +55,16 @@ export function getMessageFromError(error: unknown): string {
         return m.errorWeekStartWeekend();
       case "class.code_taken":
         return m.errorClassCodeTaken();
+      case "standards.move":
+        return m.errorStandardsMove();
+      case "standards.case_title":
+        return m.errorStandardsCaseTitle();
+      case "standards.framework_exists":
+        return m.errorStandardsFrameworkExists();
+      case "standards.exists":
+        return m.errorStandardsExists();
+      case "standards.evidence_exists":
+        return m.errorStandardsEvidence();
       case "school_year.closed":
         return m.errorSchoolYearClosed();
       case "school_year.overlapping":

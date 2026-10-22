@@ -169,6 +169,7 @@ export function questionBlock(node: ContentNode): LessonBlock | null {
     explanation: node.explanation ?? "",
     tries: node.tries ?? null,
     ...(typeof node.videoAt === "number" ? { videoAt: node.videoAt } : {}),
+    ...(node.standards?.length ? { standards: node.standards } : {}),
   };
   switch (node.kind) {
     case "choice": {
@@ -708,6 +709,7 @@ export function questionNode(block: LessonBlock): ContentNode | null {
     ...(block.hints.length > 0 ? { hints: block.hints } : {}),
     explanation: block.explanation,
     ...(typeof block.videoAt === "number" ? { videoAt: block.videoAt } : {}),
+    ...(block.standards?.length ? { standards: block.standards } : {}),
     ...voiced(block.narration, block.narrationWords),
     children: [inlineOf("question-prompt", block.prompt)],
   };

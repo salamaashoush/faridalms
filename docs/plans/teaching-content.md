@@ -167,7 +167,18 @@ Sources: [../research/course-design.md](../research/course-design.md),
    planning (4.3) brings, and naturally ordered codes ("RL.3.2" before
    "RL.3.10") in the picker.
 2. **Skill progress**: "N of M skills secure" per student and per class,
-   from the tagged checks.
+   from the tagged checks. Done: each marked answer to a tagged question
+   is kept as evidence (`core.standard_evidence`): a lesson's first answer
+   or its teacher's mark, a quiz's answers whenever it is scored, so a
+   re-mark replaces them. Mastery is a decaying average over sittings
+   (65% on the latest; one sitting's answers averaged first): secure at
+   80% on two sittings or more, developing from 50%. A class's Skills tab
+   shows each student against each standard its own work assessed, then
+   each standard across the class; a student record's Skills tab shows
+   every framework. Erasing a student removes their evidence. Left: the
+   student's and family's own view, evidence a teacher records without a
+   question (an observation, a rubric criterion), and the sittings behind
+   a mark.
 3. **Unit planning** with the fields a school's framework asks for (IB unit
    planner, backward design), linked to the modules that teach it.
 

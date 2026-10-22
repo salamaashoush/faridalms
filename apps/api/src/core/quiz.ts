@@ -35,6 +35,7 @@ import {
   quizStarted,
   storeQuizDraws,
 } from "@faridalms/database/stores/quizzes";
+import { recordEvidence } from "@faridalms/database/stores/standards";
 import { bankQuestionOf } from "@faridalms/domain/bank";
 import {
   attemptQuiz,
@@ -396,6 +397,30 @@ export async function rescoreQuiz(
       fractionsOf(byAttempt.get(attempt.number) ?? []),
     ),
   );
+  await recordEvidence(context.tx, {
+    tenantId: context.tenantId,
+    studentId: input.studentId,
+    sitting: { source: "quiz", submissionId: input.submissionId },
+    marks: attempts.flatMap((attempt) => {
+      const blocks = checkBlocks(input.quizzes.of(attempt.number));
+      return (byAttempt.get(attempt.number) ?? []).flatMap((answer) => {
+        const block = blocks.find((item) => item.id === answer.blockId);
+        return block?.standards?.length &&
+          answer.state === "marked" &&
+          answer.fraction !== null
+          ? [
+              {
+                attempt: attempt.number,
+                blockId: block.id,
+                standards: block.standards,
+                fraction: answer.fraction,
+              },
+            ]
+          : [];
+      });
+    }),
+    replace: true,
+  });
   const kept = keptScore(scores, input.assignment.quizKeep ?? "highest");
   const pending = (byAttempt.get(latest.number) ?? []).some(
     (answer) => answer.state === "needs_marking",

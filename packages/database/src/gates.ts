@@ -24,7 +24,8 @@ delete_allowed(name, role) as (values
   ('audit.payloads', 'retention'), ('core.calendar_feeds', 'retention'), ('core.document_files', 'retention'),
   ('core.lesson_runs', 'retention'), ('core.lesson_code', 'retention'), ('core.lesson_projects', 'retention'),
   ('core.lesson_shares', 'retention'), ('core.access_arrangements', 'retention'),
-  ('core.quiz_draws', 'retention'), ('core.quiz_sittings', 'retention')),
+  ('core.quiz_draws', 'retention'), ('core.quiz_sittings', 'retention'),
+  ('core.standard_evidence', 'retention')),
 unversioned_update_allowed(name, role) as (values
   ('core.sessions', 'app'), ('core.sessions', 'worker'), ('core.auth_attempts', 'app'), ('core.auth_attempts', 'worker'),
   ('core.idempotency_keys', 'app'), ('core.idempotency_keys', 'worker'), ('core.tenant_keys', 'worker'),

@@ -31,6 +31,7 @@ import {
   redact,
   tenantColumns,
 } from "./conventions";
+import { submissions } from "./coursework";
 import { documentVersions } from "./documents";
 import { files } from "./files";
 import { users } from "./people";
@@ -783,5 +784,85 @@ export const standards = core.table.withRLS(
       .on(t.tenantId, t.frameworkId, t.parentId, t.position)
       .where(sql`status = 'active'`),
     ...entityProfile(),
+  ],
+);
+
+export type EvidenceSource = "lesson" | "quiz";
+
+/**
+ * A marked answer to a question tagged with a standard: what a student's
+ * mastery of it is worked out from. One row per standard the question
+ * carried when it was marked, kept by the sitting and question it answers,
+ * so marking again changes the row rather than adding one.
+ */
+export const standardEvidence = core.table.withRLS(
+  "standard_evidence",
+  {
+    ...tenantColumns(),
+    studentUserId: uuid("student_user_id").notNull(),
+    standardId: uuid("standard_id").notNull(),
+    source: text("source").$type<EvidenceSource>().notNull(),
+    lessonId: uuid("lesson_id"),
+    submissionId: uuid("submission_id"),
+    /** The lesson or the student's submission, whichever it came from. */
+    sitting: uuid("sitting")
+      .notNull()
+      .generatedAlwaysAs(sql`coalesce(lesson_id, submission_id)`),
+    attempt: smallint("attempt").notNull(),
+    blockId: uuid("block_id").notNull(),
+    fraction: numeric("fraction", {
+      precision: 5,
+      scale: 4,
+      mode: "number",
+    }).notNull(),
+    answeredAt: instant("answered_at").notNull(),
+    ...entityColumns(),
+  },
+  (t): PgTableExtraConfigValue[] => [
+    pk("standard_evidence", t.tenantId, t.id),
+    ...baseConstraints("standard_evidence", t, tenants),
+    fk(
+      "standard_evidence",
+      [t.tenantId, t.studentUserId],
+      [users.tenantId, users.id],
+    ),
+    fk(
+      "standard_evidence",
+      [t.tenantId, t.standardId],
+      [standards.tenantId, standards.id],
+    ),
+    fk(
+      "standard_evidence",
+      [t.tenantId, t.lessonId],
+      [lessons.tenantId, lessons.id],
+    ),
+    fk(
+      "standard_evidence",
+      [t.tenantId, t.submissionId, t.studentUserId],
+      [submissions.tenantId, submissions.id, submissions.studentUserId],
+    ),
+    ck(
+      "standard_evidence",
+      "source",
+      sql`(source = 'lesson' and lesson_id is not null and submission_id is null) or (source = 'quiz' and submission_id is not null and lesson_id is null)`,
+    ),
+    ck("standard_evidence", "attempt", sql`attempt between 1 and 1000`),
+    ck("standard_evidence", "fraction", sql`fraction between 0 and 1`),
+    uniqueIndex("standard_evidence_key")
+      .on(
+        t.tenantId,
+        t.sitting,
+        t.studentUserId,
+        t.attempt,
+        t.blockId,
+        t.standardId,
+      )
+      .where(sql`status = 'active'`),
+    index("standard_evidence_student_idx")
+      .on(t.tenantId, t.studentUserId, t.standardId)
+      .where(sql`status = 'active'`),
+    ...entityProfile(),
+    // Mastery is only ever about the student it was worked out for.
+    ...eraseAndDelete(erasureOf("student_user_id")),
   ],
 );

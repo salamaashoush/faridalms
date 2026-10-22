@@ -299,6 +299,7 @@ export async function eraseSubject(
     "access_arrangements",
     "quiz_draws",
     "quiz_sittings",
+    "standard_evidence",
   ] as const)
     await remove(
       table,

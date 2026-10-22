@@ -1,4 +1,13 @@
+import type { Scope } from "@faridalms/database/stores/students";
+
 import {
+  classById,
+  rosterOf,
+  teachesClass,
+} from "@faridalms/database/stores/classes";
+import { namesOf } from "@faridalms/database/stores/coursework";
+import {
+  evidenceOfStudents,
   frameworkById,
   frameworkOfCase,
   frameworksOf,
@@ -16,15 +25,20 @@ import {
   updateFramework,
   updateStandard,
 } from "@faridalms/database/stores/standards";
+import { isVisibleStudent } from "@faridalms/database/stores/students";
+import { dayIn, schoolYears } from "@faridalms/database/stores/years";
 import {
   caseOutline,
+  classProgressSchema,
   describeStandardsSchema,
   importCaseSchema,
+  masteryOf,
   moveStandardSchema,
   refSchema,
   saveFrameworkSchema,
   saveStandardSchema,
   searchStandardsSchema,
+  studentProgressSchema,
 } from "@faridalms/domain/standards";
 import { ORPCError } from "@orpc/server";
 
@@ -316,4 +330,126 @@ export const describe = readProcedure
       orgId: context.schoolId,
       ids: input.ids,
     });
+  });
+
+function scopeOf(context: UnitContext): Scope {
+  return {
+    tenantId: context.tenantId,
+    schoolId: context.schoolId,
+    today: context.today,
+    viewerId: context.actor.userId,
+    schoolWide: can(context, "classes:manage"),
+  };
+}
+
+type EvidenceRows = Awaited<ReturnType<typeof evidenceOfStudents>>;
+
+/** Each student's mastery of each standard they have evidence on. */
+function masteries(rows: EvidenceRows) {
+  const grouped = new Map<string, EvidenceRows>();
+  for (const row of rows) {
+    const key = `${row.studentId}:${row.standardId}`;
+    const group = grouped.get(key);
+    if (group) group.push(row);
+    else grouped.set(key, [row]);
+  }
+  return [...grouped.values()].flatMap((evidence) => {
+    const [first] = evidence;
+    const mastery = masteryOf(
+      evidence.map((row) => ({
+        occasion: row.occasion,
+        fraction: row.fraction,
+        at: row.answeredAt,
+      })),
+    );
+    return first && mastery
+      ? [
+          {
+            studentId: first.studentId,
+            standardId: first.standardId,
+            ...mastery,
+          },
+        ]
+      : [];
+  });
+}
+
+async function described(context: UnitContext, rows: EvidenceRows) {
+  const standards = await standardsByIds(context.tx, {
+    tenantId: context.tenantId,
+    orgId: context.schoolId,
+    ids: [...new Set(rows.map((row) => row.standardId))],
+  });
+  return standards.toSorted(
+    (a, b) =>
+      a.frameworkTitle.localeCompare(b.frameworkTitle) ||
+      a.code.localeCompare(b.code, undefined, { numeric: true }) ||
+      a.statement.localeCompare(b.statement),
+  );
+}
+
+/**
+ * A class's standards, as its own lessons and assignments gave evidence on
+ * them, and each current student's mastery of each.
+ */
+export const classProgress = readProcedure
+  .input(classProgressSchema)
+  .handler(async ({ input, context }) => {
+    requireCapability(context, "submissions:grade");
+    const classRow = await classById(context.tx, context, input.classId);
+    if (
+      !classRow ||
+      !(await teachesClass(context.tx, scopeOf(context), classRow.id))
+    )
+      throw new ORPCError("NOT_FOUND");
+    const years = await schoolYears(
+      context.tx,
+      context.tenantId,
+      context.schoolId,
+    );
+    const year = years.find((row) => row.id === classRow.schoolYearId);
+    if (!year) throw new ORPCError("NOT_FOUND");
+    const roster = await rosterOf(
+      context.tx,
+      context.tenantId,
+      classRow.id,
+      dayIn(year, context.today),
+    );
+    const [students, evidence] = await Promise.all([
+      namesOf(context.tx, context.tenantId, roster),
+      evidenceOfStudents(context.tx, {
+        tenantId: context.tenantId,
+        orgId: context.schoolId,
+        studentIds: roster,
+        classId: classRow.id,
+      }),
+    ]);
+    return {
+      standards: await described(context, evidence),
+      students,
+      mastery: masteries(evidence),
+    };
+  });
+
+/** One student's mastery of every standard they have evidence on, from any class. */
+export const studentProgress = readProcedure
+  .input(studentProgressSchema)
+  .handler(async ({ input, context }) => {
+    requireCapability(context, "grades:read");
+    const studentId = input.studentId || context.actor.userId;
+    if (
+      studentId !== context.actor.userId &&
+      !(await isVisibleStudent(context.tx, scopeOf(context), studentId))
+    )
+      throw new ORPCError("NOT_FOUND");
+    const evidence = await evidenceOfStudents(context.tx, {
+      tenantId: context.tenantId,
+      orgId: context.schoolId,
+      studentIds: [studentId],
+      classId: null,
+    });
+    return {
+      standards: await described(context, evidence),
+      mastery: masteries(evidence),
+    };
   });

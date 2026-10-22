@@ -35,6 +35,7 @@ import { StudentConsents } from "~/components/consents/StudentConsents";
 import { StudentCoursework } from "~/components/coursework/StudentCoursework";
 import { ageOn, formatDate } from "~/components/family/format";
 import { NewMessage } from "~/components/messages/NewMessage";
+import { StudentSkills } from "~/components/standards/Progress";
 import { ActionMenu } from "~/components/system/ActionMenu";
 import {
   Fact,
@@ -94,6 +95,7 @@ export const STUDENT_TABS = [
   "family",
   "enrollment",
   "coursework",
+  "skills",
   "attendance",
   "health",
   "support",
@@ -108,6 +110,7 @@ const TAB_LABEL: Record<StudentTab, () => string> = {
   family: m.studentTabFamily,
   enrollment: m.studentTabEnrollment,
   coursework: m.courseworkRecordTab,
+  skills: m.skillsTab,
   attendance: m.attendanceTitle,
   health: m.studentTabHealth,
   support: m.studentTabSupport,
@@ -130,6 +133,7 @@ export function studentTabsFor(
     family: access.contacts,
     enrollment: true,
     coursework: access.coursework,
+    skills: access.coursework,
     attendance: access.attendance,
     health: access.health,
     support: access.support,
@@ -826,6 +830,13 @@ export function StudentRecord({
       body = (
         <Deferred>
           <StudentCoursework studentId={studentId} />
+        </Deferred>
+      );
+      break;
+    case "skills":
+      body = (
+        <Deferred>
+          <StudentSkills studentId={studentId} />
         </Deferred>
       );
       break;

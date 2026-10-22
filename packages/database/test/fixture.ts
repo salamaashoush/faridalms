@@ -24,6 +24,7 @@ import {
   documentTemplates,
   bankQuestions,
   standardFrameworks,
+  standardEvidence,
   standards,
   attemptAuthentications,
   attemptDeclarations,
@@ -625,12 +626,27 @@ export async function completeFixture(
     .values({ tenantId, orgId: schoolId, title: "Reading" })
     .returning();
   if (!framework) throw new Error("framework not inserted");
-  await tx.insert(standards).values({
+  const [standard] = await tx
+    .insert(standards)
+    .values({
+      tenantId,
+      frameworkId: framework.id,
+      code: "R.1",
+      statement: "Read a story aloud with expression.",
+      position: 0,
+    })
+    .returning();
+  if (!standard) throw new Error("standard not inserted");
+  await tx.insert(standardEvidence).values({
     tenantId,
-    frameworkId: framework.id,
-    code: "R.1",
-    statement: "Read a story aloud with expression.",
-    position: 0,
+    studentUserId: submission.studentUserId,
+    standardId: standard.id,
+    source: "quiz",
+    submissionId: submission.id,
+    attempt: 1,
+    blockId: id(),
+    fraction: 0.75,
+    answeredAt: new Date("2026-09-20T09:20:00Z"),
   });
   await tx.insert(bankQuestions).values({
     tenantId,

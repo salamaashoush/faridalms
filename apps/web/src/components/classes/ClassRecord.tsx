@@ -22,6 +22,7 @@ import { ClassAttendance } from "~/components/attendance/ClassAttendance";
 import { formatDate } from "~/components/family/format";
 import { AreaFiles } from "~/components/files/AreaFiles";
 import { ClassGradingSection } from "~/components/grading/ClassGrading";
+import { ClassSkills } from "~/components/standards/Progress";
 import { ActionMenu } from "~/components/system/ActionMenu";
 import {
   phoneLink,
@@ -41,6 +42,7 @@ import { changeClassSounds } from "~/server/learning";
 
 import { CheckboxRow } from "../people/fields";
 import { displayName, labelOf } from "../people/format";
+import { Deferred } from "../people/record-parts";
 import { AddStudentSheet, MoveClassSheet, WithdrawSheet } from "./Enrolment";
 import { classTitle, subjectName } from "./format";
 
@@ -49,6 +51,7 @@ export const CLASS_TABS = [
   "students",
   "timetable",
   "attendance",
+  "skills",
   "files",
 ] as const;
 export type ClassTab = (typeof CLASS_TABS)[number];
@@ -58,6 +61,7 @@ const TAB_LABEL: Record<ClassTab, () => string> = {
   students: m.classesStudents,
   timetable: m.ttTitle,
   attendance: m.attendanceTitle,
+  skills: m.skillsTab,
   files: m.filesTab,
 };
 
@@ -401,6 +405,7 @@ export function ClassRecord({
   const keepsExams = useCapability("exams:manage");
   const keepsClasses = useCapability("classes:manage");
   const teaches = useCapability("assignments:author");
+  const grades = useCapability("submissions:grade");
   const keepsGrading = keepsExams || keepsClasses;
   const youngClass = (
     YOUNG_STUDENT_GRADES as readonly (string | null | undefined)[]
@@ -431,6 +436,7 @@ export function ClassRecord({
     (value) =>
       (value !== "attendance" || seesAttendance) &&
       (value !== "timetable" || seesTimetable) &&
+      (value !== "skills" || grades) &&
       (value !== "files" || data.access.files),
   );
   const active = available.includes(tab) ? tab : "overview";
@@ -445,6 +451,10 @@ export function ClassRecord({
       <ClassAttendance classId={data.id} />
     ) : active === "timetable" ? (
       <ClassWeek classId={data.id} />
+    ) : active === "skills" ? (
+      <Deferred>
+        <ClassSkills classId={data.id} />
+      </Deferred>
     ) : active === "files" ? (
       <AreaFiles area={{ type: "class", id: data.id }} title={title} />
     ) : (
