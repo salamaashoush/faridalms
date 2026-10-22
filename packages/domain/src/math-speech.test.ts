@@ -78,6 +78,63 @@ describe("a formula said in Arabic", () => {
   });
 });
 
+describe("a formula laid out in rows", () => {
+  it("reads a matrix by its size and then row by row, as ClearSpeak does", () => {
+    expect(english("A=\\begin{pmatrix}1&2\\\\3&4\\end{pmatrix}")).toBe(
+      "A equals the 2 by 2 matrix; row 1: 1, 2; row 2: 3, 4, end matrix",
+    );
+    expect(english("\\begin{bmatrix}1\\\\2\\end{bmatrix}")).toBe(
+      "the 2 by 1 column matrix; 1, 2, end matrix",
+    );
+    expect(
+      english("\\left(\\begin{array}{c|c}1&0\\\\0&1\\end{array}\\right)"),
+    ).toBe("the 2 by 2 matrix; row 1: 1, 0; row 2: 0, 1, end matrix");
+    expect(arabic("\\begin{pmatrix}1&2\\\\3&4\\end{pmatrix}")).toBe(
+      "مَصْفُوفَةٌ مِنَ النَّظْم 2 فِي 2؛ الصَّفّ 1: 1، 2؛ الصَّفّ 2: 3، 4، نِهَايَةُ الْمَصْفُوفَة",
+    );
+  });
+
+  it("reads a determinant by its order, as Arabic books name it", () => {
+    expect(english("\\begin{vmatrix}a&b\\\\c&d\\end{vmatrix}")).toBe(
+      "the determinant of the 2 by 2 matrix; row 1: a, b; row 2: c, d, end determinant",
+    );
+    expect(arabic("\\begin{vmatrix}a&b\\\\c&d\\end{vmatrix}")).toBe(
+      "مُحَدِّدٌ مِنَ الرُّتْبَة 2؛ الصَّفّ 1: a، b؛ الصَّفّ 2: c، d، نِهَايَةُ الْمُحَدِّد",
+    );
+  });
+
+  it("reads each case with its condition, and keeps a condition the teacher worded", () => {
+    expect(
+      english(
+        "\\begin{cases}x & x\\ge 0\\\\-x & \\text{otherwise}\\end{cases}",
+      ),
+    ).toBe(
+      "case 1: x if x is greater than or equal to 0; case 2: negative x otherwise",
+    );
+    expect(arabic("\\begin{cases}1 & x>0\\\\0 & x\\le 0\\end{cases}")).toBe(
+      "الْحَالَة 1: 1 عِنْدَمَا x أَكْبَرُ مِنْ 0؛ الْحَالَة 2: 0 عِنْدَمَا x أَصْغَرُ مِنْ أَوْ يُسَاوِي 0",
+    );
+  });
+
+  it("reads the lines of a working one by one, and a binomial coefficient", () => {
+    expect(english("\\begin{aligned}2x&=4\\\\x&=2\\end{aligned}")).toBe(
+      "line 1: 2 x equals 4; line 2: x equals 2",
+    );
+    expect(english("\\binom{5}{2}")).toBe("5 choose 2");
+    expect(arabic("\\binom{5}{2}")).toBe("تَوَافِيقُ 5 مَأْخُوذَةً 2 فِي كُلِّ مَرَّة");
+  });
+
+  it("vowels its words", () => {
+    expect(
+      voiceCanRead(
+        arabic(
+          "\\begin{vmatrix}1&2\\\\3&4\\end{vmatrix}+\\begin{pmatrix}1&2\\end{pmatrix}+\\binom{n}{2}",
+        ),
+      ),
+    ).toBe(true);
+  });
+});
+
 describe("text with formulas in it", () => {
   it("says each formula in words where it stands", () => {
     expect(spokenMathText("Solve \\(x^2=9\\) for x.", "en")).toBe(

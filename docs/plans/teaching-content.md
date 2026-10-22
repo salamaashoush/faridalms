@@ -128,8 +128,11 @@ Sources: [../research/course-design.md](../research/course-design.md),
    (جا, جتا, لو, نهــا), arrows pointing the way it reads, Arabic commas,
    and numbers in the school's digits; its LaTeX stays as written. It is
    said with the same letters, and a student's answer typed in them is
-   read as the Latin of the key, so 2س + 1 answers 2x + 1.
-   Left: speech for matrices and other layouts beyond school algebra.
+   read as the Latin of the key, so 2س + 1 answers 2x + 1. Matrices are
+   said as ClearSpeak says them, their size and then row by row, a
+   determinant by its order as Arabic books name it, each case of a
+   definition with its condition, the lines of a working one by one, and a
+   binomial coefficient as a choice (توافيق in Arabic).
 2. **Maths answers checked for equivalence**, a question kind that accepts
    `2(x+1)` for `2x+2`, with tolerance and units for numbers. Done: the Maths
    answer question; students write in MathLive's field and the server

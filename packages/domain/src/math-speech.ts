@@ -30,7 +30,9 @@ type Node =
   | { kind: "script"; base: Node; sup: Node[] | null; sub: Node[] | null }
   | { kind: "fence"; open: string; body: Node[] }
   | { kind: "accent"; name: string; body: Node[] }
-  | { kind: "words"; text: string };
+  | { kind: "words"; text: string }
+  | { kind: "table"; name: string; rows: Node[][][] }
+  | { kind: "binom"; top: Node[]; bottom: Node[] };
 
 const WORDS: Record<string, [en: string, ar: string]> = {
   plus: ["plus", "زَائِد"],
@@ -101,6 +103,8 @@ const WORDS: Record<string, [en: string, ar: string]> = {
   closeBrace: ["close brace", "أَغْلِقِ الْقَوْسَ الْمَعْقُوف"],
   abs: ["the absolute value of", "الْقِيمَةُ الْمُطْلَقَة"],
   endAbs: ["end absolute value", "نِهَايَةُ الْقِيمَةِ الْمُطْلَقَة"],
+  endMatrix: ["end matrix", "نِهَايَةُ الْمَصْفُوفَة"],
+  endDeterminant: ["end determinant", "نِهَايَةُ الْمُحَدِّد"],
   from: ["from", "مِنْ"],
   of: ["of", ""],
   base: ["base", "لِلْأَسَاس"],
@@ -227,6 +231,8 @@ const SYMBOL_COMMANDS: Record<string, string> = {
   cdots: "dots",
   ldots: "dots",
   dots: "dots",
+  vdots: "dots",
+  ddots: "dots",
   therefore: "therefore",
   because: "because",
   forall: "forall",
@@ -289,6 +295,7 @@ const QUIET = new Set([
   "Bigl",
   "Bigr",
   "middle",
+  "hline",
 ]);
 
 /** Commands whose braced argument is plain words, said as written. */
@@ -478,6 +485,49 @@ function argument(reader: Reader): Node[] {
   return node ? [node] : [];
 }
 
+/** The letters and marks in braces: an environment's name, or an array's columns. */
+function braced(reader: Reader): string {
+  if (!reader.isChar("{")) return "";
+  reader.next();
+  let name = "";
+  while (reader.peek() && !reader.isChar("}")) {
+    const token = reader.next();
+    if (token?.kind === "letter") name += token.text;
+    else if (token?.kind === "char") name += token.value;
+  }
+  reader.next();
+  return name;
+}
+
+/** The rows of a matrix, the cases of a definition, or the lines of a working, cell by cell. */
+function table(reader: Reader): Node {
+  const name = braced(reader);
+  // An array's first argument lays out its columns, as c|c; it says nothing.
+  if (name === "array") braced(reader);
+  const rows: Node[][][] = [];
+  let row: Node[][] = [];
+  let cell: Node[] = [];
+  while (reader.peek() && !reader.isCommand("end")) {
+    if (reader.isChar("&") || reader.isCommand("\\")) {
+      const endsRow = reader.isCommand("\\");
+      reader.next();
+      row.push(cell);
+      cell = [];
+      if (endsRow) {
+        rows.push(row);
+        row = [];
+      }
+      continue;
+    }
+    const node = atom(reader);
+    if (node) cell.push(...scripts(reader, node));
+  }
+  reader.next();
+  braced(reader);
+  if (cell.length > 0 || row.length > 0) rows.push([...row, cell]);
+  return { kind: "table", name, rows };
+}
+
 function scripts(reader: Reader, base: Node): Node[] {
   let sup: Node[] | null = null;
   let sub: Node[] | null = null;
@@ -559,9 +609,14 @@ function atom(reader: Reader): Node | null {
     }
     return { kind: "root", index, body: argument(reader) };
   }
-  if (name === "begin" || name === "end") {
-    argument(reader);
+  if (name === "begin") return table(reader);
+  if (name === "end") {
+    braced(reader);
     return null;
+  }
+  if (name === "binom" || name === "dbinom" || name === "tbinom") {
+    const top = argument(reader);
+    return { kind: "binom", top, bottom: argument(reader) };
   }
   if (ACCENTS[name])
     return { kind: "accent", name: ACCENTS[name], body: argument(reader) };
@@ -627,6 +682,38 @@ const RELATIONS = new Set([
   "ratio",
   "row",
 ]);
+
+const MATRICES = new Set([
+  "matrix",
+  "pmatrix",
+  "bmatrix",
+  "Bmatrix",
+  "Vmatrix",
+  "smallmatrix",
+]);
+
+/** Environments whose & marks where lines align, not a new cell. */
+const ALIGNED = new Set([
+  "align",
+  "align*",
+  "aligned",
+  "alignat",
+  "alignat*",
+  "gather",
+  "gather*",
+  "gathered",
+  "split",
+  "multline",
+  "multline*",
+  "eqnarray",
+  "eqnarray*",
+]);
+
+/** Words with a mark after the last, where a voice pauses. */
+const pause = (words: string[], mark: string): string[] =>
+  mark && words.length > 0
+    ? [...words.slice(0, -1), `${words.at(-1)}${mark}`]
+    : words;
 
 /** Whether a part reads as one word, so it needs no "end" after it. */
 const simple = (nodes: readonly Node[]) =>
@@ -723,8 +810,17 @@ class Speaker {
           ...this.ending(node.body, "endRoot"),
         ];
       }
-      case "fence":
+      case "fence": {
         if (node.open === "group") return this.say(node.body);
+        const [only] = node.body;
+        // \left( \begin{array} … \right) is a matrix written by hand.
+        if (
+          node.body.length === 1 &&
+          only?.kind === "table" &&
+          (node.open === "(" || node.open === "[") &&
+          (MATRICES.has(only.name) || only.name === "array")
+        )
+          return this.table(only, true);
         if (node.open === "|")
           return [
             this.word("abs"),
@@ -738,14 +834,109 @@ class Speaker {
               this.word("closeBrace"),
             ]
           : [this.word("open"), ...this.say(node.body), this.word("close")];
+      }
       case "accent":
         return node.name === "vector" || node.name === "segment"
           ? [this.word(node.name), ...this.say(node.body)]
           : [...this.say(node.body), this.word(node.name)];
       case "script":
         return this.script(node);
+      case "table":
+        return this.table(node);
+      case "binom":
+        return this.language === "ar"
+          ? [
+              "تَوَافِيقُ",
+              ...this.say(node.top),
+              "مَأْخُوذَةً",
+              ...this.say(node.bottom),
+              "فِي كُلِّ مَرَّة",
+            ]
+          : [...this.say(node.top), "choose", ...this.say(node.bottom)];
     }
     return [];
+  }
+
+  /**
+   * A matrix as ClearSpeak reads one, its size and then row by row; a
+   * determinant by its order, as Arabic books name it; cases and the
+   * lines of a working each by their number.
+   */
+  table(node: Extract<Node, { kind: "table" }>, bracketed = false): string[] {
+    const ar = this.language === "ar";
+    const { name, rows } = node;
+    const columns = Math.max(0, ...rows.map((row) => row.length));
+    const cells = (row: Node[][], mark: string) =>
+      row.flatMap((cell, index) =>
+        pause(this.say(cell), index < row.length - 1 ? mark : ""),
+      );
+    const numbered = (label: string) =>
+      rows.flatMap((row, index) => [
+        ...pause([label, String(index + 1)], ":"),
+        ...pause(
+          cells(row, ar ? "،" : ","),
+          index < rows.length - 1 ? (ar ? "؛" : ";") : "",
+        ),
+      ]);
+    if (bracketed || MATRICES.has(name) || name === "vmatrix") {
+      const determinant = name === "vmatrix";
+      const size = ar
+        ? determinant
+          ? ["مُحَدِّدٌ", "مِنَ", "الرُّتْبَة", String(rows.length)]
+          : [
+              "مَصْفُوفَةٌ",
+              "مِنَ",
+              "النَّظْم",
+              String(rows.length),
+              "فِي",
+              String(columns),
+            ]
+        : [
+            ...(determinant ? ["the", "determinant", "of"] : []),
+            "the",
+            String(rows.length),
+            "by",
+            String(columns),
+            ...(rows.length === 1 ? ["row"] : columns === 1 ? ["column"] : []),
+            "matrix",
+          ];
+      const arabicLine =
+        !determinant && ar && (rows.length === 1 || columns === 1)
+          ? ["مَصْفُوفَةُ", rows.length === 1 ? "صَفّ" : "عَمُود"]
+          : null;
+      const body =
+        rows.length === 1 || columns === 1
+          ? cells(
+              rows.flatMap((row) => row),
+              ar ? "،" : ",",
+            )
+          : numbered(ar ? "الصَّفّ" : "row");
+      return [
+        ...pause(arabicLine ?? size, ar ? "؛" : ";"),
+        ...pause(body, ar ? "،" : ","),
+        this.word(determinant ? "endDeterminant" : "endMatrix"),
+      ];
+    }
+    if (name === "cases" || name === "dcases")
+      return rows.flatMap((row, index) => {
+        const [value = [], condition = []] = row;
+        // A condition the teacher worded ("if", "otherwise") is said as written.
+        const joined =
+          condition.length === 0 || condition[0]?.kind === "words"
+            ? [...this.say(value), ...this.say(condition)]
+            : [...this.say(value), ar ? "عِنْدَمَا" : "if", ...this.say(condition)];
+        return [
+          ...pause([ar ? "الْحَالَة" : "case", String(index + 1)], ":"),
+          ...pause(joined, index < rows.length - 1 ? (ar ? "؛" : ";") : ""),
+        ];
+      });
+    const lines = rows.map((row) => row.flatMap((cell) => this.say(cell)));
+    if (lines.length === 1) return lines[0] ?? [];
+    if (!ALIGNED.has(name)) return numbered(ar ? "السَّطْر" : "line");
+    return lines.flatMap((line, index) => [
+      ...pause([ar ? "السَّطْر" : "line", String(index + 1)], ":"),
+      ...pause(line, index < lines.length - 1 ? (ar ? "؛" : ";") : ""),
+    ]);
   }
 
   script(node: Extract<Node, { kind: "script" }>): string[] {
