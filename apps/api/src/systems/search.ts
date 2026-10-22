@@ -1,5 +1,6 @@
 import type { Candidate, FoundRow } from "@faridalms/database/stores/search";
 import type { Scope } from "@faridalms/database/stores/students";
+import type { MentionKind } from "@faridalms/domain/content";
 import type {
   SearchGroup,
   SearchHit,
@@ -24,6 +25,7 @@ import {
   threadsAmong,
 } from "@faridalms/database/stores/search";
 import {
+  mentionNamesSchema,
   SEARCH_PAGE_SIZE,
   SEARCH_PREVIEW_SIZE,
   searchableKinds,
@@ -310,4 +312,43 @@ export const find = readProcedure
       after: parseCursor(input.after),
     });
     return { groups: [page.group], next: page.next };
+  });
+
+/** Where each kind of mention is found, so its name is read by that kind's rule. */
+const MENTIONED_IN: Record<MentionKind, readonly SearchKind[]> = {
+  person: ["students", "people"],
+  class: ["classes"],
+  module: ["learning"],
+  lesson: ["learning"],
+  assignment: ["assignments"],
+  news: ["news"],
+  announcement: ["announcements"],
+  event: ["events"],
+};
+
+/**
+ * The names the things a document mentions bear now, in the reader's
+ * language, so a renamed person or lesson reads as it is called today.
+ * Only what the reader could find for themselves is named; the rest keep
+ * the name they were written with.
+ */
+export const mentionNames = readProcedure
+  .input(mentionNamesSchema)
+  .handler(async ({ input, context }) => {
+    const kinds = new Set(await kindsFor(context));
+    const wanted = new Map<SearchKind, Set<string>>();
+    for (const mention of input.mentions)
+      for (const kind of MENTIONED_IN[mention.kind])
+        if (kinds.has(kind))
+          wanted.set(kind, (wanted.get(kind) ?? new Set()).add(mention.id));
+    const found = await Promise.all(
+      [...wanted].map(async ([kind, ids]) =>
+        (await resolverOf(context, kind, ""))([...ids]),
+      ),
+    );
+    return [
+      ...new Map(
+        found.flat().map((row) => [row.id, { id: row.id, name: row.title }]),
+      ).values(),
+    ];
   });

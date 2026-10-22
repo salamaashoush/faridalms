@@ -12,6 +12,7 @@ export const NOTIFICATION_KINDS = [
   "event",
   "reminder",
   "consent",
+  "mention",
 ] as const;
 export type NotificationKind = (typeof NOTIFICATION_KINDS)[number];
 
@@ -51,6 +52,7 @@ export const CHOOSABLE_KINDS = [
   "event",
   "reminder",
   "consent",
+  "mention",
 ] as const;
 export type ChoosableKind = (typeof CHOOSABLE_KINDS)[number];
 
@@ -93,6 +95,7 @@ export const DEFAULT_PREFERENCES: Preferences = {
     event: "digest",
     reminder: "instant",
     consent: "digest",
+    mention: "instant",
   },
   sms: {
     announcement: "off",
@@ -102,6 +105,7 @@ export const DEFAULT_PREFERENCES: Preferences = {
     event: "off",
     reminder: "off",
     consent: "off",
+    mention: "off",
   },
   quietFrom: "21:00",
   quietTo: "07:00",

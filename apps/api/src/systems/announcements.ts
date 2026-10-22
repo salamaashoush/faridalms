@@ -57,6 +57,7 @@ import * as v from "valibot";
 import type { UnitContext } from "../core/context";
 
 import { audienceChoices, audienceOf } from "../core/audiences";
+import { publishTelling } from "../core/mentions";
 import { notify } from "../core/notify";
 import {
   audit,
@@ -437,7 +438,14 @@ export const publish = writeProcedure
       });
     // A scheduled one tells nobody yet; its readers hear when it is out.
     if (!later) {
-      const { body } = written;
+      const { body, original } = written;
+      if (original)
+        await publishTelling(context, {
+          documentId: original.id,
+          subject: { type: "announcement", id: row.id },
+          title: titleIn(row, "en"),
+          titleAr: titleIn(row, "ar"),
+        });
       await notify(context, users, {
         kind: row.urgency === "urgent" ? "urgent" : "announcement",
         subject: { type: "announcement", id: row.id },

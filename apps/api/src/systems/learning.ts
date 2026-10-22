@@ -228,6 +228,7 @@ import {
   mayEditModule,
   moduleOfSchool,
 } from "../core/learning-access";
+import { publishTelling } from "../core/mentions";
 import {
   audit,
   can,
@@ -451,10 +452,11 @@ async function publishLessons(context: UnitContext, lessonIds: string[]) {
       id: lessonId,
     });
     if (!document) continue;
-    await snapshotPublish(context.tx, {
-      tenantId: context.tenantId,
+    const lesson = await lessonById(context.tx, context.tenantId, lessonId);
+    await publishTelling(context, {
       documentId: document.id,
-      userId: context.actor.userId,
+      subject: { type: "lesson", id: lessonId },
+      title: lesson?.title ?? "",
     });
     const translation = await translationOf(
       context.tx,

@@ -574,9 +574,16 @@ Sources: [../research/course-design.md](../research/course-design.md),
    each is in. A chosen one stands in the text as one piece, named as it
    was when chosen; readers follow a class, module, lesson or assignment
    to its page, and a person reads as a name alone, since not everyone
-   may open a profile.
-   Left: telling a person they were mentioned; mentioning news and the
-   school's pages; a name that follows its person when it changes.
+   may open a profile. News posts, announcements and calendar events are
+   mentioned the same way and open their own pages; a page of the
+   school's website is linked rather than mentioned, since it lives at an
+   address outside the app. A mention reads by the name it bears now, in
+   the reader's language, wherever the reader could find it themselves,
+   and by the name it was written with otherwise. A person mentioned in a
+   lesson, assignment, news post or announcement is told when it goes out
+   to its readers, once, by a notice of its own kind ("Mentions of you",
+   by email at once unless they choose otherwise); words still being
+   written, or set to go out later, tell nobody yet.
 6. **Glossary terms** a reader can open in place.
    Done: words chosen in the text are defined from the selection bar:
    what they mean in words the class knows, the word in another language

@@ -48,6 +48,7 @@ const KIND_LABEL: Record<ChoosableKind, () => string> = {
   event: m.ntfKindEvent,
   reminder: m.ntfKindReminder,
   consent: m.ntfKindConsent,
+  mention: m.ntfKindMention,
 };
 
 const EMAIL_LABEL: Record<EmailMode, () => string> = {

@@ -148,6 +148,7 @@ interface Context {
   replace?: Replace | undefined;
   shared?: ComponentType<{ id: string }> | undefined;
   mentionHref?: ((mention: Mention) => string | null) | undefined;
+  mentionName?: ((mention: Mention) => string | undefined) | undefined;
   ltiHref?: ((linkId: string) => string | null) | undefined;
   /** The footnotes met so far, in reading order, numbered by their place here. */
   notes: ContentNode[];
@@ -742,13 +743,14 @@ function draw(
     case "mention": {
       if (!node.mention) return null;
       const href = context.mentionHref?.(node.mention);
+      const name = context.mentionName?.(node.mention) ?? node.mention.label;
       return href ? (
         <a key={key} href={href} className="fe-mention" dir="auto">
-          @{node.mention.label}
+          @{name}
         </a>
       ) : (
         <span key={key} className="fe-mention" dir="auto">
-          @{node.mention.label}
+          @{name}
         </span>
       );
     }
@@ -1215,6 +1217,7 @@ export function ContentRenderer({
   predicted,
   shared,
   mentionHref,
+  mentionName,
   ltiHref,
   lang,
 }: {
@@ -1242,6 +1245,8 @@ export function ContentRenderer({
   shared?: ComponentType<{ id: string }>;
   /** Where a mention opens; without it, or where it gives none, a mention is only its name. */
   mentionHref?: (mention: Mention) => string | null;
+  /** What a mention is called now, where known; else the name it was written with. */
+  mentionName?: ((mention: Mention) => string | undefined) | undefined;
   /** Where a link to an outside tool launches; without it the link only names the tool. */
   ltiHref?: (linkId: string) => string | null;
   /** The language the document is written in; without it, read from its words. */
@@ -1266,6 +1271,7 @@ export function ContentRenderer({
     replace,
     shared,
     mentionHref,
+    mentionName,
     ltiHref,
     notes: [],
     notesBefore: whole?.notesBefore?.get(document) ?? 0,

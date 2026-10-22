@@ -9,7 +9,10 @@ import { lazy, Suspense, useMemo, useState } from "react";
 
 import { useEditorStudio } from "~/components/coding/useEditorStudio";
 import { useEditorTools } from "~/components/content/lti";
-import { useEditorMentions } from "~/components/content/mentions";
+import {
+  useEditorMentions,
+  useMentionNames,
+} from "~/components/content/mentions";
 import { useEditorBank } from "~/components/content/QuestionBank";
 import { useEditorShared } from "~/components/content/SharedBlocks";
 import { useEditorPuzzles } from "~/components/puzzles/useEditorPuzzles";
@@ -97,7 +100,7 @@ export function ContentEditor({
   const sharing = useEditorShared(
     sharedBlocks ?? (Boolean(questions) || standards),
   );
-  const mentions = useEditorMentions();
+  const mentions = useEditorMentions(useMentionNames(value));
   const tools = useEditorTools();
   const { arabicMath } = useCurrentUser().school;
   const document = variant === "document";

@@ -2,6 +2,8 @@ import * as v from "valibot";
 
 import type { Capability } from "./capabilities";
 
+import { MENTION_KINDS } from "./content";
+
 export const SEARCH_KINDS = [
   "students",
   "people",
@@ -127,3 +129,16 @@ export function matchedRuns(
   }
   return runs;
 }
+
+/** The mentions in a document whose names its reader asks for as they now stand. */
+export const mentionNamesSchema = v.object({
+  mentions: v.pipe(
+    v.array(
+      v.object({
+        kind: v.picklist(MENTION_KINDS),
+        id: v.pipe(v.string(), v.uuid()),
+      }),
+    ),
+    v.maxLength(200),
+  ),
+});

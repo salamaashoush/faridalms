@@ -11,7 +11,16 @@ import {
   useBasicTypeaheadTriggerMatch,
 } from "@lexical/react/LexicalTypeaheadMenuPlugin";
 import { $createTextNode } from "lexical";
-import { BookOpen, ClipboardList, FileText, User, Users } from "lucide-react";
+import {
+  BookOpen,
+  CalendarDays,
+  ClipboardList,
+  FileText,
+  Megaphone,
+  Newspaper,
+  User,
+  Users,
+} from "lucide-react";
 import { useCallback, useEffect, useMemo, useState } from "react";
 
 import type { MentionOption } from "../context";
@@ -27,6 +36,9 @@ const ICONS: Record<MentionKind, LucideIcon> = {
   module: BookOpen,
   lesson: FileText,
   assignment: ClipboardList,
+  news: Newspaper,
+  announcement: Megaphone,
+  event: CalendarDays,
 };
 
 class Choice extends MenuOption {

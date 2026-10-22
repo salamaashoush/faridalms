@@ -165,6 +165,8 @@ export interface MentionOption extends Mention {
 /** Finds whom and what the writer may mention, among those they may see. */
 export interface EditorMentions {
   search: (query: string) => Promise<MentionOption[]>;
+  /** What a mention is called now, where that is known; else its name as written. */
+  name?: (mention: Mention) => string | undefined;
 }
 
 /** The school's outside tools a document may link to, and where a link opens. */

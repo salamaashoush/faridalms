@@ -6725,6 +6725,8 @@
   "navConsents": "Permissions",
   "ntfConsent": "The school asks for your permission",
   "ntfKindConsent": "Permission requests",
+  "ntfMention": "{name} mentioned you",
+  "ntfKindMention": "Mentions of you",
   "privacyConsentsTab": "Consent forms",
   "studentNoPhotos": "No photos",
   "consentRecordedBy": "recorded by {name}",

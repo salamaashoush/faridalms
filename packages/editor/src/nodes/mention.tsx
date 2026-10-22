@@ -11,6 +11,8 @@ import type { JSX } from "react";
 
 import { $getDocument, DecoratorNode } from "lexical";
 
+import { useEditorEnvironment } from "../context";
+
 export type SerializedMentionNode = Spread<
   { mention: Mention },
   SerializedLexicalNode
@@ -22,10 +24,21 @@ const NO_MENTION: Mention = {
   label: "",
 };
 
+/** A mention by the name it bears now where the school says, else as written. */
+function MentionName({ mention }: { mention: Mention }) {
+  const { mentions } = useEditorEnvironment();
+  return (
+    <span className="fe-mention" data-mention={mention.kind}>
+      @{mentions?.name?.(mention) ?? mention.label}
+    </span>
+  );
+}
+
 /**
- * A person, class, module, lesson or assignment named in the text with @.
- * It keeps the name it had when written, so the text reads the same to
- * anyone, and which one it names, so a reader can open it.
+ * A person, the teaching a class follows, or what the school sends, named
+ * in the text with @. It keeps which one it names, so a reader can open it
+ * and see it by the name it bears now, and the name it had when written,
+ * for a reader not entitled to look it up.
  */
 export class MentionNode extends DecoratorNode<JSX.Element> {
   __mention: Mention;
@@ -78,11 +91,7 @@ export class MentionNode extends DecoratorNode<JSX.Element> {
   }
 
   decorate(_: unknown, __: EditorConfig): JSX.Element {
-    return (
-      <span className="fe-mention" data-mention={this.__mention.kind}>
-        @{this.__mention.label}
-      </span>
-    );
+    return <MentionName mention={this.__mention} />;
   }
 }
 

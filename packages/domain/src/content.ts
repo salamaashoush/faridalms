@@ -241,13 +241,19 @@ export type FileDisplay = (typeof fileDisplays)[number];
 export type CalloutTone = (typeof calloutTones)[number];
 export type ColumnLayout = (typeof columnLayouts)[number];
 export type ImageSize = (typeof imageSizes)[number];
-/** What a mention may name: a person, or a class, module, lesson or assignment. */
+/**
+ * What a mention may name: a person, the teaching a class follows, or what
+ * the school sends and holds: its news, announcements and events.
+ */
 export const MENTION_KINDS = [
   "person",
   "class",
   "module",
   "lesson",
   "assignment",
+  "news",
+  "announcement",
+  "event",
 ] as const;
 export type MentionKind = (typeof MENTION_KINDS)[number];
 
@@ -1361,6 +1367,18 @@ export function firstPicture(
     if (node.children) pending.unshift(...node.children);
   }
   return null;
+}
+
+/** The people and things a document mentions, each once, wherever they stand. */
+export function contentMentions(document: ContentDocument): Mention[] {
+  const found = new Map<string, Mention>();
+  const pending = [document.root];
+  for (let node = pending.shift(); node; node = pending.shift()) {
+    if (node.type === "mention" && node.mention)
+      found.set(node.mention.id, node.mention);
+    else if (node.children) pending.unshift(...node.children);
+  }
+  return [...found.values()];
 }
 
 export function contentFileIds(document: ContentDocument): string[] {

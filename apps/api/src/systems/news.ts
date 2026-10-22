@@ -67,6 +67,7 @@ import * as v from "valibot";
 import type { UnitContext } from "../core/context";
 
 import { audienceChoices, audienceOf } from "../core/audiences";
+import { publishTelling } from "../core/mentions";
 import { notify } from "../core/notify";
 import {
   audit,
@@ -647,11 +648,20 @@ export const publish = writeProcedure
       publishedAt,
     });
     if (version === null) throw conflict();
-    await snapshotPublish(context.tx, {
-      tenantId: context.tenantId,
-      documentId: original.id,
-      userId: context.actor.userId,
-    });
+    // A post set for later tells nobody yet, those it mentions included.
+    if (later)
+      await snapshotPublish(context.tx, {
+        tenantId: context.tenantId,
+        documentId: original.id,
+        userId: context.actor.userId,
+      });
+    else
+      await publishTelling(context, {
+        documentId: original.id,
+        subject: { type: "site_post", id: row.id },
+        title: titleIn(row, "en"),
+        titleAr: titleIn(row, "ar"),
+      });
     if (translation && other)
       await snapshotPublish(context.tx, {
         tenantId: context.tenantId,

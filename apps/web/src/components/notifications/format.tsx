@@ -8,6 +8,7 @@ import type { ComponentProps, ReactNode } from "react";
 
 import { Link } from "@tanstack/react-router";
 import {
+  AtSign,
   CalendarDays,
   ClipboardCheck,
   Megaphone,
@@ -25,6 +26,8 @@ import { formatDate } from "~/utils/datetime";
 export interface Notice {
   id: string;
   kind: NotificationKind;
+  /** What kind of record the notice is about, where a link must know. */
+  subjectType?: string;
   subjectId: string;
   params: NoticeParams;
   actorNameEn: string | null;
@@ -42,6 +45,7 @@ export const KIND_ICON: Record<NotificationKind, LucideIcon> = {
   event: CalendarDays,
   reminder: ClipboardCheck,
   consent: ShieldCheck,
+  mention: AtSign,
 };
 
 /** What a notice says, in the reader's language, from what its producer recorded. */
@@ -124,6 +128,15 @@ export function noticeText(notice: Notice): { title: string; body: string } {
           .filter(Boolean)
           .join(" · "),
       };
+    case "mention":
+      return {
+        title: m.ntfMention({
+          name:
+            both(params.actorName, params.actorNameAr) ||
+            inLocale(notice.actorNameEn, notice.actorNameAr),
+        }),
+        body: title,
+      };
   }
   return { title: "", body: "" };
 }
@@ -137,6 +150,52 @@ export const MESSAGES = {
 } as const;
 
 type Passed = Omit<ComponentProps<"a">, "href" | "children">;
+
+/** The lesson, assignment, news or announcement that mentions the reader. */
+function MentionedIn({
+  notice,
+  children,
+  ...rest
+}: Passed & { notice: Notice; children: ReactNode }) {
+  const id = notice.subjectId;
+  switch (notice.subjectType) {
+    case "lesson":
+      return (
+        <Link {...rest} to="/lessons/$lessonId" params={{ lessonId: id }}>
+          {children}
+        </Link>
+      );
+    case "assignment":
+      return (
+        <Link
+          {...rest}
+          to="/assignments/$assignmentId"
+          params={{ assignmentId: id }}
+          search={{}}
+        >
+          {children}
+        </Link>
+      );
+    case "site_post":
+      return (
+        <Link {...rest} to="/news/$postId" params={{ postId: id }}>
+          {children}
+        </Link>
+      );
+    case "announcement":
+      return (
+        <Link
+          {...rest}
+          to="/announcements/$announcementId"
+          params={{ announcementId: id }}
+        >
+          {children}
+        </Link>
+      );
+    default:
+      return null;
+  }
+}
 
 /** A link to what the notice is about. */
 export function NoticeLink({
@@ -212,6 +271,12 @@ export function NoticeLink({
         <Link {...rest} to="/family/consents">
           {children}
         </Link>
+      );
+    case "mention":
+      return (
+        <MentionedIn notice={notice} {...rest}>
+          {children}
+        </MentionedIn>
       );
   }
   return null;

@@ -7077,6 +7077,8 @@
   "navConsents": "الموافقات",
   "ntfConsent": "تطلب المدرسة موافقتك",
   "ntfKindConsent": "طلبات الموافقة",
+  "ntfMention": "ذكرك {name}",
+  "ntfKindMention": "ذِكرك في المستندات",
   "privacyConsentsTab": "نماذج الموافقة",
   "studentNoPhotos": "لا تصوير",
   "consentRecordedBy": "سجّلها {name}",

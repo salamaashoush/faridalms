@@ -105,6 +105,25 @@ export async function audienceUsers(
   return rows.map((row) => row.user_id);
 }
 
+/** Which of some people the school reaches on a day: its staff, its students and their families. */
+export async function reachedAmong(
+  tx: Tx,
+  input: { tenantId: string; schoolId: string; on: string },
+  userIds: readonly string[],
+): Promise<string[]> {
+  if (userIds.length === 0) return [];
+  const rows = await tx.execute<{ user_id: string }>(sql`
+    select distinct user_id from (${audienceSql(input, {
+      scope: "school",
+      classId: null,
+      gradeId: null,
+    })}) reached(user_id)
+    join core.users u on u.tenant_id = ${input.tenantId}::uuid and u.id = reached.user_id
+      and u.status = 'active'
+    where reached.user_id = any(${uuidArray(userIds)})`);
+  return rows.map((row) => row.user_id);
+}
+
 /** The grades a year's homerooms teach, for choosing an audience. */
 export async function gradesInYear(
   tx: Tx,

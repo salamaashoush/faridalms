@@ -36,6 +36,8 @@ const LINES: Record<"en" | "ar", Record<NotificationKind, Line>> = {
         : `Reminder: the register for ${p.className ?? "your class"} on ${p.date ?? "today"} is not taken yet.`,
     consent: (p) =>
       `The school asks for your permission: ${p.title ?? ""}${p.studentName ? ` (${p.studentName})` : ""}.`,
+    mention: (p) =>
+      `${p.actorName || "Someone at school"} mentioned you in ${p.title ?? "a document"}.`,
   },
   ar: {
     announcement: (p) =>
@@ -62,6 +64,8 @@ const LINES: Record<"en" | "ar", Record<NotificationKind, Line>> = {
         : `تذكير: لم يُسجَّل حضور ${p.className ?? "فصلك"} يوم ${p.date ?? "اليوم"} بعد.`,
     consent: (p) =>
       `تطلب المدرسة موافقتك: ${p.title ?? ""}${p.studentName ? ` (${p.studentName})` : ""}.`,
+    mention: (p) =>
+      `ذكرك ${p.actorName || "أحد أفراد المدرسة"} في ${p.titleAr || p.title || "مستند"}.`,
   },
 };
 

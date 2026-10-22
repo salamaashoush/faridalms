@@ -88,7 +88,6 @@ import {
   publishedVersion,
   saveDocument,
   saveTranslation,
-  snapshotPublish,
   translationOf,
 } from "@faridalms/database/stores/documents";
 import {
@@ -233,6 +232,7 @@ import {
   taughtAssignment,
 } from "../core/coursework-access";
 import { gradeReader } from "../core/grades";
+import { publishTelling } from "../core/mentions";
 import { nameUuid } from "../core/names";
 import {
   audit,
@@ -990,10 +990,10 @@ export const save = writeProcedure
       userId: context.actor.userId,
     });
     if (published)
-      await snapshotPublish(tx, {
-        tenantId: context.tenantId,
+      await publishTelling(context, {
         documentId: document.id,
-        userId: context.actor.userId,
+        subject: { type: "assignment", id: assignmentId },
+        title: input.title,
       });
     if (input.translation !== undefined) {
       if (input.translation && language)
@@ -1121,10 +1121,10 @@ export const publish = writeProcedure
     if (issues[0]) throw new ORPCError("BAD_REQUEST", { message: issues[0] });
     if (quiz) await requireDrawable(context, quiz, assignment.authorUserId);
     if (brief)
-      await snapshotPublish(tx, {
-        tenantId: context.tenantId,
+      await publishTelling(context, {
         documentId: brief.id,
-        userId: context.actor.userId,
+        subject: { type: "assignment", id: assignment.id },
+        title: assignment.title,
       });
     if (quiz) await publishKeptApart(context, assignment.id);
     const year = (

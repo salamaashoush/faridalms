@@ -22,6 +22,7 @@ import { getLocale } from "~/i18n/runtime";
 import { sharedBlockQuery } from "~/queries/shared";
 
 import { useLtiHref } from "./lti";
+import { useMentionNames } from "./mentions";
 import { aiUseStrings, fileStrings } from "./strings";
 
 /**
@@ -38,8 +39,8 @@ export function SharedBlock({ id }: { id: string }) {
 
 /**
  * Where a mention opens. A person's opens nothing, as not every reader may
- * see a person's page; a class, module, lesson or assignment opens its own,
- * which says so if the reader may not.
+ * see a person's page; anything else opens its own page, which says so if
+ * the reader may not.
  */
 function mentionHref(mention: Mention): string | null {
   switch (mention.kind) {
@@ -51,6 +52,12 @@ function mentionHref(mention: Mention): string | null {
       return `/lessons/${mention.id}`;
     case "assignment":
       return `/assignments/${mention.id}`;
+    case "news":
+      return `/news/${mention.id}`;
+    case "announcement":
+      return `/announcements/${mention.id}`;
+    case "event":
+      return `/calendar/${mention.id}`;
     default:
       return null;
   }
@@ -120,6 +127,7 @@ export function ContentView({
   lang?: ContentLocale;
 }) {
   const ltiHref = useLtiHref();
+  const mentionName = useMentionNames(document);
   return (
     <ContentRenderer
       document={document}
@@ -175,6 +183,7 @@ export function ContentView({
       predicted={predicted}
       shared={SharedBlock}
       mentionHref={mentionHref}
+      mentionName={mentionName}
       ltiHref={ltiHref}
       lang={lang}
     />
