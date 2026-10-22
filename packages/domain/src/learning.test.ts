@@ -37,6 +37,7 @@ import {
   partKey,
   pathOf,
   prerequisiteMet,
+  remarksOf,
   settled,
   studentBlocks,
   upgradeLesson,
@@ -426,6 +427,66 @@ describe("hints asked for", () => {
     const { state } = seen(asking(1, ["Cairo"]));
     expect(state).toMatchObject({ correct: true, firstTryCorrect: false });
     expect(creditOf(state)).toBeCloseTo(2 / 3);
+  });
+});
+
+describe("marking again under a changed key", () => {
+  const nile = uuid(41);
+  const amazon = uuid(42);
+  const asked: ChoiceBlock = {
+    ...common,
+    id: uuid(40),
+    type: "choice",
+    prompt: "Which river flows through Egypt?",
+    options: [
+      { id: nile, text: "The Nile", feedback: "" },
+      { id: amazon, text: "The Amazon", feedback: "" },
+    ],
+    correctOptionIds: [amazon],
+    multiple: false,
+    shuffle: false,
+  };
+  const fixed = { ...asked, correctOptionIds: [nile] };
+  const chose = (optionId: string, at: number, fraction: number) => ({
+    blockId: asked.id,
+    try: at,
+    state: "answered" as const,
+    fraction,
+    response: { type: "choice", optionIds: [optionId] },
+    feedback: null,
+  });
+
+  it("finds the answers the new key marks differently", () => {
+    const rows = [chose(nile, 1, 0), chose(amazon, 2, 1)];
+    expect(remarksOf(fixed, rows)).toEqual([
+      { try: 1, fraction: 1 },
+      { try: 2, fraction: 0 },
+    ]);
+    expect(remarksOf(asked, rows)).toEqual([]);
+  });
+
+  it("counts a try marked right again as where the question ended", () => {
+    const rows: StoredTry[] = [
+      chose(nile, 1, 0),
+      chose(amazon, 2, 1),
+      ...remarksOf(fixed, [chose(nile, 1, 0), chose(amazon, 2, 1)]).map(
+        (change) => ({
+          blockId: asked.id,
+          try: change.try,
+          state: "remarked" as const,
+          fraction: change.fraction,
+          response: {},
+          feedback: null,
+        }),
+      ),
+    ];
+    const state = checkStates({ version: 2, blocks: [fixed] }, rows)[asked.id];
+    expect(state).toMatchObject({
+      tries: 1,
+      correct: true,
+      firstTryCorrect: true,
+    });
+    expect(remarksOf(fixed, rows)).toEqual([]);
   });
 });
 

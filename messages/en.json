@@ -3333,6 +3333,22 @@
   "lrnChangesNotShown": "Students see the version shown before",
   "lrnNotShownYet": "Students do not see this lesson yet",
   "lrnShowStudents": "Show students",
+  "lrnRemarkTitle": "Answers already given",
+  "lrnRemarkCount": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "{count} answer already given marks differently with this change.",
+        "countPlural=*": "{count} answers already given mark differently with this change."
+      }
+    }
+  ],
+  "lrnRemarkChoice": "Those answers",
+  "lrnRemarkAgain": "Mark them again",
+  "lrnRemarkAgainHint": "Scores and what students see follow the new answer.",
+  "lrnRemarkKeep": "Keep their marks",
+  "lrnRemarkKeepHint": "The new answer marks only what students answer from now on.",
   "lrnIncomplete": "Finish these before students see the lesson:",
   "lrnGateOpensNothing": "A continue gate with nothing after it opens nothing",
   "lrnUntitled": "Untitled lesson",

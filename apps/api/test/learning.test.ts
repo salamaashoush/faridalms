@@ -1681,6 +1681,91 @@ describe("hints asked for", () => {
   });
 });
 
+describe("marking again", () => {
+  test("a teacher who fixes a key marks the answers already given again, scores and all", async () => {
+    const { keeper } = await teachers();
+    const { rows } = await keeper.learning.modules({});
+    const source = rows.find((row) => row.title === TITLE);
+    if (!source) throw new Error("no module");
+    const saved = await keeper.learning.saveModule({
+      id: "",
+      expectedVersion: 0,
+      title: "Rivers",
+      summary: "",
+      classIds: source.classes.map((item) => item.id),
+      prerequisiteId: "",
+      sequential: false,
+    });
+    const nile = id();
+    const amazon = id();
+    const asked = {
+      id: id(),
+      type: "choice" as const,
+      prompt: "Which river flows through Egypt?",
+      points: 1,
+      hints: [],
+      explanation: "",
+      tries: null,
+      options: [
+        { id: nile, text: "The Nile", feedback: "" },
+        { id: amazon, text: "The Amazon", feedback: "" },
+      ],
+      correctOptionIds: [amazon],
+      multiple: false,
+      shuffle: false,
+    };
+    const lesson = {
+      id: "",
+      moduleId: saved.id,
+      expectedVersion: 0,
+      title: "Rivers of Africa",
+      completion: "quiz" as const,
+      passScore: null,
+      review: false,
+      content: written([asked]),
+      publish: false,
+    };
+    const created = await keeper.learning.saveLesson(lesson);
+    await keeper.learning.publishModule({
+      id: saved.id,
+      expectedVersion: saved.version,
+    });
+
+    const pupil = await student();
+    const choose = (optionId: string) =>
+      pupil.learning.respond({
+        lessonId: created.id,
+        blockId: asked.id,
+        response: { type: "choice", optionIds: [optionId] },
+      });
+    await choose(nile);
+    expect((await choose(amazon)).score).toBe(67);
+
+    const fixed = await keeper.learning.saveLesson({
+      ...lesson,
+      id: created.id,
+      expectedVersion: created.version,
+      content: written([{ ...asked, correctOptionIds: [nile] }]),
+    });
+    expect(fixed.published).toBe(false);
+    expect(await keeper.learning.remarking({ id: created.id })).toEqual({
+      answers: 2,
+      students: 1,
+    });
+    await keeper.learning.publishLesson({ id: created.id, remark: true });
+    const after = await pupil.learning.playLesson({ id: created.id });
+    expect(after.checks[asked.id]).toMatchObject({
+      tries: 1,
+      correct: true,
+    });
+    expect(after.score).toBe(100);
+    expect(await keeper.learning.remarking({ id: created.id })).toEqual({
+      answers: 0,
+      students: 0,
+    });
+  });
+});
+
 describe("a module's file area", () => {
   test("keeps a lesson's pictures for the module, open to its classes once shown", async () => {
     const tenant = seeded().tenants[0];

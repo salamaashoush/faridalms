@@ -536,7 +536,9 @@ export type ResponseState =
   /** A question missed at first, answered again at the lesson's end. */
   | "reviewed"
   /** A hint the student asked for. */
-  | "hint";
+  | "hint"
+  /** An earlier answer marked again under a changed key, carrying its new mark. */
+  | "remarked";
 
 /**
  * Every answer a student gives in a lesson, one row per try, never changed.
@@ -613,7 +615,7 @@ export const lessonResponses = core.table.withRLS(
     ck(
       "lesson_responses",
       "state",
-      sql`state in ('answered', 'revealed', 'needs_marking', 'marked', 'reviewed', 'hint')`,
+      sql`state in ('answered', 'revealed', 'needs_marking', 'marked', 'reviewed', 'hint', 'remarked')`,
     ),
     ck(
       "lesson_responses",

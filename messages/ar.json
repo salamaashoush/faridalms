@@ -3476,6 +3476,26 @@
   "lrnChangesNotShown": "يرى الطلاب النسخة المعروضة من قبل",
   "lrnNotShownYet": "لا يرى الطلاب هذا الدرس بعد",
   "lrnShowStudents": "اعرض للطلاب",
+  "lrnRemarkTitle": "إجابات سبق تقديمها",
+  "lrnRemarkCount": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=zero": "لا إجابات سابقة تتغيّر علامتها بهذا التعديل.",
+        "countPlural=one": "إجابة سابقة واحدة تتغيّر علامتها بهذا التعديل.",
+        "countPlural=two": "إجابتان سابقتان تتغيّر علامتهما بهذا التعديل.",
+        "countPlural=few": "{count} إجابات سابقة تتغيّر علامتها بهذا التعديل.",
+        "countPlural=many": "{count} إجابة سابقة تتغيّر علامتها بهذا التعديل.",
+        "countPlural=*": "{count} إجابة سابقة تتغيّر علامتها بهذا التعديل."
+      }
+    }
+  ],
+  "lrnRemarkChoice": "تلك الإجابات",
+  "lrnRemarkAgain": "صحّحها من جديد",
+  "lrnRemarkAgainHint": "تتبع الدرجات وما يراه الطلاب الإجابة الجديدة.",
+  "lrnRemarkKeep": "أبقِ علاماتها",
+  "lrnRemarkKeepHint": "لا تصحّح الإجابة الجديدة إلا ما يجيب به الطلاب من الآن.",
   "lrnIncomplete": "أكمل ما يلي قبل أن يرى الطلاب الدرس:",
   "lrnGateOpensNothing": "بوابة متابعة لا يليها شيء لا تفتح شيئًا",
   "lrnUntitled": "درس بلا عنوان",

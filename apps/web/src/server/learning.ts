@@ -82,6 +82,10 @@ export const saveLesson = createServerFn({ method: "POST" })
   .validator(checked(saveLessonSchema))
   .handler(({ data }) => backend().learning.saveLesson(data));
 
+export const getRemarking = createServerFn({ method: "GET" })
+  .validator(checked(v.object({ id: v.pipe(v.string(), v.uuid()) })))
+  .handler(({ data }) => backend().learning.remarking(data));
+
 export const copyLessonTo = createServerFn({ method: "POST" })
   .validator(checked(copyLessonSchema))
   .handler(({ data }) => backend().learning.copyLessonTo(data));

@@ -656,6 +656,8 @@ export async function recordProgress(
     score?: number | null;
     /** Start the next attempt, keeping this one's score as the best so far. */
     nextAttempt?: boolean;
+    /** The best score of the attempts before this one, worked out again. */
+    bestScore?: number | null;
     position?: string;
     completed?: { by: "student" | "teacher" } | null;
     /** The student asks how they did on the questions that wait for the end. */
@@ -668,6 +670,9 @@ export async function recordProgress(
     on conflict do nothing`);
   const sets = [
     ...(input.score === undefined ? [] : [sql`score = ${input.score}`]),
+    ...(input.bestScore === undefined
+      ? []
+      : [sql`best_score = ${input.bestScore}`]),
     ...(input.nextAttempt
       ? [
           sql`attempts = attempts + 1`,
@@ -1350,6 +1355,23 @@ export async function responsesOf(
       and student_user_id = ${input.studentId}::uuid and attempt = ${input.attempt}
     order by created_at, try, id`);
   return rows.map(responseOf);
+}
+
+/** Every row of every student's every attempt at a lesson, as marking again reads them. */
+export async function lessonResponses(
+  tx: Tx,
+  input: { tenantId: string; lessonId: string },
+): Promise<(StoredResponse & { studentId: string })[]> {
+  const rows = await tx.execute<ResponseRecord>(sql`
+    select id, block_id, attempt, try, kind, response, fraction, state, feedback,
+      document_version_id, ${isoOf(sql`created_at`)} as created_at, student_user_id, lesson_id
+    from core.lesson_responses
+    where tenant_id = ${input.tenantId}::uuid and lesson_id = ${input.lessonId}::uuid
+    order by created_at, try, id`);
+  return rows.map((row) => ({
+    ...responseOf(row),
+    studentId: row.student_user_id,
+  }));
 }
 
 /**

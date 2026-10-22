@@ -2401,6 +2401,8 @@ export const saveLessonSchema = v.pipe(
     condition: v.optional(v.nullable(lessonConditionSchema), null),
     /** Put the saved lesson in front of students at once, when its module is open. */
     publish: v.optional(v.boolean(), false),
+    /** Mark answers already given again, where a changed key marks them differently. */
+    remark: v.optional(v.boolean(), false),
   }),
   v.forward(
     v.check(
@@ -2577,7 +2579,8 @@ export interface ResponseRow {
     | "needs_marking"
     | "marked"
     | "reviewed"
-    | "hint";
+    | "hint"
+    | "remarked";
   fraction: number | null;
 }
 
@@ -2595,15 +2598,33 @@ export function checkStates(
   const states: Record<string, CheckState> = {};
   for (const block of checkBlocks(document)) {
     const mine = rows.filter((row) => row.blockId === block.id);
-    const answered = mine.filter(
-      (row) => row.state === "answered" || row.state === "needs_marking",
+    // An answer marked again after its key changed counts as marked again.
+    const again = new Map(
+      mine
+        .filter((row) => row.state === "remarked")
+        .map((row) => [row.try, row.fraction]),
     );
-    const last = answered.at(-1);
-    const mark = mine.findLast((row) => row.state === "marked");
-    const tries =
-      answered.length === 0 ? 0 : Math.max(...answered.map((row) => row.try));
+    const answered = mine
+      .filter(
+        (row) => row.state === "answered" || row.state === "needs_marking",
+      )
+      .map((row) =>
+        again.has(row.try)
+          ? { ...row, fraction: again.get(row.try) ?? null }
+          : row,
+      );
     const marking = isTeacherMarked(block);
     const held = feedbackAtOf(block) !== "now";
+    // A question answered at once ends at its first right answer, which a
+    // try marked right again after its key changed may now be.
+    const right = held ? undefined : answered.find((row) => row.fraction === 1);
+    const last = right ?? answered.at(-1);
+    const mark = mine.findLast((row) => row.state === "marked");
+    const tries = right
+      ? right.try
+      : answered.length === 0
+        ? 0
+        : Math.max(...answered.map((row) => row.try));
     const asked = mine.filter((row) => row.state === "hint").length;
     const fraction = marking ? (mark?.fraction ?? 0) : (last?.fraction ?? 0);
     const correct = marking ? false : fraction === 1;
@@ -2627,6 +2648,34 @@ export function checkStates(
     };
   }
   return states;
+}
+
+/**
+ * The answers to a question that mark differently under its key as it now
+ * stands, each with its new mark: the tries an earlier key marked, for a
+ * teacher who chooses to mark them again.
+ */
+export function remarksOf(
+  block: AutoBlock,
+  rows: readonly (ResponseRow & { response: Record<string, unknown> })[],
+): { try: number; fraction: number }[] {
+  // A program was marked by running it against its tests, which only a
+  // fresh run can do again.
+  if (block.type === "program") return [];
+  const mine = rows.filter((row) => row.blockId === block.id);
+  const again = new Map(
+    mine
+      .filter((row) => row.state === "remarked")
+      .map((row) => [row.try, row.fraction]),
+  );
+  return mine.flatMap((row) => {
+    if (row.state !== "answered") return [];
+    const parsed = v.safeParse(responseSchema, row.response);
+    if (!parsed.success) return [];
+    const fraction = markResponse(block, parsed.output).fraction;
+    const before = again.has(row.try) ? again.get(row.try) : row.fraction;
+    return fraction === before ? [] : [{ try: row.try, fraction }];
+  });
 }
 
 /**

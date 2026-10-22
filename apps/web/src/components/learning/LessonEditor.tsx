@@ -42,13 +42,14 @@ import {
   DocumentPage,
   DocumentTitle,
 } from "~/components/system/DocumentPage";
-import { SelectField, TextField } from "~/components/system/field";
+import { ChoiceField, SelectField, TextField } from "~/components/system/field";
+import { SheetForm } from "~/components/system/SheetForm";
 import { useAutosave } from "~/hooks/useAutosave";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { getLocale } from "~/i18n/runtime";
 import { moduleRecordQuery } from "~/queries/learning";
-import { saveLesson } from "~/server/learning";
+import { getRemarking, saveLesson } from "~/server/learning";
 import { formatNumber } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
@@ -205,6 +206,10 @@ export function LessonEditor({
   const [refused, setRefused] = useState<string | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [pending, setPending] = useState(false);
+  // Answers already given that a changed key would mark differently, and
+  // whether the teacher has them marked again.
+  const [remarking, setRemarking] = useState<number | null>(null);
+  const [remark, setRemark] = useState<"again" | "keep">("again");
   const [copying, setCopying] = useState({ key: 0, open: false });
 
   const lesson = useMemo(() => lessonOfContent(draft.content), [draft.content]);
@@ -263,7 +268,7 @@ export function LessonEditor({
   ];
 
   const persist = useCallback(
-    async (value: Draft, publish = false) => {
+    async (value: Draft, publish = false, markAgain = false) => {
       if (!valid) throw new Error("content.invalid");
       const saved = await saveLesson({
         data: {
@@ -281,6 +286,7 @@ export function LessonEditor({
           condition: conditionOf(value) ?? null,
           content: shared ? content.current : value.content,
           publish,
+          remark: markAgain,
         },
       });
       const created = !id.current;
@@ -336,15 +342,31 @@ export function LessonEditor({
     try {
       autosave.markSaved(saving);
       await autosave.settle();
-      await persist(draft, true);
-      setShown(content.current);
-      setChecking(false);
-      toast.success(m.lrnLessonShown());
+      // A lesson already shown may have answers its changed keys would
+      // mark differently; its teacher chooses what becomes of them.
+      const marksDiffer =
+        shown && id.current
+          ? (await getRemarking({ data: { id: id.current } })).answers
+          : 0;
+      if (marksDiffer > 0) {
+        setRemark("again");
+        setRemarking(marksDiffer);
+        return;
+      }
+      await publish(false);
     } catch (error) {
       setRefused(getMessageFromError(error));
     } finally {
       setPending(false);
     }
+  };
+
+  const publish = async (again: boolean) => {
+    await persist(draft, true, again);
+    setShown(content.current);
+    setChecking(false);
+    setRemarking(null);
+    toast.success(m.lrnLessonShown());
   };
 
   useStartFrom(
@@ -696,6 +718,47 @@ export function LessonEditor({
         isDirty={() => !storable && autosave.dirty}
         pending={pending}
       />
+      <SheetForm
+        open={remarking !== null}
+        onOpenChange={(opened) => {
+          if (!opened) setRemarking(null);
+        }}
+        title={m.lrnRemarkTitle()}
+        submitLabel={m.lrnShowStudents()}
+        pending={pending}
+        error={refused}
+        onSubmit={async () => {
+          setPending(true);
+          try {
+            await publish(remark === "again");
+          } catch (error) {
+            setRefused(getMessageFromError(error));
+          } finally {
+            setPending(false);
+          }
+        }}
+      >
+        <p className="text-sm leading-5 text-muted-foreground">
+          {m.lrnRemarkCount({ count: remarking ?? 0 })}
+        </p>
+        <ChoiceField
+          label={m.lrnRemarkChoice()}
+          value={remark}
+          onChange={setRemark}
+          options={[
+            {
+              value: "again",
+              label: m.lrnRemarkAgain(),
+              hint: m.lrnRemarkAgainHint(),
+            },
+            {
+              value: "keep",
+              label: m.lrnRemarkKeep(),
+              hint: m.lrnRemarkKeepHint(),
+            },
+          ]}
+        />
+      </SheetForm>
       {copying.key > 0 && storedId ? (
         <CopyLessonSheet
           key={copying.key}

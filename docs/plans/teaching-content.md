@@ -185,6 +185,15 @@ Sources: [../research/course-design.md](../research/course-design.md),
    Left: a gate that waits for a share of the questions above, or a score.
 6. **Marking again when a key changes** after students answered: rescore
    or apply only to new answers, the teacher's choice at publish.
+   Done: showing students a changed lesson first counts the answers its
+   keys would mark differently; when there are any, the teacher chooses to
+   mark them again or keep their marks. Marking again keeps each new mark
+   beside the answer it marks (`lesson_responses` state `remarked`, the
+   ledger staying append only) and works out each student's score, best
+   score and standards evidence again; a question answered at once ends at
+   its first right answer, so an earlier try that is now right stands.
+   A finished lesson stays finished.
+   Left: code exercises, which need a fresh run against changed tests.
 7. **Quiz reveals and practice**: "which were wrong, with feedback" as a
    reveal, and a practice mode with tries and hints.
 8. **Overall feedback in bands** for a practice set's score.
