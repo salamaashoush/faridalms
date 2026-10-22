@@ -18,6 +18,7 @@ import {
   describeCheck,
   isAuto,
   markResponse,
+  MAX_HINTS,
   responseSchema,
   shuffled,
 } from "./learning";
@@ -87,44 +88,74 @@ export function practiceItems(
   return [...missed, ...rest].slice(0, size);
 }
 
+/** What a student does next at a practice question. */
+export type PracticeAnswer =
+  | { kind: "response"; response: LessonResponse }
+  | { kind: "reveal" }
+  | { kind: "hint"; last: LessonResponse | null };
+
 /**
- * How a practice question stands after one more try, or after asking for
- * the answer: marked as a lesson marks it, its hint after a miss and its
- * answer once settled, with nothing kept.
+ * How a practice question stands after one more try, after asking for its
+ * next hint or for the answer, or before anything: marked as a lesson marks
+ * it, a hint after each miss and each asked for, and its answer once
+ * settled, with nothing kept.
  */
 export function practiceView(
   block: AutoBlock,
   before: number,
-  answer: { response: LessonResponse } | { reveal: true },
+  hints: number,
+  answer: PracticeAnswer | null,
 ): CheckView {
   // Earlier tries were misses, or the question would be settled already.
-  const earlier: StoredTry[] = Array.from({ length: before }, (_, index) => ({
+  // Only the last of them shows, as the answer the student is looking at.
+  const missed = (at: number, response: LessonResponse | null): StoredTry => ({
     blockId: block.id,
-    try: index + 1,
+    try: at,
     state: "answered",
-    fraction: 0,
-    response: {},
+    fraction: response ? markResponse(block, response).fraction : 0,
+    response: response ?? {},
     feedback: null,
-  }));
-  const last: StoredTry =
-    "reveal" in answer
-      ? {
-          blockId: block.id,
-          try: before,
-          state: "revealed",
-          fraction: 0,
-          response: {},
-          feedback: null,
-        }
-      : {
-          blockId: block.id,
-          try: before + 1,
-          state: "answered",
-          fraction: markResponse(block, answer.response).fraction,
-          response: answer.response,
-          feedback: null,
-        };
-  const rows = [...earlier, last];
+  });
+  const last = answer?.kind === "hint" ? answer.last : null;
+  const earlier = Array.from({ length: before }, (_, index) =>
+    missed(index + 1, index === before - 1 ? last : null),
+  );
+  const asked = Array.from(
+    { length: hints + (answer?.kind === "hint" ? 1 : 0) },
+    (): StoredTry => ({
+      blockId: block.id,
+      try: Math.max(1, before),
+      state: "hint",
+      fraction: null,
+      response: {},
+      feedback: null,
+    }),
+  );
+  const next: StoredTry[] =
+    answer?.kind === "response"
+      ? [
+          {
+            blockId: block.id,
+            try: before + 1,
+            state: "answered",
+            fraction: markResponse(block, answer.response).fraction,
+            response: answer.response,
+            feedback: null,
+          },
+        ]
+      : answer?.kind === "reveal"
+        ? [
+            {
+              blockId: block.id,
+              try: before,
+              state: "revealed",
+              fraction: 0,
+              response: {},
+              feedback: null,
+            },
+          ]
+        : [];
+  const rows = [...earlier, ...asked, ...next];
   // Practice answers at once, whenever the lesson it came from waited.
   const now = { ...block, feedbackAt: "now" as const };
   return describeCheck(
@@ -150,9 +181,15 @@ export const practiceCheckSchema = v.object({
   blockId: id,
   /** Tries already made at this question in the review. */
   before: v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(20)),
+  /** Hints already asked for at it. */
+  hints: v.optional(
+    v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(MAX_HINTS)),
+    0,
+  ),
   answer: v.variant("kind", [
     v.object({ kind: v.literal("response"), response: responseSchema }),
     v.object({ kind: v.literal("reveal") }),
+    v.object({ kind: v.literal("hint"), last: v.nullable(responseSchema) }),
   ]),
 });
 

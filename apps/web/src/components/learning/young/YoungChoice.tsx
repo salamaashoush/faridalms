@@ -99,12 +99,14 @@ export function YoungPart({
 
 /**
  * The one hint a young child hears: none at the first miss, then the next in
- * order with each miss after, as the question is said again, keeping to the
- * last once they run out.
+ * order with each miss after and each they ask for, as the question is said
+ * again, keeping to the last once they run out.
  */
-function youngHint(view: CheckView): string | null {
-  if (view.correct || view.tries < 2) return null;
-  return view.hints[view.tries - 2] ?? view.hints.at(-1) ?? null;
+export function youngHint(view: CheckView): string | null {
+  if (view.correct) return null;
+  const earned = Math.max(0, view.tries - 1) + view.asked;
+  if (earned === 0) return null;
+  return view.hints[Math.min(earned, view.hints.length) - 1] ?? null;
 }
 
 /** What a young child is told after a try, as the words said aloud. */
@@ -134,7 +136,11 @@ export function YoungOutcome({
   /** The child taps the answer once it is shown. */
   taps?: boolean;
 }) {
-  if (!view || (view.tries === 0 && !view.revealed)) return null;
+  if (!view) return null;
+  const hint = youngHint(view);
+  // A hint asked for before any try comes on its own, with nothing to judge.
+  const tried = view.tries > 0 || view.revealed;
+  if (!tried && !hint) return null;
   const said = view.correct
     ? view.tries > 1
       ? m.lrnYoungKeptTrying()
@@ -144,7 +150,6 @@ export function YoungOutcome({
         ? m.lrnYoungTapIt()
         : m.lrnYoungShown()
       : m.lrnYoungNotYet();
-  const hint = youngHint(view);
   const notes = [
     ...view.feedback,
     ...(hint ? [hint] : []),
@@ -152,21 +157,23 @@ export function YoungOutcome({
   ];
   return (
     <div className="grid justify-items-center gap-3 text-center">
-      <p
-        className={cn(
-          "inline-flex items-center gap-2 text-2xl leading-9 font-semibold",
-          view.correct ? "text-success" : "text-muted-foreground",
-        )}
-      >
-        {view.correct ? (
-          <CircleCheck aria-hidden className="size-7" />
-        ) : view.revealed ? null : (
-          <Lightbulb aria-hidden className="size-7" />
-        )}
-        <span dir="auto" className="young-words">
-          {said}
-        </span>
-      </p>
+      {tried ? (
+        <p
+          className={cn(
+            "inline-flex items-center gap-2 text-2xl leading-9 font-semibold",
+            view.correct ? "text-success" : "text-muted-foreground",
+          )}
+        >
+          {view.correct ? (
+            <CircleCheck aria-hidden className="size-7" />
+          ) : view.revealed ? null : (
+            <Lightbulb aria-hidden className="size-7" />
+          )}
+          <span dir="auto" className="young-words">
+            {said}
+          </span>
+        </p>
+      ) : null}
       {notes.map((note) => (
         <p
           key={note}

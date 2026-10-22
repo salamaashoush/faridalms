@@ -2242,6 +2242,7 @@ export const practiceSet = readProcedure
                 vowelMarks: from.vowelMarks,
                 missed: item.missed,
                 block,
+                check: practiceView(item.block, 0, 0, null),
               },
             ]
           : [];
@@ -2249,7 +2250,7 @@ export const practiceSet = readProcedure
     };
   });
 
-/** Marks one try at a mixed review question, keeping nothing. */
+/** Marks one try at a mixed review question, or opens its next hint, keeping nothing. */
 export const practiceCheck = readProcedure
   .input(practiceCheckSchema)
   .handler(async ({ input, context }) => {
@@ -2267,13 +2268,19 @@ export const practiceCheck = readProcedure
       ? autoBlocks(content).find((item) => item.id === input.blockId)
       : undefined;
     if (!block) throw new ORPCError("NOT_FOUND");
-    if (input.answer.kind === "reveal")
-      return practiceView(block, input.before, { reveal: true });
-    const issue = responseIssue(block, input.answer.response);
+    const { answer } = input;
+    if (
+      answer.kind === "hint" &&
+      practiceView(block, input.before, input.hints, null).askable === 0
+    )
+      throw new ORPCError("CONFLICT", { message: "learning.no_hint" });
+    const shown = answer.kind === "hint" ? answer.last : null;
+    const issue =
+      answer.kind === "response"
+        ? responseIssue(block, answer.response)
+        : shown && responseIssue(block, shown);
     if (issue) throw new ORPCError("BAD_REQUEST", { message: issue });
-    return practiceView(block, input.before, {
-      response: input.answer.response,
-    });
+    return practiceView(block, input.before, input.hints, answer);
   });
 
 /**

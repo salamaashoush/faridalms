@@ -2,6 +2,7 @@ import type { ContentNode } from "@faridalms/domain/content";
 import type { CheckView, StudentBlock } from "@faridalms/domain/learning";
 import type { ContentLocale } from "@faridalms/domain/translations";
 import type { MediaWatch, VideoControl } from "@faridalms/editor/player";
+import type { ReactNode } from "react";
 
 import { contentPlainText, textDirection } from "@faridalms/domain/content";
 import { videoStops } from "@faridalms/domain/learning";
@@ -9,11 +10,13 @@ import { lessonSteps } from "@faridalms/domain/lesson-steps";
 import { TextWithMath, textOfMath } from "@faridalms/editor/math";
 import { Button } from "@faridalms/ui/button";
 import { cn } from "@faridalms/ui/cn";
+import { useMutation } from "@tanstack/react-query";
 import { useHydrated } from "@tanstack/react-router";
 import {
   ArrowLeft,
   ArrowRight,
   Check,
+  Lightbulb,
   Play,
   RotateCcw,
   Star,
@@ -22,11 +25,13 @@ import {
   X,
 } from "lucide-react";
 import { useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
+import { toast } from "sonner";
 
 import { ContentView, WholeDocument } from "~/components/content/ContentView";
 import * as m from "~/i18n/messages";
 import { getLocale } from "~/i18n/runtime";
 import { formatNumber } from "~/utils/datetime";
+import { getMessageFromError } from "~/utils/error";
 
 import type { CheckDriver, CheckStudentBlock } from "../Checks";
 import type { Voice } from "../ReadAloud";
@@ -38,7 +43,7 @@ import { ReadAloud, sayAloud, sayInOrder, stopSounds } from "../ReadAloud";
 import { Burst } from "./motion";
 import { useReadAlong } from "./readAlong";
 import { playSound, setClassSounds, setSoundsOn, soundsOn } from "./sounds";
-import { FoundContext, YoungChoice } from "./YoungChoice";
+import { FoundContext, YoungChoice, youngHint } from "./YoungChoice";
 import { YoungCounting } from "./YoungCounting";
 import { YoungHotspot } from "./YoungHotspot";
 import { YoungMemory } from "./YoungMemory";
@@ -136,8 +141,14 @@ function YoungContent({
   );
 }
 
-/** A question's words, big, with the speaker that reads them. */
-function Prompt({ block }: { block: CheckStudentBlock }) {
+/** A question's words, big, with the speaker that reads them and the help a child can ask for. */
+function Prompt({
+  block,
+  help,
+}: {
+  block: CheckStudentBlock;
+  help?: ReactNode;
+}) {
   return (
     <div
       dir={textDirection(block.prompt) ?? undefined}
@@ -154,7 +165,62 @@ function Prompt({ block }: { block: CheckStudentBlock }) {
           <TextWithMath text={block.prompt} />
         </span>
       </h2>
+      {help}
     </div>
+  );
+}
+
+/**
+ * Help a young child asks for: the question's next hint, said aloud and
+ * kept under the question with its speaker. It costs what a miss would, as
+ * a hint does for older students, and goes once the hints run out.
+ */
+function YoungHelp({
+  block,
+  view,
+  driver,
+}: {
+  block: CheckStudentBlock;
+  view: CheckView | undefined;
+  driver: CheckDriver;
+}) {
+  const ask = useMutation({
+    mutationFn: () => driver.hint?.(block.id) ?? Promise.resolve(),
+    onError: (error) => toast.error(getMessageFromError(error)),
+  });
+  const asked = view?.asked ?? 0;
+  // Only a hint asked for now is said; one asked before the screen opened was heard then.
+  const heard = useRef(asked);
+  const say = useEffectEvent(() => {
+    const hint = view ? youngHint(view) : null;
+    if (hint) sayAloud(hint, null);
+  });
+  useEffect(() => {
+    if (asked <= heard.current) return;
+    heard.current = asked;
+    say();
+  }, [asked]);
+  if (
+    !driver.hint ||
+    !view ||
+    view.askable === 0 ||
+    view.correct ||
+    view.revealed
+  )
+    return null;
+  return (
+    <Button
+      type="button"
+      variant="outline"
+      size="icon"
+      className="size-16 shrink-0 rounded-full"
+      aria-label={m.lrnYoungHelp()}
+      title={m.lrnYoungHelp()}
+      disabled={ask.isPending}
+      onClick={() => ask.mutate()}
+    >
+      <Lightbulb aria-hidden className="size-7" />
+    </Button>
   );
 }
 
@@ -206,12 +272,20 @@ function StepBlock({
   if (!answer)
     return <CheckBlockView block={block} view={view} driver={driver} />;
   // A question is laid out in its own language's direction, whatever the page's.
+  // An answer the teacher marks has no hints to give before it is sent.
   return (
     <section
       dir={textDirection(block.prompt) ?? undefined}
       className="grid gap-6"
     >
-      <Prompt block={block} />
+      <Prompt
+        block={block}
+        help={
+          block.type === "written" ? null : (
+            <YoungHelp block={block} view={view} driver={driver} />
+          )
+        }
+      />
       {answer}
     </section>
   );

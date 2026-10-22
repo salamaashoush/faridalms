@@ -4017,7 +4017,7 @@ describe("mixed review", () => {
           type: "choice" as const,
           prompt,
           points: 1,
-          hints: [],
+          hints: [`Think about ${prompt}`],
           explanation: `About ${prompt}`,
           tries: 1,
           options: [] as { id: string; text: string; feedback: string }[],
@@ -4092,7 +4092,37 @@ describe("mixed review", () => {
       block: { id: missed.block.id },
     });
     expect(JSON.stringify(set.items)).not.toContain("correctOptionIds");
+    expect(JSON.stringify(set.items)).not.toContain("Think about");
+    expect(set.items[0]?.check).toMatchObject({
+      tries: 0,
+      hints: [],
+      askable: 1,
+    });
     const firstLesson = outline.lessons[0]?.id ?? "";
+    // A hint is asked for before answering, and only while one is left.
+    const hinted = await pupil.learning.practiceCheck({
+      lessonId: firstLesson,
+      blockId: missed.block.id,
+      before: 0,
+      answer: { kind: "hint", last: null },
+    });
+    expect(hinted).toMatchObject({
+      tries: 0,
+      hints: ["Think about Is a tomato red?"],
+      askable: 0,
+      asked: 1,
+    });
+    expect(
+      await rejection(
+        pupil.learning.practiceCheck({
+          lessonId: firstLesson,
+          blockId: missed.block.id,
+          before: 0,
+          hints: 1,
+          answer: { kind: "hint", last: null },
+        }),
+      ),
+    ).toMatchObject({ message: "learning.no_hint" });
     const right = await pupil.learning.practiceCheck({
       lessonId: firstLesson,
       blockId: missed.block.id,

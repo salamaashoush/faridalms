@@ -472,7 +472,7 @@ function CheckCard({
   // Hints stay in view while the student tries again; a reviewed answer has none.
   const hints = mode === "review" || !view ? [] : view.hints;
   const asking =
-    help?.ask && view && view.askable > 0 && !young && mode !== "review"
+    help?.ask && view && view.askable > 0 && mode !== "review"
       ? help.ask
       : null;
   const submit = (event: FormEvent) => {
@@ -516,11 +516,15 @@ function CheckCard({
           {hints.length > 0 ? (
             <div className="mb-4 grid gap-1.5 rounded-md bg-muted/60 px-3 py-2 text-sm leading-6">
               {hints.map((hint, index) => (
-                <p key={hint} className="flex gap-2">
-                  <Lightbulb
-                    aria-hidden
-                    className="mt-1 size-4 shrink-0 text-muted-foreground"
-                  />
+                <p key={hint} className="flex items-start gap-2">
+                  {young ? (
+                    <ReadAloud text={hint} size="small" />
+                  ) : (
+                    <Lightbulb
+                      aria-hidden
+                      className="mt-1 size-4 shrink-0 text-muted-foreground"
+                    />
+                  )}
                   <span>
                     <span className="font-medium">
                       {hints.length + (view?.askable ?? 0) > 1

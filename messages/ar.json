@@ -4023,6 +4023,7 @@
   "lrnYoungFirstTry": "من المحاولة الأولى",
   "lrnYoungWithHelp": "بالمساعدة",
   "lrnYoungNotYet": "ليس بعد",
+  "lrnYoungHelp": "ساعدني",
   "lrnYoungGridCaption": "كل طفل في كل سؤال من {lesson}",
   "lrnYoungGridNote": "من المحاولة الأولى لكل طفل. هذا تدريب على الشاشة يُقرأ إلى جانب ما تلاحظه في الفصل، وليس تقييمًا.",
   "lrnFirstChoices": "ما اختاره كل طالب في محاولته الأولى",

@@ -3447,6 +3447,7 @@ export function describeReview(
     hints: [],
     hintsLeft: 0,
     askable: 0,
+    asked: 0,
     key: done ? answerKey(block) : null,
     partKey: done ? partKey(block) : null,
     ...keyProgram(block, done),
@@ -3482,6 +3483,8 @@ export interface CheckView {
   hintsLeft: number;
   /** Hints the student may still ask for now. */
   askable: number;
+  /** Hints the student asked for, rather than had after a wrong try. */
+  asked: number;
   key: string[] | null;
   partKey: Record<string, string> | null;
   /** A puzzle's answer as the program it is, to read as blocks once settled. */
@@ -3527,6 +3530,7 @@ export function describeCheck(
     hints: before ? block.hints.slice(0, asked) : [],
     hintsLeft: 0,
     askable: before ? block.hints.length - asked : 0,
+    asked,
     key: null,
     partKey: null,
     explanation: null,

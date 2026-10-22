@@ -1,4 +1,5 @@
-import type { CheckView, LessonResponse } from "@faridalms/domain/learning";
+import type { CheckView } from "@faridalms/domain/learning";
+import type { PracticeAnswer } from "@faridalms/domain/practice";
 
 import { allWithoutVowelMarks } from "@faridalms/domain/arabic";
 import { Button } from "@faridalms/ui/button";
@@ -41,7 +42,6 @@ export function PracticePlayer({
   const earlyYears = useCurrentUser().features.early_years;
   const navigate = useNavigate();
   const check = useServerFn(checkPractice);
-  const [views, setViews] = useState<Record<string, CheckView>>({});
   // A question's id in the review carries its lesson's, since two lessons
   // may share a question copied from one to the other. Nothing here scores,
   // so no question shows its points.
@@ -64,10 +64,10 @@ export function PracticePlayer({
       }),
     [data.items],
   );
-  const send = async (
-    key: string,
-    answer: { kind: "response"; response: LessonResponse } | { kind: "reveal" },
-  ) => {
+  const [views, setViews] = useState<Record<string, CheckView>>(() =>
+    Object.fromEntries(items.map((item) => [item.block.id, item.check])),
+  );
+  const send = async (key: string, answer: PracticeAnswer) => {
     const item = items.find((entry) => entry.block.id === key);
     if (!item) return;
     const view = await check({
@@ -75,6 +75,7 @@ export function PracticePlayer({
         lessonId: item.lessonId,
         blockId: item.blockId,
         before: views[key]?.tries ?? 0,
+        hints: views[key]?.asked ?? 0,
         answer,
       },
     });
@@ -83,6 +84,8 @@ export function PracticePlayer({
   const driver: CheckDriver = {
     respond: (key, response) => send(key, { kind: "response", response }),
     reveal: (key) => send(key, { kind: "reveal" }),
+    hint: (key) =>
+      send(key, { kind: "hint", last: views[key]?.response ?? null }),
   };
   const back = () =>
     void navigate({ to: "/modules/$moduleId", params: { moduleId } });
@@ -133,7 +136,7 @@ export function PracticePlayer({
   );
   const firstTime = questions.filter((item) => {
     const view = views[item.block.id];
-    return view?.correct && view.tries === 1;
+    return view?.correct && view.tries === 1 && view.asked === 0;
   }).length;
   return (
     <article className="mx-auto grid w-full max-w-3xl gap-6">

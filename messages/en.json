@@ -3830,6 +3830,7 @@
   "lrnYoungFirstTry": "First try",
   "lrnYoungWithHelp": "With help",
   "lrnYoungNotYet": "Not yet",
+  "lrnYoungHelp": "Help me",
   "lrnYoungGridCaption": "Each child on each question of {lesson}",
   "lrnYoungGridNote": "From each child's first attempt. This is practice on a screen, to read beside what you see in class, not an assessment.",
   "lrnFirstChoices": "What each student chose on their first try",

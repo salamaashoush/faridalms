@@ -56,6 +56,10 @@ test("a young child plays a lesson one screen at a time, by tapping", async ({
   await page.locator("[data-question-prompt]").last().click();
   await bar.getByRole("button", { name: "How many there are" }).click();
   await page.getByRole("menuitem", { name: "3", exact: true }).click();
+  await page.locator("[data-question-prompt]").first().click();
+  await bar.getByRole("button", { name: "Hints" }).click();
+  await page.getByRole("textbox", { name: "Hint 1" }).fill("It says quack.");
+  await page.keyboard.press("Enter");
   await page.getByRole("checkbox", { name: "For young children" }).click();
   await expect(page.getByText("Saved", { exact: true })).toBeVisible();
   await page.getByRole("button", { name: "Back" }).click();
@@ -86,6 +90,11 @@ test("a young child plays a lesson one screen at a time, by tapping", async ({
   const next = stage.getByRole("button", { name: "Next" });
   await expect(next).toBeDisabled();
   await settle();
+  // Help is the question's hint, kept on screen, and goes once they run out.
+  const help = stage.getByRole("button", { name: "Help me" });
+  await help.click();
+  await expect(stage.locator("output")).toContainText("It says quack.");
+  await expect(help).toBeHidden();
   await stage.getByRole("button", { name: "Cat" }).click();
   await expect(stage.locator("output")).toContainText("Not yet");
   await stage.getByRole("button", { name: "Duck" }).click();

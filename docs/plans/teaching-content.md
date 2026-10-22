@@ -217,9 +217,12 @@ Sources: [../research/course-design.md](../research/course-design.md),
    state `hint`), costs what a wrong try would, and stops the question
    counting as right first time, so it comes back at the end where the
    lesson asks again. A wrong try still opens the next hint by itself.
-   Hints stay in view while the student tries again.
-   Left: hints asked for in a mixed practice set, and in a young child's
-   lesson, whose help ladder is its own.
+   Hints stay in view while the student tries again. A mixed practice set
+   offers them too, counted with its tries and kept nowhere, and a hint
+   asked for no longer counts as right first time in its summary. A young
+   child has a Help button beside the question's words: it says the next
+   hint aloud and keeps it on screen, the ladder's own hint after a miss
+   following on from the last one asked for (`CheckView.asked`).
 5. **A continue gate** that waits for the block directly above it, or for
    nothing, as well as for everything above.
    Done: a continue gate in the editor says what it waits for: everything

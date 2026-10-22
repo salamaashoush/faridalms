@@ -422,6 +422,7 @@ describe("hints asked for", () => {
     expect(seen(asking(1, [])).view).toMatchObject({
       hints: steps.slice(0, 1),
       askable: 2,
+      asked: 1,
     });
   });
 

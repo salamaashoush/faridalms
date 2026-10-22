@@ -102,7 +102,8 @@ describe("practiceView", () => {
   const block = choice("q");
 
   it("marks a right answer and shows the explanation", () => {
-    const view = practiceView(block, 0, {
+    const view = practiceView(block, 0, 0, {
+      kind: "response",
       response: { type: "choice", optionIds: ["q-right"] },
     });
     expect(view).toMatchObject({
@@ -113,7 +114,8 @@ describe("practiceView", () => {
   });
 
   it("offers the hint after a miss and the answer once tries run out", () => {
-    const first = practiceView(block, 0, {
+    const first = practiceView(block, 0, 0, {
+      kind: "response",
       response: { type: "choice", optionIds: ["q-wrong"] },
     });
     expect(first).toMatchObject({
@@ -121,17 +123,50 @@ describe("practiceView", () => {
       hints: ["Think of the sky."],
       key: null,
     });
-    const second = practiceView(block, 1, {
+    const second = practiceView(block, 1, 0, {
+      kind: "response",
       response: { type: "choice", optionIds: ["q-wrong"] },
     });
     expect(second).toMatchObject({ revealed: true, key: ["q-right"] });
   });
 
   it("shows the answer when asked, keeping the tries made", () => {
-    expect(practiceView(block, 1, { reveal: true })).toMatchObject({
+    expect(practiceView(block, 1, 0, { kind: "reveal" })).toMatchObject({
       revealed: true,
       tries: 1,
       key: ["q-right"],
+    });
+  });
+
+  it("offers its hints before any answer, counting each asked for", () => {
+    expect(practiceView(block, 0, 0, null)).toMatchObject({
+      tries: 0,
+      hints: [],
+      askable: 1,
+      asked: 0,
+    });
+    expect(
+      practiceView(block, 0, 0, { kind: "hint", last: null }),
+    ).toMatchObject({ tries: 0, hints: ["Think of the sky."], askable: 0 });
+    const right = practiceView(block, 0, 1, {
+      kind: "response",
+      response: { type: "choice", optionIds: ["q-right"] },
+    });
+    expect(right).toMatchObject({ correct: true, tries: 1, asked: 1 });
+  });
+
+  it("keeps the answer a hint is asked for after", () => {
+    const twice = { ...choice("t"), hints: ["Look up.", "Think of the sky."] };
+    const wrong = { type: "choice" as const, optionIds: ["t-wrong"] };
+    expect(
+      practiceView(twice, 1, 0, { kind: "hint", last: wrong }),
+    ).toMatchObject({
+      tries: 1,
+      response: wrong,
+      correct: false,
+      hints: ["Look up.", "Think of the sky."],
+      askable: 0,
+      asked: 1,
     });
   });
 });
