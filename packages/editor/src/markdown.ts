@@ -30,6 +30,8 @@ import {
   $isImageNode,
   $isToggleNode,
   $isPanelsNode,
+  $isCompareNode,
+  $isGalleryNode,
   CalloutNode,
   StarterNode,
   ColumnsNode,
@@ -38,6 +40,8 @@ import {
   MathNode,
   ToggleNode,
   PanelsNode,
+  CompareNode,
+  GalleryNode,
 } from "./nodes";
 
 const never = /(?!)/;
@@ -148,9 +152,14 @@ const COLUMNS: ElementTransformer = {
 };
 
 const MEDIA: ElementTransformer = {
-  dependencies: [ImageNode, FileNode],
+  dependencies: [ImageNode, FileNode, GalleryNode, CompareNode],
   export: (node) =>
-    $isImageNode(node) || $isFileNode(node) ? node.getTextContent() : null,
+    $isImageNode(node) ||
+    $isFileNode(node) ||
+    $isGalleryNode(node) ||
+    $isCompareNode(node)
+      ? node.getTextContent()
+      : null,
   regExp: never,
   replace: () => false,
   type: "element",

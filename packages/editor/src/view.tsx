@@ -30,6 +30,8 @@ import { cloneElement, createElement, Fragment, isValidElement } from "react";
 import type { AiUseViewStrings } from "./ai-use-view";
 import type { FileFacts } from "./files";
 import type { PanelStrings } from "./panels-view";
+import type { LabelViewStrings } from "./picture-labels";
+import type { PicturesViewStrings } from "./pictures-view";
 import type { MediaWatch } from "./player";
 
 import { AiUseView } from "./ai-use-view";
@@ -39,11 +41,18 @@ import { blockAlignClass, diagramImageClass, imageSizeClass } from "./format";
 import { MathText } from "./math";
 import { EmbedFrame, MediaPlayer, MediaTranscript } from "./media-view";
 import { PanelsView } from "./panels-view";
+import { LabelledPicture } from "./picture-labels";
+import { CompareView, GalleryView } from "./pictures-view";
 import { editorTheme } from "./theme";
 
 export { editorFrame } from "./frame";
 
-export interface ViewStrings extends AiUseViewStrings, PanelStrings {
+export interface ViewStrings
+  extends
+    AiUseViewStrings,
+    PanelStrings,
+    LabelViewStrings,
+    PicturesViewStrings {
   checklist: string;
   studentCopy: string;
   diagram: string;
@@ -745,18 +754,60 @@ function draw(
     case "image": {
       const src = node.fileId ? context.fileUrl?.(node.fileId) : undefined;
       if (!src) return null;
-      return (
+      const className = `my-3 ${imageSizeClass[node.size ?? "large"]} ${blockAlignClass(node.format)}`;
+      const picture = (
         <PictureView
           key={key}
           src={src}
           alt={node.decorative ? "" : (node.alt ?? "")}
-          caption={node.caption ?? ""}
-          className={`my-3 ${imageSizeClass[node.size ?? "large"]} ${blockAlignClass(node.format)}`}
+          caption={node.labels?.length ? "" : (node.caption ?? "")}
+          className={node.labels?.length ? "" : className}
           strings={context.strings}
           locale={context.locale}
         />
       );
+      return node.labels?.length ? (
+        <figure key={key} className={className}>
+          <LabelledPicture
+            picture={picture}
+            labels={node.labels}
+            printed={node.open ?? false}
+            strings={context.strings}
+          />
+          {node.caption ? (
+            <figcaption className="mt-1.5 text-center text-sm text-muted-foreground">
+              {node.caption}
+            </figcaption>
+          ) : null}
+        </figure>
+      ) : (
+        picture
+      );
     }
+    case "gallery":
+      return (
+        <GalleryView
+          key={key}
+          pictures={node.pictures ?? []}
+          url={(fileId) => context.fileUrl?.(fileId)}
+          strings={context.strings}
+          locale={context.locale}
+        />
+      );
+    case "compare":
+      return (
+        <div
+          key={key}
+          className={`my-3 ${imageSizeClass[node.size ?? "large"]} ${blockAlignClass(node.format)}`}
+        >
+          <CompareView
+            pictures={node.pictures ?? []}
+            url={(fileId) => context.fileUrl?.(fileId)}
+            printed={node.open ?? false}
+            strings={context.strings}
+          />
+        </div>
+      );
     case "media": {
       const src = node.fileId ? context.fileUrl?.(node.fileId) : undefined;
       if (!src) return null;

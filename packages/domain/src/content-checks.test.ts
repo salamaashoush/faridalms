@@ -26,6 +26,14 @@ const image = (alt: string, decorative = false): ContentNode => ({
   alt,
   ...(decorative ? { decorative } : {}),
 });
+const gallery = (alts: string[]): ContentNode => ({
+  type: "gallery",
+  version: 1,
+  pictures: alts.map((alt, index) => ({
+    fileId: `0190a1b2-0000-7000-8000-00000000001${index}`,
+    alt,
+  })),
+});
 const documentOf = (...children: ContentNode[]): ContentDocument => ({
   root: { type: "root", version: 1, children },
 });
@@ -71,5 +79,14 @@ describe("checks before a document reaches readers", () => {
         ),
       ).toSorted(),
     ).toEqual(["alt", "link"]);
+  });
+
+  it("asks a description of every picture in a gallery or a before and after", () => {
+    expect(contentIssues(documentOf(gallery(["A cell", "A leaf"])))).toEqual(
+      [],
+    );
+    expect(contentIssues(documentOf(gallery(["A cell", " "])))).toEqual([
+      "alt",
+    ]);
   });
 });

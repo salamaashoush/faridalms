@@ -711,6 +711,206 @@
   outline: 2px solid var(--ring);
   outline-offset: 2px;
 }
+/* A picture with numbered places: markers sit where the teacher put them,
+   at a share of the picture's own width and height. */
+.fe .fe-labelled {
+  position: relative;
+}
+.fe .fe-label-marker,
+.fe .fe-label-number {
+  display: inline-grid;
+  place-items: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  flex: none;
+  border-radius: 999px;
+  background: var(--fe-accent);
+  color: var(--primary-foreground);
+  font-size: 0.8125rem;
+  font-variant-numeric: tabular-nums;
+  font-weight: 650;
+  line-height: 1;
+}
+.fe .fe-label-marker {
+  position: absolute;
+  border: 2px solid var(--background);
+  box-shadow: 0 1px 4px rgb(0 0 0 / 0.35);
+  transform: translate(-50%, -50%);
+  cursor: pointer;
+  touch-action: none;
+}
+.fe .fe-label-marker[data-open],
+.fe .fe-label-marker[data-moving] {
+  box-shadow:
+    0 0 0 3px var(--background),
+    0 0 0 6px var(--fe-accent);
+}
+.fe .fe-label-marker:focus-visible {
+  outline: 3px solid var(--ring);
+  outline-offset: 2px;
+}
+.fe .fe-label-fields {
+  display: grid;
+  gap: 0.5rem;
+  margin-block-start: 0.5rem;
+}
+.fe .fe-label-card {
+  display: flex;
+  align-items: flex-start;
+  gap: 0.75rem;
+  margin-block-start: 0.5rem;
+  border: 1px solid color-mix(in oklab, var(--foreground) 12%, transparent);
+  border-radius: 0.5rem;
+  padding: 0.625rem 0.75rem;
+  font-size: 0.9375rem;
+}
+.fe .fe-label-card p {
+  margin: 0;
+  color: var(--fe-muted);
+}
+.fe .fe-label-close {
+  display: inline-grid;
+  place-items: center;
+  width: 1.75rem;
+  height: 1.75rem;
+  flex: none;
+  border: 0;
+  border-radius: 0.375rem;
+  background: none;
+  color: var(--fe-muted);
+  cursor: pointer;
+}
+.fe .fe-label-close:hover {
+  background: var(--fe-subtle);
+  color: var(--foreground);
+}
+.fe .fe-label-close svg {
+  width: 1rem;
+  height: 1rem;
+}
+.fe .fe-label-list {
+  margin-block: 0.5rem 0;
+  padding-inline-start: 1.5rem;
+  font-size: 0.9375rem;
+}
+
+/* A gallery: pictures in a grid of one shape. */
+.fe .fe-gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(min(10rem, 100%), 1fr));
+  gap: 0.75rem;
+  margin-block: 0.75rem;
+  list-style: none;
+  padding: 0;
+}
+.fe .fe-gallery figure {
+  margin: 0;
+}
+.fe .fe-gallery-picture {
+  display: block;
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  border-radius: 0.5rem;
+  background: var(--muted);
+  object-fit: cover;
+}
+.fe .fe-picture-add {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem;
+  margin-block-start: 0.5rem;
+  border: 1px dashed color-mix(in oklab, var(--foreground) 20%, transparent);
+  border-radius: 0.5rem;
+  padding: 0.75rem;
+}
+.fe .fe-compare-edit {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 1rem;
+}
+.fe .fe-compare-empty {
+  min-height: 8rem;
+  margin: 0;
+}
+
+/* Before and after: the before picture laid over the after one, cut at the
+   line the reader slides. */
+.fe .fe-compare {
+  --split: 50%;
+  position: relative;
+  margin: 0;
+  overflow: hidden;
+  border-radius: 0.5rem;
+  user-select: none;
+}
+.fe .fe-compare-after {
+  display: block;
+  width: 100%;
+  height: auto;
+  background: var(--muted);
+}
+.fe .fe-compare-before {
+  position: absolute;
+  inset: 0;
+  clip-path: inset(0 calc(100% - var(--split)) 0 0);
+}
+.fe .fe-compare-picture {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+.fe .fe-compare-line {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: var(--split);
+  width: 3px;
+  background: white;
+  box-shadow: 0 0 6px rgb(0 0 0 / 0.45);
+  transform: translateX(-50%);
+  pointer-events: none;
+}
+.fe .fe-compare-label {
+  position: absolute;
+  top: 0.5rem;
+  border-radius: 999px;
+  background: rgb(0 0 0 / 0.6);
+  padding: 0.125rem 0.625rem;
+  color: white;
+  font-size: 0.8125rem;
+  font-weight: 600;
+  pointer-events: none;
+}
+.fe .fe-compare-label[data-side="before"] {
+  left: 0.5rem;
+}
+.fe .fe-compare-label[data-side="after"] {
+  right: 0.5rem;
+}
+.fe .fe-compare-range {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  margin: 0;
+  opacity: 0;
+  cursor: ew-resize;
+}
+.fe .fe-compare:has(.fe-compare-range:focus-visible) {
+  outline: 3px solid var(--ring);
+  outline-offset: 2px;
+}
+.fe .fe-compare-printed {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(12rem, 100%), 1fr));
+  gap: 0.75rem;
+}
+.fe .fe-compare-printed figure {
+  margin: 0;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .fe .fe-card-inner {
     transition: none;

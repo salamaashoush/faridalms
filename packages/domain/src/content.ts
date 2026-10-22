@@ -80,6 +80,8 @@ const nodeTypes = [
   "columns",
   "column",
   "image",
+  "gallery",
+  "compare",
   "file",
   "media",
   "embed",
@@ -141,6 +143,26 @@ export const panelLayouts = ["tabs", "steps", "timeline", "cards"] as const;
 export type PanelLayout = (typeof panelLayouts)[number];
 /** Parts in one set of tabs, steps, events or cards. */
 export const MAX_PANELS = 12;
+/** Places named on one picture. */
+export const MAX_PICTURE_LABELS = 12;
+/** Pictures in one gallery. */
+export const MAX_GALLERY_PICTURES = 24;
+
+/** A place on a picture, as a share of its width and height, with what it shows. */
+export interface PictureLabel {
+  id: string;
+  x: number;
+  y: number;
+  title: string;
+  text: string;
+}
+
+/** One picture of a gallery, or one side of a before and after. */
+export interface SetPicture {
+  fileId: string;
+  alt: string;
+  caption?: string;
+}
 export const imageSizes = ["small", "medium", "large", "full"] as const;
 /** A file reads as a card, or a PDF also shows its pages in the document. */
 export const fileDisplays = ["card", "preview"] as const;
@@ -205,6 +227,10 @@ export interface ContentNode {
   block?: boolean;
   caption?: string;
   size?: ImageSize;
+  /** Places named on a picture, which its reader opens one at a time. */
+  labels?: PictureLabel[];
+  /** A gallery's pictures, or a before and after's two. */
+  pictures?: SetPicture[];
   name?: string;
   mime?: string;
   bytes?: number;
@@ -440,6 +466,32 @@ const nodeSchema: v.GenericSchema<ContentNode> = v.lazy(() =>
       block: v.optional(v.boolean()),
       caption: v.optional(v.pipe(v.string(), v.maxLength(1000))),
       size: v.optional(v.picklist(imageSizes)),
+      labels: v.optional(
+        v.pipe(
+          v.array(
+            v.object({
+              id: v.pipe(v.string(), v.regex(/^[\da-z]{8,36}$/)),
+              x: v.pipe(v.number(), v.minValue(0), v.maxValue(1)),
+              y: v.pipe(v.number(), v.minValue(0), v.maxValue(1)),
+              title: v.pipe(v.string(), v.maxLength(80)),
+              text: v.pipe(v.string(), v.maxLength(500)),
+            }),
+          ),
+          v.maxLength(MAX_PICTURE_LABELS),
+        ),
+      ),
+      pictures: v.optional(
+        v.pipe(
+          v.array(
+            v.object({
+              fileId: v.pipe(v.string(), v.uuid()),
+              alt: v.pipe(v.string(), v.maxLength(500)),
+              caption: v.optional(v.pipe(v.string(), v.maxLength(300))),
+            }),
+          ),
+          v.maxLength(MAX_GALLERY_PICTURES),
+        ),
+      ),
       name: v.optional(v.pipe(v.string(), v.minLength(1), v.maxLength(255))),
       mime: v.optional(v.pipe(v.string(), v.maxLength(255))),
       bytes: v.optional(integer(0, 2147483647)),
@@ -602,6 +654,8 @@ const blocks = new Set<string>([
   "panels",
   "columns",
   "image",
+  "gallery",
+  "compare",
   "file",
   "media",
   "embed",
@@ -643,6 +697,15 @@ function validNode(node: ContentNode): boolean {
     return !node.children && node.text === undefined;
   if (node.type === "image")
     return !node.children && node.text === undefined && Boolean(node.fileId);
+  // A gallery or a before and after may stand empty while it is written;
+  // its reader sees nothing of it until it has pictures.
+  if (node.type === "gallery" || node.type === "compare")
+    return (
+      !node.children &&
+      node.text === undefined &&
+      Array.isArray(node.pictures) &&
+      (node.type === "gallery" || node.pictures.length <= 2)
+    );
   if (node.type === "standards")
     return (
       !node.children && node.text === undefined && Array.isArray(node.targets)
@@ -883,8 +946,21 @@ const blockSeparated = new Set<string>([
   "column",
 ]);
 const visit = (node: ContentNode): string => {
-  if (node.type === "image" || node.type === "diagram")
-    return node.caption || node.alt || "";
+  if (node.type === "image")
+    return [
+      node.caption || node.alt || "",
+      ...(node.labels ?? []).map((label) =>
+        [label.title, label.text].filter(Boolean).join(": "),
+      ),
+    ]
+      .filter(Boolean)
+      .join("\n");
+  if (node.type === "diagram") return node.caption || node.alt || "";
+  if (node.type === "gallery" || node.type === "compare")
+    return (node.pictures ?? [])
+      .map((picture) => picture.caption || picture.alt)
+      .filter(Boolean)
+      .join("\n");
   if (node.type === "media")
     return [node.caption, node.transcript].filter(Boolean).join("\n");
   if (node.type === "embed") return node.caption ?? "";
@@ -1035,6 +1111,7 @@ export function contentFileIds(document: ContentDocument): string[] {
     ])
       if (id) ids.add(id);
     for (const evidence of node.aiEvidence ?? []) ids.add(evidence.fileId);
+    for (const picture of node.pictures ?? []) ids.add(picture.fileId);
     if (node.children) pending.push(...node.children);
   }
   return [...ids];

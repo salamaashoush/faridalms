@@ -293,7 +293,14 @@ Sources: [../research/course-design.md](../research/course-design.md),
    follow the WAI-ARIA tabs pattern, steps and events are ordered lists on
    a rail, and a card turns over on a button that never holds its back;
    paper shows every tab and both sides of each card.
-   Left: labelled image, gallery, chart, before and after.
+   A picture takes numbered labels, dragged into place or moved by the
+   arrow keys; its reader opens each from a button naming the place, what
+   it says shown below the picture, and paper lists them all. A gallery
+   holds up to 24 pictures in a grid, each opening large; a before and
+   after lays two pictures under a range slider, side by side on paper.
+   Every picture in them needs a description before the document goes
+   out, and their files travel with the document.
+   Left: chart; a gallery's large view stepping to the next picture.
 2. **Writing tools**: text size, clear formatting, find and replace.
 3. **Reusable blocks** kept once and shown in many documents.
 4. **Footnotes and citations** for older students and universities.

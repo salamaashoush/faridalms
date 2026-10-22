@@ -1,10 +1,11 @@
 import type { ProjectLock } from "@faridalms/domain/project";
 import type { ScratchFeature } from "@faridalms/domain/scratch-project";
 
+import type { LabelEditorStrings } from "./picture-labels";
 import type { RecorderStrings } from "./recorder";
 import type { VideoRecorderStrings } from "./video-recorder";
 
-export interface EditorStrings {
+export interface EditorStrings extends LabelEditorStrings {
   placeholder: string;
   emptyPlaceholder: string;
   headingPlaceholder: string;
@@ -62,6 +63,19 @@ export interface EditorStrings {
   timelineHint: string;
   cards: string;
   cardsHint: string;
+  gallery: string;
+  galleryHint: string;
+  galleryAdd: string;
+  galleryUploading: (count: number) => string;
+  compare: string;
+  compareHint: string;
+  compareChoose: string;
+  compareBefore: string;
+  compareAfter: string;
+  pictureEarlier: string;
+  pictureLater: string;
+  pictureRemove: string;
+  pictureAltMissing: string;
   panelLayout: string;
   addTab: string;
   addStep: string;

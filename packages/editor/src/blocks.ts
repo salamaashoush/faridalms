@@ -72,6 +72,7 @@ import {
   Hash,
   Heading3,
   Image,
+  Images,
   List,
   ListEnd,
   ListChecks,
@@ -90,6 +91,7 @@ import {
   Shapes,
   Shuffle,
   Sparkles,
+  SquareSplitHorizontal,
   SquareStack,
   Table,
   Target,
@@ -118,6 +120,10 @@ import {
   $createToggleNode,
   $createPanel,
   $createPanelsNode,
+  $createCompareNode,
+  $createGalleryNode,
+  $isCompareNode,
+  $isGalleryNode,
   $createToggleTitleNode,
   $isCalloutNode,
   $isColumnsNode,
@@ -161,6 +167,8 @@ export type BlockType =
   | "columns2"
   | "columns3"
   | "image"
+  | "gallery"
+  | "compare"
   | "file"
   | "media"
   | "recording"
@@ -494,6 +502,24 @@ export const blockDefinitions: BlockDefinition[] = [
     label: (s) => s.image,
     hint: (s) => s.imageHint,
     keywords: ["image", "picture", "photo", "img", "صورة"],
+    media: true,
+  },
+  {
+    type: "gallery",
+    group: "media",
+    icon: Images,
+    label: (s) => s.gallery,
+    hint: (s) => s.galleryHint,
+    keywords: ["gallery", "pictures", "photos", "album", "معرض", "صور"],
+    media: true,
+  },
+  {
+    type: "compare",
+    group: "media",
+    icon: SquareSplitHorizontal,
+    label: (s) => s.compare,
+    hint: (s) => s.compareHint,
+    keywords: ["before", "after", "compare", "slider", "قبل", "بعد", "مقارنة"],
     media: true,
   },
   {
@@ -1138,6 +1164,8 @@ export function $blockTypeOf(block: LexicalNode | null): BlockType | null {
   if ($isHorizontalRuleNode(block)) return "divider";
   if ($isColumnsNode(block)) return "columns2";
   if ($isPanelsNode(block)) return block.getLayout();
+  if ($isGalleryNode(block)) return "gallery";
+  if ($isCompareNode(block)) return "compare";
   return null;
 }
 
@@ -1282,6 +1310,8 @@ function $createStructure(type: BlockType): LexicalNode | null {
     type === "cards"
   )
     return $createPanelsNode(type).append($createPanel(), $createPanel());
+  if (type === "gallery") return $createGalleryNode();
+  if (type === "compare") return $createCompareNode();
   if (type === "trueFalseQuestion") return $createTrueFalseQuestion();
   if (type === "whyQuestion") return $createWhyQuestion();
   if (type === "sketchQuestion") return $createSketchQuestion();

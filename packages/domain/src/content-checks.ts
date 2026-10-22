@@ -48,6 +48,7 @@ export function contentIssues(document: ContentDocument): ContentIssue[] {
     }
     if (node.type === "image" && !node.decorative && !node.alt?.trim())
       found.add("alt");
+    if (node.pictures?.some((picture) => !picture.alt.trim())) found.add("alt");
     if (node.type === "link" || node.type === "autolink") {
       const label = (node.children ?? [])
         .map((child) => child.text ?? "")

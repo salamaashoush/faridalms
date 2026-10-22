@@ -5,6 +5,8 @@ import type { ContentDocument } from "./content";
 
 import {
   contentDocumentSchema,
+  contentFileIds,
+  contentPlainText,
   sameContent,
   spokenWords,
   starterOf,
@@ -158,5 +160,54 @@ describe("each student's copy", () => {
     expect(starterOf(document)?.root.children).toEqual(worksheet.root.children);
     expect(sameContent(withoutStarter(document), brief)).toBe(true);
     expect(starterOf(brief)).toBeNull();
+  });
+});
+
+const file = (n: number) => `0190a1b2-0000-7000-8000-00000000002${n}`;
+const alone = (node: ContentDocument["root"]): ContentDocument => ({
+  root: { type: "root", version: 1, children: [node] },
+});
+
+const valid = (node: ContentDocument["root"]) =>
+  v.safeParse(contentDocumentSchema, alone(node)).success;
+
+describe("pictures with places, galleries and before and after", () => {
+  it("keeps a picture's places, each with its own id and a share of the picture", () => {
+    const wall = {
+      id: "abcd1234ef",
+      x: 0.2,
+      y: 0.4,
+      title: "Wall",
+      text: "Keeps its shape.",
+    };
+    const labelled = {
+      type: "image" as const,
+      version: 1 as const,
+      fileId: file(1),
+      alt: "A plant cell",
+      labels: [wall],
+    };
+    expect(valid(labelled)).toBe(true);
+    expect(valid({ ...labelled, labels: [{ ...wall, x: 1.2 }] })).toBe(false);
+    expect(contentPlainText(alone(labelled))).toBe(
+      "A plant cell\nWall: Keeps its shape.",
+    );
+  });
+
+  it("holds two pictures at most in a before and after, any number up to the limit in a gallery", () => {
+    const pictures = [1, 2, 3].map((n) => ({
+      fileId: file(n),
+      alt: `Picture ${n}`,
+    }));
+    expect(valid({ type: "gallery", version: 1, pictures })).toBe(true);
+    expect(valid({ type: "compare", version: 1, pictures })).toBe(false);
+    expect(
+      valid({ type: "compare", version: 1, pictures: pictures.slice(0, 2) }),
+    ).toBe(true);
+    expect(
+      contentFileIds(
+        alone({ type: "gallery", version: 1, pictures }),
+      ).toSorted(),
+    ).toEqual([file(1), file(2), file(3)]);
   });
 });

@@ -1,4 +1,8 @@
-import type { FileDisplay, ImageSize } from "@faridalms/domain/content";
+import type {
+  FileDisplay,
+  ImageSize,
+  PictureLabel,
+} from "@faridalms/domain/content";
 import type { SerializedDecoratorBlockNode } from "@lexical/react/LexicalDecoratorBlockNode";
 import type {
   DOMExportOutput,
@@ -28,6 +32,7 @@ import { useEditorEnvironment } from "../context";
 import { useFileFacts } from "../file-facts";
 import { FileCard, FileViewer, StoredImage } from "../files";
 import { blockAlignClass, imageSizeClass } from "../format";
+import { LabelsEditor } from "../picture-labels";
 import { ownKeys, useSelectOnClick } from "./select";
 
 // The outline goes round the block's own box, which may be narrower than
@@ -45,6 +50,7 @@ export type SerializedImageNode = Spread<
     decorative?: boolean;
     caption: string;
     size: ImageSize;
+    labels?: PictureLabel[];
   },
   SerializedDecoratorBlockNode
 >;
@@ -84,6 +90,7 @@ function ImageBlock({
   decorative,
   caption,
   size,
+  labels,
 }: {
   nodeKey: NodeKey;
   format: ElementFormatType;
@@ -92,11 +99,22 @@ function ImageBlock({
   decorative: boolean;
   caption: string;
   size: ImageSize;
+  labels: PictureLabel[];
 }) {
   const { strings, media } = useEditorEnvironment();
   const editable = useLexicalEditable();
   const selected = useSelectOnClick(nodeKey);
   const update = useNodeUpdate(nodeKey, $isImageNode);
+  const picture = (
+    <StoredImage
+      src={media?.url(fileId)}
+      alt={decorative ? "" : alt}
+      draggable={false}
+      loading="lazy"
+      removed={strings.fileRemoved}
+      className="block h-auto w-full rounded-lg bg-muted"
+    />
+  );
   return (
     <BlockWithAlignableContents
       className={blockClass}
@@ -107,14 +125,33 @@ function ImageBlock({
         ref={ownKeys}
         className={`${imageSizeClass[size]} ${blockAlignClass(format)}`}
       >
-        <StoredImage
-          src={media?.url(fileId)}
-          alt={decorative ? "" : alt}
-          draggable={false}
-          loading="lazy"
-          removed={strings.fileRemoved}
-          className="block h-auto w-full rounded-lg bg-muted"
-        />
+        {editable && selected ? (
+          <LabelsEditor
+            picture={picture}
+            labels={labels}
+            strings={strings}
+            onChange={(next) => update((node) => node.setLabels(next))}
+          />
+        ) : labels.length > 0 ? (
+          <div className="fe-labelled">
+            {picture}
+            {labels.map((label, index) => (
+              <span
+                key={label.id}
+                aria-hidden
+                className="fe-label-marker"
+                style={{
+                  left: `${label.x * 100}%`,
+                  top: `${label.y * 100}%`,
+                }}
+              >
+                {index + 1}
+              </span>
+            ))}
+          </div>
+        ) : (
+          picture
+        )}
         {editable ? (
           <div className="mt-1.5 grid gap-1">
             <input
@@ -268,6 +305,7 @@ export class ImageNode extends DecoratorBlockNode {
   __decorative = false;
   __caption: string;
   __size: ImageSize;
+  __labels: PictureLabel[] = [];
 
   constructor(
     fileId = "",
@@ -298,6 +336,7 @@ export class ImageNode extends DecoratorBlockNode {
       node.__key,
     );
     copy.__decorative = node.__decorative;
+    copy.__labels = node.__labels;
     return copy;
   }
 
@@ -312,6 +351,7 @@ export class ImageNode extends DecoratorBlockNode {
     node.__decorative = json.decorative ?? false;
     node.__caption = json.caption;
     node.__size = json.size;
+    node.__labels = json.labels ?? [];
     return node;
   }
 
@@ -324,6 +364,7 @@ export class ImageNode extends DecoratorBlockNode {
       ...(node.__decorative ? { decorative: true } : {}),
       caption: node.__caption,
       size: node.__size,
+      ...(node.__labels.length > 0 ? { labels: node.__labels } : {}),
     };
   }
 
@@ -369,6 +410,12 @@ export class ImageNode extends DecoratorBlockNode {
     return this.getLatest().__size;
   }
 
+  setLabels(labels: PictureLabel[]): this {
+    const writable = this.getWritable();
+    writable.__labels = labels;
+    return writable;
+  }
+
   setSize(size: ImageSize): this {
     const writable = this.getWritable();
     writable.__size = size;
@@ -385,6 +432,7 @@ export class ImageNode extends DecoratorBlockNode {
         decorative={this.__decorative}
         caption={this.__caption}
         size={this.__size}
+        labels={this.__labels}
       />
     );
   }

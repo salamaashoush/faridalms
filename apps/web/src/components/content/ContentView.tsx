@@ -65,6 +65,12 @@ export function ContentView({
         standardsBlock: m.editorStandardsBlock({}, { locale }),
         cardTurn: m.editorCardTurn({}, { locale }),
         cardTurnBack: m.editorCardTurnBack({}, { locale }),
+        pictureLabel: (number) =>
+          m.editorPictureLabel({ number: String(number) }, { locale }),
+        pictureLabelClose: m.editorPictureLabelClose({}, { locale }),
+        compareBefore: m.editorCompareBefore({}, { locale }),
+        compareAfter: m.editorCompareAfter({}, { locale }),
+        compareSlider: m.editorCompareSlider({}, { locale }),
       }}
       fileUrl={fileUrl}
       locale={locale}

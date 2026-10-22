@@ -420,6 +420,7 @@ export function PictureView({
   className,
   strings,
   locale,
+  cover = false,
 }: {
   src: string;
   alt: string;
@@ -427,6 +428,8 @@ export function PictureView({
   className: string;
   strings: FileStrings;
   locale: string;
+  /** Cropped to one shape, as a gallery's pictures line up. */
+  cover?: boolean;
 }) {
   const [open, setOpen] = useState(false);
   const name = caption || alt || strings.picture;
@@ -443,7 +446,11 @@ export function PictureView({
           alt={alt}
           loading="lazy"
           removed={strings.fileRemoved}
-          className="block h-auto w-full rounded-lg bg-muted"
+          className={
+            cover
+              ? "block aspect-[4/3] w-full rounded-lg bg-muted object-cover"
+              : "block h-auto w-full rounded-lg bg-muted"
+          }
         />
       </button>
       {caption ? (

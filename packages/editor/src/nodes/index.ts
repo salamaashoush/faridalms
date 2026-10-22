@@ -18,6 +18,7 @@ import {
   PanelsNode,
   PanelTitleNode,
 } from "./panels";
+import { CompareNode, GalleryNode } from "./pictures";
 import {
   QuestionAnswerNode,
   QuestionGapNode,
@@ -49,6 +50,7 @@ export * from "./math";
 export * from "./media";
 export * from "./page-break";
 export * from "./panels";
+export * from "./pictures";
 export * from "./question";
 export * from "./rich";
 export * from "./standards";
@@ -67,6 +69,8 @@ export const blockNodes = [
   ColumnsNode,
   ColumnNode,
   ImageNode,
+  GalleryNode,
+  CompareNode,
   FileNode,
   MediaNode,
   EmbedNode,

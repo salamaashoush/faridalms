@@ -31,8 +31,10 @@ import { $duplicateBlock, $insertBlock, $moveBlock, $turnInto } from "./blocks";
 import { BlocksExtension, sanitiseStyle } from "./extensions";
 import { markdownTransformers } from "./markdown";
 import {
+  $createImageNode,
   $isCalloutNode,
   $isColumnsNode,
+  $isGalleryNode,
   $isPanelsNode,
   $isStandardsNode,
   $isToggleNode,
@@ -395,6 +397,50 @@ describe("block operations", () => {
         $convertToMarkdownString(markdownTransformers),
       ),
     ).toContain("**Half**\n\nOne of two equal parts.");
+  });
+
+  it("keeps a gallery's pictures and a picture's places as they are saved", () => {
+    const target = editor();
+    target.update(
+      () => {
+        $getRoot().clear().append(paragraph("Leaves"));
+        $getRoot().getFirstChild()?.selectEnd();
+        $insertBlock("gallery");
+        $getRoot()
+          .getChildren()
+          .find($isGalleryNode)
+          ?.setPictures([
+            {
+              fileId: "0190a1b2-0000-7000-8000-000000000041",
+              alt: "An oak leaf",
+              caption: "Oak",
+            },
+          ]);
+        $getRoot().append(
+          $createImageNode(
+            "0190a1b2-0000-7000-8000-000000000042",
+            "A leaf",
+          ).setLabels([
+            { id: "abcd1234ef", x: 0.5, y: 0.3, title: "Vein", text: "" },
+          ]),
+        );
+      },
+      { discrete: true },
+    );
+    expect(types(target)).toEqual([
+      "paragraph",
+      "gallery",
+      "paragraph",
+      "image",
+    ]);
+    const saved = v.safeParse(
+      contentDocumentSchema,
+      target.getEditorState().toJSON(),
+    );
+    expect(saved.success).toBe(true);
+    const children = saved.success ? (saved.output.root.children ?? []) : [];
+    expect(children[1]?.pictures?.[0]?.caption).toBe("Oak");
+    expect(children[3]?.labels?.[0]?.title).toBe("Vein");
   });
 
   it("moves blocks up and down among their siblings", () => {

@@ -7,7 +7,12 @@ import { contentPlainText } from "@faridalms/domain/content";
 export function opened(node: ContentNode): ContentNode {
   return {
     ...node,
-    ...(node.type === "toggle" || node.type === "panels" ? { open: true } : {}),
+    ...(node.type === "toggle" ||
+    node.type === "panels" ||
+    node.type === "compare" ||
+    (node.type === "image" && node.labels?.length)
+      ? { open: true }
+      : {}),
     ...(node.children ? { children: node.children.map(opened) } : {}),
   };
 }
