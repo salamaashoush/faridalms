@@ -1561,7 +1561,8 @@ export function $createQuestionNode(kind: QuestionKind): QuestionNode {
     question.append($createQuestionPair(), $createQuestionPair());
   if (kind === "sorting")
     question.append($createQuestionGroup(), $createQuestionGroup());
-  if (kind === "gaps") question.append(new QuestionPassageNode());
+  if (kind === "gaps" || kind === "highlight")
+    question.append(new QuestionPassageNode());
   if (kind === "spelling")
     question.append(new QuestionAnswerNode(), new QuestionAnswerNode());
   return question;
@@ -1669,7 +1670,8 @@ export function $repairQuestion(question: QuestionNode) {
         $isQuestionAnswerNode(child)) ||
       (kind === "matching" && $isQuestionPairNode(child)) ||
       (kind === "sorting" && $isQuestionGroupNode(child)) ||
-      (kind === "gaps" && $isQuestionPassageNode(child));
+      ((kind === "gaps" || kind === "highlight") &&
+        $isQuestionPassageNode(child));
     if (fits) continue;
     const paragraph = $createParagraphNode();
     if ($isElementNode(child)) paragraph.append(...child.getChildren());

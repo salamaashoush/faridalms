@@ -288,6 +288,7 @@ function Surface({
         matching: strings.questionMatching,
         sorting: strings.questionSorting,
         gaps: strings.questionGaps,
+        highlight: strings.questionHighlight,
         counting: strings.questionCounting,
         tracing: strings.questionTracing,
         spelling: strings.questionSpelling,

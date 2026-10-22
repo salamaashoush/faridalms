@@ -285,6 +285,12 @@ export function keyOf(block: LessonBlock, rtl: boolean): string | null {
           segment.type === "gap" ? [segment.answers[0] ?? ""] : [],
         ),
       );
+    case "highlight":
+      return list(
+        block.segments.flatMap((segment) =>
+          segment.type === "target" ? [segment.text] : [],
+        ),
+      );
     case "matching": {
       const letterFor = matchingLetters(block, rtl);
       return list(
@@ -550,6 +556,28 @@ export function PaperQuestion({
             )}
           </p>
         </>
+      );
+      break;
+    case "highlight":
+      // Paper asks for the words to be underlined, which the key shows.
+      body = (
+        <p className="leading-[2]">
+          {block.segments.map((segment, index) =>
+            segment.type === "target" ? (
+              <span
+                key={segment.id}
+                className={cn(
+                  answers && "underline decoration-2",
+                  answers && key,
+                )}
+              >
+                {segment.text}
+              </span>
+            ) : (
+              <span key={`text-${index}`}>{segment.text}</span>
+            ),
+          )}
+        </p>
       );
       break;
     case "matching": {

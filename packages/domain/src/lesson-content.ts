@@ -5,6 +5,7 @@ import type { GapSegment } from "./gaps";
 import type {
   CheckBlock,
   DrawBlock,
+  HighlightBlock,
   LessonBlock,
   LessonDocument,
   RecordSeconds,
@@ -431,6 +432,22 @@ export function questionBlock(node: ContentNode): LessonBlock | null {
             }
           : {}),
       };
+    case "highlight":
+      return {
+        ...check,
+        type: "highlight",
+        segments: segmentsOf(
+          parts.filter((part) => part.type === "question-passage"),
+        ).map((segment) =>
+          segment.type === "gap"
+            ? {
+                type: "target",
+                id: segment.id,
+                text: segment.answers[0] ?? "",
+              }
+            : segment,
+        ),
+      };
     case "sorting": {
       const groups = parts.filter((part) => part.type === "question-group");
       return {
@@ -666,6 +683,17 @@ function gapNode(segment: Extract<GapSegment, { type: "gap" }>): ContentNode {
   };
 }
 
+/** A highlight question's passage, each word to find in a gap of its own. */
+function targetPassagesOf(segments: HighlightBlock["segments"]): ContentNode[] {
+  return passagesOf(
+    segments.map((segment) =>
+      segment.type === "target"
+        ? { type: "gap", id: segment.id, answers: [segment.text], options: [] }
+        : segment,
+    ),
+  );
+}
+
 function passagesOf(segments: readonly GapSegment[]): ContentNode[] {
   const passages: ContentNode[] = [inlineOf("question-passage", "")];
   const current = () => passages.at(-1)?.children ?? [];
@@ -697,6 +725,7 @@ export function questionNode(block: LessonBlock): ContentNode | null {
     block.type !== "matching" &&
     block.type !== "sorting" &&
     block.type !== "gaps" &&
+    block.type !== "highlight" &&
     block.type !== "counting" &&
     block.type !== "tracing" &&
     block.type !== "spelling" &&
@@ -775,6 +804,11 @@ export function questionNode(block: LessonBlock): ContentNode | null {
       tehMarbuta: block.tehMarbuta,
       ...(block.bank ? { bank: block.bank } : {}),
       children: [...(base.children ?? []), ...passagesOf(block.segments)],
+    };
+  if (block.type === "highlight")
+    return {
+      ...base,
+      children: [...(base.children ?? []), ...targetPassagesOf(block.segments)],
     };
   if (block.type === "number")
     return {

@@ -197,6 +197,7 @@ export type CheckStudentBlock =
   | Of<"text">
   | Of<"math">
   | Of<"gaps">
+  | Of<"highlight">
   | Of<"number">
   | Of<"matching">
   | Of<"ordering">
@@ -217,6 +218,7 @@ const CHECK_TYPES = new Set<StudentBlock["type"]>([
   "text",
   "math",
   "gaps",
+  "highlight",
   "number",
   "matching",
   "ordering",
@@ -408,6 +410,8 @@ function spokenOf(block: CheckStudentBlock): string {
         .map((segment) => (segment.type === "text" ? segment.text : " … "))
         .join(""),
     );
+  if (block.type === "highlight")
+    parts.push(block.tokens.map((token) => token.text).join(""));
   return parts.filter(Boolean).join(". ");
 }
 
@@ -1164,6 +1168,101 @@ function GapsCheck({
           );
         })}
       </div>
+    </CheckCard>
+  );
+}
+
+/**
+ * Words picked out of a passage: each word a button pressed in or out, so
+ * a keyboard and a screen reader pick as a finger does. Once marked, each
+ * pick says whether it was right, and once settled the words missed show.
+ */
+function HighlightCheck({
+  block,
+  view,
+  driver,
+}: {
+  block: Of<"highlight">;
+  view: CheckView | undefined;
+  driver: CheckDriver;
+}) {
+  const legend = useId();
+  const { editing, setEditing, respond, reveal } = useCheck(
+    block.id,
+    view,
+    driver,
+  );
+  const [chosen, setChosen] = useState<string[]>(
+    view?.response?.type === "highlight" ? view.response.chosen : [],
+  );
+  const settled = answerFinal(block, view);
+  const locked = !editing || settled;
+  const missed = (id: string) =>
+    !editing && Boolean(view?.partKey?.[id]) && !chosen.includes(id);
+  const check = () => {
+    if (chosen.length > 0) respond.mutate({ type: "highlight", chosen });
+  };
+  return (
+    <CheckCard
+      block={block}
+      legendId={legend}
+      onSubmit={check}
+      status={<CheckStatus view={view} editing={editing} />}
+      actions={
+        <Retry
+          view={view}
+          editing={editing}
+          settled={settled}
+          canCheck={chosen.length > 0}
+          pending={respond.isPending || reveal.isPending}
+          onTryAgain={() => {
+            setChosen((current) =>
+              current.filter((id) => view?.parts[id] !== false),
+            );
+            setEditing(true);
+          }}
+          onReveal={() => reveal.mutate()}
+        />
+      }
+    >
+      <p className="text-[13px] leading-[18px] text-muted-foreground">
+        {m.lrnHighlightHint()}{" "}
+        <span className="tabular-nums">
+          {m.lrnHighlightPicked({ count: formatNumber(chosen.length) })}
+        </span>
+      </p>
+      <p dir="auto" className="text-base leading-9">
+        {block.tokens.map((token) => {
+          if (!token.word) return <span key={token.id}>{token.text}</span>;
+          const picked = chosen.includes(token.id);
+          const mark = partMark(view, editing, token.id);
+          return (
+            <button
+              key={token.id}
+              type="button"
+              aria-pressed={picked}
+              disabled={locked}
+              onClick={() =>
+                setChosen((current) =>
+                  picked
+                    ? current.filter((id) => id !== token.id)
+                    : [...current, token.id],
+                )
+              }
+              className={cn(
+                "-mx-0.5 rounded px-0.5 transition-colors hover:bg-primary/10 disabled:pointer-events-none",
+                picked && "bg-primary/20 font-medium",
+                mark === "right" && "bg-success/20 text-success",
+                mark === "wrong" && "bg-destructive/15 text-destructive",
+                missed(token.id) &&
+                  "underline decoration-success decoration-2 underline-offset-4",
+              )}
+            >
+              {token.text}
+            </button>
+          );
+        })}
+      </p>
     </CheckCard>
   );
 }
@@ -2518,6 +2617,8 @@ function CheckBody({
     return <ChoiceCheck block={block} view={view} driver={driver} />;
   if (block.type === "gaps")
     return <GapsCheck block={block} view={view} driver={driver} />;
+  if (block.type === "highlight")
+    return <HighlightCheck block={block} view={view} driver={driver} />;
   if (block.type === "written" && block.recordSeconds)
     return <SpokenCheck block={block} view={view} driver={driver} />;
   if (block.type === "written" && block.answerWith)

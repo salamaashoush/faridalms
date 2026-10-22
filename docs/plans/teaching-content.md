@@ -236,9 +236,11 @@ Sources: [../research/course-design.md](../research/course-design.md),
     be answered on a line from one number to another in steps (`line`
     on the question, set where its answer is), placed by dragging or the
     arrow keys over ticks labelled as space allows, and printed as a line
-    to mark.
-    Left: poll, highlight words, label an image, crossword and word
-    search.
+    to mark. Highlight words: a passage with each word to find written in
+    [brackets], as a gap is; the student taps words in or out, each word
+    numbered alike so none gives itself away, and each found earns its
+    share while each picked wrongly takes one back.
+    Left: poll, label an image, crossword and word search.
 
 ## 4. Standards, skills and planning
 

@@ -5,6 +5,7 @@ import { describe, expect, it } from "vitest";
 import type {
   ChoiceBlock,
   GapsBlock,
+  HighlightBlock,
   LessonDocument,
   StoredTry,
   MatchingBlock,
@@ -27,6 +28,7 @@ import {
   feedbackAtOf,
   feedbackBandsSchema,
   gapsSource,
+  highlightTokens,
   lessonIssue,
   lessonConditionSchema,
   lessonDocumentSchema,
@@ -44,7 +46,7 @@ import {
   studentBlocks,
   upgradeLesson,
 } from "./learning";
-import { contentOfLesson } from "./lesson-content";
+import { contentOfLesson, lessonOfContent } from "./lesson-content";
 
 const uuid = (n: number) =>
   `0192f0a4-7a1c-7b5a-9a2e-${String(n).padStart(12, "0")}`;
@@ -544,6 +546,54 @@ describe("a word bank", () => {
       v.safeParse(lessonDocumentSchema, { version: 2, blocks: [banked] })
         .success,
     ).toBe(true);
+  });
+});
+
+describe("highlighting words", () => {
+  const found: HighlightBlock = {
+    ...common,
+    id: uuid(60),
+    type: "highlight",
+    prompt: "Pick out the verbs.",
+    segments: [
+      { type: "text", text: "The children " },
+      { type: "target", id: uuid(61), text: "ran" },
+      { type: "text", text: " and " },
+      { type: "target", id: uuid(62), text: "jumped" },
+      { type: "text", text: " in the park." },
+    ],
+  };
+  const tokens = highlightTokens(found).filter((token) => token.word);
+  const idOf = (text: string) =>
+    tokens.find((token) => token.text === text)?.id ?? "";
+
+  it("numbers every word alike, so the student cannot tell which to find", () => {
+    const [shown] = studentBlocks({ version: 2, blocks: [found] }, "a");
+    if (shown?.type !== "highlight") throw new Error("not highlight");
+    expect(shown.tokens.map((token) => token.text).join("")).toBe(
+      "The children ran and jumped in the park.",
+    );
+    expect(JSON.stringify(shown)).not.toContain("target");
+  });
+
+  it("gives each word found its share and takes one back for each picked wrongly", () => {
+    const mark = (...words: string[]) =>
+      markResponse(found, { type: "highlight", chosen: words.map(idOf) });
+    expect(mark("ran", "jumped")).toMatchObject({ fraction: 1, correct: true });
+    expect(mark("ran")).toMatchObject({ fraction: 0.5, correct: false });
+    expect(mark("ran", "jumped", "park.")).toMatchObject({
+      fraction: 0.5,
+      correct: false,
+      parts: { [idOf("park.")]: false, [idOf("ran")]: true },
+    });
+    expect(mark(...tokens.map((token) => token.text)).fraction).toBe(0);
+    expect(answerKey(found)).toEqual(["ran", "jumped"]);
+  });
+
+  it("keeps its words to find through the document", () => {
+    const document = contentOfLesson({ version: 2, blocks: [found] });
+    if (!document) throw new Error("no document");
+    expect(lessonOfContent(document).blocks[0]).toEqual(found);
   });
 });
 

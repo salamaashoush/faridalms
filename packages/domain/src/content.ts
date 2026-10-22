@@ -117,6 +117,7 @@ export const questionKinds = [
   "matching",
   "sorting",
   "gaps",
+  "highlight",
   "counting",
   "tracing",
   "spelling",

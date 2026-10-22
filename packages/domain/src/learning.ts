@@ -128,6 +128,8 @@ export const MAX_PLACE_NAME = 60;
  * young finger lands several millimetres off what it aims at.
  */
 export const HOTSPOT_SLACK = 0.03;
+/** Words a highlight question asks to be found, few enough to tap through on a phone. */
+export const MAX_TARGETS = 20;
 /** Places on a number line, so its ticks stay readable on a phone. */
 export const MAX_LINE_STEPS = 200;
 /** Taken off a check's credit for each try after the first, as Moodle's interactive mode does. */
@@ -259,6 +261,15 @@ const gapSegment = v.variant("type", [
   ),
 ]);
 
+/** A passage's words as a highlight question holds them: plain text, and the words to find. */
+const highlightSegment = v.variant("type", [
+  v.object({
+    type: v.literal("text"),
+    text: v.pipe(v.string(), v.maxLength(2000)),
+  }),
+  v.object({ type: v.literal("target"), id, text: requiredText(80) }),
+]);
+
 export const lessonBlockSchema = v.variant("type", [
   v.object({ id, type: v.literal("content"), content: contentDocumentSchema }),
   v.pipe(
@@ -369,6 +380,22 @@ export const lessonBlockSchema = v.variant("type", [
         ),
       "learning.bank_options",
     ),
+  ),
+  v.pipe(
+    v.object({
+      ...checkFields,
+      type: v.literal("highlight"),
+      segments: v.pipe(
+        v.array(highlightSegment),
+        v.maxLength(MAX_TARGETS * 2 + 1),
+      ),
+    }),
+    v.check((block) => {
+      const targets = block.segments.filter(
+        (segment) => segment.type === "target",
+      );
+      return targets.length >= 1 && targets.length <= MAX_TARGETS;
+    }, "learning.targets_needed"),
   ),
   v.pipe(
     v.object({
@@ -669,6 +696,7 @@ export type ChoiceBlock = Extract<LessonBlock, { type: "choice" }>;
 export type TextBlock = Extract<LessonBlock, { type: "text" }>;
 export type MathBlock = Extract<LessonBlock, { type: "math" }>;
 export type GapsBlock = Extract<LessonBlock, { type: "gaps" }>;
+export type HighlightBlock = Extract<LessonBlock, { type: "highlight" }>;
 export type NumberBlock = Extract<LessonBlock, { type: "number" }>;
 export type MatchingBlock = Extract<LessonBlock, { type: "matching" }>;
 export type OrderingBlock = Extract<LessonBlock, { type: "ordering" }>;
@@ -690,6 +718,7 @@ export type AutoBlock =
   | TextBlock
   | MathBlock
   | GapsBlock
+  | HighlightBlock
   | NumberBlock
   | MatchingBlock
   | OrderingBlock
@@ -710,6 +739,7 @@ const AUTO_TYPES = new Set<LessonBlockType>([
   "text",
   "math",
   "gaps",
+  "highlight",
   "number",
   "matching",
   "ordering",
@@ -742,6 +772,7 @@ const DEFERRABLE_TYPES = new Set<LessonBlockType>([
   "text",
   "math",
   "gaps",
+  "highlight",
   "number",
   "matching",
   "ordering",
@@ -1159,6 +1190,11 @@ export function lessonPlainText(document: LessonDocument): string {
           return "";
         case "gaps":
           return [block.prompt, gapText(block)].join("\n");
+        case "highlight":
+          return [
+            block.prompt,
+            block.segments.map((segment) => segment.text).join(""),
+          ].join("\n");
         case "matching":
           return [
             block.prompt,
@@ -1225,6 +1261,14 @@ export const responseSchema = v.variant("type", [
     answers: v.record(id, text(200)),
   }),
   v.object({ type: v.literal("number"), text: requiredText(60) }),
+  v.object({
+    type: v.literal("highlight"),
+    /** The words the student picked out, by their place in the passage. */
+    chosen: v.pipe(
+      v.array(v.pipe(v.string(), v.maxLength(20))),
+      v.maxLength(400),
+    ),
+  }),
   v.object({ type: v.literal("math"), latex: requiredText(MAX_LATEX) }),
   v.object({ type: v.literal("matching"), pairs: v.record(id, id) }),
   v.object({
@@ -1510,6 +1554,28 @@ export function markResponse(
         }),
       );
       return share(results);
+    }
+    case "highlight": {
+      if (response.type !== "highlight") return none;
+      // Each word found earns its share, and each picked wrongly takes one
+      // back, so picking every word earns nothing.
+      const tokens = highlightTokens(block).filter((token) => token.word);
+      const targets = tokens.filter((token) => token.target);
+      const chosen = new Set(response.chosen);
+      const parts = Object.fromEntries(
+        tokens
+          .filter((token) => chosen.has(token.id))
+          .map((token) => [token.id, token.target]),
+      );
+      const found = targets.filter((token) => chosen.has(token.id)).length;
+      const wrong = Object.values(parts).filter((right) => !right).length;
+      const fraction = Math.max(0, (found - wrong) / targets.length);
+      return {
+        ...none,
+        fraction,
+        correct: found === targets.length && wrong === 0,
+        parts,
+      };
     }
     case "number": {
       if (response.type !== "number") return none;
@@ -1929,6 +1995,20 @@ export type StudentBlock =
       /** A word bank's words, every gap's answer and the extra ones, shuffled together. */
       bank?: string[];
     })
+  | (Pick<
+      HighlightBlock,
+      | "id"
+      | "type"
+      | "prompt"
+      | "narration"
+      | "narrationWords"
+      | "points"
+      | "tries"
+      | "videoAt"
+    > & {
+      /** The passage's words and the spaces between, none saying whether it is to be found. */
+      tokens: { id: string; text: string; word: boolean }[];
+    })
   | Pick<
       NumberBlock,
       | "id"
@@ -2072,6 +2152,22 @@ export function studentBlocks(
           ),
         };
       }
+      case "highlight":
+        return {
+          id: block.id,
+          type: block.type,
+          prompt: block.prompt,
+          narration: block.narration ?? null,
+          narrationWords: block.narrationWords ?? null,
+          points: block.points,
+          tries: block.tries,
+          ...(typeof block.videoAt === "number"
+            ? { videoAt: block.videoAt }
+            : {}),
+          tokens: highlightTokens(block).map(
+            ({ target: _target, ...token }) => token,
+          ),
+        };
       case "number":
         return {
           id: block.id,
@@ -2246,6 +2342,46 @@ export function puzzleKey(level: {
 }
 
 /** The answer to show once a question is settled. */
+/**
+ * A highlight question's passage as the words a student taps: each word of
+ * the plain text, each word to find whole, and the spaces between, the
+ * words numbered alike so none gives itself away.
+ */
+export function highlightTokens(
+  block: Pick<HighlightBlock, "segments">,
+): { id: string; text: string; word: boolean; target: boolean }[] {
+  const tokens: { id: string; text: string; word: boolean; target: boolean }[] =
+    [];
+  let words = 0;
+  for (const segment of block.segments) {
+    if (segment.type === "target") {
+      words += 1;
+      tokens.push({
+        id: `w${words}`,
+        text: segment.text,
+        word: true,
+        target: true,
+      });
+      continue;
+    }
+    for (const part of segment.text.split(/(\s+)/u)) {
+      if (!part) continue;
+      if (/^\s+$/u.test(part)) {
+        tokens.push({
+          id: `s${tokens.length}`,
+          text: part,
+          word: false,
+          target: false,
+        });
+        continue;
+      }
+      words += 1;
+      tokens.push({ id: `w${words}`, text: part, word: true, target: false });
+    }
+  }
+  return tokens;
+}
+
 export function answerKey(block: AutoBlock): string[] {
   switch (block.type) {
     case "choice":
@@ -2257,6 +2393,10 @@ export function answerKey(block: AutoBlock): string[] {
     case "gaps":
       return block.segments.flatMap((segment) =>
         segment.type === "gap" ? [segment.answers[0] ?? ""] : [],
+      );
+    case "highlight":
+      return block.segments.flatMap((segment) =>
+        segment.type === "target" ? [segment.text] : [],
       );
     case "number":
       return [
@@ -2320,6 +2460,12 @@ export function partKey(block: AutoBlock): Record<string, string> {
           pair.id,
           partName({ text: pair.answer, picture: pair.answerPicture }),
         ]),
+      );
+    case "highlight":
+      return Object.fromEntries(
+        highlightTokens(block)
+          .filter((token) => token.target)
+          .map((token) => [token.id, token.text]),
       );
     case "ordering":
       return Object.fromEntries(
@@ -3119,6 +3265,15 @@ export function responseIssue(
     )
   )
     return "learning.option";
+  if (block.type === "highlight" && response.type === "highlight") {
+    const words = new Set(
+      highlightTokens(block)
+        .filter((token) => token.word)
+        .map((token) => token.id),
+    );
+    if (response.chosen.some((token) => !words.has(token)))
+      return "learning.option";
+  }
   if (block.type === "written" && response.type === "written") {
     const spoken = (block.recordSeconds ?? null) !== null;
     const pictured = (block.answerWith ?? null) !== null;

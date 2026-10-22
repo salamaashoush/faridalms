@@ -133,6 +133,18 @@ export function paperBlock(block: StudentBlock): LessonBlock {
           })),
       };
     }
+    case "highlight":
+      // A student's passage holds no word to find; on paper they mark their own.
+      return {
+        ...block,
+        ...blank,
+        segments: [
+          {
+            type: "text",
+            text: block.tokens.map((token) => token.text).join(""),
+          },
+        ],
+      };
     case "sorting":
       return {
         ...block,

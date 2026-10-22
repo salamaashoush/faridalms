@@ -273,6 +273,7 @@ const DEFERRABLE = new Set<QuestionKind>([
   "text",
   "math",
   "gaps",
+  "highlight",
   "number",
   "matching",
   "ordering",

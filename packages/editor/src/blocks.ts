@@ -53,6 +53,7 @@ import {
   Dices,
   Signature,
   Brackets,
+  Highlighter,
   ChevronRight,
   CircleCheck,
   CircuitBoard,
@@ -200,6 +201,7 @@ export type BlockType =
   | "puzzleQuestion"
   | "arrowsQuestion"
   | "gapsQuestion"
+  | "highlightQuestion"
   | "trueFalseQuestion"
   | "whyQuestion"
   | "gate"
@@ -226,6 +228,7 @@ const QUESTION_KIND: Partial<Record<BlockType, QuestionKind>> = {
   matchingQuestion: "matching",
   sortingQuestion: "sorting",
   gapsQuestion: "gaps",
+  highlightQuestion: "highlight",
   countingQuestion: "counting",
   tracingQuestion: "tracing",
   spellingQuestion: "spelling",
@@ -829,6 +832,24 @@ export const blockDefinitions: BlockDefinition[] = [
     label: (s) => s.questionGaps,
     hint: (s) => s.questionGapsHint,
     keywords: ["question", "gaps", "blanks", "cloze", "fill", "سؤال", "فراغات"],
+    question: true,
+  },
+  {
+    type: "highlightQuestion",
+    group: "questions",
+    icon: Highlighter,
+    label: (s) => s.questionHighlight,
+    hint: (s) => s.questionHighlightHint,
+    keywords: [
+      "question",
+      "highlight",
+      "find",
+      "pick",
+      "words",
+      "سؤال",
+      "تظليل",
+      "كلمات",
+    ],
     question: true,
   },
   {

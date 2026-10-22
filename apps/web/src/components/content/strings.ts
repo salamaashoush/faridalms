@@ -276,6 +276,8 @@ export function editorStrings(): EditorStrings {
     questionItem: m.editorQuestionItem(),
     questionGaps: m.editorQuestionGaps(),
     questionGapsHint: m.editorQuestionGapsHint(),
+    questionHighlight: m.editorQuestionHighlight(),
+    questionHighlightHint: m.editorQuestionHighlightHint(),
     questionPassage: m.editorQuestionPassage(),
     studentCopy: m.editorStudentCopy(),
     studentCopyHint: m.editorStudentCopyHint(),

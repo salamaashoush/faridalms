@@ -241,6 +241,8 @@ export interface EditorStrings extends LabelEditorStrings, ChartStrings {
   questionItem: string;
   questionGaps: string;
   questionGapsHint: string;
+  questionHighlight: string;
+  questionHighlightHint: string;
   questionPassage: string;
   studentCopy: string;
   studentCopyHint: string;

@@ -52,6 +52,7 @@ const KIND_LABEL: Record<QuestionKind, () => string> = {
   matching: m.editorQuestionMatching,
   sorting: m.editorQuestionSorting,
   gaps: m.editorQuestionGaps,
+  highlight: m.editorQuestionHighlight,
   counting: m.editorQuestionCounting,
   tracing: m.editorQuestionTracing,
   spelling: m.editorQuestionSpelling,
