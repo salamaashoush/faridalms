@@ -9,6 +9,8 @@ export const TEMPLATE_KINDS = [
   "unit_plan",
   "news",
   "announcement",
+  "event",
+  "consent_form",
 ] as const;
 export type TemplateKind = (typeof TEMPLATE_KINDS)[number];
 

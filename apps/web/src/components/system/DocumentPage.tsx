@@ -27,7 +27,10 @@ import {
 import { createContext, useContext, useRef, useState } from "react";
 import { toast } from "sonner";
 
-import type { BuiltInGroup } from "~/components/content/Templates";
+import type {
+  BuiltInGroup,
+  BuiltInPiece,
+} from "~/components/content/Templates";
 import type { Printable } from "~/components/print/usePrint";
 import type { SaveState } from "~/hooks/useAutosave";
 
@@ -167,7 +170,7 @@ export function DocumentPage({
     empty: boolean;
     content: ContentDocument;
     title: string;
-    onApply: (content: ContentDocument) => void;
+    onApply: (content: ContentDocument, shape?: BuiltInPiece) => void;
     /** Offers the ready-made young activities, storing their pictures through this. */
     starters?: EditorMedia;
     /** Shapes the product offers for this kind, ahead of the school's own. */

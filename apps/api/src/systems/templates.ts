@@ -1,5 +1,7 @@
 import type { TemplateRow } from "@faridalms/database/stores/templates";
+import type { Capability } from "@faridalms/domain/capabilities";
 import type { ContentDocument } from "@faridalms/domain/content";
+import type { TemplateKind } from "@faridalms/domain/templates";
 
 import { documentOf, saveDocument } from "@faridalms/database/stores/documents";
 import {
@@ -32,13 +34,18 @@ import {
 import { placeMedia, registerHostReader } from "../files/authorize";
 
 /** Who writes each kind of document, and so may keep and use its templates. */
-const AUTHOR = {
-  lesson: "learning:author",
-  assignment: "assignments:author",
-  unit_plan: "learning:author",
-  news: "news:manage",
-  announcement: "announcements:manage",
-} as const;
+const AUTHOR: Record<TemplateKind, readonly Capability[]> = {
+  lesson: ["learning:author"],
+  assignment: ["assignments:author"],
+  unit_plan: ["learning:author"],
+  news: ["news:manage"],
+  announcement: ["announcements:manage"],
+  event: ["calendar:manage", "calendar:author"],
+  consent_form: ["privacy:manage"],
+};
+
+const writes = (context: UnitContext, kind: TemplateKind) =>
+  AUTHOR[kind].some((capability) => can(context, capability));
 
 const hostOf = (id: string) => ({ type: "document_template", id });
 
@@ -50,7 +57,7 @@ async function usable(context: UnitContext, id: string) {
   const row = await templateById(context.tx, context.tenantId, id);
   return row &&
     row.orgId === context.schoolId &&
-    can(context, AUTHOR[row.kind]) &&
+    writes(context, row.kind) &&
     (row.state === "shared" ||
       row.ownerUserId === context.actor.userId ||
       can(context, "library:review"))
@@ -81,7 +88,7 @@ registerHostReader("document_template", async (context, id) =>
 export const list = readProcedure
   .input(templateKindSchema)
   .handler(async ({ input, context }) => {
-    requireCapability(context, AUTHOR[input.kind]);
+    requireCapability(context, ...AUTHOR[input.kind]);
     const rows = await templatesOf(context.tx, {
       tenantId: context.tenantId,
       orgId: context.schoolId,
@@ -95,7 +102,7 @@ export const list = readProcedure
 export const library = readProcedure
   .input(librarySchema)
   .handler(async ({ input, context }) => {
-    const kinds = TEMPLATE_KINDS.filter((kind) => can(context, AUTHOR[kind]));
+    const kinds = TEMPLATE_KINDS.filter((kind) => writes(context, kind));
     if (kinds.length === 0) throw new ORPCError("FORBIDDEN");
     const rows = await templatesOf(context.tx, {
       tenantId: context.tenantId,
@@ -179,7 +186,7 @@ export const open = readProcedure
 export const save = writeProcedure
   .input(saveTemplateSchema)
   .handler(async ({ input, context }) => {
-    requireCapability(context, AUTHOR[input.kind]);
+    requireCapability(context, ...AUTHOR[input.kind]);
     // A reviewer's own piece needs no other reviewer.
     const state = can(context, "library:review") ? "shared" : "pending";
     const created = await insertTemplate(context.tx, {

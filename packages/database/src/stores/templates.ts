@@ -12,7 +12,9 @@ export type TemplateKind =
   | "assignment"
   | "unit_plan"
   | "news"
-  | "announcement";
+  | "announcement"
+  | "event"
+  | "consent_form";
 
 export interface TemplateRow {
   id: string;

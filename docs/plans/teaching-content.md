@@ -446,7 +446,13 @@ Sources: [../research/course-design.md](../research/course-design.md),
    empty document through one "Start from" menu, which also holds the
    built-in shapes: the lesson patterns (the three named here added), the
    unit planners and the newsletters, which news offered apart before.
-   Left: events and consent forms.
+   Events and consent forms join them: an event starts from a school trip,
+   parents' evening, sports day, performance or exams, laid out with what
+   families ask and its kind set to match; a consent form for a purpose the
+   school asks about often (photographs, contact sharing, medicine, voice
+   recordings, school records) starts from ready wording under its five
+   headings, in either language. Both are kept in and used from the library
+   by those who write them, a consent form as the form of a chosen purpose.
 4. **Preview a lesson** at phone and desktop width, in either language, and
    as a given group of students would meet it. Done: the teacher's preview
    chooses the screen (desktop, tablet, phone), the students' language and

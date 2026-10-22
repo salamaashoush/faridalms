@@ -2820,6 +2820,43 @@ describe("templates", () => {
       ),
     ).toBe(false);
   });
+
+  test("an event and a consent form are kept by those who write them", async () => {
+    const { keeper } = await teachers();
+    const office = await signedIn("northwind", login("principal"));
+    const trip = await keeper.templates.save({
+      kind: "event",
+      title: "Museum trip",
+      description: "",
+      content: plainContent("What to bring: a packed lunch."),
+    });
+    expect(
+      (await keeper.templates.list({ kind: "event" })).map((row) => row.id),
+    ).toContain(trip.id);
+    // Consent forms are the office's to write, and so to keep.
+    const photos = await office.templates.save({
+      kind: "consent_form",
+      title: "Photos on the website",
+      description: "",
+      content: plainContent("May we show photographs of your child?"),
+    });
+    expect(photos.state).toBe("shared");
+    expect(
+      await rejection(keeper.templates.list({ kind: "consent_form" })),
+    ).toMatchObject({ code: "FORBIDDEN" });
+    expect(
+      (await keeper.templates.library({ kind: "", q: "" })).rows.some(
+        (row) => row.kind === "consent_form",
+      ),
+    ).toBe(false);
+    expect(
+      (
+        await office.templates.library({ kind: "consent_form", q: "" })
+      ).rows.map((row) => row.id),
+    ).toContain(photos.id);
+    await keeper.templates.remove({ id: trip.id });
+    await office.templates.remove({ id: photos.id });
+  });
 });
 
 describe("the question bank", () => {

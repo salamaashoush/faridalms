@@ -6,6 +6,7 @@ import {
   CALENDAR_CATEGORIES,
   materialChange,
 } from "@faridalms/domain/calendar";
+import { contentPlainText } from "@faridalms/domain/content";
 import { emptyContent } from "@faridalms/domain/content-conversion";
 import { Button } from "@faridalms/ui/button";
 import {
@@ -25,6 +26,12 @@ import { Send, Trash2 } from "lucide-react";
 import { useCallback, useRef, useState } from "react";
 import { toast } from "sonner";
 
+import type {
+  BuiltInGroup,
+  BuiltInPiece,
+  StartingPiece,
+} from "~/components/content/Templates";
+
 import {
   AudienceList,
   audienceIssue,
@@ -32,7 +39,10 @@ import {
 } from "~/components/announcements/AudienceList";
 import { contentIssueMessages } from "~/components/content/checks";
 import { ContentEditor } from "~/components/content/ContentEditor";
+import { sectionsContent } from "~/components/content/shapes";
+import { useStartFrom } from "~/components/content/Templates";
 import { useDocumentMedia } from "~/components/coursework/useDocumentMedia";
+import { sayIn } from "~/components/learning/starters";
 import { CheckboxRow } from "~/components/people/fields";
 import {
   DetailsPanel,
@@ -53,6 +63,7 @@ import {
 } from "~/server/calendar";
 import { getMessageFromError } from "~/utils/error";
 
+import { EVENT_SHAPES } from "./eventShapes";
 import { CATEGORY_LABEL, whenLabel } from "./format";
 
 type Existing = Awaited<
@@ -154,6 +165,19 @@ function draftWhen(draft: Draft) {
   );
 }
 
+function shapeGroup(): BuiltInGroup {
+  const say = sayIn(getLocale() === "ar" ? "ar" : "en");
+  return {
+    label: m.eventShapeGroup(),
+    items: EVENT_SHAPES.map((shape) => ({
+      key: shape.key,
+      title: shape.title(),
+      hint: shape.hint(),
+      content: () => sectionsContent(shape.sections, say),
+    })),
+  };
+}
+
 /**
  * An event written as a document: the title and description take the page,
  * when, where and who it is for sit beside them. Drafts save themselves once
@@ -163,12 +187,15 @@ function draftWhen(draft: Draft) {
  */
 export function EventEditor({
   existing,
+  template,
   day,
   manages,
   onClose,
   onCreated,
 }: {
   existing: Existing | null;
+  /** A library piece a new event starts from. */
+  template?: StartingPiece;
   day: string;
   /** The author manages the whole calendar rather than their own classes. */
   manages: boolean;
@@ -247,6 +274,29 @@ export function EventEditor({
     (description: ContentDocument) => change({ description }),
     [change],
   );
+  // A school trip's shape makes the event a trip, and so on.
+  const applyDescription = (
+    description: ContentDocument,
+    shape?: BuiltInPiece,
+  ) => {
+    const category = CALENDAR_CATEGORIES.find((key) => key === shape?.key);
+    change({ description, ...(category ? { category } : {}) });
+    setEditorKey((key) => key + 1);
+  };
+  useStartFrom(
+    template,
+    useCallback((piece: StartingPiece) => {
+      setDraft((current) => {
+        const key = getLocale() === "ar" ? "titleAr" : "titleEn";
+        return {
+          ...current,
+          description: piece.content,
+          [key]: current[key] || piece.title,
+        };
+      });
+      setEditorKey((key) => key + 1);
+    }, []),
+  );
 
   const inPanel = Boolean(
     issues.endsOn || issues.startTime || issues.endTime || issues.audiences,
@@ -314,6 +364,14 @@ export function EventEditor({
     <>
       <DocumentPage
         heading={existing ? m.calEditTitle() : m.calNewTitle()}
+        templates={{
+          kind: "event",
+          empty: !contentPlainText(draft.description).trim(),
+          content: draft.description,
+          title: inLocale(draft.titleEn, draft.titleAr),
+          onApply: applyDescription,
+          builtIn: shapeGroup(),
+        }}
         print={{
           title: inLocale(draft.titleEn, draft.titleAr),
           facts: (locale) => [

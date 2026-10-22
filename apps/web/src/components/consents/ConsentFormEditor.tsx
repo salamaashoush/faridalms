@@ -26,11 +26,17 @@ import { Send, Trash2 } from "lucide-react";
 import { useCallback, useRef, useState } from "react";
 import { toast } from "sonner";
 
+import type {
+  BuiltInGroup,
+  StartingPiece,
+} from "~/components/content/Templates";
 import type { consentFormQuery } from "~/queries/consents";
 
 import { ContentEditor } from "~/components/content/ContentEditor";
 import { ContentView } from "~/components/content/ContentView";
 import { LOCALE_LABEL, LOCALE_NAME } from "~/components/content/languages";
+import { sectionsContent } from "~/components/content/shapes";
+import { useStartFrom } from "~/components/content/Templates";
 import { TranslationNote } from "~/components/content/TranslationNote";
 import { CheckboxRow } from "~/components/people/fields";
 import {
@@ -52,6 +58,9 @@ import {
 } from "~/server/consents";
 import { getMessageFromError } from "~/utils/error";
 
+import type { ConsentWording } from "./consentWordings";
+
+import { CONSENT_WORDINGS } from "./consentWordings";
 import { publishedDay } from "./format";
 
 type Data = Awaited<
@@ -72,19 +81,36 @@ interface Draft {
  * mind (Egypt's consent guideline asks for each).
  */
 const SECTIONS = [
-  m.consentFormAsk,
-  m.consentFormData,
-  m.consentFormWho,
-  m.consentFormHowLong,
-  m.consentFormChange,
-];
+  { heading: m.consentFormAsk, part: "ask" },
+  { heading: m.consentFormData, part: "data" },
+  { heading: m.consentFormWho, part: "who" },
+  { heading: m.consentFormHowLong, part: "howLong" },
+  { heading: m.consentFormChange, part: "change" },
+] as const;
 
 const outline = (locale: ContentLocale) =>
   headedContent(
-    SECTIONS.map((heading) => ({
+    SECTIONS.map(({ heading }) => ({
       heading: heading({}, { locale }),
       body: emptyContent(),
     })),
+  );
+
+/** Whether a form says nothing yet but its headings. */
+const unwritten = (body: ContentDocument, locale: ContentLocale) =>
+  contentPlainText(body).trim() === contentPlainText(outline(locale)).trim();
+
+/** Ready wording under the form's own headings, in one language. */
+const wordingContent = (wording: ConsentWording, locale: ContentLocale) =>
+  sectionsContent(
+    SECTIONS.map(({ heading, part }) => ({
+      heading: {
+        en: heading({}, { locale: "en" }),
+        ar: heading({}, { locale: "ar" }),
+      },
+      lines: [wording[part]],
+    })),
+    (text) => text[locale],
   );
 
 function draftOf(data: Data): Draft {
@@ -110,9 +136,12 @@ function draftOf(data: Data): Draft {
  */
 export function ConsentFormEditor({
   data,
+  template,
   onClose,
 }: {
   data: Data;
+  /** A library piece the form starts from, while it says nothing yet. */
+  template?: StartingPiece;
   onClose: () => void;
 }) {
   const queryClient = useQueryClient();
@@ -170,6 +199,36 @@ export function ConsentFormEditor({
     (translation: ContentDocument) => change({ translation }),
     [change],
   );
+  const [editorKey, setEditorKey] = useState(0);
+  const apply = (content: ContentDocument) => {
+    change(translating ? { translation: content } : { body: content });
+    setEditorKey((key) => key + 1);
+  };
+  useStartFrom(
+    template,
+    useCallback((piece: StartingPiece) => {
+      setDraft((current) =>
+        unwritten(current.body, current.primaryLocale)
+          ? { ...current, body: piece.content }
+          : current,
+      );
+      setEditorKey((key) => key + 1);
+    }, []),
+  );
+  const wording = CONSENT_WORDINGS[data.purpose.meaning ?? ""];
+  const builtIn: BuiltInGroup | undefined = wording
+    ? {
+        label: m.consentShapeGroup(),
+        items: [
+          {
+            key: "wording",
+            title: purpose,
+            hint: m.consentShapeHint(),
+            content: () => wordingContent(wording, shown),
+          },
+        ],
+      }
+    : undefined;
 
   const translation = draft.bilingual
     ? translationState({
@@ -238,6 +297,14 @@ export function ConsentFormEditor({
     <>
       <DocumentPage
         heading={m.consentFormEditing()}
+        templates={{
+          kind: "consent_form",
+          empty: unwritten(translating ? draft.translation : draft.body, shown),
+          content: translating ? draft.translation : draft.body,
+          title: purpose,
+          onApply: apply,
+          ...(builtIn ? { builtIn } : {}),
+        }}
         onBack={async () => {
           if (await autosave.flush()) onClose();
         }}
@@ -398,7 +465,7 @@ export function ConsentFormEditor({
       >
         <div lang={shown} className="min-w-0">
           <ContentEditor
-            key={shown}
+            key={`${shown}-${editorKey}`}
             id={translating ? "consent-translation" : "consent-body"}
             label={
               translating

@@ -90,7 +90,8 @@ export function TemplatePicker({
   builtIn,
 }: {
   kind: TemplateKind;
-  onApply: (content: ContentDocument) => void;
+  /** Fills the page; a shape the product offers comes with it. */
+  onApply: (content: ContentDocument, shape?: BuiltInPiece) => void;
   /** Ready-made young activities, whose pictures are stored through this. */
   starters?: EditorMedia;
   /** Shapes the product offers for this kind, ahead of the school's own. */
@@ -222,7 +223,7 @@ export function TemplatePicker({
                   key={item.key}
                   onClick={() => {
                     const content = item.content();
-                    if (content) onApply(content);
+                    if (content) onApply(content, item);
                     else
                       toast.error(
                         getMessageFromError(new Error("content.invalid")),

@@ -24,6 +24,7 @@ import { FormField, SelectField } from "~/components/system/field";
 import { inLocale, useCapability } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { getLocale, getTextDirection } from "~/i18n/runtime";
+import { consentFormsQuery } from "~/queries/consents";
 import { courseworkOptionsQuery } from "~/queries/coursework";
 import { learningOptionsQuery } from "~/queries/learning";
 import { templateQuery } from "~/queries/library";
@@ -36,6 +37,8 @@ export const KIND_LABEL: Record<TemplateKind, () => string> = {
   unit_plan: m.libraryKindPlan,
   news: m.libraryKindNews,
   announcement: m.libraryKindAnnouncement,
+  event: m.libraryKindEvent,
+  consent_form: m.libraryKindConsentForm,
 };
 
 export type Piece = Awaited<
@@ -72,7 +75,12 @@ export function PieceSheet({
     ...courseworkOptionsQuery,
     enabled: piece.kind === "assignment",
   }).data?.classes;
-  // A lesson or plan starts in a module, an assignment in a class.
+  const purposes = useQuery({
+    ...consentFormsQuery,
+    enabled: piece.kind === "consent_form",
+  }).data?.purposes;
+  // A lesson or plan starts in a module, an assignment in a class, and a
+  // consent form as the form of one purpose.
   const places =
     piece.kind === "assignment"
       ? (classes ?? []).map((row) => ({
@@ -81,7 +89,12 @@ export function PieceSheet({
         }))
       : piece.kind === "lesson" || piece.kind === "unit_plan"
         ? (modules ?? []).map((row) => ({ value: row.id, label: row.title }))
-        : [];
+        : piece.kind === "consent_form"
+          ? (purposes ?? []).map((row) => ({
+              value: row.id,
+              label: inLocale(row.labelEn, row.labelAr),
+            }))
+          : [];
   const chosen = target || (places[0]?.value ?? "");
   const decide = useMutation({
     mutationFn: (share: boolean) =>
@@ -110,6 +123,13 @@ export function PieceSheet({
       void navigate({
         to: "/admin/announcement-editor",
         search: { template: piece.id },
+      });
+    else if (piece.kind === "event")
+      void navigate({ to: "/event-editor", search: { template: piece.id } });
+    else if (piece.kind === "consent_form")
+      void navigate({
+        to: "/consent-form-editor",
+        search: { purpose: chosen, template: piece.id },
       });
     else
       void navigate({
@@ -211,10 +231,16 @@ export function PieceSheet({
                   label={
                     piece.kind === "assignment"
                       ? m.libraryClass()
-                      : m.libraryModule()
+                      : piece.kind === "consent_form"
+                        ? m.libraryPurpose()
+                        : m.libraryModule()
                   }
                   hint={
-                    piece.kind === "unit_plan" ? m.libraryPlanHint() : undefined
+                    piece.kind === "unit_plan"
+                      ? m.libraryPlanHint()
+                      : piece.kind === "consent_form"
+                        ? m.libraryPurposeHint()
+                        : undefined
                   }
                   value={chosen}
                   options={places}
@@ -226,7 +252,9 @@ export function PieceSheet({
                   type="button"
                   className="max-md:h-10"
                   disabled={
-                    (piece.kind === "lesson" || piece.kind === "unit_plan") &&
+                    (piece.kind === "lesson" ||
+                      piece.kind === "unit_plan" ||
+                      piece.kind === "consent_form") &&
                     !chosen
                   }
                   onClick={use}
