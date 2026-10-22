@@ -653,8 +653,13 @@ Sources: [../research/course-design.md](../research/course-design.md),
    school as it is read, and its footnotes and endnotes, which become the
    editor's own footnotes in the lines they belong to. Pictures a page
    cannot show, as Word's own drawings, are left out and counted.
-   Left: Word equations as formulas; a picture's size in Word; reading
-   a `.docx` dropped on the page, which is attached as a file as before.
+   Word's equations come in as the editor's formulas, written from their
+   Office Math as LaTeX (fractions, powers, roots, sums and integrals with
+   their limits, brackets, matrices, functions, limits and accents), in
+   the line or on a line of their own as Word set them. A picture keeps
+   the size it had on Word's page, as a share of its text's width. A
+   `.docx` dropped or pasted on the page is read in where it lands; any
+   other file is attached as before.
 
 ## 7. Video
 

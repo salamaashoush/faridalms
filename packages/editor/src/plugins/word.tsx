@@ -2,17 +2,20 @@ import type { LexicalEditor } from "lexical";
 
 import { nameFor } from "@faridalms/domain/file";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
+import { DRAG_DROP_PASTE } from "@lexical/rich-text";
 import {
   $getRoot,
   $getSelection,
   $setSelection,
   COMMAND_PRIORITY_LOW,
+  COMMAND_PRIORITY_NORMAL,
   createCommand,
 } from "lexical";
 import { FileText, X } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 
 import { useEditorEnvironment } from "../context";
+import { formulasInPlace, prepareDocx, sizedDescription } from "../docx";
 import { $insertHtml } from "../html-import";
 import { STORED_FILE } from "../nodes/stored";
 import { updateFromOutside } from "../outside";
@@ -23,6 +26,17 @@ export const IMPORT_WORD_COMMAND =
 
 const DOCX =
   ".docx,application/vnd.openxmlformats-officedocument.wordprocessingml.document";
+
+// mammoth hands each picture its description, though its types leave it out.
+const describedAs = (image: object) =>
+  "altText" in image && typeof image.altText === "string"
+    ? image.altText
+    : undefined;
+
+const isWord = (file: File) =>
+  /\.docx$/i.test(file.name) ||
+  file.type ===
+    "application/vnd.openxmlformats-officedocument.wordprocessingml.document";
 
 /** Where the notes of a Word document stand in the HTML it is read into. */
 const NOTE = /^#word-(?:foot|end)note-\d+$/;
@@ -83,6 +97,69 @@ export function WordImportPlugin() {
   const caret = useRef<ReturnType<typeof $getSelection>>(null);
   const [reading, setReading] = useState<Reading | null>(null);
 
+  const read = useCallback(
+    async (file: File) => {
+      if (!media) return;
+      const slot = editor.getRootElement()?.id;
+      setReading({ name: file.name, failed: false, skipped: 0, done: false });
+      let skipped = 0;
+      try {
+        const { default: mammoth } = await import("mammoth");
+        const { docx, formulas } = prepareDocx(
+          new Uint8Array(await file.arrayBuffer()),
+        );
+        const { value } = await mammoth.convertToHtml(
+          {
+            arrayBuffer: docx.buffer.slice(
+              docx.byteOffset,
+              docx.byteOffset + docx.byteLength,
+            ) as ArrayBuffer,
+          },
+          {
+            idPrefix: "word-",
+            externalFileAccess: false,
+            convertImage: mammoth.images.imgElement(async (image) => {
+              const { alt, size } = sizedDescription(describedAs(image));
+              const name = nameFor("picture", image.contentType);
+              if (!name || !media.accept.image.includes(image.contentType)) {
+                skipped += 1;
+                return { src: "", alt };
+              }
+              try {
+                const stored = await media.upload(
+                  new File([await image.readAsArrayBuffer()], name, {
+                    type: image.contentType,
+                  }),
+                  "image",
+                );
+                return {
+                  src: `${STORED_FILE}${stored.fileId}`,
+                  alt,
+                  ...(size ? { "data-size": size } : {}),
+                };
+              } catch {
+                skipped += 1;
+                return { src: "", alt };
+              }
+            }),
+          },
+        );
+        // A new document's editor starts again when it is first saved; the
+        // words go into the editor showing the document by then.
+        const showing = editorInSlot(slot) ?? editor;
+        updateFromOutside(showing, () => {
+          const at = showing === editor ? caret.current : null;
+          $setSelection(at ? at.clone() : null);
+          $placeWord(showing, formulasInPlace(value, formulas));
+        });
+        setReading({ name: file.name, failed: false, skipped, done: true });
+      } catch {
+        setReading({ name: file.name, failed: true });
+      }
+    },
+    [editor, media],
+  );
+
   useEffect(() => {
     if (!media) return undefined;
     return editor.registerCommand(
@@ -96,53 +173,27 @@ export function WordImportPlugin() {
     );
   }, [editor, media]);
 
-  if (!media) return null;
+  // A Word document dropped or pasted on the page is read into it where it
+  // lands; any other file is attached as before.
+  useEffect(() => {
+    if (!media) return undefined;
+    return editor.registerCommand(
+      DRAG_DROP_PASTE,
+      (files) => {
+        if (files.length === 0 || !files.every(isWord)) return false;
+        caret.current = $getSelection()?.clone() ?? null;
+        // One after another, so each lands after the one before.
+        void files.reduce<Promise<void>>(
+          (before, file) => before.then(() => read(file)),
+          Promise.resolve(),
+        );
+        return true;
+      },
+      COMMAND_PRIORITY_NORMAL,
+    );
+  }, [editor, media, read]);
 
-  const read = async (file: File) => {
-    const slot = editor.getRootElement()?.id;
-    setReading({ name: file.name, failed: false, skipped: 0, done: false });
-    let skipped = 0;
-    try {
-      const { default: mammoth } = await import("mammoth");
-      const { value } = await mammoth.convertToHtml(
-        { arrayBuffer: await file.arrayBuffer() },
-        {
-          idPrefix: "word-",
-          externalFileAccess: false,
-          convertImage: mammoth.images.imgElement(async (image) => {
-            const name = nameFor("picture", image.contentType);
-            if (!name || !media.accept.image.includes(image.contentType)) {
-              skipped += 1;
-              return { src: "" };
-            }
-            try {
-              const stored = await media.upload(
-                new File([await image.readAsArrayBuffer()], name, {
-                  type: image.contentType,
-                }),
-                "image",
-              );
-              return { src: `${STORED_FILE}${stored.fileId}` };
-            } catch {
-              skipped += 1;
-              return { src: "" };
-            }
-          }),
-        },
-      );
-      // A new document's editor starts again when it is first saved; the
-      // words go into the editor showing the document by then.
-      const showing = editorInSlot(slot) ?? editor;
-      updateFromOutside(showing, () => {
-        const at = showing === editor ? caret.current : null;
-        $setSelection(at ? at.clone() : null);
-        $placeWord(showing, value);
-      });
-      setReading({ name: file.name, failed: false, skipped, done: true });
-    } catch {
-      setReading({ name: file.name, failed: true });
-    }
-  };
+  if (!media) return null;
 
   return (
     <>

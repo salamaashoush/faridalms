@@ -18,6 +18,7 @@ import type {
 } from "lexical";
 import type { JSX } from "react";
 
+import { imageSizes } from "@faridalms/domain/content";
 import { BlockWithAlignableContents } from "@lexical/react/LexicalBlockWithAlignableContents";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
 import { DecoratorBlockNode } from "@lexical/react/LexicalDecoratorBlockNode";
@@ -393,6 +394,8 @@ export class ImageNode extends DecoratorBlockNode {
                 node: $createImageNode(
                   (element.getAttribute("src") ?? "").slice(STORED_FILE.length),
                   element.getAttribute("alt") ?? "",
+                  imageSizes.find((size) => size === element.dataset.size) ??
+                    "full",
                 ),
               }),
               priority: 2,
