@@ -255,7 +255,122 @@ function commonDegree(a: Rational[], b: Rational[]): number {
   return Math.max(0, x.length - 1);
 }
 
-/** Whether a polynomial in one letter splits over the rationals, as far as school algebra goes. */
+/** Integer coefficients, lowest power first, worked out at a whole number. */
+const valueAt = (integers: readonly number[], at: number) =>
+  integers.reduceRight((value, coefficient) => value * at + coefficient, 0);
+
+/** The coefficients of the one polynomial of lowest degree through the points, lowest power first. */
+function through(points: readonly (readonly [number, number])[]): Rational[] {
+  let result: Rational[] = [];
+  for (const [index, [x, y]] of points.entries()) {
+    // Lagrange's basis polynomial for this point, scaled to its value.
+    let basis: Rational[] = [rational(y)];
+    for (const [other, [otherX]] of points.entries()) {
+      if (other === index) continue;
+      const scale = rational(1, x - otherX);
+      const next: Rational[] = Array.from({ length: basis.length + 1 }, () =>
+        rational(0),
+      );
+      basis.forEach((value, power) => {
+        next[power + 1] = add(
+          next[power + 1] ?? rational(0),
+          times(value, scale),
+        );
+        next[power] = add(
+          next[power] ?? rational(0),
+          times(value, times(rational(-otherX), scale)),
+        );
+      });
+      basis = next;
+    }
+    result = Array.from(
+      { length: Math.max(result.length, basis.length) },
+      (_, power) =>
+        add(result[power] ?? rational(0), basis[power] ?? rational(0)),
+    );
+  }
+  return trimmed(result);
+}
+
+/** Whether one polynomial in one letter leaves nothing over when divided by another. */
+function dividesExactly(
+  divisor: readonly Rational[],
+  values: readonly Rational[],
+): boolean {
+  const remainder = [...values];
+  const lead = divisor.at(-1) ?? rational(1);
+  while (remainder.length >= divisor.length) {
+    const factor = times(
+      remainder.at(-1) ?? rational(0),
+      rational(lead.d, lead.n),
+    );
+    const shift = remainder.length - divisor.length;
+    divisor.forEach((value, index) => {
+      remainder[index + shift] = add(
+        remainder[index + shift] ?? rational(0),
+        times(value, rational(-factor.n, factor.d)),
+      );
+    });
+    remainder.pop();
+  }
+  return remainder.every((value) => value.n === 0);
+}
+
+/** How many candidate factors the search tries before taking a polynomial as written. */
+const KRONECKER_LIMIT = 50_000;
+
+/**
+ * Whether a polynomial in one letter with no rational root has a factor of
+ * the given degree, by Kronecker's method: a factor's value at each whole
+ * number divides the polynomial's there, so the factors through divisors at
+ * that many points, plus one, are all there are to try. Null where there
+ * are too many to try.
+ */
+function hasFactorOfDegree(
+  integers: readonly number[],
+  degree: number,
+): boolean | null {
+  // The points whose values have fewest divisors leave fewest factors to try.
+  const points = Array.from({ length: 21 }, (_, index) => index - 10)
+    .map((at) => [at, valueAt(integers, at)] as const)
+    .filter(([, value]) => value !== 0 && Number.isSafeInteger(value))
+    .map(([at, value]) => ({ at, choices: divisors(value) }))
+    .filter(({ choices }) => choices.length > 0)
+    .toSorted((one, other) => one.choices.length - other.choices.length)
+    .slice(0, degree + 1);
+  if (points.length < degree + 1) return null;
+  const tries = points.reduce(
+    (count, { choices }, index) =>
+      count * choices.length * (index === 0 ? 1 : 2),
+    1,
+  );
+  if (tries > KRONECKER_LIMIT) return null;
+  const values = integers.map((value) => rational(value));
+  const lead = integers.at(-1) ?? 1;
+  const chosen: [number, number][] = [];
+  const search = (index: number): boolean => {
+    const point = points[index];
+    if (!point) {
+      const factor = through(chosen);
+      return (
+        factor.length === degree + 1 &&
+        factor.every((value) => value.d === 1) &&
+        lead % (factor.at(-1)?.n ?? 1) === 0 &&
+        dividesExactly(factor, values)
+      );
+    }
+    // A factor and its negative are one factor, so the first value keeps its sign.
+    for (const divisor of point.choices)
+      for (const sign of index === 0 ? [1] : [1, -1]) {
+        chosen[index] = [point.at, sign * divisor];
+        if (search(index + 1)) return true;
+      }
+    return false;
+  };
+  return search(0);
+}
+
+/** Whether a polynomial in one letter splits over the rationals. */
 function splitsInOne(values: Rational[]): boolean {
   const degree = values.length - 1;
   if (degree <= 1) return false;
@@ -265,17 +380,71 @@ function splitsInOne(values: Rational[]): boolean {
     (divisor, value, index) => (value.n === 0 ? divisor : gcd(divisor, index)),
     0,
   );
-  if (step > 1)
-    return splitsInOne(values.filter((_, index) => index % step === 0));
+  if (step > 1 && splitsInOne(values.filter((_, index) => index % step === 0)))
+    return true;
+  // x⁴ + 4 is (x² + 2x + 2)(x² − 2x + 2), with no root to find.
+  const integers = wholeNumbers(values);
+  for (let factor = 2; factor * 2 <= degree; factor += 1)
+    if (hasFactorOfDegree(integers, factor)) return true;
   return false;
+}
+
+/** Whether one term's letters order before another's, letter by letter. */
+function before(one: string, other: string): boolean {
+  const a = new Map(powersOf(one));
+  const b = new Map(powersOf(other));
+  const names = [...new Set([...a.keys(), ...b.keys()])].toSorted();
+  for (const name of names) {
+    const difference = (a.get(name) ?? 0) - (b.get(name) ?? 0);
+    if (difference !== 0) return difference > 0;
+  }
+  return false;
+}
+
+/** A polynomial's leading term, in the order of its letters. */
+function leading(poly: Poly): [string, Rational] | null {
+  let found: [string, Rational] | null = null;
+  for (const entry of poly)
+    if (!found || before(entry[0], found[0])) found = entry;
+  return found;
+}
+
+/**
+ * Whether one polynomial in several letters divides another with nothing
+ * over: dividing by a single polynomial leaves nothing exactly when it
+ * divides, each step taking off the leading term.
+ */
+function dividesAll(divisor: Poly, poly: Poly): boolean {
+  const lead = leading(divisor);
+  if (!lead) return false;
+  const [leadKey, leadValue] = lead;
+  const leadPowers = new Map(powersOf(leadKey));
+  let remainder = poly;
+  // Each step takes off the leading term, so the remainder runs out.
+  for (let top = leading(remainder); top; top = leading(remainder)) {
+    const [key, value] = top;
+    const powers = new Map(powersOf(key));
+    for (const [name, power] of leadPowers) {
+      const left = (powers.get(name) ?? 0) - power;
+      if (left < 0) return false;
+      powers.set(name, left);
+    }
+    const term: Poly = new Map([
+      [keyOf(powers), times(value, rational(leadValue.d, leadValue.n))],
+    ]);
+    remainder = plus(remainder, scaled(product(term, divisor), rational(-1)));
+  }
+  return remainder.size === 0;
 }
 
 /**
  * Whether a polynomial with no factor common to all its terms splits into
- * factors over the rationals. Exact for one letter up to degree three and
- * for the forms school algebra meets beyond that: powers of a square, two
- * letters of one degree (x² − y²), and a letter met only to the first power
- * (xy + 2x + 3y + 6). Past those it takes the factor as it was written.
+ * factors over the rationals. Exact for one letter, by its rational roots
+ * and Kronecker's search past them, and for the forms school algebra meets
+ * with more: two letters of one degree (x² − y²), and a letter met only to
+ * the first power whose terms with and without it share a factor
+ * (xy + 2x + 3y + 6, ax + ay + bx + by). Past those it takes the factor as
+ * it was written.
  */
 function splits(poly: Poly): boolean {
   if (degreeOf(poly) <= 1) return false;
@@ -300,7 +469,28 @@ function splits(poly: Poly): boolean {
   }
   for (const letter of letters) {
     const parts = coefficients(poly, letter);
-    if (parts.length !== 2 || letters.length !== 2) continue;
+    if (parts.length !== 2) continue;
+    if (letters.length > 2) {
+      // A·x + B splits when one of A and B divides the other.
+      const [withLetter, without] = [1, 0].map((power) => {
+        const kept: Poly = new Map();
+        for (const [key, value] of poly) {
+          const powers = powersOf(key);
+          if ((powers.find(([name]) => name === letter)?.[1] ?? 0) === power)
+            kept.set(keyOf(powers.filter(([name]) => name !== letter)), value);
+        }
+        return kept;
+      });
+      if (
+        withLetter &&
+        without &&
+        degreeOf(withLetter) > 0 &&
+        degreeOf(without) > 0 &&
+        (dividesAll(withLetter, without) || dividesAll(without, withLetter))
+      )
+        return true;
+      continue;
+    }
     // A·x + B splits when A and B share a factor in the other letter.
     const other = letters.find((name) => name !== letter) ?? "";
     const split = (power: number): Poly => {

@@ -17,6 +17,12 @@ describe("an answer factorised completely", () => {
     "x^2+1",
     "x+1",
     "7",
+    "x^4+1",
+    "x^4-10x^2+1",
+    "(x^2+2x+2)(x^2-2x+2)",
+    "(x^2+x+1)(x^2-x+1)",
+    "(a+b)(x+y)",
+    "ab+ac+bc",
   ])("takes %s, whose factors split no further", (latex) => {
     expect(inMathForm(latex, "factorised")).toBe(true);
   });
@@ -33,6 +39,12 @@ describe("an answer factorised completely", () => {
     "a^2+2ab+b^2",
     "xy+2x+3y+6",
     "x(x-4+\\frac{4}{x})",
+    "x^4+4",
+    "x^4+x^2+1",
+    "x^6+1",
+    "x^5+x+1",
+    "ax+ay+bx+by",
+    "(x+1)(pq+pr+sq+sr)",
   ])("refuses %s, not factorised or only partly", (latex) => {
     expect(inMathForm(latex, "factorised")).toBe(false);
   });

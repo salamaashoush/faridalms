@@ -148,8 +148,10 @@ Sources: [../research/course-design.md](../research/course-design.md),
    it lacked. Mixed numbers read as school writes them. Significant
    figures and decimal places are forms too, marked as STACK's NumSigFigs
    does, and a key its own form or units would refuse stops at publishing.
-   Left: factorising beyond school algebra (quartics with no rational
-   root, three letters).
+   Factorised completely is exact for one letter at any degree a school
+   meets, past rational roots by Kronecker's search (x⁴ + 4 and
+   x⁴ + x² + 1 split; x⁴ + 1 does not), and holds for grouping in any
+   number of letters (ax + ay + bx + by).
 3. **Embeds for teaching**: GeoGebra, Desmos, PhET, Wikimedia Commons and
    Microsoft 365 files beside today's YouTube, Vimeo, Loom, Google and Canva. Done:
    GeoGebra activities, Desmos graphs (calculator, geometry, 3D) and PhET
