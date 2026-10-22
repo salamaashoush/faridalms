@@ -305,6 +305,8 @@ export interface ContentNode {
   suggested?: boolean;
   /** Gaps filled from a word bank: the extra words, which fit no gap. */
   bank?: string[];
+  /** A number answered on a number line, from and to, in steps. */
+  line?: { from: number; to: number; step: number };
   multiple?: boolean;
   shuffle?: boolean;
   caseSensitive?: boolean;
@@ -621,6 +623,9 @@ const nodeSchema: v.GenericSchema<ContentNode> = v.lazy(() =>
       suggested: v.optional(v.boolean()),
       bank: v.optional(
         v.pipe(v.array(v.pipe(v.string(), v.maxLength(100))), v.maxLength(12)),
+      ),
+      line: v.optional(
+        v.object({ from: v.number(), to: v.number(), step: v.number() }),
       ),
       multiple: v.optional(v.boolean()),
       shuffle: v.optional(v.boolean()),

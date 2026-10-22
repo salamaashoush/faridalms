@@ -70,6 +70,7 @@ import { getLocale } from "~/i18n/runtime";
 import { formatList, formatNumber } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
+import { NumberLine } from "./NumberLine";
 import { PictureAnswer } from "./PictureAnswer";
 import { ReadAloud, ReaderContext, YoungContext } from "./ReadAloud";
 import { useReorder } from "./reorder";
@@ -884,41 +885,57 @@ function TypedCheck({
         />
       }
     >
-      <div className="grid gap-1.5">
-        <label htmlFor={field} className="sr-only">
-          {m.lrnYourAnswer()}
-        </label>
-        <Input
-          ref={input}
-          id={field}
-          value={text}
-          onChange={(event) => setText(event.target.value)}
+      {block.type === "number" && block.line ? (
+        <NumberLine
+          line={block.line}
+          value={parseNumber(text)}
+          onChange={(value) => setText(String(value))}
           disabled={!editing || settled}
-          autoComplete="off"
-          spellCheck={false}
-          maxLength={numeric ? 60 : 500}
-          dir={numeric ? "ltr" : "auto"}
-          inputMode={numeric ? "decimal" : undefined}
-          aria-invalid={notNumber || undefined}
-          aria-describedby={notNumber ? `${field}-error` : undefined}
-          placeholder={m.lrnYourAnswer()}
-          className={cn(
-            "max-md:h-10",
-            numeric ? "w-48 tabular-nums" : "w-full max-w-md",
-            !editing &&
-              view &&
-              (view.correct ? "border-success/60" : "border-destructive/50"),
-          )}
+          mark={
+            !editing && view && view.tries > 0
+              ? view.correct
+                ? "right"
+                : "wrong"
+              : null
+          }
         />
-        {notNumber ? (
-          <p
-            id={`${field}-error`}
-            className="text-[13px] leading-[18px] text-destructive"
-          >
-            {m.lrnNumberNeeded()}
-          </p>
-        ) : null}
-      </div>
+      ) : (
+        <div className="grid gap-1.5">
+          <label htmlFor={field} className="sr-only">
+            {m.lrnYourAnswer()}
+          </label>
+          <Input
+            ref={input}
+            id={field}
+            value={text}
+            onChange={(event) => setText(event.target.value)}
+            disabled={!editing || settled}
+            autoComplete="off"
+            spellCheck={false}
+            maxLength={numeric ? 60 : 500}
+            dir={numeric ? "ltr" : "auto"}
+            inputMode={numeric ? "decimal" : undefined}
+            aria-invalid={notNumber || undefined}
+            aria-describedby={notNumber ? `${field}-error` : undefined}
+            placeholder={m.lrnYourAnswer()}
+            className={cn(
+              "max-md:h-10",
+              numeric ? "w-48 tabular-nums" : "w-full max-w-md",
+              !editing &&
+                view &&
+                (view.correct ? "border-success/60" : "border-destructive/50"),
+            )}
+          />
+          {notNumber ? (
+            <p
+              id={`${field}-error`}
+              className="text-[13px] leading-[18px] text-destructive"
+            >
+              {m.lrnNumberNeeded()}
+            </p>
+          ) : null}
+        </div>
+      )}
     </CheckCard>
   );
 }

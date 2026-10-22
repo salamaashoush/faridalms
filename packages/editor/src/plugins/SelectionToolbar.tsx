@@ -22,7 +22,7 @@ import {
   imageSizes,
 } from "@faridalms/domain/content";
 import { fileFamily } from "@faridalms/domain/file";
-import { MAX_HINTS } from "@faridalms/domain/learning";
+import { MAX_HINTS, MAX_LINE_STEPS } from "@faridalms/domain/learning";
 import {
   blankOf,
   locked,
@@ -555,6 +555,10 @@ export function SelectionToolbarPlugin() {
     percent: false,
     min: "",
     max: "",
+    line: false,
+    from: "",
+    to: "",
+    step: "",
   });
   const [url, setUrl] = useState("");
   const [invalid, setInvalid] = useState(false);
@@ -1911,6 +1915,10 @@ export function SelectionToolbarPlugin() {
                   percent: settings.percent,
                   min: String(settings.rangeMin),
                   max: String(settings.rangeMax),
+                  line: settings.line !== null,
+                  from: String(settings.line?.from ?? 0),
+                  to: String(settings.line?.to ?? 10),
+                  step: String(settings.line?.step ?? 1),
                 });
                 show("question-number");
               }}
@@ -2626,22 +2634,36 @@ export function SelectionToolbarPlugin() {
       tolerance: numbers.tolerance ? parseNumber(numbers.tolerance) : 0,
       min: parseNumber(numbers.min),
       max: parseNumber(numbers.max),
+      from: parseNumber(numbers.from),
+      to: parseNumber(numbers.to),
+      step: parseNumber(numbers.step),
     };
+    const line =
+      numbers.line &&
+      parsed.from !== null &&
+      parsed.to !== null &&
+      parsed.step !== null &&
+      parsed.step > 0 &&
+      parsed.from < parsed.to &&
+      (parsed.to - parsed.from) / parsed.step <= MAX_LINE_STEPS
+        ? { from: parsed.from, to: parsed.to, step: parsed.step }
+        : null;
     const valid =
-      numbers.mode === "exact"
+      (numbers.mode === "exact"
         ? parsed.value !== null &&
           parsed.tolerance !== null &&
           parsed.tolerance >= 0
         : parsed.min !== null &&
           parsed.max !== null &&
-          parsed.min <= parsed.max;
+          parsed.min <= parsed.max) &&
+      (!numbers.line || line !== null);
     const done = () => {
       if (!valid) return;
       withSelection(() => {
         const node = $getNodeByKey(question.key);
         if (!$isQuestionNode(node)) return;
-        node.setSettings(
-          numbers.mode === "exact"
+        node.setSettings({
+          ...(numbers.mode === "exact"
             ? {
                 numberMode: "exact",
                 answerValue: parsed.value ?? 0,
@@ -2652,14 +2674,15 @@ export function SelectionToolbarPlugin() {
                 numberMode: "range",
                 rangeMin: parsed.min ?? 0,
                 rangeMax: parsed.max ?? 0,
-              },
-        );
+              }),
+          line,
+        });
       });
       show("question");
       focusText(editor);
     };
     const input = (
-      key: "value" | "tolerance" | "min" | "max",
+      key: "value" | "tolerance" | "min" | "max" | "from" | "to" | "step",
       label: string,
       focus = false,
     ) => (
@@ -2739,6 +2762,26 @@ export function SelectionToolbarPlugin() {
               {input("max", strings.questionMax)}
             </div>
           )}
+          <label className="flex items-center gap-2 text-xs text-muted-foreground">
+            <input
+              type="checkbox"
+              checked={numbers.line}
+              onChange={(event) =>
+                setNumbers((current) => ({
+                  ...current,
+                  line: event.target.checked,
+                }))
+              }
+            />
+            {strings.questionLine}
+          </label>
+          {numbers.line ? (
+            <div className="grid grid-cols-3 gap-2">
+              {input("from", strings.questionLineFrom)}
+              {input("to", strings.questionLineTo)}
+              {input("step", strings.questionLineStep)}
+            </div>
+          ) : null}
           <button
             type="submit"
             disabled={!valid}

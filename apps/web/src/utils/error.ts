@@ -597,6 +597,10 @@ export function getMessageFromError(error: unknown): string {
         return m.lrnErrNoHint();
       case "learning.bank_options":
         return m.lrnErrBankOptions();
+      case "learning.number_line":
+        return m.lrnErrNumberLine();
+      case "learning.number_line_answer":
+        return m.lrnErrNumberLineAnswer();
       case "learning.unreviewed":
       case "coursework.unreviewed":
         return m.lrnErrUnreviewed();

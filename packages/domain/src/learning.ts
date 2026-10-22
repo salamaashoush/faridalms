@@ -128,6 +128,8 @@ export const MAX_PLACE_NAME = 60;
  * young finger lands several millimetres off what it aims at.
  */
 export const HOTSPOT_SLACK = 0.03;
+/** Places on a number line, so its ticks stay readable on a phone. */
+export const MAX_LINE_STEPS = 200;
 /** Taken off a check's credit for each try after the first, as Moodle's interactive mode does. */
 export const TRY_PENALTY = 1 / 3;
 
@@ -379,10 +381,34 @@ export const lessonBlockSchema = v.variant("type", [
       percent: v.boolean(),
       min: v.number(),
       max: v.number(),
+      /** Answered by placing a point on a number line from `from` to `to`, in steps. */
+      line: v.optional(
+        v.pipe(
+          v.object({
+            from: v.number(),
+            to: v.number(),
+            step: v.pipe(v.number(), v.gtValue(0)),
+          }),
+          v.check(
+            (line) =>
+              line.from < line.to &&
+              (line.to - line.from) / line.step <= MAX_LINE_STEPS,
+            "learning.number_line",
+          ),
+        ),
+      ),
     }),
     v.check(
       (block) => block.mode === "exact" || block.min <= block.max,
       "learning.number_range",
+    ),
+    v.check(
+      (block) =>
+        !block.line ||
+        (block.mode === "exact"
+          ? block.value >= block.line.from && block.value <= block.line.to
+          : block.max >= block.line.from && block.min <= block.line.to),
+      "learning.number_line_answer",
     ),
   ),
   v.object({
@@ -1913,6 +1939,7 @@ export type StudentBlock =
       | "points"
       | "tries"
       | "videoAt"
+      | "line"
     >
   | (Omit<MatchingBlock, "distractors" | "explanation" | "hints" | "pairs"> & {
       prompts: StudentPart[];
@@ -2057,6 +2084,7 @@ export function studentBlocks(
           ...(typeof block.videoAt === "number"
             ? { videoAt: block.videoAt }
             : {}),
+          ...(block.line ? { line: block.line } : {}),
         };
       case "matching": {
         const {

@@ -336,6 +336,8 @@ export interface QuestionSettings {
   suggested: boolean;
   /** Gaps filled from a word bank: its extra words; none when each gap is typed or chosen alone. */
   bank: string[] | null;
+  /** A number answered on a number line, from and to, in steps; none for a typed one. */
+  line: { from: number; to: number; step: number } | null;
   multiple: boolean;
   shuffle: boolean;
   caseSensitive: boolean;
@@ -405,6 +407,7 @@ export function defaultSettings(kind: QuestionKind): QuestionSettings {
     feedbackAt: "now",
     suggested: false,
     bank: null,
+    line: null,
     multiple: false,
     shuffle: kind === "choice",
     caseSensitive: false,
@@ -470,6 +473,7 @@ function questionSettings(stored: StoredSettings): QuestionSettings {
     feedbackAt: stored.feedbackAt ?? "now",
     suggested: stored.suggested ?? false,
     bank: stored.bank ?? null,
+    line: stored.line ?? null,
     multiple: stored.multiple ?? base.multiple,
     shuffle: stored.shuffle ?? base.shuffle,
     caseSensitive: stored.caseSensitive ?? base.caseSensitive,
@@ -647,6 +651,7 @@ export class QuestionNode extends ElementNode {
       feedbackAt,
       suggested,
       bank,
+      line,
       ...settings
     } = questionSettings(this.getLatest().__settings);
     return {
@@ -655,6 +660,7 @@ export class QuestionNode extends ElementNode {
       ...(feedbackAt === "now" ? {} : { feedbackAt }),
       ...(suggested ? { suggested } : {}),
       ...(settings.kind === "gaps" && bank !== null ? { bank } : {}),
+      ...(settings.kind === "number" && line !== null ? { line } : {}),
       ...(recordSeconds === null ? {} : { recordSeconds }),
       ...(recordSeconds !== null && recordVideo ? { recordVideo } : {}),
       ...(answerWith === null ? {} : { answerWith }),

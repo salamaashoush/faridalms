@@ -547,6 +547,31 @@ describe("a word bank", () => {
   });
 });
 
+/** Whether a lesson holding just this block may go to students. */
+const allowed = (block: NumberBlock) =>
+  v.safeParse(lessonDocumentSchema, { version: 2, blocks: [block] }).success;
+
+describe("a number line", () => {
+  const placed = { ...number, value: 3, line: { from: 0, to: 5, step: 0.5 } };
+
+  it("shows its line to the student, keeping the answer back", () => {
+    const [shown] = studentBlocks({ version: 2, blocks: [placed] }, "a");
+    expect(shown).toMatchObject({ line: { from: 0, to: 5, step: 0.5 } });
+    expect(JSON.stringify(shown)).not.toContain('"value"');
+  });
+
+  it("refuses a line the answer is not on, or one too fine to read", () => {
+    expect(allowed(placed)).toBe(true);
+    expect(allowed({ ...placed, value: 7 })).toBe(false);
+    expect(allowed({ ...placed, line: { from: 0, to: 5, step: 0.01 } })).toBe(
+      false,
+    );
+    expect(allowed({ ...placed, line: { from: 5, to: 0, step: 1 } })).toBe(
+      false,
+    );
+  });
+});
+
 describe("older lessons", () => {
   it("read a question's one hint as the first of its hints", () => {
     const { hints: _hints, ...saved } = typed;

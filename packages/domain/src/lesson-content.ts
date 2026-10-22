@@ -306,6 +306,7 @@ export function questionBlock(node: ContentNode): LessonBlock | null {
         percent: node.percent ?? false,
         min: node.rangeMin ?? 0,
         max: node.rangeMax ?? 0,
+        ...(node.line ? { line: node.line } : {}),
       };
     case "ordering":
       return {
@@ -784,6 +785,7 @@ export function questionNode(block: LessonBlock): ContentNode | null {
       percent: block.percent,
       rangeMin: block.min,
       rangeMax: block.max,
+      ...(block.line ? { line: block.line } : {}),
     };
   if (block.type === "ordering")
     return {

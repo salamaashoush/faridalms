@@ -232,9 +232,13 @@ Sources: [../research/course-design.md](../research/course-design.md),
     (`bank` on gaps, its extra words that fit no gap), set from its bar;
     the student sees every answer and extra word shuffled in one bank,
     taps a word into the next blank or chooses it in each blank, and paper
-    prints the bank above the text.
-    Left: poll, highlight words, label an image, number line, crossword
-    and word search.
+    prints the bank above the text. A number line: a number question can
+    be answered on a line from one number to another in steps (`line`
+    on the question, set where its answer is), placed by dragging or the
+    arrow keys over ticks labelled as space allows, and printed as a line
+    to mark.
+    Left: poll, highlight words, label an image, crossword and word
+    search.
 
 ## 4. Standards, skills and planning
 

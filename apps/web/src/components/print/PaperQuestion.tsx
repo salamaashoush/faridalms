@@ -23,6 +23,7 @@ import { cn } from "@faridalms/ui/cn";
 
 import { QrCode } from "~/components/badges/QrCode";
 import { featureNames } from "~/components/coding/scratch-checks";
+import { NumberLineDrawing } from "~/components/learning/NumberLine";
 import { blockNames, puzzleStrings } from "~/components/puzzles/strings";
 import * as m from "~/i18n/messages";
 
@@ -387,7 +388,12 @@ export function PaperQuestion({
       );
       break;
     case "number":
-      body = (
+      body = block.line ? (
+        <NumberLineDrawing
+          line={block.line}
+          value={answers && block.mode === "exact" ? block.value : null}
+        />
+      ) : (
         <Box
           wide
           answer={
