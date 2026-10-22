@@ -19,7 +19,7 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 
 import type { BlockDefinition, BlockGroup } from "../blocks";
 
-import { blockScope, filterBlocks } from "../blocks";
+import { blockScope, byGroup, filterBlocks } from "../blocks";
 import { useEditorEnvironment } from "../context";
 import { Floating, selectionReference } from "../ui";
 import { $runBlock } from "./insert";
@@ -108,7 +108,7 @@ export function SlashMenuPlugin() {
   });
   const options = useMemo(
     () =>
-      filterBlocks(query ?? "", strings, scope).map(
+      byGroup(filterBlocks(query ?? "", strings, scope)).map(
         (block) => new BlockOption(block),
       ),
     [query, strings, scope],
@@ -119,6 +119,11 @@ export function SlashMenuPlugin() {
     media: strings.groupMedia,
     layout: strings.groupLayout,
     questions: strings.groupQuestions,
+    words: strings.groupWords,
+    arrange: strings.groupArrange,
+    pictures: strings.groupPictures,
+    coding: strings.groupCoding,
+    reuse: strings.groupReuse,
   };
   const select = (
     option: BlockOption,

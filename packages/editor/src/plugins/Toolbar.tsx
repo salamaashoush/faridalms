@@ -20,6 +20,7 @@ import {
 } from "@lexical/table";
 import { $findMatchingParent, mergeRegister } from "@lexical/utils";
 import {
+  $createParagraphNode,
   $getRoot,
   $getSelection,
   $isRangeSelection,
@@ -72,7 +73,6 @@ import {
   $turnInto,
   blockDefinitions,
   blockScope,
-  offered,
 } from "../blocks";
 import { useEditorEnvironment } from "../context";
 import { $activeFormats, OPEN_LINK_EDITOR_COMMAND } from "../formatting";
@@ -81,6 +81,7 @@ import { textFocus, updateFromOutside } from "../outside";
 import { Tip, ToolButton, cx, menuItemClass, menuPopupClass } from "../ui";
 import { FindTool } from "./find";
 import { $runBlock } from "./insert";
+import { InsertTool } from "./insert-tool";
 import { SuggestTool } from "./suggest";
 
 const inputClass =
@@ -222,6 +223,7 @@ export function ToolbarPlugin({ disabled }: { disabled: boolean }) {
   const [markdownOpen, setMarkdownOpen] = useState(false);
   const [suggestOpen, setSuggestOpen] = useState(false);
   const [findOpen, setFindOpen] = useState(false);
+  const [insertOpen, setInsertOpen] = useState(false);
   const [more, setMore] = useState<HTMLElement | null>(null);
   const saved = useRef<BaseSelection | null>(null);
 
@@ -286,6 +288,23 @@ export function ToolbarPlugin({ disabled }: { disabled: boolean }) {
       .getEditorState()
       .read(() => $getSelection()?.clone() ?? null);
   };
+  // The caret is kept as the picker opens, for the block to land there.
+  const openInsert = (next: boolean) => {
+    if (next) remember();
+    setInsertOpen(next);
+  };
+  // With no caret yet, a block goes at the end of the document on a line of
+  // its own, which a document ending in a block such as a bibliography
+  // would otherwise leave it nowhere to stand.
+  const insertBlock = (type: BlockType) =>
+    restore(() => {
+      if (!saved.current) {
+        const end = $createParagraphNode();
+        $getRoot().append(end);
+        end.select();
+      }
+      $runBlock(editor, type);
+    });
   const restore = (change: () => void) =>
     updateFromOutside(editor, () => {
       if (saved.current) $setSelection(saved.current.clone());
@@ -311,7 +330,6 @@ export function ToolbarPlugin({ disabled }: { disabled: boolean }) {
   const current = blockDefinitions.find((item) => item.type === block);
   const turnInto = blockDefinitions.filter((item) => item.convertible);
   const scope = blockScope(environment);
-  const insertable = blockDefinitions.filter((item) => offered(item, scope));
   const turn = (type: BlockType) =>
     restore(() => {
       const target = $anchorFor(type);
@@ -513,43 +531,18 @@ export function ToolbarPlugin({ disabled }: { disabled: boolean }) {
       key: "insert",
       group: true,
       inline: (
-        <Menu.Root
-          onOpenChange={(open) => {
-            if (open) remember();
-          }}
-        >
-          <Menu.Trigger className="inline-flex h-8 items-center gap-1 rounded-md px-2 text-sm text-foreground/80 hover:bg-accent hover:text-foreground">
-            <Plus className="size-4" aria-hidden />
-            {strings.insert}
-          </Menu.Trigger>
-          <Menu.Portal>
-            <Menu.Positioner className="z-50" sideOffset={6} align="start">
-              <Menu.Popup
-                className={cx(menuPopupClass, "max-h-96 w-64 overflow-y-auto")}
-                finalFocus={textFocus(editor)}
-              >
-                {insertable.map((item) => (
-                  <Menu.Item
-                    key={item.type}
-                    className={menuItemClass}
-                    onClick={() => restore(() => $runBlock(editor, item.type))}
-                  >
-                    <item.icon aria-hidden />
-                    <span className="flex-1">{item.label(strings)}</span>
-                  </Menu.Item>
-                ))}
-              </Menu.Popup>
-            </Menu.Positioner>
-          </Menu.Portal>
-        </Menu.Root>
+        <InsertTool
+          scope={scope}
+          open={insertOpen}
+          onOpenChange={openInsert}
+          onPick={insertBlock}
+        />
       ),
       menu: (
-        <ToolSubmenu
-          label={strings.insert}
-          icon={<Plus aria-hidden />}
-          items={insertable}
-          onPick={(type) => restore(() => $runBlock(editor, type))}
-        />
+        <Menu.Item className={menuItemClass} onClick={() => openInsert(true)}>
+          <Plus aria-hidden />
+          {strings.insert}
+        </Menu.Item>
       ),
     },
     {
@@ -619,6 +612,7 @@ export function ToolbarPlugin({ disabled }: { disabled: boolean }) {
   const { row, shown } = useFittingTools(tools.length);
   const hidden = tools.slice(shown);
   const findHidden = hidden.some((tool) => tool.key === "find");
+  const insertHidden = hidden.some((tool) => tool.key === "insert");
   const tableHidden = hidden.some((tool) => tool.key === "table");
   const suggestHidden = hidden.some((tool) => tool.key === "suggest");
   const markdownHidden = hidden.some((tool) => tool.key === "markdown");
@@ -695,6 +689,15 @@ export function ToolbarPlugin({ disabled }: { disabled: boolean }) {
       ) : null}
       {findHidden ? (
         <FindTool open={findOpen} onOpenChange={setFindOpen} anchor={more} />
+      ) : null}
+      {insertHidden ? (
+        <InsertTool
+          scope={scope}
+          open={insertOpen}
+          onOpenChange={openInsert}
+          onPick={insertBlock}
+          anchor={more}
+        />
       ) : null}
       {markdownHidden ? (
         <MarkdownDialog

@@ -37,6 +37,8 @@ export interface EditorStrings
   undo: string;
   redo: string;
   insert: string;
+  insertFind: string;
+  insertNone: string;
   groupText: string;
   groupLists: string;
   groupMedia: string;
@@ -223,6 +225,11 @@ export interface EditorStrings
   downloadFile: string;
   picturePeople: string;
   groupQuestions: string;
+  groupWords: string;
+  groupArrange: string;
+  groupPictures: string;
+  groupCoding: string;
+  groupReuse: string;
   questionChoice: string;
   questionChoiceHint: string;
   questionPoll: string;

@@ -240,7 +240,27 @@ export type BlockType =
   | "word"
   | "qtiImport";
 
-export type BlockGroup = "text" | "lists" | "media" | "layout" | "questions";
+/** The groups the insert menus show blocks in, in this order. */
+export const BLOCK_GROUPS = [
+  "text",
+  "lists",
+  "media",
+  "layout",
+  "questions",
+  "words",
+  "arrange",
+  "pictures",
+  "coding",
+  "reuse",
+] as const;
+export type BlockGroup = (typeof BLOCK_GROUPS)[number];
+
+/** Blocks in the order their groups are shown, each group's own order kept. */
+export const byGroup = (blocks: readonly BlockDefinition[]) =>
+  blocks.toSorted(
+    (one, other) =>
+      BLOCK_GROUPS.indexOf(one.group) - BLOCK_GROUPS.indexOf(other.group),
+  );
 
 const QUESTION_KIND: Partial<Record<BlockType, QuestionKind>> = {
   choiceQuestion: "choice",
@@ -847,7 +867,7 @@ export const blockDefinitions: BlockDefinition[] = [
   },
   {
     type: "sharedBlock",
-    group: "layout",
+    group: "reuse",
     icon: Repeat2,
     label: (s) => s.sharedBlock,
     hint: (s) => s.sharedBlockHint,
@@ -864,7 +884,7 @@ export const blockDefinitions: BlockDefinition[] = [
   },
   {
     type: "bankQuestion",
-    group: "questions",
+    group: "reuse",
     icon: Library,
     label: (s) => s.bankInsert,
     hint: (s) => s.bankInsertHint,
@@ -874,7 +894,7 @@ export const blockDefinitions: BlockDefinition[] = [
   },
   {
     type: "qtiImport",
-    group: "questions",
+    group: "reuse",
     icon: FileInput,
     label: (s) => s.qtiImport,
     hint: (s) => s.qtiImportHint,
@@ -893,7 +913,7 @@ export const blockDefinitions: BlockDefinition[] = [
   },
   {
     type: "bankDraw",
-    group: "questions",
+    group: "reuse",
     icon: Shuffle,
     label: (s) => s.drawInsert,
     hint: (s) => s.drawInsertHint,
@@ -940,7 +960,7 @@ export const blockDefinitions: BlockDefinition[] = [
   },
   {
     type: "orderingQuestion",
-    group: "questions",
+    group: "arrange",
     icon: ArrowDownUp,
     label: (s) => s.questionOrdering,
     hint: (s) => s.questionOrderingHint,
@@ -949,7 +969,7 @@ export const blockDefinitions: BlockDefinition[] = [
   },
   {
     type: "parsonsQuestion",
-    group: "questions",
+    group: "coding",
     icon: CodeXml,
     label: (s) => s.questionParsons,
     hint: (s) => s.questionParsonsHint,
@@ -968,7 +988,7 @@ export const blockDefinitions: BlockDefinition[] = [
   },
   {
     type: "programQuestion",
-    group: "questions",
+    group: "coding",
     icon: SquareTerminal,
     label: (s) => s.questionProgram,
     hint: (s) => s.questionProgramHint,
@@ -988,7 +1008,7 @@ export const blockDefinitions: BlockDefinition[] = [
   },
   {
     type: "gapsQuestion",
-    group: "questions",
+    group: "words",
     icon: Brackets,
     label: (s) => s.questionGaps,
     hint: (s) => s.questionGapsHint,
@@ -997,7 +1017,7 @@ export const blockDefinitions: BlockDefinition[] = [
   },
   {
     type: "highlightQuestion",
-    group: "questions",
+    group: "words",
     icon: Highlighter,
     label: (s) => s.questionHighlight,
     hint: (s) => s.questionHighlightHint,
@@ -1015,7 +1035,7 @@ export const blockDefinitions: BlockDefinition[] = [
   },
   {
     type: "matchingQuestion",
-    group: "questions",
+    group: "arrange",
     icon: ArrowLeftRight,
     label: (s) => s.questionMatching,
     hint: (s) => s.questionMatchingHint,
@@ -1024,7 +1044,7 @@ export const blockDefinitions: BlockDefinition[] = [
   },
   {
     type: "sortingQuestion",
-    group: "questions",
+    group: "arrange",
     icon: Group,
     label: (s) => s.questionSorting,
     hint: (s) => s.questionSortingHint,
@@ -1033,7 +1053,7 @@ export const blockDefinitions: BlockDefinition[] = [
   },
   {
     type: "countingQuestion",
-    group: "questions",
+    group: "pictures",
     icon: Dices,
     label: (s) => s.questionCounting,
     hint: (s) => s.questionCountingHint,
@@ -1043,7 +1063,7 @@ export const blockDefinitions: BlockDefinition[] = [
   },
   {
     type: "tracingQuestion",
-    group: "questions",
+    group: "pictures",
     icon: Signature,
     label: (s) => s.questionTracing,
     hint: (s) => s.questionTracingHint,
@@ -1061,7 +1081,7 @@ export const blockDefinitions: BlockDefinition[] = [
   },
   {
     type: "spellingQuestion",
-    group: "questions",
+    group: "words",
     icon: Blocks,
     label: (s) => s.questionSpelling,
     hint: (s) => s.questionSpellingHint,
@@ -1080,7 +1100,7 @@ export const blockDefinitions: BlockDefinition[] = [
   },
   {
     type: "hotspotQuestion",
-    group: "questions",
+    group: "pictures",
     icon: ScanSearch,
     label: (s) => s.questionHotspot,
     hint: (s) => s.questionHotspotHint,
@@ -1099,7 +1119,7 @@ export const blockDefinitions: BlockDefinition[] = [
   },
   {
     type: "labellingQuestion",
-    group: "questions",
+    group: "pictures",
     icon: Tags,
     label: (s) => s.questionLabelling,
     hint: (s) => s.questionLabellingHint,
@@ -1118,7 +1138,7 @@ export const blockDefinitions: BlockDefinition[] = [
   },
   {
     type: "crosswordQuestion",
-    group: "questions",
+    group: "words",
     icon: Grid3x3,
     label: (s) => s.questionCrossword,
     hint: (s) => s.questionCrosswordHint,
@@ -1136,7 +1156,7 @@ export const blockDefinitions: BlockDefinition[] = [
   },
   {
     type: "wordsearchQuestion",
-    group: "questions",
+    group: "words",
     icon: TextSearch,
     label: (s) => s.questionWordSearch,
     hint: (s) => s.questionWordSearchHint,
@@ -1154,7 +1174,7 @@ export const blockDefinitions: BlockDefinition[] = [
   },
   {
     type: "scratchQuestion",
-    group: "questions",
+    group: "coding",
     icon: Puzzle,
     label: (s) => s.questionScratch,
     hint: (s) => s.questionScratchHint,
@@ -1176,7 +1196,7 @@ export const blockDefinitions: BlockDefinition[] = [
   },
   {
     type: "projectQuestion",
-    group: "questions",
+    group: "coding",
     icon: CodeXml,
     label: (s) => s.questionProject,
     hint: (s) => s.questionProjectHint,
@@ -1202,7 +1222,7 @@ export const blockDefinitions: BlockDefinition[] = [
   },
   {
     type: "sketchQuestion",
-    group: "questions",
+    group: "coding",
     icon: Shapes,
     label: (s) => s.questionSketch,
     hint: (s) => s.questionSketchHint,
@@ -1225,7 +1245,7 @@ export const blockDefinitions: BlockDefinition[] = [
   },
   {
     type: "pythonQuestion",
-    group: "questions",
+    group: "coding",
     icon: FileCode,
     label: (s) => s.questionPython,
     hint: (s) => s.questionPythonHint,
@@ -1247,7 +1267,7 @@ export const blockDefinitions: BlockDefinition[] = [
   },
   {
     type: "microbitQuestion",
-    group: "questions",
+    group: "coding",
     icon: CircuitBoard,
     label: (s) => s.questionMicrobit,
     hint: (s) => s.questionMicrobitHint,
@@ -1272,7 +1292,7 @@ export const blockDefinitions: BlockDefinition[] = [
   },
   {
     type: "puzzleQuestion",
-    group: "questions",
+    group: "coding",
     icon: ToyBrick,
     label: (s) => s.questionPuzzle,
     hint: (s) => s.questionPuzzleHint,
@@ -1298,7 +1318,7 @@ export const blockDefinitions: BlockDefinition[] = [
   },
   {
     type: "arrowsQuestion",
-    group: "questions",
+    group: "coding",
     icon: Route,
     label: (s) => s.questionArrows,
     hint: (s) => s.questionArrowsHint,
