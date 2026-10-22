@@ -792,14 +792,17 @@ export function ModuleRecord({
   const navigate = useNavigate();
   const refresh = useRefresh();
   const state = shownState(data);
+  // The word that it worked comes as the server says so, not once the
+  // page has read everything again, which a busy school can make slow.
   const act = async (action: () => Promise<unknown>, done: string) => {
     try {
       await action();
-      await refresh();
-      toast.success(done);
     } catch (error) {
       toast.error(getMessageFromError(error));
+      return;
     }
+    toast.success(done);
+    await refresh();
   };
   const facts: HeaderFact[] = [
     {
