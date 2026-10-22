@@ -502,9 +502,12 @@ Sources: [../research/course-design.md](../research/course-design.md),
    reached open. Students' players ask every 3 seconds while a lesson is
    led and every 15 otherwise.
    A module's lessons show each one being led live, and for which class,
-   a link back to its teacher's screen.
-   Left: a push channel in place of asking, young lessons, and sharing one
-   student's answer on the board.
+   a link back to its teacher's screen. A question answered in words or a
+   picture lists each student's answer on the teacher's screen, names
+   hidden at the same click, and the teacher puts any one on the board
+   without its writer's name, as Pear Deck projects a response; taking the
+   class on clears it.
+   Left: a push channel in place of asking, and young lessons.
 
 ## 6. Editor capabilities
 

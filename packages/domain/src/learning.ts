@@ -3004,6 +3004,8 @@ export const paceSchema = v.object({
   ),
   paused: v.optional(v.boolean()),
   revealed: v.optional(v.boolean()),
+  /** One student's answer to show the class on the board, or none. */
+  shown: v.optional(v.nullable(v.object({ blockId: id, studentId: id }))),
 });
 
 /** Messages a scored lesson or quiz may give by score, as Moodle's overall feedback does. */

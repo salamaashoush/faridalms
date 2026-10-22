@@ -55,6 +55,8 @@ type Paced = Awaited<
   ReturnType<NonNullable<ReturnType<typeof pacedQuery>["queryFn"]>>
 >;
 type Question = Paced["questions"][number];
+type OpenQuestion = Paced["answers"][number];
+type Shown = Paced["shown"];
 
 const placeOf = (data: Paced) =>
   m.lrnPacedPart({
@@ -195,6 +197,7 @@ export function PacedLesson({ pacedId }: { pacedId: string }) {
       step?: number;
       paused?: boolean;
       revealed?: boolean;
+      shown?: Shown;
     }) => pace({ data: { id: pacedId, ...change } }),
     onSuccess: (next) =>
       queryClient.setQueryData(query.queryKey, (old) =>
@@ -380,7 +383,17 @@ export function PacedLesson({ pacedId }: { pacedId: string }) {
                     onChange={(revealed) => steer.mutate({ revealed })}
                   />
                 </div>
-                {data.questions.length === 0 ? (
+                {data.answers.map((question) => (
+                  <OpenAnswers
+                    key={question.id}
+                    question={question}
+                    names={named ? names : null}
+                    shown={data.shown}
+                    busy={busy}
+                    onShow={(shown) => steer.mutate({ shown })}
+                  />
+                ))}
+                {data.questions.length === 0 && data.answers.length === 0 ? (
                   <RecordEmpty>{m.lrnPacedNoQuestions()}</RecordEmpty>
                 ) : (
                   data.questions.map((question) => (
@@ -421,6 +434,152 @@ export function PacedLesson({ pacedId }: { pacedId: string }) {
         }
       />
     </div>
+  );
+}
+
+/**
+ * A question of the open part answered in words or a picture: each
+ * student's answer, any one of which the teacher puts on the board for the
+ * class to talk about, without its writer's name, as Pear Deck projects a
+ * response.
+ */
+function OpenAnswers({
+  question,
+  names,
+  shown,
+  busy,
+  onShow,
+}: {
+  question: OpenQuestion;
+  /** Null while names are hidden from the screen. */
+  names: Map<string, string> | null;
+  shown: Shown;
+  busy: boolean;
+  onShow: (shown: Shown) => void;
+}) {
+  return (
+    <section className="grid gap-3 rounded-lg border p-4">
+      <h3 dir="auto" className="text-sm leading-5 font-medium">
+        <TextWithMath text={question.prompt} />
+      </h3>
+      {question.answers.length === 0 ? (
+        <p className="text-[13px] leading-[18px] text-muted-foreground">
+          {m.lrnPacedNoAnswers()}
+        </p>
+      ) : (
+        <ul className="grid gap-2">
+          {question.answers.map((answer, index) => {
+            const showing =
+              shown?.blockId === question.id &&
+              shown.studentId === answer.studentId;
+            return (
+              <li
+                key={answer.studentId}
+                className="grid gap-2 rounded-md bg-muted/40 px-3 py-2.5"
+              >
+                <div className="flex flex-wrap items-center justify-between gap-2">
+                  <span className="text-[13px] leading-[18px] text-muted-foreground">
+                    <bdi>
+                      {names?.get(answer.studentId) ??
+                        m.lrnPacedAnswerNumber({
+                          number: formatNumber(index + 1),
+                        })}
+                    </bdi>
+                  </span>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant={showing ? "default" : "outline"}
+                    aria-pressed={showing}
+                    disabled={busy}
+                    className="max-md:h-10"
+                    onClick={() =>
+                      onShow(
+                        showing
+                          ? null
+                          : {
+                              blockId: question.id,
+                              studentId: answer.studentId,
+                            },
+                      )
+                    }
+                  >
+                    <Presentation aria-hidden />
+                    {showing ? m.lrnPacedShowing() : m.lrnPacedShowAnswer()}
+                  </Button>
+                </div>
+                {answer.text ? (
+                  <p
+                    dir="auto"
+                    className="text-sm leading-6 whitespace-pre-wrap"
+                  >
+                    {answer.text}
+                  </p>
+                ) : null}
+                {answer.pictureId ? (
+                  <img
+                    src={`/files/${answer.pictureId}`}
+                    alt={m.lrnPacedPictureAnswer()}
+                    className="max-h-48 justify-self-start rounded-md border object-contain"
+                  />
+                ) : null}
+              </li>
+            );
+          })}
+        </ul>
+      )}
+    </section>
+  );
+}
+
+/**
+ * A question answered in words or a picture, on the board: how many have
+ * answered, and the one answer the teacher put up, without its writer's name.
+ */
+function BoardOpenQuestion({
+  question,
+  shown,
+  students,
+}: {
+  question: OpenQuestion;
+  shown: Shown;
+  students: number;
+}) {
+  const answer =
+    shown?.blockId === question.id
+      ? question.answers.find((item) => item.studentId === shown.studentId)
+      : undefined;
+  return (
+    <section className="grid gap-5 rounded-xl border p-6">
+      <h2 dir="auto" className="text-2xl leading-9 font-semibold">
+        <TextWithMath text={question.prompt} />
+      </h2>
+      {answer ? (
+        <figure className="grid gap-4 rounded-lg border-2 border-primary/40 p-5">
+          <figcaption className="text-lg leading-7 text-muted-foreground">
+            {m.lrnPacedFromClass()}
+          </figcaption>
+          {answer.text ? (
+            <p dir="auto" className="text-3xl leading-snug whitespace-pre-wrap">
+              {answer.text}
+            </p>
+          ) : null}
+          {answer.pictureId ? (
+            <img
+              src={`/files/${answer.pictureId}`}
+              alt={m.lrnPacedPictureAnswer()}
+              className="max-h-[60dvh] justify-self-center rounded-lg border object-contain"
+            />
+          ) : null}
+        </figure>
+      ) : null}
+      <p className="text-lg leading-7 text-muted-foreground tabular-nums">
+        {m.lrnPacedAnswered({
+          count: formatNumber(question.answers.length),
+          total: formatNumber(students),
+        })}
+      </p>
+    </section>
   );
 }
 
@@ -550,10 +709,20 @@ export function PacedBoard({ pacedId }: { pacedId: string }) {
           </output>
         ) : null}
       </header>
+      {data.answers.map((question) => (
+        <BoardOpenQuestion
+          key={question.id}
+          question={question}
+          shown={data.shown}
+          students={data.students.length}
+        />
+      ))}
       {data.questions.length === 0 ? (
-        <p className="text-2xl leading-9 text-muted-foreground">
-          {m.lrnPacedBoardEmpty()}
-        </p>
+        data.answers.length > 0 ? null : (
+          <p className="text-2xl leading-9 text-muted-foreground">
+            {m.lrnPacedBoardEmpty()}
+          </p>
+        )
       ) : (
         data.questions.map((question) => (
           <BoardQuestion

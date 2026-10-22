@@ -2013,30 +2013,84 @@ export const paced = readProcedure
         roster,
         ran,
       ).filter((question) => open.has(question.id)),
+      answers: openAnswers(
+        parts[step] ?? [],
+        rows.filter((row) => row.attempt === latest.get(row.studentId)),
+      ),
+      shown: session.shown,
       release: releaseOf(content, releases),
     };
   });
+
+/**
+ * The open part's answers in words or a picture, each student's latest,
+ * for the teacher to choose one to show the class.
+ */
+function openAnswers(
+  part: LessonDocument["blocks"],
+  rows: Awaited<ReturnType<typeof responsesSince>>,
+) {
+  return checkBlocks({ version: 2, blocks: part })
+    .filter((block) => block.type === "written" || block.type === "text")
+    .map((block) => {
+      const latest = new Map<string, LessonResponse>();
+      for (const row of rows)
+        if (row.blockId === block.id)
+          latest.set(row.studentId, row.response as unknown as LessonResponse);
+      return {
+        id: block.id,
+        prompt: block.prompt,
+        answers: [...latest].flatMap(([studentId, response]) =>
+          response.type === "written" || response.type === "text"
+            ? [
+                {
+                  studentId,
+                  text: response.text,
+                  pictureId:
+                    response.type === "written"
+                      ? (response.picture?.fileId ?? null)
+                      : null,
+                },
+              ]
+            : [],
+        ),
+      };
+    });
+}
 
 /** The teacher takes the class to a part, pauses or resumes it, or shows the part's answers on the board. */
 export const pace = writeProcedure
   .input(paceSchema)
   .handler(async ({ input, context }) => {
-    const { session, content } = await pacedFor(context, input.id);
+    const { session, owner, content } = await pacedFor(context, input.id);
     if (session.endedAt)
       throw new ORPCError("CONFLICT", { message: "learning.paced_ended" });
     const step =
       input.step === undefined
         ? undefined
         : Math.min(input.step, lessonParts(content.blocks).length - 1);
+    const moved = step !== undefined && step !== session.step;
+    // An answer shown is one of the class's to a question in the lesson
+    // that answers in words or a picture.
+    if (input.shown) {
+      const { blockId, studentId } = input.shown;
+      const asked = checkBlocks(content).find((block) => block.id === blockId);
+      const roster = await audienceOf(context, owner.id, session.classId);
+      if (
+        !asked ||
+        (asked.type !== "written" && asked.type !== "text") ||
+        !roster.includes(studentId)
+      )
+        throw new ORPCError("NOT_FOUND");
+    }
     const row = await pacePaced(context.tx, {
       tenantId: context.tenantId,
       id: session.id,
       step,
       paused: input.paused,
       // A new part's answers wait to be shown until the teacher asks.
-      revealed:
-        input.revealed ??
-        (step !== undefined && step !== session.step ? false : undefined),
+      revealed: input.revealed ?? (moved ? false : undefined),
+      shown: input.shown !== undefined ? input.shown : moved ? null : undefined,
     });
     if (!row)
       throw new ORPCError("CONFLICT", { message: "learning.paced_ended" });

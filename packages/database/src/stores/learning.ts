@@ -2049,6 +2049,8 @@ export interface PacedRow {
   step: number;
   paused: boolean;
   revealed: boolean;
+  /** One student's answer the board shows the class, without their name. */
+  shown: { blockId: string; studentId: string } | null;
   endedAt: string | null;
 }
 
@@ -2061,11 +2063,14 @@ type PacedRecord = {
   step: number;
   paused: boolean;
   revealed: boolean;
+  shown_block_id: string | null;
+  shown_student_id: string | null;
   ended_at: string | null;
 };
 
 const pacedColumns = sql`id, lesson_id, class_id, started_by_user_id,
-  ${isoOf(sql`started_at`)} as started_at, step, paused, revealed, ${isoOf(sql`ended_at`)} as ended_at`;
+  ${isoOf(sql`started_at`)} as started_at, step, paused, revealed, shown_block_id, shown_student_id,
+  ${isoOf(sql`ended_at`)} as ended_at`;
 
 const pacedOf = (row: PacedRecord): PacedRow => ({
   id: row.id,
@@ -2076,6 +2081,10 @@ const pacedOf = (row: PacedRecord): PacedRow => ({
   step: row.step,
   paused: row.paused,
   revealed: row.revealed,
+  shown:
+    row.shown_block_id && row.shown_student_id
+      ? { blockId: row.shown_block_id, studentId: row.shown_student_id }
+      : null,
   endedAt: row.ended_at,
 });
 
@@ -2155,10 +2164,17 @@ export async function pace(
     step?: number;
     paused?: boolean;
     revealed?: boolean;
+    shown?: { blockId: string; studentId: string } | null;
     ended?: boolean;
   },
 ): Promise<PacedRow | null> {
   const sets = [
+    ...(input.shown === undefined
+      ? []
+      : [
+          sql`shown_block_id = ${input.shown?.blockId ?? null}::uuid`,
+          sql`shown_student_id = ${input.shown?.studentId ?? null}::uuid`,
+        ]),
     ...(input.step === undefined ? [] : [sql`step = ${input.step}`]),
     ...(input.paused === undefined ? [] : [sql`paused = ${input.paused}`]),
     ...(input.revealed === undefined

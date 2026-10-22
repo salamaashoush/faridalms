@@ -374,6 +374,9 @@ export const pacedLessons = core.table.withRLS(
     step: smallint("step").notNull().default(0),
     paused: boolean("paused").notNull().default(false),
     revealed: boolean("revealed").notNull().default(false),
+    /** One student's answer the board shows the class, without their name. */
+    shownBlockId: uuid("shown_block_id"),
+    shownStudentId: uuid("shown_student_id"),
     endedAt: instant("ended_at"),
     ...entityColumns(),
   },
@@ -396,6 +399,16 @@ export const pacedLessons = core.table.withRLS(
       [users.tenantId, users.id],
     ),
     ck("paced_lessons", "step", sql`step between 0 and 999`),
+    ck(
+      "paced_lessons",
+      "shown",
+      sql`(shown_block_id is null) = (shown_student_id is null)`,
+    ),
+    fk(
+      "paced_lessons",
+      [t.tenantId, t.shownStudentId],
+      [users.tenantId, users.id],
+    ),
     uniqueIndex("paced_lessons_running_key")
       .on(t.tenantId, t.lessonId, t.classId)
       .where(sql`status = 'active' and ended_at is null`),

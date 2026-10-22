@@ -5683,4 +5683,106 @@ describe("leading a lesson live", () => {
       ),
     ).toEqual(["open", "done"]);
   });
+
+  test("a teacher puts one student's written answer on the class board, without their name", async () => {
+    const { keeper } = await teachers();
+    const { rows } = await keeper.learning.modules({});
+    const source = rows.find((row) => row.title === TITLE);
+    if (!source) throw new Error("no module");
+    const pupil = await student();
+    const me = await pupil.identity.currentUser();
+    let classId = "";
+    for (const item of source.classes) {
+      const { roster } = await keeper.coursework.groups({ classId: item.id });
+      if (roster.some((row) => row.id === me.id)) classId = item.id;
+    }
+    const saved = await keeper.learning.saveModule({
+      id: "",
+      expectedVersion: 0,
+      title: "Bridges together",
+      summary: "",
+      classIds: [classId],
+      prerequisiteId: "",
+      sequential: false,
+    });
+    const why = {
+      id: id(),
+      type: "written" as const,
+      prompt: "Why do triangles hold bridges up?",
+      points: 1,
+      hints: [],
+      explanation: "",
+      tries: null,
+      wordLimit: null,
+    };
+    const led = await keeper.learning.saveLesson({
+      id: "",
+      moduleId: saved.id,
+      expectedVersion: 0,
+      title: "Bridges",
+      completion: "view",
+      passScore: null,
+      content: written([
+        {
+          id: id(),
+          type: "content",
+          content: plainContent("Look at a bridge."),
+        },
+        why,
+        { id: id(), type: "gate", requires: "above" },
+        { id: id(), type: "content", content: plainContent("Now arches.") },
+      ]),
+      publish: false,
+    });
+    await keeper.learning.publishModule({
+      id: saved.id,
+      expectedVersion: saved.version,
+    });
+    const started = await keeper.learning.startPaced({
+      lessonId: led.id,
+      classId,
+    });
+    await pupil.learning.respond({
+      lessonId: led.id,
+      blockId: why.id,
+      response: { type: "written", text: "They cannot bend out of shape." },
+    });
+    const view = await keeper.learning.paced({ id: started.id });
+    expect(view.answers).toEqual([
+      {
+        id: why.id,
+        prompt: why.prompt,
+        answers: [
+          {
+            studentId: me.id,
+            text: "They cannot bend out of shape.",
+            pictureId: null,
+          },
+        ],
+      },
+    ]);
+    expect(view.shown).toBeNull();
+    await keeper.learning.pace({
+      id: started.id,
+      shown: { blockId: why.id, studentId: me.id },
+    });
+    expect((await keeper.learning.paced({ id: started.id })).shown).toEqual({
+      blockId: why.id,
+      studentId: me.id,
+    });
+    // Only an answer in words of the class may go up.
+    const { id: stranger } = await keeper.identity.currentUser();
+    expect(
+      await rejection(
+        keeper.learning.pace({
+          id: started.id,
+          shown: { blockId: why.id, studentId: stranger },
+        }),
+      ),
+    ).toMatchObject({ code: "NOT_FOUND" });
+    // Taking the class on clears the board of it.
+    await keeper.learning.pace({ id: started.id, step: 1 });
+    expect((await keeper.learning.paced({ id: started.id })).shown).toBeNull();
+    await keeper.learning.endPaced({ id: started.id });
+  });
 });
