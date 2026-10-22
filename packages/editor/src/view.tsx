@@ -105,6 +105,7 @@ interface Context {
   runnable?: ComponentType<RunnableProps> | undefined;
   predicted?: boolean | undefined;
   replace?: Replace | undefined;
+  shared?: ComponentType<{ id: string }> | undefined;
 }
 
 /**
@@ -685,6 +686,11 @@ function draw(
           </p>
         </div>
       );
+    // A shared block reads as part of the page, drawn as it now is.
+    case "shared":
+      return context.shared && node.sharedId ? (
+        <context.shared key={key} id={node.sharedId} />
+      ) : null;
     case "standards":
       return (
         <div key={key} className="fe-standards">
@@ -966,6 +972,7 @@ export function ContentRenderer({
   watch,
   runnable,
   predicted,
+  shared,
 }: {
   document: ContentDocument;
   strings: ViewStrings;
@@ -987,6 +994,8 @@ export function ContentRenderer({
    * code block waiting for a prediction needs before it runs.
    */
   predicted?: boolean;
+  /** Draws a shared block as it now is; without it none shows. */
+  shared?: ComponentType<{ id: string }>;
 }) {
   const marking = marks?.length
     ? markingOf(document, marks, activeMark)
@@ -1001,6 +1010,7 @@ export function ContentRenderer({
     runnable,
     predicted,
     replace,
+    shared,
   };
   return (
     <div

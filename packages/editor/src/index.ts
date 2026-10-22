@@ -3,6 +3,7 @@ export type { EditorCollaboration, EditorProps } from "./Editor";
 export type { Provider, ProviderAwareness } from "@lexical/yjs";
 export type {
   EditorBank,
+  EditorShared,
   EditorEnvironment,
   EditorMedia,
   EditorPuzzles,

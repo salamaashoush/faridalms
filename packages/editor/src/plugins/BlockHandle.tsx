@@ -63,6 +63,7 @@ import { $narrationOf } from "../nodes/narration";
 import { textFocus, updateFromOutside } from "../outside";
 import { Tip, cx, menuItemClass, menuPopupClass, shortcutLabel } from "../ui";
 import { OPEN_NARRATION_COMMAND } from "./narration";
+import { $sharableBlock, keepShared } from "./shared";
 
 const DRAG_TYPE = "application/x-farida-block";
 const HANDLE_WIDTH = 44;
@@ -84,6 +85,8 @@ interface BlockFacts {
   last: boolean;
   /** Whether it may be read aloud, and whether it is. */
   narration: "none" | "empty" | "recorded";
+  /** Whether it may be kept to show in many documents. */
+  sharable: boolean;
 }
 
 // Blocks with nothing to read aloud.
@@ -174,7 +177,7 @@ function $setLayout(block: LexicalNode, layout: ColumnLayout) {
 export function BlockHandlePlugin({ anchor }: { anchor: HTMLElement | null }) {
   const [editor] = useLexicalComposerContext();
   const editable = useLexicalEditable();
-  const { strings, media, narration } = useEditorEnvironment();
+  const { strings, media, narration, shared } = useEditorEnvironment();
   const [hovered, setHovered] = useState<Hovered | null>(null);
   const [menu, setMenu] = useState(false);
   const [facts, setFacts] = useState<BlockFacts | null>(null);
@@ -298,13 +301,14 @@ export function BlockHandlePlugin({ anchor }: { anchor: HTMLElement | null }) {
               : $narrationOf(block)
                 ? "recorded"
                 : "empty",
+          sharable: Boolean(shared) && $sharableBlock(block),
         } satisfies BlockFacts;
       });
       if (!next) return;
       setFacts(next);
       setMenu(true);
     },
-    [editor, narration, media],
+    [editor, narration, media, shared],
   );
 
   useEffect(
@@ -693,6 +697,19 @@ export function BlockHandlePlugin({ anchor }: { anchor: HTMLElement | null }) {
                     {facts.narration === "recorded" ? (
                       <span className="size-1.5 rounded-full bg-primary" />
                     ) : null}
+                  </Menu.Item>
+                ) : null}
+                {shared && facts?.sharable ? (
+                  <Menu.Item
+                    className={menuItemClass}
+                    onClick={() => {
+                      const key = hovered?.key;
+                      setMenu(false);
+                      if (key) keepShared(editor, shared, key);
+                    }}
+                  >
+                    <Repeat2 aria-hidden />
+                    <span className="flex-1">{strings.sharedKeep}</span>
                   </Menu.Item>
                 ) : null}
                 <Menu.Item

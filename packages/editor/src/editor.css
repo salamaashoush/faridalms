@@ -1812,3 +1812,43 @@
   background-color: oklch(0.8 0.16 70);
   color: oklch(0.2 0 0);
 }
+
+/* A shared block in the editor: framed and named, so a teacher knows a
+   change to it reaches every document showing it. Readers see it as part
+   of the page. */
+.fe .fe-shared {
+  margin-block: 0.5rem;
+  border: 1px dashed color-mix(in oklab, var(--fe-accent) 45%, transparent);
+  border-radius: 0.5rem;
+  padding: 0.375rem 0.75rem 0.5rem;
+}
+.fe .fe-shared-bar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 0.25rem;
+  margin-inline: -0.25rem;
+  font-size: 0.75rem;
+  line-height: 1rem;
+  color: var(--fe-muted);
+  user-select: none;
+}
+.fe .fe-shared-label {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  margin-inline-end: auto;
+  padding-inline: 0.25rem;
+  font-weight: 500;
+}
+.fe .fe-shared-bar button {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.25rem;
+  border-radius: 0.375rem;
+  padding: 0.25rem 0.375rem;
+}
+.fe .fe-shared-bar button:hover {
+  background: var(--fe-subtle);
+  color: var(--foreground);
+}

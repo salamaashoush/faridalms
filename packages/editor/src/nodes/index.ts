@@ -32,6 +32,7 @@ import {
   QuestionSideNode,
 } from "./question";
 import { DiagramNode, EmbedNode, MediaNode } from "./rich";
+import { SharedNode } from "./shared";
 import { StandardsNode } from "./standards";
 import { $isStarterNode, StarterNode } from "./starter";
 import {
@@ -55,6 +56,7 @@ export * from "./panels";
 export * from "./pictures";
 export * from "./question";
 export * from "./rich";
+export * from "./shared";
 export * from "./standards";
 export * from "./starter";
 export * from "./toggle";
@@ -90,6 +92,7 @@ export const blockNodes = [
   GateNode,
   DrawNode,
   StandardsNode,
+  SharedNode,
   PageBreakNode,
   StarterNode,
   AiUseNode,

@@ -2,6 +2,7 @@ import type { ContentDocument } from "@faridalms/domain/content";
 import type { SpeechLanguage } from "@faridalms/domain/file";
 import type { ProjectFile, ProjectLanguage } from "@faridalms/domain/project";
 import type { Level } from "@faridalms/puzzles/level";
+import type { ComponentType } from "react";
 
 import { createContext, useContext } from "react";
 
@@ -140,6 +141,21 @@ export interface EditorStandards {
   describe: (ids: string[]) => Promise<StandardRef[]>;
 }
 
+/**
+ * Blocks kept once and shown in many documents. `View` draws one as its
+ * readers see it; `keep` offers blocks to keep and resolves to the shared
+ * block made of them, `choose` to one chosen to show here, each null when
+ * the teacher thought better of it; `edit` opens one to change wherever it
+ * shows, and `read` gives its content to make a copy of.
+ */
+export interface EditorShared {
+  View: ComponentType<{ id: string }>;
+  keep: (content: ContentDocument) => Promise<string | null>;
+  choose: () => Promise<string | null>;
+  edit: (id: string) => void;
+  read: (id: string) => Promise<ContentDocument | null>;
+}
+
 export interface EditorEnvironment {
   strings: EditorStrings;
   media?: EditorMedia;
@@ -151,6 +167,8 @@ export interface EditorEnvironment {
   bank?: EditorBank;
   /** Tags questions with the school's standards; absent where none are read. */
   standards?: EditorStandards;
+  /** Keeps blocks to show in many documents; absent where none are kept. */
+  shared?: EditorShared;
   locale: string;
   /** The document may ask questions, as a lesson or quiz does. */
   questions?: boolean;

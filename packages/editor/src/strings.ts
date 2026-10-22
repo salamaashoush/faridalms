@@ -448,6 +448,11 @@ export interface EditorStrings extends LabelEditorStrings, ChartStrings {
   questionHintAdd: string;
   questionHintRemove: (number: number) => string;
   standardsBlock: string;
+  sharedBlock: string;
+  sharedBlockHint: string;
+  sharedEdit: string;
+  sharedCopy: string;
+  sharedKeep: string;
   standardsBlockHint: string;
   standardsBlockEmpty: string;
   standardsChoose: string;

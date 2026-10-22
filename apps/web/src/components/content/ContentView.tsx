@@ -4,14 +4,28 @@ import type { ContentMark, Replace } from "@faridalms/editor/view";
 import type { ReactNode } from "react";
 
 import { ContentRenderer } from "@faridalms/editor/view";
+import { useQuery } from "@tanstack/react-query";
 
 import type { Locale } from "~/i18n/runtime";
 
 import { RunnableCode } from "~/components/coding/RunnableCode";
 import * as m from "~/i18n/messages";
 import { getLocale } from "~/i18n/runtime";
+import { sharedBlockQuery } from "~/queries/shared";
 
 import { aiUseStrings, fileStrings } from "./strings";
+
+/**
+ * A shared block as part of the page, drawn as it now is: whoever reads the
+ * document reads it, and a change to it shows the next time it is read.
+ */
+export function SharedBlock({ id }: { id: string }) {
+  const block = useQuery(sharedBlockQuery(id));
+  if (block.isPending) return <div aria-busy="true" className="min-h-12" />;
+  if (!block.data)
+    return <p className="text-sm text-muted-foreground">{m.sharedGone()}</p>;
+  return <ContentView document={block.data.content} />;
+}
 
 export function ContentView({
   document,
@@ -87,6 +101,7 @@ export function ContentView({
       watch={watch}
       runnable={runs ? RunnableCode : undefined}
       predicted={predicted}
+      shared={SharedBlock}
     />
   );
 }

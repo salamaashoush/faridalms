@@ -248,6 +248,41 @@ export const documentTemplates = core.table.withRLS(
   ],
 );
 
+/**
+ * A block kept once and shown in many documents, such as a lab's safety
+ * rules or how to hand work in: each document holds only a reference, so a
+ * change here reaches every one. Its content is the document it hosts, so
+ * its pictures and files belong to it. A teacher's own are theirs to use;
+ * the school's any teacher may.
+ */
+export const sharedBlocks = core.table.withRLS(
+  "shared_blocks",
+  {
+    ...tenantColumns(),
+    orgId: uuid("org_id").notNull(),
+    ownerUserId: uuid("owner_user_id").notNull(),
+    scope: text("scope").$type<"mine" | "school">().notNull(),
+    title: text("title").notNull(),
+    ...entityColumns(),
+  },
+  (t): PgTableExtraConfigValue[] => [
+    pk("shared_blocks", t.tenantId, t.id),
+    ...baseConstraints("shared_blocks", t, tenants),
+    fk("shared_blocks", [t.tenantId, t.orgId], [orgs.tenantId, orgs.id]),
+    fk(
+      "shared_blocks",
+      [t.tenantId, t.ownerUserId],
+      [users.tenantId, users.id],
+    ),
+    ck("shared_blocks", "scope", sql`scope in ('mine', 'school')`),
+    ck("shared_blocks", "title", sql`char_length(title) between 1 and 120`),
+    index("shared_blocks_org_idx")
+      .on(t.tenantId, t.orgId, t.scope)
+      .where(sql`status = 'active'`),
+    ...entityProfile(),
+  ],
+);
+
 export const documentVersions = core.table.withRLS(
   "document_versions",
   {

@@ -23,6 +23,7 @@ import {
   documentLinks,
   documentTemplates,
   bankQuestions,
+  sharedBlocks,
   standardFrameworks,
   standardEvidence,
   standards,
@@ -699,6 +700,13 @@ export async function completeFixture(
     kind: "choice",
     title: "Which is a noun?",
     tags: ["nouns"],
+  });
+  await tx.insert(sharedBlocks).values({
+    tenantId,
+    orgId: schoolId,
+    ownerUserId: userId,
+    scope: "school",
+    title: "Lab safety rules",
   });
   const [scale] = await tx
     .insert(gradeScales)

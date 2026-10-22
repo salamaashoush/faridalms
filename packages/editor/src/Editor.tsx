@@ -28,6 +28,7 @@ import * as v from "valibot";
 
 import type {
   EditorBank,
+  EditorShared,
   EditorMedia,
   EditorPuzzles,
   EditorStandards,
@@ -59,6 +60,7 @@ import { PastePlugin } from "./plugins/paste";
 import { PlaceholderPlugin } from "./plugins/Placeholder";
 import { QuestionGuardPlugin } from "./plugins/questions";
 import { SelectionToolbarPlugin } from "./plugins/SelectionToolbar";
+import { SharedPlugin } from "./plugins/shared";
 import { SlashMenuPlugin } from "./plugins/SlashMenu";
 import { TablePlugin } from "./plugins/Table";
 import { ToolbarPlugin } from "./plugins/Toolbar";
@@ -96,6 +98,8 @@ export interface EditorProps {
   bank?: EditorBank;
   /** The school's standards, to tag questions with. */
   standards?: EditorStandards;
+  /** Blocks kept once and shown in many documents. */
+  shared?: EditorShared;
   placeholder?: string;
   initialFocus?: boolean;
   locale?: string;
@@ -137,6 +141,7 @@ export default function Editor({
   puzzles,
   bank,
   standards,
+  shared,
   locale,
   value,
   collaboration,
@@ -176,6 +181,7 @@ export default function Editor({
       puzzles,
       bank,
       standards,
+      shared,
       locale:
         locale ??
         (typeof document === "undefined"
@@ -198,6 +204,7 @@ export default function Editor({
       puzzles,
       bank,
       standards,
+      shared,
       locale,
       questions,
       gates,
@@ -448,6 +455,7 @@ function Surface({
       <MediaPlugin onBusyChange={onUploadingChange} />
       <EmbedPlugin />
       <BankPlugin />
+      <SharedPlugin />
       <PastePlugin />
       <QuestionGuardPlugin />
       <DiagramPlugin />

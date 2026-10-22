@@ -55,6 +55,7 @@ import {
   Brackets,
   Highlighter,
   Tags,
+  Repeat2,
   Grid3x3,
   TextSearch,
   Vote,
@@ -217,6 +218,7 @@ export type BlockType =
   | "studentCopy"
   | "aiUse"
   | "bankQuestion"
+  | "sharedBlock"
   | "bankDraw"
   | "standards";
 
@@ -283,6 +285,8 @@ export interface BlockDefinition {
   draw?: boolean;
   /** Offered only where the school's standards can be read. */
   standards?: boolean;
+  /** Offered only where blocks are kept to show in many documents. */
+  shared?: boolean;
 }
 
 /** Which kinds of block a document may hold. */
@@ -298,6 +302,7 @@ export interface BlockScope {
   bank: boolean;
   draws: boolean;
   standards: boolean;
+  shared: boolean;
 }
 
 export function blockScope(environment: {
@@ -312,6 +317,7 @@ export function blockScope(environment: {
   bank?: unknown;
   draws?: boolean;
   standards?: unknown;
+  shared?: unknown;
 }): BlockScope {
   const questions = Boolean(environment.questions);
   return {
@@ -326,6 +332,7 @@ export function blockScope(environment: {
     bank: questions && Boolean(environment.bank),
     draws: questions && Boolean(environment.bank) && Boolean(environment.draws),
     standards: Boolean(environment.standards),
+    shared: Boolean(environment.shared),
   };
 }
 
@@ -340,7 +347,8 @@ export const offered = (block: BlockDefinition, scope: BlockScope) =>
   (scope.puzzles || !block.puzzle) &&
   (scope.bank || !block.bank) &&
   (scope.draws || !block.draw) &&
-  (scope.standards || !block.standards);
+  (scope.standards || !block.standards) &&
+  (scope.shared || !block.shared);
 
 export const blockDefinitions: BlockDefinition[] = [
   {
@@ -740,6 +748,23 @@ export const blockDefinitions: BlockDefinition[] = [
     hint: (s) => s.questionTypedHint,
     keywords: ["question", "typed", "answer", "short", "سؤال", "إجابة"],
     question: true,
+  },
+  {
+    type: "sharedBlock",
+    group: "layout",
+    icon: Repeat2,
+    label: (s) => s.sharedBlock,
+    hint: (s) => s.sharedBlockHint,
+    keywords: [
+      "shared",
+      "synced",
+      "reuse",
+      "snippet",
+      "مشترك",
+      "متكرر",
+      "إعادة استخدام",
+    ],
+    shared: true,
   },
   {
     type: "bankQuestion",

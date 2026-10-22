@@ -8,6 +8,7 @@ import { lazy, Suspense, useMemo, useState } from "react";
 
 import { useEditorStudio } from "~/components/coding/useEditorStudio";
 import { useEditorBank } from "~/components/content/QuestionBank";
+import { useEditorShared } from "~/components/content/SharedBlocks";
 import { useEditorPuzzles } from "~/components/puzzles/useEditorPuzzles";
 import { useEditorStandards } from "~/components/standards/editor";
 
@@ -83,6 +84,8 @@ export function ContentEditor({
   const designing = useEditorPuzzles(Boolean(questions));
   const banking = useEditorBank(Boolean(questions));
   const tagging = useEditorStandards(Boolean(questions) || standards);
+  // Teaching documents show the blocks a school keeps once for many.
+  const sharing = useEditorShared(Boolean(questions) || standards);
   const document = variant === "document";
   // Lexical needs a DOM, so the server draws the document in the editor's own
   // frame and the editor takes that frame over in the browser.
@@ -128,6 +131,7 @@ export function ContentEditor({
           puzzles={designing.puzzles}
           bank={banking.bank}
           standards={tagging}
+          shared={sharing.shared}
           placeholder={placeholder}
           initialFocus={initialFocus}
           strings={strings}
@@ -151,6 +155,7 @@ export function ContentEditor({
       {coding.dialog}
       {designing.dialog}
       {banking.dialog}
+      {sharing.dialog}
     </Suspense>
   );
 }

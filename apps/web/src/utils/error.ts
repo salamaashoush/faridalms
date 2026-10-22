@@ -605,6 +605,12 @@ export function getMessageFromError(error: unknown): string {
         return m.lrnErrCrosswordLayout();
       case "learning.wordsearch_layout":
         return m.lrnErrWordSearchLayout();
+      case "shared.not_owner":
+        return m.sharedErrNotOwner();
+      case "shared.title_needed":
+        return m.sharedErrTitle();
+      case "shared.content":
+        return m.sharedErrContent();
       case "learning.number_line":
         return m.lrnErrNumberLine();
       case "learning.number_line_answer":

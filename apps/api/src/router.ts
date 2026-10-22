@@ -30,6 +30,7 @@ import * as recordsSystem from "./systems/records";
 import * as rolloverSystem from "./systems/rollover";
 import * as schoolSystem from "./systems/school";
 import * as searchSystem from "./systems/search";
+import * as sharedSystem from "./systems/shared";
 import * as siteSystem from "./systems/site";
 import * as standardsSystem from "./systems/standards";
 import * as templatesSystem from "./systems/templates";
@@ -51,6 +52,7 @@ export const router = {
   documents: documentsSystem,
   templates: templatesSystem,
   bank: bankSystem,
+  shared: sharedSystem,
   standards: standardsSystem,
   coursework: courseworkSystem,
   exams: examsSystem,

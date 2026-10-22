@@ -436,6 +436,19 @@ Sources: [../research/course-design.md](../research/course-design.md),
    last so none moves, and closing selects the match in hand.
    Left: matches across a link's edge, and whole words only.
 3. **Reusable blocks** kept once and shown in many documents.
+   Done: a block at the top of a lesson, quiz, brief or unit plan is kept
+   from its menu as a shared block (`shared_blocks`, its content a hosted
+   document), named and kept for its teacher alone or for every teacher at
+   the school; the document then holds only which one. The slash menu
+   shows one in another document. In the editor it stands framed and
+   named, with Edit everywhere, which opens it to change where it is
+   kept, and Make a copy here; readers see it as part of the page as it
+   now is, students included, and a block taken out says so. Only its
+   teacher changes it, and it holds no question, gate or draw, which
+   belong to one document.
+   Left: shared blocks in news, announcements and the school's pages; a
+   shared block's history of changes; telling a teacher which documents
+   show one before they change it.
 4. **Footnotes and citations** for older students and universities.
 5. **Mentions** of people and documents.
 6. **Glossary terms** a reader can open in place.

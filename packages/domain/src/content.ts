@@ -102,6 +102,7 @@ const nodeTypes = [
   "math",
   "draw",
   "standards",
+  "shared",
 ] as const;
 /**
  * The questions a document can ask, each marked by the server from the
@@ -290,6 +291,8 @@ export interface ContentNode {
   questionId?: string;
   /** The tag a quiz draws its questions from the bank by. */
   bankTag?: string;
+  /** A block kept once and shown in many documents, by the shared block it shows. */
+  sharedId?: string;
   /** The school's standards a question gives evidence of, by id. */
   standards?: string[];
   /**
@@ -612,6 +615,7 @@ const nodeSchema: v.GenericSchema<ContentNode> = v.lazy(() =>
       kind: v.optional(v.picklist(questionKinds)),
       questionId: v.optional(v.pipe(v.string(), v.uuid())),
       bankTag: v.optional(v.pipe(v.string(), v.maxLength(40))),
+      sharedId: v.optional(v.pipe(v.string(), v.uuid())),
       standards: v.optional(
         v.pipe(
           v.array(v.pipe(v.string(), v.uuid())),
@@ -774,9 +778,10 @@ const blocks = new Set<string>([
   "gate",
   "starter",
   "ai-use",
+  "shared",
 ]);
-// Columns, sets of parts, questions, draws, gates, page breaks and each
-// student's copy stand only at the top of a document.
+// Columns, sets of parts, questions, draws, gates, page breaks, each
+// student's copy and shared blocks stand only at the top of a document.
 const ROOT_ONLY = new Set([
   "columns",
   "panels",
@@ -785,6 +790,7 @@ const ROOT_ONLY = new Set([
   "gate",
   "pagebreak",
   "starter",
+  "shared",
 ]);
 const nestedBlocks = new Set(
   [...blocks].filter((type) => !ROOT_ONLY.has(type)),
@@ -820,6 +826,8 @@ function validNode(node: ContentNode): boolean {
     return (
       !node.children && node.text === undefined && Array.isArray(node.targets)
     );
+  if (node.type === "shared")
+    return !node.children && node.text === undefined && Boolean(node.sharedId);
   if (node.type === "draw")
     return (
       !node.children &&
