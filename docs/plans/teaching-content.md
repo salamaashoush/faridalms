@@ -186,7 +186,11 @@ Sources: [../research/course-design.md](../research/course-design.md),
    questions and choices in quizzes and lessons, one wrong choice fewer in
    quiz questions, and days added to due dates, which a teacher's own date
    for the student overrides and which move the student's close time too.
-   Left: supervised rest breaks that pause the clock.
+   Done: supervised rest breaks, an arrangement of their own: the student
+   stops the clock, their questions hidden and nothing answered meanwhile,
+   and takes the quiz up again with its end moved on by the break; the
+   teacher sees each attempt's breaks, and a break left open an hour ends
+   the sitting.
 3. **Feedback timing** per check: at once, at the end, or when the teacher
    returns the work.
    Done: a question in a lesson for older students shows how it went at
