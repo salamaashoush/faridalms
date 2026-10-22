@@ -663,6 +663,15 @@ Scratch Text to Speech, Translate and tutorials.
    student seeing the words to practise; reading aloud in quizzes and
    young lessons; prosody on a rubric.
 5. **A file block copied for each student** to work in.
+   Done: a file put in "Each student's copy" of a brief becomes each
+   student's own the first time they save their answer, a copy in their
+   keeping rather than the teacher's file, as Google Classroom's "make a
+   copy for each student" does. Selected, a file block offers "Upload a
+   new version", which puts the version worked on in its place, caption
+   and display kept, so a student hands back their own worksheet and a
+   teacher updates a file without moving it.
+   Left: editing an office file in the browser rather than downloading
+   it; seeing at a glance which students uploaded their version.
 
 ## 11. Interoperability and owner decisions
 

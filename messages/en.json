@@ -1210,6 +1210,8 @@
   "fileAsPreview": "Pages",
   "fileCaption": "Add a description",
   "fileOptions": "File options",
+  "fileNewVersion": "Upload a new version",
+  "fileNewVersionFailed": "Upload failed. Try again",
   "fileRetryUpload": "Retry",
   "fileRemoveUpload": "Remove",
   "fileCancelUpload": "Cancel upload",

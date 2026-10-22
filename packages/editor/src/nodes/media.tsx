@@ -564,6 +564,15 @@ export class FileNode extends DecoratorBlockNode {
     this.getWritable().__display = display;
   }
 
+  /** Puts a new version of the file in its place, caption and display kept. */
+  setFile(file: { fileId: string; name: string; mime: string; bytes: number }) {
+    const writable = this.getWritable();
+    writable.__fileId = file.fileId;
+    writable.__name = file.name;
+    writable.__mime = file.mime;
+    writable.__bytes = file.bytes;
+  }
+
   decorate(_editor: LexicalEditor, _config: EditorConfig): JSX.Element {
     return (
       <FileBlock

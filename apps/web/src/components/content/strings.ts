@@ -694,6 +694,8 @@ export function editorStrings(): EditorStrings {
     fileAsPreview: m.fileAsPreview(),
     fileCaption: m.fileCaption(),
     fileOptions: m.fileOptions(),
+    fileNewVersion: m.fileNewVersion(),
+    fileNewVersionFailed: m.fileNewVersionFailed(),
     retryUpload: m.fileRetryUpload(),
     removeUpload: m.fileRemoveUpload(),
     cancelUpload: m.fileCancelUpload(),

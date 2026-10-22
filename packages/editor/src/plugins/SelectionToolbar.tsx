@@ -81,6 +81,7 @@ import {
   CodeXml,
   Download,
   ExternalLink,
+  FileUp,
   Eye,
   EyeOff,
   FastForward,
@@ -594,6 +595,12 @@ export function SelectionToolbarPlugin() {
     };
   }, [editor, followed]);
   const [fileFacts, setFileFacts] = useState<FileBarFacts | null>(null);
+  const versionInput = useRef<HTMLInputElement>(null);
+  // An upload under way, or failed, is about the file it was for.
+  const [versioning, setVersioning] = useState<{
+    key: string;
+    state: "busy" | "failed";
+  } | null>(null);
   const [question, setQuestion] = useState<QuestionBarFacts | null>(null);
   const [editing, setEditing] = useState<QuestionText>("explanation");
   const [draftText, setDraftText] = useState("");
@@ -3194,6 +3201,8 @@ export function SelectionToolbarPlugin() {
 
   if (mode === "file" && fileFacts) {
     const fileUrl = media?.url(fileFacts.fileId);
+    const versioned =
+      versioning?.key === fileFacts.key ? versioning.state : "idle";
     const pdf = fileFamily(fileFacts.name, fileFacts.mime) === "pdf";
     const action =
       "inline-flex h-8 items-center gap-1.5 rounded-md px-2 text-sm font-medium text-foreground/80 hover:bg-accent hover:text-foreground [&_svg]:size-4";
@@ -3237,6 +3246,50 @@ export function SelectionToolbarPlugin() {
                 url={fileUrl}
                 strings={strings}
                 className={`${action} [&>span]:sr-only`}
+              />
+            </>
+          ) : null}
+          {media ? (
+            <>
+              {separator}
+              {/* A worksheet copied to each student comes back as the
+                  version they worked on, in the same place. */}
+              <button
+                type="button"
+                disabled={versioned === "busy"}
+                onMouseDown={(event) => event.preventDefault()}
+                onClick={() => versionInput.current?.click()}
+                className={action}
+              >
+                <FileUp aria-hidden />
+                {versioned === "failed"
+                  ? strings.fileNewVersionFailed
+                  : strings.fileNewVersion}
+              </button>
+              <input
+                ref={versionInput}
+                type="file"
+                hidden
+                tabIndex={-1}
+                aria-hidden
+                accept={media.accept.file.join(",")}
+                onChange={(event) => {
+                  const [chosen] = Array.from(event.target.files ?? []);
+                  event.target.value = "";
+                  if (!chosen) return;
+                  const key = fileFacts.key;
+                  setVersioning({ key, state: "busy" });
+                  media
+                    .upload(chosen, "file")
+                    .then((uploaded) => {
+                      setVersioning(null);
+                      updateFromOutside(editor, () => {
+                        const node = $getNodeByKey(key);
+                        if ($isFileNode(node)) node.setFile(uploaded);
+                      });
+                    })
+                    .catch(() => setVersioning({ key, state: "failed" }));
+                }}
               />
             </>
           ) : null}

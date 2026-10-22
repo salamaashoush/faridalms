@@ -1,3 +1,4 @@
+import type { ContentNode } from "@faridalms/domain/content";
 import type { LessonResponse } from "@faridalms/domain/learning";
 
 import { plainContent } from "@faridalms/domain/content-conversion";
@@ -65,6 +66,16 @@ async function upload(
   expect(put.status).toBe(200);
   return file.id;
 }
+
+const fileNode = (fileId: string, name: string): ContentNode => ({
+  type: "file",
+  version: 1,
+  format: "",
+  fileId,
+  name,
+  mime: "text/plain",
+  bytes: 20,
+});
 
 describe("coursework for a teacher", () => {
   test("the list counts what waits for grading, what is out and what is drafted", async () => {
@@ -744,6 +755,82 @@ describe("handing in and returning work", () => {
     expect(JSON.stringify(open.submission.content)).toContain("Population");
     const record = await teacher.api.coursework.record({ id: saved.id });
     expect(JSON.stringify(record.brief)).toContain("Population");
+  });
+
+  test("a file in each student's copy becomes theirs, to hand back their own version", async () => {
+    const teacher = await arabicTeacher();
+    const student = await sessionFor("northwind", login("student"));
+    const me = await student.api.identity.currentUser();
+    const target = await classOfStudent(teacher.api, me.id);
+    const original = await upload(teacher, "document_media", "map.txt");
+    const intro = plainContent("Label the map, then hand it back.");
+    const saved = await teacher.api.coursework.save(
+      draft(target.id, "Label the Nile", {
+        brief: {
+          root: {
+            ...intro.root,
+            children: [
+              ...(intro.root.children ?? []),
+              {
+                type: "starter",
+                version: 1,
+                format: "",
+                indent: 0,
+                direction: null,
+                children: [fileNode(original, "map.txt")],
+              },
+            ],
+          },
+        },
+      }),
+    );
+    await teacher.api.coursework.publish({
+      id: saved.id,
+      expectedVersion: saved.version,
+    });
+    const open = await student.api.coursework.work({ id: saved.id });
+    if (!open.submission.content) throw new Error("no copy to start from");
+    // Saving their copy makes the file the student's own.
+    const drafted = await student.api.coursework.saveDraft({
+      assignmentId: saved.id,
+      expectedVersion: 0,
+      content: open.submission.content,
+    });
+    const kept = await student.api.coursework.work({ id: saved.id });
+    const copied = JSON.stringify(kept.submission.content);
+    expect(copied).not.toContain(original);
+    const copy = /"fileId":"([0-9a-f-]{36})"/.exec(copied)?.[1] ?? "";
+    expect(
+      (await raw("northwind", student.token, `/v1/files/${copy}/content`)).status,
+    ).toBe(200);
+    // The version they worked on goes back in its place.
+    const theirs = await upload(student, "document_media", "my-map.txt");
+    const again = await student.api.coursework.saveDraft({
+      assignmentId: saved.id,
+      expectedVersion: drafted.version,
+      content: {
+        root: {
+          ...intro.root,
+          children: [fileNode(theirs, "my-map.txt")],
+        },
+      },
+    });
+    await student.api.coursework.handIn({
+      assignmentId: saved.id,
+      expectedVersion: again.version,
+    });
+    const grading = await teacher.api.coursework.grading({
+      assignmentId: saved.id,
+      studentId: me.id,
+    });
+    expect(JSON.stringify(grading.attempts[0]?.content)).toContain(
+      "my-map.txt",
+    );
+    // The teacher's own file is untouched by any student's work.
+    expect(
+      (await raw("northwind", teacher.token, `/v1/files/${original}/content`))
+        .status,
+    ).toBe(200);
   });
 
   test("a student given more time is no longer missing, and the class keeps its date", async () => {

@@ -1273,6 +1273,8 @@
   "fileAsPreview": "صفحات",
   "fileCaption": "أضف وصفًا",
   "fileOptions": "خيارات الملف",
+  "fileNewVersion": "رفع نسخة جديدة",
+  "fileNewVersionFailed": "تعذّر الرفع. حاول مجددًا",
   "fileRetryUpload": "إعادة المحاولة",
   "fileRemoveUpload": "إزالة",
   "fileCancelUpload": "إلغاء الرفع",

@@ -575,6 +575,9 @@ export interface EditorStrings extends LabelEditorStrings, ChartStrings {
   fileAsPreview: string;
   fileCaption: string;
   fileOptions: string;
+  /** A file block's own file, replaced by a version the writer worked on. */
+  fileNewVersion: string;
+  fileNewVersionFailed: string;
   retryUpload: string;
   removeUpload: string;
   cancelUpload: string;
