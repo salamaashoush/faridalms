@@ -100,6 +100,7 @@ export interface EditorStrings extends LabelEditorStrings, ChartStrings {
   chartSeriesName: string;
   chartAddRow: string;
   chartAddSeries: string;
+  chartPasteHint: string;
   chartRemoveRow: (number: number) => string;
   chartRemoveSeries: (number: number) => string;
   chartValue: (row: string, series: string) => string;

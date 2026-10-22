@@ -580,6 +580,7 @@
   "editorChartSeriesName": "سلسلة",
   "editorChartAddRow": "إضافة صف",
   "editorChartAddSeries": "إضافة سلسلة",
+  "editorChartPasteHint": "الصق خلايا من جدول بيانات لملء الجدول.",
   "editorChartRemoveRow": "إزالة الصف {number}",
   "editorChartRemoveSeries": "إزالة السلسلة {number}",
   "editorChartValue": "{series} لـ{row}",

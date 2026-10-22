@@ -567,6 +567,7 @@
   "editorChartSeriesName": "Series",
   "editorChartAddRow": "Add a row",
   "editorChartAddSeries": "Add a series",
+  "editorChartPasteHint": "Paste cells from a spreadsheet to fill the table.",
   "editorChartRemoveRow": "Remove row {number}",
   "editorChartRemoveSeries": "Remove series {number}",
   "editorChartValue": "{series} for {row}",

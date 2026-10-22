@@ -10,7 +10,7 @@ import type {
   NodeKey,
   Spread,
 } from "lexical";
-import type { JSX } from "react";
+import type { ClipboardEvent, JSX } from "react";
 
 import {
   chartKinds,
@@ -24,6 +24,7 @@ import { useLexicalEditable } from "@lexical/react/useLexicalEditable";
 import { $getDocument, $getNodeByKey } from "lexical";
 import { Plus, X } from "lucide-react";
 
+import { gridOf, pasteIntoChart } from "../chart-paste";
 import { ChartView } from "../chart-view";
 import { useEditorEnvironment } from "../context";
 import { ownKeys, useSelectOnClick } from "./select";
@@ -95,6 +96,19 @@ function ChartEditor({
           : item,
       ),
     });
+  const pasteCells = (event: ClipboardEvent<HTMLTableElement>) => {
+    const field = event.target;
+    if (!(field instanceof HTMLInputElement) || !field.dataset.row) return;
+    const grid = gridOf(event.clipboardData.getData("text/plain"));
+    if (!grid) return;
+    event.preventDefault();
+    onChange(
+      pasteIntoChart(chart, grid, {
+        row: Number(field.dataset.row),
+        column: Number(field.dataset.column),
+      }),
+    );
+  };
   return (
     <div className="fe-chart-editor">
       <fieldset className="flex flex-wrap items-center gap-1">
@@ -147,7 +161,7 @@ function ChartEditor({
         </div>
       )}
       <div className="fe-chart-grid-edit">
-        <table>
+        <table onPaste={pasteCells}>
           <thead>
             <tr>
               <th
@@ -160,6 +174,8 @@ function ChartEditor({
                 <th key={item.key} scope="col">
                   <span className="flex items-center gap-1">
                     <input
+                      data-row={0}
+                      data-column={item.index + 1}
                       aria-label={`${strings.chartSeriesName} ${item.index + 1}`}
                       placeholder={`${strings.chartSeriesName} ${item.index + 1}`}
                       value={item.name}
@@ -205,6 +221,8 @@ function ChartEditor({
               <tr key={row.key}>
                 <th scope="row">
                   <input
+                    data-row={row.index + 1}
+                    data-column={0}
                     aria-label={`${strings.chartLabel} ${row.index + 1}`}
                     placeholder={`${strings.chartLabel} ${row.index + 1}`}
                     value={row.label}
@@ -224,6 +242,8 @@ function ChartEditor({
                 {series.map((item) => (
                   <td key={item.key}>
                     <input
+                      data-row={row.index + 1}
+                      data-column={item.index + 1}
                       type="number"
                       inputMode="decimal"
                       step="any"
@@ -312,6 +332,9 @@ function ChartEditor({
             {strings.chartAddSeries}
           </button>
         ) : null}
+        <p className="ms-auto self-center text-xs text-muted-foreground">
+          {strings.chartPasteHint}
+        </p>
       </div>
       <ChartView chart={chart} strings={strings} locale={locale} />
     </div>

@@ -487,7 +487,7 @@ Sources: [../research/course-design.md](../research/course-design.md),
 
 1. **Layout blocks**: tabs, flip cards, labelled image, steps and timeline,
    gallery, chart, before and after.
-   Done so far: tabs, steps, a timeline and flip cards are one block, a
+   Done: tabs, steps, a timeline and flip cards are one block, a
    set of titled parts (`panels`) shown four ways, switched from the block
    menu's Show as without losing a word. As written every part shows;
    Enter goes from a title to its body, from an empty last line to the
@@ -509,8 +509,15 @@ Sources: [../research/course-design.md](../research/course-design.md),
    the categories, the readout naming every series' value there as a hover
    does; the numbers sit in a table beneath, open on paper. A pie folds
    anything past six slices into Other.
-   Left: a gallery's large view stepping to the next picture; pasting a
-   chart's table from a spreadsheet.
+   A gallery's large view steps between its pictures by its buttons, the
+   arrow keys or a swipe, each the way the page reads, naming which
+   picture of how many is open and fetching the next ones ahead.
+   Cells copied from Excel, Google Sheets or LibreOffice paste into a
+   chart's table from the cell the caret is in, adding rows and series as
+   they need; a copied table with names along its top and down its side
+   places from its corner wherever it lands. Numbers read as a spreadsheet
+   in either language shows them: Arabic-Indic digits, thousands
+   separators, a decimal comma and a percent sign.
 2. **Writing tools**: text size, clear formatting, find and replace.
    Done: words take a size from small to huge in the selection bar, each a
    share of the text around it so large words in a young lesson's larger

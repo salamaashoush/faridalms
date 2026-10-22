@@ -133,6 +133,7 @@ export function editorStrings(): EditorStrings {
     chartSeriesName: m.editorChartSeriesName(),
     chartAddRow: m.editorChartAddRow(),
     chartAddSeries: m.editorChartAddSeries(),
+    chartPasteHint: m.editorChartPasteHint(),
     chartRemoveRow: (number) =>
       m.editorChartRemoveRow({ number: formatNumber(number) }),
     chartRemoveSeries: (number) =>
