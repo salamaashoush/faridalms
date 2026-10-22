@@ -1055,9 +1055,11 @@ function PollCheck({
         <p className="inline-flex items-start gap-2 text-sm leading-5 text-muted-foreground">
           <Check aria-hidden className="mt-0.5 size-4 shrink-0" />
           {m.lrnPollVoted()}
-          {mode === "practice" && !block.classResults
-            ? ` ${m.lrnPollTeacherSees()}`
-            : null}
+          {block.anonymous
+            ? ` ${m.lrnPollAnonymous()}`
+            : mode === "practice" && !block.classResults
+              ? ` ${m.lrnPollTeacherSees()}`
+              : null}
         </p>
         {mode === "practice"
           ? [...view.feedback, view.explanation ?? ""]

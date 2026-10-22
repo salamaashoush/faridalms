@@ -2036,6 +2036,13 @@ describe("polls", () => {
       prompt: "How do you feel today?",
       classResults: false,
     };
+    const secret = {
+      ...shared,
+      id: id(),
+      prompt: "Which story should we read next?",
+      classResults: false,
+      anonymous: true,
+    };
     await keeper.learning.saveLesson({
       id: "",
       moduleId: saved.id,
@@ -2043,7 +2050,7 @@ describe("polls", () => {
       title: "Stories we liked",
       completion: "view",
       passScore: null,
-      content: written([shared, kept]),
+      content: written([shared, kept, secret]),
       publish: false,
     });
     await keeper.learning.publishModule({
@@ -2127,6 +2134,29 @@ describe("polls", () => {
       false,
     ]);
     expect(asked?.firstChoices[me.id]).toEqual([fox]);
+
+    // A poll counted without names gives its teacher the counts alone.
+    await first.learning.respond({
+      lessonId,
+      blockId: secret.id,
+      response: { type: "poll", optionIds: [crow] },
+    });
+    const counted = (
+      await Promise.all(
+        source.classes.map((item) =>
+          keeper.learning.questions({ moduleId: saved.id, classId: item.id }),
+        ),
+      )
+    )
+      .flatMap((view) => view.lessons.flatMap((lesson) => lesson.questions))
+      .find(
+        (question) =>
+          question.id === secret.id && question.standings[me.id] !== "unseen",
+      );
+    expect(counted).toMatchObject({
+      firstChoices: {},
+      tally: { answered: 1, counts: { [fox]: 0, [crow]: 1 } },
+    });
   });
 });
 

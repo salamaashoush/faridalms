@@ -3822,6 +3822,34 @@ function releaseOf(
 }
 
 /**
+ * Who chose what, by student; for a poll counted without names, only how
+ * many chose each option and how many answered.
+ */
+function namedChoices(
+  block: CheckBlock,
+  choices: Record<string, string[]>,
+): {
+  firstChoices: Record<string, string[]>;
+  tally: { answered: number; counts: Record<string, number> } | null;
+} {
+  if (block.type !== "poll" || !block.anonymous)
+    return { firstChoices: choices, tally: null };
+  const votes = Object.values(choices);
+  return {
+    firstChoices: {},
+    tally: {
+      answered: votes.length,
+      counts: Object.fromEntries(
+        block.options.map((option) => [
+          option.id,
+          votes.filter((chosen) => chosen.includes(option.id)).length,
+        ]),
+      ),
+    },
+  };
+}
+
+/**
  * How a class did on a lesson's marked questions, from the rows given of
  * one attempt each: where every student stands, and for a choice, who
  * first chose which option.
@@ -3865,24 +3893,27 @@ function questionsOf(
           standingOf(states.get(studentId)?.[block.id]),
         ]),
       ),
-      firstChoices: Object.fromEntries(
-        roster.flatMap((studentId) => {
-          const answered = rows.filter(
-            (response) =>
-              response.studentId === studentId &&
-              response.blockId === block.id &&
-              response.state === "answered",
-          );
-          // An answer whose feedback waited counts as last given.
-          const first = (
-            feedbackAtOf(block) === "now"
-              ? answered.find((response) => response.try === 1)
-              : answered.at(-1)
-          )?.response;
-          const chosen = first?.optionIds;
-          return Array.isArray(chosen) ? [[studentId, chosen]] : [];
-        }),
-      ) as Record<string, string[]>,
+      ...namedChoices(
+        block,
+        Object.fromEntries(
+          roster.flatMap((studentId) => {
+            const answered = rows.filter(
+              (response) =>
+                response.studentId === studentId &&
+                response.blockId === block.id &&
+                response.state === "answered",
+            );
+            // An answer whose feedback waited counts as last given.
+            const first = (
+              feedbackAtOf(block) === "now"
+                ? answered.find((response) => response.try === 1)
+                : answered.at(-1)
+            )?.response;
+            const chosen = first?.optionIds;
+            return Array.isArray(chosen) ? [[studentId, chosen]] : [];
+          }),
+        ) as Record<string, string[]>,
+      ),
       runs: Object.fromEntries(
         ran
           .filter((count) => count.blockId === block.id)

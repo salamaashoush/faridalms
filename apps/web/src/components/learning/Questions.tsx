@@ -135,7 +135,12 @@ export function QuestionCard({
     students.filter((id) => question.standings[id] === wanted);
   const chosen = (optionId: string) =>
     students.filter((id) => question.firstChoices[id]?.includes(optionId));
-  const answered = students.filter((id) => question.firstChoices[id]).length;
+  // A poll counted without names comes as its counts alone.
+  const countOf = (optionId: string) =>
+    question.tally?.counts[optionId] ?? chosen(optionId).length;
+  const answered =
+    question.tally?.answered ??
+    students.filter((id) => question.firstChoices[id]).length;
   // A poll has no right answer, so its students have answered or not yet.
   const poll = question.kind === "poll";
   return (
@@ -178,12 +183,17 @@ export function QuestionCard({
       {question.options ? (
         <div className="grid gap-3">
           <p className="text-[13px] leading-[18px] text-muted-foreground">
-            {question.once || poll ? m.lrnLastChoices() : m.lrnFirstChoices()}
+            {question.tally
+              ? m.lrnPollNameless()
+              : question.once || poll
+                ? m.lrnLastChoices()
+                : m.lrnFirstChoices()}
           </p>
           <ul className="grid gap-3">
             {question.options.map((option) => {
               const who = chosen(option.id);
-              const share = answered ? (who.length / answered) * 100 : 0;
+              const count = countOf(option.id);
+              const share = answered ? (count / answered) * 100 : 0;
               return (
                 <li key={option.id} className="grid gap-1.5">
                   <div className="flex items-center gap-2 text-sm leading-5">
@@ -200,7 +210,7 @@ export function QuestionCard({
                       </>
                     ) : null}
                     <span className="shrink-0 text-muted-foreground tabular-nums">
-                      {formatNumber(who.length)}
+                      {formatNumber(count)}
                     </span>
                   </div>
                   <div aria-hidden className="h-1.5 rounded-full bg-muted">

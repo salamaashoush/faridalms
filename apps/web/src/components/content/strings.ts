@@ -452,6 +452,7 @@ export function editorStrings(): EditorStrings {
     questionTracing: m.editorQuestionTracing(),
     questionMemory: m.editorQuestionMemory(),
     questionBackwards: m.editorQuestionBackwards(),
+    questionAnonymous: m.editorQuestionAnonymous(),
     questionSpelling: m.editorQuestionSpelling(),
     questionSpellingHint: m.editorQuestionSpellingHint(),
     questionHotspot: m.editorQuestionHotspot(),

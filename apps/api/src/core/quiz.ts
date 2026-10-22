@@ -590,6 +590,26 @@ export function ownResponsesOf(
   );
 }
 
+/**
+ * Answers as a teacher reads them: a vote in a poll counted without names
+ * stays answered, but without what it chose.
+ */
+export function namelessVotes(
+  quiz: LessonDocument,
+  answers: readonly QuizAnswer[],
+): QuizAnswer[] {
+  const hidden = new Set(
+    quiz.blocks.flatMap((block) =>
+      block.type === "poll" && block.anonymous ? [block.id] : [],
+    ),
+  );
+  return answers.map((answer) =>
+    hidden.has(answer.blockId)
+      ? { ...answer, response: { type: "poll", optionIds: [] } }
+      : answer,
+  );
+}
+
 /** Answers by question, as the typed responses they were saved as. */
 export function responsesOf(
   answers: readonly QuizAnswer[],

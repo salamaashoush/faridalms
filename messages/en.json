@@ -758,6 +758,7 @@
   "editorQuestionShuffle": "Shuffle options",
   "editorQuestionPollSeveral": "Students may pick several",
   "editorQuestionClassResults": "Show students how their class answered",
+  "editorQuestionAnonymous": "Count votes without names, for you too",
   "editorQuestionMatchCase": "Match capital letters",
   "editorQuestionCloseEnough": "Accept small spelling slips",
   "editorQuestionTehMarbuta": "Treat ه and ة alike",
@@ -3506,6 +3507,8 @@
   "lrnPollVote": "Vote",
   "lrnPollVoted": "Your answer is in.",
   "lrnPollTeacherSees": "Your teacher sees how the class answered.",
+  "lrnPollAnonymous": "No one sees how you voted, your teacher included.",
+  "lrnPollNameless": "Votes are counted without names.",
   "lrnPollResults": "How your class answered",
   "lrnPollAnswered": [
     {

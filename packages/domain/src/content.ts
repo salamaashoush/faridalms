@@ -383,6 +383,8 @@ export interface ContentNode {
   shuffle?: boolean;
   /** Whether a poll shows a student how their class answered, once they have. */
   classResults?: boolean;
+  /** A poll whose votes no one reads by name, its teacher included. */
+  anonymous?: boolean;
   caseSensitive?: boolean;
   closeEnough?: boolean;
   tehMarbuta?: boolean;
@@ -740,6 +742,7 @@ const nodeSchema: v.GenericSchema<ContentNode> = v.lazy(() =>
       multiple: v.optional(v.boolean()),
       shuffle: v.optional(v.boolean()),
       classResults: v.optional(v.boolean()),
+      anonymous: v.optional(v.boolean()),
       caseSensitive: v.optional(v.boolean()),
       closeEnough: v.optional(v.boolean()),
       tehMarbuta: v.optional(v.boolean()),

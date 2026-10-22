@@ -251,6 +251,7 @@ import {
   keptOf,
   markedQuestions,
   publishKeptApart,
+  namelessVotes,
   ownResponsesOf,
   practiceViews,
   publishedQuiz,
@@ -1693,8 +1694,8 @@ async function graderQuiz(
   return {
     total: quizPoints(document),
     attempts: attempts.map((attempt) => {
-      const answers = byAttempt.get(attempt.number) ?? [];
       const asked = quizzes.of(attempt.number);
+      const answers = namelessVotes(asked, byAttempt.get(attempt.number) ?? []);
       const sitting = sittings.get(attempt.number);
       return {
         attemptId: attempt.id,

@@ -354,6 +354,8 @@ export interface QuestionSettings {
   shuffle: boolean;
   /** Whether a poll shows a student how their class answered, once they have. */
   classResults: boolean;
+  /** A poll whose votes no one reads by name, its teacher included. */
+  anonymous: boolean;
   caseSensitive: boolean;
   closeEnough: boolean;
   tehMarbuta: boolean;
@@ -437,6 +439,7 @@ export function defaultSettings(kind: QuestionKind): QuestionSettings {
     multiple: false,
     shuffle: kind === "choice",
     classResults: true,
+    anonymous: false,
     caseSensitive: false,
     closeEnough: false,
     tehMarbuta: true,
@@ -509,6 +512,7 @@ function questionSettings(stored: StoredSettings): QuestionSettings {
     multiple: stored.multiple ?? base.multiple,
     shuffle: stored.shuffle ?? base.shuffle,
     classResults: stored.classResults ?? base.classResults,
+    anonymous: stored.anonymous ?? false,
     caseSensitive: stored.caseSensitive ?? base.caseSensitive,
     closeEnough: stored.closeEnough ?? base.closeEnough,
     tehMarbuta: stored.tehMarbuta ?? base.tehMarbuta,
@@ -699,6 +703,7 @@ export class QuestionNode extends ElementNode {
       bank,
       line,
       classResults,
+      anonymous,
       mathForm,
       mathPlaces,
       mathUnits,
@@ -720,6 +725,7 @@ export class QuestionNode extends ElementNode {
         : {}),
       ...(settings.kind === "math" && mathUnits ? { mathUnits } : {}),
       ...(settings.kind === "poll" ? { classResults } : {}),
+      ...(settings.kind === "poll" && anonymous ? { anonymous } : {}),
       ...(recordSeconds === null ? {} : { recordSeconds }),
       ...(recordSeconds !== null && recordVideo ? { recordVideo } : {}),
       ...(recordSeconds !== null && reading ? { reading } : {}),

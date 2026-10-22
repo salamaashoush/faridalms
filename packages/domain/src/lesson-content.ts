@@ -217,6 +217,7 @@ export function questionBlock(node: ContentNode): LessonBlock | null {
           })),
         multiple: node.multiple ?? false,
         classResults: node.classResults ?? true,
+        ...(node.anonymous ? { anonymous: true } : {}),
       };
     }
     case "text":
@@ -876,6 +877,7 @@ export function questionNode(block: LessonBlock): ContentNode | null {
       ...base,
       multiple: block.multiple,
       classResults: block.classResults,
+      ...(block.anonymous ? { anonymous: true } : {}),
       children: [
         ...(base.children ?? []),
         ...block.options.map((option) => ({

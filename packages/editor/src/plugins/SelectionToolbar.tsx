@@ -121,6 +121,7 @@ import {
   TextQuote,
   Trash2,
   Underline,
+  VenetianMask,
   Unlink,
   UsersRound,
   Grid2x2,
@@ -1733,6 +1734,7 @@ export function SelectionToolbarPlugin() {
         | "tehMarbuta"
         | "memory"
         | "backwards"
+        | "anonymous"
         | "gallery"
         | "classResults",
       label: string,
@@ -2413,6 +2415,11 @@ export function SelectionToolbarPlugin() {
                 "classResults",
                 strings.questionClassResults,
                 <ChartColumnBig aria-hidden />,
+              )}
+              {toggle(
+                "anonymous",
+                strings.questionAnonymous,
+                <VenetianMask aria-hidden />,
               )}
             </>
           ) : null}

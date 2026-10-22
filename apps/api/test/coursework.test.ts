@@ -2394,6 +2394,7 @@ describe("quizzes", () => {
       ],
       multiple: false,
       classResults: true,
+      anonymous: true,
     };
     const saved = await teacher.api.coursework.save(
       draft(target.id, "Stories poll", {
@@ -2446,6 +2447,23 @@ describe("quizzes", () => {
     const results = await student.api.coursework.quizPollResults(asked);
     expect(results).toEqual({ answered: 1, counts: { [fox]: 0, [crow]: 1 } });
     expect(JSON.stringify(results)).not.toContain(me.id);
+
+    // Counted without names, the vote reads to its teacher as given, not as chosen.
+    const open = await student.api.coursework.work({ id: saved.id });
+    await student.api.coursework.handIn({
+      assignmentId: saved.id,
+      expectedVersion: open.submission.version,
+    });
+    const graded = await teacher.api.coursework.grading({
+      assignmentId: saved.id,
+      studentId: me.id,
+    });
+    const [attempt] = graded.quiz?.attempts ?? [];
+    expect(attempt?.checks[poll.id]).toMatchObject({
+      tries: 1,
+      response: { type: "poll", optionIds: [] },
+    });
+    expect(attempt?.responses).not.toHaveProperty(poll.id);
   });
 
   test("a quiz shown only when returned keeps its results back until then", async () => {

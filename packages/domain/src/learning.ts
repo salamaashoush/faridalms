@@ -375,6 +375,8 @@ export const lessonBlockSchema = v.variant("type", [
     multiple: v.boolean(),
     /** Whether a student sees how their class answered, once they have. */
     classResults: v.boolean(),
+    /** Votes counted without names, for the teacher too. */
+    anonymous: v.optional(v.boolean()),
   }),
   v.object({
     ...checkFields,

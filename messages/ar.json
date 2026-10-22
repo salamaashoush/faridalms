@@ -789,6 +789,7 @@
   "editorQuestionShuffle": "ترتيب الخيارات عشوائيًا",
   "editorQuestionPollSeveral": "يمكن للطالب اختيار أكثر من خيار",
   "editorQuestionClassResults": "اعرض على الطلاب كيف أجاب صفّهم",
+  "editorQuestionAnonymous": "احسب الأصوات دون أسماء، حتى عنك",
   "editorQuestionMatchCase": "مطابقة الحروف الكبيرة",
   "editorQuestionCloseEnough": "قبول أخطاء الإملاء البسيطة",
   "editorQuestionTehMarbuta": "معاملة ه و ة معاملة واحدة",
@@ -3668,6 +3669,8 @@
   "lrnPollVote": "صوّت",
   "lrnPollVoted": "وصلت إجابتك.",
   "lrnPollTeacherSees": "يرى معلّمك كيف أجاب الصف.",
+  "lrnPollAnonymous": "لا يرى أحد كيف صوّتّ، ولا معلّمك.",
+  "lrnPollNameless": "تُحسب الأصوات دون أسماء.",
   "lrnPollResults": "كيف أجاب صفّك",
   "lrnPollAnswered": [
     {

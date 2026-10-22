@@ -395,6 +395,37 @@ describe("a word search for older students", () => {
   });
 });
 
+describe("a poll counted without names", () => {
+  it("keeps its votes nameless through the document", () => {
+    const content = contentOfLesson({
+      version: 2,
+      blocks: [
+        {
+          id: partId(40),
+          type: "poll",
+          prompt: "Which story next?",
+          points: 0,
+          hints: [],
+          explanation: "",
+          tries: null,
+          options: [
+            { id: partId(41), text: "The fox", feedback: "" },
+            { id: partId(42), text: "The crow", feedback: "" },
+          ],
+          multiple: false,
+          classResults: false,
+          anonymous: true,
+        },
+      ],
+    });
+    if (!content) throw new Error("no document");
+    expect(content.root.children?.[0]).toMatchObject({ anonymous: true });
+    expect(lessonOfContent(content).blocks[0]).toMatchObject({
+      anonymous: true,
+    });
+  });
+});
+
 describe("pictures on a question's parts", () => {
   const cat = "0190a1b2-0000-7000-8000-0000000000c1";
   const dog = "0190a1b2-0000-7000-8000-0000000000d1";

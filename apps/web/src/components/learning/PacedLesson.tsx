@@ -443,7 +443,9 @@ function BoardQuestion({
   const answered = students.filter(
     (id) => question.standings[id] !== "unseen",
   ).length;
-  const chose = students.filter((id) => question.firstChoices[id]).length;
+  const chose =
+    question.tally?.answered ??
+    students.filter((id) => question.firstChoices[id]).length;
   return (
     <section className="grid gap-5 rounded-xl border p-6">
       <h2 dir="auto" className="text-2xl leading-9 font-semibold">
@@ -452,9 +454,11 @@ function BoardQuestion({
       {question.options ? (
         <ul className="grid gap-4">
           {question.options.map((option) => {
-            const count = students.filter((id) =>
-              question.firstChoices[id]?.includes(option.id),
-            ).length;
+            const count =
+              question.tally?.counts[option.id] ??
+              students.filter((id) =>
+                question.firstChoices[id]?.includes(option.id),
+              ).length;
             const right = revealed && option.correct;
             return (
               <li key={option.id} className="grid gap-2">
