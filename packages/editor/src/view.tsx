@@ -743,6 +743,8 @@ function draw(
             privacy={context.strings.embedPrivacy(name)}
             locale={context.locale}
             watch={watchOf(node, context)}
+            chapters={parseChapters(node.chapters ?? "")}
+            chaptersLabel={context.strings.chapters}
           />
           <div className="flex items-center justify-between gap-2">
             {node.caption ? (

@@ -41,8 +41,9 @@ import {
 } from "react";
 
 import type { RecordingTab } from "../captions";
+import type { FramedSource, PlayerClock } from "../player";
 
-import { RecordingSheet } from "../captions";
+import { FramedChaptersSheet, RecordingSheet } from "../captions";
 import { useEditorEnvironment } from "../context";
 import { StoredImage } from "../files";
 import { blockAlignClass, diagramImageClass, imageSizeClass } from "../format";
@@ -101,13 +102,51 @@ function CaptionInput({
 }
 
 /** Where the editor finds each recording block's player, so its bar can ask the time. */
-const players = new WeakMap<LexicalEditor, Map<NodeKey, HTMLMediaElement>>();
+const players = new WeakMap<LexicalEditor, Map<NodeKey, PlayerClock>>();
+
+/** Keeps a block's player where the bar finds it, or forgets it. */
+function usePlayerOf(nodeKey: NodeKey) {
+  const [editor] = useLexicalComposerContext();
+  const playing = useRef<PlayerClock | null>(null);
+  const follow = useCallback(
+    (player: PlayerClock | null) => {
+      playing.current = player;
+      const known = players.get(editor) ?? new Map<NodeKey, PlayerClock>();
+      players.set(editor, known);
+      if (player) known.set(nodeKey, player);
+      else known.delete(nodeKey);
+    },
+    [editor, nodeKey],
+  );
+  return { playing, follow };
+}
+
+/**
+ * Asks a question where a video stands: it goes after the video and any it
+ * asks earlier, so the document reads in the order the video plays.
+ */
+function $askAt(nodeKey: NodeKey, at: number) {
+  const node = $getNodeByKey(nodeKey);
+  let after = node?.getTopLevelElement() ?? node;
+  if (!after) return;
+  for (
+    let next = after.getNextSibling();
+    $isQuestionNode(next) &&
+    (next.getSettings().videoAt ?? Number.POSITIVE_INFINITY) <= at;
+    next = next.getNextSibling()
+  )
+    after = next;
+  const question = $createQuestionNode("choice");
+  question.setSettings({ videoAt: at });
+  after.insertAfter(question);
+  question.getFirstChild()?.selectStart();
+}
 
 /** The player of a recording block in this editor, once it is drawn. */
 export function playerOf(
   editor: LexicalEditor,
   key: NodeKey,
-): HTMLMediaElement | null {
+): PlayerClock | null {
   return players.get(editor)?.get(key) ?? null;
 }
 
@@ -152,38 +191,11 @@ function MediaBlock({
 }) {
   const { strings, media, locale } = useEditorEnvironment();
   const [editor] = useLexicalComposerContext();
-  const playing = useRef<HTMLVideoElement | null>(null);
-  const following = useCallback(
-    (element: (HTMLVideoElement & HTMLAudioElement) | null) => {
-      playing.current = element;
-      const known = players.get(editor) ?? new Map<NodeKey, HTMLMediaElement>();
-      players.set(editor, known);
-      if (element) known.set(nodeKey, element);
-      else known.delete(nodeKey);
-    },
-    [editor, nodeKey],
-  );
-  // A question the video stops for goes after the video and any it asks
-  // earlier, so the document reads in the order the video plays.
+  const { playing, follow: following } = usePlayerOf(nodeKey);
   const askHere = useEffectEvent(() => {
     const at = Math.floor(playing.current?.currentTime ?? 0);
     playing.current?.pause();
-    editor.update(() => {
-      const node = $getNodeByKey(nodeKey);
-      let after = node?.getTopLevelElement() ?? node;
-      if (!after) return;
-      for (
-        let next = after.getNextSibling();
-        $isQuestionNode(next) &&
-        (next.getSettings().videoAt ?? Number.POSITIVE_INFINITY) <= at;
-        next = next.getNextSibling()
-      )
-        after = next;
-      const question = $createQuestionNode("choice");
-      question.setSettings({ videoAt: at });
-      after.insertAfter(question);
-      question.getFirstChild()?.selectStart();
-    });
+    editor.update(() => $askAt(nodeKey, at));
   });
   const [sheet, setSheet] = useState<RecordingTab | null>(null);
   useEffect(
@@ -292,6 +304,7 @@ function EmbedBlock({
   embedId,
   caption,
   size,
+  chapters,
 }: {
   nodeKey: NodeKey;
   format: ElementFormatType;
@@ -299,12 +312,45 @@ function EmbedBlock({
   embedId: string;
   caption: string;
   size: ImageSize;
+  chapters: string;
 }) {
   const { strings, locale } = useEditorEnvironment();
+  const [editor] = useLexicalComposerContext();
   const editable = useLexicalEditable();
   const update = useNodeUpdate(nodeKey, $isEmbedNode);
   useSelectOnClick(nodeKey);
   const name = embedProviderNames[provider];
+  const { playing, follow } = usePlayerOf(nodeKey);
+  const [writing, setWriting] = useState(false);
+  const askHere = useEffectEvent(() => {
+    const at = Math.floor(playing.current?.currentTime ?? 0);
+    playing.current?.pause();
+    editor.update(() => $askAt(nodeKey, at));
+  });
+  useEffect(
+    () =>
+      mergeRegister(
+        editor.registerCommand(
+          OPEN_RECORDING_COMMAND,
+          (asked) => {
+            if (asked.key !== nodeKey) return false;
+            setWriting(true);
+            return true;
+          },
+          COMMAND_PRIORITY_LOW,
+        ),
+        editor.registerCommand(
+          ASK_AT_MOMENT_COMMAND,
+          (key) => {
+            if (key !== nodeKey) return false;
+            askHere();
+            return true;
+          },
+          COMMAND_PRIORITY_LOW,
+        ),
+      ),
+    [editor, nodeKey],
+  );
   return (
     <BlockWithAlignableContents
       className={blockClass}
@@ -320,7 +366,18 @@ function EmbedBlock({
           loadLabel={strings.embedLoad(name)}
           privacy={strings.embedPrivacy(name)}
           locale={locale}
+          chapters={parseChapters(chapters)}
+          element={follow}
         />
+        {editable && framed(provider) ? (
+          <FramedChaptersSheet
+            open={writing}
+            onOpenChange={setWriting}
+            source={{ provider, id: embedId }}
+            chapters={chapters}
+            onChapters={(text) => update((node) => node.setChapters(text))}
+          />
+        ) : null}
         <div className="flex items-center justify-between gap-2">
           {editable ? (
             <CaptionInput
@@ -594,15 +651,26 @@ export type SerializedEmbedNode = Spread<
     embedId: string;
     caption: string;
     size?: ImageSize;
+    chapters?: string;
+    noSkipping?: boolean;
   },
   SerializedDecoratorBlockNode
 >;
+
+/** Services whose videos the school's player plays and follows. */
+const framed = (
+  provider: EmbedProvider,
+): provider is FramedSource["provider"] =>
+  provider === "youtube" || provider === "vimeo";
 
 export class EmbedNode extends DecoratorBlockNode {
   __provider: EmbedProvider;
   __embedId: string;
   __caption: string;
   __size: ImageSize;
+  /** A YouTube or Vimeo video's chapters, as an upload's are written. */
+  __chapters = "";
+  __noSkipping = false;
 
   constructor(
     provider: EmbedProvider = "youtube",
@@ -648,6 +716,12 @@ export class EmbedNode extends DecoratorBlockNode {
     };
   }
 
+  afterCloneFrom(previous: this): void {
+    super.afterCloneFrom(previous);
+    this.__chapters = previous.__chapters;
+    this.__noSkipping = previous.__noSkipping;
+  }
+
   static importJSON(json: SerializedEmbedNode): EmbedNode {
     return new EmbedNode().updateFromJSON(json);
   }
@@ -658,6 +732,8 @@ export class EmbedNode extends DecoratorBlockNode {
     node.__embedId = json.embedId;
     node.__caption = json.caption;
     node.__size = json.size ?? "full";
+    node.__chapters = json.chapters ?? "";
+    node.__noSkipping = json.noSkipping ?? false;
     return node;
   }
 
@@ -669,6 +745,8 @@ export class EmbedNode extends DecoratorBlockNode {
       embedId: node.__embedId,
       caption: node.__caption,
       size: node.__size,
+      ...(node.__chapters.trim() ? { chapters: node.__chapters } : {}),
+      ...(node.__noSkipping ? { noSkipping: true } : {}),
     };
   }
 
@@ -703,6 +781,37 @@ export class EmbedNode extends DecoratorBlockNode {
     return writable;
   }
 
+  /** What the bar offers of a YouTube or Vimeo video; null for anything else. */
+  getRecording(): {
+    video: boolean;
+    captions: boolean;
+    chapters: boolean;
+    transcript: boolean;
+    noSkipping: boolean;
+  } | null {
+    const node = this.getLatest();
+    if (!framed(node.__provider)) return null;
+    return {
+      video: true,
+      captions: false,
+      chapters: node.__chapters.trim() !== "",
+      transcript: false,
+      noSkipping: node.__noSkipping,
+    };
+  }
+
+  setChapters(chapters: string): this {
+    const writable = this.getWritable();
+    writable.__chapters = chapters;
+    return writable;
+  }
+
+  setNoSkipping(noSkipping: boolean): this {
+    const writable = this.getWritable();
+    writable.__noSkipping = noSkipping;
+    return writable;
+  }
+
   decorate(_editor: LexicalEditor, _config: EditorConfig): JSX.Element {
     return (
       <EmbedBlock
@@ -712,6 +821,7 @@ export class EmbedNode extends DecoratorBlockNode {
         embedId={this.__embedId}
         caption={this.__caption}
         size={this.__size}
+        chapters={this.__chapters}
       />
     );
   }

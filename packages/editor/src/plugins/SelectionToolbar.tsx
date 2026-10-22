@@ -111,6 +111,7 @@ import type {
   QuestionSettings,
   QuestionOptionNode,
 } from "../nodes/question";
+import type { EmbedNode } from "../nodes/rich";
 import type { EditorColor } from "../strings";
 import type { TimedWords } from "./narration";
 
@@ -286,6 +287,8 @@ interface BlockFacts {
     chapters: boolean;
     transcript: boolean;
     noSkipping: boolean;
+    /** A YouTube or Vimeo video, whose service keeps its captions. */
+    framed: boolean;
   } | null;
   /** A picture's file, which the bar downloads or links. */
   pictureId: string | null;
@@ -431,6 +434,13 @@ function $layoutBlock(key: NodeKey | null) {
     $isEmbedNode(node)
     ? node
     : null;
+}
+
+/** A YouTube or Vimeo video's facts for the bar, or none for any other embed. */
+function framedRecording(
+  recording: ReturnType<EmbedNode["getRecording"]>,
+): BlockFacts["recording"] {
+  return recording ? { ...recording, framed: true } : null;
 }
 
 interface Facts {
@@ -623,7 +633,11 @@ export function SelectionToolbarPlugin() {
       return {
         key: node.getKey(),
         drawing: $isDiagramNode(node),
-        recording: $isMediaNode(node) ? node.getRecording() : null,
+        recording: $isMediaNode(node)
+          ? { ...node.getRecording(), framed: false }
+          : $isEmbedNode(node)
+            ? framedRecording(node.getRecording())
+            : null,
         pictureId: $isImageNode(node) ? node.getFileId() : null,
         size: node.getSize(),
         format: node.getFormat(),
@@ -1122,29 +1136,31 @@ export function SelectionToolbarPlugin() {
           ) : null}
           {layout.recording ? (
             <>
-              <ToolButton
-                label={
-                  layout.recording.captions
-                    ? strings.captionsReplace
-                    : strings.captionsNeeded
-                }
-                active={layout.recording.captions}
-                className="relative"
-                onClick={() =>
-                  editor.dispatchCommand(OPEN_RECORDING_COMMAND, {
-                    key: layout.key,
-                    tab: "captions",
-                  })
-                }
-              >
-                <Captions aria-hidden />
-                {layout.recording.captions ? null : (
-                  <span
-                    aria-hidden
-                    className="absolute end-1 top-1 size-1.5 rounded-full bg-warning"
-                  />
-                )}
-              </ToolButton>
+              {layout.recording.framed ? null : (
+                <ToolButton
+                  label={
+                    layout.recording.captions
+                      ? strings.captionsReplace
+                      : strings.captionsNeeded
+                  }
+                  active={layout.recording.captions}
+                  className="relative"
+                  onClick={() =>
+                    editor.dispatchCommand(OPEN_RECORDING_COMMAND, {
+                      key: layout.key,
+                      tab: "captions",
+                    })
+                  }
+                >
+                  <Captions aria-hidden />
+                  {layout.recording.captions ? null : (
+                    <span
+                      aria-hidden
+                      className="absolute end-1 top-1 size-1.5 rounded-full bg-warning"
+                    />
+                  )}
+                </ToolButton>
+              )}
               {layout.recording.video ? (
                 <ToolButton
                   label={
@@ -1163,22 +1179,24 @@ export function SelectionToolbarPlugin() {
                   <ListOrdered aria-hidden />
                 </ToolButton>
               ) : null}
-              <ToolButton
-                label={
-                  layout.recording.transcript
-                    ? strings.transcript
-                    : strings.transcriptAdd
-                }
-                active={layout.recording.transcript}
-                onClick={() =>
-                  editor.dispatchCommand(OPEN_RECORDING_COMMAND, {
-                    key: layout.key,
-                    tab: "transcript",
-                  })
-                }
-              >
-                <ScrollText aria-hidden />
-              </ToolButton>
+              {layout.recording.framed ? null : (
+                <ToolButton
+                  label={
+                    layout.recording.transcript
+                      ? strings.transcript
+                      : strings.transcriptAdd
+                  }
+                  active={layout.recording.transcript}
+                  onClick={() =>
+                    editor.dispatchCommand(OPEN_RECORDING_COMMAND, {
+                      key: layout.key,
+                      tab: "transcript",
+                    })
+                  }
+                >
+                  <ScrollText aria-hidden />
+                </ToolButton>
+              )}
               {questions ? (
                 <>
                   {separator}
@@ -1190,6 +1208,8 @@ export function SelectionToolbarPlugin() {
                         const node = $getNodeByKey(layout.key);
                         if ($isMediaNode(node))
                           node.setNoSkipping(!node.getRecording().noSkipping);
+                        if ($isEmbedNode(node))
+                          node.setNoSkipping(!node.getRecording()?.noSkipping);
                       })
                     }
                   >

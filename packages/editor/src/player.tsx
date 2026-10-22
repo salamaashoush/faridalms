@@ -1094,11 +1094,22 @@ export interface FramedSource {
 }
 
 /**
+ * What the editor asks of any player, a video element or a service's: where
+ * it stands, and to stop there.
+ */
+export interface PlayerClock extends EventTarget {
+  currentTime: number;
+  readonly paused: boolean;
+  pause: () => void;
+}
+
+/**
  * A YouTube or Vimeo video played through the school's own controls, which
  * sit under the service's frame rather than over it: YouTube allows nothing
  * drawn over its player, so neither service's frame is covered. The
  * service's own controls stay hidden; its privacy-minded address is used,
- * and it plays as it loads, since loading it was the student's choice.
+ * and it plays as it loads unless told not to, since loading it was the
+ * reader's choice.
  */
 export function FramedVideo({
   source,
@@ -1106,6 +1117,8 @@ export function FramedVideo({
   watch,
   chapters = NO_CHAPTERS,
   label,
+  element,
+  autoplay = true,
 }: {
   source: FramedSource;
   locale: string;
@@ -1113,6 +1126,9 @@ export function FramedVideo({
   chapters?: readonly Chapter[] | undefined;
   /** Names the chapter list beside the video. */
   label?: string | undefined;
+  /** Hands the service's player to whoever needs its time. */
+  element?: ((clock: PlayerClock | null) => void) | undefined;
+  autoplay?: boolean;
 }) {
   const dir = pageDirection(locale);
   return (
@@ -1124,7 +1140,8 @@ export function FramedVideo({
               {source.provider === "youtube" ? (
                 <YouTubeVideo
                   src={`https://www.youtube-nocookie.com/embed/${source.id}`}
-                  autoplay
+                  mediaRef={element}
+                  autoplay={autoplay}
                   playsInline
                 />
               ) : (
@@ -1133,7 +1150,8 @@ export function FramedVideo({
                     src: `https://player.vimeo.com/video/${source.id}`,
                     engine: { vimeo: { dnt: true } },
                   }}
-                  autoplay
+                  mediaRef={element}
+                  autoplay={autoplay}
                   playsInline
                 />
               )}

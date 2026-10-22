@@ -10,7 +10,12 @@ import {
 import { Play } from "lucide-react";
 import { useEffect, useState } from "react";
 
-import type { MediaWatch, PlayerCaptions, TranscriptStrings } from "./player";
+import type {
+  MediaWatch,
+  PlayerCaptions,
+  PlayerClock,
+  TranscriptStrings,
+} from "./player";
 
 import {
   AudioBar,
@@ -197,6 +202,7 @@ export function EmbedFrame({
   watch,
   chapters,
   chaptersLabel,
+  element,
 }: {
   provider: EmbedProvider;
   embedId: string;
@@ -206,6 +212,7 @@ export function EmbedFrame({
   watch?: MediaWatch | undefined;
   chapters?: readonly Chapter[] | undefined;
   chaptersLabel?: string | undefined;
+  element?: ((clock: PlayerClock | null) => void) | undefined;
 }) {
   const [loaded, setLoaded] = useState(false);
   const name = embedProviderNames[provider];
@@ -217,6 +224,7 @@ export function EmbedFrame({
         watch={watch}
         chapters={chapters}
         label={chaptersLabel}
+        element={element}
       />
     );
   return (

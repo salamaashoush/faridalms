@@ -22,10 +22,12 @@ import {
 import { useCallback, useEffect, useRef, useState } from "react";
 
 import type { CaptionDraftStatus } from "./context";
+import type { FramedSource, PlayerClock } from "./player";
 
 import { useEditorEnvironment } from "./context";
 import { mediaClock } from "./format";
 import { MediaPlayer } from "./media-view";
+import { FramedVideo } from "./player";
 
 /** The parts of a recording a teacher writes beside it. */
 export type RecordingTab = "captions" | "chapters" | "transcript";
@@ -107,6 +109,91 @@ export function RecordingSheet({
         </Dialog.Popup>
       </Dialog.Portal>
     </Dialog.Root>
+  );
+}
+
+/**
+ * A YouTube or Vimeo video's chapters, written beside the video playing
+ * through the school's player; the service keeps its own captions.
+ */
+export function FramedChaptersSheet({
+  open,
+  onOpenChange,
+  source,
+  chapters,
+  onChapters,
+}: {
+  open: boolean;
+  onOpenChange: (open: boolean) => void;
+  source: FramedSource;
+  chapters: string;
+  onChapters: (text: string) => void;
+}) {
+  return (
+    <Dialog.Root open={open} onOpenChange={onOpenChange}>
+      <Dialog.Portal>
+        <Dialog.Backdrop className="fixed inset-0 z-50 bg-black/10 transition-opacity duration-150 data-ending-style:opacity-0 data-starting-style:opacity-0 supports-backdrop-filter:backdrop-blur-xs" />
+        <Dialog.Popup className="fixed inset-y-0 end-0 z-50 flex w-full flex-col bg-background shadow-2xl outline-none sm:max-w-[520px] sm:border-s">
+          {open ? (
+            <FramedChapters
+              source={source}
+              chapters={chapters}
+              onChapters={onChapters}
+              onDone={() => onOpenChange(false)}
+            />
+          ) : null}
+        </Dialog.Popup>
+      </Dialog.Portal>
+    </Dialog.Root>
+  );
+}
+
+function FramedChapters({
+  source,
+  chapters,
+  onChapters,
+  onDone,
+}: {
+  source: FramedSource;
+  chapters: string;
+  onChapters: (text: string) => void;
+  onDone: () => void;
+}) {
+  const { strings, locale } = useEditorEnvironment();
+  const [player, setPlayer] = useState<PlayerClock | null>(null);
+  const [text, setText] = useState(chapters);
+  return (
+    <>
+      <div className="flex min-h-14 items-center gap-3 border-b px-4">
+        <Dialog.Title className="min-w-0 flex-1 truncate text-base font-semibold">
+          {strings.chapters}
+        </Dialog.Title>
+        <Dialog.Close
+          aria-label={strings.captionsClose}
+          className="inline-flex size-9 items-center justify-center rounded-md hover:bg-accent [&_svg]:size-4"
+        >
+          <X aria-hidden />
+        </Dialog.Close>
+      </div>
+      <div className="border-b p-4">
+        <FramedVideo
+          source={source}
+          locale={locale}
+          chapters={parseChapters(text)}
+          element={setPlayer}
+          autoplay={false}
+        />
+      </div>
+      <ChaptersPanel
+        player={player}
+        text={text}
+        onText={(next) => {
+          setText(next);
+          onChapters(next);
+        }}
+        onDone={onDone}
+      />
+    </>
   );
 }
 
@@ -248,7 +335,7 @@ function Sheet({
 }
 
 /** The second the sheet's player stands at, kept up to date as it plays. */
-function usePlayerSecond(player: Player | null) {
+function usePlayerSecond(player: PlayerClock | null) {
   const [second, setSecond] = useState(0);
   useEffect(() => {
     if (!player) return undefined;
@@ -273,7 +360,7 @@ function ChaptersPanel({
   onText,
   onDone,
 }: {
-  player: Player | null;
+  player: PlayerClock | null;
   text: string;
   onText: (text: string) => void;
   onDone: () => void;
