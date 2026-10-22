@@ -2065,6 +2065,7 @@ async function seedLearning(
       sequential: true,
       prerequisiteId: null,
       prerequisiteScore: null,
+      practiceBands: [],
     });
     await setModuleClasses(tx, {
       tenantId,

@@ -119,7 +119,9 @@ describe("learning a module", () => {
     let lessons = outline.lessons;
     if (reading.state !== "done") {
       expect(check.state).toBe("locked");
-      await api.learning.playLesson({ id: reading.id });
+      // Opening the reading finishes it, and so leads on to the next lesson.
+      const read = await api.learning.playLesson({ id: reading.id });
+      expect(read.next).toBe(check.id);
       lessons = (await api.learning.play({ id: module.id })).lessons;
     }
     expect(lessons[1]?.state).toBe("open");
@@ -4177,6 +4179,10 @@ describe("mixed review", () => {
       classIds: source.classes.map((item) => item.id),
       prerequisiteId: "",
       sequential: false,
+      practiceBands: [
+        { id: id(), from: 0, text: "Look at the colours lesson again." },
+        { id: id(), from: 75, text: "You know your colours." },
+      ],
     });
     const ask = (prompt: string) => {
       const right = id();
@@ -4257,6 +4263,7 @@ describe("mixed review", () => {
 
     const set = await pupil.learning.practiceSet({ moduleId: saved.id });
     expect(set).toMatchObject({ enough: true, young: false, sounds: true });
+    expect(set.bands.map((band) => band.from)).toEqual([0, 75]);
     expect(set.items).toHaveLength(4);
     expect(set.items[0]).toMatchObject({
       missed: true,

@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 
+import { openAsStudent, startLesson } from "./fixtures/lessons";
 import {
   ACCOUNTS,
   PASSWORD,
@@ -152,4 +153,99 @@ test("a teacher builds a module, a student answers its lesson, and the teacher m
     .getByRole("tabpanel")
     .getByRole("row", { name: /Yasmin Sabry/ });
   await expect(row.getByText("1 of 1 done")).toBeVisible();
+});
+
+test("a student reviews a module's finished lessons together and reads the message for how it went", async ({
+  browser,
+  page,
+}) => {
+  // Two lessons written, a module set up and a review taken run past the
+  // default budget.
+  test.slow();
+  const title = `Colours ${crypto.randomUUID().slice(0, 6)}`;
+  const recordUrl = await startLesson(page, title, "Reds");
+  /** A question with its right answer first, and the caret left below it. */
+  const choice = async (prompt: string, right: string, wrong: string) => {
+    const before = await page.locator("[data-question-option]").count();
+    await page.keyboard.type("/choice");
+    await page.keyboard.press("Enter");
+    await page.keyboard.type(prompt);
+    await page.keyboard.press("Enter");
+    await page.keyboard.type(right);
+    await page.keyboard.press("Enter");
+    await page.keyboard.type(wrong);
+    await page
+      .locator("[data-question-option]")
+      .nth(before)
+      .click({ position: { x: 12, y: 14 } });
+    await page
+      .locator("[data-question-option]")
+      .nth(before + 1)
+      .click();
+    await page.keyboard.press("End");
+    await page.keyboard.press("Enter");
+    await page.keyboard.press("Enter");
+  };
+  await choice("Which is red?", "A tomato", "The sky");
+  await choice("Which is red too?", "A cherry", "Grass");
+  await expect(page.getByText("Saved", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Back" }).click();
+  await expect(page).toHaveURL(recordUrl);
+  await page.getByRole("link", { name: "Add lesson" }).click();
+  await untilHydrated(page);
+  await page.getByRole("textbox", { name: "Lesson title" }).fill("Blues");
+  await page.locator("#lesson-body").click();
+  await choice("Which is blue?", "The sea", "A lemon");
+  await expect(page.getByText("Saved", { exact: true })).toBeVisible();
+  await page.getByRole("button", { name: "Back" }).click();
+  await expect(page).toHaveURL(recordUrl);
+
+  // What a student reads after a mixed review is set on the module.
+  await page.getByRole("button", { name: "Edit module" }).click();
+  await untilHydrated(page);
+  const review = page.getByRole("group", { name: "Message by score" });
+  await review.getByRole("button", { name: "Add a message" }).click();
+  await review
+    .getByRole("textbox", { name: "Message from 80%" })
+    .fill("You know your colours.");
+  await review.getByRole("button", { name: "Add a message" }).click();
+  await review
+    .getByRole("textbox", { name: "Message from 0%" })
+    .fill("Look at the colours again.");
+  await page.getByRole("button", { name: "Save", exact: true }).click();
+  await expect(page).toHaveURL(recordUrl);
+  await page.getByRole("button", { name: "More actions" }).click();
+  await page.getByRole("menuitem", { name: "Open to students" }).click();
+  await expect(page.getByText("Module open to students")).toBeVisible();
+
+  // Opening each lesson finishes it, and two finished open the review.
+  const context = await browser.newContext();
+  const student = await context.newPage();
+  await openAsStudent(student, title, "Reds");
+  await student.getByRole("link", { name: "Next lesson" }).click();
+  await expect(
+    student.getByRole("heading", { level: 1, name: "Blues" }),
+  ).toBeVisible();
+  await student.goto("/me/modules");
+  await untilHydrated(student);
+  await student.getByRole("link", { name: title }).click();
+  await student.getByRole("link", { name: "Start a review" }).click();
+  await expect(
+    student.getByRole("heading", { level: 1, name: "Mixed review" }),
+  ).toBeVisible();
+  for (const [prompt, right] of [
+    ["Which is red?", "A tomato"],
+    ["Which is red too?", "A cherry"],
+    ["Which is blue?", "The sea"],
+  ] as const) {
+    const asked = student.locator("form").filter({
+      has: student.getByRole("group", { name: prompt, exact: true }),
+    });
+    await asked.getByRole("radio", { name: right }).click();
+    await asked.getByRole("button", { name: "Check answer" }).click();
+    await expect(asked.locator("output").first()).toContainText("Right");
+  }
+  await expect(student.getByText("Right the first time: 3 of 3")).toBeVisible();
+  await expect(student.getByText("You know your colours.")).toBeVisible();
+  await context.close();
 });

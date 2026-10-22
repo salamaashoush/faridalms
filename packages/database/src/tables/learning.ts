@@ -68,6 +68,11 @@ export const learningModules = core.table.withRLS(
     prerequisiteModuleId: uuid("prerequisite_module_id"),
     /** The mean score, in percent, of the prerequisite's scored lessons a student needs. */
     prerequisiteScore: smallint("prerequisite_score"),
+    /** What a student is told after a mixed review of the module, by the share right first time. */
+    practiceBands: jsonb("practice_bands")
+      .$type<{ id: string; from: number; text: string }[]>()
+      .notNull()
+      .default([]),
     authorUserId: uuid("author_user_id").notNull(),
     ...entityColumns(),
   },
@@ -111,6 +116,11 @@ export const learningModules = core.table.withRLS(
       "learning_modules",
       "prerequisite_score",
       sql`prerequisite_score is null or (prerequisite_module_id is not null and prerequisite_score between 1 and 100)`,
+    ),
+    ck(
+      "learning_modules",
+      "practice_bands",
+      sql`jsonb_typeof(practice_bands) = 'array' and jsonb_array_length(practice_bands) <= 6`,
     ),
     index("learning_modules_year_idx")
       .on(t.tenantId, t.orgId, t.schoolYearId)

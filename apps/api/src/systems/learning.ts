@@ -798,6 +798,7 @@ export const saveModule = writeProcedure
       sequential: input.sequential,
       prerequisiteId,
       prerequisiteScore: prerequisiteId ? input.prerequisiteScore : null,
+      practiceBands: input.practiceBands,
     };
     let moduleId = input.id;
     let version: number;
@@ -1017,6 +1018,7 @@ export const duplicateModule = writeProcedure
       sequential: row.sequential,
       prerequisiteId: null,
       prerequisiteScore: null,
+      practiceBands: row.practiceBands,
     });
     await setModuleClasses(context.tx, {
       tenantId: context.tenantId,
@@ -2175,6 +2177,8 @@ export const practiceSet = readProcedure
     const lessonOf = new Map(lessons.map((item) => [item.id, item]));
     return {
       module: { id: row.id, title: row.title },
+      /** What the student is told at the end, by the share they got right first time. */
+      bands: row.practiceBands,
       young: lessons.length > 0 && lessons.every((item) => item.young),
       readAlong: lessons.every((item) => item.readAlong),
       sounds: !quiet,
@@ -2342,6 +2346,8 @@ async function playable(context: UnitContext, lessonId: string) {
   return {
     row,
     owner,
+    lessons,
+    locked,
     states,
     studentId,
     own,
@@ -2503,7 +2509,22 @@ export const playLesson = writeProcedure
       row.completion === "view"
         ? (await settle(context, played)).completed
         : Boolean(own?.completedAt);
-    const index = states.findIndex((item) => item.id === row.id);
+    // Finished by this opening, the lesson opens the next in a module taken
+    // in order, which the outline read before it could not know.
+    const outlined =
+      completed && !own?.completedAt
+        ? outline(
+            owner,
+            played.lessons,
+            await progressIn(context.tx, {
+              tenantId: context.tenantId,
+              lessonIds: played.lessons.map((item) => item.id),
+              studentIds: [played.studentId],
+            }),
+            played.locked,
+          )
+        : states;
+    const index = outlined.findIndex((item) => item.id === row.id);
     return {
       ...row,
       module: { id: owner.id, title: owner.title },
@@ -2539,13 +2560,13 @@ export const playLesson = writeProcedure
       watches: await watchedIn(context, played),
       codes: await ownCode(context, played),
       projects: await ownProjects(context, played),
-      previous: states[index - 1]?.id ?? null,
+      previous: outlined[index - 1]?.id ?? null,
       next:
-        states[index + 1] && states[index + 1]?.state !== "locked"
-          ? (states[index + 1]?.id ?? null)
+        outlined[index + 1] && outlined[index + 1]?.state !== "locked"
+          ? (outlined[index + 1]?.id ?? null)
           : null,
       index,
-      total: states.length,
+      total: outlined.length,
       paced: played.paced,
       sounds: !(await quietLessons(context.tx, {
         tenantId: context.tenantId,

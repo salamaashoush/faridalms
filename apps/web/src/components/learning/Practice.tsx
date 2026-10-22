@@ -2,6 +2,7 @@ import type { CheckView } from "@faridalms/domain/learning";
 import type { PracticeAnswer } from "@faridalms/domain/practice";
 
 import { allWithoutVowelMarks } from "@faridalms/domain/arabic";
+import { bandFor } from "@faridalms/domain/learning";
 import { Button } from "@faridalms/ui/button";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { useNavigate } from "@tanstack/react-router";
@@ -138,6 +139,12 @@ export function PracticePlayer({
     const view = views[item.block.id];
     return view?.correct && view.tries === 1 && view.asked === 0;
   }).length;
+  const band = bandFor(
+    data.bands,
+    questions.length > 0
+      ? Math.round((firstTime / questions.length) * 100)
+      : null,
+  );
   return (
     <article className="mx-auto grid w-full max-w-3xl gap-6">
       <div>
@@ -175,6 +182,11 @@ export function PracticePlayer({
                 total: formatNumber(questions.length),
               })}
             </p>
+            {band ? (
+              <p dir="auto" className="text-sm leading-5">
+                {band.text}
+              </p>
+            ) : null}
             <div className="flex flex-wrap gap-2">
               <Button type="button" onClick={() => onRound(round + 1)}>
                 <Shuffle aria-hidden />

@@ -3718,6 +3718,8 @@
     }
   ],
   "lrnSectionOrder": "Opening",
+  "lrnSectionPractice": "Mixed review",
+  "lrnPracticeBandsHint": "Shown when a student finishes a mixed review of this module, by the share of its questions they got right the first time. Each message covers scores from its own up to the next one.",
   "lrnSections": "Module sections",
   "lrnSequential": "Open lessons one after another",
   "lrnSequentialHint": "Each lesson opens when the student finishes the one before.",

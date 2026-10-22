@@ -1,0 +1,2 @@
+ALTER TABLE "core"."learning_modules" ADD COLUMN "practice_bands" jsonb DEFAULT '[]' NOT NULL;--> statement-breakpoint
+ALTER TABLE "core"."learning_modules" ADD CONSTRAINT "learning_modules_practice_bands_check" CHECK (jsonb_typeof(practice_bands) = 'array' and jsonb_array_length(practice_bands) <= 6);

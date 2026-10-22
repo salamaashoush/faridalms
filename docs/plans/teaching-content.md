@@ -276,8 +276,10 @@ Sources: [../research/course-design.md](../research/course-design.md),
    `assignments.quiz_bands`), written in the lesson's details or the quiz
    settings. A student who finishes the lesson reads the message for
    their score under it, and a quiz attempt's results open with theirs;
-   none shows while the score is kept back.
-   Left: messages for a module's mixed practice set.
+   none shows while the score is kept back. A module takes its own
+   messages for its mixed review (`learning_modules.practice_bands`),
+   written in the module's settings and read at the end of a review by the
+   share of its questions right the first time.
 9. **Suggested checks** made from a document, held as unreviewed until a
    teacher accepts each, so publishing waits for that review.
    Done: Questions from bold words, in the editor's tools, makes each

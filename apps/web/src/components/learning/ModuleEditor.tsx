@@ -1,3 +1,5 @@
+import type { FeedbackBand } from "@faridalms/domain/learning";
+
 import { Textarea } from "@faridalms/ui/textarea";
 import {
   useMutation,
@@ -23,6 +25,8 @@ import { learningOptionsQuery } from "~/queries/learning";
 import { saveModule } from "~/server/learning";
 import { getMessageFromError } from "~/utils/error";
 
+import { FeedbackBands, keptBands } from "./FeedbackBands";
+
 type Existing = Awaited<
   ReturnType<NonNullable<ReturnType<typeof moduleRecordQuery>["queryFn"]>>
 >;
@@ -41,6 +45,7 @@ interface Draft {
   sequential: boolean;
   /** The classes taken only by chosen groups and students, by class. */
   audiences: Record<string, Chosen>;
+  practiceBands: FeedbackBand[];
 }
 
 /** Who in one class takes the module: everyone, or the groups and students chosen. */
@@ -145,6 +150,7 @@ export function ModuleEditor({
       ? String(existing.prerequisiteScore)
       : "",
     sequential: existing?.sequential ?? true,
+    practiceBands: existing?.practiceBands ?? [],
     audiences: Object.fromEntries(
       (existing?.audiences ?? []).map((row) => [
         row.classId,
@@ -171,6 +177,7 @@ export function ModuleEditor({
             draft.prerequisiteId && draft.prerequisiteScore.trim()
               ? Number(draft.prerequisiteScore)
               : null,
+          practiceBands: keptBands(draft.practiceBands),
           audiences: draft.classIds.flatMap((id) => {
             const chosen = draft.audiences[id];
             return chosen ? [{ classId: id, ...chosen }] : [];
@@ -329,6 +336,13 @@ export function ModuleEditor({
             }
           />
         ) : null}
+      </FormSection>
+      <FormSection title={m.lrnSectionPractice()}>
+        <FeedbackBands
+          bands={draft.practiceBands}
+          onChange={(bands) => set("practiceBands", bands)}
+          hint={m.lrnPracticeBandsHint()}
+        />
       </FormSection>
     </RecordForm>
   );

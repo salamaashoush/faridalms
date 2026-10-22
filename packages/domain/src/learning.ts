@@ -3005,6 +3005,26 @@ export const paceSchema = v.object({
   revealed: v.optional(v.boolean()),
 });
 
+/** Messages a scored lesson or quiz may give by score, as Moodle's overall feedback does. */
+export const MAX_FEEDBACK_BANDS = 6;
+
+/** A message for students scoring at least `from` percent, below the next band up. */
+export const feedbackBandSchema = v.object({
+  id,
+  from: v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(100)),
+  text: requiredText(500),
+});
+export type FeedbackBand = v.InferOutput<typeof feedbackBandSchema>;
+
+export const feedbackBandsSchema = v.pipe(
+  v.array(feedbackBandSchema),
+  v.maxLength(MAX_FEEDBACK_BANDS),
+  v.check(
+    (bands) => new Set(bands.map((band) => band.from)).size === bands.length,
+    "learning.band_twice",
+  ),
+);
+
 export const saveModuleSchema = v.object({
   id: optionalId,
   expectedVersion: version(0),
@@ -3019,6 +3039,8 @@ export const saveModuleSchema = v.object({
   /** The mean score in the prerequisite a student needs, or none. */
   prerequisiteScore: v.optional(v.nullable(percentSchema), null),
   sequential: v.boolean(),
+  /** What a student is told after a mixed review of the module, by the share right first time. */
+  practiceBands: v.optional(feedbackBandsSchema, []),
   /**
    * The classes taken only by some of their groups and students; any class
    * not listed, or listed with none chosen, takes the module whole.
@@ -3068,26 +3090,6 @@ export const duplicateModuleSchema = v.object({
     v.maxLength(MAX_MODULE_CLASSES),
   ),
 });
-
-/** Messages a scored lesson or quiz may give by score, as Moodle's overall feedback does. */
-export const MAX_FEEDBACK_BANDS = 6;
-
-/** A message for students scoring at least `from` percent, below the next band up. */
-export const feedbackBandSchema = v.object({
-  id,
-  from: v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(100)),
-  text: requiredText(500),
-});
-export type FeedbackBand = v.InferOutput<typeof feedbackBandSchema>;
-
-export const feedbackBandsSchema = v.pipe(
-  v.array(feedbackBandSchema),
-  v.maxLength(MAX_FEEDBACK_BANDS),
-  v.check(
-    (bands) => new Set(bands.map((band) => band.from)).size === bands.length,
-    "learning.band_twice",
-  ),
-);
 
 /** The message for a score: the band starting highest at or below it. */
 export function bandFor(

@@ -39,6 +39,7 @@ export interface ModuleRow {
   prerequisiteId: string | null;
   prerequisiteScore: number | null;
   prerequisiteTitle: string | null;
+  practiceBands: FeedbackBand[];
   authorUserId: string;
   authorNameEn: string | null;
   authorNameAr: string | null;
@@ -46,7 +47,8 @@ export interface ModuleRow {
 
 const moduleColumns = sql`m.id, m.version, m.org_id, m.school_year_id, m.title, m.summary, m.state,
   ${isoOf(sql`m.publish_at`)} as publish_at, m.sequential, m.prerequisite_module_id,
-  m.prerequisite_score, p.title as prerequisite_title, m.author_user_id, u.full_name_en as author_en,
+  m.prerequisite_score, p.title as prerequisite_title, m.practice_bands, m.author_user_id,
+  u.full_name_en as author_en,
   u.full_name_ar as author_ar`;
 
 const moduleFrom = sql`core.learning_modules m
@@ -67,6 +69,7 @@ type ModuleRecord = {
   prerequisite_module_id: string | null;
   prerequisite_score: number | null;
   prerequisite_title: string | null;
+  practice_bands: FeedbackBand[];
   author_user_id: string;
   author_en: string | null;
   author_ar: string | null;
@@ -86,6 +89,7 @@ function moduleOf(row: ModuleRecord): ModuleRow {
     prerequisiteId: row.prerequisite_module_id,
     prerequisiteScore: row.prerequisite_score,
     prerequisiteTitle: row.prerequisite_title,
+    practiceBands: row.practice_bands,
     authorUserId: row.author_user_id,
     authorNameEn: row.author_en,
     authorNameAr: row.author_ar,
@@ -145,6 +149,7 @@ export interface ModuleFields {
   sequential: boolean;
   prerequisiteId: string | null;
   prerequisiteScore: number | null;
+  practiceBands: FeedbackBand[];
 }
 
 export async function insertModule(
@@ -158,10 +163,10 @@ export async function insertModule(
 ): Promise<{ id: string; version: number }> {
   const [row] = await tx.execute<{ id: string; version: number }>(sql`
     insert into core.learning_modules (tenant_id, org_id, school_year_id, title, summary,
-      sequential, prerequisite_module_id, prerequisite_score, author_user_id)
+      sequential, prerequisite_module_id, prerequisite_score, practice_bands, author_user_id)
     values (${input.tenantId}::uuid, ${input.schoolId}::uuid, ${input.yearId}::uuid, ${input.title},
       ${input.summary}, ${input.sequential}, ${input.prerequisiteId}::uuid, ${input.prerequisiteScore},
-      ${input.authorId}::uuid)
+      ${JSON.stringify(input.practiceBands)}::text::jsonb, ${input.authorId}::uuid)
     returning id, version`);
   if (!row) throw new Error("module not written");
   return row;
@@ -179,7 +184,8 @@ export async function updateModule(
     update core.learning_modules
     set title = ${input.title}, summary = ${input.summary}, sequential = ${input.sequential},
         prerequisite_module_id = ${input.prerequisiteId}::uuid,
-        prerequisite_score = ${input.prerequisiteScore}
+        prerequisite_score = ${input.prerequisiteScore},
+        practice_bands = ${JSON.stringify(input.practiceBands)}::text::jsonb
     where tenant_id = ${input.tenantId}::uuid and id = ${input.id}::uuid
       and version = ${input.expectedVersion} and status = 'active'
     returning version`);

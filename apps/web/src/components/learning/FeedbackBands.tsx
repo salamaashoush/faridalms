@@ -9,16 +9,19 @@ import { useId } from "react";
 import * as m from "~/i18n/messages";
 
 /**
- * Messages a scored lesson or quiz gives by score, each for a score from
- * its own up to the next: a few words of encouragement, or where to look
- * again, as Moodle's overall feedback does.
+ * Messages a scored lesson, quiz or mixed review gives by score, each for a
+ * score from its own up to the next: a few words of encouragement, or
+ * where to look again, as Moodle's overall feedback does.
  */
 export function FeedbackBands({
   bands,
   onChange,
+  hint = m.bandsHint(),
 }: {
   bands: FeedbackBand[];
   onChange: (bands: FeedbackBand[]) => void;
+  /** When the student reads the message, and what the score counts. */
+  hint?: string;
 }) {
   const id = useId();
   const change = (index: number, patch: Partial<FeedbackBand>) =>
@@ -34,7 +37,7 @@ export function FeedbackBands({
         id={`${id}-hint`}
         className="text-[13px] leading-[18px] text-muted-foreground"
       >
-        {m.bandsHint()}
+        {hint}
       </p>
       {bands.map((band, index) => (
         <div key={band.id} className="grid gap-1.5 rounded-md border p-2">
