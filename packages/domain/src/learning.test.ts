@@ -4,6 +4,7 @@ import { describe, expect, it } from "vitest";
 
 import type {
   ChoiceBlock,
+  CrosswordBlock,
   GapsBlock,
   HighlightBlock,
   LabellingBlock,
@@ -20,6 +21,7 @@ import type {
   TextBlock,
 } from "./learning";
 
+import { crosswordLayout, crosswordLetters, squaresOf } from "./crossword";
 import {
   answerKey,
   bandFor,
@@ -681,6 +683,96 @@ describe("polls", () => {
 /** Whether a lesson holding just this block may go to students. */
 const publishable = (block: LessonDocument["blocks"][number]) =>
   v.safeParse(lessonDocumentSchema, { version: 2, blocks: [block] }).success;
+
+describe("crosswords", () => {
+  const rivers: CrosswordBlock = {
+    ...common,
+    id: uuid(90),
+    type: "crossword",
+    prompt: "Rivers and seas.",
+    words: [
+      { id: uuid(91), answer: "river", clue: "Water flowing to the sea" },
+      { id: uuid(92), answer: "delta", clue: "Where a river fans out" },
+      { id: uuid(93), answer: "sea", clue: "Salt water" },
+    ],
+  };
+  const layout = crosswordLayout(rivers.words);
+  if (!layout) throw new Error("no layout");
+  /** Every square filled with its word's letters, but for one word's. */
+  const filled = (wrong?: string) =>
+    Object.fromEntries(
+      layout.entries.flatMap((entry) => {
+        const letters = crosswordLetters(
+          rivers.words.find((word) => word.id === entry.id)?.answer ?? "",
+        );
+        return squaresOf(entry).map((key, index) => [
+          key,
+          entry.id === wrong && index === 0 ? "Q" : (letters[index] ?? ""),
+        ]);
+      }),
+    );
+
+  it("shows its grid and clues, with none of the letters", () => {
+    const [shown] = studentBlocks({ version: 2, blocks: [rivers] }, "a");
+    if (shown?.type !== "crossword") throw new Error("not a crossword");
+    expect(shown.entries).toHaveLength(3);
+    expect(shown.entries.map((entry) => entry.clue).toSorted()).toEqual(
+      rivers.words.map((word) => word.clue).toSorted(),
+    );
+    expect(JSON.stringify(shown)).not.toContain('"answer"');
+    expect(JSON.stringify(shown)).not.toMatch(/RIVER|DELTA/u);
+    expect(shown.rtl).toBe(false);
+  });
+
+  it("marks each word by its squares, whatever their case", () => {
+    const right = filled();
+    expect(
+      markResponse(rivers, {
+        type: "crossword",
+        squares: Object.fromEntries(
+          Object.entries(right).map(([key, letter]) => [
+            key,
+            letter.toLowerCase(),
+          ]),
+        ),
+      }),
+    ).toMatchObject({ fraction: 1, correct: true });
+    const sea = uuid(93);
+    expect(
+      markResponse(rivers, { type: "crossword", squares: filled(sea) }),
+    ).toMatchObject({ correct: false, parts: { [sea]: false } });
+    expect(partKey(rivers)).toMatchObject({ [sea]: "SEA" });
+  });
+
+  it("takes letters only in its own squares", () => {
+    expect(
+      responseIssue(rivers, { type: "crossword", squares: filled() }),
+    ).toBeNull();
+    expect(
+      responseIssue(rivers, { type: "crossword", squares: { "40-40": "A" } }),
+    ).toBe("learning.option");
+    const [first = ""] = Object.keys(filled());
+    expect(
+      responseIssue(rivers, { type: "crossword", squares: { [first]: "AB" } }),
+    ).toBe("learning.option");
+  });
+
+  it("needs words that cross, and keeps them through the document", () => {
+    expect(publishable(rivers)).toBe(true);
+    expect(
+      publishable({
+        ...rivers,
+        words: [
+          { id: uuid(94), answer: "cat", clue: "Pet" },
+          { id: uuid(95), answer: "dog", clue: "Pet" },
+        ],
+      }),
+    ).toBe(false);
+    const document = contentOfLesson({ version: 2, blocks: [rivers] });
+    if (!document) throw new Error("no document");
+    expect(lessonOfContent(document).blocks[0]).toEqual(rivers);
+  });
+});
 
 describe("labelling a picture", () => {
   const plant: LabellingBlock = {

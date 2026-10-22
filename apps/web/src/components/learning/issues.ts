@@ -1,5 +1,6 @@
 import type { LessonBlock } from "@faridalms/domain/learning";
 
+import { crosswordMisfits } from "@faridalms/domain/crossword";
 import {
   MAX_GAPS,
   needsCaptions,
@@ -9,7 +10,7 @@ import {
 import { solves } from "@faridalms/puzzles/run";
 
 import * as m from "~/i18n/messages";
-import { formatNumber } from "~/utils/datetime";
+import { formatList, formatNumber } from "~/utils/datetime";
 
 /** What stops a question going in front of students, in the teacher's words. */
 type Pair = Extract<LessonBlock, { type: "matching" }>["pairs"][number];
@@ -111,6 +112,23 @@ export function blockIssue(block: LessonBlock): string | null {
       return block.places.some((place) => !place.name)
         ? m.lrnHotspotNames()
         : null;
+    case "crossword": {
+      if (
+        block.words.length < 2 ||
+        block.words.some((word) => !word.answer.trim() || !word.clue.trim())
+      )
+        return m.lrnCrosswordWords();
+      const misfits = crosswordMisfits(block.words);
+      return misfits.length > 0
+        ? m.lrnCrosswordMisfits({
+            words: formatList(
+              block.words
+                .filter((word) => misfits.includes(word.id))
+                .map((word) => word.answer),
+            ),
+          })
+        : null;
+    }
     case "labelling": {
       if (!block.picture) return m.lrnLabellingPicture();
       if (block.places.length === 0) return m.lrnLabellingPlaces();

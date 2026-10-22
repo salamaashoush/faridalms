@@ -285,6 +285,7 @@ const DEFERRABLE = new Set<QuestionKind>([
   "ordering",
   "sorting",
   "labelling",
+  "crossword",
 ]);
 const CODE_LANGUAGES = ["python", "javascript", "html", "text"] as const;
 /** Languages a code exercise can be marked in. */

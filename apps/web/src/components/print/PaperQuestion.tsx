@@ -4,6 +4,12 @@ import type { ReactNode } from "react";
 
 import { mathText } from "@faridalms/domain/content";
 import {
+  crosswordLayout,
+  crosswordLetters,
+  squareKey,
+  squaresOf,
+} from "@faridalms/domain/crossword";
+import {
   isAuto,
   partKey,
   partName,
@@ -26,6 +32,8 @@ import { featureNames } from "~/components/coding/scratch-checks";
 import { NumberLineDrawing } from "~/components/learning/NumberLine";
 import { blockNames, puzzleStrings } from "~/components/puzzles/strings";
 import * as m from "~/i18n/messages";
+
+import { paperGrid } from "./paper-blocks";
 
 const LATIN = "abcdefghijklmnopqrstuvwxyz".split("");
 // Arabic multiple choice is lettered in the abjad order: أ، ب، ج، د.
@@ -294,6 +302,13 @@ export function keyOf(block: LessonBlock, rtl: boolean): string | null {
     case "labelling":
       return list(
         block.places.map((place, index) => `${index + 1} ${place.name}`),
+      );
+    case "crossword":
+      return list(
+        (crosswordLayout(block.words)?.entries ?? []).map(
+          (entry) =>
+            `${entry.number} ${crosswordLetters(block.words.find((word) => word.id === entry.id)?.answer ?? "").join("")}`,
+        ),
       );
     case "matching": {
       const letterFor = matchingLetters(block, rtl);
@@ -892,6 +907,84 @@ export function PaperQuestion({
         </div>
       ) : null;
       break;
+    case "crossword": {
+      const { layout, rtl: rtlGrid } = paperGrid(block);
+      if (!layout) break;
+      const letters = new Map<string, string>();
+      for (const entry of layout.entries) {
+        const word = crosswordLetters(
+          block.words.find((item) => item.id === entry.id)?.answer ?? "",
+        );
+        squaresOf(entry).forEach((square, index) =>
+          letters.set(square, word[index] ?? ""),
+        );
+      }
+      const starts = new Map(
+        layout.entries.map((entry) => [
+          squareKey(entry.row, entry.col),
+          entry.number,
+        ]),
+      );
+      body = (
+        <div className="grid gap-3">
+          <div
+            dir={rtlGrid ? "rtl" : "ltr"}
+            className="grid w-fit"
+            style={{
+              gridTemplateColumns: `repeat(${layout.width}, 1.6em)`,
+            }}
+          >
+            {Array.from({ length: layout.width * layout.height }, (_, at) => {
+              const square = squareKey(
+                Math.floor(at / layout.width),
+                at % layout.width,
+              );
+              const letter = letters.get(square);
+              return letter === undefined ? (
+                <span key={square} />
+              ) : (
+                <span
+                  key={square}
+                  className="relative grid size-[1.6em] place-items-center border-[0.5px] border-neutral-700"
+                >
+                  {starts.has(square) ? (
+                    <span className="absolute start-[0.1em] top-0 text-[0.5em] leading-none">
+                      {starts.get(square)}
+                    </span>
+                  ) : null}
+                  {answers ? <span className={key}>{letter}</span> : null}
+                </span>
+              );
+            })}
+          </div>
+          <div className="grid grid-cols-2 gap-x-8">
+            {[true, false].map((across) => (
+              <div key={String(across)}>
+                <p className="font-semibold">
+                  {across
+                    ? m.lrnCrosswordAcross({}, { locale })
+                    : m.lrnCrosswordDown({}, { locale })}
+                </p>
+                <ol>
+                  {layout.entries
+                    .filter((entry) => entry.across === across)
+                    .map((entry) => (
+                      <li key={entry.id} className="flex gap-1.5">
+                        <span className="font-semibold">{entry.number}.</span>
+                        <span dir="auto">
+                          {block.words.find((word) => word.id === entry.id)
+                            ?.clue ?? ""}
+                        </span>
+                      </li>
+                    ))}
+                </ol>
+              </div>
+            ))}
+          </div>
+        </div>
+      );
+      break;
+    }
     case "labelling": {
       const labels = shuffled(
         [...block.places.map((place) => place.name), ...block.extras].filter(

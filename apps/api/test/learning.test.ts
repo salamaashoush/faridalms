@@ -1906,6 +1906,90 @@ describe("labelled pictures", () => {
   });
 });
 
+describe("crosswords", () => {
+  test("a student fills a crossword's squares and is marked word by word", async () => {
+    const { keeper } = await teachers();
+    const { rows } = await keeper.learning.modules({});
+    const source = rows.find((row) => row.title === TITLE);
+    if (!source) throw new Error("no module");
+    const saved = await keeper.learning.saveModule({
+      id: "",
+      expectedVersion: 0,
+      title: "Crosswords",
+      summary: "",
+      classIds: source.classes.map((item) => item.id),
+      prerequisiteId: "",
+      sequential: false,
+    });
+    const asked = {
+      id: id(),
+      type: "crossword" as const,
+      prompt: "Rivers and seas.",
+      points: 3,
+      hints: [],
+      explanation: "",
+      tries: null,
+      words: [
+        { id: id(), answer: "river", clue: "Water flowing to the sea" },
+        { id: id(), answer: "delta", clue: "Where a river fans out" },
+        { id: id(), answer: "sea", clue: "Salt water" },
+      ],
+    };
+    await keeper.learning.saveLesson({
+      id: "",
+      moduleId: saved.id,
+      expectedVersion: 0,
+      title: "Water words",
+      completion: "view",
+      passScore: null,
+      content: written([asked]),
+      publish: false,
+    });
+    await keeper.learning.publishModule({
+      id: saved.id,
+      expectedVersion: saved.version,
+    });
+
+    const pupil = await student();
+    const outline = await pupil.learning.play({ id: saved.id });
+    const lessonId = outline.lessons[0]?.id ?? "";
+    const shown = blockOf(
+      await pupil.learning.playLesson({ id: lessonId }),
+      "crossword",
+    );
+    expect(shown.entries).toHaveLength(3);
+    // The grid comes laid out; its words' letters stay on the server.
+    const letters = new Map<string, string>(
+      asked.words.map((word) => [word.id, word.answer.toUpperCase()]),
+    );
+    const squares = Object.fromEntries(
+      shown.entries.flatMap((entry) =>
+        Array.from({ length: entry.length }, (_, index) => [
+          entry.across
+            ? `${entry.row}-${entry.col + index}`
+            : `${entry.row + index}-${entry.col}`,
+          letters.get(entry.id)?.[index] ?? "",
+        ]),
+      ),
+    );
+    expect(
+      await rejection(
+        pupil.learning.respond({
+          lessonId,
+          blockId: asked.id,
+          response: { type: "crossword", squares: { "30-30": "A" } },
+        }),
+      ),
+    ).toMatchObject({ message: "learning.option" });
+    const done = await pupil.learning.respond({
+      lessonId,
+      blockId: asked.id,
+      response: { type: "crossword", squares },
+    });
+    expect(done.check).toMatchObject({ correct: true, fraction: 1 });
+  });
+});
+
 describe("marking again", () => {
   test("a teacher who fixes a key marks the answers already given again, scores and all", async () => {
     const { keeper } = await teachers();

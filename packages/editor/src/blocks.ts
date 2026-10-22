@@ -55,6 +55,7 @@ import {
   Brackets,
   Highlighter,
   Tags,
+  Grid3x3,
   Vote,
   ChevronRight,
   CircleCheck,
@@ -196,6 +197,7 @@ export type BlockType =
   | "spellingQuestion"
   | "hotspotQuestion"
   | "labellingQuestion"
+  | "crosswordQuestion"
   | "scratchQuestion"
   | "projectQuestion"
   | "sketchQuestion"
@@ -239,6 +241,7 @@ const QUESTION_KIND: Partial<Record<BlockType, QuestionKind>> = {
   spellingQuestion: "spelling",
   hotspotQuestion: "hotspot",
   labellingQuestion: "labelling",
+  crosswordQuestion: "crossword",
   scratchQuestion: "scratch",
   projectQuestion: "project",
   sketchQuestion: "project",
@@ -967,6 +970,24 @@ export const blockDefinitions: BlockDefinition[] = [
       "رسم",
       "أجزاء",
       "خريطة",
+    ],
+    question: true,
+  },
+  {
+    type: "crosswordQuestion",
+    group: "questions",
+    icon: Grid3x3,
+    label: (s) => s.questionCrossword,
+    hint: (s) => s.questionCrosswordHint,
+    keywords: [
+      "crossword",
+      "puzzle",
+      "clue",
+      "vocabulary",
+      "words",
+      "كلمات متقاطعة",
+      "لغز",
+      "مفردات",
     ],
     question: true,
   },

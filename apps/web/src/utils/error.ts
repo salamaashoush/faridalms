@@ -601,6 +601,8 @@ export function getMessageFromError(error: unknown): string {
         return m.lrnErrPollFirst();
       case "learning.labels_needed":
         return m.lrnErrLabelsNeeded();
+      case "learning.crossword_layout":
+        return m.lrnErrCrosswordLayout();
       case "learning.number_line":
         return m.lrnErrNumberLine();
       case "learning.number_line_answer":

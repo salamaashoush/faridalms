@@ -1,7 +1,32 @@
 import type { ContentDocument, ContentNode } from "@faridalms/domain/content";
-import type { LessonBlock, StudentBlock } from "@faridalms/domain/learning";
+import type { CrosswordLayout } from "@faridalms/domain/crossword";
+import type {
+  CrosswordBlock,
+  LessonBlock,
+  StudentBlock,
+} from "@faridalms/domain/learning";
 
-import { contentPlainText } from "@faridalms/domain/content";
+import { contentPlainText, textDirection } from "@faridalms/domain/content";
+import { crosswordLayout } from "@faridalms/domain/crossword";
+
+/**
+ * A crossword on paper. A student's copy holds no letters to lay its grid
+ * out from, so it carries the grid it was given.
+ */
+export type PaperCrossword = CrosswordBlock & {
+  layout?: CrosswordLayout;
+  rtl?: boolean;
+};
+
+/** A paper crossword's grid, and whether its words across read from the right. */
+export function paperGrid(block: PaperCrossword) {
+  return {
+    layout: block.layout ?? crosswordLayout(block.words),
+    rtl:
+      block.rtl ??
+      textDirection(block.words.map((word) => word.answer).join(" ")) === "rtl",
+  };
+}
 
 /** The document as paper reads it: every toggle open, every tab and card side shown. */
 export function opened(node: ContentNode): ContentNode {
@@ -76,6 +101,21 @@ export function paperBlock(block: StudentBlock): LessonBlock {
         })),
         correctOptionIds: [],
       };
+    case "crossword": {
+      const { entries, width, height, rtl, ...rest } = block;
+      const paper: PaperCrossword = {
+        ...rest,
+        ...blank,
+        words: entries.map((entry) => ({
+          id: entry.id,
+          answer: "",
+          clue: entry.clue,
+        })),
+        layout: { width, height, entries },
+        rtl,
+      };
+      return paper;
+    }
     case "labelling": {
       const { spots, bank, ...rest } = block;
       // A student's copy holds every label in its bank and no place's own.

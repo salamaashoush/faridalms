@@ -13,6 +13,7 @@ import { Radio } from "@base-ui/react/radio";
 import { parseNumber } from "@faridalms/domain/answers";
 import { joinedAroundGaps } from "@faridalms/domain/arabic";
 import { textDirection } from "@faridalms/domain/content";
+import { graphemes, squareKey, squaresOf } from "@faridalms/domain/crossword";
 import {
   MAX_INDENT,
   MAX_RUN_OUTPUT,
@@ -217,6 +218,7 @@ export type CheckStudentBlock =
   | Of<"spelling">
   | Of<"hotspot">
   | Of<"labelling">
+  | Of<"crossword">
   | Of<"written">
   | Of<"scratch">
   | Of<"project">
@@ -240,6 +242,7 @@ const CHECK_TYPES = new Set<StudentBlock["type"]>([
   "spelling",
   "hotspot",
   "labelling",
+  "crossword",
   "written",
   "scratch",
   "project",
@@ -1594,6 +1597,310 @@ function GapsCheck({
               <MarkIcon mark={mark} />
               <RightPart mark={mark} text={view?.partKey?.[segment.id]} />
             </span>
+          );
+        })}
+      </div>
+    </CheckCard>
+  );
+}
+
+type Entry = Of<"crossword">["entries"][number];
+
+const way = (entry: Pick<Entry, "across">) =>
+  entry.across ? m.lrnCrosswordAcross() : m.lrnCrosswordDown();
+
+/**
+ * A crossword: its grid of squares to type a letter in, and its clues
+ * across and down. Typing moves on along the word being filled, the arrow
+ * keys move between squares, and choosing a clue or pressing a square
+ * again changes which word is filled. Words across read from the right
+ * when they are Arabic, as Arabic crosswords are printed.
+ */
+function CrosswordCheck({
+  block,
+  view,
+  driver,
+}: {
+  block: Of<"crossword">;
+  view: CheckView | undefined;
+  driver: CheckDriver;
+}) {
+  const legend = useId();
+  const { editing, setEditing, respond, reveal } = useCheck(
+    block.id,
+    view,
+    driver,
+  );
+  const [letters, setLetters] = useState<Record<string, string>>(
+    view?.response?.type === "crossword" ? view.response.squares : {},
+  );
+  const [active, setActive] = useState<{ entry: string; index: number }>();
+  const inputs = useRef(new Map<string, HTMLInputElement>());
+  // Where a move is headed, read as the square takes focus, before the
+  // render that would tell it which word is being filled.
+  const aim = useRef<{ entry: string; index: number } | null>(null);
+  const pressedFocused = useRef(false);
+  const settled = answerFinal(block, view);
+  const locked = !editing || settled;
+  const owners = useMemo(() => {
+    const found = new Map<string, { entry: Entry; index: number }[]>();
+    for (const entry of block.entries)
+      squaresOf(entry).forEach((key, index) =>
+        found.set(key, [...(found.get(key) ?? []), { entry, index }]),
+      );
+    return found;
+  }, [block.entries]);
+  const starts = new Map(
+    block.entries.map((entry) => [squareKey(entry.row, entry.col), entry]),
+  );
+  const current = block.entries.find((entry) => entry.id === active?.entry);
+  const filling = new Set(current ? squaresOf(current) : []);
+  const canCheck = [...owners.keys()].every((key) => letters[key]);
+  const check = () => {
+    if (canCheck) respond.mutate({ type: "crossword", squares: letters });
+  };
+  const go = (entry: Entry, index: number) => {
+    aim.current = { entry: entry.id, index };
+    setActive(aim.current);
+    inputs.current.get(squaresOf(entry)[index] ?? "")?.focus();
+  };
+  const markOf = (key: string): Mark => {
+    if (editing || !view || view.tries === 0) return null;
+    // A square in a word marked right holds the right letter, whatever the
+    // other word through it.
+    const marks = new Set((owners.get(key) ?? []).map(
+      ({ entry }) => view.parts[entry.id],
+    ));
+    if (marks.has(true)) return "right";
+    return marks.has(false) ? "wrong" : null;
+  };
+  /** The letter a square should hold, once the answer is shown. */
+  const keyOf = (key: string) => {
+    const [owner] = owners.get(key) ?? [];
+    return owner && view?.partKey
+      ? graphemes(view.partKey[owner.entry.id] ?? "")[owner.index]
+      : undefined;
+  };
+  const arrows: Record<string, [number, number]> = {
+    ArrowUp: [-1, 0],
+    ArrowDown: [1, 0],
+    ArrowLeft: [0, block.rtl ? 1 : -1],
+    ArrowRight: [0, block.rtl ? -1 : 1],
+  };
+  return (
+    <CheckCard
+      block={block}
+      legendId={legend}
+      onSubmit={check}
+      status={<CheckStatus view={view} editing={editing} />}
+      actions={
+        <Retry
+          view={view}
+          editing={editing}
+          settled={settled}
+          canCheck={canCheck}
+          pending={respond.isPending || reveal.isPending}
+          onTryAgain={() => {
+            // Squares of words already right stay, so trying again means the rest.
+            setLetters((now) =>
+              Object.fromEntries(
+                Object.entries(now).filter(([key]) =>
+                  (owners.get(key) ?? []).some(
+                    ({ entry }) => view?.parts[entry.id],
+                  ),
+                ),
+              ),
+            );
+            setEditing(true);
+          }}
+          onReveal={() => reveal.mutate()}
+        />
+      }
+    >
+      <p aria-live="polite" className="min-h-6 text-sm leading-6" dir="auto">
+        {current ? (
+          <>
+            <span className="font-semibold">
+              {formatNumber(current.number)} {way(current)}
+            </span>{" "}
+            {current.clue}
+          </>
+        ) : null}
+      </p>
+      <div
+        dir={block.rtl ? "rtl" : "ltr"}
+        className="mx-auto grid w-full"
+        style={{
+          gridTemplateColumns: `repeat(${block.width}, minmax(0, 2.5rem))`,
+          maxWidth: `${block.width * 2.5}rem`,
+        }}
+      >
+        {Array.from({ length: block.height * block.width }, (_, place) => {
+          const row = Math.floor(place / block.width);
+          const col = place % block.width;
+          const key = squareKey(row, col);
+          const [owner] = owners.get(key) ?? [];
+          if (!owner) return <div key={key} aria-hidden />;
+          const start = starts.get(key);
+          const mark = markOf(key);
+          const shown = keyOf(key);
+          const typed = letters[key] ?? "";
+          const fixed = shown !== undefined && shown !== typed;
+          return (
+            <div
+              key={key}
+              className={cn(
+                "relative aspect-square bg-background ring-1 ring-foreground/50",
+                filling.has(key) && !locked && "bg-primary/10",
+                mark === "right" && "bg-success/15",
+                mark === "wrong" && "bg-destructive/10",
+              )}
+            >
+              {start ? (
+                <span
+                  aria-hidden
+                  className="pointer-events-none absolute start-0.5 top-0.5 text-[0.55rem] leading-none text-muted-foreground tabular-nums"
+                >
+                  {formatNumber(start.number)}
+                </span>
+              ) : null}
+              <input
+                ref={(element) => {
+                  if (element) inputs.current.set(key, element);
+                  else inputs.current.delete(key);
+                }}
+                value={fixed ? shown : typed}
+                disabled={locked}
+                aria-label={m.lrnCrosswordSquare({
+                  number: formatNumber(owner.entry.number),
+                  way: way(owner.entry),
+                  place: formatNumber(owner.index + 1),
+                  count: formatNumber(owner.entry.length),
+                })}
+                autoComplete="off"
+                autoCorrect="off"
+                autoCapitalize="characters"
+                spellCheck={false}
+                dir="auto"
+                onFocus={() => {
+                  if (aim.current) {
+                    setActive(aim.current);
+                    aim.current = null;
+                    return;
+                  }
+                  const mine = owners.get(key) ?? [];
+                  if (mine.some(({ entry }) => entry.id === current?.id))
+                    setActive({
+                      entry: current?.id ?? "",
+                      index:
+                        mine.find(({ entry }) => entry.id === current?.id)
+                          ?.index ?? 0,
+                    });
+                  else if (mine[0])
+                    setActive({
+                      entry: mine[0].entry.id,
+                      index: mine[0].index,
+                    });
+                }}
+                onPointerDown={(event) => {
+                  pressedFocused.current =
+                    document.activeElement === event.currentTarget;
+                }}
+                onClick={() => {
+                  // Pressing the square being filled turns to the other word through it.
+                  if (!pressedFocused.current) return;
+                  const mine = owners.get(key) ?? [];
+                  const other = mine.find(
+                    ({ entry }) => entry.id !== current?.id,
+                  );
+                  if (mine.length > 1 && other)
+                    setActive({ entry: other.entry.id, index: other.index });
+                }}
+                onChange={(event) => {
+                  const letter = graphemes(event.target.value).at(-1) ?? "";
+                  setLetters((now) => ({
+                    ...now,
+                    [key]: letter.toLocaleUpperCase(),
+                  }));
+                  const at = (owners.get(key) ?? []).find(
+                    ({ entry }) => entry.id === current?.id,
+                  );
+                  if (letter && current && at && at.index + 1 < current.length)
+                    go(current, at.index + 1);
+                }}
+                onKeyDown={(event) => {
+                  const move = arrows[event.key];
+                  if (move) {
+                    event.preventDefault();
+                    const next = squareKey(row + move[0], col + move[1]);
+                    const there = owners.get(next) ?? [];
+                    const along =
+                      there.find(
+                        ({ entry }) => entry.across === (move[0] === 0),
+                      ) ?? there[0];
+                    if (along) go(along.entry, along.index);
+                    return;
+                  }
+                  if (event.key !== "Backspace" || typed) return;
+                  const at = (owners.get(key) ?? []).find(
+                    ({ entry }) => entry.id === current?.id,
+                  );
+                  if (!current || !at || at.index === 0) return;
+                  event.preventDefault();
+                  const back = squaresOf(current)[at.index - 1] ?? "";
+                  setLetters((now) => ({ ...now, [back]: "" }));
+                  go(current, at.index - 1);
+                }}
+                className={cn(
+                  "size-full bg-transparent text-center text-[clamp(0.75rem,3.6vw,1.125rem)] font-semibold caret-transparent outline-none focus:bg-primary/25 disabled:cursor-default",
+                  fixed && "text-success",
+                )}
+              />
+            </div>
+          );
+        })}
+      </div>
+      <div className="grid gap-4 sm:grid-cols-2">
+        {[true, false].map((across) => {
+          const listed = block.entries.filter(
+            (entry) => entry.across === across,
+          );
+          return listed.length === 0 ? null : (
+            <div key={String(across)} className="grid content-start gap-1.5">
+              <p className="text-[13px] leading-[18px] font-medium text-muted-foreground">
+                {across ? m.lrnCrosswordAcross() : m.lrnCrosswordDown()}
+              </p>
+              <ol className="grid gap-1">
+                {listed.map((entry) => {
+                  const mark = partMark(view, editing, entry.id);
+                  return (
+                    <li key={entry.id} className="flex items-start gap-2">
+                      <button
+                        type="button"
+                        disabled={locked}
+                        // From the word's first square, so typing it whole
+                        // writes over the letters it shares, the same again.
+                        onClick={() => go(entry, 0)}
+                        className={cn(
+                          "flex min-w-0 flex-1 gap-2 rounded-md px-2 py-1 text-start text-sm leading-5 hover:bg-muted disabled:pointer-events-none max-md:min-h-10",
+                          entry.id === current?.id &&
+                            !locked &&
+                            "bg-primary/10",
+                        )}
+                      >
+                        <span className="shrink-0 font-semibold tabular-nums">
+                          {formatNumber(entry.number)}
+                        </span>
+                        <span dir="auto" className="min-w-0">
+                          {entry.clue}
+                        </span>
+                      </button>
+                      <MarkIcon mark={mark} />
+                    </li>
+                  );
+                })}
+              </ol>
+            </div>
           );
         })}
       </div>
@@ -3052,6 +3359,8 @@ function CheckBody({
     return <HighlightCheck block={block} view={view} driver={driver} />;
   if (block.type === "labelling")
     return <LabellingCheck block={block} view={view} driver={driver} />;
+  if (block.type === "crossword")
+    return <CrosswordCheck block={block} view={view} driver={driver} />;
   if (block.type === "written" && block.recordSeconds)
     return <SpokenCheck block={block} view={view} driver={driver} />;
   if (block.type === "written" && block.answerWith)

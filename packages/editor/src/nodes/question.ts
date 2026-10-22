@@ -267,6 +267,9 @@ export interface QuestionLabels {
   /** A code exercise's test: what the program reads, and what it prints. */
   testInput?: string;
   testOutput?: string;
+  /** A crossword's lines: the word, then its clue. */
+  crosswordWord?: string;
+  crosswordClue?: string;
   /** A test run and counted but never shown to students. */
   hiddenTest?: string;
   extraTiles?: string;
@@ -1251,20 +1254,23 @@ export class QuestionSideNode extends ElementNode {
     const holder = this.getParent();
     dom.dataset.questionSide = "";
     const question = holder?.getParent();
-    const test =
-      question instanceof QuestionNode &&
-      question.getSettings().kind === "program";
+    const kind =
+      question instanceof QuestionNode ? question.getSettings().kind : null;
     const first = this.getIndexWithinParent() === 0;
     dom.dataset.emptyLabel =
       (holder instanceof QuestionGroupNode
         ? text?.groupName
-        : test
+        : kind === "program"
           ? first
             ? text?.testInput
             : text?.testOutput
-          : first
-            ? text?.pairPrompt
-            : text?.pairAnswer) ?? "";
+          : kind === "crossword"
+            ? first
+              ? text?.crosswordWord
+              : text?.crosswordClue
+            : first
+              ? text?.pairPrompt
+              : text?.pairAnswer) ?? "";
     const name = theme(config, "questionSide");
     if (name) addClassNamesToElement(dom, name);
     drawPicture(this, dom, editor);
@@ -1575,8 +1581,12 @@ export function $createQuestionNode(kind: QuestionKind): QuestionNode {
   // A formula is the answer, written as one, though LaTeX typed as words reads too.
   if (kind === "math")
     question.append(new QuestionAnswerNode().append($createMathNode()));
-  if (kind === "matching")
-    question.append($createQuestionPair(), $createQuestionPair());
+  if (kind === "matching" || kind === "crossword")
+    question.append(
+      ...Array.from({ length: kind === "crossword" ? 3 : 2 }, () =>
+        $createQuestionPair(),
+      ),
+    );
   if (kind === "sorting")
     question.append($createQuestionGroup(), $createQuestionGroup());
   if (kind === "gaps" || kind === "highlight")
@@ -1687,7 +1697,8 @@ export function $repairQuestion(question: QuestionNode) {
         kind === "matching" ||
         kind === "spelling") &&
         $isQuestionAnswerNode(child)) ||
-      (kind === "matching" && $isQuestionPairNode(child)) ||
+      ((kind === "matching" || kind === "crossword") &&
+        $isQuestionPairNode(child)) ||
       (kind === "sorting" && $isQuestionGroupNode(child)) ||
       ((kind === "gaps" || kind === "highlight") &&
         $isQuestionPassageNode(child));

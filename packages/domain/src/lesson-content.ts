@@ -282,6 +282,25 @@ export function questionBlock(node: ContentNode): LessonBlock | null {
           }),
         ),
       };
+    case "crossword":
+      return {
+        ...check,
+        type: "crossword",
+        words: parts
+          .filter(
+            (part) =>
+              part.type === "question-pair" &&
+              (written(part.children?.[0]) || written(part.children?.[1])),
+          )
+          .map((pair) => {
+            const [word, clue] = pair.children ?? [];
+            return {
+              id: pair.optionId ?? "",
+              answer: textOf(word).trim(),
+              clue: textOf(clue).trim(),
+            };
+          }),
+      };
     case "labelling":
       return {
         ...check,
@@ -769,6 +788,7 @@ export function questionNode(block: LessonBlock): ContentNode | null {
     block.type !== "spelling" &&
     block.type !== "hotspot" &&
     block.type !== "labelling" &&
+    block.type !== "crossword" &&
     block.type !== "scratch" &&
     block.type !== "project" &&
     block.type !== "puzzle" &&
@@ -1025,6 +1045,25 @@ export function questionNode(block: LessonBlock): ContentNode | null {
         name: place.name,
         correct: place.correct,
       })),
+    };
+  if (block.type === "crossword")
+    return {
+      ...base,
+      children: [
+        ...(base.children ?? []),
+        ...block.words.map((word): ContentNode => ({
+          type: "question-pair",
+          version: 1,
+          format: "",
+          indent: 0,
+          direction: null,
+          optionId: word.id,
+          children: [
+            inlineOf("question-side", word.answer),
+            inlineOf("question-side", word.clue),
+          ],
+        })),
+      ],
     };
   if (block.type === "labelling")
     return {

@@ -252,9 +252,15 @@ Sources: [../research/course-design.md](../research/course-design.md),
     or chooses each place's label from its list, and each place labelled
     rightly earns its share. Paper prints the bank, the numbered picture
     and a line for each label.
-    Left: crossword and word search; a poll's class results in a quiz,
-    polls anonymous to the teacher too, and dragging a label onto its
-    place.
+    A crossword: the teacher writes each word with its clue and the grid
+    lays itself out, the same way every time, every word crossing
+    another; a word that will not fit is named so the teacher can change
+    it. Students type into the squares, moving on along the word, with
+    the arrow keys, and by choosing a clue; Arabic words read from the
+    right across. Each word filled rightly earns its share, and paper
+    prints the empty grid and its clues.
+    Left: word search; a poll's class results in a quiz, polls anonymous
+    to the teacher too, and dragging a label onto its place.
 
 ## 4. Standards, skills and planning
 

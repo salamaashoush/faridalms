@@ -60,6 +60,7 @@ function withQuestion(
   kind:
     | "choiceQuestion"
     | "pollQuestion"
+    | "crosswordQuestion"
     | "typedQuestion"
     | "orderingQuestion"
     | "matchingQuestion"
@@ -163,6 +164,40 @@ describe("questions in a document", () => {
     expect(
       v.safeParse(lessonDocumentSchema, lessonOfContent(document)).success,
     ).toBe(true);
+  });
+
+  it("starts a crossword with three words to write, each with its clue", () => {
+    const target = withQuestion("crosswordQuestion");
+    target.update(
+      () => {
+        const question = $getRoot().getChildren().find($isQuestionNode);
+        const [prompt, ...pairs] = question?.getChildren() ?? [];
+        if (!$isQuestionPromptNode(prompt) || pairs.length !== 3)
+          throw new Error("crossword has the wrong shape");
+        prompt.append($createTextNode("Rivers and seas."));
+        [
+          ["river", "Water flowing to the sea"],
+          ["delta", "Where a river fans out"],
+          ["sea", "Salt water"],
+        ].forEach(([word = "", clue = ""], index) => {
+          const pair = pairs[index];
+          if (!$isQuestionPairNode(pair)) throw new Error("no pair");
+          write(pair.getFirstChild<ElementNode>(), word);
+          write(pair.getLastChild<ElementNode>(), clue);
+        });
+      },
+      { discrete: true },
+    );
+    const lesson = lessonOfContent(json(target));
+    expect(lesson.blocks[0]).toMatchObject({
+      type: "crossword",
+      words: [
+        { answer: "river", clue: "Water flowing to the sea" },
+        { answer: "delta", clue: "Where a river fans out" },
+        { answer: "sea", clue: "Salt water" },
+      ],
+    });
+    expect(v.safeParse(lessonDocumentSchema, lesson).success).toBe(true);
   });
 
   it("keeps one right option in a single-answer question", () => {
@@ -901,6 +936,7 @@ describe("questions in a document", () => {
         choice: "",
         poll: "",
         labelling: "",
+        crossword: "",
         text: "",
         math: "",
         written: "",

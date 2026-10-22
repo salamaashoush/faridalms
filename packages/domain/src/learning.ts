@@ -8,6 +8,7 @@ import { ARROWS, pythonOf } from "@faridalms/puzzles/text";
 import * as v from "valibot";
 
 import type { ContentDocument, ContentNode, FeedbackTime } from "./content";
+import type { CrosswordEntry } from "./crossword";
 
 import { matchAnswer, parseNumber } from "./answers";
 import {
@@ -20,9 +21,16 @@ import {
   MAX_LATEX,
   mathText,
   narrationWordsSchema,
+  textDirection,
 } from "./content";
 import { contentIssues } from "./content-checks";
 import { emptyContent } from "./content-conversion";
+import {
+  crosswordLayout,
+  crosswordLetters,
+  MAX_CROSSWORD_WORDS,
+  squaresOf,
+} from "./crossword";
 import { embedProviderNames, FRAMED_KEY, framedKey } from "./embed";
 import {
   contentOfLesson,
@@ -620,6 +628,24 @@ export const lessonBlockSchema = v.variant("type", [
       );
     }, "learning.labels_needed"),
   ),
+  v.pipe(
+    v.object({
+      ...checkFields,
+      type: v.literal("crossword"),
+      /** Each word with the clue that asks for it; the grid is laid out from the words. */
+      words: v.pipe(
+        v.array(
+          v.object({ id, answer: requiredText(40), clue: requiredText(300) }),
+        ),
+        v.minLength(2, "learning.crossword_layout"),
+        v.maxLength(MAX_CROSSWORD_WORDS),
+      ),
+    }),
+    v.check(
+      (block) => crosswordLayout(block.words) !== null,
+      "learning.crossword_layout",
+    ),
+  ),
   v.object({
     ...checkFields,
     type: v.literal("spelling"),
@@ -760,6 +786,7 @@ export type TracingBlock = Extract<LessonBlock, { type: "tracing" }>;
 export type SpellingBlock = Extract<LessonBlock, { type: "spelling" }>;
 export type HotspotBlock = Extract<LessonBlock, { type: "hotspot" }>;
 export type LabellingBlock = Extract<LessonBlock, { type: "labelling" }>;
+export type CrosswordBlock = Extract<LessonBlock, { type: "crossword" }>;
 export type ScratchBlock = Extract<LessonBlock, { type: "scratch" }>;
 export type ProgramBlock = Extract<LessonBlock, { type: "program" }>;
 export type ProjectBlock = Extract<LessonBlock, { type: "project" }>;
@@ -783,6 +810,7 @@ export type AutoBlock =
   | SpellingBlock
   | HotspotBlock
   | LabellingBlock
+  | CrosswordBlock
   | ProgramBlock
   | PuzzleBlock;
 /** A question its teacher marks: words, a recording or picture, or a project. */
@@ -806,6 +834,7 @@ const AUTO_TYPES = new Set<LessonBlockType>([
   "spelling",
   "hotspot",
   "labelling",
+  "crossword",
   "program",
   "puzzle",
 ]);
@@ -835,6 +864,7 @@ const DEFERRABLE_TYPES = new Set<LessonBlockType>([
   "ordering",
   "sorting",
   "labelling",
+  "crossword",
 ]);
 
 export { FEEDBACK_TIMES, type FeedbackTime };
@@ -1258,6 +1288,11 @@ export function lessonPlainText(document: LessonDocument): string {
             block.prompt,
             ...block.places.map((place) => place.name),
           ].join("\n");
+        case "crossword":
+          return [
+            block.prompt,
+            ...block.words.map((word) => `${word.answer}: ${word.clue}`),
+          ].join("\n");
         case "matching":
           return [
             block.prompt,
@@ -1368,6 +1403,14 @@ export const responseSchema = v.variant("type", [
   v.object({
     type: v.literal("counting"),
     value: v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(100)),
+  }),
+  v.object({
+    type: v.literal("crossword"),
+    /** The letter in each square, by its row and column. */
+    squares: v.record(
+      v.pipe(v.string(), v.regex(/^\d{1,2}-\d{1,2}$/u)),
+      v.pipe(v.string(), v.maxLength(4)),
+    ),
   }),
   v.object({
     type: v.literal("labelling"),
@@ -1812,6 +1855,28 @@ export function markResponse(
         ),
       );
     }
+    case "crossword": {
+      if (response.type !== "crossword") return none;
+      const layout = crosswordLayout(block.words);
+      if (!layout) return none;
+      return share(
+        Object.fromEntries(
+          layout.entries.map((entry) => {
+            const letters = crosswordLetters(
+              block.words.find((word) => word.id === entry.id)?.answer ?? "",
+            );
+            return [
+              entry.id,
+              squaresOf(entry).every(
+                (key, index) =>
+                  crosswordLetters(response.squares[key] ?? "")[0] ===
+                  letters[index],
+              ),
+            ];
+          }),
+        ),
+      );
+    }
     case "spelling": {
       if (response.type !== "spelling") return none;
       const results = Object.fromEntries(
@@ -2142,6 +2207,14 @@ export type StudentBlock =
   | Omit<CountingBlock, "explanation" | "hints">
   | Omit<TracingBlock, "explanation" | "hints">
   | Omit<HotspotBlock, "explanation" | "hints">
+  | (Omit<CrosswordBlock, "explanation" | "hints" | "words"> & {
+      width: number;
+      height: number;
+      /** Each word's place and clue, with nothing of its letters but how many. */
+      entries: (CrosswordEntry & { clue: string })[];
+      /** Whether words across read from the right, as Arabic ones do. */
+      rtl: boolean;
+    })
   | (Omit<LabellingBlock, "explanation" | "hints" | "places" | "extras"> & {
       /** Each place's box, numbered in order, with nothing of its label. */
       spots: [number, number, number, number][];
@@ -2445,6 +2518,21 @@ export function studentBlocks(
         const { explanation: _why, hints: _hints, ...rest } = block;
         return rest;
       }
+      case "crossword": {
+        const { explanation: _why, hints: _hints, words, ...rest } = block;
+        const layout = crosswordLayout(words);
+        return {
+          ...rest,
+          width: layout?.width ?? 0,
+          height: layout?.height ?? 0,
+          entries: (layout?.entries ?? []).map((entry) => ({
+            ...entry,
+            clue: words.find((word) => word.id === entry.id)?.clue ?? "",
+          })),
+          rtl:
+            textDirection(words.map((word) => word.answer).join(" ")) === "rtl",
+        };
+      }
       case "labelling": {
         const {
           explanation: _why,
@@ -2574,6 +2662,11 @@ export function answerKey(block: AutoBlock): string[] {
       return block.places.map(
         (place, index) => `${placeNumber(index)} ${place.name}`,
       );
+    case "crossword":
+      return (crosswordLayout(block.words)?.entries ?? []).map(
+        (entry) =>
+          `${entry.number} ${crosswordLetters(block.words.find((word) => word.id === entry.id)?.answer ?? "").join("")}`,
+      );
     case "sorting":
       return block.items.map(
         (item) =>
@@ -2619,6 +2712,13 @@ export function partKey(block: AutoBlock): Record<string, string> {
     case "labelling":
       return Object.fromEntries(
         block.places.map((place, index) => [placeNumber(index), place.name]),
+      );
+    case "crossword":
+      return Object.fromEntries(
+        block.words.map((word) => [
+          word.id,
+          crosswordLetters(word.answer).join(""),
+        ]),
       );
     case "ordering":
       return Object.fromEntries(
@@ -3436,6 +3536,18 @@ export function responseIssue(
         .map((token) => token.id),
     );
     if (response.chosen.some((token) => !words.has(token)))
+      return "learning.option";
+  }
+  if (block.type === "crossword" && response.type === "crossword") {
+    const squares = new Set(
+      (crosswordLayout(block.words)?.entries ?? []).flatMap(squaresOf),
+    );
+    if (
+      Object.entries(response.squares).some(
+        ([key, letter]) =>
+          !squares.has(key) || crosswordLetters(letter).length > 1,
+      )
+    )
       return "learning.option";
   }
   if (block.type === "labelling" && response.type === "labelling") {

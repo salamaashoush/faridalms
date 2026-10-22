@@ -610,7 +610,7 @@ export const lessonResponses = core.table.withRLS(
     ck(
       "lesson_responses",
       "kind",
-      sql`kind in ('choice', 'poll', 'text', 'math', 'gaps', 'highlight', 'number', 'matching', 'ordering', 'sorting', 'counting', 'tracing', 'spelling', 'hotspot', 'labelling', 'written', 'scratch', 'parsons', 'program', 'project', 'puzzle')`,
+      sql`kind in ('choice', 'poll', 'text', 'math', 'gaps', 'highlight', 'number', 'matching', 'ordering', 'sorting', 'counting', 'tracing', 'spelling', 'hotspot', 'labelling', 'crossword', 'written', 'scratch', 'parsons', 'program', 'project', 'puzzle')`,
     ),
     ck(
       "lesson_responses",

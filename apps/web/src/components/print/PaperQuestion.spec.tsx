@@ -180,6 +180,37 @@ describe("a picture to label on paper", () => {
   });
 });
 
+describe("a crossword on paper", () => {
+  const rivers: LessonBlock = {
+    ...base,
+    id: "q11",
+    type: "crossword",
+    prompt: "Rivers and seas.",
+    words: [
+      { id: "w1", answer: "river", clue: "Water flowing to the sea" },
+      { id: "w2", answer: "delta", clue: "Where a river fans out" },
+      { id: "w3", answer: "sea", clue: "Salt water" },
+    ],
+  };
+
+  it("prints a student's grid empty from the grid they were given, with every clue", () => {
+    const [shown] = studentBlocks({ version: 2, blocks: [rivers] }, "seed");
+    if (!shown) throw new Error("no question");
+    const copy = paper(paperBlock(shown), false);
+    for (const clue of ["Water flowing to the sea", "Salt water"])
+      expect(copy).toContain(clue);
+    // Every square of the three words, less the two they share.
+    expect(copy.match(/border-neutral-700"/g)).toHaveLength(5 + 5 + 3 - 2);
+    // No square holds a letter: the key's style is nowhere on the copy.
+    expect(copy).not.toContain("text-neutral-500");
+  });
+
+  it("fills the teacher's grid and keys each word by its number", () => {
+    expect(paper(rivers, true)).toContain(">R<");
+    expect(keyOf(rivers, false)).toMatch(/^1 DELTA, 2 RIVER, 3 SEA$/u);
+  });
+});
+
 describe("an answer key", () => {
   it("names each answer in the letters and numbers its paper shows", () => {
     expect(keyOf(choice, false)).toBe("a");
