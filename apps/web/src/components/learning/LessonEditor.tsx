@@ -950,6 +950,7 @@ export function LessonEditor({
             narration
             lessonActivities
             feedbackTiming={!draft.young}
+            young={earlyYears && draft.young}
             language={otherLocale(language)}
           />
         ) : (
@@ -967,6 +968,7 @@ export function LessonEditor({
             narration
             lessonActivities
             feedbackTiming={!draft.young}
+            young={earlyYears && draft.young}
             language={language ?? undefined}
             collaboration={shared ? live.collaboration : undefined}
             pending={live.state === "loading"}

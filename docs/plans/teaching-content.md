@@ -741,8 +741,9 @@ Sources: [../research/course-design.md](../research/course-design.md),
    learning to read (a single-storey a and g, an l told from an I), and
    its Arabic in Noto Naskh Arabic, the hand children are taught to
    write, at the larger Arabic size and looser lines young lessons
-   already give it. The fonts load only when a young lesson shows.
-   Left: the same type in a teacher's editor while a lesson is young.
+   already give it. The fonts load only when a young lesson shows. Its
+   teacher's editor sets the page the same way while the lesson is young:
+   the children's faces and the young lesson's sizes, Arabic larger.
 3. **Teacher judgements per early-learning goal** (EYFS and the like),
    recorded from a child's work.
    Done: a young class has a Goals tab where its teacher takes a
@@ -809,9 +810,10 @@ Scratch Text to Speech, Translate and tutorials.
    Students open the brief in their own language when it has one and
    switch with a tab; the teacher reads both the same way. Using the work
    again copies the translation.
-   Left: a quiz's questions in two languages (their answers come from
-   the original, as a lesson's do), the breadcrumb following the
-   language read, and a family reading the brief in theirs.
+   A quiz's questions take the translation too, their answers kept from
+   the original, as a lesson's are.
+   Left: the breadcrumb following the language read, and a family
+   reading the brief in theirs.
 4. **Reading fluency** assignments, teacher-marked first.
    Done: a "Read aloud" question holds a passage the student reads aloud,
    set large above the recorder, their recording the answer. Marking it,

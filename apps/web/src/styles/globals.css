@@ -55,8 +55,10 @@ header:has([data-slot="page-actions"] > :not([data-keeps-global-tools]))
 /* The type a young child reads in: Andika, made for children learning to
    read, with a single-storey a and g and an l told apart from an I; and
    Arabic in naskh, the hand children are taught to write at school. A
-   font is fetched only once a young lesson shows it. */
-.young-type {
+   font is fetched only once a young lesson shows it, to its children or to
+   the teacher writing it. */
+.young-type,
+.fe-young {
   font-family:
     "Andika", "Noto Naskh Arabic Variable", ui-sans-serif, system-ui, sans-serif;
 }

@@ -58,6 +58,7 @@ export function ContentEditor({
   sharedBlocks,
   pending = false,
   language,
+  young,
 }: {
   id: string;
   label: string;
@@ -91,6 +92,8 @@ export function ContentEditor({
   sharedBlocks?: boolean;
   /** Whether the document may be live is still being asked. */
   pending?: boolean;
+  /** Young children read it, so its page is set as they will see it. */
+  young?: boolean;
 }) {
   const strings = useMemo(() => editorStrings(), []);
   const hydrated = useHydrated();
@@ -170,6 +173,7 @@ export function ContentEditor({
           feedbackTiming={feedbackTiming}
           arabicMath={arabicMath}
           language={language}
+          young={young}
           onSynced={
             collaboration ? () => setJoined(collaboration.id) : undefined
           }

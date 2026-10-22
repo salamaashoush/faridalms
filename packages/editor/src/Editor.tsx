@@ -73,6 +73,7 @@ import { ToolbarPlugin } from "./plugins/Toolbar";
 import { WordImportPlugin } from "./plugins/word";
 import { holdSlot } from "./slots";
 import { editorTheme } from "./theme";
+import { cx } from "./ui";
 
 const QUIET_REPLACE = "fe-quiet-replace";
 
@@ -153,6 +154,8 @@ export interface EditorProps {
   onSynced?: () => void;
   /** The language the document is written in; without it, read from its words. */
   language?: "en" | "ar";
+  /** Young children read the document, so its page is set as they will see it. */
+  young?: boolean;
 }
 
 export default function Editor({
@@ -305,6 +308,7 @@ function Surface({
   synced,
   onSynced,
   language,
+  young = false,
 }: Omit<EditorProps, "value" | "media" | "locale" | "strings"> & {
   synced: boolean;
 }) {
@@ -480,7 +484,7 @@ function Surface({
       ) : null}
       <div
         ref={setAnchor}
-        className={editorFrame.content(document)}
+        className={cx(editorFrame.content(document), young && "fe-young")}
         data-digits={digits}
       >
         <ContentEditable
