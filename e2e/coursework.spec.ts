@@ -511,3 +511,71 @@ test("classmates review each other's work unnamed, and read the reviews once the
   ).toBeVisible();
   await author.context.close();
 });
+
+test("a brief written in two languages opens in the reader's own", async ({
+  browser,
+  page,
+}) => {
+  const title = `River ${crypto.randomUUID().slice(0, 6)}`;
+  await signInWith(page, TEACHER, PASSWORD, "/teach");
+  await page.goto("/teach/assignment-editor");
+  await untilHydrated(page);
+  await page.locator("#work-class").click();
+  await page.getByRole("option", { name: "8A Arabic", exact: true }).click();
+  await page.getByRole("textbox", { name: "Assignment title" }).fill(title);
+  await page.locator("[contenteditable=true]").first().click();
+  await page.keyboard.type("Write the Nile a letter.");
+  await page.locator("#work-language").click();
+  await page.getByRole("option", { name: "English", exact: true }).click();
+  await page.getByRole("checkbox", { name: "Also write it in Arabic" }).click();
+  await expect(page.getByRole("tab", { name: "العربية" })).toHaveAttribute(
+    "aria-selected",
+    "true",
+  );
+  await page
+    .getByRole("textbox", { name: "Assignment title" })
+    .fill("رسالة إلى النيل");
+  // The translation starts as a copy of the brief, rewritten in place.
+  const body = page.locator("[contenteditable=true]").first();
+  await body.click();
+  await page.keyboard.press("ControlOrMeta+a");
+  await page.keyboard.press("Backspace");
+  // Text sent the instant the old words go reaches the editor before it
+  // has drawn their going, which no hand can do; it waits for the drawing.
+  await page.evaluate(
+    () =>
+      new Promise<void>((done) => {
+        requestAnimationFrame(() => requestAnimationFrame(() => done()));
+      }),
+  );
+  await page.keyboard.insertText("اكتب رسالة إلى النيل.");
+  await expect(body).toHaveText("اكتب رسالة إلى النيل.");
+  await page.getByRole("button", { name: "Assign", exact: true }).click();
+  await expect(page).toHaveURL(/\/assignments\/[a-f0-9-]+/);
+  const address = new URL(page.url()).pathname;
+
+  const context = await browser.newContext();
+  const student = await context.newPage();
+  await signInWith(
+    student,
+    ACCOUNTS.student.email,
+    PASSWORD,
+    ACCOUNTS.student.home,
+  );
+  // The student reads the school in Arabic.
+  await context.addCookies([
+    { name: "language-tag", value: "ar", domain: "127.0.0.1", path: "/" },
+  ]);
+  await student.goto(address);
+  await untilHydrated(student);
+  await expect(
+    student.getByRole("heading", { level: 1, name: "رسالة إلى النيل" }),
+  ).toBeVisible();
+  await expect(student.getByText("اكتب رسالة إلى النيل.")).toBeVisible();
+  await student.getByRole("tab", { name: "English" }).click();
+  await expect(
+    student.getByRole("heading", { level: 1, name: title }),
+  ).toBeVisible();
+  await expect(student.getByText("Write the Nile a letter.")).toBeVisible();
+  await context.close();
+});

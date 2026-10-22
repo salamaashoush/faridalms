@@ -28,6 +28,7 @@ import {
   teacherListSchema,
   reuseSchema,
 } from "@faridalms/domain/coursework";
+import { reviewTranslationSchema } from "@faridalms/domain/translations";
 import { createServerFn } from "@tanstack/react-start";
 import * as v from "valibot";
 
@@ -249,3 +250,7 @@ export const getMyPeerReviews = createServerFn({ method: "GET" })
 export const sendPeerReview = createServerFn({ method: "POST" })
   .validator(checked(peerReviewInputSchema))
   .handler(({ data }) => backend().peer.send(data));
+
+export const reviewBriefTranslation = createServerFn({ method: "POST" })
+  .validator(checked(reviewTranslationSchema))
+  .handler(({ data }) => backend().coursework.reviewBriefTranslation(data));

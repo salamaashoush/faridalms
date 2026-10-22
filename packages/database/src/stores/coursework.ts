@@ -1,4 +1,5 @@
 import type { FeedbackBand } from "@faridalms/domain/learning";
+import type { ContentLocale } from "@faridalms/domain/translations";
 
 import { sql } from "drizzle-orm";
 
@@ -58,6 +59,8 @@ export interface AssignmentRow {
   peerAnonymous: boolean | null;
   peerStartedAt: string | null;
   peerReleasedAt: string | null;
+  language: ContentLocale | null;
+  translationTitle: string | null;
   publishedAt: string | null;
 }
 
@@ -98,6 +101,8 @@ type AssignmentRecord = {
   peer_anonymous: boolean | null;
   peer_started_at: string | null;
   peer_released_at: string | null;
+  language: ContentLocale | null;
+  translation_title: string | null;
   published_at: string | null;
 };
 
@@ -112,6 +117,7 @@ const assignmentColumns = sql`a.id, a.version, a.org_id, a.class_id, a.class_typ
   a.peer_reviews, a.peer_anonymous,
   to_char(a.peer_started_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as peer_started_at,
   to_char(a.peer_released_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as peer_released_at,
+  a.language, a.translation_title,
   to_char(a.published_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as published_at`;
 
 function assignmentOf(row: AssignmentRecord): AssignmentRow {
@@ -152,6 +158,8 @@ function assignmentOf(row: AssignmentRecord): AssignmentRow {
     peerAnonymous: row.peer_anonymous,
     peerStartedAt: row.peer_started_at,
     peerReleasedAt: row.peer_released_at,
+    language: row.language,
+    translationTitle: row.translation_title,
     publishedAt: row.published_at,
   };
 }
@@ -194,6 +202,8 @@ export interface AssignmentFields {
   discussionReplies: number | null;
   peerReviews: number | null;
   peerAnonymous: boolean | null;
+  language: ContentLocale | null;
+  translationTitle: string | null;
 }
 
 export async function insertAssignment(
@@ -210,7 +220,8 @@ export async function insertAssignment(
       grading_period_id, author_user_id, title, audience, available_from, due_at, closes_at,
       late_policy, late_deduction_percent, submission_format, max_files, resubmission, points, rubric,
       quiz_attempts, quiz_keep, quiz_reveal, quiz_shuffle, quiz_time_limit, quiz_practice, quiz_bands, category_id,
-      grade_after_answers, discussion_post_first, discussion_replies, peer_reviews, peer_anonymous)
+      grade_after_answers, discussion_post_first, discussion_replies, peer_reviews, peer_anonymous,
+      language, translation_title)
     values (${input.tenantId}::uuid, ${input.orgId}::uuid, ${input.classRow.id}::uuid,
       ${input.classRow.classType}, ${input.classRow.schoolYearId}::uuid,
       ${input.gradingPeriodId}::uuid, ${input.authorUserId}::uuid, ${input.title},
@@ -221,7 +232,7 @@ export async function insertAssignment(
       ${input.quizShuffle}, ${input.quizTimeLimit}, ${input.quizPractice},
       ${JSON.stringify(input.quizBands)}::text::jsonb, ${input.categoryId}::uuid,
       ${input.gradeAfterAnswers}, ${input.discussionPostFirst}, ${input.discussionReplies},
-      ${input.peerReviews}, ${input.peerAnonymous})
+      ${input.peerReviews}, ${input.peerAnonymous}, ${input.language}, ${input.translationTitle})
     returning id, version`);
   if (!row) throw new Error("assignment was not created");
   return row;
@@ -257,7 +268,8 @@ export async function updateAssignment(
         grade_after_answers = ${input.gradeAfterAnswers},
         discussion_post_first = ${input.discussionPostFirst},
         discussion_replies = ${input.discussionReplies},
-        peer_reviews = ${input.peerReviews}, peer_anonymous = ${input.peerAnonymous}
+        peer_reviews = ${input.peerReviews}, peer_anonymous = ${input.peerAnonymous},
+        language = ${input.language}, translation_title = ${input.translationTitle}
     where tenant_id = ${input.tenantId}::uuid and id = ${input.id}::uuid
       and version = ${input.expectedVersion} and status = 'active' and state <> 'archived'
     returning version`);

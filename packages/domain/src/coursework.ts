@@ -19,6 +19,7 @@ import {
   MAX_PROGRAM_CHARS,
   responseSchema,
 } from "./learning";
+import { CONTENT_LOCALES } from "./translations";
 
 export const LATE_POLICIES = ["accept", "deduct", "refuse"] as const;
 export type LatePolicy = (typeof LATE_POLICIES)[number];
@@ -232,6 +233,17 @@ export const saveAssignmentSchema = v.object({
   quiz: v.optional(v.nullable(quizSchema), null),
   discussion: v.optional(v.nullable(discussionSchema), null),
   peer: v.optional(v.nullable(peerReviewSchema), null),
+  /** The language the brief is written in; without it, the one it had stays. */
+  language: v.optional(v.nullable(v.picklist(CONTENT_LOCALES))),
+  /** The brief in the other language; without it, the translation it had stays. */
+  translation: v.optional(
+    v.nullable(
+      v.object({
+        title: v.pipe(v.string(), v.trim(), v.maxLength(200)),
+        content: contentDocumentSchema,
+      }),
+    ),
+  ),
 });
 export type SaveAssignmentInput = v.InferInput<typeof saveAssignmentSchema>;
 export type SaveAssignment = v.InferOutput<typeof saveAssignmentSchema>;
@@ -246,6 +258,7 @@ export type AssignmentIssue =
   | "coursework.quiz_needed"
   | "coursework.discussion_needed"
   | "coursework.peer_format"
+  | "coursework.translation_quiz"
   | "coursework.unreviewed"
   | "coursework.quiz_questions"
   | "coursework.quiz_incomplete"
@@ -276,6 +289,8 @@ export function assignmentIssue(input: SaveAssignment): AssignmentIssue | null {
     return "coursework.discussion_needed";
   if (input.peer && !PEER_FORMATS.includes(input.submissionFormat))
     return "coursework.peer_format";
+  if (input.translation && input.submissionFormat === "quiz")
+    return "coursework.translation_quiz";
   if (input.quiz) {
     if (input.rubric) return "coursework.quiz_rubric";
     if (input.brief.root.children?.some((node) => node.type === "gate"))

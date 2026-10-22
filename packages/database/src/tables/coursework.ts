@@ -189,6 +189,17 @@ export const assignments = core.table.withRLS(
     peerAnonymous: boolean("peer_anonymous"),
     peerStartedAt: instant("peer_started_at"),
     peerReleasedAt: instant("peer_released_at"),
+    /** The language the brief is written in, when the teacher says. */
+    language: text("language").$type<"en" | "ar">(),
+    /** The title in the language of the brief's translation, when it has one. */
+    translationTitle: text("translation_title"),
+    /**
+     * Who checked the translation against the original, when, and a digest
+     * of the original's words then, which tells whether it has changed since.
+     */
+    translationReviewedAt: instant("translation_reviewed_at"),
+    translationReviewedByUserId: uuid("translation_reviewed_by_user_id"),
+    translationSourceDigest: text("translation_source_digest"),
     publishedAt: instant("published_at"),
     archivedAt: instant("archived_at"),
     ...entityColumns(),
@@ -244,6 +255,22 @@ export const assignments = core.table.withRLS(
       "assignments",
       "discussion",
       sql`(submission_format = 'discussion') = (discussion_post_first is not null and discussion_replies is not null) and (discussion_replies is null or discussion_replies between 0 and 5)`,
+    ),
+    ck("assignments", "language", sql`language in ('en', 'ar')`),
+    ck(
+      "assignments",
+      "translation_title",
+      sql`translation_title is null or (language is not null and char_length(translation_title) between 1 and 200)`,
+    ),
+    fk(
+      "assignments",
+      [t.tenantId, t.translationReviewedByUserId],
+      [users.tenantId, users.id],
+    ),
+    ck(
+      "assignments",
+      "translation_review",
+      sql`(translation_reviewed_at is null) = (translation_reviewed_by_user_id is null) and (translation_reviewed_at is null) = (translation_source_digest is null)`,
     ),
     ck(
       "assignments",

@@ -16,6 +16,7 @@ import type {
   LessonResponse,
   QuizAnswer,
 } from "@faridalms/domain/learning";
+import type { ContentLocale } from "@faridalms/domain/translations";
 
 import { arrangementsOf } from "@faridalms/database/stores/arrangements";
 import { bankTagCounts } from "@faridalms/database/stores/bank";
@@ -81,10 +82,13 @@ import {
 } from "@faridalms/database/stores/coursework";
 import {
   documentOf,
+  dropTranslation,
   freezeCopy,
   publishedVersion,
   saveDocument,
+  saveTranslation,
   snapshotPublish,
+  translationOf,
 } from "@faridalms/database/stores/documents";
 import {
   authenticationsOf,
@@ -113,6 +117,10 @@ import {
   beginSitting,
 } from "@faridalms/database/stores/quizzes";
 import { isVisibleStudent } from "@faridalms/database/stores/students";
+import {
+  reviewTranslation,
+  translationReview,
+} from "@faridalms/database/stores/translations";
 import {
   dayIn,
   schoolYears,
@@ -188,6 +196,11 @@ import {
 } from "@faridalms/domain/learning";
 import { quizIntro, quizOfBrief } from "@faridalms/domain/lesson-content";
 import { practised, practiceStanding } from "@faridalms/domain/practice";
+import {
+  documentWritten,
+  otherLocale,
+  reviewTranslationSchema,
+} from "@faridalms/domain/translations";
 import { ORPCError } from "@orpc/server";
 import * as v from "valibot";
 
@@ -283,6 +296,37 @@ async function readersBrief(
     assignment.submissionFormat === "quiz" ? quizIntro(content) : content;
   // Students meet the part set aside for each of them in their own answer.
   return reader === "student" ? withoutStarter(shown) : shown;
+}
+
+/**
+ * The brief in the other language, as its readers get it: for a student,
+ * without the part set aside for each of them, which they meet in their
+ * own answer in the original's words.
+ */
+async function readersTranslation(
+  context: UnitContext,
+  assignment: {
+    id: string;
+    language: ContentLocale | null;
+    translationTitle: string | null;
+  },
+  reader: "teacher" | "student" | "editor" = "teacher",
+) {
+  if (!assignment.language) return null;
+  const document = await documentOf(context.tx, context.tenantId, {
+    type: "assignment",
+    id: assignment.id,
+  });
+  const translated = document
+    ? await translationOf(context.tx, context.tenantId, document.id)
+    : null;
+  if (!translated) return null;
+  const content = translated.content as unknown as ContentDocument;
+  return {
+    locale: otherLocale(assignment.language),
+    title: assignment.translationTitle ?? "",
+    content: reader === "student" ? withoutStarter(content) : content,
+  };
 }
 
 async function filesView(
@@ -560,8 +604,20 @@ export const editor = readProcedure
       assignment.state === "draft"
         ? null
         : await readersBrief(context, assignment, "editor");
+    const translation = await readersTranslation(context, assignment, "editor");
     return {
       ...assignment,
+      translation: translation && {
+        title: translation.title,
+        content: translation.content,
+      },
+      translationReview: translation
+        ? await translationReview(context.tx, {
+            tenantId: context.tenantId,
+            host: "assignment",
+            id: assignment.id,
+          })
+        : null,
       rubric: assignment.rubric as unknown as Rubric | null,
       brief:
         stored && isQuiz
@@ -721,6 +777,8 @@ export const reuse = writeProcedure
       discussionReplies: source.discussionReplies,
       peerReviews: source.peerReviews,
       peerAnonymous: source.peerAnonymous,
+      language: source.language,
+      translationTitle: source.translationTitle,
     });
     const brief = await documentOf(tx, context.tenantId, {
       type: "assignment",
@@ -730,7 +788,7 @@ export const reuse = writeProcedure
       ...((brief?.content as ContentDocument | undefined) ?? emptyContent()),
     };
     const host = { type: "assignment", id: created.id };
-    await saveDocument(tx, {
+    const copied = await saveDocument(tx, {
       tenantId: context.tenantId,
       orgId: context.schoolId,
       host,
@@ -738,6 +796,25 @@ export const reuse = writeProcedure
       plainText: contentPlainText(content),
       userId: context.actor.userId,
     });
+    const translated = brief
+      ? await translationOf(tx, context.tenantId, brief.id)
+      : null;
+    if (translated && source.language) {
+      const words = {
+        ...(translated.content as unknown as ContentDocument),
+      };
+      await saveTranslation(tx, {
+        tenantId: context.tenantId,
+        orgId: context.schoolId,
+        host,
+        originalId: copied.id,
+        locale: otherLocale(source.language),
+        kind: "rich_text",
+        ...(await placeMedia(context, host, words, contentFileIds(words))),
+        plainText: contentPlainText(words),
+        userId: context.actor.userId,
+      });
+    }
     await audit(context, {
       action: "assignment.reuse",
       objectType: "assignment",
@@ -787,8 +864,47 @@ export const save = writeProcedure
     let version: number;
     let published = false;
     let author = context.actor.userId;
-    if (input.id) {
-      const existing = await taughtAssignment(context, input.id);
+    const stored = input.id ? await taughtAssignment(context, input.id) : null;
+    const before = stored
+      ? await documentOf(tx, context.tenantId, {
+          type: "assignment",
+          id: stored.id,
+        })
+      : null;
+    const translated = before
+      ? await translationOf(tx, context.tenantId, before.id)
+      : null;
+    const language =
+      input.language === undefined
+        ? (stored?.language ?? null)
+        : input.language;
+    const translation =
+      input.translation === undefined
+        ? translated && {
+            title: stored?.translationTitle ?? "",
+            content: translated.content as unknown as ContentDocument,
+          }
+        : input.translation;
+    // A translation is in the other language of the brief's own, which stays
+    // as it is while the translation is kept; a quiz's questions carry their
+    // answers, so it has none.
+    if (
+      translation &&
+      (!language || (translated?.locale && translated.locale === language))
+    )
+      throw new ORPCError("CONFLICT", {
+        message: "coursework.translation_language",
+      });
+    if (translation && input.submissionFormat === "quiz")
+      throw new ORPCError("BAD_REQUEST", {
+        message: "coursework.translation_quiz",
+      });
+    const kept = {
+      language,
+      translationTitle: translation?.title || null,
+    };
+    if (stored) {
+      const existing = stored;
       // A draft saves itself as it is written, so its class may still change;
       // once assigned, students and their work belong to that class.
       if (existing.classId !== classRow.id && existing.state !== "draft")
@@ -817,6 +933,7 @@ export const save = writeProcedure
         classRow,
         expectedVersion: input.expectedVersion ?? 0,
         ...fieldsOf(input),
+        ...kept,
       });
       if (!saved)
         throw new ORPCError("CONFLICT", { message: "conflict.version" });
@@ -831,6 +948,7 @@ export const save = writeProcedure
         classRow,
         authorUserId: context.actor.userId,
         ...fieldsOf(input),
+        ...kept,
       });
       assignmentId = created.id;
       version = created.version;
@@ -863,6 +981,46 @@ export const save = writeProcedure
         documentId: document.id,
         userId: context.actor.userId,
       });
+    if (input.translation !== undefined) {
+      if (input.translation && language)
+        await saveTranslation(tx, {
+          tenantId: context.tenantId,
+          orgId: context.schoolId,
+          host,
+          originalId: document.id,
+          locale: otherLocale(language),
+          kind: "rich_text",
+          ...(await placeMedia(
+            context,
+            host,
+            input.translation.content,
+            contentFileIds(input.translation.content),
+          )),
+          plainText: contentPlainText(input.translation.content),
+          userId: context.actor.userId,
+        });
+      else
+        await dropTranslation(tx, {
+          tenantId: context.tenantId,
+          originalId: document.id,
+        });
+      // A check lapses by itself once the original's words change; a
+      // translation rewritten, or dropped, needs checking again.
+      if (
+        !input.translation ||
+        contentPlainText(input.translation.content) !==
+          (translated?.plainText ?? "")
+      ) {
+        const cleared = await reviewTranslation(tx, {
+          host: "assignment",
+          tenantId: context.tenantId,
+          id: assignmentId,
+          userId: context.actor.userId,
+          reviewed: false,
+        });
+        if (cleared !== null) version = cleared;
+      }
+    }
     const selection =
       input.audience === "selected"
         ? { groupIds: input.groupIds, studentIds: input.studentIds }
@@ -1008,14 +1166,55 @@ export const archive = writeProcedure
     return saved;
   });
 
+/**
+ * The teacher marks the brief's translation as checked against the original
+ * as it now reads, or takes that back.
+ */
+export const reviewBriefTranslation = writeProcedure
+  .input(reviewTranslationSchema)
+  .handler(async ({ input, context }) => {
+    requireCapability(context, "assignments:author");
+    const assignment = await taughtAssignment(context, input.id);
+    if (assignment.version !== input.expectedVersion)
+      throw new ORPCError("CONFLICT", { message: "conflict.version" });
+    const translation = await readersTranslation(context, assignment, "editor");
+    if (input.reviewed && !documentWritten(translation?.content ?? null))
+      throw new ORPCError("CONFLICT", {
+        message: "coursework.nothing_to_check",
+      });
+    const version = await reviewTranslation(context.tx, {
+      host: "assignment",
+      tenantId: context.tenantId,
+      id: assignment.id,
+      userId: context.actor.userId,
+      reviewed: input.reviewed,
+    });
+    await audit(context, {
+      action: input.reviewed
+        ? "assignment.translation_checked"
+        : "assignment.translation_unchecked",
+      objectType: "assignment",
+      objectId: assignment.id,
+    });
+    return {
+      version: version ?? assignment.version,
+      review: await translationReview(context.tx, {
+        tenantId: context.tenantId,
+        host: "assignment",
+        id: assignment.id,
+      }),
+    };
+  });
+
 /** The assignment as its teacher reads it: brief and everyone's standing. */
 export const record = readProcedure
   .input(v.object({ id }))
   .handler(async ({ input, context }) => {
     requireCapability(context, "assignments:author", "submissions:grade");
     const assignment = await taughtAssignment(context, input.id);
-    const [brief, work, classRow] = await Promise.all([
+    const [brief, translation, work, classRow] = await Promise.all([
       readersBrief(context, assignment),
+      readersTranslation(context, assignment),
       studentWork(context.tx, {
         tenantId: context.tenantId,
         assignmentId: assignment.id,
@@ -1051,6 +1250,7 @@ export const record = readProcedure
           }
         : null,
       brief,
+      translation,
       work: work.map((row) => ({
         ...row,
         grade: grade(
@@ -1847,8 +2047,9 @@ export const work = readProcedure
       Date.parse(assignment.availableFrom) > context.now.getTime()
     )
       throw new ORPCError("NOT_FOUND");
-    const [brief, whole, rows, classRow] = await Promise.all([
+    const [brief, translation, whole, rows, classRow] = await Promise.all([
       readersBrief(context, assignment, "student"),
+      readersTranslation(context, assignment, "student"),
       readersBrief(context, assignment, "editor"),
       studentWork(context.tx, {
         tenantId: context.tenantId,
@@ -1889,6 +2090,7 @@ export const work = readProcedure
         rubric: assignment.rubric as unknown as Rubric | null,
         /** Classmates review each other's work. */
         peer: assignment.peerReviews !== null,
+        language: assignment.language,
         class: classRow
           ? {
               id: classRow.id,
@@ -1899,6 +2101,7 @@ export const work = readProcedure
           : null,
       },
       brief,
+      translation,
       submission: {
         id: row.submissionId,
         version: row.submissionVersion ?? 0,

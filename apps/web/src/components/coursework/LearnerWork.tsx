@@ -51,6 +51,7 @@ import { getMessageFromError } from "~/utils/error";
 
 import { classTitle } from "../classes/format";
 import { resultText } from "../grading/format";
+import { useBriefLanguage } from "./BriefLanguage";
 import { Discussion } from "./Discussion";
 import { formatInstant, STATE_LABEL, STATE_TONE } from "./format";
 import { PeerReviewWork } from "./PeerReview";
@@ -501,12 +502,18 @@ export function LearnerWork({ assignmentId }: { assignmentId: string }) {
           ),
         ]
       : [];
+  const reading = useBriefLanguage({
+    title: data.assignment.title,
+    brief: data.brief,
+    language: data.assignment.language,
+    translation: data.translation,
+  });
   const briefPrint = usePrint(
-    data.brief
+    reading.brief
       ? {
-          title: data.assignment.title,
+          title: reading.title,
           facts: due,
-          content: data.brief,
+          content: reading.brief,
           link: `/assignments/${data.assignment.id}`,
         }
       : null,
@@ -530,7 +537,7 @@ export function LearnerWork({ assignmentId }: { assignmentId: string }) {
     >
       <RecordHeader
         variant="document"
-        title={data.assignment.title}
+        title={reading.title}
         facts={facts}
         tools={<ReaderWidthToggle wide={width.wide} onToggle={width.toggle} />}
         status={{
@@ -541,8 +548,14 @@ export function LearnerWork({ assignmentId }: { assignmentId: string }) {
           (action) => action !== null,
         )}
       />
-      {data.brief ? (
-        <ContentView document={data.brief} fileUrl={(id) => `/files/${id}`} />
+      {reading.switcher}
+      {reading.brief ? (
+        <div lang={reading.lang} dir={reading.dir}>
+          <ContentView
+            document={reading.brief}
+            fileUrl={(id) => `/files/${id}`}
+          />
+        </div>
       ) : (
         <RecordEmpty>{m.courseworkNoBrief()}</RecordEmpty>
       )}

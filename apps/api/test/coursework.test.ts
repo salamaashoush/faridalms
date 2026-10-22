@@ -2360,3 +2360,118 @@ describe("discussions", () => {
     expect(classmate).not.toBe("");
   });
 });
+
+describe("a brief in two languages", () => {
+  test("a brief carries a translation students read, which the teacher checks and keeps", async () => {
+    const teacher = await arabicTeacher();
+    const student = await sessionFor("northwind", login("student"));
+    const me = await student.api.identity.currentUser();
+    const target = await classOfStudent(teacher.api, me.id);
+    const words = {
+      title: "رسالة إلى النيل",
+      content: plainContent("اكتب رسالة إلى النيل."),
+    };
+    const base = draft(target.id, "A letter to the Nile", {
+      brief: plainContent("Write the Nile a letter."),
+    });
+    // A translation is in the other language of a brief that says its own.
+    expect(
+      await rejection(
+        teacher.api.coursework.save({ ...base, translation: words }),
+      ),
+    ).toMatchObject({ message: "coursework.translation_language" });
+    const saved = await teacher.api.coursework.save({
+      ...base,
+      language: "en",
+      translation: words,
+    });
+    const opened = await teacher.api.coursework.editor({ id: saved.id });
+    expect(opened).toMatchObject({
+      language: "en",
+      translationTitle: "رسالة إلى النيل",
+      translation: { title: "رسالة إلى النيل" },
+      translationReview: null,
+    });
+    // The brief keeps its language while it has a translation.
+    expect(
+      await rejection(
+        teacher.api.coursework.save({
+          ...base,
+          id: saved.id,
+          expectedVersion: saved.version,
+          language: "ar",
+        }),
+      ),
+    ).toMatchObject({ message: "coursework.translation_language" });
+    const checked = await teacher.api.coursework.reviewBriefTranslation({
+      id: saved.id,
+      expectedVersion: saved.version,
+      reviewed: true,
+    });
+    expect(checked.review).toMatchObject({ current: true });
+    // Saving without a translation keeps the one it has, and its check.
+    const kept = await teacher.api.coursework.save({
+      ...base,
+      id: saved.id,
+      expectedVersion: checked.version,
+    });
+    expect(
+      (await teacher.api.coursework.editor({ id: saved.id })).translationReview,
+    ).toMatchObject({ current: true });
+    const published = await teacher.api.coursework.publish({
+      id: saved.id,
+      expectedVersion: kept.version,
+    });
+
+    const work = await student.api.coursework.work({ id: saved.id });
+    expect(work.assignment.language).toBe("en");
+    expect(work.translation).toMatchObject({
+      locale: "ar",
+      title: "رسالة إلى النيل",
+    });
+    expect(JSON.stringify(work.translation?.content)).toContain(
+      "اكتب رسالة إلى النيل",
+    );
+
+    // A change to the original leaves the check behind it.
+    const changed = await teacher.api.coursework.save({
+      ...base,
+      id: saved.id,
+      expectedVersion: published.version,
+      brief: plainContent("Write the Nile a letter of thanks."),
+    });
+    expect(
+      (await teacher.api.coursework.editor({ id: saved.id })).translationReview,
+    ).toMatchObject({ current: false });
+    await teacher.api.coursework.save({
+      ...base,
+      id: saved.id,
+      expectedVersion: changed.version,
+      brief: plainContent("Write the Nile a letter of thanks."),
+      translation: null,
+    });
+    expect(
+      (await student.api.coursework.work({ id: saved.id })).translation,
+    ).toBeNull();
+
+    // A quiz's questions carry their answers, so it has no translation.
+    expect(
+      await rejection(
+        teacher.api.coursework.save({
+          ...draft(target.id, "Nile quiz"),
+          submissionFormat: "quiz",
+          points: null,
+          quiz: {
+            attempts: 1,
+            keep: "highest",
+            reveal: "marks",
+            shuffle: false,
+            timeLimit: null,
+          },
+          language: "en",
+          translation: words,
+        }),
+      ),
+    ).toMatchObject({ message: "coursework.translation_quiz" });
+  });
+});

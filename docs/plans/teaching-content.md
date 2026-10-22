@@ -638,6 +638,16 @@ Scratch Text to Speech, Translate and tutorials.
    helpfulness, the teacher's marking page showing the reviews, reviews
    of quizzes and discussions, and passage comments by reviewers.
 3. **Translate a brief in place** for a reader in another language.
+   Done: an assignment's brief says the language it is written in and
+   can carry a translation in the other, written beside it in the editor
+   as a lesson's is: tabs for the two, its own title, the original's
+   copy to rewrite, and a check that a change to the original undoes.
+   Students open the brief in their own language when it has one and
+   switch with a tab; the teacher reads both the same way. Using the work
+   again copies the translation.
+   Left: a quiz's questions in two languages (their answers come from
+   the original, as a lesson's do), the breadcrumb following the
+   language read, and a family reading the brief in theirs.
 4. **Reading fluency** assignments, teacher-marked first.
 5. **A file block copied for each student** to work in.
 

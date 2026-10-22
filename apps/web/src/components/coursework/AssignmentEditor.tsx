@@ -7,6 +7,7 @@ import type {
   SubmissionFormat,
 } from "@faridalms/domain/coursework";
 import type { FeedbackBand } from "@faridalms/domain/learning";
+import type { ContentLocale } from "@faridalms/domain/translations";
 
 import {
   contentPlainText,
@@ -29,6 +30,13 @@ import { isCheck } from "@faridalms/domain/learning";
 import { quizOfBrief, sameLesson } from "@faridalms/domain/lesson-content";
 import { zonedInstant, zonedLocal } from "@faridalms/domain/school";
 import {
+  CONTENT_LOCALES,
+  languageDirection,
+  otherLocale,
+  translationState,
+} from "@faridalms/domain/translations";
+import { Tabs, TabsList, TabsTrigger } from "@faridalms/ui/tabs";
+import {
   useQuery,
   useQueryClient,
   useSuspenseQuery,
@@ -44,11 +52,14 @@ import { UnsavedChangesGuard } from "~/components/app/UnsavedChangesGuard";
 import { contentIssueMessages } from "~/components/content/checks";
 import { useCollaboration } from "~/components/content/collaboration";
 import { ContentEditor } from "~/components/content/ContentEditor";
+import { LOCALE_LABEL, LOCALE_NAME } from "~/components/content/languages";
 import { useStartFrom } from "~/components/content/Templates";
+import { TranslationNote } from "~/components/content/TranslationNote";
 import { CourseworkSetting } from "~/components/exams/CourseworkSetting";
 import { blockIssue } from "~/components/learning/issues";
 import { CheckboxRow } from "~/components/people/fields";
 import { ComboboxField } from "~/components/system/ComboboxField";
+import { ConfirmDialog } from "~/components/system/ConfirmDialog";
 import {
   DetailsPanel,
   DetailsSection,
@@ -64,6 +75,7 @@ import { classPlanQuery } from "~/queries/grading";
 import {
   archiveAssignment,
   publishAssignment,
+  reviewBriefTranslation,
   saveAssignment,
 } from "~/server/coursework";
 import { formatMinutes, formatNumber } from "~/utils/datetime";
@@ -105,6 +117,9 @@ interface Draft {
   quiz: QuizDraft;
   discussion: { postFirst: boolean; replies: string };
   peer: { on: boolean; reviews: string; anonymous: boolean };
+  language: ContentLocale | "auto";
+  /** The brief in the other language: its title, empty for the original's, and its words. */
+  translation: { title: string; content: ContentDocument } | null;
 }
 
 interface QuizDraft {
@@ -264,6 +279,8 @@ function initialDraft(
       quiz: newQuiz(),
       discussion: { postFirst: true, replies: "2" },
       peer: NO_PEER,
+      language: "auto",
+      translation: null,
     };
   return {
     classId: existing.classId,
@@ -317,6 +334,8 @@ function initialDraft(
           anonymous: existing.peer.anonymous,
         }
       : NO_PEER,
+    language: existing.language ?? "auto",
+    translation: existing.translation,
   };
 }
 
@@ -576,6 +595,8 @@ export function AssignmentEditor({
                 anonymous: value.peer.anonymous,
               }
             : null,
+        language: value.language === "auto" ? null : value.language,
+        translation: quiz ? null : value.translation,
       };
     },
     [shared, timeZone],
@@ -617,6 +638,54 @@ export function AssignmentEditor({
   );
   const setQuiz = <K extends keyof QuizDraft>(key: K, value: QuizDraft[K]) =>
     set("quiz", { ...draft.quiz, [key]: value });
+
+  // Which of the brief's languages is being written, while it has two.
+  const [writing, setWriting] = useState<"original" | "translation">(
+    "original",
+  );
+  const [translationCheck, setTranslationCheck] = useState(
+    existing?.translationReview ?? null,
+  );
+  const [reviewing, setReviewing] = useState(false);
+  const [removing, setRemoving] = useState(false);
+  const language = draft.language === "auto" ? null : draft.language;
+  const translated = isQuiz ? null : draft.translation;
+  const setTranslation = (
+    change: (current: { title: string; content: ContentDocument }) => {
+      title: string;
+      content: ContentDocument;
+    },
+  ) =>
+    setDraft((current) =>
+      current.translation
+        ? { ...current, translation: change(current.translation) }
+        : current,
+    );
+  const translation =
+    language && translated
+      ? translationState({
+          translation: translated.content,
+          reviewed: translationCheck !== null,
+          current: translationCheck?.current ?? false,
+        })
+      : null;
+  const markReviewed = async (reviewed: boolean) => {
+    if (!storedId) return;
+    setReviewing(true);
+    try {
+      if (await autosave.flush()) {
+        const result = await reviewBriefTranslation({
+          data: { id: storedId, expectedVersion: version.current, reviewed },
+        });
+        version.current = result.version;
+        setTranslationCheck(result.review);
+      }
+    } catch (error) {
+      toast.error(getMessageFromError(error));
+    } finally {
+      setReviewing(false);
+    }
+  };
 
   // A quiz's brief is compared as students meet it, since the editor writes
   // out settings a stored question may leave to their defaults.
@@ -892,15 +961,56 @@ export function AssignmentEditor({
                 {m.quizStartedHint()}
               </p>
             ) : null}
-            <DocumentTitle
-              id="work-title"
-              label={m.courseworkTitle()}
-              placeholder={m.courseworkUntitled()}
-              maxLength={200}
-              value={draft.title}
-              onChange={(title) => set("title", title)}
-              onEnter={() => document.getElementById("work-brief")?.focus()}
-            />
+            {language && translated ? (
+              <Tabs
+                value={writing}
+                onValueChange={(value: "original" | "translation") =>
+                  setWriting(value)
+                }
+              >
+                <TabsList aria-label={m.contentLanguage()}>
+                  <TabsTrigger value="original" lang={language}>
+                    {LOCALE_LABEL[language]()}
+                  </TabsTrigger>
+                  <TabsTrigger value="translation" lang={otherLocale(language)}>
+                    {LOCALE_LABEL[otherLocale(language)]()}
+                  </TabsTrigger>
+                </TabsList>
+              </Tabs>
+            ) : null}
+            {language && translated && writing === "translation" ? (
+              <div
+                lang={otherLocale(language)}
+                dir={languageDirection(otherLocale(language))}
+              >
+                <DocumentTitle
+                  id="work-title"
+                  label={m.courseworkTitle()}
+                  placeholder={draft.title || m.courseworkUntitled()}
+                  maxLength={200}
+                  value={translated.title}
+                  onChange={(title) =>
+                    setTranslation((current) => ({ ...current, title }))
+                  }
+                  onEnter={() => document.getElementById("work-brief")?.focus()}
+                />
+              </div>
+            ) : (
+              <div
+                lang={language ?? undefined}
+                dir={language ? languageDirection(language) : undefined}
+              >
+                <DocumentTitle
+                  id="work-title"
+                  label={m.courseworkTitle()}
+                  placeholder={m.courseworkUntitled()}
+                  maxLength={200}
+                  value={draft.title}
+                  onChange={(title) => set("title", title)}
+                  onEnter={() => document.getElementById("work-brief")?.focus()}
+                />
+              </div>
+            )}
           </div>
         }
         summary={[
@@ -1244,6 +1354,68 @@ export function AssignmentEditor({
                 />
               </DetailsSection>
             ) : null}
+            {isQuiz ? null : (
+              <DetailsSection title={m.contentLanguage()}>
+                <SelectField
+                  id="work-language"
+                  label={m.courseworkLanguage()}
+                  value={draft.language}
+                  options={[
+                    { value: "auto", label: m.lrnLanguageAuto() },
+                    ...CONTENT_LOCALES.map((value) => ({
+                      value,
+                      label: LOCALE_LABEL[value](),
+                    })),
+                  ]}
+                  onChange={(value) => set("language", value)}
+                  disabled={translated !== null}
+                  hint={
+                    translated
+                      ? m.courseworkLanguageLocked()
+                      : m.courseworkLanguageHint()
+                  }
+                />
+                {language ? (
+                  <CheckboxRow
+                    label={m.contentBilingual({
+                      language: LOCALE_NAME[otherLocale(language)](),
+                    })}
+                    hint={m.courseworkTranslationHint()}
+                    checked={translated !== null}
+                    onChange={(checked) => {
+                      if (!checked) {
+                        setRemoving(true);
+                        return;
+                      }
+                      // A translation starts as the brief, to be rewritten.
+                      set("translation", {
+                        title: "",
+                        content: shared ? brief.current : draft.brief,
+                      });
+                      setWriting("translation");
+                    }}
+                  />
+                ) : null}
+                {language && translated && translation ? (
+                  <>
+                    <TranslationNote
+                      state={translation}
+                      review={translationCheck}
+                      language={LOCALE_NAME[otherLocale(language)]()}
+                    />
+                    <CheckboxRow
+                      label={m.translationReviewedCheck()}
+                      hint={m.translationReviewedHint({
+                        language: LOCALE_NAME[language](),
+                      })}
+                      checked={translation === "reviewed"}
+                      disabled={reviewing || !storedId}
+                      onChange={(checked) => void markReviewed(checked)}
+                    />
+                  </>
+                ) : null}
+              </DetailsSection>
+            )}
             {PEER_FORMATS.includes(draft.submissionFormat) ? (
               <DetailsSection title={m.peerSection()}>
                 <CheckboxRow
@@ -1366,24 +1538,45 @@ export function AssignmentEditor({
         }
       >
         <div className="grid grid-cols-[minmax(0,1fr)] gap-10">
-          <ContentEditor
-            id="work-brief"
-            label={m.courseworkBrief()}
-            variant="document"
-            value={draft.brief}
-            onChange={changeBrief}
-            onValidityChange={setValid}
-            onUploadingChange={setUploading}
-            media={media}
-            questions={isQuiz}
-            gates={false}
-            draws={isQuiz}
-            lockQuestions={started}
-            starter={!isQuiz}
-            collaboration={shared ? live.collaboration : undefined}
-            pending={live.state === "loading"}
-            replace={replace}
-          />
+          {language && translated && writing === "translation" ? (
+            <ContentEditor
+              key="translation"
+              id="work-brief"
+              label={m.courseworkBrief()}
+              variant="document"
+              value={translated.content}
+              onChange={(value) =>
+                setTranslation((current) => ({ ...current, content: value }))
+              }
+              onValidityChange={setValid}
+              onUploadingChange={setUploading}
+              media={media}
+              gates={false}
+              starter
+              language={otherLocale(language)}
+            />
+          ) : (
+            <ContentEditor
+              key="original"
+              id="work-brief"
+              label={m.courseworkBrief()}
+              variant="document"
+              value={draft.brief}
+              onChange={changeBrief}
+              onValidityChange={setValid}
+              onUploadingChange={setUploading}
+              media={media}
+              questions={isQuiz}
+              gates={false}
+              draws={isQuiz}
+              lockQuestions={started}
+              starter={!isQuiz}
+              language={language ?? undefined}
+              collaboration={shared ? live.collaboration : undefined}
+              pending={live.state === "loading"}
+              replace={replace}
+            />
+          )}
         </div>
       </DocumentPage>
       <UnsavedChangesGuard
@@ -1392,6 +1585,20 @@ export function AssignmentEditor({
           (changed || (!published && !archived && !storable && autosave.dirty))
         }
         pending={pending !== null}
+      />
+      <ConfirmDialog
+        open={removing}
+        title={m.lrnTranslationRemoveTitle({
+          language: LOCALE_NAME[language ? otherLocale(language) : "ar"](),
+        })}
+        body={m.courseworkTranslationRemoveBody()}
+        confirmLabel={m.lrnTranslationRemove()}
+        onCancel={() => setRemoving(false)}
+        onConfirm={() => {
+          set("translation", null);
+          setWriting("original");
+          setRemoving(false);
+        }}
       />
       {reusing.key > 0 && storedId ? (
         <UseAgainSheet

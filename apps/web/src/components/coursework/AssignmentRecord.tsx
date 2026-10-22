@@ -73,6 +73,7 @@ import { getMessageFromError } from "~/utils/error";
 
 import { classTitle } from "../classes/format";
 import { displayName } from "../people/format";
+import { useBriefLanguage } from "./BriefLanguage";
 import { Discussion } from "./Discussion";
 import {
   formatInstant,
@@ -169,10 +170,22 @@ function Settings({
 }
 
 function Brief({ data }: { data: Data }) {
+  const reading = useBriefLanguage({
+    title: data.title,
+    brief: data.brief,
+    language: data.language,
+    translation: data.translation,
+  });
   return (
     <div className="grid gap-6">
-      {data.brief ? (
-        <ContentView document={data.brief} fileUrl={(id) => `/files/${id}`} />
+      {reading.switcher}
+      {reading.brief ? (
+        <div lang={reading.lang} dir={reading.dir}>
+          <ContentView
+            document={reading.brief}
+            fileUrl={(id) => `/files/${id}`}
+          />
+        </div>
       ) : (
         <RecordEmpty>{m.courseworkNoBrief()}</RecordEmpty>
       )}
