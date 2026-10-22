@@ -8,7 +8,11 @@ import type {
 } from "@faridalms/domain/coursework";
 import type { FeedbackBand } from "@faridalms/domain/learning";
 
-import { contentPlainText, sameContent } from "@faridalms/domain/content";
+import {
+  contentPlainText,
+  holdsSuggestions,
+  sameContent,
+} from "@faridalms/domain/content";
 import { emptyContent } from "@faridalms/domain/content-conversion";
 import {
   assignmentPhase,
@@ -331,6 +335,8 @@ function issuesOf(draft: Draft, started: boolean) {
   const [briefIssue] = contentIssueMessages(draft.brief);
   if (!contentPlainText(draft.brief).trim())
     publishing.brief = m.errorCourseworkBriefEmpty();
+  else if (holdsSuggestions(draft.brief))
+    publishing.brief = m.lrnErrUnreviewed();
   else if (briefIssue) publishing.brief = briefIssue;
   if (
     draft.audience === "selected" &&

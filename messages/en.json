@@ -675,6 +675,22 @@
   "editorQuestionAccepted": "Accepted",
   "editorQuestionOptions": "Question options",
   "editorQuestionTries": "Tries",
+  "editorQuestionSuggested": "Suggested",
+  "editorQuestionKeep": "Keep this question",
+  "editorSuggestTitle": "Questions from bold words",
+  "editorSuggestHint": "Set the words that matter in bold. Each sentence holding one becomes a question with that word to fill in, marked as suggested until you keep it.",
+  "editorSuggestPrompt": "Fill in the missing word.",
+  "editorSuggestNone": "No bold words to ask about yet",
+  "editorSuggestRun": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "Suggest {count} question",
+        "countPlural=*": "Suggest {count} questions"
+      }
+    }
+  ],
   "editorQuestionFeedbackAt": "When students see how they did",
   "editorQuestionFeedbackNow": "Results at once",
   "editorQuestionFeedbackEnd": "Results at the end",
@@ -4896,6 +4912,7 @@
   "lrnErrResultsWaiting": "See how you did before you try again.",
   "lrnErrNoResults": "No question here waits for the end.",
   "lrnErrYoungFeedback": "Questions in a lesson for young children show how they went at once.",
+  "lrnErrUnreviewed": "Keep or remove each suggested question before students see it.",
   "lrnRetryLesson": "Start again",
   "lrnPreviewHint": "Answers you give in the preview are marked here and not saved.",
   "lrnPreviewScreen": "Screen",

@@ -259,6 +259,8 @@ export interface QuestionLabels {
   videoAt?: (time: string) => string;
   /** A question tagged with some of the school's standards. */
   standards?: (count: number) => string;
+  /** A question suggested from the document, waiting for its teacher. */
+  suggested?: string;
   /** A code puzzle's empty line, and a line marked as belonging nowhere. */
   codeLine?: string;
   distractor?: string;
@@ -330,6 +332,8 @@ export interface QuestionSettings {
   tries: number | null;
   /** When the student learns how it went. */
   feedbackAt: FeedbackTime;
+  /** Suggested from the document, and not yet kept by its teacher. */
+  suggested: boolean;
   multiple: boolean;
   shuffle: boolean;
   caseSensitive: boolean;
@@ -397,6 +401,7 @@ export function defaultSettings(kind: QuestionKind): QuestionSettings {
         : 1,
     tries: null,
     feedbackAt: "now",
+    suggested: false,
     multiple: false,
     shuffle: kind === "choice",
     caseSensitive: false,
@@ -460,6 +465,7 @@ function questionSettings(stored: StoredSettings): QuestionSettings {
     points: stored.points ?? base.points,
     tries: stored.tries ?? null,
     feedbackAt: stored.feedbackAt ?? "now",
+    suggested: stored.suggested ?? false,
     multiple: stored.multiple ?? base.multiple,
     shuffle: stored.shuffle ?? base.shuffle,
     caseSensitive: stored.caseSensitive ?? base.caseSensitive,
@@ -567,7 +573,9 @@ function label(editor: LexicalEditor, settings: QuestionSettings): string {
     settings.standards.length > 0 && text.standards
       ? ` · ${text.standards(settings.standards.length)}`
       : "";
-  return `${kind}${starts}${held}${checked}${asked}${tagged} · ${text.points(settings.points)}`;
+  const waits =
+    settings.suggested && text.suggested ? `${text.suggested} · ` : "";
+  return `${waits}${kind}${starts}${held}${checked}${asked}${tagged} · ${text.points(settings.points)}`;
 }
 
 /**
@@ -633,12 +641,14 @@ export class QuestionNode extends ElementNode {
       hints,
       standards,
       feedbackAt,
+      suggested,
       ...settings
     } = questionSettings(this.getLatest().__settings);
     return {
       ...super.exportJSON(),
       ...settings,
       ...(feedbackAt === "now" ? {} : { feedbackAt }),
+      ...(suggested ? { suggested } : {}),
       ...(recordSeconds === null ? {} : { recordSeconds }),
       ...(recordSeconds !== null && recordVideo ? { recordVideo } : {}),
       ...(answerWith === null ? {} : { answerWith }),
@@ -687,6 +697,7 @@ export class QuestionNode extends ElementNode {
     dom.dataset.kind = settings.kind;
     dom.dataset.multiple = String(settings.multiple);
     dom.dataset.label = label(editor, settings);
+    if (settings.suggested) dom.dataset.suggested = "";
     if (locked.has(editor)) lockElement(dom, true);
     if (settings.kind === "number")
       dom.dataset.answer = `${labels.get(editor)?.answerIs ?? ""} ${numberAnswer(settings)}`;
@@ -713,6 +724,7 @@ export class QuestionNode extends ElementNode {
     if (
       before.kind !== settings.kind ||
       before.points !== settings.points ||
+      before.suggested !== settings.suggested ||
       before.recordSeconds !== settings.recordSeconds ||
       before.recordVideo !== settings.recordVideo ||
       before.answerWith !== settings.answerWith ||

@@ -1153,6 +1153,14 @@
   letter-spacing: 0.02em;
   content: attr(data-label);
 }
+.fe .fe-question[data-suggested] {
+  border-style: dashed;
+  border-color: color-mix(in oklab, var(--fe-accent) 45%, transparent);
+  background: color-mix(in oklab, var(--fe-accent) 4%, transparent);
+}
+.fe .fe-question[data-suggested]::before {
+  color: var(--fe-accent);
+}
 .fe .fe-question-prompt {
   margin-block-end: 0.5rem;
   font-weight: 600;

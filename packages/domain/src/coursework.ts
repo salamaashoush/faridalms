@@ -3,7 +3,11 @@ import * as v from "valibot";
 import type { ContentIssue } from "./content-checks";
 import type { CheckBlock, LessonDocument } from "./learning";
 
-import { contentDocumentSchema, contentPlainText } from "./content";
+import {
+  contentDocumentSchema,
+  contentPlainText,
+  holdsSuggestions,
+} from "./content";
 import { contentIssues } from "./content-checks";
 import { declarationSchema } from "./exams";
 import {
@@ -214,6 +218,7 @@ export type AssignmentIssue =
   | "coursework.brief_empty"
   | "coursework.quiz_needed"
   | "coursework.discussion_needed"
+  | "coursework.unreviewed"
   | "coursework.quiz_questions"
   | "coursework.quiz_incomplete"
   | "coursework.quiz_gate"
@@ -271,6 +276,7 @@ export function publishIssues(
   if (quiz) issues.push(quiz);
   if (!contentPlainText(input.brief).trim())
     issues.push("coursework.brief_empty");
+  if (holdsSuggestions(input.brief)) issues.push("coursework.unreviewed");
   for (const code of contentIssues(input.brief)) issues.push(`content.${code}`);
   if (
     input.audience === "selected" &&

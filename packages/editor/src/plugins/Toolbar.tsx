@@ -43,6 +43,7 @@ import {
   List,
   ListChecks,
   ListOrdered,
+  ListPlus,
   Plus,
   Redo2,
   Repeat2,
@@ -77,6 +78,7 @@ import { markdownTransformers } from "../markdown";
 import { textFocus, updateFromOutside } from "../outside";
 import { Tip, ToolButton, cx, menuItemClass, menuPopupClass } from "../ui";
 import { $runBlock } from "./insert";
+import { SuggestTool } from "./suggest";
 
 const inputClass =
   "h-9 w-full rounded-md border bg-background px-2.5 text-sm outline-none focus-visible:ring-2 focus-visible:ring-ring/30 aria-invalid:border-destructive";
@@ -215,6 +217,7 @@ export function ToolbarPlugin({ disabled }: { disabled: boolean }) {
   const [inTable, setInTable] = useState(false);
   const [tableOpen, setTableOpen] = useState(false);
   const [markdownOpen, setMarkdownOpen] = useState(false);
+  const [suggestOpen, setSuggestOpen] = useState(false);
   const [more, setMore] = useState<HTMLElement | null>(null);
   const saved = useRef<BaseSelection | null>(null);
 
@@ -546,6 +549,25 @@ export function ToolbarPlugin({ disabled }: { disabled: boolean }) {
         </Menu.Item>
       ),
     },
+    ...(environment.questions
+      ? [
+          {
+            key: "suggest",
+            inline: (
+              <SuggestTool open={suggestOpen} onOpenChange={setSuggestOpen} />
+            ),
+            menu: (
+              <Menu.Item
+                className={menuItemClass}
+                onClick={() => setSuggestOpen(true)}
+              >
+                <ListPlus aria-hidden />
+                {strings.suggestTitle}
+              </Menu.Item>
+            ),
+          },
+        ]
+      : []),
     {
       key: "markdown",
       inline: (
@@ -565,6 +587,7 @@ export function ToolbarPlugin({ disabled }: { disabled: boolean }) {
   const { row, shown } = useFittingTools(tools.length);
   const hidden = tools.slice(shown);
   const tableHidden = hidden.some((tool) => tool.key === "table");
+  const suggestHidden = hidden.some((tool) => tool.key === "suggest");
   const markdownHidden = hidden.some((tool) => tool.key === "markdown");
 
   return (
@@ -627,6 +650,13 @@ export function ToolbarPlugin({ disabled }: { disabled: boolean }) {
           onOpenChange={setTableOpen}
           onOpen={remember}
           restore={restore}
+          anchor={more}
+        />
+      ) : null}
+      {suggestHidden ? (
+        <SuggestTool
+          open={suggestOpen}
+          onOpenChange={setSuggestOpen}
           anchor={more}
         />
       ) : null}

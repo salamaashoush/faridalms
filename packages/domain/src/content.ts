@@ -301,6 +301,8 @@ export interface ContentNode {
   feedbackAt?: FeedbackTime;
   /** What a continue gate waits for; everything above when absent. */
   requires?: GateWaits;
+  /** A question suggested from the document, not yet kept by its teacher. */
+  suggested?: boolean;
   multiple?: boolean;
   shuffle?: boolean;
   caseSensitive?: boolean;
@@ -614,6 +616,7 @@ const nodeSchema: v.GenericSchema<ContentNode> = v.lazy(() =>
       tries: v.optional(v.nullable(integer(1, 10))),
       feedbackAt: v.optional(v.picklist(FEEDBACK_TIMES)),
       requires: v.optional(v.picklist(GATE_WAITS)),
+      suggested: v.optional(v.boolean()),
       multiple: v.optional(v.boolean()),
       shuffle: v.optional(v.boolean()),
       caseSensitive: v.optional(v.boolean()),
@@ -1281,3 +1284,9 @@ export function aiUseGaps(
   if (evidenceRequired && !node.aiEvidence?.length) gaps.push("evidence");
   return gaps;
 }
+
+/** Whether a document still holds a suggested question its teacher has not kept. */
+export const holdsSuggestions = (document: ContentDocument): boolean =>
+  (document.root.children ?? []).some(
+    (node) => node.type === "question" && node.suggested === true,
+  );

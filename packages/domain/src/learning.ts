@@ -16,6 +16,7 @@ import {
   contentPlainText,
   FEEDBACK_TIMES,
   GATE_WAITS,
+  holdsSuggestions,
   MAX_LATEX,
   mathText,
   narrationWordsSchema,
@@ -993,6 +994,7 @@ export function lessonIssue(lesson: {
 }): string | null {
   const document = lessonOfContent(lesson.content);
   if (lessonPlainText(document).trim() === "") return "learning.lesson_empty";
+  if (holdsSuggestions(lesson.content)) return "learning.unreviewed";
   // Only a quiz draws questions from the bank, one draw for each attempt.
   if (document.blocks.some((block) => block.type === "draw"))
     return "learning.lesson_incomplete";

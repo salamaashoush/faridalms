@@ -305,6 +305,13 @@ export interface EditorStrings extends LabelEditorStrings, ChartStrings {
   questionOptions: string;
   questionTries: string;
   questionTriesUntilRight: string;
+  questionSuggested: string;
+  questionKeep: string;
+  suggestTitle: string;
+  suggestHint: string;
+  suggestPrompt: string;
+  suggestNone: string;
+  suggestRun: (count: number) => string;
   questionFeedbackAt: string;
   questionFeedbackNow: string;
   questionFeedbackEnd: string;

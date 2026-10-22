@@ -698,6 +698,26 @@
   "editorQuestionAccepted": "مقبولة",
   "editorQuestionOptions": "خيارات السؤال",
   "editorQuestionTries": "المحاولات",
+  "editorQuestionSuggested": "مقترح",
+  "editorQuestionKeep": "أبقِ هذا السؤال",
+  "editorSuggestTitle": "أسئلة من الكلمات العريضة",
+  "editorSuggestHint": "اجعل الكلمات المهمة بخط عريض. تصير كل جملة فيها واحدة منها سؤالًا تُملأ فيه تلك الكلمة، ويبقى مقترحًا حتى تبقيه.",
+  "editorSuggestPrompt": "املأ الكلمة الناقصة.",
+  "editorSuggestNone": "لا كلمات عريضة يُسأل عنها بعد",
+  "editorSuggestRun": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=zero": "لا أسئلة للاقتراح",
+        "countPlural=one": "اقترح سؤالًا واحدًا",
+        "countPlural=two": "اقترح سؤالين",
+        "countPlural=few": "اقترح {count} أسئلة",
+        "countPlural=many": "اقترح {count} سؤالًا",
+        "countPlural=*": "اقترح {count} سؤال"
+      }
+    }
+  ],
   "editorQuestionFeedbackAt": "متى يرى الطلاب نتيجتهم",
   "editorQuestionFeedbackNow": "النتيجة فورًا",
   "editorQuestionFeedbackEnd": "النتيجة في نهاية الدرس",
@@ -5131,6 +5151,7 @@
   "lrnErrResultsWaiting": "اطّلع على نتيجتك قبل أن تحاول من جديد.",
   "lrnErrNoResults": "لا سؤال هنا ينتظر نهاية الدرس.",
   "lrnErrYoungFeedback": "أسئلة دروس الأطفال الصغار تُظهر نتيجتها فورًا.",
+  "lrnErrUnreviewed": "أبقِ كل سؤال مقترح أو احذفه قبل أن يراه الطلاب.",
   "lrnRetryLesson": "ابدأ من جديد",
   "lrnPreviewHint": "تُصحَّح إجاباتك في المعاينة هنا ولا تُحفظ.",
   "lrnPreviewScreen": "الشاشة",

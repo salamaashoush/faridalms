@@ -10,6 +10,7 @@ import {
   contentOfLesson,
   lessonOfContent,
 } from "@faridalms/domain/lesson-content";
+import { suggestedChecks } from "@faridalms/domain/suggest";
 import { PACKS } from "@faridalms/puzzles/levels";
 import { buildEditorFromExtensions } from "@lexical/extension";
 import {
@@ -1077,5 +1078,56 @@ describe("questions in a document", () => {
     const again = buildContentEditor();
     again.setEditorState(again.parseEditorState(JSON.stringify(document)));
     expect(json(again)).toEqual(document);
+  });
+});
+
+describe("questions suggested from the document", () => {
+  it("keep their mark until kept, and lose it once kept", () => {
+    const reading: ContentDocument = {
+      root: {
+        type: "root",
+        version: 1,
+        children: [
+          {
+            type: "paragraph",
+            version: 1,
+            children: [
+              {
+                type: "text",
+                version: 1,
+                text: "Plants make food by ",
+                format: 0,
+              },
+              { type: "text", version: 1, text: "photosynthesis", format: 1 },
+              { type: "text", version: 1, text: ".", format: 0 },
+            ],
+          },
+        ],
+      },
+    };
+    const [found] = suggestedChecks(reading, "Fill in the missing word.");
+    if (!found) throw new Error("no suggestion");
+    const target = buildContentEditor();
+    target.setEditorState(
+      target.parseEditorState(
+        JSON.stringify({
+          root: {
+            ...reading.root,
+            children: [...(reading.root.children ?? []), found.node],
+          },
+        }),
+      ),
+    );
+    const question = () =>
+      json(target).root.children?.find((node) => node.type === "question");
+    expect(question()).toMatchObject({ suggested: true });
+    target.update(
+      () => {
+        const node = $getRoot().getChildren().find($isQuestionNode);
+        node?.setSettings({ suggested: false });
+      },
+      { discrete: true },
+    );
+    expect(question()).not.toHaveProperty("suggested");
   });
 });

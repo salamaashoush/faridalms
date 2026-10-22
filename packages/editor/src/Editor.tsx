@@ -314,6 +314,7 @@ function Surface({
       arrowsPuzzle: strings.questionArrows,
       videoAt: strings.questionVideoAt,
       standards: strings.questionStandardsCount,
+      suggested: strings.questionSuggested,
       codeLine: strings.questionCodeLine,
       distractor: strings.questionDistractor,
       testInput: strings.questionTestInput,

@@ -217,6 +217,15 @@ Sources: [../research/course-design.md](../research/course-design.md),
    Left: messages for a module's mixed practice set.
 9. **Suggested checks** made from a document, held as unreviewed until a
    teacher accepts each, so publishing waits for that review.
+   Done: Questions from bold words, in the editor's tools, makes each
+   sentence holding a word the teacher set in bold into a gap to fill with
+   it, after the block it came from, in English or Arabic, leaving out a
+   word a question already asks. Each comes as suggested (`suggested` on
+   the question), drawn with a dashed border and named so, until its
+   teacher keeps it from its bar or deletes it; a lesson or assignment
+   holding one is not shown to students.
+   Left: suggestions written by a language model, waiting on the owner's
+   decision on help from one (section 11).
 10. **More question kinds**: word bank, poll, highlight words, label an
     image, number line, crossword and word search.
 

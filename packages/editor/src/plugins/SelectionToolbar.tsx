@@ -1473,6 +1473,14 @@ export function SelectionToolbarPlugin() {
         label={strings.questionOptions}
       >
         <div ref={toolbar} className="contents">
+          {settings.suggested ? (
+            <ToolButton
+              label={strings.questionKeep}
+              onClick={() => change({ suggested: false })}
+            >
+              <Check aria-hidden />
+            </ToolButton>
+          ) : null}
           <BarMenu
             label={strings.questionPoints(settings.points)}
             current={strings.questionPoints(settings.points)}
