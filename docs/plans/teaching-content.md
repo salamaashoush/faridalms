@@ -677,15 +677,35 @@ Scratch Text to Speech, Translate and tutorials.
 
 1. **LTI 1.3** with Deep Linking and Assignment and Grade Services, so a
    school plugs in outside tools.
-   Done so far: a school registers outside tools in Settings, each given
-   a client id and deployment id, and finds there the issuer, key set and
-   authorization addresses a tool's maker needs. A teacher places an
+   Done: Farida is an LTI 1.3 platform, as the owner decided. A school
+   registers outside tools in Settings, each given a client id and
+   deployment id, and finds there the issuer, key set, authorization and
+   access token addresses a tool's maker needs. A teacher places an
    "Outside tool" block in a lesson or brief; whoever opens it launches
    the tool by LTI 1.3's third-party-initiated sign-in, signed with the
    school's own RSA key, as an instructor when they teach it and a
    learner when they study it, with names only when the school says.
-   Left: Deep Linking, so a teacher picks the tool's content; Assignment
-   and Grade Services, so scores come back.
+   Selected, the block's bar offers the school's tools and "Choose
+   content": Deep Linking opens the tool's own window, and the simulation
+   or exercise picked there comes back to the link, checked against the
+   tool's published keys, its title, address, parameters and grade
+   column with it. Assignment and Grade Services let the tool report
+   back: a token endpoint that takes the tool's signed assertion once,
+   columns per course (a lesson's module, a brief's class) under an
+   address only a launch reveals, scores ordered by the tool's own
+   timestamps, and results scaled to the column. A link's picked content
+   gets its column at its first launch. Teachers see each tool column in
+   a module's progress beside its lessons, and a brief's grade sheet
+   lists what its tools scored the student, with a button to take the
+   score, scaled to the assignment's points, as the mark. A student's
+   scores go when they are erased.
+   Left: Names and Role Provisioning, so a tool can read a course's
+   roster, and Submission Review, launching from a score to the work
+   behind it. Picking several items at once, and content embedded in the
+   page rather than opened in a window. A tool's columns in the class
+   gradebook; Dynamic Registration, so a tool registers itself from one
+   address; rotating the school's signing key on a schedule; a student
+   seeing their tool scores in Farida.
 2. **QTI 3 and Common Cartridge** import and export, so content comes in
    from Moodle and Canvas and leaves again.
 3. **Results shaped for xAPI** (score, duration, completion).
