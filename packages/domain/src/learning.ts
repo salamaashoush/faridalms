@@ -323,6 +323,10 @@ export const lessonBlockSchema = v.variant("type", [
     type: v.literal("gate"),
     /** What opens the rest of the lesson; only work a student can finish alone. */
     requires: v.picklist(GATE_WAITS),
+    /** For a gate waiting for some questions, how many; for a score, the percent. */
+    goal: v.optional(
+      v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(100)),
+    ),
   }),
   v.object({
     id,
@@ -1248,6 +1252,29 @@ export function lessonIssue(lesson: {
   const last = document.blocks.findLastIndex((block) => block.type !== "gate");
   if (document.blocks.slice(last + 1).length > 0)
     return "learning.gate_opens_nothing";
+  for (const [index, block] of document.blocks.entries()) {
+    if (
+      block.type !== "gate" ||
+      (block.requires !== "some" && block.requires !== "score")
+    )
+      continue;
+    // A young child's screens open one at a time, each question answered first.
+    if (lesson.young) return "learning.young_gate";
+    const above = { ...document, blocks: document.blocks.slice(0, index) };
+    if (
+      block.goal === undefined ||
+      (block.requires === "some" && checkBlocks(above).length < block.goal)
+    )
+      return "learning.gate_goal";
+    // Another go is the way past a score not reached, and it waits for any
+    // results held back, which may sit beyond the gate.
+    if (
+      block.requires === "score" &&
+      (!above.blocks.some(scoresForGate) ||
+        autoBlocks(document).some((item) => feedbackAtOf(item) !== "now"))
+    )
+      return "learning.gate_score";
+  }
   const [problem] = contentIssues(lesson.content);
   return problem ? `content.${problem}` : null;
 }
@@ -2066,6 +2093,63 @@ export function creditOf(state: CheckState | undefined): number {
     0,
     state.fraction - TRY_PENALTY * (state.tries - 1 + state.hints),
   );
+}
+
+/** What a gate waiting for a score counts: questions marked at once that are worth points. */
+export const scoresForGate = (block: LessonBlock): block is AutoBlock =>
+  isAuto(block) &&
+  block.type !== "poll" &&
+  block.points > 0 &&
+  feedbackAtOf(block) === "now";
+
+/**
+ * What the questions a gate counts have earned of what they are worth, as a
+ * whole percent, or null when none counts.
+ */
+export function gateScore(
+  questions: readonly { points: number; credit: number }[],
+): number | null {
+  const total = questions.reduce((sum, item) => sum + item.points, 0);
+  if (total === 0) return null;
+  const earned = questions.reduce(
+    (sum, item) => sum + item.points * item.credit,
+    0,
+  );
+  return Math.round((earned / total) * 100);
+}
+
+/** A question's credit as its student's view shows it, as creditOf works it out from their tries. */
+export function viewCredit(view: CheckView | undefined): number {
+  if (!view || view.tries === 0) return 0;
+  if (view.revealed && !view.correct) return 0;
+  return Math.max(
+    0,
+    view.fraction - TRY_PENALTY * (view.tries - 1 + view.asked),
+  );
+}
+
+/**
+ * Whether a student has settled every question a gate waiting for a score
+ * counts and still falls short of it: nothing above is left to try, so only
+ * another go at the lesson opens the rest.
+ */
+export function shortOfGate(
+  document: LessonDocument,
+  states: Record<string, CheckState>,
+): boolean {
+  for (const [index, block] of document.blocks.entries()) {
+    if (block.type !== "gate" || block.requires !== "score") continue;
+    const counted = document.blocks.slice(0, index).filter(scoresForGate);
+    if (!counted.every((item) => settled(item, states[item.id]))) return false;
+    const score = gateScore(
+      counted.map((item) => ({
+        points: item.points,
+        credit: creditOf(states[item.id]),
+      })),
+    );
+    if (score !== null && score < (block.goal ?? 0)) return true;
+  }
+  return false;
 }
 
 /**

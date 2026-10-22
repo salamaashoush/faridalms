@@ -176,6 +176,7 @@ import {
   startPacedSchema,
   savePlanSchema,
   settled,
+  shortOfGate,
   standingOf,
   studentBlocks,
   upgradeLesson,
@@ -3559,7 +3560,11 @@ export const retry = writeProcedure
     const auto = checkBlocks(played.content).filter(isAuto);
     if (auto.length === 0)
       throw new ORPCError("CONFLICT", { message: "learning.nothing_to_retry" });
-    if (!auto.every((block) => settled(block, played.checks[block.id])))
+    // Short of a gate's score, a student has nothing left to try but another go.
+    if (
+      !auto.every((block) => settled(block, played.checks[block.id])) &&
+      !shortOfGate(played.content, played.checks)
+    )
       throw new ORPCError("CONFLICT", { message: "learning.not_done" });
     // Another go starts from knowing how this one went.
     if (heldChecks(played.content, played.shown).length > 0)

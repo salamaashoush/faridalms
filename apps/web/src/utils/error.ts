@@ -665,6 +665,12 @@ export function getMessageFromError(error: unknown): string {
         return m.lrnRuleNeedsMedia();
       case "learning.gate_opens_nothing":
         return m.lrnGateOpensNothing();
+      case "learning.young_gate":
+        return m.lrnErrYoungGate();
+      case "learning.gate_goal":
+        return m.lrnErrGateGoal();
+      case "learning.gate_score":
+        return m.lrnErrGateScore();
       case "learning.captions_required":
         return m.lrnErrCaptions();
       case "learning.correct_option":

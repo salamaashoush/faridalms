@@ -1916,6 +1916,83 @@ describe("hints asked for", () => {
   });
 });
 
+describe("a gate waiting for a score", () => {
+  test("a student short of it, with nothing above left to try, starts again", async () => {
+    const { keeper } = await teachers();
+    const { rows } = await keeper.learning.modules({});
+    const source = rows.find((row) => row.title === TITLE);
+    if (!source) throw new Error("no module");
+    const saved = await keeper.learning.saveModule({
+      id: "",
+      expectedVersion: 0,
+      title: "Mastery",
+      summary: "",
+      classIds: source.classes.map((item) => item.id),
+      prerequisiteId: "",
+      sequential: false,
+    });
+    const question = (prompt: string) => {
+      const right = id();
+      const wrong = id();
+      return {
+        right,
+        wrong,
+        block: {
+          id: id(),
+          type: "choice" as const,
+          prompt,
+          points: 1,
+          hints: [],
+          explanation: "",
+          tries: 1,
+          options: [
+            { id: right, text: "Yes", feedback: "" },
+            { id: wrong, text: "No", feedback: "" },
+          ],
+          correctOptionIds: [right],
+          multiple: false,
+          shuffle: false,
+        },
+      };
+    };
+    const first = question("Is a whale a mammal?");
+    const second = question("Does a bat fly?");
+    await keeper.learning.saveLesson({
+      id: "",
+      moduleId: saved.id,
+      expectedVersion: 0,
+      title: "Mammals",
+      completion: "quiz",
+      passScore: null,
+      review: false,
+      content: written([
+        first.block,
+        { id: id(), type: "gate", requires: "score", goal: 80 },
+        second.block,
+      ]),
+      publish: false,
+    });
+    await keeper.learning.publishModule({
+      id: saved.id,
+      expectedVersion: saved.version,
+    });
+
+    const pupil = await student();
+    const outline = await pupil.learning.play({ id: saved.id });
+    const lessonId = outline.lessons[0]?.id ?? "";
+    expect(await rejection(pupil.learning.retry({ lessonId }))).toMatchObject({
+      message: "learning.not_done",
+    });
+    await pupil.learning.respond({
+      lessonId,
+      blockId: first.block.id,
+      response: { type: "choice", optionIds: [first.wrong] },
+    });
+    // The one question above is settled at nothing, short of 80 percent.
+    expect(await pupil.learning.retry({ lessonId })).toEqual({ attempt: 2 });
+  });
+});
+
 describe("polls", () => {
   test("a class sees how it answered a poll once each student has, never who", async () => {
     const { keeper } = await teachers();

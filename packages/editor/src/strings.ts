@@ -294,10 +294,16 @@ export interface EditorStrings extends LabelEditorStrings, ChartStrings {
   gateHint: string;
   gateHintLast: string;
   gateHintNone: string;
+  gateHintSome: (count: number) => string;
+  gateHintScore: (score: number) => string;
   gateWaits: string;
   gateAbove: string;
   gateLast: string;
+  gateSome: string;
+  gateScore: string;
   gateNone: string;
+  gateGoalCount: string;
+  gateGoalScore: string;
   transcript: string;
   transcriptSearch: string;
   transcriptNoMatch: string;

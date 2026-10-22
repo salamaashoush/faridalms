@@ -14,22 +14,76 @@ import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext
 import { useLexicalEditable } from "@lexical/react/useLexicalEditable";
 import { $getDocument, $getNodeByKey, DecoratorNode } from "lexical";
 import { ArrowDown } from "lucide-react";
-import { useId } from "react";
+import { useId, useState } from "react";
 
 import { useEditorEnvironment } from "../context";
 import { ownKeys, useSelectOnClick } from "./select";
 
 export type SerializedGateNode = Spread<
-  { requires?: GateWaits },
+  { requires?: GateWaits; goal?: number },
   SerializedLexicalNode
 >;
+
+/** A gate's goal when it first waits for some questions, or for a score: mastery is commonly put at four in five. */
+const FIRST_GOAL: Partial<Record<GateWaits, number>> = { some: 1, score: 80 };
+
+const hasGoal = (requires: GateWaits) =>
+  requires === "some" || requires === "score";
+
+/** How many questions, or what percent, a gate waits for; typed in, kept once it is a whole number in range. */
+function GoalField({
+  nodeKey,
+  requires,
+  goal,
+}: {
+  nodeKey: NodeKey;
+  requires: GateWaits;
+  goal: number;
+}) {
+  const [editor] = useLexicalComposerContext();
+  const { strings } = useEditorEnvironment();
+  const [draft, setDraft] = useState<string | null>(null);
+  const id = useId();
+  return (
+    <span className="inline-flex items-center gap-1.5">
+      <label htmlFor={id}>
+        {requires === "score" ? strings.gateGoalScore : strings.gateGoalCount}
+      </label>
+      <input
+        id={id}
+        type="number"
+        inputMode="numeric"
+        min={1}
+        max={100}
+        value={draft ?? String(goal)}
+        onChange={(event) => {
+          setDraft(event.target.value);
+          const value = Number(event.target.value);
+          if (!Number.isInteger(value) || value < 1 || value > 100) return;
+          editor.update(
+            () => {
+              const node = $getNodeByKey(nodeKey);
+              if ($isGateNode(node)) node.setGoal(value);
+            },
+            { discrete: true },
+          );
+        }}
+        onBlur={() => setDraft(null)}
+        className="h-7 w-14 rounded-md border bg-background px-2 text-xs text-foreground tabular-nums outline-none focus-visible:ring-2 focus-visible:ring-ring/30"
+      />
+      {requires === "score" ? <span aria-hidden>%</span> : null}
+    </span>
+  );
+}
 
 function GateBlock({
   nodeKey,
   requires,
+  goal,
 }: {
   nodeKey: NodeKey;
   requires: GateWaits;
+  goal: number | undefined;
 }) {
   const [editor] = useLexicalComposerContext();
   const { strings } = useEditorEnvironment();
@@ -39,11 +93,15 @@ function GateBlock({
   const labels: Record<GateWaits, string> = {
     above: strings.gateAbove,
     last: strings.gateLast,
+    some: strings.gateSome,
+    score: strings.gateScore,
     none: strings.gateNone,
   };
   const hints: Record<GateWaits, string> = {
     above: strings.gateHint,
     last: strings.gateHintLast,
+    some: strings.gateHintSome(goal ?? 1),
+    score: strings.gateHintScore(goal ?? 1),
     none: strings.gateHintNone,
   };
   return (
@@ -88,6 +146,14 @@ function GateBlock({
               </option>
             ))}
           </select>
+          {hasGoal(requires) && goal !== undefined ? (
+            <GoalField
+              key={requires}
+              nodeKey={nodeKey}
+              requires={requires}
+              goal={goal}
+            />
+          ) : null}
         </div>
       ) : (
         <p className="text-center text-xs text-muted-foreground">
@@ -101,14 +167,17 @@ function GateBlock({
 /**
  * Where a lesson stops until its student has done what the gate waits for
  * and chosen to go on: every question and video above, the one just above,
- * or nothing. It has no words, so it is a widget rather than text.
+ * a number of the questions above, a score on them, or nothing. It has no
+ * words, so it is a widget rather than text.
  */
 export class GateNode extends DecoratorNode<JSX.Element> {
   __requires: GateWaits;
+  __goal: number | undefined;
 
-  constructor(requires: GateWaits = "above", key?: NodeKey) {
+  constructor(requires: GateWaits = "above", goal?: number, key?: NodeKey) {
     super(key);
     this.__requires = requires;
+    this.__goal = goal;
   }
 
   $config() {
@@ -116,7 +185,7 @@ export class GateNode extends DecoratorNode<JSX.Element> {
   }
 
   static clone(node: GateNode): GateNode {
-    return new GateNode(node.__requires, node.__key);
+    return new GateNode(node.__requires, node.__goal, node.__key);
   }
 
   static importJSON(json: SerializedGateNode): GateNode {
@@ -126,14 +195,16 @@ export class GateNode extends DecoratorNode<JSX.Element> {
   updateFromJSON(json: LexicalUpdateJSON<SerializedGateNode>): this {
     const node = super.updateFromJSON(json).getWritable();
     node.__requires = json.requires ?? "above";
+    node.__goal = hasGoal(node.__requires) ? json.goal : undefined;
     return node;
   }
 
   exportJSON(): SerializedGateNode {
-    const requires = this.getLatest().__requires;
+    const { __requires: requires, __goal: goal } = this.getLatest();
     return {
       ...super.exportJSON(),
       ...(requires === "above" ? {} : { requires }),
+      ...(goal === undefined ? {} : { goal }),
     };
   }
 
@@ -153,14 +224,33 @@ export class GateNode extends DecoratorNode<JSX.Element> {
     return this.getLatest().__requires;
   }
 
+  /** A count and a percent mean different things, so a change of kind starts its goal afresh. */
   setRequires(requires: GateWaits): this {
     const writable = this.getWritable();
+    if (writable.__requires !== requires)
+      writable.__goal = FIRST_GOAL[requires];
     writable.__requires = requires;
     return writable;
   }
 
+  getGoal(): number | undefined {
+    return this.getLatest().__goal;
+  }
+
+  setGoal(goal: number): this {
+    const writable = this.getWritable();
+    writable.__goal = goal;
+    return writable;
+  }
+
   decorate(_: unknown, __: EditorConfig): JSX.Element {
-    return <GateBlock nodeKey={this.getKey()} requires={this.__requires} />;
+    return (
+      <GateBlock
+        nodeKey={this.getKey()}
+        requires={this.__requires}
+        goal={this.__goal}
+      />
+    );
   }
 }
 

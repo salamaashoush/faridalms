@@ -308,6 +308,23 @@ describe("lessons written as one document", () => {
       lessonOfContent(last).blocks.find((block) => block.type === "gate"),
     ).toMatchObject({ requires: "last" });
     expect(sameLesson(above, last)).toBe(false);
+    const scored = (goal: number) =>
+      contentOfLesson({
+        version: 2,
+        blocks: lesson.blocks.map((block) =>
+          block.type === "gate"
+            ? { ...block, requires: "score" as const, goal }
+            : block,
+        ),
+      });
+    const eighty = scored(80);
+    const seventy = scored(70);
+    if (!eighty || !seventy)
+      throw new Error("lesson could not become a document");
+    expect(
+      lessonOfContent(eighty).blocks.find((block) => block.type === "gate"),
+    ).toMatchObject({ requires: "score", goal: 80 });
+    expect(sameLesson(eighty, seventy)).toBe(false);
   });
 
   it("leaves out options and items still empty", () => {

@@ -34,6 +34,7 @@ import {
   feedbackBandsSchema,
   fluencyOf,
   gapsSource,
+  gateScore,
   highlightTokens,
   lessonIssue,
   lessonConditionSchema,
@@ -51,8 +52,10 @@ import {
   remarksOf,
   responseIssue,
   settled,
+  shortOfGate,
   studentBlocks,
   upgradeLesson,
+  viewCredit,
 } from "./learning";
 import { contentOfLesson, lessonOfContent } from "./lesson-content";
 import { squaresAlong, wordSearch } from "./wordsearch";
@@ -396,6 +399,98 @@ describe("feedback that waits", () => {
       "learning.young_feedback",
     );
     expect(lessonIssue({ completion: "view", content })).toBeNull();
+  });
+});
+
+function gatedIssue(blocks: LessonDocument["blocks"], young = false) {
+  const content = contentOfLesson({ version: 2, blocks });
+  if (!content) throw new Error("the lesson has no content");
+  return lessonIssue({ completion: "view", content, young });
+}
+
+/** Each answer as a student's next try at its question. */
+const answersOf = (given: [TextBlock, string][]): StoredTry[] =>
+  given.map(([block, text], index) => ({
+    blockId: block.id,
+    try: given.slice(0, index + 1).filter(([other]) => other === block).length,
+    state: "answered",
+    fraction: text === "Cairo" ? 1 : 0,
+    response: { type: "text", text },
+    feedback: null,
+  }));
+
+describe("a continue gate waiting for some questions or a score", () => {
+  const once = { ...typed, id: uuid(9), tries: 1 };
+  const after = { ...typed, id: uuid(92) };
+  const gate = (requires: "some" | "score", goal: number) => ({
+    id: uuid(90),
+    type: "gate" as const,
+    requires,
+    goal,
+  });
+
+  it("asks for no more questions than there are above it, and none in a young lesson", () => {
+    expect(gatedIssue([typed, once, gate("some", 2), after])).toBeNull();
+    expect(gatedIssue([typed, once, gate("some", 3), after])).toBe(
+      "learning.gate_goal",
+    );
+    expect(gatedIssue([typed, gate("some", 1), after], true)).toBe(
+      "learning.young_gate",
+    );
+  });
+
+  it("scores only questions marked at once and worth points, in a lesson that holds back nothing", () => {
+    expect(gatedIssue([typed, gate("score", 80), after])).toBeNull();
+    expect(
+      gatedIssue([{ ...typed, points: 0 }, gate("score", 80), after]),
+    ).toBe("learning.gate_score");
+    expect(
+      gatedIssue([typed, gate("score", 80), { ...after, feedbackAt: "end" }]),
+    ).toBe("learning.gate_score");
+  });
+
+  it("weights each question's credit by its points", () => {
+    expect(
+      gateScore([
+        { points: 1, credit: 1 },
+        { points: 3, credit: 1 / 3 },
+      ]),
+    ).toBe(50);
+    expect(gateScore([])).toBeNull();
+  });
+
+  it("is short of its score only once every question it counts is settled", () => {
+    const document: LessonDocument = {
+      version: 2,
+      blocks: [typed, once, gate("score", 80), after],
+    };
+    const short = (given: [TextBlock, string][]) =>
+      shortOfGate(document, checkStates(document, answersOf(given)));
+    expect(
+      short([
+        [typed, "Cairo"],
+        [once, "Giza"],
+      ]),
+    ).toBe(true);
+    expect(short([[once, "Giza"]])).toBe(false);
+    expect(
+      short([
+        [typed, "Cairo"],
+        [once, "Cairo"],
+      ]),
+    ).toBe(false);
+  });
+
+  it("reads a question's credit from its view as from its tries", () => {
+    const rows = answersOf([
+      [typed, "Giza"],
+      [typed, "Cairo"],
+    ]);
+    const state = checkStates({ version: 2, blocks: [typed] }, rows)[typed.id];
+    expect(viewCredit(describeCheck(typed, rows, state))).toBeCloseTo(
+      creditOf(state),
+    );
+    expect(viewCredit(undefined)).toBe(0);
   });
 });
 

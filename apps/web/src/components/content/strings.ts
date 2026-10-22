@@ -334,10 +334,18 @@ export function editorStrings(): EditorStrings {
     gateHint: m.editorGateHint(),
     gateHintLast: m.editorGateHintLast(),
     gateHintNone: m.editorGateHintNone(),
+    gateHintSome: (count) =>
+      m.editorGateHintSome({ count: formatNumber(count) }),
+    gateHintScore: (score) =>
+      m.editorGateHintScore({ score: formatNumber(score) }),
     gateWaits: m.editorGateWaits(),
     gateAbove: m.editorGateAbove(),
     gateLast: m.editorGateLast(),
+    gateSome: m.editorGateSome(),
+    gateScore: m.editorGateScore(),
     gateNone: m.editorGateNone(),
+    gateGoalCount: m.editorGateGoalCount(),
+    gateGoalScore: m.editorGateGoalScore(),
     transcript: m.editorTranscript(),
     transcriptSearch: m.editorTranscriptSearch(),
     transcriptNoMatch: m.editorTranscriptNoMatch(),

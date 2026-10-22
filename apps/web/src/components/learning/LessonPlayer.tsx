@@ -18,8 +18,10 @@ import {
   checkBlocks,
   checkStates,
   describeCheck,
+  gateScore,
   isAuto,
   markResponse,
+  viewCredit,
   watchables,
   studentBlocks,
   upgradeLesson,
@@ -31,6 +33,7 @@ import { translatedLesson } from "@faridalms/domain/lesson-translation";
 import { otherLocale } from "@faridalms/domain/translations";
 import { mediaClock } from "@faridalms/editor/format";
 import { Button } from "@faridalms/ui/button";
+import { cn } from "@faridalms/ui/cn";
 import { Progress } from "@faridalms/ui/progress";
 import { Tabs, TabsList, TabsTrigger } from "@faridalms/ui/tabs";
 import {
@@ -132,6 +135,29 @@ const ruleText = (completion: LessonCompletion, passScore: number | null) =>
 
 type GateWaits = "questions" | "media" | "both";
 
+/** Where a student stands at a gate: done out of what it counts, or their score against its goal. */
+type GateStanding =
+  | { kind: "count"; waits: GateWaits | "some"; done: number; total: number }
+  | { kind: "score"; score: number; goal: number; short: boolean };
+
+const gateOpen = (standing: GateStanding) =>
+  standing.kind === "count"
+    ? standing.done >= standing.total
+    : standing.score >= standing.goal;
+
+const TEACHER_MARKED = new Set<StudentBlock["type"]>([
+  "written",
+  "scratch",
+  "project",
+]);
+
+/** Whether a question counts toward a gate's score: worth points, and marked as it is answered. */
+const scoresAtGate = (block: CheckStudentBlock, view: CheckView | undefined) =>
+  block.points > 0 &&
+  block.type !== "poll" &&
+  !TEACHER_MARKED.has(block.type) &&
+  view?.timing === null;
+
 const GATE_LOCKED: Record<GateWaits, () => string> = {
   questions: m.lrnGateLocked,
   media: m.lrnGateLockedWatch,
@@ -148,19 +174,15 @@ const GATE_PROGRESS: Record<
 };
 
 function Gate({
-  open,
-  done,
-  total,
-  waits,
+  standing,
+  retry,
   onContinue,
 }: {
-  open: boolean;
-  done: number;
-  total: number;
-  waits: GateWaits;
+  standing: GateStanding;
+  retry?: { pending: boolean; onRetry: () => void } | undefined;
   onContinue: () => void;
 }) {
-  if (open)
+  if (gateOpen(standing))
     return (
       <div className="flex justify-center">
         <Button type="button" className="max-md:h-10" onClick={onContinue}>
@@ -169,16 +191,52 @@ function Gate({
         </Button>
       </div>
     );
+  const frame =
+    "flex flex-wrap items-center justify-center gap-x-3 gap-y-1 rounded-lg border border-dashed px-5 py-4 text-sm leading-5 text-muted-foreground";
+  if (standing.kind === "score" && standing.short)
+    return (
+      <div className={cn(frame, "gap-y-3")}>
+        <Lock aria-hidden className="size-4" />
+        <span className="text-center">
+          {m.lrnGateShort({
+            score: formatNumber(standing.score),
+            goal: formatNumber(standing.goal),
+          })}
+        </span>
+        {retry ? (
+          <RetryButton pending={retry.pending} onRetry={retry.onRetry} />
+        ) : null}
+      </div>
+    );
   return (
-    <div className="flex flex-wrap items-center justify-center gap-x-3 gap-y-1 rounded-lg border border-dashed px-5 py-4 text-sm leading-5 text-muted-foreground">
+    <div className={frame}>
       <Lock aria-hidden className="size-4" />
-      <span>{GATE_LOCKED[waits]()}</span>
-      <span className="tabular-nums">
-        {GATE_PROGRESS[waits]({
-          count: formatNumber(done),
-          total: formatNumber(total),
-        })}
-      </span>
+      {standing.kind === "score" ? (
+        <>
+          <span>
+            {m.lrnGateLockedScore({ score: formatNumber(standing.goal) })}
+          </span>
+          <span className="tabular-nums">
+            {m.lrnGateScoreSoFar({ score: formatNumber(standing.score) })}
+          </span>
+        </>
+      ) : (
+        <>
+          <span>
+            {standing.waits === "some"
+              ? m.lrnGateLockedSome({ count: formatNumber(standing.total) })
+              : GATE_LOCKED[standing.waits]()}
+          </span>
+          <span className="tabular-nums">
+            {GATE_PROGRESS[
+              standing.waits === "some" ? "questions" : standing.waits
+            ]({
+              count: formatNumber(standing.done),
+              total: formatNumber(standing.total),
+            })}
+          </span>
+        </>
+      )}
     </div>
   );
 }
@@ -198,6 +256,7 @@ function LessonBody({
   watches = {},
   paced = null,
   language,
+  retry,
 }: {
   blocks: StudentBlock[];
   checks: Record<string, CheckView>;
@@ -210,6 +269,8 @@ function LessonBody({
   paced?: { step: number } | null;
   /** The language the lesson teaches in, where its teacher set one. */
   language?: ContentLocale | null;
+  /** Another go at the lesson, for a student short of a gate's score. */
+  retry?: { pending: boolean; onRetry: () => void };
 }) {
   const young = useContext(YoungContext);
   const stops = useMemo(() => videoStops(blocks), [blocks]);
@@ -286,7 +347,40 @@ function LessonBody({
       }
     return { questions: above.filter(isCheckBlock), media: watchables(above) };
   };
-  const settledAbove = (index: number) => {
+  const settledAbove = (index: number): GateStanding => {
+    const gate = blocks[index];
+    const asked = blocks.slice(0, index).filter(isCheckBlock);
+    const finished = (block: CheckStudentBlock) =>
+      isSettled(block, checks[block.id]);
+    if (gate?.type === "gate" && gate.requires === "some") {
+      const total = gate.goal ?? 1;
+      const done = asked.filter(finished).length;
+      return {
+        kind: "count",
+        waits: "some",
+        done: Math.min(done, total),
+        total,
+      };
+    }
+    if (gate?.type === "gate" && gate.requires === "score") {
+      const counted = asked.filter((block) =>
+        scoresAtGate(block, checks[block.id]),
+      );
+      const score =
+        gateScore(
+          counted.map((block) => ({
+            points: block.points,
+            credit: viewCredit(checks[block.id]),
+          })),
+        ) ?? 0;
+      const goal = gate.goal ?? 100;
+      return {
+        kind: "score",
+        score,
+        goal,
+        short: score < goal && counted.every(finished),
+      };
+    }
     const { questions, media } = waitedFor(index);
     const waits: GateWaits =
       questions.length === 0
@@ -295,11 +389,12 @@ function LessonBody({
           ? "questions"
           : "both";
     return {
+      kind: "count",
+      waits,
       total: questions.length + media.length,
       done:
-        questions.filter((block) => isSettled(block, checks[block.id])).length +
+        questions.filter(finished).length +
         media.filter((file) => watchedEnough(watches[file])).length,
-      waits,
     };
   };
   const reached = position
@@ -310,10 +405,14 @@ function LessonBody({
       new Set(
         blocks.flatMap((block, index) => {
           if (block.type !== "gate") return [];
-          const { done, total } = settledAbove(index);
+          const standing = settledAbove(index);
           // A gate over questions opens when they are settled, even after a
           // fresh attempt; one over reading alone stays open once read past.
-          return (total > 0 ? done === total : index < reached)
+          return (
+            standing.kind === "count" && standing.total === 0
+              ? index < reached
+              : gateOpen(standing)
+          )
             ? [block.id]
             : [];
         }),
@@ -398,13 +497,10 @@ function LessonBody({
             </p>
           );
         } else if (block.type === "gate") {
-          const { done, total, waits } = settledAbove(index);
           body = (
             <Gate
-              open={done === total}
-              done={done}
-              total={total}
-              waits={waits}
+              standing={settledAbove(index)}
+              retry={retry}
               onContinue={() => {
                 // The blocks after the gate must exist before focus can move to them.
                 flushSync(() =>
@@ -1041,6 +1137,15 @@ export function LessonPlayer({ lessonId }: { lessonId: string }) {
                   watches={data.watches}
                   paced={paced}
                   language={data.reading}
+                  retry={
+                    // Once the whole lesson is answered, its own Start again shows below.
+                    canRetry
+                      ? undefined
+                      : {
+                          pending: retry.isPending,
+                          onRetry: () => retry.mutate(),
+                        }
+                  }
                 />
               </OwnProjectsContext.Provider>
             </OwnCodeContext.Provider>
@@ -1490,6 +1595,13 @@ export function LessonPreview({
                 checks={checks}
                 driver={driver}
                 language={reading}
+                retry={{
+                  pending: false,
+                  onRetry: () => {
+                    setRows([]);
+                    setRound((current) => current + 1);
+                  },
+                }}
               />
             </ReaderContext.Provider>
           </YoungContext.Provider>

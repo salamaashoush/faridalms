@@ -172,10 +172,11 @@ export const FEEDBACK_TIMES = ["now", "end", "teacher"] as const;
 export type FeedbackTime = (typeof FEEDBACK_TIMES)[number];
 /**
  * What a continue gate waits for: every question and video above it, only
- * the question or video just above, or nothing but the student choosing to
- * go on, which splits reading into parts.
+ * the question or video just above, a number of the questions above, a
+ * score on them, or nothing but the student choosing to go on, which splits
+ * reading into parts.
  */
-export const GATE_WAITS = ["above", "last", "none"] as const;
+export const GATE_WAITS = ["above", "last", "some", "score", "none"] as const;
 export type GateWaits = (typeof GATE_WAITS)[number];
 export const calloutTones = [
   "neutral",
@@ -370,6 +371,8 @@ export interface ContentNode {
   feedbackAt?: FeedbackTime;
   /** What a continue gate waits for; everything above when absent. */
   requires?: GateWaits;
+  /** How many questions a gate waits for, or the score it does, as a percent. */
+  goal?: number;
   /** A question suggested from the document, not yet kept by its teacher. */
   suggested?: boolean;
   /** Gaps filled from a word bank: the extra words, which fit no gap. */
@@ -724,6 +727,7 @@ const nodeSchema: v.GenericSchema<ContentNode> = v.lazy(() =>
       tries: v.optional(v.nullable(integer(1, 10))),
       feedbackAt: v.optional(v.picklist(FEEDBACK_TIMES)),
       requires: v.optional(v.picklist(GATE_WAITS)),
+      goal: v.optional(integer(1, 100)),
       suggested: v.optional(v.boolean()),
       bank: v.optional(
         v.pipe(v.array(v.pipe(v.string(), v.maxLength(100))), v.maxLength(12)),

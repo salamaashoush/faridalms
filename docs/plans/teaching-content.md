@@ -230,8 +230,16 @@ Sources: [../research/course-design.md](../research/course-design.md),
    choosing to go on, which splits a reading into parts (`requires` on the
    gate). The student's page and the teacher's preview open it so. The
    preview also keeps answers whose feedback waits, asks for hints, and
-   stands in for the teacher showing the class.
-   Left: a gate that waits for a share of the questions above, or a score.
+   stands in for the teacher showing the class. A gate can also wait for a
+   number of the questions above, any of them, or for a score on them
+   (`goal` on the gate, 80 percent to start with, as mastery is commonly
+   set). The score counts questions marked at once and worth points, with
+   the credit each has earned, so it opens as soon as it is reached; a
+   student who has settled them all and falls short is offered another go
+   at the lesson there. Publishing checks that a gate asks for no more
+   questions than there are above it, that a score gate has something to
+   score and a lesson holding no results back, and that a young child's
+   lesson keeps to screens.
 6. **Marking again when a key changes** after students answered: rescore
    or apply only to new answers, the teacher's choice at publish.
    Done: showing students a changed lesson first counts the answers its
