@@ -116,8 +116,15 @@ Sources: [../research/course-design.md](../research/course-design.md),
    Alt+= or the Equation block, and drawn as MathML by Temml in Latin
    Modern Math, each loaded only where a page needs it. Questions carry
    formulas in their text as \(…\), drawn in the player, paper and
-   boards. Still to do: a school-wide default for Arabic notation, Arabic
-   notation inside question text, and formulas read aloud as speech.
+   boards. Then a school sets how mathematics in Arabic is written, left
+   to right or in Arabic notation, and a formula written in right-to-left
+   text starts that way; a question's formulas keep their notation in its
+   text, isolated right to left (U+2067 to U+2069); and a lesson read
+   aloud, or a choice's label, says each formula in words, in English
+   after ClearSpeak and in vowelled Arabic after its school books.
+   Left: Arabic letters and digits drawn for Latin ones in Arabic notation
+   (x as س, as Edraak's MathJax extension does), and speech for matrices
+   and other layouts beyond school algebra.
 2. **Maths answers checked for equivalence**, a question kind that accepts
    `2(x+1)` for `2x+2`, with tolerance and units for numbers. Done: the Maths
    answer question; students write in MathLive's field and the server
