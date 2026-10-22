@@ -559,10 +559,14 @@ Sources: [../research/course-design.md](../research/course-design.md),
    set as it is typed in APA 7, MLA 9 or Chicago notes with the title in
    italics. Readers and paper see each number linked to its note in a
    list below the text, and back again; Arabic authors may be separated
-   with Arabic commas.
-   Left: a bibliography gathered from a document's sources; numbering
-   that runs on across a lesson's parts, which now count each part's
-   footnotes apart.
+   with Arabic commas. A lesson's parts number their footnotes on from
+   one part to the next, as on one page. A Bibliography block gathers
+   every source the footnotes cite, each once however often it is cited,
+   sorted by first author, set as each style's own list gives it
+   (Chicago's bibliography with the last name first) and hung from its
+   first line, under the name the style most of them use gives it:
+   References, Works Cited or Bibliography. It follows the text as
+   sources are cited or cut, and goes out with an exported lesson.
 5. **Mentions** of people and documents.
    Done: typing @ in any document opens the school's search beside the
    caret: people, classes, modules, lessons and assignments, found as the

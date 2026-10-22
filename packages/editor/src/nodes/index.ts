@@ -4,6 +4,7 @@ import { $isTableCellNode } from "@lexical/table";
 import { $isRootNode, createState } from "lexical";
 
 import { AiUseNode } from "./ai-use";
+import { BibliographyNode } from "./bibliography";
 import { $isCalloutNode, CalloutNode } from "./callout";
 import { ChartNode } from "./chart";
 import { $isColumnNode, ColumnNode, ColumnsNode } from "./columns";
@@ -48,6 +49,7 @@ import {
 } from "./toggle";
 
 export * from "./ai-use";
+export * from "./bibliography";
 export * from "./callout";
 export * from "./chart";
 export * from "./code-run";
@@ -112,6 +114,7 @@ export const blockNodes = [
   MentionNode,
   TermNode,
   GlossaryNode,
+  BibliographyNode,
 ];
 
 export const blockIdState = createState("id", {

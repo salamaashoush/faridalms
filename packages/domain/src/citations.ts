@@ -194,6 +194,65 @@ export function formatSource(
   return runs;
 }
 
+/** Runs with no space left after the last, as a list item ends. */
+function trimmed(runs: CitationRun[]): CitationRun[] {
+  const last = runs.at(-1);
+  if (last) last.text = last.text.trimEnd();
+  return runs;
+}
+
+/** Chicago's bibliography lists the first author last name first, the others as written. */
+function chicagoListed(names: Name[]): string {
+  const written = names.map(({ last, first }, index) =>
+    index === 0
+      ? first
+        ? `${last}, ${first}`
+        : last
+      : [first, last].filter(Boolean).join(" "),
+  );
+  return listed(written, "and");
+}
+
+/**
+ * A source as a reference list gives it: APA 7's references and MLA 9's
+ * works cited as their notes already read, Chicago in its bibliography's
+ * own order, the author's last name first and the parts set off by stops.
+ */
+export function formatReference(
+  source: FootnoteSource,
+  locale = "en",
+): CitationRun[] {
+  if (source.style !== "chicago") return trimmed(formatSource(source, locale));
+  const runs: CitationRun[] = [];
+  const add = (text: string, italic = false) => {
+    if (text) runs.push(italic ? { text, italic } : { text });
+  };
+  const who = chicagoListed(namesOf(source.authors));
+  const year = source.date.slice(0, 4);
+  add(who ? `${ended(who)} ` : "");
+  if (source.kind === "book") {
+    add(source.title, true);
+    add(source.title ? after(source.title) : "");
+    const facts = [source.container, year].filter(Boolean).join(", ");
+    add(facts ? `${facts}.` : "");
+  } else if (source.kind === "article") {
+    add(source.title ? `“${ended(source.title)}” ` : "");
+    add(source.container, true);
+    add(source.volume ? ` ${source.volume}` : "");
+    add(source.issue ? `, no. ${source.issue}` : "");
+    add(year ? ` (${year})` : "");
+    add(source.pages.trim() ? `: ${source.pages.trim()}` : "");
+    add(source.container || source.volume || year ? ". " : "");
+    add(source.url ? ended(source.url) : "");
+  } else {
+    add(source.title ? `“${ended(source.title)}” ` : "");
+    add(source.container ? `${ended(source.container)} ` : "");
+    add(source.date ? `${ended(dated(source.date, "chicago", locale))} ` : "");
+    add(source.url ? ended(source.url) : "");
+  }
+  return trimmed(runs);
+}
+
 /** A formatted citation as plain words, for searching and copying. */
 export const sourceText = (source: FootnoteSource, locale = "en") =>
   formatSource(source, locale)

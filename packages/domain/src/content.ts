@@ -131,6 +131,7 @@ const nodeTypes = [
   "mention",
   "term",
   "glossary",
+  "bibliography",
 ] as const;
 /**
  * The questions a document can ask, each marked by the server from the
@@ -882,6 +883,7 @@ const blocks = new Set<string>([
   "ai-use",
   "shared",
   "glossary",
+  "bibliography",
 ]);
 // Columns, sets of parts, questions, draws, gates, page breaks, each
 // student's copy and shared blocks stand only at the top of a document.
@@ -914,6 +916,7 @@ function validNode(node: ContentNode): boolean {
       "gate",
       "ai-use",
       "glossary",
+      "bibliography",
     ].includes(node.type)
   )
     return !node.children && node.text === undefined;

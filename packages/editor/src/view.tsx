@@ -1,3 +1,5 @@
+import type { Bibliography } from "@faridalms/domain/bibliography";
+import type { FootnoteSource } from "@faridalms/domain/citations";
 import type {
   ContentDocument,
   ContentNode,
@@ -14,6 +16,10 @@ import type {
 } from "react";
 
 import { Popover } from "@base-ui/react/popover";
+import {
+  bibliographyOf,
+  documentSources,
+} from "@faridalms/domain/bibliography";
 import { parseChapters, parseDescriptions } from "@faridalms/domain/chapters";
 import { formatSource } from "@faridalms/domain/citations";
 import {
@@ -50,6 +56,7 @@ import {
 } from "react";
 
 import type { AiUseViewStrings } from "./ai-use-view";
+import type { BibliographyViewStrings } from "./bibliography-view";
 import type { ChartStrings } from "./chart-view";
 import type { FileFacts } from "./files";
 import type { GlossaryViewStrings } from "./glossary-view";
@@ -59,11 +66,13 @@ import type { PicturesViewStrings } from "./pictures-view";
 import type { MediaWatch } from "./player";
 
 import { AiUseView } from "./ai-use-view";
+import { BibliographyList } from "./bibliography-view";
 import { ChartView } from "./chart-view";
 import { useFileFacts } from "./file-facts";
 import { FileCard, PictureView, StoredImage } from "./files";
 import { blockAlignClass, diagramImageClass, imageSizeClass } from "./format";
 import { GlossaryList } from "./glossary-view";
+import { linked } from "./linked";
 import { LtiCard } from "./lti-card";
 import { MathText } from "./math";
 import { EmbedFrame, MediaPlayer, MediaTranscript } from "./media-view";
@@ -82,7 +91,8 @@ export interface ViewStrings
     LabelViewStrings,
     PicturesViewStrings,
     ChartStrings,
-    GlossaryViewStrings {
+    GlossaryViewStrings,
+    BibliographyViewStrings {
   checklist: string;
   studentCopy: string;
   diagram: string;
@@ -141,10 +151,14 @@ interface Context {
   ltiHref?: ((linkId: string) => string | null) | undefined;
   /** The footnotes met so far, in reading order, numbered by their place here. */
   notes: ContentNode[];
+  /** How many footnotes the parts of the document before this one hold. */
+  notesBefore: number;
   /** Keeps a footnote's links to its own document when several share a page. */
   scope: string;
   /** The document's glossary, gathered when a glossary block first asks. */
   glossary: () => GlossaryEntry[];
+  /** The document's reference list, gathered where a bibliography asks for it. */
+  bibliography: () => Bibliography | null;
 }
 
 /**
@@ -762,8 +776,16 @@ function draw(
         </section>
       ) : null;
     }
+    case "bibliography": {
+      const list = context.bibliography();
+      return list ? (
+        <section key={key} className="fe-bibliography-block">
+          <BibliographyList bibliography={list} strings={context.strings} />
+        </section>
+      ) : null;
+    }
     case "footnote": {
-      const number = context.notes.push(node);
+      const number = context.notesBefore + context.notes.push(node);
       return (
         <sup key={key} className="fe-footnote-ref">
           <a
@@ -1063,21 +1085,6 @@ function ReadFile({
   return <FileCard file={useFileFacts(fileId, kept)} {...card} />;
 }
 
-const URL_IN_TEXT = /(https?:\/\/[^\s]+?)(?=[.,;]?(?:\s|$))/u;
-
-/** Words with any address in them made a link, as a citation's DOI or page. */
-function linked(text: string, key: string): ReactNode[] {
-  return text.split(URL_IN_TEXT).map((part, index) =>
-    index % 2 === 1 ? (
-      <a key={`${key}.${index}`} href={part} target="_blank" rel="noreferrer">
-        {part}
-      </a>
-    ) : (
-      part
-    ),
-  );
-}
-
 /**
  * Words the document defines, opened in place by a tap, or by resting the
  * pointer on them, to what they mean.
@@ -1135,9 +1142,9 @@ function TermView({
 function Notes({ notes, context }: { notes: ContentNode[]; context: Context }) {
   return (
     <section aria-label={context.strings.footnotes} className="fe-notes">
-      <ol>
+      <ol start={context.notesBefore + 1}>
         {notes.map((note, index) => {
-          const number = index + 1;
+          const number = context.notesBefore + index + 1;
           return (
             <li key={number} id={`${context.scope}-note-${number}`} dir="auto">
               {note.source
@@ -1174,6 +1181,13 @@ export interface WholeDocumentFacts {
   terms: readonly GlossaryEntry[];
   /** The language the document is written in, where its author set one. */
   lang?: ContentLocale | undefined;
+  /**
+   * How many footnotes come before each part, by the part's document, so
+   * their numbers run on from one part to the next.
+   */
+  notesBefore?: ReadonlyMap<ContentDocument, number> | undefined;
+  /** The sources the whole document cites, so a bibliography in any part lists them all. */
+  sources?: readonly FootnoteSource[] | undefined;
 }
 
 const Whole = createContext<WholeDocumentFacts | null>(null);
@@ -1254,11 +1268,14 @@ export function ContentRenderer({
     mentionHref,
     ltiHref,
     notes: [],
+    notesBefore: whole?.notesBefore?.get(document) ?? 0,
     scope,
     glossary: () => {
       gathered ??= glossaryOf(whole?.terms ?? documentTerms(document), locale);
       return gathered;
     },
+    bibliography: () =>
+      bibliographyOf(whole?.sources ?? documentSources(document), locale),
   };
   const drawn = renderBlock
     ? document.root.children?.map((child, index) => (

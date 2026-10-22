@@ -1,6 +1,8 @@
+import type { CitationRun, CitationStyle } from "./citations";
 import type { PictureCredit } from "./commons";
 import type { ContentDocument, ContentNode } from "./content";
 
+import { bibliographyOf, documentSources } from "./bibliography";
 import { sourceText } from "./citations";
 import { creditText } from "./commons";
 import { embedPage, embedSource } from "./embed";
@@ -73,10 +75,27 @@ function fileName(node: { name?: string; alt?: string }, fallback: string) {
 }
 
 /** Writes a document's nodes as HTML, gathering its footnotes as it goes. */
+/** What each style calls its list of sources. */
+const REFERENCE_LIST: Record<CitationStyle, string> = {
+  apa: "References",
+  mla: "Works Cited",
+  chicago: "Bibliography",
+};
+
+const runsHtml = (runs: readonly CitationRun[]) =>
+  runs
+    .map((run) =>
+      run.italic ? `<i>${escape(run.text)}</i>` : escape(run.text),
+    )
+    .join("");
+
 class Writer {
   readonly notes: string[] = [];
 
-  constructor(private readonly options: HtmlOptions) {}
+  constructor(
+    private readonly options: HtmlOptions,
+    private readonly document: ContentDocument,
+  ) {}
 
   all(nodes: ContentNode[] | undefined): string {
     return (nodes ?? []).map((node) => this.node(node)).join("");
@@ -162,6 +181,14 @@ class Writer {
       }
       case "horizontalrule":
         return "<hr>";
+      case "bibliography": {
+        const list = bibliographyOf(documentSources(this.document), "en");
+        return list
+          ? `<h2>${REFERENCE_LIST[list.style]}</h2><ul>${list.entries
+              .map((entry) => `<li>${runsHtml(entry)}</li>`)
+              .join("")}</ul>`
+          : "";
+      }
       case "callout":
         return `<aside${dirOf(node)}>${inner()}</aside>`;
       case "toggle": {
@@ -281,7 +308,7 @@ export function contentHtml(
   document: ContentDocument,
   options: HtmlOptions,
 ): string {
-  const writer = new Writer(options);
+  const writer = new Writer(options, document);
   const body = writer.all(document.root.children);
   const notes = writer.notes.length
     ? `<hr><ol>${writer.notes

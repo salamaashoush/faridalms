@@ -46,6 +46,7 @@ import {
   ArrowDownUp,
   BookA,
   BookOpenText,
+  LibraryBig,
   FileInput,
   FileText,
   CodeXml,
@@ -160,6 +161,7 @@ import {
   DrawNode,
   GateNode,
   GlossaryNode,
+  BibliographyNode,
   PageBreakNode,
   StarterNode,
 } from "./nodes";
@@ -234,6 +236,7 @@ export type BlockType =
   | "bankDraw"
   | "standards"
   | "glossary"
+  | "bibliography"
   | "word"
   | "qtiImport";
 
@@ -523,6 +526,23 @@ export const blockDefinitions: BlockDefinition[] = [
       "مفردات",
       "مصطلحات",
       "كلمات مفتاحية",
+    ],
+  },
+  {
+    type: "bibliography",
+    group: "text",
+    icon: LibraryBig,
+    label: (s) => s.bibliography,
+    hint: (s) => s.bibliographyHint,
+    keywords: [
+      "bibliography",
+      "references",
+      "works cited",
+      "sources",
+      "citations",
+      "المراجع",
+      "المصادر",
+      "ثبت المراجع",
     ],
   },
   {
@@ -1593,6 +1613,7 @@ function $createStructure(type: BlockType): LexicalNode | null {
   if (type === "bankDraw") return new DrawNode();
   if (type === "standards") return new StandardsNode();
   if (type === "glossary") return new GlossaryNode();
+  if (type === "bibliography") return new BibliographyNode();
   if (type === "pageBreak") return new PageBreakNode();
   if (type === "aiUse") return $createAiUseNode();
   if (type === "equation")

@@ -1908,6 +1908,28 @@
   text-decoration: none;
 }
 
+/* A reference list hangs each source from its first line, as APA, MLA and
+   Chicago all set one. */
+.fe .fe-bibliography-block {
+  margin-block: 1rem;
+}
+.fe .fe-bibliography {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+.fe .fe-bibliography li {
+  padding-inline-start: 2em;
+  text-indent: -2em;
+}
+.fe .fe-bibliography li + li {
+  margin-top: 0.5rem;
+}
+.fe .fe-bibliography a {
+  color: var(--fe-accent);
+  overflow-wrap: anywhere;
+}
+
 /* A mention: the name it was written with, set apart as a name, and a
    link where its reader may open it. */
 .fe .fe-mention {

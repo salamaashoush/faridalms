@@ -8,6 +8,7 @@ import type { MediaWatch } from "@faridalms/editor/player";
 import type { ContentMark, Replace } from "@faridalms/editor/view";
 import type { ReactNode } from "react";
 
+import { partsNotesBefore, partsSources } from "@faridalms/domain/bibliography";
 import { partsTerms } from "@faridalms/domain/glossary";
 import { ContentRenderer, WholeDocumentProvider } from "@faridalms/editor/view";
 import { useQuery } from "@tanstack/react-query";
@@ -57,8 +58,9 @@ function mentionHref(mention: Mention): string | null {
 
 /**
  * A document handed out in parts, as a lesson's blocks are: each part drawn
- * inside it lists the whole document's terms in its glossary, and reads in
- * the language its author set.
+ * inside it lists the whole document's terms in its glossary and sources in
+ * its bibliography, numbers its footnotes on from the parts before, and
+ * reads in the language its author set.
  */
 export function WholeDocument({
   parts,
@@ -70,7 +72,12 @@ export function WholeDocument({
   children: ReactNode;
 }) {
   const whole = useMemo(
-    () => ({ terms: partsTerms(parts), lang: lang ?? undefined }),
+    () => ({
+      terms: partsTerms(parts),
+      lang: lang ?? undefined,
+      notesBefore: partsNotesBefore(parts),
+      sources: partsSources(parts),
+    }),
     [parts, lang],
   );
   return (
@@ -134,6 +141,9 @@ export function ContentView({
         standardsBlock: m.editorStandardsBlock({}, { locale }),
         footnotes: m.editorFootnotes({}, { locale }),
         glossary: m.editorGlossary({}, { locale }),
+        referencesApa: m.editorReferencesApa({}, { locale }),
+        referencesMla: m.editorReferencesMla({}, { locale }),
+        referencesChicago: m.editorReferencesChicago({}, { locale }),
         footnoteRef: (number) =>
           m.editorFootnoteRef({ number: String(number) }, { locale }),
         footnoteBack: (number) =>

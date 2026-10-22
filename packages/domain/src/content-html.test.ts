@@ -115,4 +115,35 @@ describe("a document as plain HTML", () => {
         "<p>\\[x&lt;2\\]</p>",
     );
   });
+
+  it("writes out a bibliography of the sources its footnotes cite", () => {
+    const cite = {
+      type: "footnote",
+      version: 1,
+      note: "",
+      source: {
+        kind: "book",
+        style: "apa",
+        authors: "Ali, Sara",
+        title: "Rivers of the world",
+        container: "Example Press",
+        date: "2021",
+        volume: "",
+        issue: "",
+        pages: "4",
+        url: "",
+      },
+    } satisfies ContentNode;
+    expect(
+      html(
+        block("paragraph", [words("Deltas."), cite, words(" Again."), cite]),
+        {
+          type: "bibliography",
+          version: 1,
+        },
+      ),
+    ).toContain(
+      "<h2>References</h2><ul><li>Ali, S. (2021). <i>Rivers of the world</i>. Example Press.</li></ul>",
+    );
+  });
 });

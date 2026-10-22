@@ -2,12 +2,14 @@ import type { WrittenForm } from "@faridalms/domain/math-forms";
 import type { ProjectLock } from "@faridalms/domain/project";
 import type { ScratchFeature } from "@faridalms/domain/scratch-project";
 
+import type { BibliographyViewStrings } from "./bibliography-view";
 import type { ChartStrings } from "./chart-view";
 import type { LabelEditorStrings } from "./picture-labels";
 import type { RecorderStrings } from "./recorder";
 import type { VideoRecorderStrings } from "./video-recorder";
 
-export interface EditorStrings extends LabelEditorStrings, ChartStrings {
+export interface EditorStrings
+  extends LabelEditorStrings, ChartStrings, BibliographyViewStrings {
   placeholder: string;
   emptyPlaceholder: string;
   headingPlaceholder: string;
@@ -511,6 +513,9 @@ export interface EditorStrings extends LabelEditorStrings, ChartStrings {
   glossary: string;
   glossaryHint: string;
   glossaryEmpty: string;
+  bibliography: string;
+  bibliographyHint: string;
+  bibliographyEmpty: string;
   termDefine: string;
   termDefinition: string;
   termDefinitionHint: string;
