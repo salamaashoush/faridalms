@@ -128,6 +128,20 @@ describe("standards", () => {
     expect(
       (await staff.standards.search({ query: "rg.1" })).map((row) => row.code),
     ).toEqual(["RG.1", "RG.1.a"]);
+    // Codes read their numbers as numbers, as a framework lists them.
+    const tenth = await office.standards.saveStandard({
+      frameworkId: created.id,
+      id: "",
+      expectedVersion: 0,
+      parentId: "",
+      code: "RG.10",
+      statement: "Read a chapter book alone.",
+      itemType: "Goal",
+    });
+    expect(
+      (await staff.standards.search({ query: "rg" })).map((row) => row.code),
+    ).toEqual(["RG.1", "RG.1.a", "RG.2", "RG.10"]);
+    await office.standards.remove({ id: tenth.id });
     expect(await staff.standards.describe({ ids: [under.id] })).toMatchObject([
       { code: "RG.1.a", frameworkTitle: "Our reading goals" },
     ]);

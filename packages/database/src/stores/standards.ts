@@ -351,7 +351,7 @@ export async function searchStandards(
       and s.status = 'active' and f.status = 'active'
       ${input.frameworkId ? sql`and f.id = ${input.frameworkId}::uuid` : sql``}
       ${words ? sql`and (s.code ilike ${like} or s.statement ilike ${like})` : sql``}
-    order by (s.code ilike ${start}) desc, f.title, s.code, s.position
+    order by (s.code ilike ${start}) desc, f.title, s.code collate core.natural, s.position
     limit ${input.limit}`);
   return rows.map(summaryOf);
 }
