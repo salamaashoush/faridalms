@@ -237,6 +237,17 @@ export function acceptedMediaType(name: string, mediaType: string): boolean {
 
 export const ACCEPTED_EXTENSIONS = Object.keys(ACCEPTED_TYPES);
 
+/**
+ * A file name for content that arrives without one, as the pictures inside
+ * a Word document do, with the extension its type is stored under.
+ */
+export function nameFor(base: string, mediaType: string): string | null {
+  const extension = ACCEPTED_EXTENSIONS.find((each) =>
+    ACCEPTED_TYPES[each]?.includes(mediaType.toLowerCase()),
+  );
+  return extension ? `${base}.${extension}` : null;
+}
+
 /** Files a person may put in a document; captions, drawings and coding projects have blocks of their own. */
 export const ATTACHABLE_EXTENSIONS = ACCEPTED_EXTENSIONS.filter(
   (extension) =>

@@ -44,6 +44,7 @@ import {
 import {
   ArrowDownUp,
   BookA,
+  FileText,
   CodeXml,
   FileCode,
   SquareTerminal,
@@ -223,7 +224,8 @@ export type BlockType =
   | "sharedBlock"
   | "bankDraw"
   | "standards"
-  | "glossary";
+  | "glossary"
+  | "word";
 
 export type BlockGroup = "text" | "lists" | "media" | "layout" | "questions";
 
@@ -622,6 +624,23 @@ export const blockDefinitions: BlockDefinition[] = [
     label: (s) => s.file,
     hint: (s) => s.fileHint,
     keywords: ["file", "attachment", "upload", "pdf", "ملف", "مرفق"],
+    media: true,
+  },
+  {
+    type: "word",
+    group: "media",
+    icon: FileText,
+    label: (s) => s.wordImport,
+    hint: (s) => s.wordImportHint,
+    keywords: [
+      "word",
+      "docx",
+      "import",
+      "document",
+      "وورد",
+      "استيراد",
+      "مستند",
+    ],
     media: true,
   },
   {

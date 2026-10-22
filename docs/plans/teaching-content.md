@@ -520,6 +520,15 @@ Sources: [../research/course-design.md](../research/course-design.md),
    digits, and numbers drawn inside documents, such as a chart's, which
    keep Western digits.
 8. **Word import**: a `.docx` opens as a document, its pictures uploaded.
+   Done: "Word document" in the insert and slash menus brings a `.docx`
+   in where the caret is, read in the browser (mammoth, loaded only when
+   asked): its headings, paragraphs and their bold and italics, lists,
+   tables, links, pictures with their descriptions, stored with the
+   school as it is read, and its footnotes and endnotes, which become the
+   editor's own footnotes in the lines they belong to. Pictures a page
+   cannot show, as Word's own drawings, are left out and counted.
+   Left: Word equations as formulas; a picture's size in Word; reading
+   a `.docx` dropped on the page, which is attached as a file as before.
 
 ## 7. Video
 

@@ -1,5 +1,6 @@
 import type { FootnoteSource } from "@faridalms/domain/citations";
 import type {
+  DOMConversionMap,
   EditorConfig,
   LexicalNode,
   LexicalUpdateJSON,
@@ -92,6 +93,22 @@ export class FootnoteNode extends DecoratorNode<JSX.Element> {
 
   static importJSON(json: SerializedFootnoteNode): FootnoteNode {
     return new FootnoteNode().updateFromJSON(json);
+  }
+
+  // A note brought in from another document, as a Word file's are, marked
+  // with its words.
+  static importDOM(): DOMConversionMap | null {
+    return {
+      sup: (element: HTMLElement) =>
+        element.dataset.feFootnote === undefined
+          ? null
+          : {
+              conversion: () => ({
+                node: new FootnoteNode(element.dataset.feFootnote ?? ""),
+              }),
+              priority: 2,
+            },
+    };
   }
 
   updateFromJSON(json: LexicalUpdateJSON<SerializedFootnoteNode>): this {

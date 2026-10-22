@@ -955,6 +955,21 @@
   "editorSharedKeep": "Keep as a shared block",
   "editorFootnote": "Footnote",
   "editorMention": "Mention someone or something",
+  "editorWordImport": "Word document",
+  "editorWordImportHint": "Bring in a .docx with its headings, lists, tables, pictures and footnotes",
+  "editorWordReading": "Reading the document and keeping its pictures…",
+  "editorWordDone": "Brought in where the caret was.",
+  "editorWordFailed": "This file could not be read as a Word document.",
+  "editorWordPicturesSkipped": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "Brought in, but {count} picture could not be kept: a page cannot show its kind, or it is too large.",
+        "countPlural=*": "Brought in, but {count} pictures could not be kept: a page cannot show their kind, or they are too large."
+      }
+    }
+  ],
   "editorGlossary": "Glossary",
   "editorGlossaryHint": "Every word this document defines",
   "editorGlossaryEmpty": "The words you define are listed here. Select words and choose Define.",

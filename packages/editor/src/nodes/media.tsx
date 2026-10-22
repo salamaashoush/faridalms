@@ -5,6 +5,7 @@ import type {
 } from "@faridalms/domain/content";
 import type { SerializedDecoratorBlockNode } from "@lexical/react/LexicalDecoratorBlockNode";
 import type {
+  DOMConversionMap,
   DOMExportOutput,
   EditorConfig,
   ElementFormatType,
@@ -37,6 +38,9 @@ import { ownKeys, useSelectOnClick } from "./select";
 
 // The outline goes round the block's own box, which may be narrower than
 // the column, not round the full-width row that holds it.
+/** How a picture already stored with the school is addressed in HTML brought into a document. */
+export const STORED_PICTURE = "farida-file:";
+
 const blockClass = {
   base: "relative my-3",
   focus:
@@ -365,6 +369,27 @@ export class ImageNode extends DecoratorBlockNode {
       caption: node.__caption,
       size: node.__size,
       ...(node.__labels.length > 0 ? { labels: node.__labels } : {}),
+    };
+  }
+
+  // A picture brought in from another document, as a Word file's are, once
+  // it is stored with the school; any other picture is left out.
+  static importDOM(): DOMConversionMap | null {
+    return {
+      img: (element: HTMLElement) =>
+        element.getAttribute("src")?.startsWith(STORED_PICTURE)
+          ? {
+              conversion: () => ({
+                node: $createImageNode(
+                  (element.getAttribute("src") ?? "").slice(
+                    STORED_PICTURE.length,
+                  ),
+                  element.getAttribute("alt") ?? "",
+                ),
+              }),
+              priority: 2,
+            }
+          : null,
     };
   }
 

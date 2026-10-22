@@ -994,6 +994,25 @@
   "editorSharedKeep": "احفظها ككتلة مشتركة",
   "editorFootnote": "حاشية",
   "editorMention": "أشِر إلى شخص أو شيء",
+  "editorWordImport": "مستند وورد",
+  "editorWordImportHint": "استورد ملف ‎.docx‎ بعناوينه وقوائمه وجداوله وصوره وحواشيه",
+  "editorWordReading": "تُقرأ الوثيقة وتُحفظ صورها…",
+  "editorWordDone": "أُدرج حيث كان المؤشر.",
+  "editorWordFailed": "تعذّرت قراءة هذا الملف كمستند وورد.",
+  "editorWordPicturesSkipped": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=zero": "أُدرج المستند.",
+        "countPlural=one": "أُدرج المستند، لكن تعذّر حفظ صورة واحدة: نوعها لا يظهر في الصفحة أو حجمها كبير.",
+        "countPlural=two": "أُدرج المستند، لكن تعذّر حفظ صورتين: نوعهما لا يظهر في الصفحة أو حجمهما كبير.",
+        "countPlural=few": "أُدرج المستند، لكن تعذّر حفظ {count} صور: نوعها لا يظهر في الصفحة أو حجمها كبير.",
+        "countPlural=many": "أُدرج المستند، لكن تعذّر حفظ {count} صورة: نوعها لا يظهر في الصفحة أو حجمها كبير.",
+        "countPlural=*": "أُدرج المستند، لكن تعذّر حفظ {count} صورة: نوعها لا يظهر في الصفحة أو حجمها كبير."
+      }
+    }
+  ],
   "editorGlossary": "مسرد المصطلحات",
   "editorGlossaryHint": "كل كلمة يعرّفها هذا المستند",
   "editorGlossaryEmpty": "تظهر هنا الكلمات التي تعرّفها. حدّد كلمات واختر «عرّف».",

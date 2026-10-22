@@ -66,6 +66,7 @@ import { SharedPlugin } from "./plugins/shared";
 import { SlashMenuPlugin } from "./plugins/SlashMenu";
 import { TablePlugin } from "./plugins/Table";
 import { ToolbarPlugin } from "./plugins/Toolbar";
+import { WordImportPlugin } from "./plugins/word";
 import { holdSlot } from "./slots";
 import { editorTheme } from "./theme";
 
@@ -464,6 +465,7 @@ function Surface({
       <SelectionToolbarPlugin />
       <NarrationMarksPlugin />
       <MediaPlugin onBusyChange={onUploadingChange} />
+      <WordImportPlugin />
       <EmbedPlugin />
       <BankPlugin />
       <SharedPlugin />

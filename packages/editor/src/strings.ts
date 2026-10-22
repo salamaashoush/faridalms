@@ -454,6 +454,12 @@ export interface EditorStrings extends LabelEditorStrings, ChartStrings {
   sharedCopy: string;
   sharedKeep: string;
   mention: string;
+  wordImport: string;
+  wordImportHint: string;
+  wordReading: string;
+  wordDone: string;
+  wordFailed: string;
+  wordPicturesSkipped: (count: number) => string;
   glossary: string;
   glossaryHint: string;
   glossaryEmpty: string;
