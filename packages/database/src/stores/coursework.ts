@@ -1511,6 +1511,9 @@ export async function releaseAssessments(
 export interface LearnerRow {
   assignmentId: string;
   title: string;
+  /** The language the brief is written in, and its title in the other where it has one. */
+  language: "en" | "ar" | null;
+  translationTitle: string | null;
   classId: string;
   classTitleEn: string | null;
   classTitleAr: string | null;
@@ -1543,6 +1546,8 @@ export async function learnerAssignments(
   const rows = await tx.execute<{
     assignment_id: string;
     title: string;
+    language: "en" | "ar" | null;
+    translation_title: string | null;
     class_id: string;
     class_title_en: string | null;
     class_title_ar: string | null;
@@ -1564,8 +1569,8 @@ export async function learnerAssignments(
     effective_score: string | null;
     grade_scale_version_id: string | null;
   }>(sql`
-    select a.id as assignment_id, a.title, a.class_id, c.title_en as class_title_en,
-      c.title_ar as class_title_ar, c.code as class_code,
+    select a.id as assignment_id, a.title, a.language, a.translation_title, a.class_id,
+      c.title_en as class_title_en, c.title_ar as class_title_ar, c.code as class_code,
       to_char(a.available_from at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as available_from,
       to_char(coalesce(r.due_at, a.due_at) at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as due_at,
       to_char((a.closes_at + greatest(coalesce(r.due_at - a.due_at, interval '0'), interval '0'))
@@ -1599,6 +1604,8 @@ export async function learnerAssignments(
   return rows.map((row) => ({
     assignmentId: row.assignment_id,
     title: row.title,
+    language: row.language,
+    translationTitle: row.translation_title,
     classId: row.class_id,
     classTitleEn: row.class_title_en,
     classTitleAr: row.class_title_ar,

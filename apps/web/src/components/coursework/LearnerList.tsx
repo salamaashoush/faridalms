@@ -1,6 +1,8 @@
 import type { LearnerState } from "@faridalms/domain/coursework";
 import type { GradeView } from "@faridalms/domain/grading";
+import type { ContentLocale } from "@faridalms/domain/translations";
 
+import { otherLocale } from "@faridalms/domain/translations";
 import { cn } from "@faridalms/ui/cn";
 import { Link } from "@tanstack/react-router";
 
@@ -12,6 +14,7 @@ import {
 } from "~/components/system/RecordPage";
 import { StatusText } from "~/components/system/status";
 import * as m from "~/i18n/messages";
+import { getLocale } from "~/i18n/runtime";
 import { numberLocale } from "~/utils/digits";
 
 import { classTitle } from "../classes/format";
@@ -21,6 +24,9 @@ import { formatInstant, STATE_LABEL, STATE_TONE } from "./format";
 export interface LearnerItem {
   assignmentId: string;
   title: string;
+  /** The language the brief is written in, and its title in the other where it has one. */
+  language?: ContentLocale | null;
+  translationTitle?: string | null;
   classCode: string;
   classTitleEn: string | null;
   classTitleAr: string | null;
@@ -44,6 +50,14 @@ export const DONE: readonly LearnerState[] = [
   "returned",
   "excused",
 ];
+
+/** The work's title in the reader's language, where its brief is translated into it. */
+const titleOf = (item: LearnerItem) =>
+  item.language &&
+  item.translationTitle &&
+  getLocale() === otherLocale(item.language)
+    ? item.translationTitle
+    : item.title;
 
 function dayKey(iso: string | null, timeZone: string) {
   if (!iso) return "";
@@ -95,10 +109,10 @@ function Item({
               phoneLink,
             )}
           >
-            <bdi>{item.title}</bdi>
+            <bdi>{titleOf(item)}</bdi>
           </Link>
         ) : (
-          <bdi className="text-sm leading-5 font-medium">{item.title}</bdi>
+          <bdi className="text-sm leading-5 font-medium">{titleOf(item)}</bdi>
         )}
         <span className="text-[13px] leading-[18px] text-muted-foreground">
           {facts.join(" · ")}

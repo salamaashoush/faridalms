@@ -1,3 +1,6 @@
+import type { ContentLocale } from "@faridalms/domain/translations";
+
+import { CONTENT_LOCALES } from "@faridalms/domain/translations";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute } from "@tanstack/react-router";
 import * as v from "valibot";
@@ -8,6 +11,11 @@ import {
   AssignmentRecord,
   RECORD_TABS,
 } from "~/components/coursework/AssignmentRecord";
+import {
+  BriefReading,
+  readingOf,
+  titleRead,
+} from "~/components/coursework/BriefLanguage";
 import { LearnerWork } from "~/components/coursework/LearnerWork";
 import { assignmentRecordQuery, myWorkQuery } from "~/queries/coursework";
 
@@ -24,6 +32,8 @@ export const Route = createFileRoute("/_app/assignments/$assignmentId")({
   },
   validateSearch: v.object({
     tab: v.fallback(v.optional(v.picklist(RECORD_TABS), "brief"), "brief"),
+    /** The language the brief is read in, where it has two. */
+    read: v.fallback(v.optional(v.picklist(CONTENT_LOCALES)), undefined),
   }),
   loader: async ({ context, params }) => {
     if (learns(context.auth.workspace))
@@ -39,13 +49,28 @@ export const Route = createFileRoute("/_app/assignments/$assignmentId")({
 });
 
 function TeacherTrail({ id }: { id: string }) {
+  const { read } = Route.useSearch();
   const data = useSuspenseQuery(assignmentRecordQuery(id)).data;
-  return <BreadcrumbCurrent>{data.title}</BreadcrumbCurrent>;
+  return (
+    <BreadcrumbCurrent>
+      {titleRead(data, readingOf(data, read))}
+    </BreadcrumbCurrent>
+  );
 }
 
 function LearnerTrail({ id }: { id: string }) {
+  const { read } = Route.useSearch();
   const data = useSuspenseQuery(myWorkQuery(id)).data;
-  return <BreadcrumbCurrent>{data.assignment.title}</BreadcrumbCurrent>;
+  const brief = {
+    title: data.assignment.title,
+    language: data.assignment.language,
+    translation: data.translation,
+  };
+  return (
+    <BreadcrumbCurrent>
+      {titleRead(brief, readingOf(brief, read))}
+    </BreadcrumbCurrent>
+  );
 }
 
 function AssignmentTrail() {
@@ -60,24 +85,34 @@ function AssignmentTrail() {
 
 function AssignmentPage() {
   const { assignmentId } = Route.useParams();
-  const { tab } = Route.useSearch();
+  const { tab, read } = Route.useSearch();
   const { auth } = Route.useRouteContext();
   const navigate = Route.useNavigate();
+  const reading = {
+    read,
+    onRead: (locale: ContentLocale) =>
+      void navigate({
+        search: (previous) => ({ ...previous, read: locale }),
+        replace: true,
+      }),
+  };
   return (
-    <LtiHostProvider type="assignment" id={assignmentId}>
-      {learns(auth.workspace) ? (
-        <LearnerWork assignmentId={assignmentId} />
-      ) : (
-        <AssignmentRecord
-          assignmentId={assignmentId}
-          tab={tab}
-          onTab={(next) => {
-            void navigate({
-              search: (previous) => ({ ...previous, tab: next }),
-            });
-          }}
-        />
-      )}
-    </LtiHostProvider>
+    <BriefReading value={reading}>
+      <LtiHostProvider type="assignment" id={assignmentId}>
+        {learns(auth.workspace) ? (
+          <LearnerWork assignmentId={assignmentId} />
+        ) : (
+          <AssignmentRecord
+            assignmentId={assignmentId}
+            tab={tab}
+            onTab={(next) => {
+              void navigate({
+                search: (previous) => ({ ...previous, tab: next }),
+              });
+            }}
+          />
+        )}
+      </LtiHostProvider>
+    </BriefReading>
   );
 }

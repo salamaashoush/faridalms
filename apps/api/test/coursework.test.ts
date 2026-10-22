@@ -3008,6 +3008,12 @@ describe("a brief in two languages", () => {
     expect(JSON.stringify(work.translation?.content)).toContain(
       "اكتب رسالة إلى النيل",
     );
+    // Lists of work carry its title in the other language, for readers of it.
+    expect(
+      (await student.api.coursework.mine()).rows.find(
+        (row) => row.assignmentId === saved.id,
+      ),
+    ).toMatchObject({ language: "en", translationTitle: "رسالة إلى النيل" });
 
     // A change to the original leaves the check behind it.
     const changed = await teacher.api.coursework.save({

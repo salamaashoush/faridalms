@@ -811,9 +811,12 @@ Scratch Text to Speech, Translate and tutorials.
    switch with a tab; the teacher reads both the same way. Using the work
    again copies the translation.
    A quiz's questions take the translation too, their answers kept from
-   the original, as a lesson's are.
-   Left: the breadcrumb following the language read, and a family
-   reading the brief in theirs.
+   the original, as a lesson's are. The page's trail and heading name the
+   work in the language it is read in, kept in the address, and the
+   lists of work a student or family reads give each title in the
+   reader's language where the brief has it.
+   Left: a family opening the brief itself, which families do not read
+   yet in any language.
 4. **Reading fluency** assignments, teacher-marked first.
    Done: a "Read aloud" question holds a passage the student reads aloud,
    set large above the recorder, their recording the answer. Marking it,

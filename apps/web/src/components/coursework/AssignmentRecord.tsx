@@ -23,7 +23,7 @@ import {
   Undo2,
   UserX,
 } from "lucide-react";
-import { useState } from "react";
+import { useContext, useState } from "react";
 import { toast } from "sonner";
 
 import type {
@@ -74,7 +74,12 @@ import { getMessageFromError } from "~/utils/error";
 
 import { classTitle } from "../classes/format";
 import { displayName } from "../people/format";
-import { useBriefLanguage } from "./BriefLanguage";
+import {
+  BriefReading,
+  readingOf,
+  titleRead,
+  useBriefLanguage,
+} from "./BriefLanguage";
 import { Discussion } from "./Discussion";
 import {
   formatInstant,
@@ -607,6 +612,7 @@ export function AssignmentRecord({
   onTab: (tab: RecordTabValue) => void;
 }) {
   const data = useSuspenseQuery(assignmentRecordQuery(assignmentId)).data;
+  const reading = useContext(BriefReading);
   const user = useCurrentUser();
   const navigate = useNavigate();
   const queryClient = useQueryClient();
@@ -735,7 +741,7 @@ export function AssignmentRecord({
     >
       <RecordHeader
         variant="document"
-        title={data.title}
+        title={titleRead(data, readingOf(data, reading?.read))}
         facts={facts}
         tools={<ReaderWidthToggle wide={width.wide} onToggle={width.toggle} />}
         status={{
