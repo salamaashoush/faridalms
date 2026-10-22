@@ -176,10 +176,11 @@
       "rules": { "no-underscore-dangle": "off" }
     },
     {
-      // The slash menu is a listbox the contenteditable drives through
-      // aria-activedescendant, so focus and arrow keys stay in the editor.
-      // A native <select> cannot float at the caret without taking focus.
-      "files": ["packages/editor/src/plugins/SlashMenu.tsx"],
+      // The menus typed for at the caret (slash, mentions) are listboxes the
+      // contenteditable drives through aria-activedescendant, so focus and
+      // arrow keys stay in the editor. A native <select> cannot float at the
+      // caret without taking focus.
+      "files": ["packages/editor/src/plugins/typeahead.tsx"],
       "rules": {
         "jsx-a11y/prefer-tag-over-role": "off",
         "jsx-a11y/click-events-have-key-events": "off"

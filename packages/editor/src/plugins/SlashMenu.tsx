@@ -21,8 +21,9 @@ import type { BlockDefinition, BlockGroup } from "../blocks";
 
 import { blockScope, filterBlocks } from "../blocks";
 import { useEditorEnvironment } from "../context";
-import { Floating, cx, selectionReference } from "../ui";
+import { Floating, selectionReference } from "../ui";
 import { $runBlock } from "./insert";
+import { TypeaheadItem } from "./typeahead";
 
 /**
  * Takes the typed "/query" out of the text and returns the query. Typing can
@@ -207,21 +208,13 @@ function SlashMenuList({
                 {groups[option.block.group]}
               </p>
             ) : null}
-            <div
-              ref={(element) => option.setRefElement(element)}
-              role="option"
-              tabIndex={-1}
-              aria-selected={selectedIndex === index}
-              id={`typeahead-item-${index}`}
-              onMouseEnter={() => onHighlight(index)}
-              onClick={() => {
-                onHighlight(index);
-                onSelect(option);
-              }}
-              className={cx(
-                "flex cursor-pointer items-center gap-3 rounded-md px-2 py-1.5",
-                selectedIndex === index && "bg-accent",
-              )}
+            <TypeaheadItem
+              option={option}
+              index={index}
+              selected={selectedIndex === index}
+              onHighlight={onHighlight}
+              onSelect={() => onSelect(option)}
+              className="gap-3"
             >
               <span className="flex size-9 shrink-0 items-center justify-center rounded-md border bg-background">
                 <Icon className="size-4.5 text-foreground/70" aria-hidden />
@@ -242,7 +235,7 @@ function SlashMenuList({
                   {option.block.shortcut}
                 </kbd>
               ) : null}
-            </div>
+            </TypeaheadItem>
           </div>
         );
       })}
