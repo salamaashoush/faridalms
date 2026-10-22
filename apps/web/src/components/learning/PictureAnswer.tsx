@@ -9,12 +9,13 @@ import {
   Check,
   Eraser,
   LoaderCircle,
+  PaintBucket,
   Pencil,
   RotateCcw,
   Trash2,
   Undo2,
 } from "lucide-react";
-import { useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { useDocumentMedia } from "~/components/coursework/useDocumentMedia";
@@ -24,6 +25,7 @@ import { shrunkImage } from "~/utils/images";
 
 import type { CheckDriver } from "./Checks";
 
+import { fillMask } from "./fill";
 import { playSound } from "./young/sounds";
 
 type Written = Extract<StudentBlock, { type: "written" }>;
@@ -54,10 +56,27 @@ interface Stroke {
   colour: string;
   width: number;
   points: number[];
+  /** Takes away what was drawn, leaving the picture underneath. */
+  erase?: boolean;
 }
+
+/** A tap that fills the area around it with a colour, as a paint bucket does. */
+interface Fill {
+  fill: true;
+  colour: string;
+  x: number;
+  y: number;
+}
+
+type Mark = Stroke | Fill;
+
+const isFill = (mark: Mark): mark is Fill => "fill" in mark;
 
 function drawStroke(context: CanvasRenderingContext2D, stroke: Stroke) {
   const [x = 0, y = 0] = stroke.points;
+  context.globalCompositeOperation = stroke.erase
+    ? "destination-out"
+    : "source-over";
   context.strokeStyle = stroke.colour;
   context.fillStyle = stroke.colour;
   context.lineWidth = stroke.width;
@@ -76,37 +95,138 @@ function drawStroke(context: CanvasRenderingContext2D, stroke: Stroke) {
   context.stroke();
 }
 
-function paint(canvas: HTMLCanvasElement | null, strokes: readonly Stroke[]) {
+/** The page as the child sees it: white, the teacher's picture, then what they drew. */
+function compose(
+  canvas: HTMLCanvasElement | null,
+  picture: HTMLImageElement | null,
+  layer: HTMLCanvasElement,
+) {
   const context = canvas?.getContext("2d");
   if (!context) return;
+  context.globalCompositeOperation = "source-over";
   context.fillStyle = "#ffffff";
   context.fillRect(0, 0, WIDTH, HEIGHT);
-  strokes.forEach((stroke) => drawStroke(context, stroke));
+  if (picture) {
+    const scale = Math.min(
+      WIDTH / picture.naturalWidth,
+      HEIGHT / picture.naturalHeight,
+    );
+    const width = picture.naturalWidth * scale;
+    const height = picture.naturalHeight * scale;
+    context.drawImage(
+      picture,
+      (WIDTH - width) / 2,
+      (HEIGHT - height) / 2,
+      width,
+      height,
+    );
+  }
+  context.drawImage(layer, 0, 0);
+}
+
+/** Colours the area around a tap on the child's own layer, bounded by the page as it looks. */
+function fillOn(
+  canvas: HTMLCanvasElement,
+  layer: HTMLCanvasElement,
+  fill: Fill,
+) {
+  const page = canvas.getContext("2d")?.getImageData(0, 0, WIDTH, HEIGHT);
+  const context = layer.getContext("2d");
+  if (!page || !context) return;
+  const mask = fillMask(page.data, WIDTH, HEIGHT, fill.x, fill.y);
+  const drawn = context.getImageData(0, 0, WIDTH, HEIGHT);
+  const red = Number.parseInt(fill.colour.slice(1, 3), 16);
+  const green = Number.parseInt(fill.colour.slice(3, 5), 16);
+  const blue = Number.parseInt(fill.colour.slice(5, 7), 16);
+  for (let index = 0; index < mask.length; index += 1)
+    if (mask[index]) drawn.data.set([red, green, blue, 255], index * 4);
+  context.putImageData(drawn, 0, 0);
+}
+
+/** Draws every mark again on the child's layer, as undoing one needs. */
+function redraw(
+  canvas: HTMLCanvasElement | null,
+  picture: HTMLImageElement | null,
+  layer: HTMLCanvasElement,
+  marks: readonly Mark[],
+) {
+  const context = layer.getContext("2d");
+  if (!canvas || !context) return;
+  context.globalCompositeOperation = "source-over";
+  context.clearRect(0, 0, WIDTH, HEIGHT);
+  for (const mark of marks)
+    if (isFill(mark)) {
+      // A fill finds its edges in the page as it looked when it was made.
+      compose(canvas, picture, layer);
+      fillOn(canvas, layer, mark);
+    } else drawStroke(context, mark);
+  compose(canvas, picture, layer);
 }
 
 /**
  * A page to draw on with a finger, a pen or a mouse: eight colours, a thin
- * and a thick pen, an eraser, undo, and starting again, which takes a second
- * tap so a slip never wipes a child's picture.
+ * and a thick pen, a paint bucket that fills an area, an eraser, undo, and
+ * starting again, which takes a second tap so a slip never wipes a child's
+ * picture. A teacher's picture under it makes it a colouring page: the
+ * child draws and fills over it, and the eraser takes away only their own
+ * marks.
  */
 function DrawingPad({
   young,
   pending,
+  background,
   onDone,
 }: {
   young: boolean;
   pending: boolean;
+  /** The picture drawn and coloured over, as a colouring page. */
+  background?: { src: string; alt: string } | null;
   onDone: (file: File) => void;
 }) {
   const canvas = useRef<HTMLCanvasElement>(null);
+  // The child's own marks, kept apart from the picture under them; made in
+  // the browser once the page is there, as a server has no canvas.
+  const layered = useRef<HTMLCanvasElement | null>(null);
+  const layerOf = useCallback(() => {
+    if (!layered.current) {
+      const made = document.createElement("canvas");
+      made.width = WIDTH;
+      made.height = HEIGHT;
+      layered.current = made;
+    }
+    return layered.current;
+  }, []);
   const drawing = useRef<Stroke | null>(null);
-  const [strokes, setStrokes] = useState<Stroke[]>([]);
+  const [marks, setMarks] = useState<Mark[]>([]);
+  const [picture, setPicture] = useState<HTMLImageElement | null>(null);
   const [colour, setColour] = useState(COLOURS[0]?.value ?? "#000000");
   const [width, setWidth] = useState(THICK);
-  const [erasing, setErasing] = useState(false);
+  const [tool, setTool] = useState<"pen" | "fill" | "eraser">("pen");
   const [clearing, setClearing] = useState(false);
 
-  useEffect(() => paint(canvas.current, strokes), [strokes]);
+  const src = background?.src;
+  useEffect(() => {
+    if (!src) return undefined;
+    let current = true;
+    const image = new Image();
+    // Pictures come from the files host, which shares them with any page;
+    // asked for so, they leave the page readable for filling and saving.
+    image.crossOrigin = "anonymous";
+    image.src = src;
+    image.decode().then(
+      () => {
+        if (current) setPicture(image);
+      },
+      () => undefined,
+    );
+    return () => {
+      current = false;
+    };
+  }, [src]);
+  useEffect(
+    () => redraw(canvas.current, picture, layerOf(), marks),
+    [picture, marks, layerOf],
+  );
   useEffect(() => {
     const timer = clearing
       ? setTimeout(() => setClearing(false), 3000)
@@ -123,7 +243,8 @@ function DrawingPad({
   };
   const extend = (event: React.PointerEvent<HTMLCanvasElement>) => {
     const stroke = drawing.current;
-    const context = canvas.current?.getContext("2d");
+    const layer = layerOf();
+    const context = layer.getContext("2d");
     if (!stroke || !context) return;
     // Safari before 18 has no coalesced events; the move itself then serves.
     const coalesced =
@@ -144,12 +265,19 @@ function DrawingPad({
         Math.max(0, stroke.points.length - 2 * (events.length + 1)),
       ),
     });
+    compose(canvas.current, picture, layer);
   };
 
-  const tool = young ? "size-16" : "size-11";
+  const size = young ? "size-16" : "size-11";
+  const pressed =
+    "rounded-full aria-pressed:border-primary aria-pressed:bg-primary/10";
   return (
     <div className="grid gap-3">
-      <p className="sr-only">{m.drawHere()}</p>
+      <p className="sr-only">
+        {background?.alt
+          ? m.drawOverPicture({ picture: background.alt })
+          : m.drawHere()}
+      </p>
       <canvas
         ref={canvas}
         width={WIDTH}
@@ -158,31 +286,39 @@ function DrawingPad({
         className="aspect-[4/3] w-[min(100%,calc(50dvh*4/3))] touch-none justify-self-center rounded-2xl border-2 bg-white shadow-sm"
         onPointerDown={(event) => {
           if (pending) return;
-          event.currentTarget.setPointerCapture(event.pointerId);
           const [x = 0, y = 0] = pointOf(event);
+          if (tool === "fill") {
+            setMarks((current) => [...current, { fill: true, colour, x, y }]);
+            return;
+          }
+          event.currentTarget.setPointerCapture(event.pointerId);
           drawing.current = {
-            colour: erasing ? "#ffffff" : colour,
-            width: erasing ? THICK * 2 : width,
+            colour,
+            width: tool === "eraser" ? THICK * 2 : width,
             points: [x, y],
+            ...(tool === "eraser" ? { erase: true } : {}),
           };
-          paint(canvas.current, [...strokes, drawing.current]);
+          const layer = layerOf();
+          const context = layer.getContext("2d");
+          if (context) drawStroke(context, drawing.current);
+          compose(canvas.current, picture, layer);
         }}
         onPointerMove={extend}
         onPointerUp={() => {
           const done = drawing.current;
           drawing.current = null;
-          if (done) setStrokes((current) => [...current, done]);
+          if (done) setMarks((current) => [...current, done]);
         }}
         onPointerCancel={() => {
           drawing.current = null;
-          paint(canvas.current, strokes);
+          redraw(canvas.current, picture, layerOf(), marks);
         }}
       />
       <div className="flex flex-wrap items-center justify-center gap-2">
         <fieldset className="flex flex-wrap gap-2">
           <legend className="sr-only">{m.drawColours()}</legend>
           {COLOURS.map((item) => {
-            const chosen = !erasing && colour === item.value;
+            const chosen = tool !== "eraser" && colour === item.value;
             return (
               <button
                 key={item.value}
@@ -191,11 +327,11 @@ function DrawingPad({
                 aria-label={item.name()}
                 onClick={() => {
                   setColour(item.value);
-                  setErasing(false);
+                  if (tool === "eraser") setTool("pen");
                 }}
                 className={cn(
                   "grid touch-manipulation place-items-center rounded-full border-2 border-white shadow outline-none focus-visible:ring-4 focus-visible:ring-ring/50",
-                  tool,
+                  size,
                   chosen && "ring-4 ring-primary",
                 )}
                 style={{ backgroundColor: item.value }}
@@ -224,15 +360,12 @@ function DrawingPad({
               key={pen.size}
               type="button"
               variant="outline"
-              aria-pressed={!erasing && width === pen.size}
+              aria-pressed={tool === "pen" && width === pen.size}
               aria-label={pen.label}
-              className={cn(
-                tool,
-                "rounded-full aria-pressed:border-primary aria-pressed:bg-primary/10",
-              )}
+              className={cn(size, pressed)}
               onClick={() => {
                 setWidth(pen.size);
-                setErasing(false);
+                setTool("pen");
               }}
             >
               <span
@@ -245,13 +378,24 @@ function DrawingPad({
           <Button
             type="button"
             variant="outline"
-            aria-pressed={erasing}
+            aria-pressed={tool === "fill"}
+            aria-label={m.drawFill()}
+            className={cn(size, pressed)}
+            onClick={() => setTool("fill")}
+          >
+            <PaintBucket
+              aria-hidden
+              className="size-6"
+              style={{ color: colour }}
+            />
+          </Button>
+          <Button
+            type="button"
+            variant="outline"
+            aria-pressed={tool === "eraser"}
             aria-label={m.drawEraser()}
-            className={cn(
-              tool,
-              "rounded-full aria-pressed:border-primary aria-pressed:bg-primary/10",
-            )}
-            onClick={() => setErasing(true)}
+            className={cn(size, pressed)}
+            onClick={() => setTool("eraser")}
           >
             <Eraser aria-hidden className="size-6" />
           </Button>
@@ -259,9 +403,9 @@ function DrawingPad({
             type="button"
             variant="outline"
             aria-label={m.drawUndo()}
-            className={cn(tool, "rounded-full")}
-            disabled={strokes.length === 0}
-            onClick={() => setStrokes((current) => current.slice(0, -1))}
+            className={cn(size, "rounded-full")}
+            disabled={marks.length === 0}
+            onClick={() => setMarks((current) => current.slice(0, -1))}
           >
             <Undo2 aria-hidden className="size-6" />
           </Button>
@@ -269,15 +413,15 @@ function DrawingPad({
             type="button"
             variant={clearing ? "destructive" : "outline"}
             aria-label={clearing ? m.drawClearConfirm() : m.drawClear()}
-            className={cn(tool, "rounded-full")}
-            disabled={strokes.length === 0}
+            className={cn(size, "rounded-full")}
+            disabled={marks.length === 0}
             onClick={() => {
               if (!clearing) {
                 setClearing(true);
                 return;
               }
               setClearing(false);
-              setStrokes([]);
+              setMarks([]);
             }}
           >
             <Trash2 aria-hidden className="size-6" />
@@ -288,7 +432,7 @@ function DrawingPad({
               "rounded-full bg-success text-white hover:bg-success/90",
               young ? "h-16 px-8 text-xl" : "h-11 px-5",
             )}
-            disabled={strokes.length === 0 || pending}
+            disabled={marks.length === 0 || pending}
             onClick={() =>
               canvas.current?.toBlob((blob) => {
                 if (blob)
@@ -478,6 +622,11 @@ export function PictureAnswer({
     <DrawingPad
       young={young}
       pending={send.isPending}
+      background={
+        block.picture
+          ? { src: `/files/${block.picture.fileId}`, alt: block.picture.alt }
+          : null
+      }
       onDone={(file) => send.mutate(file)}
     />
   ) : (

@@ -734,6 +734,8 @@ export const lessonBlockSchema = v.variant("type", [
     recordVideo: v.optional(v.boolean()),
     /** Answered with a drawing or a photo rather than words. */
     answerWith: v.optional(v.nullable(v.picklist(PICTURE_ANSWERS))),
+    /** The picture a drawing is made over, as a colouring page. */
+    picture,
   }),
   v.object({
     ...checkFields,

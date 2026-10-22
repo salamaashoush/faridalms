@@ -738,7 +738,8 @@ export class QuestionNode extends ElementNode {
       settings.kind === "counting" ||
       settings.kind === "spelling" ||
       settings.kind === "hotspot" ||
-      settings.kind === "labelling"
+      settings.kind === "labelling" ||
+      (settings.kind === "written" && settings.answerWith === "drawing")
     )
       drawPicture(this, dom, editor);
     if (settings.kind === "hotspot" || settings.kind === "labelling")

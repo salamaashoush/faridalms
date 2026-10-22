@@ -446,12 +446,20 @@ export function PaperQuestion({
     case "written":
       body =
         block.answerWith === "drawing" || block.answerWith === "photo" ? (
-          <div className="h-[9cm] rounded-[4px] border border-neutral-500 p-[0.6em]">
+          <div className="grid h-[9cm] grid-rows-[auto_minmax(0,1fr)] rounded-[4px] border border-neutral-500 p-[0.6em]">
             <p className="text-[0.75em] text-neutral-500">
               {(block.answerWith === "drawing"
                 ? m.printDrawHere
                 : m.printPictureHere)({}, { locale })}
             </p>
+            {block.answerWith === "drawing" && block.picture ? (
+              // A colouring page prints its picture to colour in.
+              <img
+                src={fileUrl(block.picture.fileId)}
+                alt={block.picture.alt}
+                className="size-full object-contain"
+              />
+            ) : null}
           </div>
         ) : (
           <Lines

@@ -3799,6 +3799,8 @@
   "drawThin": "Thin pen",
   "drawThick": "Thick pen",
   "drawEraser": "Eraser",
+  "drawFill": "Fill an area with colour",
+  "drawOverPicture": "Draw and colour on the picture: {picture}",
   "drawUndo": "Undo",
   "drawClear": "Start again",
   "drawClearConfirm": "Tap again to clear the page",

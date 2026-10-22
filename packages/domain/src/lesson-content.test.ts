@@ -583,6 +583,38 @@ describe("counting", () => {
   });
 });
 
+describe("a drawing over a picture", () => {
+  const base = { points: 2, hints: [], explanation: "", tries: null };
+  const colouring: LessonDocument = {
+    version: 2,
+    blocks: [
+      {
+        ...base,
+        id: partId(40),
+        type: "written",
+        prompt: "Colour the boat.",
+        wordLimit: null,
+        answerWith: "drawing",
+        picture: { fileId: voice(2), alt: "A boat" },
+      },
+    ],
+  };
+
+  it("keeps its picture through the document, as a colouring page", () => {
+    const document = contentOfLesson(colouring);
+    if (!document) throw new Error("lesson could not become a document");
+    expect(v.safeParse(contentDocumentSchema, document).success).toBe(true);
+    const back = lessonOfContent(document);
+    expect(back.blocks[0]).toMatchObject({
+      answerWith: "drawing",
+      picture: { fileId: voice(2), alt: "A boat" },
+    });
+    expect(studentBlocks(back, "seed")[0]).toMatchObject({
+      picture: { fileId: voice(2), alt: "A boat" },
+    });
+  });
+});
+
 describe("memory pairs", () => {
   it("keeps a matching question played as memory pairs through the document", () => {
     const pairs: LessonDocument = {

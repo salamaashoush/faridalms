@@ -360,6 +360,9 @@ export function questionBlock(node: ContentNode): LessonBlock | null {
         ...(spoken === null ? {} : { recordSeconds: spoken }),
         ...(spoken !== null && node.recordVideo ? { recordVideo: true } : {}),
         ...(pictured === null ? {} : { answerWith: pictured }),
+        ...(pictured === "drawing" && node.fileId
+          ? { picture: pictureOf(node) }
+          : {}),
       };
     }
     case "number":
@@ -1126,6 +1129,7 @@ export function questionNode(block: LessonBlock): ContentNode | null {
     ...(block.recordSeconds ? { recordSeconds: block.recordSeconds } : {}),
     ...(block.recordSeconds && block.recordVideo ? { recordVideo: true } : {}),
     ...(block.answerWith ? { answerWith: block.answerWith } : {}),
+    ...(block.answerWith === "drawing" ? pictureFields(block.picture) : {}),
   };
 }
 

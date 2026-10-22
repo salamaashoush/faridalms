@@ -561,6 +561,16 @@ Sources: [../research/course-design.md](../research/course-design.md),
 
 1. **Drawing over a picture and colouring**: the drawing answer has a
    background picture the teacher chooses.
+   Done: a question answered by drawing takes a picture from the bar, an
+   open picture or the teacher's own, shown on the question as the class
+   will see it. The child draws and colours over it: a paint bucket fills
+   the area around a tap up to the picture's lines and their own strokes,
+   the eraser takes away only their marks, and undo steps back through
+   fills as through strokes. The teacher receives the picture as the
+   child coloured it; on paper the picture prints in the drawing box to
+   colour by hand.
+   Left: line-art pictures found for colouring in the picture library;
+   a fill that spreads in slowly, as some children's apps show it.
 2. **Children's reading type**: Andika for Latin and a naskh face for
    Arabic in young lessons, with the Arabic scale applied there.
 3. **Teacher judgements per early-learning goal** (EYFS and the like),

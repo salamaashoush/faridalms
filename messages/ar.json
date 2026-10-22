@@ -3990,6 +3990,8 @@
   "drawThin": "قلم رفيع",
   "drawThick": "قلم عريض",
   "drawEraser": "ممحاة",
+  "drawFill": "لوّن منطقة كاملة",
+  "drawOverPicture": "ارسم ولوّن على الصورة: {picture}",
   "drawUndo": "تراجع",
   "drawClear": "ابدأ من جديد",
   "drawClearConfirm": "اضغط مرة أخرى لمسح الصفحة",

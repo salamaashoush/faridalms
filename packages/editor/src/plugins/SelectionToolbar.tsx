@@ -803,12 +803,15 @@ export function SelectionToolbarPlugin() {
       if (!$isQuestionNode(node)) return null;
       voiced ??= node;
       // A counting question's picture is of what is counted, on the question.
+      // A drawing may be made over a picture, as a colouring page.
       if (
         !part &&
         (node.getSettings().kind === "counting" ||
           node.getSettings().kind === "spelling" ||
           node.getSettings().kind === "hotspot" ||
-          node.getSettings().kind === "labelling")
+          node.getSettings().kind === "labelling" ||
+          (node.getSettings().kind === "written" &&
+            node.getSettings().answerWith === "drawing"))
       )
         part = node;
       // Lines of code and a program's tests are text alone, with no
