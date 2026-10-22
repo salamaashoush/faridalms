@@ -37,6 +37,7 @@ interface Draft {
   summary: string;
   classIds: string[];
   prerequisiteId: string;
+  prerequisiteScore: string;
   sequential: boolean;
   /** The classes taken only by chosen groups and students, by class. */
   audiences: Record<string, Chosen>;
@@ -140,6 +141,9 @@ export function ModuleEditor({
     classIds:
       existing?.classes.map((row) => row.id) ?? (classId ? [classId] : []),
     prerequisiteId: existing?.prerequisiteId ?? "",
+    prerequisiteScore: existing?.prerequisiteScore
+      ? String(existing.prerequisiteScore)
+      : "",
     sequential: existing?.sequential ?? true,
     audiences: Object.fromEntries(
       (existing?.audiences ?? []).map((row) => [
@@ -163,6 +167,10 @@ export function ModuleEditor({
           ...draft,
           title: draft.title.trim(),
           summary: draft.summary.trim(),
+          prerequisiteScore:
+            draft.prerequisiteId && draft.prerequisiteScore.trim()
+              ? Number(draft.prerequisiteScore)
+              : null,
           audiences: draft.classIds.flatMap((id) => {
             const chosen = draft.audiences[id];
             return chosen ? [{ classId: id, ...chosen }] : [];
@@ -178,8 +186,15 @@ export function ModuleEditor({
       chosen.studentIds.length === 0
     );
   });
+  const needed = Number(draft.prerequisiteScore);
   const issues = {
     title: draft.title.trim() ? null : m.lrnTitleNeeded(),
+    prerequisiteScore:
+      !draft.prerequisiteId ||
+      !draft.prerequisiteScore.trim() ||
+      (Number.isInteger(needed) && needed >= 1 && needed <= 100)
+        ? null
+        : m.lrnPrerequisiteScoreInvalid(),
     classIds: draft.classIds.length > 0 ? null : m.lrnClassesNeeded(),
     audiences: unchosen.length > 0 ? m.lrnAudienceNeeded() : null,
   };
@@ -294,6 +309,26 @@ export function ModuleEditor({
           ]}
           onChange={(prerequisiteId) => set("prerequisiteId", prerequisiteId)}
         />
+        {draft.prerequisiteId ? (
+          <TextField
+            id="module-prerequisite-score"
+            label={m.lrnPrerequisiteScore()}
+            hint={m.lrnPrerequisiteScoreHint()}
+            optional
+            type="number"
+            inputMode="numeric"
+            min={1}
+            max={100}
+            width="score"
+            value={draft.prerequisiteScore}
+            onChange={(event) => set("prerequisiteScore", event.target.value)}
+            errors={
+              shown && issues.prerequisiteScore
+                ? [issues.prerequisiteScore]
+                : undefined
+            }
+          />
+        ) : null}
       </FormSection>
     </RecordForm>
   );

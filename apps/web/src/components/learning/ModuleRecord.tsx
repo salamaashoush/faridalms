@@ -19,6 +19,7 @@ import {
   ClipboardList,
   Copy,
   EyeOff,
+  Hourglass,
   Layers,
   Pencil,
   Plus,
@@ -73,6 +74,7 @@ import { Answers } from "./Answers";
 import { CopyLessonSheet } from "./CopyLesson";
 import {
   COMPLETION_LABEL,
+  conditionText,
   shownState,
   STATE_LABEL,
   STATE_TONE,
@@ -109,17 +111,31 @@ function useRefresh() {
   return () => queryClient.invalidateQueries({ queryKey: ["learning"] });
 }
 
-function LessonTitle({ row }: { row: Lesson }) {
+function LessonTitle({ row, lessons }: { row: Lesson; lessons: Lesson[] }) {
+  const before = row.condition
+    ? lessons.find((item) => item.id === row.condition?.lessonId)
+    : undefined;
   return (
-    <RowLink to="/lessons/$lessonId" params={{ lessonId: row.id }} search={{}}>
-      {row.title}
-    </RowLink>
+    <span className="grid min-w-0 gap-0.5">
+      <RowLink
+        to="/lessons/$lessonId"
+        params={{ lessonId: row.id }}
+        search={{}}
+      >
+        {row.title}
+      </RowLink>
+      {row.condition && before ? (
+        <span className="text-[13px] leading-[18px] whitespace-normal text-muted-foreground">
+          {conditionText(row.condition, before.title)}
+        </span>
+      ) : null}
+    </span>
   );
 }
 
 // Built per render: headers read the request's locale, which a module-level
 // array would fix at whichever language first loaded the module on the server.
-function lessonColumns(): Column<Lesson>[] {
+function lessonColumns(lessons: Lesson[]): Column<Lesson>[] {
   return [
     {
       id: "title",
@@ -130,7 +146,7 @@ function lessonColumns(): Column<Lesson>[] {
           <span className="w-5 shrink-0 text-end text-sm text-muted-foreground tabular-nums">
             {formatNumber(row.position + 1)}
           </span>
-          <LessonTitle row={row} />
+          <LessonTitle row={row} lessons={lessons} />
         </div>
       ),
     },
@@ -142,10 +158,12 @@ function lessonColumns(): Column<Lesson>[] {
   ];
 }
 
-const lessonCard = {
-  title: (row: Lesson) => <LessonTitle row={row} />,
-  fact: (row: Lesson) => COMPLETION_LABEL[row.completion](),
-};
+function lessonCard(lessons: Lesson[]) {
+  return {
+    title: (row: Lesson) => <LessonTitle row={row} lessons={lessons} />,
+    fact: (row: Lesson) => COMPLETION_LABEL[row.completion](),
+  };
+}
 
 function Lessons({ data }: { data: Data }) {
   const navigate = useNavigate();
@@ -252,10 +270,10 @@ function Lessons({ data }: { data: Data }) {
       <DataTable
         caption={m.lrnLessonsCaption()}
         rows={data.lessons}
-        columns={lessonColumns()}
+        columns={lessonColumns(data.lessons)}
         rowLabel={(row) => row.title}
         rowActions={rowActions}
-        card={lessonCard}
+        card={lessonCard(data.lessons)}
         empty={{
           icon: Layers,
           title: m.lrnNoLessons(),
@@ -332,6 +350,14 @@ function About({ data }: { data: Data }) {
           ) : (
             m.lrnNoPrerequisite()
           )}
+          {data.prerequisiteId && data.prerequisiteScore ? (
+            <span className="text-muted-foreground">
+              {" · "}
+              {m.lrnPrerequisiteAt({
+                score: formatNumber(data.prerequisiteScore),
+              })}
+            </span>
+          ) : null}
         </Fact>
         <Fact label={m.lrnAuthor()}>
           {inLocale(data.authorNameEn, data.authorNameAr)}
@@ -347,27 +373,54 @@ function cellOf(cells: Cell[], lessonId: string, studentId: string) {
   );
 }
 
+/** Whether a student's path leaves a lesson out, or waits to decide; undefined when it is on it. */
+function pathOf(data: Progress, lessonId: string, studentId: string) {
+  return data.paths.find(
+    (item) => item.lessonId === lessonId && item.studentId === studentId,
+  )?.state;
+}
+
 function CellMark({
   cell,
+  path,
   lesson,
   student,
   onToggle,
 }: {
   cell: Cell | undefined;
+  path: "off" | "pending" | undefined;
   lesson: Progress["lessons"][number];
   student: StudentRow;
   onToggle: (done: boolean) => void;
 }) {
   const done = Boolean(cell?.completedAt);
   const name = displayName(student);
+  if (path === "off")
+    return (
+      <span
+        title={m.lrnCellOffPath()}
+        className="inline-grid size-8 place-items-center text-muted-foreground max-md:size-10"
+      >
+        <span aria-hidden>–</span>
+        <span className="sr-only">{m.lrnCellOffPath()}</span>
+      </span>
+    );
   const state = done
     ? cell?.completedBy === "teacher"
       ? m.lrnCellMarked()
       : m.lrnCellDone()
-    : cell
-      ? m.lrnCellStarted()
-      : m.lrnCellNotStarted();
-  const Icon = done ? CircleCheck : cell ? CircleDashed : Circle;
+    : path === "pending"
+      ? m.lrnCellWaiting()
+      : cell
+        ? m.lrnCellStarted()
+        : m.lrnCellNotStarted();
+  const Icon = done
+    ? CircleCheck
+    : path === "pending"
+      ? Hourglass
+      : cell
+        ? CircleDashed
+        : Circle;
   return (
     <div className="flex items-center gap-1.5">
       <Button
@@ -402,12 +455,15 @@ function CellMark({
 }
 
 function doneOf(data: Progress, student: StudentRow) {
-  const count = data.lessons.filter((lesson) =>
+  const on = data.lessons.filter(
+    (lesson) => pathOf(data, lesson.id, student.id) === undefined,
+  );
+  const count = on.filter((lesson) =>
     Boolean(cellOf(data.cells, lesson.id, student.id)?.completedAt),
   ).length;
   return m.lrnDoneOf({
     count: formatNumber(count),
-    total: formatNumber(data.lessons.length),
+    total: formatNumber(on.length),
   });
 }
 
@@ -434,6 +490,7 @@ function matrixColumns(
       cell: (row: StudentRow) => (
         <CellMark
           cell={cellOf(data.cells, lesson.id, row.id)}
+          path={pathOf(data, lesson.id, row.id)}
           lesson={lesson}
           student={row}
           onToggle={(done) => onToggle(lesson.id, row, done)}
@@ -479,14 +536,17 @@ function Matrix({ moduleId, classId }: { moduleId: string; classId: string }) {
   };
   const doneText = (student: StudentRow) => doneOf(data, student);
   const rowActions = (row: StudentRow): RowAction[] =>
-    data.lessons.map((lesson, index) => {
+    data.lessons.flatMap((lesson, index) => {
+      if (pathOf(data, lesson.id, row.id) === "off") return [];
       const done = Boolean(cellOf(data.cells, lesson.id, row.id)?.completedAt);
-      return {
-        label: done
-          ? m.lrnUndoLesson({ number: formatNumber(index + 1) })
-          : m.lrnMarkLesson({ number: formatNumber(index + 1) }),
-        onSelect: () => flip(lesson.id, row, !done),
-      };
+      return [
+        {
+          label: done
+            ? m.lrnUndoLesson({ number: formatNumber(index + 1) })
+            : m.lrnMarkLesson({ number: formatNumber(index + 1) }),
+          onSelect: () => flip(lesson.id, row, !done),
+        },
+      ];
     });
   return (
     <div className="grid gap-4">
@@ -651,7 +711,9 @@ export function ModuleRecord({
   if (data.prerequisiteTitle)
     facts.push({
       label: m.lrnPrerequisite(),
-      value: m.lrnAfter({ title: data.prerequisiteTitle }),
+      value: data.prerequisiteScore
+        ? `${m.lrnAfter({ title: data.prerequisiteTitle })} · ${m.lrnPrerequisiteAt({ score: formatNumber(data.prerequisiteScore) })}`
+        : m.lrnAfter({ title: data.prerequisiteTitle }),
     });
   const tabs: RecordTab<ModuleTab>[] = [
     {

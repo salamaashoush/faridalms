@@ -50,8 +50,8 @@ export type LessonCompletion =
 /**
  * A module of lessons a teacher sets for classes of one school year. It
  * opens to students at `publish_at`; with a prerequisite it stays locked
- * until that module is finished, and when sequential its lessons open in
- * order.
+ * until that module is finished, at `prerequisite_score` or better when
+ * set, and when sequential its lessons open in order.
  */
 export const learningModules = core.table.withRLS(
   "learning_modules",
@@ -65,6 +65,8 @@ export const learningModules = core.table.withRLS(
     publishAt: instant("publish_at"),
     sequential: boolean("sequential").notNull().default(true),
     prerequisiteModuleId: uuid("prerequisite_module_id"),
+    /** The mean score, in percent, of the prerequisite's scored lessons a student needs. */
+    prerequisiteScore: smallint("prerequisite_score"),
     authorUserId: uuid("author_user_id").notNull(),
     ...entityColumns(),
   },
@@ -103,6 +105,11 @@ export const learningModules = core.table.withRLS(
       "learning_modules",
       "prerequisite",
       sql`prerequisite_module_id is null or prerequisite_module_id <> id`,
+    ),
+    ck(
+      "learning_modules",
+      "prerequisite_score",
+      sql`prerequisite_score is null or (prerequisite_module_id is not null and prerequisite_score between 1 and 100)`,
     ),
     index("learning_modules_year_idx")
       .on(t.tenantId, t.orgId, t.schoolYearId)
@@ -213,7 +220,9 @@ export const moduleAudiences = core.table.withRLS(
 
 /**
  * One lesson of a module. Its blocks are the document hosted as `lesson`;
- * `completion` says what finishes it for a student.
+ * `completion` says what finishes it for a student. With a condition it is
+ * shown only to the students whose best score in an earlier lesson of the
+ * module is at least `condition_at_least`, below `condition_below`, or both.
  */
 export const lessons = core.table.withRLS(
   "lessons",
@@ -238,6 +247,9 @@ export const lessons = core.table.withRLS(
       .$type<"shown" | "hidden" | "choice">()
       .notNull()
       .default("shown"),
+    conditionLessonId: uuid("condition_lesson_id"),
+    conditionAtLeast: smallint("condition_at_least"),
+    conditionBelow: smallint("condition_below"),
     ...entityColumns(),
   },
   (t): PgTableExtraConfigValue[] => [
@@ -264,6 +276,18 @@ export const lessons = core.table.withRLS(
       "lessons",
       "pass_score",
       sql`(completion = 'score') = (pass_score is not null) and (pass_score is null or pass_score between 1 and 100)`,
+    ),
+    fk("lessons", [t.tenantId, t.conditionLessonId], [t.tenantId, t.id]),
+    ck(
+      "lessons",
+      "condition",
+      sql`case when condition_lesson_id is null
+        then condition_at_least is null and condition_below is null
+        else condition_lesson_id <> id
+          and (condition_at_least is not null or condition_below is not null)
+          and coalesce(condition_at_least between 1 and 100, true)
+          and coalesce(condition_below between 1 and 100, true)
+          and coalesce(condition_at_least < condition_below, true) end`,
     ),
     index("lessons_module_idx")
       .on(t.tenantId, t.moduleId, t.position)

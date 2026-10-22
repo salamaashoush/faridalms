@@ -2,14 +2,17 @@ import type {
   LessonRow,
   ModuleAudienceRow,
   ModuleRow,
+  ProgressRow,
   WatchRow,
 } from "@faridalms/database/stores/learning";
 import type { ContentDocument } from "@faridalms/domain/content";
 import type {
   CheckBlock,
   LessonCompletion,
+  LessonCondition,
   LessonDocument,
   LessonResponse,
+  LessonResult,
 } from "@faridalms/domain/learning";
 import type { ScratchFeature } from "@faridalms/domain/scratch-project";
 
@@ -41,7 +44,6 @@ import {
   lessonsOf,
   liveActivity,
   moduleById,
-  moduleFinished,
   modulesForClasses,
   orderLessons,
   progressIn,
@@ -62,6 +64,7 @@ import {
   audiencesOf,
   moduleReaches,
   setModuleState,
+  standingsIn,
   studentModules,
   updateLesson,
   updateModule,
@@ -104,13 +107,16 @@ import {
   lessonWatchables,
   lessonRecordings,
   lessonScore,
+  lessonScored,
   markResponse,
   markSchema,
   moduleRefSchema,
   moveLessonSchema,
   overrideSchema,
+  pathOf,
   planSchema,
   positionSchema,
+  prerequisiteMet,
   progressQuerySchema,
   publishModuleSchema,
   classSoundsSchema,
@@ -298,7 +304,10 @@ async function classesOfStudent(context: UnitContext, studentId: string) {
   return reach.classIds;
 }
 
-/** A module open to the student, or not found; with whether its prerequisite still locks it. */
+/**
+ * A module open to the student, or not found; with whether its prerequisite
+ * still locks it, and how the student stands in that prerequisite.
+ */
 async function openModule(
   context: UnitContext,
   moduleId: string,
@@ -315,14 +324,23 @@ async function openModule(
     }))
   )
     throw new ORPCError("NOT_FOUND");
-  const locked =
-    row.prerequisiteId !== null &&
-    !(await moduleFinished(context.tx, {
-      tenantId: context.tenantId,
-      moduleId: row.prerequisiteId,
-      studentId,
-    }));
-  return { row, locked };
+  const before = row.prerequisiteId
+    ? ((
+        await standingsIn(context.tx, {
+          tenantId: context.tenantId,
+          moduleIds: [row.prerequisiteId],
+          studentId,
+        })
+      ).get(row.prerequisiteId) ?? null)
+    : null;
+  return {
+    row,
+    locked: before !== null && !prerequisiteMet(before, row.prerequisiteScore),
+    prerequisiteResult: before && {
+      finished: before.finished,
+      score: before.score,
+    },
+  };
 }
 
 /**
@@ -382,23 +400,40 @@ async function publishLessons(context: UnitContext, lessonIds: string[]) {
   }
 }
 
-/** Each lesson's state for a student: done, open, or locked behind an earlier one. */
+const resultsOf = (cells: readonly ProgressRow[]) =>
+  new Map<string, LessonResult>(
+    cells.map((cell) => [
+      cell.lessonId,
+      { completed: cell.completedAt !== null, score: cell.score },
+    ]),
+  );
+
+/**
+ * The lessons on a student's path through a module, each done, open, or
+ * locked behind an earlier one. Lessons their scores route them past, or
+ * that wait on a lesson they have not finished, are left out.
+ */
 function outline(
   row: ModuleRow,
   lessons: Awaited<ReturnType<typeof lessonsOf>>,
-  done: ReadonlySet<string>,
+  cells: readonly ProgressRow[],
   locked: boolean,
 ) {
+  const results = resultsOf(cells);
+  const path = pathOf(lessons, results);
   let blocked = locked;
-  return lessons.map((lesson) => {
-    const state = done.has(lesson.id)
-      ? ("done" as const)
-      : blocked
-        ? ("locked" as const)
-        : ("open" as const);
-    if (row.sequential && !done.has(lesson.id)) blocked = true;
-    return { ...lesson, state };
-  });
+  return lessons
+    .filter((lesson) => path.get(lesson.id) === "on")
+    .map((lesson) => {
+      const done = results.get(lesson.id)?.completed ?? false;
+      const state = done
+        ? ("done" as const)
+        : blocked
+          ? ("locked" as const)
+          : ("open" as const);
+      if (row.sequential && !done) blocked = true;
+      return { ...lesson, state };
+    });
 }
 
 async function hostReadable(context: UnitContext, lessonId: string) {
@@ -606,10 +641,20 @@ export const record = readProcedure
       lessonsOf(context.tx, context.tenantId, row.id),
       audiencesOf(context.tx, { tenantId: context.tenantId, moduleId: row.id }),
     ]);
+    const contents = await contentsOf(
+      context.tx,
+      context.tenantId,
+      "lesson",
+      lessons.map((lesson) => lesson.id),
+    );
     return {
       ...row,
       classes,
-      lessons,
+      // Whether each lesson has a score that a later one can depend on.
+      lessons: lessons.map((lesson) => ({
+        ...lesson,
+        scored: lessonScored(lessonContentOf(contents.get(lesson.id))),
+      })),
       audiences,
       open: isOpen(row, context.now),
     };
@@ -689,6 +734,7 @@ export const saveModule = writeProcedure
       summary: input.summary,
       sequential: input.sequential,
       prerequisiteId,
+      prerequisiteScore: prerequisiteId ? input.prerequisiteScore : null,
     };
     let moduleId = input.id;
     let version: number;
@@ -820,6 +866,7 @@ async function copyLesson(
   context: UnitContext,
   lesson: LessonRow,
   moduleId: string,
+  condition: LessonCondition | null = null,
 ) {
   const copy = await insertLesson(context.tx, {
     tenantId: context.tenantId,
@@ -831,6 +878,7 @@ async function copyLesson(
     vowelMarks: lesson.vowelMarks,
     young: lesson.young,
     readAlong: lesson.readAlong,
+    condition,
   });
   const stored = await documentOf(context.tx, context.tenantId, {
     type: "lesson",
@@ -885,14 +933,31 @@ export const duplicateModule = writeProcedure
       summary: row.summary,
       sequential: row.sequential,
       prerequisiteId: null,
+      prerequisiteScore: null,
     });
     await setModuleClasses(context.tx, {
       tenantId: context.tenantId,
       moduleId: created.id,
       classIds: input.classIds,
     });
-    for (const lesson of await lessonsOf(context.tx, context.tenantId, row.id))
-      await copyLesson(context, lesson, created.id);
+    // A condition depends on an earlier lesson, copied by the time it is read.
+    const copies = new Map<string, string>();
+    for (const lesson of await lessonsOf(
+      context.tx,
+      context.tenantId,
+      row.id,
+    )) {
+      const before = lesson.condition && copies.get(lesson.condition.lessonId);
+      const copy = await copyLesson(
+        context,
+        lesson,
+        created.id,
+        lesson.condition && before
+          ? { ...lesson.condition, lessonId: before }
+          : null,
+      );
+      copies.set(lesson.id, copy.id);
+    }
     // A unit taught again starts from the plan it was taught by.
     const unitPlan = await documentOf(
       context.tx,
@@ -966,10 +1031,46 @@ export const publishLesson = writeProcedure
     return { published: true };
   });
 
+/**
+ * A condition a lesson is saved with: on a scored lesson before it in the
+ * same module. One kept as it was is not checked again, so a lesson whose
+ * condition has since lost its questions still saves.
+ */
+async function checkedCondition(
+  context: UnitContext,
+  moduleId: string,
+  stored: LessonRow | null,
+  condition: LessonCondition | null,
+) {
+  if (!condition || condition.lessonId === stored?.condition?.lessonId)
+    return condition;
+  const lessons = await lessonsOf(context.tx, context.tenantId, moduleId);
+  const at = stored
+    ? lessons.findIndex((item) => item.id === stored.id)
+    : lessons.length;
+  const before = lessons.findIndex((item) => item.id === condition.lessonId);
+  if (before === -1 || before >= at)
+    throw new ORPCError("BAD_REQUEST", { message: "learning.condition_order" });
+  const document = await documentOf(context.tx, context.tenantId, {
+    type: "lesson",
+    id: condition.lessonId,
+  });
+  if (!lessonScored(lessonContentOf(document?.content)))
+    throw new ORPCError("BAD_REQUEST", {
+      message: "learning.condition_unscored",
+    });
+  return condition;
+}
+
 export const saveLesson = writeProcedure
   .input(saveLessonSchema)
   .handler(async ({ input, context }) => {
     const owner = await editable(context, input.moduleId);
+    const stored = input.id
+      ? await lessonById(context.tx, context.tenantId, input.id)
+      : null;
+    if (input.id && (!stored || stored.moduleId !== owner.id))
+      throw new ORPCError("NOT_FOUND");
     const fields = {
       title: input.title,
       completion: input.completion,
@@ -978,15 +1079,19 @@ export const saveLesson = writeProcedure
       vowelMarks: input.vowelMarks,
       young: input.young,
       readAlong: input.readAlong,
+      condition: await checkedCondition(
+        context,
+        owner.id,
+        stored,
+        input.condition,
+      ),
     };
     let lessonId = input.id;
     let version: number;
-    if (input.id) {
-      const row = await lessonById(context.tx, context.tenantId, input.id);
-      if (!row || row.moduleId !== owner.id) throw new ORPCError("NOT_FOUND");
+    if (stored) {
       const next = await updateLesson(context.tx, {
         tenantId: context.tenantId,
-        id: row.id,
+        id: stored.id,
         expectedVersion: input.expectedVersion,
         ...fields,
       });
@@ -1042,10 +1147,20 @@ export const moveLesson = writeProcedure
     const row = await lessonById(context.tx, context.tenantId, input.id);
     if (!row) throw new ORPCError("NOT_FOUND");
     const owner = await editable(context, row.moduleId);
-    const order = (await lessonsOf(context.tx, context.tenantId, owner.id))
+    const lessons = await lessonsOf(context.tx, context.tenantId, owner.id);
+    const order = lessons
       .map((item) => item.id)
       .filter((lessonId) => lessonId !== row.id);
     order.splice(Math.min(input.position, order.length), 0, row.id);
+    // A lesson shown by a score stays after the lesson that sets the score.
+    if (
+      lessons.some(
+        (item) =>
+          item.condition &&
+          order.indexOf(item.condition.lessonId) > order.indexOf(item.id),
+      )
+    )
+      throw new ORPCError("CONFLICT", { message: "learning.condition_order" });
     await orderLessons(context.tx, {
       tenantId: context.tenantId,
       moduleId: owner.id,
@@ -1060,6 +1175,11 @@ export const removeLesson = writeProcedure
     const row = await lessonById(context.tx, context.tenantId, input.id);
     if (!row) throw new ORPCError("NOT_FOUND");
     const owner = await editable(context, row.moduleId);
+    const lessons = await lessonsOf(context.tx, context.tenantId, owner.id);
+    if (lessons.some((item) => item.condition?.lessonId === row.id))
+      throw new ORPCError("CONFLICT", {
+        message: "learning.condition_in_use",
+      });
     await tombstoneLesson(context.tx, {
       tenantId: context.tenantId,
       id: row.id,
@@ -1100,11 +1220,25 @@ export const progress = readProcedure
         studentIds: roster,
       }),
     ]);
+    // Where each student's path leaves a lesson out, or waits to decide.
+    const paths = roster.flatMap((studentId) => {
+      const path = pathOf(
+        lessons,
+        resultsOf(cells.filter((cell) => cell.studentUserId === studentId)),
+      );
+      return lessons.flatMap((item) => {
+        const state = path.get(item.id);
+        return state === "off" || state === "pending"
+          ? [{ lessonId: item.id, studentId, state }]
+          : [];
+      });
+    });
     return {
       module: { id: row.id, title: row.title },
       classes,
       lessons,
       students,
+      paths,
       cells: cells.map((cell) => ({
         lessonId: cell.lessonId,
         studentId: cell.studentUserId,
@@ -1323,6 +1457,28 @@ export const override = writeProcedure
     return { done: input.completed };
   });
 
+/**
+ * Whether each of a student's modules waits on its prerequisite, and how
+ * they stand in that prerequisite. One they do not take keeps it locked.
+ */
+function withPrerequisites<
+  T extends ModuleRow & { finished: boolean; score: number | null },
+>(rows: readonly T[]) {
+  const byId = new Map(rows.map((row) => [row.id, row]));
+  return rows.map((row) => {
+    const before = row.prerequisiteId ? byId.get(row.prerequisiteId) : null;
+    return {
+      ...row,
+      locked:
+        row.prerequisiteId !== null &&
+        !(before && prerequisiteMet(before, row.prerequisiteScore)),
+      prerequisiteResult: before
+        ? { finished: before.finished, score: before.score }
+        : null,
+    };
+  });
+}
+
 /** A student's open modules and how far along they are; a family reads a child's. */
 export const mine = readProcedure
   .input(v.object({ studentId: v.optional(v.union([v.literal(""), id]), "") }))
@@ -1334,18 +1490,7 @@ export const mine = readProcedure
       studentId,
       classIds: await classesOfStudent(context, studentId),
     });
-    const finished = new Set(
-      rows
-        .filter((row) => row.lessons > 0 && row.completed === row.lessons)
-        .map((row) => row.id),
-    );
-    return {
-      rows: rows.map((row) => ({
-        ...row,
-        locked:
-          row.prerequisiteId !== null && !finished.has(row.prerequisiteId),
-      })),
-    };
+    return { rows: withPrerequisites(rows) };
   });
 
 /**
@@ -1362,15 +1507,8 @@ export const nextLessons = readProcedure.handler(async ({ context }) => {
     studentId,
     classIds: await classesOfStudent(context, studentId),
   });
-  const finished = new Set(
-    rows
-      .filter((row) => row.lessons > 0 && row.completed === row.lessons)
-      .map((row) => row.id),
-  );
-  const open = rows.filter(
-    (row) =>
-      !finished.has(row.id) &&
-      (row.prerequisiteId === null || finished.has(row.prerequisiteId)),
+  const open = withPrerequisites(rows).filter(
+    (row) => !row.finished && !row.locked,
   );
   const lessons = await Promise.all(
     open.map((row) => studentLessons(context, row.id)),
@@ -1380,12 +1518,9 @@ export const nextLessons = readProcedure.handler(async ({ context }) => {
     lessonIds: lessons.flat().map((item) => item.id),
     studentIds: [studentId],
   });
-  const done = new Set(
-    cells.filter((cell) => cell.completedAt).map((cell) => cell.lessonId),
-  );
   const begun = new Set(cells.map((cell) => cell.lessonId));
   const found = open.flatMap((row, index) => {
-    const next = outline(row, lessons[index] ?? [], done, false).find(
+    const next = outline(row, lessons[index] ?? [], cells, false).find(
       (item) => item.state === "open",
     );
     return next
@@ -1532,28 +1667,33 @@ export const practiceCheck = readProcedure
     });
   });
 
-/** A module's lessons as a student meets them: done, open or locked, the unpublished left out. */
+/**
+ * A module's lessons as a student meets them: done, open or locked, the
+ * unpublished and those off their path left out.
+ */
 export const play = readProcedure
   .input(
     v.object({ id, studentId: v.optional(v.union([v.literal(""), id]), "") }),
   )
   .handler(async ({ input, context }) => {
     const { studentId, own } = await learner(context, input.studentId);
-    const { row, locked } = await openModule(context, input.id, studentId);
+    const { row, locked, prerequisiteResult } = await openModule(
+      context,
+      input.id,
+      studentId,
+    );
     const lessons = await studentLessons(context, row.id);
     const cells = await progressIn(context.tx, {
       tenantId: context.tenantId,
       lessonIds: lessons.map((item) => item.id),
       studentIds: [studentId],
     });
-    const done = new Set(
-      cells.filter((cell) => cell.completedAt).map((cell) => cell.lessonId),
-    );
     return {
       ...row,
       locked,
+      prerequisiteResult,
       own,
-      lessons: outline(row, lessons, done, locked),
+      lessons: outline(row, lessons, cells, locked),
     };
   });
 
@@ -1584,10 +1724,7 @@ async function playable(context: UnitContext, lessonId: string) {
     lessonIds: lessons.map((item) => item.id),
     studentIds: [studentId],
   });
-  const done = new Set(
-    cells.filter((cell) => cell.completedAt).map((cell) => cell.lessonId),
-  );
-  const states = outline(owner, lessons, done, locked);
+  const states = outline(owner, lessons, cells, locked);
   const state = states.find((item) => item.id === row.id)?.state;
   if (state === undefined) throw new ORPCError("NOT_FOUND");
   if (state === "locked")

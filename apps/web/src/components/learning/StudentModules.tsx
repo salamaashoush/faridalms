@@ -21,7 +21,7 @@ import * as m from "~/i18n/messages";
 import { moduleOutlineQuery, myModulesQuery } from "~/queries/learning";
 import { formatNumber } from "~/utils/datetime";
 
-import { LESSON_STATE_LABEL } from "./format";
+import { LESSON_STATE_LABEL, lockedText } from "./format";
 
 type Mine = Awaited<
   ReturnType<NonNullable<ReturnType<typeof myModulesQuery>["queryFn"]>>
@@ -58,9 +58,7 @@ function ModuleItem({ row, studentId }: { row: Row; studentId: string }) {
           ) : null}
         </div>
         {row.locked ? (
-          <StatusText tone="neutral">
-            {m.lrnLockedAfter({ title: row.prerequisiteTitle ?? "" })}
-          </StatusText>
+          <StatusText tone="neutral">{lockedText(row)}</StatusText>
         ) : finished(row) ? (
           <StatusText tone="success">{m.lrnFinished()}</StatusText>
         ) : null}
@@ -178,7 +176,7 @@ export function ModuleOutline({
             title={m.lrnLessons()}
             description={
               data.locked
-                ? m.lrnLockedAfter({ title: data.prerequisiteTitle ?? "" })
+                ? lockedText(data)
                 : data.sequential
                   ? m.lrnInOrderHint()
                   : undefined
@@ -244,7 +242,7 @@ export function ModuleOutline({
         }
         aside={
           <>
-            {data.own && done >= 2 ? (
+            {data.own && !data.locked && done >= 2 ? (
               <RecordSection
                 title={m.lrnPracticeTitle()}
                 description={m.lrnPracticeEntryHint()}

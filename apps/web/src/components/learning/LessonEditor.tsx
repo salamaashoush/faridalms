@@ -1,5 +1,9 @@
 import type { ContentDocument } from "@faridalms/domain/content";
-import type { LessonCompletion, VowelMarks } from "@faridalms/domain/learning";
+import type {
+  LessonCompletion,
+  LessonCondition,
+  VowelMarks,
+} from "@faridalms/domain/learning";
 
 import { emptyContent } from "@faridalms/domain/content-conversion";
 import {
@@ -45,10 +49,11 @@ import * as m from "~/i18n/messages";
 import { getLocale } from "~/i18n/runtime";
 import { moduleRecordQuery } from "~/queries/learning";
 import { saveLesson } from "~/server/learning";
+import { formatNumber } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
 import { CopyLessonSheet } from "./CopyLesson";
-import { COMPLETION_LABEL } from "./format";
+import { COMPLETION_LABEL, conditionText } from "./format";
 import { blockIssue } from "./issues";
 import { PATTERNS } from "./patterns";
 import { sayIn } from "./starters";
@@ -75,6 +80,17 @@ const VOWEL_MARKS_LABEL: Record<VowelMarks, () => string> = {
   choice: m.lrnVowelMarksChoice,
 };
 
+type Range = "below" | "atLeast" | "between";
+
+const RANGE_LABEL: Record<Range, () => string> = {
+  below: m.lrnConditionBelow,
+  atLeast: m.lrnConditionAtLeast,
+  between: m.lrnConditionBetween,
+};
+
+const isPercent = (value: number) =>
+  Number.isInteger(value) && value >= 1 && value <= 100;
+
 type Existing = Awaited<
   ReturnType<NonNullable<ReturnType<typeof lessonEditorQuery>["queryFn"]>>
 >;
@@ -87,7 +103,28 @@ interface Draft {
   vowelMarks: VowelMarks;
   young: boolean;
   readAlong: boolean;
+  /** Shown only to students by their score in an earlier lesson. */
+  byScore: boolean;
+  conditionLessonId: string;
+  range: Range;
+  atLeast: string;
+  below: string;
   content: ContentDocument;
+}
+
+/** The condition a draft sets, null for every student, or undefined while unfinished. */
+function conditionOf(draft: Draft): LessonCondition | null | undefined {
+  if (!draft.byScore) return null;
+  const atLeast = draft.range === "below" ? null : Number(draft.atLeast);
+  const below = draft.range === "atLeast" ? null : Number(draft.below);
+  if (
+    !draft.conditionLessonId ||
+    (atLeast !== null && !isPercent(atLeast)) ||
+    (below !== null && !isPercent(below)) ||
+    (atLeast !== null && below !== null && atLeast >= below)
+  )
+    return undefined;
+  return { lessonId: draft.conditionLessonId, atLeast, below };
 }
 
 /**
@@ -136,6 +173,20 @@ export function LessonEditor({
         module.classes.length > 0 &&
         module.classes.every((row) => row.young)),
     readAlong: existing?.readAlong ?? true,
+    byScore: Boolean(existing?.condition),
+    conditionLessonId: existing?.condition?.lessonId ?? "",
+    range:
+      existing?.condition?.atLeast === null
+        ? "below"
+        : existing?.condition?.below === null
+          ? "atLeast"
+          : existing?.condition
+            ? "between"
+            : "below",
+    atLeast: existing?.condition?.atLeast
+      ? String(existing.condition.atLeast)
+      : "",
+    below: existing?.condition?.below ? String(existing.condition.below) : "",
     content: existing?.content ?? emptyContent(),
   }));
   const [draft, setDraft] = useState(start);
@@ -165,7 +216,30 @@ export function LessonEditor({
     !(Number.isInteger(passScore) && passScore >= 1 && passScore <= 100)
       ? m.lrnPassScoreNeeded()
       : null;
-  const storable = !titleIssue && !passIssue;
+  const condition = conditionOf(draft);
+  const conditionIssue =
+    condition !== undefined
+      ? null
+      : draft.conditionLessonId
+        ? m.lrnErrCondition()
+        : m.lrnConditionLessonNeeded();
+  // A range typed in full says at once when it cannot hold a score.
+  const rangeFilled =
+    (draft.range === "below" || draft.atLeast.trim() !== "") &&
+    (draft.range === "atLeast" || draft.below.trim() !== "");
+  // The lessons before this one whose score another can depend on.
+  const ownPosition =
+    module.lessons.find((row) => row.id === storedId)?.position ?? Infinity;
+  const earlier = module.lessons.filter(
+    (row) =>
+      row.id !== storedId &&
+      row.position < ownPosition &&
+      (row.scored || row.id === draft.conditionLessonId),
+  );
+  const conditionLesson = module.lessons.find(
+    (row) => row.id === draft.conditionLessonId,
+  );
+  const storable = !titleIssue && !passIssue && !conditionIssue;
   const questionIssues = questions.flatMap((block) => {
     const issue = blockIssue(block);
     return issue ? [issue] : [];
@@ -179,6 +253,7 @@ export function LessonEditor({
       [
         titleIssue,
         passIssue,
+        conditionIssue,
         ...questionIssues,
         ...contentIssueMessages(draft.content),
         lessonProblem ? getMessageFromError(new Error(lessonProblem)) : null,
@@ -203,6 +278,7 @@ export function LessonEditor({
           vowelMarks: value.vowelMarks,
           young: value.young,
           readAlong: value.readAlong,
+          condition: conditionOf(value) ?? null,
           content: shared ? content.current : value.content,
           publish,
         },
@@ -230,6 +306,15 @@ export function LessonEditor({
     setRefused(null);
     setDraft((current) => ({ ...current, [key]: value }));
   };
+  const showBy = (value: "all" | "score") => {
+    setRefused(null);
+    setDraft((current) => ({
+      ...current,
+      byScore: value === "score",
+      conditionLessonId:
+        current.conditionLessonId || (earlier.at(-1)?.id ?? ""),
+    }));
+  };
   const changeContent = useCallback((value: ContentDocument) => {
     content.current = value;
     setRefused(null);
@@ -244,7 +329,7 @@ export function LessonEditor({
   const show = async () => {
     setChecking(true);
     if (issues.length > 0) {
-      if (passIssue) setDetailsOpen(true);
+      if (passIssue || conditionIssue) setDetailsOpen(true);
       return;
     }
     setPending(true);
@@ -311,7 +396,9 @@ export function LessonEditor({
             ? undefined
             : titleIssue
               ? m.lrnNotSavedTitle()
-              : m.lrnNotSavedPassMark()
+              : passIssue
+                ? m.lrnNotSavedPassMark()
+                : m.lrnNotSavedCondition()
         }
         unpublished={
           changed && storedId
@@ -413,6 +500,7 @@ export function LessonEditor({
         summary={[
           COMPLETION_LABEL[draft.completion](),
           m.lrnQuestionCount({ count: questions.length }),
+          ...(draft.byScore ? [m.lrnConditionByScore()] : []),
         ]}
         details={{ open: detailsOpen, onOpenChange: setDetailsOpen }}
         aside={
@@ -487,6 +575,101 @@ export function LessonEditor({
                 checked={draft.review}
                 onChange={(review) => set("review", review)}
               />
+            </DetailsSection>
+            <DetailsSection title={m.lrnSectionPath()}>
+              <SelectField
+                id="lesson-show"
+                label={m.lrnConditionShow()}
+                hint={
+                  earlier.length > 0
+                    ? m.lrnConditionShowHint()
+                    : m.lrnConditionNone()
+                }
+                value={draft.byScore ? "score" : "all"}
+                options={[
+                  { value: "all", label: m.lrnConditionEveryone() },
+                  ...(earlier.length > 0 || draft.byScore
+                    ? [
+                        {
+                          value: "score" as const,
+                          label: m.lrnConditionByScore(),
+                        },
+                      ]
+                    : []),
+                ]}
+                onChange={showBy}
+              />
+              {draft.byScore ? (
+                <>
+                  <SelectField
+                    id="lesson-condition-lesson"
+                    label={m.lrnConditionLesson()}
+                    value={draft.conditionLessonId}
+                    options={earlier.map((row) => ({
+                      value: row.id,
+                      label: `${formatNumber(row.position + 1)}. ${row.title}`,
+                    }))}
+                    onChange={(lessonId) => set("conditionLessonId", lessonId)}
+                    errors={
+                      checking && !draft.conditionLessonId
+                        ? [m.lrnConditionLessonNeeded()]
+                        : undefined
+                    }
+                  />
+                  <SelectField
+                    id="lesson-condition-range"
+                    label={m.lrnConditionRange()}
+                    value={draft.range}
+                    options={(["below", "atLeast", "between"] as const).map(
+                      (range) => ({
+                        value: range,
+                        label: RANGE_LABEL[range](),
+                      }),
+                    )}
+                    onChange={(range) => set("range", range)}
+                  />
+                  <div className="flex flex-wrap gap-x-4 gap-y-3">
+                    {draft.range === "below" ? null : (
+                      <TextField
+                        id="lesson-condition-at-least"
+                        label={m.lrnConditionAtLeastField()}
+                        type="number"
+                        inputMode="numeric"
+                        min={1}
+                        max={100}
+                        width="score"
+                        value={draft.atLeast}
+                        onChange={(event) => set("atLeast", event.target.value)}
+                      />
+                    )}
+                    {draft.range === "atLeast" ? null : (
+                      <TextField
+                        id="lesson-condition-below"
+                        label={m.lrnConditionBelowField()}
+                        type="number"
+                        inputMode="numeric"
+                        min={1}
+                        max={100}
+                        width="score"
+                        value={draft.below}
+                        onChange={(event) => set("below", event.target.value)}
+                      />
+                    )}
+                  </div>
+                  {condition && conditionLesson ? (
+                    <p className="text-[13px] leading-[18px] text-muted-foreground">
+                      {conditionText(condition, conditionLesson.title)}
+                    </p>
+                  ) : (checking || rangeFilled) && draft.conditionLessonId ? (
+                    <p
+                      role="alert"
+                      className="text-[13px] leading-[18px] text-destructive"
+                    >
+                      {m.lrnErrCondition()}
+                    </p>
+                  ) : null}
+                </>
+              ) : null}
             </DetailsSection>
           </DetailsPanel>
         }

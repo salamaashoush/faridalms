@@ -1,7 +1,9 @@
+import type { LessonCondition } from "@faridalms/domain/learning";
 import type { LiveProgress, LiveTry } from "@faridalms/domain/live";
 import type { SQL } from "drizzle-orm";
 
 import { YOUNG_STUDENT_GRADES } from "@faridalms/domain/descriptors/catalogue";
+import { moduleStanding } from "@faridalms/domain/learning";
 import { sql } from "drizzle-orm";
 
 import type { CellTransaction } from "../context";
@@ -30,6 +32,7 @@ export interface ModuleRow {
   publishAt: string | null;
   sequential: boolean;
   prerequisiteId: string | null;
+  prerequisiteScore: number | null;
   prerequisiteTitle: string | null;
   authorUserId: string;
   authorNameEn: string | null;
@@ -38,7 +41,7 @@ export interface ModuleRow {
 
 const moduleColumns = sql`m.id, m.version, m.org_id, m.school_year_id, m.title, m.summary, m.state,
   ${isoOf(sql`m.publish_at`)} as publish_at, m.sequential, m.prerequisite_module_id,
-  p.title as prerequisite_title, m.author_user_id, u.full_name_en as author_en,
+  m.prerequisite_score, p.title as prerequisite_title, m.author_user_id, u.full_name_en as author_en,
   u.full_name_ar as author_ar`;
 
 const moduleFrom = sql`core.learning_modules m
@@ -57,6 +60,7 @@ type ModuleRecord = {
   publish_at: string | null;
   sequential: boolean;
   prerequisite_module_id: string | null;
+  prerequisite_score: number | null;
   prerequisite_title: string | null;
   author_user_id: string;
   author_en: string | null;
@@ -75,6 +79,7 @@ function moduleOf(row: ModuleRecord): ModuleRow {
     publishAt: row.publish_at,
     sequential: row.sequential,
     prerequisiteId: row.prerequisite_module_id,
+    prerequisiteScore: row.prerequisite_score,
     prerequisiteTitle: row.prerequisite_title,
     authorUserId: row.author_user_id,
     authorNameEn: row.author_en,
@@ -134,6 +139,7 @@ export interface ModuleFields {
   summary: string;
   sequential: boolean;
   prerequisiteId: string | null;
+  prerequisiteScore: number | null;
 }
 
 export async function insertModule(
@@ -147,9 +153,10 @@ export async function insertModule(
 ): Promise<{ id: string; version: number }> {
   const [row] = await tx.execute<{ id: string; version: number }>(sql`
     insert into core.learning_modules (tenant_id, org_id, school_year_id, title, summary,
-      sequential, prerequisite_module_id, author_user_id)
+      sequential, prerequisite_module_id, prerequisite_score, author_user_id)
     values (${input.tenantId}::uuid, ${input.schoolId}::uuid, ${input.yearId}::uuid, ${input.title},
-      ${input.summary}, ${input.sequential}, ${input.prerequisiteId}::uuid, ${input.authorId}::uuid)
+      ${input.summary}, ${input.sequential}, ${input.prerequisiteId}::uuid, ${input.prerequisiteScore},
+      ${input.authorId}::uuid)
     returning id, version`);
   if (!row) throw new Error("module not written");
   return row;
@@ -166,7 +173,8 @@ export async function updateModule(
   const [row] = await tx.execute<{ version: number }>(sql`
     update core.learning_modules
     set title = ${input.title}, summary = ${input.summary}, sequential = ${input.sequential},
-        prerequisite_module_id = ${input.prerequisiteId}::uuid
+        prerequisite_module_id = ${input.prerequisiteId}::uuid,
+        prerequisite_score = ${input.prerequisiteScore}
     where tenant_id = ${input.tenantId}::uuid and id = ${input.id}::uuid
       and version = ${input.expectedVersion} and status = 'active'
     returning version`);
@@ -415,6 +423,7 @@ export interface LessonRow {
   vowelMarks: VowelMarks;
   young: boolean;
   readAlong: boolean;
+  condition: LessonCondition | null;
 }
 
 type LessonRecord = {
@@ -429,6 +438,9 @@ type LessonRecord = {
   vowel_marks: VowelMarks;
   young: boolean;
   read_along: boolean;
+  condition_lesson_id: string | null;
+  condition_at_least: number | null;
+  condition_below: number | null;
 };
 
 function lessonOf(row: LessonRecord): LessonRow {
@@ -444,10 +456,18 @@ function lessonOf(row: LessonRecord): LessonRow {
     vowelMarks: row.vowel_marks,
     young: row.young,
     readAlong: row.read_along,
+    condition: row.condition_lesson_id
+      ? {
+          lessonId: row.condition_lesson_id,
+          atLeast: row.condition_at_least,
+          below: row.condition_below,
+        }
+      : null,
   };
 }
 
-const lessonColumns = sql`l.id, l.version, l.module_id, l.position, l.title, l.completion, l.pass_score, l.review, l.vowel_marks, l.young, l.read_along`;
+const lessonColumns = sql`l.id, l.version, l.module_id, l.position, l.title, l.completion, l.pass_score,
+  l.review, l.vowel_marks, l.young, l.read_along, l.condition_lesson_id, l.condition_at_least, l.condition_below`;
 
 export async function lessonsOf(
   tx: Tx,
@@ -458,6 +478,21 @@ export async function lessonsOf(
     select ${lessonColumns} from core.lessons l
     where l.tenant_id = ${tenantId}::uuid and l.module_id = ${moduleId}::uuid and l.status = 'active'
     order by l.position, l.id`);
+  return rows.map(lessonOf);
+}
+
+/** The lessons of several modules, each module's in order. */
+export async function lessonsIn(
+  tx: Tx,
+  tenantId: string,
+  moduleIds: readonly string[],
+): Promise<LessonRow[]> {
+  if (moduleIds.length === 0) return [];
+  const rows = await tx.execute<LessonRecord>(sql`
+    select ${lessonColumns} from core.lessons l
+    where l.tenant_id = ${tenantId}::uuid and l.module_id = any(${uuidArray(moduleIds)})
+      and l.status = 'active'
+    order by l.module_id, l.position, l.id`);
   return rows.map(lessonOf);
 }
 
@@ -480,6 +515,7 @@ export interface LessonFields {
   vowelMarks: VowelMarks;
   young: boolean;
   readAlong: boolean;
+  condition: LessonCondition | null;
 }
 
 export async function insertLesson(
@@ -488,12 +524,14 @@ export async function insertLesson(
 ): Promise<{ id: string; version: number }> {
   const [row] = await tx.execute<{ id: string; version: number }>(sql`
     insert into core.lessons (tenant_id, module_id, position, title, completion, pass_score, review,
-      vowel_marks, young, read_along)
+      vowel_marks, young, read_along, condition_lesson_id, condition_at_least, condition_below)
     values (${input.tenantId}::uuid, ${input.moduleId}::uuid,
       coalesce((select max(position) + 1 from core.lessons where tenant_id = ${input.tenantId}::uuid
         and module_id = ${input.moduleId}::uuid and status = 'active'), 0),
       ${input.title}, ${input.completion}, ${input.passScore}, ${input.review},
-      ${input.vowelMarks}, ${input.young}, ${input.readAlong})
+      ${input.vowelMarks}, ${input.young}, ${input.readAlong},
+      ${input.condition?.lessonId ?? null}::uuid, ${input.condition?.atLeast ?? null},
+      ${input.condition?.below ?? null})
     returning id, version`);
   if (!row) throw new Error("lesson not written");
   return row;
@@ -511,7 +549,9 @@ export async function updateLesson(
     update core.lessons
     set title = ${input.title}, completion = ${input.completion}, pass_score = ${input.passScore},
       review = ${input.review}, vowel_marks = ${input.vowelMarks}, young = ${input.young},
-      read_along = ${input.readAlong}
+      read_along = ${input.readAlong}, condition_lesson_id = ${input.condition?.lessonId ?? null}::uuid,
+      condition_at_least = ${input.condition?.atLeast ?? null},
+      condition_below = ${input.condition?.below ?? null}
     where tenant_id = ${input.tenantId}::uuid and id = ${input.id}::uuid
       and version = ${input.expectedVersion} and status = 'active'
     returning version`);
@@ -1156,31 +1196,47 @@ export async function watchRowsIn(
   }));
 }
 
-/** Whether a student has finished every lesson of a module. */
-export async function moduleFinished(
-  tx: Tx,
-  input: { tenantId: string; moduleId: string; studentId: string },
-): Promise<boolean> {
-  const [row] = await tx.execute<{ finished: boolean }>(sql`
-    select not exists (select 1 from core.lessons l
-      where l.tenant_id = ${input.tenantId}::uuid and l.module_id = ${input.moduleId}::uuid
-        and l.status = 'active'
-        and not exists (select 1 from core.lesson_progress p
-          where p.tenant_id = l.tenant_id and p.lesson_id = l.id
-            and p.student_user_id = ${input.studentId}::uuid and p.status = 'active'
-            and p.completed_at is not null))
-      and exists (select 1 from core.lessons l
-        where l.tenant_id = ${input.tenantId}::uuid and l.module_id = ${input.moduleId}::uuid
-          and l.status = 'active') as finished`);
-  return row?.finished ?? false;
-}
-
-export interface StudentModuleRow extends ModuleRow {
+export interface ModuleStanding {
   lessons: number;
   completed: number;
+  finished: boolean;
+  score: number | null;
 }
 
-/** The open modules set for any of a student's classes, with how far they are. */
+/**
+ * Where a student stands in some modules along their own paths: the lessons
+ * on each path, how many they have finished, and their mean score.
+ */
+export async function standingsIn(
+  tx: Tx,
+  input: { tenantId: string; moduleIds: readonly string[]; studentId: string },
+): Promise<Map<string, ModuleStanding>> {
+  const lessons = await lessonsIn(tx, input.tenantId, input.moduleIds);
+  const progress = await progressIn(tx, {
+    tenantId: input.tenantId,
+    lessonIds: lessons.map((lesson) => lesson.id),
+    studentIds: [input.studentId],
+  });
+  const results = new Map(
+    progress.map((row) => [
+      row.lessonId,
+      { completed: row.completedAt !== null, score: row.score },
+    ]),
+  );
+  return new Map(
+    input.moduleIds.map((moduleId) => [
+      moduleId,
+      moduleStanding(
+        lessons.filter((lesson) => lesson.moduleId === moduleId),
+        results,
+      ),
+    ]),
+  );
+}
+
+export interface StudentModuleRow extends ModuleRow, ModuleStanding {}
+
+/** The open modules set for any of a student's classes, with how far along their paths they are. */
 export async function studentModules(
   tx: Tx,
   input: {
@@ -1190,17 +1246,8 @@ export async function studentModules(
     classIds: readonly string[];
   },
 ): Promise<StudentModuleRow[]> {
-  const rows = await tx.execute<
-    ModuleRecord & { lessons: number; completed: number }
-  >(sql`
-    select ${moduleColumns},
-      (select count(*)::int from core.lessons l
-        where l.tenant_id = m.tenant_id and l.module_id = m.id and l.status = 'active') as lessons,
-      (select count(*)::int from core.lessons l
-        join core.lesson_progress g on g.tenant_id = l.tenant_id and g.lesson_id = l.id
-          and g.student_user_id = ${input.studentId}::uuid and g.status = 'active'
-          and g.completed_at is not null
-        where l.tenant_id = m.tenant_id and l.module_id = m.id and l.status = 'active') as completed
+  const rows = await tx.execute<ModuleRecord>(sql`
+    select ${moduleColumns}
     from ${moduleFrom}
     where m.tenant_id = ${input.tenantId}::uuid and m.org_id = ${input.schoolId}::uuid
       and m.status = 'active' and m.state = 'published' and m.publish_at <= statement_timestamp()
@@ -1211,10 +1258,19 @@ export async function studentModules(
     order by (select min(x.position) from core.module_classes x
         where x.tenant_id = m.tenant_id and x.module_id = m.id and x.status = 'active'
           and x.class_id = any(${uuidArray(input.classIds)})), m.publish_at, m.id`);
+  const standings = await standingsIn(tx, {
+    tenantId: input.tenantId,
+    moduleIds: rows.map((row) => row.id),
+    studentId: input.studentId,
+  });
   return rows.map((row) => ({
     ...moduleOf(row),
-    lessons: row.lessons,
-    completed: row.completed,
+    ...(standings.get(row.id) ?? {
+      lessons: 0,
+      completed: 0,
+      finished: false,
+      score: null,
+    }),
   }));
 }
 

@@ -898,6 +898,11 @@ export const watchedEnough = (watched: Watched | undefined) =>
   watched !== undefined &&
   watched.watchedSeconds >= watched.durationSeconds * WATCHED_SHARE;
 
+/** Whether a lesson's questions give it a score that another lesson can depend on. */
+export function lessonScored(content: ContentDocument): boolean {
+  return autoBlocks(lessonOfContent(content)).some((block) => block.points > 0);
+}
+
 /**
  * What stops a lesson going in front of students, as an error code: no
  * words, a question not finished, or a rule for finishing that the lesson
@@ -1627,6 +1632,126 @@ export function completionMet(
   return false;
 }
 
+/**
+ * A lesson shown only to the students whose best score in an earlier lesson
+ * of its module is at least `atLeast`, below `below`, or between the two.
+ */
+export interface LessonCondition {
+  lessonId: string;
+  atLeast: number | null;
+  below: number | null;
+}
+
+/** A student's finish and best score in one lesson. */
+export interface LessonResult {
+  completed: boolean;
+  score: number | null;
+}
+
+/**
+ * Whether a lesson is on a student's path through its module, off it, or
+ * waiting on the lesson its condition depends on.
+ */
+export type PathState = "on" | "off" | "pending";
+
+/** Whether a score meets a condition; a lesson finished without one meets every condition. */
+export function meetsCondition(
+  condition: Pick<LessonCondition, "atLeast" | "below">,
+  score: number | null,
+): boolean {
+  if (score === null) return true;
+  return (
+    (condition.atLeast === null || score >= condition.atLeast) &&
+    (condition.below === null || score < condition.below)
+  );
+}
+
+/**
+ * Where each of a module's lessons stands on one student's path, as Canvas
+ * mastery paths route by score. A lesson with a condition is on the path
+ * once the lesson it depends on is finished with a score in range, off when
+ * the score is out of range or that lesson is off the path itself, and
+ * pending until then. A lesson the student has finished stays on their
+ * path, so a better score later never hides work they did; a condition on
+ * a lesson the module no longer has is void.
+ */
+export function pathOf(
+  lessons: readonly { id: string; condition: LessonCondition | null }[],
+  results: ReadonlyMap<string, LessonResult>,
+): Map<string, PathState> {
+  const byId = new Map(lessons.map((lesson) => [lesson.id, lesson]));
+  const states = new Map<string, PathState>();
+  const resolve = (lessonId: string, depth: number): PathState => {
+    const known = states.get(lessonId);
+    if (known) return known;
+    const condition = byId.get(lessonId)?.condition;
+    let state: PathState = "on";
+    if (
+      condition &&
+      !results.get(lessonId)?.completed &&
+      byId.has(condition.lessonId) &&
+      depth < byId.size
+    ) {
+      const before = resolve(condition.lessonId, depth + 1);
+      const result = results.get(condition.lessonId);
+      state =
+        before === "on" && result?.completed
+          ? meetsCondition(condition, result.score)
+            ? "on"
+            : "off"
+          : before === "off"
+            ? "off"
+            : "pending";
+    }
+    states.set(lessonId, state);
+    return state;
+  };
+  for (const lesson of lessons) resolve(lesson.id, 0);
+  return states;
+}
+
+/**
+ * How far a student is through a module along their own path: the lessons
+ * on it, how many they have finished, and the mean of their best scores in
+ * those that are scored, or null when none is.
+ */
+export function moduleStanding(
+  lessons: readonly { id: string; condition: LessonCondition | null }[],
+  results: ReadonlyMap<string, LessonResult>,
+) {
+  const path = pathOf(lessons, results);
+  const on = lessons.filter((lesson) => path.get(lesson.id) === "on");
+  const completed = on.filter(
+    (lesson) => results.get(lesson.id)?.completed,
+  ).length;
+  const scores = on.flatMap((lesson) => {
+    const score = results.get(lesson.id)?.score;
+    return score === null || score === undefined ? [] : [score];
+  });
+  return {
+    lessons: on.length,
+    completed,
+    finished: on.length > 0 && completed === on.length,
+    score:
+      scores.length === 0
+        ? null
+        : Math.round(
+            scores.reduce((sum, score) => sum + score, 0) / scores.length,
+          ),
+  };
+}
+
+/** Whether a student has met a module's prerequisite: finished it, at the score it asks for. */
+export function prerequisiteMet(
+  standing: { finished: boolean; score: number | null },
+  minimum: number | null,
+): boolean {
+  return (
+    standing.finished &&
+    (minimum === null || standing.score === null || standing.score >= minimum)
+  );
+}
+
 /** A part as a student sees it: its words, its picture, or both. */
 export interface StudentPart {
   id: string;
@@ -2055,6 +2180,29 @@ export function partKey(block: AutoBlock): Record<string, string> {
   }
 }
 
+const percentSchema = v.pipe(
+  v.number(),
+  v.integer(),
+  v.minValue(1),
+  v.maxValue(100),
+);
+
+export const lessonConditionSchema = v.pipe(
+  v.object({
+    lessonId: id,
+    atLeast: v.nullable(percentSchema),
+    below: v.nullable(percentSchema),
+  }),
+  v.check(
+    (input) =>
+      (input.atLeast !== null || input.below !== null) &&
+      (input.atLeast === null ||
+        input.below === null ||
+        input.atLeast < input.below),
+    "learning.condition",
+  ),
+);
+
 export const saveModuleSchema = v.object({
   id: optionalId,
   expectedVersion: version(0),
@@ -2066,6 +2214,8 @@ export const saveModuleSchema = v.object({
     v.maxLength(MAX_MODULE_CLASSES),
   ),
   prerequisiteId: optionalId,
+  /** The mean score in the prerequisite a student needs, or none. */
+  prerequisiteScore: v.optional(v.nullable(percentSchema), null),
   sequential: v.boolean(),
   /**
    * The classes taken only by some of their groups and students; any class
@@ -2136,6 +2286,8 @@ export const saveLessonSchema = v.pipe(
     young: v.optional(v.boolean(), false),
     /** A young lesson lights each word as the voice reads it. */
     readAlong: v.optional(v.boolean(), true),
+    /** Show the lesson only to students scoring in a range in an earlier lesson. */
+    condition: v.optional(v.nullable(lessonConditionSchema), null),
     /** Put the saved lesson in front of students at once, when its module is open. */
     publish: v.optional(v.boolean(), false),
   }),

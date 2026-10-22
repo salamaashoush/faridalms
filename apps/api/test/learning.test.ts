@@ -3849,3 +3849,188 @@ describe("module audiences", () => {
       ).toMatchObject({ code: "BAD_REQUEST", message: "learning.audience" });
   });
 });
+
+describe("paths by score", () => {
+  test("a lesson shown by score reaches the students it is for, and the next module opens at its score", async () => {
+    const { keeper } = await teachers();
+    const { rows } = await keeper.learning.modules({});
+    const source = rows.find((row) => row.title === TITLE);
+    if (!source) throw new Error("no module");
+    const fields = {
+      summary: "",
+      classIds: source.classes.map((item) => item.id),
+      sequential: true,
+    };
+    const first = await keeper.learning.saveModule({
+      id: "",
+      expectedVersion: 0,
+      title: "Fractions check",
+      prerequisiteId: "",
+      ...fields,
+    });
+    const ask = (prompt: string) => {
+      const right = id();
+      const wrong = id();
+      return {
+        right,
+        wrong,
+        block: {
+          id: id(),
+          type: "choice" as const,
+          prompt,
+          points: 1,
+          hints: [],
+          explanation: "",
+          tries: 1,
+          options: [
+            { id: right, text: "Yes", feedback: "" },
+            { id: wrong, text: "No", feedback: "" },
+          ],
+          correctOptionIds: [right],
+          multiple: false,
+          shuffle: false,
+        },
+      };
+    };
+    const asked = [ask("Is a half two quarters?"), ask("Is a third a half?")];
+    const lesson = (title: string, completion: "quiz" | "view") => ({
+      id: "",
+      moduleId: first.id,
+      expectedVersion: 0,
+      title,
+      completion,
+      passScore: null,
+      publish: false,
+    });
+    const check = await keeper.learning.saveLesson({
+      ...lesson("Check", "quiz"),
+      content: written(asked.map((item) => item.block)),
+    });
+    const practice = await keeper.learning.saveLesson({
+      ...lesson("More practice", "view"),
+      content: plainContent("Fold the paper in two."),
+      condition: { lessonId: check.id, atLeast: null, below: 60 },
+    });
+    const harder = await keeper.learning.saveLesson({
+      ...lesson("A harder step", "view"),
+      content: plainContent("Add a half and a third."),
+      condition: { lessonId: check.id, atLeast: 60, below: null },
+    });
+    // A score comes only from a lesson with scored questions, before it.
+    expect(
+      await rejection(
+        keeper.learning.saveLesson({
+          ...lesson("After practice", "view"),
+          content: plainContent("Again."),
+          condition: { lessonId: practice.id, atLeast: 50, below: null },
+        }),
+      ),
+    ).toMatchObject({
+      code: "BAD_REQUEST",
+      message: "learning.condition_unscored",
+    });
+    expect(
+      await rejection(
+        keeper.learning.moveLesson({ id: practice.id, position: 0 }),
+      ),
+    ).toMatchObject({ code: "CONFLICT", message: "learning.condition_order" });
+    expect(
+      await rejection(keeper.learning.removeLesson({ id: check.id })),
+    ).toMatchObject({
+      code: "CONFLICT",
+      message: "learning.condition_in_use",
+    });
+    await keeper.learning.publishModule({
+      id: first.id,
+      expectedVersion: first.version,
+    });
+    const next = await keeper.learning.saveModule({
+      id: "",
+      expectedVersion: 0,
+      title: "Fractions next",
+      prerequisiteId: first.id,
+      prerequisiteScore: 60,
+      ...fields,
+    });
+    await keeper.learning.saveLesson({
+      ...lesson("Mixed numbers", "view"),
+      moduleId: next.id,
+      content: plainContent("One and a half."),
+    });
+    await keeper.learning.publishModule({
+      id: next.id,
+      expectedVersion: next.version,
+    });
+
+    const pupil = await student();
+    const me = await pupil.identity.currentUser();
+    const titles = async () =>
+      (await pupil.learning.play({ id: first.id })).lessons.map(
+        (row) => row.title,
+      );
+    // Until the check is done, neither branch shows.
+    expect(await titles()).toEqual(["Check"]);
+    await pupil.learning.playLesson({ id: check.id });
+    for (const [index, item] of asked.entries())
+      await pupil.learning.respond({
+        lessonId: check.id,
+        blockId: item.block.id,
+        response: {
+          type: "choice",
+          optionIds: [index === 0 ? item.right : item.wrong],
+        },
+      });
+    // Half right routes the student to more practice, past the harder step.
+    expect(await titles()).toEqual(["Check", "More practice"]);
+    expect(
+      await rejection(pupil.learning.playLesson({ id: harder.id })),
+    ).toMatchObject({ code: "NOT_FOUND" });
+    let classId = "";
+    for (const item of source.classes) {
+      const { roster } = await keeper.coursework.groups({ classId: item.id });
+      if (roster.some((row) => row.id === me.id)) classId = item.id;
+    }
+    const matrix = await keeper.learning.progress({
+      moduleId: first.id,
+      classId,
+    });
+    expect(matrix.paths.filter((row) => row.studentId === me.id)).toEqual([
+      { lessonId: harder.id, studentId: me.id, state: "off" },
+    ]);
+    await pupil.learning.playLesson({ id: practice.id });
+    const after = async () =>
+      (await pupil.learning.mine({})).rows.find((row) => row.id === next.id);
+    // Finished, but at 50% the next module waits for 60%.
+    expect(await after()).toMatchObject({
+      locked: true,
+      prerequisiteResult: { finished: true, score: 50 },
+    });
+    expect(
+      (await pupil.learning.mine({})).rows.find((row) => row.id === first.id),
+    ).toMatchObject({ lessons: 2, completed: 2, finished: true });
+    const record = await keeper.learning.record({ id: next.id });
+    await keeper.learning.saveModule({
+      id: next.id,
+      expectedVersion: record.version,
+      title: "Fractions next",
+      prerequisiteId: first.id,
+      prerequisiteScore: 50,
+      ...fields,
+    });
+    expect(await after()).toMatchObject({ locked: false });
+
+    // A copy of the module keeps each condition on its own lessons.
+    const copy = await keeper.learning.duplicateModule({
+      id: first.id,
+      classIds: fields.classIds,
+    });
+    const copied = (await keeper.learning.record({ id: copy.id })).lessons;
+    const copiedCheck = copied[0]?.id ?? "";
+    expect(copied.map((row) => row.condition?.lessonId ?? null)).toEqual([
+      null,
+      copiedCheck,
+      copiedCheck,
+    ]);
+    expect(copied.map((row) => row.scored)).toEqual([true, false, false]);
+  });
+});

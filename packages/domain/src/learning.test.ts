@@ -24,13 +24,17 @@ import {
   creditOf,
   describeCheck,
   gapsSource,
+  lessonConditionSchema,
   lessonDocumentSchema,
   lessonScore,
   markResponse,
+  moduleStanding,
   outputMatches,
   ownResponse,
   parseGaps,
   partKey,
+  pathOf,
+  prerequisiteMet,
   studentBlocks,
   upgradeLesson,
 } from "./learning";
@@ -791,5 +795,94 @@ describe("puzzles", () => {
       v.safeParse(lessonDocumentSchema, { version: 2, blocks: [puzzle] })
         .success,
     ).toBe(true);
+  });
+});
+
+describe("paths through a module", () => {
+  const check = { id: uuid(1), condition: null };
+  const more = {
+    id: uuid(2),
+    condition: { lessonId: uuid(1), atLeast: null, below: 60 },
+  };
+  const harder = {
+    id: uuid(3),
+    condition: { lessonId: uuid(1), atLeast: 60, below: null },
+  };
+  const after = {
+    id: uuid(4),
+    condition: { lessonId: uuid(3), atLeast: 80, below: null },
+  };
+  const lessons = [check, more, harder, after];
+  const results = (
+    ...entries: [number, boolean, number | null][]
+  ): Map<string, { completed: boolean; score: number | null }> =>
+    new Map(
+      entries.map(([n, completed, score]) => [uuid(n), { completed, score }]),
+    );
+
+  it("waits on the lesson that sets the score", () => {
+    const path = pathOf(lessons, results([1, false, 40]));
+    expect([...path.values()]).toEqual(["on", "pending", "pending", "pending"]);
+  });
+
+  it("routes a low score to more practice and past the harder step", () => {
+    const path = pathOf(lessons, results([1, true, 40]));
+    expect(path.get(uuid(2))).toBe("on");
+    expect(path.get(uuid(3))).toBe("off");
+    expect(path.get(uuid(4))).toBe("off");
+  });
+
+  it("takes a score at the boundary up, and chains on the next score", () => {
+    expect(pathOf(lessons, results([1, true, 60])).get(uuid(3))).toBe("on");
+    const path = pathOf(lessons, results([1, true, 90], [3, true, 85]));
+    expect(path.get(uuid(2))).toBe("off");
+    expect(path.get(uuid(4))).toBe("on");
+  });
+
+  it("keeps finished work on the path after a better score", () => {
+    const path = pathOf(lessons, results([1, true, 90], [2, true, 70]));
+    expect(path.get(uuid(2))).toBe("on");
+  });
+
+  it("shows every branch when the lesson finished without a score", () => {
+    const path = pathOf(lessons, results([1, true, null]));
+    expect(path.get(uuid(2))).toBe("on");
+    expect(path.get(uuid(3))).toBe("on");
+  });
+
+  it("drops a condition on a lesson the module no longer has", () => {
+    expect(pathOf([more], new Map()).get(uuid(2))).toBe("on");
+  });
+
+  it("counts a module along the student's own path", () => {
+    const standing = moduleStanding(
+      lessons,
+      results([1, true, 40], [2, true, 80]),
+    );
+    expect(standing).toEqual({
+      lessons: 2,
+      completed: 2,
+      finished: true,
+      score: 60,
+    });
+    expect(prerequisiteMet(standing, 60)).toBe(true);
+    expect(prerequisiteMet(standing, 61)).toBe(false);
+    expect(prerequisiteMet({ ...standing, finished: false }, null)).toBe(false);
+    expect(prerequisiteMet({ ...standing, score: null }, 90)).toBe(true);
+  });
+
+  it("asks for a range that holds a score", () => {
+    const valid = (atLeast: number | null, below: number | null) =>
+      v.safeParse(lessonConditionSchema, {
+        lessonId: uuid(1),
+        atLeast,
+        below,
+      }).success;
+    expect(valid(null, 60)).toBe(true);
+    expect(valid(40, 80)).toBe(true);
+    expect(valid(null, null)).toBe(false);
+    expect(valid(80, 40)).toBe(false);
+    expect(valid(60, 60)).toBe(false);
+    expect(valid(0, null)).toBe(false);
   });
 });

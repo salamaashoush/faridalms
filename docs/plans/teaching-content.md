@@ -239,6 +239,20 @@ Sources: [../research/course-design.md](../research/course-design.md),
    audience; the module's About shows who takes it. Erasing a student
    removes them from it.
 6. **Paths**: release by score across modules, mastery paths and branching.
+   Done: a module that opens after another can ask for a score there too,
+   the mean of the student's best scores in its scored lessons
+   (`learning_modules.prerequisite_score`); the student's list and module
+   say what score opens it and where they stand. A lesson can be shown by
+   score in an earlier scored lesson of its module, below a mark, at or
+   above one, or between two (`lessons.condition_*`), as Canvas mastery
+   paths route students: it is hidden until that lesson is finished, then
+   on the student's path or off it, and lessons chain. Finished work stays
+   on a path. A module's count and finish follow each student's path; the
+   teacher's progress shows a lesson off a student's path, or waiting on a
+   score, and the lessons table names each rule. A rule's lesson cannot be
+   moved after it or removed, and a copied module keeps its rules.
+   Left: a teacher releasing a lesson off a student's path by hand, and
+   routing across modules by a single lesson's score.
 7. **Live lesson**: the teacher paces a lesson for the class, as Nearpod and
    Pear Deck do, with answers gathered on the teacher's screen.
 

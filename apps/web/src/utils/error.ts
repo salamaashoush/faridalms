@@ -541,6 +541,14 @@ export function getMessageFromError(error: unknown): string {
         return m.lrnErrClass();
       case "learning.prerequisite":
         return m.lrnErrPrerequisite();
+      case "learning.condition":
+        return m.lrnErrCondition();
+      case "learning.condition_order":
+        return m.lrnErrConditionOrder();
+      case "learning.condition_unscored":
+        return m.lrnErrConditionUnscored();
+      case "learning.condition_in_use":
+        return m.lrnErrConditionInUse();
       case "learning.lesson_required":
         return m.lrnErrLessonRequired();
       case "learning.lesson_empty":

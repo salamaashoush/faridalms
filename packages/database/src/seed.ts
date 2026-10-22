@@ -2059,6 +2059,7 @@ async function seedLearning(
       summary: plan.summary,
       sequential: true,
       prerequisiteId: null,
+      prerequisiteScore: null,
     });
     await setModuleClasses(tx, {
       tenantId,
@@ -2077,6 +2078,7 @@ async function seedLearning(
         vowelMarks: "shown",
         young: false,
         readAlong: true,
+        condition: null,
       });
       lessonIds.push(row.id);
       const content = { version: 2, blocks: lesson.blocks };
