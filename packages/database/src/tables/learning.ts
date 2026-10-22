@@ -297,6 +297,55 @@ export const lessons = core.table.withRLS(
 );
 
 /**
+ * A lesson a teacher leads a class through live, as Nearpod and Pear Deck
+ * do: students reach the parts between its continue gates up to `step`,
+ * answer nothing while it is `paused`, and the class board shows the
+ * answers to the part's questions once `revealed`. One runs at a time for
+ * a lesson and class, until it is ended.
+ */
+export const pacedLessons = core.table.withRLS(
+  "paced_lessons",
+  {
+    ...tenantColumns(),
+    lessonId: uuid("lesson_id").notNull(),
+    classId: uuid("class_id").notNull(),
+    startedByUserId: uuid("started_by_user_id").notNull(),
+    startedAt: instant("started_at")
+      .notNull()
+      .default(sql`statement_timestamp()`),
+    step: smallint("step").notNull().default(0),
+    paused: boolean("paused").notNull().default(false),
+    revealed: boolean("revealed").notNull().default(false),
+    endedAt: instant("ended_at"),
+    ...entityColumns(),
+  },
+  (t): PgTableExtraConfigValue[] => [
+    pk("paced_lessons", t.tenantId, t.id),
+    ...baseConstraints("paced_lessons", t, tenants),
+    fk(
+      "paced_lessons",
+      [t.tenantId, t.lessonId],
+      [lessons.tenantId, lessons.id],
+    ),
+    fk(
+      "paced_lessons",
+      [t.tenantId, t.classId],
+      [classes.tenantId, classes.id],
+    ),
+    fk(
+      "paced_lessons",
+      [t.tenantId, t.startedByUserId],
+      [users.tenantId, users.id],
+    ),
+    ck("paced_lessons", "step", sql`step between 0 and 999`),
+    uniqueIndex("paced_lessons_running_key")
+      .on(t.tenantId, t.lessonId, t.classId)
+      .where(sql`status = 'active' and ended_at is null`),
+    ...entityProfile(),
+  ],
+);
+
+/**
  * Where a student is in a lesson: their score, where they stopped reading,
  * and whether it is done, by their own work or a teacher's override. Their
  * answers are the rows of `lesson_responses`.

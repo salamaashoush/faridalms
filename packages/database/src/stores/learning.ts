@@ -1366,6 +1366,32 @@ export async function firstAttempts(
   }));
 }
 
+/** Every student's rows in a lesson since a moment, as a lesson led live gathers them. */
+export async function responsesSince(
+  tx: Tx,
+  input: {
+    tenantId: string;
+    lessonId: string;
+    studentIds: readonly string[];
+    since: string;
+  },
+): Promise<(StoredResponse & { lessonId: string; studentId: string })[]> {
+  if (input.studentIds.length === 0) return [];
+  const rows = await tx.execute<ResponseRecord>(sql`
+    select id, block_id, attempt, try, kind, response, fraction, state, feedback,
+      document_version_id, ${isoOf(sql`created_at`)} as created_at, student_user_id, lesson_id
+    from core.lesson_responses
+    where tenant_id = ${input.tenantId}::uuid and lesson_id = ${input.lessonId}::uuid
+      and student_user_id = any(${uuidArray(input.studentIds)})
+      and created_at >= ${input.since}::timestamptz
+    order by created_at, try, id`);
+  return rows.map((row) => ({
+    ...responseOf(row),
+    lessonId: row.lesson_id,
+    studentId: row.student_user_id,
+  }));
+}
+
 export async function insertResponse(
   tx: Tx,
   input: {
@@ -1779,4 +1805,134 @@ export async function liveActivity(
               : "wrong",
     })),
   };
+}
+
+export interface PacedRow {
+  id: string;
+  lessonId: string;
+  classId: string;
+  startedByUserId: string;
+  startedAt: string;
+  step: number;
+  paused: boolean;
+  revealed: boolean;
+  endedAt: string | null;
+}
+
+type PacedRecord = {
+  id: string;
+  lesson_id: string;
+  class_id: string;
+  started_by_user_id: string;
+  started_at: string;
+  step: number;
+  paused: boolean;
+  revealed: boolean;
+  ended_at: string | null;
+};
+
+const pacedColumns = sql`id, lesson_id, class_id, started_by_user_id,
+  ${isoOf(sql`started_at`)} as started_at, step, paused, revealed, ${isoOf(sql`ended_at`)} as ended_at`;
+
+const pacedOf = (row: PacedRecord): PacedRow => ({
+  id: row.id,
+  lessonId: row.lesson_id,
+  classId: row.class_id,
+  startedByUserId: row.started_by_user_id,
+  startedAt: row.started_at,
+  step: row.step,
+  paused: row.paused,
+  revealed: row.revealed,
+  endedAt: row.ended_at,
+});
+
+/** Starts leading a lesson live for a class, or finds the one already running. */
+export async function startPaced(
+  tx: Tx,
+  input: {
+    tenantId: string;
+    lessonId: string;
+    classId: string;
+    userId: string;
+  },
+): Promise<PacedRow> {
+  await tx.execute(sql`
+    insert into core.paced_lessons (tenant_id, lesson_id, class_id, started_by_user_id)
+    values (${input.tenantId}::uuid, ${input.lessonId}::uuid, ${input.classId}::uuid,
+      ${input.userId}::uuid)
+    on conflict (tenant_id, lesson_id, class_id) where status = 'active' and ended_at is null
+    do nothing`);
+  const [row] = await tx.execute<PacedRecord>(sql`
+    select ${pacedColumns} from core.paced_lessons
+    where tenant_id = ${input.tenantId}::uuid and lesson_id = ${input.lessonId}::uuid
+      and class_id = ${input.classId}::uuid and status = 'active' and ended_at is null`);
+  if (!row) throw new Error("paced lesson not written");
+  return pacedOf(row);
+}
+
+export async function pacedById(
+  tx: Tx,
+  tenantId: string,
+  id: string,
+): Promise<PacedRow | null> {
+  const [row] = await tx.execute<PacedRecord>(sql`
+    select ${pacedColumns} from core.paced_lessons
+    where tenant_id = ${tenantId}::uuid and id = ${id}::uuid and status = 'active'`);
+  return row ? pacedOf(row) : null;
+}
+
+/** The lesson led live now for any of a student's classes, the latest started. */
+export async function runningPaced(
+  tx: Tx,
+  input: { tenantId: string; lessonId: string; classIds: readonly string[] },
+): Promise<PacedRow | null> {
+  if (input.classIds.length === 0) return null;
+  const [row] = await tx.execute<PacedRecord>(sql`
+    select ${pacedColumns} from core.paced_lessons
+    where tenant_id = ${input.tenantId}::uuid and lesson_id = ${input.lessonId}::uuid
+      and class_id = any(${uuidArray(input.classIds)}) and status = 'active'
+      and ended_at is null
+    order by started_at desc, id desc
+    limit 1`);
+  return row ? pacedOf(row) : null;
+}
+
+/** Moves, pauses, reveals or ends a running lesson led live; only the fields given change. */
+export async function pace(
+  tx: Tx,
+  input: {
+    tenantId: string;
+    id: string;
+    step?: number;
+    paused?: boolean;
+    revealed?: boolean;
+    ended?: boolean;
+  },
+): Promise<PacedRow | null> {
+  const sets = [
+    ...(input.step === undefined ? [] : [sql`step = ${input.step}`]),
+    ...(input.paused === undefined ? [] : [sql`paused = ${input.paused}`]),
+    ...(input.revealed === undefined
+      ? []
+      : [sql`revealed = ${input.revealed}`]),
+    ...(input.ended ? [sql`ended_at = statement_timestamp()`] : []),
+  ];
+  if (sets.length === 0) return pacedById(tx, input.tenantId, input.id);
+  const [row] = await tx.execute<PacedRecord>(sql`
+    update core.paced_lessons set ${sql.join(sets, sql`, `)}
+    where tenant_id = ${input.tenantId}::uuid and id = ${input.id}::uuid
+      and status = 'active' and ended_at is null
+    returning ${pacedColumns}`);
+  return row ? pacedOf(row) : null;
+}
+
+/** Marks a student's progress in a lesson as touched now, so a teacher leading it sees them there. */
+export async function touchProgress(
+  tx: Tx,
+  input: { tenantId: string; lessonId: string; studentId: string },
+): Promise<void> {
+  await tx.execute(sql`
+    update core.lesson_progress set position = position
+    where tenant_id = ${input.tenantId}::uuid and lesson_id = ${input.lessonId}::uuid
+      and student_user_id = ${input.studentId}::uuid and status = 'active'`);
 }

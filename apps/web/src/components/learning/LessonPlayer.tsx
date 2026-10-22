@@ -30,6 +30,7 @@ import { Button } from "@faridalms/ui/button";
 import { Progress } from "@faridalms/ui/progress";
 import {
   useMutation,
+  useQuery,
   useQueryClient,
   useSuspenseQuery,
 } from "@tanstack/react-query";
@@ -44,6 +45,7 @@ import {
   Lock,
   Pencil,
   Play,
+  Radio,
   RotateCcw,
 } from "lucide-react";
 import { useTheme } from "next-themes";
@@ -73,7 +75,11 @@ import { RecordHeader } from "~/components/system/RecordPage";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { getLocale } from "~/i18n/runtime";
-import { lessonEditorQuery, lessonQuery } from "~/queries/learning";
+import {
+  lessonEditorQuery,
+  lessonQuery,
+  pacingQuery,
+} from "~/queries/learning";
 import {
   completeLesson,
   answerReview,
@@ -180,6 +186,7 @@ function LessonBody({
   onReach,
   watch,
   watches = {},
+  paced = null,
 }: {
   blocks: StudentBlock[];
   checks: Record<string, CheckView>;
@@ -188,6 +195,8 @@ function LessonBody({
   onReach?: (blockId: string) => void;
   watch?: (fileId: string) => MediaWatch | undefined;
   watches?: Record<string, Watched>;
+  /** The part a teacher leading the lesson live has opened to the class. */
+  paced?: { step: number } | null;
 }) {
   const young = useContext(YoungContext);
   const stops = useMemo(() => videoStops(blocks), [blocks]);
@@ -284,14 +293,49 @@ function LessonBody({
         }),
       ),
   );
+  const gateNumber = useMemo(() => {
+    const numbers = new Map<string, number>();
+    for (const block of blocks)
+      if (block.type === "gate") numbers.set(block.id, numbers.size);
+    return numbers;
+  }, [blocks]);
+  // The parts a teacher has led the class into stay open once the lesson
+  // is no longer led.
+  const [ledTo, setLedTo] = useState(paced?.step ?? 0);
+  if (paced && paced.step > ledTo) setLedTo(paced.step);
+  useEffect(() => {
+    if (ledTo === 0) return;
+    const gate = blocks.findIndex(
+      (block) => gateNumber.get(block.id) === ledTo - 1,
+    );
+    const next = gate === -1 ? undefined : blocks[gate + 1];
+    if (next)
+      document
+        .getElementById(`block-${next.id}`)
+        ?.scrollIntoView({ block: "start", behavior: "smooth" });
+  }, [ledTo, blocks, gateNumber]);
   const [resumed, setResumed] = useState(false);
   const shown: { block: StudentBlock; index: number }[] = [];
   for (const [index, block] of blocks.entries()) {
+    if (block.type === "gate") {
+      const number = gateNumber.get(block.id) ?? 0;
+      const closed = paced
+        ? number >= paced.step
+        : !passed.has(block.id) && number >= ledTo;
+      if (closed) {
+        shown.push({ block, index });
+        break;
+      }
+      continue;
+    }
     shown.push({ block, index });
-    if (block.type === "gate" && !passed.has(block.id)) break;
   }
+  // A lesson led live goes where the teacher takes it.
   const resumeAt =
-    !resumed && reached > 0 && shown.some(({ index }) => index === reached)
+    !paced &&
+    !resumed &&
+    reached > 0 &&
+    shown.some(({ index }) => index === reached)
       ? blocks[reached]?.id
       : undefined;
 
@@ -320,8 +364,14 @@ function LessonBody({
       ) : null}
       {shown.map(({ block, index }) => {
         let body;
-        if (block.type === "gate") {
-          if (passed.has(block.id)) return null;
+        if (block.type === "gate" && paced) {
+          body = (
+            <p className="flex flex-wrap items-center justify-center gap-2 rounded-lg border border-dashed px-5 py-4 text-sm leading-5 text-muted-foreground">
+              <Radio aria-hidden className="size-4" />
+              {m.lrnPacedWaits()}
+            </p>
+          );
+        } else if (block.type === "gate") {
           const { done, total, waits } = settledAbove(index);
           body = (
             <Gate
@@ -627,6 +677,9 @@ function useVowelMarks(setting: VowelMarks) {
 export function LessonPlayer({ lessonId }: { lessonId: string }) {
   const query = lessonQuery(lessonId);
   const data = useSuspenseQuery(query).data;
+  const paced =
+    useQuery({ ...pacingQuery(lessonId), initialData: { paced: data.paced } })
+      .data.paced ?? null;
   const earlyYears = useCurrentUser().features.early_years;
   const queryClient = useQueryClient();
   const navigate = useNavigate();
@@ -883,24 +936,40 @@ export function LessonPlayer({ lessonId }: { lessonId: string }) {
         ]}
       />
       {vowels.toggle}
-      <YoungContext.Provider value={data.young && earlyYears}>
-        <ReaderContext.Provider value={data.readAloud}>
-          <OwnCodeContext.Provider value={ownCode}>
-            <OwnProjectsContext.Provider value={ownProjects}>
-              <LessonBody
-                key={data.attempt}
-                blocks={shown.blocks}
-                checks={shown.checks}
-                driver={driver}
-                position={data.position}
-                onReach={reach}
-                watch={watch}
-                watches={data.watches}
-              />
-            </OwnProjectsContext.Provider>
-          </OwnCodeContext.Provider>
-        </ReaderContext.Provider>
-      </YoungContext.Provider>
+      {paced ? (
+        <output className="flex items-start gap-2 rounded-lg border border-info/30 bg-info/5 px-4 py-3 text-sm leading-5">
+          <Radio aria-hidden className="mt-0.5 size-4 shrink-0 text-info" />
+          {paced.paused ? m.lrnPacedPaused() : m.lrnPacedBanner()}
+        </output>
+      ) : null}
+      <div inert={paced?.paused} className="grid gap-6">
+        <YoungContext.Provider value={data.young && earlyYears}>
+          <ReaderContext.Provider value={data.readAloud}>
+            <OwnCodeContext.Provider value={ownCode}>
+              <OwnProjectsContext.Provider value={ownProjects}>
+                <LessonBody
+                  key={data.attempt}
+                  blocks={shown.blocks}
+                  checks={shown.checks}
+                  driver={driver}
+                  position={data.position}
+                  onReach={reach}
+                  watch={watch}
+                  watches={data.watches}
+                  paced={paced}
+                />
+              </OwnProjectsContext.Provider>
+            </OwnCodeContext.Provider>
+          </ReaderContext.Provider>
+        </YoungContext.Provider>
+      </div>
+      {paced?.paused ? (
+        <div className="pointer-events-none fixed inset-x-0 bottom-20 z-20 flex justify-center px-4 md:bottom-6">
+          <p className="rounded-full bg-foreground px-4 py-2 text-sm leading-5 font-medium text-background shadow-lg">
+            {m.lrnPacedPaused()}
+          </p>
+        </div>
+      ) : null}
       {data.review ? (
         <section
           aria-labelledby="lesson-review"

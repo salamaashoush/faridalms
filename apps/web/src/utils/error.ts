@@ -549,6 +549,16 @@ export function getMessageFromError(error: unknown): string {
         return m.lrnErrConditionUnscored();
       case "learning.condition_in_use":
         return m.lrnErrConditionInUse();
+      case "learning.paced_paused":
+        return m.lrnErrPacedPaused();
+      case "learning.paced_ahead":
+        return m.lrnErrPacedAhead();
+      case "learning.paced_ended":
+        return m.lrnErrPacedEnded();
+      case "learning.paced_unshown":
+        return m.lrnErrPacedUnshown();
+      case "learning.paced_running":
+        return m.lrnErrPacedRunning();
       case "learning.lesson_required":
         return m.lrnErrLessonRequired();
       case "learning.lesson_empty":

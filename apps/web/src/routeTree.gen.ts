@@ -104,6 +104,8 @@ import { Route as FeedsSchoolFileRouteImport } from './routes/feeds/$school/$fil
 import { Route as FilesFileIdPartsRouteImport } from './routes/files/$fileId.parts'
 import { Route as FilesFileIdStreamRouteImport } from './routes/files/$fileId.stream'
 import { Route as SiteSchoolIndexRouteImport } from './routes/site/$school/index'
+import { Route as AppTeachBoardPacedIdRouteImport } from './routes/_app/teach/board.$pacedId'
+import { Route as AppTeachLivePacedIdRouteImport } from './routes/_app/teach/live.$pacedId'
 import { Route as FilesFileIdPartsPartRouteImport } from './routes/files/$fileId.parts.$part'
 import { Route as PublicMediaPTokenNameRouteImport } from './routes/public-media/p.$token.$name'
 import { Route as SiteSchoolNewsIndexRouteImport } from './routes/site/$school/news/index'
@@ -592,6 +594,16 @@ const SiteSchoolIndexRoute = SiteSchoolIndexRouteImport.update({
   path: '/',
   getParentRoute: () => SiteSchoolRoute,
 } as any)
+const AppTeachBoardPacedIdRoute = AppTeachBoardPacedIdRouteImport.update({
+  id: '/board/$pacedId',
+  path: '/board/$pacedId',
+  getParentRoute: () => AppTeachRoute,
+} as any)
+const AppTeachLivePacedIdRoute = AppTeachLivePacedIdRouteImport.update({
+  id: '/live/$pacedId',
+  path: '/live/$pacedId',
+  getParentRoute: () => AppTeachRoute,
+} as any)
 const FilesFileIdPartsPartRoute = FilesFileIdPartsPartRouteImport.update({
   id: '/$part',
   path: '/$part',
@@ -712,6 +724,8 @@ export interface FileRoutesByFullPath {
   '/standards/': typeof AppStandardsIndexRoute
   '/teach/': typeof AppTeachIndexRoute
   '/site/$school/': typeof SiteSchoolIndexRoute
+  '/teach/board/$pacedId': typeof AppTeachBoardPacedIdRoute
+  '/teach/live/$pacedId': typeof AppTeachLivePacedIdRoute
   '/files/$fileId/parts/$part': typeof FilesFileIdPartsPartRoute
   '/public-media/p/$token/$name': typeof PublicMediaPTokenNameRoute
   '/site/$school/news/$slug': typeof SiteSchoolNewsSlugRoute
@@ -807,6 +821,8 @@ export interface FileRoutesByTo {
   '/standards': typeof AppStandardsIndexRoute
   '/teach': typeof AppTeachIndexRoute
   '/site/$school': typeof SiteSchoolIndexRoute
+  '/teach/board/$pacedId': typeof AppTeachBoardPacedIdRoute
+  '/teach/live/$pacedId': typeof AppTeachLivePacedIdRoute
   '/files/$fileId/parts/$part': typeof FilesFileIdPartsPartRoute
   '/public-media/p/$token/$name': typeof PublicMediaPTokenNameRoute
   '/site/$school/news/$slug': typeof SiteSchoolNewsSlugRoute
@@ -910,6 +926,8 @@ export interface FileRoutesById {
   '/_app/standards/': typeof AppStandardsIndexRoute
   '/_app/teach/': typeof AppTeachIndexRoute
   '/site/$school/': typeof SiteSchoolIndexRoute
+  '/_app/teach/board/$pacedId': typeof AppTeachBoardPacedIdRoute
+  '/_app/teach/live/$pacedId': typeof AppTeachLivePacedIdRoute
   '/files/$fileId/parts/$part': typeof FilesFileIdPartsPartRoute
   '/public-media/p/$token/$name': typeof PublicMediaPTokenNameRoute
   '/site/$school/news/$slug': typeof SiteSchoolNewsSlugRoute
@@ -1012,6 +1030,8 @@ export interface FileRouteTypes {
     | '/standards/'
     | '/teach/'
     | '/site/$school/'
+    | '/teach/board/$pacedId'
+    | '/teach/live/$pacedId'
     | '/files/$fileId/parts/$part'
     | '/public-media/p/$token/$name'
     | '/site/$school/news/$slug'
@@ -1107,6 +1127,8 @@ export interface FileRouteTypes {
     | '/standards'
     | '/teach'
     | '/site/$school'
+    | '/teach/board/$pacedId'
+    | '/teach/live/$pacedId'
     | '/files/$fileId/parts/$part'
     | '/public-media/p/$token/$name'
     | '/site/$school/news/$slug'
@@ -1209,6 +1231,8 @@ export interface FileRouteTypes {
     | '/_app/standards/'
     | '/_app/teach/'
     | '/site/$school/'
+    | '/_app/teach/board/$pacedId'
+    | '/_app/teach/live/$pacedId'
     | '/files/$fileId/parts/$part'
     | '/public-media/p/$token/$name'
     | '/site/$school/news/$slug'
@@ -1898,6 +1922,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof SiteSchoolIndexRouteImport
       parentRoute: typeof SiteSchoolRoute
     }
+    '/_app/teach/board/$pacedId': {
+      id: '/_app/teach/board/$pacedId'
+      path: '/board/$pacedId'
+      fullPath: '/teach/board/$pacedId'
+      preLoaderRoute: typeof AppTeachBoardPacedIdRouteImport
+      parentRoute: typeof AppTeachRoute
+    }
+    '/_app/teach/live/$pacedId': {
+      id: '/_app/teach/live/$pacedId'
+      path: '/live/$pacedId'
+      fullPath: '/teach/live/$pacedId'
+      preLoaderRoute: typeof AppTeachLivePacedIdRouteImport
+      parentRoute: typeof AppTeachRoute
+    }
     '/files/$fileId/parts/$part': {
       id: '/files/$fileId/parts/$part'
       path: '/$part'
@@ -2044,6 +2082,8 @@ interface AppTeachRouteChildren {
   AppTeachModulesRoute: typeof AppTeachModulesRoute
   AppTeachTimetableRoute: typeof AppTeachTimetableRoute
   AppTeachIndexRoute: typeof AppTeachIndexRoute
+  AppTeachBoardPacedIdRoute: typeof AppTeachBoardPacedIdRoute
+  AppTeachLivePacedIdRoute: typeof AppTeachLivePacedIdRoute
 }
 
 const AppTeachRouteChildren: AppTeachRouteChildren = {
@@ -2060,6 +2100,8 @@ const AppTeachRouteChildren: AppTeachRouteChildren = {
   AppTeachModulesRoute: AppTeachModulesRoute,
   AppTeachTimetableRoute: AppTeachTimetableRoute,
   AppTeachIndexRoute: AppTeachIndexRoute,
+  AppTeachBoardPacedIdRoute: AppTeachBoardPacedIdRoute,
+  AppTeachLivePacedIdRoute: AppTeachLivePacedIdRoute,
 }
 
 const AppTeachRouteWithChildren = AppTeachRoute._addFileChildren(

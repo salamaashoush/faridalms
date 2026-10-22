@@ -32,7 +32,7 @@ type Data = Awaited<
   ReturnType<NonNullable<ReturnType<typeof classQuestionsQuery>["queryFn"]>>
 >;
 type Lesson = Data["lessons"][number];
-type Question = Lesson["questions"][number];
+export type Question = Lesson["questions"][number];
 
 const STANDINGS: readonly CheckStanding[] = [
   "first",
@@ -42,7 +42,7 @@ const STANDINGS: readonly CheckStanding[] = [
   "unseen",
 ];
 
-const STANDING_LABEL: Record<CheckStanding, () => string> = {
+export const STANDING_LABEL: Record<CheckStanding, () => string> = {
   first: m.lrnStandingFirst,
   later: m.lrnStandingLater,
   shown: m.lrnStandingShown,
@@ -59,7 +59,7 @@ const STANDING_TONE: Record<CheckStanding, Tone> = {
 };
 
 /** Where a question was asked, for replaying how a student answered it. */
-interface Asked {
+export interface Asked {
   moduleId: string;
   classId: string;
   lessonId: string;
@@ -100,14 +100,20 @@ function Replay({
   );
 }
 
-function QuestionCard({
+/**
+ * How a class answered one question. With names hidden, a screen others can
+ * see shows the counts alone, as Pear Deck keeps names to the teacher.
+ */
+export function QuestionCard({
   question,
   names,
   asked,
+  named = true,
 }: {
   question: Question;
   names: Map<string, string>;
   asked: Asked;
+  named?: boolean;
 }) {
   const students = [...names.keys()];
   const standing = (wanted: CheckStanding) =>
@@ -166,7 +172,7 @@ function QuestionCard({
                       style={{ width: `${share}%` }}
                     />
                   </div>
-                  {who.length > 0 ? (
+                  {named && who.length > 0 ? (
                     <p className="text-[13px] leading-[18px] text-muted-foreground">
                       {formatList(who.map((id) => names.get(id) ?? ""))}
                     </p>
@@ -176,7 +182,7 @@ function QuestionCard({
             })}
           </ul>
         </div>
-      ) : question.kind === "program" ? (
+      ) : !named ? null : question.kind === "program" ? (
         <div className="grid gap-2">
           <p className="text-[13px] leading-[18px] text-muted-foreground">
             {m.lrnReplayWho()}

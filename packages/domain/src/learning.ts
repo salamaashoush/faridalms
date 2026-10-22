@@ -898,6 +898,36 @@ export const watchedEnough = (watched: Watched | undefined) =>
   watched !== undefined &&
   watched.watchedSeconds >= watched.durationSeconds * WATCHED_SHARE;
 
+/**
+ * A lesson's parts, split at its continue gates: what a teacher leading it
+ * live opens to the class one at a time. A gate at the very end opens
+ * nothing more, so it adds no part.
+ */
+export function lessonParts<T extends { id: string; type: string }>(
+  blocks: readonly T[],
+): T[][] {
+  const parts: T[][] = [[]];
+  for (const block of blocks) {
+    if (block.type === "gate") parts.push([]);
+    else parts.at(-1)?.push(block);
+  }
+  while (parts.length > 1 && parts.at(-1)?.length === 0) parts.pop();
+  return parts;
+}
+
+/** The part of a lesson a block is in, by the gates above it, or -1 when it has no such block. */
+export function partOf(
+  blocks: readonly { id: string; type: string }[],
+  blockId: string,
+): number {
+  let part = 0;
+  for (const block of blocks) {
+    if (block.id === blockId) return part;
+    if (block.type === "gate") part += 1;
+  }
+  return -1;
+}
+
 /** Whether a lesson's questions give it a score that another lesson can depend on. */
 export function lessonScored(content: ContentDocument): boolean {
   return autoBlocks(lessonOfContent(content)).some((block) => block.points > 0);
@@ -2202,6 +2232,17 @@ export const lessonConditionSchema = v.pipe(
     "learning.condition",
   ),
 );
+
+export const startPacedSchema = v.object({ lessonId: id, classId: id });
+
+export const paceSchema = v.object({
+  id,
+  step: v.optional(
+    v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(999)),
+  ),
+  paused: v.optional(v.boolean()),
+  revealed: v.optional(v.boolean()),
+});
 
 export const saveModuleSchema = v.object({
   id: optionalId,

@@ -4034,3 +4034,142 @@ describe("paths by score", () => {
     expect(copied.map((row) => row.scored)).toEqual([true, false, false]);
   });
 });
+
+describe("leading a lesson live", () => {
+  test("a teacher takes the class through a lesson part by part, pausing it, and sees who answered", async () => {
+    const { keeper } = await teachers();
+    const { rows } = await keeper.learning.modules({});
+    const source = rows.find((row) => row.title === TITLE);
+    if (!source) throw new Error("no module");
+    const pupil = await student();
+    const me = await pupil.identity.currentUser();
+    let classId = "";
+    for (const item of source.classes) {
+      const { roster } = await keeper.coursework.groups({ classId: item.id });
+      if (roster.some((row) => row.id === me.id)) classId = item.id;
+    }
+    const saved = await keeper.learning.saveModule({
+      id: "",
+      expectedVersion: 0,
+      title: "Shapes together",
+      summary: "",
+      classIds: [classId],
+      prerequisiteId: "",
+      sequential: true,
+    });
+    const ask = (prompt: string) => {
+      const right = id();
+      return {
+        right,
+        block: {
+          id: id(),
+          type: "choice" as const,
+          prompt,
+          points: 1,
+          hints: [],
+          explanation: "",
+          tries: 1,
+          options: [
+            { id: right, text: "Yes", feedback: "" },
+            { id: id(), text: "No", feedback: "" },
+          ],
+          correctOptionIds: [right],
+          multiple: false,
+          shuffle: false,
+        },
+      };
+    };
+    const first = ask("Has a square four sides?");
+    const second = ask("Has a triangle three corners?");
+    const lesson = (title: string, blocks: LessonDocument["blocks"]) =>
+      keeper.learning.saveLesson({
+        id: "",
+        moduleId: saved.id,
+        expectedVersion: 0,
+        title,
+        completion: "view",
+        passScore: null,
+        content: written(blocks),
+        publish: false,
+      });
+    await lesson("Warm up", [
+      { id: id(), type: "content", content: plainContent("Look around.") },
+    ]);
+    const led = await lesson("Sides and corners", [
+      { id: id(), type: "content", content: plainContent("Count the sides.") },
+      first.block,
+      { id: id(), type: "gate", requires: "above" },
+      { id: id(), type: "content", content: plainContent("Now corners.") },
+      second.block,
+    ]);
+    await keeper.learning.publishModule({
+      id: saved.id,
+      expectedVersion: saved.version,
+    });
+    // In order, the second lesson waits for the first, until it is led.
+    expect(
+      await rejection(pupil.learning.playLesson({ id: led.id })),
+    ).toMatchObject({ code: "CONFLICT", message: "learning.locked" });
+    const started = await keeper.learning.startPaced({
+      lessonId: led.id,
+      classId,
+    });
+    expect(
+      await keeper.learning.startPaced({ lessonId: led.id, classId }),
+    ).toEqual(started);
+    const played = await pupil.learning.playLesson({ id: led.id });
+    expect(played.paced).toEqual({ id: started.id, step: 0, paused: false });
+    const answer = (item: typeof first) =>
+      pupil.learning.respond({
+        lessonId: led.id,
+        blockId: item.block.id,
+        response: { type: "choice", optionIds: [item.right] },
+      });
+    expect(await rejection(answer(second))).toMatchObject({
+      code: "CONFLICT",
+      message: "learning.paced_ahead",
+    });
+    await answer(first);
+    let view = await keeper.learning.paced({ id: started.id });
+    expect(
+      view.parts.map(({ label, questions }) => ({ label, questions })),
+    ).toEqual([
+      { label: "Count the sides.", questions: 1 },
+      { label: "Now corners.", questions: 1 },
+    ]);
+    expect(view.joined).toContain(me.id);
+    expect(view.questions.map((item) => item.id)).toEqual([first.block.id]);
+    expect(view.questions[0]?.standings[me.id]).toBe("first");
+    expect(view.questions[0]?.firstChoices[me.id]).toEqual([first.right]);
+
+    await keeper.learning.pace({ id: started.id, revealed: true });
+    expect(
+      await keeper.learning.pace({ id: started.id, step: 5, paused: true }),
+    ).toEqual({ step: 1, paused: true, revealed: false });
+    expect(await pupil.learning.pacing({ lessonId: led.id })).toEqual({
+      paced: { id: started.id, step: 1, paused: true },
+    });
+    expect(await rejection(answer(second))).toMatchObject({
+      code: "CONFLICT",
+      message: "learning.paced_paused",
+    });
+    await keeper.learning.pace({ id: started.id, paused: false });
+    await answer(second);
+    view = await keeper.learning.paced({ id: started.id });
+    expect(view.questions.map((item) => item.id)).toEqual([second.block.id]);
+
+    await keeper.learning.endPaced({ id: started.id });
+    expect(await pupil.learning.pacing({ lessonId: led.id })).toEqual({
+      paced: null,
+    });
+    expect(
+      await rejection(keeper.learning.pace({ id: started.id, step: 0 })),
+    ).toMatchObject({ code: "CONFLICT", message: "learning.paced_ended" });
+    // What the student did while led stays theirs: opening it finished it.
+    expect(
+      (await pupil.learning.play({ id: saved.id })).lessons.map(
+        (row) => row.state,
+      ),
+    ).toEqual(["open", "done"]);
+  });
+});

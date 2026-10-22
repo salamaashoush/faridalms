@@ -23,6 +23,7 @@ import {
   Layers,
   Pencil,
   Plus,
+  Radio,
   Send,
   Trash2,
   Users,
@@ -80,6 +81,7 @@ import {
   STATE_TONE,
 } from "./format";
 import { ClassLive } from "./Live";
+import { TeachLiveDialog } from "./PacedLesson";
 import { PlanCoverage } from "./PlanEditor";
 import { ClassQuestions } from "./Questions";
 import { ClassVideos } from "./Videos";
@@ -173,6 +175,11 @@ function Lessons({ data }: { data: Data }) {
     key: number;
     open: boolean;
   }>();
+  const [teaching, setTeaching] = useState<{
+    lesson: Lesson;
+    key: number;
+    open: boolean;
+  }>();
   const run = async (action: () => Promise<unknown>, done?: string) => {
     try {
       await action();
@@ -196,6 +203,20 @@ function Lessons({ data }: { data: Data }) {
                 search: { id: row.id, moduleId: data.id },
               }),
           },
+          ...(data.open
+            ? [
+                {
+                  label: m.lrnTeachLive(),
+                  icon: Radio,
+                  onSelect: () =>
+                    setTeaching((current) => ({
+                      lesson: row,
+                      key: (current?.key ?? 0) + 1,
+                      open: true,
+                    })),
+                },
+              ]
+            : []),
           ...(row.position > 0
             ? [
                 {
@@ -289,6 +310,17 @@ function Lessons({ data }: { data: Data }) {
           open={copying.open}
           onClose={() =>
             setCopying((current) => current && { ...current, open: false })
+          }
+        />
+      ) : null}
+      {teaching ? (
+        <TeachLiveDialog
+          key={teaching.key}
+          lesson={teaching.lesson}
+          classes={data.classes}
+          open={teaching.open}
+          onClose={() =>
+            setTeaching((current) => current && { ...current, open: false })
           }
         />
       ) : null}

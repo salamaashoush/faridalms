@@ -10,6 +10,8 @@ import {
   getPlan,
   getModuleOutline,
   getModuleLive,
+  getPaced,
+  getPacing,
   getModuleProgress,
   getModuleRecord,
   getMyModules,
@@ -65,6 +67,26 @@ export const moduleLiveQuery = (moduleId: string, classId: string) =>
     queryFn: () => getModuleLive({ data: { moduleId, classId } }),
     placeholderData: (previous) => previous,
     refetchInterval: 10_000,
+  });
+
+/** A lesson led live, asked again every few seconds for the teacher and the class board. */
+export const pacedQuery = (id: string) =>
+  queryOptions({
+    queryKey: ["learning", "paced", id],
+    queryFn: () => getPaced({ data: { id } }),
+    placeholderData: (previous) => previous,
+    refetchInterval: (query) => (query.state.data?.endedAt ? false : 3000),
+  });
+
+/**
+ * Whether a student's class is being led through a lesson: asked every few
+ * seconds while it is, and now and then otherwise, to notice it begin.
+ */
+export const pacingQuery = (lessonId: string) =>
+  queryOptions({
+    queryKey: ["learning", "pacing", lessonId],
+    queryFn: () => getPacing({ data: { lessonId } }),
+    refetchInterval: (query) => (query.state.data?.paced ? 3000 : 15_000),
   });
 
 export const classQuestionsQuery = (moduleId: string, classId: string) =>

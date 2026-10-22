@@ -78,6 +78,12 @@ Sources: [../research/course-design.md](../research/course-design.md),
    describe lessons as a list of parts and media as waiting for storage. Done:
    each now describes the one document, its seventeen question kinds and
    its publishing checks, and points here for what is left.
+9. **Typing after a block chosen whole.** With a widget block selected (a
+   continue gate, the standards block, a picture), each letter typed landed
+   at the very start of the document, in reverse, and inserting a widget
+   left the block before it selected. Found while building 5.7. Done: a
+   letter typed with a block chosen starts the line below it, and a widget
+   inserted puts the caret on the line after it.
 
 ## 2. Maths and science
 
@@ -255,6 +261,21 @@ Sources: [../research/course-design.md](../research/course-design.md),
    routing across modules by a single lesson's score.
 7. **Live lesson**: the teacher paces a lesson for the class, as Nearpod and
    Pear Deck do, with answers gathered on the teacher's screen.
+   Done: Teach live, on a lesson of an open module, leads one class
+   through it part by part, the parts split at its Continue blocks
+   (`paced_lessons`). Students in the lesson reach the parts the teacher
+   has opened, whatever their order or path, and answer nothing while it
+   is paused; the API refuses answers in a part not yet open. The
+   teacher's screen moves between parts, pauses, shows who has come in and
+   how each question of the open part was answered, with names that hide
+   at a click. A class board for the room's screen shows the same without
+   names, and the right answers once the teacher chooses, as Pear Deck
+   keeps names to the teacher. Ending it leaves each part a student
+   reached open. Students' players ask every 3 seconds while a lesson is
+   led and every 15 otherwise.
+   Left: a push channel in place of asking, young lessons, sharing one
+   student's answer on the board, and a list of running live lessons on
+   the module.
 
 ## 6. Editor capabilities
 

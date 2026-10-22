@@ -43,6 +43,12 @@ import {
   lessonSoundsOf,
   lessonsOf,
   liveActivity,
+  pace as pacePaced,
+  pacedById,
+  responsesSince,
+  runningPaced,
+  startPaced as beginPaced,
+  touchProgress,
   moduleById,
   modulesForClasses,
   orderLessons,
@@ -107,12 +113,16 @@ import {
   lessonWatchables,
   lessonRecordings,
   lessonScore,
+  lessonParts,
+  lessonPlainText,
   lessonScored,
   markResponse,
   markSchema,
   moduleRefSchema,
   moveLessonSchema,
   overrideSchema,
+  paceSchema,
+  partOf,
   pathOf,
   planSchema,
   positionSchema,
@@ -139,6 +149,7 @@ import {
   runsQuerySchema,
   saveLessonSchema,
   saveModuleSchema,
+  startPacedSchema,
   savePlanSchema,
   settled,
   standingOf,
@@ -1422,6 +1433,195 @@ export const live = readProcedure
     };
   });
 
+/** A lesson led live, with the module it is in and the version its students play. */
+async function pacedFor(context: UnitContext, pacedId: string) {
+  const session = await pacedById(context.tx, context.tenantId, pacedId);
+  if (!session) throw new ORPCError("NOT_FOUND");
+  const led = await lessonById(context.tx, context.tenantId, session.lessonId);
+  if (!led) throw new ORPCError("NOT_FOUND");
+  const owner = await editable(context, led.moduleId);
+  const published = await publishedLesson(context, led.id);
+  if (!published) throw new ORPCError("NOT_FOUND");
+  return { session, led, owner, content: published.content };
+}
+
+/** A part named by its first words, for the teacher choosing where to take the class. */
+function partLabel(blocks: LessonDocument["blocks"]) {
+  const first =
+    lessonPlainText({ version: 2, blocks })
+      .split("\n")
+      .map((line) => line.trim())
+      .find(Boolean) ?? "";
+  return first.length > 80 ? `${first.slice(0, 79).trimEnd()}…` : first;
+}
+
+/** Starts leading a lesson live for one of its module's classes, or rejoins the one running. */
+export const startPaced = writeProcedure
+  .input(startPacedSchema)
+  .handler(async ({ input, context }) => {
+    const led = await lessonById(context.tx, context.tenantId, input.lessonId);
+    if (!led) throw new ORPCError("NOT_FOUND");
+    const owner = await editable(context, led.moduleId);
+    if (!isOpen(owner, context.now))
+      throw new ORPCError("CONFLICT", { message: "learning.module_draft" });
+    const classes = await classesOfModule(
+      context.tx,
+      context.tenantId,
+      owner.id,
+    );
+    if (!classes.some((item) => item.id === input.classId))
+      throw new ORPCError("NOT_FOUND");
+    if (!(await publishedLesson(context, led.id)))
+      throw new ORPCError("CONFLICT", { message: "learning.paced_unshown" });
+    const row = await beginPaced(context.tx, {
+      tenantId: context.tenantId,
+      lessonId: led.id,
+      classId: input.classId,
+      userId: context.actor.userId,
+    });
+    await audit(context, {
+      action: "lesson.paced_start",
+      objectType: "lesson",
+      objectId: led.id,
+      details: { classId: input.classId, pacedId: row.id },
+    });
+    return { id: row.id };
+  });
+
+/**
+ * A lesson led live as its teacher's screen shows it: its parts and the
+ * one open, who of the class is in it, and how they have answered the open
+ * part's questions since it began. The class board reads the same and
+ * leaves the names out.
+ */
+export const paced = readProcedure
+  .input(v.object({ id }))
+  .handler(async ({ input, context }) => {
+    const { session, led, owner, content } = await pacedFor(context, input.id);
+    const roster = await audienceOf(context, owner.id, session.classId);
+    const parts = lessonParts(content.blocks);
+    const step = Math.min(session.step, parts.length - 1);
+    const open = new Set((parts[step] ?? []).map((block) => block.id));
+    const [classes, students, rows, activity, ran] = await Promise.all([
+      classesOfModule(context.tx, context.tenantId, owner.id),
+      namesOf(context.tx, context.tenantId, roster),
+      responsesSince(context.tx, {
+        tenantId: context.tenantId,
+        lessonId: led.id,
+        studentIds: roster,
+        since: session.startedAt,
+      }),
+      liveActivity(context.tx, {
+        tenantId: context.tenantId,
+        lessonIds: [led.id],
+        studentIds: roster,
+        since: session.startedAt,
+      }),
+      runCounts(context.tx, {
+        tenantId: context.tenantId,
+        lessonIds: [led.id],
+        studentIds: roster,
+      }),
+    ]);
+    // Each student's latest attempt, should they have started over.
+    const latest = new Map<string, number>();
+    for (const row of rows)
+      latest.set(
+        row.studentId,
+        Math.max(latest.get(row.studentId) ?? 0, row.attempt),
+      );
+    return {
+      id: session.id,
+      step,
+      paused: session.paused,
+      revealed: session.revealed,
+      startedAt: session.startedAt,
+      endedAt: session.endedAt,
+      lesson: {
+        id: led.id,
+        title: led.title,
+        moduleId: owner.id,
+        moduleTitle: owner.title,
+      },
+      class: classes.find((item) => item.id === session.classId) ?? null,
+      parts: parts.map((part, index) => ({
+        id: part[0]?.id ?? String(index),
+        label: partLabel(part),
+        questions: checkBlocks({ version: 2, blocks: part }).filter(isAuto)
+          .length,
+      })),
+      students,
+      joined: [
+        ...new Set([
+          ...activity.progress.map((item) => item.studentId),
+          ...activity.tries.map((item) => item.studentId),
+        ]),
+      ],
+      questions: questionsOf(
+        content,
+        rows.filter((row) => row.attempt === latest.get(row.studentId)),
+        roster,
+        ran,
+      ).filter((question) => open.has(question.id)),
+    };
+  });
+
+/** The teacher takes the class to a part, pauses or resumes it, or shows the part's answers on the board. */
+export const pace = writeProcedure
+  .input(paceSchema)
+  .handler(async ({ input, context }) => {
+    const { session, content } = await pacedFor(context, input.id);
+    if (session.endedAt)
+      throw new ORPCError("CONFLICT", { message: "learning.paced_ended" });
+    const step =
+      input.step === undefined
+        ? undefined
+        : Math.min(input.step, lessonParts(content.blocks).length - 1);
+    const row = await pacePaced(context.tx, {
+      tenantId: context.tenantId,
+      id: session.id,
+      step,
+      paused: input.paused,
+      // A new part's answers wait to be shown until the teacher asks.
+      revealed:
+        input.revealed ??
+        (step !== undefined && step !== session.step ? false : undefined),
+    });
+    if (!row)
+      throw new ORPCError("CONFLICT", { message: "learning.paced_ended" });
+    return { step: row.step, paused: row.paused, revealed: row.revealed };
+  });
+
+/** Ends a lesson led live; its students carry on at their own pace. */
+export const endPaced = writeProcedure
+  .input(v.object({ id }))
+  .handler(async ({ input, context }) => {
+    const { session, led } = await pacedFor(context, input.id);
+    if (!session.endedAt)
+      await pacePaced(context.tx, {
+        tenantId: context.tenantId,
+        id: session.id,
+        ended: true,
+      });
+    await audit(context, {
+      action: "lesson.paced_end",
+      objectType: "lesson",
+      objectId: led.id,
+      details: { pacedId: session.id },
+    });
+    return { ended: true };
+  });
+
+/** Where a student's class is in a lesson its teacher leads live, asked again while they are in it. */
+export const pacing = readProcedure
+  .input(v.object({ lessonId: id }))
+  .handler(async ({ input, context }) => {
+    requireCapability(context, "learning:read");
+    return {
+      paced: await pacingOf(context, input.lessonId, context.actor.userId),
+    };
+  });
+
 /** A teacher marks a lesson done for a student, or takes that back. */
 export const override = writeProcedure
   .input(overrideSchema)
@@ -1719,15 +1919,20 @@ async function playable(context: UnitContext, lessonId: string) {
     studentId,
   );
   const lessons = await studentLessons(context, owner.id);
-  const cells = await progressIn(context.tx, {
-    tenantId: context.tenantId,
-    lessonIds: lessons.map((item) => item.id),
-    studentIds: [studentId],
-  });
+  const [cells, leading] = await Promise.all([
+    progressIn(context.tx, {
+      tenantId: context.tenantId,
+      lessonIds: lessons.map((item) => item.id),
+      studentIds: [studentId],
+    }),
+    pacingOf(context, row.id, studentId),
+  ]);
   const states = outline(owner, lessons, cells, locked);
   const state = states.find((item) => item.id === row.id)?.state;
-  if (state === undefined) throw new ORPCError("NOT_FOUND");
-  if (state === "locked")
+  // A lesson the teacher is leading the class through opens to all of it,
+  // whatever each student's order or path would say.
+  if (state === undefined && !leading) throw new ORPCError("NOT_FOUND");
+  if (state === "locked" && !leading)
     throw new ORPCError("CONFLICT", { message: "learning.locked" });
   const published = await publishedLesson(context, row.id);
   if (!published) throw new ORPCError("NOT_FOUND");
@@ -1750,7 +1955,31 @@ async function playable(context: UnitContext, lessonId: string) {
     versionId: published.versionId,
     content: published.content,
     checks: checkStates(published.content, rows),
+    paced: leading,
   };
+}
+
+/** The part a student's class is being led through live in a lesson, if any. */
+async function pacingOf(
+  context: UnitContext,
+  lessonId: string,
+  studentId: string,
+) {
+  const row = await runningPaced(context.tx, {
+    tenantId: context.tenantId,
+    lessonId,
+    classIds: await classesOfStudent(context, studentId),
+  });
+  return row && { id: row.id, step: row.step, paused: row.paused };
+}
+
+/** Refuses an answer while the teacher leading a lesson has paused it, or in a part not yet open. */
+function pacedAllows(played: Played, blockId: string) {
+  if (!played.paced) return;
+  if (played.paced.paused)
+    throw new ORPCError("CONFLICT", { message: "learning.paced_paused" });
+  if (partOf(played.content.blocks, blockId) > played.paced.step)
+    throw new ORPCError("CONFLICT", { message: "learning.paced_ahead" });
 }
 
 type Played = Awaited<ReturnType<typeof playable>>;
@@ -1851,6 +2080,13 @@ export const playLesson = writeProcedure
         lessonId: row.id,
         studentId: played.studentId,
       });
+    // Opening a lesson led live counts the student in.
+    else if (played.paced)
+      await touchProgress(context.tx, {
+        tenantId: context.tenantId,
+        lessonId: row.id,
+        studentId: played.studentId,
+      });
     const completed =
       row.completion === "view"
         ? (await settle(context, played)).completed
@@ -1886,6 +2122,7 @@ export const playLesson = writeProcedure
           : null,
       index,
       total: states.length,
+      paced: played.paced,
       sounds: !(await quietLessons(context.tx, {
         tenantId: context.tenantId,
         moduleId: owner.id,
@@ -2410,6 +2647,7 @@ async function recordResponse(
     (item) => item.id === input.blockId,
   );
   if (!block) throw new ORPCError("NOT_FOUND");
+  pacedAllows(played, block.id);
   const issue = responseIssue(block, input.response);
   if (issue) throw new ORPCError("BAD_REQUEST", { message: issue });
   const answered = await withFeatures(
@@ -2483,6 +2721,7 @@ export const reveal = writeProcedure
       (item) => item.id === input.blockId,
     );
     if (!block || !isAuto(block)) throw new ORPCError("NOT_FOUND");
+    pacedAllows(played, block.id);
     const state = played.checks[block.id];
     if (!settled(block, state))
       await insertResponse(context.tx, {
@@ -2895,9 +3134,69 @@ export const decideShare = writeProcedure
   });
 
 /**
+ * How a class did on a lesson's marked questions, from the rows given of
+ * one attempt each: where every student stands, and for a choice, who
+ * first chose which option.
+ */
+function questionsOf(
+  content: LessonDocument,
+  rows: Awaited<ReturnType<typeof firstAttempts>>,
+  roster: readonly string[],
+  ran: Awaited<ReturnType<typeof runCounts>>,
+) {
+  const states = new Map(
+    roster.map((studentId) => [
+      studentId,
+      checkStates(
+        content,
+        rows.filter((response) => response.studentId === studentId),
+      ),
+    ]),
+  );
+  return checkBlocks(content)
+    .filter(isAuto)
+    .map((block) => ({
+      id: block.id,
+      kind: block.type,
+      prompt: block.prompt,
+      options:
+        block.type === "choice"
+          ? block.options.map((option) => ({
+              id: option.id,
+              text: option.text,
+              correct: block.correctOptionIds.includes(option.id),
+            }))
+          : null,
+      standings: Object.fromEntries(
+        roster.map((studentId) => [
+          studentId,
+          standingOf(states.get(studentId)?.[block.id]),
+        ]),
+      ),
+      firstChoices: Object.fromEntries(
+        roster.flatMap((studentId) => {
+          const first = rows.find(
+            (response) =>
+              response.studentId === studentId &&
+              response.blockId === block.id &&
+              response.try === 1 &&
+              response.state === "answered",
+          )?.response;
+          const chosen = first?.optionIds;
+          return Array.isArray(chosen) ? [[studentId, chosen]] : [];
+        }),
+      ) as Record<string, string[]>,
+      runs: Object.fromEntries(
+        ran
+          .filter((count) => count.blockId === block.id)
+          .map((count) => [count.studentId, count.runs]),
+      ),
+    }));
+}
+
+/**
  * How a class did on each marked question, from each student's first
- * attempt: where every student stands, and for a choice, who first chose
- * which option. Only those who teach the module see it.
+ * attempt. Only those who teach the module see it.
  */
 export const questions = readProcedure
   .input(progressQuerySchema)
@@ -2928,63 +3227,18 @@ export const questions = readProcedure
       const content =
         (await publishedLesson(context, item.id))?.content ?? null;
       if (!content) continue;
-      const states = new Map(
-        roster.map((studentId) => [
-          studentId,
-          checkStates(
-            content,
-            rows.filter(
-              (response) =>
-                response.lessonId === item.id &&
-                response.studentId === studentId,
-            ),
-          ),
-        ]),
+      const marked = questionsOf(
+        content,
+        rows.filter((response) => response.lessonId === item.id),
+        roster,
+        ran,
       );
-      const checks = checkBlocks(content).filter(isAuto);
-      if (checks.length === 0) continue;
+      if (marked.length === 0) continue;
       asked.push({
         id: item.id,
         title: item.title,
         young: item.young,
-        questions: checks.map((block) => ({
-          id: block.id,
-          kind: block.type,
-          prompt: block.prompt,
-          options:
-            block.type === "choice"
-              ? block.options.map((option) => ({
-                  id: option.id,
-                  text: option.text,
-                  correct: block.correctOptionIds.includes(option.id),
-                }))
-              : null,
-          standings: Object.fromEntries(
-            roster.map((studentId) => [
-              studentId,
-              standingOf(states.get(studentId)?.[block.id]),
-            ]),
-          ),
-          firstChoices: Object.fromEntries(
-            roster.flatMap((studentId) => {
-              const first = rows.find(
-                (response) =>
-                  response.lessonId === item.id &&
-                  response.studentId === studentId &&
-                  response.blockId === block.id &&
-                  response.try === 1 &&
-                  response.state === "answered",
-              )?.response;
-              const chosen = first?.optionIds;
-              return Array.isArray(chosen) ? [[studentId, chosen]] : [];
-            }),
-          ) as Record<string, string[]>,
-          runs: Object.fromEntries(
-            ran
-              .filter((count) => count.blockId === block.id)
-              .map((count) => [count.studentId, count.runs]),
-          ),
-        })),
+        questions: marked,
       });
     }
     return { students, lessons: asked };

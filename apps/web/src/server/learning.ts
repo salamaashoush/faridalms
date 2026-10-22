@@ -11,6 +11,7 @@ import {
   moduleRefSchema,
   moveLessonSchema,
   overrideSchema,
+  paceSchema,
   planSchema,
   positionSchema,
   watchSchema,
@@ -24,6 +25,7 @@ import {
   saveLessonSchema,
   saveModuleSchema,
   savePlanSchema,
+  startPacedSchema,
 } from "@faridalms/domain/learning";
 import {
   practiceCheckSchema,
@@ -107,6 +109,26 @@ export const getModuleProgress = createServerFn({ method: "GET" })
 export const getModuleLive = createServerFn({ method: "GET" })
   .validator(checked(progressQuerySchema))
   .handler(({ data }) => record(backend().learning.live(data)));
+
+export const startPaced = createServerFn({ method: "POST" })
+  .validator(checked(startPacedSchema))
+  .handler(({ data }) => backend().learning.startPaced(data));
+
+export const getPaced = createServerFn({ method: "GET" })
+  .validator(byId)
+  .handler(({ data }) => record(backend().learning.paced(data)));
+
+export const pace = createServerFn({ method: "POST" })
+  .validator(checked(paceSchema))
+  .handler(({ data }) => backend().learning.pace(data));
+
+export const endPaced = createServerFn({ method: "POST" })
+  .validator(byId)
+  .handler(({ data }) => backend().learning.endPaced(data));
+
+export const getPacing = createServerFn({ method: "GET" })
+  .validator(checked(v.object({ lessonId: v.pipe(v.string(), v.uuid()) })))
+  .handler(({ data }) => backend().learning.pacing(data));
 
 export const overrideLesson = createServerFn({ method: "POST" })
   .validator(checked(overrideSchema))

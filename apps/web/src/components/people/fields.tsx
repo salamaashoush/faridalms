@@ -174,11 +174,13 @@ export function CheckboxRow({
   hint,
   checked,
   onChange,
+  disabled,
 }: {
   label: string;
   hint?: string;
   checked: boolean;
   onChange: (checked: boolean) => void;
+  disabled?: boolean;
 }) {
   const id = useId();
   return (
@@ -186,6 +188,7 @@ export function CheckboxRow({
       <Checkbox
         id={id}
         checked={checked}
+        disabled={disabled}
         onCheckedChange={(next) => onChange(next)}
         className="mt-0.5"
         aria-describedby={hint ? `${id}-hint` : undefined}
