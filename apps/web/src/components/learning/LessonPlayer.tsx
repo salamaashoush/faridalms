@@ -88,6 +88,7 @@ import {
   keepOwnProject,
   recordRun,
   respondToCheck,
+  askHint,
   retryLesson,
   seeResults,
   revealCheck,
@@ -761,6 +762,10 @@ export function LessonPlayer({ lessonId }: { lessonId: string }) {
     },
     reveal: async (blockId) => {
       const result = await revealCheck({ data: { lessonId, blockId } });
+      await apply(blockId, result);
+    },
+    hint: async (blockId) => {
+      const result = await askHint({ data: { lessonId, blockId } });
       await apply(blockId, result);
     },
     ran: keepRun,

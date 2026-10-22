@@ -165,6 +165,15 @@ Sources: [../research/course-design.md](../research/course-design.md),
    Left: showing a class from the live lesson board, and showing one
    student rather than a class.
 4. **Ask for a hint before answering**, not only after a wrong try.
+   Done: a question in a lesson offers Get a hint while its hints last,
+   before an answer, between tries, before a written answer is sent, and
+   while feedback waits. Each one asked for is kept (`lesson_responses`
+   state `hint`), costs what a wrong try would, and stops the question
+   counting as right first time, so it comes back at the end where the
+   lesson asks again. A wrong try still opens the next hint by itself.
+   Hints stay in view while the student tries again.
+   Left: hints asked for in a mixed practice set, and in a young child's
+   lesson, whose help ladder is its own.
 5. **A continue gate** that waits for the block directly above it, or for
    nothing, as well as for everything above.
 6. **Marking again when a key changes** after students answered: rescore

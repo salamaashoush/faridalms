@@ -591,6 +591,8 @@ export function getMessageFromError(error: unknown): string {
         return m.lrnErrNoResults();
       case "learning.young_feedback":
         return m.lrnErrYoungFeedback();
+      case "learning.no_hint":
+        return m.lrnErrNoHint();
       case "learning.option":
         return m.lrnErrOption();
       case "learning.pass_score":

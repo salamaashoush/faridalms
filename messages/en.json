@@ -877,7 +877,7 @@
   "editorQuestionByVideoMinutes": "On video, up to {minutes} min",
   "editorQuestionNoLimit": "No limit",
   "editorQuestionHint": "Hints",
-  "editorQuestionHintsHelp": "Students see them in order, one more after each wrong try. Start with a nudge and end with the most help.",
+  "editorQuestionHintsHelp": "Students open them in order, one more after each wrong try or when they ask; one asked for costs what a wrong try would. Start with a nudge and end with the most help.",
   "editorQuestionHintNumber": "Hint {number}",
   "editorQuestionHintAdd": "Add a hint",
   "editorQuestionHintRemove": "Remove hint {number}",
@@ -4787,7 +4787,9 @@
   ],
   "lrnHint": "Hint:",
   "lrnHintNumber": "Hint {number}:",
-  "lrnHintNext": "Try again for the next hint.",
+  "lrnGetHint": "Get a hint",
+  "lrnAnotherHint": "Another hint",
+  "lrnHintCost": "A hint costs what a wrong try would.",
   "lrnPoints": [
     {
       "declarations": ["input count", "local countPlural = count: plural"],
@@ -4850,6 +4852,7 @@
   "lrnFinishedScore": "Lesson done with {value}%",
   "lrnBelowPass": "You need {score}% to finish. Start again to try for it.",
   "lrnRetryHint": "Answer every question again. Your best score stays.",
+  "lrnErrNoHint": "This question has no more hints to give.",
   "lrnKeptForEnd": "Answer kept. You will see how it went at the end of the lesson, and can change it until then.",
   "lrnKeptForTeacher": "Answer kept. You will see how it went when your teacher shows the class, and can change it until then.",
   "lrnResultsProgress": "Questions that show how you did at the end: {answered} of {total} answered.",

@@ -908,7 +908,7 @@
   "editorQuestionByVideoMinutes": "بالفيديو، حتى {minutes} د",
   "editorQuestionNoLimit": "بلا حد",
   "editorQuestionHint": "تلميحات",
-  "editorQuestionHintsHelp": "يراها الطالب بالترتيب، تلميحًا بعد كل محاولة خاطئة. ابدأ بإشارة خفيفة واختم بأكبر عون.",
+  "editorQuestionHintsHelp": "يفتحها الطالب بالترتيب، تلميحًا بعد كل محاولة خاطئة أو حين يطلبه، والتلميح المطلوب يكلّف ما تكلّفه محاولة خاطئة. ابدأ بإشارة خفيفة واختم بأكبر عون.",
   "editorQuestionHintNumber": "التلميح {number}",
   "editorQuestionHintAdd": "إضافة تلميح",
   "editorQuestionHintRemove": "حذف التلميح {number}",
@@ -5010,7 +5010,9 @@
   ],
   "lrnHint": "تلميح:",
   "lrnHintNumber": "التلميح {number}:",
-  "lrnHintNext": "حاول مرة أخرى ليظهر التلميح التالي.",
+  "lrnGetHint": "أعطني تلميحًا",
+  "lrnAnotherHint": "تلميح آخر",
+  "lrnHintCost": "التلميح يكلّف ما تكلّفه محاولة خاطئة.",
   "lrnPoints": [
     {
       "declarations": ["input count", "local countPlural = count: plural"],
@@ -5081,6 +5083,7 @@
   "lrnFinishedScore": "انتهى الدرس بدرجة {value}٪",
   "lrnBelowPass": "تحتاج إلى {score}٪ لإنهاء الدرس. ابدأ من جديد لتحاول.",
   "lrnRetryHint": "أجب عن كل الأسئلة من جديد. تبقى أفضل درجاتك.",
+  "lrnErrNoHint": "لم يبقَ لهذا السؤال تلميح.",
   "lrnKeptForEnd": "حُفظت الإجابة. سترى نتيجتها في نهاية الدرس، ويمكنك تغييرها حتى ذلك الحين.",
   "lrnKeptForTeacher": "حُفظت الإجابة. سترى نتيجتها حين يعرضها معلمك على الصف، ويمكنك تغييرها حتى ذلك الحين.",
   "lrnResultsProgress": "الأسئلة التي تظهر نتيجتها في النهاية: أجبت عن {answered} من {total}.",

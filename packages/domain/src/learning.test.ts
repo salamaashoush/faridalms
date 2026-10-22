@@ -183,6 +183,7 @@ describe("scoring a lesson", () => {
     marked: false,
     firstTryCorrect: true,
     once: false,
+    hints: 0,
     review: null,
   };
 
@@ -381,6 +382,50 @@ describe("feedback that waits", () => {
       "learning.young_feedback",
     );
     expect(lessonIssue({ completion: "view", content })).toBeNull();
+  });
+});
+
+describe("hints asked for", () => {
+  const steps = ["It is on the Nile.", "It starts with C.", "Al-Qahira."];
+  const open = { ...typed, hints: steps };
+  const asking = (count: number, answers: string[]): StoredTry[] => [
+    ...Array.from({ length: count }, () => ({
+      blockId: open.id,
+      try: 1,
+      state: "hint" as const,
+      fraction: null,
+      response: {},
+      feedback: null,
+    })),
+    ...kept(open, answers),
+  ];
+  const seen = (rows: StoredTry[]) => {
+    const state = checkStates({ version: 2, blocks: [open] }, rows)[open.id];
+    return { state, view: describeCheck(open, rows, state) };
+  };
+
+  it("opens the next hint before any answer, and says how many are left", () => {
+    expect(seen(asking(1, [])).view).toMatchObject({
+      hints: steps.slice(0, 1),
+      askable: 2,
+    });
+  });
+
+  it("adds a wrong try's hint to those asked for, and stops once settled", () => {
+    expect(seen(asking(1, ["Giza"])).view).toMatchObject({
+      hints: steps.slice(0, 2),
+      askable: 1,
+    });
+    expect(seen(asking(1, ["Giza", "Cairo"])).view).toMatchObject({
+      hints: [],
+      askable: 0,
+    });
+  });
+
+  it("costs a hint what a wrong try would, and is no longer right first time", () => {
+    const { state } = seen(asking(1, ["Cairo"]));
+    expect(state).toMatchObject({ correct: true, firstTryCorrect: false });
+    expect(creditOf(state)).toBeCloseTo(2 / 3);
   });
 });
 

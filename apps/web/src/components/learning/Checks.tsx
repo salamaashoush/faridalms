@@ -177,7 +177,18 @@ export interface CheckDriver {
   keepFile?: (file: File) => Promise<{ fileId: string; url: string }>;
   /** Keeps a code exercise's run for the teacher to replay; without it none is kept. */
   ran?: (blockId: string, run: ProgramRun) => void;
+  /** Opens a question's next hint; without it none can be asked for. */
+  hint?: (blockId: string) => Promise<unknown>;
 }
+
+/** A question's hints so far, and how to ask for the next. */
+interface CheckHelp {
+  view: CheckView | undefined;
+  ask: (() => void) | null;
+  pending: boolean;
+}
+
+const CheckHelpContext = createContext<CheckHelp | null>(null);
 
 type Of<T extends StudentBlock["type"]> = Extract<StudentBlock, { type: T }>;
 export type CheckStudentBlock =
@@ -320,29 +331,6 @@ function Outcome({
           {text}
         </p>
       ))}
-      {view.hints.length > 0 ? (
-        <div className="grid gap-1.5 rounded-md bg-muted/60 px-3 py-2 text-sm leading-6">
-          {view.hints.map((hint, index) => (
-            <p key={hint} className="flex gap-2">
-              <Lightbulb
-                aria-hidden
-                className="mt-1 size-4 shrink-0 text-muted-foreground"
-              />
-              <span>
-                <span className="font-medium">
-                  {view.hints.length + view.hintsLeft > 1
-                    ? m.lrnHintNumber({ number: formatNumber(index + 1) })
-                    : m.lrnHint()}
-                </span>{" "}
-                <span dir="auto">{hint}</span>
-              </span>
-            </p>
-          ))}
-          {view.hintsLeft > 0 ? (
-            <p className="ps-6 text-muted-foreground">{m.lrnHintNext()}</p>
-          ) : null}
-        </div>
-      ) : null}
       {keyText && !view.correct ? (
         <p className="text-sm leading-6">
           <span className="font-medium">{m.lrnCorrectAnswer()}</span>{" "}
@@ -438,6 +426,15 @@ function CheckCard({
   actions: ReactNode;
 }) {
   const young = useContext(YoungContext);
+  const mode = useContext(CheckModeContext);
+  const help = useContext(CheckHelpContext);
+  const view = help?.view;
+  // Hints stay in view while the student tries again; a reviewed answer has none.
+  const hints = mode === "review" || !view ? [] : view.hints;
+  const asking =
+    help?.ask && view && view.askable > 0 && !young && mode !== "review"
+      ? help.ask
+      : null;
   const submit = (event: FormEvent) => {
     event.preventDefault();
     onSubmit?.();
@@ -475,8 +472,43 @@ function CheckCard({
         {children}
         <div className="flex flex-col">
           <output className="grid gap-2 not-empty:mb-4">{status}</output>
-          {actions ? (
-            <div className="flex flex-wrap gap-2">{actions}</div>
+          {hints.length > 0 ? (
+            <div className="mb-4 grid gap-1.5 rounded-md bg-muted/60 px-3 py-2 text-sm leading-6">
+              {hints.map((hint, index) => (
+                <p key={hint} className="flex gap-2">
+                  <Lightbulb
+                    aria-hidden
+                    className="mt-1 size-4 shrink-0 text-muted-foreground"
+                  />
+                  <span>
+                    <span className="font-medium">
+                      {hints.length + (view?.askable ?? 0) > 1
+                        ? m.lrnHintNumber({ number: formatNumber(index + 1) })
+                        : m.lrnHint()}
+                    </span>{" "}
+                    <span dir="auto">{hint}</span>
+                  </span>
+                </p>
+              ))}
+            </div>
+          ) : null}
+          {actions || asking ? (
+            <div className="flex flex-wrap gap-2">
+              {actions}
+              {asking ? (
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="max-md:h-10"
+                  disabled={help?.pending}
+                  title={m.lrnHintCost()}
+                  onClick={asking}
+                >
+                  <Lightbulb aria-hidden />
+                  {hints.length > 0 ? m.lrnAnotherHint() : m.lrnGetHint()}
+                </Button>
+              ) : null}
+            </div>
           ) : null}
         </div>
       </fieldset>
@@ -2339,6 +2371,36 @@ export function CheckBlockView({
   view: CheckView | undefined;
   driver: CheckDriver;
 }) {
+  const asked = useMutation({
+    mutationFn: () => driver.hint?.(block.id) ?? Promise.resolve(),
+    onError: (error) => toast.error(getMessageFromError(error)),
+  });
+  const { mutate, isPending } = asked;
+  const hint = driver.hint;
+  const help = useMemo(
+    (): CheckHelp => ({
+      view,
+      ask: hint ? () => mutate() : null,
+      pending: isPending,
+    }),
+    [view, hint, mutate, isPending],
+  );
+  return (
+    <CheckHelpContext.Provider value={help}>
+      <CheckBody block={block} view={view} driver={driver} />
+    </CheckHelpContext.Provider>
+  );
+}
+
+function CheckBody({
+  block,
+  view,
+  driver,
+}: {
+  block: CheckStudentBlock;
+  view: CheckView | undefined;
+  driver: CheckDriver;
+}) {
   const young = useContext(YoungContext);
   const mode = useContext(CheckModeContext);
   const legend = useId();
@@ -2351,7 +2413,7 @@ export function CheckBlockView({
   )
     return (
       <CheckModeContext.Provider value={view.timing.open ? "review" : "quiz"}>
-        <CheckBlockView block={block} view={view} driver={driver} />
+        <CheckBody block={block} view={view} driver={driver} />
       </CheckModeContext.Provider>
     );
   if (block.type === "counting")

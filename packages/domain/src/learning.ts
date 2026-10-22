@@ -1648,6 +1648,8 @@ export interface CheckState {
   firstTryCorrect: boolean;
   /** Its feedback waited, so it was answered in one go however often it changed. */
   once: boolean;
+  /** Hints the student asked for, before or between tries. */
+  hints: number;
   /** How a question missed at first went when asked again at the end. */
   review: number | null;
 }
@@ -1662,11 +1664,17 @@ export const settled = (block: CheckBlock, state: CheckState | undefined) =>
     ? state.tries > 0
     : state.correct || state.revealed);
 
-/** Credit for a question: its best try, less a share for each extra try, nothing once revealed. */
+/**
+ * Credit for a question: its best try, less a share for each extra try and
+ * each hint asked for, as a wrong try would have cost; nothing once revealed.
+ */
 export function creditOf(state: CheckState | undefined): number {
   if (!state || state.tries === 0) return 0;
   if (state.revealed && !state.correct) return 0;
-  return Math.max(0, state.fraction - TRY_PENALTY * (state.tries - 1));
+  return Math.max(
+    0,
+    state.fraction - TRY_PENALTY * (state.tries - 1 + state.hints),
+  );
 }
 
 /**
@@ -2562,7 +2570,13 @@ export const progressQuerySchema = v.object({ moduleId: id, classId: id });
 export interface ResponseRow {
   blockId: string;
   try: number;
-  state: "answered" | "revealed" | "needs_marking" | "marked" | "reviewed";
+  state:
+    | "answered"
+    | "revealed"
+    | "needs_marking"
+    | "marked"
+    | "reviewed"
+    | "hint";
   fraction: number | null;
 }
 
@@ -2589,6 +2603,7 @@ export function checkStates(
       answered.length === 0 ? 0 : Math.max(...answered.map((row) => row.try));
     const marking = isTeacherMarked(block);
     const held = feedbackAtOf(block) !== "now";
+    const asked = mine.filter((row) => row.state === "hint").length;
     const fraction = marking ? (mark?.fraction ?? 0) : (last?.fraction ?? 0);
     const correct = marking ? false : fraction === 1;
     states[block.id] = {
@@ -2600,10 +2615,13 @@ export function checkStates(
         (mine.some((row) => row.state === "revealed") ||
           (!held && !correct && block.tries !== null && tries >= block.tries)),
       marked: mark !== undefined,
-      firstTryCorrect: held
-        ? correct
-        : answered.some((row) => row.try === 1 && row.fraction === 1),
+      firstTryCorrect:
+        asked === 0 &&
+        (held
+          ? correct
+          : answered.some((row) => row.try === 1 && row.fraction === 1)),
       once: held,
+      hints: asked,
       review: mine.find((row) => row.state === "reviewed")?.fraction ?? null,
     };
   }
@@ -2676,6 +2694,7 @@ export function describeReview(
     parts: marked?.parts ?? {},
     hints: [],
     hintsLeft: 0,
+    askable: 0,
     key: done ? answerKey(block) : null,
     partKey: done ? partKey(block) : null,
     ...keyProgram(block, done),
@@ -2703,10 +2722,12 @@ export interface CheckView {
   triesLeft: number | null;
   feedback: string[];
   parts: Record<string, boolean>;
-  /** Hints so far, one more after each wrong try until the answer is shown. */
+  /** Hints so far: one more after each wrong try, and each one asked for, until the answer is shown. */
   hints: string[];
   /** Hints a further wrong try would still open. */
   hintsLeft: number;
+  /** Hints the student may still ask for now. */
+  askable: number;
   key: string[] | null;
   partKey: Record<string, string> | null;
   /** A puzzle's answer as the program it is, to read as blocks once settled. */
@@ -2737,6 +2758,9 @@ export function describeCheck(
     (row) => row.blockId === block.id && row.state === "marked",
   );
   const tries = state?.tries ?? 0;
+  const asked = Math.min(block.hints.length, state?.hints ?? 0);
+  // Before a question is sent or its feedback comes, only hints asked for show.
+  const before = isTeacherMarked(block) ? tries === 0 : true;
   const base: CheckView = {
     tries,
     response,
@@ -2746,8 +2770,9 @@ export function describeCheck(
     triesLeft: null,
     feedback: [],
     parts: {},
-    hints: [],
+    hints: before ? block.hints.slice(0, asked) : [],
     hintsLeft: 0,
+    askable: before ? block.hints.length - asked : 0,
     key: null,
     partKey: null,
     explanation: null,
@@ -2767,9 +2792,12 @@ export function describeCheck(
     };
   const marked = response ? markResponse(block, response) : null;
   const open = settled(block, state);
-  // Every try before the question settles was wrong, so each opens one more.
-  const shownHints =
-    !open && marked && !marked.correct ? block.hints.slice(0, tries) : [];
+  // Every try before the question settles was wrong, so each opens one more,
+  // as each one asked for does.
+  const wrongTries = !open && marked && !marked.correct ? tries : 0;
+  const shownHints = open
+    ? []
+    : block.hints.slice(0, Math.min(block.hints.length, wrongTries + asked));
   // The last try shows the answer rather than a hint.
   const reachable =
     block.tries === null
@@ -2789,6 +2817,7 @@ export function describeCheck(
     hints: shownHints,
     hintsLeft:
       shownHints.length > 0 ? Math.max(0, reachable - shownHints.length) : 0,
+    askable: open ? 0 : block.hints.length - shownHints.length,
     key: open ? answerKey(block) : null,
     partKey: open ? partKey(block) : null,
     ...keyProgram(block, open),

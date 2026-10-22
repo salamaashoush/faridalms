@@ -2801,6 +2801,45 @@ export const reveal = writeProcedure
   });
 
 /**
+ * A student asks for a question's next hint, before an answer or between
+ * tries. It costs what a wrong try would.
+ */
+export const hint = writeProcedure
+  .input(revealSchema)
+  .handler(async ({ input, context }) => {
+    const played = await playable(context, input.lessonId);
+    const block = checkBlocks(played.content).find(
+      (item) => item.id === input.blockId,
+    );
+    if (!block) throw new ORPCError("NOT_FOUND");
+    pacedAllows(played, block.id);
+    const state = played.checks[block.id];
+    if (viewOf(block, played).askable === 0)
+      throw new ORPCError("CONFLICT", { message: "learning.no_hint" });
+    await insertResponse(context.tx, {
+      tenantId: context.tenantId,
+      lessonId: played.row.id,
+      documentVersionId: played.versionId,
+      studentId: played.studentId,
+      blockId: block.id,
+      attempt: played.attempt,
+      try: Math.max(1, state?.tries ?? 0),
+      kind: block.type,
+      response: {},
+      fraction: null,
+      state: "hint",
+    });
+    const result = await settle(context, played);
+    const after = { ...played, rows: result.rows, checks: result.checks };
+    return {
+      check: viewOf(block, after),
+      score: toldScore(played, result.best),
+      completed: result.completed,
+      review: reviewOf(after),
+    };
+  });
+
+/**
  * A student asks how they did on the questions that wait for the end of a
  * lesson, once they have answered every one; their answers stand from then.
  */

@@ -1606,6 +1606,81 @@ describe("feedback that waits", () => {
   });
 });
 
+describe("hints asked for", () => {
+  test("a student opens a question's hints before answering, each costing a try", async () => {
+    const { keeper } = await teachers();
+    const { rows } = await keeper.learning.modules({});
+    const source = rows.find((row) => row.title === TITLE);
+    if (!source) throw new Error("no module");
+    const saved = await keeper.learning.saveModule({
+      id: "",
+      expectedVersion: 0,
+      title: "Hints",
+      summary: "",
+      classIds: source.classes.map((item) => item.id),
+      prerequisiteId: "",
+      sequential: false,
+    });
+    const right = id();
+    const asked = {
+      id: id(),
+      type: "choice" as const,
+      prompt: "Which is a noun?",
+      points: 1,
+      hints: ["It is a thing.", "You can touch it."],
+      explanation: "A tree is a thing.",
+      tries: null,
+      options: [
+        { id: right, text: "Tree", feedback: "" },
+        { id: id(), text: "Run", feedback: "" },
+      ],
+      correctOptionIds: [right],
+      multiple: false,
+      shuffle: false,
+    };
+    await keeper.learning.saveLesson({
+      id: "",
+      moduleId: saved.id,
+      expectedVersion: 0,
+      title: "Nouns",
+      completion: "quiz",
+      passScore: null,
+      review: false,
+      content: written([asked]),
+      publish: false,
+    });
+    await keeper.learning.publishModule({
+      id: saved.id,
+      expectedVersion: saved.version,
+    });
+
+    const pupil = await student();
+    const outline = await pupil.learning.play({ id: saved.id });
+    const lessonId = outline.lessons[0]?.id ?? "";
+    const first = await pupil.learning.hint({ lessonId, blockId: asked.id });
+    expect(first.check).toMatchObject({
+      tries: 0,
+      hints: ["It is a thing."],
+      askable: 1,
+    });
+    await pupil.learning.hint({ lessonId, blockId: asked.id });
+    expect(
+      await rejection(pupil.learning.hint({ lessonId, blockId: asked.id })),
+    ).toMatchObject({ message: "learning.no_hint" });
+    const answered = await pupil.learning.respond({
+      lessonId,
+      blockId: asked.id,
+      response: { type: "choice", optionIds: [right] },
+    });
+    // Two hints cost what two wrong tries would have.
+    expect(answered.check).toMatchObject({ correct: true, hints: [] });
+    expect(answered.score).toBe(33);
+    expect(
+      await rejection(pupil.learning.hint({ lessonId, blockId: asked.id })),
+    ).toMatchObject({ message: "learning.no_hint" });
+  });
+});
+
 describe("a module's file area", () => {
   test("keeps a lesson's pictures for the module, open to its classes once shown", async () => {
     const tenant = seeded().tenants[0];

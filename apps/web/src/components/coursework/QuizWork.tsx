@@ -58,6 +58,7 @@ function keptView(response: LessonResponse | undefined): CheckView | undefined {
     parts: {},
     hints: [],
     hintsLeft: 0,
+    askable: 0,
     key: null,
     partKey: null,
     explanation: null,
