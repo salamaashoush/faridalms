@@ -4,6 +4,7 @@ import type {
   Mention,
 } from "@faridalms/domain/content";
 import type { GlossaryEntry } from "@faridalms/domain/glossary";
+import type { ContentLocale } from "@faridalms/domain/translations";
 import type {
   ComponentProps,
   ComponentType,
@@ -36,6 +37,7 @@ import {
   termEntry,
 } from "@faridalms/domain/glossary";
 import { isSafeContentUrl } from "@faridalms/domain/rich-text";
+import { languageDirection } from "@faridalms/domain/translations";
 import { ExternalLink, Target } from "lucide-react";
 import {
   cloneElement,
@@ -1148,13 +1150,23 @@ function Notes({ notes, context }: { notes: ContentNode[]; context: Context }) {
   );
 }
 
-const WholeTerms = createContext<readonly GlossaryEntry[] | null>(null);
+/** What each part of a document drawn apart needs to know of the whole. */
+export interface WholeDocumentFacts {
+  /** The whole document's terms, so a glossary in any part lists them all. */
+  terms: readonly GlossaryEntry[];
+  /** The language the document is written in, where its author set one. */
+  lang?: ContentLocale | undefined;
+}
 
-/**
- * Gives each part of a document drawn apart, as a lesson's parts are, the
- * terms of the whole, so a glossary in any part lists them all.
- */
-export const DocumentTermsProvider = WholeTerms.Provider;
+const Whole = createContext<WholeDocumentFacts | null>(null);
+
+/** Gives each part of a document drawn apart, as a lesson's parts are, facts of the whole. */
+export const WholeDocumentProvider = Whole.Provider;
+
+/** The language of the document a part belongs to, where its author set one. */
+export function useDocumentLanguage(): ContentLocale | undefined {
+  return useContext(Whole)?.lang;
+}
 
 export function ContentRenderer({
   document,
@@ -1171,6 +1183,7 @@ export function ContentRenderer({
   predicted,
   shared,
   mentionHref,
+  lang,
 }: {
   document: ContentDocument;
   strings: ViewStrings;
@@ -1196,12 +1209,15 @@ export function ContentRenderer({
   shared?: ComponentType<{ id: string }>;
   /** Where a mention opens; without it, or where it gives none, a mention is only its name. */
   mentionHref?: (mention: Mention) => string | null;
+  /** The language the document is written in; without it, read from its words. */
+  lang?: ContentLocale;
 }) {
   const marking = marks?.length
     ? markingOf(document, marks, activeMark)
     : undefined;
   const scope = useId();
-  const whole = useContext(WholeTerms);
+  const whole = useContext(Whole);
+  const language = lang ?? whole?.lang;
   let gathered: GlossaryEntry[] | undefined;
   const context: Context = {
     strings,
@@ -1218,7 +1234,7 @@ export function ContentRenderer({
     notes: [],
     scope,
     glossary: () => {
-      gathered ??= glossaryOf(whole ?? documentTerms(document), locale);
+      gathered ??= glossaryOf(whole?.terms ?? documentTerms(document), locale);
       return gathered;
     },
   };
@@ -1233,7 +1249,12 @@ export function ContentRenderer({
   return (
     <div
       className={className ? `fe ${className}` : "fe"}
-      dir={textDirection(contentPlainText(document)) ?? undefined}
+      lang={language}
+      dir={
+        language
+          ? languageDirection(language)
+          : (textDirection(contentPlainText(document)) ?? undefined)
+      }
     >
       {drawn}
       {context.notes.length > 0 ? (

@@ -1,5 +1,6 @@
 import type { FeedbackBand, LessonCondition } from "@faridalms/domain/learning";
 import type { LiveProgress, LiveTry } from "@faridalms/domain/live";
+import type { ContentLocale } from "@faridalms/domain/translations";
 import type { SQL } from "drizzle-orm";
 
 import { YOUNG_STUDENT_GRADES } from "@faridalms/domain/descriptors/catalogue";
@@ -421,6 +422,8 @@ export interface LessonRow {
   passScore: number | null;
   review: boolean;
   vowelMarks: VowelMarks;
+  /** The language the lesson teaches in, or none to read it from its words. */
+  language: ContentLocale | null;
   young: boolean;
   readAlong: boolean;
   condition: LessonCondition | null;
@@ -438,6 +441,7 @@ type LessonRecord = {
   pass_score: number | null;
   review: boolean;
   vowel_marks: VowelMarks;
+  language: ContentLocale | null;
   young: boolean;
   read_along: boolean;
   condition_lesson_id: string | null;
@@ -457,6 +461,7 @@ function lessonOf(row: LessonRecord): LessonRow {
     passScore: row.pass_score,
     review: row.review,
     vowelMarks: row.vowel_marks,
+    language: row.language,
     young: row.young,
     readAlong: row.read_along,
     condition: row.condition_lesson_id
@@ -471,7 +476,7 @@ function lessonOf(row: LessonRecord): LessonRow {
 }
 
 const lessonColumns = sql`l.id, l.version, l.module_id, l.position, l.title, l.completion, l.pass_score,
-  l.review, l.vowel_marks, l.young, l.read_along, l.condition_lesson_id, l.condition_at_least, l.condition_below,
+  l.review, l.vowel_marks, l.language, l.young, l.read_along, l.condition_lesson_id, l.condition_at_least, l.condition_below,
   l.feedback_bands`;
 
 export async function lessonsOf(
@@ -518,6 +523,7 @@ export interface LessonFields {
   passScore: number | null;
   review: boolean;
   vowelMarks: VowelMarks;
+  language: ContentLocale | null;
   young: boolean;
   readAlong: boolean;
   condition: LessonCondition | null;
@@ -530,13 +536,13 @@ export async function insertLesson(
 ): Promise<{ id: string; version: number }> {
   const [row] = await tx.execute<{ id: string; version: number }>(sql`
     insert into core.lessons (tenant_id, module_id, position, title, completion, pass_score, review,
-      vowel_marks, young, read_along, condition_lesson_id, condition_at_least, condition_below,
+      vowel_marks, language, young, read_along, condition_lesson_id, condition_at_least, condition_below,
       feedback_bands)
     values (${input.tenantId}::uuid, ${input.moduleId}::uuid,
       coalesce((select max(position) + 1 from core.lessons where tenant_id = ${input.tenantId}::uuid
         and module_id = ${input.moduleId}::uuid and status = 'active'), 0),
       ${input.title}, ${input.completion}, ${input.passScore}, ${input.review},
-      ${input.vowelMarks}, ${input.young}, ${input.readAlong},
+      ${input.vowelMarks}, ${input.language}, ${input.young}, ${input.readAlong},
       ${input.condition?.lessonId ?? null}::uuid, ${input.condition?.atLeast ?? null},
       ${input.condition?.below ?? null}, ${JSON.stringify(input.bands)}::text::jsonb)
     returning id, version`);
@@ -555,7 +561,8 @@ export async function updateLesson(
   const [row] = await tx.execute<{ version: number }>(sql`
     update core.lessons
     set title = ${input.title}, completion = ${input.completion}, pass_score = ${input.passScore},
-      review = ${input.review}, vowel_marks = ${input.vowelMarks}, young = ${input.young},
+      review = ${input.review}, vowel_marks = ${input.vowelMarks}, language = ${input.language},
+      young = ${input.young},
       read_along = ${input.readAlong}, condition_lesson_id = ${input.condition?.lessonId ?? null}::uuid,
       condition_at_least = ${input.condition?.atLeast ?? null},
       condition_below = ${input.condition?.below ?? null},

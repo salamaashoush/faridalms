@@ -487,6 +487,17 @@ Sources: [../research/course-design.md](../research/course-design.md),
    flash cards or a matching question; reading a term aloud.
 7. **A document's own language**: lessons record the language they teach
    in, may carry a translation, and digits follow a school setting.
+   Done: a lesson's Reading settings say which language it is taught in
+   (`lessons.language`), or leave it to be read from its words as before.
+   A set language gives the editor and every part a student reads its
+   direction from the start and marks the words with it, prompts
+   included, for screen readers, spell checkers and hyphenation; its
+   printed paper follows it. Without one, the editor now reads the
+   document's own words, not the labels its blocks draw in the
+   interface's language, which had turned an English lesson right to
+   left in the Arabic interface.
+   Left: a translation of a lesson; digits by a school setting; a
+   question's own labels in the lesson's language.
 8. **Word import**: a `.docx` opens as a document, its pictures uploaded.
 
 ## 7. Video

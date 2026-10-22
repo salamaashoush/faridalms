@@ -1,4 +1,5 @@
 import type { ContentDocument } from "@faridalms/domain/content";
+import type { ContentLocale } from "@faridalms/domain/translations";
 import type { EditorCollaboration, EditorMedia } from "@faridalms/editor";
 
 import { contentPlainText } from "@faridalms/domain/content";
@@ -49,6 +50,7 @@ export function ContentEditor({
   feedbackTiming,
   standards = false,
   pending = false,
+  language,
 }: {
   id: string;
   label: string;
@@ -74,6 +76,8 @@ export function ContentEditor({
   lessonActivities?: boolean;
   /** Questions may keep how they went until the end or the teacher's word. */
   feedbackTiming?: boolean;
+  /** The language the document teaches in; without it, read from its words. */
+  language?: ContentLocale;
   /** Standards blocks may name the school's standards, as a unit plan's do. */
   standards?: boolean;
   /** Whether the document may be live is still being asked. */
@@ -150,6 +154,7 @@ export function ContentEditor({
           narration={narration}
           lessonActivities={lessonActivities}
           feedbackTiming={feedbackTiming}
+          language={language}
           onSynced={
             collaboration ? () => setJoined(collaboration.id) : undefined
           }

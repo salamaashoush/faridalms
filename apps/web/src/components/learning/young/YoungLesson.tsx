@@ -1,5 +1,6 @@
 import type { ContentNode } from "@faridalms/domain/content";
 import type { CheckView, StudentBlock } from "@faridalms/domain/learning";
+import type { ContentLocale } from "@faridalms/domain/translations";
 import type { MediaWatch, VideoControl } from "@faridalms/editor/player";
 
 import { contentPlainText, textDirection } from "@faridalms/domain/content";
@@ -273,6 +274,7 @@ export function YoungLesson({
   readAlong = true,
   classSounds = true,
   watch,
+  language,
 }: {
   title: string;
   blocks: StudentBlock[];
@@ -293,6 +295,8 @@ export function YoungLesson({
   classSounds?: boolean;
   /** Follows what the child plays of each recording; none in a preview. */
   watch?: ((fileId: string) => MediaWatch) | undefined;
+  /** The language the lesson teaches in, where its teacher set one. */
+  language?: ContentLocale | null;
 }) {
   const steps = useMemo(() => lessonSteps(blocks), [blocks]);
   const hydrated = useHydrated();
@@ -483,7 +487,7 @@ export function YoungLesson({
     );
 
   return (
-    <WholeDocument parts={blocks}>
+    <WholeDocument parts={blocks} lang={language}>
       <FoundContext.Provider value={foundContext}>
         <dialog
           ref={stage}

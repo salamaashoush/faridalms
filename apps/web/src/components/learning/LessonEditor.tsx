@@ -5,6 +5,7 @@ import type {
   LessonCondition,
   VowelMarks,
 } from "@faridalms/domain/learning";
+import type { ContentLocale } from "@faridalms/domain/translations";
 
 import { emptyContent } from "@faridalms/domain/content-conversion";
 import {
@@ -20,6 +21,7 @@ import {
   lessonOfContent,
   sameLesson,
 } from "@faridalms/domain/lesson-content";
+import { CONTENT_LOCALES } from "@faridalms/domain/translations";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { Copy } from "lucide-react";
 import { useCallback, useMemo, useRef, useState } from "react";
@@ -35,6 +37,7 @@ import { UnsavedChangesGuard } from "~/components/app/UnsavedChangesGuard";
 import { contentIssueMessages } from "~/components/content/checks";
 import { useCollaboration } from "~/components/content/collaboration";
 import { ContentEditor } from "~/components/content/ContentEditor";
+import { LOCALE_LABEL } from "~/components/content/languages";
 import { useStartFrom } from "~/components/content/Templates";
 import { useDocumentMedia } from "~/components/coursework/useDocumentMedia";
 import { CheckboxRow } from "~/components/people/fields";
@@ -105,6 +108,7 @@ interface Draft {
   passScore: string;
   review: boolean;
   vowelMarks: VowelMarks;
+  language: ContentLocale | "auto";
   young: boolean;
   readAlong: boolean;
   bands: FeedbackBand[];
@@ -171,6 +175,7 @@ export function LessonEditor({
     passScore: existing?.passScore ? String(existing.passScore) : "",
     review: existing?.review ?? false,
     vowelMarks: existing?.vowelMarks ?? "shown",
+    language: existing?.language ?? "auto",
     // A lesson for the youngest classes starts in young mode.
     young:
       existing?.young ??
@@ -286,6 +291,7 @@ export function LessonEditor({
             value.completion === "score" ? Number(value.passScore) : null,
           review: value.review,
           vowelMarks: value.vowelMarks,
+          language: value.language === "auto" ? null : value.language,
           young: value.young,
           readAlong: value.readAlong,
           bands: keptBands(value.bands),
@@ -567,6 +573,34 @@ export function LessonEditor({
                   errors={passIssue && checking ? [passIssue] : undefined}
                 />
               ) : null}
+              <CheckboxRow
+                label={m.lrnReview()}
+                hint={m.lrnReviewHint()}
+                checked={draft.review}
+                onChange={(review) => set("review", review)}
+              />
+              {lessonScored(draft.content) ? (
+                <FeedbackBands
+                  bands={draft.bands}
+                  onChange={(bands) => set("bands", bands)}
+                />
+              ) : null}
+            </DetailsSection>
+            <DetailsSection title={m.lrnSectionReading()}>
+              <SelectField
+                id="lesson-language"
+                label={m.lrnLanguage()}
+                hint={m.lrnLanguageHint()}
+                value={draft.language}
+                options={[
+                  { value: "auto", label: m.lrnLanguageAuto() },
+                  ...CONTENT_LOCALES.map((value) => ({
+                    value,
+                    label: LOCALE_LABEL[value](),
+                  })),
+                ]}
+                onChange={(value) => set("language", value)}
+              />
               <SelectField
                 id="lesson-vowel-marks"
                 label={m.lrnVowelMarks()}
@@ -596,18 +630,6 @@ export function LessonEditor({
                   />
                   <YoungAdviceList blocks={lesson.blocks} />
                 </>
-              ) : null}
-              <CheckboxRow
-                label={m.lrnReview()}
-                hint={m.lrnReviewHint()}
-                checked={draft.review}
-                onChange={(review) => set("review", review)}
-              />
-              {lessonScored(draft.content) ? (
-                <FeedbackBands
-                  bands={draft.bands}
-                  onChange={(bands) => set("bands", bands)}
-                />
               ) : null}
             </DetailsSection>
             <DetailsSection title={m.lrnSectionPath()}>
@@ -721,6 +743,7 @@ export function LessonEditor({
           narration
           lessonActivities
           feedbackTiming={!draft.young}
+          language={draft.language === "auto" ? undefined : draft.language}
           collaboration={shared ? live.collaboration : undefined}
           pending={live.state === "loading"}
           replace={replace}

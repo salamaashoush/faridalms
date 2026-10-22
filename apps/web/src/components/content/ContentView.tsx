@@ -3,12 +3,13 @@ import type {
   ContentNode,
   Mention,
 } from "@faridalms/domain/content";
+import type { ContentLocale } from "@faridalms/domain/translations";
 import type { MediaWatch } from "@faridalms/editor/player";
 import type { ContentMark, Replace } from "@faridalms/editor/view";
 import type { ReactNode } from "react";
 
 import { partsTerms } from "@faridalms/domain/glossary";
-import { ContentRenderer, DocumentTermsProvider } from "@faridalms/editor/view";
+import { ContentRenderer, WholeDocumentProvider } from "@faridalms/editor/view";
 import { useQuery } from "@tanstack/react-query";
 import { useMemo } from "react";
 
@@ -55,18 +56,24 @@ function mentionHref(mention: Mention): string | null {
 
 /**
  * A document handed out in parts, as a lesson's blocks are: each part drawn
- * inside it lists the whole document's terms in its glossary.
+ * inside it lists the whole document's terms in its glossary, and reads in
+ * the language its author set.
  */
 export function WholeDocument({
   parts,
+  lang,
   children,
 }: {
   parts: readonly { type: string; content?: ContentDocument }[];
+  lang?: ContentLocale | null;
   children: ReactNode;
 }) {
-  const terms = useMemo(() => partsTerms(parts), [parts]);
+  const whole = useMemo(
+    () => ({ terms: partsTerms(parts), lang: lang ?? undefined }),
+    [parts, lang],
+  );
   return (
-    <DocumentTermsProvider value={terms}>{children}</DocumentTermsProvider>
+    <WholeDocumentProvider value={whole}>{children}</WholeDocumentProvider>
   );
 }
 
@@ -82,6 +89,7 @@ export function ContentView({
   watch,
   predicted,
   runs = true,
+  lang,
 }: {
   document: ContentDocument;
   fileUrl?: (fileId: string) => string;
@@ -100,6 +108,8 @@ export function ContentView({
   predicted?: boolean;
   /** Whether code blocks marked to run do; on paper they are only code. */
   runs?: boolean;
+  /** The language the document is written in; without it, read from its words. */
+  lang?: ContentLocale;
 }) {
   return (
     <ContentRenderer
@@ -152,6 +162,7 @@ export function ContentView({
       predicted={predicted}
       shared={SharedBlock}
       mentionHref={mentionHref}
+      lang={lang}
     />
   );
 }

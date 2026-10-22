@@ -9,6 +9,7 @@ import type {
   StudentBlock,
   Watched,
 } from "@faridalms/domain/learning";
+import type { ContentLocale } from "@faridalms/domain/translations";
 import type { MediaWatch, VideoControl } from "@faridalms/editor/player";
 
 import { allWithoutVowelMarks } from "@faridalms/domain/arabic";
@@ -192,6 +193,7 @@ function LessonBody({
   watch,
   watches = {},
   paced = null,
+  language,
 }: {
   blocks: StudentBlock[];
   checks: Record<string, CheckView>;
@@ -202,6 +204,8 @@ function LessonBody({
   watches?: Record<string, Watched>;
   /** The part a teacher leading the lesson live has opened to the class. */
   paced?: { step: number } | null;
+  /** The language the lesson teaches in, where its teacher set one. */
+  language?: ContentLocale | null;
 }) {
   const young = useContext(YoungContext);
   const stops = useMemo(() => videoStops(blocks), [blocks]);
@@ -358,7 +362,7 @@ function LessonBody({
       : undefined;
 
   return (
-    <WholeDocument parts={blocks}>
+    <WholeDocument parts={blocks} lang={language}>
       {resumeAt ? (
         <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-muted/50 px-5 py-3">
           <p className="text-sm leading-5 text-muted-foreground">
@@ -860,6 +864,7 @@ export function LessonPlayer({ lessonId }: { lessonId: string }) {
     title: data.title,
     lesson: shown.blocks.map(paperBlock),
     link: `/lessons/${lessonId}`,
+    language: data.language,
   });
   const checks = data.blocks.filter(isCheckBlock);
   const auto = checks.filter(
@@ -889,6 +894,7 @@ export function LessonPlayer({ lessonId }: { lessonId: string }) {
           driver={driver}
           readAlong={data.readAlong}
           classSounds={data.sounds}
+          language={data.language}
           position={data.position}
           onReach={reach}
           watch={watch}
@@ -986,6 +992,7 @@ export function LessonPlayer({ lessonId }: { lessonId: string }) {
                   watch={watch}
                   watches={data.watches}
                   paced={paced}
+                  language={data.language}
                 />
               </OwnProjectsContext.Provider>
             </OwnCodeContext.Provider>
@@ -1309,6 +1316,7 @@ export function LessonPreview({
           content: data.content,
           answers: true,
           link: `/lessons/${data.id}`,
+          language: data.language,
         }
       : null,
   );
@@ -1322,6 +1330,7 @@ export function LessonPreview({
           checks={checks}
           driver={driver}
           readAlong={data.readAlong}
+          language={data.language}
           onClose={edit}
           badge={m.lrnPreview()}
           retry={{
@@ -1421,6 +1430,7 @@ export function LessonPreview({
                 blocks={blocks}
                 checks={checks}
                 driver={driver}
+                language={data.language}
               />
             </ReaderContext.Provider>
           </YoungContext.Provider>

@@ -23,6 +23,7 @@ import { spells, squaresBetween } from "@faridalms/domain/wordsearch";
 import { StoredImage } from "@faridalms/editor/files";
 import { TextWithMath, textOfMath } from "@faridalms/editor/math";
 import { MathInput } from "@faridalms/editor/math-input";
+import { useDocumentLanguage } from "@faridalms/editor/view";
 import { Player } from "@faridalms/puzzles/Player";
 import { ProgramView } from "@faridalms/puzzles/ProgramView";
 import { Button } from "@faridalms/ui/button";
@@ -451,6 +452,7 @@ function CheckCard({
   const young = useContext(YoungContext);
   const mode = useContext(CheckModeContext);
   const help = useContext(CheckHelpContext);
+  const language = useDocumentLanguage();
   const view = help?.view;
   // Hints stay in view while the student tries again; a reviewed answer has none.
   const hints = mode === "review" || !view ? [] : view.hints;
@@ -478,6 +480,7 @@ function CheckCard({
           <p
             id={legendId}
             dir="auto"
+            lang={language}
             className={cn(
               "min-w-0 flex-1 font-semibold",
               young ? "text-xl leading-8" : "text-base leading-6",

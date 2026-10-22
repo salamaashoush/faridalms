@@ -136,6 +136,8 @@ export interface EditorProps {
   feedbackTiming?: boolean;
   /** Told once a live document has arrived from its room and is drawn. */
   onSynced?: () => void;
+  /** The language the document is written in; without it, read from its words. */
+  language?: "en" | "ar";
 }
 
 export default function Editor({
@@ -278,6 +280,7 @@ function Surface({
   onUploadingChange,
   synced,
   onSynced,
+  language,
 }: Omit<EditorProps, "value" | "media" | "locale" | "strings"> & {
   synced: boolean;
 }) {
@@ -448,13 +451,14 @@ function Surface({
           aria-multiline="true"
           aria-invalid={invalid}
           aria-describedby={described || undefined}
+          lang={language}
           className={editorFrame.editable(document)}
         />
         <BlockHandlePlugin anchor={anchor} />
         <CodeLanguagePlugin anchor={anchor} />
         <TablePlugin anchor={anchor} />
       </div>
-      <DirectionPlugin />
+      <DirectionPlugin language={language} />
       <PlaceholderPlugin empty={placeholder ?? strings.emptyPlaceholder} />
       <SlashMenuPlugin />
       <SelectionToolbarPlugin />

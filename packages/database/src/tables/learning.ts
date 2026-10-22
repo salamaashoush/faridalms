@@ -252,6 +252,8 @@ export const lessons = core.table.withRLS(
       .$type<"shown" | "hidden" | "choice">()
       .notNull()
       .default("shown"),
+    /** The language the lesson teaches in; none reads it from the lesson's words. */
+    language: text("language").$type<"en" | "ar">(),
     conditionLessonId: uuid("condition_lesson_id"),
     conditionAtLeast: smallint("condition_at_least"),
     conditionBelow: smallint("condition_below"),
@@ -272,6 +274,7 @@ export const lessons = core.table.withRLS(
       "vowel_marks",
       sql`vowel_marks in ('shown', 'hidden', 'choice')`,
     ),
+    ck("lessons", "language", sql`language in ('en', 'ar')`),
     ck(
       "lessons",
       "completion",

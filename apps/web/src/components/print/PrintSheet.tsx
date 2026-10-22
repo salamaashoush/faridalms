@@ -1,11 +1,13 @@
 import type { ContentDocument, ContentNode } from "@faridalms/domain/content";
 import type { LessonBlock } from "@faridalms/domain/learning";
+import type { ContentLocale } from "@faridalms/domain/translations";
 import type { CSSProperties, ReactNode } from "react";
 
 import { Dialog as DialogPrimitive } from "@base-ui/react/dialog";
 import { contentPlainText, textDirection } from "@faridalms/domain/content";
 import { emptyContent } from "@faridalms/domain/content-conversion";
 import { questionBlock } from "@faridalms/domain/lesson-content";
+import { languageDirection } from "@faridalms/domain/translations";
 import { TextWithMath } from "@faridalms/editor/math";
 import { Button } from "@faridalms/ui/button";
 import { cn } from "@faridalms/ui/cn";
@@ -376,6 +378,7 @@ export function PrintSheet({
   link,
   copies = [],
   slip,
+  language,
   onClose,
 }: {
   title: string;
@@ -392,6 +395,8 @@ export function PrintSheet({
   copies?: readonly string[];
   /** A form answered on paper: the children it may be answered for. */
   slip?: readonly string[];
+  /** The language the document is written in, where its author set one. */
+  language?: ContentLocale | null;
   onClose: () => void;
 }) {
   const user = useCurrentUser();
@@ -449,22 +454,23 @@ export function PrintSheet({
     window.print();
   };
 
-  // The paper takes the document's direction, then its title's, and only
-  // the reader's when neither has words.
+  // The paper takes the document's language, else its direction, then its
+  // title's, and only the reader's when neither has words.
   const rtl =
-    (textDirection(
-      lesson
-        ? lesson
-            .map((item) =>
-              item.type === "content"
-                ? contentPlainText(item.content)
-                : "prompt" in item
-                  ? item.prompt
-                  : "",
-            )
-            .join("\n")
-        : contentPlainText(content),
-    ) ??
+    ((language ? languageDirection(language) : null) ??
+      textDirection(
+        lesson
+          ? lesson
+              .map((item) =>
+                item.type === "content"
+                  ? contentPlainText(item.content)
+                  : "prompt" in item
+                    ? item.prompt
+                    : "",
+              )
+              .join("\n")
+          : contentPlainText(content),
+      ) ??
       textDirection(title) ??
       getTextDirection(getLocale())) === "rtl";
   const dir = rtl ? "rtl" : "ltr";
@@ -522,7 +528,7 @@ export function PrintSheet({
   };
 
   const body = lesson ? (
-    <WholeDocument parts={lesson}>
+    <WholeDocument parts={lesson} lang={language}>
       <div className="fe fe-paper grid gap-2">
         {lesson.map((item) =>
           item.type === "content" ? (
@@ -573,6 +579,7 @@ export function PrintSheet({
       replace={replace}
       locale={locale}
       runs={false}
+      lang={language ?? undefined}
     />
   );
 

@@ -1164,6 +1164,51 @@ describe("publishing a lesson", () => {
   });
 });
 
+describe("a lesson's language", () => {
+  test("is kept with the lesson and reaches its students, and none reads it from the words", async () => {
+    const { keeper } = await teachers();
+    const pupil = await student();
+    const { reading } = await lessonsOf(pupil);
+    const editing = await keeper.learning.lesson({ id: reading.id });
+    const draft = {
+      id: editing.id,
+      moduleId: editing.moduleId,
+      title: editing.title,
+      completion: editing.completion,
+      passScore: editing.passScore,
+      content: editing.content,
+      publish: true,
+    };
+    const arabic = await keeper.learning.saveLesson({
+      ...draft,
+      expectedVersion: editing.version,
+      language: "ar",
+    });
+    expect((await keeper.learning.lesson({ id: reading.id })).language).toBe(
+      "ar",
+    );
+    expect((await pupil.learning.playLesson({ id: reading.id })).language).toBe(
+      "ar",
+    );
+    await keeper.learning.saveLesson({
+      ...draft,
+      expectedVersion: arabic.version,
+    });
+    expect(
+      (await pupil.learning.playLesson({ id: reading.id })).language,
+    ).toBeNull();
+    expect(
+      await rejection(
+        keeper.learning.saveLesson({
+          ...draft,
+          expectedVersion: arabic.version + 1,
+          language: "fr" as "en",
+        }),
+      ),
+    ).toMatchObject({ code: "BAD_REQUEST" });
+  });
+});
+
 describe("lessons written as documents", () => {
   test("a lesson stored as blocks opens as one document with its question ids", async () => {
     const { keeper } = await teachers();

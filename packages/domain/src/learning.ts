@@ -48,6 +48,7 @@ import { scratchChecksSchema, scratchNotesSchema } from "./scratch-project";
 import { seededRandom } from "./seeded";
 import { MAX_QUESTION_STANDARDS } from "./standards";
 import { MAX_STROKE_POINTS, MAX_STROKES, traceResults } from "./tracing";
+import { CONTENT_LOCALES } from "./translations";
 import {
   lettersBetween,
   MAX_SEARCH_SIZE,
@@ -2995,6 +2996,8 @@ export const saveLessonSchema = v.pipe(
     review: v.optional(v.boolean(), false),
     /** Whether students read vowel marks, or choose for themselves. */
     vowelMarks: v.optional(v.picklist(VOWEL_MARKS), "shown"),
+    /** The language the lesson teaches in; none reads it from its words. */
+    language: v.optional(v.nullable(v.picklist(CONTENT_LOCALES)), null),
     /** Set out for young children: read aloud on a tap, larger answers. */
     young: v.optional(v.boolean(), false),
     /** A young lesson lights each word as the voice reads it. */

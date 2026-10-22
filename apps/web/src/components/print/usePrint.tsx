@@ -1,5 +1,6 @@
 import type { ContentDocument } from "@faridalms/domain/content";
 import type { LessonBlock } from "@faridalms/domain/learning";
+import type { ContentLocale } from "@faridalms/domain/translations";
 import type { ReactNode } from "react";
 
 import { Printer } from "lucide-react";
@@ -30,6 +31,8 @@ export interface Printable {
   copies?: readonly string[];
   /** A form answered on paper: the children it may be answered for. */
   slip?: readonly string[];
+  /** The language the document is written in, where its author set one. */
+  language?: ContentLocale | null;
 }
 
 /**

@@ -8,6 +8,10 @@ import { contentFileIds, contentPlainText } from "./content";
 export const CONTENT_LOCALES = ["en", "ar"] as const;
 export type ContentLocale = (typeof CONTENT_LOCALES)[number];
 
+/** The direction a language is written in. */
+export const languageDirection = (locale: ContentLocale): "ltr" | "rtl" =>
+  locale === "ar" ? "rtl" : "ltr";
+
 export function otherLocale(locale: ContentLocale): ContentLocale {
   return locale === "en" ? "ar" : "en";
 }
