@@ -23,8 +23,27 @@ export const SUBMISSION_FORMATS = [
   "both",
   "none",
   "quiz",
+  "discussion",
 ] as const;
 export type SubmissionFormat = (typeof SUBMISSION_FORMATS)[number];
+/** Classmates' posts a discussion can ask each student to answer. */
+export const MAX_DISCUSSION_REPLIES = 5;
+/**
+ * How a discussion runs: whether a student sees classmates' posts only once
+ * they have posted their own, as a question-and-answer forum keeps a first
+ * answer independent, and how many classmates' posts each should answer.
+ */
+export const discussionSchema = v.object({
+  postFirst: v.boolean(),
+  replies: v.pipe(
+    v.number(),
+    v.integer(),
+    v.minValue(0),
+    v.maxValue(MAX_DISCUSSION_REPLIES),
+  ),
+});
+export type DiscussionSettings = v.InferOutput<typeof discussionSchema>;
+
 /** Which attempt's score counts when a quiz may be taken more than once. */
 export const QUIZ_KEEPS = ["highest", "latest", "average", "first"] as const;
 export type QuizKeep = (typeof QUIZ_KEEPS)[number];
@@ -171,6 +190,7 @@ export const saveAssignmentSchema = v.object({
   /** Returned work shows its grade only once the student answers every comment. */
   gradeAfterAnswers: v.optional(v.boolean(), false),
   quiz: v.optional(v.nullable(quizSchema), null),
+  discussion: v.optional(v.nullable(discussionSchema), null),
 });
 export type SaveAssignmentInput = v.InferInput<typeof saveAssignmentSchema>;
 export type SaveAssignment = v.InferOutput<typeof saveAssignmentSchema>;
@@ -183,6 +203,7 @@ export type AssignmentIssue =
   | "coursework.audience_empty"
   | "coursework.brief_empty"
   | "coursework.quiz_needed"
+  | "coursework.discussion_needed"
   | "coursework.quiz_questions"
   | "coursework.quiz_incomplete"
   | "coursework.quiz_gate"
@@ -208,6 +229,8 @@ export function assignmentIssue(input: SaveAssignment): AssignmentIssue | null {
     return "coursework.rubric_needs_points";
   if ((input.submissionFormat === "quiz") !== (input.quiz !== null))
     return "coursework.quiz_needed";
+  if ((input.submissionFormat === "discussion") !== (input.discussion !== null))
+    return "coursework.discussion_needed";
   if (input.quiz) {
     if (input.rubric) return "coursework.quiz_rubric";
     if (input.brief.root.children?.some((node) => node.type === "gate"))
@@ -688,4 +711,21 @@ export const markQuizAnswerSchema = v.object({
   blockId: id,
   points: v.pipe(v.number(), v.minValue(0), v.maxValue(100)),
   feedback: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(2000)), ""),
+});
+
+export const discussionPostSchema = v.object({
+  assignmentId: id,
+  /** The post answered; a reply to a reply joins the post it hangs under. */
+  parentId: v.optional(v.union([v.literal(""), id]), ""),
+  content: contentDocumentSchema,
+});
+
+export const editDiscussionPostSchema = v.object({
+  id,
+  content: contentDocumentSchema,
+});
+
+export const hideDiscussionPostSchema = v.object({
+  id,
+  hidden: v.boolean(),
 });

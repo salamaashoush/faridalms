@@ -11,6 +11,7 @@ import { contentPlainText, sameContent } from "@faridalms/domain/content";
 import { emptyContent } from "@faridalms/domain/content-conversion";
 import {
   assignmentPhase,
+  MAX_DISCUSSION_REPLIES,
   MAX_QUIZ_ATTEMPTS,
   QUIZ_KEEPS,
   QUIZ_REVEALS,
@@ -94,6 +95,7 @@ interface Draft {
   resubmission: boolean;
   gradeAfterAnswers: boolean;
   quiz: QuizDraft;
+  discussion: { postFirst: boolean; replies: string };
 }
 
 interface QuizDraft {
@@ -123,6 +125,7 @@ const FORMATS: readonly SubmissionFormat[] = [
   "online",
   "files",
   "none",
+  "discussion",
   "quiz",
 ];
 
@@ -132,7 +135,19 @@ const FORMAT_LABEL: Record<SubmissionFormat, () => string> = {
   files: m.courseworkFormatFiles,
   none: m.courseworkFormatNone,
   quiz: m.courseworkFormatQuiz,
+  discussion: m.courseworkFormatDiscussion,
 };
+
+/** Formats whose work belongs to them once out: a quiz's answers, a discussion's posts. */
+const FIXED_FORMATS: ReadonlySet<SubmissionFormat> = new Set([
+  "quiz",
+  "discussion",
+]);
+
+const REPLY_COUNTS = Array.from(
+  { length: MAX_DISCUSSION_REPLIES + 1 },
+  (_, index) => String(index),
+);
 
 const ATTEMPTS = [
   "unlimited",
@@ -227,6 +242,7 @@ function initialDraft(
       resubmission: false,
       gradeAfterAnswers: false,
       quiz: newQuiz(),
+      discussion: { postFirst: true, replies: "2" },
     };
   return {
     classId: existing.classId,
@@ -265,6 +281,12 @@ function initialDraft(
               : String(existing.quiz.timeLimit),
         }
       : newQuiz(),
+    discussion: existing.discussion
+      ? {
+          postFirst: existing.discussion.postFirst,
+          replies: String(existing.discussion.replies),
+        }
+      : { postFirst: true, replies: "2" },
   };
 }
 
@@ -453,6 +475,7 @@ export function AssignmentEditor({
   const published = state === "published";
   const archived = state === "archived";
   const isQuiz = draft.submissionFormat === "quiz";
+  const isDiscussion = draft.submissionFormat === "discussion";
   const started = existing?.quiz?.started ?? false;
   const quizContent = quizOfBrief(draft.brief);
   const { blocking, publishing } = issuesOf(draft, started);
@@ -461,6 +484,7 @@ export function AssignmentEditor({
   const inputOf = useCallback(
     (value: Draft) => {
       const quiz = value.submissionFormat === "quiz";
+      const discussion = value.submissionFormat === "discussion";
       return {
         ...(id.current
           ? { id: id.current, expectedVersion: version.current }
@@ -483,8 +507,8 @@ export function AssignmentEditor({
           20,
           Math.max(1, Math.round(Number(value.maxFiles)) || 1),
         ),
-        resubmission: value.resubmission,
-        gradeAfterAnswers: !quiz && value.gradeAfterAnswers,
+        resubmission: !discussion && value.resubmission,
+        gradeAfterAnswers: !quiz && !discussion && value.gradeAfterAnswers,
         points: quiz ? null : value.graded ? Number(value.points) : null,
         rubric: !quiz && value.graded ? value.rubric : null,
         gradingPeriodId: value.gradingPeriodId,
@@ -502,6 +526,12 @@ export function AssignmentEditor({
                 value.quiz.timeLimit === "none"
                   ? null
                   : Number(value.quiz.timeLimit),
+            }
+          : null,
+        discussion: discussion
+          ? {
+              postFirst: value.discussion.postFirst,
+              replies: Number(value.discussion.replies),
             }
           : null,
       };
@@ -1068,17 +1098,22 @@ export function AssignmentEditor({
                 label={m.courseworkFormat()}
                 value={draft.submissionFormat}
                 options={FORMATS.filter(
-                  // Work already out cannot turn into a quiz, or a quiz into other work.
+                  // Work already out cannot turn into a quiz or a discussion, nor they into other work.
                   (value) =>
-                    value !== "quiz" ||
+                    !FIXED_FORMATS.has(value) ||
                     !published ||
-                    existing?.submissionFormat === "quiz",
+                    existing?.submissionFormat === value,
                 ).map((value) => ({ value, label: FORMAT_LABEL[value]() }))}
                 onChange={(value) => set("submissionFormat", value)}
-                disabled={published && existing?.submissionFormat === "quiz"}
+                disabled={
+                  published &&
+                  existing !== null &&
+                  FIXED_FORMATS.has(existing.submissionFormat)
+                }
               />
               {draft.submissionFormat === "files" ||
-              draft.submissionFormat === "both" ? (
+              draft.submissionFormat === "both" ||
+              isDiscussion ? (
                 <TextField
                   id="work-max-files"
                   label={m.courseworkMaxFiles()}
@@ -1114,14 +1149,14 @@ export function AssignmentEditor({
                   errors={errorOf("deduction")}
                 />
               ) : null}
-              {isQuiz ? null : (
+              {isQuiz || isDiscussion ? null : (
                 <CheckboxRow
                   label={m.courseworkResubmission()}
                   checked={draft.resubmission}
                   onChange={(next) => set("resubmission", next)}
                 />
               )}
-              {isQuiz ? null : (
+              {isQuiz || isDiscussion ? null : (
                 <CheckboxRow
                   label={m.courseworkGradeAfterAnswers()}
                   hint={m.courseworkGradeAfterAnswersHint()}
@@ -1130,7 +1165,7 @@ export function AssignmentEditor({
                 />
               )}
             </DetailsSection>
-            {isQuiz ? null : (
+            {isQuiz || isDiscussion ? null : (
               <CourseworkSetting
                 assignmentId={storedId}
                 board={
@@ -1140,6 +1175,33 @@ export function AssignmentEditor({
                 }
               />
             )}
+            {isDiscussion ? (
+              <DetailsSection title={m.discussionSection()}>
+                <CheckboxRow
+                  label={m.discussionPostFirst()}
+                  hint={m.discussionPostFirstHint()}
+                  checked={draft.discussion.postFirst}
+                  onChange={(postFirst) =>
+                    set("discussion", { ...draft.discussion, postFirst })
+                  }
+                />
+                <SelectField
+                  id="discussion-replies"
+                  label={m.discussionReplies()}
+                  value={draft.discussion.replies}
+                  options={REPLY_COUNTS.map((value) => ({
+                    value,
+                    label:
+                      value === "0"
+                        ? m.discussionRepliesNone()
+                        : formatNumber(Number(value)),
+                  }))}
+                  onChange={(replies) =>
+                    set("discussion", { ...draft.discussion, replies })
+                  }
+                />
+              </DetailsSection>
+            ) : null}
             {isQuiz ? (
               <DetailsSection title={m.quizSection()}>
                 <SelectField

@@ -62,6 +62,7 @@ import { getMessageFromError } from "~/utils/error";
 import { resultText } from "../grading/format";
 import { displayName } from "../people/format";
 import { CommentBankPicker } from "./CommentBank";
+import { DiscussionPosts } from "./Discussion";
 import { formatInstant } from "./format";
 import { QuizAttempts } from "./QuizWork";
 import { VoiceFeedback } from "./VoiceFeedback";
@@ -440,7 +441,7 @@ function GradeSheet({
               </Button>
             </div>
           ) : null}
-          {attempt && !data.quiz ? (
+          {attempt && !data.quiz && !data.discussion ? (
             <section aria-labelledby="grade-comments" className="grid gap-3">
               <div className="grid gap-0.5">
                 <h3
@@ -840,6 +841,11 @@ export function Grading({
               onMarked={() =>
                 queryClient.invalidateQueries({ queryKey: ["coursework"] })
               }
+            />
+          ) : data.discussion ? (
+            <DiscussionPosts
+              standing={data.discussion}
+              posts={data.discussion.posts}
             />
           ) : attempt ? (
             <div className="grid gap-4">

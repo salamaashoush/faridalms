@@ -73,6 +73,7 @@ import {
   moduleAudiences,
   moduleClasses,
   pacedLessons,
+  discussionPosts,
   passkeys,
   quizAnswers,
   quizDraws,
@@ -542,11 +543,22 @@ export async function completeFixture(
     startedByUserId: userId,
   });
   const [submission] = await tx
-    .select({ id: submissions.id, studentUserId: submissions.studentUserId })
+    .select({
+      id: submissions.id,
+      studentUserId: submissions.studentUserId,
+      assignmentId: submissions.assignmentId,
+    })
     .from(submissions)
     .where(eq(submissions.tenantId, tenantId))
     .limit(1);
   if (!submission) throw new Error("the development seed must run first");
+  await tx.insert(discussionPosts).values({
+    tenantId,
+    assignmentId: submission.assignmentId,
+    authorUserId: submission.studentUserId,
+    content: { root: { type: "root", version: 1, children: [] } },
+    plainText: "",
+  });
   await tx.insert(quizAnswers).values({
     tenantId,
     submissionId: submission.id,

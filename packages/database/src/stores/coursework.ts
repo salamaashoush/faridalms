@@ -48,6 +48,8 @@ export interface AssignmentRow {
   quizShuffle: boolean;
   quizTimeLimit: number | null;
   gradeAfterAnswers: boolean;
+  discussionPostFirst: boolean | null;
+  discussionReplies: number | null;
   publishedAt: string | null;
 }
 
@@ -80,6 +82,8 @@ type AssignmentRecord = {
   quiz_shuffle: boolean;
   quiz_time_limit: number | null;
   grade_after_answers: boolean;
+  discussion_post_first: boolean | null;
+  discussion_replies: number | null;
   published_at: string | null;
 };
 
@@ -90,7 +94,7 @@ const assignmentColumns = sql`a.id, a.version, a.org_id, a.class_id, a.class_typ
   to_char(a.closes_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as closes_at,
   a.late_policy, a.late_deduction_percent, a.submission_format, a.max_files, a.resubmission,
   a.points::text as points, a.rubric, a.quiz_attempts, a.quiz_keep, a.quiz_reveal, a.quiz_shuffle,
-  a.quiz_time_limit, a.grade_after_answers,
+  a.quiz_time_limit, a.grade_after_answers, a.discussion_post_first, a.discussion_replies,
   to_char(a.published_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as published_at`;
 
 function assignmentOf(row: AssignmentRecord): AssignmentRow {
@@ -123,6 +127,8 @@ function assignmentOf(row: AssignmentRecord): AssignmentRow {
     quizShuffle: row.quiz_shuffle,
     quizTimeLimit: row.quiz_time_limit,
     gradeAfterAnswers: row.grade_after_answers,
+    discussionPostFirst: row.discussion_post_first,
+    discussionReplies: row.discussion_replies,
     publishedAt: row.published_at,
   };
 }
@@ -159,6 +165,8 @@ export interface AssignmentFields {
   quizShuffle: boolean;
   quizTimeLimit: number | null;
   gradeAfterAnswers: boolean;
+  discussionPostFirst: boolean | null;
+  discussionReplies: number | null;
 }
 
 export async function insertAssignment(
@@ -175,7 +183,7 @@ export async function insertAssignment(
       grading_period_id, author_user_id, title, audience, available_from, due_at, closes_at,
       late_policy, late_deduction_percent, submission_format, max_files, resubmission, points, rubric,
       quiz_attempts, quiz_keep, quiz_reveal, quiz_shuffle, quiz_time_limit, category_id,
-      grade_after_answers)
+      grade_after_answers, discussion_post_first, discussion_replies)
     values (${input.tenantId}::uuid, ${input.orgId}::uuid, ${input.classRow.id}::uuid,
       ${input.classRow.classType}, ${input.classRow.schoolYearId}::uuid,
       ${input.gradingPeriodId}::uuid, ${input.authorUserId}::uuid, ${input.title},
@@ -184,7 +192,7 @@ export async function insertAssignment(
       ${input.submissionFormat}, ${input.maxFiles}, ${input.resubmission}, ${input.points},
       ${input.rubric}::jsonb, ${input.quizAttempts}, ${input.quizKeep}, ${input.quizReveal},
       ${input.quizShuffle}, ${input.quizTimeLimit}, ${input.categoryId}::uuid,
-      ${input.gradeAfterAnswers})
+      ${input.gradeAfterAnswers}, ${input.discussionPostFirst}, ${input.discussionReplies})
     returning id, version`);
   if (!row) throw new Error("assignment was not created");
   return row;
@@ -215,7 +223,9 @@ export async function updateAssignment(
         quiz_attempts = ${input.quizAttempts}, quiz_keep = ${input.quizKeep},
         quiz_reveal = ${input.quizReveal}, quiz_shuffle = ${input.quizShuffle},
         quiz_time_limit = ${input.quizTimeLimit},
-        grade_after_answers = ${input.gradeAfterAnswers}
+        grade_after_answers = ${input.gradeAfterAnswers},
+        discussion_post_first = ${input.discussionPostFirst},
+        discussion_replies = ${input.discussionReplies}
     where tenant_id = ${input.tenantId}::uuid and id = ${input.id}::uuid
       and version = ${input.expectedVersion} and status = 'active' and state <> 'archived'
     returning version`);
@@ -1851,4 +1861,131 @@ export async function handedInWork(
     submittedAt: row.submitted_at,
     isLate: row.is_late,
   }));
+}
+
+export interface DiscussionPostRow {
+  id: string;
+  authorUserId: string;
+  authorNameEn: string | null;
+  authorNameAr: string | null;
+  parentPostId: string | null;
+  content: Record<string, unknown>;
+  createdAt: string;
+  editedAt: string | null;
+  hidden: boolean;
+  redacted: boolean;
+}
+
+type DiscussionPostRecord = {
+  id: string;
+  author_user_id: string;
+  author_en: string | null;
+  author_ar: string | null;
+  parent_post_id: string | null;
+  content: Record<string, unknown>;
+  created_at: string;
+  edited_at: string | null;
+  hidden: boolean;
+  redacted: boolean;
+};
+
+const postOf = (row: DiscussionPostRecord): DiscussionPostRow => ({
+  id: row.id,
+  authorUserId: row.author_user_id,
+  authorNameEn: row.author_en,
+  authorNameAr: row.author_ar,
+  parentPostId: row.parent_post_id,
+  content: row.content,
+  createdAt: row.created_at,
+  editedAt: row.edited_at,
+  hidden: row.hidden,
+  redacted: row.redacted,
+});
+
+const postColumns = sql`p.id, p.author_user_id, u.full_name_en as author_en, u.full_name_ar as author_ar,
+  p.parent_post_id, p.content, ${isoOf(sql`p.created_at`)} as created_at,
+  ${isoOf(sql`p.edited_at`)} as edited_at, p.hidden_at is not null as hidden,
+  p.redacted_at is not null as redacted`;
+
+/** A discussion's posts in the order they were written. */
+export async function discussionPostsOf(
+  tx: Tx,
+  input: { tenantId: string; assignmentId: string },
+): Promise<DiscussionPostRow[]> {
+  const rows = await tx.execute<DiscussionPostRecord>(sql`
+    select ${postColumns}
+    from core.discussion_posts p
+    join core.users u on u.tenant_id = p.tenant_id and u.id = p.author_user_id
+    where p.tenant_id = ${input.tenantId}::uuid and p.assignment_id = ${input.assignmentId}::uuid
+      and p.status = 'active'
+    order by p.created_at, p.id`);
+  return rows.map(postOf);
+}
+
+export async function discussionPostById(
+  tx: Tx,
+  tenantId: string,
+  id: string,
+): Promise<(DiscussionPostRow & { assignmentId: string }) | null> {
+  const [row] = await tx.execute<
+    DiscussionPostRecord & { assignment_id: string }
+  >(sql`
+    select ${postColumns}, p.assignment_id
+    from core.discussion_posts p
+    join core.users u on u.tenant_id = p.tenant_id and u.id = p.author_user_id
+    where p.tenant_id = ${tenantId}::uuid and p.id = ${id}::uuid and p.status = 'active'`);
+  return row ? { ...postOf(row), assignmentId: row.assignment_id } : null;
+}
+
+export async function insertDiscussionPost(
+  tx: Tx,
+  input: {
+    id: string;
+    tenantId: string;
+    assignmentId: string;
+    authorId: string;
+    parentId: string | null;
+    content: Record<string, unknown>;
+    plainText: string;
+  },
+): Promise<void> {
+  await tx.execute(sql`
+    insert into core.discussion_posts (id, tenant_id, assignment_id, author_user_id, parent_post_id,
+      content, plain_text)
+    values (${input.id}::uuid, ${input.tenantId}::uuid, ${input.assignmentId}::uuid,
+      ${input.authorId}::uuid, ${input.parentId}::uuid, ${JSON.stringify(input.content)}::text::jsonb,
+      ${input.plainText})`);
+}
+
+/** Changes a post its author wrote, while it is neither hidden nor emptied. */
+export async function updateDiscussionPost(
+  tx: Tx,
+  input: {
+    tenantId: string;
+    id: string;
+    authorId: string;
+    content: Record<string, unknown>;
+    plainText: string;
+  },
+): Promise<boolean> {
+  const rows = await tx.execute(sql`
+    update core.discussion_posts
+    set content = ${JSON.stringify(input.content)}::text::jsonb, plain_text = ${input.plainText},
+        edited_at = statement_timestamp()
+    where tenant_id = ${input.tenantId}::uuid and id = ${input.id}::uuid
+      and author_user_id = ${input.authorId}::uuid and status = 'active'
+      and hidden_at is null and redacted_at is null
+    returning 1`);
+  return rows.length > 0;
+}
+
+export async function hideDiscussionPost(
+  tx: Tx,
+  input: { tenantId: string; id: string; userId: string; hidden: boolean },
+): Promise<void> {
+  await tx.execute(sql`
+    update core.discussion_posts
+    set hidden_at = ${input.hidden ? sql`coalesce(hidden_at, statement_timestamp())` : sql`null`},
+        hidden_by_user_id = ${input.hidden ? sql`coalesce(hidden_by_user_id, ${input.userId}::uuid)` : sql`null`}
+    where tenant_id = ${input.tenantId}::uuid and id = ${input.id}::uuid and status = 'active'`);
 }

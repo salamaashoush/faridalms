@@ -2090,3 +2090,150 @@ describe("using an assignment again", () => {
     ).toMatchObject({ code: "NOT_FOUND" });
   });
 });
+
+describe("discussions", () => {
+  test("students answer first, then read and reply; posting hands the work in and the teacher moderates and marks", async () => {
+    const teacher = await arabicTeacher();
+    const first = await sessionFor("northwind", login("student"));
+    const me = await first.api.identity.currentUser();
+    const target = await classOfStudent(teacher.api, me.id);
+    const { roster } = await teacher.api.coursework.groups({
+      classId: target.id,
+    });
+    let second: Awaited<ReturnType<typeof sessionFor>> | null = null;
+    let classmate = "";
+    for (let index = 1; index < 40 && !second; index++) {
+      const session = await sessionFor("northwind", login("student", 0, index));
+      const who = await session.api.identity.currentUser();
+      if (who.id !== me.id && roster.some((pupil) => pupil.id === who.id)) {
+        second = session;
+        classmate = who.id;
+      }
+    }
+    if (!second) throw new Error("no classmate signs in");
+    const saved = await teacher.api.coursework.save(
+      draft(target.id, "Is the river a friend?", {
+        submissionFormat: "discussion",
+        discussion: { postFirst: true, replies: 1 },
+      }),
+    );
+    await teacher.api.coursework.publish({
+      id: saved.id,
+      expectedVersion: saved.version,
+    });
+
+    const opening = await teacher.api.coursework.post({
+      assignmentId: saved.id,
+      content: plainContent("Think of the Nile in your answer."),
+    });
+    const sketch = await upload(second, "document_media", "delta.txt");
+    const floods = plainContent("A friend that floods.");
+    floods.root.children?.push({
+      type: "file",
+      version: 1,
+      format: "",
+      fileId: sketch,
+      name: "delta.txt",
+      mime: "text/plain",
+      bytes: 22,
+    });
+    const theirs = await second.api.coursework.post({
+      assignmentId: saved.id,
+      content: floods,
+    });
+    const opens = async (token: string) =>
+      (await raw("northwind", token, `/v1/files/${sketch}/content`)).status;
+    expect(await opens(first.token)).toBe(404);
+    expect(await opens(teacher.token)).toBe(200);
+    // Before answering, the student sees the teacher's post but no classmate's.
+    const waiting = await first.api.coursework.discussion({
+      assignmentId: saved.id,
+    });
+    expect(waiting.waiting).toBe(true);
+    expect(waiting.posts.map((item) => item.id)).toEqual([opening.id]);
+    expect(
+      await rejection(
+        first.api.coursework.post({
+          assignmentId: saved.id,
+          parentId: opening.id,
+          content: plainContent("Replying first."),
+        }),
+      ),
+    ).toMatchObject({ message: "coursework.post_first" });
+    expect(
+      await rejection(
+        first.api.coursework.post({
+          assignmentId: saved.id,
+          content: plainContent("   "),
+        }),
+      ),
+    ).toMatchObject({ message: "coursework.post_empty" });
+
+    const mine = await first.api.coursework.post({
+      assignmentId: saved.id,
+      content: plainContent("It gives us water and farms."),
+    });
+    expect((await first.api.coursework.work({ id: saved.id })).state).toBe(
+      "handed_in",
+    );
+    expect(await opens(first.token)).toBe(200);
+    const reply = await first.api.coursework.post({
+      assignmentId: saved.id,
+      parentId: theirs.id,
+      content: plainContent("Floods made the soil rich."),
+    });
+    const after = await first.api.coursework.discussion({
+      assignmentId: saved.id,
+    });
+    expect(after).toMatchObject({ waiting: false, posted: 1, replied: 1 });
+    expect(after.posts.find((item) => item.id === reply.id)?.parentId).toBe(
+      theirs.id,
+    );
+    expect(
+      await rejection(
+        second.api.coursework.editPost({
+          id: mine.id,
+          content: plainContent("Not mine to change."),
+        }),
+      ),
+    ).toMatchObject({ code: "NOT_FOUND" });
+
+    // A hidden post leaves the class's view; its author still reads it.
+    await teacher.api.coursework.hidePost({ id: theirs.id, hidden: true });
+    const hidden = (
+      await first.api.coursework.discussion({ assignmentId: saved.id })
+    ).posts.find((item) => item.id === theirs.id);
+    expect(hidden).toMatchObject({ hidden: true, content: null });
+    expect(await opens(first.token)).toBe(404);
+    const own = (
+      await second.api.coursework.discussion({ assignmentId: saved.id })
+    ).posts.find((item) => item.id === theirs.id);
+    expect(own?.content).not.toBeNull();
+
+    const marking = await teacher.api.coursework.grading({
+      assignmentId: saved.id,
+      studentId: me.id,
+    });
+    expect(marking.discussion).toMatchObject({
+      replies: 1,
+      posted: 1,
+      replied: 1,
+    });
+    expect(
+      marking.discussion?.posts.find((item) => item.id === reply.id)?.answers
+        ?.excerpt,
+    ).toBe("A friend that floods. delta.txt");
+    expect(marking.attempts).toHaveLength(1);
+    const record = await teacher.api.coursework.editor({ id: saved.id });
+    expect(
+      await rejection(
+        teacher.api.coursework.save({
+          ...draft(target.id, "Is the river a friend?"),
+          id: saved.id,
+          expectedVersion: record.version,
+        }),
+      ),
+    ).toMatchObject({ message: "coursework.format_fixed" });
+    expect(classmate).not.toBe("");
+  });
+});

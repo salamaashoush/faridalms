@@ -596,6 +596,13 @@ describe("erasing a student's work", () => {
           values (${t}::uuid, ${lesson.id}::uuid, ${work.student}::uuid, ${block}::uuid, 1, 'written',
                   ${JSON.stringify({ type: "written", text: "My family lives by the river." })}::text::jsonb,
                   0.5, 'marked', 'Say more about the river.', ${work.student}::uuid)`);
+        // What they posted in a class discussion.
+        await tx.execute(sql`
+          insert into core.discussion_posts (tenant_id, assignment_id, author_user_id, content, plain_text)
+          select ${t}::uuid, assignment_id, ${work.student}::uuid,
+                 ${JSON.stringify({ root: { type: "root", version: 1, children: [] } })}::text::jsonb,
+                 'The river floods in spring.'
+          from core.submissions where tenant_id = ${t}::uuid and id = ${work.submission}::uuid`);
         await tx.execute(sql`
           insert into core.lesson_runs (tenant_id, lesson_id, student_user_id, block_id, attempt, code, outcome)
           values (${t}::uuid, ${lesson.id}::uuid, ${work.student}::uuid, ${block}::uuid, 1,
@@ -728,6 +735,19 @@ describe("erasing a student's work", () => {
           redacted: true,
         });
         expect(Number(answered?.fraction)).toBe(0.5);
+        // A post stays in its thread, emptied of what they wrote.
+        const posts = await tx.execute<{
+          content: Record<string, unknown>;
+          plain_text: string;
+          redacted: boolean;
+        }>(sql`
+          select content, plain_text, redacted_at is not null as redacted
+          from core.discussion_posts
+          where tenant_id = ${t}::uuid and author_user_id = ${work.student}::uuid`);
+        // The fixture's post is theirs too, so every one they wrote is checked.
+        expect(posts.length).toBeGreaterThanOrEqual(2);
+        for (const post of posts)
+          expect(post).toEqual({ content: {}, plain_text: "", redacted: true });
         const [left] = await tx.execute<{
           runs: number;
           code: number;

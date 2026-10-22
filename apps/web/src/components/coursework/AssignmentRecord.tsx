@@ -73,6 +73,7 @@ import { getMessageFromError } from "~/utils/error";
 
 import { classTitle } from "../classes/format";
 import { displayName } from "../people/format";
+import { Discussion } from "./Discussion";
 import {
   formatInstant,
   formatStamp,
@@ -84,7 +85,7 @@ import {
 import { QuizAnswers } from "./QuizAnswers";
 import { UseAgainSheet } from "./UseAgain";
 
-export const RECORD_TABS = ["brief", "work", "answers"] as const;
+export const RECORD_TABS = ["brief", "discussion", "work", "answers"] as const;
 export type RecordTabValue = (typeof RECORD_TABS)[number];
 
 type Data = Awaited<
@@ -115,6 +116,7 @@ function Settings({
     files: m.courseworkFormatFiles(),
     none: m.courseworkFormatNone(),
     quiz: m.courseworkFormatQuiz(),
+    discussion: m.courseworkFormatDiscussion(),
   }[data.submissionFormat];
   const when = (iso: string | null) =>
     iso ? formatInstant(iso, user.school.timeZone) : null;
@@ -657,8 +659,11 @@ export function AssignmentRecord({
   );
   // A quiz's answers only its teacher can judge are marked question by question.
   const byQuestion = data.submissionFormat === "quiz" && data.access.grade;
+  const talking = data.submissionFormat === "discussion" && data.access.grade;
   const tabs: RecordTab<RecordTabValue>[] = RECORD_TABS.filter(
-    (value) => value !== "answers" || byQuestion,
+    (value) =>
+      (value !== "answers" || byQuestion) &&
+      (value !== "discussion" || talking),
   ).map((value) => ({
     value,
     label:
@@ -666,10 +671,12 @@ export function AssignmentRecord({
         ? m.courseworkBrief()
         : value === "answers"
           ? m.lrnAnswersTab()
-          : m.courseworkStudentWorkCount({
-              count: formatNumber(handedIn),
-              total: formatNumber(data.work.length),
-            }),
+          : value === "discussion"
+            ? m.discussionSection()
+            : m.courseworkStudentWorkCount({
+                count: formatNumber(handedIn),
+                total: formatNumber(data.work.length),
+              }),
   }));
   return (
     <div
@@ -773,6 +780,8 @@ export function AssignmentRecord({
           <Work data={data} />
         ) : tab === "answers" && byQuestion ? (
           <QuizAnswers assignmentId={data.id} />
+        ) : tab === "discussion" && talking ? (
+          <Discussion assignmentId={data.id} tab />
         ) : (
           <Brief data={data} />
         )}

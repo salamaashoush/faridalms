@@ -51,6 +51,7 @@ import { getMessageFromError } from "~/utils/error";
 
 import { classTitle } from "../classes/format";
 import { resultText } from "../grading/format";
+import { Discussion } from "./Discussion";
 import { formatInstant, STATE_LABEL, STATE_TONE } from "./format";
 import { QuizWork } from "./QuizWork";
 import { useDocumentMedia } from "./useDocumentMedia";
@@ -484,6 +485,11 @@ export function LearnerWork({ assignmentId }: { assignmentId: string }) {
       label: m.courseworkExamFact(),
       value: isolatedLine([sessionName(standing.session), standing.component]),
     });
+  // A discussion's posts are its work, shown above; its attempt carries only the grade.
+  const attempts =
+    data.assignment.submissionFormat === "discussion"
+      ? data.attempts.filter((attempt) => attempt.assessment)
+      : data.attempts;
   const dueAt = data.assignment.dueAt;
   const due = (locale: Locale) =>
     dueAt
@@ -541,6 +547,8 @@ export function LearnerWork({ assignmentId }: { assignmentId: string }) {
       )}
       {data.quiz ? (
         <QuizWork key={data.attempts.length} data={data} />
+      ) : data.assignment.submissionFormat === "discussion" ? (
+        <Discussion assignmentId={data.assignment.id} />
       ) : (
         <YourWork
           key={`${data.submission.version}-${data.attempts.length}`}
@@ -548,10 +556,10 @@ export function LearnerWork({ assignmentId }: { assignmentId: string }) {
         />
       )}
       {data.quiz ? null : <OutstandingDeclaration data={data} />}
-      {data.attempts.length > 0 ? (
+      {attempts.length > 0 ? (
         <RecordSection variant="page" title={m.courseworkAttempts()}>
           <RecordList>
-            {data.attempts.toReversed().map((attempt) => (
+            {attempts.toReversed().map((attempt) => (
               <AttemptItem key={attempt.id} data={data} attempt={attempt} />
             ))}
           </RecordList>

@@ -109,6 +109,14 @@ export function getMessageFromError(error: unknown): string {
         return m.errFormatFixed();
       case "coursework.not_quiz":
         return m.errNotQuiz();
+      case "coursework.post_empty":
+        return m.errPostEmpty();
+      case "coursework.post_first":
+        return m.errPostFirst();
+      case "coursework.post_hidden":
+        return m.errPostHidden();
+      case "coursework.discussion_needed":
+        return m.errDiscussionNeeded();
       case "coursework.closed":
         return m.errorCourseworkClosed();
       case "coursework.nothing_to_hand_in":

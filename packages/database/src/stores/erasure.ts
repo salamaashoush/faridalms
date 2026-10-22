@@ -281,6 +281,15 @@ export async function eraseSubject(
         where tenant_id = ${t}::uuid and student_user_id = ${s}::uuid and redacted_at is null
         returning 1`,
   );
+  // What they wrote in discussions goes; the post stays empty in its
+  // place, so the replies under it keep their thread.
+  await run(
+    "discussion_posts",
+    sql`update core.discussion_posts set content = '{}', plain_text = '',
+          redacted_at = statement_timestamp()
+        where tenant_id = ${t}::uuid and author_user_id = ${s}::uuid and redacted_at is null
+        returning 1`,
+  );
   await run(
     "quiz_answers",
     sql`update core.quiz_answers set status = 'tobedeleted', metadata = '{}', response = '{}',

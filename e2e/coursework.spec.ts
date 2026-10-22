@@ -333,3 +333,88 @@ test("a teacher marks one quiz question for several students at once", async ({
   await expect(page.getByText(/^Marked: 1 of \d+ points?$/)).toHaveCount(2);
   await expect(page.getByText(/to mark/)).toHaveCount(0);
 });
+
+test("a discussion opens classmates' posts once a student answers, and counts their replies", async ({
+  browser,
+  page,
+}) => {
+  const title = `Nile ${crypto.randomUUID().slice(0, 6)}`;
+  await signInWith(page, TEACHER, PASSWORD, "/teach");
+  await page.goto("/teach/assignment-editor");
+  await untilHydrated(page);
+  await page.locator("#work-class").click();
+  await page.getByRole("option", { name: "8A Arabic", exact: true }).click();
+  await page.getByRole("textbox", { name: "Assignment title" }).fill(title);
+  await page.locator("[contenteditable=true]").first().click();
+  await page.keyboard.type("Was the Nile flood more a friend or a danger?");
+  await page.locator("#work-format").click();
+  await page.getByRole("option", { name: "A class discussion" }).click();
+  await page.locator("#discussion-replies").click();
+  await page.getByRole("option", { name: "1", exact: true }).click();
+  await page.getByRole("button", { name: "Assign", exact: true }).click();
+  await expect(page).toHaveURL(/\/assignments\/[a-f0-9-]+/);
+  const address = new URL(page.url()).pathname;
+
+  const classmateContext = await browser.newContext();
+  const classmate = await classmateContext.newPage();
+  await signInWith(
+    classmate,
+    "student1008@northwind.example.com",
+    PASSWORD,
+    ACCOUNTS.student.home,
+  );
+  await classmate.goto(address);
+  await untilHydrated(classmate);
+  await classmate.getByRole("textbox", { name: "Your answer" }).click();
+  await classmate.keyboard.type("A danger: high floods washed villages away.");
+  await classmate.getByRole("button", { name: "Post", exact: true }).click();
+  await expect(classmate.getByText("Answer posted")).toBeVisible();
+  await classmateContext.close();
+
+  const studentContext = await browser.newContext();
+  const student = await studentContext.newPage();
+  await signInWith(
+    student,
+    ACCOUNTS.student.email,
+    PASSWORD,
+    ACCOUNTS.student.home,
+  );
+  await student.goto(address);
+  await untilHydrated(student);
+  await expect(student.getByText(/Post your answer first/)).toBeVisible();
+  await expect(student.getByText("washed villages away")).toHaveCount(0);
+  await student.getByRole("textbox", { name: "Your answer" }).click();
+  await student.keyboard.type("A friend: the silt fed the farms.");
+  await student.getByRole("button", { name: "Post", exact: true }).click();
+  await expect(student.getByText(/washed villages away/)).toBeVisible();
+  await student.getByRole("button", { name: /^Reply to (?!Yasmin)/ }).click();
+  await student.keyboard.type("But the same floods made the soil rich.");
+  await student.getByRole("button", { name: "Send", exact: true }).click();
+  await expect(
+    student.getByText("Replies to classmates: 1 of 1"),
+  ).toBeVisible();
+
+  await page.goto(`${address}?tab=discussion`);
+  await untilHydrated(page);
+  await page.getByRole("button", { name: "Post actions" }).first().click();
+  await page.getByRole("menuitem", { name: "Hide from the class" }).click();
+  await expect(page.getByText("Post hidden")).toBeVisible();
+  await student.reload();
+  await untilHydrated(student);
+  await expect(student.getByText(/washed villages away/)).toHaveCount(0);
+  await expect(student.getByText("Hidden by the teacher.")).toBeVisible();
+  await studentContext.close();
+
+  await page.goto(`${address}?tab=work`);
+  await untilHydrated(page);
+  await page
+    .getByRole("tabpanel")
+    .getByRole("row", { name: /Yasmin Sabry/ })
+    .getByRole("button", { name: "Grade", exact: true })
+    .click();
+  await expect(page).toHaveURL(/\/teach\/grading/);
+  await expect(page.getByText(/^Replying to /)).toBeVisible();
+  await expect(
+    page.getByText("But the same floods made the soil rich."),
+  ).toBeVisible();
+});

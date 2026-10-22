@@ -353,6 +353,19 @@ Scratch Text to Speech, Translate and tutorials.
 
 1. **Discussions**: a class or module discussion as a document kind, with
    replies, grading when asked and moderation.
+   Done: a class discussion is a kind of coursework (`discussion_posts`),
+   its brief the prompt. Each post is an editor document, pictures and
+   files included, and a reply hangs under the post it answers. Students
+   can be asked to post before they read their classmates, as a question
+   and answer forum keeps a first answer independent, and to reply to a
+   number of classmates; their page counts both. A student's first post
+   hands the work in, so it is marked as any other, the marking page
+   listing their posts with the words each reply answers. A teacher posts
+   too, and hides a post from the class while its author still reads it.
+   It closes with the hand-in rules, and erasure empties a student's posts
+   in place.
+   Left: a discussion in a module rather than a class, rating or liking
+   posts, and telling students of new replies.
 2. **Peer review**: students review each other's work against a rubric,
    anonymously when the teacher chooses.
 3. **Translate a brief in place** for a reader in another language.

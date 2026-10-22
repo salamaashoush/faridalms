@@ -28,6 +28,7 @@ import {
   fk,
   instant,
   pk,
+  redact,
   tenantColumns,
   uq,
 } from "./conventions";
@@ -110,7 +111,13 @@ export const classGroupMembers = core.table.withRLS(
 
 export type AssignmentState = "draft" | "published" | "archived";
 export type LatePolicy = "accept" | "deduct" | "refuse";
-export type SubmissionFormat = "online" | "files" | "both" | "none" | "quiz";
+export type SubmissionFormat =
+  | "online"
+  | "files"
+  | "both"
+  | "none"
+  | "quiz"
+  | "discussion";
 export type QuizKeep = "highest" | "latest" | "average" | "first";
 export type QuizReveal = "answers" | "marks" | "returned";
 export type Audience = "class" | "selected";
@@ -160,6 +167,12 @@ export const assignments = core.table.withRLS(
     quizTimeLimit: smallint("quiz_time_limit"),
     /** Returned work shows its grade only once every comment is answered. */
     gradeAfterAnswers: boolean("grade_after_answers").notNull().default(false),
+    /**
+     * For a discussion: whether a student sees classmates' posts only once
+     * they have posted, and how many classmates' posts each should answer.
+     */
+    discussionPostFirst: boolean("discussion_post_first"),
+    discussionReplies: smallint("discussion_replies"),
     publishedAt: instant("published_at"),
     archivedAt: instant("archived_at"),
     ...entityColumns(),
@@ -209,7 +222,12 @@ export const assignments = core.table.withRLS(
     ck(
       "assignments",
       "submission_format",
-      sql`submission_format in ('online', 'files', 'both', 'none', 'quiz')`,
+      sql`submission_format in ('online', 'files', 'both', 'none', 'quiz', 'discussion')`,
+    ),
+    ck(
+      "assignments",
+      "discussion",
+      sql`(submission_format = 'discussion') = (discussion_post_first is not null and discussion_replies is not null) and (discussion_replies is null or discussion_replies between 0 and 5)`,
     ),
     ck(
       "assignments",
@@ -683,6 +701,71 @@ export const workCommentReplies = core.table.withRLS(
       .on(t.tenantId, t.commentId)
       .where(sql`status = 'active'`),
     ...entityProfile(),
+  ],
+);
+
+/**
+ * A post in a discussion set as coursework: a student's answer to the
+ * prompt, a reply to someone's post, or the teacher joining in. Replies hang
+ * one level under the post they answer. A teacher hides a post rather than
+ * deleting it, and erasing its author empties it in place, so the replies
+ * under it keep their thread.
+ */
+export const discussionPosts = core.table.withRLS(
+  "discussion_posts",
+  {
+    ...tenantColumns(),
+    assignmentId: uuid("assignment_id").notNull(),
+    authorUserId: uuid("author_user_id").notNull(),
+    parentPostId: uuid("parent_post_id"),
+    content: jsonb("content").$type<Record<string, unknown>>().notNull(),
+    plainText: text("plain_text").notNull().default(""),
+    editedAt: instant("edited_at"),
+    hiddenAt: instant("hidden_at"),
+    hiddenByUserId: uuid("hidden_by_user_id"),
+    redactedAt: instant("redacted_at"),
+    ...entityColumns(),
+  },
+  (t): PgTableExtraConfigValue[] => [
+    pk("discussion_posts", t.tenantId, t.id),
+    ...baseConstraints("discussion_posts", t, tenants),
+    fk(
+      "discussion_posts",
+      [t.tenantId, t.assignmentId],
+      [assignments.tenantId, assignments.id],
+    ),
+    fk(
+      "discussion_posts",
+      [t.tenantId, t.authorUserId],
+      [users.tenantId, users.id],
+    ),
+    fk("discussion_posts", [t.tenantId, t.parentPostId], [t.tenantId, t.id]),
+    fk(
+      "discussion_posts",
+      [t.tenantId, t.hiddenByUserId],
+      [users.tenantId, users.id],
+    ),
+    ck(
+      "discussion_posts",
+      "content",
+      sql`jsonb_typeof(content) = 'object' and octet_length(content::text) <= 131072`,
+    ),
+    ck("discussion_posts", "plain_text", sql`char_length(plain_text) <= 20000`),
+    ck(
+      "discussion_posts",
+      "hidden",
+      sql`(hidden_at is null) = (hidden_by_user_id is null)`,
+    ),
+    ck(
+      "discussion_posts",
+      "redacted",
+      sql`redacted_at is null or (content = '{}' and plain_text = '')`,
+    ),
+    index("discussion_posts_assignment_idx")
+      .on(t.tenantId, t.assignmentId, t.createdAt)
+      .where(sql`status = 'active'`),
+    ...entityProfile(),
+    ...redact(erasureOf("author_user_id")),
   ],
 );
 

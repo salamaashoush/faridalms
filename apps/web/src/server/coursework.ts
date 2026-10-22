@@ -1,6 +1,9 @@
 import {
   answerCommentSchema,
   assessSchema,
+  discussionPostSchema,
+  editDiscussionPostSchema,
+  hideDiscussionPostSchema,
   extendSchema,
   feedbackRecordingSchema,
   handInSchema,
@@ -195,6 +198,22 @@ export const undoHandIn = createServerFn({ method: "POST" })
 export const saveClassGroup = createServerFn({ method: "POST" })
   .validator(checked(saveGroupSchema))
   .handler(({ data }) => backend().coursework.saveClassGroup(data));
+
+export const getDiscussion = createServerFn({ method: "GET" })
+  .validator(checked(v.object({ assignmentId: uuid })))
+  .handler(({ data }) => record(backend().coursework.discussion(data)));
+
+export const postInDiscussion = createServerFn({ method: "POST" })
+  .validator(checked(discussionPostSchema))
+  .handler(({ data }) => backend().coursework.post(data));
+
+export const editDiscussionPost = createServerFn({ method: "POST" })
+  .validator(checked(editDiscussionPostSchema))
+  .handler(({ data }) => backend().coursework.editPost(data));
+
+export const hideDiscussionPost = createServerFn({ method: "POST" })
+  .validator(checked(hideDiscussionPostSchema))
+  .handler(({ data }) => backend().coursework.hidePost(data));
 
 export const saveRubric = createServerFn({ method: "POST" })
   .validator(checked(saveRubricSchema))

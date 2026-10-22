@@ -39,12 +39,16 @@ import {
   commentById,
   commentsOf,
   courseworkHost,
+  discussionPostById,
+  discussionPostsOf,
   ensureSubmission,
   groupsOf,
+  hideDiscussionPost,
   insertAssignment,
   insertAttempt,
   insertBankComment,
   insertComment,
+  insertDiscussionPost,
   insertReply,
   isRecipient,
   learnerAssignments,
@@ -72,6 +76,7 @@ import {
   updateAssignment,
   updateBankComment,
   updateComment,
+  updateDiscussionPost,
   withdrawAttempt,
 } from "@faridalms/database/stores/coursework";
 import {
@@ -130,6 +135,9 @@ import {
   canHandIn,
   attemptScore,
   canTakeQuiz,
+  discussionPostSchema,
+  editDiscussionPostSchema,
+  hideDiscussionPostSchema,
   sittingEnds,
   timeIsUp,
   effectiveScore,
@@ -563,6 +571,14 @@ export const editor = readProcedure
                 )),
             }
           : null,
+      discussion:
+        assignment.discussionPostFirst !== null &&
+        assignment.discussionReplies !== null
+          ? {
+              postFirst: assignment.discussionPostFirst,
+              replies: assignment.discussionReplies,
+            }
+          : null,
       selection:
         assignment.audience === "selected"
           ? selection
@@ -595,6 +611,8 @@ function fieldsOf(input: SaveAssignment) {
     quizTimeLimit: input.quiz?.timeLimit ?? null,
     // A quiz marks itself, so it has no comments to answer first.
     gradeAfterAnswers: !input.quiz && input.gradeAfterAnswers,
+    discussionPostFirst: input.discussion?.postFirst ?? null,
+    discussionReplies: input.discussion?.replies ?? null,
   };
 }
 
@@ -663,6 +681,8 @@ export const reuse = writeProcedure
       quizShuffle: source.quizShuffle,
       quizTimeLimit: source.quizTimeLimit,
       gradeAfterAnswers: source.gradeAfterAnswers,
+      discussionPostFirst: source.discussionPostFirst,
+      discussionReplies: source.discussionReplies,
     });
     const brief = await documentOf(tx, context.tenantId, {
       type: "assignment",
@@ -737,10 +757,13 @@ export const save = writeProcedure
         throw new ORPCError("BAD_REQUEST", {
           message: "coursework.class_fixed",
         });
+      // Once out, a quiz's answers and a discussion's posts belong to it.
       if (
         existing.state === "published" &&
-        (existing.submissionFormat === "quiz") !==
-          (input.submissionFormat === "quiz")
+        ((existing.submissionFormat === "quiz") !==
+          (input.submissionFormat === "quiz") ||
+          (existing.submissionFormat === "discussion") !==
+            (input.submissionFormat === "discussion"))
       )
         throw new ORPCError("CONFLICT", {
           message: "coursework.format_fixed",
@@ -1362,6 +1385,10 @@ export const grading = readProcedure
         : null;
     return {
       quiz,
+      discussion:
+        assignment.submissionFormat === "discussion"
+          ? await postsOfStudent(context, assignment, input.studentId)
+          : null,
       assignment: {
         id: assignment.id,
         title: assignment.title,
@@ -1837,6 +1864,7 @@ export const work = readProcedure
       canUndo:
         can(context, "own-work:submit") &&
         assignment.submissionFormat !== "quiz" &&
+        assignment.submissionFormat !== "discussion" &&
         row.attemptId !== null &&
         row.assessmentId === null,
       now: context.now.toISOString(),
@@ -2056,6 +2084,11 @@ export const handIn = writeProcedure
     if (!row) throw new ORPCError("NOT_FOUND");
     if (assignment.submissionFormat === "quiz")
       return handInQuiz(context, { assignment, dueAt, submission, row });
+    // A discussion is handed in by posting in it.
+    if (assignment.submissionFormat === "discussion")
+      throw new ORPCError("BAD_REQUEST", {
+        message: "coursework.nothing_to_hand_in",
+      });
     if (
       row.excused ||
       !canHandIn(
@@ -2226,7 +2259,12 @@ export const undoHandIn = writeProcedure
   .input(v.object({ assignmentId: id }))
   .handler(async ({ input, context }) => {
     const { assignment } = await learnerAssignment(context, input.assignmentId);
-    if (assignment.submissionFormat === "quiz")
+    // A quiz's attempt and a discussion's posts are already in front of
+    // the teacher and the class.
+    if (
+      assignment.submissionFormat === "quiz" ||
+      assignment.submissionFormat === "discussion"
+    )
       throw new ORPCError("CONFLICT", { message: "coursework.cannot_undo" });
     const tx = context.tx;
     const [row] = await studentWork(tx, {
@@ -2816,4 +2854,359 @@ export const quizAnswers = readProcedure
         files: (response.files ?? null) as KeptFiles | null,
       })),
     };
+  });
+
+type Viewer =
+  | { teacher: true }
+  | { teacher: false; studentId: string; dueAt: string | null };
+
+/**
+ * Who may take part in a discussion and as whom: a teacher of its class, who
+ * reads every post and moderates, or a student it is set for, once it is
+ * open to them.
+ */
+async function discussionOf(context: UnitContext, assignmentId: string) {
+  const stored = await assignmentById(
+    context.tx,
+    context.tenantId,
+    assignmentId,
+  );
+  if (!stored || stored.submissionFormat !== "discussion")
+    throw new ORPCError("NOT_FOUND");
+  if (can(context, "submissions:grade")) {
+    const teaching = await taughtAssignment(context, assignmentId).catch(
+      () => null,
+    );
+    if (teaching)
+      return {
+        assignment: teaching,
+        dueAt: teaching.dueAt,
+        viewer: { teacher: true } as Viewer,
+      };
+  }
+  const { assignment, dueAt } = await learnerAssignment(context, assignmentId);
+  if (
+    assignment.availableFrom &&
+    Date.parse(assignment.availableFrom) > context.now.getTime()
+  )
+    throw new ORPCError("NOT_FOUND");
+  return {
+    assignment,
+    dueAt,
+    viewer: {
+      teacher: false,
+      studentId: context.actor.userId,
+      dueAt,
+    } as Viewer,
+  };
+}
+
+/** A discussion's posts as one reader may see them, with what they have done in it. */
+async function discussionView(
+  context: UnitContext,
+  assignment: AssignmentRow,
+  viewer: Viewer,
+) {
+  const [posts, roster] = await Promise.all([
+    discussionPostsOf(context.tx, {
+      tenantId: context.tenantId,
+      assignmentId: assignment.id,
+    }),
+    studentWork(context.tx, {
+      tenantId: context.tenantId,
+      assignmentId: assignment.id,
+    }),
+  ]);
+  const students = new Set(roster.map((row) => row.studentId));
+  const me = viewer.teacher ? null : viewer.studentId;
+  const authorOf = new Map(posts.map((post) => [post.id, post.authorUserId]));
+  const own = posts.filter((post) => post.authorUserId === me);
+  // Until they have posted, a student reads only the teacher's posts and
+  // their own when the discussion asks for a first answer of their own.
+  const waiting =
+    me !== null &&
+    assignment.discussionPostFirst === true &&
+    !own.some((post) => post.parentPostId === null);
+  const shown = posts.filter(
+    (post) =>
+      !waiting || post.authorUserId === me || !students.has(post.authorUserId),
+  );
+  // A student posts while they could hand in, so their own due date and
+  // the late rule close it; its teacher posts while it is out.
+  const closed = viewer.teacher
+    ? assignment.state !== "published"
+    : !["assigned", "past_due"].includes(
+        assignmentPhase({ ...assignment, dueAt: viewer.dueAt }, context.now),
+      );
+  return {
+    postFirst: assignment.discussionPostFirst ?? false,
+    replies: assignment.discussionReplies ?? 0,
+    waiting,
+    closed,
+    moderates: viewer.teacher,
+    posted: own.filter((post) => post.parentPostId === null).length,
+    replied: own.filter((post) => {
+      const parent = post.parentPostId ? authorOf.get(post.parentPostId) : null;
+      return Boolean(parent && parent !== me && students.has(parent));
+    }).length,
+    posts: shown.map((post) => {
+      const withheld =
+        post.redacted ||
+        (post.hidden && !viewer.teacher && post.authorUserId !== me);
+      return {
+        id: post.id,
+        parentId: post.parentPostId,
+        authorId: post.authorUserId,
+        authorNameEn: post.authorNameEn,
+        authorNameAr: post.authorNameAr,
+        teacher: !students.has(post.authorUserId),
+        mine: post.authorUserId === me,
+        content: withheld ? null : (post.content as unknown as ContentDocument),
+        createdAt: post.createdAt,
+        editedAt: post.editedAt,
+        hidden: post.hidden,
+        removed: post.redacted,
+      };
+    }),
+  };
+}
+
+/** A post's words on one line, cut short, as a reply quotes what it answers. */
+const excerptOf = (content: ContentDocument | null) => {
+  const text = content
+    ? contentPlainText(content).replaceAll(/\s+/g, " ").trim()
+    : "";
+  return text.length > 160 ? `${text.slice(0, 159)}…` : text;
+};
+
+/**
+ * What one student posted in a discussion, for marking: each post, and for a
+ * reply the words it answers, with how far they met what was asked.
+ */
+async function postsOfStudent(
+  context: UnitContext,
+  assignment: AssignmentRow,
+  studentId: string,
+) {
+  const view = await discussionView(context, assignment, { teacher: true });
+  const byId = new Map(view.posts.map((item) => [item.id, item]));
+  const own = view.posts.filter((item) => item.authorId === studentId);
+  return {
+    replies: view.replies,
+    posted: own.filter((item) => item.parentId === null).length,
+    replied: own.filter((item) => {
+      const parent = item.parentId ? byId.get(item.parentId) : undefined;
+      return Boolean(
+        parent && parent.authorId !== studentId && !parent.teacher,
+      );
+    }).length,
+    posts: own.map((item) => {
+      const parent = item.parentId ? byId.get(item.parentId) : undefined;
+      return {
+        ...item,
+        answers: parent
+          ? {
+              authorNameEn: parent.authorNameEn,
+              authorNameAr: parent.authorNameAr,
+              excerpt: excerptOf(parent.content),
+            }
+          : null,
+      };
+    }),
+  };
+}
+
+/** A discussion set as coursework, for a teacher of its class or a student taking part. */
+export const discussion = readProcedure
+  .input(v.object({ assignmentId: id }))
+  .handler(async ({ input, context }) => {
+    const { assignment, viewer } = await discussionOf(
+      context,
+      input.assignmentId,
+    );
+    return discussionView(context, assignment, viewer);
+  });
+
+const postedText = (content: ContentDocument) => {
+  const text = contentPlainText(content).trim();
+  if (!text)
+    throw new ORPCError("BAD_REQUEST", { message: "coursework.post_empty" });
+  return text;
+};
+
+/** A post keeps the pictures and files written into it, as many as the assignment allows. */
+async function placedPost(
+  context: UnitContext,
+  assignment: AssignmentRow,
+  postId: string,
+  content: ContentDocument,
+) {
+  const placed = await placeMedia(
+    context,
+    { type: "discussion_post", id: postId },
+    content as unknown as Record<string, unknown>,
+    contentFileIds(content),
+  );
+  if (placed.mediaIds.length > assignment.maxFiles)
+    throw new ORPCError("BAD_REQUEST", {
+      message: "coursework.too_many_files",
+    });
+  return placed.content;
+}
+
+// A post's files open to whoever reads the post, and only those it still shows.
+registerHostReader("discussion_post", async (context, postId, file) => {
+  const found = await discussionPostById(context.tx, context.tenantId, postId);
+  if (!found) return false;
+  try {
+    const { assignment, viewer } = await discussionOf(
+      context,
+      found.assignmentId,
+    );
+    const view = await discussionView(context, assignment, viewer);
+    const shown = view.posts.find((item) => item.id === postId)?.content;
+    return Boolean(shown && (!file || contentFileIds(shown).includes(file.id)));
+  } catch {
+    return false;
+  }
+});
+
+/**
+ * Posts in a discussion: an answer to its prompt, or a reply hung under the
+ * post it answers. A student's first post hands their work in, so the
+ * teacher marks it as any other.
+ */
+export const post = writeProcedure
+  .input(discussionPostSchema)
+  .handler(async ({ input, context }) => {
+    const { assignment, dueAt, viewer } = await discussionOf(
+      context,
+      input.assignmentId,
+    );
+    const view = await discussionView(context, assignment, viewer);
+    if (view.closed)
+      throw new ORPCError("CONFLICT", { message: "coursework.closed" });
+    const plainText = postedText(input.content);
+    let parentId: string | null = null;
+    if (input.parentId) {
+      const parent = await discussionPostById(
+        context.tx,
+        context.tenantId,
+        input.parentId,
+      );
+      if (
+        !parent ||
+        parent.assignmentId !== assignment.id ||
+        !view.posts.some((item) => item.id === parent.id)
+      )
+        throw new ORPCError("NOT_FOUND");
+      parentId = parent.parentPostId ?? parent.id;
+    }
+    if (view.waiting && parentId !== null)
+      throw new ORPCError("CONFLICT", { message: "coursework.post_first" });
+    const postId = Bun.randomUUIDv7();
+    await insertDiscussionPost(context.tx, {
+      id: postId,
+      tenantId: context.tenantId,
+      assignmentId: assignment.id,
+      authorId: context.actor.userId,
+      parentId,
+      content: await placedPost(context, assignment, postId, input.content),
+      plainText,
+    });
+    if (!viewer.teacher) {
+      const submission = await ensureSubmission(context.tx, {
+        tenantId: context.tenantId,
+        assignmentId: assignment.id,
+        studentId: viewer.studentId,
+      });
+      const [row] = await studentWork(context.tx, {
+        tenantId: context.tenantId,
+        assignmentId: assignment.id,
+        studentId: viewer.studentId,
+      });
+      if (row && row.attempts === 0) {
+        await insertAttempt(context.tx, {
+          tenantId: context.tenantId,
+          submissionId: submission.id,
+          studentId: viewer.studentId,
+          number: 1,
+          isLate: isLate(dueAt, context.now),
+          userId: context.actor.userId,
+        });
+        await touchSubmission(context.tx, {
+          tenantId: context.tenantId,
+          id: submission.id,
+          expectedVersion: submission.version,
+          state: "submitted",
+          needsRevision: false,
+        });
+      }
+    }
+    await audit(context, {
+      action: "discussion.post",
+      objectType: "assignment",
+      objectId: assignment.id,
+      ...(viewer.teacher ? {} : { studentUserId: viewer.studentId }),
+      details: { postId, reply: parentId !== null },
+    });
+    return { id: postId };
+  });
+
+/** Its author changes a post, while the discussion is open and it is not hidden. */
+export const editPost = writeProcedure
+  .input(editDiscussionPostSchema)
+  .handler(async ({ input, context }) => {
+    const found = await discussionPostById(
+      context.tx,
+      context.tenantId,
+      input.id,
+    );
+    if (!found || found.authorUserId !== context.actor.userId)
+      throw new ORPCError("NOT_FOUND");
+    const { assignment, viewer } = await discussionOf(
+      context,
+      found.assignmentId,
+    );
+    const view = await discussionView(context, assignment, viewer);
+    if (view.closed)
+      throw new ORPCError("CONFLICT", { message: "coursework.closed" });
+    const plainText = postedText(input.content);
+    const changed = await updateDiscussionPost(context.tx, {
+      tenantId: context.tenantId,
+      id: found.id,
+      authorId: context.actor.userId,
+      content: await placedPost(context, assignment, found.id, input.content),
+      plainText,
+    });
+    if (!changed)
+      throw new ORPCError("CONFLICT", { message: "coursework.post_hidden" });
+    return { edited: true };
+  });
+
+/** A teacher hides a post from the class, or shows it again; its author still reads it. */
+export const hidePost = writeProcedure
+  .input(hideDiscussionPostSchema)
+  .handler(async ({ input, context }) => {
+    requireCapability(context, "submissions:grade");
+    const found = await discussionPostById(
+      context.tx,
+      context.tenantId,
+      input.id,
+    );
+    if (!found) throw new ORPCError("NOT_FOUND");
+    await taughtAssignment(context, found.assignmentId);
+    await hideDiscussionPost(context.tx, {
+      tenantId: context.tenantId,
+      id: found.id,
+      userId: context.actor.userId,
+      hidden: input.hidden,
+    });
+    await audit(context, {
+      action: input.hidden ? "discussion.hide" : "discussion.show",
+      objectType: "assignment",
+      objectId: found.assignmentId,
+      details: { postId: found.id, authorId: found.authorUserId },
+    });
+    return { hidden: input.hidden };
   });
