@@ -1905,6 +1905,92 @@ describe("quizzes", () => {
     expect(JSON.stringify(checks)).not.toContain("القاهرة");
   });
 
+  test("a practice quiz checks each answer at once with its tries and hints, and marks what they left", async () => {
+    const teacher = await arabicTeacher();
+    const student = await sessionFor("northwind", login("student"));
+    const me = await student.api.identity.currentUser();
+    const target = await classOfStudent(teacher.api, me.id);
+    const right = uuid();
+    const wrong = uuid();
+    const choice = {
+      id: uuid(),
+      type: "choice" as const,
+      prompt: "Which is a noun?",
+      points: 3,
+      hints: ["A thing you can touch."],
+      explanation: "A book is a thing.",
+      tries: 2,
+      options: [
+        { id: right, text: "Book", feedback: "" },
+        { id: wrong, text: "Run", feedback: "A verb." },
+      ],
+      correctOptionIds: [right],
+      multiple: false,
+      shuffle: false,
+    };
+    const saved = await teacher.api.coursework.save(
+      draft(target.id, "Practice nouns", {
+        submissionFormat: "quiz",
+        points: null,
+        brief: briefWithQuiz(plainContent("Try each one."), {
+          version: 2,
+          blocks: [choice],
+        }),
+        quiz: {
+          attempts: null,
+          keep: "highest",
+          reveal: "answers",
+          shuffle: false,
+          practice: true,
+        },
+      }),
+    );
+    await teacher.api.coursework.publish({
+      id: saved.id,
+      expectedVersion: saved.version,
+    });
+    const opened = await student.api.coursework.work({ id: saved.id });
+    expect(opened.quiz).toMatchObject({
+      practice: true,
+      practised: { [choice.id]: { tries: 0, askable: 1, key: null } },
+    });
+    const step = (
+      kind: { kind: "hint" } | { kind: "answer"; response: LessonResponse },
+    ) =>
+      student.api.coursework.practiseQuiz({
+        assignmentId: saved.id,
+        blockId: choice.id,
+        step: kind,
+      });
+    const missed = await step({
+      kind: "answer",
+      response: { type: "choice", optionIds: [wrong] },
+    });
+    expect(missed.check).toMatchObject({
+      correct: false,
+      feedback: ["A verb."],
+      hints: ["A thing you can touch."],
+      triesLeft: 1,
+      key: null,
+    });
+    const found = await step({
+      kind: "answer",
+      response: { type: "choice", optionIds: [right] },
+    });
+    expect(found.check).toMatchObject({ correct: true, key: [right] });
+    expect(await rejection(step({ kind: "hint" }))).toMatchObject({
+      message: "learning.settled",
+    });
+    const before = await student.api.coursework.work({ id: saved.id });
+    await student.api.coursework.handIn({
+      assignmentId: saved.id,
+      expectedVersion: before.submission.version,
+    });
+    const after = await student.api.coursework.work({ id: saved.id });
+    // Right on the second try keeps two thirds of its three points.
+    expect(after.quiz?.results[0]?.score).toBeCloseTo(2, 1);
+  });
+
   test("a quiz shown only when returned keeps its results back until then", async () => {
     const { teacher, student, me, saved, choice, right } =
       await quizFor("returned");

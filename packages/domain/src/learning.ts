@@ -2940,6 +2940,10 @@ export interface QuizAnswer {
   fraction: number | null;
   state: "draft" | "marked" | "needs_marking";
   feedback: string | null;
+  /** In a practice quiz: answers checked, hints asked for, and whether the answer was shown. */
+  tries?: number;
+  hints?: number;
+  revealed?: boolean;
 }
 
 /**

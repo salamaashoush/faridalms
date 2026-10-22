@@ -196,6 +196,17 @@ Sources: [../research/course-design.md](../research/course-design.md),
    Left: code exercises, which need a fresh run against changed tests.
 7. **Quiz reveals and practice**: "which were wrong, with feedback" as a
    reveal, and a practice mode with tries and hints.
+   Done: a quiz can show which answers were wrong with the feedback on each
+   choice but not the answers. Only a quiz kept until returned opens its
+   answers on return; before, a quiz marked whole at hand-in showed them
+   whatever its teacher chose. A quiz can be for practice
+   (`assignments.quiz_practice`): each question is checked as it is
+   answered, with its tries, hints and Show answer, as in a lesson; its
+   answer keeps the tries and hints (`quiz_answers.tries`, `hints`,
+   `revealed`) and earns at hand-in what they left. Its results read as the
+   student left each question. Questions its teacher marks, and code
+   exercises, are kept for hand-in as in any quiz.
+   Left: code exercises checked at once in a practice quiz.
 8. **Overall feedback in bands** for a practice set's score.
 9. **Suggested checks** made from a document, held as unreviewed until a
    teacher accepts each, so publishing waits for that review.

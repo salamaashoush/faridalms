@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import type { AutoBlock, LessonDocument } from "./learning";
 
-import { practiceItems, practiceView } from "./practice";
+import { practiceItems, practiceStanding, practiceView } from "./practice";
 
 const base = {
   points: 1,
@@ -105,5 +105,52 @@ describe("practiceView", () => {
       tries: 1,
       key: ["q-right"],
     });
+  });
+});
+
+describe("a practice quiz question", () => {
+  const asked = choice("q");
+  const right = { type: "choice" as const, optionIds: ["q-right"] };
+  const wrong = { type: "choice" as const, optionIds: ["q-wrong"] };
+
+  it("reads as a lesson question, its hint opened by the miss", () => {
+    const missed = practiceStanding(asked, {
+      response: wrong,
+      tries: 1,
+      hints: 0,
+      revealed: false,
+    });
+    expect(missed.view).toMatchObject({
+      correct: false,
+      triesLeft: 1,
+      hints: ["Think of the sky."],
+      key: null,
+    });
+    expect(missed.credit).toBe(0);
+  });
+
+  it("leaves the credit its tries and hints earn", () => {
+    const later = practiceStanding(asked, {
+      response: right,
+      tries: 2,
+      hints: 0,
+      revealed: false,
+    });
+    expect(later.view).toMatchObject({ correct: true, key: ["q-right"] });
+    expect(later.credit).toBeCloseTo(2 / 3);
+    const helped = practiceStanding(asked, {
+      response: right,
+      tries: 1,
+      hints: 1,
+      revealed: false,
+    });
+    expect(helped.credit).toBeCloseTo(2 / 3);
+    const shown = practiceStanding(asked, {
+      response: null,
+      tries: 0,
+      hints: 0,
+      revealed: true,
+    });
+    expect(shown).toMatchObject({ credit: 0, view: { revealed: true } });
   });
 });

@@ -165,6 +165,8 @@ export const assignments = core.table.withRLS(
     quizShuffle: boolean("quiz_shuffle").notNull().default(false),
     /** Minutes each attempt runs from when it begins; empty for no limit. */
     quizTimeLimit: smallint("quiz_time_limit"),
+    /** A quiz for practice: each question checked as it is answered, with tries and hints. */
+    quizPractice: boolean("quiz_practice").notNull().default(false),
     /** Returned work shows its grade only once every comment is answered. */
     gradeAfterAnswers: boolean("grade_after_answers").notNull().default(false),
     /**
@@ -233,6 +235,11 @@ export const assignments = core.table.withRLS(
       "assignments",
       "quiz",
       sql`(submission_format = 'quiz') = (quiz_keep is not null and quiz_reveal is not null) and (quiz_attempts is null or quiz_attempts between 1 and 10) and (quiz_keep is null or quiz_keep in ('highest', 'latest', 'average', 'first')) and (quiz_reveal is null or quiz_reveal in ('answers', 'feedback', 'marks', 'returned'))`,
+    ),
+    ck(
+      "assignments",
+      "quiz_practice",
+      sql`not quiz_practice or submission_format = 'quiz'`,
     ),
     ck("assignments", "max_files", sql`max_files between 1 and 20`),
     fk(
@@ -787,6 +794,10 @@ export const quizAnswers = core.table.withRLS(
     response: jsonb("response").$type<Record<string, unknown>>().notNull(),
     /** From 0 to 1 once marked. */
     fraction: numeric("fraction", { precision: 5, scale: 4, mode: "number" }),
+    /** In a practice quiz: answers checked, hints asked for, and whether the answer was shown. */
+    tries: smallint("tries").notNull().default(0),
+    hints: smallint("hints").notNull().default(0),
+    revealed: boolean("revealed").notNull().default(false),
     state: text("state").$type<QuizAnswerState>().notNull().default("draft"),
     feedback: text("feedback"),
     markedByUserId: uuid("marked_by_user_id"),
@@ -825,6 +836,11 @@ export const quizAnswers = core.table.withRLS(
       "quiz_answers",
       "feedback",
       sql`feedback is null or char_length(feedback) between 1 and 2000`,
+    ),
+    ck(
+      "quiz_answers",
+      "practice",
+      sql`tries between 0 and 100 and hints between 0 and 10`,
     ),
     uniqueIndex("quiz_answers_key")
       .on(t.tenantId, t.submissionId, t.attempt, t.blockId)

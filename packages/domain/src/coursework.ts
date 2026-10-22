@@ -141,6 +141,8 @@ export const quizSchema = v.object({
   reveal: v.picklist(QUIZ_REVEALS),
   /** Each student meets the questions in their own order. */
   shuffle: v.boolean(),
+  /** Each question is checked as it is answered, with its tries and hints, as in a lesson. */
+  practice: v.optional(v.boolean(), false),
   /** Minutes an attempt runs from when it begins; null for no limit. */
   timeLimit: v.optional(
     v.nullable(
@@ -705,6 +707,17 @@ export const saveQuizProgramSchema = v.object({
   assignmentId: id,
   blockId: id,
   code: v.pipe(v.string(), v.maxLength(MAX_PROGRAM_CHARS)),
+});
+
+/** A step on one question of a practice quiz: an answer to check, a hint, or the answer shown. */
+export const practiseQuizSchema = v.object({
+  assignmentId: id,
+  blockId: id,
+  step: v.variant("kind", [
+    v.object({ kind: v.literal("answer"), response: responseSchema }),
+    v.object({ kind: v.literal("hint") }),
+    v.object({ kind: v.literal("reveal") }),
+  ]),
 });
 
 export const markQuizAnswerSchema = v.object({

@@ -6,12 +6,14 @@ import type {
 import type { ContentDocument, ContentNode } from "@faridalms/domain/content";
 import type {
   CheckBlock,
+  CheckView,
   DrawBlock,
   LessonDocument,
   MarkedBlock,
   LessonResponse,
   QuizAnswer,
 } from "@faridalms/domain/learning";
+import type { PracticeKept } from "@faridalms/domain/practice";
 
 import { drawFromBank } from "@faridalms/database/stores/bank";
 import {
@@ -58,6 +60,7 @@ import {
   holdsQuestions,
   quizOfBrief,
 } from "@faridalms/domain/lesson-content";
+import { practised, practiceStanding } from "@faridalms/domain/practice";
 import { ORPCError } from "@orpc/server";
 import * as v from "valibot";
 
@@ -363,6 +366,35 @@ export async function answersByAttempt(
   return byAttempt;
 }
 
+/** How a practice quiz's student stands on one question, from the answer kept. */
+export function keptOf(answer: QuizAnswer | undefined): PracticeKept {
+  const response = answer ? v.safeParse(responseSchema, answer.response) : null;
+  return {
+    response: response?.success ? response.output : null,
+    tries: answer?.tries ?? 0,
+    hints: answer?.hints ?? 0,
+    revealed: answer?.revealed ?? false,
+  };
+}
+
+/** Each question of a practice quiz attempt as its student stands on it. */
+export function practiceViews(
+  quiz: LessonDocument,
+  answers: readonly QuizAnswer[],
+): Record<string, CheckView> {
+  return Object.fromEntries(
+    checkBlocks(quiz)
+      .filter(practised)
+      .map((block) => [
+        block.id,
+        practiceStanding(
+          block,
+          keptOf(answers.find((answer) => answer.blockId === block.id)),
+        ).view,
+      ]),
+  );
+}
+
 const fractionsOf = (answers: readonly QuizAnswer[]) =>
   Object.fromEntries(
     answers.map((answer) => [answer.blockId, answer.fraction]),
@@ -493,6 +525,16 @@ export async function handInAttempt(
       const block = blocks.find((item) => item.id === answer.blockId);
       const response = v.safeParse(responseSchema, answer.response);
       if (!block) return [];
+      // A practice quiz's question was checked as it was answered, and
+      // earns what its tries and hints left it.
+      if (input.assignment.quizPractice && practised(block))
+        return [
+          {
+            blockId: block.id,
+            fraction: practiceStanding(block, keptOf(answer)).credit,
+            state: "marked",
+          },
+        ];
       if (isAuto(block))
         return [
           {

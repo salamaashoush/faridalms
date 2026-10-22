@@ -15,6 +15,10 @@ export interface QuizAnswerRow {
   state: QuizAnswerState;
   feedback: string | null;
   updatedAt: string;
+  /** In a practice quiz: answers checked, hints asked for, and whether the answer was shown. */
+  tries: number;
+  hints: number;
+  revealed: boolean;
 }
 
 /** A student's answers on a submission, every attempt or one, oldest attempt first. */
@@ -30,9 +34,12 @@ export async function quizAnswersOf(
     state: QuizAnswerState;
     feedback: string | null;
     updated_at: string;
+    tries: number;
+    hints: number;
+    revealed: boolean;
   }>(sql`
     select attempt, block_id, response, fraction, state, feedback,
-      ${isoOf(sql`date_last_modified`)} as updated_at
+      ${isoOf(sql`date_last_modified`)} as updated_at, tries, hints, revealed
     from core.quiz_answers
     where tenant_id = ${input.tenantId}::uuid and submission_id = ${input.submissionId}::uuid
       and status = 'active'
@@ -46,6 +53,9 @@ export async function quizAnswersOf(
     state: row.state,
     feedback: row.feedback,
     updatedAt: row.updated_at,
+    tries: row.tries,
+    hints: row.hints,
+    revealed: row.revealed,
   }));
 }
 
@@ -141,6 +151,37 @@ export async function saveQuizAnswer(
       ${input.attempt}, ${input.blockId}::uuid, ${input.response}::jsonb)
     on conflict (tenant_id, submission_id, attempt, block_id) where status = 'active' do update
       set response = excluded.response
+      where core.quiz_answers.state = 'draft'`);
+}
+
+/**
+ * Keeps how a student stands on one question of a practice quiz: the last
+ * answer checked, the tries and hints so far, and whether the answer was
+ * shown. Answers already marked are never touched.
+ */
+export async function keepPracticeAnswer(
+  tx: Tx,
+  input: {
+    tenantId: string;
+    submissionId: string;
+    studentId: string;
+    attempt: number;
+    blockId: string;
+    response: Record<string, unknown>;
+    tries: number;
+    hints: number;
+    revealed: boolean;
+  },
+): Promise<void> {
+  await tx.execute(sql`
+    insert into core.quiz_answers (tenant_id, submission_id, student_user_id, attempt, block_id,
+      response, tries, hints, revealed)
+    values (${input.tenantId}::uuid, ${input.submissionId}::uuid, ${input.studentId}::uuid,
+      ${input.attempt}, ${input.blockId}::uuid, ${input.response}::jsonb, ${input.tries},
+      ${input.hints}, ${input.revealed})
+    on conflict (tenant_id, submission_id, attempt, block_id) where status = 'active' do update
+      set response = excluded.response, tries = excluded.tries, hints = excluded.hints,
+        revealed = excluded.revealed
       where core.quiz_answers.state = 'draft'`);
 }
 

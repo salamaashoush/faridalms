@@ -8,6 +8,7 @@ import {
   feedbackRecordingSchema,
   handInSchema,
   markQuizAnswerSchema,
+  practiseQuizSchema,
   publishSchema,
   removeCommentSchema,
   reusableSchema,
@@ -182,6 +183,10 @@ export const saveQuizAnswer = createServerFn({ method: "POST" })
         })
       : backend().coursework.saveQuizAnswer(data),
   );
+
+export const practiseQuiz = createServerFn({ method: "POST" })
+  .validator(checked(practiseQuizSchema))
+  .handler(({ data }) => backend().coursework.practiseQuiz(data));
 
 export const startQuiz = createServerFn({ method: "POST" })
   .validator(checked(v.object({ assignmentId: uuid })))

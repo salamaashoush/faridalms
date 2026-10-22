@@ -105,6 +105,7 @@ interface QuizDraft {
   shuffle: boolean;
   /** Minutes, or "none" for no time limit. */
   timeLimit: string;
+  practice: boolean;
 }
 
 const KEEP_LABEL: Record<QuizKeep, () => string> = {
@@ -211,6 +212,7 @@ const newQuiz = (): QuizDraft => ({
   reveal: "answers",
   shuffle: false,
   timeLimit: "none",
+  practice: false,
 });
 
 function initialDraft(
@@ -280,6 +282,7 @@ function initialDraft(
             existing.quiz.timeLimit === null
               ? "none"
               : String(existing.quiz.timeLimit),
+          practice: existing.quiz.practice,
         }
       : newQuiz(),
     discussion: existing.discussion
@@ -521,8 +524,10 @@ export function AssignmentEditor({
                   ? null
                   : Number(value.quiz.attempts),
               keep: value.quiz.keep,
-              reveal: value.quiz.reveal,
+              // A practice quiz shows each answer as it is checked.
+              reveal: value.quiz.practice ? "answers" : value.quiz.reveal,
               shuffle: value.quiz.shuffle,
+              practice: value.quiz.practice,
               timeLimit:
                 value.quiz.timeLimit === "none"
                   ? null
@@ -1230,17 +1235,25 @@ export function AssignmentEditor({
                     onChange={(value) => setQuiz("keep", value)}
                   />
                 )}
-                <SelectField
-                  id="quiz-reveal"
-                  label={m.quizReveal()}
-                  hint={m.quizRevealHint()}
-                  value={draft.quiz.reveal}
-                  options={QUIZ_REVEALS.map((value) => ({
-                    value,
-                    label: REVEAL_LABEL[value](),
-                  }))}
-                  onChange={(value) => setQuiz("reveal", value)}
+                <CheckboxRow
+                  label={m.quizPractice()}
+                  hint={m.quizPracticeHint()}
+                  checked={draft.quiz.practice}
+                  onChange={(value) => setQuiz("practice", value)}
                 />
+                {draft.quiz.practice ? null : (
+                  <SelectField
+                    id="quiz-reveal"
+                    label={m.quizReveal()}
+                    hint={m.quizRevealHint()}
+                    value={draft.quiz.reveal}
+                    options={QUIZ_REVEALS.map((value) => ({
+                      value,
+                      label: REVEAL_LABEL[value](),
+                    }))}
+                    onChange={(value) => setQuiz("reveal", value)}
+                  />
+                )}
                 <SelectField
                   id="quiz-time-limit"
                   label={m.quizTimeLimit()}

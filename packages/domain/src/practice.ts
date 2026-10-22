@@ -2,6 +2,8 @@ import * as v from "valibot";
 
 import type {
   AutoBlock,
+  CheckBlock,
+  CheckState,
   CheckView,
   LessonDocument,
   LessonResponse,
@@ -12,7 +14,9 @@ import type {
 import {
   autoBlocks,
   checkStates,
+  creditOf,
   describeCheck,
+  isAuto,
   markResponse,
   responseSchema,
   shuffled,
@@ -148,3 +152,89 @@ export const practiceCheckSchema = v.object({
     v.object({ kind: v.literal("reveal") }),
   ]),
 });
+
+/** What a practice quiz keeps of one question: the last answer, and how it came. */
+export interface PracticeKept {
+  response: LessonResponse | null;
+  tries: number;
+  hints: number;
+  revealed: boolean;
+}
+
+/** Whether a question in a practice quiz is checked as it is answered; a program is marked by running it. */
+export const practised = (block: CheckBlock): block is AutoBlock =>
+  isAuto(block) && block.type !== "program";
+
+/**
+ * A practice quiz question as its student stands on it: its tries before
+ * the last were misses, or it would have settled, so it reads as a lesson
+ * question would, with the credit its tries and hints leave.
+ */
+export function practiceStanding(
+  block: AutoBlock,
+  kept: PracticeKept,
+): { state: CheckState; view: CheckView; credit: number } {
+  const now = { ...block, feedbackAt: "now" as const };
+  const tried = (
+    at: number,
+    fraction: number,
+    response: object,
+  ): StoredTry => ({
+    blockId: block.id,
+    try: at,
+    state: "answered",
+    fraction,
+    response: response as Record<string, unknown>,
+    feedback: null,
+  });
+  const rows: StoredTry[] = [
+    ...Array.from({ length: Math.max(0, kept.tries - 1) }, (_, index) =>
+      tried(index + 1, 0, {}),
+    ),
+    ...(kept.tries > 0 && kept.response
+      ? [
+          tried(
+            kept.tries,
+            markResponse(now, kept.response).fraction,
+            kept.response,
+          ),
+        ]
+      : []),
+    ...Array.from({ length: kept.hints }, (): StoredTry => ({
+      blockId: block.id,
+      try: Math.max(1, kept.tries),
+      state: "hint",
+      fraction: null,
+      response: {},
+      feedback: null,
+    })),
+    ...(kept.revealed
+      ? [
+          {
+            blockId: block.id,
+            try: Math.max(1, kept.tries),
+            state: "revealed" as const,
+            fraction: 0,
+            response: {},
+            feedback: null,
+          },
+        ]
+      : []),
+  ];
+  const state = checkStates({ version: 2, blocks: [now] }, rows)[block.id] ?? {
+    tries: 0,
+    fraction: 0,
+    correct: false,
+    revealed: false,
+    marked: false,
+    firstTryCorrect: false,
+    once: false,
+    hints: 0,
+    review: null,
+  };
+  return {
+    state,
+    view: describeCheck(now, rows, state),
+    credit: creditOf(state),
+  };
+}

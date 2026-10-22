@@ -109,6 +109,8 @@ export function getMessageFromError(error: unknown): string {
         return m.errFormatFixed();
       case "coursework.not_quiz":
         return m.errNotQuiz();
+      case "coursework.not_practice":
+        return m.errNotPractice();
       case "coursework.post_empty":
         return m.errPostEmpty();
       case "coursework.post_first":

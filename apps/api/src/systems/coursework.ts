@@ -99,6 +99,7 @@ import {
 } from "@faridalms/database/stores/files";
 import { classCategories } from "@faridalms/database/stores/grading";
 import {
+  keepPracticeAnswer,
   markQuizAnswer as storeQuizMark,
   quizAnswersOf,
   quizAnswersToMark,
@@ -145,6 +146,7 @@ import {
   isLate,
   learnerState,
   markQuizAnswerSchema,
+  practiseQuizSchema,
   publishIssues,
   removeCommentSchema,
   replyToCommentSchema,
@@ -180,6 +182,7 @@ import {
   studentQuiz,
 } from "@faridalms/domain/learning";
 import { quizIntro, quizOfBrief } from "@faridalms/domain/lesson-content";
+import { practised, practiceStanding } from "@faridalms/domain/practice";
 import { ORPCError } from "@orpc/server";
 import * as v from "valibot";
 
@@ -219,9 +222,11 @@ import {
   drawsOf,
   handInAttempt,
   keepStartedQuestions,
+  keptOf,
   markedQuestions,
   publishKeptApart,
   ownResponsesOf,
+  practiceViews,
   publishedQuiz,
   rescoreQuiz,
   responsesOf,
@@ -562,6 +567,7 @@ export const editor = readProcedure
               reveal: assignment.quizReveal,
               shuffle: assignment.quizShuffle,
               timeLimit: assignment.quizTimeLimit,
+              practice: assignment.quizPractice,
               started:
                 assignment.state !== "draft" &&
                 (await quizStarted(
@@ -609,6 +615,7 @@ function fieldsOf(input: SaveAssignment) {
     quizReveal: input.quiz?.reveal ?? null,
     quizShuffle: input.quiz?.shuffle ?? false,
     quizTimeLimit: input.quiz?.timeLimit ?? null,
+    quizPractice: input.quiz?.practice ?? false,
     // A quiz marks itself, so it has no comments to answer first.
     gradeAfterAnswers: !input.quiz && input.gradeAfterAnswers,
     discussionPostFirst: input.discussion?.postFirst ?? null,
@@ -680,6 +687,7 @@ export const reuse = writeProcedure
       quizReveal: source.quizReveal,
       quizShuffle: source.quizShuffle,
       quizTimeLimit: source.quizTimeLimit,
+      quizPractice: source.quizPractice,
       gradeAfterAnswers: source.gradeAfterAnswers,
       discussionPostFirst: source.discussionPostFirst,
       discussionReplies: source.discussionReplies,
@@ -1332,13 +1340,30 @@ async function attemptsView(
   }));
 }
 
+/**
+ * A handed-in attempt's questions as far as the quiz shows them. A practice
+ * quiz's questions read as their student left them, right or shown, since
+ * the mark they kept is what their tries and hints earned.
+ */
+function resultViews(
+  assignment: AssignmentRow,
+  asked: LessonDocument,
+  answers: readonly QuizAnswer[],
+  show: "answers" | "feedback" | "marks",
+) {
+  const views = quizViews(asked, answers, show);
+  return assignment.quizPractice
+    ? { ...views, ...practiceViews(asked, answers) }
+    : views;
+}
+
 /** Every handed-in quiz attempt of one student, marked, for their teacher. */
 async function graderQuiz(
   context: UnitContext,
-  assignmentId: string,
+  assignment: AssignmentRow,
   submissionId: string,
 ) {
-  const document = await publishedQuiz(context, assignmentId);
+  const document = await publishedQuiz(context, assignment.id);
   if (!document) return null;
   const [byAttempt, attempts, quizzes] = await Promise.all([
     answersByAttempt(context, submissionId),
@@ -1361,7 +1386,7 @@ async function graderQuiz(
           ),
         ),
         responses: responsesOf(answers),
-        checks: quizViews(asked, answers, "answers"),
+        checks: resultViews(assignment, asked, answers, "answers"),
       };
     }),
   };
@@ -1381,7 +1406,7 @@ export const grading = readProcedure
     if (!row) throw new ORPCError("NOT_FOUND");
     const quiz =
       assignment.submissionFormat === "quiz" && row.submissionId
-        ? await graderQuiz(context, assignment.id, row.submissionId)
+        ? await graderQuiz(context, assignment, row.submissionId)
         : null;
     return {
       quiz,
@@ -1949,7 +1974,7 @@ async function learnerQuiz(
           : null,
         pending: answers.some((answer) => answer.state === "needs_marking"),
         responses: ownResponsesOf(answers),
-        checks: show ? quizViews(asked, answers, show) : null,
+        checks: show ? resultViews(assignment, asked, answers, show) : null,
       };
     }),
   );
@@ -1993,6 +2018,12 @@ async function learnerQuiz(
     attemptsUsed: row.attempts,
     keep: assignment.quizKeep,
     reveal: assignment.quizReveal,
+    practice: assignment.quizPractice,
+    /** In a practice quiz, how the student stands on each question of the attempt under way. */
+    practised:
+      assignment.quizPractice && open
+        ? practiceViews(quizzes.of(current), byAttempt.get(current) ?? [])
+        : null,
     open,
     /** The attempt's questions are still to be drawn, which opening it does. */
     undrawn: open && quizzes.undrawn(current),
@@ -2671,7 +2702,7 @@ async function openAttempt(context: UnitContext, assignmentId: string) {
     attempt,
   });
   const quizzes = await attemptQuizzes(context, document, submission.id);
-  return { submission, attempt, quiz: quizzes.of(attempt) };
+  return { assignment, submission, attempt, quiz: quizzes.of(attempt) };
 }
 
 /** Begins the attempt a student opens: its clock, and its draws from the bank. */
@@ -2723,6 +2754,57 @@ async function keepQuizAnswer(
   });
   return { saved: true };
 }
+
+/**
+ * A step on one question of a practice quiz: an answer checked at once, a
+ * hint opened, or the answer shown, as a lesson's question takes them. What
+ * the student has done is kept on their answer for marking at hand-in.
+ */
+export const practiseQuiz = writeProcedure
+  .input(practiseQuizSchema)
+  .handler(async ({ input, context }) => {
+    const { assignment, submission, attempt, quiz } = await openAttempt(
+      context,
+      input.assignmentId,
+    );
+    if (!assignment.quizPractice)
+      throw new ORPCError("BAD_REQUEST", {
+        message: "coursework.not_practice",
+      });
+    const block = checkBlocks(quiz).find((item) => item.id === input.blockId);
+    if (!block || !practised(block)) throw new ORPCError("NOT_FOUND");
+    const answers = await quizAnswersOf(context.tx, {
+      tenantId: context.tenantId,
+      submissionId: submission.id,
+      attempt,
+    });
+    let kept = keptOf(answers.find((answer) => answer.blockId === block.id));
+    const before = practiceStanding(block, kept);
+    if (before.view.correct || before.view.revealed)
+      throw new ORPCError("CONFLICT", { message: "learning.settled" });
+    const step = input.step;
+    if (step.kind === "answer") {
+      const issue = responseIssue(block, step.response);
+      if (issue) throw new ORPCError("BAD_REQUEST", { message: issue });
+      kept = { ...kept, response: step.response, tries: kept.tries + 1 };
+    } else if (step.kind === "hint") {
+      if (before.view.askable === 0)
+        throw new ORPCError("CONFLICT", { message: "learning.no_hint" });
+      kept = { ...kept, hints: kept.hints + 1 };
+    } else kept = { ...kept, revealed: true };
+    await keepPracticeAnswer(context.tx, {
+      tenantId: context.tenantId,
+      submissionId: submission.id,
+      studentId: context.actor.userId,
+      attempt,
+      blockId: block.id,
+      response: kept.response ? ownResponse(kept.response) : {},
+      tries: kept.tries,
+      hints: kept.hints,
+      revealed: kept.revealed,
+    });
+    return { check: practiceStanding(block, kept).view };
+  });
 
 /**
  * A teacher marks answers to one quiz question only they can judge, out of

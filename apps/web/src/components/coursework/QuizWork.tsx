@@ -1,8 +1,10 @@
+import type { practiseQuizSchema } from "@faridalms/domain/coursework";
 import type {
   CheckView,
   LessonResponse,
   StudentBlock,
 } from "@faridalms/domain/learning";
+import type * as v from "valibot";
 
 import { Button } from "@faridalms/ui/button";
 import { Input } from "@faridalms/ui/input";
@@ -31,6 +33,7 @@ import { myWorkQuery } from "~/queries/coursework";
 import {
   handInWork,
   markQuizAnswer,
+  practiseQuiz,
   saveQuizAnswer,
   startQuiz,
 } from "~/server/coursework";
@@ -43,6 +46,8 @@ type Work = Awaited<
 type LearnerQuiz = NonNullable<Work["quiz"]>;
 
 const fileUrl = (fileId: string) => `/files/${fileId}`;
+
+type PractiseStep = v.InferInput<typeof practiseQuizSchema>["step"];
 
 /** An answer kept but not handed in, shaped as a question's view. */
 function keptView(response: LessonResponse | undefined): CheckView | undefined {
@@ -79,10 +84,13 @@ function QuizBlocks({
   blocks,
   views,
   driver,
+  practice,
 }: {
   blocks: StudentBlock[];
   views: Record<string, CheckView | undefined>;
   driver: CheckDriver;
+  /** In a practice quiz: the questions checked as they are answered, and how. */
+  practice?: { views: Record<string, CheckView>; driver: CheckDriver };
 }) {
   return (
     <div className="grid gap-4">
@@ -94,12 +102,22 @@ function QuizBlocks({
             fileUrl={fileUrl}
           />
         ) : isCheckBlock(block) ? (
-          <CheckBlockView
-            key={block.id}
-            block={block}
-            view={views[block.id]}
-            driver={driver}
-          />
+          practice && block.id in practice.views ? (
+            <CheckModeContext.Provider key={block.id} value="practice">
+              <CheckBlockView
+                block={block}
+                view={practice.views[block.id]}
+                driver={practice.driver}
+              />
+            </CheckModeContext.Provider>
+          ) : (
+            <CheckBlockView
+              key={block.id}
+              block={block}
+              view={views[block.id]}
+              driver={driver}
+            />
+          )
         ) : null,
       )}
     </div>
@@ -277,8 +295,41 @@ export function QuizWork({ data }: { data: Work }) {
     },
     reveal: () => Promise.resolve(),
   };
+  const practised = quiz.practised;
+  const step = async (blockId: string, kind: PractiseStep) => {
+    const result = await practiseQuiz({
+      data: { assignmentId: data.assignment.id, blockId, step: kind },
+    });
+    queryClient.setQueryData(query.queryKey, (old) =>
+      old?.quiz?.practised
+        ? {
+            ...old,
+            quiz: {
+              ...old.quiz,
+              practised: { ...old.quiz.practised, [blockId]: result.check },
+            },
+          }
+        : old,
+    );
+  };
+  const practice = practised
+    ? {
+        views: practised,
+        driver: {
+          respond: (blockId, response) =>
+            step(blockId, { kind: "answer", response }),
+          reveal: (blockId) => step(blockId, { kind: "reveal" }),
+          hint: (blockId) => step(blockId, { kind: "hint" }),
+        } satisfies CheckDriver,
+      }
+    : undefined;
   const questions = quiz.blocks.filter(isCheckBlock);
-  const answered = questions.filter((block) => quiz.drafts[block.id]).length;
+  const answered = questions.filter((block) => {
+    const tried = practised?.[block.id];
+    return tried
+      ? tried.tries > 0 || tried.revealed
+      : Boolean(quiz.drafts[block.id]);
+  }).length;
   const views = Object.fromEntries(
     questions.map((block) => [block.id, keptView(quiz.drafts[block.id])]),
   );
@@ -357,6 +408,7 @@ export function QuizWork({ data }: { data: Work }) {
                 blocks={quiz.blocks}
                 views={views}
                 driver={driver}
+                practice={practice}
               />
             </CheckModeContext.Provider>
             <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-muted/50 px-5 py-4">
