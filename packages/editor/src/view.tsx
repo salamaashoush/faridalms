@@ -6,6 +6,7 @@ import type {
   Mention,
 } from "@faridalms/domain/content";
 import type { GlossaryEntry } from "@faridalms/domain/glossary";
+import type { Digits } from "@faridalms/domain/people";
 import type { ContentLocale } from "@faridalms/domain/translations";
 import type {
   ComponentProps,
@@ -70,7 +71,12 @@ import { BibliographyList } from "./bibliography-view";
 import { ChartView } from "./chart-view";
 import { useFileFacts } from "./file-facts";
 import { FileCard, PictureView, StoredImage } from "./files";
-import { blockAlignClass, diagramImageClass, imageSizeClass } from "./format";
+import {
+  blockAlignClass,
+  diagramImageClass,
+  imageSizeClass,
+  numberTag,
+} from "./format";
 import { GlossaryList } from "./glossary-view";
 import { linked } from "./linked";
 import { LtiCard } from "./lti-card";
@@ -151,6 +157,11 @@ interface Context {
   mentionName?: ((mention: Mention) => string | undefined) | undefined;
   ltiHref?: ((linkId: string) => string | null) | undefined;
   speaker?: ((text: string) => ReactNode) | undefined;
+  /** The language the document's own numbers are written for. */
+  numbering: string;
+  /** Writes a number the document draws itself, as a footnote's, in its own digits. */
+  number: (value: number) => string;
+  digits: Digits | undefined;
   /** The footnotes met so far, in reading order, numbered by their place here. */
   notes: ContentNode[];
   /** How many footnotes the parts of the document before this one hold. */
@@ -797,7 +808,7 @@ function draw(
             id={`${context.scope}-ref-${number}`}
             aria-label={context.strings.footnoteRef(number)}
           >
-            {number}
+            {context.number(number)}
           </a>
         </sup>
       );
@@ -926,7 +937,8 @@ function draw(
           key={key}
           chart={node.chart}
           strings={context.strings}
-          locale={context.locale}
+          locale={context.numbering}
+          digits={context.digits}
           printed={node.open ?? false}
         />
       ) : null;
@@ -1228,6 +1240,7 @@ export function ContentRenderer({
   mentionName,
   ltiHref,
   speaker,
+  digits,
   lang,
 }: {
   document: ContentDocument;
@@ -1260,6 +1273,8 @@ export function ContentRenderer({
   ltiHref?: (linkId: string) => string | null;
   /** A button reading words aloud, offered beside a defined word; none without it. */
   speaker?: (text: string) => ReactNode;
+  /** The digits the reader's school writes Arabic in, for the numbers the document draws. */
+  digits?: Digits;
   /** The language the document is written in; without it, read from its words. */
   lang?: ContentLocale;
 }) {
@@ -1269,6 +1284,12 @@ export function ContentRenderer({
   const scope = useId();
   const whole = useContext(Whole);
   const language = lang ?? whole?.lang;
+  const direction = language
+    ? languageDirection(language)
+    : (textDirection(contentPlainText(document)) ?? undefined);
+  // Numbers the document draws follow its words: a set language, else
+  // Arabic for words read right to left.
+  const numbering = language ?? (direction === "rtl" ? "ar" : "en");
   let gathered: GlossaryEntry[] | undefined;
   const context: Context = {
     strings,
@@ -1285,6 +1306,10 @@ export function ContentRenderer({
     mentionName,
     ltiHref,
     speaker,
+    numbering,
+    number: (value) =>
+      new Intl.NumberFormat(numberTag(numbering, digits)).format(value),
+    digits,
     notes: [],
     notesBefore: whole?.notesBefore?.get(document) ?? 0,
     scope,
@@ -1306,12 +1331,9 @@ export function ContentRenderer({
   return (
     <div
       className={className ? `fe ${className}` : "fe"}
+      data-digits={digits}
       lang={language}
-      dir={
-        language
-          ? languageDirection(language)
-          : (textDirection(contentPlainText(document)) ?? undefined)
-      }
+      dir={direction}
     >
       {drawn}
       {context.notes.length > 0 ? (

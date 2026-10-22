@@ -1,6 +1,7 @@
 import type { ContentDocument, Mention } from "@faridalms/domain/content";
 import type { SpeechLanguage } from "@faridalms/domain/file";
 import type { LtiPick } from "@faridalms/domain/lti";
+import type { Digits } from "@faridalms/domain/people";
 import type { ProjectFile, ProjectLanguage } from "@faridalms/domain/project";
 import type { Level } from "@faridalms/puzzles/level";
 import type { ComponentType } from "react";
@@ -206,6 +207,8 @@ export interface EditorEnvironment {
   /** Mentions people and teaching with @; absent where nobody may be found. */
   mentions?: EditorMentions;
   locale: string;
+  /** The digits the school writes Arabic in, for the numbers a document draws. */
+  digits?: Digits;
   /** The document may ask questions, as a lesson or quiz does. */
   questions?: boolean;
   /** The document may stop at continue gates. */

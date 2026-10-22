@@ -193,3 +193,25 @@ describe("a bibliography", () => {
     expect(list.indexOf("Adams")).toBeLessThan(list.indexOf("Ali"));
   });
 });
+
+describe("numbers a document draws", () => {
+  it("are written in the school's digits where the words are Arabic", () => {
+    const arabic = noted(text("الأنهار."), {
+      type: "footnote",
+      version: 1,
+      note: "حاشية.",
+    });
+    const english = noted(text("Rivers."), {
+      type: "footnote",
+      version: 1,
+      note: "A note.",
+    });
+    const drawn = (page: ContentDocument) =>
+      renderToStaticMarkup(
+        <ContentRenderer document={page} strings={strings} digits="arab" />,
+      );
+    expect(drawn(arabic)).toContain('aria-label="Footnote 1">١</a>');
+    expect(drawn(arabic)).toContain('data-digits="arab"');
+    expect(drawn(english)).toContain('aria-label="Footnote 1">1</a>');
+  });
+});

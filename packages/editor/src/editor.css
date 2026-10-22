@@ -1908,6 +1908,26 @@
   text-decoration: none;
 }
 
+/* A school writing Arabic in Arabic-Indic digits has its Arabic words
+   count in them too: lists, footnotes, steps and orders. */
+.fe[data-digits="arab"] .fe-ol:lang(ar),
+.fe[data-digits="arab"] .fe-notes ol:lang(ar) {
+  list-style-type: arabic-indic;
+}
+.fe[data-digits="arab"] .fe-footnote:lang(ar)::after {
+  content: counter(fe-footnote, arabic-indic);
+}
+.fe[data-digits="arab"]
+  .fe-question[data-kind="ordering"]
+  > .fe-question-option:lang(ar)::before {
+  content: counter(order, arabic-indic);
+}
+.fe[data-digits="arab"]
+  :is(.fe-panels, .fe-steps)[data-layout="steps"]
+  > :is(.fe-panel, .fe-step):lang(ar)::before {
+  content: counter(fe-panel, arabic-indic);
+}
+
 /* A reference list hangs each source from its first line, as APA, MLA and
    Chicago all set one. */
 .fe .fe-bibliography-block {

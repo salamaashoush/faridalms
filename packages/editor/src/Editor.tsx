@@ -1,5 +1,6 @@
 import "./prism";
 import type { ContentDocument } from "@faridalms/domain/content";
+import type { Digits } from "@faridalms/domain/people";
 import type { Provider } from "@lexical/yjs";
 import type { Doc } from "yjs";
 
@@ -115,6 +116,8 @@ export interface EditorProps {
   placeholder?: string;
   initialFocus?: boolean;
   locale?: string;
+  /** The digits the school writes Arabic in, for the numbers a document draws. */
+  digits?: Digits;
   describedBy?: string;
   collaboration?: EditorCollaboration;
   /**
@@ -163,6 +166,7 @@ export default function Editor({
   mentions,
   tools,
   locale,
+  digits,
   value,
   collaboration,
   questions = false,
@@ -220,6 +224,7 @@ export default function Editor({
       lessonActivities,
       feedbackTiming,
       arabicMath,
+      ...(digits ? { digits } : {}),
     }),
     [
       strings,
@@ -242,6 +247,7 @@ export default function Editor({
       lessonActivities,
       feedbackTiming,
       arabicMath,
+      digits,
     ],
   );
   const [synced, setSynced] = useState(false);
@@ -303,7 +309,7 @@ function Surface({
   synced: boolean;
 }) {
   const [editor] = useLexicalComposerContext();
-  const { strings, media, arabicMath } = useEditorEnvironment();
+  const { strings, media, arabicMath, digits } = useEditorEnvironment();
   useEffect(
     () => setArabicNotation(editor, arabicMath === "rtl"),
     [editor, arabicMath],
@@ -472,7 +478,11 @@ function Surface({
           <ToolbarPlugin disabled={disabled} />
         </div>
       ) : null}
-      <div ref={setAnchor} className={editorFrame.content(document)}>
+      <div
+        ref={setAnchor}
+        className={editorFrame.content(document)}
+        data-digits={digits}
+      >
         <ContentEditable
           id={id}
           aria-label={label}

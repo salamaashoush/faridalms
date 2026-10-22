@@ -4,6 +4,7 @@ import * as v from "valibot";
 
 import { publicSiteQuery } from "~/queries/site";
 import siteCss from "~/styles/site.css?url";
+import { adoptDigits } from "~/utils/digits";
 
 /** A school's public website. No one signs in here; the address names the school. */
 export const Route = createFileRoute("/site/$school")({
@@ -19,5 +20,13 @@ export const Route = createFileRoute("/site/$school")({
     meta: loaderData ? [{ title: loaderData.name }] : [],
     links: [{ rel: "stylesheet", href: siteCss }],
   }),
-  component: Outlet,
+  component: SiteFrame,
 });
+
+function SiteFrame() {
+  const site = Route.useLoaderData();
+  // Its visitors carry no school of their own, so the website counts in its
+  // school's digits from the first word drawn.
+  adoptDigits(site.digits);
+  return <Outlet />;
+}

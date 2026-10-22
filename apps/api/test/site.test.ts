@@ -37,6 +37,8 @@ describe("the public website", () => {
     const site = visitor();
     const shell = await site.publicSite({ school: "northwind", locale: "ar" });
     expect(shell.locale).toBe("ar");
+    // Visitors carry no school, so the site says which digits its school writes.
+    expect(shell.digits).toBe("latn");
     expect(shell.menu.map((entry) => entry.title)).toEqual([
       "الرئيسية",
       "من نحن",

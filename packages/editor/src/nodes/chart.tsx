@@ -62,7 +62,7 @@ function ChartEditor({
   chart: ChartData;
   onChange: (chart: ChartData) => void;
 }) {
-  const { strings, locale } = useEditorEnvironment();
+  const { strings, locale, digits } = useEditorEnvironment();
   const pie = chart.kind === "pie";
   const series = (pie ? chart.series.slice(0, 1) : chart.series).map(
     (item, index) => ({
@@ -336,7 +336,12 @@ function ChartEditor({
           {strings.chartPasteHint}
         </p>
       </div>
-      <ChartView chart={chart} strings={strings} locale={locale} />
+      <ChartView
+        chart={chart}
+        strings={strings}
+        locale={locale}
+        digits={digits}
+      />
     </div>
   );
 }
@@ -351,7 +356,7 @@ function ChartBlock({
   chart: ChartData;
 }) {
   const [editor] = useLexicalComposerContext();
-  const { strings, locale } = useEditorEnvironment();
+  const { strings, locale, digits } = useEditorEnvironment();
   const editable = useLexicalEditable();
   const selected = useSelectOnClick(nodeKey);
   const change = (next: ChartData) =>
@@ -372,7 +377,12 @@ function ChartBlock({
         {editable && selected ? (
           <ChartEditor chart={chart} onChange={change} />
         ) : (
-          <ChartView chart={chart} strings={strings} locale={locale} />
+          <ChartView
+            chart={chart}
+            strings={strings}
+            locale={locale}
+            digits={digits}
+          />
         )}
       </div>
     </BlockWithAlignableContents>

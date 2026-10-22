@@ -69,4 +69,19 @@ describe("charts as read", () => {
     expect(html).toContain("Enter numbers");
     expect(html).not.toContain("<svg");
   });
+
+  it("writes Arabic numbers in the school's digits, Western by default", () => {
+    const arabic = (digits?: "latn" | "arab") =>
+      renderToStaticMarkup(
+        <ChartView
+          chart={rainfall}
+          strings={strings}
+          locale="ar"
+          digits={digits}
+        />,
+      );
+    expect(arabic("arab")).toContain("٥٢");
+    expect(arabic()).toContain("52");
+    expect(arabic()).not.toContain("٥٢");
+  });
 });

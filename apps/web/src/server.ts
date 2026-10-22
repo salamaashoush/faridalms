@@ -7,9 +7,16 @@ import { paraglideMiddleware } from "~/i18n/server";
 import { digitsOfCookie, overwriteDigitsSource } from "~/utils/digits";
 import "~/preview-locale";
 
-// Pages for two schools may be drawn at once; each keeps its own digits.
-const requestDigits = new AsyncLocalStorage<Digits>();
-overwriteDigitsSource(() => requestDigits.getStore() ?? "latn");
+// Pages for two schools may be drawn at once; each keeps its own digits,
+// which a public website changes to its school's as it is drawn.
+const requestDigits = new AsyncLocalStorage<{ digits: Digits }>();
+overwriteDigitsSource(
+  () => requestDigits.getStore()?.digits ?? "latn",
+  (next) => {
+    const held = requestDigits.getStore();
+    if (held) held.digits = next;
+  },
+);
 
 // The environment is validated at server init by src/server/preflight.ts, a Nitro
 // app plugin -- doing it here would only fail per-request, once the process was
@@ -21,7 +28,7 @@ export default createServerEntry({
     // middleware yields: TanStack Router does its own URL rewriting and the two
     // together produce a redirect loop.
     return requestDigits.run(
-      digitsOfCookie(request.headers.get("cookie") ?? ""),
+      { digits: digitsOfCookie(request.headers.get("cookie") ?? "") },
       () => paraglideMiddleware(request, () => handler.fetch(request)),
     );
   },

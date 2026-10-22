@@ -17,13 +17,31 @@ let source: () => Digits = () => {
   chosen ??= fromCookie(document.cookie);
   return chosen;
 };
+let keep: (next: Digits) => void = (next) => {
+  chosen = next;
+};
 
 /**
  * Where the digits come from while the server draws a page: the request's
- * own, so two schools' pages drawn at once keep their own.
+ * own, so two schools' pages drawn at once keep their own; and where a
+ * page that learns its school's digits as it is drawn keeps them.
  */
-export function overwriteDigitsSource(read: () => Digits) {
+export function overwriteDigitsSource(
+  read: () => Digits,
+  adopt?: (next: Digits) => void,
+) {
   source = read;
+  if (adopt) keep = adopt;
+}
+
+/**
+ * Draws the rest of the page in a school's digits without reloading it, as
+ * a school's public website does for visitors who carry no school of their
+ * own. The server and the browser each adopt them as the page is drawn, so
+ * the two drawings agree.
+ */
+export function adoptDigits(next: Digits) {
+  if (digits() !== next) keep(next);
 }
 
 export const digitsOfCookie = fromCookie;

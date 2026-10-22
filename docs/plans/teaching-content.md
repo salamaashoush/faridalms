@@ -631,11 +631,17 @@ Sources: [../research/course-design.md](../research/course-design.md),
    letters or an address, such as a class code or an email, keep theirs.
    The choice travels with each page in a cookie, so pages drawn on the
    server already carry it.
+   Numbers a document draws itself follow the school's digits wherever
+   its words are Arabic: a chart's axes and values, footnote numbers,
+   numbered lists, steps and orders; a document with no language set
+   counts as its words read, right to left in Arabic. The public website
+   writes its dates and numbers in its school's digits for visitors who
+   carry no school of their own, the server and the browser drawing the
+   page alike; words the school typed, such as a statistic, stay as
+   written.
    Left: a question's own labels in the lesson's language; a young
    lesson's switch, which follows the child's language for now;
-   translations of quizzes and assignment briefs; the public website's
-   digits, and numbers drawn inside documents, such as a chart's, which
-   keep Western digits.
+   translations of quizzes (an assignment's brief already has one).
 8. **Word import**: a `.docx` opens as a document, its pictures uploaded.
    Done: "Word document" in the insert and slash menus brings a `.docx`
    in where the caret is, read in the browser (mammoth, loaded only when

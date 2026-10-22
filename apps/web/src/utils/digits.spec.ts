@@ -1,6 +1,7 @@
 import { afterEach, describe, expect, it } from "vitest";
 
 import {
+  adoptDigits,
   arabicDigits,
   digitsOfCookie,
   numberLocale,
@@ -38,5 +39,17 @@ describe("a school's digits", () => {
     expect(digitsOfCookie("language-tag=ar; digits=arab")).toBe("arab");
     expect(digitsOfCookie("digits=latn")).toBe("latn");
     expect(digitsOfCookie("")).toBe("latn");
+  });
+
+  it("are adopted for the rest of a page that learns its school's as it is drawn", () => {
+    let held: "latn" | "arab" = "latn";
+    overwriteDigitsSource(
+      () => held,
+      (next) => {
+        held = next;
+      },
+    );
+    adoptDigits("arab");
+    expect(new Intl.NumberFormat(numberLocale("ar")).format(7)).toBe("٧");
   });
 });

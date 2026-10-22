@@ -939,6 +939,7 @@ export const publicSite = publicProcedure
           locale,
           primaryLocale: settings.primaryLocale,
           locales: localesOf(settings),
+          digits: school.digits,
           name: (locale === "ar" ? school.nameAr : null) || school.nameEn,
           tagline:
             (locale === "ar" ? settings.taglineAr : settings.taglineEn) ||

@@ -32,6 +32,7 @@ import { useEffect, useRef, useState } from "react";
 import { ContentView } from "~/components/content/ContentView";
 import * as m from "~/i18n/messages";
 import { submitSiteEnquiry } from "~/server/site";
+import { numberLocale } from "~/utils/digits";
 
 import type { RenderContext } from "./parts";
 
@@ -999,7 +1000,7 @@ function Pillars({ section, context }: Props<"pillars">) {
             </div>
             <div className="grid gap-4">
               <span className="site-heading text-5xl font-bold text-[var(--s-link)] tabular-nums opacity-30">
-                {new Intl.NumberFormat(context.locale, {
+                {new Intl.NumberFormat(numberLocale(context.locale), {
                   minimumIntegerDigits: 2,
                 }).format(index + 1)}
               </span>
@@ -1033,7 +1034,7 @@ function Pillars({ section, context }: Props<"pillars">) {
           >
             {variant === "numbered" ? (
               <span className="site-heading border-b border-[var(--s-border)] pb-4 text-5xl font-bold text-[var(--s-link)] tabular-nums">
-                {new Intl.NumberFormat(context.locale, {
+                {new Intl.NumberFormat(numberLocale(context.locale), {
                   minimumIntegerDigits: 2,
                 }).format(index + 1)}
               </span>
@@ -1849,11 +1850,11 @@ function Events({ section, context }: Props<"events">) {
     if (!date) return { day: "", month: "" };
     const at = new Date(`${date}T00:00:00Z`);
     return {
-      day: new Intl.DateTimeFormat(context.locale, {
+      day: new Intl.DateTimeFormat(numberLocale(context.locale), {
         day: "numeric",
         timeZone: "UTC",
       }).format(at),
-      month: new Intl.DateTimeFormat(context.locale, {
+      month: new Intl.DateTimeFormat(numberLocale(context.locale), {
         month: "short",
         timeZone: "UTC",
       }).format(at),
@@ -1973,7 +1974,9 @@ function Admissions({ section, context }: Props<"admissions">) {
           >
             <div className="grid gap-3">
               <span className="site-heading text-4xl font-bold text-[var(--s-link)] tabular-nums opacity-40 @3xl/site:text-5xl">
-                {new Intl.NumberFormat(context.locale).format(index + 1)}
+                {new Intl.NumberFormat(numberLocale(context.locale)).format(
+                  index + 1,
+                )}
               </span>
               <Heading level={3}>{item.title}</Heading>
               <p className="site-muted leading-relaxed">{item.text}</p>
@@ -1989,7 +1992,7 @@ function Admissions({ section, context }: Props<"admissions">) {
 function Steps({ section, context }: Props<"steps">) {
   const { data, variant } = section;
   const number = (index: number) =>
-    new Intl.NumberFormat(context.locale).format(index + 1);
+    new Intl.NumberFormat(numberLocale(context.locale)).format(index + 1);
   return (
     <div>
       <SectionIntro

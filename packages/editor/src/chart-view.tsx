@@ -1,8 +1,11 @@
 import type { ChartData } from "@faridalms/domain/content";
+import type { Digits } from "@faridalms/domain/people";
 import type { PointerEvent, ReactNode } from "react";
 
 import { MAX_PIE_SLICES } from "@faridalms/domain/content";
 import { useEffect, useRef, useState } from "react";
+
+import { numberTag } from "./format";
 
 export interface ChartStrings {
   chartData: string;
@@ -145,17 +148,20 @@ export function ChartView({
   chart,
   strings,
   locale,
+  digits,
   printed = false,
 }: {
   chart: ChartData;
   strings: ChartStrings;
   locale: string;
+  /** The digits the school writes Arabic in; Western otherwise. */
+  digits?: Digits | undefined;
   printed?: boolean;
 }) {
   const { ref, width } = useWidth();
   const [active, setActive] = useState<number | null>(null);
-  const numbers = new Intl.NumberFormat(`${locale}-u-nu-latn`);
-  const compact = new Intl.NumberFormat(`${locale}-u-nu-latn`, {
+  const numbers = new Intl.NumberFormat(numberTag(locale, digits));
+  const compact = new Intl.NumberFormat(numberTag(locale, digits), {
     notation: "compact",
   });
   const pie = chart.kind === "pie";

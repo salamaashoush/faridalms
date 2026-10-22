@@ -21,6 +21,7 @@ import { ReadAloud } from "~/components/learning/ReadAloud";
 import * as m from "~/i18n/messages";
 import { getLocale } from "~/i18n/runtime";
 import { sharedBlockQuery } from "~/queries/shared";
+import { digits } from "~/utils/digits";
 
 import { useLtiHref } from "./lti";
 import { useMentionNames } from "./mentions";
@@ -191,6 +192,7 @@ export function ContentView({
       mentionHref={mentionHref}
       mentionName={mentionName}
       speaker={termSpeaker}
+      digits={digits()}
       ltiHref={ltiHref}
       lang={lang}
     />

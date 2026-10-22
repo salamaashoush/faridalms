@@ -1,3 +1,13 @@
+import type { Digits } from "@faridalms/domain/people";
+
+/**
+ * The locale a document writes its own numbers in: Arabic in the digits
+ * its school chose, since browsers and regions disagree on them, and any
+ * other language in its own.
+ */
+export const numberTag = (language: string, digits: Digits = "latn") =>
+  language.startsWith("ar") ? `ar-u-nu-${digits}` : `${language}-u-nu-latn`;
+
 export function formatBytes(bytes: number, locale: string): string {
   const units = ["byte", "kilobyte", "megabyte", "gigabyte"] as const;
   let value = bytes;

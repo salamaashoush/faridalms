@@ -831,6 +831,8 @@ export interface PublicSchool {
   address: PostalAddress | null;
   phone: string | null;
   email: string | null;
+  /** The digits the school writes Arabic in, which its website follows. */
+  digits: "latn" | "arab";
 }
 
 /** What a school's website may say about the school itself. */
@@ -844,8 +846,9 @@ export async function publicSchool(
     address: PostalAddress | null;
     phone: string | null;
     email: string | null;
+    digits: "latn" | "arab";
   }>(sql`
-    select name_en, name_ar, address, phone, email from core.orgs
+    select name_en, name_ar, address, phone, email, digits from core.orgs
     where id = ${orgId}::uuid and status = 'active'`);
   return row
     ? {
@@ -854,6 +857,7 @@ export async function publicSchool(
         address: row.address,
         phone: row.phone,
         email: row.email,
+        digits: row.digits,
       }
     : null;
 }

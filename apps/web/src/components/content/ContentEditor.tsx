@@ -18,6 +18,7 @@ import { useEditorShared } from "~/components/content/SharedBlocks";
 import { useEditorPuzzles } from "~/components/puzzles/useEditorPuzzles";
 import { useEditorStandards } from "~/components/standards/editor";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
+import { digits } from "~/utils/digits";
 
 import { ContentView } from "./ContentView";
 import { editorStrings } from "./strings";
@@ -155,6 +156,7 @@ export function ContentEditor({
           initialFocus={initialFocus}
           strings={strings}
           collaboration={collaboration}
+          digits={digits()}
           replace={replace}
           onUploadingChange={onUploadingChange}
           questions={questions}
