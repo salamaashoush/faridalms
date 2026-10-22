@@ -1,4 +1,8 @@
-import type { ContentDocument, ContentNode } from "@faridalms/domain/content";
+import type {
+  ContentDocument,
+  ContentNode,
+  Mention,
+} from "@faridalms/domain/content";
 import type { MediaWatch } from "@faridalms/editor/player";
 import type { ContentMark, Replace } from "@faridalms/editor/view";
 import type { ReactNode } from "react";
@@ -25,6 +29,26 @@ export function SharedBlock({ id }: { id: string }) {
   if (!block.data)
     return <p className="text-sm text-muted-foreground">{m.sharedGone()}</p>;
   return <ContentView document={block.data.content} />;
+}
+
+/**
+ * Where a mention opens. A person's opens nothing, as not every reader may
+ * see a person's page; a class, module, lesson or assignment opens its own,
+ * which says so if the reader may not.
+ */
+function mentionHref(mention: Mention): string | null {
+  switch (mention.kind) {
+    case "class":
+      return `/classes/${mention.id}`;
+    case "module":
+      return `/modules/${mention.id}`;
+    case "lesson":
+      return `/lessons/${mention.id}`;
+    case "assignment":
+      return `/assignments/${mention.id}`;
+    default:
+      return null;
+  }
 }
 
 export function ContentView({
@@ -107,6 +131,7 @@ export function ContentView({
       runnable={runs ? RunnableCode : undefined}
       predicted={predicted}
       shared={SharedBlock}
+      mentionHref={mentionHref}
     />
   );
 }

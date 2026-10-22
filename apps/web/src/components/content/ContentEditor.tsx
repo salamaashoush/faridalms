@@ -7,6 +7,7 @@ import { useHydrated } from "@tanstack/react-router";
 import { lazy, Suspense, useMemo, useState } from "react";
 
 import { useEditorStudio } from "~/components/coding/useEditorStudio";
+import { useEditorMentions } from "~/components/content/mentions";
 import { useEditorBank } from "~/components/content/QuestionBank";
 import { useEditorShared } from "~/components/content/SharedBlocks";
 import { useEditorPuzzles } from "~/components/puzzles/useEditorPuzzles";
@@ -86,6 +87,7 @@ export function ContentEditor({
   const tagging = useEditorStandards(Boolean(questions) || standards);
   // Teaching documents show the blocks a school keeps once for many.
   const sharing = useEditorShared(Boolean(questions) || standards);
+  const mentions = useEditorMentions();
   const document = variant === "document";
   // Lexical needs a DOM, so the server draws the document in the editor's own
   // frame and the editor takes that frame over in the browser.
@@ -132,6 +134,7 @@ export function ContentEditor({
           bank={banking.bank}
           standards={tagging}
           shared={sharing.shared}
+          mentions={mentions}
           placeholder={placeholder}
           initialFocus={initialFocus}
           strings={strings}

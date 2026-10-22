@@ -1,4 +1,4 @@
-import type { ContentDocument } from "@faridalms/domain/content";
+import type { ContentDocument, Mention } from "@faridalms/domain/content";
 import type { SpeechLanguage } from "@faridalms/domain/file";
 import type { ProjectFile, ProjectLanguage } from "@faridalms/domain/project";
 import type { Level } from "@faridalms/puzzles/level";
@@ -156,6 +156,16 @@ export interface EditorShared {
   read: (id: string) => Promise<ContentDocument | null>;
 }
 
+/** A person or piece of teaching to mention, with words that tell it from others of its name. */
+export interface MentionOption extends Mention {
+  detail?: string;
+}
+
+/** Finds whom and what the writer may mention, among those they may see. */
+export interface EditorMentions {
+  search: (query: string) => Promise<MentionOption[]>;
+}
+
 export interface EditorEnvironment {
   strings: EditorStrings;
   media?: EditorMedia;
@@ -169,6 +179,8 @@ export interface EditorEnvironment {
   standards?: EditorStandards;
   /** Keeps blocks to show in many documents; absent where none are kept. */
   shared?: EditorShared;
+  /** Mentions people and teaching with @; absent where nobody may be found. */
+  mentions?: EditorMentions;
   locale: string;
   /** The document may ask questions, as a lesson or quiz does. */
   questions?: boolean;

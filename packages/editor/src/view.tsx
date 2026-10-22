@@ -1,4 +1,8 @@
-import type { ContentDocument, ContentNode } from "@faridalms/domain/content";
+import type {
+  ContentDocument,
+  ContentNode,
+  Mention,
+} from "@faridalms/domain/content";
 import type {
   ComponentProps,
   ComponentType,
@@ -116,6 +120,7 @@ interface Context {
   predicted?: boolean | undefined;
   replace?: Replace | undefined;
   shared?: ComponentType<{ id: string }> | undefined;
+  mentionHref?: ((mention: Mention) => string | null) | undefined;
   /** The footnotes met so far, in reading order, numbered by their place here. */
   notes: ContentNode[];
   /** Keeps a footnote's links to its own document when several share a page. */
@@ -700,6 +705,19 @@ function draw(
           </p>
         </div>
       );
+    case "mention": {
+      if (!node.mention) return null;
+      const href = context.mentionHref?.(node.mention);
+      return href ? (
+        <a key={key} href={href} className="fe-mention" dir="auto">
+          @{node.mention.label}
+        </a>
+      ) : (
+        <span key={key} className="fe-mention" dir="auto">
+          @{node.mention.label}
+        </span>
+      );
+    }
     case "footnote": {
       const number = context.notes.push(node);
       return (
@@ -1053,6 +1071,7 @@ export function ContentRenderer({
   runnable,
   predicted,
   shared,
+  mentionHref,
 }: {
   document: ContentDocument;
   strings: ViewStrings;
@@ -1076,6 +1095,8 @@ export function ContentRenderer({
   predicted?: boolean;
   /** Draws a shared block as it now is; without it none shows. */
   shared?: ComponentType<{ id: string }>;
+  /** Where a mention opens; without it, or where it gives none, a mention is only its name. */
+  mentionHref?: (mention: Mention) => string | null;
 }) {
   const marking = marks?.length
     ? markingOf(document, marks, activeMark)
@@ -1092,6 +1113,7 @@ export function ContentRenderer({
     predicted,
     replace,
     shared,
+    mentionHref,
     notes: [],
     scope,
   };

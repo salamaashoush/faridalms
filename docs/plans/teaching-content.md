@@ -463,6 +463,15 @@ Sources: [../research/course-design.md](../research/course-design.md),
    that runs on across a lesson's parts, which now count each part's
    footnotes apart.
 5. **Mentions** of people and documents.
+   Done: typing @ in any document opens the school's search beside the
+   caret: people, classes, modules, lessons and assignments, found as the
+   global search finds them, with a line saying which class or module
+   each is in. A chosen one stands in the text as one piece, named as it
+   was when chosen; readers follow a class, module, lesson or assignment
+   to its page, and a person reads as a name alone, since not everyone
+   may open a profile.
+   Left: telling a person they were mentioned; mentioning news and the
+   school's pages; a name that follows its person when it changes.
 6. **Glossary terms** a reader can open in place.
 7. **A document's own language**: lessons record the language they teach
    in, may carry a translation, and digits follow a school setting.

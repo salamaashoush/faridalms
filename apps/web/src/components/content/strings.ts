@@ -524,6 +524,7 @@ export function editorStrings(): EditorStrings {
     sharedEdit: m.editorSharedEdit(),
     sharedCopy: m.editorSharedCopy(),
     sharedKeep: m.editorSharedKeep(),
+    mention: m.editorMention(),
     footnote: m.editorFootnote(),
     footnoteAdd: m.editorFootnoteAdd(),
     footnoteHint: m.editorFootnoteHint(),

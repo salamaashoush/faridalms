@@ -29,6 +29,7 @@ import * as v from "valibot";
 import type {
   EditorBank,
   EditorShared,
+  EditorMentions,
   EditorMedia,
   EditorPuzzles,
   EditorStandards,
@@ -55,6 +56,7 @@ import { DiagramPlugin } from "./plugins/diagram";
 import { DirectionPlugin } from "./plugins/Direction";
 import { EmbedPlugin } from "./plugins/embed";
 import { MediaPlugin } from "./plugins/media";
+import { MentionsPlugin } from "./plugins/mentions";
 import { NarrationMarksPlugin } from "./plugins/narration";
 import { PastePlugin } from "./plugins/paste";
 import { PlaceholderPlugin } from "./plugins/Placeholder";
@@ -100,6 +102,8 @@ export interface EditorProps {
   standards?: EditorStandards;
   /** Blocks kept once and shown in many documents. */
   shared?: EditorShared;
+  /** Finds whom and what may be mentioned with @. */
+  mentions?: EditorMentions;
   placeholder?: string;
   initialFocus?: boolean;
   locale?: string;
@@ -142,6 +146,7 @@ export default function Editor({
   bank,
   standards,
   shared,
+  mentions,
   locale,
   value,
   collaboration,
@@ -182,6 +187,7 @@ export default function Editor({
       bank,
       standards,
       shared,
+      mentions,
       locale:
         locale ??
         (typeof document === "undefined"
@@ -205,6 +211,7 @@ export default function Editor({
       bank,
       standards,
       shared,
+      mentions,
       locale,
       questions,
       gates,
@@ -456,6 +463,7 @@ function Surface({
       <EmbedPlugin />
       <BankPlugin />
       <SharedPlugin />
+      <MentionsPlugin />
       <PastePlugin />
       <QuestionGuardPlugin />
       <DiagramPlugin />

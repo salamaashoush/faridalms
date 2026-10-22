@@ -453,6 +453,7 @@ export interface EditorStrings extends LabelEditorStrings, ChartStrings {
   sharedEdit: string;
   sharedCopy: string;
   sharedKeep: string;
+  mention: string;
   footnote: string;
   footnoteAdd: string;
   footnoteHint: string;

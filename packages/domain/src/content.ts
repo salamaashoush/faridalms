@@ -106,6 +106,7 @@ const nodeTypes = [
   "standards",
   "shared",
   "footnote",
+  "mention",
 ] as const;
 /**
  * The questions a document can ask, each marked by the server from the
@@ -214,6 +215,23 @@ export type FileDisplay = (typeof fileDisplays)[number];
 export type CalloutTone = (typeof calloutTones)[number];
 export type ColumnLayout = (typeof columnLayouts)[number];
 export type ImageSize = (typeof imageSizes)[number];
+/** What a mention may name: a person, or a class, module, lesson or assignment. */
+export const MENTION_KINDS = [
+  "person",
+  "class",
+  "module",
+  "lesson",
+  "assignment",
+] as const;
+export type MentionKind = (typeof MENTION_KINDS)[number];
+
+export const mentionSchema = v.object({
+  kind: v.picklist(MENTION_KINDS),
+  id: v.pipe(v.string(), v.uuid()),
+  label: v.pipe(v.string(), v.minLength(1), v.maxLength(200)),
+});
+export type Mention = v.InferOutput<typeof mentionSchema>;
+
 export interface ContentNode {
   type: (typeof nodeTypes)[number];
   version: 1;
@@ -300,6 +318,8 @@ export interface ContentNode {
   note?: string;
   /** A footnote citing a source, written in its style in place of the words. */
   source?: FootnoteSource;
+  /** Who or what a mention names, with the name as it was when written. */
+  mention?: Mention;
   /** The school's standards a question gives evidence of, by id. */
   standards?: string[];
   /**
@@ -624,6 +644,7 @@ const nodeSchema: v.GenericSchema<ContentNode> = v.lazy(() =>
       bankTag: v.optional(v.pipe(v.string(), v.maxLength(40))),
       sharedId: v.optional(v.pipe(v.string(), v.uuid())),
       note: v.optional(v.pipe(v.string(), v.maxLength(2000))),
+      mention: v.optional(mentionSchema),
       source: v.optional(footnoteSourceSchema),
       standards: v.optional(
         v.pipe(
@@ -760,9 +781,9 @@ const inline = (child: ContentNode) =>
     "autolink",
     "math",
   ].includes(child.type);
-/** What running text may hold: its words, and footnotes on them. */
+/** What running text may hold: its words, footnotes on them, and mentions. */
 const prose = (child: ContentNode) =>
-  inline(child) || child.type === "footnote";
+  inline(child) || child.type === "footnote" || child.type === "mention";
 const blocks = new Set<string>([
   "paragraph",
   "heading",
@@ -844,6 +865,8 @@ function validNode(node: ContentNode): boolean {
     return (
       !node.children && node.text === undefined && typeof node.note === "string"
     );
+  if (node.type === "mention")
+    return !node.children && node.text === undefined && Boolean(node.mention);
   if (node.type === "draw")
     return (
       !node.children &&
@@ -1113,6 +1136,7 @@ const visit = (node: ContentNode): string => {
   if (node.type === "math") return mathText(node);
   // A footnote is read where it is listed, not in the line it marks.
   if (node.type === "footnote") return "";
+  if (node.type === "mention") return `@${node.mention?.label ?? ""}`;
   // Accepted answers are the key; they stay out of text anyone can search.
   if (node.type === "question-answer" || node.type === "question-gap")
     return "";

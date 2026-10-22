@@ -12,6 +12,7 @@ import { FootnoteNode } from "./footnote";
 import { GateNode } from "./gate";
 import { MathNode } from "./math";
 import { FileNode, ImageNode } from "./media";
+import { MentionNode } from "./mention";
 import { PageBreakNode } from "./page-break";
 import {
   $isPanelBodyNode,
@@ -53,6 +54,7 @@ export * from "./footnote";
 export * from "./gate";
 export * from "./math";
 export * from "./media";
+export * from "./mention";
 export * from "./page-break";
 export * from "./panels";
 export * from "./pictures";
@@ -100,6 +102,7 @@ export const blockNodes = [
   AiUseNode,
   MathNode,
   FootnoteNode,
+  MentionNode,
 ];
 
 export const blockIdState = createState("id", {

@@ -1901,3 +1901,15 @@
 .fe .fe-notes-back {
   text-decoration: none;
 }
+
+/* A mention: the name it was written with, set apart as a name, and a
+   link where its reader may open it. */
+.fe .fe-mention {
+  border-radius: 0.25rem;
+  padding-inline: 0.15em;
+  background: color-mix(in oklab, var(--fe-accent) 10%, transparent);
+  color: var(--fe-accent);
+  font-weight: 500;
+  text-decoration: none;
+  white-space: nowrap;
+}
