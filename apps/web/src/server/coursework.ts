@@ -113,6 +113,10 @@ export const actOnWork = createServerFn({ method: "POST" })
   .validator(checked(studentWorkActionSchema))
   .handler(({ data }) => backend().coursework.act(data));
 
+export const drawStudentPapers = createServerFn({ method: "POST" })
+  .validator(byId)
+  .handler(({ data }) => backend().coursework.drawnPapers(data));
+
 export const extendDueDates = createServerFn({ method: "POST" })
   .validator(checked(extendSchema))
   .handler(({ data }) => backend().coursework.extend(data));

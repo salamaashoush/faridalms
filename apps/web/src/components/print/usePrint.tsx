@@ -11,6 +11,8 @@ import type { Locale } from "~/i18n/runtime";
 
 import * as m from "~/i18n/messages";
 
+import type { OwnPaper } from "./PrintSheet";
+
 import { PrintSheet } from "./PrintSheet";
 
 /** A document as it may be printed, with what its reader may add to the paper. */
@@ -29,6 +31,8 @@ export interface Printable {
   link?: string;
   /** The students a teacher may print a named copy for. */
   copies?: readonly string[];
+  /** Each student's own paper, for a quiz that draws its questions from the bank. */
+  ownPapers?: () => Promise<readonly OwnPaper[]>;
   /** A form answered on paper: the children it may be answered for. */
   slip?: readonly string[];
   /** The language the document is written in, where its author set one. */

@@ -1707,6 +1707,83 @@ describe("quizzes", () => {
     );
   });
 
+  test("a teacher prints each student's own drawn paper, which their attempt then asks", async () => {
+    const teacher = await arabicTeacher();
+    const student = await sessionFor("northwind", login("student"));
+    const me = await student.api.identity.currentUser();
+    const target = await classOfStudent(teacher.api, me.id);
+    const tag = `paper ${uuid().slice(0, 8)}`;
+    for (const prompt of ["Is six even?", "Is nine even?", "Is ten even?"]) {
+      const yes = uuid();
+      const content = contentOfLesson({
+        version: 2,
+        blocks: [
+          {
+            ...common,
+            id: uuid(),
+            type: "choice",
+            prompt,
+            points: 1,
+            options: [
+              { id: yes, text: "Yes", feedback: "" },
+              { id: uuid(), text: "No", feedback: "" },
+            ],
+            correctOptionIds: [yes],
+            multiple: false,
+            shuffle: false,
+          },
+        ],
+      });
+      if (!content) throw new Error("question could not become a document");
+      await teacher.api.bank.save({
+        id: "",
+        expectedVersion: 0,
+        scope: "mine",
+        tags: [tag],
+        content,
+      });
+    }
+    const saved = await teacher.api.coursework.save(
+      draft(target.id, "Paper quiz", {
+        submissionFormat: "quiz",
+        points: null,
+        brief: briefWithQuiz(plainContent("Answer on paper."), {
+          version: 2,
+          blocks: [{ id: uuid(), type: "draw", tag, count: 2, points: 1 }],
+        }),
+        quiz: {
+          attempts: 1,
+          keep: "highest",
+          reveal: "answers",
+          shuffle: false,
+        },
+      }),
+    );
+    await teacher.api.coursework.publish({
+      id: saved.id,
+      expectedVersion: saved.version,
+    });
+    const { papers } = await teacher.api.coursework.drawnPapers({
+      id: saved.id,
+    });
+    const mine = papers.find((paper) => paper.studentId === me.id);
+    const printed = (mine?.content.root.children ?? []).filter(
+      (node) => node.type === "question",
+    );
+    expect(printed).toHaveLength(2);
+    expect(JSON.stringify(mine?.content)).toContain("Answer on paper.");
+    // Printing again draws nothing new.
+    const again = await teacher.api.coursework.drawnPapers({ id: saved.id });
+    expect(
+      again.papers.find((paper) => paper.studentId === me.id)?.content,
+    ).toEqual(mine?.content);
+    await student.api.coursework.startQuiz({ assignmentId: saved.id });
+    const open = await student.api.coursework.work({ id: saved.id });
+    expect(open.quiz?.blocks.map((block) => block.id).toSorted()).toEqual(
+      printed.flatMap((node) => node.questionId ?? []).toSorted(),
+    );
+  });
+
   test("a timed quiz shows its questions once begun, stops taking answers when time runs out, and hands itself in", async () => {
     const teacher = await arabicTeacher();
     const student = await sessionFor("northwind", login("student"));

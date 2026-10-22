@@ -65,6 +65,7 @@ import { assignmentRecordQuery } from "~/queries/coursework";
 import {
   actOnWork,
   archiveAssignment,
+  drawStudentPapers,
   extendDueDates,
   publishAssignment,
 } from "~/server/coursework";
@@ -681,6 +682,22 @@ export function AssignmentRecord({
           answers: data.access.author || data.access.grade,
           link: `/assignments/${data.id}`,
           copies: data.work.map((row) => displayName(row)),
+          ...(data.draws
+            ? {
+                ownPapers: async () => {
+                  const { papers } = await drawStudentPapers({
+                    data: { id: data.id },
+                  });
+                  const names = new Map(
+                    data.work.map((row) => [row.studentId, displayName(row)]),
+                  );
+                  return papers.map((paper) => ({
+                    name: names.get(paper.studentId) ?? "",
+                    content: paper.content,
+                  }));
+                },
+              }
+            : {}),
         }
       : null,
   );

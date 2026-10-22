@@ -195,7 +195,11 @@ import {
   responseIssue,
   studentQuiz,
 } from "@faridalms/domain/learning";
-import { quizIntro, quizOfBrief } from "@faridalms/domain/lesson-content";
+import {
+  contentOfLesson,
+  quizIntro,
+  quizOfBrief,
+} from "@faridalms/domain/lesson-content";
 import { practised, practiceStanding } from "@faridalms/domain/practice";
 import {
   documentWritten,
@@ -1223,12 +1227,15 @@ export const record = readProcedure
       }),
       classById(context.tx, context, assignment.classId),
     ]);
-    const [grade, rules] = await Promise.all([
+    const [grade, rules, quiz] = await Promise.all([
       gradeReader(
         context,
         work.map((row) => row.gradeScaleVersionId),
       ),
       assessedRules(context, assignment.id),
+      assignment.submissionFormat === "quiz" && assignment.state !== "draft"
+        ? publishedQuiz(context, assignment.id)
+        : null,
     ]);
     const marks = rules
       ? await attemptMarks(
@@ -1253,6 +1260,8 @@ export const record = readProcedure
         : null,
       brief,
       translation,
+      /** Whether the quiz draws each student's questions from the bank. */
+      draws: quiz ? drawsOf(quiz).length > 0 : false,
       work: work.map((row) => ({
         ...row,
         grade: grade(
@@ -1281,6 +1290,65 @@ export const record = readProcedure
       },
       now: context.now.toISOString(),
     };
+  });
+
+/**
+ * Each student's own paper for a quiz that draws its questions from the
+ * bank, as for a test sat on paper: the attempt each student is to make
+ * next is drawn now, as opening it would draw it, so the paper asks what
+ * the quiz will ask them online. A quiz that draws nothing has no papers.
+ */
+export const drawnPapers = writeProcedure
+  .input(v.object({ id }))
+  .handler(async ({ input, context }) => {
+    requireCapability(context, "assignments:author", "submissions:grade");
+    const assignment = await taughtAssignment(context, input.id);
+    if (assignment.submissionFormat !== "quiz")
+      throw new ORPCError("BAD_REQUEST", { message: "coursework.not_quiz" });
+    const document = await publishedQuiz(context, assignment.id);
+    if (!document) throw new ORPCError("NOT_FOUND");
+    if (drawsOf(document).length === 0) return { papers: [] };
+    const [work, intro] = await Promise.all([
+      studentWork(context.tx, {
+        tenantId: context.tenantId,
+        assignmentId: assignment.id,
+      }),
+      readersBrief(context, assignment),
+    ]);
+    const papers: { studentId: string; content: ContentDocument }[] = [];
+    for (const row of work) {
+      if (row.excused) continue;
+      const submission = await ensureSubmission(context.tx, {
+        tenantId: context.tenantId,
+        assignmentId: assignment.id,
+        studentId: row.studentId,
+      });
+      const attempt = row.attempts + 1;
+      await drawAttempt(context, {
+        assignment,
+        document,
+        submissionId: submission.id,
+        studentId: row.studentId,
+        attempt,
+      });
+      const quizzes = await attemptQuizzes(context, document, submission.id);
+      const asked = contentOfLesson(quizzes.of(attempt));
+      if (!asked) continue;
+      // The paper opens with the words the quiz opens with.
+      papers.push({
+        studentId: row.studentId,
+        content: {
+          root: {
+            ...asked.root,
+            children: [
+              ...(intro?.root.children ?? []),
+              ...(asked.root.children ?? []),
+            ],
+          },
+        },
+      });
+    }
+    return { papers };
   });
 
 /**

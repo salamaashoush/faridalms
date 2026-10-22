@@ -56,6 +56,20 @@ type Size = (typeof SIZES)[number];
 type AnswerMode = "none" | "inline" | "key";
 
 const EMPTY = emptyContent();
+
+/** A student's own paper, where the quiz drew their questions from the bank. */
+export interface OwnPaper {
+  name: string;
+  content: ContentDocument;
+}
+
+/** Each question of a paper with its number, in order. */
+function numbered(document: ContentDocument): Map<ContentNode, number> {
+  const found = new Map<ContentNode, number>();
+  for (const node of document.root.children ?? [])
+    if (node.type === "question") found.set(node, found.size + 1);
+  return found;
+}
 const NOT_QUESTIONS = new Set(["content", "media", "gate"]);
 
 /** Whether any recording in these blocks says what it says in words. */
@@ -377,6 +391,7 @@ export function PrintSheet({
   answers: canAnswer = false,
   link,
   copies = [],
+  ownPapers,
   slip,
   language,
   onClose,
@@ -393,6 +408,12 @@ export function PrintSheet({
   link?: string;
   /** The students a teacher may print a named copy for, one each. */
   copies?: readonly string[];
+  /**
+   * Each student's own paper, for a quiz that draws its questions from the
+   * bank: asked for only once the teacher prints named copies, since it
+   * draws what each student has not been given yet.
+   */
+  ownPapers?: () => Promise<readonly OwnPaper[]>;
   /** A form answered on paper: the children it may be answered for. */
   slip?: readonly string[];
   /** The language the document is written in, where its author set one. */
@@ -413,6 +434,8 @@ export function PrintSheet({
   const [school, setSchool] = useState(true);
   const [answers, setAnswers] = useState<AnswerMode>("none");
   const [named, setNamed] = useState(false);
+  const [papers, setPapers] = useState<readonly OwnPaper[] | null>(null);
+  const [drawing, setDrawing] = useState<"no" | "yes" | "failed">("no");
   const [transcripts, setTranscripts] = useState(false);
   const [reply, setReply] = useState(true);
   const [preparing, setPreparing] = useState(false);
@@ -476,12 +499,7 @@ export function PrintSheet({
   const dir = rtl ? "rtl" : "ltr";
   const locale: Locale = rtl ? "ar" : "en";
   const paperContent = useMemo(() => onPaper(content), [content]);
-  const numbers = useMemo(() => {
-    const found = new Map<ContentNode, number>();
-    for (const node of paperContent.root.children ?? [])
-      if (node.type === "question") found.set(node, found.size + 1);
-    return found;
-  }, [paperContent]);
+  const numbers = useMemo(() => numbered(paperContent), [paperContent]);
   const [upright, across] = PAPER[paper];
   const [width, height] = landscape ? [across, upright] : [upright, across];
   const scale = room > 0 ? Math.min(1, room / (width * PX_PER_MM)) : 1;
@@ -509,23 +527,40 @@ export function PrintSheet({
       )
     : transcribed(content.root.children);
   const forms: PaperFacts = { locale, fileUrl, online, transcripts };
-  const replace = (node: ContentNode, drawn: ReactNode) => {
-    if (node.type === "gate") return null;
-    if (node.type === "question") {
-      const question = questionBlock(node);
-      return question ? (
-        <PaperQuestion
-          block={question}
-          number={numbers.get(node) ?? 0}
-          answers={answers === "inline"}
-          rtl={rtl}
-          fileUrl={fileUrl}
-          online={online}
-        />
-      ) : null;
-    }
-    return paperForm(node, drawn, forms);
-  };
+  const replaceIn =
+    (asked: ReadonlyMap<ContentNode, number>) =>
+    (node: ContentNode, drawn: ReactNode) => {
+      if (node.type === "gate") return null;
+      if (node.type === "question") {
+        const question = questionBlock(node);
+        return question ? (
+          <PaperQuestion
+            block={question}
+            number={asked.get(node) ?? 0}
+            answers={answers === "inline"}
+            rtl={rtl}
+            fileUrl={fileUrl}
+            online={online}
+          />
+        ) : null;
+      }
+      return paperForm(node, drawn, forms);
+    };
+  const replace = replaceIn(numbers);
+  const contentBody = (
+    document: ContentDocument,
+    asked: ReadonlyMap<ContentNode, number>,
+  ) => (
+    <ContentView
+      document={document}
+      fileUrl={fileUrl}
+      className="fe-paper"
+      replace={replaceIn(asked)}
+      locale={locale}
+      runs={false}
+      lang={language ?? undefined}
+    />
+  );
 
   const body = lesson ? (
     <WholeDocument parts={lesson} lang={language}>
@@ -572,16 +607,29 @@ export function PrintSheet({
       </div>
     </WholeDocument>
   ) : (
-    <ContentView
-      document={paperContent}
-      fileUrl={fileUrl}
-      className="fe-paper"
-      replace={replace}
-      locale={locale}
-      runs={false}
-      lang={language ?? undefined}
-    />
+    contentBody(paperContent, numbers)
   );
+
+  // Each student's own paper where the quiz drew theirs, numbered for its
+  // own questions, with its own key; else one paper for every name.
+  const own =
+    named && papers
+      ? papers.map((student) => {
+          const document = onPaper(student.content);
+          const asked = numbered(document);
+          return {
+            name: student.name,
+            body: contentBody(document, asked),
+            asked,
+          };
+        })
+      : null;
+  const copiesToPrint: {
+    name: string | undefined;
+    body: ReactNode;
+    asked: ReadonlyMap<ContentNode, number>;
+  }[] = own ?? names.map((name) => ({ name, body, asked: numbers }));
+  const keys = own ?? [{ name: undefined, body, asked: numbers }];
 
   const footer =
     (label: string) =>
@@ -608,7 +656,7 @@ export function PrintSheet({
     "--page-gap": `${GAP}mm`,
     "--paper-text": `${size}pt`,
   } as CSSProperties;
-  const copiesCount = named ? copies.length : 0;
+  const copiesCount = named ? (own?.length ?? copies.length) : 0;
   const answerModes = [
     {
       value: "none",
@@ -698,11 +746,39 @@ export function PrintSheet({
             onChange={(next) => {
               setNamed(next);
               if (next) setLines(true);
+              if (next && ownPapers && !papers && drawing !== "yes") {
+                setDrawing("yes");
+                ownPapers().then(
+                  (drawn) => {
+                    setPapers(drawn);
+                    setDrawing("no");
+                  },
+                  () => setDrawing("failed"),
+                );
+              }
             }}
           />
+          {ownPapers && named ? (
+            <p
+              role={drawing === "failed" ? "alert" : "status"}
+              className={cn(
+                "text-xs",
+                drawing === "failed"
+                  ? "text-destructive"
+                  : "text-muted-foreground",
+              )}
+            >
+              {drawing === "yes"
+                ? m.printDrawing()
+                : drawing === "failed"
+                  ? m.printDrawFailed()
+                  : m.printDrawnHint()}
+            </p>
+          ) : null}
         </PanelGroup>
       ) : null}
-      {canAnswer && numbers.size > 0 ? (
+      {canAnswer &&
+      (numbers.size > 0 || own?.some((copy) => copy.asked.size > 0)) ? (
         <PanelGroup title={m.printAnswersLabel()}>
           <RadioGroup
             aria-label={m.printAnswersLabel()}
@@ -815,15 +891,17 @@ export function PrintSheet({
                 className="grid justify-items-center gap-8 print:block"
                 style={geometry}
               >
-                {names.map((name, index) => (
+                {copiesToPrint.map((copy, index) => (
                   <PaperCopy
-                    key={name ?? index}
+                    key={copy.name ?? index}
                     paged={paged}
                     page={height * PX_PER_MM}
                     gap={GAP * PX_PER_MM}
                     scale={scale}
                     dir={dir}
-                    footer={footer(name ? `${name} · ${title}` : title)}
+                    footer={footer(
+                      copy.name ? `${copy.name} · ${title}` : title,
+                    )}
                   >
                     <PaperHeader
                       title={title}
@@ -831,7 +909,7 @@ export function PrintSheet({
                       school={schoolName}
                       logo={logo}
                       lines={lines}
-                      name={name}
+                      name={copy.name}
                       note={
                         answers === "inline"
                           ? m.printAnswersCopy({}, { locale })
@@ -839,32 +917,39 @@ export function PrintSheet({
                       }
                       locale={locale}
                     />
-                    {body}
+                    {copy.body}
                     {slip && reply ? (
                       <ReplySlip title={title} names={slip} locale={locale} />
                     ) : null}
                   </PaperCopy>
                 ))}
-                {answers === "key" ? (
-                  <PaperCopy
-                    paged={paged}
-                    page={height * PX_PER_MM}
-                    gap={GAP * PX_PER_MM}
-                    scale={scale}
-                    dir={dir}
-                    footer={footer(m.printKeyTitle({ title }, { locale }))}
-                  >
-                    <AnswerKey
-                      title={title}
-                      questions={[...numbers].map(([node, number]) => ({
-                        node,
-                        number,
-                      }))}
-                      rtl={rtl}
-                      locale={locale}
-                    />
-                  </PaperCopy>
-                ) : null}
+                {answers === "key"
+                  ? keys.map((key, index) => (
+                      <PaperCopy
+                        key={key.name ?? index}
+                        paged={paged}
+                        page={height * PX_PER_MM}
+                        gap={GAP * PX_PER_MM}
+                        scale={scale}
+                        dir={dir}
+                        footer={footer(
+                          key.name
+                            ? `${key.name} · ${m.printKeyTitle({ title }, { locale })}`
+                            : m.printKeyTitle({ title }, { locale }),
+                        )}
+                      >
+                        <AnswerKey
+                          title={key.name ? `${title} · ${key.name}` : title}
+                          questions={[...key.asked].map(([node, number]) => ({
+                            node,
+                            number,
+                          }))}
+                          rtl={rtl}
+                          locale={locale}
+                        />
+                      </PaperCopy>
+                    ))
+                  : null}
               </div>
             </div>
             {wideScreen ? (
