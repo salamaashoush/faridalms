@@ -509,7 +509,8 @@ export async function recordProgress(
 }
 
 export interface WatchRow {
-  fileId: string;
+  /** An upload's file id, or a YouTube or Vimeo video's key. */
+  video: string;
   watchedSeconds: number;
   durationSeconds: number;
   positionSeconds: number;
@@ -518,20 +519,20 @@ export interface WatchRow {
 }
 
 type WatchRecord = {
-  file_id: string;
+  video: string;
   watched_seconds: number;
   duration_seconds: number;
   position_seconds: number;
   reached_seconds: number;
 };
 
-const watchColumns = sql`file_id,
+const watchColumns = sql`video,
   coalesce((select sum(upper(r) - lower(r)) from unnest(watched) r), 0)::int as watched_seconds,
   duration_seconds, position_seconds,
   coalesce((select upper(r) from unnest(watched) r where lower(r) = 0), 0)::int as reached_seconds`;
 
 const watchOf = (row: WatchRecord): WatchRow => ({
-  fileId: row.file_id,
+  video: row.video,
   watchedSeconds: row.watched_seconds,
   durationSeconds: row.duration_seconds,
   positionSeconds: row.position_seconds,
@@ -565,6 +566,8 @@ const multirange = (ranges: readonly (readonly [number, number])[]) =>
         sql`, `,
       )})`;
 
+const UUID = /^[\da-f]{8}-[\da-f]{4}-[\da-f]{4}-[\da-f]{4}-[\da-f]{12}$/i;
+
 /**
  * Adds stretches a student played of a recording in a lesson to what they
  * played before, kept within its length, and moves their place in it. A
@@ -577,24 +580,27 @@ export async function recordWatch(
     tenantId: string;
     lessonId: string;
     studentId: string;
-    fileId: string;
+    /** An upload's file id, or a YouTube or Vimeo video's key. */
+    video: string;
     ranges: readonly (readonly [number, number])[];
     durationSeconds: number;
     positionSeconds: number;
   },
 ): Promise<WatchRow> {
+  const upload = UUID.test(input.video);
   const played = multirange(input.ranges);
   const length = sql`int4multirange(int4range(0, ${input.durationSeconds}::int))`;
   const [row] = await tx.execute<WatchRecord>(sql`
     insert into core.lesson_watches
-      (tenant_id, lesson_id, student_user_id, file_id, watched, replayed, duration_seconds, position_seconds)
+      (tenant_id, lesson_id, student_user_id, file_id, embed, watched, replayed, duration_seconds,
+        position_seconds)
     values (${input.tenantId}::uuid, ${input.lessonId}::uuid, ${input.studentId}::uuid,
-      ${input.fileId}::uuid,
+      ${upload ? input.video : null}::uuid, ${upload ? null : input.video},
       ${played} * ${length},
       ${multirange(replayedWithin(input.ranges))} * ${length},
       ${input.durationSeconds}::int,
       least(${input.positionSeconds}::int, ${input.durationSeconds}::int))
-    on conflict (tenant_id, lesson_id, student_user_id, file_id)
+    on conflict (tenant_id, lesson_id, student_user_id, video)
       where status = 'active' do update set
       replayed = (core.lesson_watches.replayed + excluded.replayed
         + (core.lesson_watches.watched * excluded.watched))
@@ -981,7 +987,7 @@ export async function watchRowsIn(
   {
     lessonId: string;
     studentId: string;
-    fileId: string;
+    video: string;
     ranges: [number, number][];
     replayed: [number, number][];
     durationSeconds: number;
@@ -991,12 +997,12 @@ export async function watchRowsIn(
   const rows = await tx.execute<{
     lesson_id: string;
     student_user_id: string;
-    file_id: string;
+    video: string;
     ranges: [number, number][];
     replayed: [number, number][];
     duration_seconds: number;
   }>(sql`
-    select lesson_id, student_user_id, file_id, duration_seconds,
+    select lesson_id, student_user_id, video, duration_seconds,
       coalesce((select jsonb_agg(jsonb_build_array(lower(r), upper(r)) order by lower(r))
         from unnest(watched) r), '[]'::jsonb) as ranges,
       coalesce((select jsonb_agg(jsonb_build_array(lower(r), upper(r)) order by lower(r))
@@ -1008,7 +1014,7 @@ export async function watchRowsIn(
   return rows.map((row) => ({
     lessonId: row.lesson_id,
     studentId: row.student_user_id,
-    fileId: row.file_id,
+    video: row.video,
     ranges: row.ranges,
     replayed: row.replayed,
     durationSeconds: row.duration_seconds,

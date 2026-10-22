@@ -3167,7 +3167,8 @@ describe("right now", () => {
 });
 
 describe("watching recordings", () => {
-  test("a lesson that finishes on watching counts only what was played, and picks up where it stopped", async () => {
+  /** A new module for the seeded module's classes, by one of its teachers. */
+  async function watchingModule(title: string) {
     const tenant = seeded().tenants[0];
     const school = tenant?.schools.find((row) => row.slug === "northwind");
     let teacher: Awaited<ReturnType<typeof sessionFor>> | null = null;
@@ -3185,12 +3186,18 @@ describe("watching recordings", () => {
     const saved = await keeper.learning.saveModule({
       id: "",
       expectedVersion: 0,
-      title: "Listening",
+      title,
       summary: "",
       classIds: source.classes.map((item) => item.id),
       prerequisiteId: "",
       sequential: false,
     });
+    return { teacher, keeper, source, saved };
+  }
+
+  test("a lesson that finishes on watching counts only what was played, and picks up where it stopped", async () => {
+    const { teacher, keeper, source, saved } =
+      await watchingModule("Listening");
     // An MP3's ID3 signature, which is all the upload check reads.
     const mp3 = new Blob([new Uint8Array([0x49, 0x44, 0x33, 3, 0, 0, 0, 0])]);
     const recording = await uploadAs(teacher, "story.mp3", "audio/mpeg", mp3);
@@ -3260,7 +3267,7 @@ describe("watching recordings", () => {
     // Forty seconds, then a skip to the end: skipped seconds never count.
     const first = await pupil.learning.watch({
       lessonId: lesson.id,
-      fileId: recording,
+      video: recording,
       ranges: [
         [0, 30],
         [20, 40],
@@ -3285,7 +3292,7 @@ describe("watching recordings", () => {
     // Played again from the start, then on to ninety: past nine tenths, done.
     const second = await pupil.learning.watch({
       lessonId: lesson.id,
-      fileId: recording,
+      video: recording,
       ranges: [
         [0, 10],
         [40, 90],
@@ -3311,7 +3318,7 @@ describe("watching recordings", () => {
       moduleId: saved.id,
       classId,
     });
-    const story = insight.recordings.find((row) => row.fileId === recording);
+    const story = insight.recordings.find((row) => row.key === recording);
     expect(story).toMatchObject({ name: "story.mp3", durationSeconds: 100 });
     expect(Object.values(story?.watched ?? {})).toContain(100);
     expect(Math.min(...(story?.curve ?? [0]))).toBeGreaterThanOrEqual(1);
@@ -3327,7 +3334,94 @@ describe("watching recordings", () => {
       await rejection(
         pupil.learning.watch({
           lessonId: lesson.id,
-          fileId: id(),
+          video: id(),
+          ranges: [[0, 5]],
+          durationSeconds: 10,
+          positionSeconds: 5,
+        }),
+      ),
+    ).toMatchObject({ code: "NOT_FOUND" });
+  });
+
+  test("a YouTube video counts its watching like an upload, and its questions belong to it", async () => {
+    const { keeper, source, saved } = await watchingModule("Film club");
+    const film = "aqz-KE-bpKQ";
+    const content = written([
+      { id: id(), type: "content", content: plainContent("Watch the film.") },
+    ]);
+    content.root.children?.push({
+      type: "embed",
+      version: 1,
+      provider: "youtube",
+      embedId: film,
+      caption: "The film",
+    });
+    const asked = id();
+    const lesson = await keeper.learning.saveLesson({
+      id: "",
+      moduleId: saved.id,
+      expectedVersion: 0,
+      title: "The film",
+      completion: "watch",
+      passScore: null,
+      content: {
+        root: {
+          ...content.root,
+          children: [
+            ...(content.root.children ?? []),
+            ...(written([
+              {
+                id: asked,
+                type: "written",
+                prompt: "What happened first?",
+                points: 0,
+                hints: [],
+                explanation: "",
+                tries: null,
+                wordLimit: null,
+                videoAt: 30,
+              },
+            ]).root.children ?? []),
+          ],
+        },
+      },
+      publish: false,
+    });
+    await keeper.learning.publishModule({
+      id: saved.id,
+      expectedVersion: saved.version,
+    });
+    const pupil = await student();
+    await pupil.learning.playLesson({ id: lesson.id });
+    const video = `youtube:${film}`;
+    const report = await pupil.learning.watch({
+      lessonId: lesson.id,
+      video,
+      ranges: [[0, 95]],
+      durationSeconds: 100,
+      positionSeconds: 95,
+    });
+    expect(report).toMatchObject({
+      completed: true,
+      watched: { watchedSeconds: 95, reachedSeconds: 95 },
+    });
+    expect(
+      (await pupil.learning.playLesson({ id: lesson.id })).watches[video],
+    ).toMatchObject({ watchedSeconds: 95 });
+    const insight = await keeper.learning.videos({
+      moduleId: saved.id,
+      classId: source.classes[0]?.id ?? "",
+    });
+    expect(insight.recordings.find((row) => row.key === video)).toMatchObject({
+      name: "The film",
+      video: true,
+      stops: [30],
+    });
+    expect(
+      await rejection(
+        pupil.learning.watch({
+          lessonId: lesson.id,
+          video: "youtube:dQw4w9WgXcQ",
           ranges: [[0, 5]],
           durationSeconds: 10,
           positionSeconds: 5,

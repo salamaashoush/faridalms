@@ -18,7 +18,7 @@ import {
   describeCheck,
   isAuto,
   markResponse,
-  mediaFiles,
+  watchables,
   studentBlocks,
   upgradeLesson,
   videoStops,
@@ -248,7 +248,7 @@ function LessonBody({
   const settledAbove = (index: number) => {
     const above = blocks.slice(0, index);
     const questions = above.filter(isCheckBlock);
-    const media = mediaFiles(above);
+    const media = watchables(above);
     const waits: GateWaits =
       questions.length === 0
         ? "media"
@@ -487,7 +487,7 @@ function useWatching(
     onHeldBack: () => toast(m.lrnNoSkipping(), { id: `skip-${fileId}` }),
     report: (report) => {
       // A lost report only means those seconds count when played again.
-      void saveWatch({ data: { lessonId, fileId, ...report } })
+      void saveWatch({ data: { lessonId, video: fileId, ...report } })
         .then((result) => {
           onWatched(result.watched);
           if (result.completed && !finished.current) {
@@ -751,7 +751,7 @@ export function LessonPlayer({ lessonId }: { lessonId: string }) {
     (watched) =>
       queryClient.setQueryData(query.queryKey, (old) =>
         old
-          ? { ...old, watches: { ...old.watches, [watched.fileId]: watched } }
+          ? { ...old, watches: { ...old.watches, [watched.video]: watched } }
           : old,
       ),
     () => {

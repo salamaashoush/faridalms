@@ -289,7 +289,13 @@ export const lessonWatches = core.table.withRLS(
     ...tenantColumns(),
     lessonId: uuid("lesson_id").notNull(),
     studentUserId: uuid("student_user_id").notNull(),
-    fileId: uuid("file_id").notNull(),
+    /** An uploaded recording, or else a YouTube or Vimeo video by its key. */
+    fileId: uuid("file_id"),
+    embed: text("embed"),
+    /** Which video, whoever hosts it: what the student's watching is kept by. */
+    video: text("video")
+      .notNull()
+      .generatedAlwaysAs(sql`coalesce(file_id::text, embed)`),
     watched: int4multirange("watched")
       .notNull()
       .default(sql`'{}'::int4multirange`),
@@ -315,6 +321,11 @@ export const lessonWatches = core.table.withRLS(
       [users.tenantId, users.id],
     ),
     fk("lesson_watches", [t.tenantId, t.fileId], [files.tenantId, files.id]),
+    ck(
+      "lesson_watches",
+      "video",
+      sql`(file_id is null) <> (embed is null) and (embed is null or embed ~ '^(youtube:[A-Za-z0-9_-]{11}|vimeo:[0-9]{4,12})$')`,
+    ),
     ck("lesson_watches", "duration", sql`duration_seconds between 1 and 21600`),
     ck(
       "lesson_watches",
@@ -327,7 +338,7 @@ export const lessonWatches = core.table.withRLS(
       sql`watched <@ int4multirange(int4range(0, duration_seconds))`,
     ),
     uniqueIndex("lesson_watches_key")
-      .on(t.tenantId, t.lessonId, t.studentUserId, t.fileId)
+      .on(t.tenantId, t.lessonId, t.studentUserId, t.video)
       .where(sql`status = 'active'`),
     ...entityProfile(),
   ],

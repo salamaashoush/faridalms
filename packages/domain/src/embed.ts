@@ -173,6 +173,12 @@ export function embedPage({ provider, embedId }: Embed): string {
   return pages[provider](embedId);
 }
 
+/** A YouTube or Vimeo video as watching counts it: its service and its id. */
+export const framedKey = (provider: string, id: string) => `${provider}:${id}`;
+
+/** A watched video's key that is a YouTube or Vimeo video's, not an upload's. */
+export const FRAMED_KEY = /^(?:youtube:[\w-]{11}|vimeo:\d{4,12})$/;
+
 export const embedProviderNames: Record<EmbedProvider, string> = {
   youtube: "YouTube",
   vimeo: "Vimeo",

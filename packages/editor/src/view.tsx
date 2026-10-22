@@ -18,7 +18,11 @@ import {
   headingLevel,
   topHeadingLevel,
 } from "@faridalms/domain/content-checks";
-import { embedPage, embedProviderNames } from "@faridalms/domain/embed";
+import {
+  embedPage,
+  embedProviderNames,
+  framedKey,
+} from "@faridalms/domain/embed";
 import { isSafeContentUrl } from "@faridalms/domain/rich-text";
 import { ExternalLink } from "lucide-react";
 import { cloneElement, createElement, Fragment, isValidElement } from "react";
@@ -111,7 +115,14 @@ export interface RunnableProps {
 
 /** How a recording's playing is followed, held to what was played if the teacher asks. */
 function watchOf(node: ContentNode, context: Context): MediaWatch | undefined {
-  const watch = node.fileId ? context.watch?.(node.fileId) : undefined;
+  const key =
+    node.fileId ??
+    (node.type === "embed" &&
+    (node.provider === "youtube" || node.provider === "vimeo") &&
+    node.embedId
+      ? framedKey(node.provider, node.embedId)
+      : null);
+  const watch = key ? context.watch?.(key) : undefined;
   return watch && node.noSkipping ? { ...watch, noSkipping: true } : watch;
 }
 
@@ -731,6 +742,7 @@ function draw(
             loadLabel={context.strings.embedLoad(name)}
             privacy={context.strings.embedPrivacy(name)}
             locale={context.locale}
+            watch={watchOf(node, context)}
           />
           <div className="flex items-center justify-between gap-2">
             {node.caption ? (

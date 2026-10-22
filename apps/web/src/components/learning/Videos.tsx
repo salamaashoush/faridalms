@@ -279,7 +279,7 @@ export function ClassVideos({
             </h2>
             {items.map((recording) => (
               <RecordingCard
-                key={recording.fileId}
+                key={recording.key}
                 recording={recording}
                 students={students}
               />

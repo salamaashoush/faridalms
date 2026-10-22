@@ -85,6 +85,7 @@ import {
   lessonContentOf,
   lessonIssue,
   lessonMedia,
+  lessonWatchables,
   lessonRecordings,
   lessonScore,
   markResponse,
@@ -960,7 +961,7 @@ export const videos = readProcedure
       return lessonRecordings(content).map((recording) => {
         const rows = watches.filter(
           (watch) =>
-            watch.lessonId === item.id && watch.fileId === recording.fileId,
+            watch.lessonId === item.id && watch.video === recording.key,
         );
         const duration = Math.max(
           0,
@@ -986,11 +987,11 @@ export const videos = readProcedure
         return {
           lessonId: item.id,
           lessonTitle: item.title,
-          fileId: recording.fileId,
-          name: recording.name || named.get(recording.fileId) || "",
+          key: recording.key,
+          name: recording.name || named.get(recording.key) || "",
           video: recording.video,
           durationSeconds: duration || null,
-          stops: (stops.get(recording.fileId) ?? []).map((stop) => stop.at),
+          stops: (stops.get(recording.key) ?? []).map((stop) => stop.at),
           curve,
           again,
           watched: Object.fromEntries(
@@ -1427,7 +1428,7 @@ async function watchedIn(
     lessonId: played.row.id,
     studentId: played.studentId,
   });
-  return Object.fromEntries(rows.map((row) => [row.fileId, row]));
+  return Object.fromEntries(rows.map((row) => [row.video, row]));
 }
 
 /** What a lesson's rule needs of its recordings: nothing unless it finishes on watching. */
@@ -2336,13 +2337,13 @@ export const watch = writeProcedure
   .input(watchSchema)
   .handler(async ({ input, context }) => {
     const played = await playable(context, input.lessonId);
-    if (!lessonMedia(played.content).includes(input.fileId))
+    if (!lessonWatchables(played.content).includes(input.video))
       throw new ORPCError("NOT_FOUND");
     const watched = await recordWatch(context.tx, {
       tenantId: context.tenantId,
       lessonId: played.row.id,
       studentId: played.studentId,
-      fileId: input.fileId,
+      video: input.video,
       ranges: input.ranges,
       durationSeconds: input.durationSeconds,
       positionSeconds: input.positionSeconds,

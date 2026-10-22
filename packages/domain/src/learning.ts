@@ -20,6 +20,7 @@ import {
 } from "./content";
 import { contentIssues } from "./content-checks";
 import { emptyContent } from "./content-conversion";
+import { embedProviderNames, FRAMED_KEY, framedKey } from "./embed";
 import {
   contentOfLesson,
   hintsOf,
@@ -717,6 +718,48 @@ export function lessonContentOf(value: unknown): ContentDocument {
 const mediaOf = (node: ContentNode): ContentNode[] =>
   node.type === "media" ? [node] : (node.children ?? []).flatMap(mediaOf);
 
+/** Videos other services host that the school's player can follow. */
+const FRAMED_PROVIDERS = new Set(["youtube", "vimeo"]);
+
+const framedNodes = (node: ContentNode): ContentNode[] =>
+  node.type === "embed" &&
+  node.provider &&
+  node.embedId &&
+  FRAMED_PROVIDERS.has(node.provider)
+    ? [node]
+    : (node.children ?? []).flatMap(framedNodes);
+
+const framedOf = (node: ContentNode): string[] =>
+  framedNodes(node).map((embed) =>
+    framedKey(embed.provider ?? "", embed.embedId ?? ""),
+  );
+
+/**
+ * What these blocks play that watching counts, each once: uploads by file
+ * id, YouTube and Vimeo videos by their key, in the order they come.
+ */
+export function watchables(
+  blocks: readonly (
+    | { type: "content"; content: ContentDocument }
+    | { type: "media"; fileId: string }
+    | { type: string }
+  )[],
+): string[] {
+  const found = blocks.flatMap((block) =>
+    block.type === "content" && "content" in block
+      ? (block.content.root.children ?? []).flatMap((node) => [
+          ...mediaOf(node).flatMap((media) =>
+            media.fileId ? [media.fileId] : [],
+          ),
+          ...framedOf(node),
+        ])
+      : block.type === "media" && "fileId" in block
+        ? [block.fileId]
+        : [],
+  );
+  return [...new Set(found)];
+}
+
 /** The videos and recordings these blocks play, each once, by file. */
 export function mediaFiles(
   blocks: readonly (
@@ -740,6 +783,10 @@ export function mediaFiles(
 export const lessonMedia = (document: LessonDocument) =>
   mediaFiles(document.blocks);
 
+/** Everything a lesson plays that watching counts, uploads and framed videos. */
+export const lessonWatchables = (document: LessonDocument) =>
+  watchables(document.blocks);
+
 /** The code blocks a lesson lets students run, by block id, with each one's program. */
 export function runnableCode(document: LessonDocument): Map<string, string> {
   const found = new Map<string, string>();
@@ -756,24 +803,33 @@ export function runnableCode(document: LessonDocument): Map<string, string> {
 /** A lesson's videos and recordings with their names, each once, in reading order. */
 export function lessonRecordings(
   document: LessonDocument,
-): { fileId: string; name: string; video: boolean }[] {
+): { key: string; name: string; video: boolean }[] {
   const found = document.blocks.flatMap((block) =>
     block.type === "content"
-      ? mediaOf(block.content.root).flatMap((node) =>
-          node.fileId
-            ? [
-                {
-                  fileId: node.fileId,
-                  name: node.name ?? "",
-                  video: (node.mime ?? "").startsWith("video/"),
-                },
-              ]
-            : [],
-        )
+      ? (block.content.root.children ?? []).flatMap((node) => [
+          ...mediaOf(node).flatMap((media) =>
+            media.fileId
+              ? [
+                  {
+                    key: media.fileId,
+                    name: media.name ?? "",
+                    video: (media.mime ?? "").startsWith("video/"),
+                  },
+                ]
+              : [],
+          ),
+          ...framedNodes(node).map((embed) => ({
+            key: framedKey(embed.provider ?? "", embed.embedId ?? ""),
+            name:
+              embed.caption?.trim() ||
+              (embed.provider ? embedProviderNames[embed.provider] : ""),
+            video: true,
+          })),
+        ])
       : block.type === "media"
         ? [
             {
-              fileId: block.fileId,
+              key: block.fileId,
               name: block.name,
               video: block.mediaType.startsWith("video/"),
             },
@@ -782,7 +838,7 @@ export function lessonRecordings(
   );
   return found.filter(
     (item, index) =>
-      found.findIndex((other) => other.fileId === item.fileId) === index,
+      found.findIndex((other) => other.key === item.key) === index,
   );
 }
 
@@ -793,8 +849,9 @@ export interface VideoStop {
 }
 
 /**
- * The questions each video stops for, by file, in time order: questions
- * stamped with a time belong to the nearest video above them.
+ * The questions each video stops for, by the key watching counts it under,
+ * in time order: questions stamped with a time belong to the nearest video
+ * above them, an upload or a YouTube or Vimeo video.
  */
 export function videoStops(
   blocks: readonly (
@@ -806,9 +863,9 @@ export function videoStops(
   const stops = new Map<string, VideoStop[]>();
   let video: string | null = null;
   for (const block of blocks) {
-    const files = mediaFiles([block]);
-    if (files.length > 0) {
-      video = files.at(-1) ?? null;
+    const played = watchables([block]);
+    if (played.length > 0) {
+      video = played.at(-1) ?? null;
       continue;
     }
     if (
@@ -873,7 +930,7 @@ export function lessonIssue(lesson: {
     !document.blocks.some((block) => block.type === "written")
   )
     return "learning.needs_reflection";
-  if (lesson.completion === "watch" && lessonMedia(document).length === 0)
+  if (lesson.completion === "watch" && lessonWatchables(document).length === 0)
     return "learning.needs_media";
   const last = document.blocks.findLastIndex((block) => block.type !== "gate");
   if (document.blocks.slice(last + 1).length > 0)
@@ -1558,8 +1615,8 @@ export function completionMet(
     case "reflection":
       return written.every((block) => settled(block, states[block.id]));
     case "watch":
-      return lessonMedia(document).every((file) =>
-        watchedEnough(watched[file]),
+      return lessonWatchables(document).every((video) =>
+        watchedEnough(watched[video]),
       );
   }
   return false;
@@ -2193,7 +2250,8 @@ const second = v.pipe(
  */
 export const watchSchema = v.object({
   lessonId: id,
-  fileId: id,
+  /** An upload's file id, or a YouTube or Vimeo video's key. */
+  video: v.union([id, v.pipe(v.string(), v.regex(FRAMED_KEY))]),
   ranges: v.pipe(
     v.array(
       v.pipe(

@@ -16,6 +16,7 @@ import {
   isCheck,
   lessonDocumentSchema,
   lessonIssue,
+  lessonWatchables,
   markResponse,
   responseIssue,
   studentBlocks,
@@ -995,6 +996,29 @@ describe("questions in a video", () => {
     expect(shown.find((block) => block.id === reading)).not.toHaveProperty(
       "videoAt",
     );
+  });
+
+  it("belong to a YouTube video above them as they do to an upload", () => {
+    const content = plainContent("Watch the film.");
+    content.root.children?.push({
+      type: "embed",
+      version: 1,
+      provider: "youtube",
+      embedId: "aqz-KE-bpKQ",
+    });
+    const framed = {
+      version: 2 as const,
+      blocks: [
+        { id: partId(95), type: "content" as const, content },
+        ...withVideo.blocks.filter((block) => "videoAt" in block),
+      ],
+    };
+    expect(lessonWatchables(framed)).toEqual(["youtube:aqz-KE-bpKQ"]);
+    expect(
+      videoStops(framed.blocks)
+        .get("youtube:aqz-KE-bpKQ")
+        ?.map((stop) => stop.at),
+    ).toEqual([30, 90]);
   });
 });
 
