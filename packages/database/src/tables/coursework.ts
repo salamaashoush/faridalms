@@ -309,10 +309,11 @@ export const assignments = core.table.withRLS(
       "dates",
       sql`(available_from is null or due_at is null or due_at >= available_from) and (due_at is null or closes_at is null or closes_at >= due_at) and (available_from is null or closes_at is null or closes_at >= available_from)`,
     ),
+    // A draft put away unused is archived without ever having been published.
     ck(
       "assignments",
       "published",
-      sql`state = 'draft' or published_at is not null`,
+      sql`state <> 'published' or published_at is not null`,
     ),
     index("assignments_class_idx")
       .on(t.tenantId, t.classId, t.state)

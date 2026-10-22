@@ -101,6 +101,21 @@ describe("coursework for a teacher", () => {
     ).toMatchObject({ code: "NOT_FOUND" });
   });
 
+  test("a draft never set is put away as it is", async () => {
+    const { api } = await arabicTeacher();
+    const { classes } = await api.coursework.options();
+    const target = classes.find((row) => row.classType === "scheduled");
+    if (!target) throw new Error("seed class");
+    const saved = await api.coursework.save(draft(target.id, "Unused draft"));
+    await api.coursework.archive({
+      id: saved.id,
+      expectedVersion: saved.version,
+    });
+    expect((await api.coursework.record({ id: saved.id })).state).toBe(
+      "archived",
+    );
+  });
+
   test("a draft for part of a class goes only to the group chosen", async () => {
     const { api } = await arabicTeacher();
     const { classes } = await api.coursework.options();

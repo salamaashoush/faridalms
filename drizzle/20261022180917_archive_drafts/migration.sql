@@ -1,0 +1,1 @@
+ALTER TABLE "core"."assignments" DROP CONSTRAINT "assignments_published_check", ADD CONSTRAINT "assignments_published_check" CHECK (state <> 'published' or published_at is not null);
