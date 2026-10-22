@@ -28,9 +28,12 @@ import { groupsOf, namesOf } from "@faridalms/database/stores/coursework";
 import {
   contentsOf,
   documentOf,
+  dropTranslation,
   publishedVersion,
   saveDocument,
+  saveTranslation,
   snapshotPublish,
+  translationOf,
 } from "@faridalms/database/stores/documents";
 import { filesByIds, linkFiles } from "@faridalms/database/stores/files";
 import {
@@ -94,12 +97,17 @@ import {
   watchesOf,
   watchRowsIn,
 } from "@faridalms/database/stores/learning";
+import { localeOf } from "@faridalms/database/stores/preferences";
 import {
   recordEvidence,
   standardsByIds,
 } from "@faridalms/database/stores/standards";
 import { isVisibleStudent } from "@faridalms/database/stores/students";
 import { gridOwners } from "@faridalms/database/stores/timetable";
+import {
+  reviewTranslation,
+  translationReview,
+} from "@faridalms/database/stores/translations";
 import { schoolYears, workingYear } from "@faridalms/database/stores/years";
 import { contentFileIds, contentPlainText } from "@faridalms/domain/content";
 import {
@@ -131,6 +139,7 @@ import {
   markSchema,
   moduleRefSchema,
   moveLessonSchema,
+  readLessonInSchema,
   overrideSchema,
   paceSchema,
   partOf,
@@ -170,6 +179,7 @@ import {
   watchSchema,
 } from "@faridalms/domain/learning";
 import { isContentDocument } from "@faridalms/domain/lesson-content";
+import { translatedLesson } from "@faridalms/domain/lesson-translation";
 import { LIVE_WINDOW_MS, liveStates } from "@faridalms/domain/live";
 import {
   PRACTICE_LEAST,
@@ -181,6 +191,11 @@ import {
 import { heldAs, sameFiles } from "@faridalms/domain/project";
 import { scratchReadingOf } from "@faridalms/domain/scratch-project";
 import { questionStandards } from "@faridalms/domain/standards";
+import {
+  documentWritten,
+  otherLocale,
+  reviewTranslationSchema,
+} from "@faridalms/domain/translations";
 import { ORPCError } from "@orpc/server";
 import { createHash } from "node:crypto";
 import * as v from "valibot";
@@ -381,6 +396,10 @@ async function publishedLesson(context: UnitContext, lessonId: string) {
     context.tenantId,
     document.id,
   );
+  const draft = await translationOf(context.tx, context.tenantId, document.id);
+  const translated = draft
+    ? await publishedVersion(context.tx, context.tenantId, draft.id)
+    : null;
   return published
     ? {
         versionId: published.id,
@@ -388,6 +407,21 @@ async function publishedLesson(context: UnitContext, lessonId: string) {
         draftVersion: document.version,
         content: upgradeLesson(published.content),
         stored: published.content,
+        /** The translation students read, as last published. */
+        translation:
+          draft?.locale &&
+          translated &&
+          isContentDocument(published.content) &&
+          isContentDocument(translated.content)
+            ? {
+                locale: draft.locale,
+                content: lessonContentOf(translated.content),
+              }
+            : null,
+        /** The translation has edits students do not see yet. */
+        translationChanged: draft
+          ? !translated || draft.version > translated.documentVersion
+          : false,
       }
     : null;
 }
@@ -414,10 +448,21 @@ async function publishLessons(context: UnitContext, lessonIds: string[]) {
       type: "lesson",
       id: lessonId,
     });
-    if (document)
+    if (!document) continue;
+    await snapshotPublish(context.tx, {
+      tenantId: context.tenantId,
+      documentId: document.id,
+      userId: context.actor.userId,
+    });
+    const translation = await translationOf(
+      context.tx,
+      context.tenantId,
+      document.id,
+    );
+    if (translation)
       await snapshotPublish(context.tx, {
         tenantId: context.tenantId,
-        documentId: document.id,
+        documentId: translation.id,
         userId: context.actor.userId,
       });
   }
@@ -900,6 +945,7 @@ async function copyLesson(
     review: lesson.review,
     vowelMarks: lesson.vowelMarks,
     language: lesson.language,
+    translationTitle: lesson.translationTitle,
     young: lesson.young,
     bands: lesson.bands,
     readAlong: lesson.readAlong,
@@ -911,7 +957,7 @@ async function copyLesson(
   });
   const content = { ...lessonContentOf(stored?.content) };
   const host = { type: "lesson", id: copy.id };
-  await saveDocument(context.tx, {
+  const original = await saveDocument(context.tx, {
     tenantId: context.tenantId,
     orgId: context.schoolId,
     host,
@@ -920,6 +966,23 @@ async function copyLesson(
     plainText: contentPlainText(content),
     userId: context.actor.userId,
   });
+  const translation = stored
+    ? await translationOf(context.tx, context.tenantId, stored.id)
+    : null;
+  if (translation?.locale) {
+    const words = { ...lessonContentOf(translation.content) };
+    await saveTranslation(context.tx, {
+      tenantId: context.tenantId,
+      orgId: context.schoolId,
+      host,
+      originalId: original.id,
+      locale: translation.locale,
+      kind: "lesson",
+      ...(await placeMedia(context, host, words, contentFileIds(words))),
+      plainText: contentPlainText(words),
+      userId: context.actor.userId,
+    });
+  }
   return copy;
 }
 
@@ -1022,17 +1085,84 @@ export const lesson = readProcedure
       type: "lesson",
       id: row.id,
     });
+    const translation = document
+      ? await translationOf(context.tx, context.tenantId, document.id)
+      : null;
     return {
       ...row,
       module: { id: owner.id, title: owner.title, state: owner.state },
       content: lessonContentOf(document?.content),
+      translation: translation && {
+        title: row.translationTitle ?? "",
+        content: lessonContentOf(translation.content),
+      },
+      translationReview: await translationReview(context.tx, {
+        tenantId: context.tenantId,
+        host: "lesson",
+        id: row.id,
+      }),
       published: published
         ? {
             documentVersion: published.documentVersion,
-            changed: published.draftVersion > published.documentVersion,
+            changed:
+              published.draftVersion > published.documentVersion ||
+              published.translationChanged,
             content: lessonContentOf(published.stored),
+            translation: published.translation?.content ?? null,
           }
         : null,
+    };
+  });
+
+/**
+ * Records that a lesson's translation was checked against the original as
+ * it now reads, or takes the check back.
+ */
+export const reviewLessonTranslation = writeProcedure
+  .input(reviewTranslationSchema)
+  .handler(async ({ input, context }) => {
+    const row = await lessonById(context.tx, context.tenantId, input.id);
+    if (!row) throw new ORPCError("NOT_FOUND");
+    await editable(context, row.moduleId);
+    if (row.version !== input.expectedVersion)
+      throw new ORPCError("CONFLICT", { message: "conflict.version" });
+    const document = await documentOf(context.tx, context.tenantId, {
+      type: "lesson",
+      id: row.id,
+    });
+    const translation = document
+      ? await translationOf(context.tx, context.tenantId, document.id)
+      : null;
+    if (
+      input.reviewed &&
+      !documentWritten(
+        translation ? lessonContentOf(translation.content) : null,
+      )
+    )
+      throw new ORPCError("CONFLICT", {
+        message: "learning.nothing_to_check",
+      });
+    const version = await reviewTranslation(context.tx, {
+      host: "lesson",
+      tenantId: context.tenantId,
+      id: row.id,
+      userId: context.actor.userId,
+      reviewed: input.reviewed,
+    });
+    await audit(context, {
+      action: input.reviewed
+        ? "lesson.translation_checked"
+        : "lesson.translation_unchecked",
+      objectType: "lesson",
+      objectId: row.id,
+    });
+    return {
+      version: version ?? row.version,
+      review: await translationReview(context.tx, {
+        tenantId: context.tenantId,
+        host: "lesson",
+        id: row.id,
+      }),
     };
   });
 
@@ -1252,6 +1382,32 @@ export const saveLesson = writeProcedure
       : null;
     if (input.id && (!stored || stored.moduleId !== owner.id))
       throw new ORPCError("NOT_FOUND");
+    const before = stored
+      ? await documentOf(context.tx, context.tenantId, {
+          type: "lesson",
+          id: stored.id,
+        })
+      : null;
+    const translated = before
+      ? await translationOf(context.tx, context.tenantId, before.id)
+      : null;
+    const translation =
+      input.translation === undefined
+        ? translated && {
+            title: stored?.translationTitle ?? "",
+            content: lessonContentOf(translated.content),
+          }
+        : input.translation;
+    // A translation is in the other language of the lesson's own, which
+    // stays as it is while the translation is kept.
+    if (
+      translation &&
+      (!input.language ||
+        (translated?.locale && translated.locale === input.language))
+    )
+      throw new ORPCError("CONFLICT", {
+        message: "learning.translation_language",
+      });
     const fields = {
       title: input.title,
       completion: input.completion,
@@ -1259,6 +1415,7 @@ export const saveLesson = writeProcedure
       review: input.review,
       vowelMarks: input.vowelMarks,
       language: input.language,
+      translationTitle: translation?.title || null,
       young: input.young,
       readAlong: input.readAlong,
       bands: input.bands,
@@ -1290,20 +1447,61 @@ export const saveLesson = writeProcedure
       lessonId = created.id;
       version = created.version;
     }
-    await saveDocument(context.tx, {
+    const host = { type: "lesson", id: lessonId };
+    const original = await saveDocument(context.tx, {
       tenantId: context.tenantId,
       orgId: context.schoolId,
-      host: { type: "lesson", id: lessonId },
+      host,
       kind: "lesson",
       ...(await placeMedia(
         context,
-        { type: "lesson", id: lessonId },
+        host,
         input.content,
         contentFileIds(input.content),
       )),
       plainText: contentPlainText(input.content),
       userId: context.actor.userId,
     });
+    if (input.translation !== undefined) {
+      if (input.translation && input.language)
+        await saveTranslation(context.tx, {
+          tenantId: context.tenantId,
+          orgId: context.schoolId,
+          host,
+          originalId: original.id,
+          locale: otherLocale(input.language),
+          kind: "lesson",
+          ...(await placeMedia(
+            context,
+            host,
+            input.translation.content,
+            contentFileIds(input.translation.content),
+          )),
+          plainText: contentPlainText(input.translation.content),
+          userId: context.actor.userId,
+        });
+      else
+        await dropTranslation(context.tx, {
+          tenantId: context.tenantId,
+          originalId: original.id,
+        });
+      // A check lapses by itself once the original's words change; a
+      // translation rewritten, or dropped, needs checking again.
+      if (
+        !input.translation ||
+        contentPlainText(input.translation.content) !==
+          (translated?.plainText ?? "")
+      ) {
+        const cleared = await reviewTranslation(context.tx, {
+          host: "lesson",
+          tenantId: context.tenantId,
+          id: lessonId,
+          userId: context.actor.userId,
+          reviewed: false,
+        });
+        if (cleared !== null) version = cleared;
+      }
+    }
     await audit(context, {
       action: input.id ? "lesson.update" : "lesson.create",
       objectType: "lesson",
@@ -1326,7 +1524,16 @@ export const saveLesson = writeProcedure
         details: { remarked },
       });
     }
-    return { id: lessonId, version, published };
+    return {
+      id: lessonId,
+      version,
+      published,
+      review: await translationReview(context.tx, {
+        tenantId: context.tenantId,
+        host: "lesson",
+        id: lessonId,
+      }),
+    };
   });
 
 export const moveLesson = writeProcedure
@@ -2125,6 +2332,23 @@ async function playable(context: UnitContext, lessonId: string) {
   if (!published) throw new ORPCError("NOT_FOUND");
   const own = cells.find((cell) => cell.lessonId === row.id) ?? null;
   const attempt = own?.attempts ?? 1;
+  // A student reads a translated lesson in the language they chose, else in
+  // their own when the lesson has it. Its questions ask, and are marked, as
+  // the original's are.
+  const translation = published.translation;
+  const reading = translation
+    ? (own?.reading ??
+      (await localeOf(context.tx, {
+        tenantId: context.tenantId,
+        userId: studentId,
+      })))
+    : null;
+  const content =
+    translation &&
+    reading === translation.locale &&
+    isContentDocument(published.stored)
+      ? translatedLesson(published.stored, translation.content)
+      : published.content;
   const shown: FeedbackShown = {
     end: Boolean(own?.resultsAt),
     teacher: released,
@@ -2144,10 +2368,15 @@ async function playable(context: UnitContext, lessonId: string) {
     attempt,
     rows,
     versionId: published.versionId,
-    content: published.content,
-    checks: checkStates(published.content, rows),
+    content,
+    checks: checkStates(content, rows),
     paced: leading,
     shown,
+    translation: translation && { locale: translation.locale },
+    reading:
+      translation && reading === translation.locale
+        ? translation.locale
+        : row.language,
   };
 }
 
@@ -2298,6 +2527,13 @@ export const playLesson = writeProcedure
     return {
       ...row,
       module: { id: owner.id, title: owner.title },
+      /** The other language the lesson can be read in, and its title there. */
+      translation: played.translation && {
+        locale: played.translation.locale,
+        title: row.translationTitle ?? row.title,
+      },
+      /** The language the student reads the lesson in now. */
+      reading: played.reading,
       blocks: studentBlocks(
         played.content,
         `${played.studentId}:${played.attempt}`,
@@ -2380,6 +2616,29 @@ async function ownCode(
     }),
   );
 }
+
+/**
+ * A student chooses which of a translated lesson's two languages they read
+ * it in; their answers stand in either.
+ */
+export const readLessonIn = writeProcedure
+  .input(readLessonInSchema)
+  .handler(async ({ input, context }) => {
+    const played = await playable(context, input.lessonId);
+    if (
+      !played.translation ||
+      (input.locale !== played.translation.locale &&
+        input.locale !== played.row.language)
+    )
+      throw new ORPCError("BAD_REQUEST", { message: "learning.reading" });
+    await recordProgress(context.tx, {
+      tenantId: context.tenantId,
+      lessonId: played.row.id,
+      studentId: played.studentId,
+      reading: input.locale,
+    });
+    return { reading: input.locale };
+  });
 
 /**
  * A student changed a runnable code block, and their version is kept for

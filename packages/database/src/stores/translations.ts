@@ -11,6 +11,7 @@ const HOSTS = {
   site_post: "site_posts",
   announcement: "announcements",
   privacy_notice: "privacy_notices",
+  lesson: "lessons",
 } as const;
 export type TranslatedHost = keyof typeof HOSTS;
 

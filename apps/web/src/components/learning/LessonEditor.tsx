@@ -7,6 +7,7 @@ import type {
 } from "@faridalms/domain/learning";
 import type { ContentLocale } from "@faridalms/domain/translations";
 
+import { contentPlainText } from "@faridalms/domain/content";
 import { emptyContent } from "@faridalms/domain/content-conversion";
 import {
   isCheck,
@@ -21,7 +22,14 @@ import {
   lessonOfContent,
   sameLesson,
 } from "@faridalms/domain/lesson-content";
-import { CONTENT_LOCALES } from "@faridalms/domain/translations";
+import { untranslatedParts } from "@faridalms/domain/lesson-translation";
+import {
+  CONTENT_LOCALES,
+  languageDirection,
+  otherLocale,
+  translationState,
+} from "@faridalms/domain/translations";
+import { Tabs, TabsList, TabsTrigger } from "@faridalms/ui/tabs";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { Copy } from "lucide-react";
 import { useCallback, useMemo, useRef, useState } from "react";
@@ -37,10 +45,12 @@ import { UnsavedChangesGuard } from "~/components/app/UnsavedChangesGuard";
 import { contentIssueMessages } from "~/components/content/checks";
 import { useCollaboration } from "~/components/content/collaboration";
 import { ContentEditor } from "~/components/content/ContentEditor";
-import { LOCALE_LABEL } from "~/components/content/languages";
+import { LOCALE_LABEL, LOCALE_NAME } from "~/components/content/languages";
 import { useStartFrom } from "~/components/content/Templates";
+import { TranslationNote } from "~/components/content/TranslationNote";
 import { useDocumentMedia } from "~/components/coursework/useDocumentMedia";
 import { CheckboxRow } from "~/components/people/fields";
+import { ConfirmDialog } from "~/components/system/ConfirmDialog";
 import {
   DetailsPanel,
   DetailsSection,
@@ -54,7 +64,11 @@ import { useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { getLocale } from "~/i18n/runtime";
 import { moduleRecordQuery } from "~/queries/learning";
-import { getRemarking, saveLesson } from "~/server/learning";
+import {
+  getRemarking,
+  reviewLessonTranslation,
+  saveLesson,
+} from "~/server/learning";
 import { formatNumber } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
@@ -109,6 +123,8 @@ interface Draft {
   review: boolean;
   vowelMarks: VowelMarks;
   language: ContentLocale | "auto";
+  /** The lesson in the other language: its title, empty for the original's, and its words. */
+  translation: { title: string; content: ContentDocument } | null;
   young: boolean;
   readAlong: boolean;
   bands: FeedbackBand[];
@@ -176,6 +192,7 @@ export function LessonEditor({
     review: existing?.review ?? false,
     vowelMarks: existing?.vowelMarks ?? "shown",
     language: existing?.language ?? "auto",
+    translation: existing?.translation ?? null,
     // A lesson for the youngest classes starts in young mode.
     young:
       existing?.young ??
@@ -206,6 +223,18 @@ export function LessonEditor({
   const [shown, setShown] = useState<ContentDocument | null>(
     existing?.published?.content ?? null,
   );
+  // The translation students have, which publishing the lesson brings level.
+  const [shownTranslation, setShownTranslation] =
+    useState<ContentDocument | null>(existing?.published?.translation ?? null);
+  // Which of the lesson's languages is being written, while it has two.
+  const [writing, setWriting] = useState<"original" | "translation">(
+    "original",
+  );
+  const [translationCheck, setTranslationCheck] = useState(
+    existing?.translationReview ?? null,
+  );
+  const [reviewing, setReviewing] = useState(false);
+  const [removing, setRemoving] = useState(false);
   const [replace, setReplace] = useState<{
     to: ContentDocument;
     at: number;
@@ -221,6 +250,43 @@ export function LessonEditor({
   const [remarking, setRemarking] = useState<number | null>(null);
   const [remark, setRemark] = useState<"again" | "keep">("again");
   const [copying, setCopying] = useState({ key: 0, open: false });
+
+  const language = draft.language === "auto" ? null : draft.language;
+  const translated = draft.translation;
+  const setTranslation = (
+    change: (current: { title: string; content: ContentDocument }) => {
+      title: string;
+      content: ContentDocument;
+    },
+  ) => {
+    setRefused(null);
+    setDraft((current) =>
+      current.translation
+        ? { ...current, translation: change(current.translation) }
+        : current,
+    );
+  };
+  const translation =
+    language && translated
+      ? translationState({
+          translation: translated.content,
+          reviewed: translationCheck !== null,
+          current: translationCheck?.current ?? false,
+        })
+      : null;
+  const untranslated = useMemo(
+    () =>
+      translated
+        ? untranslatedParts(draft.content, translated.content).map((node) =>
+            contentPlainText({
+              root: { ...draft.content.root, children: [node] },
+            })
+              .trim()
+              .slice(0, 80),
+          )
+        : [],
+    [draft.content, translated],
+  );
 
   const lesson = useMemo(() => lessonOfContent(draft.content), [draft.content]);
   const questions = lesson.blocks.filter(isCheck);
@@ -292,6 +358,7 @@ export function LessonEditor({
           review: value.review,
           vowelMarks: value.vowelMarks,
           language: value.language === "auto" ? null : value.language,
+          translation: value.translation,
           young: value.young,
           readAlong: value.readAlong,
           bands: keptBands(value.bands),
@@ -304,6 +371,7 @@ export function LessonEditor({
       const created = !id.current;
       id.current = saved.id;
       version.current = saved.version;
+      setTranslationCheck(saved.review);
       setStoredId(saved.id);
       await queryClient.invalidateQueries({ queryKey: ["learning"] });
       if (created) onCreated(saved.id);
@@ -342,7 +410,14 @@ export function LessonEditor({
   const written =
     lessonPlainText(lesson).trim() !== "" ||
     lesson.blocks.some((block) => block.type !== "content");
-  const changed = open && (shown ? !sameLesson(draft.content, shown) : written);
+  const translationChanged =
+    draft.translation !== null &&
+    (!shownTranslation ||
+      !sameLesson(draft.translation.content, shownTranslation));
+  const changed =
+    open &&
+    ((shown ? !sameLesson(draft.content, shown) : written) ||
+      translationChanged);
 
   const show = async () => {
     setChecking(true);
@@ -376,9 +451,26 @@ export function LessonEditor({
   const publish = async (again: boolean) => {
     await persist(draft, true, again);
     setShown(content.current);
+    setShownTranslation(draft.translation?.content ?? null);
     setChecking(false);
     setRemarking(null);
     toast.success(m.lrnLessonShown());
+  };
+
+  const markReviewed = async (reviewed: boolean) => {
+    setReviewing(true);
+    try {
+      await autosave.flush();
+      const out = await reviewLessonTranslation({
+        data: { id: id.current, expectedVersion: version.current, reviewed },
+      });
+      version.current = out.version;
+      setTranslationCheck(out.review);
+    } catch (error) {
+      toast.error(getMessageFromError(error));
+    } finally {
+      setReviewing(false);
+    }
   };
 
   useStartFrom(
@@ -400,7 +492,15 @@ export function LessonEditor({
   const discard = () => {
     if (!shown) return;
     content.current = shown;
-    setDraft((current) => ({ ...current, content: shown }));
+    setDraft((current) => ({
+      ...current,
+      content: shown,
+      translation:
+        current.translation && shownTranslation
+          ? { ...current.translation, content: shownTranslation }
+          : current.translation,
+    }));
+    setWriting("original");
     setReplace((current) => ({ to: shown, at: (current?.at ?? 0) + 1 }));
     setRefused(null);
     setChecking(false);
@@ -520,15 +620,60 @@ export function LessonEditor({
                 </ul>
               </div>
             ) : null}
-            <DocumentTitle
-              id="lesson-title"
-              label={m.lrnLessonTitle()}
-              placeholder={m.lrnUntitled()}
-              maxLength={200}
-              value={draft.title}
-              onChange={(title) => set("title", title)}
-              onEnter={() => document.getElementById("lesson-body")?.focus()}
-            />
+            {language && translated ? (
+              <Tabs
+                value={writing}
+                onValueChange={(value: "original" | "translation") =>
+                  setWriting(value)
+                }
+              >
+                <TabsList aria-label={m.contentLanguage()}>
+                  <TabsTrigger value="original" lang={language}>
+                    {LOCALE_LABEL[language]()}
+                  </TabsTrigger>
+                  <TabsTrigger value="translation" lang={otherLocale(language)}>
+                    {LOCALE_LABEL[otherLocale(language)]()}
+                  </TabsTrigger>
+                </TabsList>
+              </Tabs>
+            ) : null}
+            {language && translated && writing === "translation" ? (
+              <div
+                lang={otherLocale(language)}
+                dir={languageDirection(otherLocale(language))}
+              >
+                <DocumentTitle
+                  id="lesson-title"
+                  label={m.lrnLessonTitle()}
+                  placeholder={draft.title || m.lrnUntitled()}
+                  maxLength={200}
+                  value={translated.title}
+                  onChange={(title) =>
+                    setTranslation((current) => ({ ...current, title }))
+                  }
+                  onEnter={() =>
+                    document.getElementById("lesson-body")?.focus()
+                  }
+                />
+              </div>
+            ) : (
+              <div
+                lang={language ?? undefined}
+                dir={language ? languageDirection(language) : undefined}
+              >
+                <DocumentTitle
+                  id="lesson-title"
+                  label={m.lrnLessonTitle()}
+                  placeholder={m.lrnUntitled()}
+                  maxLength={200}
+                  value={draft.title}
+                  onChange={(title) => set("title", title)}
+                  onEnter={() =>
+                    document.getElementById("lesson-body")?.focus()
+                  }
+                />
+              </div>
+            )}
           </div>
         }
         summary={[
@@ -590,7 +735,6 @@ export function LessonEditor({
               <SelectField
                 id="lesson-language"
                 label={m.lrnLanguage()}
-                hint={m.lrnLanguageHint()}
                 value={draft.language}
                 options={[
                   { value: "auto", label: m.lrnLanguageAuto() },
@@ -600,7 +744,28 @@ export function LessonEditor({
                   })),
                 ]}
                 onChange={(value) => set("language", value)}
+                disabled={translated !== null}
+                hint={translated ? m.lrnLanguageLocked() : m.lrnLanguageHint()}
               />
+              {language ? (
+                <CheckboxRow
+                  label={m.contentBilingual({
+                    language: LOCALE_NAME[otherLocale(language)](),
+                  })}
+                  hint={m.lrnTranslationHint()}
+                  checked={translated !== null}
+                  onChange={(checked) => {
+                    if (!checked) {
+                      setRemoving(true);
+                      return;
+                    }
+                    // A translation starts as the lesson, its parts and
+                    // questions found again by their ids, to be rewritten.
+                    set("translation", { title: "", content: draft.content });
+                    setWriting("translation");
+                  }}
+                />
+              ) : null}
               <SelectField
                 id="lesson-vowel-marks"
                 label={m.lrnVowelMarks()}
@@ -632,6 +797,40 @@ export function LessonEditor({
                 </>
               ) : null}
             </DetailsSection>
+            {language && translated && translation ? (
+              <DetailsSection title={m.translationTitle()}>
+                <TranslationNote
+                  state={translation}
+                  review={translationCheck}
+                  language={LOCALE_NAME[otherLocale(language)]()}
+                />
+                <CheckboxRow
+                  label={m.translationReviewedCheck()}
+                  hint={m.translationReviewedHint({
+                    language: LOCALE_NAME[language](),
+                  })}
+                  checked={translation === "reviewed"}
+                  disabled={reviewing || !storedId}
+                  onChange={(checked) => void markReviewed(checked)}
+                />
+                {untranslated.length > 0 ? (
+                  <div className="grid gap-1 text-[13px] leading-[18px] text-muted-foreground">
+                    <p>
+                      {m.lrnTranslationUntranslated({
+                        language: LOCALE_NAME[language](),
+                      })}
+                    </p>
+                    <ul className="list-disc ps-5">
+                      {untranslated.map((words, index) => (
+                        <li key={index} dir="auto" lang={language}>
+                          {words}
+                        </li>
+                      ))}
+                    </ul>
+                  </div>
+                ) : null}
+              </DetailsSection>
+            ) : null}
             <DetailsSection title={m.lrnSectionPath()}>
               <SelectField
                 id="lesson-show"
@@ -730,28 +929,64 @@ export function LessonEditor({
           </DetailsPanel>
         }
       >
-        <ContentEditor
-          id="lesson-body"
-          label={m.lrnSectionBlocks()}
-          variant="document"
-          value={draft.content}
-          onChange={changeContent}
-          onValidityChange={setValid}
-          onUploadingChange={setUploading}
-          media={media}
-          questions
-          narration
-          lessonActivities
-          feedbackTiming={!draft.young}
-          language={draft.language === "auto" ? undefined : draft.language}
-          collaboration={shared ? live.collaboration : undefined}
-          pending={live.state === "loading"}
-          replace={replace}
-        />
+        {language && translated && writing === "translation" ? (
+          <ContentEditor
+            key="translation"
+            id="lesson-body"
+            label={m.lrnSectionBlocks()}
+            variant="document"
+            value={translated.content}
+            onChange={(value) =>
+              setTranslation((current) => ({ ...current, content: value }))
+            }
+            onValidityChange={setValid}
+            onUploadingChange={setUploading}
+            media={media}
+            questions
+            narration
+            lessonActivities
+            feedbackTiming={!draft.young}
+            language={otherLocale(language)}
+          />
+        ) : (
+          <ContentEditor
+            key="original"
+            id="lesson-body"
+            label={m.lrnSectionBlocks()}
+            variant="document"
+            value={draft.content}
+            onChange={changeContent}
+            onValidityChange={setValid}
+            onUploadingChange={setUploading}
+            media={media}
+            questions
+            narration
+            lessonActivities
+            feedbackTiming={!draft.young}
+            language={language ?? undefined}
+            collaboration={shared ? live.collaboration : undefined}
+            pending={live.state === "loading"}
+            replace={replace}
+          />
+        )}
       </DocumentPage>
       <UnsavedChangesGuard
         isDirty={() => !storable && autosave.dirty}
         pending={pending}
+      />
+      <ConfirmDialog
+        open={removing}
+        title={m.lrnTranslationRemoveTitle({
+          language: LOCALE_NAME[language ? otherLocale(language) : "ar"](),
+        })}
+        body={m.lrnTranslationRemoveBody()}
+        confirmLabel={m.lrnTranslationRemove()}
+        onCancel={() => setRemoving(false)}
+        onConfirm={() => {
+          set("translation", null);
+          setWriting("original");
+          setRemoving(false);
+        }}
       />
       <SheetForm
         open={remarking !== null}

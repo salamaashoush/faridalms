@@ -2077,6 +2077,7 @@ async function seedLearning(
         review: false,
         vowelMarks: "shown",
         language: null,
+        translationTitle: null,
         young: false,
         readAlong: true,
         condition: null,

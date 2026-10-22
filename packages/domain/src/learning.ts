@@ -2998,6 +2998,18 @@ export const saveLessonSchema = v.pipe(
     vowelMarks: v.optional(v.picklist(VOWEL_MARKS), "shown"),
     /** The language the lesson teaches in; none reads it from its words. */
     language: v.optional(v.nullable(v.picklist(CONTENT_LOCALES)), null),
+    /**
+     * The lesson in the other language: its title, empty for the original's,
+     * and its document. Null takes the translation away; left out, it stays.
+     */
+    translation: v.optional(
+      v.nullable(
+        v.object({
+          title: v.pipe(v.string(), v.trim(), v.maxLength(200)),
+          content: contentDocumentSchema,
+        }),
+      ),
+    ),
     /** Set out for young children: read aloud on a tap, larger answers. */
     young: v.optional(v.boolean(), false),
     /** A young lesson lights each word as the voice reads it. */
@@ -3020,6 +3032,12 @@ export const saveLessonSchema = v.pipe(
   ),
 );
 export type SaveLesson = v.InferOutput<typeof saveLessonSchema>;
+
+/** The language a student reads a lesson with a translation in. */
+export const readLessonInSchema = v.object({
+  lessonId: id,
+  locale: v.picklist(CONTENT_LOCALES),
+});
 
 export const moveLessonSchema = v.object({
   id,

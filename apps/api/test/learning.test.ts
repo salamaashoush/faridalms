@@ -1209,6 +1209,138 @@ describe("a lesson's language", () => {
   });
 });
 
+describe("a lesson's translation", () => {
+  test("gives the lesson its words, while its parts and answers stay the original's", async () => {
+    const { keeper } = await teachers();
+    const pupil = await student();
+    const { reading } = await lessonsOf(pupil);
+    const editing = await keeper.learning.lesson({ id: reading.id });
+    const nile = id();
+    const amazon = id();
+    const ask = id();
+    const blocks = written([
+      {
+        id: id(),
+        type: "content",
+        content: plainContent("Rivers carve valleys."),
+      },
+      {
+        id: ask,
+        type: "choice",
+        prompt: "Which river flows through Egypt?",
+        points: 1,
+        hints: [],
+        explanation: "",
+        tries: null,
+        options: [
+          { id: nile, text: "The Nile", feedback: "" },
+          {
+            id: amazon,
+            text: "The Amazon",
+            feedback: "The Amazon is in South America.",
+          },
+        ],
+        correctOptionIds: [nile],
+        multiple: false,
+        shuffle: false,
+      },
+    ]);
+    // The editor gives every block an id, which its translation keeps.
+    const english: ContentDocument = {
+      root: {
+        ...blocks.root,
+        children: (blocks.root.children ?? []).map(
+          (node: ContentNode, index) =>
+            node.type === "question"
+              ? node
+              : { ...node, $: { id: `partid${index}00` } },
+        ),
+      },
+    };
+    const arabic = JSON.parse(
+      JSON.stringify(english)
+        .replace("Rivers carve valleys.", "الأنهار تحفر الوديان.")
+        .replace("Which river flows through Egypt?", "أي نهر يجري في مصر؟")
+        .replace(
+          "The Amazon is in South America.",
+          "الأمازون في أمريكا الجنوبية.",
+        ),
+    ) as ContentDocument;
+    const draft = {
+      id: editing.id,
+      moduleId: editing.moduleId,
+      title: editing.title,
+      completion: editing.completion,
+      passScore: editing.passScore,
+      publish: true,
+    };
+    const saved = await keeper.learning.saveLesson({
+      ...draft,
+      expectedVersion: editing.version,
+      content: english,
+      language: "en",
+      translation: { title: "نقرأ القصص معًا", content: arabic },
+    });
+    expect(
+      await rejection(
+        keeper.learning.saveLesson({
+          ...draft,
+          expectedVersion: saved.version,
+          content: english,
+          language: null,
+        }),
+      ),
+    ).toMatchObject({
+      code: "CONFLICT",
+      message: "learning.translation_language",
+    });
+    expect(
+      (await keeper.learning.lesson({ id: reading.id })).translation,
+    ).toMatchObject({ title: "نقرأ القصص معًا" });
+
+    await pupil.learning.readLessonIn({ lessonId: reading.id, locale: "en" });
+    const inEnglish = await pupil.learning.playLesson({ id: reading.id });
+    expect(inEnglish).toMatchObject({
+      reading: "en",
+      translation: { locale: "ar", title: "نقرأ القصص معًا" },
+    });
+    await pupil.learning.readLessonIn({ lessonId: reading.id, locale: "ar" });
+    const inArabic = await pupil.learning.playLesson({ id: reading.id });
+    expect(inArabic.reading).toBe("ar");
+    expect(JSON.stringify(inArabic.blocks)).toContain("أي نهر يجري في مصر؟");
+    expect(inArabic.blocks.map((block) => block.id)).toEqual(
+      inEnglish.blocks.map((block) => block.id),
+    );
+    const miss = await pupil.learning.respond({
+      lessonId: reading.id,
+      blockId: ask,
+      response: { type: "choice", optionIds: [amazon] },
+    });
+    expect(miss.check).toMatchObject({
+      correct: false,
+      feedback: ["الأمازون في أمريكا الجنوبية."],
+    });
+    const hit = await pupil.learning.respond({
+      lessonId: reading.id,
+      blockId: ask,
+      response: { type: "choice", optionIds: [nile] },
+    });
+    expect(hit.check).toMatchObject({ correct: true });
+
+    const restored = await keeper.learning.lesson({ id: reading.id });
+    await keeper.learning.saveLesson({
+      ...draft,
+      expectedVersion: restored.version,
+      content: editing.content,
+      language: null,
+      translation: null,
+    });
+    expect(
+      (await pupil.learning.playLesson({ id: reading.id })).translation,
+    ).toBeNull();
+  });
+});
+
 describe("lessons written as documents", () => {
   test("a lesson stored as blocks opens as one document with its question ids", async () => {
     const { keeper } = await teachers();

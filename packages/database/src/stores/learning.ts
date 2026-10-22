@@ -424,6 +424,8 @@ export interface LessonRow {
   vowelMarks: VowelMarks;
   /** The language the lesson teaches in, or none to read it from its words. */
   language: ContentLocale | null;
+  /** The title in the language of the lesson's translation, when it has one. */
+  translationTitle: string | null;
   young: boolean;
   readAlong: boolean;
   condition: LessonCondition | null;
@@ -442,6 +444,7 @@ type LessonRecord = {
   review: boolean;
   vowel_marks: VowelMarks;
   language: ContentLocale | null;
+  translation_title: string | null;
   young: boolean;
   read_along: boolean;
   condition_lesson_id: string | null;
@@ -462,6 +465,7 @@ function lessonOf(row: LessonRecord): LessonRow {
     review: row.review,
     vowelMarks: row.vowel_marks,
     language: row.language,
+    translationTitle: row.translation_title,
     young: row.young,
     readAlong: row.read_along,
     condition: row.condition_lesson_id
@@ -476,7 +480,7 @@ function lessonOf(row: LessonRecord): LessonRow {
 }
 
 const lessonColumns = sql`l.id, l.version, l.module_id, l.position, l.title, l.completion, l.pass_score,
-  l.review, l.vowel_marks, l.language, l.young, l.read_along, l.condition_lesson_id, l.condition_at_least, l.condition_below,
+  l.review, l.vowel_marks, l.language, l.translation_title, l.young, l.read_along, l.condition_lesson_id, l.condition_at_least, l.condition_below,
   l.feedback_bands`;
 
 export async function lessonsOf(
@@ -524,6 +528,7 @@ export interface LessonFields {
   review: boolean;
   vowelMarks: VowelMarks;
   language: ContentLocale | null;
+  translationTitle: string | null;
   young: boolean;
   readAlong: boolean;
   condition: LessonCondition | null;
@@ -536,13 +541,14 @@ export async function insertLesson(
 ): Promise<{ id: string; version: number }> {
   const [row] = await tx.execute<{ id: string; version: number }>(sql`
     insert into core.lessons (tenant_id, module_id, position, title, completion, pass_score, review,
-      vowel_marks, language, young, read_along, condition_lesson_id, condition_at_least, condition_below,
+      vowel_marks, language, translation_title, young, read_along, condition_lesson_id, condition_at_least, condition_below,
       feedback_bands)
     values (${input.tenantId}::uuid, ${input.moduleId}::uuid,
       coalesce((select max(position) + 1 from core.lessons where tenant_id = ${input.tenantId}::uuid
         and module_id = ${input.moduleId}::uuid and status = 'active'), 0),
       ${input.title}, ${input.completion}, ${input.passScore}, ${input.review},
-      ${input.vowelMarks}, ${input.language}, ${input.young}, ${input.readAlong},
+      ${input.vowelMarks}, ${input.language}, ${input.translationTitle}, ${input.young},
+      ${input.readAlong},
       ${input.condition?.lessonId ?? null}::uuid, ${input.condition?.atLeast ?? null},
       ${input.condition?.below ?? null}, ${JSON.stringify(input.bands)}::text::jsonb)
     returning id, version`);
@@ -562,6 +568,7 @@ export async function updateLesson(
     update core.lessons
     set title = ${input.title}, completion = ${input.completion}, pass_score = ${input.passScore},
       review = ${input.review}, vowel_marks = ${input.vowelMarks}, language = ${input.language},
+      translation_title = ${input.translationTitle},
       young = ${input.young},
       read_along = ${input.readAlong}, condition_lesson_id = ${input.condition?.lessonId ?? null}::uuid,
       condition_at_least = ${input.condition?.atLeast ?? null},
@@ -607,6 +614,8 @@ export interface ProgressRow {
   position: string | null;
   /** When the student asked how they did on the questions that wait for the end. */
   resultsAt: string | null;
+  /** The language the student chose to read the lesson in, when it has a translation. */
+  reading: ContentLocale | null;
 }
 
 type ProgressRecord = {
@@ -620,6 +629,7 @@ type ProgressRecord = {
   attempts: number;
   position: string | null;
   results_at: string | null;
+  reading: ContentLocale | null;
 };
 
 function progressOf(row: ProgressRecord): ProgressRow {
@@ -634,6 +644,7 @@ function progressOf(row: ProgressRecord): ProgressRow {
     attempts: row.attempts,
     position: row.position,
     resultsAt: row.results_at,
+    reading: row.reading,
   };
 }
 
@@ -650,7 +661,7 @@ export async function progressIn(
   const rows = await tx.execute<ProgressRecord>(sql`
     select lesson_id, student_user_id, ${isoOf(sql`started_at`)} as started_at,
       ${isoOf(sql`completed_at`)} as completed_at, completed_by, score, best_score, attempts, position,
-      ${isoOf(sql`results_at`)} as results_at
+      ${isoOf(sql`results_at`)} as results_at, reading
     from core.lesson_progress
     where tenant_id = ${input.tenantId}::uuid and status = 'active'
       and lesson_id = any(${uuidArray(input.lessonIds)})
@@ -677,6 +688,8 @@ export async function recordProgress(
     completed?: { by: "student" | "teacher" } | null;
     /** The student asks how they did on the questions that wait for the end. */
     results?: true;
+    /** The language the student reads a lesson with a translation in. */
+    reading?: ContentLocale;
   },
 ): Promise<void> {
   await tx.execute(sql`
@@ -701,6 +714,7 @@ export async function recordProgress(
     ...(input.position === undefined
       ? []
       : [sql`position = ${input.position}`]),
+    ...(input.reading === undefined ? [] : [sql`reading = ${input.reading}`]),
     ...(input.completed === undefined
       ? []
       : input.completed

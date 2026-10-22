@@ -254,6 +254,15 @@ export const lessons = core.table.withRLS(
       .default("shown"),
     /** The language the lesson teaches in; none reads it from the lesson's words. */
     language: text("language").$type<"en" | "ar">(),
+    /** The lesson's title in the language of its translation, when it has one. */
+    translationTitle: text("translation_title"),
+    /**
+     * Who checked the translation against the original, when, and a digest
+     * of the original's words then, which tells whether it has changed since.
+     */
+    translationReviewedAt: instant("translation_reviewed_at"),
+    translationReviewedByUserId: uuid("translation_reviewed_by_user_id"),
+    translationSourceDigest: text("translation_source_digest"),
     conditionLessonId: uuid("condition_lesson_id"),
     conditionAtLeast: smallint("condition_at_least"),
     conditionBelow: smallint("condition_below"),
@@ -275,6 +284,21 @@ export const lessons = core.table.withRLS(
       sql`vowel_marks in ('shown', 'hidden', 'choice')`,
     ),
     ck("lessons", "language", sql`language in ('en', 'ar')`),
+    ck(
+      "lessons",
+      "translation_title",
+      sql`translation_title is null or (language is not null and char_length(translation_title) between 1 and 200)`,
+    ),
+    fk(
+      "lessons",
+      [t.tenantId, t.translationReviewedByUserId],
+      [users.tenantId, users.id],
+    ),
+    ck(
+      "lessons",
+      "translation_review",
+      sql`(translation_reviewed_at is null) = (translation_reviewed_by_user_id is null) and (translation_reviewed_at is null) = (translation_source_digest is null)`,
+    ),
     ck(
       "lessons",
       "completion",
@@ -424,6 +448,8 @@ export const lessonProgress = core.table.withRLS(
     position: text("position"),
     /** When the student asked how they did on the questions that wait for the end, this attempt. */
     resultsAt: instant("results_at"),
+    /** The language the student reads a lesson with a translation in, once they chose. */
+    reading: text("reading").$type<"en" | "ar">(),
     ...entityColumns(),
   },
   (t): PgTableExtraConfigValue[] => [
@@ -454,6 +480,7 @@ export const lessonProgress = core.table.withRLS(
       "score",
       sql`score is null or score between 0 and 100`,
     ),
+    ck("lesson_progress", "reading", sql`reading in ('en', 'ar')`),
     ck(
       "lesson_progress",
       "best_score",

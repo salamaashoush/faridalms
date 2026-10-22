@@ -496,8 +496,20 @@ Sources: [../research/course-design.md](../research/course-design.md),
    document's own words, not the labels its blocks draw in the
    interface's language, which had turned an English lesson right to
    left in the Arabic interface.
-   Left: a translation of a lesson; digits by a school setting; a
-   question's own labels in the lesson's language.
+   A lesson whose language is set may also be written in the other: it
+   starts as a copy to rewrite, in a tab beside the original, with its
+   own title, and is checked against the original as news translations
+   are. The original decides what the lesson is: its parts, stops and
+   every answer; the translation gives the words, found again by each
+   block's and question's id. A part the translation lacks, or a question
+   it changed beyond its words (another choice, gap answer or grid),
+   reads as the original, and the teacher sees which. Students switch
+   language above the lesson; the choice is kept with their progress, so
+   hints, feedback and explanations follow it, and their answers stand
+   in either language. A student reads in their own language by default.
+   Left: digits by a school setting; a question's own labels in the
+   lesson's language; a young lesson's switch, which follows the child's
+   language for now; translations of quizzes and assignment briefs.
 8. **Word import**: a `.docx` opens as a document, its pictures uploaded.
 
 ## 7. Video

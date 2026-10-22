@@ -557,6 +557,10 @@ export function getMessageFromError(error: unknown): string {
         return m.lrnErrConditionOrder();
       case "learning.condition_unscored":
         return m.lrnErrConditionUnscored();
+      case "learning.translation_language":
+        return m.lrnErrTranslationLanguage();
+      case "learning.nothing_to_check":
+        return m.translationErrNothingToCheck();
       case "learning.condition_in_use":
         return m.lrnErrConditionInUse();
       case "learning.paced_paused":

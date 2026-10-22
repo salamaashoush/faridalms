@@ -17,6 +17,7 @@ import {
   watchSchema,
   progressQuerySchema,
   publishModuleSchema,
+  readLessonInSchema,
   respondSchema,
   setClassSoundsSchema,
   revealSchema,
@@ -31,6 +32,7 @@ import {
   practiceCheckSchema,
   practiceSetSchema,
 } from "@faridalms/domain/practice";
+import { reviewTranslationSchema } from "@faridalms/domain/translations";
 import { createServerFn } from "@tanstack/react-start";
 import * as v from "valibot";
 
@@ -81,6 +83,14 @@ export const getLessonEditor = createServerFn({ method: "GET" })
 export const saveLesson = createServerFn({ method: "POST" })
   .validator(checked(saveLessonSchema))
   .handler(({ data }) => backend().learning.saveLesson(data));
+
+export const reviewLessonTranslation = createServerFn({ method: "POST" })
+  .validator(checked(reviewTranslationSchema))
+  .handler(({ data }) => backend().learning.reviewLessonTranslation(data));
+
+export const readLessonIn = createServerFn({ method: "POST" })
+  .validator(checked(readLessonInSchema))
+  .handler(({ data }) => backend().learning.readLessonIn(data));
 
 export const getRemarking = createServerFn({ method: "GET" })
   .validator(checked(v.object({ id: v.pipe(v.string(), v.uuid()) })))

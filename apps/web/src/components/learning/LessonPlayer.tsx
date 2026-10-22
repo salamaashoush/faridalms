@@ -27,9 +27,12 @@ import {
   watchedEnough,
 } from "@faridalms/domain/learning";
 import { isContentDocument } from "@faridalms/domain/lesson-content";
+import { translatedLesson } from "@faridalms/domain/lesson-translation";
+import { otherLocale } from "@faridalms/domain/translations";
 import { mediaClock } from "@faridalms/editor/format";
 import { Button } from "@faridalms/ui/button";
 import { Progress } from "@faridalms/ui/progress";
+import { Tabs, TabsList, TabsTrigger } from "@faridalms/ui/tabs";
 import {
   useMutation,
   useQuery,
@@ -85,6 +88,7 @@ import {
   pollResultsQuery,
 } from "~/queries/learning";
 import {
+  readLessonIn,
   completeLesson,
   answerReview,
   keepOwnCode,
@@ -850,6 +854,45 @@ export function LessonPlayer({ lessonId }: { lessonId: string }) {
   );
 
   const vowels = useVowelMarks(data.vowelMarks);
+  // A translated lesson reads in the language its student chose; the
+  // server keeps the choice, so every answer's feedback follows it.
+  const [switching, setSwitching] = useState(false);
+  const readIn = async (locale: ContentLocale) => {
+    setSwitching(true);
+    try {
+      await readLessonIn({ data: { lessonId, locale } });
+      await queryClient.invalidateQueries({ queryKey: query.queryKey });
+    } catch (error) {
+      toast.error(getMessageFromError(error));
+    } finally {
+      setSwitching(false);
+    }
+  };
+  const translated =
+    data.translation && data.reading === data.translation.locale;
+  const title = translated
+    ? (data.translation?.title ?? data.title)
+    : data.title;
+  const languages =
+    data.translation && data.language ? (
+      <Tabs
+        value={data.reading ?? data.language}
+        onValueChange={(value: ContentLocale) => void readIn(value)}
+      >
+        <TabsList aria-label={m.contentLanguage()}>
+          {[data.language, data.translation.locale].map((locale) => (
+            <TabsTrigger
+              key={locale}
+              value={locale}
+              lang={locale}
+              disabled={switching}
+            >
+              {LOCALE_LABEL[locale]()}
+            </TabsTrigger>
+          ))}
+        </TabsList>
+      </Tabs>
+    ) : null;
   const shown = useMemo(
     () =>
       vowels.strip({
@@ -861,10 +904,10 @@ export function LessonPlayer({ lessonId }: { lessonId: string }) {
   );
   // A lesson prints as its student has it: no answers ever reached them.
   const printing = usePrint({
-    title: data.title,
+    title,
     lesson: shown.blocks.map(paperBlock),
     link: `/lessons/${lessonId}`,
-    language: data.language,
+    language: data.reading,
   });
   const checks = data.blocks.filter(isCheckBlock);
   const auto = checks.filter(
@@ -888,13 +931,13 @@ export function LessonPlayer({ lessonId }: { lessonId: string }) {
       <YoungContext.Provider value>
         <YoungLesson
           key={data.attempt}
-          title={data.title}
+          title={title}
           blocks={shown.blocks}
           checks={shown.checks}
           driver={driver}
           readAlong={data.readAlong}
           classSounds={data.sounds}
-          language={data.language}
+          language={data.reading}
           position={data.position}
           onReach={reach}
           watch={watch}
@@ -942,7 +985,7 @@ export function LessonPlayer({ lessonId }: { lessonId: string }) {
         </span>
       </Progress>
       <RecordHeader
-        title={data.title}
+        title={title}
         menu={printing.action ? [printing.action] : []}
         status={
           data.completedAt
@@ -970,7 +1013,12 @@ export function LessonPlayer({ lessonId }: { lessonId: string }) {
             : []),
         ]}
       />
-      {vowels.toggle}
+      {languages || vowels.toggle ? (
+        <div className="flex flex-wrap items-center gap-2">
+          {languages}
+          {vowels.toggle}
+        </div>
+      ) : null}
       {paced ? (
         <output className="flex items-start gap-2 rounded-lg border border-info/30 bg-info/5 px-4 py-3 text-sm leading-5">
           <Radio aria-hidden className="mt-0.5 size-4 shrink-0 text-info" />
@@ -992,7 +1040,7 @@ export function LessonPlayer({ lessonId }: { lessonId: string }) {
                   watch={watch}
                   watches={data.watches}
                   paced={paced}
-                  language={data.language}
+                  language={data.reading}
                 />
               </OwnProjectsContext.Provider>
             </OwnCodeContext.Provider>
@@ -1226,9 +1274,20 @@ export function LessonPreview({
     teacher: false,
   });
   const vowels = useVowelMarks(data.vowelMarks);
+  // Students reading in the translation's language read the translation,
+  // as they would by default; the preview shows the lesson so.
+  const reading =
+    data.translation && data.language && language === otherLocale(data.language)
+      ? language
+      : data.language;
   const lesson = useMemo(
-    () => vowels.strip(upgradeLesson(data.content)),
-    [vowels, data.content],
+    () =>
+      vowels.strip(
+        data.translation && reading !== data.language
+          ? translatedLesson(data.content, data.translation.content)
+          : upgradeLesson(data.content),
+      ),
+    [vowels, data.content, data.translation, reading, data.language],
   );
   const blocks = useMemo(
     () => studentBlocks(lesson, `preview:${round}`),
@@ -1330,7 +1389,7 @@ export function LessonPreview({
           checks={checks}
           driver={driver}
           readAlong={data.readAlong}
-          language={data.language}
+          language={reading}
           onClose={edit}
           badge={m.lrnPreview()}
           retry={{
@@ -1430,7 +1489,7 @@ export function LessonPreview({
                 blocks={blocks}
                 checks={checks}
                 driver={driver}
-                language={data.language}
+                language={reading}
               />
             </ReaderContext.Provider>
           </YoungContext.Provider>
