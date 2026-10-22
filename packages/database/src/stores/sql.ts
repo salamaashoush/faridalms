@@ -11,6 +11,9 @@ export function uuidArray(ids: readonly string[]): SQL {
   )}]`;
 }
 
+/** Text matched literally inside a LIKE pattern, its wildcards escaped. */
+export const escapeLike = (text: string) => text.replace(/[\\%_]/gu, "\\$&");
+
 /** A timestamp as the ISO string the API returns, whatever the session time zone. */
 export const isoOf = (column: SQL) =>
   sql`to_char(${column} at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS.MS"Z"')`;

@@ -15,7 +15,7 @@ import type { ClassType } from "../tables/teaching";
 import type { Scope } from "./students";
 
 import { rosterOf, taughtClasses } from "./classes";
-import { isoOf, uuidArray } from "./sql";
+import { escapeLike, isoOf, uuidArray } from "./sql";
 
 type Tx = CellTransaction;
 
@@ -266,6 +266,57 @@ export interface TeacherListRow {
  * its list shows: who it is for, who handed in, what waits for grading and
  * what is missing.
  */
+/** An assignment a teacher may set again, from any class or year. */
+export interface ReusableRow {
+  id: string;
+  title: string;
+  submissionFormat: SubmissionFormat;
+  classCode: string;
+  classTitleEn: string | null;
+  classTitleAr: string | null;
+  createdAt: string;
+}
+
+/**
+ * Assignments the viewer wrote, or set in a class they teach, newest first,
+ * whose titles hold the words: the work they may set again.
+ */
+export async function reusableAssignments(
+  tx: Tx,
+  scope: Scope,
+  filter: { q: string; limit: number },
+): Promise<ReusableRow[]> {
+  const q = filter.q.trim();
+  const rows = await tx.execute<{
+    id: string;
+    title: string;
+    submission_format: SubmissionFormat;
+    class_code: string;
+    class_title_en: string | null;
+    class_title_ar: string | null;
+    created_at: string;
+  }>(sql`
+    select a.id, a.title, a.submission_format, c.code as class_code, c.title_en as class_title_en,
+      c.title_ar as class_title_ar, ${isoOf(sql`a.created_at`)} as created_at
+    from core.assignments a
+    join core.classes c on c.tenant_id = a.tenant_id and c.id = a.class_id
+    where a.tenant_id = ${scope.tenantId}::uuid and a.org_id = ${scope.schoolId}::uuid
+      and a.status = 'active'
+      and (a.author_user_id = ${scope.viewerId}::uuid or a.class_id in ${taughtClasses(scope)})
+      and (${q === ""} or a.title ilike ${`%${escapeLike(q)}%`})
+    order by a.created_at desc
+    limit ${filter.limit}`);
+  return rows.map((row) => ({
+    id: row.id,
+    title: row.title,
+    submissionFormat: row.submission_format,
+    classCode: row.class_code,
+    classTitleEn: row.class_title_en,
+    classTitleAr: row.class_title_ar,
+    createdAt: row.created_at,
+  }));
+}
+
 export async function teacherAssignments(
   tx: Tx,
   scope: Scope,

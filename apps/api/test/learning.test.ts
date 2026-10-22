@@ -3686,3 +3686,43 @@ describe("a module's unit plan", () => {
     await office.standards.removeFramework({ id: framework.id });
   });
 });
+
+describe("copying a lesson", () => {
+  test("a lesson copies to the end of another module its teacher writes, unshown", async () => {
+    const { keeper, stranger } = await teachers();
+    const { rows } = await keeper.learning.modules({});
+    const source = rows.find((row) => row.title === TITLE);
+    if (!source) throw new Error("no module");
+    const record = await keeper.learning.record({ id: source.id });
+    const [first] = record.lessons;
+    if (!first) throw new Error("no lesson");
+    const target = await keeper.learning.saveModule({
+      id: "",
+      expectedVersion: 0,
+      title: "Copies land here",
+      summary: "",
+      classIds: source.classes.map((item) => item.id),
+      prerequisiteId: "",
+      sequential: false,
+    });
+    const copy = await keeper.learning.copyLessonTo({
+      id: first.id,
+      moduleId: target.id,
+    });
+    const [original, copied] = await Promise.all([
+      keeper.learning.lesson({ id: first.id }),
+      keeper.learning.lesson({ id: copy.id }),
+    ]);
+    expect(copied).toMatchObject({
+      title: original.title,
+      moduleId: target.id,
+      published: null,
+    });
+    expect(copied.content).toEqual(original.content);
+    expect(
+      await rejection(
+        stranger.learning.copyLessonTo({ id: first.id, moduleId: target.id }),
+      ),
+    ).toMatchObject({ code: "NOT_FOUND" });
+  });
+});

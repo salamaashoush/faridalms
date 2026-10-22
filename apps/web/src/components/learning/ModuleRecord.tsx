@@ -26,6 +26,7 @@ import {
   Trash2,
   Users,
 } from "lucide-react";
+import { useState } from "react";
 import { toast } from "sonner";
 
 import type { Column, RowAction } from "~/components/system/DataTable";
@@ -68,6 +69,7 @@ import { formatNumber } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
 import { Answers } from "./Answers";
+import { CopyLessonSheet } from "./CopyLesson";
 import {
   COMPLETION_LABEL,
   shownState,
@@ -147,6 +149,11 @@ const lessonCard = {
 function Lessons({ data }: { data: Data }) {
   const navigate = useNavigate();
   const refresh = useRefresh();
+  const [copying, setCopying] = useState<{
+    lesson: Lesson;
+    key: number;
+    open: boolean;
+  }>();
   const run = async (action: () => Promise<unknown>, done?: string) => {
     try {
       await action();
@@ -199,6 +206,16 @@ function Lessons({ data }: { data: Data }) {
               ]
             : []),
           {
+            label: m.lrnCopyLesson(),
+            icon: Copy,
+            onSelect: () =>
+              setCopying((current) => ({
+                lesson: row,
+                key: (current?.key ?? 0) + 1,
+                open: true,
+              })),
+          },
+          {
             label: m.lrnRemoveLesson(),
             icon: Trash2,
             destructive: true,
@@ -245,6 +262,17 @@ function Lessons({ data }: { data: Data }) {
           action: add,
         }}
       />
+      {copying ? (
+        <CopyLessonSheet
+          key={copying.key}
+          lesson={copying.lesson}
+          module={{ id: data.id, title: data.title }}
+          open={copying.open}
+          onClose={() =>
+            setCopying((current) => current && { ...current, open: false })
+          }
+        />
+      ) : null}
     </div>
   );
 }

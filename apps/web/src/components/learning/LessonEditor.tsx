@@ -11,6 +11,7 @@ import {
 } from "@faridalms/domain/learning";
 import { lessonOfContent, sameLesson } from "@faridalms/domain/lesson-content";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
+import { Copy } from "lucide-react";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -36,6 +37,7 @@ import { moduleRecordQuery } from "~/queries/learning";
 import { saveLesson } from "~/server/learning";
 import { getMessageFromError } from "~/utils/error";
 
+import { CopyLessonSheet } from "./CopyLesson";
 import { COMPLETION_LABEL } from "./format";
 import { blockIssue } from "./issues";
 import { YoungAdviceList } from "./YoungAdvice";
@@ -122,6 +124,7 @@ export function LessonEditor({
   const [refused, setRefused] = useState<string | null>(null);
   const [detailsOpen, setDetailsOpen] = useState(false);
   const [pending, setPending] = useState(false);
+  const [copying, setCopying] = useState({ key: 0, open: false });
 
   const lesson = useMemo(() => lessonOfContent(draft.content), [draft.content]);
   const questions = lesson.blocks.filter(isCheck);
@@ -276,6 +279,21 @@ export function LessonEditor({
             : undefined
         }
         link={storedId ? `/lessons/${storedId}` : undefined}
+        menu={
+          storedId
+            ? [
+                {
+                  label: m.lrnCopyLesson(),
+                  icon: Copy,
+                  onSelect: () =>
+                    setCopying((current) => ({
+                      key: current.key + 1,
+                      open: true,
+                    })),
+                },
+              ]
+            : undefined
+        }
         preview={
           storedId
             ? {
@@ -448,6 +466,18 @@ export function LessonEditor({
         isDirty={() => !storable && autosave.dirty}
         pending={pending}
       />
+      {copying.key > 0 && storedId ? (
+        <CopyLessonSheet
+          key={copying.key}
+          lesson={{
+            id: storedId,
+            title: draft.title.trim() || m.lrnUntitled(),
+          }}
+          module={{ id: moduleId, title: module.title }}
+          open={copying.open}
+          onClose={() => setCopying((current) => ({ ...current, open: false }))}
+        />
+      ) : null}
     </>
   );
 }

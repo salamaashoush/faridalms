@@ -7,6 +7,7 @@ import {
   markQuizAnswerSchema,
   publishSchema,
   removeCommentSchema,
+  reusableSchema,
   replyToCommentSchema,
   restoreCommentSchema,
   showGradeSchema,
@@ -19,6 +20,7 @@ import {
   saveRubricSchema,
   studentWorkActionSchema,
   teacherListSchema,
+  reuseSchema,
 } from "@faridalms/domain/coursework";
 import { createServerFn } from "@tanstack/react-start";
 import * as v from "valibot";
@@ -31,6 +33,14 @@ const uuid = v.pipe(v.string(), v.uuid());
 export const getCourseworkOptions = createServerFn({ method: "GET" }).handler(
   () => record(backend().coursework.options()),
 );
+
+export const getReusable = createServerFn({ method: "GET" })
+  .validator(checked(reusableSchema))
+  .handler(({ data }) => record(backend().coursework.reusable(data)));
+
+export const reuseAssignment = createServerFn({ method: "POST" })
+  .validator(checked(reuseSchema))
+  .handler(({ data }) => backend().coursework.reuse(data));
 
 export const getCoursework = createServerFn({ method: "GET" })
   .validator(checked(teacherListSchema))

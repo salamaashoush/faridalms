@@ -2,7 +2,7 @@ import { sql } from "drizzle-orm";
 
 import type { CellTransaction } from "../context";
 
-import { isoOf, uuidArray } from "./sql";
+import { escapeLike, isoOf, uuidArray } from "./sql";
 
 type Tx = CellTransaction;
 
@@ -323,8 +323,6 @@ const summaryOf = (row: SummaryRecord): StandardSummaryRow => ({
   frameworkId: row.framework_id,
   frameworkTitle: row.framework_title,
 });
-
-const escapeLike = (text: string) => text.replace(/[\\%_]/gu, "\\$&");
 
 /**
  * A school's standards whose code or statement holds the words, codes that

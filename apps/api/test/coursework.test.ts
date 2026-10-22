@@ -2048,3 +2048,45 @@ describe("standards a quiz gives evidence on", () => {
     expect((await progress())[nouns.id]).toBeUndefined();
   });
 });
+
+describe("using an assignment again", () => {
+  test("an assignment is set again as a fresh draft, its brief and marking kept and its dates left to set", async () => {
+    const teacher = await arabicTeacher();
+    const student = await sessionFor("northwind", login("student"));
+    const me = await student.api.identity.currentUser();
+    const target = await classOfStudent(teacher.api, me.id);
+    const saved = await teacher.api.coursework.save(
+      draft(target.id, "Map your street", {
+        brief: plainContent("Draw your street and label three places."),
+        dueAt: new Date(Date.now() + 7 * 86_400_000).toISOString(),
+        points: 12,
+      }),
+    );
+    // Found among the teacher's work by its title, whatever its year.
+    expect(
+      (await teacher.api.coursework.reusable({ q: "map your" })).map(
+        (row) => row.id,
+      ),
+    ).toContain(saved.id);
+    const again = await teacher.api.coursework.reuse({
+      id: saved.id,
+      classId: target.id,
+    });
+    expect(again.id).not.toBe(saved.id);
+    const editor = await teacher.api.coursework.editor({ id: again.id });
+    expect(editor).toMatchObject({
+      title: "Map your street",
+      state: "draft",
+      points: 12,
+      dueAt: null,
+      audience: "class",
+    });
+    expect(JSON.stringify(editor.brief)).toContain("label three places");
+    const stranger = await englishTeacher();
+    expect(
+      await rejection(
+        stranger.coursework.reuse({ id: saved.id, classId: target.id }),
+      ),
+    ).toMatchObject({ code: "NOT_FOUND" });
+  });
+});

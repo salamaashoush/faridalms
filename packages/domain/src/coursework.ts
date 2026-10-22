@@ -132,6 +132,16 @@ export const quizSchema = v.object({
 });
 export type QuizSettings = v.InferOutput<typeof quizSchema>;
 
+export const reusableSchema = v.object({
+  q: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(100)), ""),
+});
+
+/** An assignment set again in a class, from any class or year its teacher reaches. */
+export const reuseSchema = v.object({
+  id: v.pipe(v.string(), v.uuid()),
+  classId: v.pipe(v.string(), v.uuid()),
+});
+
 export const saveAssignmentSchema = v.object({
   id: v.optional(id),
   expectedVersion: v.optional(version),

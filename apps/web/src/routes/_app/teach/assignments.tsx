@@ -6,7 +6,8 @@ import type {
 import { TEACHER_TABS, teacherListSchema } from "@faridalms/domain/coursework";
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, stripSearchParams } from "@tanstack/react-router";
-import { ClipboardList, ClipboardPen, Pencil, Plus } from "lucide-react";
+import { ClipboardList, ClipboardPen, Copy, Pencil, Plus } from "lucide-react";
+import { useState } from "react";
 import * as v from "valibot";
 
 import type { Column, RowAction } from "~/components/system/DataTable";
@@ -24,6 +25,7 @@ import {
   PHASE_LABEL,
   PHASE_TONE,
 } from "~/components/coursework/format";
+import { UseAgainSheet } from "~/components/coursework/UseAgain";
 import { DataTable, RowLink } from "~/components/system/DataTable";
 import { PageHeader } from "~/components/system/IndexPage";
 import { RecordTabs } from "~/components/system/RecordPage";
@@ -182,6 +184,17 @@ function CourseworkPage() {
     facets: [classFacet],
     onReset: () => patch({ q: "", classId: "" }),
   };
+  const [reusing, setReusing] = useState<{
+    source: { id: string; title: string } | null;
+    key: number;
+    open: boolean;
+  }>();
+  const reuse = (source: { id: string; title: string } | null) =>
+    setReusing((current) => ({
+      source,
+      key: (current?.key ?? 0) + 1,
+      open: true,
+    }));
   const create: HeaderAction | undefined =
     options.classes.length > 0
       ? {
@@ -219,6 +232,15 @@ function CourseworkPage() {
           },
         ]
       : []),
+    ...(options.classes.length > 0
+      ? [
+          {
+            label: m.courseworkUseAgain(),
+            icon: Copy,
+            onSelect: () => reuse({ id: row.id, title: row.title }),
+          },
+        ]
+      : []),
   ];
   return (
     <>
@@ -226,6 +248,17 @@ function CourseworkPage() {
         title={m.courseworkTitlePage()}
         description={m.courseworkHint()}
         action={create}
+        menu={
+          options.classes.length > 0
+            ? [
+                {
+                  label: m.courseworkUseAgainTitle(),
+                  icon: Copy,
+                  onSelect: () => reuse(null),
+                },
+              ]
+            : []
+        }
       />
       <RecordTabs
         label={m.courseworkSections()}
@@ -257,6 +290,17 @@ function CourseworkPage() {
           }}
         />
       </RecordTabs>
+      {reusing ? (
+        <UseAgainSheet
+          key={reusing.key}
+          source={reusing.source}
+          classId={search.classId}
+          open={reusing.open}
+          onClose={() =>
+            setReusing((current) => current && { ...current, open: false })
+          }
+        />
+      ) : null}
     </>
   );
 }

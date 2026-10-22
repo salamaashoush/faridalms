@@ -16,12 +16,20 @@ import {
   getQuizAnswers,
   getMyCoursework,
   getMyWork,
+  getReusable,
 } from "~/server/coursework";
 
 export const courseworkOptionsQuery = queryOptions({
   queryKey: ["coursework", "options"],
   queryFn: () => getCourseworkOptions(),
 });
+
+export const reusableQuery = (q: string) =>
+  queryOptions({
+    queryKey: ["coursework", "reusable", q],
+    queryFn: () => getReusable({ data: { q } }),
+    placeholderData: (previous) => previous,
+  });
 
 export const courseworkListQuery = (query: TeacherListQuery) =>
   queryOptions({

@@ -12,6 +12,7 @@ import {
   Archive,
   CalendarClock,
   ClipboardPen,
+  Copy,
   Download,
   EyeOff,
   Inbox,
@@ -81,6 +82,7 @@ import {
   STATE_TONE,
 } from "./format";
 import { QuizAnswers } from "./QuizAnswers";
+import { UseAgainSheet } from "./UseAgain";
 
 export const RECORD_TABS = ["brief", "work", "answers"] as const;
 export type RecordTabValue = (typeof RECORD_TABS)[number];
@@ -594,6 +596,7 @@ export function AssignmentRecord({
   });
   const width = useReaderWidth();
   const [settingsOpen, setSettingsOpen] = useState(false);
+  const [reusing, setReusing] = useState({ key: 0, open: false });
   const facts: HeaderFact[] = [];
   if (data.class)
     facts.push({ label: m.studentClass(), value: classTitle(data.class) });
@@ -730,6 +733,15 @@ export function AssignmentRecord({
                       },
                     ]
                   : []),
+                {
+                  label: m.courseworkUseAgain(),
+                  icon: Copy,
+                  onSelect: () =>
+                    setReusing((current) => ({
+                      key: current.key + 1,
+                      open: true,
+                    })),
+                },
                 ...(data.state !== "archived"
                   ? [
                       {
@@ -771,6 +783,15 @@ export function AssignmentRecord({
         onOpenChange={setSettingsOpen}
       />
       {printing.sheet}
+      {reusing.key > 0 ? (
+        <UseAgainSheet
+          key={reusing.key}
+          source={{ id: data.id, title: data.title }}
+          classId={data.classId}
+          open={reusing.open}
+          onClose={() => setReusing((current) => ({ ...current, open: false }))}
+        />
+      ) : null}
     </div>
   );
 }

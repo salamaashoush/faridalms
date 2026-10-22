@@ -1,5 +1,6 @@
 import {
   classSoundsSchema,
+  copyLessonSchema,
   duplicateModuleSchema,
   decideShareSchema,
   galleryItemSchema,
@@ -78,6 +79,10 @@ export const getLessonEditor = createServerFn({ method: "GET" })
 export const saveLesson = createServerFn({ method: "POST" })
   .validator(checked(saveLessonSchema))
   .handler(({ data }) => backend().learning.saveLesson(data));
+
+export const copyLessonTo = createServerFn({ method: "POST" })
+  .validator(checked(copyLessonSchema))
+  .handler(({ data }) => backend().learning.copyLessonTo(data));
 
 export const getPlan = createServerFn({ method: "GET" })
   .validator(checked(planSchema))

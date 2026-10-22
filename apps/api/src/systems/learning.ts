@@ -1,4 +1,8 @@
-import type { ModuleRow, WatchRow } from "@faridalms/database/stores/learning";
+import type {
+  LessonRow,
+  ModuleRow,
+  WatchRow,
+} from "@faridalms/database/stores/learning";
 import type { ContentDocument } from "@faridalms/domain/content";
 import type {
   CheckBlock,
@@ -84,6 +88,7 @@ import {
   completionMet,
   describeCheck,
   describeReview,
+  copyLessonSchema,
   duplicateModuleSchema,
   autoBlocks,
   isAuto,
@@ -731,6 +736,63 @@ export const archiveModule = writeProcedure
   });
 
 /** A draft copy of a module and its lessons for other classes. */
+/**
+ * A lesson copied to the end of a module: its settings and document, the
+ * pictures and recordings in it copied into that module's keeping. It
+ * starts unshown, whatever the lesson it came from.
+ */
+async function copyLesson(
+  context: UnitContext,
+  lesson: LessonRow,
+  moduleId: string,
+) {
+  const copy = await insertLesson(context.tx, {
+    tenantId: context.tenantId,
+    moduleId,
+    title: lesson.title,
+    completion: lesson.completion,
+    passScore: lesson.passScore,
+    review: lesson.review,
+    vowelMarks: lesson.vowelMarks,
+    young: lesson.young,
+    readAlong: lesson.readAlong,
+  });
+  const stored = await documentOf(context.tx, context.tenantId, {
+    type: "lesson",
+    id: lesson.id,
+  });
+  const content = { ...lessonContentOf(stored?.content) };
+  const host = { type: "lesson", id: copy.id };
+  await saveDocument(context.tx, {
+    tenantId: context.tenantId,
+    orgId: context.schoolId,
+    host,
+    kind: "lesson",
+    ...(await placeMedia(context, host, content, contentFileIds(content))),
+    plainText: contentPlainText(content),
+    userId: context.actor.userId,
+  });
+  return copy;
+}
+
+/** Copies a lesson to the end of a module its teacher writes, this one or another. */
+export const copyLessonTo = writeProcedure
+  .input(copyLessonSchema)
+  .handler(async ({ input, context }) => {
+    const lesson = await lessonById(context.tx, context.tenantId, input.id);
+    if (!lesson) throw new ORPCError("NOT_FOUND");
+    await editable(context, lesson.moduleId);
+    const target = await editable(context, input.moduleId);
+    const copy = await copyLesson(context, lesson, target.id);
+    await audit(context, {
+      action: "lesson.copy",
+      objectType: "lesson",
+      objectId: copy.id,
+      details: { from: lesson.id, moduleId: target.id },
+    });
+    return { id: copy.id };
+  });
+
 export const duplicateModule = writeProcedure
   .input(duplicateModuleSchema)
   .handler(async ({ input, context }) => {
@@ -754,42 +816,8 @@ export const duplicateModule = writeProcedure
       moduleId: created.id,
       classIds: input.classIds,
     });
-    for (const lesson of await lessonsOf(
-      context.tx,
-      context.tenantId,
-      row.id,
-    )) {
-      const copy = await insertLesson(context.tx, {
-        tenantId: context.tenantId,
-        moduleId: created.id,
-        title: lesson.title,
-        completion: lesson.completion,
-        passScore: lesson.passScore,
-        review: lesson.review,
-        vowelMarks: lesson.vowelMarks,
-        young: lesson.young,
-        readAlong: lesson.readAlong,
-      });
-      const stored = await documentOf(context.tx, context.tenantId, {
-        type: "lesson",
-        id: lesson.id,
-      });
-      const content = { ...lessonContentOf(stored?.content) };
-      await saveDocument(context.tx, {
-        tenantId: context.tenantId,
-        orgId: context.schoolId,
-        host: { type: "lesson", id: copy.id },
-        kind: "lesson",
-        ...(await placeMedia(
-          context,
-          { type: "lesson", id: copy.id },
-          content,
-          contentFileIds(content),
-        )),
-        plainText: contentPlainText(content),
-        userId: context.actor.userId,
-      });
-    }
+    for (const lesson of await lessonsOf(context.tx, context.tenantId, row.id))
+      await copyLesson(context, lesson, created.id);
     // A unit taught again starts from the plan it was taught by.
     const unitPlan = await documentOf(
       context.tx,

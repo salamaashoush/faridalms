@@ -2082,6 +2082,8 @@ export const publishModuleSchema = v.object({
 
 export const moduleRefSchema = v.object({ id, expectedVersion: version(1) });
 
+export const copyLessonSchema = v.object({ id, moduleId: id });
+
 export const planSchema = v.object({ moduleId: id });
 
 export const savePlanSchema = v.object({

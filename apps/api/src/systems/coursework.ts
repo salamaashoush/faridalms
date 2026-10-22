@@ -65,6 +65,7 @@ import {
   setRecipientDue,
   setRecipients,
   studentWork,
+  reusableAssignments,
   teacherAssignments,
   touchSubmission,
   unansweredComments,
@@ -119,6 +120,7 @@ import {
   withBlockIds,
   withoutStarter,
 } from "@faridalms/domain/content";
+import { emptyContent } from "@faridalms/domain/content-conversion";
 import {
   GRACE_MS,
   answerCommentSchema,
@@ -143,6 +145,8 @@ import {
   rubricTotal,
   saveAssignmentSchema,
   saveBankCommentSchema,
+  reusableSchema,
+  reuseSchema,
   saveCommentSchema,
   saveDraftSchema,
   extendSchema,
@@ -593,6 +597,97 @@ function fieldsOf(input: SaveAssignment) {
     gradeAfterAnswers: !input.quiz && input.gradeAfterAnswers,
   };
 }
+
+/** Work the teacher may set again, from any class or year, newest first. */
+export const reusable = readProcedure
+  .input(reusableSchema)
+  .handler(async ({ input, context }) => {
+    requireCapability(context, "assignments:author");
+    return reusableAssignments(context.tx, scopeOf(context), {
+      q: input.q,
+      limit: 30,
+    });
+  });
+
+/**
+ * Sets an assignment again as a new draft in a class: its brief, files,
+ * format, marking and quiz settings, with no dates or chosen students, since
+ * those belong to the class and term it was first set for. The teacher may
+ * reach it as its author, or as a teacher of its class.
+ */
+export const reuse = writeProcedure
+  .input(reuseSchema)
+  .handler(async ({ input, context }) => {
+    requireCapability(context, "assignments:author");
+    const tx = context.tx;
+    const source = await assignmentById(tx, context.tenantId, input.id);
+    if (
+      !source ||
+      source.orgId !== context.schoolId ||
+      (source.authorUserId !== context.actor.userId &&
+        !(await teachesClass(tx, scopeOf(context), source.classId)))
+    )
+      throw new ORPCError("NOT_FOUND");
+    const classRow = await classById(tx, context, input.classId);
+    if (!classRow || !(await teachesClass(tx, scopeOf(context), classRow.id)))
+      throw new ORPCError("NOT_FOUND");
+    await requireOpenYear(context, classRow.schoolYearId);
+    const categories = await classCategories(tx, {
+      tenantId: context.tenantId,
+      classId: classRow.id,
+    });
+    const created = await insertAssignment(tx, {
+      tenantId: context.tenantId,
+      orgId: context.schoolId,
+      classRow,
+      authorUserId: context.actor.userId,
+      title: source.title,
+      audience: "class",
+      availableFrom: null,
+      dueAt: null,
+      closesAt: null,
+      latePolicy: source.latePolicy,
+      lateDeductionPercent: source.lateDeductionPercent,
+      submissionFormat: source.submissionFormat,
+      maxFiles: source.maxFiles,
+      resubmission: source.resubmission,
+      points: source.points,
+      rubric: source.rubric,
+      gradingPeriodId: null,
+      categoryId: categories.some((row) => row.id === source.categoryId)
+        ? source.categoryId
+        : null,
+      quizAttempts: source.quizAttempts,
+      quizKeep: source.quizKeep,
+      quizReveal: source.quizReveal,
+      quizShuffle: source.quizShuffle,
+      quizTimeLimit: source.quizTimeLimit,
+      gradeAfterAnswers: source.gradeAfterAnswers,
+    });
+    const brief = await documentOf(tx, context.tenantId, {
+      type: "assignment",
+      id: source.id,
+    });
+    const content = {
+      ...((brief?.content as ContentDocument | undefined) ?? emptyContent()),
+    };
+    const host = { type: "assignment", id: created.id };
+    await saveDocument(tx, {
+      tenantId: context.tenantId,
+      orgId: context.schoolId,
+      host,
+      ...(await placeMedia(context, host, content, contentFileIds(content))),
+      plainText: contentPlainText(content),
+      userId: context.actor.userId,
+    });
+    await audit(context, {
+      action: "assignment.reuse",
+      objectType: "assignment",
+      objectId: created.id,
+      details: { from: source.id, classId: classRow.id },
+    });
+    return { id: created.id };
+  });
 
 /**
  * Saves an assignment as a draft, or changes one already assigned. The brief,

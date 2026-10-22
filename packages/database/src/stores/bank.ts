@@ -2,7 +2,7 @@ import { sql } from "drizzle-orm";
 
 import type { CellTransaction } from "../context";
 
-import { isoOf, textArray, uuidArray } from "./sql";
+import { escapeLike, isoOf, textArray, uuidArray } from "./sql";
 
 type Tx = CellTransaction;
 
@@ -53,8 +53,6 @@ const bankOf = (row: BankRecord): BankQuestionRow => ({
 const columns = sql`q.id, q.org_id, q.owner_user_id, u.full_name_en as name_en,
   u.full_name_ar as name_ar, q.scope, q.kind, q.title, q.tags, q.version,
   ${isoOf(sql`q.date_last_modified`)} as updated_at`;
-
-const escapeLike = (text: string) => text.replace(/[\\%_]/gu, "\\$&");
 
 /**
  * The questions a teacher may use: their own, and those kept for the

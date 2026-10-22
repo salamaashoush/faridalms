@@ -25,7 +25,7 @@ import {
   useQueryClient,
   useSuspenseQuery,
 } from "@tanstack/react-query";
-import { Archive, CalendarClock, Send } from "lucide-react";
+import { Archive, CalendarClock, Copy, Send } from "lucide-react";
 import { useCallback, useRef, useState } from "react";
 import { toast } from "sonner";
 
@@ -62,6 +62,7 @@ import { getMessageFromError } from "~/utils/error";
 import { classTitle } from "../classes/format";
 import { displayName } from "../people/format";
 import { formatInstant, PHASE_LABEL, PHASE_TONE } from "./format";
+import { UseAgainSheet } from "./UseAgain";
 import { useDocumentMedia } from "./useDocumentMedia";
 
 type Existing = Awaited<
@@ -416,6 +417,7 @@ export function AssignmentEditor({
   const [shown, setShown] = useState(false);
   const [refused, setRefused] = useState<Partial<Record<Field, string>>>({});
   const [detailsOpen, setDetailsOpen] = useState(false);
+  const [reusing, setReusing] = useState({ key: 0, open: false });
   const [pending, setPending] = useState<"assign" | "update" | null>(null);
   const [groupSearch, setGroupSearch] = useState("");
   const [studentSearch, setStudentSearch] = useState("");
@@ -753,6 +755,15 @@ export function AssignmentEditor({
         menu={
           storedId && !archived
             ? [
+                {
+                  label: m.courseworkUseAgain(),
+                  icon: Copy,
+                  onSelect: () =>
+                    setReusing((current) => ({
+                      key: current.key + 1,
+                      open: true,
+                    })),
+                },
                 {
                   label: m.courseworkArchive(),
                   icon: Archive,
@@ -1209,6 +1220,18 @@ export function AssignmentEditor({
         }
         pending={pending !== null}
       />
+      {reusing.key > 0 && storedId ? (
+        <UseAgainSheet
+          key={reusing.key}
+          source={{
+            id: storedId,
+            title: draft.title.trim() || m.courseworkUntitled(),
+          }}
+          classId={draft.classId}
+          open={reusing.open}
+          onClose={() => setReusing((current) => ({ ...current, open: false }))}
+        />
+      ) : null}
     </>
   );
 }

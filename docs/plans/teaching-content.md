@@ -195,6 +195,13 @@ Sources: [../research/course-design.md](../research/course-design.md),
 
 1. **Copy a lesson to another module, and "Use again"** for an assignment
    from any class or year, offered as Duplicate in every document's menu.
+   Done: a lesson's row menu and its editor's menu copy it to the end of
+   any module the teacher writes, unshown, with its files copied
+   (`learning.copyLessonTo`). "Use again" on an assignment's page, editor
+   and row, or from the coursework page's menu with a search across every
+   year (`coursework.reusable`), sets it as a new draft in a chosen class
+   with its brief, files, marking and quiz settings and no dates
+   (`coursework.reuse`).
 2. **School library** with copy and edit, and a school's approval before a
    piece is shared there.
 3. **Templates for every kind of document** (newsletter and news as well),
