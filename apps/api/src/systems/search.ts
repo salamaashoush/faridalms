@@ -146,9 +146,10 @@ async function resolverOf(
       const teaching = can(context, "learning:author")
         ? teachingScope(context)
         : null;
-      const learnerClassIds = can(context, "learning:read")
-        ? await learnerClasses(context, await learnersOf(context))
+      const learnerIds = can(context, "learning:read")
+        ? await learnersOf(context)
         : [];
+      const learnerClassIds = await learnerClasses(context, learnerIds);
       return (ids) =>
         learningAmong(context.tx, {
           ...base,
@@ -156,6 +157,7 @@ async function resolverOf(
           viewerId,
           teaching,
           learnerClassIds,
+          learnerIds,
         });
     }
     case "announcements": {

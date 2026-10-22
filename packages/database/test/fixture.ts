@@ -70,6 +70,8 @@ import {
   lessonRuns,
   lessonWatches,
   lessons,
+  moduleAudiences,
+  moduleClasses,
   passkeys,
   quizAnswers,
   quizDraws,
@@ -516,6 +518,21 @@ export async function completeFixture(
     watched: "{[0,10)}",
     durationSeconds: 60,
     positionSeconds: 10,
+  });
+  const [setFor] = await tx
+    .select({
+      moduleId: moduleClasses.moduleId,
+      classId: moduleClasses.classId,
+    })
+    .from(moduleClasses)
+    .where(eq(moduleClasses.tenantId, tenantId))
+    .limit(1);
+  if (!setFor) throw new Error("the development seed sets no module");
+  await tx.insert(moduleAudiences).values({
+    tenantId,
+    moduleId: setFor.moduleId,
+    classId: setFor.classId,
+    studentUserId: userId,
   });
   const [submission] = await tx
     .select({ id: submissions.id, studentUserId: submissions.studentUserId })

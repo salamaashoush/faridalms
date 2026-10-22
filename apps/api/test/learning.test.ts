@@ -3761,3 +3761,91 @@ describe("copying a lesson", () => {
     ).toMatchObject({ code: "NOT_FOUND" });
   });
 });
+
+describe("module audiences", () => {
+  test("a module set for chosen students of a class reaches them alone", async () => {
+    const { keeper } = await teachers();
+    const pupil = await student();
+    const me = await pupil.identity.currentUser();
+    const { rows } = await keeper.learning.modules({});
+    const source = rows.find((row) => row.title === TITLE);
+    if (!source) throw new Error("no module");
+    let classId = "";
+    let classmate = "";
+    for (const item of source.classes) {
+      const { roster } = await keeper.coursework.groups({ classId: item.id });
+      if (roster.some((row) => row.id === me.id)) {
+        classId = item.id;
+        classmate = roster.find((row) => row.id !== me.id)?.id ?? "";
+      }
+    }
+    if (!classId || !classmate) throw new Error("the student's class");
+    const fields = {
+      title: "Extension reading",
+      summary: "",
+      classIds: [classId],
+      prerequisiteId: "",
+      sequential: false,
+    };
+    const saved = await keeper.learning.saveModule({
+      id: "",
+      expectedVersion: 0,
+      ...fields,
+      audiences: [{ classId, groupIds: [], studentIds: [classmate] }],
+    });
+    await keeper.learning.saveLesson({
+      id: "",
+      moduleId: saved.id,
+      expectedVersion: 0,
+      title: "A harder story",
+      completion: "view",
+      passScore: null,
+      content: plainContent("Read the story."),
+      publish: false,
+    });
+    await keeper.learning.publishModule({
+      id: saved.id,
+      expectedVersion: saved.version,
+    });
+    const mine = async () =>
+      (await pupil.learning.mine({})).rows.some((row) => row.id === saved.id);
+    // Only the classmate was chosen, so the module is not the student's.
+    expect(await mine()).toBe(false);
+    expect(
+      await rejection(pupil.learning.play({ id: saved.id })),
+    ).toMatchObject({ code: "NOT_FOUND" });
+    const progress = await keeper.learning.progress({
+      moduleId: saved.id,
+      classId,
+    });
+    expect(progress.students.map((row) => row.id)).toEqual([classmate]);
+    // Chosen too, the student meets it.
+    const record = await keeper.learning.record({ id: saved.id });
+    expect(record.audiences).toEqual([
+      { classId, groupIds: [], studentIds: [classmate] },
+    ]);
+    await keeper.learning.saveModule({
+      id: saved.id,
+      expectedVersion: record.version,
+      ...fields,
+      audiences: [{ classId, groupIds: [], studentIds: [classmate, me.id] }],
+    });
+    expect(await mine()).toBe(true);
+    // A student from outside the class is refused.
+    const { rows: others } = await keeper.learning.modules({});
+    const elsewhere = others
+      .flatMap((row) => row.classes)
+      .find((row) => row.id !== classId);
+    if (elsewhere)
+      expect(
+        await rejection(
+          keeper.learning.saveModule({
+            id: saved.id,
+            expectedVersion: record.version + 1,
+            ...fields,
+            audiences: [{ classId, groupIds: [], studentIds: [elsewhere.id] }],
+          }),
+        ),
+      ).toMatchObject({ code: "BAD_REQUEST", message: "learning.audience" });
+  });
+});

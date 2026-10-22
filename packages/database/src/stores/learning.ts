@@ -1,4 +1,5 @@
 import type { LiveProgress, LiveTry } from "@faridalms/domain/live";
+import type { SQL } from "drizzle-orm";
 
 import { YOUNG_STUDENT_GRADES } from "@faridalms/domain/descriptors/catalogue";
 import { sql } from "drizzle-orm";
@@ -212,6 +213,140 @@ export async function setModuleClasses(
     where not exists (select 1 from core.module_classes x
       where x.tenant_id = ${input.tenantId}::uuid and x.module_id = ${input.moduleId}::uuid
         and x.class_id = c and x.status = 'active')`);
+}
+
+/**
+ * Whether a module set for class `x` reaches any of these students there:
+ * the whole class takes it, or one of them is named or in a chosen group.
+ */
+export const reachedBy = (x: SQL, studentIds: readonly string[]) => sql`(
+  ${x}.audience = 'class' or exists (
+    select 1 from core.module_audiences a
+    where a.tenant_id = ${x}.tenant_id and a.module_id = ${x}.module_id
+      and a.class_id = ${x}.class_id and a.status = 'active'
+      and (a.student_user_id = any(${uuidArray(studentIds)}) or exists (
+        select 1 from core.class_group_members g
+        where g.tenant_id = a.tenant_id and g.group_id = a.group_id and g.status = 'active'
+          and g.student_user_id = any(${uuidArray(studentIds)})))))`;
+
+/** Whether a module set for any of these classes reaches the student in one of them. */
+export async function moduleReaches(
+  tx: Tx,
+  input: {
+    tenantId: string;
+    moduleId: string;
+    studentId: string;
+    classIds: readonly string[];
+  },
+): Promise<boolean> {
+  const [row] = await tx.execute<{ reaches: boolean }>(sql`
+    select exists (select 1 from core.module_classes x
+      where x.tenant_id = ${input.tenantId}::uuid and x.module_id = ${input.moduleId}::uuid
+        and x.status = 'active' and x.class_id = any(${uuidArray(input.classIds)})
+        and ${reachedBy(sql`x`, [input.studentId])}) as reaches`);
+  return row?.reaches ?? false;
+}
+
+/** Who in each of a module's classes takes it: the whole class, or chosen groups and students. */
+export interface ModuleAudienceRow {
+  classId: string;
+  groupIds: string[];
+  studentIds: string[];
+}
+
+export async function audiencesOf(
+  tx: Tx,
+  input: { tenantId: string; moduleId: string },
+): Promise<ModuleAudienceRow[]> {
+  const rows = await tx.execute<{
+    class_id: string;
+    group_ids: string[] | null;
+    student_ids: string[] | null;
+  }>(sql`
+    select x.class_id,
+      (array_agg(a.group_id) filter (where a.group_id is not null))::text[] as group_ids,
+      (array_agg(a.student_user_id) filter (where a.student_user_id is not null))::text[] as student_ids
+    from core.module_classes x
+    left join core.module_audiences a on a.tenant_id = x.tenant_id and a.module_id = x.module_id
+      and a.class_id = x.class_id and a.status = 'active'
+    where x.tenant_id = ${input.tenantId}::uuid and x.module_id = ${input.moduleId}::uuid
+      and x.status = 'active' and x.audience = 'selected'
+    group by x.class_id`);
+  return rows.map((row) => ({
+    classId: row.class_id,
+    groupIds: row.group_ids ?? [],
+    studentIds: row.student_ids ?? [],
+  }));
+}
+
+/**
+ * Sets who in each class takes a module: a class with groups or students
+ * chosen takes it only for them, any other class whole.
+ */
+export async function setModuleAudiences(
+  tx: Tx,
+  input: {
+    tenantId: string;
+    moduleId: string;
+    audiences: readonly ModuleAudienceRow[];
+  },
+): Promise<void> {
+  const chosen = input.audiences.filter(
+    (row) => row.groupIds.length > 0 || row.studentIds.length > 0,
+  );
+  await tx.execute(sql`
+    update core.module_classes
+    set audience = case when class_id = any(${uuidArray(chosen.map((row) => row.classId))})
+      then 'selected' else 'class' end
+    where tenant_id = ${input.tenantId}::uuid and module_id = ${input.moduleId}::uuid
+      and status = 'active'`);
+  await tx.execute(sql`
+    update core.module_audiences set status = 'tobedeleted'
+    where tenant_id = ${input.tenantId}::uuid and module_id = ${input.moduleId}::uuid
+      and status = 'active'`);
+  const rows = chosen.flatMap((row) => [
+    ...row.groupIds.map(
+      (groupId) => sql`(${row.classId}::uuid, ${groupId}::uuid, null::uuid)`,
+    ),
+    ...row.studentIds.map(
+      (studentId) =>
+        sql`(${row.classId}::uuid, null::uuid, ${studentId}::uuid)`,
+    ),
+  ]);
+  if (rows.length === 0) return;
+  await tx.execute(sql`
+    insert into core.module_audiences (tenant_id, module_id, class_id, group_id, student_user_id)
+    select ${input.tenantId}::uuid, ${input.moduleId}::uuid, a.class_id, a.group_id, a.student_id
+    from (values ${sql.join(rows, sql`, `)}) as a(class_id, group_id, student_id)`);
+}
+
+/** Of a class's roster, the students a module set for it reaches. */
+export async function audienceOfClass(
+  tx: Tx,
+  input: {
+    tenantId: string;
+    moduleId: string;
+    classId: string;
+    roster: readonly string[];
+  },
+): Promise<string[]> {
+  if (input.roster.length === 0) return [];
+  const rows = await tx.execute<{ id: string }>(sql`
+    select s.id from unnest(${uuidArray(input.roster)}) as s(id)
+    where exists (
+      select 1 from core.module_classes x
+      where x.tenant_id = ${input.tenantId}::uuid and x.module_id = ${input.moduleId}::uuid
+        and x.class_id = ${input.classId}::uuid and x.status = 'active'
+        and (x.audience = 'class' or exists (
+          select 1 from core.module_audiences a
+          where a.tenant_id = x.tenant_id and a.module_id = x.module_id
+            and a.class_id = x.class_id and a.status = 'active'
+            and (a.student_user_id = s.id or exists (
+              select 1 from core.class_group_members g
+              where g.tenant_id = a.tenant_id and g.group_id = a.group_id
+                and g.status = 'active' and g.student_user_id = s.id)))))`);
+  const reached = new Set(rows.map((row) => row.id));
+  return input.roster.filter((id) => reached.has(id));
 }
 
 export interface ModuleListRow extends ModuleRow {
@@ -1071,7 +1206,8 @@ export async function studentModules(
       and m.status = 'active' and m.state = 'published' and m.publish_at <= statement_timestamp()
       and exists (select 1 from core.module_classes x
         where x.tenant_id = m.tenant_id and x.module_id = m.id and x.status = 'active'
-          and x.class_id = any(${uuidArray(input.classIds)}))
+          and x.class_id = any(${uuidArray(input.classIds)})
+          and ${reachedBy(sql`x`, [input.studentId])})
     order by (select min(x.position) from core.module_classes x
         where x.tenant_id = m.tenant_id and x.module_id = m.id and x.status = 'active'
           and x.class_id = any(${uuidArray(input.classIds)})), m.publish_at, m.id`);

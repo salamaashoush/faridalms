@@ -31,7 +31,7 @@ import {
   redact,
   tenantColumns,
 } from "./conventions";
-import { submissions } from "./coursework";
+import { classGroups, submissions } from "./coursework";
 import { documentVersions } from "./documents";
 import { files } from "./files";
 import { users } from "./people";
@@ -111,7 +111,13 @@ export const learningModules = core.table.withRLS(
   ],
 );
 
-/** The classes a module is set for, in the order each class sees its modules. */
+export type ModuleAudience = "class" | "selected";
+
+/**
+ * The classes a module is set for, in the order each class sees its modules,
+ * and whether each whole class takes it or only its chosen groups and
+ * students (`module_audiences`).
+ */
 export const moduleClasses = core.table.withRLS(
   "module_classes",
   {
@@ -119,6 +125,10 @@ export const moduleClasses = core.table.withRLS(
     moduleId: uuid("module_id").notNull(),
     classId: uuid("class_id").notNull(),
     position: smallint("position").notNull().default(0),
+    audience: text("audience")
+      .$type<ModuleAudience>()
+      .notNull()
+      .default("class"),
     ...entityColumns(),
   },
   (t): PgTableExtraConfigValue[] => [
@@ -135,6 +145,7 @@ export const moduleClasses = core.table.withRLS(
       [classes.tenantId, classes.id],
     ),
     ck("module_classes", "position", sql`position between 0 and 999`),
+    ck("module_classes", "audience", sql`audience in ('class', 'selected')`),
     uniqueIndex("module_classes_key")
       .on(t.tenantId, t.moduleId, t.classId)
       .where(sql`status = 'active'`),
@@ -142,6 +153,61 @@ export const moduleClasses = core.table.withRLS(
       .on(t.tenantId, t.classId)
       .where(sql`status = 'active'`),
     ...entityProfile(),
+  ],
+);
+
+/**
+ * A group or a student of a class a module is set for only in part: those
+ * who take it there. A group is read as it stands, so a student joining it
+ * later meets the module too.
+ */
+export const moduleAudiences = core.table.withRLS(
+  "module_audiences",
+  {
+    ...tenantColumns(),
+    moduleId: uuid("module_id").notNull(),
+    classId: uuid("class_id").notNull(),
+    groupId: uuid("group_id"),
+    studentUserId: uuid("student_user_id"),
+    ...entityColumns(),
+  },
+  (t): PgTableExtraConfigValue[] => [
+    pk("module_audiences", t.tenantId, t.id),
+    ...baseConstraints("module_audiences", t, tenants),
+    fk(
+      "module_audiences",
+      [t.tenantId, t.moduleId],
+      [learningModules.tenantId, learningModules.id],
+    ),
+    fk(
+      "module_audiences",
+      [t.tenantId, t.classId],
+      [classes.tenantId, classes.id],
+    ),
+    fk(
+      "module_audiences",
+      [t.tenantId, t.groupId],
+      [classGroups.tenantId, classGroups.id],
+    ),
+    fk(
+      "module_audiences",
+      [t.tenantId, t.studentUserId],
+      [users.tenantId, users.id],
+    ),
+    ck(
+      "module_audiences",
+      "member",
+      sql`(group_id is null) <> (student_user_id is null)`,
+    ),
+    uniqueIndex("module_audiences_group_key")
+      .on(t.tenantId, t.moduleId, t.classId, t.groupId)
+      .where(sql`status = 'active' and group_id is not null`),
+    uniqueIndex("module_audiences_student_key")
+      .on(t.tenantId, t.moduleId, t.classId, t.studentUserId)
+      .where(sql`status = 'active' and student_user_id is not null`),
+    ...entityProfile(),
+    // A student named for a module goes when they are erased.
+    ...eraseAndDelete(erasureOf("student_user_id")),
   ],
 );
 

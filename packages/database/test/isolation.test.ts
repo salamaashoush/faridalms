@@ -28,6 +28,7 @@ const DELETE_ALLOWED = new Set([
   "core.quiz_draws",
   "core.quiz_sittings",
   "core.standard_evidence",
+  "core.module_audiences",
   "health.records",
   "audit.payloads",
 ]);

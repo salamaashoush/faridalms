@@ -1,5 +1,6 @@
 import type {
   LessonRow,
+  ModuleAudienceRow,
   ModuleRow,
   WatchRow,
 } from "@faridalms/database/stores/learning";
@@ -19,7 +20,7 @@ import {
   rosterOf,
   teachesClass,
 } from "@faridalms/database/stores/classes";
-import { namesOf } from "@faridalms/database/stores/coursework";
+import { groupsOf, namesOf } from "@faridalms/database/stores/coursework";
 import {
   contentsOf,
   documentOf,
@@ -55,7 +56,11 @@ import {
   runsOf,
   removeLesson as tombstoneLesson,
   setLessonSounds,
+  setModuleAudiences,
   setModuleClasses,
+  audienceOfClass,
+  audiencesOf,
+  moduleReaches,
   setModuleState,
   studentModules,
   updateLesson,
@@ -301,9 +306,14 @@ async function openModule(
 ) {
   const row = await ofSchool(context, moduleId);
   if (!isOpen(row, context.now)) throw new ORPCError("NOT_FOUND");
-  const classes = await classesOfModule(context.tx, context.tenantId, row.id);
-  const mine = new Set(await classesOfStudent(context, studentId));
-  if (!classes.some((item) => mine.has(item.id)))
+  if (
+    !(await moduleReaches(context.tx, {
+      tenantId: context.tenantId,
+      moduleId: row.id,
+      studentId,
+      classIds: await classesOfStudent(context, studentId),
+    }))
+  )
     throw new ORPCError("NOT_FOUND");
   const locked =
     row.prerequisiteId !== null &&
@@ -591,12 +601,72 @@ export const record = readProcedure
   .input(v.object({ id }))
   .handler(async ({ input, context }) => {
     const row = await editable(context, input.id);
-    const [classes, lessons] = await Promise.all([
+    const [classes, lessons, audiences] = await Promise.all([
       classesOfModule(context.tx, context.tenantId, row.id),
       lessonsOf(context.tx, context.tenantId, row.id),
+      audiencesOf(context.tx, { tenantId: context.tenantId, moduleId: row.id }),
     ]);
-    return { ...row, classes, lessons, open: isOpen(row, context.now) };
+    return {
+      ...row,
+      classes,
+      lessons,
+      audiences,
+      open: isOpen(row, context.now),
+    };
   });
+
+/**
+ * The groups and students a teacher chose in each class, kept to those of
+ * that class: groups made in it, and students on its roster.
+ */
+async function checkedAudiences(
+  context: UnitContext,
+  input: {
+    classIds: readonly string[];
+    audiences: readonly ModuleAudienceRow[];
+  },
+) {
+  return Promise.all(
+    input.audiences
+      .filter((row) => input.classIds.includes(row.classId))
+      .map(async (row) => {
+        const [roster, groups] = await Promise.all([
+          rosterOf(context.tx, context.tenantId, row.classId, context.today),
+          groupsOf(context.tx, context.tenantId, row.classId),
+        ]);
+        const own = new Set(groups.map((group) => group.id));
+        if (
+          row.groupIds.some((groupId) => !own.has(groupId)) ||
+          row.studentIds.some((studentId) => !roster.includes(studentId))
+        )
+          throw new ORPCError("BAD_REQUEST", { message: "learning.audience" });
+        return {
+          classId: row.classId,
+          groupIds: [...new Set(row.groupIds)],
+          studentIds: [...new Set(row.studentIds)],
+        };
+      }),
+  );
+}
+
+/** Of a class's roster today, the students a module set for it reaches. */
+async function audienceOf(
+  context: UnitContext,
+  moduleId: string,
+  classId: string,
+) {
+  return audienceOfClass(context.tx, {
+    tenantId: context.tenantId,
+    moduleId,
+    classId,
+    roster: await rosterOf(
+      context.tx,
+      context.tenantId,
+      classId,
+      context.today,
+    ),
+  });
+}
 
 export const saveModule = writeProcedure
   .input(saveModuleSchema)
@@ -648,6 +718,11 @@ export const saveModule = writeProcedure
       tenantId: context.tenantId,
       moduleId,
       classIds: input.classIds,
+    });
+    await setModuleAudiences(context.tx, {
+      tenantId: context.tenantId,
+      moduleId,
+      audiences: await checkedAudiences(context, input),
     });
     await audit(context, {
       action: input.id ? "module.update" : "module.create",
@@ -1015,7 +1090,7 @@ export const progress = readProcedure
       throw new ORPCError("NOT_FOUND");
     const [lessons, roster] = await Promise.all([
       lessonsOf(context.tx, context.tenantId, row.id),
-      rosterOf(context.tx, context.tenantId, input.classId, context.today),
+      audienceOf(context, row.id, input.classId),
     ]);
     const [students, cells] = await Promise.all([
       namesOf(context.tx, context.tenantId, roster),
@@ -1059,7 +1134,7 @@ export const videos = readProcedure
       throw new ORPCError("NOT_FOUND");
     const [lessons, roster] = await Promise.all([
       lessonsOf(context.tx, context.tenantId, row.id),
-      rosterOf(context.tx, context.tenantId, input.classId, context.today),
+      audienceOf(context, row.id, input.classId),
     ]);
     const [students, watches, published] = await Promise.all([
       namesOf(context.tx, context.tenantId, roster),
@@ -1147,7 +1222,7 @@ export const live = readProcedure
     const now = Date.now();
     const [lessons, roster] = await Promise.all([
       lessonsOf(context.tx, context.tenantId, row.id),
-      rosterOf(context.tx, context.tenantId, input.classId, context.today),
+      audienceOf(context, row.id, input.classId),
     ]);
     const recent = {
       tenantId: context.tenantId,
@@ -1228,9 +1303,7 @@ export const override = writeProcedure
     let enrolled = false;
     for (const item of classes)
       if (
-        (
-          await rosterOf(context.tx, context.tenantId, item.id, context.today)
-        ).includes(input.studentId)
+        (await audienceOf(context, owner.id, item.id)).includes(input.studentId)
       )
         enrolled = true;
     if (!enrolled) throw new ORPCError("NOT_FOUND");
@@ -1831,9 +1904,7 @@ async function classmatesOf(context: UnitContext, played: Played) {
     played.owner.id,
   );
   const rosters = await Promise.all(
-    classes.map((item) =>
-      rosterOf(context.tx, context.tenantId, item.id, context.today),
-    ),
+    classes.map((item) => audienceOf(context, played.owner.id, item.id)),
   );
   return [
     ...new Set(
@@ -2579,7 +2650,7 @@ export const answers = readProcedure
       throw new ORPCError("NOT_FOUND");
     const [lessons, roster] = await Promise.all([
       lessonsOf(context.tx, context.tenantId, row.id),
-      rosterOf(context.tx, context.tenantId, input.classId, context.today),
+      audienceOf(context, row.id, input.classId),
     ]);
     const questions: {
       lessonId: string;
@@ -2700,7 +2771,7 @@ export const questions = readProcedure
       throw new ORPCError("NOT_FOUND");
     const [lessons, roster] = await Promise.all([
       lessonsOf(context.tx, context.tenantId, row.id),
-      rosterOf(context.tx, context.tenantId, input.classId, context.today),
+      audienceOf(context, row.id, input.classId),
     ]);
     const [students, rows, ran] = await Promise.all([
       namesOf(context.tx, context.tenantId, roster),
@@ -2808,7 +2879,7 @@ export const runs = readProcedure
       throw new ORPCError("NOT_FOUND");
     const [lessons, roster] = await Promise.all([
       lessonsOf(context.tx, context.tenantId, row.id),
-      rosterOf(context.tx, context.tenantId, input.classId, context.today),
+      audienceOf(context, row.id, input.classId),
     ]);
     if (
       !lessons.some((item) => item.id === input.lessonId) ||
@@ -2882,12 +2953,7 @@ export const mark = writeProcedure
     );
     const enrolled = new Set<string>();
     for (const item of classes)
-      for (const studentId of await rosterOf(
-        context.tx,
-        context.tenantId,
-        item.id,
-        context.today,
-      ))
+      for (const studentId of await audienceOf(context, owner.id, item.id))
         enrolled.add(studentId);
     if (!studentIds.every((studentId) => enrolled.has(studentId)))
       throw new ORPCError("NOT_FOUND");

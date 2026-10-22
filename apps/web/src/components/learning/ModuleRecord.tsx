@@ -51,6 +51,7 @@ import {
 } from "~/components/system/RecordPage";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
+import { getLocale } from "~/i18n/runtime";
 import {
   moduleProgressQuery,
   moduleRecordQuery,
@@ -287,6 +288,31 @@ function About({ data }: { data: Data }) {
         <Fact label={m.lrnClasses()} wide>
           {data.classes.map((row) => classTitle(row)).join(", ")}
         </Fact>
+        {data.audiences.length > 0 ? (
+          <Fact label={m.lrnAudienceFact()} wide>
+            {data.audiences
+              .map((row) => {
+                const taken = data.classes.find(
+                  (item) => item.id === row.classId,
+                );
+                const who = [
+                  ...(row.groupIds.length
+                    ? [m.lrnAudienceGroups({ count: row.groupIds.length })]
+                    : []),
+                  ...(row.studentIds.length
+                    ? [m.lrnAudienceStudents({ count: row.studentIds.length })]
+                    : []),
+                ];
+                return m.lrnAudienceSome({
+                  class: taken ? classTitle(taken) : "",
+                  who: new Intl.ListFormat(getLocale(), {
+                    type: "conjunction",
+                  }).format(who),
+                });
+              })
+              .join("; ")}
+          </Fact>
+        ) : null}
         <Fact label={m.lrnOrder()}>
           {data.sequential ? m.lrnInOrder() : m.lrnAnyOrder()}
         </Fact>

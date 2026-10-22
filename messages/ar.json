@@ -1833,6 +1833,7 @@
   "errorStandardsEvidence": "كانت هذه الإجابة تُصحَّح في اللحظة نفسها. حاول مرة أخرى.",
   "errorLibraryReviewed": "سبق أن قرّر مراجع آخر بشأنه.",
   "errorLibraryNotOwner": "لا يُزيله من المكتبة إلا صاحبه أو مراجع المكتبة.",
+  "errorLearningAudience": "يجب أن تنتمي كل مجموعة وكل طالب مختار إلى الفصل الذي اختير فيه، مرة واحدة.",
   "errorClassCodeTaken": "يستخدم فصل آخر هذا الرمز في هذا العام.",
   "errorSchoolYearClosed": "هذا العام الدراسي مغلق ولا يمكن تغييره.",
   "errorFuturePlacement": "للطالب فصل يبدأ لاحقًا هذا العام، عدّله أولًا.",
@@ -3344,6 +3345,42 @@
   "lrnSearchPlaceholder": "ابحث في الوحدات",
   "lrnSectionBlocks": "محتوى الدرس",
   "lrnSectionModule": "الوحدة",
+  "lrnSectionAudience": "من يأخذها",
+  "lrnSectionAudienceHint": "الفصل كله، أو المجموعات والطلاب الذين تختارهم فيه فقط، كما حين تعمل مجموعة بمستواها الخاص.",
+  "lrnAudienceIn": "في {class}",
+  "lrnAudienceClass": "الفصل كله",
+  "lrnAudienceSelected": "مجموعات وطلاب مختارون",
+  "lrnAudienceNeeded": "اختر مجموعة أو طالبًا واحدًا على الأقل.",
+  "lrnAudienceFact": "من يأخذها",
+  "lrnAudienceSome": "{class}: {who}",
+  "lrnAudienceGroups": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=zero": "لا مجموعات",
+        "countPlural=one": "مجموعة واحدة",
+        "countPlural=two": "مجموعتان",
+        "countPlural=few": "{count} مجموعات",
+        "countPlural=many": "{count} مجموعة",
+        "countPlural=*": "{count} مجموعة"
+      }
+    }
+  ],
+  "lrnAudienceStudents": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=zero": "لا طلاب",
+        "countPlural=one": "طالب واحد",
+        "countPlural=two": "طالبان",
+        "countPlural=few": "{count} طلاب",
+        "countPlural=many": "{count} طالبًا",
+        "countPlural=*": "{count} طالب"
+      }
+    }
+  ],
   "lrnSectionOrder": "الفتح",
   "lrnSections": "أقسام الوحدة",
   "lrnSequential": "فتح الدروس واحدًا تلو الآخر",

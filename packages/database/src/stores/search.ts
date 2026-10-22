@@ -8,6 +8,7 @@ import type { Scope } from "./students";
 
 import { reaches } from "./audiences";
 import { taughtClasses } from "./classes";
+import { reachedBy } from "./learning";
 import { publishedPostText } from "./news";
 import { isoOf, textArray, uuidArray } from "./sql";
 
@@ -204,6 +205,8 @@ interface LearningAccess {
   teaching: Scope | null;
   /** The classes whose published modules the viewer may study or follow. */
   learnerClassIds: readonly string[];
+  /** The students they study or follow them for: themselves, or their children. */
+  learnerIds: readonly string[];
 }
 
 const moduleOpen = (access: LearningAccess, viewerId: string) => sql`(
@@ -218,7 +221,8 @@ const moduleOpen = (access: LearningAccess, viewerId: string) => sql`(
   or (m.state = 'published' and m.publish_at <= statement_timestamp() and exists (
     select 1 from core.module_classes x
     where x.tenant_id = m.tenant_id and x.module_id = m.id and x.status = 'active'
-      and x.class_id = any(${uuidArray(access.learnerClassIds)}))))`;
+      and x.class_id = any(${uuidArray(access.learnerClassIds)})
+      and ${reachedBy(sql`x`, access.learnerIds)})))`;
 
 /** Modules and lessons among `ids` the viewer may open. */
 export async function learningAmong(

@@ -1767,6 +1767,7 @@
   "errorStandardsEvidence": "That answer was being marked at the same moment. Try again.",
   "errorLibraryReviewed": "Another reviewer has already decided on it.",
   "errorLibraryNotOwner": "Only its owner or a library reviewer can take it out of the library.",
+  "errorLearningAudience": "Each chosen group and student must belong to the class they are chosen in, once.",
   "errorClassCodeTaken": "Another class this year already uses this code.",
   "errorSchoolYearClosed": "This school year is closed, so it can't be changed.",
   "errorFuturePlacement": "The student already has a class starting later this year. Change that one first.",
@@ -3209,6 +3210,34 @@
   "lrnSearchPlaceholder": "Search modules",
   "lrnSectionBlocks": "Lesson content",
   "lrnSectionModule": "Module",
+  "lrnSectionAudience": "Who takes it",
+  "lrnSectionAudienceHint": "A whole class, or only the groups and students you choose in it, as when a set works at its own level.",
+  "lrnAudienceIn": "In {class}",
+  "lrnAudienceClass": "The whole class",
+  "lrnAudienceSelected": "Chosen groups and students",
+  "lrnAudienceNeeded": "Choose at least one group or student.",
+  "lrnAudienceFact": "Who takes it",
+  "lrnAudienceSome": "{class}: {who}",
+  "lrnAudienceGroups": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "{count} group",
+        "countPlural=*": "{count} groups"
+      }
+    }
+  ],
+  "lrnAudienceStudents": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "{count} student",
+        "countPlural=*": "{count} students"
+      }
+    }
+  ],
   "lrnSectionOrder": "Opening",
   "lrnSections": "Module sections",
   "lrnSequential": "Open lessons one after another",

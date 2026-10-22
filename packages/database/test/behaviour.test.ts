@@ -638,6 +638,15 @@ describe("erasing a student's work", () => {
           select ${t}::uuid, ${work.student}::uuid, id, 'lesson', ${lesson.id}::uuid, 1,
                  ${block}::uuid, 1, statement_timestamp()
           from standard`);
+        // Named for a module set for only some of a class.
+        await tx.execute(sql`
+          insert into core.module_audiences (tenant_id, module_id, class_id, student_user_id)
+          select ${t}::uuid, x.module_id, x.class_id, ${work.student}::uuid
+          from core.lessons l
+          join core.module_classes x on x.tenant_id = l.tenant_id and x.module_id = l.module_id
+            and x.status = 'active'
+          where l.tenant_id = ${t}::uuid and l.id = ${lesson.id}::uuid
+          limit 1`);
         // The time and the reader their school gave them.
         await tx.execute(sql`
           insert into core.access_arrangements (tenant_id, org_id, student_user_id, extra_time, read_aloud)
@@ -730,6 +739,7 @@ describe("erasing a student's work", () => {
           sittings: number;
           draws: number;
           evidence: number;
+          audiences: number;
         }>(sql`
           select (select count(*)::int from core.lesson_runs where tenant_id = ${t}::uuid
                    and student_user_id = ${work.student}::uuid) as runs,
@@ -751,7 +761,9 @@ describe("erasing a student's work", () => {
                  (select count(*)::int from core.quiz_draws where tenant_id = ${t}::uuid
                    and student_user_id = ${work.student}::uuid) as draws,
                  (select count(*)::int from core.standard_evidence where tenant_id = ${t}::uuid
-                   and student_user_id = ${work.student}::uuid) as evidence`);
+                   and student_user_id = ${work.student}::uuid) as evidence,
+                 (select count(*)::int from core.module_audiences where tenant_id = ${t}::uuid
+                   and student_user_id = ${work.student}::uuid) as audiences`);
         expect(left).toEqual({
           runs: 0,
           code: 0,
@@ -763,6 +775,7 @@ describe("erasing a student's work", () => {
           sittings: 0,
           draws: 0,
           evidence: 0,
+          audiences: 0,
         });
         checked = true;
         throw rollback;

@@ -1,6 +1,7 @@
 import { Textarea } from "@faridalms/ui/textarea";
 import {
   useMutation,
+  useQuery,
   useQueryClient,
   useSuspenseQuery,
 } from "@tanstack/react-query";
@@ -11,10 +12,13 @@ import type { moduleRecordQuery } from "~/queries/learning";
 
 import { classTitle } from "~/components/classes/format";
 import { CheckboxRow } from "~/components/people/fields";
+import { displayName } from "~/components/people/format";
 import { ComboboxField } from "~/components/system/ComboboxField";
 import { FormField, SelectField, TextField } from "~/components/system/field";
 import { FormSection, RecordForm } from "~/components/system/RecordForm";
+import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
+import { classGroupsQuery } from "~/queries/coursework";
 import { learningOptionsQuery } from "~/queries/learning";
 import { saveModule } from "~/server/learning";
 import { getMessageFromError } from "~/utils/error";
@@ -23,12 +27,99 @@ type Existing = Awaited<
   ReturnType<NonNullable<ReturnType<typeof moduleRecordQuery>["queryFn"]>>
 >;
 
+interface Chosen {
+  groupIds: string[];
+  studentIds: string[];
+}
+
 interface Draft {
   title: string;
   summary: string;
   classIds: string[];
   prerequisiteId: string;
   sequential: boolean;
+  /** The classes taken only by chosen groups and students, by class. */
+  audiences: Record<string, Chosen>;
+}
+
+/** Who in one class takes the module: everyone, or the groups and students chosen. */
+function ClassAudience({
+  classId,
+  title,
+  value,
+  onChange,
+  missing,
+}: {
+  classId: string;
+  title: string;
+  value: Chosen | undefined;
+  onChange: (value: Chosen | undefined) => void;
+  missing: boolean;
+}) {
+  const groups = useQuery({
+    ...classGroupsQuery(classId),
+    enabled: value !== undefined,
+  }).data;
+  const [groupSearch, setGroupSearch] = useState("");
+  const [studentSearch, setStudentSearch] = useState("");
+  const groupOptions = (groups?.groups ?? []).map((row) => ({
+    value: row.id,
+    label: inLocale(row.titleEn, row.titleAr),
+  }));
+  const studentOptions = (groups?.roster ?? []).map((row) => ({
+    value: row.id,
+    label: displayName(row),
+  }));
+  return (
+    <div className="grid gap-3">
+      <SelectField
+        id={`module-audience-${classId}`}
+        label={m.lrnAudienceIn({ class: title })}
+        width="name"
+        value={value ? "selected" : "class"}
+        options={[
+          { value: "class", label: m.lrnAudienceClass() },
+          { value: "selected", label: m.lrnAudienceSelected() },
+        ]}
+        onChange={(next) =>
+          onChange(
+            next === "selected"
+              ? (value ?? { groupIds: [], studentIds: [] })
+              : undefined,
+          )
+        }
+        errors={missing ? [m.lrnAudienceNeeded()] : undefined}
+      />
+      {value ? (
+        <>
+          <ComboboxField
+            label={m.courseworkGroups()}
+            optional
+            multiple
+            options={groupOptions.filter((row) =>
+              row.label.toLowerCase().includes(groupSearch.toLowerCase()),
+            )}
+            value={value.groupIds}
+            onChange={(groupIds) => onChange({ ...value, groupIds })}
+            search={groupSearch}
+            onSearchChange={setGroupSearch}
+          />
+          <ComboboxField
+            label={m.courseworkStudents()}
+            optional
+            multiple
+            options={studentOptions.filter((row) =>
+              row.label.toLowerCase().includes(studentSearch.toLowerCase()),
+            )}
+            value={value.studentIds}
+            onChange={(studentIds) => onChange({ ...value, studentIds })}
+            search={studentSearch}
+            onSearchChange={setStudentSearch}
+          />
+        </>
+      ) : null}
+    </div>
+  );
 }
 
 /** What a module is, which classes take it, and how its lessons open. */
@@ -50,6 +141,12 @@ export function ModuleEditor({
       existing?.classes.map((row) => row.id) ?? (classId ? [classId] : []),
     prerequisiteId: existing?.prerequisiteId ?? "",
     sequential: existing?.sequential ?? true,
+    audiences: Object.fromEntries(
+      (existing?.audiences ?? []).map((row) => [
+        row.classId,
+        { groupIds: row.groupIds, studentIds: row.studentIds },
+      ]),
+    ),
   }));
   const [draft, setDraft] = useState(initial);
   const [classSearch, setClassSearch] = useState("");
@@ -66,12 +163,25 @@ export function ModuleEditor({
           ...draft,
           title: draft.title.trim(),
           summary: draft.summary.trim(),
+          audiences: draft.classIds.flatMap((id) => {
+            const chosen = draft.audiences[id];
+            return chosen ? [{ classId: id, ...chosen }] : [];
+          }),
         },
       }),
+  });
+  const unchosen = draft.classIds.filter((id) => {
+    const chosen = draft.audiences[id];
+    return (
+      chosen !== undefined &&
+      chosen.groupIds.length === 0 &&
+      chosen.studentIds.length === 0
+    );
   });
   const issues = {
     title: draft.title.trim() ? null : m.lrnTitleNeeded(),
     classIds: draft.classIds.length > 0 ? null : m.lrnClassesNeeded(),
+    audiences: unchosen.length > 0 ? m.lrnAudienceNeeded() : null,
   };
   const classOptions = options.classes.map((row) => ({
     value: row.id,
@@ -139,6 +249,30 @@ export function ModuleEditor({
           errors={shown && issues.classIds ? [issues.classIds] : undefined}
         />
       </FormSection>
+      {draft.classIds.length > 0 ? (
+        <FormSection
+          title={m.lrnSectionAudience()}
+          description={m.lrnSectionAudienceHint()}
+        >
+          {draft.classIds.map((id) => (
+            <ClassAudience
+              key={id}
+              classId={id}
+              title={classOptions.find((row) => row.value === id)?.label ?? ""}
+              value={draft.audiences[id]}
+              onChange={(value) =>
+                setDraft((current) => {
+                  const audiences = { ...current.audiences };
+                  if (value) audiences[id] = value;
+                  else delete audiences[id];
+                  return { ...current, audiences };
+                })
+              }
+              missing={shown && unchosen.includes(id)}
+            />
+          ))}
+        </FormSection>
+      ) : null}
       <FormSection title={m.lrnSectionOrder()}>
         <CheckboxRow
           label={m.lrnSequential()}

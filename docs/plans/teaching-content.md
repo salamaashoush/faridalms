@@ -231,6 +231,13 @@ Sources: [../research/course-design.md](../research/course-design.md),
    Left: answering inside the frame, which needs scripts the sandbox keeps
    out.
 5. **Module audiences** by group or named students, not only whole classes.
+   Done: each class a module is set for takes it whole or only for chosen
+   groups and students (`module_classes.audience`, `module_audiences`).
+   A group is read as it stands, so a student who joins it later meets the
+   module. The students' list, opening a module, search, and the teacher's
+   progress, answers, videos, live and marking views all follow the
+   audience; the module's About shows who takes it. Erasing a student
+   removes them from it.
 6. **Paths**: release by score across modules, mastery paths and branching.
 7. **Live lesson**: the teacher paces a lesson for the class, as Nearpod and
    Pear Deck do, with answers gathered on the teacher's screen.

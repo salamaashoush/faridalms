@@ -2067,6 +2067,23 @@ export const saveModuleSchema = v.object({
   ),
   prerequisiteId: optionalId,
   sequential: v.boolean(),
+  /**
+   * The classes taken only by some of their groups and students; any class
+   * not listed, or listed with none chosen, takes the module whole.
+   */
+  audiences: v.optional(
+    v.pipe(
+      v.array(
+        v.object({
+          classId: id,
+          groupIds: v.pipe(v.array(id), v.maxLength(50)),
+          studentIds: v.pipe(v.array(id), v.maxLength(500)),
+        }),
+      ),
+      v.maxLength(MAX_MODULE_CLASSES),
+    ),
+    [],
+  ),
 });
 export type SaveModule = v.InferOutput<typeof saveModuleSchema>;
 
