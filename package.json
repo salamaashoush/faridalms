@@ -92,6 +92,9 @@
     "*.{js,jsx,ts,tsx}": "oxlint --fix"
   },
   "packageManager": "bun@1.4.2",
+  "patchedDependencies": {
+    "lexical@0.50.0": "patches/lexical@0.50.0.patch"
+  },
   "trustedDependencies": [
     "@parcel/watcher",
     "@swc/core",

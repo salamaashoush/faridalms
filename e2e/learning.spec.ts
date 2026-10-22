@@ -66,9 +66,11 @@ test("a teacher builds a module, a student answers its lesson, and the teacher m
   await leaveQuestion();
   await page.keyboard.type("/typed");
   await page.keyboard.press("Enter");
-  await page.keyboard.type("Which word often starts a letter?");
+  // Committed whole, as dictation or an input method does, straight after
+  // Enter: the words stay where the caret is.
+  await page.keyboard.insertText("Which word often starts a letter?");
   await page.keyboard.press("Enter");
-  await page.keyboard.type("Dear");
+  await page.keyboard.insertText("Dear");
   await leaveQuestion();
   await page.keyboard.type("/written");
   await page.keyboard.press("Enter");
