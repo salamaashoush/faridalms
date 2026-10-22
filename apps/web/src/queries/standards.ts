@@ -5,6 +5,7 @@ import {
   getClassProgress,
   getFramework,
   getFrameworks,
+  getStandardSittings,
   getStudentProgress,
 } from "~/server/standards";
 
@@ -29,6 +30,13 @@ export const studentProgressQuery = (studentId: string) =>
   queryOptions({
     queryKey: ["standards", "student", studentId],
     queryFn: () => getStudentProgress({ data: { studentId } }),
+  });
+
+/** The sittings one student's mastery of a standard was worked out from. */
+export const standardSittingsQuery = (studentId: string, standardId: string) =>
+  queryOptions({
+    queryKey: ["standards", "sittings", studentId, standardId],
+    queryFn: () => getStandardSittings({ data: { studentId, standardId } }),
   });
 
 export const classGoalsQuery = (classId: string, frameworkId: string) =>

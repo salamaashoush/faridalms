@@ -26,6 +26,7 @@ import {
   removeFramework as dropFramework,
   removeStandard,
   searchStandards,
+  sittingsOfStandard,
   standardById,
   standardsByIds,
   standardsOf,
@@ -48,6 +49,7 @@ import {
   saveFrameworkSchema,
   saveStandardSchema,
   searchStandardsSchema,
+  sittingsSchema,
   studentProgressSchema,
 } from "@faridalms/domain/standards";
 import { ORPCError } from "@orpc/server";
@@ -478,17 +480,23 @@ export const classProgress = readProcedure
     };
   });
 
+/** The student a progress view is about: the viewer, or one they may see. */
+async function progressStudent(context: UnitContext, asked: string) {
+  requireCapability(context, "grades:read");
+  const studentId = asked || context.actor.userId;
+  if (
+    studentId !== context.actor.userId &&
+    !(await isVisibleStudent(context.tx, scopeOf(context), studentId))
+  )
+    throw new ORPCError("NOT_FOUND");
+  return studentId;
+}
+
 /** One student's mastery of every standard they have evidence on, from any class. */
 export const studentProgress = readProcedure
   .input(studentProgressSchema)
   .handler(async ({ input, context }) => {
-    requireCapability(context, "grades:read");
-    const studentId = input.studentId || context.actor.userId;
-    if (
-      studentId !== context.actor.userId &&
-      !(await isVisibleStudent(context.tx, scopeOf(context), studentId))
-    )
-      throw new ORPCError("NOT_FOUND");
+    const studentId = await progressStudent(context, input.studentId);
     const scope = {
       tenantId: context.tenantId,
       orgId: context.schoolId,
@@ -514,6 +522,23 @@ export const studentProgress = readProcedure
       ),
       judgements: await withJudges(context, judged),
     };
+  });
+
+/**
+ * The sittings one student's mastery of a standard was worked out from:
+ * each lesson or quiz attempt, its answers on the standard averaged, latest
+ * first, as the decaying average weighs them.
+ */
+export const sittings = readProcedure
+  .input(sittingsSchema)
+  .handler(async ({ input, context }) => {
+    const studentId = await progressStudent(context, input.studentId);
+    return sittingsOfStandard(context.tx, {
+      tenantId: context.tenantId,
+      orgId: context.schoolId,
+      studentId,
+      standardId: input.standardId,
+    });
   });
 
 type Judgements = Awaited<ReturnType<typeof judgementsOf>>;

@@ -1,15 +1,20 @@
 import type { MasteryLevel } from "@faridalms/domain/standards";
 import type { LucideIcon } from "lucide-react";
 
+import { Button } from "@faridalms/ui/button";
 import { cn } from "@faridalms/ui/cn";
-import { useSuspenseQuery } from "@tanstack/react-query";
+import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
 import {
+  BookOpen,
+  ChevronDown,
   CircleCheck,
   CircleDashed,
   Contrast,
+  ListChecks,
   Minus,
   Target,
 } from "lucide-react";
+import { useId, useState } from "react";
 
 import type { Column } from "~/components/system/DataTable";
 
@@ -19,8 +24,12 @@ import { DataTable, RowLink } from "~/components/system/DataTable";
 import { EmptyState } from "~/components/system/IndexPage";
 import { RecordSection } from "~/components/system/RecordPage";
 import * as m from "~/i18n/messages";
-import { classProgressQuery, studentProgressQuery } from "~/queries/standards";
-import { formatNumber } from "~/utils/datetime";
+import {
+  classProgressQuery,
+  standardSittingsQuery,
+  studentProgressQuery,
+} from "~/queries/standards";
+import { formatDate, formatNumber } from "~/utils/datetime";
 
 type ClassData = Awaited<
   ReturnType<NonNullable<ReturnType<typeof classProgressQuery>["queryFn"]>>
@@ -305,6 +314,118 @@ export function ClassSkills({ classId }: { classId: string }) {
   );
 }
 
+const SOURCE_ICON: Record<"lesson" | "quiz", LucideIcon> = {
+  lesson: BookOpen,
+  quiz: ListChecks,
+};
+
+/**
+ * The lessons and quiz attempts a mark was worked out from, latest first,
+ * each its answers on the standard averaged, as the decaying average reads
+ * them.
+ */
+function Sittings({
+  studentId,
+  standardId,
+}: {
+  studentId: string;
+  standardId: string;
+}) {
+  const query = useQuery(standardSittingsQuery(studentId, standardId));
+  if (!query.data) return <div aria-busy="true" className="min-h-10" />;
+  return (
+    <div className="grid gap-2 rounded-md bg-muted/50 px-3 py-2.5">
+      <p className="text-[13px] leading-[18px] text-muted-foreground">
+        {m.skillsSittingsHint()}
+      </p>
+      <ol className="grid gap-1.5">
+        {query.data.map((sitting) => {
+          const Icon = SOURCE_ICON[sitting.source];
+          return (
+            <li
+              key={`${sitting.workId}:${sitting.attempt}`}
+              className="flex flex-wrap items-baseline gap-x-3 gap-y-0.5 text-sm leading-5"
+            >
+              <Icon
+                aria-hidden
+                className="size-4 shrink-0 self-center text-muted-foreground"
+              />
+              <span dir="auto" className="min-w-0 flex-1 basis-40 font-medium">
+                {sitting.title}
+                {sitting.attempt > 1 ? (
+                  <span className="font-normal text-muted-foreground">
+                    {" · "}
+                    {m.skillsSittingAttempt({
+                      number: formatNumber(sitting.attempt),
+                    })}
+                  </span>
+                ) : null}
+              </span>
+              <span className="text-[13px] leading-[18px] text-muted-foreground tabular-nums">
+                {m.skillsAnswers({ count: sitting.answers })}
+                {" · "}
+                {formatDate(sitting.at)}
+              </span>
+              <span className="w-12 text-end tabular-nums">
+                {percent(sitting.fraction)}
+              </span>
+            </li>
+          );
+        })}
+      </ol>
+    </div>
+  );
+}
+
+/** A standard with where the student stands on it, opening onto the work behind it. */
+function StandardProgress({
+  studentId,
+  standard,
+  mastery,
+}: {
+  studentId: string;
+  standard: Standard;
+  mastery: Mastery | undefined;
+}) {
+  const [open, setOpen] = useState(false);
+  const panel = useId();
+  return (
+    <li className="grid gap-2 py-2.5 first:pt-0 last:pb-0">
+      <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-1">
+        <span className="flex min-w-0 flex-1 basis-64 gap-2 text-sm leading-5">
+          <Code standard={standard} />
+          <span dir="auto">{standard.statement}</span>
+        </span>
+        <span className="flex items-center gap-1">
+          <MasteryMark mastery={mastery} labelled />
+          {mastery ? (
+            <Button
+              type="button"
+              variant="ghost"
+              size="icon-sm"
+              className="text-muted-foreground max-md:size-10"
+              aria-expanded={open}
+              aria-controls={panel}
+              aria-label={m.skillsSittingsFor({ code: standard.code })}
+              onClick={() => setOpen(!open)}
+            >
+              <ChevronDown
+                aria-hidden
+                className={cn("transition-transform", open && "rotate-180")}
+              />
+            </Button>
+          ) : null}
+        </span>
+      </div>
+      {open ? (
+        <div id={panel}>
+          <Sittings studentId={studentId} standardId={standard.id} />
+        </div>
+      ) : null}
+    </li>
+  );
+}
+
 /** One student's standards, framework by framework, from every class. */
 export function StudentSkills({ studentId }: { studentId: string }) {
   const data = useSuspenseQuery(studentProgressQuery(studentId)).data;
@@ -345,20 +466,36 @@ export function StudentSkills({ studentId }: { studentId: string }) {
         <RecordSection key={title} title={title}>
           <ul className="grid divide-y">
             {standards.map((standard) => (
-              <li
+              <StandardProgress
                 key={standard.id}
-                className="flex flex-wrap items-start justify-between gap-x-6 gap-y-1 py-2.5 first:pt-0 last:pb-0"
-              >
-                <span className="flex min-w-0 flex-1 basis-64 gap-2 text-sm leading-5">
-                  <Code standard={standard} />
-                  <span dir="auto">{standard.statement}</span>
-                </span>
-                <MasteryMark mastery={mastery.get(standard.id)} labelled />
-              </li>
+                studentId={studentId}
+                standard={standard}
+                mastery={mastery.get(standard.id)}
+              />
             ))}
           </ul>
         </RecordSection>
       ))}
     </div>
+  );
+}
+
+/**
+ * A student's skills under their grades, for them and their family, once
+ * any are assessed; nothing at all before, so a school that tags no
+ * questions shows grades alone.
+ */
+export function SkillsSection({ studentId }: { studentId: string }) {
+  const data = useSuspenseQuery(studentProgressQuery(studentId)).data;
+  const heading = useId();
+  if (data.standards.length === 0 && data.goalFrameworks.length === 0)
+    return null;
+  return (
+    <section aria-labelledby={heading} className="grid gap-4">
+      <h2 id={heading} className="text-lg leading-7 font-semibold">
+        {m.skillsTab()}
+      </h2>
+      <StudentSkills studentId={studentId} />
+    </section>
   );
 }

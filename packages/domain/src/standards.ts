@@ -77,6 +77,12 @@ export const studentProgressSchema = v.object({
   studentId: v.optional(v.union([v.literal(""), id]), ""),
 });
 
+export const sittingsSchema = v.object({
+  /** Empty for the student asking about themselves. */
+  studentId: v.optional(v.union([v.literal(""), id]), ""),
+  standardId: id,
+});
+
 /**
  * Where a child stands against an early learning goal in their teacher's
  * judgement, as the EYFS profile records it: at the level expected by the

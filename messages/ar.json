@@ -1881,6 +1881,23 @@
   "skillsBeginning": "في البداية",
   "skillsNotYet": "لم يُقيَّم بعد",
   "skillsPercent": "{value}٪",
+  "skillsSittingsFor": "كيف حُسب {code}",
+  "skillsSittingsHint": "كل درس ومحاولة اختبار حُسب منها، الأحدث أولًا. الأحدث يحسب أكثر.",
+  "skillsSittingAttempt": "المحاولة {number}",
+  "skillsAnswers": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=zero": "لا إجابات",
+        "countPlural=one": "إجابة واحدة",
+        "countPlural=two": "إجابتان",
+        "countPlural=few": "{count} إجابات",
+        "countPlural=many": "{count} إجابة",
+        "countPlural=*": "{count} إجابة"
+      }
+    }
+  ],
   "skillsHow": "تُحسب من الإجابات المصحّحة عن الأسئلة الموسومة، وللجلسات الأحدث الوزن الأكبر. التمكّن يعني ٨٠٪ أو أكثر في جلستين على الأقل.",
   "skillsOf": "{count} من {total}",
   "skillsSecureOf": "المهارات المتمكَّن منها: {count} من {total}",

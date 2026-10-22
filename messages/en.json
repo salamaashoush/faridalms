@@ -1803,6 +1803,19 @@
   "skillsBeginning": "Beginning",
   "skillsNotYet": "Not yet assessed",
   "skillsPercent": "{value}%",
+  "skillsSittingsFor": "How {code} was worked out",
+  "skillsSittingsHint": "Each lesson and quiz attempt it was worked out from, latest first. The latest counts most.",
+  "skillsSittingAttempt": "attempt {number}",
+  "skillsAnswers": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "{count} answer",
+        "countPlural=*": "{count} answers"
+      }
+    }
+  ],
   "skillsHow": "Worked out from marked answers to tagged questions, with recent sittings counting most. Secure means 80% or more, shown on at least two sittings.",
   "skillsOf": "{count} of {total}",
   "skillsSecureOf": "{count} of {total} skills secure",

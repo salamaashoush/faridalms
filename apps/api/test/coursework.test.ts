@@ -2632,6 +2632,24 @@ describe("standards a quiz gives evidence on", () => {
 
     const own = await student.api.standards.studentProgress({});
     expect(own.standards.map((row) => row.code)).toEqual(["EV.1", "EV.2"]);
+    // The student reads the sittings behind their own mark, and no one else's.
+    expect(
+      await student.api.standards.sittings({ standardId: nouns.id }),
+    ).toMatchObject([
+      {
+        source: "quiz",
+        workId: saved.id,
+        attempt: 1,
+        fraction: 1,
+        answers: 2,
+      },
+    ]);
+    const someone = await signedIn("northwind", login("student", 0, 1));
+    expect(
+      await rejection(
+        someone.standards.sittings({ studentId: me.id, standardId: nouns.id }),
+      ),
+    ).toMatchObject({ code: "NOT_FOUND" });
     expect(
       await rejection(
         student.api.standards.classProgress({ classId: target.id }),

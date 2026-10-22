@@ -7,6 +7,7 @@ import type { Facet } from "~/components/system/IndexPage";
 
 import { StudentGrades } from "~/components/coursework/StudentGrades";
 import { displayName } from "~/components/people/format";
+import { SkillsSection } from "~/components/standards/Progress";
 import {
   EmptyState,
   IndexToolbar,
@@ -15,6 +16,7 @@ import {
 import { useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { studentGradesQuery } from "~/queries/gradebook";
+import { studentProgressQuery } from "~/queries/standards";
 import { personRecordQuery } from "~/queries/students";
 import { currentUserQuery } from "~/queries/user";
 
@@ -30,7 +32,10 @@ export const Route = createFileRoute("/_app/family/grades")({
     );
     const child = deps.studentId ?? me.children[0]?.studentId;
     if (child)
-      await context.queryClient.ensureQueryData(studentGradesQuery(child));
+      await Promise.all([
+        context.queryClient.ensureQueryData(studentGradesQuery(child)),
+        context.queryClient.ensureQueryData(studentProgressQuery(child)),
+      ]);
   },
   component: FamilyGradesPage,
 });
@@ -61,7 +66,10 @@ function FamilyGradesPage() {
       {current ? (
         <div className="grid gap-6">
           {children.length > 1 ? <IndexToolbar facets={[childFacet]} /> : null}
-          <StudentGrades studentId={current} />
+          <div className="grid gap-10">
+            <StudentGrades studentId={current} />
+            <SkillsSection studentId={current} />
+          </div>
         </div>
       ) : (
         <EmptyState

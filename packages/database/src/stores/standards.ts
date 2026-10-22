@@ -3,6 +3,7 @@ import type { GoalLevel } from "@faridalms/domain/standards";
 import { sql } from "drizzle-orm";
 
 import type { CellTransaction } from "../context";
+import type { EvidenceSource } from "../tables/learning";
 
 import { escapeLike, isoOf, uuidArray } from "./sql";
 
@@ -559,6 +560,64 @@ export async function evidenceOfStudents(
       }
     order by e.answered_at`);
   return rows.map(evidenceOf);
+}
+
+/** One sitting a student's mastery of a standard was worked out from. */
+export interface SittingRow {
+  source: EvidenceSource;
+  /** The lesson, or the assignment the quiz belongs to. */
+  workId: string;
+  title: string;
+  attempt: number;
+  /** Its answers on the standard averaged, from 0 to 1. */
+  fraction: number;
+  answers: number;
+  at: string;
+}
+
+/** The sittings behind a student's mastery of one of the school's standards, latest first. */
+export async function sittingsOfStandard(
+  tx: Tx,
+  input: {
+    tenantId: string;
+    orgId: string;
+    studentId: string;
+    standardId: string;
+  },
+): Promise<SittingRow[]> {
+  const rows = await tx.execute<{
+    source: EvidenceSource;
+    work_id: string;
+    title: string;
+    attempt: number;
+    fraction: string | number;
+    answers: number;
+    at: string;
+  }>(sql`
+    select e.source, coalesce(l.id, a.id) as work_id, coalesce(l.title, a.title) as title,
+      e.attempt, avg(e.fraction) as fraction, count(*)::int as answers,
+      ${isoOf(sql`max(e.answered_at)`)} as at
+    from core.standard_evidence e
+    join core.standards s on s.tenant_id = e.tenant_id and s.id = e.standard_id and s.status = 'active'
+    join core.standard_frameworks f on f.tenant_id = s.tenant_id and f.id = s.framework_id
+      and f.status = 'active' and f.org_id = ${input.orgId}::uuid
+    left join core.lessons l on l.tenant_id = e.tenant_id and l.id = e.lesson_id
+    left join core.submissions sb on sb.tenant_id = e.tenant_id and sb.id = e.submission_id
+    left join core.assignments a on a.tenant_id = sb.tenant_id and a.id = sb.assignment_id
+    where e.tenant_id = ${input.tenantId}::uuid and e.status = 'active'
+      and e.student_user_id = ${input.studentId}::uuid and e.standard_id = ${input.standardId}::uuid
+      and coalesce(l.id, a.id) is not null
+    group by e.source, e.sitting, e.attempt, l.id, l.title, a.id, a.title
+    order by max(e.answered_at) desc`);
+  return rows.map((row) => ({
+    source: row.source,
+    workId: row.work_id,
+    title: row.title,
+    attempt: row.attempt,
+    fraction: Number(row.fraction),
+    answers: row.answers,
+    at: row.at,
+  }));
 }
 
 /** A teacher's judgement of a child against a goal, and the work it came from. */
