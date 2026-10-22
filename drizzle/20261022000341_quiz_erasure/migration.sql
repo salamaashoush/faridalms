@@ -1,0 +1,4 @@
+CREATE POLICY "p_erase_update" ON "core"."quiz_draws" AS PERMISSIVE FOR UPDATE TO "retention" USING (app.erasure_approved(tenant_id, "student_user_id")) WITH CHECK (status = 'tobedeleted');--> statement-breakpoint
+CREATE POLICY "p_erase_delete" ON "core"."quiz_draws" AS PERMISSIVE FOR DELETE TO "retention" USING (status = 'tobedeleted' and (app.erasure_approved(tenant_id, "student_user_id")));--> statement-breakpoint
+CREATE POLICY "p_erase_update" ON "core"."quiz_sittings" AS PERMISSIVE FOR UPDATE TO "retention" USING (app.erasure_approved(tenant_id, "student_user_id")) WITH CHECK (status = 'tobedeleted');--> statement-breakpoint
+CREATE POLICY "p_erase_delete" ON "core"."quiz_sittings" AS PERMISSIVE FOR DELETE TO "retention" USING (status = 'tobedeleted' and (app.erasure_approved(tenant_id, "student_user_id")));

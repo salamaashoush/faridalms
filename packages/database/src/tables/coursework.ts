@@ -23,6 +23,7 @@ import {
   entityColumns,
   entityProfile,
   erase,
+  eraseAndDelete,
   erasureOf,
   fk,
   instant,
@@ -793,6 +794,8 @@ export const quizSittings = core.table.withRLS(
         sql`status = 'active' and closed_at is null and ends_at is not null`,
       ),
     ...entityProfile(),
+    // When an erased student sat a quiz is only about them, and goes.
+    ...eraseAndDelete(erasureOf("student_user_id")),
   ],
 );
 
@@ -836,6 +839,8 @@ export const quizDraws = core.table.withRLS(
       .on(t.tenantId, t.bankQuestionId)
       .where(sql`status = 'active'`),
     ...entityProfile(),
+    // What an erased student drew goes with the answers it was asked for.
+    ...eraseAndDelete(erasureOf("student_user_id")),
   ],
 );
 

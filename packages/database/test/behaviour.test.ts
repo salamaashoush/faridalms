@@ -553,10 +553,12 @@ describe("erasing a student's work", () => {
       await db.transaction(async (tx) => {
         const [work] = await tx.execute<{
           student: string;
+          submission: string;
           attempt: string;
           document: string;
         }>(sql`
-          select t.student_user_id as student, t.id as attempt, d.id as document
+          select t.student_user_id as student, t.submission_id as submission, t.id as attempt,
+            d.id as document
           from core.submission_attempts t
           join core.documents d on d.tenant_id = t.tenant_id and d.host_type = 'submission_attempt'
             and d.host_id = t.id and d.status = 'active'
@@ -607,6 +609,17 @@ describe("erasing a student's work", () => {
         await tx.execute(sql`
           insert into core.lesson_shares (tenant_id, lesson_id, student_user_id, block_id, response)
           values (${t}::uuid, ${lesson.id}::uuid, ${work.student}::uuid, ${block}::uuid, '{}')`);
+        // When they sat a timed quiz, and the question it drew for them.
+        await tx.execute(sql`
+          insert into core.quiz_sittings (tenant_id, submission_id, student_user_id, attempt,
+                                          started_at, ends_at)
+          values (${t}::uuid, ${work.submission}::uuid, ${work.student}::uuid, 9,
+                  statement_timestamp(), statement_timestamp() + interval '20 minutes')`);
+        await tx.execute(sql`
+          insert into core.quiz_draws (tenant_id, submission_id, student_user_id, attempt, draw_id,
+                                       position, bank_question_id, question)
+          values (${t}::uuid, ${work.submission}::uuid, ${work.student}::uuid, 9, ${block}::uuid,
+                  0, ${block}::uuid, '{"type":"question","version":1}')`);
         // The time and the reader their school gave them.
         await tx.execute(sql`
           insert into core.access_arrangements (tenant_id, org_id, student_user_id, extra_time, read_aloud)
@@ -696,6 +709,8 @@ describe("erasing a student's work", () => {
           unread: number;
           quizzes: number;
           arrangements: number;
+          sittings: number;
+          draws: number;
         }>(sql`
           select (select count(*)::int from core.lesson_runs where tenant_id = ${t}::uuid
                    and student_user_id = ${work.student}::uuid) as runs,
@@ -711,7 +726,11 @@ describe("erasing a student's work", () => {
                    and student_user_id = ${work.student}::uuid
                    and (status = 'active' or response <> '{}' or feedback is not null)) as quizzes,
                  (select count(*)::int from core.access_arrangements where tenant_id = ${t}::uuid
-                   and student_user_id = ${work.student}::uuid) as arrangements`);
+                   and student_user_id = ${work.student}::uuid) as arrangements,
+                 (select count(*)::int from core.quiz_sittings where tenant_id = ${t}::uuid
+                   and student_user_id = ${work.student}::uuid) as sittings,
+                 (select count(*)::int from core.quiz_draws where tenant_id = ${t}::uuid
+                   and student_user_id = ${work.student}::uuid) as draws`);
         expect(left).toEqual({
           runs: 0,
           code: 0,
@@ -720,6 +739,8 @@ describe("erasing a student's work", () => {
           unread: 0,
           quizzes: 0,
           arrangements: 0,
+          sittings: 0,
+          draws: 0,
         });
         checked = true;
         throw rollback;
