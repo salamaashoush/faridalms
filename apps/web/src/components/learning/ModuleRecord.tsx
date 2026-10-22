@@ -54,6 +54,7 @@ import {
   RecordSection,
   RecordTabs,
 } from "~/components/system/RecordPage";
+import { StatusBadge } from "~/components/system/status";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { getLocale } from "~/i18n/runtime";
@@ -117,9 +118,9 @@ function useRefresh() {
   return () => queryClient.invalidateQueries({ queryKey: ["learning"] });
 }
 
-function LessonTitle({ row, lessons }: { row: Lesson; lessons: Lesson[] }) {
+function LessonTitle({ row, data }: { row: Lesson; data: Data }) {
   const before = row.condition
-    ? lessons.find((item) => item.id === row.condition?.lessonId)
+    ? data.lessons.find((item) => item.id === row.condition?.lessonId)
     : undefined;
   return (
     <span className="grid min-w-0 gap-0.5">
@@ -135,13 +136,38 @@ function LessonTitle({ row, lessons }: { row: Lesson; lessons: Lesson[] }) {
           {conditionText(row.condition, before.title)}
         </span>
       ) : null}
+      {row.live.length > 0 ? (
+        <span className="flex flex-wrap gap-1.5 pt-0.5">
+          {row.live.map((session) => {
+            const room = data.classes.find(
+              (item) => item.id === session.classId,
+            );
+            const name = room ? classTitle(room) : "";
+            return (
+              <Link
+                key={session.id}
+                to="/teach/live/$pacedId"
+                params={{ pacedId: session.id }}
+                aria-label={m.lrnLiveReturn({ class: name })}
+                className="rounded-full outline-none focus-visible:ring-2 focus-visible:ring-ring/50"
+              >
+                <StatusBadge tone={session.paused ? "warning" : "success"}>
+                  {session.paused
+                    ? m.lrnLivePausedWith({ class: name })
+                    : m.lrnLiveWith({ class: name })}
+                </StatusBadge>
+              </Link>
+            );
+          })}
+        </span>
+      ) : null}
     </span>
   );
 }
 
 // Built per render: headers read the request's locale, which a module-level
 // array would fix at whichever language first loaded the module on the server.
-function lessonColumns(lessons: Lesson[]): Column<Lesson>[] {
+function lessonColumns(data: Data): Column<Lesson>[] {
   return [
     {
       id: "title",
@@ -152,7 +178,7 @@ function lessonColumns(lessons: Lesson[]): Column<Lesson>[] {
           <span className="w-5 shrink-0 text-end text-sm text-muted-foreground tabular-nums">
             {formatNumber(row.position + 1)}
           </span>
-          <LessonTitle row={row} lessons={lessons} />
+          <LessonTitle row={row} data={data} />
         </div>
       ),
     },
@@ -164,9 +190,9 @@ function lessonColumns(lessons: Lesson[]): Column<Lesson>[] {
   ];
 }
 
-function lessonCard(lessons: Lesson[]) {
+function lessonCard(data: Data) {
   return {
-    title: (row: Lesson) => <LessonTitle row={row} lessons={lessons} />,
+    title: (row: Lesson) => <LessonTitle row={row} data={data} />,
     fact: (row: Lesson) => COMPLETION_LABEL[row.completion](),
   };
 }
@@ -295,10 +321,10 @@ function Lessons({ data }: { data: Data }) {
       <DataTable
         caption={m.lrnLessonsCaption()}
         rows={data.lessons}
-        columns={lessonColumns(data.lessons)}
+        columns={lessonColumns(data)}
         rowLabel={(row) => row.title}
         rowActions={rowActions}
-        card={lessonCard(data.lessons)}
+        card={lessonCard(data)}
         empty={{
           icon: Layers,
           title: m.lrnNoLessons(),

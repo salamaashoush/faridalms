@@ -53,6 +53,7 @@ import {
   pacedById,
   responsesSince,
   runningPaced,
+  runningPacedOf,
   startPaced as beginPaced,
   touchProgress,
   moduleById,
@@ -779,10 +780,14 @@ export const record = readProcedure
   .input(v.object({ id }))
   .handler(async ({ input, context }) => {
     const row = await editableModule(context, input.id);
-    const [classes, lessons, audiences] = await Promise.all([
+    const [classes, lessons, audiences, live] = await Promise.all([
       classesOfModule(context.tx, context.tenantId, row.id),
       lessonsOf(context.tx, context.tenantId, row.id),
       audiencesOf(context.tx, { tenantId: context.tenantId, moduleId: row.id }),
+      runningPacedOf(context.tx, {
+        tenantId: context.tenantId,
+        moduleId: row.id,
+      }),
     ]);
     const contents = await contentsOf(
       context.tx,
@@ -797,6 +802,14 @@ export const record = readProcedure
       lessons: lessons.map((lesson) => ({
         ...lesson,
         scored: lessonScored(lessonContentOf(contents.get(lesson.id))),
+        // The classes it is being led for live now, to return to.
+        live: live
+          .filter((session) => session.lessonId === lesson.id)
+          .map((session) => ({
+            id: session.id,
+            classId: session.classId,
+            paused: session.paused,
+          })),
       })),
       audiences,
       open: isOpen(row, context.now),

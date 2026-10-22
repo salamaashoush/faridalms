@@ -2130,6 +2130,22 @@ export async function runningPaced(
   return row ? pacedOf(row) : null;
 }
 
+/** The lessons of a module being led live now, each with the class it is led for. */
+export async function runningPacedOf(
+  tx: Tx,
+  input: { tenantId: string; moduleId: string },
+): Promise<PacedRow[]> {
+  const rows = await tx.execute<PacedRecord>(sql`
+    select ${pacedColumns} from core.paced_lessons
+    where tenant_id = ${input.tenantId}::uuid and status = 'active' and ended_at is null
+      and lesson_id in (
+        select id from core.lessons
+        where tenant_id = ${input.tenantId}::uuid and module_id = ${input.moduleId}::uuid
+          and status = 'active')
+    order by started_at, id`);
+  return rows.map(pacedOf);
+}
+
 /** Moves, pauses, reveals or ends a running lesson led live; only the fields given change. */
 export async function pace(
   tx: Tx,

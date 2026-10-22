@@ -494,9 +494,10 @@ Sources: [../research/course-design.md](../research/course-design.md),
    keeps names to the teacher. Ending it leaves each part a student
    reached open. Students' players ask every 3 seconds while a lesson is
    led and every 15 otherwise.
-   Left: a push channel in place of asking, young lessons, sharing one
-   student's answer on the board, and a list of running live lessons on
-   the module.
+   A module's lessons show each one being led live, and for which class,
+   a link back to its teacher's screen.
+   Left: a push channel in place of asking, young lessons, and sharing one
+   student's answer on the board.
 
 ## 6. Editor capabilities
 

@@ -5575,6 +5575,15 @@ describe("leading a lesson live", () => {
     expect(
       await keeper.learning.startPaced({ lessonId: led.id, classId }),
     ).toEqual(started);
+    // The module lists the lesson being led, for its teacher to return to.
+    const liveOn = async () =>
+      (await keeper.learning.record({ id: saved.id })).lessons.map(
+        (row) => row.live,
+      );
+    expect(await liveOn()).toEqual([
+      [],
+      [{ id: started.id, classId, paused: false }],
+    ]);
     const played = await pupil.learning.playLesson({ id: led.id });
     expect(played.paced).toEqual({ id: started.id, step: 0, paused: false });
     const answer = (item: typeof first) =>
@@ -5617,6 +5626,7 @@ describe("leading a lesson live", () => {
     expect(view.questions.map((item) => item.id)).toEqual([second.block.id]);
 
     await keeper.learning.endPaced({ id: started.id });
+    expect(await liveOn()).toEqual([[], []]);
     expect(await pupil.learning.pacing({ lessonId: led.id })).toEqual({
       paced: null,
     });
