@@ -14,7 +14,8 @@ export type TemplateKind =
   | "news"
   | "announcement"
   | "event"
-  | "consent_form";
+  | "consent_form"
+  | "module";
 
 export interface TemplateRow {
   id: string;
@@ -29,6 +30,8 @@ export interface TemplateRow {
   ownerNameEn: string | null;
   ownerNameAr: string | null;
   updatedAt: string;
+  /** The copy of a whole module a module piece keeps. */
+  moduleId: string | null;
 }
 
 type TemplateRecord = {
@@ -44,6 +47,7 @@ type TemplateRecord = {
   name_en: string | null;
   name_ar: string | null;
   updated_at: string;
+  module_id: string | null;
 };
 
 const templateOf = (row: TemplateRecord): TemplateRow => ({
@@ -59,10 +63,11 @@ const templateOf = (row: TemplateRecord): TemplateRow => ({
   ownerNameEn: row.name_en,
   ownerNameAr: row.name_ar,
   updatedAt: row.updated_at,
+  moduleId: row.module_id,
 });
 
 const columns = sql`t.id, t.org_id, t.owner_user_id, t.kind, t.title, t.description,
-  t.subject_descriptor_id, t.state, t.review_note,
+  t.subject_descriptor_id, t.state, t.review_note, t.module_id,
   u.full_name_en as name_en, u.full_name_ar as name_ar,
   ${isoOf(sql`t.date_last_modified`)} as updated_at`;
 
@@ -128,14 +133,15 @@ export async function insertTemplate(
     description: string;
     subjectId: string | null;
     state: LibraryState;
+    moduleId?: string | null;
   },
 ): Promise<{ id: string }> {
   const [row] = await tx.execute<{ id: string }>(sql`
     insert into core.document_templates (tenant_id, org_id, owner_user_id, kind, title,
-      description, subject_descriptor_id, state)
+      description, subject_descriptor_id, state, module_id)
     values (${input.tenantId}::uuid, ${input.orgId}::uuid, ${input.ownerUserId}::uuid,
       ${input.kind}, ${input.title}, ${input.description}, ${input.subjectId}::uuid,
-      ${input.state})
+      ${input.state}, ${input.moduleId ?? null}::uuid)
     returning id`);
   if (!row) throw new Error("template not written");
   return row;

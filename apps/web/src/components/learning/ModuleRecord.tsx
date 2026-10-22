@@ -13,6 +13,7 @@ import {
   Archive,
   ArrowDown,
   ArrowUp,
+  BookMarked,
   Circle,
   CircleCheck,
   CircleDashed,
@@ -41,6 +42,7 @@ import { ButtonLink } from "~/components/app/ButtonLink";
 import { classTitle } from "~/components/classes/format";
 import { ContentView } from "~/components/content/ContentView";
 import { toolGrading } from "~/components/content/lti";
+import { SaveTemplateDialog } from "~/components/content/Templates";
 import { AreaFiles } from "~/components/files/AreaFiles";
 import { displayName } from "~/components/people/format";
 import { DataTable, RowLink } from "~/components/system/DataTable";
@@ -818,6 +820,7 @@ export function ModuleRecord({
   const data = useSuspenseQuery(moduleRecordQuery(moduleId)).data;
   const navigate = useNavigate();
   const refresh = useRefresh();
+  const [sharing, setSharing] = useState(false);
   const state = shownState(data);
   // The word that it worked comes as the server says so, not once the
   // page has read everything again, which a busy school can make slow.
@@ -929,6 +932,11 @@ export function ModuleRecord({
             },
           },
           {
+            label: m.tplSaveTitle(),
+            icon: BookMarked,
+            onSelect: () => setSharing(true),
+          },
+          {
             label: m.lrnExportCartridge(),
             icon: Package,
             onSelect: () =>
@@ -966,6 +974,14 @@ export function ModuleRecord({
             : []),
         ]}
       />
+      {sharing ? (
+        <SaveTemplateDialog
+          open={sharing}
+          onOpenChange={setSharing}
+          piece={{ kind: "module", moduleId: data.id }}
+          suggestedTitle={data.title}
+        />
+      ) : null}
       <RecordTabs
         label={m.lrnSections()}
         tabs={tabs}

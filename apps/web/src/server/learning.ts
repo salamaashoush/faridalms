@@ -35,6 +35,10 @@ import {
   practiceCheckSchema,
   practiceSetSchema,
 } from "@faridalms/domain/practice";
+import {
+  shareModuleSchema,
+  moduleFromLibrarySchema,
+} from "@faridalms/domain/templates";
 import { reviewTranslationSchema } from "@faridalms/domain/translations";
 import { createServerFn } from "@tanstack/react-start";
 import * as v from "valibot";
@@ -86,6 +90,14 @@ export const archiveModule = createServerFn({ method: "POST" })
 export const duplicateModule = createServerFn({ method: "POST" })
   .validator(checked(duplicateModuleSchema))
   .handler(({ data }) => backend().learning.duplicateModule(data));
+
+export const shareModule = createServerFn({ method: "POST" })
+  .validator(checked(shareModuleSchema))
+  .handler(({ data }) => backend().learning.shareModule(data));
+
+export const moduleFromLibrary = createServerFn({ method: "POST" })
+  .validator(checked(moduleFromLibrarySchema))
+  .handler(({ data }) => backend().learning.moduleFromLibrary(data));
 
 export const getLessonEditor = createServerFn({ method: "GET" })
   .validator(byId)

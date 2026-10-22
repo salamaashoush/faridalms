@@ -1,9 +1,9 @@
 import type { TemplateRow } from "@faridalms/database/stores/templates";
 import type { ContentDocument } from "@faridalms/domain/content";
-import type { TemplateKind } from "@faridalms/domain/templates";
 
 import { namesOf } from "@faridalms/database/stores/coursework";
 import { documentOf, saveDocument } from "@faridalms/database/stores/documents";
+import { retireModule } from "@faridalms/database/stores/learning";
 import {
   insertTemplate,
   removeTemplate,
@@ -25,6 +25,7 @@ import { ORPCError } from "@orpc/server";
 
 import type { UnitContext } from "../core/context";
 
+import { templateHost, usableTemplate, writesKind } from "../core/library";
 import { notify } from "../core/notify";
 import {
   audit,
@@ -34,27 +35,6 @@ import {
   writeProcedure,
 } from "../core/procedure";
 import { placeMedia, registerHostReader } from "../files/authorize";
-
-const writes = (context: UnitContext, kind: TemplateKind) =>
-  TEMPLATE_AUTHORS[kind].some((capability) => can(context, capability));
-
-const hostOf = (id: string) => ({ type: "document_template", id });
-
-/**
- * A piece of this school's library the viewer may open: one it shares, the
- * viewer's own, or one waiting for a reviewer the viewer is.
- */
-async function usable(context: UnitContext, id: string) {
-  const row = await templateById(context.tx, context.tenantId, id);
-  return row &&
-    row.orgId === context.schoolId &&
-    writes(context, row.kind) &&
-    (row.state === "shared" ||
-      row.ownerUserId === context.actor.userId ||
-      can(context, "library:review"))
-    ? row
-    : null;
-}
 
 const listed = (context: UnitContext, row: TemplateRow) => ({
   id: row.id,
@@ -72,7 +52,7 @@ const listed = (context: UnitContext, row: TemplateRow) => ({
 
 // Whoever may start from a template may open the pictures and files in it.
 registerHostReader("document_template", async (context, id) =>
-  Boolean(await usable(context, id)),
+  Boolean(await usableTemplate(context, id)),
 );
 
 /** The school's templates of a kind, for those who write that kind. */
@@ -93,7 +73,7 @@ export const list = readProcedure
 export const library = readProcedure
   .input(librarySchema)
   .handler(async ({ input, context }) => {
-    const kinds = TEMPLATE_KINDS.filter((kind) => writes(context, kind));
+    const kinds = TEMPLATE_KINDS.filter((kind) => writesKind(context, kind));
     if (kinds.length === 0) throw new ORPCError("FORBIDDEN");
     const rows = await templatesOf(context.tx, {
       tenantId: context.tenantId,
@@ -168,12 +148,12 @@ export const review = writeProcedure
 export const open = readProcedure
   .input(templateRefSchema)
   .handler(async ({ input, context }) => {
-    const row = await usable(context, input.id);
+    const row = await usableTemplate(context, input.id);
     if (!row) throw new ORPCError("NOT_FOUND");
     const document = await documentOf(
       context.tx,
       context.tenantId,
-      hostOf(row.id),
+      templateHost(row.id),
     );
     if (!document) throw new ORPCError("NOT_FOUND");
     return {
@@ -204,7 +184,7 @@ export const save = writeProcedure
       subjectId: input.subjectId || null,
       state,
     });
-    const host = hostOf(created.id);
+    const host = templateHost(created.id);
     await saveDocument(context.tx, {
       tenantId: context.tenantId,
       orgId: context.schoolId,
@@ -231,7 +211,7 @@ export const save = writeProcedure
 export const remove = writeProcedure
   .input(templateRefSchema)
   .handler(async ({ input, context }) => {
-    const row = await usable(context, input.id);
+    const row = await usableTemplate(context, input.id);
     if (!row) throw new ORPCError("NOT_FOUND");
     if (
       row.ownerUserId !== context.actor.userId &&
@@ -242,6 +222,12 @@ export const remove = writeProcedure
       tenantId: context.tenantId,
       id: row.id,
     });
+    // A whole module's copy is the piece's alone, and goes with it.
+    if (row.moduleId)
+      await retireModule(context.tx, {
+        tenantId: context.tenantId,
+        id: row.moduleId,
+      });
     await audit(context, {
       action: "template.remove",
       objectType: "document_template",

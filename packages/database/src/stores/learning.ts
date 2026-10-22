@@ -192,6 +192,16 @@ export async function updateModule(
   return row?.version ?? null;
 }
 
+/** Takes a module away, as a library piece's copy goes with the piece. */
+export async function retireModule(
+  tx: Tx,
+  input: { tenantId: string; id: string },
+): Promise<void> {
+  await tx.execute(sql`
+    update core.learning_modules set status = 'tobedeleted'
+    where tenant_id = ${input.tenantId}::uuid and id = ${input.id}::uuid and status = 'active'`);
+}
+
 export async function setModuleState(
   tx: Tx,
   input: {

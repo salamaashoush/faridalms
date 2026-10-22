@@ -28,6 +28,7 @@ import { consentFormsQuery } from "~/queries/consents";
 import { courseworkOptionsQuery } from "~/queries/coursework";
 import { learningOptionsQuery } from "~/queries/learning";
 import { templateQuery } from "~/queries/library";
+import { moduleFromLibrary } from "~/server/learning";
 import { reviewTemplate } from "~/server/templates";
 import { getMessageFromError } from "~/utils/error";
 
@@ -39,6 +40,7 @@ export const KIND_LABEL: Record<TemplateKind, () => string> = {
   announcement: m.libraryKindAnnouncement,
   event: m.libraryKindEvent,
   consent_form: m.libraryKindConsentForm,
+  module: m.libraryKindModule,
 };
 
 export type Piece = Awaited<
@@ -73,7 +75,7 @@ export function PieceSheet({
   }).data?.modules;
   const classes = useQuery({
     ...courseworkOptionsQuery,
-    enabled: piece.kind === "assignment",
+    enabled: piece.kind === "assignment" || piece.kind === "module",
   }).data?.classes;
   const purposes = useQuery({
     ...consentFormsQuery,
@@ -82,7 +84,7 @@ export function PieceSheet({
   // A lesson or plan starts in a module, an assignment in a class, and a
   // consent form as the form of one purpose.
   const places =
-    piece.kind === "assignment"
+    piece.kind === "assignment" || piece.kind === "module"
       ? (classes ?? []).map((row) => ({
           value: row.id,
           label: classTitle(row),
@@ -105,7 +107,21 @@ export function PieceSheet({
       onClose();
     },
   });
+  const startModule = useMutation({
+    mutationFn: () =>
+      moduleFromLibrary({ data: { id: piece.id, classId: chosen } }),
+    onSuccess: async ({ id }) => {
+      await queryClient.invalidateQueries({ queryKey: ["learning"] });
+      onClose();
+      void navigate({ to: "/modules/$moduleId", params: { moduleId: id } });
+    },
+    onError: (error) => toast.error(getMessageFromError(error)),
+  });
   const use = () => {
+    if (piece.kind === "module") {
+      startModule.mutate();
+      return;
+    }
     onClose();
     if (piece.kind === "lesson")
       void navigate({
@@ -229,7 +245,7 @@ export function PieceSheet({
                 <SelectField
                   id="library-use-in"
                   label={
-                    piece.kind === "assignment"
+                    piece.kind === "assignment" || piece.kind === "module"
                       ? m.libraryClass()
                       : piece.kind === "consent_form"
                         ? m.libraryPurpose()
@@ -252,10 +268,12 @@ export function PieceSheet({
                   type="button"
                   className="max-md:h-10"
                   disabled={
-                    (piece.kind === "lesson" ||
+                    startModule.isPending ||
+                    ((piece.kind === "lesson" ||
                       piece.kind === "unit_plan" ||
-                      piece.kind === "consent_form") &&
-                    !chosen
+                      piece.kind === "consent_form" ||
+                      piece.kind === "module") &&
+                      !chosen)
                   }
                   onClick={use}
                 >

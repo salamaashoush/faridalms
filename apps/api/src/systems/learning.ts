@@ -109,6 +109,7 @@ import {
   standardsByIds,
 } from "@faridalms/database/stores/standards";
 import { isVisibleStudent } from "@faridalms/database/stores/students";
+import { insertTemplate } from "@faridalms/database/stores/templates";
 import { gridOwners } from "@faridalms/database/stores/timetable";
 import {
   reviewTranslation,
@@ -120,6 +121,7 @@ import {
   workingYear,
 } from "@faridalms/database/stores/years";
 import { contentFileIds, contentPlainText } from "@faridalms/domain/content";
+import { richTextToContent } from "@faridalms/domain/content-conversion";
 import { documentTerms } from "@faridalms/domain/glossary";
 import {
   checkBlocks,
@@ -212,6 +214,10 @@ import {
   questionStandards,
 } from "@faridalms/domain/standards";
 import {
+  shareModuleSchema,
+  moduleFromLibrarySchema,
+} from "@faridalms/domain/templates";
+import {
   documentWritten,
   otherLocale,
   reviewTranslationSchema,
@@ -230,7 +236,9 @@ import {
   mayEditModule,
   moduleOfSchool,
 } from "../core/learning-access";
+import { templateHost, usableTemplate } from "../core/library";
 import { publishTelling } from "../core/mentions";
+import { copyLesson, copyModule, planHost } from "../core/module-copy";
 import {
   audit,
   can,
@@ -573,8 +581,6 @@ registerArea("module", {
 registerHostReader("module_plan", editsModule);
 registerHostWriter("module_plan", editsModule);
 registerLiveRules("module_plan", { keyed: () => Promise.resolve(false) });
-
-const planHost = (moduleId: string) => ({ type: "module_plan", id: moduleId });
 
 /**
  * A module's unit plan, and the standards its lessons cover, each with how
@@ -1013,68 +1019,6 @@ export const archiveModule = writeProcedure
     return { version };
   });
 
-/** A draft copy of a module and its lessons for other classes. */
-/**
- * A lesson copied to the end of a module: its settings and document, the
- * pictures and recordings in it copied into that module's keeping. It
- * starts unshown, whatever the lesson it came from.
- */
-async function copyLesson(
-  context: UnitContext,
-  lesson: LessonRow,
-  moduleId: string,
-  condition: LessonCondition | null = null,
-) {
-  const copy = await insertLesson(context.tx, {
-    tenantId: context.tenantId,
-    moduleId,
-    title: lesson.title,
-    completion: lesson.completion,
-    passScore: lesson.passScore,
-    review: lesson.review,
-    vowelMarks: lesson.vowelMarks,
-    language: lesson.language,
-    translationTitle: lesson.translationTitle,
-    young: lesson.young,
-    bands: lesson.bands,
-    readAlong: lesson.readAlong,
-    condition,
-  });
-  const stored = await documentOf(context.tx, context.tenantId, {
-    type: "lesson",
-    id: lesson.id,
-  });
-  const content = { ...lessonContentOf(stored?.content) };
-  const host = { type: "lesson", id: copy.id };
-  const original = await saveDocument(context.tx, {
-    tenantId: context.tenantId,
-    orgId: context.schoolId,
-    host,
-    kind: "lesson",
-    ...(await placeMedia(context, host, content, contentFileIds(content))),
-    plainText: contentPlainText(content),
-    userId: context.actor.userId,
-  });
-  const translation = stored
-    ? await translationOf(context.tx, context.tenantId, stored.id)
-    : null;
-  if (translation?.locale) {
-    const words = { ...lessonContentOf(translation.content) };
-    await saveTranslation(context.tx, {
-      tenantId: context.tenantId,
-      orgId: context.schoolId,
-      host,
-      originalId: original.id,
-      locale: translation.locale,
-      kind: "lesson",
-      ...(await placeMedia(context, host, words, contentFileIds(words))),
-      plainText: contentPlainText(words),
-      userId: context.actor.userId,
-    });
-  }
-  return copy;
-}
-
 /** Copies a lesson to the end of a module its teacher writes, this one or another. */
 export const copyLessonTo = writeProcedure
   .input(copyLessonSchema)
@@ -1101,59 +1045,10 @@ export const duplicateModule = writeProcedure
     const allowed = new Set(classes.map((item) => item.id));
     if (input.classIds.some((classId) => !allowed.has(classId)))
       throw new ORPCError("FORBIDDEN", { message: "learning.class" });
-    const created = await insertModule(context.tx, {
-      tenantId: context.tenantId,
-      schoolId: context.schoolId,
+    const created = await copyModule(context, row, {
       yearId: year.id,
-      authorId: context.actor.userId,
-      title: row.title,
-      summary: row.summary,
-      sequential: row.sequential,
-      prerequisiteId: null,
-      prerequisiteScore: null,
-      practiceBands: row.practiceBands,
-    });
-    await setModuleClasses(context.tx, {
-      tenantId: context.tenantId,
-      moduleId: created.id,
       classIds: input.classIds,
     });
-    // A condition depends on an earlier lesson, copied by the time it is read.
-    const copies = new Map<string, string>();
-    for (const lesson of await lessonsOf(
-      context.tx,
-      context.tenantId,
-      row.id,
-    )) {
-      const before = lesson.condition && copies.get(lesson.condition.lessonId);
-      const copy = await copyLesson(
-        context,
-        lesson,
-        created.id,
-        lesson.condition && before
-          ? { ...lesson.condition, lessonId: before }
-          : null,
-      );
-      copies.set(lesson.id, copy.id);
-    }
-    // A unit taught again starts from the plan it was taught by.
-    const unitPlan = await documentOf(
-      context.tx,
-      context.tenantId,
-      planHost(row.id),
-    );
-    if (unitPlan) {
-      const content = { ...(unitPlan.content as unknown as ContentDocument) };
-      const host = planHost(created.id);
-      await saveDocument(context.tx, {
-        tenantId: context.tenantId,
-        orgId: context.schoolId,
-        host,
-        ...(await placeMedia(context, host, content, contentFileIds(content))),
-        plainText: contentPlainText(content),
-        userId: context.actor.userId,
-      });
-    }
     await audit(context, {
       action: "module.duplicate",
       objectType: "learning_module",
@@ -1161,6 +1056,121 @@ export const duplicateModule = writeProcedure
       details: { from: row.id },
     });
     return created;
+  });
+
+/** What a module offered to the library is, for its preview: its summary and lessons. */
+function moduleOverview(
+  summary: string,
+  lessons: readonly { title: string }[],
+) {
+  return richTextToContent({
+    type: "doc",
+    content: [
+      ...(summary.trim()
+        ? [
+            {
+              type: "paragraph" as const,
+              content: [{ type: "text" as const, text: summary.trim() }],
+            },
+          ]
+        : []),
+      {
+        type: "orderedList" as const,
+        content: lessons.map((lesson) => ({
+          type: "listItem" as const,
+          content: [
+            {
+              type: "paragraph" as const,
+              content: [{ type: "text" as const, text: lesson.title }],
+            },
+          ],
+        })),
+      },
+    ],
+  });
+}
+
+/**
+ * Offers a whole module to the school library, its lessons, their rules
+ * and its unit plan. What is kept is a copy, archived and set for no
+ * class, so the piece stays as offered whatever becomes of the module; a
+ * reviewer's own piece needs no other reviewer.
+ */
+export const shareModule = writeProcedure
+  .input(shareModuleSchema)
+  .handler(async ({ input, context }) => {
+    const row = await editableModule(context, input.moduleId);
+    const year = await currentYear(context);
+    const kept = await copyModule(context, row, {
+      yearId: year.id,
+      classIds: [],
+    });
+    await setModuleState(context.tx, {
+      tenantId: context.tenantId,
+      id: kept.id,
+      expectedVersion: kept.version,
+      state: "archived",
+      publishAt: context.now.toISOString(),
+    });
+    const state = can(context, "library:review") ? "shared" : "pending";
+    const created = await insertTemplate(context.tx, {
+      tenantId: context.tenantId,
+      orgId: context.schoolId,
+      ownerUserId: context.actor.userId,
+      kind: "module",
+      title: input.title,
+      description: input.description,
+      subjectId: input.subjectId || null,
+      state,
+      moduleId: kept.id,
+    });
+    const overview = moduleOverview(
+      row.summary,
+      await lessonsOf(context.tx, context.tenantId, row.id),
+    );
+    await saveDocument(context.tx, {
+      tenantId: context.tenantId,
+      orgId: context.schoolId,
+      host: templateHost(created.id),
+      content: overview as unknown as Record<string, unknown>,
+      mediaIds: [],
+      plainText: contentPlainText(overview),
+      userId: context.actor.userId,
+    });
+    await audit(context, {
+      action: "template.create",
+      objectType: "document_template",
+      objectId: created.id,
+      details: { kind: "module", title: input.title, from: row.id },
+    });
+    return { ...created, state };
+  });
+
+/** Starts a module from the library for one of the teacher's classes, as a draft of their own. */
+export const moduleFromLibrary = writeProcedure
+  .input(moduleFromLibrarySchema)
+  .handler(async ({ input, context }) => {
+    requireCapability(context, "learning:author");
+    const piece = await usableTemplate(context, input.id);
+    const kept =
+      piece?.kind === "module" && piece.moduleId
+        ? await moduleById(context.tx, context.tenantId, piece.moduleId)
+        : null;
+    if (!kept) throw new ORPCError("NOT_FOUND");
+    const { year, classes } = await authoringClasses(context);
+    if (!classes.some((item) => item.id === input.classId))
+      throw new ORPCError("FORBIDDEN", { message: "learning.class" });
+    const created = await copyModule(context, kept, {
+      yearId: year.id,
+      classIds: [input.classId],
+    });
+    await audit(context, {
+      action: "module.from_library",
+      objectType: "learning_module",
+      objectId: created.id,
+      details: { template: piece?.id },
+    });
+    return { id: created.id };
   });
 
 /** A lesson with its blocks and answers, for those who teach its module. */

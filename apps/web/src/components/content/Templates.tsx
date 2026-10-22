@@ -1,5 +1,8 @@
 import type { ContentDocument } from "@faridalms/domain/content";
-import type { TemplateKind } from "@faridalms/domain/templates";
+import type {
+  DocumentTemplateKind,
+  TemplateKind,
+} from "@faridalms/domain/templates";
 import type { EditorMedia } from "@faridalms/editor";
 
 import { contentOfLesson } from "@faridalms/domain/lesson-content";
@@ -45,6 +48,7 @@ import { inLocale, useCapability } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { getLocale } from "~/i18n/runtime";
 import { subjectsQuery } from "~/queries/classes";
+import { shareModule } from "~/server/learning";
 import {
   listTemplates,
   openTemplate,
@@ -342,14 +346,15 @@ export function useStartFrom(
 export function SaveTemplateDialog({
   open,
   onOpenChange,
-  kind,
-  content,
+  piece,
   suggestedTitle,
 }: {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  kind: TemplateKind;
-  content: ContentDocument;
+  /** A document kept as it stands, or a whole module with its lessons. */
+  piece:
+    | { kind: DocumentTemplateKind; content: ContentDocument }
+    | { kind: "module"; moduleId: string };
   suggestedTitle: string;
 }) {
   const queryClient = useQueryClient();
@@ -359,16 +364,18 @@ export function SaveTemplateDialog({
   const [description, setDescription] = useState("");
   const [subjectId, setSubjectId] = useState("");
   const save = useMutation({
-    mutationFn: () =>
-      saveTemplate({
-        data: {
-          kind,
-          title: title.trim(),
-          description: description.trim(),
-          subjectId,
-          content,
-        },
-      }),
+    mutationFn: () => {
+      const about = {
+        title: title.trim(),
+        description: description.trim(),
+        subjectId,
+      };
+      return piece.kind === "module"
+        ? shareModule({ data: { ...about, moduleId: piece.moduleId } })
+        : saveTemplate({
+            data: { ...about, kind: piece.kind, content: piece.content },
+          });
+    },
     onSuccess: async (saved) => {
       await queryClient.invalidateQueries({ queryKey: ["templates"] });
       toast.success(

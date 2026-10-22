@@ -2827,6 +2827,59 @@ describe("templates", () => {
     ).toBe(false);
   });
 
+  test("a teacher shares a whole module, which a colleague starts in a class of theirs", async () => {
+    const { keeper, stranger } = await teachers();
+    const { rows } = await keeper.learning.modules({});
+    const source = rows.find((row) => row.title === TITLE);
+    if (!source) throw new Error("no module");
+    const lessons = (await keeper.learning.record({ id: source.id })).lessons;
+    const office = await signedIn("northwind", login("principal"));
+    const listed = async () =>
+      (await office.learning.modules({})).rows.filter(
+        (row) => row.title === TITLE,
+      ).length;
+    const before = await listed();
+    const shared = await office.learning.shareModule({
+      moduleId: source.id,
+      title: "Stories unit",
+      description: "Four weeks of reading together.",
+      subjectId: "",
+    });
+    expect(shared.state).toBe("shared");
+    // The copy the library keeps is in nobody's list of modules.
+    expect(await listed()).toBe(before);
+    const shelf = await stranger.templates.library({ kind: "module", q: "" });
+    expect(shelf.rows.map((row) => row.id)).toContain(shared.id);
+    const preview = await stranger.templates.open({ id: shared.id });
+    expect(JSON.stringify(preview.content)).toContain(lessons[0]?.title ?? "");
+    const { classes } = await stranger.learning.modules({});
+    const classId = classes[0]?.id ?? "";
+    const started = await stranger.learning.moduleFromLibrary({
+      id: shared.id,
+      classId,
+    });
+    const copy = await stranger.learning.record({ id: started.id });
+    expect(copy).toMatchObject({ title: TITLE, state: "draft" });
+    expect(copy.classes.map((row) => row.id)).toEqual([classId]);
+    expect(copy.lessons.map((row) => row.title)).toEqual(
+      lessons.map((row) => row.title),
+    );
+    expect(
+      await rejection(
+        stranger.learning.moduleFromLibrary({
+          id: shared.id,
+          classId: crypto.randomUUID(),
+        }),
+      ),
+    ).toMatchObject({ code: "FORBIDDEN" });
+    await office.templates.remove({ id: shared.id });
+    expect(
+      await rejection(
+        stranger.learning.moduleFromLibrary({ id: shared.id, classId }),
+      ),
+    ).toMatchObject({ code: "NOT_FOUND" });
+  });
+
   test("an event and a consent form are kept by those who write them", async () => {
     const { keeper } = await teachers();
     const office = await signedIn("northwind", login("principal"));

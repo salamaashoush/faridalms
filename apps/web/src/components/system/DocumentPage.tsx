@@ -1,5 +1,5 @@
 import type { ContentDocument } from "@faridalms/domain/content";
-import type { TemplateKind } from "@faridalms/domain/templates";
+import type { DocumentTemplateKind } from "@faridalms/domain/templates";
 import type { EditorMedia } from "@faridalms/editor";
 import type { LucideIcon } from "lucide-react";
 import type { ReactNode } from "react";
@@ -166,7 +166,7 @@ export function DocumentPage({
   print?: Printable;
   /** Templates of this kind: offered on an empty document, and kept from the menu. */
   templates?: {
-    kind: TemplateKind;
+    kind: DocumentTemplateKind;
     empty: boolean;
     content: ContentDocument;
     title: string;
@@ -418,8 +418,7 @@ export function DocumentPage({
         <SaveTemplateDialog
           open={keeping}
           onOpenChange={setKeeping}
-          kind={templates.kind}
-          content={templates.content}
+          piece={{ kind: templates.kind, content: templates.content }}
           suggestedTitle={templates.title}
         />
       ) : null}

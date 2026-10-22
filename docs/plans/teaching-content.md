@@ -439,7 +439,10 @@ Sources: [../research/course-design.md](../research/course-design.md),
    assignment or module plan started from it, theirs to edit. A teacher
    is told when their piece is shared or sent back, by a notice kind they
    choose how to receive, and anyone who writes a kind the library keeps
-   can open it. Left: whole modules as one piece.
+   can open it. A whole module goes to the library as one piece, its
+   lessons with their rules and its unit plan kept as a copy set for no
+   class, previewed by its lessons; a teacher starts it in a class of
+   theirs as a draft of their own.
 3. **Templates for every kind of document** (newsletter and news as well),
    and the built-in lessons "Read, check, reflect", "Watch and answer" and
    "Listen, choose, record". Done: news posts and announcements join

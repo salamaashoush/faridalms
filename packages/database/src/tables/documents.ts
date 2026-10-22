@@ -188,8 +188,14 @@ export const documentTemplates = core.table.withRLS(
         | "announcement"
         | "event"
         | "consent_form"
+        | "module"
       >()
       .notNull(),
+    /**
+     * A whole module kept for the library: a copy of it, archived and set
+     * for no class, that each teacher using the piece copies in turn.
+     */
+    moduleId: uuid("module_id"),
     title: text("title").notNull(),
     description: text("description").notNull().default(""),
     subjectDescriptorId: uuid("subject_descriptor_id"),
@@ -217,7 +223,12 @@ export const documentTemplates = core.table.withRLS(
     ck(
       "document_templates",
       "kind",
-      sql`kind in ('lesson', 'assignment', 'unit_plan', 'news', 'announcement', 'event', 'consent_form')`,
+      sql`kind in ('lesson', 'assignment', 'unit_plan', 'news', 'announcement', 'event', 'consent_form', 'module')`,
+    ),
+    ck(
+      "document_templates",
+      "module",
+      sql`(kind = 'module') = (module_id is not null)`,
     ),
     ck(
       "document_templates",
