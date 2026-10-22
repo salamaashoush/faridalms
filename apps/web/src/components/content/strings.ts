@@ -409,6 +409,18 @@ export function editorStrings(): EditorStrings {
     questionFeedbackTeacher: m.editorQuestionFeedbackTeacher(),
     questionMathTolerance: m.editorQuestionMathTolerance(),
     questionToleranceExact: m.editorQuestionToleranceExact(),
+    questionMathForm: m.editorQuestionMathForm(),
+    questionMathForms: {
+      any: m.editorQuestionMathFormAny(),
+      factorised: m.editorQuestionMathFormFactorised(),
+      expanded: m.editorQuestionMathFormExpanded(),
+      fraction: m.editorQuestionMathFormFraction(),
+      standard: m.editorQuestionMathFormStandard(),
+    },
+    questionMathUnits: m.editorQuestionMathUnits(),
+    questionMathUnitsNone: m.editorQuestionMathUnitsNone(),
+    questionMathUnitsConvert: m.editorQuestionMathUnitsConvert(),
+    questionMathUnitsSame: m.editorQuestionMathUnitsSame(),
     questionToleranceWithin: (amount) =>
       m.editorQuestionToleranceWithin({ amount }),
     questionSeveral: m.editorQuestionSeveral(),

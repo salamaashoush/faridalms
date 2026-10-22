@@ -1,6 +1,7 @@
 import type {
   CheckView,
   LessonResponse,
+  MathNote,
   ProgramResult,
   ProgramRun,
   StudentBlock,
@@ -334,6 +335,15 @@ function Verdict({ view }: { view: CheckView }) {
   );
 }
 
+const MATH_NOTES: Record<MathNote, () => string> = {
+  factorised: m.lrnMathNoteFactorised,
+  expanded: m.lrnMathNoteExpanded,
+  fraction: m.lrnMathNoteFraction,
+  standard: m.lrnMathNoteStandard,
+  units: m.lrnMathNoteUnits,
+  unitless: m.lrnMathNoteUnitless,
+};
+
 /** What a student learns from a try: right or not, what they chose meant, the hints so far, and once settled the answer and why. */
 function Outcome({
   view,
@@ -347,6 +357,9 @@ function Outcome({
   return (
     <>
       <Verdict view={view} />
+      {view.note && !view.correct ? (
+        <p className="text-sm leading-6">{MATH_NOTES[view.note]()}</p>
+      ) : null}
       {view.feedback.map((text) => (
         <p key={text} dir="auto" className="text-sm leading-6">
           {text}

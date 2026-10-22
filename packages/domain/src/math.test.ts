@@ -191,4 +191,44 @@ describe("a question answered with mathematics", () => {
       markResponse(listed, { type: "math", latex: "x \\le 2" }).correct,
     ).toBe(true);
   });
+
+  it("asks the answer to be in the form the teacher set, and says why when not", () => {
+    const expand = { ...block, form: "expanded" as const };
+    expect(markResponse(expand, { type: "math", latex: "2x+2" })).toMatchObject(
+      { correct: true },
+    );
+    expect(
+      markResponse(expand, { type: "math", latex: "2(x+1)" }),
+    ).toMatchObject({ correct: false, note: "expanded" });
+    expect(
+      markResponse(expand, { type: "math", latex: "2x+1" }).note,
+    ).toBeUndefined();
+  });
+
+  it("compares quantities in any units, or only the key's, and asks for units left off", () => {
+    const fall = {
+      ...block,
+      answers: ["9.8\\frac{m}{s^2}"],
+      tolerance: 0.1,
+      units: "convert" as const,
+    };
+    const mark = (latex: string, units: "convert" | "same" = "convert") =>
+      markResponse({ ...fall, units }, { type: "math", latex });
+    expect(mark("980\\frac{cm}{s^2}")).toMatchObject({ correct: true });
+    expect(mark("980\\frac{cm}{s^2}", "same")).toMatchObject({
+      correct: false,
+      note: "units",
+    });
+    expect(mark("9.8")).toMatchObject({ correct: false, note: "unitless" });
+    expect(
+      markResponse(
+        {
+          ...fall,
+          answers: ["3.2\\times10^{4}\\,\\mathrm{m}"],
+          form: "standard",
+        },
+        { type: "math", latex: "32000\\,\\mathrm{m}" },
+      ),
+    ).toMatchObject({ correct: false, note: "standard" });
+  });
 });

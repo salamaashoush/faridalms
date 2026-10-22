@@ -30,6 +30,7 @@ import {
   MAX_LABEL_EXTRAS,
   MAX_LINE_STEPS,
 } from "@faridalms/domain/learning";
+import { MATH_FORMS } from "@faridalms/domain/math-forms";
 import {
   blankOf,
   locked,
@@ -359,6 +360,8 @@ type AnswerBy = (typeof ANSWER_BY)[number];
 const COUNTS = Array.from({ length: 20 }, (_, index) => index + 1);
 // How far a maths answer's numbers may be from the key: exact, or to decimals.
 const MATH_TOLERANCES = [0, 0.001, 0.01, 0.1, 0.5, 1] as const;
+const MATH_FORM_CHOICES = [null, ...MATH_FORMS] as const;
+const MATH_UNITS = [null, "convert", "same"] as const;
 const FLASH = [null, 2, 3, 5] as const;
 
 /** A selected file: what the bar opens, shares or shows. */
@@ -1780,6 +1783,12 @@ export function SelectionToolbarPlugin() {
         : value === "frame"
           ? strings.questionCountFrame
           : strings.questionCountScatter;
+    const unitsText = (value: "convert" | "same" | null) =>
+      value === "convert"
+        ? strings.questionMathUnitsConvert
+        : value === "same"
+          ? strings.questionMathUnitsSame
+          : strings.questionMathUnitsNone;
     const toleranceText = (value: number) =>
       value === 0
         ? strings.questionToleranceExact
@@ -2128,15 +2137,35 @@ export function SelectionToolbarPlugin() {
             </>
           )}
           {settings.kind === "math" ? (
-            <BarMenu
-              label={strings.questionMathTolerance}
-              current={toleranceText(settings.tolerance)}
-              values={MATH_TOLERANCES}
-              text={toleranceText}
-              onPick={(tolerance) => change({ tolerance })}
-              onOpenChange={trackMenu}
-              finalFocus={textFocus(editor)}
-            />
+            <>
+              <BarMenu
+                label={strings.questionMathTolerance}
+                current={toleranceText(settings.tolerance)}
+                values={MATH_TOLERANCES}
+                text={toleranceText}
+                onPick={(tolerance) => change({ tolerance })}
+                onOpenChange={trackMenu}
+                finalFocus={textFocus(editor)}
+              />
+              <BarMenu
+                label={strings.questionMathForm}
+                current={strings.questionMathForms[settings.mathForm ?? "any"]}
+                values={MATH_FORM_CHOICES}
+                text={(form) => strings.questionMathForms[form ?? "any"]}
+                onPick={(mathForm) => change({ mathForm })}
+                onOpenChange={trackMenu}
+                finalFocus={textFocus(editor)}
+              />
+              <BarMenu
+                label={strings.questionMathUnits}
+                current={unitsText(settings.mathUnits)}
+                values={MATH_UNITS}
+                text={unitsText}
+                onPick={(mathUnits) => change({ mathUnits })}
+                onOpenChange={trackMenu}
+                finalFocus={textFocus(editor)}
+              />
+            </>
           ) : null}
           {settings.kind === "ordering" ? (
             <BarMenu

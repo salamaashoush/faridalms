@@ -6,6 +6,7 @@ import * as v from "valibot";
 import type { FootnoteSource } from "./citations";
 import type { EmbedProvider } from "./embed";
 import type { LtiLink } from "./lti";
+import type { MathForm } from "./math-forms";
 import type { ProjectFile, ProjectLanguage } from "./project";
 import type { ScratchFeature } from "./scratch-project";
 
@@ -13,6 +14,7 @@ import { MAX_DESCRIPTION_TEXT, parseDescriptions } from "./chapters";
 import { footnoteSourceSchema } from "./citations";
 import { embedProviders, isEmbedId } from "./embed";
 import { ltiLinkSchema } from "./lti";
+import { MATH_FORMS } from "./math-forms";
 import { projectLanguages, starterFilesSchema } from "./project";
 import { isSafeContentUrl } from "./rich-text";
 import { scratchChecksSchema } from "./scratch-project";
@@ -427,6 +429,10 @@ export interface ContentNode {
   rangeMin?: number;
   rangeMax?: number;
   scoring?: "all" | "neighbours";
+  /** How a maths answer must be written. */
+  mathForm?: MathForm;
+  /** A maths answer with units: right in any units, or only in the key's. */
+  mathUnits?: "convert" | "same";
   aiTool?: string;
   aiDate?: string;
   aiPrompt?: string;
@@ -777,6 +783,8 @@ const nodeSchema: v.GenericSchema<ContentNode> = v.lazy(() =>
       rangeMin: v.optional(v.pipe(v.number(), v.finite())),
       rangeMax: v.optional(v.pipe(v.number(), v.finite())),
       scoring: v.optional(v.picklist(["all", "neighbours"])),
+      mathForm: v.optional(v.picklist(MATH_FORMS)),
+      mathUnits: v.optional(v.picklist(["convert", "same"])),
       aiTool: v.optional(v.pipe(v.string(), v.maxLength(200))),
       aiDate: v.optional(
         v.union([v.literal(""), v.pipe(v.string(), v.isoDate())]),

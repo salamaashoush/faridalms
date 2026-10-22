@@ -12,11 +12,18 @@
  * cannot read gives no answer, and the caller compares the writing instead.
  */
 
-type Expr =
+export type Expr =
   | { kind: "num"; value: number }
   | { kind: "var"; name: string }
   | { kind: "neg"; arg: Expr }
-  | { kind: "op"; op: "+" | "-" | "*" | "/" | "^"; left: Expr; right: Expr }
+  | {
+      kind: "op";
+      op: "+" | "-" | "*" | "/" | "^";
+      left: Expr;
+      right: Expr;
+      /** A whole number and a fraction written side by side, as 2⅓ is. */
+      mixed?: true;
+    }
   | { kind: "fn"; name: string; arg: Expr; base?: Expr };
 
 type Token =
@@ -260,8 +267,31 @@ function startsFactor(reader: Reader): boolean {
   );
 }
 
+const wholeNumber = (expr: Expr) =>
+  expr.kind === "num" && Number.isInteger(expr.value);
+
 function term(reader: Reader): Expr {
   let left = unary(reader);
+  // 2\frac{1}{3} is two and a third at school, not two thirds.
+  const whole = left.kind === "neg" ? left.arg : left;
+  if (wholeNumber(whole) && reader.isCommand("frac", "dfrac", "tfrac")) {
+    const fraction = power(reader);
+    if (
+      fraction.kind === "op" &&
+      fraction.op === "/" &&
+      wholeNumber(fraction.left) &&
+      wholeNumber(fraction.right)
+    ) {
+      const mixed: Expr = {
+        kind: "op",
+        op: "+",
+        left: whole,
+        right: fraction,
+        mixed: true,
+      };
+      left = left.kind === "neg" ? { kind: "neg", arg: mixed } : mixed;
+    } else left = { kind: "op", op: "*", left, right: fraction };
+  }
   for (;;) {
     if (reader.isChar("*") || reader.isCommand("cdot", "times", "ast")) {
       reader.next();
@@ -520,14 +550,14 @@ const difference = (statement: Statement): Expr =>
     ? { kind: "op", op: "-", left: statement.left, right: statement.right }
     : statement.left;
 
-interface Statement {
+export interface Statement {
   left: Expr;
   /** The other side of an equation, if it is one. */
   right: Expr | null;
 }
 
 /** A piece of LaTeX as an expression or an equation, or null where it cannot be read. */
-function read(latex: string): Statement | null {
+export function readMath(latex: string): Statement | null {
   const tokens = tokenize(latex);
   if (!tokens || tokens.length === 0) return null;
   try {
@@ -591,8 +621,8 @@ export function sameMath(
   key: string,
   tolerance = 0,
 ): boolean | null {
-  const given = read(answer);
-  const wanted = read(key);
+  const given = readMath(answer);
+  const wanted = readMath(key);
   if (!given || !wanted) return null;
   if ((given.right === null) !== (wanted.right === null)) return false;
   const found = new Set<string>();

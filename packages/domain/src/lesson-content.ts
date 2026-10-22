@@ -240,6 +240,8 @@ export function questionBlock(node: ContentNode): LessonBlock | null {
           .map((answer) => latexOf(textOf(answer)))
           .filter(Boolean),
         tolerance: node.tolerance ?? 0,
+        ...(node.mathForm ? { form: node.mathForm } : {}),
+        ...(node.mathUnits ? { units: node.mathUnits } : {}),
       };
     case "tracing":
       return { ...check, type: "tracing", strokes: node.trace ?? [] };
@@ -889,6 +891,8 @@ export function questionNode(block: LessonBlock): ContentNode | null {
     return {
       ...base,
       tolerance: block.tolerance,
+      ...(block.form ? { mathForm: block.form } : {}),
+      ...(block.units ? { mathUnits: block.units } : {}),
       children: [
         ...(base.children ?? []),
         ...block.answers.map((latex) =>

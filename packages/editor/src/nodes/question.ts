@@ -1,4 +1,5 @@
 import type { FeedbackTime, QuestionKind } from "@faridalms/domain/content";
+import type { MathForm } from "@faridalms/domain/math-forms";
 import type {
   ProjectFile,
   ProjectLanguage,
@@ -405,6 +406,10 @@ export interface QuestionSettings {
   rangeMin: number;
   rangeMax: number;
   scoring: "all" | "neighbours";
+  /** How a maths answer must be written; none takes it in any form. */
+  mathForm: MathForm | null;
+  /** A maths answer with units: right in any units, or only in the key's. */
+  mathUnits: "convert" | "same" | null;
 }
 
 export function defaultSettings(kind: QuestionKind): QuestionSettings {
@@ -461,6 +466,8 @@ export function defaultSettings(kind: QuestionKind): QuestionSettings {
     rangeMin: 0,
     rangeMax: 0,
     scoring: "all",
+    mathForm: null,
+    mathUnits: null,
   };
 }
 
@@ -530,6 +537,8 @@ function questionSettings(stored: StoredSettings): QuestionSettings {
     rangeMin: stored.rangeMin ?? base.rangeMin,
     rangeMax: stored.rangeMax ?? base.rangeMax,
     scoring: stored.scoring ?? base.scoring,
+    mathForm: stored.mathForm ?? null,
+    mathUnits: stored.mathUnits ?? null,
   };
 }
 
@@ -681,6 +690,8 @@ export class QuestionNode extends ElementNode {
       bank,
       line,
       classResults,
+      mathForm,
+      mathUnits,
       ...settings
     } = questionSettings(this.getLatest().__settings);
     return {
@@ -693,6 +704,8 @@ export class QuestionNode extends ElementNode {
         ? { bank }
         : {}),
       ...(settings.kind === "number" && line !== null ? { line } : {}),
+      ...(settings.kind === "math" && mathForm ? { mathForm } : {}),
+      ...(settings.kind === "math" && mathUnits ? { mathUnits } : {}),
       ...(settings.kind === "poll" ? { classResults } : {}),
       ...(recordSeconds === null ? {} : { recordSeconds }),
       ...(recordSeconds !== null && recordVideo ? { recordVideo } : {}),
