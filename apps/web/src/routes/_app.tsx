@@ -1,10 +1,13 @@
 import { FileFactsProvider } from "@faridalms/editor/file-facts";
 import { createFileRoute, Outlet, redirect } from "@tanstack/react-router";
+import { useEffect } from "react";
 
 import { Shell } from "~/components/system/Shell";
+import { useCurrentUser } from "~/hooks/useCurrentUser";
 import { currentUserQuery } from "~/queries/user";
 import { getWorkspacePreferences } from "~/server/auth";
 import { getFileFacts } from "~/server/files";
+import { rememberDigits } from "~/utils/digits";
 
 async function currentFacts(ids: string[]) {
   const { files } = await getFileFacts({ data: { ids } });
@@ -36,6 +39,12 @@ export const Route = createFileRoute("/_app")({
 // every signed-in route shares.
 function AppLayout() {
   const preferences = Route.useLoaderData();
+  const { digits } = useCurrentUser().school;
+  // A page drawn before the browser knew the school's digits, or after the
+  // school changed them, is drawn again in them; it happens once a change.
+  useEffect(() => {
+    if (rememberDigits(digits)) window.location.reload();
+  }, [digits]);
   return (
     <FileFactsProvider resolve={currentFacts}>
       <Shell sidebarOpen={preferences.sidebarOpen}>

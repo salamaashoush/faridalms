@@ -7,7 +7,7 @@ import type { Tone } from "~/components/system/status";
 
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
-import { getLocale } from "~/i18n/runtime";
+import { numberLocale } from "~/utils/digits";
 
 export const MEANING_LABEL: Record<AttendanceMeaning, () => string> = {
   present: m.attPresent,
@@ -55,7 +55,7 @@ export function labelOf(row: {
 
 /** A share of sessions attended, to one decimal where it matters. */
 export function formatRate(rate: number): string {
-  return new Intl.NumberFormat(getLocale(), {
+  return new Intl.NumberFormat(numberLocale(), {
     style: "percent",
     maximumFractionDigits: 1,
   }).format(rate / 100);
@@ -63,7 +63,7 @@ export function formatRate(rate: number): string {
 
 /** A school day with its weekday, as a register is named. */
 export function formatDay(iso: string): string {
-  return new Intl.DateTimeFormat(getLocale(), {
+  return new Intl.DateTimeFormat(numberLocale(), {
     weekday: "long",
     day: "numeric",
     month: "long",
@@ -82,7 +82,7 @@ export function formatSavedAt(
 ): string {
   const at = new Date(iso);
   const day = new Intl.DateTimeFormat("en-CA", { timeZone }).format(at);
-  return new Intl.DateTimeFormat(getLocale(), {
+  return new Intl.DateTimeFormat(numberLocale(), {
     ...(day === registerDay ? {} : { day: "numeric", month: "short" }),
     hour: "numeric",
     minute: "2-digit",

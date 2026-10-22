@@ -349,6 +349,10 @@ export const accountStateSchema = v.object({
   reason: optionalText(500),
 });
 
+/** The digits a school's Arabic interface writes numbers in. */
+export const DIGITS = ["latn", "arab"] as const;
+export type Digits = (typeof DIGITS)[number];
+
 export const saveSchoolSchema = v.object({
   expectedVersion: version,
   nameEn: optionalText(160),
@@ -365,6 +369,8 @@ export const saveSchoolSchema = v.object({
     v.picklist(["", "islamic-umalqura", "islamic-civil"]),
     "",
   ),
+  /** How the Arabic interface writes digits: Western 0-9, or Arabic-Indic ٠-٩. */
+  digits: v.optional(v.picklist(DIGITS), "latn"),
   phone: optionalText(40),
   email: optionalText(254),
   websiteUrl: optionalText(2048),

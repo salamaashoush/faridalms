@@ -1,8 +1,9 @@
 import { getLocale } from "~/i18n/runtime";
+import { numberLocale } from "~/utils/digits";
 
 /** A `date` column, always `YYYY-MM-DD`, rendered in the reader's locale. */
 export function formatDate(iso: string): string {
-  return new Intl.DateTimeFormat(getLocale(), {
+  return new Intl.DateTimeFormat(numberLocale(), {
     dateStyle: "medium",
     timeZone: "UTC",
   }).format(new Date(`${iso}T00:00:00Z`));
@@ -10,7 +11,7 @@ export function formatDate(iso: string): string {
 
 /** A `time` column, always `HH:MM:SS`. */
 export function formatTime(value: string): string {
-  return new Intl.DateTimeFormat(getLocale(), {
+  return new Intl.DateTimeFormat(numberLocale(), {
     hour: "2-digit",
     minute: "2-digit",
     timeZone: "UTC",

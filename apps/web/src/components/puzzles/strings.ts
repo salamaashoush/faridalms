@@ -7,6 +7,7 @@ import type { Locale } from "~/i18n/runtime";
 
 import * as m from "~/i18n/messages";
 import { getLocale, getTextDirection } from "~/i18n/runtime";
+import { numberLocale } from "~/utils/digits";
 
 /**
  * What a puzzle says, in the reader's language, or in the language of the
@@ -14,7 +15,7 @@ import { getLocale, getTextDirection } from "~/i18n/runtime";
  */
 export function puzzleStrings(locale: Locale = getLocale()): PuzzleStrings {
   const at = { locale };
-  const numbers = new Intl.NumberFormat(locale);
+  const numbers = new Intl.NumberFormat(numberLocale(locale));
   const formatNumber = (value: number) => numbers.format(value);
   return {
     board: (columns, rows) =>
@@ -127,7 +128,7 @@ export function blockNames(
 
 /** What the puzzle designer says to a teacher. */
 export function designerStrings(): DesignerStrings {
-  const numbers = new Intl.NumberFormat(getLocale());
+  const numbers = new Intl.NumberFormat(numberLocale());
   const formatNumber = (value: number) => numbers.format(value);
   return {
     puzzle: puzzleStrings(),

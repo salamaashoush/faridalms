@@ -16,6 +16,7 @@ import type { Locale } from "~/i18n/runtime";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { getLocale } from "~/i18n/runtime";
+import { numberLocale } from "~/utils/digits";
 
 export const CATEGORY_LABEL: Record<CalendarCategory, () => string> = {
   general: m.calCatGeneral,
@@ -61,9 +62,10 @@ export interface Timed {
 }
 
 const day = (iso: string, options: Intl.DateTimeFormatOptions) =>
-  new Intl.DateTimeFormat(getLocale(), { ...options, timeZone: "UTC" }).format(
-    new Date(`${iso}T00:00:00Z`),
-  );
+  new Intl.DateTimeFormat(numberLocale(), {
+    ...options,
+    timeZone: "UTC",
+  }).format(new Date(`${iso}T00:00:00Z`));
 
 export function weekdayDate(iso: string) {
   return day(iso, { weekday: "long", day: "numeric", month: "long" });
@@ -93,7 +95,7 @@ export function whenLabel(
   locale: Locale = getLocale(),
 ) {
   const timed = event.startTime !== null && event.endTime !== null;
-  return new Intl.DateTimeFormat(locale, {
+  return new Intl.DateTimeFormat(numberLocale(locale), {
     weekday: style,
     day: "numeric",
     month: style,

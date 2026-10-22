@@ -9,7 +9,7 @@ import { useState } from "react";
 import { meaningOf } from "~/components/years/YearPlanner";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
-import { getLocale } from "~/i18n/runtime";
+import { numberLocale } from "~/utils/digits";
 
 export interface GridPeriod {
   id: string;
@@ -36,7 +36,7 @@ export interface GridDate {
 }
 
 const shortDate = (iso: string) =>
-  new Intl.DateTimeFormat(getLocale(), {
+  new Intl.DateTimeFormat(numberLocale(), {
     day: "numeric",
     month: "short",
     timeZone: "UTC",
@@ -54,7 +54,7 @@ function dayNote(date: GridDate | undefined): string | null {
 
 /** An ISO weekday named in the reader's language; 1 January 2024 was a Monday. */
 export function dayName(day: number, width: "long" | "short" = "long") {
-  return new Intl.DateTimeFormat(getLocale(), {
+  return new Intl.DateTimeFormat(numberLocale(), {
     weekday: width,
     timeZone: "UTC",
   }).format(new Date(Date.UTC(2024, 0, day)));
@@ -362,7 +362,7 @@ export function FreeCell() {
 }
 
 const weekRange = (from: string, to: string) =>
-  new Intl.DateTimeFormat(getLocale(), {
+  new Intl.DateTimeFormat(numberLocale(), {
     day: "numeric",
     month: "short",
     year: "numeric",

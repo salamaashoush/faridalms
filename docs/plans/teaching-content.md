@@ -507,9 +507,18 @@ Sources: [../research/course-design.md](../research/course-design.md),
    language above the lesson; the choice is kept with their progress, so
    hints, feedback and explanations follow it, and their answers stand
    in either language. A student reads in their own language by default.
-   Left: digits by a school setting; a question's own labels in the
-   lesson's language; a young lesson's switch, which follows the child's
-   language for now; translations of quizzes and assignment briefs.
+   A school's settings choose its digits in Arabic: Western, as before,
+   or Arabic-Indic (`orgs.digits`). Dates, times and numbers format in
+   the school's digits, and every Arabic message writes its numbers in
+   them, with the Arabic decimal and percent signs; words holding Latin
+   letters or an address, such as a class code or an email, keep theirs.
+   The choice travels with each page in a cookie, so pages drawn on the
+   server already carry it.
+   Left: a question's own labels in the lesson's language; a young
+   lesson's switch, which follows the child's language for now;
+   translations of quizzes and assignment briefs; the public website's
+   digits, and numbers drawn inside documents, such as a chart's, which
+   keep Western digits.
 8. **Word import**: a `.docx` opens as a document, its pictures uploaded.
 
 ## 7. Video

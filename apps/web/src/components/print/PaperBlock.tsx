@@ -12,6 +12,7 @@ import type { Locale } from "~/i18n/runtime";
 
 import { QrCode } from "~/components/badges/QrCode";
 import * as m from "~/i18n/messages";
+import { numberLocale } from "~/utils/digits";
 
 /** What a block's paper form reads from the paper it is on. */
 export interface PaperFacts {
@@ -41,7 +42,7 @@ export function typedAddress(url: string): string {
 }
 
 const dayOf = (date: string, locale: Locale) =>
-  new Intl.DateTimeFormat(locale, {
+  new Intl.DateTimeFormat(numberLocale(locale), {
     day: "numeric",
     month: "long",
     year: "numeric",

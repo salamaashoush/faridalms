@@ -26,10 +26,10 @@ import { SelectField, TextField } from "~/components/system/field";
 import { dayName } from "~/components/timetable/WeekGrid";
 import { inLocale, useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
-import { getLocale } from "~/i18n/runtime";
 import { yearDaysQuery } from "~/queries/years";
 import { paintYearDays, setYearTarget } from "~/server/years";
 import { formatDate, formatMonthLabel, formatNumber } from "~/utils/datetime";
+import { numberLocale } from "~/utils/digits";
 import { getMessageFromError } from "~/utils/error";
 
 type Days = Awaited<
@@ -100,7 +100,7 @@ const OTHER = {
 export const meaningOf = (meaning: string) => MEANING[meaning] ?? OTHER;
 
 const longDate = (iso: string) =>
-  new Intl.DateTimeFormat(getLocale(), {
+  new Intl.DateTimeFormat(numberLocale(), {
     weekday: "long",
     day: "numeric",
     month: "long",

@@ -5205,6 +5205,10 @@
   "settingsSecondaryNone": "بلا",
   "settingsSecondaryUmmAlQura": "هجري، أم القرى",
   "settingsSecondaryTabular": "هجري، حسابي",
+  "settingsDigits": "الأرقام في العربية",
+  "settingsDigitsHint": "طريقة كتابة الأرقام والتواريخ والأوقات في الواجهة العربية. تبقى الرموز والعناوين والإجابات المكتوبة بالأرقام التي كُتبت بها.",
+  "settingsDigitsLatin": "غربية",
+  "settingsDigitsArabic": "هندية",
   "lrnAnswerShown": "ظهرت الإجابة",
   "lrnTriesLeft": [
     {

@@ -14,9 +14,9 @@ import {
   SettingsSection,
 } from "~/components/system/SettingsSection";
 import * as m from "~/i18n/messages";
-import { getLocale } from "~/i18n/runtime";
 import { schoolProfileQuery } from "~/queries/school-settings";
 import { saveSchoolProfile } from "~/server/school-settings";
+import { numberLocale } from "~/utils/digits";
 import { getMessageFromError } from "~/utils/error";
 
 function TimeZoneField({
@@ -62,7 +62,7 @@ type Profile = Awaited<
 
 /** ISO weekdays, 1 for Monday, named in the reader's language. */
 function dayName(day: number) {
-  return new Intl.DateTimeFormat(getLocale(), {
+  return new Intl.DateTimeFormat(numberLocale(), {
     weekday: "long",
     timeZone: "UTC",
   }).format(new Date(Date.UTC(2024, 0, day)));
@@ -79,6 +79,7 @@ interface ProfileDraft {
   weekStart: number;
   weekendDays: number[];
   secondaryCalendar: "" | "islamic-umalqura" | "islamic-civil";
+  digits: "latn" | "arab";
   phone: string;
   email: string;
   websiteUrl: string;
@@ -95,6 +96,7 @@ function draftOf(profile: Profile): ProfileDraft {
     weekStart: profile.weekStart,
     weekendDays: [...profile.weekendDays],
     secondaryCalendar: profile.secondaryCalendar ?? "",
+    digits: profile.digits,
     phone: profile.phone ?? "",
     email: profile.email ?? "",
     websiteUrl: profile.websiteUrl ?? "",
@@ -252,6 +254,20 @@ export function SchoolProfileSection() {
           onChange={(value) =>
             set("secondaryCalendar", value === "none" ? "" : value)
           }
+          width="name"
+        />
+        <SelectField
+          id="school-digits"
+          label={m.settingsDigits()}
+          hint={m.settingsDigitsHint()}
+          value={draft.digits}
+          options={[
+            // The samples are drawn outside the words, which would turn them
+            // into the digits the school has now.
+            { value: "latn", label: `${m.settingsDigitsLatin()} (0 1 2 3)` },
+            { value: "arab", label: `${m.settingsDigitsArabic()} (٠ ١ ٢ ٣)` },
+          ]}
+          onChange={(value) => set("digits", value)}
           width="name"
         />
       </SettingsGroup>

@@ -12,7 +12,7 @@ import {
 } from "~/components/system/RecordPage";
 import { StatusText } from "~/components/system/status";
 import * as m from "~/i18n/messages";
-import { getLocale } from "~/i18n/runtime";
+import { numberLocale } from "~/utils/digits";
 
 import { classTitle } from "../classes/format";
 import { resultText } from "../grading/format";
@@ -52,7 +52,7 @@ function dayKey(iso: string | null, timeZone: string) {
 
 function dayLabel(key: string) {
   if (!key) return m.courseworkNoDueDate();
-  return new Intl.DateTimeFormat(getLocale(), {
+  return new Intl.DateTimeFormat(numberLocale(), {
     weekday: "long",
     day: "numeric",
     month: "long",

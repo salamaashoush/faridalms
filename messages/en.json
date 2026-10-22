@@ -4970,6 +4970,10 @@
   "settingsSecondaryNone": "None",
   "settingsSecondaryUmmAlQura": "Hijri, Umm al-Qura",
   "settingsSecondaryTabular": "Hijri, tabular",
+  "settingsDigits": "Digits in Arabic",
+  "settingsDigitsHint": "How numbers, dates and times are written in the Arabic interface. Codes, addresses and typed answers keep the digits they are written in.",
+  "settingsDigitsLatin": "Western",
+  "settingsDigitsArabic": "Arabic-Indic",
   "lrnAnswerShown": "Answer shown",
   "lrnTriesLeft": [
     {

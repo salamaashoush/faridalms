@@ -33,6 +33,7 @@ import { featureNames } from "~/components/coding/scratch-checks";
 import { NumberLineDrawing } from "~/components/learning/NumberLine";
 import { blockNames, puzzleStrings } from "~/components/puzzles/strings";
 import * as m from "~/i18n/messages";
+import { numberLocale } from "~/utils/digits";
 
 import { paperGrid } from "./paper-blocks";
 
@@ -235,7 +236,11 @@ function PaperPuzzle({
             {level.limit === null ? null : (
               <p>
                 {m.printPuzzleLimit(
-                  { limit: new Intl.NumberFormat(locale).format(level.limit) },
+                  {
+                    limit: new Intl.NumberFormat(numberLocale(locale)).format(
+                      level.limit,
+                    ),
+                  },
                   at,
                 )}
               </p>

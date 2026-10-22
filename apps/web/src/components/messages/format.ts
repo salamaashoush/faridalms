@@ -1,6 +1,7 @@
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { getLocale } from "~/i18n/runtime";
+import { numberLocale } from "~/utils/digits";
 
 interface Named {
   fullNameEn: string | null;
@@ -37,13 +38,14 @@ export function whenShort(iso: string, today: string, timeZone: string) {
     day === today
       ? { hour: "numeric", minute: "2-digit" }
       : { day: "numeric", month: "short" };
-  return new Intl.DateTimeFormat(getLocale(), { ...options, timeZone }).format(
-    at,
-  );
+  return new Intl.DateTimeFormat(numberLocale(), {
+    ...options,
+    timeZone,
+  }).format(at);
 }
 
 export function timeOf(iso: string, timeZone: string) {
-  return new Intl.DateTimeFormat(getLocale(), {
+  return new Intl.DateTimeFormat(numberLocale(), {
     hour: "numeric",
     minute: "2-digit",
     timeZone,
@@ -52,7 +54,7 @@ export function timeOf(iso: string, timeZone: string) {
 
 export function dayHeading(day: string, today: string) {
   if (day === today) return m.msgToday();
-  return new Intl.DateTimeFormat(getLocale(), {
+  return new Intl.DateTimeFormat(numberLocale(), {
     weekday: "long",
     day: "numeric",
     month: "long",

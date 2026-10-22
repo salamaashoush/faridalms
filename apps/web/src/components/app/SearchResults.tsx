@@ -28,6 +28,7 @@ import { useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { getLocale } from "~/i18n/runtime";
 import { formatDate, formatList } from "~/utils/datetime";
+import { numberLocale } from "~/utils/digits";
 
 export const SEARCH_KIND_LABEL: Record<SearchKind, () => string> = {
   students: m.searchKindStudents,
@@ -72,7 +73,7 @@ export const HIT_ROW =
 
 function whenLabel(when: string, timeZone: string) {
   if (when.length === 10) return formatDate(when);
-  return new Intl.DateTimeFormat(getLocale(), {
+  return new Intl.DateTimeFormat(numberLocale(), {
     dateStyle: "medium",
     timeZone,
   }).format(new Date(when));

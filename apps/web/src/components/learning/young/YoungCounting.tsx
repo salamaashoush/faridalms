@@ -11,6 +11,7 @@ import { toast } from "sonner";
 
 import * as m from "~/i18n/messages";
 import { formatNumber } from "~/utils/datetime";
+import { numberLocale } from "~/utils/digits";
 import { getMessageFromError } from "~/utils/error";
 
 import type { CheckDriver } from "../Checks";
@@ -72,9 +73,9 @@ function Thing({ block }: { block: Counting }) {
 /** Says a number aloud in the question's language, as a child counts along. */
 const sayNumber = (count: number, prompt: string) =>
   sayAloud(
-    new Intl.NumberFormat(textDirection(prompt) === "rtl" ? "ar" : "en").format(
-      count,
-    ),
+    new Intl.NumberFormat(
+      numberLocale(textDirection(prompt) === "rtl" ? "ar" : "en"),
+    ).format(count),
     null,
   );
 

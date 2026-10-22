@@ -56,6 +56,36 @@ function devCatalogue(): Plugin {
   };
 }
 
+const builtMessages = fileURLToPath(
+  new URL("./src/i18n/messages/", import.meta.url),
+);
+
+/**
+ * Arabic messages write their numbers in the school's digits. Paraglide
+ * interpolates a number as it was given, so each Arabic message's words pass
+ * through `arabicDigits` as the message returns them, in the build's one
+ * module per message and the dev server's one module per language alike.
+ */
+function arabicDigitsInMessages(): Plugin {
+  return {
+    name: "farida:arabic-digits",
+    transform(code, id) {
+      if (!id.startsWith(builtMessages) && !id.startsWith(devMessages))
+        return null;
+      const next = code.replaceAll(
+        /return (ar_\w+|__ar\.\w+)\(inputs\)/g,
+        "return arabicDigits($1(inputs))",
+      );
+      return next === code
+        ? null
+        : {
+            code: `import { arabicDigits } from "~/utils/digits";\n${next}`,
+            map: null,
+          };
+    },
+  };
+}
+
 const pyodideDir = dirname(
   createRequire(import.meta.url).resolve("pyodide/package.json"),
 );
@@ -172,6 +202,7 @@ export default defineConfig(({ command }) => ({
       outdir: "./src/i18n",
     }),
     devCatalogue(),
+    arabicDigitsInMessages(),
     packageAssets({
       name: "pyodide",
       dir: pyodideDir,

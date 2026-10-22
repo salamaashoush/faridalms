@@ -488,6 +488,7 @@ export async function schoolProfile(tx: Tx, orgId: string) {
       weekStart: orgs.weekStart,
       weekendDays: orgs.weekendDays,
       secondaryCalendar: orgs.secondaryCalendar,
+      digits: orgs.digits,
       countryCode: orgs.countryCode,
       logoFileId: orgs.logoFileId,
     })

@@ -9,6 +9,7 @@ import type { Locale } from "~/i18n/runtime";
 import * as m from "~/i18n/messages";
 import { getLocale } from "~/i18n/runtime";
 import { formatNumber } from "~/utils/datetime";
+import { numberLocale } from "~/utils/digits";
 
 export const STATE_LABEL: Record<LearnerState, () => string> = {
   not_available: m.courseworkStateNotAvailable,
@@ -58,7 +59,7 @@ export function formatInstant(
   timeZone: string,
   locale: Locale = getLocale(),
 ): string {
-  return new Intl.DateTimeFormat(locale, {
+  return new Intl.DateTimeFormat(numberLocale(locale), {
     weekday: "short",
     day: "numeric",
     month: "short",
@@ -70,7 +71,7 @@ export function formatInstant(
 
 /** An instant in a table cell, where the weekday is noise beside the date. */
 export function formatStamp(iso: string, timeZone: string): string {
-  return new Intl.DateTimeFormat(getLocale(), {
+  return new Intl.DateTimeFormat(numberLocale(), {
     day: "numeric",
     month: "short",
     hour: "numeric",

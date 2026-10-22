@@ -16,7 +16,7 @@ import { StatusBadge, StatusText } from "~/components/system/status";
 import { UserText } from "~/components/system/UserText";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
-import { getLocale } from "~/i18n/runtime";
+import { numberLocale } from "~/utils/digits";
 
 export const itemLink = cn(
   "justify-self-start text-sm leading-5 font-medium hover:text-primary hover:underline",
@@ -137,7 +137,7 @@ const REGISTER: Record<
 /** `08:30` as the reader's clock shows it. */
 export function formatClock(time: string): string {
   const [hours = 0, minutes = 0] = time.split(":").map(Number);
-  return new Intl.DateTimeFormat(getLocale(), {
+  return new Intl.DateTimeFormat(numberLocale(), {
     hour: "numeric",
     minute: "2-digit",
     timeZone: "UTC",

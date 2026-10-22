@@ -1,5 +1,6 @@
 import { getLocale } from "~/i18n/runtime";
 import { formatDateTime } from "~/utils/datetime";
+import { numberLocale } from "~/utils/digits";
 
 /**
  * Postgres `date` columns arrive as `2026-09-01`. Pinning them to midnight UTC
@@ -7,7 +8,7 @@ import { formatDateTime } from "~/utils/datetime";
  * the reader's offset is.
  */
 export function formatDay(isoDate: string): string {
-  return new Intl.DateTimeFormat(getLocale(), {
+  return new Intl.DateTimeFormat(numberLocale(), {
     dateStyle: "medium",
     timeZone: "UTC",
   }).format(new Date(`${isoDate}T00:00:00.000Z`));
