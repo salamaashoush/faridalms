@@ -19,14 +19,17 @@ import { $patchStyleText } from "@lexical/selection";
 import { $onEscapeDown, $onEscapeUp, mergeRegister } from "@lexical/utils";
 import {
   $createParagraphNode,
+  $createTextNode,
   $getNodeByKey,
   $getSelection,
   $getState,
   $isElementNode,
+  $isNodeSelection,
   $isParagraphNode,
   $isRangeSelection,
   $isRootNode,
   $setState,
+  BEFORE_INPUT_COMMAND,
   COMMAND_PRIORITY_LOW,
   defineExtension,
   INSERT_PARAGRAPH_COMMAND,
@@ -445,6 +448,30 @@ function $enterFromToggleTitle(): boolean {
   return true;
 }
 
+/**
+ * Typing with a block selected starts a paragraph after it, as in Notion.
+ * Lexical leaves that keystroke to the browser, which, with no caret in the
+ * editor, writes each letter at the very start of the document.
+ */
+function $typeAfterSelectedBlock(event: InputEvent): boolean {
+  if (event.inputType !== "insertText" || !event.data) return false;
+  const selection = $getSelection();
+  if (!$isNodeSelection(selection)) return false;
+  const block = selection.getNodes().at(-1)?.getTopLevelElement();
+  if (!block) return false;
+  event.preventDefault();
+  const next = block.getNextSibling();
+  const line =
+    $isParagraphNode(next) && next.getTextContentSize() === 0
+      ? next
+      : block.insertAfter($createParagraphNode());
+  if ($isElementNode(line)) {
+    line.append($createTextNode(event.data));
+    line.selectEnd();
+  }
+  return true;
+}
+
 export const BlocksExtension = defineExtension({
   name: "faridalms/blocks",
   dependencies: [LinkExtension, AutoLinkExtension],
@@ -520,6 +547,11 @@ export const BlocksExtension = defineExtension({
       editor.registerCommand(
         KEY_TAB_COMMAND,
         (event) => $indentCodeLine(event),
+        COMMAND_PRIORITY_LOW,
+      ),
+      editor.registerCommand(
+        BEFORE_INPUT_COMMAND,
+        $typeAfterSelectedBlock,
         COMMAND_PRIORITY_LOW,
       ),
       editor.registerCommand(

@@ -11,11 +11,16 @@ import { $convertToMarkdownString } from "@lexical/markdown";
 import { $isHeadingNode, RichTextExtension } from "@lexical/rich-text";
 import { TableExtension } from "@lexical/table";
 import {
+  $createNodeSelection,
   $createParagraphNode,
   $createTextNode,
   $getRoot,
+  $getSelection,
   $getState,
   $isParagraphNode,
+  $isRangeSelection,
+  $setSelection,
+  BEFORE_INPUT_COMMAND,
   defineExtension,
 } from "lexical";
 import * as v from "valibot";
@@ -265,6 +270,57 @@ describe("block operations", () => {
     );
     expect(saved.success && saved.output.root.children?.[1]?.targets).toEqual([
       goal,
+    ]);
+  });
+
+  it("goes on below a continue gate, and types below a block chosen whole", () => {
+    const target = editor();
+    target.update(
+      () => {
+        $getRoot().clear().append(paragraph("Try these."));
+        $getRoot().getFirstChild()?.selectEnd();
+        $insertBlock("gate");
+      },
+      { discrete: true },
+    );
+    expect(types(target)).toEqual(["paragraph", "gate", "paragraph"]);
+    expect(
+      target.read("latest", () => {
+        const selection = $getSelection();
+        return $isRangeSelection(selection)
+          ? selection.anchor.getNode().getIndexWithinParent()
+          : null;
+      }),
+    ).toBe(2);
+    // With the gate itself chosen, a letter starts a line below it rather
+    // than landing at the start of the document.
+    target.update(
+      () => {
+        const gate = $getRoot().getChildAtIndex(1);
+        const chosen = $createNodeSelection();
+        if (gate) chosen.add(gate.getKey());
+        $setSelection(chosen);
+        target.dispatchCommand(
+          BEFORE_INPUT_COMMAND,
+          new InputEvent("beforeinput", {
+            inputType: "insertText",
+            data: "N",
+            cancelable: true,
+          }),
+        );
+      },
+      { discrete: true },
+    );
+    expect(
+      target.read("latest", () =>
+        $getRoot()
+          .getChildren()
+          .map((node) => [node.getType(), node.getTextContent()]),
+      ),
+    ).toEqual([
+      ["paragraph", "Try these."],
+      ["gate", ""],
+      ["paragraph", "N"],
     ]);
   });
 

@@ -33,6 +33,7 @@ import {
 import {
   $createParagraphNode,
   $getSelection,
+  $isDecoratorNode,
   $isElementNode,
   $isParagraphNode,
   $isRangeSelection,
@@ -1211,6 +1212,13 @@ function $selectInside(node: LexicalNode) {
   }
   if ($isTableNode(node)) {
     node.getFirstDescendant()?.selectStart();
+    return;
+  }
+  // A widget such as a continue gate takes no typing; the caret goes on
+  // to the line below it, as after a divider.
+  if ($isDecoratorNode(node)) {
+    const next = node.getNextSibling();
+    if ($isElementNode(next)) next.selectStart();
     return;
   }
   if ($isElementNode(node)) node.selectEnd();
