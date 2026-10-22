@@ -243,7 +243,7 @@ export function EmbedFrame({
   return (
     <div
       className="relative w-full overflow-hidden rounded-lg border bg-muted/40"
-      style={{ aspectRatio: embedAspect(provider) }}
+      style={{ aspectRatio: embedAspect({ provider, embedId }) }}
     >
       {loaded ? (
         <iframe

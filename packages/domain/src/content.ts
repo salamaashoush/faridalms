@@ -672,7 +672,7 @@ const nodeSchema: v.GenericSchema<ContentNode> = v.lazy(() =>
       ),
       noSkipping: v.optional(v.boolean()),
       provider: v.optional(v.picklist(embedProviders)),
-      embedId: v.optional(v.pipe(v.string(), v.maxLength(200))),
+      embedId: v.optional(v.pipe(v.string(), v.maxLength(400))),
       lti: v.optional(ltiLinkSchema),
       sceneFileId: v.optional(v.pipe(v.string(), v.uuid())),
       projectFileId: v.optional(v.pipe(v.string(), v.uuid())),

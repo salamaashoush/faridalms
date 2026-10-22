@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  embedAspect,
   embedPage,
   embedSource,
   isEmbedCode,
@@ -41,6 +42,66 @@ describe("embeddable links", () => {
     ).toBe(
       "https://phet.colorado.edu/sims/html/projectile-motion/latest/projectile-motion_all.html",
     );
+  });
+
+  it("frames a school's Microsoft 365 files from its own tenant, rebuilt from their ids", () => {
+    const word = parseEmbedInput(
+      '<iframe src="https://contoso.sharepoint.com/sites/Science/_layouts/15/Doc.aspx?sourcedoc={A1B2C3D4-1111-2222-3333-444455556666}&amp;action=embedview" width="476px" height="288px" frameborder="0">This is an embedded <a target="_blank" href="https://office.com">Microsoft Office</a> document.</iframe>',
+    );
+    expect(word).toEqual({
+      provider: "microsoft-365",
+      embedId:
+        "doc:contoso.sharepoint.com/sites/Science:a1b2c3d4-1111-2222-3333-444455556666",
+    });
+    expect(word && embedSource(word)).toBe(
+      "https://contoso.sharepoint.com/sites/Science/_layouts/15/Doc.aspx?sourcedoc=%7Ba1b2c3d4-1111-2222-3333-444455556666%7D&action=embedview",
+    );
+    const slides = parseEmbedUrl(
+      "https://contoso-my.sharepoint.com/personal/salma_contoso_com/_layouts/15/Doc.aspx?sourcedoc={a1b2c3d4-1111-2222-3333-444455556666}&action=embedview&wdAr=1.7777777777777777",
+    );
+    expect(slides?.embedId).toBe(
+      "slides:contoso-my.sharepoint.com/personal/salma_contoso_com:a1b2c3d4-1111-2222-3333-444455556666",
+    );
+    expect(slides && embedAspect(slides)).toBe("16 / 9");
+    const personal = parseEmbedUrl(
+      "https://onedrive.live.com/embed?resid=ABCDEF1234567890%21123&authkey=%21AbCdEfGh12&em=2",
+    );
+    expect(personal).toEqual({
+      provider: "microsoft-365",
+      embedId: "live:ABCDEF1234567890!123:!AbCdEfGh12",
+    });
+    expect(personal && embedSource(personal)).toBe(
+      "https://onedrive.live.com/embed?resid=ABCDEF1234567890!123&authkey=!AbCdEfGh12&em=2",
+    );
+    expect(
+      parseEmbedUrl("https://sway.cloud.microsoft/s/abcdEFGH1234/embed"),
+    ).toEqual({ provider: "microsoft-365", embedId: "sway:abcdEFGH1234" });
+  });
+
+  it("frames Microsoft Forms, full and short", () => {
+    const id =
+      "DQSIkWdsW0yxEjajBLZtrQAAAAAAAAAAAAMAAJ8Abc5UMkdBR0ZKNlFGUkhVQk5aOFdHVDhNVkFCNS4u";
+    const form = parseEmbedUrl(
+      `https://forms.office.com/Pages/ResponsePage.aspx?id=${id}&embed=true`,
+    );
+    expect(form).toEqual({ provider: "microsoft-forms", embedId: id });
+    expect(form && embedPage(form)).toBe(
+      `https://forms.office.com/Pages/ResponsePage.aspx?id=${id}`,
+    );
+    const short = parseEmbedUrl("https://forms.office.com/r/AbC123xyz");
+    expect(short && embedSource(short)).toBe(
+      "https://forms.office.com/r/AbC123xyz?embed=true",
+    );
+  });
+
+  it("frames nothing from another host, or a share link that cannot be framed", () => {
+    for (const address of [
+      "https://evil.example.com/_layouts/15/Doc.aspx?sourcedoc={a1b2c3d4-1111-2222-3333-444455556666}",
+      "https://contoso.sharepoint.com/:w:/s/Team/EaBcDeFgHiJ?e=AbCdEf",
+      "https://contoso.sharepoint.com/sites/Science/_layouts/15/Doc.aspx?sourcedoc=not-a-guid",
+      "https://sharepoint.com.evil.example/_layouts/15/Doc.aspx?sourcedoc={a1b2c3d4-1111-2222-3333-444455556666}",
+    ])
+      expect(parseEmbedUrl(address)).toBeNull();
   });
 
   it("recognises the providers teachers paste most", () => {

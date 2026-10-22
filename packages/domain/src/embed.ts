@@ -11,6 +11,8 @@ export const embedProviders = [
   "geogebra",
   "desmos",
   "phet",
+  "microsoft-365",
+  "microsoft-forms",
 ] as const;
 export type EmbedProvider = (typeof embedProviders)[number];
 
@@ -20,6 +22,21 @@ export interface Embed {
 }
 
 const googleId = /^[\w-]{10,128}$/;
+
+/**
+ * Microsoft 365 frames a file from the school's own tenant, so its id keeps
+ * the tenant's host and site with the file: `doc:` and `slides:` for Word,
+ * Excel and PowerPoint, `video:` for Stream, `live:` for a personal OneDrive
+ * file with its key, and `sway:` for a Sway. The address is rebuilt from
+ * these, so nothing else a pasted link carries reaches the frame.
+ */
+const TENANT = "[a-z\\d][a-z\\d-]{0,62}\\.sharepoint\\.com";
+const SITE = "(?:/(?:sites|teams|personal)/[\\w.%-]{1,128})?";
+const GUID = "[\\da-f]{8}-[\\da-f]{4}-[\\da-f]{4}-[\\da-f]{4}-[\\da-f]{12}";
+const microsoftId = new RegExp(
+  `^(?:(?:doc|slides|video):${TENANT}${SITE}:${GUID}|live:[\\dA-F]{6,20}![\\d]{1,12}:![\\w-]{6,64}|sway:[\\dA-Za-z]{8,32})$`,
+  "i",
+);
 
 const identifiers: Record<EmbedProvider, RegExp> = {
   youtube: /^[\w-]{11}$/,
@@ -34,6 +51,8 @@ const identifiers: Record<EmbedProvider, RegExp> = {
   geogebra: /^[\da-z]{5,16}$/i,
   desmos: /^(?:calculator|geometry|3d)\/[\da-z]{6,32}$/,
   phet: /^[a-z\d]+(?:-[a-z\d]+)*$/,
+  "microsoft-365": microsoftId,
+  "microsoft-forms": /^(?:r\/[\w-]{6,20}|[\w-]{20,300})$/,
 };
 
 export function isEmbedId(provider: EmbedProvider, embedId: string): boolean {
@@ -112,7 +131,64 @@ export function parseEmbedUrl(input: string): Embed | null {
       return checked("phet", parts[2]);
     return null;
   }
+  return microsoftEmbed(url, host, parts);
+}
+
+/** What Word, Excel and PowerPoint for the web, Stream, OneDrive, Sway and Forms hand out to embed. */
+function microsoftEmbed(url: URL, host: string, parts: string[]): Embed | null {
+  const query = (name: string) =>
+    [...url.searchParams].find(
+      ([key]) => key.toLowerCase() === name.toLowerCase(),
+    )?.[1] ?? "";
+  if (host.endsWith(".sharepoint.com")) {
+    const layouts = url.pathname.toLowerCase().indexOf("/_layouts/15/");
+    if (layouts < 0) return null;
+    const site = url.pathname.slice(0, layouts);
+    const page = (parts.at(-1) ?? "").toLowerCase();
+    const guid = (
+      page === "embed.aspx" || page === "stream.aspx"
+        ? query("UniqueId") || query("id")
+        : query("sourcedoc")
+    ).replaceAll(/[{}]/g, "");
+    const kind =
+      page === "embed.aspx" || page === "stream.aspx"
+        ? "video"
+        : page === "doc.aspx" || page.startsWith("wopiframe")
+          ? query("wdAr")
+            ? "slides"
+            : "doc"
+          : null;
+    return kind
+      ? checked("microsoft-365", `${kind}:${host}${site}:${guid.toLowerCase()}`)
+      : null;
+  }
+  if (host === "onedrive.live.com" && parts[0] === "embed")
+    return checked(
+      "microsoft-365",
+      `live:${query("resid")}:${query("authkey")}`,
+    );
+  if (host === "sway.office.com" || host === "sway.cloud.microsoft")
+    return checked(
+      "microsoft-365",
+      `sway:${parts[0] === "s" ? parts[1] : parts[0]}`,
+    );
+  if (
+    host === "forms.office.com" ||
+    host === "forms.microsoft.com" ||
+    host === "forms.cloud.microsoft"
+  ) {
+    if (parts[1]?.toLowerCase() === "responsepage.aspx")
+      return checked("microsoft-forms", query("id"));
+    if (parts[0] === "r" || parts[0] === "e")
+      return checked("microsoft-forms", `r/${parts[1] ?? ""}`);
+  }
   return null;
+}
+
+/** A Microsoft 365 id's kind and parts, as `microsoftId` lays them out. */
+function microsoftParts(id: string) {
+  const [kind = "", first = "", second = ""] = id.split(":");
+  return { kind, first, second };
 }
 
 const IFRAME_SOURCE = /<iframe\b[^>]*?\bsrc\s*=\s*["']([^"']+)["']/i;
@@ -148,6 +224,19 @@ const sources: Record<EmbedProvider, (id: string) => string> = {
   desmos: (id) => `https://www.desmos.com/${id}?embed`,
   phet: (id) =>
     `https://phet.colorado.edu/sims/html/${id}/latest/${id}_all.html`,
+  "microsoft-365": (id) => {
+    const { kind, first, second } = microsoftParts(id);
+    if (kind === "live")
+      return `https://onedrive.live.com/embed?resid=${encodeURIComponent(first)}&authkey=${encodeURIComponent(second)}&em=2`;
+    if (kind === "sway") return `https://sway.cloud.microsoft/s/${first}/embed`;
+    if (kind === "video")
+      return `https://${first}/_layouts/15/embed.aspx?UniqueId=${second}`;
+    return `https://${first}/_layouts/15/Doc.aspx?sourcedoc=%7B${second}%7D&action=embedview${kind === "slides" ? "&wdAr=1.7777777777777777" : ""}`;
+  },
+  "microsoft-forms": (id) =>
+    id.startsWith("r/")
+      ? `https://forms.office.com/${id}?embed=true`
+      : `https://forms.office.com/Pages/ResponsePage.aspx?id=${id}&embed=true`,
 };
 
 const pages: Record<EmbedProvider, (id: string) => string> = {
@@ -163,6 +252,19 @@ const pages: Record<EmbedProvider, (id: string) => string> = {
   geogebra: (id) => `https://www.geogebra.org/m/${id}`,
   desmos: (id) => `https://www.desmos.com/${id}`,
   phet: (id) => `https://phet.colorado.edu/en/simulations/${id}`,
+  "microsoft-365": (id) => {
+    const { kind, first, second } = microsoftParts(id);
+    if (kind === "live")
+      return `https://onedrive.live.com/redir?resid=${encodeURIComponent(first)}&authkey=${encodeURIComponent(second)}`;
+    if (kind === "sway") return `https://sway.cloud.microsoft/s/${first}`;
+    if (kind === "video")
+      return `https://${first}/_layouts/15/stream.aspx?UniqueId=${second}`;
+    return `https://${first}/_layouts/15/Doc.aspx?sourcedoc=%7B${second}%7D&action=view`;
+  },
+  "microsoft-forms": (id) =>
+    id.startsWith("r/")
+      ? `https://forms.office.com/${id}`
+      : `https://forms.office.com/Pages/ResponsePage.aspx?id=${id}`,
 };
 
 export function embedSource({ provider, embedId }: Embed): string {
@@ -192,12 +294,19 @@ export const embedProviderNames: Record<EmbedProvider, string> = {
   geogebra: "GeoGebra",
   desmos: "Desmos",
   phet: "PhET",
+  "microsoft-365": "Microsoft 365",
+  "microsoft-forms": "Microsoft Forms",
 };
 
-export function embedAspect(provider: EmbedProvider): string {
+export function embedAspect({ provider, embedId }: Embed): string {
+  if (provider === "microsoft-365") {
+    const { kind } = microsoftParts(embedId);
+    return kind === "doc" || kind === "live" ? "4 / 3" : "16 / 9";
+  }
   if (provider === "google-docs" || provider === "google-sheets")
     return "4 / 3";
-  if (provider === "google-forms") return "3 / 4";
+  if (provider === "google-forms" || provider === "microsoft-forms")
+    return "3 / 4";
   // Simulations and graphs are laid out for a classroom screen, not a film.
   if (provider === "geogebra" || provider === "desmos" || provider === "phet")
     return "4 / 3";

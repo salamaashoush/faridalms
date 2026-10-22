@@ -752,7 +752,7 @@ function scalarSchema(field: ScalarField): v.GenericSchema {
         v.pipe(
           v.object({
             provider: v.picklist(embedProviders),
-            embedId: v.pipe(v.string(), v.maxLength(200)),
+            embedId: v.pipe(v.string(), v.maxLength(400)),
           }),
           v.check(
             (embed) => isEmbedId(embed.provider, embed.embedId),
