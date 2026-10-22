@@ -13,6 +13,16 @@ import {
 import { emptyContent, richTextToContent } from "./content-conversion";
 import { plainTextDocument } from "./rich-text";
 
+const listItem = (text: string) => ({
+  type: "listItem" as const,
+  content: [
+    {
+      type: "paragraph" as const,
+      content: [{ type: "text" as const, text }],
+    },
+  ],
+});
+
 describe("shared content documents", () => {
   it("converts saved text and marks without discarding paragraph boundaries", () => {
     const document = richTextToContent({
@@ -46,6 +56,21 @@ describe("shared content documents", () => {
     expect(contentPlainText(document)).toBe("Salama\nSecond paragraph");
     expect(JSON.stringify(document)).toContain('"format":1');
     expect(JSON.stringify(document)).toContain('"url":"https://example.com"');
+  });
+  it("numbers a list's items as the editor counts them", () => {
+    const document = richTextToContent({
+      type: "doc",
+      content: [
+        {
+          type: "orderedList",
+          attrs: { start: 3 },
+          content: [listItem("Third"), listItem("Fourth")],
+        },
+      ],
+    });
+    expect(
+      document.root.children?.[0]?.children?.map((child) => child.value),
+    ).toEqual([3, 4]);
   });
   it("accepts an empty editor and rejects unsupported or executable content", () => {
     expect(v.safeParse(contentDocumentSchema, emptyContent()).success).toBe(

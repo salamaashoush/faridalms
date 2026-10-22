@@ -2,6 +2,12 @@ import type { ContentDocument, ContentNode } from "./content";
 import type { RichTextDocument, RichTextNode } from "./rich-text";
 
 const formats = { bold: 1, italic: 2, strike: 4, underline: 8, code: 16 };
+
+/** A list's items each with its number, as the editor counts them. */
+const numbered = (items: ContentNode[], start: number): ContentNode[] =>
+  items.map((item, index) =>
+    item.type === "listitem" ? { ...item, value: start + index } : item,
+  );
 export function richTextToContent(document: RichTextDocument): ContentDocument {
   const convert = (node: RichTextNode): ContentNode => {
     const children = (node.content ?? []).map(convert);
@@ -67,6 +73,7 @@ export function richTextToContent(document: RichTextDocument): ContentDocument {
           listType: "bullet",
           tag: "ul",
           start: 1,
+          children: numbered(children, 1),
         };
       case "orderedList":
         return {
@@ -75,6 +82,7 @@ export function richTextToContent(document: RichTextDocument): ContentDocument {
           listType: "number",
           tag: "ol",
           start: node.attrs?.start ?? 1,
+          children: numbered(children, node.attrs?.start ?? 1),
         };
       case "listItem":
         return {
