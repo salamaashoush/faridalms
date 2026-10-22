@@ -305,6 +305,7 @@ export function OutsideTools() {
           <Copyable label={m.ltiIssuer()} value={data.platform.issuer} />
           <Copyable label={m.ltiKeysUrl()} value={data.platform.jwksUrl} />
           <Copyable label={m.ltiAuthUrl()} value={data.platform.authUrl} />
+          <Copyable label={m.ltiTokenUrl()} value={data.platform.tokenUrl} />
         </div>
       </SettingsSection>
       {sheet.key > 0 ? (

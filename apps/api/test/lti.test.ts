@@ -1,5 +1,9 @@
+import type { LtiLink } from "@faridalms/domain/lti";
+
 import { contentOfLesson } from "@faridalms/domain/lesson-content";
 import {
+  LTI_AGS_CLAIM,
+  LTI_AGS_SCOPES,
   LTI_CLAIM,
   LTI_DL_CLAIM,
   LTI_ROLES,
@@ -8,6 +12,7 @@ import {
 import { describe, expect, spyOn, test } from "bun:test";
 import {
   createLocalJWKSet,
+  decodeJwt,
   exportJWK,
   generateKeyPair,
   jwtVerify,
@@ -45,8 +50,73 @@ const handed = (html: string) =>
     /c\.postMessage\((.*?)\);c\.close/.exec(html)?.[1] ?? "null",
   ) as unknown;
 
+/** A launch carried through the tool's sign-in to the token it is posted. */
+async function launchToken(
+  token: string,
+  userId: string,
+  clientId: string,
+  start: string,
+) {
+  const started = posted(await (await raw("northwind", token, start)).text());
+  const answer = posted(
+    await (
+      await raw(
+        "northwind",
+        token,
+        `/lti/auth?${new URLSearchParams({
+          scope: "openid",
+          response_type: "id_token",
+          response_mode: "form_post",
+          prompt: "none",
+          client_id: clientId,
+          redirect_uri: `${TOOL}/launch`,
+          login_hint: userId,
+          lti_message_hint: started.fields.lti_message_hint ?? "",
+          nonce: crypto.randomUUID(),
+          state: "s",
+        })}`,
+      )
+    ).text(),
+  );
+  return answer.fields.id_token ?? "";
+}
+
+/** A tool's proof of who it is, as it asks the school for a token. */
+const assertion = (
+  clientId: string,
+  key: CryptoKey,
+  kid: string,
+  audience = "https://localhost/lti/token",
+) =>
+  new SignJWT({})
+    .setProtectedHeader({ alg: "RS256", kid })
+    .setIssuer(clientId)
+    .setSubject(clientId)
+    .setAudience(audience)
+    .setJti(crypto.randomUUID())
+    .setIssuedAt()
+    .setExpirationTime("5m")
+    .sign(key);
+
+/** A tool asking the school's token endpoint for the scopes named. */
+const askToken = (jwt: string, scope: string) =>
+  raw("northwind", "", "/lti/token", {
+    method: "POST",
+    headers: { "content-type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      grant_type: "client_credentials",
+      client_assertion_type:
+        "urn:ietf:params:oauth:client-assertion-type:jwt-bearer",
+      client_assertion: jwt,
+      scope,
+    }).toString(),
+  });
+
+/** A service address a launch named, as the API is reached here. */
+const local = (url: string) => url.replace("https://localhost", "");
+
 /** A lesson in the seeded module with a link to the tool in it. */
-async function lessonWithLink(toolId: string) {
+async function lessonWithLink(toolId: string, link: Partial<LtiLink> = {}) {
   const tenant = seeded().tenants[0];
   const school = tenant?.schools.find((row) => row.slug === "northwind");
   let keeper: Awaited<ReturnType<typeof sessionFor>> | null = null;
@@ -83,6 +153,7 @@ async function lessonWithLink(toolId: string) {
         toolId,
         title: "Flood simulator",
         custom: { level: "2" },
+        ...link,
       },
     },
   ];
@@ -391,6 +462,237 @@ describe("outside tools by LTI 1.3", () => {
           ).text(),
         ),
       ).toEqual({ pickId, item: null });
+    } finally {
+      fetched.mockRestore();
+    }
+  });
+
+  test("a tool reports a student's score into its link's column, and reads it back", async () => {
+    const office = await signedIn("northwind", login("principal"));
+    const register = (name: string, jwks: string) =>
+      office.lti.saveTool({
+        name,
+        loginUrl: `${TOOL}/login`,
+        launchUrl: `${TOOL}/launch`,
+        redirectUrls: [`${TOOL}/launch`],
+        jwksUrl: jwks,
+        sendNames: false,
+      });
+    const registered = await register("Quiz maker", `${TOOL}/grades/jwks`);
+    const stranger = await register("Other maker", `${TOOL}/other/jwks`);
+    const { tools, platform } = await office.lti.tools();
+    const tool = tools.find((row) => row.id === registered.id);
+    const other = tools.find((row) => row.id === stranger.id);
+    if (!tool || !other) throw new Error("tools not registered");
+    expect(platform.tokenUrl).toBe("https://localhost/lti/token");
+    const { lessonId, linkId } = await lessonWithLink(tool.id, {
+      lineItem: { label: "Flood quiz", scoreMaximum: 10, tag: "grade" },
+    });
+    const pupil = await sessionFor("northwind", login("student"));
+    const me = await pupil.api.identity.currentUser();
+    const start = `/lti/launch?host=lesson&id=${lessonId}&link=${linkId}`;
+    const claims = decodeJwt(
+      await launchToken(pupil.token, me.id, tool.clientId, start),
+    );
+    const endpoint = claims[LTI_AGS_CLAIM] as {
+      scope: string[];
+      lineitems: string;
+      lineitem: string;
+    };
+    expect(endpoint.scope).toEqual(Object.values(LTI_AGS_SCOPES));
+    expect(endpoint.lineitems).toMatch(
+      /^https:\/\/localhost\/lti\/ags\/module\/[0-9a-f-]{36}\/[\w-]+\/lineitems$/,
+    );
+    // A second launch finds the column the first one made.
+    const again = decodeJwt(
+      await launchToken(pupil.token, me.id, tool.clientId, start),
+    );
+    expect((again[LTI_AGS_CLAIM] as { lineitem: string }).lineitem).toBe(
+      endpoint.lineitem,
+    );
+
+    const pair = await generateKeyPair("RS256");
+    const otherPair = await generateKeyPair("RS256");
+    const published = new Map([
+      [
+        `${TOOL}/grades/jwks`,
+        { keys: [{ ...(await exportJWK(pair.publicKey)), kid: "q-1" }] },
+      ],
+      [
+        `${TOOL}/other/jwks`,
+        { keys: [{ ...(await exportJWK(otherPair.publicKey)), kid: "o-1" }] },
+      ],
+    ]);
+    const fetched = spyOn(globalThis, "fetch").mockImplementation(
+      Object.assign(
+        async (input: string | URL | Request) => {
+          const keys = published.get(
+            input instanceof Request ? input.url : input.toString(),
+          );
+          return keys
+            ? Response.json(keys)
+            : Response.json({}, { status: 404 });
+        },
+        { preconnect: () => undefined },
+      ),
+    );
+    try {
+      const everything = Object.values(LTI_AGS_SCOPES).join(" ");
+      const signedIn1 = await assertion(tool.clientId, pair.privateKey, "q-1");
+      const granted = (await (
+        await askToken(signedIn1, everything)
+      ).json()) as {
+        access_token: string;
+        token_type: string;
+        scope: string;
+      };
+      expect(granted.token_type).toBe("Bearer");
+      expect(granted.scope).toBe(everything);
+      const access = granted.access_token;
+      // An assertion is taken once, and only for this school's token address.
+      expect((await askToken(signedIn1, everything)).status).toBe(401);
+      expect(
+        (
+          await askToken(
+            await assertion(
+              tool.clientId,
+              pair.privateKey,
+              "q-1",
+              "https://localhost/lti/auth",
+            ),
+            everything,
+          )
+        ).status,
+      ).toBe(401);
+      expect(
+        await (
+          await askToken(
+            await assertion(tool.clientId, pair.privateKey, "q-1"),
+            "https://example.com/scope",
+          )
+        ).json(),
+      ).toEqual({ error: "invalid_scope" });
+
+      const call = (
+        path: string,
+        init: RequestInit = {},
+        token: string = access,
+      ) => raw("northwind", token, local(path), init);
+      expect((await call(endpoint.lineitem, {}, "")).status).toBe(401);
+      expect(await (await call(endpoint.lineitem)).json()).toMatchObject({
+        id: endpoint.lineitem,
+        label: "Flood quiz",
+        scoreMaximum: 10,
+        tag: "grade",
+        resourceLinkId: `${lessonId}:${linkId}`,
+      });
+      const listed = (await (
+        await call(
+          `${endpoint.lineitems}?resource_link_id=${lessonId}:${linkId}`,
+        )
+      ).json()) as { id: string }[];
+      expect(listed.map((row) => row.id)).toEqual([endpoint.lineitem]);
+
+      const score = (body: Record<string, unknown>) =>
+        call(`${endpoint.lineitem}/scores`, {
+          method: "POST",
+          headers: { "content-type": "application/vnd.ims.lis.v1.score+json" },
+          body: JSON.stringify({
+            userId: me.id,
+            activityProgress: "Completed",
+            gradingProgress: "FullyGraded",
+            ...body,
+          }),
+        });
+      const later = new Date();
+      expect(
+        (
+          await score({
+            scoreGiven: 14,
+            scoreMaximum: 20,
+            comment: "Good work.",
+            timestamp: later.toISOString(),
+          })
+        ).status,
+      ).toBe(204);
+      // A score the tool sent earlier, arriving late, changes nothing.
+      expect(
+        (
+          await score({
+            scoreGiven: 2,
+            scoreMaximum: 20,
+            timestamp: new Date(later.getTime() - 60_000).toISOString(),
+          })
+        ).status,
+      ).toBe(204);
+      // Only a student of the course is scored.
+      const teacher = await (
+        await sessionFor("northwind", login("teacher"))
+      ).api.identity.currentUser();
+      expect(
+        (
+          await score({
+            userId: teacher.id,
+            scoreGiven: 1,
+            scoreMaximum: 1,
+            timestamp: later.toISOString(),
+          })
+        ).status,
+      ).toBe(404);
+      expect(await (await call(`${endpoint.lineitem}/results`)).json()).toEqual(
+        [
+          {
+            id: `${endpoint.lineitem}/results/${me.id}`,
+            scoreOf: endpoint.lineitem,
+            userId: me.id,
+            resultScore: 7,
+            resultMaximum: 10,
+            comment: "Good work.",
+          },
+        ],
+      );
+
+      // A tool makes a column of its own, and pages through them.
+      const made = await call(endpoint.lineitems, {
+        method: "POST",
+        headers: { "content-type": "application/vnd.ims.lis.v2.lineitem+json" },
+        body: JSON.stringify({
+          label: "Bonus",
+          scoreMaximum: 5,
+          resourceId: "b-1",
+        }),
+      });
+      expect(made.status).toBe(201);
+      const first = await call(`${endpoint.lineitems}?limit=1`);
+      const next = /<([^>]+)>; rel="next"/.exec(
+        first.headers.get("link") ?? "",
+      )?.[1];
+      expect(next).toBeTruthy();
+      expect(
+        ((await (await call(next ?? "")).json()) as { label: string }[]).map(
+          (row) => row.label,
+        ),
+      ).toEqual(["Bonus"]);
+      // A course address the school never gave, or another tool, reaches nothing.
+      expect(
+        (
+          await call(
+            endpoint.lineitems.replace(
+              /\/[\w-]+\/lineitems$/,
+              "/forged/lineitems",
+            ),
+          )
+        ).status,
+      ).toBe(404);
+      const otherAccess = (
+        (await (
+          await askToken(
+            await assertion(other.clientId, otherPair.privateKey, "o-1"),
+            everything,
+          )
+        ).json()) as { access_token: string }
+      ).access_token;
+      expect((await call(endpoint.lineitem, {}, otherAccess)).status).toBe(404);
     } finally {
       fetched.mockRestore();
     }

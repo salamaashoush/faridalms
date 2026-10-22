@@ -823,6 +823,7 @@
   "ltiIssuer": "Issuer",
   "ltiKeysUrl": "Public keys address (JWKS)",
   "ltiAuthUrl": "Authorization address",
+  "ltiTokenUrl": "Access token address",
   "ltiCopy": "Copy {what}",
   "ltiCopied": "Copied.",
   "ltiErrUrl": "Each address must be a full https:// address.",

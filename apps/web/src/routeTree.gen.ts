@@ -37,6 +37,7 @@ import { Route as LtiDeepLinkRouteImport } from './routes/lti/deep-link'
 import { Route as LtiJwksRouteImport } from './routes/lti/jwks'
 import { Route as LtiLaunchRouteImport } from './routes/lti/launch'
 import { Route as LtiPickRouteImport } from './routes/lti/pick'
+import { Route as LtiTokenRouteImport } from './routes/lti/token'
 import { Route as SiteSchoolRouteImport } from './routes/site/$school'
 import { Route as AppAdminIndexRouteImport } from './routes/_app/admin/index'
 import { Route as AppAdminAcademicYearEditorRouteImport } from './routes/_app/admin/academic-year-editor'
@@ -108,6 +109,7 @@ import { Route as ExportsStudentsStudentIdRouteImport } from './routes/exports/s
 import { Route as FeedsSchoolFileRouteImport } from './routes/feeds/$school/$file'
 import { Route as FilesFileIdPartsRouteImport } from './routes/files/$fileId.parts'
 import { Route as FilesFileIdStreamRouteImport } from './routes/files/$fileId.stream'
+import { Route as LtiAgsSplatRouteImport } from './routes/lti/ags.$'
 import { Route as SiteSchoolIndexRouteImport } from './routes/site/$school/index'
 import { Route as AppTeachBoardPacedIdRouteImport } from './routes/_app/teach/board.$pacedId'
 import { Route as AppTeachLivePacedIdRouteImport } from './routes/_app/teach/live.$pacedId'
@@ -254,6 +256,11 @@ const LtiLaunchRoute = LtiLaunchRouteImport.update({
 const LtiPickRoute = LtiPickRouteImport.update({
   id: '/lti/pick',
   path: '/lti/pick',
+  getParentRoute: () => rootRouteImport,
+} as any)
+const LtiTokenRoute = LtiTokenRouteImport.update({
+  id: '/lti/token',
+  path: '/lti/token',
   getParentRoute: () => rootRouteImport,
 } as any)
 const SiteSchoolRoute = SiteSchoolRouteImport.update({
@@ -619,6 +626,11 @@ const FilesFileIdStreamRoute = FilesFileIdStreamRouteImport.update({
   path: '/stream',
   getParentRoute: () => FilesFileIdRoute,
 } as any)
+const LtiAgsSplatRoute = LtiAgsSplatRouteImport.update({
+  id: '/lti/ags/$',
+  path: '/lti/ags/$',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const SiteSchoolIndexRoute = SiteSchoolIndexRouteImport.update({
   id: '/',
   path: '/',
@@ -687,6 +699,7 @@ export interface FileRoutesByFullPath {
   '/lti/jwks': typeof LtiJwksRoute
   '/lti/launch': typeof LtiLaunchRoute
   '/lti/pick': typeof LtiPickRoute
+  '/lti/token': typeof LtiTokenRoute
   '/site/$school': typeof SiteSchoolRouteWithChildren
   '/admin/academic-year-editor': typeof AppAdminAcademicYearEditorRoute
   '/admin/academic-years': typeof AppAdminAcademicYearsRoute
@@ -750,6 +763,7 @@ export interface FileRoutesByFullPath {
   '/feeds/$school/$file': typeof FeedsSchoolFileRoute
   '/files/$fileId/parts': typeof FilesFileIdPartsRouteWithChildren
   '/files/$fileId/stream': typeof FilesFileIdStreamRoute
+  '/lti/ags/$': typeof LtiAgsSplatRoute
   '/admin/': typeof AppAdminIndexRoute
   '/announcements/': typeof AppAnnouncementsIndexRoute
   '/calendar/': typeof AppCalendarIndexRoute
@@ -790,6 +804,7 @@ export interface FileRoutesByTo {
   '/lti/jwks': typeof LtiJwksRoute
   '/lti/launch': typeof LtiLaunchRoute
   '/lti/pick': typeof LtiPickRoute
+  '/lti/token': typeof LtiTokenRoute
   '/admin/academic-year-editor': typeof AppAdminAcademicYearEditorRoute
   '/admin/academic-years': typeof AppAdminAcademicYearsRoute
   '/admin/announcement-editor': typeof AppAdminAnnouncementEditorRoute
@@ -852,6 +867,7 @@ export interface FileRoutesByTo {
   '/feeds/$school/$file': typeof FeedsSchoolFileRoute
   '/files/$fileId/parts': typeof FilesFileIdPartsRouteWithChildren
   '/files/$fileId/stream': typeof FilesFileIdStreamRoute
+  '/lti/ags/$': typeof LtiAgsSplatRoute
   '/admin': typeof AppAdminIndexRoute
   '/announcements': typeof AppAnnouncementsIndexRoute
   '/calendar': typeof AppCalendarIndexRoute
@@ -899,6 +915,7 @@ export interface FileRoutesById {
   '/lti/jwks': typeof LtiJwksRoute
   '/lti/launch': typeof LtiLaunchRoute
   '/lti/pick': typeof LtiPickRoute
+  '/lti/token': typeof LtiTokenRoute
   '/site/$school': typeof SiteSchoolRouteWithChildren
   '/_app/admin/academic-year-editor': typeof AppAdminAcademicYearEditorRoute
   '/_app/admin/academic-years': typeof AppAdminAcademicYearsRoute
@@ -962,6 +979,7 @@ export interface FileRoutesById {
   '/feeds/$school/$file': typeof FeedsSchoolFileRoute
   '/files/$fileId/parts': typeof FilesFileIdPartsRouteWithChildren
   '/files/$fileId/stream': typeof FilesFileIdStreamRoute
+  '/lti/ags/$': typeof LtiAgsSplatRoute
   '/_app/admin/': typeof AppAdminIndexRoute
   '/_app/announcements/': typeof AppAnnouncementsIndexRoute
   '/_app/calendar/': typeof AppCalendarIndexRoute
@@ -1008,6 +1026,7 @@ export interface FileRouteTypes {
     | '/lti/jwks'
     | '/lti/launch'
     | '/lti/pick'
+    | '/lti/token'
     | '/site/$school'
     | '/admin/academic-year-editor'
     | '/admin/academic-years'
@@ -1071,6 +1090,7 @@ export interface FileRouteTypes {
     | '/feeds/$school/$file'
     | '/files/$fileId/parts'
     | '/files/$fileId/stream'
+    | '/lti/ags/$'
     | '/admin/'
     | '/announcements/'
     | '/calendar/'
@@ -1111,6 +1131,7 @@ export interface FileRouteTypes {
     | '/lti/jwks'
     | '/lti/launch'
     | '/lti/pick'
+    | '/lti/token'
     | '/admin/academic-year-editor'
     | '/admin/academic-years'
     | '/admin/announcement-editor'
@@ -1173,6 +1194,7 @@ export interface FileRouteTypes {
     | '/feeds/$school/$file'
     | '/files/$fileId/parts'
     | '/files/$fileId/stream'
+    | '/lti/ags/$'
     | '/admin'
     | '/announcements'
     | '/calendar'
@@ -1219,6 +1241,7 @@ export interface FileRouteTypes {
     | '/lti/jwks'
     | '/lti/launch'
     | '/lti/pick'
+    | '/lti/token'
     | '/site/$school'
     | '/_app/admin/academic-year-editor'
     | '/_app/admin/academic-years'
@@ -1282,6 +1305,7 @@ export interface FileRouteTypes {
     | '/feeds/$school/$file'
     | '/files/$fileId/parts'
     | '/files/$fileId/stream'
+    | '/lti/ags/$'
     | '/_app/admin/'
     | '/_app/announcements/'
     | '/_app/calendar/'
@@ -1313,10 +1337,12 @@ export interface RootRouteChildren {
   LtiJwksRoute: typeof LtiJwksRoute
   LtiLaunchRoute: typeof LtiLaunchRoute
   LtiPickRoute: typeof LtiPickRoute
+  LtiTokenRoute: typeof LtiTokenRoute
   SiteSchoolRoute: typeof SiteSchoolRouteWithChildren
   ExportsAssignmentsAssignmentIdRoute: typeof ExportsAssignmentsAssignmentIdRoute
   ExportsStudentsStudentIdRoute: typeof ExportsStudentsStudentIdRoute
   FeedsSchoolFileRoute: typeof FeedsSchoolFileRoute
+  LtiAgsSplatRoute: typeof LtiAgsSplatRoute
   PublicMediaPTokenNameRoute: typeof PublicMediaPTokenNameRoute
 }
 
@@ -1516,6 +1542,13 @@ declare module '@tanstack/react-router' {
       path: '/lti/pick'
       fullPath: '/lti/pick'
       preLoaderRoute: typeof LtiPickRouteImport
+      parentRoute: typeof rootRouteImport
+    }
+    '/lti/token': {
+      id: '/lti/token'
+      path: '/lti/token'
+      fullPath: '/lti/token'
+      preLoaderRoute: typeof LtiTokenRouteImport
       parentRoute: typeof rootRouteImport
     }
     '/site/$school': {
@@ -2015,6 +2048,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof FilesFileIdStreamRouteImport
       parentRoute: typeof FilesFileIdRoute
     }
+    '/lti/ags/$': {
+      id: '/lti/ags/$'
+      path: '/lti/ags/$'
+      fullPath: '/lti/ags/$'
+      preLoaderRoute: typeof LtiAgsSplatRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/site/$school/': {
       id: '/site/$school/'
       path: '/'
@@ -2350,10 +2390,12 @@ const rootRouteChildren: RootRouteChildren = {
   LtiJwksRoute: LtiJwksRoute,
   LtiLaunchRoute: LtiLaunchRoute,
   LtiPickRoute: LtiPickRoute,
+  LtiTokenRoute: LtiTokenRoute,
   SiteSchoolRoute: SiteSchoolRouteWithChildren,
   ExportsAssignmentsAssignmentIdRoute: ExportsAssignmentsAssignmentIdRoute,
   ExportsStudentsStudentIdRoute: ExportsStudentsStudentIdRoute,
   FeedsSchoolFileRoute: FeedsSchoolFileRoute,
+  LtiAgsSplatRoute: LtiAgsSplatRoute,
   PublicMediaPTokenNameRoute: PublicMediaPTokenNameRoute,
 }
 export const routeTree = rootRouteImport

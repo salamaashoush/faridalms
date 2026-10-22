@@ -41,9 +41,12 @@ export function relayTo(
   return { headers, target: `${env.BACKEND_URL}${path}` };
 }
 
-export function relayed(upstream: Response): Response {
+export function relayed(
+  upstream: Response,
+  also: readonly string[] = [],
+): Response {
   const headers = new Headers();
-  for (const name of FORWARDED) {
+  for (const name of [...FORWARDED, ...also]) {
     const value = upstream.headers.get(name);
     if (value) headers.set(name, value);
   }

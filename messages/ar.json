@@ -854,6 +854,7 @@
   "ltiIssuer": "المُصدِر",
   "ltiKeysUrl": "عنوان المفاتيح العامة (JWKS)",
   "ltiAuthUrl": "عنوان التفويض",
+  "ltiTokenUrl": "عنوان رمز الوصول",
   "ltiCopy": "نسخ {what}",
   "ltiCopied": "نُسخ.",
   "ltiErrUrl": "يجب أن يكون كل عنوان كاملًا يبدأ بـ https://.",

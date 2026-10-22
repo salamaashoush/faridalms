@@ -172,3 +172,94 @@ export const LTI_DL_CLAIM = {
   msg: `${DL}/msg`,
   errormsg: `${DL}/errormsg`,
 } as const;
+
+/** The claim a launch names a course's grade services in, LTI's Assignment and Grade Services. */
+export const LTI_AGS_CLAIM =
+  "https://purl.imsglobal.org/spec/lti-ags/claim/endpoint";
+
+const AGS = "https://purl.imsglobal.org/spec/lti-ags/scope";
+export const LTI_AGS_SCOPES = {
+  lineItem: `${AGS}/lineitem`,
+  lineItemRead: `${AGS}/lineitem.readonly`,
+  resultRead: `${AGS}/result.readonly`,
+  score: `${AGS}/score`,
+} as const;
+
+/** A time a tool sends, ISO 8601 with its zone, as LTI asks. */
+const zoned = v.pipe(
+  v.string(),
+  v.regex(
+    /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}(?::\d{2}(?:\.\d+)?)?(?:Z|[+-]\d{2}:?\d{2})$/,
+  ),
+  v.check((value) => !Number.isNaN(Date.parse(value))),
+  v.transform((value) => new Date(value)),
+);
+const optionalTime = v.optional(
+  v.nullable(
+    v.union([
+      v.pipe(
+        v.literal(""),
+        v.transform(() => null),
+      ),
+      zoned,
+    ]),
+  ),
+  null,
+);
+const optionalWord = v.optional(
+  v.nullable(v.pipe(v.string(), v.maxLength(255))),
+  null,
+);
+
+/** A column of grades as a tool writes it, the line item it posts or puts. */
+export const agsLineItemSchema = v.object({
+  label: v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(200)),
+  scoreMaximum: v.pipe(v.number(), v.gtValue(0), v.maxValue(10_000_000)),
+  resourceId: optionalWord,
+  tag: optionalWord,
+  resourceLinkId: v.optional(v.nullable(v.string())),
+  startDateTime: optionalTime,
+  endDateTime: optionalTime,
+  gradesReleased: v.optional(v.nullable(v.boolean()), null),
+});
+export type AgsLineItem = v.InferOutput<typeof agsLineItemSchema>;
+
+/** A score a tool sends for one student, the latest it has for them. */
+export const agsScoreSchema = v.pipe(
+  v.object({
+    userId: v.pipe(v.string(), v.uuid()),
+    timestamp: zoned,
+    activityProgress: v.picklist([
+      "Initialized",
+      "Started",
+      "InProgress",
+      "Submitted",
+      "Completed",
+    ]),
+    gradingProgress: v.picklist([
+      "FullyGraded",
+      "Pending",
+      "PendingManual",
+      "Failed",
+      "NotReady",
+    ]),
+    scoreGiven: v.optional(
+      v.nullable(v.pipe(v.number(), v.minValue(0), v.maxValue(10_000_000))),
+      null,
+    ),
+    scoreMaximum: v.optional(
+      v.nullable(v.pipe(v.number(), v.gtValue(0), v.maxValue(10_000_000))),
+      null,
+    ),
+    comment: v.optional(
+      v.nullable(v.pipe(v.string(), v.maxLength(4000))),
+      null,
+    ),
+    scoringUserId: v.optional(v.nullable(v.string()), null),
+  }),
+  v.check(
+    (score) => score.scoreGiven === null || score.scoreMaximum !== null,
+    "lti.score_maximum",
+  ),
+);
+export type AgsScore = v.InferOutput<typeof agsScoreSchema>;

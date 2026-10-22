@@ -1,5 +1,5 @@
-import type { ContentNode } from "@faridalms/domain/content";
-import type { LtiHost, LtiLink, LtiPick } from "@faridalms/domain/lti";
+import type { LtiCourse } from "@faridalms/database/stores/lti";
+import type { LtiHost, LtiPick } from "@faridalms/domain/lti";
 
 import { TenantUnavailableError } from "@faridalms/database/context";
 import { classById } from "@faridalms/database/stores/classes";
@@ -10,6 +10,7 @@ import {
 } from "@faridalms/database/stores/documents";
 import { lessonById, moduleById } from "@faridalms/database/stores/learning";
 import {
+  declaredLineItem,
   publishedKeys,
   toolByClientId,
   toolById,
@@ -33,33 +34,19 @@ import type {
   SchoolContext,
   UnitContext,
 } from "../core/context";
-import type { LtiSecrets } from "./crypto";
 
 import { localeOf, openUnit, schoolOf } from "../core/procedure";
 import { hostAccess } from "../files/authorize";
-import { ltiSecrets } from "./crypto";
+import { gradeService, gradesClaim, issueToken } from "./grades";
 import { schoolSigningKey, signed, toolKeys } from "./keys";
-
-const secretsOf = new WeakMap<Uint8Array, LtiSecrets>();
-const secretsFor = (context: RequestContext) => {
-  let found = secretsOf.get(context.cellSecret);
-  if (!found) {
-    found = ltiSecrets(context.cellSecret);
-    secretsOf.set(context.cellSecret, found);
-  }
-  return found;
-};
-
-/** The school's address as tools know it, which every message names. */
-export const issuerOf = (school: { appHost: string }) =>
-  `https://${school.appHost}/lti`;
-
-const escape = (value: string) =>
-  value
-    .replaceAll("&", "&amp;")
-    .replaceAll('"', "&quot;")
-    .replaceAll("<", "&lt;")
-    .replaceAll(">", "&gt;");
+import {
+  escape,
+  findLink,
+  issuerOf,
+  refused,
+  resourceLinkId,
+  secretsFor,
+} from "./shared";
 
 /**
  * A page that posts itself on to a tool, as the OAuth form post answer
@@ -83,32 +70,6 @@ export function postedTo(action: string, fields: Record<string, string>) {
       },
     },
   );
-}
-
-const refused = (status: number, code: string) =>
-  Response.json({ code }, { status });
-
-/**
- * A link's id as tools know it: its place, the lesson or brief, with its
- * own id there, so a link copied into another lesson is another link, as
- * LTI asks.
- */
-export const resourceLinkId = (hostId: string, linkId: string) =>
-  `${hostId}:${linkId}`;
-
-/** A link to an outside tool in a document, found by its id. */
-function findLink(
-  content: Record<string, unknown> | undefined,
-  linkId: string,
-): LtiLink | null {
-  const pending = [
-    ...((content?.root as ContentNode | undefined)?.children ?? []),
-  ];
-  for (let node = pending.shift(); node; node = pending.shift()) {
-    if (node.type === "lti" && node.lti?.linkId === linkId) return node.lti;
-    if (node.children) pending.push(...node.children);
-  }
-  return null;
 }
 
 /**
@@ -210,6 +171,10 @@ interface PickData {
 
 const ID = /^[0-9a-f-]{36}$/;
 
+/** The course a lesson's or brief's grades sit in, as the grade services name it. */
+const courseFor = (host: LtiHost, courseId: string): LtiCourse =>
+  host === "lesson" ? { moduleId: courseId } : { classId: courseId };
+
 /** The lesson or brief a request names, when it names one. */
 function hostIn(url: URL): { type: LtiHost; id: string } | null {
   const type = url.searchParams.get("host") ?? "";
@@ -307,13 +272,37 @@ async function parameters(request: Request, url: URL) {
 }
 
 /** What a launch tells a tool of the link it is from and who opens it. */
-async function launchMessage(unit: UnitContext, hint: LaunchHint) {
+async function launchMessage(
+  context: SchoolContext,
+  unit: UnitContext,
+  hint: LaunchHint,
+) {
   const found = await launchOf(
     unit,
     { type: hint.host, id: hint.hostId },
     hint.linkId,
   );
   if (!found) return null;
+  const course = courseFor(hint.host, found.course.id);
+  // The column the link's content asked for is made at its first launch,
+  // which is the first time the tool could report into it.
+  const declared = found.link.lineItem
+    ? await declaredLineItem(unit.tx, {
+        tenantId: unit.tenantId,
+        toolId: found.tool.id,
+        course,
+        link: {
+          ...(hint.host === "lesson"
+            ? { lessonId: hint.hostId }
+            : { assignmentId: hint.hostId }),
+          linkId: found.link.linkId,
+        },
+        label: found.link.lineItem.label || found.link.title || found.tool.name,
+        scoreMaximum: found.link.lineItem.scoreMaximum,
+        resourceId: found.link.lineItem.resourceId ?? null,
+        tag: found.link.lineItem.tag ?? null,
+      })
+    : null;
   return {
     tool: found.tool,
     course: found.course,
@@ -329,6 +318,7 @@ async function launchMessage(unit: UnitContext, hint: LaunchHint) {
         ? LTI_ROLES.instructor
         : LTI_ROLES.learner,
       [LTI_CLAIM.custom]: { ...found.tool.custom, ...found.link.custom },
+      ...(await gradesClaim(context, found.tool.id, course, declared)),
     },
   };
 }
@@ -367,9 +357,16 @@ async function pickMessage(
         accept_types: ["ltiResourceLink"],
         accept_presentation_document_targets: ["window"],
         accept_multiple: false,
+        accept_lineitem: true,
         // A teacher may browse a tool's library a while before picking.
         data: await secretsFor(context).sign(data, 3600),
       },
+      ...(await gradesClaim(
+        context,
+        found.tool.id,
+        courseFor(hint.host, found.course.id),
+        null,
+      )),
     },
   };
 }
@@ -429,7 +426,7 @@ async function authorize(
       return fail("login_required");
     const message =
       hint.kind === "launch"
-        ? await launchMessage(unit, hint)
+        ? await launchMessage(context, unit, hint)
         : await pickMessage(context, unit, hint);
     if (!message || message.tool.id !== tool.id) return fail("invalid_request");
     const [person] = tool.sendNames
@@ -640,5 +637,9 @@ export async function handleLtiRequest(
     return pick(scoped, url);
   if (url.pathname === "/lti/deep-link" && request.method === "POST")
     return picked(scoped, request);
+  if (url.pathname === "/lti/token" && request.method === "POST")
+    return issueToken(scoped, request);
+  if (url.pathname.startsWith("/lti/ags/"))
+    return gradeService(scoped, request, url);
   return refused(404, "NOT_FOUND");
 }

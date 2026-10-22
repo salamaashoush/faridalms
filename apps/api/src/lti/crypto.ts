@@ -33,7 +33,8 @@ async function derive(
 /**
  * The cell's secrets for outside tools, each derived from the cell secret
  * for one use: sealing the private halves of the schools' signing keys,
- * and signing the short-lived hints a launch carries through a tool.
+ * and signing what tools carry and hand back: a launch's hints, their
+ * access tokens, the addresses of their courses' grades.
  */
 export function ltiSecrets(cellSecret: Uint8Array<ArrayBuffer>) {
   const sealing = derive(cellSecret, "lti signing keys", "seal");
@@ -73,6 +74,23 @@ export function ltiSecrets(cellSecret: Uint8Array<ArrayBuffer>) {
         encoder.encode(body),
       );
       return `${body}.${base64url(new Uint8Array(mac))}`;
+    },
+    /** A value's tag that only this cell could have made, the same each time. */
+    async tag(value: string): Promise<string> {
+      const mac = await crypto.subtle.sign(
+        "HMAC",
+        await hints,
+        encoder.encode(`tag:${value}`),
+      );
+      return base64url(new Uint8Array(mac));
+    },
+    async tagged(value: string, tag: string): Promise<boolean> {
+      return crypto.subtle.verify(
+        "HMAC",
+        await hints,
+        unbase64url(tag),
+        encoder.encode(`tag:${value}`),
+      );
     },
     async read<T extends object>(token: string): Promise<T | null> {
       const [body = "", mac = ""] = token.split(".");

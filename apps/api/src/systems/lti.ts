@@ -17,7 +17,7 @@ import {
   requireCapability,
   writeProcedure,
 } from "../core/procedure";
-import { issuerOf } from "../lti/routes";
+import { issuerOf } from "../lti/shared";
 
 /** What a tool's maker needs to register the school with it. */
 function platformOf(context: UnitContext) {
@@ -26,6 +26,7 @@ function platformOf(context: UnitContext) {
     issuer,
     jwksUrl: `${issuer}/jwks`,
     authUrl: `${issuer}/auth`,
+    tokenUrl: `${issuer}/token`,
   };
 }
 

@@ -6,6 +6,7 @@ import {
   bytea,
   index,
   jsonb,
+  numeric,
   text,
   uniqueIndex,
   uuid,
@@ -18,11 +19,17 @@ import {
   entityColumns,
   entityProfile,
   ephemeralProfile,
+  eraseAndDelete,
+  erasureOf,
   fk,
   instant,
   pk,
   tenantColumns,
 } from "./conventions";
+import { assignments } from "./coursework";
+import { learningModules, lessons } from "./learning";
+import { users } from "./people";
+import { classes } from "./teaching";
 import { orgs, tenants } from "./tenancy";
 
 /**
@@ -133,5 +140,150 @@ export const ltiReplays = core.table.withRLS(
     ck("lti_replays", "key_hash", sql`octet_length(key_hash) = 32`),
     index("lti_replays_expiry_idx").on(t.tenantId, t.expiresAt),
     ...ephemeralProfile(sql`expires_at < statement_timestamp()`),
+  ],
+);
+
+const score = (name: string) =>
+  numeric(name, { precision: 12, scale: 4, mode: "number" });
+
+/**
+ * A column of grades a tool reports into, LTI's line item: in one course,
+ * a lesson's module or a class, and often for one link to the tool in a
+ * lesson or brief there. A link's own column, which the content picked
+ * for it asked for, is declared, and made when the link is first launched.
+ */
+export const ltiLineItems = core.table.withRLS(
+  "lti_line_items",
+  {
+    ...tenantColumns(),
+    toolId: uuid("tool_id").notNull(),
+    moduleId: uuid("module_id"),
+    classId: uuid("class_id"),
+    lessonId: uuid("lesson_id"),
+    assignmentId: uuid("assignment_id"),
+    linkId: uuid("link_id"),
+    declared: boolean("declared").notNull().default(false),
+    label: text("label").notNull(),
+    scoreMaximum: score("score_maximum").notNull(),
+    resourceId: text("resource_id"),
+    tag: text("tag"),
+    startsAt: instant("starts_at"),
+    endsAt: instant("ends_at"),
+    gradesReleased: boolean("grades_released"),
+    ...entityColumns(),
+  },
+  (t): PgTableExtraConfigValue[] => [
+    pk("lti_line_items", t.tenantId, t.id),
+    ...baseConstraints("lti_line_items", t, tenants),
+    fk(
+      "lti_line_items",
+      [t.tenantId, t.toolId],
+      [ltiTools.tenantId, ltiTools.id],
+    ),
+    fk(
+      "lti_line_items",
+      [t.tenantId, t.moduleId],
+      [learningModules.tenantId, learningModules.id],
+    ),
+    fk(
+      "lti_line_items",
+      [t.tenantId, t.classId],
+      [classes.tenantId, classes.id],
+    ),
+    fk(
+      "lti_line_items",
+      [t.tenantId, t.lessonId],
+      [lessons.tenantId, lessons.id],
+    ),
+    fk(
+      "lti_line_items",
+      [t.tenantId, t.assignmentId],
+      [assignments.tenantId, assignments.id],
+    ),
+    ck(
+      "lti_line_items",
+      "course",
+      sql`num_nonnulls(module_id, class_id) = 1
+        and (lesson_id is null or module_id is not null)
+        and (assignment_id is null or class_id is not null)`,
+    ),
+    ck(
+      "lti_line_items",
+      "link",
+      sql`(link_id is null) = (lesson_id is null and assignment_id is null)
+        and (not declared or link_id is not null)`,
+    ),
+    ck(
+      "lti_line_items",
+      "fields",
+      sql`char_length(label) between 1 and 200 and score_maximum > 0
+        and char_length(coalesce(resource_id, '')) <= 255 and char_length(coalesce(tag, '')) <= 255
+        and (starts_at is null or ends_at is null or starts_at <= ends_at)`,
+    ),
+    uniqueIndex("lti_line_items_lesson_link_key")
+      .on(t.tenantId, t.toolId, t.lessonId, t.linkId)
+      .where(sql`declared and lesson_id is not null and status = 'active'`),
+    uniqueIndex("lti_line_items_assignment_link_key")
+      .on(t.tenantId, t.toolId, t.assignmentId, t.linkId)
+      .where(sql`declared and assignment_id is not null and status = 'active'`),
+    index("lti_line_items_module_idx")
+      .on(t.tenantId, t.toolId, t.moduleId)
+      .where(sql`module_id is not null and status = 'active'`),
+    index("lti_line_items_class_idx")
+      .on(t.tenantId, t.toolId, t.classId)
+      .where(sql`class_id is not null and status = 'active'`),
+    ...entityProfile(),
+  ],
+);
+
+/**
+ * A student's latest score in a tool's column, as the tool last sent it,
+ * with how far the student and the marking have got; a score the tool sent
+ * before the one kept is ignored, as LTI asks.
+ */
+export const ltiScores = core.table.withRLS(
+  "lti_scores",
+  {
+    ...tenantColumns(),
+    lineItemId: uuid("line_item_id").notNull(),
+    studentUserId: uuid("student_user_id").notNull(),
+    scoreGiven: score("score_given"),
+    scoreMaximum: score("score_maximum"),
+    comment: text("comment"),
+    activityProgress: text("activity_progress").notNull(),
+    gradingProgress: text("grading_progress").notNull(),
+    /** When the tool says the score changed, which orders its updates. */
+    scoredAt: instant("scored_at").notNull(),
+    scoringUserId: uuid("scoring_user_id"),
+    ...entityColumns(),
+  },
+  (t): PgTableExtraConfigValue[] => [
+    pk("lti_scores", t.tenantId, t.id),
+    ...baseConstraints("lti_scores", t, tenants),
+    fk(
+      "lti_scores",
+      [t.tenantId, t.lineItemId],
+      [ltiLineItems.tenantId, ltiLineItems.id],
+    ),
+    fk("lti_scores", [t.tenantId, t.studentUserId], [users.tenantId, users.id]),
+    fk("lti_scores", [t.tenantId, t.scoringUserId], [users.tenantId, users.id]),
+    ck(
+      "lti_scores",
+      "score",
+      sql`(score_given is null or (score_given >= 0 and score_maximum > 0))
+        and char_length(coalesce(comment, '')) <= 4000`,
+    ),
+    ck(
+      "lti_scores",
+      "progress",
+      sql`activity_progress in ('Initialized', 'Started', 'InProgress', 'Submitted', 'Completed')
+        and grading_progress in ('FullyGraded', 'Pending', 'PendingManual', 'Failed', 'NotReady')`,
+    ),
+    uniqueIndex("lti_scores_key")
+      .on(t.tenantId, t.lineItemId, t.studentUserId)
+      .where(sql`status = 'active'`),
+    index("lti_scores_student_idx").on(t.tenantId, t.studentUserId),
+    ...entityProfile(),
+    ...eraseAndDelete(erasureOf("student_user_id")),
   ],
 );

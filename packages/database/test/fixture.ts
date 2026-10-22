@@ -78,7 +78,9 @@ import {
   lessonReleases,
   discussionPosts,
   ltiKeys,
+  ltiLineItems,
   ltiReplays,
+  ltiScores,
   ltiTools,
   peerReviews,
   passkeys,
@@ -599,16 +601,44 @@ export async function completeFixture(
     suggestion: "Say where the river starts.",
     sentAt: new Date("2026-09-22T10:00:00Z"),
   });
-  await tx.insert(ltiTools).values({
+  const [simulator] = await tx
+    .insert(ltiTools)
+    .values({
+      tenantId,
+      orgId: schoolId,
+      name: "River simulator",
+      clientId: id(),
+      deploymentId: id(),
+      loginUrl: "https://tool.example.com/login",
+      launchUrl: "https://tool.example.com/launch",
+      redirectUrls: ["https://tool.example.com/launch"],
+      jwksUrl: "https://tool.example.com/jwks",
+    })
+    .returning({ id: ltiTools.id });
+  if (!simulator) throw new Error("no tool");
+  const [column] = await tx
+    .insert(ltiLineItems)
+    .values({
+      tenantId,
+      toolId: simulator.id,
+      moduleId: setFor.moduleId,
+      lessonId: lesson.id,
+      linkId: id(),
+      declared: true,
+      label: "Flood simulation",
+      scoreMaximum: 10,
+    })
+    .returning({ id: ltiLineItems.id });
+  if (!column) throw new Error("no line item");
+  await tx.insert(ltiScores).values({
     tenantId,
-    orgId: schoolId,
-    name: "River simulator",
-    clientId: id(),
-    deploymentId: id(),
-    loginUrl: "https://tool.example.com/login",
-    launchUrl: "https://tool.example.com/launch",
-    redirectUrls: ["https://tool.example.com/launch"],
-    jwksUrl: "https://tool.example.com/jwks",
+    lineItemId: column.id,
+    studentUserId: userId,
+    scoreGiven: 8,
+    scoreMaximum: 10,
+    activityProgress: "Completed",
+    gradingProgress: "FullyGraded",
+    scoredAt: new Date("2026-09-22T10:00:00Z"),
   });
   await tx.insert(ltiKeys).values({
     tenantId,
