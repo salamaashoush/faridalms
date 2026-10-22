@@ -33,7 +33,17 @@ import { sayIn } from "./starters";
 type Plan = Awaited<
   ReturnType<NonNullable<ReturnType<typeof planQuery>["queryFn"]>>
 >;
-type Assessed = Plan["assessed"][number];
+type Covered = Plan["covered"][number];
+
+/** How the lessons cover a standard: the questions assessing it, and the lessons setting it out. */
+function coverOf(row: Pick<Covered, "questions" | "lessons">) {
+  return [
+    row.questions ? m.planQuestions({ count: row.questions }) : null,
+    row.lessons ? m.planLessons({ count: row.lessons }) : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+}
 
 function Statement({ code, statement }: { code: string; statement: string }) {
   return (
@@ -51,23 +61,24 @@ function Statement({ code, statement }: { code: string; statement: string }) {
 }
 
 /**
- * A plan's standards read against its module's questions: each standard the
- * plan names with the questions that assess it, the ones none does yet, and
- * the standards questions assess that the plan leaves out.
+ * A plan's standards read against its module's lessons: each standard the
+ * plan names with the questions that assess it and the lessons that set it
+ * out, the ones no question assesses yet, and the standards the lessons
+ * cover that the plan leaves out.
  */
 export function PlanCoverage({
   content,
-  assessed,
+  covered,
   framed = false,
 }: {
   content: ContentDocument;
-  assessed: readonly Assessed[];
+  covered: readonly Covered[];
   /** Ruled off as a section of a page, rather than inside the details panel. */
   framed?: boolean;
 }) {
   const named = planTargets(content);
-  const counted = new Map(assessed.map((row) => [row.id, row.questions]));
-  const left = assessed.filter(
+  const counted = new Map(covered.map((row) => [row.id, row]));
+  const left = covered.filter(
     (row) => !named.some((target) => target.id === row.id),
   );
   const list = "grid gap-2";
@@ -82,7 +93,8 @@ export function PlanCoverage({
         ) : (
           <ul className={list}>
             {named.map((target) => {
-              const questions = counted.get(target.id) ?? 0;
+              const cover = counted.get(target.id);
+              const questions = cover?.questions ?? 0;
               return (
                 <li key={target.id} className={row}>
                   <Statement code={target.code} statement={target.statement} />
@@ -95,8 +107,16 @@ export function PlanCoverage({
                     )}
                   >
                     {questions
-                      ? m.planQuestions({ count: questions })
-                      : m.planNotAssessed()}
+                      ? coverOf({ questions, lessons: cover?.lessons ?? 0 })
+                      : [
+                          m.planNotAssessed(),
+                          coverOf({
+                            questions: 0,
+                            lessons: cover?.lessons ?? 0,
+                          }),
+                        ]
+                          .filter(Boolean)
+                          .join(" · ")}
                   </span>
                 </li>
               );
@@ -114,7 +134,7 @@ export function PlanCoverage({
                   statement={standard.statement}
                 />
                 <span className="text-[13px] leading-[18px] text-muted-foreground">
-                  {m.planQuestions({ count: standard.questions })}
+                  {coverOf(standard)}
                 </span>
               </li>
             ))}
@@ -241,7 +261,7 @@ export function PlanEditor({
         }
         summary={[m.planNamedCount({ count: named })]}
         details={{ open: detailsOpen, onOpenChange: setDetailsOpen }}
-        aside={<PlanCoverage content={content} assessed={plan.assessed} />}
+        aside={<PlanCoverage content={content} covered={plan.covered} />}
       >
         <ContentEditor
           id="plan-body"

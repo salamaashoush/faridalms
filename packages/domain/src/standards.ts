@@ -254,6 +254,20 @@ export function questionStandards(
   return tagged;
 }
 
+/**
+ * How many of the documents name each standard in a Standards block, as a
+ * lesson sets out what it teaches: each document counted once a standard.
+ */
+export function intendedStandards(
+  documents: readonly ContentDocument[],
+): Map<string, number> {
+  const set = new Map<string, number>();
+  for (const document of documents)
+    for (const target of planTargets(document))
+      set.set(target.id, (set.get(target.id) ?? 0) + 1);
+  return set;
+}
+
 // --- CASE ------------------------------------------------------------------
 
 const node = v.looseObject({ identifier: v.string() });

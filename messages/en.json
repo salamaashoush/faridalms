@@ -957,7 +957,17 @@
   "planNamed": "Standards in the plan",
   "planNoStandards": "Name the plan's goals in a Standards block, and each shows the questions in this module that assess it.",
   "planNotAssessed": "No question assesses it yet",
-  "planUnplanned": "Assessed, not in the plan",
+  "planUnplanned": "In the lessons, not in the plan",
+  "planLessons": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "set out in {count} lesson",
+        "countPlural=*": "set out in {count} lessons"
+      }
+    }
+  ],
   "planQuestions": [
     {
       "declarations": ["input count", "local countPlural = count: plural"],

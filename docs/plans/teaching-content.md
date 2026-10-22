@@ -352,9 +352,12 @@ Sources: [../research/course-design.md](../research/course-design.md),
    tags hold. A question carries up to six standards (`standards` on the
    node), tagged from the question bar's Standards panel, which searches
    every framework by code or words; its label counts them, and a question
-   kept in the bank keeps them. Left: a lesson's own standards, which unit
-   planning (4.3) brings, and naturally ordered codes ("RL.3.2" before
-   "RL.3.10") in the picker.
+   kept in the bank keeps them. A lesson sets out its own standards in a
+   Standards block, the one unit planning (4.3) brought, and its module's
+   plan counts them beside the questions that assess each, listing the
+   standards lessons cover that the plan leaves out. The picker reads codes
+   with their numbers in order ("RL.3.2" before "RL.3.10"), from an ICU
+   collation (`core.natural`).
 2. **Skill progress**: "N of M skills secure" per student and per class,
    from the tagged checks. Done: each marked answer to a tagged question
    is kept as evidence (`core.standard_evidence`): a lesson's first answer

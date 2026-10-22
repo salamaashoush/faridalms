@@ -992,7 +992,21 @@
   "planNamed": "المعايير في الخطة",
   "planNoStandards": "سمِّ أهداف الخطة في كتلة معايير، فيظهر لكل منها ما يقيسه من أسئلة هذه الوحدة.",
   "planNotAssessed": "لا يقيسه أي سؤال بعد",
-  "planUnplanned": "مُقاس وليس في الخطة",
+  "planUnplanned": "في الدروس وليس في الخطة",
+  "planLessons": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=zero": "لا يحدده أي درس",
+        "countPlural=one": "يحدده درس واحد",
+        "countPlural=two": "يحدده درسان",
+        "countPlural=few": "تحدده {count} دروس",
+        "countPlural=many": "يحدده {count} درسًا",
+        "countPlural=*": "يحدده {count} درس"
+      }
+    }
+  ],
   "planQuestions": [
     {
       "declarations": ["input count", "local countPlural = count: plural"],

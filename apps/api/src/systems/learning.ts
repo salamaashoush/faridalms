@@ -197,7 +197,10 @@ import {
 } from "@faridalms/domain/practice";
 import { heldAs, sameFiles } from "@faridalms/domain/project";
 import { scratchReadingOf } from "@faridalms/domain/scratch-project";
-import { questionStandards } from "@faridalms/domain/standards";
+import {
+  intendedStandards,
+  questionStandards,
+} from "@faridalms/domain/standards";
 import {
   documentWritten,
   otherLocale,
@@ -562,8 +565,9 @@ registerLiveRules("module_plan", { keyed: () => Promise.resolve(false) });
 const planHost = (moduleId: string) => ({ type: "module_plan", id: moduleId });
 
 /**
- * A module's unit plan, and the standards its lessons' questions assess with
- * how many questions assess each, for the plan to be read against.
+ * A module's unit plan, and the standards its lessons cover, each with how
+ * many questions assess it and how many lessons set it out as what they
+ * teach, for the plan to be read against.
  */
 export const plan = readProcedure
   .input(planSchema)
@@ -579,19 +583,20 @@ export const plan = readProcedure
       "lesson",
       lessons.map((lesson) => lesson.id),
     );
-    const tagged = questionStandards(
-      [...contents.values()].map(lessonContentOf),
-    );
-    const assessed = await standardsByIds(context.tx, {
+    const documents = [...contents.values()].map(lessonContentOf);
+    const tagged = questionStandards(documents);
+    const intended = intendedStandards(documents);
+    const covered = await standardsByIds(context.tx, {
       tenantId: context.tenantId,
       orgId: context.schoolId,
-      ids: [...tagged.keys()],
+      ids: [...new Set([...tagged.keys(), ...intended.keys()])],
     });
     return {
       content: stored ? (stored.content as unknown as ContentDocument) : null,
-      assessed: assessed.map((row) => ({
+      covered: covered.map((row) => ({
         ...row,
         questions: tagged.get(row.id) ?? 0,
+        lessons: intended.get(row.id) ?? 0,
       })),
     };
   });

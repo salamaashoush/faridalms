@@ -730,7 +730,7 @@ function ModulePlan({ moduleId }: { moduleId: string }) {
   const query = useQuery(planQuery(moduleId));
   const navigate = useNavigate();
   if (!query.data) return <div aria-busy="true" className="min-h-40" />;
-  const { content, assessed } = query.data;
+  const { content, covered } = query.data;
   const edit = () =>
     void navigate({ to: "/teach/module-plan", search: { moduleId } });
   if (!content)
@@ -769,7 +769,7 @@ function ModulePlan({ moduleId }: { moduleId: string }) {
           </div>
         </RecordSection>
       }
-      aside={<PlanCoverage content={content} assessed={assessed} />}
+      aside={<PlanCoverage content={content} covered={covered} />}
     />
   );
 }

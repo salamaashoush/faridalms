@@ -4885,6 +4885,7 @@ describe("a module's unit plan", () => {
       });
     const planned = await tag("PL.1");
     const unplanned = await tag("PL.2");
+    const intended = await tag("PL.3");
     const { keeper, stranger } = await teachers();
     const { rows } = await keeper.learning.modules({});
     const source = rows.find((row) => row.title === TITLE);
@@ -4900,8 +4901,9 @@ describe("a module's unit plan", () => {
     });
     expect(await keeper.learning.plan({ moduleId: saved.id })).toEqual({
       content: null,
-      assessed: [],
+      covered: [],
     });
+    const intentions = plainContent("Today we learn to:");
     const right = id();
     await keeper.learning.saveLesson({
       id: "",
@@ -4911,6 +4913,26 @@ describe("a module's unit plan", () => {
       completion: "view",
       passScore: null,
       content: written([
+        {
+          id: id(),
+          type: "content",
+          content: {
+            root: {
+              ...intentions.root,
+              children: [
+                ...(intentions.root.children ?? []),
+                {
+                  type: "standards",
+                  version: 1,
+                  targets: [
+                    planTarget(planned.id, "PL.1"),
+                    planTarget(intended.id, "PL.3"),
+                  ],
+                },
+              ],
+            },
+          },
+        },
         {
           id: id(),
           type: "choice",
@@ -4953,13 +4975,16 @@ describe("a module's unit plan", () => {
       type: "standards",
       targets: [planTarget(planned.id, "PL.1")],
     });
+    // A lesson's Standards block sets out what it teaches, beside the
+    // questions that assess it.
     expect(
-      shown.assessed
-        .map((row) => [row.code, row.questions])
+      shown.covered
+        .map((row) => [row.code, row.questions, row.lessons])
         .toSorted(([a], [b]) => String(a).localeCompare(String(b))),
     ).toEqual([
-      ["PL.1", 1],
-      ["PL.2", 1],
+      ["PL.1", 1, 1],
+      ["PL.2", 1, 0],
+      ["PL.3", 0, 1],
     ]);
     expect(
       await rejection(stranger.learning.plan({ moduleId: saved.id })),
