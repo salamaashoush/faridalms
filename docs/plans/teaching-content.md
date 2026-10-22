@@ -94,8 +94,16 @@ Sources: [../research/course-design.md](../research/course-design.md),
     the browser automation's insertText does, and as an input method may)
     lands in the side after it; typed key by key it lands right. Found
     while building the crossword in 3.10.
-    Left: reproduce with a phone keyboard and an input method, then fix
-    where the caret's DOM position is set for an empty side.
+    Done: the side was never at fault. Lexical moves the caret past an
+    "acceptance boundary" after any text of more than one character put in
+    under its control, to place it after a macOS text replacement, and it
+    judged that by the last key pressed, however long ago. After Enter,
+    words committed whole into an empty line (dictation, an emoji picker,
+    a braille display, an input method that commits without keys) left the
+    caret at the start of the block below, in any document. A patch to
+    Lexical (`patches/`) leaves text put in where the caret already stood
+    alone, and the learning test commits its typed question that way.
+    Left: offer the fix to Lexical upstream, then drop the patch.
 
 ## 2. Maths and science
 
