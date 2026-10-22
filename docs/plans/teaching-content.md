@@ -265,9 +265,11 @@ Sources: [../research/course-design.md](../research/course-design.md),
    answered, with its tries, hints and Show answer, as in a lesson; its
    answer keeps the tries and hints (`quiz_answers.tries`, `hints`,
    `revealed`) and earns at hand-in what they left. Its results read as the
-   student left each question. Questions its teacher marks, and code
-   exercises, are kept for hand-in as in any quiz.
-   Left: code exercises checked at once in a practice quiz.
+   student left each question. Questions its teacher marks are kept for
+   hand-in as in any quiz. A code exercise in a practice quiz is checked at
+   once too: the server runs it between two short units of work, as it
+   does at hand-in, and keeps the try with how each test went, which the
+   student sees at once; results a student sends are refused.
 8. **Overall feedback in bands** for a practice set's score.
    Done: a scored lesson and a quiz each take up to six messages by score,
    each for scores from its own up to the next (`lessons.feedback_bands`,

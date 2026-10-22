@@ -2946,6 +2946,33 @@ export const saveQuizAnswer = writeProcedure
     return keepQuizAnswer(context, input);
   });
 
+/** A code exercise of the attempt a student has open, found to run their program against. */
+async function programOfAttempt(
+  context: UnitContext,
+  assignmentId: string,
+  blockId: string,
+) {
+  const [document, [row]] = await Promise.all([
+    publishedQuiz(context, assignmentId),
+    studentWork(context.tx, {
+      tenantId: context.tenantId,
+      assignmentId,
+      studentId: context.actor.userId,
+    }),
+  ]);
+  const quizzes =
+    document && row
+      ? await attemptQuizzes(context, document, row.submissionId)
+      : null;
+  const found = quizzes
+    ? checkBlocks(quizzes.of((row?.attempts ?? 0) + 1)).find(
+        (item) => item.id === blockId,
+      )
+    : undefined;
+  if (found?.type !== "program") throw new ORPCError("NOT_FOUND");
+  return found;
+}
+
 /**
  * Keeps a student's program for a quiz's code exercise with how it did in
  * each test, run between two short units of work so a class handing in at
@@ -2961,25 +2988,7 @@ export const saveQuizProgram = schoolProcedure
         inside,
         input.assignmentId,
       );
-      const [document, [row]] = await Promise.all([
-        publishedQuiz(inside, assignment.id),
-        studentWork(inside.tx, {
-          tenantId: inside.tenantId,
-          assignmentId: assignment.id,
-          studentId: inside.actor.userId,
-        }),
-      ]);
-      const quizzes =
-        document && row
-          ? await attemptQuizzes(inside, document, row.submissionId)
-          : null;
-      const found = quizzes
-        ? checkBlocks(quizzes.of((row?.attempts ?? 0) + 1)).find(
-            (item) => item.id === input.blockId,
-          )
-        : undefined;
-      if (found?.type !== "program") throw new ORPCError("NOT_FOUND");
-      return found;
+      return programOfAttempt(inside, assignment.id, input.blockId);
     });
     const response = await markedProgram(context.runners, block, {
       type: "program",
@@ -3197,50 +3206,101 @@ async function keepQuizAnswer(
  * hint opened, or the answer shown, as a lesson's question takes them. What
  * the student has done is kept on their answer for marking at hand-in.
  */
+async function practiseStep(
+  context: UnitContext,
+  input: {
+    assignmentId: string;
+    blockId: string;
+    step: v.InferOutput<typeof practiseQuizSchema>["step"];
+  },
+) {
+  const { assignment, submission, attempt, quiz } = await openAttempt(
+    context,
+    input.assignmentId,
+  );
+  if (!assignment.quizPractice)
+    throw new ORPCError("BAD_REQUEST", {
+      message: "coursework.not_practice",
+    });
+  const block = checkBlocks(quiz).find((item) => item.id === input.blockId);
+  if (!block || !practised(block)) throw new ORPCError("NOT_FOUND");
+  const answers = await quizAnswersOf(context.tx, {
+    tenantId: context.tenantId,
+    submissionId: submission.id,
+    attempt,
+  });
+  let kept = keptOf(answers.find((answer) => answer.blockId === block.id));
+  const before = practiceStanding(block, kept);
+  if (before.view.correct || before.view.revealed)
+    throw new ORPCError("CONFLICT", { message: "learning.settled" });
+  const step = input.step;
+  if (step.kind === "answer") {
+    const issue = responseIssue(block, step.response);
+    if (issue) throw new ORPCError("BAD_REQUEST", { message: issue });
+    kept = { ...kept, response: step.response, tries: kept.tries + 1 };
+  } else if (step.kind === "hint") {
+    if (before.view.askable === 0)
+      throw new ORPCError("CONFLICT", { message: "learning.no_hint" });
+    kept = { ...kept, hints: kept.hints + 1 };
+  } else kept = { ...kept, revealed: true };
+  await keepPracticeAnswer(context.tx, {
+    tenantId: context.tenantId,
+    submissionId: submission.id,
+    studentId: context.actor.userId,
+    attempt,
+    blockId: block.id,
+    response: kept.response ? ownResponse(kept.response) : {},
+    tries: kept.tries,
+    hints: kept.hints,
+    revealed: kept.revealed,
+  });
+  return { check: practiceStanding(block, kept).view };
+}
+
 export const practiseQuiz = writeProcedure
   .input(practiseQuizSchema)
+  .handler(({ input, context }) => {
+    // A code exercise is checked by running it, which practiseQuizProgram
+    // does; here its results would be the student's word.
+    if (input.step.kind === "answer" && input.step.response.type === "program")
+      throw new ORPCError("BAD_REQUEST", { message: "learning.response" });
+    return practiseStep(context, input);
+  });
+
+/**
+ * A practice quiz's code exercise checked at once: run between two short
+ * units of work, as saveQuizProgram runs it, and kept as a try with how it
+ * did in each test, which the student sees as a lesson shows them.
+ */
+export const practiseQuizProgram = schoolProcedure
+  .input(saveQuizProgramSchema)
   .handler(async ({ input, context }) => {
-    const { assignment, submission, attempt, quiz } = await openAttempt(
-      context,
-      input.assignmentId,
+    const block = await openUnit(context, "read", async (unit) => {
+      const inside = { ...context, ...unit };
+      const { assignment } = await learnerAssignment(
+        inside,
+        input.assignmentId,
+      );
+      if (!assignment.quizPractice)
+        throw new ORPCError("BAD_REQUEST", {
+          message: "coursework.not_practice",
+        });
+      return programOfAttempt(inside, assignment.id, input.blockId);
+    });
+    const response = await markedProgram(context.runners, block, {
+      type: "program",
+      code: input.code,
+    });
+    return openUnit(context, "write", (unit) =>
+      practiseStep(
+        { ...context, ...unit },
+        {
+          assignmentId: input.assignmentId,
+          blockId: input.blockId,
+          step: { kind: "answer", response },
+        },
+      ),
     );
-    if (!assignment.quizPractice)
-      throw new ORPCError("BAD_REQUEST", {
-        message: "coursework.not_practice",
-      });
-    const block = checkBlocks(quiz).find((item) => item.id === input.blockId);
-    if (!block || !practised(block)) throw new ORPCError("NOT_FOUND");
-    const answers = await quizAnswersOf(context.tx, {
-      tenantId: context.tenantId,
-      submissionId: submission.id,
-      attempt,
-    });
-    let kept = keptOf(answers.find((answer) => answer.blockId === block.id));
-    const before = practiceStanding(block, kept);
-    if (before.view.correct || before.view.revealed)
-      throw new ORPCError("CONFLICT", { message: "learning.settled" });
-    const step = input.step;
-    if (step.kind === "answer") {
-      const issue = responseIssue(block, step.response);
-      if (issue) throw new ORPCError("BAD_REQUEST", { message: issue });
-      kept = { ...kept, response: step.response, tries: kept.tries + 1 };
-    } else if (step.kind === "hint") {
-      if (before.view.askable === 0)
-        throw new ORPCError("CONFLICT", { message: "learning.no_hint" });
-      kept = { ...kept, hints: kept.hints + 1 };
-    } else kept = { ...kept, revealed: true };
-    await keepPracticeAnswer(context.tx, {
-      tenantId: context.tenantId,
-      submissionId: submission.id,
-      studentId: context.actor.userId,
-      attempt,
-      blockId: block.id,
-      response: kept.response ? ownResponse(kept.response) : {},
-      tries: kept.tries,
-      hints: kept.hints,
-      revealed: kept.revealed,
-    });
-    return { check: practiceStanding(block, kept).view };
   });
 
 /**

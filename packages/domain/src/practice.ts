@@ -201,9 +201,9 @@ export interface PracticeKept {
   revealed: boolean;
 }
 
-/** Whether a question in a practice quiz is checked as it is answered; a program is marked by running it. */
+/** Whether a question in a practice quiz is checked as it is answered; a program by running it on the server. */
 export const practised = (block: CheckBlock): block is AutoBlock =>
-  isAuto(block) && block.type !== "program";
+  isAuto(block);
 
 /**
  * A practice quiz question as its student stands on it: its tries before

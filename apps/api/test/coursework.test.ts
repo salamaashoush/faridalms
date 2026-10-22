@@ -2293,6 +2293,85 @@ describe("quizzes", () => {
     expect(after.quiz?.results[0]?.band).toBe("Good work.");
   });
 
+  test("a practice quiz runs a code exercise as it is checked, showing how each test went", async () => {
+    const teacher = await arabicTeacher();
+    const student = await sessionFor("northwind", login("student"));
+    const me = await student.api.identity.currentUser();
+    const target = await classOfStudent(teacher.api, me.id);
+    const check = { id: uuid(), input: "3", expected: "9", hidden: false };
+    const exercise = {
+      id: uuid(),
+      type: "program" as const,
+      prompt: "Print the square of the number you are given.",
+      points: 3,
+      hints: [],
+      explanation: "",
+      tries: null,
+      language: "python" as const,
+      starter: "n = int(input())",
+      tests: [check],
+    };
+    const saved = await teacher.api.coursework.save(
+      draft(target.id, "Practice squares", {
+        submissionFormat: "quiz",
+        points: null,
+        brief: briefWithQuiz(plainContent("Write each one."), {
+          version: 2,
+          blocks: [exercise],
+        }),
+        quiz: {
+          attempts: null,
+          keep: "highest",
+          reveal: "answers",
+          shuffle: false,
+          practice: true,
+          bands: [],
+        },
+      }),
+    );
+    await teacher.api.coursework.publish({
+      id: saved.id,
+      expectedVersion: saved.version,
+    });
+    const opened = await student.api.coursework.work({ id: saved.id });
+    expect(opened.quiz?.practised?.[exercise.id]).toMatchObject({ tries: 0 });
+    // Results come only from running the program, never from the student.
+    expect(
+      await rejection(
+        student.api.coursework.practiseQuiz({
+          assignmentId: saved.id,
+          blockId: exercise.id,
+          step: {
+            kind: "answer",
+            response: { type: "program", code: "", results: {} },
+          },
+        }),
+      ),
+    ).toMatchObject({ code: "BAD_REQUEST" });
+    const run = (code: string) =>
+      student.api.coursework.practiseQuizProgram({
+        assignmentId: saved.id,
+        blockId: exercise.id,
+        code,
+      });
+    const doubled = await run("n = int(input())\nprint(n * 2)");
+    expect(doubled.check).toMatchObject({
+      correct: false,
+      tries: 1,
+      response: { results: { [check.id]: { passed: false, output: "6\n" } } },
+    });
+    const squared = await run("n = int(input())\nprint(n * n)");
+    expect(squared.check).toMatchObject({ correct: true, tries: 2 });
+    const before = await student.api.coursework.work({ id: saved.id });
+    await student.api.coursework.handIn({
+      assignmentId: saved.id,
+      expectedVersion: before.submission.version,
+    });
+    const after = await student.api.coursework.work({ id: saved.id });
+    // Right on the second try keeps two thirds of its three points.
+    expect(after.quiz?.results[0]?.score).toBeCloseTo(2, 1);
+  });
+
   test("a quiz shown only when returned keeps its results back until then", async () => {
     const { teacher, student, me, saved, choice, right } =
       await quizFor("returned");
