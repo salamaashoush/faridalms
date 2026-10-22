@@ -28,6 +28,7 @@ import {
   standardEvidence,
   standards,
   goalJudgements,
+  standardObservations,
   attemptAuthentications,
   attemptDeclarations,
   courseworkAssessments,
@@ -799,6 +800,15 @@ export async function completeFixture(
     note: "Retold the story in order with the pictures.",
     judgedByUserId: userId,
     judgedAt: new Date("2026-09-21T10:00:00Z"),
+  });
+  await tx.insert(standardObservations).values({
+    tenantId,
+    studentUserId: submission.studentUserId,
+    standardId: standard.id,
+    level: "developing",
+    note: "Explained the water cycle to the group.",
+    observedByUserId: userId,
+    observedAt: new Date("2026-09-22T10:00:00Z"),
   });
   await tx.insert(bankQuestions).values({
     tenantId,

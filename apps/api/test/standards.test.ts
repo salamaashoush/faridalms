@@ -166,6 +166,70 @@ describe("standards", () => {
     expect(await staff.standards.describe({ ids: [second.id] })).toEqual([]);
   });
 
+  test("a teacher's observation counts toward a student's skill, and the student reads it", async () => {
+    const office = await principal();
+    const framework = await office.standards.saveFramework({
+      id: "",
+      expectedVersion: 0,
+      title: "Observed skills",
+      description: "",
+    });
+    const explains = await office.standards.saveStandard({
+      frameworkId: framework.id,
+      id: "",
+      expectedVersion: 0,
+      parentId: "",
+      code: "OS.1",
+      statement: "Explains an idea to the class.",
+      itemType: "",
+    });
+    const pupil = await signedIn("northwind", login("student"));
+    const me = await pupil.identity.currentUser();
+    const seen = {
+      studentId: me.id,
+      standardId: explains.id,
+      level: "secure" as const,
+      note: "Explained how plants use light to the class.",
+    };
+    expect(await rejection(pupil.standards.observe(seen))).toMatchObject({
+      code: "FORBIDDEN",
+    });
+    await office.standards.observe(seen);
+
+    // One observation is one sitting: secure needs a second.
+    const mastered = (await pupil.standards.studentProgress({})).mastery.find(
+      (row) => row.standardId === explains.id,
+    );
+    expect(mastered).toMatchObject({
+      level: "developing",
+      score: 1,
+      occasions: 1,
+    });
+    expect(
+      await pupil.standards.sittings({ standardId: explains.id }),
+    ).toMatchObject([
+      {
+        source: "observation",
+        title: seen.note,
+        fraction: 1,
+        observation: { level: "secure", mine: false },
+      },
+    ]);
+
+    const [kept] = await office.standards.sittings({
+      studentId: me.id,
+      standardId: explains.id,
+    });
+    expect(kept?.observation?.mine).toBe(true);
+    await office.standards.removeObservation({ id: kept?.workId ?? "" });
+    expect(
+      (await pupil.standards.studentProgress({})).mastery.find(
+        (row) => row.standardId === explains.id,
+      ),
+    ).toBeUndefined();
+    await office.standards.removeFramework({ id: framework.id });
+  });
+
   test("a CASE package imports as a framework, and importing it again updates it in place", async () => {
     const office = await principal();
     const document = crypto.randomUUID();

@@ -1803,8 +1803,22 @@
   "skillsBeginning": "Beginning",
   "skillsNotYet": "Not yet assessed",
   "skillsPercent": "{value}%",
+  "skillsObserve": "Record an observation",
+  "skillsObserveSave": "Keep the observation",
+  "skillsObserveHint": "Something you saw the student do, with no question asked: a discussion, a practical, a performance. It counts as one sitting toward their skills, and they and their family read it there.",
+  "skillsObserveChoose": "Choose a standard",
+  "skillsObserveStandardNeeded": "Choose the standard you saw.",
+  "skillsObserveLevel": "Where they stand",
+  "skillsObserveNote": "What you saw",
+  "skillsObserveNotePlaceholder": "Explained in their own words how a plant uses light.",
+  "skillsObservedCounts": "Counts as {value}%.",
+  "skillsObserved": "Observation kept",
+  "skillsObservation": "Observation",
+  "skillsObservedBy": "seen by {name}",
+  "skillsObservationRemove": "Take back this observation",
+  "skillsObservationRemoved": "Observation taken back",
   "skillsSittingsFor": "How {code} was worked out",
-  "skillsSittingsHint": "Each lesson and quiz attempt it was worked out from, latest first. The latest counts most.",
+  "skillsSittingsHint": "Each lesson, quiz attempt and observation it was worked out from, latest first. The latest counts most.",
   "skillsSittingAttempt": "attempt {number}",
   "skillsAnswers": [
     {
@@ -1816,7 +1830,7 @@
       }
     }
   ],
-  "skillsHow": "Worked out from marked answers to tagged questions, with recent sittings counting most. Secure means 80% or more, shown on at least two sittings.",
+  "skillsHow": "Worked out from marked answers to tagged questions and from teachers' observations, with recent sittings counting most. Secure means 80% or more, shown on at least two sittings.",
   "skillsOf": "{count} of {total}",
   "skillsSecureOf": "{count} of {total} skills secure",
   "skillsSecureColumn": "Secure",

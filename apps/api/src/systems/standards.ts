@@ -18,12 +18,15 @@ import {
   frameworksOf,
   importStandards,
   insertFramework,
+  insertObservation,
   insertStandard,
   isWithin,
   judgeGoal as recordJudgement,
   judgementsOf,
   moveStandard,
+  observationsOf,
   removeFramework as dropFramework,
+  removeObservation as dropObservation,
   removeStandard,
   searchStandards,
   sittingsOfStandard,
@@ -45,6 +48,8 @@ import {
   judgeGoalSchema,
   masteryOf,
   moveStandardSchema,
+  OBSERVED_FRACTION,
+  observeSchema,
   refSchema,
   saveFrameworkSchema,
   saveStandardSchema,
@@ -389,6 +394,23 @@ function scopeOf(context: UnitContext): Scope {
 }
 
 type EvidenceRows = Awaited<ReturnType<typeof evidenceOfStudents>>;
+type Observations = Awaited<ReturnType<typeof observationsOf>>;
+
+/** Observations as evidence: each one sitting, at what its level counts for. */
+const withObserved = (
+  evidence: EvidenceRows,
+  observed: Observations,
+): EvidenceRows =>
+  [
+    ...evidence,
+    ...observed.map((row) => ({
+      studentId: row.studentId,
+      standardId: row.standardId,
+      occasion: `observation:${row.id}`,
+      fraction: OBSERVED_FRACTION[row.level],
+      answeredAt: row.observedAt,
+    })),
+  ].toSorted((a, b) => a.answeredAt.localeCompare(b.answeredAt));
 
 /** Each student's mastery of each standard they have evidence on. */
 function masteries(rows: EvidenceRows) {
@@ -464,15 +486,18 @@ export const classProgress = readProcedure
   .input(classProgressSchema)
   .handler(async ({ input, context }) => {
     const { roster } = await taughtClass(context, input.classId);
-    const [students, evidence] = await Promise.all([
+    const scope = {
+      tenantId: context.tenantId,
+      orgId: context.schoolId,
+      studentIds: roster,
+      classId: input.classId,
+    };
+    const [students, answered, observed] = await Promise.all([
       namesOf(context.tx, context.tenantId, roster),
-      evidenceOfStudents(context.tx, {
-        tenantId: context.tenantId,
-        orgId: context.schoolId,
-        studentIds: roster,
-        classId: input.classId,
-      }),
+      evidenceOfStudents(context.tx, scope),
+      observationsOf(context.tx, scope),
     ]);
+    const evidence = withObserved(answered, observed);
     return {
       standards: await described(context, evidence),
       students,
@@ -502,12 +527,14 @@ export const studentProgress = readProcedure
       orgId: context.schoolId,
       studentIds: [studentId],
     };
-    const [evidence, judged] = await Promise.all([
+    const [answered, observed, judged] = await Promise.all([
       evidenceOfStudents(context.tx, { ...scope, classId: null }),
+      observationsOf(context.tx, { ...scope, classId: null }),
       // Judgements are for the child's teachers to read, not the child or
       // their family.
       can(context, "submissions:grade") ? judgementsOf(context.tx, scope) : [],
     ]);
+    const evidence = withObserved(answered, observed);
     const judgedIn = await Promise.all(
       [...new Set(judged.map((row) => row.frameworkId))].map(async (id) => ({
         found: await frameworkById(context.tx, { ...scope, id }),
@@ -526,19 +553,107 @@ export const studentProgress = readProcedure
 
 /**
  * The sittings one student's mastery of a standard was worked out from:
- * each lesson or quiz attempt, its answers on the standard averaged, latest
- * first, as the decaying average weighs them.
+ * each lesson or quiz attempt, its answers on the standard averaged, and
+ * each thing a teacher saw, latest first, as the decaying average weighs
+ * them.
  */
 export const sittings = readProcedure
   .input(sittingsSchema)
   .handler(async ({ input, context }) => {
     const studentId = await progressStudent(context, input.studentId);
-    return sittingsOfStandard(context.tx, {
+    const scope = {
       tenantId: context.tenantId,
       orgId: context.schoolId,
       studentId,
       standardId: input.standardId,
+    };
+    const [worked, observed] = await Promise.all([
+      sittingsOfStandard(context.tx, scope),
+      observationsOf(context.tx, {
+        ...scope,
+        studentIds: [studentId],
+        classId: null,
+      }),
+    ]);
+    return [
+      ...worked.map((row) => ({ ...row, observation: null })),
+      ...observed.map((row) => ({
+        source: "observation" as const,
+        workId: row.id,
+        title: row.note,
+        attempt: 1,
+        fraction: OBSERVED_FRACTION[row.level],
+        answers: 1,
+        at: row.observedAt,
+        observation: {
+          level: row.level,
+          byEn: row.observedByEn,
+          byAr: row.observedByAr,
+          mine: row.observedByUserId === context.actor.userId,
+        },
+      })),
+    ].toSorted((a, b) => b.at.localeCompare(a.at));
+  });
+
+/**
+ * A teacher records what they saw a student do against one of the school's
+ * standards, outside any question; it counts as one sitting, and the
+ * student and their family read it with their skills.
+ */
+export const observe = writeProcedure
+  .input(observeSchema)
+  .handler(async ({ input, context }) => {
+    requireCapability(context, "submissions:grade");
+    const scope = scopeOf(context);
+    if (!(await isVisibleStudent(context.tx, scope, input.studentId)))
+      throw new ORPCError("NOT_FOUND");
+    if (
+      input.classId &&
+      !(await teachesClass(context.tx, scope, input.classId))
+    )
+      throw new ORPCError("NOT_FOUND");
+    const [standard] = await standardsByIds(context.tx, {
+      tenantId: context.tenantId,
+      orgId: context.schoolId,
+      ids: [input.standardId],
     });
+    if (!standard) throw new ORPCError("NOT_FOUND");
+    const id = await insertObservation(context.tx, {
+      tenantId: context.tenantId,
+      studentId: input.studentId,
+      standardId: standard.id,
+      classId: input.classId || null,
+      level: input.level,
+      note: input.note,
+      userId: context.actor.userId,
+    });
+    await audit(context, {
+      action: "standard.observe",
+      objectType: "standard",
+      objectId: standard.id,
+      studentUserId: input.studentId,
+      details: { level: input.level },
+    });
+    return { id };
+  });
+
+/** Takes back an observation: its teacher's own, or any for one who manages classes. */
+export const removeObservation = writeProcedure
+  .input(refSchema)
+  .handler(async ({ input, context }) => {
+    requireCapability(context, "submissions:grade");
+    const removed = await dropObservation(context.tx, {
+      tenantId: context.tenantId,
+      id: input.id,
+      observedBy: can(context, "classes:manage") ? null : context.actor.userId,
+    });
+    if (!removed) throw new ORPCError("NOT_FOUND");
+    await audit(context, {
+      action: "standard.unobserve",
+      objectType: "standard_observation",
+      objectId: input.id,
+    });
+    return { removed };
   });
 
 type Judgements = Awaited<ReturnType<typeof judgementsOf>>;

@@ -1171,6 +1171,65 @@ export const standardEvidence = core.table.withRLS(
 );
 
 /**
+ * What a teacher saw a student do against a standard, with no question
+ * asked: a discussion, a practical, a performance. It counts toward the
+ * student's mastery as one sitting, at the level the teacher judged, in the
+ * class it was seen in when there is one.
+ */
+export const standardObservations = core.table.withRLS(
+  "standard_observations",
+  {
+    ...tenantColumns(),
+    studentUserId: uuid("student_user_id").notNull(),
+    standardId: uuid("standard_id").notNull(),
+    classId: uuid("class_id"),
+    level: text("level")
+      .$type<"beginning" | "developing" | "secure">()
+      .notNull(),
+    note: text("note").notNull().default(""),
+    observedByUserId: uuid("observed_by_user_id").notNull(),
+    observedAt: instant("observed_at").notNull(),
+    ...entityColumns(),
+  },
+  (t): PgTableExtraConfigValue[] => [
+    pk("standard_observations", t.tenantId, t.id),
+    ...baseConstraints("standard_observations", t, tenants),
+    fk(
+      "standard_observations",
+      [t.tenantId, t.studentUserId],
+      [users.tenantId, users.id],
+    ),
+    fk(
+      "standard_observations",
+      [t.tenantId, t.standardId],
+      [standards.tenantId, standards.id],
+    ),
+    fk(
+      "standard_observations",
+      [t.tenantId, t.classId],
+      [classes.tenantId, classes.id],
+    ),
+    fk(
+      "standard_observations",
+      [t.tenantId, t.observedByUserId],
+      [users.tenantId, users.id],
+    ),
+    ck(
+      "standard_observations",
+      "level",
+      sql`level in ('beginning', 'developing', 'secure')`,
+    ),
+    ck("standard_observations", "note", sql`char_length(note) <= 500`),
+    index("standard_observations_student_idx")
+      .on(t.tenantId, t.studentUserId, t.standardId)
+      .where(sql`status = 'active'`),
+    ...entityProfile(),
+    // An observation is only ever about the student it was made of.
+    ...eraseAndDelete(erasureOf("student_user_id")),
+  ],
+);
+
+/**
  * A teacher's judgement of where a child stands against an early learning
  * goal, made from what they know of the child, as the EYFS profile asks:
  * best fit, never worked out from what the child did on a screen. One a

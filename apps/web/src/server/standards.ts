@@ -5,6 +5,7 @@ import {
   importCaseSchema,
   judgeGoalSchema,
   moveStandardSchema,
+  observeSchema,
   refSchema,
   saveFrameworkSchema,
   saveStandardSchema,
@@ -68,6 +69,14 @@ export const getStudentProgress = createServerFn({ method: "GET" })
 export const getStandardSittings = createServerFn({ method: "GET" })
   .validator(checked(sittingsSchema))
   .handler(({ data }) => backend().standards.sittings(data));
+
+export const observeStandard = createServerFn({ method: "POST" })
+  .validator(checked(observeSchema))
+  .handler(({ data }) => backend().standards.observe(data));
+
+export const removeObservation = createServerFn({ method: "POST" })
+  .validator(checked(refSchema))
+  .handler(({ data }) => backend().standards.removeObservation(data));
 
 export const getClassGoals = createServerFn({ method: "GET" })
   .validator(checked(classGoalsSchema))

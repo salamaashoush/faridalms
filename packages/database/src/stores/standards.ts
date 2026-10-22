@@ -620,6 +620,109 @@ export async function sittingsOfStandard(
   }));
 }
 
+export type ObservedLevel = "beginning" | "developing" | "secure";
+
+/** What a teacher saw a student do against a standard, as mastery and its sittings read it. */
+export interface ObservationRow {
+  id: string;
+  studentId: string;
+  standardId: string;
+  level: ObservedLevel;
+  note: string;
+  observedByUserId: string;
+  observedByEn: string | null;
+  observedByAr: string | null;
+  observedAt: string;
+}
+
+/** Keeps what a teacher saw a student do against a standard. */
+export async function insertObservation(
+  tx: Tx,
+  input: {
+    tenantId: string;
+    studentId: string;
+    standardId: string;
+    classId: string | null;
+    level: ObservedLevel;
+    note: string;
+    userId: string;
+  },
+): Promise<string> {
+  const [row] = await tx.execute<{ id: string }>(sql`
+    insert into core.standard_observations (tenant_id, student_user_id, standard_id, class_id,
+      level, note, observed_by_user_id, observed_at)
+    values (${input.tenantId}::uuid, ${input.studentId}::uuid, ${input.standardId}::uuid,
+      ${input.classId}::uuid, ${input.level}, ${input.note}, ${input.userId}::uuid,
+      statement_timestamp())
+    returning id`);
+  if (!row) throw new Error("observation not written");
+  return row.id;
+}
+
+/** Takes an observation back; whether there was one to take. */
+export async function removeObservation(
+  tx: Tx,
+  input: { tenantId: string; id: string; observedBy: string | null },
+): Promise<boolean> {
+  const rows = await tx.execute(sql`
+    update core.standard_observations set status = 'tobedeleted'
+    where tenant_id = ${input.tenantId}::uuid and id = ${input.id}::uuid and status = 'active'
+      ${input.observedBy ? sql`and observed_by_user_id = ${input.observedBy}::uuid` : sql``}
+    returning id`);
+  return rows.length > 0;
+}
+
+/**
+ * The students' observations on the school's standards, oldest first; with a
+ * class, only those seen in it.
+ */
+export async function observationsOf(
+  tx: Tx,
+  input: {
+    tenantId: string;
+    orgId: string;
+    studentIds: readonly string[];
+    classId: string | null;
+    standardId?: string;
+  },
+): Promise<ObservationRow[]> {
+  if (input.studentIds.length === 0) return [];
+  const rows = await tx.execute<{
+    id: string;
+    student_user_id: string;
+    standard_id: string;
+    level: ObservedLevel;
+    note: string;
+    observed_by_user_id: string;
+    by_en: string | null;
+    by_ar: string | null;
+    observed_at: string;
+  }>(sql`
+    select o.id, o.student_user_id, o.standard_id, o.level, o.note, o.observed_by_user_id,
+      u.full_name_en as by_en, u.full_name_ar as by_ar, ${isoOf(sql`o.observed_at`)} as observed_at
+    from core.standard_observations o
+    join core.standards s on s.tenant_id = o.tenant_id and s.id = o.standard_id and s.status = 'active'
+    join core.standard_frameworks f on f.tenant_id = s.tenant_id and f.id = s.framework_id
+      and f.status = 'active' and f.org_id = ${input.orgId}::uuid
+    join core.users u on u.tenant_id = o.tenant_id and u.id = o.observed_by_user_id
+    where o.tenant_id = ${input.tenantId}::uuid and o.status = 'active'
+      and o.student_user_id = any(${uuidArray(input.studentIds)})
+      ${input.classId ? sql`and o.class_id = ${input.classId}::uuid` : sql``}
+      ${input.standardId ? sql`and o.standard_id = ${input.standardId}::uuid` : sql``}
+    order by o.observed_at`);
+  return rows.map((row) => ({
+    id: row.id,
+    studentId: row.student_user_id,
+    standardId: row.standard_id,
+    level: row.level,
+    note: row.note,
+    observedByUserId: row.observed_by_user_id,
+    observedByEn: row.by_en,
+    observedByAr: row.by_ar,
+    observedAt: row.observed_at,
+  }));
+}
+
 /** A teacher's judgement of a child against a goal, and the work it came from. */
 export interface JudgementRow {
   studentId: string;

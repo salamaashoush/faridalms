@@ -3,33 +3,45 @@ import type { LucideIcon } from "lucide-react";
 
 import { Button } from "@faridalms/ui/button";
 import { cn } from "@faridalms/ui/cn";
-import { useQuery, useSuspenseQuery } from "@tanstack/react-query";
+import {
+  useMutation,
+  useQuery,
+  useQueryClient,
+  useSuspenseQuery,
+} from "@tanstack/react-query";
 import {
   BookOpen,
   ChevronDown,
+  Eye,
   CircleCheck,
   CircleDashed,
   Contrast,
   ListChecks,
   Minus,
   Target,
+  X,
 } from "lucide-react";
 import { useId, useState } from "react";
+import { toast } from "sonner";
 
 import type { Column } from "~/components/system/DataTable";
 
 import { displayName } from "~/components/people/format";
 import { StudentGoals } from "~/components/standards/Goals";
+import { ObserveSheet } from "~/components/standards/Observe";
 import { DataTable, RowLink } from "~/components/system/DataTable";
 import { EmptyState } from "~/components/system/IndexPage";
 import { RecordSection } from "~/components/system/RecordPage";
+import { inLocale, useCapability } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import {
   classProgressQuery,
   standardSittingsQuery,
   studentProgressQuery,
 } from "~/queries/standards";
+import { removeObservation } from "~/server/standards";
 import { formatDate, formatNumber } from "~/utils/datetime";
+import { getMessageFromError } from "~/utils/error";
 
 type ClassData = Awaited<
   ReturnType<NonNullable<ReturnType<typeof classProgressQuery>["queryFn"]>>
@@ -265,6 +277,7 @@ function standardColumns(): Column<StandardRow>[] {
  */
 export function ClassSkills({ classId }: { classId: string }) {
   const data = useSuspenseQuery(classProgressQuery(classId)).data;
+  const [observing, setObserving] = useState<string | null>(null);
   if (data.standards.length === 0)
     return (
       <EmptyState
@@ -287,11 +300,29 @@ export function ClassSkills({ classId }: { classId: string }) {
       <div className="grid gap-4">
         <Legend />
         <StandardList standards={data.standards} />
+        {observing ? (
+          <ObserveSheet
+            key={observing}
+            studentId={observing}
+            classId={classId}
+            open
+            onOpenChange={(open) => {
+              if (!open) setObserving(null);
+            }}
+          />
+        ) : null}
         <DataTable
           caption={m.skillsByStudent()}
           rows={data.students}
           columns={studentColumns(data.standards, mastery)}
           rowLabel={(row) => displayName(row)}
+          rowActions={(row) => [
+            {
+              label: m.skillsObserve(),
+              icon: Eye,
+              onSelect: () => setObserving(row.id),
+            },
+          ]}
           card={{
             title: studentTitle,
             fact: (row) =>
@@ -314,15 +345,43 @@ export function ClassSkills({ classId }: { classId: string }) {
   );
 }
 
-const SOURCE_ICON: Record<"lesson" | "quiz", LucideIcon> = {
+const SOURCE_ICON: Record<"lesson" | "quiz" | "observation", LucideIcon> = {
   lesson: BookOpen,
   quiz: ListChecks,
+  observation: Eye,
 };
 
+/** Takes back an observation its teacher recorded, from the list it shows in. */
+function TakeBack({ id }: { id: string }) {
+  const queryClient = useQueryClient();
+  const take = useMutation({
+    mutationFn: () => removeObservation({ data: { id } }),
+    onSuccess: async () => {
+      await queryClient.invalidateQueries({ queryKey: ["standards"] });
+      toast.success(m.skillsObservationRemoved());
+    },
+    onError: (error) => toast.error(getMessageFromError(error)),
+  });
+  return (
+    <Button
+      type="button"
+      variant="ghost"
+      size="icon-sm"
+      className="self-center text-muted-foreground max-md:size-10"
+      aria-label={m.skillsObservationRemove()}
+      title={m.skillsObservationRemove()}
+      disabled={take.isPending}
+      onClick={() => take.mutate()}
+    >
+      <X aria-hidden />
+    </Button>
+  );
+}
+
 /**
- * The lessons and quiz attempts a mark was worked out from, latest first,
- * each its answers on the standard averaged, as the decaying average reads
- * them.
+ * The lessons, quiz attempts and observations a mark was worked out from,
+ * latest first, each its answers on the standard averaged, as the decaying
+ * average reads them.
  */
 function Sittings({
   studentId,
@@ -333,6 +392,8 @@ function Sittings({
 }) {
   const query = useQuery(standardSittingsQuery(studentId, standardId));
   if (!query.data) return <div aria-busy="true" className="min-h-10" />;
+  // A row that can be taken back keeps the others' figures in line with it.
+  const removable = query.data.some((sitting) => sitting.observation?.mine);
   return (
     <div className="grid gap-2 rounded-md bg-muted/50 px-3 py-2.5">
       <p className="text-[13px] leading-[18px] text-muted-foreground">
@@ -351,7 +412,7 @@ function Sittings({
                 className="size-4 shrink-0 self-center text-muted-foreground"
               />
               <span dir="auto" className="min-w-0 flex-1 basis-40 font-medium">
-                {sitting.title}
+                {sitting.title || m.skillsObservation()}
                 {sitting.attempt > 1 ? (
                   <span className="font-normal text-muted-foreground">
                     {" · "}
@@ -362,13 +423,25 @@ function Sittings({
                 ) : null}
               </span>
               <span className="text-[13px] leading-[18px] text-muted-foreground tabular-nums">
-                {m.skillsAnswers({ count: sitting.answers })}
+                {sitting.observation
+                  ? m.skillsObservedBy({
+                      name: inLocale(
+                        sitting.observation.byEn,
+                        sitting.observation.byAr,
+                      ),
+                    })
+                  : m.skillsAnswers({ count: sitting.answers })}
                 {" · "}
                 {formatDate(sitting.at)}
               </span>
               <span className="w-12 text-end tabular-nums">
                 {percent(sitting.fraction)}
               </span>
+              {sitting.observation?.mine ? (
+                <TakeBack id={sitting.workId} />
+              ) : removable ? (
+                <span aria-hidden className="w-8 shrink-0 max-md:w-10" />
+              ) : null}
             </li>
           );
         })}
@@ -426,16 +499,41 @@ function StandardProgress({
   );
 }
 
-/** One student's standards, framework by framework, from every class. */
+/** One student's standards, framework by framework, from every class; their teachers record observations here. */
 export function StudentSkills({ studentId }: { studentId: string }) {
   const data = useSuspenseQuery(studentProgressQuery(studentId)).data;
+  const observes = useCapability("submissions:grade") && studentId !== "";
+  const [observing, setObserving] = useState(false);
+  const record = observes ? (
+    <Button
+      type="button"
+      variant="outline"
+      size="sm"
+      className="max-md:h-10"
+      onClick={() => setObserving(true)}
+    >
+      <Eye aria-hidden />
+      {m.skillsObserve()}
+    </Button>
+  ) : null;
+  const sheet = observes ? (
+    <ObserveSheet
+      studentId={studentId}
+      open={observing}
+      onOpenChange={setObserving}
+    />
+  ) : null;
   if (data.standards.length === 0 && data.goalFrameworks.length === 0)
     return (
-      <EmptyState
-        icon={Target}
-        title={m.skillsEmptyTitle()}
-        description={m.skillsStudentEmptyBody()}
-      />
+      <>
+        {sheet}
+        <EmptyState
+          icon={Target}
+          title={m.skillsEmptyTitle()}
+          description={m.skillsStudentEmptyBody()}
+          action={record}
+        />
+      </>
     );
   const mastery = new Map(data.mastery.map((row) => [row.standardId, row]));
   const frameworks = new Map<string, Standard[]>();
@@ -447,21 +545,27 @@ export function StudentSkills({ studentId }: { studentId: string }) {
   const secure = data.mastery.filter((row) => row.level === "secure").length;
   return (
     <div className="grid gap-6">
+      {sheet}
       <StudentGoals
         frameworks={data.goalFrameworks}
         judgements={data.judgements}
       />
       {data.standards.length > 0 ? (
-        <div className="grid gap-2">
-          <p className="text-sm leading-5 font-medium">
-            {m.skillsSecureOf({
-              count: formatNumber(secure),
-              total: formatNumber(data.standards.length),
-            })}
-          </p>
-          <Legend unassessed={false} />
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div className="grid min-w-0 flex-1 basis-64 gap-2">
+            <p className="text-sm leading-5 font-medium">
+              {m.skillsSecureOf({
+                count: formatNumber(secure),
+                total: formatNumber(data.standards.length),
+              })}
+            </p>
+            <Legend unassessed={false} />
+          </div>
+          {record}
         </div>
-      ) : null}
+      ) : (
+        record
+      )}
       {[...frameworks].map(([title, standards]) => (
         <RecordSection key={title} title={title}>
           <ul className="grid divide-y">

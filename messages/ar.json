@@ -1881,8 +1881,22 @@
   "skillsBeginning": "في البداية",
   "skillsNotYet": "لم يُقيَّم بعد",
   "skillsPercent": "{value}٪",
+  "skillsObserve": "سجّل ملاحظة",
+  "skillsObserveSave": "احفظ الملاحظة",
+  "skillsObserveHint": "شيء رأيت الطالب يفعله دون سؤال: نقاش أو عمل تطبيقي أو أداء. تُحسب جلسةً واحدة في مهاراته، ويقرؤها هو وأسرته هناك.",
+  "skillsObserveChoose": "اختر معيارًا",
+  "skillsObserveStandardNeeded": "اختر المعيار الذي رأيته.",
+  "skillsObserveLevel": "أين يقف",
+  "skillsObserveNote": "ما رأيته",
+  "skillsObserveNotePlaceholder": "شرح بكلماته كيف يستخدم النبات الضوء.",
+  "skillsObservedCounts": "تُحسب {value}٪.",
+  "skillsObserved": "حُفظت الملاحظة",
+  "skillsObservation": "ملاحظة",
+  "skillsObservedBy": "رآها {name}",
+  "skillsObservationRemove": "اسحب هذه الملاحظة",
+  "skillsObservationRemoved": "سُحبت الملاحظة",
   "skillsSittingsFor": "كيف حُسب {code}",
-  "skillsSittingsHint": "كل درس ومحاولة اختبار حُسب منها، الأحدث أولًا. الأحدث يحسب أكثر.",
+  "skillsSittingsHint": "كل درس ومحاولة اختبار وملاحظة حُسب منها، الأحدث أولًا. الأحدث يحسب أكثر.",
   "skillsSittingAttempt": "المحاولة {number}",
   "skillsAnswers": [
     {
@@ -1898,7 +1912,7 @@
       }
     }
   ],
-  "skillsHow": "تُحسب من الإجابات المصحّحة عن الأسئلة الموسومة، وللجلسات الأحدث الوزن الأكبر. التمكّن يعني ٨٠٪ أو أكثر في جلستين على الأقل.",
+  "skillsHow": "تُحسب من الإجابات المصحّحة عن الأسئلة الموسومة ومن ملاحظات المعلمين، وللجلسات الأحدث الوزن الأكبر. التمكّن يعني ٨٠٪ أو أكثر في جلستين على الأقل.",
   "skillsOf": "{count} من {total}",
   "skillsSecureOf": "المهارات المتمكَّن منها: {count} من {total}",
   "skillsSecureColumn": "متمكّن",

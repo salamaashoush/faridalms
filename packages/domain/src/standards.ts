@@ -168,6 +168,29 @@ export const DEVELOPING_AT = 0.5;
  */
 export const SECURE_OCCASIONS = 2;
 
+export const MASTERY_LEVELS = ["beginning", "developing", "secure"] as const;
+
+/**
+ * What a teacher's observation counts for at each level, inside the band
+ * the level names, so a judgement of "developing" reads as developing
+ * however the student's other work went.
+ */
+export const OBSERVED_FRACTION: Record<MasteryLevel, number> = {
+  beginning: 0.25,
+  developing: 0.65,
+  secure: 1,
+};
+
+/** A teacher records what they saw a student do against a standard. */
+export const observeSchema = v.object({
+  studentId: id,
+  standardId: id,
+  /** The class it was seen in; empty when it was seen outside one. */
+  classId: v.optional(v.union([v.literal(""), id]), ""),
+  level: v.picklist(MASTERY_LEVELS),
+  note: v.pipe(v.string(), v.trim(), v.maxLength(500)),
+});
+
 /** One marked answer to a question tagged with a standard. */
 export interface Evidence {
   /** The sitting it came from: one lesson attempt, or one quiz attempt. */
