@@ -3657,6 +3657,7 @@
   "lrnDoneView": "يفتحه الطالب",
   "lrnDuplicate": "نسخ",
   "lrnExportQuestions": "تصدير الأسئلة (QTI)",
+  "lrnExportCartridge": "تصدير إلى Moodle أو Canvas (Common Cartridge)",
   "lrnDuplicated": "أُنشئت نسخة كمسودة",
   "lrnCopyLesson": "نسخ إلى وحدة",
   "lrnCopyLessonTitle": "نسخ «{title}»",

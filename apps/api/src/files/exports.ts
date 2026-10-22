@@ -1,4 +1,5 @@
-import type { ContentDocument } from "@faridalms/domain/content";
+import type { CcModule, CcResource } from "@faridalms/domain/cartridge";
+import type { ContentDocument, ContentNode } from "@faridalms/domain/content";
 
 import { writeAudit } from "@faridalms/database/audit";
 import { TenantUnavailableError } from "@faridalms/database/context";
@@ -12,8 +13,20 @@ import {
 import { documentOf } from "@faridalms/database/stores/documents";
 import { filesByIds } from "@faridalms/database/stores/files";
 import { lessonsOf } from "@faridalms/database/stores/learning";
+import { toolById } from "@faridalms/database/stores/lti";
 import { isVisibleStudent } from "@faridalms/database/stores/students";
+import {
+  CC_FILEBASE,
+  CC_TYPES,
+  ccAssessment,
+  ccItem,
+  ccManifest,
+  ccPage,
+  ccToolLink,
+  plainFileName,
+} from "@faridalms/domain/cartridge";
 import { contentFileIds, contentPlainText } from "@faridalms/domain/content";
+import { contentHtml } from "@faridalms/domain/content-html";
 import {
   contentDisposition,
   imageSize,
@@ -36,11 +49,12 @@ import type {
 } from "../core/context";
 
 import { editableModule } from "../core/learning-access";
-import { can, openUnit, schoolOf } from "../core/procedure";
+import { can, localeOf, openUnit, schoolOf } from "../core/procedure";
 
 const PATH = /^\/v1\/assignments\/([0-9a-f-]{36})\/work\.zip$/;
 const PORTFOLIO = /^\/v1\/students\/([0-9a-f-]{36})\/portfolio\.zip$/;
 const MODULE_QUESTIONS = /^\/v1\/modules\/([0-9a-f-]{36})\/questions\.zip$/;
+const MODULE_CARTRIDGE = /^\/v1\/modules\/([0-9a-f-]{36})\/cartridge\.imscc$/;
 
 /** As much of a picture as is read for its size. */
 const HEAD_BYTES = 64 * 1024;
@@ -154,7 +168,7 @@ async function entriesFor(
 /** Entries streamed as a zip as they are read, so a large one never sits in memory. */
 function zipResponse(
   context: RequestContext,
-  title: string,
+  name: string,
   entries: Entry[],
 ): Response {
   const stream = new ReadableStream<Uint8Array>({
@@ -190,7 +204,7 @@ function zipResponse(
   return new Response(stream, {
     headers: {
       "content-type": "application/zip",
-      "content-disposition": contentDisposition(`${title}.zip`),
+      "content-disposition": contentDisposition(name),
       "cache-control": "private, no-store",
       "x-content-type-options": "nosniff",
     },
@@ -202,7 +216,7 @@ async function exported(
   context: RequestContext,
   build: (
     unit: UnitContext,
-  ) => Promise<{ title: string; entries: Entry[] } | null>,
+  ) => Promise<{ title: string; extension?: string; entries: Entry[] } | null>,
 ): Promise<Response> {
   const school = await schoolOf(context);
   if (!school) return problem(401, "UNAUTHORIZED", context.requestId);
@@ -220,7 +234,11 @@ async function exported(
     throw error;
   }
   if (!found) return problem(404, "NOT_FOUND", context.requestId);
-  return zipResponse(context, found.title, found.entries);
+  return zipResponse(
+    context,
+    `${found.title}.${found.extension ?? "zip"}`,
+    found.entries,
+  );
 }
 
 /**
@@ -409,6 +427,209 @@ async function moduleQuestions(
   return { title: `${module.title} - QTI`, entries };
 }
 
+/** The links to outside tools a document holds, in reading order. */
+function toolLinks(content: ContentDocument) {
+  const found: NonNullable<ContentNode["lti"]>[] = [];
+  const walk = (nodes: ContentNode[] | undefined) => {
+    for (const node of nodes ?? []) {
+      if (node.type === "lti" && node.lti) found.push(node.lti);
+      walk(node.children);
+    }
+  };
+  walk(content.root.children);
+  return found;
+}
+
+/** A unique name in the package's shared files, the same in every LMS. */
+function plainUnique(name: string, taken: Set<string>, fallback: string) {
+  const plain = plainFileName(name, fallback);
+  const dot = plain.lastIndexOf(".");
+  let candidate = plain;
+  for (let n = 2; taken.has(candidate.toLowerCase()); n += 1)
+    candidate =
+      dot > 0
+        ? `${plain.slice(0, dot)}-${n}${plain.slice(dot)}`
+        : `${plain}-${n}`;
+  taken.add(candidate.toLowerCase());
+  return candidate;
+}
+
+/**
+ * A module as a Common Cartridge 1.1, for Moodle, Canvas and the like:
+ * each lesson a page, its questions a quiz after it, its links to outside
+ * tools, the files they all show, and each lesson kept whole beside them
+ * for this app to bring back. Only a teacher who may change the module
+ * gets it, and the export is recorded.
+ */
+async function moduleCartridge(
+  unit: UnitContext,
+  moduleId: string,
+): Promise<{ title: string; extension: string; entries: Entry[] } | null> {
+  const module = await editableModule(unit, moduleId);
+  const lessons: {
+    title: string;
+    language: string | null;
+    content: ContentDocument;
+  }[] = [];
+  for (const lesson of await lessonsOf(unit.tx, unit.tenantId, module.id)) {
+    const document = await documentOf(unit.tx, unit.tenantId, {
+      type: "lesson",
+      id: lesson.id,
+    });
+    const content = document?.content as unknown as ContentDocument | undefined;
+    if (content)
+      lessons.push({ title: lesson.title, language: lesson.language, content });
+  }
+  const entries: Entry[] = [];
+  const shared = new Map<string, string>();
+  const taken = new Set<string>();
+  const files = await filesByIds(unit.tx, unit.tenantId, [
+    ...new Set(lessons.flatMap((lesson) => contentFileIds(lesson.content))),
+  ]);
+  for (const file of files.filter((item) => item.state === "ready")) {
+    const href = `web_resources/${plainUnique(file.name, taken, "file")}`;
+    shared.set(file.id, href);
+    entries.push({ path: href, storageKey: file.storageKey });
+  }
+  const sharedDependency = shared.size > 0 ? ["web_resources"] : [];
+  const questionsWord = localeOf(unit) === "ar" ? "أسئلة" : "questions";
+  const items: CcModule["items"] = [];
+  const resources: CcResource[] = [];
+  const kept: string[] = [];
+  let skipped = 0;
+  for (const [index, lesson] of lessons.entries()) {
+    const n = index + 1;
+    const keptPath = `farida/lessons/${n}.json`;
+    kept.push(keptPath);
+    entries.push({
+      path: keptPath,
+      text: JSON.stringify({
+        version: 1,
+        title: lesson.title,
+        language: lesson.language,
+        content: lesson.content,
+        files: Object.fromEntries(
+          contentFileIds(lesson.content).flatMap((id) => {
+            const href = shared.get(id);
+            return href ? [[id, href]] : [];
+          }),
+        ),
+      }),
+    });
+    const page = `l${n}/${plainFileName(lesson.title.replaceAll(".", " "), `lesson-${n}`)}.html`;
+    entries.push({
+      path: page,
+      text: ccPage({
+        title: lesson.title,
+        kept: `../${keptPath}`,
+        body: contentHtml(lesson.content, {
+          fileHref: (id) => {
+            const href = shared.get(id);
+            return href ? `../${href}` : null;
+          },
+        }),
+      }),
+    });
+    resources.push({
+      identifier: `l${n}`,
+      type: CC_TYPES.page,
+      href: page,
+      files: [page],
+      dependencies: sharedDependency,
+    });
+    items.push({
+      identifier: `item_l${n}`,
+      title: lesson.title,
+      resource: `l${n}`,
+    });
+    const questions = lessonOfContent(lesson.content).blocks.flatMap(
+      (block, at) => {
+        const xml = ccItem(block, {
+          ident: `l${n}_q${at + 1}`,
+          picture: (id) => {
+            const href = shared.get(id);
+            return href ? `${CC_FILEBASE}../${href}` : null;
+          },
+        });
+        if (!xml && "prompt" in block) skipped += 1;
+        return xml ? [xml] : [];
+      },
+    );
+    if (questions.length > 0) {
+      const title = `${lesson.title}: ${questionsWord}`;
+      const path = `q${n}/assessment.xml`;
+      entries.push({
+        path,
+        text: ccAssessment({ ident: `q${n}_quiz`, title, items: questions }),
+      });
+      resources.push({
+        identifier: `q${n}`,
+        type: CC_TYPES.quiz,
+        files: [path],
+        dependencies: sharedDependency,
+      });
+      items.push({ identifier: `item_q${n}`, title, resource: `q${n}` });
+    }
+    for (const [at, link] of toolLinks(lesson.content).entries()) {
+      const tool = await toolById(unit.tx, {
+        tenantId: unit.tenantId,
+        orgId: unit.schoolId,
+        id: link.toolId,
+      });
+      if (!tool) continue;
+      const identifier = `t${n}_${at + 1}`;
+      entries.push({
+        path: `${identifier}.xml`,
+        text: ccToolLink({
+          title: link.title || tool.name,
+          description: link.text ?? "",
+          url: link.url ?? tool.launchUrl,
+          custom: { ...tool.custom, ...link.custom },
+        }),
+      });
+      resources.push({
+        identifier,
+        type: CC_TYPES.tool,
+        files: [`${identifier}.xml`],
+      });
+      items.push({
+        identifier: `item_${identifier}`,
+        title: link.title || tool.name,
+        resource: identifier,
+      });
+    }
+  }
+  if (shared.size > 0)
+    resources.push({
+      identifier: "web_resources",
+      type: CC_TYPES.page,
+      files: [...shared.values()],
+    });
+  resources.push({
+    identifier: "farida",
+    type: CC_TYPES.kept,
+    files: kept,
+    instructorOnly: true,
+  });
+  entries.unshift({
+    path: "imsmanifest.xml",
+    text: ccManifest({
+      identifier: `farida_${module.id.replaceAll("-", "")}`,
+      title: module.title,
+      modules: [{ identifier: "module_1", title: module.title, items }],
+      resources,
+    }),
+  });
+  await writeAudit(unit.tx, unit.tenantId, {
+    action: "module.cartridge_exported",
+    objectType: "learning_module",
+    objectId: module.id,
+    orgId: unit.schoolId,
+    details: { lessons: lessons.length, files: shared.size, skipped },
+  });
+  return { title: module.title, extension: "imscc", entries };
+}
+
 /** The exports this handler answers, by path. */
 export async function handleWorkExport(
   request: Request,
@@ -423,5 +644,8 @@ export async function handleWorkExport(
   const questions = MODULE_QUESTIONS.exec(url.pathname)?.[1];
   if (questions)
     return exported(context, (unit) => moduleQuestions(unit, questions));
+  const cartridge = MODULE_CARTRIDGE.exec(url.pathname)?.[1];
+  if (cartridge)
+    return exported(context, (unit) => moduleCartridge(unit, cartridge));
   return null;
 }

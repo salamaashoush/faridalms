@@ -22,6 +22,7 @@ import {
   FileDown,
   Hourglass,
   Layers,
+  Package,
   Pencil,
   Plus,
   Radio,
@@ -880,6 +881,14 @@ export function ModuleRecord({
                 toast.error(getMessageFromError(error));
               }
             },
+          },
+          {
+            label: m.lrnExportCartridge(),
+            icon: Package,
+            onSelect: () =>
+              window.location.assign(
+                `/exports/modules/${data.id}?as=cartridge`,
+              ),
           },
           {
             label: m.lrnExportQuestions(),

@@ -3495,6 +3495,7 @@
   "lrnDoneView": "The student opens it",
   "lrnDuplicate": "Duplicate",
   "lrnExportQuestions": "Export questions (QTI)",
+  "lrnExportCartridge": "Export for Moodle or Canvas (Common Cartridge)",
   "lrnDuplicated": "Copy made as a draft",
   "lrnCopyLesson": "Copy to a module",
   "lrnCopyLessonTitle": "Copy “{title}”",

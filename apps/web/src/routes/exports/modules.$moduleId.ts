@@ -2,8 +2,11 @@ import { createFileRoute } from "@tanstack/react-router";
 
 import { relayed, relayTo } from "~/server/relay";
 
-/** What a module is exported as: its questions as QTI. */
-const EXPORTS: Record<string, string> = { qti: "questions.zip" };
+/** What a module is exported as: its questions as QTI, or all of it as a Common Cartridge. */
+const EXPORTS: Record<string, string> = {
+  qti: "questions.zip",
+  cartridge: "cartridge.imscc",
+};
 
 /** A module's content in a format other systems read, from the API. */
 export const Route = createFileRoute("/exports/modules/$moduleId")({

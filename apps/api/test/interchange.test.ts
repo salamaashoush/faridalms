@@ -1,5 +1,6 @@
 import type { LessonBlock } from "@faridalms/domain/learning";
 
+import { plainContent } from "@faridalms/domain/content-conversion";
 import { contentOfLesson } from "@faridalms/domain/lesson-content";
 import { describe, expect, test } from "bun:test";
 import { unzipSync } from "fflate";
@@ -62,7 +63,9 @@ const unzipped = async (response: Response) => {
   return Object.fromEntries(
     Object.entries(files).map(([name, bytes]) => [
       name,
-      name.endsWith(".xml") ? new TextDecoder().decode(bytes) : bytes,
+      /\.(?:xml|html|json)$/u.test(name)
+        ? new TextDecoder().decode(bytes)
+        : bytes,
     ]),
   );
 };
@@ -148,5 +151,91 @@ describe("moving teaching between systems", () => {
       (await raw("northwind", pupil.token, `/v1/modules/${moduleId}/questions.zip`))
         .status,
     ).toBe(404);
+  });
+
+  test("a module leaves as a Common Cartridge Moodle and Canvas read, kept whole beside", async () => {
+    const common = {
+      points: 3,
+      hints: [],
+      explanation: "Rivers rise.",
+      tries: null,
+    };
+    const yes = crypto.randomUUID();
+    const { teacher, moduleId } = await moduleAsking("Rivers for Moodle", [
+      {
+        id: crypto.randomUUID(),
+        type: "content",
+        content: plainContent("Rivers flood <every> spring."),
+      },
+      {
+        ...common,
+        id: crypto.randomUUID(),
+        type: "choice",
+        prompt: "The Nile floods each summer.",
+        options: [
+          { id: yes, text: "True", feedback: "" },
+          { id: crypto.randomUUID(), text: "False", feedback: "" },
+        ],
+        correctOptionIds: [yes],
+        multiple: false,
+        shuffle: false,
+      },
+      {
+        ...common,
+        id: crypto.randomUUID(),
+        type: "ordering",
+        prompt: "Put the flood in order.",
+        items: [
+          { id: crypto.randomUUID(), text: "Rain" },
+          { id: crypto.randomUUID(), text: "Flood" },
+        ],
+        scoring: "all",
+      },
+    ]);
+    const response = await raw(
+      "northwind",
+      teacher.token,
+      `/v1/modules/${moduleId}/cartridge.imscc`,
+    );
+    expect(response.status).toBe(200);
+    expect(response.headers.get("content-disposition")).toContain(
+      'filename="Rivers for Moodle.imscc"',
+    );
+    const files = await unzipped(response);
+    expect(Object.keys(files).toSorted()).toEqual([
+      "farida/lessons/1.json",
+      "imsmanifest.xml",
+      "l1/The-flood.html",
+      "q1/assessment.xml",
+    ]);
+    const manifest = String(files["imsmanifest.xml"]);
+    // Moodle finds a CC 1.1 package by its namespace in the first kilobyte.
+    expect(
+      manifest.slice(0, 1024).replaceAll(/[\s"]/g, "").toLowerCase(),
+    ).toContain("xmlns=http://www.imsglobal.org/xsd/imsccv1p1/imscp_v1p1");
+    expect(manifest).toContain("<schemaversion>1.1.0</schemaversion>");
+    expect(manifest).toContain(
+      '<item identifier="item_l1" identifierref="l1"><title>The flood</title></item><item identifier="item_q1" identifierref="q1"><title>The flood: questions</title></item>',
+    );
+    expect(manifest).toContain(
+      '<resource identifier="farida" type="associatedcontent/imscc_xmlv1p1/learning-application-resource"><metadata>',
+    );
+    expect(String(files["l1/The-flood.html"])).toContain(
+      "<h1>The flood</h1><p>Rivers flood &lt;every&gt; spring.</p>",
+    );
+    const quiz = String(files["q1/assessment.xml"]);
+    // True and false keep the idents Moodle requires; an order goes as an essay with its key.
+    expect(quiz).toContain(
+      "<fieldentry>cc.true_false.v0p1</fieldentry></qtimetadatafield><qtimetadatafield><fieldlabel>cc_weighting</fieldlabel><fieldentry>3</fieldentry>",
+    );
+    expect(quiz).toContain('<varequal respident="response1">true</varequal>');
+    expect(quiz).toContain("<fieldentry>cc.essay.v0p1</fieldentry>");
+    expect(quiz).toContain('<itemfeedback ident="solution">');
+    const kept = JSON.parse(String(files["farida/lessons/1.json"])) as {
+      title: string;
+      content: { root: { children: unknown[] } };
+    };
+    expect(kept.title).toBe("The flood");
+    expect(kept.content.root.children.length).toBeGreaterThan(2);
   });
 });
