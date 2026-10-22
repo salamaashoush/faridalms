@@ -1,31 +1,41 @@
 import type {
   Cartridge,
   CartridgeItem,
+  CartridgeRule,
+  CartridgeSubmission,
 } from "@faridalms/domain/cartridge-read";
 import type { ContentDocument, ContentNode } from "@faridalms/domain/content";
-import type { LessonBlock } from "@faridalms/domain/learning";
+import type { LessonBlock, LessonCompletion } from "@faridalms/domain/learning";
 import type { UploadedFile } from "@faridalms/editor";
 
 import { cartridgeFile, packagePath } from "@faridalms/domain/cartridge-read";
 import { embedSource, parseEmbedUrl } from "@faridalms/domain/embed";
 import { imageSize, mediaTypeFor } from "@faridalms/domain/file";
-import { contentOfLesson } from "@faridalms/domain/lesson-content";
+import {
+  contentOfLesson,
+  holdsQuestions,
+} from "@faridalms/domain/lesson-content";
 import { qti12Items, questionOfQti12 } from "@faridalms/domain/qti12";
 import { contentOfHtml, STORED_FILE } from "@faridalms/editor/html-import";
 import { xmlOf } from "@faridalms/editor/packages";
 
 /**
- * Brings a Common Cartridge's course in as modules of lessons: each page,
- * discussion or assignment brief a lesson read as the editor reads a paste,
- * each quiz a lesson of questions, each link, file or outside tool a lesson
- * that points to it. The files they show are stored with the school first.
+ * Brings a Common Cartridge's course in as modules of lessons: each page or
+ * discussion a lesson read as the editor reads a paste, each quiz a lesson
+ * of questions, each link, file or outside tool a lesson that points to it.
+ * An assignment becomes a draft assignment in each class chosen, its brief
+ * read the same way. The files they show are stored with the school first.
  * A lesson this app exported comes back whole from the copy kept beside it.
+ * Canvas's module rules come too: what finishes each lesson, which modules
+ * run in order, and which must be finished first.
  */
 
 const decoder = new TextDecoder();
 
 export interface ImportCounts {
   lessons: number;
+  /** Assignments brought in, each once however many classes it went to. */
+  assignments: number;
   /** Questions read only roughly, or kept as words, for a teacher to check. */
   check: number;
   /** Items that could not be brought in at all. */
@@ -72,7 +82,7 @@ type Store = ReturnType<typeof storer>;
 async function storedHtml(
   html: string,
   base: string,
-  importer: Importer,
+  importer: Pick<Importer, "files">,
   store: Store,
 ): Promise<ContentDocument> {
   const page = new DOMParser().parseFromString(html, "text/html");
@@ -251,7 +261,6 @@ async function lessonOf(
       };
     }
     case "discussion":
-    case "assignment":
       return {
         content: await storedHtml(item.html, item.base, importer, store),
         check: 0,
@@ -265,6 +274,8 @@ async function lessonOf(
         content: linkContent(item.title, item.url, item.description),
         check: 1,
       };
+    case "assignment":
+      return null;
     case "file": {
       const stored = await store(item.path);
       if (!stored) return null;
@@ -280,37 +291,109 @@ async function lessonOf(
 }
 
 /**
+ * What finishes a lesson brought in, from the rule its course set: one
+ * asking nothing is finished by opening it, unless its student is to say
+ * so, and a minimum score whose points are unknown asks for every answer.
+ */
+function completionOf(
+  rule: CartridgeRule | undefined,
+  content: ContentDocument,
+): { completion: LessonCompletion; passScore: number | null } {
+  if (rule?.rule === "mark") return { completion: "mark", passScore: null };
+  if (!holdsQuestions(content)) return { completion: "view", passScore: null };
+  if (rule?.rule === "score" && rule.percent !== null)
+    return { completion: "score", passScore: rule.percent };
+  if (rule?.rule === "submit" || rule?.rule === "score")
+    return { completion: "quiz", passScore: null };
+  return { completion: "view", passScore: null };
+}
+
+/**
  * Brings the modules chosen in, one lesson an item, each module made for
- * the classes chosen and left as a draft for its teacher to look over.
+ * the classes chosen and left as a draft for its teacher to look over, and
+ * each assignment a draft in every one of those classes. A module holding
+ * only assignments makes none of its own.
  */
 export async function importCartridge(
   cartridge: Cartridge,
   chosen: readonly number[],
   importer: Omit<Importer, "upload"> & {
-    uploadTo: (moduleId: string) => (file: File) => Promise<UploadedFile>;
-    saveModule: (title: string) => Promise<string>;
+    classIds: readonly string[];
+    uploadTo: (host: {
+      type: "module" | "class";
+      id: string;
+    }) => (file: File) => Promise<UploadedFile>;
+    saveModule: (module: {
+      title: string;
+      sequential: boolean;
+      prerequisiteId: string;
+    }) => Promise<string>;
     saveLesson: (lesson: {
       moduleId: string;
       title: string;
       content: ContentDocument;
       language: "ar" | "en" | null;
+      completion: LessonCompletion;
+      passScore: number | null;
+    }) => Promise<unknown>;
+    saveAssignment: (assignment: {
+      classId: string;
+      title: string;
+      brief: ContentDocument;
+      points: number | null;
+      dueAt: string;
+      submission: CartridgeSubmission;
     }) => Promise<unknown>;
     onProgress: (done: number, total: number) => void;
   },
 ): Promise<{ modules: { id: string; title: string }[]; counts: ImportCounts }> {
   const modules: { id: string; title: string }[] = [];
-  const counts: ImportCounts = { lessons: 0, check: 0, failed: 0 };
-  const picked = chosen.flatMap((index) => cartridge.modules[index] ?? []);
-  const total = picked.reduce((sum, module) => sum + module.items.length, 0);
+  const counts: ImportCounts = {
+    lessons: 0,
+    assignments: 0,
+    check: 0,
+    failed: 0,
+  };
+  const total = chosen.reduce(
+    (sum, index) => sum + (cartridge.modules[index]?.items.length ?? 0),
+    0,
+  );
+  // Each class keeps its own copy of a brief's files, as its own work does.
+  const classStores = new Map(
+    importer.classIds.map((classId) => [
+      classId,
+      storer({
+        ...importer,
+        upload: importer.uploadTo({ type: "class", id: classId }),
+      }),
+    ]),
+  );
+  const made = new Map<number, string>();
   let done = 0;
-  for (const module of picked) {
-    const moduleId = await importer.saveModule(module.title);
-    modules.push({ id: moduleId, title: module.title });
-    const scoped: Importer = {
-      ...importer,
-      upload: importer.uploadTo(moduleId),
+  for (const index of chosen) {
+    const module = cartridge.modules[index];
+    if (!module) continue;
+    let opened: { id: string; store: Store; importer: Importer } | null = null;
+    const open = async () => {
+      if (opened) return opened;
+      // Of the modules to finish first, the latest is the one to wait on.
+      const before = (module.prerequisites ?? [])
+        .flatMap((place) => made.get(place) ?? [])
+        .at(-1);
+      const id = await importer.saveModule({
+        title: module.title,
+        sequential: module.sequential ?? false,
+        prerequisiteId: before ?? "",
+      });
+      made.set(index, id);
+      modules.push({ id, title: module.title });
+      const scoped: Importer = {
+        ...importer,
+        upload: importer.uploadTo({ type: "module", id }),
+      };
+      opened = { id, store: storer(scoped), importer: scoped };
+      return opened;
     };
-    const store = storer(scoped);
     // What this app exported after a whole lesson, its questions and its
     // tool links, is already in the lesson.
     let whole = false;
@@ -319,17 +402,40 @@ export async function importCartridge(
       importer.onProgress(done, total);
       if (whole && (item.kind === "quiz" || item.kind === "tool")) continue;
       try {
-        const lesson = await lessonOf(item, scoped, store);
+        if (item.kind === "assignment") {
+          // A date already past belongs to the course it came from.
+          const dueAt =
+            item.dueAt && Date.parse(item.dueAt) > Date.now() ? item.dueAt : "";
+          for (const [classId, classStore] of classStores)
+            await importer.saveAssignment({
+              classId,
+              title: item.title.slice(0, 200) || module.title,
+              brief: await storedHtml(
+                item.html,
+                item.base,
+                importer,
+                classStore,
+              ),
+              points: item.points,
+              dueAt,
+              submission: item.submission,
+            });
+          counts.assignments += 1;
+          continue;
+        }
+        const into = await open();
+        const lesson = await lessonOf(item, into.importer, into.store);
         if (!lesson) {
           counts.failed += 1;
           continue;
         }
         whole = lesson.whole ?? false;
         await importer.saveLesson({
-          moduleId,
+          moduleId: into.id,
           title: item.title.slice(0, 200) || module.title,
           content: lesson.content,
           language: lesson.language ?? null,
+          ...completionOf(item.completion, lesson.content),
         });
         counts.lessons += 1;
         counts.check += lesson.check;

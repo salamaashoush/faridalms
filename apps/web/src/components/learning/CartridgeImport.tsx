@@ -16,6 +16,7 @@ import { FormField } from "~/components/system/field";
 import { SheetForm } from "~/components/system/SheetForm";
 import * as m from "~/i18n/messages";
 import { availableToolsQuery } from "~/queries/lti";
+import { saveAssignment } from "~/server/coursework";
 import { initiateUpload } from "~/server/files";
 import { saveLesson, saveModule } from "~/server/learning";
 import { formatNumber } from "~/utils/datetime";
@@ -49,6 +50,7 @@ export function CartridgeImport({
   const initiate = useServerFn(initiateUpload);
   const save = useServerFn(saveModule);
   const saveOne = useServerFn(saveLesson);
+  const assign = useServerFn(saveAssignment);
   const tools = useQuery({ ...availableToolsQuery, enabled: open }).data;
   const [found, setFound] = useState<{
     files: Map<string, Uint8Array>;
@@ -71,20 +73,20 @@ export function CartridgeImport({
       if (classIds.length === 0) throw new Error(m.lrnClassesNeeded());
       return importCartridge(found.cartridge, chosen, {
         files: found.files,
+        classIds,
         toolIds: new Set((tools ?? []).map((tool) => tool.id)),
-        uploadTo: (moduleId) => (file) =>
-          uploadDocumentFile(initiate, file, { type: "module", id: moduleId }),
-        saveModule: async (title) =>
+        uploadTo: (host) => (file) => uploadDocumentFile(initiate, file, host),
+        saveModule: async (module) =>
           (
             await save({
               data: {
                 id: "",
                 expectedVersion: 0,
-                title: title.slice(0, 200),
+                title: module.title.slice(0, 200),
                 summary: "",
                 classIds,
-                prerequisiteId: "",
-                sequential: false,
+                prerequisiteId: module.prerequisiteId,
+                sequential: module.sequential,
               },
             })
           ).id,
@@ -95,11 +97,27 @@ export function CartridgeImport({
               moduleId: lesson.moduleId,
               expectedVersion: 0,
               title: lesson.title,
-              completion: "view",
-              passScore: null,
+              completion: lesson.completion,
+              passScore: lesson.passScore,
               content: lesson.content,
               language: lesson.language,
               publish: false,
+            },
+          }),
+        saveAssignment: (assignment) =>
+          assign({
+            data: {
+              classId: assignment.classId,
+              title: assignment.title,
+              brief: assignment.brief,
+              audience: "class",
+              availableFrom: "",
+              dueAt: assignment.dueAt,
+              closesAt: "",
+              latePolicy: "accept",
+              submissionFormat: assignment.submission,
+              points: assignment.points,
+              rubric: null,
             },
           }),
         onProgress: (done, total) => setProgress({ done, total }),
@@ -134,9 +152,17 @@ export function CartridgeImport({
         await run.mutateAsync().then(
           async ({ modules, counts }) => {
             toast.success(
-              counts.check + counts.failed > 0
-                ? `${m.lrnImported({ count: counts.lessons })} ${m.lrnImportToCheck({ count: counts.check + counts.failed })}`
-                : m.lrnImported({ count: counts.lessons }),
+              [
+                m.lrnImported({ count: counts.lessons }),
+                counts.assignments > 0
+                  ? m.lrnImportedAssignments({ count: counts.assignments })
+                  : null,
+                counts.check + counts.failed > 0
+                  ? m.lrnImportToCheck({ count: counts.check + counts.failed })
+                  : null,
+              ]
+                .filter(Boolean)
+                .join(" "),
             );
             await queryClient.invalidateQueries({ queryKey: ["learning"] });
             onClose();

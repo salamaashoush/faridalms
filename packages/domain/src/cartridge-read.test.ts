@@ -138,6 +138,8 @@ describe("a Common Cartridge's course", () => {
               html: "<p>Write about rivers.</p>",
               base: "asg1/essay.html",
               points: 20,
+              dueAt: null,
+              submission: "both",
             },
             {
               kind: "quiz",
@@ -155,6 +157,110 @@ describe("a Common Cartridge's course", () => {
           title: "Geography 8",
           items: [
             { kind: "file", title: "Atlas", path: "web_resources/atlas.pdf" },
+          ],
+        },
+      ],
+    });
+  });
+
+  it("reads Canvas's module rules and a CC 1.3 assignment's due date", () => {
+    const manifest = `<?xml version="1.0"?>
+      <manifest identifier="x" xmlns="http://www.imsglobal.org/xsd/imsccv1p3/imscp_v1p1">
+        <metadata><schema>IMS Common Cartridge</schema><schemaversion>1.3.0</schemaversion></metadata>
+        <organizations><organization identifier="org_1"><item identifier="LearningModules">
+          <item identifier="g_m1"><title>Week 1</title>
+            <item identifier="g_t1" identifierref="page1"><title>Read</title></item>
+          </item>
+          <item identifier="g_m2"><title>Week 2</title>
+            <item identifier="g_t2" identifierref="quiz1"><title>Check</title></item>
+            <item identifier="g_t3" identifierref="asg1"><title>Essay</title></item>
+            <item identifier="g_t4" identifierref="page2"><title>Done?</title></item>
+          </item>
+        </item></organization></organizations>
+        <resources>
+          <resource identifier="page1" type="webcontent" href="wiki_content/read.html"><file href="wiki_content/read.html"/></resource>
+          <resource identifier="page2" type="webcontent" href="wiki_content/done.html"><file href="wiki_content/done.html"/></resource>
+          <resource identifier="quiz1" type="imsqti_xmlv1p2/imscc_xmlv1p1/assessment">
+            <file href="quiz1/assessment_qti.xml"/><file href="quiz1/assessment_meta.xml"/></resource>
+          <resource identifier="asg1" type="assignment_xmlv1p0" href="asg1/assignment.xml"><file href="asg1/assignment.xml"/></resource>
+        </resources>
+      </manifest>`;
+    const meta = `<modules xmlns="http://canvas.instructure.com/xsd/cccv1p0">
+      <module identifier="g_m1"><title>Week 1</title><require_sequential_progress>false</require_sequential_progress>
+        <completionRequirements><completionRequirement type="must_view"><identifierref>g_t1</identifierref></completionRequirement></completionRequirements>
+      </module>
+      <module identifier="g_m2"><title>Week 2</title><require_sequential_progress>true</require_sequential_progress>
+        <prerequisites><prerequisite type="context_module"><title>Week 1</title><identifierref>g_m1</identifierref></prerequisite></prerequisites>
+        <completionRequirements>
+          <completionRequirement type="min_score"><min_score>8.0</min_score><identifierref>g_t2</identifierref></completionRequirement>
+          <completionRequirement type="must_mark_done"><identifierref>g_t4</identifierref></completionRequirement>
+        </completionRequirements>
+      </module>
+    </modules>`;
+    const files = new Map([
+      ["imsmanifest.xml", bytes(manifest)],
+      ["course_settings/module_meta.xml", bytes(meta)],
+      ["wiki_content/read.html", bytes("<p>Read</p>")],
+      ["wiki_content/done.html", bytes("<p>Done</p>")],
+      ["quiz1/assessment_qti.xml", bytes("<questestinterop/>")],
+      [
+        "quiz1/assessment_meta.xml",
+        bytes(
+          '<quiz xmlns="http://canvas.instructure.com/xsd/cccv1p0"><points_possible>10.0</points_possible></quiz>',
+        ),
+      ],
+      [
+        "asg1/assignment.xml",
+        bytes(`<assignment identifier="asg1" xmlns="http://www.imsglobal.org/xsd/imscc_extensions/assignment">
+          <title>Essay</title><text texttype="text/html">&lt;p&gt;Argue.&lt;/p&gt;</text>
+          <gradable points_possible="20">true</gradable>
+          <submission_formats><format type="html"/><format type="file"/></submission_formats>
+          <extensions platform="canvas.instructure.com">
+            <assignment xmlns="http://canvas.instructure.com/xsd/cccv1p0" identifier="asg1_canvas">
+              <due_at>2026-11-01T21:59:00</due_at></assignment></extensions>
+        </assignment>`),
+      ],
+    ]);
+    expect(readCartridge(files)).toEqual({
+      title: "Course",
+      modules: [
+        {
+          title: "Week 1",
+          items: [
+            {
+              kind: "page",
+              title: "Read",
+              path: "wiki_content/read.html",
+              completion: { rule: "view" },
+            },
+          ],
+        },
+        {
+          title: "Week 2",
+          sequential: true,
+          prerequisites: [0],
+          items: [
+            {
+              kind: "quiz",
+              title: "Check",
+              path: "quiz1/assessment_qti.xml",
+              completion: { rule: "score", percent: 80 },
+            },
+            {
+              kind: "assignment",
+              title: "Essay",
+              html: "<p>Argue.</p>",
+              base: "asg1/assignment.xml",
+              points: 20,
+              dueAt: "2026-11-01T21:59:00.000Z",
+              submission: "both",
+            },
+            {
+              kind: "page",
+              title: "Done?",
+              path: "wiki_content/done.html",
+              completion: { rule: "mark" },
+            },
           ],
         },
       ],

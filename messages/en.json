@@ -3709,7 +3709,17 @@
   "lrnImportCourse": "Import from Moodle or Canvas",
   "lrnImportTitle": "Import a course",
   "lrnImportSubmit": "Import",
-  "lrnImportHint": "Choose a course exported as a Common Cartridge (.imscc) from Moodle, Canvas or another LMS. Each of its modules comes in as a draft module, its pages, quizzes, links and files as lessons.",
+  "lrnImportHint": "Choose a course exported as a Common Cartridge (.imscc) from Moodle, Canvas or another LMS. Each of its modules comes in as a draft module, its pages, quizzes, links and files as lessons, and its assignments as draft assignments in the classes you choose. Canvas's module rules come too: what finishes each lesson, and which modules come first.",
+  "lrnImportedAssignments": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "{count} assignment came in as a draft in each class chosen.",
+        "countPlural=*": "{count} assignments came in as drafts in each class chosen."
+      }
+    }
+  ],
   "lrnImportFile": "Course file",
   "lrnImportChoose": "Choose a course file first.",
   "lrnImportNoModules": "Choose at least one module to bring in.",

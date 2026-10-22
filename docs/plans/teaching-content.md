@@ -807,13 +807,17 @@ Scratch Text to Speech, Translate and tutorials.
    page imports a cartridge: pages, discussions and briefs read as a paste
    is, with their files stored; quizzes from CC's profile and Canvas's own
    question kinds; links, embeds and files as lessons. A lesson this
-   school exported comes back whole from the copy kept beside it.
+   school exported comes back whole from the copy kept beside it. A
+   cartridge's assignments (CC 1.3's own, or Canvas's settings beside a
+   page) come in as draft assignments in each class chosen, with their
+   points, how work is handed in, and a due date still ahead. Canvas's
+   `module_meta.xml` brings its rules: what finishes each lesson (opened,
+   marked done, handed in, or a minimum score as a share of the quiz's
+   points), which modules run in order, and the module to finish first.
    Left: trying both directions against real Moodle and Canvas sites,
    which were not to hand; a CC 1.3 option carrying assignments with
    their due dates; Canvas-shaped QTI 1.2 for New Quizzes; bringing a
-   cartridge's question banks into the question bank; Canvas's module
-   prerequisites and completion rules; briefs coming in as assignments
-   of a class rather than as lessons.
+   cartridge's question banks into the question bank.
 3. **Results shaped for xAPI** (score, duration, completion).
    Done: a module's progress view exports a class's results as Experience
    API 1.0.3 statements, as the owner chose, with no store of our own:

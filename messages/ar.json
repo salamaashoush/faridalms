@@ -3891,7 +3891,21 @@
   "lrnImportCourse": "استيراد من Moodle أو Canvas",
   "lrnImportTitle": "استيراد مقرر",
   "lrnImportSubmit": "استيراد",
-  "lrnImportHint": "اختر مقررًا مصدّرًا بصيغة Common Cartridge ‏(‎.imscc) من Moodle أو Canvas أو نظام آخر. تصل كل وحدة فيه وحدةً في المسودة، وتصبح صفحاتها واختباراتها وروابطها وملفاتها دروسًا.",
+  "lrnImportHint": "اختر مقررًا مصدّرًا بصيغة Common Cartridge ‏(‎.imscc) من Moodle أو Canvas أو نظام آخر. تصل كل وحدة فيه وحدةً في المسودة، وتصبح صفحاتها واختباراتها وروابطها وملفاتها دروسًا، وواجباتها واجباتٍ في المسودة في الفصول التي تختارها. وتصل قواعد وحدات Canvas أيضًا: ما يُنهي كل درس، وأي الوحدات تسبق غيرها.",
+  "lrnImportedAssignments": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=zero": "لم تصل أي واجبات.",
+        "countPlural=one": "وصل واجب واحد مسودةً في كل فصل مختار.",
+        "countPlural=two": "وصل واجبان مسودتين في كل فصل مختار.",
+        "countPlural=few": "وصلت {count} واجبات مسوداتٍ في كل فصل مختار.",
+        "countPlural=many": "وصل {count} واجبًا مسوداتٍ في كل فصل مختار.",
+        "countPlural=*": "وصل {count} واجب مسوداتٍ في كل فصل مختار."
+      }
+    }
+  ],
   "lrnImportFile": "ملف المقرر",
   "lrnImportChoose": "اختر ملف المقرر أولًا.",
   "lrnImportNoModules": "اختر وحدة واحدة على الأقل لاستيرادها.",
