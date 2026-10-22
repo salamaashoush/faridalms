@@ -51,6 +51,7 @@ export function ContentEditor({
   lessonActivities,
   feedbackTiming,
   standards = false,
+  sharedBlocks,
   pending = false,
   language,
 }: {
@@ -82,6 +83,8 @@ export function ContentEditor({
   language?: ContentLocale;
   /** Standards blocks may name the school's standards, as a unit plan's do. */
   standards?: boolean;
+  /** Whether it shows blocks kept once for many documents; teaching documents do. */
+  sharedBlocks?: boolean;
   /** Whether the document may be live is still being asked. */
   pending?: boolean;
 }) {
@@ -91,8 +94,9 @@ export function ContentEditor({
   const designing = useEditorPuzzles(Boolean(questions));
   const banking = useEditorBank(Boolean(questions));
   const tagging = useEditorStandards(Boolean(questions) || standards);
-  // Teaching documents show the blocks a school keeps once for many.
-  const sharing = useEditorShared(Boolean(questions) || standards);
+  const sharing = useEditorShared(
+    sharedBlocks ?? (Boolean(questions) || standards),
+  );
   const mentions = useEditorMentions();
   const tools = useEditorTools();
   const { arabicMath } = useCurrentUser().school;

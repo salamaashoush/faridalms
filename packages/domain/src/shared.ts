@@ -30,6 +30,41 @@ export function sharable(document: ContentDocument): boolean {
   );
 }
 
+/** The shared blocks a document shows, each once. */
+export function sharedIdsOf(document: ContentDocument): string[] {
+  return [
+    ...new Set(
+      (document.root.children ?? []).flatMap((node) =>
+        node.type === "shared" && node.sharedId ? [node.sharedId] : [],
+      ),
+    ),
+  ];
+}
+
+/**
+ * A document with each shared block it shows written out in its place, for
+ * a copy that must stand on its own: a page on the school's website, a
+ * file taken to another system. A block since taken out leaves nothing.
+ */
+export function inlineShared(
+  document: ContentDocument,
+  blocks: ReadonlyMap<string, ContentDocument>,
+): ContentDocument {
+  const children = document.root.children ?? [];
+  if (!children.some((node) => node.type === "shared")) return document;
+  return {
+    ...document,
+    root: {
+      ...document.root,
+      children: children.flatMap((node) =>
+        node.type === "shared"
+          ? (blocks.get(node.sharedId ?? "")?.root.children ?? [])
+          : [node],
+      ),
+    },
+  };
+}
+
 export const saveSharedSchema = v.object({
   /** Empty to keep a new shared block, or the one being changed. */
   id: v.optional(v.union([v.literal(""), id]), ""),

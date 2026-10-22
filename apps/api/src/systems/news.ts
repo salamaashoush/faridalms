@@ -75,6 +75,7 @@ import {
   requireCapability,
   writeProcedure,
 } from "../core/procedure";
+import { sharedInliner } from "../core/shared";
 import { publishMedia, withdrawMedia } from "../core/site";
 import {
   placeMedia,
@@ -585,10 +586,18 @@ export const publish = writeProcedure
     if (revising && later)
       throw new ORPCError("BAD_REQUEST", { message: "news.already_out" });
     const { original, translation } = await drafts(context, row.id);
-    const body = bodyOf(original?.content ?? null);
-    if (!original || !body || !documentWritten(body))
+    const written = bodyOf(original?.content ?? null);
+    if (!original || !written || !documentWritten(written))
       throw new ORPCError("CONFLICT", { message: "news.empty" });
-    const other = bodyOf(translation?.content ?? null);
+    const translated = bodyOf(translation?.content ?? null);
+    // Its readers here see shared blocks as they stand; the website's copy
+    // stands on its own, so it is checked and written with them in place.
+    const inline = await sharedInliner(
+      context,
+      translated ? [written, translated] : [written],
+    );
+    const body = inline(written);
+    const other = translated ? inline(translated) : null;
     const issues = issuesOf(row, body, other);
     if (issues.en.length + issues.ar.length > 0)
       throw new ORPCError("CONFLICT", { message: "site.issues" });

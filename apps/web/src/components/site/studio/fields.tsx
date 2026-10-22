@@ -948,6 +948,7 @@ export function FieldControl({
               value={value as ContentDocument}
               onChange={onChange}
               media={context.media}
+              sharedBlocks
             />
           </div>
         </StudioField>

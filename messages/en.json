@@ -1560,6 +1560,8 @@
     }
   ],
   "sharedUsedNowhere": "No document shows it.",
+  "sharedUsePage": "Website page",
+  "sharedUsesWebsite": "The website shows a change to a page or news post once it is published again.",
   "sharedRemoveTitle": "Take out “{title}”?",
   "sharedRemoveBody": [
     {

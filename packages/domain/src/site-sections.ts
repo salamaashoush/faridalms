@@ -1289,6 +1289,52 @@ export function sectionFileIds(section: PageSection): string[] {
   return [...new Set(found)];
 }
 
+/** Some data with every scalar value passed through a change, however deeply its blocks nest. */
+function mapScalars(
+  fields: Record<string, Field>,
+  data: Loose,
+  change: (field: ScalarField, value: unknown) => unknown,
+): Loose {
+  const next: Loose = { ...data };
+  for (const [key, field] of Object.entries(fields)) {
+    const value = data[key];
+    if (field.kind === "items")
+      next[key] = (value as Loose[]).map((item) =>
+        Object.fromEntries([
+          ["id", item.id],
+          ...Object.entries(field.fields).map(([inner, innerField]) => [
+            inner,
+            change(innerField, item[inner]),
+          ]),
+        ]),
+      );
+    else if (field.kind === "columns")
+      next[key] = (value as LooseColumn[]).map((column) => ({
+        id: column.id,
+        blocks: column.blocks.map((block) => ({
+          id: block.id,
+          type: block.type,
+          data: mapScalars(blockFieldsOf(block.type), block.data, change),
+        })),
+      }));
+    else next[key] = change(field, value);
+  }
+  return next;
+}
+
+/** A section with each of its rich bodies, in blocks and items too, changed. */
+export function mapSectionBodies(
+  section: PageSection,
+  change: (body: ContentDocument) => ContentDocument,
+): PageSection {
+  return {
+    ...section,
+    data: mapScalars(fieldsOf(section.type), section.data, (field, value) =>
+      field.kind === "rich" && value ? change(value as ContentDocument) : value,
+    ),
+  } as PageSection;
+}
+
 export type SiteIssueCode =
   | "alt"
   | "heading"

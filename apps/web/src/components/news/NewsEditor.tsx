@@ -489,6 +489,7 @@ export function NewsEditor({
         onValidityChange={setValid}
         onUploadingChange={setUploading}
         media={media}
+        sharedBlocks
       />
     </div>
   );

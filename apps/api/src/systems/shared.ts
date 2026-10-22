@@ -1,3 +1,4 @@
+import type { Capability } from "@faridalms/domain/capabilities";
 import type { ContentDocument } from "@faridalms/domain/content";
 
 import {
@@ -32,9 +33,17 @@ import {
 
 const hostOf = (id: string) => ({ type: "shared_block", id });
 
-/** Whoever writes lessons or assignments may keep blocks and use the school's. */
+const AUTHORS: readonly Capability[] = [
+  "learning:author",
+  "assignments:author",
+  "news:manage",
+  "announcements:manage",
+  "site:manage",
+];
+
+/** Whoever writes the school's documents, teaching or news, may keep blocks and use the school's. */
 function requireAuthor(context: UnitContext) {
-  if (!can(context, "learning:author") && !can(context, "assignments:author"))
+  if (!AUTHORS.some((capability) => can(context, capability)))
     throw new ORPCError("FORBIDDEN");
 }
 

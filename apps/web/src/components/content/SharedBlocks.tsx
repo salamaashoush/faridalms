@@ -184,7 +184,12 @@ const USE_KIND: Record<Use["hostType"], () => string> = {
   lesson: m.libraryKindLesson,
   assignment: m.libraryKindAssignment,
   module_plan: m.libraryKindPlan,
+  announcement: m.libraryKindAnnouncement,
+  site_post: m.libraryKindNews,
+  site_page: m.sharedUsePage,
 };
+
+const WEBSITE = new Set<Use["hostType"]>(["site_page", "site_post"]);
 
 /** Which documents show a shared block, named on request, so a change is made knowing what it reaches. */
 function SharedUses({ id }: { id: string }) {
@@ -215,6 +220,11 @@ function SharedUses({ id }: { id: string }) {
           value: formatNumber(rows.length),
         })}
       </button>
+      {open && rows.some((row) => WEBSITE.has(row.hostType)) ? (
+        <p className="ps-[18px] text-[13px] leading-[18px] text-muted-foreground">
+          {m.sharedUsesWebsite()}
+        </p>
+      ) : null}
       {open ? (
         <ul className="grid max-h-40 gap-1 overflow-y-auto ps-[18px] text-[13px] leading-[18px]">
           {rows.map((row) => (
@@ -223,7 +233,7 @@ function SharedUses({ id }: { id: string }) {
                 {USE_KIND[row.hostType]()}
               </span>
               <span className="min-w-0 truncate">
-                <bdi>{row.title}</bdi>
+                <bdi>{inLocale(row.titleEn, row.titleAr)}</bdi>
                 {row.placeEn ? (
                   <span className="text-muted-foreground">
                     {" · "}

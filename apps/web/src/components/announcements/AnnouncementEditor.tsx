@@ -655,6 +655,7 @@ export function AnnouncementEditor({
             onValidityChange={setValid}
             onUploadingChange={setUploading}
             media={media}
+            sharedBlocks
           />
         </div>
       </DocumentPage>

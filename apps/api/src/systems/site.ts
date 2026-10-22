@@ -99,6 +99,7 @@ import {
   writeProcedure,
 } from "../core/procedure";
 import { attemptKey, ipPrefix } from "../core/session";
+import { inlinePageShared } from "../core/shared";
 import { publishMedia, withPublicSite, withdrawMedia } from "../core/site";
 import { registerHostReader, placeMedia } from "../files/authorize";
 
@@ -540,20 +541,22 @@ export const publishPage = writeProcedure
     const documents = await pageDocuments(context, row.id);
     if (!documents.originalId || documents.content.sections.length === 0)
       throw new ORPCError("CONFLICT", { message: "site.empty" });
-    const issues = issuesByLocale(
-      documents.content,
-      documents.translation,
-      settings,
-    );
+    // Visitors read a copy that stands on its own, so the shared blocks the
+    // page shows go out as they read now, checked and their pictures public.
+    const content = await inlinePageShared(context, documents.content);
+    const written = documents.translation
+      ? await inlinePageShared(context, documents.translation)
+      : null;
+    const issues = issuesByLocale(content, written, settings);
     if (issues.en.length + issues.ar.length > 0)
       throw new ORPCError("CONFLICT", { message: "site.issues" });
-    const translation = settings.bilingual ? documents.translation : null;
+    const translation = settings.bilingual ? written : null;
     const media = await publishMedia(
       context,
       { tenantId: context.tenantId, hostType: "site_page", hostId: row.id },
       [
         ...new Set([
-          ...pageFileIds(documents.content),
+          ...pageFileIds(content),
           ...(translation ? pageFileIds(translation) : []),
         ]),
       ],
@@ -591,14 +594,14 @@ export const publishPage = writeProcedure
         title: titleIn(row, locale, settings.primaryLocale),
         content: {
           sections: localizedSections(
-            documents.content,
+            content,
             translation,
             settings.primaryLocale,
             locale,
           ),
           description:
             (locale !== settings.primaryLocale && translation?.description) ||
-            documents.content.description,
+            content.description,
         },
         media,
         visibleFrom: publishedAt,

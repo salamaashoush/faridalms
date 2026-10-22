@@ -1,10 +1,11 @@
 import { plainContent } from "@faridalms/domain/content-conversion";
 import { describe, expect, test } from "bun:test";
 
-import { login, rejection, signedIn } from "./harness";
+import { client, login, rejection, signedIn } from "./harness";
 
 const teacher = (index = 0) => signedIn("northwind", login("teacher", 0, index));
 const student = () => signedIn("northwind", login("student"));
+const principal = () => signedIn("northwind", login("principal"));
 
 const rules = plainContent("Wear goggles. Tie long hair back.");
 
@@ -141,7 +142,8 @@ describe("shared blocks", () => {
       {
         hostType: "lesson",
         hostId: expect.any(String),
-        title: "Before we go",
+        titleEn: "Before we go",
+        titleAr: "Before we go",
         placeEn: "Rivers outdoors",
         placeAr: "Rivers outdoors",
       },
@@ -171,5 +173,64 @@ describe("shared blocks", () => {
     expect(await rejection(other.documents.history(host))).toMatchObject({
       code: "NOT_FOUND",
     });
+  });
+
+  test("the office shows one in news, which goes on the website as it reads when published", async () => {
+    const office = await principal();
+    const kept = await office.shared.save({
+      expectedVersion: 0,
+      title: "Visiting the school",
+      scope: "mine",
+      content: plainContent("Sign in at the front desk."),
+    });
+    const body = plainContent("Parents' evening is on Tuesday.");
+    const post = await office.news.save({
+      id: "",
+      expectedVersion: 0,
+      visibility: "public",
+      primaryLocale: "en",
+      titleEn: "Parents' evening",
+      titleAr: "",
+      excerptEn: "",
+      excerptAr: "",
+      slug: "parents-evening-shared",
+      categoryId: "",
+      coverFileId: "",
+      coverAltEn: "",
+      coverAltAr: "",
+      pinned: false,
+      audiences: [],
+      body: {
+        root: {
+          ...body.root,
+          children: [
+            ...(body.root.children ?? []),
+            { type: "shared", version: 1, sharedId: kept.id },
+          ],
+        },
+      },
+      translation: null,
+    });
+    expect(
+      (await office.shared.uses({ id: kept.id })).map((row) => row.hostType),
+    ).toEqual(["site_post"]);
+    await office.news.publish({ id: post.id, expectedVersion: post.version });
+
+    // A change after publishing waits for the next one to reach the website.
+    await office.shared.save({
+      id: kept.id,
+      expectedVersion: kept.version,
+      title: "Visiting the school",
+      scope: "mine",
+      content: plainContent("Sign in at the front desk with photo ID."),
+    });
+    const read = await client("northwind").site.publicSitePost({
+      school: "northwind",
+      locale: "en",
+      slug: "parents-evening-shared",
+    });
+    const words = JSON.stringify(read.body);
+    expect(words).toContain("Sign in at the front desk.");
+    expect(words).not.toContain('"shared"');
   });
 });

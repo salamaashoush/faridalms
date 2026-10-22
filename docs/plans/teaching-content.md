@@ -545,8 +545,11 @@ Sources: [../research/course-design.md](../research/course-design.md),
    assignments and unit plans showing it, each with its module or class,
    and taking one out asks first, saying how many will then say it is
    gone. Each save is kept as a version its teacher may bring back from
-   Version history, as a lesson's are.
-   Left: shared blocks in news, announcements and the school's pages.
+   Version history, as a lesson's are. Whoever writes news, announcements
+   or the website keeps and shows them too: announcements and news read
+   in the app show a block as it now is, while a website page or post
+   takes it as it reads when published, checked, its pictures made public
+   with the rest, and shows a later change once published again.
 4. **Footnotes and citations** for older students and universities.
    Done: a footnote is added at the caret from the selection bar or with
    Mod+Alt+F, a number in the line counted in reading order, its words

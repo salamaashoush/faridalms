@@ -1642,6 +1642,8 @@
     }
   ],
   "sharedUsedNowhere": "لا يعرضها أي مستند.",
+  "sharedUsePage": "صفحة الموقع",
+  "sharedUsesWebsite": "يعرض الموقع التغيير في صفحة أو خبر بعد نشره من جديد.",
   "sharedRemoveTitle": "إزالة «{title}»؟",
   "sharedRemoveBody": [
     {
