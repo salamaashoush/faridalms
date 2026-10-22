@@ -51,6 +51,7 @@ export const CONFLICTS: Record<string, string> = {
   standards_case_key: "standards.exists",
   standard_evidence_key: "standards.evidence_exists",
   goal_judgements_key: "standards.judgement_exists",
+  peer_reviews_key: "coursework.peer_exists",
   module_audiences_group_key: "learning.audience",
   module_audiences_student_key: "learning.audience",
   paced_lessons_running_key: "learning.paced_running",

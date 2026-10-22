@@ -596,6 +596,18 @@ describe("erasing a student's work", () => {
           values (${t}::uuid, ${lesson.id}::uuid, ${work.student}::uuid, ${block}::uuid, 1, 'written',
                   ${JSON.stringify({ type: "written", text: "My family lives by the river." })}::text::jsonb,
                   0.5, 'marked', 'Say more about the river.', ${work.student}::uuid)`);
+        // A classmate's review of their work, and one they wrote.
+        await tx.execute(sql`
+          insert into core.peer_reviews (tenant_id, assignment_id, attempt_id, author_user_id,
+                                         reviewer_user_id, strengths, suggestion)
+          select ${t}::uuid, s.assignment_id, ${work.attempt}::uuid, a, b, 'Clear.', 'Longer.'
+          from core.submissions s,
+            lateral (select e.user_id from core.enrollments e
+                     where e.tenant_id = s.tenant_id and e.role = 'student'
+                       and e.user_id <> ${work.student}::uuid limit 1) other,
+            lateral (values (${work.student}::uuid, other.user_id),
+                            (other.user_id, ${work.student}::uuid)) as pair(a, b)
+          where s.tenant_id = ${t}::uuid and s.id = ${work.submission}::uuid`);
         // What they posted in a class discussion.
         await tx.execute(sql`
           insert into core.discussion_posts (tenant_id, assignment_id, author_user_id, content, plain_text)
@@ -770,6 +782,7 @@ describe("erasing a student's work", () => {
           draws: number;
           evidence: number;
           judgements: number;
+          reviews: number;
           audiences: number;
         }>(sql`
           select (select count(*)::int from core.lesson_runs where tenant_id = ${t}::uuid
@@ -795,6 +808,9 @@ describe("erasing a student's work", () => {
                    and student_user_id = ${work.student}::uuid) as evidence,
                  (select count(*)::int from core.goal_judgements where tenant_id = ${t}::uuid
                    and student_user_id = ${work.student}::uuid) as judgements,
+                 (select count(*)::int from core.peer_reviews where tenant_id = ${t}::uuid
+                   and (author_user_id = ${work.student}::uuid
+                     or reviewer_user_id = ${work.student}::uuid)) as reviews,
                  (select count(*)::int from core.module_audiences where tenant_id = ${t}::uuid
                    and student_user_id = ${work.student}::uuid) as audiences`);
         expect(left).toEqual({
@@ -809,6 +825,7 @@ describe("erasing a student's work", () => {
           draws: 0,
           evidence: 0,
           judgements: 0,
+          reviews: 0,
           audiences: 0,
         });
         checked = true;

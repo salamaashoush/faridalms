@@ -121,6 +121,26 @@ export function getMessageFromError(error: unknown): string {
         return m.errPostHidden();
       case "coursework.discussion_needed":
         return m.errDiscussionNeeded();
+      case "coursework.peer_format":
+        return m.errPeerFormat();
+      case "coursework.peer_started":
+        return m.errPeerStarted();
+      case "coursework.peer_off":
+        return m.errPeerOff();
+      case "coursework.peer_draft":
+        return m.errPeerDraft();
+      case "coursework.peer_too_few":
+        return m.errPeerTooFew();
+      case "coursework.peer_not_started":
+        return m.errPeerNotStarted();
+      case "coursework.peer_released":
+        return m.errPeerReleased();
+      case "coursework.peer_rubric":
+        return m.errPeerRubric();
+      case "coursework.peer_handed_out":
+        return m.errPeerHandedOut();
+      case "coursework.peer_exists":
+        return m.errPeerExists();
       case "coursework.closed":
         return m.errorCourseworkClosed();
       case "coursework.nothing_to_hand_in":

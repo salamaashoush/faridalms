@@ -180,6 +180,15 @@ export const assignments = core.table.withRLS(
      */
     discussionPostFirst: boolean("discussion_post_first"),
     discussionReplies: smallint("discussion_replies"),
+    /**
+     * For peer review: how many classmates' work each student reviews,
+     * whether reviewers and authors stay unnamed to each other, when the
+     * reviews were handed out, and when the authors were let read them.
+     */
+    peerReviews: smallint("peer_reviews"),
+    peerAnonymous: boolean("peer_anonymous"),
+    peerStartedAt: instant("peer_started_at"),
+    peerReleasedAt: instant("peer_released_at"),
     publishedAt: instant("published_at"),
     archivedAt: instant("archived_at"),
     ...entityColumns(),
@@ -235,6 +244,11 @@ export const assignments = core.table.withRLS(
       "assignments",
       "discussion",
       sql`(submission_format = 'discussion') = (discussion_post_first is not null and discussion_replies is not null) and (discussion_replies is null or discussion_replies between 0 and 5)`,
+    ),
+    ck(
+      "assignments",
+      "peer",
+      sql`(peer_reviews is null) = (peer_anonymous is null) and (peer_reviews is null or (peer_reviews between 1 and 5 and submission_format in ('online', 'files', 'both'))) and (peer_started_at is null or peer_reviews is not null) and (peer_released_at is null or peer_started_at is not null)`,
     ),
     ck(
       "assignments",
@@ -783,6 +797,94 @@ export const discussionPosts = core.table.withRLS(
       .where(sql`status = 'active'`),
     ...entityProfile(),
     ...redact(erasureOf("author_user_id")),
+  ],
+);
+
+/**
+ * A student's review of a classmate's handed-in work, of the attempt it was
+ * given to them on: levels on the work's rubric, when it has one, and what
+ * works well and what would make it better. Its author reads it once the
+ * teacher releases the reviews, unless the teacher hid it.
+ */
+export const peerReviews = core.table.withRLS(
+  "peer_reviews",
+  {
+    ...tenantColumns(),
+    assignmentId: uuid("assignment_id").notNull(),
+    attemptId: uuid("attempt_id").notNull(),
+    authorUserId: uuid("author_user_id").notNull(),
+    reviewerUserId: uuid("reviewer_user_id").notNull(),
+    rubricScores: jsonb("rubric_scores")
+      .$type<Record<string, string>>()
+      .notNull()
+      .default({}),
+    strengths: text("strengths").notNull().default(""),
+    suggestion: text("suggestion").notNull().default(""),
+    sentAt: instant("sent_at"),
+    hiddenAt: instant("hidden_at"),
+    hiddenByUserId: uuid("hidden_by_user_id"),
+    ...entityColumns(),
+  },
+  (t): PgTableExtraConfigValue[] => [
+    pk("peer_reviews", t.tenantId, t.id),
+    ...baseConstraints("peer_reviews", t, tenants),
+    fk(
+      "peer_reviews",
+      [t.tenantId, t.assignmentId],
+      [assignments.tenantId, assignments.id],
+    ),
+    fk(
+      "peer_reviews",
+      [t.tenantId, t.attemptId],
+      [submissionAttempts.tenantId, submissionAttempts.id],
+    ),
+    fk(
+      "peer_reviews",
+      [t.tenantId, t.authorUserId],
+      [users.tenantId, users.id],
+    ),
+    fk(
+      "peer_reviews",
+      [t.tenantId, t.reviewerUserId],
+      [users.tenantId, users.id],
+    ),
+    fk(
+      "peer_reviews",
+      [t.tenantId, t.hiddenByUserId],
+      [users.tenantId, users.id],
+    ),
+    ck("peer_reviews", "self", sql`reviewer_user_id <> author_user_id`),
+    ck(
+      "peer_reviews",
+      "rubric_scores",
+      sql`jsonb_typeof(rubric_scores) = 'object' and octet_length(rubric_scores::text) <= 4096`,
+    ),
+    ck(
+      "peer_reviews",
+      "comments",
+      sql`char_length(strengths) <= 2000 and char_length(suggestion) <= 2000`,
+    ),
+    ck(
+      "peer_reviews",
+      "sent",
+      sql`sent_at is null or (strengths <> '' and suggestion <> '')`,
+    ),
+    ck(
+      "peer_reviews",
+      "hidden",
+      sql`(hidden_at is null) = (hidden_by_user_id is null)`,
+    ),
+    uniqueIndex("peer_reviews_key")
+      .on(t.tenantId, t.assignmentId, t.reviewerUserId, t.authorUserId)
+      .where(sql`status = 'active'`),
+    index("peer_reviews_assignment_idx")
+      .on(t.tenantId, t.assignmentId)
+      .where(sql`status = 'active'`),
+    ...entityProfile(),
+    // A review is both its writer's words and about its author's work.
+    ...eraseAndDelete(
+      sql`${erasureOf("reviewer_user_id")} or ${erasureOf("author_user_id")}`,
+    ),
   ],
 );
 

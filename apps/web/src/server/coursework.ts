@@ -4,6 +4,8 @@ import {
   discussionPostSchema,
   editDiscussionPostSchema,
   hideDiscussionPostSchema,
+  hidePeerReviewSchema,
+  peerReviewInputSchema,
   extendSchema,
   feedbackRecordingSchema,
   handInSchema,
@@ -223,3 +225,27 @@ export const hideDiscussionPost = createServerFn({ method: "POST" })
 export const saveRubric = createServerFn({ method: "POST" })
   .validator(checked(saveRubricSchema))
   .handler(({ data }) => backend().coursework.saveTeacherRubric(data));
+
+export const getPeerOverview = createServerFn({ method: "GET" })
+  .validator(checked(v.object({ assignmentId: uuid })))
+  .handler(({ data }) => record(backend().peer.overview(data)));
+
+export const startPeerReview = createServerFn({ method: "POST" })
+  .validator(checked(v.object({ assignmentId: uuid })))
+  .handler(({ data }) => backend().peer.start(data));
+
+export const releasePeerReviews = createServerFn({ method: "POST" })
+  .validator(checked(v.object({ assignmentId: uuid })))
+  .handler(({ data }) => backend().peer.release(data));
+
+export const hidePeerReview = createServerFn({ method: "POST" })
+  .validator(checked(hidePeerReviewSchema))
+  .handler(({ data }) => backend().peer.hide(data));
+
+export const getMyPeerReviews = createServerFn({ method: "GET" })
+  .validator(checked(v.object({ assignmentId: uuid })))
+  .handler(({ data }) => record(backend().peer.mine(data)));
+
+export const sendPeerReview = createServerFn({ method: "POST" })
+  .validator(checked(peerReviewInputSchema))
+  .handler(({ data }) => backend().peer.send(data));

@@ -77,6 +77,7 @@ import {
   pacedLessons,
   lessonReleases,
   discussionPosts,
+  peerReviews,
   passkeys,
   quizAnswers,
   quizDraws,
@@ -567,6 +568,33 @@ export async function completeFixture(
     authorUserId: submission.studentUserId,
     content: { root: { type: "root", version: 1, children: [] } },
     plainText: "",
+  });
+  const [reviewed] = await tx
+    .select({
+      id: submissionAttempts.id,
+      studentUserId: submissionAttempts.studentUserId,
+      assignmentId: submissions.assignmentId,
+    })
+    .from(submissionAttempts)
+    .innerJoin(
+      submissions,
+      and(
+        eq(submissions.tenantId, submissionAttempts.tenantId),
+        eq(submissions.id, submissionAttempts.submissionId),
+      ),
+    )
+    .where(eq(submissionAttempts.tenantId, tenantId))
+    .limit(1);
+  if (!reviewed) throw new Error("the development seed hands nothing in");
+  await tx.insert(peerReviews).values({
+    tenantId,
+    assignmentId: reviewed.assignmentId,
+    attemptId: reviewed.id,
+    authorUserId: reviewed.studentUserId,
+    reviewerUserId: userId,
+    strengths: "The opening question pulls the reader in.",
+    suggestion: "Say where the river starts.",
+    sentAt: new Date("2026-09-22T10:00:00Z"),
   });
   await tx.insert(quizAnswers).values({
     tenantId,

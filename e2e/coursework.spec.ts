@@ -418,3 +418,96 @@ test("a discussion opens classmates' posts once a student answers, and counts th
     page.getByText("But the same floods made the soil rich."),
   ).toBeVisible();
 });
+
+test("classmates review each other's work unnamed, and read the reviews once the teacher releases them", async ({
+  browser,
+  page,
+}) => {
+  const title = `Letters ${crypto.randomUUID().slice(0, 6)}`;
+  await signInWith(page, TEACHER, PASSWORD, "/teach");
+  await page.goto("/teach/assignment-editor");
+  await untilHydrated(page);
+  await page.locator("#work-class").click();
+  await page.getByRole("option", { name: "8A Arabic", exact: true }).click();
+  await page.getByRole("textbox", { name: "Assignment title" }).fill(title);
+  await page.locator("[contenteditable=true]").first().click();
+  await page.keyboard.type("Write the Nile a letter.");
+  await page
+    .getByRole("checkbox", { name: "Classmates review each other's work" })
+    .click();
+  await page.locator("#peer-reviews").click();
+  await page.getByRole("option", { name: "1", exact: true }).click();
+  await page.getByRole("button", { name: "Assign", exact: true }).click();
+  await expect(page).toHaveURL(/\/assignments\/[a-f0-9-]+/);
+  const address = new URL(page.url()).pathname;
+
+  const handIn = async (email: string, words: string) => {
+    const context = await browser.newContext();
+    const student = await context.newPage();
+    await signInWith(student, email, PASSWORD, ACCOUNTS.student.home);
+    await student.goto(address);
+    await untilHydrated(student);
+    await student.locator("[contenteditable=true]").first().click();
+    await student.keyboard.type(words);
+    await student.getByRole("button", { name: "Hand in", exact: true }).click();
+    await student
+      .getByRole("dialog")
+      .getByRole("button", { name: "Hand in", exact: true })
+      .click();
+    await expect(
+      student.getByRole("region", { name: "Handed in" }).getByText("Attempt 1"),
+    ).toBeVisible();
+    return { context, student };
+  };
+  const classmate = await handIn(
+    "student1008@northwind.example.com",
+    "Dear Nile, thank you for the fish.",
+  );
+  const author = await handIn(
+    ACCOUNTS.student.email,
+    "Dear Nile, you carry the boats to Cairo.",
+  );
+
+  await page.goto(`${address}?tab=reviews`);
+  await untilHydrated(page);
+  await page.getByRole("button", { name: "Hand out reviews" }).click();
+  await expect(page.getByText("0 of 2 reviews sent")).toBeVisible();
+
+  // The classmate reviews the work handed them, its author unnamed.
+  const reviewer = classmate.student;
+  await reviewer.reload();
+  await untilHydrated(reviewer);
+  const reviewing = reviewer.getByRole("region", { name: "Peer review" });
+  await expect(reviewing.getByText("Work 1")).toBeVisible();
+  await expect(reviewing.getByText("you carry the boats")).toBeVisible();
+  await expect(reviewing.getByText("Yasmin")).toHaveCount(0);
+  await reviewing
+    .getByRole("textbox", { name: "What works well" })
+    .fill("Naming Cairo makes the river feel real.");
+  await reviewing
+    .getByRole("textbox", { name: "Even better if" })
+    .fill("Ask the river for something.");
+  await reviewing.getByRole("button", { name: "Send review" }).click();
+  await expect(reviewer.getByText("Review sent.")).toBeVisible();
+  await classmate.context.close();
+
+  await page.reload();
+  await untilHydrated(page);
+  await expect(page.getByText("1 of 2 reviews sent")).toBeVisible();
+  await page.getByRole("button", { name: "Release reviews" }).click();
+  await page
+    .getByRole("dialog")
+    .getByRole("button", { name: "Release reviews" })
+    .click();
+  await expect(page.getByText(/^Released to students/)).toBeVisible();
+
+  const student = author.student;
+  await student.reload();
+  await untilHydrated(student);
+  const said = student.getByRole("region", { name: "What classmates said" });
+  await expect(said.getByText("Classmate 1")).toBeVisible();
+  await expect(
+    said.getByText("Naming Cairo makes the river feel real."),
+  ).toBeVisible();
+  await author.context.close();
+});

@@ -17,6 +17,8 @@ import { emptyContent } from "@faridalms/domain/content-conversion";
 import {
   assignmentPhase,
   MAX_DISCUSSION_REPLIES,
+  MAX_PEER_REVIEWS,
+  PEER_FORMATS,
   MAX_QUIZ_ATTEMPTS,
   QUIZ_KEEPS,
   QUIZ_REVEALS,
@@ -102,6 +104,7 @@ interface Draft {
   gradeAfterAnswers: boolean;
   quiz: QuizDraft;
   discussion: { postFirst: boolean; replies: string };
+  peer: { on: boolean; reviews: string; anonymous: boolean };
 }
 
 interface QuizDraft {
@@ -157,6 +160,12 @@ const REPLY_COUNTS = Array.from(
   { length: MAX_DISCUSSION_REPLIES + 1 },
   (_, index) => String(index),
 );
+
+const PEER_COUNTS = Array.from({ length: MAX_PEER_REVIEWS }, (_, index) =>
+  String(index + 1),
+);
+
+const NO_PEER = { on: false, reviews: "2", anonymous: true };
 
 const ATTEMPTS = [
   "unlimited",
@@ -254,6 +263,7 @@ function initialDraft(
       gradeAfterAnswers: false,
       quiz: newQuiz(),
       discussion: { postFirst: true, replies: "2" },
+      peer: NO_PEER,
     };
   return {
     classId: existing.classId,
@@ -300,6 +310,13 @@ function initialDraft(
           replies: String(existing.discussion.replies),
         }
       : { postFirst: true, replies: "2" },
+    peer: existing.peer
+      ? {
+          on: true,
+          reviews: String(existing.peer.reviews),
+          anonymous: existing.peer.anonymous,
+        }
+      : NO_PEER,
   };
 }
 
@@ -552,6 +569,13 @@ export function AssignmentEditor({
               replies: Number(value.discussion.replies),
             }
           : null,
+        peer:
+          value.peer.on && PEER_FORMATS.includes(value.submissionFormat)
+            ? {
+                reviews: Number(value.peer.reviews),
+                anonymous: value.peer.anonymous,
+              }
+            : null,
       };
     },
     [shared, timeZone],
@@ -1218,6 +1242,43 @@ export function AssignmentEditor({
                     set("discussion", { ...draft.discussion, replies })
                   }
                 />
+              </DetailsSection>
+            ) : null}
+            {PEER_FORMATS.includes(draft.submissionFormat) ? (
+              <DetailsSection title={m.peerSection()}>
+                <CheckboxRow
+                  label={m.peerOn()}
+                  hint={
+                    existing?.peerStarted ? m.peerStartedHint() : m.peerOnHint()
+                  }
+                  checked={draft.peer.on}
+                  disabled={existing?.peerStarted}
+                  onChange={(on) => set("peer", { ...draft.peer, on })}
+                />
+                {draft.peer.on ? (
+                  <>
+                    <SelectField
+                      id="peer-reviews"
+                      label={m.peerReviewsEach()}
+                      value={draft.peer.reviews}
+                      options={PEER_COUNTS.map((value) => ({
+                        value,
+                        label: formatNumber(Number(value)),
+                      }))}
+                      onChange={(reviews) =>
+                        set("peer", { ...draft.peer, reviews })
+                      }
+                    />
+                    <CheckboxRow
+                      label={m.peerAnonymous()}
+                      hint={m.peerAnonymousHint()}
+                      checked={draft.peer.anonymous}
+                      onChange={(anonymous) =>
+                        set("peer", { ...draft.peer, anonymous })
+                      }
+                    />
+                  </>
+                ) : null}
               </DetailsSection>
             ) : null}
             {isQuiz ? (

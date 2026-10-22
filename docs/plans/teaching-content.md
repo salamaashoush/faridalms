@@ -622,6 +622,21 @@ Scratch Text to Speech, Translate and tutorials.
    posts, and telling students of new replies.
 2. **Peer review**: students review each other's work against a rubric,
    anonymously when the teacher chooses.
+   Done: work handed in on the page or as files can be set for peer
+   review, one to five reviews each, names hidden on both sides by
+   default (anonymous reviewers give more critical feedback, and students
+   value it more: Panadero and Alqassab 2019). The teacher hands reviews
+   out among the work in: a shuffled ring, so every student gives and
+   receives the same number, and work handed in later joins with the
+   least-loaded classmates. A reviewer reads the classmate's work, files
+   included, and answers the rubric with "what works well" and "even
+   better if", both asked for. The teacher reads every review with names,
+   hides any, and releases them; only then do authors read theirs. Work
+   under review can no longer be taken back, and erasure removes the
+   reviews a student wrote and those of their work.
+   Left: a review date of its own and reminders, rating a review's
+   helpfulness, the teacher's marking page showing the reviews, reviews
+   of quizzes and discussions, and passage comments by reviewers.
 3. **Translate a brief in place** for a reader in another language.
 4. **Reading fluency** assignments, teacher-marked first.
 5. **A file block copied for each student** to work in.

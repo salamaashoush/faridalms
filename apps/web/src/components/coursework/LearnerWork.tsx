@@ -53,6 +53,7 @@ import { classTitle } from "../classes/format";
 import { resultText } from "../grading/format";
 import { Discussion } from "./Discussion";
 import { formatInstant, STATE_LABEL, STATE_TONE } from "./format";
+import { PeerReviewWork } from "./PeerReview";
 import { QuizWork } from "./QuizWork";
 import { useDocumentMedia } from "./useDocumentMedia";
 import { Recordings } from "./VoiceFeedback";
@@ -556,6 +557,9 @@ export function LearnerWork({ assignmentId }: { assignmentId: string }) {
         />
       )}
       {data.quiz ? null : <OutstandingDeclaration data={data} />}
+      {data.assignment.peer ? (
+        <PeerReviewWork assignmentId={data.assignment.id} />
+      ) : null}
       {attempts.length > 0 ? (
         <RecordSection variant="page" title={m.courseworkAttempts()}>
           <RecordList>

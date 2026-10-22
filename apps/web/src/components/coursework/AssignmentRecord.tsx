@@ -82,10 +82,17 @@ import {
   STATE_LABEL,
   STATE_TONE,
 } from "./format";
+import { PeerReviewPanel } from "./PeerReview";
 import { QuizAnswers } from "./QuizAnswers";
 import { UseAgainSheet } from "./UseAgain";
 
-export const RECORD_TABS = ["brief", "discussion", "work", "answers"] as const;
+export const RECORD_TABS = [
+  "brief",
+  "discussion",
+  "work",
+  "answers",
+  "reviews",
+] as const;
 export type RecordTabValue = (typeof RECORD_TABS)[number];
 
 type Data = Awaited<
@@ -149,6 +156,13 @@ function Settings({
         <Fact label={m.courseworkResubmission()}>
           {data.resubmission ? m.commonYes() : m.commonNo()}
         </Fact>
+        {data.peerReviews === null ? null : (
+          <Fact label={m.peerSection()}>
+            {data.peerAnonymous
+              ? m.peerHowAnonymous({ count: data.peerReviews })
+              : m.peerHowNamed({ count: data.peerReviews })}
+          </Fact>
+        )}
       </Facts>
     </SheetPanel>
   );
@@ -660,10 +674,12 @@ export function AssignmentRecord({
   // A quiz's answers only its teacher can judge are marked question by question.
   const byQuestion = data.submissionFormat === "quiz" && data.access.grade;
   const talking = data.submissionFormat === "discussion" && data.access.grade;
+  const reviewing = data.peerReviews !== null && data.access.grade;
   const tabs: RecordTab<RecordTabValue>[] = RECORD_TABS.filter(
     (value) =>
       (value !== "answers" || byQuestion) &&
-      (value !== "discussion" || talking),
+      (value !== "discussion" || talking) &&
+      (value !== "reviews" || reviewing),
   ).map((value) => ({
     value,
     label:
@@ -673,10 +689,12 @@ export function AssignmentRecord({
           ? m.lrnAnswersTab()
           : value === "discussion"
             ? m.discussionSection()
-            : m.courseworkStudentWorkCount({
-                count: formatNumber(handedIn),
-                total: formatNumber(data.work.length),
-              }),
+            : value === "reviews"
+              ? m.peerTab()
+              : m.courseworkStudentWorkCount({
+                  count: formatNumber(handedIn),
+                  total: formatNumber(data.work.length),
+                }),
   }));
   return (
     <div
@@ -782,6 +800,8 @@ export function AssignmentRecord({
           <QuizAnswers assignmentId={data.id} />
         ) : tab === "discussion" && talking ? (
           <Discussion assignmentId={data.id} tab />
+        ) : tab === "reviews" && reviewing ? (
+          <PeerReviewPanel assignmentId={data.id} />
         ) : (
           <Brief data={data} />
         )}

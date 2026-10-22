@@ -24,6 +24,7 @@ import * as librarySystem from "./systems/library";
 import * as messagesSystem from "./systems/messages";
 import * as newsSystem from "./systems/news";
 import * as notificationsSystem from "./systems/notifications";
+import * as peerSystem from "./systems/peer";
 import * as peopleSystem from "./systems/people";
 import * as privacySystem from "./systems/privacy";
 import * as recordsSystem from "./systems/records";
@@ -55,6 +56,7 @@ export const router = {
   shared: sharedSystem,
   standards: standardsSystem,
   coursework: courseworkSystem,
+  peer: peerSystem,
   exams: examsSystem,
   gradebook: gradebookSystem,
   grading: gradingSystem,

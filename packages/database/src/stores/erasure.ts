@@ -317,6 +317,12 @@ export async function eraseSubject(
       sql`core.${sql.identifier(table)}`,
       sql`student_user_id = ${s}::uuid`,
     );
+  // The reviews they wrote, and the ones written of their work.
+  await remove(
+    "peer_reviews",
+    sql`core.peer_reviews`,
+    sql`(reviewer_user_id = ${s}::uuid or author_user_id = ${s}::uuid)`,
+  );
 
   const keys = await tx.execute<{ storage_key: string }>(sql`
     select storage_key from core.files where tenant_id = ${t}::uuid and id in ${listed("file")}`);
