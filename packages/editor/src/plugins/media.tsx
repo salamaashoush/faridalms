@@ -1,5 +1,11 @@
+import type { CommonsFile, PictureCredit } from "@faridalms/domain/commons";
 import type { LexicalNode, NodeKey } from "lexical";
 
+import {
+  commonsFile,
+  commonsInfoUrl,
+  commonsPicture,
+} from "@faridalms/domain/commons";
 import { attachable, maxBytesFor, mediaTypeFor } from "@faridalms/domain/file";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
 import { DRAG_DROP_PASTE } from "@lexical/rich-text";
@@ -31,19 +37,34 @@ export const INSERT_MEDIA_COMMAND = createCommand<MediaKind>(
   "FARIDA_INSERT_MEDIA",
 );
 
+/** Brings in a picture from Wikimedia Commons or Wikipedia by its link, with its credit. */
+export const INSERT_COMMONS_COMMAND = createCommand<{
+  link: string;
+  anchor: NodeKey | null;
+}>("FARIDA_INSERT_COMMONS");
+
 /** Opens the studio to record a video, which lands where the caret is. */
 export const RECORD_VIDEO_COMMAND = createCommand<undefined>(
   "FARIDA_RECORD_VIDEO",
 );
 
+/** What a picture from an open collection brings with it. */
+interface Described {
+  alt: string;
+  credit: PictureCredit;
+}
+
 function $insertUploaded(
   anchorKey: NodeKey | null,
   kind: MediaKind,
   file: UploadedFile,
+  described?: Described,
 ): NodeKey {
   const node: LexicalNode =
     kind === "image"
-      ? $createImageNode(file.fileId)
+      ? $createImageNode(file.fileId, described?.alt).setCredit(
+          described?.credit ?? null,
+        )
       : kind === "media"
         ? $createMediaNode(file.fileId, file.mime)
         : $createFileNode(file.fileId, file.name, file.mime, file.bytes);
@@ -65,6 +86,7 @@ interface Upload {
   controller: AbortController;
   /** The part of a recording to keep, when its maker cut its ends off. */
   trim?: TakeTrim | undefined;
+  described?: Described | undefined;
 }
 
 /** The reason a refused upload shows, from the server's code or the file itself. */
@@ -171,6 +193,7 @@ export function MediaPlugin({
           showing === editor ? anchor.current : null,
           item.kind,
           uploaded,
+          item.described,
         );
       });
       setUploads((current) => current.filter((row) => row.id !== item.id));
@@ -186,12 +209,14 @@ export function MediaPlugin({
     files: File[],
     kindOf: (file: File) => MediaKind,
     trim?: TakeTrim,
+    described?: Described,
   ) => {
     const added = files.map((file) => ({
       id: crypto.randomUUID(),
       file,
       kind: kindOf(file),
       trim,
+      described,
       progress: 0,
       error: null,
       controller: new AbortController(),
@@ -216,6 +241,50 @@ export function MediaPlugin({
     start(files, kindFor("image")),
   );
 
+  // A picture from Commons is copied into the school, as any other is, so a
+  // lesson never depends on the collection; its credit comes with it.
+  const bringCommons = useEffectEvent(async (link: CommonsFile) => {
+    const name = link.title.replace(/^File:/u, "");
+    try {
+      const answer: unknown = await (
+        await fetch(commonsInfoUrl(link, locale))
+      ).json();
+      const found = commonsPicture(answer, locale);
+      if (!found) throw new Error("commons.missing");
+      const response = await fetch(found.image);
+      if (!response.ok) throw new Error("commons.missing");
+      const blob = await response.blob();
+      const extension =
+        blob.type === "image/jpeg" ? "jpg" : blob.type.split("/")[1];
+      start(
+        [
+          new File(
+            [blob],
+            `${name.replace(/\.\w+$/u, "")}.${extension ?? "jpg"}`,
+            {
+              type: blob.type,
+            },
+          ),
+        ],
+        () => "image",
+        undefined,
+        { alt: found.alt, credit: found.credit },
+      );
+    } catch {
+      setUploads((current) => [
+        ...current,
+        {
+          id: crypto.randomUUID(),
+          file: new File([], name),
+          kind: "image",
+          progress: 0,
+          error: strings.commonsFailed,
+          controller: new AbortController(),
+        },
+      ]);
+    }
+  });
+
   const busy = uploads.some((item) => !item.error);
   useEffect(() => {
     onBusyChange?.(busy);
@@ -235,6 +304,21 @@ export function MediaPlugin({
         anchor.current = $anchorFor("image")?.getKey() ?? null;
         setKind(next);
         queueMicrotask(() => input.current?.click());
+        return true;
+      },
+      COMMAND_PRIORITY_LOW,
+    );
+  }, [editor, media]);
+
+  useEffect(() => {
+    if (!media) return undefined;
+    return editor.registerCommand(
+      INSERT_COMMONS_COMMAND,
+      ({ link, anchor: at }) => {
+        const file = commonsFile(link);
+        if (!file) return false;
+        anchor.current = at;
+        void bringCommons(file);
         return true;
       },
       COMMAND_PRIORITY_LOW,
@@ -306,16 +390,19 @@ export function MediaPlugin({
                   <span className="truncate font-medium">
                     <bdi>{item.file.name}</bdi>
                   </span>
-                  <span className="shrink-0 text-xs text-muted-foreground">
-                    {fileMeta(
-                      {
-                        name: item.file.name,
-                        mime: item.file.type,
-                        bytes: item.file.size,
-                      },
-                      locale,
-                    )}
-                  </span>
+                  {/* A picture never fetched has nothing to measure. */}
+                  {item.file.size > 0 || !item.error ? (
+                    <span className="shrink-0 text-xs text-muted-foreground">
+                      {fileMeta(
+                        {
+                          name: item.file.name,
+                          mime: item.file.type,
+                          bytes: item.file.size,
+                        },
+                        locale,
+                      )}
+                    </span>
+                  ) : null}
                 </span>
                 {item.error ? (
                   <span role="alert" className="text-xs text-destructive">

@@ -2,6 +2,7 @@ import type { ContentNode } from "@faridalms/domain/content";
 import type { ReactNode } from "react";
 
 import { parseChapters } from "@faridalms/domain/chapters";
+import { creditText } from "@faridalms/domain/commons";
 import { embedPage, embedProviderNames } from "@faridalms/domain/embed";
 import { fileMeta, StoredImage } from "@faridalms/editor/files";
 import { blockAlignClass, mediaClock } from "@faridalms/editor/format";
@@ -231,6 +232,11 @@ function PaperPicture({
         >
           {node.caption}
         </figcaption>
+      ) : null}
+      {node.credit ? (
+        <p className="mt-[0.2em] text-center text-[0.7em] text-neutral-500">
+          <bdi>{creditText(node.credit)}</bdi>
+        </p>
       ) : null}
     </figure>
   );

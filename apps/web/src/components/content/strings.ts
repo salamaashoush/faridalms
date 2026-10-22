@@ -735,6 +735,7 @@ export function editorStrings(): EditorStrings {
     cancelUpload: m.fileCancelUpload(),
     uploadTooLarge: m.fileUploadTooLarge(),
     uploadWrongType: m.fileUploadWrongType(),
+    commonsFailed: m.editorCommonsFailed(),
     uploadEmpty: m.fileUploadEmpty(),
     uploadInfected: m.fileUploadInfected(),
     uploadNoRoom: (scope) =>

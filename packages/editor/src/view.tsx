@@ -68,6 +68,7 @@ import { LtiCard } from "./lti-card";
 import { MathText } from "./math";
 import { EmbedFrame, MediaPlayer, MediaTranscript } from "./media-view";
 import { PanelsView } from "./panels-view";
+import { PictureCreditLine } from "./picture-credit";
 import { LabelledPicture } from "./picture-labels";
 import { CompareView, GalleryView } from "./pictures-view";
 import { editorTheme } from "./theme";
@@ -871,6 +872,7 @@ function draw(
           className={node.labels?.length ? "" : className}
           strings={context.strings}
           locale={context.locale}
+          credit={node.labels?.length ? undefined : node.credit}
         />
       );
       return node.labels?.length ? (
@@ -886,6 +888,7 @@ function draw(
               {node.caption}
             </figcaption>
           ) : null}
+          {node.credit ? <PictureCreditLine credit={node.credit} /> : null}
         </figure>
       ) : (
         picture

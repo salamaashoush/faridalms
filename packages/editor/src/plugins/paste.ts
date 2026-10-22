@@ -1,5 +1,6 @@
 import type { LexicalNode, RangeSelection } from "lexical";
 
+import { commonsFile } from "@faridalms/domain/commons";
 import {
   isEmbedCode,
   parseEmbedInput,
@@ -23,6 +24,7 @@ import { normaliseUrl } from "../formatting";
 import { markdownTransformers } from "../markdown";
 import { $createColumnNode } from "../nodes";
 import { $placeEmbed } from "./embed";
+import { INSERT_COMMONS_COMMAND } from "./media";
 
 const MARKDOWN_BLOCK =
   /^(#{1,6}\s|[-*+]\s|\d+[.)]\s|>\s?|```|- \[[ x]\]\s|\|.+\|$)/;
@@ -85,6 +87,19 @@ export function PastePlugin() {
           if (embed) {
             event.preventDefault();
             $placeEmbed(anchor?.getKey() ?? null, embed);
+            return true;
+          }
+          // A picture from Commons comes in as a picture, its credit kept.
+          if (
+            single &&
+            emptyLine &&
+            commonsFile(single) &&
+            editor.dispatchCommand(INSERT_COMMONS_COMMAND, {
+              link: single,
+              anchor: anchor.getKey(),
+            })
+          ) {
+            event.preventDefault();
             return true;
           }
 

@@ -2,6 +2,7 @@ import type { Embed } from "@faridalms/domain/embed";
 import type { ReferenceElement } from "@floating-ui/dom";
 import type { NodeKey } from "lexical";
 
+import { commonsFile } from "@faridalms/domain/commons";
 import { parseEmbedInput } from "@faridalms/domain/embed";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
 import { mergeRegister } from "@lexical/utils";
@@ -20,6 +21,7 @@ import { useEditorEnvironment } from "../context";
 import { $createEmbedNode } from "../nodes";
 import { focusText, updateFromOutside } from "../outside";
 import { Floating, selectionReference } from "../ui";
+import { INSERT_COMMONS_COMMAND } from "./media";
 
 export const OPEN_EMBED_COMMAND = createCommand<void>("FARIDA_OPEN_EMBED");
 
@@ -94,6 +96,17 @@ export function EmbedPlugin() {
           event.preventDefault();
           const embed = parseEmbedInput(url);
           if (!embed) {
+            // A Commons picture is no frame: it comes in as a picture.
+            if (
+              commonsFile(url) &&
+              editor.dispatchCommand(INSERT_COMMONS_COMMAND, {
+                link: url,
+                anchor: anchor.current,
+              })
+            ) {
+              setReference(null);
+              return;
+            }
             setInvalid(true);
             return;
           }

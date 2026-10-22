@@ -1,3 +1,4 @@
+import type { PictureCredit } from "@faridalms/domain/commons";
 import type { FileDisplay } from "@faridalms/domain/content";
 import type { FileFamily } from "@faridalms/domain/file";
 import type { LucideIcon } from "lucide-react";
@@ -26,6 +27,7 @@ import type { EditorStrings } from "./strings";
 
 import { formatBytes } from "./format";
 import { MediaPlayer } from "./media-view";
+import { PictureCreditLine } from "./picture-credit";
 import { cx } from "./ui";
 
 const ICON: Record<FileFamily, LucideIcon> = {
@@ -422,6 +424,7 @@ export function PictureView({
   strings,
   locale,
   cover = false,
+  credit,
 }: {
   src: string;
   alt: string;
@@ -431,6 +434,7 @@ export function PictureView({
   locale: string;
   /** Cropped to one shape, as a gallery's pictures line up. */
   cover?: boolean;
+  credit?: PictureCredit | undefined;
 }) {
   const [open, setOpen] = useState(false);
   const name = caption || alt || strings.picture;
@@ -459,6 +463,7 @@ export function PictureView({
           {caption}
         </figcaption>
       ) : null}
+      {credit ? <PictureCreditLine credit={credit} /> : null}
       <FileViewer
         file={{ name, mime: "image/*" }}
         url={src}

@@ -1,6 +1,8 @@
+import type { PictureCredit } from "./commons";
 import type { ContentDocument, ContentNode } from "./content";
 
 import { sourceText } from "./citations";
+import { creditText } from "./commons";
 import { embedPage, embedSource } from "./embed";
 import { isSafeContentUrl } from "./rich-text";
 
@@ -80,12 +82,22 @@ class Writer {
     return (nodes ?? []).map((node) => this.node(node)).join("");
   }
 
-  picture(fileId: string, alt: string, caption?: string): string {
+  picture(
+    fileId: string,
+    alt: string,
+    caption?: string,
+    credit?: PictureCredit,
+  ): string {
     const href = this.options.fileHref(fileId, alt || "picture");
     if (!href) return "";
     const src = escape(href);
+    const credited = credit
+      ? `<small>${escape(creditText(credit))} (<a href="${escape(credit.source)}">${escape(credit.source)}</a>)</small>`
+      : "";
     return `<figure><img src="${src}" alt="${escape(alt)}">${
-      caption ? `<figcaption>${escape(caption)}</figcaption>` : ""
+      caption || credited
+        ? `<figcaption>${caption ? escape(caption) : ""}${caption && credited ? "<br>" : ""}${credited}</figcaption>`
+        : ""
     }</figure>`;
   }
 
@@ -173,7 +185,7 @@ class Writer {
         return `<h3>${inner()}</h3>`;
       case "image":
         return node.fileId
-          ? this.picture(node.fileId, node.alt ?? "", node.caption)
+          ? this.picture(node.fileId, node.alt ?? "", node.caption, node.credit)
           : "";
       case "gallery":
       case "compare":

@@ -1406,6 +1406,7 @@
   "fileCancelUpload": "إلغاء الرفع",
   "fileUploadTooLarge": "الملف كبير جداً. الحد الأقصى للفيديو 200 ميغابايت، ولأي ملف آخر 25 ميغابايت.",
   "fileUploadWrongType": "لا يمكن إضافة هذا النوع من الملفات.",
+  "editorCommonsFailed": "تعذّر جلب تلك الصورة من ويكيميديا كومنز، أو أنها بلا رخصة تُحفظ معها.",
   "fileUploadEmpty": "الملف فارغ.",
   "fileUploadInfected": "يحتوي الملف على فيروس.",
   "fileUploadMismatch": "محتوى الملف لا يطابق اسمه.",

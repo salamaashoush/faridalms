@@ -4,6 +4,7 @@ import { levelSchema } from "@faridalms/puzzles/level";
 import * as v from "valibot";
 
 import type { FootnoteSource } from "./citations";
+import type { PictureCredit } from "./commons";
 import type { EmbedProvider } from "./embed";
 import type { LtiLink } from "./lti";
 import type { MathForm } from "./math-forms";
@@ -12,6 +13,7 @@ import type { ScratchFeature } from "./scratch-project";
 
 import { MAX_DESCRIPTION_TEXT, parseDescriptions } from "./chapters";
 import { footnoteSourceSchema } from "./citations";
+import { pictureCreditSchema } from "./commons";
 import { embedProviders, isEmbedId } from "./embed";
 import { ltiLinkSchema } from "./lti";
 import { MATH_FORMS } from "./math-forms";
@@ -305,6 +307,8 @@ export interface ContentNode {
   alt?: string;
   /** A picture that only decorates, so screen readers pass it by. */
   decorative?: boolean;
+  /** Who made a picture taken from an open collection, and under which licence. */
+  credit?: PictureCredit;
   /** Mathematics written in LaTeX; `direction` rtl sets it in Arabic notation. */
   latex?: string;
   /** Mathematics on a line of its own rather than in the text. */
@@ -597,6 +601,7 @@ const nodeSchema: v.GenericSchema<ContentNode> = v.lazy(() =>
       fileId: v.optional(v.pipe(v.string(), v.uuid())),
       alt: v.optional(v.pipe(v.string(), v.maxLength(500))),
       decorative: v.optional(v.boolean()),
+      credit: v.optional(pictureCreditSchema),
       latex: v.optional(v.pipe(v.string(), v.maxLength(MAX_LATEX))),
       block: v.optional(v.boolean()),
       caption: v.optional(v.pipe(v.string(), v.maxLength(1000))),

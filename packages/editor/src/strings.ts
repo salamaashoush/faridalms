@@ -609,6 +609,7 @@ export interface EditorStrings extends LabelEditorStrings, ChartStrings {
   cancelUpload: string;
   uploadTooLarge: string;
   uploadWrongType: string;
+  commonsFailed: string;
   uploadEmpty: string;
   uploadInfected: string;
   /** Why an upload was refused when the storage it counts against is full. */

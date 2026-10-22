@@ -1332,6 +1332,7 @@
   "fileCancelUpload": "Cancel upload",
   "fileUploadTooLarge": "The file is too large. A video may be up to 200 MB, any other file up to 25 MB.",
   "fileUploadWrongType": "This type of file can't be added.",
+  "editorCommonsFailed": "That picture could not be brought in from Wikimedia Commons, or it carries no licence to keep.",
   "fileUploadEmpty": "The file is empty.",
   "fileUploadInfected": "The file contains a virus.",
   "fileUploadMismatch": "The file is not what its name says it is.",

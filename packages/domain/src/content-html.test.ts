@@ -19,6 +19,27 @@ const html = (...children: ContentNode[]) =>
   );
 
 describe("a document as plain HTML", () => {
+  it("keeps a picture's credit with it, as its licence asks", () => {
+    expect(
+      html({
+        type: "image",
+        version: 1,
+        fileId: "0190a1b2-0000-7000-8000-000000000301",
+        alt: "The pyramids",
+        caption: "",
+        credit: {
+          author: "Ricardo Liberato",
+          licence: "CC BY-SA 2.0",
+          licenceUrl: "https://creativecommons.org/licenses/by-sa/2.0",
+          source:
+            "https://commons.wikimedia.org/wiki/File:All_Gizah_Pyramids.jpg",
+        },
+      }),
+    ).toContain(
+      '<figcaption><small>Ricardo Liberato · CC BY-SA 2.0 · Wikimedia Commons (<a href="https://commons.wikimedia.org/wiki/File:All_Gizah_Pyramids.jpg">',
+    );
+  });
+
   it("writes words with their formats, escaped, in their direction", () => {
     expect(
       html(

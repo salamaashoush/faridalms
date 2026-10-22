@@ -1,3 +1,4 @@
+import type { PictureCredit } from "@faridalms/domain/commons";
 import type {
   FileDisplay,
   ImageSize,
@@ -33,6 +34,7 @@ import { useEditorEnvironment } from "../context";
 import { useFileFacts } from "../file-facts";
 import { FileCard, FileViewer, StoredImage } from "../files";
 import { blockAlignClass, imageSizeClass } from "../format";
+import { PictureCreditLine } from "../picture-credit";
 import { LabelsEditor } from "../picture-labels";
 import { ownKeys, useSelectOnClick } from "./select";
 import { STORED_FILE } from "./stored";
@@ -54,6 +56,7 @@ export type SerializedImageNode = Spread<
     caption: string;
     size: ImageSize;
     labels?: PictureLabel[];
+    credit?: PictureCredit;
   },
   SerializedDecoratorBlockNode
 >;
@@ -95,6 +98,7 @@ function ImageBlock({
   caption,
   size,
   labels,
+  credit,
 }: {
   nodeKey: NodeKey;
   format: ElementFormatType;
@@ -104,6 +108,7 @@ function ImageBlock({
   caption: string;
   size: ImageSize;
   labels: PictureLabel[];
+  credit: PictureCredit | null;
 }) {
   const { strings, media } = useEditorEnvironment();
   const editable = useLexicalEditable();
@@ -208,6 +213,7 @@ function ImageBlock({
             {caption}
           </figcaption>
         ) : null}
+        {credit ? <PictureCreditLine credit={credit} /> : null}
       </figure>
     </BlockWithAlignableContents>
   );
@@ -310,6 +316,7 @@ export class ImageNode extends DecoratorBlockNode {
   __caption: string;
   __size: ImageSize;
   __labels: PictureLabel[] = [];
+  __credit: PictureCredit | null = null;
 
   constructor(
     fileId = "",
@@ -341,6 +348,7 @@ export class ImageNode extends DecoratorBlockNode {
     );
     copy.__decorative = node.__decorative;
     copy.__labels = node.__labels;
+    copy.__credit = node.__credit;
     return copy;
   }
 
@@ -356,6 +364,7 @@ export class ImageNode extends DecoratorBlockNode {
     node.__caption = json.caption;
     node.__size = json.size;
     node.__labels = json.labels ?? [];
+    node.__credit = json.credit ?? null;
     return node;
   }
 
@@ -369,6 +378,7 @@ export class ImageNode extends DecoratorBlockNode {
       caption: node.__caption,
       size: node.__size,
       ...(node.__labels.length > 0 ? { labels: node.__labels } : {}),
+      ...(node.__credit ? { credit: node.__credit } : {}),
     };
   }
 
@@ -439,6 +449,12 @@ export class ImageNode extends DecoratorBlockNode {
     return writable;
   }
 
+  setCredit(credit: PictureCredit | null): this {
+    const writable = this.getWritable();
+    writable.__credit = credit;
+    return writable;
+  }
+
   setSize(size: ImageSize): this {
     const writable = this.getWritable();
     writable.__size = size;
@@ -456,6 +472,7 @@ export class ImageNode extends DecoratorBlockNode {
         caption={this.__caption}
         size={this.__size}
         labels={this.__labels}
+        credit={this.__credit}
       />
     );
   }
