@@ -5180,6 +5180,10 @@
   "settingsDigitsHint": "How numbers, dates and times are written in the Arabic interface. Codes, addresses and typed answers keep the digits they are written in.",
   "settingsDigitsLatin": "Western",
   "settingsDigitsArabic": "Arabic-Indic",
+  "settingsArabicMath": "Mathematics in Arabic",
+  "settingsArabicMathHint": "How a new formula is set where it is written in Arabic text. A teacher can still turn any formula the other way from its bar.",
+  "settingsArabicMathLtr": "Left to right, as international and Maghreb schools write it",
+  "settingsArabicMathRtl": "Right to left, in Arabic notation",
   "lrnAnswerShown": "Answer shown",
   "lrnTriesLeft": [
     {

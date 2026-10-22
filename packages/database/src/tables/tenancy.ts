@@ -117,6 +117,15 @@ export const orgs = core.table.withRLS(
     >(),
     /** How the Arabic interface writes digits: Western 0-9, or Arabic-Indic ٠-٩. */
     digits: text("digits").$type<"latn" | "arab">().notNull().default("latn"),
+    /**
+     * How mathematics within Arabic text is set: left to right, as in the
+     * Maghreb and in international schools, or right to left in Arabic
+     * notation, as the Mashriq's school books write it.
+     */
+    arabicMath: text("arabic_math")
+      .$type<"ltr" | "rtl">()
+      .notNull()
+      .default("ltr"),
     address: jsonb("address").$type<PostalAddress>(),
     phone: text("phone"),
     email: text("email"),
@@ -152,6 +161,7 @@ export const orgs = core.table.withRLS(
       sql`secondary_calendar in ('islamic-umalqura', 'islamic-civil')`,
     ),
     ck("orgs", "digits", sql`digits in ('latn', 'arab')`),
+    ck("orgs", "arabic_math", sql`arabic_math in ('ltr', 'rtl')`),
     ck("orgs", "country_code", sql`country_code ~ '^[A-Z]{2}$'`),
     ck("orgs", "address", sql`jsonb_typeof(address) = 'object'`),
     ck("orgs", "phone", sql`char_length(phone) between 1 and 40`),

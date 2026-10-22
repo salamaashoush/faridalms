@@ -67,3 +67,39 @@ describe("the school's logo", () => {
     expect((await office.api.school.profile()).logoFileId).toBe(file.id);
   });
 });
+
+describe("mathematics in Arabic", () => {
+  test("the office sets it for the school, and every teacher's editor learns it", async () => {
+    const office = await sessionFor("northwind", login("principal"));
+    const profile = await office.api.school.profile();
+    const settings = {
+      nameEn: profile.nameEn ?? "",
+      nameAr: profile.nameAr ?? "",
+      identifier: profile.identifier ?? "",
+      timeZone: profile.timeZone ?? "Africa/Cairo",
+      defaultLocale: profile.defaultLocale ?? "ar",
+      weekStart: profile.weekStart,
+      weekendDays: profile.weekendDays,
+      secondaryCalendar: profile.secondaryCalendar ?? ("" as const),
+      digits: profile.digits,
+      phone: profile.phone ?? "",
+      email: profile.email ?? "",
+      websiteUrl: profile.websiteUrl ?? "",
+    };
+    const saved = await office.api.school.saveProfile({
+      ...settings,
+      expectedVersion: profile.version,
+      arabicMath: "rtl",
+    });
+    expect((await office.api.school.profile()).arabicMath).toBe("rtl");
+    const teacher = await sessionFor("northwind", login("teacher"));
+    expect((await teacher.api.identity.currentUser()).school.arabicMath).toBe(
+      "rtl",
+    );
+    await office.api.school.saveProfile({
+      ...settings,
+      expectedVersion: saved.version,
+      arabicMath: profile.arabicMath,
+    });
+  });
+});

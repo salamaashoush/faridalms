@@ -353,6 +353,10 @@ export const accountStateSchema = v.object({
 export const DIGITS = ["latn", "arab"] as const;
 export type Digits = (typeof DIGITS)[number];
 
+/** How a school sets mathematics within Arabic text. */
+export const ARABIC_MATH = ["ltr", "rtl"] as const;
+export type ArabicMath = (typeof ARABIC_MATH)[number];
+
 export const saveSchoolSchema = v.object({
   expectedVersion: version,
   nameEn: optionalText(160),
@@ -371,6 +375,8 @@ export const saveSchoolSchema = v.object({
   ),
   /** How the Arabic interface writes digits: Western 0-9, or Arabic-Indic ٠-٩. */
   digits: v.optional(v.picklist(DIGITS), "latn"),
+  /** Mathematics within Arabic text: left to right, or in Arabic notation. */
+  arabicMath: v.optional(v.picklist(ARABIC_MATH), "ltr"),
   phone: optionalText(40),
   email: optionalText(254),
   websiteUrl: optionalText(2048),

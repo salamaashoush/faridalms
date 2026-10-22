@@ -228,6 +228,8 @@ export interface EditorEnvironment {
    * the teacher shows the class, as a lesson for older students may.
    */
   feedbackTiming?: boolean;
+  /** How the school sets a new formula written in Arabic text. */
+  arabicMath?: "ltr" | "rtl";
 }
 
 const Context = createContext<EditorEnvironment | null>(null);

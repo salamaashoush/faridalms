@@ -80,6 +80,7 @@ interface ProfileDraft {
   weekendDays: number[];
   secondaryCalendar: "" | "islamic-umalqura" | "islamic-civil";
   digits: "latn" | "arab";
+  arabicMath: "ltr" | "rtl";
   phone: string;
   email: string;
   websiteUrl: string;
@@ -97,6 +98,7 @@ function draftOf(profile: Profile): ProfileDraft {
     weekendDays: [...profile.weekendDays],
     secondaryCalendar: profile.secondaryCalendar ?? "",
     digits: profile.digits,
+    arabicMath: profile.arabicMath,
     phone: profile.phone ?? "",
     email: profile.email ?? "",
     websiteUrl: profile.websiteUrl ?? "",
@@ -268,6 +270,18 @@ export function SchoolProfileSection() {
             { value: "arab", label: `${m.settingsDigitsArabic()} (٠ ١ ٢ ٣)` },
           ]}
           onChange={(value) => set("digits", value)}
+          width="name"
+        />
+        <SelectField
+          id="school-arabic-math"
+          label={m.settingsArabicMath()}
+          hint={m.settingsArabicMathHint()}
+          value={draft.arabicMath}
+          options={[
+            { value: "ltr", label: m.settingsArabicMathLtr() },
+            { value: "rtl", label: m.settingsArabicMathRtl() },
+          ]}
+          onChange={(value) => set("arabicMath", value)}
           width="name"
         />
       </SettingsGroup>

@@ -2,6 +2,7 @@ import type {
   DOMConversionMap,
   DOMExportOutput,
   EditorConfig,
+  LexicalEditor,
   LexicalNode,
   LexicalUpdateJSON,
   NodeKey,
@@ -10,12 +11,15 @@ import type {
 } from "lexical";
 import type { JSX } from "react";
 
-import { mathText } from "@faridalms/domain/content";
+import { mathText, textDirection } from "@faridalms/domain/content";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
 import { useLexicalNodeSelection } from "@lexical/react/useLexicalNodeSelection";
 import {
   $createNodeSelection,
+  $findMatchingParent,
   $getDocument,
+  $getEditor,
+  $getRoot,
   $getSelection,
   $isElementNode,
   $isRangeSelection,
@@ -251,8 +255,39 @@ export class MathNode extends DecoratorNode<JSX.Element> {
   }
 }
 
+/** Editors of schools that set mathematics in Arabic text right to left. */
+const arabicNotation = new WeakSet<LexicalEditor>();
+
+export function setArabicNotation(editor: LexicalEditor, on: boolean) {
+  if (on) arabicNotation.add(editor);
+  else arabicNotation.delete(editor);
+}
+
+/**
+ * Whether a formula written at the caret starts in Arabic notation: the
+ * school writes it so, and the text there reads right to left, from its own
+ * line, else the document, else the page around an empty one.
+ */
+function $writtenRightToLeft(): boolean {
+  const editor = $getEditor();
+  if (!arabicNotation.has(editor)) return false;
+  const selection = $getSelection();
+  const block = $isRangeSelection(selection)
+    ? $findMatchingParent(
+        selection.anchor.getNode(),
+        (node) => $isElementNode(node) && !node.isInline(),
+      )
+    : null;
+  const root = editor.getRootElement();
+  const direction =
+    textDirection(block?.getTextContent() ?? "") ??
+    textDirection($getRoot().getTextContent()) ??
+    (root ? getComputedStyle(root).direction : null);
+  return direction === "rtl";
+}
+
 export function $createMathNode(latex = "", block = false): MathNode {
-  return new MathNode(latex, block);
+  return new MathNode(latex, block, $writtenRightToLeft());
 }
 
 /** Chooses a formula, which opens it in the floating bar to be written. */

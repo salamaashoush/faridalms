@@ -14,6 +14,7 @@ import { useEditorBank } from "~/components/content/QuestionBank";
 import { useEditorShared } from "~/components/content/SharedBlocks";
 import { useEditorPuzzles } from "~/components/puzzles/useEditorPuzzles";
 import { useEditorStandards } from "~/components/standards/editor";
+import { useCurrentUser } from "~/hooks/useCurrentUser";
 
 import { ContentView } from "./ContentView";
 import { editorStrings } from "./strings";
@@ -94,6 +95,7 @@ export function ContentEditor({
   const sharing = useEditorShared(Boolean(questions) || standards);
   const mentions = useEditorMentions();
   const tools = useEditorTools();
+  const { arabicMath } = useCurrentUser().school;
   const document = variant === "document";
   // Lexical needs a DOM, so the server draws the document in the editor's own
   // frame and the editor takes that frame over in the browser.
@@ -157,6 +159,7 @@ export function ContentEditor({
           narration={narration}
           lessonActivities={lessonActivities}
           feedbackTiming={feedbackTiming}
+          arabicMath={arabicMath}
           language={language}
           onSynced={
             collaboration ? () => setJoined(collaboration.id) : undefined

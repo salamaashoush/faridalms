@@ -48,6 +48,7 @@ import {
   $codeRunOf,
   $setCodeRun,
   runnableLanguage,
+  setArabicNotation,
   setPartPictureUrl,
   setQuestionLabels,
 } from "./nodes";
@@ -139,6 +140,8 @@ export interface EditorProps {
   lessonActivities?: boolean;
   /** Questions may keep how they went until the end or the teacher's word. */
   feedbackTiming?: boolean;
+  /** How the school sets a new formula written in Arabic text. */
+  arabicMath?: "ltr" | "rtl";
   /** Told once a live document has arrived from its room and is drawn. */
   onSynced?: () => void;
   /** The language the document is written in; without it, read from its words. */
@@ -167,6 +170,7 @@ export default function Editor({
   narration = false,
   lessonActivities = false,
   feedbackTiming = false,
+  arabicMath = "ltr",
   onSynced,
   ...props
 }: EditorProps) {
@@ -211,6 +215,7 @@ export default function Editor({
       narration,
       lessonActivities,
       feedbackTiming,
+      arabicMath,
     }),
     [
       strings,
@@ -232,6 +237,7 @@ export default function Editor({
       narration,
       lessonActivities,
       feedbackTiming,
+      arabicMath,
     ],
   );
   const [synced, setSynced] = useState(false);
@@ -293,7 +299,11 @@ function Surface({
   synced: boolean;
 }) {
   const [editor] = useLexicalComposerContext();
-  const { strings, media } = useEditorEnvironment();
+  const { strings, media, arabicMath } = useEditorEnvironment();
+  useEffect(
+    () => setArabicNotation(editor, arabicMath === "rtl"),
+    [editor, arabicMath],
+  );
   // Question parts draw their pictures as they are first created, as labels
   // below are, so the address is known before the first render.
   useState(() =>

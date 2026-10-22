@@ -24,6 +24,7 @@ export async function schoolSettings(
       weekendDays: orgs.weekendDays,
       secondaryCalendar: orgs.secondaryCalendar,
       digits: orgs.digits,
+      arabicMath: orgs.arabicMath,
       countryCode: orgs.countryCode,
       phone: orgs.phone,
       email: orgs.email,
@@ -56,6 +57,7 @@ export async function updateSchool(
     weekendDays: number[];
     secondaryCalendar: "islamic-umalqura" | "islamic-civil" | null;
     digits: "latn" | "arab";
+    arabicMath: "ltr" | "rtl";
     phone: string | null;
     email: string | null;
     websiteUrl: string | null;
