@@ -733,6 +733,7 @@ function inlineOf(type: ContentNode["type"], text: string): ContentNode {
               version: 1,
               latex: run.latex,
               ...(run.block ? { block: true } : {}),
+              ...(run.rtl ? { direction: "rtl" as const } : {}),
             },
           ]
         : (paragraphOf(run.text).children ?? []),

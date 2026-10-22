@@ -181,6 +181,7 @@ export class MathNode extends DecoratorNode<JSX.Element> {
     element.textContent = mathText({
       latex: node.__latex,
       block: node.__block,
+      direction: node.__rtl ? "rtl" : null,
     });
     return { element };
   }
@@ -201,7 +202,11 @@ export class MathNode extends DecoratorNode<JSX.Element> {
 
   getTextContent(): string {
     const node = this.getLatest();
-    return mathText({ latex: node.__latex, block: node.__block });
+    return mathText({
+      latex: node.__latex,
+      block: node.__block,
+      direction: node.__rtl ? "rtl" : null,
+    });
   }
 
   getLatex(): string {

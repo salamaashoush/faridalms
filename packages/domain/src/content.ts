@@ -29,14 +29,25 @@ export const MAX_LATEX = 4000;
 /**
  * Mathematics inside text that is otherwise plain, as a question's prompt
  * and options carry it: \(…\) within a line and \[…\] on a line of its own,
- * as LaTeX writes them.
+ * as LaTeX writes them. A formula set in Arabic notation is isolated as
+ * right-to-left text, between U+2067 and U+2069, which says so in Unicode's
+ * own terms and which any other reader of the text passes over.
  */
-export const mathText = (node: Pick<ContentNode, "latex" | "block">) =>
-  node.block ? `\\[${node.latex ?? ""}\\]` : `\\(${node.latex ?? ""}\\)`;
+export const mathText = (
+  node: Pick<ContentNode, "latex" | "block" | "direction">,
+) => {
+  const written = node.block
+    ? `\\[${node.latex ?? ""}\\]`
+    : `\\(${node.latex ?? ""}\\)`;
+  return node.direction === "rtl" ? `\u2067${written}\u2069` : written;
+};
 
-export type TextRun = { text: string } | { latex: string; block: boolean };
+export type TextRun =
+  | { text: string }
+  | { latex: string; block: boolean; rtl?: true };
 
-const MATH_RUN = /\\\((.+?)\\\)|\\\[(.+?)\\\]/gsu;
+const MATH_RUN =
+  /\u2067(?:\\\((.+?)\\\)|\\\[(.+?)\\\])\u2069|\\\((.+?)\\\)|\\\[(.+?)\\\]/gsu;
 
 /** Plain text and the mathematics written in it, in order. */
 export function mathRuns(text: string): TextRun[] {
@@ -44,11 +55,14 @@ export function mathRuns(text: string): TextRun[] {
   let from = 0;
   for (const match of text.matchAll(MATH_RUN)) {
     if (match.index > from) runs.push({ text: text.slice(from, match.index) });
-    runs.push(
-      match[1] === undefined
-        ? { latex: match[2] ?? "", block: true }
-        : { latex: match[1], block: false },
-    );
+    const [, rtlLine, rtlBlock, line, block] = match;
+    const rtl = rtlLine !== undefined || rtlBlock !== undefined;
+    const inline = rtlLine ?? line;
+    runs.push({
+      latex: inline ?? rtlBlock ?? block ?? "",
+      block: inline === undefined,
+      ...(rtl ? { rtl: true as const } : {}),
+    });
     from = match.index + match[0].length;
   }
   if (from < text.length) runs.push({ text: text.slice(from) });
@@ -1345,7 +1359,8 @@ function comparable(value: unknown): unknown {
       // Block ids and directions are the editor's bookkeeping, not words; a
       // block's narration is part of what it says.
       .flatMap(([key, item]): [string, unknown][] => {
-        if (key === "direction") return [];
+        // A formula's direction is its notation, which its writer chose.
+        if (key === "direction" && !("latex" in value)) return [];
         if (key !== "$") return [[key, item]];
         const { id: _id, ...kept } = (item ?? {}) as Record<string, unknown>;
         return Object.keys(kept).length > 0 ? [[key, kept]] : [];

@@ -4,7 +4,13 @@ import { describe, expect, it } from "vitest";
 import type { ContentDocument, ContentNode } from "./content";
 import type { LessonDocument } from "./learning";
 
-import { contentDocumentSchema, contentPlainText, mathRuns } from "./content";
+import {
+  contentDocumentSchema,
+  contentPlainText,
+  mathRuns,
+  mathText,
+  sameContent,
+} from "./content";
 import { markResponse } from "./learning";
 import { contentOfLesson, lessonOfContent } from "./lesson-content";
 
@@ -19,6 +25,11 @@ const math = (latex: string, block = false): ContentNode => ({
   version: 1,
   latex,
   ...(block ? { block } : {}),
+});
+const line = (formula: ContentNode): ContentNode => ({
+  type: "paragraph",
+  version: 1,
+  children: [formula],
 });
 const documentOf = (...children: ContentNode[]): ContentDocument => ({
   root: { type: "root", version: 1, children },
@@ -90,6 +101,41 @@ describe("mathematics in a document", () => {
     expect(mathRuns("It costs $5 and $10.")).toEqual([
       { text: "It costs $5 and $10." },
     ]);
+  });
+
+  it("keeps a formula's Arabic notation in plain text, isolated right to left", () => {
+    const written = mathText({ latex: "س+١=٣", direction: "rtl" });
+    expect(written).toBe("\u2067\\(س+١=٣\\)\u2069");
+    expect(mathRuns(`حل ${written} ثم \\(x\\)`)).toEqual([
+      { text: "حل " },
+      { latex: "س+١=٣", block: false, rtl: true },
+      { text: " ثم " },
+      { latex: "x", block: false },
+    ]);
+    const asked = question(`أوجد ${written}`, ["\\(x=2\\)"]);
+    const document = contentOfLesson(asked);
+    if (!document) throw new Error("a document");
+    expect(JSON.stringify(document)).toContain('"direction":"rtl"');
+    expect(lessonOfContent(document).blocks[0]).toMatchObject({
+      prompt: `أوجد ${written}`,
+    });
+  });
+
+  it("counts a formula turned to Arabic notation as a change", () => {
+    const before = documentOf(line(math("x+1")));
+    expect(
+      sameContent(
+        before,
+        documentOf(line({ ...math("x+1"), direction: "rtl" })),
+      ),
+    ).toBe(false);
+    // A paragraph's direction is worked out from its words, not chosen.
+    expect(
+      sameContent(
+        before,
+        documentOf({ ...line(math("x+1")), direction: "rtl" }),
+      ),
+    ).toBe(true);
   });
 
   it("carries a question's formulas to students and back into the document", () => {

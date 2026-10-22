@@ -42,7 +42,7 @@ export function TextWithMath({ text }: { text: string }) {
     const key = `${at}`;
     at += "latex" in run ? run.latex.length + 4 : run.text.length;
     return "latex" in run ? (
-      <MathText key={key} latex={run.latex} display={run.block} />
+      <MathText key={key} latex={run.latex} display={run.block} rtl={run.rtl} />
     ) : (
       <span key={key}>{run.text}</span>
     );

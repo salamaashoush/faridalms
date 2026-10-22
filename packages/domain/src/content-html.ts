@@ -240,7 +240,12 @@ class Writer {
       }
       case "math": {
         const latex = escape(node.latex ?? "");
-        return node.block ? `<p>\\[${latex}\\]</p>` : `\\(${latex}\\)`;
+        const dir = node.direction === "rtl" ? ' dir="rtl"' : "";
+        return node.block
+          ? `<p${dir}>\\[${latex}\\]</p>`
+          : dir
+            ? `<span${dir}>\\(${latex}\\)</span>`
+            : `\\(${latex}\\)`;
       }
       case "footnote": {
         const note = node.source ? sourceText(node.source) : (node.note ?? "");
