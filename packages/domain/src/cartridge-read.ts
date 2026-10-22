@@ -269,6 +269,16 @@ function itemOf(
   return null;
 }
 
+/**
+ * A module's name: its folder's title, or the course's where it has none.
+ * Moodle names an unnamed section by its number alone, the first 0, so
+ * those read as the course's sections.
+ */
+function moduleTitle(title: string, courseTitle: string): string {
+  if (!title || title === "0") return courseTitle;
+  return /^\d+$/u.test(title) ? `${courseTitle} ${title}` : title;
+}
+
 type MetaRule =
   | { rule: "view" | "mark" | "submit" }
   | { rule: "score"; percent: number | null; minScore?: number };
@@ -428,7 +438,7 @@ export function readCartridge(
     });
     places.set(identifier, modules.length);
     modules.push({
-      title: titleOf(top) || courseTitle,
+      title: moduleTitle(titleOf(top), courseTitle),
       items,
       ...(rules?.sequential ? { sequential: true } : {}),
       ...(prerequisites.length ? { prerequisites } : {}),

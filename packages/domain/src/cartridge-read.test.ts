@@ -378,6 +378,32 @@ describe("a Common Cartridge's course", () => {
     ]);
   });
 
+  it("names Moodle's unnamed sections after the course", () => {
+    const manifest = `<?xml version="1.0"?>
+      <manifest identifier="x" xmlns="http://www.imsglobal.org/xsd/imsccv1p1/imscp_v1p1">
+        <metadata><schema>IMS Common Cartridge</schema><schemaversion>1.1.0</schemaversion>
+          <lomimscc:lom xmlns:lomimscc="http://ltsc.ieee.org/xsd/imsccv1p1/LOM/manifest"><lomimscc:general><lomimscc:title><lomimscc:string>Rivers</lomimscc:string></lomimscc:title></lomimscc:general></lomimscc:lom>
+        </metadata>
+        <organizations><organization identifier="o" structure="rooted-hierarchy"><item identifier="root">
+          <item identifier="s0"><title>0</title><item identifier="a" identifierref="r1"><title>News</title></item></item>
+          <item identifier="s1"><title>1</title><item identifier="b" identifierref="r1"><title>Map</title></item></item>
+        </item></organization></organizations>
+        <resources><resource identifier="r1" type="imswl_xmlv1p1"><file href="r1.xml"/></resource></resources>
+      </manifest>`;
+    const files = new Map([
+      ["imsmanifest.xml", bytes(manifest)],
+      [
+        "r1.xml",
+        bytes(
+          '<webLink xmlns="http://www.imsglobal.org/xsd/imsccv1p1/imswl_v1p1"><title>Map</title><url href="https://example.com/nile"/></webLink>',
+        ),
+      ],
+    ]);
+    expect(readCartridge(files)?.modules.map((module) => module.title)).toEqual(
+      ["Rivers", "Rivers 1"],
+    );
+  });
+
   it("finds a link's file the ways Moodle and Canvas write them", () => {
     const files = new Set([
       "web_resources/Uploaded Media/map.png",

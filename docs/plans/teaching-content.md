@@ -835,8 +835,16 @@ Scratch Text to Speech, Translate and tutorials.
    a CC question bank. Manifest and descriptors validate against
    1EdTech's CC 1.3 schemas and Canvas's own; Moodle reads only CC 1.1,
    which the module export stays.
-   Left: trying both directions against real Moodle and Canvas sites,
-   which were not to hand.
+   Tried against a real Moodle 4.5: a module's CC 1.1 export restores as
+   pages, each followed by its quiz with every question of the kind
+   expected (multiple choice, short answer, essays for the kinds CC has
+   no form for, polls at no marks); Moodle puts the first folder of any
+   cartridge in its general section. Moodle's own CC export, which 4.5
+   reaches only through its converter, leaves quizzes out and names
+   unnamed sections by number; its pages, links and forums come into
+   Farida, the sections named after the course. Canvas was tried through
+   its own import converters run over the exports, not a live site.
+   Left: a live Canvas site, to confirm what its converters showed.
 3. **Results shaped for xAPI** (score, duration, completion).
    Done: a module's progress view exports a class's results as Experience
    API 1.0.3 statements, as the owner chose, with no store of our own:
