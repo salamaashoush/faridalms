@@ -131,8 +131,16 @@ Sources: [../research/course-design.md](../research/course-design.md),
    marks by sampling both expressions (or both sides of an equation) at
    the same values, as WeBWorK does, with a tolerance for decimals and
    Arabic letters and digits read. LaTeX it cannot read is compared as
-   written. Left: units, and a form a teacher requires (factorised,
-   simplified).
+   written. Then a teacher may ask for a form (factorised completely,
+   expanded and simplified, a fraction in lowest terms, standard form),
+   checked as STACK's FacForm and Expanded tests do, with polynomials
+   worked exactly over the rationals; and answers with units, compared in
+   SI base units (US customary and temperature scales too) or only in the
+   key's. A student whose answer meant the key is told the form or units
+   it lacked. Mixed numbers read as school writes them.
+   Left: factorising beyond school algebra (quartics with no rational
+   root, three letters), significant figures and decimal places as a form,
+   and a key written in a form it asks students for, checked on publish.
 3. **Embeds for teaching**: GeoGebra, Desmos, PhET, Wikimedia Commons and
    Microsoft 365 files beside today's YouTube, Vimeo, Loom, Google and Canva. Done:
    GeoGebra activities, Desmos graphs (calculator, geometry, 3D) and PhET
