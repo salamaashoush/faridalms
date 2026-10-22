@@ -366,7 +366,8 @@ describe("pictures of students", () => {
     const studentId = await answerFor(family, "photo_school_website", false);
     const office = await principal();
     const fileId = await picture();
-    const draft = post("Sports day", fileId, "public");
+    // Its own title, apart from the seeded draft the website test keeps hidden.
+    const draft = post("Field day", fileId, "public");
     const saved = await office.news.save(draft);
     await office.files.tagPictured({ id: fileId, studentIds: [studentId] });
     const { files } = await office.files.pictured({ ids: [fileId] });
@@ -386,7 +387,7 @@ describe("pictures of students", () => {
       locale: "en",
       slug: draft.slug,
     });
-    expect(read.title).toBe("Sports day");
+    expect(read.title).toBe("Field day");
     expect(read.coverKey).not.toBeNull();
     expect(read.coverAlt).toBe("Children on the field");
 
