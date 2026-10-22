@@ -50,6 +50,26 @@ export async function documentOf(
     : null;
 }
 
+/** The working content of several records' documents of one kind, by host. */
+export async function contentsOf(
+  tx: Tx,
+  tenantId: string,
+  hostType: string,
+  hostIds: readonly string[],
+): Promise<Map<string, Record<string, unknown>>> {
+  if (hostIds.length === 0) return new Map();
+  const rows = await tx.execute<{
+    host_id: string;
+    content: Record<string, unknown>;
+  }>(sql`
+    select distinct on (host_id) host_id, content from core.documents
+    where tenant_id = ${tenantId}::uuid and host_type = ${hostType}
+      and host_id = any(${uuidArray(hostIds)}) and status = 'active'
+      and translation_of_id is null
+    order by host_id, created_at desc`);
+  return new Map(rows.map((row) => [row.host_id, row.content]));
+}
+
 /** The files the last published copy of a document shows, which its readers still open. */
 async function publishedFileIds(
   tx: Tx,

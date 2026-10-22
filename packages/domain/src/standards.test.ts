@@ -1,7 +1,15 @@
 import * as v from "valibot";
 import { describe, expect, it } from "vitest";
 
-import { caseOutline, casePackageSchema, masteryOf } from "./standards";
+import type { ContentDocument, ContentNode } from "./content";
+
+import {
+  caseOutline,
+  casePackageSchema,
+  masteryOf,
+  planTargets,
+  questionStandards,
+} from "./standards";
 
 const uuid = (n: number) =>
   `0190a1b2-0000-7000-8000-0000000003${String(n).padStart(2, "0")}`;
@@ -139,5 +147,46 @@ describe("mastery", () => {
     const slipped = masteryOf([on("a", 1, 1), on("b", 1, 2), on("c", 0, 3)]);
     expect(slipped?.score).toBeCloseTo(0.35);
     expect(slipped?.level).toBe("beginning");
+  });
+});
+
+const doc = (...children: ContentNode[]): ContentDocument => ({
+  root: { type: "root", version: 1, children },
+});
+const target = (n: number) => ({
+  id: uuid(n),
+  code: `G.${n}`,
+  statement: `Goal ${n}.`,
+});
+const question = (...standards: string[]): ContentNode => ({
+  type: "question",
+  version: 1,
+  standards,
+});
+
+describe("a unit plan's coverage", () => {
+  it("names each standard a plan's blocks hold once, in order", () => {
+    const plan = doc(
+      { type: "standards", version: 1, targets: [target(1), target(2)] },
+      {
+        type: "toggle",
+        version: 1,
+        children: [{ type: "standards", version: 1, targets: [target(1)] }],
+      },
+    );
+    expect(planTargets(plan).map((row) => row.code)).toEqual(["G.1", "G.2"]);
+  });
+
+  it("counts each question once for every standard it is tagged with", () => {
+    const tagged = questionStandards([
+      doc(question(uuid(1)), question(uuid(1), uuid(3))),
+      doc(question(uuid(3), uuid(3))),
+      // A standards block names standards; it assesses none.
+      doc({ type: "standards", version: 1, targets: [target(4)] }),
+    ]);
+    expect([...tagged]).toEqual([
+      [uuid(1), 2],
+      [uuid(3), 2],
+    ]);
   });
 });

@@ -711,6 +711,50 @@
   "printDate": "Date",
   "printHowMany": "How many?",
   "printScanToWatch": "Scan to watch or open it online.",
+  "planTitle": "Unit plan",
+  "planTab": "Plan",
+  "planEdit": "Edit plan",
+  "planWrite": "Plan this unit",
+  "planEmptyTitle": "No unit plan yet",
+  "planEmptyBody": "Plan the unit in your school's planner, from the IB's to Understanding by Design or a Cambridge scheme of work. The teachers of the module write it together.",
+  "planCoverage": "Coverage",
+  "planNamed": "Standards in the plan",
+  "planNoStandards": "Name the plan's goals in a Standards block, and each shows the questions in this module that assess it.",
+  "planNotAssessed": "No question assesses it yet",
+  "planUnplanned": "Assessed, not in the plan",
+  "planQuestions": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "{count} question",
+        "countPlural=*": "{count} questions"
+      }
+    }
+  ],
+  "planNamedCount": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "{count} standard",
+        "countPlural=*": "{count} standards"
+      }
+    }
+  ],
+  "plannerGroup": "Unit planners",
+  "plannerMyp": "IB MYP unit planner",
+  "plannerMypHint": "Inquiry, action and reflection, from the key concept to the summative task",
+  "plannerDp": "IB DP unit planner",
+  "plannerDpHint": "Transfer goals, essential understandings, TOK and CAS links",
+  "plannerPyp": "IB PYP planner",
+  "plannerPypHint": "Central idea, lines of inquiry, learning goals and agency",
+  "plannerUbd": "Understanding by Design",
+  "plannerUbdHint": "Desired results, then evidence, then the learning plan",
+  "plannerCambridge": "Cambridge scheme of work",
+  "plannerCambridgeHint": "Learning objectives, teaching activities and misconceptions",
+  "plannerPlain": "Unit plan",
+  "plannerPlainHint": "Goals, big idea, assessment and sequence",
   "patternGroup": "Teaching patterns",
   "patternWorked": "Worked example, then your turn",
   "patternWorkedHint": "Steps open one at a time, then one step to finish and a problem alone",

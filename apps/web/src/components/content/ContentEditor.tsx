@@ -44,6 +44,7 @@ export function ContentEditor({
   aiUse,
   narration,
   lessonActivities,
+  standards = false,
   pending = false,
 }: {
   id: string;
@@ -68,6 +69,8 @@ export function ContentEditor({
   aiUse?: boolean;
   narration?: boolean;
   lessonActivities?: boolean;
+  /** Standards blocks may name the school's standards, as a unit plan's do. */
+  standards?: boolean;
   /** Whether the document may be live is still being asked. */
   pending?: boolean;
 }) {
@@ -76,7 +79,7 @@ export function ContentEditor({
   const coding = useEditorStudio(questions ? media : undefined);
   const designing = useEditorPuzzles(Boolean(questions));
   const banking = useEditorBank(Boolean(questions));
-  const tagging = useEditorStandards(Boolean(questions));
+  const tagging = useEditorStandards(Boolean(questions) || standards);
   const document = variant === "document";
   // Lexical needs a DOM, so the server draws the document in the editor's own
   // frame and the editor takes that frame over in the browser.

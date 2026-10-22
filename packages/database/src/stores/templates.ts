@@ -4,7 +4,7 @@ import type { CellTransaction } from "../context";
 
 type Tx = CellTransaction;
 
-export type TemplateKind = "lesson" | "assignment";
+export type TemplateKind = "lesson" | "assignment" | "unit_plan";
 
 export interface TemplateRow {
   id: string;

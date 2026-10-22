@@ -171,6 +171,8 @@ export function DocumentPage({
     starters?: EditorMedia;
     /** Offers the built-in teaching patterns for a lesson. */
     patterns?: boolean;
+    /** Offers the built-in unit planners for a module's plan. */
+    planners?: boolean;
   };
   title: ReactNode;
   aside?: ReactNode;
@@ -348,6 +350,7 @@ export function DocumentPage({
               onApply={templates.onApply}
               starters={templates.starters}
               patterns={templates.patterns}
+              planners={templates.planners}
             />
           ) : null}
         </div>

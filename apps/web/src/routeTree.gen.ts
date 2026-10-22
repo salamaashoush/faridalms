@@ -92,6 +92,7 @@ import { Route as AppTeachGradingRouteImport } from './routes/_app/teach/grading
 import { Route as AppTeachLessonEditorRouteImport } from './routes/_app/teach/lesson-editor'
 import { Route as AppTeachMessagesRouteImport } from './routes/_app/teach/messages'
 import { Route as AppTeachModuleEditorRouteImport } from './routes/_app/teach/module-editor'
+import { Route as AppTeachModulePlanRouteImport } from './routes/_app/teach/module-plan'
 import { Route as AppTeachModulesRouteImport } from './routes/_app/teach/modules'
 import { Route as AppTeachTimetableRouteImport } from './routes/_app/teach/timetable'
 import { Route as AppYearsYearIdRouteImport } from './routes/_app/years.$yearId'
@@ -527,6 +528,11 @@ const AppTeachModuleEditorRoute = AppTeachModuleEditorRouteImport.update({
   path: '/module-editor',
   getParentRoute: () => AppTeachRoute,
 } as any)
+const AppTeachModulePlanRoute = AppTeachModulePlanRouteImport.update({
+  id: '/module-plan',
+  path: '/module-plan',
+  getParentRoute: () => AppTeachRoute,
+} as any)
 const AppTeachModulesRoute = AppTeachModulesRouteImport.update({
   id: '/modules',
   path: '/modules',
@@ -674,6 +680,7 @@ export interface FileRoutesByFullPath {
   '/teach/lesson-editor': typeof AppTeachLessonEditorRoute
   '/teach/messages': typeof AppTeachMessagesRoute
   '/teach/module-editor': typeof AppTeachModuleEditorRoute
+  '/teach/module-plan': typeof AppTeachModulePlanRoute
   '/teach/modules': typeof AppTeachModulesRoute
   '/teach/timetable': typeof AppTeachTimetableRoute
   '/years/$yearId': typeof AppYearsYearIdRoute
@@ -766,6 +773,7 @@ export interface FileRoutesByTo {
   '/teach/lesson-editor': typeof AppTeachLessonEditorRoute
   '/teach/messages': typeof AppTeachMessagesRoute
   '/teach/module-editor': typeof AppTeachModuleEditorRoute
+  '/teach/module-plan': typeof AppTeachModulePlanRoute
   '/teach/modules': typeof AppTeachModulesRoute
   '/teach/timetable': typeof AppTeachTimetableRoute
   '/years/$yearId': typeof AppYearsYearIdRoute
@@ -866,6 +874,7 @@ export interface FileRoutesById {
   '/_app/teach/lesson-editor': typeof AppTeachLessonEditorRoute
   '/_app/teach/messages': typeof AppTeachMessagesRoute
   '/_app/teach/module-editor': typeof AppTeachModuleEditorRoute
+  '/_app/teach/module-plan': typeof AppTeachModulePlanRoute
   '/_app/teach/modules': typeof AppTeachModulesRoute
   '/_app/teach/timetable': typeof AppTeachTimetableRoute
   '/_app/years/$yearId': typeof AppYearsYearIdRoute
@@ -965,6 +974,7 @@ export interface FileRouteTypes {
     | '/teach/lesson-editor'
     | '/teach/messages'
     | '/teach/module-editor'
+    | '/teach/module-plan'
     | '/teach/modules'
     | '/teach/timetable'
     | '/years/$yearId'
@@ -1057,6 +1067,7 @@ export interface FileRouteTypes {
     | '/teach/lesson-editor'
     | '/teach/messages'
     | '/teach/module-editor'
+    | '/teach/module-plan'
     | '/teach/modules'
     | '/teach/timetable'
     | '/years/$yearId'
@@ -1156,6 +1167,7 @@ export interface FileRouteTypes {
     | '/_app/teach/lesson-editor'
     | '/_app/teach/messages'
     | '/_app/teach/module-editor'
+    | '/_app/teach/module-plan'
     | '/_app/teach/modules'
     | '/_app/teach/timetable'
     | '/_app/years/$yearId'
@@ -1778,6 +1790,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppTeachModuleEditorRouteImport
       parentRoute: typeof AppTeachRoute
     }
+    '/_app/teach/module-plan': {
+      id: '/_app/teach/module-plan'
+      path: '/module-plan'
+      fullPath: '/teach/module-plan'
+      preLoaderRoute: typeof AppTeachModulePlanRouteImport
+      parentRoute: typeof AppTeachRoute
+    }
     '/_app/teach/modules': {
       id: '/_app/teach/modules'
       path: '/modules'
@@ -1983,6 +2002,7 @@ interface AppTeachRouteChildren {
   AppTeachLessonEditorRoute: typeof AppTeachLessonEditorRoute
   AppTeachMessagesRoute: typeof AppTeachMessagesRoute
   AppTeachModuleEditorRoute: typeof AppTeachModuleEditorRoute
+  AppTeachModulePlanRoute: typeof AppTeachModulePlanRoute
   AppTeachModulesRoute: typeof AppTeachModulesRoute
   AppTeachTimetableRoute: typeof AppTeachTimetableRoute
   AppTeachIndexRoute: typeof AppTeachIndexRoute
@@ -1998,6 +2018,7 @@ const AppTeachRouteChildren: AppTeachRouteChildren = {
   AppTeachLessonEditorRoute: AppTeachLessonEditorRoute,
   AppTeachMessagesRoute: AppTeachMessagesRoute,
   AppTeachModuleEditorRoute: AppTeachModuleEditorRoute,
+  AppTeachModulePlanRoute: AppTeachModulePlanRoute,
   AppTeachModulesRoute: AppTeachModulesRoute,
   AppTeachTimetableRoute: AppTeachTimetableRoute,
   AppTeachIndexRoute: AppTeachIndexRoute,

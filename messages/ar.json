@@ -734,6 +734,58 @@
   "printDate": "التاريخ",
   "printHowMany": "كم عددها؟",
   "printScanToWatch": "امسح الرمز للمشاهدة أو الفتح عبر الإنترنت.",
+  "planTitle": "خطة الوحدة",
+  "planTab": "الخطة",
+  "planEdit": "تعديل الخطة",
+  "planWrite": "تخطيط هذه الوحدة",
+  "planEmptyTitle": "لا خطة للوحدة بعد",
+  "planEmptyBody": "خطّط الوحدة بمخطّط مدرستك، من مخطّطات البكالوريا الدولية إلى التصميم من أجل الفهم أو خطة عمل كامبريدج. يكتبها معلّمو الوحدة معًا.",
+  "planCoverage": "التغطية",
+  "planNamed": "المعايير في الخطة",
+  "planNoStandards": "سمِّ أهداف الخطة في كتلة معايير، فيظهر لكل منها ما يقيسه من أسئلة هذه الوحدة.",
+  "planNotAssessed": "لا يقيسه أي سؤال بعد",
+  "planUnplanned": "مُقاس وليس في الخطة",
+  "planQuestions": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=zero": "لا أسئلة",
+        "countPlural=one": "سؤال واحد",
+        "countPlural=two": "سؤالان",
+        "countPlural=few": "{count} أسئلة",
+        "countPlural=many": "{count} سؤالًا",
+        "countPlural=*": "{count} سؤال"
+      }
+    }
+  ],
+  "planNamedCount": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=zero": "لا معايير",
+        "countPlural=one": "معيار واحد",
+        "countPlural=two": "معياران",
+        "countPlural=few": "{count} معايير",
+        "countPlural=many": "{count} معيارًا",
+        "countPlural=*": "{count} معيار"
+      }
+    }
+  ],
+  "plannerGroup": "مخطّطات الوحدات",
+  "plannerMyp": "مخطّط وحدة برنامج السنوات المتوسطة (IB)",
+  "plannerMypHint": "الاستقصاء والعمل والتأمّل، من المفهوم الرئيسي إلى المهمة الختامية",
+  "plannerDp": "مخطّط وحدة برنامج الدبلوما (IB)",
+  "plannerDpHint": "أهداف النقل والفهم الأساسي والصلة بنظرية المعرفة والإبداع والنشاط والخدمة",
+  "plannerPyp": "مخطّط برنامج السنوات الابتدائية (IB)",
+  "plannerPypHint": "الفكرة المركزية وخطوط الاستقصاء وأهداف التعلّم والفاعلية",
+  "plannerUbd": "التصميم من أجل الفهم",
+  "plannerUbdHint": "النتائج المرغوبة، ثم الأدلة، ثم خطة التعلّم",
+  "plannerCambridge": "خطة عمل كامبريدج",
+  "plannerCambridgeHint": "أهداف التعلّم وأنشطة التدريس والمفاهيم الخاطئة",
+  "plannerPlain": "خطة وحدة",
+  "plannerPlainHint": "الأهداف والفكرة الكبرى والتقييم والتسلسل",
   "patternGroup": "أنماط تدريس",
   "patternWorked": "مثال محلول، ثم دورك",
   "patternWorkedHint": "تظهر الخطوات واحدة تلو الأخرى، ثم خطوة يكملها الطالب ومسألة يحلها وحده",

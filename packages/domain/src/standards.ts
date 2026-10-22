@@ -1,5 +1,7 @@
 import * as v from "valibot";
 
+import type { ContentDocument, ContentNode, StandardTarget } from "./content";
+
 /**
  * A school's standards: the frameworks it teaches to, such as an IB
  * subject's objectives, a Cambridge curriculum framework, Common Core or
@@ -162,6 +164,38 @@ export function masteryOf(evidence: readonly Evidence[]): Mastery | null {
         ? "developing"
         : "beginning";
   return { level, score, occasions: ordered.length };
+}
+
+// --- Planning --------------------------------------------------------------
+
+function eachNode(node: ContentNode, each: (node: ContentNode) => void) {
+  each(node);
+  for (const child of node.children ?? []) eachNode(child, each);
+}
+
+/** The standards a plan's standards blocks name, each once, in order. */
+export function planTargets(plan: ContentDocument): StandardTarget[] {
+  const named = new Map<string, StandardTarget>();
+  eachNode(plan.root, (node) => {
+    if (node.type === "standards")
+      for (const target of node.targets ?? [])
+        if (!named.has(target.id)) named.set(target.id, target);
+  });
+  return [...named.values()];
+}
+
+/** How many questions in the documents are tagged with each standard. */
+export function questionStandards(
+  documents: readonly ContentDocument[],
+): Map<string, number> {
+  const tagged = new Map<string, number>();
+  for (const document of documents)
+    eachNode(document.root, (node) => {
+      if (node.type === "question")
+        for (const standard of new Set(node.standards ?? []))
+          tagged.set(standard, (tagged.get(standard) ?? 0) + 1);
+    });
+  return tagged;
 }
 
 // --- CASE ------------------------------------------------------------------

@@ -16,6 +16,7 @@ import {
   Circle,
   CircleCheck,
   CircleDashed,
+  ClipboardList,
   Copy,
   EyeOff,
   Layers,
@@ -33,6 +34,7 @@ import type { HeaderFact, RecordTab } from "~/components/system/RecordPage";
 
 import { ButtonLink } from "~/components/app/ButtonLink";
 import { classTitle } from "~/components/classes/format";
+import { ContentView } from "~/components/content/ContentView";
 import { AreaFiles } from "~/components/files/AreaFiles";
 import { displayName } from "~/components/people/format";
 import { DataTable, RowLink } from "~/components/system/DataTable";
@@ -48,7 +50,11 @@ import {
 } from "~/components/system/RecordPage";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
-import { moduleProgressQuery, moduleRecordQuery } from "~/queries/learning";
+import {
+  moduleProgressQuery,
+  moduleRecordQuery,
+  planQuery,
+} from "~/queries/learning";
 import {
   archiveModule,
   duplicateModule,
@@ -69,11 +75,13 @@ import {
   STATE_TONE,
 } from "./format";
 import { ClassLive } from "./Live";
+import { PlanCoverage } from "./PlanEditor";
 import { ClassQuestions } from "./Questions";
 import { ClassVideos } from "./Videos";
 
 export const MODULE_TABS = [
   "lessons",
+  "plan",
   "live",
   "progress",
   "questions",
@@ -497,6 +505,58 @@ function ClassTab({
   );
 }
 
+/**
+ * The module's unit plan as its teachers read it, beside how the questions
+ * in its lessons cover the standards it names.
+ */
+function ModulePlan({ moduleId }: { moduleId: string }) {
+  const query = useQuery(planQuery(moduleId));
+  const navigate = useNavigate();
+  if (!query.data) return <div aria-busy="true" className="min-h-40" />;
+  const { content, assessed } = query.data;
+  const edit = () =>
+    void navigate({ to: "/teach/module-plan", search: { moduleId } });
+  if (!content)
+    return (
+      <EmptyState
+        icon={ClipboardList}
+        title={m.planEmptyTitle()}
+        description={m.planEmptyBody()}
+        action={
+          <Button type="button" className="max-md:h-10" onClick={edit}>
+            <Plus aria-hidden />
+            {m.planWrite()}
+          </Button>
+        }
+      />
+    );
+  return (
+    <RecordColumns
+      main={
+        <RecordSection
+          title={m.planTitle()}
+          action={
+            <Button
+              type="button"
+              variant="ghost"
+              className="max-md:h-10"
+              onClick={edit}
+            >
+              <Pencil aria-hidden />
+              {m.planEdit()}
+            </Button>
+          }
+        >
+          <div className="px-5 pb-5">
+            <ContentView document={content} />
+          </div>
+        </RecordSection>
+      }
+      aside={<PlanCoverage content={content} assessed={assessed} />}
+    />
+  );
+}
+
 /** A module for those who teach it: its lessons, and how each student is getting on. */
 export function ModuleRecord({
   moduleId,
@@ -544,6 +604,7 @@ export function ModuleRecord({
       value: "lessons",
       label: `${m.lrnLessons()} ${formatNumber(data.lessons.length)}`,
     },
+    { value: "plan", label: m.planTab() },
     { value: "live", label: m.liveTab() },
     { value: "progress", label: m.lrnProgress() },
     { value: "questions", label: m.lrnQuestionsTab() },
@@ -647,6 +708,8 @@ export function ModuleRecord({
             main={<Lessons data={data} />}
             aside={<About data={data} />}
           />
+        ) : tab === "plan" ? (
+          <ModulePlan moduleId={data.id} />
         ) : tab === "files" ? (
           <AreaFiles
             area={{ type: "module", id: data.id }}

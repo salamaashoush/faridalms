@@ -1,4 +1,5 @@
 import type { ModuleRow, WatchRow } from "@faridalms/database/stores/learning";
+import type { ContentDocument } from "@faridalms/domain/content";
 import type {
   CheckBlock,
   LessonCompletion,
@@ -16,6 +17,7 @@ import {
 } from "@faridalms/database/stores/classes";
 import { namesOf } from "@faridalms/database/stores/coursework";
 import {
+  contentsOf,
   documentOf,
   publishedVersion,
   saveDocument,
@@ -68,7 +70,10 @@ import {
   watchesOf,
   watchRowsIn,
 } from "@faridalms/database/stores/learning";
-import { recordEvidence } from "@faridalms/database/stores/standards";
+import {
+  recordEvidence,
+  standardsByIds,
+} from "@faridalms/database/stores/standards";
 import { isVisibleStudent } from "@faridalms/database/stores/students";
 import { gridOwners } from "@faridalms/database/stores/timetable";
 import { schoolYears, workingYear } from "@faridalms/database/stores/years";
@@ -94,6 +99,7 @@ import {
   moduleRefSchema,
   moveLessonSchema,
   overrideSchema,
+  planSchema,
   positionSchema,
   progressQuerySchema,
   publishModuleSchema,
@@ -117,6 +123,7 @@ import {
   runsQuerySchema,
   saveLessonSchema,
   saveModuleSchema,
+  savePlanSchema,
   settled,
   standingOf,
   studentBlocks,
@@ -135,6 +142,7 @@ import {
 } from "@faridalms/domain/practice";
 import { heldAs, sameFiles } from "@faridalms/domain/project";
 import { scratchReadingOf } from "@faridalms/domain/scratch-project";
+import { questionStandards } from "@faridalms/domain/standards";
 import { ORPCError } from "@orpc/server";
 import { createHash } from "node:crypto";
 import * as v from "valibot";
@@ -430,8 +438,80 @@ registerArea("module", {
       const lesson = await lessonById(context.tx, context.tenantId, lessonId);
       return lesson ? { type: "module", id: lesson.moduleId } : null;
     },
+    module_plan: (_, moduleId) =>
+      Promise.resolve({ type: "module", id: moduleId }),
   },
 });
+
+// A module's unit plan is for those who teach it, who write it together.
+registerHostReader("module_plan", editsModule);
+registerHostWriter("module_plan", editsModule);
+registerLiveRules("module_plan", { keyed: () => Promise.resolve(false) });
+
+const planHost = (moduleId: string) => ({ type: "module_plan", id: moduleId });
+
+/**
+ * A module's unit plan, and the standards its lessons' questions assess with
+ * how many questions assess each, for the plan to be read against.
+ */
+export const plan = readProcedure
+  .input(planSchema)
+  .handler(async ({ input, context }) => {
+    const owner = await editable(context, input.moduleId);
+    const [stored, lessons] = await Promise.all([
+      documentOf(context.tx, context.tenantId, planHost(owner.id)),
+      lessonsOf(context.tx, context.tenantId, owner.id),
+    ]);
+    const contents = await contentsOf(
+      context.tx,
+      context.tenantId,
+      "lesson",
+      lessons.map((lesson) => lesson.id),
+    );
+    const tagged = questionStandards(
+      [...contents.values()].map(lessonContentOf),
+    );
+    const assessed = await standardsByIds(context.tx, {
+      tenantId: context.tenantId,
+      orgId: context.schoolId,
+      ids: [...tagged.keys()],
+    });
+    return {
+      content: stored ? (stored.content as unknown as ContentDocument) : null,
+      assessed: assessed.map((row) => ({
+        ...row,
+        questions: tagged.get(row.id) ?? 0,
+      })),
+    };
+  });
+
+/** Stores a module's unit plan as written, where it is not written live. */
+export const savePlan = writeProcedure
+  .input(savePlanSchema)
+  .handler(async ({ input, context }) => {
+    const owner = await editable(context, input.moduleId);
+    const host = planHost(owner.id);
+    const saved = await saveDocument(context.tx, {
+      tenantId: context.tenantId,
+      orgId: context.schoolId,
+      host,
+      ...(await placeMedia(
+        context,
+        host,
+        input.content,
+        contentFileIds(input.content),
+      )),
+      plainText: contentPlainText(input.content),
+      userId: context.actor.userId,
+    });
+    await audit(context, {
+      action: "module.plan",
+      objectType: "learning_module",
+      objectId: owner.id,
+      details: {},
+    });
+    return { version: saved.version };
+  });
 registerLiveRules("lesson", {
   keyed: () => Promise.resolve(true),
   // A lesson still stored as a list of blocks is written as one document
@@ -706,6 +786,24 @@ export const duplicateModule = writeProcedure
           content,
           contentFileIds(content),
         )),
+        plainText: contentPlainText(content),
+        userId: context.actor.userId,
+      });
+    }
+    // A unit taught again starts from the plan it was taught by.
+    const unitPlan = await documentOf(
+      context.tx,
+      context.tenantId,
+      planHost(row.id),
+    );
+    if (unitPlan) {
+      const content = { ...(unitPlan.content as unknown as ContentDocument) };
+      const host = planHost(created.id);
+      await saveDocument(context.tx, {
+        tenantId: context.tenantId,
+        orgId: context.schoolId,
+        host,
+        ...(await placeMedia(context, host, content, contentFileIds(content))),
         plainText: contentPlainText(content),
         userId: context.actor.userId,
       });

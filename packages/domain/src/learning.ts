@@ -2082,6 +2082,13 @@ export const publishModuleSchema = v.object({
 
 export const moduleRefSchema = v.object({ id, expectedVersion: version(1) });
 
+export const planSchema = v.object({ moduleId: id });
+
+export const savePlanSchema = v.object({
+  moduleId: id,
+  content: contentDocumentSchema,
+});
+
 export const duplicateModuleSchema = v.object({
   id,
   classIds: v.pipe(

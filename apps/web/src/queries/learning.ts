@@ -7,6 +7,7 @@ import {
   getProgramRuns,
   getLearningOptions,
   getLessonEditor,
+  getPlan,
   getModuleOutline,
   getModuleLive,
   getModuleProgress,
@@ -36,6 +37,12 @@ export const moduleRecordQuery = (id: string) =>
   queryOptions({
     queryKey: ["learning", "module", id],
     queryFn: () => getModuleRecord({ data: { id } }),
+  });
+
+export const planQuery = (moduleId: string) =>
+  queryOptions({
+    queryKey: ["learning", "plan", moduleId],
+    queryFn: () => getPlan({ data: { moduleId } }),
   });
 
 export const lessonEditorQuery = (id: string) =>

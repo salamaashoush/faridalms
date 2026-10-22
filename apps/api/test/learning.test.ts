@@ -3561,3 +3561,128 @@ describe("standards a lesson gives evidence on", () => {
     await office.standards.removeFramework({ id: framework.id });
   });
 });
+
+const planTarget = (standardId: string, code: string) => ({
+  id: standardId,
+  code,
+  statement: `Standard ${code}.`,
+});
+
+describe("a module's unit plan", () => {
+  test("a plan names standards, read against the ones the module's questions assess", async () => {
+    const office = await signedIn("northwind", login("principal"));
+    const framework = await office.standards.saveFramework({
+      id: "",
+      expectedVersion: 0,
+      title: `Plan check ${id()}`,
+      description: "",
+    });
+    const tag = (code: string) =>
+      office.standards.saveStandard({
+        frameworkId: framework.id,
+        id: "",
+        expectedVersion: 0,
+        parentId: "",
+        code,
+        statement: `Standard ${code}.`,
+        itemType: "",
+      });
+    const planned = await tag("PL.1");
+    const unplanned = await tag("PL.2");
+    const { keeper, stranger } = await teachers();
+    const { rows } = await keeper.learning.modules({});
+    const source = rows.find((row) => row.title === TITLE);
+    if (!source) throw new Error("no module");
+    const saved = await keeper.learning.saveModule({
+      id: "",
+      expectedVersion: 0,
+      title: "Planned unit",
+      summary: "",
+      classIds: source.classes.map((item) => item.id),
+      prerequisiteId: "",
+      sequential: false,
+    });
+    expect(await keeper.learning.plan({ moduleId: saved.id })).toEqual({
+      content: null,
+      assessed: [],
+    });
+    const right = id();
+    await keeper.learning.saveLesson({
+      id: "",
+      moduleId: saved.id,
+      expectedVersion: 0,
+      title: "First look",
+      completion: "view",
+      passScore: null,
+      content: written([
+        {
+          id: id(),
+          type: "choice",
+          prompt: "Pick one.",
+          points: 1,
+          hints: [],
+          explanation: "",
+          tries: null,
+          options: [
+            { id: right, text: "This", feedback: "" },
+            { id: id(), text: "That", feedback: "" },
+          ],
+          correctOptionIds: [right],
+          multiple: false,
+          shuffle: false,
+          standards: [planned.id, unplanned.id],
+        },
+      ]),
+      publish: false,
+    });
+    const goals = plainContent("Stage 1: desired results");
+    await keeper.learning.savePlan({
+      moduleId: saved.id,
+      content: {
+        root: {
+          ...goals.root,
+          children: [
+            ...(goals.root.children ?? []),
+            {
+              type: "standards",
+              version: 1,
+              targets: [planTarget(planned.id, "PL.1")],
+            },
+          ],
+        },
+      },
+    });
+    const shown = await keeper.learning.plan({ moduleId: saved.id });
+    expect(shown.content?.root.children?.at(-1)).toMatchObject({
+      type: "standards",
+      targets: [planTarget(planned.id, "PL.1")],
+    });
+    expect(
+      shown.assessed
+        .map((row) => [row.code, row.questions])
+        .toSorted(([a], [b]) => String(a).localeCompare(String(b))),
+    ).toEqual([
+      ["PL.1", 1],
+      ["PL.2", 1],
+    ]);
+    expect(
+      await rejection(stranger.learning.plan({ moduleId: saved.id })),
+    ).toMatchObject({ code: "NOT_FOUND" });
+    // Its teachers may write it together.
+    expect(
+      await keeper.documents.collaborate({
+        hostType: "module_plan",
+        hostId: saved.id,
+      }),
+    ).toMatchObject({ access: "write" });
+    // A copy of the module, taught again, starts from the same plan.
+    const copy = await keeper.learning.duplicateModule({
+      id: saved.id,
+      classIds: source.classes.map((item) => item.id),
+    });
+    expect((await keeper.learning.plan({ moduleId: copy.id })).content).toEqual(
+      shown.content,
+    );
+    await office.standards.removeFramework({ id: framework.id });
+  });
+});

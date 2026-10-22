@@ -10,6 +10,7 @@ import {
   moduleRefSchema,
   moveLessonSchema,
   overrideSchema,
+  planSchema,
   positionSchema,
   watchSchema,
   progressQuerySchema,
@@ -21,6 +22,7 @@ import {
   runsQuerySchema,
   saveLessonSchema,
   saveModuleSchema,
+  savePlanSchema,
 } from "@faridalms/domain/learning";
 import {
   practiceCheckSchema,
@@ -76,6 +78,14 @@ export const getLessonEditor = createServerFn({ method: "GET" })
 export const saveLesson = createServerFn({ method: "POST" })
   .validator(checked(saveLessonSchema))
   .handler(({ data }) => backend().learning.saveLesson(data));
+
+export const getPlan = createServerFn({ method: "GET" })
+  .validator(checked(planSchema))
+  .handler(({ data }) => record(backend().learning.plan(data)));
+
+export const savePlan = createServerFn({ method: "POST" })
+  .validator(checked(savePlanSchema))
+  .handler(({ data }) => backend().learning.savePlan(data));
 
 export const moveLesson = createServerFn({ method: "POST" })
   .validator(checked(moveLessonSchema))

@@ -189,7 +189,11 @@ export const documentTemplates = core.table.withRLS(
       [t.tenantId, t.ownerUserId],
       [users.tenantId, users.id],
     ),
-    ck("document_templates", "kind", sql`kind in ('lesson', 'assignment')`),
+    ck(
+      "document_templates",
+      "kind",
+      sql`kind in ('lesson', 'assignment', 'unit_plan')`,
+    ),
     ck(
       "document_templates",
       "title",

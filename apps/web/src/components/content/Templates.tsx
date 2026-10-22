@@ -39,6 +39,7 @@ import type { Starter } from "~/components/learning/starters";
 
 import { BookError, importPictureBook } from "~/components/learning/bookImport";
 import { PATTERNS } from "~/components/learning/patterns";
+import { PLANNERS, plannerContent } from "~/components/learning/planners";
 import { altIn, sayIn, STARTERS } from "~/components/learning/starters";
 import { TextField } from "~/components/system/field";
 import { inLocale } from "~/hooks/useCurrentUser";
@@ -73,6 +74,7 @@ export function TemplatePicker({
   onApply,
   starters,
   patterns = false,
+  planners = false,
 }: {
   kind: TemplateKind;
   onApply: (content: ContentDocument) => void;
@@ -80,6 +82,8 @@ export function TemplatePicker({
   starters?: EditorMedia;
   /** Offers the built-in teaching patterns for a lesson. */
   patterns?: boolean;
+  /** Offers the built-in unit planners for a module's plan. */
+  planners?: boolean;
 }) {
   const queryClient = useQueryClient();
   const rows = useQuery(templatesQuery(kind)).data ?? [];
@@ -186,7 +190,7 @@ export function TemplatePicker({
     document.body.append(input);
     input.click();
   };
-  if (rows.length === 0 && !starters && !patterns) return null;
+  if (rows.length === 0 && !starters && !patterns && !planners) return null;
   const mine = rows.filter((row) => row.mine);
   const busy =
     apply.isPending || start.isPending || book.isPending || pattern.isPending;
@@ -212,6 +216,36 @@ export function TemplatePicker({
         <ChevronDown aria-hidden />
       </DropdownMenuTrigger>
       <DropdownMenuContent className="w-72">
+        {planners ? (
+          <>
+            <DropdownMenuGroup>
+              <DropdownMenuLabel>{m.plannerGroup()}</DropdownMenuLabel>
+              {PLANNERS.map((planner) => (
+                <DropdownMenuItem
+                  key={planner.key}
+                  onClick={() =>
+                    onApply(
+                      plannerContent(
+                        planner,
+                        sayIn(getLocale() === "ar" ? "ar" : "en"),
+                      ),
+                    )
+                  }
+                  className="items-start"
+                >
+                  <GraduationCap aria-hidden className="mt-0.5" />
+                  <span className="grid gap-0.5">
+                    <span>{planner.title()}</span>
+                    <span className="text-xs text-muted-foreground">
+                      {planner.hint()}
+                    </span>
+                  </span>
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuGroup>
+            {rows.length > 0 ? <DropdownMenuSeparator /> : null}
+          </>
+        ) : null}
         {patterns ? (
           <>
             <DropdownMenuGroup>

@@ -180,7 +180,16 @@ Sources: [../research/course-design.md](../research/course-design.md),
    question (an observation, a rubric criterion), and the sittings behind
    a mark.
 3. **Unit planning** with the fields a school's framework asks for (IB unit
-   planner, backward design), linked to the modules that teach it.
+   planner, backward design), linked to the modules that teach it. Done: a
+   module's Plan tab holds its unit plan, one document its teachers write
+   together (host `module_plan`), started from a built-in planner (IB MYP,
+   DP and PYP, Understanding by Design, a Cambridge scheme of work, a plain
+   plan) or a school's own kept as a template. The goals sit in a Standards
+   block, which lessons can use too as learning intentions, and the plan
+   shows each standard with the questions in the module assessing it, the
+   ones none does yet, and those assessed but not planned. A duplicated
+   module keeps its plan. Left: a year's map of units per class, and the
+   IB coordinator's view of key concepts and global contexts across units.
 
 ## 5. Reuse and course structure
 
