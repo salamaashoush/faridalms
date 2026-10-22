@@ -708,6 +708,25 @@ Scratch Text to Speech, Translate and tutorials.
    seeing their tool scores in Farida.
 2. **QTI 3 and Common Cartridge** import and export, so content comes in
    from Moodle and Canvas and leaves again.
+   Done: a module exports its questions as a QTI 3 package, each kind QTI
+   can hold an item that scores itself out of the question's points, a
+   test for each lesson, the pictures beside them; the items validate
+   against 1EdTech's schema. The editor's Insert menu reads a QTI 2 or 3
+   package or item back into questions at the caret. A module also exports
+   as a Common Cartridge 1.1, the one version both Moodle and Canvas
+   import, checked with Moodle's own schemas: each lesson a page, its
+   questions a quiz after it in CC's QTI profile, other kinds as essays
+   with the key for the marker, its tool links and its files. The modules
+   page imports a cartridge: pages, discussions and briefs read as a paste
+   is, with their files stored; quizzes from CC's profile and Canvas's own
+   question kinds; links, embeds and files as lessons. A lesson this
+   school exported comes back whole from the copy kept beside it.
+   Left: trying both directions against real Moodle and Canvas sites,
+   which were not to hand; a CC 1.3 option carrying assignments with
+   their due dates; Canvas-shaped QTI 1.2 for New Quizzes; bringing a
+   cartridge's question banks into the question bank; Canvas's module
+   prerequisites and completion rules; briefs coming in as assignments
+   of a class rather than as lessons.
 3. **Results shaped for xAPI** (score, duration, completion).
 
 Waiting for the owner: help from a language model for teachers (drafting
