@@ -28,6 +28,7 @@ import { useEffect, useEffectEvent, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import { ContentView, WholeDocument } from "~/components/content/ContentView";
+import { LOCALE_LABEL, LOCALE_NAME } from "~/components/content/languages";
 import * as m from "~/i18n/messages";
 import { getLocale } from "~/i18n/runtime";
 import { formatNumber } from "~/utils/datetime";
@@ -350,6 +351,7 @@ export function YoungLesson({
   classSounds = true,
   watch,
   language,
+  languages,
 }: {
   title: string;
   blocks: StudentBlock[];
@@ -372,6 +374,12 @@ export function YoungLesson({
   watch?: ((fileId: string) => MediaWatch) | undefined;
   /** The language the lesson teaches in, where its teacher set one. */
   language?: ContentLocale | null;
+  /** The other language a translated lesson reads in, to switch to. */
+  languages?: {
+    other: ContentLocale;
+    pending: boolean;
+    onChoose: (locale: ContentLocale) => void;
+  } | null;
 }) {
   const steps = useMemo(() => lessonSteps(blocks), [blocks]);
   const hydrated = useHydrated();
@@ -597,6 +605,23 @@ export function YoungLesson({
               <span className="shrink-0 rounded-full bg-info/10 px-3 py-1 text-sm font-medium text-info">
                 {badge}
               </span>
+            ) : null}
+            {/* A child who reads the other language better taps its name,
+                written as its own readers write it. */}
+            {languages ? (
+              <Button
+                type="button"
+                variant="outline"
+                lang={languages.other}
+                className="h-12 shrink-0 rounded-full px-5 text-base"
+                disabled={languages.pending}
+                aria-label={m.lrnYoungReadIn({
+                  language: LOCALE_NAME[languages.other](),
+                })}
+                onClick={() => languages.onChoose(languages.other)}
+              >
+                {LOCALE_LABEL[languages.other]()}
+              </Button>
             ) : null}
             {classSounds ? (
               <Button

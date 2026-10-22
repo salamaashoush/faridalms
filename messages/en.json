@@ -4269,6 +4269,7 @@
   "lrnReadAloud": "Read aloud",
   "lrnYoungStart": "Start",
   "lrnYoungClose": "Close the lesson",
+  "lrnYoungReadIn": "Read in {language}",
   "lrnYoungNextStep": "Next",
   "lrnYoungImDone": "I'm done",
   "lrnYoungPreviousStep": "Back",

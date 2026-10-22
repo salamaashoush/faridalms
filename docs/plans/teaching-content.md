@@ -639,9 +639,12 @@ Sources: [../research/course-design.md](../research/course-design.md),
    carry no school of their own, the server and the browser drawing the
    page alike; words the school typed, such as a statistic, stay as
    written.
-   Left: a question's own labels in the lesson's language; a young
-   lesson's switch, which follows the child's language for now;
-   translations of quizzes (an assignment's brief already has one).
+   A young lesson with a translation carries one large button naming the
+   other language as its own readers write it; a tap switches the screen
+   the child is on, kept with their progress as an older student's choice
+   is.
+   Left: a question's own labels in the lesson's language; translations
+   of quizzes (an assignment's brief already has one).
 8. **Word import**: a `.docx` opens as a document, its pictures uploaded.
    Done: "Word document" in the insert and slash menus brings a `.docx`
    in where the caret is, read in the browser (mammoth, loaded only when

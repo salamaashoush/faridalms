@@ -4525,6 +4525,7 @@
   "lrnReadAloud": "اقرأ بصوت عالٍ",
   "lrnYoungStart": "اِبْدَأْ",
   "lrnYoungClose": "إغلاق الدرس",
+  "lrnYoungReadIn": "اقرأ باللغة {language}",
   "lrnYoungNextStep": "التالي",
   "lrnYoungImDone": "انتهيت",
   "lrnYoungPreviousStep": "السابق",

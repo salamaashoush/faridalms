@@ -1034,6 +1034,18 @@ export function LessonPlayer({ lessonId }: { lessonId: string }) {
           readAlong={data.readAlong}
           classSounds={data.sounds}
           language={data.reading}
+          languages={
+            data.translation && data.language
+              ? {
+                  other:
+                    (data.reading ?? data.language) === data.language
+                      ? data.translation.locale
+                      : data.language,
+                  pending: switching,
+                  onChoose: (locale) => void readIn(locale),
+                }
+              : null
+          }
           position={data.position}
           onReach={reach}
           watch={watch}
