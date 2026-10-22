@@ -129,6 +129,32 @@ const matching: LessonBlock = {
   distractors: [{ id: "d1", text: "Burrow" }],
 };
 
+describe("a poll on paper", () => {
+  const poll: LessonBlock = {
+    ...base,
+    points: 0,
+    id: "q9",
+    type: "poll",
+    prompt: "Which season do you like best?",
+    options: [
+      { id: "s", text: "Summer", feedback: "" },
+      { id: "w", text: "Winter", feedback: "" },
+    ],
+    multiple: false,
+    classResults: true,
+  };
+
+  it("prints its options to tick, with nothing marked right on any copy", () => {
+    const [shown] = studentBlocks({ version: 2, blocks: [poll] }, "seed");
+    if (!shown) throw new Error("no poll");
+    const html = paper(paperBlock(shown), false);
+    expect(html).toContain("Summer");
+    expect(html).toContain("Winter");
+    expect(paper(poll, true)).not.toContain("bg-neutral-500");
+    expect(keyOf(poll, false)).toBeNull();
+  });
+});
+
 describe("an answer key", () => {
   it("names each answer in the letters and numbers its paper shows", () => {
     expect(keyOf(choice, false)).toBe("a");

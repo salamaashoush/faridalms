@@ -12,6 +12,7 @@ import type {
   NumberBlock,
   OrderingBlock,
   ParsonsBlock,
+  PollBlock,
   ProgramBlock,
   PuzzleBlock,
   SortingBlock,
@@ -42,6 +43,7 @@ import {
   pathOf,
   prerequisiteMet,
   remarksOf,
+  responseIssue,
   settled,
   studentBlocks,
   upgradeLesson,
@@ -594,6 +596,84 @@ describe("highlighting words", () => {
     const document = contentOfLesson({ version: 2, blocks: [found] });
     if (!document) throw new Error("no document");
     expect(lessonOfContent(document).blocks[0]).toEqual(found);
+  });
+});
+
+describe("polls", () => {
+  const poll: PollBlock = {
+    ...common,
+    hints: [],
+    explanation: "",
+    points: 0,
+    id: uuid(70),
+    type: "poll",
+    prompt: "Which season do you like best?",
+    options: ["Spring", "Summer", "Autumn", "Winter"].map((text, index) => ({
+      id: uuid(71 + index),
+      text,
+      feedback: "",
+    })),
+    multiple: false,
+    classResults: true,
+  };
+  const [spring = "", summer = ""] = poll.options.map((option) => option.id);
+
+  it("settles at the first answer, whichever it is, and counts for nothing", () => {
+    expect(
+      markResponse(poll, { type: "poll", optionIds: [summer] }),
+    ).toMatchObject({ fraction: 1, correct: true });
+    expect(lessonScore({ version: 2, blocks: [poll] }, {})).toBeNull();
+    expect(answerKey(poll)).toEqual([]);
+    expect(
+      v.safeParse(lessonDocumentSchema, {
+        version: 2,
+        blocks: [{ ...poll, points: 1 }],
+      }).success,
+    ).toBe(false);
+  });
+
+  it("takes one vote for each option, and one option unless several may be picked", () => {
+    const issue = (...optionIds: string[]) =>
+      responseIssue(poll, { type: "poll", optionIds });
+    expect(issue(spring)).toBeNull();
+    expect(issue(spring, summer)).toBe("learning.option");
+    expect(
+      responseIssue(
+        { ...poll, multiple: true },
+        {
+          type: "poll",
+          optionIds: [spring, summer],
+        },
+      ),
+    ).toBeNull();
+    expect(
+      responseIssue(
+        { ...poll, multiple: true },
+        {
+          type: "poll",
+          optionIds: [spring, spring],
+        },
+      ),
+    ).toBe("learning.option");
+    expect(issue(uuid(99))).toBe("learning.option");
+  });
+
+  it("shows its options in the order written, as a scale needs", () => {
+    const [shown] = studentBlocks({ version: 2, blocks: [poll] }, "a");
+    if (shown?.type !== "poll") throw new Error("not a poll");
+    expect(shown.options.map((option) => option.text)).toEqual([
+      "Spring",
+      "Summer",
+      "Autumn",
+      "Winter",
+    ]);
+  });
+
+  it("keeps whether the class sees its answers through the document", () => {
+    const unshared = { ...poll, classResults: false };
+    const document = contentOfLesson({ version: 2, blocks: [unshared] });
+    if (!document) throw new Error("no document");
+    expect(lessonOfContent(document).blocks[0]).toEqual(unshared);
   });
 });
 

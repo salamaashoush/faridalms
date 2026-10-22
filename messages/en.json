@@ -614,6 +614,8 @@
   "editorGroupQuestions": "Questions",
   "editorQuestionChoice": "Multiple choice",
   "editorQuestionChoiceHint": "Students pick one or more options",
+  "editorQuestionPoll": "Poll",
+  "editorQuestionPollHint": "Students vote, with no right answer",
   "editorQuestionTyped": "Typed answer",
   "editorQuestionTypedHint": "Students type a word or phrase, marked against accepted answers",
   "editorQuestionMath": "Maths answer",
@@ -707,6 +709,8 @@
   "editorQuestionToleranceWithin": "Within ±{amount}",
   "editorQuestionSeveral": "Several right answers",
   "editorQuestionShuffle": "Shuffle options",
+  "editorQuestionPollSeveral": "Students may pick several",
+  "editorQuestionClassResults": "Show students how their class answered",
   "editorQuestionMatchCase": "Match capital letters",
   "editorQuestionCloseEnough": "Accept small spelling slips",
   "editorQuestionTehMarbuta": "Treat ه and ة alike",
@@ -3191,6 +3195,22 @@
   "lrnCellToggle": "{lesson} done for {student}",
   "lrnCheck": "Check answer",
   "lrnChooseAll": "Choose every right answer.",
+  "lrnPollChooseAll": "Choose all that apply.",
+  "lrnPollVote": "Vote",
+  "lrnPollVoted": "Your answer is in.",
+  "lrnPollTeacherSees": "Your teacher sees how the class answered.",
+  "lrnPollResults": "How your class answered",
+  "lrnPollAnswered": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "{count} answer so far",
+        "countPlural=*": "{count} answers so far"
+      }
+    }
+  ],
+  "lrnPollYours": "Your answer",
   "lrnClass": "Class",
   "lrnClasses": "Classes",
   "lrnClassesNeeded": "Choose at least one class.",
@@ -3455,6 +3475,7 @@
   "lrnStandingTrying": "Still trying",
   "lrnStandingMissed": "Not right",
   "lrnStandingUnseen": "Not reached",
+  "lrnStandingAnswered": "Answered",
   "lrnYoungFirstTry": "First try",
   "lrnYoungWithHelp": "With help",
   "lrnYoungNotYet": "Not yet",
@@ -4928,6 +4949,7 @@
   "lrnErrNoResults": "No question here waits for the end.",
   "lrnErrYoungFeedback": "Questions in a lesson for young children show how they went at once.",
   "lrnErrBankOptions": "A gap filled from the word bank takes no choices of its own.",
+  "lrnErrPollFirst": "Answer the poll to see how your class answered.",
   "lrnErrTargetsNeeded": "Put at least one word to find in [brackets].",
   "lrnErrNumberLine": "A number line runs from a smaller number to a larger one, in steps that fit.",
   "lrnErrNumberLineAnswer": "The answer must lie on the number line.",

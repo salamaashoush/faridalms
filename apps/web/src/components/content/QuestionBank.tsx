@@ -44,6 +44,7 @@ import { getMessageFromError } from "~/utils/error";
 
 const KIND_LABEL: Record<QuestionKind, () => string> = {
   choice: m.editorQuestionChoice,
+  poll: m.editorQuestionPoll,
   text: m.editorQuestionTyped,
   math: m.editorQuestionMath,
   written: m.editorQuestionWritten,

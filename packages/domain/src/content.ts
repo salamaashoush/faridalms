@@ -109,6 +109,7 @@ const nodeTypes = [
  */
 export const questionKinds = [
   "choice",
+  "poll",
   "text",
   "math",
   "written",
@@ -310,6 +311,8 @@ export interface ContentNode {
   line?: { from: number; to: number; step: number };
   multiple?: boolean;
   shuffle?: boolean;
+  /** Whether a poll shows a student how their class answered, once they have. */
+  classResults?: boolean;
   caseSensitive?: boolean;
   closeEnough?: boolean;
   tehMarbuta?: boolean;
@@ -630,6 +633,7 @@ const nodeSchema: v.GenericSchema<ContentNode> = v.lazy(() =>
       ),
       multiple: v.optional(v.boolean()),
       shuffle: v.optional(v.boolean()),
+      classResults: v.optional(v.boolean()),
       caseSensitive: v.optional(v.boolean()),
       closeEnough: v.optional(v.boolean()),
       tehMarbuta: v.optional(v.boolean()),

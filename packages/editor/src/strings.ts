@@ -201,6 +201,8 @@ export interface EditorStrings extends LabelEditorStrings, ChartStrings {
   groupQuestions: string;
   questionChoice: string;
   questionChoiceHint: string;
+  questionPoll: string;
+  questionPollHint: string;
   questionTyped: string;
   questionTypedHint: string;
   questionMath: string;
@@ -329,6 +331,8 @@ export interface EditorStrings extends LabelEditorStrings, ChartStrings {
   questionToleranceWithin: (amount: string) => string;
   questionSeveral: string;
   questionShuffle: string;
+  questionPollSeveral: string;
+  questionClassResults: string;
   questionMatchCase: string;
   questionCloseEnough: string;
   questionTehMarbuta: string;

@@ -128,27 +128,49 @@ export function QuestionCard({
   const chosen = (optionId: string) =>
     students.filter((id) => question.firstChoices[id]?.includes(optionId));
   const answered = students.filter((id) => question.firstChoices[id]).length;
+  // A poll has no right answer, so its students have answered or not yet.
+  const poll = question.kind === "poll";
   return (
     <article className="grid gap-4 rounded-lg border p-4">
       <h3 dir="auto" className="text-sm leading-5 font-medium">
         <TextWithMath text={question.prompt} />
       </h3>
       <ul className="flex flex-wrap gap-2">
-        {STANDINGS.map((wanted) => {
-          const count = standing(wanted).length;
-          return count === 0 ? null : (
-            <li key={wanted}>
-              <StatusBadge tone={STANDING_TONE[wanted]}>
-                {STANDING_LABEL[wanted]()} · {formatNumber(count)}
-              </StatusBadge>
-            </li>
-          );
-        })}
+        {poll ? (
+          <>
+            {answered > 0 ? (
+              <li>
+                <StatusBadge tone="info">
+                  {m.lrnStandingAnswered()} · {formatNumber(answered)}
+                </StatusBadge>
+              </li>
+            ) : null}
+            {standing("unseen").length > 0 ? (
+              <li>
+                <StatusBadge tone={STANDING_TONE.unseen}>
+                  {STANDING_LABEL.unseen()} ·{" "}
+                  {formatNumber(standing("unseen").length)}
+                </StatusBadge>
+              </li>
+            ) : null}
+          </>
+        ) : (
+          STANDINGS.map((wanted) => {
+            const count = standing(wanted).length;
+            return count === 0 ? null : (
+              <li key={wanted}>
+                <StatusBadge tone={STANDING_TONE[wanted]}>
+                  {STANDING_LABEL[wanted]()} · {formatNumber(count)}
+                </StatusBadge>
+              </li>
+            );
+          })
+        )}
       </ul>
       {question.options ? (
         <div className="grid gap-3">
           <p className="text-[13px] leading-[18px] text-muted-foreground">
-            {question.once ? m.lrnLastChoices() : m.lrnFirstChoices()}
+            {question.once || poll ? m.lrnLastChoices() : m.lrnFirstChoices()}
           </p>
           <ul className="grid gap-3">
             {question.options.map((option) => {
@@ -175,7 +197,7 @@ export function QuestionCard({
                   </div>
                   <div aria-hidden className="h-1.5 rounded-full bg-muted">
                     <div
-                      className={`h-full rounded-full ${option.correct ? "bg-success" : "bg-warning"}`}
+                      className={`h-full rounded-full ${poll ? "bg-primary" : option.correct ? "bg-success" : "bg-warning"}`}
                       style={{ width: `${share}%` }}
                     />
                   </div>
@@ -288,9 +310,11 @@ const YOUNG_MARK: Record<
  */
 function YoungGrid({
   lesson,
+  questions,
   names,
 }: {
   lesson: Lesson;
+  questions: Question[];
   names: Map<string, string>;
 }) {
   return (
@@ -319,7 +343,7 @@ function YoungGrid({
               >
                 {m.courseworkStudent()}
               </th>
-              {lesson.questions.map((question, index) => (
+              {questions.map((question, index) => (
                 <th
                   key={question.id}
                   scope="col"
@@ -341,7 +365,7 @@ function YoungGrid({
                 >
                   <bdi>{name}</bdi>
                 </th>
-                {lesson.questions.map((question) => {
+                {questions.map((question) => {
                   const standing = question.standings[id];
                   const mark =
                     YOUNG_MARK[standing ? YOUNG_OF[standing] : "notYet"];
@@ -454,18 +478,27 @@ export function ClassQuestions({
               />
             ) : null}
           </div>
-          {lesson.young ? (
-            <YoungGrid lesson={lesson} names={names} />
-          ) : (
-            lesson.questions.map((question) => (
+          {/* A young lesson's polls are no tries at anything, so they are read as votes. */}
+          {lesson.young &&
+          lesson.questions.some((question) => question.kind !== "poll") ? (
+            <YoungGrid
+              lesson={lesson}
+              questions={lesson.questions.filter(
+                (question) => question.kind !== "poll",
+              )}
+              names={names}
+            />
+          ) : null}
+          {lesson.questions
+            .filter((question) => !lesson.young || question.kind === "poll")
+            .map((question) => (
               <QuestionCard
                 key={question.id}
                 question={question}
                 names={names}
                 asked={{ moduleId, classId, lessonId: lesson.id }}
               />
-            ))
-          )}
+            ))}
         </section>
       ))}
     </div>

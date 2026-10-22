@@ -31,7 +31,7 @@ import {
   SelectValue,
 } from "@faridalms/ui/select";
 import { Textarea } from "@faridalms/ui/textarea";
-import { useMutation } from "@tanstack/react-query";
+import { useMutation, useQuery } from "@tanstack/react-query";
 import {
   ArrowDown,
   ArrowUp,
@@ -59,6 +59,7 @@ import { flushSync } from "react-dom";
 import { toast } from "sonner";
 
 import type { RunReport } from "~/components/coding/CodeRunner";
+import type { pollResultsQuery } from "~/queries/learning";
 
 import { CodeRunner } from "~/components/coding/CodeRunner";
 import { CodingAnswer } from "~/components/coding/CodingAnswer";
@@ -67,7 +68,7 @@ import { WebProjectAnswer } from "~/components/coding/WebProjectAnswer";
 import { editorSetting, puzzleStrings } from "~/components/puzzles/strings";
 import * as m from "~/i18n/messages";
 import { getLocale } from "~/i18n/runtime";
-import { formatList, formatNumber } from "~/utils/datetime";
+import { formatList, formatNumber, formatPercent } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
 import { NumberLine } from "./NumberLine";
@@ -180,6 +181,8 @@ export interface CheckDriver {
   ran?: (blockId: string, run: ProgramRun) => void;
   /** Opens a question's next hint; without it none can be asked for. */
   hint?: (blockId: string) => Promise<unknown>;
+  /** How a poll's class answered; without it a poll counts only the answer given. */
+  poll?: (blockId: string) => ReturnType<typeof pollResultsQuery>;
 }
 
 /** A question's hints so far, and how to ask for the next. */
@@ -194,6 +197,7 @@ const CheckHelpContext = createContext<CheckHelp | null>(null);
 type Of<T extends StudentBlock["type"]> = Extract<StudentBlock, { type: T }>;
 export type CheckStudentBlock =
   | Of<"choice">
+  | Of<"poll">
   | Of<"text">
   | Of<"math">
   | Of<"gaps">
@@ -215,6 +219,7 @@ export type CheckStudentBlock =
 
 const CHECK_TYPES = new Set<StudentBlock["type"]>([
   "choice",
+  "poll",
   "text",
   "math",
   "gaps",
@@ -401,7 +406,8 @@ function CheckStatus({
 /** What a question says, read aloud to a young child: its prompt, then its choices. */
 function spokenOf(block: CheckStudentBlock): string {
   const parts = [block.prompt];
-  if (block.type === "choice") parts.push(...block.options.map(partLabel));
+  if (block.type === "choice" || block.type === "poll")
+    parts.push(...block.options.map(partLabel));
   if (block.type === "ordering" || block.type === "sorting")
     parts.push(...block.items.map(partLabel));
   if (block.type === "gaps")
@@ -675,6 +681,127 @@ const markRow = (editing: boolean, mark: Mark) =>
     mark === "wrong" && "border-destructive/40 bg-destructive/5",
   );
 
+/**
+ * A question's options to pick from: one as radio buttons, several as
+ * checkboxes, and options with pictures as a grid of cards.
+ */
+function OptionList({
+  options,
+  multiple,
+  legend,
+  locked,
+  selected,
+  onSelect,
+  editing,
+  markOf,
+  chooseAll,
+}: {
+  options: StudentPart[];
+  multiple: boolean;
+  legend: string;
+  locked: boolean;
+  selected: string[];
+  onSelect: (next: (current: string[]) => string[]) => void;
+  editing: boolean;
+  markOf: (optionId: string) => Mark;
+  chooseAll: string;
+}) {
+  const young = useContext(YoungContext);
+  // Options with pictures read as a grid of cards, the way children choose.
+  const pictured = options.some((option) => option.picture);
+  const optionRow = cn(
+    choiceRow,
+    (young || pictured) && youngRow,
+    pictured && "flex-col items-stretch p-3",
+  );
+  return multiple ? (
+    <div
+      className={cn(
+        "grid gap-2",
+        pictured && "grid-cols-2 gap-3 sm:grid-cols-3",
+      )}
+    >
+      <p className="col-span-full text-[13px] leading-[18px] text-muted-foreground">
+        {chooseAll}
+      </p>
+      {options.map((option) => (
+        <Voiced key={option.id} part={option} card={pictured}>
+          <CheckboxPrimitive.Root
+            disabled={locked}
+            checked={selected.includes(option.id)}
+            onCheckedChange={(checked) =>
+              onSelect((current) =>
+                checked
+                  ? [...current, option.id]
+                  : current.filter((item) => item !== option.id),
+              )
+            }
+            className={cn(
+              optionRow,
+              markRow(editing, markOf(option.id)),
+              option.narration && !pictured && "pe-14",
+            )}
+            onContextMenu={
+              young ? (event) => event.preventDefault() : undefined
+            }
+          >
+            <span
+              aria-hidden
+              className="grid size-4 shrink-0 place-items-center rounded-[4px] border border-input group-data-checked:border-primary group-data-checked:bg-primary group-data-checked:text-primary-foreground"
+            >
+              <CheckboxPrimitive.Indicator>
+                <Check className="size-3.5" />
+              </CheckboxPrimitive.Indicator>
+            </span>
+            <span className="min-w-0 flex-1">
+              <PartView part={option} size={pictured ? "card" : "small"} />
+            </span>
+            <MarkIcon mark={markOf(option.id)} />
+          </CheckboxPrimitive.Root>
+        </Voiced>
+      ))}
+    </div>
+  ) : (
+    <RadioGroup
+      aria-labelledby={legend}
+      disabled={locked}
+      value={selected[0] ?? ""}
+      onValueChange={(value) => onSelect(() => [String(value)])}
+      className={cn(
+        "gap-2",
+        pictured && "grid grid-cols-2 gap-3 sm:grid-cols-3",
+      )}
+    >
+      {options.map((option) => (
+        <Voiced key={option.id} part={option} card={pictured}>
+          <Radio.Root
+            value={option.id}
+            className={cn(
+              optionRow,
+              markRow(editing, markOf(option.id)),
+              option.narration && !pictured && "pe-14",
+            )}
+            onContextMenu={
+              young ? (event) => event.preventDefault() : undefined
+            }
+          >
+            <span
+              aria-hidden
+              className="grid size-4 shrink-0 place-items-center rounded-full border border-input group-data-checked:border-primary group-data-checked:bg-primary"
+            >
+              <Radio.Indicator className="size-2 rounded-full bg-primary-foreground" />
+            </span>
+            <span className="min-w-0 flex-1">
+              <PartView part={option} size={pictured ? "card" : "small"} />
+            </span>
+            <MarkIcon mark={markOf(option.id)} />
+          </Radio.Root>
+        </Voiced>
+      ))}
+    </RadioGroup>
+  );
+}
+
 function ChoiceCheck({
   block,
   view,
@@ -694,7 +821,6 @@ function ChoiceCheck({
     view?.response?.type === "choice" ? view.response.optionIds : [],
   );
   const mode = useContext(CheckModeContext);
-  const young = useContext(YoungContext);
   const settled = answerFinal(block, view);
   const markOf = (optionId: string): Mark => {
     if (editing || !view || mode === "quiz") return null;
@@ -714,14 +840,6 @@ function ChoiceCheck({
     if (selected.length > 0)
       respond.mutate({ type: "choice", optionIds: selected });
   };
-  const locked = !editing || settled;
-  // Options with pictures read as a grid of cards, the way children choose.
-  const pictured = block.options.some((option) => option.picture);
-  const optionRow = cn(
-    choiceRow,
-    (young || pictured) && youngRow,
-    pictured && "flex-col items-stretch p-3",
-  );
   return (
     <CheckCard
       block={block}
@@ -743,91 +861,216 @@ function ChoiceCheck({
         />
       }
     >
-      {block.multiple ? (
-        <div
-          className={cn(
-            "grid gap-2",
-            pictured && "grid-cols-2 gap-3 sm:grid-cols-3",
-          )}
-        >
-          <p className="col-span-full text-[13px] leading-[18px] text-muted-foreground">
-            {m.lrnChooseAll()}
-          </p>
-          {block.options.map((option) => (
-            <Voiced key={option.id} part={option} card={pictured}>
-              <CheckboxPrimitive.Root
-                disabled={locked}
-                checked={selected.includes(option.id)}
-                onCheckedChange={(checked) =>
-                  setSelected((current) =>
-                    checked
-                      ? [...current, option.id]
-                      : current.filter((item) => item !== option.id),
-                  )
-                }
-                className={cn(
-                  optionRow,
-                  markRow(editing, markOf(option.id)),
-                  option.narration && !pictured && "pe-14",
-                )}
-                onContextMenu={
-                  young ? (event) => event.preventDefault() : undefined
-                }
-              >
-                <span
-                  aria-hidden
-                  className="grid size-4 shrink-0 place-items-center rounded-[4px] border border-input group-data-checked:border-primary group-data-checked:bg-primary group-data-checked:text-primary-foreground"
-                >
-                  <CheckboxPrimitive.Indicator>
-                    <Check className="size-3.5" />
-                  </CheckboxPrimitive.Indicator>
-                </span>
+      <OptionList
+        options={block.options}
+        multiple={block.multiple}
+        legend={legend}
+        locked={!editing || settled}
+        selected={selected}
+        onSelect={setSelected}
+        editing={editing}
+        markOf={markOf}
+        chooseAll={m.lrnChooseAll()}
+      />
+    </CheckCard>
+  );
+}
+
+/**
+ * How many of a class chose each option of a poll, as bars of its share of
+ * those who answered; the student's own answer named, never anyone else's.
+ */
+function PollTally({
+  options,
+  counts,
+  answered,
+  mine,
+}: {
+  options: StudentPart[];
+  counts: Record<string, number>;
+  answered: number;
+  mine: string[];
+}) {
+  return (
+    <div className="grid gap-3">
+      <p className="flex flex-wrap items-baseline justify-between gap-x-3 text-sm leading-5">
+        <span className="font-medium">{m.lrnPollResults()}</span>
+        <span className="text-[13px] leading-[18px] text-muted-foreground tabular-nums">
+          {m.lrnPollAnswered({ count: answered })}
+        </span>
+      </p>
+      <ul className="grid gap-3">
+        {options.map((option) => {
+          const share = answered
+            ? Math.round(((counts[option.id] ?? 0) / answered) * 100)
+            : 0;
+          const yours = mine.includes(option.id);
+          return (
+            <li key={option.id} className="grid gap-1.5">
+              <div className="flex items-center gap-3 text-sm leading-5">
                 <span className="min-w-0 flex-1">
-                  <PartView part={option} size={pictured ? "card" : "small"} />
+                  <PartView part={option} />
                 </span>
-                <MarkIcon mark={markOf(option.id)} />
-              </CheckboxPrimitive.Root>
-            </Voiced>
-          ))}
-        </div>
+                {yours ? (
+                  <span className="inline-flex shrink-0 items-center gap-1 text-[13px] leading-[18px] font-medium text-primary">
+                    <Check aria-hidden className="size-3.5" />
+                    {m.lrnPollYours()}
+                  </span>
+                ) : null}
+                <span className="w-10 shrink-0 text-end font-medium tabular-nums">
+                  {formatPercent(share)}
+                </span>
+              </div>
+              <div aria-hidden className="h-2 rounded-full bg-muted">
+                <div
+                  className={cn(
+                    "h-full rounded-full transition-[width] duration-500 motion-reduce:transition-none",
+                    yours ? "bg-primary" : "bg-primary/40",
+                  )}
+                  style={{ width: `${share}%` }}
+                />
+              </div>
+            </li>
+          );
+        })}
+      </ul>
+    </div>
+  );
+}
+
+/** A poll's class results as the server counts them, asked again as others answer. */
+function PollResults({
+  query,
+  options,
+  mine,
+  fallback,
+}: {
+  query: ReturnType<typeof pollResultsQuery>;
+  options: StudentPart[];
+  mine: string[];
+  fallback: ReactNode;
+}) {
+  const { data } = useQuery(query);
+  if (!data) return fallback;
+  return (
+    <PollTally
+      options={options}
+      counts={data.counts}
+      answered={data.answered}
+      mine={mine}
+    />
+  );
+}
+
+/**
+ * A question with no right answer: the student votes once and, if their
+ * teacher shares it, then sees how their class answered, as Moodle's
+ * choice activity can show its results after answering.
+ */
+function PollCheck({
+  block,
+  view,
+  driver,
+}: {
+  block: Of<"poll">;
+  view: CheckView | undefined;
+  driver: CheckDriver;
+}) {
+  const legend = useId();
+  const { editing, setEditing, respond } = useCheck(block.id, view, driver);
+  const [selected, setSelected] = useState<string[]>(
+    view?.response?.type === "poll" ? view.response.optionIds : [],
+  );
+  const mode = useContext(CheckModeContext);
+  const voted = view !== undefined && view.tries > 0;
+  const vote = () => {
+    if (selected.length > 0)
+      respond.mutate({ type: "poll", optionIds: selected });
+  };
+  const options = (
+    <OptionList
+      options={block.options}
+      multiple={block.multiple}
+      legend={legend}
+      locked={!editing || (mode === "practice" && voted)}
+      selected={selected}
+      onSelect={setSelected}
+      editing={editing}
+      markOf={() => null}
+      chooseAll={m.lrnPollChooseAll()}
+    />
+  );
+  const results = mode === "practice" && voted && block.classResults;
+  const status =
+    mode === "review" && !voted ? (
+      <p className="text-sm leading-5 text-muted-foreground">
+        {m.quizNotAnswered()}
+      </p>
+    ) : voted && !editing ? (
+      <>
+        <p className="inline-flex items-start gap-2 text-sm leading-5 text-muted-foreground">
+          <Check aria-hidden className="mt-0.5 size-4 shrink-0" />
+          {m.lrnPollVoted()}
+          {mode === "practice" && !block.classResults
+            ? ` ${m.lrnPollTeacherSees()}`
+            : null}
+        </p>
+        {mode === "practice"
+          ? [...view.feedback, view.explanation ?? ""]
+              .filter(Boolean)
+              .map((text) => (
+                <p key={text} dir="auto" className="text-sm leading-6">
+                  {text}
+                </p>
+              ))
+          : null}
+      </>
+    ) : null;
+  return (
+    <CheckCard
+      block={block}
+      legendId={legend}
+      onSubmit={vote}
+      status={status}
+      actions={
+        mode === "quiz" ? (
+          <Retry
+            view={view}
+            editing={editing}
+            settled={false}
+            canCheck={selected.length > 0}
+            pending={respond.isPending}
+            onTryAgain={() => setEditing(true)}
+            onReveal={() => undefined}
+          />
+        ) : mode === "practice" && !voted ? (
+          <Button
+            type="submit"
+            className="max-md:h-10"
+            disabled={selected.length === 0 || respond.isPending}
+          >
+            {m.lrnPollVote()}
+          </Button>
+        ) : null
+      }
+    >
+      {!results ? (
+        options
+      ) : driver.poll ? (
+        <PollResults
+          query={driver.poll(block.id)}
+          options={block.options}
+          mine={selected}
+          fallback={options}
+        />
       ) : (
-        <RadioGroup
-          aria-labelledby={legend}
-          disabled={locked}
-          value={selected[0] ?? ""}
-          onValueChange={(value) => setSelected([String(value)])}
-          className={cn(
-            "gap-2",
-            pictured && "grid grid-cols-2 gap-3 sm:grid-cols-3",
-          )}
-        >
-          {block.options.map((option) => (
-            <Voiced key={option.id} part={option} card={pictured}>
-              <Radio.Root
-                value={option.id}
-                className={cn(
-                  optionRow,
-                  markRow(editing, markOf(option.id)),
-                  option.narration && !pictured && "pe-14",
-                )}
-                onContextMenu={
-                  young ? (event) => event.preventDefault() : undefined
-                }
-              >
-                <span
-                  aria-hidden
-                  className="grid size-4 shrink-0 place-items-center rounded-full border border-input group-data-checked:border-primary group-data-checked:bg-primary"
-                >
-                  <Radio.Indicator className="size-2 rounded-full bg-primary-foreground" />
-                </span>
-                <span className="min-w-0 flex-1">
-                  <PartView part={option} size={pictured ? "card" : "small"} />
-                </span>
-                <MarkIcon mark={markOf(option.id)} />
-              </Radio.Root>
-            </Voiced>
-          ))}
-        </RadioGroup>
+        // A preview has no class, so its one answer is all there is to count.
+        <PollTally
+          options={block.options}
+          counts={Object.fromEntries(selected.map((id) => [id, 1]))}
+          answered={1}
+          mine={selected}
+        />
       )}
     </CheckCard>
   );
@@ -2615,6 +2858,8 @@ function CheckBody({
   }
   if (block.type === "choice")
     return <ChoiceCheck block={block} view={view} driver={driver} />;
+  if (block.type === "poll")
+    return <PollCheck block={block} view={view} driver={driver} />;
   if (block.type === "gaps")
     return <GapsCheck block={block} view={view} driver={driver} />;
   if (block.type === "highlight")

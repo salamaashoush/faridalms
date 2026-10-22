@@ -58,7 +58,7 @@ export function PracticePlayer({
           block: {
             ...block,
             id: `${item.lessonId}:${item.block.id}`,
-            points: 0,
+            points: 0 as const,
           },
         };
       }),

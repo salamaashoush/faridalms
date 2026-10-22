@@ -54,6 +54,7 @@ import {
   Signature,
   Brackets,
   Highlighter,
+  Vote,
   ChevronRight,
   CircleCheck,
   CircuitBoard,
@@ -203,6 +204,7 @@ export type BlockType =
   | "gapsQuestion"
   | "highlightQuestion"
   | "trueFalseQuestion"
+  | "pollQuestion"
   | "whyQuestion"
   | "gate"
   | "pageBreak"
@@ -217,6 +219,7 @@ export type BlockGroup = "text" | "lists" | "media" | "layout" | "questions";
 const QUESTION_KIND: Partial<Record<BlockType, QuestionKind>> = {
   choiceQuestion: "choice",
   trueFalseQuestion: "choice",
+  pollQuestion: "poll",
   whyQuestion: "written",
   typedQuestion: "text",
   mathQuestion: "math",
@@ -709,6 +712,15 @@ export const blockDefinitions: BlockDefinition[] = [
     label: (s) => s.questionTrueFalse,
     hint: (s) => s.questionTrueFalseHint,
     keywords: ["true", "false", "question", "statement", "صواب", "خطأ"],
+    question: true,
+  },
+  {
+    type: "pollQuestion",
+    group: "questions",
+    icon: Vote,
+    label: (s) => s.questionPoll,
+    hint: (s) => s.questionPollHint,
+    keywords: ["poll", "vote", "survey", "opinion", "استطلاع", "تصويت", "رأي"],
     question: true,
   },
   {

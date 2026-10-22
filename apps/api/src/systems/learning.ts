@@ -36,6 +36,7 @@ import { filesByIds, linkFiles } from "@faridalms/database/stores/files";
 import {
   classesOfModule,
   firstAttempts,
+  pollVotes,
   insertLesson,
   insertResponse,
   insertModule,
@@ -3011,6 +3012,45 @@ export const hint = writeProcedure
   });
 
 /**
+ * How a student's class answered a poll, once the student has: how many
+ * chose each option the first time they answered, never who did.
+ */
+export const pollResults = readProcedure
+  .input(revealSchema)
+  .handler(async ({ input, context }) => {
+    const played = await playable(context, input.lessonId);
+    const block = played.content.blocks.find(
+      (item) => item.id === input.blockId,
+    );
+    if (block?.type !== "poll" || !block.classResults)
+      throw new ORPCError("NOT_FOUND");
+    if (!played.checks[block.id]?.tries)
+      throw new ORPCError("CONFLICT", { message: "learning.poll_first" });
+    const [joined, taught] = await Promise.all([
+      classesOfStudent(context, played.studentId),
+      classesOfModule(context.tx, context.tenantId, played.owner.id),
+    ]);
+    const rosters = await Promise.all(
+      taught
+        .filter((item) => joined.includes(item.id))
+        .map((item) => audienceOf(context, played.owner.id, item.id)),
+    );
+    const votes = await pollVotes(context.tx, {
+      tenantId: context.tenantId,
+      lessonId: played.row.id,
+      blockId: block.id,
+      studentIds: [...new Set([played.studentId, ...rosters.flat()])],
+    });
+    const counts = Object.fromEntries(
+      block.options.map((option) => [
+        option.id,
+        votes.filter((chosen) => chosen.includes(option.id)).length,
+      ]),
+    );
+    return { answered: votes.length, counts };
+  });
+
+/**
  * A student asks how they did on the questions that wait for the end of a
  * lesson, once they have answered every one; their answers stand from then.
  */
@@ -3478,11 +3518,13 @@ function questionsOf(
       /** Answered in one go, its feedback waiting, so the last answer counts. */
       once: feedbackAtOf(block) !== "now",
       options:
-        block.type === "choice"
+        block.type === "choice" || block.type === "poll"
           ? block.options.map((option) => ({
               id: option.id,
               text: option.text,
-              correct: block.correctOptionIds.includes(option.id),
+              correct:
+                block.type === "choice" &&
+                block.correctOptionIds.includes(option.id),
             }))
           : null,
       standings: Object.fromEntries(

@@ -340,6 +340,8 @@ export interface QuestionSettings {
   line: { from: number; to: number; step: number } | null;
   multiple: boolean;
   shuffle: boolean;
+  /** Whether a poll shows a student how their class answered, once they have. */
+  classResults: boolean;
   caseSensitive: boolean;
   closeEnough: boolean;
   tehMarbuta: boolean;
@@ -397,12 +399,14 @@ export function defaultSettings(kind: QuestionKind): QuestionSettings {
     kind,
     questionId: crypto.randomUUID(),
     points:
-      kind === "written" ||
-      kind === "scratch" ||
-      kind === "project" ||
-      kind === "program"
-        ? 2
-        : 1,
+      kind === "poll"
+        ? 0
+        : kind === "written" ||
+            kind === "scratch" ||
+            kind === "project" ||
+            kind === "program"
+          ? 2
+          : 1,
     tries: null,
     feedbackAt: "now",
     suggested: false,
@@ -410,6 +414,7 @@ export function defaultSettings(kind: QuestionKind): QuestionSettings {
     line: null,
     multiple: false,
     shuffle: kind === "choice",
+    classResults: true,
     caseSensitive: false,
     closeEnough: false,
     tehMarbuta: true,
@@ -476,6 +481,7 @@ function questionSettings(stored: StoredSettings): QuestionSettings {
     line: stored.line ?? null,
     multiple: stored.multiple ?? base.multiple,
     shuffle: stored.shuffle ?? base.shuffle,
+    classResults: stored.classResults ?? base.classResults,
     caseSensitive: stored.caseSensitive ?? base.caseSensitive,
     closeEnough: stored.closeEnough ?? base.closeEnough,
     tehMarbuta: stored.tehMarbuta ?? base.tehMarbuta,
@@ -583,7 +589,10 @@ function label(editor: LexicalEditor, settings: QuestionSettings): string {
       : "";
   const waits =
     settings.suggested && text.suggested ? `${text.suggested} · ` : "";
-  return `${waits}${kind}${starts}${held}${checked}${asked}${tagged} · ${text.points(settings.points)}`;
+  // A poll is worth nothing by its nature, so its worth goes unsaid.
+  const worth =
+    settings.kind === "poll" ? "" : ` · ${text.points(settings.points)}`;
+  return `${waits}${kind}${starts}${held}${checked}${asked}${tagged}${worth}`;
 }
 
 /**
@@ -652,6 +661,7 @@ export class QuestionNode extends ElementNode {
       suggested,
       bank,
       line,
+      classResults,
       ...settings
     } = questionSettings(this.getLatest().__settings);
     return {
@@ -661,6 +671,7 @@ export class QuestionNode extends ElementNode {
       ...(suggested ? { suggested } : {}),
       ...(settings.kind === "gaps" && bank !== null ? { bank } : {}),
       ...(settings.kind === "number" && line !== null ? { line } : {}),
+      ...(settings.kind === "poll" ? { classResults } : {}),
       ...(recordSeconds === null ? {} : { recordSeconds }),
       ...(recordSeconds !== null && recordVideo ? { recordVideo } : {}),
       ...(answerWith === null ? {} : { answerWith }),
@@ -1536,7 +1547,7 @@ export function $toggleMark(option: QuestionOptionNode) {
 export function $createQuestionNode(kind: QuestionKind): QuestionNode {
   const question = new QuestionNode(defaultSettings(kind));
   question.append(new QuestionPromptNode());
-  if (kind === "choice")
+  if (kind === "choice" || kind === "poll")
     question.append(new QuestionOptionNode(), new QuestionOptionNode());
   if (kind === "ordering")
     question.append(
@@ -1658,6 +1669,7 @@ export function $repairQuestion(question: QuestionNode) {
   for (const child of question.getChildren().slice(1)) {
     const fits =
       ((kind === "choice" ||
+        kind === "poll" ||
         kind === "ordering" ||
         kind === "parsons" ||
         kind === "program") &&

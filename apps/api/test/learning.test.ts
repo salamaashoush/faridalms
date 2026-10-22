@@ -1689,6 +1689,138 @@ describe("hints asked for", () => {
   });
 });
 
+describe("polls", () => {
+  test("a class sees how it answered a poll once each student has, never who", async () => {
+    const { keeper } = await teachers();
+    const { rows } = await keeper.learning.modules({});
+    const source = rows.find((row) => row.title === TITLE);
+    if (!source) throw new Error("no module");
+    const saved = await keeper.learning.saveModule({
+      id: "",
+      expectedVersion: 0,
+      title: "Polls",
+      summary: "",
+      classIds: source.classes.map((item) => item.id),
+      prerequisiteId: "",
+      sequential: false,
+    });
+    const fox = id();
+    const crow = id();
+    const shared = {
+      id: id(),
+      type: "poll" as const,
+      prompt: "Which story did you like best?",
+      points: 0 as const,
+      hints: [],
+      explanation: "",
+      tries: null,
+      options: [
+        { id: fox, text: "The fox", feedback: "" },
+        { id: crow, text: "The crow", feedback: "" },
+      ],
+      multiple: false,
+      classResults: true,
+    };
+    const kept = {
+      ...shared,
+      id: id(),
+      prompt: "How do you feel today?",
+      classResults: false,
+    };
+    await keeper.learning.saveLesson({
+      id: "",
+      moduleId: saved.id,
+      expectedVersion: 0,
+      title: "Stories we liked",
+      completion: "view",
+      passScore: null,
+      content: written([shared, kept]),
+      publish: false,
+    });
+    await keeper.learning.publishModule({
+      id: saved.id,
+      expectedVersion: saved.version,
+    });
+
+    // The seed's two students who can sign in sit in one class.
+    const first = await student();
+    const me = await first.identity.currentUser();
+    const second = await signedIn("northwind", login("student", 0, 1));
+    const outline = await first.learning.play({ id: saved.id });
+    const lessonId = outline.lessons[0]?.id ?? "";
+    const ref = { lessonId, blockId: shared.id };
+
+    expect(await rejection(first.learning.pollResults(ref))).toMatchObject({
+      code: "CONFLICT",
+      message: "learning.poll_first",
+    });
+    // A single-answer poll takes one option, so each vote counts once.
+    expect(
+      await rejection(
+        first.learning.respond({
+          ...ref,
+          response: { type: "poll", optionIds: [fox, crow] },
+        }),
+      ),
+    ).toMatchObject({ message: "learning.option" });
+    const voted = await first.learning.respond({
+      ...ref,
+      response: { type: "poll", optionIds: [fox] },
+    });
+    expect(voted.check).toMatchObject({ tries: 1, correct: true });
+    expect(await first.learning.pollResults(ref)).toEqual({
+      answered: 1,
+      counts: { [fox]: 1, [crow]: 0 },
+    });
+    expect(
+      await rejection(
+        first.learning.respond({
+          ...ref,
+          response: { type: "poll", optionIds: [crow] },
+        }),
+      ),
+    ).toMatchObject({ message: "learning.settled" });
+
+    await second.learning.respond({
+      ...ref,
+      response: { type: "poll", optionIds: [crow] },
+    });
+    expect(await first.learning.pollResults(ref)).toEqual({
+      answered: 2,
+      counts: { [fox]: 1, [crow]: 1 },
+    });
+
+    // A poll its teacher keeps to themselves shows the class nothing.
+    await first.learning.respond({
+      lessonId,
+      blockId: kept.id,
+      response: { type: "poll", optionIds: [fox] },
+    });
+    expect(
+      await rejection(
+        first.learning.pollResults({ lessonId, blockId: kept.id }),
+      ),
+    ).toMatchObject({ code: "NOT_FOUND" });
+
+    // The teacher reads who answered what, with no option marked right.
+    const views = await Promise.all(
+      source.classes.map((item) =>
+        keeper.learning.questions({ moduleId: saved.id, classId: item.id }),
+      ),
+    );
+    const asked = views
+      .flatMap((view) => view.lessons.flatMap((lesson) => lesson.questions))
+      .find(
+        (question) => question.id === shared.id && question.firstChoices[me.id],
+      );
+    expect(asked?.options?.map((option) => option.correct)).toEqual([
+      false,
+      false,
+    ]);
+    expect(asked?.firstChoices[me.id]).toEqual([fox]);
+  });
+});
+
 describe("marking again", () => {
   test("a teacher who fixes a key marks the answers already given again, scores and all", async () => {
     const { keeper } = await teachers();

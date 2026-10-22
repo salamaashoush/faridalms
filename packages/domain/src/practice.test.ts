@@ -68,6 +68,34 @@ describe("practiceItems", () => {
     );
     expect(practiceItems(sources, "seed", 2)).toHaveLength(2);
   });
+
+  it("leaves out polls, which ask an opinion rather than something learnt", () => {
+    const poll: AutoBlock = {
+      ...base,
+      hints: [],
+      points: 0,
+      id: "p1",
+      type: "poll",
+      prompt: "Which colour do you like?",
+      options: [
+        { id: "p1-blue", text: "Blue", feedback: "" },
+        { id: "p1-green", text: "Green", feedback: "" },
+      ],
+      multiple: false,
+      classResults: true,
+    };
+    const items = practiceItems(
+      [
+        {
+          lessonId: "three",
+          document: { version: 2, blocks: [poll, choice("c1")] },
+          rows: [],
+        },
+      ],
+      "seed",
+    );
+    expect(items.map((item) => item.block.id)).toEqual(["c1"]);
+  });
 });
 
 describe("practiceView", () => {

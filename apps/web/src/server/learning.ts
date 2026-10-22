@@ -228,6 +228,10 @@ export const askHint = createServerFn({ method: "POST" })
   .validator(checked(revealSchema))
   .handler(({ data }) => backend().learning.hint(data));
 
+export const getPollResults = createServerFn({ method: "GET" })
+  .validator(checked(revealSchema))
+  .handler(({ data }) => backend().learning.pollResults(data));
+
 export const seeResults = createServerFn({ method: "POST" })
   .validator(checked(v.object({ lessonId: v.pipe(v.string(), v.uuid()) })))
   .handler(({ data }) => backend().learning.results(data));

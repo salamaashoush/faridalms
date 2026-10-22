@@ -2,6 +2,7 @@ import { queryOptions } from "@tanstack/react-query";
 
 import {
   getClassQuestions,
+  getPollResults,
   getClassVideos,
   getGallery,
   getProgramRuns,
@@ -87,6 +88,15 @@ export const pacingQuery = (lessonId: string) =>
     queryKey: ["learning", "pacing", lessonId],
     queryFn: () => getPacing({ data: { lessonId } }),
     refetchInterval: (query) => (query.state.data?.paced ? 3000 : 15_000),
+  });
+
+/** How a student's class answered a poll, asked again now and then as others answer. */
+export const pollResultsQuery = (lessonId: string, blockId: string) =>
+  queryOptions({
+    queryKey: ["learning", "poll", lessonId, blockId],
+    queryFn: () => getPollResults({ data: { lessonId, blockId } }),
+    placeholderData: (previous) => previous,
+    refetchInterval: 15_000,
   });
 
 export const classQuestionsQuery = (moduleId: string, classId: string) =>

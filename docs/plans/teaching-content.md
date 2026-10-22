@@ -239,8 +239,15 @@ Sources: [../research/course-design.md](../research/course-design.md),
     to mark. Highlight words: a passage with each word to find written in
     [brackets], as a gap is; the student taps words in or out, each word
     numbered alike so none gives itself away, and each found earns its
-    share while each picked wrongly takes one back.
-    Left: poll, label an image, crossword and word search.
+    share while each picked wrongly takes one back. A poll: options with
+    no right one, worth nothing and answered once, kept in the order
+    written so a scale reads as one. Unless its teacher keeps the answers
+    to themselves, a student who has voted sees how their class answered,
+    each option's share of the first answers, asked again as others vote
+    and never naming anyone; the teacher's question card shows who chose
+    what. Practice reviews leave polls out.
+    Left: label an image, crossword and word search; a poll's class
+    results in a quiz, and polls anonymous to the teacher too.
 
 ## 4. Standards, skills and planning
 

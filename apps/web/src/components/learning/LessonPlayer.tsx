@@ -81,6 +81,7 @@ import {
   lessonEditorQuery,
   lessonQuery,
   pacingQuery,
+  pollResultsQuery,
 } from "~/queries/learning";
 import {
   completeLesson,
@@ -783,6 +784,7 @@ export function LessonPlayer({ lessonId }: { lessonId: string }) {
       await apply(blockId, result);
     },
     ran: keepRun,
+    poll: (blockId) => pollResultsQuery(lessonId, blockId),
   };
   // A question asked again is answered once and leaves the score alone.
   const reviewDriver: CheckDriver = {

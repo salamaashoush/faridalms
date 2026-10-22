@@ -597,6 +597,8 @@ export function getMessageFromError(error: unknown): string {
         return m.lrnErrNoHint();
       case "learning.bank_options":
         return m.lrnErrBankOptions();
+      case "learning.poll_first":
+        return m.lrnErrPollFirst();
       case "learning.number_line":
         return m.lrnErrNumberLine();
       case "learning.number_line_answer":

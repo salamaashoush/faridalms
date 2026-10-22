@@ -81,6 +81,7 @@ import {
   ListPlus,
   Link,
   ListChecks,
+  ChartColumnBig,
   ListOrdered,
   ListTodo,
   Lock,
@@ -1377,7 +1378,8 @@ export function SelectionToolbarPlugin() {
         | "closeEnough"
         | "tehMarbuta"
         | "memory"
-        | "gallery",
+        | "gallery"
+        | "classResults",
       label: string,
       icon: React.ReactNode,
     ) => (
@@ -1492,15 +1494,18 @@ export function SelectionToolbarPlugin() {
               <Check aria-hidden />
             </ToolButton>
           ) : null}
-          <BarMenu
-            label={strings.questionPoints(settings.points)}
-            current={strings.questionPoints(settings.points)}
-            values={POINTS}
-            text={(value) => strings.questionPoints(value)}
-            onPick={(points) => change({ points })}
-            onOpenChange={trackMenu}
-            finalFocus={textFocus(editor)}
-          />
+          {/* A poll counts for nothing, and is answered once. */}
+          {settings.kind === "poll" ? null : (
+            <BarMenu
+              label={strings.questionPoints(settings.points)}
+              current={strings.questionPoints(settings.points)}
+              values={POINTS}
+              text={(value) => strings.questionPoints(value)}
+              onPick={(points) => change({ points })}
+              onOpenChange={trackMenu}
+              finalFocus={textFocus(editor)}
+            />
+          )}
           {settings.videoAt === null ? null : (
             <>
               <span className="inline-flex h-8 items-center gap-1.5 px-1.5 text-sm whitespace-nowrap text-muted-foreground [&_svg]:size-4">
@@ -1749,7 +1754,8 @@ export function SelectionToolbarPlugin() {
                 />
               ) : null}
               {/* An answer whose feedback waits is one go, changed until then. */}
-              {feedbackTiming && settings.feedbackAt !== "now" ? null : (
+              {(feedbackTiming && settings.feedbackAt !== "now") ||
+              settings.kind === "poll" ? null : (
                 <BarMenu
                   label={strings.questionTries}
                   current={triesText(settings.tries)}
@@ -1943,6 +1949,20 @@ export function SelectionToolbarPlugin() {
               )}
             </>
           ) : null}
+          {settings.kind === "poll" ? (
+            <>
+              {toggle(
+                "multiple",
+                strings.questionPollSeveral,
+                <ListChecks aria-hidden />,
+              )}
+              {toggle(
+                "classResults",
+                strings.questionClassResults,
+                <ChartColumnBig aria-hidden />,
+              )}
+            </>
+          ) : null}
           {settings.kind === "text" || settings.kind === "gaps" ? (
             <>
               {toggle(
@@ -1985,13 +2005,15 @@ export function SelectionToolbarPlugin() {
               )}
             </ToolButton>
           ) : null}
-          <ToolButton
-            label={strings.questionHint}
-            active={settings.hints.length > 0}
-            onClick={writeHints}
-          >
-            <Lightbulb aria-hidden />
-          </ToolButton>
+          {settings.kind === "poll" ? null : (
+            <ToolButton
+              label={strings.questionHint}
+              active={settings.hints.length > 0}
+              onClick={writeHints}
+            >
+              <Lightbulb aria-hidden />
+            </ToolButton>
+          )}
           <ToolButton
             label={strings.questionExplanation}
             active={Boolean(settings.explanation)}
@@ -1999,7 +2021,7 @@ export function SelectionToolbarPlugin() {
           >
             <MessageCircleQuestion aria-hidden />
           </ToolButton>
-          {standards ? (
+          {standards && settings.kind !== "poll" ? (
             <ToolButton
               label={strings.questionStandards}
               active={settings.standards.length > 0}

@@ -22,7 +22,7 @@ const sides = (pair: Pair) => [
 /** Whether any part shows a picture with neither words nor a description. */
 function unnamedPicture(block: LessonBlock): boolean {
   const parts =
-    block.type === "choice"
+    block.type === "choice" || block.type === "poll"
       ? block.options
       : block.type === "ordering" || block.type === "sorting"
         ? block.items
@@ -53,6 +53,10 @@ export function blockIssue(block: LessonBlock): string | null {
         return m.lrnCorrectNeeded();
       return null;
     }
+    case "poll":
+      return block.options.filter((option) => partName(option)).length < 2
+        ? m.lrnOptionsNeeded()
+        : null;
     case "text":
       return block.answers.some((answer) => answer.trim())
         ? null

@@ -32,6 +32,7 @@ function voicedParts(block: LessonBlock): Voiced[] {
   const prompt = { text: block.prompt, narration: block.narration };
   switch (block.type) {
     case "choice":
+    case "poll":
       return [
         prompt,
         ...block.options.map((option) => ({
@@ -113,7 +114,10 @@ export function youngAdvice(blocks: readonly LessonBlock[]): YoungAdvice[] {
     advice.push({ kind: "questions", count: checks.length });
   checks.forEach((block, index) => {
     const question = index + 1;
-    if (block.type === "choice" && block.options.length > YOUNG_MAX_OPTIONS)
+    if (
+      (block.type === "choice" || block.type === "poll") &&
+      block.options.length > YOUNG_MAX_OPTIONS
+    )
       advice.push({ kind: "options", question, count: block.options.length });
     const items = itemsOf(block);
     if (items > YOUNG_MAX_ITEMS)

@@ -197,6 +197,28 @@ export function questionBlock(node: ContentNode): LessonBlock | null {
         shuffle: node.shuffle ?? true,
       };
     }
+    case "poll": {
+      // A poll is asked once, with nothing to count, hint at or wait for.
+      const { feedbackAt: _at, standards: _standards, ...asked } = check;
+      return {
+        ...asked,
+        type: "poll",
+        points: 0,
+        hints: [],
+        tries: null,
+        options: parts
+          .filter((part) => part.type === "question-option" && written(part))
+          .map((option) => ({
+            id: option.optionId ?? "",
+            text: textOf(option).trim(),
+            ...(option.fileId ? { picture: pictureOf(option) } : {}),
+            ...voiceOf(option),
+            feedback: option.feedback ?? "",
+          })),
+        multiple: node.multiple ?? false,
+        classResults: node.classResults ?? true,
+      };
+    }
     case "text":
       return {
         ...check,
@@ -545,6 +567,8 @@ export function drawnQuestion(
   const block = questionBlock(node);
   if (!block || !isCheck(block)) return null;
   const { videoAt: _videoAt, ...asked } = block;
+  if (asked.type === "poll")
+    return { ...asked, id: runId(`draw:${draw.id}:${bankQuestionId}`) };
   return {
     ...asked,
     id: runId(`draw:${draw.id}:${bankQuestionId}`),
@@ -717,6 +741,7 @@ function passagesOf(segments: readonly GapSegment[]): ContentNode[] {
 export function questionNode(block: LessonBlock): ContentNode | null {
   if (
     block.type !== "choice" &&
+    block.type !== "poll" &&
     block.type !== "text" &&
     block.type !== "math" &&
     block.type !== "written" &&
@@ -770,6 +795,22 @@ export function questionNode(block: LessonBlock): ContentNode | null {
           ...voiced(option.narration),
           optionId: option.id,
           correct: block.correctOptionIds.includes(option.id),
+          feedback: option.feedback,
+        })),
+      ],
+    };
+  if (block.type === "poll")
+    return {
+      ...base,
+      multiple: block.multiple,
+      classResults: block.classResults,
+      children: [
+        ...(base.children ?? []),
+        ...block.options.map((option) => ({
+          ...inlineOf("question-option", option.text),
+          ...pictureFields(option.picture),
+          ...voiced(option.narration),
+          optionId: option.id,
           feedback: option.feedback,
         })),
       ],

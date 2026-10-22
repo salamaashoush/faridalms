@@ -469,7 +469,7 @@ function BoardQuestion({
                   <div
                     className={cn(
                       "h-full rounded-full",
-                      !revealed
+                      !revealed || question.kind === "poll"
                         ? "bg-primary"
                         : right
                           ? "bg-success"

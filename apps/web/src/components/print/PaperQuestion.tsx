@@ -353,10 +353,14 @@ export function PaperQuestion({
   let body: ReactNode = null;
   switch (block.type) {
     case "choice":
+    case "poll":
       body = (
         <ol className="grid gap-1.5">
           {block.options.map((option, index) => {
-            const right = answers && block.correctOptionIds.includes(option.id);
+            const right =
+              answers &&
+              block.type === "choice" &&
+              block.correctOptionIds.includes(option.id);
             return (
               <li key={option.id} className="flex items-start gap-2">
                 <span

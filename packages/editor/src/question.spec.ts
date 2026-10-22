@@ -6,6 +6,7 @@ import {
   contentDocumentSchema,
   contentFileIds,
 } from "@faridalms/domain/content";
+import { lessonDocumentSchema } from "@faridalms/domain/learning";
 import {
   contentOfLesson,
   lessonOfContent,
@@ -45,6 +46,7 @@ import {
   $markableAtCaret,
   $setPartPicture,
   $toggleCorrect,
+  $toggleMark,
   QuestionOptionNode,
   setQuestionLabels,
 } from "./nodes";
@@ -57,6 +59,7 @@ function json(target: LexicalEditor): ContentDocument {
 function withQuestion(
   kind:
     | "choiceQuestion"
+    | "pollQuestion"
     | "typedQuestion"
     | "orderingQuestion"
     | "matchingQuestion"
@@ -120,6 +123,46 @@ describe("questions in a document", () => {
     expect(block?.type === "choice" ? block.correctOptionIds : []).toHaveLength(
       1,
     );
+  });
+
+  it("starts a poll with two options, none of them right, worth nothing", () => {
+    const target = withQuestion("pollQuestion");
+    target.update(
+      () => {
+        const question = $getRoot().getChildren().find($isQuestionNode);
+        const [prompt, first, second] = question?.getChildren() ?? [];
+        if (
+          !$isQuestionPromptNode(prompt) ||
+          !$isQuestionOptionNode(first) ||
+          !$isQuestionOptionNode(second)
+        )
+          throw new Error("poll has the wrong shape");
+        prompt.append($createTextNode("Which book shall we read next?"));
+        first.append($createTextNode("The Hobbit"));
+        second.append($createTextNode("Matilda"));
+        // A poll's options have no right one to mark.
+        $toggleMark(first);
+      },
+      { discrete: true },
+    );
+    const document = json(target);
+    expect(v.safeParse(contentDocumentSchema, document).success).toBe(true);
+    const [block] = lessonOfContent(document).blocks;
+    expect(block).toEqual(
+      expect.objectContaining({
+        type: "poll",
+        points: 0,
+        options: [
+          expect.objectContaining({ text: "The Hobbit" }),
+          expect.objectContaining({ text: "Matilda" }),
+        ],
+        multiple: false,
+        classResults: true,
+      }),
+    );
+    expect(
+      v.safeParse(lessonDocumentSchema, lessonOfContent(document)).success,
+    ).toBe(true);
   });
 
   it("keeps one right option in a single-answer question", () => {
@@ -856,6 +899,7 @@ describe("questions in a document", () => {
     setQuestionLabels(target, {
       kinds: {
         choice: "",
+        poll: "",
         text: "",
         math: "",
         written: "",

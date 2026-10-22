@@ -76,6 +76,18 @@ export function paperBlock(block: StudentBlock): LessonBlock {
         })),
         correctOptionIds: [],
       };
+    case "poll":
+      return {
+        ...block,
+        ...blank,
+        options: block.options.map((option) => ({
+          id: option.id,
+          text: option.text,
+          picture: option.picture ?? null,
+          narration: option.narration ?? null,
+          feedback: "",
+        })),
+      };
     case "text":
       return {
         ...block,

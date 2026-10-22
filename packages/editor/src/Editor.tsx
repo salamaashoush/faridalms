@@ -280,6 +280,7 @@ function Surface({
     setQuestionLabels(editor, {
       kinds: {
         choice: strings.questionChoice,
+        poll: strings.questionPoll,
         text: strings.questionTyped,
         math: strings.questionMath,
         written: strings.questionWritten,

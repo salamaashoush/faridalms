@@ -337,6 +337,20 @@ export const lessonBlockSchema = v.variant("type", [
   ),
   v.object({
     ...checkFields,
+    type: v.literal("poll"),
+    /** A poll asks what students think, so it has no right answer to count. */
+    points: v.literal(0),
+    options: v.pipe(
+      v.array(choiceOptionSchema),
+      v.minLength(2),
+      v.maxLength(MAX_CHOICE_OPTIONS),
+    ),
+    multiple: v.boolean(),
+    /** Whether a student sees how their class answered, once they have. */
+    classResults: v.boolean(),
+  }),
+  v.object({
+    ...checkFields,
     ...matching,
     type: v.literal("text"),
     answers: accepted,
@@ -693,6 +707,7 @@ export const lessonBlockSchema = v.variant("type", [
 export type LessonBlock = v.InferOutput<typeof lessonBlockSchema>;
 export type LessonBlockType = LessonBlock["type"];
 export type ChoiceBlock = Extract<LessonBlock, { type: "choice" }>;
+export type PollBlock = Extract<LessonBlock, { type: "poll" }>;
 export type TextBlock = Extract<LessonBlock, { type: "text" }>;
 export type MathBlock = Extract<LessonBlock, { type: "math" }>;
 export type GapsBlock = Extract<LessonBlock, { type: "gaps" }>;
@@ -715,6 +730,7 @@ export type DrawBlock = Extract<LessonBlock, { type: "draw" }>;
 /** A question the server marks the moment it is answered. */
 export type AutoBlock =
   | ChoiceBlock
+  | PollBlock
   | TextBlock
   | MathBlock
   | GapsBlock
@@ -736,6 +752,7 @@ export type CheckBlock = AutoBlock | MarkedBlock;
 
 const AUTO_TYPES = new Set<LessonBlockType>([
   "choice",
+  "poll",
   "text",
   "math",
   "gaps",
@@ -1255,6 +1272,14 @@ export const responseSchema = v.variant("type", [
       v.maxLength(MAX_CHOICE_OPTIONS),
     ),
   }),
+  v.object({
+    type: v.literal("poll"),
+    optionIds: v.pipe(
+      v.array(id),
+      v.minLength(1),
+      v.maxLength(MAX_CHOICE_OPTIONS),
+    ),
+  }),
   v.object({ type: v.literal("text"), text: requiredText(500) }),
   v.object({
     type: v.literal("gaps"),
@@ -1523,6 +1548,19 @@ export function markResponse(
         fraction: round(Math.max(0, (hits - misses) / right.size)),
         correct: exact,
         feedback,
+      };
+    }
+    case "poll": {
+      if (response.type !== "poll") return none;
+      // Any answer to a poll settles it, and its points are none.
+      const chosen = new Set(response.optionIds);
+      return {
+        ...none,
+        fraction: 1,
+        correct: true,
+        feedback: block.options
+          .filter((option) => chosen.has(option.id) && option.feedback)
+          .map((option) => option.feedback),
       };
     }
     case "text": {
@@ -1985,6 +2023,9 @@ export type StudentBlock =
     > & {
       options: StudentPart[];
     })
+  | (Omit<PollBlock, "explanation" | "hints" | "options"> & {
+      options: StudentPart[];
+    })
   | Omit<TextBlock, "answers" | "explanation" | "hints">
   | Omit<MathBlock, "answers" | "explanation" | "hints" | "tolerance">
   | (Omit<GapsBlock, "explanation" | "hints" | "segments" | "bank"> & {
@@ -2103,6 +2144,19 @@ export function studentBlocks(
           options: block.shuffle
             ? shuffled(options, `${seed}:${block.id}`)
             : options,
+        };
+      }
+      case "poll": {
+        const { explanation: _why, hints: _hints, ...rest } = block;
+        // A poll's options keep their order, as a scale from agree to disagree must.
+        return {
+          ...rest,
+          options: block.options.map((option) => ({
+            id: option.id,
+            text: option.text,
+            picture: option.picture ?? null,
+            narration: option.narration ?? null,
+          })),
         };
       }
       case "text": {
@@ -3263,6 +3317,17 @@ export function responseIssue(
     response.optionIds.some(
       (optionId) => !block.options.some((option) => option.id === optionId),
     )
+  )
+    return "learning.option";
+  // A class's answers are counted from each vote, so one counts once.
+  if (
+    block.type === "poll" &&
+    response.type === "poll" &&
+    (response.optionIds.some(
+      (optionId) => !block.options.some((option) => option.id === optionId),
+    ) ||
+      new Set(response.optionIds).size !== response.optionIds.length ||
+      (!block.multiple && response.optionIds.length > 1))
   )
     return "learning.option";
   if (block.type === "highlight" && response.type === "highlight") {

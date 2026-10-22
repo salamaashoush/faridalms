@@ -1410,6 +1410,34 @@ export async function firstAttempts(
   }));
 }
 
+/**
+ * The options each student chose the first time they answered a poll, as
+ * their class's figures count them. An erased answer chose nothing.
+ */
+export async function pollVotes(
+  tx: Tx,
+  input: {
+    tenantId: string;
+    lessonId: string;
+    blockId: string;
+    studentIds: readonly string[];
+  },
+): Promise<string[][]> {
+  if (input.studentIds.length === 0) return [];
+  const rows = await tx.execute<{ option_ids: unknown }>(sql`
+    select distinct on (student_user_id) response->'optionIds' as option_ids
+    from core.lesson_responses
+    where tenant_id = ${input.tenantId}::uuid and lesson_id = ${input.lessonId}::uuid
+      and block_id = ${input.blockId}::uuid and state = 'answered'
+      and student_user_id = any(${uuidArray(input.studentIds)})
+    order by student_user_id, attempt, try`);
+  return rows.flatMap((row) =>
+    Array.isArray(row.option_ids)
+      ? [row.option_ids.filter((item) => typeof item === "string")]
+      : [],
+  );
+}
+
 /** Every student's rows in a lesson since a moment, as a lesson led live gathers them. */
 export async function responsesSince(
   tx: Tx,

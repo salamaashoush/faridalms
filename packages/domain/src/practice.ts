@@ -67,11 +67,14 @@ export function practiceItems(
   const perLesson = shuffled([...sources], `${seed}:lessons`).map((source) => {
     const states = checkStates(source.document, source.rows);
     return shuffled(
-      autoBlocks(source.document).map((block) => ({
-        lessonId: source.lessonId,
-        block,
-        missed: !states[block.id]?.firstTryCorrect,
-      })),
+      // A poll asks an opinion, which is nothing to practise.
+      autoBlocks(source.document)
+        .filter((block) => block.type !== "poll")
+        .map((block) => ({
+          lessonId: source.lessonId,
+          block,
+          missed: !states[block.id]?.firstTryCorrect,
+        })),
       `${seed}:${source.lessonId}`,
     );
   });
