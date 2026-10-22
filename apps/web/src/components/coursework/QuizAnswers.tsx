@@ -21,6 +21,7 @@ export function QuizAnswers({ assignmentId }: { assignmentId: string }) {
         gallery: false,
         checks: [],
         standards: [],
+        passage: null,
       }))}
       answers={answers.map((answer) => ({
         ...answer,
@@ -32,6 +33,7 @@ export function QuizAnswers({ assignmentId }: { assignmentId: string }) {
         notes: null,
         share: null,
         offered: null,
+        fluency: null,
       }))}
       empty={{
         title: m.quizNothingToMark(),

@@ -187,11 +187,13 @@ import {
   $isQuestionNode,
   $isQuestionOptionNode,
   $isQuestionPairNode,
+  $isQuestionPassageNode,
   $markableAtCaret,
   $partAddress,
   $partPicture,
   $setPartPicture,
   $toggleMark,
+  QuestionPassageNode,
 } from "../nodes/question";
 import {
   $isDiagramNode,
@@ -337,6 +339,7 @@ const ANSWER_BY = [
   180,
   "video-90",
   "video-180",
+  "reading",
   "drawing",
   "photo",
 ] as const;
@@ -1719,23 +1722,67 @@ export function SelectionToolbarPlugin() {
     const answerByText = (value: AnswerBy) =>
       value === null
         ? strings.questionByWriting
-        : value === "drawing"
-          ? strings.questionByDrawing
-          : value === "photo"
-            ? strings.questionByPhoto
-            : value === "video-90"
-              ? strings.questionByVideo(90)
-              : value === "video-180"
-                ? strings.questionByVideo(180)
-                : strings.questionBySpeaking(value);
+        : value === "reading"
+          ? strings.questionRead
+          : value === "drawing"
+            ? strings.questionByDrawing
+            : value === "photo"
+              ? strings.questionByPhoto
+              : value === "video-90"
+                ? strings.questionByVideo(90)
+                : value === "video-180"
+                  ? strings.questionByVideo(180)
+                  : strings.questionBySpeaking(value);
     const answeredBy: AnswerBy =
       settings.answerWith ??
-      (settings.recordVideo
-        ? settings.recordSeconds === 180
-          ? "video-180"
-          : "video-90"
-        : (ANSWER_BY.find((value) => value === settings.recordSeconds) ??
-          null));
+      (settings.reading && settings.recordSeconds !== null
+        ? "reading"
+        : settings.recordVideo
+          ? settings.recordSeconds === 180
+            ? "video-180"
+            : "video-90"
+          : (ANSWER_BY.find((value) => value === settings.recordSeconds) ??
+            null));
+    // Reading aloud reads the question's passage, which only it keeps.
+    const answerBy = (value: AnswerBy) =>
+      withSelection(() => {
+        const node = $getNodeByKey(question.key);
+        if (!$isQuestionNode(node)) return;
+        const reading = value === "reading";
+        node.setSettings(
+          reading
+            ? {
+                answerWith: null,
+                recordSeconds: 180,
+                recordVideo: false,
+                reading,
+              }
+            : value === "video-90" || value === "video-180"
+              ? {
+                  answerWith: null,
+                  recordSeconds: value === "video-90" ? 90 : 180,
+                  recordVideo: true,
+                  reading,
+                }
+              : typeof value === "string"
+                ? {
+                    answerWith: value,
+                    recordSeconds: null,
+                    recordVideo: false,
+                    reading,
+                  }
+                : {
+                    answerWith: null,
+                    recordSeconds: value,
+                    recordVideo: false,
+                    reading,
+                  },
+        );
+        const passages = node.getChildren().filter($isQuestionPassageNode);
+        if (reading && passages.length === 0)
+          node.append(new QuestionPassageNode());
+        if (!reading) for (const passage of passages) passage.remove();
+      });
     return (
       <Floating
         reference={reference}
@@ -1791,27 +1838,7 @@ export function SelectionToolbarPlugin() {
                   current={answerByText(answeredBy)}
                   values={ANSWER_BY}
                   text={answerByText}
-                  onPick={(value) =>
-                    change(
-                      value === "video-90" || value === "video-180"
-                        ? {
-                            answerWith: null,
-                            recordSeconds: value === "video-90" ? 90 : 180,
-                            recordVideo: true,
-                          }
-                        : typeof value === "string"
-                          ? {
-                              answerWith: value,
-                              recordSeconds: null,
-                              recordVideo: false,
-                            }
-                          : {
-                              answerWith: null,
-                              recordSeconds: value,
-                              recordVideo: false,
-                            },
-                    )
-                  }
+                  onPick={answerBy}
                   onOpenChange={trackMenu}
                   finalFocus={textFocus(editor)}
                 />

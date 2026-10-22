@@ -323,6 +323,9 @@ function Surface({
       },
       spoken: strings.questionSpoken,
       filmed: strings.questionFilmed,
+      reading: strings.questionRead,
+      readingPassage: strings.questionReadingPassage,
+      readingPrompt: strings.questionReadingPrompt,
       pictured: {
         drawing: strings.questionDrawing,
         photo: strings.questionPhoto,

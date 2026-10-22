@@ -237,6 +237,12 @@ export interface QuestionLabels {
   spoken?: string;
   /** A written question answered on video. */
   filmed?: string;
+  /** A written question answered by reading its passage aloud. */
+  reading?: string;
+  /** What a passage to read aloud asks for, while it is empty. */
+  readingPassage?: string;
+  /** What a question to read aloud asks, before the teacher words it. */
+  readingPrompt?: string;
   /** "Drawing" and "Photo", for written questions answered with a picture. */
   pictured?: Record<"drawing" | "photo", string>;
   /** A counting question by its number and what the child does. */
@@ -355,6 +361,8 @@ export interface QuestionSettings {
   recordSeconds: number | null;
   /** A spoken answer recorded on camera, or of the student's screen. */
   recordVideo: boolean;
+  /** A spoken answer that reads the question's passage aloud. */
+  reading: boolean;
   /** Answered with a drawing or a photo, rather than writing. */
   answerWith: "drawing" | "photo" | null;
   /** A counting question: how many, what the child does, how they are set out. */
@@ -426,6 +434,7 @@ export function defaultSettings(kind: QuestionKind): QuestionSettings {
     wordLimit: null,
     recordSeconds: null,
     recordVideo: false,
+    reading: false,
     answerWith: null,
     count: 5,
     countMode: "count",
@@ -493,6 +502,7 @@ function questionSettings(stored: StoredSettings): QuestionSettings {
     wordLimit: stored.wordLimit ?? null,
     recordSeconds: stored.recordSeconds ?? null,
     recordVideo: stored.recordVideo ?? false,
+    reading: stored.reading ?? false,
     answerWith: stored.answerWith ?? null,
     count: stored.count ?? base.count,
     countMode: stored.countMode ?? base.countMode,
@@ -542,8 +552,11 @@ function label(editor: LexicalEditor, settings: QuestionSettings): string {
   if (!text) return "";
   const kind =
     settings.kind === "written" && settings.recordSeconds !== null
-      ? ((settings.recordVideo ? text.filmed : text.spoken) ??
-        text.kinds.written)
+      ? ((settings.reading
+          ? text.reading
+          : settings.recordVideo
+            ? text.filmed
+            : text.spoken) ?? text.kinds.written)
       : settings.kind === "written" && settings.answerWith
         ? (text.pictured?.[settings.answerWith] ?? text.kinds.written)
         : settings.kind === "counting" && text.count
@@ -644,6 +657,7 @@ export class QuestionNode extends ElementNode {
     const {
       recordSeconds,
       recordVideo,
+      reading,
       answerWith,
       count,
       countMode,
@@ -682,6 +696,7 @@ export class QuestionNode extends ElementNode {
       ...(settings.kind === "poll" ? { classResults } : {}),
       ...(recordSeconds === null ? {} : { recordSeconds }),
       ...(recordSeconds !== null && recordVideo ? { recordVideo } : {}),
+      ...(recordSeconds !== null && reading ? { reading } : {}),
       ...(answerWith === null ? {} : { answerWith }),
       ...(settings.kind === "counting"
         ? { count, countMode, countLayout, flashSeconds }
@@ -731,6 +746,7 @@ export class QuestionNode extends ElementNode {
     dom.dataset.multiple = String(settings.multiple);
     dom.dataset.label = label(editor, settings);
     if (settings.suggested) dom.dataset.suggested = "";
+    if (settings.reading) dom.dataset.reading = "";
     if (locked.has(editor)) lockElement(dom, true);
     if (settings.kind === "number")
       dom.dataset.answer = `${labels.get(editor)?.answerIs ?? ""} ${numberAnswer(settings)}`;
@@ -763,6 +779,7 @@ export class QuestionNode extends ElementNode {
       before.suggested !== settings.suggested ||
       before.recordSeconds !== settings.recordSeconds ||
       before.recordVideo !== settings.recordVideo ||
+      before.reading !== settings.reading ||
       before.answerWith !== settings.answerWith ||
       before.videoAt !== settings.videoAt ||
       before.count !== settings.count ||
@@ -1308,6 +1325,7 @@ export class QuestionPassageNode extends ElementNode {
     const dom = $getDocument().createElement("div");
     dom.dataset.questionPassage = "";
     dom.dataset.emptyLabel = labels.get(editor)?.passage ?? "";
+    dom.dataset.readingLabel = labels.get(editor)?.readingPassage ?? "";
     const name = theme(config, "questionPassage");
     if (name) addClassNamesToElement(dom, name);
     return dom;
@@ -1666,6 +1684,24 @@ export function $createWhyQuestion(): QuestionNode {
   return question;
 }
 
+/**
+ * A passage the student reads aloud, recording it for their teacher to
+ * mark word by word, as a running record or a fluency check is taken.
+ */
+export function $createReadingQuestion(): QuestionNode {
+  const text = labels.get($getEditor());
+  const question = new QuestionNode({
+    ...defaultSettings("written"),
+    recordSeconds: 180,
+    reading: true,
+  });
+  question.append(
+    new QuestionPromptNode().append($createTextNode(text?.readingPrompt ?? "")),
+    new QuestionPassageNode(),
+  );
+  return question;
+}
+
 /** A statement to judge: a choice between true, marked right, and false. */
 export function $createTrueFalseQuestion(): QuestionNode {
   const text = labels.get($getEditor());
@@ -1712,7 +1748,9 @@ export function $repairQuestion(question: QuestionNode) {
       ((kind === "matching" || kind === "crossword") &&
         $isQuestionPairNode(child)) ||
       (kind === "sorting" && $isQuestionGroupNode(child)) ||
-      ((kind === "gaps" || kind === "highlight") &&
+      ((kind === "gaps" ||
+        kind === "highlight" ||
+        (kind === "written" && question.getSettings().reading)) &&
         $isQuestionPassageNode(child));
     if (fits) continue;
     const paragraph = $createParagraphNode();

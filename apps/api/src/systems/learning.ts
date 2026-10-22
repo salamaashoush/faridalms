@@ -138,6 +138,7 @@ import {
   lessonScored,
   markResponse,
   markSchema,
+  readingWords,
   moduleRefSchema,
   moveLessonSchema,
   readLessonInSchema,
@@ -3657,6 +3658,7 @@ export const answers = readProcedure
       gallery: boolean;
       checks: ScratchFeature[];
       standards: string[];
+      passage: string | null;
     }[] = [];
     for (const item of lessons) {
       const published = await publishedLesson(context, item.id);
@@ -3677,6 +3679,8 @@ export const answers = readProcedure
             /** What a coding question asks every project to have. */
             checks: block.type === "scratch" ? block.checks : [],
             standards: block.standards ?? [],
+            /** The passage a reading aloud reads, marked word by word. */
+            passage: block.type === "written" ? (block.passage ?? null) : null,
           });
     }
     const scope = {
@@ -4027,6 +4031,18 @@ export const mark = writeProcedure
     if (!block || !isTeacherMarked(block)) throw new ORPCError("NOT_FOUND");
     if (input.points > block.points)
       throw new ORPCError("BAD_REQUEST", { message: "learning.points_over" });
+    // A reading is marked for the one student who read it, word by word
+    // within the passage.
+    const passage = block.type === "written" ? (block.passage ?? "") : "";
+    if (
+      input.fluency &&
+      (!passage ||
+        studentIds.length !== 1 ||
+        [...input.fluency.errors, input.fluency.lastWord ?? 0].some(
+          (place) => place >= readingWords(passage).length,
+        ))
+    )
+      throw new ORPCError("BAD_REQUEST", { message: "learning.fluency" });
     const written = (
       await answersToMark(context.tx, {
         tenantId: context.tenantId,
@@ -4046,7 +4062,7 @@ export const mark = writeProcedure
         attempt: answer.attempt,
         try: answer.try,
         kind: "written",
-        response: {},
+        response: input.fluency ? { fluency: input.fluency } : {},
         fraction:
           block.points === 0
             ? null

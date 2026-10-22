@@ -1375,6 +1375,12 @@
   pointer-events: none;
   content: attr(data-empty-label);
 }
+/* A passage read aloud asks for its words, not for gaps. */
+.fe
+  .fe-question[data-reading]
+  > .fe-question-passage:has(> br:only-child)::before {
+  content: attr(data-reading-label);
+}
 .fe .fe-question-gap {
   display: inline-block;
   min-width: 4rem;

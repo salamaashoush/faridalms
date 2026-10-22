@@ -1318,3 +1318,28 @@ describe("questions drawn from the bank", () => {
     );
   });
 });
+
+describe("a passage read aloud", () => {
+  it("keeps its passage from the lesson to the document and back", () => {
+    const block = {
+      id: "0d6f4b9e-6d4c-4a3a-9b1e-1f2a3b4c5d6e",
+      type: "written" as const,
+      prompt: "Read this passage aloud.",
+      points: 2,
+      hints: [],
+      explanation: "",
+      tries: null,
+      wordLimit: null,
+      recordSeconds: 180 as const,
+      passage: "The Nile is long.\nBoats sail on it.",
+    };
+    const document = contentOfLesson({ version: 2, blocks: [block] });
+    expect(JSON.stringify(document)).toContain('"reading":true');
+    const back = document ? lessonOfContent(document) : null;
+    expect(back?.blocks[0]).toMatchObject({
+      type: "written",
+      recordSeconds: 180,
+      passage: "The Nile is long.\nBoats sail on it.",
+    });
+  });
+});

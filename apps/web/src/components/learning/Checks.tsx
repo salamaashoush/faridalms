@@ -3194,7 +3194,10 @@ function SortingCheck({
   );
 }
 
-/** A question answered by speaking: the student records, listens and sends. */
+/**
+ * A question answered by speaking: the student records, listens and sends;
+ * one with a passage asks them to read it aloud, set large for reading.
+ */
 function SpokenCheck({
   block,
   view,
@@ -3213,6 +3216,14 @@ function SpokenCheck({
       status={<SpokenStatus block={block} view={view} />}
       actions={null}
     >
+      {block.passage ? (
+        <p
+          dir="auto"
+          className="rounded-lg bg-muted/40 px-4 py-3 text-lg leading-9 whitespace-pre-line"
+        >
+          {block.passage}
+        </p>
+      ) : null}
       <SpokenRecorder
         block={block}
         view={view}

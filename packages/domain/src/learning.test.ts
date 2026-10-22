@@ -32,6 +32,7 @@ import {
   describeCheck,
   feedbackAtOf,
   feedbackBandsSchema,
+  fluencyOf,
   gapsSource,
   highlightTokens,
   lessonIssue,
@@ -46,6 +47,7 @@ import {
   partKey,
   pathOf,
   prerequisiteMet,
+  readingWords,
   remarksOf,
   responseIssue,
   settled,
@@ -1541,5 +1543,22 @@ describe("paths through a module", () => {
     expect(valid(80, 40)).toBe(false);
     expect(valid(60, 60)).toBe(false);
     expect(valid(0, null)).toBe(false);
+  });
+});
+
+describe("fluencyOf", () => {
+  it("counts the words read correctly, and how many a minute", () => {
+    const words = readingWords("The Nile is long.\nBoats sail on it to Cairo.");
+    expect(words).toHaveLength(10);
+    expect(
+      fluencyOf(words.length, { errors: [3, 6], lastWord: 7, seconds: 12 }),
+    ).toEqual({ read: 8, correct: 6, accuracy: 0.75, perMinute: 30 });
+    // Errors past where the reading stopped do not count against it.
+    expect(
+      fluencyOf(words.length, { errors: [8], lastWord: 4, seconds: 60 }),
+    ).toEqual({ read: 5, correct: 5, accuracy: 1, perMinute: 5 });
+    expect(
+      fluencyOf(words.length, { errors: [], lastWord: null, seconds: 30 }),
+    ).toMatchObject({ read: 10, correct: 10, perMinute: 20 });
   });
 });

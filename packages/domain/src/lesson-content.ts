@@ -353,12 +353,21 @@ export function questionBlock(node: ContentNode): LessonBlock | null {
     case "written": {
       const spoken = spokenFor(node.recordSeconds);
       const pictured = spoken === null ? (node.answerWith ?? null) : null;
+      const passage =
+        spoken !== null && node.reading
+          ? parts
+              .filter((part) => part.type === "question-passage")
+              .map(textOf)
+              .join("\n")
+              .trim()
+          : "";
       return {
         ...check,
         type: "written",
         wordLimit: node.wordLimit ?? null,
         ...(spoken === null ? {} : { recordSeconds: spoken }),
         ...(spoken !== null && node.recordVideo ? { recordVideo: true } : {}),
+        ...(passage ? { passage } : {}),
         ...(pictured === null ? {} : { answerWith: pictured }),
         ...(pictured === "drawing" && node.fileId
           ? { picture: pictureOf(node) }
@@ -1130,6 +1139,15 @@ export function questionNode(block: LessonBlock): ContentNode | null {
     ...(block.recordSeconds && block.recordVideo ? { recordVideo: true } : {}),
     ...(block.answerWith ? { answerWith: block.answerWith } : {}),
     ...(block.answerWith === "drawing" ? pictureFields(block.picture) : {}),
+    ...(block.recordSeconds && block.passage
+      ? {
+          reading: true,
+          children: [
+            ...(base.children ?? []),
+            ...passagesOf([{ type: "text", text: block.passage }]),
+          ],
+        }
+      : {}),
   };
 }
 

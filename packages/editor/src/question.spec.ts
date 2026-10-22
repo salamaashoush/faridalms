@@ -71,7 +71,8 @@ function withQuestion(
     | "programQuestion"
     | "puzzleQuestion"
     | "arrowsQuestion"
-    | "microbitQuestion",
+    | "microbitQuestion"
+    | "readingQuestion",
 ) {
   const target = buildContentEditor();
   target.update(
@@ -125,6 +126,33 @@ describe("questions in a document", () => {
     expect(block?.type === "choice" ? block.correctOptionIds : []).toHaveLength(
       1,
     );
+  });
+
+  it("starts a passage to read aloud, answered by a recording", () => {
+    const target = withQuestion("readingQuestion");
+    target.update(
+      () => {
+        const question = $getRoot().getChildren().find($isQuestionNode);
+        const [, passage] = question?.getChildren() ?? [];
+        if (!$isQuestionPassageNode(passage))
+          throw new Error("a reading has no passage");
+        passage.append($createTextNode("The Nile flows north."));
+      },
+      { discrete: true },
+    );
+    const document = json(target);
+    expect(v.safeParse(contentDocumentSchema, document).success).toBe(true);
+    expect(
+      lessonOfContent(document).blocks.filter(
+        (item) => item.type === "written",
+      ),
+    ).toMatchObject([
+      {
+        type: "written",
+        recordSeconds: 180,
+        passage: "The Nile flows north.",
+      },
+    ]);
   });
 
   it("starts a poll with two options, none of them right, worth nothing", () => {

@@ -1,3 +1,4 @@
+import type { FluencyMark } from "@faridalms/domain/learning";
 import type { GoalLevel } from "@faridalms/domain/standards";
 
 import { StoredImage } from "@faridalms/editor/files";
@@ -31,6 +32,8 @@ import { judgeGoal } from "~/server/standards";
 import { formatDateTime, formatNumber } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
+import { FluencyMarker, FluencySummary } from "./Fluency";
+
 type Data = Awaited<
   ReturnType<NonNullable<ReturnType<typeof writtenAnswersQuery>["queryFn"]>>
 >;
@@ -46,6 +49,8 @@ export type Marker = (
   answers: readonly BoardAnswer[],
   points: number,
   feedback: string,
+  /** How one student read a passage aloud. */
+  fluency?: FluencyMark,
 ) => Promise<unknown>;
 
 /**
@@ -165,13 +170,29 @@ function MarkForm({
       : String(Math.round(only.fraction * question.points * 100) / 100),
   );
   const [feedback, setFeedback] = useState(only?.feedback ?? "");
+  // A passage read aloud is marked word by word as the teacher listens.
+  const passage = only?.recording ? question.passage : null;
+  const [fluency, setFluency] = useState<FluencyMark>(
+    () =>
+      only?.fluency ?? {
+        errors: [],
+        lastWord: null,
+        seconds: Math.max(1, Math.round(only?.recording?.seconds ?? 60)),
+      },
+  );
   const value = Number(points);
   const valid = graded
     ? points !== "" && value >= 0 && value <= question.points
     : feedback.trim() !== "";
   const save = useMutation({
     mutationFn: () =>
-      mark(question, answers, graded ? value : 0, feedback.trim()),
+      mark(
+        question,
+        answers,
+        graded ? value : 0,
+        feedback.trim(),
+        passage ? fluency : undefined,
+      ),
     onSuccess: () => {
       toast.success(
         only
@@ -192,6 +213,9 @@ function MarkForm({
         if (valid) save.mutate();
       }}
     >
+      {passage ? (
+        <FluencyMarker passage={passage} mark={fluency} onChange={setFluency} />
+      ) : null}
       {graded ? (
         <FormField
           id={`${id}-points`}
@@ -467,6 +491,9 @@ function AnswerCard({
       )}
       {answer.marked && !editing ? (
         <div className="grid gap-2 border-t pt-3">
+          {question.passage && answer.fluency ? (
+            <FluencySummary passage={question.passage} mark={answer.fluency} />
+          ) : null}
           {answer.feedback ? (
             <p
               dir="auto"
@@ -740,7 +767,7 @@ export function Answers({
       answers={query.data.answers}
       goals={goals}
       empty={{ title: m.lrnNoWritten(), description: m.lrnNoWrittenBody() }}
-      mark={async (question, answers, points, feedback) => {
+      mark={async (question, answers, points, feedback, fluency) => {
         await markAnswer({
           data: {
             lessonId: question.lessonId,
@@ -748,6 +775,7 @@ export function Answers({
             studentIds: answers.map((answer) => answer.studentId),
             points,
             feedback,
+            ...(fluency ? { fluency } : {}),
           },
         });
         await queryClient.invalidateQueries({ queryKey: ["learning"] });

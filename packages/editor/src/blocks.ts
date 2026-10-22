@@ -44,6 +44,7 @@ import {
 import {
   ArrowDownUp,
   BookA,
+  BookOpenText,
   FileText,
   CodeXml,
   FileCode,
@@ -123,6 +124,7 @@ import {
   $createPuzzleQuestion,
   $createPythonQuestion,
   $createSketchQuestion,
+  $createReadingQuestion,
   $createWhyQuestion,
   $createColumnsNode,
   $createToggleContentNode,
@@ -216,6 +218,7 @@ export type BlockType =
   | "trueFalseQuestion"
   | "pollQuestion"
   | "whyQuestion"
+  | "readingQuestion"
   | "gate"
   | "pageBreak"
   | "studentCopy"
@@ -234,6 +237,7 @@ const QUESTION_KIND: Partial<Record<BlockType, QuestionKind>> = {
   trueFalseQuestion: "choice",
   pollQuestion: "poll",
   whyQuestion: "written",
+  readingQuestion: "written",
   typedQuestion: "text",
   mathQuestion: "math",
   writtenQuestion: "written",
@@ -1265,6 +1269,26 @@ export const blockDefinitions: BlockDefinition[] = [
     activity: true,
   },
   {
+    type: "readingQuestion",
+    group: "questions",
+    icon: BookOpenText,
+    label: (s) => s.questionReading,
+    hint: (s) => s.questionReadingHint,
+    keywords: [
+      "read aloud",
+      "reading",
+      "fluency",
+      "running record",
+      "oral",
+      "قراءة",
+      "اقرأ",
+      "طلاقة",
+      "جهرية",
+    ],
+    question: true,
+    activity: true,
+  },
+  {
     type: "gate",
     group: "questions",
     icon: ListEnd,
@@ -1500,6 +1524,7 @@ function $createStructure(type: BlockType): LexicalNode | null {
   if (type === "chart") return $createChartNode();
   if (type === "trueFalseQuestion") return $createTrueFalseQuestion();
   if (type === "whyQuestion") return $createWhyQuestion();
+  if (type === "readingQuestion") return $createReadingQuestion();
   if (type === "sketchQuestion") return $createSketchQuestion();
   if (type === "pythonQuestion") return $createPythonQuestion();
   if (type === "microbitQuestion") return $createMicrobitQuestion();

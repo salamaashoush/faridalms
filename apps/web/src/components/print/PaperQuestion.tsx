@@ -461,6 +461,15 @@ export function PaperQuestion({
               />
             ) : null}
           </div>
+        ) : block.passage ? (
+          // A passage to read aloud prints to be read from, as a teacher
+          // listens and marks a copy of their own.
+          <p
+            dir="auto"
+            className="text-[1.15em] leading-[1.9] whitespace-pre-line"
+          >
+            {block.passage}
+          </p>
         ) : (
           <Lines
             count={block.recordSeconds ? 4 : writingLines(block.wordLimit)}

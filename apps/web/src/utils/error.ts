@@ -671,6 +671,8 @@ export function getMessageFromError(error: unknown): string {
         return m.lrnErrWordLimit();
       case "learning.points_over":
         return m.lrnErrPointsOver();
+      case "learning.fluency":
+        return m.fluencyErr();
       case "learning.response":
         return m.lrnErrResponse();
       case "learning.nothing_to_retry":

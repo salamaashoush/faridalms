@@ -1,4 +1,8 @@
-import type { FeedbackBand, LessonCondition } from "@faridalms/domain/learning";
+import type {
+  FeedbackBand,
+  FluencyMark,
+  LessonCondition,
+} from "@faridalms/domain/learning";
 import type { LiveProgress, LiveTry } from "@faridalms/domain/live";
 import type { ContentLocale } from "@faridalms/domain/translations";
 import type { SQL } from "drizzle-orm";
@@ -1675,6 +1679,8 @@ export interface AnswerToMark {
   /** The teacher's latest mark on this answer, if any. */
   fraction: number | null;
   feedback: string | null;
+  /** How a passage read aloud was read, as the teacher last marked it. */
+  fluency: FluencyMark | null;
   marked: boolean;
 }
 
@@ -1710,6 +1716,7 @@ export async function answersToMark(
     sent_at: string;
     fraction: string | number | null;
     feedback: string | null;
+    fluency: FluencyMark | null;
     marked: boolean;
   }>(sql`
     with current as (
@@ -1732,10 +1739,11 @@ export async function answersToMark(
         and r.state in ('answered', 'needs_marking')
       order by r.lesson_id, r.student_user_id, r.block_id, r.try desc, r.created_at desc
     )
-    select l.*, m.fraction, m.feedback, m.id is not null as marked
+    select l.*, m.fraction, m.feedback, m.response->'fluency' as fluency,
+      m.id is not null as marked
     from latest l
     left join lateral (
-      select id, fraction, feedback from core.lesson_responses x
+      select id, fraction, feedback, response from core.lesson_responses x
       where x.tenant_id = ${input.tenantId}::uuid and x.lesson_id = l.lesson_id
         and x.student_user_id = l.student_user_id and x.block_id = l.block_id
         and x.attempt = l.attempt and x.try = l.try and x.state = 'marked'
@@ -1759,6 +1767,7 @@ export async function answersToMark(
     sentAt: row.sent_at,
     fraction: row.fraction === null ? null : Number(row.fraction),
     feedback: row.feedback,
+    fluency: row.fluency ?? null,
     marked: row.marked,
   }));
 }

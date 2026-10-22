@@ -649,6 +649,19 @@ Scratch Text to Speech, Translate and tutorials.
    the original, as a lesson's do), the breadcrumb following the
    language read, and a family reading the brief in theirs.
 4. **Reading fluency** assignments, teacher-marked first.
+   Done: a "Read aloud" question holds a passage the student reads aloud,
+   set large above the recorder, their recording the answer. Marking it,
+   the teacher listens and taps each word misread, left out or told, and
+   the word the reading stopped at when it stopped short; the seconds
+   start at the recording's length. The marking page works out words
+   read, errors, accuracy and words correct per minute, the measure oral
+   reading fluency is tracked by, and keeps the marking with the mark. The
+   passage prints to read from. Any written question can be switched to
+   reading aloud from its answer menu.
+   Left: speech recognition marking a first draft for the teacher; each
+   student's words-correct-per-minute over the year against norms; the
+   student seeing the words to practise; reading aloud in quizzes and
+   young lessons; prosody on a rubric.
 5. **A file block copied for each student** to work in.
 
 ## 11. Interoperability and owner decisions

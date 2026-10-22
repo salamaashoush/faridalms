@@ -2670,6 +2670,119 @@ describe("spoken answers", () => {
   });
 });
 
+describe("reading aloud", () => {
+  test("a student reads a passage aloud, and the teacher marks it word by word", async () => {
+    const { keeper } = await teacherSessions();
+    const { rows } = await keeper.api.learning.modules({});
+    const source = rows.find((row) => row.title === TITLE);
+    if (!source) throw new Error("no module");
+    const saved = await keeper.api.learning.saveModule({
+      id: "",
+      expectedVersion: 0,
+      title: "Reading the river",
+      summary: "",
+      classIds: source.classes.map((item) => item.id),
+      prerequisiteId: "",
+      sequential: false,
+    });
+    const question = id();
+    const passage = "The Nile is long.\nBoats sail on it to Cairo.";
+    const lesson = await keeper.api.learning.saveLesson({
+      id: "",
+      moduleId: saved.id,
+      expectedVersion: 0,
+      title: "Read it",
+      completion: "view",
+      passScore: null,
+      content: written([
+        {
+          id: question,
+          type: "written",
+          prompt: "Read this passage aloud.",
+          points: 2,
+          hints: [],
+          explanation: "",
+          tries: null,
+          wordLimit: null,
+          recordSeconds: 180,
+          passage,
+        },
+      ]),
+      publish: false,
+    });
+    await keeper.api.learning.publishModule({
+      id: saved.id,
+      expectedVersion: saved.version,
+    });
+    // The passage travels with the question as the document holds it.
+    const stored = await keeper.api.learning.lesson({ id: lesson.id });
+    expect(JSON.stringify(stored.content)).toContain('"reading":true');
+
+    const pupil = await sessionFor("northwind", login("student"));
+    const played = await pupil.api.learning.playLesson({ id: lesson.id });
+    expect(blockOf(played, "written")).toMatchObject({ passage });
+    const sound = new Blob([new Uint8Array([0x1a, 0x45, 0xdf, 0xa3, 1, 2, 3])]);
+    const file = await pupil.api.files.initiate({
+      purpose: "document_media",
+      name: "reading.webm",
+      mediaType: "audio/webm",
+      sizeBytes: sound.size,
+    });
+    await raw("northwind", pupil.token, `/v1/files/${file.id}/content`, {
+      method: "PUT",
+      body: sound,
+    });
+    await pupil.api.learning.respond({
+      lessonId: lesson.id,
+      blockId: question,
+      response: {
+        type: "written",
+        text: "",
+        recording: { fileId: file.id, seconds: 12 },
+      },
+    });
+    const me = await pupil.api.identity.currentUser();
+    const fluency = { errors: [3, 6], lastWord: 7, seconds: 12 };
+    // Words are counted within the passage, ten of them.
+    expect(
+      await rejection(
+        keeper.api.learning.mark({
+          lessonId: lesson.id,
+          blockId: question,
+          studentIds: [me.id],
+          points: 1,
+          feedback: "",
+          fluency: { ...fluency, errors: [10] },
+        }),
+      ),
+    ).toMatchObject({ message: "learning.fluency" });
+    await keeper.api.learning.mark({
+      lessonId: lesson.id,
+      blockId: question,
+      studentIds: [me.id],
+      points: 1.5,
+      feedback: "Practise the word Boats.",
+      fluency,
+    });
+    const answers = [];
+    for (const item of source.classes) {
+      const data = await keeper.api.learning.answers({
+        moduleId: saved.id,
+        classId: item.id,
+      });
+      expect(
+        data.questions.find((row) => row.blockId === question)?.passage,
+      ).toBe(passage);
+      answers.push(
+        ...data.answers.filter(
+          (row) => row.studentId === me.id && row.blockId === question,
+        ),
+      );
+    }
+    expect(answers).toMatchObject([{ marked: true, fluency }]);
+  });
+});
+
 describe("drawn answers", () => {
   test("a child answers with a drawing, which the teacher sees beside their name", async () => {
     const tenant = seeded().tenants[0];

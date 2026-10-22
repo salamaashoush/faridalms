@@ -115,6 +115,8 @@ export const MAX_MODULE_CLASSES = 20;
  */
 export const RECORD_SECONDS = [15, 45, 90, 180] as const;
 export type RecordSeconds = (typeof RECORD_SECONDS)[number];
+/** The longest passage a student reads aloud, about a page of text. */
+export const MAX_PASSAGE = 5000;
 /**
  * Answers made as a picture: drawn with a finger on the screen, or a photo
  * of something made on paper or with blocks, as Seesaw's young learners
@@ -732,6 +734,11 @@ export const lessonBlockSchema = v.variant("type", [
     recordSeconds: v.optional(v.nullable(v.picklist(RECORD_SECONDS))),
     /** The spoken answer is recorded on camera, or with the student's screen. */
     recordVideo: v.optional(v.boolean()),
+    /**
+     * A passage the student reads aloud, their recording the answer, for
+     * their teacher to mark word by word as a running record is.
+     */
+    passage: v.optional(v.pipe(v.string(), v.maxLength(MAX_PASSAGE))),
     /** Answered with a drawing or a photo rather than words. */
     answerWith: v.optional(v.nullable(v.picklist(PICTURE_ANSWERS))),
     /** The picture a drawing is made over, as a colouring page. */
@@ -3141,6 +3148,44 @@ export const revealSchema = v.object({ lessonId: id, blockId: id });
 /** Answers to one question a teacher gives the same mark at once. */
 export const MAX_MARKED_TOGETHER = 100;
 
+/**
+ * A teacher's marking of a passage read aloud: the words read wrongly,
+ * misread, left out or told, by their place in the passage; the last word
+ * read, when the reading stopped short; and how many seconds it ran.
+ */
+export const fluencyMarkSchema = v.object({
+  errors: v.pipe(
+    v.array(v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(2000))),
+    v.maxLength(2000),
+  ),
+  lastWord: v.nullable(
+    v.pipe(v.number(), v.integer(), v.minValue(0), v.maxValue(2000)),
+  ),
+  seconds: v.pipe(v.number(), v.integer(), v.minValue(1), v.maxValue(600)),
+});
+export type FluencyMark = v.InferOutput<typeof fluencyMarkSchema>;
+
+/** A passage's words as a reading is counted: each run of letters between spaces. */
+export const readingWords = (passage: string): string[] =>
+  passage.split(/\s+/u).filter(Boolean);
+
+/**
+ * What a marked reading comes to: the words read, those read correctly,
+ * accuracy as a share of those read, and words correct per minute, the
+ * measure oral reading fluency is tracked by (Hasbrouck and Tindal 2017).
+ */
+export function fluencyOf(words: number, mark: FluencyMark) {
+  const read = Math.min(words, (mark.lastWord ?? words - 1) + 1);
+  const errors = new Set(mark.errors.filter((place) => place < read)).size;
+  const correct = Math.max(0, read - errors);
+  return {
+    read,
+    correct,
+    accuracy: read === 0 ? 0 : correct / read,
+    perMinute: Math.round((correct * 60) / mark.seconds),
+  };
+}
+
 export const markSchema = v.object({
   lessonId: id,
   blockId: id,
@@ -3151,6 +3196,8 @@ export const markSchema = v.object({
   ),
   points: v.pipe(v.number(), v.minValue(0), v.maxValue(100)),
   feedback: text(2000),
+  /** For a passage read aloud by one student, how it was read. */
+  fluency: v.optional(fluencyMarkSchema),
 });
 
 export const positionSchema = v.object({
