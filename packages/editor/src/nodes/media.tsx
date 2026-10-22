@@ -36,6 +36,7 @@ import { useFileFacts } from "../file-facts";
 import { FileCard, FileViewer, StoredImage } from "../files";
 import { blockAlignClass, imageSizeClass } from "../format";
 import { PictureCreditLine } from "../picture-credit";
+import { CreditFields } from "../picture-credit-fields";
 import { LabelsEditor } from "../picture-labels";
 import { ownKeys, useSelectOnClick } from "./select";
 import { STORED_FILE } from "./stored";
@@ -202,6 +203,11 @@ function ImageBlock({
                   />
                   {strings.imageDecorative}
                 </label>
+                <CreditFields
+                  credit={credit}
+                  strings={strings}
+                  onChange={(next) => update((node) => node.setCredit(next))}
+                />
               </div>
             ) : !alt.trim() && !decorative ? (
               <p className="text-center text-xs text-warning-foreground dark:text-warning">

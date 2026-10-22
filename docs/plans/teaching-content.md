@@ -152,9 +152,14 @@ Sources: [../research/course-design.md](../research/course-design.md),
    address is rebuilt from; and Wikimedia Commons: a Commons or Wikipedia
    file link becomes a picture copied into the school, described in the
    reader's language, its author, licence and source kept under it in
-   reading, print and export.
-   Left: Commons in the picture search beside ARASAAC and OpenMoji, and a
-   credit a teacher can write for a picture of their own.
+   reading, print and export. A teacher writes the credit for a picture
+   of their own under it: who made it, a licence picked from the Creative
+   Commons ones (linked to their terms) or typed, and the page it came
+   from, any one of which may stay empty so long as it names someone or a
+   licence.
+   Left: Commons in the picture search beside ARASAAC and OpenMoji, which
+   waits on the owner: Commons has no safe search, and the picture search
+   also feeds question and term pictures, which keep no credit.
 
 ## 3. Questions and assessment
 

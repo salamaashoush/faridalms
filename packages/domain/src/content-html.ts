@@ -111,7 +111,7 @@ class Writer {
     if (!href) return "";
     const src = escape(href);
     const credited = credit
-      ? `<small>${escape(creditText(credit))} (<a href="${escape(credit.source)}">${escape(credit.source)}</a>)</small>`
+      ? `<small>${escape(creditText(credit))}${credit.source ? ` (<a href="${escape(credit.source)}">${escape(credit.source)}</a>)` : ""}</small>`
       : "";
     return `<figure><img src="${src}" alt="${escape(alt)}">${
       caption || credited

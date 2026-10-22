@@ -1,6 +1,12 @@
+import * as v from "valibot";
 import { describe, expect, it } from "vitest";
 
-import { commonsFile, commonsPicture, creditText } from "./commons";
+import {
+  commonsFile,
+  commonsPicture,
+  creditText,
+  pictureCreditSchema,
+} from "./commons";
 
 const answer = (extmetadata: Record<string, unknown>, image?: string) => ({
   query: {
@@ -112,5 +118,19 @@ describe("a picture from Wikimedia Commons", () => {
     expect(
       commonsPicture({ query: { pages: [{ missing: true }] } }, "en"),
     ).toBeNull();
+  });
+});
+
+describe("a credit a teacher writes for a picture of their own", () => {
+  it("may name only who took it, and reads as just that", () => {
+    const credit = { author: "Salama Ashoush", licence: "" };
+    expect(v.safeParse(pictureCreditSchema, credit).success).toBe(true);
+    expect(creditText(credit)).toBe("Salama Ashoush");
+  });
+
+  it("names someone or a licence", () => {
+    expect(
+      v.safeParse(pictureCreditSchema, { author: " ", licence: "" }).success,
+    ).toBe(false);
   });
 });

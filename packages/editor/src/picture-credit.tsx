@@ -26,15 +26,25 @@ export function PictureCreditLine({
     ...(credit.author
       ? [{ key: "author", node: <bdi>{credit.author}</bdi> }]
       : []),
-    {
-      key: "licence",
-      node: credit.licenceUrl ? (
-        link(credit.licenceUrl, credit.licence, "license noopener noreferrer")
-      ) : (
-        <span>{credit.licence}</span>
-      ),
-    },
-    { key: "source", node: link(credit.source, creditSource(credit)) },
+    ...(credit.licence
+      ? [
+          {
+            key: "licence",
+            node: credit.licenceUrl ? (
+              link(
+                credit.licenceUrl,
+                credit.licence,
+                "license noopener noreferrer",
+              )
+            ) : (
+              <span>{credit.licence}</span>
+            ),
+          },
+        ]
+      : []),
+    ...(credit.source
+      ? [{ key: "source", node: link(credit.source, creditSource(credit)) }]
+      : []),
   ];
   return (
     <p

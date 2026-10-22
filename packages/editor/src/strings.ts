@@ -205,6 +205,12 @@ export interface EditorStrings
   uploadFailed: string;
   imageAlt: string;
   imageDecorative: string;
+  imageCredit: string;
+  imageCreditAuthor: string;
+  imageCreditLicence: string;
+  imageCreditSource: string;
+  imageCreditAllRights: string;
+  imageCreditPublicDomain: string;
   imageAltMissing: string;
   imageCaption: string;
   imageSize: string;

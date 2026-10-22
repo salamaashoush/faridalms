@@ -2,15 +2,16 @@ import * as v from "valibot";
 
 /**
  * A picture's credit, as an open licence asks it be kept with the picture:
- * who made it, under which licence, and the page it came from. Shown under
- * the picture wherever it is read, printed or exported.
+ * who made it, under which licence, and the page it came from. A teacher's
+ * own photograph may name only who took it. Shown under the picture
+ * wherever it is read, printed or exported.
  */
 export interface PictureCredit {
   author: string;
   licence: string;
   licenceUrl?: string;
   /** The page the picture was taken from. */
-  source: string;
+  source?: string;
 }
 
 const httpsUrl = v.pipe(
@@ -26,15 +27,22 @@ const httpsUrl = v.pipe(
   }),
 );
 
-export const pictureCreditSchema = v.object({
-  author: v.pipe(v.string(), v.maxLength(300)),
-  licence: v.pipe(v.string(), v.minLength(1), v.maxLength(120)),
-  licenceUrl: v.optional(httpsUrl),
-  source: httpsUrl,
-});
+export const pictureCreditSchema = v.pipe(
+  v.object({
+    author: v.pipe(v.string(), v.maxLength(300)),
+    licence: v.pipe(v.string(), v.maxLength(120)),
+    licenceUrl: v.optional(httpsUrl),
+    source: v.optional(httpsUrl),
+  }),
+  v.check(
+    (credit) => Boolean(credit.author.trim() || credit.licence.trim()),
+    "content.invalid",
+  ),
+);
 
-/** The site a credited picture came from, named as it names itself. */
+/** The site a credited picture came from, named as it names itself; none for a teacher's own. */
 export function creditSource(credit: PictureCredit): string {
+  if (!credit.source) return "";
   const host = new URL(credit.source).hostname;
   if (host.endsWith("commons.wikimedia.org")) return "Wikimedia Commons";
   if (host.endsWith(".wikipedia.org")) return "Wikipedia";
@@ -229,6 +237,8 @@ export function commonsPicture(
     return null;
   const meta = info.extmetadata;
   const licence = upto(text(meta?.LicenseShortName, language), 120);
+  // A picture taken from Commons is kept only under a licence it names.
+  if (!licence) return null;
   const licenceUrl = text(meta?.LicenseUrl, language);
   const credit = {
     author: upto(text(meta?.Artist, language), 300),
