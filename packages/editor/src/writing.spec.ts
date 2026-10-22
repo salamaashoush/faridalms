@@ -1,7 +1,9 @@
 import type { LexicalEditor } from "lexical";
 
 import { TEXT_SIZES, validContentStyle } from "@faridalms/domain/content";
+import { $createLinkNode } from "@lexical/link";
 import {
+  $createLineBreakNode,
   $createParagraphNode,
   $createTextNode,
   $getRoot,
@@ -37,22 +39,50 @@ describe("find and replace", () => {
   it("finds a word set half in bold, and Arabic without its marks", () => {
     const editor = line(["Photo"], ["synthesis", BOLD], [" makes food."]);
     expect(
-      editor
-        .getEditorState()
-        .read(() => $findInDocument("photosynthesis", false)),
+      editor.getEditorState().read(() => $findInDocument("photosynthesis")),
     ).toHaveLength(1);
     const arabic = line(["قال مُحَمَّد"]);
     expect(
-      arabic.getEditorState().read(() => $findInDocument("محمد", false)),
+      arabic.getEditorState().read(() => $findInDocument("محمد")),
     ).toHaveLength(1);
   });
 
   it("replaces every match, those after the first still where they were", () => {
     const editor = line(["the cat sat on the "], ["cat", BOLD], [" mat"]);
-    editor.update(() => $replaceFound($findInDocument("cat", false), "dog"), {
+    editor.update(() => $replaceFound($findInDocument("cat"), "dog"), {
       discrete: true,
     });
     expect(text(editor)).toBe("the dog sat on the dog mat");
+  });
+
+  it("finds and replaces across a link's edge, never across lines", () => {
+    const editor = buildContentEditor();
+    editor.update(
+      () => {
+        const first = $createParagraphNode().append(
+          $createTextNode("Read the Ni"),
+          $createLinkNode("https://example.com/nile").append(
+            $createTextNode("le guide"),
+          ),
+          $createTextNode(" today."),
+        );
+        const second = $createParagraphNode().append(
+          $createTextNode("Ni"),
+          $createLineBreakNode(),
+          $createTextNode("le"),
+        );
+        $getRoot().clear().append(first, second);
+      },
+      { discrete: true },
+    );
+    const found = editor
+      .getEditorState()
+      .read(() => $findInDocument("nile guide today"));
+    expect(found).toHaveLength(1);
+    editor.update(() => $replaceFound(found, "river guide today"), {
+      discrete: true,
+    });
+    expect(text(editor)).toBe("Read the river guide today.\n\nNi\nle");
   });
 });
 

@@ -525,10 +525,12 @@ Sources: [../research/course-design.md](../research/course-design.md),
    and size off the words chosen and leaves their links. Find and replace
    (Mod+F, by the key so an Arabic keyboard finds too) highlights every
    match in place without touching the text, finds a word set half in
-   bold, and finds Arabic with or without its vowel marks and forms of
-   alef; Enter steps through the matches, Replace all replaces from the
-   last so none moves, and closing selects the match in hand.
-   Left: matches across a link's edge, and whole words only.
+   bold or half in a link (never across a line break), and finds Arabic
+   with or without its vowel marks and forms of alef; Enter steps through
+   the matches, Replace all replaces from the last so none moves, and
+   closing selects the match in hand. Whole words only skips a match with
+   a letter or digit running on at either side, so كتاب is not found in
+   والكتاب, as Word reads it.
 3. **Reusable blocks** kept once and shown in many documents.
    Done: a block at the top of a lesson, quiz, brief or unit plan is kept
    from its menu as a shared block (`shared_blocks`, its content a hosted

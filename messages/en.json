@@ -461,6 +461,7 @@
   "editorFindPrevious": "Previous match",
   "editorFindNext": "Next match",
   "editorFindMatchCase": "Match case",
+  "editorFindWholeWords": "Whole words only",
   "editorFindCount": "{at} of {total}",
   "editorFindNone": "No matches",
   "editorReplaceLabel": "Replace with",

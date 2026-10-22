@@ -474,6 +474,7 @@
   "editorFindPrevious": "النتيجة السابقة",
   "editorFindNext": "النتيجة التالية",
   "editorFindMatchCase": "مطابقة حالة الأحرف",
+  "editorFindWholeWords": "الكلمات الكاملة فقط",
   "editorFindCount": "{at} من {total}",
   "editorFindNone": "لا نتائج",
   "editorReplaceLabel": "استبدل بـ",

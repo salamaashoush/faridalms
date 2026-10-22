@@ -6,12 +6,15 @@ import { $dfs } from "@lexical/utils";
 import {
   $addUpdateTag,
   $createRangeSelection,
+  $isElementNode,
   $isTextNode,
   $setSelection,
   SKIP_DOM_SELECTION_TAG,
 } from "lexical";
 import { ChevronDown, ChevronUp, Search, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
+
+import type { FindOptions } from "../find";
 
 import { useEditorEnvironment } from "../context";
 import { findIn } from "../find";
@@ -30,17 +33,24 @@ export interface Found {
 
 /**
  * Every match in the document, in reading order. Text is searched a run at
- * a time, the neighbouring pieces of one line read together, so a word half
- * in bold is still found.
+ * a time, the neighbouring pieces of one line read together whether or not
+ * a link holds some of them, so a word half in bold or half linked is still
+ * found.
  */
-export function $findInDocument(query: string, matchCase: boolean): Found[] {
+export function $findInDocument(
+  query: string,
+  options: FindOptions = {},
+): Found[] {
   const runs: TextNode[][] = [];
+  // Whether the text next met carries on the run before it: only a link's
+  // own edges come between them, never a line break, a block or an object.
+  let carries = false;
   for (const { node } of $dfs()) {
-    if (!$isTextNode(node)) continue;
-    const run = runs.at(-1);
-    const previous = node.getPreviousSibling();
-    if (run && previous && run.at(-1)?.is(previous)) run.push(node);
-    else runs.push([node]);
+    if ($isTextNode(node)) {
+      if (carries) runs.at(-1)?.push(node);
+      else runs.push([node]);
+      carries = true;
+    } else carries &&= $isElementNode(node) && node.isInline();
   }
   const found: Found[] = [];
   for (const run of runs) {
@@ -64,7 +74,7 @@ export function $findInDocument(query: string, matchCase: boolean): Found[] {
         offset: at - (starts[index] ?? 0),
       };
     };
-    for (const { start, end } of findIn(text, query, matchCase))
+    for (const { start, end } of findIn(text, query, options))
       found.push({ anchor: pointAt(start, false), focus: pointAt(end, true) });
   }
   return found;
@@ -125,6 +135,7 @@ export function FindTool({
   const [query, setQuery] = useState("");
   const [replacement, setReplacement] = useState("");
   const [matchCase, setMatchCase] = useState(false);
+  const [wholeWords, setWholeWords] = useState(false);
   const [matches, setMatches] = useState<Found[]>([]);
   const [current, setCurrent] = useState(0);
   const at = matches.length > 0 ? Math.min(current, matches.length - 1) : -1;
@@ -134,13 +145,15 @@ export function FindTool({
     if (!open) return undefined;
     const search = () =>
       setMatches(
-        editor.getEditorState().read(() => $findInDocument(query, matchCase)),
+        editor
+          .getEditorState()
+          .read(() => $findInDocument(query, { matchCase, wholeWords })),
       );
     search();
     return editor.registerUpdateListener(({ dirtyElements, dirtyLeaves }) => {
       if (dirtyElements.size > 0 || dirtyLeaves.size > 0) search();
     });
-  }, [editor, open, query, matchCase]);
+  }, [editor, open, query, matchCase, wholeWords]);
 
   useEffect(() => {
     const registry = highlights();
@@ -264,16 +277,27 @@ export function FindTool({
                 <ChevronDown aria-hidden />
               </button>
             </div>
-            <div className="flex items-center justify-between gap-2 text-xs">
-              <label className="flex items-center gap-1.5 text-muted-foreground">
-                <input
-                  type="checkbox"
-                  checked={matchCase}
-                  onChange={() => setMatchCase(!matchCase)}
-                  className="size-4 accent-primary"
-                />
-                {strings.findMatchCase}
-              </label>
+            <div className="flex flex-wrap items-center justify-between gap-2 text-xs">
+              <div className="flex flex-wrap gap-x-3 gap-y-1">
+                <label className="flex items-center gap-1.5 text-muted-foreground">
+                  <input
+                    type="checkbox"
+                    checked={matchCase}
+                    onChange={() => setMatchCase(!matchCase)}
+                    className="size-4 accent-primary"
+                  />
+                  {strings.findMatchCase}
+                </label>
+                <label className="flex items-center gap-1.5 text-muted-foreground">
+                  <input
+                    type="checkbox"
+                    checked={wholeWords}
+                    onChange={() => setWholeWords(!wholeWords)}
+                    className="size-4 accent-primary"
+                  />
+                  {strings.findWholeWords}
+                </label>
+              </div>
               <output aria-live="polite" className="text-muted-foreground">
                 {query
                   ? matches.length > 0

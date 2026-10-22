@@ -49,6 +49,7 @@ export function editorStrings(): EditorStrings {
     findPrevious: m.editorFindPrevious(),
     findNext: m.editorFindNext(),
     findMatchCase: m.editorFindMatchCase(),
+    findWholeWords: m.editorFindWholeWords(),
     findCount: (at, total) =>
       m.editorFindCount({ at: formatNumber(at), total: formatNumber(total) }),
     findNone: m.editorFindNone(),

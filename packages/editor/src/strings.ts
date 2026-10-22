@@ -26,6 +26,7 @@ export interface EditorStrings extends LabelEditorStrings, ChartStrings {
   findPrevious: string;
   findNext: string;
   findMatchCase: string;
+  findWholeWords: string;
   findCount: (at: number, total: number) => string;
   findNone: string;
   replaceLabel: string;
