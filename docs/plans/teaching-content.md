@@ -814,10 +814,12 @@ Scratch Text to Speech, Translate and tutorials.
    `module_meta.xml` brings its rules: what finishes each lesson (opened,
    marked done, handed in, or a minimum score as a share of the quiz's
    points), which modules run in order, and the module to finish first.
+   A cartridge's question banks (CC's own, and Canvas's beside its full
+   quizzes) can be kept in the teacher's question bank, each question
+   tagged with its bank's name.
    Left: trying both directions against real Moodle and Canvas sites,
    which were not to hand; a CC 1.3 option carrying assignments with
-   their due dates; Canvas-shaped QTI 1.2 for New Quizzes; bringing a
-   cartridge's question banks into the question bank.
+   their due dates; Canvas-shaped QTI 1.2 for New Quizzes.
 3. **Results shaped for xAPI** (score, duration, completion).
    Done: a module's progress view exports a class's results as Experience
    API 1.0.3 statements, as the owner chose, with no store of our own:

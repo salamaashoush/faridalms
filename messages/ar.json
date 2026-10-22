@@ -3892,6 +3892,34 @@
   "lrnImportTitle": "استيراد مقرر",
   "lrnImportSubmit": "استيراد",
   "lrnImportHint": "اختر مقررًا مصدّرًا بصيغة Common Cartridge ‏(‎.imscc) من Moodle أو Canvas أو نظام آخر. تصل كل وحدة فيه وحدةً في المسودة، وتصبح صفحاتها واختباراتها وروابطها وملفاتها دروسًا، وواجباتها واجباتٍ في المسودة في الفصول التي تختارها. وتصل قواعد وحدات Canvas أيضًا: ما يُنهي كل درس، وأي الوحدات تسبق غيرها.",
+  "lrnImportBanks": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "احفظ بنك أسئلته في بنك أسئلتي",
+        "countPlural=two": "احفظ بنكَي أسئلته في بنك أسئلتي",
+        "countPlural=few": "احفظ بنوك أسئلته الـ{count} في بنك أسئلتي",
+        "countPlural=many": "احفظ بنوك أسئلته الـ{count} في بنك أسئلتي",
+        "countPlural=*": "احفظ بنوك أسئلته الـ{count} في بنك أسئلتي"
+      }
+    }
+  ],
+  "lrnImportBanksHint": "يُوسَم كل سؤال باسم بنكه لتجده مرة أخرى.",
+  "lrnImportedBank": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=zero": "لم يُحفظ أي سؤال في بنك أسئلتك.",
+        "countPlural=one": "حُفظ سؤال واحد في بنك أسئلتك.",
+        "countPlural=two": "حُفظ سؤالان في بنك أسئلتك.",
+        "countPlural=few": "حُفظت {count} أسئلة في بنك أسئلتك.",
+        "countPlural=many": "حُفظ {count} سؤالًا في بنك أسئلتك.",
+        "countPlural=*": "حُفظ {count} سؤال في بنك أسئلتك."
+      }
+    }
+  ],
   "lrnImportedAssignments": [
     {
       "declarations": ["input count", "local countPlural = count: plural"],

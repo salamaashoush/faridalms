@@ -81,6 +81,7 @@ describe("a Common Cartridge's course", () => {
           ],
         },
       ],
+      banks: [],
     });
   });
 
@@ -160,6 +161,7 @@ describe("a Common Cartridge's course", () => {
           ],
         },
       ],
+      banks: [],
     });
   });
 
@@ -264,7 +266,44 @@ describe("a Common Cartridge's course", () => {
           ],
         },
       ],
+      banks: [],
     });
+  });
+
+  it("finds the course's question banks, CC's and Canvas's, apart from its quizzes", () => {
+    const manifest = `<?xml version="1.0"?>
+      <manifest identifier="x" xmlns="http://www.imsglobal.org/xsd/imsccv1p1/imscp_v1p1">
+        <metadata><schema>IMS Common Cartridge</schema><schemaversion>1.1.0</schemaversion></metadata>
+        <organizations><organization identifier="org_1"><item identifier="root">
+          <item identifier="m1"><title>Week 1</title>
+            <item identifier="a" identifierref="quiz1"><title>Check</title></item>
+          </item>
+        </item></organization></organizations>
+        <resources>
+          <resource identifier="quiz1" type="imsqti_xmlv1p2/imscc_xmlv1p1/assessment"><file href="quiz1/assessment_qti.xml"/></resource>
+          <resource identifier="bank1" type="imsqti_xmlv1p2/imscc_xmlv1p1/question-bank"><file href="bank1/bank.xml"/></resource>
+        </resources>
+      </manifest>`;
+    const qti = (body: string) =>
+      bytes(
+        `<questestinterop xmlns="http://www.imsglobal.org/xsd/ims_qtiasiv1p2">${body}</questestinterop>`,
+      );
+    const files = new Map([
+      ["imsmanifest.xml", bytes(manifest)],
+      ["quiz1/assessment_qti.xml", qti('<assessment ident="q1"/>')],
+      ["non_cc_assessments/quiz1.xml.qti", qti('<assessment ident="q1"/>')],
+      ["bank1/bank.xml", qti('<objectbank ident="b1" title="Shared bank"/>')],
+      [
+        "non_cc_assessments/b2.xml.qti",
+        qti(
+          '<objectbank ident="b2"><qtimetadata><qtimetadatafield><fieldlabel>bank_title</fieldlabel><fieldentry>Rivers bank</fieldentry></qtimetadatafield></qtimetadata></objectbank>',
+        ),
+      ],
+    ]);
+    expect(readCartridge(files)?.banks).toEqual([
+      { title: "Shared bank", path: "bank1/bank.xml" },
+      { title: "Rivers bank", path: "non_cc_assessments/b2.xml.qti" },
+    ]);
   });
 
   it("finds a link's file the ways Moodle and Canvas write them", () => {

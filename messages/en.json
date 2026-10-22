@@ -3710,6 +3710,27 @@
   "lrnImportTitle": "Import a course",
   "lrnImportSubmit": "Import",
   "lrnImportHint": "Choose a course exported as a Common Cartridge (.imscc) from Moodle, Canvas or another LMS. Each of its modules comes in as a draft module, its pages, quizzes, links and files as lessons, and its assignments as draft assignments in the classes you choose. Canvas's module rules come too: what finishes each lesson, and which modules come first.",
+  "lrnImportBanks": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "Keep its question bank in my question bank",
+        "countPlural=*": "Keep its {count} question banks in my question bank"
+      }
+    }
+  ],
+  "lrnImportBanksHint": "Each question is tagged with its bank's name, to find it again.",
+  "lrnImportedBank": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "Kept {count} question in your question bank.",
+        "countPlural=*": "Kept {count} questions in your question bank."
+      }
+    }
+  ],
   "lrnImportedAssignments": [
     {
       "declarations": ["input count", "local countPlural = count: plural"],

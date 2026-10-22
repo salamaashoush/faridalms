@@ -16,13 +16,14 @@ import { FormField } from "~/components/system/field";
 import { SheetForm } from "~/components/system/SheetForm";
 import * as m from "~/i18n/messages";
 import { availableToolsQuery } from "~/queries/lti";
+import { saveBankQuestion } from "~/server/bank";
 import { saveAssignment } from "~/server/coursework";
 import { initiateUpload } from "~/server/files";
 import { saveLesson, saveModule } from "~/server/learning";
 import { formatNumber } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
-import { importCartridge } from "./cartridgeImport";
+import { importBanks, importCartridge } from "./cartridgeImport";
 
 const CARTRIDGE = ".imscc,.zip,application/zip";
 
@@ -51,12 +52,14 @@ export function CartridgeImport({
   const save = useServerFn(saveModule);
   const saveOne = useServerFn(saveLesson);
   const assign = useServerFn(saveAssignment);
+  const keepQuestion = useServerFn(saveBankQuestion);
   const tools = useQuery({ ...availableToolsQuery, enabled: open }).data;
   const [found, setFound] = useState<{
     files: Map<string, Uint8Array>;
     cartridge: Cartridge;
   } | null>(null);
   const [chosen, setChosen] = useState<number[]>([]);
+  const [keepBanks, setKeepBanks] = useState(true);
   const [classIds, setClassIds] = useState<string[]>(
     classes.length === 1 && classes[0] ? [classes[0].id] : [],
   );
@@ -67,11 +70,14 @@ export function CartridgeImport({
     total: number;
   } | null>(null);
   const run = useMutation({
-    mutationFn: () => {
+    mutationFn: async () => {
       if (!found) throw new Error(m.lrnImportChoose());
-      if (chosen.length === 0) throw new Error(m.lrnImportNoModules());
-      if (classIds.length === 0) throw new Error(m.lrnClassesNeeded());
-      return importCartridge(found.cartridge, chosen, {
+      const banks = keepBanks && found.cartridge.banks.length > 0;
+      if (chosen.length === 0 && !banks)
+        throw new Error(m.lrnImportNoModules());
+      if (chosen.length > 0 && classIds.length === 0)
+        throw new Error(m.lrnClassesNeeded());
+      const course = await importCartridge(found.cartridge, chosen, {
         files: found.files,
         classIds,
         toolIds: new Set((tools ?? []).map((tool) => tool.id)),
@@ -122,6 +128,27 @@ export function CartridgeImport({
           }),
         onProgress: (done, total) => setProgress({ done, total }),
       });
+      const kept = banks
+        ? await importBanks(found.cartridge, {
+            files: found.files,
+            upload: (file) => uploadDocumentFile(initiate, file, undefined),
+            keep: (question) =>
+              keepQuestion({
+                data: {
+                  id: "",
+                  expectedVersion: 0,
+                  scope: "mine",
+                  tags: question.tags,
+                  content: question.content,
+                },
+              }),
+          })
+        : { kept: 0, check: 0 };
+      return {
+        modules: course.modules,
+        kept: kept.kept,
+        counts: { ...course.counts, check: course.counts.check + kept.check },
+      };
     },
     meta: { inlineError: true },
   });
@@ -150,10 +177,13 @@ export function CartridgeImport({
       error={problem ?? (run.error ? getMessageFromError(run.error) : null)}
       onSubmit={async () => {
         await run.mutateAsync().then(
-          async ({ modules, counts }) => {
+          async ({ modules, counts, kept }) => {
             toast.success(
               [
-                m.lrnImported({ count: counts.lessons }),
+                counts.lessons > 0 || kept + counts.assignments === 0
+                  ? m.lrnImported({ count: counts.lessons })
+                  : null,
+                kept > 0 ? m.lrnImportedBank({ count: kept }) : null,
                 counts.assignments > 0
                   ? m.lrnImportedAssignments({ count: counts.assignments })
                   : null,
@@ -164,7 +194,10 @@ export function CartridgeImport({
                 .filter(Boolean)
                 .join(" "),
             );
-            await queryClient.invalidateQueries({ queryKey: ["learning"] });
+            await Promise.all([
+              queryClient.invalidateQueries({ queryKey: ["learning"] }),
+              queryClient.invalidateQueries({ queryKey: ["bank"] }),
+            ]);
             onClose();
             const [first] = modules;
             if (modules.length === 1 && first)
@@ -218,6 +251,15 @@ export function CartridgeImport({
             />
           ))}
         </fieldset>
+      ) : null}
+      {found && found.cartridge.banks.length > 0 ? (
+        <CheckboxRow
+          label={m.lrnImportBanks({ count: found.cartridge.banks.length })}
+          hint={m.lrnImportBanksHint()}
+          checked={keepBanks}
+          disabled={run.isPending}
+          onChange={setKeepBanks}
+        />
       ) : null}
       {found ? (
         <ComboboxField

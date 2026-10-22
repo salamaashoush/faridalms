@@ -8,12 +8,14 @@ import type { ContentDocument, ContentNode } from "@faridalms/domain/content";
 import type { LessonBlock, LessonCompletion } from "@faridalms/domain/learning";
 import type { UploadedFile } from "@faridalms/editor";
 
+import { MAX_BANK_TAG } from "@faridalms/domain/bank";
 import { cartridgeFile, packagePath } from "@faridalms/domain/cartridge-read";
 import { embedSource, parseEmbedUrl } from "@faridalms/domain/embed";
 import { imageSize, mediaTypeFor } from "@faridalms/domain/file";
 import {
   contentOfLesson,
   holdsQuestions,
+  questionNode,
 } from "@faridalms/domain/lesson-content";
 import { qti12Items, questionOfQti12 } from "@faridalms/domain/qti12";
 import { contentOfHtml, STORED_FILE } from "@faridalms/editor/html-import";
@@ -179,12 +181,15 @@ async function keptLesson(
   };
 }
 
-/** A quiz's questions, each with its pictures stored, as a lesson asks them. */
-async function quizContent(
+/**
+ * The questions of a QTI 1.2 file, quiz or bank, each with its pictures
+ * stored, and how many came in only roughly or not at all.
+ */
+async function questionsIn(
   path: string,
-  importer: Importer,
+  importer: Pick<Importer, "files">,
   store: Store,
-): Promise<{ content: ContentDocument; check: number } | null> {
+): Promise<{ blocks: LessonBlock[]; check: number } | null> {
   const document = xmlOf(importer.files.get(path));
   if (!document) return null;
   const paths = new Set(importer.files.keys());
@@ -229,8 +234,75 @@ async function quizContent(
     if (read.note) check += 1;
     blocks.push(read.block);
   }
-  const content = contentOfLesson({ version: 2, blocks });
-  return content ? { content, check } : null;
+  return { blocks, check };
+}
+
+/** A quiz's questions as a lesson asks them. */
+async function quizContent(
+  path: string,
+  importer: Importer,
+  store: Store,
+): Promise<{ content: ContentDocument; check: number } | null> {
+  const read = await questionsIn(path, importer, store);
+  const content = read
+    ? contentOfLesson({ version: 2, blocks: read.blocks })
+    : null;
+  return read && content ? { content, check: read.check } : null;
+}
+
+/**
+ * Keeps a cartridge's question banks in the teacher's question bank, each
+ * question tagged with its bank's name so the bank can be found again.
+ */
+export async function importBanks(
+  cartridge: Cartridge,
+  importer: {
+    files: ReadonlyMap<string, Uint8Array>;
+    upload: (file: File) => Promise<UploadedFile>;
+    keep: (question: {
+      content: ContentDocument;
+      tags: string[];
+    }) => Promise<unknown>;
+  },
+): Promise<{ kept: number; check: number }> {
+  const store = storer({ ...importer, toolIds: new Set() });
+  let kept = 0;
+  let check = 0;
+  for (const bank of cartridge.banks) {
+    const read = await questionsIn(bank.path, importer, store);
+    if (!read) {
+      check += 1;
+      continue;
+    }
+    check += read.check;
+    const tag = bank.title.trim().slice(0, MAX_BANK_TAG);
+    for (const block of read.blocks) {
+      const node = questionNode(block);
+      if (!node) {
+        check += 1;
+        continue;
+      }
+      try {
+        await importer.keep({
+          content: {
+            root: {
+              type: "root",
+              version: 1,
+              children: [node],
+              direction: null,
+              format: "",
+              indent: 0,
+            },
+          },
+          tags: tag ? [tag] : [],
+        });
+        kept += 1;
+      } catch {
+        check += 1;
+      }
+    }
+  }
+  return { kept, check };
 }
 
 /** One item of the course as the content of its lesson. */

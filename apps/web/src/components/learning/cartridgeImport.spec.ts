@@ -2,7 +2,7 @@ import type { Cartridge } from "@faridalms/domain/cartridge-read";
 
 import { describe, expect, it } from "vitest";
 
-import { importCartridge } from "./cartridgeImport";
+import { importBanks, importCartridge } from "./cartridgeImport";
 
 const bytes = (text: string) => new TextEncoder().encode(text);
 
@@ -29,6 +29,7 @@ describe("bringing a cartridge's course in", () => {
     ]);
     const cartridge: Cartridge = {
       title: "Geography",
+      banks: [],
       modules: [
         {
           title: "Week 1",
@@ -165,5 +166,40 @@ describe("bringing a cartridge's course in", () => {
       check: 0,
       failed: 0,
     });
+  });
+});
+
+describe("bringing a cartridge's question banks in", () => {
+  it("keeps each question alone, tagged with its bank's name", async () => {
+    const kept: { kind: string | undefined; tags: string[] }[] = [];
+    const result = await importBanks(
+      {
+        title: "Geography",
+        modules: [],
+        banks: [{ title: "Rivers bank", path: "b/bank.xml" }],
+      },
+      {
+        files: new Map([
+          [
+            "b/bank.xml",
+            bytes(
+              quiz
+                .replace("<assessment", "<objectbank")
+                .replace("</assessment>", "</objectbank>"),
+            ),
+          ],
+        ]),
+        upload: () => Promise.reject(new Error("no files here")),
+        keep: (question) => {
+          kept.push({
+            kind: question.content.root.children?.[0]?.type,
+            tags: question.tags,
+          });
+          return Promise.resolve();
+        },
+      },
+    );
+    expect(kept).toEqual([{ kind: "question", tags: ["Rivers bank"] }]);
+    expect(result).toEqual({ kept: 1, check: 0 });
   });
 });

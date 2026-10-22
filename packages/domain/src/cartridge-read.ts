@@ -45,9 +45,16 @@ export interface CartridgeModule {
   prerequisites?: number[];
 }
 
+/** A bank of questions a course keeps apart from its quizzes, to draw on. */
+export interface CartridgeBank {
+  title: string;
+  path: string;
+}
+
 export interface Cartridge {
   title: string;
   modules: CartridgeModule[];
+  banks: CartridgeBank[];
 }
 
 /** A path inside a package, from a file's own path and a link in it. */
@@ -428,5 +435,55 @@ export function readCartridge(
     });
   }
   if (loose.length > 0) modules.push({ title: courseTitle, items: loose });
-  return { title: courseTitle, modules };
+  return {
+    title: courseTitle,
+    modules,
+    banks: banksOf(files, resources, modules, courseTitle),
+  };
+}
+
+/** A QTI 1.2 bank's name: Canvas's own field, else its title, else none. */
+function bankTitle(root: Element): string {
+  const field = named(root, "qtimetadatafield").find(
+    (each) => text(named(each, "fieldlabel")[0]) === "bank_title",
+  );
+  return (
+    text(field ? named(field, "fieldentry")[0] : undefined) ||
+    (named(root, "objectbank")[0]?.getAttribute("title") ?? "").trim()
+  );
+}
+
+/**
+ * The course's question banks: CC's own, kept as resources outside the
+ * course, and Canvas's, which it writes beside its full quizzes.
+ */
+function banksOf(
+  files: ReadonlyMap<string, Uint8Array>,
+  resources: ReadonlyMap<string, Resource>,
+  modules: readonly CartridgeModule[],
+  courseTitle: string,
+): CartridgeBank[] {
+  const asked = new Set(
+    modules.flatMap((module) =>
+      module.items.flatMap((item) => (item.kind === "quiz" ? [item.path] : [])),
+    ),
+  );
+  const paths = [
+    ...[...resources.values()].flatMap((resource) =>
+      resource.type.endsWith("question-bank")
+        ? [resource.href || resource.files[0] || ""]
+        : [],
+    ),
+    ...[...files.keys()].filter((path) =>
+      /(?:^|\/)non_cc_assessments\/[^/]+\.xml\.qti$/u.test(path),
+    ),
+  ];
+  const banks: CartridgeBank[] = [];
+  for (const path of new Set(paths)) {
+    if (!path || asked.has(path)) continue;
+    const root = descriptor(files, path);
+    if (!root || named(root, "objectbank").length === 0) continue;
+    banks.push({ title: bankTitle(root) || courseTitle, path });
+  }
+  return banks;
 }
