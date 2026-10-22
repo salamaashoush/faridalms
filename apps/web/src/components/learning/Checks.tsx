@@ -88,6 +88,7 @@ import { PictureAnswer } from "./PictureAnswer";
 import { ReadAloud, ReaderContext, YoungContext } from "./ReadAloud";
 import { useReorder } from "./reorder";
 import { SpokenRecorder, SpokenStatus } from "./SpokenAnswer";
+import { useCardDrag } from "./young/drag";
 import { playSound } from "./young/sounds";
 import { YoungCounting } from "./young/YoungCounting";
 import { YoungHotspot } from "./young/YoungHotspot";
@@ -1301,7 +1302,60 @@ const precedingGap = (segments: Of<"gaps">["segments"], index: number) =>
   segments.slice(0, index).findLast((segment) => segment.type === "gap")?.id ??
   "start";
 
-/** Words or labels to place, each pressed to put it in the next empty place. */
+/** Where a bank's words can be dragged: its places, marked `data-spot`, and the bank itself. */
+interface BankDrop {
+  /** The bank's own spot, which takes a word back off its place. */
+  pile: string;
+  onDrop: (word: string, spot: string) => void;
+  /** Where a word sits once placed, for its copy to glide onto. */
+  placed: (word: string) => HTMLElement | undefined;
+}
+
+/** One word of a bank: pressed onto the next empty place, or dragged onto any. */
+function BankWord({
+  word,
+  used,
+  locked,
+  label,
+  onUse,
+  drop,
+}: {
+  word: string;
+  used: boolean;
+  locked: boolean;
+  label: string;
+  onUse: () => void;
+  drop: BankDrop | undefined;
+}) {
+  const drag = useCardDrag({
+    locked: locked || !drop,
+    pile: drop?.pile ?? "",
+    onDrop: (spot) => drop?.onDrop(word, spot),
+    card: () => drop?.placed(word),
+  });
+  return (
+    <button
+      type="button"
+      disabled={locked}
+      aria-label={label}
+      {...(drop ? drag.handlers : {})}
+      onClick={() => {
+        // A drag that ended is not also a press.
+        if (drag.wasDragged()) return;
+        onUse();
+      }}
+      className={cn(
+        "rounded-md border bg-card px-2.5 py-1 text-sm leading-5 transition-colors hover:bg-muted disabled:pointer-events-none max-md:min-h-10",
+        drop && "touch-none select-none",
+        used && "border-dashed text-muted-foreground",
+      )}
+    >
+      {word}
+    </button>
+  );
+}
+
+/** Words or labels to place, each pressed to put it in the next empty place, or dragged where it goes. */
 function WordBank({
   title,
   words,
@@ -1309,6 +1363,7 @@ function WordBank({
   locked,
   labelOf,
   onUse,
+  drop,
 }: {
   title: string;
   words: string[];
@@ -1316,27 +1371,28 @@ function WordBank({
   locked: boolean;
   labelOf: (word: string) => string;
   onUse: (word: string) => void;
+  drop?: BankDrop;
 }) {
   return (
     <div className="grid gap-1.5">
       <p className="text-[13px] leading-[18px] font-medium text-muted-foreground">
         {title}
       </p>
-      <ul dir="auto" className="flex flex-wrap gap-1.5">
+      <ul
+        dir="auto"
+        data-spot={drop?.pile}
+        className="flex flex-wrap gap-1.5 rounded-md data-[over]:bg-muted/60"
+      >
         {words.map((word) => (
           <li key={word}>
-            <button
-              type="button"
-              disabled={locked}
-              aria-label={labelOf(word)}
-              onClick={() => onUse(word)}
-              className={cn(
-                "rounded-md border px-2.5 py-1 text-sm leading-5 transition-colors hover:bg-muted disabled:pointer-events-none max-md:min-h-10",
-                used.includes(word) && "border-dashed text-muted-foreground",
-              )}
-            >
-              {word}
-            </button>
+            <BankWord
+              word={word}
+              used={used.includes(word)}
+              locked={locked}
+              label={labelOf(word)}
+              onUse={() => onUse(word)}
+              drop={drop}
+            />
           </li>
         ))}
       </ul>
@@ -1345,10 +1401,11 @@ function WordBank({
 }
 
 /**
- * A picture with numbered places, each given a label from the bank: pressed
- * onto the next empty place, or chosen for each place from its list, so a
- * keyboard and a screen reader label as a finger does. The places keep to
- * the picture, which reads the same way in either language.
+ * A picture with numbered places, each given a label from the bank: dragged
+ * onto its place, pressed onto the next empty one, or chosen for each place
+ * from its list, so a keyboard and a screen reader label as a finger does.
+ * The places keep to the picture, which reads the same way in either
+ * language.
  */
 function LabellingCheck({
   block,
@@ -1375,6 +1432,29 @@ function LabellingCheck({
     if (canCheck) respond.mutate({ type: "labelling", labels });
   };
   const locked = !editing || settled;
+  // Spots carry the question's id, so a label is never dropped onto
+  // another question's picture on the same page.
+  const spotOf = (number: string) => `${block.id}:${number}`;
+  const chips = useRef(new Map<string, HTMLElement>());
+  // The place the last drop went to, for the label's copy to glide onto.
+  const dropped = useRef<string | null>(null);
+  const drop: BankDrop = {
+    pile: spotOf("bank"),
+    onDrop: (word, spot) => {
+      const number = numbers.find((item) => spotOf(item) === spot) ?? null;
+      dropped.current = number;
+      if (!number && spot !== spotOf("bank")) return;
+      // A label sits in one place at a time, so dragging it moves it.
+      setLabels((now) => {
+        const left = Object.fromEntries(
+          Object.entries(now).filter(([, label]) => label !== word),
+        );
+        return number ? { ...left, [number]: word } : left;
+      });
+    },
+    placed: () =>
+      dropped.current ? chips.current.get(dropped.current) : undefined,
+  };
   return (
     <CheckCard
       block={block}
@@ -1404,8 +1484,9 @@ function LabellingCheck({
         labelOf={(label) => m.lrnLabelUse({ label })}
         onUse={(label) => {
           const next = numbers.find((number) => !labels[number]);
-          if (next) setLabels((current) => ({ ...current, [next]: label }));
+          if (next) setLabels((now) => ({ ...now, [next]: label }));
         }}
+        drop={drop}
       />
       <div dir="ltr" className="relative mx-auto w-fit max-w-full">
         {block.picture ? (
@@ -1424,8 +1505,9 @@ function LabellingCheck({
             <div
               key={number}
               aria-hidden
+              data-spot={spotOf(number)}
               className={cn(
-                "absolute rounded-md border-2",
+                "absolute rounded-md border-2 data-[over]:border-solid data-[over]:bg-primary/15",
                 mark === "right"
                   ? "border-success"
                   : mark === "wrong"
@@ -1445,6 +1527,10 @@ function LabellingCheck({
                 </span>
                 {labels[number] ? (
                   <span
+                    ref={(element) => {
+                      if (element) chips.current.set(number, element);
+                      else chips.current.delete(number);
+                    }}
                     dir="auto"
                     className="rounded bg-background/95 px-1.5 py-0.5 text-xs leading-4 font-medium whitespace-nowrap shadow"
                   >
@@ -1471,7 +1557,7 @@ function LabellingCheck({
                 value={labels[number] ?? null}
                 onValueChange={(value) => {
                   if (value !== null)
-                    setLabels((current) => ({ ...current, [number]: value }));
+                    setLabels((now) => ({ ...now, [number]: value }));
                 }}
                 disabled={locked}
               >
