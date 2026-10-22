@@ -102,6 +102,7 @@ import {
   unlinkFiles,
 } from "@faridalms/database/stores/files";
 import { classCategories } from "@faridalms/database/stores/grading";
+import { columnScores, columnsOf } from "@faridalms/database/stores/lti";
 import {
   attemptUnderReview,
   reviewsAttempt,
@@ -257,6 +258,7 @@ import {
   registerLiveRules,
   placeMedia,
 } from "../files/authorize";
+import { resultOf } from "../lti/grades";
 
 const id = v.pipe(v.string(), v.uuid());
 
@@ -1654,8 +1656,35 @@ export const grading = readProcedure
       assignment.submissionFormat === "quiz" && row.submissionId
         ? await graderQuiz(context, assignment, row.submissionId)
         : null;
+    // What outside tools in the brief scored the student, for the grader
+    // to weigh or take as the mark.
+    const columns = await columnsOf(context.tx, {
+      tenantId: context.tenantId,
+      assignmentId: assignment.id,
+    });
+    const scores = await columnScores(context.tx, {
+      tenantId: context.tenantId,
+      lineItemIds: columns.map((column) => column.id),
+      studentIds: [input.studentId],
+    });
     return {
       quiz,
+      toolScores: columns.flatMap((column) => {
+        const score = scores.find((item) => item.lineItemId === column.id);
+        return score
+          ? [
+              {
+                lineItemId: column.id,
+                label: column.label,
+                toolName: column.toolName,
+                maximum: column.scoreMaximum,
+                result: resultOf(score, column),
+                gradingProgress: score.gradingProgress,
+                comment: score.comment,
+              },
+            ]
+          : [];
+      }),
       discussion:
         assignment.submissionFormat === "discussion"
           ? await postsOfStudent(context, assignment, input.studentId)

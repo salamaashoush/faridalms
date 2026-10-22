@@ -97,6 +97,7 @@ import {
   watchesOf,
   watchRowsIn,
 } from "@faridalms/database/stores/learning";
+import { columnScores, columnsOf } from "@faridalms/database/stores/lti";
 import { localeOf } from "@faridalms/database/stores/preferences";
 import {
   judgementsOf,
@@ -223,6 +224,7 @@ import {
   registerLiveRules,
   placeMedia,
 } from "../files/authorize";
+import { resultOf } from "../lti/grades";
 
 const id = v.pipe(v.string(), v.uuid());
 
@@ -1630,12 +1632,35 @@ export const progress = readProcedure
           : [];
       });
     });
+    const columns = await columnsOf(context.tx, {
+      tenantId: context.tenantId,
+      moduleId: row.id,
+    });
+    const scores = await columnScores(context.tx, {
+      tenantId: context.tenantId,
+      lineItemIds: columns.map((column) => column.id),
+      studentIds: roster,
+    });
     return {
       module: { id: row.id, title: row.title },
       classes,
       lessons,
       students,
       paths,
+      tools: columns,
+      toolScores: scores.flatMap((score) => {
+        const column = columns.find((item) => item.id === score.lineItemId);
+        return column
+          ? [
+              {
+                lineItemId: score.lineItemId,
+                studentId: score.studentUserId,
+                result: resultOf(score, column),
+                gradingProgress: score.gradingProgress,
+              },
+            ]
+          : [];
+      }),
       cells: cells.map((cell) => ({
         lessonId: cell.lessonId,
         studentId: cell.studentUserId,

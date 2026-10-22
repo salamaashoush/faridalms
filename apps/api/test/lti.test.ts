@@ -1,5 +1,6 @@
 import type { LtiLink } from "@faridalms/domain/lti";
 
+import { plainContent } from "@faridalms/domain/content-conversion";
 import { contentOfLesson } from "@faridalms/domain/lesson-content";
 import {
   LTI_AGS_CLAIM,
@@ -171,7 +172,13 @@ async function lessonWithLink(toolId: string, link: Partial<LtiLink> = {}) {
     id: saved.id,
     expectedVersion: saved.version,
   });
-  return { keeper, lessonId: lesson.id, linkId, moduleId: saved.id };
+  return {
+    keeper,
+    lessonId: lesson.id,
+    linkId,
+    moduleId: saved.id,
+    classIds: source.classes.map((item) => item.id),
+  };
 }
 
 describe("outside tools by LTI 1.3", () => {
@@ -485,9 +492,10 @@ describe("outside tools by LTI 1.3", () => {
     const other = tools.find((row) => row.id === stranger.id);
     if (!tool || !other) throw new Error("tools not registered");
     expect(platform.tokenUrl).toBe("https://localhost/lti/token");
-    const { lessonId, linkId } = await lessonWithLink(tool.id, {
-      lineItem: { label: "Flood quiz", scoreMaximum: 10, tag: "grade" },
-    });
+    const { keeper, lessonId, linkId, moduleId, classIds } =
+      await lessonWithLink(tool.id, {
+        lineItem: { label: "Flood quiz", scoreMaximum: 10, tag: "grade" },
+      });
     const pupil = await sessionFor("northwind", login("student"));
     const me = await pupil.api.identity.currentUser();
     const start = `/lti/launch?host=lesson&id=${lessonId}&link=${linkId}`;
@@ -652,6 +660,21 @@ describe("outside tools by LTI 1.3", () => {
         ],
       );
 
+      // The module's teacher sees the column and the score in its progress.
+      const progress = (
+        await Promise.all(
+          classIds.map((classId) =>
+            keeper.api.learning.progress({ moduleId, classId }),
+          ),
+        )
+      ).find((row) => row.students.some((student) => student.id === me.id));
+      expect(progress?.tools).toMatchObject([
+        { label: "Flood quiz", toolName: "Quiz maker", scoreMaximum: 10 },
+      ]);
+      expect(
+        progress?.toolScores.find((row) => row.studentId === me.id),
+      ).toMatchObject({ result: 7, gradingProgress: "FullyGraded" });
+
       // A tool makes a column of its own, and pages through them.
       const made = await call(endpoint.lineitems, {
         method: "POST",
@@ -696,5 +719,141 @@ describe("outside tools by LTI 1.3", () => {
     } finally {
       fetched.mockRestore();
     }
+  });
+
+  test("a teacher marking a brief sees what its tool scored the student", async () => {
+    const office = await signedIn("northwind", login("principal"));
+    const registered = await office.lti.saveTool({
+      name: "Lab bench",
+      loginUrl: `${TOOL}/login`,
+      launchUrl: `${TOOL}/launch`,
+      redirectUrls: [`${TOOL}/launch`],
+      jwksUrl: `${TOOL}/bench/jwks`,
+      sendNames: false,
+    });
+    const tool = (await office.lti.tools()).tools.find(
+      (row) => row.id === registered.id,
+    );
+    if (!tool) throw new Error("tool not registered");
+    const teacher = await sessionFor("northwind", login("teacher", 0, 1));
+    const pupil = await sessionFor("northwind", login("student"));
+    const me = await pupil.api.identity.currentUser();
+    const { classes } = await teacher.api.coursework.options();
+    let classId = "";
+    for (const row of classes.filter(
+      (item) => item.classType === "scheduled",
+    )) {
+      const { roster } = await teacher.api.coursework.groups({
+        classId: row.id,
+      });
+      if (roster.some((student) => student.id === me.id)) classId ||= row.id;
+    }
+    const linkId = crypto.randomUUID();
+    const brief = plainContent("Measure how fast the water rises.");
+    brief.root.children = [
+      ...(brief.root.children ?? []),
+      {
+        type: "lti",
+        version: 1,
+        lti: {
+          linkId,
+          toolId: tool.id,
+          title: "Rising water",
+          lineItem: { label: "Rising water", scoreMaximum: 10 },
+        },
+      },
+    ];
+    const saved = await teacher.api.coursework.save({
+      classId,
+      title: "Water on the bench",
+      brief,
+      audience: "class",
+      latePolicy: "accept",
+      submissionFormat: "online",
+      points: 20,
+      rubric: null,
+    });
+    await teacher.api.coursework.publish({
+      id: saved.id,
+      expectedVersion: saved.version,
+    });
+    const claims = decodeJwt(
+      await launchToken(
+        pupil.token,
+        me.id,
+        tool.clientId,
+        `/lti/launch?host=assignment&id=${saved.id}&link=${linkId}`,
+      ),
+    );
+    const endpoint = claims[LTI_AGS_CLAIM] as {
+      lineitems: string;
+      lineitem: string;
+    };
+    expect(endpoint.lineitems).toContain(`/ags/class/${classId}/`);
+
+    const pair = await generateKeyPair("RS256");
+    const keys = {
+      keys: [{ ...(await exportJWK(pair.publicKey)), kid: "b-1" }],
+    };
+    const fetched = spyOn(globalThis, "fetch").mockImplementation(
+      Object.assign(
+        async (input: string | URL | Request) =>
+          (input instanceof Request ? input.url : input.toString()) ===
+          `${TOOL}/bench/jwks`
+            ? Response.json(keys)
+            : Response.json({}, { status: 404 }),
+        { preconnect: () => undefined },
+      ),
+    );
+    try {
+      const { access_token: access } = (await (
+        await askToken(
+          await assertion(tool.clientId, pair.privateKey, "b-1"),
+          LTI_AGS_SCOPES.score,
+        )
+      ).json()) as { access_token: string };
+      const scored = await raw(
+        "northwind",
+        access,
+        `${local(endpoint.lineitem)}/scores`,
+        {
+          method: "POST",
+          headers: { "content-type": "application/vnd.ims.lis.v1.score+json" },
+          body: JSON.stringify({
+            userId: me.id,
+            scoreGiven: 3,
+            scoreMaximum: 5,
+            comment: "Timed it well.",
+            activityProgress: "Completed",
+            gradingProgress: "FullyGraded",
+            timestamp: new Date().toISOString(),
+          }),
+        },
+      );
+      expect(scored.status).toBe(204);
+      // A token for scores alone reads nothing back.
+      expect(
+        (await raw("northwind", access, `${local(endpoint.lineitem)}/results`))
+          .status,
+      ).toBe(403);
+    } finally {
+      fetched.mockRestore();
+    }
+
+    const sheet = await teacher.api.coursework.grading({
+      assignmentId: saved.id,
+      studentId: me.id,
+    });
+    expect(sheet.toolScores).toEqual([
+      {
+        lineItemId: expect.any(String),
+        label: "Rising water",
+        toolName: "Lab bench",
+        maximum: 10,
+        result: 6,
+        gradingProgress: "FullyGraded",
+        comment: "Timed it well.",
+      },
+    ]);
   });
 });

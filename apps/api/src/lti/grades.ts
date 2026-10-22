@@ -112,6 +112,19 @@ export async function gradesClaim(
   };
 }
 
+/**
+ * A student's score in a tool's column, out of the column's own maximum,
+ * however the tool counted it; none when the tool sent none.
+ */
+export function resultOf(
+  score: { scoreGiven: number | null; scoreMaximum: number | null },
+  column: { scoreMaximum: number },
+): number | null {
+  return score.scoreGiven === null || !score.scoreMaximum
+    ? null
+    : (score.scoreGiven / score.scoreMaximum) * column.scoreMaximum;
+}
+
 const oauthError = (error: string, status = 400) =>
   Response.json({ error }, { status, headers: noStore });
 
@@ -516,7 +529,6 @@ export async function gradeService(
       limit: limit + 1,
     });
     const itemUrl = lineItemUrl(context, item.id);
-    // A tool's score is shown out of the column's own maximum.
     const results = rows
       .slice(0, limit)
       .filter((row) => row.scoreGiven !== null || row.comment)
@@ -524,11 +536,10 @@ export async function gradeService(
         id: `${itemUrl}/results/${row.studentUserId}`,
         scoreOf: itemUrl,
         userId: row.studentUserId,
-        ...(row.scoreGiven === null || row.scoreMaximum === null
+        ...(resultOf(row, item) === null
           ? {}
           : {
-              resultScore:
-                (row.scoreGiven / row.scoreMaximum) * item.scoreMaximum,
+              resultScore: resultOf(row, item),
               resultMaximum: item.scoreMaximum,
             }),
         ...(row.comment ? { comment: row.comment } : {}),

@@ -44,6 +44,7 @@ import {
 import { useEffect, useState } from "react";
 import { toast } from "sonner";
 
+import { toolGrading } from "~/components/content/lti";
 import { CourseworkStanding } from "~/components/exams/Authentication";
 import { FormField, SelectField, TextField } from "~/components/system/field";
 import { FileList } from "~/components/system/FileList";
@@ -574,6 +575,80 @@ function GradeSheet({
                 </div>
               ))
             : null}
+          {data.toolScores.length > 0 ? (
+            <section aria-labelledby="grade-tools" className="grid gap-2">
+              <div className="grid gap-0.5">
+                <h3
+                  id="grade-tools"
+                  className="text-sm leading-5 font-semibold"
+                >
+                  {m.ltiToolScores()}
+                </h3>
+                <p className="text-[13px] leading-[18px] text-muted-foreground">
+                  {m.ltiToolScoresHint()}
+                </p>
+              </div>
+              <ul className="grid gap-2">
+                {data.toolScores.map((row) => {
+                  // A tool counts out of its own column; the mark counts out
+                  // of the assignment's points.
+                  const mark =
+                    row.result === null
+                      ? null
+                      : Math.round(
+                          (points === null
+                            ? row.result
+                            : (row.result / row.maximum) * points) * 100,
+                        ) / 100;
+                  return (
+                    <li
+                      key={row.lineItemId}
+                      className="flex flex-wrap items-center justify-between gap-x-3 gap-y-2 rounded-lg bg-muted/50 px-3 py-2"
+                    >
+                      <div className="grid min-w-0 gap-0.5">
+                        <span className="text-sm leading-5 font-medium">
+                          <bdi>{row.label}</bdi> ·{" "}
+                          <bdi className="font-normal text-muted-foreground">
+                            {row.toolName}
+                          </bdi>
+                        </span>
+                        <span className="text-[13px] leading-[18px] text-muted-foreground">
+                          {row.result === null
+                            ? toolGrading(row.gradingProgress)
+                            : `${m.ltiScoreOf({
+                                score: formatNumber(
+                                  Math.round(row.result * 100) / 100,
+                                ),
+                                maximum: formatNumber(row.maximum),
+                              })} · ${toolGrading(row.gradingProgress)}`}
+                        </span>
+                        {row.comment ? (
+                          <p
+                            dir="auto"
+                            className="text-[13px] leading-[18px] whitespace-pre-line"
+                          >
+                            {row.comment}
+                          </p>
+                        ) : null}
+                      </div>
+                      {mark !== null && attempt ? (
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          className="max-md:h-10"
+                          aria-label={m.ltiUseScoreFor({ label: row.label })}
+                          onClick={() => setScore(String(mark))}
+                        >
+                          {m.ltiUseScore()}
+                        </Button>
+                      ) : null}
+                    </li>
+                  );
+                })}
+              </ul>
+            </section>
+          ) : null}
           <TextField
             id="grade-score"
             label={

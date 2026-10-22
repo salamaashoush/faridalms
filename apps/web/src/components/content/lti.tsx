@@ -1,4 +1,8 @@
-import type { LtiHost, LtiPick } from "@faridalms/domain/lti";
+import type {
+  LtiGradingProgress,
+  LtiHost,
+  LtiPick,
+} from "@faridalms/domain/lti";
 import type { EditorTools, LtiPicking } from "@faridalms/editor";
 import type { ReactNode } from "react";
 
@@ -7,6 +11,7 @@ import { useQuery } from "@tanstack/react-query";
 import { createContext, useCallback, useContext, useMemo } from "react";
 
 import { useCapability } from "~/hooks/useCurrentUser";
+import * as m from "~/i18n/messages";
 import { availableToolsQuery } from "~/queries/lti";
 
 /** The lesson or brief a document belongs to, which its tool links launch from. */
@@ -102,3 +107,15 @@ export function useEditorTools(): EditorTools | undefined {
       : { list: tools, href };
   }, [host, tools, href]);
 }
+
+const GRADING: Record<LtiGradingProgress, () => string> = {
+  FullyGraded: m.ltiGradingFullyGraded,
+  Pending: m.ltiGradingPending,
+  PendingManual: m.ltiGradingPendingManual,
+  Failed: m.ltiGradingFailed,
+  NotReady: m.ltiGradingNotReady,
+};
+
+/** How far an outside tool has got marking a student's work, in words. */
+export const toolGrading = (progress: LtiGradingProgress) =>
+  GRADING[progress]();

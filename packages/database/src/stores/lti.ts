@@ -3,6 +3,8 @@ import { createHash } from "node:crypto";
 
 import type { CellTransaction } from "../context";
 
+import { uuidArray } from "./sql";
+
 type Tx = CellTransaction;
 
 export interface ToolRow {
@@ -599,4 +601,66 @@ export async function scoresIn(
     order by student_user_id
     limit ${input.limit}`);
   return rows.map(scoreOf);
+}
+
+/** A tool's column as teachers see it, with the tool's name. */
+export interface ToolColumn {
+  id: string;
+  label: string;
+  toolName: string;
+  scoreMaximum: number;
+  lessonId: string | null;
+  assignmentId: string | null;
+}
+
+/**
+ * The tools' columns teachers see: all of a module's, or those for the
+ * links in one brief, oldest first. A removed tool's columns go with it.
+ */
+export async function columnsOf(
+  tx: Tx,
+  input: { tenantId: string } & (
+    | { moduleId: string }
+    | { assignmentId: string }
+  ),
+): Promise<ToolColumn[]> {
+  const rows = await tx.execute<{
+    id: string;
+    label: string;
+    tool_name: string;
+    score_maximum: string;
+    lesson_id: string | null;
+    assignment_id: string | null;
+  }>(sql`
+    select i.id, i.label, t.name as tool_name, i.score_maximum, i.lesson_id, i.assignment_id
+    from core.lti_line_items i
+    join core.lti_tools t on t.tenant_id = i.tenant_id and t.id = i.tool_id and t.status = 'active'
+    where i.tenant_id = ${input.tenantId}::uuid and i.status = 'active'
+      and ${"moduleId" in input ? sql`i.module_id = ${input.moduleId}::uuid` : sql`i.assignment_id = ${input.assignmentId}::uuid`}
+    order by i.id`);
+  return rows.map((row) => ({
+    id: row.id,
+    label: row.label,
+    toolName: row.tool_name,
+    scoreMaximum: Number(row.score_maximum),
+    lessonId: row.lesson_id,
+    assignmentId: row.assignment_id,
+  }));
+}
+
+/** The scores kept in some columns for some students. */
+export async function columnScores(
+  tx: Tx,
+  input: { tenantId: string; lineItemIds: string[]; studentIds: string[] },
+): Promise<(ScoreRow & { lineItemId: string })[]> {
+  if (input.lineItemIds.length === 0 || input.studentIds.length === 0)
+    return [];
+  const rows = await tx.execute<ScoreRecord & { line_item_id: string }>(sql`
+    select line_item_id, student_user_id, score_given, score_maximum, comment,
+      activity_progress, grading_progress, scored_at, scoring_user_id
+    from core.lti_scores
+    where tenant_id = ${input.tenantId}::uuid and status = 'active'
+      and line_item_id = any(${uuidArray(input.lineItemIds)})
+      and student_user_id = any(${uuidArray(input.studentIds)})`);
+  return rows.map((row) => ({ ...scoreOf(row), lineItemId: row.line_item_id }));
 }

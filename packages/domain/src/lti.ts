@@ -224,25 +224,31 @@ export const agsLineItemSchema = v.object({
 });
 export type AgsLineItem = v.InferOutput<typeof agsLineItemSchema>;
 
+/** How far a student has got with a tool's activity, as the tool reports it. */
+export const LTI_ACTIVITY_PROGRESS = [
+  "Initialized",
+  "Started",
+  "InProgress",
+  "Submitted",
+  "Completed",
+] as const;
+/** How far a tool has got marking a student's work. */
+export const LTI_GRADING_PROGRESS = [
+  "FullyGraded",
+  "Pending",
+  "PendingManual",
+  "Failed",
+  "NotReady",
+] as const;
+export type LtiGradingProgress = (typeof LTI_GRADING_PROGRESS)[number];
+
 /** A score a tool sends for one student, the latest it has for them. */
 export const agsScoreSchema = v.pipe(
   v.object({
     userId: v.pipe(v.string(), v.uuid()),
     timestamp: zoned,
-    activityProgress: v.picklist([
-      "Initialized",
-      "Started",
-      "InProgress",
-      "Submitted",
-      "Completed",
-    ]),
-    gradingProgress: v.picklist([
-      "FullyGraded",
-      "Pending",
-      "PendingManual",
-      "Failed",
-      "NotReady",
-    ]),
+    activityProgress: v.picklist(LTI_ACTIVITY_PROGRESS),
+    gradingProgress: v.picklist(LTI_GRADING_PROGRESS),
     scoreGiven: v.optional(
       v.nullable(v.pipe(v.number(), v.minValue(0), v.maxValue(10_000_000))),
       null,

@@ -38,6 +38,7 @@ import type { HeaderFact, RecordTab } from "~/components/system/RecordPage";
 import { ButtonLink } from "~/components/app/ButtonLink";
 import { classTitle } from "~/components/classes/format";
 import { ContentView } from "~/components/content/ContentView";
+import { toolGrading } from "~/components/content/lti";
 import { AreaFiles } from "~/components/files/AreaFiles";
 import { displayName } from "~/components/people/format";
 import { DataTable, RowLink } from "~/components/system/DataTable";
@@ -499,6 +500,45 @@ function doneOf(data: Progress, student: StudentRow) {
   });
 }
 
+type ToolColumn = Progress["tools"][number];
+
+/** A student's score in a tool's column, as the tool last reported it. */
+function ToolMark({
+  data,
+  column,
+  student,
+}: {
+  data: Progress;
+  column: ToolColumn;
+  student: StudentRow;
+}) {
+  const score = data.toolScores.find(
+    (row) => row.lineItemId === column.id && row.studentId === student.id,
+  );
+  const state = score ? toolGrading(score.gradingProgress) : m.ltiNoScore();
+  if (score?.result === null || score?.result === undefined)
+    return (
+      <span title={state} className="text-muted-foreground">
+        <span aria-hidden>–</span>
+        <span className="sr-only">{state}</span>
+      </span>
+    );
+  return (
+    <span
+      title={state}
+      className={cn(
+        "text-[13px] tabular-nums",
+        score.gradingProgress !== "FullyGraded" && "text-muted-foreground",
+      )}
+    >
+      {m.ltiScoreOf({
+        score: formatNumber(Math.round(score.result * 100) / 100),
+        maximum: formatNumber(column.scoreMaximum),
+      })}
+    </span>
+  );
+}
+
 function StudentName({ row }: { row: StudentRow }) {
   return <bdi className="font-medium">{displayName(row)}</bdi>;
 }
@@ -527,6 +567,13 @@ function matrixColumns(
           student={row}
           onToggle={(done) => onToggle(lesson.id, row, done)}
         />
+      ),
+    })),
+    ...data.tools.map((column, index) => ({
+      id: column.id,
+      header: m.ltiToolColumn({ number: formatNumber(index + 1) }),
+      cell: (row: StudentRow) => (
+        <ToolMark data={data} column={column} student={row} />
       ),
     })),
     {
@@ -587,6 +634,12 @@ function Matrix({ moduleId, classId }: { moduleId: string; classId: string }) {
           <li key={lesson.id} className="min-w-0">
             {m.lrnLessonNumber({ number: formatNumber(index + 1) })}:{" "}
             <bdi>{lesson.title}</bdi>
+          </li>
+        ))}
+        {data.tools.map((column, index) => (
+          <li key={column.id} className="min-w-0">
+            {m.ltiToolColumn({ number: formatNumber(index + 1) })}:{" "}
+            <bdi>{column.label}</bdi> · <bdi>{column.toolName}</bdi>
           </li>
         ))}
       </ol>
