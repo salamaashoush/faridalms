@@ -1,14 +1,10 @@
 import type { LexicalEditor } from "lexical";
 
 import { nameFor } from "@faridalms/domain/file";
-import { $generateNodesFromDOM } from "@lexical/html";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
 import {
   $getRoot,
   $getSelection,
-  $insertNodes,
-  $isDecoratorNode,
-  $isElementNode,
   $setSelection,
   COMMAND_PRIORITY_LOW,
   createCommand,
@@ -17,7 +13,8 @@ import { FileText, X } from "lucide-react";
 import { useEffect, useRef, useState } from "react";
 
 import { useEditorEnvironment } from "../context";
-import { STORED_PICTURE } from "../nodes/media";
+import { $insertHtml } from "../html-import";
+import { STORED_FILE } from "../nodes/stored";
 import { updateFromOutside } from "../outside";
 import { editorInSlot } from "../slots";
 
@@ -65,20 +62,8 @@ export function notesInPlace(page: Document) {
 export function $placeWord(editor: LexicalEditor, html: string) {
   const page = new DOMParser().parseFromString(html, "text/html");
   notesInPlace(page);
-  // A picture stands in its own block; Word holds it in a paragraph, which
-  // keeps the words around it.
-  const nodes = $generateNodesFromDOM(editor, page).flatMap((node) => {
-    if (!$isElementNode(node) || node.isInline()) return [node];
-    const blocks = node
-      .getChildren()
-      .filter((child) => $isDecoratorNode(child) && !child.isInline());
-    for (const block of blocks) block.remove();
-    return node.getTextContent().trim() || blocks.length === 0
-      ? [node, ...blocks]
-      : blocks;
-  });
   if (!$getSelection()) $getRoot().selectEnd();
-  $insertNodes(nodes);
+  $insertHtml(editor, page);
 }
 
 type Reading =
@@ -137,7 +122,7 @@ export function WordImportPlugin() {
                 }),
                 "image",
               );
-              return { src: `${STORED_PICTURE}${stored.fileId}` };
+              return { src: `${STORED_FILE}${stored.fileId}` };
             } catch {
               skipped += 1;
               return { src: "" };

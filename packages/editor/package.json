@@ -26,7 +26,9 @@
     "./strings": "./src/strings.ts",
     "./editor.css": "./src/editor.css",
     "./Editor": "./src/Editor.tsx",
-    "./headless": "./src/headless.ts"
+    "./headless": "./src/headless.ts",
+    "./html-import": "./src/html-import.ts",
+    "./packages": "./src/packages.ts"
   },
   "dependencies": {
     "@base-ui/react": "^1.8.0",

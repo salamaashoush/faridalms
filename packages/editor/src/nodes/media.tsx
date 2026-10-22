@@ -35,11 +35,10 @@ import { FileCard, FileViewer, StoredImage } from "../files";
 import { blockAlignClass, imageSizeClass } from "../format";
 import { LabelsEditor } from "../picture-labels";
 import { ownKeys, useSelectOnClick } from "./select";
+import { STORED_FILE } from "./stored";
 
 // The outline goes round the block's own box, which may be narrower than
 // the column, not round the full-width row that holds it.
-/** How a picture already stored with the school is addressed in HTML brought into a document. */
-export const STORED_PICTURE = "farida-file:";
 
 const blockClass = {
   base: "relative my-3",
@@ -378,13 +377,11 @@ export class ImageNode extends DecoratorBlockNode {
   static importDOM(): DOMConversionMap | null {
     return {
       img: (element: HTMLElement) =>
-        element.getAttribute("src")?.startsWith(STORED_PICTURE)
+        element.getAttribute("src")?.startsWith(STORED_FILE)
           ? {
               conversion: () => ({
                 node: $createImageNode(
-                  (element.getAttribute("src") ?? "").slice(
-                    STORED_PICTURE.length,
-                  ),
+                  (element.getAttribute("src") ?? "").slice(STORED_FILE.length),
                   element.getAttribute("alt") ?? "",
                 ),
               }),
@@ -506,6 +503,29 @@ export class FileNode extends DecoratorBlockNode {
       node.__format,
       node.__key,
     );
+  }
+
+  // A link to a file brought in from another document, once it is stored
+  // with the school, as a package's pages link theirs.
+  static importDOM(): DOMConversionMap | null {
+    return {
+      a: (element: HTMLElement) =>
+        element.getAttribute("href")?.startsWith(STORED_FILE)
+          ? {
+              conversion: () => ({
+                node: $createFileNode(
+                  (element.getAttribute("href") ?? "").slice(
+                    STORED_FILE.length,
+                  ),
+                  element.dataset.name ?? element.textContent.trim(),
+                  element.dataset.mime ?? "",
+                  Number(element.dataset.bytes ?? 0),
+                ),
+              }),
+              priority: 2,
+            }
+          : null,
+    };
   }
 
   static importJSON(json: SerializedFileNode): FileNode {

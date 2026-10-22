@@ -4,7 +4,8 @@ import type {
 } from "@faridalms/domain/qti-read";
 import type { SerializedLexicalNode } from "lexical";
 
-import { imageSize, typeForName } from "@faridalms/domain/file";
+import { packagePath } from "@faridalms/domain/cartridge-read";
+import { imageSize, mediaTypeFor } from "@faridalms/domain/file";
 import { questionNode } from "@faridalms/domain/lesson-content";
 import {
   qtiItemPictures,
@@ -14,7 +15,6 @@ import {
   questionOfQti,
 } from "@faridalms/domain/qti-read";
 import { useLexicalComposerContext } from "@lexical/react/LexicalComposerContext";
-import { unzipSync } from "fflate";
 import {
   $getRoot,
   $getSelection,
@@ -31,57 +31,12 @@ import type { EditorMedia } from "../context";
 
 import { useEditorEnvironment } from "../context";
 import { updateFromOutside } from "../outside";
+import { unpackZip, xmlOf } from "../packages";
 import { editorInSlot } from "../slots";
 
 export const IMPORT_QTI_COMMAND = createCommand<undefined>("FARIDA_IMPORT_QTI");
 
 const QTI = ".zip,.xml,application/zip,application/xml,text/xml";
-
-/** The most a package may unpack to, so a small file cannot fill the page's memory. */
-const MOST_BYTES = 200 * 1024 * 1024;
-const MOST_FILES = 5000;
-
-/** A path inside a package, from a file's own path and a link in it. */
-export function packagePath(from: string, href: string): string {
-  const base = from.split("/").slice(0, -1);
-  for (const part of decodeURIComponent(href.split("#")[0] ?? "").split("/")) {
-    if (part === "..") base.pop();
-    else if (part && part !== ".") base.push(part);
-  }
-  return base.join("/");
-}
-
-const decoder = new TextDecoder();
-
-function xmlOf(bytes: Uint8Array | undefined): Document | null {
-  if (!bytes) return null;
-  const document = new DOMParser().parseFromString(
-    decoder.decode(bytes),
-    "application/xml",
-  );
-  return document.getElementsByTagName("parsererror").length > 0
-    ? null
-    : document;
-}
-
-/** A package's files, or a lone item as a package of one. */
-function unpacked(name: string, bytes: Uint8Array): Map<string, Uint8Array> {
-  if (bytes[0] === 0x50 && bytes[1] === 0x4b) {
-    let total = 0;
-    let count = 0;
-    const files = unzipSync(bytes, {
-      filter: (entry) => {
-        total += entry.originalSize;
-        count += 1;
-        if (total > MOST_BYTES || count > MOST_FILES)
-          throw new Error("too large");
-        return !entry.name.endsWith("/");
-      },
-    });
-    return new Map(Object.entries(files));
-  }
-  return new Map([[name, bytes]]);
-}
 
 /** The items a package holds, in the order its tests ask them, else as listed. */
 function itemPaths(files: Map<string, Uint8Array>): string[] {
@@ -119,7 +74,7 @@ export async function readQtiFile(
   file: File,
   media: Pick<EditorMedia, "upload" | "accept">,
 ): Promise<QtiReading> {
-  const files = unpacked(file.name, new Uint8Array(await file.arrayBuffer()));
+  const files = unpackZip(file.name, new Uint8Array(await file.arrayBuffer()));
   const questions: ReadQuestion[] = [];
   let unread = 0;
   const stored = new Map<string, StoredQtiPicture | null>();
@@ -141,7 +96,7 @@ export async function readQtiFile(
       if (!stored.has(where)) {
         const bytes = files.get(where);
         const size = bytes ? imageSize(bytes) : null;
-        const type = typeForName(where);
+        const type = mediaTypeFor(where);
         let kept: StoredQtiPicture | null = null;
         if (bytes && size && type && media.accept.image.includes(type))
           try {

@@ -3,7 +3,11 @@ import type {
   StorageScope,
   UploadDestination,
 } from "@faridalms/domain/file";
-import type { EditorMedia } from "@faridalms/editor";
+import type {
+  EditorMedia,
+  UploadedFile,
+  UploadOptions,
+} from "@faridalms/editor";
 
 import { ATTACHABLE_EXTENSIONS, mediaTypeFor } from "@faridalms/domain/file";
 import { useServerFn } from "@tanstack/react-start";
@@ -53,6 +57,53 @@ export function warnNearlyFull(
 const IMAGE = ["image/png", "image/jpeg", "image/gif", "image/webp"];
 
 /**
+ * Stores a file as media a document keeps, through the same two-step upload
+ * as any attachment, counted against where it goes.
+ */
+export async function uploadDocumentFile(
+  initiate: ReturnType<typeof useServerFn<typeof initiateUpload>>,
+  file: File,
+  destination: UploadDestination | undefined,
+  options: UploadOptions = {},
+): Promise<UploadedFile> {
+  let initiated: Awaited<ReturnType<typeof initiate>>;
+  try {
+    initiated = await initiate({
+      data: {
+        purpose: "document_media",
+        name: file.name,
+        mediaType: file.type || mediaTypeFor(file.name) || "",
+        sizeBytes: file.size,
+        destination,
+        trim: options.trim,
+      },
+    });
+  } catch (error) {
+    throw new Error(
+      error instanceof Error && error.message.startsWith("file.")
+        ? error.message
+        : "file.failed",
+      { cause: error },
+    );
+  }
+  await sendFile(
+    `/files/${initiated.id}`,
+    file,
+    initiated.mediaType,
+    options,
+    initiated.partBytes,
+  );
+  options.onProgress?.(1);
+  warnNearlyFull(initiated.warning);
+  return {
+    fileId: initiated.id,
+    name: initiated.name,
+    mime: initiated.mediaType,
+    bytes: initiated.sizeBytes,
+  };
+}
+
+/**
  * Lets a document editor embed pictures, sound, video and any file a school
  * may exchange: each goes through the same two-step upload as any
  * attachment, as media the document keeps. Naming where the files go lets
@@ -94,43 +145,13 @@ export function useDocumentMedia(destination?: UploadDestination): EditorMedia {
           (await search({ data: { q: query } })).pictures,
         credits: m.pictureCredits(),
       },
-      upload: async (file: File, _kind, options = {}) => {
-        let initiated: Awaited<ReturnType<typeof initiate>>;
-        try {
-          initiated = await initiate({
-            data: {
-              purpose: "document_media",
-              name: file.name,
-              mediaType: file.type || mediaTypeFor(file.name) || "",
-              sizeBytes: file.size,
-              destination: type && id ? { type, id } : undefined,
-              trim: options.trim,
-            },
-          });
-        } catch (error) {
-          throw new Error(
-            error instanceof Error && error.message.startsWith("file.")
-              ? error.message
-              : "file.failed",
-            { cause: error },
-          );
-        }
-        await sendFile(
-          `/files/${initiated.id}`,
+      upload: (file: File, _kind, options = {}) =>
+        uploadDocumentFile(
+          initiate,
           file,
-          initiated.mediaType,
+          type && id ? { type, id } : undefined,
           options,
-          initiated.partBytes,
-        );
-        options.onProgress?.(1);
-        warnNearlyFull(initiated.warning);
-        return {
-          fileId: initiated.id,
-          name: initiated.name,
-          mime: initiated.mediaType,
-          bytes: initiated.sizeBytes,
-        };
-      },
+        ),
     }),
     [initiate, search, askDraft, draftOf, abilities, type, id],
   );

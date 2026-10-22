@@ -2,7 +2,8 @@ import type { ModuleState } from "@faridalms/domain/learning";
 
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, stripSearchParams } from "@tanstack/react-router";
-import { Layers, Pencil, Plus } from "lucide-react";
+import { Import, Layers, Pencil, Plus } from "lucide-react";
+import { useState } from "react";
 import * as v from "valibot";
 
 import type { Column, RowAction } from "~/components/system/DataTable";
@@ -14,6 +15,7 @@ import type {
 
 import { ButtonLink } from "~/components/app/ButtonLink";
 import { classTitle } from "~/components/classes/format";
+import { CartridgeImport } from "~/components/learning/CartridgeImport";
 import {
   shownState,
   STATE_LABEL,
@@ -122,6 +124,7 @@ function ModulesPage() {
   const search = Route.useSearch();
   const navigate = Route.useNavigate();
   const data = useSuspenseQuery(teachingModulesQuery(search.classId)).data;
+  const [importing, setImporting] = useState(false);
   const patch = (change: Partial<Search>) => {
     void navigate({ search: (previous) => ({ ...previous, ...change }) });
   };
@@ -181,7 +184,25 @@ function ModulesPage() {
         title={m.navModules()}
         description={m.lrnTeachHint()}
         action={create}
+        menu={
+          data.classes.length > 0
+            ? [
+                {
+                  label: m.lrnImportCourse(),
+                  icon: Import,
+                  onSelect: () => setImporting(true),
+                },
+              ]
+            : []
+        }
       />
+      {importing ? (
+        <CartridgeImport
+          open
+          classes={data.classes}
+          onClose={() => setImporting(false)}
+        />
+      ) : null}
       <RecordTabs
         label={m.lrnSections()}
         tabs={TABS.map((value) => ({

@@ -7,7 +7,7 @@ import * as v from "valibot";
 import { describe, expect, it } from "vitest";
 
 import { buildContentEditor } from "./headless";
-import { STORED_PICTURE } from "./nodes/media";
+import { STORED_FILE } from "./nodes/stored";
 import { $placeWord } from "./plugins/word";
 
 const FILE_ID = "0190a1b2-0000-7000-8000-0000000000c1";
@@ -21,7 +21,7 @@ async function readRivers() {
       idPrefix: "word-",
       externalFileAccess: false,
       convertImage: mammoth.images.imgElement(() =>
-        Promise.resolve({ src: `${STORED_PICTURE}${FILE_ID}` }),
+        Promise.resolve({ src: `${STORED_FILE}${FILE_ID}` }),
       ),
     },
   );

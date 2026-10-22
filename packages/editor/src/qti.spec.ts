@@ -1,10 +1,11 @@
 import type { LessonBlock } from "@faridalms/domain/learning";
 
+import { packagePath } from "@faridalms/domain/cartridge-read";
 import { qtiItem, qtiManifest, qtiTest } from "@faridalms/domain/qti";
 import { strToU8, zipSync } from "fflate";
 import { describe, expect, it } from "vitest";
 
-import { packagePath, readQtiFile } from "./plugins/qti";
+import { readQtiFile } from "./plugins/qti";
 
 const PNG = new Uint8Array(24);
 PNG.set([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);

@@ -199,7 +199,8 @@ function pointsOf(item: Element, declarations: Map<string, Declaration>) {
       .reduce((sum, entry) => sum + entry.value, 0);
     points = mapped > 0 ? mapped : 1;
   }
-  return Math.min(100, Math.max(0, Math.round(points)));
+  // A fraction of a point still counts for something here, where points are whole.
+  return Math.min(100, Math.max(points > 0 ? 1 : 0, Math.round(points)));
 }
 
 function picturesOf(element: Element, options: QtiReadOptions) {

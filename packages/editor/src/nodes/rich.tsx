@@ -50,6 +50,7 @@ import { blockAlignClass, diagramImageClass, imageSizeClass } from "../format";
 import { EmbedFrame, MediaPlayer, MediaTranscript } from "../media-view";
 import { $createQuestionNode, $isQuestionNode } from "./question";
 import { ownKeys, useSelectOnClick } from "./select";
+import { STORED_FILE } from "./stored";
 
 // The outline goes round the block's own box, which may be narrower than
 // the column, not round the full-width row that holds it.
@@ -537,6 +538,26 @@ export class MediaNode extends DecoratorBlockNode {
     copy.__descriptions = node.__descriptions;
     copy.__noSkipping = node.__noSkipping;
     return copy;
+  }
+
+  // A recording brought in from another document, once it is stored with
+  // the school, as a package's pages play theirs.
+  static importDOM(): DOMConversionMap | null {
+    const stored = (element: HTMLElement) => {
+      const src = element.getAttribute("src") ?? "";
+      return src.startsWith(STORED_FILE)
+        ? {
+            conversion: () => ({
+              node: $createMediaNode(
+                src.slice(STORED_FILE.length),
+                element.dataset.mime ?? `${element.localName}/mp4`,
+              ),
+            }),
+            priority: 2 as const,
+          }
+        : null;
+    };
+    return { video: stored, audio: stored };
   }
 
   static importJSON(json: SerializedMediaNode): MediaNode {

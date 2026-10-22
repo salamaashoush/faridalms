@@ -237,11 +237,6 @@ export function acceptedMediaType(name: string, mediaType: string): boolean {
 
 export const ACCEPTED_EXTENSIONS = Object.keys(ACCEPTED_TYPES);
 
-/** The type a file's name says it is, for one that comes without, as in a package. */
-export function typeForName(name: string): string | null {
-  return ACCEPTED_TYPES[fileExtension(name)]?.[0] ?? null;
-}
-
 /**
  * A file name for content that arrives without one, as the pictures inside
  * a Word document do, with the extension its type is stored under.

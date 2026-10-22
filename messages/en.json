@@ -3547,6 +3547,45 @@
   "lrnMoveUp": "Move up",
   "lrnNewLesson": "New lesson",
   "lrnNewModule": "New module",
+  "lrnImportCourse": "Import from Moodle or Canvas",
+  "lrnImportTitle": "Import a course",
+  "lrnImportSubmit": "Import",
+  "lrnImportHint": "Choose a course exported as a Common Cartridge (.imscc) from Moodle, Canvas or another LMS. Each of its modules comes in as a draft module, its pages, quizzes, links and files as lessons.",
+  "lrnImportFile": "Course file",
+  "lrnImportChoose": "Choose a course file first.",
+  "lrnImportNoModules": "Choose at least one module to bring in.",
+  "lrnImportUnreadable": "This file is not a course export we can read. Export the course from your LMS as a Common Cartridge and try again.",
+  "lrnImportItems": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "{count} item",
+        "countPlural=*": "{count} items"
+      }
+    }
+  ],
+  "lrnImportProgress": "Bringing in {done} of {total}…",
+  "lrnImported": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "Brought in {count} lesson.",
+        "countPlural=*": "Brought in {count} lessons."
+      }
+    }
+  ],
+  "lrnImportToCheck": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "{count} part came in only roughly; check it before students see it.",
+        "countPlural=*": "{count} parts came in only roughly; check them before students see them."
+      }
+    }
+  ],
   "lrnNext": "Next lesson",
   "lrnNoClasses": "No classes to teach",
   "lrnNoClassesBody": "Modules are set for classes you teach this year.",
