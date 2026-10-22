@@ -1,3 +1,5 @@
+import { latinMath } from "./arabic-math";
+
 /**
  * Whether two pieces of mathematics written in LaTeX are the same, as a
  * mathematics teacher means it: `2(x+1)` is `2x+2`, `\frac{1}{2}` is `0.5`.
@@ -117,7 +119,7 @@ function westernDigits(text: string): string {
 }
 
 function tokenize(latex: string): Token[] | null {
-  const text = westernDigits(latex)
+  const text = westernDigits(latinMath(latex))
     // A decimal comma, as LaTeX and Arabic write it, is a point.
     .replace(/(\d)(?:\{,\}|٫)(\d)/gu, "$1.$2");
   const tokens: Token[] = [];
@@ -662,7 +664,7 @@ export function sameMath(
 /** Whether two pieces of LaTeX are written alike, spacing and sizing aside. */
 export function sameLatex(a: string, b: string): boolean {
   const plain = (latex: string) =>
-    westernDigits(latex)
+    westernDigits(latinMath(latex))
       .replace(/\\(?:left|right|[,;:! ]|quad|qquad)/gu, "")
       .replace(/\s+/gu, "");
   return plain(a) === plain(b);

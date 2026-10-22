@@ -2,6 +2,7 @@ import type { QueryClient } from "@tanstack/react-query";
 import type { ReactNode } from "react";
 
 import { DirectionProvider } from "@base-ui/react/direction-provider";
+import { MathDigits } from "@faridalms/editor/math-digits";
 import { Toaster } from "@faridalms/ui/sonner";
 import {
   createRootRouteWithContext,
@@ -18,6 +19,7 @@ import { getLocale, getTextDirection } from "~/i18n/runtime";
 import { currentUserQuery } from "~/queries/user";
 import { getAuthState } from "~/server/auth";
 import appCss from "~/styles/globals.css?url";
+import { digits } from "~/utils/digits";
 
 import { DefaultCatchBoundary } from "../components/DefaultCatchBoundary";
 import { NotFound } from "../components/NotFound";
@@ -116,8 +118,10 @@ function RootDocument({ children }: RootDocumentProps) {
           {/* Base UI reads direction from this context, not from the page, for
               arrow keys in tabs, menus and radios and for popup alignment. */}
           <DirectionProvider direction={direction}>
-            {children}
-            <Toaster position="top-center" />
+            <MathDigits value={digits()}>
+              {children}
+              <Toaster position="top-center" />
+            </MathDigits>
           </DirectionProvider>
         </ThemeProvider>
         <Scripts />

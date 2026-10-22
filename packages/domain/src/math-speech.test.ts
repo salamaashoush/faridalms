@@ -87,4 +87,13 @@ describe("text with formulas in it", () => {
       "حل س زَائِد ١ يُسَاوِي ٣ الآن",
     );
   });
+
+  it("says a formula in Arabic notation with the letters it is drawn in", () => {
+    expect(
+      spokenMathText("مساحة الدائرة \u2067\\(\\pi r^2\\)\u2069", "ar"),
+    ).toBe("مساحة الدائرة ط ر تَرْبِيع");
+    expect(spokenMathText("\\(f(x)\\)", "ar")).toBe(
+      "f اِفْتَحِ الْقَوْس x أَغْلِقِ الْقَوْس",
+    );
+  });
 });

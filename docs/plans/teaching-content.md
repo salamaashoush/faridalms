@@ -121,10 +121,15 @@ Sources: [../research/course-design.md](../research/course-design.md),
    text starts that way; a question's formulas keep their notation in its
    text, isolated right to left (U+2067 to U+2069); and a lesson read
    aloud, or a choice's label, says each formula in words, in English
-   after ClearSpeak and in vowelled Arabic after its school books.
-   Left: Arabic letters and digits drawn for Latin ones in Arabic notation
-   (x as س, as Edraak's MathJax extension does), and speech for matrices
-   and other layouts beyond school algebra.
+   after ClearSpeak and in vowelled Arabic after its school books. Then a
+   formula in Arabic notation is drawn as Arab school books write it, as
+   Edraak's MathJax extension does: the letters they agree on in Arabic
+   (x as س, f as د, e as هـ, π as ط), functions by their abbreviations
+   (جا, جتا, لو, نهــا), arrows pointing the way it reads, Arabic commas,
+   and numbers in the school's digits; its LaTeX stays as written. It is
+   said with the same letters, and a student's answer typed in them is
+   read as the Latin of the key, so 2س + 1 answers 2x + 1.
+   Left: speech for matrices and other layouts beyond school algebra.
 2. **Maths answers checked for equivalence**, a question kind that accepts
    `2(x+1)` for `2x+2`, with tolerance and units for numbers. Done: the Maths
    answer question; students write in MathLive's field and the server

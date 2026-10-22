@@ -1,13 +1,15 @@
 import type { TextRun } from "@faridalms/domain/content";
 import type { MathLanguage } from "@faridalms/domain/math-speech";
+import type { Digits } from "@faridalms/domain/people";
 
 import { mathRuns } from "@faridalms/domain/content";
 import {
   mathTextLanguage,
   spokenMathText,
 } from "@faridalms/domain/math-speech";
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useContext } from "react";
 
+import { MathDigits } from "./math-digits";
 import { cx } from "./ui";
 
 // Temml joins a page's bundle only where there is mathematics to draw.
@@ -20,11 +22,14 @@ export function MathText({
   latex,
   display = false,
   rtl = false,
+  digits,
 }: {
   latex: string;
   display?: boolean;
   rtl?: boolean;
+  digits?: Digits;
 }) {
+  const school = useContext(MathDigits);
   return (
     <Suspense
       fallback={
@@ -33,7 +38,12 @@ export function MathText({
         </span>
       }
     >
-      <MathMarkup latex={latex} display={display} rtl={rtl} />
+      <MathMarkup
+        latex={latex}
+        display={display}
+        rtl={rtl}
+        digits={digits ?? school}
+      />
     </Suspense>
   );
 }

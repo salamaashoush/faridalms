@@ -53,7 +53,7 @@ function MathChip({
   rtl: boolean;
 }) {
   const [editor] = useLexicalComposerContext();
-  const { strings } = useEditorEnvironment();
+  const { strings, digits } = useEditorEnvironment();
   const [selected, select, clear] = useLexicalNodeSelection(nodeKey);
   const chip = useRef<HTMLSpanElement>(null);
   useEffect(
@@ -87,7 +87,7 @@ function MathChip({
       )}
     >
       {latex.trim() ? (
-        <MathText latex={latex} display={block} rtl={rtl} />
+        <MathText latex={latex} display={block} rtl={rtl} digits={digits} />
       ) : (
         <span className="fe-math-empty">{strings.mathEmpty}</span>
       )}

@@ -506,6 +506,7 @@ function draw(
           latex={node.latex}
           display={Boolean(node.block)}
           rtl={node.direction === "rtl"}
+          digits={context.digits}
         />
       ) : null;
     case "linebreak":

@@ -1,3 +1,4 @@
+import { arabicLetter } from "./arabic-math";
 import { mathRuns, textDirection } from "./content";
 
 /**
@@ -635,7 +636,11 @@ const simple = (nodes: readonly Node[]) =>
     nodes[0]?.kind === "words");
 
 class Speaker {
-  constructor(readonly language: MathLanguage) {}
+  constructor(
+    readonly language: MathLanguage,
+    /** Whether the formula is drawn in Arabic notation, its x as س. */
+    readonly arabicNotation = false,
+  ) {}
 
   word(name: string): string {
     const pair = WORDS[name];
@@ -672,11 +677,16 @@ class Speaker {
       case "words":
         return [node.text];
       case "id": {
+        const drawn =
+          this.language === "ar" && this.arabicNotation
+            ? arabicLetter(node.text === "\\pi" ? "π" : node.text)
+            : undefined;
         const greek = GREEK[node.text.slice(1)];
         return [
-          greek && node.text.startsWith("\\")
-            ? greek[this.language === "ar" ? 1 : 0]
-            : node.text,
+          drawn ??
+            (greek && node.text.startsWith("\\")
+              ? greek[this.language === "ar" ? 1 : 0]
+              : node.text),
         ];
       }
       case "sym":
@@ -807,10 +817,17 @@ class Speaker {
   }
 }
 
-/** One formula in LaTeX as the words a voice says for it. */
-export function spokenMath(latex: string, language: MathLanguage): string {
+/**
+ * One formula in LaTeX as the words a voice says for it; in Arabic notation
+ * its letters as they are drawn, x as س.
+ */
+export function spokenMath(
+  latex: string,
+  language: MathLanguage,
+  arabicNotation = false,
+): string {
   const nodes = sequence(new Reader(tokenize(latex)), null);
-  return new Speaker(language)
+  return new Speaker(language, arabicNotation)
     .say(nodes)
     .filter(Boolean)
     .join(" ")
@@ -822,7 +839,9 @@ export function spokenMath(latex: string, language: MathLanguage): string {
 export function spokenMathText(text: string, language: MathLanguage): string {
   return mathRuns(text)
     .map((run) =>
-      "latex" in run ? ` ${spokenMath(run.latex, language)} ` : run.text,
+      "latex" in run
+        ? ` ${spokenMath(run.latex, language, run.rtl)} `
+        : run.text,
     )
     .join("")
     .replaceAll(/ {2,}/gu, " ")

@@ -12,6 +12,7 @@
     ".": "./src/index.ts",
     "./view": "./src/view.tsx",
     "./math": "./src/math.tsx",
+    "./math-digits": "./src/math-digits.ts",
     "./math-input": "./src/math-input.tsx",
     "./anchors": "./src/anchors.ts",
     "./recorder": "./src/recorder.tsx",
