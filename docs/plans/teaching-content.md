@@ -389,8 +389,13 @@ Sources: [../research/course-design.md](../research/course-design.md),
    block, which lessons can use too as learning intentions, and the plan
    shows each standard with the questions in the module assessing it, the
    ones none does yet, and those assessed but not planned. A duplicated
-   module keeps its plan. Left: a year's map of units per class, and the
-   IB coordinator's view of key concepts and global contexts across units.
+   module keeps its plan. A class's year map (`/teach/year-map`, from
+   the Modules menu) lays its units along the school year under its months
+   and terms, each a bar from the first day the class spends on it to the
+   last, set per class (`module_classes.starts_on`, `ends_on`) and kept
+   inside the year; a unit without dates is suggested the days after the
+   last one placed. Left: the IB coordinator's view of key concepts and
+   global contexts across units.
 
 ## 5. Reuse and course structure
 

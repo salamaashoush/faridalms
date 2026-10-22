@@ -103,6 +103,7 @@ import { Route as AppTeachModuleEditorRouteImport } from './routes/_app/teach/mo
 import { Route as AppTeachModulePlanRouteImport } from './routes/_app/teach/module-plan'
 import { Route as AppTeachModulesRouteImport } from './routes/_app/teach/modules'
 import { Route as AppTeachTimetableRouteImport } from './routes/_app/teach/timetable'
+import { Route as AppTeachYearMapRouteImport } from './routes/_app/teach/year-map'
 import { Route as AppYearsYearIdRouteImport } from './routes/_app/years.$yearId'
 import { Route as ExportsAssignmentsAssignmentIdRouteImport } from './routes/exports/assignments.$assignmentId'
 import { Route as ExportsModulesModuleIdRouteImport } from './routes/exports/modules.$moduleId'
@@ -595,6 +596,11 @@ const AppTeachTimetableRoute = AppTeachTimetableRouteImport.update({
   path: '/timetable',
   getParentRoute: () => AppTeachRoute,
 } as any)
+const AppTeachYearMapRoute = AppTeachYearMapRouteImport.update({
+  id: '/year-map',
+  path: '/year-map',
+  getParentRoute: () => AppTeachRoute,
+} as any)
 const AppYearsYearIdRoute = AppYearsYearIdRouteImport.update({
   id: '/years/$yearId',
   path: '/years/$yearId',
@@ -763,6 +769,7 @@ export interface FileRoutesByFullPath {
   '/teach/module-plan': typeof AppTeachModulePlanRoute
   '/teach/modules': typeof AppTeachModulesRoute
   '/teach/timetable': typeof AppTeachTimetableRoute
+  '/teach/year-map': typeof AppTeachYearMapRoute
   '/years/$yearId': typeof AppYearsYearIdRoute
   '/exports/assignments/$assignmentId': typeof ExportsAssignmentsAssignmentIdRoute
   '/exports/modules/$moduleId': typeof ExportsModulesModuleIdRoute
@@ -868,6 +875,7 @@ export interface FileRoutesByTo {
   '/teach/module-plan': typeof AppTeachModulePlanRoute
   '/teach/modules': typeof AppTeachModulesRoute
   '/teach/timetable': typeof AppTeachTimetableRoute
+  '/teach/year-map': typeof AppTeachYearMapRoute
   '/years/$yearId': typeof AppYearsYearIdRoute
   '/exports/assignments/$assignmentId': typeof ExportsAssignmentsAssignmentIdRoute
   '/exports/modules/$moduleId': typeof ExportsModulesModuleIdRoute
@@ -981,6 +989,7 @@ export interface FileRoutesById {
   '/_app/teach/module-plan': typeof AppTeachModulePlanRoute
   '/_app/teach/modules': typeof AppTeachModulesRoute
   '/_app/teach/timetable': typeof AppTeachTimetableRoute
+  '/_app/teach/year-map': typeof AppTeachYearMapRoute
   '/_app/years/$yearId': typeof AppYearsYearIdRoute
   '/exports/assignments/$assignmentId': typeof ExportsAssignmentsAssignmentIdRoute
   '/exports/modules/$moduleId': typeof ExportsModulesModuleIdRoute
@@ -1093,6 +1102,7 @@ export interface FileRouteTypes {
     | '/teach/module-plan'
     | '/teach/modules'
     | '/teach/timetable'
+    | '/teach/year-map'
     | '/years/$yearId'
     | '/exports/assignments/$assignmentId'
     | '/exports/modules/$moduleId'
@@ -1198,6 +1208,7 @@ export interface FileRouteTypes {
     | '/teach/module-plan'
     | '/teach/modules'
     | '/teach/timetable'
+    | '/teach/year-map'
     | '/years/$yearId'
     | '/exports/assignments/$assignmentId'
     | '/exports/modules/$moduleId'
@@ -1310,6 +1321,7 @@ export interface FileRouteTypes {
     | '/_app/teach/module-plan'
     | '/_app/teach/modules'
     | '/_app/teach/timetable'
+    | '/_app/teach/year-map'
     | '/_app/years/$yearId'
     | '/exports/assignments/$assignmentId'
     | '/exports/modules/$moduleId'
@@ -2019,6 +2031,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppTeachTimetableRouteImport
       parentRoute: typeof AppTeachRoute
     }
+    '/_app/teach/year-map': {
+      id: '/_app/teach/year-map'
+      path: '/year-map'
+      fullPath: '/teach/year-map'
+      preLoaderRoute: typeof AppTeachYearMapRouteImport
+      parentRoute: typeof AppTeachRoute
+    }
     '/_app/years/$yearId': {
       id: '/_app/years/$yearId'
       path: '/years/$yearId'
@@ -2241,6 +2260,7 @@ interface AppTeachRouteChildren {
   AppTeachModulePlanRoute: typeof AppTeachModulePlanRoute
   AppTeachModulesRoute: typeof AppTeachModulesRoute
   AppTeachTimetableRoute: typeof AppTeachTimetableRoute
+  AppTeachYearMapRoute: typeof AppTeachYearMapRoute
   AppTeachIndexRoute: typeof AppTeachIndexRoute
   AppTeachBoardPacedIdRoute: typeof AppTeachBoardPacedIdRoute
   AppTeachLivePacedIdRoute: typeof AppTeachLivePacedIdRoute
@@ -2259,6 +2279,7 @@ const AppTeachRouteChildren: AppTeachRouteChildren = {
   AppTeachModulePlanRoute: AppTeachModulePlanRoute,
   AppTeachModulesRoute: AppTeachModulesRoute,
   AppTeachTimetableRoute: AppTeachTimetableRoute,
+  AppTeachYearMapRoute: AppTeachYearMapRoute,
   AppTeachIndexRoute: AppTeachIndexRoute,
   AppTeachBoardPacedIdRoute: AppTeachBoardPacedIdRoute,
   AppTeachLivePacedIdRoute: AppTeachLivePacedIdRoute,

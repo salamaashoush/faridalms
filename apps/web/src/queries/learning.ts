@@ -21,6 +21,7 @@ import {
   getPracticeSet,
   getTeachingModules,
   getWrittenAnswers,
+  getYearMap,
   openLesson,
 } from "~/server/learning";
 
@@ -33,6 +34,13 @@ export const teachingModulesQuery = (classId: string) =>
   queryOptions({
     queryKey: ["learning", "teaching", classId],
     queryFn: () => getTeachingModules({ data: { classId } }),
+    placeholderData: (previous) => previous,
+  });
+
+export const yearMapQuery = (classId: string) =>
+  queryOptions({
+    queryKey: ["learning", "year", classId],
+    queryFn: () => getYearMap({ data: { classId } }),
     placeholderData: (previous) => previous,
   });
 

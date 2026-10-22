@@ -28,6 +28,8 @@ import {
   savePlanSchema,
   releaseSchema,
   startPacedSchema,
+  unitDatesSchema,
+  yearMapSchema,
 } from "@faridalms/domain/learning";
 import {
   practiceCheckSchema,
@@ -52,6 +54,14 @@ export const getLearningOptions = createServerFn({ method: "GET" }).handler(
 export const getTeachingModules = createServerFn({ method: "GET" })
   .validator(checked(v.object({ classId: optionalId })))
   .handler(({ data }) => backend().learning.modules(data));
+
+export const getYearMap = createServerFn({ method: "GET" })
+  .validator(checked(yearMapSchema))
+  .handler(({ data }) => backend().learning.yearMap(data));
+
+export const setUnitDates = createServerFn({ method: "POST" })
+  .validator(checked(unitDatesSchema))
+  .handler(({ data }) => backend().learning.setUnitDates(data));
 
 export const getModuleRecord = createServerFn({ method: "GET" })
   .validator(byId)

@@ -422,6 +422,76 @@ export async function modulesForClasses(
   }));
 }
 
+/** A unit on a class's year map: a module set for the class, and when the class takes it. */
+export interface YearUnitRow {
+  id: string;
+  title: string;
+  state: ModuleState;
+  publishAt: string | null;
+  lessons: number;
+  /** Where the class lists it among its modules. */
+  position: number;
+  startsOn: string | null;
+  endsOn: string | null;
+}
+
+/** The modules a class takes this year, in the order their dates and places give them. */
+export async function yearUnitsOf(
+  tx: Tx,
+  input: { tenantId: string; classId: string },
+): Promise<YearUnitRow[]> {
+  const rows = await tx.execute<{
+    id: string;
+    title: string;
+    state: ModuleState;
+    publish_at: string | null;
+    lessons: number;
+    position: number;
+    starts_on: string | null;
+    ends_on: string | null;
+  }>(sql`
+    select m.id, m.title, m.state, ${isoOf(sql`m.publish_at`)} as publish_at, x.position,
+      x.starts_on::text as starts_on,
+      x.ends_on::text as ends_on,
+      (select count(*)::int from core.lessons l
+        where l.tenant_id = m.tenant_id and l.module_id = m.id and l.status = 'active') as lessons
+    from core.module_classes x
+    join core.learning_modules m on m.tenant_id = x.tenant_id and m.id = x.module_id
+      and m.status = 'active' and m.state <> 'archived'
+    where x.tenant_id = ${input.tenantId}::uuid and x.class_id = ${input.classId}::uuid
+      and x.status = 'active'
+    order by x.starts_on nulls last, x.position, m.title, m.id`);
+  return rows.map((row) => ({
+    id: row.id,
+    title: row.title,
+    state: row.state,
+    publishAt: row.publish_at,
+    lessons: row.lessons,
+    position: row.position,
+    startsOn: row.starts_on,
+    endsOn: row.ends_on,
+  }));
+}
+
+/** Sets when a class takes a module, or clears it; whether the module is set for the class. */
+export async function setUnitDates(
+  tx: Tx,
+  input: {
+    tenantId: string;
+    moduleId: string;
+    classId: string;
+    startsOn: string | null;
+    endsOn: string | null;
+  },
+): Promise<boolean> {
+  const rows = await tx.execute(sql`
+    update core.module_classes set starts_on = ${input.startsOn}::date, ends_on = ${input.endsOn}::date
+    where tenant_id = ${input.tenantId}::uuid and module_id = ${input.moduleId}::uuid
+      and class_id = ${input.classId}::uuid and status = 'active'
+    returning id`);
+  return rows.length > 0;
+}
+
 export interface LessonRow {
   id: string;
   version: number;

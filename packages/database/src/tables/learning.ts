@@ -4,6 +4,7 @@ import type { PgTableExtraConfigValue } from "drizzle-orm/pg-core";
 import { sql } from "drizzle-orm";
 import {
   boolean,
+  date,
   index,
   integer,
   jsonb,
@@ -147,6 +148,10 @@ export const moduleClasses = core.table.withRLS(
       .$type<ModuleAudience>()
       .notNull()
       .default("class"),
+    /** When the class is planned to start the unit, for the class's year map. */
+    startsOn: date("starts_on", { mode: "string" }),
+    /** The last day the class is planned to spend on it. */
+    endsOn: date("ends_on", { mode: "string" }),
     ...entityColumns(),
   },
   (t): PgTableExtraConfigValue[] => [
@@ -164,6 +169,11 @@ export const moduleClasses = core.table.withRLS(
     ),
     ck("module_classes", "position", sql`position between 0 and 999`),
     ck("module_classes", "audience", sql`audience in ('class', 'selected')`),
+    ck(
+      "module_classes",
+      "dates",
+      sql`(starts_on is null) = (ends_on is null) and (ends_on is null or ends_on >= starts_on)`,
+    ),
     uniqueIndex("module_classes_key")
       .on(t.tenantId, t.moduleId, t.classId)
       .where(sql`status = 'active'`),

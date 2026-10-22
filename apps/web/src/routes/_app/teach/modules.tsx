@@ -2,7 +2,7 @@ import type { ModuleState } from "@faridalms/domain/learning";
 
 import { useSuspenseQuery } from "@tanstack/react-query";
 import { createFileRoute, stripSearchParams } from "@tanstack/react-router";
-import { Import, Layers, Pencil, Plus } from "lucide-react";
+import { CalendarRange, Import, Layers, Pencil, Plus } from "lucide-react";
 import { useState } from "react";
 import * as v from "valibot";
 
@@ -187,6 +187,15 @@ function ModulesPage() {
         menu={
           data.classes.length > 0
             ? [
+                {
+                  label: m.yearMapTitle(),
+                  icon: CalendarRange,
+                  onSelect: () =>
+                    navigate({
+                      to: "/teach/year-map",
+                      search: search.classId ? { classId: search.classId } : {},
+                    }),
+                },
                 {
                   label: m.lrnImportCourse(),
                   icon: Import,

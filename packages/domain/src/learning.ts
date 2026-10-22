@@ -3078,6 +3078,29 @@ export const copyLessonSchema = v.object({ id, moduleId: id });
 
 export const planSchema = v.object({ moduleId: id });
 
+/** A class's year map; empty for the first class the viewer sets modules for. */
+export const yearMapSchema = v.object({
+  classId: v.optional(v.union([v.literal(""), id]), ""),
+});
+
+const dayOrNone = v.union([v.literal(""), v.pipe(v.string(), v.isoDate())]);
+
+/** When a class takes a module: both days, the end on or after the start, or neither. */
+export const unitDatesSchema = v.pipe(
+  v.object({
+    moduleId: id,
+    classId: id,
+    startsOn: dayOrNone,
+    endsOn: dayOrNone,
+  }),
+  v.check(
+    (input) =>
+      (input.startsOn === "") === (input.endsOn === "") &&
+      input.endsOn >= input.startsOn,
+    "learning.unit_dates",
+  ),
+);
+
 export const savePlanSchema = v.object({
   moduleId: id,
   content: contentDocumentSchema,

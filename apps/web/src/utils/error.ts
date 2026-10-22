@@ -573,6 +573,10 @@ export function getMessageFromError(error: unknown): string {
         return m.learningDisabled();
       case "learning.no_year":
         return m.lrnErrNoYear();
+      case "learning.unit_dates":
+        return m.lrnErrUnitDates();
+      case "learning.unit_dates_year":
+        return m.lrnErrUnitDatesYear();
       case "learning.class":
         return m.lrnErrClass();
       case "learning.prerequisite":

@@ -58,6 +58,7 @@ import {
   moduleById,
   modulesForClasses,
   orderLessons,
+  yearUnitsOf,
   progressIn,
   lessonResponses,
   lessonReleased,
@@ -76,6 +77,7 @@ import {
   setLessonSounds,
   setModuleAudiences,
   setModuleClasses,
+  setUnitDates as storeUnitDates,
   audienceOfClass,
   audiencesOf,
   moduleReaches,
@@ -111,7 +113,11 @@ import {
   reviewTranslation,
   translationReview,
 } from "@faridalms/database/stores/translations";
-import { schoolYears, workingYear } from "@faridalms/database/stores/years";
+import {
+  schoolYears,
+  termsOf,
+  workingYear,
+} from "@faridalms/database/stores/years";
 import { contentFileIds, contentPlainText } from "@faridalms/domain/content";
 import {
   checkBlocks,
@@ -178,12 +184,14 @@ import {
   startPacedSchema,
   savePlanSchema,
   settled,
+  unitDatesSchema,
   shortOfGate,
   standingOf,
   studentBlocks,
   upgradeLesson,
   videoStops,
   watchSchema,
+  yearMapSchema,
 } from "@faridalms/domain/learning";
 import { isContentDocument } from "@faridalms/domain/lesson-content";
 import { translatedLesson } from "@faridalms/domain/lesson-translation";
@@ -697,6 +705,70 @@ export const modules = readProcedure
         authorId: input.classId ? null : context.actor.userId,
       }),
     };
+  });
+
+/**
+ * A class's year map: the school year and its terms, and the modules the
+ * class takes, each with the days its teachers plan to spend on it.
+ */
+export const yearMap = readProcedure
+  .input(yearMapSchema)
+  .handler(async ({ input, context }) => {
+    requireCapability(context, "learning:author");
+    const { year, classes } = await authoringClasses(context);
+    const classId = input.classId || classes[0]?.id || "";
+    if (classId && !classes.some((row) => row.id === classId))
+      throw new ORPCError("NOT_FOUND");
+    const [terms, units] = await Promise.all([
+      termsOf(context.tx, context.tenantId, year.id),
+      classId
+        ? yearUnitsOf(context.tx, { tenantId: context.tenantId, classId })
+        : [],
+    ]);
+    return {
+      classes,
+      classId,
+      year: {
+        titleEn: year.titleEn,
+        titleAr: year.titleAr,
+        startsOn: year.startsOn,
+        endsBefore: year.endsBefore,
+      },
+      terms: terms.map((term) => ({
+        id: term.id,
+        titleEn: term.titleEn,
+        titleAr: term.titleAr,
+        startsOn: term.startsOn,
+        endsBefore: term.endsBefore,
+      })),
+      units,
+    };
+  });
+
+/** Sets the days a class plans to spend on one of its modules, inside the school year, or clears them. */
+export const setUnitDates = writeProcedure
+  .input(unitDatesSchema)
+  .handler(async ({ input, context }) => {
+    requireCapability(context, "learning:author");
+    const { year, classes } = await authoringClasses(context);
+    if (!classes.some((row) => row.id === input.classId))
+      throw new ORPCError("NOT_FOUND");
+    if (
+      input.startsOn &&
+      (input.startsOn < year.startsOn || input.endsOn >= year.endsBefore)
+    )
+      throw new ORPCError("BAD_REQUEST", {
+        message: "learning.unit_dates_year",
+      });
+    const set = await storeUnitDates(context.tx, {
+      tenantId: context.tenantId,
+      moduleId: input.moduleId,
+      classId: input.classId,
+      startsOn: input.startsOn || null,
+      endsOn: input.endsOn || null,
+    });
+    if (!set) throw new ORPCError("NOT_FOUND");
+    return { set };
   });
 
 /** A module for those who teach it: its classes and lessons. */

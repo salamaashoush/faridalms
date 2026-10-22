@@ -78,6 +78,25 @@ export function formatDate(isoDate: string): string {
   }).format(new Date(`${isoDate.slice(0, 10)}T00:00:00.000Z`));
 }
 
+const calendarDay = (isoDate: string) =>
+  new Date(`${isoDate.slice(0, 10)}T00:00:00.000Z`);
+
+/** Two calendar days as one span, sharing what they share: "7 – 25 Sept 2026". */
+export function formatDayRange(first: string, last: string): string {
+  return new Intl.DateTimeFormat(numberLocale(), {
+    dateStyle: "medium",
+    timeZone: "UTC",
+  }).formatRange(calendarDay(first), calendarDay(last));
+}
+
+/** A month's short name alone, such as "Sept", for a timeline's scale. */
+export function formatMonthShort(isoDate: string): string {
+  return new Intl.DateTimeFormat(numberLocale(), {
+    month: "short",
+    timeZone: "UTC",
+  }).format(new Date(`${isoDate.slice(0, 7)}-01T00:00:00.000Z`));
+}
+
 /** `2026-09` becomes "September 2026", or "سبتمبر ٢٠٢٦" in Arabic. */
 export function formatMonthLabel(isoMonth: string): string {
   return new Intl.DateTimeFormat(numberLocale(), {

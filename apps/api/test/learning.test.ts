@@ -330,6 +330,100 @@ describe("learning a module", () => {
   });
 });
 
+describe("a class's year map", () => {
+  test("a teacher places a class's units across the school year, inside it, and clears them", async () => {
+    const { keeper, stranger } = await teachers();
+    const { rows } = await keeper.learning.modules({});
+    const source = rows.find((row) => row.title === TITLE);
+    const classId = source?.classes[0]?.id ?? "";
+    const saved = await keeper.learning.saveModule({
+      id: "",
+      expectedVersion: 0,
+      title: "Weather words",
+      summary: "",
+      classIds: [classId],
+      prerequisiteId: "",
+      sequential: false,
+    });
+    const before = await keeper.learning.yearMap({ classId });
+    expect(before.classId).toBe(classId);
+    const placed = before.units.find((row) => row.id === saved.id);
+    expect(placed).toMatchObject({ startsOn: null, endsOn: null });
+
+    const first = before.year.startsOn;
+    const day = (offset: number) =>
+      new Date(Date.parse(`${first}T00:00:00Z`) + offset * 86_400_000)
+        .toISOString()
+        .slice(0, 10);
+    const dates = { moduleId: saved.id, classId };
+    await keeper.learning.setUnitDates({
+      ...dates,
+      startsOn: day(14),
+      endsOn: day(27),
+    });
+    const after = await keeper.learning.yearMap({ classId });
+    expect(after.units.find((row) => row.id === saved.id)).toMatchObject({
+      startsOn: day(14),
+      endsOn: day(27),
+    });
+    // Dated units come first, in the order the class takes them.
+    expect(after.units[0]?.startsOn).not.toBeNull();
+
+    expect(
+      await rejection(
+        keeper.learning.setUnitDates({
+          ...dates,
+          startsOn: day(27),
+          endsOn: day(14),
+        }),
+      ),
+    ).toMatchObject({ code: "BAD_REQUEST" });
+    expect(
+      await rejection(
+        keeper.learning.setUnitDates({
+          ...dates,
+          startsOn: day(-3),
+          endsOn: day(4),
+        }),
+      ),
+    ).toMatchObject({ message: "learning.unit_dates_year" });
+    // Saving the module again keeps the class's dates.
+    const resaved = await keeper.learning.saveModule({
+      id: saved.id,
+      expectedVersion: saved.version,
+      title: "Weather words",
+      summary: "Rain, wind and sun.",
+      classIds: [classId],
+      prerequisiteId: "",
+      sequential: false,
+    });
+    expect(
+      (await keeper.learning.yearMap({ classId })).units.find(
+        (row) => row.id === saved.id,
+      )?.startsOn,
+    ).toBe(day(14));
+    expect(
+      await rejection(
+        stranger.learning.setUnitDates({
+          ...dates,
+          startsOn: "",
+          endsOn: "",
+        }),
+      ),
+    ).toMatchObject({ code: "NOT_FOUND" });
+    await keeper.learning.setUnitDates({ ...dates, startsOn: "", endsOn: "" });
+    expect(
+      (await keeper.learning.yearMap({ classId })).units.find(
+        (row) => row.id === saved.id,
+      ),
+    ).toMatchObject({ startsOn: null, endsOn: null });
+    await keeper.learning.archiveModule({
+      id: saved.id,
+      expectedVersion: resaved.version,
+    });
+  });
+});
+
 describe("matching, ordering, sorting and code puzzles", () => {
   test("a student answers each kind in a new module and finishes with full marks", async () => {
     const { keeper } = await teachers();
