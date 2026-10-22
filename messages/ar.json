@@ -5571,7 +5571,7 @@
   "lrnCrosswordDown": "عموديًا",
   "lrnCrosswordSquare": "{number} {way}، الحرف {place} من {count}",
   "lrnWordSearchList": "كلمات للبحث عنها",
-  "lrnWordSearchHow": "اضغط الحرف الأول من الكلمة ثم حرفها الأخير.",
+  "lrnWordSearchHow": "اسحب على الكلمة، أو اضغط حرفها الأول ثم حرفها الأخير.",
   "lrnWordSearchSquare": "الصف {row}، العمود {col}: {letter}",
   "lrnWordSearchFound": "وجدت {found} من {total}",
   "lrnWordSearchMissed": "هذه الحروف لا تكوّن أيًّا من الكلمات.",

@@ -20,7 +20,11 @@ import {
   MAX_RUN_OUTPUT,
   placeNumber,
 } from "@faridalms/domain/learning";
-import { spells, squaresBetween } from "@faridalms/domain/wordsearch";
+import {
+  lettersBetween,
+  spells,
+  squaresBetween,
+} from "@faridalms/domain/wordsearch";
 import { StoredImage } from "@faridalms/editor/files";
 import { TextWithMath, textOfMath } from "@faridalms/editor/math";
 import { MathInput } from "@faridalms/editor/math-input";
@@ -1638,12 +1642,21 @@ const SEARCH_STEPS: Record<string, [number, number]> = {
   ArrowRight: [0, 1],
 };
 
+/** The word search square under a finger or pointer, wherever a drag has gone. */
+function squareAt(x: number, y: number): [number, number] | null {
+  const square = document
+    .elementFromPoint(x, y)
+    ?.closest<HTMLElement>("[data-row]");
+  if (!square) return null;
+  return [Number(square.dataset.row), Number(square.dataset.col)];
+}
+
 /**
- * Words hidden in a grid of letters: a student presses a word's first
- * letter, then its last, and a stretch that spells one of the words stays
- * marked. The arrow keys move between letters and Enter presses one, so a
- * keyboard finds words as a finger does; rows read from the right when
- * the words are Arabic.
+ * Words hidden in a grid of letters: a student drags across a word, or
+ * presses its first letter and then its last, and a stretch that spells one
+ * of the words stays marked. The arrow keys move between letters and Enter
+ * presses one, so a keyboard finds words as a finger does; rows read from
+ * the right when the words are Arabic.
  */
 function WordSearchCheck({
   block,
@@ -1664,6 +1677,10 @@ function WordSearchCheck({
     view?.response?.type === "wordsearch" ? view.response.found : [],
   );
   const [from, setFrom] = useState<[number, number] | null>(null);
+  const [drag, setDrag] = useState<{
+    from: [number, number];
+    to: [number, number];
+  } | null>(null);
   const [cursor, setCursor] = useState<[number, number]>([0, 0]);
   const [missed, setMissed] = useState(false);
   const buttons = useRef(new Map<string, HTMLButtonElement>());
@@ -1690,18 +1707,30 @@ function WordSearchCheck({
     for (const [row, col] of squaresBetween(stretch))
       if (!marks.has(squareKey(row, col)))
         marks.set(squareKey(row, col), "shown");
+  const finish = (stretch: Stretch) => {
+    setFrom(null);
+    const word = wordIn(stretch);
+    if (!word) setMissed(true);
+    else if (!foundIds.has(word.id)) setFound((now) => [...now, stretch]);
+  };
   const press = (row: number, col: number) => {
     if (!from) {
       setFrom([row, col]);
       setMissed(false);
       return;
     }
-    const stretch: Stretch = [from[0], from[1], row, col];
-    setFrom(null);
-    const word = wordIn(stretch);
-    if (!word) setMissed(true);
-    else if (!foundIds.has(word.id)) setFound((now) => [...now, stretch]);
+    finish([from[0], from[1], row, col]);
   };
+  // A drag lights the squares it would mark while it stays in a line.
+  const dragged = new Set(
+    drag
+      ? lettersBetween(block.rows, [...drag.from, ...drag.to])
+        ? squaresBetween([...drag.from, ...drag.to]).map(([row, col]) =>
+            squareKey(row, col),
+          )
+        : [squareKey(...drag.from)]
+      : [],
+  );
   const move = (row: number, col: number) => {
     const next: [number, number] = [
       Math.min(size - 1, Math.max(0, row)),
@@ -1736,17 +1765,41 @@ function WordSearchCheck({
       </p>
       <div
         dir={block.rtl ? "rtl" : "ltr"}
-        className="mx-auto grid w-full gap-0.5 rounded-lg bg-muted/40 p-1.5 select-none"
+        className="mx-auto grid w-full touch-none gap-0.5 rounded-lg bg-muted/40 p-1.5 select-none"
         style={{
           gridTemplateColumns: `repeat(${size}, minmax(0, 2.5rem))`,
           maxWidth: `${size * 2.5}rem`,
         }}
+        onPointerDown={(event) => {
+          if (locked || event.button !== 0) return;
+          const at = squareAt(event.clientX, event.clientY);
+          if (!at) return;
+          event.currentTarget.setPointerCapture(event.pointerId);
+          setDrag({ from: at, to: at });
+        }}
+        onPointerMove={(event) => {
+          if (!drag) return;
+          const at = squareAt(event.clientX, event.clientY);
+          if (at && (at[0] !== drag.to[0] || at[1] !== drag.to[1]))
+            setDrag({ ...drag, to: at });
+        }}
+        onPointerUp={() => {
+          if (!drag) return;
+          setDrag(null);
+          const [fromRow, fromCol] = drag.from;
+          const [toRow, toCol] = drag.to;
+          // Lifted where it went down, it was a press, as a tap or click is.
+          if (fromRow === toRow && fromCol === toCol) press(fromRow, fromCol);
+          else finish([fromRow, fromCol, toRow, toCol]);
+        }}
+        onPointerCancel={() => setDrag(null)}
       >
         {block.rows.flatMap((letters, row) =>
           letters.map((letter, col) => {
             const key = squareKey(row, col);
             const mark = marks.get(key);
-            const pressed = from?.[0] === row && from[1] === col;
+            const pressed =
+              (from?.[0] === row && from[1] === col) || dragged.has(key);
             return (
               <button
                 key={key}
@@ -1755,6 +1808,8 @@ function WordSearchCheck({
                   else buttons.current.delete(key);
                 }}
                 type="button"
+                data-row={row}
+                data-col={col}
                 disabled={locked}
                 tabIndex={cursor[0] === row && cursor[1] === col ? 0 : -1}
                 aria-pressed={pressed}
@@ -1764,7 +1819,10 @@ function WordSearchCheck({
                   letter,
                 })}
                 onFocus={() => setCursor([row, col])}
-                onClick={() => press(row, col)}
+                // A finger or pointer is read from the grid; a key presses here.
+                onClick={(event) => {
+                  if (event.detail === 0) press(row, col);
+                }}
                 onKeyDown={(event) => {
                   const by = SEARCH_STEPS[event.key];
                   if (!by) return;

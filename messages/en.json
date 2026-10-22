@@ -5294,7 +5294,7 @@
   "lrnCrosswordDown": "Down",
   "lrnCrosswordSquare": "{number} {way}, letter {place} of {count}",
   "lrnWordSearchList": "Words to find",
-  "lrnWordSearchHow": "Press a word's first letter, then its last.",
+  "lrnWordSearchHow": "Drag across a word, or press its first letter and then its last.",
   "lrnWordSearchSquare": "Row {row}, column {col}: {letter}",
   "lrnWordSearchFound": "{found} of {total} found",
   "lrnWordSearchMissed": "Those letters spell none of the words.",
