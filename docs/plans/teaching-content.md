@@ -649,7 +649,12 @@ Sources: [../research/course-design.md](../research/course-design.md),
    answer and the order, so an answer given in one language is marked by
    the original's key and stands in the other, and a question the
    translation changed beyond its words is asked as the original.
-   Left: a question's own labels in the lesson's language.
+   A question's own words, its labels, buttons, hints and feedback, read
+   in the language the lesson or quiz is read in where its teacher set
+   one, so a student reading an English lesson in the Arabic interface
+   meets "Check answer" beside the question's English words, and a
+   screen reader speaks the whole question in one voice; the page around
+   it keeps the interface's language.
 8. **Word import**: a `.docx` opens as a document, its pictures uploaded.
    Done: "Word document" in the insert and slash menus brings a `.docx`
    in where the caret is, read in the browser (mammoth, loaded only when

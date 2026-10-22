@@ -110,6 +110,7 @@ import { getMessageFromError } from "~/utils/error";
 
 import type { CheckDriver, CheckStudentBlock } from "./Checks";
 
+import { CheckLanguage } from "./checkLanguage";
 import { CheckBlockView, isCheckBlock, isSettled } from "./Checks";
 import { YoungLesson } from "./young/YoungLesson";
 
@@ -466,180 +467,182 @@ function LessonBody({
 
   return (
     <WholeDocument parts={blocks} lang={language}>
-      {resumeAt ? (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-muted/50 px-5 py-3">
-          <p className="text-sm leading-5 text-muted-foreground">
-            {m.lrnResumeHint()}
-          </p>
-          <Button
-            type="button"
-            variant="outline"
-            className="max-md:h-10"
-            onClick={() => {
-              setResumed(true);
-              const target = document.getElementById(`block-${resumeAt}`);
-              target?.scrollIntoView({ block: "start" });
-              target?.focus({ preventScroll: true });
-            }}
-          >
-            {m.lrnResume()}
-            <ArrowDown aria-hidden />
-          </Button>
-        </div>
-      ) : null}
-      {shown.map(({ block, index }) => {
-        let body;
-        if (block.type === "gate" && paced) {
-          body = (
-            <p className="flex flex-wrap items-center justify-center gap-2 rounded-lg border border-dashed px-5 py-4 text-sm leading-5 text-muted-foreground">
-              <Radio aria-hidden className="size-4" />
-              {m.lrnPacedWaits()}
+      <CheckLanguage.Provider value={language ?? null}>
+        {resumeAt ? (
+          <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-muted/50 px-5 py-3">
+            <p className="text-sm leading-5 text-muted-foreground">
+              {m.lrnResumeHint()}
             </p>
-          );
-        } else if (block.type === "gate") {
-          body = (
-            <Gate
-              standing={settledAbove(index)}
-              retry={retry}
-              onContinue={() => {
-                // The blocks after the gate must exist before focus can move to them.
-                flushSync(() =>
-                  setPassed((current) => new Set([...current, block.id])),
-                );
-                const next = blocks[index + 1];
-                if (next) {
-                  document.getElementById(`block-${next.id}`)?.focus();
-                  onReach?.(next.id);
-                }
+            <Button
+              type="button"
+              variant="outline"
+              className="max-md:h-10"
+              onClick={() => {
+                setResumed(true);
+                const target = document.getElementById(`block-${resumeAt}`);
+                target?.scrollIntoView({ block: "start" });
+                target?.focus({ preventScroll: true });
               }}
-            />
-          );
-        } else if (block.type === "content")
-          body = (
-            <ContentView
-              document={block.content}
-              fileUrl={fileUrl}
-              watch={watching}
-              predicted={predictedAbove(index)}
-              renderBlock={(node, drawn) => {
-                const narration = node.$?.narration ?? null;
-                if (!young && !narration) return drawn;
-                const text = contentPlainText({
-                  root: { ...block.content.root, children: [node] },
-                });
-                // For young children every block keeps a speaker's room at
-                // its start, so their text lines up whether one shows or not.
-                return young ? (
-                  <div
-                    dir={textDirection(text) ?? undefined}
-                    className="flex items-start gap-3"
-                  >
-                    <span className="flex w-11 shrink-0 justify-center">
-                      <ReadAloud text={text} narration={narration} />
-                    </span>
-                    <div className="min-w-0 flex-1">{drawn}</div>
-                  </div>
-                ) : (
-                  <div className="flex items-start gap-3">
-                    <div className="min-w-0 flex-1">{drawn}</div>
-                    <ReadAloud
-                      text={text}
-                      narration={narration}
-                      voice={false}
-                      size="small"
-                      className="mt-1"
-                    />
-                  </div>
-                );
-              }}
-            />
-          );
-        else if (block.type === "media")
-          body = <Media block={block} watch={watching} />;
-        else if (isCheckBlock(block)) {
-          const stop = stopOf.get(block.id);
-          const view = checks[block.id];
-          const settledHere = isSettled(block, view);
-          const missed = Boolean(view && view.tries > 0 && !settledHere);
-          body =
-            stop &&
-            !settledHere &&
-            !stopped.has(block.id) &&
-            !opened.has(block.id) ? (
-              <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-lg border border-dashed px-4 py-2 text-sm leading-5 text-muted-foreground">
-                <Clock aria-hidden className="size-4 shrink-0" />
-                <p className="min-w-0 flex-1">
-                  {m.lrnVideoQuestionAhead({
-                    time: mediaClock(stop.at),
-                  })}
-                </p>
-                <Button
-                  type="button"
-                  variant="ghost"
-                  size="sm"
-                  className="-me-2 max-md:h-10"
-                  onClick={() => {
-                    flushSync(() =>
-                      setOpened((current) => new Set([...current, block.id])),
-                    );
-                    document.getElementById(`block-${block.id}`)?.focus();
-                  }}
-                >
-                  {m.lrnVideoAnswerNow()}
-                </Button>
-              </div>
-            ) : (
-              <div className="grid gap-3">
-                <CheckBlockView
-                  block={block}
-                  view={checks[block.id]}
-                  driver={driver}
-                />
-                {stop && settledHere && stopped.has(block.id) ? (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="justify-self-start max-md:h-10"
-                    onClick={() => players.current.get(stop.fileId)?.play()}
-                  >
-                    <Play aria-hidden />
-                    {m.lrnVideoContinue()}
-                  </Button>
-                ) : null}
-                {/* After a wrong try, the part of the video the question asks about plays again. */}
-                {stop && missed && stopped.has(block.id) ? (
-                  <Button
-                    type="button"
-                    variant="outline"
-                    className="justify-self-start max-md:h-10"
-                    onClick={() =>
-                      players.current
-                        .get(stop.fileId)
-                        ?.playFrom(segmentStart(stop.fileId, stop.at))
-                    }
-                  >
-                    <RotateCcw aria-hidden />
-                    {m.lrnVideoRewatch({
-                      time: mediaClock(segmentStart(stop.fileId, stop.at)),
-                    })}
-                  </Button>
-                ) : null}
-              </div>
+            >
+              {m.lrnResume()}
+              <ArrowDown aria-hidden />
+            </Button>
+          </div>
+        ) : null}
+        {shown.map(({ block, index }) => {
+          let body;
+          if (block.type === "gate" && paced) {
+            body = (
+              <p className="flex flex-wrap items-center justify-center gap-2 rounded-lg border border-dashed px-5 py-4 text-sm leading-5 text-muted-foreground">
+                <Radio aria-hidden className="size-4" />
+                {m.lrnPacedWaits()}
+              </p>
             );
-        }
-        return (
-          <section
-            key={block.id}
-            id={`block-${block.id}`}
-            // A gate is passed by choosing to continue, never by scrolling to it.
-            data-block={block.type === "gate" ? undefined : block.id}
-            tabIndex={-1}
-            className="scroll-mt-24 outline-none"
-          >
-            {body}
-          </section>
-        );
-      })}
+          } else if (block.type === "gate") {
+            body = (
+              <Gate
+                standing={settledAbove(index)}
+                retry={retry}
+                onContinue={() => {
+                  // The blocks after the gate must exist before focus can move to them.
+                  flushSync(() =>
+                    setPassed((current) => new Set([...current, block.id])),
+                  );
+                  const next = blocks[index + 1];
+                  if (next) {
+                    document.getElementById(`block-${next.id}`)?.focus();
+                    onReach?.(next.id);
+                  }
+                }}
+              />
+            );
+          } else if (block.type === "content")
+            body = (
+              <ContentView
+                document={block.content}
+                fileUrl={fileUrl}
+                watch={watching}
+                predicted={predictedAbove(index)}
+                renderBlock={(node, drawn) => {
+                  const narration = node.$?.narration ?? null;
+                  if (!young && !narration) return drawn;
+                  const text = contentPlainText({
+                    root: { ...block.content.root, children: [node] },
+                  });
+                  // For young children every block keeps a speaker's room at
+                  // its start, so their text lines up whether one shows or not.
+                  return young ? (
+                    <div
+                      dir={textDirection(text) ?? undefined}
+                      className="flex items-start gap-3"
+                    >
+                      <span className="flex w-11 shrink-0 justify-center">
+                        <ReadAloud text={text} narration={narration} />
+                      </span>
+                      <div className="min-w-0 flex-1">{drawn}</div>
+                    </div>
+                  ) : (
+                    <div className="flex items-start gap-3">
+                      <div className="min-w-0 flex-1">{drawn}</div>
+                      <ReadAloud
+                        text={text}
+                        narration={narration}
+                        voice={false}
+                        size="small"
+                        className="mt-1"
+                      />
+                    </div>
+                  );
+                }}
+              />
+            );
+          else if (block.type === "media")
+            body = <Media block={block} watch={watching} />;
+          else if (isCheckBlock(block)) {
+            const stop = stopOf.get(block.id);
+            const view = checks[block.id];
+            const settledHere = isSettled(block, view);
+            const missed = Boolean(view && view.tries > 0 && !settledHere);
+            body =
+              stop &&
+              !settledHere &&
+              !stopped.has(block.id) &&
+              !opened.has(block.id) ? (
+                <div className="flex flex-wrap items-center gap-x-3 gap-y-2 rounded-lg border border-dashed px-4 py-2 text-sm leading-5 text-muted-foreground">
+                  <Clock aria-hidden className="size-4 shrink-0" />
+                  <p className="min-w-0 flex-1">
+                    {m.lrnVideoQuestionAhead({
+                      time: mediaClock(stop.at),
+                    })}
+                  </p>
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="-me-2 max-md:h-10"
+                    onClick={() => {
+                      flushSync(() =>
+                        setOpened((current) => new Set([...current, block.id])),
+                      );
+                      document.getElementById(`block-${block.id}`)?.focus();
+                    }}
+                  >
+                    {m.lrnVideoAnswerNow()}
+                  </Button>
+                </div>
+              ) : (
+                <div className="grid gap-3">
+                  <CheckBlockView
+                    block={block}
+                    view={checks[block.id]}
+                    driver={driver}
+                  />
+                  {stop && settledHere && stopped.has(block.id) ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="justify-self-start max-md:h-10"
+                      onClick={() => players.current.get(stop.fileId)?.play()}
+                    >
+                      <Play aria-hidden />
+                      {m.lrnVideoContinue()}
+                    </Button>
+                  ) : null}
+                  {/* After a wrong try, the part of the video the question asks about plays again. */}
+                  {stop && missed && stopped.has(block.id) ? (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="justify-self-start max-md:h-10"
+                      onClick={() =>
+                        players.current
+                          .get(stop.fileId)
+                          ?.playFrom(segmentStart(stop.fileId, stop.at))
+                      }
+                    >
+                      <RotateCcw aria-hidden />
+                      {m.lrnVideoRewatch({
+                        time: mediaClock(segmentStart(stop.fileId, stop.at)),
+                      })}
+                    </Button>
+                  ) : null}
+                </div>
+              );
+          }
+          return (
+            <section
+              key={block.id}
+              id={`block-${block.id}`}
+              // A gate is passed by choosing to continue, never by scrolling to it.
+              data-block={block.type === "gate" ? undefined : block.id}
+              tabIndex={-1}
+              className="scroll-mt-24 outline-none"
+            >
+              {body}
+            </section>
+          );
+        })}
+      </CheckLanguage.Provider>
     </WholeDocument>
   );
 }

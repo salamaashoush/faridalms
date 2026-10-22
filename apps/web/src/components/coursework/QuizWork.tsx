@@ -7,6 +7,7 @@ import type {
 import type { ReactNode } from "react";
 import type * as v from "valibot";
 
+import { CONTENT_LOCALES } from "@faridalms/domain/translations";
 import { Button } from "@faridalms/ui/button";
 import { Input } from "@faridalms/ui/input";
 import { Textarea } from "@faridalms/ui/textarea";
@@ -19,6 +20,7 @@ import { toast } from "sonner";
 import type { CheckDriver } from "~/components/learning/Checks";
 
 import { ContentView, WholeDocument } from "~/components/content/ContentView";
+import { CheckLanguage } from "~/components/learning/checkLanguage";
 import {
   CheckBlockView,
   CheckModeContext,
@@ -258,6 +260,7 @@ export function QuizWork({
     quiz?.translated && reading === quiz.translated.locale
       ? quiz.translated.blocks
       : quiz?.blocks;
+  const readingIn = CONTENT_LOCALES.find((locale) => locale === reading);
   const queryClient = useQueryClient();
   const query = myWorkQuery(data.assignment.id);
   const [confirming, setConfirming] = useState(false);
@@ -499,13 +502,15 @@ export function QuizWork({
               </p>
             ) : null}
             <CheckModeContext.Provider value="quiz">
-              <QuizBlocks
-                key={quiz.attempt}
-                blocks={asked ?? quiz.blocks}
-                views={views}
-                driver={driver}
-                practice={practice}
-              />
+              <CheckLanguage.Provider value={readingIn ?? null}>
+                <QuizBlocks
+                  key={quiz.attempt}
+                  blocks={asked ?? quiz.blocks}
+                  views={views}
+                  driver={driver}
+                  practice={practice}
+                />
+              </CheckLanguage.Provider>
             </CheckModeContext.Provider>
             <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg bg-muted/50 px-5 py-4">
               <p className="text-sm leading-5 text-muted-foreground tabular-nums">

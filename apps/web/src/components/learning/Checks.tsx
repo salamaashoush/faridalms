@@ -78,11 +78,13 @@ import { CodingAnswer } from "~/components/coding/CodingAnswer";
 import { friendlyError } from "~/components/coding/friendly";
 import { WebProjectAnswer } from "~/components/coding/WebProjectAnswer";
 import { editorSetting, puzzleStrings } from "~/components/puzzles/strings";
-import * as m from "~/i18n/messages";
 import { getLocale } from "~/i18n/runtime";
 import { formatList, formatNumber, formatPercent } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
+import type { Messages } from "./checkLanguage";
+
+import { useCheckMessages } from "./checkLanguage";
 import { NumberLine } from "./NumberLine";
 import { PictureAnswer } from "./PictureAnswer";
 import { ReadAloud, ReaderContext, YoungContext } from "./ReadAloud";
@@ -105,6 +107,7 @@ function PartView({
   part: StudentPart;
   size?: "small" | "card";
 }) {
+  const m = useCheckMessages();
   const picture = part.picture;
   return (
     <span
@@ -304,6 +307,7 @@ function useCheck(
 }
 
 function Verdict({ view }: { view: CheckView }) {
+  const m = useCheckMessages();
   const mode = useContext(CheckModeContext);
   if (view.correct)
     return (
@@ -340,16 +344,16 @@ function Verdict({ view }: { view: CheckView }) {
   );
 }
 
-const MATH_NOTES: Record<MathNote, () => string> = {
-  factorised: m.lrnMathNoteFactorised,
-  expanded: m.lrnMathNoteExpanded,
-  fraction: m.lrnMathNoteFraction,
-  standard: m.lrnMathNoteStandard,
-  figures: m.lrnMathNoteFigures,
-  places: m.lrnMathNotePlaces,
-  units: m.lrnMathNoteUnits,
-  unitless: m.lrnMathNoteUnitless,
-};
+const MATH_NOTES = {
+  factorised: "lrnMathNoteFactorised",
+  expanded: "lrnMathNoteExpanded",
+  fraction: "lrnMathNoteFraction",
+  standard: "lrnMathNoteStandard",
+  figures: "lrnMathNoteFigures",
+  places: "lrnMathNotePlaces",
+  units: "lrnMathNoteUnits",
+  unitless: "lrnMathNoteUnitless",
+} as const satisfies Record<MathNote, keyof Messages>;
 
 /** What a student learns from a try: right or not, what they chose meant, the hints so far, and once settled the answer and why. */
 function Outcome({
@@ -361,11 +365,12 @@ function Outcome({
   keyText?: string;
   keyCode?: string[];
 }) {
+  const m = useCheckMessages();
   return (
     <>
       <Verdict view={view} />
       {view.note && !view.correct ? (
-        <p className="text-sm leading-6">{MATH_NOTES[view.note]()}</p>
+        <p className="text-sm leading-6">{m[MATH_NOTES[view.note]]()}</p>
       ) : null}
       {view.feedback.map((text) => (
         <p key={text} dir="auto" className="text-sm leading-6">
@@ -412,6 +417,7 @@ function CheckStatus({
   keyText?: string;
   keyCode?: string[];
 }) {
+  const m = useCheckMessages();
   const mode = useContext(CheckModeContext);
   if (mode === "review")
     return view && (view.tries > 0 || view.revealed) ? (
@@ -469,6 +475,7 @@ function CheckCard({
   status: ReactNode;
   actions: ReactNode;
 }) {
+  const m = useCheckMessages();
   const young = useContext(YoungContext);
   const mode = useContext(CheckModeContext);
   const help = useContext(CheckHelpContext);
@@ -584,6 +591,7 @@ function Retry({
   onTryAgain: () => void;
   onReveal: () => void;
 }) {
+  const m = useCheckMessages();
   const mode = useContext(CheckModeContext);
   if (mode === "review" || (mode === "practice" && settled)) return null;
   if (mode === "quiz")
@@ -658,6 +666,7 @@ const choiceRow =
 type Mark = "right" | "wrong" | null;
 
 function MarkIcon({ mark }: { mark: Mark }) {
+  const m = useCheckMessages();
   if (mark === null) return null;
   const Icon = mark === "right" ? CircleCheck : CircleX;
   return (
@@ -704,6 +713,7 @@ const markBorder = (mark: Mark) =>
   );
 
 function RightPart({ mark, text }: { mark: Mark; text: string | undefined }) {
+  const m = useCheckMessages();
   if (mark !== "wrong" || text === undefined) return null;
   return (
     <span className="text-sm leading-5 font-medium text-success">
@@ -850,6 +860,7 @@ function ChoiceCheck({
   view: CheckView | undefined;
   driver: CheckDriver;
 }) {
+  const m = useCheckMessages();
   const legend = useId();
   const { editing, setEditing, respond, reveal } = useCheck(
     block.id,
@@ -930,6 +941,7 @@ function PollTally({
   answered: number;
   mine: string[];
 }) {
+  const m = useCheckMessages();
   return (
     <div className="grid gap-3">
       <p className="flex flex-wrap items-baseline justify-between gap-x-3 text-sm leading-5">
@@ -1015,6 +1027,7 @@ function PollCheck({
   view: CheckView | undefined;
   driver: CheckDriver;
 }) {
+  const m = useCheckMessages();
   const legend = useId();
   const { editing, setEditing, respond } = useCheck(block.id, view, driver);
   const [selected, setSelected] = useState<string[]>(
@@ -1131,6 +1144,7 @@ function TypedCheck({
   view: CheckView | undefined;
   driver: CheckDriver;
 }) {
+  const m = useCheckMessages();
   const legend = useId();
   const field = useId();
   const input = useRef<HTMLInputElement>(null);
@@ -1243,6 +1257,7 @@ function MathCheck({
   view: CheckView | undefined;
   driver: CheckDriver;
 }) {
+  const m = useCheckMessages();
   const legend = useId();
   const { editing, setEditing, respond, reveal } = useCheck(
     block.id,
@@ -1423,6 +1438,7 @@ function LabellingCheck({
   view: CheckView | undefined;
   driver: CheckDriver;
 }) {
+  const m = useCheckMessages();
   const legend = useId();
   const { editing, setEditing, respond, reveal } = useCheck(
     block.id,
@@ -1604,6 +1620,7 @@ function GapsCheck({
   view: CheckView | undefined;
   driver: CheckDriver;
 }) {
+  const m = useCheckMessages();
   const legend = useId();
   const { editing, setEditing, respond, reveal } = useCheck(
     block.id,
@@ -1760,6 +1777,7 @@ function WordSearchCheck({
   view: CheckView | undefined;
   driver: CheckDriver;
 }) {
+  const m = useCheckMessages();
   const legend = useId();
   const { editing, setEditing, respond, reveal } = useCheck(
     block.id,
@@ -1972,7 +1990,7 @@ function WordSearchCheck({
 
 type Entry = Of<"crossword">["entries"][number];
 
-const way = (entry: Pick<Entry, "across">) =>
+const way = (entry: Pick<Entry, "across">, m: Messages) =>
   entry.across ? m.lrnCrosswordAcross() : m.lrnCrosswordDown();
 
 /**
@@ -1991,6 +2009,7 @@ function CrosswordCheck({
   view: CheckView | undefined;
   driver: CheckDriver;
 }) {
+  const m = useCheckMessages();
   const legend = useId();
   const { editing, setEditing, respond, reveal } = useCheck(
     block.id,
@@ -2087,7 +2106,7 @@ function CrosswordCheck({
         {current ? (
           <>
             <span className="font-semibold">
-              {formatNumber(current.number)} {way(current)}
+              {formatNumber(current.number)} {way(current, m)}
             </span>{" "}
             {current.clue}
           </>
@@ -2139,7 +2158,7 @@ function CrosswordCheck({
                 disabled={locked}
                 aria-label={m.lrnCrosswordSquare({
                   number: formatNumber(owner.entry.number),
-                  way: way(owner.entry),
+                  way: way(owner.entry, m),
                   place: formatNumber(owner.index + 1),
                   count: formatNumber(owner.entry.length),
                 })}
@@ -2288,6 +2307,7 @@ function HighlightCheck({
   view: CheckView | undefined;
   driver: CheckDriver;
 }) {
+  const m = useCheckMessages();
   const legend = useId();
   const { editing, setEditing, respond, reveal } = useCheck(
     block.id,
@@ -2378,6 +2398,7 @@ function MatchingCheck({
   view: CheckView | undefined;
   driver: CheckDriver;
 }) {
+  const m = useCheckMessages();
   const legend = useId();
   const { editing, setEditing, respond, reveal } = useCheck(
     block.id,
@@ -2494,6 +2515,7 @@ function OrderingCheck({
   view: CheckView | undefined;
   driver: CheckDriver;
 }) {
+  const m = useCheckMessages();
   const legend = useId();
   const { editing, setEditing, respond, reveal } = useCheck(
     block.id,
@@ -2650,6 +2672,7 @@ function ParsonsCheck({
   view: CheckView | undefined;
   driver: CheckDriver;
 }) {
+  const m = useCheckMessages();
   const legend = useId();
   const programId = useId();
   const poolId = useId();
@@ -2959,6 +2982,7 @@ function ProgramTest({
   result: ProgramResult | undefined;
   language: "python" | "javascript";
 }) {
+  const m = useCheckMessages();
   const mark: Mark = result ? (result.passed ? "right" : "wrong") : null;
   const friendly = result?.error
     ? friendlyError(language, result.error.split(":")[0] ?? "")
@@ -3050,6 +3074,7 @@ function ProgramCheck({
   view: CheckView | undefined;
   driver: CheckDriver;
 }) {
+  const m = useCheckMessages();
   const legend = useId();
   const mode = useContext(CheckModeContext);
   const { respond, reveal } = useCheck(block.id, view, driver);
@@ -3179,6 +3204,7 @@ function PuzzleCheck({
   view: CheckView | undefined;
   driver: CheckDriver;
 }) {
+  const m = useCheckMessages();
   const legend = useId();
   const mode = useContext(CheckModeContext);
   const young = useContext(YoungContext);
@@ -3494,6 +3520,7 @@ function WrittenCheck({
   view: CheckView | undefined;
   driver: CheckDriver;
 }) {
+  const m = useCheckMessages();
   const legend = useId();
   const field = useId();
   const sent = view?.response?.type === "written" ? view.response.text : "";
