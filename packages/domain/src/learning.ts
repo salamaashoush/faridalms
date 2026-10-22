@@ -55,8 +55,8 @@ import {
   lettersBetween,
   MAX_SEARCH_SIZE,
   MAX_SEARCH_WORDS,
+  searchOf,
   spells,
-  wordSearch,
 } from "./wordsearch";
 
 export { gapsSource, parseGaps } from "./gaps";
@@ -688,11 +688,10 @@ export const lessonBlockSchema = v.variant("type", [
         v.minLength(2, "learning.wordsearch_layout"),
         v.maxLength(MAX_SEARCH_WORDS),
       ),
+      /** Words also run backwards, up and along the other diagonal, for older students. */
+      backwards: v.optional(v.boolean()),
     }),
-    v.check(
-      (block) => wordSearch(block.words, block.id) !== null,
-      "learning.wordsearch_layout",
-    ),
+    v.check((block) => searchOf(block) !== null, "learning.wordsearch_layout"),
   ),
   v.object({
     ...checkFields,
@@ -2003,7 +2002,7 @@ export function markResponse(
     }
     case "wordsearch": {
       if (response.type !== "wordsearch") return none;
-      const search = wordSearch(block.words, block.id);
+      const search = searchOf(block);
       if (!search) return none;
       return share(
         Object.fromEntries(
@@ -2720,7 +2719,7 @@ export function studentBlocks(
         const { explanation: _why, hints: _hints, ...rest } = block;
         return {
           ...rest,
-          rows: wordSearch(block.words, block.id)?.rows ?? [],
+          rows: searchOf(block)?.rows ?? [],
           rtl:
             textDirection(block.words.map((word) => word.answer).join(" ")) ===
             "rtl",
@@ -2932,7 +2931,7 @@ export function partKey(block: AutoBlock): Record<string, string> {
       );
     case "wordsearch": {
       // Where each word is, as its two ends, so a student shown the answer sees it in the grid.
-      const lines = wordSearch(block.words, block.id)?.lines ?? {};
+      const lines = searchOf(block)?.lines ?? {};
       return Object.fromEntries(
         Object.entries(lines).map(([wordId, line]) => [
           wordId,
@@ -3876,7 +3875,7 @@ export function responseIssue(
       return "learning.option";
   }
   if (block.type === "wordsearch" && response.type === "wordsearch") {
-    const rows = wordSearch(block.words, block.id)?.rows ?? [];
+    const rows = searchOf(block)?.rows ?? [];
     if (
       response.found.some(
         (stretch) =>

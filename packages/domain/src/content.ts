@@ -411,6 +411,8 @@ export interface ContentNode {
   flashSeconds?: number | null;
   /** A matching question played as memory pairs. */
   memory?: boolean;
+  /** A word search whose words also run backwards, up and along the other diagonal. */
+  backwards?: boolean;
   /** A tracing question's model: strokes of x, y points across a unit square. */
   trace?: number[][];
   /** A Scratch question's starter project, the .sb3 every student begins from. */
@@ -771,6 +773,7 @@ const nodeSchema: v.GenericSchema<ContentNode> = v.lazy(() =>
       countLayout: v.optional(v.picklist(["scatter", "line", "frame"])),
       flashSeconds: v.optional(v.nullable(integer(1, 10))),
       memory: v.optional(v.boolean()),
+      backwards: v.optional(v.boolean()),
       trace: v.optional(
         v.pipe(
           v.array(

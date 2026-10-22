@@ -17,7 +17,7 @@ import {
   shuffled,
 } from "@faridalms/domain/learning";
 import { programFile } from "@faridalms/domain/project";
-import { squaresAlong, wordSearch } from "@faridalms/domain/wordsearch";
+import { searchOf, squaresAlong } from "@faridalms/domain/wordsearch";
 import { StoredImage } from "@faridalms/editor/files";
 import { mediaClock } from "@faridalms/editor/format";
 import { MathText, TextWithMath } from "@faridalms/editor/math";
@@ -933,7 +933,7 @@ export function PaperQuestion({
       ) : null;
       break;
     case "wordsearch": {
-      const search = wordSearch(block.words, block.id);
+      const search = searchOf(block);
       if (!search) break;
       const hidden = new Set(
         Object.values(search.lines).flatMap((line) =>

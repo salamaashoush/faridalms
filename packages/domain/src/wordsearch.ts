@@ -11,10 +11,10 @@ const SMALLEST = 6;
 export interface SearchLine {
   row: number;
   col: number;
-  /** Down a row each letter, or not. */
-  down: 0 | 1;
-  /** Along a column each letter, or not. */
-  along: 0 | 1;
+  /** Down a row each letter, up one, or neither. */
+  down: -1 | 0 | 1;
+  /** Along a column each letter, back one, or neither. */
+  along: -1 | 0 | 1;
   length: number;
 }
 
@@ -26,10 +26,20 @@ export interface WordSearch {
 }
 
 /** Across, down and down the diagonal, the ways a young reader finds a word. */
-const WAYS: readonly [0 | 1, 0 | 1][] = [
+const WAYS: readonly [-1 | 0 | 1, -1 | 0 | 1][] = [
   [0, 1],
   [1, 0],
   [1, 1],
+];
+
+/** Every way a line runs, backwards, up and the other diagonal too, for older readers. */
+const ALL_WAYS: readonly [-1 | 0 | 1, -1 | 0 | 1][] = [
+  ...WAYS,
+  [0, -1],
+  [-1, 0],
+  [-1, -1],
+  [1, -1],
+  [-1, 1],
 ];
 
 /**
@@ -37,12 +47,15 @@ const WAYS: readonly [0 | 1, 0 | 1][] = [
  * seed: the longest first, each where a seeded draw puts it among the
  * places it fits, sharing a letter with another word where they agree. The
  * squares left over take letters drawn from the words themselves, so no
- * stray letter stands out. Null when the words cannot all fit.
+ * stray letter stands out. Words run every way when asked to, else only
+ * the three a young reader follows. Null when the words cannot all fit.
  */
 export function wordSearch(
   words: readonly { id: string; answer: string }[],
   seed: string,
+  backwards = false,
 ): WordSearch | null {
+  const ways = backwards ? ALL_WAYS : WAYS;
   const items = words
     .map((word, index) => ({
       id: word.id,
@@ -74,13 +87,13 @@ export function wordSearch(
     let fits = true;
     for (const item of items) {
       const places: SearchLine[] = [];
-      for (const [down, along] of WAYS)
-        for (let row = 0; row + down * (item.letters.length - 1) < size; row++)
-          for (
-            let col = 0;
-            col + along * (item.letters.length - 1) < size;
-            col++
-          ) {
+      const reach = item.letters.length - 1;
+      const inside = (at: number, step: number) =>
+        at + step * reach >= 0 && at + step * reach < size;
+      for (const [down, along] of ways)
+        for (let row = 0; row < size; row++)
+          for (let col = 0; col < size; col++) {
+            if (!inside(row, down) || !inside(col, along)) continue;
             const line = { row, col, down, along, length: item.letters.length };
             const agrees = item.letters.every((letter, index) => {
               const there = grid[row + down * index]?.[col + along * index];
@@ -114,6 +127,13 @@ export function wordSearch(
   }
   return null;
 }
+
+/** The grid a word search question shows, the same for every student of it. */
+export const searchOf = (question: {
+  id: string;
+  words: readonly { id: string; answer: string }[];
+  backwards?: boolean | undefined;
+}) => wordSearch(question.words, question.id, question.backwards ?? false);
 
 /** The squares of a line, as row and column, first letter first. */
 export function squaresAlong(line: SearchLine): [number, number][] {

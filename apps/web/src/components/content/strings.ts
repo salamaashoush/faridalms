@@ -451,6 +451,7 @@ export function editorStrings(): EditorStrings {
     questionCounting: m.editorQuestionCounting(),
     questionTracing: m.editorQuestionTracing(),
     questionMemory: m.editorQuestionMemory(),
+    questionBackwards: m.editorQuestionBackwards(),
     questionSpelling: m.editorQuestionSpelling(),
     questionSpellingHint: m.editorQuestionSpellingHint(),
     questionHotspot: m.editorQuestionHotspot(),

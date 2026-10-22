@@ -362,6 +362,39 @@ describe("lessons written as one document", () => {
 const partId = (n: number) =>
   `0190a1b2-0000-7000-8000-0000000001${String(n).padStart(2, "0")}`;
 
+describe("a word search for older students", () => {
+  it("keeps its words running every way through the document", () => {
+    const search = (backwards: boolean): LessonDocument => ({
+      version: 2,
+      blocks: [
+        {
+          id: partId(30),
+          type: "wordsearch",
+          prompt: "Find the planets.",
+          points: 2,
+          hints: [],
+          explanation: "",
+          tries: null,
+          words: [
+            { id: partId(31), answer: "mars" },
+            { id: partId(32), answer: "venus" },
+          ],
+          ...(backwards ? { backwards: true } : {}),
+        },
+      ],
+    });
+    const harder = contentOfLesson(search(true));
+    const plain = contentOfLesson(search(false));
+    if (!harder || !plain) throw new Error("no document");
+    expect(harder.root.children?.[0]).toMatchObject({ backwards: true });
+    expect(plain.root.children?.[0]).not.toHaveProperty("backwards");
+    expect(lessonOfContent(harder).blocks[0]).toMatchObject({
+      backwards: true,
+    });
+    expect(sameLesson(harder, plain)).toBe(false);
+  });
+});
+
 describe("pictures on a question's parts", () => {
   const cat = "0190a1b2-0000-7000-8000-0000000000c1";
   const dog = "0190a1b2-0000-7000-8000-0000000000d1";

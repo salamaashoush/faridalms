@@ -289,6 +289,7 @@ export function questionBlock(node: ContentNode): LessonBlock | null {
       return {
         ...check,
         type: "wordsearch",
+        ...(node.backwards ? { backwards: true } : {}),
         words: parts
           .filter((part) => part.type === "question-answer" && written(part))
           .map((word) => ({
@@ -1089,6 +1090,7 @@ export function questionNode(block: LessonBlock): ContentNode | null {
   if (block.type === "wordsearch")
     return {
       ...base,
+      ...(block.backwards ? { backwards: true } : {}),
       children: [
         ...(base.children ?? []),
         ...block.words.map((word) => ({

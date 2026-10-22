@@ -47,6 +47,37 @@ describe("hiding words in a grid", () => {
     );
   });
 
+  it("runs words every way for older students, each still spelled along its line", () => {
+    const lines = Array.from({ length: 20 }, (_, index) => {
+      const search = wordSearch(planets, `seed-${index}`, true);
+      if (!search) throw new Error("no grid");
+      for (const word of planets) {
+        const line = search.lines[word.id];
+        if (!line) throw new Error(`${word.answer} not hidden`);
+        const squares = squaresAlong(line);
+        expect(squares.map(([row, col]) => search.rows[row]?.[col])).toEqual(
+          crosswordLetters(word.answer),
+        );
+        const [first, last] = [squares[0] ?? [0, 0], squares.at(-1) ?? [0, 0]];
+        expect(spells(search.rows, [...first, ...last], word.answer)).toBe(
+          true,
+        );
+      }
+      return Object.values(search.lines);
+    }).flat();
+    expect(lines.some((line) => line.along === -1 || line.down === -1)).toBe(
+      true,
+    );
+    // Without the ask, a young reader's three ways only.
+    expect(
+      Array.from({ length: 20 }, (_, index) =>
+        Object.values(wordSearch(planets, `seed-${index}`)?.lines ?? {}),
+      )
+        .flat()
+        .every((line) => line.along >= 0 && line.down >= 0),
+    ).toBe(true);
+  });
+
   it("gives up on a word too long for a phone's grid", () => {
     expect(
       wordSearch(words("a".repeat(MAX_SEARCH_SIZE + 1), "cat"), "s"),

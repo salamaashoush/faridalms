@@ -769,6 +769,7 @@
   "editorQuestionCounting": "Counting",
   "editorQuestionTracing": "Tracing",
   "editorQuestionMemory": "Play as memory pairs",
+  "editorQuestionBackwards": "Hide words every way, backwards too",
   "editorQuestionSpelling": "Word builder",
   "editorQuestionSpellingHint": "Build a word from letter tiles",
   "editorQuestionHotspot": "Find on a picture",

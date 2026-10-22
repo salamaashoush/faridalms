@@ -107,6 +107,7 @@ import {
   Lock,
   MessageCircleQuestion,
   MessageSquare,
+  Move,
   Pencil,
   PenLine,
   Plus,
@@ -1731,6 +1732,7 @@ export function SelectionToolbarPlugin() {
         | "closeEnough"
         | "tehMarbuta"
         | "memory"
+        | "backwards"
         | "gallery"
         | "classResults",
       label: string,
@@ -2277,6 +2279,13 @@ export function SelectionToolbarPlugin() {
           ) : null}
           {settings.kind === "matching" && lessonActivities
             ? toggle("memory", strings.questionMemory, <Grid2x2 aria-hidden />)
+            : null}
+          {settings.kind === "wordsearch"
+            ? toggle(
+                "backwards",
+                strings.questionBackwards,
+                <Move aria-hidden />,
+              )
             : null}
           {settings.kind === "gaps" ? (
             <ToolButton

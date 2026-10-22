@@ -392,6 +392,7 @@ export interface EditorStrings extends LabelEditorStrings, ChartStrings {
   questionCounting: string;
   questionTracing: string;
   questionMemory: string;
+  questionBackwards: string;
   questionSpelling: string;
   questionHotspot: string;
   questionHotspotHint: string;

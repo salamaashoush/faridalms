@@ -378,6 +378,8 @@ export interface QuestionSettings {
   places: PicturePlace[];
   /** A matching question played as memory pairs. */
   memory: boolean;
+  /** A word search whose words also run backwards, up and along the other diagonal. */
+  backwards: boolean;
   /** A coding question's starter project; none starts from the studio's own. */
   projectFileId: string | null;
   /** A project question's starter files; none starts from an empty page. */
@@ -450,6 +452,7 @@ export function defaultSettings(kind: QuestionKind): QuestionSettings {
     trace: [],
     places: [],
     memory: false,
+    backwards: false,
     projectFileId: null,
     projectFiles: [],
     gallery: false,
@@ -522,6 +525,7 @@ function questionSettings(stored: StoredSettings): QuestionSettings {
     trace: stored.trace ?? NO_POINTS,
     places: stored.places ?? NO_PLACES,
     memory: stored.memory ?? false,
+    backwards: stored.backwards ?? false,
     projectFileId: stored.projectFileId ?? null,
     projectFiles: stored.projectFiles ?? NO_FILES,
     gallery: stored.gallery ?? false,
@@ -679,6 +683,7 @@ export class QuestionNode extends ElementNode {
       trace,
       places,
       memory,
+      backwards,
       projectFileId,
       projectFiles,
       gallery,
@@ -727,6 +732,7 @@ export class QuestionNode extends ElementNode {
         ? { places }
         : {}),
       ...(settings.kind === "matching" && memory ? { memory } : {}),
+      ...(settings.kind === "wordsearch" && backwards ? { backwards } : {}),
       ...(settings.kind === "scratch" && projectFileId
         ? { projectFileId }
         : {}),
