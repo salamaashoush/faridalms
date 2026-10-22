@@ -11,9 +11,21 @@ import {
 } from "@faridalms/database/stores/coursework";
 import { documentOf } from "@faridalms/database/stores/documents";
 import { filesByIds } from "@faridalms/database/stores/files";
+import { lessonsOf } from "@faridalms/database/stores/learning";
 import { isVisibleStudent } from "@faridalms/database/stores/students";
 import { contentFileIds, contentPlainText } from "@faridalms/domain/content";
-import { contentDisposition, safeFilename } from "@faridalms/domain/file";
+import {
+  contentDisposition,
+  imageSize,
+  safeFilename,
+} from "@faridalms/domain/file";
+import { lessonOfContent } from "@faridalms/domain/lesson-content";
+import {
+  qtiItem,
+  qtiManifest,
+  qtiPictures,
+  qtiTest,
+} from "@faridalms/domain/qti";
 import { ORPCError } from "@orpc/server";
 import { Zip, ZipPassThrough } from "fflate";
 
@@ -23,10 +35,15 @@ import type {
   UnitContext,
 } from "../core/context";
 
+import { editableModule } from "../core/learning-access";
 import { can, openUnit, schoolOf } from "../core/procedure";
 
 const PATH = /^\/v1\/assignments\/([0-9a-f-]{36})\/work\.zip$/;
 const PORTFOLIO = /^\/v1\/students\/([0-9a-f-]{36})\/portfolio\.zip$/;
+const MODULE_QUESTIONS = /^\/v1\/modules\/([0-9a-f-]{36})\/questions\.zip$/;
+
+/** As much of a picture as is read for its size. */
+const HEAD_BYTES = 64 * 1024;
 
 interface Entry {
   path: string;
@@ -257,6 +274,141 @@ async function portfolioFor(
   return { title: name, entries };
 }
 
+/** A picture's first bytes, enough to read its size from. */
+async function headOf(
+  unit: UnitContext,
+  file: { storageKey: string; sizeBytes: number },
+): Promise<Uint8Array> {
+  const body = await unit.files.open(file.storageKey, {
+    start: 0,
+    end: Math.min(file.sizeBytes, HEAD_BYTES) - 1,
+  });
+  if (!body) return new Uint8Array();
+  const chunks: Uint8Array[] = [];
+  for await (const chunk of body) chunks.push(chunk);
+  const head = new Uint8Array(
+    chunks.reduce((sum, chunk) => sum + chunk.length, 0),
+  );
+  let at = 0;
+  for (const chunk of chunks) {
+    head.set(chunk, at);
+    at += chunk.length;
+  }
+  return head;
+}
+
+/**
+ * A module's questions as a QTI 3.0 package, for another system to ask
+ * them: an item for each question its lessons ask as they are written, a
+ * test for each lesson, and the pictures they show. A question QTI cannot
+ * hold, as a coding exercise, is left out. Only a teacher who may change
+ * the module gets it, and the export is recorded.
+ */
+async function moduleQuestions(
+  unit: UnitContext,
+  moduleId: string,
+): Promise<{ title: string; entries: Entry[] } | null> {
+  const module = await editableModule(unit, moduleId);
+  const lessons = [];
+  for (const lesson of await lessonsOf(unit.tx, unit.tenantId, module.id)) {
+    const document = await documentOf(unit.tx, unit.tenantId, {
+      type: "lesson",
+      id: lesson.id,
+    });
+    const content = document?.content as unknown as ContentDocument | undefined;
+    if (!content) continue;
+    lessons.push({
+      title: lesson.title,
+      blocks: lessonOfContent(content).blocks.filter(
+        (block) => "prompt" in block,
+      ),
+    });
+  }
+  const entries: Entry[] = [];
+  const names = new Set<string>();
+  const media = new Map<
+    string,
+    { href: string; width: number | null; height: number | null }
+  >();
+  const pictured = [
+    ...new Set(lessons.flatMap((lesson) => lesson.blocks.flatMap(qtiPictures))),
+  ];
+  const files = await filesByIds(unit.tx, unit.tenantId, pictured);
+  for (const file of files.filter((item) => item.state === "ready")) {
+    const href = `media/${unique(file.name, names)}`;
+    const size = file.mediaType.startsWith("image/")
+      ? imageSize(await headOf(unit, file))
+      : null;
+    media.set(file.id, {
+      href,
+      width: size?.width ?? null,
+      height: size?.height ?? null,
+    });
+    entries.push({ path: href, storageKey: file.storageKey });
+  }
+  const items: { identifier: string; href: string; media: string[] }[] = [];
+  const tests: { identifier: string; href: string; items: string[] }[] = [];
+  let skipped = 0;
+  for (const lesson of lessons) {
+    const asked: { identifier: string; href: string }[] = [];
+    for (const [index, block] of lesson.blocks.entries()) {
+      const identifier = `Q${items.length + 1}`;
+      const xml = qtiItem(block, {
+        identifier,
+        title: `${lesson.title} ${index + 1}`,
+        picture: (fileId) => {
+          const found = media.get(fileId);
+          return found ? { ...found, href: `../${found.href}` } : null;
+        },
+      });
+      if (!xml) {
+        skipped += 1;
+        continue;
+      }
+      const href = `items/${identifier.toLowerCase()}.xml`;
+      entries.push({ path: href, text: xml });
+      items.push({
+        identifier,
+        href,
+        media: qtiPictures(block).flatMap((fileId) => {
+          const found = media.get(fileId);
+          return found ? [found.href] : [];
+        }),
+      });
+      asked.push({ identifier, href: `../${href}` });
+    }
+    if (asked.length === 0) continue;
+    const identifier = `T${tests.length + 1}`;
+    const href = `tests/${identifier.toLowerCase()}.xml`;
+    entries.push({
+      path: href,
+      text: qtiTest({ identifier, title: lesson.title, items: asked }),
+    });
+    tests.push({
+      identifier,
+      href,
+      items: asked.map((item) => item.identifier),
+    });
+  }
+  entries.unshift({
+    path: "imsmanifest.xml",
+    text: qtiManifest({
+      identifier: `MANIFEST-${module.id}`,
+      items,
+      tests,
+      media: [...new Set(items.flatMap((item) => item.media))],
+    }),
+  });
+  await writeAudit(unit.tx, unit.tenantId, {
+    action: "module.questions_exported",
+    objectType: "learning_module",
+    objectId: module.id,
+    orgId: unit.schoolId,
+    details: { items: items.length, skipped },
+  });
+  return { title: `${module.title} - QTI`, entries };
+}
+
 /** The exports this handler answers, by path. */
 export async function handleWorkExport(
   request: Request,
@@ -268,5 +420,8 @@ export async function handleWorkExport(
   if (work) return exported(context, (unit) => entriesFor(unit, work));
   const student = PORTFOLIO.exec(url.pathname)?.[1];
   if (student) return exported(context, (unit) => portfolioFor(unit, student));
+  const questions = MODULE_QUESTIONS.exec(url.pathname)?.[1];
+  if (questions)
+    return exported(context, (unit) => moduleQuestions(unit, questions));
   return null;
 }

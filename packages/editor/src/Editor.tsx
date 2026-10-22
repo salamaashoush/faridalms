@@ -61,6 +61,7 @@ import { MentionsPlugin } from "./plugins/mentions";
 import { NarrationMarksPlugin } from "./plugins/narration";
 import { PastePlugin } from "./plugins/paste";
 import { PlaceholderPlugin } from "./plugins/Placeholder";
+import { QtiImportPlugin } from "./plugins/qti";
 import { QuestionGuardPlugin } from "./plugins/questions";
 import { SelectionToolbarPlugin } from "./plugins/SelectionToolbar";
 import { SharedPlugin } from "./plugins/shared";
@@ -475,6 +476,7 @@ function Surface({
       <NarrationMarksPlugin />
       <MediaPlugin onBusyChange={onUploadingChange} />
       <WordImportPlugin />
+      <QtiImportPlugin />
       <EmbedPlugin />
       <BankPlugin />
       <SharedPlugin />

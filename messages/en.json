@@ -1032,6 +1032,31 @@
   "editorWordReading": "Reading the document and keeping its pictures…",
   "editorWordDone": "Brought in where the caret was.",
   "editorWordFailed": "This file could not be read as a Word document.",
+  "editorQtiImport": "Questions from a file",
+  "editorQtiImportHint": "A QTI package or item, as Canvas, TAO and other assessment systems export them",
+  "editorQtiReading": "Reading the questions…",
+  "editorQtiDone": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "Brought in {count} question.",
+        "countPlural=*": "Brought in {count} questions."
+      }
+    }
+  ],
+  "editorQtiToCheck": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "{count} could only be read roughly; check it before students see it.",
+        "countPlural=*": "{count} could only be read roughly; check them before students see them."
+      }
+    }
+  ],
+  "editorQtiNone": "No questions were found in this file. It must be a QTI 2 or 3 package or item.",
+  "editorQtiFailed": "The file could not be read. Try a QTI package exported as a .zip.",
   "editorWordPicturesSkipped": [
     {
       "declarations": ["input count", "local countPlural = count: plural"],
@@ -3469,6 +3494,7 @@
   "lrnDoneScore": "The score reaches a pass mark",
   "lrnDoneView": "The student opens it",
   "lrnDuplicate": "Duplicate",
+  "lrnExportQuestions": "Export questions (QTI)",
   "lrnDuplicated": "Copy made as a draft",
   "lrnCopyLesson": "Copy to a module",
   "lrnCopyLessonTitle": "Copy “{title}”",

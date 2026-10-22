@@ -209,6 +209,11 @@ import { markedProgram } from "../coding/mark";
 import { projectCode } from "../coding/scratch-file";
 import { featuresOf } from "../core/features";
 import {
+  editableModule,
+  mayEditModule,
+  moduleOfSchool,
+} from "../core/learning-access";
+import {
   audit,
   can,
   openUnit,
@@ -291,29 +296,6 @@ async function authoringClasses(context: UnitContext) {
   };
 }
 
-async function ofSchool(context: UnitContext, moduleId: string) {
-  const row = await moduleById(context.tx, context.tenantId, moduleId);
-  if (!row || row.orgId !== context.schoolId) throw new ORPCError("NOT_FOUND");
-  return row;
-}
-
-/** Whether the viewer may change a module: its author, or a teacher of one of its classes. */
-async function mayEdit(context: UnitContext, row: ModuleRow) {
-  if (!can(context, "learning:author")) return false;
-  if (row.authorUserId === context.actor.userId) return true;
-  if (can(context, "classes:manage")) return true;
-  const classes = await classesOfModule(context.tx, context.tenantId, row.id);
-  for (const item of classes)
-    if (await teachesClass(context.tx, scopeOf(context), item.id)) return true;
-  return false;
-}
-
-async function editable(context: UnitContext, moduleId: string) {
-  const row = await ofSchool(context, moduleId);
-  if (!(await mayEdit(context, row))) throw new ORPCError("NOT_FOUND");
-  return row;
-}
-
 const isOpen = (row: ModuleRow, now: Date) =>
   row.state === "published" &&
   row.publishAt !== null &&
@@ -354,7 +336,7 @@ async function openModule(
   moduleId: string,
   studentId: string,
 ) {
-  const row = await ofSchool(context, moduleId);
+  const row = await moduleOfSchool(context, moduleId);
   if (!isOpen(row, context.now)) throw new ORPCError("NOT_FOUND");
   if (
     !(await moduleReaches(context.tx, {
@@ -514,7 +496,7 @@ async function hostReadable(context: UnitContext, lessonId: string) {
   if (!lesson) return false;
   const row = await moduleById(context.tx, context.tenantId, lesson.moduleId);
   if (!row || row.orgId !== context.schoolId) return false;
-  if (await mayEdit(context, row)) return true;
+  if (await mayEditModule(context, row)) return true;
   try {
     await openModule(context, row.id, context.actor.userId);
     return true;
@@ -535,7 +517,7 @@ registerHostReader("lesson_answer", async (context, lessonId, file) => {
   if (!lesson) return false;
   const row = await moduleById(context.tx, context.tenantId, lesson.moduleId);
   if (!row || row.orgId !== context.schoolId) return false;
-  if (await mayEdit(context, row)) return true;
+  if (await mayEditModule(context, row)) return true;
   return file ? shownToClassmate(context, lesson.id, file.id) : false;
 });
 
@@ -543,7 +525,9 @@ async function editsModule(context: UnitContext, moduleId: string) {
   if (!(await isOn(context))) return false;
   const row = await moduleById(context.tx, context.tenantId, moduleId);
   return Boolean(
-    row && row.orgId === context.schoolId && (await mayEdit(context, row)),
+    row &&
+    row.orgId === context.schoolId &&
+    (await mayEditModule(context, row)),
   );
 }
 
@@ -579,7 +563,7 @@ const planHost = (moduleId: string) => ({ type: "module_plan", id: moduleId });
 export const plan = readProcedure
   .input(planSchema)
   .handler(async ({ input, context }) => {
-    const owner = await editable(context, input.moduleId);
+    const owner = await editableModule(context, input.moduleId);
     const [stored, lessons] = await Promise.all([
       documentOf(context.tx, context.tenantId, planHost(owner.id)),
       lessonsOf(context.tx, context.tenantId, owner.id),
@@ -611,7 +595,7 @@ export const plan = readProcedure
 export const savePlan = writeProcedure
   .input(savePlanSchema)
   .handler(async ({ input, context }) => {
-    const owner = await editable(context, input.moduleId);
+    const owner = await editableModule(context, input.moduleId);
     const host = planHost(owner.id);
     const saved = await saveDocument(context.tx, {
       tenantId: context.tenantId,
@@ -661,7 +645,9 @@ registerHostWriter("lesson", async (context, lessonId) => {
   if (!lesson) return false;
   const row = await moduleById(context.tx, context.tenantId, lesson.moduleId);
   return Boolean(
-    row && row.orgId === context.schoolId && (await mayEdit(context, row)),
+    row &&
+    row.orgId === context.schoolId &&
+    (await mayEditModule(context, row)),
   );
 });
 
@@ -707,7 +693,7 @@ export const modules = readProcedure
 export const record = readProcedure
   .input(v.object({ id }))
   .handler(async ({ input, context }) => {
-    const row = await editable(context, input.id);
+    const row = await editableModule(context, input.id);
     const [classes, lessons, audiences] = await Promise.all([
       classesOfModule(context.tx, context.tenantId, row.id),
       lessonsOf(context.tx, context.tenantId, row.id),
@@ -795,7 +781,7 @@ export const saveModule = writeProcedure
       throw new ORPCError("FORBIDDEN", { message: "learning.class" });
     const prerequisiteId = input.prerequisiteId || null;
     if (prerequisiteId) {
-      const before = await ofSchool(context, prerequisiteId);
+      const before = await moduleOfSchool(context, prerequisiteId);
       if (before.id === input.id || before.prerequisiteId === input.id)
         throw new ORPCError("BAD_REQUEST", {
           message: "learning.prerequisite",
@@ -811,7 +797,7 @@ export const saveModule = writeProcedure
     let moduleId = input.id;
     let version: number;
     if (input.id) {
-      await editable(context, input.id);
+      await editableModule(context, input.id);
       const next = await updateModule(context.tx, {
         tenantId: context.tenantId,
         id: input.id,
@@ -855,7 +841,7 @@ export const saveModule = writeProcedure
 export const publishModule = writeProcedure
   .input(publishModuleSchema)
   .handler(async ({ input, context }) => {
-    const row = await editable(context, input.id);
+    const row = await editableModule(context, input.id);
     const lessons = await lessonsOf(context.tx, context.tenantId, row.id);
     if (lessons.length === 0)
       throw new ORPCError("CONFLICT", { message: "learning.lesson_required" });
@@ -889,7 +875,7 @@ export const publishModule = writeProcedure
 export const unpublishModule = writeProcedure
   .input(moduleRefSchema)
   .handler(async ({ input, context }) => {
-    const row = await editable(context, input.id);
+    const row = await editableModule(context, input.id);
     const version = await setModuleState(context.tx, {
       tenantId: context.tenantId,
       id: row.id,
@@ -910,7 +896,7 @@ export const unpublishModule = writeProcedure
 export const archiveModule = writeProcedure
   .input(moduleRefSchema)
   .handler(async ({ input, context }) => {
-    const row = await editable(context, input.id);
+    const row = await editableModule(context, input.id);
     const version = await setModuleState(context.tx, {
       tenantId: context.tenantId,
       id: row.id,
@@ -996,8 +982,8 @@ export const copyLessonTo = writeProcedure
   .handler(async ({ input, context }) => {
     const lesson = await lessonById(context.tx, context.tenantId, input.id);
     if (!lesson) throw new ORPCError("NOT_FOUND");
-    await editable(context, lesson.moduleId);
-    const target = await editable(context, input.moduleId);
+    await editableModule(context, lesson.moduleId);
+    const target = await editableModule(context, input.moduleId);
     const copy = await copyLesson(context, lesson, target.id);
     await audit(context, {
       action: "lesson.copy",
@@ -1011,7 +997,7 @@ export const copyLessonTo = writeProcedure
 export const duplicateModule = writeProcedure
   .input(duplicateModuleSchema)
   .handler(async ({ input, context }) => {
-    const row = await editable(context, input.id);
+    const row = await editableModule(context, input.id);
     const { year, classes } = await authoringClasses(context);
     const allowed = new Set(classes.map((item) => item.id));
     if (input.classIds.some((classId) => !allowed.has(classId)))
@@ -1083,7 +1069,7 @@ export const lesson = readProcedure
   .handler(async ({ input, context }) => {
     const row = await lessonById(context.tx, context.tenantId, input.id);
     if (!row) throw new ORPCError("NOT_FOUND");
-    const owner = await editable(context, row.moduleId);
+    const owner = await editableModule(context, row.moduleId);
     const published = await publishedLesson(context, row.id);
     const document = await documentOf(context.tx, context.tenantId, {
       type: "lesson",
@@ -1127,7 +1113,7 @@ export const reviewLessonTranslation = writeProcedure
   .handler(async ({ input, context }) => {
     const row = await lessonById(context.tx, context.tenantId, input.id);
     if (!row) throw new ORPCError("NOT_FOUND");
-    await editable(context, row.moduleId);
+    await editableModule(context, row.moduleId);
     if (row.version !== input.expectedVersion)
       throw new ORPCError("CONFLICT", { message: "conflict.version" });
     const document = await documentOf(context.tx, context.tenantId, {
@@ -1309,7 +1295,7 @@ export const remarking = readProcedure
   .handler(async ({ input, context }) => {
     const row = await lessonById(context.tx, context.tenantId, input.id);
     if (!row) throw new ORPCError("NOT_FOUND");
-    await editable(context, row.moduleId);
+    await editableModule(context, row.moduleId);
     const document = await documentOf(context.tx, context.tenantId, {
       type: "lesson",
       id: row.id,
@@ -1330,7 +1316,7 @@ export const publishLesson = writeProcedure
   .handler(async ({ input, context }) => {
     const row = await lessonById(context.tx, context.tenantId, input.id);
     if (!row) throw new ORPCError("NOT_FOUND");
-    const owner = await editable(context, row.moduleId);
+    const owner = await editableModule(context, row.moduleId);
     if (owner.state !== "published")
       throw new ORPCError("CONFLICT", { message: "learning.module_draft" });
     const issue = await storedLessonIssue(context, row);
@@ -1380,7 +1366,7 @@ async function checkedCondition(
 export const saveLesson = writeProcedure
   .input(saveLessonSchema)
   .handler(async ({ input, context }) => {
-    const owner = await editable(context, input.moduleId);
+    const owner = await editableModule(context, input.moduleId);
     const stored = input.id
       ? await lessonById(context.tx, context.tenantId, input.id)
       : null;
@@ -1545,7 +1531,7 @@ export const moveLesson = writeProcedure
   .handler(async ({ input, context }) => {
     const row = await lessonById(context.tx, context.tenantId, input.id);
     if (!row) throw new ORPCError("NOT_FOUND");
-    const owner = await editable(context, row.moduleId);
+    const owner = await editableModule(context, row.moduleId);
     const lessons = await lessonsOf(context.tx, context.tenantId, owner.id);
     const order = lessons
       .map((item) => item.id)
@@ -1573,7 +1559,7 @@ export const removeLesson = writeProcedure
   .handler(async ({ input, context }) => {
     const row = await lessonById(context.tx, context.tenantId, input.id);
     if (!row) throw new ORPCError("NOT_FOUND");
-    const owner = await editable(context, row.moduleId);
+    const owner = await editableModule(context, row.moduleId);
     const lessons = await lessonsOf(context.tx, context.tenantId, owner.id);
     if (lessons.some((item) => item.condition?.lessonId === row.id))
       throw new ORPCError("CONFLICT", {
@@ -1603,7 +1589,7 @@ export const removeLesson = writeProcedure
 export const progress = readProcedure
   .input(progressQuerySchema)
   .handler(async ({ input, context }) => {
-    const row = await editable(context, input.moduleId);
+    const row = await editableModule(context, input.moduleId);
     const classes = await classesOfModule(context.tx, context.tenantId, row.id);
     if (!classes.some((item) => item.id === input.classId))
       throw new ORPCError("NOT_FOUND");
@@ -1684,7 +1670,7 @@ const CURVE_POINTS = 60;
 export const videos = readProcedure
   .input(progressQuerySchema)
   .handler(async ({ input, context }) => {
-    const row = await editable(context, input.moduleId);
+    const row = await editableModule(context, input.moduleId);
     const classes = await classesOfModule(context.tx, context.tenantId, row.id);
     if (!classes.some((item) => item.id === input.classId))
       throw new ORPCError("NOT_FOUND");
@@ -1771,7 +1757,7 @@ export const videos = readProcedure
 export const live = readProcedure
   .input(progressQuerySchema)
   .handler(async ({ input, context }) => {
-    const row = await editable(context, input.moduleId);
+    const row = await editableModule(context, input.moduleId);
     const classes = await classesOfModule(context.tx, context.tenantId, row.id);
     if (!classes.some((item) => item.id === input.classId))
       throw new ORPCError("NOT_FOUND");
@@ -1850,7 +1836,7 @@ async function pacedFor(context: UnitContext, pacedId: string) {
   if (!session) throw new ORPCError("NOT_FOUND");
   const led = await lessonById(context.tx, context.tenantId, session.lessonId);
   if (!led) throw new ORPCError("NOT_FOUND");
-  const owner = await editable(context, led.moduleId);
+  const owner = await editableModule(context, led.moduleId);
   const published = await publishedLesson(context, led.id);
   if (!published) throw new ORPCError("NOT_FOUND");
   return { session, led, owner, content: published.content };
@@ -1872,7 +1858,7 @@ export const startPaced = writeProcedure
   .handler(async ({ input, context }) => {
     const led = await lessonById(context.tx, context.tenantId, input.lessonId);
     if (!led) throw new ORPCError("NOT_FOUND");
-    const owner = await editable(context, led.moduleId);
+    const owner = await editableModule(context, led.moduleId);
     if (!isOpen(owner, context.now))
       throw new ORPCError("CONFLICT", { message: "learning.module_draft" });
     const classes = await classesOfModule(
@@ -2043,7 +2029,7 @@ export const override = writeProcedure
   .handler(async ({ input, context }) => {
     const row = await lessonById(context.tx, context.tenantId, input.lessonId);
     if (!row) throw new ORPCError("NOT_FOUND");
-    const owner = await editable(context, row.moduleId);
+    const owner = await editableModule(context, row.moduleId);
     const classes = await classesOfModule(
       context.tx,
       context.tenantId,
@@ -3373,7 +3359,7 @@ export const release = writeProcedure
   .handler(async ({ input, context }) => {
     const row = await lessonById(context.tx, context.tenantId, input.lessonId);
     if (!row) throw new ORPCError("NOT_FOUND");
-    const owner = await editable(context, row.moduleId);
+    const owner = await editableModule(context, row.moduleId);
     const classes = await classesOfModule(
       context.tx,
       context.tenantId,
@@ -3664,7 +3650,7 @@ function offeredApart(
 export const answers = readProcedure
   .input(progressQuerySchema)
   .handler(async ({ input, context }) => {
-    const row = await editable(context, input.moduleId);
+    const row = await editableModule(context, input.moduleId);
     const classes = await classesOfModule(context.tx, context.tenantId, row.id);
     if (!classes.some((item) => item.id === input.classId))
       throw new ORPCError("NOT_FOUND");
@@ -3790,7 +3776,7 @@ export const decideShare = writeProcedure
   .handler(async ({ input, context }) => {
     const row = await lessonById(context.tx, context.tenantId, input.lessonId);
     if (!row) throw new ORPCError("NOT_FOUND");
-    await editable(context, row.moduleId);
+    await editableModule(context, row.moduleId);
     const state = input.show ? "shown" : "declined";
     const decided = await decideOffered(context.tx, {
       tenantId: context.tenantId,
@@ -3891,7 +3877,7 @@ function questionsOf(
 export const questions = readProcedure
   .input(progressQuerySchema)
   .handler(async ({ input, context }) => {
-    const row = await editable(context, input.moduleId);
+    const row = await editableModule(context, input.moduleId);
     const classes = await classesOfModule(context.tx, context.tenantId, row.id);
     if (!classes.some((item) => item.id === input.classId))
       throw new ORPCError("NOT_FOUND");
@@ -3965,7 +3951,7 @@ type CheckMark =
 export const runs = readProcedure
   .input(runsQuerySchema)
   .handler(async ({ input, context }) => {
-    const row = await editable(context, input.moduleId);
+    const row = await editableModule(context, input.moduleId);
     const classes = await classesOfModule(context.tx, context.tenantId, row.id);
     if (!classes.some((item) => item.id === input.classId))
       throw new ORPCError("NOT_FOUND");
@@ -4036,7 +4022,7 @@ export const mark = writeProcedure
   .handler(async ({ input, context }) => {
     const row = await lessonById(context.tx, context.tenantId, input.lessonId);
     if (!row) throw new ORPCError("NOT_FOUND");
-    const owner = await editable(context, row.moduleId);
+    const owner = await editableModule(context, row.moduleId);
     const studentIds = [...new Set(input.studentIds)];
     const classes = await classesOfModule(
       context.tx,

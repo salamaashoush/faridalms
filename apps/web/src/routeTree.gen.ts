@@ -105,6 +105,7 @@ import { Route as AppTeachModulesRouteImport } from './routes/_app/teach/modules
 import { Route as AppTeachTimetableRouteImport } from './routes/_app/teach/timetable'
 import { Route as AppYearsYearIdRouteImport } from './routes/_app/years.$yearId'
 import { Route as ExportsAssignmentsAssignmentIdRouteImport } from './routes/exports/assignments.$assignmentId'
+import { Route as ExportsModulesModuleIdRouteImport } from './routes/exports/modules.$moduleId'
 import { Route as ExportsStudentsStudentIdRouteImport } from './routes/exports/students.$studentId'
 import { Route as FeedsSchoolFileRouteImport } from './routes/feeds/$school/$file'
 import { Route as FilesFileIdPartsRouteImport } from './routes/files/$fileId.parts'
@@ -605,6 +606,11 @@ const ExportsAssignmentsAssignmentIdRoute =
     path: '/exports/assignments/$assignmentId',
     getParentRoute: () => rootRouteImport,
   } as any)
+const ExportsModulesModuleIdRoute = ExportsModulesModuleIdRouteImport.update({
+  id: '/exports/modules/$moduleId',
+  path: '/exports/modules/$moduleId',
+  getParentRoute: () => rootRouteImport,
+} as any)
 const ExportsStudentsStudentIdRoute =
   ExportsStudentsStudentIdRouteImport.update({
     id: '/exports/students/$studentId',
@@ -759,6 +765,7 @@ export interface FileRoutesByFullPath {
   '/teach/timetable': typeof AppTeachTimetableRoute
   '/years/$yearId': typeof AppYearsYearIdRoute
   '/exports/assignments/$assignmentId': typeof ExportsAssignmentsAssignmentIdRoute
+  '/exports/modules/$moduleId': typeof ExportsModulesModuleIdRoute
   '/exports/students/$studentId': typeof ExportsStudentsStudentIdRoute
   '/feeds/$school/$file': typeof FeedsSchoolFileRoute
   '/files/$fileId/parts': typeof FilesFileIdPartsRouteWithChildren
@@ -863,6 +870,7 @@ export interface FileRoutesByTo {
   '/teach/timetable': typeof AppTeachTimetableRoute
   '/years/$yearId': typeof AppYearsYearIdRoute
   '/exports/assignments/$assignmentId': typeof ExportsAssignmentsAssignmentIdRoute
+  '/exports/modules/$moduleId': typeof ExportsModulesModuleIdRoute
   '/exports/students/$studentId': typeof ExportsStudentsStudentIdRoute
   '/feeds/$school/$file': typeof FeedsSchoolFileRoute
   '/files/$fileId/parts': typeof FilesFileIdPartsRouteWithChildren
@@ -975,6 +983,7 @@ export interface FileRoutesById {
   '/_app/teach/timetable': typeof AppTeachTimetableRoute
   '/_app/years/$yearId': typeof AppYearsYearIdRoute
   '/exports/assignments/$assignmentId': typeof ExportsAssignmentsAssignmentIdRoute
+  '/exports/modules/$moduleId': typeof ExportsModulesModuleIdRoute
   '/exports/students/$studentId': typeof ExportsStudentsStudentIdRoute
   '/feeds/$school/$file': typeof FeedsSchoolFileRoute
   '/files/$fileId/parts': typeof FilesFileIdPartsRouteWithChildren
@@ -1086,6 +1095,7 @@ export interface FileRouteTypes {
     | '/teach/timetable'
     | '/years/$yearId'
     | '/exports/assignments/$assignmentId'
+    | '/exports/modules/$moduleId'
     | '/exports/students/$studentId'
     | '/feeds/$school/$file'
     | '/files/$fileId/parts'
@@ -1190,6 +1200,7 @@ export interface FileRouteTypes {
     | '/teach/timetable'
     | '/years/$yearId'
     | '/exports/assignments/$assignmentId'
+    | '/exports/modules/$moduleId'
     | '/exports/students/$studentId'
     | '/feeds/$school/$file'
     | '/files/$fileId/parts'
@@ -1301,6 +1312,7 @@ export interface FileRouteTypes {
     | '/_app/teach/timetable'
     | '/_app/years/$yearId'
     | '/exports/assignments/$assignmentId'
+    | '/exports/modules/$moduleId'
     | '/exports/students/$studentId'
     | '/feeds/$school/$file'
     | '/files/$fileId/parts'
@@ -1340,6 +1352,7 @@ export interface RootRouteChildren {
   LtiTokenRoute: typeof LtiTokenRoute
   SiteSchoolRoute: typeof SiteSchoolRouteWithChildren
   ExportsAssignmentsAssignmentIdRoute: typeof ExportsAssignmentsAssignmentIdRoute
+  ExportsModulesModuleIdRoute: typeof ExportsModulesModuleIdRoute
   ExportsStudentsStudentIdRoute: typeof ExportsStudentsStudentIdRoute
   FeedsSchoolFileRoute: typeof FeedsSchoolFileRoute
   LtiAgsSplatRoute: typeof LtiAgsSplatRoute
@@ -2020,6 +2033,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof ExportsAssignmentsAssignmentIdRouteImport
       parentRoute: typeof rootRouteImport
     }
+    '/exports/modules/$moduleId': {
+      id: '/exports/modules/$moduleId'
+      path: '/exports/modules/$moduleId'
+      fullPath: '/exports/modules/$moduleId'
+      preLoaderRoute: typeof ExportsModulesModuleIdRouteImport
+      parentRoute: typeof rootRouteImport
+    }
     '/exports/students/$studentId': {
       id: '/exports/students/$studentId'
       path: '/exports/students/$studentId'
@@ -2393,6 +2413,7 @@ const rootRouteChildren: RootRouteChildren = {
   LtiTokenRoute: LtiTokenRoute,
   SiteSchoolRoute: SiteSchoolRouteWithChildren,
   ExportsAssignmentsAssignmentIdRoute: ExportsAssignmentsAssignmentIdRoute,
+  ExportsModulesModuleIdRoute: ExportsModulesModuleIdRoute,
   ExportsStudentsStudentIdRoute: ExportsStudentsStudentIdRoute,
   FeedsSchoolFileRoute: FeedsSchoolFileRoute,
   LtiAgsSplatRoute: LtiAgsSplatRoute,

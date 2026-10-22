@@ -46,6 +46,7 @@ import {
   ArrowDownUp,
   BookA,
   BookOpenText,
+  FileInput,
   FileText,
   CodeXml,
   FileCode,
@@ -233,7 +234,8 @@ export type BlockType =
   | "bankDraw"
   | "standards"
   | "glossary"
-  | "word";
+  | "word"
+  | "qtiImport";
 
 export type BlockGroup = "text" | "lists" | "media" | "layout" | "questions";
 
@@ -849,6 +851,25 @@ export const blockDefinitions: BlockDefinition[] = [
     keywords: ["bank", "kept", "saved", "reuse", "library", "بنك", "محفوظ"],
     question: true,
     bank: true,
+  },
+  {
+    type: "qtiImport",
+    group: "questions",
+    icon: FileInput,
+    label: (s) => s.qtiImport,
+    hint: (s) => s.qtiImportHint,
+    keywords: [
+      "qti",
+      "import",
+      "canvas",
+      "quiz",
+      "questions",
+      "استيراد",
+      "أسئلة",
+      "اختبار",
+    ],
+    question: true,
+    media: true,
   },
   {
     type: "bankDraw",

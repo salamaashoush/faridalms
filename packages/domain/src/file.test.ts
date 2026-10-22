@@ -8,6 +8,7 @@ import {
   CONTENT_CHECKED_EXTENSIONS,
   contentBytesNeeded,
   contentMatchesName,
+  imageSize,
   previewable,
 } from "./file";
 
@@ -155,5 +156,29 @@ describe("previewable", () => {
       ),
     ).toBe(false);
     expect(previewable("text/csv")).toBe(false);
+  });
+});
+
+describe("a picture's size from its first bytes", () => {
+  it("reads PNG, GIF, JPEG and WebP, and nothing else", () => {
+    const png = new Uint8Array(24);
+    png.set([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]);
+    png.set([0, 0, 0x03, 0x20, 0, 0, 0x01, 0x90], 16);
+    expect(imageSize(png)).toEqual({ width: 800, height: 400 });
+    const gif = new Uint8Array([
+      0x47, 0x49, 0x46, 0x38, 0x39, 0x61, 0x20, 0x03, 0x90, 0x01,
+    ]);
+    expect(imageSize(gif)).toEqual({ width: 800, height: 400 });
+    const jpeg = new Uint8Array([
+      0xff, 0xd8, 0xff, 0xe0, 0x00, 0x04, 0x00, 0x00, 0xff, 0xc0, 0x00, 0x11,
+      0x08, 0x01, 0x90, 0x03, 0x20, 0x03, 0x00, 0x00, 0x00, 0x00, 0x00,
+    ]);
+    expect(imageSize(jpeg)).toEqual({ width: 800, height: 400 });
+    const webp = new Uint8Array(30);
+    webp.set([0x52, 0x49, 0x46, 0x46, 0, 0, 0, 0, 0x57, 0x45, 0x42, 0x50]);
+    webp.set([0x56, 0x50, 0x38, 0x58], 12);
+    webp.set([0x1f, 0x03, 0x00, 0x8f, 0x01, 0x00], 24);
+    expect(imageSize(webp)).toEqual({ width: 800, height: 400 });
+    expect(imageSize(new TextEncoder().encode("<svg/>"))).toBeNull();
   });
 });

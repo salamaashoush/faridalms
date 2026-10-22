@@ -482,6 +482,13 @@ export interface EditorStrings extends LabelEditorStrings, ChartStrings {
   wordDone: string;
   wordFailed: string;
   wordPicturesSkipped: (count: number) => string;
+  qtiImport: string;
+  qtiImportHint: string;
+  qtiReading: string;
+  qtiDone: (count: number) => string;
+  qtiToCheck: (count: number) => string;
+  qtiNone: string;
+  qtiFailed: string;
   glossary: string;
   glossaryHint: string;
   glossaryEmpty: string;

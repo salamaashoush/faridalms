@@ -19,6 +19,7 @@ import {
   ClipboardList,
   Copy,
   EyeOff,
+  FileDown,
   Hourglass,
   Layers,
   Pencil,
@@ -879,6 +880,12 @@ export function ModuleRecord({
                 toast.error(getMessageFromError(error));
               }
             },
+          },
+          {
+            label: m.lrnExportQuestions(),
+            icon: FileDown,
+            onSelect: () =>
+              window.location.assign(`/exports/modules/${data.id}?as=qti`),
           },
           ...(data.state !== "archived"
             ? [

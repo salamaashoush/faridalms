@@ -237,6 +237,11 @@ export function acceptedMediaType(name: string, mediaType: string): boolean {
 
 export const ACCEPTED_EXTENSIONS = Object.keys(ACCEPTED_TYPES);
 
+/** The type a file's name says it is, for one that comes without, as in a package. */
+export function typeForName(name: string): string | null {
+  return ACCEPTED_TYPES[fileExtension(name)]?.[0] ?? null;
+}
+
 /**
  * A file name for content that arrives without one, as the pictures inside
  * a Word document do, with the extension its type is stored under.
@@ -490,4 +495,69 @@ export function formatBytes(bytes: number): string {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(0)} KB`;
   return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+const sized = (width: number, height: number) =>
+  width > 0 && height > 0 ? { width, height } : null;
+
+/**
+ * A picture's size in pixels from the first bytes of its file, for PNG,
+ * JPEG, GIF and WebP; none for anything else or a file cut short.
+ */
+export function imageSize(
+  bytes: Uint8Array,
+): { width: number; height: number } | null {
+  const at = (index: number) => bytes[index] ?? 0;
+  const big16 = (index: number) => (at(index) << 8) | at(index + 1);
+  const little16 = (index: number) => at(index) | (at(index + 1) << 8);
+  const big32 = (index: number) =>
+    ((at(index) << 24) >>> 0) +
+    (at(index + 1) << 16) +
+    (at(index + 2) << 8) +
+    at(index + 3);
+  if (at(0) === 0x89 && at(1) === 0x50 && at(2) === 0x4e && at(3) === 0x47)
+    return sized(big32(16), big32(20));
+  if (at(0) === 0x47 && at(1) === 0x49 && at(2) === 0x46)
+    return sized(little16(6), little16(8));
+  if (
+    at(0) === 0x52 &&
+    at(1) === 0x49 &&
+    at(8) === 0x57 &&
+    at(9) === 0x45 &&
+    at(10) === 0x42 &&
+    at(11) === 0x50
+  ) {
+    const chunk = String.fromCharCode(at(12), at(13), at(14), at(15));
+    if (chunk === "VP8 ")
+      return sized(little16(26) & 0x3fff, little16(28) & 0x3fff);
+    if (chunk === "VP8L") {
+      const bits = at(21) | (at(22) << 8) | (at(23) << 16) | (at(24) << 24);
+      return sized((bits & 0x3fff) + 1, ((bits >> 14) & 0x3fff) + 1);
+    }
+    if (chunk === "VP8X")
+      return sized(
+        (at(24) | (at(25) << 8) | (at(26) << 16)) + 1,
+        (at(27) | (at(28) << 8) | (at(29) << 16)) + 1,
+      );
+    return null;
+  }
+  if (at(0) === 0xff && at(1) === 0xd8) {
+    // A JPEG's size is in its first start-of-frame segment.
+    let index = 2;
+    while (index + 9 < bytes.length) {
+      if (at(index) !== 0xff) return null;
+      const marker = at(index + 1);
+      const length = big16(index + 2);
+      if (
+        marker >= 0xc0 &&
+        marker <= 0xcf &&
+        marker !== 0xc4 &&
+        marker !== 0xc8 &&
+        marker !== 0xcc
+      )
+        return sized(big16(index + 7), big16(index + 5));
+      index += 2 + length;
+    }
+  }
+  return null;
 }

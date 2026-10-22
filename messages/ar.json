@@ -1071,6 +1071,38 @@
   "editorWordReading": "تُقرأ الوثيقة وتُحفظ صورها…",
   "editorWordDone": "أُدرج حيث كان المؤشر.",
   "editorWordFailed": "تعذّرت قراءة هذا الملف كمستند وورد.",
+  "editorQtiImport": "أسئلة من ملف",
+  "editorQtiImportHint": "حزمة أو سؤال بصيغة QTI، كما تصدّرها Canvas وTAO وأنظمة التقييم الأخرى",
+  "editorQtiReading": "جارٍ قراءة الأسئلة…",
+  "editorQtiDone": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=zero": "لم يُجلب أي سؤال.",
+        "countPlural=one": "جُلب سؤال واحد.",
+        "countPlural=two": "جُلب سؤالان.",
+        "countPlural=few": "جُلبت {count} أسئلة.",
+        "countPlural=many": "جُلب {count} سؤالًا.",
+        "countPlural=*": "جُلب {count} سؤال."
+      }
+    }
+  ],
+  "editorQtiToCheck": [
+    {
+      "declarations": ["input count", "local countPlural = count: plural"],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "سؤال واحد قُرئ تقريبيًا؛ راجعه قبل أن يراه الطلاب.",
+        "countPlural=two": "سؤالان قُرئا تقريبيًا؛ راجعهما قبل أن يراهما الطلاب.",
+        "countPlural=few": "{count} أسئلة قُرئت تقريبيًا؛ راجعها قبل أن يراها الطلاب.",
+        "countPlural=many": "{count} سؤالًا قُرئ تقريبيًا؛ راجعها قبل أن يراها الطلاب.",
+        "countPlural=*": "{count} سؤال قُرئ تقريبيًا؛ راجعها قبل أن يراها الطلاب."
+      }
+    }
+  ],
+  "editorQtiNone": "لم يُعثر على أسئلة في هذا الملف. يجب أن يكون حزمة أو سؤالًا بصيغة QTI 2 أو 3.",
+  "editorQtiFailed": "تعذّرت قراءة الملف. جرّب حزمة QTI مصدّرة بصيغة ‎.zip.",
   "editorWordPicturesSkipped": [
     {
       "declarations": ["input count", "local countPlural = count: plural"],
@@ -3624,6 +3656,7 @@
   "lrnDoneScore": "تبلغ الدرجة حدّ النجاح",
   "lrnDoneView": "يفتحه الطالب",
   "lrnDuplicate": "نسخ",
+  "lrnExportQuestions": "تصدير الأسئلة (QTI)",
   "lrnDuplicated": "أُنشئت نسخة كمسودة",
   "lrnCopyLesson": "نسخ إلى وحدة",
   "lrnCopyLessonTitle": "نسخ «{title}»",
