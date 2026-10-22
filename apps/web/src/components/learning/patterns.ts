@@ -13,6 +13,13 @@ import * as m from "~/i18n/messages";
  * a time, then one step to finish and a problem alone (worked examples in
  * maths g = 0.48; the IES maths guide fades them), and a prediction asked
  * before the answer is shown (prequestions g = 0.66 on the idea asked).
+ * Read, check, reflect asks about a passage straight after it is read and
+ * ends with the student explaining it in their own words: practice testing,
+ * which Dunlosky and colleagues (2013) rate highly useful, then
+ * self-explanation, which they rate moderately so. Watch and answer breaks a video with questions where
+ * they matter, which keeps minds on it (Szpunar and colleagues, 2013).
+ * Listen, choose, record suits children who do not read yet: they hear the
+ * teacher, answer by tapping, then answer aloud.
  * Arabic numbers sit between words rather than in equations, which a
  * right-to-left line would reverse.
  */
@@ -200,6 +207,170 @@ export const PATTERNS: Pattern[] = [
           explanation: "",
           tries: null,
           wordLimit: null,
+        },
+      ];
+    },
+  },
+  {
+    key: "read-check-reflect",
+    title: m.patternRead,
+    hint: m.patternReadHint,
+    blocks: (say) => {
+      const options = [
+        say({
+          en: "Bees carry pollen from flower to flower",
+          ar: "ينقل النحل حبوب اللقاح من زهرة إلى زهرة",
+        }),
+        say({ en: "Bees eat the flowers", ar: "يأكل النحل الأزهار" }),
+        say({ en: "Bees keep flowers warm", ar: "يُدفئ النحل الأزهار" }),
+      ].map((text) => ({ id: id(), text, feedback: "" }));
+      return [
+        part(
+          say({ en: "Read", ar: "اقرأ" }),
+          say({
+            en: "Bees visit flowers to drink nectar. As they move, pollen sticks to their hairy bodies and rubs off on the next flower. That is how many plants make seeds. Replace this passage with your own.",
+            ar: "يزور النحل الأزهار ليشرب الرحيق. وفي أثناء تنقّله تلتصق حبوب اللقاح بجسمه المغطّى بالشعر، ثم تسقط على الزهرة التالية. هكذا تصنع نباتات كثيرة بذورها. ضع نصّك مكان هذا النص.",
+          }),
+        ),
+        {
+          id: id(),
+          type: "choice",
+          prompt: say({
+            en: "How do bees help plants make seeds?",
+            ar: "كيف يساعد النحل النباتات على صنع البذور؟",
+          }),
+          points: 1,
+          hints: [
+            say({
+              en: "Look at what sticks to a bee's body.",
+              ar: "انظر إلى ما يلتصق بجسم النحلة.",
+            }),
+          ],
+          explanation: say({
+            en: "Pollen travels on the bee to the next flower.",
+            ar: "تنتقل حبوب اللقاح على النحلة إلى الزهرة التالية.",
+          }),
+          tries: 2,
+          options,
+          correctOptionIds: [options[0]?.id ?? ""],
+          multiple: false,
+          shuffle: true,
+        },
+        gate(),
+        part(say({ en: "Reflect", ar: "تأمّل" })),
+        {
+          id: id(),
+          type: "written",
+          prompt: say({
+            en: "Explain in your own words why a garden with no bees might have fewer fruits.",
+            ar: "اشرح بكلماتك لماذا قد تقلّ الثمار في حديقة لا نحل فيها.",
+          }),
+          points: 0,
+          hints: [],
+          explanation: "",
+          tries: null,
+          wordLimit: 100,
+        },
+      ];
+    },
+  },
+  {
+    key: "watch-answer",
+    title: m.patternWatch,
+    hint: m.patternWatchHint,
+    blocks: (say) => {
+      const options = [
+        say({ en: "It melts", ar: "يذوب" }),
+        say({ en: "It freezes", ar: "يتجمّد" }),
+        say({ en: "It boils", ar: "يغلي" }),
+      ].map((text) => ({ id: id(), text, feedback: "" }));
+      return [
+        part(
+          say({ en: "Watch", ar: "شاهد" }),
+          say({
+            en: "Add your video here, from Insert. Then choose each question below and, from the video's bar, ask it at the moment it matters, so the video stops there.",
+            ar: "أضف الفيديو هنا من «إدراج». ثم اختر كل سؤال أدناه، ومن شريط الفيديو اطرحه في اللحظة المناسبة، فيتوقف الفيديو عندها.",
+          }),
+        ),
+        {
+          id: id(),
+          type: "choice",
+          prompt: say({
+            en: "What happens to ice when it warms above 0 °C?",
+            ar: "ماذا يحدث للجليد حين ترتفع حرارته فوق الصفر المئوي؟",
+          }),
+          points: 1,
+          hints: [],
+          explanation: say({
+            en: "Above its melting point, ice turns to water.",
+            ar: "فوق درجة انصهاره يتحوّل الجليد إلى ماء.",
+          }),
+          tries: 2,
+          options,
+          correctOptionIds: [options[0]?.id ?? ""],
+          multiple: false,
+          shuffle: true,
+        },
+        {
+          id: id(),
+          type: "written",
+          prompt: say({
+            en: "What was the most surprising thing in the video? Say why.",
+            ar: "ما أكثر ما فاجأك في الفيديو؟ قل لماذا.",
+          }),
+          points: 0,
+          hints: [],
+          explanation: "",
+          tries: null,
+          wordLimit: 80,
+        },
+      ];
+    },
+  },
+  {
+    key: "listen-choose-record",
+    title: m.patternListen,
+    hint: m.patternListenHint,
+    blocks: (say) => {
+      const options = [
+        say({ en: "A cat", ar: "قطة" }),
+        say({ en: "A dog", ar: "كلب" }),
+        say({ en: "A bird", ar: "طائر" }),
+      ].map((text) => ({ id: id(), text, feedback: "" }));
+      return [
+        part(
+          say({ en: "Listen", ar: "استمع" }),
+          say({
+            en: "Mia has a pet. It says meow and sleeps in the sun. Record yourself reading this aloud, from the block's bar, so children can listen.",
+            ar: "لدى ميا حيوان أليف. يقول مياو وينام في الشمس. سجّل صوتك وأنت تقرأ هذا بصوت عالٍ من شريط الكتلة، ليستمع إليه الأطفال.",
+          }),
+        ),
+        {
+          id: id(),
+          type: "choice",
+          prompt: say({ en: "What is Mia's pet?", ar: "ما حيوان ميا الأليف؟" }),
+          points: 1,
+          hints: [],
+          explanation: "",
+          tries: null,
+          options,
+          correctOptionIds: [options[0]?.id ?? ""],
+          multiple: false,
+          shuffle: true,
+        },
+        {
+          id: id(),
+          type: "written",
+          prompt: say({
+            en: "Tell us about a pet you know.",
+            ar: "حدّثنا عن حيوان أليف تعرفه.",
+          }),
+          points: 0,
+          hints: [],
+          explanation: "",
+          tries: null,
+          wordLimit: null,
+          recordSeconds: 45,
         },
       ];
     },

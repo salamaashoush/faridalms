@@ -27,6 +27,7 @@ import {
 import { createContext, useContext, useRef, useState } from "react";
 import { toast } from "sonner";
 
+import type { BuiltInGroup } from "~/components/content/Templates";
 import type { Printable } from "~/components/print/usePrint";
 import type { SaveState } from "~/hooks/useAutosave";
 
@@ -169,10 +170,8 @@ export function DocumentPage({
     onApply: (content: ContentDocument) => void;
     /** Offers the ready-made young activities, storing their pictures through this. */
     starters?: EditorMedia;
-    /** Offers the built-in teaching patterns for a lesson. */
-    patterns?: boolean;
-    /** Offers the built-in unit planners for a module's plan. */
-    planners?: boolean;
+    /** Shapes the product offers for this kind, ahead of the school's own. */
+    builtIn?: BuiltInGroup;
   };
   title: ReactNode;
   aside?: ReactNode;
@@ -349,8 +348,7 @@ export function DocumentPage({
               kind={templates.kind}
               onApply={templates.onApply}
               starters={templates.starters}
-              patterns={templates.patterns}
-              planners={templates.planners}
+              builtIn={templates.builtIn}
             />
           ) : null}
         </div>

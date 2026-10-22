@@ -6,7 +6,10 @@ import { cn } from "@faridalms/ui/cn";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { useCallback, useState } from "react";
 
-import type { StartingPiece } from "~/components/content/Templates";
+import type {
+  BuiltInGroup,
+  StartingPiece,
+} from "~/components/content/Templates";
 
 import { UnsavedChangesGuard } from "~/components/app/UnsavedChangesGuard";
 import { useCollaboration } from "~/components/content/collaboration";
@@ -20,8 +23,12 @@ import {
 } from "~/components/system/DocumentPage";
 import { useAutosave } from "~/hooks/useAutosave";
 import * as m from "~/i18n/messages";
+import { getLocale } from "~/i18n/runtime";
 import { moduleRecordQuery, planQuery } from "~/queries/learning";
 import { savePlan } from "~/server/learning";
+
+import { PLANNERS, plannerContent } from "./planners";
+import { sayIn } from "./starters";
 
 type Plan = Awaited<
   ReturnType<NonNullable<ReturnType<typeof planQuery>["queryFn"]>>
@@ -125,6 +132,20 @@ export function PlanCoverage({
   );
 }
 
+/** The built-in planners, in the language the teacher works in. */
+function plannerGroup(): BuiltInGroup {
+  const say = sayIn(getLocale() === "ar" ? "ar" : "en");
+  return {
+    label: m.plannerGroup(),
+    items: PLANNERS.map((planner) => ({
+      key: planner.key,
+      title: planner.title(),
+      hint: planner.hint(),
+      content: () => plannerContent(planner, say),
+    })),
+  };
+}
+
 /**
  * A module's unit plan, written in the planner its school follows. Its
  * teachers write it together once it exists; the first edits start it.
@@ -193,7 +214,7 @@ export function PlanEditor({
           content,
           title: module.title,
           onApply: apply,
-          planners: true,
+          builtIn: plannerGroup(),
         }}
         history={
           plan.content

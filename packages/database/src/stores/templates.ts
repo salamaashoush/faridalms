@@ -7,7 +7,12 @@ import { escapeLike, isoOf } from "./sql";
 
 type Tx = CellTransaction;
 
-export type TemplateKind = "lesson" | "assignment" | "unit_plan";
+export type TemplateKind =
+  | "lesson"
+  | "assignment"
+  | "unit_plan"
+  | "news"
+  | "announcement";
 
 export interface TemplateRow {
   id: string;

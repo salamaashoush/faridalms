@@ -179,7 +179,9 @@ export const documentTemplates = core.table.withRLS(
     ...tenantColumns(),
     orgId: uuid("org_id").notNull(),
     ownerUserId: uuid("owner_user_id").notNull(),
-    kind: text("kind").$type<"lesson" | "assignment" | "unit_plan">().notNull(),
+    kind: text("kind")
+      .$type<"lesson" | "assignment" | "unit_plan" | "news" | "announcement">()
+      .notNull(),
     title: text("title").notNull(),
     description: text("description").notNull().default(""),
     subjectDescriptorId: uuid("subject_descriptor_id"),
@@ -207,7 +209,7 @@ export const documentTemplates = core.table.withRLS(
     ck(
       "document_templates",
       "kind",
-      sql`kind in ('lesson', 'assignment', 'unit_plan')`,
+      sql`kind in ('lesson', 'assignment', 'unit_plan', 'news', 'announcement')`,
     ),
     ck(
       "document_templates",

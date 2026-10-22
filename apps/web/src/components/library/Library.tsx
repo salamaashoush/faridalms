@@ -16,6 +16,8 @@ import { LoaderCircle } from "lucide-react";
 import { useState } from "react";
 import { toast } from "sonner";
 
+import type { libraryQuery } from "~/queries/library";
+
 import { classTitle } from "~/components/classes/format";
 import { ContentView } from "~/components/content/ContentView";
 import { FormField, SelectField } from "~/components/system/field";
@@ -24,7 +26,6 @@ import * as m from "~/i18n/messages";
 import { getLocale, getTextDirection } from "~/i18n/runtime";
 import { courseworkOptionsQuery } from "~/queries/coursework";
 import { learningOptionsQuery } from "~/queries/learning";
-import type { libraryQuery} from "~/queries/library";
 import { templateQuery } from "~/queries/library";
 import { reviewTemplate } from "~/server/templates";
 import { getMessageFromError } from "~/utils/error";
@@ -33,6 +34,8 @@ export const KIND_LABEL: Record<TemplateKind, () => string> = {
   lesson: m.libraryKindLesson,
   assignment: m.libraryKindAssignment,
   unit_plan: m.libraryKindPlan,
+  news: m.libraryKindNews,
+  announcement: m.libraryKindAnnouncement,
 };
 
 export type Piece = Awaited<
@@ -63,7 +66,7 @@ export function PieceSheet({
   const [note, setNote] = useState("");
   const modules = useQuery({
     ...learningOptionsQuery,
-    enabled: piece.kind !== "assignment",
+    enabled: piece.kind === "lesson" || piece.kind === "unit_plan",
   }).data?.modules;
   const classes = useQuery({
     ...courseworkOptionsQuery,
@@ -76,7 +79,9 @@ export function PieceSheet({
           value: row.id,
           label: classTitle(row),
         }))
-      : (modules ?? []).map((row) => ({ value: row.id, label: row.title }));
+      : piece.kind === "lesson" || piece.kind === "unit_plan"
+        ? (modules ?? []).map((row) => ({ value: row.id, label: row.title }))
+        : [];
   const chosen = target || (places[0]?.value ?? "");
   const decide = useMutation({
     mutationFn: (share: boolean) =>
@@ -98,6 +103,13 @@ export function PieceSheet({
       void navigate({
         to: "/teach/module-plan",
         search: { moduleId: chosen, template: piece.id },
+      });
+    else if (piece.kind === "news")
+      void navigate({ to: "/news-editor", search: { template: piece.id } });
+    else if (piece.kind === "announcement")
+      void navigate({
+        to: "/admin/announcement-editor",
+        search: { template: piece.id },
       });
     else
       void navigate({
@@ -213,7 +225,10 @@ export function PieceSheet({
                 <Button
                   type="button"
                   className="max-md:h-10"
-                  disabled={piece.kind !== "assignment" && !chosen}
+                  disabled={
+                    (piece.kind === "lesson" || piece.kind === "unit_plan") &&
+                    !chosen
+                  }
                   onClick={use}
                 >
                   {m.libraryUse()}

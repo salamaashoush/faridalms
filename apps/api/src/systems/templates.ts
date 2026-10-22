@@ -36,6 +36,8 @@ const AUTHOR = {
   lesson: "learning:author",
   assignment: "assignments:author",
   unit_plan: "learning:author",
+  news: "news:manage",
+  announcement: "announcements:manage",
 } as const;
 
 const hostOf = (id: string) => ({ type: "document_template", id });

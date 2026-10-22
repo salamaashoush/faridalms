@@ -9,13 +9,20 @@ import {
   lessonIssue,
   lessonPlainText,
 } from "@faridalms/domain/learning";
-import { lessonOfContent, sameLesson } from "@faridalms/domain/lesson-content";
+import {
+  contentOfLesson,
+  lessonOfContent,
+  sameLesson,
+} from "@faridalms/domain/lesson-content";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { Copy } from "lucide-react";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
-import type { StartingPiece } from "~/components/content/Templates";
+import type {
+  BuiltInGroup,
+  StartingPiece,
+} from "~/components/content/Templates";
 import type { lessonEditorQuery } from "~/queries/learning";
 
 import { UnsavedChangesGuard } from "~/components/app/UnsavedChangesGuard";
@@ -35,6 +42,7 @@ import { SelectField, TextField } from "~/components/system/field";
 import { useAutosave } from "~/hooks/useAutosave";
 import { useCurrentUser } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
+import { getLocale } from "~/i18n/runtime";
 import { moduleRecordQuery } from "~/queries/learning";
 import { saveLesson } from "~/server/learning";
 import { getMessageFromError } from "~/utils/error";
@@ -42,7 +50,24 @@ import { getMessageFromError } from "~/utils/error";
 import { CopyLessonSheet } from "./CopyLesson";
 import { COMPLETION_LABEL } from "./format";
 import { blockIssue } from "./issues";
+import { PATTERNS } from "./patterns";
+import { sayIn } from "./starters";
 import { YoungAdviceList } from "./YoungAdvice";
+
+/** The teaching patterns, in the language the teacher works in. */
+function patternGroup(): BuiltInGroup {
+  const say = sayIn(getLocale() === "ar" ? "ar" : "en");
+  return {
+    label: m.patternGroup(),
+    items: PATTERNS.map((pattern) => ({
+      key: pattern.key,
+      title: pattern.title(),
+      hint: pattern.hint(),
+      content: () =>
+        contentOfLesson({ version: 2, blocks: pattern.blocks(say) }),
+    })),
+  };
+}
 
 const VOWEL_MARKS_LABEL: Record<VowelMarks, () => string> = {
   shown: m.lrnVowelMarksShown,
@@ -341,7 +366,7 @@ export function LessonEditor({
             setReplace((current) => ({ to, at: (current?.at ?? 0) + 1 }));
           },
           starters: earlyYears && draft.young ? media : undefined,
-          patterns: !(earlyYears && draft.young),
+          builtIn: earlyYears && draft.young ? undefined : patternGroup(),
         }}
         history={
           storedId

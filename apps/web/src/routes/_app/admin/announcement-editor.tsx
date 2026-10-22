@@ -9,13 +9,21 @@ import {
   announcementEditorQuery,
   announcementOptionsQuery,
 } from "~/queries/announcements";
+import { templateQuery } from "~/queries/library";
 
 export const Route = createFileRoute("/_app/admin/announcement-editor")({
   staticData: { breadcrumb: m.annEditorBreadcrumb, section: "/announcements" },
-  validateSearch: v.object({ id: v.optional(v.pipe(v.string(), v.uuid())) }),
+  validateSearch: v.object({
+    id: v.optional(v.pipe(v.string(), v.uuid())),
+    /** A library piece a new one starts from. */
+    template: v.optional(v.pipe(v.string(), v.uuid())),
+  }),
   loaderDeps: ({ search }) => search,
   loader: async ({ context, deps }) => {
     await Promise.all([
+      ...(deps.template && !deps.id
+        ? [context.queryClient.ensureQueryData(templateQuery(deps.template))]
+        : []),
       context.queryClient.ensureQueryData(announcementOptionsQuery),
       ...(deps.id
         ? [
@@ -49,8 +57,28 @@ function Existing({
   );
 }
 
+function Started({
+  template,
+  onClose,
+  onCreated,
+}: {
+  template: string;
+  onClose: (id?: string) => void;
+  onCreated: (id: string) => void;
+}) {
+  const piece = useSuspenseQuery(templateQuery(template)).data;
+  return (
+    <AnnouncementEditor
+      existing={null}
+      template={piece}
+      onClose={onClose}
+      onCreated={onCreated}
+    />
+  );
+}
+
 function EditorPage() {
-  const { id } = Route.useSearch();
+  const { id, template } = Route.useSearch();
   const navigate = Route.useNavigate();
   const close = (saved?: string) =>
     void (saved
@@ -64,10 +92,15 @@ function EditorPage() {
   const [started, setStarted] = useState<string | null>(null);
   const created = (saved: string) => {
     setStarted(saved);
-    void navigate({ search: { id: saved }, replace: true });
+    void navigate({
+      search: (previous) => ({ ...previous, id: saved }),
+      replace: true,
+    });
   };
   return id && id !== started ? (
     <Existing id={id} onClose={close} onCreated={created} />
+  ) : template ? (
+    <Started template={template} onClose={close} onCreated={created} />
   ) : (
     <AnnouncementEditor existing={null} onClose={close} onCreated={created} />
   );

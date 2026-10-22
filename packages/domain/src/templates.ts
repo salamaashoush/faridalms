@@ -2,8 +2,14 @@ import * as v from "valibot";
 
 import { contentDocumentSchema } from "./content";
 
-/** What a school keeps templates for: documents its teachers start often. */
-export const TEMPLATE_KINDS = ["lesson", "assignment", "unit_plan"] as const;
+/** What a school keeps templates for: documents its staff start often. */
+export const TEMPLATE_KINDS = [
+  "lesson",
+  "assignment",
+  "unit_plan",
+  "news",
+  "announcement",
+] as const;
 export type TemplateKind = (typeof TEMPLATE_KINDS)[number];
 
 const id = v.pipe(v.string(), v.uuid());

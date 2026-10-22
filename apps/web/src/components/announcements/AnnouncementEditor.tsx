@@ -26,12 +26,14 @@ import { Archive, CalendarClock, Send } from "lucide-react";
 import { useCallback, useRef, useState } from "react";
 import { toast } from "sonner";
 
+import type { StartingPiece } from "~/components/content/Templates";
 import type { announcementEditorQuery } from "~/queries/announcements";
 
 import { contentIssueMessages } from "~/components/content/checks";
 import { ContentEditor } from "~/components/content/ContentEditor";
 import { ContentView } from "~/components/content/ContentView";
 import { LOCALE_LABEL, LOCALE_NAME } from "~/components/content/languages";
+import { useStartFrom } from "~/components/content/Templates";
 import { TranslationNote } from "~/components/content/TranslationNote";
 import { useDocumentMedia } from "~/components/coursework/useDocumentMedia";
 import { CheckboxRow } from "~/components/people/fields";
@@ -120,10 +122,13 @@ const localOf = (iso: string | null | undefined) => {
  */
 export function AnnouncementEditor({
   existing,
+  template,
   onClose,
   onCreated,
 }: {
   existing: Existing | null;
+  /** The library piece a new announcement starts from. */
+  template?: StartingPiece;
   onClose: (id?: string) => void;
   onCreated: (id: string) => void;
 }) {
@@ -209,6 +214,24 @@ export function AnnouncementEditor({
   const changeBody = useCallback(
     (body: ContentDocument) => change({ body }),
     [change],
+  );
+  const applyBody = (body: ContentDocument) => {
+    change({ body });
+    setEditorKey((key) => key + 1);
+  };
+  useStartFrom(
+    template,
+    useCallback((piece: StartingPiece) => {
+      setDraft((current) => {
+        const key = current.primaryLocale === "ar" ? "titleAr" : "titleEn";
+        return {
+          ...current,
+          body: piece.content,
+          [key]: current[key] || piece.title,
+        };
+      });
+      setEditorKey((key) => key + 1);
+    }, []),
   );
   const changeTranslation = useCallback(
     (translation: ContentDocument) => change({ translation }),
@@ -352,6 +375,13 @@ export function AnnouncementEditor({
         }}
         saveState={autosave.state}
         onRetry={autosave.retry}
+        templates={{
+          kind: "announcement",
+          empty: !stored && !contentPlainText(draft.body).trim(),
+          content: draft.body,
+          title: primaryTitle,
+          onApply: applyBody,
+        }}
         unpublished={
           changed
             ? {

@@ -35,12 +35,9 @@ import {
 import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
-import type { Pattern } from "~/components/learning/patterns";
 import type { Starter } from "~/components/learning/starters";
 
 import { BookError, importPictureBook } from "~/components/learning/bookImport";
-import { PATTERNS } from "~/components/learning/patterns";
-import { PLANNERS, plannerContent } from "~/components/learning/planners";
 import { altIn, sayIn, STARTERS } from "~/components/learning/starters";
 import { labelOf } from "~/components/people/format";
 import { FormField, SelectField, TextField } from "~/components/system/field";
@@ -63,6 +60,20 @@ const BOOK_ERROR: Record<string, () => string> = {
   "book.too_long": m.starterBookTooLong,
 };
 
+/** A shape the product offers to start a document from. */
+export interface BuiltInPiece {
+  key: string;
+  title: string;
+  hint: string;
+  /** The document it starts; null when it cannot be made. */
+  content: () => ContentDocument | null;
+}
+
+export interface BuiltInGroup {
+  label: string;
+  items: BuiltInPiece[];
+}
+
 const templatesQuery = (kind: TemplateKind) => ({
   queryKey: ["templates", kind],
   queryFn: () => listTemplates({ data: { kind } }),
@@ -76,17 +87,14 @@ export function TemplatePicker({
   kind,
   onApply,
   starters,
-  patterns = false,
-  planners = false,
+  builtIn,
 }: {
   kind: TemplateKind;
   onApply: (content: ContentDocument) => void;
   /** Ready-made young activities, whose pictures are stored through this. */
   starters?: EditorMedia;
-  /** Offers the built-in teaching patterns for a lesson. */
-  patterns?: boolean;
-  /** Offers the built-in unit planners for a module's plan. */
-  planners?: boolean;
+  /** Shapes the product offers for this kind, ahead of the school's own. */
+  builtIn?: BuiltInGroup;
 }) {
   const queryClient = useQueryClient();
   const rows = useQuery(templatesQuery(kind)).data ?? [];
@@ -128,19 +136,6 @@ export function TemplatePicker({
           if (!picture) throw new Error("file.failed");
           return picture;
         }),
-      });
-      if (!content) throw new Error("content.invalid");
-      return content;
-    },
-    onSuccess: (content) => onApply(content),
-    onError: (error) => toast.error(getMessageFromError(error)),
-  });
-  const pattern = useMutation({
-    mutationFn: async (chosen: Pattern) => {
-      const say = sayIn(getLocale() === "ar" ? "ar" : "en");
-      const content = contentOfLesson({
-        version: 2,
-        blocks: chosen.blocks(say),
       });
       if (!content) throw new Error("content.invalid");
       return content;
@@ -193,10 +188,9 @@ export function TemplatePicker({
     document.body.append(input);
     input.click();
   };
-  if (rows.length === 0 && !starters && !patterns && !planners) return null;
+  if (rows.length === 0 && !starters && !builtIn) return null;
   const mine = rows.filter((row) => row.mine);
-  const busy =
-    apply.isPending || start.isPending || book.isPending || pattern.isPending;
+  const busy = apply.isPending || start.isPending || book.isPending;
   return (
     <DropdownMenu>
       <DropdownMenuTrigger
@@ -219,51 +213,28 @@ export function TemplatePicker({
         <ChevronDown aria-hidden />
       </DropdownMenuTrigger>
       <DropdownMenuContent className="w-72">
-        {planners ? (
+        {builtIn ? (
           <>
             <DropdownMenuGroup>
-              <DropdownMenuLabel>{m.plannerGroup()}</DropdownMenuLabel>
-              {PLANNERS.map((planner) => (
+              <DropdownMenuLabel>{builtIn.label}</DropdownMenuLabel>
+              {builtIn.items.map((item) => (
                 <DropdownMenuItem
-                  key={planner.key}
-                  onClick={() =>
-                    onApply(
-                      plannerContent(
-                        planner,
-                        sayIn(getLocale() === "ar" ? "ar" : "en"),
-                      ),
-                    )
-                  }
+                  key={item.key}
+                  onClick={() => {
+                    const content = item.content();
+                    if (content) onApply(content);
+                    else
+                      toast.error(
+                        getMessageFromError(new Error("content.invalid")),
+                      );
+                  }}
                   className="items-start"
                 >
                   <GraduationCap aria-hidden className="mt-0.5" />
                   <span className="grid gap-0.5">
-                    <span>{planner.title()}</span>
+                    <span>{item.title}</span>
                     <span className="text-xs text-muted-foreground">
-                      {planner.hint()}
-                    </span>
-                  </span>
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuGroup>
-            {rows.length > 0 ? <DropdownMenuSeparator /> : null}
-          </>
-        ) : null}
-        {patterns ? (
-          <>
-            <DropdownMenuGroup>
-              <DropdownMenuLabel>{m.patternGroup()}</DropdownMenuLabel>
-              {PATTERNS.map((entry) => (
-                <DropdownMenuItem
-                  key={entry.key}
-                  onClick={() => pattern.mutate(entry)}
-                  className="items-start"
-                >
-                  <GraduationCap aria-hidden className="mt-0.5" />
-                  <span className="grid gap-0.5">
-                    <span>{entry.title()}</span>
-                    <span className="text-xs text-muted-foreground">
-                      {entry.hint()}
+                      {item.hint}
                     </span>
                   </span>
                 </DropdownMenuItem>

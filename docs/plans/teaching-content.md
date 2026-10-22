@@ -214,7 +214,12 @@ Sources: [../research/course-design.md](../research/course-design.md),
    reviewed.
 3. **Templates for every kind of document** (newsletter and news as well),
    and the built-in lessons "Read, check, reflect", "Watch and answer" and
-   "Listen, choose, record".
+   "Listen, choose, record". Done: news posts and announcements join
+   lessons, assignments and unit plans in the library, each offered on an
+   empty document through one "Start from" menu, which also holds the
+   built-in shapes: the lesson patterns (the three named here added), the
+   unit planners and the newsletters, which news offered apart before.
+   Left: events and consent forms.
 4. **Preview a lesson** at phone and desktop width, in either language, and
    as a given group of students would meet it.
 5. **Module audiences** by group or named students, not only whole classes.

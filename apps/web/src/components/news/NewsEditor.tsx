@@ -23,6 +23,10 @@ import { Archive, CalendarClock, Send } from "lucide-react";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
+import type {
+  BuiltInGroup,
+  StartingPiece,
+} from "~/components/content/Templates";
 import type { newsEditorQuery } from "~/queries/news";
 
 import {
@@ -33,6 +37,7 @@ import {
 import { ContentEditor } from "~/components/content/ContentEditor";
 import { ContentView } from "~/components/content/ContentView";
 import { LOCALE_LABEL, LOCALE_NAME } from "~/components/content/languages";
+import { useStartFrom } from "~/components/content/Templates";
 import { TranslatedView } from "~/components/content/TranslatedView";
 import { TranslationNote } from "~/components/content/TranslationNote";
 import { useDocumentMedia } from "~/components/coursework/useDocumentMedia";
@@ -91,6 +96,11 @@ type Template = (typeof TEMPLATES)[number];
 const TEMPLATE_LABEL: Record<Template, () => string> = {
   weekly: m.newsTemplateWeekly,
   monthly: m.newsTemplateMonthly,
+};
+
+const TEMPLATE_HINT: Record<Template, () => string> = {
+  weekly: m.newsTemplateWeeklyHint,
+  monthly: m.newsTemplateMonthlyHint,
 };
 
 /** Starter headings, in the post's language rather than the writer's. */
@@ -178,10 +188,13 @@ function draftOf(existing: Existing | null): Draft {
  */
 export function NewsEditor({
   existing,
+  template,
   onClose,
   onCreated,
 }: {
   existing: Existing | null;
+  /** The library piece a new post starts from. */
+  template?: StartingPiece;
   onClose: (id?: string) => void;
   onCreated: (id: string) => void;
 }) {
@@ -332,17 +345,39 @@ export function NewsEditor({
       ),
     );
 
-  const applyTemplate = (template: Template) => {
-    change({
-      body: headedContent(
-        TEMPLATE_HEADINGS[template].map((heading) => ({
-          heading: heading({}, { locale: draft.primaryLocale }),
-          body: emptyContent(),
-        })),
-      ),
-    });
+  const applyBody = (body: ContentDocument) => {
+    change({ body });
     setEditorKey((key) => key + 1);
   };
+  const newsletters: BuiltInGroup = {
+    label: m.newsTemplateGroup(),
+    items: TEMPLATES.map((starter) => ({
+      key: starter,
+      title: TEMPLATE_LABEL[starter](),
+      hint: TEMPLATE_HINT[starter](),
+      content: () =>
+        headedContent(
+          TEMPLATE_HEADINGS[starter].map((heading) => ({
+            heading: heading({}, { locale: draft.primaryLocale }),
+            body: emptyContent(),
+          })),
+        ),
+    })),
+  };
+  useStartFrom(
+    template,
+    useCallback(
+      (piece: StartingPiece) => {
+        change({ body: piece.content });
+        setDraft((current) => {
+          const key = current.primaryLocale === "ar" ? "titleAr" : "titleEn";
+          return current[key] ? current : { ...current, [key]: piece.title };
+        });
+        setEditorKey((key) => key + 1);
+      },
+      [change],
+    ),
+  );
 
   const later = !live && sendAt !== "";
 
@@ -489,6 +524,14 @@ export function NewsEditor({
         }
         link={stored ? `/news/${postId}` : undefined}
         preview={{ label: m.newsPreview(), onClick: () => setPreviewing(true) }}
+        templates={{
+          kind: "news",
+          empty: untouched,
+          content: draft.body,
+          title: primaryTitle,
+          onApply: applyBody,
+          builtIn: newsletters,
+        }}
         history={
           stored
             ? {
@@ -797,26 +840,7 @@ export function NewsEditor({
           </DetailsPanel>
         }
       >
-        <div className="grid gap-4">
-          {untouched ? (
-            <div className="flex flex-wrap items-center gap-2 text-[13px] text-muted-foreground">
-              <span>{m.newsStartFrom()}</span>
-              {TEMPLATES.map((template) => (
-                <Button
-                  key={template}
-                  type="button"
-                  variant="outline"
-                  size="sm"
-                  className="max-md:h-10"
-                  onClick={() => applyTemplate(template)}
-                >
-                  {TEMPLATE_LABEL[template]()}
-                </Button>
-              ))}
-            </div>
-          ) : null}
-          {editorFor(shown)}
-        </div>
+        <div className="grid gap-4">{editorFor(shown)}</div>
       </DocumentPage>
       {pictured.sheet}
       <SheetPanel

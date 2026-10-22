@@ -1,0 +1,1 @@
+ALTER TABLE "core"."document_templates" DROP CONSTRAINT "document_templates_kind_check", ADD CONSTRAINT "document_templates_kind_check" CHECK (kind in ('lesson', 'assignment', 'unit_plan', 'news', 'announcement'));
