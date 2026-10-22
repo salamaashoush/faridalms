@@ -191,6 +191,10 @@ export const saveQuizAnswer = createServerFn({ method: "POST" })
       : backend().coursework.saveQuizAnswer(data),
   );
 
+export const getQuizPollResults = createServerFn({ method: "GET" })
+  .validator(checked(v.object({ assignmentId: uuid, blockId: uuid })))
+  .handler(({ data }) => backend().coursework.quizPollResults(data));
+
 export const practiseQuiz = createServerFn({ method: "POST" })
   .validator(checked(practiseQuizSchema))
   .handler(({ data }) =>

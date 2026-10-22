@@ -15,12 +15,24 @@ import {
   getDiscussion,
   getGrading,
   getQuizAnswers,
+  getQuizPollResults,
   getMyCoursework,
   getMyPeerReviews,
   getMyWork,
   getPeerOverview,
   getReusable,
 } from "~/server/coursework";
+
+import type { PollCounts } from "./learning";
+
+/** How a student's class answered a quiz's poll, asked again now and then as others answer. */
+export const quizPollResultsQuery = (assignmentId: string, blockId: string) =>
+  queryOptions<PollCounts>({
+    queryKey: ["coursework", "poll", assignmentId, blockId],
+    queryFn: () => getQuizPollResults({ data: { assignmentId, blockId } }),
+    placeholderData: (previous) => previous,
+    refetchInterval: 15_000,
+  });
 
 export const courseworkOptionsQuery = queryOptions({
   queryKey: ["coursework", "options"],

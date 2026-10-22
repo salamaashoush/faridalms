@@ -21,6 +21,42 @@ export interface QuizAnswerRow {
   revealed: boolean;
 }
 
+/**
+ * How each of these students voted in a quiz's poll: the options of their
+ * answer in the earliest attempt that has one, one list a student.
+ */
+export async function quizPollVotes(
+  tx: Tx,
+  input: {
+    tenantId: string;
+    assignmentId: string;
+    blockId: string;
+    studentIds: readonly string[];
+  },
+): Promise<Map<string, string[]>> {
+  if (input.studentIds.length === 0) return new Map();
+  const rows = await tx.execute<{
+    student_user_id: string;
+    option_ids: unknown;
+  }>(sql`
+    select distinct on (a.student_user_id) a.student_user_id, a.response->'optionIds' as option_ids
+    from core.quiz_answers a
+    join core.submissions s on s.tenant_id = a.tenant_id and s.id = a.submission_id
+    where a.tenant_id = ${input.tenantId}::uuid and s.assignment_id = ${input.assignmentId}::uuid
+      and a.block_id = ${input.blockId}::uuid and a.status = 'active' and s.status = 'active'
+      and a.student_user_id = any(${uuidArray(input.studentIds)})
+      and jsonb_typeof(a.response->'optionIds') = 'array'
+    order by a.student_user_id, a.attempt`);
+  return new Map(
+    rows.map((row) => [
+      row.student_user_id,
+      Array.isArray(row.option_ids)
+        ? row.option_ids.filter((item) => typeof item === "string")
+        : [],
+    ]),
+  );
+}
+
 /** A student's answers on a submission, every attempt or one, oldest attempt first. */
 export async function quizAnswersOf(
   tx: Tx,

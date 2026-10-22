@@ -1039,7 +1039,12 @@ function PollCheck({
       chooseAll={m.lrnPollChooseAll()}
     />
   );
-  const results = mode === "practice" && voted && block.classResults;
+  // A quiz keeps a vote changeable until it is handed in, so its class's
+  // answers show while the vote is kept, not while it is being changed.
+  const results =
+    voted &&
+    block.classResults &&
+    (mode === "practice" || (mode === "quiz" && !editing));
   const status =
     mode === "review" && !voted ? (
       <p className="text-sm leading-5 text-muted-foreground">

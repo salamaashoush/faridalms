@@ -2372,6 +2372,82 @@ describe("quizzes", () => {
     expect(after.quiz?.results[0]?.score).toBeCloseTo(2, 1);
   });
 
+  test("a quiz's poll shows a student how their class voted once they have, never who", async () => {
+    const teacher = await arabicTeacher();
+    const student = await sessionFor("northwind", login("student"));
+    const me = await student.api.identity.currentUser();
+    const target = await classOfStudent(teacher.api, me.id);
+    const fox = uuid();
+    const crow = uuid();
+    const right = uuid();
+    const poll = {
+      id: uuid(),
+      type: "poll" as const,
+      prompt: "Which story did you like best?",
+      points: 0 as const,
+      hints: [],
+      explanation: "",
+      tries: null,
+      options: [
+        { id: fox, text: "The fox", feedback: "" },
+        { id: crow, text: "The crow", feedback: "" },
+      ],
+      multiple: false,
+      classResults: true,
+    };
+    const saved = await teacher.api.coursework.save(
+      draft(target.id, "Stories poll", {
+        submissionFormat: "quiz",
+        points: null,
+        brief: briefWithQuiz(plainContent("Tell us."), {
+          version: 2,
+          blocks: [
+            {
+              id: uuid(),
+              type: "choice" as const,
+              prompt: "Who wrote the fable?",
+              points: 1,
+              hints: [],
+              explanation: "",
+              tries: null,
+              options: [
+                { id: right, text: "Aesop", feedback: "" },
+                { id: uuid(), text: "Homer", feedback: "" },
+              ],
+              correctOptionIds: [right],
+              multiple: false,
+              shuffle: false,
+            },
+            poll,
+          ],
+        }),
+        quiz: {
+          attempts: null,
+          keep: "highest",
+          reveal: "answers",
+          shuffle: false,
+          practice: false,
+          bands: [],
+        },
+      }),
+    );
+    await teacher.api.coursework.publish({
+      id: saved.id,
+      expectedVersion: saved.version,
+    });
+    const asked = { assignmentId: saved.id, blockId: poll.id };
+    expect(
+      await rejection(student.api.coursework.quizPollResults(asked)),
+    ).toMatchObject({ message: "learning.poll_first" });
+    await student.api.coursework.saveQuizAnswer({
+      ...asked,
+      response: { type: "poll", optionIds: [crow] },
+    });
+    const results = await student.api.coursework.quizPollResults(asked);
+    expect(results).toEqual({ answered: 1, counts: { [fox]: 0, [crow]: 1 } });
+    expect(JSON.stringify(results)).not.toContain(me.id);
+  });
+
   test("a quiz shown only when returned keeps its results back until then", async () => {
     const { teacher, student, me, saved, choice, right } =
       await quizFor("returned");

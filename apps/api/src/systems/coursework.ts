@@ -111,6 +111,7 @@ import {
   keepPracticeAnswer,
   markQuizAnswer as storeQuizMark,
   quizAnswersOf,
+  quizPollVotes,
   quizAnswersToMark,
   quizStarted,
   saveQuizAnswer as storeQuizAnswer,
@@ -2933,6 +2934,49 @@ export const saveTeacherRubric = writeProcedure
     });
     if (!saved) throw new ORPCError("NOT_FOUND");
     return { id: saved };
+  });
+
+/**
+ * How a student's class answered a quiz's poll, once the student has: how
+ * many chose each option, from each student's earliest answer, never who.
+ */
+export const quizPollResults = readProcedure
+  .input(v.object({ assignmentId: id, blockId: id }))
+  .handler(async ({ input, context }) => {
+    const { assignment } = await learnerAssignment(context, input.assignmentId);
+    const document = await publishedQuiz(context, assignment.id);
+    const block = document
+      ? checkBlocks(document).find((item) => item.id === input.blockId)
+      : undefined;
+    if (block?.type !== "poll" || !block.classResults)
+      throw new ORPCError("NOT_FOUND");
+    const roster = await studentWork(context.tx, {
+      tenantId: context.tenantId,
+      assignmentId: assignment.id,
+    });
+    const votes = await quizPollVotes(context.tx, {
+      tenantId: context.tenantId,
+      assignmentId: assignment.id,
+      blockId: block.id,
+      studentIds: [
+        ...new Set([
+          context.actor.userId,
+          ...roster.map((row) => row.studentId),
+        ]),
+      ],
+    });
+    if (!votes.has(context.actor.userId))
+      throw new ORPCError("CONFLICT", { message: "learning.poll_first" });
+    const chosen = [...votes.values()];
+    return {
+      answered: chosen.length,
+      counts: Object.fromEntries(
+        block.options.map((option) => [
+          option.id,
+          chosen.filter((picked) => picked.includes(option.id)).length,
+        ]),
+      ),
+    };
   });
 
 /** Keeps a student's answer to one quiz question while their attempt is open. */

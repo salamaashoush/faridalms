@@ -90,9 +90,15 @@ export const pacingQuery = (lessonId: string) =>
     refetchInterval: (query) => (query.state.data?.paced ? 3000 : 15_000),
   });
 
+/** How a class answered a poll: how many answered, and how many chose each option. */
+export interface PollCounts {
+  answered: number;
+  counts: Record<string, number>;
+}
+
 /** How a student's class answered a poll, asked again now and then as others answer. */
 export const pollResultsQuery = (lessonId: string, blockId: string) =>
-  queryOptions({
+  queryOptions<PollCounts>({
     queryKey: ["learning", "poll", lessonId, blockId],
     queryFn: () => getPollResults({ data: { lessonId, blockId } }),
     placeholderData: (previous) => previous,

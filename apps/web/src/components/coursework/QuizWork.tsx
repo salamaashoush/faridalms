@@ -30,7 +30,7 @@ import { FormField } from "~/components/system/field";
 import { RecordEmpty, RecordSection } from "~/components/system/RecordPage";
 import { SheetForm } from "~/components/system/SheetForm";
 import * as m from "~/i18n/messages";
-import { myWorkQuery } from "~/queries/coursework";
+import { myWorkQuery, quizPollResultsQuery } from "~/queries/coursework";
 import {
   handInWork,
   markQuizAnswer,
@@ -321,6 +321,7 @@ export function QuizWork({ data }: { data: Work }) {
       );
     },
     reveal: () => Promise.resolve(),
+    poll: (blockId) => quizPollResultsQuery(data.assignment.id, blockId),
   };
   const practised = quiz.practised;
   const step = async (blockId: string, kind: PractiseStep) => {
@@ -347,6 +348,7 @@ export function QuizWork({ data }: { data: Work }) {
             step(blockId, { kind: "answer", response }),
           reveal: (blockId) => step(blockId, { kind: "reveal" }),
           hint: (blockId) => step(blockId, { kind: "hint" }),
+          poll: (blockId) => quizPollResultsQuery(data.assignment.id, blockId),
         } satisfies CheckDriver,
       }
     : undefined;
