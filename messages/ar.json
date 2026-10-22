@@ -1623,6 +1623,44 @@
   "sharedRemoved": "أُزيلت الكتلة المشتركة.",
   "sharedEditTitle": "كتلة مشتركة",
   "sharedEditBody": "كل مستند يعرضها يعرض التغيير.",
+  "sharedUsedIn": [
+    {
+      "declarations": [
+        "input count",
+        "input value",
+        "local countPlural = count: plural"
+      ],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=zero": "لا تظهر في أي مستند",
+        "countPlural=one": "تظهر في مستند واحد",
+        "countPlural=two": "تظهر في مستندين",
+        "countPlural=few": "تظهر في {value} مستندات",
+        "countPlural=many": "تظهر في {value} مستندًا",
+        "countPlural=*": "تظهر في {value} مستند"
+      }
+    }
+  ],
+  "sharedUsedNowhere": "لا يعرضها أي مستند.",
+  "sharedRemoveTitle": "إزالة «{title}»؟",
+  "sharedRemoveBody": [
+    {
+      "declarations": [
+        "input count",
+        "input value",
+        "local countPlural = count: plural"
+      ],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=zero": "لا تظهر في أي مستند.",
+        "countPlural=one": "تظهر في مستند واحد، وسيذكر بعدها أنها أُزيلت.",
+        "countPlural=two": "تظهر في مستندين، وسيذكر كلاهما بعدها أنها أُزيلت.",
+        "countPlural=few": "تظهر في {value} مستندات، وسيذكر كل منها بعدها أنها أُزيلت.",
+        "countPlural=many": "تظهر في {value} مستندًا، وسيذكر كل منها بعدها أنها أُزيلت.",
+        "countPlural=*": "تظهر في {value} مستند، وسيذكر كل منها بعدها أنها أُزيلت."
+      }
+    }
+  ],
   "sharedNotYours": "وحده المعلم الذي حفظها يغيّرها. انسخها لتغييرها هنا.",
   "sharedSave": "احفظ",
   "sharedSaved": "حُفظت الكتلة المشتركة.",

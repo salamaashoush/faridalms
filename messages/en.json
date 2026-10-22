@@ -1545,6 +1545,36 @@
   "sharedRemoved": "Shared block taken out.",
   "sharedEditTitle": "Shared block",
   "sharedEditBody": "Every document showing it shows the change.",
+  "sharedUsedIn": [
+    {
+      "declarations": [
+        "input count",
+        "input value",
+        "local countPlural = count: plural"
+      ],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "Shown in {value} document",
+        "countPlural=*": "Shown in {value} documents"
+      }
+    }
+  ],
+  "sharedUsedNowhere": "No document shows it.",
+  "sharedRemoveTitle": "Take out “{title}”?",
+  "sharedRemoveBody": [
+    {
+      "declarations": [
+        "input count",
+        "input value",
+        "local countPlural = count: plural"
+      ],
+      "selectors": ["countPlural"],
+      "match": {
+        "countPlural=one": "It shows in {value} document, which will then say it was taken out.",
+        "countPlural=*": "It shows in {value} documents, which will then say it was taken out."
+      }
+    }
+  ],
   "sharedNotYours": "Only the teacher who kept it may change it. Make a copy to change it here.",
   "sharedSave": "Save",
   "sharedSaved": "Shared block saved.",

@@ -23,3 +23,7 @@ export const saveShared = createServerFn({ method: "POST" })
 export const removeShared = createServerFn({ method: "POST" })
   .validator(checked(sharedRefSchema))
   .handler(({ data }) => backend().shared.remove(data));
+
+export const sharedUses = createServerFn({ method: "GET" })
+  .validator(checked(sharedRefSchema))
+  .handler(({ data }) => backend().shared.uses(data));

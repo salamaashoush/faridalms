@@ -541,10 +541,12 @@ Sources: [../research/course-design.md](../research/course-design.md),
    kept, and Make a copy here; readers see it as part of the page as it
    now is, students included, and a block taken out says so. Only its
    teacher changes it, and it holds no question, gate or draw, which
-   belong to one document.
-   Left: shared blocks in news, announcements and the school's pages; a
-   shared block's history of changes; telling a teacher which documents
-   show one before they change it.
+   belong to one document. Changing one names first the lessons,
+   assignments and unit plans showing it, each with its module or class,
+   and taking one out asks first, saying how many will then say it is
+   gone. Each save is kept as a version its teacher may bring back from
+   Version history, as a lesson's are.
+   Left: shared blocks in news, announcements and the school's pages.
 4. **Footnotes and citations** for older students and universities.
    Done: a footnote is added at the caret from the selection bar or with
    Mod+Alt+F, a number in the line counted in reading order, its words

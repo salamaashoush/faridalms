@@ -110,6 +110,62 @@ export async function sharedContents(
       and b.status = 'active' and b.id = any(${uuidArray(input.ids)})`);
 }
 
+export type SharedUseHost = "lesson" | "assignment" | "module_plan";
+
+export interface SharedUse {
+  hostType: SharedUseHost;
+  hostId: string;
+  title: string;
+  /** Where it sits: a lesson's module, an assignment's class. */
+  placeEn: string | null;
+  placeAr: string | null;
+}
+
+/**
+ * The documents showing a shared block, as their working copies stand, by
+ * the title of what each belongs to. Handed-in copies are left out, since
+ * they keep the block as it was.
+ */
+export async function sharedBlockUses(
+  tx: Tx,
+  input: { tenantId: string; orgId: string; id: string },
+): Promise<SharedUse[]> {
+  const rows = await tx.execute<{
+    host_type: SharedUseHost;
+    host_id: string;
+    title: string;
+    place_en: string | null;
+    place_ar: string | null;
+  }>(sql`
+    select d.host_type, d.host_id, coalesce(l.title, a.title, m.title) as title,
+      coalesce(lm.title, c.title_en) as place_en, coalesce(lm.title, c.title_ar) as place_ar
+    from core.documents d
+    left join core.lessons l on l.tenant_id = d.tenant_id and l.id = d.host_id
+      and d.host_type = 'lesson' and l.status = 'active'
+    left join core.learning_modules lm on lm.tenant_id = l.tenant_id and lm.id = l.module_id
+    left join core.assignments a on a.tenant_id = d.tenant_id and a.id = d.host_id
+      and d.host_type = 'assignment' and a.status = 'active'
+    left join core.classes c on c.tenant_id = a.tenant_id and c.id = a.class_id
+    left join core.learning_modules m on m.tenant_id = d.tenant_id and m.id = d.host_id
+      and d.host_type = 'module_plan' and m.status = 'active'
+    where d.tenant_id = ${input.tenantId}::uuid and d.org_id = ${input.orgId}::uuid
+      and d.status = 'active' and d.frozen_at is null and d.translation_of_id is null
+      and d.host_type in ('lesson', 'assignment', 'module_plan')
+      and coalesce(l.id, a.id, m.id) is not null
+      and jsonb_path_exists(d.content,
+        '$.root.children[*] ? (@.type == "shared" && @.sharedId == $id)',
+        jsonb_build_object('id', ${input.id}::text))
+    order by title, place_en, d.host_id
+    limit 200`);
+  return rows.map((row) => ({
+    hostType: row.host_type,
+    hostId: row.host_id,
+    title: row.title,
+    placeEn: row.place_en,
+    placeAr: row.place_ar,
+  }));
+}
+
 export async function insertSharedBlock(
   tx: Tx,
   input: {

@@ -97,4 +97,79 @@ describe("shared blocks", () => {
       ),
     ).toMatchObject({ code: "BAD_REQUEST" });
   });
+
+  test("its teacher sees which documents show it, and every version it was saved in", async () => {
+    const keeper = await teacher(0);
+    const other = await teacher(1);
+    const kept = await keeper.shared.save({
+      expectedVersion: 0,
+      title: "Field trip kit",
+      scope: "school",
+      content: plainContent("Bring water and a hat."),
+    });
+    const classId = (await keeper.classes.mine({})).rows[0]?.id;
+    if (!classId) throw new Error("the seed teacher keeps no class");
+    const module = await keeper.learning.saveModule({
+      id: "",
+      expectedVersion: 0,
+      title: "Rivers outdoors",
+      summary: "",
+      classIds: [classId],
+      prerequisiteId: "",
+      sequential: false,
+    });
+    const lesson = plainContent("At the river bank.");
+    await keeper.learning.saveLesson({
+      id: "",
+      moduleId: module.id,
+      expectedVersion: 0,
+      title: "Before we go",
+      completion: "view",
+      passScore: null,
+      content: {
+        root: {
+          ...lesson.root,
+          children: [
+            { type: "shared", version: 1, sharedId: kept.id },
+            ...(lesson.root.children ?? []),
+          ],
+        },
+      },
+      publish: false,
+    });
+    expect(await keeper.shared.uses({ id: kept.id })).toEqual([
+      {
+        hostType: "lesson",
+        hostId: expect.any(String),
+        title: "Before we go",
+        placeEn: "Rivers outdoors",
+        placeAr: "Rivers outdoors",
+      },
+    ]);
+    // Any teacher who may show it sees where it already shows.
+    expect(await other.shared.uses({ id: kept.id })).toHaveLength(1);
+
+    await keeper.shared.save({
+      id: kept.id,
+      expectedVersion: kept.version,
+      title: "Field trip kit",
+      scope: "school",
+      content: plainContent("Bring water, a hat and sun cream."),
+    });
+    const host = { hostType: "shared_block", hostId: kept.id };
+    const { versions } = await keeper.documents.history(host);
+    expect(versions.map((row) => row.reason)).toEqual(["publish", "publish"]);
+    const first = versions.at(-1);
+    if (!first) throw new Error("no first version");
+    const restored = await keeper.documents.restore({
+      ...host,
+      documentVersion: first.documentVersion,
+    });
+    expect(JSON.stringify(restored.content)).toContain(
+      "Bring water and a hat.",
+    );
+    expect(await rejection(other.documents.history(host))).toMatchObject({
+      code: "NOT_FOUND",
+    });
+  });
 });

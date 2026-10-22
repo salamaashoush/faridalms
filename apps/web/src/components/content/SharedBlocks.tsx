@@ -24,19 +24,33 @@ import {
   SheetTitle,
 } from "@faridalms/ui/sheet";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
-import { LoaderCircle, Search, Trash2 } from "lucide-react";
+import {
+  ChevronRight,
+  History,
+  LoaderCircle,
+  Search,
+  Trash2,
+} from "lucide-react";
 import { useDeferredValue, useId, useMemo, useState } from "react";
 import { toast } from "sonner";
 
 import { useDocumentMedia } from "~/components/coursework/useDocumentMedia";
+import { ConfirmDialog } from "~/components/system/ConfirmDialog";
 import { inLocale } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { sharedBlockQuery } from "~/queries/shared";
-import { listShared, removeShared, saveShared } from "~/server/shared";
+import {
+  listShared,
+  removeShared,
+  saveShared,
+  sharedUses,
+} from "~/server/shared";
+import { formatNumber } from "~/utils/datetime";
 import { getMessageFromError } from "~/utils/error";
 
 import { ContentEditor } from "./ContentEditor";
 import { ContentView, SharedBlock } from "./ContentView";
+import { DocumentHistory } from "./DocumentHistory";
 
 /** Who may use a shared block: only its teacher, or any at the school. */
 function ScopeField({
@@ -159,19 +173,87 @@ function KeepDialog({
 }
 
 type Row = Awaited<ReturnType<typeof listShared>>[number];
+type Use = Awaited<ReturnType<typeof sharedUses>>[number];
+
+const usesQuery = (id: string) => ({
+  queryKey: ["shared", "uses", id],
+  queryFn: () => sharedUses({ data: { id } }),
+});
+
+const USE_KIND: Record<Use["hostType"], () => string> = {
+  lesson: m.libraryKindLesson,
+  assignment: m.libraryKindAssignment,
+  module_plan: m.libraryKindPlan,
+};
+
+/** Which documents show a shared block, named on request, so a change is made knowing what it reaches. */
+function SharedUses({ id }: { id: string }) {
+  const uses = useQuery(usesQuery(id));
+  const [open, setOpen] = useState(false);
+  const rows = uses.data ?? [];
+  if (uses.isPending) return <div aria-busy="true" className="h-5" />;
+  if (rows.length === 0)
+    return (
+      <p className="text-[13px] leading-[18px] text-muted-foreground">
+        {m.sharedUsedNowhere()}
+      </p>
+    );
+  return (
+    <div className="grid gap-1.5">
+      <button
+        type="button"
+        aria-expanded={open}
+        onClick={() => setOpen(!open)}
+        className="inline-flex w-fit items-center gap-1 rounded-md text-[13px] leading-[18px] font-medium text-foreground/80 outline-none hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring/50 [&_svg]:size-3.5"
+      >
+        <ChevronRight
+          aria-hidden
+          className={open ? "rotate-90" : "rtl:-scale-x-100"}
+        />
+        {m.sharedUsedIn({
+          count: rows.length,
+          value: formatNumber(rows.length),
+        })}
+      </button>
+      {open ? (
+        <ul className="grid max-h-40 gap-1 overflow-y-auto ps-[18px] text-[13px] leading-[18px]">
+          {rows.map((row) => (
+            <li key={`${row.hostType}-${row.hostId}`} className="flex gap-2">
+              <span className="shrink-0 text-muted-foreground">
+                {USE_KIND[row.hostType]()}
+              </span>
+              <span className="min-w-0 truncate">
+                <bdi>{row.title}</bdi>
+                {row.placeEn ? (
+                  <span className="text-muted-foreground">
+                    {" · "}
+                    <bdi>{inLocale(row.placeEn, row.placeAr)}</bdi>
+                  </span>
+                ) : null}
+              </span>
+            </li>
+          ))}
+        </ul>
+      ) : null}
+    </div>
+  );
+}
 
 /** One shared block: its name and whose it is, and how it reads on request. */
 function SharedRow({ row, onShow }: { row: Row; onShow: () => void }) {
   const queryClient = useQueryClient();
   const [looking, setLooking] = useState(false);
+  const [removing, setRemoving] = useState(false);
+  const uses = useQuery({ ...usesQuery(row.id), enabled: removing });
   const remove = useMutation({
     mutationFn: () => removeShared({ data: { id: row.id } }),
     onSuccess: async () => {
+      setRemoving(false);
       await queryClient.invalidateQueries({ queryKey: ["shared"] });
       toast.success(m.sharedRemoved());
     },
-    onError: (error) => toast.error(getMessageFromError(error)),
   });
+  const shown = uses.data?.length ?? 0;
   const owner = inLocale(row.ownerNameEn, row.ownerNameAr);
   return (
     <li className="grid gap-2 py-3">
@@ -203,8 +285,7 @@ function SharedRow({ row, onShow }: { row: Row; onShow: () => void }) {
               variant="ghost"
               size="icon-sm"
               aria-label={m.sharedRemove()}
-              disabled={remove.isPending}
-              onClick={() => remove.mutate()}
+              onClick={() => setRemoving(true)}
             >
               <Trash2 aria-hidden />
             </Button>
@@ -219,6 +300,28 @@ function SharedRow({ row, onShow }: { row: Row; onShow: () => void }) {
           <SharedBlock id={row.id} />
         </div>
       ) : null}
+      <ConfirmDialog
+        open={removing}
+        title={m.sharedRemoveTitle({ title: row.title })}
+        body={
+          uses.isPending
+            ? ""
+            : shown > 0
+              ? m.sharedRemoveBody({
+                  count: shown,
+                  value: formatNumber(shown),
+                })
+              : m.sharedUsedNowhere()
+        }
+        confirmLabel={m.sharedRemove()}
+        pending={remove.isPending || uses.isPending}
+        error={remove.error ? getMessageFromError(remove.error) : undefined}
+        onConfirm={() => remove.mutate()}
+        onCancel={() => {
+          setRemoving(false);
+          remove.reset();
+        }}
+      />
     </li>
   );
 }
@@ -297,6 +400,11 @@ function EditDialog({ id, onClose }: { id: string; onClose: () => void }) {
     title: string;
     content: ContentDocument;
   } | null>(null);
+  const [history, setHistory] = useState(false);
+  const [replace, setReplace] = useState<{
+    to: ContentDocument;
+    at: number;
+  }>();
   const loaded = block.data;
   const current =
     draft ?? (loaded ? { title: loaded.title, content: loaded.content } : null);
@@ -329,14 +437,28 @@ function EditDialog({ id, onClose }: { id: string; onClose: () => void }) {
     >
       <DialogContent className="max-h-[90dvh] gap-5 overflow-y-auto sm:max-w-3xl">
         <div className="grid gap-2">
-          <DialogTitle className="text-base font-semibold">
-            {m.sharedEditTitle()}
-          </DialogTitle>
+          <div className="flex items-center justify-between gap-3 pe-8">
+            <DialogTitle className="text-base font-semibold">
+              {m.sharedEditTitle()}
+            </DialogTitle>
+            {loaded?.editable ? (
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => setHistory(true)}
+              >
+                <History aria-hidden />
+                {m.docHistory()}
+              </Button>
+            ) : null}
+          </div>
           <DialogDescription className="text-sm text-muted-foreground">
             {loaded && !loaded.editable
               ? m.sharedNotYours()
               : m.sharedEditBody()}
           </DialogDescription>
+          {loaded?.editable ? <SharedUses id={id} /> : null}
         </div>
         {!current ? (
           <div aria-busy="true" className="min-h-40" />
@@ -367,6 +489,7 @@ function EditDialog({ id, onClose }: { id: string; onClose: () => void }) {
               label={current.title}
               value={current.content}
               media={media}
+              replace={replace}
               onChange={(content) => setDraft({ ...current, content })}
             />
             <DialogFooter className="gap-2">
@@ -394,6 +517,22 @@ function EditDialog({ id, onClose }: { id: string; onClose: () => void }) {
             <ContentView document={current.content} />
           </div>
         )}
+        {loaded?.editable ? (
+          <DocumentHistory
+            open={history}
+            onOpenChange={setHistory}
+            hostType="shared_block"
+            hostId={id}
+            onRestore={(to) => {
+              setDraft((before) =>
+                before
+                  ? { ...before, content: to }
+                  : { title: loaded.title, content: to },
+              );
+              setReplace((before) => ({ to, at: (before?.at ?? 0) + 1 }));
+            }}
+          />
+        ) : null}
       </DialogContent>
     </Dialog>
   );

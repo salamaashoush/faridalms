@@ -1,11 +1,16 @@
 import type { ContentDocument } from "@faridalms/domain/content";
 
-import { documentOf, saveDocument } from "@faridalms/database/stores/documents";
+import {
+  documentOf,
+  saveDocument,
+  snapshotPublish,
+} from "@faridalms/database/stores/documents";
 import {
   insertSharedBlock,
   removeSharedBlock,
   sharedBlockById,
   sharedBlocksOf,
+  sharedBlockUses,
   updateSharedBlock,
 } from "@faridalms/database/stores/shared";
 import { contentFileIds, contentPlainText } from "@faridalms/domain/content";
@@ -19,7 +24,11 @@ import { ORPCError } from "@orpc/server";
 import type { UnitContext } from "../core/context";
 
 import { audit, can, readProcedure, writeProcedure } from "../core/procedure";
-import { placeMedia, registerHostReader } from "../files/authorize";
+import {
+  placeMedia,
+  registerHostReader,
+  registerHostWriter,
+} from "../files/authorize";
 
 const hostOf = (id: string) => ({ type: "shared_block", id });
 
@@ -48,6 +57,12 @@ async function usable(context: UnitContext, id: string) {
 // to whoever reads them, so anyone at the school may open its pictures.
 registerHostReader("shared_block", async (context, id) =>
   Boolean(await ofSchool(context, id)),
+);
+// Its teacher alone changes it, and so alone reads and restores its history.
+registerHostWriter(
+  "shared_block",
+  async (context, id) =>
+    (await ofSchool(context, id))?.ownerUserId === context.actor.userId,
 );
 
 /** The shared blocks the viewer may use, newest first. */
@@ -133,7 +148,7 @@ export const save = writeProcedure
         ownerUserId: context.actor.userId,
       });
     const host = hostOf(saved.id);
-    await saveDocument(context.tx, {
+    const document = await saveDocument(context.tx, {
       tenantId: context.tenantId,
       orgId: context.schoolId,
       host,
@@ -146,6 +161,12 @@ export const save = writeProcedure
       plainText: contentPlainText(input.content),
       userId: context.actor.userId,
     });
+    // Every save reaches its readers at once, so each is kept as shown.
+    await snapshotPublish(context.tx, {
+      tenantId: context.tenantId,
+      documentId: document.id,
+      userId: context.actor.userId,
+    });
     await audit(context, {
       action: input.id ? "shared_block.update" : "shared_block.create",
       objectType: "shared_block",
@@ -153,6 +174,23 @@ export const save = writeProcedure
       details: { scope: input.scope },
     });
     return saved;
+  });
+
+/**
+ * The documents showing a shared block, for its teacher to see what a
+ * change or taking it out reaches before they make it.
+ */
+export const uses = readProcedure
+  .input(sharedRefSchema)
+  .handler(async ({ input, context }) => {
+    requireAuthor(context);
+    const row = await usable(context, input.id);
+    if (!row) throw new ORPCError("NOT_FOUND");
+    return sharedBlockUses(context.tx, {
+      tenantId: context.tenantId,
+      orgId: context.schoolId,
+      id: row.id,
+    });
   });
 
 /** Takes a shared block out; documents that showed it say it is gone. Only its owner may. */
