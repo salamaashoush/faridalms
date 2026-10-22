@@ -17,11 +17,16 @@ import { PlanEditor } from "~/components/learning/PlanEditor";
 import * as m from "~/i18n/messages";
 import { collaborationQuery } from "~/queries/documents";
 import { moduleRecordQuery, planQuery } from "~/queries/learning";
+import { templateQuery } from "~/queries/library";
 import { currentUserQuery } from "~/queries/user";
 
 export const Route = createFileRoute("/_app/teach/module-plan")({
   staticData: { trail: <PlanTrail />, section: "/teach/modules" },
-  validateSearch: v.object({ moduleId: v.pipe(v.string(), v.uuid()) }),
+  validateSearch: v.object({
+    moduleId: v.pipe(v.string(), v.uuid()),
+    /** A library piece the plan starts from while it is unwritten. */
+    template: v.optional(v.pipe(v.string(), v.uuid())),
+  }),
   loaderDeps: ({ search }) => search,
   loader: async ({ context, deps }) => {
     const user = await context.queryClient.ensureQueryData(currentUserQuery);
@@ -35,6 +40,8 @@ export const Route = createFileRoute("/_app/teach/module-plan")({
       await context.queryClient.prefetchQuery(
         collaborationQuery({ hostType: "module_plan", hostId: deps.moduleId }),
       );
+    else if (deps.template)
+      await context.queryClient.ensureQueryData(templateQuery(deps.template));
   },
   component: PlanPage,
 });
@@ -56,25 +63,39 @@ function PlanTrail() {
   );
 }
 
+function StartedEditor({
+  moduleId,
+  template,
+  onClose,
+}: {
+  moduleId: string;
+  template: string;
+  onClose: () => void;
+}) {
+  const piece = useSuspenseQuery(templateQuery(template)).data;
+  return <PlanEditor moduleId={moduleId} template={piece} onClose={onClose} />;
+}
+
 function PlanPage() {
-  const { moduleId } = Route.useSearch();
+  const { moduleId, template } = Route.useSearch();
   const navigate = Route.useNavigate();
   const router = useRouter();
   const canGoBack = useCanGoBack();
-  return (
-    <PlanEditor
-      moduleId={moduleId}
-      onClose={() => {
-        if (canGoBack) {
-          router.history.back();
-          return;
-        }
-        void navigate({
-          to: "/modules/$moduleId",
-          params: { moduleId },
-          search: { tab: "plan" },
-        });
-      }}
-    />
+  const plan = useSuspenseQuery(planQuery(moduleId)).data;
+  const close = () => {
+    if (canGoBack) {
+      router.history.back();
+      return;
+    }
+    void navigate({
+      to: "/modules/$moduleId",
+      params: { moduleId },
+      search: { tab: "plan" },
+    });
+  };
+  return template && !plan.content ? (
+    <StartedEditor moduleId={moduleId} template={template} onClose={close} />
+  ) : (
+    <PlanEditor moduleId={moduleId} onClose={close} />
   );
 }

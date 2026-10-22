@@ -18,6 +18,7 @@ import { LessonEditor } from "~/components/learning/LessonEditor";
 import * as m from "~/i18n/messages";
 import { collaborationQuery } from "~/queries/documents";
 import { lessonEditorQuery, moduleRecordQuery } from "~/queries/learning";
+import { templateQuery } from "~/queries/library";
 import { currentUserQuery } from "~/queries/user";
 
 export const Route = createFileRoute("/_app/teach/lesson-editor")({
@@ -25,6 +26,8 @@ export const Route = createFileRoute("/_app/teach/lesson-editor")({
   validateSearch: v.object({
     id: v.optional(v.pipe(v.string(), v.uuid())),
     moduleId: v.pipe(v.string(), v.uuid()),
+    /** A library piece a new lesson starts from. */
+    template: v.optional(v.pipe(v.string(), v.uuid())),
   }),
   loaderDeps: ({ search }) => search,
   loader: async ({ context, deps }) => {
@@ -40,6 +43,9 @@ export const Route = createFileRoute("/_app/teach/lesson-editor")({
         ? context.queryClient.prefetchQuery(
             collaborationQuery({ hostType: "lesson", hostId: deps.id }),
           )
+        : null,
+      deps.template && !deps.id
+        ? context.queryClient.ensureQueryData(templateQuery(deps.template))
         : null,
     ]);
   },
@@ -88,8 +94,31 @@ function ExistingEditor({
   );
 }
 
+function NewEditor({
+  moduleId,
+  template,
+  onClose,
+  onCreated,
+}: {
+  moduleId: string;
+  template: string;
+  onClose: () => void;
+  onCreated: (id: string) => void;
+}) {
+  const piece = useSuspenseQuery(templateQuery(template)).data;
+  return (
+    <LessonEditor
+      existing={null}
+      moduleId={moduleId}
+      template={piece}
+      onClose={onClose}
+      onCreated={onCreated}
+    />
+  );
+}
+
 function EditorPage() {
-  const { id, moduleId } = Route.useSearch();
+  const { id, moduleId, template } = Route.useSearch();
   const navigate = Route.useNavigate();
   const router = useRouter();
   const canGoBack = useCanGoBack();
@@ -109,12 +138,22 @@ function EditorPage() {
   // it; the editor already open stays mounted with what is being typed.
   const onCreated = (saved: string) => {
     setCreated(saved);
-    void navigate({ search: { id: saved, moduleId }, replace: true });
+    void navigate({
+      search: (previous) => ({ ...previous, id: saved }),
+      replace: true,
+    });
   };
   return id && id !== created ? (
     <ExistingEditor
       id={id}
       moduleId={moduleId}
+      onClose={close}
+      onCreated={onCreated}
+    />
+  ) : template ? (
+    <NewEditor
+      moduleId={moduleId}
+      template={template}
       onClose={close}
       onCreated={onCreated}
     />

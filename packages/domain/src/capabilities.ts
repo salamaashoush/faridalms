@@ -51,6 +51,7 @@ export const CAPABILITIES = [
   "learning:author",
   "learning:read",
   "standards:manage",
+  "library:review",
   "exams:manage",
   "badges:issue",
 ] as const;

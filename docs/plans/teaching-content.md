@@ -203,7 +203,15 @@ Sources: [../research/course-design.md](../research/course-design.md),
    with its brief, files, marking and quiz settings and no dates
    (`coursework.reuse`).
 2. **School library** with copy and edit, and a school's approval before a
-   piece is shared there.
+   piece is shared there. Done: the school's templates are its library
+   (`/library`): lessons, assignments and unit plans with a description and
+   subject. A piece a teacher shares waits for a reviewer
+   (`library:review`, held by the roles that run a school; a reviewer's own
+   share needs no review), who shares it or sends it back with a note. Any
+   author previews a shared piece and uses it, which opens a new lesson,
+   assignment or module plan started from it, theirs to edit. Left: whole
+   modules as one piece, and telling a teacher when their piece is
+   reviewed.
 3. **Templates for every kind of document** (newsletter and news as well),
    and the built-in lessons "Read, check, reflect", "Watch and answer" and
    "Listen, choose, record".

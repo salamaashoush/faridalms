@@ -1552,13 +1552,48 @@ describe("a module's file area", () => {
 });
 
 describe("templates", () => {
-  test("a teacher keeps a lesson as a template the school starts from", async () => {
+  test("a teacher offers a lesson to the school library, which shares it once reviewed", async () => {
     const { keeper, stranger } = await teachers();
     const saved = await keeper.templates.save({
       kind: "lesson",
       title: "Read, check, reflect",
+      description: "Close reading in three steps.",
       content: plainContent("Read the passage, then answer."),
     });
+    // A teacher's piece waits for a reviewer; its owner sees it meanwhile.
+    expect(saved.state).toBe("pending");
+    expect(
+      (await stranger.templates.list({ kind: "lesson" })).some(
+        (row) => row.id === saved.id,
+      ),
+    ).toBe(false);
+    expect(
+      (await keeper.templates.list({ kind: "lesson" })).find(
+        (row) => row.id === saved.id,
+      ),
+    ).toMatchObject({ state: "pending", mine: true });
+    expect(
+      await rejection(stranger.templates.open({ id: saved.id })),
+    ).toMatchObject({ code: "NOT_FOUND" });
+    expect(await rejection(keeper.templates.queue())).toMatchObject({
+      code: "FORBIDDEN",
+    });
+    const office = await signedIn("northwind", login("principal"));
+    expect((await office.templates.queue()).map((row) => row.id)).toContain(
+      saved.id,
+    );
+    await office.templates.review({ id: saved.id, share: true, note: "" });
+    expect(
+      await rejection(
+        office.templates.review({ id: saved.id, share: false, note: "" }),
+      ),
+    ).toMatchObject({ code: "CONFLICT", message: "templates.reviewed" });
+    const shelf = await stranger.templates.library({
+      kind: "",
+      q: "close reading",
+    });
+    expect(shelf.rows.map((row) => row.id)).toContain(saved.id);
+    expect(shelf.reviews).toBe(false);
     const listed = await stranger.templates.list({ kind: "lesson" });
     const found = listed.find((row) => row.id === saved.id);
     expect(found).toMatchObject({ title: "Read, check, reflect", mine: false });

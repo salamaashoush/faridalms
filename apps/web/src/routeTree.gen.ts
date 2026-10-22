@@ -19,6 +19,7 @@ import { Route as AppConsentFormEditorRouteImport } from './routes/_app/consent-
 import { Route as AppEventEditorRouteImport } from './routes/_app/event-editor'
 import { Route as AppExamsRouteImport } from './routes/_app/exams'
 import { Route as AppFamilyRouteImport } from './routes/_app/family'
+import { Route as AppLibraryRouteImport } from './routes/_app/library'
 import { Route as AppMeRouteImport } from './routes/_app/me'
 import { Route as AppNewsEditorRouteImport } from './routes/_app/news-editor'
 import { Route as AppNotificationPreferencesRouteImport } from './routes/_app/notification-preferences'
@@ -154,6 +155,11 @@ const AppExamsRoute = AppExamsRouteImport.update({
 const AppFamilyRoute = AppFamilyRouteImport.update({
   id: '/family',
   path: '/family',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppLibraryRoute = AppLibraryRouteImport.update({
+  id: '/library',
+  path: '/library',
   getParentRoute: () => AppRoute,
 } as any)
 const AppMeRoute = AppMeRouteImport.update({
@@ -615,6 +621,7 @@ export interface FileRoutesByFullPath {
   '/event-editor': typeof AppEventEditorRoute
   '/exams': typeof AppExamsRoute
   '/family': typeof AppFamilyRouteWithChildren
+  '/library': typeof AppLibraryRoute
   '/me': typeof AppMeRouteWithChildren
   '/news-editor': typeof AppNewsEditorRoute
   '/notification-preferences': typeof AppNotificationPreferencesRoute
@@ -711,6 +718,7 @@ export interface FileRoutesByTo {
   '/consent-form-editor': typeof AppConsentFormEditorRoute
   '/event-editor': typeof AppEventEditorRoute
   '/exams': typeof AppExamsRoute
+  '/library': typeof AppLibraryRoute
   '/news-editor': typeof AppNewsEditorRoute
   '/notification-preferences': typeof AppNotificationPreferencesRoute
   '/notifications': typeof AppNotificationsRoute
@@ -809,6 +817,7 @@ export interface FileRoutesById {
   '/_app/event-editor': typeof AppEventEditorRoute
   '/_app/exams': typeof AppExamsRoute
   '/_app/family': typeof AppFamilyRouteWithChildren
+  '/_app/library': typeof AppLibraryRoute
   '/_app/me': typeof AppMeRouteWithChildren
   '/_app/news-editor': typeof AppNewsEditorRoute
   '/_app/notification-preferences': typeof AppNotificationPreferencesRoute
@@ -909,6 +918,7 @@ export interface FileRouteTypes {
     | '/event-editor'
     | '/exams'
     | '/family'
+    | '/library'
     | '/me'
     | '/news-editor'
     | '/notification-preferences'
@@ -1005,6 +1015,7 @@ export interface FileRouteTypes {
     | '/consent-form-editor'
     | '/event-editor'
     | '/exams'
+    | '/library'
     | '/news-editor'
     | '/notification-preferences'
     | '/notifications'
@@ -1102,6 +1113,7 @@ export interface FileRouteTypes {
     | '/_app/event-editor'
     | '/_app/exams'
     | '/_app/family'
+    | '/_app/library'
     | '/_app/me'
     | '/_app/news-editor'
     | '/_app/notification-preferences'
@@ -1277,6 +1289,13 @@ declare module '@tanstack/react-router' {
       path: '/family'
       fullPath: '/family'
       preLoaderRoute: typeof AppFamilyRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/library': {
+      id: '/_app/library'
+      path: '/library'
+      fullPath: '/library'
+      preLoaderRoute: typeof AppLibraryRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/me': {
@@ -2034,6 +2053,7 @@ interface AppRouteChildren {
   AppEventEditorRoute: typeof AppEventEditorRoute
   AppExamsRoute: typeof AppExamsRoute
   AppFamilyRoute: typeof AppFamilyRouteWithChildren
+  AppLibraryRoute: typeof AppLibraryRoute
   AppMeRoute: typeof AppMeRouteWithChildren
   AppNewsEditorRoute: typeof AppNewsEditorRoute
   AppNotificationPreferencesRoute: typeof AppNotificationPreferencesRoute
@@ -2069,6 +2089,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppEventEditorRoute: AppEventEditorRoute,
   AppExamsRoute: AppExamsRoute,
   AppFamilyRoute: AppFamilyRouteWithChildren,
+  AppLibraryRoute: AppLibraryRoute,
   AppMeRoute: AppMeRouteWithChildren,
   AppNewsEditorRoute: AppNewsEditorRoute,
   AppNotificationPreferencesRoute: AppNotificationPreferencesRoute,

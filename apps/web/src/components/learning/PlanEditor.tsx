@@ -6,9 +6,12 @@ import { cn } from "@faridalms/ui/cn";
 import { useQueryClient, useSuspenseQuery } from "@tanstack/react-query";
 import { useCallback, useState } from "react";
 
+import type { StartingPiece } from "~/components/content/Templates";
+
 import { UnsavedChangesGuard } from "~/components/app/UnsavedChangesGuard";
 import { useCollaboration } from "~/components/content/collaboration";
 import { ContentEditor } from "~/components/content/ContentEditor";
+import { useStartFrom } from "~/components/content/Templates";
 import { useDocumentMedia } from "~/components/coursework/useDocumentMedia";
 import {
   DetailsPanel,
@@ -128,9 +131,12 @@ export function PlanCoverage({
  */
 export function PlanEditor({
   moduleId,
+  template,
   onClose,
 }: {
   moduleId: string;
+  /** A library piece the plan starts from, while it is still unwritten. */
+  template?: StartingPiece;
   onClose: () => void;
 }) {
   const queryClient = useQueryClient();
@@ -156,10 +162,14 @@ export function PlanEditor({
     enabled: !shared,
   });
   const change = useCallback((value: ContentDocument) => setContent(value), []);
-  const apply = (to: ContentDocument) => {
+  const apply = useCallback((to: ContentDocument) => {
     setContent(to);
     setReplace((current) => ({ to, at: (current?.at ?? 0) + 1 }));
-  };
+  }, []);
+  useStartFrom(
+    plan.content ? undefined : template,
+    useCallback((piece: StartingPiece) => apply(piece.content), [apply]),
+  );
   const written = JSON.stringify(content) !== JSON.stringify(emptyContent());
   const named = planTargets(content).length;
 

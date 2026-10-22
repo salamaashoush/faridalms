@@ -29,12 +29,14 @@ import { Archive, CalendarClock, Copy, Send } from "lucide-react";
 import { useCallback, useRef, useState } from "react";
 import { toast } from "sonner";
 
+import type { StartingPiece } from "~/components/content/Templates";
 import type { assignmentEditorQuery } from "~/queries/coursework";
 
 import { UnsavedChangesGuard } from "~/components/app/UnsavedChangesGuard";
 import { contentIssueMessages } from "~/components/content/checks";
 import { useCollaboration } from "~/components/content/collaboration";
 import { ContentEditor } from "~/components/content/ContentEditor";
+import { useStartFrom } from "~/components/content/Templates";
 import { CourseworkSetting } from "~/components/exams/CourseworkSetting";
 import { blockIssue } from "~/components/learning/issues";
 import { CheckboxRow } from "~/components/people/fields";
@@ -362,11 +364,14 @@ const fieldsOf = (value: Draft) => JSON.stringify({ ...value, brief: null });
 export function AssignmentEditor({
   existing,
   classId = "",
+  template,
   onClose,
   onCreated,
 }: {
   existing: Existing | null;
   classId?: string;
+  /** The library piece a new assignment starts from. */
+  template?: StartingPiece;
   onClose: (id?: string) => void;
   onCreated: (id: string) => void;
 }) {
@@ -411,6 +416,21 @@ export function AssignmentEditor({
     to: ContentDocument;
     at: number;
   }>();
+  useStartFrom(
+    template,
+    useCallback((piece: StartingPiece) => {
+      brief.current = piece.content;
+      setDraft((current) => ({
+        ...current,
+        title: current.title || piece.title,
+        brief: piece.content,
+      }));
+      setReplace((current) => ({
+        to: piece.content,
+        at: (current?.at ?? 0) + 1,
+      }));
+    }, []),
+  );
   const [valid, setValid] = useState(true);
   // Publishing waits for files still uploading, or they would be left out.
   const [uploading, setUploading] = useState(false);

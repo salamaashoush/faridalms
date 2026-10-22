@@ -15,12 +15,14 @@ import { Copy } from "lucide-react";
 import { useCallback, useMemo, useRef, useState } from "react";
 import { toast } from "sonner";
 
+import type { StartingPiece } from "~/components/content/Templates";
 import type { lessonEditorQuery } from "~/queries/learning";
 
 import { UnsavedChangesGuard } from "~/components/app/UnsavedChangesGuard";
 import { contentIssueMessages } from "~/components/content/checks";
 import { useCollaboration } from "~/components/content/collaboration";
 import { ContentEditor } from "~/components/content/ContentEditor";
+import { useStartFrom } from "~/components/content/Templates";
 import { useDocumentMedia } from "~/components/coursework/useDocumentMedia";
 import { CheckboxRow } from "~/components/people/fields";
 import {
@@ -72,11 +74,14 @@ interface Draft {
 export function LessonEditor({
   existing,
   moduleId,
+  template,
   onClose,
   onCreated,
 }: {
   existing: Existing | null;
   moduleId: string;
+  /** The library piece a new lesson starts from. */
+  template?: StartingPiece;
   onClose: () => void;
   onCreated: (id: string) => void;
 }) {
@@ -231,6 +236,22 @@ export function LessonEditor({
       setPending(false);
     }
   };
+
+  useStartFrom(
+    template,
+    useCallback((piece: StartingPiece) => {
+      content.current = piece.content;
+      setDraft((current) => ({
+        ...current,
+        title: current.title || piece.title,
+        content: piece.content,
+      }));
+      setReplace((current) => ({
+        to: piece.content,
+        at: (current?.at ?? 0) + 1,
+      }));
+    }, []),
+  );
 
   const discard = () => {
     if (!shown) return;

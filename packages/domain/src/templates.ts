@@ -8,9 +8,15 @@ export type TemplateKind = (typeof TEMPLATE_KINDS)[number];
 
 const id = v.pipe(v.string(), v.uuid());
 
+const optionalId = v.optional(v.union([v.literal(""), id]), "");
+const note = v.optional(v.pipe(v.string(), v.trim(), v.maxLength(500)), "");
+
 export const saveTemplateSchema = v.object({
   kind: v.picklist(TEMPLATE_KINDS),
   title: v.pipe(v.string(), v.trim(), v.minLength(1), v.maxLength(120)),
+  /** What it is for and how it is taught, as the library shows it. */
+  description: note,
+  subjectId: optionalId,
   content: contentDocumentSchema,
 });
 export type SaveTemplate = v.InferOutput<typeof saveTemplateSchema>;
@@ -19,3 +25,17 @@ export const templateKindSchema = v.object({
   kind: v.picklist(TEMPLATE_KINDS),
 });
 export const templateRefSchema = v.object({ id });
+
+/** The school library as its teachers browse it. */
+export const librarySchema = v.object({
+  kind: v.optional(v.union([v.literal(""), v.picklist(TEMPLATE_KINDS)]), ""),
+  subjectId: optionalId,
+  q: v.optional(v.pipe(v.string(), v.trim(), v.maxLength(100)), ""),
+});
+
+/** A reviewer shares a piece with the school, or sends it back with a note. */
+export const reviewTemplateSchema = v.object({
+  id,
+  share: v.boolean(),
+  note,
+});

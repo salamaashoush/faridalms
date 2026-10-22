@@ -21,6 +21,7 @@ import {
   courseworkOptionsQuery,
 } from "~/queries/coursework";
 import { collaborationQuery } from "~/queries/documents";
+import { templateQuery } from "~/queries/library";
 import { currentUserQuery } from "~/queries/user";
 
 export const Route = createFileRoute("/_app/teach/assignment-editor")({
@@ -28,8 +29,10 @@ export const Route = createFileRoute("/_app/teach/assignment-editor")({
   validateSearch: v.object({
     id: v.optional(v.pipe(v.string(), v.uuid())),
     classId: v.optional(v.pipe(v.string(), v.uuid())),
+    /** A library piece a new assignment starts from. */
+    template: v.optional(v.pipe(v.string(), v.uuid())),
   }),
-  loaderDeps: ({ search }) => ({ id: search.id }),
+  loaderDeps: ({ search }) => ({ id: search.id, template: search.template }),
   loader: async ({ context, deps }) => {
     const user = await context.queryClient.ensureQueryData(currentUserQuery);
     if (!user.capabilities.includes("assignments:author"))
@@ -43,6 +46,9 @@ export const Route = createFileRoute("/_app/teach/assignment-editor")({
         ? context.queryClient.prefetchQuery(
             collaborationQuery({ hostType: "assignment", hostId: deps.id }),
           )
+        : null,
+      deps.template && !deps.id
+        ? context.queryClient.ensureQueryData(templateQuery(deps.template))
         : null,
     ]);
   },
@@ -98,8 +104,31 @@ function ExistingEditor({
   );
 }
 
+function NewEditor({
+  classId,
+  template,
+  onClose,
+  onCreated,
+}: {
+  classId?: string;
+  template: string;
+  onClose: (saved?: string) => void;
+  onCreated: (id: string) => void;
+}) {
+  const piece = useSuspenseQuery(templateQuery(template)).data;
+  return (
+    <AssignmentEditor
+      existing={null}
+      classId={classId}
+      template={piece}
+      onClose={onClose}
+      onCreated={onCreated}
+    />
+  );
+}
+
 function EditorPage() {
-  const { id, classId } = Route.useSearch();
+  const { id, classId, template } = Route.useSearch();
   const navigate = Route.useNavigate();
   const router = useRouter();
   const canGoBack = useCanGoBack();
@@ -124,10 +153,20 @@ function EditorPage() {
   // it; the editor already open stays mounted with what is being typed.
   const onCreated = (saved: string) => {
     setCreated(saved);
-    void navigate({ search: { id: saved }, replace: true });
+    void navigate({
+      search: (previous) => ({ ...previous, id: saved }),
+      replace: true,
+    });
   };
   return id && id !== created ? (
     <ExistingEditor id={id} onClose={close} onCreated={onCreated} />
+  ) : template ? (
+    <NewEditor
+      classId={classId}
+      template={template}
+      onClose={close}
+      onCreated={onCreated}
+    />
   ) : (
     <AssignmentEditor
       existing={null}

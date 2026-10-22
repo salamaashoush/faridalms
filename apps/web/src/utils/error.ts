@@ -65,6 +65,10 @@ export function getMessageFromError(error: unknown): string {
         return m.errorStandardsExists();
       case "standards.evidence_exists":
         return m.errorStandardsEvidence();
+      case "templates.reviewed":
+        return m.errorLibraryReviewed();
+      case "templates.not_owner":
+        return m.errorLibraryNotOwner();
       case "school_year.closed":
         return m.errorSchoolYearClosed();
       case "school_year.overlapping":

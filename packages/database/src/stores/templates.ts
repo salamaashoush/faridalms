@@ -1,6 +1,9 @@
 import { sql } from "drizzle-orm";
 
 import type { CellTransaction } from "../context";
+import type { LibraryState } from "../tables/documents";
+
+import { escapeLike, isoOf } from "./sql";
 
 type Tx = CellTransaction;
 
@@ -12,8 +15,13 @@ export interface TemplateRow {
   ownerUserId: string;
   kind: TemplateKind;
   title: string;
+  description: string;
+  subjectId: string | null;
+  state: LibraryState;
+  reviewNote: string | null;
   ownerNameEn: string | null;
   ownerNameAr: string | null;
+  updatedAt: string;
 }
 
 type TemplateRecord = {
@@ -22,8 +30,13 @@ type TemplateRecord = {
   owner_user_id: string;
   kind: TemplateKind;
   title: string;
+  description: string;
+  subject_descriptor_id: string | null;
+  state: LibraryState;
+  review_note: string | null;
   name_en: string | null;
   name_ar: string | null;
+  updated_at: string;
 };
 
 const templateOf = (row: TemplateRecord): TemplateRow => ({
@@ -32,24 +45,53 @@ const templateOf = (row: TemplateRecord): TemplateRow => ({
   ownerUserId: row.owner_user_id,
   kind: row.kind,
   title: row.title,
+  description: row.description,
+  subjectId: row.subject_descriptor_id,
+  state: row.state,
+  reviewNote: row.review_note,
   ownerNameEn: row.name_en,
   ownerNameAr: row.name_ar,
+  updatedAt: row.updated_at,
 });
 
-const columns = sql`t.id, t.org_id, t.owner_user_id, t.kind, t.title,
-  u.full_name_en as name_en, u.full_name_ar as name_ar`;
+const columns = sql`t.id, t.org_id, t.owner_user_id, t.kind, t.title, t.description,
+  t.subject_descriptor_id, t.state, t.review_note,
+  u.full_name_en as name_en, u.full_name_ar as name_ar,
+  ${isoOf(sql`t.date_last_modified`)} as updated_at`;
 
-/** A school's templates of one kind, by title. */
+/**
+ * A school's library pieces: those it shares, with the viewer's own whatever
+ * their state. Narrowed to a kind, a subject, words in the title or
+ * description, or to what waits for review.
+ */
 export async function templatesOf(
   tx: Tx,
-  input: { tenantId: string; orgId: string; kind: TemplateKind },
+  input: {
+    tenantId: string;
+    orgId: string;
+    viewerId: string;
+    kind: TemplateKind | null;
+    subjectId?: string;
+    q?: string;
+    pending?: boolean;
+  },
 ): Promise<TemplateRow[]> {
+  const q = input.q?.trim() ?? "";
+  const like = `%${escapeLike(q)}%`;
   const rows = await tx.execute<TemplateRecord>(sql`
     select ${columns}
     from core.document_templates t
     left join core.users u on u.tenant_id = t.tenant_id and u.id = t.owner_user_id
     where t.tenant_id = ${input.tenantId}::uuid and t.org_id = ${input.orgId}::uuid
-      and t.kind = ${input.kind} and t.status = 'active'
+      and t.status = 'active'
+      ${input.kind ? sql`and t.kind = ${input.kind}` : sql``}
+      ${
+        input.pending
+          ? sql`and t.state = 'pending'`
+          : sql`and (t.state = 'shared' or t.owner_user_id = ${input.viewerId}::uuid)`
+      }
+      ${input.subjectId ? sql`and t.subject_descriptor_id = ${input.subjectId}::uuid` : sql``}
+      ${q ? sql`and (t.title ilike ${like} or t.description ilike ${like})` : sql``}
     order by lower(t.title), t.id
     limit 200`);
   return rows.map(templateOf);
@@ -76,15 +118,41 @@ export async function insertTemplate(
     ownerUserId: string;
     kind: TemplateKind;
     title: string;
+    description: string;
+    subjectId: string | null;
+    state: LibraryState;
   },
 ): Promise<{ id: string }> {
   const [row] = await tx.execute<{ id: string }>(sql`
-    insert into core.document_templates (tenant_id, org_id, owner_user_id, kind, title)
+    insert into core.document_templates (tenant_id, org_id, owner_user_id, kind, title,
+      description, subject_descriptor_id, state)
     values (${input.tenantId}::uuid, ${input.orgId}::uuid, ${input.ownerUserId}::uuid,
-      ${input.kind}, ${input.title})
+      ${input.kind}, ${input.title}, ${input.description}, ${input.subjectId}::uuid,
+      ${input.state})
     returning id`);
   if (!row) throw new Error("template not written");
   return row;
+}
+
+/** A reviewer's decision on a piece waiting for review. False when it no longer waits. */
+export async function reviewTemplate(
+  tx: Tx,
+  input: {
+    tenantId: string;
+    id: string;
+    state: Exclude<LibraryState, "pending">;
+    note: string | null;
+    reviewerId: string;
+  },
+): Promise<boolean> {
+  const rows = await tx.execute<{ id: string }>(sql`
+    update core.document_templates
+    set state = ${input.state}, review_note = ${input.note},
+        reviewed_by_user_id = ${input.reviewerId}::uuid, reviewed_at = statement_timestamp()
+    where tenant_id = ${input.tenantId}::uuid and id = ${input.id}::uuid
+      and status = 'active' and state = 'pending'
+    returning id`);
+  return rows.length > 0;
 }
 
 export async function removeTemplate(

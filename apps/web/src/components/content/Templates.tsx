@@ -22,6 +22,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@faridalms/ui/dropdown-menu";
+import { Textarea } from "@faridalms/ui/textarea";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   BookOpen,
@@ -31,7 +32,7 @@ import {
   LoaderCircle,
   Sparkles,
 } from "lucide-react";
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { toast } from "sonner";
 
 import type { Pattern } from "~/components/learning/patterns";
@@ -41,10 +42,12 @@ import { BookError, importPictureBook } from "~/components/learning/bookImport";
 import { PATTERNS } from "~/components/learning/patterns";
 import { PLANNERS, plannerContent } from "~/components/learning/planners";
 import { altIn, sayIn, STARTERS } from "~/components/learning/starters";
-import { TextField } from "~/components/system/field";
-import { inLocale } from "~/hooks/useCurrentUser";
+import { labelOf } from "~/components/people/format";
+import { FormField, SelectField, TextField } from "~/components/system/field";
+import { inLocale, useCapability } from "~/hooks/useCurrentUser";
 import * as m from "~/i18n/messages";
 import { getLocale } from "~/i18n/runtime";
+import { subjectsQuery } from "~/queries/classes";
 import {
   listTemplates,
   openTemplate,
@@ -307,7 +310,11 @@ export function TemplatePicker({
               </span>
               <span className="truncate text-xs text-muted-foreground">
                 {row.mine
-                  ? m.tplYours()
+                  ? row.state === "pending"
+                    ? `${m.tplYours()} · ${m.tplPending()}`
+                    : row.state === "declined"
+                      ? `${m.tplYours()} · ${m.tplDeclined()}`
+                      : m.tplYours()
                   : inLocale(row.ownerNameEn, row.ownerNameAr)}
               </span>
             </DropdownMenuItem>
@@ -337,6 +344,28 @@ export function TemplatePicker({
   );
 }
 
+/** A library piece a new document starts from. */
+export interface StartingPiece {
+  title: string;
+  content: ContentDocument;
+}
+
+/**
+ * Applies the library piece a new document was opened from, once, after its
+ * editor is drawn, so the first save stores it as any other edit would.
+ */
+export function useStartFrom(
+  piece: StartingPiece | undefined,
+  apply: (piece: StartingPiece) => void,
+) {
+  const applied = useRef(false);
+  useEffect(() => {
+    if (!piece || applied.current) return;
+    applied.current = true;
+    apply(piece);
+  }, [piece, apply]);
+}
+
 /** Keeps the document as a template the whole school can start from. */
 export function SaveTemplateDialog({
   open,
@@ -352,13 +381,27 @@ export function SaveTemplateDialog({
   suggestedTitle: string;
 }) {
   const queryClient = useQueryClient();
+  const reviews = useCapability("library:review");
+  const subjects = useQuery(subjectsQuery).data?.rows ?? [];
   const [title, setTitle] = useState(suggestedTitle);
+  const [description, setDescription] = useState("");
+  const [subjectId, setSubjectId] = useState("");
   const save = useMutation({
     mutationFn: () =>
-      saveTemplate({ data: { kind, title: title.trim(), content } }),
-    onSuccess: async () => {
-      await queryClient.invalidateQueries({ queryKey: ["templates", kind] });
-      toast.success(m.tplSaved());
+      saveTemplate({
+        data: {
+          kind,
+          title: title.trim(),
+          description: description.trim(),
+          subjectId,
+          content,
+        },
+      }),
+    onSuccess: async (saved) => {
+      await queryClient.invalidateQueries({ queryKey: ["templates"] });
+      toast.success(
+        saved.state === "shared" ? m.tplSaved() : m.tplSentForReview(),
+      );
       onOpenChange(false);
     },
   });
@@ -382,7 +425,7 @@ export function SaveTemplateDialog({
               {m.tplSaveTitle()}
             </DialogTitle>
             <DialogDescription className="text-sm text-muted-foreground">
-              {m.tplSaveBody()}
+              {reviews ? m.tplSaveBodyReviewer() : m.tplSaveBody()}
             </DialogDescription>
           </div>
           <TextField
@@ -394,6 +437,38 @@ export function SaveTemplateDialog({
             onChange={(event) => setTitle(event.target.value)}
             errors={save.error ? [getMessageFromError(save.error)] : undefined}
           />
+          <FormField
+            id="template-description"
+            label={m.tplDescription()}
+            optional
+          >
+            {(control) => (
+              <Textarea
+                {...control}
+                dir="auto"
+                rows={3}
+                maxLength={500}
+                value={description}
+                onChange={(event) => setDescription(event.target.value)}
+              />
+            )}
+          </FormField>
+          {subjects.length > 0 ? (
+            <SelectField
+              id="template-subject"
+              label={m.tplSubject()}
+              optional
+              value={subjectId}
+              options={[
+                { value: "", label: m.tplNoSubject() },
+                ...subjects.map((row) => ({
+                  value: row.id,
+                  label: labelOf(row) ?? row.code,
+                })),
+              ]}
+              onChange={setSubjectId}
+            />
+          ) : null}
           <DialogFooter className="gap-2">
             <Button
               type="button"

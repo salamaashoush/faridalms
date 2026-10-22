@@ -13,6 +13,7 @@ import {
   Globe,
   GraduationCap,
   House,
+  BookMarked,
   Inbox,
   Layers,
   ListTodo,
@@ -109,6 +110,12 @@ export const NAVIGATION: Record<Workspace, NavSection[]> = {
           capability: "standards:manage",
         },
         {
+          to: "/library",
+          label: m.navLibrary,
+          icon: BookMarked,
+          capability: "library:review",
+        },
+        {
           to: "/privacy",
           label: m.navPrivacy,
           icon: ShieldCheck,
@@ -154,6 +161,12 @@ export const NAVIGATION: Record<Workspace, NavSection[]> = {
           label: m.navStandards,
           icon: ListTree,
           capability: "learning:author",
+        },
+        {
+          to: "/library",
+          label: m.navLibrary,
+          icon: BookMarked,
+          capability: "assignments:author",
         },
       ],
     },

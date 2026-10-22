@@ -171,14 +171,29 @@ export const documents = core.table.withRLS(
  * out as read, check and reflect. Its content is the document it hosts, so
  * its pictures and files belong to it and are copied into each new one.
  */
+export type LibraryState = "pending" | "shared" | "declined";
+
 export const documentTemplates = core.table.withRLS(
   "document_templates",
   {
     ...tenantColumns(),
     orgId: uuid("org_id").notNull(),
     ownerUserId: uuid("owner_user_id").notNull(),
-    kind: text("kind").$type<"lesson" | "assignment">().notNull(),
+    kind: text("kind").$type<"lesson" | "assignment" | "unit_plan">().notNull(),
     title: text("title").notNull(),
+    description: text("description").notNull().default(""),
+    subjectDescriptorId: uuid("subject_descriptor_id"),
+    subjectNs: text("subject_ns")
+      .notNull()
+      .generatedAlwaysAs(sql`'subject'`),
+    /**
+     * Whether the school's library offers it: a piece waits for a reviewer
+     * unless a reviewer shared it, and one declined stays its owner's.
+     */
+    state: text("state").$type<LibraryState>().notNull().default("shared"),
+    reviewedByUserId: uuid("reviewed_by_user_id"),
+    reviewedAt: instant("reviewed_at"),
+    reviewNote: text("review_note"),
     ...entityColumns(),
   },
   (t): PgTableExtraConfigValue[] => [
@@ -198,6 +213,31 @@ export const documentTemplates = core.table.withRLS(
       "document_templates",
       "title",
       sql`char_length(title) between 1 and 120`,
+    ),
+    ck(
+      "document_templates",
+      "description",
+      sql`char_length(description) <= 500`,
+    ),
+    ck(
+      "document_templates",
+      "state",
+      sql`state in ('pending', 'shared', 'declined')`,
+    ),
+    ck(
+      "document_templates",
+      "review_note",
+      sql`review_note is null or char_length(review_note) between 1 and 500`,
+    ),
+    fk(
+      "document_templates",
+      [t.tenantId, t.subjectDescriptorId, t.subjectNs],
+      [descriptors.tenantId, descriptors.id, descriptors.namespace],
+    ),
+    fk(
+      "document_templates",
+      [t.tenantId, t.reviewedByUserId],
+      [users.tenantId, users.id],
     ),
     index("document_templates_org_idx")
       .on(t.tenantId, t.orgId, t.kind)
